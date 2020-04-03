@@ -16,10 +16,6 @@ rust:
 
 env: RUST_BACKTRACE=1
 
-# addons:
-#   - firefox: latest
-#   - chrome: stable
-
 before_script:
   - curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh -s -- -f
 
@@ -29,8 +25,8 @@ script:
   - cargo doc --no-deps
 
   - wasm-pack test  --firefox --headless
+  - wasm-pack test  --firefox --headless --release
+
   # failing on CI (ChromeDriver issues)
   # - wasm-pack test  --chrome  --headless
-
-  - wasm-pack test  --firefox --headless --release
   # - wasm-pack test  --chrome  --headless --release
