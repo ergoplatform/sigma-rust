@@ -3,5 +3,36 @@ sudo: false
 
 cache: cargo
 
+# But don't cache the cargo registry
+# and remove wasm-pack binary to avoid the installer asking confirmation for overwriting it.
+#
+before_cache:
+  - rm -rf /home/travis/.cargo/git
+  - rm -rf /home/travis/.cargo/registry
+  - rm -rf /home/travis/.cargo/bin/wasm-pack
+
 rust:
   - stable
+
+env: RUST_BACKTRACE=1
+
+# addons:
+#   - firefox: latest
+#   - chrome: stable
+
+before_script:
+  - (test -x $HOME/.cargo/bin/cargo-install-update || cargo install cargo-update)
+  - (test -x $HOME/.cargo/bin/cargo-generate || cargo install --vers "^0.2" cargo-generate)
+  - cargo install-update -a
+  - curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh -s -- -f
+
+script:
+  - cargo test
+  - cargo test --release
+  - cargo doc --no-deps
+
+  - wasm-pack test  --firefox --headless
+  - wasm-pack test  --chrome  --headless
+
+  - wasm-pack test  --firefox --headless --release
+  - wasm-pack test  --chrome  --headless --release
