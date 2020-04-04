@@ -35,9 +35,8 @@ matrix:
       - wasm-pack build
       - wasm-pack test  --firefox --headless
       - wasm-pack test  --firefox --headless --release
-      # failing on CI (ChromeDriver issues)
-      # - wasm-pack test  --chrome  --headless
-      # - wasm-pack test  --chrome  --headless --release
+      - wasm-pack test  --chrome  --headless
+      - wasm-pack test  --chrome  --headless --release
 
 
 cache: cargo
