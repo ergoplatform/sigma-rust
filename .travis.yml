@@ -21,6 +21,13 @@ matrix:
     - rust: nightly
 
   include:
+    - name: formatting
+      rust: stable
+      before_install:
+        - rustup component add rustfmt
+      script:
+        - cargo fmt --all -- --check
+
     - name: WASM tests
       rust: stable
       addons:
@@ -53,11 +60,9 @@ before_cache:
   - rm -rf /home/travis/.cargo/registry
 
 before_install:
-  - rustup component add rustfmt
   - cargo install cbindgen
 
 script:
-  - cargo fmt --all -- --check
   - cargo build --verbose --all
   - cargo test --verbose --all
   - cargo test --release --verbose --all
