@@ -21,23 +21,22 @@ matrix:
     - rust: nightly
 
   include:
-  # Builds with wasm-pack.
-  - name: WASM tests
-    rust: stable
-    addons:
-      firefox: latest
-      chrome: stable
-    before_cache:
-      - rm -rf /home/travis/.cargo/bin/wasm-pack
-    before_script:
-      - curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh -s -- -f
-    script:
-      - wasm-pack build
-      - wasm-pack test  --firefox --headless
-      - wasm-pack test  --firefox --headless --release
-      - wasm-pack test  --chrome  --headless
-      - wasm-pack test  --chrome  --headless --release
-
+    # Builds with wasm-pack.
+    - name: WASM tests
+      rust: stable
+      addons:
+        firefox: latest
+        chrome: stable
+      before_cache:
+        - rm -rf /home/travis/.cargo/bin/wasm-pack
+      before_script:
+        - curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh -s -- -f
+      script:
+        - wasm-pack build
+        - wasm-pack test  --firefox --headless
+        - wasm-pack test  --firefox --headless --release
+        - wasm-pack test  --chrome  --headless
+        - wasm-pack test  --chrome  --headless --release
 
 cache: cargo
 # But don't cache the cargo registry
@@ -46,14 +45,8 @@ before_cache:
   - rm -rf /home/travis/.cargo/registry
 
 script:
+  - cargo fmt --all -- --check
   - cargo build --verbose --all
   - cargo test --verbose --all
   - cargo test --release --verbose --all
   - cargo doc --no-deps
-
-  # - wasm-pack test  --firefox --headless
-  # - wasm-pack test  --firefox --headless --release
-
-  # failing on CI (ChromeDriver issues)
-  # - wasm-pack test  --chrome  --headless
-  # - wasm-pack test  --chrome  --headless --release
