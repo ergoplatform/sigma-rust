@@ -20,18 +20,30 @@ matrix:
   allow_failures:
     - rust: nightly
 
-cache: cargo
+  include:
+  # Builds with wasm-pack.
+  - rust: stable
+    addons:
+      firefox: latest
+      chrome: stable
+    before_cache:
+      - rm -rf /home/travis/.cargo/bin/wasm-pack
+    before_script:
+      - curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh -s -- -f
+    script:
+      - wasm-pack build
+      - wasm-pack test  --firefox --headless
+      - wasm-pack test  --firefox --headless --release
+      # failing on CI (ChromeDriver issues)
+      # - wasm-pack test  --chrome  --headless
+      # - wasm-pack test  --chrome  --headless --release
 
+
+cache: cargo
 # But don't cache the cargo registry
-# and remove wasm-pack binary to avoid the installer asking confirmation for overwriting it.
-#
 before_cache:
   - rm -rf /home/travis/.cargo/git
   - rm -rf /home/travis/.cargo/registry
-  - rm -rf /home/travis/.cargo/bin/wasm-pack
-
-# before_script:
-#   - curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh -s -- -f
 
 script:
   - cargo build --verbose --all
