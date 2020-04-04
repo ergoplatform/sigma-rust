@@ -22,7 +22,8 @@ matrix:
 
   include:
   # Builds with wasm-pack.
-  - rust: stable
+  - name: WASM tests
+    rust: stable
     addons:
       firefox: latest
       chrome: stable
