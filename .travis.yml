@@ -44,6 +44,9 @@ before_cache:
   - rm -rf /home/travis/.cargo/git
   - rm -rf /home/travis/.cargo/registry
 
+before_script:
+  - rustup component add rustfmt
+
 script:
   - cargo fmt --all -- --check
   - cargo build --verbose --all
