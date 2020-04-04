@@ -1,6 +1,25 @@
 language: rust
 sudo: false
 
+rust:
+  - stable
+  - beta
+  - nightly
+
+os:
+  - linux
+  - osx
+  - windows
+
+env:
+  global:
+    - RUST_BACKTRACE=1
+
+matrix:
+  fast_finish: true
+  allow_failures:
+    - rust: nightly
+
 cache: cargo
 
 # But don't cache the cargo registry
@@ -11,21 +30,17 @@ before_cache:
   - rm -rf /home/travis/.cargo/registry
   - rm -rf /home/travis/.cargo/bin/wasm-pack
 
-rust:
-  - stable
-
-env: RUST_BACKTRACE=1
-
-before_script:
-  - curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh -s -- -f
+# before_script:
+#   - curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh -s -- -f
 
 script:
-  - cargo test
-  - cargo test --release
+  - cargo build --verbose --all
+  - cargo test --verbose --all
+  - cargo test --release --verbose --all
   - cargo doc --no-deps
 
-  - wasm-pack test  --firefox --headless
-  - wasm-pack test  --firefox --headless --release
+  # - wasm-pack test  --firefox --headless
+  # - wasm-pack test  --firefox --headless --release
 
   # failing on CI (ChromeDriver issues)
   # - wasm-pack test  --chrome  --headless
