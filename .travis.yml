@@ -21,7 +21,6 @@ matrix:
     - rust: nightly
 
   include:
-    # Builds with wasm-pack.
     - name: WASM tests
       rust: stable
       addons:
@@ -38,14 +37,24 @@ matrix:
         - wasm-pack test  --chrome  --headless
         - wasm-pack test  --chrome  --headless --release
 
+    - name: build for iOS
+      rust: stable
+      before_install:
+        - rustup target add aarch64-apple-ios x86_64-apple-ios
+        - cargo install cargo-lipo
+        - cargo install cbindgen
+      script:
+        - cargo lipo --release --targets=aarch64-apple-ios,x86_64-apple-ios
+
 cache: cargo
 # But don't cache the cargo registry
 before_cache:
   - rm -rf /home/travis/.cargo/git
   - rm -rf /home/travis/.cargo/registry
 
-before_script:
+before_install:
   - rustup component add rustfmt
+  - cargo install cbindgen
 
 script:
   - cargo fmt --all -- --check
