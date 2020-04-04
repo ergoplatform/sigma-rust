@@ -45,6 +45,8 @@ matrix:
         - wasm-pack test  --chrome  --headless --release
 
     - name: build for iOS
+      os: osx
+      osx_image: xcode11.3
       rust: stable
       before_install:
         - rustup target add aarch64-apple-ios x86_64-apple-ios
