@@ -35,6 +35,23 @@ matrix:
       script:
         - cargo clippy --all-features --all-targets -- -D warnings
 
+    - name: coverage
+      rust: stable
+      sudo: required
+      dist: bionic
+      addons:
+        apt:
+          packages:
+            - libssl-dev
+      before_script:
+        - cargo install cargo-tarpaulin
+      script:
+        - cargo clean
+        - cargo build
+        - cargo test
+      after_success:
+        - cargo tarpaulin --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
+
     - name: WASM tests
       rust: stable
       addons:
