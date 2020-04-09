@@ -2,7 +2,7 @@ language: rust
 sudo: false
 
 rust:
-  - 1.42.0
+  - stable
   - beta
   - nightly
 
@@ -29,7 +29,7 @@ matrix:
         - cargo fmt --all -- --check
 
     - name: WASM tests
-      rust: 1.42.0
+      rust: stable
       addons:
         firefox: latest
         chrome: stable

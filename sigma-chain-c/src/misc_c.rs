@@ -1,4 +1,4 @@
-use super::misc::add;
+use sigma_chain::add;
 use std::os::raw::{c_int, c_longlong};
 
 #[no_mangle]
