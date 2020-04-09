@@ -28,6 +28,13 @@ matrix:
       script:
         - cargo fmt --all -- --check
 
+    - name: clippy
+      rust: stable
+      before_install:
+        - rustup component add clippy
+      script:
+        - cargo clippy --all-features --all-targets -- -D warnings
+
     - name: WASM tests
       rust: stable
       addons:
