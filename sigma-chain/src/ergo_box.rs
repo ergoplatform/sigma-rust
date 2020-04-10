@@ -1,8 +1,10 @@
 use crate::ergo_tree::ErgoTree;
 use std::collections::HashMap;
 
-pub struct BoxId(Box<[u8]>);
-pub struct TokenId(Box<[u8]>);
+pub const DIGEST32_SIZE: usize = 32;
+
+pub struct BoxId(Box<[u8; DIGEST32_SIZE]>);
+pub struct TokenId(Box<[u8; DIGEST32_SIZE]>);
 
 pub struct TokenInfo {
     pub token_id: TokenId,
