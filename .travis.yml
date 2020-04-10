@@ -28,6 +28,29 @@ matrix:
       script:
         - cargo fmt --all -- --check
 
+    - name: clippy
+      rust: stable
+      before_install:
+        - rustup component add clippy
+      script:
+        - cargo clippy --all-features --all-targets -- -D warnings
+
+    - name: coverage
+      rust: stable
+      sudo: required
+      dist: bionic
+      addons:
+        apt:
+          packages:
+            - libssl-dev
+      before_script:
+        - cargo install cargo-tarpaulin
+      script:
+        - cargo clean
+        - cargo build
+      after_success:
+        - cargo tarpaulin --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
+
     - name: WASM tests
       rust: stable
       addons:
@@ -38,6 +61,7 @@ matrix:
       before_script:
         - curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh -s -- -f
       script:
+        - cd sigma-chain
         - wasm-pack build
         - wasm-pack test  --firefox --headless
         - wasm-pack test  --firefox --headless --release
