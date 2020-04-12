@@ -1,6 +1,5 @@
-use std::borrow::Cow;
-use std::io::{Cursor, Read, Write};
-use std::{error, fmt, io, mem, u32};
+use std::io;
+use std::io::Write;
 use vlq::WriteVlqExt;
 
 #[derive(Debug)]
@@ -20,7 +19,6 @@ pub trait WriteSigmaVlqExt {
     /// Length of encoded data
     // fn length(&self) -> usize;
 
-    // TODO remove "type" suffixes?
     fn put_i8(&mut self, v: i8) -> Result<(), Error> {
         Self::put_u8(self, v as u8)
     }
@@ -51,7 +49,7 @@ pub trait WriteSigmaVlqExt {
 
     fn put_slice(&mut self, v: &[u8]) -> Result<(), Error>;
 
-    fn put_bits(&mut self, v: &[bool]) -> Result<(), Error> {
+    fn put_bits(&mut self, _: &[bool]) -> Result<(), Error> {
         // TODO implement via put_slice
         unimplemented!()
     }
@@ -70,6 +68,7 @@ impl<W: Write> WriteSigmaVlqExt for W {
 
     fn put_u64(&mut self, v: u64) -> Result<(), Error> {
         // TODO compare with our VLQ
+        // v.to_writer(self).map_err(Error::Io)
         self.write_vlq(v).map_err(Error::Io)
     }
 
