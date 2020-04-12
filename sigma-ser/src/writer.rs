@@ -1,5 +1,5 @@
 use std::io;
-use std::io::Write;
+use std::io::{Cursor, Write};
 use vlq::WriteVlqExt;
 
 #[derive(Debug)]
@@ -68,11 +68,34 @@ impl<W: Write> WriteSigmaVlqExt for W {
 
     fn put_u64(&mut self, v: u64) -> Result<(), Error> {
         // TODO compare with our VLQ
-        // v.to_writer(self).map_err(Error::Io)
         self.write_vlq(v).map_err(Error::Io)
     }
 
     fn put_slice(&mut self, v: &[u8]) -> Result<(), Error> {
         self.write_all(v).map_err(Error::Io)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn smoke_test_u8() {
+        let mut w = Cursor::new(vec![]);
+        w.put_u8(0).unwrap();
+        w.put_u8(1).unwrap();
+        w.put_u8(255).unwrap();
+
+        assert_eq!(w.into_inner(), vec![0, 1, 255])
+    }
+
+    #[test]
+    fn smoke_test_slice() {
+        let mut w = Cursor::new(vec![]);
+        let bytes = vec![0, 2, 255];
+        w.put_slice(&bytes).unwrap();
+
+        assert_eq!(w.into_inner(), bytes)
     }
 }
