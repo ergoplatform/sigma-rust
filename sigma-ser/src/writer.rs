@@ -1,19 +1,10 @@
+use super::zig_zag_encoding;
 use std::io;
 use std::io::Write;
 
 #[derive(Debug)]
 pub enum Error {
     Io(io::Error),
-}
-
-fn encode_zig_zag_32(v: i32) -> u32 {
-    // TODO: implement and test
-    unimplemented!()
-}
-
-fn encode_zig_zag64(v: i64) -> u64 {
-    // TODO: implement and test
-    unimplemented!()
 }
 
 pub trait WriteSigmaVlqExt {
@@ -27,7 +18,7 @@ pub trait WriteSigmaVlqExt {
     fn put_u8(&mut self, v: u8) -> Result<(), Error>;
 
     fn put_i16(&mut self, v: i16) -> Result<(), Error> {
-        Self::put_u32(self, encode_zig_zag_32(v as i32))
+        Self::put_u32(self, zig_zag_encoding::encode_i32(v as i32))
     }
 
     fn put_u16(&mut self, v: u16) -> Result<(), Error> {
@@ -35,7 +26,7 @@ pub trait WriteSigmaVlqExt {
     }
 
     fn put_i32(&mut self, v: i32) -> Result<(), Error> {
-        Self::put_u64(self, encode_zig_zag_32(v as i32) as u64)
+        Self::put_u64(self, zig_zag_encoding::encode_i32(v as i32) as u64)
     }
 
     fn put_u32(&mut self, v: u32) -> Result<(), Error> {
@@ -43,7 +34,7 @@ pub trait WriteSigmaVlqExt {
     }
 
     fn put_i64(&mut self, v: i64) -> Result<(), Error> {
-        Self::put_u64(self, encode_zig_zag64(v))
+        Self::put_u64(self, zig_zag_encoding::encode_i64(v))
     }
 
     fn put_u64(&mut self, v: u64) -> Result<(), Error>;
