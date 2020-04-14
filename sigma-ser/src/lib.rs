@@ -1,2 +1,2 @@
-mod writer;
-mod zig_zag_encoding;
+mod encode;
+mod zig_zag_encode;
