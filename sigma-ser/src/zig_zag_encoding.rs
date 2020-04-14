@@ -39,6 +39,7 @@ pub fn decode_u64(v: u64) -> i64 {
 mod tests {
     use super::*;
 
+    #[allow(overflowing_literals)]
     #[test]
     fn test_expected_values() {
         // source: http://github.com/google/protobuf/blob/a7252bf42df8f0841cf3a0c85fdbf1a5172adecb/java/core/src/test/java/com/google/protobuf/CodedOutputStreamTest.java#L281
@@ -55,12 +56,12 @@ mod tests {
         assert_eq!(1, encode_i64(-1));
         assert_eq!(2, encode_i64(1));
         assert_eq!(3, encode_i64(-2));
-        assert_eq!(0x000000007FFFFFFE, encode_i64(0x000000003FFFFFFF));
-        assert_eq!(0x000000007FFFFFFF, encode_i64(0xFFFF_FFFF_C000_0000));
-        assert_eq!(0x00000000FFFFFFFE, encode_i64(0x000000007FFFFFFF));
-        assert_eq!(0x00000000FFFFFFFF, encode_i64(0xFFFFFFFF80000000));
-        assert_eq!(0xFFFFFFFFFFFFFFFE, encode_i64(0x7FFFFFFFFFFFFFFF));
-        assert_eq!(0xFFFFFFFFFFFFFFFF, encode_i64(0x8000000000000000));
+        assert_eq!(0x0000_0000_7FFF_FFFE, encode_i64(0x0000_0000_3FFF_FFFF));
+        assert_eq!(0x0000_0000_7FFF_FFFF, encode_i64(0xFFFF_FFFF_C000_0000));
+        assert_eq!(0x0000_0000_FFFF_FFFE, encode_i64(0x0000_0000_7FFF_FFFF));
+        assert_eq!(0x0000_0000_FFFF_FFFF, encode_i64(0xFFFF_FFFF_8000_0000));
+        assert_eq!(0xFFFF_FFFF_FFFF_FFFE, encode_i64(0x7FFF_FFFF_FFFF_FFFF));
+        assert_eq!(0xFFFF_FFFF_FFFF_FFFF, encode_i64(0x8000_0000_0000_0000));
     }
 }
 
