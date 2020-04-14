@@ -307,7 +307,7 @@ mod tests {
         fn prop_u64_array_roundtrip(arr in any::<[u64; 32]>()) {
             let mut w = Cursor::new(vec![]);
             for a in arr.iter() {
-            w.put_u64(*a).unwrap();
+                w.put_u64(*a).unwrap();
             }
             let mut dec = Vec::new();
             let mut r = Cursor::new(w.into_inner());
