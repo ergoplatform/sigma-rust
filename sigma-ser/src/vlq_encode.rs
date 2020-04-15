@@ -311,7 +311,7 @@ mod tests {
             }
             let mut dec = Vec::new();
             let mut r = Cursor::new(w.into_inner());
-            for _ in 0..32 {
+            for _ in 0..arr.len() {
                 dec.push(r.get_u64().unwrap());
             }
             prop_assert_eq![dec, arr];
