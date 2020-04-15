@@ -1,4 +1,4 @@
-use crate::ergo_box::BoxId;
+use crate::box_id::BoxId;
 use crate::prover_result::ProverResult;
 
 pub struct Input {

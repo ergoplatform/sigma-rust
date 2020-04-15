@@ -1,9 +1,12 @@
 use super::vlq_encode;
 use std::io;
+use thiserror::Error;
 
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum SerializationError {
+    #[error("vlq encode error")]
     VlqEncode(vlq_encode::VlqEncodingError),
+    #[error("io error")]
     Io(io::Error),
 }
 
