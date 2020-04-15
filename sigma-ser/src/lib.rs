@@ -1,2 +1,2 @@
-mod encode;
-mod zig_zag_encode;
+pub mod encode;
+pub mod zig_zag_encode;
