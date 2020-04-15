@@ -1,83 +1,68 @@
 use super::zig_zag_encode;
 use std::convert::TryFrom;
 use std::io;
-use std::io::Read;
-use std::io::Write;
 
 #[cfg(test)]
 use proptest::{num::u64, prelude::*};
 
 #[derive(Debug)]
-pub enum Error {
+pub enum VlqEncodingError {
     Io(io::Error),
     TryFrom(std::num::TryFromIntError),
     VlqDecodingFailed,
 }
 
-impl From<io::Error> for Error {
+impl From<io::Error> for VlqEncodingError {
     fn from(error: io::Error) -> Self {
-        Error::Io(error)
+        VlqEncodingError::Io(error)
     }
 }
 
-impl From<std::num::TryFromIntError> for Error {
+impl From<std::num::TryFromIntError> for VlqEncodingError {
     fn from(error: std::num::TryFromIntError) -> Self {
-        Error::TryFrom(error)
+        VlqEncodingError::TryFrom(error)
     }
 }
 
 /// Write encoded unsigned values using VLQ and signed values first with ZigZag, then using VLQ
 /// for VLQ see [[https://en.wikipedia.org/wiki/Variable-length_quantity]]
 /// for ZigZag see https://developers.google.com/protocol-buffers/docs/encoding#types
-pub trait WriteSigmaVlqExt {
-    fn put_i8(&mut self, v: i8) -> Result<(), Error> {
+pub trait WriteSigmaVlqExt: io::Write {
+    fn put_i8(&mut self, v: i8) -> io::Result<()> {
         Self::put_u8(self, v as u8)
     }
 
-    fn put_u8(&mut self, v: u8) -> Result<(), Error>;
+    fn put_u8(&mut self, v: u8) -> io::Result<()> {
+        self.write_all(&[v])
+    }
 
     /// Encode using ZigZag and then VLQ.
-    fn put_i16(&mut self, v: i16) -> Result<(), Error> {
+    fn put_i16(&mut self, v: i16) -> io::Result<()> {
         Self::put_u32(self, zig_zag_encode::encode_i32(v as i32))
     }
 
     /// Encode using VLQ.
-    fn put_u16(&mut self, v: u16) -> Result<(), Error> {
+    fn put_u16(&mut self, v: u16) -> io::Result<()> {
         Self::put_u64(self, v as u64)
     }
 
     /// Encode using ZigZag and then VLQ.
-    fn put_i32(&mut self, v: i32) -> Result<(), Error> {
+    fn put_i32(&mut self, v: i32) -> io::Result<()> {
         Self::put_u64(self, zig_zag_encode::encode_i32(v as i32) as u64)
     }
 
     /// Encode using VLQ.
-    fn put_u32(&mut self, v: u32) -> Result<(), Error> {
+    fn put_u32(&mut self, v: u32) -> io::Result<()> {
         Self::put_u64(self, v as u64)
     }
 
     /// Encode using ZigZag and then VLQ.
-    fn put_i64(&mut self, v: i64) -> Result<(), Error> {
+    fn put_i64(&mut self, v: i64) -> io::Result<()> {
         Self::put_u64(self, zig_zag_encode::encode_i64(v))
     }
 
     /// Encode using VLQ.
-    fn put_u64(&mut self, v: u64) -> Result<(), Error>;
-
-    /// Write byte array without transformations
-    fn put_slice(&mut self, v: &[u8]) -> Result<(), Error>;
-
-    fn put_bool(&mut self, v: bool) -> Result<(), Error> {
-        Self::put_u8(self, if v { 1 } else { 0 })
-    }
-}
-
-impl<W: Write> WriteSigmaVlqExt for W {
-    fn put_u8(&mut self, v: u8) -> Result<(), Error> {
-        self.write_all(&[v]).map_err(Error::Io)
-    }
-
-    fn put_u64(&mut self, v: u64) -> Result<(), Error> {
+    fn put_u64(&mut self, v: u64) -> io::Result<()> {
         let mut buffer: [u8; 10] = [0; 10];
         let mut position = 0;
         let mut value = v;
@@ -95,78 +80,59 @@ impl<W: Write> WriteSigmaVlqExt for W {
                 value >>= 7;
             }
         }
-        Self::put_slice(self, &buffer[..position])
-    }
-
-    fn put_slice(&mut self, v: &[u8]) -> Result<(), Error> {
-        self.write_all(v).map_err(Error::Io)
+        Self::write_all(self, &buffer[..position])
     }
 }
+
+/// Mark all types implementing `Write` as implementing the extension.
+impl<W: io::Write + ?Sized> WriteSigmaVlqExt for W {}
 
 /// Read and decode values using VLQ (+ ZigZag for signed values) encoded and written with [`WriteSigmaVlqExt`]
 /// for VLQ see [[https://en.wikipedia.org/wiki/Variable-length_quantity]]
 /// for ZigZag see https://developers.google.com/protocol-buffers/docs/encoding#types
-pub trait ReadSigmaVlqExt {
-    fn get_i8(&mut self) -> Result<i8, Error> {
+pub trait ReadSigmaVlqExt: io::Read {
+    fn get_i8(&mut self) -> Result<i8, io::Error> {
         Self::get_u8(self).map(|v| v as i8)
     }
 
-    fn get_u8(&mut self) -> Result<u8, Error>;
-
-    /// Read and decode using VLQ and ZigZag value written with [`WriteSigmaVlqExt::put_i16`]
-    fn get_i16(&mut self) -> Result<i16, Error> {
-        Self::get_u32(self).and_then(|v| {
-            let vd = zig_zag_encode::decode_u32(v);
-            i16::try_from(vd).map_err(Error::TryFrom)
-        })
-    }
-
-    /// Read and decode using VLQ value written with [`WriteSigmaVlqExt::put_u16`]
-    fn get_u16(&mut self) -> Result<u16, Error> {
-        Self::get_u64(self).and_then(|v| u16::try_from(v).map_err(Error::TryFrom))
-    }
-
-    /// Read and decode using VLQ and ZigZag value written with [`WriteSigmaVlqExt::put_i32`]
-    fn get_i32(&mut self) -> Result<i32, Error> {
-        Self::get_u64(self)
-            .and_then(|v| u32::try_from(v).map_err(Error::TryFrom))
-            .map(zig_zag_encode::decode_u32)
-    }
-
-    /// Read and decode using VLQ value written with [`WriteSigmaVlqExt::put_u32`]
-    fn get_u32(&mut self) -> Result<u32, Error> {
-        Self::get_u64(self).and_then(|v| u32::try_from(v).map_err(Error::TryFrom))
-    }
-
-    /// Read and decode using VLQ and ZigZag value written with [`WriteSigmaVlqExt::put_i64`]
-    fn get_i64(&mut self) -> Result<i64, Error> {
-        Self::get_u64(self).map(zig_zag_encode::decode_u64)
-    }
-
-    /// Read and decode using VLQ value written with [`WriteSigmaVlqExt::put_u64`]
-    fn get_u64(&mut self) -> Result<u64, Error>;
-
-    fn get_slice(&mut self, size: usize) -> Result<Vec<u8>, Error>;
-
-    fn get_bool(&mut self) -> Result<bool, Error> {
-        Self::get_u8(self).map(|v| v == 1)
-    }
-}
-
-impl<R: Read> ReadSigmaVlqExt for R {
-    fn get_u8(&mut self) -> std::result::Result<u8, Error> {
+    fn get_u8(&mut self) -> std::result::Result<u8, io::Error> {
         let mut slice = [0u8; 1];
         self.read_exact(&mut slice)?;
         Ok(slice[0])
     }
 
-    fn get_slice(&mut self, size: usize) -> Result<Vec<u8>, Error> {
-        let mut res = vec![0u8; size];
-        self.read_exact(&mut res)?;
-        Ok(res)
+    /// Read and decode using VLQ and ZigZag value written with [`WriteSigmaVlqExt::put_i16`]
+    fn get_i16(&mut self) -> Result<i16, VlqEncodingError> {
+        Self::get_u32(self).and_then(|v| {
+            let vd = zig_zag_encode::decode_u32(v);
+            i16::try_from(vd).map_err(VlqEncodingError::TryFrom)
+        })
     }
 
-    fn get_u64(&mut self) -> Result<u64, Error> {
+    /// Read and decode using VLQ value written with [`WriteSigmaVlqExt::put_u16`]
+    fn get_u16(&mut self) -> Result<u16, VlqEncodingError> {
+        Self::get_u64(self).and_then(|v| u16::try_from(v).map_err(VlqEncodingError::TryFrom))
+    }
+
+    /// Read and decode using VLQ and ZigZag value written with [`WriteSigmaVlqExt::put_i32`]
+    fn get_i32(&mut self) -> Result<i32, VlqEncodingError> {
+        Self::get_u64(self)
+            .and_then(|v| u32::try_from(v).map_err(VlqEncodingError::TryFrom))
+            .map(zig_zag_encode::decode_u32)
+    }
+
+    /// Read and decode using VLQ value written with [`WriteSigmaVlqExt::put_u32`]
+    fn get_u32(&mut self) -> Result<u32, VlqEncodingError> {
+        Self::get_u64(self).and_then(|v| u32::try_from(v).map_err(VlqEncodingError::TryFrom))
+    }
+
+    /// Read and decode using VLQ and ZigZag value written with [`WriteSigmaVlqExt::put_i64`]
+    fn get_i64(&mut self) -> Result<i64, VlqEncodingError> {
+        Self::get_u64(self).map(zig_zag_encode::decode_u64)
+    }
+
+    /// Read and decode using VLQ value written with [`WriteSigmaVlqExt::put_u64`]
+    fn get_u64(&mut self) -> Result<u64, VlqEncodingError> {
         // source: http://github.com/google/protobuf/blob/a7252bf42df8f0841cf3a0c85fdbf1a5172adecb/java/core/src/main/java/com/google/protobuf/CodedInputStream.java#L2653
         // for faster version see: http://github.com/google/protobuf/blob/a7252bf42df8f0841cf3a0c85fdbf1a5172adecb/java/core/src/main/java/com/google/protobuf/CodedInputStream.java#L1085
         // see https://rosettacode.org/wiki/Variable-length_quantity for implementations in other languages
@@ -180,9 +146,12 @@ impl<R: Read> ReadSigmaVlqExt for R {
             }
             shift += 7;
         }
-        Err(Error::VlqDecodingFailed)
+        Err(VlqEncodingError::VlqDecodingFailed)
     }
 }
+
+/// Mark all types implementing `Read` as implementing the extension.
+impl<R: io::Read + ?Sized> ReadSigmaVlqExt for R {}
 
 #[cfg(test)]
 mod tests {
@@ -205,21 +174,6 @@ mod tests {
         assert_eq!(r.get_u8().unwrap(), 0);
         assert_eq!(r.get_u8().unwrap(), 1);
         assert_eq!(r.get_u8().unwrap(), 255);
-    }
-
-    #[test]
-    fn test_write_slice() {
-        let mut w = Cursor::new(vec![]);
-        let bytes = vec![0, 2, 255];
-        w.put_slice(&bytes).unwrap();
-
-        assert_eq!(w.into_inner(), bytes)
-    }
-
-    #[test]
-    fn test_read_slice() {
-        let mut r = Cursor::new(vec![0, 2, 255]);
-        assert_eq!(r.get_slice(3).unwrap(), vec![0, 2, 255]);
     }
 
     // from https://github.com/ScorexFoundation/scorex-util/blob/3dc334f68ebefbfab6d33b57f2373e80245ab34d/src/test/scala/scorex/util/serialization/VLQReaderWriterSpecification.scala#L32-L32
