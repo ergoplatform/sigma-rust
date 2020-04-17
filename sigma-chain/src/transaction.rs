@@ -4,6 +4,7 @@ use crate::input::Input;
 use sigma_ser::serializer::SerializationError;
 use sigma_ser::serializer::SigmaSerializable;
 use sigma_ser::vlq_encode;
+use std::convert::TryFrom;
 use std::io;
 
 pub struct Transaction {
@@ -14,7 +15,7 @@ pub struct Transaction {
 
 impl SigmaSerializable for Transaction {
     fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, mut w: W) -> Result<(), io::Error> {
-        w.put_u16(self.inputs.len() as u16)?;
+        w.put_u16(u16::try_from(self.inputs.len()).unwrap())?;
         self.inputs
             .iter()
             .try_for_each(|i| i.sigma_serialize(&mut w))?;
