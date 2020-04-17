@@ -17,10 +17,10 @@ pub struct ErgoBoxCandidate {
 }
 
 impl SigmaSerializable for ErgoBoxCandidate {
-    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, _: W) -> Result<(), io::Error> {
         unimplemented!();
     }
-    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(r: R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(_: R) -> Result<Self, SerializationError> {
         unimplemented!();
     }
 }
