@@ -15,6 +15,10 @@ pub struct Transaction {
 impl SigmaSerializable for Transaction {
     fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, mut w: W) -> Result<(), io::Error> {
         w.put_u16(self.inputs.len() as u16)?;
+        self.inputs
+            .iter()
+            .try_for_each(|i| i.sigma_serialize(&mut w))?;
+        // TODO: continue with the rest vc
         Ok(())
     }
     fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(_: R) -> Result<Self, SerializationError> {
