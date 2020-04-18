@@ -5,6 +5,7 @@ use indexmap::IndexSet;
 use sigma_ser::serializer::SerializationError;
 use sigma_ser::serializer::SigmaSerializable;
 use sigma_ser::vlq_encode;
+use std::convert::TryFrom;
 use std::io;
 use std::iter::FromIterator;
 
@@ -34,7 +35,7 @@ impl SigmaSerializable for Transaction {
             .flat_map(|b| b.tokens.iter().map(|t| t.token_id))
             .collect();
         let distinct_token_ids: IndexSet<TokenId> = IndexSet::from_iter(token_ids);
-        w.put_usize_as_u16(distinct_token_ids.len())?;
+        w.put_u32(u32::try_from(distinct_token_ids.len()).unwrap())?;
         distinct_token_ids
             .iter()
             .try_for_each(|t_id| t_id.sigma_serialize(&mut w))?;
@@ -47,7 +48,44 @@ impl SigmaSerializable for Transaction {
         Ok(())
     }
 
-    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(_: R) -> Result<Self, SerializationError> {
-        unimplemented!()
+    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(mut r: R) -> Result<Self, SerializationError> {
+        // reference implementation - https://github.com/ScorexFoundation/sigmastate-interpreter/blob/9b20cb110effd1987ff76699d637174a4b2fb441/sigmastate/src/main/scala/org/ergoplatform/ErgoLikeTransaction.scala#L146-L146
+
+        // parse transaction inputs
+        let inputs_count = r.get_u16()?;
+        let mut inputs = Vec::with_capacity(inputs_count as usize);
+        for _ in 0..(inputs_count - 1) {
+            inputs.push(Input::sigma_parse(&mut r)?);
+        }
+
+        // parse transaction data inputs
+        let data_inputs_count = r.get_u16()?;
+        let mut data_inputs = Vec::with_capacity(data_inputs_count as usize);
+        for _ in 0..(data_inputs_count - 1) {
+            data_inputs.push(DataInput::sigma_parse(&mut r)?);
+        }
+
+        // parse distinct ids of tokens in transaction outputs
+        let tokens_count = r.get_u32()?;
+        let mut token_ids = IndexSet::with_capacity(tokens_count as usize);
+        for _ in 0..(tokens_count - 1) {
+            token_ids.insert(TokenId::sigma_parse(&mut r)?);
+        }
+
+        // parse outputs
+        let outputs_count = r.get_u16()?;
+        let mut outputs = Vec::with_capacity(outputs_count as usize);
+        for _ in 0..(outputs_count - 1) {
+            outputs.push(ergo_box::parse_body_with_indexed_digests(
+                Some(&token_ids),
+                &mut r,
+            )?)
+        }
+
+        Ok(Transaction {
+            inputs,
+            data_inputs,
+            outputs,
+        })
     }
 }

@@ -70,8 +70,6 @@ pub fn serialize_body_with_indexed_digests<W: vlq_encode::WriteSigmaVlqExt>(
     */
 
     /*
-
-
       val nRegs = obj.additionalRegisters.keys.size
       if (nRegs + ErgoBox.startingNonMandatoryIndex > 255)
         sys.error(s"The number of non-mandatory indexes $nRegs exceeds ${255 - ErgoBox.startingNonMandatoryIndex} limit.")
