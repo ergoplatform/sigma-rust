@@ -46,6 +46,11 @@ pub trait WriteSigmaVlqExt: io::Write {
         Self::put_u64(self, v as u64)
     }
 
+    /// Cast to u16 (with range check) and encode using VLQ
+    fn put_usize_as_u16(&mut self, v: usize) -> io::Result<()> {
+        Self::put_u16(self, u16::try_from(v).unwrap())
+    }
+
     /// Encode using ZigZag and then VLQ.
     fn put_i32(&mut self, v: i32) -> io::Result<()> {
         Self::put_u64(self, zig_zag_encode::encode_i32(v as i32) as u64)

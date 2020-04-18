@@ -8,7 +8,7 @@ use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
 
 pub const TOKEN_ID_SIZE: usize = crate::constants::DIGEST32_SIZE;
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
 pub struct TokenId(pub [u8; TOKEN_ID_SIZE]);
 
 impl SigmaSerializable for TokenId {

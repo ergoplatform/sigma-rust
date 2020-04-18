@@ -1,5 +1,6 @@
 use crate::ergo_tree::ErgoTree;
-use crate::token_info::TokenInfo;
+use crate::{token_id::TokenId, token_info::TokenInfo};
+use indexmap::IndexSet;
 use sigma_ser::serializer::SerializationError;
 use sigma_ser::serializer::SigmaSerializable;
 use sigma_ser::vlq_encode;
@@ -17,10 +18,25 @@ pub struct ErgoBoxCandidate {
 }
 
 impl SigmaSerializable for ErgoBoxCandidate {
-    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, _: W) -> Result<(), io::Error> {
-        unimplemented!();
+    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: W) -> Result<(), io::Error> {
+        serialize_body_with_indexed_digests(self, None, w)
     }
-    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(_: R) -> Result<Self, SerializationError> {
-        unimplemented!();
+    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(r: R) -> Result<Self, SerializationError> {
+        parse_body_with_indexed_digests(None, r)
     }
+}
+
+pub fn serialize_body_with_indexed_digests<W: vlq_encode::WriteSigmaVlqExt>(
+    b: &ErgoBoxCandidate,
+    token_ids_in_tx: Option<&IndexSet<TokenId>>,
+    w: W,
+) -> Result<(), io::Error> {
+    unimplemented!()
+}
+
+pub fn parse_body_with_indexed_digests<R: vlq_encode::ReadSigmaVlqExt>(
+    digests_in_tx: Option<&IndexSet<TokenId>>,
+    r: R,
+) -> Result<ErgoBoxCandidate, SerializationError> {
+    unimplemented!()
 }
