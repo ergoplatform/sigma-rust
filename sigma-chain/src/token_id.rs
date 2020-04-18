@@ -1,3 +1,4 @@
+use core::fmt;
 use sigma_ser::serializer::SerializationError;
 use sigma_ser::serializer::SigmaSerializable;
 use sigma_ser::vlq_encode;
@@ -10,6 +11,17 @@ pub const TOKEN_ID_SIZE: usize = crate::constants::DIGEST32_SIZE;
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
 pub struct TokenId(pub [u8; TOKEN_ID_SIZE]);
+
+impl fmt::Display for TokenId {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut bytes = io::Cursor::new(Vec::new());
+        let _ = self.sigma_serialize(&mut bytes);
+
+        f.debug_tuple("TokenId")
+            .field(&base16::encode_lower(bytes.get_ref()))
+            .finish()
+    }
+}
 
 impl SigmaSerializable for TokenId {
     fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, mut w: W) -> Result<(), io::Error> {

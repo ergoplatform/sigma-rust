@@ -5,7 +5,10 @@ use sigma_ser::serializer::SerializationError;
 use sigma_ser::serializer::SigmaSerializable;
 use sigma_ser::vlq_encode;
 use std::collections::HashMap;
+use std::convert::TryFrom;
 use std::io;
+
+const STARTING_NON_MANDATORY_INDEX: u8 = 4;
 
 pub struct NonMandatoryRegisterId(u8);
 
@@ -18,8 +21,8 @@ pub struct ErgoBoxCandidate {
 }
 
 impl SigmaSerializable for ErgoBoxCandidate {
-    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: W) -> Result<(), io::Error> {
-        serialize_body_with_indexed_digests(self, None, w)
+    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, mut w: W) -> Result<(), io::Error> {
+        serialize_body_with_indexed_digests(self, None, &mut w)
     }
     fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(r: R) -> Result<Self, SerializationError> {
         parse_body_with_indexed_digests(None, r)
@@ -29,9 +32,66 @@ impl SigmaSerializable for ErgoBoxCandidate {
 pub fn serialize_body_with_indexed_digests<W: vlq_encode::WriteSigmaVlqExt>(
     b: &ErgoBoxCandidate,
     token_ids_in_tx: Option<&IndexSet<TokenId>>,
-    w: W,
+    mut w: W,
 ) -> Result<(), io::Error> {
-    unimplemented!()
+    // reference implementation - https://github.com/ScorexFoundation/sigmastate-interpreter/blob/9b20cb110effd1987ff76699d637174a4b2fb441/sigmastate/src/main/scala/org/ergoplatform/ErgoBoxCandidate.scala#L95-L95
+    w.put_u64(b.value)?;
+    b.ergo_tree.sigma_serialize(&mut w)?;
+    w.put_u32(b.creation_height)?;
+    w.put_u8(u8::try_from(b.tokens.len()).unwrap())?;
+
+    b.tokens.iter().try_for_each(|t| {
+        match token_ids_in_tx {
+            Some(token_ids) => w.put_u32(
+                u32::try_from(
+                    token_ids
+                        .get_full(&t.token_id)
+                        .expect("failed to find token id in tx's digest index")
+                        .0,
+                )
+                .unwrap(),
+            ),
+            None => t.token_id.sigma_serialize(&mut w),
+        }
+        .and_then(|()| w.put_u64(t.amount))
+    })?;
+
+    assert!(
+        b.additional_registers.is_empty(),
+        "register serialization is not yet implemented"
+    );
+    /*
+        let regs_num = b.additional_registers.keys().len();
+        assert!(
+            (regs_num + STARTING_NON_MANDATORY_INDEX as usize) <= 255,
+            "The number of non-mandatory indexes exceeds 251 limit."
+        );
+        w.put_u8(regs_num as u8)?;
+    */
+
+    /*
+
+
+      val nRegs = obj.additionalRegisters.keys.size
+      if (nRegs + ErgoBox.startingNonMandatoryIndex > 255)
+        sys.error(s"The number of non-mandatory indexes $nRegs exceeds ${255 - ErgoBox.startingNonMandatoryIndex} limit.")
+      w.putUByte(nRegs)
+      // we assume non-mandatory indexes are densely packed from startingNonMandatoryIndex
+      // this convention allows to save 1 bite for each register
+      val startReg = ErgoBox.startingNonMandatoryIndex
+      val endReg = ErgoBox.startingNonMandatoryIndex + nRegs - 1
+      cfor(startReg: Int)(_ <= endReg, _ + 1) { regId =>
+        val reg = ErgoBox.findRegisterByIndex(regId.toByte).get
+        obj.get(reg) match {
+          case Some(v) =>
+            w.putValue(v)
+          case None =>
+            sys.error(s"Set of non-mandatory indexes is not densely packed: " +
+              s"register R$regId is missing in the range [$startReg .. $endReg]")
+        }
+      }
+    */
+    Ok(())
 }
 
 pub fn parse_body_with_indexed_digests<R: vlq_encode::ReadSigmaVlqExt>(

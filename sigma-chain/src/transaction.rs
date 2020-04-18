@@ -5,7 +5,6 @@ use indexmap::IndexSet;
 use sigma_ser::serializer::SerializationError;
 use sigma_ser::serializer::SigmaSerializable;
 use sigma_ser::vlq_encode;
-use std::convert::TryFrom;
 use std::io;
 use std::iter::FromIterator;
 
