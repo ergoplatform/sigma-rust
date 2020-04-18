@@ -8,8 +8,10 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::io;
 
+#[allow(dead_code)]
 const STARTING_NON_MANDATORY_INDEX: u8 = 4;
 
+#[derive(PartialEq, Eq, Hash)]
 pub struct NonMandatoryRegisterId(u8);
 
 pub struct ErgoBoxCandidate {
@@ -94,7 +96,36 @@ pub fn serialize_body_with_indexed_digests<W: vlq_encode::WriteSigmaVlqExt>(
 
 pub fn parse_body_with_indexed_digests<R: vlq_encode::ReadSigmaVlqExt>(
     digests_in_tx: Option<&IndexSet<TokenId>>,
-    r: R,
+    mut r: R,
 ) -> Result<ErgoBoxCandidate, SerializationError> {
-    unimplemented!()
+    // reference implementation -https://github.com/ScorexFoundation/sigmastate-interpreter/blob/9b20cb110effd1987ff76699d637174a4b2fb441/sigmastate/src/main/scala/org/ergoplatform/ErgoBoxCandidate.scala#L144-L144
+
+    let value = r.get_u64()?;
+    let ergo_tree = ErgoTree::sigma_parse(&mut r)?;
+    let creation_height = r.get_u32()?;
+    let tokens_count = r.get_u8()?;
+    let mut tokens = Vec::with_capacity(tokens_count as usize);
+    for _ in 0..(tokens_count - 1) {
+        let token_id = match digests_in_tx {
+            None => TokenId::sigma_parse(&mut r)?,
+            Some(digests) => {
+                let digest_index = r.get_u32()?;
+                *digests
+                    .get_index(digest_index as usize)
+                    .expect("failed to find token id in tx digests")
+            }
+        };
+        let amount = r.get_u64()?;
+        tokens.push(TokenInfo { token_id, amount })
+    }
+
+    let additional_registers = HashMap::new();
+
+    Ok(ErgoBoxCandidate {
+        value,
+        ergo_tree,
+        tokens,
+        additional_registers,
+        creation_height,
+    })
 }
