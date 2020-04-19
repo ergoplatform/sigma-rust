@@ -4,8 +4,21 @@ use sigma_ser::vlq_encode;
 use std::collections::HashMap;
 use std::io;
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct ContextExtension {
     pub values: HashMap<u8, Vec<u8>>,
+}
+
+impl ContextExtension {
+    pub fn new(values: HashMap<u8, Vec<u8>>) -> Self {
+        Self { values }
+    }
+
+    pub fn empty() -> Self {
+        Self {
+            values: HashMap::new(),
+        }
+    }
 }
 
 impl SigmaSerializable for ContextExtension {

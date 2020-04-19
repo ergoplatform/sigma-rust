@@ -4,6 +4,10 @@ use sigma_ser::serializer::SigmaSerializable;
 use sigma_ser::vlq_encode;
 use std::io;
 
+#[cfg(test)]
+use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
+
+#[derive(Debug, PartialEq, Eq)]
 pub struct ProverResult {
     pub proof: Vec<u8>,
     pub extension: ContextExtension,
@@ -22,5 +26,37 @@ impl SigmaSerializable for ProverResult {
         r.read_exact(&mut proof)?;
         let extension = ContextExtension::sigma_parse(r)?;
         Ok(ProverResult { proof, extension })
+    }
+}
+
+#[cfg(test)]
+impl Arbitrary for ProverResult {
+    type Parameters = ();
+
+    fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+        (vec(any::<u8>(), 0..100))
+            .prop_map(|v| Self {
+                proof: v,
+                extension: ContextExtension::empty(),
+            })
+            .boxed()
+    }
+
+    type Strategy = BoxedStrategy<Self>;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    proptest! {
+
+        #[test]
+        fn ser_roundtrip(v in any::<ProverResult>()) {
+            let mut data = Vec::new();
+            v.sigma_serialize(&mut data)?;
+            let v_dec = ProverResult::sigma_parse(&data[..])?;
+            prop_assert_eq![v, v_dec];
+        }
     }
 }
