@@ -3,12 +3,13 @@ use sigma_ser::serializer::SigmaSerializable;
 use sigma_ser::vlq_encode;
 use std::io;
 
-#[cfg(test)]
-use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
-
 pub const BOX_ID_SIZE: usize = crate::constants::DIGEST32_SIZE;
 
+#[cfg(test)]
+use proptest_derive::Arbitrary;
+
 #[derive(PartialEq, Debug)]
+#[cfg_attr(test, derive(Arbitrary))]
 pub struct BoxId(pub [u8; BOX_ID_SIZE]);
 
 impl SigmaSerializable for BoxId {
@@ -24,34 +25,16 @@ impl SigmaSerializable for BoxId {
 }
 
 #[cfg(test)]
-impl Arbitrary for BoxId {
-    type Parameters = ();
-
-    fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-        (vec(any::<u8>(), BOX_ID_SIZE))
-            .prop_map(|v| {
-                let mut bytes = [0; BOX_ID_SIZE];
-                bytes.copy_from_slice(v.as_slice());
-                Self(bytes)
-            })
-            .boxed()
-    }
-
-    type Strategy = BoxedStrategy<Self>;
-}
-
-#[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_helpers::*;
+    use proptest::prelude::*;
 
     proptest! {
 
         #[test]
-        fn box_id_roundtrip(box_id in any::<BoxId>()) {
-            let mut data = Vec::new();
-            box_id.sigma_serialize(&mut data)?;
-            let box_id2 = BoxId::sigma_parse(&data[..])?;
-            prop_assert_eq![box_id, box_id2];
+        fn ser_roundtrip(v in any::<BoxId>()) {
+            prop_assert_eq![sigma_serialize_roundtrip(&v), v];
         }
     }
 }

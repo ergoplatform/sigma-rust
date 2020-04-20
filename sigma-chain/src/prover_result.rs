@@ -48,15 +48,13 @@ impl Arbitrary for ProverResult {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_helpers::*;
 
     proptest! {
 
         #[test]
         fn ser_roundtrip(v in any::<ProverResult>()) {
-            let mut data = Vec::new();
-            v.sigma_serialize(&mut data)?;
-            let v_dec = ProverResult::sigma_parse(&data[..])?;
-            prop_assert_eq![v, v_dec];
+            prop_assert_eq![sigma_serialize_roundtrip(&v), v];
         }
     }
 }

@@ -5,6 +5,13 @@ use sigma_ser::serializer::SigmaSerializable;
 use sigma_ser::vlq_encode;
 use std::io;
 
+#[cfg(test)]
+use proptest::prelude::*;
+#[cfg(test)]
+use proptest_derive::Arbitrary;
+
+#[derive(PartialEq, Debug)]
+#[cfg_attr(test, derive(Arbitrary))]
 pub struct Input {
     pub box_id: BoxId,
     pub spending_proof: ProverResult,
@@ -23,5 +30,19 @@ impl SigmaSerializable for Input {
             box_id,
             spending_proof,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_helpers::*;
+
+    proptest! {
+
+        #[test]
+        fn ser_roundtrip(v in any::<Input>()) {
+            prop_assert_eq![sigma_serialize_roundtrip(&v), v];
+        }
     }
 }

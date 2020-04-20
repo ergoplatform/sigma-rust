@@ -4,12 +4,13 @@ use sigma_ser::serializer::SigmaSerializable;
 use sigma_ser::vlq_encode;
 use std::io;
 
-#[cfg(test)]
-use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
-
 pub const TOKEN_ID_SIZE: usize = crate::constants::DIGEST32_SIZE;
 
+#[cfg(test)]
+use proptest_derive::Arbitrary;
+
 #[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
+#[cfg_attr(test, derive(Arbitrary))]
 pub struct TokenId(pub [u8; TOKEN_ID_SIZE]);
 
 impl fmt::Display for TokenId {
@@ -36,34 +37,16 @@ impl SigmaSerializable for TokenId {
 }
 
 #[cfg(test)]
-impl Arbitrary for TokenId {
-    type Parameters = ();
-
-    fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-        (vec(any::<u8>(), TOKEN_ID_SIZE))
-            .prop_map(|v| {
-                let mut bytes = [0; TOKEN_ID_SIZE];
-                bytes.copy_from_slice(v.as_slice());
-                Self(bytes)
-            })
-            .boxed()
-    }
-
-    type Strategy = BoxedStrategy<Self>;
-}
-
-#[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_helpers::*;
+    use proptest::prelude::*;
 
     proptest! {
 
         #[test]
-        fn token_id_roundtrip(id in any::<TokenId>()) {
-            let mut data = Vec::new();
-            id.sigma_serialize(&mut data)?;
-            let id2 = TokenId::sigma_parse(&data[..])?;
-            prop_assert_eq![id, id2];
+        fn token_id_roundtrip(v in any::<TokenId>()) {
+            prop_assert_eq![sigma_serialize_roundtrip(&v), v];
         }
     }
 }

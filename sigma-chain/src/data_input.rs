@@ -29,15 +29,13 @@ impl SigmaSerializable for DataInput {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_helpers::*;
 
     proptest! {
 
         #[test]
-        fn data_input_roundtrip(i in any::<DataInput>()) {
-            let mut data = Vec::new();
-            i.sigma_serialize(&mut data)?;
-            let decoded = DataInput::sigma_parse(&data[..])?;
-            prop_assert_eq![i, decoded];
+        fn data_input_roundtrip(v in any::<DataInput>()) {
+            prop_assert_eq![sigma_serialize_roundtrip(&v), v];
         }
     }
 }
