@@ -9,6 +9,7 @@ use std::convert::TryFrom;
 use std::io;
 use std::iter::FromIterator;
 
+#[derive(PartialEq, Debug)]
 pub struct Transaction {
     pub inputs: Vec<Input>,
     pub data_inputs: Vec<DataInput>,
@@ -54,28 +55,28 @@ impl SigmaSerializable for Transaction {
         // parse transaction inputs
         let inputs_count = r.get_u16()?;
         let mut inputs = Vec::with_capacity(inputs_count as usize);
-        for _ in 0..(inputs_count - 1) {
+        for _ in 0..inputs_count {
             inputs.push(Input::sigma_parse(&mut r)?);
         }
 
         // parse transaction data inputs
         let data_inputs_count = r.get_u16()?;
         let mut data_inputs = Vec::with_capacity(data_inputs_count as usize);
-        for _ in 0..(data_inputs_count - 1) {
+        for _ in 0..data_inputs_count {
             data_inputs.push(DataInput::sigma_parse(&mut r)?);
         }
 
         // parse distinct ids of tokens in transaction outputs
         let tokens_count = r.get_u32()?;
         let mut token_ids = IndexSet::with_capacity(tokens_count as usize);
-        for _ in 0..(tokens_count - 1) {
+        for _ in 0..tokens_count {
             token_ids.insert(TokenId::sigma_parse(&mut r)?);
         }
 
         // parse outputs
         let outputs_count = r.get_u16()?;
         let mut outputs = Vec::with_capacity(outputs_count as usize);
-        for _ in 0..(outputs_count - 1) {
+        for _ in 0..outputs_count {
             outputs.push(ergo_box::parse_body_with_indexed_digests(
                 Some(&token_ids),
                 &mut r,
@@ -87,5 +88,42 @@ impl SigmaSerializable for Transaction {
             data_inputs,
             outputs,
         })
+    }
+}
+
+#[cfg(test)]
+use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
+
+#[cfg(test)]
+impl Arbitrary for Transaction {
+    type Parameters = ();
+
+    fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+        (
+            vec(any::<Input>(), 1..10),
+            vec(any::<DataInput>(), 0..10),
+            vec(any::<ErgoBoxCandidate>(), 1..10),
+        )
+            .prop_map(|(inputs, data_inputs, outputs)| Self {
+                inputs,
+                data_inputs,
+                outputs,
+            })
+            .boxed()
+    }
+    type Strategy = BoxedStrategy<Self>;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_helpers::*;
+
+    proptest! {
+
+        #[test]
+        fn ser_roundtrip(v in any::<Transaction>()) {
+            prop_assert_eq![sigma_serialize_roundtrip(&v), v];
+        }
     }
 }
