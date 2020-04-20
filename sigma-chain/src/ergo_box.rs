@@ -11,9 +11,10 @@ use std::io;
 #[allow(dead_code)]
 const STARTING_NON_MANDATORY_INDEX: u8 = 4;
 
-#[derive(PartialEq, Eq, Hash)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub struct NonMandatoryRegisterId(u8);
 
+#[derive(PartialEq, Debug)]
 pub struct ErgoBoxCandidate {
     pub value: u64,
     pub ergo_tree: ErgoTree,
@@ -105,7 +106,7 @@ pub fn parse_body_with_indexed_digests<R: vlq_encode::ReadSigmaVlqExt>(
     let creation_height = r.get_u32()?;
     let tokens_count = r.get_u8()?;
     let mut tokens = Vec::with_capacity(tokens_count as usize);
-    for _ in 0..(tokens_count - 1) {
+    for _ in 0..tokens_count {
         let token_id = match digests_in_tx {
             None => TokenId::sigma_parse(&mut r)?,
             Some(digests) => {
@@ -128,4 +129,44 @@ pub fn parse_body_with_indexed_digests<R: vlq_encode::ReadSigmaVlqExt>(
         additional_registers,
         creation_height,
     })
+}
+
+#[cfg(test)]
+use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
+
+#[cfg(test)]
+impl Arbitrary for ErgoBoxCandidate {
+    type Parameters = ();
+
+    fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+        (
+            any::<u64>(),
+            any::<ErgoTree>(),
+            vec(any::<TokenInfo>(), 0..10),
+            any::<u32>(),
+        )
+            .prop_map(|(value, ergo_tree, tokens, creation_height)| Self {
+                value,
+                ergo_tree,
+                tokens,
+                additional_registers: HashMap::new(),
+                creation_height,
+            })
+            .boxed()
+    }
+    type Strategy = BoxedStrategy<Self>;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_helpers::*;
+
+    proptest! {
+
+        #[test]
+        fn ser_roundtrip(v in any::<ErgoBoxCandidate>()) {
+            prop_assert_eq![sigma_serialize_roundtrip(&v), v];
+        }
+    }
 }

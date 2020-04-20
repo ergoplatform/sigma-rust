@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 6ab5726e2638ed62819c7c9523dab44614ecda53825bbb4e196441d09aff8fd8 # shrinks to v = ErgoBoxCandidate { value: 0, ergo_tree: ErgoTree, tokens: [], additional_registers: {}, creation_height: 0 }
