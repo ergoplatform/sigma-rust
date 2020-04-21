@@ -5,10 +5,14 @@ use std::io;
 #[cfg(test)]
 use proptest::{num::u64, prelude::*};
 
+/// Ways VLQ encoding/decoding might fail
 #[derive(Debug)]
 pub enum VlqEncodingError {
+    /// IO fail (EOF, etc.)
     Io(io::Error),
+    /// value bounds check error
     TryFrom(std::num::TryFromIntError),
+    /// Fail to decode a value from bytes
     VlqDecodingFailed,
 }
 
@@ -28,10 +32,12 @@ impl From<std::num::TryFromIntError> for VlqEncodingError {
 /// for VLQ see [[https://en.wikipedia.org/wiki/Variable-length_quantity]]
 /// for ZigZag see https://developers.google.com/protocol-buffers/docs/encoding#types
 pub trait WriteSigmaVlqExt: io::Write {
+    /// Write i8 without encoding
     fn put_i8(&mut self, v: i8) -> io::Result<()> {
         Self::put_u8(self, v as u8)
     }
 
+    /// Write u8 without encoding
     fn put_u8(&mut self, v: u8) -> io::Result<()> {
         self.write_all(&[v])
     }
@@ -96,10 +102,12 @@ impl<W: io::Write + ?Sized> WriteSigmaVlqExt for W {}
 /// for VLQ see [[https://en.wikipedia.org/wiki/Variable-length_quantity]]
 /// for ZigZag see https://developers.google.com/protocol-buffers/docs/encoding#types
 pub trait ReadSigmaVlqExt: io::Read {
+    /// Read i8 without decoding
     fn get_i8(&mut self) -> Result<i8, io::Error> {
         Self::get_u8(self).map(|v| v as i8)
     }
 
+    /// Read u8 without decoding
     fn get_u8(&mut self) -> std::result::Result<u8, io::Error> {
         let mut slice = [0u8; 1];
         self.read_exact(&mut slice)?;
