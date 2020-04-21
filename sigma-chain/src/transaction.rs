@@ -23,6 +23,7 @@ impl SigmaSerializable for Transaction {
         self.inputs
             .iter()
             .try_for_each(|i| i.sigma_serialize(&mut w))?;
+        w.put_usize_as_u16(self.data_inputs.len())?;
         self.data_inputs
             .iter()
             .try_for_each(|i| i.sigma_serialize(&mut w))?;
