@@ -1,8 +1,10 @@
+//! Box id type
 use sigma_ser::serializer::SerializationError;
 use sigma_ser::serializer::SigmaSerializable;
 use sigma_ser::vlq_encode;
 use std::io;
 
+/// Size of Box.id
 pub const BOX_ID_SIZE: usize = crate::constants::DIGEST32_SIZE;
 
 #[cfg(test)]
@@ -10,6 +12,7 @@ use proptest_derive::Arbitrary;
 
 #[derive(PartialEq, Debug)]
 #[cfg_attr(test, derive(Arbitrary))]
+/// newtype for box ids
 pub struct BoxId(pub [u8; BOX_ID_SIZE]);
 
 impl SigmaSerializable for BoxId {

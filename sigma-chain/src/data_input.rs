@@ -1,3 +1,5 @@
+//! DataInput type
+
 use crate::box_id::BoxId;
 use sigma_ser::serializer::SerializationError;
 use sigma_ser::serializer::SigmaSerializable;
@@ -11,7 +13,9 @@ use proptest_derive::Arbitrary;
 
 #[derive(PartialEq, Debug)]
 #[cfg_attr(test, derive(Arbitrary))]
+/// Inputs, that are used to enrich script context, but won't be spent by the transaction
 pub struct DataInput {
+    /// id of the box to add into context (should be in UTXO)
     pub box_id: BoxId,
 }
 

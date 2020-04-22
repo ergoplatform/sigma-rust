@@ -1,3 +1,4 @@
+//! Transactio input
 use crate::box_id::BoxId;
 use crate::prover_result::ProverResult;
 use sigma_ser::serializer::SerializationError;
@@ -12,8 +13,11 @@ use proptest_derive::Arbitrary;
 
 #[derive(PartialEq, Debug)]
 #[cfg_attr(test, derive(Arbitrary))]
+/// Fully signed transaction input
 pub struct Input {
+    /// id of the box to spent
     pub box_id: BoxId,
+    /// proof of spending correctness
     pub spending_proof: ProverResult,
 }
 

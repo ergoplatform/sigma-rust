@@ -1,17 +1,31 @@
+//! Token related types
+
 use core::fmt;
 use sigma_ser::serializer::SerializationError;
 use sigma_ser::serializer::SigmaSerializable;
 use sigma_ser::vlq_encode;
 use std::io;
 
+/// token id size in bytes
 pub const TOKEN_ID_SIZE: usize = crate::constants::DIGEST32_SIZE;
 
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 
+/// newtype for token id
 #[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
 #[cfg_attr(test, derive(Arbitrary))]
 pub struct TokenId(pub [u8; TOKEN_ID_SIZE]);
+
+/// Token amount represented with token id paired with it's amount
+#[derive(PartialEq, Debug)]
+#[cfg_attr(test, derive(Arbitrary))]
+pub struct TokenAmount {
+    /// token id
+    pub token_id: TokenId,
+    /// token amount
+    pub amount: u64,
+}
 
 impl fmt::Display for TokenId {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

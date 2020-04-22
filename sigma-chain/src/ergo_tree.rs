@@ -1,3 +1,4 @@
+//! ErgoTree
 use sigma_ser::serializer::SerializationError;
 use sigma_ser::serializer::SigmaSerializable;
 use sigma_ser::vlq_encode;
@@ -6,6 +7,9 @@ use std::io;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 
+/** The root of ErgoScript IR. Serialized instances of this class are self sufficient and can be passed around.
+ * ErgoTreeSerializer defines top-level serialization format of the scripts.
+ */
 #[derive(PartialEq, Debug)]
 #[cfg_attr(test, derive(Arbitrary))]
 pub struct ErgoTree {}

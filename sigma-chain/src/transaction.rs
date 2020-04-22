@@ -1,6 +1,8 @@
+//! Ergo transaction
+
 use crate::data_input::DataInput;
 use crate::ergo_box::{self, ErgoBoxCandidate};
-use crate::{input::Input, token_id::TokenId};
+use crate::{input::Input, token::TokenId};
 use indexmap::IndexSet;
 use sigma_ser::serializer::SerializationError;
 use sigma_ser::serializer::SigmaSerializable;
@@ -9,10 +11,26 @@ use std::convert::TryFrom;
 use std::io;
 use std::iter::FromIterator;
 
+/**
+ * ErgoTransaction is an atomic state transition operation. It destroys Boxes from the state
+ * and creates new ones. If transaction is spending boxes protected by some non-trivial scripts,
+ * its inputs should also contain proof of spending correctness - context extension (user-defined
+ * key-value map) and data inputs (links to existing boxes in the state) that may be used during
+ * script reduction to crypto, signatures that satisfies the remaining cryptographic protection
+ * of the script.
+ * Transactions are not encrypted, so it is possible to browse and view every transaction ever
+ * collected into a block.
+ */
 #[derive(PartialEq, Debug)]
 pub struct Transaction {
+    /// inputs, that will be spent by this transaction.
     pub inputs: Vec<Input>,
+    /// inputs, that are not going to be spent by transaction, but will be reachable from inputs
+    /// scripts. `dataInputs` scripts will not be executed, thus their scripts costs are not
+    /// included in transaction cost and they do not contain spending proofs.
     pub data_inputs: Vec<DataInput>,
+    /// box candidates to be created by this transaction. Differ from ordinary ones in that
+    /// they do not include transaction id and index
     pub outputs: Vec<ErgoBoxCandidate>,
 }
 

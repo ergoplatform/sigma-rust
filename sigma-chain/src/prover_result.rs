@@ -1,3 +1,4 @@
+//! ProverResult
 use crate::context_extension::ContextExtension;
 use sigma_ser::serializer::SerializationError;
 use sigma_ser::serializer::SigmaSerializable;
@@ -7,9 +8,12 @@ use std::io;
 #[cfg(test)]
 use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
 
+/// Proof of correctness of tx spending
 #[derive(Debug, PartialEq, Eq)]
 pub struct ProverResult {
+    /// proof that satisfies final sigma proposition
     pub proof: Vec<u8>,
+    /// user-defined variables to be put into context
     pub extension: ContextExtension,
 }
 

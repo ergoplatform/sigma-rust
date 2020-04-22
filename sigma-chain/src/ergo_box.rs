@@ -1,5 +1,6 @@
+//! Ergo box
 use crate::ergo_tree::ErgoTree;
-use crate::{token_id::TokenId, token_info::TokenInfo};
+use crate::{token::TokenAmount, token::TokenId};
 use indexmap::IndexSet;
 use sigma_ser::serializer::SerializationError;
 use sigma_ser::serializer::SigmaSerializable;
@@ -12,14 +13,39 @@ use std::io;
 const STARTING_NON_MANDATORY_INDEX: u8 = 4;
 
 #[derive(PartialEq, Eq, Hash, Debug)]
+/// newtype for additional registers R4 - R9
 pub struct NonMandatoryRegisterId(u8);
 
 #[derive(PartialEq, Debug)]
+/// Box (aka coin, or an unspent output) is a basic concept of a UTXO-based cryptocurrency.
+/// In Bitcoin, such an object is associated with some monetary value (arbitrary,
+/// but with predefined precision, so we use integer arithmetic to work with the value),
+/// and also a guarding script (aka proposition) to protect the box from unauthorized opening.
+///
+/// In other way, a box is a state element locked by some proposition (ErgoTree).
+///
+/// In Ergo, box is just a collection of registers, some with mandatory types and semantics,
+/// others could be used by applications in any way.
+/// We add additional fields in addition to amount and proposition~(which stored in the registers R0 and R1).
+/// Namely, register R2 contains additional tokens (a sequence of pairs (token identifier, value)).
+/// Register R3 contains height when block got included into the blockchain and also transaction
+/// identifier and box index in the transaction outputs.
+/// Registers R4-R9 are free for arbitrary usage.
+///
+/// A transaction is unsealing a box. As a box can not be open twice, any further valid transaction
+/// can not be linked to the same box.
 pub struct ErgoBoxCandidate {
+    /// amount of money associated with the box
     pub value: u64,
+    /// guarding script, which should be evaluated to true in order to open this box
     pub ergo_tree: ErgoTree,
-    pub tokens: Vec<TokenInfo>,
+    /// secondary tokens the box contains
+    pub tokens: Vec<TokenAmount>,
+    ///  additional registers the box can carry over
     pub additional_registers: HashMap<NonMandatoryRegisterId, Box<[u8]>>,
+    /// height when a transaction containing the box was created.
+    /// This height is declared by user and should not exceed height of the block,
+    /// containing the transaction with this box.
     pub creation_height: u32,
 }
 
@@ -32,6 +58,7 @@ impl SigmaSerializable for ErgoBoxCandidate {
     }
 }
 
+/// Box serialization with token ids optionally saved in transaction (in this case only token index is saved)
 pub fn serialize_body_with_indexed_digests<W: vlq_encode::WriteSigmaVlqExt>(
     b: &ErgoBoxCandidate,
     token_ids_in_tx: Option<&IndexSet<TokenId>>,
@@ -95,6 +122,7 @@ pub fn serialize_body_with_indexed_digests<W: vlq_encode::WriteSigmaVlqExt>(
     Ok(())
 }
 
+/// Box deserialization with token ids optionally parsed in transaction
 pub fn parse_body_with_indexed_digests<R: vlq_encode::ReadSigmaVlqExt>(
     digests_in_tx: Option<&IndexSet<TokenId>>,
     mut r: R,
@@ -117,7 +145,7 @@ pub fn parse_body_with_indexed_digests<R: vlq_encode::ReadSigmaVlqExt>(
             }
         };
         let amount = r.get_u64()?;
-        tokens.push(TokenInfo { token_id, amount })
+        tokens.push(TokenAmount { token_id, amount })
     }
 
     let additional_registers = HashMap::new();
@@ -142,7 +170,7 @@ impl Arbitrary for ErgoBoxCandidate {
         (
             any::<u64>(),
             any::<ErgoTree>(),
-            vec(any::<TokenInfo>(), 0..10),
+            vec(any::<TokenAmount>(), 0..10),
             any::<u32>(),
         )
             .prop_map(|(value, ergo_tree, tokens, creation_height)| Self {
