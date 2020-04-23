@@ -33,7 +33,7 @@ matrix:
       before_install:
         - rustup component add clippy
       script:
-        - cargo clippy --all-features --all-targets -- -D warnings
+        - cargo clippy --all-features -- -D warnings
 
     - name: coverage
       rust: stable
