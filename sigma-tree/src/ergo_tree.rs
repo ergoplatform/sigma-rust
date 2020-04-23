@@ -4,15 +4,14 @@ use sigma_ser::serializer::SigmaSerializable;
 use sigma_ser::vlq_encode;
 use std::io;
 
-#[cfg(test)]
-use proptest_derive::Arbitrary;
-
 /** The root of ErgoScript IR. Serialized instances of this class are self sufficient and can be passed around.
- * ErgoTreeSerializer defines top-level serialization format of the scripts.
  */
 #[derive(PartialEq, Debug)]
-#[cfg_attr(test, derive(Arbitrary))]
 pub struct ErgoTree {}
+
+// impl ErgoTree {
+//     pub fn to_proposition(replace_constants: bool) -> Value[SSigmaProp] = {}
+// }
 
 impl SigmaSerializable for ErgoTree {
     fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, _: W) -> Result<(), io::Error> {
@@ -25,15 +24,15 @@ impl SigmaSerializable for ErgoTree {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::test_helpers::*;
     use proptest::prelude::*;
+    use sigma_ser::test_helpers::*;
+    use sigma_testutil::generator::*;
 
     proptest! {
 
         #[test]
-        fn ser_roundtrip(v in any::<ErgoTree>()) {
-            prop_assert_eq![sigma_serialize_roundtrip(&v), v];
+        fn ser_roundtrip(v in any::<ErgoTreeArb>()) {
+            prop_assert_eq![sigma_serialize_roundtrip(&(v.0)), v.0];
         }
     }
 }

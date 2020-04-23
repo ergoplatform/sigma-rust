@@ -1,5 +1,5 @@
 [package]
-name = "sigma-chain"
+name = "sigma-tree"
 version = "0.1.0"
 authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
 edition = "2018"
@@ -7,27 +7,13 @@ edition = "2018"
 [lib]
 crate-type = ["cdylib", "rlib"]
 
-[features]
-default = ["console_error_panic_hook"]
-# testing = ["sigma-tree/testing"]
-
 [dependencies]
-wasm-bindgen = "0.2"
 sigma-ser = { path = "../sigma-ser" }
-sigma-tree = { path = "../sigma-tree" }
-indexmap = "1.3.2"
-base16 = "0.2.1"
-
-# The `console_error_panic_hook` crate provides better debugging of panics by
-# logging them with `console.error`. This is great for development, but requires
-# all the `std::fmt` and `std::panicking` infrastructure, so isn't great for
-# code size when deploying.
-console_error_panic_hook = { version = "0.1.6", optional = true }
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.10"
 proptest-derive = "0.1.2"
-sigma-testutil = { path = "../sigma-testutil" }
+sigma-testutil = { path = "../sigma-testutil"}
 
 [dev-dependencies.proptest]
 # wasm support, via https://altsysrq.github.io/proptest-book/proptest/wasm.html

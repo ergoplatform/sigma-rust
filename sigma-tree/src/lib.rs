@@ -1,4 +1,4 @@
-//! Sigma serialization
+//! ErgoTree IR
 
 // Coding conventions
 #![forbid(unsafe_code)]
@@ -9,14 +9,7 @@
 #![deny(dead_code)]
 #![deny(unused_imports)]
 #![deny(missing_docs)]
-#![forbid(unsafe_code)]
 
-/// Sigma serializer
-pub mod serializer;
-/// VLQ encoder
-pub mod vlq_encode;
-/// ZigZag encoder
-pub mod zig_zag_encode;
+mod ergo_tree;
 
-// #[cfg(test)]
-pub mod test_helpers;
+pub use ergo_tree::*;

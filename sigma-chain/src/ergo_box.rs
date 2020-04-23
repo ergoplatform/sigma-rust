@@ -1,10 +1,10 @@
 //! Ergo box
-use crate::ergo_tree::ErgoTree;
 use crate::{token::TokenAmount, token::TokenId};
 use indexmap::IndexSet;
 use sigma_ser::serializer::SerializationError;
 use sigma_ser::serializer::SigmaSerializable;
 use sigma_ser::vlq_encode;
+use sigma_tree::ErgoTree;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::io;
@@ -160,35 +160,33 @@ pub fn parse_body_with_indexed_digests<R: vlq_encode::ReadSigmaVlqExt>(
 }
 
 #[cfg(test)]
-use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
-
-#[cfg(test)]
-impl Arbitrary for ErgoBoxCandidate {
-    type Parameters = ();
-
-    fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-        (
-            any::<u64>(),
-            any::<ErgoTree>(),
-            vec(any::<TokenAmount>(), 0..10),
-            any::<u32>(),
-        )
-            .prop_map(|(value, ergo_tree, tokens, creation_height)| Self {
-                value,
-                ergo_tree,
-                tokens,
-                additional_registers: HashMap::new(),
-                creation_height,
-            })
-            .boxed()
-    }
-    type Strategy = BoxedStrategy<Self>;
-}
-
-#[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_helpers::*;
+    use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
+    use sigma_ser::test_helpers::*;
+    use sigma_testutil::generator::*;
+
+    impl Arbitrary for ErgoBoxCandidate {
+        type Parameters = ();
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            (
+                any::<u64>(),
+                any::<ErgoTreeArb>(),
+                vec(any::<TokenAmount>(), 0..10),
+                any::<u32>(),
+            )
+                .prop_map(|(value, ergo_tree, tokens, creation_height)| Self {
+                    value: value,
+                    ergo_tree: ergo_tree.0,
+                    tokens: tokens,
+                    additional_registers: HashMap::new(),
+                    creation_height: creation_height,
+                })
+                .boxed()
+        }
+        type Strategy = BoxedStrategy<Self>;
+    }
 
     proptest! {
 
