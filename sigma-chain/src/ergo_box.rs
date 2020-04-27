@@ -177,11 +177,11 @@ mod tests {
                 any::<u32>(),
             )
                 .prop_map(|(value, ergo_tree, tokens, creation_height)| Self {
-                    value: value,
+                    value,
                     ergo_tree: ergo_tree.0,
-                    tokens: tokens,
+                    tokens,
                     additional_registers: HashMap::new(),
-                    creation_height: creation_height,
+                    creation_height,
                 })
                 .boxed()
         }

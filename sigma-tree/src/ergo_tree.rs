@@ -1,4 +1,9 @@
 //! ErgoTree
+#![allow(unused_imports)]
+use crate::{
+    ast::{ConstantNode, Value},
+    types::*,
+};
 use sigma_ser::serializer::SerializationError;
 use sigma_ser::serializer::SigmaSerializable;
 use sigma_ser::vlq_encode;
@@ -9,9 +14,19 @@ use std::io;
 #[derive(PartialEq, Debug)]
 pub struct ErgoTree {}
 
-// impl ErgoTree {
-//     pub fn to_proposition(replace_constants: bool) -> Value[SSigmaProp] = {}
-// }
+impl ErgoTree {
+    /// get value out of ErgoTree
+    pub fn to_proposition(&self, _replace_constants: bool) -> Box<dyn Value> {
+        todo!()
+        // let c = ConstantNode {
+        //     value: Box::new(CSigmaProp {
+        //         sigma_tree: SigmaBoolean::ProveDlog(0),
+        //     }) as Box<dyn SigmaProp>,
+        //     tpe: SType::SSigmaProp,
+        // };
+        // Box::new(c)
+    }
+}
 
 impl SigmaSerializable for ErgoTree {
     fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, _: W) -> Result<(), io::Error> {

@@ -10,6 +10,8 @@
 #![deny(unused_imports)]
 #![deny(missing_docs)]
 
+mod ast;
 mod ergo_tree;
+mod types;
 
 pub use ergo_tree::*;
