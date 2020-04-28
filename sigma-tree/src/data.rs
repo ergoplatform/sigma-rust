@@ -78,7 +78,7 @@ pub fn sigma_serialize_const<W: WriteSigmaVlqExt>(
 }
 
 pub fn sigma_deserialize_const<R: ReadSigmaVlqExt>(
-    tpe: SType,
+    tpe: &SType,
     mut r: R,
 ) -> Result<ConstantKind, SerializationError> {
     // for reference see http://github.com/ScorexFoundation/sigmastate-interpreter/blob/25251c1313b0131835f92099f02cef8a5d932b5e/sigmastate/src/main/scala/sigmastate/serialization/DataSerializer.scala#L84-L84
@@ -87,18 +87,25 @@ pub fn sigma_deserialize_const<R: ReadSigmaVlqExt>(
         SByte => CByte(r.get_i8()?),
         SColl(et) => {
             let len = r.get_u16()? as usize;
-            if *et == SByte {
+            if **et == SByte {
                 let mut buf = vec![0u8; len];
                 r.read_exact(&mut buf)?;
                 CCollPrim(CCollPrim::CCollByte(
                     buf.into_iter().map(|v| v as i8).collect(),
                 ))
             } else {
-                todo!();
+                todo!("handle the rest of supported collection types");
             }
         }
-        // STup(_) => {}
-        _ => todo!(),
+        STup(types) => {
+            let mut items = Vec::new();
+            types
+                .iter()
+                .try_for_each(|tpe| sigma_deserialize_const(tpe, &mut r).map(|v| items.push(v)))?;
+            CTup(items)
+        }
+
+        _ => todo!("handle the rest of the constant types"),
     };
     Ok(c)
 }
