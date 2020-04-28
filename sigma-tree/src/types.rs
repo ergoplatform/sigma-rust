@@ -10,6 +10,7 @@ use sigma_ser::{
     vlq_encode,
 };
 use std::{any::Any, io, marker::PhantomData, sync::Arc};
+use SerializationError::InvalidTypePrefix;
 
 #[derive(Clone, Debug)]
 pub struct TypeCode(u8);
@@ -77,8 +78,14 @@ impl SigmaSerializable for SType {
         // for reference see http://github.com/ScorexFoundation/sigmastate-interpreter/blob/25251c1313b0131835f92099f02cef8a5d932b5e/sigmastate/src/main/scala/sigmastate/serialization/TypeSerializer.scala#L25-L25
         todo!()
     }
-    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(r: R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(mut r: R) -> Result<Self, SerializationError> {
         // for reference see http://github.com/ScorexFoundation/sigmastate-interpreter/blob/25251c1313b0131835f92099f02cef8a5d932b5e/sigmastate/src/main/scala/sigmastate/serialization/TypeSerializer.scala#L118-L118
-        todo!()
+        let c = r.get_u8()?;
+        if c == 0 {
+            Err(InvalidTypePrefix)
+        } else {
+            todo!();
+            // Ok(SType::SAny)
+        }
     }
 }

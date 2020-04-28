@@ -3,37 +3,31 @@
 #![allow(unused_variables)]
 #![allow(unused_imports)]
 //! Sigma data
+use crate::{ast::Expr, types::SType};
 use sigma_ser::{
     serializer::{SerializationError, SigmaSerializable},
     vlq_encode,
 };
 use std::io;
 use vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt};
+use ConstantKind::*;
+use SType::*;
 
 pub struct RegisterId(u8);
 
 pub enum ConstantKind {
-    SBoolean(bool),
-    SByte(i8),
-    SShort(i16),
-    SInt(i32),
-    SLong(i64),
-    SBigInt,       // TODO: find underlying type
-    SGroupElement, // TODO: find/make underlying type
-    SSigmaProp(Box<dyn SigmaProp>),
-    SBox(Box<dyn SigmaBox>),
-    SAvlTree, // TODO: make underlying type
-    SColl(Vec<ConstantKind>),
-    STup(Vec<ConstantKind>),
-}
-
-impl SigmaSerializable for ConstantKind {
-    fn sigma_serialize<W: WriteSigmaVlqExt>(&self, w: W) -> Result<(), io::Error> {
-        todo!()
-    }
-    fn sigma_parse<R: ReadSigmaVlqExt>(r: R) -> Result<Self, SerializationError> {
-        todo!()
-    }
+    CBoolean(bool),
+    CByte(i8),
+    CShort(i16),
+    CInt(i32),
+    CLong(i64),
+    CBigInt,       // TODO: find underlying type
+    CGroupElement, // TODO: find/make underlying type
+    CSigmaProp(Box<dyn SigmaProp>),
+    CBox(Box<dyn SigmaBox>),
+    CAvlTree, // TODO: make underlying type
+    CColl(Vec<ConstantKind>),
+    CTup(Vec<ConstantKind>),
 }
 
 pub enum SigmaBoolean {
@@ -63,4 +57,28 @@ impl SigmaBox for CSigmaBox {
     fn value(&self) -> u64 {
         0
     }
+}
+
+pub fn sigma_serialize_const<W: WriteSigmaVlqExt>(
+    c: ConstantKind,
+    tpe: SType,
+    w: W,
+) -> Result<(), io::Error> {
+    // for reference see http://github.com/ScorexFoundation/sigmastate-interpreter/blob/25251c1313b0131835f92099f02cef8a5d932b5e/sigmastate/src/main/scala/sigmastate/serialization/DataSerializer.scala#L26-L26
+    todo!()
+}
+
+pub fn sigma_deserialize_const<R: ReadSigmaVlqExt>(
+    tpe: SType,
+    mut r: R,
+) -> Result<ConstantKind, SerializationError> {
+    // for reference see http://github.com/ScorexFoundation/sigmastate-interpreter/blob/25251c1313b0131835f92099f02cef8a5d932b5e/sigmastate/src/main/scala/sigmastate/serialization/DataSerializer.scala#L84-L84
+    let c = match tpe {
+        SAny => todo!(),
+        SByte => CByte(r.get_i8()?),
+        // SColl(_) => {}
+        // STup(_) => {}
+        _ => todo!(),
+    };
+    Ok(c)
 }
