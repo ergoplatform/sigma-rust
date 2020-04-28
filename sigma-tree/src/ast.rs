@@ -80,3 +80,12 @@ pub enum ContextMethods {
 pub enum PredefFunc {
     Sha256 { input: Box<Expr> },
 }
+
+impl SigmaSerializable for Expr {
+    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: W) -> Result<(), io::Error> {
+        todo!()
+    }
+    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(r: R) -> Result<Self, SerializationError> {
+        todo!();
+    }
+}

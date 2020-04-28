@@ -8,12 +8,20 @@ use sigma_ser::{
     serializer::{SerializationError, SigmaSerializable},
     vlq_encode,
 };
-use std::io;
+use std::{any::Any, io};
 use vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt};
 use ConstantKind::*;
 use SType::*;
 
 pub struct RegisterId(u8);
+
+pub enum CCollPrim {
+    CCollBoolean(Vec<bool>),
+    CCollByte(Vec<i8>),
+    CCollShort(Vec<i16>),
+    CCollInt(Vec<i32>),
+    CCollLong(Vec<i64>),
+}
 
 pub enum ConstantKind {
     CBoolean(bool),
@@ -26,6 +34,7 @@ pub enum ConstantKind {
     CSigmaProp(Box<dyn SigmaProp>),
     CBox(Box<dyn SigmaBox>),
     CAvlTree, // TODO: make underlying type
+    CCollPrim(CCollPrim),
     CColl(Vec<ConstantKind>),
     CTup(Vec<ConstantKind>),
 }
@@ -76,7 +85,18 @@ pub fn sigma_deserialize_const<R: ReadSigmaVlqExt>(
     let c = match tpe {
         SAny => todo!(),
         SByte => CByte(r.get_i8()?),
-        // SColl(_) => {}
+        SColl(et) => {
+            let len = r.get_u16()? as usize;
+            if *et == SByte {
+                let mut buf = vec![0u8; len];
+                r.read_exact(&mut buf)?;
+                CCollPrim(CCollPrim::CCollByte(
+                    buf.into_iter().map(|v| v as i8).collect(),
+                ))
+            } else {
+                todo!();
+            }
+        }
         // STup(_) => {}
         _ => todo!(),
     };

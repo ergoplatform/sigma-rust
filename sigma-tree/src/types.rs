@@ -17,6 +17,7 @@ pub struct TypeCode(u8);
 pub struct MethodId(u8);
 pub struct TypeId(u8);
 
+#[derive(PartialEq, Eq)]
 pub enum SType {
     SAny,
     SByte,
@@ -44,16 +45,19 @@ impl SType {
     }
 }
 
+#[derive(PartialEq, Eq)]
 pub struct STypeVar {
     name: String,
 }
 
+#[derive(PartialEq, Eq)]
 pub struct STypeParam {
     ident: STypeVar,
     upper_bound: Option<SType>,
     lower_bound: Option<SType>,
 }
 
+#[derive(PartialEq, Eq)]
 pub struct SFunc {
     t_dom: Vec<SType>,
     t_range: SType,
