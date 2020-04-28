@@ -1,9 +1,6 @@
 //! ErgoTree
 #![allow(unused_imports)]
-use crate::{
-    ast::{ConstantNode, Value},
-    types::*,
-};
+use crate::ast::Expr;
 use sigma_ser::serializer::SerializationError;
 use sigma_ser::serializer::SigmaSerializable;
 use sigma_ser::vlq_encode;
@@ -16,7 +13,7 @@ pub struct ErgoTree {}
 
 impl ErgoTree {
     /// get value out of ErgoTree
-    pub fn to_proposition(&self, _replace_constants: bool) -> Box<dyn Value> {
+    pub fn to_proposition(&self, _replace_constants: bool) -> Box<Expr> {
         todo!()
         // let c = ConstantNode {
         //     value: Box::new(CSigmaProp {

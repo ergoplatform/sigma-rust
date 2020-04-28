@@ -11,7 +11,9 @@
 #![deny(missing_docs)]
 
 mod ast;
+mod data;
 mod ergo_tree;
+mod eval;
 mod types;
 
 pub use ergo_tree::*;
