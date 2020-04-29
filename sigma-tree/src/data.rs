@@ -68,7 +68,7 @@ impl SigmaBox for CSigmaBox {
     }
 }
 
-pub fn sigma_serialize_const<W: WriteSigmaVlqExt>(
+pub fn sigma_serialize_data<W: WriteSigmaVlqExt>(
     c: ConstantKind,
     tpe: SType,
     w: W,
@@ -77,7 +77,7 @@ pub fn sigma_serialize_const<W: WriteSigmaVlqExt>(
     todo!()
 }
 
-pub fn sigma_deserialize_const<R: ReadSigmaVlqExt>(
+pub fn sigma_parse_data<R: ReadSigmaVlqExt>(
     tpe: &SType,
     mut r: R,
 ) -> Result<ConstantKind, SerializationError> {
@@ -101,7 +101,7 @@ pub fn sigma_deserialize_const<R: ReadSigmaVlqExt>(
             let mut items = Vec::new();
             types
                 .iter()
-                .try_for_each(|tpe| sigma_deserialize_const(tpe, &mut r).map(|v| items.push(v)))?;
+                .try_for_each(|tpe| sigma_parse_data(tpe, &mut r).map(|v| items.push(v)))?;
             CTup(items)
         }
 

@@ -4,7 +4,7 @@
 #![allow(unused_imports)]
 
 use crate::{
-    data::{ConstantKind, RegisterId},
+    data::{self, ConstantKind, RegisterId},
     types::*,
 };
 use serializer::SerializationError;
@@ -14,23 +14,34 @@ use sigma_ser::{
 };
 use std::{io, marker::PhantomData};
 use vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt};
-use ExprKind::*;
+use Expr::*;
 
 pub struct OpCode(u8);
 
-pub struct Expr {
-    pub tpe: SType,
-    pub kind: ExprKind,
-}
-pub enum ExprKind {
-    Constant(ConstantKind),
-    Coll(Vec<Expr>),
-    Tup(Vec<Expr>),
+// pub struct Expr {
+//     pub tpe: SType,
+//     pub kind: ExprKind,
+// }
+
+pub enum Expr {
+    Constant {
+        tpe: SType,
+        v: ConstantKind,
+    },
+    Coll {
+        tpe: SType,
+        v: Vec<Expr>,
+    },
+    Tup {
+        tpe: SType,
+        v: Vec<Expr>,
+    },
     PredefFunc(PredefFunc),
     CollM(CollMethods),
     BoxM(BoxMethods),
     CtxM(ContextMethods),
     MethodCall {
+        tpe: SType,
         obj: Box<Expr>,
         method: SMethod,
         args: Vec<Expr>,
@@ -39,15 +50,22 @@ pub enum ExprKind {
 
 impl Expr {
     pub fn op_code(&self) -> OpCode {
-        match &self.kind {
-            Constant(_) => todo!(),
-            Coll(_) => todo!(),
-            Tup(_) => todo!(),
+        match self {
+            Constant { .. } => todo!(),
+            Coll { .. } => todo!(),
+            Tup { .. } => todo!(),
             BoxM(boxm) => boxm.op_code(),
             CollM(_) => todo!(),
             CtxM(_) => todo!(),
             MethodCall { .. } => todo!(),
             PredefFunc(_) => todo!(),
+        }
+    }
+
+    pub fn tpe(&self) -> &SType {
+        match self {
+            Constant { tpe, .. } => tpe,
+            _ => todo!(),
         }
     }
 }
@@ -82,11 +100,28 @@ pub enum PredefFunc {
     Sha256 { input: Box<Expr> },
 }
 
+fn sigma_parse_constant<R: ReadSigmaVlqExt>(mut r: R) -> Result<Expr, SerializationError> {
+    // for reference see http://github.com/ScorexFoundation/sigmastate-interpreter/blob/25251c1313b0131835f92099f02cef8a5d932b5e/sigmastate/src/main/scala/sigmastate/serialization/DataSerializer.scala#L84-L84
+    let tpe = SType::sigma_parse(&mut r)?;
+    let v = data::sigma_parse_data(&tpe, &mut r)?;
+    Ok(Constant { tpe, v })
+}
+
+// TODO: extract to op_codes module and set correct value
+const LAST_CONSTANT_CODE: u8 = 0;
+
 impl SigmaSerializable for Expr {
     fn sigma_serialize<W: WriteSigmaVlqExt>(&self, w: W) -> Result<(), io::Error> {
         todo!()
     }
-    fn sigma_parse<R: ReadSigmaVlqExt>(r: R) -> Result<Self, SerializationError> {
-        todo!();
+    fn sigma_parse<R: ReadSigmaVlqExt>(mut r: R) -> Result<Self, SerializationError> {
+        let first_byte = r.peek_u8()?;
+        if first_byte <= LAST_CONSTANT_CODE {
+            sigma_parse_constant(&mut r)
+        } else {
+            let op_code = r.get_u8()?;
+            // TODO: get a serializer for this op_code and run it
+            todo!()
+        }
     }
 }
