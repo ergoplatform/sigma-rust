@@ -85,9 +85,9 @@ pub fn sigma_deserialize_const<R: ReadSigmaVlqExt>(
     let c = match tpe {
         SAny => todo!(),
         SByte => CByte(r.get_i8()?),
-        SColl(et) => {
+        SColl(elem_type) => {
             let len = r.get_u16()? as usize;
-            if **et == SByte {
+            if **elem_type == SByte {
                 let mut buf = vec![0u8; len];
                 r.read_exact(&mut buf)?;
                 CCollPrim(CCollPrim::CCollByte(

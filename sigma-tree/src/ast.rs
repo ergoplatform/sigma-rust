@@ -13,6 +13,7 @@ use sigma_ser::{
     vlq_encode,
 };
 use std::{io, marker::PhantomData};
+use vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt};
 use ExprKind::*;
 
 pub struct OpCode(u8);
@@ -82,10 +83,10 @@ pub enum PredefFunc {
 }
 
 impl SigmaSerializable for Expr {
-    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: WriteSigmaVlqExt>(&self, w: W) -> Result<(), io::Error> {
         todo!()
     }
-    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(r: R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: ReadSigmaVlqExt>(r: R) -> Result<Self, SerializationError> {
         todo!();
     }
 }
