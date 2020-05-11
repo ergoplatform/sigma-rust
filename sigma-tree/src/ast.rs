@@ -7,15 +7,17 @@ use crate::{
     data::{self, ConstantKind, RegisterId},
     types::*,
 };
+use io::{Read, Write};
 use serializer::SerializationError;
 use sigma_ser::{
     serializer::{self, SigmaSerializable},
     vlq_encode,
 };
-use std::{io, marker::PhantomData};
+use std::{collections::HashMap, io, marker::PhantomData, rc::Rc};
 use vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt};
 use Expr::*;
 
+#[derive(PartialEq, Eq, Hash, Copy, Clone)]
 pub struct OpCode(u8);
 
 // pub struct Expr {
@@ -114,14 +116,86 @@ impl SigmaSerializable for Expr {
     fn sigma_serialize<W: WriteSigmaVlqExt>(&self, w: W) -> Result<(), io::Error> {
         todo!()
     }
-    fn sigma_parse<R: ReadSigmaVlqExt>(mut r: R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: ReadSigmaVlqExt + Read>(mut r: R) -> Result<Self, SerializationError> {
         let first_byte = r.peek_u8()?;
         if first_byte <= LAST_CONSTANT_CODE {
             sigma_parse_constant(&mut r)
         } else {
             let op_code = r.get_u8()?;
-            // TODO: get a serializer for this op_code and run it
-            todo!()
+            match ExprSerializers::new().get_serializer(&OpCode(op_code)) {
+                // TODO: make new error
+                None => Err(SerializationError::InvalidTypePrefix),
+                Some(s) => s.sigma_parse_expr(&r),
+            }
         }
+    }
+}
+
+pub trait ExprSerializer {
+    fn op_code(&self) -> OpCode;
+    fn sigma_serialize_expr(&self, expr: &Expr, w: &dyn Write) -> Result<(), io::Error>;
+    fn sigma_parse_expr(&self, r: &dyn Read) -> Result<Expr, SerializationError>;
+}
+
+pub struct FoldSerializer {
+    pub op_code: OpCode,
+}
+
+impl ExprSerializer for FoldSerializer {
+    fn sigma_serialize_expr(&self, expr: &Expr, mut w: &dyn Write) -> Result<(), io::Error> {
+        match expr {
+            CollM(CollMethods::Fold {
+                input,
+                zero,
+                fold_op,
+            }) => {
+                input.sigma_serialize(&mut w)?;
+                zero.sigma_serialize(&mut w)?;
+                fold_op.sigma_serialize(&mut w)?;
+                Ok(())
+            }
+            e => panic!("expected Fold"),
+        }
+    }
+
+    fn sigma_parse_expr(&self, mut r: &dyn Read) -> Result<Expr, SerializationError> {
+        let input = Expr::sigma_parse(&mut r)?;
+        let zero = Expr::sigma_parse(&mut r)?;
+        let fold_op = Expr::sigma_parse(&mut r)?;
+        Ok(CollM(CollMethods::Fold {
+            input: Box::new(input),
+            zero: Box::new(zero),
+            fold_op: Box::new(fold_op),
+        }))
+    }
+
+    fn op_code(&self) -> OpCode {
+        self.op_code
+    }
+}
+
+type SerializerMap = HashMap<OpCode, Box<dyn ExprSerializer>>;
+
+pub struct ExprSerializers {
+    serializers: SerializerMap,
+}
+
+impl ExprSerializers {
+    fn build(serializers: Vec<Box<dyn ExprSerializer>>) -> SerializerMap {
+        serializers
+            .into_iter()
+            .map(|s| (s.op_code(), s))
+            .into_iter()
+            .collect()
+    }
+
+    pub fn new() -> ExprSerializers {
+        let serializers =
+            ExprSerializers::build(vec![Box::new(FoldSerializer { op_code: OpCode(0) })]);
+        ExprSerializers { serializers }
+    }
+
+    pub fn get_serializer(&self, op_code: &OpCode) -> Option<&Box<dyn ExprSerializer>> {
+        self.serializers.get(op_code)
     }
 }
