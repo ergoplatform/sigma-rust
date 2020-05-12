@@ -5,6 +5,9 @@ use thiserror::Error;
 /// Ways serialization might fail
 #[derive(Error, Debug)]
 pub enum SerializationError {
+    /// Failed to parse op
+    #[error("op parsing error")]
+    InvalidOpCode,
     /// Failed to parse type
     #[error("type parsing error")]
     InvalidTypePrefix,
