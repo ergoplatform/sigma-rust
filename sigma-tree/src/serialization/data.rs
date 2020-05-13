@@ -13,11 +13,26 @@ pub struct DataSerializer {}
 impl DataSerializer {
     pub fn sigma_serialize<W: WriteSigmaVlqExt>(
         c: &ConstantKind,
-        tpe: &SType,
-        w: W,
+        _: &SType,
+        mut w: W,
     ) -> Result<(), io::Error> {
         // for reference see http://github.com/ScorexFoundation/sigmastate-interpreter/blob/25251c1313b0131835f92099f02cef8a5d932b5e/sigmastate/src/main/scala/sigmastate/serialization/DataSerializer.scala#L26-L26
-        todo!()
+        // TODO: do we need SType parameter at all?
+        match c {
+            CBoolean(_) => todo!(),
+            CByte(b) => w.put_i8(*b),
+            CShort(_) => todo!(),
+            CInt(_) => todo!(),
+            CLong(_) => todo!(),
+            CBigInt => todo!(),
+            CGroupElement => todo!(),
+            CSigmaProp(_) => todo!(),
+            CBox(_) => todo!(),
+            CAvlTree => todo!(),
+            ConstantKind::CCollPrim(_) => todo!(),
+            CColl(_) => todo!(),
+            CTup(_) => todo!(),
+        }
     }
 
     pub fn sigma_parse<R: ReadSigmaVlqExt>(
