@@ -32,7 +32,7 @@ impl SigmaSerializable for Expr {
             ConstantSerializer::sigma_parse(&mut r)
         } else {
             let op_code = OpCode::sigma_parse(&mut r)?;
-            ExprSerializers::sigma_parse(&op_code, &mut r)
+            ExprSerializers::sigma_parse(op_code, &mut r)
         }
     }
 }
@@ -50,11 +50,11 @@ impl ExprSerializers {
     }
 
     pub fn sigma_parse<R: ReadSigmaVlqExt>(
-        op_code: &OpCode,
+        op_code: OpCode,
         r: R,
     ) -> Result<Expr, SerializationError> {
         match op_code {
-            &FoldSerializer::OP_CODE => FoldSerializer::sigma_parse(r),
+            FoldSerializer::OP_CODE => FoldSerializer::sigma_parse(r),
             o => Err(SerializationError::NotImplementedOpCode(o.value())),
         }
     }

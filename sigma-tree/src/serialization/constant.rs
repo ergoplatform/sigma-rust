@@ -26,4 +26,3 @@ impl ConstantSerializer {
         Ok(Expr::Constant { tpe, v })
     }
 }
-
