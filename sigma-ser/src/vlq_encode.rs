@@ -1,7 +1,6 @@
 use super::zig_zag_encode;
 use std::convert::TryFrom;
 use std::io;
-use std::io::prelude::*;
 
 #[cfg(test)]
 use proptest::{num::u64, prelude::*};
@@ -105,10 +104,12 @@ impl<W: io::Write + ?Sized> WriteSigmaVlqExt for W {}
 pub trait ReadSigmaVlqExt: io::Read {
     /// Peek a u8 without advancing the position
     fn peek_u8(&mut self) -> Result<u8, io::Error> {
-        // TODO: fix and enable test, implementation below does not work (consumes the reader)
-        let mut slice = [0u8; 1];
-        self.take(1).read(&mut slice)?;
-        Ok(slice[0])
+        // https://github.com/ergoplatform/sigma-rust/issues/20
+        todo!("implement and enable test")
+        // does not work (consumes the reader)
+        // let mut slice = [0u8; 1];
+        // self.take(1).read(&mut slice)?;
+        // Ok(slice[0])
     }
 
     /// Read i8 without decoding
