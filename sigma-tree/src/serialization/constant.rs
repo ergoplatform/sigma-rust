@@ -13,7 +13,7 @@ impl ConstantSerializer {
         match expr {
             Expr::Constant { tpe, v } => {
                 tpe.sigma_serialize(&mut w)?;
-                DataSerializer::sigma_serialize(v, tpe, w)
+                DataSerializer::sigma_serialize(v, w)
             }
             _ => panic!("constant expected"),
         }

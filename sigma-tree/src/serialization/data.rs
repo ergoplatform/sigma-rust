@@ -8,13 +8,8 @@ use std::io;
 pub struct DataSerializer {}
 
 impl DataSerializer {
-    pub fn sigma_serialize<W: WriteSigmaVlqExt>(
-        c: &Const,
-        _: &SType,
-        mut w: W,
-    ) -> Result<(), io::Error> {
+    pub fn sigma_serialize<W: WriteSigmaVlqExt>(c: &Const, mut w: W) -> Result<(), io::Error> {
         // for reference see http://github.com/ScorexFoundation/sigmastate-interpreter/blob/25251c1313b0131835f92099f02cef8a5d932b5e/sigmastate/src/main/scala/sigmastate/serialization/DataSerializer.scala#L26-L26
-        // TODO: do we need SType parameter at all?
         match c {
             Boolean(_) => todo!(),
             Byte(b) => w.put_i8(*b),
