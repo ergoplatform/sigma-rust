@@ -16,20 +16,7 @@ use std::{collections::HashMap, io, marker::PhantomData, rc::Rc};
 use vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt};
 use Expr::*;
 
-// pub struct Expr {
-//     pub tpe: SType,
-//     pub kind: ExprKind,
-// }
-
-// TODO: extract
-pub enum NumOp {
-    Add,
-}
-
-// TODO: extract
-pub enum BinOp {
-    Num(NumOp),
-}
+pub mod ops;
 
 pub struct RegisterId(u8);
 
@@ -80,7 +67,7 @@ pub enum Expr {
         method: SMethod,
         args: Vec<Expr>,
     },
-    BinOp(BinOp, Box<Expr>, Box<Expr>),
+    BinOp(ops::BinOp, Box<Expr>, Box<Expr>),
 }
 
 impl Expr {

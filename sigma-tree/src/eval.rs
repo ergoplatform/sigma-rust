@@ -3,7 +3,7 @@
 #![allow(unused_variables)]
 #![allow(unused_imports)]
 
-use crate::ast::{BinOp, Expr, NumOp};
+use crate::ast::{ops::BinOp, ops::NumOp, Expr};
 
 use cost_accum::CostAccumulator;
 use costs::{Cost, Costs};
