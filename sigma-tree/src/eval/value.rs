@@ -1,17 +1,18 @@
 use crate::data::{SigmaBox, SigmaProp};
 use std::ops::Add;
 
+#[allow(dead_code)]
 pub enum Value {
     Boolean(bool),
     Byte(i8),
     Short(i16),
     Int(i32),
     Long(i64),
-    BigInt,       // TODO: find underlying type
-    GroupElement, // TODO: find/make underlying type
+    BigInt,
+    GroupElement,
     SigmaProp(Box<dyn SigmaProp>),
     Box(Box<dyn SigmaBox>),
-    AvlTree, // TODO: make underlying type
+    AvlTree,
     Coll(Vec<Value>),
     Tup(Vec<Value>),
 }

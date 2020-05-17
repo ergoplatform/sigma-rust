@@ -1,16 +1,10 @@
-#![allow(missing_docs)]
-#![allow(dead_code)]
-#![allow(unused_variables)]
-#![allow(unused_imports)]
 //! Sigma types
 
-use core::num;
 use sigma_ser::{
     serializer::{SerializationError, SigmaSerializable},
     vlq_encode,
 };
-use std::{any::Any, io, marker::PhantomData, sync::Arc};
-use SerializationError::InvalidTypePrefix;
+use std::io;
 
 #[derive(Clone, Debug)]
 pub struct TypeCode(u8);
@@ -78,7 +72,7 @@ pub struct SMethod {
 }
 
 impl SigmaSerializable for SType {
-    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, _: W) -> Result<(), io::Error> {
         // for reference see http://github.com/ScorexFoundation/sigmastate-interpreter/blob/25251c1313b0131835f92099f02cef8a5d932b5e/sigmastate/src/main/scala/sigmastate/serialization/TypeSerializer.scala#L25-L25
         todo!()
     }
@@ -86,7 +80,7 @@ impl SigmaSerializable for SType {
         // for reference see http://github.com/ScorexFoundation/sigmastate-interpreter/blob/25251c1313b0131835f92099f02cef8a5d932b5e/sigmastate/src/main/scala/sigmastate/serialization/TypeSerializer.scala#L118-L118
         let c = r.get_u8()?;
         if c == 0 {
-            Err(InvalidTypePrefix)
+            Err(SerializationError::InvalidTypePrefix)
         } else {
             todo!();
             // Ok(SType::SAny)

@@ -1,17 +1,6 @@
-#![allow(missing_docs)]
-#![allow(dead_code)]
-#![allow(unused_variables)]
-#![allow(unused_imports)]
-//! Sigma data
-use crate::{ast::Expr, types::SType};
-use sigma_ser::{
-    serializer::{SerializationError, SigmaSerializable},
-    vlq_encode,
-};
-use std::{any::Any, io};
-use vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt};
-use SType::*;
+//! Underlying Sigma data types
 
+#[allow(dead_code)]
 pub enum SigmaBoolean {
     ProveDlog(u64),
     CAND(Vec<SigmaBoolean>),

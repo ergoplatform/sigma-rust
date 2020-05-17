@@ -1,13 +1,7 @@
-#![allow(missing_docs)]
-#![allow(dead_code)]
-#![allow(unused_variables)]
-#![allow(unused_imports)]
-
 use crate::ast::{ops::BinOp, ops::NumOp, Expr};
 
 use cost_accum::CostAccumulator;
-use costs::{Cost, Costs};
-use std::ops::Add;
+use costs::Costs;
 use value::Value;
 
 mod cost_accum;
@@ -32,19 +26,14 @@ impl Executor for Interpreter {
     #[allow(unconditional_recursion)]
     fn eval(&mut self, expr: &Expr, env: &Env) -> Result<Value, EvalError> {
         match expr {
-            Expr::Constant { tpe, v } => todo!(), //Ok(EvalResult(*v)),
-            Expr::Coll { tpe, v } => todo!(),
-            Expr::Tup { tpe, v } => todo!(),
+            Expr::Constant { .. } => todo!(), //Ok(EvalResult(*v)),
+            Expr::Coll { .. } => todo!(),
+            Expr::Tup { .. } => todo!(),
             Expr::PredefFunc(_) => todo!(),
             Expr::CollM(_) => todo!(),
             Expr::BoxM(_) => todo!(),
             Expr::CtxM(_) => todo!(),
-            Expr::MethodCall {
-                tpe,
-                obj,
-                method,
-                args,
-            } => todo!(),
+            Expr::MethodCall { .. } => todo!(),
             Expr::BinOp(bin_op, l, r) => {
                 let v_l = self.eval(l, env)?;
                 let v_r = self.eval(r, env)?;

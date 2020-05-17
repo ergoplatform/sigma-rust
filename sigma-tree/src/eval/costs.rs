@@ -7,19 +7,14 @@ pub struct Costs {}
 impl Costs {
     pub fn cost_of(&self, expr: &Expr) -> Cost {
         match expr {
-            Expr::Constant { tpe, v } => todo!(),
-            Expr::Coll { tpe, v } => todo!(),
-            Expr::Tup { tpe, v } => todo!(),
+            Expr::Constant { .. } => todo!(),
+            Expr::Coll { .. } => todo!(),
+            Expr::Tup { .. } => todo!(),
             Expr::PredefFunc(_) => todo!(),
             Expr::CollM(_) => todo!(),
             Expr::BoxM(_) => todo!(),
             Expr::CtxM(_) => todo!(),
-            Expr::MethodCall {
-                tpe,
-                obj,
-                method,
-                args,
-            } => todo!(),
+            Expr::MethodCall { .. } => todo!(),
             Expr::BinOp(_, _, _) => todo!(),
         }
     }

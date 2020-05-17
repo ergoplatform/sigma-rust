@@ -1,19 +1,6 @@
-#![allow(missing_docs)]
-#![allow(dead_code)]
-#![allow(unused_variables)]
-#![allow(unused_imports)]
-
 use crate::data::{SigmaBox, SigmaProp};
 use crate::{serialization::op_code::OpCode, types::*};
 use core::fmt;
-use io::{Read, Write};
-use serializer::SerializationError;
-use sigma_ser::{
-    serializer::{self, SigmaSerializable},
-    vlq_encode,
-};
-use std::{collections::HashMap, io, marker::PhantomData, rc::Rc};
-use vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt};
 use Expr::*;
 
 pub mod ops;
@@ -34,11 +21,11 @@ pub enum Const {
     Short(i16),
     Int(i32),
     Long(i64),
-    BigInt,       // TODO: find underlying type
-    GroupElement, // TODO: find/make underlying type
+    BigInt,
+    GroupElement,
     SigmaProp(Box<dyn SigmaProp>),
     CBox(Box<dyn SigmaBox>),
-    AvlTree, // TODO: make underlying type
+    AvlTree,
     CollPrim(CollPrim),
     Coll(Vec<Const>),
     Tup(Vec<Const>),
@@ -94,7 +81,7 @@ impl Expr {
 }
 
 impl fmt::Display for Expr {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, _: &mut fmt::Formatter<'_>) -> fmt::Result {
         todo!()
     }
 }

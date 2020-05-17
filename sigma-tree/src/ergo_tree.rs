@@ -1,5 +1,4 @@
 //! ErgoTree
-#![allow(unused_imports)]
 use crate::ast::Expr;
 use sigma_ser::serializer::SerializationError;
 use sigma_ser::serializer::SigmaSerializable;
