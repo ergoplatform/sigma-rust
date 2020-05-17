@@ -2,7 +2,7 @@
 use crate::ast::{CollMethods, Expr};
 use constant::ConstantSerializer;
 use fold::FoldSerializer;
-use op_code::{OpCode, LAST_CONSTANT_CODE};
+use op_code::OpCode;
 use sigma_ser::{
     serializer::{SerializationError, SigmaSerializable},
     vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt},
@@ -28,7 +28,7 @@ impl SigmaSerializable for Expr {
 
     fn sigma_parse<R: ReadSigmaVlqExt>(mut r: R) -> Result<Self, SerializationError> {
         let first_byte = r.peek_u8()?;
-        if first_byte <= LAST_CONSTANT_CODE.value() {
+        if first_byte <= OpCode::LAST_CONSTANT_CODE.value() {
             ConstantSerializer::sigma_parse(&mut r)
         } else {
             let op_code = OpCode::sigma_parse(&mut r)?;

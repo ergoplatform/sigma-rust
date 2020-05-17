@@ -9,24 +9,23 @@ use vlq_encode::WriteSigmaVlqExt;
 pub struct OpCode(u8);
 
 impl OpCode {
-    // TODO: use correct code
-    pub const FOLD: OpCode = OpCode(0);
+    pub const LAST_DATA_TYPE: OpCode = OpCode(111);
+    pub const LAST_CONSTANT_CODE: OpCode = OpCode(Self::LAST_DATA_TYPE.value() + 1);
+
+    pub const FOLD: OpCode = Self::new_op_code(64);
+
+    const fn new_op_code(shift: u8) -> OpCode {
+        OpCode(Self::LAST_CONSTANT_CODE.value() + shift)
+    }
 
     pub fn parse(b: u8) -> OpCode {
         OpCode(b)
     }
 
-    const fn assigned(b: u8) -> OpCode {
-        OpCode(b)
-    }
-
-    pub fn value(&self) -> u8 {
+    pub const fn value(&self) -> u8 {
         self.0
     }
 }
-
-// TODO: correct value
-pub const LAST_CONSTANT_CODE: OpCode = OpCode::assigned(0);
 
 impl SigmaSerializable for OpCode {
     fn sigma_serialize<W: WriteSigmaVlqExt>(&self, mut w: W) -> Result<(), io::Error> {
@@ -38,4 +37,3 @@ impl SigmaSerializable for OpCode {
         Ok(OpCode::parse(code))
     }
 }
-
