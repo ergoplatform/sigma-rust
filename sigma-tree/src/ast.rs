@@ -3,11 +3,8 @@
 #![allow(unused_variables)]
 #![allow(unused_imports)]
 
-use crate::{
-    data::{self, ConstantKind, RegisterId},
-    serialization::op_code::OpCode,
-    types::*,
-};
+use crate::data::{SigmaBox, SigmaProp};
+use crate::{serialization::op_code::OpCode, types::*};
 use core::fmt;
 use io::{Read, Write};
 use serializer::SerializationError;
@@ -24,10 +21,46 @@ use Expr::*;
 //     pub kind: ExprKind,
 // }
 
+// TODO: extract
+pub enum NumOp {
+    Add,
+}
+
+// TODO: extract
+pub enum BinOp {
+    Num(NumOp),
+}
+
+pub struct RegisterId(u8);
+
+pub enum CollPrim {
+    CollBoolean(Vec<bool>),
+    CollByte(Vec<i8>),
+    CollShort(Vec<i16>),
+    CollInt(Vec<i32>),
+    CollLong(Vec<i64>),
+}
+
+pub enum Const {
+    Boolean(bool),
+    Byte(i8),
+    Short(i16),
+    Int(i32),
+    Long(i64),
+    BigInt,       // TODO: find underlying type
+    GroupElement, // TODO: find/make underlying type
+    SigmaProp(Box<dyn SigmaProp>),
+    CBox(Box<dyn SigmaBox>),
+    AvlTree, // TODO: make underlying type
+    CollPrim(CollPrim),
+    Coll(Vec<Const>),
+    Tup(Vec<Const>),
+}
+
 pub enum Expr {
     Constant {
         tpe: SType,
-        v: ConstantKind,
+        v: Const,
     },
     Coll {
         tpe: SType,
@@ -47,6 +80,7 @@ pub enum Expr {
         method: SMethod,
         args: Vec<Expr>,
     },
+    BinOp(BinOp, Box<Expr>, Box<Expr>),
 }
 
 impl Expr {
@@ -60,6 +94,7 @@ impl Expr {
             CtxM(_) => todo!(),
             MethodCall { .. } => todo!(),
             PredefFunc(_) => todo!(),
+            BinOp(_, _, _) => todo!(),
         }
     }
 
@@ -106,4 +141,3 @@ pub enum ContextMethods {
 pub enum PredefFunc {
     Sha256 { input: Box<Expr> },
 }
-

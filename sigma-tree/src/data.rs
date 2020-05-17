@@ -10,34 +10,7 @@ use sigma_ser::{
 };
 use std::{any::Any, io};
 use vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt};
-use ConstantKind::*;
 use SType::*;
-
-pub struct RegisterId(u8);
-
-pub enum CCollPrim {
-    CCollBoolean(Vec<bool>),
-    CCollByte(Vec<i8>),
-    CCollShort(Vec<i16>),
-    CCollInt(Vec<i32>),
-    CCollLong(Vec<i64>),
-}
-
-pub enum ConstantKind {
-    CBoolean(bool),
-    CByte(i8),
-    CShort(i16),
-    CInt(i32),
-    CLong(i64),
-    CBigInt,       // TODO: find underlying type
-    CGroupElement, // TODO: find/make underlying type
-    CSigmaProp(Box<dyn SigmaProp>),
-    CBox(Box<dyn SigmaBox>),
-    CAvlTree, // TODO: make underlying type
-    CCollPrim(CCollPrim),
-    CColl(Vec<ConstantKind>),
-    CTup(Vec<ConstantKind>),
-}
 
 pub enum SigmaBoolean {
     ProveDlog(u64),
