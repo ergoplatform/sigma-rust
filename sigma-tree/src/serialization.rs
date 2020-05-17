@@ -13,6 +13,7 @@ mod constant;
 mod data;
 mod fold;
 pub mod op_code;
+mod types;
 
 impl SigmaSerializable for Expr {
     fn sigma_serialize<W: WriteSigmaVlqExt>(&self, mut w: W) -> Result<(), io::Error> {
