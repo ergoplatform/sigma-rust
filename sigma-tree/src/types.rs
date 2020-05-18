@@ -64,4 +64,3 @@ pub struct SMethod {
     pub method_id: MethodId,
     pub tpe: SType,
 }
-
