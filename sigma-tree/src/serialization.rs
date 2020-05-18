@@ -18,7 +18,7 @@ mod types;
 impl SigmaSerializable for Expr {
     fn sigma_serialize<W: WriteSigmaVlqExt>(&self, mut w: W) -> Result<(), io::Error> {
         match self {
-            Expr::Constant { .. } => ConstantSerializer::sigma_serialize(self, w),
+            Expr::Const(_) => ConstantSerializer::sigma_serialize(self, w),
             expr => {
                 let op_code = self.op_code();
                 op_code.sigma_serialize(&mut w)?;

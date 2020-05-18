@@ -15,7 +15,7 @@ pub enum CollPrim {
     CollLong(Vec<i64>),
 }
 
-pub enum Const {
+pub enum ConstantVal {
     Boolean(bool),
     Byte(i8),
     Short(i16),
@@ -27,15 +27,17 @@ pub enum Const {
     CBox(Box<dyn SigmaBox>),
     AvlTree,
     CollPrim(CollPrim),
-    Coll(Vec<Const>),
-    Tup(Vec<Const>),
+    Coll(Vec<ConstantVal>),
+    Tup(Vec<ConstantVal>),
+}
+
+pub struct Constant {
+    pub tpe: SType,
+    pub v: ConstantVal,
 }
 
 pub enum Expr {
-    Constant {
-        tpe: SType,
-        v: Const,
-    },
+    Const(Constant),
     Coll {
         tpe: SType,
         v: Vec<Expr>,
@@ -60,7 +62,7 @@ pub enum Expr {
 impl Expr {
     pub fn op_code(&self) -> OpCode {
         match self {
-            Constant { .. } => todo!(),
+            Const { .. } => todo!(),
             Coll { .. } => todo!(),
             Tup { .. } => todo!(),
             BoxM(boxm) => boxm.op_code(),
@@ -74,7 +76,7 @@ impl Expr {
 
     pub fn tpe(&self) -> &SType {
         match self {
-            Constant { tpe, .. } => tpe,
+            Const(c) => &c.tpe,
             _ => todo!(),
         }
     }

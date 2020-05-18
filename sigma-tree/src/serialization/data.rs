@@ -1,4 +1,4 @@
-use crate::{ast::CollPrim, ast::Const, ast::Const::*, types::SType, types::SType::*};
+use crate::{ast::CollPrim, ast::ConstantVal, ast::ConstantVal::*, types::SType, types::SType::*};
 use sigma_ser::{
     serializer::SerializationError,
     vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt},
@@ -8,7 +8,10 @@ use std::io;
 pub struct DataSerializer {}
 
 impl DataSerializer {
-    pub fn sigma_serialize<W: WriteSigmaVlqExt>(c: &Const, mut w: W) -> Result<(), io::Error> {
+    pub fn sigma_serialize<W: WriteSigmaVlqExt>(
+        c: &ConstantVal,
+        mut w: W,
+    ) -> Result<(), io::Error> {
         // for reference see http://github.com/ScorexFoundation/sigmastate-interpreter/blob/25251c1313b0131835f92099f02cef8a5d932b5e/sigmastate/src/main/scala/sigmastate/serialization/DataSerializer.scala#L26-L26
         match c {
             Boolean(_) => todo!(),
@@ -21,7 +24,7 @@ impl DataSerializer {
             SigmaProp(_) => todo!(),
             CBox(_) => todo!(),
             AvlTree => todo!(),
-            Const::CollPrim(_) => todo!(),
+            ConstantVal::CollPrim(_) => todo!(),
             Coll(_) => todo!(),
             Tup(_) => todo!(),
         }
@@ -30,7 +33,7 @@ impl DataSerializer {
     pub fn sigma_parse<R: ReadSigmaVlqExt>(
         tpe: &SType,
         mut r: R,
-    ) -> Result<Const, SerializationError> {
+    ) -> Result<ConstantVal, SerializationError> {
         // for reference see http://github.com/ScorexFoundation/sigmastate-interpreter/blob/25251c1313b0131835f92099f02cef8a5d932b5e/sigmastate/src/main/scala/sigmastate/serialization/DataSerializer.scala#L84-L84
         let c = match tpe {
             SAny => todo!(),
