@@ -5,6 +5,15 @@ use thiserror::Error;
 /// Ways serialization might fail
 #[derive(Error, Debug)]
 pub enum SerializationError {
+    /// Failed to parse op
+    #[error("op parsing error")]
+    InvalidOpCode,
+    /// Lacking support for the op
+    #[error("not implemented op error")]
+    NotImplementedOpCode(u8),
+    /// Failed to parse type
+    #[error("type parsing error")]
+    InvalidTypePrefix,
     /// Failed to decode VLQ
     #[error("vlq encode error")]
     VlqEncode(vlq_encode::VlqEncodingError),

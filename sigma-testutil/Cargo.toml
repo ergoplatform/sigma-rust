@@ -1,0 +1,28 @@
+[package]
+name = "sigma-testutil"
+version = "0.1.0"
+authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+sigma-tree = { path = "../sigma-tree" }
+
+[dependencies.proptest]
+# wasm support, via https://altsysrq.github.io/proptest-book/proptest/wasm.html
+version = "0.9"
+# The default feature set includes things like process forking which are not
+# supported in Web Assembly.
+default-features = false
+# Enable using the `std` crate.
+features = ["std"]
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3.10"
+proptest-derive = "0.1.2"
+
+[profile.release]
+# Tell `rustc` to optimize for small code size.
+opt-level = "s"

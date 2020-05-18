@@ -111,32 +111,31 @@ impl SigmaSerializable for Transaction {
 }
 
 #[cfg(test)]
-use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
-
-#[cfg(test)]
-impl Arbitrary for Transaction {
-    type Parameters = ();
-
-    fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-        (
-            vec(any::<Input>(), 1..10),
-            vec(any::<DataInput>(), 0..10),
-            vec(any::<ErgoBoxCandidate>(), 1..10),
-        )
-            .prop_map(|(inputs, data_inputs, outputs)| Self {
-                inputs,
-                data_inputs,
-                outputs,
-            })
-            .boxed()
-    }
-    type Strategy = BoxedStrategy<Self>;
-}
-
-#[cfg(test)]
 mod tests {
+
     use super::*;
-    use crate::test_helpers::*;
+    use sigma_ser::test_helpers::*;
+
+    use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
+
+    impl Arbitrary for Transaction {
+        type Parameters = ();
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            (
+                vec(any::<Input>(), 1..10),
+                vec(any::<DataInput>(), 0..10),
+                vec(any::<ErgoBoxCandidate>(), 1..10),
+            )
+                .prop_map(|(inputs, data_inputs, outputs)| Self {
+                    inputs,
+                    data_inputs,
+                    outputs,
+                })
+                .boxed()
+        }
+        type Strategy = BoxedStrategy<Self>;
+    }
 
     proptest! {
 

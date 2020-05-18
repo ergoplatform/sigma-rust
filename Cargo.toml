@@ -3,4 +3,6 @@ members = [
     "sigma-chain",
     "sigma-chain-c",
     "sigma-ser",
+    "sigma-tree",
+    "sigma-testutil",
 ]

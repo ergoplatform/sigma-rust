@@ -30,8 +30,8 @@ impl SigmaSerializable for BoxId {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_helpers::*;
     use proptest::prelude::*;
+    use sigma_ser::test_helpers::*;
 
     proptest! {
 
