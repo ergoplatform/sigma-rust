@@ -1,12 +1,13 @@
-use crate::data::{SigmaBox, SigmaProp};
-use crate::{serialization::op_code::OpCode, types::*};
+use crate::{data::SigmaBoolean, serialization::op_code::OpCode, types::*};
 use core::fmt;
 use Expr::*;
 
 pub mod ops;
 
+#[derive(PartialEq, Eq, Debug)]
 pub struct RegisterId(u8);
 
+#[derive(PartialEq, Eq, Debug)]
 pub enum CollPrim {
     CollBoolean(Vec<bool>),
     CollByte(Vec<i8>),
@@ -15,6 +16,11 @@ pub enum CollPrim {
     CollLong(Vec<i64>),
 }
 
+// TODO: move here from sigma-chain
+#[derive(PartialEq, Eq, Debug)]
+pub struct ErgoBox {}
+
+#[derive(PartialEq, Eq, Debug)]
 pub enum ConstantVal {
     Boolean(bool),
     Byte(i8),
@@ -23,19 +29,21 @@ pub enum ConstantVal {
     Long(i64),
     BigInt,
     GroupElement,
-    SigmaProp(Box<dyn SigmaProp>),
-    CBox(Box<dyn SigmaBox>),
+    SigmaProp(Box<SigmaBoolean>),
+    CBox(Box<ErgoBox>),
     AvlTree,
     CollPrim(CollPrim),
     Coll(Vec<ConstantVal>),
     Tup(Vec<ConstantVal>),
 }
 
+#[derive(PartialEq, Eq, Debug)]
 pub struct Constant {
     pub tpe: SType,
     pub v: ConstantVal,
 }
 
+#[derive(PartialEq, Eq, Debug)]
 pub enum Expr {
     Const(Constant),
     Coll {
@@ -88,6 +96,7 @@ impl fmt::Display for Expr {
     }
 }
 
+#[derive(PartialEq, Eq, Debug)]
 pub enum CollMethods {
     Fold {
         input: Box<Expr>,
@@ -96,6 +105,7 @@ pub enum CollMethods {
     },
 }
 
+#[derive(PartialEq, Eq, Debug)]
 pub enum BoxMethods {
     ExtractRegisterAs {
         input: Box<Expr>,
@@ -109,11 +119,13 @@ impl BoxMethods {
     }
 }
 
+#[derive(PartialEq, Eq, Debug)]
 pub enum ContextMethods {
     Inputs,
     Outputs,
 }
 
+#[derive(PartialEq, Eq, Debug)]
 pub enum PredefFunc {
     Sha256 { input: Box<Expr> },
 }

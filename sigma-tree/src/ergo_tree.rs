@@ -7,32 +7,36 @@ use sigma_ser::serializer::SerializationError;
 use sigma_ser::serializer::SigmaSerializable;
 use sigma_ser::vlq_encode;
 use std::io;
+use std::rc::Rc;
 
 /** The root of ErgoScript IR. Serialized instances of this class are self sufficient and can be passed around.
  */
-// #[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug)]
+#[allow(dead_code)]
 pub struct ErgoTree {
     header: ErgoTreeHeader,
     constants: Vec<Constant>,
-    root: Box<Expr>,
+    root: Rc<Expr>,
 }
 
+#[derive(PartialEq, Debug)]
 struct ErgoTreeHeader(u8);
 
 impl ErgoTree {
     const DEFAULT_HEADER: ErgoTreeHeader = ErgoTreeHeader(0);
 
-    /// get expr out of ErgoTree
-    pub fn to_proposition(&self) -> Box<Expr> {
-        self.root
+    /// get Expr out of ErgoTree
+    pub fn proposition(&self) -> Rc<Expr> {
+        self.root.clone()
     }
 
-    pub fn from_proposition(expr: Box<Expr>) -> ErgoTree {
-        match *expr {
+    /// build ErgoTree from an Expr
+    pub fn from_proposition(expr: Rc<Expr>) -> ErgoTree {
+        match &*expr {
             Expr::Const(c) if c.tpe == SType::SSigmaProp => ErgoTree {
                 header: ErgoTree::DEFAULT_HEADER,
                 constants: Vec::new(),
-                root: expr,
+                root: expr.clone(),
             },
             _ => panic!("not yet supported"),
         }
@@ -44,7 +48,7 @@ impl SigmaSerializable for ErgoTree {
         Ok(())
     }
     fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(_: R) -> Result<Self, SerializationError> {
-        Ok(ErgoTree {})
+        todo!()
     }
 }
 

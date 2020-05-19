@@ -2,10 +2,12 @@
 
 #[derive(Clone, Debug)]
 pub struct TypeCode(u8);
+#[derive(PartialEq, Eq, Debug)]
 pub struct MethodId(u8);
+#[derive(PartialEq, Eq, Debug)]
 pub struct TypeId(u8);
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Debug)]
 pub enum SType {
     SAny,
     SByte,
@@ -33,31 +35,33 @@ impl SType {
     }
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Debug)]
 pub struct STypeVar {
     name: String,
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Debug)]
 pub struct STypeParam {
     ident: STypeVar,
     upper_bound: Option<SType>,
     lower_bound: Option<SType>,
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Debug)]
 pub struct SFunc {
     t_dom: Vec<SType>,
     t_range: SType,
     tpe_params: Vec<STypeParam>,
 }
 
+#[derive(PartialEq, Eq, Debug)]
 pub struct STypeCompanion {
     pub type_id: TypeId,
     pub type_name: String,
     pub methods: Vec<SMethod>,
 }
 
+#[derive(PartialEq, Eq, Debug)]
 pub struct SMethod {
     pub obj_type: Box<STypeCompanion>,
     pub name: String,

@@ -1,31 +1,18 @@
 //! Underlying Sigma data types
 
 #[allow(dead_code)]
+#[derive(PartialEq, Eq, Debug)]
 pub enum SigmaBoolean {
-    ProveDlog(u64),
+    ProveDHTuple {
+        gv: EcPointType,
+        hv: EcPointType,
+        uv: EcPointType,
+        vv: EcPointType,
+    },
+    ProveDlog(EcPointType),
     CAND(Vec<SigmaBoolean>),
 }
+//
+#[derive(PartialEq, Eq, Debug)]
+pub struct EcPointType {}
 
-pub trait SigmaProp {
-    fn is_valid(&self) -> bool;
-}
-
-pub struct CSigmaProp {
-    pub sigma_tree: SigmaBoolean,
-}
-
-impl SigmaProp for CSigmaProp {
-    fn is_valid(&self) -> bool {
-        todo!()
-    }
-}
-
-pub trait SigmaBox {
-    fn value(&self) -> u64;
-}
-pub struct CSigmaBox {}
-impl SigmaBox for CSigmaBox {
-    fn value(&self) -> u64 {
-        0
-    }
-}
