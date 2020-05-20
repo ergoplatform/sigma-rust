@@ -41,10 +41,10 @@ impl SigmaSerializable for Expr {
 pub struct ExprSerializers {}
 
 impl ExprSerializers {
-    pub fn sigma_serialize<W: WriteSigmaVlqExt>(expr: &Expr, w: W) -> Result<(), io::Error> {
+    pub fn sigma_serialize<W: WriteSigmaVlqExt>(expr: &Expr, mut w: W) -> Result<(), io::Error> {
         match expr {
             Expr::CollM(cm) => match cm {
-                CollMethods::Fold { .. } => FoldSerializer::sigma_serialize(expr, w),
+                CollMethods::Fold { .. } => FoldSerializer::sigma_serialize(expr, &mut w),
             },
             _ => panic!(format!("don't know how to serialize {}", expr)),
         }
@@ -52,10 +52,10 @@ impl ExprSerializers {
 
     pub fn sigma_parse<R: ReadSigmaVlqExt>(
         op_code: OpCode,
-        r: R,
+        mut r: R,
     ) -> Result<Expr, SerializationError> {
         match op_code {
-            FoldSerializer::OP_CODE => FoldSerializer::sigma_parse(r),
+            FoldSerializer::OP_CODE => FoldSerializer::sigma_parse(&mut r),
             o => Err(SerializationError::NotImplementedOpCode(o.value())),
         }
     }

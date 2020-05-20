@@ -1,6 +1,6 @@
 //! ErgoTree
 use crate::{
-    ast::{Constant, Expr},
+    ast::{Constant, ConstantVal, Expr},
     types::SType,
 };
 use sigma_ser::serializer::SerializationError;
@@ -43,33 +43,77 @@ impl ErgoTree {
     }
 }
 
-impl SigmaSerializable for ErgoTree {
-    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, _: W) -> Result<(), io::Error> {
+impl SigmaSerializable for ErgoTreeHeader {
+    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, mut w: W) -> Result<(), io::Error> {
+        w.put_u8(self.0)?;
         Ok(())
     }
-    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(_: R) -> Result<Self, SerializationError> {
-        todo!()
+    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(mut r: R) -> Result<Self, SerializationError> {
+        let header = r.get_u8()?;
+        Ok(ErgoTreeHeader(header))
+    }
+}
+
+impl SigmaSerializable for ErgoTree {
+    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, mut w: W) -> Result<(), io::Error> {
+        self.header.sigma_serialize(&mut w)?;
+        w.put_usize_as_u32(self.constants.len())?;
+        assert!(
+            self.constants.is_empty(),
+            "separate constants serialization is not yet supported"
+        );
+        self.root.sigma_serialize(&mut w)?;
+        Ok(())
+    }
+
+    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(mut r: R) -> Result<Self, SerializationError> {
+        let header = ErgoTreeHeader::sigma_parse(&mut r)?;
+        let constants_len = r.get_u32()?;
+        assert!(
+            constants_len == 0,
+            "separate constants serialization is not yet supported"
+        );
+        let constants = Vec::new();
+        // TODO: fix
+        // let root = Expr::sigma_parse(&mut r)?;
+        Ok(ErgoTree {
+            header,
+            constants,
+            // root: Rc::new(root),
+            root: Rc::new(Expr::Const(Constant {
+                tpe: SType::SInt,
+                v: ConstantVal::Int(0),
+            })),
+        })
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{
+        ast::ConstantVal,
+        data::{EcPointType, SigmaBoolean, SigmaProp},
+    };
     use proptest::prelude::*;
     use sigma_ser::test_helpers::*;
 
     impl Arbitrary for ErgoTree {
         type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            todo!()
-            // (any::<u32>(),)
-            //     .prop_map(|_| Self {
-            //         0: todo!(), //ErgoTree::from_proposition(Expr::Const(SigmaBoolean::ProveDlog()),
-            //     })
-            //     .boxed()
+            (any::<u32>())
+                .prop_map(|_| {
+                    ErgoTree::from_proposition(Rc::new(Expr::Const(Constant {
+                        tpe: SType::SSigmaProp,
+                        v: ConstantVal::SigmaProp(Box::new(SigmaProp::new(
+                            SigmaBoolean::ProveDlog(EcPointType {}),
+                        ))),
+                    })))
+                })
+                .boxed()
         }
-        type Strategy = BoxedStrategy<Self>;
     }
 
     proptest! {

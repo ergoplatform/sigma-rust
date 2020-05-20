@@ -16,7 +16,12 @@ pub enum SigmaBoolean {
 #[derive(PartialEq, Eq, Debug)]
 pub struct SigmaProp(SigmaBoolean);
 
+impl SigmaProp {
+    pub fn new(sbool: SigmaBoolean) -> Self {
+        SigmaProp { 0: sbool }
+    }
+}
+
 //
 #[derive(PartialEq, Eq, Debug)]
 pub struct EcPointType {}
-
