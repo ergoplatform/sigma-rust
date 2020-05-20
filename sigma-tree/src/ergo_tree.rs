@@ -54,15 +54,29 @@ impl SigmaSerializable for ErgoTree {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use proptest::prelude::*;
     use sigma_ser::test_helpers::*;
-    use sigma_testutil::generator::*;
+
+    impl Arbitrary for ErgoTree {
+        type Parameters = ();
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            todo!()
+            // (any::<u32>(),)
+            //     .prop_map(|_| Self {
+            //         0: todo!(), //ErgoTree::from_proposition(Expr::Const(SigmaBoolean::ProveDlog()),
+            //     })
+            //     .boxed()
+        }
+        type Strategy = BoxedStrategy<Self>;
+    }
 
     proptest! {
 
         #[test]
-        fn ser_roundtrip(v in any::<ErgoTreeArb>()) {
-            prop_assert_eq![sigma_serialize_roundtrip(&(v.0)), v.0];
+        fn ser_roundtrip(v in any::<ErgoTree>()) {
+            prop_assert_eq![sigma_serialize_roundtrip(&(v)), v];
         }
     }
 }

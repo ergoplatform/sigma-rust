@@ -1,8 +1,6 @@
 //! Ergo transaction
 
-use crate::data_input::DataInput;
-use crate::ergo_box::{self, ErgoBoxCandidate};
-use crate::{input::Input, token::TokenId};
+use super::{data_input::DataInput, ergo_box::ErgoBoxCandidate, input::Input, token::TokenId};
 use indexmap::IndexSet;
 use sigma_ser::serializer::SerializationError;
 use sigma_ser::serializer::SigmaSerializable;
@@ -63,7 +61,11 @@ impl SigmaSerializable for Transaction {
         // serialize outputs
         w.put_usize_as_u16(self.outputs.len())?;
         self.outputs.iter().try_for_each(|o| {
-            ergo_box::serialize_body_with_indexed_digests(o, Some(&distinct_token_ids), &mut w)
+            ErgoBoxCandidate::serialize_body_with_indexed_digests(
+                o,
+                Some(&distinct_token_ids),
+                &mut w,
+            )
         })?;
         Ok(())
     }
@@ -96,7 +98,7 @@ impl SigmaSerializable for Transaction {
         let outputs_count = r.get_u16()?;
         let mut outputs = Vec::with_capacity(outputs_count as usize);
         for _ in 0..outputs_count {
-            outputs.push(ergo_box::parse_body_with_indexed_digests(
+            outputs.push(ErgoBoxCandidate::parse_body_with_indexed_digests(
                 Some(&token_ids),
                 &mut r,
             )?)

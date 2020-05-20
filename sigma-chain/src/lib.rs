@@ -15,12 +15,3 @@ mod utils;
 
 pub use misc::*;
 
-pub mod box_id;
-pub mod constants;
-pub mod context_extension;
-pub mod data_input;
-pub mod ergo_box;
-pub mod input;
-pub mod prover_result;
-pub mod token;
-pub mod transaction;

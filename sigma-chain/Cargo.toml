@@ -15,8 +15,6 @@ default = ["console_error_panic_hook"]
 wasm-bindgen = "0.2"
 sigma-ser = { path = "../sigma-ser" }
 sigma-tree = { path = "../sigma-tree" }
-indexmap = "1.3.2"
-base16 = "0.2.1"
 
 # The `console_error_panic_hook` crate provides better debugging of panics by
 # logging them with `console.error`. This is great for development, but requires

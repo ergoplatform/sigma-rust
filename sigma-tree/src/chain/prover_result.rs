@@ -1,10 +1,10 @@
 //! ProverResult
-use crate::context_extension::ContextExtension;
 use sigma_ser::serializer::SerializationError;
 use sigma_ser::serializer::SigmaSerializable;
 use sigma_ser::vlq_encode;
 use std::io;
 
+use super::context_extension::ContextExtension;
 #[cfg(test)]
 use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
 

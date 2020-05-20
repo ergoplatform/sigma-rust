@@ -1,11 +1,11 @@
 //! DataInput type
 
-use crate::box_id::BoxId;
 use sigma_ser::serializer::SerializationError;
 use sigma_ser::serializer::SigmaSerializable;
 use sigma_ser::vlq_encode;
 use std::io;
 
+use super::box_id::BoxId;
 #[cfg(test)]
 use proptest::prelude::*;
 #[cfg(test)]

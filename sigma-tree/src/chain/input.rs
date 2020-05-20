@@ -1,11 +1,10 @@
 //! Transactio input
-use crate::box_id::BoxId;
-use crate::prover_result::ProverResult;
 use sigma_ser::serializer::SerializationError;
 use sigma_ser::serializer::SigmaSerializable;
 use sigma_ser::vlq_encode;
 use std::io;
 
+use super::{box_id::BoxId, prover_result::ProverResult};
 #[cfg(test)]
 use proptest::prelude::*;
 #[cfg(test)]

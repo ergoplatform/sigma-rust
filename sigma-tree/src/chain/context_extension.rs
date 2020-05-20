@@ -27,8 +27,6 @@ impl SigmaSerializable for ContextExtension {
         Ok(())
     }
     fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(_: R) -> Result<Self, SerializationError> {
-        Ok(ContextExtension {
-            values: HashMap::new(),
-        })
+        Ok(ContextExtension::empty())
     }
 }
