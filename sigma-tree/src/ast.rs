@@ -1,4 +1,4 @@
-use crate::{data::SigmaBoolean, serialization::op_code::OpCode, types::*};
+use crate::{data::SigmaProp, serialization::op_code::OpCode, types::*};
 use core::fmt;
 use Expr::*;
 
@@ -29,7 +29,7 @@ pub enum ConstantVal {
     Long(i64),
     BigInt,
     GroupElement,
-    SigmaProp(Box<SigmaBoolean>),
+    SigmaProp(Box<SigmaProp>),
     CBox(Box<ErgoBox>),
     AvlTree,
     CollPrim(CollPrim),

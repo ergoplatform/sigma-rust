@@ -12,6 +12,10 @@ pub enum SigmaBoolean {
     ProveDlog(EcPointType),
     CAND(Vec<SigmaBoolean>),
 }
+
+#[derive(PartialEq, Eq, Debug)]
+pub struct SigmaProp(SigmaBoolean);
+
 //
 #[derive(PartialEq, Eq, Debug)]
 pub struct EcPointType {}
