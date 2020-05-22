@@ -21,12 +21,14 @@ pub struct Input {
 }
 
 impl SigmaSerializable for Input {
-    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, mut w: W) -> Result<(), io::Error> {
-        self.box_id.sigma_serialize(&mut w)?;
-        self.spending_proof.sigma_serialize(&mut w)?;
+    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
+        self.box_id.sigma_serialize(w)?;
+        self.spending_proof.sigma_serialize(w)?;
         Ok(())
     }
-    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(mut r: R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(
+        mut r: &mut R,
+    ) -> Result<Self, SerializationError> {
         let box_id = BoxId::sigma_parse(&mut r)?;
         let spending_proof = ProverResult::sigma_parse(&mut r)?;
         Ok(Input {

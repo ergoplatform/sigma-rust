@@ -16,7 +16,7 @@ pub enum CollPrim {
     CollLong(Vec<i64>),
 }
 
-// TODO: move here from sigma-chain
+// TODO: extract and wrap ErgoBoxCandidate
 #[derive(PartialEq, Eq, Debug)]
 pub struct ErgoBox {}
 

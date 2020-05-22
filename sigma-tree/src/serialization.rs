@@ -1,11 +1,10 @@
 //! Serializers
-use crate::ast::{CollMethods, Expr};
-use constant::ConstantSerializer;
+use crate::ast::{CollMethods, Constant, Expr};
 use fold::FoldSerializer;
 use op_code::OpCode;
 use sigma_ser::{
     serializer::{SerializationError, SigmaSerializable},
-    vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt},
+    vlq_encode::ReadSigmaVlqExt,
 };
 use std::io;
 
@@ -16,47 +15,33 @@ pub mod op_code;
 mod types;
 
 impl SigmaSerializable for Expr {
-    fn sigma_serialize<W: WriteSigmaVlqExt>(&self, mut w: W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: io::Write>(&self, w: &mut W) -> Result<(), io::Error> {
         match self {
-            Expr::Const(_) => ConstantSerializer::sigma_serialize(self, w),
+            Expr::Const(c) => c.sigma_serialize(w),
             expr => {
                 let op_code = self.op_code();
-                op_code.sigma_serialize(&mut w)?;
-                ExprSerializers::sigma_serialize(expr, &mut w)
+                op_code.sigma_serialize(w)?;
+                match expr {
+                    Expr::CollM(cm) => match cm {
+                        CollMethods::Fold { .. } => FoldSerializer::sigma_serialize(expr, w),
+                    },
+                    _ => panic!(format!("don't know how to serialize {}", expr)),
+                }
             }
         }
     }
 
-    fn sigma_parse<R: ReadSigmaVlqExt>(mut r: R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: io::Read>(r: &mut R) -> Result<Self, SerializationError> {
         let first_byte = r.peek_u8()?;
         if first_byte <= OpCode::LAST_CONSTANT_CODE.value() {
-            ConstantSerializer::sigma_parse(&mut r)
+            let constant = Constant::sigma_parse(r)?;
+            Ok(Expr::Const(constant))
         } else {
-            let op_code = OpCode::sigma_parse(&mut r)?;
-            ExprSerializers::sigma_parse(op_code, &mut r)
-        }
-    }
-}
-
-pub struct ExprSerializers {}
-
-impl ExprSerializers {
-    pub fn sigma_serialize<W: WriteSigmaVlqExt>(expr: &Expr, mut w: W) -> Result<(), io::Error> {
-        match expr {
-            Expr::CollM(cm) => match cm {
-                CollMethods::Fold { .. } => FoldSerializer::sigma_serialize(expr, &mut w),
-            },
-            _ => panic!(format!("don't know how to serialize {}", expr)),
-        }
-    }
-
-    pub fn sigma_parse<R: ReadSigmaVlqExt>(
-        op_code: OpCode,
-        mut r: R,
-    ) -> Result<Expr, SerializationError> {
-        match op_code {
-            FoldSerializer::OP_CODE => FoldSerializer::sigma_parse(&mut r),
-            o => Err(SerializationError::NotImplementedOpCode(o.value())),
+            let op_code = OpCode::sigma_parse(r)?;
+            match op_code {
+                FoldSerializer::OP_CODE => FoldSerializer::sigma_parse(r),
+                o => Err(SerializationError::NotImplementedOpCode(o.value())),
+            }
         }
     }
 }

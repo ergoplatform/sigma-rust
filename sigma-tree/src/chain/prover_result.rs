@@ -18,13 +18,13 @@ pub struct ProverResult {
 }
 
 impl SigmaSerializable for ProverResult {
-    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, mut w: W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
         w.put_u16(self.proof.len() as u16)?;
         w.write_all(&self.proof)?;
         self.extension.sigma_serialize(w)?;
         Ok(())
     }
-    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(mut r: R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(r: &mut R) -> Result<Self, SerializationError> {
         let proof_len = r.get_u16()?;
         let mut proof = vec![0; proof_len as usize];
         r.read_exact(&mut proof)?;

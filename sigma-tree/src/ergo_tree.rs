@@ -8,6 +8,7 @@ use sigma_ser::serializer::SigmaSerializable;
 use sigma_ser::vlq_encode;
 use std::io;
 use std::rc::Rc;
+use vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt};
 
 /** The root of ErgoScript IR. Serialized instances of this class are self sufficient and can be passed around.
  */
@@ -44,30 +45,30 @@ impl ErgoTree {
 }
 
 impl SigmaSerializable for ErgoTreeHeader {
-    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, mut w: W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
         w.put_u8(self.0)?;
         Ok(())
     }
-    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(mut r: R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: ReadSigmaVlqExt>(r: &mut R) -> Result<Self, SerializationError> {
         let header = r.get_u8()?;
         Ok(ErgoTreeHeader(header))
     }
 }
 
 impl SigmaSerializable for ErgoTree {
-    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, mut w: W) -> Result<(), io::Error> {
-        self.header.sigma_serialize(&mut w)?;
+    fn sigma_serialize<W: WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
+        self.header.sigma_serialize(w)?;
         w.put_usize_as_u32(self.constants.len())?;
         assert!(
             self.constants.is_empty(),
             "separate constants serialization is not yet supported"
         );
-        self.root.sigma_serialize(&mut w)?;
+        self.root.sigma_serialize(w)?;
         Ok(())
     }
 
-    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(mut r: R) -> Result<Self, SerializationError> {
-        let header = ErgoTreeHeader::sigma_parse(&mut r)?;
+    fn sigma_parse<R: ReadSigmaVlqExt>(r: &mut R) -> Result<Self, SerializationError> {
+        let header = ErgoTreeHeader::sigma_parse(r)?;
         let constants_len = r.get_u32()?;
         assert!(
             constants_len == 0,
@@ -75,7 +76,7 @@ impl SigmaSerializable for ErgoTree {
         );
         let constants = Vec::new();
         // TODO: fix
-        // let root = Expr::sigma_parse(&mut r)?;
+        // let root = Expr::sigma_parse(r)?;
         Ok(ErgoTree {
             header,
             constants,

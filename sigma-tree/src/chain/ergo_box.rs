@@ -54,11 +54,11 @@ impl ErgoBoxCandidate {
     pub fn serialize_body_with_indexed_digests<W: vlq_encode::WriteSigmaVlqExt>(
         &self,
         token_ids_in_tx: Option<&IndexSet<TokenId>>,
-        mut w: W,
+        w: &mut W,
     ) -> Result<(), io::Error> {
         // reference implementation - https://github.com/ScorexFoundation/sigmastate-interpreter/blob/9b20cb110effd1987ff76699d637174a4b2fb441/sigmastate/src/main/scala/org/ergoplatform/ErgoBoxCandidate.scala#L95-L95
         w.put_u64(self.value)?;
-        self.ergo_tree.sigma_serialize(&mut w)?;
+        self.ergo_tree.sigma_serialize(w)?;
         w.put_u32(self.creation_height)?;
         w.put_u8(u8::try_from(self.tokens.len()).unwrap())?;
 
@@ -73,7 +73,7 @@ impl ErgoBoxCandidate {
                     )
                     .unwrap(),
                 ),
-                None => t.token_id.sigma_serialize(&mut w),
+                None => t.token_id.sigma_serialize(w),
             }
             .and_then(|()| w.put_u64(t.amount))
         })?;
@@ -117,18 +117,18 @@ impl ErgoBoxCandidate {
     /// Box deserialization with token ids optionally parsed in transaction
     pub fn parse_body_with_indexed_digests<R: vlq_encode::ReadSigmaVlqExt>(
         digests_in_tx: Option<&IndexSet<TokenId>>,
-        mut r: R,
+        r: &mut R,
     ) -> Result<ErgoBoxCandidate, SerializationError> {
         // reference implementation -https://github.com/ScorexFoundation/sigmastate-interpreter/blob/9b20cb110effd1987ff76699d637174a4b2fb441/sigmastate/src/main/scala/org/ergoplatform/ErgoBoxCandidate.scala#L144-L144
 
         let value = r.get_u64()?;
-        let ergo_tree = ErgoTree::sigma_parse(&mut r)?;
+        let ergo_tree = ErgoTree::sigma_parse(r)?;
         let creation_height = r.get_u32()?;
         let tokens_count = r.get_u8()?;
         let mut tokens = Vec::with_capacity(tokens_count as usize);
         for _ in 0..tokens_count {
             let token_id = match digests_in_tx {
-                None => TokenId::sigma_parse(&mut r)?,
+                None => TokenId::sigma_parse(r)?,
                 Some(digests) => {
                     let digest_index = r.get_u32()?;
                     *digests
@@ -153,10 +153,10 @@ impl ErgoBoxCandidate {
 }
 
 impl SigmaSerializable for ErgoBoxCandidate {
-    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, mut w: W) -> Result<(), io::Error> {
-        self.serialize_body_with_indexed_digests(None, &mut w)
+    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
+        self.serialize_body_with_indexed_digests(None, w)
     }
-    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(r: R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(r: &mut R) -> Result<Self, SerializationError> {
         ErgoBoxCandidate::parse_body_with_indexed_digests(None, r)
     }
 }

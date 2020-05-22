@@ -39,11 +39,11 @@ impl fmt::Display for TokenId {
 }
 
 impl SigmaSerializable for TokenId {
-    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, mut w: W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
         w.write_all(&self.0)?;
         Ok(())
     }
-    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(mut r: R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(r: &mut R) -> Result<Self, SerializationError> {
         let mut bytes = [0; TOKEN_ID_SIZE];
         r.read_exact(&mut bytes)?;
         Ok(Self(bytes))
