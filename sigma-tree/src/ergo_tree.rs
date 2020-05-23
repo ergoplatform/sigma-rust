@@ -1,6 +1,6 @@
 //! ErgoTree
 use crate::{
-    ast::{Constant, ConstantVal, Expr},
+    ast::{Constant, Expr},
     types::SType,
 };
 use sigma_ser::serializer::SerializationError;
@@ -75,16 +75,11 @@ impl SigmaSerializable for ErgoTree {
             "separate constants serialization is not yet supported"
         );
         let constants = Vec::new();
-        // TODO: fix
-        // let root = Expr::sigma_parse(r)?;
+        let root = Expr::sigma_parse(r)?;
         Ok(ErgoTree {
             header,
             constants,
-            // root: Rc::new(root),
-            root: Rc::new(Expr::Const(Constant {
-                tpe: SType::SInt,
-                v: ConstantVal::Int(0),
-            })),
+            root: Rc::new(root),
         })
     }
 }

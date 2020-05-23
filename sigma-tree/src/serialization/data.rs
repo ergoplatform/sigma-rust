@@ -10,7 +10,7 @@ pub struct DataSerializer {}
 impl DataSerializer {
     pub fn sigma_serialize<W: WriteSigmaVlqExt>(
         c: &ConstantVal,
-        mut w: W,
+        w: &mut W,
     ) -> Result<(), io::Error> {
         // for reference see http://github.com/ScorexFoundation/sigmastate-interpreter/blob/25251c1313b0131835f92099f02cef8a5d932b5e/sigmastate/src/main/scala/sigmastate/serialization/DataSerializer.scala#L26-L26
         match c {
@@ -32,7 +32,7 @@ impl DataSerializer {
 
     pub fn sigma_parse<R: ReadSigmaVlqExt>(
         tpe: &SType,
-        mut r: R,
+        r: &mut R,
     ) -> Result<ConstantVal, SerializationError> {
         // for reference see http://github.com/ScorexFoundation/sigmastate-interpreter/blob/25251c1313b0131835f92099f02cef8a5d932b5e/sigmastate/src/main/scala/sigmastate/serialization/DataSerializer.scala#L84-L84
         let c = match tpe {
@@ -53,7 +53,7 @@ impl DataSerializer {
             STup(types) => {
                 let mut items = Vec::new();
                 types.iter().try_for_each(|tpe| {
-                    DataSerializer::sigma_parse(tpe, &mut r).map(|v| items.push(v))
+                    DataSerializer::sigma_parse(tpe, r).map(|v| items.push(v))
                 })?;
                 Tup(items)
             }
