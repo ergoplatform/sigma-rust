@@ -43,10 +43,10 @@ pub trait SigmaSerializable: Sized {
     /// serialization MUST be infallible up to errors in the underlying writer.
     /// In other words, any type implementing `SigmaSerializable`
     /// must make illegal states unrepresentable.
-    fn sigma_serialize<W: io::Write>(&self, w: &mut W) -> Result<(), io::Error>;
+    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error>;
 
     /// Try to read `self` from the given `reader`.
     /// `sigma-` prefix to alert the reader that the serialization in use
     /// is consensus-critical
-    fn sigma_parse<R: io::Read>(r: &mut R) -> Result<Self, SerializationError>;
+    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(r: &mut R) -> Result<Self, SerializationError>;
 }
