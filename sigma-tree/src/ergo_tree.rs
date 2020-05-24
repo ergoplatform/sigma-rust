@@ -89,7 +89,8 @@ mod tests {
     use super::*;
     use crate::{
         ast::ConstantVal,
-        data::{EcPointType, SigmaBoolean, SigmaProp},
+        data::{SigmaBoolean, SigmaProp},
+        ecpoint::EcPointType,
     };
     use proptest::prelude::*;
     use sigma_ser::test_helpers::*;

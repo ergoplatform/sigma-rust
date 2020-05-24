@@ -1,12 +1,20 @@
-use crate::{ast::CollPrim, ast::ConstantVal, ast::ConstantVal::*, types::SType, types::SType::*};
+use crate::{
+    ast::CollPrim,
+    ast::ConstantVal,
+    ast::ConstantVal::*,
+    data::{self, SigmaBoolean},
+    types::SType,
+    types::SType::*,
+};
 use sigma_ser::{
-    serializer::SerializationError,
+    serializer::{SerializationError, SigmaSerializable},
     vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt},
 };
 use std::io;
 
 pub struct DataSerializer {}
 
+// TODO: convert to SigmaSerializable impl for ConstantVal
 impl DataSerializer {
     pub fn sigma_serialize<W: WriteSigmaVlqExt>(
         c: &ConstantVal,
@@ -21,7 +29,7 @@ impl DataSerializer {
             Long(_) => todo!(),
             BigInt => todo!(),
             GroupElement => todo!(),
-            SigmaProp(_) => todo!(),
+            SigmaProp(s) => s.value().sigma_serialize(w),
             CBox(_) => todo!(),
             AvlTree => todo!(),
             ConstantVal::CollPrim(_) => todo!(),
@@ -38,6 +46,9 @@ impl DataSerializer {
         let c = match tpe {
             SAny => todo!(),
             SByte => Byte(r.get_i8()?),
+            SSigmaProp => SigmaProp(Box::new(data::SigmaProp::new(SigmaBoolean::sigma_parse(
+                r,
+            )?))),
             SColl(elem_type) => {
                 let len = r.get_u16()? as usize;
                 if **elem_type == SByte {

@@ -13,6 +13,7 @@
 mod ast;
 mod constants;
 mod data;
+mod ecpoint;
 mod eval;
 mod serialization;
 mod types;

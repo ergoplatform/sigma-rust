@@ -12,7 +12,8 @@ mod constant;
 mod data;
 mod fold;
 pub mod op_code;
-mod types;
+mod sigmaboolean;
+pub mod types;
 
 impl SigmaSerializable for Expr {
     fn sigma_serialize<W: io::Write>(&self, w: &mut W) -> Result<(), io::Error> {
