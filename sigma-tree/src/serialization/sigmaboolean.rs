@@ -1,5 +1,5 @@
 use super::op_code::OpCode;
-use crate::{data::SigmaBoolean, ecpoint::EcPointType};
+use crate::{data::SigmaBoolean, ecpoint::EcPoint};
 use sigma_ser::{
     serializer::{SerializationError, SigmaSerializable},
     vlq_encode,
@@ -20,7 +20,7 @@ impl SigmaSerializable for SigmaBoolean {
         let op_code = OpCode::sigma_parse(r)?;
         match op_code {
             OpCode::PROVE_DLOG => {
-                let p = EcPointType::sigma_parse(r)?;
+                let p = EcPoint::sigma_parse(r)?;
                 Ok(SigmaBoolean::ProveDlog(p))
             }
             _ => todo!(),

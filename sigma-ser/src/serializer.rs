@@ -20,6 +20,9 @@ pub enum SerializationError {
     /// IO fail (EOF, etc.)
     #[error("io error")]
     Io(io::Error),
+    /// Misc fail
+    #[error("misc error")]
+    Misc(&'static str),
 }
 
 impl From<vlq_encode::VlqEncodingError> for SerializationError {

@@ -90,7 +90,7 @@ mod tests {
     use crate::{
         ast::ConstantVal,
         data::{SigmaBoolean, SigmaProp},
-        ecpoint::EcPointType,
+        ecpoint::EcPoint,
     };
     use proptest::prelude::*;
     use sigma_ser::test_helpers::*;
@@ -100,12 +100,12 @@ mod tests {
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            (any::<u32>())
-                .prop_map(|_| {
+            (any::<EcPoint>())
+                .prop_map(|p| {
                     ErgoTree::from_proposition(Rc::new(Expr::Const(Constant {
                         tpe: SType::SSigmaProp,
                         v: ConstantVal::SigmaProp(Box::new(SigmaProp::new(
-                            SigmaBoolean::ProveDlog(EcPointType {}),
+                            SigmaBoolean::ProveDlog(p),
                         ))),
                     })))
                 })

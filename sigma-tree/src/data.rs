@@ -1,17 +1,17 @@
 //! Underlying Sigma data types
 
-use crate::{ecpoint::EcPointType, serialization::op_code::OpCode};
+use crate::{ecpoint::EcPoint, serialization::op_code::OpCode};
 
 #[allow(dead_code)]
 #[derive(PartialEq, Eq, Debug)]
 pub enum SigmaBoolean {
     ProveDHTuple {
-        gv: EcPointType,
-        hv: EcPointType,
-        uv: EcPointType,
-        vv: EcPointType,
+        gv: EcPoint,
+        hv: EcPoint,
+        uv: EcPoint,
+        vv: EcPoint,
     },
-    ProveDlog(EcPointType),
+    ProveDlog(EcPoint),
     CAND(Vec<SigmaBoolean>),
 }
 
