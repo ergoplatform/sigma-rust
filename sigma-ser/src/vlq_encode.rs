@@ -2,6 +2,8 @@ use super::zig_zag_encode;
 use std::convert::TryFrom;
 use std::io;
 
+use crate::peekable_reader;
+use peekable_reader::Peekable;
 #[cfg(test)]
 use proptest::{num::u64, prelude::*};
 
@@ -106,17 +108,7 @@ impl<W: io::Write + ?Sized> WriteSigmaVlqExt for W {}
 /// Read and decode values using VLQ (+ ZigZag for signed values) encoded and written with [`WriteSigmaVlqExt`]
 /// for VLQ see [[https://en.wikipedia.org/wiki/Variable-length_quantity]]
 /// for ZigZag see https://developers.google.com/protocol-buffers/docs/encoding#types
-pub trait ReadSigmaVlqExt: io::Read {
-    /// Peek a u8 without advancing the position
-    fn peek_u8(&mut self) -> Result<u8, io::Error> {
-        // https://github.com/ergoplatform/sigma-rust/issues/20
-        todo!("implement and enable test")
-        // does not work (consumes the reader)
-        // let mut slice = [0u8; 1];
-        // self.take(1).read(&mut slice)?;
-        // Ok(slice[0])
-    }
-
+pub trait ReadSigmaVlqExt: peekable_reader::Peekable {
     /// Read i8 without decoding
     fn get_i8(&mut self) -> Result<i8, io::Error> {
         Self::get_u8(self).map(|v| v as i8)
@@ -179,11 +171,13 @@ pub trait ReadSigmaVlqExt: io::Read {
 }
 
 /// Mark all types implementing `Read` as implementing the extension.
-impl<R: io::Read + ?Sized> ReadSigmaVlqExt for R {}
+// impl<R: io::Read + ?Sized> ReadSigmaVlqExt for R {}
+impl<R: Peekable + ?Sized> ReadSigmaVlqExt for R {}
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use peekable_reader::PeekableReader;
     use std::io::Cursor;
 
     #[test]
@@ -198,20 +192,10 @@ mod tests {
 
     #[test]
     fn test_read_u8() {
-        let mut r = Cursor::new(vec![0, 1, 255]);
+        let mut r = PeekableReader::new(Cursor::new(vec![0, 1, 255]));
         assert_eq!(r.get_u8().unwrap(), 0);
         assert_eq!(r.get_u8().unwrap(), 1);
         assert_eq!(r.get_u8().unwrap(), 255);
-    }
-
-    #[ignore]
-    #[test]
-    fn test_peek_u8() {
-        let mut r = Cursor::new(vec![0, 1]);
-        assert_eq!(r.peek_u8().unwrap(), 0);
-        assert_eq!(r.get_u8().unwrap(), 0);
-        assert_eq!(r.peek_u8().unwrap(), 1);
-        assert_eq!(r.get_u8().unwrap(), 1);
     }
 
     // from https://github.com/ScorexFoundation/scorex-util/blob/3dc334f68ebefbfab6d33b57f2373e80245ab34d/src/test/scala/scorex/util/serialization/VLQReaderWriterSpecification.scala#L32-L32
@@ -278,7 +262,7 @@ mod tests {
     fn test_read_u64_expected_values() {
         for pair in expected_values() {
             let (bytes, value) = pair;
-            let mut r = Cursor::new(bytes);
+            let mut r = PeekableReader::new(Cursor::new(bytes));
             let decoded_value = r.get_u64().unwrap();
             assert_eq!(decoded_value, value)
         }
@@ -291,7 +275,7 @@ mod tests {
         fn prop_u64_roundtrip(i in u64::ANY) {
             let mut w = Cursor::new(vec![]);
             w.put_u64(i).unwrap();
-            let mut r = Cursor::new(w.into_inner());
+            let mut r = PeekableReader::new(Cursor::new(w.into_inner()));
             prop_assert_eq![i, r.get_u64().unwrap()];
         }
 
@@ -302,7 +286,7 @@ mod tests {
                 w.put_u64(*a).unwrap();
             }
             let mut dec = Vec::new();
-            let mut r = Cursor::new(w.into_inner());
+            let mut r = PeekableReader::new(Cursor::new(w.into_inner()));
             for _ in 0..arr.len() {
                 dec.push(r.get_u64().unwrap());
             }

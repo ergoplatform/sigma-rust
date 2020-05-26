@@ -1,29 +1,46 @@
-use crate::ast::Expr;
+use super::{fold::FoldSerializer, op_code::OpCode};
+use crate::ast::{CollMethods, Constant, Expr};
 use sigma_ser::{
     serializer::{SerializationError, SigmaSerializable},
-    vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt},
+    vlq_encode,
 };
 use std::io;
 
 impl SigmaSerializable for Expr {
-    fn sigma_serialize<W: WriteSigmaVlqExt>(&self, mut w: W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
         match self {
-            c @ Constant { .. } => ConstantSerializer::sigma_serialize(self, w),
+            Expr::Const(c) => c.sigma_serialize(w),
             expr => {
                 let op_code = self.op_code();
-                w.put_u8(op_code.0)?;
-                ExprSerializers::sigma_serialize(self, w)
+                op_code.sigma_serialize(w)?;
+                match expr {
+                    Expr::CollM(cm) => match cm {
+                        CollMethods::Fold { .. } => FoldSerializer::sigma_serialize(expr, w),
+                    },
+                    _ => panic!(format!("don't know how to serialize {}", expr)),
+                }
             }
         }
     }
 
-    fn sigma_parse<R: ReadSigmaVlqExt>(mut r: R) -> Result<Self, SerializationError> {
-        let first_byte = r.peek_u8()?;
-        if first_byte <= LAST_CONSTANT_CODE {
-            ConstantSerializer::sigma_parse(&mut r)
+    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(r: &mut R) -> Result<Self, SerializationError> {
+        let first_byte = match r.peek_u8() {
+            Ok(b) => Ok(b),
+            Err(_) => {
+                let res = r.get_u8(); // get(consume) the error
+                assert!(res.is_err());
+                res
+            }
+        }?;
+        if first_byte <= OpCode::LAST_CONSTANT_CODE.value() {
+            let constant = Constant::sigma_parse(r)?;
+            Ok(Expr::Const(constant))
         } else {
-            let op_code = r.get_u8()?;
-            ExprSerializers::sigma_parse(&OpCode(op_code), r)
+            let op_code = OpCode::sigma_parse(r)?;
+            match op_code {
+                FoldSerializer::OP_CODE => FoldSerializer::sigma_parse(r),
+                o => Err(SerializationError::NotImplementedOpCode(o.value())),
+            }
         }
     }
 }
