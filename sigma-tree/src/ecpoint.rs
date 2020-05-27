@@ -8,6 +8,10 @@ use std::io;
 #[derive(PartialEq, Eq, Debug)]
 pub struct EcPoint(pub PublicKey);
 
+impl EcPoint {
+    pub const PUBLIC_KEY_SIZE: usize = secp256k1::constants::PUBLIC_KEY_SIZE;
+}
+
 impl SigmaSerializable for EcPoint {
     fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
         w.write_all(&self.0.serialize())?;
@@ -15,7 +19,7 @@ impl SigmaSerializable for EcPoint {
     }
 
     fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(r: &mut R) -> Result<Self, SerializationError> {
-        let mut bytes = [0; 33];
+        let mut bytes = [0; EcPoint::PUBLIC_KEY_SIZE];
         r.read_exact(&mut bytes[..])?;
         let pk = PublicKey::from_slice(&bytes[..])
             .map_err(|_| SerializationError::Misc("invalid secp256k1 compressed public key"))?;
