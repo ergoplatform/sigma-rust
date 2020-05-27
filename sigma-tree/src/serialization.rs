@@ -8,4 +8,3 @@ mod sigmaboolean;
 
 pub mod op_code;
 pub mod types;
-

@@ -19,4 +19,3 @@ impl SigmaSerializable for Constant {
         Ok(Constant { tpe, v })
     }
 }
-
