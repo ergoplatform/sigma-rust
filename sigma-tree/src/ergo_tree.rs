@@ -87,11 +87,7 @@ impl SigmaSerializable for ErgoTree {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        ast::ConstantVal,
-        data::{SigmaBoolean, SigmaProp},
-        ecpoint::EcPoint,
-    };
+    use crate::{ast::ConstantVal, data::SigmaProp};
     use proptest::prelude::*;
     use sigma_ser::test_helpers::*;
 
@@ -100,13 +96,11 @@ mod tests {
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            (any::<EcPoint>())
+            (any::<SigmaProp>())
                 .prop_map(|p| {
                     ErgoTree::from_proposition(Rc::new(Expr::Const(Constant {
                         tpe: SType::SSigmaProp,
-                        v: ConstantVal::SigmaProp(Box::new(SigmaProp::new(
-                            SigmaBoolean::ProveDlog(p),
-                        ))),
+                        v: ConstantVal::SigmaProp(Box::new(p)),
                     })))
                 })
                 .boxed()

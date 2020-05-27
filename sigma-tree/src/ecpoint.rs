@@ -5,7 +5,6 @@ use sigma_ser::{
 };
 use std::io;
 
-// TODO: unwrap and make type alias?
 #[derive(PartialEq, Eq, Debug)]
 pub struct EcPoint(pub PublicKey);
 
@@ -21,5 +20,40 @@ impl SigmaSerializable for EcPoint {
         let pk = PublicKey::from_slice(&bytes[..])
             .map_err(|_| SerializationError::Misc("invalid secp256k1 compressed public key"))?;
         Ok(EcPoint(pk))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    extern crate rand;
+    extern crate secp256k1;
+
+    use super::*;
+    use proptest::prelude::*;
+    use rand::thread_rng;
+    use secp256k1::Secp256k1;
+    use sigma_ser::test_helpers::*;
+
+    impl Arbitrary for EcPoint {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            (any::<i32>())
+                .prop_map(|_| {
+                    let secp = Secp256k1::new();
+                    let (_, public_key) = secp.generate_keypair(&mut thread_rng());
+                    EcPoint(public_key)
+                })
+                .boxed()
+        }
+    }
+
+    proptest! {
+
+        #[test]
+        fn ser_roundtrip(v in any::<EcPoint>()) {
+            prop_assert_eq![sigma_serialize_roundtrip(&v), v];
+        }
     }
 }

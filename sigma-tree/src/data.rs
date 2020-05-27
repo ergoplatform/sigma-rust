@@ -37,3 +37,29 @@ impl SigmaProp {
         &self.0
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    impl Arbitrary for SigmaBoolean {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            (any::<EcPoint>())
+                .prop_map(|ecp| SigmaBoolean::ProveDlog(ecp))
+                .boxed()
+        }
+    }
+
+    impl Arbitrary for SigmaProp {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            (any::<SigmaBoolean>()).prop_map(|sb| SigmaProp(sb)).boxed()
+        }
+    }
+}
