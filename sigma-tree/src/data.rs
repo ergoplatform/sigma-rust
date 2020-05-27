@@ -6,12 +6,12 @@ use crate::{ecpoint::EcPoint, serialization::op_code::OpCode};
 #[derive(PartialEq, Eq, Debug)]
 pub enum SigmaBoolean {
     ProveDHTuple {
-        gv: EcPoint,
-        hv: EcPoint,
-        uv: EcPoint,
-        vv: EcPoint,
+        gv: Box<EcPoint>,
+        hv: Box<EcPoint>,
+        uv: Box<EcPoint>,
+        vv: Box<EcPoint>,
     },
-    ProveDlog(EcPoint),
+    ProveDlog(Box<EcPoint>),
     CAND(Vec<SigmaBoolean>),
 }
 
@@ -49,7 +49,7 @@ mod tests {
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             (any::<EcPoint>())
-                .prop_map(|ecp| SigmaBoolean::ProveDlog(ecp))
+                .prop_map(|ecp| SigmaBoolean::ProveDlog(Box::new(ecp)))
                 .boxed()
         }
     }

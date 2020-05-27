@@ -89,7 +89,7 @@ impl<R: Read> PeekableReader<R> {
 
 impl<R: Read> Read for PeekableReader<R> {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
-        if buf.len() == 0 {
+        if buf.is_empty() {
             return Ok(0);
         }
 

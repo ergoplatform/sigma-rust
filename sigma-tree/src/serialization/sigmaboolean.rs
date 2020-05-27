@@ -21,7 +21,7 @@ impl SigmaSerializable for SigmaBoolean {
         match op_code {
             OpCode::PROVE_DLOG => {
                 let p = EcPoint::sigma_parse(r)?;
-                Ok(SigmaBoolean::ProveDlog(p))
+                Ok(SigmaBoolean::ProveDlog(Box::new(p)))
             }
             _ => todo!(),
         }
