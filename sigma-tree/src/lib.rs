@@ -11,10 +11,12 @@
 #![deny(missing_docs)]
 
 mod ast;
+mod constants;
 mod data;
-mod ergo_tree;
+mod ecpoint;
 mod eval;
 mod serialization;
 mod types;
 
-pub use ergo_tree::*;
+pub mod chain;
+pub mod ergo_tree;

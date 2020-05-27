@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc e9c483c8c8b81aa908794575e1de2bbb50603e88a71ef3941937379adb3b9a01 # shrinks to v = Transaction { inputs: [Input { box_id: BoxId([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]), spending_proof: ProverResult { proof: [], extension: ContextExtension { values: {} } } }], data_inputs: [], outputs: [ErgoBoxCandidate { value: 0, ergo_tree: ErgoTree { header: ErgoTreeHeader(0), constants: [], root: Const(Constant { tpe: SSigmaProp, v: SigmaProp(SigmaProp(ProveDlog(EcPointType))) }) }, tokens: [], additional_registers: {}, creation_height: 0 }] }

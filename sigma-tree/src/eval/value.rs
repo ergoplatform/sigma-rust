@@ -1,4 +1,4 @@
-use crate::data::{SigmaBox, SigmaProp};
+use crate::{ast::ErgoBox, data::SigmaBoolean};
 use std::ops::Add;
 
 #[allow(dead_code)]
@@ -10,8 +10,8 @@ pub enum Value {
     Long(i64),
     BigInt,
     GroupElement,
-    SigmaProp(Box<dyn SigmaProp>),
-    Box(Box<dyn SigmaBox>),
+    SigmaProp(Box<SigmaBoolean>),
+    Box(Box<ErgoBox>),
     AvlTree,
     Coll(Vec<Value>),
     Tup(Vec<Value>),

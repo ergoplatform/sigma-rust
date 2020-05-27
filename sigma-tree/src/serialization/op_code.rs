@@ -13,6 +13,7 @@ impl OpCode {
     pub const LAST_CONSTANT_CODE: OpCode = OpCode(Self::LAST_DATA_TYPE.value() + 1);
 
     pub const FOLD: OpCode = Self::new_op_code(64);
+    pub const PROVE_DLOG: OpCode = Self::new_op_code(93);
 
     const fn new_op_code(shift: u8) -> OpCode {
         OpCode(Self::LAST_CONSTANT_CODE.value() + shift)
@@ -28,11 +29,11 @@ impl OpCode {
 }
 
 impl SigmaSerializable for OpCode {
-    fn sigma_serialize<W: WriteSigmaVlqExt>(&self, mut w: W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
         w.put_u8(self.0)?;
         Ok(())
     }
-    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(mut r: R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(r: &mut R) -> Result<Self, SerializationError> {
         let code = r.get_u8()?;
         Ok(OpCode::parse(code))
     }

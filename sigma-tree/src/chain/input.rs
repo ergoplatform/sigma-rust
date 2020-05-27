@@ -1,11 +1,10 @@
 //! Transactio input
-use crate::box_id::BoxId;
-use crate::prover_result::ProverResult;
 use sigma_ser::serializer::SerializationError;
 use sigma_ser::serializer::SigmaSerializable;
 use sigma_ser::vlq_encode;
 use std::io;
 
+use super::{box_id::BoxId, prover_result::ProverResult};
 #[cfg(test)]
 use proptest::prelude::*;
 #[cfg(test)]
@@ -22,14 +21,14 @@ pub struct Input {
 }
 
 impl SigmaSerializable for Input {
-    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, mut w: W) -> Result<(), io::Error> {
-        self.box_id.sigma_serialize(&mut w)?;
-        self.spending_proof.sigma_serialize(&mut w)?;
+    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
+        self.box_id.sigma_serialize(w)?;
+        self.spending_proof.sigma_serialize(w)?;
         Ok(())
     }
-    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(mut r: R) -> Result<Self, SerializationError> {
-        let box_id = BoxId::sigma_parse(&mut r)?;
-        let spending_proof = ProverResult::sigma_parse(&mut r)?;
+    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(r: &mut R) -> Result<Self, SerializationError> {
+        let box_id = BoxId::sigma_parse(r)?;
+        let spending_proof = ProverResult::sigma_parse(r)?;
         Ok(Input {
             box_id,
             spending_proof,

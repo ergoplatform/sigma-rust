@@ -26,7 +26,7 @@ impl Executor for Interpreter {
     #[allow(unconditional_recursion)]
     fn eval(&mut self, expr: &Expr, env: &Env) -> Result<Value, EvalError> {
         match expr {
-            Expr::Constant { .. } => todo!(), //Ok(EvalResult(*v)),
+            Expr::Const(_) => todo!(), //Ok(EvalResult(*v)),
             Expr::Coll { .. } => todo!(),
             Expr::Tup { .. } => todo!(),
             Expr::PredefFunc(_) => todo!(),

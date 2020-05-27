@@ -7,7 +7,7 @@ pub struct Costs {}
 impl Costs {
     pub fn cost_of(&self, expr: &Expr) -> Cost {
         match expr {
-            Expr::Constant { .. } => todo!(),
+            Expr::Const(_) => todo!(),
             Expr::Coll { .. } => todo!(),
             Expr::Tup { .. } => todo!(),
             Expr::PredefFunc(_) => todo!(),

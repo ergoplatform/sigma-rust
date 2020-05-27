@@ -1,31 +1,65 @@
 //! Underlying Sigma data types
 
+use crate::{ecpoint::EcPoint, serialization::op_code::OpCode};
+
 #[allow(dead_code)]
+#[derive(PartialEq, Eq, Debug)]
 pub enum SigmaBoolean {
-    ProveDlog(u64),
+    ProveDHTuple {
+        gv: Box<EcPoint>,
+        hv: Box<EcPoint>,
+        uv: Box<EcPoint>,
+        vv: Box<EcPoint>,
+    },
+    ProveDlog(Box<EcPoint>),
     CAND(Vec<SigmaBoolean>),
 }
 
-pub trait SigmaProp {
-    fn is_valid(&self) -> bool;
-}
-
-pub struct CSigmaProp {
-    pub sigma_tree: SigmaBoolean,
-}
-
-impl SigmaProp for CSigmaProp {
-    fn is_valid(&self) -> bool {
-        todo!()
+impl SigmaBoolean {
+    pub fn op_code(&self) -> OpCode {
+        match self {
+            SigmaBoolean::ProveDHTuple { .. } => todo!(),
+            SigmaBoolean::ProveDlog(_) => OpCode::PROVE_DLOG,
+            SigmaBoolean::CAND(_) => todo!(),
+        }
     }
 }
 
-pub trait SigmaBox {
-    fn value(&self) -> u64;
+#[derive(PartialEq, Eq, Debug)]
+pub struct SigmaProp(SigmaBoolean);
+
+impl SigmaProp {
+    pub fn new(sbool: SigmaBoolean) -> Self {
+        SigmaProp { 0: sbool }
+    }
+
+    pub fn value(&self) -> &SigmaBoolean {
+        &self.0
+    }
 }
-pub struct CSigmaBox {}
-impl SigmaBox for CSigmaBox {
-    fn value(&self) -> u64 {
-        0
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    impl Arbitrary for SigmaBoolean {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            (any::<EcPoint>())
+                .prop_map(|ecp| SigmaBoolean::ProveDlog(Box::new(ecp)))
+                .boxed()
+        }
+    }
+
+    impl Arbitrary for SigmaProp {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            (any::<SigmaBoolean>()).prop_map(|sb| SigmaProp(sb)).boxed()
+        }
     }
 }

@@ -11,6 +11,8 @@
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
 
+/// io::Read wrapper with `peek` operation
+pub mod peekable_reader;
 /// Sigma serializer
 pub mod serializer;
 /// VLQ encoder

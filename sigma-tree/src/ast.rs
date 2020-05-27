@@ -1,12 +1,13 @@
-use crate::data::{SigmaBox, SigmaProp};
-use crate::{serialization::op_code::OpCode, types::*};
+use crate::{data::SigmaProp, serialization::op_code::OpCode, types::*};
 use core::fmt;
 use Expr::*;
 
 pub mod ops;
 
+#[derive(PartialEq, Eq, Debug)]
 pub struct RegisterId(u8);
 
+#[derive(PartialEq, Eq, Debug)]
 pub enum CollPrim {
     CollBoolean(Vec<bool>),
     CollByte(Vec<i8>),
@@ -15,7 +16,12 @@ pub enum CollPrim {
     CollLong(Vec<i64>),
 }
 
-pub enum Const {
+// TODO: extract and wrap ErgoBoxCandidate
+#[derive(PartialEq, Eq, Debug)]
+pub struct ErgoBox {}
+
+#[derive(PartialEq, Eq, Debug)]
+pub enum ConstantVal {
     Boolean(bool),
     Byte(i8),
     Short(i16),
@@ -23,19 +29,23 @@ pub enum Const {
     Long(i64),
     BigInt,
     GroupElement,
-    SigmaProp(Box<dyn SigmaProp>),
-    CBox(Box<dyn SigmaBox>),
+    SigmaProp(Box<SigmaProp>),
+    CBox(Box<ErgoBox>),
     AvlTree,
     CollPrim(CollPrim),
-    Coll(Vec<Const>),
-    Tup(Vec<Const>),
+    Coll(Vec<ConstantVal>),
+    Tup(Vec<ConstantVal>),
 }
 
+#[derive(PartialEq, Eq, Debug)]
+pub struct Constant {
+    pub tpe: SType,
+    pub v: ConstantVal,
+}
+
+#[derive(PartialEq, Eq, Debug)]
 pub enum Expr {
-    Constant {
-        tpe: SType,
-        v: Const,
-    },
+    Const(Constant),
     Coll {
         tpe: SType,
         v: Vec<Expr>,
@@ -60,7 +70,7 @@ pub enum Expr {
 impl Expr {
     pub fn op_code(&self) -> OpCode {
         match self {
-            Constant { .. } => todo!(),
+            Const { .. } => todo!(),
             Coll { .. } => todo!(),
             Tup { .. } => todo!(),
             BoxM(boxm) => boxm.op_code(),
@@ -74,7 +84,7 @@ impl Expr {
 
     pub fn tpe(&self) -> &SType {
         match self {
-            Constant { tpe, .. } => tpe,
+            Const(c) => &c.tpe,
             _ => todo!(),
         }
     }
@@ -86,6 +96,7 @@ impl fmt::Display for Expr {
     }
 }
 
+#[derive(PartialEq, Eq, Debug)]
 pub enum CollMethods {
     Fold {
         input: Box<Expr>,
@@ -94,6 +105,7 @@ pub enum CollMethods {
     },
 }
 
+#[derive(PartialEq, Eq, Debug)]
 pub enum BoxMethods {
     ExtractRegisterAs {
         input: Box<Expr>,
@@ -107,11 +119,13 @@ impl BoxMethods {
     }
 }
 
+#[derive(PartialEq, Eq, Debug)]
 pub enum ContextMethods {
     Inputs,
     Outputs,
 }
 
+#[derive(PartialEq, Eq, Debug)]
 pub enum PredefFunc {
     Sha256 { input: Box<Expr> },
 }
