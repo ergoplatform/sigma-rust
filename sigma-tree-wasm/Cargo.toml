@@ -1,8 +1,9 @@
 [package]
-name = "sigma-chain"
+name = "sigma-tree-wasm"
 version = "0.1.0"
 authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
 edition = "2018"
+description = "WASM bindings for sigma-tree"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -12,7 +13,7 @@ default = ["console_error_panic_hook"]
 
 [dependencies]
 wasm-bindgen = "0.2"
-sigma-ser = { path = "../sigma-ser" }
+# sigma-ser = { path = "../sigma-ser" }
 sigma-tree = { path = "../sigma-tree" }
 
 # The `console_error_panic_hook` crate provides better debugging of panics by

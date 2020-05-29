@@ -2,7 +2,7 @@
 
 #![cfg(target_arch = "wasm32")]
 
-extern crate sigma_chain;
+extern crate sigma_tree_wasm;
 extern crate wasm_bindgen_test;
 use wasm_bindgen_test::*;
 
@@ -10,5 +10,5 @@ wasm_bindgen_test_configure!(run_in_browser);
 
 #[wasm_bindgen_test]
 fn test_add() {
-    assert_eq!(sigma_chain::add(1, 1), 2);
+    assert_eq!(sigma_tree_wasm::add(1, 1), 2);
 }

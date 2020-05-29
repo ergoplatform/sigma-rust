@@ -1,8 +1,8 @@
 [workspace]
 members = [
-    "sigma-chain",
-    "sigma-chain-c",
     "sigma-ser",
     "sigma-tree",
+    "sigma-tree-wasm",
+    "sigma-tree-c",
     "sigma-testutil",
 ]
