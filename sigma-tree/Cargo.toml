@@ -15,13 +15,13 @@ libsecp256k1 = "0.3.5"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.10"
-proptest-derive = "0.1.2"
+proptest-derive = "0.2"
 sigma-testutil = { path = "../sigma-testutil"}
 rand = "0.7.3"
 
 [dev-dependencies.proptest]
 # wasm support, via https://altsysrq.github.io/proptest-book/proptest/wasm.html
-version = "0.9"
+version = "0.10"
 # The default feature set includes things like process forking which are not
 # supported in Web Assembly.
 default-features = false

@@ -12,7 +12,7 @@ sigma-tree = { path = "../sigma-tree" }
 
 [dependencies.proptest]
 # wasm support, via https://altsysrq.github.io/proptest-book/proptest/wasm.html
-version = "0.9"
+version = "0.10"
 # The default feature set includes things like process forking which are not
 # supported in Web Assembly.
 default-features = false
@@ -21,7 +21,7 @@ features = ["std"]
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.10"
-proptest-derive = "0.1.2"
+proptest-derive = "0.2"
 
 [profile.release]
 # Tell `rustc` to optimize for small code size.
