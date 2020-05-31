@@ -16,6 +16,10 @@ const STARTING_NON_MANDATORY_INDEX: u8 = 4;
 /// newtype for additional registers R4 - R9
 pub struct NonMandatoryRegisterId(u8);
 
+/// Transaction id (ModifierId in sigmastate)
+#[derive(PartialEq, Eq, Hash, Debug)]
+pub struct TxId(String);
+
 #[derive(PartialEq, Debug)]
 /// Box (aka coin, or an unspent output) is a basic concept of a UTXO-based cryptocurrency.
 /// In Bitcoin, such an object is associated with some monetary value (arbitrary,
@@ -34,6 +38,28 @@ pub struct NonMandatoryRegisterId(u8);
 ///
 /// A transaction is unsealing a box. As a box can not be open twice, any further valid transaction
 /// can not be linked to the same box.
+pub struct ErgoBox {
+    /// amount of money associated with the box
+    pub value: u64,
+    /// guarding script, which should be evaluated to true in order to open this box
+    pub ergo_tree: ErgoTree,
+    /// secondary tokens the box contains
+    pub tokens: Vec<TokenAmount>,
+    ///  additional registers the box can carry over
+    pub additional_registers: HashMap<NonMandatoryRegisterId, Box<[u8]>>,
+    /// height when a transaction containing the box was created.
+    /// This height is declared by user and should not exceed height of the block,
+    /// containing the transaction with this box.
+    pub creation_height: u32,
+    /// id of transaction which created the box
+    pub transaction_id: TxId,
+    /// number of box (from 0 to total number of boxes the transaction with transactionId created - 1)
+    pub index: u16,
+}
+
+/// Contains the same fields as `ErgoBox`, except if transaction id and index,
+/// that will be calculated after full transaction formation.
+#[derive(PartialEq, Debug)]
 pub struct ErgoBoxCandidate {
     /// amount of money associated with the box
     pub value: u64,
