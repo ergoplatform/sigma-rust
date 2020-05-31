@@ -7,9 +7,12 @@ use std::io;
 use super::context_extension::ContextExtension;
 #[cfg(test)]
 use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
+#[cfg(feature = "with-serde")]
+use serde::{Deserialize, Serialize};
 
 /// Proof of correctness of tx spending
 #[derive(Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct ProverResult {
     /// proof that satisfies final sigma proposition
     pub proof: Vec<u8>,

@@ -9,10 +9,13 @@ use super::{box_id::BoxId, prover_result::ProverResult};
 use proptest::prelude::*;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
+#[cfg(feature = "with-serde")]
+use serde::{Deserialize, Serialize};
 
+/// Fully signed transaction input
 #[derive(PartialEq, Debug)]
 #[cfg_attr(test, derive(Arbitrary))]
-/// Fully signed transaction input
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct Input {
     /// id of the box to spent
     pub box_id: BoxId,

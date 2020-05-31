@@ -2,6 +2,8 @@
 use super::token::{TokenAmount, TokenId};
 use crate::ergo_tree::ErgoTree;
 use indexmap::IndexSet;
+#[cfg(feature = "with-serde")]
+use serde::{Deserialize, Serialize};
 use sigma_ser::serializer::SerializationError;
 use sigma_ser::serializer::SigmaSerializable;
 use sigma_ser::vlq_encode;
@@ -14,10 +16,12 @@ const STARTING_NON_MANDATORY_INDEX: u8 = 4;
 
 #[derive(PartialEq, Eq, Hash, Debug)]
 /// newtype for additional registers R4 - R9
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct NonMandatoryRegisterId(u8);
 
 /// Transaction id (ModifierId in sigmastate)
 #[derive(PartialEq, Eq, Hash, Debug)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct TxId(String);
 
 /// Box (aka coin, or an unspent output) is a basic concept of a UTXO-based cryptocurrency.
@@ -60,6 +64,7 @@ pub struct ErgoBox {
 /// Contains the same fields as `ErgoBox`, except if transaction id and index,
 /// that will be calculated after full transaction formation.
 #[derive(PartialEq, Eq, Debug)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct ErgoBoxCandidate {
     /// amount of money associated with the box
     pub value: u64,

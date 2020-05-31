@@ -11,15 +11,19 @@ pub const TOKEN_ID_SIZE: usize = crate::constants::DIGEST32_SIZE;
 
 #[cfg(test)]
 use proptest_derive::Arbitrary;
+#[cfg(feature = "with-serde")]
+use serde::{Deserialize, Serialize};
 
 /// newtype for token id
 #[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
 #[cfg_attr(test, derive(Arbitrary))]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct TokenId(pub [u8; TOKEN_ID_SIZE]);
 
 /// Token amount represented with token id paired with it's amount
 #[derive(PartialEq, Eq, Debug)]
 #[cfg_attr(test, derive(Arbitrary))]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct TokenAmount {
     /// token id
     pub token_id: TokenId,

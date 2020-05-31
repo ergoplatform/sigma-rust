@@ -2,6 +2,8 @@
 
 use super::{data_input::DataInput, ergo_box::ErgoBoxCandidate, input::Input, token::TokenId};
 use indexmap::IndexSet;
+#[cfg(feature = "with-serde")]
+use serde::{Deserialize, Serialize};
 use sigma_ser::serializer::SerializationError;
 use sigma_ser::serializer::SigmaSerializable;
 use sigma_ser::vlq_encode;
@@ -19,6 +21,7 @@ use std::iter::FromIterator;
  * Transactions are not encrypted, so it is possible to browse and view every transaction ever
  * collected into a block.
  */
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 #[derive(PartialEq, Debug)]
 pub struct Transaction {
     /// inputs, that will be spent by this transaction.

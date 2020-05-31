@@ -3,6 +3,7 @@ use crate::{
     ast::{Constant, Expr},
     types::SType,
 };
+use serde::{Deserializer, Serializer};
 use sigma_ser::serializer::SerializationError;
 use sigma_ser::serializer::SigmaSerializable;
 use sigma_ser::vlq_encode;
@@ -81,6 +82,24 @@ impl SigmaSerializable for ErgoTree {
             constants,
             root: Rc::new(root),
         })
+    }
+}
+
+impl serde::Serialize for ErgoTree {
+    fn serialize<S>(&self, _: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        todo!()
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for ErgoTree {
+    fn deserialize<D>(_: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        todo!()
     }
 }
 

@@ -38,13 +38,15 @@ pub fn signed_p2pk_tx(
     _sk: PrivateKey,
 ) -> Result<JsValue, JsValue> {
     for jbox in inputs.into_iter() {
-        let _box: chain::ErgoBox = jbox.into_serde().unwrap();
+        let _box: chain::ErgoBoxCandidate = jbox.into_serde().unwrap();
     }
+
+    // TODO: create and sign a transaction
 
     let tx = chain::Transaction {
         inputs: vec![],
         data_inputs: vec![],
         outputs: vec![],
     };
-    JsValue::from_serde(&tx)
+    JsValue::from_serde(&tx).map_err(|e| JsValue::from_str(&format!("{}", e)))
 }
