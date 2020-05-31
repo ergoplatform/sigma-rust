@@ -1,4 +1,4 @@
-use crate::{data::SigmaProp, serialization::op_code::OpCode, types::*};
+use crate::{chain::ErgoBox, data::SigmaProp, serialization::op_code::OpCode, types::*};
 use core::fmt;
 use Expr::*;
 
@@ -15,10 +15,6 @@ pub enum CollPrim {
     CollInt(Vec<i32>),
     CollLong(Vec<i64>),
 }
-
-// TODO: extract and wrap ErgoBoxCandidate
-#[derive(PartialEq, Eq, Debug)]
-pub struct ErgoBox {}
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum ConstantVal {

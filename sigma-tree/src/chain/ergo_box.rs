@@ -20,7 +20,6 @@ pub struct NonMandatoryRegisterId(u8);
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub struct TxId(String);
 
-#[derive(PartialEq, Debug)]
 /// Box (aka coin, or an unspent output) is a basic concept of a UTXO-based cryptocurrency.
 /// In Bitcoin, such an object is associated with some monetary value (arbitrary,
 /// but with predefined precision, so we use integer arithmetic to work with the value),
@@ -38,6 +37,7 @@ pub struct TxId(String);
 ///
 /// A transaction is unsealing a box. As a box can not be open twice, any further valid transaction
 /// can not be linked to the same box.
+#[derive(PartialEq, Eq, Debug)]
 pub struct ErgoBox {
     /// amount of money associated with the box
     pub value: u64,
@@ -59,7 +59,7 @@ pub struct ErgoBox {
 
 /// Contains the same fields as `ErgoBox`, except if transaction id and index,
 /// that will be calculated after full transaction formation.
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub struct ErgoBoxCandidate {
     /// amount of money associated with the box
     pub value: u64,

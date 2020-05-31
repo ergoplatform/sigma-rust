@@ -18,7 +18,7 @@ use proptest_derive::Arbitrary;
 pub struct TokenId(pub [u8; TOKEN_ID_SIZE]);
 
 /// Token amount represented with token id paired with it's amount
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Eq, Debug)]
 #[cfg_attr(test, derive(Arbitrary))]
 pub struct TokenAmount {
     /// token id
