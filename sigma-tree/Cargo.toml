@@ -11,7 +11,8 @@ crate-type = ["cdylib", "rlib"]
 sigma-ser = { path = "../sigma-ser" }
 indexmap = "1.3.2"
 base16 = "0.2.1"
-libsecp256k1 = "0.3.5"
+k256 = "0.2.0"
+elliptic-curve = {version = "0.3.0", features = ["getrandom"]}
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.10"
