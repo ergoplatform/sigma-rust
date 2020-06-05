@@ -24,8 +24,8 @@ pub struct Address(String);
 #[wasm_bindgen]
 impl Address {
     /// Decode(base58) address
-    pub fn from_str(str: String) -> Address {
-        Address(str)
+    pub fn from_str(_: &str) -> Address {
+        Address(String::new())
     }
 }
 
@@ -36,8 +36,8 @@ pub struct PrivateKey(String);
 #[wasm_bindgen]
 impl PrivateKey {
     /// Decode from string
-    pub fn from_str(str: String) -> PrivateKey {
-        PrivateKey(str)
+    pub fn from_str(_: &str) -> PrivateKey {
+        PrivateKey(String::new())
     }
 }
 
@@ -79,5 +79,5 @@ pub fn signed_p2pk_transaction(
     _sk: PrivateKey,
 ) -> Result<Transaction, JsValue> {
     // TODO: create and sign a transaction
-    todo!()
+    Err(JsValue::from_str("Error!"))
 }
