@@ -6,3 +6,6 @@ pkg/
 wasm-pack.log
 .metals
 .vscode/
+**/node_modules
+**/dist
+package-lock.json

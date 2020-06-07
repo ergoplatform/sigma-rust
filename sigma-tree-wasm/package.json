@@ -1,0 +1,26 @@
+{
+    "scripts": {
+        "build": "webpack",
+        "serve": "wasm-pack build --target browser && webpack-dev-server",
+        "test": "wasm-pack build --target nodejs && mocha --require @babel/register --require @babel/polyfill 'tests/test*.js'",
+        "doc": "jsdoc -c jsdoc.json pkg/sigma_tree_wasm.js README.md -d docs"
+    },
+    "devDependencies": {
+        "@babel/core": "^7.6.4",
+        "@babel/plugin-syntax-dynamic-import": "^7.2.0",
+        "@babel/polyfill": "^7.6.0",
+        "@babel/preset-env": "^7.6.3",
+        "@babel/register": "^7.6.2",
+        "html-webpack-plugin": "^3.2.0",
+        "jsdoc": "~3.6.3",
+        "mocha": "^6.1.4",
+        "mocha-loader": "^2.0.1",
+        "text-encoder": "0.0.4",
+        "webpack": "^4.11.1",
+        "webpack-cli": "^3.1.1",
+        "webpack-dev-server": "^3.1.0"
+    },
+    "dependencies": {
+        "chai": "^4.2.0"
+    }
+}
