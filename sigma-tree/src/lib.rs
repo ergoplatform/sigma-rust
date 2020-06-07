@@ -14,9 +14,10 @@ mod ast;
 mod constants;
 mod data;
 mod ecpoint;
+mod ergo_tree;
 mod eval;
 mod serialization;
 mod types;
 
 pub mod chain;
-pub mod ergo_tree;
+pub use ergo_tree::*;

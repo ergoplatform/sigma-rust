@@ -10,7 +10,7 @@
 #![deny(unused_imports)]
 #![deny(missing_docs)]
 
-use sigma_tree::chain;
+use sigma_tree::{chain, ErgoTree};
 
 mod utils;
 
@@ -56,7 +56,52 @@ impl TxInputs {
     }
 }
 
+/// Transaction outputs
+#[wasm_bindgen]
+pub struct TxOutputs(Vec<chain::ErgoBoxCandidate>);
+
+#[wasm_bindgen]
+impl TxOutputs {
+    /// parse ErgoBoxCandidate from json
+    pub fn from_boxes(_boxes: Box<[JsValue]>) -> TxOutputs {
+        // box in boxes.into_iter() {
+        //     let _box: chain::ErgoBoxCandidate = jbox.into_serde().unwrap();
+        // }
+        TxOutputs(vec![])
+    }
+}
+
 /// TODO: copy docs from ErgoBox
+#[wasm_bindgen]
+pub struct ErgoBoxCandidate(chain::ErgoBoxCandidate);
+
+#[wasm_bindgen]
+impl ErgoBoxCandidate {
+    /// make new box
+    #[wasm_bindgen(constructor)]
+    pub fn new(_value: u64, _current_height: u32, _contract: Contract) -> ErgoBoxCandidate {
+        todo!()
+    }
+
+    /// JSON representation
+    pub fn to_json(&self) -> Result<JsValue, JsValue> {
+        JsValue::from_serde(&self.0).map_err(|e| JsValue::from_str(&format!("{}", e)))
+    }
+}
+
+/// TODO: docs
+#[wasm_bindgen]
+pub struct Contract(ErgoTree);
+
+#[wasm_bindgen]
+impl Contract {
+    /// send ERGs to the recipient address
+    pub fn pay_2pk(_recipient: Address) -> Contract {
+        todo!()
+    }
+}
+
+/// TODO: copy docs from Transaction
 #[wasm_bindgen]
 pub struct Transaction(chain::Transaction);
 
@@ -71,10 +116,9 @@ impl Transaction {
 // TODO: explain wasm_bindgen limitations (supported types)
 /// TODO: add doc
 #[wasm_bindgen]
-pub fn signed_p2pk_transaction(
+pub fn new_signed_transaction(
     _inputs: TxInputs,
-    _current_height: u32,
-    _recipient: Address,
+    _outputs: TxOutputs,
     _send_change_to: Address,
     _sk: PrivateKey,
 ) -> Result<Transaction, JsValue> {
