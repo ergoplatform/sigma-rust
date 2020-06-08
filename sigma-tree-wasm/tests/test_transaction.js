@@ -10,9 +10,9 @@ it('new transaction', async () => {
     new_signed_transaction,
   } = await sigma_rust;
 
-  const recipient = Address.from_str('');
+  const recipient = Address.from_testnet_str('test');
   const tx_inputs = TxInputs.from_boxes([]);
-  const send_change_to = Address.from_str('');
+  const send_change_to = Address.from_testnet_str('');
   const sk = PrivateKey.from_str('');
 
   let outbox = ErgoBoxCandidate.new(1, 0, Contract.pay_2pk(recipient));

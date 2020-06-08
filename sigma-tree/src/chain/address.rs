@@ -93,11 +93,17 @@ pub enum NetworkPrefix {
 }
 
 /// Errors on encoding/decoding of addresses
-pub enum AddressEncoderError {}
+#[derive(Debug)]
+pub enum AddressEncoderError {
+    /// Failed to decode Base58
+    Base58DecodingError(String),
+}
 
 impl fmt::Display for AddressEncoderError {
-    fn fmt(&self, _: &mut fmt::Formatter) -> fmt::Result {
-        todo!()
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            AddressEncoderError::Base58DecodingError(e) => write!(f, "Error({:?}, {})", self, e),
+        }
     }
 }
 
@@ -111,7 +117,11 @@ impl AddressEncoder {
     }
 
     /// parse address from Base58 encoded string
-    pub fn parse_address_from_str(&self, _: &str) -> Result<Box<dyn Address>, AddressEncoderError> {
-        todo!()
+    pub fn parse_address_from_str(&self, s: &str) -> Result<Box<dyn Address>, AddressEncoderError> {
+        // TODO: implement
+        Err(AddressEncoderError::Base58DecodingError(format!(
+            "failed to decode address from '{}'",
+            s
+        )))
     }
 }
