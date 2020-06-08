@@ -73,10 +73,10 @@ matrix:
       rust: stable
       before_cache:
         - rm -rf /home/travis/.cargo/bin/wasm-pack
-      before_script:
-        - curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh -s -- -f
-        - curl -sSL "https://nodejs.org/dist/v12.13.1/node-v12.13.1-linux-x64.tar.xz" | tar --strip-components=2 -xJ -C /usr/local/bin/ node-v12.13.1-linux-x64/bin/node
-        - curl https://www.npmjs.com/install.sh | bash
+      before_install:
+        - sudo apt-get update
+        - sudo apt-get -y install nodejs
+        - sudo apt-get -y install npm
       script:
         - cd sigma-tree-wasm
         - wasm-pack build
