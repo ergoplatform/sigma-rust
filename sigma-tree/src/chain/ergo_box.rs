@@ -81,7 +81,19 @@ pub struct ErgoBoxCandidate {
 }
 
 impl ErgoBoxCandidate {
-    /// Box serialization with token ids optionally saved in transaction (in this case only token index is saved)
+    /// create box with value guarded by ErgoTree
+    pub fn new(value: u64, ergo_tree: ErgoTree, creation_height: u32) -> ErgoBoxCandidate {
+        ErgoBoxCandidate {
+            value,
+            ergo_tree,
+            tokens: vec![],
+            additional_registers: HashMap::new(),
+            creation_height,
+        }
+    }
+
+    /// Box serialization with token ids optionally saved in transaction
+    /// (in this case only token index is saved)
     pub fn serialize_body_with_indexed_digests<W: vlq_encode::WriteSigmaVlqExt>(
         &self,
         token_ids_in_tx: Option<&IndexSet<TokenId>>,

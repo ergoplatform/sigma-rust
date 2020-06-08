@@ -10,7 +10,7 @@
 #![deny(unused_imports)]
 #![deny(missing_docs)]
 
-use sigma_tree::{chain, ErgoTree};
+use sigma_tree::chain;
 
 mod utils;
 
@@ -19,13 +19,16 @@ use wasm_bindgen::prelude::*;
 
 /// TODO: wrap sigma-tree type
 #[wasm_bindgen]
-pub struct Address(String);
+pub struct Address(Box<dyn chain::Address>);
 
 #[wasm_bindgen]
 impl Address {
     /// Decode(base58) address
-    pub fn from_str(_: &str) -> Address {
-        Address(String::new())
+    pub fn from_testnet_str(s: &str) -> Result<Address, JsValue> {
+        chain::AddressEncoder::new(chain::NetworkPrefix::Testnet)
+            .parse_address_from_str(s)
+            .map(|a| Address(a))
+            .map_err(|e| JsValue::from_str(&format!("{}", e)))
     }
 }
 
@@ -79,8 +82,9 @@ pub struct ErgoBoxCandidate(chain::ErgoBoxCandidate);
 impl ErgoBoxCandidate {
     /// make new box
     #[wasm_bindgen(constructor)]
-    pub fn new(_value: u64, _current_height: u32, _contract: Contract) -> ErgoBoxCandidate {
-        todo!()
+    pub fn new(value: u64, creation_height: u32, contract: Contract) -> ErgoBoxCandidate {
+        let b = chain::ErgoBoxCandidate::new(value, contract.0.get_ergo_tree(), creation_height);
+        ErgoBoxCandidate(b)
     }
 
     /// JSON representation
@@ -91,7 +95,7 @@ impl ErgoBoxCandidate {
 
 /// TODO: docs
 #[wasm_bindgen]
-pub struct Contract(ErgoTree);
+pub struct Contract(chain::Contract);
 
 #[wasm_bindgen]
 impl Contract {

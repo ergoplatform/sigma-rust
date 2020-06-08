@@ -1,5 +1,8 @@
 use super::op_code::OpCode;
-use crate::{data::SigmaBoolean, ecpoint::EcPoint};
+use crate::{
+    data::{ProveDlog, SigmaBoolean},
+    ecpoint::EcPoint,
+};
 use sigma_ser::{
     serializer::{SerializationError, SigmaSerializable},
     vlq_encode,
@@ -11,7 +14,7 @@ impl SigmaSerializable for SigmaBoolean {
         self.op_code().sigma_serialize(w)?;
         match self {
             SigmaBoolean::ProveDHTuple { .. } => todo!(),
-            SigmaBoolean::ProveDlog(v) => v.sigma_serialize(w),
+            SigmaBoolean::ProveDlog(v) => v.h.sigma_serialize(w),
             SigmaBoolean::CAND(_) => todo!(),
         }
     }
@@ -21,7 +24,7 @@ impl SigmaSerializable for SigmaBoolean {
         match op_code {
             OpCode::PROVE_DLOG => {
                 let p = EcPoint::sigma_parse(r)?;
-                Ok(SigmaBoolean::ProveDlog(Box::new(p)))
+                Ok(SigmaBoolean::ProveDlog(ProveDlog { h: Box::new(p) }))
             }
             _ => todo!(),
         }

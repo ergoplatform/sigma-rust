@@ -9,7 +9,7 @@ use sigma_ser::{
 use std::convert::TryInto;
 use std::io;
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct EcPoint(ProjectivePoint);
 
 impl EcPoint {

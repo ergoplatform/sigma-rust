@@ -2,6 +2,19 @@
 
 use crate::{ecpoint::EcPoint, serialization::op_code::OpCode};
 
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct ProveDlog {
+    pub h: Box<EcPoint>,
+}
+
+impl ProveDlog {
+    pub fn new(ecpoint: EcPoint) -> ProveDlog {
+        ProveDlog {
+            h: Box::new(ecpoint),
+        }
+    }
+}
+
 #[allow(dead_code)]
 #[derive(PartialEq, Eq, Debug)]
 pub enum SigmaBoolean {
@@ -11,7 +24,7 @@ pub enum SigmaBoolean {
         uv: Box<EcPoint>,
         vv: Box<EcPoint>,
     },
-    ProveDlog(Box<EcPoint>),
+    ProveDlog(ProveDlog),
     CAND(Vec<SigmaBoolean>),
 }
 
@@ -49,7 +62,7 @@ mod tests {
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             (any::<EcPoint>())
-                .prop_map(|ecp| SigmaBoolean::ProveDlog(Box::new(ecp)))
+                .prop_map(|ecp| SigmaBoolean::ProveDlog(ProveDlog::new(ecp)))
                 .boxed()
         }
     }
