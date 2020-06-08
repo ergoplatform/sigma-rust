@@ -70,11 +70,12 @@ matrix:
 
     - name: JS tests
       rust: stable
-      language: node_js
       before_cache:
         - rm -rf /home/travis/.cargo/bin/wasm-pack
       before_script:
         - curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh -s -- -f
+        - curl -sSL "https://nodejs.org/dist/v12.13.1/node-v12.13.1-linux-x64.tar.xz" | tar --strip-components=2 -xJ -C /usr/local/bin/ node-v12.13.1-linux-x64/bin/node
+        - curl https://www.npmjs.com/install.sh | bash
       script:
         - cd sigma-tree-wasm
         - wasm-pack build
@@ -96,9 +97,6 @@ cache: cargo
 before_cache:
   - rm -rf /home/travis/.cargo/git
   - rm -rf /home/travis/.cargo/registry
-
-before_install:
-  - cargo install cbindgen
 
 script:
   - cargo build --verbose --all
