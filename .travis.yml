@@ -61,12 +61,24 @@ matrix:
       before_script:
         - curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh -s -- -f
       script:
-        - cd sigma-chain
+        - cd sigma-tree-wasm
         - wasm-pack build
         - wasm-pack test  --firefox --headless
         - wasm-pack test  --firefox --headless --release
         - wasm-pack test  --chrome  --headless
         - wasm-pack test  --chrome  --headless --release
+
+    - name: JS tests
+      rust: stable
+      language: node_js
+      before_cache:
+        - rm -rf /home/travis/.cargo/bin/wasm-pack
+      before_script:
+        - curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh -s -- -f
+      script:
+        - cd sigma-tree-wasm
+        - wasm-pack build
+        - npm install && npm run test
 
     - name: build for iOS
       os: osx
