@@ -69,6 +69,7 @@ matrix:
         - wasm-pack test  --chrome  --headless --release
 
     - name: JS tests
+      dist: bionic
       sudo: true
       rust: stable
       before_cache:
