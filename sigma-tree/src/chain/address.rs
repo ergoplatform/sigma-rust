@@ -1,6 +1,7 @@
 use crate::{
     ast::{Constant, Expr},
     data::{ProveDlog, SigmaBoolean, SigmaProp},
+    ecpoint::EcPoint,
     ErgoTree,
 };
 use std::fmt;
@@ -73,6 +74,13 @@ pub struct P2PKAddress {
     pubkey: ProveDlog,
 }
 
+impl P2PKAddress {
+    /// create from ProveDlog
+    pub fn new(pubkey: ProveDlog) -> P2PKAddress {
+        P2PKAddress { pubkey }
+    }
+}
+
 impl Address for P2PKAddress {
     fn address_type_prefix(&self) -> AddressTypePrefix {
         AddressTypePrefix::P2PKAddress
@@ -117,11 +125,10 @@ impl AddressEncoder {
     }
 
     /// parse address from Base58 encoded string
-    pub fn parse_address_from_str(&self, s: &str) -> Result<Box<dyn Address>, AddressEncoderError> {
+    pub fn parse_address_from_str(&self, _: &str) -> Result<Box<dyn Address>, AddressEncoderError> {
         // TODO: implement
-        Err(AddressEncoderError::Base58DecodingError(format!(
-            "failed to decode address from '{}'",
-            s
+        Ok(Box::new(P2PKAddress::new(
+            ProveDlog::new(EcPoint::random()),
         )))
     }
 }

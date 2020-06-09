@@ -103,8 +103,8 @@ pub struct Contract(chain::Contract);
 #[wasm_bindgen]
 impl Contract {
     /// send ERGs to the recipient address
-    pub fn pay_2pk(_recipient: Address) -> Contract {
-        todo!()
+    pub fn pay_to_address(recipient: Address) -> Contract {
+        Contract(chain::Contract::pay_to_address(&*recipient.0))
     }
 }
 

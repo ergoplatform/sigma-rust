@@ -14,7 +14,7 @@ fn test_signed_p2pk_transaction() {
     let sk = SecretKey::parse("");
     let recipient = Address::from_testnet_str("").expect("failed");
 
-    let outbox = ErgoBoxCandidate::new(1, 0, Contract::pay_2pk(recipient));
+    let outbox = ErgoBoxCandidate::new(1, 0, Contract::pay_to_address(recipient));
     let out_boxes = [outbox.to_json().expect("failed")];
     let tx_outputs = TxOutputs::from_boxes(Box::new(out_boxes));
     let res = new_signed_transaction(tx_inputs, tx_outputs, send_change_to, sk);
