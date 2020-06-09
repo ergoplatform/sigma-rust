@@ -88,11 +88,12 @@ impl SigmaSerializable for ErgoTree {
 
 #[cfg(feature = "with-serde")]
 impl serde::Serialize for ErgoTree {
-    fn serialize<S>(&self, _: S) -> Result<S::Ok, S::Error>
+    fn serialize<S>(&self, s: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
-        todo!()
+        // TODO: serialize ergo tree and encode as Base16
+        s.serialize_str("")
     }
 }
 

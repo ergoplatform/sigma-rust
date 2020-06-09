@@ -85,8 +85,10 @@ pub struct ErgoBoxCandidate(chain::ErgoBoxCandidate);
 impl ErgoBoxCandidate {
     /// make new box
     #[wasm_bindgen(constructor)]
-    pub fn new(value: u64, creation_height: u32, contract: Contract) -> ErgoBoxCandidate {
-        let b = chain::ErgoBoxCandidate::new(value, contract.0.get_ergo_tree(), creation_height);
+    pub fn new(value: u32, creation_height: u32, contract: Contract) -> ErgoBoxCandidate {
+        // value is u32, because u64 makes in BigInt in JS
+        let ergo_tree = contract.0.get_ergo_tree();
+        let b = chain::ErgoBoxCandidate::new(value as u64, ergo_tree, creation_height);
         ErgoBoxCandidate(b)
     }
 
