@@ -14,13 +14,13 @@ use std::io;
 #[allow(dead_code)]
 const STARTING_NON_MANDATORY_INDEX: u8 = 4;
 
-#[derive(PartialEq, Eq, Hash, Debug)]
 /// newtype for additional registers R4 - R9
+#[derive(PartialEq, Eq, Hash, Debug, Clone)]
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct NonMandatoryRegisterId(u8);
 
 /// Transaction id (ModifierId in sigmastate)
-#[derive(PartialEq, Eq, Hash, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug, Clone)]
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct TxId(String);
 
@@ -41,7 +41,7 @@ pub struct TxId(String);
 ///
 /// A transaction is unsealing a box. As a box can not be open twice, any further valid transaction
 /// can not be linked to the same box.
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ErgoBox {
     /// amount of money associated with the box
     pub value: u64,

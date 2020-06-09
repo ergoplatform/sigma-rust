@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 pub struct TokenId(pub [u8; TOKEN_ID_SIZE]);
 
 /// Token amount represented with token id paired with it's amount
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 #[cfg_attr(test, derive(Arbitrary))]
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct TokenAmount {

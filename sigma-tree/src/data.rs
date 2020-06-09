@@ -16,7 +16,7 @@ impl ProveDlog {
 }
 
 #[allow(dead_code)]
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub enum SigmaBoolean {
     ProveDHTuple {
         gv: Box<EcPoint>,
@@ -38,7 +38,7 @@ impl SigmaBoolean {
     }
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct SigmaProp(SigmaBoolean);
 
 impl SigmaProp {

@@ -14,7 +14,7 @@ use vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt};
 
 /** The root of ErgoScript IR. Serialized instances of this class are self sufficient and can be passed around.
  */
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 #[allow(dead_code)]
 pub struct ErgoTree {
     header: ErgoTreeHeader,
@@ -22,7 +22,7 @@ pub struct ErgoTree {
     root: Rc<Expr>,
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 struct ErgoTreeHeader(u8);
 
 impl ErgoTree {

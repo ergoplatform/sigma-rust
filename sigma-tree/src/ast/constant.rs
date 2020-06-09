@@ -1,6 +1,6 @@
 use crate::{chain::ErgoBox, data::SigmaProp, types::SType};
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub enum CollPrim {
     CollBoolean(Vec<bool>),
     CollByte(Vec<i8>),
@@ -9,7 +9,7 @@ pub enum CollPrim {
     CollLong(Vec<i64>),
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub enum ConstantVal {
     Boolean(bool),
     Byte(i8),
@@ -26,7 +26,7 @@ pub enum ConstantVal {
     Tup(Vec<ConstantVal>),
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Constant {
     pub tpe: SType,
     pub v: ConstantVal,

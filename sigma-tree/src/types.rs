@@ -7,7 +7,7 @@ pub struct MethodId(u8);
 #[derive(PartialEq, Eq, Debug)]
 pub struct TypeId(u8);
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub enum SType {
     SAny,
     SBoolean,
@@ -52,19 +52,19 @@ impl SType {
     }
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct STypeVar {
     name: String,
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct STypeParam {
     ident: STypeVar,
     upper_bound: Option<SType>,
     lower_bound: Option<SType>,
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct SFunc {
     t_dom: Vec<SType>,
     t_range: SType,
