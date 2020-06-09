@@ -76,6 +76,8 @@ matrix:
         - rm -rf /home/travis/.cargo/bin/wasm-pack
       before_install:
         - sudo apt-get update
+        - sudo apt-get install curl
+        - curl -sL https://deb.nodesource.com/setup_12.x | sudo -E bash -
         - sudo apt-get -y install nodejs
         - sudo apt-get -y install npm
       before_script:
