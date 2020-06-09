@@ -15,6 +15,7 @@ use sigma_tree::chain;
 mod utils;
 
 // use serde::{Deserialize, Serialize};
+// use std::str;
 use wasm_bindgen::prelude::*;
 
 /// TODO: wrap sigma-tree type
@@ -34,13 +35,13 @@ impl Address {
 
 /// TODO: wrap sigma-tree type
 #[wasm_bindgen]
-pub struct PrivateKey(String);
+pub struct SecretKey(String);
 
 #[wasm_bindgen]
-impl PrivateKey {
+impl SecretKey {
     /// Decode from string
-    pub fn from_str(_: &str) -> PrivateKey {
-        PrivateKey(String::new())
+    pub fn parse(_: &str) -> SecretKey {
+        SecretKey(String::new())
     }
 }
 
@@ -51,6 +52,7 @@ pub struct TxInputs(Vec<chain::ErgoBoxCandidate>);
 #[wasm_bindgen]
 impl TxInputs {
     /// parse ErgoBoxCandidate from json
+    #[allow(clippy::boxed_local)]
     pub fn from_boxes(_boxes: Box<[JsValue]>) -> TxInputs {
         // box in boxes.into_iter() {
         //     let _box: chain::ErgoBoxCandidate = jbox.into_serde().unwrap();
@@ -66,6 +68,7 @@ pub struct TxOutputs(Vec<chain::ErgoBoxCandidate>);
 #[wasm_bindgen]
 impl TxOutputs {
     /// parse ErgoBoxCandidate from json
+    #[allow(clippy::boxed_local)]
     pub fn from_boxes(_boxes: Box<[JsValue]>) -> TxOutputs {
         // box in boxes.into_iter() {
         //     let _box: chain::ErgoBoxCandidate = jbox.into_serde().unwrap();
@@ -124,7 +127,7 @@ pub fn new_signed_transaction(
     _inputs: TxInputs,
     _outputs: TxOutputs,
     _send_change_to: Address,
-    _sk: PrivateKey,
+    _sk: SecretKey,
 ) -> Result<Transaction, JsValue> {
     // TODO: create and sign a transaction
     Err(JsValue::from_str("Error!"))
