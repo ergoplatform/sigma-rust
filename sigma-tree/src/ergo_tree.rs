@@ -3,6 +3,7 @@ use crate::{
     ast::{Constant, Expr},
     types::SType,
 };
+#[cfg(feature = "with-serde")]
 use serde::{Deserializer, Serializer};
 use sigma_ser::serializer::SerializationError;
 use sigma_ser::serializer::SigmaSerializable;
@@ -85,6 +86,7 @@ impl SigmaSerializable for ErgoTree {
     }
 }
 
+#[cfg(feature = "with-serde")]
 impl serde::Serialize for ErgoTree {
     fn serialize<S>(&self, _: S) -> Result<S::Ok, S::Error>
     where
@@ -94,6 +96,7 @@ impl serde::Serialize for ErgoTree {
     }
 }
 
+#[cfg(feature = "with-serde")]
 impl<'de> serde::Deserialize<'de> for ErgoTree {
     fn deserialize<D>(_: D) -> Result<Self, D::Error>
     where
