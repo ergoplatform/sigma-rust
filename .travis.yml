@@ -79,7 +79,6 @@ matrix:
         - sudo apt-get install curl
         - curl -sL https://deb.nodesource.com/setup_12.x | sudo -E bash -
         - sudo apt-get -y install nodejs
-        - sudo apt-get -y install npm
       before_script:
         - curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh -s -- -f
       script:
