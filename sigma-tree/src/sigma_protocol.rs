@@ -31,7 +31,7 @@ impl DlogProverInput {
 
     #[allow(dead_code)]
     fn public_image(&self) -> ProveDlog {
-        // TODO: test and remove annot(dead_code)
+        // test it, see https://github.com/ergoplatform/sigma-rust/issues/38
         let g = EcPoint::generator();
         ProveDlog::new(g.exponentiate(&self.w))
     }
@@ -44,7 +44,6 @@ pub trait PrivateInput {
 impl PrivateInput for DlogProverInput {
     #[allow(dead_code)]
     fn public_image(&self) -> SigmaProofOfKnowledgeTree {
-        // TODO: test and remove annot(dead_code)
         SigmaProofOfKnowledgeTree::ProveDlog(self.public_image())
     }
 }

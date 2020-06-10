@@ -81,7 +81,7 @@ pub struct SecretKey(chain::SecretKey);
 impl SecretKey {
     /// Decode from string
     pub fn parse(_: &str) -> Result<SecretKey, JsValue> {
-        // TODO: implement
+        // not implemented, see https://github.com/ergoplatform/sigma-rust/issues/33
         Ok(SecretKey(chain::SecretKey::random_dlog()))
     }
 }
@@ -206,6 +206,6 @@ pub fn new_signed_transaction(
     _send_change_to: Address,
     _sk: SecretKey,
 ) -> Result<Transaction, JsValue> {
-    // TODO: create and sign a transaction
+    // not implemented, see https://github.com/ergoplatform/sigma-rust/issues/34
     Err(JsValue::from_str("Error!"))
 }

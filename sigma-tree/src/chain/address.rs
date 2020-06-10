@@ -128,7 +128,7 @@ impl AddressEncoder {
 
     /// parse address from Base58 encoded string
     pub fn parse_address_from_str(&self, _: &str) -> Result<Box<dyn Address>, AddressEncoderError> {
-        // TODO: implement
+        // not implemented, see https://github.com/ergoplatform/sigma-rust/issues/35
         Ok(Box::new(P2PKAddress::new(
             ProveDlog::new(EcPoint::random()),
         )))

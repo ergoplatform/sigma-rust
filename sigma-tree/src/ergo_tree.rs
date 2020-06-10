@@ -92,7 +92,9 @@ impl serde::Serialize for ErgoTree {
     where
         S: Serializer,
     {
-        // TODO: serialize ergo tree and encode as Base16
+        // not implmented
+        // serialize ergo tree and encode as Base16
+        // https://github.com/ergoplatform/sigma-rust/issues/37
         s.serialize_str("")
     }
 }
