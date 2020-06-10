@@ -14,7 +14,7 @@ use std::io;
 
 pub struct DataSerializer {}
 
-// TODO: convert to SigmaSerializable impl for ConstantVal
+// TODO: convert to SigmaSerializable impl for ConstantVal?
 impl DataSerializer {
     pub fn sigma_serialize<W: WriteSigmaVlqExt>(
         c: &ConstantVal,
