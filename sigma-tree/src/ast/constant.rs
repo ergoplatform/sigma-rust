@@ -1,4 +1,4 @@
-use crate::{chain::ErgoBox, data::SigmaProp, types::SType};
+use crate::{chain::ErgoBox, sigma_protocol::SigmaProp, types::SType};
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum CollPrim {
@@ -26,6 +26,12 @@ pub enum ConstantVal {
     Tup(Vec<ConstantVal>),
 }
 
+impl ConstantVal {
+    pub fn sigma_prop(prop: SigmaProp) -> ConstantVal {
+        ConstantVal::SigmaProp(Box::new(prop))
+    }
+}
+
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Constant {
     pub tpe: SType,
@@ -36,7 +42,7 @@ impl Constant {
     pub fn sigma_prop(prop: SigmaProp) -> Constant {
         Constant {
             tpe: SType::SSigmaProp,
-            v: ConstantVal::SigmaProp(Box::new(prop)),
+            v: ConstantVal::sigma_prop(prop),
         }
     }
 }

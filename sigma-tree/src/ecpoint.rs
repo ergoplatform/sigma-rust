@@ -1,3 +1,4 @@
+use crate::sigma_protocol::DlogProverInput;
 use k256::{
     arithmetic::{AffinePoint, ProjectivePoint, Scalar},
     PublicKey,
@@ -6,7 +7,6 @@ use sigma_ser::{
     serializer::{SerializationError, SigmaSerializable},
     vlq_encode,
 };
-use std::convert::TryInto;
 use std::io;
 
 #[derive(PartialEq, Debug, Clone)]
@@ -16,26 +16,29 @@ impl EcPoint {
     pub const GROUP_SIZE: usize = 33;
 
     pub fn random() -> EcPoint {
-        let scalar = loop {
-            // Generate a new secret key using the operating system's
-            // cryptographically secure random number generator
-            let sk = k256::SecretKey::generate();
-            let bytes: [u8; 32] = sk
-                .secret_scalar()
-                .as_ref()
-                .as_slice()
-                .try_into()
-                .expect("expected 32 bytes");
-            // Returns None if the byte array does not contain
-            // a big-endian integer in the range [0, n), where n is group order.
-            let maybe_scalar = Scalar::from_bytes(bytes);
-            if bool::from(maybe_scalar.is_some()) {
-                break maybe_scalar.unwrap();
-            }
-        };
-        // we treat EC as a multiplicative group, therefore, exponentiate point is multiply.
-        let pkp = ProjectivePoint::generator() * &scalar;
-        EcPoint(pkp)
+        let sk = DlogProverInput::random();
+        EcPoint::generator().exponentiate(&sk.w)
+    }
+
+    pub fn generator() -> EcPoint {
+        EcPoint(ProjectivePoint::generator())
+    }
+
+    pub fn is_infinity(&self) -> bool {
+        let identity = ProjectivePoint::identity();
+        self.0 == identity
+    }
+
+    pub fn exponentiate(&self, exponent: &Scalar) -> EcPoint {
+        if !self.is_infinity() {
+            // TODO: check if exponent is negative
+            // see reference impl https://github.com/ScorexFoundation/sigmastate-interpreter/blob/ec71a6f988f7412bc36199f46e7ad8db643478c7/sigmastate/src/main/scala/sigmastate/basics/BcDlogGroup.scala#L201
+
+            // we treat EC as a multiplicative group, therefore, exponentiate point is multiply.
+            EcPoint(self.0 * exponent)
+        } else {
+            self.clone()
+        }
     }
 }
 

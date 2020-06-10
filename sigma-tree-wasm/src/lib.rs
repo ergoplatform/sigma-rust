@@ -75,13 +75,14 @@ impl Address {
 
 /// TODO: wrap sigma-tree type
 #[wasm_bindgen]
-pub struct SecretKey(String);
+pub struct SecretKey(chain::SecretKey);
 
 #[wasm_bindgen]
 impl SecretKey {
     /// Decode from string
-    pub fn parse(_: &str) -> SecretKey {
-        SecretKey(String::new())
+    pub fn parse(_: &str) -> Result<SecretKey, JsValue> {
+        // TODO: implement
+        Ok(SecretKey(chain::SecretKey::random_dlog()))
     }
 }
 

@@ -110,7 +110,7 @@ impl<'de> serde::Deserialize<'de> for ErgoTree {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{ast::ConstantVal, data::SigmaProp};
+    use crate::{ast::ConstantVal, sigma_protocol::SigmaProp};
     use proptest::prelude::*;
     use sigma_ser::test_helpers::*;
 

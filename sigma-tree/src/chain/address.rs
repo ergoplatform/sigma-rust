@@ -1,7 +1,7 @@
 use crate::{
     ast::{Constant, Expr},
-    data::{ProveDlog, SigmaBoolean, SigmaProp},
     ecpoint::EcPoint,
+    sigma_protocol::{ProveDlog, SigmaBoolean, SigmaProofOfKnowledgeTree, SigmaProp},
     ErgoTree,
 };
 use std::fmt;
@@ -87,7 +87,9 @@ impl Address for P2PKAddress {
     }
     fn script(&self) -> ErgoTree {
         ErgoTree::from_proposition(Rc::new(Expr::Const(Constant::sigma_prop(SigmaProp::new(
-            SigmaBoolean::ProveDlog(self.pubkey.clone()),
+            SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(
+                self.pubkey.clone(),
+            )),
         )))))
     }
 }

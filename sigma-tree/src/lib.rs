@@ -12,11 +12,11 @@
 
 mod ast;
 mod constants;
-mod data;
 mod ecpoint;
 mod ergo_tree;
 mod eval;
 mod serialization;
+mod sigma_protocol;
 mod types;
 
 pub mod chain;
