@@ -73,7 +73,7 @@ impl Address {
     }
 }
 
-/// TODO: wrap sigma-tree type
+/// Secret key for prover
 #[wasm_bindgen]
 pub struct SecretKey(chain::SecretKey);
 
