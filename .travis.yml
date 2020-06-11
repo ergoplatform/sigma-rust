@@ -61,7 +61,7 @@ matrix:
       before_script:
         - curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh -s -- -f
       script:
-        - cd sigma-tree-wasm
+        - cd sigma-wasm
         - wasm-pack build
         - wasm-pack test  --firefox --headless
         - wasm-pack test  --firefox --headless --release
@@ -82,7 +82,7 @@ matrix:
       before_script:
         - curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh -s -- -f
       script:
-        - cd sigma-tree-wasm
+        - cd sigma-wasm
         - wasm-pack build
         - npm install && npm run test
 
