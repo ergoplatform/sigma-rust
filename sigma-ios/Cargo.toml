@@ -4,11 +4,13 @@ version = "0.1.0"
 authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
 edition = "2018"
 description = "Sigma C bindings for iOS"
+build = "build.rs"
 
 [lib]
 crate-type = ["staticlib"]
 
 [dependencies]
+ffi_helpers = "0.2"
 sigma-tree = { path = "../sigma-tree", version = "0.1.0" }
 
 [build-dependencies]
@@ -17,3 +19,4 @@ cbindgen = "0.14"
 [profile.release]
 # Tell `rustc` to optimize for small code size.
 opt-level = "s"
+lto = true
