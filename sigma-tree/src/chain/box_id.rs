@@ -4,6 +4,9 @@ use sigma_ser::serializer::SigmaSerializable;
 use sigma_ser::vlq_encode;
 use std::io;
 
+#[cfg(feature = "with-serde")]
+use serde::{Deserialize, Serialize};
+
 /// Size of Box.id
 pub const BOX_ID_SIZE: usize = crate::constants::DIGEST32_SIZE;
 
@@ -12,6 +15,7 @@ use proptest_derive::Arbitrary;
 
 #[derive(PartialEq, Debug)]
 #[cfg_attr(test, derive(Arbitrary))]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 /// newtype for box ids
 pub struct BoxId(pub [u8; BOX_ID_SIZE]);
 

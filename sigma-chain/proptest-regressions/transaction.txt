@@ -1,7 +1,0 @@
-# Seeds for failure cases proptest has generated in the past. It is
-# automatically read and these particular cases re-run before any
-# novel cases are generated.
-#
-# It is recommended to check this file in to source control so that
-# everyone who runs the test benefits from these saved cases.
-cc 2db82b148cdc5d9b0f0c044ab7391c8e920355dd92e94b14e3b998a054544e2b # shrinks to v = Transaction { inputs: [], data_inputs: [], outputs: [] }

@@ -1,17 +1,18 @@
 [package]
-name = "sigma-chain-c"
+name = "sigma-tree-c"
 version = "0.1.0"
 authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
 edition = "2018"
+description = "C bindings for sigma-tree"
 
 [lib]
 crate-type = ["staticlib"]
 
 [dependencies]
-sigma-chain = { path = "../sigma-chain", version = "0.1.0" }
+sigma-tree = { path = "../sigma-tree", version = "0.1.0" }
 
 [build-dependencies]
-cbindgen = "0.13.2"
+cbindgen = "0.14"
 
 [profile.release]
 # Tell `rustc` to optimize for small code size.

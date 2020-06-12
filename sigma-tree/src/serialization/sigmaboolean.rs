@@ -1,5 +1,8 @@
 use super::op_code::OpCode;
-use crate::{data::SigmaBoolean, ecpoint::EcPoint};
+use crate::{
+    ecpoint::EcPoint,
+    sigma_protocol::{ProveDlog, SigmaBoolean, SigmaProofOfKnowledgeTree},
+};
 use sigma_ser::{
     serializer::{SerializationError, SigmaSerializable},
     vlq_encode,
@@ -10,8 +13,10 @@ impl SigmaSerializable for SigmaBoolean {
     fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
         self.op_code().sigma_serialize(w)?;
         match self {
-            SigmaBoolean::ProveDHTuple { .. } => todo!(),
-            SigmaBoolean::ProveDlog(v) => v.sigma_serialize(w),
+            SigmaBoolean::ProofOfKnowledge(proof) => match proof {
+                SigmaProofOfKnowledgeTree::ProveDHTuple { .. } => todo!(),
+                SigmaProofOfKnowledgeTree::ProveDlog(v) => v.h.sigma_serialize(w),
+            },
             SigmaBoolean::CAND(_) => todo!(),
         }
     }
@@ -21,7 +26,9 @@ impl SigmaSerializable for SigmaBoolean {
         match op_code {
             OpCode::PROVE_DLOG => {
                 let p = EcPoint::sigma_parse(r)?;
-                Ok(SigmaBoolean::ProveDlog(Box::new(p)))
+                Ok(SigmaBoolean::ProofOfKnowledge(
+                    SigmaProofOfKnowledgeTree::ProveDlog(ProveDlog::new(p)),
+                ))
             }
             _ => todo!(),
         }

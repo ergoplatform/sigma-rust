@@ -1,35 +1,39 @@
 [package]
-name = "sigma-chain"
+name = "sigma-tree-wasm"
 version = "0.1.0"
 authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
 edition = "2018"
+description = "WASM bindings for sigma-tree"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
 
 [features]
 default = ["console_error_panic_hook"]
-# testing = ["sigma-tree/testing"]
 
 [dependencies]
-wasm-bindgen = "0.2"
-sigma-ser = { path = "../sigma-ser" }
-sigma-tree = { path = "../sigma-tree" }
-
+serde = { version = "1.0", features = ["derive"]}
+sigma-tree = { path = "../sigma-tree", features = ["with-serde"] }
+# used in elliptic-curve(in sigma-tree), compiled here with WASM support
+getrandom = {version = "0.1", features = ["wasm-bindgen"]}
 # The `console_error_panic_hook` crate provides better debugging of panics by
 # logging them with `console.error`. This is great for development, but requires
 # all the `std::fmt` and `std::panicking` infrastructure, so isn't great for
 # code size when deploying.
 console_error_panic_hook = { version = "0.1.6", optional = true }
 
+[dependencies.wasm-bindgen]
+version = "0.2"
+features = ["serde-serialize"]
+
 [dev-dependencies]
 wasm-bindgen-test = "0.3.10"
-proptest-derive = "0.1.2"
+proptest-derive = "0.2"
 sigma-testutil = { path = "../sigma-testutil" }
 
 [dev-dependencies.proptest]
 # wasm support, via https://altsysrq.github.io/proptest-book/proptest/wasm.html
-version = "0.9"
+version = "0.10"
 # The default feature set includes things like process forking which are not
 # supported in Web Assembly.
 default-features = false

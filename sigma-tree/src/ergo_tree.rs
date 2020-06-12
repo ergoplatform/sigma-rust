@@ -3,6 +3,8 @@ use crate::{
     ast::{Constant, Expr},
     types::SType,
 };
+#[cfg(feature = "with-serde")]
+use serde::{Deserializer, Serializer};
 use sigma_ser::serializer::SerializationError;
 use sigma_ser::serializer::SigmaSerializable;
 use sigma_ser::vlq_encode;
@@ -12,7 +14,7 @@ use vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt};
 
 /** The root of ErgoScript IR. Serialized instances of this class are self sufficient and can be passed around.
  */
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 #[allow(dead_code)]
 pub struct ErgoTree {
     header: ErgoTreeHeader,
@@ -20,7 +22,7 @@ pub struct ErgoTree {
     root: Rc<Expr>,
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 struct ErgoTreeHeader(u8);
 
 impl ErgoTree {
@@ -84,10 +86,33 @@ impl SigmaSerializable for ErgoTree {
     }
 }
 
+#[cfg(feature = "with-serde")]
+impl serde::Serialize for ErgoTree {
+    fn serialize<S>(&self, s: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        // not implmented
+        // serialize ergo tree and encode as Base16
+        // https://github.com/ergoplatform/sigma-rust/issues/37
+        s.serialize_str("")
+    }
+}
+
+#[cfg(feature = "with-serde")]
+impl<'de> serde::Deserialize<'de> for ErgoTree {
+    fn deserialize<D>(_: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        todo!()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{ast::ConstantVal, data::SigmaProp};
+    use crate::{ast::ConstantVal, sigma_protocol::SigmaProp};
     use proptest::prelude::*;
     use sigma_ser::test_helpers::*;
 

@@ -10,10 +10,13 @@ use super::box_id::BoxId;
 use proptest::prelude::*;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
+#[cfg(feature = "with-serde")]
+use serde::{Deserialize, Serialize};
 
+/// Inputs, that are used to enrich script context, but won't be spent by the transaction
 #[derive(PartialEq, Debug)]
 #[cfg_attr(test, derive(Arbitrary))]
-/// Inputs, that are used to enrich script context, but won't be spent by the transaction
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct DataInput {
     /// id of the box to add into context (should be in UTXO)
     pub box_id: BoxId,

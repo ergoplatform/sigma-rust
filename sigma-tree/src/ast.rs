@@ -1,47 +1,14 @@
-use crate::{data::SigmaProp, serialization::op_code::OpCode, types::*};
+use crate::{serialization::op_code::OpCode, types::*};
 use core::fmt;
 use Expr::*;
 
+mod constant;
 pub mod ops;
+
+pub use constant::*;
 
 #[derive(PartialEq, Eq, Debug)]
 pub struct RegisterId(u8);
-
-#[derive(PartialEq, Eq, Debug)]
-pub enum CollPrim {
-    CollBoolean(Vec<bool>),
-    CollByte(Vec<i8>),
-    CollShort(Vec<i16>),
-    CollInt(Vec<i32>),
-    CollLong(Vec<i64>),
-}
-
-// TODO: extract and wrap ErgoBoxCandidate
-#[derive(PartialEq, Eq, Debug)]
-pub struct ErgoBox {}
-
-#[derive(PartialEq, Eq, Debug)]
-pub enum ConstantVal {
-    Boolean(bool),
-    Byte(i8),
-    Short(i16),
-    Int(i32),
-    Long(i64),
-    BigInt,
-    GroupElement,
-    SigmaProp(Box<SigmaProp>),
-    CBox(Box<ErgoBox>),
-    AvlTree,
-    CollPrim(CollPrim),
-    Coll(Vec<ConstantVal>),
-    Tup(Vec<ConstantVal>),
-}
-
-#[derive(PartialEq, Eq, Debug)]
-pub struct Constant {
-    pub tpe: SType,
-    pub v: ConstantVal,
-}
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum Expr {
