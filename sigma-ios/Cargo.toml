@@ -1,9 +1,9 @@
 [package]
-name = "sigma-tree-c"
+name = "sigma-ios"
 version = "0.1.0"
 authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
 edition = "2018"
-description = "C bindings for sigma-tree"
+description = "Sigma C bindings for iOS"
 
 [lib]
 crate-type = ["staticlib"]

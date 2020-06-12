@@ -3,6 +3,6 @@ members = [
     "sigma-ser",
     "sigma-tree",
     "sigma-wasm",
-    "sigma-tree-c",
+    "sigma-ios",
     "sigma-testutil",
 ]
