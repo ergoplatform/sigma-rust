@@ -1,5 +1,5 @@
 [package]
-name = "sigma-tree-wasm"
+name = "sigma-wasm"
 version = "0.1.0"
 authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
 edition = "2018"
