@@ -16,8 +16,8 @@ mod ecpoint;
 mod ergo_tree;
 mod eval;
 mod serialization;
-mod sigma_protocol;
 mod types;
 
 pub mod chain;
+pub mod sigma_protocol;
 pub use ergo_tree::*;

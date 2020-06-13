@@ -75,14 +75,14 @@ impl Address {
 
 /// Secret key for prover
 #[wasm_bindgen]
-pub struct SecretKey(chain::SecretKey);
+pub struct SecretKey(ergo_wallet::SecretKey);
 
 #[wasm_bindgen]
 impl SecretKey {
     /// Decode from string
     pub fn parse(_: &str) -> Result<SecretKey, JsValue> {
         // not implemented, see https://github.com/ergoplatform/sigma-rust/issues/33
-        Ok(SecretKey(chain::SecretKey::random_dlog()))
+        Ok(SecretKey(ergo_wallet::SecretKey::random_dlog()))
     }
 }
 
