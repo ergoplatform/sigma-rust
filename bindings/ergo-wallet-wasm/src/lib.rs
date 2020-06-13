@@ -101,6 +101,22 @@ impl TxInputs {
         TxInputs(vec![])
     }
 }
+///
+/// Transaction data inputs, array of ErgoBoxCandidate
+#[wasm_bindgen]
+pub struct TxDataInputs(Vec<chain::ErgoBoxCandidate>);
+
+#[wasm_bindgen]
+impl TxDataInputs {
+    /// parse ErgoBoxCandidate array from json
+    #[allow(clippy::boxed_local)]
+    pub fn from_boxes(_boxes: Box<[JsValue]>) -> TxDataInputs {
+        // box in boxes.into_iter() {
+        //     let _box: chain::ErgoBoxCandidate = jbox.into_serde().unwrap();
+        // }
+        TxDataInputs(vec![])
+    }
+}
 
 /// Transaction outputs, array of ErgoBoxCandidate
 #[wasm_bindgen]
@@ -202,6 +218,7 @@ impl Transaction {
 #[wasm_bindgen]
 pub fn new_signed_transaction(
     _inputs: TxInputs,
+    _data_inputs: TxDataInputs,
     _outputs: TxOutputs,
     _send_change_to: Address,
     _sk: SecretKey,
