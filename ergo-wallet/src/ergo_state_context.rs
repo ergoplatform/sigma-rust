@@ -1,0 +1,2 @@
+/// TBD
+pub struct ErgoStateContext();

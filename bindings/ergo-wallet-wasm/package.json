@@ -3,7 +3,7 @@
         "build": "webpack",
         "serve": "wasm-pack build --target browser && webpack-dev-server",
         "test": "wasm-pack build --target nodejs && mocha --require @babel/register --require @babel/polyfill 'tests/test*.js'",
-        "doc": "jsdoc -c jsdoc.json pkg/sigma_tree_wasm.js README.md -d docs"
+        "doc": "jsdoc -c jsdoc.json pkg/ergo_wallet_wasm.js README.md -d docs"
     },
     "devDependencies": {
         "@babel/core": "^7.6.4",

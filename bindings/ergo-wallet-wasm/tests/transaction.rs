@@ -18,6 +18,14 @@ fn test_signed_p2pk_transaction() {
     let outbox = ErgoBoxCandidate::new(1, 0, Contract::pay_to_address(recipient));
     let out_boxes = [outbox.to_json().expect("failed")];
     let tx_outputs = TxOutputs::from_boxes(Box::new(out_boxes));
-    let res = new_signed_transaction(tx_inputs, tx_data_inputs, tx_outputs, send_change_to, sk);
+    let dummy_ctx = ErgoStateContext::empty();
+    let res = new_signed_transaction(
+        dummy_ctx,
+        tx_inputs,
+        tx_data_inputs,
+        tx_outputs,
+        send_change_to,
+        sk,
+    );
     assert!(res.is_err());
 }

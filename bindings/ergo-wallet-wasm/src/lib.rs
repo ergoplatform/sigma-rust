@@ -209,6 +209,18 @@ impl Transaction {
     }
 }
 
+/// TBD
+#[wasm_bindgen]
+pub struct ErgoStateContext(ergo_wallet::ErgoStateContext);
+
+#[wasm_bindgen]
+impl ErgoStateContext {
+    /// empty (dummy) context (for signing P2PK tx only)
+    pub fn empty() -> ErgoStateContext {
+        ErgoStateContext(ergo_wallet::ErgoStateContext())
+    }
+}
+
 /// Create a signed transaction from:
 /// `inputs` - boxes [`ErgoBoxCandidate`] that will be spent
 /// `outputs` - boxes that will be created in this transaction
@@ -217,6 +229,7 @@ impl Transaction {
 /// `sk` - secret key to sign the transaction (make proofs for inputs)
 #[wasm_bindgen]
 pub fn new_signed_transaction(
+    _state_context: ErgoStateContext,
     _inputs: TxInputs,
     _data_inputs: TxDataInputs,
     _outputs: TxOutputs,
@@ -224,5 +237,5 @@ pub fn new_signed_transaction(
     _sk: SecretKey,
 ) -> Result<Transaction, JsValue> {
     // not implemented, see https://github.com/ergoplatform/sigma-rust/issues/34
-    Err(JsValue::from_str("Error!"))
+    Err(JsValue::from_str("Not yet implemented"))
 }

@@ -10,6 +10,8 @@
 #![deny(unused_imports)]
 #![deny(missing_docs)]
 
+mod ergo_state_context;
 mod secret_key;
 
+pub use ergo_state_context::*;
 pub use secret_key::*;
