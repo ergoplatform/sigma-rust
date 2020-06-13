@@ -1,9 +1,9 @@
 [package]
-name = "sigma-ios"
+name = "ergo-wallet-c"
 version = "0.1.0"
 authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
 edition = "2018"
-description = "Sigma C bindings for iOS"
+description = "Ergo wallet C bindings"
 build = "build.rs"
 
 [lib]
@@ -11,7 +11,7 @@ crate-type = ["staticlib"]
 
 [dependencies]
 ffi_helpers = "0.2"
-sigma-tree = { path = "../sigma-tree", version = "0.1.0" }
+sigma-tree = { path = "../../sigma-tree", version = "0.1.0" }
 
 [build-dependencies]
 cbindgen = "0.14"
