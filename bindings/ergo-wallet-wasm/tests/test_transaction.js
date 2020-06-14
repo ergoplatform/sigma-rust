@@ -18,7 +18,7 @@ it('new signed transaction', async () => {
 
   let outbox = new ErgoBoxCandidate(1, 0, Contract.pay_to_address(recipient));
   let tx_outputs = TxOutputs.from_boxes([outbox]);
-  let dummy_ctx = ErgoStateContext.empty();
+  let dummy_ctx = ErgoStateContext.dummy();
   expect(() => new_signed_transaction(dummy_ctx, tx_inputs, tx_data_inputs, tx_outputs, send_change_to, sk)).to.throw("Not yet implemented");
 });
 

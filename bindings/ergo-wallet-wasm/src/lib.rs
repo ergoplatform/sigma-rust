@@ -216,8 +216,8 @@ pub struct ErgoStateContext(ergo_wallet::ErgoStateContext);
 #[wasm_bindgen]
 impl ErgoStateContext {
     /// empty (dummy) context (for signing P2PK tx only)
-    pub fn empty() -> ErgoStateContext {
-        ErgoStateContext(ergo_wallet::ErgoStateContext())
+    pub fn dummy() -> ErgoStateContext {
+        ErgoStateContext(ergo_wallet::ErgoStateContext::dummy())
     }
 }
 
