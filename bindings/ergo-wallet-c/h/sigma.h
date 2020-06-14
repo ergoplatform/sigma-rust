@@ -6,7 +6,19 @@
 #include <stdlib.h>
 
 
+typedef ErgoStateContext *ErgoStateContextPtr;
+
+typedef Address *AddressPtr;
+
+typedef SecretKey *SecretKeyPtr;
+
 /**
  * test
  */
 long long add_numbers(int x, int y);
+
+ErrorPtr new_signed_transaction(ErgoStateContextPtr _state_context,
+                                AddressPtr _send_change_to,
+                                SecretKeyPtr _sk,
+                                const uint8_t **transaction_out,
+                                uintptr_t *len_out);

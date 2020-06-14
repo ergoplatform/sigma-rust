@@ -11,7 +11,8 @@ crate-type = ["staticlib"]
 
 [dependencies]
 ffi_helpers = "0.2"
-sigma-tree = { path = "../../sigma-tree", version = "0.1.0" }
+sigma-tree = { path = "../../sigma-tree"}
+ergo-wallet = { path = "../../ergo-wallet"}
 
 [build-dependencies]
 cbindgen = "0.14"
