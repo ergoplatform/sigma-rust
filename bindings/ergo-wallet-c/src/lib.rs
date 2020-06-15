@@ -20,13 +20,15 @@ mod error;
 pub use error::*;
 
 pub struct Address(Box<dyn chain::Address>);
+pub struct ErgoStateContext(ergo_wallet::ErgoStateContext);
+pub struct SecretKey(ergo_wallet::SecretKey);
 
-pub type ErgoStateContextPtr = *mut ergo_wallet::ErgoStateContext;
+pub type ErgoStateContextPtr = *mut ErgoStateContext;
 // TODO wrap enum(TBD) into struct
 // TODO: make the same new/free functions as for UnspentInputBoxes
 pub type AddressPtr = *mut Address;
 // TODO: make the same new/free functions as for UnspentInputBoxes
-pub type SecretKeyPtr = *mut ergo_wallet::SecretKey;
+pub type SecretKeyPtr = *mut SecretKey;
 
 // TODO: sync changes to WASM API
 // TODO: add docs
@@ -57,8 +59,7 @@ pub type UnspentInputBoxesPtr = *mut UnspentInputBoxes;
 
 #[no_mangle]
 pub extern "C" fn ergo_wallet_unspent_input_boxes_from_json(
-    _json_str: *const u8,
-    _json_str_len: usize,
+    _json_str: *const c_char,
     _unspent_input_boxes_out: *mut UnspentInputBoxesPtr,
 ) -> ErrorPtr {
     todo!()

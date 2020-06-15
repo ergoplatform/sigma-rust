@@ -95,7 +95,11 @@ matrix:
         - cargo install cargo-lipo
         - cargo install cbindgen
       script:
+        - cd bindings/ergo-wallet-ios
         - cargo lipo --release --targets=aarch64-apple-ios,x86_64-apple-ios
+        - xcodebuild -project ./ErgoWallet.xcodeproj -xcconfig ./Config/Release.xcconfig -sdk iphoneos
+        - xcodebuild -project ./ErgoWallet.xcodeproj -xcconfig ./Config/Release.xcconfig -sdk iphonesimulator
+
 
 cache: cargo
 # But don't cache the cargo registry

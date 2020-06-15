@@ -12,9 +12,13 @@ typedef struct DataInputBoxes DataInputBoxes;
 
 typedef struct ErgoBoxCandidate ErgoBoxCandidate;
 
+typedef struct ErgoStateContext ErgoStateContext;
+
 typedef struct Error Error;
 
 typedef struct OutputBoxes OutputBoxes;
+
+typedef struct SecretKey SecretKey;
 
 typedef struct Transaction Transaction;
 
@@ -66,6 +70,5 @@ ErrorPtr ergo_wallet_signed_tx_to_json(TransactionPtr _transaction, const char *
 
 ErrorPtr ergo_wallet_unspent_input_boxes_delete(UnspentInputBoxesPtr _unspent_input_boxes);
 
-ErrorPtr ergo_wallet_unspent_input_boxes_from_json(const uint8_t *_json_str,
-                                                   uintptr_t _json_str_len,
+ErrorPtr ergo_wallet_unspent_input_boxes_from_json(const char *_json_str,
                                                    UnspentInputBoxesPtr *_unspent_input_boxes_out);
