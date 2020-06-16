@@ -1,6 +1,10 @@
 import Foundation
 import ErgoWalletC
 
+enum WalletError: Error {
+    case walletCError(reason: String)
+}
+
 class UnspentInputBoxes {
     private var pointer: UnspentInputBoxesPtr
 
@@ -10,16 +14,28 @@ class UnspentInputBoxes {
 
     private static func from_json(json: String) throws -> UnspentInputBoxesPtr {
         var unspentInputBoxesPtr: UnspentInputBoxesPtr?
-        // TODO: handle error
-        let _ = json.withCString { cs in
+        let error = json.withCString { cs in
             ergo_wallet_unspent_input_boxes_from_json(cs, &unspentInputBoxesPtr)
         }
+        try checkError(error)
         return unspentInputBoxesPtr!
     }
 
     deinit {
         ergo_wallet_unspent_input_boxes_delete(self.pointer)
     }
+}
+
+private func checkError(_ error: ErrorPtr?) throws {
+    if error == nil {
+        return
+    }
+
+    let cStringReason = ergo_wallet_error_to_string(error)
+    let reason = String(cString: cStringReason!)
+    ergo_wallet_delete_string(cStringReason)
+    ergo_wallet_delete_error(error)
+    throw WalletError.walletCError(reason: reason)
 }
 
 class Transaction {
@@ -31,8 +47,8 @@ class Transaction {
 
     func toJson() throws -> String {
         var cStr: UnsafePointer<CChar>?
-        let _ = try ergo_wallet_signed_tx_to_json(self.pointer, &cStr)
-        // TODO: process error
+        let error = try ergo_wallet_signed_tx_to_json(self.pointer, &cStr)
+        try checkError(error)
         let str = String(cString: cStr!)
         ergo_wallet_delete_string(UnsafeMutablePointer(mutating: cStr))
         return str
@@ -46,8 +62,7 @@ class Transaction {
 struct Wallet {
 
     // static func new_signed_tx(unspentInputBoxes: UnspentInputBoxes) throws -> Transaction {
-
-
     // }
+
 }
 

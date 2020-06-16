@@ -42,6 +42,8 @@ typedef OutputBoxes *OutputBoxesPtr;
 
 typedef SecretKey *SecretKeyPtr;
 
+void ergo_wallet_delete_error(ErrorPtr error);
+
 ErrorPtr ergo_wallet_delete_signed_tx(TransactionPtr _transaction);
 
 void ergo_wallet_delete_string(char *ptr);
@@ -52,6 +54,8 @@ ErrorPtr ergo_wallet_ergo_box_candidate_new_pay_to_address(AddressPtr _recipient
                                                            uint64_t _value,
                                                            uint32_t _creation_height,
                                                            ErgoBoxCandidatePtr *_ergo_box_candidate_out);
+
+char *ergo_wallet_error_to_string(ErrorPtr error);
 
 ErrorPtr ergo_wallet_new_signed_tx(ErgoStateContextPtr _state_context,
                                    UnspentInputBoxesPtr _unspent_input_boxes,

@@ -129,3 +129,20 @@ pub unsafe extern "C" fn ergo_wallet_delete_string(ptr: *mut c_char) {
         std::mem::drop(cstring)
     }
 }
+
+#[no_mangle]
+pub extern "C" fn ergo_wallet_delete_error(error: ErrorPtr) {
+    if !error.is_null() {
+        let boxed = unsafe { Box::from_raw(error) };
+        std::mem::drop(boxed);
+    }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ergo_wallet_error_to_string(error: ErrorPtr) -> *mut c_char {
+    if let Some(error) = error.as_ref() {
+        CString::new(error.to_string()).unwrap().into_raw()
+    } else {
+        CString::new(b"success".to_vec()).unwrap().into_raw()
+    }
+}
