@@ -13,26 +13,47 @@ use sigma_tree::chain;
 
 use std::{ffi::CString, os::raw::c_char};
 
-// TODO: finish ErgoWallet Swift wrapper
+// TODO: sync changes to WASM API
 // TODO: share code with future JNI bindings
+// TODO: add docs
+// TODO: extract into files/modules?
 
 mod error;
 pub use error::*;
 
-pub struct Address(Box<dyn chain::Address>);
 pub struct ErgoStateContext(ergo_wallet::ErgoStateContext);
-pub struct SecretKey(ergo_wallet::SecretKey);
-
 pub type ErgoStateContextPtr = *mut ErgoStateContext;
-// TODO wrap enum(TBD) into struct
-// TODO: make the same new/free functions as for UnspentInputBoxes
-pub type AddressPtr = *mut Address;
-// TODO: make the same new/free functions as for UnspentInputBoxes
+
+#[no_mangle]
+pub unsafe extern "C" fn ergo_wallet_ergo_state_context_from_json(
+    _json_str: *const c_char,
+    _ergo_state_context_out: *mut ErgoStateContextPtr,
+) -> ErrorPtr {
+    todo!()
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ergo_wallet_ergo_state_context_delete(
+    _ergo_state_context: ErgoStateContextPtr,
+) -> ErrorPtr {
+    todo!()
+}
+
+pub struct SecretKey(ergo_wallet::SecretKey);
 pub type SecretKeyPtr = *mut SecretKey;
 
-// TODO: sync changes to WASM API
-// TODO: add docs
-// TODO: extract into files/modules?
+#[no_mangle]
+pub extern "C" fn ergo_wallet_secret_key_parse_str(
+    _secret_key_str: *const c_char,
+    _secret_key_out: *mut SecretKeyPtr,
+) -> ErrorPtr {
+    todo!()
+}
+
+#[no_mangle]
+pub extern "C" fn ergo_wallet_secret_key_delete(_secret_key: SecretKeyPtr) -> ErrorPtr {
+    todo!()
+}
 
 pub struct ErgoBoxCandidate(chain::ErgoBoxCandidate);
 pub type ErgoBoxCandidatePtr = *mut ErgoBoxCandidate;
@@ -51,6 +72,22 @@ pub extern "C" fn ergo_wallet_ergo_box_candidate_new_pay_to_address(
 pub extern "C" fn ergo_wallet_ergo_box_candidate_delete(
     _ergo_box_candidate: ErgoBoxCandidatePtr,
 ) -> ErrorPtr {
+    todo!()
+}
+
+pub struct Address(Box<dyn chain::Address>);
+pub type AddressPtr = *mut Address;
+
+#[no_mangle]
+pub extern "C" fn ergo_wallet_address_from_testnet(
+    _address_str: *const c_char,
+    _address_out: *mut AddressPtr,
+) -> ErrorPtr {
+    todo!()
+}
+
+#[no_mangle]
+pub extern "C" fn ergo_wallet_address_delete(_address: AddressPtr) -> ErrorPtr {
     todo!()
 }
 
