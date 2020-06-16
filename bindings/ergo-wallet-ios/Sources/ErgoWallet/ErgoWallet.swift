@@ -7,24 +7,24 @@ enum WalletError: Error {
     case walletCError(reason: String)
 }
 
-class UnspentInputBoxes {
-    internal var pointer: UnspentInputBoxesPtr
+class UnspentBoxes {
+    internal var pointer: UnspentBoxesPtr
 
     init(withJson json: String) throws {
-        self.pointer = try UnspentInputBoxes.from_json(json: json)
+        self.pointer = try UnspentBoxes.from_json(json: json)
     }
 
-    private static func from_json(json: String) throws -> UnspentInputBoxesPtr {
-        var unspentInputBoxesPtr: UnspentInputBoxesPtr?
+    private static func from_json(json: String) throws -> UnspentBoxesPtr {
+        var unspentBoxesPtr: UnspentBoxesPtr?
         let error = json.withCString { cs in
-            ergo_wallet_unspent_input_boxes_from_json(cs, &unspentInputBoxesPtr)
+            ergo_wallet_unspent_boxes_from_json(cs, &unspentBoxesPtr)
         }
         try checkError(error)
-        return unspentInputBoxesPtr!
+        return unspentBoxesPtr!
     }
 
     deinit {
-        ergo_wallet_unspent_input_boxes_delete(self.pointer)
+        ergo_wallet_unspent_boxes_delete(self.pointer)
     }
 }
 
@@ -137,7 +137,7 @@ class OutputBoxes {
     }
 
     deinit {
-        ergo_wallet_unspent_input_boxes_delete(self.pointer)
+        ergo_wallet_output_boxes_delete(self.pointer)
     }
 }
 
@@ -165,7 +165,7 @@ class SecretKey {
 struct Wallet {
 
     static func new_signed_tx(ergoStateContext: ErgoStateContext, 
-                              unspentInputBoxes: UnspentInputBoxes, 
+                              unspentBoxes: UnspentBoxes, 
                               outputBoxes: OutputBoxes,
                               sendChangeTo: Address, 
                               minChangeValue: UInt64,
@@ -173,7 +173,7 @@ struct Wallet {
                               secretKey: SecretKey) throws -> Transaction {
         var transactionPtr: TransactionPtr?
         let error = ergo_wallet_new_signed_tx(ergoStateContext.pointer,
-                                              unspentInputBoxes.pointer, 
+                                              unspentBoxes.pointer, 
                                               nil, // data input boxes
                                               outputBoxes.pointer,
                                               sendChangeTo.pointer,

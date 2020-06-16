@@ -88,17 +88,17 @@ impl SecretKey {
 
 /// Transaction inputs, array of ErgoBoxCandidate
 #[wasm_bindgen]
-pub struct TxInputs(Vec<chain::ErgoBoxCandidate>);
+pub struct UnspentBoxes(Vec<chain::ErgoBoxCandidate>);
 
 #[wasm_bindgen]
-impl TxInputs {
+impl UnspentBoxes {
     /// parse ErgoBoxCandidate array from json
     #[allow(clippy::boxed_local)]
-    pub fn from_boxes(_boxes: Box<[JsValue]>) -> TxInputs {
+    pub fn from_boxes(_boxes: Box<[JsValue]>) -> UnspentBoxes {
         // box in boxes.into_iter() {
         //     let _box: chain::ErgoBoxCandidate = jbox.into_serde().unwrap();
         // }
-        TxInputs(vec![])
+        UnspentBoxes(vec![])
     }
 }
 ///
@@ -222,7 +222,8 @@ impl ErgoStateContext {
 }
 
 /// Create a signed transaction from:
-/// `inputs` - boxes [`ErgoBoxCandidate`] that will be spent
+/// `unspent_boxes` - unspent boxes [`ErgoBoxCandidate`] from which transaction
+/// inputs (boxes to spend) will be selected
 /// `outputs` - boxes that will be created in this transaction
 /// `send_change_to` - address for the change (total value of input - total value of outputs)
 /// that will be put in a new box that will be added to `outputs`
@@ -230,7 +231,7 @@ impl ErgoStateContext {
 #[wasm_bindgen]
 pub fn new_signed_transaction(
     _state_context: ErgoStateContext,
-    _inputs: TxInputs,
+    _unspent_boxes: UnspentBoxes,
     _data_inputs: TxDataInputs,
     _outputs: TxOutputs,
     _send_change_to: Address,

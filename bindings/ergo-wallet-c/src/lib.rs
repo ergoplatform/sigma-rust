@@ -91,21 +91,19 @@ pub extern "C" fn ergo_wallet_address_delete(_address: AddressPtr) -> ErrorPtr {
     todo!()
 }
 
-pub struct UnspentInputBoxes(Vec<chain::ErgoBoxCandidate>);
-pub type UnspentInputBoxesPtr = *mut UnspentInputBoxes;
+pub struct UnspentBoxes(Vec<chain::ErgoBoxCandidate>);
+pub type UnspentBoxesPtr = *mut UnspentBoxes;
 
 #[no_mangle]
-pub extern "C" fn ergo_wallet_unspent_input_boxes_from_json(
+pub extern "C" fn ergo_wallet_unspent_boxes_from_json(
     _json_str: *const c_char,
-    _unspent_input_boxes_out: *mut UnspentInputBoxesPtr,
+    _unspent_boxes_out: *mut UnspentBoxesPtr,
 ) -> ErrorPtr {
     todo!()
 }
 
 #[no_mangle]
-pub extern "C" fn ergo_wallet_unspent_input_boxes_delete(
-    _unspent_input_boxes: UnspentInputBoxesPtr,
-) -> ErrorPtr {
+pub extern "C" fn ergo_wallet_unspent_boxes_delete(_unspent_boxes: UnspentBoxesPtr) -> ErrorPtr {
     todo!()
 }
 
@@ -131,7 +129,7 @@ pub extern "C" fn ergo_wallet_output_boxes_delete(_output_boxes: OutputBoxesPtr)
 #[no_mangle]
 pub extern "C" fn ergo_wallet_new_signed_tx(
     _state_context: ErgoStateContextPtr, // can be null or make "empty" func?
-    _unspent_input_boxes: UnspentInputBoxesPtr,
+    _unspent_boxes: UnspentBoxesPtr,
     _data_input_boxes: DataInputBoxesPtr, // can be null
     _output_boxes: OutputBoxesPtr,
     _send_change_to: AddressPtr,
