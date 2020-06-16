@@ -235,6 +235,8 @@ pub fn new_signed_transaction(
     _data_inputs: TxDataInputs,
     _outputs: TxOutputs,
     _send_change_to: Address,
+    _min_change_value: u32,
+    _tx_fee_amount: u32,
     _sk: SecretKey,
 ) -> Result<Transaction, JsValue> {
     // not implemented, see https://github.com/ergoplatform/sigma-rust/issues/34

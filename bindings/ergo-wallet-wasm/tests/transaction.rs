@@ -9,7 +9,7 @@ wasm_bindgen_test_configure!(run_in_browser);
 
 #[wasm_bindgen_test]
 fn test_signed_p2pk_transaction() {
-    let tx_inputs = TxInputs::from_boxes(Box::new([]));
+    let tx_inputs = UnspentBoxes::from_boxes(Box::new([]));
     let tx_data_inputs = TxDataInputs::from_boxes(Box::new([]));
     let send_change_to = Address::from_testnet_str("").expect("failed");
     let sk = SecretKey::parse("").expect("failed");
@@ -25,6 +25,8 @@ fn test_signed_p2pk_transaction() {
         tx_data_inputs,
         tx_outputs,
         send_change_to,
+        1,
+        1,
         sk,
     );
     assert!(res.is_err());

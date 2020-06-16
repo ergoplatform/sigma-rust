@@ -1,6 +1,6 @@
 import { expect } from 'chai';
 
-import {TxInputs, TxDataInputs, SecretKey, ErgoBoxCandidate, Contract, TxOutputs, ErgoStateContext} from '../pkg/ergo_wallet_wasm';
+import {UnspentBoxes, TxDataInputs, SecretKey, ErgoBoxCandidate, Contract, TxOutputs, ErgoStateContext} from '../pkg/ergo_wallet_wasm';
 
 const sigma_rust = import('../pkg/ergo_wallet_wasm');
 
@@ -11,7 +11,7 @@ it('new signed transaction', async () => {
   } = await sigma_rust;
 
   const recipient = Address.from_testnet_str('test');
-  const tx_inputs = TxInputs.from_boxes([]);
+  const unspent_boxes = UnspentBoxes.from_boxes([]);
   const tx_data_inputs = TxDataInputs.from_boxes([]);
   const send_change_to = Address.from_testnet_str('');
   const sk = SecretKey.parse('');
@@ -19,6 +19,13 @@ it('new signed transaction', async () => {
   let outbox = new ErgoBoxCandidate(1, 0, Contract.pay_to_address(recipient));
   let tx_outputs = TxOutputs.from_boxes([outbox]);
   let dummy_ctx = ErgoStateContext.dummy();
-  expect(() => new_signed_transaction(dummy_ctx, tx_inputs, tx_data_inputs, tx_outputs, send_change_to, sk)).to.throw("Not yet implemented");
+  expect(() => new_signed_transaction(dummy_ctx,
+    unspent_boxes,
+    tx_data_inputs,
+    tx_outputs,
+    send_change_to,
+    1,
+    1,
+    sk)).to.throw("Not yet implemented");
 });
 
