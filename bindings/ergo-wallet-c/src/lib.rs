@@ -11,9 +11,9 @@
 
 use sigma_tree::chain;
 
-use std::os::raw::c_char;
+use std::{ffi::CString, os::raw::c_char};
 
-// TODO: setup Xcode project and the build pipeline on CI
+// TODO: finish ErgoWallet Swift wrapper
 // TODO: share code with future JNI bindings
 
 mod error;
@@ -122,3 +122,10 @@ pub extern "C" fn ergo_wallet_signed_tx_to_json(
     todo!()
 }
 
+#[no_mangle]
+pub unsafe extern "C" fn ergo_wallet_delete_string(ptr: *mut c_char) {
+    if !ptr.is_null() {
+        let cstring = CString::from_raw(ptr);
+        std::mem::drop(cstring)
+    }
+}

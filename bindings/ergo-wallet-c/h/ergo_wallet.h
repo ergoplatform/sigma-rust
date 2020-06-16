@@ -44,6 +44,8 @@ typedef SecretKey *SecretKeyPtr;
 
 ErrorPtr ergo_wallet_delete_signed_tx(TransactionPtr _transaction);
 
+void ergo_wallet_delete_string(char *ptr);
+
 ErrorPtr ergo_wallet_ergo_box_candidate_delete(ErgoBoxCandidatePtr _ergo_box_candidate);
 
 ErrorPtr ergo_wallet_ergo_box_candidate_new_pay_to_address(AddressPtr _recipient,

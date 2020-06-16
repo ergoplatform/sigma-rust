@@ -97,6 +97,7 @@ matrix:
       script:
         - cd bindings/ergo-wallet-ios
         - cargo lipo --release --targets=aarch64-apple-ios,x86_64-apple-ios
+        - swift package generate-xcodeproj
         - xcodebuild -project ./ErgoWallet.xcodeproj -xcconfig ./Config/Release.xcconfig -sdk iphoneos
         - xcodebuild -project ./ErgoWallet.xcodeproj -xcconfig ./Config/Release.xcconfig -sdk iphonesimulator
 
