@@ -1,13 +1,17 @@
+//! Sigma protocols
 use k256::arithmetic::Scalar;
 
 use crate::{ecpoint::EcPoint, serialization::op_code::OpCode};
 use std::convert::TryInto;
 
+/// Secret key of discrete logarithm signature protocol
 pub struct DlogProverInput {
+    /// secret key value
     pub w: Scalar,
 }
 
 impl DlogProverInput {
+    /// generates random secret in the range [0, n), where n is DLog group order.
     pub fn random() -> DlogProverInput {
         let scalar = loop {
             // Generate a new secret key using the operating system's
@@ -29,6 +33,7 @@ impl DlogProverInput {
         DlogProverInput { w: scalar }
     }
 
+    /// public key of discrete logarithm signature protocol
     #[allow(dead_code)]
     fn public_image(&self) -> ProveDlog {
         // test it, see https://github.com/ergoplatform/sigma-rust/issues/38
@@ -37,7 +42,9 @@ impl DlogProverInput {
     }
 }
 
+/// Get public key for signature protocol
 pub trait PrivateInput {
+    /// public key
     fn public_image(&self) -> SigmaProofOfKnowledgeTree;
 }
 
@@ -48,12 +55,15 @@ impl PrivateInput for DlogProverInput {
     }
 }
 
+/// Construct a new SigmaBoolean value representing public key of discrete logarithm signature protocol.
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ProveDlog {
+    /// public key
     pub h: Box<EcPoint>,
 }
 
 impl ProveDlog {
+    /// create new public key
     pub fn new(ecpoint: EcPoint) -> ProveDlog {
         ProveDlog {
             h: Box::new(ecpoint),
@@ -61,6 +71,8 @@ impl ProveDlog {
     }
 }
 
+/// Construct a new SigmaProp value representing public key of Diffie Hellman signature protocol.
+/// Common input: (g,h,u,v)
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ProveDHTuple {
     gv: Box<EcPoint>,
@@ -69,19 +81,27 @@ pub struct ProveDHTuple {
     vv: Box<EcPoint>,
 }
 
+/// Sigma proposition
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum SigmaProofOfKnowledgeTree {
+    /// public key of Diffie Hellman signature protocol
     ProveDHTuple(ProveDHTuple),
+    /// public key of discrete logarithm signature protocol
     ProveDlog(ProveDlog),
 }
 
+/// Algebraic data type of sigma proposition expressions
+/// Values of this type are used as values of SigmaProp type
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum SigmaBoolean {
+    /// Sigma proposition
     ProofOfKnowledge(SigmaProofOfKnowledgeTree),
+    /// AND conjunction for sigma propositions
     CAND(Vec<SigmaBoolean>),
 }
 
 impl SigmaBoolean {
+    /// get OpCode for serialization
     pub fn op_code(&self) -> OpCode {
         match self {
             SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(_)) => {
@@ -92,14 +112,17 @@ impl SigmaBoolean {
     }
 }
 
+/// Proposition which can be proven and verified by sigma protocol.
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct SigmaProp(SigmaBoolean);
 
 impl SigmaProp {
+    /// create new sigma propostion from [`SigmaBoolean`] value
     pub fn new(sbool: SigmaBoolean) -> Self {
         SigmaProp { 0: sbool }
     }
 
+    /// get [`SigmaBoolean`] value
     pub fn value(&self) -> &SigmaBoolean {
         &self.0
     }

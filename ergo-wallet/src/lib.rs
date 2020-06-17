@@ -1,4 +1,4 @@
-//! ErgoTree IR
+//! Ergo wallet
 
 // Coding conventions
 #![forbid(unsafe_code)]
@@ -10,14 +10,8 @@
 #![deny(unused_imports)]
 #![deny(missing_docs)]
 
-mod ast;
-mod constants;
-mod ecpoint;
-mod ergo_tree;
-mod eval;
-mod serialization;
-mod types;
+mod ergo_state_context;
+mod secret_key;
 
-pub mod chain;
-pub mod sigma_protocol;
-pub use ergo_tree::*;
+pub use ergo_state_context::*;
+pub use secret_key::*;

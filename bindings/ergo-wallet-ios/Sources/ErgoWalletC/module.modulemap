@@ -1,0 +1,4 @@
+module ErgoWalletC {
+    umbrella header "shim.h"
+    export *
+}

@@ -73,32 +73,35 @@ impl Address {
     }
 }
 
-/// Secret key for prover
-#[wasm_bindgen]
-pub struct SecretKey(chain::SecretKey);
-
-#[wasm_bindgen]
-impl SecretKey {
-    /// Decode from string
-    pub fn parse(_: &str) -> Result<SecretKey, JsValue> {
-        // not implemented, see https://github.com/ergoplatform/sigma-rust/issues/33
-        Ok(SecretKey(chain::SecretKey::random_dlog()))
-    }
-}
-
 /// Transaction inputs, array of ErgoBoxCandidate
 #[wasm_bindgen]
-pub struct TxInputs(Vec<chain::ErgoBoxCandidate>);
+pub struct UnspentBoxes(Vec<chain::ErgoBoxCandidate>);
 
 #[wasm_bindgen]
-impl TxInputs {
+impl UnspentBoxes {
     /// parse ErgoBoxCandidate array from json
     #[allow(clippy::boxed_local)]
-    pub fn from_boxes(_boxes: Box<[JsValue]>) -> TxInputs {
+    pub fn from_boxes(_boxes: Box<[JsValue]>) -> UnspentBoxes {
         // box in boxes.into_iter() {
         //     let _box: chain::ErgoBoxCandidate = jbox.into_serde().unwrap();
         // }
-        TxInputs(vec![])
+        UnspentBoxes(vec![])
+    }
+}
+///
+/// Transaction data inputs, array of ErgoBoxCandidate
+#[wasm_bindgen]
+pub struct TxDataInputs(Vec<chain::ErgoBoxCandidate>);
+
+#[wasm_bindgen]
+impl TxDataInputs {
+    /// parse ErgoBoxCandidate array from json
+    #[allow(clippy::boxed_local)]
+    pub fn from_boxes(_boxes: Box<[JsValue]>) -> TxDataInputs {
+        // box in boxes.into_iter() {
+        //     let _box: chain::ErgoBoxCandidate = jbox.into_serde().unwrap();
+        // }
+        TxDataInputs(vec![])
     }
 }
 
@@ -193,19 +196,49 @@ impl Transaction {
     }
 }
 
-/// Create a signed transaction from:
-/// `inputs` - boxes [`ErgoBoxCandidate`] that will be spent
-/// `outputs` - boxes that will be created in this transaction
-/// `send_change_to` - address for the change (total value of input - total value of outputs)
-/// that will be put in a new box that will be added to `outputs`
-/// `sk` - secret key to sign the transaction (make proofs for inputs)
+/// TBD
 #[wasm_bindgen]
-pub fn new_signed_transaction(
-    _inputs: TxInputs,
-    _outputs: TxOutputs,
-    _send_change_to: Address,
-    _sk: SecretKey,
-) -> Result<Transaction, JsValue> {
-    // not implemented, see https://github.com/ergoplatform/sigma-rust/issues/34
-    Err(JsValue::from_str("Error!"))
+pub struct ErgoStateContext(ergo_wallet::ErgoStateContext);
+
+#[wasm_bindgen]
+impl ErgoStateContext {
+    /// empty (dummy) context (for signing P2PK tx only)
+    pub fn dummy() -> ErgoStateContext {
+        ErgoStateContext(ergo_wallet::ErgoStateContext::dummy())
+    }
+}
+
+/// TBD
+#[wasm_bindgen]
+pub struct Wallet();
+
+#[wasm_bindgen]
+impl Wallet {
+    /// Create wallet instance loading secret key from mnemonic
+    pub fn from_mnemonic(_mnemonic_phrase: &str, _mnemonic_pass: &str) -> Wallet {
+        Wallet()
+    }
+
+    /// Create a signed transaction from:
+    /// `unspent_boxes` - unspent boxes [`ErgoBoxCandidate`] from which transaction
+    /// inputs (boxes to spend) will be selected
+    /// `outputs` - boxes that will be created in this transaction
+    /// `send_change_to` - address for the change (total value of input - total value of outputs)
+    /// that will be put in a new box that will be added to `outputs`
+    /// `sk` - secret key to sign the transaction (make proofs for inputs)
+    #[allow(clippy::too_many_arguments)]
+    #[wasm_bindgen]
+    pub fn new_signed_transaction(
+        &self,
+        _state_context: ErgoStateContext,
+        _unspent_boxes: UnspentBoxes,
+        _data_inputs: TxDataInputs,
+        _outputs: TxOutputs,
+        _send_change_to: Address,
+        _min_change_value: u32,
+        _tx_fee_amount: u32,
+    ) -> Result<Transaction, JsValue> {
+        // not implemented, see https://github.com/ergoplatform/sigma-rust/issues/34
+        Err(JsValue::from_str("Not yet implemented"))
+    }
 }

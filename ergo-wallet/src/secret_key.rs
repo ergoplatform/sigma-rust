@@ -1,4 +1,4 @@
-use crate::sigma_protocol::DlogProverInput;
+use sigma_tree::sigma_protocol::DlogProverInput;
 
 /// Types of secrets
 pub enum SecretKey {
