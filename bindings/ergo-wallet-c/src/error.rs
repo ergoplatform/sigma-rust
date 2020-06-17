@@ -14,4 +14,3 @@ impl fmt::Display for Error {
         fmt::Display::fmt(self.details.as_ref(), f)
     }
 }
-

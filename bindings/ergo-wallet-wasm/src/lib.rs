@@ -226,6 +226,7 @@ impl Wallet {
     /// `send_change_to` - address for the change (total value of input - total value of outputs)
     /// that will be put in a new box that will be added to `outputs`
     /// `sk` - secret key to sign the transaction (make proofs for inputs)
+    #[allow(clippy::too_many_arguments)]
     #[wasm_bindgen]
     pub fn new_signed_transaction(
         &self,

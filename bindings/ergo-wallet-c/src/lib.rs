@@ -8,6 +8,7 @@
 #![deny(dead_code)]
 #![deny(unused_imports)]
 // #![deny(missing_docs)]
+#![allow(clippy::missing_safety_doc)]
 
 use sigma_tree::chain;
 
