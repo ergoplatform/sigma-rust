@@ -13,8 +13,7 @@ use sigma_tree::chain;
 
 use std::{ffi::CString, os::raw::c_char};
 
-// TODO: sync changes to WASM API
-// TODO: share code with future JNI bindings
+// TODO: share code with WASM(structs?) and future JNI bindings
 // TODO: add docs
 // TODO: extract into files/modules?
 
@@ -36,22 +35,6 @@ pub unsafe extern "C" fn ergo_wallet_ergo_state_context_from_json(
 pub unsafe extern "C" fn ergo_wallet_ergo_state_context_delete(
     _ergo_state_context: ErgoStateContextPtr,
 ) -> ErrorPtr {
-    todo!()
-}
-
-pub struct SecretKey(ergo_wallet::SecretKey);
-pub type SecretKeyPtr = *mut SecretKey;
-
-#[no_mangle]
-pub extern "C" fn ergo_wallet_secret_key_parse_str(
-    _secret_key_str: *const c_char,
-    _secret_key_out: *mut SecretKeyPtr,
-) -> ErrorPtr {
-    todo!()
-}
-
-#[no_mangle]
-pub extern "C" fn ergo_wallet_secret_key_delete(_secret_key: SecretKeyPtr) -> ErrorPtr {
     todo!()
 }
 
@@ -126,16 +109,34 @@ pub extern "C" fn ergo_wallet_output_boxes_delete(_output_boxes: OutputBoxesPtr)
     todo!()
 }
 
+pub struct Wallet();
+pub type WalletPtr = *mut Wallet;
+
 #[no_mangle]
-pub extern "C" fn ergo_wallet_new_signed_tx(
-    _state_context: ErgoStateContextPtr, // can be null or make "empty" func?
+pub extern "C" fn ergo_wallet_wallet_from_mnemonic(
+    _mnemonic_phrase: *const c_char,
+    _mnemonic_password: *const u8,
+    _mnemonic_password_length: usize,
+    _wallet_out: *mut WalletPtr,
+) -> ErrorPtr {
+    todo!()
+}
+
+#[no_mangle]
+pub extern "C" fn ergo_wallet_wallet_delete(_wallet: WalletPtr) -> ErrorPtr {
+    todo!()
+}
+
+#[no_mangle]
+pub extern "C" fn ergo_wallet_wallet_new_signed_tx(
+    _wallet: WalletPtr,
+    _state_context: ErgoStateContextPtr,
     _unspent_boxes: UnspentBoxesPtr,
     _data_input_boxes: DataInputBoxesPtr, // can be null
     _output_boxes: OutputBoxesPtr,
     _send_change_to: AddressPtr,
     _min_change_value: u64,
     _tx_fee_amount: u64,
-    _sk: SecretKeyPtr,
     _transaction_out: *mut TransactionPtr,
 ) -> ErrorPtr {
     todo!()

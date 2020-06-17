@@ -141,45 +141,54 @@ class OutputBoxes {
     }
 }
 
-class SecretKey {
-    internal var pointer: SecretKeyPtr
+// class SecretKey {
+//     internal var pointer: SecretKeyPtr
 
-    init(withString secretKeyStr: String) throws {
-        self.pointer = try SecretKey.fromString(secretKeyStr: secretKeyStr)
-    }
+//     init(withString secretKeyStr: String) throws {
+//         self.pointer = try SecretKey.fromString(secretKeyStr: secretKeyStr)
+//     }
 
-    private static func fromString(secretKeyStr: String) throws -> SecretKeyPtr {
-        var ptr: SecretKeyPtr?
-        let error = secretKeyStr.withCString { cs in
-            ergo_wallet_secret_key_parse_str(cs, &ptr)
+//     private static func fromString(secretKeyStr: String) throws -> SecretKeyPtr {
+//         var ptr: SecretKeyPtr?
+//         let error = secretKeyStr.withCString { cs in
+//             ergo_wallet_secret_key_parse_str(cs, &ptr)
+//         }
+//         try checkError(error)
+//         return ptr!
+//     }
+    
+//     deinit {
+//         ergo_wallet_secret_key_delete(self.pointer)
+//     }
+// }
+
+class Wallet {
+    internal var pointer: WalletPtr
+
+    init(withMnemonic mnemonicPhrase: String) throws {
+        var ptr: WalletPtr?
+        let error = mnemonicPhrase.withCString { mnemonicPhraseC in
+            ergo_wallet_wallet_from_mnemonic(mnemonicPhraseC, nil, 0, &ptr)
         }
         try checkError(error)
-        return ptr!
+        self.pointer = ptr!
     }
-    
-    deinit {
-        ergo_wallet_secret_key_delete(self.pointer)
-    }
-}
 
-struct Wallet {
-
-    static func new_signed_tx(ergoStateContext: ErgoStateContext, 
+    func new_signed_tx(ergoStateContext: ErgoStateContext, 
                               unspentBoxes: UnspentBoxes, 
                               outputBoxes: OutputBoxes,
                               sendChangeTo: Address, 
                               minChangeValue: UInt64,
-                              txFeeAmount: UInt64, 
-                              secretKey: SecretKey) throws -> Transaction {
+                              txFeeAmount: UInt64) throws -> Transaction {
         var transactionPtr: TransactionPtr?
-        let error = ergo_wallet_new_signed_tx(ergoStateContext.pointer,
+        let error = ergo_wallet_wallet_new_signed_tx(self.pointer, 
+                                              ergoStateContext.pointer,
                                               unspentBoxes.pointer, 
                                               nil, // data input boxes
                                               outputBoxes.pointer,
                                               sendChangeTo.pointer,
                                               minChangeValue, 
                                               txFeeAmount, 
-                                              secretKey.pointer, 
                                               &transactionPtr)
         try checkError(error)
         return Transaction(withRawPointer: transactionPtr!)

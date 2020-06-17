@@ -18,11 +18,11 @@ typedef struct Error Error;
 
 typedef struct OutputBoxes OutputBoxes;
 
-typedef struct SecretKey SecretKey;
-
 typedef struct Transaction Transaction;
 
 typedef struct UnspentBoxes UnspentBoxes;
+
+typedef struct Wallet Wallet;
 
 typedef Error *ErrorPtr;
 
@@ -34,13 +34,13 @@ typedef ErgoBoxCandidate *ErgoBoxCandidatePtr;
 
 typedef ErgoStateContext *ErgoStateContextPtr;
 
-typedef UnspentBoxes *UnspentBoxesPtr;
-
-typedef DataInputBoxes *DataInputBoxesPtr;
-
 typedef OutputBoxes *OutputBoxesPtr;
 
-typedef SecretKey *SecretKeyPtr;
+typedef UnspentBoxes *UnspentBoxesPtr;
+
+typedef Wallet *WalletPtr;
+
+typedef DataInputBoxes *DataInputBoxesPtr;
 
 ErrorPtr ergo_wallet_address_delete(AddressPtr _address);
 
@@ -66,25 +66,10 @@ ErrorPtr ergo_wallet_ergo_state_context_from_json(const char *_json_str,
 
 char *ergo_wallet_error_to_string(ErrorPtr error);
 
-ErrorPtr ergo_wallet_new_signed_tx(ErgoStateContextPtr _state_context,
-                                   UnspentBoxesPtr _unspent_boxes,
-                                   DataInputBoxesPtr _data_input_boxes,
-                                   OutputBoxesPtr _output_boxes,
-                                   AddressPtr _send_change_to,
-                                   uint64_t _min_change_value,
-                                   uint64_t _tx_fee_amount,
-                                   SecretKeyPtr _sk,
-                                   TransactionPtr *_transaction_out);
-
 ErrorPtr ergo_wallet_output_boxes_delete(OutputBoxesPtr _output_boxes);
 
 ErrorPtr ergo_wallet_output_boxes_new(ErgoBoxCandidatePtr _ergo_box_candidate,
                                       OutputBoxesPtr *_output_boxes_out);
-
-ErrorPtr ergo_wallet_secret_key_delete(SecretKeyPtr _secret_key);
-
-ErrorPtr ergo_wallet_secret_key_parse_str(const char *_secret_key_str,
-                                          SecretKeyPtr *_secret_key_out);
 
 ErrorPtr ergo_wallet_signed_tx_to_json(TransactionPtr _transaction, const char **_json_str_out);
 
@@ -92,3 +77,20 @@ ErrorPtr ergo_wallet_unspent_boxes_delete(UnspentBoxesPtr _unspent_boxes);
 
 ErrorPtr ergo_wallet_unspent_boxes_from_json(const char *_json_str,
                                              UnspentBoxesPtr *_unspent_boxes_out);
+
+ErrorPtr ergo_wallet_wallet_delete(WalletPtr _wallet);
+
+ErrorPtr ergo_wallet_wallet_from_mnemonic(const char *_mnemonic_phrase,
+                                          const uint8_t *_mnemonic_password,
+                                          uintptr_t _mnemonic_password_length,
+                                          WalletPtr *_wallet_out);
+
+ErrorPtr ergo_wallet_wallet_new_signed_tx(WalletPtr _wallet,
+                                          ErgoStateContextPtr _state_context,
+                                          UnspentBoxesPtr _unspent_boxes,
+                                          DataInputBoxesPtr _data_input_boxes,
+                                          OutputBoxesPtr _output_boxes,
+                                          AddressPtr _send_change_to,
+                                          uint64_t _min_change_value,
+                                          uint64_t _tx_fee_amount,
+                                          TransactionPtr *_transaction_out);

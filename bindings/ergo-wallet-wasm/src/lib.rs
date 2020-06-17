@@ -73,19 +73,6 @@ impl Address {
     }
 }
 
-/// Secret key for prover
-#[wasm_bindgen]
-pub struct SecretKey(ergo_wallet::SecretKey);
-
-#[wasm_bindgen]
-impl SecretKey {
-    /// Decode from string
-    pub fn parse(_: &str) -> Result<SecretKey, JsValue> {
-        // not implemented, see https://github.com/ergoplatform/sigma-rust/issues/33
-        Ok(SecretKey(ergo_wallet::SecretKey::random_dlog()))
-    }
-}
-
 /// Transaction inputs, array of ErgoBoxCandidate
 #[wasm_bindgen]
 pub struct UnspentBoxes(Vec<chain::ErgoBoxCandidate>);
@@ -221,24 +208,36 @@ impl ErgoStateContext {
     }
 }
 
-/// Create a signed transaction from:
-/// `unspent_boxes` - unspent boxes [`ErgoBoxCandidate`] from which transaction
-/// inputs (boxes to spend) will be selected
-/// `outputs` - boxes that will be created in this transaction
-/// `send_change_to` - address for the change (total value of input - total value of outputs)
-/// that will be put in a new box that will be added to `outputs`
-/// `sk` - secret key to sign the transaction (make proofs for inputs)
+/// TBD
 #[wasm_bindgen]
-pub fn new_signed_transaction(
-    _state_context: ErgoStateContext,
-    _unspent_boxes: UnspentBoxes,
-    _data_inputs: TxDataInputs,
-    _outputs: TxOutputs,
-    _send_change_to: Address,
-    _min_change_value: u32,
-    _tx_fee_amount: u32,
-    _sk: SecretKey,
-) -> Result<Transaction, JsValue> {
-    // not implemented, see https://github.com/ergoplatform/sigma-rust/issues/34
-    Err(JsValue::from_str("Not yet implemented"))
+pub struct Wallet();
+
+#[wasm_bindgen]
+impl Wallet {
+    /// Create wallet instance loading secret key from mnemonic
+    pub fn from_mnemonic(_mnemonic_phrase: &str, _mnemonic_pass: &str) -> Wallet {
+        Wallet()
+    }
+
+    /// Create a signed transaction from:
+    /// `unspent_boxes` - unspent boxes [`ErgoBoxCandidate`] from which transaction
+    /// inputs (boxes to spend) will be selected
+    /// `outputs` - boxes that will be created in this transaction
+    /// `send_change_to` - address for the change (total value of input - total value of outputs)
+    /// that will be put in a new box that will be added to `outputs`
+    /// `sk` - secret key to sign the transaction (make proofs for inputs)
+    #[wasm_bindgen]
+    pub fn new_signed_transaction(
+        &self,
+        _state_context: ErgoStateContext,
+        _unspent_boxes: UnspentBoxes,
+        _data_inputs: TxDataInputs,
+        _outputs: TxOutputs,
+        _send_change_to: Address,
+        _min_change_value: u32,
+        _tx_fee_amount: u32,
+    ) -> Result<Transaction, JsValue> {
+        // not implemented, see https://github.com/ergoplatform/sigma-rust/issues/34
+        Err(JsValue::from_str("Not yet implemented"))
+    }
 }
