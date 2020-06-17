@@ -141,27 +141,6 @@ class OutputBoxes {
     }
 }
 
-// class SecretKey {
-//     internal var pointer: SecretKeyPtr
-
-//     init(withString secretKeyStr: String) throws {
-//         self.pointer = try SecretKey.fromString(secretKeyStr: secretKeyStr)
-//     }
-
-//     private static func fromString(secretKeyStr: String) throws -> SecretKeyPtr {
-//         var ptr: SecretKeyPtr?
-//         let error = secretKeyStr.withCString { cs in
-//             ergo_wallet_secret_key_parse_str(cs, &ptr)
-//         }
-//         try checkError(error)
-//         return ptr!
-//     }
-    
-//     deinit {
-//         ergo_wallet_secret_key_delete(self.pointer)
-//     }
-// }
-
 class Wallet {
     internal var pointer: WalletPtr
 
@@ -193,6 +172,4 @@ class Wallet {
         try checkError(error)
         return Transaction(withRawPointer: transactionPtr!)
     }
-
 }
-
