@@ -1,8 +1,6 @@
 import Foundation
 import ErgoWalletC
 
-// TODO: extract into files
-
 enum WalletError: Error {
     case walletCError(reason: String)
 }

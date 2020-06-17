@@ -14,10 +14,6 @@ use sigma_tree::chain;
 
 use std::{ffi::CString, os::raw::c_char};
 
-// TODO: share code with JNI bindings
-// TODO: add docs
-// TODO: extract into files/modules?
-
 mod error;
 pub use error::*;
 
