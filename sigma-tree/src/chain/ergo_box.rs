@@ -1,9 +1,9 @@
 //! Ergo box
 use super::token::{TokenAmount, TokenId};
-use crate::ergo_tree::ErgoTree;
+use crate::{ast::Constant, ergo_tree::ErgoTree};
 use indexmap::IndexSet;
 #[cfg(feature = "with-serde")]
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use sigma_ser::serializer::SerializationError;
 use sigma_ser::serializer::SigmaSerializable;
 use sigma_ser::vlq_encode;
@@ -50,7 +50,7 @@ pub struct ErgoBox {
     /// secondary tokens the box contains
     pub tokens: Vec<TokenAmount>,
     ///  additional registers the box can carry over
-    pub additional_registers: HashMap<NonMandatoryRegisterId, Box<[u8]>>,
+    pub additional_registers: HashMap<NonMandatoryRegisterId, Box<Constant>>,
     /// height when a transaction containing the box was created.
     /// This height is declared by user and should not exceed height of the block,
     /// containing the transaction with this box.
@@ -64,7 +64,6 @@ pub struct ErgoBox {
 /// Contains the same fields as `ErgoBox`, except if transaction id and index,
 /// that will be calculated after full transaction formation.
 #[derive(PartialEq, Eq, Debug)]
-#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct ErgoBoxCandidate {
     /// amount of money associated with the box
     pub value: u64,
@@ -73,7 +72,7 @@ pub struct ErgoBoxCandidate {
     /// secondary tokens the box contains
     pub tokens: Vec<TokenAmount>,
     ///  additional registers the box can carry over
-    pub additional_registers: HashMap<NonMandatoryRegisterId, Box<[u8]>>,
+    pub additional_registers: HashMap<NonMandatoryRegisterId, Box<Constant>>,
     /// height when a transaction containing the box was created.
     /// This height is declared by user and should not exceed height of the block,
     /// containing the transaction with this box.
@@ -201,6 +200,27 @@ impl SigmaSerializable for ErgoBoxCandidate {
     }
     fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(r: &mut R) -> Result<Self, SerializationError> {
         ErgoBoxCandidate::parse_body_with_indexed_digests(None, r)
+    }
+}
+
+#[cfg(feature = "with-serde")]
+impl serde::Serialize for ErgoBoxCandidate {
+    fn serialize<S>(&self, s: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        // not implmented
+        s.serialize_str("")
+    }
+}
+
+#[cfg(feature = "with-serde")]
+impl<'de> serde::Deserialize<'de> for ErgoBoxCandidate {
+    fn deserialize<D>(_: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        todo!()
     }
 }
 
