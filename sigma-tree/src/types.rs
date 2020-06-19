@@ -30,13 +30,13 @@ impl SType {
     pub fn type_code(&self) -> TypeCode {
         match self {
             SType::SAny => todo!(),
-            SType::SBoolean => todo!(),
-            SType::SByte => todo!(),
-            SType::SShort => todo!(),
-            SType::SInt => todo!(),
-            SType::SLong => todo!(),
-            SType::SBigInt => todo!(),
-            SType::SGroupElement => todo!(),
+            SType::SBoolean => TypeCode::SBOOLEAN,
+            SType::SByte => TypeCode::SBYTE,
+            SType::SShort => TypeCode::SSHORT,
+            SType::SInt => TypeCode::SINT,
+            SType::SLong => TypeCode::SLONG,
+            SType::SBigInt => TypeCode::SBIGINT,
+            SType::SGroupElement => TypeCode::SGROUP_ELEMENT,
             SType::SSigmaProp => TypeCode::SSIGMAPROP,
             SType::SBox => todo!(),
             SType::SAvlTree => todo!(),
@@ -48,6 +48,10 @@ impl SType {
     }
 
     pub fn type_companion(&self) -> Option<STypeCompanion> {
+        todo!()
+    }
+
+    pub fn is_embeddable(&self) -> bool {
         todo!()
     }
 }
@@ -84,4 +88,30 @@ pub struct SMethod {
     pub name: String,
     pub method_id: MethodId,
     pub tpe: SType,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    impl Arbitrary for SType {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            prop_oneof![
+                Just(SType::SBoolean),
+                Just(SType::SByte),
+                Just(SType::SShort),
+                Just(SType::SInt),
+                Just(SType::SLong),
+                Just(SType::SBigInt),
+                Just(SType::SGroupElement),
+                Just(SType::SSigmaProp),
+                Just(SType::SColl(Box::new(SType::SByte))),
+            ]
+            .boxed()
+        }
+    }
 }

@@ -92,9 +92,9 @@ mod tests {
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             prop_oneof![
-                prop::num::u8::ANY.prop_map(|_| EcPoint(ProjectivePoint::generator())),
-                prop::num::u8::ANY.prop_map(|_| EcPoint(ProjectivePoint::identity())),
-                prop::num::u8::ANY.prop_map(|_| EcPoint::random()),
+                Just(EcPoint(ProjectivePoint::generator())),
+                Just(EcPoint(ProjectivePoint::identity())),
+                Just(EcPoint::random()),
             ]
             .boxed()
         }

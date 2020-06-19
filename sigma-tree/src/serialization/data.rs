@@ -11,7 +11,6 @@ use std::io;
 
 pub struct DataSerializer {}
 
-// TODO: convert to SigmaSerializable impl for ConstantVal?
 impl DataSerializer {
     pub fn sigma_serialize<W: WriteSigmaVlqExt>(
         c: &ConstantVal,
@@ -20,10 +19,10 @@ impl DataSerializer {
         // for reference see http://github.com/ScorexFoundation/sigmastate-interpreter/blob/25251c1313b0131835f92099f02cef8a5d932b5e/sigmastate/src/main/scala/sigmastate/serialization/DataSerializer.scala#L26-L26
         match c {
             Boolean(_) => todo!(),
-            Byte(b) => w.put_i8(*b),
-            Short(_) => todo!(),
-            Int(_) => todo!(),
-            Long(_) => todo!(),
+            Byte(v) => w.put_i8(*v),
+            Short(v) => w.put_i16(*v),
+            Int(v) => w.put_i32(*v),
+            Long(v) => w.put_i64(*v),
             BigInt => todo!(),
             GroupElement => todo!(),
             SigmaProp(s) => s.value().sigma_serialize(w),
@@ -43,6 +42,9 @@ impl DataSerializer {
         let c = match tpe {
             SAny => todo!(),
             SByte => Byte(r.get_i8()?),
+            SShort => Short(r.get_i16()?),
+            SInt => Int(r.get_i32()?),
+            SLong => Long(r.get_i64()?),
             SSigmaProp => ConstantVal::sigma_prop(SigmaProp::new(SigmaBoolean::sigma_parse(r)?)),
             SColl(elem_type) => {
                 let len = r.get_u16()? as usize;
@@ -69,3 +71,5 @@ impl DataSerializer {
         Ok(c)
     }
 }
+
+// TODO: test with round trip serialization
