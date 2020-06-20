@@ -51,8 +51,8 @@ impl SType {
         todo!()
     }
 
-    pub fn is_embeddable(&self) -> bool {
-        todo!()
+    pub fn new_scoll(elem_type: SType) -> SType {
+        SType::SColl(Box::new(elem_type))
     }
 }
 
@@ -95,21 +95,28 @@ mod tests {
     use super::*;
     use proptest::prelude::*;
 
+    fn primitive_type() -> BoxedStrategy<SType> {
+        prop_oneof![
+            Just(SType::SBoolean),
+            Just(SType::SByte),
+            Just(SType::SShort),
+            Just(SType::SInt),
+            Just(SType::SLong),
+            Just(SType::SBigInt),
+            Just(SType::SGroupElement),
+            Just(SType::SSigmaProp),
+        ]
+        .boxed()
+    }
+
     impl Arbitrary for SType {
         type Parameters = ();
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             prop_oneof![
-                Just(SType::SBoolean),
-                Just(SType::SByte),
-                Just(SType::SShort),
-                Just(SType::SInt),
-                Just(SType::SLong),
-                Just(SType::SBigInt),
-                Just(SType::SGroupElement),
-                Just(SType::SSigmaProp),
-                Just(SType::SColl(Box::new(SType::SByte))),
+                primitive_type(),
+                primitive_type().prop_map(|prim| SType::new_scoll(prim)),
             ]
             .boxed()
         }
