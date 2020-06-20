@@ -74,6 +74,13 @@ impl Constant {
         }
     }
 
+    pub fn byte_array(v: Vec<i8>) -> Constant {
+        Constant {
+            tpe: SType::SColl(Box::new(SType::SByte)),
+            v: ConstantVal::CollPrim(CollPrim::CollByte(v)),
+        }
+    }
+
     pub fn sigma_prop(prop: SigmaProp) -> Constant {
         Constant {
             tpe: SType::SSigmaProp,
@@ -85,6 +92,7 @@ impl Constant {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use proptest::collection::vec;
     use proptest::prelude::*;
 
     impl Arbitrary for Constant {
@@ -98,7 +106,7 @@ mod tests {
                 any::<i16>().prop_map(|v| Constant::short(v)),
                 any::<i32>().prop_map(|v| Constant::int(v)),
                 any::<i64>().prop_map(|v| Constant::long(v)),
-                // TODO: byte array
+                (vec(any::<i8>(), 0..100)).prop_map(|v| Constant::byte_array(v)),
             ]
             .boxed()
         }

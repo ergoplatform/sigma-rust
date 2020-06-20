@@ -28,7 +28,17 @@ impl DataSerializer {
             SigmaProp(s) => s.value().sigma_serialize(w),
             CBox(_) => todo!(),
             AvlTree => todo!(),
-            ConstantVal::CollPrim(_) => todo!(),
+            ConstantVal::CollPrim(c) => match c {
+                CollPrim::CollByte(b) => {
+                    w.put_usize_as_u16(b.len())?;
+                    let ba: Vec<u8> = b.into_iter().map(|v| *v as u8).collect();
+                    w.write_all(&ba[..])
+                }
+                CollPrim::CollBoolean(_) => todo!(),
+                CollPrim::CollShort(_) => todo!(),
+                CollPrim::CollInt(_) => todo!(),
+                CollPrim::CollLong(_) => todo!(),
+            },
             Coll(_) => todo!(),
             Tup(_) => todo!(),
         }
