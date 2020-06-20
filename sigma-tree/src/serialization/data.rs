@@ -18,7 +18,7 @@ impl DataSerializer {
     ) -> Result<(), io::Error> {
         // for reference see http://github.com/ScorexFoundation/sigmastate-interpreter/blob/25251c1313b0131835f92099f02cef8a5d932b5e/sigmastate/src/main/scala/sigmastate/serialization/DataSerializer.scala#L26-L26
         match c {
-            Boolean(_) => todo!(),
+            Boolean(v) => w.put_u8(if *v { 1 } else { 0 }),
             Byte(v) => w.put_i8(*v),
             Short(v) => w.put_i16(*v),
             Int(v) => w.put_i32(*v),
@@ -41,6 +41,7 @@ impl DataSerializer {
         // for reference see http://github.com/ScorexFoundation/sigmastate-interpreter/blob/25251c1313b0131835f92099f02cef8a5d932b5e/sigmastate/src/main/scala/sigmastate/serialization/DataSerializer.scala#L84-L84
         let c = match tpe {
             SAny => todo!(),
+            SBoolean => Boolean(r.get_u8()? != 0),
             SByte => Byte(r.get_i8()?),
             SShort => Short(r.get_i16()?),
             SInt => Int(r.get_i32()?),
@@ -71,5 +72,3 @@ impl DataSerializer {
         Ok(c)
     }
 }
-
-// TODO: test with round trip serialization
