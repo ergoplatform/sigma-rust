@@ -19,6 +19,36 @@ const STARTING_NON_MANDATORY_INDEX: u8 = 4;
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct NonMandatoryRegisterId(u8);
 
+impl NonMandatoryRegisterId {
+    /// register R4
+    pub const R4: NonMandatoryRegisterId = NonMandatoryRegisterId(4);
+    /// register R5
+    pub const R5: NonMandatoryRegisterId = NonMandatoryRegisterId(5);
+    /// register R6
+    pub const R6: NonMandatoryRegisterId = NonMandatoryRegisterId(6);
+    /// register R7
+    pub const R7: NonMandatoryRegisterId = NonMandatoryRegisterId(7);
+    /// register R8
+    pub const R8: NonMandatoryRegisterId = NonMandatoryRegisterId(8);
+    /// register R9
+    pub const R9: NonMandatoryRegisterId = NonMandatoryRegisterId(9);
+
+    const ALL_REGS: [NonMandatoryRegisterId; 6] = [
+        NonMandatoryRegisterId::R4,
+        NonMandatoryRegisterId::R5,
+        NonMandatoryRegisterId::R6,
+        NonMandatoryRegisterId::R7,
+        NonMandatoryRegisterId::R8,
+        NonMandatoryRegisterId::R9,
+    ];
+
+    /// get register by it's index (4 - 9)
+    pub fn find_register_by_index(i: usize) -> NonMandatoryRegisterId {
+        assert!(i >= 4 && i <= 9);
+        NonMandatoryRegisterId::ALL_REGS[i - 4].clone()
+    }
+}
+
 /// Transaction id (ModifierId in sigmastate)
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
@@ -239,14 +269,26 @@ mod tests {
                 any::<ErgoTree>(),
                 vec(any::<TokenAmount>(), 0..10),
                 any::<u32>(),
+                vec(any::<Constant>(), 0..2),
             )
-                .prop_map(|(value, ergo_tree, tokens, creation_height)| Self {
-                    value,
-                    ergo_tree,
-                    tokens,
-                    additional_registers: HashMap::new(),
-                    creation_height,
-                })
+                .prop_map(
+                    |(value, ergo_tree, tokens, creation_height, constants)| Self {
+                        value,
+                        ergo_tree,
+                        tokens,
+                        additional_registers: constants
+                            .into_iter()
+                            .enumerate()
+                            .map(|c| {
+                                (
+                                    NonMandatoryRegisterId::find_register_by_index(c.0),
+                                    Box::new(c.1),
+                                )
+                            })
+                            .collect(),
+                        creation_height,
+                    },
+                )
                 .boxed()
         }
         type Strategy = BoxedStrategy<Self>;
