@@ -43,7 +43,7 @@ impl NonMandatoryRegisterId {
     ];
 
     /// get register by it's index
-    /// `i` is expected to be 4 - 9, otherwise it panics
+    /// `i` is expected to be 4 - 9, otherwise panic
     pub fn find_by_index(i: u8) -> NonMandatoryRegisterId {
         assert!(i >= 4 && i <= 9);
         NonMandatoryRegisterId::REGS[i as usize - 4].clone()
@@ -141,7 +141,9 @@ impl ErgoBoxCandidate {
                     u32::try_from(
                         token_ids
                             .get_full(&t.token_id)
-                            .expect("failed to find token id in tx's digest index") // TODO: return custom error
+                            // this is not a true runtime error it just means that
+                            // calling site messed up the token ids
+                            .expect("failed to find token id in tx's digest index")
                             .0,
                     )
                     .unwrap(),
@@ -152,6 +154,7 @@ impl ErgoBoxCandidate {
         })?;
 
         let regs_num = self.additional_registers.keys().len();
+        // TODO: introduce a custom type for regs storage to make this state unrepresentable
         assert!(
             (regs_num + NonMandatoryRegisterId::STARTING_INDEX as usize) <= 255,
             "The number of non-mandatory indexes exceeds 251 limit."
@@ -168,7 +171,8 @@ impl ErgoBoxCandidate {
                 None => {
                     let error_msg = format!("Set of non-mandatory indexes is not densely packed: register {} is missing in the range [{} .. {}]", reg_index, start_reg, end_reg);
                     let custom_error = io::Error::new(io::ErrorKind::Other, error_msg);
-                    // TODO: change sig to custom error type (non io::Error)
+                    // TODO: introduce a custom type for register storage that
+                    // will make this state unrepresentable
                     Err(custom_error)
                 }
             }?;
@@ -195,6 +199,7 @@ impl ErgoBoxCandidate {
                     let digest_index = r.get_u32()?;
                     *digests
                         .get_index(digest_index as usize)
+                        // TODO: return error
                         .expect("failed to find token id in tx digests")
                 }
             };
