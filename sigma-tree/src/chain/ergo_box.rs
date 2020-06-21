@@ -11,15 +11,15 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::io;
 
-#[allow(dead_code)]
-const STARTING_NON_MANDATORY_INDEX: u8 = 4;
-
 /// newtype for additional registers R4 - R9
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct NonMandatoryRegisterId(u8);
 
 impl NonMandatoryRegisterId {
+    /// starting index for non-mandatory registers
+    pub const STARTING_INDEX: u8 = 4;
+
     /// register R4
     pub const R4: NonMandatoryRegisterId = NonMandatoryRegisterId(4);
     /// register R5
@@ -33,7 +33,7 @@ impl NonMandatoryRegisterId {
     /// register R9
     pub const R9: NonMandatoryRegisterId = NonMandatoryRegisterId(9);
 
-    const ALL_REGS: [NonMandatoryRegisterId; 6] = [
+    const REGS: [NonMandatoryRegisterId; 6] = [
         NonMandatoryRegisterId::R4,
         NonMandatoryRegisterId::R5,
         NonMandatoryRegisterId::R6,
@@ -42,10 +42,11 @@ impl NonMandatoryRegisterId {
         NonMandatoryRegisterId::R9,
     ];
 
-    /// get register by it's index (4 - 9)
-    pub fn find_register_by_index(i: usize) -> NonMandatoryRegisterId {
+    /// get register by it's index
+    /// `i` is expected to be 4 - 9, otherwise it panics
+    pub fn find_by_index(i: u8) -> NonMandatoryRegisterId {
         assert!(i >= 4 && i <= 9);
-        NonMandatoryRegisterId::ALL_REGS[i - 4].clone()
+        NonMandatoryRegisterId::REGS[i as usize - 4].clone()
     }
 }
 
@@ -140,7 +141,7 @@ impl ErgoBoxCandidate {
                     u32::try_from(
                         token_ids
                             .get_full(&t.token_id)
-                            .expect("failed to find token id in tx's digest index")
+                            .expect("failed to find token id in tx's digest index") // TODO: return custom error
                             .0,
                     )
                     .unwrap(),
@@ -150,39 +151,28 @@ impl ErgoBoxCandidate {
             .and_then(|()| w.put_u64(t.amount))
         })?;
 
+        let regs_num = self.additional_registers.keys().len();
         assert!(
-            self.additional_registers.is_empty(),
-            "register serialization is not yet implemented"
+            (regs_num + NonMandatoryRegisterId::STARTING_INDEX as usize) <= 255,
+            "The number of non-mandatory indexes exceeds 251 limit."
         );
-        /*
-            let regs_num = self.additional_registers.keys().len();
-            assert!(
-                (regs_num + STARTING_NON_MANDATORY_INDEX as usize) <= 255,
-                "The number of non-mandatory indexes exceeds 251 limit."
-            );
-            w.put_u8(regs_num as u8)?;
-        */
-
-        /*
-          val nRegs = obj.additionalRegisters.keys.size
-          if (nRegs + ErgoBox.startingNonMandatoryIndex > 255)
-            sys.error(s"The number of non-mandatory indexes $nRegs exceeds ${255 - ErgoBox.startingNonMandatoryIndex} limit.")
-          w.putUByte(nRegs)
-          // we assume non-mandatory indexes are densely packed from startingNonMandatoryIndex
-          // this convention allows to save 1 bite for each register
-          val startReg = ErgoBox.startingNonMandatoryIndex
-          val endReg = ErgoBox.startingNonMandatoryIndex + nRegs - 1
-          cfor(startReg: Int)(_ <= endReg, _ + 1) { regId =>
-            val reg = ErgoBox.findRegisterByIndex(regId.toByte).get
-            obj.get(reg) match {
-              case Some(v) =>
-                w.putValue(v)
-              case None =>
-                sys.error(s"Set of non-mandatory indexes is not densely packed: " +
-                  s"register R$regId is missing in the range [$startReg .. $endReg]")
-            }
-          }
-        */
+        w.put_u8(regs_num as u8)?;
+        // we assume non-mandatory indexes are densely packed from startingNonMandatoryIndex
+        // this convention allows to save 1 byte for each register
+        let start_reg = NonMandatoryRegisterId::STARTING_INDEX;
+        let end_reg = start_reg + regs_num as u8;
+        for reg_index in start_reg..end_reg {
+            let reg_id = NonMandatoryRegisterId::find_by_index(reg_index);
+            match self.additional_registers.get(&reg_id) {
+                Some(v) => v.sigma_serialize(w),
+                None => {
+                    let error_msg = format!("Set of non-mandatory indexes is not densely packed: register {} is missing in the range [{} .. {}]", reg_index, start_reg, end_reg);
+                    let custom_error = io::Error::new(io::ErrorKind::Other, error_msg);
+                    // TODO: change sig to custom error type (non io::Error)
+                    Err(custom_error)
+                }
+            }?;
+        }
         Ok(())
     }
 
@@ -212,7 +202,17 @@ impl ErgoBoxCandidate {
             tokens.push(TokenAmount { token_id, amount })
         }
 
-        let additional_registers = HashMap::new();
+        let regs_num = r.get_u8()?;
+
+        let start_reg = NonMandatoryRegisterId::STARTING_INDEX;
+        let end_reg = start_reg + regs_num;
+
+        let mut additional_registers = HashMap::with_capacity(regs_num as usize);
+        for reg_index in start_reg..end_reg {
+            let reg_id = NonMandatoryRegisterId::find_by_index(reg_index);
+            let v = Constant::sigma_parse(r)?;
+            additional_registers.insert(reg_id, Box::new(v));
+        }
 
         Ok(ErgoBoxCandidate {
             value,
@@ -269,7 +269,7 @@ mod tests {
                 any::<ErgoTree>(),
                 vec(any::<TokenAmount>(), 0..10),
                 any::<u32>(),
-                vec(any::<Constant>(), 0..2),
+                vec(any::<Constant>(), 0..7),
             )
                 .prop_map(
                     |(value, ergo_tree, tokens, creation_height, constants)| Self {
@@ -281,7 +281,7 @@ mod tests {
                             .enumerate()
                             .map(|c| {
                                 (
-                                    NonMandatoryRegisterId::find_register_by_index(c.0),
+                                    NonMandatoryRegisterId::find_by_index(c.0 as u8 + 4),
                                     Box::new(c.1),
                                 )
                             })
