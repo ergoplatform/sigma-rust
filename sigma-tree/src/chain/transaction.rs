@@ -3,8 +3,6 @@
 use super::{data_input::DataInput, ergo_box::ErgoBoxCandidate, input::Input, token::TokenId};
 use indexmap::IndexSet;
 #[cfg(feature = "with-serde")]
-use serde::ser::SerializeStruct;
-#[cfg(feature = "with-serde")]
 use serde::{Deserializer, Serializer};
 use sigma_ser::serializer::SerializationError;
 use sigma_ser::serializer::SigmaSerializable;

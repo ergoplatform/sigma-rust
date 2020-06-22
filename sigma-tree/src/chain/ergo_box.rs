@@ -3,9 +3,7 @@ use super::token::{TokenAmount, TokenId};
 use crate::{ast::Constant, ergo_tree::ErgoTree};
 use indexmap::IndexSet;
 #[cfg(feature = "with-serde")]
-use serde::ser::SerializeStruct;
-#[cfg(feature = "with-serde")]
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 use sigma_ser::serializer::SerializationError;
 use sigma_ser::serializer::SigmaSerializable;
 use sigma_ser::vlq_encode;
@@ -344,36 +342,6 @@ impl SigmaSerializable for ErgoBoxCandidate {
     }
     fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(r: &mut R) -> Result<Self, SerializationError> {
         ErgoBoxCandidate::parse_body_with_indexed_digests(None, r)
-    }
-}
-
-#[cfg(feature = "with-serde")]
-impl serde::Serialize for ErgoBox {
-    fn serialize<S>(&self, s: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        // TODO: implement missing fields
-        let mut state = s.serialize_struct("box", 8)?;
-        state.serialize_field("boxId", "TBD")?;
-        state.serialize_field("value", &self.value)?;
-        state.serialize_field("ergoTree", "TBD")?;
-        state.serialize_field("assets", "TBD")?;
-        state.serialize_field("creationHeight", &self.creation_height)?;
-        state.serialize_field("additionalRegisters", &self.additional_registers)?;
-        state.serialize_field("transactionId", "TBD")?;
-        state.serialize_field("index", "TBD")?;
-        state.end()
-    }
-}
-
-#[cfg(feature = "with-serde")]
-impl<'de> serde::Deserialize<'de> for ErgoBox {
-    fn deserialize<D>(_: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        todo!()
     }
 }
 

@@ -16,6 +16,7 @@ elliptic-curve = {version = "0.4.0", features = ["getrandom"]}
 serde = { version = "1.0", features = ["derive"], optional = true }
 
 [features]
+default = []
 with-serde = ["serde"]
 
 [dev-dependencies]

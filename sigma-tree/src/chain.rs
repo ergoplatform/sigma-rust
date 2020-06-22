@@ -7,6 +7,8 @@ mod contract;
 mod data_input;
 mod ergo_box;
 mod input;
+#[cfg(feature = "with-serde")]
+mod json;
 mod prover_result;
 mod token;
 mod transaction;

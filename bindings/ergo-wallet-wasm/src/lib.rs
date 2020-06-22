@@ -108,17 +108,14 @@ impl TxDataInputs {
 
 /// Transaction outputs, array of ErgoBoxCandidate
 #[wasm_bindgen]
-pub struct TxOutputs(Vec<chain::ErgoBoxCandidate>);
+pub struct TxOutputCandidates(Vec<chain::ErgoBoxCandidate>);
 
 #[wasm_bindgen]
-impl TxOutputs {
-    /// parse ErgoBoxCandidate array from json
-    #[allow(clippy::boxed_local)]
-    pub fn from_boxes(_boxes: Box<[JsValue]>) -> TxOutputs {
-        // box in boxes.into_iter() {
-        //     let _box: chain::ErgoBoxCandidate = jbox.into_serde().unwrap();
-        // }
-        TxOutputs(vec![])
+impl TxOutputCandidates {
+    /// Create new outputs
+    #[wasm_bindgen(constructor)]
+    pub fn new(box_candidate: ErgoBoxCandidate) -> TxOutputCandidates {
+        TxOutputCandidates(vec![box_candidate.0])
     }
 }
 
@@ -162,10 +159,10 @@ impl ErgoBoxCandidate {
         ErgoBoxCandidate(b)
     }
 
-    /// JSON representation
-    pub fn to_json(&self) -> Result<JsValue, JsValue> {
-        JsValue::from_serde(&self.0).map_err(|e| JsValue::from_str(&format!("{}", e)))
-    }
+    // JSON representation
+    // pub fn to_json(&self) -> Result<JsValue, JsValue> {
+    //     JsValue::from_serde(&self.0).map_err(|e| JsValue::from_str(&format!("{}", e)))
+    // }
 }
 
 /// Defines the contract(script) that will be guarding box contents
@@ -238,7 +235,7 @@ impl Wallet {
         _state_context: ErgoStateContext,
         _unspent_boxes: UnspentBoxes,
         _data_inputs: TxDataInputs,
-        _outputs: TxOutputs,
+        _outputs: TxOutputCandidates,
         _send_change_to: Address,
         _min_change_value: u32,
         _tx_fee_amount: u32,
