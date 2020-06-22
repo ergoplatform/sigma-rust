@@ -161,7 +161,7 @@ impl BoxValue {
 
     /// Check if a value is in bounds
     pub fn within_bounds(v: u64) -> bool {
-        v > 1 && v < i64::MAX as u64
+        v >= 1 && v <= i64::MAX as u64
     }
 }
 
