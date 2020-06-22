@@ -140,6 +140,36 @@ impl From<NonMandatoryRegistersError> for SerializationError {
     }
 }
 
+/// Box value
+#[derive(PartialEq, Eq, Hash, Debug, Clone)]
+pub struct BoxValue(u64);
+
+impl BoxValue {
+    /// Create new value (with bounds check)
+    pub fn new(v: u64) -> Option<BoxValue> {
+        if BoxValue::within_bounds(v) {
+            Some(BoxValue(v))
+        } else {
+            None
+        }
+    }
+
+    /// Check if a value is in bounds
+    pub fn within_bounds(v: u64) -> bool {
+        v > 1 && v < i64::MAX as u64
+    }
+}
+
+impl SigmaSerializable for BoxValue {
+    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
+        w.put_u64(self.0)
+    }
+    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(r: &mut R) -> Result<Self, SerializationError> {
+        let v = r.get_u64()?;
+        Ok(BoxValue(v))
+    }
+}
+
 /// Transaction id (ModifierId in sigmastate)
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
@@ -165,7 +195,7 @@ pub struct TxId(String);
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ErgoBox {
     /// amount of money associated with the box
-    pub value: u64,
+    pub value: BoxValue,
     /// guarding script, which should be evaluated to true in order to open this box
     pub ergo_tree: ErgoTree,
     /// secondary tokens the box contains
@@ -187,7 +217,7 @@ pub struct ErgoBox {
 #[derive(PartialEq, Eq, Debug)]
 pub struct ErgoBoxCandidate {
     /// amount of money associated with the box
-    pub value: u64,
+    pub value: BoxValue,
     /// guarding script, which should be evaluated to true in order to open this box
     pub ergo_tree: ErgoTree,
     /// secondary tokens the box contains
@@ -202,7 +232,7 @@ pub struct ErgoBoxCandidate {
 
 impl ErgoBoxCandidate {
     /// create box with value guarded by ErgoTree
-    pub fn new(value: u64, ergo_tree: ErgoTree, creation_height: u32) -> ErgoBoxCandidate {
+    pub fn new(value: BoxValue, ergo_tree: ErgoTree, creation_height: u32) -> ErgoBoxCandidate {
         ErgoBoxCandidate {
             value,
             ergo_tree,
@@ -220,7 +250,7 @@ impl ErgoBoxCandidate {
         w: &mut W,
     ) -> Result<(), io::Error> {
         // reference implementation - https://github.com/ScorexFoundation/sigmastate-interpreter/blob/9b20cb110effd1987ff76699d637174a4b2fb441/sigmastate/src/main/scala/org/ergoplatform/ErgoBoxCandidate.scala#L95-L95
-        w.put_u64(self.value)?;
+        self.value.sigma_serialize(w)?;
         self.ergo_tree.sigma_serialize(w)?;
         w.put_u32(self.creation_height)?;
         w.put_u8(u8::try_from(self.tokens.len()).unwrap())?;
@@ -261,7 +291,7 @@ impl ErgoBoxCandidate {
     ) -> Result<ErgoBoxCandidate, SerializationError> {
         // reference implementation -https://github.com/ScorexFoundation/sigmastate-interpreter/blob/9b20cb110effd1987ff76699d637174a4b2fb441/sigmastate/src/main/scala/org/ergoplatform/ErgoBoxCandidate.scala#L144-L144
 
-        let value = r.get_u64()?;
+        let value = BoxValue::sigma_parse(r)?;
         let ergo_tree = ErgoTree::sigma_parse(r)?;
         let creation_height = r.get_u32()?;
         let tokens_count = r.get_u8()?;
@@ -336,12 +366,21 @@ mod tests {
     use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
     use sigma_ser::test_helpers::*;
 
+    impl Arbitrary for BoxValue {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            // TODO: should be in 1 - i64.max range
+            any::<u64>().prop_map(|v| BoxValue(v)).boxed()
+        }
+    }
+
     impl Arbitrary for ErgoBoxCandidate {
         type Parameters = ();
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             (
-                any::<u64>(),
+                any::<BoxValue>(),
                 any::<ErgoTree>(),
                 vec(any::<TokenAmount>(), 0..10),
                 any::<u32>(),
