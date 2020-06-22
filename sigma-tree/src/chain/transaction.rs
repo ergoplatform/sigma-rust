@@ -3,7 +3,9 @@
 use super::{data_input::DataInput, ergo_box::ErgoBoxCandidate, input::Input, token::TokenId};
 use indexmap::IndexSet;
 #[cfg(feature = "with-serde")]
-use serde::{Deserialize, Serialize};
+use serde::ser::SerializeStruct;
+#[cfg(feature = "with-serde")]
+use serde::{Deserializer, Serializer};
 use sigma_ser::serializer::SerializationError;
 use sigma_ser::serializer::SigmaSerializable;
 use sigma_ser::vlq_encode;
@@ -21,7 +23,6 @@ use std::iter::FromIterator;
  * Transactions are not encrypted, so it is possible to browse and view every transaction ever
  * collected into a block.
  */
-#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 #[derive(PartialEq, Debug)]
 pub struct Transaction {
     /// inputs, that will be spent by this transaction.
@@ -32,7 +33,7 @@ pub struct Transaction {
     pub data_inputs: Vec<DataInput>,
     /// box candidates to be created by this transaction. Differ from ordinary ones in that
     /// they do not include transaction id and index
-    pub outputs: Vec<ErgoBoxCandidate>,
+    pub output_candidates: Vec<ErgoBoxCandidate>,
 }
 
 impl SigmaSerializable for Transaction {
@@ -49,7 +50,7 @@ impl SigmaSerializable for Transaction {
         // This optimization is crucial to allow up to MaxTokens (== 255) in a box.
         // Without it total size of all token ids 255 * 32 = 8160, way beyond MaxBoxSize (== 4K)
         let token_ids: Vec<TokenId> = self
-            .outputs
+            .output_candidates
             .iter()
             .flat_map(|b| b.tokens.iter().map(|t| t.token_id))
             .collect();
@@ -60,8 +61,8 @@ impl SigmaSerializable for Transaction {
             .try_for_each(|t_id| t_id.sigma_serialize(w))?;
 
         // serialize outputs
-        w.put_usize_as_u16(self.outputs.len())?;
-        self.outputs.iter().try_for_each(|o| {
+        w.put_usize_as_u16(self.output_candidates.len())?;
+        self.output_candidates.iter().try_for_each(|o| {
             ErgoBoxCandidate::serialize_body_with_indexed_digests(o, Some(&distinct_token_ids), w)
         })?;
         Ok(())
@@ -104,8 +105,29 @@ impl SigmaSerializable for Transaction {
         Ok(Transaction {
             inputs,
             data_inputs,
-            outputs,
+            output_candidates: outputs,
         })
+    }
+}
+
+#[cfg(feature = "with-serde")]
+impl serde::Serialize for Transaction {
+    fn serialize<S>(&self, s: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        // not implmented
+        s.serialize_str("TBD")
+    }
+}
+
+#[cfg(feature = "with-serde")]
+impl<'de> serde::Deserialize<'de> for Transaction {
+    fn deserialize<D>(_: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        todo!()
     }
 }
 
@@ -129,7 +151,7 @@ mod tests {
                 .prop_map(|(inputs, data_inputs, outputs)| Self {
                     inputs,
                     data_inputs,
-                    outputs,
+                    output_candidates: outputs,
                 })
                 .boxed()
         }
