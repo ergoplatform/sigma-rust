@@ -63,9 +63,9 @@ impl SigmaSerializable for EcPoint {
         let mut buf = [0; EcPoint::GROUP_SIZE];
         r.read_exact(&mut buf[..])?;
         if buf[0] != 0 {
-            let pubkey = PublicKey::from_bytes(&buf[..]).ok_or(SerializationError::Misc(
-                "failed to parse PK from bytes".to_string(),
-            ))?;
+            let pubkey = PublicKey::from_bytes(&buf[..]).ok_or_else(|| {
+                SerializationError::Misc("failed to parse PK from bytes".to_string())
+            })?;
             let cp = AffinePoint::from_pubkey(&pubkey);
             if bool::from(cp.is_none()) {
                 Err(SerializationError::Misc(

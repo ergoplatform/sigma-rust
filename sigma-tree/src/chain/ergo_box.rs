@@ -123,6 +123,11 @@ impl NonMandatoryRegisters {
         self.0.len() as u8
     }
 
+    /// Return true if non-mandatory registers set is empty
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
     /// Get register value
     pub fn get(&self, _reg_id: &NonMandatoryRegisterId) -> Option<Box<Constant>> {
         todo!()

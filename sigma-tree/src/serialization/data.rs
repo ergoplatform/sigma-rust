@@ -31,7 +31,7 @@ impl DataSerializer {
             ConstantVal::CollPrim(c) => match c {
                 CollPrim::CollByte(b) => {
                     w.put_usize_as_u16(b.len())?;
-                    let ba: Vec<u8> = b.into_iter().map(|v| *v as u8).collect();
+                    let ba: Vec<u8> = b.iter().map(|v| *v as u8).collect();
                     w.write_all(&ba[..])
                 }
                 CollPrim::CollBoolean(_) => todo!(),
