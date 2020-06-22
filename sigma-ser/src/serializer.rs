@@ -22,7 +22,7 @@ pub enum SerializationError {
     Io(io::Error),
     /// Misc fail
     #[error("misc error")]
-    Misc(&'static str),
+    Misc(String),
 }
 
 impl From<vlq_encode::VlqEncodingError> for SerializationError {

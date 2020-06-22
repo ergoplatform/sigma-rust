@@ -1,23 +1,179 @@
 //! Ergo box
 use super::token::{TokenAmount, TokenId};
-use crate::ergo_tree::ErgoTree;
+use crate::{ast::Constant, ergo_tree::ErgoTree};
 use indexmap::IndexSet;
 #[cfg(feature = "with-serde")]
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use sigma_ser::serializer::SerializationError;
 use sigma_ser::serializer::SigmaSerializable;
 use sigma_ser::vlq_encode;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::io;
-
-#[allow(dead_code)]
-const STARTING_NON_MANDATORY_INDEX: u8 = 4;
+use NonMandatoryRegistersError::{InvalidSize, NonDenselyPacked};
 
 /// newtype for additional registers R4 - R9
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct NonMandatoryRegisterId(u8);
+
+impl NonMandatoryRegisterId {
+    /// starting index for non-mandatory registers
+    pub const START_INDEX: u8 = 4;
+    /// end index for non-mandatory registers
+    pub const END_INDEX: u8 = 9;
+
+    /// register R4
+    pub const R4: NonMandatoryRegisterId = NonMandatoryRegisterId(4);
+    /// register R5
+    pub const R5: NonMandatoryRegisterId = NonMandatoryRegisterId(5);
+    /// register R6
+    pub const R6: NonMandatoryRegisterId = NonMandatoryRegisterId(6);
+    /// register R7
+    pub const R7: NonMandatoryRegisterId = NonMandatoryRegisterId(7);
+    /// register R8
+    pub const R8: NonMandatoryRegisterId = NonMandatoryRegisterId(8);
+    /// register R9
+    pub const R9: NonMandatoryRegisterId = NonMandatoryRegisterId(9);
+
+    const REG_IDS: [NonMandatoryRegisterId; 6] = [
+        NonMandatoryRegisterId::R4,
+        NonMandatoryRegisterId::R5,
+        NonMandatoryRegisterId::R6,
+        NonMandatoryRegisterId::R7,
+        NonMandatoryRegisterId::R8,
+        NonMandatoryRegisterId::R9,
+    ];
+
+    /// get register by it's index
+    /// `i` is expected to be in range [`START_INDEX`] to [`END_INDEX`] , otherwise panic
+    pub fn get_by_index(i: usize) -> NonMandatoryRegisterId {
+        assert!(
+            i >= NonMandatoryRegisterId::START_INDEX as usize
+                && i <= NonMandatoryRegisterId::END_INDEX as usize
+        );
+        NonMandatoryRegisterId::REG_IDS[i - NonMandatoryRegisterId::START_INDEX as usize].clone()
+    }
+}
+
+/// Stores non-mandatory registers for the box
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct NonMandatoryRegisters(Vec<Constant>);
+
+/// Possible errors when building NonMandatoryRegisters
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub enum NonMandatoryRegistersError {
+    /// Set of register has invalid size(maximum [`NonMandatoryRegisters::MAX_SIZE`])
+    InvalidSize(usize),
+    /// Set of non-mandatory indexes are not densely packed
+    NonDenselyPacked(u8),
+}
+
+impl NonMandatoryRegistersError {
+    /// get detailed error message
+    pub fn error_msg(&self) -> String {
+        match self {
+            InvalidSize(size) => format!(
+                "invalid non-mandatory registers size {} (expected {})",
+                size,
+                NonMandatoryRegisters::MAX_SIZE
+            ),
+            NonDenselyPacked(reg_id) => format!(
+                "non-mandatory registers are not densely packed, {} is missing in range [{} .. {}]",
+                reg_id,
+                NonMandatoryRegisterId::START_INDEX,
+                NonMandatoryRegisterId::END_INDEX
+            ),
+        }
+    }
+}
+
+impl NonMandatoryRegisters {
+    /// Maximum number of non-mandatory registers
+    pub const MAX_SIZE: usize = 6;
+
+    /// Empty non-mandatory registers
+    pub fn empty() -> NonMandatoryRegisters {
+        NonMandatoryRegisters(vec![])
+    }
+
+    /// Create new from map
+    pub fn new(
+        _regs: HashMap<NonMandatoryRegisterId, Box<Constant>>,
+    ) -> Result<NonMandatoryRegisters, NonMandatoryRegistersError> {
+        // return error if size is incorrect and/or there is a gap
+        // we assume non-mandatory indexes are densely packed from startingNonMandatoryIndex
+        // this convention allows to save 1 byte for each register
+        todo!()
+    }
+
+    /// Create new from ordered values (first element will be R4, and so on)
+    pub fn from_ordered_values(
+        values: Vec<Constant>,
+    ) -> Result<NonMandatoryRegisters, NonMandatoryRegistersError> {
+        if values.len() > NonMandatoryRegisters::MAX_SIZE {
+            Err(NonMandatoryRegistersError::InvalidSize(values.len()))
+        } else {
+            Ok(NonMandatoryRegisters(values))
+        }
+    }
+
+    /// Size of non-mandatory registers set
+    pub fn len(&self) -> u8 {
+        self.0.len() as u8
+    }
+
+    /// Return true if non-mandatory registers set is empty
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    /// Get register value
+    pub fn get(&self, _reg_id: &NonMandatoryRegisterId) -> Option<Box<Constant>> {
+        todo!()
+    }
+
+    /// Get ordered register values (first is R4, and so on, up to R9)
+    pub fn get_ordered_values(&self) -> Vec<Constant> {
+        self.0.clone()
+    }
+}
+
+impl From<NonMandatoryRegistersError> for SerializationError {
+    fn from(error: NonMandatoryRegistersError) -> Self {
+        SerializationError::Misc(error.error_msg())
+    }
+}
+
+/// Box value
+#[derive(PartialEq, Eq, Hash, Debug, Clone)]
+pub struct BoxValue(u64);
+
+impl BoxValue {
+    /// Create new value (with bounds check)
+    pub fn new(v: u64) -> Option<BoxValue> {
+        if BoxValue::within_bounds(v) {
+            Some(BoxValue(v))
+        } else {
+            None
+        }
+    }
+
+    /// Check if a value is in bounds
+    pub fn within_bounds(v: u64) -> bool {
+        v >= 1 && v <= i64::MAX as u64
+    }
+}
+
+impl SigmaSerializable for BoxValue {
+    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
+        w.put_u64(self.0)
+    }
+    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(r: &mut R) -> Result<Self, SerializationError> {
+        let v = r.get_u64()?;
+        Ok(BoxValue(v))
+    }
+}
 
 /// Transaction id (ModifierId in sigmastate)
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
@@ -44,13 +200,13 @@ pub struct TxId(String);
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ErgoBox {
     /// amount of money associated with the box
-    pub value: u64,
+    pub value: BoxValue,
     /// guarding script, which should be evaluated to true in order to open this box
     pub ergo_tree: ErgoTree,
     /// secondary tokens the box contains
     pub tokens: Vec<TokenAmount>,
     ///  additional registers the box can carry over
-    pub additional_registers: HashMap<NonMandatoryRegisterId, Box<[u8]>>,
+    pub additional_registers: NonMandatoryRegisters,
     /// height when a transaction containing the box was created.
     /// This height is declared by user and should not exceed height of the block,
     /// containing the transaction with this box.
@@ -64,16 +220,15 @@ pub struct ErgoBox {
 /// Contains the same fields as `ErgoBox`, except if transaction id and index,
 /// that will be calculated after full transaction formation.
 #[derive(PartialEq, Eq, Debug)]
-#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct ErgoBoxCandidate {
     /// amount of money associated with the box
-    pub value: u64,
+    pub value: BoxValue,
     /// guarding script, which should be evaluated to true in order to open this box
     pub ergo_tree: ErgoTree,
     /// secondary tokens the box contains
     pub tokens: Vec<TokenAmount>,
     ///  additional registers the box can carry over
-    pub additional_registers: HashMap<NonMandatoryRegisterId, Box<[u8]>>,
+    pub additional_registers: NonMandatoryRegisters,
     /// height when a transaction containing the box was created.
     /// This height is declared by user and should not exceed height of the block,
     /// containing the transaction with this box.
@@ -82,12 +237,12 @@ pub struct ErgoBoxCandidate {
 
 impl ErgoBoxCandidate {
     /// create box with value guarded by ErgoTree
-    pub fn new(value: u64, ergo_tree: ErgoTree, creation_height: u32) -> ErgoBoxCandidate {
+    pub fn new(value: BoxValue, ergo_tree: ErgoTree, creation_height: u32) -> ErgoBoxCandidate {
         ErgoBoxCandidate {
             value,
             ergo_tree,
             tokens: vec![],
-            additional_registers: HashMap::new(),
+            additional_registers: NonMandatoryRegisters::empty(),
             creation_height,
         }
     }
@@ -100,7 +255,7 @@ impl ErgoBoxCandidate {
         w: &mut W,
     ) -> Result<(), io::Error> {
         // reference implementation - https://github.com/ScorexFoundation/sigmastate-interpreter/blob/9b20cb110effd1987ff76699d637174a4b2fb441/sigmastate/src/main/scala/org/ergoplatform/ErgoBoxCandidate.scala#L95-L95
-        w.put_u64(self.value)?;
+        self.value.sigma_serialize(w)?;
         self.ergo_tree.sigma_serialize(w)?;
         w.put_u32(self.creation_height)?;
         w.put_u8(u8::try_from(self.tokens.len()).unwrap())?;
@@ -111,6 +266,8 @@ impl ErgoBoxCandidate {
                     u32::try_from(
                         token_ids
                             .get_full(&t.token_id)
+                            // this is not a true runtime error it just means that
+                            // calling site messed up the token ids
                             .expect("failed to find token id in tx's digest index")
                             .0,
                     )
@@ -121,39 +278,14 @@ impl ErgoBoxCandidate {
             .and_then(|()| w.put_u64(t.amount))
         })?;
 
-        assert!(
-            self.additional_registers.is_empty(),
-            "register serialization is not yet implemented"
-        );
-        /*
-            let regs_num = self.additional_registers.keys().len();
-            assert!(
-                (regs_num + STARTING_NON_MANDATORY_INDEX as usize) <= 255,
-                "The number of non-mandatory indexes exceeds 251 limit."
-            );
-            w.put_u8(regs_num as u8)?;
-        */
+        let regs_num = self.additional_registers.len();
+        w.put_u8(regs_num as u8)?;
 
-        /*
-          val nRegs = obj.additionalRegisters.keys.size
-          if (nRegs + ErgoBox.startingNonMandatoryIndex > 255)
-            sys.error(s"The number of non-mandatory indexes $nRegs exceeds ${255 - ErgoBox.startingNonMandatoryIndex} limit.")
-          w.putUByte(nRegs)
-          // we assume non-mandatory indexes are densely packed from startingNonMandatoryIndex
-          // this convention allows to save 1 bite for each register
-          val startReg = ErgoBox.startingNonMandatoryIndex
-          val endReg = ErgoBox.startingNonMandatoryIndex + nRegs - 1
-          cfor(startReg: Int)(_ <= endReg, _ + 1) { regId =>
-            val reg = ErgoBox.findRegisterByIndex(regId.toByte).get
-            obj.get(reg) match {
-              case Some(v) =>
-                w.putValue(v)
-              case None =>
-                sys.error(s"Set of non-mandatory indexes is not densely packed: " +
-                  s"register R$regId is missing in the range [$startReg .. $endReg]")
-            }
-          }
-        */
+        self.additional_registers
+            .get_ordered_values()
+            .into_iter()
+            .try_for_each(|c| c.sigma_serialize(w))?;
+
         Ok(())
     }
 
@@ -164,7 +296,7 @@ impl ErgoBoxCandidate {
     ) -> Result<ErgoBoxCandidate, SerializationError> {
         // reference implementation -https://github.com/ScorexFoundation/sigmastate-interpreter/blob/9b20cb110effd1987ff76699d637174a4b2fb441/sigmastate/src/main/scala/org/ergoplatform/ErgoBoxCandidate.scala#L144-L144
 
-        let value = r.get_u64()?;
+        let value = BoxValue::sigma_parse(r)?;
         let ergo_tree = ErgoTree::sigma_parse(r)?;
         let creation_height = r.get_u32()?;
         let tokens_count = r.get_u8()?;
@@ -174,17 +306,25 @@ impl ErgoBoxCandidate {
                 None => TokenId::sigma_parse(r)?,
                 Some(digests) => {
                     let digest_index = r.get_u32()?;
-                    *digests
-                        .get_index(digest_index as usize)
-                        .expect("failed to find token id in tx digests")
+                    match digests.get_index(digest_index as usize) {
+                        Some(i) => Ok(*i),
+                        None => Err(SerializationError::Misc(
+                            "failed to find token id in tx digests".to_string(),
+                        )),
+                    }?
                 }
             };
             let amount = r.get_u64()?;
             tokens.push(TokenAmount { token_id, amount })
         }
 
-        let additional_registers = HashMap::new();
-
+        let regs_num = r.get_u8()?;
+        let mut additional_regs = Vec::with_capacity(regs_num as usize);
+        for _ in 0..regs_num {
+            let v = Constant::sigma_parse(r)?;
+            additional_regs.push(v);
+        }
+        let additional_registers = NonMandatoryRegisters::from_ordered_values(additional_regs)?;
         Ok(ErgoBoxCandidate {
             value,
             ergo_tree,
@@ -204,29 +344,63 @@ impl SigmaSerializable for ErgoBoxCandidate {
     }
 }
 
+#[cfg(feature = "with-serde")]
+impl serde::Serialize for ErgoBoxCandidate {
+    fn serialize<S>(&self, s: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        // not implmented
+        s.serialize_str("")
+    }
+}
+
+#[cfg(feature = "with-serde")]
+impl<'de> serde::Deserialize<'de> for ErgoBoxCandidate {
+    fn deserialize<D>(_: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        todo!()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
     use sigma_ser::test_helpers::*;
 
+    impl Arbitrary for BoxValue {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            // TODO: should be in 1 - i64.max range
+            any::<u64>().prop_map(|v| BoxValue(v)).boxed()
+        }
+    }
+
     impl Arbitrary for ErgoBoxCandidate {
         type Parameters = ();
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             (
-                any::<u64>(),
+                any::<BoxValue>(),
                 any::<ErgoTree>(),
                 vec(any::<TokenAmount>(), 0..10),
                 any::<u32>(),
+                vec(any::<Constant>(), 0..7),
             )
-                .prop_map(|(value, ergo_tree, tokens, creation_height)| Self {
-                    value,
-                    ergo_tree,
-                    tokens,
-                    additional_registers: HashMap::new(),
-                    creation_height,
-                })
+                .prop_map(
+                    |(value, ergo_tree, tokens, creation_height, constants)| Self {
+                        value,
+                        ergo_tree,
+                        tokens,
+                        additional_registers: NonMandatoryRegisters::from_ordered_values(constants)
+                            .expect("error building registers"),
+                        creation_height,
+                    },
+                )
                 .boxed()
         }
         type Strategy = BoxedStrategy<Self>;

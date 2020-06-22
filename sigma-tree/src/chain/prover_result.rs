@@ -5,8 +5,6 @@ use sigma_ser::vlq_encode;
 use std::io;
 
 use super::context_extension::ContextExtension;
-#[cfg(test)]
-use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
 #[cfg(feature = "with-serde")]
 use serde::{Deserialize, Serialize};
 
@@ -37,26 +35,25 @@ impl SigmaSerializable for ProverResult {
 }
 
 #[cfg(test)]
-impl Arbitrary for ProverResult {
-    type Parameters = ();
-
-    fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-        (vec(any::<u8>(), 0..100))
-            .prop_map(|v| Self {
-                proof: v,
-                extension: ContextExtension::empty(),
-            })
-            .boxed()
-    }
-
-    type Strategy = BoxedStrategy<Self>;
-}
-
-#[cfg(test)]
 mod tests {
     use super::*;
+    use proptest::{collection::vec, prelude::*};
     use sigma_ser::test_helpers::*;
 
+    impl Arbitrary for ProverResult {
+        type Parameters = ();
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            (vec(any::<u8>(), 0..100))
+                .prop_map(|v| Self {
+                    proof: v,
+                    extension: ContextExtension::empty(),
+                })
+                .boxed()
+        }
+
+        type Strategy = BoxedStrategy<Self>;
+    }
     proptest! {
 
         #[test]
