@@ -36,11 +36,23 @@ impl NonMandatoryRegisterId {
     /// register R9
     pub const R9: NonMandatoryRegisterId = NonMandatoryRegisterId(9);
 
+    const REG_IDS: [NonMandatoryRegisterId; 6] = [
+        NonMandatoryRegisterId::R4,
+        NonMandatoryRegisterId::R5,
+        NonMandatoryRegisterId::R6,
+        NonMandatoryRegisterId::R7,
+        NonMandatoryRegisterId::R8,
+        NonMandatoryRegisterId::R9,
+    ];
+
     /// get register by it's index
-    /// `i` is expected to be 4 - 9, otherwise panic
-    pub fn get_by_index(i: u8) -> NonMandatoryRegisterId {
-        assert!(i >= 4 && i <= 9);
-        NonMandatoryRegisters::REGS[i as usize - 4].clone()
+    /// `i` is expected to be in range [`START_INDEX`] to [`END_INDEX`] , otherwise panic
+    pub fn get_by_index(i: usize) -> NonMandatoryRegisterId {
+        assert!(
+            i >= NonMandatoryRegisterId::START_INDEX as usize
+                && i <= NonMandatoryRegisterId::END_INDEX as usize
+        );
+        NonMandatoryRegisterId::REG_IDS[i - NonMandatoryRegisterId::START_INDEX as usize].clone()
     }
 }
 
@@ -79,15 +91,6 @@ impl NonMandatoryRegistersError {
 impl NonMandatoryRegisters {
     /// Maximum number of non-mandatory registers
     pub const MAX_SIZE: usize = 6;
-
-    const REGS: [NonMandatoryRegisterId; 6] = [
-        NonMandatoryRegisterId::R4,
-        NonMandatoryRegisterId::R5,
-        NonMandatoryRegisterId::R6,
-        NonMandatoryRegisterId::R7,
-        NonMandatoryRegisterId::R8,
-        NonMandatoryRegisterId::R9,
-    ];
 
     /// Empty non-mandatory registers
     pub fn empty() -> NonMandatoryRegisters {
