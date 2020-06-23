@@ -30,3 +30,20 @@ impl<'de> serde::Deserialize<'de> for ErgoBox {
         todo!()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use proptest::prelude::*;
+    use serde_json;
+
+    proptest! {
+
+        #[test]
+        fn ergo_box_roundtrip(b in any::<ErgoBox>()) {
+            let j = serde_json::to_string(&b)?;
+            let b_parsed: ErgoBox = serde_json::from_str(&j)?;
+            prop_assert_eq![b, b_parsed];
+        }
+    }
+}

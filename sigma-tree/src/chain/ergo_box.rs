@@ -12,6 +12,9 @@ use std::convert::TryFrom;
 use std::io;
 use NonMandatoryRegistersError::{InvalidSize, NonDenselyPacked};
 
+#[cfg(test)]
+use proptest_derive::Arbitrary;
+
 /// newtype for additional registers R4 - R9
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
@@ -178,6 +181,7 @@ impl SigmaSerializable for BoxValue {
 
 /// Transaction id (ModifierId in sigmastate)
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
+#[cfg_attr(test, derive(Arbitrary))]
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct TxId(String);
 
@@ -192,8 +196,8 @@ pub struct TxId(String);
 /// others could be used by applications in any way.
 /// We add additional fields in addition to amount and proposition~(which stored in the registers R0 and R1).
 /// Namely, register R2 contains additional tokens (a sequence of pairs (token identifier, value)).
-/// Register R3 contains height when block got included into the blockchain and also transaction
-/// identifier and box index in the transaction outputs.
+/// Register R3 contains height specified by user (protocol checks if it was <= current height when
+/// transaction was accepted) and also transaction identifier and box index in the transaction outputs.
 /// Registers R4-R9 are free for arbitrary usage.
 ///
 /// A transaction is unsealing a box. As a box can not be open twice, any further valid transaction
@@ -216,6 +220,26 @@ pub struct ErgoBox {
     pub transaction_id: TxId,
     /// number of box (from 0 to total number of boxes the transaction with transactionId created - 1)
     pub index: u16,
+}
+
+impl ErgoBox {
+    /// Create ErgoBox from ErgoBoxCandidate by adding transaction id
+    /// and index of the box in the transaction
+    pub fn from_box_candidate(
+        box_candidate: &ErgoBoxCandidate,
+        tx_id: TxId,
+        index: u16,
+    ) -> ErgoBox {
+        ErgoBox {
+            value: box_candidate.value.clone(),
+            ergo_tree: box_candidate.ergo_tree.clone(),
+            tokens: box_candidate.tokens.clone(),
+            additional_registers: box_candidate.additional_registers.clone(),
+            creation_height: box_candidate.creation_height,
+            transaction_id: tx_id,
+            index,
+        }
+    }
 }
 
 /// Contains the same fields as `ErgoBox`, except if transaction id and index,
@@ -381,6 +405,19 @@ mod tests {
                         creation_height,
                     },
                 )
+                .boxed()
+        }
+        type Strategy = BoxedStrategy<Self>;
+    }
+
+    impl Arbitrary for ErgoBox {
+        type Parameters = ();
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            (any::<ErgoBoxCandidate>(), any::<TxId>(), any::<u16>())
+                .prop_map(|(box_candidate, tx_id, index)| {
+                    Self::from_box_candidate(&box_candidate, tx_id, index)
+                })
                 .boxed()
         }
         type Strategy = BoxedStrategy<Self>;
