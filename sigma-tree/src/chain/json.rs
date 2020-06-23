@@ -1,9 +1,28 @@
 //! JSON serialization
 use super::ErgoBox;
 use serde::ser::SerializeStruct;
-use serde::{Deserializer, Serializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-impl serde::Serialize for ErgoBox {
+// impl Serialize for BoxId {
+//     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+//     where
+//         S: Serializer,
+//     {
+//         let str = base16::encode_lower(&self.0);
+//         serializer.serialize_str(&str)
+//     }
+// }
+
+// impl<'de> Deserialize<'de> for BoxId {
+//     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+//     where
+//         D: Deserializer<'de>,
+//     {
+//         deserializer.deserialize_str(StrVisitor)
+//     }
+// }
+
+impl Serialize for ErgoBox {
     fn serialize<S>(&self, s: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -22,7 +41,7 @@ impl serde::Serialize for ErgoBox {
     }
 }
 
-impl<'de> serde::Deserialize<'de> for ErgoBox {
+impl<'de> Deserialize<'de> for ErgoBox {
     fn deserialize<D>(_: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,

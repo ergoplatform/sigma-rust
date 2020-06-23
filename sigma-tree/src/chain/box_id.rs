@@ -1,4 +1,5 @@
 //! Box id type
+use super::digest32::{Digest32, DIGEST32_SIZE};
 use sigma_ser::serializer::SerializationError;
 use sigma_ser::serializer::SigmaSerializable;
 use sigma_ser::vlq_encode;
@@ -7,17 +8,38 @@ use std::io;
 #[cfg(feature = "with-serde")]
 use serde::{Deserialize, Serialize};
 
-/// Size of Box.id
-pub const BOX_ID_SIZE: usize = crate::constants::DIGEST32_SIZE;
-
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 
-#[derive(PartialEq, Debug)]
-#[cfg_attr(test, derive(Arbitrary))]
-#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 /// newtype for box ids
-pub struct BoxId(pub [u8; BOX_ID_SIZE]);
+#[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
+// #[cfg_attr(feature = "with-serde", serde(into = "String", try_from = "String"))]
+#[cfg_attr(feature = "with-serde", serde(into = "Digest32", from = "Digest32"))]
+#[cfg_attr(test, derive(Arbitrary))]
+pub struct BoxId(pub [u8; BoxId::SIZE]);
+
+impl BoxId {
+    /// Size in bytes
+    pub const SIZE: usize = DIGEST32_SIZE;
+
+    /// All zeros
+    pub fn zero() -> BoxId {
+        BoxId([0u8; BoxId::SIZE])
+    }
+}
+
+// TODO: try custom derive?
+impl From<Digest32> for BoxId {
+    fn from(d: Digest32) -> Self {
+        BoxId(d.0)
+    }
+}
+impl From<BoxId> for Digest32 {
+    fn from(d: BoxId) -> Self {
+        Digest32(d.0)
+    }
+}
 
 impl SigmaSerializable for BoxId {
     fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
@@ -25,7 +47,7 @@ impl SigmaSerializable for BoxId {
         Ok(())
     }
     fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(r: &mut R) -> Result<Self, SerializationError> {
-        let mut bytes = [0; BOX_ID_SIZE];
+        let mut bytes = [0; DIGEST32_SIZE];
         r.read_exact(&mut bytes)?;
         Ok(Self(bytes))
     }

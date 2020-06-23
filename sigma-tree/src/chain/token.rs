@@ -7,7 +7,7 @@ use sigma_ser::vlq_encode;
 use std::io;
 
 /// token id size in bytes
-pub const TOKEN_ID_SIZE: usize = crate::constants::DIGEST32_SIZE;
+pub const TOKEN_ID_SIZE: usize = crate::chain::digest32::DIGEST32_SIZE;
 
 #[cfg(test)]
 use proptest_derive::Arbitrary;

@@ -14,7 +14,7 @@ use std::io;
 use std::iter::FromIterator;
 
 /// Transaction id size in bytes
-pub const TX_ID_SIZE: usize = crate::constants::DIGEST32_SIZE;
+pub const TX_ID_SIZE: usize = crate::chain::digest32::DIGEST32_SIZE;
 
 /// Transaction id (ModifierId in sigmastate)
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]

@@ -5,12 +5,10 @@ mod register;
 
 use super::{
     token::{TokenAmount, TokenId},
-    TxId,
+    BoxId, TxId,
 };
 use crate::{ast::Constant, ergo_tree::ErgoTree};
 use indexmap::IndexSet;
-#[cfg(feature = "with-serde")]
-use serde::{Deserialize, Serialize};
 use sigma_ser::serializer::SerializationError;
 use sigma_ser::serializer::SigmaSerializable;
 use sigma_ser::vlq_encode;
@@ -18,24 +16,8 @@ use std::convert::TryFrom;
 use std::io;
 
 pub use box_value::BoxValue;
-#[cfg(test)]
-use proptest_derive::Arbitrary;
+
 use register::NonMandatoryRegisters;
-
-/// Box id size in bytes
-pub const BOX_ID_SIZE: usize = crate::constants::DIGEST32_SIZE;
-
-/// newtype for box id
-#[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
-#[cfg_attr(test, derive(Arbitrary))]
-#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
-pub struct BoxId(pub [u8; BOX_ID_SIZE]);
-
-impl BoxId {
-    pub fn zero() -> BoxId {
-        BoxId([0u8; BOX_ID_SIZE])
-    }
-}
 
 /// Box (aka coin, or an unspent output) is a basic concept of a UTXO-based cryptocurrency.
 /// In Bitcoin, such an object is associated with some monetary value (arbitrary,

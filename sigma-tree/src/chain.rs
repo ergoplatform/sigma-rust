@@ -5,6 +5,7 @@ mod box_id;
 mod context_extension;
 mod contract;
 mod data_input;
+mod digest32;
 mod ergo_box;
 mod input;
 #[cfg(feature = "with-serde")]
