@@ -3,7 +3,10 @@
 mod box_value;
 mod register;
 
-use super::token::{TokenAmount, TokenId};
+use super::{
+    token::{TokenAmount, TokenId},
+    TxId,
+};
 use crate::{ast::Constant, ergo_tree::ErgoTree};
 use indexmap::IndexSet;
 #[cfg(feature = "with-serde")]
@@ -19,11 +22,20 @@ pub use box_value::BoxValue;
 use proptest_derive::Arbitrary;
 use register::NonMandatoryRegisters;
 
-/// Transaction id (ModifierId in sigmastate)
-#[derive(PartialEq, Eq, Hash, Debug, Clone)]
+/// Box id size in bytes
+pub const BOX_ID_SIZE: usize = crate::constants::DIGEST32_SIZE;
+
+/// newtype for box id
+#[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
 #[cfg_attr(test, derive(Arbitrary))]
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
-pub struct TxId(String);
+pub struct BoxId(pub [u8; BOX_ID_SIZE]);
+
+impl BoxId {
+    pub fn zero() -> BoxId {
+        BoxId([0u8; BOX_ID_SIZE])
+    }
+}
 
 /// Box (aka coin, or an unspent output) is a basic concept of a UTXO-based cryptocurrency.
 /// In Bitcoin, such an object is associated with some monetary value (arbitrary,
@@ -44,6 +56,7 @@ pub struct TxId(String);
 /// can not be linked to the same box.
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ErgoBox {
+    box_id: BoxId,
     /// amount of money associated with the box
     pub value: BoxValue,
     /// guarding script, which should be evaluated to true in order to open this box
@@ -63,22 +76,96 @@ pub struct ErgoBox {
 }
 
 impl ErgoBox {
+    /// Crate new box
+    pub fn new(
+        value: BoxValue,
+        ergo_tree: ErgoTree,
+        tokens: Vec<TokenAmount>,
+        additional_registers: NonMandatoryRegisters,
+        creation_height: u32,
+        transaction_id: TxId,
+        index: u16,
+    ) -> ErgoBox {
+        let box_with_zero_id = ErgoBox {
+            box_id: BoxId::zero(),
+            value,
+            ergo_tree,
+            tokens,
+            additional_registers,
+            creation_height,
+            transaction_id,
+            index,
+        };
+        let box_id = box_with_zero_id.calc_box_id();
+        ErgoBox {
+            box_id,
+            ..box_with_zero_id
+        }
+    }
+
+    /// Box id (Blake2b256 hash of serialized box)
+    pub fn box_id(&self) -> BoxId {
+        self.box_id
+    }
+
     /// Create ErgoBox from ErgoBoxCandidate by adding transaction id
     /// and index of the box in the transaction
     pub fn from_box_candidate(
         box_candidate: &ErgoBoxCandidate,
-        tx_id: TxId,
+        transaction_id: TxId,
         index: u16,
     ) -> ErgoBox {
-        ErgoBox {
+        let box_with_zero_id = ErgoBox {
+            box_id: BoxId::zero(),
             value: box_candidate.value.clone(),
             ergo_tree: box_candidate.ergo_tree.clone(),
             tokens: box_candidate.tokens.clone(),
             additional_registers: box_candidate.additional_registers.clone(),
             creation_height: box_candidate.creation_height,
-            transaction_id: tx_id,
+            transaction_id,
             index,
+        };
+        let box_id = box_with_zero_id.calc_box_id();
+        ErgoBox {
+            box_id,
+            ..box_with_zero_id
         }
+    }
+
+    fn calc_box_id(&self) -> BoxId {
+        let mut data = Vec::new();
+        self.sigma_serialize(&mut data)
+            .expect("ErgoBox serialization failed");
+        // TODO: use blake2b256 hash
+        BoxId::zero()
+    }
+}
+
+impl From<&ErgoBox> for ErgoBoxCandidate {
+    fn from(b: &ErgoBox) -> Self {
+        ErgoBoxCandidate {
+            value: b.value.clone(),
+            ergo_tree: b.ergo_tree.clone(),
+            tokens: b.tokens.clone(),
+            additional_registers: b.additional_registers.clone(),
+            creation_height: b.creation_height,
+        }
+    }
+}
+
+impl SigmaSerializable for ErgoBox {
+    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
+        let box_candidate = ErgoBoxCandidate::from(self);
+        box_candidate.serialize_body_with_indexed_digests(None, w)?;
+        self.transaction_id.sigma_serialize(w)?;
+        w.put_u16(self.index)?;
+        Ok(())
+    }
+    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(r: &mut R) -> Result<Self, SerializationError> {
+        let box_candidate = ErgoBoxCandidate::parse_body_with_indexed_digests(None, r)?;
+        let tx_id = TxId::sigma_parse(r)?;
+        let index = r.get_u16()?;
+        Ok(ErgoBox::from_box_candidate(&box_candidate, tx_id, index))
     }
 }
 
@@ -256,7 +343,12 @@ mod tests {
     proptest! {
 
         #[test]
-        fn ser_roundtrip(v in any::<ErgoBoxCandidate>()) {
+        fn ergo_box_candidate_ser_roundtrip(v in any::<ErgoBoxCandidate>()) {
+            prop_assert_eq![sigma_serialize_roundtrip(&v), v];
+        }
+
+        #[test]
+        fn ergo_box_ser_roundtrip(v in any::<ErgoBox>()) {
             prop_assert_eq![sigma_serialize_roundtrip(&v), v];
         }
     }

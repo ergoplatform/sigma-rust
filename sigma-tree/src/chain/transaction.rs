@@ -2,14 +2,37 @@
 
 use super::{data_input::DataInput, ergo_box::ErgoBoxCandidate, input::Input, token::TokenId};
 use indexmap::IndexSet;
+#[cfg(test)]
+use proptest_derive::Arbitrary;
 #[cfg(feature = "with-serde")]
-use serde::{Deserializer, Serializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use sigma_ser::serializer::SerializationError;
 use sigma_ser::serializer::SigmaSerializable;
 use sigma_ser::vlq_encode;
 use std::convert::TryFrom;
 use std::io;
 use std::iter::FromIterator;
+
+/// Transaction id size in bytes
+pub const TX_ID_SIZE: usize = crate::constants::DIGEST32_SIZE;
+
+/// Transaction id (ModifierId in sigmastate)
+#[derive(PartialEq, Eq, Hash, Debug, Clone)]
+#[cfg_attr(test, derive(Arbitrary))]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
+pub struct TxId([u8; TX_ID_SIZE]);
+
+impl SigmaSerializable for TxId {
+    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
+        w.write_all(&self.0)?;
+        Ok(())
+    }
+    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(r: &mut R) -> Result<Self, SerializationError> {
+        let mut bytes = [0; TX_ID_SIZE];
+        r.read_exact(&mut bytes)?;
+        Ok(Self(bytes))
+    }
+}
 
 /**
  * ErgoTransaction is an atomic state transition operation. It destroys Boxes from the state
@@ -159,7 +182,13 @@ mod tests {
     proptest! {
 
         #[test]
-        fn ser_roundtrip(v in any::<Transaction>()) {
+        fn tx_ser_roundtrip(v in any::<Transaction>()) {
+            prop_assert_eq![sigma_serialize_roundtrip(&v), v];
+        }
+
+
+        #[test]
+        fn tx_id_ser_roundtrip(v in any::<TxId>()) {
             prop_assert_eq![sigma_serialize_roundtrip(&v), v];
         }
     }
