@@ -14,7 +14,6 @@ use proptest_derive::Arbitrary;
 /// newtype for box ids
 #[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
-// #[cfg_attr(feature = "with-serde", serde(into = "String", try_from = "String"))]
 #[cfg_attr(feature = "with-serde", serde(into = "Digest32", from = "Digest32"))]
 #[cfg_attr(test, derive(Arbitrary))]
 pub struct BoxId(pub [u8; BoxId::SIZE]);
