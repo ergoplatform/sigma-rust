@@ -4,7 +4,6 @@ use std::convert::{TryFrom, TryInto};
 use thiserror::Error;
 
 /// Digest size 32 bytes
-///
 pub const DIGEST32_SIZE: usize = 32;
 
 impl Into<String> for Digest32 {
