@@ -156,15 +156,6 @@ impl BoxValue {
     /// Minimal value
     pub const MIN: BoxValue = BoxValue(BoxValue::MIN_RAW);
 
-    /// Create new value (with bounds check)
-    pub fn new(v: u64) -> Option<BoxValue> {
-        if BoxValue::within_bounds(v) {
-            Some(BoxValue(v))
-        } else {
-            None
-        }
-    }
-
     /// Check if a value is in bounds
     pub fn within_bounds(v: u64) -> bool {
         v >= BoxValue::MIN_RAW && v <= BoxValue::MAX_RAW
@@ -172,6 +163,7 @@ impl BoxValue {
 }
 
 /// BoxValue errors
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub enum BoxValueError {
     /// Value is out of bounds
     OutOfBounds,
