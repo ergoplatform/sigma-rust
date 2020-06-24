@@ -150,18 +150,49 @@ impl From<NonMandatoryRegistersError> for SerializationError {
 pub struct BoxValue(u64);
 
 impl BoxValue {
-    /// Create new value (with bounds check)
-    pub fn new(v: u64) -> Option<BoxValue> {
-        if BoxValue::within_bounds(v) {
-            Some(BoxValue(v))
-        } else {
-            None
-        }
+    const MIN_RAW: u64 = 1;
+    const MAX_RAW: u64 = i64::MAX as u64;
+
+    /// Minimal value
+    pub const MIN: BoxValue = BoxValue(BoxValue::MIN_RAW);
+
+    /// Create from u64 with bounds check
+    pub fn new(v: u64) -> Result<BoxValue, BoxValueError> {
+        BoxValue::try_from(v)
     }
 
     /// Check if a value is in bounds
     pub fn within_bounds(v: u64) -> bool {
-        v >= 1 && v <= i64::MAX as u64
+        v >= BoxValue::MIN_RAW && v <= BoxValue::MAX_RAW
+    }
+
+    /// Get u64 value
+    pub fn value(&self) -> u64 {
+        self.0
+    }
+}
+
+/// BoxValue errors
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub enum BoxValueError {
+    /// Value is out of bounds
+    OutOfBounds,
+}
+
+impl TryFrom<u64> for BoxValue {
+    type Error = BoxValueError;
+    fn try_from(v: u64) -> Result<Self, Self::Error> {
+        if BoxValue::within_bounds(v) {
+            Ok(BoxValue(v))
+        } else {
+            Err(BoxValueError::OutOfBounds)
+        }
+    }
+}
+
+impl Into<u64> for BoxValue {
+    fn into(self) -> u64 {
+        self.0
     }
 }
 
