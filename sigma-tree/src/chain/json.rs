@@ -1,58 +1,47 @@
 //! JSON serialization
-use super::ErgoBox;
-use serde::ser::SerializeStruct;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-// impl Serialize for BoxId {
-//     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-//     where
-//         S: Serializer,
-//     {
-//         let str = base16::encode_lower(&self.0);
-//         serializer.serialize_str(&str)
-//     }
-// }
+use serde::Serializer;
 
-// impl<'de> Deserialize<'de> for BoxId {
-//     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-//     where
-//         D: Deserializer<'de>,
-//     {
-//         deserializer.deserialize_str(StrVisitor)
-//     }
-// }
+pub fn serialize_bytes<S, T>(bytes: T, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+    T: AsRef<[u8]>,
+{
+    serializer.serialize_str(&base16::encode_lower(bytes.as_ref()))
+}
 
-impl Serialize for ErgoBox {
-    fn serialize<S>(&self, s: S) -> Result<S::Ok, S::Error>
+pub mod ergo_tree {
+
+    use super::*;
+    use crate::ErgoTree;
+    use serde::{Deserialize, Deserializer, Serializer};
+    use std::convert::TryFrom;
+
+    pub fn serialize<S>(ergo_tree: &ErgoTree, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
-        // TODO: implement missing fields
-        let mut state = s.serialize_struct("box", 8)?;
-        state.serialize_field("boxId", &self.box_id())?;
-        state.serialize_field("value", &self.value)?;
-        state.serialize_field("ergoTree", "TBD")?;
-        state.serialize_field("assets", "TBD")?;
-        state.serialize_field("creationHeight", &self.creation_height)?;
-        // state.serialize_field("additionalRegisters", &self.additional_registers)?;
-        state.serialize_field("transactionId", "TBD")?;
-        state.serialize_field("index", "TBD")?;
-        state.end()
+        let bytes = ergo_tree.bytes();
+        serialize_bytes(&bytes[..], serializer)
     }
-}
 
-impl<'de> Deserialize<'de> for ErgoBox {
-    fn deserialize<D>(_: D) -> Result<Self, D::Error>
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<ErgoTree, D::Error>
     where
         D: Deserializer<'de>,
     {
-        todo!()
+        use serde::de::Error;
+        String::deserialize(deserializer)
+            .and_then(|str| base16::decode(&str).map_err(|err| Error::custom(err.to_string())))
+            .and_then(|bytes| {
+                ErgoTree::try_from(bytes).map_err(|err| Error::custom(err.to_string()))
+            })
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::super::ergo_box::*;
+    // use super::*;
     use proptest::prelude::*;
     use serde_json;
 

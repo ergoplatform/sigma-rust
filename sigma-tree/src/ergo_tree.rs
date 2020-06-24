@@ -3,13 +3,12 @@ use crate::{
     ast::{Constant, Expr},
     types::SType,
 };
-#[cfg(feature = "with-serde")]
-use serde::{Deserializer, Serializer};
+use io::Cursor;
 use sigma_ser::serializer::SerializationError;
 use sigma_ser::serializer::SigmaSerializable;
-use sigma_ser::vlq_encode;
+use sigma_ser::{peekable_reader::PeekableReader, vlq_encode};
 use std::io;
-use std::rc::Rc;
+use std::{convert::TryFrom, rc::Rc};
 use vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt};
 
 /** The root of ErgoScript IR. Serialized instances of this class are self sufficient and can be passed around.
@@ -28,6 +27,7 @@ struct ErgoTreeHeader(u8);
 impl ErgoTree {
     const DEFAULT_HEADER: ErgoTreeHeader = ErgoTreeHeader(0);
 
+    // TODO: move to Into and From implementations
     /// get Expr out of ErgoTree
     pub fn proposition(&self) -> Rc<Expr> {
         self.root.clone()
@@ -43,6 +43,16 @@ impl ErgoTree {
             },
             _ => panic!("not yet supported"),
         }
+    }
+
+    /// Serialized ErgoTree
+    pub fn bytes(&self) -> Vec<u8> {
+        // TODO: expensive, store in the struct?
+        let mut data = Vec::new();
+        // since it can only fail from IO error only it's safe to unwrap
+        self.sigma_serialize(&mut data)
+            .expect("serialization failed");
+        data
     }
 }
 
@@ -86,26 +96,12 @@ impl SigmaSerializable for ErgoTree {
     }
 }
 
-#[cfg(feature = "with-serde")]
-impl serde::Serialize for ErgoTree {
-    fn serialize<S>(&self, s: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        // not implmented
-        // serialize ergo tree and encode as Base16
-        // https://github.com/ergoplatform/sigma-rust/issues/37
-        s.serialize_str("")
-    }
-}
-
-#[cfg(feature = "with-serde")]
-impl<'de> serde::Deserialize<'de> for ErgoTree {
-    fn deserialize<D>(_: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        todo!()
+impl TryFrom<Vec<u8>> for ErgoTree {
+    type Error = SerializationError;
+    fn try_from(mut value: Vec<u8>) -> Result<Self, Self::Error> {
+        let cursor = Cursor::new(&mut value[..]);
+        let mut reader = PeekableReader::new(cursor);
+        ErgoTree::sigma_parse(&mut reader)
     }
 }
 

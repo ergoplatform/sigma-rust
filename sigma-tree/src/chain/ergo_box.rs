@@ -3,12 +3,15 @@
 mod box_value;
 mod register;
 
+use super::json;
 use super::{
     token::{TokenAmount, TokenId},
     BoxId, TxId,
 };
 use crate::{ast::Constant, ergo_tree::ErgoTree};
 use indexmap::IndexSet;
+#[cfg(feature = "with-serde")]
+use serde::{Deserialize, Serialize};
 use sigma_ser::serializer::SerializationError;
 use sigma_ser::serializer::SigmaSerializable;
 use sigma_ser::vlq_encode;
@@ -36,24 +39,33 @@ use register::NonMandatoryRegisters;
 ///
 /// A transaction is unsealing a box. As a box can not be open twice, any further valid transaction
 /// can not be linked to the same box.
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ErgoBox {
+    #[serde(rename = "boxId")]
     box_id: BoxId,
     /// amount of money associated with the box
+    #[serde(rename = "value")]
     pub value: BoxValue,
     /// guarding script, which should be evaluated to true in order to open this box
+    #[serde(rename = "ergoTree", with = "json::ergo_tree")]
     pub ergo_tree: ErgoTree,
     /// secondary tokens the box contains
+    #[serde(rename = "assets")]
     pub tokens: Vec<TokenAmount>,
     ///  additional registers the box can carry over
+    #[serde(rename = "additionalRegisters", skip)]
     pub additional_registers: NonMandatoryRegisters,
     /// height when a transaction containing the box was created.
     /// This height is declared by user and should not exceed height of the block,
     /// containing the transaction with this box.
+    #[serde(rename = "creationHeight")]
     pub creation_height: u32,
     /// id of transaction which created the box
+    #[serde(rename = "transactionId")]
     pub transaction_id: TxId,
     /// number of box (from 0 to total number of boxes the transaction with transactionId created - 1)
+    #[serde(rename = "index")]
     pub index: u16,
 }
 
