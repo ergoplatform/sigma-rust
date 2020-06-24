@@ -156,6 +156,11 @@ impl BoxValue {
     /// Minimal value
     pub const MIN: BoxValue = BoxValue(BoxValue::MIN_RAW);
 
+    /// Create from u64 with bounds check
+    pub fn new(v: u64) -> Result<BoxValue, BoxValueError> {
+        BoxValue::try_from(v)
+    }
+
     /// Check if a value is in bounds
     pub fn within_bounds(v: u64) -> bool {
         v >= BoxValue::MIN_RAW && v <= BoxValue::MAX_RAW

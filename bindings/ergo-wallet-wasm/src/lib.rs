@@ -15,7 +15,6 @@ use sigma_tree::chain;
 mod utils;
 
 use chain::BoxValue;
-use std::convert::TryFrom;
 use wasm_bindgen::prelude::*;
 
 /**
@@ -156,7 +155,7 @@ impl ErgoBoxCandidate {
         // value is u32, because u64 makes in BigInt in JS
         let ergo_tree = contract.0.get_ergo_tree();
         let b = chain::ErgoBoxCandidate::new(
-            BoxValue::try_from(value as u64).expect("value out of bounds"),
+            BoxValue::new(value as u64).expect("value out of bounds"),
             ergo_tree,
             creation_height,
         );
