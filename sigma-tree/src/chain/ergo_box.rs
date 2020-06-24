@@ -165,6 +165,11 @@ impl BoxValue {
     pub fn within_bounds(v: u64) -> bool {
         v >= BoxValue::MIN_RAW && v <= BoxValue::MAX_RAW
     }
+
+    /// Get u64 value
+    pub fn value(&self) -> u64 {
+        self.0
+    }
 }
 
 /// BoxValue errors
