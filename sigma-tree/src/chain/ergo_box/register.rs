@@ -1,13 +1,35 @@
+//! Box registers
+
 use crate::ast::Constant;
 #[cfg(feature = "with-serde")]
 use serde::{Deserialize, Serialize};
 use sigma_ser::serializer::SerializationError;
-use std::collections::HashMap;
+use std::{collections::HashMap, convert::TryFrom};
+use thiserror::Error;
 
 /// newtype for additional registers R4 - R9
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "with-serde", serde(into = "String", try_from = "String"))]
 pub struct NonMandatoryRegisterId(u8);
+
+impl Into<String> for NonMandatoryRegisterId {
+    fn into(self) -> String {
+        todo!()
+    }
+}
+
+#[derive(Error, Debug)]
+#[error("failed to parse register id")]
+/// Error for failed parsing of the register id from string
+pub struct NonMandatoryRegisterIdParsingError();
+
+impl TryFrom<String> for NonMandatoryRegisterId {
+    type Error = NonMandatoryRegisterIdParsingError;
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        todo!()
+    }
+}
 
 impl NonMandatoryRegisterId {
     /// starting index for non-mandatory registers
@@ -50,16 +72,41 @@ impl NonMandatoryRegisterId {
 
 /// Stores non-mandatory registers for the box
 #[derive(PartialEq, Eq, Debug, Clone)]
+// #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
+// #[cfg_attr(
+//     feature = "with-serde",
+//     serde(
+//         into = "HashMap<NonMandatoryRegisterId, String>",
+//         try_from = "HashMap<NonMandatoryRegisterId, String>",
+//     )
+// )]
 pub struct NonMandatoryRegisters(Vec<Constant>);
 
+impl Into<HashMap<NonMandatoryRegisterId, String>> for NonMandatoryRegisters {
+    fn into(self) -> HashMap<NonMandatoryRegisterId, String> {
+        todo!()
+    }
+}
+
+impl TryFrom<HashMap<NonMandatoryRegisterId, String>> for NonMandatoryRegisters {
+    type Error = NonMandatoryRegistersError;
+    fn try_from(value: HashMap<NonMandatoryRegisterId, String>) -> Result<Self, Self::Error> {
+        todo!()
+    }
+}
+
 /// Possible errors when building NonMandatoryRegisters
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(Error, Debug)]
 pub enum NonMandatoryRegistersError {
     /// Set of register has invalid size(maximum [`NonMandatoryRegisters::MAX_SIZE`])
+    #[error("invalid size")]
     InvalidSize(usize),
     /// Set of non-mandatory indexes are not densely packed
+    #[error("registers are not densely packed")]
     NonDenselyPacked(u8),
 }
+
+// TODO: remove in favor of Error impl above
 
 impl NonMandatoryRegistersError {
     /// get detailed error message
@@ -111,8 +158,8 @@ impl NonMandatoryRegisters {
     }
 
     /// Size of non-mandatory registers set
-    pub fn len(&self) -> u8 {
-        self.0.len() as u8
+    pub fn len(&self) -> usize {
+        self.0.len()
     }
 
     /// Return true if non-mandatory registers set is empty
@@ -126,8 +173,13 @@ impl NonMandatoryRegisters {
     }
 
     /// Get ordered register values (first is R4, and so on, up to R9)
-    pub fn get_ordered_values(&self) -> Vec<Constant> {
-        self.0.clone()
+    pub fn get_ordered_values(&self) -> &Vec<Constant> {
+        &self.0
+    }
+
+    /// Get ordered pairs of register id and value
+    pub fn get_ordered_pairs(&self) -> Vec<(NonMandatoryRegisterId, Constant)> {
+        todo!()
     }
 }
 

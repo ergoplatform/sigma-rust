@@ -14,7 +14,7 @@ use sigma_tree::chain;
 
 mod utils;
 
-use chain::BoxValue;
+use chain::box_value::BoxValue;
 use wasm_bindgen::prelude::*;
 
 /**

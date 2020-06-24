@@ -1,3 +1,5 @@
+//! Box value newtype
+
 #[cfg(feature = "with-serde")]
 use serde::{Deserialize, Serialize};
 use sigma_ser::serializer::{SerializationError, SigmaSerializable};

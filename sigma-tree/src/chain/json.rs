@@ -38,6 +38,39 @@ pub mod ergo_tree {
     }
 }
 
+pub mod register {
+    use serde::ser::{SerializeMap, Serializer};
+    use serde::{Deserialize, Deserializer};
+    // use sigma_ser::serializer::SerializationError;
+    use crate::chain::register::{NonMandatoryRegisterId, NonMandatoryRegisters};
+    use sigma_ser::serializer::SigmaSerializable;
+    use std::collections::HashMap;
+    // use sigma_ser::vlq_encode;
+
+    pub fn serialize<S>(registers: &NonMandatoryRegisters, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut map = serializer.serialize_map(Some(registers.len()))?;
+        for (reg_id, constant) in registers.get_ordered_pairs().into_iter() {
+            let constant_bytes = constant.sigma_serialise_bytes();
+            let encoded = base16::encode_lower(&constant_bytes[..]);
+            map.serialize_entry(&reg_id, &encoded)?;
+        }
+        map.end()
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<NonMandatoryRegisters, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let mymap: Result<HashMap<NonMandatoryRegisterId, String>, D::Error> =
+            HashMap::deserialize(deserializer);
+        // mymap.and_then(|regs| regs.in)
+        todo!()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::super::ergo_box::*;

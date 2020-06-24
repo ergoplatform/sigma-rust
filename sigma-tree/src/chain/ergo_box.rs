@@ -1,7 +1,7 @@
 //! Ergo box
 
-mod box_value;
-mod register;
+pub mod box_value;
+pub mod register;
 
 use super::json;
 use super::{
@@ -9,7 +9,9 @@ use super::{
     BoxId, TxId,
 };
 use crate::{ast::Constant, ergo_tree::ErgoTree};
+use box_value::BoxValue;
 use indexmap::IndexSet;
+use register::NonMandatoryRegisters;
 #[cfg(feature = "with-serde")]
 use serde::{Deserialize, Serialize};
 use sigma_ser::serializer::SerializationError;
@@ -17,10 +19,6 @@ use sigma_ser::serializer::SigmaSerializable;
 use sigma_ser::vlq_encode;
 use std::convert::TryFrom;
 use std::io;
-
-pub use box_value::BoxValue;
-
-use register::NonMandatoryRegisters;
 
 /// Box (aka coin, or an unspent output) is a basic concept of a UTXO-based cryptocurrency.
 /// In Bitcoin, such an object is associated with some monetary value (arbitrary,
@@ -54,7 +52,7 @@ pub struct ErgoBox {
     #[serde(rename = "assets")]
     pub tokens: Vec<TokenAmount>,
     ///  additional registers the box can carry over
-    #[serde(rename = "additionalRegisters", skip)]
+    #[serde(rename = "additionalRegisters", with = "json::register")]
     pub additional_registers: NonMandatoryRegisters,
     /// height when a transaction containing the box was created.
     /// This height is declared by user and should not exceed height of the block,

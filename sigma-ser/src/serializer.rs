@@ -52,4 +52,14 @@ pub trait SigmaSerializable: Sized {
     /// `sigma-` prefix to alert the reader that the serialization in use
     /// is consensus-critical
     fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(r: &mut R) -> Result<Self, SerializationError>;
+
+    /// Serialize any SigmaSerializable value into bytes
+    fn sigma_serialise_bytes(&self) -> Vec<u8> {
+        todo!()
+    }
+}
+
+/// Serialize any SigmaSerializable value into bytes
+pub fn sigma_serialise<S: SigmaSerializable>(_v: S) -> Result<Vec<u8>, io::Error> {
+    todo!()
 }
