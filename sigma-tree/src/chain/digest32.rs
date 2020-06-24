@@ -1,16 +1,8 @@
-#[cfg(feature = "with-serde")]
-use serde::{Deserialize, Serialize};
-use std::convert::{TryFrom, TryInto};
+use std::convert::TryInto;
 use thiserror::Error;
 
 /// Digest size 32 bytes
 pub const DIGEST32_SIZE: usize = 32;
-
-impl Into<String> for Digest32 {
-    fn into(self) -> String {
-        base16::encode_lower(&self.0)
-    }
-}
 
 /// Errors when decoding Digest32 from Base16 encoded string
 #[derive(Error, Debug)]
@@ -35,18 +27,12 @@ impl From<std::array::TryFromSliceError> for Digest32DecodeError {
     }
 }
 
-/// Generic type for byte array of 32 bytes
-#[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
-#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "with-serde", serde(into = "String", try_from = "String"))]
-pub struct Digest32(pub [u8; DIGEST32_SIZE]);
-
-impl TryFrom<String> for Digest32 {
-    type Error = Digest32DecodeError;
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        let bytes = base16::decode(&value)?;
-        let arr: [u8; DIGEST32_SIZE] = bytes.as_slice().try_into()?;
-        Ok(Digest32(arr))
-    }
+pub fn decode_base16(value: String) -> Result<[u8; DIGEST32_SIZE], Digest32DecodeError> {
+    let bytes = base16::decode(&value)?;
+    let arr: [u8; DIGEST32_SIZE] = bytes.as_slice().try_into()?;
+    Ok(arr)
 }
 
+pub fn encode_base16(value: &[u8; DIGEST32_SIZE]) -> String {
+    base16::encode_lower(value)
+}

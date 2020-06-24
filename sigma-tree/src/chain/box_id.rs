@@ -1,9 +1,9 @@
 //! Box id type
-use super::digest32::{Digest32, DIGEST32_SIZE};
+use super::digest32::{self, DIGEST32_SIZE};
 use sigma_ser::serializer::SerializationError;
 use sigma_ser::serializer::SigmaSerializable;
 use sigma_ser::vlq_encode;
-use std::io;
+use std::{convert::TryFrom, io};
 
 #[cfg(feature = "with-serde")]
 use serde::{Deserialize, Serialize};
@@ -14,7 +14,7 @@ use proptest_derive::Arbitrary;
 /// newtype for box ids
 #[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "with-serde", serde(into = "Digest32", from = "Digest32"))]
+#[cfg_attr(feature = "with-serde", serde(into = "String", try_from = "String"))]
 #[cfg_attr(test, derive(Arbitrary))]
 pub struct BoxId(pub [u8; BoxId::SIZE]);
 
@@ -28,15 +28,16 @@ impl BoxId {
     }
 }
 
-// TODO: try custom derive?
-impl From<Digest32> for BoxId {
-    fn from(d: Digest32) -> Self {
-        BoxId(d.0)
+impl Into<String> for BoxId {
+    fn into(self) -> String {
+        digest32::encode_base16(&self.0)
     }
 }
-impl From<BoxId> for Digest32 {
-    fn from(d: BoxId) -> Self {
-        Digest32(d.0)
+
+impl TryFrom<String> for BoxId {
+    type Error = digest32::Digest32DecodeError;
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Ok(BoxId(digest32::decode_base16(value)?))
     }
 }
 
