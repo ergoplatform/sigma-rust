@@ -39,13 +39,14 @@ pub mod ergo_tree {
 }
 
 pub mod register {
+    use crate::{
+        ast::Constant,
+        chain::register::{NonMandatoryRegisterId, NonMandatoryRegisters},
+    };
     use serde::ser::{SerializeMap, Serializer};
     use serde::{Deserialize, Deserializer};
-    // use sigma_ser::serializer::SerializationError;
-    use crate::chain::register::{NonMandatoryRegisterId, NonMandatoryRegisters};
     use sigma_ser::serializer::SigmaSerializable;
     use std::collections::HashMap;
-    // use sigma_ser::vlq_encode;
 
     pub fn serialize<S>(registers: &NonMandatoryRegisters, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -60,14 +61,29 @@ pub mod register {
         map.end()
     }
 
+    fn decode_constant(str: &str) -> Result<Constant, String> {
+        base16::decode(str)
+            .map_err(|err| err.to_string())
+            .and_then(|bytes| Constant::sigma_parse_bytes(bytes).map_err(|err| err.to_string()))
+    }
+
     pub fn deserialize<'de, D>(deserializer: D) -> Result<NonMandatoryRegisters, D::Error>
     where
         D: Deserializer<'de>,
     {
-        let mymap: Result<HashMap<NonMandatoryRegisterId, String>, D::Error> =
+        use serde::de::Error;
+        let encoded_constants_map: Result<HashMap<NonMandatoryRegisterId, String>, D::Error> =
             HashMap::deserialize(deserializer);
-        // mymap.and_then(|regs| regs.in)
-        todo!()
+        let decoded_constants_map = encoded_constants_map.and_then(|regs| {
+            regs.iter()
+                .try_fold(HashMap::new(), |mut acc, (reg_id, str)| {
+                    let constant = decode_constant(str).map_err(|err| Error::custom(err))?;
+                    acc.insert(reg_id.clone(), constant);
+                    Ok(acc)
+                })
+        })?;
+        NonMandatoryRegisters::new(decoded_constants_map)
+            .map_err(|err| Error::custom(err.error_msg()))
     }
 }
 

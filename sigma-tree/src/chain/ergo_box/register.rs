@@ -72,28 +72,7 @@ impl NonMandatoryRegisterId {
 
 /// Stores non-mandatory registers for the box
 #[derive(PartialEq, Eq, Debug, Clone)]
-// #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
-// #[cfg_attr(
-//     feature = "with-serde",
-//     serde(
-//         into = "HashMap<NonMandatoryRegisterId, String>",
-//         try_from = "HashMap<NonMandatoryRegisterId, String>",
-//     )
-// )]
 pub struct NonMandatoryRegisters(Vec<Constant>);
-
-impl Into<HashMap<NonMandatoryRegisterId, String>> for NonMandatoryRegisters {
-    fn into(self) -> HashMap<NonMandatoryRegisterId, String> {
-        todo!()
-    }
-}
-
-impl TryFrom<HashMap<NonMandatoryRegisterId, String>> for NonMandatoryRegisters {
-    type Error = NonMandatoryRegistersError;
-    fn try_from(value: HashMap<NonMandatoryRegisterId, String>) -> Result<Self, Self::Error> {
-        todo!()
-    }
-}
 
 /// Possible errors when building NonMandatoryRegisters
 #[derive(Error, Debug)]
@@ -138,7 +117,7 @@ impl NonMandatoryRegisters {
 
     /// Create new from map
     pub fn new(
-        _regs: HashMap<NonMandatoryRegisterId, Box<Constant>>,
+        _regs: HashMap<NonMandatoryRegisterId, Constant>,
     ) -> Result<NonMandatoryRegisters, NonMandatoryRegistersError> {
         // return error if size is incorrect and/or there is a gap
         // we assume non-mandatory indexes are densely packed from startingNonMandatoryIndex

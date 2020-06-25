@@ -57,6 +57,11 @@ pub trait SigmaSerializable: Sized {
     fn sigma_serialise_bytes(&self) -> Vec<u8> {
         todo!()
     }
+
+    /// Parse `self` from the bytes
+    fn sigma_parse_bytes(_bytes: Vec<u8>) -> Result<Self, SerializationError> {
+        todo!()
+    }
 }
 
 /// Serialize any SigmaSerializable value into bytes
