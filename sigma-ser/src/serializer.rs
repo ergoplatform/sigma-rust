@@ -1,4 +1,6 @@
 use super::vlq_encode;
+use crate::peekable_reader::PeekableReader;
+use io::Cursor;
 use std::io;
 use thiserror::Error;
 
@@ -55,16 +57,18 @@ pub trait SigmaSerializable: Sized {
 
     /// Serialize any SigmaSerializable value into bytes
     fn sigma_serialise_bytes(&self) -> Vec<u8> {
-        todo!()
+        let mut data = Vec::new();
+        self.sigma_serialize(&mut data)
+            // since serialization may fail only for underlying IO errors it's ok to force unwrap
+            .expect("serialization failed");
+        data
     }
 
     /// Parse `self` from the bytes
-    fn sigma_parse_bytes(_bytes: Vec<u8>) -> Result<Self, SerializationError> {
-        todo!()
+    fn sigma_parse_bytes(mut bytes: Vec<u8>) -> Result<Self, SerializationError> {
+        let cursor = Cursor::new(&mut bytes[..]);
+        let mut reader = PeekableReader::new(cursor);
+        Self::sigma_parse(&mut reader)
     }
 }
 
-/// Serialize any SigmaSerializable value into bytes
-pub fn sigma_serialise<S: SigmaSerializable>(_v: S) -> Result<Vec<u8>, io::Error> {
-    todo!()
-}

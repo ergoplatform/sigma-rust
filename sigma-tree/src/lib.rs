@@ -20,4 +20,6 @@ mod types;
 
 pub mod chain;
 pub mod sigma_protocol;
+
+pub use chain::Base16Bytes;
 pub use ergo_tree::*;

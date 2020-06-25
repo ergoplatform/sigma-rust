@@ -13,29 +13,14 @@ use thiserror::Error;
 #[cfg_attr(feature = "with-serde", serde(into = "String", try_from = "String"))]
 pub struct NonMandatoryRegisterId(u8);
 
-impl Into<String> for NonMandatoryRegisterId {
-    fn into(self) -> String {
-        todo!()
-    }
-}
-
-#[derive(Error, Debug)]
-#[error("failed to parse register id")]
-/// Error for failed parsing of the register id from string
-pub struct NonMandatoryRegisterIdParsingError();
-
-impl TryFrom<String> for NonMandatoryRegisterId {
-    type Error = NonMandatoryRegisterIdParsingError;
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        todo!()
-    }
-}
-
 impl NonMandatoryRegisterId {
     /// starting index for non-mandatory registers
-    pub const START_INDEX: u8 = 4;
+    pub const START_INDEX: usize = 4;
     /// end index for non-mandatory registers
-    pub const END_INDEX: u8 = 9;
+    pub const END_INDEX: usize = 9;
+
+    /// max number of registers
+    pub const NUM_REGS: usize = 6;
 
     /// register R4
     pub const R4: NonMandatoryRegisterId = NonMandatoryRegisterId(4);
@@ -50,7 +35,8 @@ impl NonMandatoryRegisterId {
     /// register R9
     pub const R9: NonMandatoryRegisterId = NonMandatoryRegisterId(9);
 
-    const REG_IDS: [NonMandatoryRegisterId; 6] = [
+    /// all register ids
+    pub const REG_IDS: [NonMandatoryRegisterId; NonMandatoryRegisterId::NUM_REGS] = [
         NonMandatoryRegisterId::R4,
         NonMandatoryRegisterId::R5,
         NonMandatoryRegisterId::R6,
@@ -59,56 +45,66 @@ impl NonMandatoryRegisterId {
         NonMandatoryRegisterId::R9,
     ];
 
-    /// get register by it's index
-    /// `i` is expected to be in range [`START_INDEX`] to [`END_INDEX`] , otherwise panic
+    /// get register by it's index starting from 0
+    /// `i` is expected to be in range 0..[`NUM_REGS`] , otherwise panic
     pub fn get_by_index(i: usize) -> NonMandatoryRegisterId {
-        assert!(
-            i >= NonMandatoryRegisterId::START_INDEX as usize
-                && i <= NonMandatoryRegisterId::END_INDEX as usize
-        );
-        NonMandatoryRegisterId::REG_IDS[i - NonMandatoryRegisterId::START_INDEX as usize].clone()
+        assert!(i < NonMandatoryRegisterId::NUM_REGS);
+        NonMandatoryRegisterId::REG_IDS[i].clone()
     }
 }
 
-/// Stores non-mandatory registers for the box
-#[derive(PartialEq, Eq, Debug, Clone)]
-pub struct NonMandatoryRegisters(Vec<Constant>);
-
-/// Possible errors when building NonMandatoryRegisters
-#[derive(Error, Debug)]
-pub enum NonMandatoryRegistersError {
-    /// Set of register has invalid size(maximum [`NonMandatoryRegisters::MAX_SIZE`])
-    #[error("invalid size")]
-    InvalidSize(usize),
-    /// Set of non-mandatory indexes are not densely packed
-    #[error("registers are not densely packed")]
-    NonDenselyPacked(u8),
+impl Into<String> for NonMandatoryRegisterId {
+    fn into(self) -> String {
+        format!("R{}", self.0)
+    }
 }
 
-// TODO: remove in favor of Error impl above
-
-impl NonMandatoryRegistersError {
-    /// get detailed error message
-    pub fn error_msg(&self) -> String {
-        match self {
-            NonMandatoryRegistersError::InvalidSize(size) => format!(
-                "invalid non-mandatory registers size {} (expected {})",
-                size,
-                NonMandatoryRegisters::MAX_SIZE
-            ),
-            NonMandatoryRegistersError::NonDenselyPacked(reg_id) => format!(
-                "non-mandatory registers are not densely packed, {} is missing in range [{} .. {}]",
-                reg_id,
-                NonMandatoryRegisterId::START_INDEX,
-                NonMandatoryRegisterId::END_INDEX
-            ),
+impl TryFrom<String> for NonMandatoryRegisterId {
+    type Error = NonMandatoryRegisterIdParsingError;
+    fn try_from(str: String) -> Result<Self, Self::Error> {
+        if str.len() != 2 {
+            Err(NonMandatoryRegisterIdParsingError())
+        } else {
+            if &str[..1] != "R" {
+                Err(NonMandatoryRegisterIdParsingError())
+            } else {
+                let index = (&str[1..2])
+                    .parse::<usize>()
+                    .map_err(|_| NonMandatoryRegisterIdParsingError())?;
+                if index >= NonMandatoryRegisterId::START_INDEX
+                    && index <= NonMandatoryRegisterId::END_INDEX
+                {
+                    Ok(NonMandatoryRegisterId::get_by_index(
+                        index - NonMandatoryRegisterId::START_INDEX,
+                    ))
+                } else {
+                    Err(NonMandatoryRegisterIdParsingError())
+                }
+            }
         }
     }
 }
 
+#[derive(Error, Debug)]
+#[error("failed to parse register id")]
+/// Error for failed parsing of the register id from string
+pub struct NonMandatoryRegisterIdParsingError();
+
+/// Stores non-mandatory registers for the box
+#[derive(PartialEq, Eq, Debug, Clone)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
+#[cfg_attr(
+    feature = "with-serde",
+    serde(
+        into = "HashMap<NonMandatoryRegisterId, Constant>",
+        try_from = "HashMap<NonMandatoryRegisterId, Constant>"
+    )
+)]
+pub struct NonMandatoryRegisters(Vec<Constant>);
+
 impl NonMandatoryRegisters {
     /// Maximum number of non-mandatory registers
-    pub const MAX_SIZE: usize = 6;
+    pub const MAX_SIZE: usize = NonMandatoryRegisterId::NUM_REGS;
 
     /// Empty non-mandatory registers
     pub fn empty() -> NonMandatoryRegisters {
@@ -117,12 +113,9 @@ impl NonMandatoryRegisters {
 
     /// Create new from map
     pub fn new(
-        _regs: HashMap<NonMandatoryRegisterId, Constant>,
+        regs: HashMap<NonMandatoryRegisterId, Constant>,
     ) -> Result<NonMandatoryRegisters, NonMandatoryRegistersError> {
-        // return error if size is incorrect and/or there is a gap
-        // we assume non-mandatory indexes are densely packed from startingNonMandatoryIndex
-        // this convention allows to save 1 byte for each register
-        todo!()
+        NonMandatoryRegisters::try_from(regs)
     }
 
     /// Create new from ordered values (first element will be R4, and so on)
@@ -155,16 +148,52 @@ impl NonMandatoryRegisters {
     pub fn get_ordered_values(&self) -> &Vec<Constant> {
         &self.0
     }
+}
 
-    /// Get ordered pairs of register id and value
-    pub fn get_ordered_pairs(&self) -> Vec<(NonMandatoryRegisterId, Constant)> {
-        todo!()
+/// Possible errors when building NonMandatoryRegisters
+#[derive(Error, Debug)]
+pub enum NonMandatoryRegistersError {
+    /// Set of register has invalid size(maximum [`NonMandatoryRegisters::MAX_SIZE`])
+    #[error("invalid non-mandatory registers size ({0})")]
+    InvalidSize(usize),
+    /// Set of non-mandatory indexes are not densely packed
+    #[error("registers are not densely packed (register R{0} is missing)")]
+    NonDenselyPacked(u8),
+}
+
+impl Into<HashMap<NonMandatoryRegisterId, Constant>> for NonMandatoryRegisters {
+    fn into(self) -> HashMap<NonMandatoryRegisterId, Constant> {
+        self.0
+            .into_iter()
+            .enumerate()
+            .map(|(i, c)| (NonMandatoryRegisterId::get_by_index(i), c))
+            .collect()
+    }
+}
+
+impl TryFrom<HashMap<NonMandatoryRegisterId, Constant>> for NonMandatoryRegisters {
+    type Error = NonMandatoryRegistersError;
+    fn try_from(reg_map: HashMap<NonMandatoryRegisterId, Constant>) -> Result<Self, Self::Error> {
+        let regs_num = reg_map.len();
+        if regs_num > NonMandatoryRegisters::MAX_SIZE {
+            Err(NonMandatoryRegistersError::InvalidSize(regs_num))
+        } else {
+            let mut res: Vec<Constant> = vec![];
+            NonMandatoryRegisterId::REG_IDS
+                .iter()
+                .take(regs_num)
+                .try_for_each(|reg_id| match reg_map.get(reg_id) {
+                    Some(v) => Ok(res.push(v.clone())),
+                    None => Err(NonMandatoryRegistersError::NonDenselyPacked(reg_id.0)),
+                })?;
+            Ok(NonMandatoryRegisters(res))
+        }
     }
 }
 
 impl From<NonMandatoryRegistersError> for SerializationError {
     fn from(error: NonMandatoryRegistersError) -> Self {
-        SerializationError::Misc(error.error_msg())
+        SerializationError::Misc(error.to_string())
     }
 }
 

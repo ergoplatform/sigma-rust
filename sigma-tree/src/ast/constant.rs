@@ -1,4 +1,9 @@
-use crate::{chain::ErgoBox, sigma_protocol::SigmaProp, types::SType};
+use crate::{chain::ErgoBox, sigma_protocol::SigmaProp, types::SType, Base16Bytes};
+#[cfg(feature = "with-serde")]
+use serde::{Deserialize, Serialize};
+use sigma_ser::serializer::SerializationError;
+use sigma_ser::serializer::SigmaSerializable;
+use std::convert::TryFrom;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum CollPrim {
@@ -33,9 +38,27 @@ impl ConstantVal {
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
+#[cfg_attr(
+    feature = "with-serde",
+    serde(into = "Base16Bytes", try_from = "Base16Bytes")
+)]
 pub struct Constant {
     pub tpe: SType,
     pub v: ConstantVal,
+}
+
+impl Into<Base16Bytes> for Constant {
+    fn into(self) -> Base16Bytes {
+        Base16Bytes(self.sigma_serialise_bytes())
+    }
+}
+
+impl TryFrom<Base16Bytes> for Constant {
+    type Error = SerializationError;
+    fn try_from(bytes: Base16Bytes) -> Result<Self, Self::Error> {
+        Constant::sigma_parse_bytes(bytes.0)
+    }
 }
 
 impl Constant {

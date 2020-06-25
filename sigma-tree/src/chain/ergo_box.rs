@@ -52,7 +52,7 @@ pub struct ErgoBox {
     #[serde(rename = "assets")]
     pub tokens: Vec<TokenAmount>,
     ///  additional registers the box can carry over
-    #[serde(rename = "additionalRegisters", with = "json::register")]
+    #[serde(rename = "additionalRegisters")]
     pub additional_registers: NonMandatoryRegisters,
     /// height when a transaction containing the box was created.
     /// This height is declared by user and should not exceed height of the block,
@@ -125,9 +125,7 @@ impl ErgoBox {
     }
 
     fn calc_box_id(&self) -> BoxId {
-        let mut data = Vec::new();
-        self.sigma_serialize(&mut data)
-            .expect("ErgoBox serialization failed");
+        let _bytes = self.sigma_serialise_bytes();
         // TODO: use blake2b256 hash
         BoxId::zero()
     }
