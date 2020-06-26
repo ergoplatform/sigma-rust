@@ -131,18 +131,6 @@ impl ErgoBox {
     }
 }
 
-// impl From<&ErgoBox> for ErgoBoxCandidate {
-//     fn from(b: &ErgoBox) -> Self {
-//         ErgoBoxCandidate {
-//             value: b.value.clone(),
-//             ergo_tree: b.ergo_tree.unwrap().clone(),
-//             tokens: b.tokens.clone(),
-//             additional_registers: b.additional_registers.clone(),
-//             creation_height: b.creation_height,
-//         }
-//     }
-// }
-
 // impl SigmaSerializable for ErgoBox {
 //     fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
 //         let box_candidate = ErgoBoxCandidate::from(self);
