@@ -130,7 +130,7 @@ impl SigmaSerializable for SType {
                 let t_elem = get_embeddable_type(prim_id)?;
                 SType::SColl(Box::new(t_elem))
             }
-            _ => todo!(),
+            _ => Err(SerializationError::NotImplementedYet("".to_string()))?,
         };
         Ok(tpe)
     }

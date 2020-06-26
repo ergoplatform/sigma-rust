@@ -50,7 +50,9 @@ impl DataSerializer {
     ) -> Result<ConstantVal, SerializationError> {
         // for reference see http://github.com/ScorexFoundation/sigmastate-interpreter/blob/25251c1313b0131835f92099f02cef8a5d932b5e/sigmastate/src/main/scala/sigmastate/serialization/DataSerializer.scala#L84-L84
         let c = match tpe {
-            SAny => todo!(),
+            SAny => Err(SerializationError::NotImplementedYet(
+                "SAny parsing".to_string(),
+            ))?,
             SBoolean => Boolean(r.get_u8()? != 0),
             SByte => Byte(r.get_i8()?),
             SShort => Short(r.get_i16()?),
@@ -66,7 +68,9 @@ impl DataSerializer {
                         buf.into_iter().map(|v| v as i8).collect(),
                     ))
                 } else {
-                    todo!("handle the rest of supported collection types");
+                    Err(SerializationError::NotImplementedYet(
+                        "handle the rest of supported collection types".to_string(),
+                    ))?
                 }
             }
             STup(types) => {
@@ -77,7 +81,9 @@ impl DataSerializer {
                 Tup(items)
             }
 
-            _ => todo!("handle the rest of the constant types"),
+            _ => Err(SerializationError::NotImplementedYet(
+                "handle the rest of the constant types".to_string(),
+            ))?,
         };
         Ok(c)
     }

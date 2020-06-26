@@ -5,7 +5,7 @@ use std::io;
 use thiserror::Error;
 
 /// Ways serialization might fail
-#[derive(Error, Debug)]
+#[derive(Error, Eq, PartialEq, Debug, Clone)]
 pub enum SerializationError {
     /// Failed to parse op
     #[error("op parsing error")]
@@ -21,10 +21,13 @@ pub enum SerializationError {
     VlqEncode(vlq_encode::VlqEncodingError),
     /// IO fail (EOF, etc.)
     #[error("io error")]
-    Io(io::Error),
+    Io(String),
     /// Misc fail
     #[error("misc error")]
     Misc(String),
+    /// Feature not yet implemented
+    #[error("feature not yet implemented: {0}")]
+    NotImplementedYet(String),
 }
 
 impl From<vlq_encode::VlqEncodingError> for SerializationError {
@@ -35,7 +38,7 @@ impl From<vlq_encode::VlqEncodingError> for SerializationError {
 
 impl From<io::Error> for SerializationError {
     fn from(error: io::Error) -> Self {
-        SerializationError::Io(error)
+        SerializationError::Io(error.to_string())
     }
 }
 

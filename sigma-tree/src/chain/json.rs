@@ -18,27 +18,36 @@ where
 pub mod ergo_tree {
 
     use super::*;
-    use crate::ErgoTree;
+    use crate::{ErgoTree, ErgoTreeParsingError};
     use serde::{Deserialize, Deserializer, Serializer};
-    use std::convert::TryFrom;
+    use sigma_ser::serializer::SigmaSerializable;
 
-    pub fn serialize<S>(ergo_tree: &ErgoTree, serializer: S) -> Result<S::Ok, S::Error>
+    pub fn serialize<S>(
+        maybe_ergo_tree: &Result<ErgoTree, ErgoTreeParsingError>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
-        let bytes = ergo_tree.bytes();
+        let bytes = match maybe_ergo_tree {
+            Ok(ergo_tree) => ergo_tree.bytes(),
+            Err(err) => err.bytes.clone(),
+        };
         serialize_bytes(&bytes[..], serializer)
     }
 
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<ErgoTree, D::Error>
+    pub fn deserialize<'de, D>(
+        deserializer: D,
+    ) -> Result<Result<ErgoTree, ErgoTreeParsingError>, D::Error>
     where
         D: Deserializer<'de>,
     {
         use serde::de::Error;
         String::deserialize(deserializer)
             .and_then(|str| base16::decode(&str).map_err(|err| Error::custom(err.to_string())))
-            .and_then(|bytes| {
-                ErgoTree::try_from(bytes).map_err(|err| Error::custom(err.to_string()))
+            .map(|bytes| {
+                ErgoTree::sigma_parse_bytes(bytes.clone())
+                    .map_err(|error| ErgoTreeParsingError { bytes, error })
             })
     }
 }

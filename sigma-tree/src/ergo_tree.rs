@@ -3,12 +3,11 @@ use crate::{
     ast::{Constant, Expr},
     types::SType,
 };
-use io::Cursor;
 use sigma_ser::serializer::SerializationError;
 use sigma_ser::serializer::SigmaSerializable;
-use sigma_ser::{peekable_reader::PeekableReader, vlq_encode};
+use sigma_ser::vlq_encode;
 use std::io;
-use std::{convert::TryFrom, rc::Rc};
+use std::rc::Rc;
 use vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt};
 
 /** The root of ErgoScript IR. Serialized instances of this class are self sufficient and can be passed around.
@@ -23,6 +22,15 @@ pub struct ErgoTree {
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 struct ErgoTreeHeader(u8);
+
+/// ErgoTree parsing (deserialization) error
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct ErgoTreeParsingError {
+    /// Ergo tree bytes (faild to deserialize)
+    pub bytes: Vec<u8>,
+    /// Deserialization error
+    pub error: SerializationError,
+}
 
 impl ErgoTree {
     const DEFAULT_HEADER: ErgoTreeHeader = ErgoTreeHeader(0);
@@ -82,26 +90,19 @@ impl SigmaSerializable for ErgoTree {
     fn sigma_parse<R: ReadSigmaVlqExt>(r: &mut R) -> Result<Self, SerializationError> {
         let header = ErgoTreeHeader::sigma_parse(r)?;
         let constants_len = r.get_u32()?;
-        assert!(
-            constants_len == 0,
-            "separate constants serialization is not yet supported"
-        );
-        let constants = Vec::new();
-        let root = Expr::sigma_parse(r)?;
-        Ok(ErgoTree {
-            header,
-            constants,
-            root: Rc::new(root),
-        })
-    }
-}
-
-impl TryFrom<Vec<u8>> for ErgoTree {
-    type Error = SerializationError;
-    fn try_from(mut value: Vec<u8>) -> Result<Self, Self::Error> {
-        let cursor = Cursor::new(&mut value[..]);
-        let mut reader = PeekableReader::new(cursor);
-        ErgoTree::sigma_parse(&mut reader)
+        if constants_len != 0 {
+            Err(SerializationError::NotImplementedYet(
+                "separate constants serialization is not yet supported".to_string(),
+            ))
+        } else {
+            let constants = Vec::new();
+            let root = Expr::sigma_parse(r)?;
+            Ok(ErgoTree {
+                header,
+                constants,
+                root: Rc::new(root),
+            })
+        }
     }
 }
 
@@ -134,5 +135,13 @@ mod tests {
         fn ser_roundtrip(v in any::<ErgoTree>()) {
             prop_assert_eq![sigma_serialize_roundtrip(&(v)), v];
         }
+    }
+
+    #[test]
+    fn deserialization_fail() {
+        // constants length is set
+        assert!(ErgoTree::sigma_parse_bytes(vec![0, 1]).is_err());
+        // constants length is zero, but Expr is invalid
+        assert!(ErgoTree::sigma_parse_bytes(vec![0, 0, 1]).is_err());
     }
 }
