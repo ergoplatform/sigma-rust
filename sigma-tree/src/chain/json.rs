@@ -2,7 +2,8 @@
 
 mod base16_bytes;
 
-pub use base16_bytes::Base16Bytes;
+pub use base16_bytes::Base16DecodedBytes;
+pub use base16_bytes::Base16EncodedBytes;
 
 use serde::Serializer;
 

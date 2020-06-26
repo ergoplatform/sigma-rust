@@ -1,6 +1,9 @@
 //! Ergo transaction
 
-use super::{data_input::DataInput, ergo_box::ErgoBoxCandidate, input::Input, token::TokenId};
+use super::{
+    data_input::DataInput, digest32::Digest32, ergo_box::ErgoBoxCandidate, input::Input,
+    token::TokenId,
+};
 use indexmap::IndexSet;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
@@ -13,24 +16,19 @@ use std::convert::TryFrom;
 use std::io;
 use std::iter::FromIterator;
 
-/// Transaction id size in bytes
-pub const TX_ID_SIZE: usize = crate::chain::digest32::DIGEST32_SIZE;
-
 /// Transaction id (ModifierId in sigmastate)
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
 #[cfg_attr(test, derive(Arbitrary))]
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
-pub struct TxId([u8; TX_ID_SIZE]);
+pub struct TxId(pub Digest32);
 
 impl SigmaSerializable for TxId {
     fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
-        w.write_all(&self.0)?;
+        self.0.sigma_serialize(w)?;
         Ok(())
     }
     fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(r: &mut R) -> Result<Self, SerializationError> {
-        let mut bytes = [0; TX_ID_SIZE];
-        r.read_exact(&mut bytes)?;
-        Ok(Self(bytes))
+        Ok(Self(Digest32::sigma_parse(r)?.into()))
     }
 }
 
@@ -73,7 +71,7 @@ impl SigmaSerializable for Transaction {
         let token_ids: Vec<TokenId> = self
             .output_candidates
             .iter()
-            .flat_map(|b| b.tokens.iter().map(|t| t.token_id))
+            .flat_map(|b| b.tokens.iter().map(|t| t.token_id.clone()))
             .collect();
         let distinct_token_ids: IndexSet<TokenId> = IndexSet::from_iter(token_ids);
         w.put_u32(u32::try_from(distinct_token_ids.len()).unwrap())?;

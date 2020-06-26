@@ -97,7 +97,7 @@ impl ErgoBox {
 
     /// Box id (Blake2b256 hash of serialized box)
     pub fn box_id(&self) -> BoxId {
-        self.box_id
+        self.box_id.clone()
     }
 
     /// Create ErgoBox from ErgoBoxCandidate by adding transaction id
@@ -249,7 +249,7 @@ impl ErgoBoxCandidate {
                 Some(digests) => {
                     let digest_index = r.get_u32()?;
                     match digests.get_index(digest_index as usize) {
-                        Some(i) => Ok(*i),
+                        Some(i) => Ok((*i).clone()),
                         None => Err(SerializationError::Misc(
                             "failed to find token id in tx digests".to_string(),
                         )),

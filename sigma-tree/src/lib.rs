@@ -21,5 +21,6 @@ mod types;
 pub mod chain;
 pub mod sigma_protocol;
 
-pub use chain::Base16Bytes;
+pub use chain::Base16DecodedBytes;
+pub use chain::Base16EncodedBytes;
 pub use ergo_tree::*;

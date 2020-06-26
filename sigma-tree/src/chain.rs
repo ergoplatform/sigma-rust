@@ -19,5 +19,6 @@ pub use box_id::*;
 pub use contract::*;
 pub use ergo_box::*;
 pub use input::*;
-pub use json::Base16Bytes;
+pub use json::Base16DecodedBytes;
+pub use json::Base16EncodedBytes;
 pub use transaction::*;

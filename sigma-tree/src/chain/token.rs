@@ -1,24 +1,36 @@
 //! Token related types
 
-use core::fmt;
 use sigma_ser::serializer::SerializationError;
 use sigma_ser::serializer::SigmaSerializable;
 use sigma_ser::vlq_encode;
 use std::io;
 
-/// token id size in bytes
-pub const TOKEN_ID_SIZE: usize = crate::chain::digest32::DIGEST32_SIZE;
-
+use super::digest32::Digest32;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 #[cfg(feature = "with-serde")]
 use serde::{Deserialize, Serialize};
 
 /// newtype for token id
-#[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
+#[derive(PartialEq, Eq, Hash, Debug, Clone)]
 #[cfg_attr(test, derive(Arbitrary))]
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
-pub struct TokenId(pub [u8; TOKEN_ID_SIZE]);
+pub struct TokenId(pub Digest32);
+
+impl TokenId {
+    /// token id size in bytes
+    pub const SIZE: usize = Digest32::SIZE;
+}
+
+impl SigmaSerializable for TokenId {
+    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
+        self.0.sigma_serialize(w)?;
+        Ok(())
+    }
+    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(r: &mut R) -> Result<Self, SerializationError> {
+        Ok(Self(Digest32::sigma_parse(r)?.into()))
+    }
+}
 
 /// Token amount represented with token id paired with it's amount
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -26,32 +38,11 @@ pub struct TokenId(pub [u8; TOKEN_ID_SIZE]);
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct TokenAmount {
     /// token id
+    #[serde(rename = "tokenId")]
     pub token_id: TokenId,
     /// token amount
+    #[serde(rename = "amount")]
     pub amount: u64,
-}
-
-impl fmt::Display for TokenId {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut bytes = io::Cursor::new(Vec::new());
-        let _ = self.sigma_serialize(&mut bytes);
-
-        f.debug_tuple("TokenId")
-            .field(&base16::encode_lower(bytes.get_ref()))
-            .finish()
-    }
-}
-
-impl SigmaSerializable for TokenId {
-    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
-        w.write_all(&self.0)?;
-        Ok(())
-    }
-    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(r: &mut R) -> Result<Self, SerializationError> {
-        let mut bytes = [0; TOKEN_ID_SIZE];
-        r.read_exact(&mut bytes)?;
-        Ok(Self(bytes))
-    }
 }
 
 #[cfg(test)]
