@@ -74,4 +74,3 @@ pub trait SigmaSerializable: Sized {
         Self::sigma_parse(&mut reader)
     }
 }
-
