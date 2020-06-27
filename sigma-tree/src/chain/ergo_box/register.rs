@@ -64,22 +64,20 @@ impl TryFrom<String> for NonMandatoryRegisterId {
     fn try_from(str: String) -> Result<Self, Self::Error> {
         if str.len() != 2 {
             Err(NonMandatoryRegisterIdParsingError())
+        } else if &str[..1] != "R" {
+            Err(NonMandatoryRegisterIdParsingError())
         } else {
-            if &str[..1] != "R" {
-                Err(NonMandatoryRegisterIdParsingError())
+            let index = (&str[1..2])
+                .parse::<usize>()
+                .map_err(|_| NonMandatoryRegisterIdParsingError())?;
+            if index >= NonMandatoryRegisterId::START_INDEX
+                && index <= NonMandatoryRegisterId::END_INDEX
+            {
+                Ok(NonMandatoryRegisterId::get_by_index(
+                    index - NonMandatoryRegisterId::START_INDEX,
+                ))
             } else {
-                let index = (&str[1..2])
-                    .parse::<usize>()
-                    .map_err(|_| NonMandatoryRegisterIdParsingError())?;
-                if index >= NonMandatoryRegisterId::START_INDEX
-                    && index <= NonMandatoryRegisterId::END_INDEX
-                {
-                    Ok(NonMandatoryRegisterId::get_by_index(
-                        index - NonMandatoryRegisterId::START_INDEX,
-                    ))
-                } else {
-                    Err(NonMandatoryRegisterIdParsingError())
-                }
+                Err(NonMandatoryRegisterIdParsingError())
             }
         }
     }
