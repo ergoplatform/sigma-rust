@@ -101,6 +101,13 @@ matrix:
         - xcodebuild -project ./ErgoWallet.xcodeproj -xcconfig ./Config/Release.xcconfig -sdk iphoneos
         - xcodebuild -project ./ErgoWallet.xcodeproj -xcconfig ./Config/Release.xcconfig -sdk iphonesimulator
 
+    - name: test sigma-tree with default features
+      rust: stable
+      script:
+        - cd sigma-tree
+        - cargo test --verbose
+
+
 
 cache: cargo
 # But don't cache the cargo registry
