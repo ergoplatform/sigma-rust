@@ -21,6 +21,8 @@ mod types;
 pub mod chain;
 pub mod sigma_protocol;
 
+#[cfg(feature = "with-serde")]
 pub use chain::Base16DecodedBytes;
+#[cfg(feature = "with-serde")]
 pub use chain::Base16EncodedBytes;
 pub use ergo_tree::*;

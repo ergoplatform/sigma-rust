@@ -38,10 +38,10 @@ impl SigmaSerializable for TokenId {
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct TokenAmount {
     /// token id
-    #[serde(rename = "tokenId")]
+    #[cfg_attr(feature = "with-serde", serde(rename = "tokenId"))]
     pub token_id: TokenId,
     /// token amount
-    #[serde(rename = "amount")]
+    #[cfg_attr(feature = "with-serde", serde(rename = "amount"))]
     pub amount: u64,
 }
 

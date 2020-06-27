@@ -3,6 +3,7 @@
 pub mod box_value;
 pub mod register;
 
+#[cfg(feature = "with-serde")]
 use super::json;
 use super::{
     token::{TokenAmount, TokenId},
@@ -40,30 +41,33 @@ use std::io;
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ErgoBox {
-    #[serde(rename = "boxId")]
+    #[cfg_attr(feature = "with-serde", serde(rename = "boxId"))]
     box_id: BoxId,
     /// amount of money associated with the box
-    #[serde(rename = "value")]
+    #[cfg_attr(feature = "with-serde", serde(rename = "value"))]
     pub value: BoxValue,
     /// guarding script, which should be evaluated to true in order to open this box
-    #[serde(rename = "ergoTree", with = "json::ergo_tree")]
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(rename = "ergoTree", with = "json::ergo_tree")
+    )]
     pub ergo_tree: Result<ErgoTree, ErgoTreeParsingError>,
     /// secondary tokens the box contains
-    #[serde(rename = "assets")]
+    #[cfg_attr(feature = "with-serde", serde(rename = "assets"))]
     pub tokens: Vec<TokenAmount>,
     ///  additional registers the box can carry over
-    #[serde(rename = "additionalRegisters")]
+    #[cfg_attr(feature = "with-serde", serde(rename = "additionalRegisters"))]
     pub additional_registers: NonMandatoryRegisters,
     /// height when a transaction containing the box was created.
     /// This height is declared by user and should not exceed height of the block,
     /// containing the transaction with this box.
-    #[serde(rename = "creationHeight")]
+    #[cfg_attr(feature = "with-serde", serde(rename = "creationHeight"))]
     pub creation_height: u32,
     /// id of transaction which created the box
-    #[serde(rename = "transactionId")]
+    #[cfg_attr(feature = "with-serde", serde(rename = "transactionId"))]
     pub transaction_id: TxId,
     /// number of box (from 0 to total number of boxes the transaction with transactionId created - 1)
-    #[serde(rename = "index")]
+    #[cfg_attr(feature = "with-serde", serde(rename = "index"))]
     pub index: u16,
 }
 

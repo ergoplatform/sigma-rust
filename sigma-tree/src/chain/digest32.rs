@@ -1,5 +1,5 @@
-use crate::Base16DecodedBytes;
-use crate::Base16EncodedBytes;
+#[cfg(feature = "with-serde")]
+use crate::{Base16DecodedBytes, Base16EncodedBytes};
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 #[cfg(feature = "with-serde")]
@@ -8,10 +8,9 @@ use sigma_ser::{
     serializer::{SerializationError, SigmaSerializable},
     vlq_encode,
 };
-use std::{
-    convert::{TryFrom, TryInto},
-    io,
-};
+#[cfg(feature = "with-serde")]
+use std::convert::{TryFrom, TryInto};
+use std::io;
 use thiserror::Error;
 
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
@@ -39,12 +38,14 @@ impl From<[u8; Digest32::SIZE]> for Digest32 {
     }
 }
 
+#[cfg(feature = "with-serde")]
 impl Into<Base16EncodedBytes> for Digest32 {
     fn into(self) -> Base16EncodedBytes {
         Base16EncodedBytes::new(self.0.as_ref())
     }
 }
 
+#[cfg(feature = "with-serde")]
 impl TryFrom<Base16DecodedBytes> for Digest32 {
     type Error = Digest32Error;
     fn try_from(bytes: Base16DecodedBytes) -> Result<Self, Self::Error> {
