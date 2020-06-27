@@ -84,21 +84,17 @@ pub trait WriteSigmaVlqExt: io::Write {
         let mut buffer: [u8; 10] = [0; 10];
         let mut position = 0;
         let mut value = v;
-        // from https://github.com/ScorexFoundation/scorex-util/blob/3dc334f68ebefbfab6d33b57f2373e80245ab34d/src/main/scala/scorex/util/serialization/VLQWriter.scala#L97-L117
-        // original source: http://github.com/google/protobuf/blob/a7252bf42df8f0841cf3a0c85fdbf1a5172adecb/java/core/src/main/java/com/google/protobuf/CodedOutputStream.java#L1387
-        // see https://rosettacode.org/wiki/Variable-length_quantity for implementations in other languages
-        loop {
-            if (value & !0x7F) == 0 {
-                buffer[position] = value as u8;
-                position += 1;
-                break;
-            } else {
-                buffer[position] = (((value as u32) & 0x7F) | 0x80) as u8;
-                position += 1;
-                value >>= 7;
-            }
+
+        // Base 128 Varints encoding for unsigned integers
+        // https://developers.google.com/protocol-buffers/docs/encoding?csw=1#varints
+        while value >= 0x80 {
+            buffer[position] = (value as u8) | 0x80;
+            value >>= 7;
+            position += 1;
         }
-        Self::write_all(self, &buffer[..position])
+        buffer[position] = value as u8;
+
+        Self::write_all(self, &buffer[..position + 1])
     }
 }
 
