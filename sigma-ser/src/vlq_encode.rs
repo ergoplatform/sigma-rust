@@ -8,10 +8,10 @@ use peekable_reader::Peekable;
 use proptest::{num::u64, prelude::*};
 
 /// Ways VLQ encoding/decoding might fail
-#[derive(Debug)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum VlqEncodingError {
     /// IO fail (EOF, etc.)
-    Io(io::Error),
+    Io(String),
     /// value bounds check error
     TryFrom(std::num::TryFromIntError),
     /// Fail to decode a value from bytes
@@ -20,7 +20,7 @@ pub enum VlqEncodingError {
 
 impl From<io::Error> for VlqEncodingError {
     fn from(error: io::Error) -> Self {
-        VlqEncodingError::Io(error)
+        VlqEncodingError::Io(error.to_string())
     }
 }
 

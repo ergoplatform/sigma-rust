@@ -15,8 +15,7 @@ fn test_signed_p2pk_transaction() {
     let recipient = Address::from_testnet_str("").expect("failed");
 
     let outbox = ErgoBoxCandidate::new(1, 0, Contract::pay_to_address(recipient));
-    let out_boxes = [outbox.to_json().expect("failed")];
-    let tx_outputs = TxOutputs::from_boxes(Box::new(out_boxes));
+    let tx_outputs = TxOutputCandidates::new(outbox);
     let dummy_ctx = ErgoStateContext::dummy();
     let wallet = Wallet::from_mnemonic("", "");
     let res = wallet.new_signed_transaction(

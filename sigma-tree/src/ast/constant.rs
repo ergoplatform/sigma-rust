@@ -1,4 +1,12 @@
+#[cfg(feature = "with-serde")]
+use crate::chain::{Base16DecodedBytes, Base16EncodedBytes};
 use crate::{chain::ErgoBox, sigma_protocol::SigmaProp, types::SType};
+#[cfg(feature = "with-serde")]
+use serde::{Deserialize, Serialize};
+#[cfg(feature = "with-serde")]
+use sigma_ser::serializer::{SerializationError, SigmaSerializable};
+#[cfg(feature = "with-serde")]
+use std::convert::TryFrom;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum CollPrim {
@@ -33,9 +41,29 @@ impl ConstantVal {
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
+#[cfg_attr(
+    feature = "with-serde",
+    serde(into = "Base16EncodedBytes", try_from = "Base16DecodedBytes")
+)]
 pub struct Constant {
     pub tpe: SType,
     pub v: ConstantVal,
+}
+
+#[cfg(feature = "with-serde")]
+impl Into<Base16EncodedBytes> for Constant {
+    fn into(self) -> Base16EncodedBytes {
+        Base16EncodedBytes::new(&self.sigma_serialise_bytes())
+    }
+}
+
+#[cfg(feature = "with-serde")]
+impl TryFrom<Base16DecodedBytes> for Constant {
+    type Error = SerializationError;
+    fn try_from(bytes: Base16DecodedBytes) -> Result<Self, Self::Error> {
+        Constant::sigma_parse_bytes(bytes.0)
+    }
 }
 
 impl Constant {
@@ -101,12 +129,12 @@ mod tests {
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             prop_oneof![
-                any::<bool>().prop_map(|v| Constant::bool(v)),
-                any::<i8>().prop_map(|v| Constant::byte(v)),
-                any::<i16>().prop_map(|v| Constant::short(v)),
-                any::<i32>().prop_map(|v| Constant::int(v)),
-                any::<i64>().prop_map(|v| Constant::long(v)),
-                (vec(any::<i8>(), 0..100)).prop_map(|v| Constant::byte_array(v)),
+                any::<bool>().prop_map(Constant::bool),
+                any::<i8>().prop_map(Constant::byte),
+                any::<i16>().prop_map(Constant::short),
+                any::<i32>().prop_map(Constant::int),
+                any::<i64>().prop_map(Constant::long),
+                (vec(any::<i8>(), 0..100)).prop_map(Constant::byte_array),
             ]
             .boxed()
         }

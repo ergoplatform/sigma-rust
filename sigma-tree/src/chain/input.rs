@@ -1,20 +1,16 @@
-//! Transactio input
+//! Transaction input
 use sigma_ser::serializer::SerializationError;
 use sigma_ser::serializer::SigmaSerializable;
 use sigma_ser::vlq_encode;
 use std::io;
 
 use super::{box_id::BoxId, prover_result::ProverResult};
-#[cfg(test)]
-use proptest::prelude::*;
-#[cfg(test)]
-use proptest_derive::Arbitrary;
 #[cfg(feature = "with-serde")]
 use serde::{Deserialize, Serialize};
 
 /// Fully signed transaction input
 #[derive(PartialEq, Debug)]
-#[cfg_attr(test, derive(Arbitrary))]
+#[cfg_attr(test, derive(proptest_derive::Arbitrary))]
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct Input {
     /// id of the box to spent
@@ -42,6 +38,7 @@ impl SigmaSerializable for Input {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use proptest::prelude::*;
     use sigma_ser::test_helpers::sigma_serialize_roundtrip;
 
     proptest! {

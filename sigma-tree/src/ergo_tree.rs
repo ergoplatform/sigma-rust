@@ -3,8 +3,6 @@ use crate::{
     ast::{Constant, Expr},
     types::SType,
 };
-#[cfg(feature = "with-serde")]
-use serde::{Deserializer, Serializer};
 use sigma_ser::serializer::SerializationError;
 use sigma_ser::serializer::SigmaSerializable;
 use sigma_ser::vlq_encode;
@@ -25,9 +23,19 @@ pub struct ErgoTree {
 #[derive(PartialEq, Eq, Debug, Clone)]
 struct ErgoTreeHeader(u8);
 
+/// ErgoTree parsing (deserialization) error
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct ErgoTreeParsingError {
+    /// Ergo tree bytes (faild to deserialize)
+    pub bytes: Vec<u8>,
+    /// Deserialization error
+    pub error: SerializationError,
+}
+
 impl ErgoTree {
     const DEFAULT_HEADER: ErgoTreeHeader = ErgoTreeHeader(0);
 
+    // TODO: move to Into and From implementations
     /// get Expr out of ErgoTree
     pub fn proposition(&self) -> Rc<Expr> {
         self.root.clone()
@@ -43,6 +51,16 @@ impl ErgoTree {
             },
             _ => panic!("not yet supported"),
         }
+    }
+
+    /// Serialized ErgoTree
+    pub fn bytes(&self) -> Vec<u8> {
+        // TODO: expensive, store in the struct?
+        let mut data = Vec::new();
+        // since it can only fail from IO error only it's safe to unwrap
+        self.sigma_serialize(&mut data)
+            .expect("serialization failed");
+        data
     }
 }
 
@@ -72,40 +90,19 @@ impl SigmaSerializable for ErgoTree {
     fn sigma_parse<R: ReadSigmaVlqExt>(r: &mut R) -> Result<Self, SerializationError> {
         let header = ErgoTreeHeader::sigma_parse(r)?;
         let constants_len = r.get_u32()?;
-        assert!(
-            constants_len == 0,
-            "separate constants serialization is not yet supported"
-        );
-        let constants = Vec::new();
-        let root = Expr::sigma_parse(r)?;
-        Ok(ErgoTree {
-            header,
-            constants,
-            root: Rc::new(root),
-        })
-    }
-}
-
-#[cfg(feature = "with-serde")]
-impl serde::Serialize for ErgoTree {
-    fn serialize<S>(&self, s: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        // not implmented
-        // serialize ergo tree and encode as Base16
-        // https://github.com/ergoplatform/sigma-rust/issues/37
-        s.serialize_str("")
-    }
-}
-
-#[cfg(feature = "with-serde")]
-impl<'de> serde::Deserialize<'de> for ErgoTree {
-    fn deserialize<D>(_: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        todo!()
+        if constants_len != 0 {
+            Err(SerializationError::NotImplementedYet(
+                "separate constants serialization is not yet supported".to_string(),
+            ))
+        } else {
+            let constants = Vec::new();
+            let root = Expr::sigma_parse(r)?;
+            Ok(ErgoTree {
+                header,
+                constants,
+                root: Rc::new(root),
+            })
+        }
     }
 }
 
@@ -138,5 +135,13 @@ mod tests {
         fn ser_roundtrip(v in any::<ErgoTree>()) {
             prop_assert_eq![sigma_serialize_roundtrip(&(v)), v];
         }
+    }
+
+    #[test]
+    fn deserialization_fail() {
+        // constants length is set
+        assert!(ErgoTree::sigma_parse_bytes(vec![0, 1]).is_err());
+        // constants length is zero, but Expr is invalid
+        assert!(ErgoTree::sigma_parse_bytes(vec![0, 0, 1]).is_err());
     }
 }

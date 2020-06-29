@@ -49,25 +49,20 @@ impl DataSerializer {
         r: &mut R,
     ) -> Result<ConstantVal, SerializationError> {
         // for reference see http://github.com/ScorexFoundation/sigmastate-interpreter/blob/25251c1313b0131835f92099f02cef8a5d932b5e/sigmastate/src/main/scala/sigmastate/serialization/DataSerializer.scala#L84-L84
-        let c = match tpe {
-            SAny => todo!(),
+        Ok(match tpe {
             SBoolean => Boolean(r.get_u8()? != 0),
             SByte => Byte(r.get_i8()?),
             SShort => Short(r.get_i16()?),
             SInt => Int(r.get_i32()?),
             SLong => Long(r.get_i64()?),
             SSigmaProp => ConstantVal::sigma_prop(SigmaProp::new(SigmaBoolean::sigma_parse(r)?)),
-            SColl(elem_type) => {
+            SColl(elem_type) if **elem_type == SByte => {
                 let len = r.get_u16()? as usize;
-                if **elem_type == SByte {
-                    let mut buf = vec![0u8; len];
-                    r.read_exact(&mut buf)?;
-                    CollPrim(CollPrim::CollByte(
-                        buf.into_iter().map(|v| v as i8).collect(),
-                    ))
-                } else {
-                    todo!("handle the rest of supported collection types");
-                }
+                let mut buf = vec![0u8; len];
+                r.read_exact(&mut buf)?;
+                CollPrim(CollPrim::CollByte(
+                    buf.into_iter().map(|v| v as i8).collect(),
+                ))
             }
             STup(types) => {
                 let mut items = Vec::new();
@@ -77,8 +72,11 @@ impl DataSerializer {
                 Tup(items)
             }
 
-            _ => todo!("handle the rest of the constant types"),
-        };
-        Ok(c)
+            _ => {
+                return Err(SerializationError::NotImplementedYet(
+                    "handle the rest of the constant types".to_string(),
+                ))
+            }
+        })
     }
 }

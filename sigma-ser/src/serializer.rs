@@ -1,9 +1,11 @@
 use super::vlq_encode;
+use crate::peekable_reader::PeekableReader;
+use io::Cursor;
 use std::io;
 use thiserror::Error;
 
 /// Ways serialization might fail
-#[derive(Error, Debug)]
+#[derive(Error, Eq, PartialEq, Debug, Clone)]
 pub enum SerializationError {
     /// Failed to parse op
     #[error("op parsing error")]
@@ -19,10 +21,13 @@ pub enum SerializationError {
     VlqEncode(vlq_encode::VlqEncodingError),
     /// IO fail (EOF, etc.)
     #[error("io error")]
-    Io(io::Error),
+    Io(String),
     /// Misc fail
     #[error("misc error")]
     Misc(String),
+    /// Feature not yet implemented
+    #[error("feature not yet implemented: {0}")]
+    NotImplementedYet(String),
 }
 
 impl From<vlq_encode::VlqEncodingError> for SerializationError {
@@ -33,7 +38,7 @@ impl From<vlq_encode::VlqEncodingError> for SerializationError {
 
 impl From<io::Error> for SerializationError {
     fn from(error: io::Error) -> Self {
-        SerializationError::Io(error)
+        SerializationError::Io(error.to_string())
     }
 }
 
@@ -52,4 +57,20 @@ pub trait SigmaSerializable: Sized {
     /// `sigma-` prefix to alert the reader that the serialization in use
     /// is consensus-critical
     fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(r: &mut R) -> Result<Self, SerializationError>;
+
+    /// Serialize any SigmaSerializable value into bytes
+    fn sigma_serialise_bytes(&self) -> Vec<u8> {
+        let mut data = Vec::new();
+        self.sigma_serialize(&mut data)
+            // since serialization may fail only for underlying IO errors it's ok to force unwrap
+            .expect("serialization failed");
+        data
+    }
+
+    /// Parse `self` from the bytes
+    fn sigma_parse_bytes(mut bytes: Vec<u8>) -> Result<Self, SerializationError> {
+        let cursor = Cursor::new(&mut bytes[..]);
+        let mut reader = PeekableReader::new(cursor);
+        Self::sigma_parse(&mut reader)
+    }
 }
