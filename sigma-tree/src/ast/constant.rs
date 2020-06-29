@@ -1,6 +1,6 @@
-use crate::{chain::ErgoBox, sigma_protocol::SigmaProp, types::SType};
 #[cfg(feature = "with-serde")]
-use crate::{Base16DecodedBytes, Base16EncodedBytes};
+use crate::chain::{Base16DecodedBytes, Base16EncodedBytes};
+use crate::{chain::ErgoBox, sigma_protocol::SigmaProp, types::SType};
 #[cfg(feature = "with-serde")]
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "with-serde")]

@@ -1,5 +1,5 @@
 #[cfg(feature = "with-serde")]
-use crate::{Base16DecodedBytes, Base16EncodedBytes};
+use crate::chain::json::{Base16DecodedBytes, Base16EncodedBytes};
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 #[cfg(feature = "with-serde")]
