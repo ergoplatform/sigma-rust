@@ -116,7 +116,7 @@ mod tests {
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             prop_oneof![
                 primitive_type(),
-                primitive_type().prop_map(|prim| SType::new_scoll(prim)),
+                primitive_type().prop_map(SType::new_scoll),
             ]
             .boxed()
         }

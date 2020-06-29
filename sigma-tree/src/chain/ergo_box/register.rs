@@ -62,11 +62,7 @@ impl Into<String> for NonMandatoryRegisterId {
 impl TryFrom<String> for NonMandatoryRegisterId {
     type Error = NonMandatoryRegisterIdParsingError;
     fn try_from(str: String) -> Result<Self, Self::Error> {
-        if str.len() != 2 {
-            Err(NonMandatoryRegisterIdParsingError())
-        } else if &str[..1] != "R" {
-            Err(NonMandatoryRegisterIdParsingError())
-        } else {
+        if str.len() == 2 && &str[..1] == "R" {
             let index = (&str[1..2])
                 .parse::<usize>()
                 .map_err(|_| NonMandatoryRegisterIdParsingError())?;
@@ -79,6 +75,8 @@ impl TryFrom<String> for NonMandatoryRegisterId {
             } else {
                 Err(NonMandatoryRegisterIdParsingError())
             }
+        } else {
+            Err(NonMandatoryRegisterIdParsingError())
         }
     }
 }

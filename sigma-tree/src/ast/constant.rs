@@ -129,12 +129,12 @@ mod tests {
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             prop_oneof![
-                any::<bool>().prop_map(|v| Constant::bool(v)),
-                any::<i8>().prop_map(|v| Constant::byte(v)),
-                any::<i16>().prop_map(|v| Constant::short(v)),
-                any::<i32>().prop_map(|v| Constant::int(v)),
-                any::<i64>().prop_map(|v| Constant::long(v)),
-                (vec(any::<i8>(), 0..100)).prop_map(|v| Constant::byte_array(v)),
+                any::<bool>().prop_map(Constant::bool),
+                any::<i8>().prop_map(Constant::byte),
+                any::<i16>().prop_map(Constant::short),
+                any::<i32>().prop_map(Constant::int),
+                any::<i64>().prop_map(Constant::long),
+                (vec(any::<i8>(), 0..100)).prop_map(Constant::byte_array),
             ]
             .boxed()
         }

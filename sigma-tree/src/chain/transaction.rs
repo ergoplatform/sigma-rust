@@ -28,7 +28,7 @@ impl SigmaSerializable for TxId {
         Ok(())
     }
     fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(r: &mut R) -> Result<Self, SerializationError> {
-        Ok(Self(Digest32::sigma_parse(r)?.into()))
+        Ok(Self(Digest32::sigma_parse(r)?))
     }
 }
 

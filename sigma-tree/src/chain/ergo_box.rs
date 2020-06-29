@@ -217,7 +217,7 @@ impl ErgoBoxCandidate {
 
         self.additional_registers
             .get_ordered_values()
-            .into_iter()
+            .iter()
             .try_for_each(|c| c.sigma_serialize(w))?;
 
         Ok(())

@@ -153,7 +153,7 @@ mod tests {
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            (any::<SigmaBoolean>()).prop_map(|sb| SigmaProp(sb)).boxed()
+            (any::<SigmaBoolean>()).prop_map(SigmaProp).boxed()
         }
     }
 }

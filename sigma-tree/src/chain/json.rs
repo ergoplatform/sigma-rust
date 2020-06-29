@@ -58,7 +58,6 @@ mod tests {
     // use super::*;
     use proptest::prelude::*;
     use register::NonMandatoryRegisters;
-    use serde_json;
 
     proptest! {
 

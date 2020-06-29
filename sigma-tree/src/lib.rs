@@ -9,6 +9,8 @@
 #![deny(dead_code)]
 #![deny(unused_imports)]
 #![deny(missing_docs)]
+// Clippy exclusions
+#![allow(clippy::unit_arg)]
 
 mod ast;
 mod constants;
