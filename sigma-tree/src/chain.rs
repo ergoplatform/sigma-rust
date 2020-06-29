@@ -24,3 +24,4 @@ pub use json::Base16DecodedBytes;
 #[cfg(feature = "with-serde")]
 pub use json::Base16EncodedBytes;
 pub use transaction::*;
+pub use token::*;
