@@ -35,32 +35,22 @@ pub struct ErgoTreeParsingError {
 impl ErgoTree {
     const DEFAULT_HEADER: ErgoTreeHeader = ErgoTreeHeader(0);
 
-    // TODO: move to Into and From implementations
     /// get Expr out of ErgoTree
     pub fn proposition(&self) -> Rc<Expr> {
         self.root.clone()
     }
+}
 
-    /// build ErgoTree from an Expr
-    pub fn from_proposition(expr: Rc<Expr>) -> ErgoTree {
+impl From<Rc<Expr>> for ErgoTree {
+    fn from(expr: Rc<Expr>) -> Self {
         match &*expr {
             Expr::Const(c) if c.tpe == SType::SSigmaProp => ErgoTree {
                 header: ErgoTree::DEFAULT_HEADER,
                 constants: Vec::new(),
-                root: expr.clone(),
+                root: expr,
             },
             _ => panic!("not yet supported"),
         }
-    }
-
-    /// Serialized ErgoTree
-    pub fn bytes(&self) -> Vec<u8> {
-        // TODO: expensive, store in the struct?
-        let mut data = Vec::new();
-        // since it can only fail from IO error only it's safe to unwrap
-        self.sigma_serialize(&mut data)
-            .expect("serialization failed");
-        data
     }
 }
 
@@ -120,7 +110,7 @@ mod tests {
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             (any::<SigmaProp>())
                 .prop_map(|p| {
-                    ErgoTree::from_proposition(Rc::new(Expr::Const(Constant {
+                    ErgoTree::from(Rc::new(Expr::Const(Constant {
                         tpe: SType::SSigmaProp,
                         v: ConstantVal::SigmaProp(Box::new(p)),
                     })))

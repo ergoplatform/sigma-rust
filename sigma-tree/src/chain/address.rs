@@ -86,7 +86,7 @@ impl Address for P2PKAddress {
         AddressTypePrefix::P2PKAddress
     }
     fn script(&self) -> ErgoTree {
-        ErgoTree::from_proposition(Rc::new(Expr::Const(Constant::sigma_prop(SigmaProp::new(
+        ErgoTree::from(Rc::new(Expr::Const(Constant::sigma_prop(SigmaProp::new(
             SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(
                 self.pubkey.clone(),
             )),

@@ -174,7 +174,7 @@ impl TryFrom<json::ergo_box::ErgoBoxFromJson> for ErgoBox {
 impl SigmaSerializable for ErgoBox {
     fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
         let ergo_tree_bytes = match &self.ergo_tree {
-            Ok(ergo_tree) => ergo_tree.bytes(),
+            Ok(ergo_tree) => ergo_tree.sigma_serialise_bytes(),
             Err(ErgoTreeParsingError { bytes, .. }) => bytes.clone(),
         };
         serialize_box_with_indexed_digests(
@@ -237,7 +237,7 @@ impl ErgoBoxCandidate {
     ) -> Result<(), io::Error> {
         serialize_box_with_indexed_digests(
             &self.value,
-            self.ergo_tree.bytes(),
+            self.ergo_tree.sigma_serialise_bytes(),
             &self.tokens,
             &self.additional_registers,
             self.creation_height,

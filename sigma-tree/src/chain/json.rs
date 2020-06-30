@@ -30,7 +30,7 @@ pub mod ergo_tree {
         S: Serializer,
     {
         let bytes = match maybe_ergo_tree {
-            Ok(ergo_tree) => ergo_tree.bytes(),
+            Ok(ergo_tree) => ergo_tree.sigma_serialise_bytes(),
             Err(err) => err.bytes.clone(),
         };
         serialize_bytes(&bytes[..], serializer)
