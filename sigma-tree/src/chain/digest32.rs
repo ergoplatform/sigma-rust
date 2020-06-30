@@ -11,7 +11,8 @@ use sigma_ser::{
     vlq_encode,
 };
 #[cfg(feature = "with-serde")]
-use std::convert::{TryFrom, TryInto};
+use std::convert::TryFrom;
+use std::convert::TryInto;
 use std::io;
 use thiserror::Error;
 
