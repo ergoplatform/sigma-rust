@@ -52,6 +52,50 @@ pub mod ergo_tree {
     }
 }
 
+pub mod ergo_box {
+    use crate::{
+        chain::{box_value::BoxValue, register::NonMandatoryRegisters, BoxId, TokenAmount, TxId},
+        ErgoTree, ErgoTreeParsingError,
+    };
+    use serde::Deserialize;
+    use thiserror::Error;
+
+    #[derive(Deserialize, PartialEq, Eq, Debug, Clone)]
+    pub struct ErgoBoxFromJson {
+        #[serde(rename = "boxId")]
+        pub box_id: BoxId,
+        /// amount of money associated with the box
+        #[serde(rename = "value")]
+        pub value: BoxValue,
+        /// guarding script, which should be evaluated to true in order to open this box
+        #[serde(rename = "ergoTree", with = "super::ergo_tree")]
+        pub ergo_tree: Result<ErgoTree, ErgoTreeParsingError>,
+        /// secondary tokens the box contains
+        #[serde(rename = "assets")]
+        pub tokens: Vec<TokenAmount>,
+        ///  additional registers the box can carry over
+        #[serde(rename = "additionalRegisters")]
+        pub additional_registers: NonMandatoryRegisters,
+        /// height when a transaction containing the box was created.
+        /// This height is declared by user and should not exceed height of the block,
+        /// containing the transaction with this box.
+        #[serde(rename = "creationHeight")]
+        pub creation_height: u32,
+        /// id of transaction which created the box
+        #[serde(rename = "transactionId")]
+        pub transaction_id: TxId,
+        /// number of box (from 0 to total number of boxes the transaction with transactionId created - 1)
+        #[serde(rename = "index")]
+        pub index: u16,
+    }
+
+    #[derive(Error, PartialEq, Eq, Debug, Clone)]
+    pub enum ErgoBoxFromJsonError {
+        #[error("Box id parsed from JSON differs from calculated from box serialized bytes")]
+        InvalidBoxId,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::super::ergo_box::*;
