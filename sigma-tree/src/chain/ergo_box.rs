@@ -6,6 +6,7 @@ pub mod register;
 #[cfg(feature = "with-serde")]
 use super::json;
 use super::{
+    digest32::blake2b256_hash,
     token::{TokenAmount, TokenId},
     BoxId, TxId,
 };
@@ -132,9 +133,8 @@ impl ErgoBox {
     }
 
     fn calc_box_id(&self) -> BoxId {
-        // let _bytes = self.sigma_serialise_bytes();
-        // TODO: use blake2b256 hash
-        BoxId::zero()
+        let bytes = self.sigma_serialise_bytes();
+        BoxId(blake2b256_hash(&bytes))
     }
 }
 

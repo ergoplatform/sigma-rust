@@ -1,5 +1,7 @@
 #[cfg(feature = "with-serde")]
 use crate::chain::json::{Base16DecodedBytes, Base16EncodedBytes};
+use blake2::digest::{Update, VariableOutput};
+use blake2::VarBlake2b;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 #[cfg(feature = "with-serde")]
@@ -30,6 +32,15 @@ impl Digest32 {
     pub fn zero() -> Digest32 {
         Digest32(Box::new([0u8; Digest32::SIZE]))
     }
+}
+
+pub fn blake2b256_hash(bytes: &[u8]) -> Digest32 {
+    // unwrap is safe 32 bytes is a valid hash size (<= 512 && 32 % 8 == 0)
+    let mut hasher = VarBlake2b::new(Digest32::SIZE).unwrap();
+    hasher.update(bytes);
+    let hash = hasher.finalize_boxed();
+    // unwrap is safe due to hash size is expected to be Digest32::SIZE
+    Digest32(hash.try_into().unwrap())
 }
 
 impl From<[u8; Digest32::SIZE]> for Digest32 {
