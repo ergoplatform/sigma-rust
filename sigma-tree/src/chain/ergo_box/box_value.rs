@@ -77,8 +77,7 @@ mod tests {
         type Parameters = ();
         type Strategy = BoxedStrategy<Self>;
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            // TODO: should be in 1 - i64.max range
-            any::<u64>().prop_map(BoxValue).boxed()
+            (1..i64::MAX).prop_map(|v| BoxValue(v as u64)).boxed()
         }
     }
 }
