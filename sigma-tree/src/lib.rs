@@ -12,7 +12,7 @@
 // Clippy exclusions
 #![allow(clippy::unit_arg)]
 
-mod ast;
+pub mod ast;
 mod constants;
 mod ecpoint;
 mod ergo_tree;
