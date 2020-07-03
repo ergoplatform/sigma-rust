@@ -146,14 +146,11 @@ impl Constant {
         }
     }
 
-    /// Create int array value constant
-    pub fn int_array(v: Vec<i32>) -> Constant {
+    /// Lift value into Constant
+    pub fn lift<T: WrapSType>(v: T) -> Constant {
         Constant {
-            tpe: SType::SColl(Box::new(SType::SInt)),
-            v: ConstantVal::Coll {
-                elem_tpe: SType::SInt,
-                v: CollElems::NonPrimitive(v.into_iter().map(ConstantVal::Int).collect()),
-            },
+            tpe: T::tpe(),
+            v: T::lift(v),
         }
     }
 
@@ -163,6 +160,46 @@ impl Constant {
             tpe: SType::SSigmaProp,
             v: ConstantVal::sigma_prop(prop),
         }
+    }
+}
+
+// TODO: remove Constant::int, long, etc.
+// TODO: rename? split?
+/// TODO
+pub trait WrapSType {
+    /// TODO
+    fn tpe() -> SType;
+    /// TODO
+    fn lift(v: Self) -> ConstantVal;
+}
+
+impl WrapSType for Vec<i32> {
+    fn tpe() -> SType {
+        SType::SColl(Box::new(SType::SInt))
+    }
+    fn lift(v: Self) -> ConstantVal {
+        ConstantVal::Coll {
+            elem_tpe: SType::SInt,
+            v: CollElems::NonPrimitive(v.into_iter().map(ConstantVal::Int).collect()),
+        }
+    }
+}
+
+impl WrapSType for i32 {
+    fn tpe() -> SType {
+        SType::SInt
+    }
+    fn lift(v: Self) -> ConstantVal {
+        ConstantVal::Int(v)
+    }
+}
+
+impl WrapSType for i64 {
+    fn tpe() -> SType {
+        SType::SInt
+    }
+    fn lift(v: Self) -> ConstantVal {
+        ConstantVal::Long(v)
     }
 }
 
@@ -184,7 +221,7 @@ mod tests {
                 any::<i32>().prop_map(Constant::int),
                 any::<i64>().prop_map(Constant::long),
                 (vec(any::<i8>(), 0..100)).prop_map(Constant::byte_array),
-                (vec(any::<i32>(), 0..100)).prop_map(Constant::int_array),
+                (vec(any::<i32>(), 0..100)).prop_map(Constant::lift),
             ]
             .boxed()
         }
