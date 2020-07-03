@@ -11,20 +11,21 @@ use std::convert::TryFrom;
 #[derive(PartialEq, Eq, Debug, Clone)]
 /// Collection for primitive values (i.e byte array)
 pub enum CollPrim {
-    /// Collection of bools
-    CollBoolean(Vec<bool>),
     /// Collection of bytes
     CollByte(Vec<i8>),
-    /// Collection of shorts
-    CollShort(Vec<i16>),
-    /// Collection of ints
-    CollInt(Vec<i32>),
-    /// Collection of longs
-    CollLong(Vec<i64>),
 }
 
+/// Collection elements
 #[derive(PartialEq, Eq, Debug, Clone)]
+pub enum CollElems {
+    /// Collection elements stored as a vector of primitive types
+    Primitive(CollPrim),
+    /// Collection elements stored as a vector of ConstantVals
+    NonPrimitive(Vec<ConstantVal>),
+}
+
 /// Constant value
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub enum ConstantVal {
     /// Boolean
     Boolean(bool),
@@ -46,10 +47,13 @@ pub enum ConstantVal {
     CBox(Box<ErgoBox>),
     /// AVL tree
     AvlTree,
-    /// Collection of primitive values
-    CollPrim(CollPrim),
-    /// Collection of same type constant value
-    Coll(Vec<ConstantVal>),
+    /// Collection of values of the same type
+    Coll {
+        /// Collection element type
+        elem_tpe: SType,
+        /// Collection elements
+        v: CollElems,
+    },
     /// Tuple (arbitrary type values)
     Tup(Vec<ConstantVal>),
 }
@@ -135,7 +139,21 @@ impl Constant {
     pub fn byte_array(v: Vec<i8>) -> Constant {
         Constant {
             tpe: SType::SColl(Box::new(SType::SByte)),
-            v: ConstantVal::CollPrim(CollPrim::CollByte(v)),
+            v: ConstantVal::Coll {
+                elem_tpe: SType::SByte,
+                v: CollElems::Primitive(CollPrim::CollByte(v)),
+            },
+        }
+    }
+
+    /// Create int array value constant
+    pub fn int_array(v: Vec<i32>) -> Constant {
+        Constant {
+            tpe: SType::SColl(Box::new(SType::SInt)),
+            v: ConstantVal::Coll {
+                elem_tpe: SType::SInt,
+                v: CollElems::NonPrimitive(v.into_iter().map(ConstantVal::Int).collect()),
+            },
         }
     }
 
@@ -166,6 +184,7 @@ mod tests {
                 any::<i32>().prop_map(Constant::int),
                 any::<i64>().prop_map(Constant::long),
                 (vec(any::<i8>(), 0..100)).prop_map(Constant::byte_array),
+                (vec(any::<i32>(), 0..100)).prop_map(Constant::int_array),
             ]
             .boxed()
         }

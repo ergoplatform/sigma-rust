@@ -1,5 +1,9 @@
 use crate::{
-    ast::CollPrim, ast::ConstantVal, ast::ConstantVal::*, sigma_protocol, types::SType,
+    ast::ConstantVal,
+    ast::ConstantVal::*,
+    ast::{CollElems, CollPrim},
+    sigma_protocol,
+    types::SType,
     types::SType::*,
 };
 use sigma_protocol::{SigmaBoolean, SigmaProp};
@@ -28,18 +32,23 @@ impl DataSerializer {
             SigmaProp(s) => s.value().sigma_serialize(w),
             CBox(_) => todo!(),
             AvlTree => todo!(),
-            ConstantVal::CollPrim(c) => match c {
-                CollPrim::CollByte(b) => {
+            Coll { elem_tpe, v } if *elem_tpe == SByte => match v {
+                CollElems::Primitive(CollPrim::CollByte(b)) => {
                     w.put_usize_as_u16(b.len())?;
                     let ba: Vec<u8> = b.iter().map(|v| *v as u8).collect();
                     w.write_all(&ba[..])
                 }
-                CollPrim::CollBoolean(_) => todo!(),
-                CollPrim::CollShort(_) => todo!(),
-                CollPrim::CollInt(_) => todo!(),
-                CollPrim::CollLong(_) => todo!(),
+                _ => todo!(),
             },
-            Coll(_) => todo!(),
+            Coll { elem_tpe: _, v } => match v {
+                CollElems::NonPrimitive(elems) => {
+                    w.put_usize_as_u16(elems.len())?;
+                    elems
+                        .iter()
+                        .try_for_each(|e| DataSerializer::sigma_serialize(e, w))
+                }
+                _ => todo!(),
+            },
             Tup(_) => todo!(),
         }
     }
@@ -60,9 +69,23 @@ impl DataSerializer {
                 let len = r.get_u16()? as usize;
                 let mut buf = vec![0u8; len];
                 r.read_exact(&mut buf)?;
-                CollPrim(CollPrim::CollByte(
-                    buf.into_iter().map(|v| v as i8).collect(),
-                ))
+                Coll {
+                    elem_tpe: SByte,
+                    v: CollElems::Primitive(CollPrim::CollByte(
+                        buf.into_iter().map(|v| v as i8).collect(),
+                    )),
+                }
+            }
+            SColl(elem_type) if **elem_type == SInt => {
+                let len = r.get_u16()? as usize;
+                let mut ints = Vec::with_capacity(len as usize);
+                for _ in 0..len {
+                    ints.push(DataSerializer::sigma_parse(&SInt, r)?);
+                }
+                Coll {
+                    elem_tpe: SInt,
+                    v: CollElems::NonPrimitive(ints),
+                }
             }
             STup(types) => {
                 let mut items = Vec::new();
@@ -72,10 +95,11 @@ impl DataSerializer {
                 Tup(items)
             }
 
-            _ => {
-                return Err(SerializationError::NotImplementedYet(
-                    "handle the rest of the constant types".to_string(),
-                ))
+            c => {
+                return Err(SerializationError::NotImplementedYet(format!(
+                    "parsing of constant value of type {:?} is not yet supported",
+                    c
+                )))
             }
         })
     }
