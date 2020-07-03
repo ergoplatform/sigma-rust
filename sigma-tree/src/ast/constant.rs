@@ -9,32 +9,53 @@ use sigma_ser::serializer::{SerializationError, SigmaSerializable};
 use std::convert::TryFrom;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
+/// Collection for primitive values (i.e byte array)
 pub enum CollPrim {
+    /// Collection of bools
     CollBoolean(Vec<bool>),
+    /// Collection of bytes
     CollByte(Vec<i8>),
+    /// Collection of shorts
     CollShort(Vec<i16>),
+    /// Collection of ints
     CollInt(Vec<i32>),
+    /// Collection of longs
     CollLong(Vec<i64>),
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]
+/// Constant value
 pub enum ConstantVal {
+    /// Boolean
     Boolean(bool),
+    /// Byte
     Byte(i8),
+    /// Short
     Short(i16),
+    /// Int
     Int(i32),
+    /// Long
     Long(i64),
+    /// Big integer
     BigInt,
+    /// GroupElement
     GroupElement,
+    /// Sigma property
     SigmaProp(Box<SigmaProp>),
+    /// Box
     CBox(Box<ErgoBox>),
+    /// AVL tree
     AvlTree,
+    /// Collection of primitive values
     CollPrim(CollPrim),
+    /// Collection of same type constant value
     Coll(Vec<ConstantVal>),
+    /// Tuple (arbitrary type values)
     Tup(Vec<ConstantVal>),
 }
 
 impl ConstantVal {
+    /// Create Sigma property constant
     pub fn sigma_prop(prop: SigmaProp) -> ConstantVal {
         ConstantVal::SigmaProp(Box::new(prop))
     }
@@ -46,8 +67,11 @@ impl ConstantVal {
     feature = "with-serde",
     serde(into = "Base16EncodedBytes", try_from = "Base16DecodedBytes")
 )]
+/// Constant
 pub struct Constant {
+    /// Constant type
     pub tpe: SType,
+    /// Constant value
     pub v: ConstantVal,
 }
 
@@ -67,6 +91,7 @@ impl TryFrom<Base16DecodedBytes> for Constant {
 }
 
 impl Constant {
+    /// Create bool value constant
     pub fn bool(v: bool) -> Constant {
         Constant {
             tpe: SType::SBoolean,
@@ -74,6 +99,7 @@ impl Constant {
         }
     }
 
+    /// Create byte value constant
     pub fn byte(v: i8) -> Constant {
         Constant {
             tpe: SType::SByte,
@@ -81,6 +107,7 @@ impl Constant {
         }
     }
 
+    /// Create short value constant
     pub fn short(v: i16) -> Constant {
         Constant {
             tpe: SType::SShort,
@@ -88,6 +115,7 @@ impl Constant {
         }
     }
 
+    /// Create int value constant
     pub fn int(v: i32) -> Constant {
         Constant {
             tpe: SType::SInt,
@@ -95,6 +123,7 @@ impl Constant {
         }
     }
 
+    /// Create long value constant
     pub fn long(v: i64) -> Constant {
         Constant {
             tpe: SType::SLong,
@@ -102,6 +131,7 @@ impl Constant {
         }
     }
 
+    /// Create byte array value constant
     pub fn byte_array(v: Vec<i8>) -> Constant {
         Constant {
             tpe: SType::SColl(Box::new(SType::SByte)),
@@ -109,6 +139,7 @@ impl Constant {
         }
     }
 
+    /// Create Sigma property constant
     pub fn sigma_prop(prop: SigmaProp) -> Constant {
         Constant {
             tpe: SType::SSigmaProp,
