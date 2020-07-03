@@ -76,15 +76,15 @@ impl DataSerializer {
                     )),
                 }
             }
-            SColl(elem_type) if **elem_type == SInt => {
+            SColl(elem_type) => {
                 let len = r.get_u16()? as usize;
-                let mut ints = Vec::with_capacity(len as usize);
+                let mut elems = Vec::with_capacity(len as usize);
                 for _ in 0..len {
-                    ints.push(DataSerializer::sigma_parse(&SInt, r)?);
+                    elems.push(DataSerializer::sigma_parse(elem_type, r)?);
                 }
                 Coll {
-                    elem_tpe: SInt,
-                    v: CollElems::NonPrimitive(ints),
+                    elem_tpe: *elem_type.clone(),
+                    v: CollElems::NonPrimitive(elems),
                 }
             }
             STup(types) => {
