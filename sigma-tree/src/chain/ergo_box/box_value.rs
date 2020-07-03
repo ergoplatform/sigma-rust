@@ -13,7 +13,7 @@ pub struct BoxValue(u64);
 
 impl BoxValue {
     const MIN_RAW: u64 = 1;
-    const MAX_RAW: u64 = i64::MAX as u64;
+    const MAX_RAW: u64 = std::i64::MAX as u64;
 
     /// Minimal value
     pub const MIN: BoxValue = BoxValue(BoxValue::MIN_RAW);
