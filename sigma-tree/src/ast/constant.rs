@@ -103,14 +103,6 @@ impl Constant {
         }
     }
 
-    /// Create byte value constant
-    pub fn byte(v: i8) -> Constant {
-        Constant {
-            tpe: SType::SByte,
-            v: ConstantVal::Byte(v),
-        }
-    }
-
     /// Create short value constant
     pub fn short(v: i16) -> Constant {
         Constant {
@@ -135,25 +127,6 @@ impl Constant {
         }
     }
 
-    /// Create byte array value constant
-    pub fn byte_array(v: Vec<i8>) -> Constant {
-        Constant {
-            tpe: SType::SColl(Box::new(SType::SByte)),
-            v: ConstantVal::Coll {
-                elem_tpe: SType::SByte,
-                v: CollElems::Primitive(CollPrim::CollByte(v)),
-            },
-        }
-    }
-
-    /// Lift value into Constant
-    pub fn lift<T: WrapSType>(v: T) -> Constant {
-        Constant {
-            tpe: T::tpe(),
-            v: T::lift(v),
-        }
-    }
-
     /// Create Sigma property constant
     pub fn sigma_prop(prop: SigmaProp) -> Constant {
         Constant {
@@ -164,42 +137,93 @@ impl Constant {
 }
 
 // TODO: remove Constant::int, long, etc.
-// TODO: rename? split?
-/// TODO
-pub trait WrapSType {
-    /// TODO
-    fn tpe() -> SType;
-    /// TODO
-    fn lift(v: Self) -> ConstantVal;
+
+/// Conversion to SType
+pub trait LiftIntoSType {
+    /// get SType
+    fn stype() -> SType;
 }
 
-impl WrapSType for Vec<i32> {
-    fn tpe() -> SType {
-        SType::SColl(Box::new(SType::SInt))
+impl Into<ConstantVal> for i8 {
+    fn into(self) -> ConstantVal {
+        ConstantVal::Byte(self)
     }
-    fn lift(v: Self) -> ConstantVal {
-        ConstantVal::Coll {
-            elem_tpe: SType::SInt,
-            v: CollElems::NonPrimitive(v.into_iter().map(ConstantVal::Int).collect()),
+}
+
+impl Into<ConstantVal> for i32 {
+    fn into(self) -> ConstantVal {
+        ConstantVal::Int(self)
+    }
+}
+
+impl Into<Constant> for i8 {
+    fn into(self) -> Constant {
+        Constant {
+            tpe: i8::stype(),
+            v: self.into(),
         }
     }
 }
 
-impl WrapSType for i32 {
-    fn tpe() -> SType {
-        SType::SInt
-    }
-    fn lift(v: Self) -> ConstantVal {
-        ConstantVal::Int(v)
+impl Into<Constant> for i32 {
+    fn into(self) -> Constant {
+        Constant {
+            tpe: i32::stype(),
+            v: self.into(),
+        }
     }
 }
 
-impl WrapSType for i64 {
-    fn tpe() -> SType {
+impl<T: LiftIntoSType> LiftIntoSType for Vec<T> {
+    fn stype() -> SType {
+        SType::SColl(Box::new(T::stype()))
+    }
+}
+
+impl LiftIntoSType for i32 {
+    fn stype() -> SType {
         SType::SInt
     }
-    fn lift(v: Self) -> ConstantVal {
-        ConstantVal::Long(v)
+}
+
+impl LiftIntoSType for i8 {
+    fn stype() -> SType {
+        SType::SByte
+    }
+}
+
+/// Marker trait to select types for which CollElems::NonPrimitive is used to store elements as Vec<ConstantVal>
+pub trait StoredNonPrimitive {}
+
+impl StoredNonPrimitive for i32 {}
+
+impl<T: LiftIntoSType + StoredNonPrimitive + Into<ConstantVal>> Into<ConstantVal> for Vec<T> {
+    fn into(self) -> ConstantVal {
+        ConstantVal::Coll {
+            elem_tpe: T::stype(),
+            v: CollElems::NonPrimitive(self.into_iter().map(|i| i.into()).collect()),
+        }
+    }
+}
+
+impl Into<Constant> for Vec<i8> {
+    fn into(self) -> Constant {
+        Constant {
+            tpe: SType::SColl(Box::new(SType::SByte)),
+            v: ConstantVal::Coll {
+                elem_tpe: SType::SByte,
+                v: CollElems::Primitive(CollPrim::CollByte(self)),
+            },
+        }
+    }
+}
+
+impl<T: LiftIntoSType + StoredNonPrimitive + Into<ConstantVal>> Into<Constant> for Vec<T> {
+    fn into(self) -> Constant {
+        Constant {
+            tpe: Self::stype(),
+            v: self.into(),
+        }
     }
 }
 
@@ -216,12 +240,12 @@ mod tests {
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             prop_oneof![
                 any::<bool>().prop_map(Constant::bool),
-                any::<i8>().prop_map(Constant::byte),
+                any::<i8>().prop_map_into(),
                 any::<i16>().prop_map(Constant::short),
-                any::<i32>().prop_map(Constant::int),
+                any::<i32>().prop_map_into(),
                 any::<i64>().prop_map(Constant::long),
-                (vec(any::<i8>(), 0..100)).prop_map(Constant::byte_array),
-                (vec(any::<i32>(), 0..100)).prop_map(Constant::lift),
+                (vec(any::<i8>(), 0..100)).prop_map_into(),
+                (vec(any::<i32>(), 0..100)).prop_map_into(),
             ]
             .boxed()
         }
