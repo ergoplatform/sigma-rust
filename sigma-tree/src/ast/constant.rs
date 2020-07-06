@@ -1,6 +1,10 @@
 #[cfg(feature = "with-serde")]
 use crate::chain::{Base16DecodedBytes, Base16EncodedBytes};
-use crate::{chain::ErgoBox, sigma_protocol::SigmaProp, types::SType};
+use crate::{
+    chain::ErgoBox,
+    sigma_protocol::SigmaProp,
+    types::{LiftIntoSType, SType},
+};
 #[cfg(feature = "with-serde")]
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "with-serde")]
@@ -15,13 +19,37 @@ pub enum CollPrim {
     CollByte(Vec<i8>),
 }
 
+impl CollPrim {
+    /// Collection element type
+    pub fn elem_tpe(&self) -> &SType {
+        match self {
+            CollPrim::CollByte(_) => &SType::SByte,
+        }
+    }
+}
+
 /// Collection elements
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub enum CollElems {
+pub enum ConstantColl {
     /// Collection elements stored as a vector of primitive types
     Primitive(CollPrim),
     /// Collection elements stored as a vector of ConstantVals
-    NonPrimitive(Vec<ConstantVal>),
+    NonPrimitive {
+        /// Collection element type
+        elem_tpe: SType,
+        /// Collection elements
+        v: Vec<ConstantVal>,
+    },
+}
+
+impl ConstantColl {
+    /// Collection element type
+    pub fn elem_tpe(&self) -> &SType {
+        match self {
+            cp @ ConstantColl::Primitive(_) => cp.elem_tpe(),
+            ConstantColl::NonPrimitive { elem_tpe, .. } => elem_tpe,
+        }
+    }
 }
 
 /// Constant value
@@ -48,12 +76,7 @@ pub enum ConstantVal {
     /// AVL tree
     AvlTree,
     /// Collection of values of the same type
-    Coll {
-        /// Collection element type
-        elem_tpe: SType,
-        /// Collection elements
-        v: CollElems,
-    },
+    Coll(ConstantColl),
     /// Tuple (arbitrary type values)
     Tup(Vec<ConstantVal>),
 }
@@ -95,38 +118,6 @@ impl TryFrom<Base16DecodedBytes> for Constant {
 }
 
 impl Constant {
-    /// Create bool value constant
-    pub fn bool(v: bool) -> Constant {
-        Constant {
-            tpe: SType::SBoolean,
-            v: ConstantVal::Boolean(v),
-        }
-    }
-
-    /// Create short value constant
-    pub fn short(v: i16) -> Constant {
-        Constant {
-            tpe: SType::SShort,
-            v: ConstantVal::Short(v),
-        }
-    }
-
-    /// Create int value constant
-    pub fn int(v: i32) -> Constant {
-        Constant {
-            tpe: SType::SInt,
-            v: ConstantVal::Int(v),
-        }
-    }
-
-    /// Create long value constant
-    pub fn long(v: i64) -> Constant {
-        Constant {
-            tpe: SType::SLong,
-            v: ConstantVal::Long(v),
-        }
-    }
-
     /// Create Sigma property constant
     pub fn sigma_prop(prop: SigmaProp) -> Constant {
         Constant {
@@ -136,23 +127,24 @@ impl Constant {
     }
 }
 
-// TODO: remove Constant::int, long, etc.
+impl Into<ConstantVal> for bool {
+    fn into(self) -> ConstantVal {
+        ConstantVal::Boolean(self)
+    }
+}
 
-/// Conversion to SType
-pub trait LiftIntoSType {
-    /// get SType
-    fn stype() -> SType;
+impl Into<Constant> for bool {
+    fn into(self) -> Constant {
+        Constant {
+            tpe: bool::stype(),
+            v: self.into(),
+        }
+    }
 }
 
 impl Into<ConstantVal> for i8 {
     fn into(self) -> ConstantVal {
         ConstantVal::Byte(self)
-    }
-}
-
-impl Into<ConstantVal> for i32 {
-    fn into(self) -> ConstantVal {
-        ConstantVal::Int(self)
     }
 }
 
@@ -165,6 +157,27 @@ impl Into<Constant> for i8 {
     }
 }
 
+impl Into<ConstantVal> for i16 {
+    fn into(self) -> ConstantVal {
+        ConstantVal::Short(self)
+    }
+}
+
+impl Into<Constant> for i16 {
+    fn into(self) -> Constant {
+        Constant {
+            tpe: i16::stype(),
+            v: self.into(),
+        }
+    }
+}
+
+impl Into<ConstantVal> for i32 {
+    fn into(self) -> ConstantVal {
+        ConstantVal::Int(self)
+    }
+}
+
 impl Into<Constant> for i32 {
     fn into(self) -> Constant {
         Constant {
@@ -174,47 +187,35 @@ impl Into<Constant> for i32 {
     }
 }
 
-impl<T: LiftIntoSType> LiftIntoSType for Vec<T> {
-    fn stype() -> SType {
-        SType::SColl(Box::new(T::stype()))
+impl Into<ConstantVal> for i64 {
+    fn into(self) -> ConstantVal {
+        ConstantVal::Long(self)
     }
 }
 
-impl LiftIntoSType for i32 {
-    fn stype() -> SType {
-        SType::SInt
-    }
-}
-
-impl LiftIntoSType for i8 {
-    fn stype() -> SType {
-        SType::SByte
+impl Into<Constant> for i64 {
+    fn into(self) -> Constant {
+        Constant {
+            tpe: i64::stype(),
+            v: self.into(),
+        }
     }
 }
 
 /// Marker trait to select types for which CollElems::NonPrimitive is used to store elements as Vec<ConstantVal>
 pub trait StoredNonPrimitive {}
 
+impl StoredNonPrimitive for bool {}
+impl StoredNonPrimitive for i16 {}
 impl StoredNonPrimitive for i32 {}
+impl StoredNonPrimitive for i64 {}
 
 impl<T: LiftIntoSType + StoredNonPrimitive + Into<ConstantVal>> Into<ConstantVal> for Vec<T> {
     fn into(self) -> ConstantVal {
-        ConstantVal::Coll {
+        ConstantVal::Coll(ConstantColl::NonPrimitive {
             elem_tpe: T::stype(),
-            v: CollElems::NonPrimitive(self.into_iter().map(|i| i.into()).collect()),
-        }
-    }
-}
-
-impl Into<Constant> for Vec<i8> {
-    fn into(self) -> Constant {
-        Constant {
-            tpe: SType::SColl(Box::new(SType::SByte)),
-            v: ConstantVal::Coll {
-                elem_tpe: SType::SByte,
-                v: CollElems::Primitive(CollPrim::CollByte(self)),
-            },
-        }
+            v: self.into_iter().map(|i| i.into()).collect(),
+        })
     }
 }
 
@@ -223,6 +224,15 @@ impl<T: LiftIntoSType + StoredNonPrimitive + Into<ConstantVal>> Into<Constant> f
         Constant {
             tpe: Self::stype(),
             v: self.into(),
+        }
+    }
+}
+
+impl Into<Constant> for Vec<i8> {
+    fn into(self) -> Constant {
+        Constant {
+            tpe: SType::SColl(Box::new(SType::SByte)),
+            v: ConstantVal::Coll(ConstantColl::Primitive(CollPrim::CollByte(self))),
         }
     }
 }
@@ -239,13 +249,15 @@ mod tests {
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             prop_oneof![
-                any::<bool>().prop_map(Constant::bool),
+                any::<bool>().prop_map_into(),
                 any::<i8>().prop_map_into(),
-                any::<i16>().prop_map(Constant::short),
+                any::<i16>().prop_map_into(),
                 any::<i32>().prop_map_into(),
-                any::<i64>().prop_map(Constant::long),
+                any::<i64>().prop_map_into(),
                 (vec(any::<i8>(), 0..100)).prop_map_into(),
+                (vec(any::<i16>(), 0..100)).prop_map_into(),
                 (vec(any::<i32>(), 0..100)).prop_map_into(),
+                (vec(any::<i64>(), 0..100)).prop_map_into(),
             ]
             .boxed()
         }

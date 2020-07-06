@@ -1,7 +1,7 @@
 use crate::{
     ast::ConstantVal,
     ast::ConstantVal::*,
-    ast::{CollElems, CollPrim},
+    ast::{CollPrim, ConstantColl},
     sigma_protocol,
     types::SType,
     types::SType::*,
@@ -32,22 +32,17 @@ impl DataSerializer {
             SigmaProp(s) => s.value().sigma_serialize(w),
             CBox(_) => todo!(),
             AvlTree => todo!(),
-            Coll { elem_tpe, v } if *elem_tpe == SByte => match v {
-                CollElems::Primitive(CollPrim::CollByte(b)) => {
+            Coll(ct) => match ct {
+                ConstantColl::Primitive(CollPrim::CollByte(b)) => {
                     w.put_usize_as_u16(b.len())?;
                     let ba: Vec<u8> = b.iter().map(|v| *v as u8).collect();
                     w.write_all(&ba[..])
                 }
-                _ => todo!(),
-            },
-            Coll { elem_tpe: _, v } => match v {
-                CollElems::NonPrimitive(elems) => {
-                    w.put_usize_as_u16(elems.len())?;
-                    elems
-                        .iter()
+                ConstantColl::NonPrimitive { elem_tpe: _, v } => {
+                    w.put_usize_as_u16(v.len())?;
+                    v.iter()
                         .try_for_each(|e| DataSerializer::sigma_serialize(e, w))
                 }
-                _ => todo!(),
             },
             Tup(_) => todo!(),
         }
@@ -69,12 +64,9 @@ impl DataSerializer {
                 let len = r.get_u16()? as usize;
                 let mut buf = vec![0u8; len];
                 r.read_exact(&mut buf)?;
-                Coll {
-                    elem_tpe: SByte,
-                    v: CollElems::Primitive(CollPrim::CollByte(
-                        buf.into_iter().map(|v| v as i8).collect(),
-                    )),
-                }
+                Coll(ConstantColl::Primitive(CollPrim::CollByte(
+                    buf.into_iter().map(|v| v as i8).collect(),
+                )))
             }
             SColl(elem_type) => {
                 let len = r.get_u16()? as usize;
@@ -82,10 +74,10 @@ impl DataSerializer {
                 for _ in 0..len {
                     elems.push(DataSerializer::sigma_parse(elem_type, r)?);
                 }
-                Coll {
+                Coll(ConstantColl::NonPrimitive {
                     elem_tpe: *elem_type.clone(),
-                    v: CollElems::NonPrimitive(elems),
-                }
+                    v: elems,
+                })
             }
             STup(types) => {
                 let mut items = Vec::new();
