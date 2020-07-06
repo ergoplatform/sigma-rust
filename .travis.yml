@@ -54,6 +54,7 @@ matrix:
 
     - name: WASM tests
       rust: stable
+      dist: xenial
       addons:
         firefox: latest
         chrome: stable
