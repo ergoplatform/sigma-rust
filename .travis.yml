@@ -62,7 +62,7 @@ matrix:
       before_cache:
         - rm -rf /home/travis/.cargo/bin/wasm-pack
       before_install:
-        - apt-get install packagekit-gtk3-module
+        - sudo apt-get install packagekit-gtk3-module
       before_script:
         - curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh -s -- -f
       script:
