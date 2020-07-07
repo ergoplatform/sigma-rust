@@ -6,7 +6,10 @@ use crate::{
     ErgoTree,
 };
 use sigma_ser::serializer::{SerializationError, SigmaSerializable};
-use std::{convert::TryFrom, rc::Rc};
+use std::{
+    convert::{TryFrom, TryInto},
+    rc::Rc,
+};
 use thiserror::Error;
 
 /**
@@ -202,6 +205,16 @@ impl AddressEncoder {
         }
     }
 
+    fn calc_checksum(bytes: &[u8]) -> [u8; AddressEncoder::CHECKSUM_LENGTH] {
+        let v: Vec<u8> = digest32::blake2b256_hash(bytes)
+            .0
+            .to_vec()
+            .into_iter()
+            .take(AddressEncoder::CHECKSUM_LENGTH)
+            .collect();
+        v.as_slice().try_into().unwrap()
+    }
+
     /// parse address from Base58 encoded string
     pub fn parse_address_from_str(&self, str: &str) -> Result<Address, AddressEncoderError> {
         // not implemented, see https://github.com/ergoplatform/sigma-rust/issues/35
@@ -212,14 +225,8 @@ impl AddressEncoder {
         let head_byte = self.check_head_byte(bytes[0])?;
         let (without_checksum, checksum) =
             bytes.split_at(bytes.len() - AddressEncoder::CHECKSUM_LENGTH);
-        // TODO: extract
-        let calculated_checksum: Vec<u8> = digest32::blake2b256_hash(without_checksum)
-            .0
-            .to_vec()
-            .into_iter()
-            .take(AddressEncoder::CHECKSUM_LENGTH)
-            .collect();
-        if checksum.to_vec() != calculated_checksum {
+        let calculated_checksum = AddressEncoder::calc_checksum(without_checksum);
+        if checksum != calculated_checksum {
             return Err(AddressEncoderError::InvalidChecksum);
         };
 
@@ -240,13 +247,8 @@ impl AddressEncoder {
         let mut address_bytes = address.content_bytes();
         let mut bytes = vec![prefix_byte];
         bytes.append(&mut address_bytes);
-        let mut checksum: Vec<u8> = digest32::blake2b256_hash(&bytes[..])
-            .0
-            .to_vec()
-            .into_iter()
-            .take(AddressEncoder::CHECKSUM_LENGTH)
-            .collect();
-        bytes.append(&mut checksum);
+        let mut calculated_checksum = AddressEncoder::calc_checksum(&bytes[..]).to_vec();
+        bytes.append(&mut calculated_checksum);
         bs58::encode(bytes).into_string()
     }
 }
