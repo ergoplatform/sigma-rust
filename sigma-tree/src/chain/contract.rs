@@ -16,7 +16,7 @@ impl Contract {
     }
 
     /// create new contract that allow spending for a given Address
-    pub fn pay_to_address(address: &dyn Address) -> Contract {
+    pub fn pay_to_address(address: Address) -> Contract {
         Contract::new(address.script())
     }
 
