@@ -217,7 +217,6 @@ impl AddressEncoder {
 
     /// parse address from Base58 encoded string
     pub fn parse_address_from_str(&self, str: &str) -> Result<Address, AddressEncoderError> {
-        // not implemented, see https://github.com/ergoplatform/sigma-rust/issues/35
         let bytes = bs58::decode(str).into_vec()?;
         if bytes.is_empty() {
             return Err(AddressEncoderError::InvalidSize);
