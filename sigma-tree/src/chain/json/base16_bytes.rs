@@ -1,6 +1,5 @@
 //! Transitioning type for Base16 encoded bytes in JSON serialization
 
-use core::fmt;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 
@@ -20,12 +19,6 @@ impl Base16EncodedBytes {
 impl Into<String> for Base16EncodedBytes {
     fn into(self) -> String {
         self.0
-    }
-}
-
-impl fmt::Display for Base16EncodedBytes {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("TokenId").field(&self.0).finish()
     }
 }
 

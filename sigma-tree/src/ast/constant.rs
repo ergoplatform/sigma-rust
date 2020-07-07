@@ -1,6 +1,10 @@
 #[cfg(feature = "with-serde")]
 use crate::chain::{Base16DecodedBytes, Base16EncodedBytes};
-use crate::{chain::ErgoBox, sigma_protocol::SigmaProp, types::SType};
+use crate::{
+    chain::ErgoBox,
+    sigma_protocol::SigmaProp,
+    types::{LiftIntoSType, SType},
+};
 #[cfg(feature = "with-serde")]
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "with-serde")]
@@ -11,20 +15,45 @@ use std::convert::TryFrom;
 #[derive(PartialEq, Eq, Debug, Clone)]
 /// Collection for primitive values (i.e byte array)
 pub enum CollPrim {
-    /// Collection of bools
-    CollBoolean(Vec<bool>),
     /// Collection of bytes
     CollByte(Vec<i8>),
-    /// Collection of shorts
-    CollShort(Vec<i16>),
-    /// Collection of ints
-    CollInt(Vec<i32>),
-    /// Collection of longs
-    CollLong(Vec<i64>),
 }
 
+impl CollPrim {
+    /// Collection element type
+    pub fn elem_tpe(&self) -> &SType {
+        match self {
+            CollPrim::CollByte(_) => &SType::SByte,
+        }
+    }
+}
+
+/// Collection elements
 #[derive(PartialEq, Eq, Debug, Clone)]
+pub enum ConstantColl {
+    /// Collection elements stored as a vector of primitive types
+    Primitive(CollPrim),
+    /// Collection elements stored as a vector of ConstantVals
+    NonPrimitive {
+        /// Collection element type
+        elem_tpe: SType,
+        /// Collection elements
+        v: Vec<ConstantVal>,
+    },
+}
+
+impl ConstantColl {
+    /// Collection element type
+    pub fn elem_tpe(&self) -> &SType {
+        match self {
+            cp @ ConstantColl::Primitive(_) => cp.elem_tpe(),
+            ConstantColl::NonPrimitive { elem_tpe, .. } => elem_tpe,
+        }
+    }
+}
+
 /// Constant value
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub enum ConstantVal {
     /// Boolean
     Boolean(bool),
@@ -46,10 +75,8 @@ pub enum ConstantVal {
     CBox(Box<ErgoBox>),
     /// AVL tree
     AvlTree,
-    /// Collection of primitive values
-    CollPrim(CollPrim),
-    /// Collection of same type constant value
-    Coll(Vec<ConstantVal>),
+    /// Collection of values of the same type
+    Coll(ConstantColl),
     /// Tuple (arbitrary type values)
     Tup(Vec<ConstantVal>),
 }
@@ -91,59 +118,121 @@ impl TryFrom<Base16DecodedBytes> for Constant {
 }
 
 impl Constant {
-    /// Create bool value constant
-    pub fn bool(v: bool) -> Constant {
-        Constant {
-            tpe: SType::SBoolean,
-            v: ConstantVal::Boolean(v),
-        }
-    }
-
-    /// Create byte value constant
-    pub fn byte(v: i8) -> Constant {
-        Constant {
-            tpe: SType::SByte,
-            v: ConstantVal::Byte(v),
-        }
-    }
-
-    /// Create short value constant
-    pub fn short(v: i16) -> Constant {
-        Constant {
-            tpe: SType::SShort,
-            v: ConstantVal::Short(v),
-        }
-    }
-
-    /// Create int value constant
-    pub fn int(v: i32) -> Constant {
-        Constant {
-            tpe: SType::SInt,
-            v: ConstantVal::Int(v),
-        }
-    }
-
-    /// Create long value constant
-    pub fn long(v: i64) -> Constant {
-        Constant {
-            tpe: SType::SLong,
-            v: ConstantVal::Long(v),
-        }
-    }
-
-    /// Create byte array value constant
-    pub fn byte_array(v: Vec<i8>) -> Constant {
-        Constant {
-            tpe: SType::SColl(Box::new(SType::SByte)),
-            v: ConstantVal::CollPrim(CollPrim::CollByte(v)),
-        }
-    }
-
     /// Create Sigma property constant
     pub fn sigma_prop(prop: SigmaProp) -> Constant {
         Constant {
             tpe: SType::SSigmaProp,
             v: ConstantVal::sigma_prop(prop),
+        }
+    }
+}
+
+impl Into<ConstantVal> for bool {
+    fn into(self) -> ConstantVal {
+        ConstantVal::Boolean(self)
+    }
+}
+
+impl Into<Constant> for bool {
+    fn into(self) -> Constant {
+        Constant {
+            tpe: bool::stype(),
+            v: self.into(),
+        }
+    }
+}
+
+impl Into<ConstantVal> for i8 {
+    fn into(self) -> ConstantVal {
+        ConstantVal::Byte(self)
+    }
+}
+
+impl Into<Constant> for i8 {
+    fn into(self) -> Constant {
+        Constant {
+            tpe: i8::stype(),
+            v: self.into(),
+        }
+    }
+}
+
+impl Into<ConstantVal> for i16 {
+    fn into(self) -> ConstantVal {
+        ConstantVal::Short(self)
+    }
+}
+
+impl Into<Constant> for i16 {
+    fn into(self) -> Constant {
+        Constant {
+            tpe: i16::stype(),
+            v: self.into(),
+        }
+    }
+}
+
+impl Into<ConstantVal> for i32 {
+    fn into(self) -> ConstantVal {
+        ConstantVal::Int(self)
+    }
+}
+
+impl Into<Constant> for i32 {
+    fn into(self) -> Constant {
+        Constant {
+            tpe: i32::stype(),
+            v: self.into(),
+        }
+    }
+}
+
+impl Into<ConstantVal> for i64 {
+    fn into(self) -> ConstantVal {
+        ConstantVal::Long(self)
+    }
+}
+
+impl Into<Constant> for i64 {
+    fn into(self) -> Constant {
+        Constant {
+            tpe: i64::stype(),
+            v: self.into(),
+        }
+    }
+}
+
+/// Marker trait to select types for which CollElems::NonPrimitive is used to store elements as Vec<ConstantVal>
+pub trait StoredNonPrimitive {}
+
+impl StoredNonPrimitive for bool {}
+impl StoredNonPrimitive for i16 {}
+impl StoredNonPrimitive for i32 {}
+impl StoredNonPrimitive for i64 {}
+
+impl<T: LiftIntoSType + StoredNonPrimitive + Into<ConstantVal>> Into<ConstantVal> for Vec<T> {
+    fn into(self) -> ConstantVal {
+        ConstantVal::Coll(ConstantColl::NonPrimitive {
+            elem_tpe: T::stype(),
+            v: self.into_iter().map(|i| i.into()).collect(),
+        })
+    }
+}
+
+impl<T: LiftIntoSType + StoredNonPrimitive + Into<ConstantVal>> Into<Constant> for Vec<T> {
+    fn into(self) -> Constant {
+        Constant {
+            tpe: Self::stype(),
+            v: self.into(),
+        }
+    }
+}
+
+impl Into<Constant> for Vec<i8> {
+    fn into(self) -> Constant {
+        Constant {
+            tpe: SType::SColl(Box::new(SType::SByte)),
+            v: ConstantVal::Coll(ConstantColl::Primitive(CollPrim::CollByte(self))),
         }
     }
 }
@@ -160,12 +249,15 @@ mod tests {
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             prop_oneof![
-                any::<bool>().prop_map(Constant::bool),
-                any::<i8>().prop_map(Constant::byte),
-                any::<i16>().prop_map(Constant::short),
-                any::<i32>().prop_map(Constant::int),
-                any::<i64>().prop_map(Constant::long),
-                (vec(any::<i8>(), 0..100)).prop_map(Constant::byte_array),
+                any::<bool>().prop_map_into(),
+                any::<i8>().prop_map_into(),
+                any::<i16>().prop_map_into(),
+                any::<i32>().prop_map_into(),
+                any::<i64>().prop_map_into(),
+                (vec(any::<i8>(), 0..100)).prop_map_into(),
+                (vec(any::<i16>(), 0..100)).prop_map_into(),
+                (vec(any::<i32>(), 0..100)).prop_map_into(),
+                (vec(any::<i64>(), 0..100)).prop_map_into(),
             ]
             .boxed()
         }

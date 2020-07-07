@@ -130,7 +130,11 @@ impl SigmaSerializable for SType {
                 let t_elem = get_embeddable_type(prim_id)?;
                 SType::SColl(Box::new(t_elem))
             }
-            _ => return Err(SerializationError::NotImplementedYet("".to_string())),
+            _ => {
+                return Err(SerializationError::NotImplementedYet(
+                    "parsing type is not yet implemented".to_string(),
+                ))
+            }
         };
         Ok(tpe)
     }

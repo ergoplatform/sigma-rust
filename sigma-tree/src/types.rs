@@ -56,6 +56,48 @@ impl SType {
     }
 }
 
+/// Conversion to SType
+pub trait LiftIntoSType {
+    /// get SType
+    fn stype() -> SType;
+}
+
+impl<T: LiftIntoSType> LiftIntoSType for Vec<T> {
+    fn stype() -> SType {
+        SType::SColl(Box::new(T::stype()))
+    }
+}
+
+impl LiftIntoSType for bool {
+    fn stype() -> SType {
+        SType::SBoolean
+    }
+}
+
+impl LiftIntoSType for i8 {
+    fn stype() -> SType {
+        SType::SByte
+    }
+}
+
+impl LiftIntoSType for i16 {
+    fn stype() -> SType {
+        SType::SShort
+    }
+}
+
+impl LiftIntoSType for i32 {
+    fn stype() -> SType {
+        SType::SInt
+    }
+}
+
+impl LiftIntoSType for i64 {
+    fn stype() -> SType {
+        SType::SLong
+    }
+}
+
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct STypeVar {
     name: String,

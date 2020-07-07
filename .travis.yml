@@ -1,3 +1,4 @@
+dist: bionic
 language: rust
 sudo: false
 
@@ -53,11 +54,16 @@ matrix:
 
     - name: WASM tests
       rust: stable
+      dist: xenial
+      cache: false
+      # sudo: true
       addons:
         firefox: latest
         chrome: stable
-      before_cache:
-        - rm -rf /home/travis/.cargo/bin/wasm-pack
+      # before_cache:
+      #   - rm -rf /home/travis/.cargo/bin/wasm-pack
+      # before_install:
+      #   - sudo apt-get install packagekit-gtk3-module
       before_script:
         - curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh -s -- -f
       script:
