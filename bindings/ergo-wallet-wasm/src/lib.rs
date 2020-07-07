@@ -172,8 +172,10 @@ pub struct Contract(chain::Contract);
 #[wasm_bindgen]
 impl Contract {
     /// create new contract that allow spending of the guarded box by a given recipient ([`Address`])
-    pub fn pay_to_address(recipient: Address) -> Contract {
-        Contract(chain::Contract::pay_to_address(recipient.0))
+    pub fn pay_to_address(recipient: Address) -> Result<Contract, JsValue> {
+        chain::Contract::pay_to_address(recipient.0)
+            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+            .map(Contract)
     }
 }
 

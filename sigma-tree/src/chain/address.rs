@@ -1,4 +1,4 @@
-use super::digest32::{self};
+use super::digest32;
 use crate::{
     ast::{Constant, Expr},
     ecpoint::EcPoint,
@@ -80,17 +80,14 @@ impl Address {
     }
 
     /// script encoded in the address
-    pub fn script(&self) -> ErgoTree {
+    pub fn script(&self) -> Result<ErgoTree, SerializationError> {
         match self {
-            Address::P2PK(prove_dlog) => ErgoTree::from(Rc::new(Expr::Const(
+            Address::P2PK(prove_dlog) => Ok(ErgoTree::from(Rc::new(Expr::Const(
                 Constant::sigma_prop(SigmaProp::new(SigmaBoolean::ProofOfKnowledge(
                     SigmaProofOfKnowledgeTree::ProveDlog(prove_dlog.clone()),
                 ))),
-            ))),
-            Address::P2S(bytes) => {
-                // TODO: make ErgoTree also represent failed parsing
-                ErgoTree::sigma_parse_bytes(bytes.to_vec()).expect("failed to parse ErgoTree")
-            }
+            )))),
+            Address::P2S(bytes) => ErgoTree::sigma_parse_bytes(bytes.to_vec()),
         }
     }
 }

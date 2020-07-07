@@ -13,7 +13,6 @@ use super::{
 use crate::{
     ergo_tree::ErgoTree,
     serialization::ergo_box::{parse_box_with_indexed_digests, serialize_box_with_indexed_digests},
-    ErgoTreeParsingError,
 };
 use box_value::BoxValue;
 use indexmap::IndexSet;
@@ -61,7 +60,7 @@ pub struct ErgoBox {
         feature = "with-serde",
         serde(rename = "ergoTree", with = "json::ergo_tree")
     )]
-    pub ergo_tree: Result<ErgoTree, ErgoTreeParsingError>,
+    pub ergo_tree: ErgoTree,
     /// secondary tokens the box contains
     #[cfg_attr(feature = "with-serde", serde(rename = "assets"))]
     pub tokens: Vec<TokenAmount>,
@@ -95,7 +94,7 @@ impl ErgoBox {
         let box_with_zero_id = ErgoBox {
             box_id: BoxId::zero(),
             value,
-            ergo_tree: Ok(ergo_tree),
+            ergo_tree,
             tokens,
             additional_registers,
             creation_height,
@@ -124,7 +123,7 @@ impl ErgoBox {
         let box_with_zero_id = ErgoBox {
             box_id: BoxId::zero(),
             value: box_candidate.value.clone(),
-            ergo_tree: Ok(box_candidate.ergo_tree.clone()),
+            ergo_tree: box_candidate.ergo_tree.clone(),
             tokens: box_candidate.tokens.clone(),
             additional_registers: box_candidate.additional_registers.clone(),
             creation_height: box_candidate.creation_height,
@@ -173,10 +172,7 @@ impl TryFrom<json::ergo_box::ErgoBoxFromJson> for ErgoBox {
 
 impl SigmaSerializable for ErgoBox {
     fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
-        let ergo_tree_bytes = match &self.ergo_tree {
-            Ok(ergo_tree) => ergo_tree.sigma_serialise_bytes(),
-            Err(ErgoTreeParsingError { bytes, .. }) => bytes.clone(),
-        };
+        let ergo_tree_bytes = self.ergo_tree.sigma_serialise_bytes();
         serialize_box_with_indexed_digests(
             &self.value,
             ergo_tree_bytes,

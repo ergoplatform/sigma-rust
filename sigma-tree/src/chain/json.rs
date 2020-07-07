@@ -18,36 +18,27 @@ where
 pub mod ergo_tree {
 
     use super::*;
-    use crate::{ErgoTree, ErgoTreeParsingError};
+    use crate::ErgoTree;
     use serde::{Deserialize, Deserializer, Serializer};
     use sigma_ser::serializer::SigmaSerializable;
 
-    pub fn serialize<S>(
-        maybe_ergo_tree: &Result<ErgoTree, ErgoTreeParsingError>,
-        serializer: S,
-    ) -> Result<S::Ok, S::Error>
+    pub fn serialize<S>(ergo_tree: &ErgoTree, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
-        let bytes = match maybe_ergo_tree {
-            Ok(ergo_tree) => ergo_tree.sigma_serialise_bytes(),
-            Err(err) => err.bytes.clone(),
-        };
+        let bytes = ergo_tree.sigma_serialise_bytes();
         serialize_bytes(&bytes[..], serializer)
     }
 
-    pub fn deserialize<'de, D>(
-        deserializer: D,
-    ) -> Result<Result<ErgoTree, ErgoTreeParsingError>, D::Error>
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<ErgoTree, D::Error>
     where
         D: Deserializer<'de>,
     {
         use serde::de::Error;
         String::deserialize(deserializer)
             .and_then(|str| base16::decode(&str).map_err(|err| Error::custom(err.to_string())))
-            .map(|bytes| {
-                ErgoTree::sigma_parse_bytes(bytes.clone())
-                    .map_err(|error| ErgoTreeParsingError { bytes, error })
+            .and_then(|bytes| {
+                ErgoTree::sigma_parse_bytes(bytes).map_err(|error| Error::custom(error.to_string()))
             })
     }
 }
@@ -55,7 +46,7 @@ pub mod ergo_tree {
 pub mod ergo_box {
     use crate::{
         chain::{box_value::BoxValue, register::NonMandatoryRegisters, BoxId, TokenAmount, TxId},
-        ErgoTree, ErgoTreeParsingError,
+        ErgoTree,
     };
     use serde::Deserialize;
     use thiserror::Error;
@@ -69,7 +60,7 @@ pub mod ergo_box {
         pub value: BoxValue,
         /// guarding script, which should be evaluated to true in order to open this box
         #[serde(rename = "ergoTree", with = "super::ergo_tree")]
-        pub ergo_tree: Result<ErgoTree, ErgoTreeParsingError>,
+        pub ergo_tree: ErgoTree,
         /// secondary tokens the box contains
         #[serde(rename = "assets")]
         pub tokens: Vec<TokenAmount>,
