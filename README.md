@@ -11,3 +11,7 @@ Rust implementation of [ErgoScript](https://github.com/ScorexFoundation/sigmasta
 - [iOS](https://github.com/ergoplatform/sigma-rust/tree/develop/bindings/ergo-wallet-ios)
 - [C](https://github.com/ergoplatform/sigma-rust/tree/develop/bindings/ergo-wallet-c)
 
+## Contributing
+Contributions are very welcome! Checkout issues labeled ["help wanted" and "good first issue"](https://github.com/ergoplatform/sigma-rust/labels/help%20wanted)
+We check code formatting and linter(`clippy`) as part of the CI process. It's better to set up your editor to run `rustfmt` on file save.
+ Feel free to disable specific linter rules in the source code when appropriate.
