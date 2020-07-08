@@ -2,6 +2,7 @@
 
 use super::Address;
 use crate::ErgoTree;
+use sigma_ser::serializer::SerializationError;
 
 /// High-level wrapper for ErgoTree
 #[allow(dead_code)]
@@ -16,8 +17,8 @@ impl Contract {
     }
 
     /// create new contract that allow spending for a given Address
-    pub fn pay_to_address(address: &dyn Address) -> Contract {
-        Contract::new(address.script())
+    pub fn pay_to_address(address: Address) -> Result<Contract, SerializationError> {
+        Ok(Contract::new(address.script()?))
     }
 
     /// get ErgoTree for this contract

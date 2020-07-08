@@ -133,16 +133,23 @@ mod tests {
     use super::*;
     use proptest::prelude::*;
 
+    impl Arbitrary for ProveDlog {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            (any::<EcPoint>()).prop_map(ProveDlog::new).boxed()
+        }
+    }
+
     impl Arbitrary for SigmaBoolean {
         type Parameters = ();
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            (any::<EcPoint>())
-                .prop_map(|ecp| {
-                    SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(
-                        ProveDlog::new(ecp),
-                    ))
+            (any::<ProveDlog>())
+                .prop_map(|p| {
+                    SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(p))
                 })
                 .boxed()
         }

@@ -61,7 +61,7 @@ use wasm_bindgen::prelude::*;
  *
  */
 #[wasm_bindgen]
-pub struct Address(Box<dyn chain::Address>);
+pub struct Address(chain::Address);
 
 #[wasm_bindgen]
 impl Address {
@@ -69,7 +69,7 @@ impl Address {
     pub fn from_testnet_str(s: &str) -> Result<Address, JsValue> {
         chain::AddressEncoder::new(chain::NetworkPrefix::Testnet)
             .parse_address_from_str(s)
-            .map(|a| Address(a))
+            .map(Address)
             .map_err(|e| JsValue::from_str(&format!("{}", e)))
     }
 }
@@ -172,8 +172,10 @@ pub struct Contract(chain::Contract);
 #[wasm_bindgen]
 impl Contract {
     /// create new contract that allow spending of the guarded box by a given recipient ([`Address`])
-    pub fn pay_to_address(recipient: Address) -> Contract {
-        Contract(chain::Contract::pay_to_address(&*recipient.0))
+    pub fn pay_to_address(recipient: Address) -> Result<Contract, JsValue> {
+        chain::Contract::pay_to_address(recipient.0)
+            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+            .map(Contract)
     }
 }
 

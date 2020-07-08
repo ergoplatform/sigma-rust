@@ -3,9 +3,10 @@ use crate::{
     ast::{Constant, Expr},
     types::SType,
 };
+use io::{Cursor, Read};
 use sigma_ser::serializer::SerializationError;
 use sigma_ser::serializer::SigmaSerializable;
-use sigma_ser::vlq_encode;
+use sigma_ser::{peekable_reader::PeekableReader, vlq_encode};
 use std::io;
 use std::rc::Rc;
 use vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt};
@@ -17,7 +18,7 @@ use vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt};
 pub struct ErgoTree {
     header: ErgoTreeHeader,
     constants: Vec<Constant>,
-    root: Rc<Expr>,
+    root: Result<Rc<Expr>, ErgoTreeRootParsingError>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -25,7 +26,7 @@ struct ErgoTreeHeader(u8);
 
 /// ErgoTree parsing (deserialization) error
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct ErgoTreeParsingError {
+pub struct ErgoTreeRootParsingError {
     /// Ergo tree bytes (faild to deserialize)
     pub bytes: Vec<u8>,
     /// Deserialization error
@@ -36,7 +37,7 @@ impl ErgoTree {
     const DEFAULT_HEADER: ErgoTreeHeader = ErgoTreeHeader(0);
 
     /// get Expr out of ErgoTree
-    pub fn proposition(&self) -> Rc<Expr> {
+    pub fn proposition(&self) -> Result<Rc<Expr>, ErgoTreeRootParsingError> {
         self.root.clone()
     }
 }
@@ -47,7 +48,7 @@ impl From<Rc<Expr>> for ErgoTree {
             Expr::Const(c) if c.tpe == SType::SSigmaProp => ErgoTree {
                 header: ErgoTree::DEFAULT_HEADER,
                 constants: Vec::new(),
-                root: expr,
+                root: Ok(expr),
             },
             _ => panic!("not yet supported"),
         }
@@ -73,7 +74,10 @@ impl SigmaSerializable for ErgoTree {
             self.constants.is_empty(),
             "separate constants serialization is not yet supported"
         );
-        self.root.sigma_serialize(w)?;
+        match &self.root {
+            Ok(tree) => tree.sigma_serialize(w)?,
+            Err(ErgoTreeRootParsingError { bytes, .. }) => w.write_all(&bytes[..])?,
+        }
         Ok(())
     }
 
@@ -90,8 +94,40 @@ impl SigmaSerializable for ErgoTree {
             Ok(ErgoTree {
                 header,
                 constants,
-                root: Rc::new(root),
+                root: Ok(Rc::new(root)),
             })
+        }
+    }
+
+    fn sigma_parse_bytes(mut bytes: Vec<u8>) -> Result<Self, SerializationError> {
+        let cursor = Cursor::new(&mut bytes[..]);
+        let mut r = PeekableReader::new(cursor);
+        let header = ErgoTreeHeader::sigma_parse(&mut r)?;
+        let constants_len = r.get_u32()?;
+        if constants_len != 0 {
+            Err(SerializationError::NotImplementedYet(
+                "separate constants serialization is not yet supported".to_string(),
+            ))
+        } else {
+            let constants = Vec::new();
+            let mut rest_of_the_bytes = Vec::new();
+            let _ = r.read_to_end(&mut rest_of_the_bytes);
+            let rest_of_the_bytes_copy = rest_of_the_bytes.clone();
+            match Expr::sigma_parse_bytes(rest_of_the_bytes) {
+                Ok(parsed) => Ok(ErgoTree {
+                    header,
+                    constants,
+                    root: Ok(Rc::new(parsed)),
+                }),
+                Err(err) => Ok(ErgoTree {
+                    header,
+                    constants,
+                    root: Err(ErgoTreeRootParsingError {
+                        bytes: rest_of_the_bytes_copy,
+                        error: err,
+                    }),
+                }),
+            }
         }
     }
 }
@@ -131,7 +167,11 @@ mod tests {
     fn deserialization_fail() {
         // constants length is set
         assert!(ErgoTree::sigma_parse_bytes(vec![0, 1]).is_err());
+    }
+
+    #[test]
+    fn deserialization_non_parseable_root_ok() {
         // constants length is zero, but Expr is invalid
-        assert!(ErgoTree::sigma_parse_bytes(vec![0, 0, 1]).is_err());
+        assert!(ErgoTree::sigma_parse_bytes(vec![0, 0, 1]).is_ok());
     }
 }
