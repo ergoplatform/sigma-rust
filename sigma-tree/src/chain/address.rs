@@ -1,6 +1,6 @@
 use super::digest32;
 use crate::{
-    ast::{Constant, Expr},
+    ast::Expr,
     ecpoint::EcPoint,
     sigma_protocol::{ProveDlog, SigmaBoolean, SigmaProofOfKnowledgeTree, SigmaProp},
     ErgoTree,
@@ -86,9 +86,10 @@ impl Address {
     pub fn script(&self) -> Result<ErgoTree, SerializationError> {
         match self {
             Address::P2PK(prove_dlog) => Ok(ErgoTree::from(Rc::new(Expr::Const(
-                Constant::sigma_prop(SigmaProp::new(SigmaBoolean::ProofOfKnowledge(
+                SigmaProp::new(SigmaBoolean::ProofOfKnowledge(
                     SigmaProofOfKnowledgeTree::ProveDlog(prove_dlog.clone()),
-                ))),
+                ))
+                .into(),
             )))),
             Address::P2S(bytes) => ErgoTree::sigma_parse_bytes(bytes.to_vec()),
         }

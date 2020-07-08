@@ -118,12 +118,11 @@ impl TryFrom<Base16DecodedBytes> for Constant {
 }
 
 impl Constant {
-    /// Create Sigma property constant
-    pub fn sigma_prop(prop: SigmaProp) -> Constant {
-        Constant {
-            tpe: SType::SSigmaProp,
-            v: ConstantVal::sigma_prop(prop),
-        }
+    /// Serialized bytes encoded as Base16
+    #[cfg(feature = "with-serde")]
+    pub fn base16_str(&self) -> String {
+        let base16_bytes: Base16EncodedBytes = self.clone().into();
+        base16_bytes.into()
     }
 }
 
@@ -197,6 +196,21 @@ impl Into<Constant> for i64 {
     fn into(self) -> Constant {
         Constant {
             tpe: i64::stype(),
+            v: self.into(),
+        }
+    }
+}
+
+impl Into<ConstantVal> for SigmaProp {
+    fn into(self) -> ConstantVal {
+        ConstantVal::SigmaProp(Box::new(self))
+    }
+}
+
+impl Into<Constant> for SigmaProp {
+    fn into(self) -> Constant {
+        Constant {
+            tpe: SType::SSigmaProp,
             v: self.into(),
         }
     }
