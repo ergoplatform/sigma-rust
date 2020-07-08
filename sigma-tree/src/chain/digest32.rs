@@ -1,5 +1,4 @@
-#[cfg(feature = "with-serde")]
-use crate::chain::json::{Base16DecodedBytes, Base16EncodedBytes};
+use crate::chain::{Base16DecodedBytes, Base16EncodedBytes};
 use blake2::digest::{Update, VariableOutput};
 use blake2::VarBlake2b;
 #[cfg(test)]
@@ -10,7 +9,6 @@ use sigma_ser::{
     serializer::{SerializationError, SigmaSerializable},
     vlq_encode,
 };
-#[cfg(feature = "with-serde")]
 use std::convert::TryFrom;
 use std::convert::TryInto;
 use std::io;
@@ -50,14 +48,12 @@ impl From<[u8; Digest32::SIZE]> for Digest32 {
     }
 }
 
-#[cfg(feature = "with-serde")]
 impl Into<Base16EncodedBytes> for Digest32 {
     fn into(self) -> Base16EncodedBytes {
         Base16EncodedBytes::new(self.0.as_ref())
     }
 }
 
-#[cfg(feature = "with-serde")]
 impl TryFrom<Base16DecodedBytes> for Digest32 {
     type Error = Digest32Error;
     fn try_from(bytes: Base16DecodedBytes) -> Result<Self, Self::Error> {
@@ -66,7 +62,6 @@ impl TryFrom<Base16DecodedBytes> for Digest32 {
     }
 }
 
-#[cfg(feature = "with-serde")]
 impl Into<String> for Digest32 {
     fn into(self) -> String {
         let bytes: Base16EncodedBytes = self.into();
