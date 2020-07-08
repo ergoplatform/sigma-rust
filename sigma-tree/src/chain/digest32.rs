@@ -69,7 +69,7 @@ impl TryFrom<Base16DecodedBytes> for Digest32 {
 #[cfg(feature = "with-serde")]
 impl Into<String> for Digest32 {
     fn into(self) -> String {
-        let bytes : Base16EncodedBytes = self.into();
+        let bytes: Base16EncodedBytes = self.into();
         bytes.into()
     }
 }
