@@ -66,6 +66,14 @@ impl TryFrom<Base16DecodedBytes> for Digest32 {
     }
 }
 
+#[cfg(feature = "with-serde")]
+impl Into<String> for Digest32 {
+    fn into(self) -> String {
+        let bytes : Base16EncodedBytes = self.into();
+        bytes.into()
+    }
+}
+
 impl SigmaSerializable for Digest32 {
     fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
         w.write_all(self.0.as_ref())?;

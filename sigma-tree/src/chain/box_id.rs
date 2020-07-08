@@ -33,6 +33,13 @@ impl From<Digest32> for BoxId {
     }
 }
 
+#[cfg(feature = "with-serde")]
+impl Into<String> for BoxId {
+    fn into(self) -> String {
+        self.0.into()
+    }
+}
+
 impl SigmaSerializable for BoxId {
     fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
         self.0.sigma_serialize(w)?;
