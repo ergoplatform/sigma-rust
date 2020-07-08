@@ -1,4 +1,3 @@
-#[cfg(feature = "with-serde")]
 use crate::chain::{Base16DecodedBytes, Base16EncodedBytes};
 use crate::{
     chain::ErgoBox,
@@ -7,9 +6,8 @@ use crate::{
 };
 #[cfg(feature = "with-serde")]
 use serde::{Deserialize, Serialize};
-#[cfg(feature = "with-serde")]
-use sigma_ser::serializer::{SerializationError, SigmaSerializable};
-#[cfg(feature = "with-serde")]
+use sigma_ser::serializer::SerializationError;
+use sigma_ser::serializer::SigmaSerializable;
 use std::convert::TryFrom;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -102,14 +100,12 @@ pub struct Constant {
     pub v: ConstantVal,
 }
 
-#[cfg(feature = "with-serde")]
 impl Into<Base16EncodedBytes> for Constant {
     fn into(self) -> Base16EncodedBytes {
         Base16EncodedBytes::new(&self.sigma_serialise_bytes())
     }
 }
 
-#[cfg(feature = "with-serde")]
 impl TryFrom<Base16DecodedBytes> for Constant {
     type Error = SerializationError;
     fn try_from(bytes: Base16DecodedBytes) -> Result<Self, Self::Error> {
@@ -119,7 +115,6 @@ impl TryFrom<Base16DecodedBytes> for Constant {
 
 impl Constant {
     /// Serialized bytes encoded as Base16
-    #[cfg(feature = "with-serde")]
     pub fn base16_str(&self) -> String {
         let base16_bytes: Base16EncodedBytes = self.clone().into();
         base16_bytes.into()

@@ -1,5 +1,6 @@
 //! Transitioning type for Base16 encoded bytes in JSON serialization
 
+#[cfg(feature = "with-serde")]
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 

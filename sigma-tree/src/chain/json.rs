@@ -1,10 +1,5 @@
 //! JSON serialization
 
-mod base16_bytes;
-
-pub use base16_bytes::Base16DecodedBytes;
-pub use base16_bytes::Base16EncodedBytes;
-
 use serde::Serializer;
 
 pub fn serialize_bytes<S, T>(bytes: T, serializer: S) -> Result<S::Ok, S::Error>
