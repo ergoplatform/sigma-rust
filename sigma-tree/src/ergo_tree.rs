@@ -15,7 +15,7 @@ use vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt};
 #[allow(dead_code)]
 struct ParsedTree {
     constants: Vec<Constant>,
-    root: Result<Rc<Expr>, ErgoTreeParsingError>,
+    root: Result<Rc<Expr>, ErgoTreeRootParsingError>,
 }
 
 /** The root of ErgoScript IR. Serialized instances of this class are self sufficient and can be passed around.
@@ -24,29 +24,37 @@ struct ParsedTree {
 #[allow(dead_code)]
 pub struct ErgoTree {
     header: ErgoTreeHeader,
-    tree: Result<ParsedTree, ErgoTreeParsingError>,
+    tree: Result<ParsedTree, ErgoTreeConstantsParsingError>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 struct ErgoTreeHeader(u8);
 
+/// Whole ErgoTree parsing (deserialization) error
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct ErgoTreeConstantsParsingError {
+    /// Ergo tree bytes (faild to deserialize)
+    pub bytes: Vec<u8>,
+    /// Deserialization error
+    pub error: SerializationError,
+}
+
+/// ErgoTree root expr parsing (deserialization) error
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct ErgoTreeRootParsingError {
+    /// Ergo tree root expr bytes (faild to deserialize)
+    pub bytes: Vec<u8>,
+    /// Deserialization error
+    pub error: SerializationError,
+}
+
 /// ErgoTree parsing (deserialization) error
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum ErgoTreeParsingError {
     /// Whole ErgoTree parsing (deserialization) error
-    TreeParsingError {
-        /// Ergo tree bytes (faild to deserialize)
-        bytes: Vec<u8>,
-        /// Deserialization error
-        error: SerializationError,
-    },
+    TreeParsingError(ErgoTreeConstantsParsingError),
     /// ErgoTree root expr parsing (deserialization) error
-    RootParsingError {
-        /// Ergo tree root expr bytes (faild to deserialize)
-        bytes: Vec<u8>,
-        /// Deserialization error
-        error: SerializationError,
-    },
+    RootParsingError(ErgoTreeRootParsingError),
 }
 
 impl ErgoTree {
@@ -54,7 +62,10 @@ impl ErgoTree {
 
     /// get Expr out of ErgoTree
     pub fn proposition(&self) -> Result<Rc<Expr>, ErgoTreeParsingError> {
-        self.tree.clone().and_then(|t| t.root)
+        self.tree
+            .clone()
+            .map_err(ErgoTreeParsingError::TreeParsingError)
+            .and_then(|t| t.root.map_err(ErgoTreeParsingError::RootParsingError))
     }
 }
 
@@ -95,13 +106,10 @@ impl SigmaSerializable for ErgoTree {
                 );
                 match root {
                     Ok(tree) => tree.sigma_serialize(w)?,
-                    Err(ErgoTreeParsingError::RootParsingError { bytes, .. }) => {
-                        w.write_all(&bytes[..])?
-                    }
-                    Err(_) => panic!("should not happen"),
+                    Err(ErgoTreeRootParsingError { bytes, .. }) => w.write_all(&bytes[..])?,
                 }
             }
-            Err(_) => {}
+            Err(ErgoTreeConstantsParsingError { bytes, .. }) => w.write_all(&bytes[..])?,
         }
         Ok(())
     }
@@ -134,7 +142,7 @@ impl SigmaSerializable for ErgoTree {
         if constants_len != 0 {
             Ok(ErgoTree {
                 header,
-                tree: Err(ErgoTreeParsingError::TreeParsingError {
+                tree: Err(ErgoTreeConstantsParsingError {
                     bytes: bytes[1..].to_vec(),
                     error: SerializationError::NotImplementedYet(
                         "separate constants serialization is not yet supported".to_string(),
@@ -158,7 +166,7 @@ impl SigmaSerializable for ErgoTree {
                     header,
                     tree: Ok(ParsedTree {
                         constants,
-                        root: Err(ErgoTreeParsingError::RootParsingError {
+                        root: Err(ErgoTreeRootParsingError {
                             bytes: rest_of_the_bytes_copy,
                             error: err,
                         }),
