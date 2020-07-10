@@ -176,6 +176,7 @@ pub struct AddressEncoder {
 
 impl AddressEncoder {
     const CHECKSUM_LENGTH: usize = 4;
+    const MIN_ADDRESS_LENGTH: usize = AddressEncoder::CHECKSUM_LENGTH + 2;
 
     /// create a new AddressEncoder for a given network type
     pub fn new(network_prefix: NetworkPrefix) -> AddressEncoder {
@@ -219,7 +220,7 @@ impl AddressEncoder {
     /// parse address from Base58 encoded string
     pub fn parse_address_from_str(&self, str: &str) -> Result<Address, AddressEncoderError> {
         let bytes = bs58::decode(str).into_vec()?;
-        if bytes.is_empty() {
+        if bytes.len() < AddressEncoder::MIN_ADDRESS_LENGTH {
             return Err(AddressEncoderError::InvalidSize);
         };
         let head_byte = self.check_head_byte(bytes[0])?;
@@ -279,6 +280,12 @@ mod tests {
             let encoded_addr = encoder.address_to_str(&v);
             let decoded_addr = encoder.parse_address_from_str(&encoded_addr).unwrap();
             prop_assert_eq![decoded_addr, v];
+        }
+
+        #[test]
+        fn doesnt_crash_on_invalid_input(s in "\\w+") {
+            let encoder = AddressEncoder::new(NetworkPrefix::Testnet);
+            encoder.parse_address_from_str(&s);
         }
     }
 }
