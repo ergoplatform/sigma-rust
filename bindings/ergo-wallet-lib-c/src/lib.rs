@@ -12,10 +12,11 @@
 
 use sigma_tree::chain;
 
-use std::{ffi::CString, os::raw::c_char};
-
-mod error;
-pub use error::*;
+use ergo_wallet_lib_c_core::{address_from_testnet, AddressPtr, ErrorPtr};
+use std::{
+    ffi::{CStr, CString},
+    os::raw::c_char,
+};
 
 pub struct ErgoStateContext(ergo_wallet_lib::ErgoStateContext);
 pub type ErgoStateContextPtr = *mut ErgoStateContext;
@@ -55,14 +56,14 @@ pub extern "C" fn ergo_wallet_ergo_box_candidate_delete(
     todo!()
 }
 
-pub struct Address(chain::Address);
-pub type AddressPtr = *mut Address;
-
 #[no_mangle]
-pub extern "C" fn ergo_wallet_address_from_testnet(
-    _address_str: *const c_char,
-    _address_out: *mut AddressPtr,
+pub unsafe extern "C" fn ergo_wallet_address_from_testnet(
+    address_str: *const c_char,
+    address_out: *mut AddressPtr,
 ) -> ErrorPtr {
+    let address = CStr::from_ptr(address_str).to_string_lossy();
+
+    let res = address_from_testnet(&address, address_out);
     todo!()
 }
 

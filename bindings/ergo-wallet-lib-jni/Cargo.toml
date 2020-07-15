@@ -1,0 +1,16 @@
+[package]
+name = "ergo-wallet-lib-jni"
+version = "0.1.0"
+authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
+edition = "2018"
+description = "Ergo wallet JNI bindings"
+
+[lib]
+crate-type = ["cdylib"]
+path = "src/main/rust/lib.rs"
+
+[dependencies]
+jni = "0.17.0"
+sigma-tree = { path = "../../sigma-tree"}
+ergo-wallet-lib-c-core = { path = "../ergo-wallet-lib-c-core"}
+

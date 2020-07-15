@@ -6,15 +6,11 @@
 #include <stdlib.h>
 
 
-typedef struct Address Address;
-
 typedef struct DataInputBoxes DataInputBoxes;
 
 typedef struct ErgoBoxCandidate ErgoBoxCandidate;
 
 typedef struct ErgoStateContext ErgoStateContext;
-
-typedef struct Error Error;
 
 typedef struct OutputBoxes OutputBoxes;
 
@@ -23,10 +19,6 @@ typedef struct Transaction Transaction;
 typedef struct UnspentBoxes UnspentBoxes;
 
 typedef struct Wallet Wallet;
-
-typedef Error *ErrorPtr;
-
-typedef Address *AddressPtr;
 
 typedef Transaction *TransactionPtr;
 
@@ -44,7 +36,7 @@ typedef DataInputBoxes *DataInputBoxesPtr;
 
 ErrorPtr ergo_wallet_address_delete(AddressPtr _address);
 
-ErrorPtr ergo_wallet_address_from_testnet(const char *_address_str, AddressPtr *_address_out);
+ErrorPtr ergo_wallet_address_from_testnet(const char *address_str, AddressPtr *address_out);
 
 void ergo_wallet_delete_error(ErrorPtr error);
 

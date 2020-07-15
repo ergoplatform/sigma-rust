@@ -1,6 +1,6 @@
-use std::{error, fmt, result};
+use std::{error, fmt};
 
-pub type Result<T> = result::Result<T, Box<dyn error::Error + 'static>>;
+// pub type Result<T> = result::Result<T, Box<dyn error::Error + 'static>>;
 
 #[derive(Debug)]
 pub struct Error {
