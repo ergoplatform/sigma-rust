@@ -55,7 +55,7 @@ pub extern "C" fn ergo_wallet_ergo_box_candidate_delete(
     todo!()
 }
 
-pub struct Address(Box<dyn chain::Address>);
+pub struct Address(chain::Address);
 pub type AddressPtr = *mut Address;
 
 #[no_mangle]

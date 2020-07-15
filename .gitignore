@@ -16,3 +16,5 @@ bindings/ergo-wallet-ios/build
 bindings/ergo-wallet-ios/Packages
 bindings/ergo-wallet-ios/*.xcodeproj
 bindings/ergo-wallet-ios/xcuserdata/
+
+.idea/

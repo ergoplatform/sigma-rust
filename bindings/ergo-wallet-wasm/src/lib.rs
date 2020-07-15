@@ -14,6 +14,7 @@ use sigma_tree::chain;
 
 mod utils;
 
+use chain::box_value::BoxValue;
 use wasm_bindgen::prelude::*;
 
 /**
@@ -60,7 +61,7 @@ use wasm_bindgen::prelude::*;
  *
  */
 #[wasm_bindgen]
-pub struct Address(Box<dyn chain::Address>);
+pub struct Address(chain::Address);
 
 #[wasm_bindgen]
 impl Address {
@@ -68,7 +69,7 @@ impl Address {
     pub fn from_testnet_str(s: &str) -> Result<Address, JsValue> {
         chain::AddressEncoder::new(chain::NetworkPrefix::Testnet)
             .parse_address_from_str(s)
-            .map(|a| Address(a))
+            .map(Address)
             .map_err(|e| JsValue::from_str(&format!("{}", e)))
     }
 }
@@ -107,17 +108,14 @@ impl TxDataInputs {
 
 /// Transaction outputs, array of ErgoBoxCandidate
 #[wasm_bindgen]
-pub struct TxOutputs(Vec<chain::ErgoBoxCandidate>);
+pub struct TxOutputCandidates(Vec<chain::ErgoBoxCandidate>);
 
 #[wasm_bindgen]
-impl TxOutputs {
-    /// parse ErgoBoxCandidate array from json
-    #[allow(clippy::boxed_local)]
-    pub fn from_boxes(_boxes: Box<[JsValue]>) -> TxOutputs {
-        // box in boxes.into_iter() {
-        //     let _box: chain::ErgoBoxCandidate = jbox.into_serde().unwrap();
-        // }
-        TxOutputs(vec![])
+impl TxOutputCandidates {
+    /// Create new outputs
+    #[wasm_bindgen(constructor)]
+    pub fn new(box_candidate: ErgoBoxCandidate) -> TxOutputCandidates {
+        TxOutputCandidates(vec![box_candidate.0])
     }
 }
 
@@ -153,14 +151,18 @@ impl ErgoBoxCandidate {
     pub fn new(value: u32, creation_height: u32, contract: Contract) -> ErgoBoxCandidate {
         // value is u32, because u64 makes in BigInt in JS
         let ergo_tree = contract.0.get_ergo_tree();
-        let b = chain::ErgoBoxCandidate::new(value as u64, ergo_tree, creation_height);
+        let b = chain::ErgoBoxCandidate::new(
+            BoxValue::new(value as u64).expect("value out of bounds"),
+            ergo_tree,
+            creation_height,
+        );
         ErgoBoxCandidate(b)
     }
 
-    /// JSON representation
-    pub fn to_json(&self) -> Result<JsValue, JsValue> {
-        JsValue::from_serde(&self.0).map_err(|e| JsValue::from_str(&format!("{}", e)))
-    }
+    // JSON representation
+    // pub fn to_json(&self) -> Result<JsValue, JsValue> {
+    //     JsValue::from_serde(&self.0).map_err(|e| JsValue::from_str(&format!("{}", e)))
+    // }
 }
 
 /// Defines the contract(script) that will be guarding box contents
@@ -170,8 +172,10 @@ pub struct Contract(chain::Contract);
 #[wasm_bindgen]
 impl Contract {
     /// create new contract that allow spending of the guarded box by a given recipient ([`Address`])
-    pub fn pay_to_address(recipient: Address) -> Contract {
-        Contract(chain::Contract::pay_to_address(&*recipient.0))
+    pub fn pay_to_address(recipient: Address) -> Result<Contract, JsValue> {
+        chain::Contract::pay_to_address(recipient.0)
+            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+            .map(Contract)
     }
 }
 
@@ -233,7 +237,7 @@ impl Wallet {
         _state_context: ErgoStateContext,
         _unspent_boxes: UnspentBoxes,
         _data_inputs: TxDataInputs,
-        _outputs: TxOutputs,
+        _outputs: TxOutputCandidates,
         _send_change_to: Address,
         _min_change_value: u32,
         _tx_fee_amount: u32,

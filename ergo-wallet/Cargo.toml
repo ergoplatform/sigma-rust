@@ -9,7 +9,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"], optional = true }
-sigma-tree = { path = "../sigma-tree", features = ["with-serde"] }
+sigma-tree = { path = "../sigma-tree"}
 
 [features]
 with-serde = ["serde"]

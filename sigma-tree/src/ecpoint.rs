@@ -63,12 +63,13 @@ impl SigmaSerializable for EcPoint {
         let mut buf = [0; EcPoint::GROUP_SIZE];
         r.read_exact(&mut buf[..])?;
         if buf[0] != 0 {
-            let pubkey = PublicKey::from_bytes(&buf[..])
-                .ok_or(SerializationError::Misc("failed to parse PK from bytes"))?;
+            let pubkey = PublicKey::from_bytes(&buf[..]).ok_or_else(|| {
+                SerializationError::Misc("failed to parse PK from bytes".to_string())
+            })?;
             let cp = AffinePoint::from_pubkey(&pubkey);
             if bool::from(cp.is_none()) {
                 Err(SerializationError::Misc(
-                    "failed to get affine point from PK",
+                    "failed to get affine point from PK".to_string(),
                 ))
             } else {
                 Ok(EcPoint(ProjectivePoint::from(cp.unwrap())))
@@ -92,9 +93,9 @@ mod tests {
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             prop_oneof![
-                prop::num::u8::ANY.prop_map(|_| EcPoint(ProjectivePoint::generator())),
-                prop::num::u8::ANY.prop_map(|_| EcPoint(ProjectivePoint::identity())),
-                prop::num::u8::ANY.prop_map(|_| EcPoint::random()),
+                Just(EcPoint(ProjectivePoint::generator())),
+                Just(EcPoint(ProjectivePoint::identity())),
+                Just(EcPoint::random()),
             ]
             .boxed()
         }

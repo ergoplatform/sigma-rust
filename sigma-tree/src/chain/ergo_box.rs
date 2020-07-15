@@ -1,28 +1,30 @@
 //! Ergo box
-use super::token::{TokenAmount, TokenId};
-use crate::ergo_tree::ErgoTree;
+
+pub mod box_value;
+pub mod register;
+
+#[cfg(feature = "with-serde")]
+use super::json;
+use super::{
+    digest32::blake2b256_hash,
+    token::{TokenAmount, TokenId},
+    BoxId, TxId,
+};
+use crate::{
+    ergo_tree::ErgoTree,
+    serialization::ergo_box::{parse_box_with_indexed_digests, serialize_box_with_indexed_digests},
+};
+use box_value::BoxValue;
 use indexmap::IndexSet;
+use register::NonMandatoryRegisters;
 #[cfg(feature = "with-serde")]
 use serde::{Deserialize, Serialize};
 use sigma_ser::serializer::SerializationError;
 use sigma_ser::serializer::SigmaSerializable;
 use sigma_ser::vlq_encode;
-use std::collections::HashMap;
+#[cfg(feature = "with-serde")]
 use std::convert::TryFrom;
 use std::io;
-
-#[allow(dead_code)]
-const STARTING_NON_MANDATORY_INDEX: u8 = 4;
-
-/// newtype for additional registers R4 - R9
-#[derive(PartialEq, Eq, Hash, Debug, Clone)]
-#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
-pub struct NonMandatoryRegisterId(u8);
-
-/// Transaction id (ModifierId in sigmastate)
-#[derive(PartialEq, Eq, Hash, Debug, Clone)]
-#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
-pub struct TxId(String);
 
 /// Box (aka coin, or an unspent output) is a basic concept of a UTXO-based cryptocurrency.
 /// In Bitcoin, such an object is associated with some monetary value (arbitrary,
@@ -35,45 +37,175 @@ pub struct TxId(String);
 /// others could be used by applications in any way.
 /// We add additional fields in addition to amount and proposition~(which stored in the registers R0 and R1).
 /// Namely, register R2 contains additional tokens (a sequence of pairs (token identifier, value)).
-/// Register R3 contains height when block got included into the blockchain and also transaction
-/// identifier and box index in the transaction outputs.
+/// Register R3 contains height specified by user (protocol checks if it was <= current height when
+/// transaction was accepted) and also transaction identifier and box index in the transaction outputs.
 /// Registers R4-R9 are free for arbitrary usage.
 ///
 /// A transaction is unsealing a box. As a box can not be open twice, any further valid transaction
 /// can not be linked to the same box.
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
+#[cfg_attr(
+    feature = "with-serde",
+    serde(try_from = "json::ergo_box::ErgoBoxFromJson")
+)]
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ErgoBox {
+    #[cfg_attr(feature = "with-serde", serde(rename = "boxId"))]
+    box_id: BoxId,
     /// amount of money associated with the box
-    pub value: u64,
+    #[cfg_attr(feature = "with-serde", serde(rename = "value"))]
+    pub value: BoxValue,
     /// guarding script, which should be evaluated to true in order to open this box
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(rename = "ergoTree", with = "json::ergo_tree")
+    )]
     pub ergo_tree: ErgoTree,
     /// secondary tokens the box contains
+    #[cfg_attr(feature = "with-serde", serde(rename = "assets"))]
     pub tokens: Vec<TokenAmount>,
     ///  additional registers the box can carry over
-    pub additional_registers: HashMap<NonMandatoryRegisterId, Box<[u8]>>,
+    #[cfg_attr(feature = "with-serde", serde(rename = "additionalRegisters"))]
+    pub additional_registers: NonMandatoryRegisters,
     /// height when a transaction containing the box was created.
     /// This height is declared by user and should not exceed height of the block,
     /// containing the transaction with this box.
+    #[cfg_attr(feature = "with-serde", serde(rename = "creationHeight"))]
     pub creation_height: u32,
     /// id of transaction which created the box
+    #[cfg_attr(feature = "with-serde", serde(rename = "transactionId"))]
     pub transaction_id: TxId,
     /// number of box (from 0 to total number of boxes the transaction with transactionId created - 1)
+    #[cfg_attr(feature = "with-serde", serde(rename = "index"))]
     pub index: u16,
+}
+
+impl ErgoBox {
+    /// Crate new box
+    pub fn new(
+        value: BoxValue,
+        ergo_tree: ErgoTree,
+        tokens: Vec<TokenAmount>,
+        additional_registers: NonMandatoryRegisters,
+        creation_height: u32,
+        transaction_id: TxId,
+        index: u16,
+    ) -> ErgoBox {
+        let box_with_zero_id = ErgoBox {
+            box_id: BoxId::zero(),
+            value,
+            ergo_tree,
+            tokens,
+            additional_registers,
+            creation_height,
+            transaction_id,
+            index,
+        };
+        let box_id = box_with_zero_id.calc_box_id();
+        ErgoBox {
+            box_id,
+            ..box_with_zero_id
+        }
+    }
+
+    /// Box id (Blake2b256 hash of serialized box)
+    pub fn box_id(&self) -> BoxId {
+        self.box_id.clone()
+    }
+
+    /// Create ErgoBox from ErgoBoxCandidate by adding transaction id
+    /// and index of the box in the transaction
+    pub fn from_box_candidate(
+        box_candidate: &ErgoBoxCandidate,
+        transaction_id: TxId,
+        index: u16,
+    ) -> ErgoBox {
+        let box_with_zero_id = ErgoBox {
+            box_id: BoxId::zero(),
+            value: box_candidate.value.clone(),
+            ergo_tree: box_candidate.ergo_tree.clone(),
+            tokens: box_candidate.tokens.clone(),
+            additional_registers: box_candidate.additional_registers.clone(),
+            creation_height: box_candidate.creation_height,
+            transaction_id,
+            index,
+        };
+        let box_id = box_with_zero_id.calc_box_id();
+        ErgoBox {
+            box_id,
+            ..box_with_zero_id
+        }
+    }
+
+    fn calc_box_id(&self) -> BoxId {
+        let bytes = self.sigma_serialise_bytes();
+        BoxId(blake2b256_hash(&bytes))
+    }
+}
+
+#[cfg(feature = "with-serde")]
+impl TryFrom<json::ergo_box::ErgoBoxFromJson> for ErgoBox {
+    type Error = json::ergo_box::ErgoBoxFromJsonError;
+    fn try_from(box_json: json::ergo_box::ErgoBoxFromJson) -> Result<Self, Self::Error> {
+        let box_with_zero_id = ErgoBox {
+            box_id: BoxId::zero(),
+            value: box_json.value,
+            ergo_tree: box_json.ergo_tree,
+            tokens: box_json.tokens,
+            additional_registers: box_json.additional_registers,
+            creation_height: box_json.creation_height,
+            transaction_id: box_json.transaction_id,
+            index: box_json.index,
+        };
+        let box_id = box_with_zero_id.calc_box_id();
+        let ergo_box = ErgoBox {
+            box_id,
+            ..box_with_zero_id
+        };
+        if ergo_box.box_id() == box_json.box_id {
+            Ok(ergo_box)
+        } else {
+            Err(json::ergo_box::ErgoBoxFromJsonError::InvalidBoxId)
+        }
+    }
+}
+
+impl SigmaSerializable for ErgoBox {
+    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
+        let ergo_tree_bytes = self.ergo_tree.sigma_serialise_bytes();
+        serialize_box_with_indexed_digests(
+            &self.value,
+            ergo_tree_bytes,
+            &self.tokens,
+            &self.additional_registers,
+            self.creation_height,
+            None,
+            w,
+        )?;
+        self.transaction_id.sigma_serialize(w)?;
+        w.put_u16(self.index)?;
+        Ok(())
+    }
+    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(r: &mut R) -> Result<Self, SerializationError> {
+        let box_candidate = ErgoBoxCandidate::parse_body_with_indexed_digests(None, r)?;
+        let tx_id = TxId::sigma_parse(r)?;
+        let index = r.get_u16()?;
+        Ok(ErgoBox::from_box_candidate(&box_candidate, tx_id, index))
+    }
 }
 
 /// Contains the same fields as `ErgoBox`, except if transaction id and index,
 /// that will be calculated after full transaction formation.
 #[derive(PartialEq, Eq, Debug)]
-#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct ErgoBoxCandidate {
     /// amount of money associated with the box
-    pub value: u64,
+    pub value: BoxValue,
     /// guarding script, which should be evaluated to true in order to open this box
     pub ergo_tree: ErgoTree,
     /// secondary tokens the box contains
     pub tokens: Vec<TokenAmount>,
     ///  additional registers the box can carry over
-    pub additional_registers: HashMap<NonMandatoryRegisterId, Box<[u8]>>,
+    pub additional_registers: NonMandatoryRegisters,
     /// height when a transaction containing the box was created.
     /// This height is declared by user and should not exceed height of the block,
     /// containing the transaction with this box.
@@ -82,12 +214,12 @@ pub struct ErgoBoxCandidate {
 
 impl ErgoBoxCandidate {
     /// create box with value guarded by ErgoTree
-    pub fn new(value: u64, ergo_tree: ErgoTree, creation_height: u32) -> ErgoBoxCandidate {
+    pub fn new(value: BoxValue, ergo_tree: ErgoTree, creation_height: u32) -> ErgoBoxCandidate {
         ErgoBoxCandidate {
             value,
             ergo_tree,
             tokens: vec![],
-            additional_registers: HashMap::new(),
+            additional_registers: NonMandatoryRegisters::empty(),
             creation_height,
         }
     }
@@ -99,62 +231,15 @@ impl ErgoBoxCandidate {
         token_ids_in_tx: Option<&IndexSet<TokenId>>,
         w: &mut W,
     ) -> Result<(), io::Error> {
-        // reference implementation - https://github.com/ScorexFoundation/sigmastate-interpreter/blob/9b20cb110effd1987ff76699d637174a4b2fb441/sigmastate/src/main/scala/org/ergoplatform/ErgoBoxCandidate.scala#L95-L95
-        w.put_u64(self.value)?;
-        self.ergo_tree.sigma_serialize(w)?;
-        w.put_u32(self.creation_height)?;
-        w.put_u8(u8::try_from(self.tokens.len()).unwrap())?;
-
-        self.tokens.iter().try_for_each(|t| {
-            match token_ids_in_tx {
-                Some(token_ids) => w.put_u32(
-                    u32::try_from(
-                        token_ids
-                            .get_full(&t.token_id)
-                            .expect("failed to find token id in tx's digest index")
-                            .0,
-                    )
-                    .unwrap(),
-                ),
-                None => t.token_id.sigma_serialize(w),
-            }
-            .and_then(|()| w.put_u64(t.amount))
-        })?;
-
-        assert!(
-            self.additional_registers.is_empty(),
-            "register serialization is not yet implemented"
-        );
-        /*
-            let regs_num = self.additional_registers.keys().len();
-            assert!(
-                (regs_num + STARTING_NON_MANDATORY_INDEX as usize) <= 255,
-                "The number of non-mandatory indexes exceeds 251 limit."
-            );
-            w.put_u8(regs_num as u8)?;
-        */
-
-        /*
-          val nRegs = obj.additionalRegisters.keys.size
-          if (nRegs + ErgoBox.startingNonMandatoryIndex > 255)
-            sys.error(s"The number of non-mandatory indexes $nRegs exceeds ${255 - ErgoBox.startingNonMandatoryIndex} limit.")
-          w.putUByte(nRegs)
-          // we assume non-mandatory indexes are densely packed from startingNonMandatoryIndex
-          // this convention allows to save 1 bite for each register
-          val startReg = ErgoBox.startingNonMandatoryIndex
-          val endReg = ErgoBox.startingNonMandatoryIndex + nRegs - 1
-          cfor(startReg: Int)(_ <= endReg, _ + 1) { regId =>
-            val reg = ErgoBox.findRegisterByIndex(regId.toByte).get
-            obj.get(reg) match {
-              case Some(v) =>
-                w.putValue(v)
-              case None =>
-                sys.error(s"Set of non-mandatory indexes is not densely packed: " +
-                  s"register R$regId is missing in the range [$startReg .. $endReg]")
-            }
-          }
-        */
-        Ok(())
+        serialize_box_with_indexed_digests(
+            &self.value,
+            self.ergo_tree.sigma_serialise_bytes(),
+            &self.tokens,
+            &self.additional_registers,
+            self.creation_height,
+            token_ids_in_tx,
+            w,
+        )
     }
 
     /// Box deserialization with token ids optionally parsed in transaction
@@ -162,36 +247,7 @@ impl ErgoBoxCandidate {
         digests_in_tx: Option<&IndexSet<TokenId>>,
         r: &mut R,
     ) -> Result<ErgoBoxCandidate, SerializationError> {
-        // reference implementation -https://github.com/ScorexFoundation/sigmastate-interpreter/blob/9b20cb110effd1987ff76699d637174a4b2fb441/sigmastate/src/main/scala/org/ergoplatform/ErgoBoxCandidate.scala#L144-L144
-
-        let value = r.get_u64()?;
-        let ergo_tree = ErgoTree::sigma_parse(r)?;
-        let creation_height = r.get_u32()?;
-        let tokens_count = r.get_u8()?;
-        let mut tokens = Vec::with_capacity(tokens_count as usize);
-        for _ in 0..tokens_count {
-            let token_id = match digests_in_tx {
-                None => TokenId::sigma_parse(r)?,
-                Some(digests) => {
-                    let digest_index = r.get_u32()?;
-                    *digests
-                        .get_index(digest_index as usize)
-                        .expect("failed to find token id in tx digests")
-                }
-            };
-            let amount = r.get_u64()?;
-            tokens.push(TokenAmount { token_id, amount })
-        }
-
-        let additional_registers = HashMap::new();
-
-        Ok(ErgoBoxCandidate {
-            value,
-            ergo_tree,
-            tokens,
-            additional_registers,
-            creation_height,
-        })
+        parse_box_with_indexed_digests(digests_in_tx, r)
     }
 }
 
@@ -215,17 +271,33 @@ mod tests {
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             (
-                any::<u64>(),
+                any::<BoxValue>(),
                 any::<ErgoTree>(),
                 vec(any::<TokenAmount>(), 0..10),
                 any::<u32>(),
+                any::<NonMandatoryRegisters>(),
             )
-                .prop_map(|(value, ergo_tree, tokens, creation_height)| Self {
-                    value,
-                    ergo_tree,
-                    tokens,
-                    additional_registers: HashMap::new(),
-                    creation_height,
+                .prop_map(
+                    |(value, ergo_tree, tokens, creation_height, additional_registers)| Self {
+                        value,
+                        ergo_tree,
+                        tokens,
+                        additional_registers,
+                        creation_height,
+                    },
+                )
+                .boxed()
+        }
+        type Strategy = BoxedStrategy<Self>;
+    }
+
+    impl Arbitrary for ErgoBox {
+        type Parameters = ();
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            (any::<ErgoBoxCandidate>(), any::<TxId>(), any::<u16>())
+                .prop_map(|(box_candidate, tx_id, index)| {
+                    Self::from_box_candidate(&box_candidate, tx_id, index)
                 })
                 .boxed()
         }
@@ -235,7 +307,12 @@ mod tests {
     proptest! {
 
         #[test]
-        fn ser_roundtrip(v in any::<ErgoBoxCandidate>()) {
+        fn ergo_box_candidate_ser_roundtrip(v in any::<ErgoBoxCandidate>()) {
+            prop_assert_eq![sigma_serialize_roundtrip(&v), v];
+        }
+
+        #[test]
+        fn ergo_box_ser_roundtrip(v in any::<ErgoBox>()) {
             prop_assert_eq![sigma_serialize_roundtrip(&v), v];
         }
     }

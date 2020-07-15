@@ -19,3 +19,18 @@ impl SigmaSerializable for Constant {
         Ok(Constant { tpe, v })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use proptest::prelude::*;
+    use sigma_ser::test_helpers::*;
+
+    proptest! {
+
+        #[test]
+        fn ser_roundtrip(v in any::<Constant>()) {
+            prop_assert_eq![sigma_serialize_roundtrip(&v), v];
+        }
+    }
+}

@@ -1,3 +1,4 @@
+//! AST for ErgoTree
 use crate::{serialization::op_code::OpCode, types::*};
 use core::fmt;
 use Expr::*;
@@ -8,33 +9,53 @@ pub mod ops;
 pub use constant::*;
 
 #[derive(PartialEq, Eq, Debug)]
+/// newtype for box register id
 pub struct RegisterId(u8);
 
 #[derive(PartialEq, Eq, Debug)]
+/// Expression in ErgoTree
 pub enum Expr {
+    /// Constant value
     Const(Constant),
+    /// Collection of values (same type)
     Coll {
+        /// Collection type
         tpe: SType,
+        /// Values of the collection
         v: Vec<Expr>,
     },
+    /// Tuple
     Tup {
+        /// Tuple type
         tpe: SType,
+        /// Values of the tuple
         v: Vec<Expr>,
     },
+    /// Predefined functions (global)
     PredefFunc(PredefFunc),
+    /// Collection type methods
     CollM(CollMethods),
+    /// Box methods
     BoxM(BoxMethods),
+    /// Context methods (i.e CONTEXT.INPUTS)
     CtxM(ContextMethods),
+    /// Method call
     MethodCall {
+        /// Method call type
         tpe: SType,
+        /// Method call object
         obj: Box<Expr>,
+        /// Method signature
         method: SMethod,
+        /// Arguments of the method call
         args: Vec<Expr>,
     },
+    /// Binary operation
     BinOp(ops::BinOp, Box<Expr>, Box<Expr>),
 }
 
 impl Expr {
+    /// Code (used in serialization)
     pub fn op_code(&self) -> OpCode {
         match self {
             Const { .. } => todo!(),
@@ -49,6 +70,7 @@ impl Expr {
         }
     }
 
+    /// Type of the expression
     pub fn tpe(&self) -> &SType {
         match self {
             Const(c) => &c.tpe,
@@ -64,35 +86,53 @@ impl fmt::Display for Expr {
 }
 
 #[derive(PartialEq, Eq, Debug)]
+/// Methods for Collection type instance
 pub enum CollMethods {
+    /// Fold method
     Fold {
+        /// Collection
         input: Box<Expr>,
+        /// Initial value for accumulator
         zero: Box<Expr>,
+        /// Function (lambda)
         fold_op: Box<Expr>,
     },
 }
 
 #[derive(PartialEq, Eq, Debug)]
+/// Methods for Box type instance
 pub enum BoxMethods {
+    /// Box.RX methods
     ExtractRegisterAs {
+        /// Box
         input: Box<Expr>,
+        /// Register id to extract value from
         register_id: RegisterId,
     },
 }
 
 impl BoxMethods {
+    /// Code (serialization)
     pub fn op_code(&self) -> OpCode {
         todo!()
     }
 }
 
 #[derive(PartialEq, Eq, Debug)]
+/// Methods for Context type instance
 pub enum ContextMethods {
+    /// Tx inputs
     Inputs,
+    /// Tx outputs
     Outputs,
 }
 
 #[derive(PartialEq, Eq, Debug)]
+/// Predefined (global) functions
 pub enum PredefFunc {
-    Sha256 { input: Box<Expr> },
+    /// SHA256
+    Sha256 {
+        /// Byte array
+        input: Box<Expr>,
+    },
 }

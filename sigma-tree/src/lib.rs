@@ -9,8 +9,10 @@
 #![deny(dead_code)]
 #![deny(unused_imports)]
 #![deny(missing_docs)]
+// Clippy exclusions
+#![allow(clippy::unit_arg)]
 
-mod ast;
+pub mod ast;
 mod constants;
 mod ecpoint;
 mod ergo_tree;
@@ -20,4 +22,5 @@ mod types;
 
 pub mod chain;
 pub mod sigma_protocol;
+
 pub use ergo_tree::*;
