@@ -1,5 +1,5 @@
 [package]
-name = "ergo-wallet-c"
+name = "ergo-wallet-lib-c"
 version = "0.1.0"
 authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
 edition = "2018"
@@ -12,7 +12,7 @@ crate-type = ["staticlib"]
 [dependencies]
 ffi_helpers = "0.2"
 sigma-tree = { path = "../../sigma-tree"}
-ergo-wallet = { path = "../../ergo-wallet"}
+ergo-wallet-lib = { path = "../../ergo-wallet-lib"}
 
 [build-dependencies]
 cbindgen = "0.14"

@@ -1,8 +1,8 @@
 //! Test suite for the Web and headless browsers.
 
-extern crate ergo_wallet_wasm;
+extern crate ergo_wallet_lib_wasm;
 extern crate wasm_bindgen_test;
-use ergo_wallet_wasm::*;
+use ergo_wallet_lib_wasm::*;
 use wasm_bindgen_test::*;
 
 wasm_bindgen_test_configure!(run_in_browser);

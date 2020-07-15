@@ -17,7 +17,7 @@ use std::{ffi::CString, os::raw::c_char};
 mod error;
 pub use error::*;
 
-pub struct ErgoStateContext(ergo_wallet::ErgoStateContext);
+pub struct ErgoStateContext(ergo_wallet_lib::ErgoStateContext);
 pub type ErgoStateContextPtr = *mut ErgoStateContext;
 
 #[no_mangle]

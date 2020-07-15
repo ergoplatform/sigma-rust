@@ -285,7 +285,7 @@ mod tests {
         #[test]
         fn doesnt_crash_on_invalid_input(s in "\\w+") {
             let encoder = AddressEncoder::new(NetworkPrefix::Testnet);
-            encoder.parse_address_from_str(&s);
+            prop_assert![encoder.parse_address_from_str(&s).is_err()];
         }
     }
 }

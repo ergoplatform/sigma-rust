@@ -202,13 +202,13 @@ impl Transaction {
 
 /// TBD
 #[wasm_bindgen]
-pub struct ErgoStateContext(ergo_wallet::ErgoStateContext);
+pub struct ErgoStateContext(ergo_wallet_lib::ErgoStateContext);
 
 #[wasm_bindgen]
 impl ErgoStateContext {
     /// empty (dummy) context (for signing P2PK tx only)
     pub fn dummy() -> ErgoStateContext {
-        ErgoStateContext(ergo_wallet::ErgoStateContext::dummy())
+        ErgoStateContext(ergo_wallet_lib::ErgoStateContext::dummy())
     }
 }
 
