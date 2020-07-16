@@ -11,6 +11,8 @@ path = "src/main/rust/lib.rs"
 
 [dependencies]
 jni = "0.17.0"
+failure = "0.1"
+log = "0.4"
 sigma-tree = { path = "../../sigma-tree"}
 ergo-wallet-lib-c-core = { path = "../ergo-wallet-lib-c-core"}
 

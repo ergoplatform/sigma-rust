@@ -12,7 +12,7 @@
 
 use sigma_tree::chain;
 
-use ergo_wallet_lib_c_core::{address_from_testnet, AddressPtr, ErrorPtr};
+use ergo_wallet_lib_c_core::{address_delete, address_from_testnet, AddressPtr, Error, ErrorPtr};
 use std::{
     ffi::{CStr, CString},
     os::raw::c_char,
@@ -62,14 +62,13 @@ pub unsafe extern "C" fn ergo_wallet_address_from_testnet(
     address_out: *mut AddressPtr,
 ) -> ErrorPtr {
     let address = CStr::from_ptr(address_str).to_string_lossy();
-
     let res = address_from_testnet(&address, address_out);
-    todo!()
+    Error::c_api_from(res)
 }
 
 #[no_mangle]
-pub extern "C" fn ergo_wallet_address_delete(_address: AddressPtr) -> ErrorPtr {
-    todo!()
+pub extern "C" fn ergo_wallet_address_delete(address: AddressPtr) {
+    address_delete(address)
 }
 
 pub struct UnspentBoxes(Vec<chain::ErgoBoxCandidate>);

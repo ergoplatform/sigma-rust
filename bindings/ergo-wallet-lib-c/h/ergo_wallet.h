@@ -34,7 +34,7 @@ typedef Wallet *WalletPtr;
 
 typedef DataInputBoxes *DataInputBoxesPtr;
 
-ErrorPtr ergo_wallet_address_delete(AddressPtr _address);
+void ergo_wallet_address_delete(AddressPtr address);
 
 ErrorPtr ergo_wallet_address_from_testnet(const char *address_str, AddressPtr *address_out);
 

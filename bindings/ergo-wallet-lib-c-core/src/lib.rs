@@ -1,5 +1,15 @@
 //! C compatible functions to use in C and JNI bindings
 
+// Coding conventions
+#![deny(non_upper_case_globals)]
+#![deny(non_camel_case_types)]
+#![deny(non_snake_case)]
+#![deny(unused_mut)]
+#![deny(dead_code)]
+#![deny(unused_imports)]
+// #![deny(missing_docs)]
+#![allow(clippy::missing_safety_doc)]
+
 mod error;
 pub use error::*;
 
@@ -16,8 +26,7 @@ pub unsafe fn address_from_testnet(
     let address_out: &mut AddressPtr = if let Some(address_out) = address_out.as_mut() {
         address_out
     } else {
-        todo!()
-        // return Error::invalid_input("address_out").with(NulPtr).into();
+        return Err(Error::InvalidArgument("address_out"));
     };
 
     let encoder = AddressEncoder::new(NetworkPrefix::Testnet);
@@ -25,10 +34,16 @@ pub unsafe fn address_from_testnet(
 
     match result {
         Ok(address) => {
-            todo!()
-            // *address_out = Box::into_raw(Box::new(Address(address)));
-            // Result::success()
+            *address_out = Box::into_raw(Box::new(Address(address)));
+            Ok(())
         }
-        Err(err) => todo!(), //  err.into(),
+        Err(err) => Err(Error::misc(err)),
+    }
+}
+
+pub fn address_delete(address: AddressPtr) {
+    if !address.is_null() {
+        let boxed = unsafe { Box::from_raw(address) };
+        std::mem::drop(boxed);
     }
 }
