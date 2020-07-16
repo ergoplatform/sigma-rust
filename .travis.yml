@@ -67,7 +67,7 @@ matrix:
       before_script:
         - curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh -s -- -f
       script:
-        - cd bindings/ergo-wallet-wasm
+        - cd bindings/ergo-wallet-lib-wasm
         - wasm-pack build
         - wasm-pack test  --firefox --headless
         - wasm-pack test  --firefox --headless --release
@@ -88,7 +88,7 @@ matrix:
       before_script:
         - curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh -s -- -f
       script:
-        - cd bindings/ergo-wallet-wasm
+        - cd bindings/ergo-wallet-lib-wasm
         - wasm-pack build
         - npm install && npm run test
 
@@ -101,7 +101,7 @@ matrix:
         - cargo install cargo-lipo
         - cargo install cbindgen
       script:
-        - cd bindings/ergo-wallet-ios
+        - cd bindings/ergo-wallet-lib-ios
         - cargo lipo --release --targets=aarch64-apple-ios,x86_64-apple-ios
         - swift package generate-xcodeproj
         - xcodebuild -project ./ErgoWallet.xcodeproj -xcconfig ./Config/Release.xcconfig -sdk iphoneos
