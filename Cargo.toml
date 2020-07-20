@@ -6,6 +6,6 @@ members = [
     "bindings/ergo-wallet-lib-wasm",
     "bindings/ergo-wallet-lib-c-core",
     "bindings/ergo-wallet-lib-c",
-    "bindings/ergo-wallet-lib-jni",
+    "bindings/ergo-wallet-lib-android",
     "sigma-testutil",
 ]
