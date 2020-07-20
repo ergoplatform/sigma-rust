@@ -11,15 +11,16 @@ wasm-pack.log
 **/docs
 package-lock.json
 
-bindings/ergo-wallet-lib-ios/.build
-bindings/ergo-wallet-lib-ios/build
-bindings/ergo-wallet-lib-ios/Packages
-bindings/ergo-wallet-lib-ios/*.xcodeproj
-bindings/ergo-wallet-lib-ios/xcuserdata/
+# Swift
+.build
+Packages
+*.xcodeproj
+xcuserdata/
 
 .idea/
 
 # Gradle files
-bindings/ergo-wallet-lib-jni/.gradle/
+.gradle/
 build/
+
 

@@ -6,7 +6,8 @@ edition = "2018"
 description = "Ergo wallet JNI bindings"
 
 [lib]
-crate-type = ["cdylib"]
+name = "ergowalletlibjni"
+crate-type = ["staticlib", "cdylib"]
 path = "src/main/rust/lib.rs"
 
 [dependencies]
