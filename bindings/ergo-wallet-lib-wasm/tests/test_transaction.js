@@ -3,7 +3,7 @@ import { expect } from 'chai';
 import {
   Address, Wallet, UnspentBoxes, TxDataInputs, ErgoBoxCandidate, Contract,
   TxOutputCandidates, ErgoStateContext
-} from '../pkg/ergo_wallet_wasm';
+} from '../pkg/ergo_wallet_lib_wasm';
 
 it('new signed transaction', async () => {
 
