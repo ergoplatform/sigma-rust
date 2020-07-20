@@ -17,9 +17,8 @@ jobs:
           rustup target add x86_64-linux-android      # for x86_64
 
       - name: run tests
-        working-directory: ./bindings/ergo-wallet-lib-android
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 29
-          script: ./gradlew connectedCheck
+          script: cd ./bindings/ergo-wallet-lib-android && ./gradlew connectedCheck
 
