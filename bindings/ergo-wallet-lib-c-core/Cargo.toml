@@ -1,0 +1,15 @@
+[package]
+name = "ergo-wallet-lib-c-core"
+version = "0.1.0"
+authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
+edition = "2018"
+description = "Ergo wallet core for C and JNI bindings"
+
+[lib]
+crate-type = ["lib"]
+
+[dependencies]
+sigma-tree = { path = "../../sigma-tree"}
+ergo-wallet-lib = { path = "../../ergo-wallet-lib"}
+thiserror = "1"
+
