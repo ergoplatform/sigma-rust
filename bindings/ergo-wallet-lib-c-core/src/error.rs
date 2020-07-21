@@ -11,6 +11,8 @@ pub enum Error {
     InvalidArgument(&'static str),
 }
 
+pub type ErrorPtr = *mut Error;
+
 impl Error {
     pub fn misc<E>(details: E) -> Self
     where
@@ -27,4 +29,3 @@ impl Error {
     }
 }
 
-pub type ErrorPtr = *mut Error;

@@ -12,11 +12,15 @@
 
 use sigma_tree::chain;
 
-use ergo_wallet_lib_c_core::{address_delete, address_from_testnet, AddressPtr, Error, ErrorPtr};
+use ergo_wallet_lib_c_core::{address_delete, address_from_testnet};
+pub use ergo_wallet_lib_c_core::{Address, Error};
 use std::{
     ffi::{CStr, CString},
     os::raw::c_char,
 };
+
+pub type ErrorPtr = *mut Error;
+pub type AddressPtr = *mut Address;
 
 pub struct ErgoStateContext(ergo_wallet_lib::ErgoStateContext);
 pub type ErgoStateContextPtr = *mut ErgoStateContext;

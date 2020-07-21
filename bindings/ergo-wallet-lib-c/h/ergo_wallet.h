@@ -6,11 +6,15 @@
 #include <stdlib.h>
 
 
+typedef struct Address Address;
+
 typedef struct DataInputBoxes DataInputBoxes;
 
 typedef struct ErgoBoxCandidate ErgoBoxCandidate;
 
 typedef struct ErgoStateContext ErgoStateContext;
+
+typedef struct Error Error;
 
 typedef struct OutputBoxes OutputBoxes;
 
@@ -19,6 +23,10 @@ typedef struct Transaction Transaction;
 typedef struct UnspentBoxes UnspentBoxes;
 
 typedef struct Wallet Wallet;
+
+typedef Address *AddressPtr;
+
+typedef Error *ErrorPtr;
 
 typedef Transaction *TransactionPtr;
 
