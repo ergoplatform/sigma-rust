@@ -6,10 +6,11 @@ Rust implementation of [ErgoScript](https://github.com/ScorexFoundation/sigmasta
 ## Crates
 [sigma-tree](https://github.com/ergoplatform/sigma-rust/tree/develop/sigma-tree) - ErgoTree, interpreter, chain types (transactions, boxes, etc.), JSON serialization.
 
-[ergo-wallet](https://github.com/ergoplatform/sigma-rust/tree/develop/ergo-wallet) - Transaction creation and signing. Has bindings for the following platforms:
-- [JS/TS(WASM)](https://github.com/ergoplatform/sigma-rust/tree/develop/bindings/ergo-wallet-wasm)
-- [iOS](https://github.com/ergoplatform/sigma-rust/tree/develop/bindings/ergo-wallet-ios)
-- [C](https://github.com/ergoplatform/sigma-rust/tree/develop/bindings/ergo-wallet-c)
+[ergo-wallet](https://github.com/ergoplatform/sigma-rust/tree/develop/ergo-wallet-lib) - Transaction creation and signing. Has bindings for the following platforms:
+- [JS/TS(WASM)](https://github.com/ergoplatform/sigma-rust/tree/develop/bindings/ergo-wallet-lib-wasm)
+- [iOS](https://github.com/ergoplatform/sigma-rust/tree/develop/bindings/ergo-wallet-lib-ios)
+- [iOS](https://github.com/ergoplatform/sigma-rust/tree/develop/bindings/ergo-wallet-lib-android)
+- [C](https://github.com/ergoplatform/sigma-rust/tree/develop/bindings/ergo-wallet-lib-c)
 
 ## Contributing
 Contributions are very welcome! Checkout issues labeled ["help wanted" and "good first issue"](https://github.com/ergoplatform/sigma-rust/labels/help%20wanted)
