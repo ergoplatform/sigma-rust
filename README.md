@@ -9,7 +9,7 @@ Rust implementation of [ErgoScript](https://github.com/ScorexFoundation/sigmasta
 [ergo-wallet](https://github.com/ergoplatform/sigma-rust/tree/develop/ergo-wallet-lib) - Transaction creation and signing. Has bindings for the following platforms:
 - [JS/TS(WASM)](https://github.com/ergoplatform/sigma-rust/tree/develop/bindings/ergo-wallet-lib-wasm)
 - [iOS](https://github.com/ergoplatform/sigma-rust/tree/develop/bindings/ergo-wallet-lib-ios)
-- [iOS](https://github.com/ergoplatform/sigma-rust/tree/develop/bindings/ergo-wallet-lib-android)
+- [Android(JNI)](https://github.com/ergoplatform/sigma-rust/tree/develop/bindings/ergo-wallet-lib-android)
 - [C](https://github.com/ergoplatform/sigma-rust/tree/develop/bindings/ergo-wallet-lib-c)
 
 ## Contributing
