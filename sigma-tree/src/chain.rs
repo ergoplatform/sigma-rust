@@ -24,3 +24,6 @@ pub use ergo_box::*;
 pub use input::*;
 pub use token::*;
 pub use transaction::*;
+pub use prover_result::ProverResult;
+pub use context_extension::ContextExtension;
+pub use digest32::Digest32;

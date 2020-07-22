@@ -14,6 +14,7 @@ use std::convert::TryInto;
 use std::io;
 use thiserror::Error;
 
+///
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 #[cfg_attr(
     feature = "with-serde",
