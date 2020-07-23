@@ -14,7 +14,7 @@ use std::convert::TryInto;
 use std::io;
 use thiserror::Error;
 
-///
+/// 32 byte array used in box, transaction ids (hash)
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 #[cfg_attr(
     feature = "with-serde",
