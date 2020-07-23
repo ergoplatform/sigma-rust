@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![allow(dead_code)]
-
 use failure::Error;
 use jni::JNIEnv;
 use std::any::Any;
@@ -47,6 +45,7 @@ pub fn unwrap_exc_or<T>(env: &JNIEnv, res: ExceptionResult<T>, error_val: T) -> 
 }
 
 // Same as `unwrap_exc_or` but returns default value.
+#[allow(dead_code)]
 pub fn unwrap_exc_or_default<T: Default>(env: &JNIEnv, res: ExceptionResult<T>) -> T {
     unwrap_exc_or(env, res, T::default())
 }

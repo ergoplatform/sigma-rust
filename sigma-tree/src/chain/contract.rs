@@ -5,7 +5,6 @@ use crate::ErgoTree;
 use sigma_ser::serializer::SerializationError;
 
 /// High-level wrapper for ErgoTree
-#[allow(dead_code)]
 pub struct Contract {
     ergo_tree: ErgoTree,
 }

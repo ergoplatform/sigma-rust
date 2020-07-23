@@ -34,7 +34,6 @@ impl DlogProverInput {
     }
 
     /// public key of discrete logarithm signature protocol
-    #[allow(dead_code)]
     fn public_image(&self) -> ProveDlog {
         // test it, see https://github.com/ergoplatform/sigma-rust/issues/38
         let g = EcPoint::generator();
@@ -49,7 +48,6 @@ pub trait PrivateInput {
 }
 
 impl PrivateInput for DlogProverInput {
-    #[allow(dead_code)]
     fn public_image(&self) -> SigmaProofOfKnowledgeTree {
         SigmaProofOfKnowledgeTree::ProveDlog(self.public_image())
     }
@@ -94,6 +92,8 @@ pub enum SigmaProofOfKnowledgeTree {
 /// Values of this type are used as values of SigmaProp type
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum SigmaBoolean {
+    /// Represents boolean values (true/false)
+    TrivialProp(bool),
     /// Sigma proposition
     ProofOfKnowledge(SigmaProofOfKnowledgeTree),
     /// AND conjunction for sigma propositions

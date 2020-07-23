@@ -18,6 +18,7 @@ impl SigmaSerializable for SigmaBoolean {
                 SigmaProofOfKnowledgeTree::ProveDlog(v) => v.sigma_serialize(w),
             },
             SigmaBoolean::CAND(_) => todo!(),
+            SigmaBoolean::TrivialProp(_) => Ok(()), // besides opCode no additional bytes
         }
     }
 

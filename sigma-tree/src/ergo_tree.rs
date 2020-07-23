@@ -12,7 +12,6 @@ use std::rc::Rc;
 use vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt};
 
 #[derive(PartialEq, Eq, Debug, Clone)]
-#[allow(dead_code)]
 struct ParsedTree {
     constants: Vec<Constant>,
     root: Result<Rc<Expr>, ErgoTreeRootParsingError>,
@@ -21,7 +20,6 @@ struct ParsedTree {
 /** The root of ErgoScript IR. Serialized instances of this class are self sufficient and can be passed around.
  */
 #[derive(PartialEq, Eq, Debug, Clone)]
-#[allow(dead_code)]
 pub struct ErgoTree {
     header: ErgoTreeHeader,
     tree: Result<ParsedTree, ErgoTreeConstantsParsingError>,
