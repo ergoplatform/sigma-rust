@@ -9,14 +9,29 @@ use super::{box_id::BoxId, prover_result::ProverResult};
 use serde::{Deserialize, Serialize};
 
 /// Fully signed transaction input
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 #[cfg_attr(test, derive(proptest_derive::Arbitrary))]
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct Input {
     /// id of the box to spent
+    #[cfg_attr(feature = "with-serde", serde(rename = "boxId"))]
     pub box_id: BoxId,
     /// proof of spending correctness
+    #[cfg_attr(feature = "with-serde", serde(rename = "spendingProof"))]
     pub spending_proof: ProverResult,
+}
+
+impl Input {
+    /// input with an empty proof
+    pub fn input_to_sign(&self) -> Input {
+        Input {
+            box_id: self.box_id.clone(),
+            spending_proof: ProverResult {
+                proof: vec![],
+                extension: self.spending_proof.extension.clone(),
+            },
+        }
+    }
 }
 
 impl SigmaSerializable for Input {
