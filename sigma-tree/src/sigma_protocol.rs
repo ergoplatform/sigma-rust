@@ -1,4 +1,8 @@
 //! Sigma protocols
+
+pub mod prover;
+pub mod verifier;
+
 use k256::arithmetic::Scalar;
 
 use crate::{ecpoint::EcPoint, serialization::op_code::OpCode};
@@ -126,6 +130,24 @@ impl SigmaProp {
     pub fn value(&self) -> &SigmaBoolean {
         &self.0
     }
+}
+
+pub enum ProofTree {
+    UncheckedTree(UncheckedTree),
+    UnprovenTree(UnprovenTree),
+}
+
+pub enum UnprovenTree {}
+
+pub enum UncheckedSigmaTree {}
+
+pub enum UncheckedTree {
+    NoProof,
+    UncheckedSigmaTree(UncheckedSigmaTree),
+}
+
+fn serialize_sig(tree: UncheckedTree) -> Vec<u8> {
+    todo!()
 }
 
 #[cfg(test)]
