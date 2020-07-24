@@ -71,8 +71,8 @@ matrix:
         - wasm-pack build
         - wasm-pack test  --firefox --headless
         - wasm-pack test  --firefox --headless --release
-        - wasm-pack test  --chrome  --headless
-        - wasm-pack test  --chrome  --headless --release
+        # - wasm-pack test  --chrome  --headless
+        # - wasm-pack test  --chrome  --headless --release
 
     - name: JS tests
       dist: bionic

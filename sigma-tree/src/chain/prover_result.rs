@@ -9,7 +9,7 @@ use super::context_extension::ContextExtension;
 use serde::{Deserialize, Serialize};
 
 /// Proof of correctness of tx spending
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct ProverResult {
     /// proof that satisfies final sigma proposition

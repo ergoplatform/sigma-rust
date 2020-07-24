@@ -25,6 +25,8 @@ use sigma_ser::vlq_encode;
 #[cfg(feature = "with-serde")]
 use std::convert::TryFrom;
 use std::io;
+#[cfg(feature = "with-serde")]
+use thiserror::Error;
 
 /// Box (aka coin, or an unspent output) is a basic concept of a UTXO-based cryptocurrency.
 /// In Bitcoin, such an object is associated with some monetary value (arbitrary,
@@ -143,9 +145,18 @@ impl ErgoBox {
     }
 }
 
+/// Errors on parsing ErgoBox from JSON
+#[cfg(feature = "with-serde")]
+#[derive(Error, PartialEq, Eq, Debug, Clone)]
+pub enum ErgoBoxFromJsonError {
+    /// Box id parsed from JSON differs from calculated from box serialized bytes
+    #[error("Box id parsed from JSON differs from calculated from box serialized bytes")]
+    InvalidBoxId,
+}
+
 #[cfg(feature = "with-serde")]
 impl TryFrom<json::ergo_box::ErgoBoxFromJson> for ErgoBox {
-    type Error = json::ergo_box::ErgoBoxFromJsonError;
+    type Error = ErgoBoxFromJsonError;
     fn try_from(box_json: json::ergo_box::ErgoBoxFromJson) -> Result<Self, Self::Error> {
         let box_with_zero_id = ErgoBox {
             box_id: BoxId::zero(),
@@ -165,7 +176,7 @@ impl TryFrom<json::ergo_box::ErgoBoxFromJson> for ErgoBox {
         if ergo_box.box_id() == box_json.box_id {
             Ok(ergo_box)
         } else {
-            Err(json::ergo_box::ErgoBoxFromJsonError::InvalidBoxId)
+            Err(ErgoBoxFromJsonError::InvalidBoxId)
         }
     }
 }
@@ -196,7 +207,7 @@ impl SigmaSerializable for ErgoBox {
 
 /// Contains the same fields as `ErgoBox`, except if transaction id and index,
 /// that will be calculated after full transaction formation.
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Clone, Debug)]
 pub struct ErgoBoxCandidate {
     /// amount of money associated with the box
     pub value: BoxValue,
@@ -257,6 +268,18 @@ impl SigmaSerializable for ErgoBoxCandidate {
     }
     fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(r: &mut R) -> Result<Self, SerializationError> {
         ErgoBoxCandidate::parse_body_with_indexed_digests(None, r)
+    }
+}
+
+impl From<ErgoBox> for ErgoBoxCandidate {
+    fn from(b: ErgoBox) -> Self {
+        ErgoBoxCandidate {
+            value: b.value,
+            ergo_tree: b.ergo_tree,
+            tokens: b.tokens,
+            additional_registers: b.additional_registers,
+            creation_height: b.creation_height,
+        }
     }
 }
 
