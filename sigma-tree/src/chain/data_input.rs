@@ -14,11 +14,12 @@ use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
 /// Inputs, that are used to enrich script context, but won't be spent by the transaction
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 #[cfg_attr(test, derive(Arbitrary))]
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct DataInput {
     /// id of the box to add into context (should be in UTXO)
+    #[cfg_attr(feature = "with-serde", serde(rename = "boxId"))]
     pub box_id: BoxId,
 }
 

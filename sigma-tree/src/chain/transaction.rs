@@ -1,26 +1,41 @@
 //! Ergo transaction
 
+#[cfg(feature = "with-serde")]
+use super::json;
 use super::{
-    data_input::DataInput, digest32::Digest32, ergo_box::ErgoBoxCandidate, input::Input,
+    data_input::DataInput,
+    digest32::{blake2b256_hash, Digest32},
+    ergo_box::ErgoBoxCandidate,
+    input::Input,
     token::TokenId,
+    ErgoBox,
 };
 use indexmap::IndexSet;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 #[cfg(feature = "with-serde")]
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 use sigma_ser::serializer::SerializationError;
 use sigma_ser::serializer::SigmaSerializable;
 use sigma_ser::vlq_encode;
 use std::convert::TryFrom;
 use std::io;
 use std::iter::FromIterator;
+#[cfg(feature = "with-serde")]
+use thiserror::Error;
 
 /// Transaction id (ModifierId in sigmastate)
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
 #[cfg_attr(test, derive(Arbitrary))]
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct TxId(pub Digest32);
+
+impl TxId {
+    /// All zeros
+    pub fn zero() -> TxId {
+        TxId(Digest32::zero())
+    }
+}
 
 impl SigmaSerializable for TxId {
     fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
@@ -42,8 +57,17 @@ impl SigmaSerializable for TxId {
  * Transactions are not encrypted, so it is possible to browse and view every transaction ever
  * collected into a block.
  */
-#[derive(PartialEq, Debug)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
+#[cfg_attr(
+    feature = "with-serde",
+    serde(
+        try_from = "json::transaction::TransactionJson",
+        into = "json::transaction::TransactionJson"
+    )
+)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct Transaction {
+    tx_id: TxId,
     /// inputs, that will be spent by this transaction.
     pub inputs: Vec<Input>,
     /// inputs, that are not going to be spent by transaction, but will be reachable from inputs
@@ -53,6 +77,51 @@ pub struct Transaction {
     /// box candidates to be created by this transaction. Differ from ordinary ones in that
     /// they do not include transaction id and index
     pub output_candidates: Vec<ErgoBoxCandidate>,
+}
+
+impl Transaction {
+    /// Creates new transation
+    pub fn new(
+        inputs: Vec<Input>,
+        data_inputs: Vec<DataInput>,
+        output_candidates: Vec<ErgoBoxCandidate>,
+    ) -> Transaction {
+        let tx_to_sign = Transaction {
+            tx_id: TxId::zero(),
+            inputs,
+            data_inputs,
+            output_candidates,
+        };
+        let tx_id = tx_to_sign.calc_tx_id();
+        Transaction {
+            tx_id,
+            ..tx_to_sign
+        }
+    }
+
+    /// create ErgoBox from ErgoBoxCandidate with tx id and indices
+    pub fn outputs(&self) -> Vec<ErgoBox> {
+        assert!(self.output_candidates.len() < u16::MAX as usize);
+        self.output_candidates
+            .iter()
+            .enumerate()
+            .map(|(idx, bc)| ErgoBox::from_box_candidate(bc, self.tx_id.clone(), idx as u16))
+            .collect()
+    }
+
+    fn calc_tx_id(&self) -> TxId {
+        let bytes = self.bytes_to_sign();
+        TxId(blake2b256_hash(&bytes))
+    }
+
+    fn bytes_to_sign(&self) -> Vec<u8> {
+        let empty_proof_inputs = self.inputs.iter().map(|i| i.input_to_sign()).collect();
+        let tx_to_sign = Transaction {
+            inputs: empty_proof_inputs,
+            ..(*self).clone()
+        };
+        tx_to_sign.sigma_serialise_bytes()
+    }
 }
 
 impl SigmaSerializable for Transaction {
@@ -121,32 +190,52 @@ impl SigmaSerializable for Transaction {
             )?)
         }
 
-        Ok(Transaction {
-            inputs,
-            data_inputs,
-            output_candidates: outputs,
-        })
+        Ok(Transaction::new(inputs, data_inputs, outputs))
     }
 }
 
 #[cfg(feature = "with-serde")]
-impl serde::Serialize for Transaction {
-    fn serialize<S>(&self, s: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        // not implmented
-        s.serialize_str("TBD")
+impl Into<json::transaction::TransactionJson> for Transaction {
+    fn into(self) -> json::transaction::TransactionJson {
+        json::transaction::TransactionJson {
+            tx_id: self.tx_id.clone(),
+            inputs: self.inputs.clone(),
+            data_inputs: self.data_inputs.clone(),
+            outputs: self.outputs(),
+        }
     }
 }
 
+/// Errors on parsing Transaction from JSON
 #[cfg(feature = "with-serde")]
-impl<'de> serde::Deserialize<'de> for Transaction {
-    fn deserialize<D>(_: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        todo!()
+#[derive(Error, PartialEq, Eq, Debug, Clone)]
+pub enum TransactionFromJsonError {
+    /// Tx id parsed from JSON differs from calculated from serialized bytes
+    #[error("Tx id parsed from JSON differs from calculated from serialized bytes")]
+    InvalidTxId,
+}
+
+#[cfg(feature = "with-serde")]
+impl TryFrom<json::transaction::TransactionJson> for Transaction {
+    type Error = TransactionFromJsonError;
+    fn try_from(tx_json: json::transaction::TransactionJson) -> Result<Self, Self::Error> {
+        let output_candidates = tx_json.outputs.iter().map(|o| o.clone().into()).collect();
+        let tx_to_sign = Transaction {
+            tx_id: TxId::zero(),
+            inputs: tx_json.inputs,
+            data_inputs: tx_json.data_inputs,
+            output_candidates,
+        };
+        let tx_id = tx_to_sign.calc_tx_id();
+        let tx = Transaction {
+            tx_id,
+            ..tx_to_sign
+        };
+        if tx.tx_id == tx_json.tx_id {
+            Ok(tx)
+        } else {
+            Err(TransactionFromJsonError::InvalidTxId)
+        }
     }
 }
 
@@ -167,11 +256,7 @@ mod tests {
                 vec(any::<DataInput>(), 0..10),
                 vec(any::<ErgoBoxCandidate>(), 1..10),
             )
-                .prop_map(|(inputs, data_inputs, outputs)| Self {
-                    inputs,
-                    data_inputs,
-                    output_candidates: outputs,
-                })
+                .prop_map(|(inputs, data_inputs, outputs)| Self::new(inputs, data_inputs, outputs))
                 .boxed()
         }
         type Strategy = BoxedStrategy<Self>;

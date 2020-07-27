@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::io;
 
 /// User-defined variables to be put into context
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct ContextExtension {
     /// key-value pairs of variable id and it's value
