@@ -95,4 +95,18 @@ mod tests {
         assert!(res.is_ok());
         assert!(res.unwrap().proof.is_empty());
     }
+
+    #[test]
+    fn test_prove_false_prop() {
+        let bool_false_tree = ErgoTree::from(Rc::new(Expr::Const(Constant {
+            tpe: SType::SBoolean,
+            v: ConstantVal::Boolean(false),
+        })));
+        let message = vec![0u8; 100];
+
+        let prover = TestProver {};
+        let res = prover.prove(&bool_false_tree, &Env::empty(), message.as_slice());
+        assert!(res.is_err());
+        assert_eq!(res.err().unwrap(), ProverError::ReducedToFalse);
+    }
 }
