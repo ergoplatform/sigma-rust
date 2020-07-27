@@ -2,6 +2,7 @@
 
 #![allow(dead_code)]
 #![allow(unused_variables)]
+#![allow(missing_docs)]
 
 use super::SigmaBoolean;
 use crate::{

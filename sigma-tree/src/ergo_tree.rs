@@ -1,8 +1,5 @@
 //! ErgoTree
-use crate::{
-    ast::{Constant, Expr},
-    types::SType,
-};
+use crate::ast::{Constant, Expr};
 use io::{Cursor, Read};
 use sigma_ser::serializer::SerializationError;
 use sigma_ser::serializer::SigmaSerializable;
@@ -69,15 +66,12 @@ impl ErgoTree {
 
 impl From<Rc<Expr>> for ErgoTree {
     fn from(expr: Rc<Expr>) -> Self {
-        match &*expr {
-            Expr::Const(c) if c.tpe == SType::SSigmaProp => ErgoTree {
-                header: ErgoTree::DEFAULT_HEADER,
-                tree: Ok(ParsedTree {
-                    constants: Vec::new(),
-                    root: Ok(expr),
-                }),
-            },
-            _ => panic!("not yet supported"),
+        ErgoTree {
+            header: ErgoTree::DEFAULT_HEADER,
+            tree: Ok(ParsedTree {
+                constants: Vec::new(),
+                root: Ok(expr),
+            }),
         }
     }
 }
@@ -178,7 +172,7 @@ impl SigmaSerializable for ErgoTree {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{ast::ConstantVal, sigma_protocol::SigmaProp};
+    use crate::{ast::ConstantVal, sigma_protocol::SigmaProp, types::SType};
     use proptest::prelude::*;
     use sigma_ser::test_helpers::*;
 

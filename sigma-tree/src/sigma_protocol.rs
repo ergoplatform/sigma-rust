@@ -132,22 +132,33 @@ impl SigmaProp {
     }
 }
 
+/// Proof tree
 pub enum ProofTree {
+    /// Unchecked tree
     UncheckedTree(UncheckedTree),
+    /// Unproven tree
     UnprovenTree(UnprovenTree),
 }
 
+/// Unproven tree
 pub enum UnprovenTree {}
 
+/// Unchecked sigma tree
 pub enum UncheckedSigmaTree {}
 
+/// Unchecked tree
 pub enum UncheckedTree {
+    /// No proof needed
     NoProof,
+    /// Unchecked sigma tree
     UncheckedSigmaTree(UncheckedSigmaTree),
 }
 
 fn serialize_sig(tree: UncheckedTree) -> Vec<u8> {
-    todo!()
+    match tree {
+        UncheckedTree::NoProof => vec![],
+        UncheckedTree::UncheckedSigmaTree(_) => todo!(),
+    }
 }
 
 #[cfg(test)]

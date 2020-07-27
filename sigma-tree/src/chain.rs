@@ -22,6 +22,7 @@ pub use box_id::*;
 pub use context_extension::*;
 pub use contract::*;
 pub use digest32::*;
+pub use ergo_box::*;
 pub use input::*;
 pub use prover_result::*;
 pub use prover_result::*;

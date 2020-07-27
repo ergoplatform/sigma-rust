@@ -2,6 +2,7 @@
 
 #![allow(dead_code)]
 #![allow(unused_variables)]
+#![allow(missing_docs)]
 
 use super::{serialize_sig, SigmaBoolean, UncheckedSigmaTree, UncheckedTree, UnprovenTree};
 use crate::{
@@ -15,6 +16,7 @@ pub struct TestProver {}
 impl Evaluator for TestProver {}
 impl Prover for TestProver {}
 
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub enum ProverError {
     ErgoTreeError(ErgoTreeParsingError),
     EvalError(EvalError),
@@ -27,10 +29,10 @@ impl From<ErgoTreeParsingError> for ProverError {
     }
 }
 
-pub struct ReductionResult {
-    sigma_prop: SigmaBoolean,
-    cost: u64,
-}
+// pub struct ReductionResult {
+//     sigma_prop: SigmaBoolean,
+//     cost: u64,
+// }
 
 pub trait Prover: Evaluator {
     fn prove(
@@ -68,5 +70,29 @@ pub trait Prover: Evaluator {
         message: &[u8],
     ) -> UncheckedSigmaTree {
         todo!()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        ast::{Constant, ConstantVal, Expr},
+        types::SType,
+    };
+    use std::rc::Rc;
+
+    #[test]
+    fn test_prove_true_prop() {
+        let bool_true_tree = ErgoTree::from(Rc::new(Expr::Const(Constant {
+            tpe: SType::SBoolean,
+            v: ConstantVal::Boolean(true),
+        })));
+        let message = vec![0u8; 100];
+
+        let prover = TestProver {};
+        let res = prover.prove(&bool_true_tree, &Env::empty(), message.as_slice());
+        assert!(res.is_ok());
+        assert!(res.unwrap().proof.is_empty());
     }
 }

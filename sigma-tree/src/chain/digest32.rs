@@ -34,6 +34,7 @@ impl Digest32 {
     }
 }
 
+/// Blake2b256 hash (256 bit)
 pub fn blake2b256_hash(bytes: &[u8]) -> Digest32 {
     // unwrap is safe 32 bytes is a valid hash size (<= 512 && 32 % 8 == 0)
     let mut hasher = VarBlake2b::new(Digest32::SIZE).unwrap();
@@ -82,6 +83,7 @@ impl SigmaSerializable for Digest32 {
     }
 }
 
+/// Invalie byte array size
 #[derive(Error, Debug)]
 #[error("Invalid byte array size ({0})")]
 pub struct Digest32Error(std::array::TryFromSliceError);

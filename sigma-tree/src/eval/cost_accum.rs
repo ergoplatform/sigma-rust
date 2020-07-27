@@ -6,8 +6,10 @@ pub struct CostAccumulator {
 }
 
 impl CostAccumulator {
-    pub fn new(initial_cost: u64, cost_limit: Option<u64>) -> CostAccumulator {
-        todo!()
+    pub fn new(_initial_cost: u64, _cost_limit: Option<u64>) -> CostAccumulator {
+        CostAccumulator {
+            costs: Costs::DEFAULT,
+        }
     }
 
     pub fn add_cost_of(&mut self, expr: &Expr) {
@@ -15,7 +17,5 @@ impl CostAccumulator {
         self.add(cost);
     }
 
-    pub fn add(&self, _: Cost) {
-        todo!();
-    }
+    pub fn add(&self, _: Cost) {}
 }

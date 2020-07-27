@@ -5,6 +5,10 @@ pub struct Cost(u32);
 pub struct Costs {}
 
 impl Costs {
+    pub const DEFAULT: Costs = Costs {};
+}
+
+impl Costs {
     pub fn cost_of(&self, expr: &Expr) -> Cost {
         match expr {
             Expr::Const(_) => todo!(),

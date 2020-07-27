@@ -1,6 +1,7 @@
 use crate::{
-    ast::{ops::BinOp, ops::NumOp, Expr},
+    ast::{ops::BinOp, ops::NumOp, Constant, ConstantVal, Expr},
     sigma_protocol::SigmaBoolean,
+    types::SType,
 };
 
 use cost_accum::CostAccumulator;
@@ -12,8 +13,17 @@ mod value;
 
 pub struct Env();
 
+impl Env {
+    pub fn empty() -> Env {
+        Env()
+    }
+}
+
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub enum EvalError {
     InvalidResultType,
+    // TODO: store unexpected expr
+    UnexpectedExpr,
 }
 
 pub trait Evaluator {
@@ -31,7 +41,10 @@ pub trait Evaluator {
 #[allow(unconditional_recursion)]
 fn eval(expr: &Expr, env: &Env, ca: &mut CostAccumulator) -> Result<Value, EvalError> {
     match expr {
-        Expr::Const(_) => todo!(), //Ok(EvalResult(*v)),
+        Expr::Const(Constant {
+            tpe: SType::SBoolean,
+            v: ConstantVal::Boolean(b),
+        }) => Ok(Value::Boolean(*b)), //Ok(EvalResult(*v)),
         Expr::Coll { .. } => todo!(),
         Expr::Tup { .. } => todo!(),
         Expr::PredefFunc(_) => todo!(),
@@ -49,6 +62,7 @@ fn eval(expr: &Expr, env: &Env, ca: &mut CostAccumulator) -> Result<Value, EvalE
                 },
             })
         }
+        _ => Err(EvalError::UnexpectedExpr),
     }
 }
 
