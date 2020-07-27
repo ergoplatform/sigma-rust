@@ -26,13 +26,24 @@ pub enum EvalError {
     UnexpectedExpr,
 }
 
+pub struct ReductionResult {
+    pub sigma_prop: SigmaBoolean,
+    pub cost: u64,
+}
+
 pub trait Evaluator {
     // TODO: add the cost to the returned result
-    fn reduce_to_crypto(&self, expr: &Expr, env: &Env) -> Result<SigmaBoolean, EvalError> {
+    fn reduce_to_crypto(&self, expr: &Expr, env: &Env) -> Result<ReductionResult, EvalError> {
         let mut ca = CostAccumulator::new(0, None);
         eval(expr, env, &mut ca).and_then(|v| match v {
-            Value::Boolean(b) => Ok(SigmaBoolean::TrivialProp(b)),
-            Value::SigmaProp(sb) => Ok(*sb),
+            Value::Boolean(b) => Ok(ReductionResult {
+                sigma_prop: SigmaBoolean::TrivialProp(b),
+                cost: 0,
+            }),
+            Value::SigmaProp(sb) => Ok(ReductionResult {
+                sigma_prop: *sb,
+                cost: 0,
+            }),
             _ => Err(EvalError::InvalidResultType),
         })
     }

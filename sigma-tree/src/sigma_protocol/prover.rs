@@ -29,11 +29,6 @@ impl From<ErgoTreeParsingError> for ProverError {
     }
 }
 
-// pub struct ReductionResult {
-//     sigma_prop: SigmaBoolean,
-//     cost: u64,
-// }
-
 pub trait Prover: Evaluator {
     fn prove(
         &self,
@@ -45,7 +40,7 @@ pub trait Prover: Evaluator {
         let proof = self
             .reduce_to_crypto(expr.as_ref(), env)
             .map_err(ProverError::EvalError)
-            .and_then(|v| match v {
+            .and_then(|v| match v.sigma_prop {
                 SigmaBoolean::TrivialProp(true) => Ok(UncheckedTree::NoProof),
                 SigmaBoolean::TrivialProp(false) => Err(ProverError::ReducedToFalse),
                 sb => {
