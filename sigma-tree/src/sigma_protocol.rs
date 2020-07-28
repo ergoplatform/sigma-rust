@@ -1,11 +1,19 @@
 //! Sigma protocols
 
+#![allow(dead_code)]
+#![allow(unused_variables)]
+#![allow(missing_docs)]
+
+pub mod dlog_protocol;
 pub mod prover;
 pub mod verifier;
 
 use k256::arithmetic::Scalar;
 
-use crate::{ecpoint::EcPoint, serialization::op_code::OpCode};
+use crate::{big_integer::BigInteger, ecpoint::EcPoint, serialization::op_code::OpCode};
+use blake2::digest::{Update, VariableOutput};
+use blake2::VarBlake2b;
+use dlog_protocol::{FirstDlogProverMessage, SecondDlogProverMessage};
 use std::convert::TryInto;
 
 /// Secret key of discrete logarithm signature protocol
@@ -45,16 +53,9 @@ impl DlogProverInput {
     }
 }
 
-/// Get public key for signature protocol
-pub trait PrivateInput {
-    /// public key
-    fn public_image(&self) -> SigmaProofOfKnowledgeTree;
-}
-
-impl PrivateInput for DlogProverInput {
-    fn public_image(&self) -> SigmaProofOfKnowledgeTree {
-        SigmaProofOfKnowledgeTree::ProveDlog(self.public_image())
-    }
+/// Private inputs (secrets)
+pub enum PrivateInput {
+    DlogProverInput(DlogProverInput),
 }
 
 /// Construct a new SigmaBoolean value representing public key of discrete logarithm signature protocol.
@@ -141,10 +142,62 @@ pub enum ProofTree {
 }
 
 /// Unproven tree
-pub enum UnprovenTree {}
+pub enum UnprovenTree {
+    UnprovenSchnorr(UnprovenSchnorr),
+}
+
+impl UnprovenTree {
+    pub fn real(&self) -> bool {
+        match self {
+            UnprovenTree::UnprovenSchnorr(us) => !us.simulated,
+        }
+    }
+}
+
+pub struct UnprovenSchnorr {
+    proposition: ProveDlog,
+    commitment_opt: Option<FirstDlogProverMessage>,
+    randomness_opt: Option<BigInteger>,
+    challenge_opt: Option<Challenge>,
+    simulated: bool,
+}
+
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct Challenge(Vec<u8>);
 
 /// Unchecked sigma tree
-pub enum UncheckedSigmaTree {}
+pub enum UncheckedSigmaTree {
+    UncheckedLeaf(UncheckedLeaf),
+}
+
+pub enum UncheckedLeaf {
+    UncheckedSchnorr(UncheckedSchnorr),
+}
+
+impl UncheckedLeaf {
+    pub fn proposition(&self) -> SigmaBoolean {
+        match self {
+            UncheckedLeaf::UncheckedSchnorr(us) => SigmaBoolean::ProofOfKnowledge(
+                SigmaProofOfKnowledgeTree::ProveDlog(us.proposition.clone()),
+            ),
+        }
+    }
+}
+
+pub struct UncheckedSchnorr {
+    proposition: ProveDlog,
+    commitment_opt: Option<FirstDlogProverMessage>,
+    challenge: Challenge,
+    second_message: SecondDlogProverMessage,
+}
+
+impl UncheckedSigmaTree {
+    // pub fn challenge(&self) -> Challenge {
+    //     match self {
+    //         UncheckedSigmaTree::UncheckedLeaf(UncheckedLeaf::UncheckedSchnorr(us)) => us.challenge,
+    //     }
+    // }
+}
 
 /// Unchecked tree
 pub enum UncheckedTree {
@@ -159,6 +212,34 @@ fn serialize_sig(tree: UncheckedTree) -> Vec<u8> {
         UncheckedTree::NoProof => vec![],
         UncheckedTree::UncheckedSigmaTree(_) => todo!(),
     }
+}
+
+fn fiat_shamir_tree_to_bytes(tree: ProofTree) -> Vec<u8> {
+    todo!()
+}
+
+/** Size of the binary representation of any group element (2 ^ groupSizeBits == <number of elements in a group>) */
+pub const GROUP_SIZE_BITS: usize = 256;
+/** Number of bytes to represent any group element as byte array */
+pub const GROUP_SIZE: usize = GROUP_SIZE_BITS / 8;
+/** A size of challenge in Sigma protocols, in bits.
+ * If this anything but 192, threshold won't work, because we have polynomials over GF(2^192) and no others.
+ * So DO NOT change the value without implementing polynomials over GF(2^soundnessBits) first
+ * and changing code that calls on GF2_192 and GF2_192_Poly classes!!!
+ * We get the challenge by reducing hash function output to proper value.
+ */
+pub const SOUNDNESS_BITS: usize = 192;
+pub const SOUNDNESS_BYTES: usize = SOUNDNESS_BITS / 8;
+
+pub struct Hash192(pub Box<[u8; SOUNDNESS_BYTES]>);
+
+pub fn hash_fn(input: &[u8]) -> Hash192 {
+    // unwrap is safe 24 bytes is a valid hash size (<= 512 && 24 % 8 == 0)
+    let mut hasher = VarBlake2b::new(SOUNDNESS_BYTES).unwrap();
+    hasher.update(input);
+    let hash = hasher.finalize_boxed();
+    // unwrap is safe due to hash size is expected to be 24
+    Hash192(hash.try_into().unwrap())
 }
 
 #[cfg(test)]
@@ -195,5 +276,14 @@ mod tests {
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             (any::<SigmaBoolean>()).prop_map(SigmaProp).boxed()
         }
+    }
+
+    #[test]
+    fn ensure_soundness_bits() {
+        // see SOUNDNESS_BITS doc comment
+        assert!(SOUNDNESS_BITS < GROUP_SIZE_BITS);
+        // blake2b hash function requirements
+        assert!(SOUNDNESS_BYTES * 8 <= 512);
+        assert!(SOUNDNESS_BYTES % 8 == 0);
     }
 }

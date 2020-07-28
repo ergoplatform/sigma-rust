@@ -32,7 +32,6 @@ pub struct ReductionResult {
 }
 
 pub trait Evaluator {
-    // TODO: add the cost to the returned result
     fn reduce_to_crypto(&self, expr: &Expr, env: &Env) -> Result<ReductionResult, EvalError> {
         let mut ca = CostAccumulator::new(0, None);
         eval(expr, env, &mut ca).and_then(|v| match v {
@@ -55,7 +54,11 @@ fn eval(expr: &Expr, env: &Env, ca: &mut CostAccumulator) -> Result<Value, EvalE
         Expr::Const(Constant {
             tpe: SType::SBoolean,
             v: ConstantVal::Boolean(b),
-        }) => Ok(Value::Boolean(*b)), //Ok(EvalResult(*v)),
+        }) => Ok(Value::Boolean(*b)),
+        Expr::Const(Constant {
+            tpe: SType::SSigmaProp,
+            v: ConstantVal::SigmaProp(sp),
+        }) => Ok(Value::SigmaProp(Box::new((*sp.value()).clone()))),
         Expr::Coll { .. } => todo!(),
         Expr::Tup { .. } => todo!(),
         Expr::PredefFunc(_) => todo!(),
