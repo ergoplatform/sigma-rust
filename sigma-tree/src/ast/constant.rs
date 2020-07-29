@@ -1,6 +1,7 @@
 use crate::chain::{Base16DecodedBytes, Base16EncodedBytes};
 use crate::{
     chain::ErgoBox,
+    ecpoint::EcPoint,
     sigma_protocol::SigmaProp,
     types::{LiftIntoSType, SType},
 };
@@ -66,7 +67,7 @@ pub enum ConstantVal {
     /// Big integer
     BigInt,
     /// GroupElement
-    GroupElement,
+    GroupElement(Box<EcPoint>),
     /// Sigma property
     SigmaProp(Box<SigmaProp>),
     /// Box
@@ -211,6 +212,21 @@ impl Into<Constant> for SigmaProp {
     }
 }
 
+impl Into<ConstantVal> for EcPoint {
+    fn into(self) -> ConstantVal {
+        ConstantVal::GroupElement(Box::new(self))
+    }
+}
+
+impl Into<Constant> for EcPoint {
+    fn into(self) -> Constant {
+        Constant {
+            tpe: SType::SGroupElement,
+            v: self.into(),
+        }
+    }
+}
+
 /// Marker trait to select types for which CollElems::NonPrimitive is used to store elements as Vec<ConstantVal>
 pub trait StoredNonPrimitive {}
 
@@ -263,6 +279,8 @@ mod tests {
                 any::<i16>().prop_map_into(),
                 any::<i32>().prop_map_into(),
                 any::<i64>().prop_map_into(),
+                any::<EcPoint>().prop_map_into(),
+                any::<SigmaProp>().prop_map_into(),
                 (vec(any::<i8>(), 0..100)).prop_map_into(),
                 (vec(any::<i16>(), 0..100)).prop_map_into(),
                 (vec(any::<i32>(), 0..100)).prop_map_into(),
