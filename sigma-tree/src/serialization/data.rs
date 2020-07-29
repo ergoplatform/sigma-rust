@@ -2,6 +2,7 @@ use crate::{
     ast::ConstantVal,
     ast::ConstantVal::*,
     ast::{CollPrim, ConstantColl},
+    ecpoint::EcPoint,
     sigma_protocol,
     types::SType,
     types::SType::*,
@@ -28,7 +29,7 @@ impl DataSerializer {
             Int(v) => w.put_i32(*v),
             Long(v) => w.put_i64(*v),
             BigInt => todo!(),
-            GroupElement => todo!(),
+            GroupElement(ecp) => ecp.sigma_serialize(w),
             SigmaProp(s) => s.value().sigma_serialize(w),
             CBox(_) => todo!(),
             AvlTree => todo!(),
@@ -59,6 +60,7 @@ impl DataSerializer {
             SShort => Short(r.get_i16()?),
             SInt => Int(r.get_i32()?),
             SLong => Long(r.get_i64()?),
+            SGroupElement => GroupElement(Box::new(EcPoint::sigma_parse(r)?)),
             SSigmaProp => ConstantVal::sigma_prop(SigmaProp::new(SigmaBoolean::sigma_parse(r)?)),
             SColl(elem_type) if **elem_type == SByte => {
                 let len = r.get_u16()? as usize;
