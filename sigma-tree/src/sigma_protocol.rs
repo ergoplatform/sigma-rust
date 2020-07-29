@@ -141,6 +141,12 @@ pub enum ProofTree {
     UnprovenTree(UnprovenTree),
 }
 
+impl ProofTree {
+    pub fn with_challenge(&self, challenge: Challenge) -> ProofTree {
+        todo!()
+    }
+}
+
 /// Unproven tree
 pub enum UnprovenTree {
     UnprovenSchnorr(UnprovenSchnorr),
@@ -163,7 +169,7 @@ pub struct UnprovenSchnorr {
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct Challenge(Vec<u8>);
+pub struct Challenge(FiatShamirHash);
 
 /// Unchecked sigma tree
 pub enum UncheckedSigmaTree {
@@ -214,7 +220,7 @@ fn serialize_sig(tree: UncheckedTree) -> Vec<u8> {
     }
 }
 
-fn fiat_shamir_tree_to_bytes(tree: ProofTree) -> Vec<u8> {
+fn fiat_shamir_tree_to_bytes(tree: &ProofTree) -> Vec<u8> {
     todo!()
 }
 
@@ -231,6 +237,7 @@ pub const GROUP_SIZE: usize = GROUP_SIZE_BITS / 8;
 pub const SOUNDNESS_BITS: usize = 192;
 pub const SOUNDNESS_BYTES: usize = SOUNDNESS_BITS / 8;
 
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct FiatShamirHash(pub Box<[u8; SOUNDNESS_BYTES]>);
 
 pub fn fiat_shamir_hash_fn(input: &[u8]) -> FiatShamirHash {

@@ -7,7 +7,7 @@ pub mod interactive_prover {
     use super::{FirstDlogProverMessage, SecondDlogProverMessage};
     use crate::{
         big_integer::BigInteger,
-        sigma_protocol::{Challenge, ProveDlog},
+        sigma_protocol::{Challenge, DlogProverInput, ProveDlog},
     };
 
     pub fn simulate(
@@ -18,6 +18,14 @@ pub mod interactive_prover {
     }
 
     pub fn first_message(proposition: &ProveDlog) -> (BigInteger, FirstDlogProverMessage) {
+        todo!()
+    }
+
+    pub fn second_message(
+        private_input: &DlogProverInput,
+        rnd: BigInteger,
+        challenge: &Challenge,
+    ) -> SecondDlogProverMessage {
         todo!()
     }
 }
