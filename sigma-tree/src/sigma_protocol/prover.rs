@@ -5,9 +5,9 @@
 #![allow(missing_docs)]
 
 use super::{
-    dlog_protocol, fiat_shamir_tree_to_bytes, hash_fn, serialize_sig, PrivateInput, ProofTree,
-    SigmaBoolean, SigmaProofOfKnowledgeTree, UncheckedLeaf, UncheckedSchnorr, UncheckedSigmaTree,
-    UncheckedTree, UnprovenSchnorr, UnprovenTree,
+    dlog_protocol, fiat_shamir_hash_fn, fiat_shamir_tree_to_bytes, serialize_sig, PrivateInput,
+    ProofTree, SigmaBoolean, SigmaProofOfKnowledgeTree, UncheckedLeaf, UncheckedSchnorr,
+    UncheckedSigmaTree, UncheckedTree, UnprovenSchnorr, UnprovenTree,
 };
 use crate::{
     chain::{ContextExtension, ProverResult},
@@ -165,7 +165,7 @@ pub trait Prover: Evaluator {
         // Prover Step 8: compute the challenge for the root of the tree as the Fiat-Shamir hash of s
         // and the message being signed.
         s.append(&mut message.to_vec());
-        let root_challenge = hash_fn(s.as_slice());
+        let root_challenge = fiat_shamir_hash_fn(s.as_slice());
         // let step8 = step6.withChallenge(rootChallenge)
         todo!();
     }

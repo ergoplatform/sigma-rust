@@ -231,15 +231,15 @@ pub const GROUP_SIZE: usize = GROUP_SIZE_BITS / 8;
 pub const SOUNDNESS_BITS: usize = 192;
 pub const SOUNDNESS_BYTES: usize = SOUNDNESS_BITS / 8;
 
-pub struct Hash192(pub Box<[u8; SOUNDNESS_BYTES]>);
+pub struct FiatShamirHash(pub Box<[u8; SOUNDNESS_BYTES]>);
 
-pub fn hash_fn(input: &[u8]) -> Hash192 {
+pub fn fiat_shamir_hash_fn(input: &[u8]) -> FiatShamirHash {
     // unwrap is safe 24 bytes is a valid hash size (<= 512 && 24 % 8 == 0)
     let mut hasher = VarBlake2b::new(SOUNDNESS_BYTES).unwrap();
     hasher.update(input);
     let hash = hasher.finalize_boxed();
     // unwrap is safe due to hash size is expected to be 24
-    Hash192(hash.try_into().unwrap())
+    FiatShamirHash(hash.try_into().unwrap())
 }
 
 #[cfg(test)]
