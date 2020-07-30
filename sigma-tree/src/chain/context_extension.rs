@@ -25,11 +25,13 @@ impl ContextExtension {
 }
 
 impl SigmaSerializable for ContextExtension {
-    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, _: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
+        w.put_u8(self.values.len() as u8)?;
         assert!(self.values.is_empty(), "implemented only for empty");
         Ok(())
     }
-    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(_: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(r: &mut R) -> Result<Self, SerializationError> {
+        let _ = r.get_u8()?;
         Ok(ContextExtension::empty())
     }
 }
