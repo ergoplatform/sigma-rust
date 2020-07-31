@@ -56,6 +56,7 @@ impl DlogProverInput {
 /// Private inputs (secrets)
 pub enum PrivateInput {
     DlogProverInput(DlogProverInput),
+    DiffieHellmanTupleProverInput,
 }
 
 /// Construct a new SigmaBoolean value representing public key of discrete logarithm signature protocol.

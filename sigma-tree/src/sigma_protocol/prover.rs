@@ -129,8 +129,13 @@ pub trait Prover: Evaluator {
         let step8 = step6.with_challenge(Challenge(root_challenge));
 
         // Prover Step 9: complete the proof by computing challenges at real nodes and additionally responses at real leaves
-        let step9 = self.proving(step8);
-        todo!();
+        let step9 = self.proving(step8)?;
+
+        // Prover Step 10: output the right information into the proof
+        match step9 {
+            ProofTree::UncheckedTree(UncheckedTree::UncheckedSigmaTree(tree)) => Ok(tree),
+            _ => todo!(),
+        }
     }
 
     /**
@@ -219,27 +224,34 @@ pub trait Prover: Evaluator {
         // If the node is a leaf marked "real", compute its response according to the second prover step
         // of the Sigma-protocol given the commitment, challenge, and witness
         match tree {
-            ProofTree::UncheckedTree(unchecked_tree) => Ok(tree),
+            ProofTree::UncheckedTree(_) => Ok(tree),
             ProofTree::UnprovenTree(unproven_tree) => match unproven_tree {
                 UnprovenTree::UnprovenSchnorr(us) if unproven_tree.real() => {
-                    if let Some(challenge) = us.challenge_opt {
-                        if let Some(priv_key) = self.secrets().iter().find(|s| match s {
-                            PrivateInput::DlogProverInput(dl) => {
-                                dl.public_image() == us.proposition
-                            }
-                            _ => false,
-                        }) {
+                    if let Some(challenge) = us.challenge_opt.clone() {
+                        if let Some(priv_key) = self
+                            .secrets()
+                            .iter()
+                            .flat_map(|s| match s {
+                                PrivateInput::DlogProverInput(dl) => vec![dl],
+                                _ => vec![],
+                            })
+                            .find(|prover_input| prover_input.public_image() == us.proposition)
+                        {
                             let z = dlog_protocol::interactive_prover::second_message(
                                 &priv_key,
                                 us.randomness_opt.unwrap(),
                                 &challenge,
                             );
-                            Ok(UncheckedSchnorr {
-                                proposition: us.proposition,
-                                ommitment_opt: None,
-                                challenge,
-                                second_message: z,
-                            })
+                            Ok(ProofTree::UncheckedTree(UncheckedTree::UncheckedSigmaTree(
+                                UncheckedSigmaTree::UncheckedLeaf(UncheckedLeaf::UncheckedSchnorr(
+                                    UncheckedSchnorr {
+                                        proposition: us.proposition,
+                                        commitment_opt: None,
+                                        challenge,
+                                        second_message: z,
+                                    },
+                                )),
+                            )))
                         } else {
                             Err(ProverError::SecretNotFound)
                         }
@@ -247,6 +259,7 @@ pub trait Prover: Evaluator {
                         Err(ProverError::RealUnprovenTreeWithoutChallenge)
                     }
                 }
+                _ => todo!(),
             },
         }
     }
