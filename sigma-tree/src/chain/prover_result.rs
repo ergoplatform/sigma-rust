@@ -13,8 +13,10 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct ProverResult {
     /// proof that satisfies final sigma proposition
+    #[cfg_attr(feature = "with-serde", serde(rename = "proofBytes"))]
     pub proof: Vec<u8>,
     /// user-defined variables to be put into context
+    #[cfg_attr(feature = "with-serde", serde(rename = "extension"))]
     pub extension: ContextExtension,
 }
 
