@@ -284,6 +284,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "with-serde")]
     fn test_tx_id_calc() {
         let json = r#"
         {
