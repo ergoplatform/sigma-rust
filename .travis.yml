@@ -52,28 +52,6 @@ matrix:
       after_success:
         - cargo tarpaulin --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
 
-    - name: WASM tests
-      rust: stable
-      dist: xenial
-      cache: false
-      # sudo: true
-      addons:
-        firefox: latest
-        chrome: stable
-      # before_cache:
-      #   - rm -rf /home/travis/.cargo/bin/wasm-pack
-      # before_install:
-      #   - sudo apt-get install packagekit-gtk3-module
-      before_script:
-        - curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh -s -- -f
-      script:
-        - cd bindings/ergo-wallet-lib-wasm
-        - wasm-pack build
-        - wasm-pack test  --firefox --headless
-        - wasm-pack test  --firefox --headless --release
-        # - wasm-pack test  --chrome  --headless
-        # - wasm-pack test  --chrome  --headless --release
-
     - name: JS tests
       dist: bionic
       sudo: true
