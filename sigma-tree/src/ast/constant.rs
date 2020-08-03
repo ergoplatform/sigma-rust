@@ -1,8 +1,7 @@
 use crate::chain::{Base16DecodedBytes, Base16EncodedBytes};
 use crate::{
     chain::ErgoBox,
-    ecpoint::EcPoint,
-    sigma_protocol::SigmaProp,
+    sigma_protocol::{dlog_group::EcPoint, SigmaProp},
     types::{LiftIntoSType, SType},
 };
 #[cfg(feature = "with-serde")]

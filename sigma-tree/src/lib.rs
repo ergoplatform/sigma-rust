@@ -15,7 +15,6 @@
 pub mod ast;
 mod big_integer;
 mod constants;
-mod ecpoint;
 mod ergo_tree;
 mod eval;
 mod serialization;

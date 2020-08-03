@@ -4,15 +4,17 @@
 #![allow(unused_variables)]
 #![allow(missing_docs)]
 
+pub mod dlog_group;
 pub mod dlog_protocol;
 pub mod prover;
 pub mod verifier;
 
 use k256::arithmetic::Scalar;
 
-use crate::{big_integer::BigInteger, ecpoint::EcPoint, serialization::op_code::OpCode};
+use crate::{big_integer::BigInteger, serialization::op_code::OpCode};
 use blake2::digest::{Update, VariableOutput};
 use blake2::VarBlake2b;
+use dlog_group::EcPoint;
 use dlog_protocol::{FirstDlogProverMessage, SecondDlogProverMessage};
 use std::convert::TryInto;
 
@@ -25,31 +27,16 @@ pub struct DlogProverInput {
 impl DlogProverInput {
     /// generates random secret in the range [0, n), where n is DLog group order.
     pub fn random() -> DlogProverInput {
-        let scalar = loop {
-            // Generate a new secret key using the operating system's
-            // cryptographically secure random number generator
-            let sk = k256::SecretKey::generate();
-            let bytes: [u8; 32] = sk
-                .secret_scalar()
-                .as_ref()
-                .as_slice()
-                .try_into()
-                .expect("expected 32 bytes");
-            // Returns None if the byte array does not contain
-            // a big-endian integer in the range [0, n), where n is group order.
-            let maybe_scalar = Scalar::from_bytes(bytes);
-            if bool::from(maybe_scalar.is_some()) {
-                break maybe_scalar.unwrap();
-            }
-        };
-        DlogProverInput { w: scalar }
+        DlogProverInput {
+            w: dlog_group::random_scalar_in_group_range(),
+        }
     }
 
     /// public key of discrete logarithm signature protocol
     fn public_image(&self) -> ProveDlog {
         // test it, see https://github.com/ergoplatform/sigma-rust/issues/38
-        let g = EcPoint::generator();
-        ProveDlog::new(g.exponentiate(&self.w))
+        let g = dlog_group::generator();
+        ProveDlog::new(dlog_group::exponentiate(&g, &self.w))
     }
 }
 

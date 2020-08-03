@@ -1,4 +1,5 @@
-use crate::{big_integer::BigInteger, ecpoint::EcPoint};
+use super::dlog_group::EcPoint;
+use crate::big_integer::BigInteger;
 
 pub struct FirstDlogProverMessage(EcPoint);
 pub struct SecondDlogProverMessage(BigInteger);
@@ -7,7 +8,7 @@ pub mod interactive_prover {
     use super::{FirstDlogProverMessage, SecondDlogProverMessage};
     use crate::{
         big_integer::BigInteger,
-        sigma_protocol::{Challenge, DlogProverInput, ProveDlog},
+        sigma_protocol::{dlog_group, Challenge, DlogProverInput, ProveDlog},
     };
 
     pub fn simulate(
@@ -18,9 +19,10 @@ pub mod interactive_prover {
     }
 
     pub fn first_message(proposition: &ProveDlog) -> (BigInteger, FirstDlogProverMessage) {
-        // TODO: extract arith() from EcPoint into dlog module
-        // its a EcPoint from DlogProverInput::random().public_image()
-        todo!()
+        let scalar = dlog_group::random_scalar_in_group_range();
+        let g = dlog_group::generator();
+        let a = dlog_group::exponentiate(&g, &scalar);
+        (scalar.into(), FirstDlogProverMessage(a))
     }
 
     pub fn second_message(

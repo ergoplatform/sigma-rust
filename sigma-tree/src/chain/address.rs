@@ -1,8 +1,9 @@
 use super::digest32;
 use crate::{
     ast::Expr,
-    ecpoint::EcPoint,
-    sigma_protocol::{ProveDlog, SigmaBoolean, SigmaProofOfKnowledgeTree, SigmaProp},
+    sigma_protocol::{
+        dlog_group::EcPoint, ProveDlog, SigmaBoolean, SigmaProofOfKnowledgeTree, SigmaProp,
+    },
     ErgoTree,
 };
 use sigma_ser::serializer::{SerializationError, SigmaSerializable};

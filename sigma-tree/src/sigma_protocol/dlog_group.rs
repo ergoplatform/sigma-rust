@@ -1,49 +1,73 @@
-use crate::sigma_protocol::DlogProverInput;
-use k256::{
-    arithmetic::{AffinePoint, ProjectivePoint, Scalar},
-    PublicKey,
-};
+use super::DlogProverInput;
+use k256::arithmetic::{ProjectivePoint, Scalar};
+use k256::{arithmetic::AffinePoint, PublicKey};
+use num_bigint::{BigInt, Sign};
 use sigma_ser::{
     serializer::{SerializationError, SigmaSerializable},
     vlq_encode,
 };
-use std::io;
+use std::{convert::TryInto, io};
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct EcPoint(ProjectivePoint);
 
 impl EcPoint {
     pub const GROUP_SIZE: usize = 33;
-
-    pub fn random() -> EcPoint {
-        let sk = DlogProverInput::random();
-        EcPoint::generator().exponentiate(&sk.w)
-    }
-
-    pub fn generator() -> EcPoint {
-        EcPoint(ProjectivePoint::generator())
-    }
-
-    pub fn is_infinity(&self) -> bool {
-        let identity = ProjectivePoint::identity();
-        self.0 == identity
-    }
-
-    pub fn exponentiate(&self, exponent: &Scalar) -> EcPoint {
-        if !self.is_infinity() {
-            // implement for negative exponent
-            // see reference impl https://github.com/ScorexFoundation/sigmastate-interpreter/blob/ec71a6f988f7412bc36199f46e7ad8db643478c7/sigmastate/src/main/scala/sigmastate/basics/BcDlogGroup.scala#L201
-            // see https://github.com/ergoplatform/sigma-rust/issues/36
-
-            // we treat EC as a multiplicative group, therefore, exponentiate point is multiply.
-            EcPoint(self.0 * exponent)
-        } else {
-            self.clone()
-        }
-    }
 }
 
 impl Eq for EcPoint {}
+
+pub fn generator() -> EcPoint {
+    EcPoint(ProjectivePoint::generator())
+}
+
+pub const fn identity() -> EcPoint {
+    EcPoint(ProjectivePoint::identity())
+}
+pub fn is_identity(ge: &EcPoint) -> bool {
+    *ge == identity()
+}
+
+pub fn exponentiate(ge: &EcPoint, exponent: &Scalar) -> EcPoint {
+    if !is_identity(ge) {
+        // implement for negative exponent
+        // see reference impl https://github.com/ScorexFoundation/sigmastate-interpreter/blob/ec71a6f988f7412bc36199f46e7ad8db643478c7/sigmastate/src/main/scala/sigmastate/basics/BcDlogGroup.scala#L201
+        // see https://github.com/ergoplatform/sigma-rust/issues/36
+
+        // we treat EC as a multiplicative group, therefore, exponentiate point is multiply.
+        EcPoint(ge.0 * exponent)
+    } else {
+        ge.clone()
+    }
+}
+
+pub fn random_element() -> EcPoint {
+    let sk = DlogProverInput::random();
+    let bytes = sk.w.to_bytes();
+    let bi = BigInt::from_bytes_be(Sign::Plus, &bytes[..]);
+
+    exponentiate(&generator(), &sk.w)
+}
+
+pub fn random_scalar_in_group_range() -> Scalar {
+    loop {
+        // Generate a new secret key using the operating system's
+        // cryptographically secure random number generator
+        let sk = k256::SecretKey::generate();
+        let bytes: [u8; 32] = sk
+            .secret_scalar()
+            .as_ref()
+            .as_slice()
+            .try_into()
+            .expect("expected 32 bytes");
+        // Returns None if the byte array does not contain
+        // a big-endian integer in the range [0, n), where n is group order.
+        let maybe_scalar = Scalar::from_bytes(bytes);
+        if bool::from(maybe_scalar.is_some()) {
+            break maybe_scalar.unwrap();
+        }
+    }
+}
 
 impl SigmaSerializable for EcPoint {
     fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
@@ -92,12 +116,7 @@ mod tests {
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            prop_oneof![
-                Just(EcPoint(ProjectivePoint::generator())),
-                Just(EcPoint(ProjectivePoint::identity())),
-                Just(EcPoint::random()),
-            ]
-            .boxed()
+            prop_oneof![Just(generator()), Just(identity()), Just(random_element()),].boxed()
         }
     }
 
