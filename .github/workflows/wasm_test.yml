@@ -1,0 +1,34 @@
+name: WASM tests
+on:
+  push:
+    branches:
+      - master
+      - develop
+  pull_request:
+    types:
+      - opened
+      - synchronize
+
+
+jobs:
+  android:
+    name: run WASM tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+
+      - name: install deps
+        run: |
+          # install firefox and chrome
+          curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh -s -- -f
+
+      - name: run tests
+        run: |
+          cd ./bindings/ergo-wallet-lib-wasm
+          wasm-pack build
+          wasm-pack test  --firefox --headless
+          wasm-pack test  --firefox --headless --release
+          wasm-pack test  --chrome  --headless
+          wasm-pack test  --chrome  --headless --release
+

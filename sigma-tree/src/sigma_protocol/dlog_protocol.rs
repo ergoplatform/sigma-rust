@@ -18,6 +18,8 @@ pub mod interactive_prover {
     }
 
     pub fn first_message(proposition: &ProveDlog) -> (BigInteger, FirstDlogProverMessage) {
+        // TODO: extract arith() from EcPoint into dlog module
+        // its a EcPoint from DlogProverInput::random().public_image()
         todo!()
     }
 
