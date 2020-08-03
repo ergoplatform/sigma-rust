@@ -47,6 +47,13 @@ impl SigmaSerializable for TxId {
     }
 }
 
+#[cfg(feature = "with-serde")]
+impl Into<String> for TxId {
+    fn into(self) -> String {
+        self.0.into()
+    }
+}
+
 /**
  * ErgoTransaction is an atomic state transition operation. It destroys Boxes from the state
  * and creates new ones. If transaction is spending boxes protected by some non-trivial scripts,
@@ -114,7 +121,8 @@ impl Transaction {
         TxId(blake2b256_hash(&bytes))
     }
 
-    fn bytes_to_sign(&self) -> Vec<u8> {
+    /// Serialized tx with empty proofs
+    pub fn bytes_to_sign(&self) -> Vec<u8> {
         let empty_proof_inputs = self.inputs.iter().map(|i| i.input_to_sign()).collect();
         let tx_to_sign = Transaction {
             inputs: empty_proof_inputs,
@@ -243,9 +251,8 @@ impl TryFrom<json::transaction::TransactionJson> for Transaction {
 mod tests {
 
     use super::*;
-    use sigma_ser::test_helpers::*;
-
     use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
+    use sigma_ser::test_helpers::*;
 
     impl Arbitrary for Transaction {
         type Parameters = ();
@@ -274,5 +281,53 @@ mod tests {
         fn tx_id_ser_roundtrip(v in any::<TxId>()) {
             prop_assert_eq![sigma_serialize_roundtrip(&v), v];
         }
+    }
+
+    #[test]
+    #[cfg(feature = "with-serde")]
+    fn test_tx_id_calc() {
+        let json = r#"
+        {
+      "id": "9148408c04c2e38a6402a7950d6157730fa7d49e9ab3b9cadec481d7769918e9",
+      "inputs": [
+        {
+          "boxId": "9126af0675056b80d1fda7af9bf658464dbfa0b128afca7bf7dae18c27fe8456",
+          "spendingProof": {
+            "proofBytes": [],
+            "extension": {"values": {}}
+          }
+        }
+      ],
+      "dataInputs": [],
+      "outputs": [
+        {
+          "boxId": "b979c439dc698ce5e823b21c722a6e23721af010e4df8c72de0bfd0c3d9ccf6b",
+          "value": 74187765000000000,
+          "ergoTree": "101004020e36100204a00b08cd0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798ea02d192a39a8cc7a7017300730110010204020404040004c0fd4f05808c82f5f6030580b8c9e5ae040580f882ad16040204c0944004c0f407040004000580f882ad16d19683030191a38cc7a7019683020193c2b2a57300007473017302830108cdeeac93a38cc7b2a573030001978302019683040193b1a5730493c2a7c2b2a573050093958fa3730673079973089c73097e9a730a9d99a3730b730c0599c1a7c1b2a5730d00938cc7b2a5730e0001a390c1a7730f",
+          "assets": [],
+          "creationHeight": 284761,
+          "additionalRegisters": {},
+          "transactionId": "9148408c04c2e38a6402a7950d6157730fa7d49e9ab3b9cadec481d7769918e9",
+          "index": 0
+        },
+        {
+          "boxId": "e56847ed19b3dc6b72828fcfb992fdf7310828cf291221269b7ffc72fd66706e",
+          "value": 67500000000,
+          "ergoTree": "100204a00b08cd021dde34603426402615658f1d970cfa7c7bd92ac81a8b16eeebff264d59ce4604ea02d192a39a8cc7a70173007301",
+          "assets": [],
+          "creationHeight": 284761,
+          "additionalRegisters": {},
+          "transactionId": "9148408c04c2e38a6402a7950d6157730fa7d49e9ab3b9cadec481d7769918e9",
+          "index": 1
+        }
+      ]
+    }"#;
+        let res = serde_json::from_str(json);
+        let t: Transaction = res.unwrap();
+        let tx_id_str: String = t.tx_id.into();
+        assert_eq!(
+            "9148408c04c2e38a6402a7950d6157730fa7d49e9ab3b9cadec481d7769918e9",
+            tx_id_str
+        )
     }
 }
