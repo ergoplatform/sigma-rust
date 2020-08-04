@@ -1,5 +1,8 @@
 //! ErgoTree
-use crate::ast::{Constant, Expr};
+use crate::{
+    ast::{Constant, Expr},
+    types::SType,
+};
 use io::{Cursor, Read};
 use sigma_ser::serializer::SerializationError;
 use sigma_ser::serializer::SigmaSerializable;
@@ -70,16 +73,31 @@ impl ErgoTree {
             .map_err(ErgoTreeParsingError::TreeParsingError)
             .and_then(|t| t.root.map_err(ErgoTreeParsingError::RootParsingError))
     }
-}
 
-impl From<Rc<Expr>> for ErgoTree {
-    fn from(expr: Rc<Expr>) -> Self {
+    /// Build ErgoTree using expr as is, without constants segregated
+    pub fn without_segregation(expr: Rc<Expr>) -> ErgoTree {
         ErgoTree {
             header: ErgoTree::DEFAULT_HEADER,
             tree: Ok(ParsedTree {
                 constants: Vec::new(),
                 root: Ok(expr),
             }),
+        }
+    }
+
+    /// Build ErgoTree with constants segregated from expr
+    pub fn with_segregation(_: Rc<Expr>) -> ErgoTree {
+        todo!()
+    }
+}
+
+impl From<Rc<Expr>> for ErgoTree {
+    fn from(expr: Rc<Expr>) -> Self {
+        match expr.as_ref() {
+            Expr::Const(Constant { tpe, .. }) if *tpe == SType::SSigmaProp => {
+                ErgoTree::without_segregation(expr)
+            }
+            _ => ErgoTree::with_segregation(expr),
         }
     }
 }

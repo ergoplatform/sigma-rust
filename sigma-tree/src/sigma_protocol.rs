@@ -208,7 +208,19 @@ fn serialize_sig(tree: UncheckedTree) -> Vec<u8> {
     }
 }
 
+///  Prover Step 7: Convert the tree to a string s for input to the Fiat-Shamir hash function.
+///  The conversion should be such that the tree can be unambiguously parsed and restored given the string.
+///  For each non-leaf node, the string should contain its type (OR or AND).
+///  For each leaf node, the string should contain the Sigma-protocol statement being proven and the commitment.
+///  The string should not contain information on whether a node is marked "real" or "simulated",
+///  and should not contain challenges, responses, or the real/simulated flag for any node.
 fn fiat_shamir_tree_to_bytes(tree: &ProofTree) -> Vec<u8> {
+    // let propTree = ErgoTree.withSegregation(SigmaPropConstant(l.proposition))
+    // val propBytes = DefaultSerializer.serializeErgoTree(propTree)
+    // val commitmentBytes = l.commitmentOpt.get.bytes
+    // leafPrefix +:
+    //   ((Shorts.toByteArray(propBytes.length.toShort) ++ propBytes) ++
+    //     (Shorts.toByteArray(commitmentBytes.length.toShort) ++ commitmentBytes))
     todo!()
 }
 
@@ -281,4 +293,9 @@ mod tests {
         assert!(SOUNDNESS_BYTES * 8 <= 512);
         assert!(SOUNDNESS_BYTES % 8 == 0);
     }
+
+    // #[test]
+    // fn fiat_shamir_tree_to_bytes_smoke_test() {
+    //     let tree = ProofTree
+    // }
 }

@@ -265,61 +265,61 @@ pub trait Prover: Evaluator {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::{
-        ast::{Constant, ConstantVal, Expr},
-        sigma_protocol::{DlogProverInput, SigmaProp},
-        types::SType,
-    };
-    use std::rc::Rc;
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+//     use crate::{
+//         ast::{Constant, ConstantVal, Expr},
+//         sigma_protocol::{DlogProverInput, SigmaProp},
+//         types::SType,
+//     };
+//     use std::rc::Rc;
 
-    #[test]
-    fn test_prove_true_prop() {
-        let bool_true_tree = ErgoTree::from(Rc::new(Expr::Const(Constant {
-            tpe: SType::SBoolean,
-            v: ConstantVal::Boolean(true),
-        })));
-        let message = vec![0u8; 100];
+//     #[test]
+//     fn test_prove_true_prop() {
+//         let bool_true_tree = ErgoTree::from(Rc::new(Expr::Const(Constant {
+//             tpe: SType::SBoolean,
+//             v: ConstantVal::Boolean(true),
+//         })));
+//         let message = vec![0u8; 100];
 
-        let prover = TestProver { secrets: vec![] };
-        let res = prover.prove(&bool_true_tree, &Env::empty(), message.as_slice());
-        assert!(res.is_ok());
-        assert!(res.unwrap().proof.is_empty());
-    }
+//         let prover = TestProver { secrets: vec![] };
+//         let res = prover.prove(&bool_true_tree, &Env::empty(), message.as_slice());
+//         assert!(res.is_ok());
+//         assert!(res.unwrap().proof.is_empty());
+//     }
 
-    #[test]
-    fn test_prove_false_prop() {
-        let bool_false_tree = ErgoTree::from(Rc::new(Expr::Const(Constant {
-            tpe: SType::SBoolean,
-            v: ConstantVal::Boolean(false),
-        })));
-        let message = vec![0u8; 100];
+//     #[test]
+//     fn test_prove_false_prop() {
+//         let bool_false_tree = ErgoTree::from(Rc::new(Expr::Const(Constant {
+//             tpe: SType::SBoolean,
+//             v: ConstantVal::Boolean(false),
+//         })));
+//         let message = vec![0u8; 100];
 
-        let prover = TestProver { secrets: vec![] };
-        let res = prover.prove(&bool_false_tree, &Env::empty(), message.as_slice());
-        assert!(res.is_err());
-        assert_eq!(res.err().unwrap(), ProverError::ReducedToFalse);
-    }
+//         let prover = TestProver { secrets: vec![] };
+//         let res = prover.prove(&bool_false_tree, &Env::empty(), message.as_slice());
+//         assert!(res.is_err());
+//         assert_eq!(res.err().unwrap(), ProverError::ReducedToFalse);
+//     }
 
-    #[test]
-    fn test_prove_pk_prop() {
-        let secret = DlogProverInput::random();
-        let pk = secret.public_image();
-        let tree = ErgoTree::from(Rc::new(Expr::Const(Constant {
-            tpe: SType::SSigmaProp,
-            v: ConstantVal::SigmaProp(Box::new(SigmaProp(SigmaBoolean::ProofOfKnowledge(
-                SigmaProofOfKnowledgeTree::ProveDlog(pk),
-            )))),
-        })));
-        let message = vec![0u8; 100];
+//     #[test]
+//     fn test_prove_pk_prop() {
+//         let secret = DlogProverInput::random();
+//         let pk = secret.public_image();
+//         let tree = ErgoTree::from(Rc::new(Expr::Const(Constant {
+//             tpe: SType::SSigmaProp,
+//             v: ConstantVal::SigmaProp(Box::new(SigmaProp(SigmaBoolean::ProofOfKnowledge(
+//                 SigmaProofOfKnowledgeTree::ProveDlog(pk),
+//             )))),
+//         })));
+//         let message = vec![0u8; 100];
 
-        let prover = TestProver {
-            secrets: vec![PrivateInput::DlogProverInput(secret)],
-        };
-        let res = prover.prove(&tree, &Env::empty(), message.as_slice());
-        // assert!(res.is_ok());
-        assert!(!res.unwrap().proof.is_empty());
-    }
-}
+//         let prover = TestProver {
+//             secrets: vec![PrivateInput::DlogProverInput(secret)],
+//         };
+//         let res = prover.prove(&tree, &Env::empty(), message.as_slice());
+//         // assert!(res.is_ok());
+//         assert!(!res.unwrap().proof.is_empty());
+//     }
+// }
