@@ -39,6 +39,7 @@ mod tests {
         let bytes = b.0.to_signed_bytes_be();
         let s2 =
             Scalar::from_bytes(bytes.as_slice().try_into().expect("expected 32 bytes")).unwrap();
+        // TODO: failed on CI with non-32 bytes length
         let b2: BigInteger = s2.into();
         assert_eq!(b, b2);
     }
