@@ -79,4 +79,3 @@ fn eval(expr: &Expr, env: &Env, ca: &mut CostAccumulator) -> Result<Value, EvalE
         _ => Err(EvalError::UnexpectedExpr),
     }
 }
-
