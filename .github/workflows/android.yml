@@ -1,5 +1,14 @@
 name: Android tests
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - master
+      - develop
+  pull_request:
+    types:
+      - opened
+      - synchronize
+
 
 jobs:
   android:

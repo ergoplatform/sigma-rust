@@ -12,7 +12,6 @@ use std::rc::Rc;
 use vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt};
 
 #[derive(PartialEq, Eq, Debug, Clone)]
-#[allow(dead_code)]
 struct ParsedTree {
     constants: Vec<Constant>,
     root: Result<Rc<Expr>, ErgoTreeRootParsingError>,
@@ -21,7 +20,6 @@ struct ParsedTree {
 /** The root of ErgoScript IR. Serialized instances of this class are self sufficient and can be passed around.
  */
 #[derive(PartialEq, Eq, Debug, Clone)]
-#[allow(dead_code)]
 pub struct ErgoTree {
     header: ErgoTreeHeader,
     tree: Result<ParsedTree, ErgoTreeConstantsParsingError>,
@@ -75,19 +73,31 @@ impl ErgoTree {
             .map_err(ErgoTreeParsingError::TreeParsingError)
             .and_then(|t| t.root.map_err(ErgoTreeParsingError::RootParsingError))
     }
+
+    /// Build ErgoTree using expr as is, without constants segregated
+    pub fn without_segregation(expr: Rc<Expr>) -> ErgoTree {
+        ErgoTree {
+            header: ErgoTree::DEFAULT_HEADER,
+            tree: Ok(ParsedTree {
+                constants: Vec::new(),
+                root: Ok(expr),
+            }),
+        }
+    }
+
+    /// Build ErgoTree with constants segregated from expr
+    pub fn with_segregation(_: Rc<Expr>) -> ErgoTree {
+        todo!()
+    }
 }
 
 impl From<Rc<Expr>> for ErgoTree {
     fn from(expr: Rc<Expr>) -> Self {
-        match &*expr {
-            Expr::Const(c) if c.tpe == SType::SSigmaProp => ErgoTree {
-                header: ErgoTree::DEFAULT_HEADER,
-                tree: Ok(ParsedTree {
-                    constants: Vec::new(),
-                    root: Ok(expr),
-                }),
-            },
-            _ => panic!("not yet supported"),
+        match expr.as_ref() {
+            Expr::Const(Constant { tpe, .. }) if *tpe == SType::SSigmaProp => {
+                ErgoTree::without_segregation(expr)
+            }
+            _ => ErgoTree::with_segregation(expr),
         }
     }
 }
@@ -192,7 +202,7 @@ impl SigmaSerializable for ErgoTree {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{ast::ConstantVal, chain, sigma_protocol::SigmaProp};
+    use crate::{ast::ConstantVal, chain, sigma_protocol::SigmaProp, types::SType};
     use proptest::prelude::*;
     use sigma_ser::test_helpers::*;
 

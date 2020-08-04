@@ -1,7 +1,6 @@
 use super::op_code::OpCode;
-use crate::{
-    ecpoint::EcPoint,
-    sigma_protocol::{ProveDlog, SigmaBoolean, SigmaProofOfKnowledgeTree},
+use crate::sigma_protocol::{
+    dlog_group::EcPoint, ProveDlog, SigmaBoolean, SigmaProofOfKnowledgeTree,
 };
 use sigma_ser::{
     serializer::{SerializationError, SigmaSerializable},
@@ -18,6 +17,7 @@ impl SigmaSerializable for SigmaBoolean {
                 SigmaProofOfKnowledgeTree::ProveDlog(v) => v.sigma_serialize(w),
             },
             SigmaBoolean::CAND(_) => todo!(),
+            SigmaBoolean::TrivialProp(_) => Ok(()), // besides opCode no additional bytes
         }
     }
 

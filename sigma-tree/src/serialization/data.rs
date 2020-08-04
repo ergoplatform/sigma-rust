@@ -2,12 +2,11 @@ use crate::{
     ast::ConstantVal,
     ast::ConstantVal::*,
     ast::{CollPrim, ConstantColl},
-    ecpoint::EcPoint,
     sigma_protocol,
     types::SType,
     types::SType::*,
 };
-use sigma_protocol::{SigmaBoolean, SigmaProp};
+use sigma_protocol::{dlog_group::EcPoint, SigmaBoolean, SigmaProp};
 use sigma_ser::{
     serializer::{SerializationError, SigmaSerializable},
     vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt},
