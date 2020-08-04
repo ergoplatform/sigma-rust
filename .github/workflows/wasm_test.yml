@@ -23,14 +23,13 @@ jobs:
 
       - name: install deps
         run: |
-          # todo: install firefox and chrome?
           curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh -s -- -f
 
       - name: run tests
         run: |
           wasm-pack build
-          wasm-pack test  --firefox --headless
-          wasm-pack test  --firefox --headless --release
+          # wasm-pack test  --firefox --headless
+          # wasm-pack test  --firefox --headless --release
           wasm-pack test  --chrome  --headless
           wasm-pack test  --chrome  --headless --release
 
