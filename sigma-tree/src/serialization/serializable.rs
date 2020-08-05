@@ -1,6 +1,6 @@
-use super::vlq_encode;
-use crate::peekable_reader::PeekableReader;
+use super::sigma_byte_reader::{SigmaByteRead, SigmaByteReader};
 use io::Cursor;
+use sigma_ser::{peekable_reader::PeekableReader, vlq_encode};
 use std::io;
 use thiserror::Error;
 
@@ -56,7 +56,7 @@ pub trait SigmaSerializable: Sized {
     /// Try to read `self` from the given `reader`.
     /// `sigma-` prefix to alert the reader that the serialization in use
     /// is consensus-critical
-    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(r: &mut R) -> Result<Self, SerializationError>;
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError>;
 
     /// Serialize any SigmaSerializable value into bytes
     fn sigma_serialise_bytes(&self) -> Vec<u8> {
@@ -70,7 +70,19 @@ pub trait SigmaSerializable: Sized {
     /// Parse `self` from the bytes
     fn sigma_parse_bytes(mut bytes: Vec<u8>) -> Result<Self, SerializationError> {
         let cursor = Cursor::new(&mut bytes[..]);
-        let mut reader = PeekableReader::new(cursor);
-        Self::sigma_parse(&mut reader)
+        let pr = PeekableReader::new(cursor);
+        let mut sr = SigmaByteReader::new(pr);
+        Self::sigma_parse(&mut sr)
     }
+}
+
+/// serialization roundtrip
+#[cfg(test)]
+pub fn sigma_serialize_roundtrip<T: SigmaSerializable>(v: &T) -> T {
+    let mut data = Vec::new();
+    v.sigma_serialize(&mut data).expect("serialization failed");
+    let cursor = Cursor::new(&mut data[..]);
+    let pr = PeekableReader::new(cursor);
+    let mut sr = SigmaByteReader::new(pr);
+    T::sigma_parse(&mut sr).expect("parse failed")
 }

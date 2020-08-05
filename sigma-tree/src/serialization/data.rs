@@ -1,3 +1,6 @@
+use crate::serialization::{
+    sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
+};
 use crate::{
     ast::ConstantVal,
     ast::ConstantVal::*,
@@ -7,10 +10,8 @@ use crate::{
     types::SType::*,
 };
 use sigma_protocol::{dlog_group::EcPoint, SigmaBoolean, SigmaProp};
-use sigma_ser::{
-    serializer::{SerializationError, SigmaSerializable},
-    vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt},
-};
+
+use sigma_ser::vlq_encode::WriteSigmaVlqExt;
 use std::io;
 
 pub struct DataSerializer {}
@@ -48,7 +49,7 @@ impl DataSerializer {
         }
     }
 
-    pub fn sigma_parse<R: ReadSigmaVlqExt>(
+    pub fn sigma_parse<R: SigmaByteRead>(
         tpe: &SType,
         r: &mut R,
     ) -> Result<ConstantVal, SerializationError> {

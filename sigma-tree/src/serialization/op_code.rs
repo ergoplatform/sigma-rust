@@ -1,7 +1,8 @@
-use sigma_ser::{
-    serializer::{SerializationError, SigmaSerializable},
-    vlq_encode,
+use crate::serialization::{
+    sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
 };
+use sigma_ser::vlq_encode;
+
 use std::io;
 use vlq_encode::WriteSigmaVlqExt;
 
@@ -33,7 +34,7 @@ impl SigmaSerializable for OpCode {
         w.put_u8(self.0)?;
         Ok(())
     }
-    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
         let code = r.get_u8()?;
         Ok(OpCode::parse(code))
     }

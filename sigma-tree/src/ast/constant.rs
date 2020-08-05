@@ -1,13 +1,12 @@
 use crate::chain::{Base16DecodedBytes, Base16EncodedBytes};
 use crate::{
     chain::ErgoBox,
+    serialization::{SerializationError, SigmaSerializable},
     sigma_protocol::{dlog_group::EcPoint, SigmaProp},
     types::{LiftIntoSType, SType},
 };
 #[cfg(feature = "with-serde")]
 use serde::{Deserialize, Serialize};
-use sigma_ser::serializer::SerializationError;
-use sigma_ser::serializer::SigmaSerializable;
 use std::convert::TryFrom;
 
 #[derive(PartialEq, Eq, Debug, Clone)]

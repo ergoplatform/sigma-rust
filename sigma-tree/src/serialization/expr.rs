@@ -1,9 +1,10 @@
 use super::{fold::FoldSerializer, op_code::OpCode};
 use crate::ast::{CollMethods, Constant, Expr};
-use sigma_ser::{
-    serializer::{SerializationError, SigmaSerializable},
-    vlq_encode,
+use crate::serialization::{
+    sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
 };
+use sigma_ser::vlq_encode;
+
 use std::io;
 
 impl SigmaSerializable for Expr {
@@ -23,7 +24,7 @@ impl SigmaSerializable for Expr {
         }
     }
 
-    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
         let first_byte = match r.peek_u8() {
             Ok(b) => Ok(b),
             Err(_) => {

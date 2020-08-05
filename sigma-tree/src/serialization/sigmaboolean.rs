@@ -1,11 +1,12 @@
 use super::op_code::OpCode;
+use crate::serialization::{
+    sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
+};
 use crate::sigma_protocol::{
     dlog_group::EcPoint, ProveDlog, SigmaBoolean, SigmaProofOfKnowledgeTree,
 };
-use sigma_ser::{
-    serializer::{SerializationError, SigmaSerializable},
-    vlq_encode,
-};
+use sigma_ser::vlq_encode;
+
 use std::io;
 
 impl SigmaSerializable for SigmaBoolean {
@@ -21,7 +22,7 @@ impl SigmaSerializable for SigmaBoolean {
         }
     }
 
-    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
         let op_code = OpCode::sigma_parse(r)?;
         match op_code {
             OpCode::PROVE_DLOG => Ok(SigmaBoolean::ProofOfKnowledge(
@@ -37,7 +38,7 @@ impl SigmaSerializable for ProveDlog {
         self.h.sigma_serialize(w)
     }
 
-    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
         let p = EcPoint::sigma_parse(r)?;
         Ok(ProveDlog::new(p))
     }

@@ -1,11 +1,14 @@
 //! ErgoTree
+use crate::serialization::{
+    sigma_byte_reader::{SigmaByteRead, SigmaByteReader},
+    SerializationError, SigmaSerializable,
+};
 use crate::{
     ast::{Constant, Expr},
     types::SType,
 };
 use io::{Cursor, Read};
-use sigma_ser::serializer::SerializationError;
-use sigma_ser::serializer::SigmaSerializable;
+
 use sigma_ser::{peekable_reader::PeekableReader, vlq_encode};
 use std::io;
 use std::rc::Rc;
@@ -106,7 +109,7 @@ impl SigmaSerializable for ErgoTreeHeader {
         w.put_u8(self.0)?;
         Ok(())
     }
-    fn sigma_parse<R: ReadSigmaVlqExt>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
         let header = r.get_u8()?;
         Ok(ErgoTreeHeader(header))
     }
@@ -134,7 +137,7 @@ impl SigmaSerializable for ErgoTree {
         Ok(())
     }
 
-    fn sigma_parse<R: ReadSigmaVlqExt>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
         let header = ErgoTreeHeader::sigma_parse(r)?;
         if header.is_constant_segregation() {
             let constants_len = r.get_u32()?;
@@ -157,7 +160,7 @@ impl SigmaSerializable for ErgoTree {
 
     fn sigma_parse_bytes(mut bytes: Vec<u8>) -> Result<Self, SerializationError> {
         let cursor = Cursor::new(&mut bytes[..]);
-        let mut r = PeekableReader::new(cursor);
+        let mut r = SigmaByteReader::new(PeekableReader::new(cursor));
         let header = ErgoTreeHeader::sigma_parse(&mut r)?;
         if header.is_constant_segregation() {
             let constants_len = r.get_u32()?;
@@ -202,9 +205,9 @@ impl SigmaSerializable for ErgoTree {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::serialization::sigma_serialize_roundtrip;
     use crate::{ast::ConstantVal, chain, sigma_protocol::SigmaProp, types::SType};
     use proptest::prelude::*;
-    use sigma_ser::test_helpers::*;
 
     impl Arbitrary for ErgoTree {
         type Parameters = ();

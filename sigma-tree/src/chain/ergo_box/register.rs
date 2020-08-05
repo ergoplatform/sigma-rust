@@ -1,9 +1,8 @@
 //! Box registers
 
-use crate::ast::Constant;
+use crate::{ast::Constant, serialization::SerializationError};
 #[cfg(feature = "with-serde")]
 use serde::{Deserialize, Serialize};
-use sigma_ser::serializer::SerializationError;
 use std::{collections::HashMap, convert::TryFrom};
 use thiserror::Error;
 

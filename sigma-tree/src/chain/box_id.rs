@@ -1,15 +1,16 @@
 //! Box id type
-use sigma_ser::serializer::SerializationError;
-use sigma_ser::serializer::SigmaSerializable;
-use sigma_ser::vlq_encode;
 use std::io;
 
 #[cfg(feature = "with-serde")]
 use serde::{Deserialize, Serialize};
 
 use super::digest32::Digest32;
+use crate::serialization::{
+    sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
+};
 #[cfg(test)]
 use proptest_derive::Arbitrary;
+use sigma_ser::vlq_encode;
 
 /// newtype for box ids
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
@@ -45,7 +46,7 @@ impl SigmaSerializable for BoxId {
         self.0.sigma_serialize(w)?;
         Ok(())
     }
-    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
         Ok(Self(Digest32::sigma_parse(r)?))
     }
 }
@@ -53,8 +54,8 @@ impl SigmaSerializable for BoxId {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::serialization::sigma_serialize_roundtrip;
     use proptest::prelude::*;
-    use sigma_ser::test_helpers::*;
 
     proptest! {
 

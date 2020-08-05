@@ -1,9 +1,10 @@
 use super::data::DataSerializer;
-use crate::{ast::Constant, types::SType};
-use sigma_ser::{
-    serializer::{SerializationError, SigmaSerializable},
-    vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt},
+use crate::serialization::{
+    sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
 };
+use crate::{ast::Constant, types::SType};
+
+use sigma_ser::vlq_encode::WriteSigmaVlqExt;
 use std::io;
 
 impl SigmaSerializable for Constant {
@@ -12,7 +13,7 @@ impl SigmaSerializable for Constant {
         DataSerializer::sigma_serialize(&self.v, w)
     }
 
-    fn sigma_parse<R: ReadSigmaVlqExt>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
         // for reference see http://github.com/ScorexFoundation/sigmastate-interpreter/blob/25251c1313b0131835f92099f02cef8a5d932b5e/sigmastate/src/main/scala/sigmastate/serialization/DataSerializer.scala#L84-L84
         let tpe = SType::sigma_parse(r)?;
         let v = DataSerializer::sigma_parse(&tpe, r)?;
@@ -23,8 +24,8 @@ impl SigmaSerializable for Constant {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::serialization::sigma_serialize_roundtrip;
     use proptest::prelude::*;
-    use sigma_ser::test_helpers::*;
 
     proptest! {
 
