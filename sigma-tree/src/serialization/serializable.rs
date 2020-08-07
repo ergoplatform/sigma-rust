@@ -1,4 +1,5 @@
 use super::{
+    constant_store::ConstantStore,
     sigma_byte_reader::{SigmaByteRead, SigmaByteReader},
     sigma_byte_writer::{SigmaByteWrite, SigmaByteWriter},
 };
@@ -67,7 +68,7 @@ pub trait SigmaSerializable: Sized {
     /// Serialize any SigmaSerializable value into bytes
     fn sigma_serialise_bytes(&self) -> Vec<u8> {
         let mut data = Vec::new();
-        let mut w = SigmaByteWriter::new(&mut data);
+        let mut w = SigmaByteWriter::new(&mut data, None);
         self.sigma_serialize(&mut w)
             // since serialization may fail only for underlying IO errors it's ok to force unwrap
             .expect("serialization failed");
@@ -78,7 +79,7 @@ pub trait SigmaSerializable: Sized {
     fn sigma_parse_bytes(mut bytes: Vec<u8>) -> Result<Self, SerializationError> {
         let cursor = Cursor::new(&mut bytes[..]);
         let pr = PeekableReader::new(cursor);
-        let mut sr = SigmaByteReader::new(pr);
+        let mut sr = SigmaByteReader::new(pr, ConstantStore::empty());
         Self::sigma_parse(&mut sr)
     }
 }
@@ -87,10 +88,10 @@ pub trait SigmaSerializable: Sized {
 #[cfg(test)]
 pub fn sigma_serialize_roundtrip<T: SigmaSerializable>(v: &T) -> T {
     let mut data = Vec::new();
-    let mut w = SigmaByteWriter::new(&mut data);
+    let mut w = SigmaByteWriter::new(&mut data, None);
     v.sigma_serialize(&mut w).expect("serialization failed");
     let cursor = Cursor::new(&mut data[..]);
     let pr = PeekableReader::new(cursor);
-    let mut sr = SigmaByteReader::new(pr);
+    let mut sr = SigmaByteReader::new(pr, ConstantStore::empty());
     T::sigma_parse(&mut sr).expect("parse failed")
 }

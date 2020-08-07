@@ -9,10 +9,10 @@ pub struct SigmaByteReader<R> {
 
 impl<R: Peekable> SigmaByteReader<R> {
     /// Create new reader from PeekableReader
-    pub fn new(pr: R) -> SigmaByteReader<R> {
+    pub fn new(pr: R, constant_store: ConstantStore) -> SigmaByteReader<R> {
         SigmaByteReader {
             inner: pr,
-            constant_store: ConstantStore::empty(),
+            constant_store,
         }
     }
 }

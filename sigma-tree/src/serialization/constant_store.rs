@@ -8,9 +8,12 @@ pub struct ConstantStore {
 }
 
 impl ConstantStore {
-    /// empty store(no constants)
     pub fn empty() -> Self {
         ConstantStore { constants: vec![] }
+    }
+
+    pub fn new(constants: Vec<Constant>) -> Self {
+        ConstantStore { constants }
     }
 
     pub fn get(&self, index: u32) -> Option<&Constant> {
@@ -30,4 +33,3 @@ impl ConstantStore {
         self.constants.clone()
     }
 }
-

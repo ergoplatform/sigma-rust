@@ -24,17 +24,36 @@ impl SigmaSerializable for ConstantPlaceholder {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use crate::serialization::sigma_serialize_roundtrip;
-//     use proptest::prelude::*;
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        ast::Constant,
+        serialization::{
+            constant_store::ConstantStore, sigma_byte_reader::SigmaByteReader,
+            sigma_byte_writer::SigmaByteWriter,
+        },
+    };
+    use io::Cursor;
+    use proptest::prelude::*;
+    use sigma_ser::peekable_reader::PeekableReader;
 
-//     proptest! {
+    proptest! {
 
-//         #[test]
-//         fn ser_roundtrip(v in any::<ConstantPlaceholder>()) {
-//             prop_assert_eq![sigma_serialize_roundtrip(&v), v];
-//         }
-//     }
-// }
+        #[test]
+        fn ser_roundtrip(c in any::<Constant>()) {
+            let mut data = Vec::new();
+            let mut cs = ConstantStore::empty();
+            let ph = cs.put(c);
+            let mut w = SigmaByteWriter::new(&mut data, Some(&mut cs));
+            ph.sigma_serialize(&mut w).expect("serialization failed");
+
+            let cursor = Cursor::new(&mut data[..]);
+            let pr = PeekableReader::new(cursor);
+            let mut sr = SigmaByteReader::new(pr, cs);
+            let ph_parsed = ConstantPlaceholder::sigma_parse(&mut sr).expect("parse failed");
+            prop_assert_eq![ph, ph_parsed];
+        }
+    }
+}
+

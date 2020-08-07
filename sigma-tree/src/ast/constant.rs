@@ -261,6 +261,7 @@ impl Into<Constant> for Vec<i8> {
 }
 
 /// Placeholder for a constant in ErgoTree.
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ConstantPlaceholder {
     /// Zero based index in ErgoTree.constants array.
     pub id: u32,

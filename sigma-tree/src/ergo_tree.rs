@@ -10,6 +10,7 @@ use crate::{
 };
 use io::{Cursor, Read};
 
+use crate::serialization::constant_store::ConstantStore;
 use sigma_ser::{peekable_reader::PeekableReader, vlq_encode};
 use std::io;
 use std::rc::Rc;
@@ -161,7 +162,7 @@ impl SigmaSerializable for ErgoTree {
 
     fn sigma_parse_bytes(mut bytes: Vec<u8>) -> Result<Self, SerializationError> {
         let cursor = Cursor::new(&mut bytes[..]);
-        let mut r = SigmaByteReader::new(PeekableReader::new(cursor));
+        let mut r = SigmaByteReader::new(PeekableReader::new(cursor), ConstantStore::empty());
         let header = ErgoTreeHeader::sigma_parse(&mut r)?;
         if header.is_constant_segregation() {
             let constants_len = r.get_u32()?;

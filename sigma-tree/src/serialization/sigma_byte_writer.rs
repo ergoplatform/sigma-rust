@@ -4,14 +4,17 @@ use std::io::Write;
 
 pub struct SigmaByteWriter<'a, W> {
     inner: &'a mut W,
-    constant_store: Option<ConstantStore>,
+    constant_store: Option<&'a mut ConstantStore>,
 }
 
 impl<'a, W: Write> SigmaByteWriter<'a, W> {
-    pub fn new(w: &mut W) -> SigmaByteWriter<W> {
+    pub fn new(
+        w: &'a mut W,
+        constant_store: Option<&'a mut ConstantStore>,
+    ) -> SigmaByteWriter<'a, W> {
         SigmaByteWriter {
             inner: w,
-            constant_store: None,
+            constant_store,
         }
     }
 }
