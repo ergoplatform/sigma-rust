@@ -1,11 +1,11 @@
 //! DataInput type
 
-use sigma_ser::vlq_encode;
 use std::io;
 
 use super::box_id::BoxId;
 use crate::serialization::{
-    sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
+    sigma_byte_reader::SigmaByteRead, sigma_byte_writer::SigmaByteWrite, SerializationError,
+    SigmaSerializable,
 };
 #[cfg(test)]
 use proptest::prelude::*;
@@ -25,7 +25,7 @@ pub struct DataInput {
 }
 
 impl SigmaSerializable for DataInput {
-    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
         self.box_id.sigma_serialize(w)?;
         Ok(())
     }

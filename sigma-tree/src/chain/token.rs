@@ -1,9 +1,9 @@
 //! Token related types
 
 use crate::serialization::{
-    sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
+    sigma_byte_reader::SigmaByteRead, sigma_byte_writer::SigmaByteWrite, SerializationError,
+    SigmaSerializable,
 };
-use sigma_ser::vlq_encode;
 use std::io;
 
 use super::digest32::Digest32;
@@ -24,7 +24,7 @@ impl TokenId {
 }
 
 impl SigmaSerializable for TokenId {
-    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
         self.0.sigma_serialize(w)?;
         Ok(())
     }

@@ -1,7 +1,7 @@
 use crate::chain::{Base16DecodedBytes, Base16EncodedBytes};
 use crate::{
     chain::ErgoBox,
-    serialization::{SerializationError, SigmaSerializable},
+    serialization::{op_code::OpCode, SerializationError, SigmaSerializable},
     sigma_protocol::{dlog_group::EcPoint, SigmaProp},
     types::{LiftIntoSType, SType},
 };
@@ -257,6 +257,21 @@ impl Into<Constant> for Vec<i8> {
             tpe: SType::SColl(Box::new(SType::SByte)),
             v: ConstantVal::Coll(ConstantColl::Primitive(CollPrim::CollByte(self))),
         }
+    }
+}
+
+/// Placeholder for a constant in ErgoTree.
+pub struct ConstantPlaceholder {
+    /// Zero based index in ErgoTree.constants array.
+    pub id: u32,
+    /// Type of the constant value
+    pub tpe: SType,
+}
+
+impl ConstantPlaceholder {
+    /// OpCode for the serialization
+    pub fn op_code(&self) -> OpCode {
+        OpCode::CONSTANT_PLACEHOLDER
     }
 }
 

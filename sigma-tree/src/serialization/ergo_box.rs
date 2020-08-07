@@ -10,14 +10,14 @@ use crate::{
     ErgoTree,
 };
 use indexmap::IndexSet;
-use sigma_ser::vlq_encode;
 
+use super::sigma_byte_writer::SigmaByteWrite;
 use std::convert::TryFrom;
 use std::io;
 
 /// Box serialization with token ids optionally saved in transaction
 /// (in this case only token index is saved)
-pub fn serialize_box_with_indexed_digests<W: vlq_encode::WriteSigmaVlqExt>(
+pub fn serialize_box_with_indexed_digests<W: SigmaByteWrite>(
     box_value: &BoxValue,
     ergo_tree_bytes: Vec<u8>,
     tokens: &[TokenAmount],

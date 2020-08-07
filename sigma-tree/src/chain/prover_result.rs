@@ -1,10 +1,10 @@
 //! ProverResult
-use sigma_ser::vlq_encode;
 use std::io;
 
 use super::context_extension::ContextExtension;
 use crate::serialization::{
-    sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
+    sigma_byte_reader::SigmaByteRead, sigma_byte_writer::SigmaByteWrite, SerializationError,
+    SigmaSerializable,
 };
 #[cfg(feature = "with-serde")]
 use serde::{Deserialize, Serialize};
@@ -22,7 +22,7 @@ pub struct ProverResult {
 }
 
 impl SigmaSerializable for ProverResult {
-    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
         w.put_u16(self.proof.len() as u16)?;
         w.write_all(&self.proof)?;
         self.extension.sigma_serialize(w)?;

@@ -1,3 +1,4 @@
+use super::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
 };
@@ -90,7 +91,7 @@ fn is_stype_embeddable(tpe: &SType) -> bool {
 }
 
 impl SigmaSerializable for SType {
-    fn sigma_serialize<W: WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
         // for reference see http://github.com/ScorexFoundation/sigmastate-interpreter/blob/25251c1313b0131835f92099f02cef8a5d932b5e/sigmastate/src/main/scala/sigmastate/serialization/TypeSerializer.scala#L25-L25
         match self {
             SType::SAny => self.type_code().sigma_serialize(w),

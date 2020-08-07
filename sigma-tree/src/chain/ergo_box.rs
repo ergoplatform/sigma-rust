@@ -15,6 +15,7 @@ use crate::{
     serialization::{
         ergo_box::{parse_box_with_indexed_digests, serialize_box_with_indexed_digests},
         sigma_byte_reader::SigmaByteRead,
+        sigma_byte_writer::SigmaByteWrite,
         SerializationError, SigmaSerializable,
     },
 };
@@ -23,7 +24,6 @@ use indexmap::IndexSet;
 use register::NonMandatoryRegisters;
 #[cfg(feature = "with-serde")]
 use serde::{Deserialize, Serialize};
-use sigma_ser::vlq_encode;
 #[cfg(feature = "with-serde")]
 use std::convert::TryFrom;
 use std::io;
@@ -184,7 +184,7 @@ impl TryFrom<json::ergo_box::ErgoBoxFromJson> for ErgoBox {
 }
 
 impl SigmaSerializable for ErgoBox {
-    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
         let ergo_tree_bytes = self.ergo_tree.sigma_serialise_bytes();
         serialize_box_with_indexed_digests(
             &self.value,
@@ -239,7 +239,7 @@ impl ErgoBoxCandidate {
 
     /// Box serialization with token ids optionally saved in transaction
     /// (in this case only token index is saved)
-    pub fn serialize_body_with_indexed_digests<W: vlq_encode::WriteSigmaVlqExt>(
+    pub fn serialize_body_with_indexed_digests<W: SigmaByteWrite>(
         &self,
         token_ids_in_tx: Option<&IndexSet<TokenId>>,
         w: &mut W,
@@ -265,7 +265,7 @@ impl ErgoBoxCandidate {
 }
 
 impl SigmaSerializable for ErgoBoxCandidate {
-    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
         self.serialize_body_with_indexed_digests(None, w)
     }
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {

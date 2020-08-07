@@ -1,16 +1,22 @@
-use super::{fold::FoldSerializer, op_code::OpCode};
+use super::{fold::FoldSerializer, op_code::OpCode, sigma_byte_writer::SigmaByteWrite};
 use crate::ast::{CollMethods, Constant, Expr};
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
 };
-use sigma_ser::vlq_encode;
 
 use std::io;
 
 impl SigmaSerializable for Expr {
-    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
         match self {
-            Expr::Const(c) => c.sigma_serialize(w),
+            Expr::Const(c) => match w.constant_store() {
+                Some(cs) => {
+                    let ph = cs.put(c.clone());
+                    ph.op_code().sigma_serialize(w)?;
+                    ph.sigma_serialize(w)
+                }
+                None => c.sigma_serialize(w),
+            },
             expr => {
                 let op_code = self.op_code();
                 op_code.sigma_serialize(w)?;

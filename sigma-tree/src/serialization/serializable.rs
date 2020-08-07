@@ -1,4 +1,7 @@
-use super::sigma_byte_reader::{SigmaByteRead, SigmaByteReader};
+use super::{
+    sigma_byte_reader::{SigmaByteRead, SigmaByteReader},
+    sigma_byte_writer::{SigmaByteWrite, SigmaByteWriter},
+};
 use io::Cursor;
 use sigma_ser::{peekable_reader::PeekableReader, vlq_encode};
 use std::io;
@@ -28,6 +31,9 @@ pub enum SerializationError {
     /// Feature not yet implemented
     #[error("feature not yet implemented: {0}")]
     NotImplementedYet(String),
+    /// Constant with given index not found in constant store
+    #[error("Constant with index {0} not found in constant store")]
+    ConstantForPlaceholderNotFound(u32),
 }
 
 impl From<vlq_encode::VlqEncodingError> for SerializationError {
@@ -51,7 +57,7 @@ pub trait SigmaSerializable: Sized {
     /// serialization MUST be infallible up to errors in the underlying writer.
     /// In other words, any type implementing `SigmaSerializable`
     /// must make illegal states unrepresentable.
-    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error>;
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error>;
 
     /// Try to read `self` from the given `reader`.
     /// `sigma-` prefix to alert the reader that the serialization in use
@@ -61,7 +67,8 @@ pub trait SigmaSerializable: Sized {
     /// Serialize any SigmaSerializable value into bytes
     fn sigma_serialise_bytes(&self) -> Vec<u8> {
         let mut data = Vec::new();
-        self.sigma_serialize(&mut data)
+        let mut w = SigmaByteWriter::new(&mut data);
+        self.sigma_serialize(&mut w)
             // since serialization may fail only for underlying IO errors it's ok to force unwrap
             .expect("serialization failed");
         data
@@ -80,7 +87,8 @@ pub trait SigmaSerializable: Sized {
 #[cfg(test)]
 pub fn sigma_serialize_roundtrip<T: SigmaSerializable>(v: &T) -> T {
     let mut data = Vec::new();
-    v.sigma_serialize(&mut data).expect("serialization failed");
+    let mut w = SigmaByteWriter::new(&mut data);
+    v.sigma_serialize(&mut w).expect("serialization failed");
     let cursor = Cursor::new(&mut data[..]);
     let pr = PeekableReader::new(cursor);
     let mut sr = SigmaByteReader::new(pr);

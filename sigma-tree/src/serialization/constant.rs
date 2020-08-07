@@ -1,14 +1,13 @@
-use super::data::DataSerializer;
+use super::{data::DataSerializer, sigma_byte_writer::SigmaByteWrite};
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
 };
 use crate::{ast::Constant, types::SType};
 
-use sigma_ser::vlq_encode::WriteSigmaVlqExt;
 use std::io;
 
 impl SigmaSerializable for Constant {
-    fn sigma_serialize<W: WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
         self.tpe.sigma_serialize(w)?;
         DataSerializer::sigma_serialize(&self.v, w)
     }

@@ -1,13 +1,11 @@
 //! Constant store for Sigma byte reader
 
-use crate::ast::Constant;
+use crate::ast::{Constant, ConstantPlaceholder};
 
 /// Storage for constants used in ErgoTree constant segregation
 pub struct ConstantStore {
     constants: Vec<Constant>,
 }
-
-pub struct ConstantPlaceholder();
 
 impl ConstantStore {
     /// empty store(no constants)
@@ -15,9 +13,17 @@ impl ConstantStore {
         ConstantStore { constants: vec![] }
     }
 
+    pub fn get(&self, index: u32) -> Option<&Constant> {
+        self.constants.get(index as usize)
+    }
+
     pub fn put(&mut self, c: Constant) -> ConstantPlaceholder {
-        self.constants.push(c);
-        ConstantPlaceholder()
+        self.constants.push(c.clone());
+        assert!(self.constants.len() <= u32::MAX as usize);
+        ConstantPlaceholder {
+            id: (self.constants.len() - 1) as u32,
+            tpe: c.tpe,
+        }
     }
 
     pub fn get_all(&self) -> Vec<Constant> {

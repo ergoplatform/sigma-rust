@@ -1,6 +1,7 @@
 //! ErgoTree
 use crate::serialization::{
     sigma_byte_reader::{SigmaByteRead, SigmaByteReader},
+    sigma_byte_writer::SigmaByteWrite,
     SerializationError, SigmaSerializable,
 };
 use crate::{
@@ -12,7 +13,7 @@ use io::{Cursor, Read};
 use sigma_ser::{peekable_reader::PeekableReader, vlq_encode};
 use std::io;
 use std::rc::Rc;
-use vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt};
+use vlq_encode::ReadSigmaVlqExt;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 struct ParsedTree {
@@ -105,7 +106,7 @@ impl From<Rc<Expr>> for ErgoTree {
     }
 }
 impl SigmaSerializable for ErgoTreeHeader {
-    fn sigma_serialize<W: WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
         w.put_u8(self.0)?;
         Ok(())
     }
@@ -116,7 +117,7 @@ impl SigmaSerializable for ErgoTreeHeader {
 }
 
 impl SigmaSerializable for ErgoTree {
-    fn sigma_serialize<W: WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
         self.header.sigma_serialize(w)?;
         match &self.tree {
             Ok(ParsedTree { constants, root }) => {

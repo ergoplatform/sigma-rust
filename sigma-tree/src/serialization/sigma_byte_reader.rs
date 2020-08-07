@@ -2,16 +2,9 @@ use super::constant_store::ConstantStore;
 use sigma_ser::{peekable_reader::Peekable, vlq_encode::ReadSigmaVlqExt};
 use std::io::Read;
 
-/// Expose constant store
-pub trait ConstantStoreHolder {
-    /// Constant store
-    fn constant_store(&mut self) -> Option<&mut ConstantStore>;
-}
-
-/// Sigma reader
 pub struct SigmaByteReader<R> {
     inner: R,
-    constant_store: Option<ConstantStore>,
+    constant_store: ConstantStore,
 }
 
 impl<R: Peekable> SigmaByteReader<R> {
@@ -19,29 +12,14 @@ impl<R: Peekable> SigmaByteReader<R> {
     pub fn new(pr: R) -> SigmaByteReader<R> {
         SigmaByteReader {
             inner: pr,
-            constant_store: Some(ConstantStore::empty()),
-        }
-    }
-
-    // pub fn new2(pr: R) -> Box<dyn SigmaByteRead> {
-    //     Box::new(SigmaByteReader {
-    //         inner: pr,
-    //         constant_store: ConstantStore::empty(),
-    //     })
-    // }
-}
-
-impl<R: ReadSigmaVlqExt> ConstantStoreHolder for SigmaByteReader<R> {
-    fn constant_store(&mut self) -> Option<&mut ConstantStore> {
-        match self.constant_store.as_mut() {
-            Some(store) => Some(store),
-            None => None,
+            constant_store: ConstantStore::empty(),
         }
     }
 }
 
-/// Compaund trait for sigma byte reader (VLQ, Peekable, ConstantStore)
-pub trait SigmaByteRead: ReadSigmaVlqExt + ConstantStoreHolder {}
+pub trait SigmaByteRead: ReadSigmaVlqExt {
+    fn constant_store(&mut self) -> &mut ConstantStore;
+}
 
 impl<R: Peekable> Read for SigmaByteReader<R> {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
@@ -55,4 +33,8 @@ impl<R: Peekable> Peekable for SigmaByteReader<R> {
     }
 }
 
-impl<R: Peekable> SigmaByteRead for SigmaByteReader<R> {}
+impl<R: ReadSigmaVlqExt> SigmaByteRead for SigmaByteReader<R> {
+    fn constant_store(&mut self) -> &mut ConstantStore {
+        &mut self.constant_store
+    }
+}
