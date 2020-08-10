@@ -270,6 +270,9 @@ pub struct ConstantPlaceholder {
 }
 
 impl ConstantPlaceholder {
+    /// OpCode value
+    pub const OP_CODE: OpCode = OpCode::CONSTANT_PLACEHOLDER;
+
     /// OpCode for the serialization
     pub fn op_code(&self) -> OpCode {
         OpCode::CONSTANT_PLACEHOLDER

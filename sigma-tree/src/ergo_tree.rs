@@ -1,7 +1,7 @@
 //! ErgoTree
 use crate::serialization::{
     sigma_byte_reader::{SigmaByteRead, SigmaByteReader},
-    sigma_byte_writer::SigmaByteWrite,
+    sigma_byte_writer::{SigmaByteWrite, SigmaByteWriter},
     SerializationError, SigmaSerializable,
 };
 use crate::{
@@ -73,10 +73,27 @@ impl ErgoTree {
 
     /// get Expr out of ErgoTree
     pub fn proposition(&self) -> Result<Rc<Expr>, ErgoTreeParsingError> {
-        self.tree
+        let root = self
+            .tree
             .clone()
             .map_err(ErgoTreeParsingError::TreeParsingError)
-            .and_then(|t| t.root.map_err(ErgoTreeParsingError::RootParsingError))
+            .and_then(|t| t.root.map_err(ErgoTreeParsingError::RootParsingError))?;
+        if self.header.is_constant_segregation() {
+            let mut data = Vec::new();
+            let mut cs = ConstantStore::empty();
+            let mut w = SigmaByteWriter::new(&mut data, Some(&mut cs));
+            root.sigma_serialize(&mut w).unwrap();
+            let cursor = Cursor::new(&mut data[..]);
+            let pr = PeekableReader::new(cursor);
+            // TODO make reader substitute constants
+            let mut sr =
+                SigmaByteReader::new(pr, ConstantStore::new(self.tree.clone().unwrap().constants));
+            let parsed_expr = Expr::sigma_parse(&mut sr).unwrap();
+            // todo!("substitute placeholders: {:?}", self.tree);
+            Ok(Rc::new(parsed_expr))
+        } else {
+            Ok(root)
+        }
     }
 
     /// Build ErgoTree using expr as is, without constants segregated
@@ -91,8 +108,23 @@ impl ErgoTree {
     }
 
     /// Build ErgoTree with constants segregated from expr
-    pub fn with_segregation(_: Rc<Expr>) -> ErgoTree {
-        todo!()
+    pub fn with_segregation(expr: Rc<Expr>) -> ErgoTree {
+        let mut data = Vec::new();
+        let mut cs = ConstantStore::empty();
+        let mut w = SigmaByteWriter::new(&mut data, Some(&mut cs));
+        expr.sigma_serialize(&mut w).unwrap();
+        let cursor = Cursor::new(&mut data[..]);
+        let pr = PeekableReader::new(cursor);
+        let constants = cs.get_all();
+        let mut sr = SigmaByteReader::new(pr, cs);
+        let parsed_expr = Expr::sigma_parse(&mut sr).unwrap();
+        ErgoTree {
+            header: ErgoTreeHeader(ErgoTreeHeader::CONSTANT_SEGREGATION_FLAG),
+            tree: Ok(ParsedTree {
+                constants,
+                root: Ok(Rc::new(parsed_expr)),
+            }),
+        }
     }
 }
 
@@ -124,10 +156,7 @@ impl SigmaSerializable for ErgoTree {
             Ok(ParsedTree { constants, root }) => {
                 if self.header.is_constant_segregation() {
                     w.put_usize_as_u32(constants.len())?;
-                    assert!(
-                        constants.is_empty(),
-                        "separate constants serialization is not yet supported"
-                    );
+                    constants.iter().try_for_each(|c| c.sigma_serialize(w))?;
                 }
                 match root {
                     Ok(expr) => expr.sigma_serialize(w)?,
@@ -164,25 +193,36 @@ impl SigmaSerializable for ErgoTree {
         let cursor = Cursor::new(&mut bytes[..]);
         let mut r = SigmaByteReader::new(PeekableReader::new(cursor), ConstantStore::empty());
         let header = ErgoTreeHeader::sigma_parse(&mut r)?;
-        if header.is_constant_segregation() {
+        let constants = if header.is_constant_segregation() {
             let constants_len = r.get_u32()?;
-            if constants_len != 0 {
-                return Ok(ErgoTree {
-                    header,
-                    tree: Err(ErgoTreeConstantsParsingError {
-                        bytes: bytes[1..].to_vec(),
-                        error: SerializationError::NotImplementedYet(
-                            "separate constants serialization is not yet supported".to_string(),
-                        ),
-                    }),
-                });
+            let mut constants = Vec::with_capacity(constants_len as usize);
+            // TODO: gracefully handle constant deserialization errors (produce ErgoTree)
+            for _ in 0..constants_len {
+                constants.push(Constant::sigma_parse(&mut r)?);
             }
-        }
-        let constants = Vec::new();
+            constants
+
+        //     return Ok(ErgoTree {
+        //         header,
+        //         tree: Err(ErgoTreeConstantsParsingError {
+        //             bytes: bytes[1..].to_vec(),
+        //             error: SerializationError::NotImplementedYet(
+        //                 "separate constants serialization is not yet supported".to_string(),
+        //             ),
+        //         }),
+        //     });
+        } else {
+            vec![]
+        };
         let mut rest_of_the_bytes = Vec::new();
         let _ = r.read_to_end(&mut rest_of_the_bytes);
         let rest_of_the_bytes_copy = rest_of_the_bytes.clone();
-        match Expr::sigma_parse_bytes(rest_of_the_bytes) {
+        let mut new_r = SigmaByteReader::new(
+            PeekableReader::new(Cursor::new(&mut rest_of_the_bytes[..])),
+            ConstantStore::new(constants.clone()),
+        );
+
+        match Expr::sigma_parse(&mut new_r) {
             Ok(parsed) => Ok(ErgoTree {
                 header,
                 tree: Ok(ParsedTree {
@@ -257,5 +297,20 @@ mod tests {
         let contract = chain::Contract::pay_to_address(address).unwrap();
         let bytes = &contract.get_ergo_tree().sigma_serialise_bytes();
         assert_eq!(&bytes[..2], vec![0u8, 8u8].as_slice());
+    }
+
+    #[test]
+    fn test_constant_segregation() {
+        let expr = Expr::Const(Constant {
+            tpe: SType::SBoolean,
+            v: ConstantVal::Boolean(true),
+        });
+        let ergo_tree = ErgoTree::with_segregation(Rc::new(expr.clone()));
+        let bytes = ergo_tree.sigma_serialise_bytes();
+        let parsed_expr = ErgoTree::sigma_parse_bytes(bytes)
+            .unwrap()
+            .proposition()
+            .unwrap();
+        assert_eq!(*parsed_expr, expr)
     }
 }

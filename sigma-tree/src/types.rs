@@ -2,9 +2,9 @@
 
 use super::serialization::types::TypeCode;
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct MethodId(u8);
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct TypeId(u8);
 
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -117,14 +117,14 @@ pub struct SFunc {
     tpe_params: Vec<STypeParam>,
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct STypeCompanion {
     pub type_id: TypeId,
     pub type_name: String,
     pub methods: Vec<SMethod>,
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct SMethod {
     pub obj_type: Box<STypeCompanion>,
     pub name: String,
