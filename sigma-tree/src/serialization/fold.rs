@@ -1,9 +1,9 @@
-use super::op_code::OpCode;
+use super::{op_code::OpCode, sigma_byte_writer::SigmaByteWrite};
 use crate::ast::{CollMethods, Expr};
-use sigma_ser::{
-    serializer::{SerializationError, SigmaSerializable},
-    vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt},
+use crate::serialization::{
+    sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
 };
+
 use std::io;
 
 pub struct FoldSerializer {}
@@ -11,7 +11,7 @@ pub struct FoldSerializer {}
 impl FoldSerializer {
     pub const OP_CODE: OpCode = OpCode::FOLD;
 
-    pub fn sigma_serialize<W: WriteSigmaVlqExt>(expr: &Expr, w: &mut W) -> Result<(), io::Error> {
+    pub fn sigma_serialize<W: SigmaByteWrite>(expr: &Expr, w: &mut W) -> Result<(), io::Error> {
         match expr {
             Expr::CollM(CollMethods::Fold {
                 input,
@@ -27,7 +27,7 @@ impl FoldSerializer {
         }
     }
 
-    pub fn sigma_parse<R: ReadSigmaVlqExt>(r: &mut R) -> Result<Expr, SerializationError> {
+    pub fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Expr, SerializationError> {
         let input = Expr::sigma_parse(r)?;
         let zero = Expr::sigma_parse(r)?;
         let fold_op = Expr::sigma_parse(r)?;

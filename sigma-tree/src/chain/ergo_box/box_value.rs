@@ -1,8 +1,10 @@
 //! Box value newtype
 
+use crate::serialization::{
+    sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
+};
 #[cfg(feature = "with-serde")]
 use serde::{Deserialize, Serialize};
-use sigma_ser::serializer::{SerializationError, SigmaSerializable};
 use sigma_ser::vlq_encode;
 use std::{convert::TryFrom, io};
 
@@ -62,7 +64,7 @@ impl SigmaSerializable for BoxValue {
     fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
         w.put_u64(self.0)
     }
-    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
         let v = r.get_u64()?;
         Ok(BoxValue(v))
     }

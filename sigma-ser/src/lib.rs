@@ -13,12 +13,7 @@
 
 /// io::Read wrapper with `peek` operation
 pub mod peekable_reader;
-/// Sigma serializer
-pub mod serializer;
 /// VLQ encoder
 pub mod vlq_encode;
 /// ZigZag encoder
 pub mod zig_zag_encode;
-
-// #[cfg(test)]
-pub mod test_helpers;

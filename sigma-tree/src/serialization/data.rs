@@ -1,3 +1,6 @@
+use crate::serialization::{
+    sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
+};
 use crate::{
     ast::ConstantVal,
     ast::ConstantVal::*,
@@ -7,19 +10,14 @@ use crate::{
     types::SType::*,
 };
 use sigma_protocol::{dlog_group::EcPoint, SigmaBoolean, SigmaProp};
-use sigma_ser::{
-    serializer::{SerializationError, SigmaSerializable},
-    vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt},
-};
+
+use super::sigma_byte_writer::SigmaByteWrite;
 use std::io;
 
 pub struct DataSerializer {}
 
 impl DataSerializer {
-    pub fn sigma_serialize<W: WriteSigmaVlqExt>(
-        c: &ConstantVal,
-        w: &mut W,
-    ) -> Result<(), io::Error> {
+    pub fn sigma_serialize<W: SigmaByteWrite>(c: &ConstantVal, w: &mut W) -> Result<(), io::Error> {
         // for reference see http://github.com/ScorexFoundation/sigmastate-interpreter/blob/25251c1313b0131835f92099f02cef8a5d932b5e/sigmastate/src/main/scala/sigmastate/serialization/DataSerializer.scala#L26-L26
         match c {
             Boolean(v) => w.put_u8(if *v { 1 } else { 0 }),
@@ -48,7 +46,7 @@ impl DataSerializer {
         }
     }
 
-    pub fn sigma_parse<R: ReadSigmaVlqExt>(
+    pub fn sigma_parse<R: SigmaByteRead>(
         tpe: &SType,
         r: &mut R,
     ) -> Result<ConstantVal, SerializationError> {

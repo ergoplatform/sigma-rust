@@ -10,14 +10,16 @@ use super::{
     token::TokenId,
     ErgoBox,
 };
+use crate::serialization::{
+    sigma_byte_reader::SigmaByteRead, sigma_byte_writer::SigmaByteWrite, SerializationError,
+    SigmaSerializable,
+};
 use indexmap::IndexSet;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 #[cfg(feature = "with-serde")]
 use serde::{Deserialize, Serialize};
-use sigma_ser::serializer::SerializationError;
-use sigma_ser::serializer::SigmaSerializable;
-use sigma_ser::vlq_encode;
+
 use std::convert::TryFrom;
 use std::io;
 use std::iter::FromIterator;
@@ -38,11 +40,11 @@ impl TxId {
 }
 
 impl SigmaSerializable for TxId {
-    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
         self.0.sigma_serialize(w)?;
         Ok(())
     }
-    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
         Ok(Self(Digest32::sigma_parse(r)?))
     }
 }
@@ -133,7 +135,7 @@ impl Transaction {
 }
 
 impl SigmaSerializable for Transaction {
-    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
         // reference implementation - https://github.com/ScorexFoundation/sigmastate-interpreter/blob/9b20cb110effd1987ff76699d637174a4b2fb441/sigmastate/src/main/scala/org/ergoplatform/ErgoLikeTransaction.scala#L112-L112
         w.put_usize_as_u16(self.inputs.len())?;
         self.inputs.iter().try_for_each(|i| i.sigma_serialize(w))?;
@@ -164,7 +166,7 @@ impl SigmaSerializable for Transaction {
         Ok(())
     }
 
-    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
         // reference implementation - https://github.com/ScorexFoundation/sigmastate-interpreter/blob/9b20cb110effd1987ff76699d637174a4b2fb441/sigmastate/src/main/scala/org/ergoplatform/ErgoLikeTransaction.scala#L146-L146
 
         // parse transaction inputs
@@ -251,8 +253,8 @@ impl TryFrom<json::transaction::TransactionJson> for Transaction {
 mod tests {
 
     use super::*;
+    use crate::serialization::sigma_serialize_roundtrip;
     use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
-    use sigma_ser::test_helpers::*;
 
     impl Arbitrary for Transaction {
         type Parameters = ();

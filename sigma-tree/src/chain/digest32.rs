@@ -1,14 +1,14 @@
-use crate::chain::{Base16DecodedBytes, Base16EncodedBytes};
+use crate::{
+    chain::{Base16DecodedBytes, Base16EncodedBytes},
+    serialization::{sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable},
+};
 use blake2::digest::{Update, VariableOutput};
 use blake2::VarBlake2b;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 #[cfg(feature = "with-serde")]
 use serde::{Deserialize, Serialize};
-use sigma_ser::{
-    serializer::{SerializationError, SigmaSerializable},
-    vlq_encode,
-};
+use sigma_ser::vlq_encode;
 use std::convert::TryFrom;
 use std::convert::TryInto;
 use std::io;
@@ -76,7 +76,7 @@ impl SigmaSerializable for Digest32 {
         w.write_all(self.0.as_ref())?;
         Ok(())
     }
-    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
         let mut bytes = [0; Digest32::SIZE];
         r.read_exact(&mut bytes)?;
         Ok(Self(bytes.into()))

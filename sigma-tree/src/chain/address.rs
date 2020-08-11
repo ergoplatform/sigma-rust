@@ -1,12 +1,12 @@
 use super::digest32;
 use crate::{
     ast::Expr,
+    serialization::{SerializationError, SigmaSerializable},
     sigma_protocol::{
         dlog_group::EcPoint, ProveDlog, SigmaBoolean, SigmaProofOfKnowledgeTree, SigmaProp,
     },
     ErgoTree,
 };
-use sigma_ser::serializer::{SerializationError, SigmaSerializable};
 use std::{
     convert::{TryFrom, TryInto},
     rc::Rc,

@@ -8,15 +8,17 @@ pub mod ops;
 
 pub use constant::*;
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 /// newtype for box register id
 pub struct RegisterId(u8);
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 /// Expression in ErgoTree
 pub enum Expr {
     /// Constant value
     Const(Constant),
+    /// Placeholder for a constant
+    ConstPlaceholder(ConstantPlaceholder),
     /// Collection of values (same type)
     Coll {
         /// Collection type
@@ -58,15 +60,9 @@ impl Expr {
     /// Code (used in serialization)
     pub fn op_code(&self) -> OpCode {
         match self {
-            Const { .. } => todo!(),
-            Coll { .. } => todo!(),
-            Tup { .. } => todo!(),
-            BoxM(boxm) => boxm.op_code(),
-            CollM(_) => todo!(),
-            CtxM(_) => todo!(),
-            MethodCall { .. } => todo!(),
-            PredefFunc(_) => todo!(),
-            BinOp(_, _, _) => todo!(),
+            Const(_) => todo!(),
+            ConstPlaceholder(cp) => cp.op_code(),
+            _ => todo!(),
         }
     }
 
@@ -85,7 +81,7 @@ impl fmt::Display for Expr {
     }
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 /// Methods for Collection type instance
 pub enum CollMethods {
     /// Fold method
@@ -99,7 +95,7 @@ pub enum CollMethods {
     },
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 /// Methods for Box type instance
 pub enum BoxMethods {
     /// Box.RX methods
@@ -118,7 +114,7 @@ impl BoxMethods {
     }
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 /// Methods for Context type instance
 pub enum ContextMethods {
     /// Tx inputs
@@ -127,7 +123,7 @@ pub enum ContextMethods {
     Outputs,
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 /// Predefined (global) functions
 pub enum PredefFunc {
     /// SHA256

@@ -1,10 +1,11 @@
-use crate::types::SType;
-use sigma_ser::{
-    serializer::{SerializationError, SigmaSerializable},
-    vlq_encode,
+use super::sigma_byte_writer::SigmaByteWrite;
+use crate::serialization::{
+    sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
 };
+use crate::types::SType;
+use sigma_ser::vlq_encode;
 use std::{io, ops::Add};
-use vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt};
+use vlq_encode::WriteSigmaVlqExt;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TypeCode(u8);
@@ -52,7 +53,7 @@ impl SigmaSerializable for TypeCode {
         w.put_u8(self.value())
     }
 
-    fn sigma_parse<R: ReadSigmaVlqExt>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
         let b = r.get_u8()?;
         match b {
             0 => Err(SerializationError::InvalidTypePrefix),
@@ -90,7 +91,7 @@ fn is_stype_embeddable(tpe: &SType) -> bool {
 }
 
 impl SigmaSerializable for SType {
-    fn sigma_serialize<W: WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
         // for reference see http://github.com/ScorexFoundation/sigmastate-interpreter/blob/25251c1313b0131835f92099f02cef8a5d932b5e/sigmastate/src/main/scala/sigmastate/serialization/TypeSerializer.scala#L25-L25
         match self {
             SType::SAny => self.type_code().sigma_serialize(w),
@@ -117,7 +118,7 @@ impl SigmaSerializable for SType {
         }
     }
 
-    fn sigma_parse<R: ReadSigmaVlqExt>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
         // for reference see http://github.com/ScorexFoundation/sigmastate-interpreter/blob/25251c1313b0131835f92099f02cef8a5d932b5e/sigmastate/src/main/scala/sigmastate/serialization/TypeSerializer.scala#L118-L118
         let type_code = TypeCode::sigma_parse(r)?;
         let constr_id = type_code.value() / TypeCode::PRIM_RANGE;
@@ -143,8 +144,8 @@ impl SigmaSerializable for SType {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::serialization::sigma_serialize_roundtrip;
     use proptest::prelude::*;
-    use sigma_ser::test_helpers::*;
 
     proptest! {
 

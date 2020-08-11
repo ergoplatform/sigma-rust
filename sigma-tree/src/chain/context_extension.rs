@@ -1,8 +1,9 @@
 //! ContextExtension type
+use crate::serialization::{
+    sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
+};
 #[cfg(feature = "with-serde")]
 use serde::{Deserialize, Serialize};
-use sigma_ser::serializer::SerializationError;
-use sigma_ser::serializer::SigmaSerializable;
 use sigma_ser::vlq_encode;
 use std::collections::HashMap;
 use std::io;
@@ -30,7 +31,7 @@ impl SigmaSerializable for ContextExtension {
         assert!(self.values.is_empty(), "implemented only for empty");
         Ok(())
     }
-    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
         let _ = r.get_u8()?;
         Ok(ContextExtension::empty())
     }

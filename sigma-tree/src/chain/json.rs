@@ -13,9 +13,8 @@ where
 pub mod ergo_tree {
 
     use super::*;
-    use crate::ErgoTree;
+    use crate::{serialization::SigmaSerializable, ErgoTree};
     use serde::{Deserialize, Deserializer, Serializer};
-    use sigma_ser::serializer::SigmaSerializable;
 
     pub fn serialize<S>(ergo_tree: &ErgoTree, serializer: S) -> Result<S::Ok, S::Error>
     where

@@ -16,13 +16,14 @@
 //! On the other hand, any group element can be mapped to some string.
 
 use super::DlogProverInput;
+use crate::serialization::{
+    sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
+};
 use k256::arithmetic::{ProjectivePoint, Scalar};
 use k256::{arithmetic::AffinePoint, PublicKey};
 use num_bigint::{BigInt, Sign};
-use sigma_ser::{
-    serializer::{SerializationError, SigmaSerializable},
-    vlq_encode,
-};
+use sigma_ser::vlq_encode;
+
 use std::{convert::TryInto, io};
 
 #[derive(PartialEq, Debug, Clone)]
@@ -107,7 +108,7 @@ impl SigmaSerializable for EcPoint {
         Ok(())
     }
 
-    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
         let mut buf = [0; EcPoint::GROUP_SIZE];
         r.read_exact(&mut buf[..])?;
         if buf[0] != 0 {
@@ -132,8 +133,8 @@ impl SigmaSerializable for EcPoint {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::serialization::sigma_serialize_roundtrip;
     use proptest::prelude::*;
-    use sigma_ser::test_helpers::*;
 
     impl Arbitrary for EcPoint {
         type Parameters = ();

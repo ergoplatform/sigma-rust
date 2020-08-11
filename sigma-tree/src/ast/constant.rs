@@ -1,13 +1,12 @@
 use crate::chain::{Base16DecodedBytes, Base16EncodedBytes};
 use crate::{
     chain::ErgoBox,
+    serialization::{op_code::OpCode, SerializationError, SigmaSerializable},
     sigma_protocol::{dlog_group::EcPoint, SigmaProp},
     types::{LiftIntoSType, SType},
 };
 #[cfg(feature = "with-serde")]
 use serde::{Deserialize, Serialize};
-use sigma_ser::serializer::SerializationError;
-use sigma_ser::serializer::SigmaSerializable;
 use std::convert::TryFrom;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -258,6 +257,25 @@ impl Into<Constant> for Vec<i8> {
             tpe: SType::SColl(Box::new(SType::SByte)),
             v: ConstantVal::Coll(ConstantColl::Primitive(CollPrim::CollByte(self))),
         }
+    }
+}
+
+/// Placeholder for a constant in ErgoTree.
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct ConstantPlaceholder {
+    /// Zero based index in ErgoTree.constants array.
+    pub id: u32,
+    /// Type of the constant value
+    pub tpe: SType,
+}
+
+impl ConstantPlaceholder {
+    /// OpCode value
+    pub const OP_CODE: OpCode = OpCode::CONSTANT_PLACEHOLDER;
+
+    /// OpCode for the serialization
+    pub fn op_code(&self) -> OpCode {
+        OpCode::CONSTANT_PLACEHOLDER
     }
 }
 

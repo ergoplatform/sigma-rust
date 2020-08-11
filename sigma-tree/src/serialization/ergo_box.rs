@@ -1,3 +1,6 @@
+use crate::serialization::{
+    sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
+};
 use crate::{
     ast::Constant,
     chain::{
@@ -7,16 +10,14 @@ use crate::{
     ErgoTree,
 };
 use indexmap::IndexSet;
-use sigma_ser::{
-    serializer::{SerializationError, SigmaSerializable},
-    vlq_encode,
-};
+
+use super::sigma_byte_writer::SigmaByteWrite;
 use std::convert::TryFrom;
 use std::io;
 
 /// Box serialization with token ids optionally saved in transaction
 /// (in this case only token index is saved)
-pub fn serialize_box_with_indexed_digests<W: vlq_encode::WriteSigmaVlqExt>(
+pub fn serialize_box_with_indexed_digests<W: SigmaByteWrite>(
     box_value: &BoxValue,
     ergo_tree_bytes: Vec<u8>,
     tokens: &[TokenAmount],
@@ -61,7 +62,7 @@ pub fn serialize_box_with_indexed_digests<W: vlq_encode::WriteSigmaVlqExt>(
 }
 
 /// Box deserialization with token ids optionally parsed in transaction
-pub fn parse_box_with_indexed_digests<R: vlq_encode::ReadSigmaVlqExt>(
+pub fn parse_box_with_indexed_digests<R: SigmaByteRead>(
     digests_in_tx: Option<&IndexSet<TokenId>>,
     r: &mut R,
 ) -> Result<ErgoBoxCandidate, SerializationError> {

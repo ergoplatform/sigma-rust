@@ -1,13 +1,14 @@
 //! Box id type
-use sigma_ser::serializer::SerializationError;
-use sigma_ser::serializer::SigmaSerializable;
-use sigma_ser::vlq_encode;
 use std::io;
 
 #[cfg(feature = "with-serde")]
 use serde::{Deserialize, Serialize};
 
 use super::digest32::Digest32;
+use crate::serialization::{
+    sigma_byte_reader::SigmaByteRead, sigma_byte_writer::SigmaByteWrite, SerializationError,
+    SigmaSerializable,
+};
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 
@@ -41,11 +42,11 @@ impl Into<String> for BoxId {
 }
 
 impl SigmaSerializable for BoxId {
-    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
         self.0.sigma_serialize(w)?;
         Ok(())
     }
-    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
         Ok(Self(Digest32::sigma_parse(r)?))
     }
 }
@@ -53,8 +54,8 @@ impl SigmaSerializable for BoxId {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::serialization::sigma_serialize_roundtrip;
     use proptest::prelude::*;
-    use sigma_ser::test_helpers::*;
 
     proptest! {
 

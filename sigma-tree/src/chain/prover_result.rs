@@ -1,10 +1,11 @@
 //! ProverResult
-use sigma_ser::serializer::SerializationError;
-use sigma_ser::serializer::SigmaSerializable;
-use sigma_ser::vlq_encode;
 use std::io;
 
 use super::context_extension::ContextExtension;
+use crate::serialization::{
+    sigma_byte_reader::SigmaByteRead, sigma_byte_writer::SigmaByteWrite, SerializationError,
+    SigmaSerializable,
+};
 #[cfg(feature = "with-serde")]
 use serde::{Deserialize, Serialize};
 
@@ -21,13 +22,13 @@ pub struct ProverResult {
 }
 
 impl SigmaSerializable for ProverResult {
-    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
         w.put_u16(self.proof.len() as u16)?;
         w.write_all(&self.proof)?;
         self.extension.sigma_serialize(w)?;
         Ok(())
     }
-    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
         let proof_len = r.get_u16()?;
         let mut proof = vec![0; proof_len as usize];
         r.read_exact(&mut proof)?;
@@ -39,8 +40,8 @@ impl SigmaSerializable for ProverResult {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::serialization::sigma_serialize_roundtrip;
     use proptest::{collection::vec, prelude::*};
-    use sigma_ser::test_helpers::*;
 
     impl Arbitrary for ProverResult {
         type Parameters = ();

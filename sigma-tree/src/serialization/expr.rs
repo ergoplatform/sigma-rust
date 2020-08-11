@@ -1,15 +1,22 @@
-use super::{fold::FoldSerializer, op_code::OpCode};
-use crate::ast::{CollMethods, Constant, Expr};
-use sigma_ser::{
-    serializer::{SerializationError, SigmaSerializable},
-    vlq_encode,
+use super::{fold::FoldSerializer, op_code::OpCode, sigma_byte_writer::SigmaByteWrite};
+use crate::ast::{CollMethods, Constant, ConstantPlaceholder, Expr};
+use crate::serialization::{
+    sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
 };
+
 use std::io;
 
 impl SigmaSerializable for Expr {
-    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
         match self {
-            Expr::Const(c) => c.sigma_serialize(w),
+            Expr::Const(c) => match w.constant_store() {
+                Some(cs) => {
+                    let ph = cs.put(c.clone());
+                    ph.op_code().sigma_serialize(w)?;
+                    ph.sigma_serialize(w)
+                }
+                None => c.sigma_serialize(w),
+            },
             expr => {
                 let op_code = self.op_code();
                 op_code.sigma_serialize(w)?;
@@ -17,13 +24,14 @@ impl SigmaSerializable for Expr {
                     Expr::CollM(cm) => match cm {
                         CollMethods::Fold { .. } => FoldSerializer::sigma_serialize(expr, w),
                     },
-                    _ => panic!(format!("don't know how to serialize {}", expr)),
+                    Expr::ConstPlaceholder(cp) => cp.sigma_serialize(w),
+                    _ => panic!(format!("don't know how to serialize {:?}", expr)),
                 }
             }
         }
     }
 
-    fn sigma_parse<R: vlq_encode::ReadSigmaVlqExt>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
         let first_byte = match r.peek_u8() {
             Ok(b) => Ok(b),
             Err(_) => {
@@ -39,6 +47,17 @@ impl SigmaSerializable for Expr {
             let op_code = OpCode::sigma_parse(r)?;
             match op_code {
                 FoldSerializer::OP_CODE => FoldSerializer::sigma_parse(r),
+                ConstantPlaceholder::OP_CODE => {
+                    let cp = ConstantPlaceholder::sigma_parse(r)?;
+                    if r.substitute_placeholders() {
+                        // ConstantPlaceholder itself can be created only if a corresponding
+                        // constant is in the constant_store, thus unwrap() is safe here
+                        let c = r.constant_store().get(cp.id).unwrap();
+                        Ok(Expr::Const(c.clone()))
+                    } else {
+                        Ok(Expr::ConstPlaceholder(cp))
+                    }
+                }
                 o => Err(SerializationError::NotImplementedOpCode(o.value())),
             }
         }

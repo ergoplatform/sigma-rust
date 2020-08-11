@@ -1,8 +1,7 @@
 //! Ergo contract
 
 use super::Address;
-use crate::ErgoTree;
-use sigma_ser::serializer::SerializationError;
+use crate::{serialization::SerializationError, ErgoTree};
 
 /// High-level wrapper for ErgoTree
 pub struct Contract {
