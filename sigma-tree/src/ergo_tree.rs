@@ -85,9 +85,11 @@ impl ErgoTree {
             root.sigma_serialize(&mut w).unwrap();
             let cursor = Cursor::new(&mut data[..]);
             let pr = PeekableReader::new(cursor);
-            // TODO make reader substitute constants
-            let mut sr =
-                SigmaByteReader::new(pr, ConstantStore::new(self.tree.clone().unwrap().constants));
+            // TODO: make reader substitute constants
+            let mut sr = SigmaByteReader::new_with_substitute_placeholders(
+                pr,
+                ConstantStore::new(self.tree.clone().unwrap().constants),
+            );
             let parsed_expr = Expr::sigma_parse(&mut sr).unwrap();
             // todo!("substitute placeholders: {:?}", self.tree);
             Ok(Rc::new(parsed_expr))

@@ -49,7 +49,14 @@ impl SigmaSerializable for Expr {
                 FoldSerializer::OP_CODE => FoldSerializer::sigma_parse(r),
                 ConstantPlaceholder::OP_CODE => {
                     let cp = ConstantPlaceholder::sigma_parse(r)?;
-                    Ok(Expr::ConstPlaceholder(cp))
+                    if r.substitute_placeholders() {
+                        // ConstantPlaceholder itself can be created only if a corresponding
+                        // constant is in the constant_store, thus unwrap() is safe here
+                        let c = r.constant_store().get(cp.id).unwrap();
+                        Ok(Expr::Const(c.clone()))
+                    } else {
+                        Ok(Expr::ConstPlaceholder(cp))
+                    }
                 }
                 o => Err(SerializationError::NotImplementedOpCode(o.value())),
             }

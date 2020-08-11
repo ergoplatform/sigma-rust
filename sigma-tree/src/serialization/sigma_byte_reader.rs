@@ -5,6 +5,7 @@ use std::io::Read;
 pub struct SigmaByteReader<R> {
     inner: R,
     constant_store: ConstantStore,
+    substitute_placeholders: bool,
 }
 
 impl<R: Peekable> SigmaByteReader<R> {
@@ -13,12 +14,26 @@ impl<R: Peekable> SigmaByteReader<R> {
         SigmaByteReader {
             inner: pr,
             constant_store,
+            substitute_placeholders: false,
+        }
+    }
+
+    pub fn new_with_substitute_placeholders(
+        pr: R,
+        constant_store: ConstantStore,
+    ) -> SigmaByteReader<R> {
+        SigmaByteReader {
+            inner: pr,
+            constant_store,
+            substitute_placeholders: true,
         }
     }
 }
 
 pub trait SigmaByteRead: ReadSigmaVlqExt {
     fn constant_store(&mut self) -> &mut ConstantStore;
+
+    fn substitute_placeholders(&self) -> bool;
 }
 
 impl<R: Peekable> Read for SigmaByteReader<R> {
@@ -36,5 +51,9 @@ impl<R: Peekable> Peekable for SigmaByteReader<R> {
 impl<R: ReadSigmaVlqExt> SigmaByteRead for SigmaByteReader<R> {
     fn constant_store(&mut self) -> &mut ConstantStore {
         &mut self.constant_store
+    }
+
+    fn substitute_placeholders(&self) -> bool {
+        self.substitute_placeholders
     }
 }
