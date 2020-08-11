@@ -1,6 +1,7 @@
 use super::{dlog_group::EcPoint, ProverMessage};
 use crate::{big_integer::BigInteger, serialization::SigmaSerializable};
 
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct FirstDlogProverMessage(pub EcPoint);
 
 impl ProverMessage for FirstDlogProverMessage {

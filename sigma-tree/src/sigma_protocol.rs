@@ -154,7 +154,21 @@ pub enum ProofTree {
 
 impl ProofTree {
     pub fn with_challenge(&self, challenge: Challenge) -> ProofTree {
-        todo!()
+        match self {
+            ProofTree::UncheckedTree(_) => todo!(),
+            ProofTree::UnprovenTree(ut) => match ut {
+                UnprovenTree::UnprovenLeaf(ul) => match ul {
+                    UnprovenLeaf::UnprovenSchnorr(us) => {
+                        ProofTree::UnprovenTree(UnprovenTree::UnprovenLeaf(
+                            UnprovenLeaf::UnprovenSchnorr(UnprovenSchnorr {
+                                challenge_opt: Some(challenge),
+                                ..us.clone()
+                            }),
+                        ))
+                    }
+                },
+            },
+        }
     }
 }
 
@@ -201,6 +215,7 @@ impl ProofTreeLeaf for UnprovenLeaf {
     }
 }
 
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct UnprovenSchnorr {
     proposition: ProveDlog,
     commitment_opt: Option<FirstDlogProverMessage>,

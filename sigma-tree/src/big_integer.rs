@@ -2,7 +2,7 @@ use k256::arithmetic::Scalar;
 use num_bigint::BigInt;
 // use std::convert::TryFrom;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct BigInteger(BigInt);
 
 impl From<BigInt> for BigInteger {
