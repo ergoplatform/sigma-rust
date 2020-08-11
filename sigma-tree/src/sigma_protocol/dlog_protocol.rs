@@ -1,7 +1,14 @@
-use super::dlog_group::EcPoint;
-use crate::big_integer::BigInteger;
+use super::{dlog_group::EcPoint, ProverMessage};
+use crate::{big_integer::BigInteger, serialization::SigmaSerializable};
 
-pub struct FirstDlogProverMessage(EcPoint);
+pub struct FirstDlogProverMessage(pub EcPoint);
+
+impl ProverMessage for FirstDlogProverMessage {
+    fn bytes(&self) -> Vec<u8> {
+        self.0.sigma_serialise_bytes()
+    }
+}
+
 pub struct SecondDlogProverMessage(BigInteger);
 
 pub mod interactive_prover {

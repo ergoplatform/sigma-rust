@@ -7,7 +7,8 @@
 use super::{
     dlog_protocol, fiat_shamir_hash_fn, fiat_shamir_tree_to_bytes, serialize_sig, Challenge,
     PrivateInput, ProofTree, SigmaBoolean, SigmaProofOfKnowledgeTree, UncheckedLeaf,
-    UncheckedSchnorr, UncheckedSigmaTree, UncheckedTree, UnprovenSchnorr, UnprovenTree,
+    UncheckedSchnorr, UncheckedSigmaTree, UncheckedTree, UnprovenLeaf, UnprovenSchnorr,
+    UnprovenTree,
 };
 use crate::{
     chain::{ContextExtension, ProverResult},
@@ -77,13 +78,13 @@ pub trait Prover: Evaluator {
             SigmaBoolean::ProofOfKnowledge(pok) => match pok {
                 SigmaProofOfKnowledgeTree::ProveDHTuple(_) => todo!(),
                 SigmaProofOfKnowledgeTree::ProveDlog(prove_dlog) => {
-                    UnprovenTree::UnprovenSchnorr(UnprovenSchnorr {
+                    UnprovenTree::UnprovenLeaf(UnprovenLeaf::UnprovenSchnorr(UnprovenSchnorr {
                         proposition: prove_dlog,
                         commitment_opt: None,
                         randomness_opt: None,
                         challenge_opt: None,
                         simulated: false,
-                    })
+                    }))
                 }
             },
             SigmaBoolean::CAND(_) => todo!(),
@@ -147,15 +148,15 @@ pub trait Prover: Evaluator {
     */
     fn mark_real(&self, unproven_tree: UnprovenTree) -> UnprovenTree {
         match unproven_tree {
-            UnprovenTree::UnprovenSchnorr(us) => {
+            UnprovenTree::UnprovenLeaf(UnprovenLeaf::UnprovenSchnorr(us)) => {
                 let secret_known = self.secrets().iter().any(|s| match s {
                     PrivateInput::DlogProverInput(dl) => dl.public_image() == us.proposition,
                     _ => false,
                 });
-                UnprovenTree::UnprovenSchnorr(UnprovenSchnorr {
+                UnprovenTree::UnprovenLeaf(UnprovenLeaf::UnprovenSchnorr(UnprovenSchnorr {
                     simulated: !secret_known,
                     ..us
-                })
+                }))
             }
         }
     }
@@ -178,7 +179,7 @@ pub trait Prover: Evaluator {
     */
     fn simulate_and_commit(&self, tree: UnprovenTree) -> Result<ProofTree, ProverError> {
         match tree {
-            UnprovenTree::UnprovenSchnorr(us) => {
+            UnprovenTree::UnprovenLeaf(UnprovenLeaf::UnprovenSchnorr(us)) => {
                 if us.simulated {
                     // Step 5 (simulated leaf -- complete the simulation)
                     if let Some(challenge) = us.challenge_opt {
@@ -203,12 +204,12 @@ pub trait Prover: Evaluator {
                     // Step 6 (real leaf -- compute the commitment a)
                     let (r, commitment) =
                         dlog_protocol::interactive_prover::first_message(&us.proposition);
-                    Ok(ProofTree::UnprovenTree(UnprovenTree::UnprovenSchnorr(
-                        UnprovenSchnorr {
+                    Ok(ProofTree::UnprovenTree(UnprovenTree::UnprovenLeaf(
+                        UnprovenLeaf::UnprovenSchnorr(UnprovenSchnorr {
                             commitment_opt: Some(commitment),
                             randomness_opt: Some(r),
                             ..us
-                        },
+                        }),
                     )))
                 }
             }
@@ -226,7 +227,9 @@ pub trait Prover: Evaluator {
         match tree {
             ProofTree::UncheckedTree(_) => Ok(tree),
             ProofTree::UnprovenTree(unproven_tree) => match unproven_tree {
-                UnprovenTree::UnprovenSchnorr(us) if unproven_tree.real() => {
+                UnprovenTree::UnprovenLeaf(UnprovenLeaf::UnprovenSchnorr(us))
+                    if unproven_tree.real() =>
+                {
                     if let Some(challenge) = us.challenge_opt.clone() {
                         if let Some(priv_key) = self
                             .secrets()
@@ -265,61 +268,61 @@ pub trait Prover: Evaluator {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use crate::{
-//         ast::{Constant, ConstantVal, Expr},
-//         sigma_protocol::{DlogProverInput, SigmaProp},
-//         types::SType,
-//     };
-//     use std::rc::Rc;
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        ast::{Constant, ConstantVal, Expr},
+        sigma_protocol::{DlogProverInput, SigmaProp},
+        types::SType,
+    };
+    use std::rc::Rc;
 
-//     #[test]
-//     fn test_prove_true_prop() {
-//         let bool_true_tree = ErgoTree::from(Rc::new(Expr::Const(Constant {
-//             tpe: SType::SBoolean,
-//             v: ConstantVal::Boolean(true),
-//         })));
-//         let message = vec![0u8; 100];
+    #[test]
+    fn test_prove_true_prop() {
+        let bool_true_tree = ErgoTree::from(Rc::new(Expr::Const(Constant {
+            tpe: SType::SBoolean,
+            v: ConstantVal::Boolean(true),
+        })));
+        let message = vec![0u8; 100];
 
-//         let prover = TestProver { secrets: vec![] };
-//         let res = prover.prove(&bool_true_tree, &Env::empty(), message.as_slice());
-//         assert!(res.is_ok());
-//         assert!(res.unwrap().proof.is_empty());
-//     }
+        let prover = TestProver { secrets: vec![] };
+        let res = prover.prove(&bool_true_tree, &Env::empty(), message.as_slice());
+        assert!(res.is_ok());
+        assert!(res.unwrap().proof.is_empty());
+    }
 
-//     #[test]
-//     fn test_prove_false_prop() {
-//         let bool_false_tree = ErgoTree::from(Rc::new(Expr::Const(Constant {
-//             tpe: SType::SBoolean,
-//             v: ConstantVal::Boolean(false),
-//         })));
-//         let message = vec![0u8; 100];
+    #[test]
+    fn test_prove_false_prop() {
+        let bool_false_tree = ErgoTree::from(Rc::new(Expr::Const(Constant {
+            tpe: SType::SBoolean,
+            v: ConstantVal::Boolean(false),
+        })));
+        let message = vec![0u8; 100];
 
-//         let prover = TestProver { secrets: vec![] };
-//         let res = prover.prove(&bool_false_tree, &Env::empty(), message.as_slice());
-//         assert!(res.is_err());
-//         assert_eq!(res.err().unwrap(), ProverError::ReducedToFalse);
-//     }
+        let prover = TestProver { secrets: vec![] };
+        let res = prover.prove(&bool_false_tree, &Env::empty(), message.as_slice());
+        assert!(res.is_err());
+        assert_eq!(res.err().unwrap(), ProverError::ReducedToFalse);
+    }
 
-//     #[test]
-//     fn test_prove_pk_prop() {
-//         let secret = DlogProverInput::random();
-//         let pk = secret.public_image();
-//         let tree = ErgoTree::from(Rc::new(Expr::Const(Constant {
-//             tpe: SType::SSigmaProp,
-//             v: ConstantVal::SigmaProp(Box::new(SigmaProp(SigmaBoolean::ProofOfKnowledge(
-//                 SigmaProofOfKnowledgeTree::ProveDlog(pk),
-//             )))),
-//         })));
-//         let message = vec![0u8; 100];
+    #[test]
+    fn test_prove_pk_prop() {
+        let secret = DlogProverInput::random();
+        let pk = secret.public_image();
+        let tree = ErgoTree::from(Rc::new(Expr::Const(Constant {
+            tpe: SType::SSigmaProp,
+            v: ConstantVal::SigmaProp(Box::new(SigmaProp(SigmaBoolean::ProofOfKnowledge(
+                SigmaProofOfKnowledgeTree::ProveDlog(pk),
+            )))),
+        })));
+        let message = vec![0u8; 100];
 
-//         let prover = TestProver {
-//             secrets: vec![PrivateInput::DlogProverInput(secret)],
-//         };
-//         let res = prover.prove(&tree, &Env::empty(), message.as_slice());
-//         // assert!(res.is_ok());
-//         assert!(!res.unwrap().proof.is_empty());
-//     }
-// }
+        let prover = TestProver {
+            secrets: vec![PrivateInput::DlogProverInput(secret)],
+        };
+        let res = prover.prove(&tree, &Env::empty(), message.as_slice());
+        // assert!(res.is_ok());
+        assert!(!res.unwrap().proof.is_empty());
+    }
+}

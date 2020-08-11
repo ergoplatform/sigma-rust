@@ -11,12 +11,17 @@ pub mod verifier;
 
 use k256::arithmetic::Scalar;
 
-use crate::{big_integer::BigInteger, serialization::op_code::OpCode};
+use crate::{
+    ast::Expr,
+    big_integer::BigInteger,
+    serialization::{op_code::OpCode, SigmaSerializable},
+    ErgoTree,
+};
 use blake2::digest::{Update, VariableOutput};
 use blake2::VarBlake2b;
 use dlog_group::EcPoint;
 use dlog_protocol::{FirstDlogProverMessage, SecondDlogProverMessage};
-use std::convert::TryInto;
+use std::{convert::TryInto, rc::Rc};
 
 /// Secret key of discrete logarithm signature protocol
 pub struct DlogProverInput {
@@ -121,6 +126,24 @@ impl SigmaProp {
     }
 }
 
+pub trait ProverMessage {
+    fn bytes(&self) -> Vec<u8>;
+}
+
+pub enum FirstProverMessage {
+    FirstDlogProverMessage(FirstDlogProverMessage),
+    FirstDHTProverMessage,
+}
+
+impl ProverMessage for FirstProverMessage {
+    fn bytes(&self) -> Vec<u8> {
+        match self {
+            FirstProverMessage::FirstDlogProverMessage(fdpm) => fdpm.bytes(),
+            FirstProverMessage::FirstDHTProverMessage => todo!(),
+        }
+    }
+}
+
 /// Proof tree
 pub enum ProofTree {
     /// Unchecked tree
@@ -137,13 +160,43 @@ impl ProofTree {
 
 /// Unproven tree
 pub enum UnprovenTree {
-    UnprovenSchnorr(UnprovenSchnorr),
+    UnprovenLeaf(UnprovenLeaf),
+    // UnprovenConjecture,
 }
 
 impl UnprovenTree {
     pub fn real(&self) -> bool {
         match self {
-            UnprovenTree::UnprovenSchnorr(us) => !us.simulated,
+            UnprovenTree::UnprovenLeaf(UnprovenLeaf::UnprovenSchnorr(us)) => !us.simulated,
+            // UnprovenTree::UnprovenConjecture => todo!(),
+        }
+    }
+}
+
+pub enum UnprovenLeaf {
+    UnprovenSchnorr(UnprovenSchnorr),
+}
+
+pub trait ProofTreeLeaf {
+    fn proposition(&self) -> SigmaBoolean;
+
+    fn commitment_opt(&self) -> Option<FirstProverMessage>;
+}
+
+impl ProofTreeLeaf for UnprovenLeaf {
+    fn proposition(&self) -> SigmaBoolean {
+        match self {
+            UnprovenLeaf::UnprovenSchnorr(us) => SigmaBoolean::ProofOfKnowledge(
+                SigmaProofOfKnowledgeTree::ProveDlog(us.proposition.clone()),
+            ),
+        }
+    }
+
+    fn commitment_opt(&self) -> Option<FirstProverMessage> {
+        match self {
+            UnprovenLeaf::UnprovenSchnorr(us) => Some(FirstProverMessage::FirstDlogProverMessage(
+                FirstDlogProverMessage(*us.proposition.h.clone()),
+            )),
         }
     }
 }
@@ -162,19 +215,23 @@ pub struct Challenge(FiatShamirHash);
 /// Unchecked sigma tree
 pub enum UncheckedSigmaTree {
     UncheckedLeaf(UncheckedLeaf),
+    UncheckedConjecture,
 }
 
 pub enum UncheckedLeaf {
     UncheckedSchnorr(UncheckedSchnorr),
 }
 
-impl UncheckedLeaf {
-    pub fn proposition(&self) -> SigmaBoolean {
+impl ProofTreeLeaf for UncheckedLeaf {
+    fn proposition(&self) -> SigmaBoolean {
         match self {
             UncheckedLeaf::UncheckedSchnorr(us) => SigmaBoolean::ProofOfKnowledge(
                 SigmaProofOfKnowledgeTree::ProveDlog(us.proposition.clone()),
             ),
         }
+    }
+    fn commitment_opt(&self) -> Option<FirstProverMessage> {
+        todo!()
     }
 }
 
@@ -221,7 +278,33 @@ fn fiat_shamir_tree_to_bytes(tree: &ProofTree) -> Vec<u8> {
     // leafPrefix +:
     //   ((Shorts.toByteArray(propBytes.length.toShort) ++ propBytes) ++
     //     (Shorts.toByteArray(commitmentBytes.length.toShort) ++ commitmentBytes))
-    todo!()
+
+    const LEAF_PREFIX: u8 = 1;
+
+    let leaf: &dyn ProofTreeLeaf = match tree {
+        ProofTree::UncheckedTree(UncheckedTree::UncheckedSigmaTree(
+            UncheckedSigmaTree::UncheckedLeaf(ul),
+        )) => ul,
+        ProofTree::UnprovenTree(UnprovenTree::UnprovenLeaf(ul)) => ul,
+        _ => todo!(),
+    };
+
+    let prop_tree = ErgoTree::with_segregation(Rc::new(Expr::Const(
+        SigmaProp::new(leaf.proposition()).into(),
+    )));
+    let mut prop_bytes = prop_tree.sigma_serialise_bytes();
+    let mut commitment_bytes = leaf.commitment_opt().unwrap().bytes();
+    let mut res = vec![LEAF_PREFIX];
+    res.append((prop_bytes.len() as u16).to_be_bytes().to_vec().as_mut());
+    res.append(prop_bytes.as_mut());
+    res.append(
+        (commitment_bytes.len() as u16)
+            .to_be_bytes()
+            .to_vec()
+            .as_mut(),
+    );
+    res.append(commitment_bytes.as_mut());
+    res
 }
 
 /** Size of the binary representation of any group element (2 ^ groupSizeBits == <number of elements in a group>) */
@@ -293,9 +376,4 @@ mod tests {
         assert!(SOUNDNESS_BYTES * 8 <= 512);
         assert!(SOUNDNESS_BYTES % 8 == 0);
     }
-
-    // #[test]
-    // fn fiat_shamir_tree_to_bytes_smoke_test() {
-    //     let tree = ProofTree
-    // }
 }
