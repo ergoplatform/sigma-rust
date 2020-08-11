@@ -85,7 +85,6 @@ impl ErgoTree {
             root.sigma_serialize(&mut w).unwrap();
             let cursor = Cursor::new(&mut data[..]);
             let pr = PeekableReader::new(cursor);
-            // TODO: make reader substitute constants
             let mut sr = SigmaByteReader::new_with_substitute_placeholders(
                 pr,
                 ConstantStore::new(self.tree.clone().unwrap().constants),
@@ -198,21 +197,23 @@ impl SigmaSerializable for ErgoTree {
         let constants = if header.is_constant_segregation() {
             let constants_len = r.get_u32()?;
             let mut constants = Vec::with_capacity(constants_len as usize);
-            // TODO: gracefully handle constant deserialization errors (produce ErgoTree)
             for _ in 0..constants_len {
-                constants.push(Constant::sigma_parse(&mut r)?);
+                match Constant::sigma_parse(&mut r) {
+                    Ok(c) => constants.push(c),
+                    Err(_) => {
+                        return Ok(ErgoTree {
+                            header,
+                            tree: Err(ErgoTreeConstantsParsingError {
+                                bytes: bytes[1..].to_vec(),
+                                error: SerializationError::NotImplementedYet(
+                                    "not all constant types serialization is supported".to_string(),
+                                ),
+                            }),
+                        })
+                    }
+                }
             }
             constants
-
-        //     return Ok(ErgoTree {
-        //         header,
-        //         tree: Err(ErgoTreeConstantsParsingError {
-        //             bytes: bytes[1..].to_vec(),
-        //             error: SerializationError::NotImplementedYet(
-        //                 "separate constants serialization is not yet supported".to_string(),
-        //             ),
-        //         }),
-        //     });
         } else {
             vec![]
         };
@@ -279,13 +280,19 @@ mod tests {
 
     #[test]
     fn deserialization_non_parseable_tree_ok() {
-        // constants length is set
-        assert!(ErgoTree::sigma_parse_bytes(vec![0, 1]).is_ok());
+        // constants length is set, invalid constant
+        assert!(ErgoTree::sigma_parse_bytes(vec![
+            ErgoTreeHeader::CONSTANT_SEGREGATION_FLAG,
+            1,
+            99,
+            99
+        ])
+        .is_ok());
     }
 
     #[test]
     fn deserialization_non_parseable_root_ok() {
-        // constants length is zero, but Expr is invalid
+        // no constant segregation, Expr is invalid
         assert!(ErgoTree::sigma_parse_bytes(vec![0, 0, 1]).is_ok());
     }
 
