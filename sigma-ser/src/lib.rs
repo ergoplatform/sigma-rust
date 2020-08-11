@@ -17,4 +17,3 @@ pub mod peekable_reader;
 pub mod vlq_encode;
 /// ZigZag encoder
 pub mod zig_zag_encode;
-
