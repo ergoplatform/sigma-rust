@@ -33,3 +33,43 @@ impl ConstantStore {
         self.constants.clone()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{ast::ConstantVal, types::SType};
+
+    #[test]
+    fn test_empty() {
+        let s = ConstantStore::empty();
+        assert!(s.get_all().is_empty());
+        assert!(s.get(0).is_none());
+    }
+
+    #[test]
+    fn test_non_empty() {
+        let c = Constant {
+            tpe: SType::SBoolean,
+            v: ConstantVal::Boolean(true),
+        };
+        let s = ConstantStore::new(vec![c.clone()]);
+        assert!(s.get(0).is_some());
+        assert_eq!(s.get(0).unwrap().clone(), c);
+        assert!(!s.get_all().is_empty());
+        assert_eq!(s.get_all().get(0).unwrap().clone(), c);
+    }
+
+    #[test]
+    fn test_put() {
+        let c = Constant {
+            tpe: SType::SBoolean,
+            v: ConstantVal::Boolean(true),
+        };
+        let mut s = ConstantStore::empty();
+        s.put(c.clone());
+        assert!(s.get(0).is_some());
+        assert_eq!(s.get(0).unwrap().clone(), c);
+        assert!(!s.get_all().is_empty());
+        assert_eq!(s.get_all().get(0).unwrap().clone(), c);
+    }
+}
