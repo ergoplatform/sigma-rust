@@ -236,6 +236,13 @@ impl Into<Scalar> for Challenge {
     }
 }
 
+impl Into<Vec<u8>> for Challenge {
+    fn into(self) -> Vec<u8> {
+        let arr: [u8; SOUNDNESS_BYTES] = self.0.into();
+        arr.to_vec()
+    }
+}
+
 /// Unchecked sigma tree
 pub enum UncheckedSigmaTree {
     UncheckedLeaf(UncheckedLeaf),
@@ -285,7 +292,16 @@ pub enum UncheckedTree {
 fn serialize_sig(tree: UncheckedTree) -> Vec<u8> {
     match tree {
         UncheckedTree::NoProof => vec![],
-        UncheckedTree::UncheckedSigmaTree(_) => todo!(),
+        UncheckedTree::UncheckedSigmaTree(UncheckedSigmaTree::UncheckedLeaf(
+            UncheckedLeaf::UncheckedSchnorr(us),
+        )) => {
+            let mut res: Vec<u8> = Vec::with_capacity(64);
+            res.append(&mut us.challenge.into());
+            let mut sm_bytes = us.second_message.0.to_bytes();
+            res.append(&mut sm_bytes.as_mut_slice().to_vec());
+            res
+        }
+        _ => todo!(),
     }
 }
 
@@ -296,13 +312,6 @@ fn serialize_sig(tree: UncheckedTree) -> Vec<u8> {
 ///  The string should not contain information on whether a node is marked "real" or "simulated",
 ///  and should not contain challenges, responses, or the real/simulated flag for any node.
 fn fiat_shamir_tree_to_bytes(tree: &ProofTree) -> Vec<u8> {
-    // let propTree = ErgoTree.withSegregation(SigmaPropConstant(l.proposition))
-    // val propBytes = DefaultSerializer.serializeErgoTree(propTree)
-    // val commitmentBytes = l.commitmentOpt.get.bytes
-    // leafPrefix +:
-    //   ((Shorts.toByteArray(propBytes.length.toShort) ++ propBytes) ++
-    //     (Shorts.toByteArray(commitmentBytes.length.toShort) ++ commitmentBytes))
-
     const LEAF_PREFIX: u8 = 1;
 
     let leaf: &dyn ProofTreeLeaf = match tree {

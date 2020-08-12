@@ -11,7 +11,7 @@ impl ProverMessage for FirstDlogProverMessage {
     }
 }
 
-pub struct SecondDlogProverMessage(Scalar);
+pub struct SecondDlogProverMessage(pub Scalar);
 
 pub mod interactive_prover {
     use super::{FirstDlogProverMessage, SecondDlogProverMessage};

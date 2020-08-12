@@ -322,7 +322,7 @@ mod tests {
             secrets: vec![PrivateInput::DlogProverInput(secret)],
         };
         let res = prover.prove(&tree, &Env::empty(), message.as_slice());
-        // assert!(res.is_ok());
+        assert!(res.is_ok());
         assert!(!res.unwrap().proof.is_empty());
     }
 }
