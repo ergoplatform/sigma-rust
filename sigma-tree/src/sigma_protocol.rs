@@ -13,7 +13,6 @@ use k256::Scalar;
 
 use crate::{
     ast::Expr,
-    big_integer::BigInteger,
     serialization::{op_code::OpCode, SigmaSerializable},
     ErgoTree,
 };
@@ -215,17 +214,27 @@ impl ProofTreeLeaf for UnprovenLeaf {
     }
 }
 
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct UnprovenSchnorr {
     proposition: ProveDlog,
     commitment_opt: Option<FirstDlogProverMessage>,
-    randomness_opt: Option<BigInteger>,
+    randomness_opt: Option<Scalar>,
     challenge_opt: Option<Challenge>,
     simulated: bool,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Challenge(FiatShamirHash);
+
+impl Into<Scalar> for Challenge {
+    fn into(self) -> Scalar {
+        let v: [u8; SOUNDNESS_BYTES] = self.0.into();
+        // prepend zeroes to 32 bytes (big-endian)
+        let mut prefix = vec![0u8; 8];
+        prefix.append(&mut v.to_vec());
+        Scalar::from_bytes_reduced(prefix.as_slice().try_into().expect("32 bytes"))
+    }
+}
 
 /// Unchecked sigma tree
 pub enum UncheckedSigmaTree {
@@ -345,6 +354,12 @@ pub fn fiat_shamir_hash_fn(input: &[u8]) -> FiatShamirHash {
     let hash = hasher.finalize_boxed();
     // unwrap is safe due to hash size is expected to be 24
     FiatShamirHash(hash.try_into().unwrap())
+}
+
+impl Into<[u8; SOUNDNESS_BYTES]> for FiatShamirHash {
+    fn into(self) -> [u8; SOUNDNESS_BYTES] {
+        *self.0
+    }
 }
 
 #[cfg(test)]

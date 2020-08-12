@@ -1,5 +1,6 @@
 use super::{dlog_group::EcPoint, ProverMessage};
-use crate::{big_integer::BigInteger, serialization::SigmaSerializable};
+use crate::serialization::SigmaSerializable;
+use k256::Scalar;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct FirstDlogProverMessage(pub EcPoint);
@@ -10,14 +11,12 @@ impl ProverMessage for FirstDlogProverMessage {
     }
 }
 
-pub struct SecondDlogProverMessage(BigInteger);
+pub struct SecondDlogProverMessage(Scalar);
 
 pub mod interactive_prover {
     use super::{FirstDlogProverMessage, SecondDlogProverMessage};
-    use crate::{
-        big_integer::BigInteger,
-        sigma_protocol::{dlog_group, Challenge, DlogProverInput, ProveDlog},
-    };
+    use crate::sigma_protocol::{dlog_group, Challenge, DlogProverInput, ProveDlog};
+    use k256::Scalar;
 
     pub fn simulate(
         public_input: &ProveDlog,
@@ -26,18 +25,21 @@ pub mod interactive_prover {
         todo!()
     }
 
-    pub fn first_message(proposition: &ProveDlog) -> (BigInteger, FirstDlogProverMessage) {
+    pub fn first_message(proposition: &ProveDlog) -> (Scalar, FirstDlogProverMessage) {
         let scalar = dlog_group::random_scalar_in_group_range();
         let g = dlog_group::generator();
         let a = dlog_group::exponentiate(&g, &scalar);
-        (scalar.into(), FirstDlogProverMessage(a))
+        (scalar, FirstDlogProverMessage(a))
     }
 
     pub fn second_message(
         private_input: &DlogProverInput,
-        rnd: BigInteger,
+        rnd: Scalar,
         challenge: &Challenge,
     ) -> SecondDlogProverMessage {
-        todo!()
+        let e: Scalar = challenge.clone().into();
+        let ew = e.mul(&private_input.w);
+        let z = rnd.add(&ew);
+        SecondDlogProverMessage(z)
     }
 }

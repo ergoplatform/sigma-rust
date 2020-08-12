@@ -52,6 +52,10 @@ pub fn is_identity(ge: &EcPoint) -> bool {
     *ge == identity()
 }
 
+// pub fn order() -> Scalar {
+//     todo!()
+// }
+
 /// Raises the base GroupElement to the exponent. The result is another GroupElement.
 pub fn exponentiate(base: &EcPoint, exponent: &Scalar) -> EcPoint {
     if !is_identity(base) {
