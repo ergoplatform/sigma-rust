@@ -1,4 +1,4 @@
-use k256::arithmetic::Scalar;
+use k256::Scalar;
 use num_bigint::BigInt;
 // use std::convert::TryFrom;
 
@@ -38,7 +38,7 @@ mod tests {
         let b: BigInteger = s.into();
         let bytes = b.0.to_signed_bytes_be();
         let s2 =
-            Scalar::from_bytes(bytes.as_slice().try_into().expect("expected 32 bytes")).unwrap();
+            Scalar::from_bytes_reduced(bytes.as_slice().try_into().expect("expected 32 bytes"));
         // TODO: failed on CI with non-32 bytes length
         let b2: BigInteger = s2.into();
         assert_eq!(b, b2);

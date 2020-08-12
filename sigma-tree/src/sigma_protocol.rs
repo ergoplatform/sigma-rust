@@ -9,7 +9,7 @@ pub mod dlog_protocol;
 pub mod prover;
 pub mod verifier;
 
-use k256::arithmetic::Scalar;
+use k256::Scalar;
 
 use crate::{
     ast::Expr,
