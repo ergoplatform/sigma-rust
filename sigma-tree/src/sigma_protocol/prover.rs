@@ -5,8 +5,8 @@
 #![allow(missing_docs)]
 
 use super::{
-    dlog_protocol, fiat_shamir_hash_fn, fiat_shamir_tree_to_bytes, serialize_sig, Challenge,
-    PrivateInput, ProofTree, SigmaBoolean, SigmaProofOfKnowledgeTree, UncheckedLeaf,
+    dlog_protocol, fiat_shamir_hash_fn, fiat_shamir_tree_to_bytes, sig_serializer::serialize_sig,
+    Challenge, PrivateInput, ProofTree, SigmaBoolean, SigmaProofOfKnowledgeTree, UncheckedLeaf,
     UncheckedSchnorr, UncheckedSigmaTree, UncheckedTree, UnprovenLeaf, UnprovenSchnorr,
     UnprovenTree,
 };

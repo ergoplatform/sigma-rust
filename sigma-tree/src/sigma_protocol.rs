@@ -7,6 +7,7 @@
 pub mod dlog_group;
 pub mod dlog_protocol;
 pub mod prover;
+pub mod sig_serializer;
 pub mod verifier;
 
 use k256::Scalar;
@@ -171,6 +172,12 @@ impl ProofTree {
     }
 }
 
+impl From<UncheckedSigmaTree> for ProofTree {
+    fn from(ust: UncheckedSigmaTree) -> Self {
+        ProofTree::UncheckedTree(UncheckedTree::UncheckedSigmaTree(ust))
+    }
+}
+
 /// Unproven tree
 pub enum UnprovenTree {
     UnprovenLeaf(UnprovenLeaf),
@@ -243,12 +250,31 @@ impl Into<Vec<u8>> for Challenge {
     }
 }
 
+impl From<FiatShamirHash> for Challenge {
+    fn from(fsh: FiatShamirHash) -> Self {
+        Challenge(fsh)
+    }
+}
+
 /// Unchecked sigma tree
+#[derive(PartialEq, Debug, Clone)]
 pub enum UncheckedSigmaTree {
     UncheckedLeaf(UncheckedLeaf),
     UncheckedConjecture,
 }
 
+impl UncheckedSigmaTree {
+    pub fn challenge(&self) -> Challenge {
+        match self {
+            UncheckedSigmaTree::UncheckedLeaf(UncheckedLeaf::UncheckedSchnorr(us)) => {
+                us.challenge.clone()
+            }
+            UncheckedSigmaTree::UncheckedConjecture => todo!(),
+        }
+    }
+}
+
+#[derive(PartialEq, Debug, Clone)]
 pub enum UncheckedLeaf {
     UncheckedSchnorr(UncheckedSchnorr),
 }
@@ -266,19 +292,12 @@ impl ProofTreeLeaf for UncheckedLeaf {
     }
 }
 
+#[derive(PartialEq, Debug, Clone)]
 pub struct UncheckedSchnorr {
     proposition: ProveDlog,
     commitment_opt: Option<FirstDlogProverMessage>,
     challenge: Challenge,
     second_message: SecondDlogProverMessage,
-}
-
-impl UncheckedSigmaTree {
-    // pub fn challenge(&self) -> Challenge {
-    //     match self {
-    //         UncheckedSigmaTree::UncheckedLeaf(UncheckedLeaf::UncheckedSchnorr(us)) => us.challenge,
-    //     }
-    // }
 }
 
 /// Unchecked tree
@@ -287,22 +306,6 @@ pub enum UncheckedTree {
     NoProof,
     /// Unchecked sigma tree
     UncheckedSigmaTree(UncheckedSigmaTree),
-}
-
-fn serialize_sig(tree: UncheckedTree) -> Vec<u8> {
-    match tree {
-        UncheckedTree::NoProof => vec![],
-        UncheckedTree::UncheckedSigmaTree(UncheckedSigmaTree::UncheckedLeaf(
-            UncheckedLeaf::UncheckedSchnorr(us),
-        )) => {
-            let mut res: Vec<u8> = Vec::with_capacity(64);
-            res.append(&mut us.challenge.into());
-            let mut sm_bytes = us.second_message.0.to_bytes();
-            res.append(&mut sm_bytes.as_mut_slice().to_vec());
-            res
-        }
-        _ => todo!(),
-    }
 }
 
 ///  Prover Step 7: Convert the tree to a string s for input to the Fiat-Shamir hash function.
