@@ -38,7 +38,9 @@ pub mod interactive_prover {
         challenge: &Challenge,
     ) -> SecondDlogProverMessage {
         let e: Scalar = challenge.clone().into();
+        // modulo multiplication, no need to explicit mod op
         let ew = e.mul(&private_input.w);
+        // modulo addition, no need to explicit mod op
         let z = rnd.add(&ew);
         SecondDlogProverMessage(z)
     }

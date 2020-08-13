@@ -23,9 +23,7 @@ use k256::{AffinePoint, ProjectivePoint, PublicKey, Scalar};
 use num_bigint::{BigInt, Sign};
 use sigma_ser::vlq_encode;
 
-// use elliptic_curve::Generate;
 use elliptic_curve::weierstrass::public_key::FromPublicKey;
-// use rand_core::{CryptoRng, RngCore};
 use std::io;
 
 #[derive(PartialEq, Debug, Clone)]
@@ -81,7 +79,7 @@ pub fn random_element() -> EcPoint {
 
 /// Creates a random scalar, a big-endian integer in the range [0, n), where n is group order
 pub fn random_scalar_in_group_range() -> Scalar {
-    use elliptic_curve::rand_core::OsRng;
+    use rand::rngs::OsRng;
     Scalar::generate_vartime(&mut OsRng)
 }
 
