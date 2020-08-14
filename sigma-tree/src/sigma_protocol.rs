@@ -21,7 +21,11 @@ use blake2::digest::{Update, VariableOutput};
 use blake2::VarBlake2b;
 use dlog_group::EcPoint;
 use dlog_protocol::{FirstDlogProverMessage, SecondDlogProverMessage};
-use std::{convert::TryInto, rc::Rc};
+use std::{
+    convert::{TryFrom, TryInto},
+    rc::Rc,
+};
+use thiserror::Error;
 
 /// Secret key of discrete logarithm signature protocol
 pub struct DlogProverInput {
@@ -141,6 +145,12 @@ impl ProverMessage for FirstProverMessage {
             FirstProverMessage::FirstDlogProverMessage(fdpm) => fdpm.bytes(),
             FirstProverMessage::FirstDHTProverMessage => todo!(),
         }
+    }
+}
+
+impl From<FirstDlogProverMessage> for FirstProverMessage {
+    fn from(v: FirstDlogProverMessage) -> Self {
+        FirstProverMessage::FirstDlogProverMessage(v)
     }
 }
 
@@ -274,6 +284,12 @@ impl UncheckedSigmaTree {
     }
 }
 
+impl From<UncheckedSchnorr> for UncheckedSigmaTree {
+    fn from(us: UncheckedSchnorr) -> Self {
+        UncheckedSigmaTree::UncheckedLeaf(us.into())
+    }
+}
+
 #[derive(PartialEq, Debug, Clone)]
 pub enum UncheckedLeaf {
     UncheckedSchnorr(UncheckedSchnorr),
@@ -288,7 +304,15 @@ impl ProofTreeLeaf for UncheckedLeaf {
         }
     }
     fn commitment_opt(&self) -> Option<FirstProverMessage> {
-        todo!()
+        match self {
+            UncheckedLeaf::UncheckedSchnorr(us) => us.commitment_opt.clone().map(Into::into),
+        }
+    }
+}
+
+impl From<UncheckedSchnorr> for UncheckedLeaf {
+    fn from(us: UncheckedSchnorr) -> Self {
+        UncheckedLeaf::UncheckedSchnorr(us)
     }
 }
 
@@ -306,6 +330,12 @@ pub enum UncheckedTree {
     NoProof,
     /// Unchecked sigma tree
     UncheckedSigmaTree(UncheckedSigmaTree),
+}
+
+impl From<UncheckedSchnorr> for UncheckedTree {
+    fn from(us: UncheckedSchnorr) -> Self {
+        UncheckedTree::UncheckedSigmaTree(us.into())
+    }
 }
 
 ///  Prover Step 7: Convert the tree to a string s for input to the Fiat-Shamir hash function.
@@ -329,6 +359,7 @@ fn fiat_shamir_tree_to_bytes(tree: &ProofTree) -> Vec<u8> {
         SigmaProp::new(leaf.proposition()).into(),
     )));
     let mut prop_bytes = prop_tree.sigma_serialise_bytes();
+    // TODO: is unwrap safe here?
     let mut commitment_bytes = leaf.commitment_opt().unwrap().bytes();
     let mut res = vec![LEAF_PREFIX];
     res.append((prop_bytes.len() as u16).to_be_bytes().to_vec().as_mut());
@@ -347,6 +378,23 @@ fn fiat_shamir_tree_to_bytes(tree: &ProofTree) -> Vec<u8> {
 pub const GROUP_SIZE_BITS: usize = 256;
 /** Number of bytes to represent any group element as byte array */
 pub const GROUP_SIZE: usize = GROUP_SIZE_BITS / 8;
+
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct GroupSizeBytes(pub Box<[u8; GROUP_SIZE]>);
+
+impl From<GroupSizeBytes> for Scalar {
+    fn from(b: GroupSizeBytes) -> Self {
+        let sl: &[u8] = b.0.as_ref();
+        Scalar::from_bytes_reduced(sl.try_into().expect(""))
+    }
+}
+
+impl From<&[u8; GROUP_SIZE]> for GroupSizeBytes {
+    fn from(b: &[u8; GROUP_SIZE]) -> Self {
+        GroupSizeBytes(Box::new(*b))
+    }
+}
+
 /** A size of challenge in Sigma protocols, in bits.
  * If this anything but 192, threshold won't work, because we have polynomials over GF(2^192) and no others.
  * So DO NOT change the value without implementing polynomials over GF(2^soundnessBits) first
@@ -371,6 +419,25 @@ pub fn fiat_shamir_hash_fn(input: &[u8]) -> FiatShamirHash {
 impl Into<[u8; SOUNDNESS_BYTES]> for FiatShamirHash {
     fn into(self) -> [u8; SOUNDNESS_BYTES] {
         *self.0
+    }
+}
+
+impl TryFrom<&[u8]> for FiatShamirHash {
+    type Error = FiatShamirHashError;
+    fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
+        let arr: [u8; SOUNDNESS_BYTES] = value.try_into()?;
+        Ok(FiatShamirHash(Box::new(arr)))
+    }
+}
+
+/// Invalid byte array size
+#[derive(Error, Debug)]
+#[error("Invalid byte array size ({0})")]
+pub struct FiatShamirHashError(std::array::TryFromSliceError);
+
+impl From<std::array::TryFromSliceError> for FiatShamirHashError {
+    fn from(err: std::array::TryFromSliceError) -> Self {
+        FiatShamirHashError(err)
     }
 }
 

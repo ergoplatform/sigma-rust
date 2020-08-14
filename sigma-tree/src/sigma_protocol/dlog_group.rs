@@ -24,7 +24,10 @@ use num_bigint::{BigInt, Sign};
 use sigma_ser::vlq_encode;
 
 use elliptic_curve::weierstrass::public_key::FromPublicKey;
-use std::io;
+use std::{
+    io,
+    ops::{Add, Mul, Neg},
+};
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct EcPoint(ProjectivePoint);
@@ -34,6 +37,22 @@ impl EcPoint {
 }
 
 impl Eq for EcPoint {}
+
+impl Mul<&EcPoint> for EcPoint {
+    type Output = EcPoint;
+
+    fn mul(self, other: &EcPoint) -> EcPoint {
+        EcPoint(ProjectivePoint::add(self.0, &other.0))
+    }
+}
+
+impl Neg for EcPoint {
+    type Output = EcPoint;
+
+    fn neg(self) -> EcPoint {
+        EcPoint(ProjectivePoint::neg(self.0))
+    }
+}
 
 /// The generator g of the group is an element of the group such that, when written multiplicatively, every element
 /// of the group is a power of g.
@@ -50,9 +69,9 @@ pub fn is_identity(ge: &EcPoint) -> bool {
     *ge == identity()
 }
 
-// pub fn order() -> Scalar {
-//     todo!()
-// }
+pub fn inverse(ec: &EcPoint) -> EcPoint {
+    -ec.clone()
+}
 
 /// Raises the base GroupElement to the exponent. The result is another GroupElement.
 pub fn exponentiate(base: &EcPoint, exponent: &Scalar) -> EcPoint {

@@ -57,8 +57,8 @@ pub trait Verifier: Evaluator {
             sb => {
                 // Perform Verifier Steps 1-3
                 match parse_sig_compute_challenges(sb, proof.to_vec()) {
-                    UncheckedTree::NoProof => false,
-                    UncheckedTree::UncheckedSigmaTree(sp) => {
+                    Err(_) => false,
+                    Ok(UncheckedTree::UncheckedSigmaTree(sp)) => {
                         // Perform Verifier Step 4
                         let new_root = compute_commitments(sp);
                         // Verifier Steps 5-6: Convert the tree to a string `s` for input to the Fiat-Shamir hash function,
@@ -70,6 +70,7 @@ pub trait Verifier: Evaluator {
                         let expected_challenge = fiat_shamir_hash_fn(s.as_slice());
                         new_root.challenge() == expected_challenge.into()
                     }
+                    Ok(_) => todo!(),
                 }
             }
         };

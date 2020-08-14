@@ -18,7 +18,15 @@ impl ProverMessage for FirstDlogProverMessage {
 }
 
 #[derive(PartialEq, Debug, Clone)]
-pub struct SecondDlogProverMessage(pub Scalar);
+pub struct SecondDlogProverMessage {
+    pub z: Scalar,
+}
+
+impl From<Scalar> for SecondDlogProverMessage {
+    fn from(z: Scalar) -> Self {
+        SecondDlogProverMessage { z }
+    }
+}
 
 pub mod interactive_prover {
     use super::{FirstDlogProverMessage, SecondDlogProverMessage};
@@ -33,11 +41,11 @@ pub mod interactive_prover {
         todo!()
     }
 
-    pub fn first_message(proposition: &ProveDlog) -> (Scalar, FirstDlogProverMessage) {
-        let scalar = dlog_group::random_scalar_in_group_range();
+    pub fn first_message() -> (Scalar, FirstDlogProverMessage) {
+        let r = dlog_group::random_scalar_in_group_range();
         let g = dlog_group::generator();
-        let a = dlog_group::exponentiate(&g, &scalar);
-        (scalar, FirstDlogProverMessage(a))
+        let a = dlog_group::exponentiate(&g, &r);
+        (r, FirstDlogProverMessage(a))
     }
 
     pub fn second_message(
@@ -50,7 +58,7 @@ pub mod interactive_prover {
         let ew = e.mul(&private_input.w);
         // modulo addition, no need to explicit mod op
         let z = rnd.add(&ew);
-        SecondDlogProverMessage(z)
+        z.into()
     }
 
     /**
@@ -65,6 +73,10 @@ pub mod interactive_prover {
         challenge: &Challenge,
         second_message: &SecondDlogProverMessage,
     ) -> EcPoint {
-        todo!()
+        let g = dlog_group::generator();
+        let h = *proposition.h.clone();
+        let g_z = dlog_group::exponentiate(&g, &second_message.z);
+        let h_e = dlog_group::exponentiate(&h, &challenge.clone().into());
+        g_z * &dlog_group::inverse(&h_e)
     }
 }

@@ -202,8 +202,7 @@ pub trait Prover: Evaluator {
                     }
                 } else {
                     // Step 6 (real leaf -- compute the commitment a)
-                    let (r, commitment) =
-                        dlog_protocol::interactive_prover::first_message(&us.proposition);
+                    let (r, commitment) = dlog_protocol::interactive_prover::first_message();
                     Ok(ProofTree::UnprovenTree(UnprovenTree::UnprovenLeaf(
                         UnprovenLeaf::UnprovenSchnorr(UnprovenSchnorr {
                             commitment_opt: Some(commitment),
