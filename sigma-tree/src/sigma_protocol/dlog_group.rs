@@ -53,10 +53,6 @@ pub fn is_identity(ge: &EcPoint) -> bool {
 /// Raises the base GroupElement to the exponent. The result is another GroupElement.
 pub fn exponentiate(base: &EcPoint, exponent: &Scalar) -> EcPoint {
     if !is_identity(base) {
-        // implement for negative exponent
-        // see reference impl https://github.com/ScorexFoundation/sigmastate-interpreter/blob/ec71a6f988f7412bc36199f46e7ad8db643478c7/sigmastate/src/main/scala/sigmastate/basics/BcDlogGroup.scala#L201
-        // see https://github.com/ergoplatform/sigma-rust/issues/36
-
         // we treat EC as a multiplicative group, therefore, exponentiate point is multiply.
         EcPoint(base.0 * exponent)
     } else {
