@@ -75,8 +75,9 @@ pub mod interactive_prover {
     ) -> EcPoint {
         let g = dlog_group::generator();
         let h = *proposition.h.clone();
+        let e: Scalar = challenge.clone().into();
         let g_z = dlog_group::exponentiate(&g, &second_message.z);
-        let h_e = dlog_group::exponentiate(&h, &challenge.clone().into());
+        let h_e = dlog_group::exponentiate(&h, &e);
         g_z * &dlog_group::inverse(&h_e)
     }
 }

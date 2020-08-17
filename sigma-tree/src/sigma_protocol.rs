@@ -224,9 +224,7 @@ impl ProofTreeLeaf for UnprovenLeaf {
 
     fn commitment_opt(&self) -> Option<FirstProverMessage> {
         match self {
-            UnprovenLeaf::UnprovenSchnorr(us) => Some(FirstProverMessage::FirstDlogProverMessage(
-                FirstDlogProverMessage(*us.proposition.h.clone()),
-            )),
+            UnprovenLeaf::UnprovenSchnorr(us) => us.commitment_opt.clone().map(Into::into),
         }
     }
 }
