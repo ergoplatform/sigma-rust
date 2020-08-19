@@ -119,28 +119,30 @@ mod tests {
         },
         types::SType,
     };
+    use proptest::prelude::*;
     use std::rc::Rc;
 
-    #[test]
-    fn test_prover_verifier_p2pk() {
-        let secret = DlogProverInput::random();
-        let pk = secret.public_image();
-        let tree = ErgoTree::from(Rc::new(Expr::Const(Constant {
-            tpe: SType::SSigmaProp,
-            v: ConstantVal::SigmaProp(Box::new(SigmaProp(SigmaBoolean::ProofOfKnowledge(
-                SigmaProofOfKnowledgeTree::ProveDlog(pk),
-            )))),
-        })));
-        let message = vec![0u8; 100];
+    proptest! {
+        #[test]
+        fn test_prover_verifier_p2pk(secret in any::<DlogProverInput>(), message in any::<Vec<u8>>()) {
+            prop_assume!(!message.is_empty());
+            let pk = secret.public_image();
+            let tree = ErgoTree::from(Rc::new(Expr::Const(Constant {
+                tpe: SType::SSigmaProp,
+                v: ConstantVal::SigmaProp(Box::new(SigmaProp(SigmaBoolean::ProofOfKnowledge(
+                    SigmaProofOfKnowledgeTree::ProveDlog(pk),
+                )))),
+            })));
 
-        let prover = TestProver {
-            secrets: vec![PrivateInput::DlogProverInput(secret)],
-        };
-        let res = prover.prove(&tree, &Env::empty(), message.as_slice());
-        let proof = res.unwrap().proof;
+            let prover = TestProver {
+                secrets: vec![PrivateInput::DlogProverInput(secret)],
+            };
+            let res = prover.prove(&tree, &Env::empty(), message.as_slice());
+            let proof = res.unwrap().proof;
 
-        let verifier = TestVerifier;
-        let ver_res = verifier.verify(&tree, &Env::empty(), proof.as_slice(), message.as_slice());
-        assert_eq!(ver_res.unwrap().result, true);
+            let verifier = TestVerifier;
+            let ver_res = verifier.verify(&tree, &Env::empty(), proof.as_slice(), message.as_slice());
+            prop_assert_eq!(ver_res.unwrap().result, true);
+        }
     }
 }

@@ -28,6 +28,7 @@ use std::{
 use thiserror::Error;
 
 /// Secret key of discrete logarithm signature protocol
+#[derive(PartialEq, Debug, Clone)]
 pub struct DlogProverInput {
     /// secret key value
     pub w: Scalar,
@@ -472,6 +473,14 @@ mod tests {
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             (any::<SigmaBoolean>()).prop_map(SigmaProp).boxed()
+        }
+    }
+
+    impl Arbitrary for DlogProverInput {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            prop_oneof![Just(DlogProverInput::random()),].boxed()
         }
     }
 
