@@ -13,6 +13,10 @@ use std::{
 };
 use thiserror::Error;
 
+#[cfg(test)]
+use proptest_derive::Arbitrary;
+
+#[cfg_attr(test, derive(Arbitrary))]
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct FiatShamirHash(pub Box<[u8; SOUNDNESS_BYTES]>);
 

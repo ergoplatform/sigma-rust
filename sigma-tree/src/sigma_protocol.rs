@@ -73,6 +73,12 @@ impl ProofTree {
     }
 }
 
+impl<T: Into<UncheckedTree>> From<T> for ProofTree {
+    fn from(t: T) -> Self {
+        ProofTree::UncheckedTree(t.into())
+    }
+}
+
 pub trait ProofTreeLeaf {
     fn proposition(&self) -> SigmaBoolean;
 

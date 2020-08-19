@@ -87,3 +87,23 @@ pub mod interactive_prover {
         g_z * &dlog_group::inverse(&h_e)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::super::*;
+    use super::*;
+    use crate::sigma_protocol::DlogProverInput;
+    use proptest::prelude::*;
+
+    proptest! {
+
+        #[test]
+        fn test_compute_commitment(secret in any::<DlogProverInput>(), challenge in any::<Challenge>()) {
+            let pk = secret.public_image();
+            let (r, commitment) = interactive_prover::first_message();
+            let second_message = interactive_prover::second_message(&secret, r, &challenge);
+            let a = interactive_prover::compute_commitment(&pk, &challenge, &second_message);
+            prop_assert_eq!(a, commitment.0);
+        }
+    }
+}

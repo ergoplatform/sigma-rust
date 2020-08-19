@@ -247,15 +247,13 @@ pub trait Prover: Evaluator {
                                 us.randomness_opt.unwrap(),
                                 &challenge,
                             );
-                            Ok(ProofTree::UncheckedTree(
-                                UncheckedSchnorr {
-                                    proposition: us.proposition,
-                                    commitment_opt: None,
-                                    challenge,
-                                    second_message: z,
-                                }
-                                .into(),
-                            ))
+                            Ok(UncheckedSchnorr {
+                                proposition: us.proposition,
+                                commitment_opt: None,
+                                challenge,
+                                second_message: z,
+                            }
+                            .into())
                         } else {
                             Err(ProverError::SecretNotFound)
                         }

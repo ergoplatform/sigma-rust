@@ -1,7 +1,10 @@
 use super::{fiat_shamir::FiatShamirHash, SOUNDNESS_BYTES};
 use k256::Scalar;
+#[cfg(test)]
+use proptest_derive::Arbitrary;
 use std::convert::TryInto;
 
+#[cfg_attr(test, derive(Arbitrary))]
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Challenge(FiatShamirHash);
 
@@ -27,3 +30,4 @@ impl From<FiatShamirHash> for Challenge {
         Challenge(fsh)
     }
 }
+
