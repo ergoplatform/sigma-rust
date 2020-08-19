@@ -251,7 +251,7 @@ impl SigmaSerializable for ErgoTree {
 mod tests {
     use super::*;
     use crate::serialization::sigma_serialize_roundtrip;
-    use crate::{ast::ConstantVal, chain, sigma_protocol::SigmaProp, types::SType};
+    use crate::{ast::ConstantVal, chain, sigma_protocol::sigma_boolean::SigmaProp, types::SType};
     use proptest::prelude::*;
 
     impl Arbitrary for ErgoTree {

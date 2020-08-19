@@ -5,10 +5,12 @@
 #![allow(missing_docs)]
 
 use super::{
-    dlog_protocol, fiat_shamir_hash_fn, fiat_shamir_tree_to_bytes, sig_serializer::serialize_sig,
-    Challenge, PrivateInput, ProofTree, SigmaBoolean, SigmaProofOfKnowledgeTree, UncheckedLeaf,
-    UncheckedSchnorr, UncheckedSigmaTree, UncheckedTree, UnprovenLeaf, UnprovenSchnorr,
-    UnprovenTree,
+    dlog_protocol,
+    fiat_shamir::{fiat_shamir_hash_fn, fiat_shamir_tree_to_bytes},
+    sig_serializer::serialize_sig,
+    unchecked_tree::UncheckedSchnorr,
+    Challenge, PrivateInput, ProofTree, SigmaBoolean, SigmaProofOfKnowledgeTree,
+    UncheckedSigmaTree, UncheckedTree, UnprovenLeaf, UnprovenSchnorr, UnprovenTree,
 };
 use crate::{
     chain::{ContextExtension, ProverResult},
@@ -77,15 +79,14 @@ pub trait Prover: Evaluator {
             SigmaBoolean::TrivialProp(_) => todo!(), // TODO: why it's even here
             SigmaBoolean::ProofOfKnowledge(pok) => match pok {
                 SigmaProofOfKnowledgeTree::ProveDHTuple(_) => todo!(),
-                SigmaProofOfKnowledgeTree::ProveDlog(prove_dlog) => {
-                    UnprovenTree::UnprovenLeaf(UnprovenLeaf::UnprovenSchnorr(UnprovenSchnorr {
-                        proposition: prove_dlog,
-                        commitment_opt: None,
-                        randomness_opt: None,
-                        challenge_opt: None,
-                        simulated: false,
-                    }))
+                SigmaProofOfKnowledgeTree::ProveDlog(prove_dlog) => UnprovenSchnorr {
+                    proposition: prove_dlog,
+                    commitment_opt: None,
+                    randomness_opt: None,
+                    challenge_opt: None,
+                    simulated: false,
                 }
+                .into(),
             },
             SigmaBoolean::CAND(_) => todo!(),
         }
@@ -121,13 +122,14 @@ pub trait Prover: Evaluator {
         // Prover Steps 7: convert the relevant information in the tree (namely, tree structure, node types,
         // the statements being proven and commitments at the leaves)
         // to a string
-        let mut s = fiat_shamir_tree_to_bytes(&step6);
+        let var_name = fiat_shamir_tree_to_bytes(&step6);
+        let mut s = var_name;
 
         // Prover Step 8: compute the challenge for the root of the tree as the Fiat-Shamir hash of s
         // and the message being signed.
         s.append(&mut message.to_vec());
-        let root_challenge = fiat_shamir_hash_fn(s.as_slice());
-        let step8 = step6.with_challenge(Challenge(root_challenge));
+        let root_challenge: Challenge = fiat_shamir_hash_fn(s.as_slice()).into();
+        let step8 = step6.with_challenge(root_challenge);
 
         // Prover Step 9: complete the proof by computing challenges at real nodes and additionally responses at real leaves
         let step9 = self.proving(step8)?;
@@ -153,10 +155,11 @@ pub trait Prover: Evaluator {
                     PrivateInput::DlogProverInput(dl) => dl.public_image() == us.proposition,
                     _ => false,
                 });
-                UnprovenTree::UnprovenLeaf(UnprovenLeaf::UnprovenSchnorr(UnprovenSchnorr {
+                UnprovenSchnorr {
                     simulated: !secret_known,
                     ..us
-                }))
+                }
+                .into()
             }
         }
     }
@@ -187,29 +190,29 @@ pub trait Prover: Evaluator {
                             &us.proposition,
                             &challenge,
                         );
-                        Ok(ProofTree::UncheckedTree(UncheckedTree::UncheckedSigmaTree(
-                            UncheckedSigmaTree::UncheckedLeaf(UncheckedLeaf::UncheckedSchnorr(
-                                UncheckedSchnorr {
-                                    proposition: us.proposition,
-                                    commitment_opt: Some(fm),
-                                    challenge,
-                                    second_message: sm,
-                                },
-                            )),
-                        )))
+                        Ok(ProofTree::UncheckedTree(
+                            UncheckedSchnorr {
+                                proposition: us.proposition,
+                                commitment_opt: Some(fm),
+                                challenge,
+                                second_message: sm,
+                            }
+                            .into(),
+                        ))
                     } else {
                         Err(ProverError::SimulatedLeafWithoutChallenge)
                     }
                 } else {
                     // Step 6 (real leaf -- compute the commitment a)
                     let (r, commitment) = dlog_protocol::interactive_prover::first_message();
-                    Ok(ProofTree::UnprovenTree(UnprovenTree::UnprovenLeaf(
-                        UnprovenLeaf::UnprovenSchnorr(UnprovenSchnorr {
+                    Ok(ProofTree::UnprovenTree(
+                        UnprovenSchnorr {
                             commitment_opt: Some(commitment),
                             randomness_opt: Some(r),
                             ..us
-                        }),
-                    )))
+                        }
+                        .into(),
+                    ))
                 }
             }
         }
@@ -244,16 +247,15 @@ pub trait Prover: Evaluator {
                                 us.randomness_opt.unwrap(),
                                 &challenge,
                             );
-                            Ok(ProofTree::UncheckedTree(UncheckedTree::UncheckedSigmaTree(
-                                UncheckedSigmaTree::UncheckedLeaf(UncheckedLeaf::UncheckedSchnorr(
-                                    UncheckedSchnorr {
-                                        proposition: us.proposition,
-                                        commitment_opt: None,
-                                        challenge,
-                                        second_message: z,
-                                    },
-                                )),
-                            )))
+                            Ok(ProofTree::UncheckedTree(
+                                UncheckedSchnorr {
+                                    proposition: us.proposition,
+                                    commitment_opt: None,
+                                    challenge,
+                                    second_message: z,
+                                }
+                                .into(),
+                            ))
                         } else {
                             Err(ProverError::SecretNotFound)
                         }
@@ -272,7 +274,7 @@ mod tests {
     use super::*;
     use crate::{
         ast::{Constant, ConstantVal, Expr},
-        sigma_protocol::{DlogProverInput, SigmaProp},
+        sigma_protocol::DlogProverInput,
         types::SType,
     };
     use std::rc::Rc;
@@ -311,9 +313,7 @@ mod tests {
         let pk = secret.public_image();
         let tree = ErgoTree::from(Rc::new(Expr::Const(Constant {
             tpe: SType::SSigmaProp,
-            v: ConstantVal::SigmaProp(Box::new(SigmaProp(SigmaBoolean::ProofOfKnowledge(
-                SigmaProofOfKnowledgeTree::ProveDlog(pk),
-            )))),
+            v: pk.into(),
         })));
         let message = vec![0u8; 100];
 

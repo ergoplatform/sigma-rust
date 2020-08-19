@@ -1,6 +1,6 @@
 use crate::{
     ast::{ops::BinOp, ops::NumOp, Constant, ConstantVal, Expr},
-    sigma_protocol::SigmaBoolean,
+    sigma_protocol::sigma_boolean::SigmaBoolean,
     types::SType,
 };
 

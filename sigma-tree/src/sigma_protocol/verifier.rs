@@ -5,9 +5,11 @@
 #![allow(missing_docs)]
 
 use super::{
-    dlog_protocol, fiat_shamir_hash_fn, fiat_shamir_tree_to_bytes,
-    sig_serializer::parse_sig_compute_challenges, SigmaBoolean, UncheckedLeaf, UncheckedSchnorr,
-    UncheckedSigmaTree, UncheckedTree,
+    dlog_protocol,
+    fiat_shamir::{fiat_shamir_hash_fn, fiat_shamir_tree_to_bytes},
+    sig_serializer::parse_sig_compute_challenges,
+    unchecked_tree::{UncheckedLeaf, UncheckedSchnorr},
+    SigmaBoolean, UncheckedSigmaTree, UncheckedTree,
 };
 use crate::{
     eval::{Env, EvalError, Evaluator},
@@ -94,10 +96,11 @@ fn compute_commitments(sp: UncheckedSigmaTree) -> UncheckedSigmaTree {
                 &sn.challenge,
                 &sn.second_message,
             );
-            UncheckedSigmaTree::UncheckedLeaf(UncheckedLeaf::UncheckedSchnorr(UncheckedSchnorr {
+            UncheckedSchnorr {
                 commitment_opt: Some(FirstDlogProverMessage(a)),
                 ..sn
-            }))
+            }
+            .into()
         }
         UncheckedSigmaTree::UncheckedConjecture => todo!(),
     }
@@ -112,10 +115,10 @@ impl Verifier for TestVerifier {}
 mod tests {
     use super::*;
     use crate::{
-        ast::{Constant, ConstantVal, Expr},
+        ast::{Constant, Expr},
         sigma_protocol::{
             prover::{Prover, TestProver},
-            DlogProverInput, PrivateInput, SigmaProofOfKnowledgeTree, SigmaProp,
+            DlogProverInput, PrivateInput,
         },
         types::SType,
     };
@@ -129,9 +132,7 @@ mod tests {
             let pk = secret.public_image();
             let tree = ErgoTree::from(Rc::new(Expr::Const(Constant {
                 tpe: SType::SSigmaProp,
-                v: ConstantVal::SigmaProp(Box::new(SigmaProp(SigmaBoolean::ProofOfKnowledge(
-                    SigmaProofOfKnowledgeTree::ProveDlog(pk),
-                )))),
+                v: pk.into(),
             })));
 
             let prover = TestProver {

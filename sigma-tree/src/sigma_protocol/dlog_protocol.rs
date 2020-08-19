@@ -1,4 +1,4 @@
-use super::{dlog_group::EcPoint, ProverMessage};
+use super::{dlog_group::EcPoint, FirstProverMessage, ProverMessage};
 use crate::serialization::SigmaSerializable;
 use k256::Scalar;
 
@@ -14,6 +14,12 @@ impl From<EcPoint> for FirstDlogProverMessage {
 impl ProverMessage for FirstDlogProverMessage {
     fn bytes(&self) -> Vec<u8> {
         self.0.sigma_serialise_bytes()
+    }
+}
+
+impl From<FirstDlogProverMessage> for FirstProverMessage {
+    fn from(v: FirstDlogProverMessage) -> Self {
+        FirstProverMessage::FirstDlogProverMessage(v)
     }
 }
 

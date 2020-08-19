@@ -1,9 +1,11 @@
 use super::{
-    Challenge, GroupSizeBytes, SigmaBoolean, SigmaProofOfKnowledgeTree, UncheckedLeaf,
-    UncheckedSchnorr, UncheckedSigmaTree, UncheckedTree,
+    fiat_shamir::FiatShamirHash,
+    unchecked_tree::{UncheckedLeaf, UncheckedSchnorr},
+    Challenge, GroupSizedBytes, SigmaBoolean, SigmaProofOfKnowledgeTree, UncheckedSigmaTree,
+    UncheckedTree,
 };
 use k256::Scalar;
-use std::convert::TryInto;
+use std::convert::{TryFrom, TryInto};
 
 pub fn serialize_sig(tree: UncheckedTree) -> Vec<u8> {
     match tree {
@@ -38,7 +40,7 @@ pub fn parse_sig_compute_challenges(
         let chal_len = super::SOUNDNESS_BYTES;
         let challenge = if let Some(bytes) = proof_bytes.get(..chal_len) {
             // safe since it should only be of the required size
-            Challenge(bytes.try_into().unwrap())
+            Challenge::from(FiatShamirHash::try_from(bytes).unwrap())
         } else {
             return Err(SigParsingError::InvalidProofSize);
         };
@@ -49,7 +51,7 @@ pub fn parse_sig_compute_challenges(
                         Some(v) => v.try_into().unwrap(), // safe, since it should only be of this size
                         None => return Err(SigParsingError::InvalidProofSize),
                     };
-                let z = Scalar::from(GroupSizeBytes::from(scalar_bytes));
+                let z = Scalar::from(GroupSizedBytes::from(scalar_bytes));
                 Ok(UncheckedSchnorr {
                     proposition: dl,
                     commitment_opt: None,

@@ -9,7 +9,7 @@ use crate::{
     types::SType,
     types::SType::*,
 };
-use sigma_protocol::{dlog_group::EcPoint, SigmaBoolean, SigmaProp};
+use sigma_protocol::{dlog_group::EcPoint, sigma_boolean::SigmaBoolean, sigma_boolean::SigmaProp};
 
 use super::sigma_byte_writer::SigmaByteWrite;
 use std::io;
