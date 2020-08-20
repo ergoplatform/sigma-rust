@@ -116,7 +116,7 @@ mod tests {
     use super::*;
     use crate::{
         ast::{Constant, Expr},
-        chain::Transaction,
+        // chain::Transaction,
         sigma_protocol::{
             prover::{Prover, TestProver},
             DlogProverInput, PrivateInput,

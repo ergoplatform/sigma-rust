@@ -12,15 +12,16 @@
 // Clippy exclusions
 #![allow(clippy::unit_arg)]
 
-pub mod ast;
 mod big_integer;
 mod constants;
 mod ergo_tree;
 mod eval;
-mod serialization;
+pub mod serialization;
 mod types;
 
+pub mod ast;
 pub mod chain;
 pub mod sigma_protocol;
 
 pub use ergo_tree::*;
+// pub use serialization::serializable::*;

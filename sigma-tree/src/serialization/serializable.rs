@@ -1,3 +1,4 @@
+//! Serialization of Ergo types
 use super::{
     constant_store::ConstantStore,
     sigma_byte_reader::{SigmaByteRead, SigmaByteReader},

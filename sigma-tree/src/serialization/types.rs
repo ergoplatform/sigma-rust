@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 use super::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,

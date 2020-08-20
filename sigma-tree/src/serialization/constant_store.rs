@@ -8,18 +8,22 @@ pub struct ConstantStore {
 }
 
 impl ConstantStore {
+    /// Make an empty(no constants) store
     pub fn empty() -> Self {
         ConstantStore { constants: vec![] }
     }
 
+    /// Make a store with constants provided
     pub fn new(constants: Vec<Constant>) -> Self {
         ConstantStore { constants }
     }
 
+    /// Get a constant by it's index in serialized constants list (stored in ConstantPlaceholder)
     pub fn get(&self, index: u32) -> Option<&Constant> {
         self.constants.get(index as usize)
     }
 
+    /// Save a Constant and get ConstantPlaceholder(with stored index) back
     pub fn put(&mut self, c: Constant) -> ConstantPlaceholder {
         self.constants.push(c.clone());
         assert!(self.constants.len() <= u32::MAX as usize);
@@ -29,6 +33,7 @@ impl ConstantStore {
         }
     }
 
+    /// Get all stored constants (order preserved)
     pub fn get_all(&self) -> Vec<Constant> {
         self.constants.clone()
     }
