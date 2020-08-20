@@ -30,4 +30,3 @@ impl From<FiatShamirHash> for Challenge {
         Challenge(fsh)
     }
 }
-

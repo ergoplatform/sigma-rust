@@ -60,4 +60,3 @@ pub struct UnprovenSchnorr {
     pub challenge_opt: Option<Challenge>,
     pub simulated: bool,
 }
-
