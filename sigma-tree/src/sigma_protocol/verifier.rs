@@ -116,6 +116,7 @@ mod tests {
     use super::*;
     use crate::{
         ast::{Constant, Expr},
+        chain::Transaction,
         sigma_protocol::{
             prover::{Prover, TestProver},
             DlogProverInput, PrivateInput,
@@ -145,5 +146,14 @@ mod tests {
             let ver_res = verifier.verify(&tree, &Env::empty(), proof.as_slice(), message.as_slice());
             prop_assert_eq!(ver_res.unwrap().result, true);
         }
+    }
+
+    #[test]
+    fn test_proof_from_mainnet() {
+        let tx_json = r#"
+        "#;
+
+        // let tx: Transaction = serde_json::from_str(tx_json).unwrap();
+        // let spending_proof_input0 =
     }
 }
