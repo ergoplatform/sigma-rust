@@ -5,6 +5,7 @@ use super::{
 };
 
 /// Unchecked tree
+#[derive(PartialEq, Debug, Clone)]
 pub enum UncheckedTree {
     /// No proof needed
     NoProof,
