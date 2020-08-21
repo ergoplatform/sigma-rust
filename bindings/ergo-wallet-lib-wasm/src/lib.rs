@@ -74,6 +74,19 @@ impl Address {
     }
 }
 
+/// Secret key for the prover
+#[wasm_bindgen]
+#[derive(PartialEq, Debug, Clone)]
+pub struct SecretKey(ergo_wallet_lib::SecretKey);
+
+#[wasm_bindgen]
+impl SecretKey {
+    /// generate random key
+    pub fn random_dlog() -> SecretKey {
+        SecretKey(ergo_wallet_lib::SecretKey::random_dlog())
+    }
+}
+
 /// Transaction inputs, array of ErgoBoxCandidate
 #[wasm_bindgen]
 pub struct UnspentBoxes(Vec<chain::ErgoBoxCandidate>);
