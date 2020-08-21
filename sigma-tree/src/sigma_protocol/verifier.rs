@@ -148,8 +148,8 @@ mod tests {
         }
     }
 
-    #[ignore]
     #[test]
+    #[cfg(feature = "with-serde")]
     fn test_proof_from_mainnet() {
         let tx_json = r#"
          {
@@ -226,7 +226,6 @@ mod tests {
             .unwrap();
 
         let ergo_tree = decoded_addr.script().unwrap();
-        dbg!(ergo_tree.clone());
         let spending_proof_input1 = Base16DecodedBytes::try_from("6542a8b8914b103dcbc36d77da3bd58e42ca35755a5190b507764b0bae330b924ce86acfa1b5f9bfc8216c3c4628738e8274d902bea06b48".to_string()).unwrap();
         let tx: Transaction = serde_json::from_str(tx_json).unwrap();
         let tx_id_str: String = tx.id().into();

@@ -1,5 +1,6 @@
 use super::dlog_group::EcPoint;
 use crate::serialization::op_code::OpCode;
+use std::convert::TryInto;
 
 /// Construct a new SigmaBoolean value representing public key of discrete logarithm signature protocol.
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -69,6 +70,19 @@ impl SigmaBoolean {
 impl<T: Into<SigmaProofOfKnowledgeTree>> From<T> for SigmaBoolean {
     fn from(t: T) -> Self {
         SigmaBoolean::ProofOfKnowledge(t.into())
+    }
+}
+
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct ConversionError;
+
+impl TryInto<ProveDlog> for SigmaBoolean {
+    type Error = ConversionError;
+    fn try_into(self) -> Result<ProveDlog, Self::Error> {
+        match self {
+            SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(pd)) => Ok(pd),
+            _ => Err(ConversionError),
+        }
     }
 }
 

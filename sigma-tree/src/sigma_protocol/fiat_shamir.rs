@@ -2,7 +2,7 @@ use super::{
     sigma_boolean::SigmaProp,
     unchecked_tree::{UncheckedSigmaTree, UncheckedTree},
     unproven_tree::UnprovenTree,
-    ProofTree, ProofTreeLeaf, ProverMessage, SOUNDNESS_BYTES,
+    ProofTree, ProofTreeLeaf, ProverMessage, GROUP_SIZE, SOUNDNESS_BYTES,
 };
 use crate::{ast::Expr, serialization::SigmaSerializable, ErgoTree};
 use blake2::digest::{Update, VariableOutput};
@@ -21,12 +21,13 @@ use proptest_derive::Arbitrary;
 pub struct FiatShamirHash(pub Box<[u8; SOUNDNESS_BYTES]>);
 
 pub fn fiat_shamir_hash_fn(input: &[u8]) -> FiatShamirHash {
-    // unwrap is safe 24 bytes is a valid hash size (<= 512 && 24 % 8 == 0)
-    let mut hasher = VarBlake2b::new(SOUNDNESS_BYTES).unwrap();
+    // unwrap is safe, since 32 bytes is a valid hash size (<= 512 && 24 % 8 == 0)
+    let mut hasher = VarBlake2b::new(GROUP_SIZE).unwrap();
     hasher.update(input);
     let hash = hasher.finalize_boxed();
-    // unwrap is safe due to hash size is expected to be 24
-    FiatShamirHash(hash.try_into().unwrap())
+    let taken: Vec<u8> = hash.to_vec().into_iter().take(SOUNDNESS_BYTES).collect();
+    // unwrap is safe due to hash size is expected to be SOUNDNESS_BYTES
+    FiatShamirHash(taken.into_boxed_slice().try_into().unwrap())
 }
 
 impl Into<[u8; SOUNDNESS_BYTES]> for FiatShamirHash {

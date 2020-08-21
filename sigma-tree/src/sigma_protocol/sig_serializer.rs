@@ -69,33 +69,3 @@ pub fn parse_sig_compute_challenges(
 pub enum SigParsingError {
     InvalidProofSize,
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::{
-        ast::{Constant, ConstantVal},
-        chain::{AddressEncoder, Base16DecodedBytes, NetworkPrefix},
-        types::SType,
-    };
-
-    #[test]
-    fn test_parse_from_mainnet() {
-        let spending_proof_input1 = Base16DecodedBytes::try_from("6542a8b8914b103dcbc36d77da3bd58e42ca35755a5190b507764b0bae330b924ce86acfa1b5f9bfc8216c3c4628738e8274d902bea06b48".to_string()).unwrap().0;
-        let encoder = AddressEncoder::new(NetworkPrefix::Mainnet);
-        let decoded_addr = encoder
-            .parse_address_from_str("9gmNsqrqdSppLUBqg2UzREmmivgqh1r3jmNcLAc53hk3YCvAGWE")
-            .unwrap();
-        let ergo_tree = decoded_addr.script().unwrap();
-        let sb: SigmaBoolean = match ergo_tree.proposition().unwrap().as_ref() {
-            crate::ast::Expr::Const(Constant {
-                tpe: SType::SSigmaProp,
-                v: ConstantVal::SigmaProp(sp),
-            }) => sp.value().clone(),
-            _ => panic!(),
-        };
-        let res = parse_sig_compute_challenges(sb, spending_proof_input1);
-        // dbg!(res.clone().unwrap());
-        assert!(res.is_ok());
-    }
-}
