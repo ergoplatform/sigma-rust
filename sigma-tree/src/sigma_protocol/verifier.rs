@@ -116,7 +116,6 @@ mod tests {
     use super::*;
     use crate::{
         ast::{Constant, Expr},
-        chain::{AddressEncoder, Base16DecodedBytes, NetworkPrefix, Transaction},
         sigma_protocol::{
             prover::{Prover, TestProver},
             DlogProverInput, PrivateInput,
@@ -124,7 +123,7 @@ mod tests {
         types::SType,
     };
     use proptest::prelude::*;
-    use std::{convert::TryFrom, rc::Rc};
+    use std::rc::Rc;
 
     proptest! {
         #[test]
@@ -151,6 +150,8 @@ mod tests {
     #[test]
     #[cfg(feature = "with-serde")]
     fn test_proof_from_mainnet() {
+        use std::convert::TryFrom;
+        use crate::chain::{AddressEncoder, Base16DecodedBytes, NetworkPrefix, Transaction};
         let tx_json = r#"
          {
       "id": "0e6acf3f18b95bdc5bb1b060baa1eafe53bd89fb08b0e86d6cc00fbdd9e43189",
