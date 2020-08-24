@@ -1,9 +1,5 @@
 //! Interpreter with enhanced functionality to prove statements.
 
-#![allow(dead_code)]
-#![allow(unused_variables)]
-#![allow(missing_docs)]
-
 use super::{
     dlog_protocol,
     fiat_shamir::{fiat_shamir_hash_fn, fiat_shamir_tree_to_bytes},
@@ -18,25 +14,22 @@ use crate::{
     ErgoTree, ErgoTreeParsingError,
 };
 
-pub struct TestProver {
-    pub secrets: Vec<PrivateInput>,
-}
-
-impl Evaluator for TestProver {}
-impl Prover for TestProver {
-    fn secrets(&self) -> &[PrivateInput] {
-        self.secrets.as_ref()
-    }
-}
-
+/// Prover errors
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum ProverError {
+    /// Failed to parse ErgoTree
     ErgoTreeError(ErgoTreeParsingError),
+    /// Failed to evaluate ErgoTree
     EvalError(EvalError),
+    /// Script reduced to false
     ReducedToFalse,
+    /// Failed on step2(prover does not have enough witnesses to perform the proof)
     TreeRootIsNotReal,
+    /// Simulated leaf does not have challenge
     SimulatedLeafWithoutChallenge,
+    /// Lacking challenge on step 9 for "real" unproven tree
     RealUnprovenTreeWithoutChallenge,
+    /// Cannot find a secret for "real" unproven leaf
     SecretNotFound,
 }
 
@@ -46,9 +39,18 @@ impl From<ErgoTreeParsingError> for ProverError {
     }
 }
 
+/// Prover
 pub trait Prover: Evaluator {
+    /// Secrets of the prover
     fn secrets(&self) -> &[PrivateInput];
 
+    /**
+    * The comments in this section are taken from the algorithm for the
+    * Sigma-protocol prover as described in the ErgoScript white-paper
+    * https://ergoplatform.org/docs/ErgoScript.pdf , Appendix A
+    *
+    * Generate proofs for the given message for ErgoTree reduced to Sigma boolean expression
+    */
     fn prove(
         &self,
         tree: &ErgoTree,
@@ -63,7 +65,7 @@ pub trait Prover: Evaluator {
                 SigmaBoolean::TrivialProp(true) => Ok(UncheckedTree::NoProof),
                 SigmaBoolean::TrivialProp(false) => Err(ProverError::ReducedToFalse),
                 sb => {
-                    let tree = self.convert_to_unproven(sb);
+                    let tree = convert_to_unproven(sb);
                     let unchecked_tree = self.prove_to_unchecked(tree, message)?;
                     Ok(UncheckedTree::UncheckedSigmaTree(unchecked_tree))
                 }
@@ -72,24 +74,6 @@ pub trait Prover: Evaluator {
             proof: serialize_sig(v),
             extension: ContextExtension::empty(),
         })
-    }
-
-    fn convert_to_unproven(&self, sigma_tree: SigmaBoolean) -> UnprovenTree {
-        match sigma_tree {
-            SigmaBoolean::TrivialProp(_) => todo!(), // TODO: why it's even here
-            SigmaBoolean::ProofOfKnowledge(pok) => match pok {
-                SigmaProofOfKnowledgeTree::ProveDHTuple(_) => todo!(),
-                SigmaProofOfKnowledgeTree::ProveDlog(prove_dlog) => UnprovenSchnorr {
-                    proposition: prove_dlog,
-                    commitment_opt: None,
-                    randomness_opt: None,
-                    challenge_opt: None,
-                    simulated: false,
-                }
-                .into(),
-            },
-            SigmaBoolean::CAND(_) => todo!(),
-        }
     }
 
     /// The comments in this section are taken from the algorithm for the
@@ -105,7 +89,7 @@ pub trait Prover: Evaluator {
 
         // Prover Step 2: If the root of the tree is marked "simulated" then the prover does not have enough witnesses
         // to perform the proof. Abort.
-        if !step1.real() {
+        if !step1.is_real() {
             return Err(ProverError::TreeRootIsNotReal);
         }
 
@@ -169,7 +153,7 @@ pub trait Prover: Evaluator {
      the right number of simulated children.
      In a top-down traversal of the tree, do the following for each node:
     */
-    fn polish_simulated(&self, unproven_tree: UnprovenTree) -> UnprovenTree {
+    fn polish_simulated(&self, _unproven_tree: UnprovenTree) -> UnprovenTree {
         todo!()
     }
 
@@ -230,7 +214,7 @@ pub trait Prover: Evaluator {
             ProofTree::UncheckedTree(_) => Ok(tree),
             ProofTree::UnprovenTree(unproven_tree) => match unproven_tree {
                 UnprovenTree::UnprovenLeaf(UnprovenLeaf::UnprovenSchnorr(us))
-                    if unproven_tree.real() =>
+                    if unproven_tree.is_real() =>
                 {
                     if let Some(challenge) = us.challenge_opt.clone() {
                         if let Some(priv_key) = self
@@ -264,6 +248,38 @@ pub trait Prover: Evaluator {
                 _ => todo!(),
             },
         }
+    }
+}
+
+fn convert_to_unproven(sigma_tree: SigmaBoolean) -> UnprovenTree {
+    match sigma_tree {
+        // TODO: why it's even here? Make another SigmaBoolean without trivial props?
+        SigmaBoolean::TrivialProp(_) => todo!(),
+        SigmaBoolean::ProofOfKnowledge(pok) => match pok {
+            SigmaProofOfKnowledgeTree::ProveDHTuple(_) => todo!(),
+            SigmaProofOfKnowledgeTree::ProveDlog(prove_dlog) => UnprovenSchnorr {
+                proposition: prove_dlog,
+                commitment_opt: None,
+                randomness_opt: None,
+                challenge_opt: None,
+                simulated: false,
+            }
+            .into(),
+        },
+        SigmaBoolean::CAND(_) => todo!(),
+    }
+}
+
+/// Test prover implementation
+pub struct TestProver {
+    /// secrets to be used in proofs generation
+    pub secrets: Vec<PrivateInput>,
+}
+
+impl Evaluator for TestProver {}
+impl Prover for TestProver {
+    fn secrets(&self) -> &[PrivateInput] {
+        self.secrets.as_ref()
     }
 }
 

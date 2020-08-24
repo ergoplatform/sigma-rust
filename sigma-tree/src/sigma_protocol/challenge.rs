@@ -4,6 +4,7 @@ use k256::Scalar;
 use proptest_derive::Arbitrary;
 use std::convert::TryInto;
 
+/// Challenge in Sigma protocol
 #[cfg_attr(test, derive(Arbitrary))]
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Challenge(FiatShamirHash);

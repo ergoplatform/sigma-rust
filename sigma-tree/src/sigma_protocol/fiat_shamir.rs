@@ -1,3 +1,5 @@
+//! Fiat-Shamir transformation
+
 use super::{
     sigma_boolean::SigmaProp,
     unchecked_tree::{UncheckedSigmaTree, UncheckedTree},
@@ -16,10 +18,12 @@ use thiserror::Error;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 
+/// Hash type for Fiat-Shamir hash function (24-bytes)
 #[cfg_attr(test, derive(Arbitrary))]
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct FiatShamirHash(pub Box<[u8; SOUNDNESS_BYTES]>);
 
+/// Fiat-Shamir hash function
 pub fn fiat_shamir_hash_fn(input: &[u8]) -> FiatShamirHash {
     // unwrap is safe, since 32 bytes is a valid hash size (<= 512 && 24 % 8 == 0)
     let mut hasher = VarBlake2b::new(GROUP_SIZE).unwrap();
@@ -76,7 +80,8 @@ pub fn fiat_shamir_tree_to_bytes(tree: &ProofTree) -> Vec<u8> {
         SigmaProp::new(leaf.proposition()).into(),
     )));
     let mut prop_bytes = prop_tree.sigma_serialise_bytes();
-    // TODO: is unwrap safe here?
+    // TODO: is unwrap safe here? Create new type with non-optional commitment? Decide when other scenarios
+    // are implemented (leafs and trees)
     let mut commitment_bytes = leaf.commitment_opt().unwrap().bytes();
     let mut res = vec![LEAF_PREFIX];
     res.append((prop_bytes.len() as u16).to_be_bytes().to_vec().as_mut());

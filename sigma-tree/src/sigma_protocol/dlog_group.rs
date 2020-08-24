@@ -20,7 +20,6 @@ use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
 };
 use k256::{AffinePoint, ProjectivePoint, PublicKey, Scalar};
-use num_bigint::{BigInt, Sign};
 use sigma_ser::vlq_encode;
 
 use elliptic_curve::weierstrass::public_key::FromPublicKey;
@@ -29,10 +28,12 @@ use std::{
     ops::{Add, Mul, Neg},
 };
 
+/// Elliptic curve point
 #[derive(PartialEq, Debug, Clone)]
 pub struct EcPoint(ProjectivePoint);
 
 impl EcPoint {
+    /// Number of bytes to represent any group element as byte array
     pub const GROUP_SIZE: usize = 33;
 }
 
@@ -60,15 +61,17 @@ pub fn generator() -> EcPoint {
     EcPoint(ProjectivePoint::generator())
 }
 
-/// the identity(infinity) element of this Dlog group
+/// The identity(infinity) element
 pub const fn identity() -> EcPoint {
     EcPoint(ProjectivePoint::identity())
 }
 
+/// Check if point is identity(infinity) element
 pub fn is_identity(ge: &EcPoint) -> bool {
     *ge == identity()
 }
 
+/// Calculates the inverse of the given group element
 pub fn inverse(ec: &EcPoint) -> EcPoint {
     -ec.clone()
 }
@@ -90,9 +93,6 @@ pub fn exponentiate(base: &EcPoint, exponent: &Scalar) -> EcPoint {
 /// Creates a random member of this Dlog group
 pub fn random_element() -> EcPoint {
     let sk = DlogProverInput::random();
-    let bytes = sk.w.to_bytes();
-    let bi = BigInt::from_bytes_be(Sign::Plus, &bytes[..]);
-
     exponentiate(&generator(), &sk.w)
 }
 

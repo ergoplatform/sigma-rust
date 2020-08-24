@@ -1,3 +1,5 @@
+//! Unchecked proof tree types
+
 use super::{
     dlog_protocol::{FirstDlogProverMessage, SecondDlogProverMessage},
     sigma_boolean::{ProveDlog, SigmaBoolean, SigmaProofOfKnowledgeTree},
@@ -16,11 +18,14 @@ pub enum UncheckedTree {
 /// Unchecked sigma tree
 #[derive(PartialEq, Debug, Clone)]
 pub enum UncheckedSigmaTree {
+    /// Unchecked leaf
     UncheckedLeaf(UncheckedLeaf),
+    /// Unchecked conjecture (OR, AND, ...)
     UncheckedConjecture,
 }
 
 impl UncheckedSigmaTree {
+    /// Get challenge
     pub fn challenge(&self) -> Challenge {
         match self {
             UncheckedSigmaTree::UncheckedLeaf(UncheckedLeaf::UncheckedSchnorr(us)) => {
@@ -43,8 +48,10 @@ impl From<UncheckedSigmaTree> for ProofTree {
     }
 }
 
+/// Unchecked leaf
 #[derive(PartialEq, Debug, Clone)]
 pub enum UncheckedLeaf {
+    /// Unchecked Schnorr
     UncheckedSchnorr(UncheckedSchnorr),
 }
 
@@ -68,6 +75,8 @@ impl From<UncheckedSchnorr> for UncheckedLeaf {
         UncheckedLeaf::UncheckedSchnorr(us)
     }
 }
+
+#[allow(missing_docs)]
 #[derive(PartialEq, Debug, Clone)]
 pub struct UncheckedSchnorr {
     pub proposition: ProveDlog,

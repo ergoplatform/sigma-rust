@@ -1,3 +1,5 @@
+//! Sigma boolean types
+
 use super::dlog_group::EcPoint;
 use crate::serialization::op_code::OpCode;
 use std::convert::TryInto;
@@ -73,6 +75,7 @@ impl<T: Into<SigmaProofOfKnowledgeTree>> From<T> for SigmaBoolean {
     }
 }
 
+/// Failed to extract specified underlying type from SigmaBoolean
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ConversionError;
 

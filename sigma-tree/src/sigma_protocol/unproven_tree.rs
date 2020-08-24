@@ -1,3 +1,5 @@
+//! Unproven tree types
+
 use super::{
     dlog_protocol::FirstDlogProverMessage,
     sigma_boolean::{ProveDlog, SigmaBoolean, SigmaProofOfKnowledgeTree},
@@ -5,14 +7,16 @@ use super::{
 };
 use k256::Scalar;
 
-/// Unproven tree
+/// Unproven trees
 pub enum UnprovenTree {
+    /// Unproven leaf
     UnprovenLeaf(UnprovenLeaf),
     // UnprovenConjecture,
 }
 
 impl UnprovenTree {
-    pub fn real(&self) -> bool {
+    /// Is real or simulated
+    pub fn is_real(&self) -> bool {
         match self {
             UnprovenTree::UnprovenLeaf(UnprovenLeaf::UnprovenSchnorr(us)) => !us.simulated,
             // UnprovenTree::UnprovenConjecture => todo!(),
@@ -26,7 +30,9 @@ impl<T: Into<UnprovenLeaf>> From<T> for UnprovenTree {
     }
 }
 
+/// Unproven leaf types
 pub enum UnprovenLeaf {
+    /// Unproven Schnorr
     UnprovenSchnorr(UnprovenSchnorr),
 }
 
@@ -52,6 +58,7 @@ impl From<UnprovenSchnorr> for UnprovenLeaf {
     }
 }
 
+#[allow(missing_docs)]
 #[derive(PartialEq, Debug, Clone)]
 pub struct UnprovenSchnorr {
     pub proposition: ProveDlog,

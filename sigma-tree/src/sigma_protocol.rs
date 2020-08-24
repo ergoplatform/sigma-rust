@@ -1,9 +1,5 @@
 //! Sigma protocols
 
-#![allow(dead_code)]
-#![allow(unused_variables)]
-#![allow(missing_docs)]
-
 mod challenge;
 mod private_input;
 
@@ -28,12 +24,17 @@ use std::convert::TryInto;
 use unchecked_tree::{UncheckedSigmaTree, UncheckedTree};
 use unproven_tree::{UnprovenLeaf, UnprovenSchnorr, UnprovenTree};
 
+/** The message sent by a prover to its associated verifier as part of a sigma protocol interaction. */
 pub trait ProverMessage {
+    /// serialized message
     fn bytes(&self) -> Vec<u8>;
 }
 
+/** First message from the prover (message `a` of `SigmaProtocol`)*/
 pub enum FirstProverMessage {
+    /// Discrete log
     FirstDlogProverMessage(FirstDlogProverMessage),
+    /// DH tupl
     FirstDHTProverMessage,
 }
 
@@ -55,6 +56,7 @@ pub enum ProofTree {
 }
 
 impl ProofTree {
+    /// Create a new proof tree with a new challenge
     pub fn with_challenge(&self, challenge: Challenge) -> ProofTree {
         match self {
             ProofTree::UncheckedTree(_) => todo!(),
@@ -79,9 +81,12 @@ impl<T: Into<UncheckedTree>> From<T> for ProofTree {
     }
 }
 
+/// Proof tree leaf
 pub trait ProofTreeLeaf {
+    /// Get proposition
     fn proposition(&self) -> SigmaBoolean;
 
+    /// Get commitment
     fn commitment_opt(&self) -> Option<FirstProverMessage>;
 }
 
@@ -90,6 +95,7 @@ pub const GROUP_SIZE_BITS: usize = 256;
 /** Number of bytes to represent any group element as byte array */
 pub const GROUP_SIZE: usize = GROUP_SIZE_BITS / 8;
 
+/// Byte array of Group size (32 bytes)
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct GroupSizedBytes(pub Box<[u8; GROUP_SIZE]>);
 
@@ -108,11 +114,10 @@ impl From<&[u8; GROUP_SIZE]> for GroupSizedBytes {
 
 /** A size of challenge in Sigma protocols, in bits.
  * If this anything but 192, threshold won't work, because we have polynomials over GF(2^192) and no others.
- * So DO NOT change the value without implementing polynomials over GF(2^soundnessBits) first
- * and changing code that calls on GF2_192 and GF2_192_Poly classes!!!
  * We get the challenge by reducing hash function output to proper value.
  */
 pub const SOUNDNESS_BITS: usize = 192;
+/// A size of challenge in Sigma protocols, in bytes
 pub const SOUNDNESS_BYTES: usize = SOUNDNESS_BITS / 8;
 
 #[cfg(test)]

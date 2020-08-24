@@ -26,7 +26,9 @@ impl DlogProverInput {
 
 /// Private inputs (secrets)
 pub enum PrivateInput {
+    /// Discrete logarithm prover input
     DlogProverInput(DlogProverInput),
+    /// DH tuple prover input
     DiffieHellmanTupleProverInput,
 }
 

@@ -1,9 +1,5 @@
 //! Verifier
 
-#![allow(dead_code)]
-#![allow(unused_variables)]
-#![allow(missing_docs)]
-
 use super::{
     dlog_protocol,
     fiat_shamir::{fiat_shamir_hash_fn, fiat_shamir_tree_to_bytes},
@@ -17,9 +13,12 @@ use crate::{
 };
 use dlog_protocol::FirstDlogProverMessage;
 
+/// Errors on proof verification
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum VerifierError {
+    /// Failed to parse ErgoTree from bytes
     ErgoTreeError(ErgoTreeParsingError),
+    /// Failed to evaluate ErgoTree
     EvalError(EvalError),
 }
 
@@ -35,11 +34,15 @@ impl From<EvalError> for VerifierError {
     }
 }
 
+/// Result of Box.ergoTree verification procedure (see `verify` method).
 pub struct VerificationResult {
-    result: bool,
-    cost: u64,
+    /// result of SigmaProp condition verification via sigma protocol
+    pub result: bool,
+    /// estimated cost of contract execution
+    pub cost: u64,
 }
 
+/// Verifier for the proofs generater by [`Prover`]
 pub trait Verifier: Evaluator {
     /// Executes the script in a given context.
     /// Step 1: Deserialize context variables
@@ -106,6 +109,7 @@ fn compute_commitments(sp: UncheckedSigmaTree) -> UncheckedSigmaTree {
     }
 }
 
+/// Test Verifier implementation
 pub struct TestVerifier;
 
 impl Evaluator for TestVerifier {}
@@ -150,8 +154,8 @@ mod tests {
     #[test]
     #[cfg(feature = "with-serde")]
     fn test_proof_from_mainnet() {
-        use std::convert::TryFrom;
         use crate::chain::{AddressEncoder, Base16DecodedBytes, NetworkPrefix, Transaction};
+        use std::convert::TryFrom;
         let tx_json = r#"
          {
       "id": "0e6acf3f18b95bdc5bb1b060baa1eafe53bd89fb08b0e86d6cc00fbdd9e43189",
@@ -227,6 +231,7 @@ mod tests {
             .unwrap();
 
         let ergo_tree = decoded_addr.script().unwrap();
+
         let spending_proof_input1 = Base16DecodedBytes::try_from("6542a8b8914b103dcbc36d77da3bd58e42ca35755a5190b507764b0bae330b924ce86acfa1b5f9bfc8216c3c4628738e8274d902bea06b48".to_string()).unwrap();
         let tx: Transaction = serde_json::from_str(tx_json).unwrap();
         let tx_id_str: String = tx.id().into();

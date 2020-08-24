@@ -1,3 +1,5 @@
+//! Serialization of proof tree signatures
+
 use super::{
     fiat_shamir::FiatShamirHash,
     unchecked_tree::{UncheckedLeaf, UncheckedSchnorr},
@@ -7,6 +9,7 @@ use super::{
 use k256::Scalar;
 use std::convert::{TryFrom, TryInto};
 
+/// Serialize proof tree signatures
 pub fn serialize_sig(tree: UncheckedTree) -> Vec<u8> {
     match tree {
         UncheckedTree::NoProof => vec![],
@@ -27,7 +30,6 @@ pub fn serialize_sig(tree: UncheckedTree) -> Vec<u8> {
  * Verifier Step 2: In a top-down traversal of the tree, obtain the challenges for the children of every
  * non-leaf node by reading them from the proof or computing them.
  * Verifier Step 3: For every leaf node, read the response z provided in the proof.
- *
  */
 pub fn parse_sig_compute_challenges(
     exp: SigmaBoolean,
@@ -65,7 +67,9 @@ pub fn parse_sig_compute_challenges(
     }
 }
 
+/// Errors when parsing proof tree signatures
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum SigParsingError {
+    /// Invalid proof size (expected 32 bytes)
     InvalidProofSize,
 }

@@ -1,7 +1,10 @@
+//! Discrete logarithm signature protocol
+
 use super::{dlog_group::EcPoint, FirstProverMessage, ProverMessage};
 use crate::serialization::SigmaSerializable;
 use k256::Scalar;
 
+/// First message from the prover (message `a` of `SigmaProtocol`) for discrete logarithm case
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct FirstDlogProverMessage(pub EcPoint);
 
@@ -23,8 +26,10 @@ impl From<FirstDlogProverMessage> for FirstProverMessage {
     }
 }
 
+/// Second message from the prover (message `z` of `SigmaProtocol`) for discrete logarithm case
 #[derive(PartialEq, Debug, Clone)]
 pub struct SecondDlogProverMessage {
+    /// message `z`
     pub z: Scalar,
 }
 
@@ -34,19 +39,22 @@ impl From<Scalar> for SecondDlogProverMessage {
     }
 }
 
+/// Interactive prover
 pub mod interactive_prover {
     use super::{FirstDlogProverMessage, SecondDlogProverMessage};
     use crate::sigma_protocol::{dlog_group, Challenge, DlogProverInput, ProveDlog};
     use dlog_group::EcPoint;
     use k256::Scalar;
 
+    /// TBD
     pub fn simulate(
-        public_input: &ProveDlog,
-        challenge: &Challenge,
+        _public_input: &ProveDlog,
+        _challenge: &Challenge,
     ) -> (FirstDlogProverMessage, SecondDlogProverMessage) {
         todo!()
     }
 
+    /// Create first message from the prover and a randomness
     pub fn first_message() -> (Scalar, FirstDlogProverMessage) {
         let r = dlog_group::random_scalar_in_group_range();
         let g = dlog_group::generator();
@@ -54,6 +62,7 @@ pub mod interactive_prover {
         (r, FirstDlogProverMessage(a))
     }
 
+    /// Create second message from the prover
     pub fn second_message(
         private_input: &DlogProverInput,
         rnd: Scalar,
