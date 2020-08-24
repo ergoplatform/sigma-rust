@@ -28,7 +28,7 @@ with-serde = ["serde"]
 [dev-dependencies]
 wasm-bindgen-test = "0.3.10"
 proptest-derive = "0.2"
-sigma-testutil = { path = "../sigma-testutil"}
+# sigma-testutil = { path = "../sigma-testutil"}
 rand = "0.7.3"
 
 [dev-dependencies.proptest]
