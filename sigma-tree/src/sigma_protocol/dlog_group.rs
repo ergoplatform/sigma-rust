@@ -19,21 +19,41 @@ use super::DlogProverInput;
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
 };
-use k256::arithmetic::{ProjectivePoint, Scalar};
-use k256::{arithmetic::AffinePoint, PublicKey};
-use num_bigint::{BigInt, Sign};
+use k256::{AffinePoint, ProjectivePoint, PublicKey, Scalar};
 use sigma_ser::vlq_encode;
 
-use std::{convert::TryInto, io};
+use elliptic_curve::weierstrass::public_key::FromPublicKey;
+use std::{
+    io,
+    ops::{Add, Mul, Neg},
+};
 
+/// Elliptic curve point
 #[derive(PartialEq, Debug, Clone)]
 pub struct EcPoint(ProjectivePoint);
 
 impl EcPoint {
+    /// Number of bytes to represent any group element as byte array
     pub const GROUP_SIZE: usize = 33;
 }
 
 impl Eq for EcPoint {}
+
+impl Mul<&EcPoint> for EcPoint {
+    type Output = EcPoint;
+
+    fn mul(self, other: &EcPoint) -> EcPoint {
+        EcPoint(ProjectivePoint::add(self.0, &other.0))
+    }
+}
+
+impl Neg for EcPoint {
+    type Output = EcPoint;
+
+    fn neg(self) -> EcPoint {
+        EcPoint(ProjectivePoint::neg(self.0))
+    }
+}
 
 /// The generator g of the group is an element of the group such that, when written multiplicatively, every element
 /// of the group is a power of g.
@@ -41,13 +61,19 @@ pub fn generator() -> EcPoint {
     EcPoint(ProjectivePoint::generator())
 }
 
-/// the identity(infinity) element of this Dlog group
+/// The identity(infinity) element
 pub const fn identity() -> EcPoint {
     EcPoint(ProjectivePoint::identity())
 }
 
+/// Check if point is identity(infinity) element
 pub fn is_identity(ge: &EcPoint) -> bool {
     *ge == identity()
+}
+
+/// Calculates the inverse of the given group element
+pub fn inverse(ec: &EcPoint) -> EcPoint {
+    -ec.clone()
 }
 
 /// Raises the base GroupElement to the exponent. The result is another GroupElement.
@@ -63,38 +89,20 @@ pub fn exponentiate(base: &EcPoint, exponent: &Scalar) -> EcPoint {
 /// Creates a random member of this Dlog group
 pub fn random_element() -> EcPoint {
     let sk = DlogProverInput::random();
-    let bytes = sk.w.to_bytes();
-    let bi = BigInt::from_bytes_be(Sign::Plus, &bytes[..]);
-
     exponentiate(&generator(), &sk.w)
 }
 
 /// Creates a random scalar, a big-endian integer in the range [0, n), where n is group order
 pub fn random_scalar_in_group_range() -> Scalar {
-    loop {
-        // Generate a new secret key using the operating system's
-        // cryptographically secure random number generator
-        let sk = k256::SecretKey::generate();
-        let bytes: [u8; 32] = sk
-            .secret_scalar()
-            .as_ref()
-            .as_slice()
-            .try_into()
-            .expect("expected 32 bytes");
-        // Returns None if the byte array does not contain
-        // a big-endian integer in the range [0, n), where n is group order.
-        let maybe_scalar = Scalar::from_bytes(bytes);
-        if bool::from(maybe_scalar.is_some()) {
-            break maybe_scalar.unwrap();
-        }
-    }
+    use rand::rngs::OsRng;
+    Scalar::generate_vartime(&mut OsRng)
 }
 
 impl SigmaSerializable for EcPoint {
     fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
         let caff = self.0.to_affine();
         if bool::from(caff.is_some()) {
-            let pubkey = caff.unwrap().to_compressed_pubkey();
+            let pubkey = PublicKey::Compressed(caff.unwrap().into());
             w.write_all(pubkey.as_bytes())?;
         } else {
             // infinity point
@@ -111,7 +119,7 @@ impl SigmaSerializable for EcPoint {
             let pubkey = PublicKey::from_bytes(&buf[..]).ok_or_else(|| {
                 SerializationError::Misc("failed to parse PK from bytes".to_string())
             })?;
-            let cp = AffinePoint::from_pubkey(&pubkey);
+            let cp = AffinePoint::from_public_key(&pubkey);
             if bool::from(cp.is_none()) {
                 Err(SerializationError::Misc(
                     "failed to get affine point from PK".to_string(),

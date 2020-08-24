@@ -132,6 +132,11 @@ impl Transaction {
         };
         tx_to_sign.sigma_serialise_bytes()
     }
+
+    /// Get transaction id
+    pub fn id(&self) -> TxId {
+        self.tx_id.clone()
+    }
 }
 
 impl SigmaSerializable for Transaction {

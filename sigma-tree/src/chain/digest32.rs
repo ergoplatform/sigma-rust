@@ -83,7 +83,7 @@ impl SigmaSerializable for Digest32 {
     }
 }
 
-/// Invalie byte array size
+/// Invalid byte array size
 #[derive(Error, Debug)]
 #[error("Invalid byte array size ({0})")]
 pub struct Digest32Error(std::array::TryFromSliceError);

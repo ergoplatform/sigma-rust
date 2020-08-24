@@ -35,3 +35,10 @@ fn test_signed_p2pk_transaction() {
     );
     assert!(res.is_err());
 }
+
+#[wasm_bindgen_test]
+fn test_random() {
+    let sk1 = SecretKey::random_dlog();
+    let sk2 = SecretKey::random_dlog();
+    assert_ne!(sk1, sk2);
+}

@@ -9,7 +9,7 @@ rust:
 
 os:
   - linux
-  - osx
+  # - osx # it hangs
   - windows
 
 env:

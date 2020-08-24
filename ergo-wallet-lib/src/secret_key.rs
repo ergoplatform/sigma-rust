@@ -1,6 +1,7 @@
 use sigma_tree::sigma_protocol::DlogProverInput;
 
 /// Types of secrets
+#[derive(PartialEq, Debug, Clone)]
 pub enum SecretKey {
     /// Secret exponent of a group element, i.e. secret w such as h = g^^w, where g is group generator, h is a public key.
     DlogSecretKey(DlogProverInput),

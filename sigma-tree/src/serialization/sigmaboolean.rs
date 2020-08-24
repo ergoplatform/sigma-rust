@@ -3,7 +3,8 @@ use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
 };
 use crate::sigma_protocol::{
-    dlog_group::EcPoint, ProveDlog, SigmaBoolean, SigmaProofOfKnowledgeTree,
+    dlog_group::EcPoint,
+    sigma_boolean::{ProveDlog, SigmaBoolean, SigmaProofOfKnowledgeTree},
 };
 
 use std::io;

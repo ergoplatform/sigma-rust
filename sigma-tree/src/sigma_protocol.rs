@@ -1,123 +1,49 @@
 //! Sigma protocols
 
-#![allow(dead_code)]
-#![allow(unused_variables)]
-#![allow(missing_docs)]
+mod challenge;
+mod private_input;
+
+pub use challenge::*;
+pub use private_input::*;
 
 pub mod dlog_group;
 pub mod dlog_protocol;
+pub mod fiat_shamir;
 pub mod prover;
+pub mod sig_serializer;
+pub mod sigma_boolean;
+pub mod unchecked_tree;
+pub mod unproven_tree;
 pub mod verifier;
 
-use k256::arithmetic::Scalar;
+use k256::Scalar;
 
-use crate::{big_integer::BigInteger, serialization::op_code::OpCode};
-use blake2::digest::{Update, VariableOutput};
-use blake2::VarBlake2b;
-use dlog_group::EcPoint;
-use dlog_protocol::{FirstDlogProverMessage, SecondDlogProverMessage};
+use dlog_protocol::FirstDlogProverMessage;
+use sigma_boolean::{ProveDlog, SigmaBoolean, SigmaProofOfKnowledgeTree};
 use std::convert::TryInto;
+use unchecked_tree::{UncheckedSigmaTree, UncheckedTree};
+use unproven_tree::{UnprovenLeaf, UnprovenSchnorr, UnprovenTree};
 
-/// Secret key of discrete logarithm signature protocol
-pub struct DlogProverInput {
-    /// secret key value
-    pub w: Scalar,
+/** The message sent by a prover to its associated verifier as part of a sigma protocol interaction. */
+pub trait ProverMessage {
+    /// serialized message
+    fn bytes(&self) -> Vec<u8>;
 }
 
-impl DlogProverInput {
-    /// generates random secret in the range [0, n), where n is DLog group order.
-    pub fn random() -> DlogProverInput {
-        DlogProverInput {
-            w: dlog_group::random_scalar_in_group_range(),
-        }
-    }
-
-    /// public key of discrete logarithm signature protocol
-    fn public_image(&self) -> ProveDlog {
-        // test it, see https://github.com/ergoplatform/sigma-rust/issues/38
-        let g = dlog_group::generator();
-        ProveDlog::new(dlog_group::exponentiate(&g, &self.w))
-    }
+/** First message from the prover (message `a` of `SigmaProtocol`)*/
+pub enum FirstProverMessage {
+    /// Discrete log
+    FirstDlogProverMessage(FirstDlogProverMessage),
+    /// DH tupl
+    FirstDHTProverMessage,
 }
 
-/// Private inputs (secrets)
-pub enum PrivateInput {
-    DlogProverInput(DlogProverInput),
-    DiffieHellmanTupleProverInput,
-}
-
-/// Construct a new SigmaBoolean value representing public key of discrete logarithm signature protocol.
-#[derive(PartialEq, Eq, Debug, Clone)]
-pub struct ProveDlog {
-    /// public key
-    pub h: Box<EcPoint>,
-}
-
-impl ProveDlog {
-    /// create new public key
-    pub fn new(ecpoint: EcPoint) -> ProveDlog {
-        ProveDlog {
-            h: Box::new(ecpoint),
-        }
-    }
-}
-
-/// Construct a new SigmaProp value representing public key of Diffie Hellman signature protocol.
-/// Common input: (g,h,u,v)
-#[derive(PartialEq, Eq, Debug, Clone)]
-pub struct ProveDHTuple {
-    gv: Box<EcPoint>,
-    hv: Box<EcPoint>,
-    uv: Box<EcPoint>,
-    vv: Box<EcPoint>,
-}
-
-/// Sigma proposition
-#[derive(PartialEq, Eq, Debug, Clone)]
-pub enum SigmaProofOfKnowledgeTree {
-    /// public key of Diffie Hellman signature protocol
-    ProveDHTuple(ProveDHTuple),
-    /// public key of discrete logarithm signature protocol
-    ProveDlog(ProveDlog),
-}
-
-/// Algebraic data type of sigma proposition expressions
-/// Values of this type are used as values of SigmaProp type
-#[derive(PartialEq, Eq, Debug, Clone)]
-pub enum SigmaBoolean {
-    /// Represents boolean values (true/false)
-    TrivialProp(bool),
-    /// Sigma proposition
-    ProofOfKnowledge(SigmaProofOfKnowledgeTree),
-    /// AND conjunction for sigma propositions
-    CAND(Vec<SigmaBoolean>),
-}
-
-impl SigmaBoolean {
-    /// get OpCode for serialization
-    pub fn op_code(&self) -> OpCode {
+impl ProverMessage for FirstProverMessage {
+    fn bytes(&self) -> Vec<u8> {
         match self {
-            SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(_)) => {
-                OpCode::PROVE_DLOG
-            }
-            _ => todo!(),
+            FirstProverMessage::FirstDlogProverMessage(fdpm) => fdpm.bytes(),
+            FirstProverMessage::FirstDHTProverMessage => todo!(),
         }
-    }
-}
-
-/// Proposition which can be proven and verified by sigma protocol.
-#[derive(PartialEq, Eq, Debug, Clone)]
-pub struct SigmaProp(SigmaBoolean);
-
-impl SigmaProp {
-    /// create new sigma propostion from [`SigmaBoolean`] value
-    pub fn new(sbool: SigmaBoolean) -> Self {
-        SigmaProp { 0: sbool }
-    }
-
-    /// get [`SigmaBoolean`] value
-    pub fn value(&self) -> &SigmaBoolean {
-        &self.0
     }
 }
 
@@ -130,161 +56,75 @@ pub enum ProofTree {
 }
 
 impl ProofTree {
+    /// Create a new proof tree with a new challenge
     pub fn with_challenge(&self, challenge: Challenge) -> ProofTree {
-        todo!()
-    }
-}
-
-/// Unproven tree
-pub enum UnprovenTree {
-    UnprovenSchnorr(UnprovenSchnorr),
-}
-
-impl UnprovenTree {
-    pub fn real(&self) -> bool {
         match self {
-            UnprovenTree::UnprovenSchnorr(us) => !us.simulated,
+            ProofTree::UncheckedTree(_) => todo!(),
+            ProofTree::UnprovenTree(ut) => match ut {
+                UnprovenTree::UnprovenLeaf(ul) => match ul {
+                    UnprovenLeaf::UnprovenSchnorr(us) => ProofTree::UnprovenTree(
+                        UnprovenSchnorr {
+                            challenge_opt: Some(challenge),
+                            ..us.clone()
+                        }
+                        .into(),
+                    ),
+                },
+            },
         }
     }
 }
 
-pub struct UnprovenSchnorr {
-    proposition: ProveDlog,
-    commitment_opt: Option<FirstDlogProverMessage>,
-    randomness_opt: Option<BigInteger>,
-    challenge_opt: Option<Challenge>,
-    simulated: bool,
-}
-
-#[derive(PartialEq, Eq, Debug, Clone)]
-pub struct Challenge(FiatShamirHash);
-
-/// Unchecked sigma tree
-pub enum UncheckedSigmaTree {
-    UncheckedLeaf(UncheckedLeaf),
-}
-
-pub enum UncheckedLeaf {
-    UncheckedSchnorr(UncheckedSchnorr),
-}
-
-impl UncheckedLeaf {
-    pub fn proposition(&self) -> SigmaBoolean {
-        match self {
-            UncheckedLeaf::UncheckedSchnorr(us) => SigmaBoolean::ProofOfKnowledge(
-                SigmaProofOfKnowledgeTree::ProveDlog(us.proposition.clone()),
-            ),
-        }
+impl<T: Into<UncheckedTree>> From<T> for ProofTree {
+    fn from(t: T) -> Self {
+        ProofTree::UncheckedTree(t.into())
     }
 }
 
-pub struct UncheckedSchnorr {
-    proposition: ProveDlog,
-    commitment_opt: Option<FirstDlogProverMessage>,
-    challenge: Challenge,
-    second_message: SecondDlogProverMessage,
-}
+/// Proof tree leaf
+pub trait ProofTreeLeaf {
+    /// Get proposition
+    fn proposition(&self) -> SigmaBoolean;
 
-impl UncheckedSigmaTree {
-    // pub fn challenge(&self) -> Challenge {
-    //     match self {
-    //         UncheckedSigmaTree::UncheckedLeaf(UncheckedLeaf::UncheckedSchnorr(us)) => us.challenge,
-    //     }
-    // }
-}
-
-/// Unchecked tree
-pub enum UncheckedTree {
-    /// No proof needed
-    NoProof,
-    /// Unchecked sigma tree
-    UncheckedSigmaTree(UncheckedSigmaTree),
-}
-
-fn serialize_sig(tree: UncheckedTree) -> Vec<u8> {
-    match tree {
-        UncheckedTree::NoProof => vec![],
-        UncheckedTree::UncheckedSigmaTree(_) => todo!(),
-    }
-}
-
-///  Prover Step 7: Convert the tree to a string s for input to the Fiat-Shamir hash function.
-///  The conversion should be such that the tree can be unambiguously parsed and restored given the string.
-///  For each non-leaf node, the string should contain its type (OR or AND).
-///  For each leaf node, the string should contain the Sigma-protocol statement being proven and the commitment.
-///  The string should not contain information on whether a node is marked "real" or "simulated",
-///  and should not contain challenges, responses, or the real/simulated flag for any node.
-fn fiat_shamir_tree_to_bytes(tree: &ProofTree) -> Vec<u8> {
-    // let propTree = ErgoTree.withSegregation(SigmaPropConstant(l.proposition))
-    // val propBytes = DefaultSerializer.serializeErgoTree(propTree)
-    // val commitmentBytes = l.commitmentOpt.get.bytes
-    // leafPrefix +:
-    //   ((Shorts.toByteArray(propBytes.length.toShort) ++ propBytes) ++
-    //     (Shorts.toByteArray(commitmentBytes.length.toShort) ++ commitmentBytes))
-    todo!()
+    /// Get commitment
+    fn commitment_opt(&self) -> Option<FirstProverMessage>;
 }
 
 /** Size of the binary representation of any group element (2 ^ groupSizeBits == <number of elements in a group>) */
 pub const GROUP_SIZE_BITS: usize = 256;
 /** Number of bytes to represent any group element as byte array */
 pub const GROUP_SIZE: usize = GROUP_SIZE_BITS / 8;
+
+/// Byte array of Group size (32 bytes)
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct GroupSizedBytes(pub Box<[u8; GROUP_SIZE]>);
+
+impl From<GroupSizedBytes> for Scalar {
+    fn from(b: GroupSizedBytes) -> Self {
+        let sl: &[u8] = b.0.as_ref();
+        Scalar::from_bytes_reduced(sl.try_into().expect(""))
+    }
+}
+
+impl From<&[u8; GROUP_SIZE]> for GroupSizedBytes {
+    fn from(b: &[u8; GROUP_SIZE]) -> Self {
+        GroupSizedBytes(Box::new(*b))
+    }
+}
+
 /** A size of challenge in Sigma protocols, in bits.
  * If this anything but 192, threshold won't work, because we have polynomials over GF(2^192) and no others.
- * So DO NOT change the value without implementing polynomials over GF(2^soundnessBits) first
- * and changing code that calls on GF2_192 and GF2_192_Poly classes!!!
  * We get the challenge by reducing hash function output to proper value.
  */
 pub const SOUNDNESS_BITS: usize = 192;
+/// A size of challenge in Sigma protocols, in bytes
 pub const SOUNDNESS_BYTES: usize = SOUNDNESS_BITS / 8;
-
-#[derive(PartialEq, Eq, Debug, Clone)]
-pub struct FiatShamirHash(pub Box<[u8; SOUNDNESS_BYTES]>);
-
-pub fn fiat_shamir_hash_fn(input: &[u8]) -> FiatShamirHash {
-    // unwrap is safe 24 bytes is a valid hash size (<= 512 && 24 % 8 == 0)
-    let mut hasher = VarBlake2b::new(SOUNDNESS_BYTES).unwrap();
-    hasher.update(input);
-    let hash = hasher.finalize_boxed();
-    // unwrap is safe due to hash size is expected to be 24
-    FiatShamirHash(hash.try_into().unwrap())
-}
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use proptest::prelude::*;
 
-    impl Arbitrary for ProveDlog {
-        type Parameters = ();
-        type Strategy = BoxedStrategy<Self>;
-
-        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            (any::<EcPoint>()).prop_map(ProveDlog::new).boxed()
-        }
-    }
-
-    impl Arbitrary for SigmaBoolean {
-        type Parameters = ();
-        type Strategy = BoxedStrategy<Self>;
-
-        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            (any::<ProveDlog>())
-                .prop_map(|p| {
-                    SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(p))
-                })
-                .boxed()
-        }
-    }
-
-    impl Arbitrary for SigmaProp {
-        type Parameters = ();
-        type Strategy = BoxedStrategy<Self>;
-
-        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            (any::<SigmaBoolean>()).prop_map(SigmaProp).boxed()
-        }
-    }
-
+    #[allow(clippy::assertions_on_constants)]
     #[test]
     fn ensure_soundness_bits() {
         // see SOUNDNESS_BITS doc comment
@@ -293,9 +133,4 @@ mod tests {
         assert!(SOUNDNESS_BYTES * 8 <= 512);
         assert!(SOUNDNESS_BYTES % 8 == 0);
     }
-
-    // #[test]
-    // fn fiat_shamir_tree_to_bytes_smoke_test() {
-    //     let tree = ProofTree
-    // }
 }

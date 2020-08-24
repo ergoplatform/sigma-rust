@@ -2,7 +2,7 @@ use crate::chain::{Base16DecodedBytes, Base16EncodedBytes};
 use crate::{
     chain::ErgoBox,
     serialization::{op_code::OpCode, SerializationError, SigmaSerializable},
-    sigma_protocol::{dlog_group::EcPoint, SigmaProp},
+    sigma_protocol::{dlog_group::EcPoint, sigma_boolean::SigmaProp},
     types::{LiftIntoSType, SType},
 };
 #[cfg(feature = "with-serde")]
@@ -195,9 +195,9 @@ impl Into<Constant> for i64 {
     }
 }
 
-impl Into<ConstantVal> for SigmaProp {
-    fn into(self) -> ConstantVal {
-        ConstantVal::SigmaProp(Box::new(self))
+impl<T: Into<SigmaProp>> From<T> for ConstantVal {
+    fn from(t: T) -> Self {
+        ConstantVal::SigmaProp(Box::new(t.into()))
     }
 }
 

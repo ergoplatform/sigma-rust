@@ -117,7 +117,8 @@ impl ErgoTree {
         let cursor = Cursor::new(&mut data[..]);
         let pr = PeekableReader::new(cursor);
         let constants = cs.get_all();
-        let mut sr = SigmaByteReader::new(pr, cs);
+        let new_cs = ConstantStore::new(constants.clone());
+        let mut sr = SigmaByteReader::new(pr, new_cs);
         let parsed_expr = Expr::sigma_parse(&mut sr).unwrap();
         ErgoTree {
             header: ErgoTreeHeader(ErgoTreeHeader::CONSTANT_SEGREGATION_FLAG),
@@ -251,7 +252,7 @@ impl SigmaSerializable for ErgoTree {
 mod tests {
     use super::*;
     use crate::serialization::sigma_serialize_roundtrip;
-    use crate::{ast::ConstantVal, chain, sigma_protocol::SigmaProp, types::SType};
+    use crate::{ast::ConstantVal, chain, sigma_protocol::sigma_boolean::SigmaProp, types::SType};
     use proptest::prelude::*;
 
     impl Arbitrary for ErgoTree {

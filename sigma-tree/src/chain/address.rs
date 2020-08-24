@@ -3,7 +3,8 @@ use crate::{
     ast::Expr,
     serialization::{SerializationError, SigmaSerializable},
     sigma_protocol::{
-        dlog_group::EcPoint, ProveDlog, SigmaBoolean, SigmaProofOfKnowledgeTree, SigmaProp,
+        dlog_group::EcPoint,
+        sigma_boolean::{ProveDlog, SigmaBoolean, SigmaProofOfKnowledgeTree, SigmaProp},
     },
     ErgoTree,
 };

@@ -1,3 +1,4 @@
+//! ErgoBox and ErgoBoxCandidate serialization
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
 };

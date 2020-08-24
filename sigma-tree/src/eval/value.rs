@@ -1,4 +1,4 @@
-use crate::{chain::ErgoBox, sigma_protocol::SigmaBoolean};
+use crate::{chain::ErgoBox, sigma_protocol::sigma_boolean::SigmaBoolean};
 use std::ops::Add;
 
 #[allow(dead_code)]
