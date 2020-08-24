@@ -45,12 +45,12 @@ pub trait Prover: Evaluator {
     fn secrets(&self) -> &[PrivateInput];
 
     /**
-    * The comments in this section are taken from the algorithm for the
-    * Sigma-protocol prover as described in the ErgoScript white-paper
-    * https://ergoplatform.org/docs/ErgoScript.pdf , Appendix A
-    *
-    * Generate proofs for the given message for ErgoTree reduced to Sigma boolean expression
-    */
+     * The comments in this section are taken from the algorithm for the
+     * Sigma-protocol prover as described in the ErgoScript white-paper
+     * https://ergoplatform.org/docs/ErgoScript.pdf , Appendix A
+     *
+     * Generate proofs for the given message for ErgoTree reduced to Sigma boolean expression
+     */
     fn prove(
         &self,
         tree: &ErgoTree,
