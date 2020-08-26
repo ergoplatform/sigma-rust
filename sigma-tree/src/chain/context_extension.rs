@@ -1,11 +1,13 @@
 //! ContextExtension type
 use crate::{
     ast::Constant,
-    serialization::{sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable},
+    serialization::{
+        sigma_byte_reader::SigmaByteRead, sigma_byte_writer::SigmaByteWrite, SerializationError,
+        SigmaSerializable,
+    },
 };
 #[cfg(feature = "with-serde")]
 use serde::{Deserialize, Serialize};
-use sigma_ser::vlq_encode;
 use std::collections::HashMap;
 use std::io;
 
@@ -27,14 +29,22 @@ impl ContextExtension {
 }
 
 impl SigmaSerializable for ContextExtension {
-    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
         w.put_u8(self.values.len() as u8)?;
-        assert!(self.values.is_empty(), "implemented only for empty");
+        self.values.iter().try_for_each(|(idx, c)| {
+            w.put_u8(*idx)?;
+            c.sigma_serialize(w)
+        })?;
         Ok(())
     }
+
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
-        let _ = r.get_u8()?;
-        Ok(ContextExtension::empty())
+        let values_count = r.get_u8()?;
+        let mut values: HashMap<u8, Constant> = HashMap::with_capacity(values_count as usize);
+        for _ in 0..values_count {
+            values.insert(r.get_u8()?, Constant::sigma_parse(r)?);
+        }
+        Ok(ContextExtension { values })
     }
 }
 
