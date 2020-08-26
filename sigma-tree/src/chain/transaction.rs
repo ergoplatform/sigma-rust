@@ -301,7 +301,7 @@ mod tests {
           "boxId": "9126af0675056b80d1fda7af9bf658464dbfa0b128afca7bf7dae18c27fe8456",
           "spendingProof": {
             "proofBytes": [],
-            "extension": {"values": {}}
+            "extension": {}
           }
         }
       ],

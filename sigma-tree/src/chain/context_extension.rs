@@ -16,6 +16,7 @@ use std::io;
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct ContextExtension {
     /// key-value pairs of variable id and it's value
+    #[cfg_attr(feature = "with-serde", serde(flatten))]
     pub values: HashMap<u8, Constant>,
 }
 
@@ -31,8 +32,10 @@ impl ContextExtension {
 impl SigmaSerializable for ContextExtension {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
         w.put_u8(self.values.len() as u8)?;
-        self.values.iter().try_for_each(|(idx, c)| {
-            w.put_u8(*idx)?;
+        let mut sorted_values: Vec<(&u8, &Constant)> = self.values.iter().collect();
+        sorted_values.sort_by_key(|(k, _)| *k);
+        sorted_values.iter().try_for_each(|(idx, c)| {
+            w.put_u8(**idx)?;
             c.sigma_serialize(w)
         })?;
         Ok(())
@@ -42,7 +45,8 @@ impl SigmaSerializable for ContextExtension {
         let values_count = r.get_u8()?;
         let mut values: HashMap<u8, Constant> = HashMap::with_capacity(values_count as usize);
         for _ in 0..values_count {
-            values.insert(r.get_u8()?, Constant::sigma_parse(r)?);
+            let idx = r.get_u8()?;
+            values.insert(idx, Constant::sigma_parse(r)?);
         }
         Ok(ContextExtension { values })
     }
