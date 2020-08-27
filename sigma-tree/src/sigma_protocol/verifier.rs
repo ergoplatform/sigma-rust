@@ -164,14 +164,14 @@ mod tests {
           "boxId": "f353ae1b2027e40ea318e7a2673ea4bbaa281b7acee518a0994c5cbdefb05f55",
           "spendingProof": {
             "proofBytes":[],
-            "extension": {"values": {}}
+            "extension": {}
           }
         },
         {
           "boxId": "56111b039b86f71004b768d2e8b4579f1d79e28e7a617fd5add57a5239498c26",
           "spendingProof": {
             "proofBytes":[],
-            "extension": {"values": {}}
+            "extension": {}
           }
         }
       ],

@@ -47,11 +47,8 @@ mod tests {
         type Parameters = ();
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            (vec(any::<u8>(), 0..100))
-                .prop_map(|v| Self {
-                    proof: v,
-                    extension: ContextExtension::empty(),
-                })
+            (vec(any::<u8>(), 0..100), any::<ContextExtension>())
+                .prop_map(|(proof, extension)| Self { proof, extension })
                 .boxed()
         }
 

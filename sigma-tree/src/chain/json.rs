@@ -100,6 +100,7 @@ mod tests {
     use super::super::ergo_box::*;
     use super::super::transaction::*;
     use super::*;
+    use crate::chain::ContextExtension;
     use proptest::prelude::*;
     use register::NonMandatoryRegisters;
 
@@ -140,5 +141,22 @@ mod tests {
         "#;
         let b: ergo_box::ErgoBoxFromJson = serde_json::from_str(json).unwrap();
         assert!(b.ergo_tree.proposition().is_ok())
+    }
+
+    #[test]
+    fn parse_empty_context_extension() {
+        let c: ContextExtension = serde_json::from_str("{}").unwrap();
+        assert_eq!(c, ContextExtension::empty());
+    }
+
+    #[test]
+    fn parse_context_extension() {
+        let json = r#"
+        {"1" :"05b0b5cad8e6dbaef44a", "3":"048ce5d4e505"}
+        "#;
+        let c: ContextExtension = serde_json::from_str(json).unwrap();
+        assert_eq!(c.values.len(), 2);
+        assert!(c.values.get(&1u8).is_some());
+        assert!(c.values.get(&3u8).is_some());
     }
 }
