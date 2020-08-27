@@ -28,7 +28,7 @@ impl Input {
         Input {
             box_id: self.box_id.clone(),
             spending_proof: ProverResult {
-                proof: ProofBytes::empty(),
+                proof: ProofBytes::Empty,
                 extension: self.spending_proof.extension.clone(),
             },
         }

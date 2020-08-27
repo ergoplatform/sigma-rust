@@ -13,7 +13,7 @@ use std::convert::{TryFrom, TryInto};
 /// Serialize proof tree signatures
 pub fn serialize_sig(tree: UncheckedTree) -> ProofBytes {
     match tree {
-        UncheckedTree::NoProof => ProofBytes::empty(),
+        UncheckedTree::NoProof => ProofBytes::Empty,
         UncheckedTree::UncheckedSigmaTree(UncheckedSigmaTree::UncheckedLeaf(
             UncheckedLeaf::UncheckedSchnorr(us),
         )) => {
@@ -21,7 +21,7 @@ pub fn serialize_sig(tree: UncheckedTree) -> ProofBytes {
             res.append(&mut us.challenge.into());
             let mut sm_bytes = us.second_message.z.to_bytes();
             res.append(&mut sm_bytes.as_mut_slice().to_vec());
-            ProofBytes(res)
+            ProofBytes::Some(res)
         }
         _ => todo!(),
     }
@@ -34,14 +34,12 @@ pub fn serialize_sig(tree: UncheckedTree) -> ProofBytes {
  */
 pub fn parse_sig_compute_challenges(
     exp: SigmaBoolean,
-    proof_bytes: &ProofBytes,
+    proof: &ProofBytes,
 ) -> Result<UncheckedTree, SigParsingError> {
-    if proof_bytes.0.is_empty() {
-        Err(SigParsingError::InvalidProofSize)
-    } else {
+    if let ProofBytes::Some(proof_bytes) = proof {
         // Verifier Step 2: Let e_0 be the challenge in the node here (e_0 is called "challenge" in the code)
         let chal_len = super::SOUNDNESS_BYTES;
-        let challenge = if let Some(bytes) = proof_bytes.0.get(..chal_len) {
+        let challenge = if let Some(bytes) = proof_bytes.get(..chal_len) {
             // safe since it should only be of the required size
             Challenge::from(FiatShamirHash::try_from(bytes).unwrap())
         } else {
@@ -50,7 +48,7 @@ pub fn parse_sig_compute_challenges(
         match exp {
             SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(dl)) => {
                 let scalar_bytes: &[u8; super::GROUP_SIZE] =
-                    match proof_bytes.0.get(chal_len..chal_len + super::GROUP_SIZE) {
+                    match proof_bytes.get(chal_len..chal_len + super::GROUP_SIZE) {
                         Some(v) => v.try_into().unwrap(), // safe, since it should only be of this size
                         None => return Err(SigParsingError::InvalidProofSize),
                     };
@@ -65,6 +63,8 @@ pub fn parse_sig_compute_challenges(
             }
             _ => todo!(),
         }
+    } else {
+        Err(SigParsingError::InvalidProofSize)
     }
 }
 

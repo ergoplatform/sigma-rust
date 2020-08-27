@@ -17,40 +17,53 @@ use serde::{Deserialize, Serialize};
     serde(into = "Base16EncodedBytes", try_from = "Base16DecodedBytes")
 )]
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
-pub struct ProofBytes(pub Vec<u8>);
-
-// TODO: enum with EmptyProof element?
-
-impl ProofBytes {
+pub enum ProofBytes {
     /// Empty proof
-    pub fn empty() -> ProofBytes {
-        ProofBytes(vec![])
-    }
+    Empty,
+    /// Non-empty proof
+    Some(Vec<u8>),
 }
 
 impl Into<Base16EncodedBytes> for ProofBytes {
     fn into(self) -> Base16EncodedBytes {
-        Base16EncodedBytes::new(&self.0)
+        match self {
+            ProofBytes::Empty => Base16EncodedBytes::new(vec![].as_slice()),
+            ProofBytes::Some(bytes) => Base16EncodedBytes::new(&bytes),
+        }
     }
 }
 
 impl From<Base16DecodedBytes> for ProofBytes {
     fn from(v: Base16DecodedBytes) -> Self {
-        ProofBytes(v.0)
+        if v.0.is_empty() {
+            ProofBytes::Empty
+        } else {
+            ProofBytes::Some(v.0)
+        }
     }
 }
 
 impl SigmaSerializable for ProofBytes {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
-        w.put_u16(self.0.len() as u16)?;
-        w.write_all(&self.0)?;
+        match self {
+            ProofBytes::Empty => w.put_u16(0)?,
+            ProofBytes::Some(bytes) => {
+                w.put_u16(bytes.len() as u16)?;
+                w.write_all(&bytes)?;
+            }
+        }
         Ok(())
     }
+
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
         let proof_len = r.get_u16()?;
-        let mut proof = vec![0; proof_len as usize];
-        r.read_exact(&mut proof)?;
-        Ok(ProofBytes(proof))
+        Ok(if proof_len == 0 {
+            ProofBytes::Empty
+        } else {
+            let mut bytes = vec![0; proof_len as usize];
+            r.read_exact(&mut bytes)?;
+            ProofBytes::Some(bytes)
+        })
     }
 }
 
@@ -90,7 +103,13 @@ mod tests {
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            (vec(any::<u8>(), 0..100)).prop_map(Self).boxed()
+            prop_oneof![
+                Just(ProofBytes::Empty),
+                (vec(any::<u8>(), 32..100))
+                    .prop_map(ProofBytes::Some)
+                    .boxed()
+            ]
+            .boxed()
         }
     }
 
