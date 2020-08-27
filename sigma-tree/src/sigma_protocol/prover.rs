@@ -304,7 +304,7 @@ mod tests {
         let prover = TestProver { secrets: vec![] };
         let res = prover.prove(&bool_true_tree, &Env::empty(), message.as_slice());
         assert!(res.is_ok());
-        assert!(res.unwrap().proof.is_empty());
+        assert!(res.unwrap().proof.0.is_empty());
     }
 
     #[test]
@@ -336,6 +336,6 @@ mod tests {
         };
         let res = prover.prove(&tree, &Env::empty(), message.as_slice());
         assert!(res.is_ok());
-        assert!(!res.unwrap().proof.is_empty());
+        assert!(!res.unwrap().proof.0.is_empty());
     }
 }

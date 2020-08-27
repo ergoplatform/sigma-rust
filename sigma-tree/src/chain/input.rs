@@ -1,7 +1,7 @@
 //! Transaction input
 use std::io;
 
-use super::{box_id::BoxId, prover_result::ProverResult};
+use super::{box_id::BoxId, prover_result::ProverResult, ProofBytes};
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, sigma_byte_writer::SigmaByteWrite, SerializationError,
     SigmaSerializable,
@@ -28,7 +28,7 @@ impl Input {
         Input {
             box_id: self.box_id.clone(),
             spending_proof: ProverResult {
-                proof: vec![],
+                proof: ProofBytes::empty(),
                 extension: self.spending_proof.extension.clone(),
             },
         }
