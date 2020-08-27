@@ -152,7 +152,7 @@ mod tests {
     #[test]
     fn parse_context_extension() {
         let json = r#"
-        {1 :"05b0b5cad8e6dbaef44a", 3:"048ce5d4e505"}
+        {"1" :"05b0b5cad8e6dbaef44a", "3":"048ce5d4e505"}
         "#;
         let c: ContextExtension = serde_json::from_str(json).unwrap();
         assert_eq!(c.values.len(), 2);
