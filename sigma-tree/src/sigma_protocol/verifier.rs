@@ -8,6 +8,7 @@ use super::{
     SigmaBoolean, UncheckedSigmaTree, UncheckedTree,
 };
 use crate::{
+    chain::ProofBytes,
     eval::{Env, EvalError, Evaluator},
     ErgoTree, ErgoTreeParsingError,
 };
@@ -52,7 +53,7 @@ pub trait Verifier: Evaluator {
         &self,
         tree: &ErgoTree,
         env: &Env,
-        proof: &[u8],
+        proof: &ProofBytes,
         message: &[u8],
     ) -> Result<VerificationResult, VerifierError> {
         let expr = tree.proposition()?;
@@ -61,7 +62,7 @@ pub trait Verifier: Evaluator {
             SigmaBoolean::TrivialProp(b) => b,
             sb => {
                 // Perform Verifier Steps 1-3
-                match parse_sig_compute_challenges(sb, proof.to_vec()) {
+                match parse_sig_compute_challenges(sb, proof) {
                     Err(_) => false,
                     Ok(UncheckedTree::UncheckedSigmaTree(sp)) => {
                         // Perform Verifier Step 4
@@ -146,7 +147,7 @@ mod tests {
             let proof = res.unwrap().proof;
 
             let verifier = TestVerifier;
-            let ver_res = verifier.verify(&tree, &Env::empty(), proof.as_slice(), message.as_slice());
+            let ver_res = verifier.verify(&tree, &Env::empty(), &proof, message.as_slice());
             prop_assert_eq!(ver_res.unwrap().result, true);
         }
     }
@@ -154,8 +155,7 @@ mod tests {
     #[test]
     #[cfg(feature = "with-serde")]
     fn test_proof_from_mainnet() {
-        use crate::chain::{AddressEncoder, Base16DecodedBytes, NetworkPrefix, Transaction};
-        use std::convert::TryFrom;
+        use crate::chain::{AddressEncoder, NetworkPrefix, Transaction};
         let tx_json = r#"
          {
       "id": "0e6acf3f18b95bdc5bb1b060baa1eafe53bd89fb08b0e86d6cc00fbdd9e43189",
@@ -163,14 +163,14 @@ mod tests {
         {
           "boxId": "f353ae1b2027e40ea318e7a2673ea4bbaa281b7acee518a0994c5cbdefb05f55",
           "spendingProof": {
-            "proofBytes":[],
+            "proofBytes":"",
             "extension": {}
           }
         },
         {
           "boxId": "56111b039b86f71004b768d2e8b4579f1d79e28e7a617fd5add57a5239498c26",
           "spendingProof": {
-            "proofBytes":[],
+            "proofBytes": "6542a8b8914b103dcbc36d77da3bd58e42ca35755a5190b507764b0bae330b924ce86acfa1b5f9bfc8216c3c4628738e8274d902bea06b48",
             "extension": {}
           }
         }
@@ -232,7 +232,7 @@ mod tests {
 
         let ergo_tree = decoded_addr.script().unwrap();
 
-        let spending_proof_input1 = Base16DecodedBytes::try_from("6542a8b8914b103dcbc36d77da3bd58e42ca35755a5190b507764b0bae330b924ce86acfa1b5f9bfc8216c3c4628738e8274d902bea06b48".to_string()).unwrap();
+        // let spending_proof_input1 = Base16DecodedBytes::try_from("6542a8b8914b103dcbc36d77da3bd58e42ca35755a5190b507764b0bae330b924ce86acfa1b5f9bfc8216c3c4628738e8274d902bea06b48".to_string()).unwrap();
         let tx: Transaction = serde_json::from_str(tx_json).unwrap();
         let tx_id_str: String = tx.id().into();
         assert_eq!(
@@ -244,7 +244,7 @@ mod tests {
         let ver_res = verifier.verify(
             &ergo_tree,
             &Env::empty(),
-            spending_proof_input1.0.as_slice(),
+            &tx.inputs.get(1).unwrap().spending_proof.proof,
             message.as_slice(),
         );
         assert_eq!(ver_res.unwrap().result, true);

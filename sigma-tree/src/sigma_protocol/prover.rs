@@ -288,6 +288,7 @@ mod tests {
     use super::*;
     use crate::{
         ast::{Constant, ConstantVal, Expr},
+        chain::ProofBytes,
         sigma_protocol::DlogProverInput,
         types::SType,
     };
@@ -304,7 +305,7 @@ mod tests {
         let prover = TestProver { secrets: vec![] };
         let res = prover.prove(&bool_true_tree, &Env::empty(), message.as_slice());
         assert!(res.is_ok());
-        assert!(res.unwrap().proof.is_empty());
+        assert_eq!(res.unwrap().proof, ProofBytes::Empty);
     }
 
     #[test]
@@ -336,6 +337,6 @@ mod tests {
         };
         let res = prover.prove(&tree, &Env::empty(), message.as_slice());
         assert!(res.is_ok());
-        assert!(!res.unwrap().proof.is_empty());
+        assert_ne!(res.unwrap().proof, ProofBytes::Empty);
     }
 }

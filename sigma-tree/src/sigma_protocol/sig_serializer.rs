@@ -6,13 +6,14 @@ use super::{
     Challenge, GroupSizedBytes, SigmaBoolean, SigmaProofOfKnowledgeTree, UncheckedSigmaTree,
     UncheckedTree,
 };
+use crate::chain::ProofBytes;
 use k256::Scalar;
 use std::convert::{TryFrom, TryInto};
 
 /// Serialize proof tree signatures
-pub fn serialize_sig(tree: UncheckedTree) -> Vec<u8> {
+pub fn serialize_sig(tree: UncheckedTree) -> ProofBytes {
     match tree {
-        UncheckedTree::NoProof => vec![],
+        UncheckedTree::NoProof => ProofBytes::Empty,
         UncheckedTree::UncheckedSigmaTree(UncheckedSigmaTree::UncheckedLeaf(
             UncheckedLeaf::UncheckedSchnorr(us),
         )) => {
@@ -20,7 +21,7 @@ pub fn serialize_sig(tree: UncheckedTree) -> Vec<u8> {
             res.append(&mut us.challenge.into());
             let mut sm_bytes = us.second_message.z.to_bytes();
             res.append(&mut sm_bytes.as_mut_slice().to_vec());
-            res
+            ProofBytes::Some(res)
         }
         _ => todo!(),
     }
@@ -33,11 +34,9 @@ pub fn serialize_sig(tree: UncheckedTree) -> Vec<u8> {
  */
 pub fn parse_sig_compute_challenges(
     exp: SigmaBoolean,
-    proof_bytes: Vec<u8>,
+    proof: &ProofBytes,
 ) -> Result<UncheckedTree, SigParsingError> {
-    if proof_bytes.is_empty() {
-        Err(SigParsingError::InvalidProofSize)
-    } else {
+    if let ProofBytes::Some(proof_bytes) = proof {
         // Verifier Step 2: Let e_0 be the challenge in the node here (e_0 is called "challenge" in the code)
         let chal_len = super::SOUNDNESS_BYTES;
         let challenge = if let Some(bytes) = proof_bytes.get(..chal_len) {
@@ -64,6 +63,8 @@ pub fn parse_sig_compute_challenges(
             }
             _ => todo!(),
         }
+    } else {
+        Err(SigParsingError::InvalidProofSize)
     }
 }
 
