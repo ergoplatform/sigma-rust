@@ -3,11 +3,16 @@
 use super::{
     super::{
         data_input::DataInput, digest32::blake2b256_hash, ergo_box::ErgoBoxCandidate, input::Input,
-        ProofBytes::Empty, ProverResult, UnsignedInput,
     },
     Transaction, TxId,
 };
-use crate::serialization::SigmaSerializable;
+use crate::{
+    chain::{
+        input::UnsignedInput,
+        prover_result::{ProofBytes, ProverResult},
+    },
+    serialization::SigmaSerializable,
+};
 
 /// Unsigned (inputs without proofs) transaction
 #[derive(PartialEq, Debug, Clone)]
@@ -56,7 +61,7 @@ impl UnsignedTransaction {
             .map(|ui| Input {
                 box_id: ui.box_id.clone(),
                 spending_proof: ProverResult {
-                    proof: Empty,
+                    proof: ProofBytes::Empty,
                     extension: ui.extension.clone(),
                 },
             })

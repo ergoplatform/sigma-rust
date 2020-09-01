@@ -1,5 +1,6 @@
 //! Ergo transaction
 
+pub mod signing;
 pub mod unsigned;
 
 #[cfg(feature = "with-serde")]
@@ -7,18 +8,14 @@ use super::json;
 use super::{
     data_input::DataInput,
     digest32::{blake2b256_hash, Digest32},
+    ergo_box::ErgoBox,
     ergo_box::ErgoBoxCandidate,
     input::Input,
     token::TokenId,
-    ErgoBox,
 };
-use crate::{
-    eval::Env,
-    serialization::{
-        sigma_byte_reader::SigmaByteRead, sigma_byte_writer::SigmaByteWrite, SerializationError,
-        SigmaSerializable,
-    },
-    sigma_protocol::prover::{Prover, ProverError},
+use crate::serialization::{
+    sigma_byte_reader::SigmaByteRead, sigma_byte_writer::SigmaByteWrite, SerializationError,
+    SigmaSerializable,
 };
 use indexmap::IndexSet;
 #[cfg(test)]
@@ -31,7 +28,6 @@ use std::io;
 use std::iter::FromIterator;
 #[cfg(feature = "with-serde")]
 use thiserror::Error;
-use unsigned::UnsignedTransaction;
 
 /// Transaction id (ModifierId in sigmastate)
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
@@ -261,57 +257,6 @@ impl TryFrom<json::transaction::TransactionJson> for Transaction {
     }
 }
 
-/// Errors on transaction signing
-pub enum TxSigningError {
-    /// error on proving an input
-    ProverError(ProverError, usize),
-    /// failed to find an input in boxes_to_spend
-    InputBoxNotFound(usize),
-}
-
-/// Blockchain state (last headers, etc.)
-pub struct ErgoStateContext();
-
-/// Signs a transaction (generating proofs for inputs)
-pub fn sign_transaction(
-    prover: Box<dyn Prover>,
-    tx: UnsignedTransaction,
-    boxes_to_spend: Vec<ErgoBox>,
-    _data_boxes: Vec<ErgoBox>,
-    _state_context: ErgoStateContext,
-) -> Result<Transaction, TxSigningError> {
-    let message_to_sign = tx.bytes_to_sign();
-    let mut signed_inputs: Vec<Input> = vec![];
-    boxes_to_spend
-        .iter()
-        .enumerate()
-        .try_for_each(|(idx, input_box)| {
-            if let Some(unsigned_input) = tx.inputs.get(idx) {
-                prover
-                    .prove(
-                        &input_box.ergo_tree,
-                        &Env::empty(),
-                        message_to_sign.as_slice(),
-                    )
-                    .map(|proof| {
-                        let input = Input {
-                            box_id: unsigned_input.box_id.clone(),
-                            spending_proof: proof,
-                        };
-                        signed_inputs.push(input);
-                    })
-                    .map_err(|e| TxSigningError::ProverError(e, idx))
-            } else {
-                Err(TxSigningError::InputBoxNotFound(idx))
-            }
-        })?;
-    Ok(Transaction::new(
-        signed_inputs,
-        tx.data_inputs,
-        tx.output_candidates,
-    ))
-}
-
 #[cfg(test)]
 pub mod tests {
     #![allow(unused_imports)]
@@ -358,27 +303,6 @@ pub mod tests {
         fn tx_id_ser_roundtrip(v in any::<TxId>()) {
             prop_assert_eq![sigma_serialize_roundtrip(&v), v];
         }
-
-        // #[test]
-        // fn test_tx_signing(secret in any::<DlogProverInput>()) {
-            // TODO: generage a prover with multiple keys, use keys in inputs, sign the tx and verify signatures
-        //     let pk = secret.public_image();
-        //     let tree = ErgoTree::from(Rc::new(Expr::Const(Constant {
-        //         tpe: SType::SSigmaProp,
-        //         v: pk.into(),
-        //     })));
-
-        //     let prover = TestProver {
-        //         secrets: vec![PrivateInput::DlogProverInput(secret)],
-        //     };
-        //     let res = prover.prove(&tree, &Env::empty(), message.as_slice());
-        //     let proof = res.unwrap().proof;
-
-        //     let verifier = TestVerifier;
-        //     let ver_res = verifier.verify(&tree, &Env::empty(), &proof, message.as_slice());
-        //     prop_assert_eq!(ver_res.unwrap().result, true);
-        //
-        // }
 
     }
 

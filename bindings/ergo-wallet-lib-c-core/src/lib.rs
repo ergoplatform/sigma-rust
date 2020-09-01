@@ -13,10 +13,10 @@
 mod error;
 pub use error::*;
 
-use chain::{AddressEncoder, NetworkPrefix};
+use chain::address::{AddressEncoder, NetworkPrefix};
 use sigma_tree::chain;
 
-pub struct Address(chain::Address);
+pub struct Address(chain::address::Address);
 pub type AddressPtr = *mut Address;
 
 pub unsafe fn address_from_testnet(

@@ -8,7 +8,7 @@ use super::{
     SigmaBoolean, UncheckedSigmaTree, UncheckedTree,
 };
 use crate::{
-    chain::ProofBytes,
+    chain::prover_result::ProofBytes,
     eval::{Env, EvalError, Evaluator},
     ErgoTree, ErgoTreeParsingError,
 };
@@ -121,6 +121,7 @@ mod tests {
     use super::*;
     use crate::{
         ast::{Constant, Expr},
+        chain::transaction::Transaction,
         sigma_protocol::{
             prover::{Prover, TestProver},
             DlogProverInput, PrivateInput,
@@ -155,7 +156,7 @@ mod tests {
     #[test]
     #[cfg(feature = "with-serde")]
     fn test_proof_from_mainnet() {
-        use crate::chain::{AddressEncoder, NetworkPrefix, Transaction};
+        use crate::chain::address::{AddressEncoder, NetworkPrefix};
         let tx_json = r#"
          {
       "id": "0e6acf3f18b95bdc5bb1b060baa1eafe53bd89fb08b0e86d6cc00fbdd9e43189",

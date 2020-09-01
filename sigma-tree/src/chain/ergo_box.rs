@@ -8,7 +8,8 @@ use super::json;
 use super::{
     digest32::blake2b256_hash,
     token::{TokenAmount, TokenId},
-    BoxId, TxId,
+    transaction::TxId,
+    BoxId,
 };
 use crate::{
     ergo_tree::ErgoTree,

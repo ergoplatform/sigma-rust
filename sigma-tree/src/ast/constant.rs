@@ -1,6 +1,6 @@
 use crate::chain::{Base16DecodedBytes, Base16EncodedBytes};
 use crate::{
-    chain::ErgoBox,
+    chain::ergo_box::ErgoBox,
     serialization::{op_code::OpCode, SerializationError, SigmaSerializable},
     sigma_protocol::{dlog_group::EcPoint, sigma_boolean::SigmaProp},
     types::{LiftIntoSType, SType},

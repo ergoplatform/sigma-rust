@@ -40,7 +40,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_state_context_delete(
     todo!()
 }
 
-pub struct ErgoBoxCandidate(chain::ErgoBoxCandidate);
+pub struct ErgoBoxCandidate(chain::ergo_box::ErgoBoxCandidate);
 pub type ErgoBoxCandidatePtr = *mut ErgoBoxCandidate;
 
 #[no_mangle]
@@ -75,7 +75,7 @@ pub extern "C" fn ergo_wallet_address_delete(address: AddressPtr) {
     address_delete(address)
 }
 
-pub struct UnspentBoxes(Vec<chain::ErgoBoxCandidate>);
+pub struct UnspentBoxes(Vec<chain::ergo_box::ErgoBoxCandidate>);
 pub type UnspentBoxesPtr = *mut UnspentBoxes;
 
 #[no_mangle]
@@ -91,10 +91,10 @@ pub extern "C" fn ergo_wallet_unspent_boxes_delete(_unspent_boxes: UnspentBoxesP
     todo!()
 }
 
-pub struct DataInputBoxes(Vec<chain::ErgoBoxCandidate>);
+pub struct DataInputBoxes(Vec<chain::ergo_box::ErgoBoxCandidate>);
 pub type DataInputBoxesPtr = *mut DataInputBoxes;
 
-pub struct OutputBoxes(Vec<chain::ErgoBoxCandidate>);
+pub struct OutputBoxes(Vec<chain::ergo_box::ErgoBoxCandidate>);
 pub type OutputBoxesPtr = *mut OutputBoxes;
 
 #[no_mangle]
@@ -143,7 +143,7 @@ pub extern "C" fn ergo_wallet_wallet_new_signed_tx(
     todo!()
 }
 
-pub struct Transaction(chain::Transaction);
+pub struct Transaction(chain::transaction::Transaction);
 pub type TransactionPtr = *mut Transaction;
 
 #[no_mangle]

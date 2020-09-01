@@ -39,7 +39,12 @@ pub mod ergo_tree {
 
 pub mod ergo_box {
     use crate::{
-        chain::{box_value::BoxValue, register::NonMandatoryRegisters, BoxId, TokenAmount, TxId},
+        chain::{
+            ergo_box::{box_value::BoxValue, register::NonMandatoryRegisters},
+            token::TokenAmount,
+            transaction::TxId,
+            BoxId,
+        },
         ErgoTree,
     };
     use serde::Deserialize;
@@ -75,7 +80,7 @@ pub mod ergo_box {
 }
 
 pub mod transaction {
-    use crate::chain::{data_input::DataInput, ErgoBox, Input, TxId};
+    use crate::chain::{data_input::DataInput, ergo_box::ErgoBox, input::Input, transaction::TxId};
     use serde::{Deserialize, Serialize};
 
     #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -100,7 +105,7 @@ mod tests {
     use super::super::ergo_box::*;
     use super::super::transaction::*;
     use super::*;
-    use crate::chain::ContextExtension;
+    use crate::chain::context_extension::ContextExtension;
     use proptest::prelude::*;
     use register::NonMandatoryRegisters;
 

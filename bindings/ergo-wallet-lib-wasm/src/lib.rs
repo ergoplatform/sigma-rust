@@ -14,7 +14,6 @@ use sigma_tree::chain;
 
 mod utils;
 
-use chain::box_value::BoxValue;
 use wasm_bindgen::prelude::*;
 
 /**
@@ -61,13 +60,13 @@ use wasm_bindgen::prelude::*;
  *
  */
 #[wasm_bindgen]
-pub struct Address(chain::Address);
+pub struct Address(chain::address::Address);
 
 #[wasm_bindgen]
 impl Address {
     /// Decode (base58) testnet address from string
     pub fn from_testnet_str(s: &str) -> Result<Address, JsValue> {
-        chain::AddressEncoder::new(chain::NetworkPrefix::Testnet)
+        chain::address::AddressEncoder::new(chain::address::NetworkPrefix::Testnet)
             .parse_address_from_str(s)
             .map(Address)
             .map_err(|e| JsValue::from_str(&format!("{}", e)))
@@ -89,7 +88,7 @@ impl SecretKey {
 
 /// Transaction inputs, array of ErgoBoxCandidate
 #[wasm_bindgen]
-pub struct UnspentBoxes(Vec<chain::ErgoBoxCandidate>);
+pub struct UnspentBoxes(Vec<chain::ergo_box::ErgoBoxCandidate>);
 
 #[wasm_bindgen]
 impl UnspentBoxes {
@@ -105,7 +104,7 @@ impl UnspentBoxes {
 ///
 /// Transaction data inputs, array of ErgoBoxCandidate
 #[wasm_bindgen]
-pub struct TxDataInputs(Vec<chain::ErgoBoxCandidate>);
+pub struct TxDataInputs(Vec<chain::ergo_box::ErgoBoxCandidate>);
 
 #[wasm_bindgen]
 impl TxDataInputs {
@@ -121,7 +120,7 @@ impl TxDataInputs {
 
 /// Transaction outputs, array of ErgoBoxCandidate
 #[wasm_bindgen]
-pub struct TxOutputCandidates(Vec<chain::ErgoBoxCandidate>);
+pub struct TxOutputCandidates(Vec<chain::ergo_box::ErgoBoxCandidate>);
 
 #[wasm_bindgen]
 impl TxOutputCandidates {
@@ -150,7 +149,7 @@ impl TxOutputCandidates {
 /// A transaction is unsealing a box. As a box can not be open twice, any further valid transaction
 /// can not be linked to the same box.
 #[wasm_bindgen]
-pub struct ErgoBoxCandidate(chain::ErgoBoxCandidate);
+pub struct ErgoBoxCandidate(chain::ergo_box::ErgoBoxCandidate);
 
 #[wasm_bindgen]
 impl ErgoBoxCandidate {
@@ -164,8 +163,8 @@ impl ErgoBoxCandidate {
     pub fn new(value: u32, creation_height: u32, contract: Contract) -> ErgoBoxCandidate {
         // value is u32, because u64 makes in BigInt in JS
         let ergo_tree = contract.0.get_ergo_tree();
-        let b = chain::ErgoBoxCandidate::new(
-            BoxValue::new(value as u64).expect("value out of bounds"),
+        let b = chain::ergo_box::ErgoBoxCandidate::new(
+            chain::ergo_box::box_value::BoxValue::new(value as u64).expect("value out of bounds"),
             ergo_tree,
             creation_height,
         );
@@ -180,13 +179,13 @@ impl ErgoBoxCandidate {
 
 /// Defines the contract(script) that will be guarding box contents
 #[wasm_bindgen]
-pub struct Contract(chain::Contract);
+pub struct Contract(chain::contract::Contract);
 
 #[wasm_bindgen]
 impl Contract {
     /// create new contract that allow spending of the guarded box by a given recipient ([`Address`])
     pub fn pay_to_address(recipient: Address) -> Result<Contract, JsValue> {
-        chain::Contract::pay_to_address(recipient.0)
+        chain::contract::Contract::pay_to_address(recipient.0)
             .map_err(|e| JsValue::from_str(&format!("{}", e)))
             .map(Contract)
     }
@@ -203,7 +202,7 @@ impl Contract {
  * collected into a block.
  */
 #[wasm_bindgen]
-pub struct Transaction(chain::Transaction);
+pub struct Transaction(chain::transaction::Transaction);
 
 #[wasm_bindgen]
 impl Transaction {

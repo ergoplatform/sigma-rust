@@ -1,7 +1,11 @@
 //! Transaction input
 use std::io;
 
-use super::{box_id::BoxId, prover_result::ProverResult, ContextExtension, ProofBytes};
+use super::{
+    box_id::BoxId,
+    context_extension::ContextExtension,
+    prover_result::{ProofBytes, ProverResult},
+};
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, sigma_byte_writer::SigmaByteWrite, SerializationError,
     SigmaSerializable,

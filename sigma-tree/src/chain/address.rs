@@ -1,3 +1,5 @@
+//! Address types
+
 use super::digest32;
 use crate::{
     ast::Expr,

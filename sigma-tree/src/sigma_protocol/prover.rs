@@ -9,7 +9,7 @@ use super::{
     UncheckedSigmaTree, UncheckedTree, UnprovenLeaf, UnprovenSchnorr, UnprovenTree,
 };
 use crate::{
-    chain::{ContextExtension, ProverResult},
+    chain::{context_extension::ContextExtension, prover_result::ProverResult},
     eval::{Env, EvalError, Evaluator},
     ErgoTree, ErgoTreeParsingError,
 };
@@ -288,7 +288,7 @@ mod tests {
     use super::*;
     use crate::{
         ast::{Constant, ConstantVal, Expr},
-        chain::ProofBytes,
+        chain::prover_result::ProofBytes,
         sigma_protocol::DlogProverInput,
         types::SType,
     };

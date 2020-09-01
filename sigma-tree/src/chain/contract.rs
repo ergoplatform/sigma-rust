@@ -1,6 +1,6 @@
 //! Ergo contract
 
-use super::Address;
+use super::address::Address;
 use crate::{serialization::SerializationError, ErgoTree};
 
 /// High-level wrapper for ErgoTree

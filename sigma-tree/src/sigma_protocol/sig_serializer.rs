@@ -6,7 +6,8 @@ use super::{
     Challenge, GroupSizedBytes, SigmaBoolean, SigmaProofOfKnowledgeTree, UncheckedSigmaTree,
     UncheckedTree,
 };
-use crate::chain::ProofBytes;
+
+use crate::chain::prover_result::ProofBytes;
 use k256::Scalar;
 use std::convert::{TryFrom, TryInto};
 
