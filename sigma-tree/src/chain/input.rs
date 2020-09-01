@@ -1,13 +1,23 @@
 //! Transaction input
 use std::io;
 
-use super::{box_id::BoxId, prover_result::ProverResult, ProofBytes};
+use super::{box_id::BoxId, prover_result::ProverResult, ContextExtension, ProofBytes};
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, sigma_byte_writer::SigmaByteWrite, SerializationError,
     SigmaSerializable,
 };
 #[cfg(feature = "with-serde")]
 use serde::{Deserialize, Serialize};
+
+/// Unsigned (without proofs) transaction input
+#[derive(PartialEq, Debug, Clone)]
+#[cfg_attr(test, derive(proptest_derive::Arbitrary))]
+pub struct UnsignedInput {
+    /// id of the box to spent
+    pub box_id: BoxId,
+    /// user-defined variables to be put into context
+    pub extension: ContextExtension,
+}
 
 /// Fully signed transaction input
 #[derive(PartialEq, Debug, Clone)]

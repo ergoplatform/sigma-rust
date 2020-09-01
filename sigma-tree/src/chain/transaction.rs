@@ -9,10 +9,16 @@ use super::{
     input::Input,
     token::TokenId,
     ErgoBox,
+    ProofBytes::Empty,
+    ProverResult, UnsignedInput,
 };
-use crate::serialization::{
-    sigma_byte_reader::SigmaByteRead, sigma_byte_writer::SigmaByteWrite, SerializationError,
-    SigmaSerializable,
+use crate::{
+    eval::Env,
+    serialization::{
+        sigma_byte_reader::SigmaByteRead, sigma_byte_writer::SigmaByteWrite, SerializationError,
+        SigmaSerializable,
+    },
+    sigma_protocol::prover::{Prover, ProverError},
 };
 use indexmap::IndexSet;
 #[cfg(test)]
@@ -53,6 +59,67 @@ impl SigmaSerializable for TxId {
 impl Into<String> for TxId {
     fn into(self) -> String {
         self.0.into()
+    }
+}
+
+/// Unsigned (inputs without proofs) transaction
+#[derive(PartialEq, Debug, Clone)]
+pub struct UnsignedTransaction {
+    tx_id: TxId,
+    /// unsigned inputs, that will be spent by this transaction.
+    pub inputs: Vec<UnsignedInput>,
+    /// inputs, that are not going to be spent by transaction, but will be reachable from inputs
+    /// scripts. `dataInputs` scripts will not be executed, thus their scripts costs are not
+    /// included in transaction cost and they do not contain spending proofs.
+    pub data_inputs: Vec<DataInput>,
+    /// box candidates to be created by this transaction
+    pub output_candidates: Vec<ErgoBoxCandidate>,
+}
+
+impl UnsignedTransaction {
+    /// Creates new transation
+    pub fn new(
+        inputs: Vec<UnsignedInput>,
+        data_inputs: Vec<DataInput>,
+        output_candidates: Vec<ErgoBoxCandidate>,
+    ) -> UnsignedTransaction {
+        let tx_to_sign = UnsignedTransaction {
+            tx_id: TxId::zero(),
+            inputs,
+            data_inputs,
+            output_candidates,
+        };
+        let tx_id = tx_to_sign.calc_tx_id();
+        UnsignedTransaction {
+            tx_id,
+            ..tx_to_sign
+        }
+    }
+
+    fn calc_tx_id(&self) -> TxId {
+        let bytes = self.bytes_to_sign();
+        TxId(blake2b256_hash(&bytes))
+    }
+
+    /// message to be signed by the [`Prover`] (serialized tx)
+    pub fn bytes_to_sign(&self) -> Vec<u8> {
+        let empty_proofs_input = self
+            .inputs
+            .iter()
+            .map(|ui| Input {
+                box_id: ui.box_id.clone(),
+                spending_proof: ProverResult {
+                    proof: Empty,
+                    extension: ui.extension.clone(),
+                },
+            })
+            .collect();
+        let tx = Transaction::new(
+            empty_proofs_input,
+            self.data_inputs.clone(),
+            self.output_candidates.clone(),
+        );
+        tx.sigma_serialise_bytes()
     }
 }
 
@@ -254,12 +321,75 @@ impl TryFrom<json::transaction::TransactionJson> for Transaction {
     }
 }
 
-#[cfg(test)]
-mod tests {
+/// Errors on transaction signing
+pub enum TxSigningError {
+    /// error on proving an input
+    ProverError(ProverError, usize),
+    /// failed to find an input in boxes_to_spend
+    InputBoxNotFound(usize),
+}
 
+/// Blockchain state (last headers, etc.)
+pub struct ErgoStateContext();
+
+/// Signs a transaction (generating proofs for inputs)
+pub fn sign_transaction(
+    prover: Box<dyn Prover>,
+    tx: UnsignedTransaction,
+    boxes_to_spend: Vec<ErgoBox>,
+    _data_boxes: Vec<ErgoBox>,
+    _state_context: ErgoStateContext,
+) -> Result<Transaction, TxSigningError> {
+    let message_to_sign = tx.bytes_to_sign();
+    let mut signed_inputs: Vec<Input> = vec![];
+    boxes_to_spend
+        .iter()
+        .enumerate()
+        .try_for_each(|(idx, input_box)| {
+            if let Some(unsigned_input) = tx.inputs.get(idx) {
+                prover
+                    .prove(
+                        &input_box.ergo_tree,
+                        &Env::empty(),
+                        message_to_sign.as_slice(),
+                    )
+                    .map(|proof| {
+                        let input = Input {
+                            box_id: unsigned_input.box_id.clone(),
+                            spending_proof: proof,
+                        };
+                        signed_inputs.push(input);
+                    })
+                    .map_err(|e| TxSigningError::ProverError(e, idx))
+            } else {
+                Err(TxSigningError::InputBoxNotFound(idx))
+            }
+        })?;
+    Ok(Transaction::new(
+        signed_inputs,
+        tx.data_inputs,
+        tx.output_candidates,
+    ))
+}
+
+#[cfg(test)]
+pub mod tests {
+    #![allow(unused_imports)]
     use super::*;
     use crate::serialization::sigma_serialize_roundtrip;
-    use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
+    use crate::{
+        ast::{Constant, Expr},
+        sigma_protocol::{
+            prover::{Prover, TestProver},
+            verifier::{TestVerifier, Verifier},
+            DlogProverInput, PrivateInput,
+        },
+        types::SType,
+        ErgoTree,
+    };
+    use proptest::prelude::*;
+    use proptest::{arbitrary::Arbitrary, collection::vec};
+    use std::rc::Rc;
 
     impl Arbitrary for Transaction {
         type Parameters = ();
@@ -267,6 +397,21 @@ mod tests {
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             (
                 vec(any::<Input>(), 1..10),
+                vec(any::<DataInput>(), 0..10),
+                vec(any::<ErgoBoxCandidate>(), 1..10),
+            )
+                .prop_map(|(inputs, data_inputs, outputs)| Self::new(inputs, data_inputs, outputs))
+                .boxed()
+        }
+        type Strategy = BoxedStrategy<Self>;
+    }
+
+    impl Arbitrary for UnsignedTransaction {
+        type Parameters = ();
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            (
+                vec(any::<UnsignedInput>(), 1..10),
                 vec(any::<DataInput>(), 0..10),
                 vec(any::<ErgoBoxCandidate>(), 1..10),
             )
@@ -288,6 +433,33 @@ mod tests {
         fn tx_id_ser_roundtrip(v in any::<TxId>()) {
             prop_assert_eq![sigma_serialize_roundtrip(&v), v];
         }
+
+        #[test]
+        fn test_unsigned_tx_bytes_to_sign(v in any::<UnsignedTransaction>()) {
+            prop_assert!(!v.bytes_to_sign().is_empty());
+        }
+
+        // #[test]
+        // fn test_tx_signing(secret in any::<DlogProverInput>()) {
+            // TODO: generage a prover with multiple keys, use keys in inputs, sign the tx and verify signatures
+        //     let pk = secret.public_image();
+        //     let tree = ErgoTree::from(Rc::new(Expr::Const(Constant {
+        //         tpe: SType::SSigmaProp,
+        //         v: pk.into(),
+        //     })));
+
+        //     let prover = TestProver {
+        //         secrets: vec![PrivateInput::DlogProverInput(secret)],
+        //     };
+        //     let res = prover.prove(&tree, &Env::empty(), message.as_slice());
+        //     let proof = res.unwrap().proof;
+
+        //     let verifier = TestVerifier;
+        //     let ver_res = verifier.verify(&tree, &Env::empty(), &proof, message.as_slice());
+        //     prop_assert_eq!(ver_res.unwrap().result, true);
+        //
+        // }
+
     }
 
     #[test]

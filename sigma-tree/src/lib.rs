@@ -15,12 +15,12 @@
 mod big_integer;
 mod constants;
 mod ergo_tree;
-mod eval;
 pub mod serialization;
 mod types;
 
 pub mod ast;
 pub mod chain;
+pub mod eval;
 pub mod sigma_protocol;
 
 pub use ergo_tree::*;
