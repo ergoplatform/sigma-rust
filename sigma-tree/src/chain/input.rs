@@ -4,6 +4,7 @@ use std::io;
 use super::{
     box_id::BoxId,
     context_extension::ContextExtension,
+    ergo_box::ErgoBox,
     prover_result::{ProofBytes, ProverResult},
 };
 use crate::serialization::{
@@ -21,6 +22,15 @@ pub struct UnsignedInput {
     pub box_id: BoxId,
     /// user-defined variables to be put into context
     pub extension: ContextExtension,
+}
+
+impl From<ErgoBox> for UnsignedInput {
+    fn from(b: ErgoBox) -> Self {
+        UnsignedInput {
+            box_id: b.box_id(),
+            extension: ContextExtension::empty(),
+        }
+    }
 }
 
 /// Fully signed transaction input

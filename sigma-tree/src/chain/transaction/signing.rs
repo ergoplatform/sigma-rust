@@ -59,31 +59,57 @@ pub fn sign_transaction(
 mod tests {
     #![allow(unused_imports)]
     use super::*;
+    use proptest::prelude::*;
     use proptest::{arbitrary::Arbitrary, collection::vec};
-    use std::rc::Rc;
 
-    // proptest! {
+    use crate::{
+        ast::{Constant, Expr},
+        chain::{
+            ergo_box::{register::NonMandatoryRegisters, ErgoBoxCandidate},
+            input::UnsignedInput,
+            transaction::TxId,
+        },
+        sigma_protocol::{
+            prover::TestProver, verifier::TestVerifier, DlogProverInput, PrivateInput,
+        },
+        types::SType,
+        ErgoTree,
+    };
+    use std::{convert::TryInto, rc::Rc};
 
-    // #[test]
-    // fn test_tx_signing(secret in any::<DlogProverInput>()) {
-    // TODO: generage a prover with multiple keys, use keys in inputs, sign the tx and verify signatures
-    //     let pk = secret.public_image();
-    //     let tree = ErgoTree::from(Rc::new(Expr::Const(Constant {
-    //         tpe: SType::SSigmaProp,
-    //         v: pk.into(),
-    //     })));
+    proptest! {
 
-    //     let prover = TestProver {
-    //         secrets: vec![PrivateInput::DlogProverInput(secret)],
-    //     };
-    //     let res = prover.prove(&tree, &Env::empty(), message.as_slice());
-    //     let proof = res.unwrap().proof;
+        #[test]
+        fn test_tx_signing(secrets in vec(any::<DlogProverInput>(), 1..10)) {
+            // TODO: generage a prover with multiple keys, use keys in inputs, sign the tx and verify signatures
+            let boxes_to_spend: Vec<ErgoBox> = secrets.iter().map(|secret|{
+                let pk = secret.public_image();
+                let tree = ErgoTree::from(Rc::new(Expr::Const(Constant {
+                    tpe: SType::SSigmaProp,
+                    v: pk.into(),
+                })));
+                ErgoBox::new(1u64.try_into().unwrap(), tree, vec![], NonMandatoryRegisters::empty(), 0, TxId::zero(), 0)
+            }).collect();
 
-    //     let verifier = TestVerifier;
-    //     let ver_res = verifier.verify(&tree, &Env::empty(), &proof, message.as_slice());
-    //     prop_assert_eq!(ver_res.unwrap().result, true);
-    //
-    // }
+            let prover = TestProver {
+                secrets: secrets.clone().into_iter().map(PrivateInput::DlogProverInput).collect(),
+            };
+            let inputs = boxes_to_spend.clone().into_iter().map(UnsignedInput::from).collect();
+            let ergo_tree = ErgoTree::from(Rc::new(Expr::Const(Constant {
+                    tpe: SType::SSigmaProp,
+                    v: secrets.get(0).unwrap().public_image().into(),
+                })));
+            let output_candidates = vec![ErgoBoxCandidate::new(1u64.try_into().unwrap(), ergo_tree, 0)];
+            let tx = UnsignedTransaction::new(inputs, vec![], output_candidates);
+            let res = sign_transaction(Box::new(prover), tx, boxes_to_spend, vec![], ErgoStateContext::dummy());
 
-    // }
+            prop_assert!(res.is_ok());
+            // let proof = res.unwrap().proof;
+
+            // let verifier = TestVerifier;
+            // let ver_res = vjjkkjkerifier.verify(&tree, &Env::empty(), &proof, message.as_slice());
+            // prop_assert_eq!(ver_res.unwrap().result, true);
+        }
+
+    }
 }
