@@ -20,9 +20,9 @@ pub enum TxSigningError {
 pub fn sign_transaction(
     prover: Box<dyn Prover>,
     tx: UnsignedTransaction,
-    boxes_to_spend: Vec<ErgoBox>,
-    _data_boxes: Vec<ErgoBox>,
-    _state_context: ErgoStateContext,
+    boxes_to_spend: &[ErgoBox],
+    _data_boxes: &[ErgoBox],
+    _state_context: &ErgoStateContext,
 ) -> Result<Transaction, TxSigningError> {
     let message_to_sign = tx.bytes_to_sign();
     let mut signed_inputs: Vec<Input> = vec![];
@@ -82,7 +82,7 @@ mod tests {
 
     fn verify_tx_proofs(
         tx: &Transaction,
-        boxes_to_spend: Vec<ErgoBox>,
+        boxes_to_spend: &[ErgoBox],
     ) -> Result<bool, VerifierError> {
         let verifier = TestVerifier;
         let message = tx.bytes_to_sign();
@@ -115,7 +115,7 @@ mod tests {
             let prover = TestProver {
                 secrets: secrets.clone().into_iter().map(PrivateInput::DlogProverInput).collect(),
             };
-            let inputs = boxes_to_spend.clone().into_iter().map(UnsignedInput::from).collect();
+            let inputs = boxes_to_spend.iter().map(UnsignedInput::from).collect();
             let ergo_tree = ErgoTree::from(Rc::new(Expr::Const(Constant {
                     tpe: SType::SSigmaProp,
                     v: secrets.get(0).unwrap().public_image().into(),
@@ -123,9 +123,10 @@ mod tests {
             let output_candidates = vec![ErgoBoxCandidate::new(1u64.try_into().unwrap(), ergo_tree, 0)];
             let tx = UnsignedTransaction::new(inputs, vec![], output_candidates);
 
-            let res = sign_transaction(Box::new(prover), tx, boxes_to_spend.clone(), vec![], ErgoStateContext::dummy());
+            let res = sign_transaction(Box::new(prover), tx, boxes_to_spend.as_slice(), vec![].as_slice(),
+                                       &ErgoStateContext::dummy());
             let signed_tx = res.unwrap();
-            prop_assert!(verify_tx_proofs(&signed_tx, boxes_to_spend).unwrap());
+            prop_assert!(verify_tx_proofs(&signed_tx, &boxes_to_spend).unwrap());
         }
 
     }

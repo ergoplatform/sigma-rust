@@ -24,8 +24,8 @@ pub struct UnsignedInput {
     pub extension: ContextExtension,
 }
 
-impl From<ErgoBox> for UnsignedInput {
-    fn from(b: ErgoBox) -> Self {
+impl From<&ErgoBox> for UnsignedInput {
+    fn from(b: &ErgoBox) -> Self {
         UnsignedInput {
             box_id: b.box_id(),
             extension: ContextExtension::empty(),
