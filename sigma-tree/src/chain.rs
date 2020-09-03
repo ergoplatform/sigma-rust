@@ -4,13 +4,10 @@
 mod json;
 
 mod base16_bytes;
-// TODO: move to ergo_box
-mod box_id;
 mod digest32;
 
 pub use base16_bytes::Base16DecodedBytes;
 pub use base16_bytes::Base16EncodedBytes;
-pub use box_id::*;
 pub use digest32::*;
 
 pub mod address;

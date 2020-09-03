@@ -1,5 +1,6 @@
 //! Ergo box
 
+pub mod box_id;
 pub mod box_value;
 pub mod register;
 
@@ -9,7 +10,6 @@ use super::{
     digest32::blake2b256_hash,
     token::{TokenAmount, TokenId},
     transaction::TxId,
-    BoxId,
 };
 use crate::{
     ergo_tree::ErgoTree,
@@ -20,6 +20,7 @@ use crate::{
         SerializationError, SigmaSerializable,
     },
 };
+use box_id::BoxId;
 use box_value::BoxValue;
 use indexmap::IndexSet;
 use register::NonMandatoryRegisters;

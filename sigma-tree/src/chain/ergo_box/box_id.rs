@@ -4,7 +4,7 @@ use std::io;
 #[cfg(feature = "with-serde")]
 use serde::{Deserialize, Serialize};
 
-use super::digest32::Digest32;
+use super::super::digest32::Digest32;
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, sigma_byte_writer::SigmaByteWrite, SerializationError,
     SigmaSerializable,

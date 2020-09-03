@@ -40,10 +40,9 @@ pub mod ergo_tree {
 pub mod ergo_box {
     use crate::{
         chain::{
-            ergo_box::{box_value::BoxValue, register::NonMandatoryRegisters},
+            ergo_box::{box_id::BoxId, box_value::BoxValue, register::NonMandatoryRegisters},
             token::TokenAmount,
             transaction::TxId,
-            BoxId,
         },
         ErgoTree,
     };

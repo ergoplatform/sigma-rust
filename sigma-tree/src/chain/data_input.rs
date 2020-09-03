@@ -2,7 +2,7 @@
 
 use std::io;
 
-use super::box_id::BoxId;
+use super::ergo_box::box_id::BoxId;
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, sigma_byte_writer::SigmaByteWrite, SerializationError,
     SigmaSerializable,

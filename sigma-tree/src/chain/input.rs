@@ -2,9 +2,8 @@
 use std::io;
 
 use super::{
-    box_id::BoxId,
     context_extension::ContextExtension,
-    ergo_box::ErgoBox,
+    ergo_box::{box_id::BoxId, ErgoBox},
     prover_result::{ProofBytes, ProverResult},
 };
 use crate::serialization::{
