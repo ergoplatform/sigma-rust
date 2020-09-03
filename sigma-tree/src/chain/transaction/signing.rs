@@ -8,6 +8,7 @@ use crate::{
 };
 
 /// Errors on transaction signing
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub enum TxSigningError {
     /// error on proving an input
     ProverError(ProverError, usize),
@@ -70,18 +71,39 @@ mod tests {
             transaction::TxId,
         },
         sigma_protocol::{
-            prover::TestProver, verifier::TestVerifier, DlogProverInput, PrivateInput,
+            prover::TestProver,
+            verifier::{TestVerifier, VerificationResult, Verifier, VerifierError},
+            DlogProverInput, PrivateInput,
         },
         types::SType,
         ErgoTree,
     };
     use std::{convert::TryInto, rc::Rc};
 
+    fn verify_tx_proofs(
+        tx: &Transaction,
+        boxes_to_spend: Vec<ErgoBox>,
+    ) -> Result<bool, VerifierError> {
+        let verifier = TestVerifier;
+        let message = tx.bytes_to_sign();
+        boxes_to_spend
+            .iter()
+            .zip(tx.inputs.clone())
+            .try_fold(true, |acc, (b, input)| {
+                let res = verifier.verify(
+                    &b.ergo_tree,
+                    &Env::empty(),
+                    &input.spending_proof.proof,
+                    &message,
+                )?;
+                Ok(res.result && acc)
+            })
+    }
+
     proptest! {
 
         #[test]
         fn test_tx_signing(secrets in vec(any::<DlogProverInput>(), 1..10)) {
-            // TODO: generage a prover with multiple keys, use keys in inputs, sign the tx and verify signatures
             let boxes_to_spend: Vec<ErgoBox> = secrets.iter().map(|secret|{
                 let pk = secret.public_image();
                 let tree = ErgoTree::from(Rc::new(Expr::Const(Constant {
@@ -90,7 +112,6 @@ mod tests {
                 })));
                 ErgoBox::new(1u64.try_into().unwrap(), tree, vec![], NonMandatoryRegisters::empty(), 0, TxId::zero(), 0)
             }).collect();
-
             let prover = TestProver {
                 secrets: secrets.clone().into_iter().map(PrivateInput::DlogProverInput).collect(),
             };
@@ -101,14 +122,10 @@ mod tests {
                 })));
             let output_candidates = vec![ErgoBoxCandidate::new(1u64.try_into().unwrap(), ergo_tree, 0)];
             let tx = UnsignedTransaction::new(inputs, vec![], output_candidates);
-            let res = sign_transaction(Box::new(prover), tx, boxes_to_spend, vec![], ErgoStateContext::dummy());
 
-            prop_assert!(res.is_ok());
-            // let proof = res.unwrap().proof;
-
-            // let verifier = TestVerifier;
-            // let ver_res = vjjkkjkerifier.verify(&tree, &Env::empty(), &proof, message.as_slice());
-            // prop_assert_eq!(ver_res.unwrap().result, true);
+            let res = sign_transaction(Box::new(prover), tx, boxes_to_spend.clone(), vec![], ErgoStateContext::dummy());
+            let signed_tx = res.unwrap();
+            prop_assert!(verify_tx_proofs(&signed_tx, boxes_to_spend).unwrap());
         }
 
     }
