@@ -1,4 +1,4 @@
-//! WASM bindings for sigma-tree
+//! C bindings for sigma-tree
 
 // Coding conventions
 #![deny(non_upper_case_globals)]
