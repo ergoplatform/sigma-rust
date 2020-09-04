@@ -22,7 +22,7 @@ use std::{
 pub type ErrorPtr = *mut Error;
 pub type AddressPtr = *mut Address;
 
-pub struct ErgoStateContext(ergo_wallet_lib::ErgoStateContext);
+pub struct ErgoStateContext(chain::ergo_state_context::ErgoStateContext);
 pub type ErgoStateContextPtr = *mut ErgoStateContext;
 
 #[no_mangle]

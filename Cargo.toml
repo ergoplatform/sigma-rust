@@ -2,7 +2,6 @@
 members = [
     "sigma-ser",
     "sigma-tree",
-    "ergo-wallet-lib",
     "bindings/ergo-wallet-lib-wasm",
     "bindings/ergo-wallet-lib-c-core",
     "bindings/ergo-wallet-lib-c",

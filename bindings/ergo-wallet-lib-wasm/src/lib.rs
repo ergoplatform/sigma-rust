@@ -11,6 +11,7 @@
 #![deny(missing_docs)]
 
 use sigma_tree::chain;
+use sigma_tree::wallet;
 
 mod utils;
 
@@ -76,13 +77,13 @@ impl Address {
 /// Secret key for the prover
 #[wasm_bindgen]
 #[derive(PartialEq, Debug, Clone)]
-pub struct SecretKey(ergo_wallet_lib::SecretKey);
+pub struct SecretKey(wallet::secret_key::SecretKey);
 
 #[wasm_bindgen]
 impl SecretKey {
     /// generate random key
     pub fn random_dlog() -> SecretKey {
-        SecretKey(ergo_wallet_lib::SecretKey::random_dlog())
+        SecretKey(wallet::secret_key::SecretKey::random_dlog())
     }
 }
 
@@ -214,13 +215,13 @@ impl Transaction {
 
 /// TBD
 #[wasm_bindgen]
-pub struct ErgoStateContext(ergo_wallet_lib::ErgoStateContext);
+pub struct ErgoStateContext(chain::ergo_state_context::ErgoStateContext);
 
 #[wasm_bindgen]
 impl ErgoStateContext {
     /// empty (dummy) context (for signing P2PK tx only)
     pub fn dummy() -> ErgoStateContext {
-        ErgoStateContext(ergo_wallet_lib::ErgoStateContext::dummy())
+        ErgoStateContext(chain::ergo_state_context::ErgoStateContext::dummy())
     }
 }
 
@@ -258,3 +259,11 @@ impl Wallet {
         Err(JsValue::from_str("Not yet implemented"))
     }
 }
+
+// pub struct TxBuilder();
+
+// impl TxBuilder {
+//     pub fn new() -> TxBuilder {
+//         todo!()
+//     }
+// }

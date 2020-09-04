@@ -1,4 +1,5 @@
-use sigma_tree::sigma_protocol::DlogProverInput;
+//! Secret types
+use crate::sigma_protocol::DlogProverInput;
 
 /// Types of secrets
 #[derive(PartialEq, Debug, Clone)]

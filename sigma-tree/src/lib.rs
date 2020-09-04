@@ -22,6 +22,7 @@ pub mod ast;
 pub mod chain;
 pub mod eval;
 pub mod sigma_protocol;
+pub mod wallet;
 
 pub use ergo_tree::*;
 // pub use serialization::serializable::*;
