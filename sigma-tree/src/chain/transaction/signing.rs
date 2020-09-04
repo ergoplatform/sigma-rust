@@ -58,10 +58,9 @@ pub fn sign_transaction(
 
 #[cfg(test)]
 mod tests {
-    #![allow(unused_imports)]
     use super::*;
+    use proptest::collection::vec;
     use proptest::prelude::*;
-    use proptest::{arbitrary::Arbitrary, collection::vec};
 
     use crate::{
         ast::{Constant, Expr},
@@ -72,7 +71,7 @@ mod tests {
         },
         sigma_protocol::{
             prover::TestProver,
-            verifier::{TestVerifier, VerificationResult, Verifier, VerifierError},
+            verifier::{TestVerifier, Verifier, VerifierError},
             DlogProverInput, PrivateInput,
         },
         types::SType,

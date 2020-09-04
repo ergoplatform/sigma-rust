@@ -259,22 +259,11 @@ impl TryFrom<json::transaction::TransactionJson> for Transaction {
 
 #[cfg(test)]
 pub mod tests {
-    #![allow(unused_imports)]
     use super::*;
     use crate::serialization::sigma_serialize_roundtrip;
-    use crate::{
-        ast::{Constant, Expr},
-        sigma_protocol::{
-            prover::{Prover, TestProver},
-            verifier::{TestVerifier, Verifier},
-            DlogProverInput, PrivateInput,
-        },
-        types::SType,
-        ErgoTree,
-    };
+
     use proptest::prelude::*;
     use proptest::{arbitrary::Arbitrary, collection::vec};
-    use std::rc::Rc;
 
     impl Arbitrary for Transaction {
         type Parameters = ();
