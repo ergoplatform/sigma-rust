@@ -1,6 +1,5 @@
 //! Ergo transaction
 
-pub mod signing;
 pub mod unsigned;
 
 #[cfg(feature = "with-serde")]
@@ -259,6 +258,7 @@ impl TryFrom<json::transaction::TransactionJson> for Transaction {
 
 #[cfg(test)]
 pub mod tests {
+
     use super::*;
     use crate::serialization::sigma_serialize_roundtrip;
 

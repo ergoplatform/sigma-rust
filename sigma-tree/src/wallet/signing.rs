@@ -1,8 +1,12 @@
 //! Transaction signing
 
-use super::{unsigned::UnsignedTransaction, Transaction};
 use crate::{
-    chain::{ergo_box::ErgoBox, ergo_state_context::ErgoStateContext, input::Input},
+    chain::{
+        ergo_box::ErgoBox,
+        ergo_state_context::ErgoStateContext,
+        input::Input,
+        transaction::{unsigned::UnsignedTransaction, Transaction},
+    },
     eval::Env,
     sigma_protocol::prover::{Prover, ProverError},
 };
