@@ -21,8 +21,8 @@ pub enum TxSigningError {
 }
 
 /// Signs a transaction (generating proofs for inputs)
-pub fn sign_transaction(
-    prover: Box<dyn Prover>,
+pub fn sign_transaction<T: Prover>(
+    prover: T,
     tx: UnsignedTransaction,
     boxes_to_spend: &[ErgoBox],
     _data_boxes: &[ErgoBox],
@@ -126,7 +126,7 @@ mod tests {
             let output_candidates = vec![ErgoBoxCandidate::new(1u64.try_into().unwrap(), ergo_tree, 0)];
             let tx = UnsignedTransaction::new(inputs, vec![], output_candidates);
 
-            let res = sign_transaction(Box::new(prover), tx, boxes_to_spend.as_slice(), vec![].as_slice(),
+            let res = sign_transaction(prover, tx, boxes_to_spend.as_slice(), vec![].as_slice(),
                                        &ErgoStateContext::dummy());
             let signed_tx = res.unwrap();
             prop_assert!(verify_tx_proofs(&signed_tx, &boxes_to_spend).unwrap());
