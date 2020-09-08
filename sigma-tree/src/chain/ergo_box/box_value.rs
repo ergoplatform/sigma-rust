@@ -7,6 +7,7 @@ use crate::serialization::{
 use serde::{Deserialize, Serialize};
 use sigma_ser::vlq_encode;
 use std::{convert::TryFrom, io};
+use thiserror::Error;
 
 /// Box value
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
@@ -37,9 +38,10 @@ impl BoxValue {
 }
 
 /// BoxValue errors
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(Error, Eq, PartialEq, Debug, Clone)]
 pub enum BoxValueError {
     /// Value is out of bounds
+    #[error("Value is out of bounds")]
     OutOfBounds,
 }
 

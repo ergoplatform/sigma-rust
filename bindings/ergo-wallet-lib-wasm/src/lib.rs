@@ -12,6 +12,8 @@
 // #![deny(missing_docs)]
 #![allow(unused_variables)]
 
+use std::convert::TryFrom;
+
 use sigma_tree::chain;
 use sigma_tree::wallet;
 
@@ -89,48 +91,32 @@ impl SecretKey {
     }
 }
 
-/// Transaction inputs, array of ErgoBoxCandidate
+/// Collection of ErgoBox'es
 #[wasm_bindgen]
-pub struct UnspentBoxes(Vec<chain::ergo_box::ErgoBoxCandidate>);
+pub struct ErgoBoxes(Vec<chain::ergo_box::ErgoBox>);
 
 #[wasm_bindgen]
-impl UnspentBoxes {
-    /// parse ErgoBoxCandidate array from json
+impl ErgoBoxes {
+    /// parse ErgoBox array from json
     #[allow(clippy::boxed_local)]
-    pub fn from_boxes(_boxes: Box<[JsValue]>) -> UnspentBoxes {
+    pub fn from_boxes(_boxes: Box<[JsValue]>) -> ErgoBoxes {
         // box in boxes.into_iter() {
         //     let _box: chain::ErgoBoxCandidate = jbox.into_serde().unwrap();
         // }
-        UnspentBoxes(vec![])
-    }
-}
-///
-/// Transaction data inputs, array of ErgoBoxCandidate
-#[wasm_bindgen]
-pub struct TxDataInputs(Vec<chain::ergo_box::ErgoBoxCandidate>);
-
-#[wasm_bindgen]
-impl TxDataInputs {
-    /// parse ErgoBoxCandidate array from json
-    #[allow(clippy::boxed_local)]
-    pub fn from_boxes(_boxes: Box<[JsValue]>) -> TxDataInputs {
-        // box in boxes.into_iter() {
-        //     let _box: chain::ErgoBoxCandidate = jbox.into_serde().unwrap();
-        // }
-        TxDataInputs(vec![])
+        ErgoBoxes(vec![])
     }
 }
 
-/// Transaction outputs, array of ErgoBoxCandidate
+/// Collection of ErgoBoxCandidates
 #[wasm_bindgen]
-pub struct TxOutputCandidates(Vec<chain::ergo_box::ErgoBoxCandidate>);
+pub struct ErgoBoxCandidates(Vec<chain::ergo_box::ErgoBoxCandidate>);
 
 #[wasm_bindgen]
-impl TxOutputCandidates {
+impl ErgoBoxCandidates {
     /// Create new outputs
     #[wasm_bindgen(constructor)]
-    pub fn new(box_candidate: ErgoBoxCandidate) -> TxOutputCandidates {
-        TxOutputCandidates(vec![box_candidate.0])
+    pub fn new(box_candidate: ErgoBoxCandidate) -> ErgoBoxCandidates {
+        ErgoBoxCandidates(vec![box_candidate.0])
     }
 }
 
@@ -238,48 +224,49 @@ impl Wallet {
         Wallet()
     }
 
-    /// Create a signed transaction from:
-    /// `unspent_boxes` - unspent boxes [`ErgoBoxCandidate`] from which transaction
-    /// inputs (boxes to spend) will be selected
-    /// `outputs` - boxes that will be created in this transaction
-    /// `send_change_to` - address for the change (total value of input - total value of outputs)
-    /// that will be put in a new box that will be added to `outputs`
-    /// `sk` - secret key to sign the transaction (make proofs for inputs)
-    #[allow(clippy::too_many_arguments)]
+    /// Sign a transaction:
+    /// `boxes_to_spend` - unspent boxes [`ErgoBoxCandidate`] used as inputs in the transaction
     #[wasm_bindgen]
-    pub fn new_signed_transaction(
+    pub fn sign_transaction(
         &self,
         _state_context: ErgoStateContext,
-        _unspent_boxes: UnspentBoxes,
-        _data_inputs: TxDataInputs,
-        _outputs: TxOutputCandidates,
-        _send_change_to: Address,
-        _min_change_value: u32,
-        _tx_fee_amount: u32,
+        tx: UnsignedTransaction,
+        boxes_to_spend: ErgoBoxes,
+        data_boxes: ErgoBoxes,
     ) -> Result<Transaction, JsValue> {
         // not implemented, see https://github.com/ergoplatform/sigma-rust/issues/34
         Err(JsValue::from_str("Not yet implemented"))
     }
-
-    #[wasm_bindgen]
-    pub fn sign_transaction(
-        &self,
-        tx: UnsignedTransaction,
-        boxes_to_spend: UnspentBoxes,
-        data_boxes: UnspentBoxes,
-        _state_context: ErgoStateContext,
-    ) -> Result<Transaction, JsValue> {
-        todo!()
-    }
 }
-
-// TODO: ditch UnspentBoxes and TxDataInputs and create generic BoxCollection
 
 #[wasm_bindgen]
 pub struct BoxValue(chain::ergo_box::box_value::BoxValue);
 
 #[wasm_bindgen]
+impl BoxValue {
+    #[wasm_bindgen]
+    pub fn from_u32(v: u32) -> Result<BoxValue, JsValue> {
+        Ok(BoxValue(
+            chain::ergo_box::box_value::BoxValue::try_from(v as u64)
+                .map_err(|e| JsValue::from_str(&format!("{}", e)))?,
+        ))
+    }
+}
+
+#[wasm_bindgen]
 pub struct UnsignedTransaction(chain::transaction::unsigned::UnsignedTransaction);
+
+#[wasm_bindgen]
+impl UnsignedTransaction {
+    #[wasm_bindgen]
+    pub fn dummy() -> UnsignedTransaction {
+        UnsignedTransaction(chain::transaction::unsigned::UnsignedTransaction::new(
+            vec![],
+            vec![],
+            vec![],
+        ))
+    }
+}
 
 #[wasm_bindgen]
 pub struct TxBuilder(wallet::tx_builder::TxBuilder);
@@ -288,12 +275,12 @@ pub struct TxBuilder(wallet::tx_builder::TxBuilder);
 impl TxBuilder {
     #[wasm_bindgen]
     pub fn new(
-        inputs: UnspentBoxes,
-        output_candidates: TxOutputCandidates,
+        inputs: ErgoBoxes,
+        output_candidates: ErgoBoxCandidates,
         current_height: u32,
         fee_amount: BoxValue,
     ) -> Result<TxBuilder, JsValue> {
-        todo!()
+        Err(JsValue::from_str("Not yet implemented"))
     }
 
     #[wasm_bindgen]
@@ -307,6 +294,6 @@ impl TxBuilder {
 
     #[wasm_bindgen]
     pub fn build(&self) -> Result<UnsignedTransaction, JsValue> {
-        todo!()
+        Err(JsValue::from_str("Not yet implemented"))
     }
 }

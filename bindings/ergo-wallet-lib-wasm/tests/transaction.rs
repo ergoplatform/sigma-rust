@@ -8,31 +8,13 @@ use wasm_bindgen_test::*;
 wasm_bindgen_test_configure!(run_in_browser);
 
 #[wasm_bindgen_test]
-fn test_signed_p2pk_transaction() {
-    let tx_inputs = UnspentBoxes::from_boxes(Box::new([]));
-    let tx_data_inputs = TxDataInputs::from_boxes(Box::new([]));
-    let send_change_to =
-        Address::from_testnet_str("3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN")
-            .expect("failed");
-    let recipient =
-        Address::from_testnet_str("3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN")
-            .expect("failed");
-
-    let contract = Contract::pay_to_address(recipient).expect("failed");
-
-    let outbox = ErgoBoxCandidate::new(1, 0, contract);
-    let tx_outputs = TxOutputCandidates::new(outbox);
+fn test_sign_transaction() {
+    let boxes_to_spend = ErgoBoxes::from_boxes(Box::new([]));
+    let data_boxes = ErgoBoxes::from_boxes(Box::new([]));
     let dummy_ctx = ErgoStateContext::dummy();
+    let tx = UnsignedTransaction::dummy();
     let wallet = Wallet::from_mnemonic("", "");
-    let res = wallet.new_signed_transaction(
-        dummy_ctx,
-        tx_inputs,
-        tx_data_inputs,
-        tx_outputs,
-        send_change_to,
-        1,
-        1,
-    );
+    let res = wallet.sign_transaction(dummy_ctx, tx, boxes_to_spend, data_boxes);
     assert!(res.is_err());
 }
 
@@ -41,4 +23,18 @@ fn test_random() {
     let sk1 = SecretKey::random_dlog();
     let sk2 = SecretKey::random_dlog();
     assert_ne!(sk1, sk2);
+}
+
+#[wasm_bindgen_test]
+fn test_tx_builder() {
+    let tx_inputs = ErgoBoxes::from_boxes(Box::new([]));
+    let recipient =
+        Address::from_testnet_str("3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN")
+            .expect("failed");
+    let contract = Contract::pay_to_address(recipient).expect("failed");
+    let outbox = ErgoBoxCandidate::new(1, 0, contract);
+    let tx_outputs = ErgoBoxCandidates::new(outbox);
+    let fee = BoxValue::from_u32(2).unwrap();
+    let tx_builder = TxBuilder::new(tx_inputs, tx_outputs, 0, fee);
+    assert!(tx_builder.is_err());
 }
