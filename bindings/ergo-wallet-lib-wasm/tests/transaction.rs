@@ -32,7 +32,7 @@ fn test_tx_builder() {
         Address::from_testnet_str("3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN")
             .expect("failed");
     let contract = Contract::pay_to_address(recipient).expect("failed");
-    let outbox = ErgoBoxCandidate::new(1, 0, contract);
+    let outbox = ErgoBoxCandidate::new(BoxValue::from_u32(1).unwrap(), 0, contract);
     let tx_outputs = ErgoBoxCandidates::new(outbox);
     let fee = BoxValue::from_u32(2).unwrap();
     let tx_builder = TxBuilder::new(tx_inputs, tx_outputs, 0, fee);

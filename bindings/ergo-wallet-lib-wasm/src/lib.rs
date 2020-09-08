@@ -149,14 +149,9 @@ impl ErgoBoxCandidate {
     /// `creation_height` - height when a transaction containing the box is created.
     /// It should not exceed height of the block, containing the transaction with this box.
     #[wasm_bindgen(constructor)]
-    pub fn new(value: u32, creation_height: u32, contract: Contract) -> ErgoBoxCandidate {
-        // value is u32, because u64 makes in BigInt in JS
+    pub fn new(value: BoxValue, creation_height: u32, contract: Contract) -> ErgoBoxCandidate {
         let ergo_tree = contract.0.get_ergo_tree();
-        let b = chain::ergo_box::ErgoBoxCandidate::new(
-            chain::ergo_box::box_value::BoxValue::new(value as u64).expect("value out of bounds"),
-            ergo_tree,
-            creation_height,
-        );
+        let b = chain::ergo_box::ErgoBoxCandidate::new(value.0, ergo_tree, creation_height);
         ErgoBoxCandidate(b)
     }
 
