@@ -260,6 +260,10 @@ impl Wallet {
     }
 }
 
+// TODO: ditch UnspentBoxes and TxDataInputs and create generic BoxCollection
+// TODO: expose TxBuilder (not in Wallet)
+// TODO: expose sign_transaction
+
 // pub struct TxBuilder();
 
 // impl TxBuilder {

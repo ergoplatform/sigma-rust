@@ -149,6 +149,34 @@ impl ErgoBox {
     }
 }
 
+/// Assets that ErgoBox holds
+pub trait ErgoBoxAssets {
+    /// Box value
+    fn value(&self) -> &BoxValue;
+    /// Tokens (ids and amounts)
+    fn tokens(&self) -> &[TokenAmount];
+}
+
+impl ErgoBoxAssets for ErgoBoxCandidate {
+    fn value(&self) -> &BoxValue {
+        &self.value
+    }
+
+    fn tokens(&self) -> &[TokenAmount] {
+        &self.tokens
+    }
+}
+
+impl ErgoBoxAssets for ErgoBox {
+    fn value(&self) -> &BoxValue {
+        &self.value
+    }
+
+    fn tokens(&self) -> &[TokenAmount] {
+        &self.tokens
+    }
+}
+
 /// Errors on parsing ErgoBox from JSON
 #[cfg(feature = "with-serde")]
 #[derive(Error, PartialEq, Eq, Debug, Clone)]

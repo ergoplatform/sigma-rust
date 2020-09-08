@@ -6,44 +6,10 @@
 use crate::chain::{
     address::Address,
     ergo_box::{box_value::BoxValue, ErgoBox, ErgoBoxCandidate},
-    token::TokenAmount,
     transaction::unsigned::UnsignedTransaction,
 };
 
-// TODO: extract
-
-/// Assets that ErgoBox holds
-pub trait ErgoBoxAssets {
-    /// Box value
-    fn value(&self) -> BoxValue;
-    /// Tokens (ids and amounts)
-    fn tokens(&self) -> &[TokenAmount];
-}
-
-// TODO: extract
-
-/// Selected boxes (by [`BoxSelector`])
-pub struct BoxSelection<T: ErgoBoxAssets> {
-    /// selected boxes to spend
-    pub boxes: Vec<T>,
-    /// box assets with returning change amounts (to be put in tx outputs)
-    pub change_boxes: Vec<T>,
-}
-
-/// Box selector
-pub trait BoxSelector {
-    /// Selects boxes out of the provided inputs to satisfy target balance and tokens
-    fn select<T: ErgoBoxAssets>(
-        inputs: &[T],
-        target_balance: BoxValue,
-        target_tokens: &[TokenAmount],
-    ) -> Result<BoxSelection<T>, BoxSelectorError> {
-        todo!()
-    }
-}
-
-/// Errors of BoxSelector
-pub enum BoxSelectorError {}
+use super::box_selector::BoxSelector;
 
 /// Unsigned transaction builder
 pub struct TxBuilder {}
