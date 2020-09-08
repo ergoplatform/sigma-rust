@@ -8,7 +8,9 @@
 #![deny(unused_mut)]
 #![deny(dead_code)]
 #![deny(unused_imports)]
-#![deny(missing_docs)]
+// TODO: restore/remove
+// #![deny(missing_docs)]
+#![allow(unused_variables)]
 
 use sigma_tree::chain;
 use sigma_tree::wallet;
@@ -258,16 +260,53 @@ impl Wallet {
         // not implemented, see https://github.com/ergoplatform/sigma-rust/issues/34
         Err(JsValue::from_str("Not yet implemented"))
     }
+
+    #[wasm_bindgen]
+    pub fn sign_transaction(
+        &self,
+        tx: UnsignedTransaction,
+        boxes_to_spend: UnspentBoxes,
+        data_boxes: UnspentBoxes,
+        _state_context: ErgoStateContext,
+    ) -> Result<Transaction, JsValue> {
+        todo!()
+    }
 }
 
 // TODO: ditch UnspentBoxes and TxDataInputs and create generic BoxCollection
-// TODO: expose TxBuilder (not in Wallet)
-// TODO: expose sign_transaction
 
-// pub struct TxBuilder();
+#[wasm_bindgen]
+pub struct BoxValue(chain::ergo_box::box_value::BoxValue);
 
-// impl TxBuilder {
-//     pub fn new() -> TxBuilder {
-//         todo!()
-//     }
-// }
+#[wasm_bindgen]
+pub struct UnsignedTransaction(chain::transaction::unsigned::UnsignedTransaction);
+
+#[wasm_bindgen]
+pub struct TxBuilder(wallet::tx_builder::TxBuilder);
+
+#[wasm_bindgen]
+impl TxBuilder {
+    #[wasm_bindgen]
+    pub fn new(
+        inputs: UnspentBoxes,
+        output_candidates: TxOutputCandidates,
+        current_height: u32,
+        fee_amount: BoxValue,
+    ) -> Result<TxBuilder, JsValue> {
+        todo!()
+    }
+
+    #[wasm_bindgen]
+    pub fn with_change_sent_to(
+        &self,
+        change_address: &Address,
+        min_change_value: BoxValue,
+    ) -> TxBuilder {
+        todo!()
+    }
+
+    #[wasm_bindgen]
+    pub fn build(&self) -> Result<UnsignedTransaction, JsValue> {
+        todo!()
+    }
+}

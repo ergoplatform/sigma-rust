@@ -22,7 +22,7 @@ impl TxBuilder {
         output_candidates: &[ErgoBoxCandidate],
         current_height: u32,
         fee_amount: BoxValue,
-    ) -> TxBuilder {
+    ) -> Result<TxBuilder, TxBuilderError> {
         todo!()
     }
 
@@ -37,7 +37,7 @@ impl TxBuilder {
     }
 
     /// Build the unsigned transaction
-    pub fn build(&self) -> UnsignedTransaction {
+    pub fn build(&self) -> Result<UnsignedTransaction, TxBuilderError> {
         todo!()
     }
 }
