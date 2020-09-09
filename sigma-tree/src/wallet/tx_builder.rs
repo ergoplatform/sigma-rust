@@ -5,7 +5,7 @@
 
 use crate::chain::{
     address::Address,
-    ergo_box::{box_value::BoxValue, ErgoBox, ErgoBoxCandidate},
+    ergo_box::{box_value::BoxValue, ErgoBoxCandidate},
     transaction::unsigned::UnsignedTransaction,
 };
 
@@ -17,8 +17,9 @@ pub struct TxBuilder {}
 impl TxBuilder {
     /// Creates new TxBuilder
     pub fn new<T: BoxSelector>(
+        // TODO: Make dumb/select_all box selector, who selects all provided inputs.
         box_selector: T,
-        inputs: &[ErgoBox],
+        boxes_to_spend: &[T::Item],
         output_candidates: &[ErgoBoxCandidate],
         current_height: u32,
         fee_amount: BoxValue,
@@ -37,7 +38,7 @@ impl TxBuilder {
     }
 
     /// Build the unsigned transaction
-    pub fn build(&self) -> Result<UnsignedTransaction, TxBuilderError> {
+    pub fn build_unsigned_tx(&self) -> Result<UnsignedTransaction, TxBuilderError> {
         todo!()
     }
 }

@@ -2,7 +2,7 @@
 
 use std::io;
 
-use super::ergo_box::box_id::BoxId;
+use super::ergo_box::{box_id::BoxId, ErgoBox};
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, sigma_byte_writer::SigmaByteWrite, SerializationError,
     SigmaSerializable,
@@ -22,6 +22,12 @@ pub struct DataInput {
     /// id of the box to add into context (should be in UTXO)
     #[cfg_attr(feature = "with-serde", serde(rename = "boxId"))]
     pub box_id: BoxId,
+}
+
+impl From<&ErgoBox> for DataInput {
+    fn from(b: &ErgoBox) -> Self {
+        DataInput { box_id: b.box_id() }
+    }
 }
 
 impl SigmaSerializable for DataInput {

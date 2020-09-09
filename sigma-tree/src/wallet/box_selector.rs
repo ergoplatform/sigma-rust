@@ -18,12 +18,15 @@ pub struct BoxSelection<T: ErgoBoxAssets> {
 
 /// Box selector
 pub trait BoxSelector {
+    /// Type on inputs and the resulting selection
+    type Item: ErgoBoxAssets;
+
     /// Selects boxes out of the provided inputs to satisfy target balance and tokens
-    fn select<T: ErgoBoxAssets>(
-        inputs: &[T],
+    fn select(
+        inputs: &[Self::Item],
         target_balance: BoxValue,
         target_tokens: &[TokenAmount],
-    ) -> Result<BoxSelection<T>, BoxSelectorError> {
+    ) -> Result<BoxSelection<Self::Item>, BoxSelectorError> {
         todo!()
     }
 }
