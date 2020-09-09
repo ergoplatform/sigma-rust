@@ -1,8 +1,12 @@
 //! Test suite for the Web and headless browsers.
 
-extern crate ergo_wallet_lib_wasm;
 extern crate wasm_bindgen_test;
-use ergo_wallet_lib_wasm::*;
+
+use ergo_wallet_lib_wasm::{
+    address::Address, box_coll::ErgoBoxCandidates, box_coll::ErgoBoxes, contract::Contract,
+    ergo_box::BoxValue, ergo_box::ErgoBoxCandidate, ergo_state_ctx::ErgoStateContext,
+    secret_key::SecretKey, transaction::UnsignedTransaction, tx_builder::TxBuilder, wallet::Wallet,
+};
 use wasm_bindgen_test::*;
 
 wasm_bindgen_test_configure!(run_in_browser);
