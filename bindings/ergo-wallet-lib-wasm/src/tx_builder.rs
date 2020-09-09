@@ -4,6 +4,7 @@ use wasm_bindgen::prelude::*;
 use crate::{
     address::Address,
     box_coll::{ErgoBoxCandidates, ErgoBoxes},
+    box_selector::BoxSelector,
     ergo_box::BoxValue,
     transaction::UnsignedTransaction,
 };
@@ -15,11 +16,13 @@ pub struct TxBuilder(wallet::tx_builder::TxBuilder);
 impl TxBuilder {
     #[wasm_bindgen]
     pub fn new(
+        box_selector: BoxSelector,
         inputs: ErgoBoxes,
         output_candidates: ErgoBoxCandidates,
         current_height: u32,
         fee_amount: BoxValue,
     ) -> Result<TxBuilder, JsValue> {
+        let _ = box_selector.inner();
         Err(JsValue::from_str("Not yet implemented"))
     }
 

@@ -3,9 +3,10 @@
 extern crate wasm_bindgen_test;
 
 use ergo_wallet_lib_wasm::{
-    address::Address, box_coll::ErgoBoxCandidates, box_coll::ErgoBoxes, contract::Contract,
-    ergo_box::BoxValue, ergo_box::ErgoBoxCandidate, ergo_state_ctx::ErgoStateContext,
-    secret_key::SecretKey, transaction::UnsignedTransaction, tx_builder::TxBuilder, wallet::Wallet,
+    address::Address, box_coll::ErgoBoxCandidates, box_coll::ErgoBoxes, box_selector::BoxSelector,
+    contract::Contract, ergo_box::BoxValue, ergo_box::ErgoBoxCandidate,
+    ergo_state_ctx::ErgoStateContext, secret_key::SecretKey, transaction::UnsignedTransaction,
+    tx_builder::TxBuilder, wallet::Wallet,
 };
 use wasm_bindgen_test::*;
 
@@ -39,6 +40,6 @@ fn test_tx_builder() {
     let outbox = ErgoBoxCandidate::new(BoxValue::from_u32(1).unwrap(), 0, contract);
     let tx_outputs = ErgoBoxCandidates::new(outbox);
     let fee = BoxValue::from_u32(2).unwrap();
-    let tx_builder = TxBuilder::new(tx_inputs, tx_outputs, 0, fee);
+    let tx_builder = TxBuilder::new(BoxSelector::SelectAll, tx_inputs, tx_outputs, 0, fee);
     assert!(tx_builder.is_err());
 }

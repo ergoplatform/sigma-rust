@@ -3,6 +3,8 @@
 // TODO: remove after the implementation
 #![allow(unused_variables)]
 
+pub mod select_all;
+
 use crate::chain::{
     ergo_box::{box_value::BoxValue, ErgoBoxAssets},
     token::TokenAmount,
@@ -23,7 +25,8 @@ pub trait BoxSelector {
 
     /// Selects boxes out of the provided inputs to satisfy target balance and tokens
     fn select(
-        inputs: &[Self::Item],
+        &self,
+        inputs: Vec<Self::Item>,
         target_balance: BoxValue,
         target_tokens: &[TokenAmount],
     ) -> Result<BoxSelection<Self::Item>, BoxSelectorError> {

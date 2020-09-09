@@ -14,6 +14,7 @@
 
 pub mod address;
 pub mod box_coll;
+pub mod box_selector;
 pub mod contract;
 pub mod ergo_box;
 pub mod ergo_state_ctx;
