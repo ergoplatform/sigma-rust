@@ -3,7 +3,8 @@ use std::io;
 
 use super::{
     context_extension::ContextExtension,
-    ergo_box::{box_id::BoxId, ErgoBox},
+    ergo_box::box_id::BoxId,
+    ergo_box::ErgoBoxId,
     prover_result::{ProofBytes, ProverResult},
 };
 use crate::serialization::{
@@ -23,10 +24,10 @@ pub struct UnsignedInput {
     pub extension: ContextExtension,
 }
 
-impl From<&ErgoBox> for UnsignedInput {
-    fn from(b: &ErgoBox) -> Self {
+impl<T: ErgoBoxId> From<T> for UnsignedInput {
+    fn from(b: T) -> Self {
         UnsignedInput {
-            box_id: b.box_id(),
+            box_id: b.box_id().clone(),
             extension: ContextExtension::empty(),
         }
     }

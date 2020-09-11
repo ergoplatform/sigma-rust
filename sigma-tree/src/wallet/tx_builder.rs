@@ -2,29 +2,49 @@
 
 // TODO: remove after the implementation
 #![allow(unused_variables)]
+#![allow(dead_code)]
+
+use std::convert::TryInto;
+
+use thiserror::Error;
 
 use crate::chain::{
     address::Address,
+    ergo_box::ErgoBoxAssets,
+    ergo_box::ErgoBoxId,
     ergo_box::{box_value::BoxValue, ErgoBoxCandidate},
+    input::UnsignedInput,
     transaction::unsigned::UnsignedTransaction,
 };
 
-use super::box_selector::BoxSelector;
+use super::box_selector::{BoxSelection, BoxSelector, BoxSelectorError};
 
 /// Unsigned transaction builder
-pub struct TxBuilder {}
+pub struct TxBuilder<T: BoxSelector<S>, S: ErgoBoxAssets> {
+    box_selector: T,
+    boxes_to_spend: Vec<S>,
+    output_candidates: Vec<ErgoBoxCandidate>,
+    current_height: u32,
+    fee_amount: BoxValue,
+}
 
-impl TxBuilder {
+impl<T: BoxSelector<S>, S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<T, S> {
     /// Creates new TxBuilder
-    pub fn new<T: BoxSelector>(
-        // TODO: Make dumb/select_all box selector, who selects all provided inputs.
+    pub fn new(
         box_selector: T,
-        boxes_to_spend: &[T::Item],
-        output_candidates: &[ErgoBoxCandidate],
+        boxes_to_spend: Vec<S>,
+        output_candidates: Vec<ErgoBoxCandidate>,
         current_height: u32,
         fee_amount: BoxValue,
-    ) -> Result<TxBuilder, TxBuilderError> {
-        todo!()
+    ) -> Result<TxBuilder<T, S>, TxBuilderError> {
+        // TODO: check parameters and return an Err
+        Ok(TxBuilder {
+            box_selector,
+            boxes_to_spend,
+            output_candidates,
+            current_height,
+            fee_amount,
+        })
     }
 
     /// Adds an address to send change to.
@@ -33,15 +53,39 @@ impl TxBuilder {
         &self,
         change_address: &Address,
         min_change_value: BoxValue,
-    ) -> TxBuilder {
+    ) -> TxBuilder<T, S> {
         todo!()
     }
 
     /// Build the unsigned transaction
-    pub fn build_unsigned_tx(&self) -> Result<UnsignedTransaction, TxBuilderError> {
-        todo!()
+    pub fn build(&self) -> Result<UnsignedTransaction, TxBuilderError> {
+        let selection: BoxSelection<S> = self.box_selector.select(
+            self.boxes_to_spend.clone(),
+            1u64.try_into().unwrap(),
+            vec![].as_slice(),
+        )?;
+        // TODO: add returning change
+        Ok(UnsignedTransaction::new(
+            selection
+                .boxes
+                .into_iter()
+                .map(UnsignedInput::from)
+                .collect(),
+            vec![],
+            self.output_candidates.clone(),
+        ))
     }
 }
-
 /// Errors of TxBuilder
-pub enum TxBuilderError {}
+#[derive(Error, PartialEq, Eq, Debug, Clone)]
+pub enum TxBuilderError {
+    /// Box selection error
+    #[error("Box selector error {}", 0)]
+    BoxSelectorError(BoxSelectorError),
+}
+
+impl From<BoxSelectorError> for TxBuilderError {
+    fn from(e: BoxSelectorError) -> Self {
+        TxBuilderError::BoxSelectorError(e)
+    }
+}

@@ -118,7 +118,7 @@ mod tests {
             let prover = TestProver {
                 secrets: secrets.clone().into_iter().map(PrivateInput::DlogProverInput).collect(),
             };
-            let inputs = boxes_to_spend.iter().map(UnsignedInput::from).collect();
+            let inputs = boxes_to_spend.clone().into_iter().map(UnsignedInput::from).collect();
             let ergo_tree = ErgoTree::from(Rc::new(Expr::Const(Constant {
                     tpe: SType::SSigmaProp,
                     v: secrets.get(0).unwrap().public_image().into(),

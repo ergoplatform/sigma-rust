@@ -13,7 +13,8 @@ it('TxBuilder test', async () => {
   let outbox = new ErgoBoxCandidate(BoxValue.from_u32(1), 0, contract);
   let tx_outputs = new ErgoBoxCandidates(outbox);
   let fee = BoxValue.from_u32(1);
-  expect(() => TxBuilder.new(BoxSelector.SelectAll, unspent_boxes, tx_outputs, 0, fee)).to.throw("Not yet implemented");
+  let tx_builder = TxBuilder.new(unspent_boxes, tx_outputs, 0, fee);
+  let tx = tx_builder.build();
 });
 
 

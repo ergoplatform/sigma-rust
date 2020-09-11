@@ -1,29 +1,38 @@
-use sigma_tree::wallet;
+use sigma_tree::{chain::ergo_box::ErgoBox, wallet};
+use wallet::box_selector::select_all::SelectAllBoxSelector;
 use wasm_bindgen::prelude::*;
 
 use crate::{
     address::Address,
     box_coll::{ErgoBoxCandidates, ErgoBoxes},
-    box_selector::BoxSelector,
     ergo_box::BoxValue,
     transaction::UnsignedTransaction,
 };
 
 #[wasm_bindgen]
-pub struct TxBuilder(wallet::tx_builder::TxBuilder);
+pub struct TxBuilder(wallet::tx_builder::TxBuilder<SelectAllBoxSelector<ErgoBox>, ErgoBox>);
 
 #[wasm_bindgen]
 impl TxBuilder {
     #[wasm_bindgen]
     pub fn new(
-        box_selector: BoxSelector,
+        // box_selector: BoxSelector,
         inputs: ErgoBoxes,
         output_candidates: ErgoBoxCandidates,
         current_height: u32,
         fee_amount: BoxValue,
     ) -> Result<TxBuilder, JsValue> {
-        let _ = box_selector.inner();
-        Err(JsValue::from_str("Not yet implemented"))
+        sigma_tree::wallet::tx_builder::TxBuilder::new(
+            // wallet::box_selector::select_all::select_all_box_selector::<ErgoBox>,
+            // wallet::box_selector::select_all::SelectAllBoxSelector::<ErgoBox> { a: PhantomData },
+            wallet::box_selector::select_all::SelectAllBoxSelector::<ErgoBox>::new(),
+            inputs.into(),
+            output_candidates.into(),
+            current_height,
+            fee_amount.into(),
+        )
+        .map_err(|e| JsValue::from_str(&format!("{}", e)))
+        .map(TxBuilder)
     }
 
     #[wasm_bindgen]
@@ -37,6 +46,9 @@ impl TxBuilder {
 
     #[wasm_bindgen]
     pub fn build(&self) -> Result<UnsignedTransaction, JsValue> {
-        Err(JsValue::from_str("Not yet implemented"))
+        self.0
+            .build()
+            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+            .map(UnsignedTransaction::from)
     }
 }

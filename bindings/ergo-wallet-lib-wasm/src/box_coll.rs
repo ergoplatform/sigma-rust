@@ -19,6 +19,12 @@ impl ErgoBoxes {
     }
 }
 
+impl Into<Vec<chain::ergo_box::ErgoBox>> for ErgoBoxes {
+    fn into(self) -> Vec<chain::ergo_box::ErgoBox> {
+        self.0
+    }
+}
+
 /// Collection of ErgoBoxCandidates
 #[wasm_bindgen]
 pub struct ErgoBoxCandidates(Vec<chain::ergo_box::ErgoBoxCandidate>);
@@ -29,5 +35,11 @@ impl ErgoBoxCandidates {
     #[wasm_bindgen(constructor)]
     pub fn new(box_candidate: ErgoBoxCandidate) -> ErgoBoxCandidates {
         ErgoBoxCandidates(vec![box_candidate.into()])
+    }
+}
+
+impl Into<Vec<chain::ergo_box::ErgoBoxCandidate>> for ErgoBoxCandidates {
+    fn into(self) -> Vec<chain::ergo_box::ErgoBoxCandidate> {
+        self.0
     }
 }

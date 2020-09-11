@@ -36,3 +36,9 @@ impl UnsignedTransaction {
         ))
     }
 }
+
+impl From<chain::transaction::unsigned::UnsignedTransaction> for UnsignedTransaction {
+    fn from(t: chain::transaction::unsigned::UnsignedTransaction) -> Self {
+        UnsignedTransaction(t)
+    }
+}

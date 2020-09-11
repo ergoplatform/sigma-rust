@@ -152,28 +152,40 @@ impl ErgoBox {
 /// Assets that ErgoBox holds
 pub trait ErgoBoxAssets {
     /// Box value
-    fn value(&self) -> &BoxValue;
+    fn value(&self) -> BoxValue;
     /// Tokens (ids and amounts)
-    fn tokens(&self) -> &[TokenAmount];
+    fn tokens(&self) -> Vec<TokenAmount>;
 }
 
 impl ErgoBoxAssets for ErgoBoxCandidate {
-    fn value(&self) -> &BoxValue {
-        &self.value
+    fn value(&self) -> BoxValue {
+        self.value.clone()
     }
 
-    fn tokens(&self) -> &[TokenAmount] {
-        &self.tokens
+    fn tokens(&self) -> Vec<TokenAmount> {
+        self.tokens.clone()
     }
 }
 
 impl ErgoBoxAssets for ErgoBox {
-    fn value(&self) -> &BoxValue {
-        &self.value
+    fn value(&self) -> BoxValue {
+        self.value.clone()
     }
 
-    fn tokens(&self) -> &[TokenAmount] {
-        &self.tokens
+    fn tokens(&self) -> Vec<TokenAmount> {
+        self.tokens.clone()
+    }
+}
+
+/// id of the ergo box
+pub trait ErgoBoxId {
+    /// Id of the ergo box
+    fn box_id(&self) -> BoxId;
+}
+
+impl ErgoBoxId for ErgoBox {
+    fn box_id(&self) -> BoxId {
+        self.box_id.clone()
     }
 }
 

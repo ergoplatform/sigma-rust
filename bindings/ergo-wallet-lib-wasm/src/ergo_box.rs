@@ -69,3 +69,9 @@ impl BoxValue {
         ))
     }
 }
+
+impl Into<chain::ergo_box::box_value::BoxValue> for BoxValue {
+    fn into(self) -> chain::ergo_box::box_value::BoxValue {
+        self.0
+    }
+}
