@@ -13,3 +13,9 @@ impl SecretKey {
         SecretKey(wallet::secret_key::SecretKey::random_dlog())
     }
 }
+
+impl From<SecretKey> for wallet::secret_key::SecretKey {
+    fn from(s: SecretKey) -> Self {
+        s.0
+    }
+}

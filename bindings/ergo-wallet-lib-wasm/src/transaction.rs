@@ -22,6 +22,12 @@ impl Transaction {
     }
 }
 
+impl From<chain::transaction::Transaction> for Transaction {
+    fn from(t: chain::transaction::Transaction) -> Self {
+        Transaction(t)
+    }
+}
+
 #[wasm_bindgen]
 pub struct UnsignedTransaction(chain::transaction::unsigned::UnsignedTransaction);
 
@@ -40,5 +46,11 @@ impl UnsignedTransaction {
 impl From<chain::transaction::unsigned::UnsignedTransaction> for UnsignedTransaction {
     fn from(t: chain::transaction::unsigned::UnsignedTransaction) -> Self {
         UnsignedTransaction(t)
+    }
+}
+
+impl From<UnsignedTransaction> for chain::transaction::unsigned::UnsignedTransaction {
+    fn from(t: UnsignedTransaction) -> Self {
+        t.0
     }
 }

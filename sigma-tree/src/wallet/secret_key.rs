@@ -1,5 +1,5 @@
 //! Secret types
-use crate::sigma_protocol::DlogProverInput;
+use crate::sigma_protocol::{DlogProverInput, PrivateInput};
 
 /// Types of secrets
 #[derive(PartialEq, Debug, Clone)]
@@ -12,5 +12,13 @@ impl SecretKey {
     /// Generates random DlogProverInput
     pub fn random_dlog() -> SecretKey {
         SecretKey::DlogSecretKey(DlogProverInput::random())
+    }
+}
+
+impl From<SecretKey> for PrivateInput {
+    fn from(s: SecretKey) -> Self {
+        match s {
+            SecretKey::DlogSecretKey(dpi) => PrivateInput::DlogProverInput(dpi),
+        }
     }
 }
