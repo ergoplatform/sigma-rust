@@ -16,17 +16,14 @@ pub struct TxBuilder(wallet::tx_builder::TxBuilder<SelectAllBoxSelector<ErgoBox>
 impl TxBuilder {
     #[wasm_bindgen]
     pub fn new(
-        // box_selector: BoxSelector,
         inputs: ErgoBoxes,
         output_candidates: ErgoBoxCandidates,
         current_height: u32,
         fee_amount: BoxValue,
     ) -> Result<TxBuilder, JsValue> {
         sigma_tree::wallet::tx_builder::TxBuilder::new(
-            // wallet::box_selector::select_all::select_all_box_selector::<ErgoBox>,
-            // wallet::box_selector::select_all::SelectAllBoxSelector::<ErgoBox> { a: PhantomData },
             wallet::box_selector::select_all::SelectAllBoxSelector::<ErgoBox>::new(),
-            inputs.into(),
+            inputs.clone().into(),
             output_candidates.into(),
             current_height,
             fee_amount.into(),

@@ -14,6 +14,7 @@ use crate::serialization::constant_store::ConstantStore;
 use sigma_ser::{peekable_reader::PeekableReader, vlq_encode};
 use std::io;
 use std::rc::Rc;
+use thiserror::Error;
 use vlq_encode::ReadSigmaVlqExt;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -60,11 +61,13 @@ pub struct ErgoTreeRootParsingError {
 }
 
 /// ErgoTree parsing (deserialization) error
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(Error, PartialEq, Eq, Debug, Clone)]
 pub enum ErgoTreeParsingError {
     /// Whole ErgoTree parsing (deserialization) error
+    #[error("Whole ErgoTree parsing (deserialization) error")]
     TreeParsingError(ErgoTreeConstantsParsingError),
     /// ErgoTree root expr parsing (deserialization) error
+    #[error("ErgoTree root expr parsing (deserialization) error")]
     RootParsingError(ErgoTreeRootParsingError),
 }
 

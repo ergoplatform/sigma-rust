@@ -22,3 +22,9 @@ impl From<SecretKey> for PrivateInput {
         }
     }
 }
+
+impl From<DlogProverInput> for SecretKey {
+    fn from(pi: DlogProverInput) -> Self {
+        SecretKey::DlogSecretKey(pi)
+    }
+}

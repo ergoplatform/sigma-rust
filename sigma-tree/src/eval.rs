@@ -6,6 +6,7 @@ use crate::{
 };
 
 use cost_accum::CostAccumulator;
+use thiserror::Error;
 use value::Value;
 
 mod cost_accum;
@@ -23,11 +24,13 @@ impl Env {
 }
 
 /// Interpreter errors
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(Error, PartialEq, Eq, Debug, Clone)]
 pub enum EvalError {
     /// Only boolean or SigmaBoolean is a valid result expr type
+    #[error("Only boolean or SigmaBoolean is a valid result expr type")]
     InvalidResultType,
     /// Unsupported Expr encountered during the evaluation
+    #[error("Unsupported Expr encountered during the evaluation")]
     // TODO: store unexpected expr
     UnexpectedExpr,
 }

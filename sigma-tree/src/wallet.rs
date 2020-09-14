@@ -28,7 +28,7 @@ pub struct Wallet {
 #[derive(Error, PartialEq, Eq, Debug, Clone)]
 pub enum WalletError {
     /// Error on tx signing
-    #[error("Box selector error {}", 0)]
+    #[error("Transaction signing error: {0}")]
     TxSigningError(TxSigningError),
 }
 

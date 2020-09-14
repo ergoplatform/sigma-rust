@@ -11,12 +11,16 @@ use crate::{
     sigma_protocol::prover::{Prover, ProverError},
 };
 
+use thiserror::Error;
+
 /// Errors on transaction signing
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(Error, PartialEq, Eq, Debug, Clone)]
 pub enum TxSigningError {
     /// error on proving an input
+    #[error("Prover error (tx input index {1}): {0}")]
     ProverError(ProverError, usize),
     /// failed to find an input in boxes_to_spend
+    #[error("Input box not found (index {0})")]
     InputBoxNotFound(usize),
 }
 

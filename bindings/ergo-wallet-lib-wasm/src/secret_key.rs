@@ -19,3 +19,9 @@ impl From<SecretKey> for wallet::secret_key::SecretKey {
         s.0
     }
 }
+
+impl From<wallet::secret_key::SecretKey> for SecretKey {
+    fn from(sk: wallet::secret_key::SecretKey) -> Self {
+        SecretKey(sk)
+    }
+}
