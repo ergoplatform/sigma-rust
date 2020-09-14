@@ -23,7 +23,7 @@ impl TxBuilder {
     ) -> Result<TxBuilder, JsValue> {
         sigma_tree::wallet::tx_builder::TxBuilder::new(
             wallet::box_selector::select_all::SelectAllBoxSelector::<ErgoBox>::new(),
-            inputs.clone().into(),
+            inputs.into(),
             output_candidates.into(),
             current_height,
             fee_amount.into(),
