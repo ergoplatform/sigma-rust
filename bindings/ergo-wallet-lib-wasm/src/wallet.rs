@@ -1,3 +1,4 @@
+use sigma_tree::chain::ergo_box::ErgoBox;
 use wasm_bindgen::prelude::*;
 
 use crate::{
@@ -34,11 +35,13 @@ impl Wallet {
         boxes_to_spend: ErgoBoxes,
         data_boxes: ErgoBoxes,
     ) -> Result<Transaction, JsValue> {
+        let boxes_to_spend: Vec<ErgoBox> = boxes_to_spend.into();
+        let data_boxes: Vec<ErgoBox> = data_boxes.into();
         self.0
             .sign_transaction(
                 tx.into(),
-                boxes_to_spend.into().as_slice(),
-                data_boxes.into().as_slice(),
+                boxes_to_spend.as_slice(),
+                data_boxes.as_slice(),
                 &_state_context.into(),
             )
             .map_err(|e| JsValue::from_str(&format!("{}", e)))

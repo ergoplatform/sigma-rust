@@ -12,3 +12,9 @@ impl ErgoStateContext {
         ErgoStateContext(chain::ergo_state_context::ErgoStateContext::dummy())
     }
 }
+
+impl Into<chain::ergo_state_context::ErgoStateContext> for ErgoStateContext {
+    fn into(self) -> chain::ergo_state_context::ErgoStateContext {
+        self.0
+    }
+}

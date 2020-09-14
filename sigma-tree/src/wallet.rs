@@ -7,6 +7,7 @@ pub mod tx_builder;
 
 use secret_key::SecretKey;
 use signing::{sign_transaction, TxSigningError};
+use thiserror::Error;
 
 use crate::{
     chain::{
@@ -24,8 +25,10 @@ pub struct Wallet {
 }
 
 /// Wallet errors
+#[derive(Error, PartialEq, Eq, Debug, Clone)]
 pub enum WalletError {
     /// Error on tx signing
+    #[error("Box selector error {}", 0)]
     TxSigningError(TxSigningError),
 }
 

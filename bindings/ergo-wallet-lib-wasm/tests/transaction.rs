@@ -17,9 +17,10 @@ fn test_sign_transaction() {
     let data_boxes = ErgoBoxes::from_boxes(Box::new([]));
     let dummy_ctx = ErgoStateContext::dummy();
     let tx = UnsignedTransaction::dummy();
-    let wallet = Wallet::from_mnemonic("", "");
+    let sk = SecretKey::random_dlog();
+    let wallet = Wallet::from_secret(sk);
     let res = wallet.sign_transaction(dummy_ctx, tx, boxes_to_spend, data_boxes);
-    assert!(res.is_err());
+    assert!(res.is_ok());
 }
 
 #[wasm_bindgen_test]
