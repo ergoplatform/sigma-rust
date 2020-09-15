@@ -5,9 +5,9 @@ extern crate wasm_bindgen_test;
 use std::{convert::TryInto, rc::Rc};
 
 use ergo_wallet_lib_wasm::{
-    address::Address, box_coll::ErgoBoxCandidates, box_coll::ErgoBoxes, contract::Contract,
-    ergo_box::BoxValue, ergo_box::ErgoBoxCandidate, ergo_state_ctx::ErgoStateContext,
-    secret_key::SecretKey, tx_builder::TxBuilder, wallet::Wallet,
+    address::Address, box_coll::ErgoBoxCandidates, box_coll::ErgoBoxes, box_selector::BoxSelector,
+    contract::Contract, ergo_box::BoxValue, ergo_box::ErgoBoxCandidate,
+    ergo_state_ctx::ErgoStateContext, secret_key::SecretKey, tx_builder::TxBuilder, wallet::Wallet,
 };
 use sigma_tree::{
     ast::Expr, chain::ergo_box::register::NonMandatoryRegisters, chain::ergo_box::ErgoBox,
@@ -45,7 +45,8 @@ fn test_sign_transaction() {
     let outbox = ErgoBoxCandidate::new(&BoxValue::from_u32(1).unwrap(), 0, &contract);
     let tx_outputs = ErgoBoxCandidates::new(&outbox);
     let fee = BoxValue::from_u32(2).unwrap();
-    let tx_builder = TxBuilder::new(&tx_inputs, &tx_outputs, 0, &fee).unwrap();
+    let tx_builder =
+        TxBuilder::new(BoxSelector::SelectAll, &tx_inputs, &tx_outputs, 0, &fee).unwrap();
     let tx = tx_builder.build().unwrap();
     let wallet = Wallet::from_secret(&sk);
     let dummy_ctx = ErgoStateContext::dummy();
@@ -87,7 +88,8 @@ fn test_tx_builder() {
     let outbox = ErgoBoxCandidate::new(&BoxValue::from_u32(1).unwrap(), 0, &contract);
     let tx_outputs = ErgoBoxCandidates::new(&outbox);
     let fee = BoxValue::from_u32(2).unwrap();
-    let tx_builder = TxBuilder::new(&tx_inputs, &tx_outputs, 0, &fee).unwrap();
+    let tx_builder =
+        TxBuilder::new(BoxSelector::SelectAll, &tx_inputs, &tx_outputs, 0, &fee).unwrap();
     // assert!(tx_builder.is_ok());
     let _tx = tx_builder.build().unwrap();
 }

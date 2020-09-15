@@ -20,23 +20,23 @@ use crate::chain::{
 use super::box_selector::{BoxSelection, BoxSelector, BoxSelectorError};
 
 /// Unsigned transaction builder
-pub struct TxBuilder<T: BoxSelector<S>, S: ErgoBoxAssets> {
-    box_selector: T,
+pub struct TxBuilder<S: ErgoBoxAssets> {
+    box_selector: Box<dyn BoxSelector<S>>,
     boxes_to_spend: Vec<S>,
     output_candidates: Vec<ErgoBoxCandidate>,
     current_height: u32,
     fee_amount: BoxValue,
 }
 
-impl<T: BoxSelector<S>, S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<T, S> {
+impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
     /// Creates new TxBuilder
     pub fn new(
-        box_selector: T,
+        box_selector: Box<dyn BoxSelector<S>>,
         boxes_to_spend: Vec<S>,
         output_candidates: Vec<ErgoBoxCandidate>,
         current_height: u32,
         fee_amount: BoxValue,
-    ) -> Result<TxBuilder<T, S>, TxBuilderError> {
+    ) -> Result<TxBuilder<S>, TxBuilderError> {
         // TODO: check parameters and return an Err
         Ok(TxBuilder {
             box_selector,
@@ -53,7 +53,7 @@ impl<T: BoxSelector<S>, S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<T, S> {
         &self,
         change_address: &Address,
         min_change_value: BoxValue,
-    ) -> TxBuilder<T, S> {
+    ) -> TxBuilder<S> {
         todo!()
     }
 

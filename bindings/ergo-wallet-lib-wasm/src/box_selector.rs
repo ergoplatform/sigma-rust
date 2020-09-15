@@ -1,19 +1,19 @@
+use sigma_tree::chain::ergo_box::ErgoBoxAssets;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 pub enum BoxSelector {
-    SelectAll,
+    SelectAll = 0,
 }
 
-// impl BoxSelector {
-//     pub fn inner<F, T: ErgoBoxAssets>(&self) -> F
-//     where
-//         F: Fn(Vec<T>, BoxValue, &[TokenAmount]) -> Result<BoxSelection<T>, BoxSelectorError>,
-//     {
-//         match self {
-//             BoxSelector::SelectAll => {
-//                 wallet::box_selector::select_all::select_all_box_selector::<T>
-//             }
-//         }
-//     }
-// }
+impl BoxSelector {
+    pub fn inner<T: ErgoBoxAssets>(
+        &self,
+    ) -> Box<dyn sigma_tree::wallet::box_selector::BoxSelector<T>> {
+        match self {
+            BoxSelector::SelectAll => {
+                Box::new(sigma_tree::wallet::box_selector::select_all::SelectAllBoxSelector {})
+            }
+        }
+    }
+}

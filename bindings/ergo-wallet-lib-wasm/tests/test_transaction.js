@@ -24,7 +24,7 @@ it('TxBuilder test', async () => {
   const outbox = new ErgoBoxCandidate(BoxValue.from_u32(1), 0, contract);
   const tx_outputs = new ErgoBoxCandidates(outbox);
   const fee = BoxValue.from_u32(1);
-  const tx_builder = TxBuilder.new(unspent_boxes, tx_outputs, 0, fee);
+  const tx_builder = TxBuilder.new(BoxSelector.SelectAll, unspent_boxes, tx_outputs, 0, fee);
   const tx = tx_builder.build();
   assert(tx != null);
 });
@@ -42,7 +42,7 @@ it('sign transaction', async () => {
   const outbox = new ErgoBoxCandidate(BoxValue.from_u32(1), 0, contract);
   const tx_outputs = new ErgoBoxCandidates(outbox);
   const fee = BoxValue.from_u32(1);
-  const tx_builder = TxBuilder.new(unspent_boxes, tx_outputs, 0, fee);
+  const tx_builder = TxBuilder.new(BoxSelector.SelectAll, unspent_boxes, tx_outputs, 0, fee);
   const tx = tx_builder.build();
   const tx_data_inputs = ErgoBoxes.from_boxes_json([]);
   const dummy_ctx = ErgoStateContext.dummy();

@@ -27,7 +27,7 @@ pub struct UnsignedInput {
 impl<T: ErgoBoxId> From<T> for UnsignedInput {
     fn from(b: T) -> Self {
         UnsignedInput {
-            box_id: b.box_id().clone(),
+            box_id: b.box_id(),
             extension: ContextExtension::empty(),
         }
     }

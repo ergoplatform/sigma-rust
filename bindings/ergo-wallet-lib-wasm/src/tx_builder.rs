@@ -1,28 +1,28 @@
 use sigma_tree::{chain::ergo_box::ErgoBox, wallet};
-use wallet::box_selector::select_all::SelectAllBoxSelector;
 use wasm_bindgen::prelude::*;
 
 use crate::{
     address::Address,
     box_coll::{ErgoBoxCandidates, ErgoBoxes},
+    box_selector::BoxSelector,
     ergo_box::BoxValue,
     transaction::UnsignedTransaction,
 };
 
 #[wasm_bindgen]
-pub struct TxBuilder(wallet::tx_builder::TxBuilder<SelectAllBoxSelector<ErgoBox>, ErgoBox>);
+pub struct TxBuilder(wallet::tx_builder::TxBuilder<ErgoBox>);
 
 #[wasm_bindgen]
 impl TxBuilder {
-    #[wasm_bindgen]
     pub fn new(
+        box_selector: BoxSelector,
         inputs: &ErgoBoxes,
         output_candidates: &ErgoBoxCandidates,
         current_height: u32,
         fee_amount: &BoxValue,
     ) -> Result<TxBuilder, JsValue> {
         sigma_tree::wallet::tx_builder::TxBuilder::new(
-            wallet::box_selector::select_all::SelectAllBoxSelector::<ErgoBox>::new(),
+            box_selector.inner::<ErgoBox>(),
             inputs.clone().into(),
             output_candidates.clone().into(),
             current_height,
@@ -32,7 +32,6 @@ impl TxBuilder {
         .map(TxBuilder)
     }
 
-    #[wasm_bindgen]
     pub fn with_change_sent_to(
         &self,
         change_address: &Address,
@@ -41,7 +40,6 @@ impl TxBuilder {
         todo!()
     }
 
-    #[wasm_bindgen]
     pub fn build(&self) -> Result<UnsignedTransaction, JsValue> {
         self.0
             .build()
