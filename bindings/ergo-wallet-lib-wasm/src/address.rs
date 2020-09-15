@@ -47,6 +47,7 @@ use wasm_bindgen::prelude::*;
  *
  */
 #[wasm_bindgen]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Address(chain::address::Address);
 
 #[wasm_bindgen]

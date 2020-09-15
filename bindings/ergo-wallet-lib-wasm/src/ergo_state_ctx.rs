@@ -3,6 +3,7 @@ use wasm_bindgen::prelude::*;
 
 /// TBD
 #[wasm_bindgen]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ErgoStateContext(chain::ergo_state_context::ErgoStateContext);
 
 #[wasm_bindgen]

@@ -19,10 +19,10 @@ impl Wallet {
     }
 
     #[wasm_bindgen]
-    pub fn from_secret(secret: SecretKey) -> Wallet {
-        Wallet(sigma_tree::wallet::Wallet::from_secrets(
-            vec![secret.into()],
-        ))
+    pub fn from_secret(secret: &SecretKey) -> Wallet {
+        Wallet(sigma_tree::wallet::Wallet::from_secrets(vec![secret
+            .clone()
+            .into()]))
     }
 
     /// Sign a transaction:
@@ -30,19 +30,19 @@ impl Wallet {
     #[wasm_bindgen]
     pub fn sign_transaction(
         &self,
-        _state_context: ErgoStateContext,
-        tx: UnsignedTransaction,
-        boxes_to_spend: ErgoBoxes,
-        data_boxes: ErgoBoxes,
+        _state_context: &ErgoStateContext,
+        tx: &UnsignedTransaction,
+        boxes_to_spend: &ErgoBoxes,
+        data_boxes: &ErgoBoxes,
     ) -> Result<Transaction, JsValue> {
-        let boxes_to_spend: Vec<ErgoBox> = boxes_to_spend.into();
-        let data_boxes: Vec<ErgoBox> = data_boxes.into();
+        let boxes_to_spend: Vec<ErgoBox> = boxes_to_spend.clone().into();
+        let data_boxes: Vec<ErgoBox> = data_boxes.clone().into();
         self.0
             .sign_transaction(
-                tx.into(),
+                tx.clone().into(),
                 boxes_to_spend.as_slice(),
                 data_boxes.as_slice(),
-                &_state_context.into(),
+                &_state_context.clone().into(),
             )
             .map_err(|e| JsValue::from_str(&format!("{}", e)))
             .map(Transaction::from)

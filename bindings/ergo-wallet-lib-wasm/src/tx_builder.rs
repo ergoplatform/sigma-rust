@@ -16,17 +16,17 @@ pub struct TxBuilder(wallet::tx_builder::TxBuilder<SelectAllBoxSelector<ErgoBox>
 impl TxBuilder {
     #[wasm_bindgen]
     pub fn new(
-        inputs: ErgoBoxes,
-        output_candidates: ErgoBoxCandidates,
+        inputs: &ErgoBoxes,
+        output_candidates: &ErgoBoxCandidates,
         current_height: u32,
-        fee_amount: BoxValue,
+        fee_amount: &BoxValue,
     ) -> Result<TxBuilder, JsValue> {
         sigma_tree::wallet::tx_builder::TxBuilder::new(
             wallet::box_selector::select_all::SelectAllBoxSelector::<ErgoBox>::new(),
-            inputs.into(),
-            output_candidates.into(),
+            inputs.clone().into(),
+            output_candidates.clone().into(),
             current_height,
-            fee_amount.into(),
+            fee_amount.clone().into(),
         )
         .map_err(|e| JsValue::from_str(&format!("{}", e)))
         .map(TxBuilder)
@@ -36,7 +36,7 @@ impl TxBuilder {
     pub fn with_change_sent_to(
         &self,
         change_address: &Address,
-        min_change_value: BoxValue,
+        min_change_value: &BoxValue,
     ) -> TxBuilder {
         todo!()
     }

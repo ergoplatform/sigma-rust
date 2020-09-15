@@ -49,7 +49,6 @@ it('sign transaction', async () => {
   let fee = BoxValue.from_u32(1);
   let tx_builder = TxBuilder.new(unspent_boxes, tx_outputs, 0, fee);
   let tx = tx_builder.build();
-  // TODO: fix! unspent_boxes holds a null ptr (consumed in TxBuilder)
   console.error(unspent_boxes);
   const tx_data_inputs = ErgoBoxes.from_boxes([]);
   let dummy_ctx = ErgoStateContext.dummy();

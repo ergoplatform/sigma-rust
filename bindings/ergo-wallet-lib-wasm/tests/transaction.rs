@@ -41,19 +41,19 @@ fn test_sign_transaction() {
     let recipient =
         Address::from_testnet_str("3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN")
             .expect("failed");
-    let contract = Contract::pay_to_address(recipient).expect("failed");
+    let contract = Contract::pay_to_address(&recipient).expect("failed");
     let outbox = ErgoBoxCandidate::new(BoxValue::from_u32(1).unwrap(), 0, contract);
-    let tx_outputs = ErgoBoxCandidates::new(outbox);
+    let tx_outputs = ErgoBoxCandidates::new(&outbox);
     let fee = BoxValue::from_u32(2).unwrap();
-    let tx_builder = TxBuilder::new(tx_inputs.clone(), tx_outputs, 0, fee).unwrap();
+    let tx_builder = TxBuilder::new(&tx_inputs, &tx_outputs, 0, &fee).unwrap();
     let tx = tx_builder.build().unwrap();
-    let wallet = Wallet::from_secret(sk);
+    let wallet = Wallet::from_secret(&sk);
     let dummy_ctx = ErgoStateContext::dummy();
     let res = wallet.sign_transaction(
-        dummy_ctx,
-        tx,
-        tx_inputs,
-        ErgoBoxes::from_boxes(Box::new([])).unwrap(),
+        &dummy_ctx,
+        &tx,
+        &tx_inputs,
+        &ErgoBoxes::from_boxes(Box::new([])).unwrap(),
     );
     let _signed_tx = res.unwrap();
 }
@@ -83,11 +83,11 @@ fn test_tx_builder() {
     let recipient =
         Address::from_testnet_str("3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN")
             .expect("failed");
-    let contract = Contract::pay_to_address(recipient).expect("failed");
+    let contract = Contract::pay_to_address(&recipient).expect("failed");
     let outbox = ErgoBoxCandidate::new(BoxValue::from_u32(1).unwrap(), 0, contract);
-    let tx_outputs = ErgoBoxCandidates::new(outbox);
+    let tx_outputs = ErgoBoxCandidates::new(&outbox);
     let fee = BoxValue::from_u32(2).unwrap();
-    let tx_builder = TxBuilder::new(tx_inputs, tx_outputs, 0, fee).unwrap();
+    let tx_builder = TxBuilder::new(&tx_inputs, &tx_outputs, 0, &fee).unwrap();
     // assert!(tx_builder.is_ok());
     let _tx = tx_builder.build().unwrap();
 }

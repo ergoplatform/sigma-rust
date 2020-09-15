@@ -23,6 +23,7 @@ use crate::contract::Contract;
 /// A transaction is unsealing a box. As a box can not be open twice, any further valid transaction
 /// can not be linked to the same box.
 #[wasm_bindgen]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ErgoBoxCandidate(chain::ergo_box::ErgoBoxCandidate);
 
 #[wasm_bindgen]
@@ -57,6 +58,7 @@ impl Into<chain::ergo_box::ErgoBoxCandidate> for ErgoBoxCandidate {
 }
 
 #[wasm_bindgen]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct BoxValue(chain::ergo_box::box_value::BoxValue);
 
 #[wasm_bindgen]

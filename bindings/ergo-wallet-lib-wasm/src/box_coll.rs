@@ -45,14 +45,15 @@ impl Into<Vec<chain::ergo_box::ErgoBox>> for ErgoBoxes {
 
 /// Collection of ErgoBoxCandidates
 #[wasm_bindgen]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ErgoBoxCandidates(Vec<chain::ergo_box::ErgoBoxCandidate>);
 
 #[wasm_bindgen]
 impl ErgoBoxCandidates {
     /// Create new outputs
     #[wasm_bindgen(constructor)]
-    pub fn new(box_candidate: ErgoBoxCandidate) -> ErgoBoxCandidates {
-        ErgoBoxCandidates(vec![box_candidate.into()])
+    pub fn new(box_candidate: &ErgoBoxCandidate) -> ErgoBoxCandidates {
+        ErgoBoxCandidates(vec![box_candidate.clone().into()])
     }
 }
 

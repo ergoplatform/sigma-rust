@@ -29,6 +29,7 @@ impl From<chain::transaction::Transaction> for Transaction {
 }
 
 #[wasm_bindgen]
+#[derive(PartialEq, Debug, Clone)]
 pub struct UnsignedTransaction(chain::transaction::unsigned::UnsignedTransaction);
 
 #[wasm_bindgen]

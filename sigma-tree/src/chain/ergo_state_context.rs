@@ -1,6 +1,7 @@
 //! Blockchain state
 
 /// Blockchain state (last headers, etc.)
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ErgoStateContext();
 
 impl ErgoStateContext {
