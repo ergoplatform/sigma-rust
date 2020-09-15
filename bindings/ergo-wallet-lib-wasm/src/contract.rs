@@ -5,6 +5,7 @@ use crate::address::Address;
 
 /// Defines the contract(script) that will be guarding box contents
 #[wasm_bindgen]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Contract(chain::contract::Contract);
 
 #[wasm_bindgen]

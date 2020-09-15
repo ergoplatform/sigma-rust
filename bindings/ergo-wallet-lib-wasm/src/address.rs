@@ -66,3 +66,9 @@ impl Into<chain::address::Address> for Address {
         self.0
     }
 }
+
+impl From<chain::address::Address> for Address {
+    fn from(a: chain::address::Address) -> Self {
+        Address(a)
+    }
+}

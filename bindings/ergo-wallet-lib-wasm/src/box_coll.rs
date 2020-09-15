@@ -1,7 +1,7 @@
 use sigma_tree::chain;
 use wasm_bindgen::prelude::*;
 
-use crate::ergo_box::ErgoBoxCandidate;
+use crate::ergo_box::{ErgoBox, ErgoBoxCandidate};
 
 /// Collection of ErgoBox'es
 #[wasm_bindgen]
@@ -12,7 +12,7 @@ pub struct ErgoBoxes(Vec<chain::ergo_box::ErgoBox>);
 impl ErgoBoxes {
     /// parse ErgoBox array from json
     #[allow(clippy::boxed_local, clippy::or_fun_call)]
-    pub fn from_boxes(boxes: Box<[JsValue]>) -> Result<ErgoBoxes, JsValue> {
+    pub fn from_boxes_json(boxes: Box<[JsValue]>) -> Result<ErgoBoxes, JsValue> {
         boxes
             .iter()
             .try_fold(vec![], |mut acc, jb| {
@@ -34,6 +34,17 @@ impl ErgoBoxes {
                 Ok(acc)
             })
             .map(ErgoBoxes)
+    }
+
+    /// Create new collection with one element
+    #[wasm_bindgen(constructor)]
+    pub fn new(b: &ErgoBox) -> ErgoBoxes {
+        ErgoBoxes(vec![b.clone().into()])
+    }
+
+    /// Add an element to the collection
+    pub fn add(&mut self, b: &ErgoBox) {
+        self.0.push(b.clone().into());
     }
 }
 

@@ -1,4 +1,5 @@
 //! Secret types
+use crate::chain::address::Address;
 use crate::sigma_protocol::{DlogProverInput, PrivateInput};
 
 /// Types of secrets
@@ -12,6 +13,13 @@ impl SecretKey {
     /// Generates random DlogProverInput
     pub fn random_dlog() -> SecretKey {
         SecretKey::DlogSecretKey(DlogProverInput::random())
+    }
+
+    /// Address (encoded public image)
+    pub fn get_address_from_public_image(&self) -> Address {
+        match self {
+            SecretKey::DlogSecretKey(dpi) => Address::P2PK(dpi.public_image()),
+        }
     }
 }
 
