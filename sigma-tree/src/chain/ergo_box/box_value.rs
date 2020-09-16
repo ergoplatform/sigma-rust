@@ -62,6 +62,13 @@ impl Into<u64> for BoxValue {
     }
 }
 
+impl Into<i64> for BoxValue {
+    fn into(self) -> i64 {
+        // it's save since upper bound is i64::MAX
+        self.0 as i64
+    }
+}
+
 impl SigmaSerializable for BoxValue {
     fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
         w.put_u64(self.0)

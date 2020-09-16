@@ -59,6 +59,7 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
 
     /// Build the unsigned transaction
     pub fn build(&self) -> Result<UnsignedTransaction, TxBuilderError> {
+        // TODO: calculate the needed balance
         let selection: BoxSelection<S> = self.box_selector.select(
             self.boxes_to_spend.clone(),
             1u64.try_into().unwrap(),

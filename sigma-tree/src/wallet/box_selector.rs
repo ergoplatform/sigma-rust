@@ -29,4 +29,8 @@ pub trait BoxSelector<T: ErgoBoxAssets> {
 
 /// Errors of BoxSelector
 #[derive(Error, PartialEq, Eq, Debug, Clone)]
-pub enum BoxSelectorError {}
+pub enum BoxSelectorError {
+    /// Not enough coins
+    #[error("Not enough coins({0} nanoERGs are missing)")]
+    NotEnoughCoins(u64),
+}
