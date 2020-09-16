@@ -8,8 +8,8 @@ use std::convert::TryInto;
 
 use thiserror::Error;
 
+use crate::chain::address::Address;
 use crate::chain::{
-    address::Address,
     ergo_box::ErgoBoxAssets,
     ergo_box::ErgoBoxId,
     ergo_box::{box_value::BoxValue, ErgoBoxCandidate},
@@ -65,6 +65,7 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
             vec![].as_slice(),
         )?;
         // TODO: add returning change
+        // TODO: miner's fee
         Ok(UnsignedTransaction::new(
             selection
                 .boxes

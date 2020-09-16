@@ -1,9 +1,6 @@
 //! Box selection for transaction inputs
 
-// TODO: remove after the implementation
-#![allow(unused_variables)]
-
-pub mod select_all;
+pub mod simple;
 
 use crate::chain::{
     ergo_box::{box_value::BoxValue, ErgoBoxAssets},
@@ -27,9 +24,7 @@ pub trait BoxSelector<T: ErgoBoxAssets> {
         inputs: Vec<T>,
         target_balance: BoxValue,
         target_tokens: &[TokenAmount],
-    ) -> Result<BoxSelection<T>, BoxSelectorError> {
-        todo!()
-    }
+    ) -> Result<BoxSelection<T>, BoxSelectorError>;
 }
 
 /// Errors of BoxSelector

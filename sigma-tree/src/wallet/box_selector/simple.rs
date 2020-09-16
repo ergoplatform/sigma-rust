@@ -1,19 +1,21 @@
 //! Box selector which selects all provided inputs
 
+use crate::chain::ergo_box::box_value::BoxValue;
 use crate::chain::ergo_box::ErgoBoxAssets;
+use crate::chain::token::TokenAmount;
 
 use super::{BoxSelection, BoxSelector};
 
 #[allow(dead_code)]
 /// Selects all provided inputs
-pub struct SelectAllBoxSelector {}
+pub struct SimpleBoxSelector {}
 
-impl<T: ErgoBoxAssets> BoxSelector<T> for SelectAllBoxSelector {
+impl<T: ErgoBoxAssets> BoxSelector<T> for SimpleBoxSelector {
     fn select(
         &self,
         inputs: Vec<T>,
-        target_balance: crate::chain::ergo_box::box_value::BoxValue,
-        target_tokens: &[crate::chain::token::TokenAmount],
+        target_balance: BoxValue,
+        target_tokens: &[TokenAmount],
     ) -> Result<BoxSelection<T>, super::BoxSelectorError> {
         // TODO: check if inputs have enough assets
         let len = inputs.len();

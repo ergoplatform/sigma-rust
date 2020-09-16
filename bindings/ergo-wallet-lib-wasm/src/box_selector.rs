@@ -12,7 +12,7 @@ impl BoxSelector {
     ) -> Box<dyn sigma_tree::wallet::box_selector::BoxSelector<T>> {
         match self {
             BoxSelector::SelectAll => {
-                Box::new(sigma_tree::wallet::box_selector::select_all::SelectAllBoxSelector {})
+                Box::new(sigma_tree::wallet::box_selector::simple::SimpleBoxSelector {})
             }
         }
     }
