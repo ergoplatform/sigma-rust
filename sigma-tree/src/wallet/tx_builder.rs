@@ -4,11 +4,11 @@
 #![allow(unused_variables)]
 #![allow(dead_code)]
 
-use std::convert::TryInto;
-
+use box_value::BoxValueError;
 use thiserror::Error;
 
 use crate::chain::address::Address;
+use crate::chain::ergo_box::box_value;
 use crate::chain::{
     ergo_box::ErgoBoxAssets,
     ergo_box::ErgoBoxId,
@@ -59,12 +59,14 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
 
     /// Build the unsigned transaction
     pub fn build(&self) -> Result<UnsignedTransaction, TxBuilderError> {
-        // TODO: calculate the needed balance
+        let total_output_value: BoxValue =
+            box_value::sum(self.output_candidates.iter().map(|b| b.value))?;
         let selection: BoxSelection<S> = self.box_selector.select(
             self.boxes_to_spend.clone(),
-            1u64.try_into().unwrap(),
+            total_output_value,
             vec![].as_slice(),
         )?;
+        // let total_input_value = box_value::sum(selection.boxes.iter().map(|b| b.value()))?;
         // TODO: add returning change
         // TODO: miner's fee
         Ok(UnsignedTransaction::new(
@@ -84,10 +86,19 @@ pub enum TxBuilderError {
     /// Box selection error
     #[error("Box selector error {}", 0)]
     BoxSelectorError(BoxSelectorError),
+    /// Box value error
+    #[error("Box value error")]
+    BoxValueError(BoxValueError),
 }
 
 impl From<BoxSelectorError> for TxBuilderError {
     fn from(e: BoxSelectorError) -> Self {
         TxBuilderError::BoxSelectorError(e)
+    }
+}
+
+impl From<BoxValueError> for TxBuilderError {
+    fn from(e: BoxValueError) -> Self {
+        TxBuilderError::BoxValueError(e)
     }
 }
