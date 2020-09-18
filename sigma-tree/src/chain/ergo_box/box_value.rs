@@ -31,18 +31,39 @@ impl BoxValue {
         v >= BoxValue::MIN_RAW as u64 && v <= BoxValue::MAX_RAW as u64
     }
 
-    /// Get u64 value
-    pub fn value(&self) -> u64 {
+    /// Get the value as u64
+    pub fn as_u64(&self) -> u64 {
         self.0 as u64
     }
 
+    /// Get the value as i64
+    pub fn as_i64(&self) -> &i64 {
+        &self.0
+    }
+
     /// Addition with overflow check
-    pub fn checked_add(self, rhs: Self) -> Result<Self, BoxValueError> {
+    fn checked_add(&self, rhs: &Self) -> Result<Self, BoxValueError> {
         // TODO: add tests
         self.0
             .checked_add(rhs.0)
             .map(BoxValue)
             .ok_or(BoxValueError::Overflow)
+    }
+
+    /// Subtraction with overflow and bounds check
+    pub fn checked_sub(self, rhs: Self) -> Result<Self, BoxValueError> {
+        let raw_i64 = self.0.checked_sub(rhs.0).ok_or(BoxValueError::Overflow)?;
+        if raw_i64 < BoxValue::MIN_RAW {
+            Err(BoxValueError::OutOfBounds)
+        } else {
+            Ok(BoxValue(raw_i64))
+        }
+    }
+}
+
+impl PartialOrd for BoxValue {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.0.partial_cmp(other.as_i64())
     }
 }
 
@@ -50,7 +71,7 @@ impl BoxValue {
 /// Returns Err on overflow
 pub fn sum<I: Iterator<Item = BoxValue>>(mut iter: I) -> Result<BoxValue, BoxValueError> {
     // TODO: add tests (cover empty list)
-    iter.try_fold(BoxValue(0), |acc, v| acc.checked_add(v))
+    iter.try_fold(BoxValue(0), |acc, v| acc.checked_add(&v))
 }
 
 /// BoxValue errors
@@ -83,7 +104,7 @@ impl Into<u64> for BoxValue {
 
 impl Into<i64> for BoxValue {
     fn into(self) -> i64 {
-        // it's save since upper bound is i64::MAX
+        // it's safe since upper bound is i64::MAX
         self.0 as i64
     }
 }
@@ -114,7 +135,7 @@ mod tests {
         type Strategy = BoxedStrategy<Self>;
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             (BoxValue::MIN_RAW..BoxValue::MAX_RAW)
-                .prop_map(|v| BoxValue(v))
+                .prop_map(BoxValue)
                 .boxed()
         }
     }

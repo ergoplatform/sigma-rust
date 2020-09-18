@@ -41,7 +41,7 @@ impl ErgoBoxCandidate {
     pub fn new(value: &BoxValue, creation_height: u32, contract: &Contract) -> ErgoBoxCandidate {
         let chain_contract: chain::contract::Contract = contract.clone().into();
         let b = chain::ergo_box::ErgoBoxCandidate::new(
-            value.0.clone(),
+            value.0,
             chain_contract.get_ergo_tree(),
             creation_height,
         );
@@ -85,7 +85,7 @@ impl ErgoBox {
     ) -> ErgoBox {
         let chain_contract: chain::contract::Contract = contract.clone().into();
         let b = chain::ergo_box::ErgoBox::new(
-            value.0.clone(),
+            value.0,
             chain_contract.get_ergo_tree(),
             vec![],
             NonMandatoryRegisters::empty(),

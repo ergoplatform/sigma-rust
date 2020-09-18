@@ -307,7 +307,7 @@ mod tests {
             .parse_address_from_str("9hzP24a2q8KLPVCUk7gdMDXYc7vinmGuxmLp5KU7k9UwptgYBYV")
             .unwrap();
 
-        let contract = chain::contract::Contract::pay_to_address(address).unwrap();
+        let contract = chain::contract::Contract::pay_to_address(&address).unwrap();
         let bytes = &contract.get_ergo_tree().sigma_serialise_bytes();
         assert_eq!(&bytes[..2], vec![0u8, 8u8].as_slice());
     }

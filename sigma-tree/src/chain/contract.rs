@@ -16,7 +16,7 @@ impl Contract {
     }
 
     /// create new contract that allow spending for a given Address
-    pub fn pay_to_address(address: Address) -> Result<Contract, SerializationError> {
+    pub fn pay_to_address(address: &Address) -> Result<Contract, SerializationError> {
         Ok(Contract::new(address.script()?))
     }
 

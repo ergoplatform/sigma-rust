@@ -128,7 +128,7 @@ impl ErgoBox {
     ) -> ErgoBox {
         let box_with_zero_id = ErgoBox {
             box_id: BoxId::zero(),
-            value: box_candidate.value.clone(),
+            value: box_candidate.value,
             ergo_tree: box_candidate.ergo_tree.clone(),
             tokens: box_candidate.tokens.clone(),
             additional_registers: box_candidate.additional_registers.clone(),
@@ -159,7 +159,7 @@ pub trait ErgoBoxAssets {
 
 impl ErgoBoxAssets for ErgoBoxCandidate {
     fn value(&self) -> BoxValue {
-        self.value.clone()
+        self.value
     }
 
     fn tokens(&self) -> Vec<TokenAmount> {
@@ -169,7 +169,7 @@ impl ErgoBoxAssets for ErgoBoxCandidate {
 
 impl ErgoBoxAssets for ErgoBox {
     fn value(&self) -> BoxValue {
-        self.value.clone()
+        self.value
     }
 
     fn tokens(&self) -> Vec<TokenAmount> {
@@ -270,6 +270,7 @@ pub struct ErgoBoxCandidate {
 impl ErgoBoxCandidate {
     /// create box with value guarded by ErgoTree
     pub fn new(value: BoxValue, ergo_tree: ErgoTree, creation_height: u32) -> ErgoBoxCandidate {
+        // TODO: check for min BoxValue and return error
         ErgoBoxCandidate {
             value,
             ergo_tree,
