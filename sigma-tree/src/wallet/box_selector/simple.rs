@@ -1,7 +1,10 @@
 //! Box selector which selects all provided inputs
 
+use std::convert::TryInto;
+
 use crate::chain::ergo_box::box_value::BoxValue;
 use crate::chain::ergo_box::ErgoBoxAssets;
+use crate::chain::ergo_box::ErgoBoxAssetsData;
 use crate::chain::token::TokenAmount;
 
 use super::BoxSelectorError;
@@ -33,11 +36,18 @@ impl<T: ErgoBoxAssets> BoxSelector<T> for SimpleBoxSelector {
                 unmet_target_balance.abs() as u64
             ));
         }
-        let _change = unmet_target_balance.abs();
+        let change_boxes: Vec<ErgoBoxAssetsData> = if unmet_target_balance == 0 {
+            vec![]
+        } else {
+            let change_value: BoxValue = unmet_target_balance.abs().try_into()?;
+            vec![ErgoBoxAssetsData {
+                value: change_value,
+                tokens: vec![],
+            }]
+        };
         Ok(BoxSelection {
             boxes: selected_inputs,
-            // TODO: make change "box"
-            change_boxes: vec![],
+            change_boxes,
         })
         // TODO: add tests
     }

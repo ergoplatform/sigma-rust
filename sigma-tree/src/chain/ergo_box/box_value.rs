@@ -96,6 +96,17 @@ impl TryFrom<u64> for BoxValue {
     }
 }
 
+impl TryFrom<i64> for BoxValue {
+    type Error = BoxValueError;
+    fn try_from(v: i64) -> Result<Self, Self::Error> {
+        if v >= BoxValue::MIN_RAW {
+            Ok(BoxValue(v as i64))
+        } else {
+            Err(BoxValueError::OutOfBounds)
+        }
+    }
+}
+
 impl Into<u64> for BoxValue {
     fn into(self) -> u64 {
         self.0 as u64

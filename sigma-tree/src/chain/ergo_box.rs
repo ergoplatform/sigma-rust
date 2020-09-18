@@ -157,6 +157,24 @@ pub trait ErgoBoxAssets {
     fn tokens(&self) -> Vec<TokenAmount>;
 }
 
+/// Simple struct to hold ErgoBoxAssets values
+pub struct ErgoBoxAssetsData {
+    /// Box value
+    pub value: BoxValue,
+    /// Tokens
+    pub tokens: Vec<TokenAmount>,
+}
+
+impl ErgoBoxAssets for ErgoBoxAssetsData {
+    fn value(&self) -> BoxValue {
+        self.value
+    }
+
+    fn tokens(&self) -> Vec<TokenAmount> {
+        self.tokens.clone()
+    }
+}
+
 impl ErgoBoxAssets for ErgoBoxCandidate {
     fn value(&self) -> BoxValue {
         self.value

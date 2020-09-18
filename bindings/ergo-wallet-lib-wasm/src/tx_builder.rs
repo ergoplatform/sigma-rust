@@ -20,6 +20,8 @@ impl TxBuilder {
         output_candidates: &ErgoBoxCandidates,
         current_height: u32,
         fee_amount: &BoxValue,
+        change_address: &Address,
+        min_change_value: &BoxValue,
     ) -> Result<TxBuilder, JsValue> {
         sigma_tree::wallet::tx_builder::TxBuilder::new(
             box_selector.inner::<ErgoBox>(),
@@ -27,17 +29,11 @@ impl TxBuilder {
             output_candidates.clone().into(),
             current_height,
             fee_amount.clone().into(),
+            change_address.clone().into(),
+            min_change_value.clone().into(),
         )
         .map_err(|e| JsValue::from_str(&format!("{}", e)))
         .map(TxBuilder)
-    }
-
-    pub fn with_change_sent_to(
-        &self,
-        change_address: &Address,
-        min_change_value: &BoxValue,
-    ) -> TxBuilder {
-        todo!()
     }
 
     pub fn build(&self) -> Result<UnsignedTransaction, JsValue> {
