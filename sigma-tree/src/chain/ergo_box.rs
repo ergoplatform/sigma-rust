@@ -353,11 +353,11 @@ mod tests {
     use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
 
     impl Arbitrary for ErgoBoxCandidate {
-        type Parameters = ();
+        type Parameters = super::box_value::tests::ArbBoxValueRange;
 
-        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+        fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
             (
-                any::<BoxValue>(),
+                any_with::<BoxValue>(args),
                 any::<ErgoTree>(),
                 vec(any::<TokenAmount>(), 0..10),
                 any::<u32>(),
@@ -378,10 +378,14 @@ mod tests {
     }
 
     impl Arbitrary for ErgoBox {
-        type Parameters = ();
+        type Parameters = super::box_value::tests::ArbBoxValueRange;
 
-        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            (any::<ErgoBoxCandidate>(), any::<TxId>(), any::<u16>())
+        fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
+            (
+                any_with::<ErgoBoxCandidate>(args),
+                any::<TxId>(),
+                any::<u16>(),
+            )
                 .prop_map(|(box_candidate, tx_id, index)| {
                     Self::from_box_candidate(&box_candidate, tx_id, index)
                 })

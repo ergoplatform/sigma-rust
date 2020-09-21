@@ -1,9 +1,5 @@
 //! Builder for an UnsignedTransaction
 
-// TODO: remove after the implementation
-#![allow(unused_variables)]
-#![allow(dead_code)]
-
 use box_value::BoxValueError;
 use thiserror::Error;
 
@@ -78,7 +74,8 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
     /// Build the unsigned transaction
     pub fn build(&self) -> Result<UnsignedTransaction, TxBuilderError> {
         let total_output_value: BoxValue =
-            box_value::sum(self.output_candidates.iter().map(|b| b.value))?;
+            box_value::sum(self.output_candidates.iter().map(|b| b.value))?
+                .checked_add(&self.fee_amount)?;
         let selection: BoxSelection<S> = self.box_selector.select(
             self.boxes_to_spend.clone(),
             total_output_value,
@@ -116,7 +113,8 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
     }
 }
 
-fn new_miner_fee_box(fee_amount: BoxValue, creation_height: u32) -> ErgoBoxCandidate {
+/// Create a box with miner's contract and a given value
+pub fn new_miner_fee_box(fee_amount: BoxValue, creation_height: u32) -> ErgoBoxCandidate {
     let address_encoder = AddressEncoder::new(NetworkPrefix::Mainnet);
     let miner_fee_address = address_encoder
         .parse_address_from_str(MINERS_FEE_MAINNET_ADDRESS)
@@ -166,9 +164,9 @@ mod tests {
 
     use std::convert::TryInto;
 
-    use proptest::prelude::*;
     use proptest::strategy::ValueTree;
     use proptest::test_runner::TestRunner;
+    use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
 
     use crate::chain::ergo_box::ErgoBox;
     use crate::wallet::box_selector::simple::SimpleBoxSelector;
@@ -208,5 +206,39 @@ mod tests {
             1u64.try_into().unwrap(),
         );
         assert!(r.is_err());
+    }
+
+    proptest! {
+
+        #[test]
+        fn test_build_tx(inputs in vec(any_with::<ErgoBox>((9000..10000000).into()), 1..10),
+                         outputs in vec(any_with::<ErgoBoxCandidate>((BoxValue::MIN_RAW..10000).into()), 1..2),
+                         change_address in any::<Address>(),
+                         miners_fee in any_with::<BoxValue>((100..1000).into())) {
+            let min_change_value = BoxValue::MIN;
+
+            let all_outputs = box_value::sum(outputs.iter().map(|b| b.value)).unwrap()
+                                                                             .checked_add(&miners_fee).unwrap();
+            let all_inputs = box_value::sum(inputs.iter().map(|b| b.value)).unwrap();
+
+            prop_assume!(all_outputs < all_inputs);
+
+            let tx_builder = TxBuilder::new(
+                SimpleBoxSelector::new(),
+                inputs,
+                outputs.clone(),
+                1,
+                miners_fee,
+                change_address.clone(),
+                min_change_value,
+            ).unwrap();
+            let tx = tx_builder.build().unwrap();
+            prop_assert!(outputs.into_iter().all(|i| tx.output_candidates.iter().any(|o| *o == i)),
+                         "tx.output_candidates is missing some outputs");
+            let expected_change = all_inputs.checked_sub(&all_outputs).unwrap();
+            prop_assert!(tx.output_candidates.iter().any(|b| {
+                b.value == expected_change// && b.ergo_tree == change_address.script().unwrap()
+            }), "box with change {:?} is not found in outputs: {:?}", expected_change, tx.output_candidates);
+        }
     }
 }

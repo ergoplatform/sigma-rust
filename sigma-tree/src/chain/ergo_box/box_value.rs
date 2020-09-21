@@ -15,8 +15,10 @@ use thiserror::Error;
 pub struct BoxValue(i64);
 
 impl BoxValue {
-    const MIN_RAW: i64 = 1;
-    const MAX_RAW: i64 = i64::MAX;
+    /// Mininal allowed box value
+    pub const MIN_RAW: i64 = 1;
+    /// Maximal allowed box value
+    pub const MAX_RAW: i64 = i64::MAX;
 
     /// Minimal value
     pub const MIN: BoxValue = BoxValue(BoxValue::MIN_RAW);
@@ -42,7 +44,7 @@ impl BoxValue {
     }
 
     /// Addition with overflow check
-    fn checked_add(&self, rhs: &Self) -> Result<Self, BoxValueError> {
+    pub fn checked_add(&self, rhs: &Self) -> Result<Self, BoxValueError> {
         // TODO: add tests
         self.0
             .checked_add(rhs.0)
@@ -51,7 +53,7 @@ impl BoxValue {
     }
 
     /// Subtraction with overflow and bounds check
-    pub fn checked_sub(self, rhs: Self) -> Result<Self, BoxValueError> {
+    pub fn checked_sub(&self, rhs: &Self) -> Result<Self, BoxValueError> {
         let raw_i64 = self.0.checked_sub(rhs.0).ok_or(BoxValueError::Overflow)?;
         if raw_i64 < BoxValue::MIN_RAW {
             Err(BoxValueError::OutOfBounds)
@@ -137,17 +139,31 @@ impl From<BoxValueError> for SerializationError {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
+    use std::ops::Range;
+
     use super::*;
     use proptest::{arbitrary::Arbitrary, prelude::*};
 
+    pub struct ArbBoxValueRange(Range<i64>);
+
+    impl Default for ArbBoxValueRange {
+        fn default() -> Self {
+            ArbBoxValueRange(BoxValue::MIN_RAW..BoxValue::MAX_RAW)
+        }
+    }
+
+    impl Into<ArbBoxValueRange> for Range<i64> {
+        fn into(self) -> ArbBoxValueRange {
+            ArbBoxValueRange(self)
+        }
+    }
+
     impl Arbitrary for BoxValue {
-        type Parameters = ();
+        type Parameters = ArbBoxValueRange;
         type Strategy = BoxedStrategy<Self>;
-        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            (BoxValue::MIN_RAW..BoxValue::MAX_RAW)
-                .prop_map(BoxValue)
-                .boxed()
+        fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
+            (args.0).prop_map(BoxValue).boxed()
         }
     }
 }
