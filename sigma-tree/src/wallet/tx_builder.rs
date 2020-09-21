@@ -8,6 +8,8 @@ use box_value::BoxValueError;
 use thiserror::Error;
 
 use crate::chain::address::Address;
+use crate::chain::address::AddressEncoder;
+use crate::chain::address::NetworkPrefix;
 use crate::chain::contract::Contract;
 use crate::chain::ergo_box::box_value;
 use crate::chain::{
@@ -17,6 +19,7 @@ use crate::chain::{
     input::UnsignedInput,
     transaction::unsigned::UnsignedTransaction,
 };
+use crate::constants::MINERS_FEE_MAINNET_ADDRESS;
 use crate::serialization::SerializationError;
 
 use super::box_selector::{BoxSelection, BoxSelector, BoxSelectorError};
@@ -81,8 +84,8 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
             })
             .collect();
         output_candidates.append(&mut change_boxes);
-
-        // TODO: miner's fee
+        // add miner's fee
+        output_candidates.push(new_miner_fee_box(self.fee_amount, self.current_height));
         Ok(UnsignedTransaction::new(
             selection
                 .boxes
@@ -92,8 +95,19 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
             vec![],
             output_candidates,
         ))
+        // TODO: add tests
     }
 }
+
+fn new_miner_fee_box(fee_amount: BoxValue, creation_height: u32) -> ErgoBoxCandidate {
+    let address_encoder = AddressEncoder::new(NetworkPrefix::Mainnet);
+    let miner_fee_address = address_encoder
+        .parse_address_from_str(MINERS_FEE_MAINNET_ADDRESS)
+        .unwrap();
+    let ergo_tree = miner_fee_address.script().unwrap();
+    ErgoBoxCandidate::new(fee_amount, ergo_tree, creation_height)
+}
+
 /// Errors of TxBuilder
 #[derive(Error, PartialEq, Eq, Debug, Clone)]
 pub enum TxBuilderError {
