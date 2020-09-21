@@ -37,6 +37,14 @@ pub struct TxBuilder<S: ErgoBoxAssets> {
 
 impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
     /// Creates new TxBuilder
+    /// `box_selector` - input box selection algorithm to choose inputs from `boxes_to_spend`,
+    /// `boxes_to_spend` - spendable boxes,
+    /// `output_candidates` - output boxes to be "created" in this transaction,
+    /// `current_height` - chain height that will be used in additionally created boxes (change, miner's fee, etc.),
+    /// `fee_amount` - miner's fee,
+    /// `change_address` - change (inputs - outputs) will be sent to this address,
+    /// `min_change_value` - minimal value of the change to be sent to `change_address`, value less than that
+    /// will be given to miners,
     pub fn new(
         box_selector: Box<dyn BoxSelector<S>>,
         boxes_to_spend: Vec<S>,
@@ -46,7 +54,16 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
         change_address: Address,
         min_change_value: BoxValue,
     ) -> Result<TxBuilder<S>, TxBuilderError> {
-        // TODO: check parameters and return an Err
+        if boxes_to_spend.is_empty() {
+            return Err(TxBuilderError::InvalidArgs(
+                "boxes_to_spend is empty".to_string(),
+            ));
+        }
+        if output_candidates.is_empty() {
+            return Err(TxBuilderError::InvalidArgs(
+                "output_candidates is empty".to_string(),
+            ));
+        }
         Ok(TxBuilder {
             box_selector,
             boxes_to_spend,
@@ -120,6 +137,10 @@ pub enum TxBuilderError {
     /// Serialization error
     #[error("Serialization error")]
     SerializationError(SerializationError),
+
+    /// Invalid arguments
+    #[error("Invalid arguments {}", 0)]
+    InvalidArgs(String),
 }
 
 impl From<BoxSelectorError> for TxBuilderError {
@@ -137,5 +158,55 @@ impl From<BoxValueError> for TxBuilderError {
 impl From<SerializationError> for TxBuilderError {
     fn from(e: SerializationError) -> Self {
         TxBuilderError::SerializationError(e)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use std::convert::TryInto;
+
+    use proptest::prelude::*;
+    use proptest::strategy::ValueTree;
+    use proptest::test_runner::TestRunner;
+
+    use crate::chain::ergo_box::ErgoBox;
+    use crate::wallet::box_selector::simple::SimpleBoxSelector;
+
+    use super::*;
+
+    fn force_any_val<T: Arbitrary>() -> T {
+        let mut runner = TestRunner::default();
+        any::<T>().new_tree(&mut runner).unwrap().current()
+    }
+
+    #[test]
+    fn test_empty_inputs() {
+        let inputs: Vec<ErgoBox> = vec![];
+        let r = TxBuilder::new(
+            SimpleBoxSelector::new(),
+            inputs,
+            vec![force_any_val::<ErgoBoxCandidate>()],
+            1,
+            force_any_val::<BoxValue>(),
+            force_any_val::<Address>(),
+            1u64.try_into().unwrap(),
+        );
+        assert!(r.is_err());
+    }
+
+    #[test]
+    fn test_empty_outputs() {
+        let outputs: Vec<ErgoBoxCandidate> = vec![];
+        let r = TxBuilder::new(
+            SimpleBoxSelector::new(),
+            vec![force_any_val::<ErgoBox>()],
+            outputs,
+            1,
+            force_any_val::<BoxValue>(),
+            force_any_val::<Address>(),
+            1u64.try_into().unwrap(),
+        );
+        assert!(r.is_err());
     }
 }

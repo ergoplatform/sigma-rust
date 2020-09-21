@@ -14,6 +14,13 @@ use super::{BoxSelection, BoxSelector};
 /// Selects all provided inputs
 pub struct SimpleBoxSelector {}
 
+impl SimpleBoxSelector {
+    /// Create new boxed instance
+    pub fn new() -> Box<Self> {
+        Box::new(SimpleBoxSelector {})
+    }
+}
+
 impl<T: ErgoBoxAssets> BoxSelector<T> for SimpleBoxSelector {
     fn select(
         &self,
@@ -50,5 +57,11 @@ impl<T: ErgoBoxAssets> BoxSelector<T> for SimpleBoxSelector {
             change_boxes,
         })
         // TODO: add tests
+    }
+}
+
+impl Default for SimpleBoxSelector {
+    fn default() -> Self {
+        SimpleBoxSelector {}
     }
 }
