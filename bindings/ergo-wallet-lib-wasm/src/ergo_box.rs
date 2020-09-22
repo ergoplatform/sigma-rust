@@ -114,7 +114,11 @@ pub struct BoxValue(chain::ergo_box::box_value::BoxValue);
 
 #[wasm_bindgen]
 impl BoxValue {
-    #[wasm_bindgen]
+    #[allow(non_snake_case)]
+    pub fn MIN() -> BoxValue {
+        BoxValue(chain::ergo_box::box_value::BoxValue::MIN)
+    }
+
     pub fn from_u32(v: u32) -> Result<BoxValue, JsValue> {
         Ok(BoxValue(
             chain::ergo_box::box_value::BoxValue::try_from(v as u64)
