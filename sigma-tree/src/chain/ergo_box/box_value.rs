@@ -15,8 +15,13 @@ use thiserror::Error;
 pub struct BoxValue(i64);
 
 impl BoxValue {
+    /// Minimal box value per byte of the serialized box that was set on on launch
+    const ORIGINAL_MIN_VALUE_PER_BYTE: i64 = 360;
+    /// Minimal theoretical box size (smallest tree(true leaf?), no tokens, no registers, etc.)
+    const MIN_BOX_SIZE_BYTES: i64 = 30;
+
     /// Mininal allowed box value
-    pub const MIN_RAW: i64 = 1;
+    pub const MIN_RAW: i64 = BoxValue::ORIGINAL_MIN_VALUE_PER_BYTE * BoxValue::MIN_BOX_SIZE_BYTES;
     /// Maximal allowed box value
     pub const MAX_RAW: i64 = i64::MAX;
 
@@ -187,7 +192,7 @@ pub mod tests {
     fn test_checked_add_overflow() {
         assert!(BoxValue::try_from(BoxValue::MAX_RAW)
             .unwrap()
-            .checked_add(&1u64.try_into().unwrap())
+            .checked_add(&BoxValue::MIN)
             .is_err())
     }
 

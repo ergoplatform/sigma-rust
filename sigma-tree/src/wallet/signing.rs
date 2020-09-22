@@ -70,6 +70,7 @@ mod tests {
     use proptest::collection::vec;
     use proptest::prelude::*;
 
+    use crate::chain::ergo_box::box_value::BoxValue;
     use crate::{
         ast::{Constant, Expr},
         chain::{
@@ -85,7 +86,7 @@ mod tests {
         types::SType,
         ErgoTree,
     };
-    use std::{convert::TryInto, rc::Rc};
+    use std::rc::Rc;
 
     fn verify_tx_proofs(
         tx: &Transaction,
@@ -117,7 +118,7 @@ mod tests {
                     tpe: SType::SSigmaProp,
                     v: pk.into(),
                 })));
-                ErgoBox::new(1u64.try_into().unwrap(), tree, vec![], NonMandatoryRegisters::empty(), 0, TxId::zero(), 0)
+                ErgoBox::new(BoxValue::MIN, tree, vec![], NonMandatoryRegisters::empty(), 0, TxId::zero(), 0)
             }).collect();
             let prover = TestProver {
                 secrets: secrets.clone().into_iter().map(PrivateInput::DlogProverInput).collect(),
@@ -127,7 +128,7 @@ mod tests {
                     tpe: SType::SSigmaProp,
                     v: secrets.get(0).unwrap().public_image().into(),
                 })));
-            let output_candidates = vec![ErgoBoxCandidate::new(1u64.try_into().unwrap(), ergo_tree, 0)];
+            let output_candidates = vec![ErgoBoxCandidate::new(BoxValue::MIN, ergo_tree, 0)];
             let tx = UnsignedTransaction::new(inputs, vec![], output_candidates);
 
             let res = sign_transaction(Box::new(prover).as_ref(), tx, boxes_to_spend.as_slice(), vec![].as_slice(),

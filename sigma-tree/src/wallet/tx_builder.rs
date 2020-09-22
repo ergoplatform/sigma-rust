@@ -160,8 +160,6 @@ impl From<SerializationError> for TxBuilderError {
 #[cfg(test)]
 mod tests {
 
-    use std::convert::TryInto;
-
     use proptest::strategy::ValueTree;
     use proptest::test_runner::TestRunner;
     use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
@@ -186,7 +184,7 @@ mod tests {
             1,
             force_any_val::<BoxValue>(),
             force_any_val::<Address>(),
-            1u64.try_into().unwrap(),
+            BoxValue::MIN,
         );
         assert!(r.is_err());
     }
@@ -201,7 +199,7 @@ mod tests {
             1,
             force_any_val::<BoxValue>(),
             force_any_val::<Address>(),
-            1u64.try_into().unwrap(),
+            BoxValue::MIN,
         );
         assert!(r.is_err());
     }
@@ -209,10 +207,10 @@ mod tests {
     proptest! {
 
         #[test]
-        fn test_build_tx(inputs in vec(any_with::<ErgoBox>((9000..10000000).into()), 1..10),
-                         outputs in vec(any_with::<ErgoBoxCandidate>((BoxValue::MIN_RAW..10000).into()), 1..2),
+        fn test_build_tx(inputs in vec(any_with::<ErgoBox>((BoxValue::MIN_RAW * 10 .. BoxValue::MIN_RAW * 1000).into()), 1..10),
+                         outputs in vec(any_with::<ErgoBoxCandidate>((BoxValue::MIN_RAW..BoxValue::MIN_RAW * 9).into()), 1..2),
                          change_address in any::<Address>(),
-                         miners_fee in any_with::<BoxValue>((100..1000).into())) {
+                         miners_fee in any_with::<BoxValue>((BoxValue::MIN_RAW..BoxValue::MIN_RAW * 2).into())) {
             let min_change_value = BoxValue::MIN;
 
             let all_outputs = box_value::checked_sum(outputs.iter().map(|b| b.value)).unwrap()

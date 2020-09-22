@@ -88,7 +88,7 @@ mod tests {
 
     proptest! {
         #[test]
-        fn test_select(inputs in vec(any_with::<ErgoBox>((9000..10000000).into()), 1..10)) {
+        fn test_select(inputs in vec(any_with::<ErgoBox>((BoxValue::MIN_RAW * 2 .. BoxValue::MIN_RAW * 10).into()), 1..10)) {
             let s = SimpleBoxSelector::new();
             let all_inputs_val = box_value::checked_sum(inputs.iter().map(|b| b.value)).unwrap();
 
