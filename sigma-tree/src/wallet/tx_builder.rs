@@ -225,7 +225,7 @@ mod tests {
 
             let tx_builder = TxBuilder::new(
                 SimpleBoxSelector::new(),
-                inputs,
+                inputs.clone(),
                 outputs.clone(),
                 1,
                 miners_fee,
@@ -235,9 +235,12 @@ mod tests {
             let tx = tx_builder.build().unwrap();
             prop_assert!(outputs.into_iter().all(|i| tx.output_candidates.iter().any(|o| *o == i)),
                          "tx.output_candidates is missing some outputs");
-            let expected_change = all_inputs.checked_sub(&all_outputs).unwrap();
+            let tx_all_inputs_vals: Vec<BoxValue> = tx.inputs.iter()
+                                                             .map(|i| inputs.iter().find(|ib| ib.box_id() == i.box_id).unwrap().value).collect();
+            let tx_all_inputs_sum = box_value::sum(tx_all_inputs_vals.into_iter()).unwrap();
+            let expected_change = tx_all_inputs_sum.checked_sub(&all_outputs).unwrap();
             prop_assert!(tx.output_candidates.iter().any(|b| {
-                b.value == expected_change// && b.ergo_tree == change_address.script().unwrap()
+                b.value == expected_change && b.ergo_tree == change_address.script().unwrap()
             }), "box with change {:?} is not found in outputs: {:?}", expected_change, tx.output_candidates);
         }
     }
