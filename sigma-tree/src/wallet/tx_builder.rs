@@ -242,6 +242,9 @@ mod tests {
             prop_assert!(tx.output_candidates.iter().any(|b| {
                 b.value == expected_change && b.ergo_tree == change_address.script().unwrap()
             }), "box with change {:?} is not found in outputs: {:?}", expected_change, tx.output_candidates);
+            prop_assert!(tx.output_candidates.iter().any(|b| {
+                b.value == miners_fee
+            }), "box with miner's fee {:?} is not found in outputs: {:?}", miners_fee, tx.output_candidates);
         }
     }
 }
