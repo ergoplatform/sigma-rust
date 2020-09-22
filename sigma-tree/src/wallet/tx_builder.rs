@@ -216,7 +216,8 @@ mod tests {
             let min_change_value = BoxValue::MIN;
 
             let all_outputs = box_value::sum(outputs.iter().map(|b| b.value)).unwrap()
-                                                                             .checked_add(&miners_fee).unwrap();
+                                                                             .checked_add(&miners_fee)
+                                                                             .unwrap();
             let all_inputs = box_value::sum(inputs.iter().map(|b| b.value)).unwrap();
 
             prop_assume!(all_outputs < all_inputs);
@@ -234,7 +235,9 @@ mod tests {
             prop_assert!(outputs.into_iter().all(|i| tx.output_candidates.iter().any(|o| *o == i)),
                          "tx.output_candidates is missing some outputs");
             let tx_all_inputs_vals: Vec<BoxValue> = tx.inputs.iter()
-                                                             .map(|i| inputs.iter().find(|ib| ib.box_id() == i.box_id).unwrap().value).collect();
+                                                             .map(|i| inputs.iter()
+                                                                  .find(|ib| ib.box_id() == i.box_id).unwrap().value)
+                                                             .collect();
             let tx_all_inputs_sum = box_value::sum(tx_all_inputs_vals.into_iter()).unwrap();
             let expected_change = tx_all_inputs_sum.checked_sub(&all_outputs).unwrap();
             prop_assert!(tx.output_candidates.iter().any(|b| {

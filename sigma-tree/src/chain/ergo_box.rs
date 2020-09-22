@@ -158,6 +158,7 @@ pub trait ErgoBoxAssets {
 }
 
 /// Simple struct to hold ErgoBoxAssets values
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ErgoBoxAssetsData {
     /// Box value
     pub value: BoxValue,

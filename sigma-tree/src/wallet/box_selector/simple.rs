@@ -22,6 +22,11 @@ impl SimpleBoxSelector {
 }
 
 impl<T: ErgoBoxAssets> BoxSelector<T> for SimpleBoxSelector {
+    /// Selects inputs to satisfy target balance and tokens.
+    /// `inputs` - available inputs (returns an error, if empty),
+    /// `target_balance` - coins (in nanoERGs) needed,
+    /// `target_tokens` - amount of tokens needed.
+    /// Returns selected inputs and box assets(value+tokens) with change.
     fn select(
         &self,
         inputs: Vec<T>,
@@ -56,12 +61,50 @@ impl<T: ErgoBoxAssets> BoxSelector<T> for SimpleBoxSelector {
             boxes: selected_inputs,
             change_boxes,
         })
-        // TODO: add tests
     }
 }
 
 impl Default for SimpleBoxSelector {
     fn default() -> Self {
         SimpleBoxSelector {}
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::chain::ergo_box::box_value;
+    use crate::chain::ergo_box::ErgoBox;
+    use proptest::{collection::vec, prelude::*};
+
+    use super::*;
+
+    #[test]
+    fn test_empty_inputs() {
+        let s = SimpleBoxSelector::new();
+        let inputs: Vec<ErgoBox> = vec![];
+        let r = s.select(inputs, BoxValue::MIN, vec![].as_slice());
+        assert!(r.is_err());
+    }
+
+    proptest! {
+        #[test]
+        fn test_select(inputs in vec(any_with::<ErgoBox>((9000..10000000).into()), 1..10)) {
+            let s = SimpleBoxSelector::new();
+            let all_inputs_val = box_value::sum(inputs.iter().map(|b| b.value)).unwrap();
+
+            let balance_too_much = all_inputs_val.checked_add(&BoxValue::MIN).unwrap();
+            prop_assert!(s.select(inputs.clone(), balance_too_much, vec![].as_slice()).is_err());
+
+            let balance_exact = all_inputs_val;
+            let selection_exact = s.select(inputs.clone(), balance_exact, vec![].as_slice()).unwrap();
+            prop_assert!(selection_exact.change_boxes.is_empty());
+            prop_assert!(selection_exact.boxes == inputs);
+
+            let balance_less = all_inputs_val.checked_sub(&BoxValue::MIN).unwrap();
+            let selection_less = s.select(inputs.clone(), balance_less, vec![].as_slice()).unwrap();
+            let expected_change_box = ErgoBoxAssetsData {value: BoxValue::MIN, tokens: vec![]};
+            prop_assert!(selection_less.change_boxes == vec![expected_change_box]);
+            prop_assert!(selection_less.boxes == inputs);
+        }
     }
 }
