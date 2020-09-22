@@ -90,7 +90,7 @@ mod tests {
         #[test]
         fn test_select(inputs in vec(any_with::<ErgoBox>((9000..10000000).into()), 1..10)) {
             let s = SimpleBoxSelector::new();
-            let all_inputs_val = box_value::sum(inputs.iter().map(|b| b.value)).unwrap();
+            let all_inputs_val = box_value::checked_sum(inputs.iter().map(|b| b.value)).unwrap();
 
             let balance_too_much = all_inputs_val.checked_add(&BoxValue::MIN).unwrap();
             prop_assert!(s.select(inputs.clone(), balance_too_much, vec![].as_slice()).is_err());

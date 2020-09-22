@@ -71,7 +71,7 @@ impl PartialOrd for BoxValue {
 
 /// Sums up all iterator's box values
 /// Returns Err on overflow
-pub fn sum<I: Iterator<Item = BoxValue>>(mut iter: I) -> Result<BoxValue, BoxValueError> {
+pub fn checked_sum<I: Iterator<Item = BoxValue>>(mut iter: I) -> Result<BoxValue, BoxValueError> {
     // TODO: add tests (cover empty list)
     iter.try_fold(BoxValue(0), |acc, v| acc.checked_add(&v))
 }

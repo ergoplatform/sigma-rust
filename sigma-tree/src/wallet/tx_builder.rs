@@ -74,7 +74,7 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
     /// Build the unsigned transaction
     pub fn build(&self) -> Result<UnsignedTransaction, TxBuilderError> {
         let total_output_value: BoxValue =
-            box_value::sum(self.output_candidates.iter().map(|b| b.value))?
+            box_value::checked_sum(self.output_candidates.iter().map(|b| b.value))?
                 .checked_add(&self.fee_amount)?;
         let selection: BoxSelection<S> = self.box_selector.select(
             self.boxes_to_spend.clone(),
@@ -215,10 +215,10 @@ mod tests {
                          miners_fee in any_with::<BoxValue>((100..1000).into())) {
             let min_change_value = BoxValue::MIN;
 
-            let all_outputs = box_value::sum(outputs.iter().map(|b| b.value)).unwrap()
+            let all_outputs = box_value::checked_sum(outputs.iter().map(|b| b.value)).unwrap()
                                                                              .checked_add(&miners_fee)
                                                                              .unwrap();
-            let all_inputs = box_value::sum(inputs.iter().map(|b| b.value)).unwrap();
+            let all_inputs = box_value::checked_sum(inputs.iter().map(|b| b.value)).unwrap();
 
             prop_assume!(all_outputs < all_inputs);
 
@@ -238,7 +238,7 @@ mod tests {
                                                              .map(|i| inputs.iter()
                                                                   .find(|ib| ib.box_id() == i.box_id).unwrap().value)
                                                              .collect();
-            let tx_all_inputs_sum = box_value::sum(tx_all_inputs_vals.into_iter()).unwrap();
+            let tx_all_inputs_sum = box_value::checked_sum(tx_all_inputs_vals.into_iter()).unwrap();
             let expected_change = tx_all_inputs_sum.checked_sub(&all_outputs).unwrap();
             prop_assert!(tx.output_candidates.iter().any(|b| {
                 b.value == expected_change && b.ergo_tree == change_address.script().unwrap()
