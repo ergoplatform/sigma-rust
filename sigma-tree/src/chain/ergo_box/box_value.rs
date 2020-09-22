@@ -69,24 +69,6 @@ impl PartialOrd for BoxValue {
     }
 }
 
-/// Sums up all iterator's box values
-/// Returns Err on overflow
-pub fn checked_sum<I: Iterator<Item = BoxValue>>(mut iter: I) -> Result<BoxValue, BoxValueError> {
-    // TODO: add tests (cover empty list)
-    iter.try_fold(BoxValue(0), |acc, v| acc.checked_add(&v))
-}
-
-/// BoxValue errors
-#[derive(Error, Eq, PartialEq, Debug, Clone)]
-pub enum BoxValueError {
-    /// Value is out of bounds
-    #[error("Value is out of bounds")]
-    OutOfBounds,
-    /// Overflow
-    #[error("Overflow")]
-    Overflow,
-}
-
 impl TryFrom<u64> for BoxValue {
     type Error = BoxValueError;
     fn try_from(v: u64) -> Result<Self, Self::Error> {
@@ -132,10 +114,28 @@ impl SigmaSerializable for BoxValue {
     }
 }
 
+/// BoxValue errors
+#[derive(Error, Eq, PartialEq, Debug, Clone)]
+pub enum BoxValueError {
+    /// Value is out of bounds
+    #[error("Value is out of bounds")]
+    OutOfBounds,
+    /// Overflow
+    #[error("Overflow")]
+    Overflow,
+}
+
 impl From<BoxValueError> for SerializationError {
     fn from(e: BoxValueError) -> Self {
         SerializationError::ValueOutOfBounds(format!("{}", e))
     }
+}
+
+/// Sums up all iterator's box values
+/// Returns Err on overflow
+pub fn checked_sum<I: Iterator<Item = BoxValue>>(mut iter: I) -> Result<BoxValue, BoxValueError> {
+    // TODO: add tests (cover empty list)
+    iter.try_fold(BoxValue(0), |acc, v| acc.checked_add(&v))
 }
 
 #[cfg(test)]
