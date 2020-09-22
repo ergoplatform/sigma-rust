@@ -27,7 +27,7 @@ fn test_sign_transaction() {
     let tree = ErgoTree::from(Rc::new(Expr::Const(pk.into())));
 
     let input_box = ErgoBox::new(
-        1u64.try_into().unwrap(),
+        10000000u64.try_into().unwrap(),
         tree,
         vec![],
         NonMandatoryRegisters::empty(),
@@ -42,9 +42,9 @@ fn test_sign_transaction() {
         Address::from_testnet_str("3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN")
             .expect("failed");
     let contract = Contract::pay_to_address(&recipient).expect("failed");
-    let outbox = ErgoBoxCandidate::new(&BoxValue::from_u32(1).unwrap(), 0, &contract);
+    let outbox = ErgoBoxCandidate::new(&BoxValue::from_u32(1000000).unwrap(), 0, &contract);
     let tx_outputs = ErgoBoxCandidates::new(&outbox);
-    let fee = BoxValue::from_u32(2).unwrap();
+    let fee = BoxValue::from_u32(500000).unwrap();
     let change_address =
         Address::from_testnet_str("3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN")
             .expect("failed");

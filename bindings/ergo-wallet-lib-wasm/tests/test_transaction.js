@@ -36,14 +36,14 @@ it('sign transaction', async () => {
   const sk = SecretKey.random_dlog();
   // simulate existing box guarded by the sk key
   const input_contract = Contract.pay_to_address(sk.get_address());
-  const input_box = new ErgoBox(BoxValue.from_u32(1), 0, input_contract, TxId.zero(), 0);
+  const input_box = new ErgoBox(BoxValue.from_u32(10000000), 0, input_contract, TxId.zero(), 0);
   // create a transaction that spends the "simulated" box
   const recipient = Address.from_testnet_str('3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN');
   const unspent_boxes = new ErgoBoxes(input_box);
   const contract = Contract.pay_to_address(recipient);
-  const outbox = new ErgoBoxCandidate(BoxValue.from_u32(1), 0, contract);
+  const outbox = new ErgoBoxCandidate(BoxValue.from_u32(1000000), 0, contract);
   const tx_outputs = new ErgoBoxCandidates(outbox);
-  const fee = BoxValue.from_u32(1);
+  const fee = BoxValue.from_u32(500000);
   const change_address = Address.from_testnet_str('3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN');
   const min_change_value = BoxValue.from_u32(1);
   const tx_builder = TxBuilder.new(BoxSelector.SelectAll, unspent_boxes, tx_outputs, 0, fee, change_address, min_change_value);

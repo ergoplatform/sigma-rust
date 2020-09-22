@@ -109,7 +109,6 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
             vec![],
             output_candidates,
         ))
-        // TODO: add tests
     }
 }
 
@@ -127,7 +126,7 @@ pub fn new_miner_fee_box(fee_amount: BoxValue, creation_height: u32) -> ErgoBoxC
 #[derive(Error, PartialEq, Eq, Debug, Clone)]
 pub enum TxBuilderError {
     /// Box selection error
-    #[error("Box selector error {}", 0)]
+    #[error("Box selector error: {0}")]
     BoxSelectorError(BoxSelectorError),
     /// Box value error
     #[error("Box value error")]
@@ -135,9 +134,8 @@ pub enum TxBuilderError {
     /// Serialization error
     #[error("Serialization error")]
     SerializationError(SerializationError),
-
     /// Invalid arguments
-    #[error("Invalid arguments {}", 0)]
+    #[error("Invalid arguments: {0}")]
     InvalidArgs(String),
 }
 
