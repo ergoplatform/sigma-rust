@@ -10,8 +10,8 @@ use crate::chain::token::TokenAmount;
 use super::BoxSelectorError;
 use super::{BoxSelection, BoxSelector};
 
+/// Naive box selector, collects inputs until target balance is reached
 #[allow(dead_code)]
-/// Selects all provided inputs
 pub struct SimpleBoxSelector {}
 
 impl SimpleBoxSelector {

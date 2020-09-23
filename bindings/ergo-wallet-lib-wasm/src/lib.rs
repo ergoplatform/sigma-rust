@@ -8,8 +8,7 @@
 #![deny(unused_mut)]
 #![deny(dead_code)]
 #![deny(unused_imports)]
-// TODO: restore/remove
-// #![deny(missing_docs)]
+#![deny(missing_docs)]
 #![allow(unused_variables)]
 
 pub mod address;

@@ -1,3 +1,4 @@
+//! Unsigned transaction builder
 use sigma_tree::{chain::ergo_box::ErgoBox, wallet};
 use wasm_bindgen::prelude::*;
 
@@ -9,6 +10,7 @@ use crate::{
     transaction::UnsignedTransaction,
 };
 
+/// Unsigned transaction builder
 #[wasm_bindgen]
 pub struct TxBuilder(wallet::tx_builder::TxBuilder<ErgoBox>);
 
@@ -45,6 +47,7 @@ impl TxBuilder {
         .map(TxBuilder)
     }
 
+    /// Build the unsigned transaction
     pub fn build(&self) -> Result<UnsignedTransaction, JsValue> {
         self.0
             .build()

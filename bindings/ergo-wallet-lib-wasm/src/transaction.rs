@@ -1,12 +1,15 @@
+//! Ergo transaction
 use sigma_tree::chain;
 use wasm_bindgen::prelude::*;
 
+/// Transaction id
 #[wasm_bindgen]
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct TxId(chain::transaction::TxId);
 
 #[wasm_bindgen]
 impl TxId {
+    /// Zero (empty) transaction id (to use as dummy value in tests)
     pub fn zero() -> TxId {
         chain::transaction::TxId::zero().into()
     }
@@ -51,21 +54,13 @@ impl From<chain::transaction::Transaction> for Transaction {
     }
 }
 
+/// Unsigned (inputs without proofs) transaction
 #[wasm_bindgen]
 #[derive(PartialEq, Debug, Clone)]
 pub struct UnsignedTransaction(chain::transaction::unsigned::UnsignedTransaction);
 
 #[wasm_bindgen]
-impl UnsignedTransaction {
-    #[wasm_bindgen]
-    pub fn dummy() -> UnsignedTransaction {
-        UnsignedTransaction(chain::transaction::unsigned::UnsignedTransaction::new(
-            vec![],
-            vec![],
-            vec![],
-        ))
-    }
-}
+impl UnsignedTransaction {}
 
 impl From<chain::transaction::unsigned::UnsignedTransaction> for UnsignedTransaction {
     fn from(t: chain::transaction::unsigned::UnsignedTransaction) -> Self {

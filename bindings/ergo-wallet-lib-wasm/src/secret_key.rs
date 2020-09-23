@@ -1,3 +1,4 @@
+//! Secret key
 use sigma_tree::wallet;
 use wasm_bindgen::prelude::*;
 

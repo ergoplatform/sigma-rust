@@ -1,3 +1,4 @@
+//! Wallet-like features
 use sigma_tree::chain::ergo_box::ErgoBox;
 use wasm_bindgen::prelude::*;
 
@@ -18,6 +19,7 @@ impl Wallet {
         todo!()
     }
 
+    /// Create wallet using provided secret key
     #[wasm_bindgen]
     pub fn from_secret(secret: &SecretKey) -> Wallet {
         Wallet(sigma_tree::wallet::Wallet::from_secrets(vec![secret

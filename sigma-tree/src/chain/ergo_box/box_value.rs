@@ -9,7 +9,7 @@ use sigma_ser::vlq_encode;
 use std::{convert::TryFrom, io};
 use thiserror::Error;
 
-/// Box value
+/// Box value with with bound checks
 #[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct BoxValue(i64);
@@ -25,7 +25,7 @@ impl BoxValue {
     /// Maximal allowed box value
     pub const MAX_RAW: i64 = i64::MAX;
 
-    /// Minimal value
+    /// Minimal value, calculated from smallest possible box size and original value per byte requirement
     pub const MIN: BoxValue = BoxValue(BoxValue::MIN_RAW);
 
     /// create from u64 with bounds check

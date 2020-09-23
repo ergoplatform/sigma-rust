@@ -113,17 +113,20 @@ impl Into<chain::ergo_box::ErgoBox> for ErgoBox {
     }
 }
 
+/// Box value with with bound checks
 #[wasm_bindgen]
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct BoxValue(chain::ergo_box::box_value::BoxValue);
 
 #[wasm_bindgen]
 impl BoxValue {
+    /// Minimal value, calculated from smallest possible box size and original value per byte requirement
     #[allow(non_snake_case)]
     pub fn MIN() -> BoxValue {
         BoxValue(chain::ergo_box::box_value::BoxValue::MIN)
     }
 
+    /// Create from u32 with bounds check
     pub fn from_u32(v: u32) -> Result<BoxValue, JsValue> {
         Ok(BoxValue(
             chain::ergo_box::box_value::BoxValue::try_from(v as u64)

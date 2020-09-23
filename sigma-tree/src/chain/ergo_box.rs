@@ -291,7 +291,7 @@ pub struct ErgoBoxCandidate {
 #[derive(Error, PartialEq, Eq, Clone, Debug)]
 pub enum ErgoBoxCandidateError {
     /// Box value is too low
-    #[error("Box value is too low, minimum for box size {box_size_bytes} is: {min_box_value:?}")]
+    #[error("Box value is too low, minimum value for box size of {box_size_bytes} bytes is: {min_box_value:?} nanoERGs")]
     BoxValueTooLow {
         /// minimum box value for that box size
         min_box_value: BoxValue,

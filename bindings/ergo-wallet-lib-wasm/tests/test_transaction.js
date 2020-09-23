@@ -21,9 +21,9 @@ it('TxBuilder test', async () => {
     }
   ]);
   const contract = Contract.pay_to_address(recipient);
-  const outbox = new ErgoBoxCandidate(BoxValue.MIN(), 0, contract);
+  const outbox = new ErgoBoxCandidate(BoxValue.from_u32(10000000), 0, contract);
   const tx_outputs = new ErgoBoxCandidates(outbox);
-  const fee = BoxValue.MIN();
+  const fee = BoxValue.from_u32(1000000);
   const change_address = Address.from_testnet_str('3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN');
   const min_change_value = BoxValue.MIN();
   const tx_builder = TxBuilder.new(BoxSelector.SelectAll, unspent_boxes, tx_outputs, 0, fee, change_address, min_change_value);
@@ -41,9 +41,9 @@ it('sign transaction', async () => {
   const recipient = Address.from_testnet_str('3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN');
   const unspent_boxes = new ErgoBoxes(input_box);
   const contract = Contract.pay_to_address(recipient);
-  const outbox = new ErgoBoxCandidate(BoxValue.MIN(), 0, contract);
+  const outbox = new ErgoBoxCandidate(BoxValue.from_u32(10000000), 0, contract);
   const tx_outputs = new ErgoBoxCandidates(outbox);
-  const fee = BoxValue.MIN();
+  const fee = BoxValue.from_u32(1000000);
   const change_address = Address.from_testnet_str('3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN');
   const min_change_value = BoxValue.MIN();
   const tx_builder = TxBuilder.new(BoxSelector.SelectAll, unspent_boxes, tx_outputs, 0, fee, change_address, min_change_value);
