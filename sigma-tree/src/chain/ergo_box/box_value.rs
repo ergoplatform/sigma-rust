@@ -16,12 +16,12 @@ pub struct BoxValue(i64);
 
 impl BoxValue {
     /// Minimal box value per byte of the serialized box that was set on on launch
-    const ORIGINAL_MIN_VALUE_PER_BYTE: i64 = 360;
-    /// Minimal theoretical box size (smallest tree(true leaf?), no tokens, no registers, etc.)
+    pub const MIN_VALUE_PER_BOX_BYTE: i64 = 360;
+    /// Minimal theoretical box size (smallest tree, no tokens, no registers, etc.)
     const MIN_BOX_SIZE_BYTES: i64 = 30;
 
     /// Mininal allowed box value
-    pub const MIN_RAW: i64 = BoxValue::ORIGINAL_MIN_VALUE_PER_BYTE * BoxValue::MIN_BOX_SIZE_BYTES;
+    pub const MIN_RAW: i64 = BoxValue::MIN_VALUE_PER_BOX_BYTE * BoxValue::MIN_BOX_SIZE_BYTES;
     /// Maximal allowed box value
     pub const MAX_RAW: i64 = i64::MAX;
 
@@ -64,6 +64,22 @@ impl BoxValue {
         } else {
             Ok(BoxValue(raw_i64))
         }
+    }
+
+    /// Multiplication with overflow check
+    pub fn checked_mul(&self, rhs: &Self) -> Result<Self, BoxValueError> {
+        self.0
+            .checked_mul(rhs.0)
+            .map(BoxValue)
+            .ok_or(BoxValueError::Overflow)
+    }
+
+    /// Multiplication with overflow check
+    pub fn checked_mul_u32(&self, rhs: u32) -> Result<Self, BoxValueError> {
+        self.0
+            .checked_mul(rhs as i64)
+            .map(BoxValue)
+            .ok_or(BoxValueError::Overflow)
     }
 }
 

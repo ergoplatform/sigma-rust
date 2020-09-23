@@ -8,6 +8,7 @@ use crate::chain::address::AddressEncoder;
 use crate::chain::address::NetworkPrefix;
 use crate::chain::contract::Contract;
 use crate::chain::ergo_box::box_value;
+use crate::chain::ergo_box::ErgoBoxCandidateError;
 use crate::chain::{
     ergo_box::ErgoBoxAssets,
     ergo_box::ErgoBoxId,
@@ -85,7 +86,7 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
 
         let change_address_ergo_tree =
             Contract::pay_to_address(&self.change_address)?.get_ergo_tree();
-        let mut change_boxes: Vec<ErgoBoxCandidate> = selection
+        let change_boxes: Result<Vec<ErgoBoxCandidate>, ErgoBoxCandidateError> = selection
             .change_boxes
             .iter()
             .filter(|b| b.value >= self.min_change_value)
@@ -97,9 +98,10 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
                 )
             })
             .collect();
-        output_candidates.append(&mut change_boxes);
+        output_candidates.append(&mut change_boxes?);
         // add miner's fee
-        output_candidates.push(new_miner_fee_box(self.fee_amount, self.current_height));
+        let miner_fee_box = new_miner_fee_box(self.fee_amount, self.current_height)?;
+        output_candidates.push(miner_fee_box);
         Ok(UnsignedTransaction::new(
             selection
                 .boxes
@@ -113,7 +115,10 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
 }
 
 /// Create a box with miner's contract and a given value
-pub fn new_miner_fee_box(fee_amount: BoxValue, creation_height: u32) -> ErgoBoxCandidate {
+pub fn new_miner_fee_box(
+    fee_amount: BoxValue,
+    creation_height: u32,
+) -> Result<ErgoBoxCandidate, ErgoBoxCandidateError> {
     let address_encoder = AddressEncoder::new(NetworkPrefix::Mainnet);
     let miner_fee_address = address_encoder
         .parse_address_from_str(MINERS_FEE_MAINNET_ADDRESS)
@@ -137,6 +142,9 @@ pub enum TxBuilderError {
     /// Invalid arguments
     #[error("Invalid arguments: {0}")]
     InvalidArgs(String),
+    /// ErgoBoxCandidate error
+    #[error("ErgoBoxCandidate error: {0}")]
+    ErgoBoxCandidateError(ErgoBoxCandidateError),
 }
 
 impl From<BoxSelectorError> for TxBuilderError {
@@ -154,6 +162,12 @@ impl From<BoxValueError> for TxBuilderError {
 impl From<SerializationError> for TxBuilderError {
     fn from(e: SerializationError) -> Self {
         TxBuilderError::SerializationError(e)
+    }
+}
+
+impl From<ErgoBoxCandidateError> for TxBuilderError {
+    fn from(e: ErgoBoxCandidateError) -> Self {
+        TxBuilderError::ErgoBoxCandidateError(e)
     }
 }
 
@@ -207,10 +221,10 @@ mod tests {
     proptest! {
 
         #[test]
-        fn test_build_tx(inputs in vec(any_with::<ErgoBox>((BoxValue::MIN_RAW * 10 .. BoxValue::MIN_RAW * 1000).into()), 1..10),
-                         outputs in vec(any_with::<ErgoBoxCandidate>((BoxValue::MIN_RAW..BoxValue::MIN_RAW * 9).into()), 1..2),
+        fn test_build_tx(inputs in vec(any_with::<ErgoBox>((BoxValue::MIN_RAW * 1000 .. BoxValue::MIN_RAW * 10000).into()), 1..10),
+                         outputs in vec(any_with::<ErgoBoxCandidate>((BoxValue::MIN_RAW * 1000 ..BoxValue::MIN_RAW * 2000).into()), 1..2),
                          change_address in any::<Address>(),
-                         miners_fee in any_with::<BoxValue>((BoxValue::MIN_RAW..BoxValue::MIN_RAW * 2).into())) {
+                         miners_fee in any_with::<BoxValue>((BoxValue::MIN_RAW * 1000..BoxValue::MIN_RAW * 2000).into())) {
             let min_change_value = BoxValue::MIN;
 
             let all_outputs = box_value::checked_sum(outputs.iter().map(|b| b.value)).unwrap()

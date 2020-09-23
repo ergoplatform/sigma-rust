@@ -118,7 +118,13 @@ mod tests {
                     tpe: SType::SSigmaProp,
                     v: pk.into(),
                 })));
-                ErgoBox::new(BoxValue::MIN, tree, vec![], NonMandatoryRegisters::empty(), 0, TxId::zero(), 0)
+                ErgoBox::new(BoxValue::MIN.checked_mul_u32(100).unwrap(),
+                             tree,
+                             vec![],
+                             NonMandatoryRegisters::empty(),
+                             0,
+                             TxId::zero(),
+                             0)
             }).collect();
             let prover = TestProver {
                 secrets: secrets.clone().into_iter().map(PrivateInput::DlogProverInput).collect(),
@@ -127,8 +133,9 @@ mod tests {
             let ergo_tree = ErgoTree::from(Rc::new(Expr::Const(Constant {
                     tpe: SType::SSigmaProp,
                     v: secrets.get(0).unwrap().public_image().into(),
-                })));
-            let output_candidates = vec![ErgoBoxCandidate::new(BoxValue::MIN, ergo_tree, 0)];
+            })));
+            let candidate = ErgoBoxCandidate::new(BoxValue::MIN.checked_mul_u32(100).unwrap(), ergo_tree, 0).unwrap();
+            let output_candidates = vec![candidate];
             let tx = UnsignedTransaction::new(inputs, vec![], output_candidates);
 
             let res = sign_transaction(Box::new(prover).as_ref(), tx, boxes_to_spend.as_slice(), vec![].as_slice(),

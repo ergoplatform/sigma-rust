@@ -1,3 +1,4 @@
+//! Box collection types
 use sigma_tree::chain;
 use wasm_bindgen::prelude::*;
 

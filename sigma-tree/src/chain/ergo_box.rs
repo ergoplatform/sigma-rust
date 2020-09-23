@@ -28,6 +28,7 @@ use register::NonMandatoryRegisters;
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "with-serde")]
 use std::convert::TryFrom;
+use std::convert::TryInto;
 use std::io;
 #[cfg(feature = "with-serde")]
 use thiserror::Error;
@@ -286,16 +287,45 @@ pub struct ErgoBoxCandidate {
     pub creation_height: u32,
 }
 
+/// ErgoBoxCandidate errors
+#[derive(Error, PartialEq, Eq, Clone, Debug)]
+pub enum ErgoBoxCandidateError {
+    /// Box value is too low
+    #[error("Box value is too low, minimum for box size {box_size_bytes} is: {min_box_value:?}")]
+    BoxValueTooLow {
+        /// minimum box value for that box size
+        min_box_value: BoxValue,
+        /// box size in bytes
+        box_size_bytes: usize,
+    },
+}
+
 impl ErgoBoxCandidate {
     /// create box with value guarded by ErgoTree
-    pub fn new(value: BoxValue, ergo_tree: ErgoTree, creation_height: u32) -> ErgoBoxCandidate {
-        // TODO: check for min BoxValue and return error
-        ErgoBoxCandidate {
+    pub fn new(
+        value: BoxValue,
+        ergo_tree: ErgoTree,
+        creation_height: u32,
+    ) -> Result<ErgoBoxCandidate, ErgoBoxCandidateError> {
+        let b = ErgoBoxCandidate {
             value,
             ergo_tree,
             tokens: vec![],
             additional_registers: NonMandatoryRegisters::empty(),
             creation_height,
+        };
+        let box_size_bytes = b.sigma_serialise_bytes().len();
+        // TODO: extract min value per byte as parameter. ErgoBoxCandidateBuilder?
+        let min_box_value: BoxValue = (box_size_bytes as i64 * BoxValue::MIN_VALUE_PER_BOX_BYTE)
+            .try_into()
+            .unwrap();
+        if value >= min_box_value {
+            Ok(b)
+        } else {
+            Err(ErgoBoxCandidateError::BoxValueTooLow {
+                min_box_value,
+                box_size_bytes,
+            })
         }
     }
 
