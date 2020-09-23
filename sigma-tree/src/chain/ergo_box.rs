@@ -30,7 +30,6 @@ use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use std::convert::TryInto;
 use std::io;
-#[cfg(feature = "with-serde")]
 use thiserror::Error;
 
 /// Box (aka coin, or an unspent output) is a basic concept of a UTXO-based cryptocurrency.
