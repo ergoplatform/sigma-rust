@@ -5,8 +5,8 @@ use crate::serialization::{
 use crate::{
     ast::Constant,
     chain::{
-        box_value::BoxValue, register::NonMandatoryRegisters, ErgoBoxCandidate, TokenAmount,
-        TokenId,
+        ergo_box::{box_value::BoxValue, register::NonMandatoryRegisters, ErgoBoxCandidate},
+        token::{TokenAmount, TokenId},
     },
     ErgoTree,
 };

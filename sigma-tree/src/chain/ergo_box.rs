@@ -1,5 +1,6 @@
 //! Ergo box
 
+pub mod box_id;
 pub mod box_value;
 pub mod register;
 
@@ -8,7 +9,7 @@ use super::json;
 use super::{
     digest32::blake2b256_hash,
     token::{TokenAmount, TokenId},
-    BoxId, TxId,
+    transaction::TxId,
 };
 use crate::{
     ergo_tree::ErgoTree,
@@ -19,6 +20,7 @@ use crate::{
         SerializationError, SigmaSerializable,
     },
 };
+use box_id::BoxId;
 use box_value::BoxValue;
 use indexmap::IndexSet;
 use register::NonMandatoryRegisters;
@@ -26,8 +28,8 @@ use register::NonMandatoryRegisters;
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "with-serde")]
 use std::convert::TryFrom;
+use std::convert::TryInto;
 use std::io;
-#[cfg(feature = "with-serde")]
 use thiserror::Error;
 
 /// Box (aka coin, or an unspent output) is a basic concept of a UTXO-based cryptocurrency.
@@ -126,7 +128,7 @@ impl ErgoBox {
     ) -> ErgoBox {
         let box_with_zero_id = ErgoBox {
             box_id: BoxId::zero(),
-            value: box_candidate.value.clone(),
+            value: box_candidate.value,
             ergo_tree: box_candidate.ergo_tree.clone(),
             tokens: box_candidate.tokens.clone(),
             additional_registers: box_candidate.additional_registers.clone(),
@@ -144,6 +146,65 @@ impl ErgoBox {
     fn calc_box_id(&self) -> BoxId {
         let bytes = self.sigma_serialise_bytes();
         BoxId(blake2b256_hash(&bytes))
+    }
+}
+
+/// Assets that ErgoBox holds
+pub trait ErgoBoxAssets {
+    /// Box value
+    fn value(&self) -> BoxValue;
+    /// Tokens (ids and amounts)
+    fn tokens(&self) -> Vec<TokenAmount>;
+}
+
+/// Simple struct to hold ErgoBoxAssets values
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct ErgoBoxAssetsData {
+    /// Box value
+    pub value: BoxValue,
+    /// Tokens
+    pub tokens: Vec<TokenAmount>,
+}
+
+impl ErgoBoxAssets for ErgoBoxAssetsData {
+    fn value(&self) -> BoxValue {
+        self.value
+    }
+
+    fn tokens(&self) -> Vec<TokenAmount> {
+        self.tokens.clone()
+    }
+}
+
+impl ErgoBoxAssets for ErgoBoxCandidate {
+    fn value(&self) -> BoxValue {
+        self.value
+    }
+
+    fn tokens(&self) -> Vec<TokenAmount> {
+        self.tokens.clone()
+    }
+}
+
+impl ErgoBoxAssets for ErgoBox {
+    fn value(&self) -> BoxValue {
+        self.value
+    }
+
+    fn tokens(&self) -> Vec<TokenAmount> {
+        self.tokens.clone()
+    }
+}
+
+/// id of the ergo box
+pub trait ErgoBoxId {
+    /// Id of the ergo box
+    fn box_id(&self) -> BoxId;
+}
+
+impl ErgoBoxId for ErgoBox {
+    fn box_id(&self) -> BoxId {
+        self.box_id.clone()
     }
 }
 
@@ -225,15 +286,45 @@ pub struct ErgoBoxCandidate {
     pub creation_height: u32,
 }
 
+/// ErgoBoxCandidate errors
+#[derive(Error, PartialEq, Eq, Clone, Debug)]
+pub enum ErgoBoxCandidateError {
+    /// Box value is too low
+    #[error("Box value is too low, minimum value for box size of {box_size_bytes} bytes is: {min_box_value:?} nanoERGs")]
+    BoxValueTooLow {
+        /// minimum box value for that box size
+        min_box_value: BoxValue,
+        /// box size in bytes
+        box_size_bytes: usize,
+    },
+}
+
 impl ErgoBoxCandidate {
     /// create box with value guarded by ErgoTree
-    pub fn new(value: BoxValue, ergo_tree: ErgoTree, creation_height: u32) -> ErgoBoxCandidate {
-        ErgoBoxCandidate {
+    pub fn new(
+        value: BoxValue,
+        ergo_tree: ErgoTree,
+        creation_height: u32,
+    ) -> Result<ErgoBoxCandidate, ErgoBoxCandidateError> {
+        let b = ErgoBoxCandidate {
             value,
             ergo_tree,
             tokens: vec![],
             additional_registers: NonMandatoryRegisters::empty(),
             creation_height,
+        };
+        let box_size_bytes = b.sigma_serialise_bytes().len();
+        // TODO: extract min value per byte as parameter. ErgoBoxCandidateBuilder?
+        let min_box_value: BoxValue = (box_size_bytes as i64 * BoxValue::MIN_VALUE_PER_BOX_BYTE)
+            .try_into()
+            .unwrap();
+        if value >= min_box_value {
+            Ok(b)
+        } else {
+            Err(ErgoBoxCandidateError::BoxValueTooLow {
+                min_box_value,
+                box_size_bytes,
+            })
         }
     }
 
@@ -292,11 +383,11 @@ mod tests {
     use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
 
     impl Arbitrary for ErgoBoxCandidate {
-        type Parameters = ();
+        type Parameters = super::box_value::tests::ArbBoxValueRange;
 
-        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+        fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
             (
-                any::<BoxValue>(),
+                any_with::<BoxValue>(args),
                 any::<ErgoTree>(),
                 vec(any::<TokenAmount>(), 0..10),
                 any::<u32>(),
@@ -317,10 +408,14 @@ mod tests {
     }
 
     impl Arbitrary for ErgoBox {
-        type Parameters = ();
+        type Parameters = super::box_value::tests::ArbBoxValueRange;
 
-        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            (any::<ErgoBoxCandidate>(), any::<TxId>(), any::<u16>())
+        fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
+            (
+                any_with::<ErgoBoxCandidate>(args),
+                any::<TxId>(),
+                any::<u16>(),
+            )
                 .prop_map(|(box_candidate, tx_id, index)| {
                     Self::from_box_candidate(&box_candidate, tx_id, index)
                 })

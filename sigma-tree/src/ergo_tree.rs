@@ -14,6 +14,7 @@ use crate::serialization::constant_store::ConstantStore;
 use sigma_ser::{peekable_reader::PeekableReader, vlq_encode};
 use std::io;
 use std::rc::Rc;
+use thiserror::Error;
 use vlq_encode::ReadSigmaVlqExt;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -60,11 +61,13 @@ pub struct ErgoTreeRootParsingError {
 }
 
 /// ErgoTree parsing (deserialization) error
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(Error, PartialEq, Eq, Debug, Clone)]
 pub enum ErgoTreeParsingError {
     /// Whole ErgoTree parsing (deserialization) error
+    #[error("Whole ErgoTree parsing (deserialization) error")]
     TreeParsingError(ErgoTreeConstantsParsingError),
     /// ErgoTree root expr parsing (deserialization) error
+    #[error("ErgoTree root expr parsing (deserialization) error")]
     RootParsingError(ErgoTreeRootParsingError),
 }
 
@@ -299,12 +302,12 @@ mod tests {
 
     #[test]
     fn test_constant_segregation_header_flag_support() {
-        let encoder = chain::AddressEncoder::new(chain::NetworkPrefix::Mainnet);
+        let encoder = chain::address::AddressEncoder::new(chain::address::NetworkPrefix::Mainnet);
         let address = encoder
             .parse_address_from_str("9hzP24a2q8KLPVCUk7gdMDXYc7vinmGuxmLp5KU7k9UwptgYBYV")
             .unwrap();
 
-        let contract = chain::Contract::pay_to_address(address).unwrap();
+        let contract = chain::contract::Contract::pay_to_address(&address).unwrap();
         let bytes = &contract.get_ergo_tree().sigma_serialise_bytes();
         assert_eq!(&bytes[..2], vec![0u8, 8u8].as_slice());
     }

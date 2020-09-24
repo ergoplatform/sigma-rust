@@ -9,27 +9,35 @@ use super::{
     UncheckedSigmaTree, UncheckedTree, UnprovenLeaf, UnprovenSchnorr, UnprovenTree,
 };
 use crate::{
-    chain::{ContextExtension, ProverResult},
+    chain::{context_extension::ContextExtension, prover_result::ProverResult},
     eval::{Env, EvalError, Evaluator},
     ErgoTree, ErgoTreeParsingError,
 };
+use thiserror::Error;
 
 /// Prover errors
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(Error, PartialEq, Eq, Debug, Clone)]
 pub enum ProverError {
     /// Failed to parse ErgoTree
+    #[error("Ergo tree error: {0}")]
     ErgoTreeError(ErgoTreeParsingError),
     /// Failed to evaluate ErgoTree
+    #[error("Evaluation error: {0}")]
     EvalError(EvalError),
     /// Script reduced to false
+    #[error("Script reduced to false")]
     ReducedToFalse,
     /// Failed on step2(prover does not have enough witnesses to perform the proof)
+    #[error("Failed on step2(prover does not have enough witnesses to perform the proof)")]
     TreeRootIsNotReal,
     /// Simulated leaf does not have challenge
+    #[error("Simulated leaf does not have challenge")]
     SimulatedLeafWithoutChallenge,
     /// Lacking challenge on step 9 for "real" unproven tree
+    #[error("Lacking challenge on step 9 for \"real\" unproven tree")]
     RealUnprovenTreeWithoutChallenge,
     /// Cannot find a secret for "real" unproven leaf
+    #[error("Cannot find a secret for \"real\" unproven leaf")]
     SecretNotFound,
 }
 
@@ -288,7 +296,7 @@ mod tests {
     use super::*;
     use crate::{
         ast::{Constant, ConstantVal, Expr},
-        chain::ProofBytes,
+        chain::prover_result::ProofBytes,
         sigma_protocol::DlogProverInput,
         types::SType,
     };

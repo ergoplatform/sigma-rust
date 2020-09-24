@@ -10,6 +10,6 @@ crate-type = ["lib"]
 
 [dependencies]
 sigma-tree = { path = "../../sigma-tree"}
-ergo-wallet-lib = { path = "../../ergo-wallet-lib"}
+
 thiserror = "1"
 

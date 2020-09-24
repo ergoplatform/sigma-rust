@@ -39,7 +39,11 @@ pub mod ergo_tree {
 
 pub mod ergo_box {
     use crate::{
-        chain::{box_value::BoxValue, register::NonMandatoryRegisters, BoxId, TokenAmount, TxId},
+        chain::{
+            ergo_box::{box_id::BoxId, box_value::BoxValue, register::NonMandatoryRegisters},
+            token::TokenAmount,
+            transaction::TxId,
+        },
         ErgoTree,
     };
     use serde::Deserialize;
@@ -75,7 +79,7 @@ pub mod ergo_box {
 }
 
 pub mod transaction {
-    use crate::chain::{data_input::DataInput, ErgoBox, Input, TxId};
+    use crate::chain::{data_input::DataInput, ergo_box::ErgoBox, input::Input, transaction::TxId};
     use serde::{Deserialize, Serialize};
 
     #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -97,10 +101,12 @@ pub mod transaction {
 
 #[cfg(test)]
 mod tests {
+    use std::convert::TryInto;
+
     use super::super::ergo_box::*;
     use super::super::transaction::*;
     use super::*;
-    use crate::chain::ContextExtension;
+    use crate::chain::context_extension::ContextExtension;
     use proptest::prelude::*;
     use register::NonMandatoryRegisters;
 
@@ -158,5 +164,21 @@ mod tests {
         assert_eq!(c.values.len(), 2);
         assert!(c.values.get(&1u8).is_some());
         assert!(c.values.get(&3u8).is_some());
+    }
+
+    #[test]
+    fn parse_ergo_box() {
+        let box_json = r#"{
+          "boxId": "e56847ed19b3dc6b72828fcfb992fdf7310828cf291221269b7ffc72fd66706e",
+          "value": 67500000000,
+          "ergoTree": "100204a00b08cd021dde34603426402615658f1d970cfa7c7bd92ac81a8b16eeebff264d59ce4604ea02d192a39a8cc7a70173007301",
+          "assets": [],
+          "creationHeight": 284761,
+          "additionalRegisters": {},
+          "transactionId": "9148408c04c2e38a6402a7950d6157730fa7d49e9ab3b9cadec481d7769918e9",
+          "index": 1
+        }"#;
+        let b: ErgoBox = serde_json::from_str(box_json).unwrap();
+        assert_eq!(b.value, 67500000000u64.try_into().unwrap());
     }
 }

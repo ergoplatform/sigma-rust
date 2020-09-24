@@ -36,6 +36,9 @@ pub enum SerializationError {
     /// Constant with given index not found in constant store
     #[error("Constant with index {0} not found in constant store")]
     ConstantForPlaceholderNotFound(u32),
+    /// Value out of bounds
+    #[error("Value out of bounds: {0}")]
+    ValueOutOfBounds(String),
 }
 
 impl From<vlq_encode::VlqEncodingError> for SerializationError {

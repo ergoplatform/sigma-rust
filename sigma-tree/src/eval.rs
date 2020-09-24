@@ -1,3 +1,4 @@
+//! Interpreter
 use crate::{
     ast::{ops::BinOp, ops::NumOp, Constant, ConstantVal, Expr},
     sigma_protocol::sigma_boolean::SigmaBoolean,
@@ -5,33 +6,46 @@ use crate::{
 };
 
 use cost_accum::CostAccumulator;
+use thiserror::Error;
 use value::Value;
 
 mod cost_accum;
 mod costs;
 mod value;
 
+/// Environment vars for script interpreter
 pub struct Env();
 
 impl Env {
+    /// Empty environment
     pub fn empty() -> Env {
         Env()
     }
 }
 
-#[derive(PartialEq, Eq, Debug, Clone)]
+/// Interpreter errors
+#[derive(Error, PartialEq, Eq, Debug, Clone)]
 pub enum EvalError {
+    /// Only boolean or SigmaBoolean is a valid result expr type
+    #[error("Only boolean or SigmaBoolean is a valid result expr type")]
     InvalidResultType,
+    /// Unsupported Expr encountered during the evaluation
+    #[error("Unsupported Expr encountered during the evaluation")]
     // TODO: store unexpected expr
     UnexpectedExpr,
 }
 
+/// Result of ErgoTree reduction procedure (see `reduce_to_crypto`).
 pub struct ReductionResult {
+    /// value of SigmaProp type which represents a statement verifiable via sigma protocol.
     pub sigma_prop: SigmaBoolean,
+    /// estimated cost of contract execution
     pub cost: u64,
 }
 
+/// Interpreter
 pub trait Evaluator {
+    /// This method is used in both prover and verifier to compute SigmaBoolean value.
     fn reduce_to_crypto(&self, expr: &Expr, env: &Env) -> Result<ReductionResult, EvalError> {
         let mut ca = CostAccumulator::new(0, None);
         eval(expr, env, &mut ca).and_then(|v| match v {
