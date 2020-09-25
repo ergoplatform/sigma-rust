@@ -28,20 +28,40 @@ impl ErgoBoxCandidateBuilder {
         ))
     }
 
-    /// Build the box candidate using default(`BoxValue::MIN_VALUE_PER_BOX_BYTE`) value for box value checks
-    pub fn build(self) -> Result<ErgoBoxCandidate, JsValue> {
-        self.build_with_custom_min_value_per_byte(
-            chain::ergo_box::box_value::BoxValue::MIN_VALUE_PER_BOX_BYTE,
-        )
+    /// Set minimal value (per byte of the serialized box size)
+    pub fn set_min_box_value_per_byte(&mut self, new_min_value_per_byte: u32) {
+        self.0.set_min_box_value_per_byte(new_min_value_per_byte);
     }
 
-    /// Build the box candidate using provided `min_value_per_byte` for box value checks
-    pub fn build_with_custom_min_value_per_byte(
-        self,
-        min_value_per_byte: u32,
-    ) -> Result<ErgoBoxCandidate, JsValue> {
+    /// Get minimal value (per byte of the serialized box size)
+    pub fn min_box_value_per_byte(&self) -> u32 {
+        self.0.min_box_value_per_byte()
+    }
+
+    /// Set new box value
+    pub fn set_value(&mut self, new_value: BoxValue) {
+        self.0.set_value(new_value.into());
+    }
+
+    /// Get box value
+    pub fn value(&self) -> BoxValue {
+        (*self.0.value()).into()
+    }
+
+    /// Calculate serialized box size(in bytes)
+    pub fn calc_box_size_bytes(&self) -> usize {
+        self.0.calc_box_size_bytes()
+    }
+
+    /// Calculate minimal box value for the current box serialized size(in bytes)
+    pub fn calc_min_box_value(&self) -> BoxValue {
+        self.0.calc_min_box_value().into()
+    }
+
+    /// Build the box candidate
+    pub fn build(self) -> Result<ErgoBoxCandidate, JsValue> {
         self.0
-            .build_with_custom_min_value_per_byte(min_value_per_byte)
+            .build()
             .map_err(|e| JsValue::from_str(&format!("{}", e)))
             .map(ErgoBoxCandidate)
     }

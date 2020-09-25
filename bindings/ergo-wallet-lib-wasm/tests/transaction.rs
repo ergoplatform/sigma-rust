@@ -119,6 +119,5 @@ fn test_tx_builder() {
         &min_change_value,
     )
     .unwrap();
-    // assert!(tx_builder.is_ok());
     let _tx = tx_builder.build().unwrap();
 }

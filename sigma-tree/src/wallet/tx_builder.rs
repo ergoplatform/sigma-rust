@@ -176,19 +176,13 @@ impl From<ErgoBoxCandidateBuilderError> for TxBuilderError {
 #[cfg(test)]
 mod tests {
 
-    use proptest::strategy::ValueTree;
-    use proptest::test_runner::TestRunner;
-    use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
+    use proptest::{collection::vec, prelude::*};
 
     use crate::chain::ergo_box::ErgoBox;
+    use crate::tests::force_any_val;
     use crate::wallet::box_selector::simple::SimpleBoxSelector;
 
     use super::*;
-
-    fn force_any_val<T: Arbitrary>() -> T {
-        let mut runner = TestRunner::default();
-        any::<T>().new_tree(&mut runner).unwrap().current()
-    }
 
     #[test]
     fn test_empty_inputs() {

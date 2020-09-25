@@ -111,8 +111,14 @@ impl BoxValue {
     }
 }
 
-impl Into<chain::ergo_box::box_value::BoxValue> for BoxValue {
-    fn into(self) -> chain::ergo_box::box_value::BoxValue {
-        self.0
+impl From<BoxValue> for chain::ergo_box::box_value::BoxValue {
+    fn from(v: BoxValue) -> Self {
+        v.0
+    }
+}
+
+impl From<chain::ergo_box::box_value::BoxValue> for BoxValue {
+    fn from(v: chain::ergo_box::box_value::BoxValue) -> Self {
+        BoxValue(v)
     }
 }
