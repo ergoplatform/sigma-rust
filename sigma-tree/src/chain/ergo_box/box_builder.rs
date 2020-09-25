@@ -116,7 +116,7 @@ impl ErgoBoxCandidateBuilder {
 #[cfg(test)]
 mod tests {
 
-    use crate::tests::force_any_val;
+    use crate::test_util::force_any_val;
 
     use super::*;
 

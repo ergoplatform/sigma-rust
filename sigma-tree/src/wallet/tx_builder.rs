@@ -179,7 +179,7 @@ mod tests {
     use proptest::{collection::vec, prelude::*};
 
     use crate::chain::ergo_box::ErgoBox;
-    use crate::tests::force_any_val;
+    use crate::test_util::force_any_val;
     use crate::wallet::box_selector::simple::SimpleBoxSelector;
 
     use super::*;

@@ -27,4 +27,4 @@ pub mod wallet;
 pub use ergo_tree::*;
 
 #[cfg(test)]
-pub mod tests;
+pub mod test_util;
