@@ -4,10 +4,11 @@ extern crate wasm_bindgen_test;
 
 use std::{convert::TryInto, rc::Rc};
 
+use ergo_wallet_lib_wasm::ergo_box::box_builder::ErgoBoxCandidateBuilder;
 use ergo_wallet_lib_wasm::{
     address::Address, box_coll::ErgoBoxCandidates, box_coll::ErgoBoxes, box_selector::BoxSelector,
-    contract::Contract, ergo_box::BoxValue, ergo_box::ErgoBoxCandidate,
-    ergo_state_ctx::ErgoStateContext, secret_key::SecretKey, tx_builder::TxBuilder, wallet::Wallet,
+    contract::Contract, ergo_box::BoxValue, ergo_state_ctx::ErgoStateContext,
+    secret_key::SecretKey, tx_builder::TxBuilder, wallet::Wallet,
 };
 use sigma_tree::{
     ast::Expr, chain::ergo_box::register::NonMandatoryRegisters, chain::ergo_box::ErgoBox,
@@ -42,14 +43,15 @@ fn test_sign_transaction() {
         Address::from_testnet_str("3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN")
             .expect("failed");
     let contract = Contract::pay_to_address(&recipient).expect("failed");
-    let outbox =
-        ErgoBoxCandidate::new(&BoxValue::from_u32(10000000).unwrap(), 0, &contract).unwrap();
+    let outbox = ErgoBoxCandidateBuilder::new(&BoxValue::from_u32(10000000).unwrap(), &contract, 0)
+        .build()
+        .unwrap();
     let tx_outputs = ErgoBoxCandidates::new(&outbox);
     let fee = BoxValue::from_u32(1000000).unwrap();
     let change_address =
         Address::from_testnet_str("3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN")
             .expect("failed");
-    let min_change_value = BoxValue::MIN();
+    let min_change_value = BoxValue::SAFE_USER_MIN();
     let tx_builder = TxBuilder::new(
         BoxSelector::Simple,
         &tx_inputs,
@@ -98,14 +100,15 @@ fn test_tx_builder() {
         Address::from_testnet_str("3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN")
             .expect("failed");
     let contract = Contract::pay_to_address(&recipient).expect("failed");
-    let outbox =
-        ErgoBoxCandidate::new(&BoxValue::from_u32(10000000).unwrap(), 0, &contract).unwrap();
+    let outbox = ErgoBoxCandidateBuilder::new(&BoxValue::from_u32(10000000).unwrap(), &contract, 0)
+        .build()
+        .unwrap();
     let tx_outputs = ErgoBoxCandidates::new(&outbox);
     let fee = BoxValue::from_u32(1000000).unwrap();
     let change_address =
         Address::from_testnet_str("3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN")
             .expect("failed");
-    let min_change_value = BoxValue::MIN();
+    let min_change_value = BoxValue::SAFE_USER_MIN();
     let tx_builder = TxBuilder::new(
         BoxSelector::Simple,
         &tx_inputs,
@@ -116,6 +119,5 @@ fn test_tx_builder() {
         &min_change_value,
     )
     .unwrap();
-    // assert!(tx_builder.is_ok());
     let _tx = tx_builder.build().unwrap();
 }

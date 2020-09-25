@@ -25,4 +25,6 @@ pub mod sigma_protocol;
 pub mod wallet;
 
 pub use ergo_tree::*;
-// pub use serialization::serializable::*;
+
+#[cfg(test)]
+pub mod test_util;

@@ -16,17 +16,22 @@ pub struct BoxValue(i64);
 
 impl BoxValue {
     /// Minimal box value per byte of the serialized box that was set on on launch
-    pub const MIN_VALUE_PER_BOX_BYTE: i64 = 360;
+    pub const MIN_VALUE_PER_BOX_BYTE: u32 = 360;
     /// Minimal theoretical box size (smallest tree, no tokens, no registers, etc.)
-    const MIN_BOX_SIZE_BYTES: i64 = 30;
+    const MIN_BOX_SIZE_BYTES: usize = 30;
 
-    /// Mininal allowed box value
-    pub const MIN_RAW: i64 = BoxValue::MIN_VALUE_PER_BOX_BYTE * BoxValue::MIN_BOX_SIZE_BYTES;
-    /// Maximal allowed box value
+    /// Absolute minimal value, calculated from smallest possible box size and original value per byte requirement
+    pub const MIN_RAW: i64 =
+        BoxValue::MIN_VALUE_PER_BOX_BYTE as i64 * BoxValue::MIN_BOX_SIZE_BYTES as i64;
+    /// Absolue maximal allowed box value
     pub const MAX_RAW: i64 = i64::MAX;
 
-    /// Minimal value, calculated from smallest possible box size and original value per byte requirement
+    /// Absolute minimal value, calculated from smallest possible box size and original value per byte requirement
     pub const MIN: BoxValue = BoxValue(BoxValue::MIN_RAW);
+
+    /// Recommended (safe) minimal box value to use in case box size estimation is unavailable.
+    /// Allows box size upto 2777 bytes with current min box value per byte of 360 nanoERGs
+    pub const SAFE_USER_MIN: BoxValue = BoxValue(1000000);
 
     /// create from u64 with bounds check
     pub fn new(v: u64) -> Result<BoxValue, BoxValueError> {
