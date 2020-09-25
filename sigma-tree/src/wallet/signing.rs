@@ -70,13 +70,12 @@ mod tests {
     use proptest::collection::vec;
     use proptest::prelude::*;
 
+    use crate::chain::ergo_box::box_builder::ErgoBoxCandidateBuilder;
     use crate::chain::ergo_box::box_value::BoxValue;
     use crate::{
         ast::{Constant, Expr},
         chain::{
-            ergo_box::{register::NonMandatoryRegisters, ErgoBoxCandidate},
-            input::UnsignedInput,
-            transaction::TxId,
+            ergo_box::register::NonMandatoryRegisters, input::UnsignedInput, transaction::TxId,
         },
         sigma_protocol::{
             prover::TestProver,
@@ -134,7 +133,8 @@ mod tests {
                     tpe: SType::SSigmaProp,
                     v: secrets.get(0).unwrap().public_image().into(),
             })));
-            let candidate = ErgoBoxCandidate::new(BoxValue::MIN.checked_mul_u32(100).unwrap(), ergo_tree, 0).unwrap();
+            let candidate = ErgoBoxCandidateBuilder::new(BoxValue::MIN.checked_mul_u32(100).unwrap(), ergo_tree, 0)
+                .build().unwrap();
             let output_candidates = vec![candidate];
             let tx = UnsignedTransaction::new(inputs, vec![], output_candidates);
 

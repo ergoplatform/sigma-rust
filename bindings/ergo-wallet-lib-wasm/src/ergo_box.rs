@@ -24,40 +24,15 @@ use wasm_bindgen::prelude::*;
 
 use crate::{contract::Contract, transaction::TxId};
 
+pub mod box_builder;
+
 /// ErgoBox candidate not yet included in any transaction on the chain
 #[wasm_bindgen]
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ErgoBoxCandidate(chain::ergo_box::ErgoBoxCandidate);
 
 #[wasm_bindgen]
-impl ErgoBoxCandidate {
-    /// make a new box with:
-    /// `value` - amount of money associated with the box
-    /// `contract` - guarding contract([`Contract`]), which should be evaluated to true in order
-    /// to open(spend) this box
-    /// `creation_height` - height when a transaction containing the box is created.
-    /// It should not exceed height of the block, containing the transaction with this box.
-    #[wasm_bindgen(constructor)]
-    pub fn new(
-        value: &BoxValue,
-        creation_height: u32,
-        contract: &Contract,
-    ) -> Result<ErgoBoxCandidate, JsValue> {
-        let chain_contract: chain::contract::Contract = contract.clone().into();
-        chain::ergo_box::ErgoBoxCandidate::new(
-            value.0,
-            chain_contract.get_ergo_tree(),
-            creation_height,
-        )
-        .map_err(|e| JsValue::from_str(&format!("{}", e)))
-        .map(ErgoBoxCandidate)
-    }
-
-    // JSON representation
-    // pub fn to_json(&self) -> Result<JsValue, JsValue> {
-    //     JsValue::from_serde(&self.0).map_err(|e| JsValue::from_str(&format!("{}", e)))
-    // }
-}
+impl ErgoBoxCandidate {}
 
 impl Into<chain::ergo_box::ErgoBoxCandidate> for ErgoBoxCandidate {
     fn into(self) -> chain::ergo_box::ErgoBoxCandidate {

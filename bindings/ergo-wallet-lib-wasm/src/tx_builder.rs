@@ -48,7 +48,7 @@ impl TxBuilder {
     }
 
     /// Build the unsigned transaction
-    pub fn build(&self) -> Result<UnsignedTransaction, JsValue> {
+    pub fn build(self) -> Result<UnsignedTransaction, JsValue> {
         self.0
             .build()
             .map_err(|e| JsValue::from_str(&format!("{}", e)))

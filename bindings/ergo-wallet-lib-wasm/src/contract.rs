@@ -19,8 +19,8 @@ impl Contract {
     }
 }
 
-impl Into<chain::contract::Contract> for Contract {
-    fn into(self) -> chain::contract::Contract {
-        self.0
+impl From<Contract> for chain::contract::Contract {
+    fn from(c: Contract) -> Self {
+        c.0
     }
 }

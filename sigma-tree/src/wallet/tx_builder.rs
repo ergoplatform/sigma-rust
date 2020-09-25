@@ -7,8 +7,9 @@ use crate::chain::address::Address;
 use crate::chain::address::AddressEncoder;
 use crate::chain::address::NetworkPrefix;
 use crate::chain::contract::Contract;
+use crate::chain::ergo_box::box_builder::ErgoBoxCandidateBuilder;
+use crate::chain::ergo_box::box_builder::ErgoBoxCandidateBuilderError;
 use crate::chain::ergo_box::box_value;
-use crate::chain::ergo_box::ErgoBoxCandidateError;
 use crate::chain::{
     ergo_box::ErgoBoxAssets,
     ergo_box::ErgoBoxId,
@@ -73,7 +74,7 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
     }
 
     /// Build the unsigned transaction
-    pub fn build(&self) -> Result<UnsignedTransaction, TxBuilderError> {
+    pub fn build(self) -> Result<UnsignedTransaction, TxBuilderError> {
         let total_output_value: BoxValue =
             box_value::checked_sum(self.output_candidates.iter().map(|b| b.value))?
                 .checked_add(&self.fee_amount)?;
@@ -86,16 +87,17 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
 
         let change_address_ergo_tree =
             Contract::pay_to_address(&self.change_address)?.get_ergo_tree();
-        let change_boxes: Result<Vec<ErgoBoxCandidate>, ErgoBoxCandidateError> = selection
+        let change_boxes: Result<Vec<ErgoBoxCandidate>, ErgoBoxCandidateBuilderError> = selection
             .change_boxes
             .iter()
             .filter(|b| b.value >= self.min_change_value)
             .map(|b| {
-                ErgoBoxCandidate::new(
+                ErgoBoxCandidateBuilder::new(
                     b.value,
                     change_address_ergo_tree.clone(),
                     self.current_height,
                 )
+                .build()
             })
             .collect();
         output_candidates.append(&mut change_boxes?);
@@ -118,13 +120,13 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
 pub fn new_miner_fee_box(
     fee_amount: BoxValue,
     creation_height: u32,
-) -> Result<ErgoBoxCandidate, ErgoBoxCandidateError> {
+) -> Result<ErgoBoxCandidate, ErgoBoxCandidateBuilderError> {
     let address_encoder = AddressEncoder::new(NetworkPrefix::Mainnet);
     let miner_fee_address = address_encoder
         .parse_address_from_str(MINERS_FEE_MAINNET_ADDRESS)
         .unwrap();
     let ergo_tree = miner_fee_address.script().unwrap();
-    ErgoBoxCandidate::new(fee_amount, ergo_tree, creation_height)
+    ErgoBoxCandidateBuilder::new(fee_amount, ergo_tree, creation_height).build()
 }
 
 /// Errors of TxBuilder
@@ -143,8 +145,8 @@ pub enum TxBuilderError {
     #[error("Invalid arguments: {0}")]
     InvalidArgs(String),
     /// ErgoBoxCandidate error
-    #[error("ErgoBoxCandidate error: {0}")]
-    ErgoBoxCandidateError(ErgoBoxCandidateError),
+    #[error("ErgoBoxCandidateBuilder error: {0}")]
+    ErgoBoxCandidateBuilderError(ErgoBoxCandidateBuilderError),
 }
 
 impl From<BoxSelectorError> for TxBuilderError {
@@ -165,9 +167,9 @@ impl From<SerializationError> for TxBuilderError {
     }
 }
 
-impl From<ErgoBoxCandidateError> for TxBuilderError {
-    fn from(e: ErgoBoxCandidateError) -> Self {
-        TxBuilderError::ErgoBoxCandidateError(e)
+impl From<ErgoBoxCandidateBuilderError> for TxBuilderError {
+    fn from(e: ErgoBoxCandidateBuilderError) -> Self {
+        TxBuilderError::ErgoBoxCandidateBuilderError(e)
     }
 }
 
@@ -224,7 +226,7 @@ mod tests {
         fn test_build_tx(inputs in vec(any_with::<ErgoBox>((BoxValue::MIN_RAW * 1000 .. BoxValue::MIN_RAW * 10000).into()), 1..10),
                          outputs in vec(any_with::<ErgoBoxCandidate>((BoxValue::MIN_RAW * 1000 ..BoxValue::MIN_RAW * 2000).into()), 1..2),
                          change_address in any::<Address>(),
-                         miners_fee in any_with::<BoxValue>((BoxValue::MIN_RAW * 1000..BoxValue::MIN_RAW * 2000).into())) {
+                         miners_fee in any_with::<BoxValue>((BoxValue::MIN_RAW * 100..BoxValue::MIN_RAW * 200).into())) {
             let min_change_value = BoxValue::MIN;
 
             let all_outputs = box_value::checked_sum(outputs.iter().map(|b| b.value)).unwrap()
