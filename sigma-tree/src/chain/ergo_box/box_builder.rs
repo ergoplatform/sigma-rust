@@ -168,4 +168,10 @@ mod tests {
             ErgoBoxCandidateBuilder::new(BoxValue::SAFE_USER_MIN, force_any_val::<ErgoTree>(), 1);
         assert!(builder.calc_min_box_value() > BoxValue::MIN);
     }
+
+    #[test]
+    fn test_build_fail_box_value_too_low() {
+        let builder = ErgoBoxCandidateBuilder::new(BoxValue::MIN, force_any_val::<ErgoTree>(), 1);
+        assert!(builder.build().is_err());
+    }
 }
