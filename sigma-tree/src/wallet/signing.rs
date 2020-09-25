@@ -117,7 +117,7 @@ mod tests {
                     tpe: SType::SSigmaProp,
                     v: pk.into(),
                 })));
-                ErgoBox::new(BoxValue::MIN.checked_mul_u32(100).unwrap(),
+                ErgoBox::new(BoxValue::SAFE_USER_MIN,
                              tree,
                              vec![],
                              NonMandatoryRegisters::empty(),
@@ -133,7 +133,7 @@ mod tests {
                     tpe: SType::SSigmaProp,
                     v: secrets.get(0).unwrap().public_image().into(),
             })));
-            let candidate = ErgoBoxCandidateBuilder::new(BoxValue::MIN.checked_mul_u32(100).unwrap(), ergo_tree, 0)
+            let candidate = ErgoBoxCandidateBuilder::new(BoxValue::SAFE_USER_MIN, ergo_tree, 0)
                 .build().unwrap();
             let output_candidates = vec![candidate];
             let tx = UnsignedTransaction::new(inputs, vec![], output_candidates);

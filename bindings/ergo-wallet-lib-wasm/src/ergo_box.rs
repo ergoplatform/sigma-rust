@@ -95,10 +95,11 @@ pub struct BoxValue(chain::ergo_box::box_value::BoxValue);
 
 #[wasm_bindgen]
 impl BoxValue {
-    /// Minimal value, calculated from smallest possible box size and original value per byte requirement
+    /// Recommended (safe) minimal box value to use in case box size estimation is unavailable.
+    /// Allows box size upto 2777 bytes with current min box value per byte of 360 nanoERGs
     #[allow(non_snake_case)]
-    pub fn MIN() -> BoxValue {
-        BoxValue(chain::ergo_box::box_value::BoxValue::MIN)
+    pub fn SAFE_USER_MIN() -> BoxValue {
+        BoxValue(chain::ergo_box::box_value::BoxValue::SAFE_USER_MIN)
     }
 
     /// Create from u32 with bounds check

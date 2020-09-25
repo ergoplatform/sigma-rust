@@ -20,14 +20,18 @@ impl BoxValue {
     /// Minimal theoretical box size (smallest tree, no tokens, no registers, etc.)
     const MIN_BOX_SIZE_BYTES: usize = 30;
 
-    /// Minimal value, calculated from smallest possible box size and original value per byte requirement
+    /// Absolute minimal value, calculated from smallest possible box size and original value per byte requirement
     pub const MIN_RAW: i64 =
         BoxValue::MIN_VALUE_PER_BOX_BYTE as i64 * BoxValue::MIN_BOX_SIZE_BYTES as i64;
-    /// Maximal allowed box value
+    /// Absolue maximal allowed box value
     pub const MAX_RAW: i64 = i64::MAX;
 
-    /// Minimal value, calculated from smallest possible box size and original value per byte requirement
+    /// Absolute minimal value, calculated from smallest possible box size and original value per byte requirement
     pub const MIN: BoxValue = BoxValue(BoxValue::MIN_RAW);
+
+    /// Recommended (safe) minimal box value to use in case box size estimation is unavailable.
+    /// Allows box size upto 2777 bytes with current min box value per byte of 360 nanoERGs
+    pub const SAFE_USER_MIN: BoxValue = BoxValue(1000000);
 
     /// create from u64 with bounds check
     pub fn new(v: u64) -> Result<BoxValue, BoxValueError> {

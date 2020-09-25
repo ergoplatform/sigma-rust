@@ -51,7 +51,7 @@ fn test_sign_transaction() {
     let change_address =
         Address::from_testnet_str("3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN")
             .expect("failed");
-    let min_change_value = BoxValue::MIN();
+    let min_change_value = BoxValue::SAFE_USER_MIN();
     let tx_builder = TxBuilder::new(
         BoxSelector::Simple,
         &tx_inputs,
@@ -108,7 +108,7 @@ fn test_tx_builder() {
     let change_address =
         Address::from_testnet_str("3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN")
             .expect("failed");
-    let min_change_value = BoxValue::MIN();
+    let min_change_value = BoxValue::SAFE_USER_MIN();
     let tx_builder = TxBuilder::new(
         BoxSelector::Simple,
         &tx_inputs,
