@@ -89,7 +89,7 @@ matrix:
       rust: stable
       script:
         - cd sigma-tree
-        - cargo test --verbose
+        - cargo build --no-default-features
 
 
 
