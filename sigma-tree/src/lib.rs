@@ -22,8 +22,8 @@ pub mod ast;
 pub mod chain;
 pub mod eval;
 pub mod sigma_protocol;
+pub mod util;
 pub mod wallet;
-
 pub use ergo_tree::*;
 
 #[cfg(test)]

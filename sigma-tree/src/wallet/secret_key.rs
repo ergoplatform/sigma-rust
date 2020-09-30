@@ -15,6 +15,11 @@ impl SecretKey {
         SecretKey::DlogSecretKey(DlogProverInput::random())
     }
 
+    /// Parse DlogSecretKey from bytes (SEC-1-encoded scalar)
+    pub fn dlog_from_bytes(bytes: &[u8; DlogProverInput::SIZE_BYTES]) -> Option<SecretKey> {
+        DlogProverInput::from_bytes(bytes).map(SecretKey::DlogSecretKey)
+    }
+
     /// Address (encoded public image)
     pub fn get_address_from_public_image(&self) -> Address {
         match self {
