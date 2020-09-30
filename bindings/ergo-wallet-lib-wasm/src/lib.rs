@@ -12,6 +12,7 @@
 #![allow(unused_variables)]
 
 pub mod address;
+pub mod ast;
 pub mod box_coll;
 pub mod box_selector;
 pub mod contract;

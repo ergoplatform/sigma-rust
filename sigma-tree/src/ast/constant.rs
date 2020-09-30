@@ -251,6 +251,17 @@ impl<T: LiftIntoSType + StoredNonPrimitive + Into<ConstantVal>> Into<Constant> f
     }
 }
 
+impl Into<Constant> for Vec<u8> {
+    fn into(self) -> Constant {
+        Constant {
+            tpe: SType::SColl(Box::new(SType::SByte)),
+            v: ConstantVal::Coll(ConstantColl::Primitive(CollPrim::CollByte(
+                self.into_iter().map(|b| b as i8).collect(),
+            ))),
+        }
+    }
+}
+
 impl Into<Constant> for Vec<i8> {
     fn into(self) -> Constant {
         Constant {
