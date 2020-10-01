@@ -4,16 +4,16 @@ extern crate wasm_bindgen_test;
 
 use std::{convert::TryInto, rc::Rc};
 
+use ergo_lib::{
+    ast::Expr, chain::ergo_box::register::NonMandatoryRegisters, chain::ergo_box::ErgoBox,
+    chain::transaction::TxId, sigma_protocol::sigma_boolean::SigmaProp,
+    sigma_protocol::DlogProverInput, ErgoTree,
+};
 use ergo_wallet_lib_wasm::ergo_box::box_builder::ErgoBoxCandidateBuilder;
 use ergo_wallet_lib_wasm::{
     address::Address, box_coll::ErgoBoxCandidates, box_coll::ErgoBoxes, box_selector::BoxSelector,
     contract::Contract, ergo_box::BoxValue, ergo_state_ctx::ErgoStateContext,
     secret_key::SecretKey, tx_builder::TxBuilder, wallet::Wallet,
-};
-use ergo_lib::{
-    ast::Expr, chain::ergo_box::register::NonMandatoryRegisters, chain::ergo_box::ErgoBox,
-    chain::transaction::TxId, sigma_protocol::sigma_boolean::SigmaProp,
-    sigma_protocol::DlogProverInput, ErgoTree,
 };
 use wasm_bindgen::JsValue;
 use wasm_bindgen_test::*;
