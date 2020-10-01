@@ -21,18 +21,13 @@ bs58 = "0.3.1"
 num-bigint = "0.3.0"
 rand = "0.7"
 
-[dependencies.num-traits]
-version = "0.2"
-default-features = false
-
 [features]
-default = []
+default = ["with-serde"]
 with-serde = ["serde"]
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.10"
 proptest-derive = "0.2"
-# sigma-testutil = { path = "../sigma-testutil"}
 rand = "0.7.3"
 
 [dev-dependencies.proptest]

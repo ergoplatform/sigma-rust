@@ -16,7 +16,7 @@ serde = { version = "1.0", features = ["derive"]}
 serde_json = "1.0"
 js-sys = "0.3"
 
-sigma-tree = { path = "../../sigma-tree", features = ["with-serde"] }
+sigma-tree = { path = "../../sigma-tree" }
 # used in elliptic-curve(in sigma-tree), compiled here with WASM support
 getrandom = {version = "0.1", features = ["wasm-bindgen"]}
 # The `console_error_panic_hook` crate provides better debugging of panics by
@@ -32,7 +32,6 @@ features = ["serde-serialize"]
 [dev-dependencies]
 wasm-bindgen-test = "0.3.10"
 proptest-derive = "0.2"
-sigma-testutil = { path = "../../sigma-testutil" }
 
 [dev-dependencies.proptest]
 # wasm support, via https://altsysrq.github.io/proptest-book/proptest/wasm.html
