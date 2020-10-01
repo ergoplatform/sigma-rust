@@ -1,8 +1,10 @@
 [package]
 name = "ergo-lib"
 version = "0.1.0"
+license = "CC0-1.0"
 authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
 edition = "2018"
+description = "ErgoTree interpreter and wallet-like features for Ergo"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
