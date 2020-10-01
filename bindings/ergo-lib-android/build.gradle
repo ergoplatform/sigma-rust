@@ -62,7 +62,7 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         testInstrumentationRunnerArguments clearPackageData: 'true'
         multiDexEnabled true
-        archivesBaseName = "ergo-wallet-lib-$versionName"
+        archivesBaseName = "ergo-lib-$versionName"
     }
 
     buildTypes {

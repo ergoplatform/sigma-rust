@@ -130,7 +130,7 @@ bitflags = false
 
 [parse]
 parse_deps = true
-include = ["ergo-wallet-lib-c-core"]
+include = ["ergo-lib-c-core"]
 # exclude = []
 clean = false
 extra_bindings = []

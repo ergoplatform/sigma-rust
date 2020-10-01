@@ -9,8 +9,8 @@ use ergo_lib::{
     chain::transaction::TxId, sigma_protocol::sigma_boolean::SigmaProp,
     sigma_protocol::DlogProverInput, ErgoTree,
 };
-use ergo_wallet_lib_wasm::ergo_box::box_builder::ErgoBoxCandidateBuilder;
-use ergo_wallet_lib_wasm::{
+use ergo_lib_wasm::ergo_box::box_builder::ErgoBoxCandidateBuilder;
+use ergo_lib_wasm::{
     address::Address, box_coll::ErgoBoxCandidates, box_coll::ErgoBoxes, box_selector::BoxSelector,
     contract::Contract, ergo_box::BoxValue, ergo_state_ctx::ErgoStateContext,
     secret_key::SecretKey, tx_builder::TxBuilder, wallet::Wallet,

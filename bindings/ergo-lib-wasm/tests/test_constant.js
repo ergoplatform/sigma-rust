@@ -2,7 +2,7 @@ import { expect, assert } from 'chai';
 
 import {
     Constant, I64
-} from '../pkg/ergo_wallet_lib_wasm';
+} from '../pkg/ergo_lib_wasm';
 
 it('decode Constant i32', async () => {
   let enc_v = '048ce5d4e505';

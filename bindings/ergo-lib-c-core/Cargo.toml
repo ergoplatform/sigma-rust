@@ -1,10 +1,10 @@
 [package]
-name = "ergo-wallet-lib-c-core"
+name = "ergo-lib-c-core"
 version = "0.1.0"
 license = "CC0-1.0"
 authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
 edition = "2018"
-description = "Common code for ergo-wallet-lib C and JNI bindings"
+description = "Common code for ergo-lib C and JNI bindings"
 
 [lib]
 crate-type = ["lib"]

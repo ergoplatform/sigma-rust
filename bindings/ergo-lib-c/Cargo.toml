@@ -1,10 +1,10 @@
 [package]
-name = "ergo-wallet-lib-c"
+name = "ergo-lib-c"
 version = "0.1.0"
 license = "CC0-1.0"
 authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
 edition = "2018"
-description = "C bindings for ergo-wallet-lib"
+description = "C bindings for ergo-lib"
 build = "build.rs"
 
 [lib]
@@ -13,7 +13,7 @@ crate-type = ["staticlib"]
 [dependencies]
 ffi_helpers = "0.2"
 ergo-lib = { path = "../../ergo-lib"}
-ergo-wallet-lib-c-core = { path = "../ergo-wallet-lib-c-core"}
+ergo-lib-c-core = { path = "../ergo-lib-c-core"}
 
 
 [build-dependencies]

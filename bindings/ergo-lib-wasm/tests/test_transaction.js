@@ -4,7 +4,7 @@ import {
   Address, Wallet, ErgoBox, ErgoBoxCandidateBuilder, Contract,
   ErgoBoxes, ErgoBoxCandidates,
   ErgoStateContext, TxBuilder, BoxValue, UnsignedTransaction, BoxSelector, SecretKey, TxId,
-} from '../pkg/ergo_wallet_lib_wasm';
+} from '../pkg/ergo_lib_wasm';
 
 it('TxBuilder test', async () => {
   const recipient = Address.from_testnet_str('3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN');

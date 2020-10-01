@@ -1,4 +1,4 @@
-//! JNI bindings fo ergo-wallet-lib
+//! JNI bindings fo ergo-lib
 
 // Coding conventions
 #![deny(non_upper_case_globals)]
@@ -15,7 +15,7 @@ extern crate log;
 
 mod exception;
 
-use ergo_wallet_lib_c_core::{address_delete, address_from_testnet, AddressPtr};
+use ergo_lib_c_core::{address_delete, address_from_testnet, AddressPtr};
 use exception::unwrap_exc_or;
 use jni::{
     objects::{JClass, JString},

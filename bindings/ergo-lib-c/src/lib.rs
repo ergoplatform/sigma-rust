@@ -12,8 +12,8 @@
 
 use ergo_lib::chain;
 
-use ergo_wallet_lib_c_core::{address_delete, address_from_testnet};
-pub use ergo_wallet_lib_c_core::{Address, Error};
+use ergo_lib_c_core::{address_delete, address_from_testnet};
+pub use ergo_lib_c_core::{Address, Error};
 use std::{
     ffi::{CStr, CString},
     os::raw::c_char,
