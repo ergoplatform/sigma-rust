@@ -10,7 +10,7 @@ use ergo_wallet_lib_wasm::{
     contract::Contract, ergo_box::BoxValue, ergo_state_ctx::ErgoStateContext,
     secret_key::SecretKey, tx_builder::TxBuilder, wallet::Wallet,
 };
-use sigma_tree::{
+use ergo_lib::{
     ast::Expr, chain::ergo_box::register::NonMandatoryRegisters, chain::ergo_box::ErgoBox,
     chain::transaction::TxId, sigma_protocol::sigma_boolean::SigmaProp,
     sigma_protocol::DlogProverInput, ErgoTree,
@@ -23,7 +23,7 @@ wasm_bindgen_test_configure!(run_in_browser);
 #[wasm_bindgen_test]
 fn test_sign_transaction() {
     let pi = DlogProverInput::random();
-    let sk = SecretKey::from(sigma_tree::wallet::secret_key::SecretKey::from(pi.clone()));
+    let sk = SecretKey::from(ergo_lib::wallet::secret_key::SecretKey::from(pi.clone()));
     let pk: SigmaProp = pi.public_image().into();
     let tree = ErgoTree::from(Rc::new(Expr::Const(pk.into())));
 

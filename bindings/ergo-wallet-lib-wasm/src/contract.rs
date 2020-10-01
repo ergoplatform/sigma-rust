@@ -1,5 +1,5 @@
 //! Contract, for easier ErgoTree generation
-use sigma_tree::chain;
+use ergo_lib::chain;
 use wasm_bindgen::prelude::*;
 
 use crate::address::Address;

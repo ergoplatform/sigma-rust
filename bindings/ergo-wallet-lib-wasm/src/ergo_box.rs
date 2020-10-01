@@ -19,7 +19,7 @@
 use std::convert::TryFrom;
 
 use chain::ergo_box::register::NonMandatoryRegisters;
-use sigma_tree::chain;
+use ergo_lib::chain;
 use wasm_bindgen::prelude::*;
 
 use crate::{contract::Contract, transaction::TxId};

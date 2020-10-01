@@ -1,5 +1,5 @@
 //! Unsigned transaction builder
-use sigma_tree::{chain::ergo_box::ErgoBox, wallet};
+use ergo_lib::{chain::ergo_box::ErgoBox, wallet};
 use wasm_bindgen::prelude::*;
 
 use crate::{
@@ -34,7 +34,7 @@ impl TxBuilder {
         change_address: &Address,
         min_change_value: &BoxValue,
     ) -> Result<TxBuilder, JsValue> {
-        sigma_tree::wallet::tx_builder::TxBuilder::new(
+        ergo_lib::wallet::tx_builder::TxBuilder::new(
             box_selector.inner::<ErgoBox>(),
             inputs.clone().into(),
             output_candidates.clone().into(),

@@ -9,7 +9,7 @@ description = "Ergo wallet core for C and JNI bindings"
 crate-type = ["lib"]
 
 [dependencies]
-sigma-tree = { path = "../../sigma-tree"}
+ergo-lib = { path = "../../ergo-lib"}
 
 thiserror = "1"
 

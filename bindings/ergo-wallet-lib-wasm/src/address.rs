@@ -1,6 +1,6 @@
 //! Address types
 
-use sigma_tree::chain;
+use ergo_lib::chain;
 use wasm_bindgen::prelude::*;
 
 /**

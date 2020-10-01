@@ -85,10 +85,10 @@ matrix:
         - xcodebuild -project ./ErgoWallet.xcodeproj -xcconfig ./Config/Release.xcconfig -sdk iphoneos
         - xcodebuild -project ./ErgoWallet.xcodeproj -xcconfig ./Config/Release.xcconfig -sdk iphonesimulator
 
-    - name: test sigma-tree without default features
+    - name: test ergo-lib without default features
       rust: stable
       script:
-        - cd sigma-tree
+        - cd ergo-lib
         - cargo build --no-default-features
 
 

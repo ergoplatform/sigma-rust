@@ -1,4 +1,4 @@
-//! WASM bindings for sigma-tree
+//! WASM bindings for ergo-lib
 
 // Coding conventions
 #![forbid(unsafe_code)]

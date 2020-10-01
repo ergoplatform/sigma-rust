@@ -1,4 +1,4 @@
-//! C bindings for sigma-tree
+//! C bindings for ergo-lib
 
 // Coding conventions
 #![deny(non_upper_case_globals)]
@@ -10,7 +10,7 @@
 // #![deny(missing_docs)]
 #![allow(clippy::missing_safety_doc)]
 
-use sigma_tree::chain;
+use ergo_lib::chain;
 
 use ergo_wallet_lib_c_core::{address_delete, address_from_testnet};
 pub use ergo_wallet_lib_c_core::{Address, Error};

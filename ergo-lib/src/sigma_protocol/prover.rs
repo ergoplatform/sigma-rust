@@ -259,8 +259,8 @@ pub trait Prover: Evaluator {
     }
 }
 
-fn convert_to_unproven(sigma_tree: SigmaBoolean) -> UnprovenTree {
-    match sigma_tree {
+fn convert_to_unproven(ergo_lib: SigmaBoolean) -> UnprovenTree {
+    match ergo_lib {
         // TODO: why it's even here? Make another SigmaBoolean without trivial props?
         SigmaBoolean::TrivialProp(_) => todo!(),
         SigmaBoolean::ProofOfKnowledge(pok) => match pok {

@@ -1,5 +1,5 @@
 //! Wallet-like features
-use sigma_tree::chain::ergo_box::ErgoBox;
+use ergo_lib::chain::ergo_box::ErgoBox;
 use wasm_bindgen::prelude::*;
 
 use crate::{
@@ -9,7 +9,7 @@ use crate::{
 
 /// TBD
 #[wasm_bindgen]
-pub struct Wallet(sigma_tree::wallet::Wallet);
+pub struct Wallet(ergo_lib::wallet::Wallet);
 
 #[wasm_bindgen]
 impl Wallet {
@@ -22,7 +22,7 @@ impl Wallet {
     /// Create wallet using provided secret key
     #[wasm_bindgen]
     pub fn from_secret(secret: &SecretKey) -> Wallet {
-        Wallet(sigma_tree::wallet::Wallet::from_secrets(vec![secret
+        Wallet(ergo_lib::wallet::Wallet::from_secrets(vec![secret
             .clone()
             .into()]))
     }

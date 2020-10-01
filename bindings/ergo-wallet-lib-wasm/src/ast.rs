@@ -10,20 +10,20 @@ use crate::utils::I64;
 /// Ergo constant(evaluated) values
 #[wasm_bindgen]
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct Constant(sigma_tree::ast::Constant);
+pub struct Constant(ergo_lib::ast::Constant);
 
 #[wasm_bindgen]
 impl Constant {
     /// Decode from Base16-encoded ErgoTree serialized value
     pub fn decode_from_base16(base16_bytes_str: String) -> Result<Constant, JsValue> {
-        let bytes = sigma_tree::chain::Base16DecodedBytes::try_from(base16_bytes_str.clone())
+        let bytes = ergo_lib::chain::Base16DecodedBytes::try_from(base16_bytes_str.clone())
             .map_err(|_| {
                 JsValue::from_str(&format!(
                     "failed to decode base16 from: {}",
                     base16_bytes_str.clone()
                 ))
             })?;
-        sigma_tree::ast::Constant::try_from(bytes)
+        ergo_lib::ast::Constant::try_from(bytes)
             .map_err(|e| JsValue::from_str(&format! {"{:?}", e}))
             .map(Constant)
     }
@@ -41,7 +41,7 @@ impl Constant {
     /// Extract i32 value, returning error if wrong type
     pub fn as_i32(&self) -> Result<i32, JsValue> {
         match self.0.v {
-            sigma_tree::ast::ConstantVal::Int(v) => Ok(v),
+            ergo_lib::ast::ConstantVal::Int(v) => Ok(v),
             _ => Err(JsValue::from_str(&format!(
                 "expected i32, found: {:?}",
                 self.0.v
@@ -57,7 +57,7 @@ impl Constant {
     /// Extract i64 value, returning error if wrong type
     pub fn as_i64(&self) -> Result<I64, JsValue> {
         match self.0.v {
-            sigma_tree::ast::ConstantVal::Long(v) => Ok(v.into()),
+            ergo_lib::ast::ConstantVal::Long(v) => Ok(v.into()),
             _ => Err(JsValue::from_str(&format!(
                 "expected i64, found: {:?}",
                 self.0.v
@@ -73,8 +73,8 @@ impl Constant {
     /// Extract byte array, returning error if wrong type
     pub fn as_byte_array(&self) -> Result<Uint8Array, JsValue> {
         match self.0.v.clone() {
-            sigma_tree::ast::ConstantVal::Coll(sigma_tree::ast::ConstantColl::Primitive(
-                sigma_tree::ast::CollPrim::CollByte(coll_bytes),
+            ergo_lib::ast::ConstantVal::Coll(ergo_lib::ast::ConstantColl::Primitive(
+                ergo_lib::ast::CollPrim::CollByte(coll_bytes),
             )) => {
                 let u8_bytes: Vec<u8> = coll_bytes.into_iter().map(|b| b as u8).collect();
                 Ok(Uint8Array::from(u8_bytes.as_slice()))

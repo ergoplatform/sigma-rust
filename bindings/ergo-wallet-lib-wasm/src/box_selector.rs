@@ -1,5 +1,5 @@
 //! Box selection algorithms
-use sigma_tree::chain::ergo_box::ErgoBoxAssets;
+use ergo_lib::chain::ergo_box::ErgoBoxAssets;
 use wasm_bindgen::prelude::*;
 
 /// Box selector implementations
@@ -10,13 +10,13 @@ pub enum BoxSelector {
 }
 
 impl BoxSelector {
-    /// Get underlying sigma-tree BoxSelector implementation
+    /// Get underlying ergo-lib BoxSelector implementation
     pub fn inner<T: ErgoBoxAssets>(
         &self,
-    ) -> Box<dyn sigma_tree::wallet::box_selector::BoxSelector<T>> {
+    ) -> Box<dyn ergo_lib::wallet::box_selector::BoxSelector<T>> {
         match self {
             BoxSelector::Simple => {
-                Box::new(sigma_tree::wallet::box_selector::simple::SimpleBoxSelector {})
+                Box::new(ergo_lib::wallet::box_selector::simple::SimpleBoxSelector {})
             }
         }
     }

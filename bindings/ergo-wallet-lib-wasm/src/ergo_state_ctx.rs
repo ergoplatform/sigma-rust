@@ -1,5 +1,5 @@
 //! Ergo blockchain state (for ErgoTree evaluation)
-use sigma_tree::chain;
+use ergo_lib::chain;
 use wasm_bindgen::prelude::*;
 
 /// TBD
