@@ -1,5 +1,5 @@
 import Foundation
-import ErgoWalletC
+import ErgoLibC
 
 enum WalletError: Error {
     case walletCError(reason: String)

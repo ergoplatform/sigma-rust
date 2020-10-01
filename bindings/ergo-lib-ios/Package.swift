@@ -3,18 +3,18 @@
 import PackageDescription
 
 let package = Package(
-    name: "ErgoWallet",
+    name: "ErgoLib",
     products: [
         .library(
-            name: "ErgoWallet",
-            targets: ["ErgoWallet"]
+            name: "ErgoLib",
+            targets: ["ErgoLib"]
         )
     ],
     targets: [
-        .systemLibrary(name: "ErgoWalletC"),
+        .systemLibrary(name: "ErgoLibC"),
         .target(
-            name: "ErgoWallet",
-            dependencies: ["ErgoWalletC"]
+            name: "ErgoLib",
+            dependencies: ["ErgoLibC"]
         ),
     ]
 )

@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run: 
-        working-directory: bindings/ergo-wallet-lib-wasm
+        working-directory: bindings/ergo-lib-wasm
     steps:
       - name: checkout
         uses: actions/checkout@v2
