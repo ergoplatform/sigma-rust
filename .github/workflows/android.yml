@@ -29,5 +29,5 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 29
-          script: cd ./bindings/ergo-wallet-lib-android && ./gradlew connectedCheck
+          script: cd ./bindings/ergo-lib-android && ./gradlew connectedCheck
 

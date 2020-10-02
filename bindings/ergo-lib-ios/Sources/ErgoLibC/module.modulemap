@@ -1,0 +1,4 @@
+module ErgoLibC {
+    umbrella header "shim.h"
+    export *
+}

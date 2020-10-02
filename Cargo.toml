@@ -1,9 +1,9 @@
 [workspace]
 members = [
     "sigma-ser",
-    "sigma-tree",
-    "bindings/ergo-wallet-lib-wasm",
-    "bindings/ergo-wallet-lib-c-core",
-    "bindings/ergo-wallet-lib-c",
-    "bindings/ergo-wallet-lib-android",
+    "ergo-lib",
+    "bindings/ergo-lib-wasm",
+    "bindings/ergo-lib-c-core",
+    "bindings/ergo-lib-c",
+    "bindings/ergo-lib-android",
 ]

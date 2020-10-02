@@ -66,7 +66,7 @@ matrix:
       before_script:
         - curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh -s -- -f
       script:
-        - cd bindings/ergo-wallet-lib-wasm
+        - cd bindings/ergo-lib-wasm
         - wasm-pack build
         - npm install && npm run test
 
@@ -79,16 +79,16 @@ matrix:
         - cargo install cargo-lipo
         - cargo install cbindgen
       script:
-        - cd bindings/ergo-wallet-lib-ios
+        - cd bindings/ergo-lib-ios
         - cargo lipo --release --targets=aarch64-apple-ios,x86_64-apple-ios
         - swift package generate-xcodeproj
-        - xcodebuild -project ./ErgoWallet.xcodeproj -xcconfig ./Config/Release.xcconfig -sdk iphoneos
-        - xcodebuild -project ./ErgoWallet.xcodeproj -xcconfig ./Config/Release.xcconfig -sdk iphonesimulator
+        - xcodebuild -project ./ErgoLib.xcodeproj -xcconfig ./Config/Release.xcconfig -sdk iphoneos
+        - xcodebuild -project ./ErgoLib.xcodeproj -xcconfig ./Config/Release.xcconfig -sdk iphonesimulator
 
-    - name: test sigma-tree without default features
+    - name: test ergo-lib without default features
       rust: stable
       script:
-        - cd sigma-tree
+        - cd ergo-lib
         - cargo build --no-default-features
 
 

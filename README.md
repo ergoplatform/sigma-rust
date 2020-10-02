@@ -4,13 +4,13 @@
 Rust implementation of [ErgoScript](https://github.com/ScorexFoundation/sigmastate-interpreter) cryptocurrency scripting language. 
 
 ## Crates
-[sigma-tree](https://github.com/ergoplatform/sigma-rust/tree/develop/sigma-tree) - ErgoTree, interpreter, chain types (transactions, boxes, etc.), JSON serialization.
+[ergo-lib](https://github.com/ergoplatform/sigma-rust/tree/develop/ergo-lib) - ErgoTree, interpreter, chain types (transactions, boxes, etc.), JSON serialization.
 
-[ergo-wallet](https://github.com/ergoplatform/sigma-rust/tree/develop/ergo-wallet-lib) - Transaction creation and signing. Has bindings for the following platforms:
-- [JS/TS(WASM)](https://github.com/ergoplatform/sigma-rust/tree/develop/bindings/ergo-wallet-lib-wasm)
-- [iOS](https://github.com/ergoplatform/sigma-rust/tree/develop/bindings/ergo-wallet-lib-ios)
-- [Android(JNI)](https://github.com/ergoplatform/sigma-rust/tree/develop/bindings/ergo-wallet-lib-android)
-- [C](https://github.com/ergoplatform/sigma-rust/tree/develop/bindings/ergo-wallet-lib-c)
+[ergo-wallet](https://github.com/ergoplatform/sigma-rust/tree/develop/ergo-lib) - Transaction creation and signing. Has bindings for the following platforms:
+- [JS/TS(WASM)](https://github.com/ergoplatform/sigma-rust/tree/develop/bindings/ergo-lib-wasm)
+- [iOS](https://github.com/ergoplatform/sigma-rust/tree/develop/bindings/ergo-lib-ios)
+- [Android(JNI)](https://github.com/ergoplatform/sigma-rust/tree/develop/bindings/ergo-lib-android)
+- [C](https://github.com/ergoplatform/sigma-rust/tree/develop/bindings/ergo-lib-c)
 
 ## Contributing
 Contributions are very welcome! Checkout issues labeled ["help wanted" and "good first issue"](https://github.com/ergoplatform/sigma-rust/labels/help%20wanted)

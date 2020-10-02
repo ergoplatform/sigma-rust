@@ -1,0 +1,20 @@
+[package]
+name = "ergo-lib-jni"
+version = "0.1.0"
+license = "CC0-1.0"
+authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
+edition = "2018"
+description = "JNI bindings for ergo-lib"
+
+[lib]
+name = "ergowalletlibjni"
+crate-type = ["staticlib", "cdylib"]
+path = "src/main/rust/lib.rs"
+
+[dependencies]
+jni = "0.17.0"
+failure = "0.1"
+log = "0.4"
+ergo-lib = { path = "../../ergo-lib"}
+ergo-lib-c-core = { path = "../ergo-lib-c-core"}
+
