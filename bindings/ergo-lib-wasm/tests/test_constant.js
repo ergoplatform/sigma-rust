@@ -7,7 +7,7 @@ import {
 it('decode Constant i32', async () => {
   let enc_v = '048ce5d4e505';
   let c = Constant.decode_from_base16(enc_v);
-  let c_value = c.as_i32();
+  let c_value = c.to_i32();
   expect(c_value).equal(777689414);
 });
 
@@ -16,7 +16,7 @@ it('roundtrip Constant i32', async () => {
   let c = Constant.from_i32(value);
   let encoded = c.encode_to_base16();
   let decoded_c = Constant.decode_from_base16(encoded);
-  let decoded_c_value = decoded_c.as_i32();
+  let decoded_c_value = decoded_c.to_i32();
   expect(decoded_c_value).equal(value);
 });
 
@@ -25,7 +25,7 @@ it('roundtrip Constant i64', async () => {
   let c = Constant.from_i64(I64.from_str(value_str));
   let encoded = c.encode_to_base16();
   let decoded_c = Constant.decode_from_base16(encoded);
-  let decoded_c_value = decoded_c.as_i64();
+  let decoded_c_value = decoded_c.to_i64();
   let decoded_c_value_str = decoded_c_value.to_str();
   expect(decoded_c_value_str).equal(value_str);
 });
@@ -35,7 +35,7 @@ it('roundtrip Constant byte array', async () => {
   let c = Constant.from_byte_array(value);
   let encoded = c.encode_to_base16();
   let decoded_c = Constant.decode_from_base16(encoded);
-  let decoded_c_value = decoded_c.as_byte_array();
+  let decoded_c_value = decoded_c.to_byte_array();
   expect(decoded_c_value.toString()).equal(value.toString());
 });
 
