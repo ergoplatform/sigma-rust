@@ -51,10 +51,7 @@ use thiserror::Error;
 /// A transaction is unsealing a box. As a box can not be open twice, any further valid transaction
 /// can not be linked to the same box.
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
-#[cfg_attr(
-    feature = "json",
-    serde(try_from = "json::ergo_box::ErgoBoxFromJson")
-)]
+#[cfg_attr(feature = "json", serde(try_from = "json::ergo_box::ErgoBoxFromJson"))]
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ErgoBox {
     #[cfg_attr(feature = "json", serde(rename = "boxId"))]
@@ -63,10 +60,7 @@ pub struct ErgoBox {
     #[cfg_attr(feature = "json", serde(rename = "value"))]
     pub value: BoxValue,
     /// guarding script, which should be evaluated to true in order to open this box
-    #[cfg_attr(
-        feature = "json",
-        serde(rename = "ergoTree", with = "json::ergo_tree")
-    )]
+    #[cfg_attr(feature = "json", serde(rename = "ergoTree", with = "json::ergo_tree"))]
     pub ergo_tree: ErgoTree,
     /// secondary tokens the box contains
     #[cfg_attr(feature = "json", serde(rename = "assets"))]
