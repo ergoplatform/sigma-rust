@@ -3,7 +3,7 @@
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
 };
-#[cfg(feature = "with-serde")]
+#[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 use sigma_ser::vlq_encode;
 use std::{convert::TryFrom, io};
@@ -11,7 +11,7 @@ use thiserror::Error;
 
 /// Box value with with bound checks
 #[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
-#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct BoxValue(i64);
 
 impl BoxValue {

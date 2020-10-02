@@ -1,12 +1,12 @@
 //! Transitioning type for Base16 encoded bytes in JSON serialization
 
-#[cfg(feature = "with-serde")]
+#[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 
 /// Transitioning type for Base16 encoded bytes
-#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "with-serde", serde(into = "String"))]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", serde(into = "String"))]
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Base16EncodedBytes(String);
 
@@ -24,8 +24,8 @@ impl Into<String> for Base16EncodedBytes {
 }
 
 /// Transitioning type for Base16 decoded bytes
-#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "with-serde", serde(try_from = "String"))]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", serde(try_from = "String"))]
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Base16DecodedBytes(pub Vec<u8>);
 

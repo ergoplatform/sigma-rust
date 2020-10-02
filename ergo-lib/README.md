@@ -6,7 +6,7 @@ Features:
 
 # Usage
 ## Crate features
-### `with-serde`
+### `json`
 JSON serialization for chain types using `serde`.
 
 

@@ -1,7 +1,7 @@
 //! Box id type
 use std::io;
 
-#[cfg(feature = "with-serde")]
+#[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 
 use super::super::digest32::Digest32;
@@ -14,7 +14,7 @@ use proptest_derive::Arbitrary;
 
 /// newtype for box ids
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
-#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 #[cfg_attr(test, derive(Arbitrary))]
 pub struct BoxId(pub Digest32);
 
@@ -34,7 +34,7 @@ impl From<Digest32> for BoxId {
     }
 }
 
-#[cfg(feature = "with-serde")]
+#[cfg(feature = "json")]
 impl Into<String> for BoxId {
     fn into(self) -> String {
         self.0.into()

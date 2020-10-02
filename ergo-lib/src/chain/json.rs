@@ -84,17 +84,17 @@ pub mod transaction {
 
     #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
     pub struct TransactionJson {
-        #[cfg_attr(feature = "with-serde", serde(rename = "id"))]
+        #[cfg_attr(feature = "json", serde(rename = "id"))]
         pub tx_id: TxId,
         /// inputs, that will be spent by this transaction.
-        #[cfg_attr(feature = "with-serde", serde(rename = "inputs"))]
+        #[cfg_attr(feature = "json", serde(rename = "inputs"))]
         pub inputs: Vec<Input>,
         /// inputs, that are not going to be spent by transaction, but will be reachable from inputs
         /// scripts. `dataInputs` scripts will not be executed, thus their scripts costs are not
         /// included in transaction cost and they do not contain spending proofs.
-        #[cfg_attr(feature = "with-serde", serde(rename = "dataInputs"))]
+        #[cfg_attr(feature = "json", serde(rename = "dataInputs"))]
         pub data_inputs: Vec<DataInput>,
-        #[cfg_attr(feature = "with-serde", serde(rename = "outputs"))]
+        #[cfg_attr(feature = "json", serde(rename = "outputs"))]
         pub outputs: Vec<ErgoBox>,
     }
 }
