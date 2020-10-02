@@ -5,6 +5,7 @@ license = "CC0-1.0"
 authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
 edition = "2018"
 description = "ErgoTree interpreter and wallet-like features for Ergo"
+repository = "https://github.com/ergoplatform/sigma-rust"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
