@@ -85,8 +85,7 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
         )?;
         let mut output_candidates = self.output_candidates.clone();
 
-        let change_address_ergo_tree =
-            Contract::pay_to_address(&self.change_address)?.get_ergo_tree();
+        let change_address_ergo_tree = Contract::pay_to_address(&self.change_address)?.ergo_tree();
         let change_boxes: Result<Vec<ErgoBoxCandidate>, ErgoBoxCandidateBuilderError> = selection
             .change_boxes
             .iter()

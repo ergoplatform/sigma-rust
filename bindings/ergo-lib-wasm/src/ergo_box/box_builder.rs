@@ -23,7 +23,7 @@ impl ErgoBoxCandidateBuilder {
     pub fn new(value: &BoxValue, contract: &Contract, creation_height: u32) -> Self {
         ErgoBoxCandidateBuilder(chain::ergo_box::box_builder::ErgoBoxCandidateBuilder::new(
             value.clone().into(),
-            chain::contract::Contract::from(contract.clone()).get_ergo_tree(),
+            chain::contract::Contract::from(contract.clone()).ergo_tree(),
             creation_height,
         ))
     }

@@ -66,7 +66,7 @@ impl ErgoBox {
         let chain_contract: chain::contract::Contract = contract.clone().into();
         let b = chain::ergo_box::ErgoBox::new(
             value.0,
-            chain_contract.get_ergo_tree(),
+            chain_contract.ergo_tree(),
             vec![],
             NonMandatoryRegisters::empty(),
             creation_height,
