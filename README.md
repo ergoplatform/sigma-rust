@@ -4,9 +4,9 @@
 Rust implementation of [ErgoScript](https://github.com/ScorexFoundation/sigmastate-interpreter) cryptocurrency scripting language. 
 
 ## Crates
-[ergo-lib](https://github.com/ergoplatform/sigma-rust/tree/develop/ergo-lib) - ErgoTree, interpreter, chain types (transactions, boxes, etc.), JSON serialization.
+[ergo-lib](https://github.com/ergoplatform/sigma-rust/tree/develop/ergo-lib) - ErgoTree, interpreter, chain types (transactions, boxes, etc.), JSON serialization, tx creation and signing.
 
-[ergo-wallet](https://github.com/ergoplatform/sigma-rust/tree/develop/ergo-lib) - Transaction creation and signing. Has bindings for the following platforms:
+Has bindings for the following platforms:
 - [JS/TS(WASM)](https://github.com/ergoplatform/sigma-rust/tree/develop/bindings/ergo-lib-wasm)
 - [iOS](https://github.com/ergoplatform/sigma-rust/tree/develop/bindings/ergo-lib-ios)
 - [Android(JNI)](https://github.com/ergoplatform/sigma-rust/tree/develop/bindings/ergo-lib-android)
