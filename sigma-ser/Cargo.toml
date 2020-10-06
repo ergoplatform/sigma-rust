@@ -27,7 +27,3 @@ thiserror = "1"
 # wasm-bindgen-test = "0.3.10"
 proptest = "0.10"
 proptest-derive = "0.2"
-
-[profile.release]
-# Tell `rustc` to optimize for small code size.
-opt-level = "s"
