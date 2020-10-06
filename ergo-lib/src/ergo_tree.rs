@@ -308,7 +308,7 @@ mod tests {
             .unwrap();
 
         let contract = chain::contract::Contract::pay_to_address(&address).unwrap();
-        let bytes = &contract.get_ergo_tree().sigma_serialise_bytes();
+        let bytes = &contract.ergo_tree().sigma_serialise_bytes();
         assert_eq!(&bytes[..2], vec![0u8, 8u8].as_slice());
     }
 

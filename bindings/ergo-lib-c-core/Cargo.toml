@@ -5,6 +5,7 @@ license = "CC0-1.0"
 authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
 edition = "2018"
 description = "Common code for ergo-lib C and JNI bindings"
+repository = "https://github.com/ergoplatform/sigma-rust"
 
 [lib]
 crate-type = ["lib"]

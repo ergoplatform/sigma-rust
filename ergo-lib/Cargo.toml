@@ -5,6 +5,7 @@ license = "CC0-1.0"
 authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
 edition = "2018"
 description = "ErgoTree interpreter and wallet-like features for Ergo"
+repository = "https://github.com/ergoplatform/sigma-rust"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -24,8 +25,8 @@ num-bigint = "0.3.0"
 rand = "0.7"
 
 [features]
-default = ["with-serde"]
-with-serde = ["serde"]
+default = ["json"]
+json = ["serde"]
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.10"

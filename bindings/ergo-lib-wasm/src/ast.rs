@@ -39,7 +39,7 @@ impl Constant {
     }
 
     /// Extract i32 value, returning error if wrong type
-    pub fn as_i32(&self) -> Result<i32, JsValue> {
+    pub fn to_i32(&self) -> Result<i32, JsValue> {
         match self.0.v {
             ergo_lib::ast::ConstantVal::Int(v) => Ok(v),
             _ => Err(JsValue::from_str(&format!(
@@ -55,7 +55,7 @@ impl Constant {
     }
 
     /// Extract i64 value, returning error if wrong type
-    pub fn as_i64(&self) -> Result<I64, JsValue> {
+    pub fn to_i64(&self) -> Result<I64, JsValue> {
         match self.0.v {
             ergo_lib::ast::ConstantVal::Long(v) => Ok(v.into()),
             _ => Err(JsValue::from_str(&format!(
@@ -71,7 +71,7 @@ impl Constant {
     }
 
     /// Extract byte array, returning error if wrong type
-    pub fn as_byte_array(&self) -> Result<Uint8Array, JsValue> {
+    pub fn to_byte_array(&self) -> Result<Uint8Array, JsValue> {
         match self.0.v.clone() {
             ergo_lib::ast::ConstantVal::Coll(ergo_lib::ast::ConstantColl::Primitive(
                 ergo_lib::ast::CollPrim::CollByte(coll_bytes),

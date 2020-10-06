@@ -9,13 +9,13 @@ use std::io;
 use super::digest32::Digest32;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
-#[cfg(feature = "with-serde")]
+#[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 
 /// newtype for token id
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
 #[cfg_attr(test, derive(Arbitrary))]
-#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct TokenId(pub Digest32);
 
 impl TokenId {
@@ -36,13 +36,13 @@ impl SigmaSerializable for TokenId {
 /// Token amount represented with token id paired with it's amount
 #[derive(PartialEq, Eq, Debug, Clone)]
 #[cfg_attr(test, derive(Arbitrary))]
-#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct TokenAmount {
     /// token id
-    #[cfg_attr(feature = "with-serde", serde(rename = "tokenId"))]
+    #[cfg_attr(feature = "json", serde(rename = "tokenId"))]
     pub token_id: TokenId,
     /// token amount
-    #[cfg_attr(feature = "with-serde", serde(rename = "amount"))]
+    #[cfg_attr(feature = "json", serde(rename = "amount"))]
     pub amount: u64,
 }
 

@@ -7,7 +7,7 @@ use crate::{
     },
 };
 use indexmap::IndexMap;
-#[cfg(feature = "with-serde")]
+#[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::{convert::TryFrom, io, num::ParseIntError};
@@ -15,7 +15,7 @@ use std::{convert::TryFrom, io, num::ParseIntError};
 /// User-defined variables to be put into context
 #[derive(Debug, PartialEq, Eq, Clone)]
 #[cfg_attr(
-    feature = "with-serde",
+    feature = "json",
     derive(Serialize, Deserialize),
     serde(
         into = "HashMap<String, Constant>",

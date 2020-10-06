@@ -6,7 +6,7 @@ use blake2::digest::{Update, VariableOutput};
 use blake2::VarBlake2b;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
-#[cfg(feature = "with-serde")]
+#[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 use sigma_ser::vlq_encode;
 use std::convert::TryFrom;
@@ -15,9 +15,9 @@ use std::io;
 use thiserror::Error;
 
 /// 32 byte array used in box, transaction ids (hash)
-#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 #[cfg_attr(
-    feature = "with-serde",
+    feature = "json",
     serde(into = "Base16EncodedBytes", try_from = "Base16DecodedBytes")
 )]
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]

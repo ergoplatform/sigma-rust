@@ -2,7 +2,7 @@
 
 pub mod unsigned;
 
-#[cfg(feature = "with-serde")]
+#[cfg(feature = "json")]
 use super::json;
 use super::{
     data_input::DataInput,
@@ -19,19 +19,19 @@ use crate::serialization::{
 use indexmap::IndexSet;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
-#[cfg(feature = "with-serde")]
+#[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 
 use std::convert::TryFrom;
 use std::io;
 use std::iter::FromIterator;
-#[cfg(feature = "with-serde")]
+#[cfg(feature = "json")]
 use thiserror::Error;
 
 /// Transaction id (ModifierId in sigmastate)
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
 #[cfg_attr(test, derive(Arbitrary))]
-#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct TxId(pub Digest32);
 
 impl TxId {
@@ -51,7 +51,7 @@ impl SigmaSerializable for TxId {
     }
 }
 
-#[cfg(feature = "with-serde")]
+#[cfg(feature = "json")]
 impl Into<String> for TxId {
     fn into(self) -> String {
         self.0.into()
@@ -68,9 +68,9 @@ impl Into<String> for TxId {
  * Transactions are not encrypted, so it is possible to browse and view every transaction ever
  * collected into a block.
  */
-#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 #[cfg_attr(
-    feature = "with-serde",
+    feature = "json",
     serde(
         try_from = "json::transaction::TransactionJson",
         into = "json::transaction::TransactionJson"
@@ -211,7 +211,7 @@ impl SigmaSerializable for Transaction {
     }
 }
 
-#[cfg(feature = "with-serde")]
+#[cfg(feature = "json")]
 impl Into<json::transaction::TransactionJson> for Transaction {
     fn into(self) -> json::transaction::TransactionJson {
         json::transaction::TransactionJson {
@@ -224,7 +224,7 @@ impl Into<json::transaction::TransactionJson> for Transaction {
 }
 
 /// Errors on parsing Transaction from JSON
-#[cfg(feature = "with-serde")]
+#[cfg(feature = "json")]
 #[derive(Error, PartialEq, Eq, Debug, Clone)]
 pub enum TransactionFromJsonError {
     /// Tx id parsed from JSON differs from calculated from serialized bytes
@@ -232,7 +232,7 @@ pub enum TransactionFromJsonError {
     InvalidTxId,
 }
 
-#[cfg(feature = "with-serde")]
+#[cfg(feature = "json")]
 impl TryFrom<json::transaction::TransactionJson> for Transaction {
     type Error = TransactionFromJsonError;
     fn try_from(tx_json: json::transaction::TransactionJson) -> Result<Self, Self::Error> {
@@ -296,7 +296,7 @@ pub mod tests {
     }
 
     #[test]
-    #[cfg(feature = "with-serde")]
+    #[cfg(feature = "json")]
     fn test_tx_id_calc() {
         let json = r#"
         {

@@ -1,15 +1,15 @@
 //! Box registers
 
 use crate::{ast::Constant, serialization::SerializationError};
-#[cfg(feature = "with-serde")]
+#[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, convert::TryFrom};
 use thiserror::Error;
 
 /// newtype for additional registers R4 - R9
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
-#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "with-serde", serde(into = "String", try_from = "String"))]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", serde(into = "String", try_from = "String"))]
 pub struct NonMandatoryRegisterId(u8);
 
 impl NonMandatoryRegisterId {
@@ -87,9 +87,9 @@ pub struct NonMandatoryRegisterIdParsingError();
 
 /// Stores non-mandatory registers for the box
 #[derive(PartialEq, Eq, Debug, Clone)]
-#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 #[cfg_attr(
-    feature = "with-serde",
+    feature = "json",
     serde(
         into = "HashMap<NonMandatoryRegisterId, Constant>",
         try_from = "HashMap<NonMandatoryRegisterId, Constant>"

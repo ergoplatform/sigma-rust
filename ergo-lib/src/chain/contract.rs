@@ -21,7 +21,7 @@ impl Contract {
     }
 
     /// get ErgoTree for this contract
-    pub fn get_ergo_tree(&self) -> ErgoTree {
+    pub fn ergo_tree(&self) -> ErgoTree {
         self.ergo_tree.clone()
     }
 }

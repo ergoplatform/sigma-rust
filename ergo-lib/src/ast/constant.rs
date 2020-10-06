@@ -5,7 +5,7 @@ use crate::{
     sigma_protocol::{dlog_group::EcPoint, sigma_boolean::SigmaProp},
     types::{LiftIntoSType, SType},
 };
-#[cfg(feature = "with-serde")]
+#[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 
@@ -86,9 +86,9 @@ impl ConstantVal {
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]
-#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 #[cfg_attr(
-    feature = "with-serde",
+    feature = "json",
     serde(into = "Base16EncodedBytes", try_from = "Base16DecodedBytes")
 )]
 /// Constant

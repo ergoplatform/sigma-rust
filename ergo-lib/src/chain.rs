@@ -1,6 +1,6 @@
 //! Ergo chain types
 
-#[cfg(feature = "with-serde")]
+#[cfg(feature = "json")]
 mod json;
 
 mod base16_bytes;

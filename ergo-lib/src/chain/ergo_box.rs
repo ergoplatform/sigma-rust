@@ -5,7 +5,7 @@ pub mod box_id;
 pub mod box_value;
 pub mod register;
 
-#[cfg(feature = "with-serde")]
+#[cfg(feature = "json")]
 use super::json;
 use super::{
     digest32::blake2b256_hash,
@@ -25,12 +25,12 @@ use box_id::BoxId;
 use box_value::BoxValue;
 use indexmap::IndexSet;
 use register::NonMandatoryRegisters;
-#[cfg(feature = "with-serde")]
+#[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
-#[cfg(feature = "with-serde")]
+#[cfg(feature = "json")]
 use std::convert::TryFrom;
 use std::io;
-#[cfg(feature = "with-serde")]
+#[cfg(feature = "json")]
 use thiserror::Error;
 
 /// Box (aka coin, or an unspent output) is a basic concept of a UTXO-based cryptocurrency.
@@ -50,40 +50,34 @@ use thiserror::Error;
 ///
 /// A transaction is unsealing a box. As a box can not be open twice, any further valid transaction
 /// can not be linked to the same box.
-#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
-#[cfg_attr(
-    feature = "with-serde",
-    serde(try_from = "json::ergo_box::ErgoBoxFromJson")
-)]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", serde(try_from = "json::ergo_box::ErgoBoxFromJson"))]
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ErgoBox {
-    #[cfg_attr(feature = "with-serde", serde(rename = "boxId"))]
+    #[cfg_attr(feature = "json", serde(rename = "boxId"))]
     box_id: BoxId,
     /// amount of money associated with the box
-    #[cfg_attr(feature = "with-serde", serde(rename = "value"))]
+    #[cfg_attr(feature = "json", serde(rename = "value"))]
     pub value: BoxValue,
     /// guarding script, which should be evaluated to true in order to open this box
-    #[cfg_attr(
-        feature = "with-serde",
-        serde(rename = "ergoTree", with = "json::ergo_tree")
-    )]
+    #[cfg_attr(feature = "json", serde(rename = "ergoTree", with = "json::ergo_tree"))]
     pub ergo_tree: ErgoTree,
     /// secondary tokens the box contains
-    #[cfg_attr(feature = "with-serde", serde(rename = "assets"))]
+    #[cfg_attr(feature = "json", serde(rename = "assets"))]
     pub tokens: Vec<TokenAmount>,
     ///  additional registers the box can carry over
-    #[cfg_attr(feature = "with-serde", serde(rename = "additionalRegisters"))]
+    #[cfg_attr(feature = "json", serde(rename = "additionalRegisters"))]
     pub additional_registers: NonMandatoryRegisters,
     /// height when a transaction containing the box was created.
     /// This height is declared by user and should not exceed height of the block,
     /// containing the transaction with this box.
-    #[cfg_attr(feature = "with-serde", serde(rename = "creationHeight"))]
+    #[cfg_attr(feature = "json", serde(rename = "creationHeight"))]
     pub creation_height: u32,
     /// id of transaction which created the box
-    #[cfg_attr(feature = "with-serde", serde(rename = "transactionId"))]
+    #[cfg_attr(feature = "json", serde(rename = "transactionId"))]
     pub transaction_id: TxId,
     /// number of box (from 0 to total number of boxes the transaction with transactionId created - 1)
-    #[cfg_attr(feature = "with-serde", serde(rename = "index"))]
+    #[cfg_attr(feature = "json", serde(rename = "index"))]
     pub index: u16,
 }
 
@@ -210,7 +204,7 @@ impl ErgoBoxId for ErgoBox {
 }
 
 /// Errors on parsing ErgoBox from JSON
-#[cfg(feature = "with-serde")]
+#[cfg(feature = "json")]
 #[derive(Error, PartialEq, Eq, Debug, Clone)]
 pub enum ErgoBoxFromJsonError {
     /// Box id parsed from JSON differs from calculated from box serialized bytes
@@ -218,7 +212,7 @@ pub enum ErgoBoxFromJsonError {
     InvalidBoxId,
 }
 
-#[cfg(feature = "with-serde")]
+#[cfg(feature = "json")]
 impl TryFrom<json::ergo_box::ErgoBoxFromJson> for ErgoBox {
     type Error = ErgoBoxFromJsonError;
     fn try_from(box_json: json::ergo_box::ErgoBoxFromJson) -> Result<Self, Self::Error> {

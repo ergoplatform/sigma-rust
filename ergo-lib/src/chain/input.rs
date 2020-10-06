@@ -11,7 +11,7 @@ use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, sigma_byte_writer::SigmaByteWrite, SerializationError,
     SigmaSerializable,
 };
-#[cfg(feature = "with-serde")]
+#[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 
 /// Unsigned (without proofs) transaction input
@@ -36,13 +36,13 @@ impl<T: ErgoBoxId> From<T> for UnsignedInput {
 /// Fully signed transaction input
 #[derive(PartialEq, Debug, Clone)]
 #[cfg_attr(test, derive(proptest_derive::Arbitrary))]
-#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Input {
     /// id of the box to spent
-    #[cfg_attr(feature = "with-serde", serde(rename = "boxId"))]
+    #[cfg_attr(feature = "json", serde(rename = "boxId"))]
     pub box_id: BoxId,
     /// proof of spending correctness
-    #[cfg_attr(feature = "with-serde", serde(rename = "spendingProof"))]
+    #[cfg_attr(feature = "json", serde(rename = "spendingProof"))]
     pub spending_proof: ProverResult,
 }
 

@@ -153,7 +153,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "with-serde")]
+    #[cfg(feature = "json")]
     fn test_proof_from_mainnet() {
         use crate::chain::address::{AddressEncoder, NetworkPrefix};
         use crate::chain::transaction::Transaction;
