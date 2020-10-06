@@ -19,8 +19,3 @@ ergo-lib-c-core = { path = "../ergo-lib-c-core"}
 
 [build-dependencies]
 cbindgen = "0.14"
-
-[profile.release]
-# Tell `rustc` to optimize for small code size.
-opt-level = "s"
-lto = true

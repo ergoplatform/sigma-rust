@@ -41,7 +41,3 @@ version = "0.10"
 default-features = false
 # Enable using the `std` crate.
 features = ["std"]
-
-[profile.release]
-# Tell `rustc` to optimize for small code size.
-opt-level = "s"
