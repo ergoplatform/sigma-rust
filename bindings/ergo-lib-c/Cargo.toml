@@ -7,6 +7,10 @@ edition = "2018"
 description = "C bindings for ergo-lib"
 repository = "https://github.com/ergoplatform/sigma-rust"
 build = "build.rs"
+# exclude generated C header
+exclude = [
+    "h/*"
+]
 
 [lib]
 crate-type = ["staticlib"]
