@@ -5,7 +5,7 @@ members = [
     "bindings/ergo-lib-wasm",
     "bindings/ergo-lib-c-core",
     "bindings/ergo-lib-c",
-    "bindings/ergo-lib-android",
+    "bindings/ergo-lib-jni",
 ]
 
 [profile.release]
