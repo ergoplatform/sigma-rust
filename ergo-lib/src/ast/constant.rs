@@ -232,7 +232,7 @@ pub struct TryExtractFromError(String);
 /// Extract underlying value if type matches
 pub trait TryExtractFrom<T>: Sized {
     /// Extract the value or return an error if type does not match
-    fn try_extract_from(cv: T) -> Result<Self, TryExtractFromError>;
+    fn try_extract_from(c: T) -> Result<Self, TryExtractFromError>;
 }
 
 impl TryExtractFrom<ConstantVal> for bool {
@@ -340,6 +340,13 @@ impl TryExtractFrom<Constant> for Vec<i8> {
                 c.v
             ))),
         }
+    }
+}
+
+impl TryExtractFrom<Constant> for Vec<u8> {
+    fn try_extract_from(cv: Constant) -> Result<Self, TryExtractFromError> {
+        use crate::util::FromVecI8;
+        Vec::<i8>::try_extract_from(cv).map(Vec::<u8>::from_vec_i8)
     }
 }
 
