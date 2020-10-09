@@ -16,6 +16,7 @@ pub mod ast;
 pub mod box_coll;
 pub mod box_selector;
 pub mod contract;
+pub mod data_input;
 pub mod ergo_box;
 pub mod ergo_state_ctx;
 pub mod secret_key;
