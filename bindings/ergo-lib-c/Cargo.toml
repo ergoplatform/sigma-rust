@@ -6,7 +6,6 @@ authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
 edition = "2018"
 description = "C bindings for ergo-lib"
 repository = "https://github.com/ergoplatform/sigma-rust"
-build = "build.rs"
 # exclude generated C header
 exclude = [
     "h/*"
@@ -18,7 +17,3 @@ crate-type = ["staticlib"]
 [dependencies]
 ergo-lib = {version = "0.2.0", path = "../../ergo-lib"}
 ergo-lib-c-core = {version = "0.1.0", path = "../ergo-lib-c-core"}
-
-[build-dependencies]
-serde = { version = "1.0", features = ["derive"] }
-cbindgen = "0.15"

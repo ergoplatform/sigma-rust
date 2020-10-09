@@ -79,7 +79,9 @@ matrix:
         - cargo install cargo-lipo
         - cargo install cbindgen
       script:
-        - cd bindings/ergo-lib-ios
+        - cd bindings/ergo-lib-c
+        - cbindgen --config cbindgen.toml --crate ergo-lib-c --output h/ergo_wallet.h
+        - cd ../ergo-lib-ios
         - cargo lipo --release --targets=aarch64-apple-ios,x86_64-apple-ios
         - swift package generate-xcodeproj
         - xcodebuild -project ./ErgoLib.xcodeproj -xcconfig ./Config/Release.xcconfig -sdk iphoneos
