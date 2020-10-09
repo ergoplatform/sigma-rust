@@ -10,6 +10,8 @@ wasm-pack.log
 **/dist
 **/docs
 package-lock.json
+# Generated C headers
+h/
 
 # Swift
 .build
