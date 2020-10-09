@@ -1,13 +1,17 @@
 use crate::chain::{Base16DecodedBytes, Base16EncodedBytes};
 use crate::{
     chain::ergo_box::ErgoBox,
-    serialization::{op_code::OpCode, SerializationError, SigmaSerializable},
+    serialization::{SerializationError, SigmaSerializable},
     sigma_protocol::{dlog_group::EcPoint, sigma_boolean::SigmaProp},
     types::{LiftIntoSType, SType},
 };
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
+
+mod constant_placeholder;
+
+pub use constant_placeholder::*;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 /// Collection for primitive values (i.e byte array)
@@ -225,6 +229,52 @@ impl Into<Constant> for EcPoint {
     }
 }
 
+/// Marker trait to select types for which CollElems::NonPrimitive is used to store elements as Vec<ConstantVal>
+pub trait StoredNonPrimitive {}
+
+impl StoredNonPrimitive for bool {}
+impl StoredNonPrimitive for i16 {}
+impl StoredNonPrimitive for i32 {}
+impl StoredNonPrimitive for i64 {}
+
+impl<T: LiftIntoSType + StoredNonPrimitive + Into<ConstantVal>> Into<ConstantVal> for Vec<T> {
+    fn into(self) -> ConstantVal {
+        ConstantVal::Coll(ConstantColl::NonPrimitive {
+            elem_tpe: T::stype(),
+            v: self.into_iter().map(|i| i.into()).collect(),
+        })
+    }
+}
+
+impl<T: LiftIntoSType + StoredNonPrimitive + Into<ConstantVal>> Into<Constant> for Vec<T> {
+    fn into(self) -> Constant {
+        Constant {
+            tpe: Self::stype(),
+            v: self.into(),
+        }
+    }
+}
+
+impl Into<Constant> for Vec<u8> {
+    fn into(self) -> Constant {
+        Constant {
+            tpe: SType::SColl(Box::new(SType::SByte)),
+            v: ConstantVal::Coll(ConstantColl::Primitive(CollPrim::CollByte(
+                self.into_iter().map(|b| b as i8).collect(),
+            ))),
+        }
+    }
+}
+
+impl Into<Constant> for Vec<i8> {
+    fn into(self) -> Constant {
+        Constant {
+            tpe: SType::SColl(Box::new(SType::SByte)),
+            v: ConstantVal::Coll(ConstantColl::Primitive(CollPrim::CollByte(self))),
+        }
+    }
+}
+
 /// Underlying type is different from requested value type
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct TryExtractFromError(String);
@@ -347,71 +397,6 @@ impl TryExtractFrom<Constant> for Vec<u8> {
     fn try_extract_from(cv: Constant) -> Result<Self, TryExtractFromError> {
         use crate::util::FromVecI8;
         Vec::<i8>::try_extract_from(cv).map(Vec::<u8>::from_vec_i8)
-    }
-}
-
-/// Marker trait to select types for which CollElems::NonPrimitive is used to store elements as Vec<ConstantVal>
-pub trait StoredNonPrimitive {}
-
-impl StoredNonPrimitive for bool {}
-impl StoredNonPrimitive for i16 {}
-impl StoredNonPrimitive for i32 {}
-impl StoredNonPrimitive for i64 {}
-
-impl<T: LiftIntoSType + StoredNonPrimitive + Into<ConstantVal>> Into<ConstantVal> for Vec<T> {
-    fn into(self) -> ConstantVal {
-        ConstantVal::Coll(ConstantColl::NonPrimitive {
-            elem_tpe: T::stype(),
-            v: self.into_iter().map(|i| i.into()).collect(),
-        })
-    }
-}
-
-impl<T: LiftIntoSType + StoredNonPrimitive + Into<ConstantVal>> Into<Constant> for Vec<T> {
-    fn into(self) -> Constant {
-        Constant {
-            tpe: Self::stype(),
-            v: self.into(),
-        }
-    }
-}
-
-impl Into<Constant> for Vec<u8> {
-    fn into(self) -> Constant {
-        Constant {
-            tpe: SType::SColl(Box::new(SType::SByte)),
-            v: ConstantVal::Coll(ConstantColl::Primitive(CollPrim::CollByte(
-                self.into_iter().map(|b| b as i8).collect(),
-            ))),
-        }
-    }
-}
-
-impl Into<Constant> for Vec<i8> {
-    fn into(self) -> Constant {
-        Constant {
-            tpe: SType::SColl(Box::new(SType::SByte)),
-            v: ConstantVal::Coll(ConstantColl::Primitive(CollPrim::CollByte(self))),
-        }
-    }
-}
-
-/// Placeholder for a constant in ErgoTree.
-#[derive(PartialEq, Eq, Debug, Clone)]
-pub struct ConstantPlaceholder {
-    /// Zero based index in ErgoTree.constants array.
-    pub id: u32,
-    /// Type of the constant value
-    pub tpe: SType,
-}
-
-impl ConstantPlaceholder {
-    /// OpCode value
-    pub const OP_CODE: OpCode = OpCode::CONSTANT_PLACEHOLDER;
-
-    /// OpCode for the serialization
-    pub fn op_code(&self) -> OpCode {
-        OpCode::CONSTANT_PLACEHOLDER
     }
 }
 
