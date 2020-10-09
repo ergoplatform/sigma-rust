@@ -16,10 +16,9 @@ exclude = [
 crate-type = ["staticlib"]
 
 [dependencies]
-ffi_helpers = "0.2"
 ergo-lib = {version = "0.2.0", path = "../../ergo-lib"}
 ergo-lib-c-core = {version = "0.1.0", path = "../ergo-lib-c-core"}
 
 
 [build-dependencies]
-cbindgen = "0.14"
+cbindgen = "0.15"
