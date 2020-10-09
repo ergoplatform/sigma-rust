@@ -6,6 +6,7 @@ use js_sys::Uint8Array;
 use wasm_bindgen::prelude::*;
 
 use crate::utils::I64;
+use ergo_lib::ast::TryExtractFrom;
 
 /// Ergo constant(evaluated) values
 #[wasm_bindgen]
@@ -40,13 +41,7 @@ impl Constant {
 
     /// Extract i32 value, returning error if wrong type
     pub fn to_i32(&self) -> Result<i32, JsValue> {
-        match self.0.v {
-            ergo_lib::ast::ConstantVal::Int(v) => Ok(v),
-            _ => Err(JsValue::from_str(&format!(
-                "expected i32, found: {:?}",
-                self.0.v
-            ))),
-        }
+        i32::try_extract_from(self.0.clone()).map_err(|e| JsValue::from_str(&format! {"{:?}", e}))
     }
 
     /// Create from i64
@@ -56,13 +51,9 @@ impl Constant {
 
     /// Extract i64 value, returning error if wrong type
     pub fn to_i64(&self) -> Result<I64, JsValue> {
-        match self.0.v {
-            ergo_lib::ast::ConstantVal::Long(v) => Ok(v.into()),
-            _ => Err(JsValue::from_str(&format!(
-                "expected i64, found: {:?}",
-                self.0.v
-            ))),
-        }
+        i64::try_extract_from(self.0.clone())
+            .map_err(|e| JsValue::from_str(&format! {"{:?}", e}))
+            .map(I64::from)
     }
 
     /// Create from byte array
@@ -72,17 +63,8 @@ impl Constant {
 
     /// Extract byte array, returning error if wrong type
     pub fn to_byte_array(&self) -> Result<Uint8Array, JsValue> {
-        match self.0.v.clone() {
-            ergo_lib::ast::ConstantVal::Coll(ergo_lib::ast::ConstantColl::Primitive(
-                ergo_lib::ast::CollPrim::CollByte(coll_bytes),
-            )) => {
-                let u8_bytes: Vec<u8> = coll_bytes.into_iter().map(|b| b as u8).collect();
-                Ok(Uint8Array::from(u8_bytes.as_slice()))
-            }
-            _ => Err(JsValue::from_str(&format!(
-                "expected byte array, found: {:?}",
-                self.0.v
-            ))),
-        }
+        Vec::<u8>::try_extract_from(self.0.clone())
+            .map(|v| Uint8Array::from(v.as_slice()))
+            .map_err(|e| JsValue::from_str(&format! {"{:?}", e}))
     }
 }

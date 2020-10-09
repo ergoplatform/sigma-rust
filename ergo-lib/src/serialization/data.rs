@@ -1,6 +1,7 @@
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
 };
+use crate::util::AsVecU8;
 use crate::{
     ast::ConstantVal,
     ast::ConstantVal::*,
@@ -33,8 +34,7 @@ impl DataSerializer {
             Coll(ct) => match ct {
                 ConstantColl::Primitive(CollPrim::CollByte(b)) => {
                     w.put_usize_as_u16(b.len())?;
-                    let ba: Vec<u8> = b.iter().map(|v| *v as u8).collect();
-                    w.write_all(&ba[..])
+                    w.write_all(b.clone().as_vec_u8().as_slice())
                 }
                 ConstantColl::NonPrimitive { elem_tpe: _, v } => {
                     w.put_usize_as_u16(v.len())?;

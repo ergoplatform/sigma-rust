@@ -1,13 +1,17 @@
 use crate::chain::{Base16DecodedBytes, Base16EncodedBytes};
 use crate::{
     chain::ergo_box::ErgoBox,
-    serialization::{op_code::OpCode, SerializationError, SigmaSerializable},
+    serialization::{SerializationError, SigmaSerializable},
     sigma_protocol::{dlog_group::EcPoint, sigma_boolean::SigmaProp},
     types::{LiftIntoSType, SType},
 };
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
+
+mod constant_placeholder;
+
+pub use constant_placeholder::*;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 /// Collection for primitive values (i.e byte array)
@@ -271,22 +275,128 @@ impl Into<Constant> for Vec<i8> {
     }
 }
 
-/// Placeholder for a constant in ErgoTree.
+/// Underlying type is different from requested value type
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct ConstantPlaceholder {
-    /// Zero based index in ErgoTree.constants array.
-    pub id: u32,
-    /// Type of the constant value
-    pub tpe: SType,
+pub struct TryExtractFromError(String);
+
+/// Extract underlying value if type matches
+pub trait TryExtractFrom<T>: Sized {
+    /// Extract the value or return an error if type does not match
+    fn try_extract_from(c: T) -> Result<Self, TryExtractFromError>;
 }
 
-impl ConstantPlaceholder {
-    /// OpCode value
-    pub const OP_CODE: OpCode = OpCode::CONSTANT_PLACEHOLDER;
+impl TryExtractFrom<ConstantVal> for bool {
+    fn try_extract_from(cv: ConstantVal) -> Result<bool, TryExtractFromError> {
+        match cv {
+            ConstantVal::Boolean(v) => Ok(v),
+            _ => Err(TryExtractFromError(format!(
+                "expected bool, found {:?}",
+                cv
+            ))),
+        }
+    }
+}
 
-    /// OpCode for the serialization
-    pub fn op_code(&self) -> OpCode {
-        OpCode::CONSTANT_PLACEHOLDER
+impl TryExtractFrom<ConstantVal> for i8 {
+    fn try_extract_from(cv: ConstantVal) -> Result<i8, TryExtractFromError> {
+        match cv {
+            ConstantVal::Byte(v) => Ok(v),
+            _ => Err(TryExtractFromError(format!("expected i8, found {:?}", cv))),
+        }
+    }
+}
+
+impl TryExtractFrom<ConstantVal> for i16 {
+    fn try_extract_from(cv: ConstantVal) -> Result<i16, TryExtractFromError> {
+        match cv {
+            ConstantVal::Short(v) => Ok(v),
+            _ => Err(TryExtractFromError(format!("expected i16, found {:?}", cv))),
+        }
+    }
+}
+
+impl TryExtractFrom<ConstantVal> for i32 {
+    fn try_extract_from(cv: ConstantVal) -> Result<i32, TryExtractFromError> {
+        match cv {
+            ConstantVal::Int(v) => Ok(v),
+            _ => Err(TryExtractFromError(format!("expected i32, found {:?}", cv))),
+        }
+    }
+}
+
+impl TryExtractFrom<ConstantVal> for i64 {
+    fn try_extract_from(cv: ConstantVal) -> Result<i64, TryExtractFromError> {
+        match cv {
+            ConstantVal::Long(v) => Ok(v),
+            _ => Err(TryExtractFromError(format!("expected i64, found {:?}", cv))),
+        }
+    }
+}
+
+impl TryExtractFrom<ConstantVal> for EcPoint {
+    fn try_extract_from(cv: ConstantVal) -> Result<EcPoint, TryExtractFromError> {
+        match cv {
+            ConstantVal::GroupElement(v) => Ok(*v),
+            _ => Err(TryExtractFromError(format!(
+                "expected EcPoint, found {:?}",
+                cv
+            ))),
+        }
+    }
+}
+
+impl TryExtractFrom<ConstantVal> for SigmaProp {
+    fn try_extract_from(cv: ConstantVal) -> Result<SigmaProp, TryExtractFromError> {
+        match cv {
+            ConstantVal::SigmaProp(v) => Ok(*v),
+            _ => Err(TryExtractFromError(format!(
+                "expected SigmaProp, found {:?}",
+                cv
+            ))),
+        }
+    }
+}
+
+impl<T: TryExtractFrom<ConstantVal>> TryExtractFrom<Constant> for T {
+    fn try_extract_from(cv: Constant) -> Result<Self, TryExtractFromError> {
+        T::try_extract_from(cv.v)
+    }
+}
+
+impl<T: TryExtractFrom<ConstantVal> + StoredNonPrimitive + LiftIntoSType> TryExtractFrom<Constant>
+    for Vec<T>
+{
+    fn try_extract_from(c: Constant) -> Result<Self, TryExtractFromError> {
+        match c.v {
+            ConstantVal::Coll(ConstantColl::NonPrimitive { elem_tpe: _, v }) => {
+                v.into_iter().map(T::try_extract_from).collect()
+            }
+            _ => Err(TryExtractFromError(format!(
+                "expected {:?}, found {:?}",
+                std::any::type_name::<Self>(),
+                c.v
+            ))),
+        }
+    }
+}
+
+impl TryExtractFrom<Constant> for Vec<i8> {
+    fn try_extract_from(c: Constant) -> Result<Self, TryExtractFromError> {
+        match c.v {
+            ConstantVal::Coll(ConstantColl::Primitive(CollPrim::CollByte(bs))) => Ok(bs),
+            _ => Err(TryExtractFromError(format!(
+                "expected {:?}, found {:?}",
+                std::any::type_name::<Self>(),
+                c.v
+            ))),
+        }
+    }
+}
+
+impl TryExtractFrom<Constant> for Vec<u8> {
+    fn try_extract_from(cv: Constant) -> Result<Self, TryExtractFromError> {
+        use crate::util::FromVecI8;
+        Vec::<i8>::try_extract_from(cv).map(Vec::<u8>::from_vec_i8)
     }
 }
 
@@ -315,6 +425,47 @@ mod tests {
                 (vec(any::<i64>(), 0..100)).prop_map_into(),
             ]
             .boxed()
+        }
+    }
+
+    proptest! {
+
+        #[test]
+        fn test_try_extract_from(c in any::<Constant>()) {
+            // let c = force_any_val::<Constant>();
+            match c.clone().tpe {
+                SType::SBoolean => {
+                    let _ = bool::try_extract_from(c).unwrap();
+                }
+                SType::SByte => {
+                    let _ = i8::try_extract_from(c).unwrap();
+                }
+                SType::SShort => {
+                    let _ = i16::try_extract_from(c).unwrap();
+                }
+                SType::SInt => {
+                    let _ = i32::try_extract_from(c).unwrap();
+                }
+                SType::SLong => {
+                    let _ = i64::try_extract_from(c).unwrap();
+                }
+                SType::SGroupElement => {
+                    let _ = EcPoint::try_extract_from(c).unwrap();
+                }
+                SType::SSigmaProp => {
+                    let _ = SigmaProp::try_extract_from(c).unwrap();
+                }
+                SType::SColl(elem_type) => {
+                    match *elem_type {
+                        SType::SByte => { let _ = Vec::<i8>::try_extract_from(c).unwrap(); }
+                        SType::SShort => { let _ = Vec::<i16>::try_extract_from(c).unwrap(); }
+                        SType::SInt => { let _ = Vec::<i32>::try_extract_from(c).unwrap(); }
+                        SType::SLong => { let _ = Vec::<i64>::try_extract_from(c).unwrap(); }
+                        _ => todo!()
+                    }
+                }
+                _ => todo!(),
+            };
         }
     }
 }
