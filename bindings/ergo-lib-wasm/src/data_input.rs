@@ -5,7 +5,7 @@ use wasm_bindgen::prelude::*;
 
 /// Inputs, that are used to enrich script context, but won't be spent by the transaction
 #[wasm_bindgen]
-#[derive(Clone, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct DataInput(chain::data_input::DataInput);
 
 /// DataInput collection
@@ -15,6 +15,7 @@ pub struct DataInputs(Vec<DataInput>);
 #[wasm_bindgen]
 impl DataInputs {
     /// Create empty DataInputs
+    #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
         DataInputs(vec![])
     }

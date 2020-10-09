@@ -10,6 +10,9 @@
 #![deny(unused_imports)]
 #![deny(missing_docs)]
 #![allow(unused_variables)]
+// Clippy warnings
+#![allow(clippy::new_without_default)]
+#![allow(clippy::len_without_is_empty)]
 
 pub mod address;
 pub mod ast;
