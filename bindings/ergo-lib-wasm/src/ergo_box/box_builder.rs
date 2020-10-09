@@ -29,8 +29,8 @@ impl ErgoBoxCandidateBuilder {
     }
 
     /// Set minimal value (per byte of the serialized box size)
-    pub fn set_min_box_value_per_byte(&mut self, new_min_value_per_byte: u32) {
-        self.0.set_min_box_value_per_byte(new_min_value_per_byte);
+    pub fn set_min_box_value_per_byte(self, new_min_value_per_byte: u32) -> Self {
+        ErgoBoxCandidateBuilder(self.0.set_min_box_value_per_byte(new_min_value_per_byte))
     }
 
     /// Get minimal value (per byte of the serialized box size)
@@ -39,8 +39,8 @@ impl ErgoBoxCandidateBuilder {
     }
 
     /// Set new box value
-    pub fn set_value(&mut self, new_value: BoxValue) {
-        self.0.set_value(new_value.into());
+    pub fn set_value(self, new_value: BoxValue) -> Self {
+        ErgoBoxCandidateBuilder(self.0.set_value(new_value.into()))
     }
 
     /// Get box value
