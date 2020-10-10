@@ -1,7 +1,8 @@
 //! Unsigned transaction builder
-use ergo_lib::{chain::ergo_box::ErgoBox, wallet};
+use ergo_lib::{chain, wallet};
 use wasm_bindgen::prelude::*;
 
+use crate::data_input::DataInputs;
 use crate::{
     address::Address,
     box_coll::{ErgoBoxCandidates, ErgoBoxes},
@@ -12,7 +13,7 @@ use crate::{
 
 /// Unsigned transaction builder
 #[wasm_bindgen]
-pub struct TxBuilder(wallet::tx_builder::TxBuilder<ErgoBox>);
+pub struct TxBuilder(wallet::tx_builder::TxBuilder<chain::ergo_box::ErgoBox>);
 
 #[wasm_bindgen]
 impl TxBuilder {
@@ -33,18 +34,21 @@ impl TxBuilder {
         fee_amount: &BoxValue,
         change_address: &Address,
         min_change_value: &BoxValue,
-    ) -> Result<TxBuilder, JsValue> {
-        ergo_lib::wallet::tx_builder::TxBuilder::new(
-            box_selector.inner::<ErgoBox>(),
+    ) -> TxBuilder {
+        TxBuilder(ergo_lib::wallet::tx_builder::TxBuilder::new(
+            box_selector.inner::<chain::ergo_box::ErgoBox>(),
             inputs.clone().into(),
             output_candidates.clone().into(),
             current_height,
             fee_amount.clone().into(),
             change_address.clone().into(),
             min_change_value.clone().into(),
-        )
-        .map_err(|e| JsValue::from_str(&format!("{}", e)))
-        .map(TxBuilder)
+        ))
+    }
+
+    /// Set transaction's data inputs
+    pub fn set_data_inputs(self, data_inputs: &DataInputs) -> TxBuilder {
+        TxBuilder(self.0.set_data_inputs(data_inputs.into()))
     }
 
     /// Build the unsigned transaction

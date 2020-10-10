@@ -52,8 +52,9 @@ impl ErgoBoxCandidateBuilder {
     }
 
     /// Set minimal value (per byte of the serialized box size)
-    pub fn set_min_box_value_per_byte(&mut self, new_min_value_per_byte: u32) {
+    pub fn set_min_box_value_per_byte(mut self, new_min_value_per_byte: u32) -> Self {
         self.min_value_per_byte = new_min_value_per_byte;
+        self
     }
 
     /// Get minimal value (per byte of the serialized box size)
@@ -62,8 +63,9 @@ impl ErgoBoxCandidateBuilder {
     }
 
     /// Set new box value
-    pub fn set_value(&mut self, new_value: BoxValue) {
+    pub fn set_value(mut self, new_value: BoxValue) -> Self {
         self.value = new_value;
+        self
     }
 
     /// Get box value
@@ -134,10 +136,10 @@ mod tests {
 
     #[test]
     fn test_set_value() {
-        let mut builder =
-            ErgoBoxCandidateBuilder::new(BoxValue::SAFE_USER_MIN, force_any_val::<ErgoTree>(), 1);
         let new_value = BoxValue::SAFE_USER_MIN.checked_mul_u32(10).unwrap();
-        builder.set_value(new_value);
+        let builder =
+            ErgoBoxCandidateBuilder::new(BoxValue::SAFE_USER_MIN, force_any_val::<ErgoTree>(), 1)
+                .set_value(new_value);
         assert_eq!(builder.value(), &new_value);
         let b = builder.build().unwrap();
         assert_eq!(b.value, new_value);

@@ -10,12 +10,16 @@
 #![deny(unused_imports)]
 #![deny(missing_docs)]
 #![allow(unused_variables)]
+// Clippy warnings
+#![allow(clippy::new_without_default)]
+#![allow(clippy::len_without_is_empty)]
 
 pub mod address;
 pub mod ast;
 pub mod box_coll;
 pub mod box_selector;
 pub mod contract;
+pub mod data_input;
 pub mod ergo_box;
 pub mod ergo_state_ctx;
 pub mod secret_key;

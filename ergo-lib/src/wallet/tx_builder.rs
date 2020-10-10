@@ -7,6 +7,7 @@ use crate::chain::address::Address;
 use crate::chain::address::AddressEncoder;
 use crate::chain::address::NetworkPrefix;
 use crate::chain::contract::Contract;
+use crate::chain::data_input::DataInput;
 use crate::chain::ergo_box::box_builder::ErgoBoxCandidateBuilder;
 use crate::chain::ergo_box::box_builder::ErgoBoxCandidateBuilderError;
 use crate::chain::ergo_box::box_value;
@@ -26,6 +27,7 @@ use super::box_selector::{BoxSelection, BoxSelector, BoxSelectorError};
 pub struct TxBuilder<S: ErgoBoxAssets> {
     box_selector: Box<dyn BoxSelector<S>>,
     boxes_to_spend: Vec<S>,
+    data_inputs: Vec<DataInput>,
     output_candidates: Vec<ErgoBoxCandidate>,
     current_height: u32,
     fee_amount: BoxValue,
@@ -51,30 +53,37 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
         fee_amount: BoxValue,
         change_address: Address,
         min_change_value: BoxValue,
-    ) -> Result<TxBuilder<S>, TxBuilderError> {
-        if boxes_to_spend.is_empty() {
-            return Err(TxBuilderError::InvalidArgs(
-                "boxes_to_spend is empty".to_string(),
-            ));
-        }
-        if output_candidates.is_empty() {
-            return Err(TxBuilderError::InvalidArgs(
-                "output_candidates is empty".to_string(),
-            ));
-        }
-        Ok(TxBuilder {
+    ) -> TxBuilder<S> {
+        TxBuilder {
             box_selector,
             boxes_to_spend,
+            data_inputs: vec![],
             output_candidates,
             current_height,
             fee_amount,
             change_address,
             min_change_value,
-        })
+        }
+    }
+
+    /// Set transaction's data inputs
+    pub fn set_data_inputs(mut self, data_inputs: Vec<DataInput>) -> Self {
+        self.data_inputs = data_inputs;
+        self
     }
 
     /// Build the unsigned transaction
     pub fn build(self) -> Result<UnsignedTransaction, TxBuilderError> {
+        if self.boxes_to_spend.is_empty() {
+            return Err(TxBuilderError::InvalidArgs(
+                "boxes_to_spend is empty".to_string(),
+            ));
+        }
+        if self.output_candidates.is_empty() {
+            return Err(TxBuilderError::InvalidArgs(
+                "output_candidates is empty".to_string(),
+            ));
+        }
         let total_output_value: BoxValue =
             box_value::checked_sum(self.output_candidates.iter().map(|b| b.value))?
                 .checked_add(&self.fee_amount)?;
@@ -109,7 +118,7 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
                 .into_iter()
                 .map(UnsignedInput::from)
                 .collect(),
-            vec![],
+            self.data_inputs,
             output_candidates,
         ))
     }
@@ -195,7 +204,7 @@ mod tests {
             force_any_val::<Address>(),
             BoxValue::SAFE_USER_MIN,
         );
-        assert!(r.is_err());
+        assert!(r.build().is_err());
     }
 
     #[test]
@@ -210,7 +219,7 @@ mod tests {
             force_any_val::<Address>(),
             BoxValue::SAFE_USER_MIN,
         );
-        assert!(r.is_err());
+        assert!(r.build().is_err());
     }
 
     proptest! {
@@ -219,7 +228,8 @@ mod tests {
         fn test_build_tx(inputs in vec(any_with::<ErgoBox>((BoxValue::MIN_RAW * 5000 .. BoxValue::MIN_RAW * 10000).into()), 1..10),
                          outputs in vec(any_with::<ErgoBoxCandidate>((BoxValue::MIN_RAW * 1000 ..BoxValue::MIN_RAW * 2000).into()), 1..2),
                          change_address in any::<Address>(),
-                         miners_fee in any_with::<BoxValue>((BoxValue::MIN_RAW * 100..BoxValue::MIN_RAW * 200).into())) {
+                         miners_fee in any_with::<BoxValue>((BoxValue::MIN_RAW * 100..BoxValue::MIN_RAW * 200).into()),
+                         data_inputs in vec(any::<DataInput>(), 0..2)) {
             let min_change_value = BoxValue::SAFE_USER_MIN;
 
             let all_outputs = box_value::checked_sum(outputs.iter().map(|b| b.value)).unwrap()
@@ -237,7 +247,8 @@ mod tests {
                 miners_fee,
                 change_address.clone(),
                 min_change_value,
-            ).unwrap();
+            )
+            .set_data_inputs(data_inputs.clone());
             let tx = tx_builder.build().unwrap();
             prop_assert!(outputs.into_iter().all(|i| tx.output_candidates.iter().any(|o| *o == i)),
                          "tx.output_candidates is missing some outputs");
@@ -253,6 +264,7 @@ mod tests {
             prop_assert!(tx.output_candidates.iter().any(|b| {
                 b.value == miners_fee
             }), "box with miner's fee {:?} is not found in outputs: {:?}", miners_fee, tx.output_candidates);
+            prop_assert_eq!(tx.data_inputs, data_inputs, "unexpected data inputs");
         }
     }
 }

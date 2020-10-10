@@ -60,8 +60,7 @@ fn test_sign_transaction() {
         &fee,
         &change_address,
         &min_change_value,
-    )
-    .unwrap();
+    );
     let tx = tx_builder.build().unwrap();
     let wallet = Wallet::from_secret(&sk);
     let dummy_ctx = ErgoStateContext::dummy();
@@ -117,7 +116,6 @@ fn test_tx_builder() {
         &fee,
         &change_address,
         &min_change_value,
-    )
-    .unwrap();
+    );
     let _tx = tx_builder.build().unwrap();
 }

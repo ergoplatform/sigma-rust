@@ -50,7 +50,7 @@ matrix:
         - cargo clean
         - cargo build
       after_success:
-        - cargo tarpaulin --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
+        - cargo tarpaulin --ciserver travis-ci --coveralls $TRAVIS_JOB_ID --exclude-files bindings/*
 
     - name: JS tests
       dist: bionic
