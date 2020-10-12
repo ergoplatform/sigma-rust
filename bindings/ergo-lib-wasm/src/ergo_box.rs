@@ -34,7 +34,51 @@ pub mod box_builder;
 pub struct ErgoBoxCandidate(chain::ergo_box::ErgoBoxCandidate);
 
 #[wasm_bindgen]
-impl ErgoBoxCandidate {}
+impl ErgoBoxCandidate {
+    /// Returns value (ErgoTree constant) stored in the register or None if the register is empty
+    pub fn r4(&self) -> Option<Constant> {
+        self.0
+            .additional_registers
+            .get(NonMandatoryRegisterId::R4)
+            .cloned()
+            .map(Constant::from)
+    }
+    /// Returns value (ErgoTree constant) stored in the register or None if the register is empty
+    pub fn r5(&self) -> Option<Constant> {
+        self.0
+            .additional_registers
+            .get(NonMandatoryRegisterId::R5)
+            .cloned()
+            .map(Constant::from)
+    }
+
+    /// Returns value (ErgoTree constant) stored in the register or None if the register is empty
+    pub fn r6(&self) -> Option<Constant> {
+        self.0
+            .additional_registers
+            .get(NonMandatoryRegisterId::R6)
+            .cloned()
+            .map(Constant::from)
+    }
+
+    /// Returns value (ErgoTree constant) stored in the register or None if the register is empty
+    pub fn r7(&self) -> Option<Constant> {
+        self.0
+            .additional_registers
+            .get(NonMandatoryRegisterId::R7)
+            .cloned()
+            .map(Constant::from)
+    }
+
+    /// Returns value (ErgoTree constant) stored in the register or None if the register is empty
+    pub fn r9(&self) -> Option<Constant> {
+        self.0
+            .additional_registers
+            .get(NonMandatoryRegisterId::R9)
+            .cloned()
+            .map(Constant::from)
+    }
+}
 
 impl Into<chain::ergo_box::ErgoBoxCandidate> for ErgoBoxCandidate {
     fn into(self) -> chain::ergo_box::ErgoBoxCandidate {
@@ -81,7 +125,8 @@ impl ErgoBox {
     /// Returns value (ErgoTree constant) stored in the register or None if the register is empty
     pub fn r4(&self) -> Option<Constant> {
         self.0
-            .register_value(NonMandatoryRegisterId::R4)
+            .additional_registers
+            .get(NonMandatoryRegisterId::R4)
             .cloned()
             .map(Constant::from)
     }
@@ -89,7 +134,8 @@ impl ErgoBox {
     /// Returns value (ErgoTree constant) stored in the register or None if the register is empty
     pub fn r5(&self) -> Option<Constant> {
         self.0
-            .register_value(NonMandatoryRegisterId::R5)
+            .additional_registers
+            .get(NonMandatoryRegisterId::R5)
             .cloned()
             .map(Constant::from)
     }
@@ -97,7 +143,8 @@ impl ErgoBox {
     /// Returns value (ErgoTree constant) stored in the register or None if the register is empty
     pub fn r6(&self) -> Option<Constant> {
         self.0
-            .register_value(NonMandatoryRegisterId::R6)
+            .additional_registers
+            .get(NonMandatoryRegisterId::R6)
             .cloned()
             .map(Constant::from)
     }
@@ -105,7 +152,8 @@ impl ErgoBox {
     /// Returns value (ErgoTree constant) stored in the register or None if the register is empty
     pub fn r7(&self) -> Option<Constant> {
         self.0
-            .register_value(NonMandatoryRegisterId::R7)
+            .additional_registers
+            .get(NonMandatoryRegisterId::R7)
             .cloned()
             .map(Constant::from)
     }
@@ -113,7 +161,8 @@ impl ErgoBox {
     /// Returns value (ErgoTree constant) stored in the register or None if the register is empty
     pub fn r8(&self) -> Option<Constant> {
         self.0
-            .register_value(NonMandatoryRegisterId::R8)
+            .additional_registers
+            .get(NonMandatoryRegisterId::R8)
             .cloned()
             .map(Constant::from)
     }
@@ -121,7 +170,8 @@ impl ErgoBox {
     /// Returns value (ErgoTree constant) stored in the register or None if the register is empty
     pub fn r9(&self) -> Option<Constant> {
         self.0
-            .register_value(NonMandatoryRegisterId::R9)
+            .additional_registers
+            .get(NonMandatoryRegisterId::R9)
             .cloned()
             .map(Constant::from)
     }

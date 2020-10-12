@@ -5,8 +5,6 @@ pub mod box_id;
 pub mod box_value;
 pub mod register;
 
-use self::register::NonMandatoryRegisterId;
-
 #[cfg(feature = "json")]
 use super::json;
 use super::{
@@ -14,7 +12,7 @@ use super::{
     token::{TokenAmount, TokenId},
     transaction::TxId,
 };
-use crate::ast::Constant;
+
 use crate::{
     ergo_tree::ErgoTree,
     serialization::{
@@ -139,11 +137,6 @@ impl ErgoBox {
             box_id,
             ..box_with_zero_id
         }
-    }
-
-    /// Return value (ErgoTree constant) stored in a register with a given register index (R4..R9)
-    pub fn register_value(&self, reg_id: NonMandatoryRegisterId) -> Option<&Constant> {
-        self.additional_registers.get(reg_id)
     }
 
     fn calc_box_id(&self) -> BoxId {
