@@ -20,8 +20,10 @@ use std::convert::TryFrom;
 
 use chain::ergo_box::register::NonMandatoryRegisters;
 use ergo_lib::chain;
+use ergo_lib::chain::ergo_box::register::NonMandatoryRegisterId;
 use wasm_bindgen::prelude::*;
 
+use crate::ast::Constant;
 use crate::{contract::Contract, transaction::TxId};
 
 pub mod box_builder;
@@ -74,6 +76,54 @@ impl ErgoBox {
             index,
         );
         ErgoBox(b)
+    }
+
+    /// Returns value (ErgoTree constant) stored in the register or None if the register is empty
+    pub fn r4(&self) -> Option<Constant> {
+        self.0
+            .register_value(NonMandatoryRegisterId::R4)
+            .cloned()
+            .map(Constant::from)
+    }
+
+    /// Returns value (ErgoTree constant) stored in the register or None if the register is empty
+    pub fn r5(&self) -> Option<Constant> {
+        self.0
+            .register_value(NonMandatoryRegisterId::R5)
+            .cloned()
+            .map(Constant::from)
+    }
+
+    /// Returns value (ErgoTree constant) stored in the register or None if the register is empty
+    pub fn r6(&self) -> Option<Constant> {
+        self.0
+            .register_value(NonMandatoryRegisterId::R6)
+            .cloned()
+            .map(Constant::from)
+    }
+
+    /// Returns value (ErgoTree constant) stored in the register or None if the register is empty
+    pub fn r7(&self) -> Option<Constant> {
+        self.0
+            .register_value(NonMandatoryRegisterId::R7)
+            .cloned()
+            .map(Constant::from)
+    }
+
+    /// Returns value (ErgoTree constant) stored in the register or None if the register is empty
+    pub fn r8(&self) -> Option<Constant> {
+        self.0
+            .register_value(NonMandatoryRegisterId::R8)
+            .cloned()
+            .map(Constant::from)
+    }
+
+    /// Returns value (ErgoTree constant) stored in the register or None if the register is empty
+    pub fn r9(&self) -> Option<Constant> {
+        self.0
+            .register_value(NonMandatoryRegisterId::R9)
+            .cloned()
+            .map(Constant::from)
     }
 
     // JSON representation

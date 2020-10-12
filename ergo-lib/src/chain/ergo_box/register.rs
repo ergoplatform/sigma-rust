@@ -7,7 +7,7 @@ use std::{collections::HashMap, convert::TryFrom};
 use thiserror::Error;
 
 /// newtype for additional registers R4 - R9
-#[derive(PartialEq, Eq, Hash, Debug, Clone)]
+#[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "json", serde(into = "String", try_from = "String"))]
 pub struct NonMandatoryRegisterId(u8);
@@ -48,7 +48,7 @@ impl NonMandatoryRegisterId {
     /// `i` is expected to be in range 0..[`NUM_REGS`] , otherwise panic
     pub fn get_by_index(i: usize) -> NonMandatoryRegisterId {
         assert!(i < NonMandatoryRegisterId::NUM_REGS);
-        NonMandatoryRegisterId::REG_IDS[i].clone()
+        NonMandatoryRegisterId::REG_IDS[i]
     }
 }
 
@@ -135,7 +135,7 @@ impl NonMandatoryRegisters {
     }
 
     /// Get register value
-    pub fn get(&self, reg_id: &NonMandatoryRegisterId) -> Option<&Constant> {
+    pub fn get(&self, reg_id: NonMandatoryRegisterId) -> Option<&Constant> {
         self.0
             .get(reg_id.0 as usize - NonMandatoryRegisterId::START_INDEX)
     }
@@ -226,7 +226,7 @@ mod tests {
         fn get(regs in any::<NonMandatoryRegisters>()) {
             let hash_map: HashMap<NonMandatoryRegisterId, Constant> = regs.clone().into();
             hash_map.keys().try_for_each(|reg_id| {
-                prop_assert_eq![regs.get(reg_id), hash_map.get(reg_id)];
+                prop_assert_eq![regs.get(*reg_id), hash_map.get(reg_id)];
                 Ok(())
             })?;
         }

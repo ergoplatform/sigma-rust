@@ -68,3 +68,9 @@ impl Constant {
             .map_err(|e| JsValue::from_str(&format! {"{:?}", e}))
     }
 }
+
+impl From<ergo_lib::ast::Constant> for Constant {
+    fn from(c: ergo_lib::ast::Constant) -> Self {
+        Constant(c)
+    }
+}
