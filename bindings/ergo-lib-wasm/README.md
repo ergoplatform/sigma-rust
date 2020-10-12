@@ -8,6 +8,14 @@ WebAssembly library with JS/TS bindings for [sigma-rust](https://github.com/ergo
 ### When I build the `ergo-lib-wasm` and include the `pkg` folder as dependency in my app I get "TypeError: TextDecoder is not a constructor".
 
 Make sure webpack plugins `TextDecoder` and `TextEncoder` are enabled. Check the following lines in webpack config:
+
+``` javascript
+new webpack.ProvidePlugin({
+      TextDecoder: ['text-encoder', 'TextDecoder'],
+      TextEncoder: ['text-encoder', 'TextEncoder']
+    })
+```
+
 https://github.com/ergoplatform/sigma-rust/blob/develop/bindings/ergo-lib-wasm/webpack.config.js#L16
 
 ### Using with `create-react-app`
