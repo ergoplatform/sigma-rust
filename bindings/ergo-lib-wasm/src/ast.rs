@@ -74,3 +74,9 @@ impl From<ergo_lib::ast::Constant> for Constant {
         Constant(c)
     }
 }
+
+impl From<Constant> for ergo_lib::ast::Constant {
+    fn from(c: Constant) -> Self {
+        c.0
+    }
+}

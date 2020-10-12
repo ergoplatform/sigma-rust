@@ -20,7 +20,6 @@ use std::convert::TryFrom;
 
 use chain::ergo_box::register::NonMandatoryRegisters;
 use ergo_lib::chain;
-use ergo_lib::chain::ergo_box::register::NonMandatoryRegisterId;
 use wasm_bindgen::prelude::*;
 
 use crate::ast::Constant;
@@ -36,45 +35,10 @@ pub struct ErgoBoxCandidate(chain::ergo_box::ErgoBoxCandidate);
 #[wasm_bindgen]
 impl ErgoBoxCandidate {
     /// Returns value (ErgoTree constant) stored in the register or None if the register is empty
-    pub fn r4(&self) -> Option<Constant> {
+    pub fn register_value(&self, register_id: NonMandatoryRegisterId) -> Option<Constant> {
         self.0
             .additional_registers
-            .get(NonMandatoryRegisterId::R4)
-            .cloned()
-            .map(Constant::from)
-    }
-    /// Returns value (ErgoTree constant) stored in the register or None if the register is empty
-    pub fn r5(&self) -> Option<Constant> {
-        self.0
-            .additional_registers
-            .get(NonMandatoryRegisterId::R5)
-            .cloned()
-            .map(Constant::from)
-    }
-
-    /// Returns value (ErgoTree constant) stored in the register or None if the register is empty
-    pub fn r6(&self) -> Option<Constant> {
-        self.0
-            .additional_registers
-            .get(NonMandatoryRegisterId::R6)
-            .cloned()
-            .map(Constant::from)
-    }
-
-    /// Returns value (ErgoTree constant) stored in the register or None if the register is empty
-    pub fn r7(&self) -> Option<Constant> {
-        self.0
-            .additional_registers
-            .get(NonMandatoryRegisterId::R7)
-            .cloned()
-            .map(Constant::from)
-    }
-
-    /// Returns value (ErgoTree constant) stored in the register or None if the register is empty
-    pub fn r9(&self) -> Option<Constant> {
-        self.0
-            .additional_registers
-            .get(NonMandatoryRegisterId::R9)
+            .get(register_id.into())
             .cloned()
             .map(Constant::from)
     }
@@ -123,55 +87,10 @@ impl ErgoBox {
     }
 
     /// Returns value (ErgoTree constant) stored in the register or None if the register is empty
-    pub fn r4(&self) -> Option<Constant> {
+    pub fn register_value(&self, register_id: NonMandatoryRegisterId) -> Option<Constant> {
         self.0
             .additional_registers
-            .get(NonMandatoryRegisterId::R4)
-            .cloned()
-            .map(Constant::from)
-    }
-
-    /// Returns value (ErgoTree constant) stored in the register or None if the register is empty
-    pub fn r5(&self) -> Option<Constant> {
-        self.0
-            .additional_registers
-            .get(NonMandatoryRegisterId::R5)
-            .cloned()
-            .map(Constant::from)
-    }
-
-    /// Returns value (ErgoTree constant) stored in the register or None if the register is empty
-    pub fn r6(&self) -> Option<Constant> {
-        self.0
-            .additional_registers
-            .get(NonMandatoryRegisterId::R6)
-            .cloned()
-            .map(Constant::from)
-    }
-
-    /// Returns value (ErgoTree constant) stored in the register or None if the register is empty
-    pub fn r7(&self) -> Option<Constant> {
-        self.0
-            .additional_registers
-            .get(NonMandatoryRegisterId::R7)
-            .cloned()
-            .map(Constant::from)
-    }
-
-    /// Returns value (ErgoTree constant) stored in the register or None if the register is empty
-    pub fn r8(&self) -> Option<Constant> {
-        self.0
-            .additional_registers
-            .get(NonMandatoryRegisterId::R8)
-            .cloned()
-            .map(Constant::from)
-    }
-
-    /// Returns value (ErgoTree constant) stored in the register or None if the register is empty
-    pub fn r9(&self) -> Option<Constant> {
-        self.0
-            .additional_registers
-            .get(NonMandatoryRegisterId::R9)
+            .get(register_id.into())
             .cloned()
             .map(Constant::from)
     }
@@ -220,5 +139,54 @@ impl From<BoxValue> for chain::ergo_box::box_value::BoxValue {
 impl From<chain::ergo_box::box_value::BoxValue> for BoxValue {
     fn from(v: chain::ergo_box::box_value::BoxValue) -> Self {
         BoxValue(v)
+    }
+}
+
+/// newtype for box registers R4 - R9
+#[wasm_bindgen]
+#[repr(u8)]
+#[derive(PartialEq, Eq, Clone, Debug)]
+pub enum NonMandatoryRegisterId {
+    /// id for R4 register
+    R4 = 4,
+    /// id for R5 register
+    R5 = 5,
+    /// id for R6 register
+    R6 = 6,
+    /// id for R7 register
+    R7 = 7,
+    /// id for R8 register
+    R8 = 8,
+    /// id for R9 register
+    R9 = 9,
+}
+
+impl NonMandatoryRegisterId {}
+
+impl From<NonMandatoryRegisterId> for chain::ergo_box::register::NonMandatoryRegisterId {
+    fn from(v: NonMandatoryRegisterId) -> Self {
+        use chain::ergo_box::register::NonMandatoryRegisterId::*;
+        match v {
+            NonMandatoryRegisterId::R4 => R4,
+            NonMandatoryRegisterId::R5 => R5,
+            NonMandatoryRegisterId::R6 => R6,
+            NonMandatoryRegisterId::R7 => R7,
+            NonMandatoryRegisterId::R8 => R8,
+            NonMandatoryRegisterId::R9 => R9,
+        }
+    }
+}
+
+impl From<chain::ergo_box::register::NonMandatoryRegisterId> for NonMandatoryRegisterId {
+    fn from(v: chain::ergo_box::register::NonMandatoryRegisterId) -> Self {
+        use NonMandatoryRegisterId::*;
+        match v {
+            chain::ergo_box::register::NonMandatoryRegisterId::R4 => R4,
+            chain::ergo_box::register::NonMandatoryRegisterId::R5 => R5,
+            chain::ergo_box::register::NonMandatoryRegisterId::R6 => R6,
+            chain::ergo_box::register::NonMandatoryRegisterId::R7 => R7,
+            chain::ergo_box::register::NonMandatoryRegisterId::R8 => R8,
+            chain::ergo_box::register::NonMandatoryRegisterId::R9 => R9,
+        }
     }
 }

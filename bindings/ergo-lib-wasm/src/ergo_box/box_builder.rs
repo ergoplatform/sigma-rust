@@ -2,10 +2,12 @@
 use ergo_lib::chain;
 use wasm_bindgen::prelude::*;
 
+use crate::ast::Constant;
 use crate::contract::Contract;
 
 use super::BoxValue;
 use super::ErgoBoxCandidate;
+use super::NonMandatoryRegisterId;
 
 /// ErgoBoxCandidate builder
 #[wasm_bindgen]
@@ -49,13 +51,35 @@ impl ErgoBoxCandidateBuilder {
     }
 
     /// Calculate serialized box size(in bytes)
-    pub fn calc_box_size_bytes(&self) -> usize {
-        self.0.calc_box_size_bytes()
+    pub fn calc_box_size_bytes(&self) -> Result<usize, JsValue> {
+        self.0
+            .calc_box_size_bytes()
+            .map_err(|e| JsValue::from_str(&format!("{}", e)))
     }
 
     /// Calculate minimal box value for the current box serialized size(in bytes)
-    pub fn calc_min_box_value(&self) -> BoxValue {
-        self.0.calc_min_box_value().into()
+    pub fn calc_min_box_value(&self) -> Result<BoxValue, JsValue> {
+        self.0
+            .calc_min_box_value()
+            .map(BoxValue::from)
+            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+    }
+
+    /// Set register with a given id (R4-R9) to the given value
+    pub fn set_register_value(self, register_id: NonMandatoryRegisterId, value: Constant) -> Self {
+        ErgoBoxCandidateBuilder(self.0.set_register_value(register_id.into(), value.into()))
+    }
+
+    /// Returns register value for the given register id (R4-R9), or None if the register is empty
+    pub fn register_value(&self, register_id: NonMandatoryRegisterId) -> Option<Constant> {
+        self.0
+            .register_value(&register_id.into())
+            .map(Constant::from)
+    }
+
+    /// Delete register value(make register empty) for the given register id (R4-R9)
+    pub fn delete_register_value(self, register_id: NonMandatoryRegisterId) -> Self {
+        ErgoBoxCandidateBuilder(self.0.delete_register_value(&register_id.into()))
     }
 
     /// Build the box candidate
