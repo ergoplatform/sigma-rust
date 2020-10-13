@@ -30,7 +30,7 @@ pub enum ErgoBoxCandidateBuilderError {
 
     /// NonMandatoryRegisters error
     #[error("NonMandatoryRegisters error: {0}")]
-    NonMandatoryRegistersError(NonMandatoryRegistersError),
+    NonMandatoryRegistersError(#[from] NonMandatoryRegistersError),
 }
 
 /// ErgoBoxCandidate builder
@@ -152,12 +152,6 @@ impl ErgoBoxCandidateBuilder {
                 box_size_bytes,
             })
         }
-    }
-}
-
-impl From<NonMandatoryRegistersError> for ErgoBoxCandidateBuilderError {
-    fn from(e: NonMandatoryRegistersError) -> Self {
-        ErgoBoxCandidateBuilderError::NonMandatoryRegistersError(e)
     }
 }
 
