@@ -120,8 +120,8 @@ impl ErgoBoxCandidateBuilder {
     }
 
     /// Returns register value for the given register id (R4-R9), or None if the register is empty
-    pub fn register_value(&self, register_id: &NonMandatoryRegisterId) -> Option<Constant> {
-        self.additional_registers.get(register_id).cloned()
+    pub fn register_value(&self, register_id: &NonMandatoryRegisterId) -> Option<&Constant> {
+        self.additional_registers.get(register_id)
     }
 
     /// Delete register value(make register empty) for the given register id (R4-R9)
@@ -157,6 +157,8 @@ impl ErgoBoxCandidateBuilder {
 
 #[cfg(test)]
 mod tests {
+
+    use NonMandatoryRegisterId::*;
 
     use crate::test_util::force_any_val;
 
@@ -215,5 +217,29 @@ mod tests {
     fn test_build_fail_box_value_too_low() {
         let builder = ErgoBoxCandidateBuilder::new(BoxValue::MIN, force_any_val::<ErgoTree>(), 1);
         assert!(builder.build().is_err());
+    }
+
+    #[test]
+    fn test_set_get_register_value() {
+        let reg_value: Constant = 1i32.into();
+        let builder =
+            ErgoBoxCandidateBuilder::new(BoxValue::SAFE_USER_MIN, force_any_val::<ErgoTree>(), 1);
+        assert!(builder.register_value(&R4).is_none());
+        let builder2 = builder.set_register_value(R4, reg_value.clone());
+        assert_eq!(builder2.register_value(&R4).unwrap(), &reg_value);
+        let b = builder2.build().unwrap();
+        assert_eq!(b.additional_registers.get(R4).unwrap(), &reg_value);
+    }
+
+    #[test]
+    fn test_delete_register_value() {
+        let reg_value: Constant = 1i32.into();
+        let builder =
+            ErgoBoxCandidateBuilder::new(BoxValue::SAFE_USER_MIN, force_any_val::<ErgoTree>(), 1)
+                .set_register_value(R4, reg_value);
+        let builder2 = builder.delete_register_value(&R4);
+        assert!(builder2.register_value(&R4).is_none());
+        let b = builder2.build().unwrap();
+        assert!(b.additional_registers.get(R4).is_none());
     }
 }

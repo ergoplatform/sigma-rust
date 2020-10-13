@@ -74,6 +74,7 @@ impl ErgoBoxCandidateBuilder {
     pub fn register_value(&self, register_id: NonMandatoryRegisterId) -> Option<Constant> {
         self.0
             .register_value(&register_id.into())
+            .cloned()
             .map(Constant::from)
     }
 
