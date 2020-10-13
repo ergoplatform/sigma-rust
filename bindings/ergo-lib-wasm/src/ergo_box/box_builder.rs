@@ -31,8 +31,8 @@ impl ErgoBoxCandidateBuilder {
     }
 
     /// Set minimal value (per byte of the serialized box size)
-    pub fn set_min_box_value_per_byte(self, new_min_value_per_byte: u32) -> Self {
-        ErgoBoxCandidateBuilder(self.0.set_min_box_value_per_byte(new_min_value_per_byte))
+    pub fn set_min_box_value_per_byte(&mut self, new_min_value_per_byte: u32) {
+        self.0.set_min_box_value_per_byte(new_min_value_per_byte);
     }
 
     /// Get minimal value (per byte of the serialized box size)
@@ -41,8 +41,8 @@ impl ErgoBoxCandidateBuilder {
     }
 
     /// Set new box value
-    pub fn set_value(self, new_value: BoxValue) -> Self {
-        ErgoBoxCandidateBuilder(self.0.set_value(new_value.into()))
+    pub fn set_value(&mut self, new_value: BoxValue) {
+        self.0.set_value(new_value.into());
     }
 
     /// Get box value
@@ -66,8 +66,9 @@ impl ErgoBoxCandidateBuilder {
     }
 
     /// Set register with a given id (R4-R9) to the given value
-    pub fn set_register_value(self, register_id: NonMandatoryRegisterId, value: Constant) -> Self {
-        ErgoBoxCandidateBuilder(self.0.set_register_value(register_id.into(), value.into()))
+    pub fn set_register_value(&mut self, register_id: NonMandatoryRegisterId, value: &Constant) {
+        self.0
+            .set_register_value(register_id.into(), value.clone().into());
     }
 
     /// Returns register value for the given register id (R4-R9), or None if the register is empty
@@ -79,8 +80,8 @@ impl ErgoBoxCandidateBuilder {
     }
 
     /// Delete register value(make register empty) for the given register id (R4-R9)
-    pub fn delete_register_value(self, register_id: NonMandatoryRegisterId) -> Self {
-        ErgoBoxCandidateBuilder(self.0.delete_register_value(&register_id.into()))
+    pub fn delete_register_value(&mut self, register_id: NonMandatoryRegisterId) {
+        self.0.delete_register_value(&register_id.into());
     }
 
     /// Build the box candidate

@@ -34,6 +34,7 @@ pub enum ErgoBoxCandidateBuilderError {
 }
 
 /// ErgoBoxCandidate builder
+#[derive(Debug, Clone)]
 pub struct ErgoBoxCandidateBuilder {
     min_value_per_byte: u32,
     value: BoxValue,
@@ -66,9 +67,8 @@ impl ErgoBoxCandidateBuilder {
     }
 
     /// Set minimal value (per byte of the serialized box size)
-    pub fn set_min_box_value_per_byte(mut self, new_min_value_per_byte: u32) -> Self {
+    pub fn set_min_box_value_per_byte(&mut self, new_min_value_per_byte: u32) {
         self.min_value_per_byte = new_min_value_per_byte;
-        self
     }
 
     /// Get minimal value (per byte of the serialized box size)
@@ -77,9 +77,8 @@ impl ErgoBoxCandidateBuilder {
     }
 
     /// Set new box value
-    pub fn set_value(mut self, new_value: BoxValue) -> Self {
+    pub fn set_value(&mut self, new_value: BoxValue) {
         self.value = new_value;
-        self
     }
 
     /// Get box value
@@ -110,13 +109,8 @@ impl ErgoBoxCandidateBuilder {
     }
 
     /// Set register with a given id (R4-R9) to the given value
-    pub fn set_register_value(
-        mut self,
-        register_id: NonMandatoryRegisterId,
-        value: Constant,
-    ) -> Self {
+    pub fn set_register_value(&mut self, register_id: NonMandatoryRegisterId, value: Constant) {
         self.additional_registers.insert(register_id, value);
-        self
     }
 
     /// Returns register value for the given register id (R4-R9), or None if the register is empty
@@ -125,9 +119,8 @@ impl ErgoBoxCandidateBuilder {
     }
 
     /// Delete register value(make register empty) for the given register id (R4-R9)
-    pub fn delete_register_value(mut self, register_id: &NonMandatoryRegisterId) -> Self {
+    pub fn delete_register_value(&mut self, register_id: &NonMandatoryRegisterId) {
         self.additional_registers.remove(register_id);
-        self
     }
 
     /// Build the box candidate
@@ -179,9 +172,9 @@ mod tests {
     #[test]
     fn test_set_value() {
         let new_value = BoxValue::SAFE_USER_MIN.checked_mul_u32(10).unwrap();
-        let builder =
-            ErgoBoxCandidateBuilder::new(BoxValue::SAFE_USER_MIN, force_any_val::<ErgoTree>(), 1)
-                .set_value(new_value);
+        let mut builder =
+            ErgoBoxCandidateBuilder::new(BoxValue::SAFE_USER_MIN, force_any_val::<ErgoTree>(), 1);
+        builder.set_value(new_value);
         assert_eq!(builder.value(), &new_value);
         let b = builder.build().unwrap();
         assert_eq!(b.value, new_value);
@@ -222,24 +215,24 @@ mod tests {
     #[test]
     fn test_set_get_register_value() {
         let reg_value: Constant = 1i32.into();
-        let builder =
+        let mut builder =
             ErgoBoxCandidateBuilder::new(BoxValue::SAFE_USER_MIN, force_any_val::<ErgoTree>(), 1);
         assert!(builder.register_value(&R4).is_none());
-        let builder2 = builder.set_register_value(R4, reg_value.clone());
-        assert_eq!(builder2.register_value(&R4).unwrap(), &reg_value);
-        let b = builder2.build().unwrap();
+        builder.set_register_value(R4, reg_value.clone());
+        assert_eq!(builder.register_value(&R4).unwrap(), &reg_value);
+        let b = builder.build().unwrap();
         assert_eq!(b.additional_registers.get(R4).unwrap(), &reg_value);
     }
 
     #[test]
     fn test_delete_register_value() {
         let reg_value: Constant = 1i32.into();
-        let builder =
-            ErgoBoxCandidateBuilder::new(BoxValue::SAFE_USER_MIN, force_any_val::<ErgoTree>(), 1)
-                .set_register_value(R4, reg_value);
-        let builder2 = builder.delete_register_value(&R4);
-        assert!(builder2.register_value(&R4).is_none());
-        let b = builder2.build().unwrap();
+        let mut builder =
+            ErgoBoxCandidateBuilder::new(BoxValue::SAFE_USER_MIN, force_any_val::<ErgoTree>(), 1);
+        builder.set_register_value(R4, reg_value);
+        builder.delete_register_value(&R4);
+        assert!(builder.register_value(&R4).is_none());
+        let b = builder.build().unwrap();
         assert!(b.additional_registers.get(R4).is_none());
     }
 }
