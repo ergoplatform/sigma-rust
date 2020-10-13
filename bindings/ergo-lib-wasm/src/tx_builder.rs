@@ -47,8 +47,8 @@ impl TxBuilder {
     }
 
     /// Set transaction's data inputs
-    pub fn set_data_inputs(self, data_inputs: &DataInputs) -> TxBuilder {
-        TxBuilder(self.0.set_data_inputs(data_inputs.into()))
+    pub fn set_data_inputs(&mut self, data_inputs: &DataInputs) {
+        self.0.set_data_inputs(data_inputs.into())
     }
 
     /// Build the unsigned transaction

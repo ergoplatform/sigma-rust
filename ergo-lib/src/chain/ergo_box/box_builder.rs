@@ -1,14 +1,18 @@
 //! ErgoBoxCandidate builder
 
+use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::convert::TryInto;
 
+use crate::ast::Constant;
 use crate::chain::token::TokenAmount;
 use crate::serialization::SigmaSerializable;
 use crate::ErgoTree;
 
 use super::box_value::BoxValue;
+use super::register::NonMandatoryRegisterId;
 use super::register::NonMandatoryRegisters;
+use super::register::NonMandatoryRegistersError;
 use super::ErgoBoxCandidate;
 use thiserror::Error;
 
@@ -23,19 +27,30 @@ pub enum ErgoBoxCandidateBuilderError {
         /// box size in bytes
         box_size_bytes: usize,
     },
+
+    /// NonMandatoryRegisters error
+    #[error("NonMandatoryRegisters error: {0}")]
+    NonMandatoryRegistersError(#[from] NonMandatoryRegistersError),
 }
 
 /// ErgoBoxCandidate builder
+#[derive(Debug, Clone)]
 pub struct ErgoBoxCandidateBuilder {
     min_value_per_byte: u32,
     value: BoxValue,
     ergo_tree: ErgoTree,
     tokens: Vec<TokenAmount>,
-    additional_registers: NonMandatoryRegisters,
+    additional_registers: HashMap<NonMandatoryRegisterId, Constant>,
     creation_height: u32,
 }
 
 impl ErgoBoxCandidateBuilder {
+    fn build_registers(&self) -> Result<NonMandatoryRegisters, ErgoBoxCandidateBuilderError> {
+        Ok(NonMandatoryRegisters::new(
+            self.additional_registers.clone(),
+        )?)
+    }
+
     /// Create builder with required box parameters:
     /// `value` - box value in nanoErgs,
     /// `ergo_tree` - ErgoTree to guard this box,
@@ -46,15 +61,14 @@ impl ErgoBoxCandidateBuilder {
             value,
             ergo_tree,
             tokens: vec![],
-            additional_registers: NonMandatoryRegisters::empty(),
+            additional_registers: HashMap::new(),
             creation_height,
         }
     }
 
     /// Set minimal value (per byte of the serialized box size)
-    pub fn set_min_box_value_per_byte(mut self, new_min_value_per_byte: u32) -> Self {
+    pub fn set_min_box_value_per_byte(&mut self, new_min_value_per_byte: u32) {
         self.min_value_per_byte = new_min_value_per_byte;
-        self
     }
 
     /// Get minimal value (per byte of the serialized box size)
@@ -63,9 +77,8 @@ impl ErgoBoxCandidateBuilder {
     }
 
     /// Set new box value
-    pub fn set_value(mut self, new_value: BoxValue) -> Self {
+    pub fn set_value(&mut self, new_value: BoxValue) {
         self.value = new_value;
-        self
     }
 
     /// Get box value
@@ -74,30 +87,50 @@ impl ErgoBoxCandidateBuilder {
     }
 
     /// Calculate serialized box size(in bytes)
-    pub fn calc_box_size_bytes(&self) -> usize {
+    pub fn calc_box_size_bytes(&self) -> Result<usize, ErgoBoxCandidateBuilderError> {
+        let regs = self.build_registers()?;
         let b = ErgoBoxCandidate {
             value: self.value,
             ergo_tree: self.ergo_tree.clone(),
             tokens: self.tokens.clone(),
-            additional_registers: self.additional_registers.clone(),
+            additional_registers: regs,
             creation_height: self.creation_height,
         };
-        b.sigma_serialise_bytes().len()
+        Ok(b.sigma_serialise_bytes().len())
     }
 
     /// Calculate minimal box value for the current box serialized size(in bytes)
-    pub fn calc_min_box_value(&self) -> BoxValue {
-        let box_size_bytes = self.calc_box_size_bytes();
-        BoxValue::try_from(box_size_bytes as i64 * BoxValue::MIN_VALUE_PER_BOX_BYTE as i64).unwrap()
+    pub fn calc_min_box_value(&self) -> Result<BoxValue, ErgoBoxCandidateBuilderError> {
+        let box_size_bytes = self.calc_box_size_bytes()?;
+        Ok(
+            BoxValue::try_from(box_size_bytes as i64 * BoxValue::MIN_VALUE_PER_BOX_BYTE as i64)
+                .unwrap(),
+        )
+    }
+
+    /// Set register with a given id (R4-R9) to the given value
+    pub fn set_register_value(&mut self, register_id: NonMandatoryRegisterId, value: Constant) {
+        self.additional_registers.insert(register_id, value);
+    }
+
+    /// Returns register value for the given register id (R4-R9), or None if the register is empty
+    pub fn register_value(&self, register_id: &NonMandatoryRegisterId) -> Option<&Constant> {
+        self.additional_registers.get(register_id)
+    }
+
+    /// Delete register value(make register empty) for the given register id (R4-R9)
+    pub fn delete_register_value(&mut self, register_id: &NonMandatoryRegisterId) {
+        self.additional_registers.remove(register_id);
     }
 
     /// Build the box candidate
     pub fn build(self) -> Result<ErgoBoxCandidate, ErgoBoxCandidateBuilderError> {
+        let regs = self.build_registers()?;
         let b = ErgoBoxCandidate {
             value: self.value,
             ergo_tree: self.ergo_tree,
             tokens: self.tokens,
-            additional_registers: self.additional_registers,
+            additional_registers: regs,
             creation_height: self.creation_height,
         };
         let box_size_bytes = b.sigma_serialise_bytes().len();
@@ -118,6 +151,8 @@ impl ErgoBoxCandidateBuilder {
 #[cfg(test)]
 mod tests {
 
+    use NonMandatoryRegisterId::*;
+
     use crate::test_util::force_any_val;
 
     use super::*;
@@ -137,9 +172,9 @@ mod tests {
     #[test]
     fn test_set_value() {
         let new_value = BoxValue::SAFE_USER_MIN.checked_mul_u32(10).unwrap();
-        let builder =
-            ErgoBoxCandidateBuilder::new(BoxValue::SAFE_USER_MIN, force_any_val::<ErgoTree>(), 1)
-                .set_value(new_value);
+        let mut builder =
+            ErgoBoxCandidateBuilder::new(BoxValue::SAFE_USER_MIN, force_any_val::<ErgoTree>(), 1);
+        builder.set_value(new_value);
         assert_eq!(builder.value(), &new_value);
         let b = builder.build().unwrap();
         assert_eq!(b.value, new_value);
@@ -159,7 +194,7 @@ mod tests {
     fn test_box_size_estimation() {
         let builder =
             ErgoBoxCandidateBuilder::new(BoxValue::SAFE_USER_MIN, force_any_val::<ErgoTree>(), 1);
-        let estimated_box_size = builder.calc_box_size_bytes();
+        let estimated_box_size = builder.calc_box_size_bytes().unwrap();
         let b = builder.build().unwrap();
         assert_eq!(b.sigma_serialise_bytes().len(), estimated_box_size);
     }
@@ -168,12 +203,36 @@ mod tests {
     fn test_calc_min_box_value() {
         let builder =
             ErgoBoxCandidateBuilder::new(BoxValue::SAFE_USER_MIN, force_any_val::<ErgoTree>(), 1);
-        assert!(builder.calc_min_box_value() > BoxValue::MIN);
+        assert!(builder.calc_min_box_value().unwrap() > BoxValue::MIN);
     }
 
     #[test]
     fn test_build_fail_box_value_too_low() {
         let builder = ErgoBoxCandidateBuilder::new(BoxValue::MIN, force_any_val::<ErgoTree>(), 1);
         assert!(builder.build().is_err());
+    }
+
+    #[test]
+    fn test_set_get_register_value() {
+        let reg_value: Constant = 1i32.into();
+        let mut builder =
+            ErgoBoxCandidateBuilder::new(BoxValue::SAFE_USER_MIN, force_any_val::<ErgoTree>(), 1);
+        assert!(builder.register_value(&R4).is_none());
+        builder.set_register_value(R4, reg_value.clone());
+        assert_eq!(builder.register_value(&R4).unwrap(), &reg_value);
+        let b = builder.build().unwrap();
+        assert_eq!(b.additional_registers.get(R4).unwrap(), &reg_value);
+    }
+
+    #[test]
+    fn test_delete_register_value() {
+        let reg_value: Constant = 1i32.into();
+        let mut builder =
+            ErgoBoxCandidateBuilder::new(BoxValue::SAFE_USER_MIN, force_any_val::<ErgoTree>(), 1);
+        builder.set_register_value(R4, reg_value);
+        builder.delete_register_value(&R4);
+        assert!(builder.register_value(&R4).is_none());
+        let b = builder.build().unwrap();
+        assert!(b.additional_registers.get(R4).is_none());
     }
 }

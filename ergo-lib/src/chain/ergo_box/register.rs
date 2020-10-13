@@ -7,10 +7,24 @@ use std::{collections::HashMap, convert::TryFrom};
 use thiserror::Error;
 
 /// newtype for additional registers R4 - R9
-#[derive(PartialEq, Eq, Hash, Debug, Clone)]
+#[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "json", serde(into = "String", try_from = "String"))]
-pub struct NonMandatoryRegisterId(u8);
+#[repr(u8)]
+pub enum NonMandatoryRegisterId {
+    /// id for R4 register
+    R4 = 4,
+    /// id for R5 register
+    R5 = 5,
+    /// id for R6 register
+    R6 = 6,
+    /// id for R7 register
+    R7 = 7,
+    /// id for R8 register
+    R8 = 8,
+    /// id for R9 register
+    R9 = 9,
+}
 
 impl NonMandatoryRegisterId {
     /// starting index for non-mandatory registers
@@ -20,19 +34,6 @@ impl NonMandatoryRegisterId {
 
     /// max number of registers
     pub const NUM_REGS: usize = 6;
-
-    /// register R4
-    pub const R4: NonMandatoryRegisterId = NonMandatoryRegisterId(4);
-    /// register R5
-    pub const R5: NonMandatoryRegisterId = NonMandatoryRegisterId(5);
-    /// register R6
-    pub const R6: NonMandatoryRegisterId = NonMandatoryRegisterId(6);
-    /// register R7
-    pub const R7: NonMandatoryRegisterId = NonMandatoryRegisterId(7);
-    /// register R8
-    pub const R8: NonMandatoryRegisterId = NonMandatoryRegisterId(8);
-    /// register R9
-    pub const R9: NonMandatoryRegisterId = NonMandatoryRegisterId(9);
 
     /// all register ids
     pub const REG_IDS: [NonMandatoryRegisterId; NonMandatoryRegisterId::NUM_REGS] = [
@@ -46,15 +47,15 @@ impl NonMandatoryRegisterId {
 
     /// get register by it's index starting from 0
     /// `i` is expected to be in range 0..[`NUM_REGS`] , otherwise panic
-    pub fn get_by_index(i: usize) -> NonMandatoryRegisterId {
+    pub fn get_by_zero_index(i: usize) -> NonMandatoryRegisterId {
         assert!(i < NonMandatoryRegisterId::NUM_REGS);
-        NonMandatoryRegisterId::REG_IDS[i].clone()
+        NonMandatoryRegisterId::REG_IDS[i]
     }
 }
 
 impl Into<String> for NonMandatoryRegisterId {
     fn into(self) -> String {
-        format!("R{}", self.0)
+        format!("R{}", self as u8)
     }
 }
 
@@ -68,7 +69,7 @@ impl TryFrom<String> for NonMandatoryRegisterId {
             if index >= NonMandatoryRegisterId::START_INDEX
                 && index <= NonMandatoryRegisterId::END_INDEX
             {
-                Ok(NonMandatoryRegisterId::get_by_index(
+                Ok(NonMandatoryRegisterId::get_by_zero_index(
                     index - NonMandatoryRegisterId::START_INDEX,
                 ))
             } else {
@@ -135,9 +136,9 @@ impl NonMandatoryRegisters {
     }
 
     /// Get register value
-    pub fn get(&self, reg_id: &NonMandatoryRegisterId) -> Option<&Constant> {
+    pub fn get(&self, reg_id: NonMandatoryRegisterId) -> Option<&Constant> {
         self.0
-            .get(reg_id.0 as usize - NonMandatoryRegisterId::START_INDEX)
+            .get(reg_id as usize - NonMandatoryRegisterId::START_INDEX)
     }
 
     /// Get ordered register values (first is R4, and so on, up to R9)
@@ -147,7 +148,7 @@ impl NonMandatoryRegisters {
 }
 
 /// Possible errors when building NonMandatoryRegisters
-#[derive(Error, Debug)]
+#[derive(Error, PartialEq, Eq, Clone, Debug)]
 pub enum NonMandatoryRegistersError {
     /// Set of register has invalid size(maximum [`NonMandatoryRegisters::MAX_SIZE`])
     #[error("invalid non-mandatory registers size ({0})")]
@@ -162,7 +163,7 @@ impl Into<HashMap<NonMandatoryRegisterId, Constant>> for NonMandatoryRegisters {
         self.0
             .into_iter()
             .enumerate()
-            .map(|(i, c)| (NonMandatoryRegisterId::get_by_index(i), c))
+            .map(|(i, c)| (NonMandatoryRegisterId::get_by_zero_index(i), c))
             .collect()
     }
 }
@@ -180,7 +181,7 @@ impl TryFrom<HashMap<NonMandatoryRegisterId, Constant>> for NonMandatoryRegister
                 .take(regs_num)
                 .try_for_each(|reg_id| match reg_map.get(reg_id) {
                     Some(v) => Ok(res.push(v.clone())),
-                    None => Err(NonMandatoryRegistersError::NonDenselyPacked(reg_id.0)),
+                    None => Err(NonMandatoryRegistersError::NonDenselyPacked(*reg_id as u8)),
                 })?;
             Ok(NonMandatoryRegisters(res))
         }
@@ -203,7 +204,7 @@ mod tests {
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(_: Self::Parameters) -> Self::Strategy {
-            vec(any::<Constant>(), 0..7)
+            vec(any::<Constant>(), 0..=NonMandatoryRegisterId::NUM_REGS)
                 .prop_map(|constants| {
                     NonMandatoryRegisters::from_ordered_values(constants)
                         .expect("error building registers")
@@ -226,9 +227,23 @@ mod tests {
         fn get(regs in any::<NonMandatoryRegisters>()) {
             let hash_map: HashMap<NonMandatoryRegisterId, Constant> = regs.clone().into();
             hash_map.keys().try_for_each(|reg_id| {
-                prop_assert_eq![regs.get(reg_id), hash_map.get(reg_id)];
+                prop_assert_eq![regs.get(*reg_id), hash_map.get(reg_id)];
                 Ok(())
             })?;
         }
+    }
+
+    #[test]
+    fn test_empty() {
+        assert!(NonMandatoryRegisters::empty().is_empty());
+    }
+
+    #[test]
+    fn test_non_densely_packed_error() {
+        let mut hash_map: HashMap<NonMandatoryRegisterId, Constant> = HashMap::new();
+        hash_map.insert(NonMandatoryRegisterId::R4, 1i32.into());
+        // gap, missing R5
+        hash_map.insert(NonMandatoryRegisterId::R6, 1i32.into());
+        assert!(NonMandatoryRegisters::try_from(hash_map).is_err());
     }
 }

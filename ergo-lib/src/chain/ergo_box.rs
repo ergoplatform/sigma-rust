@@ -12,6 +12,7 @@ use super::{
     token::{TokenAmount, TokenId},
     transaction::TxId,
 };
+
 use crate::{
     ergo_tree::ErgoTree,
     serialization::{

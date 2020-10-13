@@ -67,9 +67,8 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
     }
 
     /// Set transaction's data inputs
-    pub fn set_data_inputs(mut self, data_inputs: Vec<DataInput>) -> Self {
+    pub fn set_data_inputs(&mut self, data_inputs: Vec<DataInput>) {
         self.data_inputs = data_inputs;
-        self
     }
 
     /// Build the unsigned transaction
@@ -239,7 +238,7 @@ mod tests {
 
             prop_assume!(all_outputs < all_inputs);
 
-            let tx_builder = TxBuilder::new(
+            let mut tx_builder = TxBuilder::new(
                 SimpleBoxSelector::new(),
                 inputs.clone(),
                 outputs.clone(),
@@ -247,8 +246,8 @@ mod tests {
                 miners_fee,
                 change_address.clone(),
                 min_change_value,
-            )
-            .set_data_inputs(data_inputs.clone());
+            );
+            tx_builder.set_data_inputs(data_inputs.clone());
             let tx = tx_builder.build().unwrap();
             prop_assert!(outputs.into_iter().all(|i| tx.output_candidates.iter().any(|o| *o == i)),
                          "tx.output_candidates is missing some outputs");

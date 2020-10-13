@@ -45,4 +45,5 @@ default-features = false
 features = ["std"]
 
 [package.metadata.wasm-pack.profile.release]
-wasm-opt = ["-O", "--enable-mutable-globals"]
+# wasm-opt = ["-O", "--enable-mutable-globals"]
+wasm-opt = false
