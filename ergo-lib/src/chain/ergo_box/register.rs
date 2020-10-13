@@ -204,7 +204,7 @@ mod tests {
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(_: Self::Parameters) -> Self::Strategy {
-            vec(any::<Constant>(), 0..7)
+            vec(any::<Constant>(), 0..=NonMandatoryRegisterId::NUM_REGS)
                 .prop_map(|constants| {
                     NonMandatoryRegisters::from_ordered_values(constants)
                         .expect("error building registers")
@@ -231,5 +231,19 @@ mod tests {
                 Ok(())
             })?;
         }
+    }
+
+    #[test]
+    fn test_empty() {
+        assert!(NonMandatoryRegisters::empty().is_empty());
+    }
+
+    #[test]
+    fn test_non_densely_packed_error() {
+        let mut hash_map: HashMap<NonMandatoryRegisterId, Constant> = HashMap::new();
+        hash_map.insert(NonMandatoryRegisterId::R4, 1i32.into());
+        // gap, missing R5
+        hash_map.insert(NonMandatoryRegisterId::R6, 1i32.into());
+        assert!(NonMandatoryRegisters::try_from(hash_map).is_err());
     }
 }
