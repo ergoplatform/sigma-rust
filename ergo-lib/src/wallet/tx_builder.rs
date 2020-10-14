@@ -141,43 +141,19 @@ pub fn new_miner_fee_box(
 pub enum TxBuilderError {
     /// Box selection error
     #[error("Box selector error: {0}")]
-    BoxSelectorError(BoxSelectorError),
+    BoxSelectorError(#[from] BoxSelectorError),
     /// Box value error
     #[error("Box value error")]
-    BoxValueError(BoxValueError),
+    BoxValueError(#[from] BoxValueError),
     /// Serialization error
     #[error("Serialization error")]
-    SerializationError(SerializationError),
+    SerializationError(#[from] SerializationError),
     /// Invalid arguments
     #[error("Invalid arguments: {0}")]
     InvalidArgs(String),
     /// ErgoBoxCandidate error
     #[error("ErgoBoxCandidateBuilder error: {0}")]
-    ErgoBoxCandidateBuilderError(ErgoBoxCandidateBuilderError),
-}
-
-impl From<BoxSelectorError> for TxBuilderError {
-    fn from(e: BoxSelectorError) -> Self {
-        TxBuilderError::BoxSelectorError(e)
-    }
-}
-
-impl From<BoxValueError> for TxBuilderError {
-    fn from(e: BoxValueError) -> Self {
-        TxBuilderError::BoxValueError(e)
-    }
-}
-
-impl From<SerializationError> for TxBuilderError {
-    fn from(e: SerializationError) -> Self {
-        TxBuilderError::SerializationError(e)
-    }
-}
-
-impl From<ErgoBoxCandidateBuilderError> for TxBuilderError {
-    fn from(e: ErgoBoxCandidateBuilderError) -> Self {
-        TxBuilderError::ErgoBoxCandidateBuilderError(e)
-    }
+    ErgoBoxCandidateBuilderError(#[from] ErgoBoxCandidateBuilderError),
 }
 
 #[cfg(test)]
