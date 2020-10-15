@@ -13,7 +13,7 @@ use thiserror::Error;
 /// Box value with bound checks
 #[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
-pub struct BoxValue(i64);
+pub struct BoxValue(u64);
 
 impl BoxValue {
     /// Minimal box value per byte of the serialized box that was set on on launch
@@ -22,10 +22,10 @@ impl BoxValue {
     const MIN_BOX_SIZE_BYTES: usize = 30;
 
     /// Absolute minimal value, calculated from smallest possible box size and original value per byte requirement
-    pub const MIN_RAW: i64 =
-        BoxValue::MIN_VALUE_PER_BOX_BYTE as i64 * BoxValue::MIN_BOX_SIZE_BYTES as i64;
+    pub const MIN_RAW: u64 =
+        BoxValue::MIN_VALUE_PER_BOX_BYTE as u64 * BoxValue::MIN_BOX_SIZE_BYTES as u64;
     /// Absolue maximal allowed box value
-    pub const MAX_RAW: i64 = i64::MAX;
+    pub const MAX_RAW: u64 = i64::MAX as u64;
 
     /// Absolute minimal value, calculated from smallest possible box size and original value per byte requirement
     pub const MIN: BoxValue = BoxValue(BoxValue::MIN_RAW);
@@ -45,53 +45,62 @@ impl BoxValue {
     }
 
     /// Get the value as u64
-    pub fn as_u64(&self) -> u64 {
-        self.0 as u64
+    pub fn as_u64(&self) -> &u64 {
+        &self.0
     }
 
     /// Get the value as i64
-    pub fn as_i64(&self) -> &i64 {
-        &self.0
+    pub fn as_i64(&self) -> i64 {
+        self.0 as i64
     }
 
     /// Addition with overflow check
     pub fn checked_add(&self, rhs: &Self) -> Result<Self, BoxValueError> {
-        self.0
-            .checked_add(rhs.0)
-            .map(BoxValue)
-            .ok_or(BoxValueError::Overflow)
+        let raw = self.0.checked_add(rhs.0).ok_or(BoxValueError::Overflow)?;
+        if raw > BoxValue::MAX_RAW {
+            Err(BoxValueError::OutOfBounds)
+        } else {
+            Ok(BoxValue(raw))
+        }
     }
 
     /// Subtraction with overflow and bounds check
     pub fn checked_sub(&self, rhs: &Self) -> Result<Self, BoxValueError> {
-        let raw_i64 = self.0.checked_sub(rhs.0).ok_or(BoxValueError::Overflow)?;
-        if raw_i64 < BoxValue::MIN_RAW {
+        let raw = self.0.checked_sub(rhs.0).ok_or(BoxValueError::Overflow)?;
+        if raw < BoxValue::MIN_RAW {
             Err(BoxValueError::OutOfBounds)
         } else {
-            Ok(BoxValue(raw_i64))
+            Ok(BoxValue(raw))
         }
     }
 
     /// Multiplication with overflow check
     pub fn checked_mul(&self, rhs: &Self) -> Result<Self, BoxValueError> {
-        self.0
-            .checked_mul(rhs.0)
-            .map(BoxValue)
-            .ok_or(BoxValueError::Overflow)
+        let raw = self.0.checked_mul(rhs.0).ok_or(BoxValueError::Overflow)?;
+        if raw > BoxValue::MAX_RAW {
+            Err(BoxValueError::OutOfBounds)
+        } else {
+            Ok(BoxValue(raw))
+        }
     }
 
     /// Multiplication with overflow check
     pub fn checked_mul_u32(&self, rhs: u32) -> Result<Self, BoxValueError> {
-        self.0
-            .checked_mul(rhs as i64)
-            .map(BoxValue)
-            .ok_or(BoxValueError::Overflow)
+        let raw = self
+            .0
+            .checked_mul(rhs as u64)
+            .ok_or(BoxValueError::Overflow)?;
+        if raw > BoxValue::MAX_RAW {
+            Err(BoxValueError::OutOfBounds)
+        } else {
+            Ok(BoxValue(raw))
+        }
     }
 }
 
 impl PartialOrd for BoxValue {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.0.partial_cmp(other.as_i64())
+        self.0.partial_cmp(other.as_u64())
     }
 }
 
@@ -99,7 +108,7 @@ impl TryFrom<u64> for BoxValue {
     type Error = BoxValueError;
     fn try_from(v: u64) -> Result<Self, Self::Error> {
         if BoxValue::within_bounds(v) {
-            Ok(BoxValue(v as i64))
+            Ok(BoxValue(v))
         } else {
             Err(BoxValueError::OutOfBounds)
         }
@@ -109,8 +118,8 @@ impl TryFrom<u64> for BoxValue {
 impl TryFrom<i64> for BoxValue {
     type Error = BoxValueError;
     fn try_from(v: i64) -> Result<Self, Self::Error> {
-        if v >= BoxValue::MIN_RAW {
-            Ok(BoxValue(v as i64))
+        if v >= BoxValue::MIN_RAW as i64 {
+            Ok(BoxValue(v as u64))
         } else {
             Err(BoxValueError::OutOfBounds)
         }
@@ -185,7 +194,7 @@ pub mod tests {
     use super::*;
     use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
 
-    pub struct ArbBoxValueRange(Range<i64>);
+    pub struct ArbBoxValueRange(Range<u64>);
 
     impl Default for ArbBoxValueRange {
         fn default() -> Self {
@@ -193,7 +202,7 @@ pub mod tests {
         }
     }
 
-    impl Into<ArbBoxValueRange> for Range<i64> {
+    impl Into<ArbBoxValueRange> for Range<u64> {
         fn into(self) -> ArbBoxValueRange {
             ArbBoxValueRange(self)
         }
@@ -241,6 +250,35 @@ pub mod tests {
     }
 
     #[test]
+    fn test_checked_mul() {
+        let a = BoxValue::MIN.checked_mul(&BoxValue::MIN).unwrap();
+        assert_eq!(
+            a,
+            (BoxValue::MIN_RAW * BoxValue::MIN_RAW).try_into().unwrap()
+        );
+    }
+
+    #[test]
+    fn test_checked_mul_overflow() {
+        assert!(
+            BoxValue::try_from(BoxValue::MAX_RAW / BoxValue::MIN_RAW + 1)
+                .unwrap()
+                .checked_mul(&BoxValue::MIN)
+                .is_err()
+        )
+    }
+
+    #[test]
+    fn test_checked_mul_u32_overflow() {
+        assert!(
+            BoxValue::try_from(BoxValue::MAX_RAW / BoxValue::MIN_RAW + 1)
+                .unwrap()
+                .checked_mul_u32(BoxValue::MIN_RAW as u32)
+                .is_err()
+        )
+    }
+
+    #[test]
     fn test_checked_sum_empty_input() {
         let empty_input: Vec<BoxValue> = vec![];
         assert!(checked_sum(empty_input.into_iter()).is_err());
@@ -256,9 +294,9 @@ pub mod tests {
 
         #[test]
         fn test_checked_sum(inputs in vec(any_with::<BoxValue>((9000..10000000).into()), 1..10)) {
-            let expected_sum: i64 = inputs.clone().into_iter().map(|v| *v.as_i64()).sum();
+            let expected_sum: u64 = inputs.clone().into_iter().map(|v| *v.as_u64()).sum();
             let checked_sum = checked_sum(inputs.into_iter()).unwrap();
-            assert_eq!(*checked_sum.as_i64(), expected_sum);
+            assert_eq!(*checked_sum.as_u64(), expected_sum);
         }
     }
 }

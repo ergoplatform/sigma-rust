@@ -106,9 +106,7 @@ mod tests {
         type Parameters = ();
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            (TokenAmount::MIN..=TokenAmount::MAX)
-                .prop_map(|i| Self(i))
-                .boxed()
+            (TokenAmount::MIN..=TokenAmount::MAX).prop_map(Self).boxed()
         }
         type Strategy = BoxedStrategy<Self>;
     }
