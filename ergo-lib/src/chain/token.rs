@@ -7,6 +7,7 @@ use crate::serialization::{
 use std::io;
 
 use super::digest32::Digest32;
+use super::ergo_box::box_id::BoxId;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 #[cfg(feature = "json")]
@@ -23,6 +24,12 @@ impl TokenId {
     pub const SIZE: usize = Digest32::SIZE;
 }
 
+impl From<BoxId> for TokenId {
+    fn from(i: BoxId) -> Self {
+        TokenId(i.0)
+    }
+}
+
 impl SigmaSerializable for TokenId {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
         self.0.sigma_serialize(w)?;
@@ -32,6 +39,8 @@ impl SigmaSerializable for TokenId {
         Ok(Self(Digest32::sigma_parse(r)?))
     }
 }
+
+// TODO: rename to TokenPair. Use TokenAmount for newtype (token quantity).
 
 /// Token amount represented with token id paired with it's amount
 #[derive(PartialEq, Eq, Debug, Clone)]

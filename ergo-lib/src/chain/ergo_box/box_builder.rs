@@ -6,6 +6,7 @@ use std::convert::TryInto;
 
 use crate::ast::Constant;
 use crate::chain::token::TokenAmount;
+use crate::chain::token::TokenId;
 use crate::serialization::SigmaSerializable;
 use crate::ErgoTree;
 
@@ -123,8 +124,26 @@ impl ErgoBoxCandidateBuilder {
         self.additional_registers.remove(register_id);
     }
 
+    /// Mint token, as defined in https://github.com/ergoplatform/eips/blob/master/eip-0004.md
+    pub fn mint_token(
+        &mut self,
+        token_pair: TokenAmount,
+        token_name: String,
+        token_desc: String,
+        num_decimals: usize,
+    ) {
+        self.tokens.push(token_pair);
+        // TODO: encode minted token info to registers
+    }
+
+    /// Add given token id and token amount
+    pub fn add_token(&mut self, token_id: TokenId, amount: u64) {
+        self.tokens.push(TokenAmount { token_id, amount });
+    }
+
     /// Build the box candidate
     pub fn build(self) -> Result<ErgoBoxCandidate, ErgoBoxCandidateBuilderError> {
+        // TODO: according to EIP4 if token is minted in this box there should be no other tokens
         let regs = self.build_registers()?;
         let b = ErgoBoxCandidate {
             value: self.value,
