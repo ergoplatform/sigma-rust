@@ -6,7 +6,7 @@ use crate::chain::ergo_box::box_value::BoxValueError;
 use crate::chain::ergo_box::ErgoBoxAssetsData;
 use crate::chain::{
     ergo_box::{box_value::BoxValue, ErgoBoxAssets},
-    token::TokenAmount,
+    token::Token,
 };
 use thiserror::Error;
 
@@ -25,7 +25,7 @@ pub trait BoxSelector<T: ErgoBoxAssets> {
         &self,
         inputs: Vec<T>,
         target_balance: BoxValue,
-        target_tokens: &[TokenAmount],
+        target_tokens: &[Token],
     ) -> Result<BoxSelection<T>, BoxSelectorError>;
 }
 

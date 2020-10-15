@@ -4,6 +4,7 @@ use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, sigma_byte_writer::SigmaByteWrite, SerializationError,
     SigmaSerializable,
 };
+use std::convert::TryFrom;
 use std::io;
 
 use super::digest32::Digest32;
@@ -12,6 +13,7 @@ use super::ergo_box::box_id::BoxId;
 use proptest_derive::Arbitrary;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 /// newtype for token id
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
@@ -40,19 +42,58 @@ impl SigmaSerializable for TokenId {
     }
 }
 
-// TODO: rename to TokenPair. Use TokenAmount for newtype (token quantity).
+/// Box value with bound checks
+#[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+pub struct TokenAmount(u64);
 
-/// Token amount represented with token id paired with it's amount
+impl TokenAmount {
+    /// minimal allowed value
+    pub const MIN: u64 = 1;
+    /// maximal allowed value
+    pub const MAX: u64 = i64::MAX as u64;
+}
+
+/// BoxValue errors
+#[derive(Error, Eq, PartialEq, Debug, Clone)]
+pub enum TokenAmountError {
+    /// Value is out of bounds
+    #[error("Value is out of bounds")]
+    OutOfBounds,
+    /// Overflow
+    #[error("Overflow")]
+    Overflow,
+}
+
+impl TryFrom<u64> for TokenAmount {
+    type Error = TokenAmountError;
+
+    fn try_from(v: u64) -> Result<Self, Self::Error> {
+        if v >= TokenAmount::MIN && v <= TokenAmount::MAX {
+            Ok(TokenAmount(v))
+        } else {
+            Err(TokenAmountError::OutOfBounds)
+        }
+    }
+}
+
+impl From<TokenAmount> for u64 {
+    fn from(ta: TokenAmount) -> Self {
+        ta.0
+    }
+}
+
+/// Token represented with token id paired with it's amount
 #[derive(PartialEq, Eq, Debug, Clone)]
 #[cfg_attr(test, derive(Arbitrary))]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
-pub struct TokenAmount {
+pub struct Token {
     /// token id
     #[cfg_attr(feature = "json", serde(rename = "tokenId"))]
     pub token_id: TokenId,
     /// token amount
     #[cfg_attr(feature = "json", serde(rename = "amount"))]
-    pub amount: u64,
+    pub amount: TokenAmount,
 }
 
 #[cfg(test)]
@@ -60,6 +101,17 @@ mod tests {
     use super::*;
     use crate::serialization::sigma_serialize_roundtrip;
     use proptest::prelude::*;
+
+    impl Arbitrary for TokenAmount {
+        type Parameters = ();
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            (TokenAmount::MIN..=TokenAmount::MAX)
+                .prop_map(|i| Self(i))
+                .boxed()
+        }
+        type Strategy = BoxedStrategy<Self>;
+    }
 
     proptest! {
 

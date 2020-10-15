@@ -5,7 +5,7 @@ use std::convert::TryInto;
 use crate::chain::ergo_box::box_value::BoxValue;
 use crate::chain::ergo_box::ErgoBoxAssets;
 use crate::chain::ergo_box::ErgoBoxAssetsData;
-use crate::chain::token::TokenAmount;
+use crate::chain::token::Token;
 
 use super::BoxSelectorError;
 use super::{BoxSelection, BoxSelector};
@@ -31,7 +31,7 @@ impl<T: ErgoBoxAssets> BoxSelector<T> for SimpleBoxSelector {
         &self,
         inputs: Vec<T>,
         target_balance: BoxValue,
-        target_tokens: &[TokenAmount],
+        target_tokens: &[Token],
     ) -> Result<BoxSelection<T>, BoxSelectorError> {
         assert!(target_tokens.is_empty(), "tokens are not yet supported");
         let mut selected_inputs: Vec<T> = vec![];

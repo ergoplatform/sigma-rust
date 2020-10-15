@@ -195,7 +195,7 @@ mod tests {
 
     use crate::chain::ergo_box::register::NonMandatoryRegisters;
     use crate::chain::ergo_box::ErgoBox;
-    use crate::chain::token::TokenAmount;
+    use crate::chain::token::Token;
     use crate::chain::token::TokenId;
     use crate::chain::transaction::TxId;
     use crate::test_util::force_any_val;
@@ -236,9 +236,9 @@ mod tests {
 
     #[test]
     fn test_mint_token() {
-        let token_pair = TokenAmount {
+        let token_pair = Token {
             token_id: force_any_val::<TokenId>(),
-            amount: 1,
+            amount: 1.try_into().unwrap(),
         };
         let input_box = ErgoBox::new(
             10000000i64.try_into().unwrap(),
@@ -289,9 +289,9 @@ mod tests {
 
     #[test]
     fn test_burn_token() {
-        let token_pair = TokenAmount {
+        let token_pair = Token {
             token_id: force_any_val::<TokenId>(),
-            amount: 100,
+            amount: 100.try_into().unwrap(),
         };
         let input_box = ErgoBox::new(
             10000000i64.try_into().unwrap(),
@@ -306,8 +306,8 @@ mod tests {
         let tx_fee = BoxValue::SAFE_USER_MIN;
         let out_box_value = BoxValue::SAFE_USER_MIN;
         let target_balance = out_box_value.checked_add(&tx_fee).unwrap();
-        let target_tokens = vec![TokenAmount {
-            amount: 10,
+        let target_tokens = vec![Token {
+            amount: 10.try_into().unwrap(),
             ..token_pair
         }];
         let box_selection = SimpleBoxSelector::new()

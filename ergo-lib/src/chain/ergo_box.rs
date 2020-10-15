@@ -9,7 +9,7 @@ pub mod register;
 use super::json;
 use super::{
     digest32::blake2b256_hash,
-    token::{TokenAmount, TokenId},
+    token::{Token, TokenId},
     transaction::TxId,
 };
 
@@ -65,7 +65,7 @@ pub struct ErgoBox {
     pub ergo_tree: ErgoTree,
     /// secondary tokens the box contains
     #[cfg_attr(feature = "json", serde(rename = "assets"))]
-    pub tokens: Vec<TokenAmount>,
+    pub tokens: Vec<Token>,
     ///  additional registers the box can carry over
     #[cfg_attr(feature = "json", serde(rename = "additionalRegisters"))]
     pub additional_registers: NonMandatoryRegisters,
@@ -87,7 +87,7 @@ impl ErgoBox {
     pub fn new(
         value: BoxValue,
         ergo_tree: ErgoTree,
-        tokens: Vec<TokenAmount>,
+        tokens: Vec<Token>,
         additional_registers: NonMandatoryRegisters,
         creation_height: u32,
         transaction_id: TxId,
@@ -150,7 +150,7 @@ pub trait ErgoBoxAssets {
     /// Box value
     fn value(&self) -> BoxValue;
     /// Tokens (ids and amounts)
-    fn tokens(&self) -> Vec<TokenAmount>;
+    fn tokens(&self) -> Vec<Token>;
 }
 
 /// Simple struct to hold ErgoBoxAssets values
@@ -159,7 +159,7 @@ pub struct ErgoBoxAssetsData {
     /// Box value
     pub value: BoxValue,
     /// Tokens
-    pub tokens: Vec<TokenAmount>,
+    pub tokens: Vec<Token>,
 }
 
 impl ErgoBoxAssets for ErgoBoxAssetsData {
@@ -167,7 +167,7 @@ impl ErgoBoxAssets for ErgoBoxAssetsData {
         self.value
     }
 
-    fn tokens(&self) -> Vec<TokenAmount> {
+    fn tokens(&self) -> Vec<Token> {
         self.tokens.clone()
     }
 }
@@ -177,7 +177,7 @@ impl ErgoBoxAssets for ErgoBoxCandidate {
         self.value
     }
 
-    fn tokens(&self) -> Vec<TokenAmount> {
+    fn tokens(&self) -> Vec<Token> {
         self.tokens.clone()
     }
 }
@@ -187,7 +187,7 @@ impl ErgoBoxAssets for ErgoBox {
         self.value
     }
 
-    fn tokens(&self) -> Vec<TokenAmount> {
+    fn tokens(&self) -> Vec<Token> {
         self.tokens.clone()
     }
 }
@@ -274,7 +274,7 @@ pub struct ErgoBoxCandidate {
     /// guarding script, which should be evaluated to true in order to open this box
     pub ergo_tree: ErgoTree,
     /// secondary tokens the box contains
-    pub tokens: Vec<TokenAmount>,
+    pub tokens: Vec<Token>,
     ///  additional registers the box can carry over
     pub additional_registers: NonMandatoryRegisters,
     /// height when a transaction containing the box was created.
@@ -345,7 +345,7 @@ mod tests {
             (
                 any_with::<BoxValue>(args),
                 any::<ErgoTree>(),
-                vec(any::<TokenAmount>(), 0..10),
+                vec(any::<Token>(), 0..10),
                 any::<u32>(),
                 any::<NonMandatoryRegisters>(),
             )

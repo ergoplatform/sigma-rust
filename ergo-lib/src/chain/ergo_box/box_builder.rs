@@ -5,6 +5,7 @@ use std::convert::TryFrom;
 use std::convert::TryInto;
 
 use crate::ast::Constant;
+use crate::chain::token::Token;
 use crate::chain::token::TokenAmount;
 use crate::chain::token::TokenId;
 use crate::serialization::SigmaSerializable;
@@ -40,7 +41,7 @@ pub struct ErgoBoxCandidateBuilder {
     min_value_per_byte: u32,
     value: BoxValue,
     ergo_tree: ErgoTree,
-    tokens: Vec<TokenAmount>,
+    tokens: Vec<Token>,
     additional_registers: HashMap<NonMandatoryRegisterId, Constant>,
     creation_height: u32,
 }
@@ -127,7 +128,7 @@ impl ErgoBoxCandidateBuilder {
     /// Mint token, as defined in https://github.com/ergoplatform/eips/blob/master/eip-0004.md
     pub fn mint_token(
         &mut self,
-        token_pair: TokenAmount,
+        token_pair: Token,
         token_name: String,
         token_desc: String,
         num_decimals: usize,
@@ -137,8 +138,8 @@ impl ErgoBoxCandidateBuilder {
     }
 
     /// Add given token id and token amount
-    pub fn add_token(&mut self, token_id: TokenId, amount: u64) {
-        self.tokens.push(TokenAmount { token_id, amount });
+    pub fn add_token(&mut self, token_id: TokenId, amount: TokenAmount) {
+        self.tokens.push(Token { token_id, amount });
     }
 
     /// Build the box candidate

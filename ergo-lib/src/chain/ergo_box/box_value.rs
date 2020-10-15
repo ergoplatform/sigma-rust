@@ -1,5 +1,6 @@
 //! Box value newtype
 
+use crate::chain::token::TokenAmountError;
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
 };
@@ -9,7 +10,7 @@ use sigma_ser::vlq_encode;
 use std::{convert::TryFrom, io};
 use thiserror::Error;
 
-/// Box value with with bound checks
+/// Box value with bound checks
 #[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct BoxValue(i64);
@@ -152,6 +153,12 @@ pub enum BoxValueError {
 
 impl From<BoxValueError> for SerializationError {
     fn from(e: BoxValueError) -> Self {
+        SerializationError::ValueOutOfBounds(format!("{}", e))
+    }
+}
+
+impl From<TokenAmountError> for SerializationError {
+    fn from(e: TokenAmountError) -> Self {
         SerializationError::ValueOutOfBounds(format!("{}", e))
     }
 }
