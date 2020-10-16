@@ -1,4 +1,4 @@
-//! Box selector which selects all provided inputs
+//! Naive box selector, collects inputs until target balance is reached
 
 use std::convert::TryInto;
 
@@ -11,13 +11,12 @@ use super::BoxSelectorError;
 use super::{BoxSelection, BoxSelector};
 
 /// Naive box selector, collects inputs until target balance is reached
-#[allow(dead_code)]
 pub struct SimpleBoxSelector {}
 
 impl SimpleBoxSelector {
     /// Create new boxed instance
-    pub fn new() -> Box<Self> {
-        Box::new(SimpleBoxSelector {})
+    pub fn new() -> Self {
+        SimpleBoxSelector {}
     }
 }
 

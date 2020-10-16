@@ -42,7 +42,7 @@ impl SigmaSerializable for TokenId {
     }
 }
 
-/// Box value with bound checks
+/// Token amount with bound checks
 #[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct TokenAmount(u64);

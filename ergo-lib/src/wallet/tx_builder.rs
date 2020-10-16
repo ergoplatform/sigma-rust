@@ -21,12 +21,11 @@ use crate::chain::{
 use crate::constants::MINERS_FEE_MAINNET_ADDRESS;
 use crate::serialization::SerializationError;
 
-use super::box_selector::{BoxSelection, BoxSelector, BoxSelectorError};
+use super::box_selector::{BoxSelection, BoxSelectorError};
 
 /// Unsigned transaction builder
 pub struct TxBuilder<S: ErgoBoxAssets> {
-    box_selector: Box<dyn BoxSelector<S>>,
-    boxes_to_spend: Vec<S>,
+    box_selection: BoxSelection<S>,
     data_inputs: Vec<DataInput>,
     output_candidates: Vec<ErgoBoxCandidate>,
     current_height: u32,
@@ -37,8 +36,7 @@ pub struct TxBuilder<S: ErgoBoxAssets> {
 
 impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
     /// Creates new TxBuilder
-    /// `box_selector` - input box selection algorithm to choose inputs from `boxes_to_spend`,
-    /// `boxes_to_spend` - spendable boxes,
+    /// `box_selection` - selected input boxes  (via [`BoxSelector`])
     /// `output_candidates` - output boxes to be "created" in this transaction,
     /// `current_height` - chain height that will be used in additionally created boxes (change, miner's fee, etc.),
     /// `fee_amount` - miner's fee,
@@ -46,8 +44,7 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
     /// `min_change_value` - minimal value of the change to be sent to `change_address`, value less than that
     /// will be given to miners,
     pub fn new(
-        box_selector: Box<dyn BoxSelector<S>>,
-        boxes_to_spend: Vec<S>,
+        box_selection: BoxSelection<S>,
         output_candidates: Vec<ErgoBoxCandidate>,
         current_height: u32,
         fee_amount: BoxValue,
@@ -55,8 +52,7 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
         min_change_value: BoxValue,
     ) -> TxBuilder<S> {
         TxBuilder {
-            box_selector,
-            boxes_to_spend,
+            box_selection,
             data_inputs: vec![],
             output_candidates,
             current_height,
@@ -66,36 +62,6 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
         }
     }
 
-    /// Creates new TxBuilder
-    /// `box_selector` - input box selection algorithm to choose inputs from `boxes_to_spend`,
-    /// `boxes_to_spend` - spendable boxes,
-    /// `output_candidates` - output boxes to be "created" in this transaction,
-    /// `current_height` - chain height that will be used in additionally created boxes (change, miner's fee, etc.),
-    /// `fee_amount` - miner's fee,
-    /// `change_address` - change (inputs - outputs) will be sent to this address,
-    /// `min_change_value` - minimal value of the change to be sent to `change_address`, value less than that
-    /// will be given to miners,
-    pub fn new2(
-        box_selection: BoxSelection<S>,
-        output_candidates: Vec<ErgoBoxCandidate>,
-        current_height: u32,
-        fee_amount: BoxValue,
-        change_address: Address,
-        min_change_value: BoxValue,
-    ) -> TxBuilder<S> {
-        todo!()
-        // TxBuilder {
-        //     box_selector,
-        //     boxes_to_spend,
-        //     data_inputs: vec![],
-        //     output_candidates,
-        //     current_height,
-        //     fee_amount,
-        //     change_address,
-        //     min_change_value,
-        // }
-    }
-
     /// Set transaction's data inputs
     pub fn set_data_inputs(&mut self, data_inputs: Vec<DataInput>) {
         self.data_inputs = data_inputs;
@@ -103,10 +69,8 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
 
     /// Build the unsigned transaction
     pub fn build(self) -> Result<UnsignedTransaction, TxBuilderError> {
-        if self.boxes_to_spend.is_empty() {
-            return Err(TxBuilderError::InvalidArgs(
-                "boxes_to_spend is empty".to_string(),
-            ));
+        if self.box_selection.boxes.is_empty() {
+            return Err(TxBuilderError::InvalidArgs("inputs is empty".to_string()));
         }
         if self.output_candidates.is_empty() {
             return Err(TxBuilderError::InvalidArgs(
@@ -116,15 +80,16 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
         let total_output_value: BoxValue =
             box_value::checked_sum(self.output_candidates.iter().map(|b| b.value))?
                 .checked_add(&self.fee_amount)?;
-        let selection: BoxSelection<S> = self.box_selector.select(
-            self.boxes_to_spend.clone(),
-            total_output_value,
-            vec![].as_slice(),
-        )?;
+        // let selection: BoxSelection<S> = self.box_selector.select(
+        //     self.boxes_to_spend.clone(),
+        //     total_output_value,
+        //     vec![].as_slice(),
+        // )?;
         let mut output_candidates = self.output_candidates.clone();
 
         let change_address_ergo_tree = Contract::pay_to_address(&self.change_address)?.ergo_tree();
-        let change_boxes: Result<Vec<ErgoBoxCandidate>, ErgoBoxCandidateBuilderError> = selection
+        let change_boxes: Result<Vec<ErgoBoxCandidate>, ErgoBoxCandidateBuilderError> = self
+            .box_selection
             .change_boxes
             .iter()
             .filter(|b| b.value >= self.min_change_value)
@@ -142,7 +107,7 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
         let miner_fee_box = new_miner_fee_box(self.fee_amount, self.current_height)?;
         output_candidates.push(miner_fee_box);
         Ok(UnsignedTransaction::new(
-            selection
+            self.box_selection
                 .boxes
                 .into_iter()
                 .map(UnsignedInput::from)
@@ -199,17 +164,20 @@ mod tests {
     use crate::chain::token::TokenId;
     use crate::chain::transaction::TxId;
     use crate::test_util::force_any_val;
-    use crate::wallet::box_selector::simple::SimpleBoxSelector;
+    use crate::wallet::box_selector::BoxSelector;
+    use crate::wallet::box_selector::SimpleBoxSelector;
     use crate::ErgoTree;
 
     use super::*;
 
     #[test]
     fn test_empty_inputs() {
-        let inputs: Vec<ErgoBox> = vec![];
+        let box_selection: BoxSelection<ErgoBox> = BoxSelection {
+            boxes: vec![],
+            change_boxes: vec![],
+        };
         let r = TxBuilder::new(
-            SimpleBoxSelector::new(),
-            inputs,
+            box_selection,
             vec![force_any_val::<ErgoBoxCandidate>()],
             1,
             force_any_val::<BoxValue>(),
@@ -221,10 +189,12 @@ mod tests {
 
     #[test]
     fn test_empty_outputs() {
+        let inputs = vec![force_any_val::<ErgoBox>()];
         let outputs: Vec<ErgoBoxCandidate> = vec![];
         let r = TxBuilder::new(
-            SimpleBoxSelector::new(),
-            vec![force_any_val::<ErgoBox>()],
+            SimpleBoxSelector::new()
+                .select(inputs, BoxValue::MIN, &[])
+                .unwrap(),
             outputs,
             1,
             force_any_val::<BoxValue>(),
@@ -234,6 +204,7 @@ mod tests {
         assert!(r.build().is_err());
     }
 
+    // TODO: move to box builder tests
     #[test]
     fn test_mint_token() {
         let token_pair = Token {
@@ -267,7 +238,7 @@ mod tests {
         );
         let out_box = box_builder.build().unwrap();
         let outputs = vec![out_box];
-        let tx_builder = TxBuilder::new2(
+        let tx_builder = TxBuilder::new(
             box_selection,
             outputs,
             0,
@@ -317,7 +288,7 @@ mod tests {
             ErgoBoxCandidateBuilder::new(out_box_value, force_any_val::<ErgoTree>(), 0);
         let out_box = box_builder.build().unwrap();
         let outputs = vec![out_box];
-        let tx_builder = TxBuilder::new2(
+        let tx_builder = TxBuilder::new(
             box_selection,
             outputs,
             0,
@@ -346,9 +317,11 @@ mod tests {
 
             prop_assume!(all_outputs < all_inputs);
 
+            let total_output_value: BoxValue = box_value::checked_sum(outputs.iter().map(|b| b.value)).unwrap()
+                .checked_add(&miners_fee).unwrap();
+
             let mut tx_builder = TxBuilder::new(
-                SimpleBoxSelector::new(),
-                inputs.clone(),
+                SimpleBoxSelector::new().select(inputs.clone(), total_output_value, &[]).unwrap(),
                 outputs.clone(),
                 1,
                 miners_fee,

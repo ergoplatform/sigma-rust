@@ -1,6 +1,7 @@
 //! Box selection for transaction inputs
 
-pub mod simple;
+mod simple;
+pub use simple::*;
 
 use crate::chain::ergo_box::box_value::BoxValueError;
 use crate::chain::ergo_box::ErgoBoxAssetsData;
@@ -11,6 +12,7 @@ use crate::chain::{
 use thiserror::Error;
 
 /// Selected boxes (by [`BoxSelector`])
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct BoxSelection<T: ErgoBoxAssets> {
     /// selected boxes to spend
     pub boxes: Vec<T>,
@@ -21,6 +23,9 @@ pub struct BoxSelection<T: ErgoBoxAssets> {
 /// Box selector
 pub trait BoxSelector<T: ErgoBoxAssets> {
     /// Selects boxes out of the provided inputs to satisfy target balance and tokens
+    /// `inputs` - spendable boxes
+    /// `target_balance` - value (in nanoERGs) to find in input boxes (inputs)
+    /// `target_tokens` - token amounts to find in input boxes(inputs)
     fn select(
         &self,
         inputs: Vec<T>,
