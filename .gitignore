@@ -23,4 +23,5 @@ xcuserdata/
 .gradle/
 build/
 
-
+# ts lsp server logs
+.log/
