@@ -1,6 +1,6 @@
 [package]
 name = "ergo-lib-wasm"
-version = "0.1.0"
+version = "0.2.1"
 license = "CC0-1.0"
 authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
 edition = "2018"
@@ -45,4 +45,5 @@ default-features = false
 features = ["std"]
 
 [package.metadata.wasm-pack.profile.release]
-wasm-opt = ["-O", "--enable-mutable-globals"]
+# wasm-opt = ["-O", "--enable-mutable-globals"]
+wasm-opt = false
