@@ -23,6 +23,7 @@ use ergo_lib::chain;
 use wasm_bindgen::prelude::*;
 
 use crate::ast::Constant;
+use crate::utils::I64;
 use crate::{contract::Contract, transaction::TxId};
 
 pub mod box_builder;
@@ -86,6 +87,11 @@ impl ErgoBox {
         ErgoBox(b)
     }
 
+    /// Get box value in nanoERGs
+    pub fn value(&self) -> BoxValue {
+        self.0.value.into()
+    }
+
     /// Returns value (ErgoTree constant) stored in the register or None if the register is empty
     pub fn register_value(&self, register_id: NonMandatoryRegisterId) -> Option<Constant> {
         self.0
@@ -101,9 +107,15 @@ impl ErgoBox {
     // }
 }
 
-impl Into<chain::ergo_box::ErgoBox> for ErgoBox {
-    fn into(self) -> chain::ergo_box::ErgoBox {
-        self.0
+impl From<ErgoBox> for chain::ergo_box::ErgoBox {
+    fn from(b: ErgoBox) -> Self {
+        b.0
+    }
+}
+
+impl From<chain::ergo_box::ErgoBox> for ErgoBox {
+    fn from(b: chain::ergo_box::ErgoBox) -> Self {
+        ErgoBox(b)
     }
 }
 
@@ -127,6 +139,11 @@ impl BoxValue {
             chain::ergo_box::box_value::BoxValue::try_from(v as u64)
                 .map_err(|e| JsValue::from_str(&format!("{}", e)))?,
         ))
+    }
+
+    /// Get value as signed 64-bit long (I64)
+    pub fn as_i64(&self) -> I64 {
+        self.0.as_i64().into()
     }
 }
 

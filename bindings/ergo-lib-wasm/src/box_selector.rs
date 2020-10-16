@@ -15,12 +15,9 @@ pub struct BoxSelection(wallet::box_selector::BoxSelection<ergo_lib::chain::ergo
 
 #[wasm_bindgen]
 impl BoxSelection {
+    /// Selected boxes to spend as transaction inputs
     pub fn boxes(&self) -> ErgoBoxes {
-        self.0.boxes.into()
-    }
-
-    pub fn change_boxes(&self) -> ErgoBoxAssetsDataColl {
-        todo!()
+        self.0.boxes.clone().into()
     }
 }
 

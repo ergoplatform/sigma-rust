@@ -1,14 +1,8 @@
 import { expect, assert } from 'chai';
 
 import {
-  Address, Wallet, ErgoBox, ErgoBoxCandidateBuilder, Contract,
-  ErgoBoxes, ErgoBoxCandidates,
-  ErgoStateContext, TxBuilder, BoxValue, BoxSelector, SecretKey, TxId, DataInputs, NonMandatoryRegisterId,
-  Constant, SimpleBoxSelector, Tokens
+  ErgoBoxes, SimpleBoxSelector, Tokens, BoxValue
 } from '../pkg/ergo_lib_wasm';
-
-const recipient = Address.from_testnet_str('3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN');
-const contract = Contract.pay_to_address(recipient);
 
 it('SimpleBoxSelector test', async () => {
   const unspent_boxes = ErgoBoxes.from_boxes_json([
@@ -25,6 +19,7 @@ it('SimpleBoxSelector test', async () => {
   ]);
   const box_selector = new SimpleBoxSelector();
   const selection = box_selector.select(unspent_boxes, BoxValue.from_u32(1000000), new Tokens());
-  assert(selection != null)
+  assert(selection != null);
+  assert(selection.boxes().get(0).value().as_i64().to_str() == unspent_boxes.get(0).value().as_i64().to_str());
 });
 

@@ -14,7 +14,7 @@ use thiserror::Error;
 /// Selected boxes (by [`BoxSelector`])
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct BoxSelection<T: ErgoBoxAssets> {
-    /// selected boxes to spend
+    /// Selected boxes to spend as transaction inputs
     pub boxes: Vec<T>,
     /// box assets with returning change amounts (to be put in tx outputs)
     pub change_boxes: Vec<ErgoBoxAssetsData>,
