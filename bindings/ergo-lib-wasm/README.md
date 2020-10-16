@@ -1,8 +1,14 @@
 [![Latest Version](https://img.shields.io/crates/v/ergo-lib-wasm.svg)](https://crates.io/crates/ergo-lib-wasm)
 [![Documentation](https://docs.rs/ergo-lib-wasm/badge.svg)](https://docs.rs/crate/ergo-lib-wasm)
- [![Latest version](https://img.shields.io/npm/v/ergo-lib-wasm)](https://www.npmjs.com/package/ergo-lib-wasm)
+
+
 
 WebAssembly library with JS/TS bindings for [sigma-rust](https://github.com/ergoplatform/sigma-rust).
+
+Packages(npm):
+
+- [ergo-lib-wasm-browser](https://www.npmjs.com/package/ergo-lib-wasm-browser) [![Latest version](https://img.shields.io/npm/v/ergo-lib-wasm-browser)](https://www.npmjs.com/package/ergo-lib-wasm-browser)
+- [ergo-lib-wasm-nodejs](https://www.npmjs.com/package/ergo-lib-wasm-nodejs) [![Latest version](https://img.shields.io/npm/v/ergo-lib-wasm-nodejs)](https://www.npmjs.com/package/ergo-lib-wasm-nodejs)
 
 ## Troubleshooting
 ### When I build the `ergo-lib-wasm` and include the `pkg` folder as dependency in my app I get "TypeError: TextDecoder is not a constructor".
