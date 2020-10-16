@@ -13,6 +13,17 @@ use crate::token::Tokens;
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct BoxSelection(wallet::box_selector::BoxSelection<ergo_lib::chain::ergo_box::ErgoBox>);
 
+#[wasm_bindgen]
+impl BoxSelection {
+    pub fn boxes(&self) -> ErgoBoxes {
+        self.0.boxes.into()
+    }
+
+    pub fn change_boxes(&self) -> ErgoBoxAssetsDataColl {
+        todo!()
+    }
+}
+
 impl From<BoxSelection> for wallet::box_selector::BoxSelection<chain::ergo_box::ErgoBox> {
     fn from(v: BoxSelection) -> Self {
         v.0

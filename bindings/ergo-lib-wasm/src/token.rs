@@ -8,15 +8,33 @@ use wasm_bindgen::prelude::*;
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct TokenId(chain::token::TokenId);
 
+impl From<TokenId> for chain::token::TokenId {
+    fn from(t_id: TokenId) -> Self {
+        t_id.0
+    }
+}
+
 /// Token amount with bound checks
 #[wasm_bindgen]
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct TokenAmount(chain::token::TokenAmount);
 
+impl From<TokenAmount> for chain::token::TokenAmount {
+    fn from(ta: TokenAmount) -> Self {
+        ta.0
+    }
+}
+
 /// Token represented with token id paired with it's amount
 #[wasm_bindgen]
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Token(chain::token::Token);
+
+impl From<Token> for chain::token::Token {
+    fn from(t: Token) -> Self {
+        t.0
+    }
+}
 
 /// Array of tokens
 #[wasm_bindgen]

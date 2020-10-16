@@ -126,14 +126,18 @@ impl ErgoBoxCandidateBuilder {
     }
 
     /// Mint token, as defined in https://github.com/ergoplatform/eips/blob/master/eip-0004.md
+    /// `token` - token id(box id of the first input box in transaction) and token amount,
+    /// `token_name` - token name (will be encoded in R4),
+    /// `token_desc` - token description (will be encoded in R5),
+    /// `num_decimals` - number of decimals (will be encoded in R6)
     pub fn mint_token(
         &mut self,
-        token_pair: Token,
+        token: Token,
         token_name: String,
         token_desc: String,
         num_decimals: usize,
     ) {
-        self.tokens.push(token_pair);
+        self.tokens.push(token);
         // TODO: encode minted token info to registers
     }
 
