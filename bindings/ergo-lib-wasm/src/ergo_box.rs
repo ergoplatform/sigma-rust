@@ -28,6 +28,25 @@ use crate::{contract::Contract, transaction::TxId};
 
 pub mod box_builder;
 
+/// Box id (32-byte digest)
+#[wasm_bindgen]
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct BoxId(chain::ergo_box::box_id::BoxId);
+
+#[wasm_bindgen]
+impl BoxId {
+    /// Base16 encoded string
+    pub fn to_str(&self) -> String {
+        self.0.clone().into()
+    }
+}
+
+impl From<chain::ergo_box::box_id::BoxId> for BoxId {
+    fn from(b: chain::ergo_box::box_id::BoxId) -> Self {
+        BoxId(b)
+    }
+}
+
 /// ErgoBox candidate not yet included in any transaction on the chain
 #[wasm_bindgen]
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -85,6 +104,11 @@ impl ErgoBox {
             index,
         );
         ErgoBox(b)
+    }
+
+    /// Get box id
+    pub fn box_id(&self) -> BoxId {
+        self.0.box_id().into()
     }
 
     /// Get box value in nanoERGs

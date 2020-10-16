@@ -20,6 +20,6 @@ it('SimpleBoxSelector test', async () => {
   const box_selector = new SimpleBoxSelector();
   const selection = box_selector.select(unspent_boxes, BoxValue.from_u32(1000000), new Tokens());
   assert(selection != null);
-  assert(selection.boxes().get(0).value().as_i64().to_str() == unspent_boxes.get(0).value().as_i64().to_str());
+  assert(selection.boxes().get(0).box_id().to_str() == unspent_boxes.get(0).box_id().to_str());
 });
 
