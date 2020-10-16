@@ -18,9 +18,8 @@
         "text-encoder": "0.0.4",
         "webpack": "^4.11.1",
         "webpack-cli": "^3.1.1",
-        "webpack-dev-server": "^3.1.0"
-    },
-    "dependencies": {
+        "webpack-dev-server": "^3.1.0",
         "chai": "^4.2.0"
-    }
+    },
+    "dependencies": {}
 }
