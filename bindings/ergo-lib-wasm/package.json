@@ -3,7 +3,11 @@
         "build": "webpack",
         "serve": "wasm-pack build --target browser && webpack-dev-server",
         "test": "wasm-pack build --target nodejs && mocha --require @babel/register --require @babel/polyfill 'tests/test*.js'",
-        "doc": "jsdoc -c jsdoc.json pkg/ergo_wallet_wasm.js README.md -d docs"
+        "doc": "jsdoc -c jsdoc.json pkg/ergo_wallet_wasm.js README.md -d docs",
+        "build-nodejs": "rm -rf ./pkg && wasm-pack build --target nodejs", 
+        "build-browser": "rm -rf ./pkg && wasm-pack build --target browser --release",
+        "publish-nodejs": "npm run build-nodejs && node ./scripts/publish_helper -nodejs && cd pkg && npm publish",
+        "publish-browser": "npm run build-browser && node ./scripts/publish_helper -browser && cd pkg && npm publish"
     },
     "devDependencies": {
         "@babel/core": "^7.6.4",
