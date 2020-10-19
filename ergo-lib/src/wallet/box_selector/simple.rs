@@ -11,6 +11,7 @@ use super::BoxSelectorError;
 use super::{BoxSelection, BoxSelector};
 
 /// Naive box selector, collects inputs until target balance is reached
+#[allow(dead_code)]
 pub struct SimpleBoxSelector {}
 
 impl SimpleBoxSelector {

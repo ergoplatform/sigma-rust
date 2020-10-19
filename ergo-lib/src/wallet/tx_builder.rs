@@ -204,60 +204,6 @@ mod tests {
         assert!(r.build().is_err());
     }
 
-    // TODO: move to box builder tests
-    #[test]
-    fn test_mint_token() {
-        let token_pair = Token {
-            token_id: force_any_val::<TokenId>(),
-            amount: 1.try_into().unwrap(),
-        };
-        let input_box = ErgoBox::new(
-            10000000i64.try_into().unwrap(),
-            force_any_val::<ErgoTree>(),
-            vec![token_pair.clone()],
-            NonMandatoryRegisters::empty(),
-            1,
-            force_any_val::<TxId>(),
-            0,
-        );
-        let inputs: Vec<ErgoBox> = vec![input_box];
-        let tx_fee = BoxValue::SAFE_USER_MIN;
-        let out_box_value = BoxValue::SAFE_USER_MIN;
-        let target_balance = out_box_value.checked_add(&tx_fee).unwrap();
-        let target_tokens = vec![];
-        let box_selection = SimpleBoxSelector::new()
-            .select(inputs, target_balance, target_tokens.as_slice())
-            .unwrap();
-        let mut box_builder =
-            ErgoBoxCandidateBuilder::new(out_box_value, force_any_val::<ErgoTree>(), 0);
-        box_builder.mint_token(
-            token_pair.clone(),
-            "TKN".to_string(),
-            "token desc".to_string(),
-            2,
-        );
-        let out_box = box_builder.build().unwrap();
-        let outputs = vec![out_box];
-        let tx_builder = TxBuilder::new(
-            box_selection,
-            outputs,
-            0,
-            tx_fee,
-            force_any_val::<Address>(),
-            BoxValue::SAFE_USER_MIN,
-        );
-        let tx = tx_builder.build().unwrap();
-        assert_eq!(
-            tx.output_candidates
-                .get(0)
-                .unwrap()
-                .tokens()
-                .get(0)
-                .unwrap(),
-            &token_pair
-        );
-    }
-
     #[test]
     fn test_burn_token() {
         let token_pair = Token {

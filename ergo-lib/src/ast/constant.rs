@@ -103,9 +103,9 @@ pub struct Constant {
     pub v: ConstantVal,
 }
 
-impl Into<Base16EncodedBytes> for Constant {
-    fn into(self) -> Base16EncodedBytes {
-        Base16EncodedBytes::new(&self.sigma_serialise_bytes())
+impl From<Constant> for Base16EncodedBytes {
+    fn from(v: Constant) -> Base16EncodedBytes {
+        Base16EncodedBytes::new(&v.sigma_serialise_bytes())
     }
 }
 
@@ -130,11 +130,11 @@ impl Into<ConstantVal> for bool {
     }
 }
 
-impl Into<Constant> for bool {
-    fn into(self) -> Constant {
+impl From<bool> for Constant {
+    fn from(v: bool) -> Constant {
         Constant {
             tpe: bool::stype(),
-            v: self.into(),
+            v: v.into(),
         }
     }
 }
@@ -145,11 +145,11 @@ impl Into<ConstantVal> for i8 {
     }
 }
 
-impl Into<Constant> for i8 {
-    fn into(self) -> Constant {
+impl From<i8> for Constant {
+    fn from(v: i8) -> Constant {
         Constant {
             tpe: i8::stype(),
-            v: self.into(),
+            v: v.into(),
         }
     }
 }
@@ -160,11 +160,11 @@ impl Into<ConstantVal> for i16 {
     }
 }
 
-impl Into<Constant> for i16 {
-    fn into(self) -> Constant {
+impl From<i16> for Constant {
+    fn from(v: i16) -> Constant {
         Constant {
             tpe: i16::stype(),
-            v: self.into(),
+            v: v.into(),
         }
     }
 }
@@ -175,11 +175,11 @@ impl Into<ConstantVal> for i32 {
     }
 }
 
-impl Into<Constant> for i32 {
-    fn into(self) -> Constant {
+impl From<i32> for Constant {
+    fn from(v: i32) -> Constant {
         Constant {
             tpe: i32::stype(),
-            v: self.into(),
+            v: v.into(),
         }
     }
 }
@@ -190,11 +190,11 @@ impl Into<ConstantVal> for i64 {
     }
 }
 
-impl Into<Constant> for i64 {
-    fn into(self) -> Constant {
+impl From<i64> for Constant {
+    fn from(v: i64) -> Constant {
         Constant {
             tpe: i64::stype(),
-            v: self.into(),
+            v: v.into(),
         }
     }
 }
@@ -205,11 +205,11 @@ impl<T: Into<SigmaProp>> From<T> for ConstantVal {
     }
 }
 
-impl Into<Constant> for SigmaProp {
-    fn into(self) -> Constant {
+impl From<SigmaProp> for Constant {
+    fn from(v: SigmaProp) -> Constant {
         Constant {
             tpe: SType::SSigmaProp,
-            v: self.into(),
+            v: v.into(),
         }
     }
 }
@@ -220,11 +220,11 @@ impl Into<ConstantVal> for EcPoint {
     }
 }
 
-impl Into<Constant> for EcPoint {
-    fn into(self) -> Constant {
+impl From<EcPoint> for Constant {
+    fn from(v: EcPoint) -> Constant {
         Constant {
             tpe: SType::SGroupElement,
-            v: self.into(),
+            v: v.into(),
         }
     }
 }
@@ -246,31 +246,31 @@ impl<T: LiftIntoSType + StoredNonPrimitive + Into<ConstantVal>> Into<ConstantVal
     }
 }
 
-impl<T: LiftIntoSType + StoredNonPrimitive + Into<ConstantVal>> Into<Constant> for Vec<T> {
-    fn into(self) -> Constant {
+impl<T: LiftIntoSType + StoredNonPrimitive + Into<ConstantVal>> From<Vec<T>> for Constant {
+    fn from(v: Vec<T>) -> Self {
         Constant {
-            tpe: Self::stype(),
-            v: self.into(),
+            tpe: Vec::<T>::stype(),
+            v: v.into(),
         }
     }
 }
 
-impl Into<Constant> for Vec<u8> {
-    fn into(self) -> Constant {
+impl From<Vec<u8>> for Constant {
+    fn from(v: Vec<u8>) -> Self {
         Constant {
             tpe: SType::SColl(Box::new(SType::SByte)),
             v: ConstantVal::Coll(ConstantColl::Primitive(CollPrim::CollByte(
-                self.into_iter().map(|b| b as i8).collect(),
+                v.into_iter().map(|b| b as i8).collect(),
             ))),
         }
     }
 }
 
-impl Into<Constant> for Vec<i8> {
-    fn into(self) -> Constant {
+impl From<Vec<i8>> for Constant {
+    fn from(v: Vec<i8>) -> Constant {
         Constant {
             tpe: SType::SColl(Box::new(SType::SByte)),
-            v: ConstantVal::Coll(ConstantColl::Primitive(CollPrim::CollByte(self))),
+            v: ConstantVal::Coll(ConstantColl::Primitive(CollPrim::CollByte(v))),
         }
     }
 }
