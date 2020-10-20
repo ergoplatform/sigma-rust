@@ -45,7 +45,7 @@ impl<T: ErgoBoxAssets> BoxSelector<T> for SimpleBoxSelector {
             .map(|t| (t.token_id.clone(), i64::from(t.amount)))
             .collect();
         inputs.into_iter().for_each(|b| {
-            if unmet_target_balance > 0 {
+            if unmet_target_balance > 0 || unmet_target_tokens.iter().any(|t| *t.1 > 0) {
                 let b_value: i64 = b.value().into();
                 unmet_target_balance -= b_value;
                 b.tokens().iter().for_each(|t| {
@@ -115,6 +115,7 @@ mod tests {
     use crate::chain::ergo_box::sum_tokens;
     use crate::chain::ergo_box::sum_value;
     use crate::chain::ergo_box::ErgoBox;
+    use crate::chain::ergo_box::ErgoBoxAssetsData;
     use proptest::{collection::vec, prelude::*};
 
     use super::*;
@@ -145,8 +146,8 @@ mod tests {
 
         #[test]
         fn test_select_only_value(inputs in
-                             vec(any_with::<ErgoBoxAssetsData>(
-                                 (BoxValue::MIN_RAW * 1000 .. BoxValue::MIN_RAW * 10000).into()), 1..10)) {
+                                  vec(any_with::<ErgoBoxAssetsData>(
+                                      (BoxValue::MIN_RAW * 1000 .. BoxValue::MIN_RAW * 10000).into()), 1..10)) {
             let s = SimpleBoxSelector::new();
             let all_inputs_val = box_value::checked_sum(inputs.iter().map(|b| b.value)).unwrap();
             let balance_less = all_inputs_val.checked_sub(&BoxValue::SAFE_USER_MIN).unwrap();
@@ -158,6 +159,32 @@ mod tests {
             prop_assert_eq!(sum_tokens(selection_less.boxes.as_slice()),
                             sum_tokens(selection_less.change_boxes.as_slice()),
                             "all tokens from change boxes should equal all tokens from the input boxes");
+        }
+
+        #[test]
+        fn test_select_single_token(inputs in
+                                    vec(any_with::<ErgoBoxAssetsData>(
+                                        (BoxValue::MIN_RAW * 1000 .. BoxValue::MIN_RAW * 10000).into()), 1..10),
+                                    target_balance in
+                                    any_with::<BoxValue>((BoxValue::MIN_RAW * 100 .. BoxValue::MIN_RAW * 1000).into()),
+                                    target_token_amount in 1..100u64) {
+            let s = SimpleBoxSelector::new();
+            let all_input_tokens = sum_tokens(inputs.as_slice());
+            prop_assume!(!all_input_tokens.is_empty());
+            let target_token_id = all_input_tokens.keys().collect::<Vec<&TokenId>>().get(0).cloned().unwrap();
+            let input_token_amount = all_input_tokens.get(target_token_id).unwrap() / 2;
+            prop_assume!(input_token_amount >= target_token_amount);
+            let target_token = Token {token_id: target_token_id.clone(), amount: target_token_amount.try_into().unwrap()};
+            let selection = s.select(inputs, target_balance, vec![target_token.clone()].as_slice()) .unwrap();
+            let out_box = ErgoBoxAssetsData {value: target_balance, tokens: vec![target_token]};
+            let mut change_boxes_plus_out = vec![out_box];
+            change_boxes_plus_out.append(&mut selection.change_boxes.clone());
+            prop_assert_eq!(sum_value(selection.boxes.as_slice()),
+                            sum_value(change_boxes_plus_out.as_slice()),
+                            "total value of the selected boxes should equal target balance + total value in change boxes");
+            prop_assert_eq!(sum_tokens(selection.boxes.as_slice()),
+                            sum_tokens(change_boxes_plus_out.as_slice()),
+                            "all tokens from selected boxes should equal all tokens from the change boxes + target tokens");
         }
 
     }
