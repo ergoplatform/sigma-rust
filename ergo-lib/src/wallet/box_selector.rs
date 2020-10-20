@@ -5,6 +5,7 @@ pub use simple::*;
 
 use crate::chain::ergo_box::box_value::BoxValueError;
 use crate::chain::ergo_box::ErgoBoxAssetsData;
+use crate::chain::token::TokenId;
 use crate::chain::{
     ergo_box::{box_value::BoxValue, ErgoBoxAssets},
     token::Token,
@@ -40,6 +41,15 @@ pub enum BoxSelectorError {
     /// Not enough coins
     #[error("Not enough coins({0} nanoERGs are missing)")]
     NotEnoughCoins(u64),
+
+    /// Not enough tokens
+    #[error("Not enough tokens (token id: {token_id:?}, {missing_amount} are missing)")]
+    NotEnoughTokens {
+        /// token id
+        token_id: TokenId,
+        /// missing(not enough) token amount
+        missing_amount: u64,
+    },
 
     /// BoxValue out of bounds
     #[error("BoxValue out of bounds")]

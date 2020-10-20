@@ -28,6 +28,7 @@ use indexmap::IndexSet;
 use register::NonMandatoryRegisters;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 #[cfg(feature = "json")]
 use std::convert::TryFrom;
 use std::io;
@@ -151,6 +152,23 @@ pub trait ErgoBoxAssets {
     fn value(&self) -> BoxValue;
     /// Tokens (ids and amounts)
     fn tokens(&self) -> Vec<Token>;
+}
+
+/// Returns the total value of the given boxes
+pub fn sum_value<T: ErgoBoxAssets>(bs: &[T]) -> u64 {
+    bs.iter().map(|b| *b.value().as_u64()).sum()
+}
+
+/// Returns the total token amounts (all tokens combined) of the given boxes
+pub fn sum_tokens<T: ErgoBoxAssets>(bs: &[T]) -> HashMap<TokenId, u64> {
+    let mut res = HashMap::new();
+    bs.iter().for_each(|b| {
+        b.tokens().iter().for_each(|t| {
+            let existing_amount = *res.get(&t.token_id).unwrap_or(&0u64);
+            res.insert(t.token_id.clone(), existing_amount + u64::from(t.amount));
+        })
+    });
+    res
 }
 
 /// Simple struct to hold ErgoBoxAssets values
@@ -334,18 +352,20 @@ impl From<ErgoBox> for ErgoBoxCandidate {
 
 #[cfg(test)]
 mod tests {
+
+    use super::box_value::tests::ArbBoxValueRange;
     use super::*;
     use crate::serialization::sigma_serialize_roundtrip;
     use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
 
     impl Arbitrary for ErgoBoxCandidate {
-        type Parameters = super::box_value::tests::ArbBoxValueRange;
+        type Parameters = ArbBoxValueRange;
 
         fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
             (
                 any_with::<BoxValue>(args),
                 any::<ErgoTree>(),
-                vec(any::<Token>(), 0..10),
+                vec(any::<Token>(), 0..3),
                 any::<u32>(),
                 any::<NonMandatoryRegisters>(),
             )
@@ -364,7 +384,7 @@ mod tests {
     }
 
     impl Arbitrary for ErgoBox {
-        type Parameters = super::box_value::tests::ArbBoxValueRange;
+        type Parameters = ArbBoxValueRange;
 
         fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
             (
@@ -377,6 +397,18 @@ mod tests {
                 })
                 .boxed()
         }
+        type Strategy = BoxedStrategy<Self>;
+    }
+
+    impl Arbitrary for ErgoBoxAssetsData {
+        type Parameters = ArbBoxValueRange;
+
+        fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
+            (any_with::<BoxValue>(args), vec(any::<Token>(), 0..3))
+                .prop_map(|(value, tokens)| Self { value, tokens })
+                .boxed()
+        }
+
         type Strategy = BoxedStrategy<Self>;
     }
 
