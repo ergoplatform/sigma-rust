@@ -128,7 +128,6 @@ mod tests {
         assert!(r.is_err());
     }
 
-    // TODO: add single token selection test
     // TODO: add multiple token selection test
 
     proptest! {
@@ -185,6 +184,24 @@ mod tests {
             prop_assert_eq!(sum_tokens(selection.boxes.as_slice()),
                             sum_tokens(change_boxes_plus_out.as_slice()),
                             "all tokens from selected boxes should equal all tokens from the change boxes + target tokens");
+        }
+
+        #[test]
+        fn test_select_not_enough_tokens(inputs in
+                                         vec(any_with::<ErgoBoxAssetsData>(
+                                             (BoxValue::MIN_RAW * 1000 .. BoxValue::MIN_RAW * 10000).into()), 1..10),
+                                         target_balance in
+                                         any_with::<BoxValue>((BoxValue::MIN_RAW * 100 .. BoxValue::MIN_RAW * 1000).into())) {
+            let s = SimpleBoxSelector::new();
+            let all_input_tokens = sum_tokens(inputs.as_slice());
+            prop_assume!(!all_input_tokens.is_empty());
+            let target_token_id = all_input_tokens.keys().collect::<Vec<&TokenId>>().get(0).cloned().unwrap();
+            let input_token_amount = all_input_tokens.get(target_token_id).unwrap() / 2;
+            let target_token_amount = TokenAmount::MAX;
+            prop_assume!(input_token_amount < target_token_amount);
+            let target_token = Token {token_id: target_token_id.clone(), amount: target_token_amount.try_into().unwrap()};
+            let selection = s.select(inputs, target_balance, vec![target_token].as_slice());
+            prop_assert!(selection.is_err());
         }
 
     }
