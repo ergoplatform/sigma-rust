@@ -40,12 +40,12 @@ impl ErgoBoxes {
     /// Create new collection with one element
     #[wasm_bindgen(constructor)]
     pub fn new(b: &ErgoBox) -> ErgoBoxes {
-        ErgoBoxes(vec![b.clone().into()])
+        ErgoBoxes(vec![b.clone()])
     }
 
     /// Add an element to the collection
     pub fn add(&mut self, b: &ErgoBox) {
-        self.0.push(b.clone().into());
+        self.0.push(b.clone());
     }
 
     /// Returns the element of the collection with a given index
@@ -78,7 +78,7 @@ impl ErgoBoxCandidates {
     /// Create new outputs
     #[wasm_bindgen(constructor)]
     pub fn new(box_candidate: &ErgoBoxCandidate) -> ErgoBoxCandidates {
-        ErgoBoxCandidates(vec![box_candidate.clone().into()])
+        ErgoBoxCandidates(vec![box_candidate.clone()])
     }
 }
 

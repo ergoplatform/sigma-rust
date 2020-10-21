@@ -77,9 +77,9 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
                 "output_candidates is empty".to_string(),
             ));
         }
-        let total_output_value: BoxValue =
-            box_value::checked_sum(self.output_candidates.iter().map(|b| b.value))?
-                .checked_add(&self.fee_amount)?;
+        // let total_output_value: BoxValue =
+        // box_value::checked_sum(self.output_candidates.iter().map(|b| b.value))?
+        // .checked_add(&self.fee_amount)?;
         // let selection: BoxSelection<S> = self.box_selector.select(
         //     self.boxes_to_spend.clone(),
         //     total_output_value,
