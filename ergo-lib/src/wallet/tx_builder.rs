@@ -248,6 +248,8 @@ mod tests {
 
     proptest! {
 
+        #![proptest_config(ProptestConfig::with_cases(16))]
+
         #[test]
         fn test_build_tx(inputs in vec(any_with::<ErgoBox>((BoxValue::MIN_RAW * 5000 .. BoxValue::MIN_RAW * 10000).into()), 1..10),
                          outputs in vec(any_with::<ErgoBoxCandidate>((BoxValue::MIN_RAW * 1000 ..BoxValue::MIN_RAW * 2000).into()), 1..2),

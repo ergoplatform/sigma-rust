@@ -128,8 +128,6 @@ mod tests {
         assert!(r.is_err());
     }
 
-    // TODO: add multiple token selection test
-
     proptest! {
 
         #[test]

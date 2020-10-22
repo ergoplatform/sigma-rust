@@ -160,6 +160,8 @@ pub mod tests {
 
     proptest! {
 
+        #![proptest_config(ProptestConfig::with_cases(16))]
+
         #[test]
         fn test_unsigned_tx_bytes_to_sign(v in any::<UnsignedTransaction>()) {
             prop_assert!(!v.bytes_to_sign().is_empty());

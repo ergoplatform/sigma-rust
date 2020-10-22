@@ -106,6 +106,8 @@ mod tests {
 
     proptest! {
 
+        #![proptest_config(ProptestConfig::with_cases(16))]
+
         #[test]
         fn test_compute_commitment(secret in any::<DlogProverInput>(), challenge in any::<Challenge>()) {
             let pk = secret.public_image();
