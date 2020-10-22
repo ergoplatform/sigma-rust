@@ -1,11 +1,17 @@
 //! Unsigned (without proofs) transaction
 
+#[cfg(feature = "json")]
+use super::json;
 use super::{
     super::{
         data_input::DataInput, digest32::blake2b256_hash, ergo_box::ErgoBoxCandidate, input::Input,
     },
     Transaction, TxId,
 };
+#[cfg(feature = "json")]
+use crate::chain::transaction::ErgoBox;
+#[cfg(feature = "json")]
+use crate::chain::transaction::TransactionFromJsonError;
 use crate::{
     chain::{
         input::UnsignedInput,
@@ -13,8 +19,20 @@ use crate::{
     },
     serialization::SigmaSerializable,
 };
+#[cfg(feature = "json")]
+use core::convert::TryFrom;
+#[cfg(feature = "json")]
+use serde::{Deserialize, Serialize};
 
 /// Unsigned (inputs without proofs) transaction
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(
+    feature = "json",
+    serde(
+        try_from = "json::transaction::UnsignedTransactionJson",
+        into = "json::transaction::UnsignedTransactionJson"
+    )
+)]
 #[derive(PartialEq, Debug, Clone)]
 pub struct UnsignedTransaction {
     tx_id: TxId,
@@ -72,6 +90,49 @@ impl UnsignedTransaction {
             self.output_candidates.clone(),
         );
         tx.sigma_serialise_bytes()
+    }
+}
+
+#[cfg(feature = "json")]
+impl TryFrom<json::transaction::UnsignedTransactionJson> for UnsignedTransaction {
+    type Error = TransactionFromJsonError;
+    fn try_from(
+        tx_json: json::transaction::UnsignedTransactionJson,
+    ) -> std::result::Result<Self, Self::Error> {
+        let output_candidates = tx_json.outputs.iter().map(|o| o.clone().into()).collect();
+        let tx_to_sign = UnsignedTransaction {
+            tx_id: TxId::zero(),
+            inputs: tx_json.inputs,
+            data_inputs: tx_json.data_inputs,
+            output_candidates,
+        };
+        let tx_id = tx_to_sign.calc_tx_id();
+        let tx = UnsignedTransaction {
+            tx_id,
+            ..tx_to_sign
+        };
+        if tx.tx_id == tx_json.tx_id {
+            Ok(tx)
+        } else {
+            Err(TransactionFromJsonError::InvalidTxId)
+        }
+    }
+}
+
+#[cfg(feature = "json")]
+impl From<UnsignedTransaction> for json::transaction::UnsignedTransactionJson {
+    fn from(t: UnsignedTransaction) -> Self {
+        json::transaction::UnsignedTransactionJson {
+            tx_id: t.tx_id.clone(),
+            inputs: t.inputs.clone(),
+            data_inputs: t.data_inputs.clone(),
+            outputs: t
+                .output_candidates
+                .iter()
+                .enumerate()
+                .map(|(idx, c)| ErgoBox::from_box_candidate(c, t.tx_id.clone(), idx as u16))
+                .collect(),
+        }
     }
 }
 
