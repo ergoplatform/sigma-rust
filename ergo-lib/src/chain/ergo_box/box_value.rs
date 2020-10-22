@@ -126,16 +126,16 @@ impl TryFrom<i64> for BoxValue {
     }
 }
 
-impl Into<u64> for BoxValue {
-    fn into(self) -> u64 {
-        self.0 as u64
+impl From<BoxValue> for u64 {
+    fn from(v: BoxValue) -> Self {
+        v.0
     }
 }
 
-impl Into<i64> for BoxValue {
-    fn into(self) -> i64 {
+impl From<BoxValue> for i64 {
+    fn from(v: BoxValue) -> Self {
         // it's safe since upper bound is i64::MAX
-        self.0 as i64
+        v.0 as i64
     }
 }
 

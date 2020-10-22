@@ -39,15 +39,16 @@ impl<T: ErgoBoxAssets> BoxSelector<T> for SimpleBoxSelector {
         target_tokens: &[Token],
     ) -> Result<BoxSelection<T>, BoxSelectorError> {
         let mut selected_inputs: Vec<T> = vec![];
-        let mut unmet_target_balance: i64 = target_balance.into();
+        let mut selected_boxes_value: u64 = 0;
+        let target_balance: u64 = target_balance.into();
         let mut unmet_target_tokens: HashMap<TokenId, i64> = target_tokens
             .iter()
             .map(|t| (t.token_id.clone(), i64::from(t.amount)))
             .collect();
         inputs.into_iter().for_each(|b| {
-            if unmet_target_balance > 0 || unmet_target_tokens.iter().any(|t| *t.1 > 0) {
-                let b_value: i64 = b.value().into();
-                unmet_target_balance -= b_value;
+            if target_balance > selected_boxes_value || unmet_target_tokens.iter().any(|t| *t.1 > 0)
+            {
+                selected_boxes_value += u64::from(b.value());
                 b.tokens().iter().for_each(|t| {
                     let unmet_token_amount = *unmet_target_tokens.get(&t.token_id).unwrap_or(&0);
                     if unmet_token_amount > 0 {
@@ -58,9 +59,9 @@ impl<T: ErgoBoxAssets> BoxSelector<T> for SimpleBoxSelector {
                 selected_inputs.push(b);
             };
         });
-        if unmet_target_balance > 0 {
+        if selected_boxes_value < target_balance {
             return Err(BoxSelectorError::NotEnoughCoins(
-                unmet_target_balance.abs() as u64
+                target_balance - selected_boxes_value,
             ));
         }
         if !target_tokens.is_empty() {
@@ -72,10 +73,10 @@ impl<T: ErgoBoxAssets> BoxSelector<T> for SimpleBoxSelector {
             }
         }
         let change_boxes: Vec<ErgoBoxAssetsData> =
-            if unmet_target_balance == 0 && unmet_target_tokens.is_empty() {
+            if selected_boxes_value == target_balance && unmet_target_tokens.is_empty() {
                 vec![]
             } else {
-                let change_value: BoxValue = unmet_target_balance.abs().try_into()?;
+                let change_value: BoxValue = (selected_boxes_value - target_balance).try_into()?;
                 let mut change_tokens = sum_tokens(selected_inputs.as_slice());
                 if !unmet_target_tokens.is_empty() {
                     target_tokens.iter().for_each(|t| {
