@@ -131,6 +131,9 @@ mod tests {
     use std::rc::Rc;
 
     proptest! {
+
+        #![proptest_config(ProptestConfig::with_cases(16))]
+
         #[test]
         fn test_prover_verifier_p2pk(secret in any::<DlogProverInput>(), message in any::<Vec<u8>>()) {
             prop_assume!(!message.is_empty());

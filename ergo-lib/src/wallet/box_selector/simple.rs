@@ -41,19 +41,21 @@ impl<T: ErgoBoxAssets> BoxSelector<T> for SimpleBoxSelector {
         let mut selected_inputs: Vec<T> = vec![];
         let mut selected_boxes_value: u64 = 0;
         let target_balance: u64 = target_balance.into();
-        let mut unmet_target_tokens: HashMap<TokenId, i64> = target_tokens
+        let mut target_tokens_left: HashMap<TokenId, u64> = target_tokens
             .iter()
-            .map(|t| (t.token_id.clone(), i64::from(t.amount)))
+            .map(|t| (t.token_id.clone(), u64::from(t.amount)))
             .collect();
         inputs.into_iter().for_each(|b| {
-            if target_balance > selected_boxes_value || unmet_target_tokens.iter().any(|t| *t.1 > 0)
-            {
+            if target_balance > selected_boxes_value || !target_tokens_left.is_empty() {
                 selected_boxes_value += u64::from(b.value());
                 b.tokens().iter().for_each(|t| {
-                    let unmet_token_amount = *unmet_target_tokens.get(&t.token_id).unwrap_or(&0);
-                    if unmet_token_amount > 0 {
-                        unmet_target_tokens
-                            .insert(t.token_id.clone(), unmet_token_amount - i64::from(t.amount));
+                    let token_amount_left = *target_tokens_left.get(&t.token_id).unwrap_or(&0);
+                    let token_amount_in_box = u64::from(t.amount);
+                    if token_amount_left <= token_amount_in_box {
+                        target_tokens_left.remove(&t.token_id);
+                    } else {
+                        target_tokens_left
+                            .insert(t.token_id.clone(), token_amount_left - token_amount_in_box);
                     }
                 });
                 selected_inputs.push(b);
@@ -64,28 +66,30 @@ impl<T: ErgoBoxAssets> BoxSelector<T> for SimpleBoxSelector {
                 target_balance - selected_boxes_value,
             ));
         }
-        if !target_tokens.is_empty() {
-            if let Some(missing_token) = unmet_target_tokens.iter().find(|t| *t.1 > 0) {
-                return Err(BoxSelectorError::NotEnoughTokens {
-                    token_id: missing_token.0.clone(),
-                    missing_amount: missing_token.1.abs() as u64,
-                });
-            }
+        if !target_tokens.is_empty() && !target_tokens_left.is_empty() {
+            return Err(BoxSelectorError::NotEnoughTokens(
+                target_tokens_left
+                    .iter()
+                    .map(|(token_id, token_amount)| Token {
+                        token_id: token_id.clone(),
+                        amount: TokenAmount::try_from(*token_amount).unwrap(),
+                    })
+                    .collect(),
+            ));
         }
+        // TODO: return error when no ERG change but tokens
+        // TODO: what if ERG change < min box value but there is token change?
         let change_boxes: Vec<ErgoBoxAssetsData> =
-            if selected_boxes_value == target_balance && unmet_target_tokens.is_empty() {
+            if selected_boxes_value == target_balance && target_tokens.is_empty() {
                 vec![]
             } else {
                 let change_value: BoxValue = (selected_boxes_value - target_balance).try_into()?;
                 let mut change_tokens = sum_tokens(selected_inputs.as_slice());
-                if !unmet_target_tokens.is_empty() {
-                    target_tokens.iter().for_each(|t| {
-                        let selected_boxes_t_amt = change_tokens.get(&t.token_id).unwrap();
-
-                        let t_change_amt = *selected_boxes_t_amt - u64::from(t.amount);
-                        change_tokens.insert(t.token_id.clone(), t_change_amt);
-                    });
-                };
+                target_tokens.iter().for_each(|t| {
+                    let selected_boxes_t_amt = change_tokens.get(&t.token_id).unwrap();
+                    let t_change_amt = *selected_boxes_t_amt - u64::from(t.amount);
+                    change_tokens.insert(t.token_id.clone(), t_change_amt);
+                });
                 vec![ErgoBoxAssetsData {
                     value: change_value,
                     tokens: change_tokens
@@ -128,6 +132,8 @@ mod tests {
         let r = s.select(inputs, BoxValue::SAFE_USER_MIN, vec![].as_slice());
         assert!(r.is_err());
     }
+
+    // TODO: add test for repeated TokenId in target_tokens
 
     proptest! {
 
@@ -192,7 +198,7 @@ mod tests {
                                        target_balance in
                                        any_with::<BoxValue>((BoxValue::MIN_RAW * 100 .. BoxValue::MIN_RAW * 1000).into()),
                                        target_token1_amount in 1..100u64,
-                                       target_token2_amount in 1..100u64) {
+                                       target_token2_amount in 2..100u64) {
             let s = SimpleBoxSelector::new();
             let all_input_tokens = sum_tokens(inputs.as_slice());
             prop_assume!(all_input_tokens.len() >= 2);
@@ -204,9 +210,17 @@ mod tests {
             prop_assume!(input_token1_amount >= target_token1_amount);
             prop_assume!(input_token2_amount >= target_token2_amount);
             let target_token1 = Token {token_id: target_token1_id.clone(), amount: target_token1_amount.try_into().unwrap()};
-            let target_token2 = Token {token_id: target_token2_id.clone(), amount: target_token2_amount.try_into().unwrap()};
-            let selection = s.select(inputs, target_balance, vec![target_token1.clone(), target_token2.clone()].as_slice()).unwrap();
-            let out_box = ErgoBoxAssetsData {value: target_balance, tokens: vec![target_token1, target_token2]};
+            // simulate repeating token ids (e.g the same token id mentioned twice)
+            let target_token2_amount_part1 = target_token2_amount / 2;
+            let target_token2_amount_part2 = target_token2_amount - target_token2_amount_part1;
+            let target_token2_part1 = Token {token_id: target_token2_id.clone(),
+                                             amount: target_token2_amount_part1.try_into().unwrap()};
+            let target_token2_part2 = Token {token_id: target_token2_id.clone(),
+                                             amount: target_token2_amount_part2.try_into().unwrap()};
+            let target_tokens = vec![target_token1.clone(), target_token2_part1.clone(), target_token2_part2.clone()];
+            let selection = s.select(inputs, target_balance, target_tokens.as_slice()).unwrap();
+            let out_box = ErgoBoxAssetsData {value: target_balance,
+                                             tokens: vec![target_token1, target_token2_part1, target_token2_part2]};
             let mut change_boxes_plus_out = vec![out_box];
             change_boxes_plus_out.append(&mut selection.change_boxes.clone());
             prop_assert_eq!(sum_value(selection.boxes.as_slice()),

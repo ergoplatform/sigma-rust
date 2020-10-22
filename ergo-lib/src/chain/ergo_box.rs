@@ -356,6 +356,7 @@ mod tests {
     use super::box_value::tests::ArbBoxValueRange;
     use super::*;
     use crate::serialization::sigma_serialize_roundtrip;
+    use crate::test_util::force_any_val;
     use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
 
     impl Arbitrary for ErgoBoxCandidate {
@@ -410,6 +411,19 @@ mod tests {
         }
 
         type Strategy = BoxedStrategy<Self>;
+    }
+
+    #[test]
+    fn test_sum_tokens_repeating_token_id() {
+        let token = force_any_val::<Token>();
+        let b = ErgoBoxAssetsData {
+            value: BoxValue::SAFE_USER_MIN,
+            tokens: vec![token.clone(), token.clone()],
+        };
+        assert_eq!(
+            *sum_tokens(vec![b].as_slice()).get(&token.token_id).unwrap(),
+            u64::from(token.amount) * 2
+        );
     }
 
     proptest! {
