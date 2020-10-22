@@ -17,10 +17,13 @@ use serde::{Deserialize, Serialize};
 /// Unsigned (without proofs) transaction input
 #[derive(PartialEq, Debug, Clone)]
 #[cfg_attr(test, derive(proptest_derive::Arbitrary))]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct UnsignedInput {
     /// id of the box to spent
+    #[cfg_attr(feature = "json", serde(rename = "boxId"))]
     pub box_id: BoxId,
     /// user-defined variables to be put into context
+    #[cfg_attr(feature = "json", serde(rename = "extension"))]
     pub extension: ContextExtension,
 }
 
