@@ -1,5 +1,6 @@
 //! Unsigned (without proofs) transaction
 
+#[cfg(feature = "json")]
 use super::json;
 use super::{
     super::{
@@ -7,7 +8,9 @@ use super::{
     },
     Transaction, TxId,
 };
+#[cfg(feature = "json")]
 use crate::chain::transaction::ErgoBox;
+#[cfg(feature = "json")]
 use crate::chain::transaction::TransactionFromJsonError;
 use crate::{
     chain::{
@@ -90,6 +93,7 @@ impl UnsignedTransaction {
     }
 }
 
+#[cfg(feature = "json")]
 impl TryFrom<json::transaction::UnsignedTransactionJson> for UnsignedTransaction {
     type Error = TransactionFromJsonError;
     fn try_from(
@@ -115,6 +119,7 @@ impl TryFrom<json::transaction::UnsignedTransactionJson> for UnsignedTransaction
     }
 }
 
+#[cfg(feature = "json")]
 impl From<UnsignedTransaction> for json::transaction::UnsignedTransactionJson {
     fn from(t: UnsignedTransaction) -> Self {
         json::transaction::UnsignedTransactionJson {
