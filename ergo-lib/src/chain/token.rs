@@ -63,8 +63,8 @@ impl TokenAmount {
 #[derive(Error, Eq, PartialEq, Debug, Clone)]
 pub enum TokenAmountError {
     /// Value is out of bounds
-    #[error("Value is out of bounds")]
-    OutOfBounds,
+    #[error("Value is out of bounds: {0}")]
+    OutOfBounds(u64),
     /// Overflow
     #[error("Overflow")]
     Overflow,
@@ -77,7 +77,7 @@ impl TryFrom<u64> for TokenAmount {
         if v >= TokenAmount::MIN && v <= TokenAmount::MAX {
             Ok(TokenAmount(v))
         } else {
-            Err(TokenAmountError::OutOfBounds)
+            Err(TokenAmountError::OutOfBounds(v))
         }
     }
 }

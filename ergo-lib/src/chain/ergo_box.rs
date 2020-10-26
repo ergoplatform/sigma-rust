@@ -159,14 +159,28 @@ pub fn sum_value<T: ErgoBoxAssets>(bs: &[T]) -> u64 {
     bs.iter().map(|b| *b.value().as_u64()).sum()
 }
 
-/// Returns the total token amounts (all tokens combined) of the given boxes
-pub fn sum_tokens<T: ErgoBoxAssets>(bs: &[T]) -> HashMap<TokenId, u64> {
+/// Returns the total token amounts (all tokens combined)
+pub fn sum_tokens(ts: &[Token]) -> HashMap<TokenId, u64> {
     let mut res = HashMap::new();
+    ts.iter().for_each(|t| {
+        let token_amt = u64::from(t.amount);
+        res.entry(t.token_id.clone())
+            .and_modify(|amt| *amt += token_amt)
+            .or_insert(token_amt);
+    });
+    res
+}
+
+/// Returns the total token amounts (all tokens combined) of the given boxes
+pub fn sum_tokens_from_boxes<T: ErgoBoxAssets>(bs: &[T]) -> HashMap<TokenId, u64> {
+    let mut res: HashMap<TokenId, u64> = HashMap::new();
     bs.iter().for_each(|b| {
         b.tokens().iter().for_each(|t| {
-            let existing_amount = *res.get(&t.token_id).unwrap_or(&0u64);
-            res.insert(t.token_id.clone(), existing_amount + u64::from(t.amount));
-        })
+            let token_amt = u64::from(t.amount);
+            res.entry(t.token_id.clone())
+                .and_modify(|a| *a += token_amt)
+                .or_insert(token_amt);
+        });
     });
     res
 }
@@ -421,12 +435,19 @@ mod tests {
             tokens: vec![token.clone(), token.clone()],
         };
         assert_eq!(
-            *sum_tokens(vec![b].as_slice()).get(&token.token_id).unwrap(),
-            u64::from(token.amount) * 2
+            *sum_tokens_from_boxes(vec![b.clone(), b].as_slice())
+                .get(&token.token_id)
+                .unwrap(),
+            u64::from(token.amount) * 4
         );
     }
 
     proptest! {
+
+        #[test]
+        fn sum_tokens_eq(b in any::<ErgoBoxAssetsData>()) {
+            prop_assert_eq!(sum_tokens(b.tokens().as_slice()), sum_tokens_from_boxes(vec![b].as_slice()))
+        }
 
         #[test]
         fn ergo_box_candidate_ser_roundtrip(v in any::<ErgoBoxCandidate>()) {

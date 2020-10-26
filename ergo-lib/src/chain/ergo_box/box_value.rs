@@ -58,7 +58,7 @@ impl BoxValue {
     pub fn checked_add(&self, rhs: &Self) -> Result<Self, BoxValueError> {
         let raw = self.0.checked_add(rhs.0).ok_or(BoxValueError::Overflow)?;
         if raw > BoxValue::MAX_RAW {
-            Err(BoxValueError::OutOfBounds)
+            Err(BoxValueError::OutOfBounds(raw))
         } else {
             Ok(BoxValue(raw))
         }
@@ -68,7 +68,7 @@ impl BoxValue {
     pub fn checked_sub(&self, rhs: &Self) -> Result<Self, BoxValueError> {
         let raw = self.0.checked_sub(rhs.0).ok_or(BoxValueError::Overflow)?;
         if raw < BoxValue::MIN_RAW {
-            Err(BoxValueError::OutOfBounds)
+            Err(BoxValueError::OutOfBounds(raw))
         } else {
             Ok(BoxValue(raw))
         }
@@ -78,7 +78,7 @@ impl BoxValue {
     pub fn checked_mul(&self, rhs: &Self) -> Result<Self, BoxValueError> {
         let raw = self.0.checked_mul(rhs.0).ok_or(BoxValueError::Overflow)?;
         if raw > BoxValue::MAX_RAW {
-            Err(BoxValueError::OutOfBounds)
+            Err(BoxValueError::OutOfBounds(raw))
         } else {
             Ok(BoxValue(raw))
         }
@@ -91,7 +91,7 @@ impl BoxValue {
             .checked_mul(rhs as u64)
             .ok_or(BoxValueError::Overflow)?;
         if raw > BoxValue::MAX_RAW {
-            Err(BoxValueError::OutOfBounds)
+            Err(BoxValueError::OutOfBounds(raw))
         } else {
             Ok(BoxValue(raw))
         }
@@ -110,7 +110,7 @@ impl TryFrom<u64> for BoxValue {
         if BoxValue::within_bounds(v) {
             Ok(BoxValue(v))
         } else {
-            Err(BoxValueError::OutOfBounds)
+            Err(BoxValueError::OutOfBounds(v))
         }
     }
 }
@@ -121,7 +121,7 @@ impl TryFrom<i64> for BoxValue {
         if v >= BoxValue::MIN_RAW as i64 {
             Ok(BoxValue(v as u64))
         } else {
-            Err(BoxValueError::OutOfBounds)
+            Err(BoxValueError::OutOfBounds(v as u64))
         }
     }
 }
@@ -153,8 +153,8 @@ impl SigmaSerializable for BoxValue {
 #[derive(Error, Eq, PartialEq, Debug, Clone)]
 pub enum BoxValueError {
     /// Value is out of bounds
-    #[error("Value is out of bounds")]
-    OutOfBounds,
+    #[error("Value is out of bounds: {0}")]
+    OutOfBounds(u64),
     /// Overflow
     #[error("Overflow")]
     Overflow,
@@ -179,7 +179,7 @@ pub fn checked_sum<I: Iterator<Item = BoxValue>>(mut iter: I) -> Result<BoxValue
         .map_or_else(Err, |v| {
             if v.0 == 0 {
                 // input list was empty (sum is zero)
-                Err(BoxValueError::OutOfBounds)
+                Err(BoxValueError::OutOfBounds(0))
             } else {
                 Ok(v)
             }
