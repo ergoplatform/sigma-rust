@@ -44,6 +44,7 @@ impl<T: ErgoBoxAssets> BoxSelector<T> for SimpleBoxSelector {
         let mut selected_boxes_value: u64 = 0;
         let target_balance: u64 = target_balance.into();
         let mut target_tokens_left: HashMap<TokenId, u64> = HashMap::new();
+        // sum all target tokens into hash map (think repeating token ids)
         target_tokens.iter().for_each(|t| {
             let token_amt = u64::from(t.amount);
             target_tokens_left
@@ -51,16 +52,22 @@ impl<T: ErgoBoxAssets> BoxSelector<T> for SimpleBoxSelector {
                 .and_modify(|amt| *amt += token_amt)
                 .or_insert(token_amt);
         });
-        let mut has_change = false;
+        let mut has_value_change = false;
+        let mut has_token_change = false;
         inputs.into_iter().for_each(|b| {
+            let value_change_amt: u64 = if target_balance > selected_boxes_value {
+                0
+            } else {
+                selected_boxes_value - target_balance
+            };
             if target_balance > selected_boxes_value
-                || has_change
-                    && (selected_boxes_value - target_balance < *BoxValue::SAFE_USER_MIN.as_u64())
+                || (has_value_change || has_token_change)
+                    && (value_change_amt < *BoxValue::SAFE_USER_MIN.as_u64())
                 || !target_tokens_left.is_empty()
             {
                 selected_boxes_value += u64::from(b.value());
                 if selected_boxes_value > target_balance {
-                    has_change = true;
+                    has_value_change = true;
                 }
                 let mut selected_tokens_from_this_box: HashMap<TokenId, u64> = HashMap::new();
                 b.tokens().iter().for_each(|t| {
@@ -87,7 +94,7 @@ impl<T: ErgoBoxAssets> BoxSelector<T> for SimpleBoxSelector {
                     }
                 });
                 if sum_tokens(b.tokens().as_slice()) != selected_tokens_from_this_box {
-                    has_change = true;
+                    has_token_change = true;
                 };
                 selected_inputs.push(b);
             };
@@ -108,7 +115,7 @@ impl<T: ErgoBoxAssets> BoxSelector<T> for SimpleBoxSelector {
                     .collect(),
             ));
         }
-        let change_boxes: Vec<ErgoBoxAssetsData> = if !has_change {
+        let change_boxes: Vec<ErgoBoxAssetsData> = if !has_value_change && !has_token_change {
             vec![]
         } else {
             let change_value: BoxValue = (selected_boxes_value - target_balance).try_into()?;
