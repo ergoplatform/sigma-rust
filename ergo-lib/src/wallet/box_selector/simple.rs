@@ -75,13 +75,16 @@ impl<T: ErgoBoxAssets> BoxSelector<T> for SimpleBoxSelector {
                             token_amount_left_to_select - token_amount_in_box,
                         );
                     }
-                    let selected_tokens_amount =
-                        *selected_tokens_from_this_box.get(&t.token_id).unwrap_or(&0);
-                    selected_tokens_from_this_box.insert(
-                        t.token_id.clone(),
-                        selected_tokens_amount
-                            + min(token_amount_in_box, token_amount_left_to_select),
-                    );
+                    if token_amount_left_to_select > 0 {
+                        let selected_token_amt =
+                            min(token_amount_in_box, token_amount_left_to_select);
+                        selected_tokens_from_this_box
+                            .entry(t.token_id.clone())
+                            .and_modify(|amt| {
+                                *amt += selected_token_amt;
+                            })
+                            .or_insert(selected_token_amt);
+                    }
                 });
                 if sum_tokens(b.tokens().as_slice()) != selected_tokens_from_this_box {
                     has_change = true;
@@ -262,7 +265,8 @@ mod tests {
             let s = SimpleBoxSelector::new();
             let all_input_tokens = sum_tokens_from_boxes(inputs.as_slice());
             prop_assume!(!all_input_tokens.is_empty());
-            let target_token_id = all_input_tokens.keys().collect::<Vec<&TokenId>>().get(0).cloned().unwrap();
+            let target_token_id = all_input_tokens.keys().collect::<Vec<&TokenId>>().get((all_input_tokens.len() - 1) / 2)
+                                                                                    .cloned().unwrap();
             let input_token_amount = *all_input_tokens.get(target_token_id).unwrap();
             prop_assume!(input_token_amount >= target_token_amount);
             let target_token = Token {token_id: target_token_id.clone(), amount: target_token_amount.try_into().unwrap()};
@@ -290,8 +294,8 @@ mod tests {
             let all_input_tokens = sum_tokens_from_boxes(inputs.as_slice());
             prop_assume!(all_input_tokens.len() >= 2);
             let all_input_tokens_keys = all_input_tokens.keys().collect::<Vec<&TokenId>>();
-            let target_token1_id = all_input_tokens_keys.get(0).cloned().unwrap();
-            let target_token2_id = all_input_tokens_keys.get(1).cloned().unwrap();
+            let target_token1_id = all_input_tokens_keys.first().cloned().unwrap();
+            let target_token2_id = all_input_tokens_keys.last().cloned().unwrap();
             let input_token1_amount = *all_input_tokens.get(target_token1_id).unwrap();
             let input_token2_amount = *all_input_tokens.get(target_token2_id).unwrap();
             prop_assume!(input_token1_amount >= target_token1_amount);

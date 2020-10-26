@@ -6,8 +6,6 @@ use std::convert::TryInto;
 
 use crate::ast::Constant;
 use crate::chain::token::Token;
-use crate::chain::token::TokenAmount;
-use crate::chain::token::TokenId;
 use crate::serialization::SigmaSerializable;
 use crate::ErgoTree;
 
@@ -153,8 +151,8 @@ impl ErgoBoxCandidateBuilder {
     }
 
     /// Add given token id and token amount
-    pub fn add_token(&mut self, token_id: TokenId, amount: TokenAmount) {
-        self.tokens.push(Token { token_id, amount });
+    pub fn add_token(&mut self, token: Token) {
+        self.tokens.push(token);
     }
 
     /// Build the box candidate
@@ -188,6 +186,7 @@ mod tests {
 
     use NonMandatoryRegisterId::*;
 
+    use crate::chain::token::TokenId;
     use crate::test_util::force_any_val;
 
     use super::*;
@@ -314,5 +313,19 @@ mod tests {
             "0e0132",
             "invalid encoding of token number of decimals in R6"
         );
+    }
+
+    #[test]
+    fn test_add_token() {
+        let token = Token {
+            token_id: force_any_val::<TokenId>(),
+            amount: 1.try_into().unwrap(),
+        };
+        let out_box_value = BoxValue::SAFE_USER_MIN;
+        let mut box_builder =
+            ErgoBoxCandidateBuilder::new(out_box_value, force_any_val::<ErgoTree>(), 0);
+        box_builder.add_token(token.clone());
+        let out_box = box_builder.build().unwrap();
+        assert_eq!(out_box.tokens.first().unwrap(), &token);
     }
 }
