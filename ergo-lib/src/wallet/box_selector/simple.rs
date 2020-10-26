@@ -283,6 +283,32 @@ mod tests {
         }
 
         #[test]
+        fn test_select_single_token_all_amount(inputs in
+                                               vec(any_with::<ErgoBoxAssetsData>(
+                                                   (BoxValue::MIN_RAW * 1000 .. BoxValue::MIN_RAW * 10000).into()), 1..10),
+                                               target_balance in
+                                               any_with::<BoxValue>((BoxValue::MIN_RAW * 100 .. BoxValue::MIN_RAW * 1000).into())) {
+            let s = SimpleBoxSelector::new();
+            let all_input_tokens = sum_tokens_from_boxes(inputs.as_slice());
+            prop_assume!(!all_input_tokens.is_empty());
+            let target_token_id = all_input_tokens.keys().collect::<Vec<&TokenId>>().get((all_input_tokens.len() - 1) / 2)
+                                                                                    .cloned().unwrap();
+            let input_token_amount = *all_input_tokens.get(target_token_id).unwrap();
+            prop_assume!(input_token_amount > 0);
+            let target_token = Token {token_id: target_token_id.clone(), amount: input_token_amount.try_into().unwrap()};
+            let selection = s.select(inputs, target_balance, vec![target_token.clone()].as_slice()).unwrap();
+            let out_box = ErgoBoxAssetsData {value: target_balance, tokens: vec![target_token]};
+            let mut change_boxes_plus_out = vec![out_box];
+            change_boxes_plus_out.append(&mut selection.change_boxes.clone());
+            prop_assert_eq!(sum_value(selection.boxes.as_slice()),
+                            sum_value(change_boxes_plus_out.as_slice()),
+                            "total value of the selected boxes should equal target balance + total value in change boxes");
+            prop_assert_eq!(sum_tokens_from_boxes(selection.boxes.as_slice()),
+                            sum_tokens_from_boxes(change_boxes_plus_out.as_slice()),
+                            "all tokens from selected boxes should equal all tokens from the change boxes + target tokens");
+        }
+
+        #[test]
         fn test_select_multiple_tokens(inputs in
                                        vec(any_with::<ErgoBoxAssetsData>(
                                            (BoxValue::MIN_RAW * 1000 .. BoxValue::MIN_RAW * 10000).into()), 1..10),
