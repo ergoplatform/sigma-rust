@@ -47,6 +47,12 @@ impl From<chain::ergo_box::box_id::BoxId> for BoxId {
     }
 }
 
+impl From<BoxId> for chain::ergo_box::box_id::BoxId {
+    fn from(b: BoxId) -> Self {
+        b.0
+    }
+}
+
 /// ErgoBox candidate not yet included in any transaction on the chain
 #[wasm_bindgen]
 #[derive(PartialEq, Eq, Debug, Clone)]
