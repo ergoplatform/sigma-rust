@@ -105,7 +105,7 @@ pub struct Constant {
 
 impl From<Constant> for Base16EncodedBytes {
     fn from(v: Constant) -> Base16EncodedBytes {
-        Base16EncodedBytes::new(&v.sigma_serialise_bytes())
+        Base16EncodedBytes::new(&v.sigma_serialize_bytes())
     }
 }
 

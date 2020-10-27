@@ -141,7 +141,7 @@ impl ErgoBox {
     }
 
     fn calc_box_id(&self) -> BoxId {
-        let bytes = self.sigma_serialise_bytes();
+        let bytes = self.sigma_serialize_bytes();
         BoxId(blake2b256_hash(&bytes))
     }
 }
@@ -274,7 +274,7 @@ impl TryFrom<json::ergo_box::ErgoBoxFromJson> for ErgoBox {
 
 impl SigmaSerializable for ErgoBox {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
-        let ergo_tree_bytes = self.ergo_tree.sigma_serialise_bytes();
+        let ergo_tree_bytes = self.ergo_tree.sigma_serialize_bytes();
         serialize_box_with_indexed_digests(
             &self.value,
             ergo_tree_bytes,
@@ -325,7 +325,7 @@ impl ErgoBoxCandidate {
     ) -> Result<(), io::Error> {
         serialize_box_with_indexed_digests(
             &self.value,
-            self.ergo_tree.sigma_serialise_bytes(),
+            self.ergo_tree.sigma_serialize_bytes(),
             &self.tokens,
             &self.additional_registers,
             self.creation_height,

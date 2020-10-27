@@ -96,7 +96,7 @@ impl ErgoBoxCandidateBuilder {
             additional_registers: regs,
             creation_height: self.creation_height,
         };
-        Ok(b.sigma_serialise_bytes().len())
+        Ok(b.sigma_serialize_bytes().len())
     }
 
     /// Calculate minimal box value for the current box serialized size(in bytes)
@@ -166,7 +166,7 @@ impl ErgoBoxCandidateBuilder {
             additional_registers: regs,
             creation_height: self.creation_height,
         };
-        let box_size_bytes = b.sigma_serialise_bytes().len();
+        let box_size_bytes = b.sigma_serialize_bytes().len();
         let min_box_value: BoxValue = (box_size_bytes as i64 * self.min_value_per_byte as i64)
             .try_into()
             .unwrap();
@@ -230,7 +230,7 @@ mod tests {
             ErgoBoxCandidateBuilder::new(BoxValue::SAFE_USER_MIN, force_any_val::<ErgoTree>(), 1);
         let estimated_box_size = builder.calc_box_size_bytes().unwrap();
         let b = builder.build().unwrap();
-        assert_eq!(b.sigma_serialise_bytes().len(), estimated_box_size);
+        assert_eq!(b.sigma_serialize_bytes().len(), estimated_box_size);
     }
 
     #[test]

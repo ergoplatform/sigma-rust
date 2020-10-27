@@ -16,7 +16,7 @@ impl From<EcPoint> for FirstDlogProverMessage {
 
 impl ProverMessage for FirstDlogProverMessage {
     fn bytes(&self) -> Vec<u8> {
-        self.0.sigma_serialise_bytes()
+        self.0.sigma_serialize_bytes()
     }
 }
 

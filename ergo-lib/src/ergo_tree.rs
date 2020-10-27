@@ -308,7 +308,7 @@ mod tests {
             .unwrap();
 
         let contract = chain::contract::Contract::pay_to_address(&address).unwrap();
-        let bytes = &contract.ergo_tree().sigma_serialise_bytes();
+        let bytes = &contract.ergo_tree().sigma_serialize_bytes();
         assert_eq!(&bytes[..2], vec![0u8, 8u8].as_slice());
     }
 
@@ -319,7 +319,7 @@ mod tests {
             v: ConstantVal::Boolean(true),
         });
         let ergo_tree = ErgoTree::with_segregation(Rc::new(expr.clone()));
-        let bytes = ergo_tree.sigma_serialise_bytes();
+        let bytes = ergo_tree.sigma_serialize_bytes();
         let parsed_expr = ErgoTree::sigma_parse_bytes(bytes)
             .unwrap()
             .proposition()

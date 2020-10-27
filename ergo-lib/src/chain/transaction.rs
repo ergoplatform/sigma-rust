@@ -132,7 +132,7 @@ impl Transaction {
             inputs: empty_proof_inputs,
             ..(*self).clone()
         };
-        tx_to_sign.sigma_serialise_bytes()
+        tx_to_sign.sigma_serialize_bytes()
     }
 
     /// Get transaction id

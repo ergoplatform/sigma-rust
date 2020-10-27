@@ -89,7 +89,7 @@ impl UnsignedTransaction {
             self.data_inputs.clone(),
             self.output_candidates.clone(),
         );
-        tx.sigma_serialise_bytes()
+        tx.sigma_serialize_bytes()
     }
 }
 

@@ -20,7 +20,7 @@ pub mod ergo_tree {
     where
         S: Serializer,
     {
-        let bytes = ergo_tree.sigma_serialise_bytes();
+        let bytes = ergo_tree.sigma_serialize_bytes();
         serialize_bytes(&bytes[..], serializer)
     }
 
