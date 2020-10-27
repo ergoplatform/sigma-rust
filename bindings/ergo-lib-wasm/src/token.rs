@@ -3,6 +3,8 @@
 use std::convert::TryFrom;
 
 use ergo_lib::chain;
+use ergo_lib::chain::Base16DecodedBytes;
+use ergo_lib::chain::Digest32;
 use wasm_bindgen::prelude::*;
 
 use crate::ergo_box::BoxId;
@@ -19,6 +21,18 @@ impl TokenId {
     pub fn from_box_id(box_id: &BoxId) -> TokenId {
         let box_id: chain::ergo_box::box_id::BoxId = box_id.clone().into();
         TokenId(chain::token::TokenId::from(box_id))
+    }
+
+    /// Parse token id (32 byte digets) from base16-encoded string
+    #[allow(clippy::should_implement_trait)]
+    pub fn from_str(str: &str) -> Result<TokenId, JsValue> {
+        Base16DecodedBytes::try_from(str.to_string())
+            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+            .and_then(|bytes| {
+                Digest32::try_from(bytes).map_err(|e| JsValue::from_str(&format!("{}", e)))
+            })
+            .map(chain::token::TokenId)
+            .map(TokenId)
     }
 }
 
