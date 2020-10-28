@@ -10,7 +10,7 @@ use sigma_ser::vlq_encode;
 use std::{convert::TryFrom, io};
 use thiserror::Error;
 
-/// Box value with bound checks
+/// Box value in nanoERGs with bound checks
 #[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct BoxValue(pub(crate) u64);
