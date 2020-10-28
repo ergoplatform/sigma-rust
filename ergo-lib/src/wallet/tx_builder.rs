@@ -29,6 +29,9 @@ use crate::sigma_protocol;
 
 use super::box_selector::{BoxSelection, BoxSelectorError};
 
+/// Suggested transaction fee (semi-default value used across wallets and dApps as of Oct 2020)
+pub const SUGGESTED_TX_FEE: BoxValue = BoxValue(1100000u64);
+
 /// Unsigned transaction builder
 pub struct TxBuilder<S: ErgoBoxAssets> {
     box_selection: BoxSelection<S>,
@@ -45,7 +48,7 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
     /// `box_selection` - selected input boxes  (via [`BoxSelector`])
     /// `output_candidates` - output boxes to be "created" in this transaction,
     /// `current_height` - chain height that will be used in additionally created boxes (change, miner's fee, etc.),
-    /// `fee_amount` - miner's fee,
+    /// `fee_amount` - miner's fee (higher values will speed up inclusion in blocks),
     /// `change_address` - change (inputs - outputs) will be sent to this address,
     /// `min_change_value` - minimal value of the change to be sent to `change_address`, value less than that
     /// will be given to miners,
@@ -278,7 +281,7 @@ mod tests {
         let input = force_any_val_with::<ErgoBox>(
             (BoxValue::MIN_RAW * 5000..BoxValue::MIN_RAW * 10000).into(),
         );
-        let tx_fee = BoxValue::SAFE_USER_MIN;
+        let tx_fee = super::SUGGESTED_TX_FEE;
         let out_box_value = input.value.checked_sub(&tx_fee).unwrap();
         let box_builder =
             ErgoBoxCandidateBuilder::new(out_box_value, force_any_val::<ErgoTree>(), 0);

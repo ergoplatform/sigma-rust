@@ -13,7 +13,7 @@ use thiserror::Error;
 /// Box value with bound checks
 #[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
-pub struct BoxValue(u64);
+pub struct BoxValue(pub(crate) u64);
 
 impl BoxValue {
     /// Minimal box value per byte of the serialized box that was set on on launch
@@ -40,7 +40,7 @@ impl BoxValue {
     }
 
     /// Check if a value is in bounds
-    pub fn within_bounds(v: u64) -> bool {
+    pub const fn within_bounds(v: u64) -> bool {
         v >= BoxValue::MIN_RAW as u64 && v <= BoxValue::MAX_RAW as u64
     }
 
