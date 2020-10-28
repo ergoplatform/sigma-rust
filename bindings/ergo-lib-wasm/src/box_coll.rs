@@ -7,7 +7,7 @@ use crate::ergo_box::{ErgoBox, ErgoBoxCandidate};
 /// Collection of ErgoBox'es
 #[wasm_bindgen]
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct ErgoBoxes(Vec<chain::ergo_box::ErgoBox>);
+pub struct ErgoBoxes(Vec<ErgoBox>);
 
 #[wasm_bindgen]
 impl ErgoBoxes {
@@ -34,43 +34,56 @@ impl ErgoBoxes {
                 acc.push(b);
                 Ok(acc)
             })
-            .map(ErgoBoxes)
+            .map(ErgoBoxes::from)
     }
 
     /// Create new collection with one element
     #[wasm_bindgen(constructor)]
     pub fn new(b: &ErgoBox) -> ErgoBoxes {
-        ErgoBoxes(vec![b.clone().into()])
+        ErgoBoxes(vec![b.clone()])
     }
 
     /// Add an element to the collection
     pub fn add(&mut self, b: &ErgoBox) {
-        self.0.push(b.clone().into());
+        self.0.push(b.clone());
+    }
+
+    /// Returns the element of the collection with a given index
+    pub fn get(&self, index: usize) -> ErgoBox {
+        self.0[index].clone()
     }
 }
 
-impl Into<Vec<chain::ergo_box::ErgoBox>> for ErgoBoxes {
-    fn into(self) -> Vec<chain::ergo_box::ErgoBox> {
-        self.0
+impl From<Vec<chain::ergo_box::ErgoBox>> for ErgoBoxes {
+    fn from(bs: Vec<chain::ergo_box::ErgoBox>) -> Self {
+        ErgoBoxes(bs.into_iter().map(ErgoBox::from).collect())
+    }
+}
+
+impl From<ErgoBoxes> for Vec<chain::ergo_box::ErgoBox> {
+    fn from(bs: ErgoBoxes) -> Self {
+        bs.0.into_iter()
+            .map(chain::ergo_box::ErgoBox::from)
+            .collect()
     }
 }
 
 /// Collection of ErgoBoxCandidates
 #[wasm_bindgen]
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct ErgoBoxCandidates(Vec<chain::ergo_box::ErgoBoxCandidate>);
+pub struct ErgoBoxCandidates(Vec<ErgoBoxCandidate>);
 
 #[wasm_bindgen]
 impl ErgoBoxCandidates {
     /// Create new outputs
     #[wasm_bindgen(constructor)]
     pub fn new(box_candidate: &ErgoBoxCandidate) -> ErgoBoxCandidates {
-        ErgoBoxCandidates(vec![box_candidate.clone().into()])
+        ErgoBoxCandidates(vec![box_candidate.clone()])
     }
 }
 
-impl Into<Vec<chain::ergo_box::ErgoBoxCandidate>> for ErgoBoxCandidates {
-    fn into(self) -> Vec<chain::ergo_box::ErgoBoxCandidate> {
-        self.0
+impl From<ErgoBoxCandidates> for Vec<chain::ergo_box::ErgoBoxCandidate> {
+    fn from(v: ErgoBoxCandidates) -> Self {
+        v.0.iter().map(|i| i.clone().into()).collect()
     }
 }

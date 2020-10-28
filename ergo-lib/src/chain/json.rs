@@ -20,7 +20,7 @@ pub mod ergo_tree {
     where
         S: Serializer,
     {
-        let bytes = ergo_tree.sigma_serialise_bytes();
+        let bytes = ergo_tree.sigma_serialize_bytes();
         serialize_bytes(&bytes[..], serializer)
     }
 
@@ -41,7 +41,7 @@ pub mod ergo_box {
     use crate::{
         chain::{
             ergo_box::{box_id::BoxId, box_value::BoxValue, register::NonMandatoryRegisters},
-            token::TokenAmount,
+            token::Token,
             transaction::TxId,
         },
         ErgoTree,
@@ -60,7 +60,7 @@ pub mod ergo_box {
         pub ergo_tree: ErgoTree,
         /// secondary tokens the box contains
         #[serde(rename = "assets")]
-        pub tokens: Vec<TokenAmount>,
+        pub tokens: Vec<Token>,
         ///  additional registers the box can carry over
         #[serde(rename = "additionalRegisters")]
         pub additional_registers: NonMandatoryRegisters,

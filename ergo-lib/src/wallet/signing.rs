@@ -109,6 +109,8 @@ mod tests {
 
     proptest! {
 
+        #![proptest_config(ProptestConfig::with_cases(16))]
+
         #[test]
         fn test_tx_signing(secrets in vec(any::<DlogProverInput>(), 1..10)) {
             let boxes_to_spend: Vec<ErgoBox> = secrets.iter().map(|secret|{

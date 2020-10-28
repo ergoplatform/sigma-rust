@@ -16,7 +16,7 @@ impl From<EcPoint> for FirstDlogProverMessage {
 
 impl ProverMessage for FirstDlogProverMessage {
     fn bytes(&self) -> Vec<u8> {
-        self.0.sigma_serialise_bytes()
+        self.0.sigma_serialize_bytes()
     }
 }
 
@@ -105,6 +105,8 @@ mod tests {
     use proptest::prelude::*;
 
     proptest! {
+
+        #![proptest_config(ProptestConfig::with_cases(16))]
 
         #[test]
         fn test_compute_commitment(secret in any::<DlogProverInput>(), challenge in any::<Challenge>()) {

@@ -2,12 +2,10 @@
 use ergo_lib::{chain, wallet};
 use wasm_bindgen::prelude::*;
 
+use crate::box_selector::BoxSelection;
 use crate::data_input::DataInputs;
 use crate::{
-    address::Address,
-    box_coll::{ErgoBoxCandidates, ErgoBoxes},
-    box_selector::BoxSelector,
-    ergo_box::BoxValue,
+    address::Address, box_coll::ErgoBoxCandidates, ergo_box::BoxValue,
     transaction::UnsignedTransaction,
 };
 
@@ -18,8 +16,7 @@ pub struct TxBuilder(wallet::tx_builder::TxBuilder<chain::ergo_box::ErgoBox>);
 #[wasm_bindgen]
 impl TxBuilder {
     /// Creates new TxBuilder
-    /// `box_selector` - input box selection algorithm to choose inputs from `boxes_to_spend`,
-    /// `boxes_to_spend` - spendable boxes,
+    /// `box_selection` - selected input boxes (via [`BoxSelector`])
     /// `output_candidates` - output boxes to be "created" in this transaction,
     /// `current_height` - chain height that will be used in additionally created boxes (change, miner's fee, etc.),
     /// `fee_amount` - miner's fee,
@@ -27,8 +24,7 @@ impl TxBuilder {
     /// `min_change_value` - minimal value of the change to be sent to `change_address`, value less than that
     /// will be given to miners,
     pub fn new(
-        box_selector: BoxSelector,
-        inputs: &ErgoBoxes,
+        box_selection: &BoxSelection,
         output_candidates: &ErgoBoxCandidates,
         current_height: u32,
         fee_amount: &BoxValue,
@@ -36,8 +32,7 @@ impl TxBuilder {
         min_change_value: &BoxValue,
     ) -> TxBuilder {
         TxBuilder(ergo_lib::wallet::tx_builder::TxBuilder::new(
-            box_selector.inner::<chain::ergo_box::ErgoBox>(),
-            inputs.clone().into(),
+            box_selection.clone().into(),
             output_candidates.clone().into(),
             current_height,
             fee_amount.clone().into(),

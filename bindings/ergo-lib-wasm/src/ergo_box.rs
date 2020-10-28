@@ -23,9 +23,35 @@ use ergo_lib::chain;
 use wasm_bindgen::prelude::*;
 
 use crate::ast::Constant;
+use crate::utils::I64;
 use crate::{contract::Contract, transaction::TxId};
 
 pub mod box_builder;
+
+/// Box id (32-byte digest)
+#[wasm_bindgen]
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct BoxId(chain::ergo_box::box_id::BoxId);
+
+#[wasm_bindgen]
+impl BoxId {
+    /// Base16 encoded string
+    pub fn to_str(&self) -> String {
+        self.0.clone().into()
+    }
+}
+
+impl From<chain::ergo_box::box_id::BoxId> for BoxId {
+    fn from(b: chain::ergo_box::box_id::BoxId) -> Self {
+        BoxId(b)
+    }
+}
+
+impl From<BoxId> for chain::ergo_box::box_id::BoxId {
+    fn from(b: BoxId) -> Self {
+        b.0
+    }
+}
 
 /// ErgoBox candidate not yet included in any transaction on the chain
 #[wasm_bindgen]
@@ -86,6 +112,16 @@ impl ErgoBox {
         ErgoBox(b)
     }
 
+    /// Get box id
+    pub fn box_id(&self) -> BoxId {
+        self.0.box_id().into()
+    }
+
+    /// Get box value in nanoERGs
+    pub fn value(&self) -> BoxValue {
+        self.0.value.into()
+    }
+
     /// Returns value (ErgoTree constant) stored in the register or None if the register is empty
     pub fn register_value(&self, register_id: NonMandatoryRegisterId) -> Option<Constant> {
         self.0
@@ -101,9 +137,15 @@ impl ErgoBox {
     // }
 }
 
-impl Into<chain::ergo_box::ErgoBox> for ErgoBox {
-    fn into(self) -> chain::ergo_box::ErgoBox {
-        self.0
+impl From<ErgoBox> for chain::ergo_box::ErgoBox {
+    fn from(b: ErgoBox) -> Self {
+        b.0
+    }
+}
+
+impl From<chain::ergo_box::ErgoBox> for ErgoBox {
+    fn from(b: chain::ergo_box::ErgoBox) -> Self {
+        ErgoBox(b)
     }
 }
 
@@ -127,6 +169,11 @@ impl BoxValue {
             chain::ergo_box::box_value::BoxValue::try_from(v as u64)
                 .map_err(|e| JsValue::from_str(&format!("{}", e)))?,
         ))
+    }
+
+    /// Get value as signed 64-bit long (I64)
+    pub fn as_i64(&self) -> I64 {
+        self.0.as_i64().into()
     }
 }
 

@@ -89,7 +89,7 @@ impl UnsignedTransaction {
             self.data_inputs.clone(),
             self.output_candidates.clone(),
         );
-        tx.sigma_serialise_bytes()
+        tx.sigma_serialize_bytes()
     }
 }
 
@@ -159,6 +159,8 @@ pub mod tests {
     }
 
     proptest! {
+
+        #![proptest_config(ProptestConfig::with_cases(16))]
 
         #[test]
         fn test_unsigned_tx_bytes_to_sign(v in any::<UnsignedTransaction>()) {

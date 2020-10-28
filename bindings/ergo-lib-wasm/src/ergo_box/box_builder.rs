@@ -4,6 +4,9 @@ use wasm_bindgen::prelude::*;
 
 use crate::ast::Constant;
 use crate::contract::Contract;
+use crate::token::Token;
+use crate::token::TokenAmount;
+use crate::token::TokenId;
 
 use super::BoxValue;
 use super::ErgoBoxCandidate;
@@ -82,6 +85,30 @@ impl ErgoBoxCandidateBuilder {
     /// Delete register value(make register empty) for the given register id (R4-R9)
     pub fn delete_register_value(&mut self, register_id: NonMandatoryRegisterId) {
         self.0.delete_register_value(&register_id.into());
+    }
+
+    /// Mint token, as defined in https://github.com/ergoplatform/eips/blob/master/eip-0004.md
+    /// `token` - token id(box id of the first input box in transaction) and token amount,
+    /// `token_name` - token name (will be encoded in R4),
+    /// `token_desc` - token description (will be encoded in R5),
+    /// `num_decimals` - number of decimals (will be encoded in R6)
+    pub fn mint_token(
+        &mut self,
+        token: &Token,
+        token_name: String,
+        token_desc: String,
+        num_decimals: usize,
+    ) {
+        self.0
+            .mint_token(token.clone().into(), token_name, token_desc, num_decimals);
+    }
+
+    /// Add given token id and token amount
+    pub fn add_token(&mut self, token_id: &TokenId, amount: &TokenAmount) {
+        self.0.add_token(chain::token::Token {
+            token_id: token_id.clone().into(),
+            amount: amount.clone().into(),
+        });
     }
 
     /// Build the box candidate

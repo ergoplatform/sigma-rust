@@ -5,7 +5,7 @@ use std::convert::TryFrom;
 use std::convert::TryInto;
 
 use crate::ast::Constant;
-use crate::chain::token::TokenAmount;
+use crate::chain::token::Token;
 use crate::serialization::SigmaSerializable;
 use crate::ErgoTree;
 
@@ -39,7 +39,7 @@ pub struct ErgoBoxCandidateBuilder {
     min_value_per_byte: u32,
     value: BoxValue,
     ergo_tree: ErgoTree,
-    tokens: Vec<TokenAmount>,
+    tokens: Vec<Token>,
     additional_registers: HashMap<NonMandatoryRegisterId, Constant>,
     creation_height: u32,
 }
@@ -96,7 +96,7 @@ impl ErgoBoxCandidateBuilder {
             additional_registers: regs,
             creation_height: self.creation_height,
         };
-        Ok(b.sigma_serialise_bytes().len())
+        Ok(b.sigma_serialize_bytes().len())
     }
 
     /// Calculate minimal box value for the current box serialized size(in bytes)
@@ -123,8 +123,41 @@ impl ErgoBoxCandidateBuilder {
         self.additional_registers.remove(register_id);
     }
 
+    /// Mint token, as defined in https://github.com/ergoplatform/eips/blob/master/eip-0004.md
+    /// `token` - token id(box id of the first input box in transaction) and token amount,
+    /// `token_name` - token name (will be encoded in R4),
+    /// `token_desc` - token description (will be encoded in R5),
+    /// `num_decimals` - number of decimals (will be encoded in R6)
+    pub fn mint_token(
+        &mut self,
+        token: Token,
+        token_name: String,
+        token_desc: String,
+        num_decimals: usize,
+    ) {
+        self.tokens.push(token);
+        self.set_register_value(
+            NonMandatoryRegisterId::R4,
+            token_name.as_bytes().to_vec().into(),
+        );
+        self.set_register_value(
+            NonMandatoryRegisterId::R5,
+            token_desc.as_bytes().to_vec().into(),
+        );
+        self.set_register_value(
+            NonMandatoryRegisterId::R6,
+            num_decimals.to_string().as_bytes().to_vec().into(),
+        );
+    }
+
+    /// Add given token id and token amount
+    pub fn add_token(&mut self, token: Token) {
+        self.tokens.push(token);
+    }
+
     /// Build the box candidate
     pub fn build(self) -> Result<ErgoBoxCandidate, ErgoBoxCandidateBuilderError> {
+        // TODO: according to EIP4 if token is minted in this box there should be no other tokens
         let regs = self.build_registers()?;
         let b = ErgoBoxCandidate {
             value: self.value,
@@ -133,7 +166,7 @@ impl ErgoBoxCandidateBuilder {
             additional_registers: regs,
             creation_height: self.creation_height,
         };
-        let box_size_bytes = b.sigma_serialise_bytes().len();
+        let box_size_bytes = b.sigma_serialize_bytes().len();
         let min_box_value: BoxValue = (box_size_bytes as i64 * self.min_value_per_byte as i64)
             .try_into()
             .unwrap();
@@ -153,6 +186,7 @@ mod tests {
 
     use NonMandatoryRegisterId::*;
 
+    use crate::chain::token::TokenId;
     use crate::test_util::force_any_val;
 
     use super::*;
@@ -196,7 +230,7 @@ mod tests {
             ErgoBoxCandidateBuilder::new(BoxValue::SAFE_USER_MIN, force_any_val::<ErgoTree>(), 1);
         let estimated_box_size = builder.calc_box_size_bytes().unwrap();
         let b = builder.build().unwrap();
-        assert_eq!(b.sigma_serialise_bytes().len(), estimated_box_size);
+        assert_eq!(b.sigma_serialize_bytes().len(), estimated_box_size);
     }
 
     #[test]
@@ -234,5 +268,64 @@ mod tests {
         assert!(builder.register_value(&R4).is_none());
         let b = builder.build().unwrap();
         assert!(b.additional_registers.get(R4).is_none());
+    }
+
+    #[test]
+    fn test_mint_token() {
+        let token_pair = Token {
+            token_id: force_any_val::<TokenId>(),
+            amount: 1.try_into().unwrap(),
+        };
+        let out_box_value = BoxValue::SAFE_USER_MIN;
+        let token_name = "USD".to_string();
+        let token_desc = "Nothing backed USD token".to_string();
+        let token_num_dec = 2;
+        let mut box_builder =
+            ErgoBoxCandidateBuilder::new(out_box_value, force_any_val::<ErgoTree>(), 0);
+        box_builder.mint_token(token_pair.clone(), token_name, token_desc, token_num_dec);
+        let out_box = box_builder.build().unwrap();
+        assert_eq!(out_box.tokens.get(0).unwrap(), &token_pair);
+        // test registers are encoded according to https://github.com/ergoplatform/eips/blob/master/eip-0004.md
+        assert_eq!(
+            out_box
+                .additional_registers
+                .get(NonMandatoryRegisterId::R4)
+                .unwrap()
+                .base16_str(),
+            "0e03555344",
+            "invalid encoding of token name in R4"
+        );
+        assert_eq!(
+            out_box
+                .additional_registers
+                .get(NonMandatoryRegisterId::R5)
+                .unwrap()
+                .base16_str(),
+            "0e184e6f7468696e67206261636b65642055534420746f6b656e",
+            "invalid encoding of token description in R5"
+        );
+        assert_eq!(
+            out_box
+                .additional_registers
+                .get(NonMandatoryRegisterId::R6)
+                .unwrap()
+                .base16_str(),
+            "0e0132",
+            "invalid encoding of token number of decimals in R6"
+        );
+    }
+
+    #[test]
+    fn test_add_token() {
+        let token = Token {
+            token_id: force_any_val::<TokenId>(),
+            amount: 1.try_into().unwrap(),
+        };
+        let out_box_value = BoxValue::SAFE_USER_MIN;
+        let mut box_builder =
+            ErgoBoxCandidateBuilder::new(out_box_value, force_any_val::<ErgoTree>(), 0);
+        box_builder.add_token(token.clone());
+        let out_box = box_builder.build().unwrap();
+        assert_eq!(out_box.tokens.first().unwrap(), &token);
     }
 }
