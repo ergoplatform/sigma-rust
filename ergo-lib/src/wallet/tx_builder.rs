@@ -29,7 +29,7 @@ use crate::sigma_protocol;
 
 use super::box_selector::{BoxSelection, BoxSelectorError};
 
-/// Suggested transaction fee (semi-default value used across wallets and dApps as of Oct 2020)
+/// Suggested transaction fee (1100000 nanoERGs, semi-default value used across wallets and dApps as of Oct 2020)
 pub const SUGGESTED_TX_FEE: BoxValue = BoxValue(1100000u64);
 
 /// Unsigned transaction builder

@@ -152,7 +152,7 @@ impl From<chain::ergo_box::ErgoBox> for ErgoBox {
 /// Box value in nanoERGs with bound checks
 #[wasm_bindgen]
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct BoxValue(chain::ergo_box::box_value::BoxValue);
+pub struct BoxValue(pub(crate) chain::ergo_box::box_value::BoxValue);
 
 #[wasm_bindgen]
 impl BoxValue {

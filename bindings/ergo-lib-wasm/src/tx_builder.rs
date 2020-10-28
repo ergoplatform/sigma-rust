@@ -15,6 +15,12 @@ pub struct TxBuilder(wallet::tx_builder::TxBuilder<chain::ergo_box::ErgoBox>);
 
 #[wasm_bindgen]
 impl TxBuilder {
+    /// Suggested transaction fee (semi-default value used across wallets and dApps as of Oct 2020)
+    #[allow(non_snake_case)]
+    pub fn SUGGESTED_TX_FEE() -> BoxValue {
+        BoxValue(wallet::tx_builder::SUGGESTED_TX_FEE)
+    }
+
     /// Creates new TxBuilder
     /// `box_selection` - selected input boxes (via [`BoxSelector`])
     /// `output_candidates` - output boxes to be "created" in this transaction,
