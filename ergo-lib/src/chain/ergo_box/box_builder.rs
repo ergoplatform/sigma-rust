@@ -31,6 +31,23 @@ pub enum ErgoBoxCandidateBuilderError {
     /// NonMandatoryRegisters error
     #[error("NonMandatoryRegisters error: {0}")]
     NonMandatoryRegistersError(#[from] NonMandatoryRegistersError),
+
+    /// When minting token no other tokens should be in the box (according to EIP4)
+    #[error("When minting token no other tokens should be in the box (according to EIP4)")]
+    ExclusiveMintedTokenError,
+
+    /// When minting token R4, R5, R6 register are holding issued token info(according to EIP4) and cannot be used
+    #[error("R4, R5, R6 are holding issuing token info and cannot be used(found {0:?} are used)")]
+    MintedTokenRegisterOverwriteError(NonMandatoryRegisterId),
+}
+
+/// Minted token info (id, amount, name, desc)
+#[derive(Debug, Clone)]
+struct MintingToken {
+    token: Token,
+    name: String,
+    desc: String,
+    num_decimals: usize,
 }
 
 /// ErgoBoxCandidate builder
@@ -42,15 +59,10 @@ pub struct ErgoBoxCandidateBuilder {
     tokens: Vec<Token>,
     additional_registers: HashMap<NonMandatoryRegisterId, Constant>,
     creation_height: u32,
+    minting_token: Option<MintingToken>,
 }
 
 impl ErgoBoxCandidateBuilder {
-    fn build_registers(&self) -> Result<NonMandatoryRegisters, ErgoBoxCandidateBuilderError> {
-        Ok(NonMandatoryRegisters::new(
-            self.additional_registers.clone(),
-        )?)
-    }
-
     /// Create builder with required box parameters:
     /// `value` - box value in nanoErgs,
     /// `ergo_tree` - ErgoTree to guard this box,
@@ -63,6 +75,7 @@ impl ErgoBoxCandidateBuilder {
             tokens: vec![],
             additional_registers: HashMap::new(),
             creation_height,
+            minting_token: None,
         }
     }
 
@@ -88,14 +101,7 @@ impl ErgoBoxCandidateBuilder {
 
     /// Calculate serialized box size(in bytes)
     pub fn calc_box_size_bytes(&self) -> Result<usize, ErgoBoxCandidateBuilderError> {
-        let regs = self.build_registers()?;
-        let b = ErgoBoxCandidate {
-            value: self.value,
-            ergo_tree: self.ergo_tree.clone(),
-            tokens: self.tokens.clone(),
-            additional_registers: regs,
-            creation_height: self.creation_height,
-        };
+        let b = self.build_box()?;
         Ok(b.sigma_serialize_bytes().len())
     }
 
@@ -135,19 +141,12 @@ impl ErgoBoxCandidateBuilder {
         token_desc: String,
         num_decimals: usize,
     ) {
-        self.tokens.push(token);
-        self.set_register_value(
-            NonMandatoryRegisterId::R4,
-            token_name.as_bytes().to_vec().into(),
-        );
-        self.set_register_value(
-            NonMandatoryRegisterId::R5,
-            token_desc.as_bytes().to_vec().into(),
-        );
-        self.set_register_value(
-            NonMandatoryRegisterId::R6,
-            num_decimals.to_string().as_bytes().to_vec().into(),
-        );
+        self.minting_token = Some(MintingToken {
+            token,
+            name: token_name,
+            desc: token_desc,
+            num_decimals,
+        });
     }
 
     /// Add given token id and token amount
@@ -155,14 +154,69 @@ impl ErgoBoxCandidateBuilder {
         self.tokens.push(token);
     }
 
-    /// Build the box candidate
-    pub fn build(self) -> Result<ErgoBoxCandidate, ErgoBoxCandidateBuilderError> {
-        // TODO: according to EIP4 if token is minted in this box there should be no other tokens
-        let regs = self.build_registers()?;
+    fn build_box(&self) -> Result<ErgoBoxCandidate, ErgoBoxCandidateBuilderError> {
+        let mut tokens = self.tokens.clone();
+        let mut additional_registers = self.additional_registers.clone();
+        if let Some(minting_token) = self.minting_token.clone() {
+            // according to EIP4 if token is minted in this box there should be no other tokens
+            // https://github.com/ergoplatform/eips/blob/master/eip-0004.md
+            if !self.tokens.is_empty() {
+                return Err(ErgoBoxCandidateBuilderError::ExclusiveMintedTokenError);
+            }
+            if additional_registers
+                .get(&NonMandatoryRegisterId::R4)
+                .is_some()
+            {
+                return Err(
+                    ErgoBoxCandidateBuilderError::MintedTokenRegisterOverwriteError(
+                        NonMandatoryRegisterId::R4,
+                    ),
+                );
+            }
+            if additional_registers
+                .get(&NonMandatoryRegisterId::R5)
+                .is_some()
+            {
+                return Err(
+                    ErgoBoxCandidateBuilderError::MintedTokenRegisterOverwriteError(
+                        NonMandatoryRegisterId::R5,
+                    ),
+                );
+            }
+            if additional_registers
+                .get(&NonMandatoryRegisterId::R6)
+                .is_some()
+            {
+                return Err(
+                    ErgoBoxCandidateBuilderError::MintedTokenRegisterOverwriteError(
+                        NonMandatoryRegisterId::R6,
+                    ),
+                );
+            }
+            tokens.push(minting_token.token);
+            additional_registers.insert(
+                NonMandatoryRegisterId::R4,
+                minting_token.name.as_bytes().to_vec().into(),
+            );
+            additional_registers.insert(
+                NonMandatoryRegisterId::R5,
+                minting_token.desc.as_bytes().to_vec().into(),
+            );
+            additional_registers.insert(
+                NonMandatoryRegisterId::R6,
+                minting_token
+                    .num_decimals
+                    .to_string()
+                    .as_bytes()
+                    .to_vec()
+                    .into(),
+            );
+        }
+        let regs = NonMandatoryRegisters::new(additional_registers)?;
         let b = ErgoBoxCandidate {
             value: self.value,
-            ergo_tree: self.ergo_tree,
-            tokens: self.tokens,
+            ergo_tree: self.ergo_tree.clone(),
+            tokens,
             additional_registers: regs,
             creation_height: self.creation_height,
         };
@@ -178,6 +232,11 @@ impl ErgoBoxCandidateBuilder {
                 box_size_bytes,
             })
         }
+    }
+
+    /// Build the box candidate
+    pub fn build(self) -> Result<ErgoBoxCandidate, ErgoBoxCandidateBuilderError> {
+        self.build_box()
     }
 }
 
@@ -313,6 +372,50 @@ mod tests {
             "0e0132",
             "invalid encoding of token number of decimals in R6"
         );
+    }
+
+    #[test]
+    fn test_mint_token_exclusivity_rule() {
+        let token_pair = Token {
+            token_id: force_any_val::<TokenId>(),
+            amount: 1.try_into().unwrap(),
+        };
+        let out_box_value = BoxValue::SAFE_USER_MIN;
+        let token_name = "USD".to_string();
+        let token_desc = "Nothing backed USD token".to_string();
+        let token_num_dec = 2;
+        let mut box_builder =
+            ErgoBoxCandidateBuilder::new(out_box_value, force_any_val::<ErgoTree>(), 0);
+        box_builder.mint_token(token_pair, token_name, token_desc, token_num_dec);
+        box_builder.add_token(Token {
+            token_id: force_any_val::<TokenId>(),
+            amount: 1.try_into().unwrap(),
+        });
+        assert!(box_builder.build().is_err());
+    }
+
+    #[test]
+    fn test_mint_token_register_overwrite() {
+        let token_pair = Token {
+            token_id: force_any_val::<TokenId>(),
+            amount: 1.try_into().unwrap(),
+        };
+        let out_box_value = BoxValue::SAFE_USER_MIN;
+        let token_name = "USD".to_string();
+        let token_desc = "Nothing backed USD token".to_string();
+        let token_num_dec = 2;
+        vec![R4, R5, R6].iter().for_each(|r_id| {
+            let mut box_builder =
+                ErgoBoxCandidateBuilder::new(out_box_value, force_any_val::<ErgoTree>(), 0);
+            box_builder.mint_token(
+                token_pair.clone(),
+                token_name.clone(),
+                token_desc.clone(),
+                token_num_dec,
+            );
+            box_builder.set_register_value(*r_id, force_any_val::<Constant>());
+            assert!(box_builder.build().is_err());
+        });
     }
 
     #[test]
