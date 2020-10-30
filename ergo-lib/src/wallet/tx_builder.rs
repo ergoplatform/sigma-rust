@@ -1,5 +1,7 @@
 //! Builder for an UnsignedTransaction
 
+use std::collections::HashMap;
+
 use box_value::BoxValueError;
 use thiserror::Error;
 
@@ -11,9 +13,11 @@ use crate::chain::data_input::DataInput;
 use crate::chain::ergo_box::box_builder::ErgoBoxCandidateBuilder;
 use crate::chain::ergo_box::box_builder::ErgoBoxCandidateBuilderError;
 use crate::chain::ergo_box::box_value;
+use crate::chain::ergo_box::sum_tokens_from_boxes;
 use crate::chain::input::Input;
 use crate::chain::prover_result::ProofBytes;
 use crate::chain::prover_result::ProverResult;
+use crate::chain::token::TokenId;
 use crate::chain::transaction::Transaction;
 use crate::chain::{
     ergo_box::ErgoBoxAssets,
@@ -109,7 +113,6 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
             ));
         }
         let mut output_candidates = self.output_candidates.clone();
-
         let change_address_ergo_tree = Contract::pay_to_address(&self.change_address)?.ergo_tree();
         let change_boxes: Result<Vec<ErgoBoxCandidate>, ErgoBoxCandidateBuilderError> = self
             .box_selection
@@ -129,6 +132,22 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
         // add miner's fee
         let miner_fee_box = new_miner_fee_box(self.fee_amount, self.current_height)?;
         output_candidates.push(miner_fee_box);
+
+        let input_tokens = sum_tokens_from_boxes(self.box_selection.boxes.as_slice());
+        let output_tokens = sum_tokens_from_boxes(output_candidates.as_slice());
+        let first_input_box_id: TokenId = self.box_selection.boxes.first().unwrap().box_id().into();
+        let output_tokens_without_minted: HashMap<TokenId, u64> = output_tokens
+            .into_iter()
+            .filter(|t| t.0 != first_input_box_id)
+            .collect();
+        let is_enough_tokens = output_tokens_without_minted.iter().all(|t| {
+            input_tokens
+                .get(t.0)
+                .map_or(false, |input_amt| input_amt >= t.1)
+        });
+        if !is_enough_tokens {
+            return Err(TxBuilderError::NotEnoughTokens);
+        }
         Ok(UnsignedTransaction::new(
             self.box_selection
                 .boxes
@@ -178,6 +197,9 @@ pub enum TxBuilderError {
     /// ErgoBoxCandidate error
     #[error("ErgoBoxCandidateBuilder error: {0}")]
     ErgoBoxCandidateBuilderError(#[from] ErgoBoxCandidateBuilderError),
+    /// Not enougn tokens
+    #[error("Not enougn tokens")]
+    NotEnoughTokens,
 }
 
 #[cfg(test)]
@@ -277,9 +299,97 @@ mod tests {
     }
 
     #[test]
-    fn test_est_tx_size() {
-        let input = force_any_val_with::<ErgoBox>(
+    fn test_mint_token() {
+        let input_box = ErgoBox::new(
+            100000000i64.try_into().unwrap(),
+            force_any_val::<ErgoTree>(),
+            vec![],
+            NonMandatoryRegisters::empty(),
+            1,
+            force_any_val::<TxId>(),
+            0,
+        );
+        let token_pair = Token {
+            token_id: TokenId::from(input_box.box_id()),
+            amount: 1.try_into().unwrap(),
+        };
+        let out_box_value = BoxValue::SAFE_USER_MIN;
+        let token_name = "TKN".to_string();
+        let token_desc = "token desc".to_string();
+        let token_num_dec = 2;
+        let mut box_builder =
+            ErgoBoxCandidateBuilder::new(out_box_value, force_any_val::<ErgoTree>(), 0);
+        box_builder.mint_token(token_pair.clone(), token_name, token_desc, token_num_dec);
+        let out_box = box_builder.build().unwrap();
+
+        let inputs: Vec<ErgoBox> = vec![input_box];
+        let tx_fee = BoxValue::SAFE_USER_MIN;
+        let target_balance = out_box_value.checked_add(&tx_fee).unwrap();
+        let box_selection = SimpleBoxSelector::new()
+            .select(inputs, target_balance, vec![].as_slice())
+            .unwrap();
+        let outputs = vec![out_box];
+        let tx_builder = TxBuilder::new(
+            box_selection,
+            outputs,
+            0,
+            tx_fee,
+            force_any_val::<Address>(),
+            BoxValue::SAFE_USER_MIN,
+        );
+        let tx = tx_builder.build().unwrap();
+        assert!(
+            tx.output_candidates
+                .get(0)
+                .unwrap()
+                .tokens()
+                .first()
+                .unwrap()
+                .token_id
+                == token_pair.token_id
+        );
+    }
+
+    #[test]
+    fn test_tokens_balance_error() {
+        let input_box = force_any_val_with::<ErgoBox>(
             (BoxValue::MIN_RAW * 5000..BoxValue::MIN_RAW * 10000).into(),
+        );
+        let token_pair = force_any_val::<Token>();
+        let out_box_value = BoxValue::SAFE_USER_MIN;
+        let mut box_builder =
+            ErgoBoxCandidateBuilder::new(out_box_value, force_any_val::<ErgoTree>(), 0);
+        // try to spend a token that is not in inputs
+        box_builder.add_token(token_pair);
+        let out_box = box_builder.build().unwrap();
+        let inputs: Vec<ErgoBox> = vec![input_box];
+        let tx_fee = BoxValue::SAFE_USER_MIN;
+        let target_balance = out_box_value.checked_add(&tx_fee).unwrap();
+        let box_selection = SimpleBoxSelector::new()
+            .select(inputs, target_balance, vec![].as_slice())
+            .unwrap();
+        let outputs = vec![out_box];
+        let tx_builder = TxBuilder::new(
+            box_selection,
+            outputs,
+            0,
+            tx_fee,
+            force_any_val::<Address>(),
+            BoxValue::SAFE_USER_MIN,
+        );
+        assert!(tx_builder.build().is_err());
+    }
+
+    #[test]
+    fn test_est_tx_size() {
+        let input = ErgoBox::new(
+            10000000i64.try_into().unwrap(),
+            force_any_val::<ErgoTree>(),
+            vec![],
+            NonMandatoryRegisters::empty(),
+            1,
+            force_any_val::<TxId>(),
+            0,
         );
         let tx_fee = super::SUGGESTED_TX_FEE;
         let out_box_value = input.value.checked_sub(&tx_fee).unwrap();
@@ -311,18 +421,15 @@ mod tests {
                          change_address in any::<Address>(),
                          miners_fee in any_with::<BoxValue>((BoxValue::MIN_RAW * 100..BoxValue::MIN_RAW * 200).into()),
                          data_inputs in vec(any::<DataInput>(), 0..2)) {
+            prop_assume!(sum_tokens_from_boxes(outputs.as_slice()).is_empty());
             let min_change_value = BoxValue::SAFE_USER_MIN;
-
             let all_outputs = box_value::checked_sum(outputs.iter().map(|b| b.value)).unwrap()
                                                                              .checked_add(&miners_fee)
                                                                              .unwrap();
             let all_inputs = box_value::checked_sum(inputs.iter().map(|b| b.value)).unwrap();
-
             prop_assume!(all_outputs < all_inputs);
-
             let total_output_value: BoxValue = box_value::checked_sum(outputs.iter().map(|b| b.value)).unwrap()
-                .checked_add(&miners_fee).unwrap();
-
+                                                                                                      .checked_add(&miners_fee).unwrap();
             let mut tx_builder = TxBuilder::new(
                 SimpleBoxSelector::new().select(inputs.clone(), total_output_value, &[]).unwrap(),
                 outputs.clone(),
