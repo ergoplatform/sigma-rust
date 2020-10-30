@@ -11,6 +11,10 @@ use crate::chain::data_input::DataInput;
 use crate::chain::ergo_box::box_builder::ErgoBoxCandidateBuilder;
 use crate::chain::ergo_box::box_builder::ErgoBoxCandidateBuilderError;
 use crate::chain::ergo_box::box_value;
+use crate::chain::input::Input;
+use crate::chain::prover_result::ProofBytes;
+use crate::chain::prover_result::ProverResult;
+use crate::chain::transaction::Transaction;
 use crate::chain::{
     ergo_box::ErgoBoxAssets,
     ergo_box::ErgoBoxId,
@@ -20,8 +24,13 @@ use crate::chain::{
 };
 use crate::constants::MINERS_FEE_MAINNET_ADDRESS;
 use crate::serialization::SerializationError;
+use crate::serialization::SigmaSerializable;
+use crate::sigma_protocol;
 
 use super::box_selector::{BoxSelection, BoxSelectorError};
+
+/// Suggested transaction fee (1100000 nanoERGs, semi-default value used across wallets and dApps as of Oct 2020)
+pub const SUGGESTED_TX_FEE: BoxValue = BoxValue(1100000u64);
 
 /// Unsigned transaction builder
 pub struct TxBuilder<S: ErgoBoxAssets> {
@@ -39,7 +48,7 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
     /// `box_selection` - selected input boxes  (via [`BoxSelector`])
     /// `output_candidates` - output boxes to be "created" in this transaction,
     /// `current_height` - chain height that will be used in additionally created boxes (change, miner's fee, etc.),
-    /// `fee_amount` - miner's fee,
+    /// `fee_amount` - miner's fee (higher values will speed up inclusion in blocks),
     /// `change_address` - change (inputs - outputs) will be sent to this address,
     /// `min_change_value` - minimal value of the change to be sent to `change_address`, value less than that
     /// will be given to miners,
@@ -67,8 +76,30 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
         self.data_inputs = data_inputs;
     }
 
-    /// Build the unsigned transaction
-    pub fn build(self) -> Result<UnsignedTransaction, TxBuilderError> {
+    /// Estimated serialized transaction size in bytes after signing (assuming P2PK box spending)
+    pub fn estimate_tx_size_bytes(&self) -> Result<usize, TxBuilderError> {
+        let tx = self.build_tx()?;
+        let inputs = tx
+            .inputs
+            .iter()
+            .map(|ui| {
+                // mock proof of the size of ProveDlog's proof (P2PK box spending)
+                // as it's the most often used proof
+                let proof = ProofBytes::Some(vec![0u8, sigma_protocol::SOUNDNESS_BYTES as u8]);
+                Input {
+                    box_id: ui.box_id.clone(),
+                    spending_proof: ProverResult {
+                        proof,
+                        extension: ui.extension.clone(),
+                    },
+                }
+            })
+            .collect();
+        let signed_tx_mock = Transaction::new(inputs, tx.data_inputs, tx.output_candidates);
+        Ok(signed_tx_mock.sigma_serialize_bytes().len())
+    }
+
+    fn build_tx(&self) -> Result<UnsignedTransaction, TxBuilderError> {
         if self.box_selection.boxes.is_empty() {
             return Err(TxBuilderError::InvalidArgs("inputs is empty".to_string()));
         }
@@ -101,12 +132,18 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
         Ok(UnsignedTransaction::new(
             self.box_selection
                 .boxes
+                .clone()
                 .into_iter()
                 .map(UnsignedInput::from)
                 .collect(),
-            self.data_inputs,
+            self.data_inputs.clone(),
             output_candidates,
         ))
+    }
+
+    /// Build the unsigned transaction
+    pub fn build(self) -> Result<UnsignedTransaction, TxBuilderError> {
+        self.build_tx()
     }
 }
 
@@ -156,6 +193,7 @@ mod tests {
     use crate::chain::token::TokenId;
     use crate::chain::transaction::TxId;
     use crate::test_util::force_any_val;
+    use crate::test_util::force_any_val_with;
     use crate::wallet::box_selector::BoxSelector;
     use crate::wallet::box_selector::SimpleBoxSelector;
     use crate::ErgoTree;
@@ -236,6 +274,31 @@ mod tests {
         );
         let tx = tx_builder.build().unwrap();
         assert!(tx.output_candidates.get(0).unwrap().tokens().is_empty());
+    }
+
+    #[test]
+    fn test_est_tx_size() {
+        let input = force_any_val_with::<ErgoBox>(
+            (BoxValue::MIN_RAW * 5000..BoxValue::MIN_RAW * 10000).into(),
+        );
+        let tx_fee = super::SUGGESTED_TX_FEE;
+        let out_box_value = input.value.checked_sub(&tx_fee).unwrap();
+        let box_builder =
+            ErgoBoxCandidateBuilder::new(out_box_value, force_any_val::<ErgoTree>(), 0);
+        let out_box = box_builder.build().unwrap();
+        let outputs = vec![out_box];
+        let tx_builder = TxBuilder::new(
+            BoxSelection {
+                boxes: vec![input],
+                change_boxes: vec![],
+            },
+            outputs,
+            0,
+            tx_fee,
+            force_any_val::<Address>(),
+            BoxValue::SAFE_USER_MIN,
+        );
+        assert!(tx_builder.estimate_tx_size_bytes().unwrap() > 0);
     }
 
     proptest! {
