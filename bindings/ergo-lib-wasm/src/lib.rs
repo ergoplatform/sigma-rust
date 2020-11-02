@@ -1,6 +1,4 @@
-//! WASM bindings for ergo-lib
-
-// Coding conventions
+//! WASM bindings for ergo-lib// Coding conventions
 #![forbid(unsafe_code)]
 #![deny(non_upper_case_globals)]
 #![deny(non_camel_case_types)]

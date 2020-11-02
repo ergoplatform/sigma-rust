@@ -17,6 +17,7 @@ use crate::chain::ergo_box::sum_tokens_from_boxes;
 use crate::chain::input::Input;
 use crate::chain::prover_result::ProofBytes;
 use crate::chain::prover_result::ProverResult;
+use crate::chain::token::TokenAmount;
 use crate::chain::token::TokenId;
 use crate::chain::transaction::Transaction;
 use crate::chain::{
@@ -136,7 +137,7 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
         let input_tokens = sum_tokens_from_boxes(self.box_selection.boxes.as_slice());
         let output_tokens = sum_tokens_from_boxes(output_candidates.as_slice());
         let first_input_box_id: TokenId = self.box_selection.boxes.first().unwrap().box_id().into();
-        let output_tokens_without_minted: HashMap<TokenId, u64> = output_tokens
+        let output_tokens_without_minted: HashMap<TokenId, TokenAmount> = output_tokens
             .into_iter()
             .filter(|t| t.0 != first_input_box_id)
             .collect();
@@ -211,6 +212,7 @@ mod tests {
 
     use crate::chain::ergo_box::register::NonMandatoryRegisters;
     use crate::chain::ergo_box::ErgoBox;
+    use crate::chain::token::tests::ArbTokenIdParam;
     use crate::chain::token::Token;
     use crate::chain::token::TokenId;
     use crate::chain::transaction::TxId;
@@ -355,7 +357,10 @@ mod tests {
         let input_box = force_any_val_with::<ErgoBox>(
             (BoxValue::MIN_RAW * 5000..BoxValue::MIN_RAW * 10000).into(),
         );
-        let token_pair = force_any_val::<Token>();
+        let token_pair = Token {
+            token_id: force_any_val_with::<TokenId>(ArbTokenIdParam::Arbitrary),
+            amount: force_any_val::<TokenAmount>(),
+        };
         let out_box_value = BoxValue::SAFE_USER_MIN;
         let mut box_builder =
             ErgoBoxCandidateBuilder::new(out_box_value, force_any_val::<ErgoTree>(), 0);

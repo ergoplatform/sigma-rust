@@ -7,6 +7,7 @@ pub mod register;
 
 #[cfg(feature = "json")]
 use super::json;
+use super::token::TokenAmount;
 use super::{
     digest32::blake2b256_hash,
     token::{Token, TokenId},
@@ -160,26 +161,24 @@ pub fn sum_value<T: ErgoBoxAssets>(bs: &[T]) -> u64 {
 }
 
 /// Returns the total token amounts (all tokens combined)
-pub fn sum_tokens(ts: &[Token]) -> HashMap<TokenId, u64> {
-    let mut res = HashMap::new();
+pub fn sum_tokens(ts: &[Token]) -> HashMap<TokenId, TokenAmount> {
+    let mut res: HashMap<TokenId, TokenAmount> = HashMap::new();
     ts.iter().for_each(|t| {
-        let token_amt = u64::from(t.amount);
         res.entry(t.token_id.clone())
-            .and_modify(|amt| *amt += token_amt)
-            .or_insert(token_amt);
+            .and_modify(|amt| *amt = amt.checked_add(&t.amount).unwrap())
+            .or_insert(t.amount);
     });
     res
 }
 
 /// Returns the total token amounts (all tokens combined) of the given boxes
-pub fn sum_tokens_from_boxes<T: ErgoBoxAssets>(bs: &[T]) -> HashMap<TokenId, u64> {
-    let mut res: HashMap<TokenId, u64> = HashMap::new();
+pub fn sum_tokens_from_boxes<T: ErgoBoxAssets>(bs: &[T]) -> HashMap<TokenId, TokenAmount> {
+    let mut res: HashMap<TokenId, TokenAmount> = HashMap::new();
     bs.iter().for_each(|b| {
         b.tokens().iter().for_each(|t| {
-            let token_amt = u64::from(t.amount);
             res.entry(t.token_id.clone())
-                .and_modify(|a| *a += token_amt)
-                .or_insert(token_amt);
+                .and_modify(|amt| *amt = amt.checked_add(&t.amount).unwrap())
+                .or_insert(t.amount);
         });
     });
     res
@@ -435,9 +434,11 @@ mod tests {
             tokens: vec![token.clone(), token.clone()],
         };
         assert_eq!(
-            *sum_tokens_from_boxes(vec![b.clone(), b].as_slice())
-                .get(&token.token_id)
-                .unwrap(),
+            u64::from(
+                *sum_tokens_from_boxes(vec![b.clone(), b].as_slice())
+                    .get(&token.token_id)
+                    .unwrap()
+            ),
             u64::from(token.amount) * 4
         );
     }
