@@ -100,13 +100,7 @@ impl<T: ErgoBoxAssets> BoxSelector<T> for SimpleBoxSelector {
         }
         if !target_tokens.is_empty() && !target_tokens_left.is_empty() {
             return Err(BoxSelectorError::NotEnoughTokens(
-                target_tokens_left
-                    .iter()
-                    .map(|(token_id, token_amount)| Token {
-                        token_id: token_id.clone(),
-                        amount: *token_amount,
-                    })
-                    .collect(),
+                target_tokens_left.into_iter().map(Token::from).collect(),
             ));
         }
         let change_boxes: Vec<ErgoBoxAssetsData> = if !has_value_change && !has_token_change {
@@ -132,13 +126,7 @@ impl<T: ErgoBoxAssets> BoxSelector<T> for SimpleBoxSelector {
             })?;
             vec![ErgoBoxAssetsData {
                 value: change_value,
-                tokens: change_tokens
-                    .iter()
-                    .map(|t| Token {
-                        token_id: t.0.clone(),
-                        amount: *t.1,
-                    })
-                    .collect(),
+                tokens: change_tokens.into_iter().map(Token::from).collect(),
             }]
         };
         Ok(BoxSelection {

@@ -133,6 +133,15 @@ pub struct Token {
     pub amount: TokenAmount,
 }
 
+impl From<(TokenId, TokenAmount)> for Token {
+    fn from(token_pair: (TokenId, TokenAmount)) -> Self {
+        Token {
+            token_id: token_pair.0,
+            amount: token_pair.1,
+        }
+    }
+}
+
 #[cfg(test)]
 pub mod tests {
     use super::*;

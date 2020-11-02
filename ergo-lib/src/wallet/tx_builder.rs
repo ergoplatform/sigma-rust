@@ -1,7 +1,5 @@
 //! Builder for an UnsignedTransaction
 
-use std::collections::HashMap;
-
 use box_value::BoxValueError;
 use thiserror::Error;
 
@@ -17,7 +15,7 @@ use crate::chain::ergo_box::sum_tokens_from_boxes;
 use crate::chain::input::Input;
 use crate::chain::prover_result::ProofBytes;
 use crate::chain::prover_result::ProverResult;
-use crate::chain::token::TokenAmount;
+use crate::chain::token::Token;
 use crate::chain::token::TokenId;
 use crate::chain::transaction::Transaction;
 use crate::chain::{
@@ -137,18 +135,21 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
         let input_tokens = sum_tokens_from_boxes(self.box_selection.boxes.as_slice());
         let output_tokens = sum_tokens_from_boxes(output_candidates.as_slice());
         let first_input_box_id: TokenId = self.box_selection.boxes.first().unwrap().box_id().into();
-        let output_tokens_without_minted: HashMap<TokenId, TokenAmount> = output_tokens
+        let output_tokens_without_minted: Vec<Token> = output_tokens
             .into_iter()
-            .filter(|t| t.0 != first_input_box_id)
+            .map(Token::from)
+            .filter(|t| t.token_id != first_input_box_id)
             .collect();
-        let is_enough_tokens = output_tokens_without_minted.iter().all(|t| {
-            input_tokens
-                .get(t.0)
-                .map_or(false, |input_amt| input_amt >= t.1)
-        });
-        if !is_enough_tokens {
-            return Err(TxBuilderError::NotEnoughTokens);
-        }
+
+        output_tokens_without_minted
+            .iter()
+            .try_for_each(|output_token| {
+                match input_tokens.get(&output_token.token_id).cloned() {
+                    Some(input_token_amount) if input_token_amount >= output_token.amount => Ok(()),
+                    _ => Err(TxBuilderError::NotEnoughTokens(vec![output_token.clone()])),
+                }
+            })?;
+
         Ok(UnsignedTransaction::new(
             self.box_selection
                 .boxes
@@ -199,8 +200,8 @@ pub enum TxBuilderError {
     #[error("ErgoBoxCandidateBuilder error: {0}")]
     ErgoBoxCandidateBuilderError(#[from] ErgoBoxCandidateBuilderError),
     /// Not enougn tokens
-    #[error("Not enougn tokens")]
-    NotEnoughTokens,
+    #[error("Not enougn tokens: {0:?}")]
+    NotEnoughTokens(Vec<Token>),
 }
 
 #[cfg(test)]
@@ -214,6 +215,7 @@ mod tests {
     use crate::chain::ergo_box::ErgoBox;
     use crate::chain::token::tests::ArbTokenIdParam;
     use crate::chain::token::Token;
+    use crate::chain::token::TokenAmount;
     use crate::chain::token::TokenId;
     use crate::chain::transaction::TxId;
     use crate::test_util::force_any_val;
