@@ -4,9 +4,9 @@ use std::cmp::min;
 use std::collections::HashMap;
 use std::convert::TryInto;
 
-use crate::chain::ergo_box::box_value::BoxValue;
 use crate::chain::ergo_box::sum_tokens;
 use crate::chain::ergo_box::sum_tokens_from_boxes;
+use crate::chain::ergo_box::BoxValue;
 use crate::chain::ergo_box::ErgoBoxAssets;
 use crate::chain::ergo_box::ErgoBoxAssetsData;
 use crate::chain::token::Token;
@@ -146,7 +146,7 @@ impl Default for SimpleBoxSelector {
 mod tests {
     use std::convert::TryFrom;
 
-    use crate::chain::ergo_box::box_value;
+    use crate::chain::ergo_box::checked_sum;
     use crate::chain::ergo_box::sum_value;
     use crate::chain::ergo_box::ErgoBox;
     use crate::chain::ergo_box::ErgoBoxAssetsData;
@@ -169,7 +169,7 @@ mod tests {
                                         vec(any_with::<ErgoBoxAssetsData>(
                                             (BoxValue::MIN_RAW * 1000 .. BoxValue::MIN_RAW * 10000).into()), 1..10)) {
             let s = SimpleBoxSelector::new();
-            let all_inputs_val = box_value::checked_sum(inputs.iter().map(|b| b.value)).unwrap();
+            let all_inputs_val = checked_sum(inputs.iter().map(|b| b.value)).unwrap();
 
             let balance_too_much = all_inputs_val.checked_add(&BoxValue::SAFE_USER_MIN).unwrap();
             prop_assert!(s.select(inputs, balance_too_much, vec![].as_slice()).is_err());
@@ -241,7 +241,7 @@ mod tests {
                                   vec(any_with::<ErgoBoxAssetsData>(
                                       (BoxValue::MIN_RAW * 1000 .. BoxValue::MIN_RAW * 10000).into()), 1..10)) {
             let s = SimpleBoxSelector::new();
-            let all_inputs_val = box_value::checked_sum(inputs.iter().map(|b| b.value)).unwrap();
+            let all_inputs_val = checked_sum(inputs.iter().map(|b| b.value)).unwrap();
             let balance_less = all_inputs_val.checked_sub(&BoxValue::SAFE_USER_MIN).unwrap();
             let selection_less = s.select(inputs.clone(), balance_less, vec![].as_slice()).unwrap();
             prop_assert!(selection_less.boxes == inputs);

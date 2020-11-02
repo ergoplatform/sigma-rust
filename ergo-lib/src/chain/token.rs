@@ -8,7 +8,7 @@ use std::convert::TryFrom;
 use std::io;
 
 use super::digest32::Digest32;
-use super::ergo_box::box_id::BoxId;
+use super::ergo_box::BoxId;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 #[cfg(feature = "json")]
