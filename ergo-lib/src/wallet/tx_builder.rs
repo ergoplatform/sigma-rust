@@ -1,5 +1,7 @@
 //! Builder for an UnsignedTransaction
 
+use std::collections::HashSet;
+
 use box_value::BoxValueError;
 use thiserror::Error;
 
@@ -10,6 +12,7 @@ use crate::chain::contract::Contract;
 use crate::chain::data_input::DataInput;
 use crate::chain::ergo_box::box_builder::ErgoBoxCandidateBuilder;
 use crate::chain::ergo_box::box_builder::ErgoBoxCandidateBuilderError;
+use crate::chain::ergo_box::box_id::BoxId;
 use crate::chain::ergo_box::box_value;
 use crate::chain::ergo_box::sum_tokens_from_boxes;
 use crate::chain::ergo_box::sum_value;
@@ -112,6 +115,29 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
                 "output_candidates is empty".to_string(),
             ));
         }
+        if self.box_selection.boxes.len() > u16::MAX as usize {
+            return Err(TxBuilderError::InvalidArgs("too many inputs".to_string()));
+        }
+        if self
+            .box_selection
+            .boxes
+            .clone()
+            .into_iter()
+            .map(|b| b.box_id())
+            .collect::<HashSet<BoxId>>()
+            .len()
+            != self.box_selection.boxes.len()
+        {
+            return Err(TxBuilderError::InvalidArgs(
+                "duplicate inputs found".to_string(),
+            ));
+        }
+        if self.data_inputs.len() > u16::MAX as usize {
+            return Err(TxBuilderError::InvalidArgs(
+                "too many data inputs".to_string(),
+            ));
+        }
+
         let mut output_candidates = self.output_candidates.clone();
         let change_address_ergo_tree = Contract::pay_to_address(&self.change_address)?.ergo_tree();
         let change_boxes: Result<Vec<ErgoBoxCandidate>, ErgoBoxCandidateBuilderError> = self
@@ -132,6 +158,9 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
         // add miner's fee
         let miner_fee_box = new_miner_fee_box(self.fee_amount, self.current_height)?;
         output_candidates.push(miner_fee_box);
+        if output_candidates.len() > u16::MAX as usize {
+            return Err(TxBuilderError::InvalidArgs("too many outputs".to_string()));
+        }
         // check that inputs have enough coins
         let total_input_value = sum_value(self.box_selection.boxes.as_slice());
         let total_output_value = sum_value(output_candidates.as_slice());
@@ -261,6 +290,24 @@ mod tests {
     }
 
     #[test]
+    fn test_duplicate_inputs() {
+        let input_box = force_any_val::<ErgoBox>();
+        let box_selection: BoxSelection<ErgoBox> = BoxSelection {
+            boxes: vec![input_box.clone(), input_box],
+            change_boxes: vec![],
+        };
+        let r = TxBuilder::new(
+            box_selection,
+            vec![force_any_val::<ErgoBoxCandidate>()],
+            1,
+            force_any_val::<BoxValue>(),
+            force_any_val::<Address>(),
+            BoxValue::SAFE_USER_MIN,
+        );
+        assert!(r.build().is_err(), "error on duplicate inputs");
+    }
+
+    #[test]
     fn test_empty_outputs() {
         let inputs = vec![force_any_val::<ErgoBox>()];
         let outputs: Vec<ErgoBoxCandidate> = vec![];
@@ -274,7 +321,7 @@ mod tests {
             force_any_val::<Address>(),
             BoxValue::SAFE_USER_MIN,
         );
-        assert!(r.build().is_err());
+        assert!(r.build().is_err(), "error on empty inputs");
     }
 
     #[test]
@@ -316,7 +363,10 @@ mod tests {
             BoxValue::SAFE_USER_MIN,
         );
         let tx = tx_builder.build().unwrap();
-        assert!(tx.output_candidates.get(0).unwrap().tokens().is_empty());
+        assert!(
+            tx.output_candidates.get(0).unwrap().tokens().is_empty(),
+            "expected empty tokens in the first output box"
+        );
     }
 
     #[test]
@@ -359,15 +409,16 @@ mod tests {
             BoxValue::SAFE_USER_MIN,
         );
         let tx = tx_builder.build().unwrap();
-        assert!(
+        assert_eq!(
             tx.output_candidates
                 .get(0)
                 .unwrap()
                 .tokens()
                 .first()
                 .unwrap()
-                .token_id
-                == token_pair.token_id
+                .token_id,
+            token_pair.token_id,
+            "expected minted token in the first output box"
         );
     }
 
