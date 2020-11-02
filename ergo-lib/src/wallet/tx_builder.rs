@@ -12,6 +12,7 @@ use crate::chain::ergo_box::box_builder::ErgoBoxCandidateBuilder;
 use crate::chain::ergo_box::box_builder::ErgoBoxCandidateBuilderError;
 use crate::chain::ergo_box::box_value;
 use crate::chain::ergo_box::sum_tokens_from_boxes;
+use crate::chain::ergo_box::sum_value;
 use crate::chain::input::Input;
 use crate::chain::prover_result::ProofBytes;
 use crate::chain::prover_result::ProverResult;
@@ -131,7 +132,15 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
         // add miner's fee
         let miner_fee_box = new_miner_fee_box(self.fee_amount, self.current_height)?;
         output_candidates.push(miner_fee_box);
-
+        // check that inputs have enough coins
+        let total_input_value = sum_value(self.box_selection.boxes.as_slice());
+        let total_output_value = sum_value(output_candidates.as_slice());
+        if total_output_value > total_input_value {
+            return Err(TxBuilderError::NotEnoughCoins(
+                total_output_value - total_input_value,
+            ));
+        }
+        // check that inputs have enough tokens
         let input_tokens = sum_tokens_from_boxes(self.box_selection.boxes.as_slice());
         let output_tokens = sum_tokens_from_boxes(output_candidates.as_slice());
         let first_input_box_id: TokenId = self.box_selection.boxes.first().unwrap().box_id().into();
@@ -140,7 +149,6 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
             .map(Token::from)
             .filter(|t| t.token_id != first_input_box_id)
             .collect();
-
         output_tokens_without_minted
             .iter()
             .try_for_each(|output_token| {
@@ -202,6 +210,9 @@ pub enum TxBuilderError {
     /// Not enougn tokens
     #[error("Not enougn tokens: {0:?}")]
     NotEnoughTokens(Vec<Token>),
+    /// Not enough coins
+    #[error("Not enough coins({0} nanoERGs are missing)")]
+    NotEnoughCoins(u64),
 }
 
 #[cfg(test)]
@@ -384,7 +395,43 @@ mod tests {
             force_any_val::<Address>(),
             BoxValue::SAFE_USER_MIN,
         );
-        assert!(tx_builder.build().is_err());
+        assert!(
+            tx_builder.build().is_err(),
+            "expected error trying to spend the token that not in the inputs"
+        );
+    }
+
+    #[test]
+    fn test_balance_error() {
+        let input_box = force_any_val_with::<ErgoBox>(
+            (BoxValue::MIN_RAW * 5000..BoxValue::MIN_RAW * 10000).into(),
+        );
+        let out_box_value = input_box
+            .value()
+            .checked_add(&BoxValue::SAFE_USER_MIN)
+            .unwrap();
+        let box_builder =
+            ErgoBoxCandidateBuilder::new(out_box_value, force_any_val::<ErgoTree>(), 0);
+        let out_box = box_builder.build().unwrap();
+        let inputs: Vec<ErgoBox> = vec![input_box];
+        let tx_fee = BoxValue::SAFE_USER_MIN;
+        let box_selection = BoxSelection {
+            boxes: inputs,
+            change_boxes: vec![],
+        };
+        let outputs = vec![out_box];
+        let tx_builder = TxBuilder::new(
+            box_selection,
+            outputs,
+            0,
+            tx_fee,
+            force_any_val::<Address>(),
+            BoxValue::SAFE_USER_MIN,
+        );
+        assert!(
+            tx_builder.build().is_err(),
+            "expected error on trying to spend value exceeding total inputs value"
+        );
     }
 
     #[test]
