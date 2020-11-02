@@ -144,11 +144,17 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
         let input_tokens = sum_tokens_from_boxes(self.box_selection.boxes.as_slice());
         let output_tokens = sum_tokens_from_boxes(output_candidates.as_slice());
         let first_input_box_id: TokenId = self.box_selection.boxes.first().unwrap().box_id().into();
+        let output_tokens_len = output_tokens.len();
         let output_tokens_without_minted: Vec<Token> = output_tokens
             .into_iter()
             .map(Token::from)
             .filter(|t| t.token_id != first_input_box_id)
             .collect();
+        if output_tokens_len - output_tokens_without_minted.len() > 1 {
+            return Err(TxBuilderError::InvalidArgs(
+                "cannot mint more than one token".to_string(),
+            ));
+        }
         output_tokens_without_minted
             .iter()
             .try_for_each(|output_token| {
