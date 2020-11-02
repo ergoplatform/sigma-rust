@@ -21,14 +21,16 @@ it('TxBuilder test', async () => {
     }
   ]);
   const contract = Contract.pay_to_address(recipient);
-  const outbox = new ErgoBoxCandidateBuilder(BoxValue.from_u32(10000000), contract, 0).build();
+  const outbox_value = BoxValue.SAFE_USER_MIN();
+  const outbox = new ErgoBoxCandidateBuilder(outbox_value, contract, 0).build();
   const tx_outputs = new ErgoBoxCandidates(outbox);
   const fee = TxBuilder.SUGGESTED_TX_FEE();
   const change_address = Address.from_testnet_str('3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN');
   const min_change_value = BoxValue.SAFE_USER_MIN();
   const data_inputs = new DataInputs();
   const box_selector = new SimpleBoxSelector();
-  const box_selection = box_selector.select(unspent_boxes, BoxValue.from_u32(11000000), new Tokens());
+  const target_balance = BoxValue.from_u32(outbox_value.as_i64().as_num() + fee.as_i64().as_num());
+  const box_selection = box_selector.select(unspent_boxes, target_balance, new Tokens());
   const tx_builder = TxBuilder.new(box_selection, tx_outputs, 0, fee, change_address, min_change_value);
   tx_builder.set_data_inputs(data_inputs);
   const tx = tx_builder.build();
@@ -44,13 +46,15 @@ it('sign transaction', async () => {
   const recipient = Address.from_testnet_str('3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN');
   const unspent_boxes = new ErgoBoxes(input_box);
   const contract = Contract.pay_to_address(recipient);
-  const outbox = new ErgoBoxCandidateBuilder(BoxValue.from_u32(10000000), contract, 0).build();
+  const outbox_value = BoxValue.SAFE_USER_MIN();
+  const outbox = new ErgoBoxCandidateBuilder(outbox_value, contract, 0).build();
   const tx_outputs = new ErgoBoxCandidates(outbox);
   const fee = TxBuilder.SUGGESTED_TX_FEE();
   const change_address = Address.from_testnet_str('3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN');
   const min_change_value = BoxValue.SAFE_USER_MIN();
   const box_selector = new SimpleBoxSelector();
-  const box_selection = box_selector.select(unspent_boxes, BoxValue.from_u32(11000000), new Tokens());
+  const target_balance = BoxValue.from_u32(outbox_value.as_i64().as_num() + fee.as_i64().as_num());
+  const box_selection = box_selector.select(unspent_boxes, target_balance, new Tokens());
   const tx_builder = TxBuilder.new(box_selection, tx_outputs, 0, fee, change_address, min_change_value);
   const tx = tx_builder.build();
   const tx_data_inputs = ErgoBoxes.from_boxes_json([]);
@@ -74,16 +78,18 @@ it('TxBuilder mint token test', async () => {
       "index": 1
     }
   ]);
+  const fee = TxBuilder.SUGGESTED_TX_FEE();
+  const outbox_value = BoxValue.SAFE_USER_MIN();
+  const target_balance = BoxValue.from_u32(outbox_value.as_i64().as_num() + fee.as_i64().as_num());
   const box_selector = new SimpleBoxSelector();
-  const box_selection = box_selector.select(unspent_boxes, BoxValue.from_u32(11000000), new Tokens());
+  const box_selection = box_selector.select(unspent_boxes, target_balance, new Tokens());
   const contract = Contract.pay_to_address(recipient);
   const token_id = TokenId.from_box_id(box_selection.boxes().get(0).box_id());
-  const box_builder = new ErgoBoxCandidateBuilder(BoxValue.from_u32(10000000), contract, 0);
+  const box_builder = new ErgoBoxCandidateBuilder(outbox_value, contract, 0);
   const token = new Token(token_id, TokenAmount.from_u32(1));
   box_builder.mint_token(token, "TKN", "token desc", 2)
   const outbox = box_builder.build();
   const tx_outputs = new ErgoBoxCandidates(outbox);
-  const fee = TxBuilder.SUGGESTED_TX_FEE();
   const change_address = Address.from_testnet_str('3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN');
   const min_change_value = BoxValue.SAFE_USER_MIN();
   const data_inputs = new DataInputs();
@@ -121,14 +127,16 @@ it('TxBuilder burn token test', async () => {
   const box_selector = new SimpleBoxSelector();
   let tokens = new Tokens();
   tokens.add(token);
+  const fee = TxBuilder.SUGGESTED_TX_FEE();
+  const outbox_value = BoxValue.SAFE_USER_MIN();
+  const target_balance = BoxValue.from_u32(outbox_value.as_i64().as_num() + fee.as_i64().as_num());
   // select tokens from inputs
-  const box_selection = box_selector.select(unspent_boxes, BoxValue.from_u32(11000000), tokens);
+  const box_selection = box_selector.select(unspent_boxes, target_balance, tokens);
   const contract = Contract.pay_to_address(recipient);
   // but don't put selected tokens in the output box (burn them)
-  const box_builder = new ErgoBoxCandidateBuilder(BoxValue.from_u32(10000000), contract, 0);
+  const box_builder = new ErgoBoxCandidateBuilder(outbox_value, contract, 0);
   const outbox = box_builder.build();
   const tx_outputs = new ErgoBoxCandidates(outbox);
-  const fee = TxBuilder.SUGGESTED_TX_FEE();
   const change_address = Address.from_testnet_str('3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN');
   const min_change_value = BoxValue.SAFE_USER_MIN();
   const data_inputs = new DataInputs();
