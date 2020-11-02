@@ -1,5 +1,7 @@
 //! Builder for an UnsignedTransaction
 
+use std::collections::HashSet;
+
 use box_value::BoxValueError;
 use thiserror::Error;
 
@@ -10,10 +12,15 @@ use crate::chain::contract::Contract;
 use crate::chain::data_input::DataInput;
 use crate::chain::ergo_box::box_builder::ErgoBoxCandidateBuilder;
 use crate::chain::ergo_box::box_builder::ErgoBoxCandidateBuilderError;
+use crate::chain::ergo_box::box_id::BoxId;
 use crate::chain::ergo_box::box_value;
+use crate::chain::ergo_box::sum_tokens_from_boxes;
+use crate::chain::ergo_box::sum_value;
 use crate::chain::input::Input;
 use crate::chain::prover_result::ProofBytes;
 use crate::chain::prover_result::ProverResult;
+use crate::chain::token::Token;
+use crate::chain::token::TokenId;
 use crate::chain::transaction::Transaction;
 use crate::chain::{
     ergo_box::ErgoBoxAssets,
@@ -108,8 +115,30 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
                 "output_candidates is empty".to_string(),
             ));
         }
-        let mut output_candidates = self.output_candidates.clone();
+        if self.box_selection.boxes.len() > u16::MAX as usize {
+            return Err(TxBuilderError::InvalidArgs("too many inputs".to_string()));
+        }
+        if self
+            .box_selection
+            .boxes
+            .clone()
+            .into_iter()
+            .map(|b| b.box_id())
+            .collect::<HashSet<BoxId>>()
+            .len()
+            != self.box_selection.boxes.len()
+        {
+            return Err(TxBuilderError::InvalidArgs(
+                "duplicate inputs found".to_string(),
+            ));
+        }
+        if self.data_inputs.len() > u16::MAX as usize {
+            return Err(TxBuilderError::InvalidArgs(
+                "too many data inputs".to_string(),
+            ));
+        }
 
+        let mut output_candidates = self.output_candidates.clone();
         let change_address_ergo_tree = Contract::pay_to_address(&self.change_address)?.ergo_tree();
         let change_boxes: Result<Vec<ErgoBoxCandidate>, ErgoBoxCandidateBuilderError> = self
             .box_selection
@@ -129,6 +158,41 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
         // add miner's fee
         let miner_fee_box = new_miner_fee_box(self.fee_amount, self.current_height)?;
         output_candidates.push(miner_fee_box);
+        if output_candidates.len() > u16::MAX as usize {
+            return Err(TxBuilderError::InvalidArgs("too many outputs".to_string()));
+        }
+        // check that inputs have enough coins
+        let total_input_value = sum_value(self.box_selection.boxes.as_slice());
+        let total_output_value = sum_value(output_candidates.as_slice());
+        if total_output_value > total_input_value {
+            return Err(TxBuilderError::NotEnoughCoins(
+                total_output_value - total_input_value,
+            ));
+        }
+        // check that inputs have enough tokens
+        let input_tokens = sum_tokens_from_boxes(self.box_selection.boxes.as_slice());
+        let output_tokens = sum_tokens_from_boxes(output_candidates.as_slice());
+        let first_input_box_id: TokenId = self.box_selection.boxes.first().unwrap().box_id().into();
+        let output_tokens_len = output_tokens.len();
+        let output_tokens_without_minted: Vec<Token> = output_tokens
+            .into_iter()
+            .map(Token::from)
+            .filter(|t| t.token_id != first_input_box_id)
+            .collect();
+        if output_tokens_len - output_tokens_without_minted.len() > 1 {
+            return Err(TxBuilderError::InvalidArgs(
+                "cannot mint more than one token".to_string(),
+            ));
+        }
+        output_tokens_without_minted
+            .iter()
+            .try_for_each(|output_token| {
+                match input_tokens.get(&output_token.token_id).cloned() {
+                    Some(input_token_amount) if input_token_amount >= output_token.amount => Ok(()),
+                    _ => Err(TxBuilderError::NotEnoughTokens(vec![output_token.clone()])),
+                }
+            })?;
+
         Ok(UnsignedTransaction::new(
             self.box_selection
                 .boxes
@@ -178,6 +242,12 @@ pub enum TxBuilderError {
     /// ErgoBoxCandidate error
     #[error("ErgoBoxCandidateBuilder error: {0}")]
     ErgoBoxCandidateBuilderError(#[from] ErgoBoxCandidateBuilderError),
+    /// Not enougn tokens
+    #[error("Not enougn tokens: {0:?}")]
+    NotEnoughTokens(Vec<Token>),
+    /// Not enough coins
+    #[error("Not enough coins({0} nanoERGs are missing)")]
+    NotEnoughCoins(u64),
 }
 
 #[cfg(test)]
@@ -189,7 +259,9 @@ mod tests {
 
     use crate::chain::ergo_box::register::NonMandatoryRegisters;
     use crate::chain::ergo_box::ErgoBox;
+    use crate::chain::token::tests::ArbTokenIdParam;
     use crate::chain::token::Token;
+    use crate::chain::token::TokenAmount;
     use crate::chain::token::TokenId;
     use crate::chain::transaction::TxId;
     use crate::test_util::force_any_val;
@@ -218,6 +290,24 @@ mod tests {
     }
 
     #[test]
+    fn test_duplicate_inputs() {
+        let input_box = force_any_val::<ErgoBox>();
+        let box_selection: BoxSelection<ErgoBox> = BoxSelection {
+            boxes: vec![input_box.clone(), input_box],
+            change_boxes: vec![],
+        };
+        let r = TxBuilder::new(
+            box_selection,
+            vec![force_any_val::<ErgoBoxCandidate>()],
+            1,
+            force_any_val::<BoxValue>(),
+            force_any_val::<Address>(),
+            BoxValue::SAFE_USER_MIN,
+        );
+        assert!(r.build().is_err(), "error on duplicate inputs");
+    }
+
+    #[test]
     fn test_empty_outputs() {
         let inputs = vec![force_any_val::<ErgoBox>()];
         let outputs: Vec<ErgoBoxCandidate> = vec![];
@@ -231,7 +321,7 @@ mod tests {
             force_any_val::<Address>(),
             BoxValue::SAFE_USER_MIN,
         );
-        assert!(r.build().is_err());
+        assert!(r.build().is_err(), "error on empty inputs");
     }
 
     #[test]
@@ -273,13 +363,144 @@ mod tests {
             BoxValue::SAFE_USER_MIN,
         );
         let tx = tx_builder.build().unwrap();
-        assert!(tx.output_candidates.get(0).unwrap().tokens().is_empty());
+        assert!(
+            tx.output_candidates.get(0).unwrap().tokens().is_empty(),
+            "expected empty tokens in the first output box"
+        );
+    }
+
+    #[test]
+    fn test_mint_token() {
+        let input_box = ErgoBox::new(
+            100000000i64.try_into().unwrap(),
+            force_any_val::<ErgoTree>(),
+            vec![],
+            NonMandatoryRegisters::empty(),
+            1,
+            force_any_val::<TxId>(),
+            0,
+        );
+        let token_pair = Token {
+            token_id: TokenId::from(input_box.box_id()),
+            amount: 1.try_into().unwrap(),
+        };
+        let out_box_value = BoxValue::SAFE_USER_MIN;
+        let token_name = "TKN".to_string();
+        let token_desc = "token desc".to_string();
+        let token_num_dec = 2;
+        let mut box_builder =
+            ErgoBoxCandidateBuilder::new(out_box_value, force_any_val::<ErgoTree>(), 0);
+        box_builder.mint_token(token_pair.clone(), token_name, token_desc, token_num_dec);
+        let out_box = box_builder.build().unwrap();
+
+        let inputs: Vec<ErgoBox> = vec![input_box];
+        let tx_fee = BoxValue::SAFE_USER_MIN;
+        let target_balance = out_box_value.checked_add(&tx_fee).unwrap();
+        let box_selection = SimpleBoxSelector::new()
+            .select(inputs, target_balance, vec![].as_slice())
+            .unwrap();
+        let outputs = vec![out_box];
+        let tx_builder = TxBuilder::new(
+            box_selection,
+            outputs,
+            0,
+            tx_fee,
+            force_any_val::<Address>(),
+            BoxValue::SAFE_USER_MIN,
+        );
+        let tx = tx_builder.build().unwrap();
+        assert_eq!(
+            tx.output_candidates
+                .get(0)
+                .unwrap()
+                .tokens()
+                .first()
+                .unwrap()
+                .token_id,
+            token_pair.token_id,
+            "expected minted token in the first output box"
+        );
+    }
+
+    #[test]
+    fn test_tokens_balance_error() {
+        let input_box = force_any_val_with::<ErgoBox>(
+            (BoxValue::MIN_RAW * 5000..BoxValue::MIN_RAW * 10000).into(),
+        );
+        let token_pair = Token {
+            token_id: force_any_val_with::<TokenId>(ArbTokenIdParam::Arbitrary),
+            amount: force_any_val::<TokenAmount>(),
+        };
+        let out_box_value = BoxValue::SAFE_USER_MIN;
+        let mut box_builder =
+            ErgoBoxCandidateBuilder::new(out_box_value, force_any_val::<ErgoTree>(), 0);
+        // try to spend a token that is not in inputs
+        box_builder.add_token(token_pair);
+        let out_box = box_builder.build().unwrap();
+        let inputs: Vec<ErgoBox> = vec![input_box];
+        let tx_fee = BoxValue::SAFE_USER_MIN;
+        let target_balance = out_box_value.checked_add(&tx_fee).unwrap();
+        let box_selection = SimpleBoxSelector::new()
+            .select(inputs, target_balance, vec![].as_slice())
+            .unwrap();
+        let outputs = vec![out_box];
+        let tx_builder = TxBuilder::new(
+            box_selection,
+            outputs,
+            0,
+            tx_fee,
+            force_any_val::<Address>(),
+            BoxValue::SAFE_USER_MIN,
+        );
+        assert!(
+            tx_builder.build().is_err(),
+            "expected error trying to spend the token that not in the inputs"
+        );
+    }
+
+    #[test]
+    fn test_balance_error() {
+        let input_box = force_any_val_with::<ErgoBox>(
+            (BoxValue::MIN_RAW * 5000..BoxValue::MIN_RAW * 10000).into(),
+        );
+        let out_box_value = input_box
+            .value()
+            .checked_add(&BoxValue::SAFE_USER_MIN)
+            .unwrap();
+        let box_builder =
+            ErgoBoxCandidateBuilder::new(out_box_value, force_any_val::<ErgoTree>(), 0);
+        let out_box = box_builder.build().unwrap();
+        let inputs: Vec<ErgoBox> = vec![input_box];
+        let tx_fee = BoxValue::SAFE_USER_MIN;
+        let box_selection = BoxSelection {
+            boxes: inputs,
+            change_boxes: vec![],
+        };
+        let outputs = vec![out_box];
+        let tx_builder = TxBuilder::new(
+            box_selection,
+            outputs,
+            0,
+            tx_fee,
+            force_any_val::<Address>(),
+            BoxValue::SAFE_USER_MIN,
+        );
+        assert!(
+            tx_builder.build().is_err(),
+            "expected error on trying to spend value exceeding total inputs value"
+        );
     }
 
     #[test]
     fn test_est_tx_size() {
-        let input = force_any_val_with::<ErgoBox>(
-            (BoxValue::MIN_RAW * 5000..BoxValue::MIN_RAW * 10000).into(),
+        let input = ErgoBox::new(
+            10000000i64.try_into().unwrap(),
+            force_any_val::<ErgoTree>(),
+            vec![],
+            NonMandatoryRegisters::empty(),
+            1,
+            force_any_val::<TxId>(),
+            0,
         );
         let tx_fee = super::SUGGESTED_TX_FEE;
         let out_box_value = input.value.checked_sub(&tx_fee).unwrap();
@@ -311,18 +532,15 @@ mod tests {
                          change_address in any::<Address>(),
                          miners_fee in any_with::<BoxValue>((BoxValue::MIN_RAW * 100..BoxValue::MIN_RAW * 200).into()),
                          data_inputs in vec(any::<DataInput>(), 0..2)) {
+            prop_assume!(sum_tokens_from_boxes(outputs.as_slice()).is_empty());
             let min_change_value = BoxValue::SAFE_USER_MIN;
-
             let all_outputs = box_value::checked_sum(outputs.iter().map(|b| b.value)).unwrap()
                                                                              .checked_add(&miners_fee)
                                                                              .unwrap();
             let all_inputs = box_value::checked_sum(inputs.iter().map(|b| b.value)).unwrap();
-
             prop_assume!(all_outputs < all_inputs);
-
             let total_output_value: BoxValue = box_value::checked_sum(outputs.iter().map(|b| b.value)).unwrap()
-                .checked_add(&miners_fee).unwrap();
-
+                                                                                                      .checked_add(&miners_fee).unwrap();
             let mut tx_builder = TxBuilder::new(
                 SimpleBoxSelector::new().select(inputs.clone(), total_output_value, &[]).unwrap(),
                 outputs.clone(),

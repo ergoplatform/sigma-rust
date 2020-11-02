@@ -48,15 +48,41 @@ impl SigmaSerializable for TokenId {
 }
 
 /// Token amount with bound checks
-#[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
+#[derive(PartialEq, Eq, Hash, Debug, Clone, Copy, PartialOrd, Ord)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct TokenAmount(u64);
 
 impl TokenAmount {
     /// minimal allowed value
-    pub const MIN: u64 = 1;
+    pub const MIN_RAW: u64 = 1;
     /// maximal allowed value
-    pub const MAX: u64 = i64::MAX as u64;
+    pub const MAX_RAW: u64 = i64::MAX as u64;
+
+    /// Addition with overflow check
+    pub fn checked_add(&self, rhs: &Self) -> Result<Self, TokenAmountError> {
+        let raw = self
+            .0
+            .checked_add(rhs.0)
+            .ok_or(TokenAmountError::Overflow)?;
+        if raw > Self::MAX_RAW {
+            Err(TokenAmountError::OutOfBounds(raw))
+        } else {
+            Ok(Self(raw))
+        }
+    }
+
+    /// Subtraction with overflow and bounds check
+    pub fn checked_sub(&self, rhs: &Self) -> Result<Self, TokenAmountError> {
+        let raw = self
+            .0
+            .checked_sub(rhs.0)
+            .ok_or(TokenAmountError::Overflow)?;
+        if raw < Self::MIN_RAW {
+            Err(TokenAmountError::OutOfBounds(raw))
+        } else {
+            Ok(Self(raw))
+        }
+    }
 }
 
 /// BoxValue errors
@@ -74,7 +100,7 @@ impl TryFrom<u64> for TokenAmount {
     type Error = TokenAmountError;
 
     fn try_from(v: u64) -> Result<Self, Self::Error> {
-        if v >= TokenAmount::MIN && v <= TokenAmount::MAX {
+        if v >= TokenAmount::MIN_RAW && v <= TokenAmount::MAX_RAW {
             Ok(TokenAmount(v))
         } else {
             Err(TokenAmountError::OutOfBounds(v))
@@ -107,50 +133,73 @@ pub struct Token {
     pub amount: TokenAmount,
 }
 
+impl From<(TokenId, TokenAmount)> for Token {
+    fn from(token_pair: (TokenId, TokenAmount)) -> Self {
+        Token {
+            token_id: token_pair.0,
+            amount: token_pair.1,
+        }
+    }
+}
+
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use super::*;
     use crate::chain::Base16DecodedBytes;
     use crate::serialization::sigma_serialize_roundtrip;
     use proptest::prelude::*;
 
-    impl Arbitrary for TokenId {
-        type Parameters = ();
+    pub enum ArbTokenIdParam {
+        Predef,
+        Arbitrary,
+    }
 
-        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            prop_oneof![
-                Just(TokenId::from(
-                    Digest32::try_from(
-                        Base16DecodedBytes::try_from(
-                            "3130a82e45842aebb888742868e055e2f554ab7d92f233f2c828ed4a43793710"
-                                .to_string()
+    impl Default for ArbTokenIdParam {
+        fn default() -> Self {
+            ArbTokenIdParam::Predef
+        }
+    }
+
+    impl Arbitrary for TokenId {
+        type Parameters = ArbTokenIdParam;
+
+        fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
+            match args {
+                ArbTokenIdParam::Predef => prop_oneof![
+                    Just(TokenId::from(
+                        Digest32::try_from(
+                            Base16DecodedBytes::try_from(
+                                "3130a82e45842aebb888742868e055e2f554ab7d92f233f2c828ed4a43793710"
+                                    .to_string()
+                            )
+                            .unwrap()
                         )
                         .unwrap()
-                    )
-                    .unwrap()
-                )),
-                Just(TokenId::from(
-                    Digest32::try_from(
-                        Base16DecodedBytes::try_from(
-                            "e7321ffb4ec5d71deb3110eb1ac09612b9cf57445acab1e0e3b1222d5b5a6c60"
-                                .to_string()
+                    )),
+                    Just(TokenId::from(
+                        Digest32::try_from(
+                            Base16DecodedBytes::try_from(
+                                "e7321ffb4ec5d71deb3110eb1ac09612b9cf57445acab1e0e3b1222d5b5a6c60"
+                                    .to_string()
+                            )
+                            .unwrap()
                         )
                         .unwrap()
-                    )
-                    .unwrap()
-                )),
-                Just(TokenId::from(
-                    Digest32::try_from(
-                        Base16DecodedBytes::try_from(
-                            "ad62f6dd92e7dc850bc406770dfac9a943dd221a7fb440b7b2bcc7d3149c1792"
-                                .to_string()
+                    )),
+                    Just(TokenId::from(
+                        Digest32::try_from(
+                            Base16DecodedBytes::try_from(
+                                "ad62f6dd92e7dc850bc406770dfac9a943dd221a7fb440b7b2bcc7d3149c1792"
+                                    .to_string()
+                            )
+                            .unwrap()
                         )
                         .unwrap()
-                    )
-                    .unwrap()
-                ))
-            ]
-            .boxed()
+                    ))
+                ]
+                .boxed(),
+                ArbTokenIdParam::Arbitrary => (any::<Digest32>()).prop_map_into().boxed(),
+            }
         }
 
         type Strategy = BoxedStrategy<Self>;
@@ -160,7 +209,7 @@ mod tests {
         type Parameters = ();
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            (TokenAmount::MIN..=TokenAmount::MAX / 100000)
+            (TokenAmount::MIN_RAW..=TokenAmount::MAX_RAW / 100000)
                 .prop_map(Self)
                 .boxed()
         }

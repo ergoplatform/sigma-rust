@@ -57,30 +57,30 @@ impl BoxValue {
     /// Addition with overflow check
     pub fn checked_add(&self, rhs: &Self) -> Result<Self, BoxValueError> {
         let raw = self.0.checked_add(rhs.0).ok_or(BoxValueError::Overflow)?;
-        if raw > BoxValue::MAX_RAW {
+        if raw > Self::MAX_RAW {
             Err(BoxValueError::OutOfBounds(raw))
         } else {
-            Ok(BoxValue(raw))
+            Ok(Self(raw))
         }
     }
 
     /// Subtraction with overflow and bounds check
     pub fn checked_sub(&self, rhs: &Self) -> Result<Self, BoxValueError> {
         let raw = self.0.checked_sub(rhs.0).ok_or(BoxValueError::Overflow)?;
-        if raw < BoxValue::MIN_RAW {
+        if raw < Self::MIN_RAW {
             Err(BoxValueError::OutOfBounds(raw))
         } else {
-            Ok(BoxValue(raw))
+            Ok(Self(raw))
         }
     }
 
     /// Multiplication with overflow check
     pub fn checked_mul(&self, rhs: &Self) -> Result<Self, BoxValueError> {
         let raw = self.0.checked_mul(rhs.0).ok_or(BoxValueError::Overflow)?;
-        if raw > BoxValue::MAX_RAW {
+        if raw > Self::MAX_RAW {
             Err(BoxValueError::OutOfBounds(raw))
         } else {
-            Ok(BoxValue(raw))
+            Ok(Self(raw))
         }
     }
 
@@ -90,10 +90,10 @@ impl BoxValue {
             .0
             .checked_mul(rhs as u64)
             .ok_or(BoxValueError::Overflow)?;
-        if raw > BoxValue::MAX_RAW {
+        if raw > Self::MAX_RAW {
             Err(BoxValueError::OutOfBounds(raw))
         } else {
-            Ok(BoxValue(raw))
+            Ok(Self(raw))
         }
     }
 }

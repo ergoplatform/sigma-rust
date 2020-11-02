@@ -22,6 +22,11 @@ impl I64 {
     pub fn to_str(&self) -> String {
         format!("{}", self.0)
     }
+
+    /// Get the value as JS number (64-bit float)
+    pub fn as_num(&self) -> js_sys::Number {
+        js_sys::Number::from(self.0 as f64)
+    }
 }
 
 impl From<i64> for I64 {

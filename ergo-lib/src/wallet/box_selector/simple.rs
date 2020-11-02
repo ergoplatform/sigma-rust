@@ -2,7 +2,6 @@
 
 use std::cmp::min;
 use std::collections::HashMap;
-use std::convert::TryFrom;
 use std::convert::TryInto;
 
 use crate::chain::ergo_box::box_value::BoxValue;
@@ -43,15 +42,8 @@ impl<T: ErgoBoxAssets> BoxSelector<T> for SimpleBoxSelector {
         let mut selected_inputs: Vec<T> = vec![];
         let mut selected_boxes_value: u64 = 0;
         let target_balance: u64 = target_balance.into();
-        let mut target_tokens_left: HashMap<TokenId, u64> = HashMap::new();
         // sum all target tokens into hash map (think repeating token ids)
-        target_tokens.iter().for_each(|t| {
-            let token_amt = u64::from(t.amount);
-            target_tokens_left
-                .entry(t.token_id.clone())
-                .and_modify(|amt| *amt += token_amt)
-                .or_insert(token_amt);
-        });
+        let mut target_tokens_left: HashMap<TokenId, TokenAmount> = sum_tokens(target_tokens);
         let mut has_value_change = false;
         let mut has_token_change = false;
         inputs.into_iter().for_each(|b| {
@@ -69,26 +61,28 @@ impl<T: ErgoBoxAssets> BoxSelector<T> for SimpleBoxSelector {
                 if selected_boxes_value > target_balance {
                     has_value_change = true;
                 }
-                let mut selected_tokens_from_this_box: HashMap<TokenId, u64> = HashMap::new();
+                let mut selected_tokens_from_this_box: HashMap<TokenId, TokenAmount> =
+                    HashMap::new();
                 b.tokens().iter().for_each(|t| {
-                    let token_amount_left_to_select =
-                        *target_tokens_left.get(&t.token_id).unwrap_or(&0);
-                    let token_amount_in_box = u64::from(t.amount);
-                    if token_amount_left_to_select <= token_amount_in_box {
-                        target_tokens_left.remove(&t.token_id);
-                    } else {
-                        target_tokens_left.insert(
-                            t.token_id.clone(),
-                            token_amount_left_to_select - token_amount_in_box,
-                        );
-                    }
-                    if token_amount_left_to_select > 0 {
+                    if let Some(token_amount_left_to_select) =
+                        target_tokens_left.get(&t.token_id).cloned()
+                    {
+                        let token_amount_in_box = t.amount;
+                        if token_amount_left_to_select <= token_amount_in_box {
+                            target_tokens_left.remove(&t.token_id);
+                        } else {
+                            target_tokens_left
+                                .entry(t.token_id.clone())
+                                .and_modify(|amt| {
+                                    *amt = amt.checked_sub(&token_amount_in_box).unwrap()
+                                });
+                        }
                         let selected_token_amt =
                             min(token_amount_in_box, token_amount_left_to_select);
                         selected_tokens_from_this_box
                             .entry(t.token_id.clone())
                             .and_modify(|amt| {
-                                *amt += selected_token_amt;
+                                *amt = amt.checked_add(&selected_token_amt).unwrap();
                             })
                             .or_insert(selected_token_amt);
                     }
@@ -106,13 +100,7 @@ impl<T: ErgoBoxAssets> BoxSelector<T> for SimpleBoxSelector {
         }
         if !target_tokens.is_empty() && !target_tokens_left.is_empty() {
             return Err(BoxSelectorError::NotEnoughTokens(
-                target_tokens_left
-                    .iter()
-                    .map(|(token_id, token_amount)| Token {
-                        token_id: token_id.clone(),
-                        amount: TokenAmount::try_from(*token_amount).unwrap(),
-                    })
-                    .collect(),
+                target_tokens_left.into_iter().map(Token::from).collect(),
             ));
         }
         let change_boxes: Vec<ErgoBoxAssetsData> = if !has_value_change && !has_token_change {
@@ -120,24 +108,25 @@ impl<T: ErgoBoxAssets> BoxSelector<T> for SimpleBoxSelector {
         } else {
             let change_value: BoxValue = (selected_boxes_value - target_balance).try_into()?;
             let mut change_tokens = sum_tokens_from_boxes(selected_inputs.as_slice());
-            target_tokens.iter().for_each(|t| {
-                let selected_boxes_t_amt = change_tokens.get(&t.token_id).unwrap();
-                let t_change_amt = *selected_boxes_t_amt - u64::from(t.amount);
-                if t_change_amt == 0 {
-                    change_tokens.remove(&t.token_id);
-                } else {
-                    change_tokens.insert(t.token_id.clone(), t_change_amt);
-                };
-            });
+            target_tokens.iter().try_for_each(|t| {
+                match change_tokens.get(&t.token_id).cloned() {
+                    Some(selected_boxes_t_amt) if selected_boxes_t_amt == t.amount => {
+                        change_tokens.remove(&t.token_id);
+                        Ok(())
+                    }
+                    Some(selected_boxes_t_amt) if selected_boxes_t_amt > t.amount => {
+                        change_tokens.insert(
+                            t.token_id.clone(),
+                            selected_boxes_t_amt.checked_sub(&t.amount).unwrap(),
+                        );
+                        Ok(())
+                    }
+                    _ => Err(BoxSelectorError::NotEnoughTokens(vec![t.clone()])),
+                }
+            })?;
             vec![ErgoBoxAssetsData {
                 value: change_value,
-                tokens: change_tokens
-                    .iter()
-                    .map(|t| Token {
-                        token_id: t.0.clone(),
-                        amount: TokenAmount::try_from(*t.1).unwrap(),
-                    })
-                    .collect(),
+                tokens: change_tokens.into_iter().map(Token::from).collect(),
             }]
         };
         Ok(BoxSelection {
@@ -155,6 +144,8 @@ impl Default for SimpleBoxSelector {
 
 #[cfg(test)]
 mod tests {
+    use std::convert::TryFrom;
+
     use crate::chain::ergo_box::box_value;
     use crate::chain::ergo_box::sum_value;
     use crate::chain::ergo_box::ErgoBox;
@@ -275,8 +266,9 @@ mod tests {
             let target_token_id = all_input_tokens.keys().collect::<Vec<&TokenId>>().get((all_input_tokens.len() - 1) / 2)
                                                                                     .cloned().unwrap();
             let input_token_amount = *all_input_tokens.get(target_token_id).unwrap();
+            let target_token_amount: TokenAmount = target_token_amount.try_into().unwrap();
             prop_assume!(input_token_amount >= target_token_amount);
-            let target_token = Token {token_id: target_token_id.clone(), amount: target_token_amount.try_into().unwrap()};
+            let target_token = Token {token_id: target_token_id.clone(), amount: target_token_amount};
             let selection = s.select(inputs, target_balance, vec![target_token.clone()].as_slice()).unwrap();
             let out_box = ErgoBoxAssetsData {value: target_balance, tokens: vec![target_token]};
             let mut change_boxes_plus_out = vec![out_box];
@@ -301,8 +293,7 @@ mod tests {
             let target_token_id = all_input_tokens.keys().collect::<Vec<&TokenId>>().get((all_input_tokens.len() - 1) / 2)
                                                                                     .cloned().unwrap();
             let input_token_amount = *all_input_tokens.get(target_token_id).unwrap();
-            prop_assume!(input_token_amount > 0);
-            let target_token = Token {token_id: target_token_id.clone(), amount: input_token_amount.try_into().unwrap()};
+            let target_token = Token {token_id: target_token_id.clone(), amount: input_token_amount};
             let selection = s.select(inputs, target_balance, vec![target_token.clone()].as_slice()).unwrap();
             let out_box = ErgoBoxAssetsData {value: target_balance, tokens: vec![target_token]};
             let mut change_boxes_plus_out = vec![out_box];
@@ -331,8 +322,8 @@ mod tests {
             let target_token2_id = all_input_tokens_keys.last().cloned().unwrap();
             let input_token1_amount = *all_input_tokens.get(target_token1_id).unwrap();
             let input_token2_amount = *all_input_tokens.get(target_token2_id).unwrap();
-            prop_assume!(input_token1_amount >= target_token1_amount);
-            prop_assume!(input_token2_amount >= target_token2_amount);
+            prop_assume!(u64::from(input_token1_amount) >= target_token1_amount);
+            prop_assume!(u64::from(input_token2_amount) >= target_token2_amount);
             let target_token1 = Token {token_id: target_token1_id.clone(), amount: target_token1_amount.try_into().unwrap()};
             // simulate repeating token ids (e.g the same token id mentioned twice)
             let target_token2_amount_part1 = target_token2_amount / 2;
@@ -365,8 +356,8 @@ mod tests {
             let all_input_tokens = sum_tokens_from_boxes(inputs.as_slice());
             prop_assume!(!all_input_tokens.is_empty());
             let target_token_id = all_input_tokens.keys().collect::<Vec<&TokenId>>().get(0).cloned().unwrap();
-            let input_token_amount = all_input_tokens.get(target_token_id).unwrap() / 2;
-            let target_token_amount = TokenAmount::MAX;
+            let input_token_amount = u64::from(*all_input_tokens.get(target_token_id).unwrap()) / 2;
+            let target_token_amount = TokenAmount::MAX_RAW;
             prop_assume!(input_token_amount < target_token_amount);
             let target_token = Token {token_id: target_token_id.clone(), amount: target_token_amount.try_into().unwrap()};
             let selection = s.select(inputs, target_balance, vec![target_token].as_slice());
