@@ -17,6 +17,6 @@ Bindings:
 - [ergo-lib-c](https://github.com/ergoplatform/sigma-rust/tree/develop/bindings/ergo-lib-c) [![Latest Version](https://img.shields.io/crates/v/ergo-lib-c.svg)](https://crates.io/crates/ergo-lib-c) [![Documentation](https://docs.rs/ergo-lib-c/badge.svg)](https://docs.rs/crate/ergo-lib-c)
 
 ## Contributing
-Check out [Contributing](docs/CONTRIBUTING.md) guide.
+Check out [Contributing](CONTRIBUTING.md) guide.
 
 Feel free to join the [Ergo Discord](https://discord.gg/kj7s7nb) and ask questions on `#sigma-rust` channel.
