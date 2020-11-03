@@ -2,7 +2,6 @@
 
 use std::collections::HashSet;
 
-use box_value::BoxValueError;
 use thiserror::Error;
 
 use crate::chain::address::Address;
@@ -12,10 +11,11 @@ use crate::chain::contract::Contract;
 use crate::chain::data_input::DataInput;
 use crate::chain::ergo_box::box_builder::ErgoBoxCandidateBuilder;
 use crate::chain::ergo_box::box_builder::ErgoBoxCandidateBuilderError;
-use crate::chain::ergo_box::box_id::BoxId;
-use crate::chain::ergo_box::box_value;
 use crate::chain::ergo_box::sum_tokens_from_boxes;
 use crate::chain::ergo_box::sum_value;
+use crate::chain::ergo_box::BoxId;
+use crate::chain::ergo_box::BoxValue;
+use crate::chain::ergo_box::BoxValueError;
 use crate::chain::input::Input;
 use crate::chain::prover_result::ProofBytes;
 use crate::chain::prover_result::ProverResult;
@@ -23,10 +23,7 @@ use crate::chain::token::Token;
 use crate::chain::token::TokenId;
 use crate::chain::transaction::Transaction;
 use crate::chain::{
-    ergo_box::ErgoBoxAssets,
-    ergo_box::ErgoBoxId,
-    ergo_box::{box_value::BoxValue, ErgoBoxCandidate},
-    input::UnsignedInput,
+    ergo_box::ErgoBoxAssets, ergo_box::ErgoBoxCandidate, ergo_box::ErgoBoxId, input::UnsignedInput,
     transaction::unsigned::UnsignedTransaction,
 };
 use crate::constants::MINERS_FEE_MAINNET_ADDRESS;
@@ -257,8 +254,9 @@ mod tests {
 
     use proptest::{collection::vec, prelude::*};
 
-    use crate::chain::ergo_box::register::NonMandatoryRegisters;
+    use crate::chain::ergo_box::checked_sum;
     use crate::chain::ergo_box::ErgoBox;
+    use crate::chain::ergo_box::NonMandatoryRegisters;
     use crate::chain::token::tests::ArbTokenIdParam;
     use crate::chain::token::Token;
     use crate::chain::token::TokenAmount;
@@ -534,12 +532,12 @@ mod tests {
                          data_inputs in vec(any::<DataInput>(), 0..2)) {
             prop_assume!(sum_tokens_from_boxes(outputs.as_slice()).is_empty());
             let min_change_value = BoxValue::SAFE_USER_MIN;
-            let all_outputs = box_value::checked_sum(outputs.iter().map(|b| b.value)).unwrap()
+            let all_outputs = checked_sum(outputs.iter().map(|b| b.value)).unwrap()
                                                                              .checked_add(&miners_fee)
                                                                              .unwrap();
-            let all_inputs = box_value::checked_sum(inputs.iter().map(|b| b.value)).unwrap();
+            let all_inputs = checked_sum(inputs.iter().map(|b| b.value)).unwrap();
             prop_assume!(all_outputs < all_inputs);
-            let total_output_value: BoxValue = box_value::checked_sum(outputs.iter().map(|b| b.value)).unwrap()
+            let total_output_value: BoxValue = checked_sum(outputs.iter().map(|b| b.value)).unwrap()
                                                                                                       .checked_add(&miners_fee).unwrap();
             let mut tx_builder = TxBuilder::new(
                 SimpleBoxSelector::new().select(inputs.clone(), total_output_value, &[]).unwrap(),
@@ -557,7 +555,7 @@ mod tests {
                                                              .map(|i| inputs.iter()
                                                                   .find(|ib| ib.box_id() == i.box_id).unwrap().value)
                                                              .collect();
-            let tx_all_inputs_sum = box_value::checked_sum(tx_all_inputs_vals.into_iter()).unwrap();
+            let tx_all_inputs_sum = checked_sum(tx_all_inputs_vals.into_iter()).unwrap();
             let expected_change = tx_all_inputs_sum.checked_sub(&all_outputs).unwrap();
             prop_assert!(tx.output_candidates.iter().any(|b| {
                 b.value == expected_change && b.ergo_tree == change_address.script().unwrap()

@@ -1,9 +1,13 @@
 //! Ergo box
 
 pub mod box_builder;
-pub mod box_id;
-pub mod box_value;
-pub mod register;
+mod box_id;
+mod box_value;
+mod register;
+
+pub use box_id::*;
+pub use box_value::*;
+pub use register::*;
 
 #[cfg(feature = "json")]
 use super::json;
@@ -23,10 +27,7 @@ use crate::{
         SerializationError, SigmaSerializable,
     },
 };
-use box_id::BoxId;
-use box_value::BoxValue;
 use indexmap::IndexSet;
-use register::NonMandatoryRegisters;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

@@ -3,10 +3,10 @@
 mod simple;
 pub use simple::*;
 
-use crate::chain::ergo_box::box_value::BoxValueError;
+use crate::chain::ergo_box::BoxValueError;
 use crate::chain::ergo_box::ErgoBoxAssetsData;
 use crate::chain::{
-    ergo_box::{box_value::BoxValue, ErgoBoxAssets},
+    ergo_box::{BoxValue, ErgoBoxAssets},
     token::Token,
 };
 use thiserror::Error;

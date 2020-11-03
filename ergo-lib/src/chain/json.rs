@@ -38,12 +38,11 @@ pub mod ergo_tree {
 }
 
 pub mod ergo_box {
+    use crate::chain::ergo_box::BoxId;
+    use crate::chain::ergo_box::BoxValue;
+    use crate::chain::ergo_box::NonMandatoryRegisters;
     use crate::{
-        chain::{
-            ergo_box::{box_id::BoxId, box_value::BoxValue, register::NonMandatoryRegisters},
-            token::Token,
-            transaction::TxId,
-        },
+        chain::{token::Token, transaction::TxId},
         ErgoTree,
     };
     use serde::Deserialize;
@@ -128,7 +127,6 @@ mod tests {
     use super::*;
     use crate::chain::context_extension::ContextExtension;
     use proptest::prelude::*;
-    use register::NonMandatoryRegisters;
 
     proptest! {
 

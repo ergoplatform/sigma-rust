@@ -18,7 +18,7 @@
 
 use std::convert::TryFrom;
 
-use chain::ergo_box::register::NonMandatoryRegisters;
+use chain::ergo_box::NonMandatoryRegisters;
 use ergo_lib::chain;
 use wasm_bindgen::prelude::*;
 
@@ -31,7 +31,7 @@ pub mod box_builder;
 /// Box id (32-byte digest)
 #[wasm_bindgen]
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct BoxId(chain::ergo_box::box_id::BoxId);
+pub struct BoxId(chain::ergo_box::BoxId);
 
 #[wasm_bindgen]
 impl BoxId {
@@ -41,13 +41,13 @@ impl BoxId {
     }
 }
 
-impl From<chain::ergo_box::box_id::BoxId> for BoxId {
-    fn from(b: chain::ergo_box::box_id::BoxId) -> Self {
+impl From<chain::ergo_box::BoxId> for BoxId {
+    fn from(b: chain::ergo_box::BoxId) -> Self {
         BoxId(b)
     }
 }
 
-impl From<BoxId> for chain::ergo_box::box_id::BoxId {
+impl From<BoxId> for chain::ergo_box::BoxId {
     fn from(b: BoxId) -> Self {
         b.0
     }
@@ -152,7 +152,7 @@ impl From<chain::ergo_box::ErgoBox> for ErgoBox {
 /// Box value in nanoERGs with bound checks
 #[wasm_bindgen]
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct BoxValue(pub(crate) chain::ergo_box::box_value::BoxValue);
+pub struct BoxValue(pub(crate) chain::ergo_box::BoxValue);
 
 #[wasm_bindgen]
 impl BoxValue {
@@ -160,13 +160,13 @@ impl BoxValue {
     /// Allows box size upto 2777 bytes with current min box value per byte of 360 nanoERGs
     #[allow(non_snake_case)]
     pub fn SAFE_USER_MIN() -> BoxValue {
-        BoxValue(chain::ergo_box::box_value::BoxValue::SAFE_USER_MIN)
+        BoxValue(chain::ergo_box::BoxValue::SAFE_USER_MIN)
     }
 
     /// Create from u32 with bounds check
     pub fn from_u32(v: u32) -> Result<BoxValue, JsValue> {
         Ok(BoxValue(
-            chain::ergo_box::box_value::BoxValue::try_from(v as u64)
+            chain::ergo_box::BoxValue::try_from(v as u64)
                 .map_err(|e| JsValue::from_str(&format!("{}", e)))?,
         ))
     }
@@ -177,14 +177,14 @@ impl BoxValue {
     }
 }
 
-impl From<BoxValue> for chain::ergo_box::box_value::BoxValue {
+impl From<BoxValue> for chain::ergo_box::BoxValue {
     fn from(v: BoxValue) -> Self {
         v.0
     }
 }
 
-impl From<chain::ergo_box::box_value::BoxValue> for BoxValue {
-    fn from(v: chain::ergo_box::box_value::BoxValue) -> Self {
+impl From<chain::ergo_box::BoxValue> for BoxValue {
+    fn from(v: chain::ergo_box::BoxValue) -> Self {
         BoxValue(v)
     }
 }
@@ -210,9 +210,9 @@ pub enum NonMandatoryRegisterId {
 
 impl NonMandatoryRegisterId {}
 
-impl From<NonMandatoryRegisterId> for chain::ergo_box::register::NonMandatoryRegisterId {
+impl From<NonMandatoryRegisterId> for chain::ergo_box::NonMandatoryRegisterId {
     fn from(v: NonMandatoryRegisterId) -> Self {
-        use chain::ergo_box::register::NonMandatoryRegisterId::*;
+        use chain::ergo_box::NonMandatoryRegisterId::*;
         match v {
             NonMandatoryRegisterId::R4 => R4,
             NonMandatoryRegisterId::R5 => R5,
@@ -224,16 +224,16 @@ impl From<NonMandatoryRegisterId> for chain::ergo_box::register::NonMandatoryReg
     }
 }
 
-impl From<chain::ergo_box::register::NonMandatoryRegisterId> for NonMandatoryRegisterId {
-    fn from(v: chain::ergo_box::register::NonMandatoryRegisterId) -> Self {
+impl From<chain::ergo_box::NonMandatoryRegisterId> for NonMandatoryRegisterId {
+    fn from(v: chain::ergo_box::NonMandatoryRegisterId) -> Self {
         use NonMandatoryRegisterId::*;
         match v {
-            chain::ergo_box::register::NonMandatoryRegisterId::R4 => R4,
-            chain::ergo_box::register::NonMandatoryRegisterId::R5 => R5,
-            chain::ergo_box::register::NonMandatoryRegisterId::R6 => R6,
-            chain::ergo_box::register::NonMandatoryRegisterId::R7 => R7,
-            chain::ergo_box::register::NonMandatoryRegisterId::R8 => R8,
-            chain::ergo_box::register::NonMandatoryRegisterId::R9 => R9,
+            chain::ergo_box::NonMandatoryRegisterId::R4 => R4,
+            chain::ergo_box::NonMandatoryRegisterId::R5 => R5,
+            chain::ergo_box::NonMandatoryRegisterId::R6 => R6,
+            chain::ergo_box::NonMandatoryRegisterId::R7 => R7,
+            chain::ergo_box::NonMandatoryRegisterId::R8 => R8,
+            chain::ergo_box::NonMandatoryRegisterId::R9 => R9,
         }
     }
 }

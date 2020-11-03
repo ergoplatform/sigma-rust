@@ -3,7 +3,7 @@ use std::io;
 
 use super::{
     context_extension::ContextExtension,
-    ergo_box::box_id::BoxId,
+    ergo_box::BoxId,
     ergo_box::ErgoBoxId,
     prover_result::{ProofBytes, ProverResult},
 };

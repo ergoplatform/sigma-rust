@@ -19,7 +19,7 @@ pub struct TokenId(chain::token::TokenId);
 impl TokenId {
     /// Create token id from erbo box id (32 byte digest)
     pub fn from_box_id(box_id: &BoxId) -> TokenId {
-        let box_id: chain::ergo_box::box_id::BoxId = box_id.clone().into();
+        let box_id: chain::ergo_box::BoxId = box_id.clone().into();
         TokenId(chain::token::TokenId::from(box_id))
     }
 
