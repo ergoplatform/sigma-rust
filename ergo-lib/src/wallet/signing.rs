@@ -71,12 +71,10 @@ mod tests {
     use proptest::prelude::*;
 
     use crate::chain::ergo_box::box_builder::ErgoBoxCandidateBuilder;
-    use crate::chain::ergo_box::box_value::BoxValue;
+    use crate::chain::ergo_box::BoxValue;
     use crate::{
         ast::{Constant, Expr},
-        chain::{
-            ergo_box::register::NonMandatoryRegisters, input::UnsignedInput, transaction::TxId,
-        },
+        chain::{ergo_box::NonMandatoryRegisters, input::UnsignedInput, transaction::TxId},
         sigma_protocol::{
             prover::TestProver,
             verifier::{TestVerifier, Verifier, VerifierError},
@@ -108,6 +106,8 @@ mod tests {
     }
 
     proptest! {
+
+        #![proptest_config(ProptestConfig::with_cases(16))]
 
         #[test]
         fn test_tx_signing(secrets in vec(any::<DlogProverInput>(), 1..10)) {

@@ -2,7 +2,7 @@
 
 use std::io;
 
-use super::ergo_box::{box_id::BoxId, ErgoBox};
+use super::ergo_box::BoxId;
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, sigma_byte_writer::SigmaByteWrite, SerializationError,
     SigmaSerializable,
@@ -15,7 +15,7 @@ use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
 /// Inputs, that are used to enrich script context, but won't be spent by the transaction
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 #[cfg_attr(test, derive(Arbitrary))]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct DataInput {
@@ -24,9 +24,9 @@ pub struct DataInput {
     pub box_id: BoxId,
 }
 
-impl From<&ErgoBox> for DataInput {
-    fn from(b: &ErgoBox) -> Self {
-        DataInput { box_id: b.box_id() }
+impl From<BoxId> for DataInput {
+    fn from(box_id: BoxId) -> Self {
+        DataInput { box_id }
     }
 }
 

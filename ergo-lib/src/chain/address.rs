@@ -81,7 +81,7 @@ impl Address {
     /// byte array
     pub fn content_bytes(&self) -> Vec<u8> {
         match self {
-            Address::P2PK(prove_dlog) => prove_dlog.h.sigma_serialise_bytes(),
+            Address::P2PK(prove_dlog) => prove_dlog.h.sigma_serialize_bytes(),
             Address::P2S(bytes) => bytes.clone(),
         }
     }
@@ -270,7 +270,7 @@ mod tests {
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             prop_oneof![
                 any::<ProveDlog>().prop_map(Address::P2PK),
-                any::<ErgoTree>().prop_map(|t| Address::P2S(t.sigma_serialise_bytes())),
+                any::<ErgoTree>().prop_map(|t| Address::P2S(t.sigma_serialize_bytes())),
             ]
             .boxed()
         }

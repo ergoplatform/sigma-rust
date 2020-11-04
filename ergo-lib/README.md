@@ -1,8 +1,12 @@
+[![Latest Version](https://img.shields.io/crates/v/ergo-lib.svg)](https://crates.io/crates/ergo-lib)
+[![Documentation](https://docs.rs/ergo-lib/badge.svg)](https://docs.rs/crate/ergo-lib)
+
 Features:
 - ErgoTree AST;
-- interpreter;
-- chain types (transactions, boxes, etc.);
-- JSON serialization.
+- Interpreter;
+- Transactions, boxes, etc.;
+- JSON serialization;
+- Transaction creation and signing;
 
 # Usage
 ## Crate features

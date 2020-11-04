@@ -70,7 +70,7 @@ pub trait SigmaSerializable: Sized {
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError>;
 
     /// Serialize any SigmaSerializable value into bytes
-    fn sigma_serialise_bytes(&self) -> Vec<u8> {
+    fn sigma_serialize_bytes(&self) -> Vec<u8> {
         let mut data = Vec::new();
         let mut w = SigmaByteWriter::new(&mut data, None);
         self.sigma_serialize(&mut w)

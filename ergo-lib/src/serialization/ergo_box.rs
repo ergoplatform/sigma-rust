@@ -5,8 +5,8 @@ use crate::serialization::{
 use crate::{
     ast::Constant,
     chain::{
-        ergo_box::{box_value::BoxValue, register::NonMandatoryRegisters, ErgoBoxCandidate},
-        token::{TokenAmount, TokenId},
+        ergo_box::{BoxValue, ErgoBoxCandidate, NonMandatoryRegisters},
+        token::{Token, TokenId},
     },
     ErgoTree,
 };
@@ -14,6 +14,7 @@ use indexmap::IndexSet;
 
 use super::sigma_byte_writer::SigmaByteWrite;
 use std::convert::TryFrom;
+use std::convert::TryInto;
 use std::io;
 
 /// Box serialization with token ids optionally saved in transaction
@@ -21,7 +22,7 @@ use std::io;
 pub fn serialize_box_with_indexed_digests<W: SigmaByteWrite>(
     box_value: &BoxValue,
     ergo_tree_bytes: Vec<u8>,
-    tokens: &[TokenAmount],
+    tokens: &[Token],
     additional_registers: &NonMandatoryRegisters,
     creation_height: u32,
     token_ids_in_tx: Option<&IndexSet<TokenId>>,
@@ -48,7 +49,7 @@ pub fn serialize_box_with_indexed_digests<W: SigmaByteWrite>(
             ),
             None => t.token_id.sigma_serialize(w),
         }
-        .and_then(|()| w.put_u64(t.amount))
+        .and_then(|()| w.put_u64(t.amount.into()))
     })?;
 
     let regs_num = additional_registers.len();
@@ -88,7 +89,10 @@ pub fn parse_box_with_indexed_digests<R: SigmaByteRead>(
             }
         };
         let amount = r.get_u64()?;
-        tokens.push(TokenAmount { token_id, amount })
+        tokens.push(Token {
+            token_id,
+            amount: amount.try_into()?,
+        })
     }
 
     let regs_num = r.get_u8()?;

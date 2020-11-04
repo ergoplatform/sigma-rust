@@ -1,17 +1,23 @@
 //! Ergo box
 
 pub mod box_builder;
-pub mod box_id;
-pub mod box_value;
-pub mod register;
+mod box_id;
+mod box_value;
+mod register;
+
+pub use box_id::*;
+pub use box_value::*;
+pub use register::*;
 
 #[cfg(feature = "json")]
 use super::json;
+use super::token::TokenAmount;
 use super::{
     digest32::blake2b256_hash,
-    token::{TokenAmount, TokenId},
+    token::{Token, TokenId},
     transaction::TxId,
 };
+
 use crate::{
     ergo_tree::ErgoTree,
     serialization::{
@@ -21,12 +27,10 @@ use crate::{
         SerializationError, SigmaSerializable,
     },
 };
-use box_id::BoxId;
-use box_value::BoxValue;
 use indexmap::IndexSet;
-use register::NonMandatoryRegisters;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 #[cfg(feature = "json")]
 use std::convert::TryFrom;
 use std::io;
@@ -64,7 +68,7 @@ pub struct ErgoBox {
     pub ergo_tree: ErgoTree,
     /// secondary tokens the box contains
     #[cfg_attr(feature = "json", serde(rename = "assets"))]
-    pub tokens: Vec<TokenAmount>,
+    pub tokens: Vec<Token>,
     ///  additional registers the box can carry over
     #[cfg_attr(feature = "json", serde(rename = "additionalRegisters"))]
     pub additional_registers: NonMandatoryRegisters,
@@ -86,7 +90,7 @@ impl ErgoBox {
     pub fn new(
         value: BoxValue,
         ergo_tree: ErgoTree,
-        tokens: Vec<TokenAmount>,
+        tokens: Vec<Token>,
         additional_registers: NonMandatoryRegisters,
         creation_height: u32,
         transaction_id: TxId,
@@ -139,7 +143,7 @@ impl ErgoBox {
     }
 
     fn calc_box_id(&self) -> BoxId {
-        let bytes = self.sigma_serialise_bytes();
+        let bytes = self.sigma_serialize_bytes();
         BoxId(blake2b256_hash(&bytes))
     }
 }
@@ -149,7 +153,36 @@ pub trait ErgoBoxAssets {
     /// Box value
     fn value(&self) -> BoxValue;
     /// Tokens (ids and amounts)
-    fn tokens(&self) -> Vec<TokenAmount>;
+    fn tokens(&self) -> Vec<Token>;
+}
+
+/// Returns the total value of the given boxes
+pub fn sum_value<T: ErgoBoxAssets>(bs: &[T]) -> u64 {
+    bs.iter().map(|b| *b.value().as_u64()).sum()
+}
+
+/// Returns the total token amounts (all tokens combined)
+pub fn sum_tokens(ts: &[Token]) -> HashMap<TokenId, TokenAmount> {
+    let mut res: HashMap<TokenId, TokenAmount> = HashMap::new();
+    ts.iter().for_each(|t| {
+        res.entry(t.token_id.clone())
+            .and_modify(|amt| *amt = amt.checked_add(&t.amount).unwrap())
+            .or_insert(t.amount);
+    });
+    res
+}
+
+/// Returns the total token amounts (all tokens combined) of the given boxes
+pub fn sum_tokens_from_boxes<T: ErgoBoxAssets>(bs: &[T]) -> HashMap<TokenId, TokenAmount> {
+    let mut res: HashMap<TokenId, TokenAmount> = HashMap::new();
+    bs.iter().for_each(|b| {
+        b.tokens().iter().for_each(|t| {
+            res.entry(t.token_id.clone())
+                .and_modify(|amt| *amt = amt.checked_add(&t.amount).unwrap())
+                .or_insert(t.amount);
+        });
+    });
+    res
 }
 
 /// Simple struct to hold ErgoBoxAssets values
@@ -158,7 +191,7 @@ pub struct ErgoBoxAssetsData {
     /// Box value
     pub value: BoxValue,
     /// Tokens
-    pub tokens: Vec<TokenAmount>,
+    pub tokens: Vec<Token>,
 }
 
 impl ErgoBoxAssets for ErgoBoxAssetsData {
@@ -166,7 +199,7 @@ impl ErgoBoxAssets for ErgoBoxAssetsData {
         self.value
     }
 
-    fn tokens(&self) -> Vec<TokenAmount> {
+    fn tokens(&self) -> Vec<Token> {
         self.tokens.clone()
     }
 }
@@ -176,7 +209,7 @@ impl ErgoBoxAssets for ErgoBoxCandidate {
         self.value
     }
 
-    fn tokens(&self) -> Vec<TokenAmount> {
+    fn tokens(&self) -> Vec<Token> {
         self.tokens.clone()
     }
 }
@@ -186,7 +219,7 @@ impl ErgoBoxAssets for ErgoBox {
         self.value
     }
 
-    fn tokens(&self) -> Vec<TokenAmount> {
+    fn tokens(&self) -> Vec<Token> {
         self.tokens.clone()
     }
 }
@@ -241,7 +274,7 @@ impl TryFrom<json::ergo_box::ErgoBoxFromJson> for ErgoBox {
 
 impl SigmaSerializable for ErgoBox {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
-        let ergo_tree_bytes = self.ergo_tree.sigma_serialise_bytes();
+        let ergo_tree_bytes = self.ergo_tree.sigma_serialize_bytes();
         serialize_box_with_indexed_digests(
             &self.value,
             ergo_tree_bytes,
@@ -273,7 +306,7 @@ pub struct ErgoBoxCandidate {
     /// guarding script, which should be evaluated to true in order to open this box
     pub ergo_tree: ErgoTree,
     /// secondary tokens the box contains
-    pub tokens: Vec<TokenAmount>,
+    pub tokens: Vec<Token>,
     ///  additional registers the box can carry over
     pub additional_registers: NonMandatoryRegisters,
     /// height when a transaction containing the box was created.
@@ -292,7 +325,7 @@ impl ErgoBoxCandidate {
     ) -> Result<(), io::Error> {
         serialize_box_with_indexed_digests(
             &self.value,
-            self.ergo_tree.sigma_serialise_bytes(),
+            self.ergo_tree.sigma_serialize_bytes(),
             &self.tokens,
             &self.additional_registers,
             self.creation_height,
@@ -333,18 +366,21 @@ impl From<ErgoBox> for ErgoBoxCandidate {
 
 #[cfg(test)]
 mod tests {
+
+    use super::box_value::tests::ArbBoxValueRange;
     use super::*;
     use crate::serialization::sigma_serialize_roundtrip;
+    use crate::test_util::force_any_val;
     use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
 
     impl Arbitrary for ErgoBoxCandidate {
-        type Parameters = super::box_value::tests::ArbBoxValueRange;
+        type Parameters = ArbBoxValueRange;
 
         fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
             (
                 any_with::<BoxValue>(args),
                 any::<ErgoTree>(),
-                vec(any::<TokenAmount>(), 0..10),
+                vec(any::<Token>(), 0..3),
                 any::<u32>(),
                 any::<NonMandatoryRegisters>(),
             )
@@ -363,7 +399,7 @@ mod tests {
     }
 
     impl Arbitrary for ErgoBox {
-        type Parameters = super::box_value::tests::ArbBoxValueRange;
+        type Parameters = ArbBoxValueRange;
 
         fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
             (
@@ -379,7 +415,41 @@ mod tests {
         type Strategy = BoxedStrategy<Self>;
     }
 
+    impl Arbitrary for ErgoBoxAssetsData {
+        type Parameters = ArbBoxValueRange;
+
+        fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
+            (any_with::<BoxValue>(args), vec(any::<Token>(), 0..3))
+                .prop_map(|(value, tokens)| Self { value, tokens })
+                .boxed()
+        }
+
+        type Strategy = BoxedStrategy<Self>;
+    }
+
+    #[test]
+    fn test_sum_tokens_repeating_token_id() {
+        let token = force_any_val::<Token>();
+        let b = ErgoBoxAssetsData {
+            value: BoxValue::SAFE_USER_MIN,
+            tokens: vec![token.clone(), token.clone()],
+        };
+        assert_eq!(
+            u64::from(
+                *sum_tokens_from_boxes(vec![b.clone(), b].as_slice())
+                    .get(&token.token_id)
+                    .unwrap()
+            ),
+            u64::from(token.amount) * 4
+        );
+    }
+
     proptest! {
+
+        #[test]
+        fn sum_tokens_eq(b in any::<ErgoBoxAssetsData>()) {
+            prop_assert_eq!(sum_tokens(b.tokens().as_slice()), sum_tokens_from_boxes(vec![b].as_slice()))
+        }
 
         #[test]
         fn ergo_box_candidate_ser_roundtrip(v in any::<ErgoBoxCandidate>()) {
