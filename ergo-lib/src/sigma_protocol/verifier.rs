@@ -1,5 +1,6 @@
 //! Verifier
 
+use super::prover::ProofBytes;
 use super::{
     dlog_protocol,
     fiat_shamir::{fiat_shamir_hash_fn, fiat_shamir_tree_to_bytes},
@@ -8,7 +9,6 @@ use super::{
     SigmaBoolean, UncheckedSigmaTree, UncheckedTree,
 };
 use crate::{
-    chain::prover_result::ProofBytes,
     eval::{Env, EvalError, Evaluator},
     ErgoTree, ErgoTreeParsingError,
 };

@@ -8,7 +8,6 @@ use crate::chain::address::{Address, AddressEncoder, NetworkPrefix};
 use crate::chain::contract::Contract;
 use crate::chain::ergo_box::box_builder::{ErgoBoxCandidateBuilder, ErgoBoxCandidateBuilderError};
 use crate::chain::ergo_box::{sum_tokens_from_boxes, sum_value, BoxId, BoxValue, BoxValueError};
-use crate::chain::prover_result::{ProofBytes, ProverResult};
 use crate::chain::token::{Token, TokenId};
 use crate::chain::transaction::{DataInput, Input, Transaction, UnsignedInput};
 use crate::chain::{
@@ -18,6 +17,7 @@ use crate::chain::{
 use crate::constants::MINERS_FEE_MAINNET_ADDRESS;
 use crate::serialization::{SerializationError, SigmaSerializable};
 use crate::sigma_protocol;
+use crate::sigma_protocol::prover::{ProofBytes, ProverResult};
 
 use super::box_selector::{BoxSelection, BoxSelectorError};
 

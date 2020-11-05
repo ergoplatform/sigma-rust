@@ -1,5 +1,11 @@
 //! Interpreter with enhanced functionality to prove statements.
 
+mod context_extension;
+mod prover_result;
+
+pub use context_extension::*;
+pub use prover_result::*;
+
 use super::{
     dlog_protocol,
     fiat_shamir::{fiat_shamir_hash_fn, fiat_shamir_tree_to_bytes},
@@ -9,7 +15,6 @@ use super::{
     UncheckedSigmaTree, UncheckedTree, UnprovenLeaf, UnprovenSchnorr, UnprovenTree,
 };
 use crate::{
-    chain::{context_extension::ContextExtension, prover_result::ProverResult},
     eval::{Env, EvalError, Evaluator},
     ErgoTree, ErgoTreeParsingError,
 };
@@ -296,7 +301,6 @@ mod tests {
     use super::*;
     use crate::{
         ast::{Constant, ConstantVal, Expr},
-        chain::prover_result::ProofBytes,
         sigma_protocol::DlogProverInput,
         types::SType,
     };

@@ -120,12 +120,12 @@ pub mod transaction {
 #[cfg(test)]
 mod tests {
     use crate::chain::transaction::unsigned::UnsignedTransaction;
+    use crate::sigma_protocol::prover::ContextExtension;
     use std::convert::TryInto;
 
     use super::super::ergo_box::*;
     use super::super::transaction::*;
     use super::*;
-    use crate::chain::context_extension::ContextExtension;
     use proptest::prelude::*;
 
     proptest! {

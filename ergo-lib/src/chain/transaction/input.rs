@@ -1,15 +1,14 @@
 //! Transaction input
 use std::io;
 
-use crate::chain::context_extension::ContextExtension;
-use crate::chain::ergo_box::BoxId;
-use crate::chain::ergo_box::ErgoBoxId;
-use crate::chain::prover_result::ProofBytes;
-use crate::chain::prover_result::ProverResult;
+use crate::chain::ergo_box::{BoxId, ErgoBoxId};
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, sigma_byte_writer::SigmaByteWrite, SerializationError,
     SigmaSerializable,
 };
+use crate::sigma_protocol::prover::ContextExtension;
+use crate::sigma_protocol::prover::ProofBytes;
+use crate::sigma_protocol::prover::ProverResult;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 

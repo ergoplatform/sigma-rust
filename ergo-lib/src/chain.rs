@@ -11,10 +11,8 @@ pub use base16_bytes::Base16EncodedBytes;
 pub use digest32::*;
 
 pub mod address;
-pub mod context_extension;
 pub mod contract;
 pub mod ergo_box;
 pub mod ergo_state_context;
-pub mod prover_result;
 pub mod token;
 pub mod transaction;
