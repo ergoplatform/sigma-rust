@@ -20,6 +20,7 @@ matrix:
   fast_finish: true
   allow_failures:
     - rust: nightly
+    - rust: beta
 
   include:
     - name: formatting
