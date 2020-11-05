@@ -1,11 +1,11 @@
 //! Unsigned (without proofs) transaction
 
+use super::input::Input;
+use super::input::UnsignedInput;
 #[cfg(feature = "json")]
 use super::json;
 use super::{
-    super::{
-        data_input::DataInput, digest32::blake2b256_hash, ergo_box::ErgoBoxCandidate, input::Input,
-    },
+    super::{data_input::DataInput, digest32::blake2b256_hash, ergo_box::ErgoBoxCandidate},
     Transaction, TxId,
 };
 #[cfg(feature = "json")]
@@ -13,10 +13,7 @@ use crate::chain::transaction::ErgoBox;
 #[cfg(feature = "json")]
 use crate::chain::transaction::TransactionFromJsonError;
 use crate::{
-    chain::{
-        input::UnsignedInput,
-        prover_result::{ProofBytes, ProverResult},
-    },
+    chain::prover_result::{ProofBytes, ProverResult},
     serialization::SigmaSerializable,
 };
 #[cfg(feature = "json")]

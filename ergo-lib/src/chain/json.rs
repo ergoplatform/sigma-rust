@@ -78,8 +78,9 @@ pub mod ergo_box {
 }
 
 pub mod transaction {
-    use crate::chain::input::UnsignedInput;
-    use crate::chain::{data_input::DataInput, ergo_box::ErgoBox, input::Input, transaction::TxId};
+    use crate::chain::transaction::input::Input;
+    use crate::chain::transaction::input::UnsignedInput;
+    use crate::chain::{data_input::DataInput, ergo_box::ErgoBox, transaction::TxId};
     use serde::{Deserialize, Serialize};
 
     #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]

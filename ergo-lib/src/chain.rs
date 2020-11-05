@@ -16,7 +16,6 @@ pub mod contract;
 pub mod data_input;
 pub mod ergo_box;
 pub mod ergo_state_context;
-pub mod input;
 pub mod prover_result;
 pub mod token;
 pub mod transaction;

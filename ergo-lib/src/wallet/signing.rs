@@ -1,10 +1,10 @@
 //! Transaction signing
 
+use crate::chain::transaction::input::Input;
 use crate::{
     chain::{
         ergo_box::ErgoBox,
         ergo_state_context::ErgoStateContext,
-        input::Input,
         transaction::{unsigned::UnsignedTransaction, Transaction},
     },
     eval::Env,
@@ -72,9 +72,10 @@ mod tests {
 
     use crate::chain::ergo_box::box_builder::ErgoBoxCandidateBuilder;
     use crate::chain::ergo_box::BoxValue;
+    use crate::chain::transaction::input::UnsignedInput;
     use crate::{
         ast::{Constant, Expr},
-        chain::{ergo_box::NonMandatoryRegisters, input::UnsignedInput, transaction::TxId},
+        chain::{ergo_box::NonMandatoryRegisters, transaction::TxId},
         sigma_protocol::{
             prover::TestProver,
             verifier::{TestVerifier, Verifier, VerifierError},

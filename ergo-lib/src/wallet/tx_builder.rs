@@ -16,14 +16,15 @@ use crate::chain::ergo_box::sum_value;
 use crate::chain::ergo_box::BoxId;
 use crate::chain::ergo_box::BoxValue;
 use crate::chain::ergo_box::BoxValueError;
-use crate::chain::input::Input;
 use crate::chain::prover_result::ProofBytes;
 use crate::chain::prover_result::ProverResult;
 use crate::chain::token::Token;
 use crate::chain::token::TokenId;
+use crate::chain::transaction::input::Input;
+use crate::chain::transaction::input::UnsignedInput;
 use crate::chain::transaction::Transaction;
 use crate::chain::{
-    ergo_box::ErgoBoxAssets, ergo_box::ErgoBoxCandidate, ergo_box::ErgoBoxId, input::UnsignedInput,
+    ergo_box::ErgoBoxAssets, ergo_box::ErgoBoxCandidate, ergo_box::ErgoBoxId,
     transaction::unsigned::UnsignedTransaction,
 };
 use crate::constants::MINERS_FEE_MAINNET_ADDRESS;
