@@ -4,8 +4,9 @@ use super::input::Input;
 use super::input::UnsignedInput;
 #[cfg(feature = "json")]
 use super::json;
+use super::DataInput;
 use super::{
-    super::{data_input::DataInput, digest32::blake2b256_hash, ergo_box::ErgoBoxCandidate},
+    super::{digest32::blake2b256_hash, ergo_box::ErgoBoxCandidate},
     Transaction, TxId,
 };
 #[cfg(feature = "json")]

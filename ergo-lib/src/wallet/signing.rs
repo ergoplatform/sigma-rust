@@ -1,6 +1,6 @@
 //! Transaction signing
 
-use crate::chain::transaction::input::Input;
+use crate::chain::transaction::Input;
 use crate::{
     chain::{
         ergo_box::ErgoBox,
@@ -72,7 +72,7 @@ mod tests {
 
     use crate::chain::ergo_box::box_builder::ErgoBoxCandidateBuilder;
     use crate::chain::ergo_box::BoxValue;
-    use crate::chain::transaction::input::UnsignedInput;
+    use crate::chain::transaction::UnsignedInput;
     use crate::{
         ast::{Constant, Expr},
         chain::{ergo_box::NonMandatoryRegisters, transaction::TxId},

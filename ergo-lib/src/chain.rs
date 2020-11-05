@@ -13,7 +13,6 @@ pub use digest32::*;
 pub mod address;
 pub mod context_extension;
 pub mod contract;
-pub mod data_input;
 pub mod ergo_box;
 pub mod ergo_state_context;
 pub mod prover_result;
