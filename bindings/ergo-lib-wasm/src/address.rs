@@ -1,14 +1,11 @@
 //! Address types
 
 use ergo_lib::chain;
-use wasm_bindgen::prelude::*;
 use ergo_lib::{
-    serialization::{SigmaSerializable},
-    sigma_protocol::{
-        dlog_group::EcPoint,
-        sigma_boolean::{ProveDlog},
-    },
+    serialization::SigmaSerializable,
+    sigma_protocol::{dlog_group::EcPoint, sigma_boolean::ProveDlog},
 };
+use wasm_bindgen::prelude::*;
 
 /// Network type
 #[wasm_bindgen]
@@ -40,7 +37,6 @@ impl From<chain::address::NetworkPrefix> for NetworkPrefix {
         }
     }
 }
-
 
 /// Address types
 #[wasm_bindgen]
@@ -75,7 +71,6 @@ impl From<chain::address::AddressTypePrefix> for AddressTypePrefix {
         }
     }
 }
-
 
 /**
  * An address is a short string corresponding to some script used to protect a box. Unlike (string-encoded) binary
@@ -142,7 +137,7 @@ impl Address {
             .map_err(|e| JsValue::from_str(&format!("{}", e)))
     }
 
-    /// Decode (base58) address from string
+    /// Decode (base58) address from string without checking the network prefix
     pub fn from_base58(s: &str) -> Result<Address, JsValue> {
         chain::address::AddressEncoder::unchecked_parse_address_from_str(s)
             .map(Address)

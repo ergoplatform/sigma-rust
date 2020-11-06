@@ -1,6 +1,9 @@
 //! Address types
 
 use super::digest32;
+use crate::ast::Constant;
+use crate::ast::ConstantVal;
+use crate::ErgoTreeParsingError;
 use crate::{
     ast::Expr,
     serialization::{SerializationError, SigmaSerializable},
@@ -69,6 +72,29 @@ pub enum Address {
 }
 
 impl Address {
+    /// Create a P2PK address from an ergo tree if ProveDlog is the root of the tree, otherwise returns an error
+    pub fn new_p2pk(tree: &ErgoTree) -> Result<Address, AddressError> {
+        let expr = &*tree.proposition()?;
+        match expr {
+            Expr::Const(Constant {
+                tpe: _,
+                v: ConstantVal::SigmaProp(sp),
+            }) => match sp.value() {
+                SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(
+                    prove_dlog,
+                )) => Ok(Address::P2PK(prove_dlog.clone())),
+                _ => Err(AddressError::UnexpectedErgoTree(
+                    tree.clone(),
+                    "Expected ErgoTree with ProveDlog as root".to_string(),
+                )),
+            },
+            _ => Err(AddressError::UnexpectedErgoTree(
+                tree.clone(),
+                "Expected ErgoTree with ProveDlog as root".to_string(),
+            )),
+        }
+    }
+
     /// address type prefix (for encoding)
     pub fn address_type_prefix(&self) -> AddressTypePrefix {
         match self {
@@ -98,11 +124,17 @@ impl Address {
             Address::P2S(bytes) => ErgoTree::sigma_parse_bytes(bytes.to_vec()),
         }
     }
+}
 
-    /// Create an address from an ergo tree
-    pub fn from_ergo_tree(tree: &ErgoTree) -> Address {
-        // TODO
-    }
+/// Errors for Address processing
+#[derive(Error, Eq, PartialEq, Debug, Clone)]
+pub enum AddressError {
+    /// Unexpected ErgoTree encountered
+    #[error("Unexpected ErgoTree: {0:?}, \n reason: {1}")]
+    UnexpectedErgoTree(ErgoTree, String),
+    /// ErgoTree parsing error
+    #[error("ErgoTree parsing error: {0}")]
+    ErgoTreeParsingError(#[from] ErgoTreeParsingError),
 }
 
 /// Address types
@@ -232,7 +264,7 @@ impl AddressEncoder {
         if bytes.len() < AddressEncoder::MIN_ADDRESS_LENGTH {
             return Err(AddressEncoderError::InvalidSize);
         };
-         self.check_head_byte(bytes[0])?;
+        self.check_head_byte(bytes[0])?;
         AddressEncoder::try_parse_address(&bytes)
     }
 
@@ -246,7 +278,7 @@ impl AddressEncoder {
     }
 
     /// parse address from Base58 encoded string
-    fn try_parse_address(bytes: &Vec<u8>) -> Result<Address, AddressEncoderError> {
+    fn try_parse_address(bytes: &[u8]) -> Result<Address, AddressEncoderError> {
         let (without_checksum, checksum) =
             bytes.split_at(bytes.len() - AddressEncoder::CHECKSUM_LENGTH);
         let calculated_checksum = AddressEncoder::calc_checksum(without_checksum);
@@ -303,12 +335,11 @@ mod tests {
     proptest! {
 
         #[test]
-        fn ergo_tree_roundtrip(address in any::<Address>()) {
+        fn ergo_tree_p2pk_roundtrip(prove_dlog in any::<ProveDlog>()) {
             let encoder = AddressEncoder::new(NetworkPrefix::Testnet);
-
+            let address = Address::P2PK(prove_dlog);
             let ergo_tree = address.script().unwrap();
-            let address_copy = Address::from_ergo_tree(&ergo_tree);
-            
+            let address_copy = Address::new_p2pk(&ergo_tree).unwrap();
             let encoded_addr = encoder.address_to_str(&address);
             let encoded_addr_copy = encoder.address_to_str(&address_copy);
 
