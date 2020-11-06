@@ -14,16 +14,17 @@
 
 mod big_integer;
 mod constants;
-mod ergo_tree;
-pub mod serialization;
 mod types;
 
 pub mod ast;
 pub mod chain;
 pub mod eval;
+pub mod serialization;
 pub mod sigma_protocol;
 pub mod util;
 pub mod wallet;
+
+mod ergo_tree;
 pub use ergo_tree::*;
 
 #[cfg(test)]
