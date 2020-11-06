@@ -166,15 +166,6 @@ impl Address {
             .map(Address)
             .map_err(|e| JsValue::from_str(&format!("{}", e)))
     }
-
-    /// Create an address from an ergo tree
-    pub fn to_ergo_tree(&self) -> ErgoTree {
-        if (this.getType() === AddressKind.P2PK) {
-            return Buffer.concat([Buffer.from([0x00, 0x08, 0xcd]), this.publicKey]).toString('hex');
-        } else {
-            return this.addrBytes.slice(1, this.addrBytes.length - 4).toString('hex');
-        }
-    }
 }
 
 impl Into<chain::address::Address> for Address {
