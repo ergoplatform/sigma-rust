@@ -27,6 +27,8 @@ getrandom = {version = "0.1", features = ["wasm-bindgen"]}
 # code size when deploying.
 console_error_panic_hook = { version = "0.1.6", optional = true }
 
+derive_more = "0.99"
+
 [dependencies.wasm-bindgen]
 version = "0.2"
 features = ["serde-serialize"]

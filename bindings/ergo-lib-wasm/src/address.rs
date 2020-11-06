@@ -7,6 +7,8 @@ use ergo_lib::{
 };
 use wasm_bindgen::prelude::*;
 
+use crate::ergo_tree::ErgoTree;
+
 /// Network type
 #[wasm_bindgen]
 #[repr(u8)]
@@ -121,6 +123,13 @@ pub struct Address(chain::address::Address);
 
 #[wasm_bindgen]
 impl Address {
+    /// Create a P2PK address from an ergo tree if ProveDlog is the root of the tree, otherwise returns an error
+    pub fn new_p2pk(ergo_tree: &ErgoTree) -> Result<Address, JsValue> {
+        chain::address::Address::new_p2pk(&ergo_tree.clone().into())
+            .map(Address)
+            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+    }
+
     /// Decode (base58) testnet address from string
     pub fn from_testnet_str(s: &str) -> Result<Address, JsValue> {
         chain::address::AddressEncoder::new(chain::address::NetworkPrefix::Testnet)
