@@ -98,6 +98,11 @@ impl Address {
             Address::P2S(bytes) => ErgoTree::sigma_parse_bytes(bytes.to_vec()),
         }
     }
+
+    /// Create an address from an ergo tree
+    pub fn from_ergo_tree(tree: &ErgoTree) -> Address {
+        // TODO
+    }
 }
 
 /// Address types
@@ -227,7 +232,21 @@ impl AddressEncoder {
         if bytes.len() < AddressEncoder::MIN_ADDRESS_LENGTH {
             return Err(AddressEncoderError::InvalidSize);
         };
-        let head_byte = self.check_head_byte(bytes[0])?;
+         self.check_head_byte(bytes[0])?;
+        AddressEncoder::try_parse_address(&bytes)
+    }
+
+    /// parse address from Base58 encoded string
+    pub fn unchecked_parse_address_from_str(str: &str) -> Result<Address, AddressEncoderError> {
+        let bytes = bs58::decode(str).into_vec()?;
+        if bytes.len() < AddressEncoder::MIN_ADDRESS_LENGTH {
+            return Err(AddressEncoderError::InvalidSize);
+        };
+        AddressEncoder::try_parse_address(&bytes)
+    }
+
+    /// parse address from Base58 encoded string
+    fn try_parse_address(bytes: &Vec<u8>) -> Result<Address, AddressEncoderError> {
         let (without_checksum, checksum) =
             bytes.split_at(bytes.len() - AddressEncoder::CHECKSUM_LENGTH);
         let calculated_checksum = AddressEncoder::calc_checksum(without_checksum);
@@ -236,7 +255,7 @@ impl AddressEncoder {
         };
 
         let content_bytes: Vec<u8> = without_checksum[1..].to_vec(); // without head_byte
-        let address_type = AddressTypePrefix::try_from(head_byte - self.network_prefix as u8)?;
+        let address_type = AddressTypePrefix::try_from(bytes[0] & 0xF as u8)?;
         Ok(match address_type {
             AddressTypePrefix::P2PK => {
                 Address::P2PK(ProveDlog::new(EcPoint::sigma_parse_bytes(content_bytes)?))
@@ -248,7 +267,12 @@ impl AddressEncoder {
 
     /// encode address as Base58 encoded string
     pub fn address_to_str(&self, address: &Address) -> String {
-        let prefix_byte = self.network_prefix as u8 + address.address_type_prefix() as u8;
+        AddressEncoder::encode_address(self.network_prefix, &address)
+    }
+
+    /// encode address as Base58 encoded string
+    pub fn encode_address(network_prefix: NetworkPrefix, address: &Address) -> String {
+        let prefix_byte = network_prefix as u8 + address.address_type_prefix() as u8;
         let mut address_bytes = address.content_bytes();
         let mut bytes = vec![prefix_byte];
         bytes.append(&mut address_bytes);
@@ -277,6 +301,19 @@ mod tests {
     }
 
     proptest! {
+
+        #[test]
+        fn ergo_tree_roundtrip(address in any::<Address>()) {
+            let encoder = AddressEncoder::new(NetworkPrefix::Testnet);
+
+            let ergo_tree = address.script().unwrap();
+            let address_copy = Address::from_ergo_tree(&ergo_tree);
+            
+            let encoded_addr = encoder.address_to_str(&address);
+            let encoded_addr_copy = encoder.address_to_str(&address_copy);
+
+            prop_assert_eq![encoded_addr, encoded_addr_copy];
+        }
 
         #[test]
         fn str_roundtrip(v in any::<Address>()) {

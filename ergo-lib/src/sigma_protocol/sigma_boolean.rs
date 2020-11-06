@@ -94,7 +94,7 @@ impl TryInto<ProveDlog> for SigmaBoolean {
 pub struct SigmaProp(SigmaBoolean);
 
 impl SigmaProp {
-    /// create new sigma propostion from [`SigmaBoolean`] value
+    /// create new sigma proposition from [`SigmaBoolean`] value
     pub fn new(sbool: SigmaBoolean) -> Self {
         SigmaProp { 0: sbool }
     }
