@@ -9,10 +9,11 @@ pub use prover_result::*;
 use super::{
     dlog_protocol,
     fiat_shamir::{fiat_shamir_hash_fn, fiat_shamir_tree_to_bytes},
+    private_input::PrivateInput,
     sig_serializer::serialize_sig,
     unchecked_tree::UncheckedSchnorr,
-    Challenge, PrivateInput, ProofTree, SigmaBoolean, SigmaProofOfKnowledgeTree,
-    UncheckedSigmaTree, UncheckedTree, UnprovenLeaf, UnprovenSchnorr, UnprovenTree,
+    Challenge, ProofTree, SigmaBoolean, SigmaProofOfKnowledgeTree, UncheckedSigmaTree,
+    UncheckedTree, UnprovenLeaf, UnprovenSchnorr, UnprovenTree,
 };
 use crate::ergo_tree::{ErgoTree, ErgoTreeParsingError};
 use crate::eval::{Env, EvalError, Evaluator};
@@ -299,7 +300,7 @@ mod tests {
     use super::*;
     use crate::{
         ast::{Constant, ConstantVal, Expr},
-        sigma_protocol::DlogProverInput,
+        sigma_protocol::private_input::DlogProverInput,
         types::SType,
     };
     use std::rc::Rc;

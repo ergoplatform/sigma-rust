@@ -1,20 +1,17 @@
 //! Sigma protocols
 
-mod challenge;
-mod private_input;
-
-pub use challenge::*;
-pub use private_input::*;
-
 pub mod dlog_group;
-pub mod dlog_protocol;
-pub mod fiat_shamir;
+pub mod private_input;
 pub mod prover;
-pub mod sig_serializer;
 pub mod sigma_boolean;
-pub mod unchecked_tree;
-pub mod unproven_tree;
 pub mod verifier;
+
+mod challenge;
+mod dlog_protocol;
+mod fiat_shamir;
+mod sig_serializer;
+mod unchecked_tree;
+mod unproven_tree;
 
 use k256::Scalar;
 
@@ -23,6 +20,8 @@ use sigma_boolean::{ProveDlog, SigmaBoolean, SigmaProofOfKnowledgeTree};
 use std::convert::TryInto;
 use unchecked_tree::{UncheckedSigmaTree, UncheckedTree};
 use unproven_tree::{UnprovenLeaf, UnprovenSchnorr, UnprovenTree};
+
+use self::challenge::Challenge;
 
 /** The message sent by a prover to its associated verifier as part of a sigma protocol interaction. */
 pub trait ProverMessage {

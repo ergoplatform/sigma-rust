@@ -120,8 +120,8 @@ mod tests {
     use crate::{
         ast::{Constant, Expr},
         sigma_protocol::{
+            private_input::{DlogProverInput, PrivateInput},
             prover::{Prover, TestProver},
-            DlogProverInput, PrivateInput,
         },
         types::SType,
     };

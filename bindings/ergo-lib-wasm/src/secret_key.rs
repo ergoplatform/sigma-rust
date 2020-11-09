@@ -1,7 +1,7 @@
 //! Secret key
 use std::convert::TryInto;
 
-use ergo_lib::sigma_protocol::DlogProverInput;
+use ergo_lib::sigma_protocol::private_input::DlogProverInput;
 use ergo_lib::wallet;
 use wasm_bindgen::prelude::*;
 

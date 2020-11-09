@@ -78,9 +78,9 @@ mod tests {
         },
         ergo_tree::ErgoTree,
         sigma_protocol::{
+            private_input::{DlogProverInput, PrivateInput},
             prover::TestProver,
             verifier::{TestVerifier, Verifier, VerifierError},
-            DlogProverInput, PrivateInput,
         },
         types::SType,
     };
