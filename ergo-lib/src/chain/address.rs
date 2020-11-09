@@ -316,6 +316,8 @@ impl AddressEncoder {
 
 #[cfg(test)]
 mod tests {
+    use crate::types::SType;
+
     use super::*;
     use proptest::prelude::*;
 
@@ -332,6 +334,15 @@ mod tests {
         }
     }
 
+    #[test]
+    fn new_p2pk_non_provedlog_error() {
+        let tree = ErgoTree::from(Rc::new(Expr::Const(Constant {
+            tpe: SType::SBoolean,
+            v: ConstantVal::Boolean(true),
+        })));
+        assert!(Address::new_p2pk(&tree).is_err());
+    }
+
     proptest! {
 
         #[test]
@@ -342,7 +353,6 @@ mod tests {
             let address_copy = Address::new_p2pk(&ergo_tree).unwrap();
             let encoded_addr = encoder.address_to_str(&address);
             let encoded_addr_copy = encoder.address_to_str(&address_copy);
-
             prop_assert_eq![encoded_addr, encoded_addr_copy];
         }
 
