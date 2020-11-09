@@ -1,10 +1,6 @@
 //! Address types
 
 use ergo_lib::chain;
-use ergo_lib::{
-    serialization::SigmaSerializable,
-    sigma_protocol::{dlog_group::EcPoint, sigma_boolean::ProveDlog},
-};
 use wasm_bindgen::prelude::*;
 
 use crate::ergo_tree::ErgoTree;
@@ -124,13 +120,20 @@ pub struct Address(chain::address::Address);
 #[wasm_bindgen]
 impl Address {
     /// Create a P2PK address from an ergo tree if ProveDlog is the root of the tree, otherwise returns an error
-    pub fn new_p2pk(ergo_tree: &ErgoTree) -> Result<Address, JsValue> {
-        chain::address::Address::new_p2pk(&ergo_tree.clone().into())
+    pub fn p2pk_from_ergo_tree(ergo_tree: &ErgoTree) -> Result<Address, JsValue> {
+        chain::address::Address::p2pk_from_ergo_tree(&ergo_tree.clone().into())
             .map(Address)
             .map_err(|e| JsValue::from_str(&format!("{}", e)))
     }
 
-    /// Decode (base58) testnet address from string
+    /// Create a P2PK address from serialized PK bytes(EcPoint/GroupElement)
+    pub fn p2pk_from_pk_bytes(bytes: &[u8]) -> Result<Address, JsValue> {
+        chain::address::Address::p2pk_from_pk_bytes(bytes)
+            .map(Address)
+            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+    }
+
+    /// Decode (base58) testnet address from string, checking that address is from the testnet
     pub fn from_testnet_str(s: &str) -> Result<Address, JsValue> {
         chain::address::AddressEncoder::new(chain::address::NetworkPrefix::Testnet)
             .parse_address_from_str(s)
@@ -138,7 +141,7 @@ impl Address {
             .map_err(|e| JsValue::from_str(&format!("{}", e)))
     }
 
-    /// Decode (base58) mainnet address from string
+    /// Decode (base58) mainnet address from string, checking that address is from the mainnet
     pub fn from_mainnet_str(s: &str) -> Result<Address, JsValue> {
         chain::address::AddressEncoder::new(chain::address::NetworkPrefix::Mainnet)
             .parse_address_from_str(s)
@@ -147,28 +150,20 @@ impl Address {
     }
 
     /// Decode (base58) address from string without checking the network prefix
-    pub fn from_base58(s: &str) -> Result<Address, JsValue> {
+    pub fn from_str(s: &str) -> Result<Address, JsValue> {
         chain::address::AddressEncoder::unchecked_parse_address_from_str(s)
             .map(Address)
             .map_err(|e| JsValue::from_str(&format!("{}", e)))
     }
 
     /// Encode (base58) address
-    pub fn to_base58(&self, network_prefix: NetworkPrefix) -> String {
+    pub fn to_str(&self, network_prefix: NetworkPrefix) -> String {
         chain::address::AddressEncoder::encode_address(network_prefix.into(), &self.0)
     }
 
     /// Get the type of the address
     pub fn address_type_prefix(&self) -> AddressTypePrefix {
         self.0.address_type_prefix().into()
-    }
-
-    /// Create an address from a public key
-    pub fn from_public_key(bytes: &[u8]) -> Result<Address, JsValue> {
-        EcPoint::sigma_parse_bytes(bytes.to_vec())
-            .map(|point| chain::address::Address::P2PK(ProveDlog::new(point)))
-            .map(Address)
-            .map_err(|e| JsValue::from_str(&format!("{}", e)))
     }
 }
 

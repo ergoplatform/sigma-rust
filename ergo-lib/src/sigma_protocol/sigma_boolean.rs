@@ -26,6 +26,12 @@ impl From<ProveDlog> for SigmaProofOfKnowledgeTree {
     }
 }
 
+impl From<EcPoint> for ProveDlog {
+    fn from(p: EcPoint) -> Self {
+        ProveDlog::new(p)
+    }
+}
+
 /// Construct a new SigmaProp value representing public key of Diffie Hellman signature protocol.
 /// Common input: (g,h,u,v)
 #[derive(PartialEq, Eq, Debug, Clone)]

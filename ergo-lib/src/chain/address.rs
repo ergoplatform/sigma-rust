@@ -73,7 +73,7 @@ pub enum Address {
 
 impl Address {
     /// Create a P2PK address from an ergo tree if ProveDlog is the root of the tree, otherwise returns an error
-    pub fn new_p2pk(tree: &ErgoTree) -> Result<Address, AddressError> {
+    pub fn p2pk_from_ergo_tree(tree: &ErgoTree) -> Result<Address, AddressError> {
         let expr = &*tree.proposition()?;
         match expr {
             Expr::Const(Constant {
@@ -93,6 +93,13 @@ impl Address {
                 "Expected ErgoTree with ProveDlog as root".to_string(),
             )),
         }
+    }
+
+    /// Create a P2PK address from serialized PK bytes(EcPoint/GroupElement)
+    pub fn p2pk_from_pk_bytes(bytes: &[u8]) -> Result<Address, SerializationError> {
+        EcPoint::sigma_parse_bytes(bytes.to_vec())
+            .map(ProveDlog::from)
+            .map(Address::P2PK)
     }
 
     /// address type prefix (for encoding)
@@ -340,7 +347,7 @@ mod tests {
             tpe: SType::SBoolean,
             v: ConstantVal::Boolean(true),
         })));
-        assert!(Address::new_p2pk(&tree).is_err());
+        assert!(Address::p2pk_from_ergo_tree(&tree).is_err());
     }
 
     proptest! {
@@ -350,7 +357,7 @@ mod tests {
             let encoder = AddressEncoder::new(NetworkPrefix::Testnet);
             let address = Address::P2PK(prove_dlog);
             let ergo_tree = address.script().unwrap();
-            let address_copy = Address::new_p2pk(&ergo_tree).unwrap();
+            let address_copy = Address::p2pk_from_ergo_tree(&ergo_tree).unwrap();
             let encoded_addr = encoder.address_to_str(&address);
             let encoded_addr_copy = encoder.address_to_str(&address_copy);
             prop_assert_eq![encoded_addr, encoded_addr_copy];
