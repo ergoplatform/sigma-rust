@@ -22,6 +22,7 @@ pub mod contract;
 pub mod data_input;
 pub mod ergo_box;
 pub mod ergo_state_ctx;
+pub mod ergo_tree;
 pub mod secret_key;
 pub mod token;
 pub mod transaction;

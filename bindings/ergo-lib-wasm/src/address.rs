@@ -3,6 +3,73 @@
 use ergo_lib::chain;
 use wasm_bindgen::prelude::*;
 
+use crate::ergo_tree::ErgoTree;
+
+/// Network type
+#[wasm_bindgen]
+#[repr(u8)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+pub enum NetworkPrefix {
+    /// Mainnet
+    Mainnet = 0,
+    /// Testnet
+    Testnet = 16,
+}
+
+impl From<NetworkPrefix> for chain::address::NetworkPrefix {
+    fn from(v: NetworkPrefix) -> Self {
+        use chain::address::NetworkPrefix::*;
+        match v {
+            NetworkPrefix::Mainnet => Mainnet,
+            NetworkPrefix::Testnet => Testnet,
+        }
+    }
+}
+
+impl From<chain::address::NetworkPrefix> for NetworkPrefix {
+    fn from(v: chain::address::NetworkPrefix) -> Self {
+        use NetworkPrefix::*;
+        match v {
+            chain::address::NetworkPrefix::Mainnet => Mainnet,
+            chain::address::NetworkPrefix::Testnet => Testnet,
+        }
+    }
+}
+
+/// Address types
+#[wasm_bindgen]
+#[repr(u8)]
+pub enum AddressTypePrefix {
+    /// 0x01 - Pay-to-PublicKey(P2PK) address
+    P2PK = 1,
+    /// 0x02 - Pay-to-Script-Hash(P2SH)
+    Pay2SH = 2,
+    /// 0x03 - Pay-to-Script(P2S)
+    Pay2S = 3,
+}
+
+impl From<AddressTypePrefix> for chain::address::AddressTypePrefix {
+    fn from(v: AddressTypePrefix) -> Self {
+        use chain::address::AddressTypePrefix::*;
+        match v {
+            AddressTypePrefix::P2PK => P2PK,
+            AddressTypePrefix::Pay2SH => Pay2SH,
+            AddressTypePrefix::Pay2S => Pay2S,
+        }
+    }
+}
+
+impl From<chain::address::AddressTypePrefix> for AddressTypePrefix {
+    fn from(v: chain::address::AddressTypePrefix) -> Self {
+        use AddressTypePrefix::*;
+        match v {
+            chain::address::AddressTypePrefix::P2PK => P2PK,
+            chain::address::AddressTypePrefix::Pay2SH => Pay2SH,
+            chain::address::AddressTypePrefix::Pay2S => Pay2S,
+        }
+    }
+}
+
 /**
  * An address is a short string corresponding to some script used to protect a box. Unlike (string-encoded) binary
  * representation of a script, an address has some useful characteristics:
@@ -52,12 +119,52 @@ pub struct Address(chain::address::Address);
 
 #[wasm_bindgen]
 impl Address {
-    /// Decode (base58) testnet address from string
+    /// Create a P2PK address from an ergo tree if ProveDlog is the root of the tree, otherwise returns an error
+    pub fn p2pk_from_ergo_tree(ergo_tree: &ErgoTree) -> Result<Address, JsValue> {
+        chain::address::Address::p2pk_from_ergo_tree(&ergo_tree.clone().into())
+            .map(Address)
+            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+    }
+
+    /// Create a P2PK address from serialized PK bytes(EcPoint/GroupElement)
+    pub fn p2pk_from_pk_bytes(bytes: &[u8]) -> Result<Address, JsValue> {
+        chain::address::Address::p2pk_from_pk_bytes(bytes)
+            .map(Address)
+            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+    }
+
+    /// Decode (base58) testnet address from string, checking that address is from the testnet
     pub fn from_testnet_str(s: &str) -> Result<Address, JsValue> {
         chain::address::AddressEncoder::new(chain::address::NetworkPrefix::Testnet)
             .parse_address_from_str(s)
             .map(Address)
             .map_err(|e| JsValue::from_str(&format!("{}", e)))
+    }
+
+    /// Decode (base58) mainnet address from string, checking that address is from the mainnet
+    pub fn from_mainnet_str(s: &str) -> Result<Address, JsValue> {
+        chain::address::AddressEncoder::new(chain::address::NetworkPrefix::Mainnet)
+            .parse_address_from_str(s)
+            .map(Address)
+            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+    }
+
+    /// Decode (base58) address from string without checking the network prefix
+    #[allow(clippy::should_implement_trait)]
+    pub fn from_str(s: &str) -> Result<Address, JsValue> {
+        chain::address::AddressEncoder::unchecked_parse_address_from_str(s)
+            .map(Address)
+            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+    }
+
+    /// Encode (base58) address
+    pub fn to_str(&self, network_prefix: NetworkPrefix) -> String {
+        chain::address::AddressEncoder::encode_address(network_prefix.into(), &self.0)
+    }
+
+    /// Get the type of the address
+    pub fn address_type_prefix(&self) -> AddressTypePrefix {
+        self.0.address_type_prefix().into()
     }
 }
 

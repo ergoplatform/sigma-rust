@@ -45,7 +45,7 @@ impl ErgoTreeHeader {
 /// Whole ErgoTree parsing (deserialization) error
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ErgoTreeConstantsParsingError {
-    /// Ergo tree bytes (faild to deserialize)
+    /// Ergo tree bytes (failed to deserialize)
     pub bytes: Vec<u8>,
     /// Deserialization error
     pub error: SerializationError,
@@ -54,7 +54,7 @@ pub struct ErgoTreeConstantsParsingError {
 /// ErgoTree root expr parsing (deserialization) error
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ErgoTreeRootParsingError {
-    /// Ergo tree root expr bytes (faild to deserialize)
+    /// Ergo tree root expr bytes (failed to deserialize)
     pub bytes: Vec<u8>,
     /// Deserialization error
     pub error: SerializationError,
