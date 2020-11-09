@@ -1,5 +1,6 @@
 //! Verifier
 
+use super::prover::ProofBytes;
 use super::{
     dlog_protocol,
     fiat_shamir::{fiat_shamir_hash_fn, fiat_shamir_tree_to_bytes},
@@ -7,11 +8,8 @@ use super::{
     unchecked_tree::{UncheckedLeaf, UncheckedSchnorr},
     SigmaBoolean, UncheckedSigmaTree, UncheckedTree,
 };
-use crate::{
-    chain::prover_result::ProofBytes,
-    eval::{Env, EvalError, Evaluator},
-    ErgoTree, ErgoTreeParsingError,
-};
+use crate::ergo_tree::{ErgoTree, ErgoTreeParsingError};
+use crate::eval::{Env, EvalError, Evaluator};
 use dlog_protocol::FirstDlogProverMessage;
 
 /// Errors on proof verification
@@ -122,8 +120,8 @@ mod tests {
     use crate::{
         ast::{Constant, Expr},
         sigma_protocol::{
+            private_input::{DlogProverInput, PrivateInput},
             prover::{Prover, TestProver},
-            DlogProverInput, PrivateInput,
         },
         types::SType,
     };

@@ -1,18 +1,15 @@
 //! ErgoBoxCandidate builder
 
 use std::collections::HashMap;
-use std::convert::TryFrom;
-use std::convert::TryInto;
+use std::convert::{TryFrom, TryInto};
 
 use crate::ast::Constant;
 use crate::chain::token::Token;
+use crate::ergo_tree::ErgoTree;
 use crate::serialization::SigmaSerializable;
-use crate::ErgoTree;
 
 use super::box_value::BoxValue;
-use super::register::NonMandatoryRegisterId;
-use super::register::NonMandatoryRegisters;
-use super::register::NonMandatoryRegistersError;
+use super::register::{NonMandatoryRegisterId, NonMandatoryRegisters, NonMandatoryRegistersError};
 use super::ErgoBoxCandidate;
 use thiserror::Error;
 

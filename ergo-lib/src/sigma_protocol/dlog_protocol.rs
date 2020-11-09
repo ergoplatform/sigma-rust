@@ -42,7 +42,7 @@ impl From<Scalar> for SecondDlogProverMessage {
 /// Interactive prover
 pub mod interactive_prover {
     use super::{FirstDlogProverMessage, SecondDlogProverMessage};
-    use crate::sigma_protocol::{dlog_group, Challenge, DlogProverInput, ProveDlog};
+    use crate::sigma_protocol::{dlog_group, private_input::DlogProverInput, Challenge, ProveDlog};
     use dlog_group::EcPoint;
     use k256::Scalar;
 
@@ -101,7 +101,7 @@ pub mod interactive_prover {
 mod tests {
     use super::super::*;
     use super::*;
-    use crate::sigma_protocol::DlogProverInput;
+    use crate::sigma_protocol::private_input::DlogProverInput;
     use proptest::prelude::*;
 
     proptest! {

@@ -1,15 +1,18 @@
 //! Ergo transaction
 
+mod data_input;
+mod input;
 pub mod unsigned;
+
+pub use data_input::*;
+pub use input::*;
 
 #[cfg(feature = "json")]
 use super::json;
 use super::{
-    data_input::DataInput,
     digest32::{blake2b256_hash, Digest32},
     ergo_box::ErgoBox,
     ergo_box::ErgoBoxCandidate,
-    input::Input,
     token::TokenId,
 };
 use crate::serialization::{

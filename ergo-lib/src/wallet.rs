@@ -14,9 +14,10 @@ use crate::{
         ergo_box::ErgoBox, ergo_state_context::ErgoStateContext,
         transaction::unsigned::UnsignedTransaction, transaction::Transaction,
     },
-    sigma_protocol::prover::Prover,
-    sigma_protocol::prover::TestProver,
-    sigma_protocol::PrivateInput,
+    sigma_protocol::{
+        private_input::PrivateInput,
+        prover::{Prover, TestProver},
+    },
 };
 
 /// Wallet

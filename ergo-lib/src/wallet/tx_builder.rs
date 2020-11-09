@@ -4,32 +4,20 @@ use std::collections::HashSet;
 
 use thiserror::Error;
 
-use crate::chain::address::Address;
-use crate::chain::address::AddressEncoder;
-use crate::chain::address::NetworkPrefix;
+use crate::chain::address::{Address, AddressEncoder, NetworkPrefix};
 use crate::chain::contract::Contract;
-use crate::chain::data_input::DataInput;
-use crate::chain::ergo_box::box_builder::ErgoBoxCandidateBuilder;
-use crate::chain::ergo_box::box_builder::ErgoBoxCandidateBuilderError;
-use crate::chain::ergo_box::sum_tokens_from_boxes;
-use crate::chain::ergo_box::sum_value;
-use crate::chain::ergo_box::BoxId;
-use crate::chain::ergo_box::BoxValue;
-use crate::chain::ergo_box::BoxValueError;
-use crate::chain::input::Input;
-use crate::chain::prover_result::ProofBytes;
-use crate::chain::prover_result::ProverResult;
-use crate::chain::token::Token;
-use crate::chain::token::TokenId;
-use crate::chain::transaction::Transaction;
+use crate::chain::ergo_box::box_builder::{ErgoBoxCandidateBuilder, ErgoBoxCandidateBuilderError};
+use crate::chain::ergo_box::{sum_tokens_from_boxes, sum_value, BoxId, BoxValue, BoxValueError};
+use crate::chain::token::{Token, TokenId};
+use crate::chain::transaction::{DataInput, Input, Transaction, UnsignedInput};
 use crate::chain::{
-    ergo_box::ErgoBoxAssets, ergo_box::ErgoBoxCandidate, ergo_box::ErgoBoxId, input::UnsignedInput,
+    ergo_box::ErgoBoxAssets, ergo_box::ErgoBoxCandidate, ergo_box::ErgoBoxId,
     transaction::unsigned::UnsignedTransaction,
 };
 use crate::constants::MINERS_FEE_MAINNET_ADDRESS;
-use crate::serialization::SerializationError;
-use crate::serialization::SigmaSerializable;
+use crate::serialization::{SerializationError, SigmaSerializable};
 use crate::sigma_protocol;
+use crate::sigma_protocol::prover::{ProofBytes, ProverResult};
 
 use super::box_selector::{BoxSelection, BoxSelectorError};
 
@@ -254,19 +242,14 @@ mod tests {
 
     use proptest::{collection::vec, prelude::*};
 
-    use crate::chain::ergo_box::checked_sum;
-    use crate::chain::ergo_box::ErgoBox;
-    use crate::chain::ergo_box::NonMandatoryRegisters;
-    use crate::chain::token::tests::ArbTokenIdParam;
-    use crate::chain::token::Token;
-    use crate::chain::token::TokenAmount;
-    use crate::chain::token::TokenId;
-    use crate::chain::transaction::TxId;
-    use crate::test_util::force_any_val;
-    use crate::test_util::force_any_val_with;
-    use crate::wallet::box_selector::BoxSelector;
-    use crate::wallet::box_selector::SimpleBoxSelector;
-    use crate::ErgoTree;
+    use crate::chain::{
+        ergo_box::{checked_sum, ErgoBox, NonMandatoryRegisters},
+        token::{tests::ArbTokenIdParam, Token, TokenAmount, TokenId},
+        transaction::TxId,
+    };
+    use crate::ergo_tree::ErgoTree;
+    use crate::test_util::{force_any_val, force_any_val_with};
+    use crate::wallet::box_selector::{BoxSelector, SimpleBoxSelector};
 
     use super::*;
 

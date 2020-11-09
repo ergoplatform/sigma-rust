@@ -6,7 +6,7 @@ use wasm_bindgen::prelude::*;
 /// Inputs, that are used to enrich script context, but won't be spent by the transaction
 #[wasm_bindgen]
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct DataInput(chain::data_input::DataInput);
+pub struct DataInput(chain::transaction::DataInput);
 
 /// DataInput collection
 #[wasm_bindgen]
@@ -36,7 +36,7 @@ impl DataInputs {
     }
 }
 
-impl From<&DataInputs> for Vec<chain::data_input::DataInput> {
+impl From<&DataInputs> for Vec<chain::transaction::DataInput> {
     fn from(v: &DataInputs) -> Self {
         v.0.clone().iter().map(|i| i.0.clone()).collect()
     }

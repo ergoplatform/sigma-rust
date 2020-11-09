@@ -1,5 +1,6 @@
 //! Serialization of proof tree signatures
 
+use super::prover::ProofBytes;
 use super::{
     fiat_shamir::FiatShamirHash,
     unchecked_tree::{UncheckedLeaf, UncheckedSchnorr},
@@ -7,7 +8,6 @@ use super::{
     UncheckedTree,
 };
 
-use crate::chain::prover_result::ProofBytes;
 use k256::Scalar;
 use std::convert::{TryFrom, TryInto};
 

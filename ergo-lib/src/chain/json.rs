@@ -13,7 +13,8 @@ where
 pub mod ergo_tree {
 
     use super::*;
-    use crate::{serialization::SigmaSerializable, ErgoTree};
+    use crate::ergo_tree::ErgoTree;
+    use crate::serialization::SigmaSerializable;
     use serde::{Deserialize, Deserializer, Serializer};
 
     pub fn serialize<S>(ergo_tree: &ErgoTree, serializer: S) -> Result<S::Ok, S::Error>
@@ -38,12 +39,13 @@ pub mod ergo_tree {
 }
 
 pub mod ergo_box {
-    use crate::chain::ergo_box::BoxId;
-    use crate::chain::ergo_box::BoxValue;
-    use crate::chain::ergo_box::NonMandatoryRegisters;
     use crate::{
-        chain::{token::Token, transaction::TxId},
-        ErgoTree,
+        chain::{
+            ergo_box::{BoxId, BoxValue, NonMandatoryRegisters},
+            token::Token,
+            transaction::TxId,
+        },
+        ergo_tree::ErgoTree,
     };
     use serde::Deserialize;
 
@@ -78,8 +80,8 @@ pub mod ergo_box {
 }
 
 pub mod transaction {
-    use crate::chain::input::UnsignedInput;
-    use crate::chain::{data_input::DataInput, ergo_box::ErgoBox, input::Input, transaction::TxId};
+    use crate::chain::transaction::{DataInput, Input, UnsignedInput};
+    use crate::chain::{ergo_box::ErgoBox, transaction::TxId};
     use serde::{Deserialize, Serialize};
 
     #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -120,12 +122,12 @@ pub mod transaction {
 #[cfg(test)]
 mod tests {
     use crate::chain::transaction::unsigned::UnsignedTransaction;
+    use crate::sigma_protocol::prover::ContextExtension;
     use std::convert::TryInto;
 
     use super::super::ergo_box::*;
     use super::super::transaction::*;
     use super::*;
-    use crate::chain::context_extension::ContextExtension;
     use proptest::prelude::*;
 
     proptest! {

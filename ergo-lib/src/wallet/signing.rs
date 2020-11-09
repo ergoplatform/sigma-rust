@@ -1,10 +1,10 @@
 //! Transaction signing
 
+use crate::chain::transaction::Input;
 use crate::{
     chain::{
         ergo_box::ErgoBox,
         ergo_state_context::ErgoStateContext,
-        input::Input,
         transaction::{unsigned::UnsignedTransaction, Transaction},
     },
     eval::Env,
@@ -70,18 +70,19 @@ mod tests {
     use proptest::collection::vec;
     use proptest::prelude::*;
 
-    use crate::chain::ergo_box::box_builder::ErgoBoxCandidateBuilder;
-    use crate::chain::ergo_box::BoxValue;
     use crate::{
         ast::{Constant, Expr},
-        chain::{ergo_box::NonMandatoryRegisters, input::UnsignedInput, transaction::TxId},
+        chain::{
+            ergo_box::{box_builder::ErgoBoxCandidateBuilder, BoxValue, NonMandatoryRegisters},
+            transaction::{TxId, UnsignedInput},
+        },
+        ergo_tree::ErgoTree,
         sigma_protocol::{
+            private_input::{DlogProverInput, PrivateInput},
             prover::TestProver,
             verifier::{TestVerifier, Verifier, VerifierError},
-            DlogProverInput, PrivateInput,
         },
         types::SType,
-        ErgoTree,
     };
     use std::rc::Rc;
 

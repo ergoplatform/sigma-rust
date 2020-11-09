@@ -1,18 +1,22 @@
 //! Interpreter with enhanced functionality to prove statements.
 
+mod context_extension;
+mod prover_result;
+
+pub use context_extension::*;
+pub use prover_result::*;
+
 use super::{
     dlog_protocol,
     fiat_shamir::{fiat_shamir_hash_fn, fiat_shamir_tree_to_bytes},
+    private_input::PrivateInput,
     sig_serializer::serialize_sig,
     unchecked_tree::UncheckedSchnorr,
-    Challenge, PrivateInput, ProofTree, SigmaBoolean, SigmaProofOfKnowledgeTree,
-    UncheckedSigmaTree, UncheckedTree, UnprovenLeaf, UnprovenSchnorr, UnprovenTree,
+    Challenge, ProofTree, SigmaBoolean, SigmaProofOfKnowledgeTree, UncheckedSigmaTree,
+    UncheckedTree, UnprovenLeaf, UnprovenSchnorr, UnprovenTree,
 };
-use crate::{
-    chain::{context_extension::ContextExtension, prover_result::ProverResult},
-    eval::{Env, EvalError, Evaluator},
-    ErgoTree, ErgoTreeParsingError,
-};
+use crate::ergo_tree::{ErgoTree, ErgoTreeParsingError};
+use crate::eval::{Env, EvalError, Evaluator};
 use thiserror::Error;
 
 /// Prover errors
@@ -296,8 +300,7 @@ mod tests {
     use super::*;
     use crate::{
         ast::{Constant, ConstantVal, Expr},
-        chain::prover_result::ProofBytes,
-        sigma_protocol::DlogProverInput,
+        sigma_protocol::private_input::DlogProverInput,
         types::SType,
     };
     use std::rc::Rc;

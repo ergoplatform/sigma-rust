@@ -15,7 +15,6 @@
 //!
 //! On the other hand, any group element can be mapped to some string.
 
-use super::DlogProverInput;
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
 };
@@ -27,6 +26,8 @@ use std::{
     io,
     ops::{Add, Mul, Neg},
 };
+
+use super::private_input::DlogProverInput;
 
 /// Elliptic curve point
 #[derive(PartialEq, Debug, Clone)]

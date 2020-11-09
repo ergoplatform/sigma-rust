@@ -1,6 +1,6 @@
-use crate::util::IntoOption;
-
+//! Private input types for the prover's secrets
 use super::{dlog_group, ProveDlog};
+use crate::util::IntoOption;
 use elliptic_curve::FromBytes;
 use k256::Scalar;
 
