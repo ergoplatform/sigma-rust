@@ -13,7 +13,8 @@ where
 pub mod ergo_tree {
 
     use super::*;
-    use crate::{serialization::SigmaSerializable, ErgoTree};
+    use crate::ergo_tree::ErgoTree;
+    use crate::serialization::SigmaSerializable;
     use serde::{Deserialize, Deserializer, Serializer};
 
     pub fn serialize<S>(ergo_tree: &ErgoTree, serializer: S) -> Result<S::Ok, S::Error>
@@ -38,12 +39,13 @@ pub mod ergo_tree {
 }
 
 pub mod ergo_box {
-    use crate::chain::ergo_box::BoxId;
-    use crate::chain::ergo_box::BoxValue;
-    use crate::chain::ergo_box::NonMandatoryRegisters;
     use crate::{
-        chain::{token::Token, transaction::TxId},
-        ErgoTree,
+        chain::{
+            ergo_box::{BoxId, BoxValue, NonMandatoryRegisters},
+            token::Token,
+            transaction::TxId,
+        },
+        ergo_tree::ErgoTree,
     };
     use serde::Deserialize;
 

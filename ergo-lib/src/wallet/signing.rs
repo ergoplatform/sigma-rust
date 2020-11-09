@@ -70,19 +70,19 @@ mod tests {
     use proptest::collection::vec;
     use proptest::prelude::*;
 
-    use crate::chain::ergo_box::box_builder::ErgoBoxCandidateBuilder;
-    use crate::chain::ergo_box::BoxValue;
-    use crate::chain::transaction::UnsignedInput;
     use crate::{
         ast::{Constant, Expr},
-        chain::{ergo_box::NonMandatoryRegisters, transaction::TxId},
+        chain::{
+            ergo_box::{box_builder::ErgoBoxCandidateBuilder, BoxValue, NonMandatoryRegisters},
+            transaction::{TxId, UnsignedInput},
+        },
+        ergo_tree::ErgoTree,
         sigma_protocol::{
             prover::TestProver,
             verifier::{TestVerifier, Verifier, VerifierError},
             DlogProverInput, PrivateInput,
         },
         types::SType,
-        ErgoTree,
     };
     use std::rc::Rc;
 

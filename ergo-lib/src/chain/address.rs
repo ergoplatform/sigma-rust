@@ -1,17 +1,14 @@
 //! Address types
 
 use super::digest32;
-use crate::ast::Constant;
-use crate::ast::ConstantVal;
-use crate::ErgoTreeParsingError;
 use crate::{
-    ast::Expr,
+    ast::{Constant, ConstantVal, Expr},
+    ergo_tree::{ErgoTree, ErgoTreeParsingError},
     serialization::{SerializationError, SigmaSerializable},
     sigma_protocol::{
         dlog_group::EcPoint,
         sigma_boolean::{ProveDlog, SigmaBoolean, SigmaProofOfKnowledgeTree, SigmaProp},
     },
-    ErgoTree,
 };
 use std::{
     convert::{TryFrom, TryInto},

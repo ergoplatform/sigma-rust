@@ -8,10 +8,8 @@ use super::{
     unchecked_tree::{UncheckedLeaf, UncheckedSchnorr},
     SigmaBoolean, UncheckedSigmaTree, UncheckedTree,
 };
-use crate::{
-    eval::{Env, EvalError, Evaluator},
-    ErgoTree, ErgoTreeParsingError,
-};
+use crate::ergo_tree::{ErgoTree, ErgoTreeParsingError};
+use crate::eval::{Env, EvalError, Evaluator};
 use dlog_protocol::FirstDlogProverMessage;
 
 /// Errors on proof verification

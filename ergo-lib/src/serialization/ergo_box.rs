@@ -1,20 +1,17 @@
 //! ErgoBox and ErgoBoxCandidate serialization
-use crate::serialization::{
-    sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
-};
 use crate::{
     ast::Constant,
     chain::{
         ergo_box::{BoxValue, ErgoBoxCandidate, NonMandatoryRegisters},
         token::{Token, TokenId},
     },
-    ErgoTree,
+    ergo_tree::ErgoTree,
+    serialization::{sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable},
 };
 use indexmap::IndexSet;
 
 use super::sigma_byte_writer::SigmaByteWrite;
-use std::convert::TryFrom;
-use std::convert::TryInto;
+use std::convert::{TryFrom, TryInto};
 use std::io;
 
 /// Box serialization with token ids optionally saved in transaction

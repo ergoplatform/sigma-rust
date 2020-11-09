@@ -24,8 +24,7 @@ pub mod sigma_protocol;
 pub mod util;
 pub mod wallet;
 
-mod ergo_tree;
-pub use ergo_tree::*;
+pub mod ergo_tree;
 
 #[cfg(test)]
 pub mod test_util;

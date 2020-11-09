@@ -14,10 +14,8 @@ use super::{
     Challenge, PrivateInput, ProofTree, SigmaBoolean, SigmaProofOfKnowledgeTree,
     UncheckedSigmaTree, UncheckedTree, UnprovenLeaf, UnprovenSchnorr, UnprovenTree,
 };
-use crate::{
-    eval::{Env, EvalError, Evaluator},
-    ErgoTree, ErgoTreeParsingError,
-};
+use crate::ergo_tree::{ErgoTree, ErgoTreeParsingError};
+use crate::eval::{Env, EvalError, Evaluator};
 use thiserror::Error;
 
 /// Prover errors

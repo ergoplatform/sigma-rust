@@ -6,7 +6,7 @@ use super::{
     unproven_tree::UnprovenTree,
     ProofTree, ProofTreeLeaf, ProverMessage, GROUP_SIZE, SOUNDNESS_BYTES,
 };
-use crate::{ast::Expr, serialization::SigmaSerializable, ErgoTree};
+use crate::{ast::Expr, ergo_tree::ErgoTree, serialization::SigmaSerializable};
 use blake2::digest::{Update, VariableOutput};
 use blake2::VarBlake2b;
 use std::{

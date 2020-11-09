@@ -242,19 +242,14 @@ mod tests {
 
     use proptest::{collection::vec, prelude::*};
 
-    use crate::chain::ergo_box::checked_sum;
-    use crate::chain::ergo_box::ErgoBox;
-    use crate::chain::ergo_box::NonMandatoryRegisters;
-    use crate::chain::token::tests::ArbTokenIdParam;
-    use crate::chain::token::Token;
-    use crate::chain::token::TokenAmount;
-    use crate::chain::token::TokenId;
-    use crate::chain::transaction::TxId;
-    use crate::test_util::force_any_val;
-    use crate::test_util::force_any_val_with;
-    use crate::wallet::box_selector::BoxSelector;
-    use crate::wallet::box_selector::SimpleBoxSelector;
-    use crate::ErgoTree;
+    use crate::chain::{
+        ergo_box::{checked_sum, ErgoBox, NonMandatoryRegisters},
+        token::{tests::ArbTokenIdParam, Token, TokenAmount, TokenId},
+        transaction::TxId,
+    };
+    use crate::ergo_tree::ErgoTree;
+    use crate::test_util::{force_any_val, force_any_val_with};
+    use crate::wallet::box_selector::{BoxSelector, SimpleBoxSelector};
 
     use super::*;
 
