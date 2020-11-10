@@ -1,20 +1,18 @@
 //! Interpreter
 use crate::{
-    ast::{ops::BinOp, ops::NumOp, Constant, ConstantVal, Expr},
+    ast::{Constant, ConstantVal, Expr},
     sigma_protocol::sigma_boolean::SigmaBoolean,
     types::SType,
 };
 
 use cost_accum::CostAccumulator;
 use thiserror::Error;
-use value::Value;
 
 use self::context::Context;
 
 pub(crate) mod context;
 mod cost_accum;
 mod costs;
-mod value;
 
 /// Environment vars for script interpreter
 pub struct Env();
@@ -56,16 +54,24 @@ pub trait Evaluator {
         ctx: &Context,
     ) -> Result<ReductionResult, EvalError> {
         let mut ca = CostAccumulator::new(0, None);
-        eval(expr, env, &mut ca, ctx).and_then(|v| match v {
-            Value::Boolean(b) => Ok(ReductionResult {
-                sigma_prop: SigmaBoolean::TrivialProp(b),
-                cost: 0,
-            }),
-            Value::SigmaProp(sb) => Ok(ReductionResult {
-                sigma_prop: *sb,
-                cost: 0,
-            }),
-            _ => Err(EvalError::InvalidResultType),
+        eval(expr, env, &mut ca, ctx).and_then(|v| -> Result<ReductionResult, EvalError> {
+            match v {
+                Constant {
+                    tpe: SType::SBoolean,
+                    v: ConstantVal::Boolean(b),
+                } => Ok(ReductionResult {
+                    sigma_prop: SigmaBoolean::TrivialProp(b),
+                    cost: 0,
+                }),
+                Constant {
+                    tpe: SType::SSigmaProp,
+                    v: ConstantVal::SigmaProp(sp),
+                } => Ok(ReductionResult {
+                    sigma_prop: sp.value().clone(),
+                    cost: 0,
+                }),
+                _ => Err(EvalError::InvalidResultType),
+            }
         })
     }
 }
@@ -76,16 +82,9 @@ fn eval(
     env: &Env,
     ca: &mut CostAccumulator,
     ctx: &Context,
-) -> Result<Value, EvalError> {
+) -> Result<Constant, EvalError> {
     match expr {
-        Expr::Const(Constant {
-            tpe: SType::SBoolean,
-            v: ConstantVal::Boolean(b),
-        }) => Ok(Value::Boolean(*b)),
-        Expr::Const(Constant {
-            tpe: SType::SSigmaProp,
-            v: ConstantVal::SigmaProp(sp),
-        }) => Ok(Value::SigmaProp(Box::new((*sp.value()).clone()))),
+        Expr::Const(c) => Ok(c.clone()),
         Expr::Coll { .. } => todo!(),
         Expr::Tup { .. } => todo!(),
         Expr::PredefFunc(_) => todo!(),
@@ -93,15 +92,16 @@ fn eval(
         Expr::BoxM(_) => todo!(),
         Expr::CtxM(_) => todo!(),
         Expr::MethodCall { .. } => todo!(),
-        Expr::BinOp(bin_op, l, r) => {
-            let v_l = eval(l, env, ca, ctx)?;
-            let v_r = eval(r, env, ca, ctx)?;
+        Expr::BinOp(_bin_op, l, r) => {
+            let _v_l = eval(l, env, ca, ctx)?;
+            let _v_r = eval(r, env, ca, ctx)?;
             ca.add_cost_of(expr);
-            Ok(match bin_op {
-                BinOp::Num(op) => match op {
-                    NumOp::Add => v_l + v_r,
-                },
-            })
+            todo!()
+            // Ok(match bin_op {
+            //     BinOp::Num(op) => match op {
+            //         NumOp::Add => v_l + v_r,
+            //     },
+            // })
         }
         _ => Err(EvalError::UnexpectedExpr),
     }
