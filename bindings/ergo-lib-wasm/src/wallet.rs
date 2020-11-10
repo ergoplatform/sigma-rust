@@ -1,5 +1,5 @@
 //! Wallet-like features
-use ergo_lib::chain::ergo_box::ErgoBox;
+use ergo_lib::chain;
 use wasm_bindgen::prelude::*;
 
 use crate::{
@@ -28,7 +28,9 @@ impl Wallet {
     }
 
     /// Sign a transaction:
-    /// `boxes_to_spend` - unspent boxes [`ErgoBoxCandidate`] used as inputs in the transaction
+    /// `tx` - transaction to sign
+    /// `boxes_to_spend` - boxes corresponding to [`UnsignedTransaction::inputs`]
+    /// `data_boxes` - boxes corresponding to [`UnsignedTransaction::data_inputs`]
     #[wasm_bindgen]
     pub fn sign_transaction(
         &self,
@@ -37,15 +39,15 @@ impl Wallet {
         boxes_to_spend: &ErgoBoxes,
         data_boxes: &ErgoBoxes,
     ) -> Result<Transaction, JsValue> {
-        let boxes_to_spend: Vec<ErgoBox> = boxes_to_spend.clone().into();
-        let data_boxes: Vec<ErgoBox> = data_boxes.clone().into();
+        let boxes_to_spend: Vec<chain::ergo_box::ErgoBox> = boxes_to_spend.clone().into();
+        let data_boxes: Vec<chain::ergo_box::ErgoBox> = data_boxes.clone().into();
+        let tx_context = ergo_lib::wallet::signing::TransactionContext {
+            spending_tx: tx.clone().into(),
+            boxes_to_spend,
+            data_boxes,
+        };
         self.0
-            .sign_transaction(
-                tx.clone().into(),
-                boxes_to_spend.as_slice(),
-                data_boxes.as_slice(),
-                &_state_context.clone().into(),
-            )
+            .sign_transaction(tx_context, &_state_context.clone().into())
             .map_err(|e| JsValue::from_str(&format!("{}", e)))
             .map(Transaction::from)
     }

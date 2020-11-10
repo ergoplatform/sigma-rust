@@ -9,16 +9,14 @@ use secret_key::SecretKey;
 use signing::{sign_transaction, TxSigningError};
 use thiserror::Error;
 
-use crate::{
-    chain::{
-        ergo_box::ErgoBox, ergo_state_context::ErgoStateContext,
-        transaction::unsigned::UnsignedTransaction, transaction::Transaction,
-    },
-    sigma_protocol::{
-        private_input::PrivateInput,
-        prover::{Prover, TestProver},
-    },
+use crate::chain::ergo_state_context::ErgoStateContext;
+use crate::chain::transaction::Transaction;
+use crate::sigma_protocol::{
+    private_input::PrivateInput,
+    prover::{Prover, TestProver},
 };
+
+use self::signing::TransactionContext;
 
 /// Wallet
 pub struct Wallet {
@@ -53,18 +51,9 @@ impl Wallet {
     /// Signs a transaction
     pub fn sign_transaction(
         &self,
-        tx: UnsignedTransaction,
-        boxes_to_spend: &[ErgoBox],
-        _data_boxes: &[ErgoBox],
-        _state_context: &ErgoStateContext,
+        tx_context: TransactionContext,
+        state_context: &ErgoStateContext,
     ) -> Result<Transaction, WalletError> {
-        sign_transaction(
-            self.prover.as_ref(),
-            tx,
-            boxes_to_spend,
-            _data_boxes,
-            _state_context,
-        )
-        .map_err(WalletError::from)
+        sign_transaction(self.prover.as_ref(), tx_context, state_context).map_err(WalletError::from)
     }
 }

@@ -9,6 +9,7 @@ use super::{
     SigmaBoolean, UncheckedSigmaTree, UncheckedTree,
 };
 use crate::ergo_tree::{ErgoTree, ErgoTreeParsingError};
+use crate::eval::context::Context;
 use crate::eval::{Env, EvalError, Evaluator};
 use dlog_protocol::FirstDlogProverMessage;
 
@@ -51,11 +52,12 @@ pub trait Verifier: Evaluator {
         &self,
         tree: &ErgoTree,
         env: &Env,
+        ctx: &Context,
         proof: &ProofBytes,
         message: &[u8],
     ) -> Result<VerificationResult, VerifierError> {
         let expr = tree.proposition()?;
-        let cprop = self.reduce_to_crypto(expr.as_ref(), env)?.sigma_prop;
+        let cprop = self.reduce_to_crypto(expr.as_ref(), env, ctx)?.sigma_prop;
         let res: bool = match cprop {
             SigmaBoolean::TrivialProp(b) => b,
             sb => {
@@ -144,11 +146,11 @@ mod tests {
             let prover = TestProver {
                 secrets: vec![PrivateInput::DlogProverInput(secret)],
             };
-            let res = prover.prove(&tree, &Env::empty(), message.as_slice());
+            let res = prover.prove(&tree, &Env::empty(), &Context::dummy(), message.as_slice());
             let proof = res.unwrap().proof;
 
             let verifier = TestVerifier;
-            let ver_res = verifier.verify(&tree, &Env::empty(), &proof, message.as_slice());
+            let ver_res = verifier.verify(&tree, &Env::empty(), &Context::dummy(),  &proof, message.as_slice());
             prop_assert_eq!(ver_res.unwrap().result, true);
         }
     }
@@ -247,6 +249,7 @@ mod tests {
         let ver_res = verifier.verify(
             &ergo_tree,
             &Env::empty(),
+            &Context::dummy(),
             &tx.inputs.get(1).unwrap().spending_proof.proof,
             message.as_slice(),
         );
