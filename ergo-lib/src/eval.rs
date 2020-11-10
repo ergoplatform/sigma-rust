@@ -11,7 +11,7 @@ use thiserror::Error;
 use self::context::Context;
 
 pub(crate) mod context;
-mod cost_accum;
+pub(crate) mod cost_accum;
 mod costs;
 
 /// Environment vars for script interpreter
@@ -76,6 +76,17 @@ pub trait Evaluator {
     }
 }
 
+/// Implemented by every node that can be evaluated
+pub trait Evaluable {
+    /// Evaluation routine to be implement by each node
+    fn eval(
+        &self,
+        env: &Env,
+        ca: &mut CostAccumulator,
+        ctx: &Context,
+    ) -> Result<Constant, EvalError>;
+}
+
 #[allow(unconditional_recursion)]
 fn eval(
     expr: &Expr,
@@ -90,7 +101,7 @@ fn eval(
         Expr::PredefFunc(_) => todo!(),
         Expr::CollM(_) => todo!(),
         Expr::BoxM(_) => todo!(),
-        Expr::CtxM(_) => todo!(),
+        Expr::CtxM(v) => v.eval(env, ca, ctx),
         Expr::MethodCall { .. } => todo!(),
         Expr::BinOp(_bin_op, l, r) => {
             let _v_l = eval(l, env, ca, ctx)?;
@@ -104,5 +115,21 @@ fn eval(
             // })
         }
         _ => Err(EvalError::UnexpectedExpr),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::ast::ContextMethods;
+    use crate::ast::TryExtractFrom;
+
+    use super::*;
+
+    #[test]
+    fn height() {
+        let expr = Expr::CtxM(ContextMethods::Height);
+        let mut ca = CostAccumulator::new(0, None);
+        let res = eval(&expr, &Env::empty(), &mut ca, &Context::dummy()).unwrap();
+        assert_eq!(i32::try_extract_from(res).unwrap(), 0);
     }
 }
