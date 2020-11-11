@@ -31,7 +31,7 @@ impl CollPrim {
 
 /// Collection elements
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub enum ConstantColl {
+pub enum Coll {
     /// Collection elements stored as a vector of primitive types
     Primitive(CollPrim),
     /// Collection elements stored as a vector of ConstantVals
@@ -43,12 +43,12 @@ pub enum ConstantColl {
     },
 }
 
-impl ConstantColl {
+impl Coll {
     /// Collection element type
     pub fn elem_tpe(&self) -> &SType {
         match self {
-            cp @ ConstantColl::Primitive(_) => cp.elem_tpe(),
-            ConstantColl::NonPrimitive { elem_tpe, .. } => elem_tpe,
+            cp @ Coll::Primitive(_) => cp.elem_tpe(),
+            Coll::NonPrimitive { elem_tpe, .. } => elem_tpe,
         }
     }
 }
@@ -77,7 +77,7 @@ pub enum ConstantVal {
     /// AVL tree
     AvlTree,
     /// Collection of values of the same type
-    Coll(ConstantColl),
+    Coll(Coll),
     /// Tuple (arbitrary type values)
     Tup(Vec<ConstantVal>),
 }
@@ -239,7 +239,7 @@ impl StoredNonPrimitive for i64 {}
 
 impl<T: LiftIntoSType + StoredNonPrimitive + Into<ConstantVal>> Into<ConstantVal> for Vec<T> {
     fn into(self) -> ConstantVal {
-        ConstantVal::Coll(ConstantColl::NonPrimitive {
+        ConstantVal::Coll(Coll::NonPrimitive {
             elem_tpe: T::stype(),
             v: self.into_iter().map(|i| i.into()).collect(),
         })
@@ -259,7 +259,7 @@ impl From<Vec<u8>> for Constant {
     fn from(v: Vec<u8>) -> Self {
         Constant {
             tpe: SType::SColl(Box::new(SType::SByte)),
-            v: ConstantVal::Coll(ConstantColl::Primitive(CollPrim::CollByte(
+            v: ConstantVal::Coll(Coll::Primitive(CollPrim::CollByte(
                 v.into_iter().map(|b| b as i8).collect(),
             ))),
         }
@@ -270,7 +270,7 @@ impl From<Vec<i8>> for Constant {
     fn from(v: Vec<i8>) -> Constant {
         Constant {
             tpe: SType::SColl(Box::new(SType::SByte)),
-            v: ConstantVal::Coll(ConstantColl::Primitive(CollPrim::CollByte(v))),
+            v: ConstantVal::Coll(Coll::Primitive(CollPrim::CollByte(v))),
         }
     }
 }
@@ -368,7 +368,7 @@ impl<T: TryExtractFrom<ConstantVal> + StoredNonPrimitive + LiftIntoSType> TryExt
 {
     fn try_extract_from(c: Constant) -> Result<Self, TryExtractFromError> {
         match c.v {
-            ConstantVal::Coll(ConstantColl::NonPrimitive { elem_tpe: _, v }) => {
+            ConstantVal::Coll(Coll::NonPrimitive { elem_tpe: _, v }) => {
                 v.into_iter().map(T::try_extract_from).collect()
             }
             _ => Err(TryExtractFromError(format!(
@@ -383,7 +383,7 @@ impl<T: TryExtractFrom<ConstantVal> + StoredNonPrimitive + LiftIntoSType> TryExt
 impl TryExtractFrom<Constant> for Vec<i8> {
     fn try_extract_from(c: Constant) -> Result<Self, TryExtractFromError> {
         match c.v {
-            ConstantVal::Coll(ConstantColl::Primitive(CollPrim::CollByte(bs))) => Ok(bs),
+            ConstantVal::Coll(Coll::Primitive(CollPrim::CollByte(bs))) => Ok(bs),
             _ => Err(TryExtractFromError(format!(
                 "expected {:?}, found {:?}",
                 std::any::type_name::<Self>(),

@@ -4,7 +4,6 @@ use crate::eval::EvalError;
 use crate::eval::Evaluable;
 use crate::{serialization::op_code::OpCode, types::*};
 use core::fmt;
-use Expr::*;
 
 mod constant;
 pub mod ops;
@@ -63,8 +62,8 @@ impl Expr {
     /// Code (used in serialization)
     pub fn op_code(&self) -> OpCode {
         match self {
-            Const(_) => todo!(),
-            ConstPlaceholder(cp) => cp.op_code(),
+            Expr::Const(_) => todo!(),
+            Expr::ConstPlaceholder(cp) => cp.op_code(),
             _ => todo!(),
         }
     }
@@ -72,7 +71,7 @@ impl Expr {
     /// Type of the expression
     pub fn tpe(&self) -> &SType {
         match self {
-            Const(c) => &c.tpe,
+            Expr::Const(c) => &c.tpe,
             _ => todo!(),
         }
     }
