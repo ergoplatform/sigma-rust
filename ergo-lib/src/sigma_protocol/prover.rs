@@ -16,6 +16,7 @@ use super::{
     UncheckedTree, UnprovenLeaf, UnprovenSchnorr, UnprovenTree,
 };
 use crate::ergo_tree::{ErgoTree, ErgoTreeParsingError};
+use crate::eval::context::Context;
 use crate::eval::{Env, EvalError, Evaluator};
 use thiserror::Error;
 
@@ -67,11 +68,12 @@ pub trait Prover: Evaluator {
         &self,
         tree: &ErgoTree,
         env: &Env,
+        ctx: &Context,
         message: &[u8],
     ) -> Result<ProverResult, ProverError> {
         let expr = tree.proposition()?;
         let proof = self
-            .reduce_to_crypto(expr.as_ref(), env)
+            .reduce_to_crypto(expr.as_ref(), env, ctx)
             .map_err(ProverError::EvalError)
             .and_then(|v| match v.sigma_prop {
                 SigmaBoolean::TrivialProp(true) => Ok(UncheckedTree::NoProof),
@@ -314,7 +316,12 @@ mod tests {
         let message = vec![0u8; 100];
 
         let prover = TestProver { secrets: vec![] };
-        let res = prover.prove(&bool_true_tree, &Env::empty(), message.as_slice());
+        let res = prover.prove(
+            &bool_true_tree,
+            &Env::empty(),
+            &Context::dummy(),
+            message.as_slice(),
+        );
         assert!(res.is_ok());
         assert_eq!(res.unwrap().proof, ProofBytes::Empty);
     }
@@ -328,7 +335,12 @@ mod tests {
         let message = vec![0u8; 100];
 
         let prover = TestProver { secrets: vec![] };
-        let res = prover.prove(&bool_false_tree, &Env::empty(), message.as_slice());
+        let res = prover.prove(
+            &bool_false_tree,
+            &Env::empty(),
+            &Context::dummy(),
+            message.as_slice(),
+        );
         assert!(res.is_err());
         assert_eq!(res.err().unwrap(), ProverError::ReducedToFalse);
     }
@@ -346,7 +358,7 @@ mod tests {
         let prover = TestProver {
             secrets: vec![PrivateInput::DlogProverInput(secret)],
         };
-        let res = prover.prove(&tree, &Env::empty(), message.as_slice());
+        let res = prover.prove(&tree, &Env::empty(), &Context::dummy(), message.as_slice());
         assert!(res.is_ok());
         assert_ne!(res.unwrap().proof, ProofBytes::Empty);
     }

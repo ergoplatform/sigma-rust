@@ -1,6 +1,7 @@
 //! Transaction signing
 
 use crate::chain::transaction::Input;
+use crate::eval::context::Context;
 use crate::{
     chain::{
         ergo_box::ErgoBox,
@@ -24,25 +25,38 @@ pub enum TxSigningError {
     InputBoxNotFound(usize),
 }
 
+/// Transaction and an additional info required for signing
+#[derive(PartialEq, Debug, Clone)]
+pub struct TransactionContext {
+    /// Unsigned transaction to sign
+    pub spending_tx: UnsignedTransaction,
+    /// Boxes corresponding to [`UnsignedTransaction::inputs`]
+    pub boxes_to_spend: Vec<ErgoBox>,
+    /// Boxes corresponding to [`UnsignedTransaction::data_inputs`]
+    pub data_boxes: Vec<ErgoBox>,
+}
+
 /// Signs a transaction (generating proofs for inputs)
 pub fn sign_transaction(
     prover: &dyn Prover,
-    tx: UnsignedTransaction,
-    boxes_to_spend: &[ErgoBox],
-    _data_boxes: &[ErgoBox],
-    _state_context: &ErgoStateContext,
+    tx_context: TransactionContext,
+    state_context: &ErgoStateContext,
 ) -> Result<Transaction, TxSigningError> {
+    let tx = tx_context.spending_tx.clone();
     let message_to_sign = tx.bytes_to_sign();
     let mut signed_inputs: Vec<Input> = vec![];
-    boxes_to_spend
+    tx_context
+        .boxes_to_spend
         .iter()
         .enumerate()
         .try_for_each(|(idx, input_box)| {
             if let Some(unsigned_input) = tx.inputs.get(idx) {
+                let ctx = Context::new(state_context, &tx_context, idx);
                 prover
                     .prove(
                         &input_box.ergo_tree,
                         &Env::empty(),
+                        &ctx,
                         message_to_sign.as_slice(),
                     )
                     .map(|proof| {
@@ -99,6 +113,7 @@ mod tests {
                 let res = verifier.verify(
                     &b.ergo_tree,
                     &Env::empty(),
+                    &Context::dummy(),
                     &input.spending_proof.proof,
                     &message,
                 )?;
@@ -138,9 +153,9 @@ mod tests {
                 .build().unwrap();
             let output_candidates = vec![candidate];
             let tx = UnsignedTransaction::new(inputs, vec![], output_candidates);
-
-            let res = sign_transaction(Box::new(prover).as_ref(), tx, boxes_to_spend.as_slice(), vec![].as_slice(),
-                                       &ErgoStateContext::dummy());
+            let tx_context = TransactionContext { spending_tx: tx,
+                                                  boxes_to_spend: boxes_to_spend.clone(), data_boxes: vec![] };
+            let res = sign_transaction(Box::new(prover).as_ref(), tx_context, &ErgoStateContext::dummy());
             let signed_tx = res.unwrap();
             prop_assert!(verify_tx_proofs(&signed_tx, &boxes_to_spend).unwrap());
         }

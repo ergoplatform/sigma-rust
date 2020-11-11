@@ -1,4 +1,7 @@
 //! AST for ErgoTree
+use crate::eval::cost_accum::CostAccumulator;
+use crate::eval::EvalError;
+use crate::eval::Evaluable;
 use crate::{serialization::op_code::OpCode, types::*};
 use core::fmt;
 use Expr::*;
@@ -121,6 +124,22 @@ pub enum ContextMethods {
     Inputs,
     /// Tx outputs
     Outputs,
+    /// Current blockchain height
+    Height,
+}
+
+impl Evaluable for ContextMethods {
+    fn eval(
+        &self,
+        _env: &crate::eval::Env,
+        _ca: &mut CostAccumulator,
+        ctx: &crate::eval::context::Context,
+    ) -> Result<Constant, EvalError> {
+        match self {
+            ContextMethods::Height => Ok(ctx.height.clone()),
+            _ => Err(EvalError::UnexpectedExpr),
+        }
+    }
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]
