@@ -14,7 +14,7 @@ pub(crate) mod context;
 pub(crate) mod cost_accum;
 mod costs;
 
-/// Environment vars for script interpreter
+/// Environment for the interpreter
 pub struct Env();
 
 impl Env {
@@ -36,17 +36,17 @@ pub enum EvalError {
     UnexpectedExpr,
 }
 
-/// Result of ErgoTree reduction procedure (see `reduce_to_crypto`).
+/// Result of expression reduction procedure (see `reduce_to_crypto`).
 pub struct ReductionResult {
     /// value of SigmaProp type which represents a statement verifiable via sigma protocol.
     pub sigma_prop: SigmaBoolean,
-    /// estimated cost of contract execution
+    /// estimated cost of expression evaluation
     pub cost: u64,
 }
 
 /// Interpreter
 pub trait Evaluator {
-    /// This method is used in both prover and verifier to compute SigmaBoolean value.
+    /// Evaluate the given expression by reducing it to SigmaBoolean value.
     fn reduce_to_crypto(
         &self,
         expr: &Expr,
@@ -76,7 +76,8 @@ pub trait Evaluator {
     }
 }
 
-/// Implemented by every node that can be evaluated
+/// Expression evaluation.
+/// Should be implemented by every node that can be evaluated.
 pub trait Evaluable {
     /// Evaluation routine to be implement by each node
     fn eval(
