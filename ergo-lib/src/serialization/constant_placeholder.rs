@@ -33,6 +33,7 @@ mod tests {
             constant_store::ConstantStore, sigma_byte_reader::SigmaByteReader,
             sigma_byte_writer::SigmaByteWriter,
         },
+        Value,
     };
     use io::Cursor;
     use proptest::prelude::*;

@@ -3,6 +3,7 @@ use crate::ast::{CollMethods, Constant, ConstantPlaceholder, Expr};
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
 };
+use crate::Value;
 
 use std::io;
 

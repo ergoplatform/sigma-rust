@@ -7,12 +7,12 @@ mod expr;
 mod fold;
 mod sigmaboolean;
 
-pub mod constant_store;
-pub mod ergo_box;
-pub mod op_code;
-pub mod sigma_byte_reader;
-pub mod sigma_byte_writer;
-pub mod types;
+pub(crate) mod constant_store;
+pub(crate) mod ergo_box;
+pub(crate) mod op_code;
+pub(crate) mod sigma_byte_reader;
+pub(crate) mod sigma_byte_writer;
+pub(crate) mod types;
 
 mod serializable;
 pub use serializable::*;

@@ -12,13 +12,15 @@
 // Clippy exclusions
 #![allow(clippy::unit_arg)]
 
+pub(crate) mod ast;
 mod big_integer;
 mod constants;
+mod eval;
 mod types;
 
-pub mod ast;
+pub use ast::value::*;
+
 pub mod chain;
-pub mod eval;
 pub mod serialization;
 pub mod sigma_protocol;
 pub mod util;

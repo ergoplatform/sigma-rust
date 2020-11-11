@@ -6,7 +6,7 @@ use js_sys::Uint8Array;
 use wasm_bindgen::prelude::*;
 
 use crate::utils::I64;
-use ergo_lib::ast::TryExtractFrom;
+use ergo_lib::TryExtractFrom;
 
 /// Ergo constant(evaluated) values
 #[wasm_bindgen]
@@ -69,14 +69,25 @@ impl Constant {
     }
 }
 
+<<<<<<< variant A
 impl From<ergo_lib::ast::Constant> for Constant {
     fn from(c: ergo_lib::ast::Constant) -> Self {
         Constant(c)
+>>>>>>> variant B
+impl From<ergo_lib::Value> for Value {
+    fn from(c: ergo_lib::Value) -> Self {
+        Value(c)
+======= end
     }
 }
 
+<<<<<<< variant A
 impl From<Constant> for ergo_lib::ast::Constant {
     fn from(c: Constant) -> Self {
+>>>>>>> variant B
+impl From<Value> for ergo_lib::Value {
+    fn from(c: Value) -> Self {
+======= end
         c.0
     }
 }
