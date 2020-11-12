@@ -9,6 +9,9 @@ use crate::{
     sigma_protocol,
     types::SType,
     types::SType::*,
+    value::RawValue,
+    value::RawValue::*,
+    value::{Coll, CollPrim},
 };
 use sigma_protocol::{dlog_group::EcPoint, sigma_boolean::SigmaBoolean, sigma_boolean::SigmaProp};
 

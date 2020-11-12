@@ -5,6 +5,7 @@ use crate::{
         sigma_byte_reader::SigmaByteRead, sigma_byte_writer::SigmaByteWrite, SerializationError,
         SigmaSerializable,
     },
+    value::Value,
 };
 use indexmap::IndexMap;
 #[cfg(feature = "json")]

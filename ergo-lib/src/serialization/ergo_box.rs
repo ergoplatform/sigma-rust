@@ -7,6 +7,7 @@ use crate::{
     },
     ergo_tree::ErgoTree,
     serialization::{sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable},
+    value::Value,
 };
 use indexmap::IndexSet;
 
