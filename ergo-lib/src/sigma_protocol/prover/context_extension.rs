@@ -1,11 +1,8 @@
 //! ContextExtension type
-use crate::{
-    ast::Constant,
-    serialization::{
-        sigma_byte_reader::SigmaByteRead, sigma_byte_writer::SigmaByteWrite, SerializationError,
-        SigmaSerializable,
-    },
-    value::Value,
+use crate::ast::constant::Constant;
+use crate::serialization::{
+    sigma_byte_reader::SigmaByteRead, sigma_byte_writer::SigmaByteWrite, SerializationError,
+    SigmaSerializable,
 };
 use indexmap::IndexMap;
 #[cfg(feature = "json")]

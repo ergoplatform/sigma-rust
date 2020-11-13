@@ -1,3 +1,5 @@
+//! Constant(Literal) IR node
+
 use crate::chain::{Base16DecodedBytes, Base16EncodedBytes};
 use crate::{
     chain::ergo_box::ErgoBox,
@@ -11,7 +13,7 @@ use std::convert::TryFrom;
 
 mod constant_placeholder;
 
-pub use constant_placeholder::*;
+pub(crate) use constant_placeholder::*;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 /// Collection for primitive values (i.e byte array)

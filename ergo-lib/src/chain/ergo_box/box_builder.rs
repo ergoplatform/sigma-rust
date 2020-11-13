@@ -3,11 +3,10 @@
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 
-use crate::ast::Constant;
+use crate::ast::constant::Constant;
 use crate::chain::token::Token;
 use crate::ergo_tree::ErgoTree;
 use crate::serialization::SigmaSerializable;
-use crate::value::Value;
 
 use super::box_value::BoxValue;
 use super::register::{NonMandatoryRegisterId, NonMandatoryRegisters, NonMandatoryRegistersError};

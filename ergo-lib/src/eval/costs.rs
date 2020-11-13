@@ -1,4 +1,4 @@
-use crate::ast::Expr;
+use crate::ast::expr::Expr;
 
 pub struct Cost(u32);
 

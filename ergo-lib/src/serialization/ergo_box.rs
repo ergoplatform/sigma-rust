@@ -1,13 +1,12 @@
 //! ErgoBox and ErgoBoxCandidate serialization
+use crate::ast::constant::Constant;
 use crate::{
-    ast::Constant,
     chain::{
         ergo_box::{BoxValue, ErgoBoxCandidate, NonMandatoryRegisters},
         token::{Token, TokenId},
     },
     ergo_tree::ErgoTree,
     serialization::{sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable},
-    value::Value,
 };
 use indexmap::IndexSet;
 

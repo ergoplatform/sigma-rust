@@ -1,9 +1,8 @@
 //! Interpreter
-use crate::{
-    ast::{Constant, ConstantVal, Expr},
-    sigma_protocol::sigma_boolean::SigmaBoolean,
-    types::SType,
-};
+use crate::ast::constant::Constant;
+use crate::ast::constant::ConstantVal;
+use crate::ast::expr::Expr;
+use crate::{sigma_protocol::sigma_boolean::SigmaBoolean, types::SType};
 
 use cost_accum::CostAccumulator;
 use thiserror::Error;
@@ -102,7 +101,7 @@ fn eval(
         Expr::PredefFunc(_) => todo!(),
         Expr::CollM(_) => todo!(),
         Expr::BoxM(_) => todo!(),
-        Expr::CtxM(v) => v.eval(env, ca, ctx),
+        Expr::ContextM(v) => v.eval(env, ca, ctx),
         Expr::MethodCall { .. } => todo!(),
         Expr::BinOp(_bin_op, l, r) => {
             let _v_l = eval(l, env, ca, ctx)?;
@@ -121,14 +120,15 @@ fn eval(
 
 #[cfg(test)]
 mod tests {
-    use crate::ast::ContextMethods;
-    use crate::ast::TryExtractFrom;
+
+    use crate::ast::constant::TryExtractFrom;
+    use crate::ast::context_methods::ContextM;
 
     use super::*;
 
     #[test]
     fn height() {
-        let expr = Expr::CtxM(ContextMethods::Height);
+        let expr = Expr::ContextM(ContextM::Height);
         let mut ca = CostAccumulator::new(0, None);
         let res = eval(&expr, &Env::empty(), &mut ca, &Context::dummy()).unwrap();
         assert_eq!(i32::try_extract_from(res).unwrap(), 0);

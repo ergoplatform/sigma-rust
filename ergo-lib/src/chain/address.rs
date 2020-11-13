@@ -1,8 +1,9 @@
 //! Address types
 
 use super::digest32;
+use crate::ast::constant::{Constant, ConstantVal};
+use crate::ast::expr::Expr;
 use crate::{
-    ast::{Constant, ConstantVal, Expr},
     ergo_tree::{ErgoTree, ErgoTreeParsingError},
     serialization::{SerializationError, SigmaSerializable},
     sigma_protocol::{

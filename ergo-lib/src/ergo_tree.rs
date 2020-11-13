@@ -1,13 +1,12 @@
 //! ErgoTree
+use crate::ast::constant::Constant;
+use crate::ast::expr::Expr;
 use crate::serialization::{
     sigma_byte_reader::{SigmaByteRead, SigmaByteReader},
     sigma_byte_writer::{SigmaByteWrite, SigmaByteWriter},
     SerializationError, SigmaSerializable,
 };
-use crate::{
-    ast::{Constant, Expr},
-    types::SType,
-};
+use crate::types::SType;
 use io::{Cursor, Read};
 
 use crate::serialization::constant_store::ConstantStore;
@@ -254,8 +253,9 @@ impl SigmaSerializable for ErgoTree {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ast::constant::ConstantVal;
     use crate::serialization::sigma_serialize_roundtrip;
-    use crate::{ast::ConstantVal, chain, sigma_protocol::sigma_boolean::SigmaProp, types::SType};
+    use crate::{chain, sigma_protocol::sigma_boolean::SigmaProp, types::SType};
     use proptest::prelude::*;
 
     impl Arbitrary for ErgoTree {

@@ -1,8 +1,9 @@
 use super::{data::DataSerializer, sigma_byte_writer::SigmaByteWrite};
+use crate::ast::constant::Constant;
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
 };
-use crate::{ast::Constant, types::SType};
+use crate::types::SType;
 
 use std::io;
 

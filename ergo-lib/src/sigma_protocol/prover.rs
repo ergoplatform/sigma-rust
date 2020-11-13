@@ -300,11 +300,10 @@ impl Prover for TestProver {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        ast::{Constant, ConstantVal, Expr},
-        sigma_protocol::private_input::DlogProverInput,
-        types::SType,
-    };
+    use crate::ast::constant::Constant;
+    use crate::ast::constant::ConstantVal;
+    use crate::ast::expr::Expr;
+    use crate::{sigma_protocol::private_input::DlogProverInput, types::SType};
     use std::rc::Rc;
 
     #[test]

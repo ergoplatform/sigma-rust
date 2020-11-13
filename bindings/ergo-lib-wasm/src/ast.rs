@@ -6,12 +6,12 @@ use js_sys::Uint8Array;
 use wasm_bindgen::prelude::*;
 
 use crate::utils::I64;
-use ergo_lib::TryExtractFrom;
+use ergo_lib::ast::constant::TryExtractFrom;
 
 /// Ergo constant(evaluated) values
 #[wasm_bindgen]
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct Constant(ergo_lib::ast::Constant);
+pub struct Constant(ergo_lib::ast::constant::Constant);
 
 #[wasm_bindgen]
 impl Constant {
@@ -24,7 +24,7 @@ impl Constant {
                     base16_bytes_str.clone()
                 ))
             })?;
-        ergo_lib::ast::Constant::try_from(bytes)
+        ergo_lib::ast::constant::Constant::try_from(bytes)
             .map_err(|e| JsValue::from_str(&format! {"{:?}", e}))
             .map(Constant)
     }
@@ -69,25 +69,14 @@ impl Constant {
     }
 }
 
-<<<<<<< variant A
-impl From<ergo_lib::ast::Constant> for Constant {
-    fn from(c: ergo_lib::ast::Constant) -> Self {
+impl From<ergo_lib::ast::constant::Constant> for Constant {
+    fn from(c: ergo_lib::ast::constant::Constant) -> Self {
         Constant(c)
->>>>>>> variant B
-impl From<ergo_lib::Value> for Value {
-    fn from(c: ergo_lib::Value) -> Self {
-        Value(c)
-======= end
     }
 }
 
-<<<<<<< variant A
-impl From<Constant> for ergo_lib::ast::Constant {
+impl From<Constant> for ergo_lib::ast::constant::Constant {
     fn from(c: Constant) -> Self {
->>>>>>> variant B
-impl From<Value> for ergo_lib::Value {
-    fn from(c: Value) -> Self {
-======= end
         c.0
     }
 }

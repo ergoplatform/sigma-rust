@@ -84,8 +84,9 @@ mod tests {
     use proptest::collection::vec;
     use proptest::prelude::*;
 
+    use crate::ast::constant::Constant;
+    use crate::ast::expr::Expr;
     use crate::{
-        ast::{Constant, Expr},
         chain::{
             ergo_box::{box_builder::ErgoBoxCandidateBuilder, BoxValue, NonMandatoryRegisters},
             transaction::{TxId, UnsignedInput},

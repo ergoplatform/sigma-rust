@@ -1,5 +1,5 @@
 use super::costs::{Cost, Costs};
-use crate::ast::Expr;
+use crate::ast::expr::Expr;
 
 pub struct CostAccumulator {
     costs: Costs,

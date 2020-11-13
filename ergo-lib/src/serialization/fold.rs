@@ -1,5 +1,6 @@
 use super::{op_code::OpCode, sigma_byte_writer::SigmaByteWrite};
-use crate::ast::{CollMethods, Expr};
+use crate::ast::coll_methods::CollM;
+use crate::ast::expr::Expr;
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
 };
@@ -13,7 +14,7 @@ impl FoldSerializer {
 
     pub fn sigma_serialize<W: SigmaByteWrite>(expr: &Expr, w: &mut W) -> Result<(), io::Error> {
         match expr {
-            Expr::CollM(CollMethods::Fold {
+            Expr::CollM(CollM::Fold {
                 input,
                 zero,
                 fold_op,
@@ -31,7 +32,7 @@ impl FoldSerializer {
         let input = Expr::sigma_parse(r)?;
         let zero = Expr::sigma_parse(r)?;
         let fold_op = Expr::sigma_parse(r)?;
-        Ok(Expr::CollM(CollMethods::Fold {
+        Ok(Expr::CollM(CollM::Fold {
             input: Box::new(input),
             zero: Box::new(zero),
             fold_op: Box::new(fold_op),
