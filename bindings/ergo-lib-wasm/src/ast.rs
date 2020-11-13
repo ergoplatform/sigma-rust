@@ -5,7 +5,6 @@ use std::convert::TryFrom;
 use js_sys::Uint8Array;
 use wasm_bindgen::prelude::*;
 
-use crate::utils::I64;
 use ergo_lib::ast::constant::TryExtractFrom;
 
 /// Ergo constant(evaluated) values

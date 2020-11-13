@@ -253,7 +253,7 @@ impl SigmaSerializable for ErgoTree {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ast::constant::ConstantVal;
+    use crate::ast::value::Value;
     use crate::serialization::sigma_serialize_roundtrip;
     use crate::{chain, sigma_protocol::sigma_boolean::SigmaProp, types::SType};
     use proptest::prelude::*;
@@ -267,7 +267,7 @@ mod tests {
                 .prop_map(|p| {
                     ErgoTree::from(Rc::new(Expr::Const(Constant {
                         tpe: SType::SSigmaProp,
-                        v: ConstantVal::SigmaProp(Box::new(p)),
+                        v: Value::SigmaProp(Box::new(p)),
                     })))
                 })
                 .boxed()
@@ -316,7 +316,7 @@ mod tests {
     fn test_constant_segregation() {
         let expr = Expr::Const(Constant {
             tpe: SType::SBoolean,
-            v: ConstantVal::Boolean(true),
+            v: Value::Boolean(true),
         });
         let ergo_tree = ErgoTree::with_segregation(Rc::new(expr.clone()));
         let bytes = ergo_tree.sigma_serialize_bytes();

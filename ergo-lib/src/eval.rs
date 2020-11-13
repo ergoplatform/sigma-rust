@@ -1,7 +1,7 @@
 //! Interpreter
 use crate::ast::constant::Constant;
-use crate::ast::constant::ConstantVal;
 use crate::ast::expr::Expr;
+use crate::ast::value::Value;
 use crate::{sigma_protocol::sigma_boolean::SigmaBoolean, types::SType};
 
 use cost_accum::CostAccumulator;
@@ -57,14 +57,14 @@ pub trait Evaluator {
             match v {
                 Constant {
                     tpe: SType::SBoolean,
-                    v: ConstantVal::Boolean(b),
+                    v: Value::Boolean(b),
                 } => Ok(ReductionResult {
                     sigma_prop: SigmaBoolean::TrivialProp(b),
                     cost: 0,
                 }),
                 Constant {
                     tpe: SType::SSigmaProp,
-                    v: ConstantVal::SigmaProp(sp),
+                    v: Value::SigmaProp(sp),
                 } => Ok(ReductionResult {
                     sigma_prop: sp.value().clone(),
                     cost: 0,

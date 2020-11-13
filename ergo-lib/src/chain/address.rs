@@ -1,8 +1,9 @@
 //! Address types
 
 use super::digest32;
-use crate::ast::constant::{Constant, ConstantVal};
+use crate::ast::constant::Constant;
 use crate::ast::expr::Expr;
+use crate::ast::value::Value;
 use crate::{
     ergo_tree::{ErgoTree, ErgoTreeParsingError},
     serialization::{SerializationError, SigmaSerializable},
@@ -76,7 +77,7 @@ impl Address {
         match expr {
             Expr::Const(Constant {
                 tpe: _,
-                v: ConstantVal::SigmaProp(sp),
+                v: Value::SigmaProp(sp),
             }) => match sp.value() {
                 SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(
                     prove_dlog,
@@ -321,6 +322,7 @@ impl AddressEncoder {
 
 #[cfg(test)]
 mod tests {
+    use crate::ast::value::Value;
     use crate::types::SType;
 
     use super::*;
@@ -343,7 +345,7 @@ mod tests {
     fn new_p2pk_non_provedlog_error() {
         let tree = ErgoTree::from(Rc::new(Expr::Const(Constant {
             tpe: SType::SBoolean,
-            v: ConstantVal::Boolean(true),
+            v: Value::Boolean(true),
         })));
         assert!(Address::p2pk_from_ergo_tree(&tree).is_err());
     }

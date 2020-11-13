@@ -6,5 +6,6 @@ pub(crate) mod context_methods;
 pub(crate) mod expr;
 pub(crate) mod ops;
 pub(crate) mod predef_func;
+pub(crate) mod value;
 
 pub mod constant;
