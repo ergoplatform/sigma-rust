@@ -7,6 +7,8 @@ use wasm_bindgen::prelude::*;
 
 use ergo_lib::ast::constant::TryExtractFrom;
 
+use crate::utils::I64;
+
 /// Ergo constant(evaluated) values
 #[wasm_bindgen]
 #[derive(PartialEq, Eq, Debug, Clone)]
