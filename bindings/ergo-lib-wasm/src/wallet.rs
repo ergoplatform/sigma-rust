@@ -3,11 +3,11 @@ use ergo_lib::chain;
 use wasm_bindgen::prelude::*;
 
 use crate::{
-    box_coll::ErgoBoxes, ergo_state_ctx::ErgoStateContext, secret_key::SecretKey,
+    box_coll::ErgoBoxes, ergo_state_ctx::ErgoStateContext, secret_key::SecretKeys,
     transaction::Transaction, transaction::UnsignedTransaction,
 };
 
-/// TBD
+/// A collection of secret keys. This simplified signing by matching the secret keys to the correct inputs automatically.
 #[wasm_bindgen]
 pub struct Wallet(ergo_lib::wallet::Wallet);
 
@@ -21,10 +21,10 @@ impl Wallet {
 
     /// Create wallet using provided secret key
     #[wasm_bindgen]
-    pub fn from_secret(secret: &SecretKey) -> Wallet {
-        Wallet(ergo_lib::wallet::Wallet::from_secrets(vec![secret
+    pub fn from_secrets(secret: &SecretKeys) -> Wallet {
+        Wallet(ergo_lib::wallet::Wallet::from_secrets(secret
             .clone()
-            .into()]))
+            .into()))
     }
 
     /// Sign a transaction:

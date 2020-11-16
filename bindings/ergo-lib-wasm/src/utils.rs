@@ -2,6 +2,22 @@
 
 use wasm_bindgen::prelude::*;
 
+/// helper methods to get the fee address for various networks
+#[wasm_bindgen]
+pub struct MinerAddress {}
+
+#[wasm_bindgen]
+impl MinerAddress {
+    /// address to use in mainnet for the fee
+    pub fn mainnet_fee_address() -> String {
+        ergo_lib::constants::MINERS_FEE_MAINNET_ADDRESS.to_string()
+    }
+    /// address to use in testnet for the fee
+    pub fn testnet_fee_address() -> String {
+        ergo_lib::constants::MINERS_FEE_TESTNET_ADDRESS.to_string()
+    }
+}
+
 /// Wrapper for i64 for JS/TS
 #[wasm_bindgen]
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -26,6 +42,14 @@ impl I64 {
     /// Get the value as JS number (64-bit float)
     pub fn as_num(&self) -> js_sys::Number {
         js_sys::Number::from(self.0 as f64)
+    }
+
+    /// Addition with overflow check
+    pub fn checked_add(&self, other: &I64) -> Result<I64, JsValue> {
+        match self.0.checked_add(other.0) {
+            Some(value) => Ok(I64(value)),
+            None => Err(JsValue::from_str("overflow")),
+        }
     }
 }
 

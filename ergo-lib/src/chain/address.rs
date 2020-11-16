@@ -130,6 +130,40 @@ impl Address {
     }
 }
 
+/// Combination of an Address with a network
+/// These two combined together form a base58 encoding
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct NetworkAddress {
+    network: NetworkPrefix,
+    address: Address,
+}
+
+impl NetworkAddress {
+
+    /// create a new AddressEncoder for a given network type
+    pub fn new(network: NetworkPrefix, address: &Address) -> NetworkAddress {
+        NetworkAddress {
+            address: address.clone(),
+            network
+        }
+    }
+
+    /// Encode (base58) address
+    pub fn to_base58(&self) -> String {
+        AddressEncoder::encode_address_as_string(self.network(), &self.address)
+    }
+
+    /// Get the type of the address
+    pub fn network(&self) -> NetworkPrefix {
+        self.network
+    }
+
+    /// Get the type of the address
+    pub fn address(&self) -> Address {
+        self.address.clone()
+    }
+}
+
 /// Errors for Address processing
 #[derive(Error, Eq, PartialEq, Debug, Clone)]
 pub enum AddressError {
@@ -170,6 +204,17 @@ pub enum NetworkPrefix {
     Mainnet = 0,
     /// Testnet
     Testnet = 16,
+}
+
+impl TryFrom<u8> for NetworkPrefix {
+    type Error = AddressEncoderError;
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            v if v == NetworkPrefix::Mainnet as u8 => Ok(NetworkPrefix::Mainnet),
+            v if v == NetworkPrefix::Testnet as u8 => Ok(NetworkPrefix::Testnet),
+            _v => Err(AddressEncoderError::InvalidNetwork("Invalid network".to_string())),
+        }
+    }
 }
 
 /// Errors on encoding/decoding of addresses
@@ -265,24 +310,44 @@ impl AddressEncoder {
     /// parse address from Base58 encoded string
     pub fn parse_address_from_str(&self, str: &str) -> Result<Address, AddressEncoderError> {
         let bytes = bs58::decode(str).into_vec()?;
-        if bytes.len() < AddressEncoder::MIN_ADDRESS_LENGTH {
+        if bytes.len() < 1 {
             return Err(AddressEncoderError::InvalidSize);
         };
         self.check_head_byte(bytes[0])?;
-        AddressEncoder::try_parse_address(&bytes)
+        AddressEncoder::unchecked_parse_address_from_bytes(&bytes)
+    }
+
+    /// parse network+address from Base58 encoded string
+    pub fn unchecked_parse_network_address_from_str(str: &str) -> Result<NetworkAddress, AddressEncoderError> {
+        let bytes = bs58::decode(str).into_vec()?;
+        AddressEncoder::unchecked_parse_network_address_from_bytes(&bytes)
+    }
+
+    /// parse network+address from Base58 encoded string
+    pub fn unchecked_parse_network_address_from_bytes(bytes: &[u8]) -> Result<NetworkAddress, AddressEncoderError> {
+        if bytes.len() < 1 {
+            return Err(AddressEncoderError::InvalidSize);
+        };
+
+        let network_prefix = (bytes[0] & 0xF0).try_into()?;
+        AddressEncoder::unchecked_parse_address_from_bytes(&bytes)
+            .map(|addr| NetworkAddress {
+                address: addr,
+                network: network_prefix
+            })
     }
 
     /// parse address from Base58 encoded string
     pub fn unchecked_parse_address_from_str(str: &str) -> Result<Address, AddressEncoderError> {
         let bytes = bs58::decode(str).into_vec()?;
-        if bytes.len() < AddressEncoder::MIN_ADDRESS_LENGTH {
-            return Err(AddressEncoderError::InvalidSize);
-        };
-        AddressEncoder::try_parse_address(&bytes)
+        AddressEncoder::unchecked_parse_address_from_bytes(&bytes)
     }
 
     /// parse address from Base58 encoded string
-    fn try_parse_address(bytes: &[u8]) -> Result<Address, AddressEncoderError> {
+    pub fn unchecked_parse_address_from_bytes(bytes: &[u8]) -> Result<Address, AddressEncoderError> {
+        if bytes.len() < AddressEncoder::MIN_ADDRESS_LENGTH {
+            return Err(AddressEncoderError::InvalidSize);
+        };
         let (without_checksum, checksum) =
             bytes.split_at(bytes.len() - AddressEncoder::CHECKSUM_LENGTH);
         let calculated_checksum = AddressEncoder::calc_checksum(without_checksum);
@@ -303,18 +368,25 @@ impl AddressEncoder {
 
     /// encode address as Base58 encoded string
     pub fn address_to_str(&self, address: &Address) -> String {
-        AddressEncoder::encode_address(self.network_prefix, &address)
+        AddressEncoder::encode_address_as_string(self.network_prefix, &address)
     }
 
     /// encode address as Base58 encoded string
-    pub fn encode_address(network_prefix: NetworkPrefix, address: &Address) -> String {
+    pub fn encode_address_as_bytes(network_prefix: NetworkPrefix, address: &Address) -> Vec<u8> {
         let prefix_byte = network_prefix as u8 + address.address_type_prefix() as u8;
         let mut address_bytes = address.content_bytes();
         let mut bytes = vec![prefix_byte];
         bytes.append(&mut address_bytes);
         let mut calculated_checksum = AddressEncoder::calc_checksum(&bytes[..]).to_vec();
         bytes.append(&mut calculated_checksum);
-        bs58::encode(bytes).into_string()
+        bytes
+    }
+
+    /// encode address as Base58 encoded string
+    pub fn encode_address_as_string(network_prefix: NetworkPrefix, address: &Address) -> String {
+        bs58::encode(
+            AddressEncoder::encode_address_as_bytes(network_prefix, &address)
+        ).into_string()
     }
 }
 
