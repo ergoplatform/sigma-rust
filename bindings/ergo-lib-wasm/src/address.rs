@@ -154,7 +154,7 @@ impl Address {
 
     /// Decode (base58) address from string without checking the network prefix
     #[allow(clippy::should_implement_trait)]
-    pub fn from_str(s: &str) -> Result<Address, JsValue> {
+    pub fn from_base58(s: &str) -> Result<Address, JsValue> {
         chain::address::AddressEncoder::unchecked_parse_address_from_str(s)
             .map(Address)
             .map_err(|e| JsValue::from_str(&format!("{}", e)))
