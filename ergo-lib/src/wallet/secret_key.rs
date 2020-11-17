@@ -26,6 +26,13 @@ impl SecretKey {
             SecretKey::DlogSecretKey(dpi) => Address::P2PK(dpi.public_image()),
         }
     }
+
+    /// Encode from a serialized key
+    pub fn to_bytes(&self) -> Vec<u8> {
+        match self {
+            SecretKey::DlogSecretKey(key) => key.to_bytes().to_vec()
+        }
+    }
 }
 
 impl From<SecretKey> for PrivateInput {
@@ -39,5 +46,18 @@ impl From<SecretKey> for PrivateInput {
 impl From<DlogProverInput> for SecretKey {
     fn from(pi: DlogProverInput) -> Self {
         SecretKey::DlogSecretKey(pi)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::convert::TryInto;
+
+    #[test]
+    fn dlog_roundtrip() {
+        let sk = SecretKey::random_dlog();
+        let sk_copy = SecretKey::dlog_from_bytes(&sk.to_bytes().as_slice().try_into().unwrap()).unwrap();
+        assert_eq!(sk, sk_copy);
     }
 }

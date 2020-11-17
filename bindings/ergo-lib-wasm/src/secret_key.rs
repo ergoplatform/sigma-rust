@@ -37,6 +37,12 @@ impl SecretKey {
     pub fn get_address(&self) -> Address {
         self.0.get_address_from_public_image().into()
     }
+
+    /// Encode from a serialized key
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.0.to_bytes()
+    }
+
 }
 
 impl From<SecretKey> for wallet::secret_key::SecretKey {
