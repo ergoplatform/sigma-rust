@@ -1,4 +1,7 @@
 use crate::chain::{Base16DecodedBytes, Base16EncodedBytes};
+use crate::sigma_protocol::sigma_boolean::ProveDlog;
+use crate::sigma_protocol::sigma_boolean::SigmaBoolean;
+use crate::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
 use crate::{
     chain::ergo_box::ErgoBox,
     serialization::{SerializationError, SigmaSerializable},
@@ -277,7 +280,7 @@ impl From<Vec<i8>> for Constant {
 
 /// Underlying type is different from requested value type
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct TryExtractFromError(String);
+pub struct TryExtractFromError(pub String);
 
 /// Extract underlying value if type matches
 pub trait TryExtractFrom<T>: Sized {
@@ -349,6 +352,27 @@ impl TryExtractFrom<ConstantVal> for SigmaProp {
     fn try_extract_from(cv: ConstantVal) -> Result<SigmaProp, TryExtractFromError> {
         match cv {
             ConstantVal::SigmaProp(v) => Ok(*v),
+            _ => Err(TryExtractFromError(format!(
+                "expected SigmaProp, found {:?}",
+                cv
+            ))),
+        }
+    }
+}
+
+impl TryFrom<ConstantVal> for ProveDlog {
+    type Error = TryExtractFromError;
+    fn try_from(cv: ConstantVal) -> Result<Self, Self::Error> {
+        match cv {
+            ConstantVal::SigmaProp(sp) => match sp.value() {
+                SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(
+                    prove_dlog,
+                )) => Ok(prove_dlog.clone()),
+                _ => Err(TryExtractFromError(format!(
+                    "expected ProveDlog, found {:?}",
+                    sp
+                ))),
+            },
             _ => Err(TryExtractFromError(format!(
                 "expected SigmaProp, found {:?}",
                 cv
