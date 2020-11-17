@@ -1,6 +1,7 @@
 //! Address types
 
 use super::digest32;
+use crate::types::SType;
 use crate::{
     ast::{Constant, ConstantVal, Expr},
     ergo_tree::{ErgoTree, ErgoTreeParsingError},
@@ -97,6 +98,26 @@ impl Address {
         EcPoint::sigma_parse_bytes(bytes.to_vec())
             .map(ProveDlog::from)
             .map(Address::P2PK)
+    }
+
+    /// Re-create the address from ErgoTree that was built from the address
+    ///
+    /// At some point in the past a user entered an address from which the ErgoTree was built.
+    /// Re-create the address from this ErgoTree.
+    /// `tree` - ErgoTree that was created from an Address
+    pub fn recreate_from_ergo_tree(tree: &ErgoTree) -> Result<Address, AddressError> {
+        match tree.proposition() {
+            Ok(expr) => Ok(match &*expr {
+                Expr::Const(Constant {
+                    tpe: SType::SSigmaProp,
+                    v,
+                }) => ProveDlog::try_from(v.clone())
+                    .map(Address::P2PK)
+                    .unwrap_or_else(|_| Address::P2S(tree.sigma_serialize_bytes())),
+                _ => Address::P2S(tree.sigma_serialize_bytes()),
+            }),
+            Err(_) => Ok(Address::P2S(tree.sigma_serialize_bytes())),
+        }
     }
 
     /// address type prefix (for encoding)
@@ -320,6 +341,7 @@ impl AddressEncoder {
 
 #[cfg(test)]
 mod tests {
+    use crate::chain::Base16DecodedBytes;
     use crate::types::SType;
 
     use super::*;
@@ -330,9 +352,17 @@ mod tests {
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            let non_parseable_tree = "100204a00b08cd021dde34603426402615658f1d970cfa7c7bd92ac81a8b16eeebff264d59ce4604ea02d192a39a8cc7a70173007301";
             prop_oneof![
-                any::<ProveDlog>().prop_map(Address::P2PK),
-                any::<ErgoTree>().prop_map(|t| Address::P2S(t.sigma_serialize_bytes())),
+                any::<ErgoTree>().prop_map(|t| match ProveDlog::try_from(t.clone()) {
+                    Ok(dlog) => Address::P2PK(dlog),
+                    Err(_) => Address::P2S(t.sigma_serialize_bytes()),
+                }),
+                Just(Address::P2S(
+                    Base16DecodedBytes::try_from(non_parseable_tree)
+                        .unwrap()
+                        .into()
+                ))
             ]
             .boxed()
         }
@@ -366,6 +396,13 @@ mod tests {
             let encoded_addr = encoder.address_to_str(&v);
             let decoded_addr = encoder.parse_address_from_str(&encoded_addr).unwrap();
             prop_assert_eq![decoded_addr, v];
+        }
+
+        #[test]
+        fn recreate_roundtrip(v in any::<Address>()) {
+            let tree = v.script().unwrap();
+            let recreated = Address::recreate_from_ergo_tree(&tree).unwrap();
+            prop_assert_eq![recreated, v];
         }
 
         #[test]

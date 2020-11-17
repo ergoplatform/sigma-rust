@@ -35,3 +35,16 @@ impl TryFrom<String> for Base16DecodedBytes {
         Ok(Base16DecodedBytes(base16::decode(&str)?))
     }
 }
+
+impl TryFrom<&str> for Base16DecodedBytes {
+    type Error = base16::DecodeError;
+    fn try_from(v: &str) -> Result<Self, Self::Error> {
+        Base16DecodedBytes::try_from(v.to_string())
+    }
+}
+
+impl From<Base16DecodedBytes> for Vec<u8> {
+    fn from(b: Base16DecodedBytes) -> Self {
+        b.0
+    }
+}

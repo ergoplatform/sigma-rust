@@ -41,6 +41,9 @@ pub trait SigmaByteRead: ReadSigmaVlqExt {
 
     /// Option to substitute ConstantPlaceholder with Constant from the store
     fn substitute_placeholders(&self) -> bool;
+
+    /// Set new constant store
+    fn set_constant_store(&mut self, constant_store: ConstantStore);
 }
 
 impl<R: Peekable> Read for SigmaByteReader<R> {
@@ -62,5 +65,9 @@ impl<R: ReadSigmaVlqExt> SigmaByteRead for SigmaByteReader<R> {
 
     fn substitute_placeholders(&self) -> bool {
         self.substitute_placeholders
+    }
+
+    fn set_constant_store(&mut self, constant_store: ConstantStore) {
+        self.constant_store = constant_store;
     }
 }
