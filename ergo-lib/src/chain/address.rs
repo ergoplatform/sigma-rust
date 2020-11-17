@@ -3,7 +3,7 @@
 use super::digest32;
 use crate::types::SType;
 use crate::{
-    ast::{Constant, ConstantVal, Expr},
+    ast::{Constant, Expr},
     ergo_tree::{ErgoTree, ErgoTreeParsingError},
     serialization::{SerializationError, SigmaSerializable},
     sigma_protocol::{
@@ -70,29 +70,6 @@ pub enum Address {
 }
 
 impl Address {
-    /// Create a P2PK address from an ergo tree if ProveDlog is the root of the tree, otherwise returns an error
-    pub fn p2pk_from_ergo_tree(tree: &ErgoTree) -> Result<Address, AddressError> {
-        let expr = &*tree.proposition()?;
-        match expr {
-            Expr::Const(Constant {
-                tpe: _,
-                v: ConstantVal::SigmaProp(sp),
-            }) => match sp.value() {
-                SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(
-                    prove_dlog,
-                )) => Ok(Address::P2PK(prove_dlog.clone())),
-                _ => Err(AddressError::UnexpectedErgoTree(
-                    tree.clone(),
-                    "Expected ErgoTree with ProveDlog as root".to_string(),
-                )),
-            },
-            _ => Err(AddressError::UnexpectedErgoTree(
-                tree.clone(),
-                "Expected ErgoTree with ProveDlog as root".to_string(),
-            )),
-        }
-    }
-
     /// Create a P2PK address from serialized PK bytes(EcPoint/GroupElement)
     pub fn p2pk_from_pk_bytes(bytes: &[u8]) -> Result<Address, SerializationError> {
         EcPoint::sigma_parse_bytes(bytes.to_vec())
@@ -342,7 +319,6 @@ impl AddressEncoder {
 #[cfg(test)]
 mod tests {
     use crate::chain::Base16DecodedBytes;
-    use crate::types::SType;
 
     use super::*;
     use proptest::prelude::*;
@@ -368,27 +344,7 @@ mod tests {
         }
     }
 
-    #[test]
-    fn new_p2pk_non_provedlog_error() {
-        let tree = ErgoTree::from(Rc::new(Expr::Const(Constant {
-            tpe: SType::SBoolean,
-            v: ConstantVal::Boolean(true),
-        })));
-        assert!(Address::p2pk_from_ergo_tree(&tree).is_err());
-    }
-
     proptest! {
-
-        #[test]
-        fn ergo_tree_p2pk_roundtrip(prove_dlog in any::<ProveDlog>()) {
-            let encoder = AddressEncoder::new(NetworkPrefix::Testnet);
-            let address = Address::P2PK(prove_dlog);
-            let ergo_tree = address.script().unwrap();
-            let address_copy = Address::p2pk_from_ergo_tree(&ergo_tree).unwrap();
-            let encoded_addr = encoder.address_to_str(&address);
-            let encoded_addr_copy = encoder.address_to_str(&address_copy);
-            prop_assert_eq![encoded_addr, encoded_addr_copy];
-        }
 
         #[test]
         fn str_roundtrip(v in any::<Address>()) {
