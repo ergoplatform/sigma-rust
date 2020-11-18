@@ -22,9 +22,7 @@ impl Wallet {
     /// Create wallet using provided secret key
     #[wasm_bindgen]
     pub fn from_secrets(secret: &SecretKeys) -> Wallet {
-        Wallet(ergo_lib::wallet::Wallet::from_secrets(
-            secret.into(),
-        ))
+        Wallet(ergo_lib::wallet::Wallet::from_secrets(secret.into()))
     }
 
     /// Sign a transaction:
