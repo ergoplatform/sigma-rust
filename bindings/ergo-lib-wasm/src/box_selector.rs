@@ -6,24 +6,38 @@ use wasm_bindgen::prelude::*;
 
 use crate::box_coll::ErgoBoxes;
 use crate::ergo_box::BoxValue;
+use crate::ergo_box::ErgoBoxAssetsDataList;
 use crate::token::Tokens;
+
+extern crate derive_more;
+use derive_more::{From, Into};
 
 /// Selected boxes with change boxes (by [`BoxSelector`])
 #[wasm_bindgen]
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone, From, Into)]
 pub struct BoxSelection(wallet::box_selector::BoxSelection<ergo_lib::chain::ergo_box::ErgoBox>);
 
 #[wasm_bindgen]
 impl BoxSelection {
+    /// Create a selection to easily inject custom selection algorithms
+    #[wasm_bindgen(constructor)]
+    pub fn new(boxes: &ErgoBoxes, change: &ErgoBoxAssetsDataList) -> Self {
+        BoxSelection(
+            wallet::box_selector::BoxSelection::<ergo_lib::chain::ergo_box::ErgoBox> {
+                boxes: boxes.clone().into(),
+                change_boxes: change.clone().into(),
+            },
+        )
+    }
+
     /// Selected boxes to spend as transaction inputs
     pub fn boxes(&self) -> ErgoBoxes {
         self.0.boxes.clone().into()
     }
-}
 
-impl From<BoxSelection> for wallet::box_selector::BoxSelection<chain::ergo_box::ErgoBox> {
-    fn from(v: BoxSelection) -> Self {
-        v.0
+    /// Selected boxes to use as change
+    pub fn change(&self) -> ErgoBoxAssetsDataList {
+        self.0.change_boxes.clone().into()
     }
 }
 
@@ -33,7 +47,7 @@ pub struct SimpleBoxSelector(wallet::box_selector::SimpleBoxSelector);
 
 #[wasm_bindgen]
 impl SimpleBoxSelector {
-    /// Create empty DataInputs
+    /// Create empty SimpleBoxSelector
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
         SimpleBoxSelector(wallet::box_selector::SimpleBoxSelector::new())

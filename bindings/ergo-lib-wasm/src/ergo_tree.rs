@@ -20,8 +20,17 @@ impl ErgoTree {
     pub fn from_base16_bytes(s: &str) -> Result<ErgoTree, JsValue> {
         let bytes = Base16DecodedBytes::try_from(s.to_string())
             .map_err(|e| JsValue::from_str(&format!("{}", e)))?;
-        ergo_lib::ergo_tree::ErgoTree::sigma_parse_bytes(bytes.0)
+        ErgoTree::from_bytes(bytes.0)
+    }
+
+    /// Decode from encoded serialized ErgoTree
+    pub fn from_bytes(data: Vec<u8>) -> Result<ErgoTree, JsValue> {
+        ergo_lib::ergo_tree::ErgoTree::sigma_parse_bytes(data)
             .map(ErgoTree)
             .map_err(|e| JsValue::from_str(&format!("{}", e)))
+    }
+    /// Encode Ergo tree as serialized bytes
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.0.sigma_serialize_bytes()
     }
 }

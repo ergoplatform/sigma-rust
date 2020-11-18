@@ -1,6 +1,9 @@
 //! Address types
 
 use ergo_lib::chain;
+use ergo_lib::serialization::SigmaSerializable;
+use ergo_lib::sigma_protocol::dlog_group::EcPoint;
+use ergo_lib::sigma_protocol::sigma_boolean::ProveDlog;
 use wasm_bindgen::prelude::*;
 
 use crate::ergo_tree::ErgoTree;
@@ -155,20 +158,48 @@ impl Address {
 
     /// Decode (base58) address from string without checking the network prefix
     #[allow(clippy::should_implement_trait)]
-    pub fn from_str(s: &str) -> Result<Address, JsValue> {
+    pub fn from_base58(s: &str) -> Result<Address, JsValue> {
         chain::address::AddressEncoder::unchecked_parse_address_from_str(s)
             .map(Address)
             .map_err(|e| JsValue::from_str(&format!("{}", e)))
     }
 
     /// Encode (base58) address
-    pub fn to_str(&self, network_prefix: NetworkPrefix) -> String {
-        chain::address::AddressEncoder::encode_address(network_prefix.into(), &self.0)
+    pub fn to_base58(&self, network_prefix: NetworkPrefix) -> String {
+        chain::address::AddressEncoder::encode_address_as_string(network_prefix.into(), &self.0)
+    }
+
+    /// Decode from a serialized address (that includes the network prefix)
+    pub fn from_bytes(data: Vec<u8>) -> Result<Address, JsValue> {
+        chain::address::AddressEncoder::unchecked_parse_address_from_bytes(&data)
+            .map(Address)
+            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+    }
+
+    /// Encode address as serialized bytes (that includes the network prefix)
+    pub fn to_bytes(&self, network_prefix: NetworkPrefix) -> Vec<u8> {
+        chain::address::AddressEncoder::encode_address_as_bytes(network_prefix.into(), &self.0)
     }
 
     /// Get the type of the address
     pub fn address_type_prefix(&self) -> AddressTypePrefix {
         self.0.address_type_prefix().into()
+    }
+
+    /// Create an address from a public key
+    pub fn from_public_key(bytes: &[u8]) -> Result<Address, JsValue> {
+        EcPoint::sigma_parse_bytes(bytes.to_vec())
+            .map(|point| chain::address::Address::P2PK(ProveDlog::new(point)))
+            .map(Address)
+            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+    }
+
+    /// Creates an ErgoTree script from the address
+    pub fn to_ergo_tree(&self) -> Result<ErgoTree, JsValue> {
+        self.0
+            .script()
+            .map(|script| script.into())
+            .map_err(|e| JsValue::from_str(&format!("{}", e)))
     }
 }
 
@@ -181,5 +212,59 @@ impl Into<chain::address::Address> for Address {
 impl From<chain::address::Address> for Address {
     fn from(a: chain::address::Address) -> Self {
         Address(a)
+    }
+}
+
+/// Combination of an Address with a network
+/// These two combined together form a base58 encoding
+#[wasm_bindgen]
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct NetworkAddress(chain::address::NetworkAddress);
+
+#[wasm_bindgen]
+impl NetworkAddress {
+    /// create a new NetworkAddress(address + network prefix) for a given network type
+    pub fn new(network: NetworkPrefix, address: &Address) -> NetworkAddress {
+        NetworkAddress(chain::address::NetworkAddress::new(
+            network.into(),
+            &address.clone().into(),
+        ))
+    }
+
+    /// Decode (base58) a NetworkAddress (address + network prefix) from string
+    pub fn from_base58(s: &str) -> Result<NetworkAddress, JsValue> {
+        chain::address::AddressEncoder::unchecked_parse_network_address_from_str(s)
+            .map(NetworkAddress)
+            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+    }
+
+    /// Encode (base58) address
+    pub fn to_base58(&self) -> String {
+        self.0.to_base58()
+    }
+
+    /// Decode from a serialized address
+    pub fn from_bytes(data: Vec<u8>) -> Result<NetworkAddress, JsValue> {
+        chain::address::AddressEncoder::unchecked_parse_network_address_from_bytes(&data)
+            .map(NetworkAddress)
+            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+    }
+
+    /// Encode address as serialized bytes
+    pub fn to_bytes(&self) -> Vec<u8> {
+        chain::address::AddressEncoder::encode_address_as_bytes(
+            self.network().into(),
+            &self.address().into(),
+        )
+    }
+
+    /// Network for the address
+    pub fn network(&self) -> NetworkPrefix {
+        self.0.network().into()
+    }
+
+    /// Get address without network information
+    pub fn address(&self) -> Address {
+        self.0.address().into()
     }
 }

@@ -1,10 +1,19 @@
 //! Ergo transaction
+
+use crate::box_coll::ErgoBoxCandidates;
+use crate::data_input::DataInputs;
+use crate::input::{Inputs, UnsignedInputs};
 use ergo_lib::chain;
+use std::convert::TryFrom;
+use std::convert::TryInto;
 use wasm_bindgen::prelude::*;
+
+extern crate derive_more;
+use derive_more::{From, Into};
 
 /// Transaction id
 #[wasm_bindgen]
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone, From, Into)]
 pub struct TxId(chain::transaction::TxId);
 
 #[wasm_bindgen]
@@ -13,17 +22,29 @@ impl TxId {
     pub fn zero() -> TxId {
         chain::transaction::TxId::zero().into()
     }
-}
 
-impl Into<chain::transaction::TxId> for TxId {
-    fn into(self) -> chain::transaction::TxId {
-        self.0
+    /// get the tx id as bytes
+    pub fn to_str(&self) -> String {
+        let base16_bytes = ergo_lib::chain::Base16EncodedBytes::new(self.0 .0 .0.as_ref());
+        base16_bytes.into()
     }
-}
 
-impl From<chain::transaction::TxId> for TxId {
-    fn from(tx_id: chain::transaction::TxId) -> Self {
-        TxId(tx_id)
+    /// convert a hex string into a TxId
+    #[allow(clippy::should_implement_trait)]
+    pub fn from_str(s: &str) -> Result<TxId, JsValue> {
+        let bytes = ergo_lib::chain::Base16DecodedBytes::try_from(s.to_string())
+            .map_err(|e| JsValue::from_str(&format!("{}", e)))?;
+
+        bytes
+            .try_into()
+            .map(|digest| chain::transaction::TxId(digest).into())
+            .map_err(|_e| {
+                JsValue::from_str(&format!(
+                    "Expected a Vec of length {} but it was {}",
+                    chain::Digest32::SIZE,
+                    s.len()
+                ))
+            })
     }
 }
 
@@ -42,9 +63,29 @@ pub struct Transaction(chain::transaction::Transaction);
 
 #[wasm_bindgen]
 impl Transaction {
+    /// Get id for transaction
+    pub fn id(&self) -> TxId {
+        self.0.id().into()
+    }
+
     /// JSON representation
     pub fn to_json(&self) -> Result<JsValue, JsValue> {
-        JsValue::from_serde(&self.0).map_err(|e| JsValue::from_str(&format!("{}", e)))
+        JsValue::from_serde(&self.0.clone()).map_err(|e| JsValue::from_str(&format!("{}", e)))
+    }
+
+    /// Inputs for transaction
+    pub fn inputs(&self) -> Inputs {
+        self.0.inputs.clone().into()
+    }
+
+    /// Data inputs for transaction
+    pub fn data_inputs(&self) -> DataInputs {
+        self.0.data_inputs.clone().into()
+    }
+
+    /// Outputs for transaction
+    pub fn outputs(&self) -> ErgoBoxCandidates {
+        self.0.output_candidates.clone().into()
     }
 }
 
@@ -60,7 +101,32 @@ impl From<chain::transaction::Transaction> for Transaction {
 pub struct UnsignedTransaction(chain::transaction::unsigned::UnsignedTransaction);
 
 #[wasm_bindgen]
-impl UnsignedTransaction {}
+impl UnsignedTransaction {
+    /// Get id for transaction
+    pub fn id(&self) -> TxId {
+        self.0.id().into()
+    }
+
+    /// Inputs for transaction
+    pub fn inputs(&self) -> UnsignedInputs {
+        self.0.inputs.clone().into()
+    }
+
+    /// Data inputs for transaction
+    pub fn data_inputs(&self) -> DataInputs {
+        self.0.data_inputs.clone().into()
+    }
+
+    /// Outputs for transaction
+    pub fn outputs(&self) -> ErgoBoxCandidates {
+        self.0.output_candidates.clone().into()
+    }
+
+    /// JSON representation
+    pub fn to_json(&self) -> Result<JsValue, JsValue> {
+        JsValue::from_serde(&self.0.clone()).map_err(|e| JsValue::from_str(&format!("{}", e)))
+    }
+}
 
 impl From<chain::transaction::unsigned::UnsignedTransaction> for UnsignedTransaction {
     fn from(t: chain::transaction::unsigned::UnsignedTransaction) -> Self {

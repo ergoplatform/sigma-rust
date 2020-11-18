@@ -53,10 +53,46 @@ impl TxBuilder {
     }
 
     /// Build the unsigned transaction
-    pub fn build(self) -> Result<UnsignedTransaction, JsValue> {
+    pub fn build(&self) -> Result<UnsignedTransaction, JsValue> {
         self.0
+            .clone()
             .build()
             .map_err(|e| JsValue::from_str(&format!("{}", e)))
             .map(UnsignedTransaction::from)
+    }
+
+    /// Get inputs
+    pub fn box_selection(&self) -> BoxSelection {
+        self.0.box_selection().into()
+    }
+
+    /// Get data inputs
+    pub fn data_inputs(&self) -> DataInputs {
+        self.0.data_inputs().into()
+    }
+
+    /// Get outputs EXCLUDING fee and change
+    pub fn output_candidates(&self) -> ErgoBoxCandidates {
+        self.0.output_candidates().into()
+    }
+
+    /// Get current height
+    pub fn current_height(&self) -> u32 {
+        self.0.current_height()
+    }
+
+    /// Get fee amount
+    pub fn fee_amount(&self) -> BoxValue {
+        self.0.fee_amount().clone().into()
+    }
+
+    /// Get change
+    pub fn change_address(&self) -> Address {
+        self.0.change_address().into()
+    }
+
+    /// Get min change value
+    pub fn min_change_value(&self) -> BoxValue {
+        self.0.min_change_value().clone().into()
     }
 }

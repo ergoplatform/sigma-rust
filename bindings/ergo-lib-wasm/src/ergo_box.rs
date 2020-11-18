@@ -23,8 +23,13 @@ use ergo_lib::chain;
 use wasm_bindgen::prelude::*;
 
 use crate::ast::Constant;
+use crate::ergo_tree::ErgoTree;
+use crate::token::Tokens;
 use crate::utils::I64;
 use crate::{contract::Contract, transaction::TxId};
+
+extern crate derive_more;
+use derive_more::{From, Into};
 
 pub mod box_builder;
 
@@ -55,7 +60,7 @@ impl From<BoxId> for chain::ergo_box::BoxId {
 
 /// ErgoBox candidate not yet included in any transaction on the chain
 #[wasm_bindgen]
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone, From, Into)]
 pub struct ErgoBoxCandidate(chain::ergo_box::ErgoBoxCandidate);
 
 #[wasm_bindgen]
@@ -68,11 +73,25 @@ impl ErgoBoxCandidate {
             .cloned()
             .map(Constant::from)
     }
-}
 
-impl Into<chain::ergo_box::ErgoBoxCandidate> for ErgoBoxCandidate {
-    fn into(self) -> chain::ergo_box::ErgoBoxCandidate {
-        self.0
+    /// Get box creation height
+    pub fn creation_height(&self) -> u32 {
+        self.0.creation_height
+    }
+
+    /// Get tokens for box
+    pub fn tokens(&self) -> Tokens {
+        self.0.tokens.clone().into()
+    }
+
+    /// Get ergo tree for box
+    pub fn ergo_tree(&self) -> ErgoTree {
+        self.0.ergo_tree.clone().into()
+    }
+
+    /// Get box value in nanoERGs
+    pub fn value(&self) -> BoxValue {
+        self.0.value.into()
     }
 }
 
@@ -98,12 +117,13 @@ impl ErgoBox {
         contract: &Contract,
         tx_id: &TxId,
         index: u16,
+        tokens: &Tokens,
     ) -> ErgoBox {
         let chain_contract: chain::contract::Contract = contract.clone().into();
         let b = chain::ergo_box::ErgoBox::new(
             value.0,
             chain_contract.ergo_tree(),
-            vec![],
+            tokens.clone().into(),
             NonMandatoryRegisters::empty(),
             creation_height,
             tx_id.clone().into(),
@@ -115,6 +135,21 @@ impl ErgoBox {
     /// Get box id
     pub fn box_id(&self) -> BoxId {
         self.0.box_id().into()
+    }
+
+    /// Get box creation height
+    pub fn creation_height(&self) -> u32 {
+        self.0.creation_height
+    }
+
+    /// Get tokens for box
+    pub fn tokens(&self) -> Tokens {
+        self.0.tokens.clone().into()
+    }
+
+    /// Get ergo tree for box
+    pub fn ergo_tree(&self) -> ErgoTree {
+        self.0.ergo_tree.clone().into()
     }
 
     /// Get box value in nanoERGs
@@ -131,10 +166,10 @@ impl ErgoBox {
             .map(Constant::from)
     }
 
-    // JSON representation
-    // pub fn to_json(&self) -> Result<JsValue, JsValue> {
-    //     JsValue::from_serde(&self.0).map_err(|e| JsValue::from_str(&format!("{}", e)))
-    // }
+    /// JSON representation
+    pub fn to_json(&self) -> Result<JsValue, JsValue> {
+        JsValue::from_serde(&self.0.clone()).map_err(|e| JsValue::from_str(&format!("{}", e)))
+    }
 }
 
 impl From<ErgoBox> for chain::ergo_box::ErgoBox {
@@ -163,10 +198,16 @@ impl BoxValue {
         BoxValue(chain::ergo_box::BoxValue::SAFE_USER_MIN)
     }
 
-    /// Create from u32 with bounds check
-    pub fn from_u32(v: u32) -> Result<BoxValue, JsValue> {
+    /// Number of units inside one ERGO (i.e. one ERG using nano ERG representation)
+    #[allow(non_snake_case)]
+    pub fn UNITS_PER_ERGO() -> I64 {
+        (chain::ergo_box::BoxValue::UNITS_PER_ERGO as i64).into()
+    }
+
+    /// Create from i64 with bounds check
+    pub fn from_i64(v: &I64) -> Result<BoxValue, JsValue> {
         Ok(BoxValue(
-            chain::ergo_box::BoxValue::try_from(v as u64)
+            chain::ergo_box::BoxValue::try_from(i64::from(v.clone()) as u64)
                 .map_err(|e| JsValue::from_str(&format!("{}", e)))?,
         ))
     }
@@ -186,6 +227,77 @@ impl From<BoxValue> for chain::ergo_box::BoxValue {
 impl From<chain::ergo_box::BoxValue> for BoxValue {
     fn from(v: chain::ergo_box::BoxValue) -> Self {
         BoxValue(v)
+    }
+}
+
+/// Pair of <value, tokens> for an box
+#[wasm_bindgen]
+#[derive(PartialEq, Eq, Debug, Clone, From, Into)]
+pub struct ErgoBoxAssetsData(chain::ergo_box::ErgoBoxAssetsData);
+
+#[wasm_bindgen]
+impl ErgoBoxAssetsData {
+    /// Create empty SimpleBoxSelector
+    #[wasm_bindgen(constructor)]
+    pub fn new(value: &BoxValue, tokens: &Tokens) -> Self {
+        ErgoBoxAssetsData(chain::ergo_box::ErgoBoxAssetsData {
+            value: value.clone().into(),
+            tokens: tokens.clone().into(),
+        })
+    }
+
+    /// Value part of the box
+    pub fn value(&self) -> BoxValue {
+        self.0.value.clone().into()
+    }
+
+    /// Tokens part of the box
+    pub fn tokens(&self) -> Tokens {
+        self.0.tokens.clone().into()
+    }
+}
+
+/// List of asset data for a box
+#[wasm_bindgen]
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct ErgoBoxAssetsDataList(Vec<ErgoBoxAssetsData>);
+
+#[wasm_bindgen]
+impl ErgoBoxAssetsDataList {
+    /// Create empty Tokens
+    #[wasm_bindgen(constructor)]
+    pub fn new() -> Self {
+        ErgoBoxAssetsDataList(vec![])
+    }
+
+    /// Returns the number of elements in the collection
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    /// Returns the element of the collection with a given index
+    pub fn get(&self, index: usize) -> ErgoBoxAssetsData {
+        self.0[index].clone()
+    }
+
+    /// Adds an elements to the collection
+    pub fn add(&mut self, elem: &ErgoBoxAssetsData) {
+        self.0.push(elem.clone());
+    }
+}
+
+impl From<ErgoBoxAssetsDataList> for Vec<chain::ergo_box::ErgoBoxAssetsData> {
+    fn from(v: ErgoBoxAssetsDataList) -> Self {
+        v.0.iter().map(|i| i.0.clone()).collect()
+    }
+}
+impl From<Vec<chain::ergo_box::ErgoBoxAssetsData>> for ErgoBoxAssetsDataList {
+    fn from(v: Vec<chain::ergo_box::ErgoBoxAssetsData>) -> Self {
+        let mut assets = ErgoBoxAssetsDataList::new();
+        for asset in &v {
+            assets.add(&ErgoBoxAssetsData(asset.clone()))
+        }
+        assets
     }
 }
 

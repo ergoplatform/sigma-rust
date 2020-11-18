@@ -7,9 +7,12 @@ use wasm_bindgen::prelude::*;
 
 use crate::address::Address;
 
+extern crate derive_more;
+use derive_more::{From, Into};
+
 /// Secret key for the prover
 #[wasm_bindgen]
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, From, Into)]
 pub struct SecretKey(wallet::secret_key::SecretKey);
 
 #[wasm_bindgen]
@@ -37,16 +40,48 @@ impl SecretKey {
     pub fn get_address(&self) -> Address {
         self.0.get_address_from_public_image().into()
     }
-}
 
-impl From<SecretKey> for wallet::secret_key::SecretKey {
-    fn from(s: SecretKey) -> Self {
-        s.0
+    /// Encode from a serialized key
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.0.to_bytes()
     }
 }
 
-impl From<wallet::secret_key::SecretKey> for SecretKey {
-    fn from(sk: wallet::secret_key::SecretKey) -> Self {
-        SecretKey(sk)
+/// SecretKey collection
+#[wasm_bindgen]
+pub struct SecretKeys(Vec<SecretKey>);
+
+#[wasm_bindgen]
+impl SecretKeys {
+    /// Create empty SecretKeys
+    #[wasm_bindgen(constructor)]
+    pub fn new() -> Self {
+        SecretKeys(vec![])
+    }
+
+    /// Returns the number of elements in the collection
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    /// Returns the element of the collection with a given index
+    pub fn get(&self, index: usize) -> SecretKey {
+        self.0[index].clone()
+    }
+
+    /// Adds an elements to the collection
+    pub fn add(&mut self, elem: &SecretKey) {
+        self.0.push(elem.clone());
+    }
+}
+
+impl From<&SecretKeys> for Vec<wallet::secret_key::SecretKey> {
+    fn from(v: &SecretKeys) -> Self {
+        v.0.clone().iter().map(|i| i.0.clone()).collect()
+    }
+}
+impl From<Vec<wallet::secret_key::SecretKey>> for SecretKeys {
+    fn from(v: Vec<wallet::secret_key::SecretKey>) -> Self {
+        SecretKeys(v.into_iter().map(SecretKey::from).collect())
     }
 }

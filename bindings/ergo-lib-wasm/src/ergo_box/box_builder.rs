@@ -112,8 +112,9 @@ impl ErgoBoxCandidateBuilder {
     }
 
     /// Build the box candidate
-    pub fn build(self) -> Result<ErgoBoxCandidate, JsValue> {
+    pub fn build(&self) -> Result<ErgoBoxCandidate, JsValue> {
         self.0
+            .clone()
             .build()
             .map_err(|e| JsValue::from_str(&format!("{}", e)))
             .map(ErgoBoxCandidate)

@@ -1,7 +1,7 @@
 import { expect, assert } from 'chai';
 
 import {
-  ErgoBoxes, SimpleBoxSelector, Tokens, BoxValue
+  ErgoBoxes, I64, SimpleBoxSelector, Tokens, BoxValue
 } from '../pkg/ergo_lib_wasm';
 
 it('SimpleBoxSelector test', async () => {
@@ -18,7 +18,7 @@ it('SimpleBoxSelector test', async () => {
     }
   ]);
   const box_selector = new SimpleBoxSelector();
-  const selection = box_selector.select(unspent_boxes, BoxValue.from_u32(1000000), new Tokens());
+  const selection = box_selector.select(unspent_boxes, BoxValue.from_i64(I64.from_str('10000000')), new Tokens());
   assert(selection != null);
   assert(selection.boxes().get(0).box_id().to_str() == unspent_boxes.get(0).box_id().to_str());
 });

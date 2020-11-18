@@ -97,7 +97,7 @@ impl Transaction {
     /// Maximum number of outputs
     pub const MAX_OUTPUTS_COUNT: usize = u16::MAX as usize;
 
-    /// Creates new transation
+    /// Creates new transaction
     pub fn new(
         inputs: Vec<Input>,
         data_inputs: Vec<DataInput>,

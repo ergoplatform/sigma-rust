@@ -43,6 +43,11 @@ impl ErgoBoxes {
         ErgoBoxes(vec![b.clone()])
     }
 
+    /// Returns the number of elements in the collection
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
     /// Add an element to the collection
     pub fn add(&mut self, b: &ErgoBox) {
         self.0.push(b.clone());
@@ -80,10 +85,37 @@ impl ErgoBoxCandidates {
     pub fn new(box_candidate: &ErgoBoxCandidate) -> ErgoBoxCandidates {
         ErgoBoxCandidates(vec![box_candidate.clone()])
     }
+
+    /// sometimes it's useful to keep track of an empty list
+    /// but keep in mind Ergo transactions need at least 1 output
+    pub fn empty() -> ErgoBoxCandidates {
+        ErgoBoxCandidates(vec![])
+    }
+
+    /// Returns the number of elements in the collection
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    /// Returns the element of the collection with a given index
+    pub fn get(&self, index: usize) -> ErgoBoxCandidate {
+        self.0[index].clone()
+    }
+
+    /// Add an element to the collection
+    pub fn add(&mut self, b: &ErgoBoxCandidate) {
+        self.0.push(b.clone());
+    }
 }
 
 impl From<ErgoBoxCandidates> for Vec<chain::ergo_box::ErgoBoxCandidate> {
     fn from(v: ErgoBoxCandidates) -> Self {
         v.0.iter().map(|i| i.clone().into()).collect()
+    }
+}
+
+impl From<Vec<chain::ergo_box::ErgoBoxCandidate>> for ErgoBoxCandidates {
+    fn from(v: Vec<chain::ergo_box::ErgoBoxCandidate>) -> Self {
+        ErgoBoxCandidates(v.into_iter().map(ErgoBoxCandidate::from).collect())
     }
 }
