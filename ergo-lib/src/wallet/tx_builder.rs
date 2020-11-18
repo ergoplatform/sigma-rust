@@ -25,6 +25,7 @@ use super::box_selector::{BoxSelection, BoxSelectorError};
 pub const SUGGESTED_TX_FEE: BoxValue = BoxValue(1100000u64);
 
 /// Unsigned transaction builder
+#[derive(Clone)]
 pub struct TxBuilder<S: ErgoBoxAssets> {
     box_selection: BoxSelection<S>,
     data_inputs: Vec<DataInput>,
@@ -63,6 +64,41 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
         }
     }
 
+    /// Get inputs
+    pub fn box_selection(&self) -> BoxSelection<S> {
+        self.box_selection.clone()
+    }
+
+    /// Get data inputs
+    pub fn data_inputs(&self) -> Vec<DataInput> {
+        self.data_inputs.clone()
+    }
+
+    /// Get outputs
+    pub fn output_candidates(&self) -> Vec<ErgoBoxCandidate> {
+        self.output_candidates.clone()
+    }
+
+    /// Get current height
+    pub fn current_height(&self) -> u32 {
+        self.current_height
+    }
+
+    /// Get fee amount
+    pub fn fee_amount(&self) -> BoxValue {
+        self.fee_amount
+    }
+
+    /// Get change
+    pub fn change_address(&self) -> Address {
+        self.change_address.clone()
+    }
+
+    /// Get min change value
+    pub fn min_change_value(&self) -> BoxValue {
+        self.min_change_value
+    }
+
     /// Set transaction's data inputs
     pub fn set_data_inputs(&mut self, data_inputs: Vec<DataInput>) {
         self.data_inputs = data_inputs;
@@ -95,11 +131,6 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
         if self.box_selection.boxes.is_empty() {
             return Err(TxBuilderError::InvalidArgs("inputs is empty".to_string()));
         }
-        if self.output_candidates.is_empty() {
-            return Err(TxBuilderError::InvalidArgs(
-                "output_candidates is empty".to_string(),
-            ));
-        }
         if self.box_selection.boxes.len() > u16::MAX as usize {
             return Err(TxBuilderError::InvalidArgs("too many inputs".to_string()));
         }
@@ -131,15 +162,26 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
             .iter()
             .filter(|b| b.value >= self.min_change_value)
             .map(|b| {
-                ErgoBoxCandidateBuilder::new(
+                let mut candidate = ErgoBoxCandidateBuilder::new(
                     b.value,
                     change_address_ergo_tree.clone(),
                     self.current_height,
-                )
-                .build()
+                );
+                for token in &b.tokens() {
+                    candidate.add_token(token.clone());
+                }
+                candidate.build()
             })
             .collect();
         output_candidates.append(&mut change_boxes?);
+
+        // Ergo transactions need at least one output
+        // but that single output could just be the change (ex: if you want to send all ERG to a single address)
+        if output_candidates.is_empty() {
+            return Err(TxBuilderError::InvalidArgs(
+                "output_candidates is empty".to_string(),
+            ));
+        }
         // add miner's fee
         let miner_fee_box = new_miner_fee_box(self.fee_amount, self.current_height)?;
         output_candidates.push(miner_fee_box);

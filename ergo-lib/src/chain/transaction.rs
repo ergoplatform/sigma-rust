@@ -94,7 +94,7 @@ pub struct Transaction {
 }
 
 impl Transaction {
-    /// Creates new transation
+    /// Creates new transaction
     pub fn new(
         inputs: Vec<Input>,
         data_inputs: Vec<DataInput>,

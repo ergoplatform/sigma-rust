@@ -1,12 +1,24 @@
 //! DataInput type
 
+use crate::ergo_box::BoxId;
 use ergo_lib::chain;
 use wasm_bindgen::prelude::*;
 
+extern crate derive_more;
+use derive_more::{From, Into};
+
 /// Inputs, that are used to enrich script context, but won't be spent by the transaction
 #[wasm_bindgen]
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone, From, Into)]
 pub struct DataInput(chain::transaction::DataInput);
+
+#[wasm_bindgen]
+impl DataInput {
+    /// Get box id
+    pub fn box_id(&self) -> BoxId {
+        self.0.box_id.clone().into()
+    }
+}
 
 /// DataInput collection
 #[wasm_bindgen]
@@ -39,5 +51,10 @@ impl DataInputs {
 impl From<&DataInputs> for Vec<chain::transaction::DataInput> {
     fn from(v: &DataInputs) -> Self {
         v.0.clone().iter().map(|i| i.0.clone()).collect()
+    }
+}
+impl From<Vec<chain::transaction::DataInput>> for DataInputs {
+    fn from(v: Vec<chain::transaction::DataInput>) -> Self {
+        DataInputs(v.into_iter().map(DataInput::from).collect())
     }
 }

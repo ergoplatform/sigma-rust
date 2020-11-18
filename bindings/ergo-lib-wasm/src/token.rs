@@ -49,10 +49,10 @@ pub struct TokenAmount(chain::token::TokenAmount);
 
 #[wasm_bindgen]
 impl TokenAmount {
-    /// Create from u32 with bounds check
-    pub fn from_u32(v: u32) -> Result<TokenAmount, JsValue> {
+    /// Create from i64 with bounds check
+    pub fn from_i64(v: &I64) -> Result<TokenAmount, JsValue> {
         Ok(Self(
-            chain::token::TokenAmount::try_from(v as u64)
+            chain::token::TokenAmount::try_from(i64::from(v.clone()) as u64)
                 .map_err(|e| JsValue::from_str(&format!("{}", e)))?,
         ))
     }
@@ -83,6 +83,21 @@ impl Token {
             token_id: token_id.clone().into(),
             amount: amount.clone().into(),
         })
+    }
+
+    /// Get token id
+    pub fn id(&self) -> TokenId {
+        TokenId(self.0.token_id.clone())
+    }
+
+    /// Get token amount
+    pub fn amount(&self) -> TokenAmount {
+        TokenAmount(self.0.amount)
+    }
+
+    /// JSON representation
+    pub fn to_json(&self) -> Result<JsValue, JsValue> {
+        JsValue::from_serde(&self.0.clone()).map_err(|e| JsValue::from_str(&format!("{}", e)))
     }
 }
 
@@ -124,5 +139,14 @@ impl Tokens {
 impl From<Tokens> for Vec<chain::token::Token> {
     fn from(v: Tokens) -> Self {
         v.0.iter().map(|i| i.0.clone()).collect()
+    }
+}
+impl From<Vec<chain::token::Token>> for Tokens {
+    fn from(v: Vec<chain::token::Token>) -> Self {
+        let mut tokens = Tokens::new();
+        for token in &v {
+            tokens.add(&Token(token.clone()))
+        }
+        tokens
     }
 }

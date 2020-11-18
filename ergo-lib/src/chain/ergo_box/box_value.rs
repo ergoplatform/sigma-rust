@@ -24,15 +24,18 @@ impl BoxValue {
     /// Absolute minimal value, calculated from smallest possible box size and original value per byte requirement
     pub const MIN_RAW: u64 =
         BoxValue::MIN_VALUE_PER_BOX_BYTE as u64 * BoxValue::MIN_BOX_SIZE_BYTES as u64;
-    /// Absolue maximal allowed box value
+    /// Absolute maximal allowed box value
     pub const MAX_RAW: u64 = i64::MAX as u64;
 
     /// Absolute minimal value, calculated from smallest possible box size and original value per byte requirement
     pub const MIN: BoxValue = BoxValue(BoxValue::MIN_RAW);
 
     /// Recommended (safe) minimal box value to use in case box size estimation is unavailable.
-    /// Allows box size upto 2777 bytes with current min box value per byte of 360 nanoERGs
+    /// Allows box size up to 2777 bytes with current min box value per byte of 360 nanoERGs
     pub const SAFE_USER_MIN: BoxValue = BoxValue(1000000);
+
+    /// Number of units inside one ERGO (i.e. one ERG using nano ERG representation)
+    pub const UNITS_PER_ERGO: u32 = 1000000000;
 
     /// create from u64 with bounds check
     pub fn new(v: u64) -> Result<BoxValue, BoxValueError> {

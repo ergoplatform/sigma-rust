@@ -13,11 +13,11 @@
 #![allow(clippy::unit_arg)]
 
 mod big_integer;
-mod constants;
 mod types;
 
 pub mod ast;
 pub mod chain;
+pub mod constants;
 pub mod eval;
 pub mod serialization;
 pub mod sigma_protocol;

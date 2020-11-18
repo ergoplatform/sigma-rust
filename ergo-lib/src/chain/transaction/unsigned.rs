@@ -42,7 +42,7 @@ pub struct UnsignedTransaction {
 }
 
 impl UnsignedTransaction {
-    /// Creates new transation
+    /// Creates new transaction
     pub fn new(
         inputs: Vec<UnsignedInput>,
         data_inputs: Vec<DataInput>,
@@ -64,6 +64,11 @@ impl UnsignedTransaction {
     fn calc_tx_id(&self) -> TxId {
         let bytes = self.bytes_to_sign();
         TxId(blake2b256_hash(&bytes))
+    }
+
+    /// Get transaction id
+    pub fn id(&self) -> TxId {
+        self.tx_id.clone()
     }
 
     /// message to be signed by the [`Prover`] (serialized tx)
