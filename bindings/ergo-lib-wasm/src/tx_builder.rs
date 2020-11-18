@@ -63,17 +63,17 @@ impl TxBuilder {
 
     /// Get inputs
     pub fn box_selection(&self) -> BoxSelection {
-        self.0.box_selection().clone().into()
+        self.0.box_selection().into()
     }
 
     /// Get data inputs
     pub fn data_inputs(&self) -> DataInputs {
-        self.0.data_inputs().clone().into()
+        self.0.data_inputs().into()
     }
 
     /// Get outputs EXCLUDING fee and change
     pub fn output_candidates(&self) -> ErgoBoxCandidates {
-        self.0.output_candidates().clone().into()
+        self.0.output_candidates().into()
     }
 
     /// Get current height
@@ -88,7 +88,7 @@ impl TxBuilder {
 
     /// Get change
     pub fn change_address(&self) -> Address {
-        self.0.change_address().clone().into()
+        self.0.change_address().into()
     }
 
     /// Get min change value

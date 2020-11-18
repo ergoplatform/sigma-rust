@@ -30,6 +30,7 @@ impl TxId {
     }
 
     /// convert a hex string into a TxId
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Result<TxId, JsValue> {
         let bytes = ergo_lib::chain::Base16DecodedBytes::try_from(s.to_string())
             .map_err(|e| JsValue::from_str(&format!("{}", e)))?;

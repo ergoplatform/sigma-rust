@@ -23,7 +23,7 @@ impl Wallet {
     #[wasm_bindgen]
     pub fn from_secrets(secret: &SecretKeys) -> Wallet {
         Wallet(ergo_lib::wallet::Wallet::from_secrets(
-            secret.clone().into(),
+            secret.into(),
         ))
     }
 
