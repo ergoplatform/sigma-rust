@@ -1,10 +1,10 @@
 //! Ergo input
 
-use wasm_bindgen::prelude::*;
-use ergo_lib::chain;
+use crate::context_extension::ContextExtension;
 use crate::ergo_box::BoxId;
 use crate::prover_result;
-use crate::context_extension::ContextExtension;
+use ergo_lib::chain;
+use wasm_bindgen::prelude::*;
 
 extern crate derive_more;
 use derive_more::{From, Into};
@@ -37,7 +37,7 @@ impl UnsignedInputs {
     /// Create empty UnsignedInputs
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
-      UnsignedInputs(vec![])
+        UnsignedInputs(vec![])
     }
 
     /// Returns the number of elements in the collection
@@ -58,7 +58,7 @@ impl From<&UnsignedInputs> for Vec<chain::transaction::UnsignedInput> {
 }
 impl From<Vec<chain::transaction::UnsignedInput>> for UnsignedInputs {
     fn from(v: Vec<chain::transaction::UnsignedInput>) -> Self {
-      UnsignedInputs(v.into_iter().map(UnsignedInput::from).collect())
+        UnsignedInputs(v.into_iter().map(UnsignedInput::from).collect())
     }
 }
 
@@ -90,7 +90,7 @@ impl Inputs {
     /// Create empty Inputs
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
-      Inputs(vec![])
+        Inputs(vec![])
     }
 
     /// Returns the number of elements in the collection
@@ -111,6 +111,6 @@ impl From<&Inputs> for Vec<chain::transaction::Input> {
 }
 impl From<Vec<chain::transaction::Input>> for Inputs {
     fn from(v: Vec<chain::transaction::Input>) -> Self {
-      Inputs(v.into_iter().map(Input::from).collect())
+        Inputs(v.into_iter().map(Input::from).collect())
     }
 }

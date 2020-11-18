@@ -1,9 +1,9 @@
 //! Address types
 
 use ergo_lib::chain;
+use ergo_lib::serialization::SigmaSerializable;
 use ergo_lib::sigma_protocol::dlog_group::EcPoint;
 use ergo_lib::sigma_protocol::sigma_boolean::ProveDlog;
-use ergo_lib::serialization::SigmaSerializable;
 use wasm_bindgen::prelude::*;
 
 use crate::ergo_tree::ErgoTree;
@@ -192,9 +192,10 @@ impl Address {
 
     /// Creates an ErgoTree script from the address
     pub fn to_ergo_tree(&self) -> Result<ErgoTree, JsValue> {
-        self.0.script()
-        .map(|script| script.into())
-        .map_err(|e| JsValue::from_str(&format!("{}", e)))
+        self.0
+            .script()
+            .map(|script| script.into())
+            .map_err(|e| JsValue::from_str(&format!("{}", e)))
     }
 }
 
@@ -218,12 +219,12 @@ pub struct NetworkAddress(chain::address::NetworkAddress);
 
 #[wasm_bindgen]
 impl NetworkAddress {
-
     /// create a new AddressEncoder for a given network type
     pub fn new(network: NetworkPrefix, address: &Address) -> NetworkAddress {
-        NetworkAddress(
-            chain::address::NetworkAddress::new(network.into(), &address.clone().into())
-        )
+        NetworkAddress(chain::address::NetworkAddress::new(
+            network.into(),
+            &address.clone().into(),
+        ))
     }
 
     /// Decode (base58) address from string without checking the network prefix
@@ -247,7 +248,10 @@ impl NetworkAddress {
 
     /// Encode address as serialized bytes
     pub fn to_bytes(&self) -> Vec<u8> {
-        chain::address::AddressEncoder::encode_address_as_bytes(self.network().into(), &self.address().into())
+        chain::address::AddressEncoder::encode_address_as_bytes(
+            self.network().into(),
+            &self.address().into(),
+        )
     }
 
     /// Network for the address

@@ -139,12 +139,11 @@ pub struct NetworkAddress {
 }
 
 impl NetworkAddress {
-
     /// create a new AddressEncoder for a given network type
     pub fn new(network: NetworkPrefix, address: &Address) -> NetworkAddress {
         NetworkAddress {
             address: address.clone(),
-            network
+            network,
         }
     }
 
@@ -212,7 +211,9 @@ impl TryFrom<u8> for NetworkPrefix {
         match value {
             v if v == NetworkPrefix::Mainnet as u8 => Ok(NetworkPrefix::Mainnet),
             v if v == NetworkPrefix::Testnet as u8 => Ok(NetworkPrefix::Testnet),
-            _v => Err(AddressEncoderError::InvalidNetwork("Invalid network".to_string())),
+            _v => Err(AddressEncoderError::InvalidNetwork(
+                "Invalid network".to_string(),
+            )),
         }
     }
 }
@@ -318,23 +319,26 @@ impl AddressEncoder {
     }
 
     /// parse network+address from Base58 encoded string
-    pub fn unchecked_parse_network_address_from_str(str: &str) -> Result<NetworkAddress, AddressEncoderError> {
+    pub fn unchecked_parse_network_address_from_str(
+        str: &str,
+    ) -> Result<NetworkAddress, AddressEncoderError> {
         let bytes = bs58::decode(str).into_vec()?;
         AddressEncoder::unchecked_parse_network_address_from_bytes(&bytes)
     }
 
     /// parse network+address from Base58 encoded string
-    pub fn unchecked_parse_network_address_from_bytes(bytes: &[u8]) -> Result<NetworkAddress, AddressEncoderError> {
+    pub fn unchecked_parse_network_address_from_bytes(
+        bytes: &[u8],
+    ) -> Result<NetworkAddress, AddressEncoderError> {
         if bytes.len() < 1 {
             return Err(AddressEncoderError::InvalidSize);
         };
 
         let network_prefix = (bytes[0] & 0xF0).try_into()?;
-        AddressEncoder::unchecked_parse_address_from_bytes(&bytes)
-            .map(|addr| NetworkAddress {
-                address: addr,
-                network: network_prefix
-            })
+        AddressEncoder::unchecked_parse_address_from_bytes(&bytes).map(|addr| NetworkAddress {
+            address: addr,
+            network: network_prefix,
+        })
     }
 
     /// parse address from Base58 encoded string
@@ -344,7 +348,9 @@ impl AddressEncoder {
     }
 
     /// parse address from Base58 encoded string
-    pub fn unchecked_parse_address_from_bytes(bytes: &[u8]) -> Result<Address, AddressEncoderError> {
+    pub fn unchecked_parse_address_from_bytes(
+        bytes: &[u8],
+    ) -> Result<Address, AddressEncoderError> {
         if bytes.len() < AddressEncoder::MIN_ADDRESS_LENGTH {
             return Err(AddressEncoderError::InvalidSize);
         };
@@ -384,9 +390,11 @@ impl AddressEncoder {
 
     /// encode address as Base58 encoded string
     pub fn encode_address_as_string(network_prefix: NetworkPrefix, address: &Address) -> String {
-        bs58::encode(
-            AddressEncoder::encode_address_as_bytes(network_prefix, &address)
-        ).into_string()
+        bs58::encode(AddressEncoder::encode_address_as_bytes(
+            network_prefix,
+            &address,
+        ))
+        .into_string()
     }
 }
 

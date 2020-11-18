@@ -63,7 +63,7 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
             min_change_value,
         }
     }
-    
+
     /// Get inputs
     pub fn box_selection(&self) -> BoxSelection<S> {
         self.box_selection.clone()

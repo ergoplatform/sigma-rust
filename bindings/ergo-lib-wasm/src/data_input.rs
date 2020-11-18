@@ -1,8 +1,8 @@
 //! DataInput type
 
+use crate::ergo_box::BoxId;
 use ergo_lib::chain;
 use wasm_bindgen::prelude::*;
-use crate::ergo_box::BoxId;
 
 extern crate derive_more;
 use derive_more::{From, Into};

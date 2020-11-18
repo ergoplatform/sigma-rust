@@ -1,12 +1,12 @@
 //! Ergo transaction
 
-use std::convert::TryFrom;
-use std::convert::TryInto;
-use ergo_lib::chain;
-use wasm_bindgen::prelude::*;
+use crate::box_coll::ErgoBoxCandidates;
 use crate::data_input::DataInputs;
 use crate::input::{Inputs, UnsignedInputs};
-use crate::box_coll::ErgoBoxCandidates;
+use ergo_lib::chain;
+use std::convert::TryFrom;
+use std::convert::TryInto;
+use wasm_bindgen::prelude::*;
 
 extern crate derive_more;
 use derive_more::{From, Into};
@@ -25,7 +25,7 @@ impl TxId {
 
     /// get the tx id as bytes
     pub fn to_hex(&self) -> String {
-        let base16_bytes = ergo_lib::chain::Base16EncodedBytes::new(self.0.0.0.as_ref());
+        let base16_bytes = ergo_lib::chain::Base16EncodedBytes::new(self.0 .0 .0.as_ref());
         base16_bytes.into()
     }
 

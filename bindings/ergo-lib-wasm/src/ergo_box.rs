@@ -23,9 +23,9 @@ use ergo_lib::chain;
 use wasm_bindgen::prelude::*;
 
 use crate::ast::Constant;
-use crate::utils::I64;
-use crate::token::Tokens;
 use crate::ergo_tree::ErgoTree;
+use crate::token::Tokens;
+use crate::utils::I64;
 use crate::{contract::Contract, transaction::TxId};
 
 extern crate derive_more;
@@ -242,7 +242,7 @@ impl ErgoBoxAssetsData {
     pub fn new(value: &BoxValue, tokens: &Tokens) -> Self {
         ErgoBoxAssetsData(chain::ergo_box::ErgoBoxAssetsData {
             value: value.clone().into(),
-            tokens: tokens.clone().into()
+            tokens: tokens.clone().into(),
         })
     }
 
@@ -293,7 +293,7 @@ impl From<ErgoBoxAssetsDataList> for Vec<chain::ergo_box::ErgoBoxAssetsData> {
 }
 impl From<Vec<chain::ergo_box::ErgoBoxAssetsData>> for ErgoBoxAssetsDataList {
     fn from(v: Vec<chain::ergo_box::ErgoBoxAssetsData>) -> Self {
-    let mut assets = ErgoBoxAssetsDataList::new();
+        let mut assets = ErgoBoxAssetsDataList::new();
         for asset in &v {
             assets.add(&ErgoBoxAssetsData(asset.clone()))
         }

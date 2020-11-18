@@ -1,8 +1,8 @@
 //! ProverResult
 
-use wasm_bindgen::prelude::*;
-use ergo_lib::sigma_protocol;
 use ergo_lib::serialization::SigmaSerializable;
+use ergo_lib::sigma_protocol;
+use wasm_bindgen::prelude::*;
 
 use crate::context_extension::ContextExtension;
 extern crate derive_more;
