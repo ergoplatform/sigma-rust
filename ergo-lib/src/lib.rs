@@ -14,7 +14,6 @@
 
 mod big_integer;
 mod eval;
-mod types;
 
 pub mod ast;
 pub mod chain;
