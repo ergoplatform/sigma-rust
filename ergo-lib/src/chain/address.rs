@@ -311,7 +311,7 @@ impl AddressEncoder {
     /// parse address from Base58 encoded string
     pub fn parse_address_from_str(&self, str: &str) -> Result<Address, AddressEncoderError> {
         let bytes = bs58::decode(str).into_vec()?;
-        if bytes.len() < 1 {
+        if bytes.len() < AddressEncoder::MIN_ADDRESS_LENGTH {
             return Err(AddressEncoderError::InvalidSize);
         };
         self.check_head_byte(bytes[0])?;
@@ -330,7 +330,7 @@ impl AddressEncoder {
     pub fn unchecked_parse_network_address_from_bytes(
         bytes: &[u8],
     ) -> Result<NetworkAddress, AddressEncoderError> {
-        if bytes.len() < 1 {
+        if bytes.len() < AddressEncoder::MIN_ADDRESS_LENGTH {
             return Err(AddressEncoderError::InvalidSize);
         };
 
