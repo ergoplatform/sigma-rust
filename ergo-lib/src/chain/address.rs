@@ -362,7 +362,7 @@ impl AddressEncoder {
         };
 
         let content_bytes: Vec<u8> = without_checksum[1..].to_vec(); // without head_byte
-        let address_type = AddressTypePrefix::try_from(bytes[0] & 0xF as u8)?;
+        let address_type = AddressTypePrefix::try_from(bytes[0] & 0xF_u8)?;
         Ok(match address_type {
             AddressTypePrefix::P2PK => {
                 Address::P2PK(ProveDlog::new(EcPoint::sigma_parse_bytes(content_bytes)?))

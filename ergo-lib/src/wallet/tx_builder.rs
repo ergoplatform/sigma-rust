@@ -86,7 +86,7 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
 
     /// Get fee amount
     pub fn fee_amount(&self) -> BoxValue {
-        self.fee_amount.clone()
+        self.fee_amount
     }
 
     /// Get change
@@ -96,7 +96,7 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
 
     /// Get min change value
     pub fn min_change_value(&self) -> BoxValue {
-        self.min_change_value.clone()
+        self.min_change_value
     }
 
     /// Set transaction's data inputs
