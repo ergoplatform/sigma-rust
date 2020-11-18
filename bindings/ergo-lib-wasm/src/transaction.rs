@@ -24,21 +24,26 @@ impl TxId {
     }
 
     /// get the tx id as bytes
-    pub fn to_hex(&self) -> String {
+    pub fn to_str(&self) -> String {
         let base16_bytes = ergo_lib::chain::Base16EncodedBytes::new(self.0 .0 .0.as_ref());
         base16_bytes.into()
     }
 
     /// convert a hex string into a TxId
-    pub fn from_hex(s: &str) -> Result<TxId, JsValue> {
+    pub fn from_str(s: &str) -> Result<TxId, JsValue> {
         let bytes = ergo_lib::chain::Base16DecodedBytes::try_from(s.to_string())
             .map_err(|e| JsValue::from_str(&format!("{}", e)))?;
 
-        let digest = match bytes.try_into() {
-            Ok(ba) => ba,
-            Err(o) => panic!("Expected a Vec of length {} but it was {}", 4, s.len()),
-        };
-        Ok(chain::transaction::TxId(digest).into())
+        bytes
+            .try_into()
+            .map(|digest| chain::transaction::TxId(digest).into())
+            .map_err(|_e| {
+                JsValue::from_str(&format!(
+                    "Expected a Vec of length {} but it was {}",
+                    chain::Digest32::SIZE,
+                    s.len()
+                ))
+            })
     }
 }
 

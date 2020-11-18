@@ -219,7 +219,7 @@ pub struct NetworkAddress(chain::address::NetworkAddress);
 
 #[wasm_bindgen]
 impl NetworkAddress {
-    /// create a new AddressEncoder for a given network type
+    /// create a new NetworkAddress(address + network prefix) for a given network type
     pub fn new(network: NetworkPrefix, address: &Address) -> NetworkAddress {
         NetworkAddress(chain::address::NetworkAddress::new(
             network.into(),
@@ -227,7 +227,7 @@ impl NetworkAddress {
         ))
     }
 
-    /// Decode (base58) address from string without checking the network prefix
+    /// Decode (base58) a NetworkAddress (address + network prefix) from string
     pub fn from_base58(s: &str) -> Result<NetworkAddress, JsValue> {
         chain::address::AddressEncoder::unchecked_parse_network_address_from_str(s)
             .map(NetworkAddress)

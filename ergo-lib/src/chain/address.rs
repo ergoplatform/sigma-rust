@@ -139,7 +139,7 @@ pub struct NetworkAddress {
 }
 
 impl NetworkAddress {
-    /// create a new AddressEncoder for a given network type
+    /// create a new NetworkAddress for a given network type
     pub fn new(network: NetworkPrefix, address: &Address) -> NetworkAddress {
         NetworkAddress {
             address: address.clone(),
