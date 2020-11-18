@@ -31,6 +31,11 @@ impl DlogProverInput {
             .map(DlogProverInput::from)
     }
 
+    /// byte representation of the underlying scalar
+    pub fn to_bytes(&self) -> [u8; DlogProverInput::SIZE_BYTES] {
+        self.w.to_bytes().into()
+    }
+
     /// public key of discrete logarithm signature protocol
     pub fn public_image(&self) -> ProveDlog {
         // test it, see https://github.com/ergoplatform/sigma-rust/issues/38
