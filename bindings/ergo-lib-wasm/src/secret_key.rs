@@ -42,7 +42,6 @@ impl SecretKey {
     pub fn to_bytes(&self) -> Vec<u8> {
         self.0.to_bytes()
     }
-
 }
 
 impl From<SecretKey> for wallet::secret_key::SecretKey {

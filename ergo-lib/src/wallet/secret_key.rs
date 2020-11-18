@@ -30,7 +30,7 @@ impl SecretKey {
     /// Encode from a serialized key
     pub fn to_bytes(&self) -> Vec<u8> {
         match self {
-            SecretKey::DlogSecretKey(key) => key.to_bytes().to_vec()
+            SecretKey::DlogSecretKey(key) => key.to_bytes().to_vec(),
         }
     }
 }
@@ -57,7 +57,8 @@ mod tests {
     #[test]
     fn dlog_roundtrip() {
         let sk = SecretKey::random_dlog();
-        let sk_copy = SecretKey::dlog_from_bytes(&sk.to_bytes().as_slice().try_into().unwrap()).unwrap();
+        let sk_copy =
+            SecretKey::dlog_from_bytes(&sk.to_bytes().as_slice().try_into().unwrap()).unwrap();
         assert_eq!(sk, sk_copy);
     }
 }
