@@ -86,6 +86,7 @@ mod tests {
 
     use crate::ast::constant::Constant;
     use crate::ast::expr::Expr;
+    use crate::types::stype::SType;
     use crate::{
         chain::{
             ergo_box::{box_builder::ErgoBoxCandidateBuilder, BoxValue, NonMandatoryRegisters},
@@ -97,7 +98,6 @@ mod tests {
             prover::TestProver,
             verifier::{TestVerifier, Verifier, VerifierError},
         },
-        types::SType,
     };
     use std::rc::Rc;
 

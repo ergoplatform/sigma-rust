@@ -3,7 +3,7 @@
 use super::digest32;
 use crate::ast::constant::Constant;
 use crate::ast::expr::Expr;
-use crate::types::SType;
+use crate::types::stype::SType;
 use crate::{
     ergo_tree::{ErgoTree, ErgoTreeParsingError},
     serialization::{SerializationError, SigmaSerializable},

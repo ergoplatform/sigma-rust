@@ -303,7 +303,8 @@ mod tests {
     use crate::ast::constant::Constant;
     use crate::ast::expr::Expr;
     use crate::ast::value::Value;
-    use crate::{sigma_protocol::private_input::DlogProverInput, types::SType};
+    use crate::sigma_protocol::private_input::DlogProverInput;
+    use crate::types::stype::SType;
     use std::rc::Rc;
 
     #[test]

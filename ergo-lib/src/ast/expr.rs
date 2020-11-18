@@ -1,8 +1,8 @@
 use core::fmt;
 
 use crate::serialization::op_code::OpCode;
-use crate::types::SMethod;
-use crate::types::SType;
+use crate::types::smethod::SMethod;
+use crate::types::stype::SType;
 
 use super::box_methods::BoxM;
 use super::coll_methods::CollM;

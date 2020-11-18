@@ -7,7 +7,7 @@ use crate::serialization::{
 use crate::sigma_protocol::{
     dlog_group::EcPoint, sigma_boolean::SigmaBoolean, sigma_boolean::SigmaProp,
 };
-use crate::types::SType;
+use crate::types::stype::SType;
 use crate::util::AsVecU8;
 
 use super::sigma_byte_writer::SigmaByteWrite;

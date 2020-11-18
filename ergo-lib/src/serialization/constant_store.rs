@@ -42,7 +42,8 @@ impl ConstantStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{ast::value::Value, types::SType};
+    use crate::ast::value::Value;
+    use crate::types::stype::SType;
 
     #[test]
     fn test_empty() {

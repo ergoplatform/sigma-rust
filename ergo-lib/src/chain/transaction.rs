@@ -94,6 +94,9 @@ pub struct Transaction {
 }
 
 impl Transaction {
+    /// Maximum number of outputs
+    pub const MAX_OUTPUTS_COUNT: usize = u16::MAX as usize;
+
     /// Creates new transation
     pub fn new(
         inputs: Vec<Input>,
@@ -195,6 +198,11 @@ impl SigmaSerializable for Transaction {
 
         // parse distinct ids of tokens in transaction outputs
         let tokens_count = r.get_u32()?;
+        if tokens_count as usize > Transaction::MAX_OUTPUTS_COUNT * ErgoBox::MAX_TOKENS_COUNT {
+            return Err(SerializationError::ValueOutOfBounds(
+                "too many tokens in transaction".to_string(),
+            ));
+        }
         let mut token_ids = IndexSet::with_capacity(tokens_count as usize);
         for _ in 0..tokens_count {
             token_ids.insert(TokenId::sigma_parse(r)?);

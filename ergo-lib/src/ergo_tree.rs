@@ -8,7 +8,7 @@ use crate::serialization::{
     SerializationError, SigmaSerializable,
 };
 use crate::sigma_protocol::sigma_boolean::ProveDlog;
-use crate::types::SType;
+use crate::types::stype::SType;
 use io::{Cursor, Read};
 
 use crate::serialization::constant_store::ConstantStore;
@@ -75,6 +75,9 @@ pub enum ErgoTreeParsingError {
 
 impl ErgoTree {
     const DEFAULT_HEADER: ErgoTreeHeader = ErgoTreeHeader(0);
+
+    /// Reasonable limit for the number of constants allowed in the ErgoTree
+    pub const MAX_CONSTANTS_COUNT: usize = 4096;
 
     /// get Expr out of ErgoTree
     pub fn proposition(&self) -> Result<Rc<Expr>, ErgoTreeParsingError> {
@@ -179,6 +182,11 @@ impl SigmaSerializable for ErgoTree {
         let header = ErgoTreeHeader::sigma_parse(r)?;
         let constants = if header.is_constant_segregation() {
             let constants_len = r.get_u32()?;
+            if constants_len as usize > ErgoTree::MAX_CONSTANTS_COUNT {
+                return Err(SerializationError::ValueOutOfBounds(
+                    "too many constants".to_string(),
+                ));
+            }
             let mut constants = Vec::with_capacity(constants_len as usize);
             for _ in 0..constants_len {
                 let c = Constant::sigma_parse(r)?;
@@ -205,6 +213,11 @@ impl SigmaSerializable for ErgoTree {
         let header = ErgoTreeHeader::sigma_parse(&mut r)?;
         let constants = if header.is_constant_segregation() {
             let constants_len = r.get_u32()?;
+            if constants_len as usize > ErgoTree::MAX_CONSTANTS_COUNT {
+                return Err(SerializationError::ValueOutOfBounds(
+                    "too many constants".to_string(),
+                ));
+            }
             let mut constants = Vec::with_capacity(constants_len as usize);
             for _ in 0..constants_len {
                 match Constant::sigma_parse(&mut r) {
@@ -280,10 +293,10 @@ mod tests {
     #![allow(unused_imports)]
     use super::*;
     use crate::ast::value::Value;
+    use crate::chain;
     use crate::chain::Base16DecodedBytes;
     use crate::serialization::sigma_serialize_roundtrip;
     use crate::sigma_protocol::sigma_boolean::SigmaProp;
-    use crate::{chain, types::SType};
     use proptest::prelude::*;
 
     impl Arbitrary for ErgoTree {

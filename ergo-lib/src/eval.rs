@@ -2,7 +2,7 @@
 use crate::ast::constant::Constant;
 use crate::ast::expr::Expr;
 use crate::ast::value::Value;
-use crate::{sigma_protocol::sigma_boolean::SigmaBoolean, types::SType};
+use crate::{sigma_protocol::sigma_boolean::SigmaBoolean, types::stype::SType};
 
 use cost_accum::CostAccumulator;
 use thiserror::Error;

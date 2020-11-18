@@ -1,10 +1,11 @@
 //! Constant(Literal) IR node
 
 use crate::chain::{Base16DecodedBytes, Base16EncodedBytes};
+use crate::types::stype::LiftIntoSType;
+use crate::types::stype::SType;
 use crate::{
     serialization::{SerializationError, SigmaSerializable},
     sigma_protocol::{dlog_group::EcPoint, sigma_boolean::SigmaProp},
-    types::{LiftIntoSType, SType},
 };
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};

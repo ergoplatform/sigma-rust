@@ -15,12 +15,12 @@
 mod big_integer;
 mod constants;
 mod eval;
-mod types;
 
 pub mod ast;
 pub mod chain;
 pub mod serialization;
 pub mod sigma_protocol;
+pub mod types;
 pub mod util;
 pub mod wallet;
 

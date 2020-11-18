@@ -6,8 +6,8 @@ use crate::sigma_protocol::sigma_boolean::ProveDlog;
 use crate::sigma_protocol::sigma_boolean::SigmaBoolean;
 use crate::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
 use crate::sigma_protocol::sigma_boolean::SigmaProp;
-use crate::types::LiftIntoSType;
-use crate::types::SType;
+use crate::types::stype::LiftIntoSType;
+use crate::types::stype::SType;
 
 use super::constant::TryExtractFrom;
 use super::constant::TryExtractFromError;

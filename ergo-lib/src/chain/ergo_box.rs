@@ -86,6 +86,9 @@ pub struct ErgoBox {
 }
 
 impl ErgoBox {
+    /// Maximum number of tokens in the box
+    pub const MAX_TOKENS_COUNT: usize = u8::MAX as usize;
+
     /// Crate new box
     pub fn new(
         value: BoxValue,
