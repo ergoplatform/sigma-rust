@@ -80,3 +80,26 @@ impl fmt::Display for Expr {
         todo!()
     }
 }
+
+impl From<Constant> for Expr {
+    fn from(c: Constant) -> Self {
+        Self::Const(c)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(unused_imports)]
+    use super::*;
+    use crate::sigma_protocol::sigma_boolean::SigmaProp;
+    use proptest::prelude::*;
+
+    impl Arbitrary for Expr {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            prop_oneof![any::<Constant>().prop_map(Expr::Const)].boxed()
+        }
+    }
+}

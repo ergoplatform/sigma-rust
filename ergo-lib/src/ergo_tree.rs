@@ -1,16 +1,19 @@
 //! ErgoTree
 use crate::ast::constant::Constant;
+use crate::ast::constant::TryExtractFromError;
 use crate::ast::expr::Expr;
 use crate::serialization::{
     sigma_byte_reader::{SigmaByteRead, SigmaByteReader},
     sigma_byte_writer::{SigmaByteWrite, SigmaByteWriter},
     SerializationError, SigmaSerializable,
 };
+use crate::sigma_protocol::sigma_boolean::ProveDlog;
 use crate::types::SType;
 use io::{Cursor, Read};
 
 use crate::serialization::constant_store::ConstantStore;
 use sigma_ser::{peekable_reader::PeekableReader, vlq_encode};
+use std::convert::TryFrom;
 use std::io;
 use std::rc::Rc;
 use thiserror::Error;
@@ -174,15 +177,18 @@ impl SigmaSerializable for ErgoTree {
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
         let header = ErgoTreeHeader::sigma_parse(r)?;
-        if header.is_constant_segregation() {
+        let constants = if header.is_constant_segregation() {
             let constants_len = r.get_u32()?;
-            if constants_len != 0 {
-                return Err(SerializationError::NotImplementedYet(
-                    "separate constants serialization is not yet supported".to_string(),
-                ));
+            let mut constants = Vec::with_capacity(constants_len as usize);
+            for _ in 0..constants_len {
+                let c = Constant::sigma_parse(r)?;
+                constants.push(c);
             }
-        }
-        let constants = Vec::new();
+            constants
+        } else {
+            vec![]
+        };
+        r.set_constant_store(ConstantStore::new(constants.clone()));
         let root = Expr::sigma_parse(r)?;
         Ok(ErgoTree {
             header,
@@ -250,12 +256,34 @@ impl SigmaSerializable for ErgoTree {
     }
 }
 
+impl TryFrom<ErgoTree> for ProveDlog {
+    type Error = TryExtractFromError;
+
+    fn try_from(tree: ErgoTree) -> Result<Self, Self::Error> {
+        let expr = &*tree
+            .proposition()
+            .map_err(|_| TryExtractFromError("cannot read root expr".to_string()))?;
+        match expr {
+            Expr::Const(Constant {
+                tpe: SType::SSigmaProp,
+                v,
+            }) => ProveDlog::try_from(v.clone()),
+            _ => Err(TryExtractFromError(
+                "expected ProveDlog in the root".to_string(),
+            )),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    #![allow(unused_imports)]
     use super::*;
     use crate::ast::value::Value;
+    use crate::chain::Base16DecodedBytes;
     use crate::serialization::sigma_serialize_roundtrip;
-    use crate::{chain, sigma_protocol::sigma_boolean::SigmaProp, types::SType};
+    use crate::sigma_protocol::sigma_boolean::SigmaProp;
+    use crate::{chain, types::SType};
     use proptest::prelude::*;
 
     impl Arbitrary for ErgoTree {
@@ -263,14 +291,13 @@ mod tests {
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            (any::<SigmaProp>())
-                .prop_map(|p| {
-                    ErgoTree::from(Rc::new(Expr::Const(Constant {
-                        tpe: SType::SSigmaProp,
-                        v: Value::SigmaProp(Box::new(p)),
-                    })))
-                })
-                .boxed()
+            prop_oneof![
+                // make sure that P2PK tree is included
+                any::<ProveDlog>().prop_map(|p| ErgoTree::from(Rc::new(Expr::from(
+                    Constant::from(SigmaProp::from(p))
+                )))),
+            ]
+            .boxed()
         }
     }
 

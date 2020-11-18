@@ -1,5 +1,10 @@
+use std::convert::TryFrom;
+
 use crate::chain::ergo_box::ErgoBox;
 use crate::sigma_protocol::dlog_group::EcPoint;
+use crate::sigma_protocol::sigma_boolean::ProveDlog;
+use crate::sigma_protocol::sigma_boolean::SigmaBoolean;
+use crate::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
 use crate::sigma_protocol::sigma_boolean::SigmaProp;
 use crate::types::LiftIntoSType;
 use crate::types::SType;
@@ -206,6 +211,27 @@ impl TryExtractFrom<Value> for SigmaProp {
     fn try_extract_from(cv: Value) -> Result<SigmaProp, TryExtractFromError> {
         match cv {
             Value::SigmaProp(v) => Ok(*v),
+            _ => Err(TryExtractFromError(format!(
+                "expected SigmaProp, found {:?}",
+                cv
+            ))),
+        }
+    }
+}
+
+impl TryFrom<Value> for ProveDlog {
+    type Error = TryExtractFromError;
+    fn try_from(cv: Value) -> Result<Self, Self::Error> {
+        match cv {
+            Value::SigmaProp(sp) => match sp.value() {
+                SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(
+                    prove_dlog,
+                )) => Ok(prove_dlog.clone()),
+                _ => Err(TryExtractFromError(format!(
+                    "expected ProveDlog, found {:?}",
+                    sp
+                ))),
+            },
             _ => Err(TryExtractFromError(format!(
                 "expected SigmaProp, found {:?}",
                 cv

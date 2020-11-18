@@ -119,9 +119,13 @@ pub struct Address(chain::address::Address);
 
 #[wasm_bindgen]
 impl Address {
-    /// Create a P2PK address from an ergo tree if ProveDlog is the root of the tree, otherwise returns an error
-    pub fn p2pk_from_ergo_tree(ergo_tree: &ErgoTree) -> Result<Address, JsValue> {
-        chain::address::Address::p2pk_from_ergo_tree(&ergo_tree.clone().into())
+    /// Re-create the address from ErgoTree that was built from the address
+    ///
+    /// At some point in the past a user entered an address from which the ErgoTree was built.
+    /// Re-create the address from this ErgoTree.
+    /// `tree` - ErgoTree that was created from an Address
+    pub fn recreate_from_ergo_tree(ergo_tree: &ErgoTree) -> Result<Address, JsValue> {
+        chain::address::Address::recreate_from_ergo_tree(&ergo_tree.clone().into())
             .map(Address)
             .map_err(|e| JsValue::from_str(&format!("{}", e)))
     }
