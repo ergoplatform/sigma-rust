@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
+
+### Added 
+
+- Support for parsing ErgoBox transaction id from `txId` JSON field name;
+
 ## [0.4.0] - 2020-11-19
 
 ### Added
