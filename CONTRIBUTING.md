@@ -16,8 +16,8 @@ As a heads up, we'll be running your PR through the following CI jobs:
 When we're ready to release, a project owner should do the following:
 
 - Create(checkout) a release branch (naming convention `release/vX-Y-Z` using the `ergo-lib` version);
-- `cargo release minor --dry-run -vv` if you intend to bump a minor version or
-  `cargo release major --dry-run -vv` if you intend to bump a major version (add
+- `cargo release minor --dry-run --no-dev-version -vv` if you intend to bump a minor version or
+  `cargo release major --dry-run --no-dev-version -vv` if you intend to bump a major version (add
   `--exclude sigma-ser` if you want to skip `sigma-ser` release);
 - check the output and run it without `--dry-run` to actually execute it;
 - Build and publish npm package (`cd bindings/ergo-lib-wasm && npm run publish-nodejs && npm run publish-browser`);
