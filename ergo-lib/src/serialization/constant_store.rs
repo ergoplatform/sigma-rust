@@ -1,6 +1,6 @@
 //! Constant store for Sigma byte reader
 
-use crate::ast::{Constant, ConstantPlaceholder};
+use crate::ast::constant::{Constant, ConstantPlaceholder};
 
 /// Storage for constants used in ErgoTree constant segregation
 pub struct ConstantStore {
@@ -42,7 +42,8 @@ impl ConstantStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{ast::ConstantVal, types::SType};
+    use crate::ast::value::Value;
+    use crate::types::stype::SType;
 
     #[test]
     fn test_empty() {
@@ -55,7 +56,7 @@ mod tests {
     fn test_non_empty() {
         let c = Constant {
             tpe: SType::SBoolean,
-            v: ConstantVal::Boolean(true),
+            v: Value::Boolean(true),
         };
         let s = ConstantStore::new(vec![c.clone()]);
         assert!(s.get(0).is_some());
@@ -68,7 +69,7 @@ mod tests {
     fn test_put() {
         let c = Constant {
             tpe: SType::SBoolean,
-            v: ConstantVal::Boolean(true),
+            v: Value::Boolean(true),
         };
         let mut s = ConstantStore::empty();
         s.put(c.clone());

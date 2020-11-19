@@ -1,6 +1,6 @@
 //! Box registers
 
-use crate::{ast::Constant, serialization::SerializationError};
+use crate::{ast::constant::Constant, serialization::SerializationError};
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, convert::TryFrom};

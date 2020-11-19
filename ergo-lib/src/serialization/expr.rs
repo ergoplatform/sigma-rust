@@ -1,5 +1,8 @@
 use super::{fold::FoldSerializer, op_code::OpCode, sigma_byte_writer::SigmaByteWrite};
-use crate::ast::{CollMethods, Constant, ConstantPlaceholder, Expr};
+use crate::ast::coll_methods::CollM;
+use crate::ast::constant::Constant;
+use crate::ast::constant::ConstantPlaceholder;
+use crate::ast::expr::Expr;
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
 };
@@ -22,7 +25,7 @@ impl SigmaSerializable for Expr {
                 op_code.sigma_serialize(w)?;
                 match expr {
                     Expr::CollM(cm) => match cm {
-                        CollMethods::Fold { .. } => FoldSerializer::sigma_serialize(expr, w),
+                        CollM::Fold { .. } => FoldSerializer::sigma_serialize(expr, w),
                     },
                     Expr::ConstPlaceholder(cp) => cp.sigma_serialize(w),
                     _ => panic!(format!("don't know how to serialize {:?}", expr)),

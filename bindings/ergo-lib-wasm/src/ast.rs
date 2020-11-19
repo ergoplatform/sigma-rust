@@ -5,13 +5,14 @@ use std::convert::TryFrom;
 use js_sys::Uint8Array;
 use wasm_bindgen::prelude::*;
 
+use ergo_lib::ast::constant::TryExtractFrom;
+
 use crate::utils::I64;
-use ergo_lib::ast::TryExtractFrom;
 
 /// Ergo constant(evaluated) values
 #[wasm_bindgen]
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct Constant(ergo_lib::ast::Constant);
+pub struct Constant(ergo_lib::ast::constant::Constant);
 
 #[wasm_bindgen]
 impl Constant {
@@ -24,7 +25,7 @@ impl Constant {
                     base16_bytes_str.clone()
                 ))
             })?;
-        ergo_lib::ast::Constant::try_from(bytes)
+        ergo_lib::ast::constant::Constant::try_from(bytes)
             .map_err(|e| JsValue::from_str(&format! {"{:?}", e}))
             .map(Constant)
     }
@@ -69,13 +70,13 @@ impl Constant {
     }
 }
 
-impl From<ergo_lib::ast::Constant> for Constant {
-    fn from(c: ergo_lib::ast::Constant) -> Self {
+impl From<ergo_lib::ast::constant::Constant> for Constant {
+    fn from(c: ergo_lib::ast::constant::Constant) -> Self {
         Constant(c)
     }
 }
 
-impl From<Constant> for ergo_lib::ast::Constant {
+impl From<Constant> for ergo_lib::ast::constant::Constant {
     fn from(c: Constant) -> Self {
         c.0
     }

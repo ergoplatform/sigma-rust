@@ -1,4 +1,4 @@
-use crate::ast::Constant;
+use crate::ast::constant::Constant;
 use crate::chain::ergo_state_context::ErgoStateContext;
 use crate::wallet::signing::TransactionContext;
 

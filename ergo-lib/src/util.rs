@@ -3,7 +3,7 @@
 use elliptic_curve::subtle::CtOption;
 
 /// Convert to Option<T>
-pub trait IntoOption<T> {
+pub(crate) trait IntoOption<T> {
     /// Get Option<T>
     fn into_option(self) -> Option<T>;
 }

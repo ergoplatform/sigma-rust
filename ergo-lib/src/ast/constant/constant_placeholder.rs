@@ -1,5 +1,5 @@
 use crate::serialization::op_code::OpCode;
-use crate::types::SType;
+use crate::types::stype::SType;
 
 /// Placeholder for a constant in ErgoTree.
 #[derive(PartialEq, Eq, Debug, Clone)]

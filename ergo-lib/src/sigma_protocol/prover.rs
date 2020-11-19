@@ -300,18 +300,18 @@ impl Prover for TestProver {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        ast::{Constant, ConstantVal, Expr},
-        sigma_protocol::private_input::DlogProverInput,
-        types::SType,
-    };
+    use crate::ast::constant::Constant;
+    use crate::ast::expr::Expr;
+    use crate::ast::value::Value;
+    use crate::sigma_protocol::private_input::DlogProverInput;
+    use crate::types::stype::SType;
     use std::rc::Rc;
 
     #[test]
     fn test_prove_true_prop() {
         let bool_true_tree = ErgoTree::from(Rc::new(Expr::Const(Constant {
             tpe: SType::SBoolean,
-            v: ConstantVal::Boolean(true),
+            v: Value::Boolean(true),
         })));
         let message = vec![0u8; 100];
 
@@ -330,7 +330,7 @@ mod tests {
     fn test_prove_false_prop() {
         let bool_false_tree = ErgoTree::from(Rc::new(Expr::Const(Constant {
             tpe: SType::SBoolean,
-            v: ConstantVal::Boolean(false),
+            v: Value::Boolean(false),
         })));
         let message = vec![0u8; 100];
 

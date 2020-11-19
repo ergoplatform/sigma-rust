@@ -119,14 +119,13 @@ impl Verifier for TestVerifier {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        ast::{Constant, Expr},
-        sigma_protocol::{
-            private_input::{DlogProverInput, PrivateInput},
-            prover::{Prover, TestProver},
-        },
-        types::SType,
+    use crate::ast::constant::Constant;
+    use crate::ast::expr::Expr;
+    use crate::sigma_protocol::{
+        private_input::{DlogProverInput, PrivateInput},
+        prover::{Prover, TestProver},
     };
+    use crate::types::stype::SType;
     use proptest::prelude::*;
     use std::rc::Rc;
 

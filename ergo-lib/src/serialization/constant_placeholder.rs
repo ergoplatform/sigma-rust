@@ -1,5 +1,5 @@
 use super::sigma_byte_writer::SigmaByteWrite;
-use crate::ast::ConstantPlaceholder;
+use crate::ast::constant::ConstantPlaceholder;
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
 };
@@ -27,12 +27,10 @@ impl SigmaSerializable for ConstantPlaceholder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        ast::Constant,
-        serialization::{
-            constant_store::ConstantStore, sigma_byte_reader::SigmaByteReader,
-            sigma_byte_writer::SigmaByteWriter,
-        },
+    use crate::ast::constant::Constant;
+    use crate::serialization::{
+        constant_store::ConstantStore, sigma_byte_reader::SigmaByteReader,
+        sigma_byte_writer::SigmaByteWriter,
     };
     use io::Cursor;
     use proptest::prelude::*;

@@ -185,7 +185,7 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
         // add miner's fee
         let miner_fee_box = new_miner_fee_box(self.fee_amount, self.current_height)?;
         output_candidates.push(miner_fee_box);
-        if output_candidates.len() > u16::MAX as usize {
+        if output_candidates.len() > Transaction::MAX_OUTPUTS_COUNT {
             return Err(TxBuilderError::InvalidArgs("too many outputs".to_string()));
         }
         // check that inputs have enough coins

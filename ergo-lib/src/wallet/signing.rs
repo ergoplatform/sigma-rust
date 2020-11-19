@@ -84,8 +84,10 @@ mod tests {
     use proptest::collection::vec;
     use proptest::prelude::*;
 
+    use crate::ast::constant::Constant;
+    use crate::ast::expr::Expr;
+    use crate::types::stype::SType;
     use crate::{
-        ast::{Constant, Expr},
         chain::{
             ergo_box::{box_builder::ErgoBoxCandidateBuilder, BoxValue, NonMandatoryRegisters},
             transaction::{TxId, UnsignedInput},
@@ -96,7 +98,6 @@ mod tests {
             prover::TestProver,
             verifier::{TestVerifier, Verifier, VerifierError},
         },
-        types::SType,
     };
     use std::rc::Rc;
 
