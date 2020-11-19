@@ -1,6 +1,6 @@
 buildscript {
     ext {
-        kotlin_version = '1.3.72'
+        kotlin_version = '1.4.10'
     }
     ext.buildConfig = [
         'compileSdkVersion': 30,
@@ -8,7 +8,7 @@ buildscript {
         'targetSdkVersion': 30
     ]
     ext.versions = [
-        'kotlin': '1.3.72',
+        'kotlin': "$kotlin_version",
         'coroutines': '1.3.5',
         'junit': '4.12'
     ]
