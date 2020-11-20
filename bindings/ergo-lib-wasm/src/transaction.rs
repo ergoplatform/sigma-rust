@@ -49,7 +49,7 @@ impl TxId {
 }
 
 /**
- * ErgoTransaction is an estroys Boxes from the state
+ * ErgoTransaction is an atomic state transition operation. It destroys Boxes from the state
  * and creates new ones. If transaction is spending boxes protected by some non-trivial scripts,
  * its inputs should also contain proof of spending correctness - context extension (user-defined
  * key-value map) and data inputs (links to existing boxes in the state) that may be used during
