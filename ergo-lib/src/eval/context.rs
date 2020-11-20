@@ -3,13 +3,11 @@ use crate::chain::ergo_state_context::ErgoStateContext;
 use crate::wallet::signing::TransactionContext;
 use thiserror::Error;
 
-use super::tvalue::TValue;
-
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Context {
-    pub height: TValue<i32>,
-    pub self_box: TValue<ErgoBox>,
-    pub outputs: TValue<Vec<ErgoBox>>,
+    pub height: i32,
+    pub self_box: ErgoBox,
+    pub outputs: Vec<ErgoBox>,
 }
 
 impl Context {
@@ -18,9 +16,9 @@ impl Context {
     pub fn dummy() -> Self {
         use crate::test_util::force_any_val;
         Context {
-            height: 0i32.into(),
-            self_box: force_any_val::<ErgoBox>().into(),
-            outputs: vec![force_any_val::<ErgoBox>()].into(),
+            height: 0,
+            self_box: force_any_val::<ErgoBox>(),
+            outputs: vec![force_any_val::<ErgoBox>()],
         }
     }
 
@@ -31,7 +29,7 @@ impl Context {
         tx_ctx: &TransactionContext,
         self_index: usize,
     ) -> Result<Self, ContextError> {
-        let height = state_ctx.pre_header.height.into();
+        let height = state_ctx.pre_header.height;
         let self_box = tx_ctx
             .boxes_to_spend
             .get(self_index)
@@ -45,7 +43,7 @@ impl Context {
             .enumerate()
             .map(|(idx, b)| ErgoBox::from_box_candidate(b, tx_ctx.spending_tx.id(), idx as u16))
             .collect();
-        let outputs = output_boxes.into();
+        let outputs = output_boxes;
         Ok(Context {
             height,
             self_box,

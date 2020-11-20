@@ -12,7 +12,6 @@ mod costs;
 
 pub(crate) mod context;
 pub(crate) mod cost_accum;
-pub(crate) mod tvalue;
 
 /// Environment for the interpreter
 pub struct Env();
