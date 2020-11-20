@@ -8,7 +8,7 @@ use sigma_ser::vlq_encode;
 use std::io;
 use vlq_encode::WriteSigmaVlqExt;
 
-#[derive(PartialEq, Eq, Hash, Copy, Clone)]
+#[derive(PartialEq, Eq, Hash, Copy, Clone, Debug)]
 pub struct OpCode(u8);
 
 impl OpCode {
@@ -16,6 +16,7 @@ impl OpCode {
     pub const LAST_CONSTANT_CODE: OpCode = OpCode(Self::LAST_DATA_TYPE.value() + 1);
 
     pub const CONSTANT_PLACEHOLDER: OpCode = Self::new_op_code(3);
+    pub const SELF_BOX: OpCode = Self::new_op_code(55);
     pub const FOLD: OpCode = Self::new_op_code(64);
     pub const PROVE_DLOG: OpCode = Self::new_op_code(93);
 

@@ -1,8 +1,7 @@
 //! Interpreter
-use crate::ast::constant::Constant;
 use crate::ast::expr::Expr;
 use crate::ast::value::Value;
-use crate::{sigma_protocol::sigma_boolean::SigmaBoolean, types::stype::SType};
+use crate::sigma_protocol::sigma_boolean::SigmaBoolean;
 
 use cost_accum::CostAccumulator;
 use thiserror::Error;
@@ -12,6 +11,7 @@ use self::context::Context;
 pub(crate) mod context;
 pub(crate) mod cost_accum;
 mod costs;
+mod tvalue;
 
 /// Environment for the interpreter
 pub struct Env();
@@ -55,17 +55,11 @@ pub trait Evaluator {
         let mut ca = CostAccumulator::new(0, None);
         eval(expr, env, &mut ca, ctx).and_then(|v| -> Result<ReductionResult, EvalError> {
             match v {
-                Constant {
-                    tpe: SType::SBoolean,
-                    v: Value::Boolean(b),
-                } => Ok(ReductionResult {
+                Value::Boolean(b) => Ok(ReductionResult {
                     sigma_prop: SigmaBoolean::TrivialProp(b),
                     cost: 0,
                 }),
-                Constant {
-                    tpe: SType::SSigmaProp,
-                    v: Value::SigmaProp(sp),
-                } => Ok(ReductionResult {
+                Value::SigmaProp(sp) => Ok(ReductionResult {
                     sigma_prop: sp.value().clone(),
                     cost: 0,
                 }),
@@ -79,12 +73,7 @@ pub trait Evaluator {
 /// Should be implemented by every node that can be evaluated.
 pub trait Evaluable {
     /// Evaluation routine to be implement by each node
-    fn eval(
-        &self,
-        env: &Env,
-        ca: &mut CostAccumulator,
-        ctx: &Context,
-    ) -> Result<Constant, EvalError>;
+    fn eval(&self, env: &Env, ca: &mut CostAccumulator, ctx: &Context) -> Result<Value, EvalError>;
 }
 
 #[allow(unconditional_recursion)]
@@ -93,9 +82,9 @@ fn eval(
     env: &Env,
     ca: &mut CostAccumulator,
     ctx: &Context,
-) -> Result<Constant, EvalError> {
+) -> Result<Value, EvalError> {
     match expr {
-        Expr::Const(c) => Ok(c.clone()),
+        Expr::Const(c) => Ok(c.v.clone()),
         Expr::Coll { .. } => todo!(),
         Expr::Tup { .. } => todo!(),
         Expr::PredefFunc(_) => todo!(),

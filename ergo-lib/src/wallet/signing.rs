@@ -2,6 +2,7 @@
 
 use crate::chain::transaction::Input;
 use crate::eval::context::Context;
+use crate::eval::context::ContextError;
 use crate::{
     chain::{
         ergo_box::ErgoBox,
@@ -23,6 +24,9 @@ pub enum TxSigningError {
     /// failed to find an input in boxes_to_spend
     #[error("Input box not found (index {0})")]
     InputBoxNotFound(usize),
+    /// Context creation error
+    #[error("Context error: {0:?}")]
+    ContextError(#[from] ContextError),
 }
 
 /// Transaction and an additional info required for signing
@@ -51,7 +55,7 @@ pub fn sign_transaction(
         .enumerate()
         .try_for_each(|(idx, input_box)| {
             if let Some(unsigned_input) = tx.inputs.get(idx) {
-                let ctx = Context::new(state_context, &tx_context, idx);
+                let ctx = Context::new(state_context, &tx_context, idx)?;
                 prover
                     .prove(
                         &input_box.ergo_tree,

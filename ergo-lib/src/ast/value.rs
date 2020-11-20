@@ -130,6 +130,12 @@ impl Into<Value> for EcPoint {
     }
 }
 
+impl From<ErgoBox> for Value {
+    fn from(b: ErgoBox) -> Self {
+        Value::CBox(Box::new(b))
+    }
+}
+
 /// Marker trait to select types for which CollElems::NonPrimitive is used to store elements as Vec<ConstantVal>
 pub trait StoredNonPrimitive {}
 
@@ -137,6 +143,7 @@ impl StoredNonPrimitive for bool {}
 impl StoredNonPrimitive for i16 {}
 impl StoredNonPrimitive for i32 {}
 impl StoredNonPrimitive for i64 {}
+impl StoredNonPrimitive for ErgoBox {}
 
 impl<T: LiftIntoSType + StoredNonPrimitive + Into<Value>> Into<Value> for Vec<T> {
     fn into(self) -> Value {

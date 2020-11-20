@@ -1,5 +1,6 @@
 //! Constant(Literal) IR node
 
+use crate::chain::ergo_box::ErgoBox;
 use crate::chain::{Base16DecodedBytes, Base16EncodedBytes};
 use crate::types::stype::LiftIntoSType;
 use crate::types::stype::SType;
@@ -114,6 +115,15 @@ impl From<EcPoint> for Constant {
         Constant {
             tpe: SType::SGroupElement,
             v: v.into(),
+        }
+    }
+}
+
+impl From<ErgoBox> for Constant {
+    fn from(b: ErgoBox) -> Self {
+        Constant {
+            tpe: SType::SBox,
+            v: b.into(),
         }
     }
 }

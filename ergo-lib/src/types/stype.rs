@@ -1,5 +1,6 @@
 //! SType hierarchy
 
+use crate::chain::ergo_box::ErgoBox;
 use crate::serialization::types::TypeCode;
 
 use super::sfunc::SFunc;
@@ -112,6 +113,12 @@ impl LiftIntoSType for i32 {
 impl LiftIntoSType for i64 {
     fn stype() -> SType {
         SType::SLong
+    }
+}
+
+impl LiftIntoSType for ErgoBox {
+    fn stype() -> SType {
+        SType::SBox
     }
 }
 
