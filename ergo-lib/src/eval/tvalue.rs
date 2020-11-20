@@ -1,6 +1,5 @@
 use std::marker::PhantomData;
 
-use crate::ast::constant::Constant;
 use crate::ast::value::StoredNonPrimitive;
 use crate::ast::value::Value;
 use crate::chain::ergo_box::ErgoBox;
@@ -23,10 +22,9 @@ pub struct SCollT<T: STypeT> {
 
 impl<T: STypeT> STypeT for SCollT<T> {}
 
-// TODO: rename to ConstantT?
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct TValue<T: STypeT> {
-    pub v: Constant,
+    pub v: Value,
     p: PhantomData<T>,
 }
 
@@ -50,16 +48,9 @@ impl From<i32> for TValue<SIntT> {
 
 impl<T: LiftIntoSType + StoredNonPrimitive + Into<Value>, S: STypeT> From<Vec<T>> for TValue<S> {
     fn from(raw: Vec<T>) -> Self {
-        let v = Constant {
-            tpe: Vec::<T>::stype(),
+        TValue {
             v: raw.into(),
-        };
-        TValue { v, p: PhantomData }
-    }
-}
-
-impl<T: STypeT> From<TValue<T>> for Constant {
-    fn from(v: TValue<T>) -> Self {
-        v.v
+            p: PhantomData,
+        }
     }
 }

@@ -8,10 +8,11 @@ use thiserror::Error;
 
 use self::context::Context;
 
+mod costs;
+
 pub(crate) mod context;
 pub(crate) mod cost_accum;
-mod costs;
-mod tvalue;
+pub(crate) mod tvalue;
 
 /// Environment for the interpreter
 pub struct Env();

@@ -2,6 +2,10 @@
 
 use crate::chain::ergo_box::ErgoBox;
 use crate::serialization::types::TypeCode;
+use crate::sigma_protocol::sigma_boolean::ProveDlog;
+use crate::sigma_protocol::sigma_boolean::SigmaBoolean;
+use crate::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
+use crate::sigma_protocol::sigma_boolean::SigmaProp;
 
 use super::sfunc::SFunc;
 use super::stype_companion::STypeCompanion;
@@ -119,6 +123,30 @@ impl LiftIntoSType for i64 {
 impl LiftIntoSType for ErgoBox {
     fn stype() -> SType {
         SType::SBox
+    }
+}
+
+impl LiftIntoSType for SigmaBoolean {
+    fn stype() -> SType {
+        SType::SSigmaProp
+    }
+}
+
+impl LiftIntoSType for SigmaProofOfKnowledgeTree {
+    fn stype() -> SType {
+        SType::SSigmaProp
+    }
+}
+
+impl LiftIntoSType for SigmaProp {
+    fn stype() -> SType {
+        SType::SSigmaProp
+    }
+}
+
+impl LiftIntoSType for ProveDlog {
+    fn stype() -> SType {
+        SType::SSigmaProp
     }
 }
 
