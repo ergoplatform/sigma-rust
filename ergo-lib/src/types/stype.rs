@@ -2,6 +2,7 @@
 
 use crate::chain::ergo_box::ErgoBox;
 use crate::serialization::types::TypeCode;
+use crate::sigma_protocol::dlog_group::EcPoint;
 use crate::sigma_protocol::sigma_boolean::ProveDlog;
 use crate::sigma_protocol::sigma_boolean::SigmaBoolean;
 use crate::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
@@ -147,6 +148,12 @@ impl LiftIntoSType for SigmaProp {
 impl LiftIntoSType for ProveDlog {
     fn stype() -> SType {
         SType::SSigmaProp
+    }
+}
+
+impl LiftIntoSType for EcPoint {
+    fn stype() -> SType {
+        SType::SGroupElement
     }
 }
 

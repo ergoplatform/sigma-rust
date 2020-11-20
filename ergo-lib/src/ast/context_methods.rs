@@ -35,10 +35,10 @@ impl Evaluable for ContextM {
         ctx: &crate::eval::context::Context,
     ) -> Result<Value, EvalError> {
         match self {
-            ContextM::Height => Ok(ctx.height.v.clone()),
+            ContextM::Height => Ok(ctx.height.clone().into()),
             // TODO: test
-            ContextM::SelfBox => Ok(ctx.self_box.v.clone()),
-            ContextM::Outputs => Ok(ctx.outputs.v.clone()),
+            ContextM::SelfBox => Ok(ctx.self_box.clone().into()),
+            ContextM::Outputs => Ok(ctx.outputs.clone().into()),
             _ => Err(EvalError::UnexpectedExpr),
         }
     }

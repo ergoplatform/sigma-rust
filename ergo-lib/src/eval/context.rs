@@ -3,16 +3,13 @@ use crate::chain::ergo_state_context::ErgoStateContext;
 use crate::wallet::signing::TransactionContext;
 use thiserror::Error;
 
-use super::tvalue::SBoxT;
-use super::tvalue::SCollT;
-use super::tvalue::SIntT;
 use super::tvalue::TValue;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Context {
-    pub height: TValue<SIntT>,
-    pub self_box: TValue<SBoxT>,
-    pub outputs: TValue<SCollT<SBoxT>>,
+    pub height: TValue<i32>,
+    pub self_box: TValue<ErgoBox>,
+    pub outputs: TValue<Vec<ErgoBox>>,
 }
 
 impl Context {
