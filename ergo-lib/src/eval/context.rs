@@ -34,8 +34,7 @@ impl Context {
             .boxes_to_spend
             .get(self_index)
             .cloned()
-            .ok_or(ContextError::SelfIndexOutOfBounds)?
-            .into();
+            .ok_or(ContextError::SelfIndexOutOfBounds)?;
         let output_boxes: Vec<ErgoBox> = tx_ctx
             .spending_tx
             .output_candidates
