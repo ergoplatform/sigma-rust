@@ -4,7 +4,7 @@
         "serve": "wasm-pack build --target browser && webpack-dev-server",
         "test": "wasm-pack build --target nodejs && mocha --require @babel/register --require @babel/polyfill 'tests/test*.js'",
         "doc": "jsdoc -c jsdoc.json pkg/ergo_wallet_wasm.js README.md -d docs",
-        "build-nodejs": "rm -rf ./pkg && wasm-pack build --target nodejs", 
+        "build-nodejs": "rm -rf ./pkg && wasm-pack build --target nodejs",
         "build-browser": "rm -rf ./pkg && wasm-pack build --target browser --release",
         "publish-nodejs": "npm run build-nodejs && node ./scripts/publish_helper -nodejs && cd pkg && npm publish",
         "publish-browser": "npm run build-browser && node ./scripts/publish_helper -browser && cd pkg && npm publish"
@@ -15,15 +15,15 @@
         "@babel/polyfill": "^7.6.0",
         "@babel/preset-env": "^7.6.3",
         "@babel/register": "^7.6.2",
+        "chai": "^4.2.0",
         "html-webpack-plugin": "^3.2.0",
         "jsdoc": "~3.6.3",
-        "mocha": "^6.1.4",
+        "mocha": "^6.2.3",
         "mocha-loader": "^2.0.1",
         "text-encoder": "0.0.4",
         "webpack": "^4.11.1",
         "webpack-cli": "^3.1.1",
-        "webpack-dev-server": "^3.1.0",
-        "chai": "^4.2.0"
+        "webpack-dev-server": "^3.1.0"
     },
     "dependencies": {}
 }
