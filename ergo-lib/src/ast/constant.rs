@@ -157,6 +157,19 @@ impl<T: LiftIntoSType + StoredNonPrimitive + Into<Value>> From<Vec<T>> for Const
     }
 }
 
+/// Extract value wrapped in a type
+pub trait TryExtractInto<F> {
+    /// Extract value of the given type from any type (e.g. ['crate::ast::Constant'], [`crate::ast::Value`])
+    /// on which [`TryExtractFrom`] is implemented
+    fn try_extract_into<T: TryExtractFrom<F>>(self) -> Result<T, TryExtractFromError>;
+}
+
+impl<F> TryExtractInto<F> for F {
+    fn try_extract_into<T: TryExtractFrom<F>>(self) -> Result<T, TryExtractFromError> {
+        T::try_extract_from(self)
+    }
+}
+
 /// Underlying type is different from requested value type
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct TryExtractFromError(pub String);
@@ -164,29 +177,12 @@ pub struct TryExtractFromError(pub String);
 /// Extract underlying value if type matches
 pub trait TryExtractFrom<T>: Sized {
     /// Extract the value or return an error if type does not match
-    fn try_extract_from(c: T) -> Result<Self, TryExtractFromError>;
+    fn try_extract_from(v: T) -> Result<Self, TryExtractFromError>;
 }
 
 impl<T: TryExtractFrom<Value>> TryExtractFrom<Constant> for T {
     fn try_extract_from(cv: Constant) -> Result<Self, TryExtractFromError> {
         T::try_extract_from(cv.v)
-    }
-}
-
-impl<T: TryExtractFrom<Value> + StoredNonPrimitive + LiftIntoSType> TryExtractFrom<Constant>
-    for Vec<T>
-{
-    fn try_extract_from(c: Constant) -> Result<Self, TryExtractFromError> {
-        match c.v {
-            Value::Coll(Coll::NonPrimitive { elem_tpe: _, v }) => {
-                v.into_iter().map(T::try_extract_from).collect()
-            }
-            _ => Err(TryExtractFromError(format!(
-                "expected {:?}, found {:?}",
-                std::any::type_name::<Self>(),
-                c.v
-            ))),
-        }
     }
 }
 

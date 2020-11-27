@@ -57,3 +57,27 @@ pub enum ContextError {
     #[error("self_index is out of bounds for TransactionContext::boxes_to_spend")]
     SelfIndexOutOfBounds,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use proptest::collection::vec;
+    use proptest::prelude::*;
+
+    impl Arbitrary for Context {
+        type Parameters = ();
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            (0..i32::MAX, any::<ErgoBox>(), vec(any::<ErgoBox>(), 0..3))
+                .prop_map(|(height, self_box, outputs)| Self {
+                    height,
+                    self_box,
+                    outputs,
+                })
+                .boxed()
+        }
+
+        type Strategy = BoxedStrategy<Self>;
+    }
+}

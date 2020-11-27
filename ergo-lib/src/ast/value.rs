@@ -226,6 +226,33 @@ impl TryExtractFrom<Value> for SigmaProp {
     }
 }
 
+impl TryExtractFrom<Value> for ErgoBox {
+    fn try_extract_from(c: Value) -> Result<Self, TryExtractFromError> {
+        match c {
+            Value::CBox(b) => Ok(*b),
+            _ => Err(TryExtractFromError(format!(
+                "expected ErgoBox, found {:?}",
+                c
+            ))),
+        }
+    }
+}
+
+impl<T: TryExtractFrom<Value> + StoredNonPrimitive> TryExtractFrom<Value> for Vec<T> {
+    fn try_extract_from(c: Value) -> Result<Self, TryExtractFromError> {
+        match c {
+            Value::Coll(Coll::NonPrimitive { elem_tpe: _, v }) => {
+                v.into_iter().map(T::try_extract_from).collect()
+            }
+            _ => Err(TryExtractFromError(format!(
+                "expected {:?}, found {:?}",
+                std::any::type_name::<Self>(),
+                c
+            ))),
+        }
+    }
+}
+
 impl TryFrom<Value> for ProveDlog {
     type Error = TryExtractFromError;
     fn try_from(cv: Value) -> Result<Self, Self::Error> {
