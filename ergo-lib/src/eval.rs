@@ -11,6 +11,7 @@ use self::context::Context;
 mod costs;
 
 pub(crate) mod context;
+pub(crate) mod context_methods;
 pub(crate) mod cost_accum;
 
 /// Environment for the interpreter
