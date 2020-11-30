@@ -8,6 +8,7 @@ pub struct Context {
     pub height: i32,
     pub self_box: ErgoBox,
     pub outputs: Vec<ErgoBox>,
+    pub data_inputs: Vec<ErgoBox>,
 }
 
 impl Context {
@@ -19,6 +20,7 @@ impl Context {
             height: 0,
             self_box: force_any_val::<ErgoBox>(),
             outputs: vec![force_any_val::<ErgoBox>()],
+            data_inputs: vec![],
         }
     }
 
@@ -35,18 +37,19 @@ impl Context {
             .get(self_index)
             .cloned()
             .ok_or(ContextError::SelfIndexOutOfBounds)?;
-        let output_boxes: Vec<ErgoBox> = tx_ctx
+        let outputs: Vec<ErgoBox> = tx_ctx
             .spending_tx
             .output_candidates
             .iter()
             .enumerate()
             .map(|(idx, b)| ErgoBox::from_box_candidate(b, tx_ctx.spending_tx.id(), idx as u16))
             .collect();
-        let outputs = output_boxes;
+        let data_inputs: Vec<ErgoBox> = tx_ctx.data_boxes.clone();
         Ok(Context {
             height,
             self_box,
             outputs,
+            data_inputs,
         })
     }
 }
@@ -69,11 +72,17 @@ mod tests {
         type Parameters = ();
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            (0..i32::MAX, any::<ErgoBox>(), vec(any::<ErgoBox>(), 0..3))
-                .prop_map(|(height, self_box, outputs)| Self {
+            (
+                0..i32::MAX,
+                any::<ErgoBox>(),
+                vec(any::<ErgoBox>(), 0..3),
+                vec(any::<ErgoBox>(), 0..3),
+            )
+                .prop_map(|(height, self_box, outputs, data_inputs)| Self {
                     height,
                     self_box,
                     outputs,
+                    data_inputs,
                 })
                 .boxed()
         }

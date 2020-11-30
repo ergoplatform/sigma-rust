@@ -16,6 +16,8 @@ pub enum ContextM {
     Height,
     /// ErgoBox instance, which script is being evaluated
     SelfBox,
+    /// Tx data inputs
+    DataInputs,
 }
 
 impl ContextM {
@@ -38,6 +40,7 @@ impl Evaluable for ContextM {
             ContextM::Height => Ok(ctx.height.clone().into()),
             ContextM::SelfBox => Ok(ctx.self_box.clone().into()),
             ContextM::Outputs => Ok(ctx.outputs.clone().into()),
+            ContextM::DataInputs => Ok(ctx.data_inputs.clone().into()),
             _ => Err(EvalError::UnexpectedExpr),
         }
     }
@@ -78,5 +81,14 @@ mod tests {
     fn eval_outputs() {
         let ctx = force_any_val::<Context>();
         assert_eq!(eval::<Vec<ErgoBox>>(ContextM::Outputs, &ctx), ctx.outputs);
+    }
+
+    #[test]
+    fn eval_data_inputs() {
+        let ctx = force_any_val::<Context>();
+        assert_eq!(
+            eval::<Vec<ErgoBox>>(ContextM::DataInputs, &ctx),
+            ctx.data_inputs
+        );
     }
 }
