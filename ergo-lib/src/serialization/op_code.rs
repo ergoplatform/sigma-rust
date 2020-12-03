@@ -12,11 +12,20 @@ use vlq_encode::WriteSigmaVlqExt;
 pub struct OpCode(u8);
 
 impl OpCode {
+    // reference implementation
+    // https://github.com/ScorexFoundation/sigmastate-interpreter/blob/develop/sigmastate/src/main/scala/sigmastate/serialization/OpCodes.scala
+
     pub const LAST_DATA_TYPE: OpCode = OpCode(111);
     pub const LAST_CONSTANT_CODE: OpCode = OpCode(Self::LAST_DATA_TYPE.value() + 1);
 
     pub const CONSTANT_PLACEHOLDER: OpCode = Self::new_op_code(3);
+
+    /// Environment (context methods)
+    pub const HEIGHT: OpCode = Self::new_op_code(51);
+    pub const INPUTS: OpCode = Self::new_op_code(52);
+    pub const OUTPUTS: OpCode = Self::new_op_code(53);
     pub const SELF_BOX: OpCode = Self::new_op_code(55);
+
     pub const FOLD: OpCode = Self::new_op_code(64);
     pub const PROVE_DLOG: OpCode = Self::new_op_code(93);
 

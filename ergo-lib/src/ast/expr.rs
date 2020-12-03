@@ -1,7 +1,6 @@
 use core::fmt;
 
 use crate::serialization::op_code::OpCode;
-use crate::types::smethod::SMethod;
 use crate::types::stype::SType;
 
 use super::box_methods::BoxM;
@@ -9,6 +8,8 @@ use super::coll_methods::CollM;
 use super::constant::Constant;
 use super::constant::ConstantPlaceholder;
 use super::context_methods::ContextM;
+use super::global_vars::GlobalVars;
+use super::method_call::MethodCall;
 use super::ops;
 use super::predef_func::PredefFunc;
 
@@ -39,19 +40,13 @@ pub enum Expr {
     CollM(CollM),
     /// Box methods
     BoxM(BoxM),
-    /// Context methods (i.e CONTEXT.INPUTS)
+    Context,
+    // Global(Global),
+    /// Predefined global variables
+    GlobalVars(GlobalVars),
+    /// Context methods and variables (i.e CONTEXT.INPUTS in ErgoScript)
     ContextM(ContextM),
-    /// Method call
-    MethodCall {
-        /// Method call type
-        tpe: SType,
-        /// Method call object
-        obj: Box<Expr>,
-        /// Method signature
-        method: SMethod,
-        /// Arguments of the method call
-        args: Vec<Expr>,
-    },
+    MethodCall(MethodCall),
     /// Binary operation
     BinOp(ops::BinOp, Box<Expr>, Box<Expr>),
 }
@@ -62,6 +57,7 @@ impl Expr {
         match self {
             Expr::Const(_) => todo!(),
             Expr::ConstPlaceholder(cp) => cp.op_code(),
+            Expr::ContextM(cm) => cm.op_code(),
             _ => todo!(),
         }
     }
@@ -84,6 +80,18 @@ impl fmt::Display for Expr {
 impl From<Constant> for Expr {
     fn from(c: Constant) -> Self {
         Self::Const(c)
+    }
+}
+
+impl From<GlobalVars> for Expr {
+    fn from(v: GlobalVars) -> Self {
+        Expr::GlobalVars(v)
+    }
+}
+
+impl From<ContextM> for Expr {
+    fn from(v: ContextM) -> Self {
+        Expr::ContextM(v)
     }
 }
 

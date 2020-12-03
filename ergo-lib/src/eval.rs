@@ -13,6 +13,7 @@ mod costs;
 pub(crate) mod context;
 pub(crate) mod context_methods;
 pub(crate) mod cost_accum;
+pub(crate) mod global_vars;
 
 /// Environment for the interpreter
 pub struct Env();
@@ -92,6 +93,7 @@ fn eval(
         Expr::CollM(_) => todo!(),
         Expr::BoxM(_) => todo!(),
         Expr::ContextM(v) => v.eval(env, ca, ctx),
+        Expr::GlobalVars(v) => v.eval(env, ca, ctx),
         Expr::MethodCall { .. } => todo!(),
         Expr::BinOp(_bin_op, l, r) => {
             let _v_l = eval(l, env, ca, ctx)?;
@@ -109,16 +111,25 @@ fn eval(
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
 
     use crate::ast::constant::TryExtractFrom;
-    use crate::ast::context_methods::ContextM;
+    use crate::ast::global_vars::GlobalVars;
 
     use super::*;
 
+    pub fn eval_out<T: TryExtractFrom<Value>>(expr: &Expr, ctx: &Context) -> T {
+        use crate::ast::constant::TryExtractInto;
+        let mut ca = CostAccumulator::new(0, None);
+        eval(expr, &Env::empty(), &mut ca, ctx)
+            .unwrap()
+            .try_extract_into::<T>()
+            .unwrap()
+    }
+
     #[test]
     fn height() {
-        let expr = Expr::ContextM(ContextM::Height);
+        let expr = Expr::GlobalVars(GlobalVars::Height);
         let mut ca = CostAccumulator::new(0, None);
         let res = eval(&expr, &Env::empty(), &mut ca, &Context::dummy()).unwrap();
         assert_eq!(i32::try_extract_from(res).unwrap(), 0);

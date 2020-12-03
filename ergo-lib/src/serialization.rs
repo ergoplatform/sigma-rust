@@ -2,6 +2,7 @@
 
 mod constant;
 mod constant_placeholder;
+mod context_methods;
 mod data;
 mod expr;
 mod fold;
