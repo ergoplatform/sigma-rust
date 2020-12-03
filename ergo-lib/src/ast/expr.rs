@@ -7,7 +7,6 @@ use super::box_methods::BoxM;
 use super::coll_methods::CollM;
 use super::constant::Constant;
 use super::constant::ConstantPlaceholder;
-use super::context_methods::ContextM;
 use super::global_vars::GlobalVars;
 use super::method_call::MethodCall;
 use super::ops;
@@ -44,8 +43,7 @@ pub enum Expr {
     // Global(Global),
     /// Predefined global variables
     GlobalVars(GlobalVars),
-    /// Context methods and variables (i.e CONTEXT.INPUTS in ErgoScript)
-    ContextM(ContextM),
+    /// Method call
     MethodCall(MethodCall),
     /// Binary operation
     BinOp(ops::BinOp, Box<Expr>, Box<Expr>),
@@ -57,7 +55,6 @@ impl Expr {
         match self {
             Expr::Const(_) => todo!(),
             Expr::ConstPlaceholder(cp) => cp.op_code(),
-            Expr::ContextM(cm) => cm.op_code(),
             _ => todo!(),
         }
     }
@@ -89,9 +86,9 @@ impl From<GlobalVars> for Expr {
     }
 }
 
-impl From<ContextM> for Expr {
-    fn from(v: ContextM) -> Self {
-        Expr::ContextM(v)
+impl From<MethodCall> for Expr {
+    fn from(v: MethodCall) -> Self {
+        Expr::MethodCall(v)
     }
 }
 

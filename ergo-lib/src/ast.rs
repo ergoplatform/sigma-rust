@@ -2,7 +2,6 @@
 
 pub(crate) mod box_methods;
 pub(crate) mod coll_methods;
-pub(crate) mod context_methods;
 pub(crate) mod expr;
 pub(crate) mod global_vars;
 pub(crate) mod method_call;

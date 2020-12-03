@@ -11,7 +11,6 @@ use self::context::Context;
 mod costs;
 
 pub(crate) mod context;
-pub(crate) mod context_methods;
 pub(crate) mod cost_accum;
 pub(crate) mod global_vars;
 
@@ -92,9 +91,8 @@ fn eval(
         Expr::PredefFunc(_) => todo!(),
         Expr::CollM(_) => todo!(),
         Expr::BoxM(_) => todo!(),
-        Expr::ContextM(v) => v.eval(env, ca, ctx),
         Expr::GlobalVars(v) => v.eval(env, ca, ctx),
-        Expr::MethodCall { .. } => todo!(),
+        Expr::MethodCall(v) => v.eval(env, ca, ctx),
         Expr::BinOp(_bin_op, l, r) => {
             let _v_l = eval(l, env, ca, ctx)?;
             let _v_r = eval(r, env, ca, ctx)?;
