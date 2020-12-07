@@ -21,6 +21,8 @@ use super::value::CollPrim;
 use super::value::StoredNonPrimitive;
 use super::value::Value;
 
+use thiserror::Error;
+
 #[derive(PartialEq, Eq, Debug, Clone)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 #[cfg_attr(
@@ -171,7 +173,8 @@ impl<F> TryExtractInto<F> for F {
 }
 
 /// Underlying type is different from requested value type
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(Error, PartialEq, Eq, Debug, Clone)]
+#[error("Failed TryExtractFrom: {0}")]
 pub struct TryExtractFromError(pub String);
 
 /// Extract underlying value if type matches

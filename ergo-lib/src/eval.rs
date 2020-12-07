@@ -1,6 +1,7 @@
 //! Interpreter
 use std::rc::Rc;
 
+use crate::ast::constant::TryExtractFromError;
 use crate::ast::expr::Expr;
 use crate::ast::value::Value;
 use crate::sigma_protocol::sigma_boolean::SigmaBoolean;
@@ -42,6 +43,9 @@ pub enum EvalError {
     /// Error on cost calculation
     #[error("Error on cost calculation: {0:?}")]
     CostError(#[from] CostError),
+    /// Unexpected value type
+    #[error("Unexpected value type: {0:?}")]
+    TryExtractFrom(#[from] TryExtractFromError),
 }
 
 /// Result of expression reduction procedure (see `reduce_to_crypto`).

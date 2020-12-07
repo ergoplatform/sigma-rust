@@ -26,10 +26,8 @@ static S_CONTEXT_TYPE_COMPANION_HEAD: STypeCompanionHead = STypeCompanionHead {
 
 static DATA_INPUTS_EVAL_FN: EvalFn = |obj, _args| {
     Ok(Value::Coll(Coll::NonPrimitive {
-        // TODO: handle errors
         v: obj
-            .try_extract_into::<Rc<Context>>()
-            .unwrap()
+            .try_extract_into::<Rc<Context>>()?
             .data_inputs
             .clone()
             .into_iter()
