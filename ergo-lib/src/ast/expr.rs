@@ -55,6 +55,7 @@ impl Expr {
         match self {
             Expr::Const(_) => todo!(),
             Expr::ConstPlaceholder(cp) => cp.op_code(),
+            Expr::GlobalVars(v) => v.op_code(),
             _ => todo!(),
         }
     }

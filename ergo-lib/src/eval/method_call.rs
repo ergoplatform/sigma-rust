@@ -11,7 +11,6 @@ impl Evaluable for MethodCall {
         let ov = (*self.obj).eval(env, ectx)?;
         let argsv: Result<Vec<Value>, EvalError> =
             self.args.iter().map(|arg| arg.eval(env, ectx)).collect();
-        // TODO: check evaluated object and arg values types with declared (in SMethod)
         self.method.eval_fn()(ov, argsv?)
     }
 }
