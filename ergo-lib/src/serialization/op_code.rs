@@ -29,6 +29,11 @@ impl OpCode {
     pub const FOLD: OpCode = Self::new_op_code(64);
     pub const PROVE_DLOG: OpCode = Self::new_op_code(93);
 
+    pub const PROPERTY_CALL: OpCode = Self::new_op_code(107);
+    pub const METHOD_CALL: OpCode = Self::new_op_code(108);
+
+    pub const CONTEXT: OpCode = Self::new_op_code(142);
+
     const fn new_op_code(shift: u8) -> OpCode {
         OpCode(Self::LAST_CONSTANT_CODE.value() + shift)
     }

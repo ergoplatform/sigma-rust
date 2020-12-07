@@ -11,13 +11,12 @@ impl Evaluable for Expr {
         ectx.cost_accum.add_cost_of(self)?;
         match self {
             Expr::Const(c) => Ok(c.v.clone()),
-            Expr::Coll { .. } => todo!(),
-            Expr::Tup { .. } => todo!(),
             Expr::PredefFunc(_) => todo!(),
             Expr::CollM(_) => todo!(),
             Expr::BoxM(_) => todo!(),
             Expr::GlobalVars(v) => v.eval(env, ectx),
             Expr::MethodCall(v) => v.eval(env, ectx),
+            Expr::ProperyCall(v) => v.eval(env, ectx),
             Expr::BinOp(_bin_op, _l, _r) => {
                 todo!()
                 // let _v_l = eval(l, env, ca, ctx)?;

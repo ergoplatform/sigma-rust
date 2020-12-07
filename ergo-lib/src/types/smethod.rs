@@ -1,12 +1,29 @@
+use std::io::Error;
+
 use crate::ast::value::Value;
 use crate::eval::EvalError;
+use crate::serialization::sigma_byte_reader::SigmaByteRead;
+use crate::serialization::sigma_byte_writer::SigmaByteWrite;
+use crate::serialization::SerializationError;
+use crate::serialization::SigmaSerializable;
 
 use super::stype::SType;
 use super::stype_companion::STypeCompanion;
+use super::stype_companion::TypeId;
 
 /// Method id unique among the methods of the same object
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct MethodId(pub u8);
+
+impl SigmaSerializable for MethodId {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), Error> {
+        w.put_u8(self.0)
+    }
+
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+        Ok(Self(r.get_u8()?))
+    }
+}
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct SMethod {
@@ -20,6 +37,11 @@ impl SMethod {
             obj_type,
             method_raw,
         }
+    }
+
+    pub fn from_ids(type_id: TypeId, method_id: MethodId) -> Self {
+        let obj_type = STypeCompanion::type_by_id(type_id);
+        obj_type.method_by_id(method_id).unwrap()
     }
 
     pub fn tpe(&self) -> &SType {

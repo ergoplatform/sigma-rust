@@ -11,28 +11,18 @@ use super::global_vars::GlobalVars;
 use super::method_call::MethodCall;
 use super::ops;
 use super::predef_func::PredefFunc;
+use super::property_call::PropertyCall;
 
-#[derive(PartialEq, Eq, Debug, Clone)]
+extern crate derive_more;
+use derive_more::From;
+
+#[derive(PartialEq, Eq, Debug, Clone, From)]
 /// Expression in ErgoTree
 pub enum Expr {
     /// Constant value
     Const(Constant),
     /// Placeholder for a constant
     ConstPlaceholder(ConstantPlaceholder),
-    /// Collection of values (same type)
-    Coll {
-        /// Collection type
-        tpe: SType,
-        /// Values of the collection
-        v: Vec<Expr>,
-    },
-    /// Tuple
-    Tup {
-        /// Tuple type
-        tpe: SType,
-        /// Values of the tuple
-        v: Vec<Expr>,
-    },
     /// Predefined functions (global)
     PredefFunc(PredefFunc),
     /// Collection type methods
@@ -45,6 +35,8 @@ pub enum Expr {
     GlobalVars(GlobalVars),
     /// Method call
     MethodCall(MethodCall),
+    /// Property call
+    ProperyCall(PropertyCall),
     /// Binary operation
     BinOp(ops::BinOp, Box<Expr>, Box<Expr>),
 }
@@ -56,7 +48,10 @@ impl Expr {
             Expr::Const(_) => todo!(),
             Expr::ConstPlaceholder(cp) => cp.op_code(),
             Expr::GlobalVars(v) => v.op_code(),
-            _ => todo!(),
+            Expr::MethodCall(v) => v.op_code(),
+            Expr::ProperyCall(v) => v.op_code(),
+            Expr::Context => OpCode::CONTEXT,
+            _ => todo!("{0:?}", self),
         }
     }
 
@@ -72,24 +67,6 @@ impl Expr {
 impl fmt::Display for Expr {
     fn fmt(&self, _: &mut fmt::Formatter<'_>) -> fmt::Result {
         todo!()
-    }
-}
-
-impl From<Constant> for Expr {
-    fn from(c: Constant) -> Self {
-        Self::Const(c)
-    }
-}
-
-impl From<GlobalVars> for Expr {
-    fn from(v: GlobalVars) -> Self {
-        Expr::GlobalVars(v)
-    }
-}
-
-impl From<MethodCall> for Expr {
-    fn from(v: MethodCall) -> Self {
-        Expr::MethodCall(v)
     }
 }
 

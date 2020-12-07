@@ -6,6 +6,8 @@ mod data;
 mod expr;
 mod fold;
 mod global_vars;
+mod method_call;
+mod property_call;
 mod sigmaboolean;
 
 pub(crate) mod constant_store;

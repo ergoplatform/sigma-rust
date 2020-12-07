@@ -5,18 +5,17 @@ use crate::types::stype::SType;
 use super::expr::Expr;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct MethodCall {
+pub struct PropertyCall {
     pub obj: Box<Expr>,
     pub method: SMethod,
-    pub args: Vec<Expr>,
 }
 
-impl MethodCall {
+impl PropertyCall {
     pub fn tpe(&self) -> &SType {
         self.method.tpe()
     }
 
     pub fn op_code(&self) -> OpCode {
-        OpCode::METHOD_CALL
+        OpCode::PROPERTY_CALL
     }
 }

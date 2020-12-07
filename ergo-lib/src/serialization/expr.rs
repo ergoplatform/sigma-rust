@@ -4,6 +4,8 @@ use crate::ast::constant::Constant;
 use crate::ast::constant::ConstantPlaceholder;
 use crate::ast::expr::Expr;
 use crate::ast::global_vars::GlobalVars;
+use crate::ast::method_call::MethodCall;
+use crate::ast::property_call::PropertyCall;
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
 };
@@ -30,6 +32,9 @@ impl SigmaSerializable for Expr {
                     },
                     Expr::ConstPlaceholder(cp) => cp.sigma_serialize(w),
                     Expr::GlobalVars(_) => Ok(()),
+                    Expr::MethodCall(mc) => mc.sigma_serialize(w),
+                    Expr::ProperyCall(pc) => pc.sigma_serialize(w),
+                    Expr::Context => Ok(()),
                     _ => panic!(format!("don't know how to serialize {:?}", expr)),
                 }
             }
@@ -67,6 +72,9 @@ impl SigmaSerializable for Expr {
                 OpCode::SELF_BOX => Ok(Expr::GlobalVars(GlobalVars::SelfBox)),
                 OpCode::INPUTS => Ok(Expr::GlobalVars(GlobalVars::Inputs)),
                 OpCode::OUTPUTS => Ok(Expr::GlobalVars(GlobalVars::Outputs)),
+                OpCode::PROPERTY_CALL => Ok(Expr::ProperyCall(PropertyCall::sigma_parse(r)?)),
+                OpCode::METHOD_CALL => Ok(Expr::MethodCall(MethodCall::sigma_parse(r)?)),
+                OpCode::CONTEXT => Ok(Expr::Context),
                 o => Err(SerializationError::NotImplementedOpCode(o.value())),
             }
         }

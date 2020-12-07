@@ -1,11 +1,28 @@
 use std::fmt::Debug;
+use std::io::Error;
 
+use crate::serialization::sigma_byte_reader::SigmaByteRead;
+use crate::serialization::sigma_byte_writer::SigmaByteWrite;
+use crate::serialization::SerializationError;
+use crate::serialization::SigmaSerializable;
+
+use super::scontext;
 use super::smethod::MethodId;
 use super::smethod::SMethod;
 use super::smethod::SMethodDesc;
 
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub struct TypeId(pub u8);
+
+impl SigmaSerializable for TypeId {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), Error> {
+        w.put_u8(self.0)
+    }
+
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+        Ok(Self(r.get_u8()?))
+    }
+}
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct STypeCompanionHead {
@@ -24,6 +41,14 @@ impl STypeCompanion {
         STypeCompanion { head, methods }
     }
 
+    pub fn type_by_id(type_id: TypeId) -> &'static STypeCompanion {
+        match type_id {
+            // TODO: use type id from const (DRY)
+            TypeId(108) => &scontext::S_CONTEXT_TYPE_COMPANION,
+            _ => todo!(),
+        }
+    }
+
     pub fn method_by_id(&'static self, method_id: MethodId) -> Option<SMethod> {
         self.methods
             .iter()
@@ -33,5 +58,13 @@ impl STypeCompanion {
 
     pub fn methods(&'static self) -> Vec<SMethod> {
         self.methods.iter().map(|m| m.as_method(self)).collect()
+    }
+
+    pub fn type_id(&'static self) -> TypeId {
+        self.head.type_id
+    }
+
+    pub fn type_name(&'static self) -> &'static str {
+        self.head.type_name
     }
 }

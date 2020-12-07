@@ -19,6 +19,7 @@ pub(crate) mod cost_accum;
 pub(crate) mod expr;
 pub(crate) mod global_vars;
 pub(crate) mod method_call;
+pub(crate) mod property_call;
 
 /// Environment for the interpreter
 pub struct Env();
