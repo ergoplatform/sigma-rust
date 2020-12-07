@@ -43,6 +43,7 @@ impl DataSerializer {
                 }
             },
             Value::Tup(_) => todo!(),
+            Value::Context(_) => todo!(), // TODO: throw error? it should not be here
         }
     }
 

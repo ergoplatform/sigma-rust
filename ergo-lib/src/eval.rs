@@ -1,4 +1,6 @@
 //! Interpreter
+use std::rc::Rc;
+
 use crate::ast::expr::Expr;
 use crate::ast::value::Value;
 use crate::sigma_protocol::sigma_boolean::SigmaBoolean;
@@ -7,12 +9,15 @@ use cost_accum::CostAccumulator;
 use thiserror::Error;
 
 use self::context::Context;
+use self::cost_accum::CostError;
 
 mod costs;
 
 pub(crate) mod context;
 pub(crate) mod cost_accum;
+pub(crate) mod expr;
 pub(crate) mod global_vars;
+pub(crate) mod method_call;
 
 /// Environment for the interpreter
 pub struct Env();
@@ -34,6 +39,9 @@ pub enum EvalError {
     #[error("Unsupported Expr encountered during the evaluation")]
     // TODO: store unexpected expr
     UnexpectedExpr,
+    /// Error on cost calculation
+    #[error("Error on cost calculation: {0:?}")]
+    CostError(#[from] CostError),
 }
 
 /// Result of expression reduction procedure (see `reduce_to_crypto`).
@@ -51,22 +59,35 @@ pub trait Evaluator {
         &self,
         expr: &Expr,
         env: &Env,
-        ctx: &Context,
+        ctx: Rc<Context>,
     ) -> Result<ReductionResult, EvalError> {
-        let mut ca = CostAccumulator::new(0, None);
-        eval(expr, env, &mut ca, ctx).and_then(|v| -> Result<ReductionResult, EvalError> {
-            match v {
-                Value::Boolean(b) => Ok(ReductionResult {
-                    sigma_prop: SigmaBoolean::TrivialProp(b),
-                    cost: 0,
-                }),
-                Value::SigmaProp(sp) => Ok(ReductionResult {
-                    sigma_prop: sp.value().clone(),
-                    cost: 0,
-                }),
-                _ => Err(EvalError::InvalidResultType),
-            }
-        })
+        let cost_accum = CostAccumulator::new(0, None);
+        let mut ectx = EvalContext::new(ctx, cost_accum);
+        expr.eval(env, &mut ectx)
+            .and_then(|v| -> Result<ReductionResult, EvalError> {
+                match v {
+                    Value::Boolean(b) => Ok(ReductionResult {
+                        sigma_prop: SigmaBoolean::TrivialProp(b),
+                        cost: 0,
+                    }),
+                    Value::SigmaProp(sp) => Ok(ReductionResult {
+                        sigma_prop: sp.value().clone(),
+                        cost: 0,
+                    }),
+                    _ => Err(EvalError::InvalidResultType),
+                }
+            })
+    }
+}
+
+pub struct EvalContext {
+    ctx: Rc<Context>,
+    cost_accum: CostAccumulator,
+}
+
+impl EvalContext {
+    pub fn new(ctx: Rc<Context>, cost_accum: CostAccumulator) -> Self {
+        EvalContext { ctx, cost_accum }
     }
 }
 
@@ -74,62 +95,54 @@ pub trait Evaluator {
 /// Should be implemented by every node that can be evaluated.
 pub trait Evaluable {
     /// Evaluation routine to be implement by each node
-    fn eval(&self, env: &Env, ca: &mut CostAccumulator, ctx: &Context) -> Result<Value, EvalError>;
+    fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError>;
 }
 
-#[allow(unconditional_recursion)]
-fn eval(
-    expr: &Expr,
-    env: &Env,
-    ca: &mut CostAccumulator,
-    ctx: &Context,
-) -> Result<Value, EvalError> {
-    match expr {
-        Expr::Const(c) => Ok(c.v.clone()),
-        Expr::Coll { .. } => todo!(),
-        Expr::Tup { .. } => todo!(),
-        Expr::PredefFunc(_) => todo!(),
-        Expr::CollM(_) => todo!(),
-        Expr::BoxM(_) => todo!(),
-        Expr::GlobalVars(v) => v.eval(env, ca, ctx),
-        Expr::MethodCall(v) => v.eval(env, ca, ctx),
-        Expr::BinOp(_bin_op, l, r) => {
-            let _v_l = eval(l, env, ca, ctx)?;
-            let _v_r = eval(r, env, ca, ctx)?;
-            ca.add_cost_of(expr);
-            todo!()
-            // Ok(match bin_op {
-            //     BinOp::Num(op) => match op {
-            //         NumOp::Add => v_l + v_r,
-            //     },
-            // })
-        }
-        _ => Err(EvalError::UnexpectedExpr),
-    }
-}
+// #[allow(unconditional_recursion)]
+// fn eval(
+//     expr: &Expr,
+//     env: &Env,
+//     ca: &mut CostAccumulator,
+//     ctx: &Context,
+// ) -> Result<Value, EvalError> {
+//     match expr {
+//         Expr::Const(c) => Ok(c.v.clone()),
+//         Expr::Coll { .. } => todo!(),
+//         Expr::Tup { .. } => todo!(),
+//         Expr::PredefFunc(_) => todo!(),
+//         Expr::CollM(_) => todo!(),
+//         Expr::BoxM(_) => todo!(),
+//         Expr::GlobalVars(v) => v.eval(env, ca, ctx),
+//         Expr::MethodCall(v) => v.eval(env, ca, ctx),
+//         Expr::BinOp(_bin_op, l, r) => {
+//             let _v_l = eval(l, env, ca, ctx)?;
+//             let _v_r = eval(r, env, ca, ctx)?;
+//             ca.add_cost_of(expr);
+//             todo!()
+//             // Ok(match bin_op {
+//             //     BinOp::Num(op) => match op {
+//             //         NumOp::Add => v_l + v_r,
+//             //     },
+//             // })
+//         }
+//         _ => Err(EvalError::UnexpectedExpr),
+//     }
+// }
 
 #[cfg(test)]
 pub mod tests {
 
     use crate::ast::constant::TryExtractFrom;
-    use crate::ast::global_vars::GlobalVars;
 
     use super::*;
 
-    pub fn eval_out<T: TryExtractFrom<Value>>(expr: &Expr, ctx: &Context) -> T {
+    pub fn eval_out<T: TryExtractFrom<Value>>(expr: &Expr, ctx: Rc<Context>) -> T {
         use crate::ast::constant::TryExtractInto;
-        let mut ca = CostAccumulator::new(0, None);
-        eval(expr, &Env::empty(), &mut ca, ctx)
+        let cost_accum = CostAccumulator::new(0, None);
+        let mut ectx = EvalContext::new(ctx, cost_accum);
+        expr.eval(&Env::empty(), &mut ectx)
             .unwrap()
             .try_extract_into::<T>()
             .unwrap()
-    }
-
-    #[test]
-    fn height() {
-        let expr = Expr::GlobalVars(GlobalVars::Height);
-        let mut ca = CostAccumulator::new(0, None);
-        let res = eval(&expr, &Env::empty(), &mut ca, &Context::dummy()).unwrap();
-        assert_eq!(i32::try_extract_from(res).unwrap(), 0);
     }
 }

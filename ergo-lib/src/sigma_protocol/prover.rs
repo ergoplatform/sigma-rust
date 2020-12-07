@@ -3,6 +3,8 @@
 mod context_extension;
 mod prover_result;
 
+use std::rc::Rc;
+
 pub use context_extension::*;
 pub use prover_result::*;
 
@@ -68,7 +70,7 @@ pub trait Prover: Evaluator {
         &self,
         tree: &ErgoTree,
         env: &Env,
-        ctx: &Context,
+        ctx: Rc<Context>,
         message: &[u8],
     ) -> Result<ProverResult, ProverError> {
         let expr = tree.proposition()?;
@@ -319,7 +321,7 @@ mod tests {
         let res = prover.prove(
             &bool_true_tree,
             &Env::empty(),
-            &Context::dummy(),
+            Rc::new(Context::dummy()),
             message.as_slice(),
         );
         assert!(res.is_ok());
@@ -338,7 +340,7 @@ mod tests {
         let res = prover.prove(
             &bool_false_tree,
             &Env::empty(),
-            &Context::dummy(),
+            Rc::new(Context::dummy()),
             message.as_slice(),
         );
         assert!(res.is_err());
@@ -358,7 +360,12 @@ mod tests {
         let prover = TestProver {
             secrets: vec![PrivateInput::DlogProverInput(secret)],
         };
-        let res = prover.prove(&tree, &Env::empty(), &Context::dummy(), message.as_slice());
+        let res = prover.prove(
+            &tree,
+            &Env::empty(),
+            Rc::new(Context::dummy()),
+            message.as_slice(),
+        );
         assert!(res.is_ok());
         assert_ne!(res.unwrap().proof, ProofBytes::Empty);
     }

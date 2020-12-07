@@ -1,6 +1,9 @@
 use std::convert::TryFrom;
+use std::rc::Rc;
 
 use crate::chain::ergo_box::ErgoBox;
+// use crate::eval::context::Context;
+use crate::eval::context::Context;
 use crate::sigma_protocol::dlog_group::EcPoint;
 use crate::sigma_protocol::sigma_boolean::ProveDlog;
 use crate::sigma_protocol::sigma_boolean::SigmaBoolean;
@@ -79,6 +82,8 @@ pub enum Value {
     Coll(Coll),
     /// Tuple (arbitrary type values)
     Tup(Vec<Value>),
+    /// Transaction(and blockchain) context info
+    Context(Rc<Context>),
 }
 
 impl Value {
@@ -269,6 +274,18 @@ impl TryFrom<Value> for ProveDlog {
             _ => Err(TryExtractFromError(format!(
                 "expected SigmaProp, found {:?}",
                 cv
+            ))),
+        }
+    }
+}
+
+impl TryExtractFrom<Value> for Rc<Context> {
+    fn try_extract_from(v: Value) -> Result<Self, TryExtractFromError> {
+        match v {
+            Value::Context(ctx) => Ok(ctx),
+            _ => Err(TryExtractFromError(format!(
+                "expected Context, found {:?}",
+                v
             ))),
         }
     }
