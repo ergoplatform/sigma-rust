@@ -28,7 +28,7 @@ jobs:
           command: fmt
           args: --all -- --check --color always
 
-    clippy:
+  clippy:
     name: clippy
     runs-on: ubuntu-latest
     steps:
@@ -45,7 +45,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --all-features -- -D warnings
 
-    build_wo_default_features:
+  build_wo_default_features:
     name: Build without default features
     runs-on: ubuntu-latest
     defaults:
