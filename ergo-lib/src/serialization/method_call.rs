@@ -12,6 +12,7 @@ impl SigmaSerializable for MethodCall {
         w.put_u8(self.method.obj_type.type_id().0)?;
         w.put_u8(self.method.method_id().0)?;
         self.obj.sigma_serialize(w)?;
+        // TODO: return error on empty args
         if !self.args.is_empty() {
             self.args.iter().try_for_each(|a| a.sigma_serialize(w))?;
         }

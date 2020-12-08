@@ -42,10 +42,10 @@ impl STypeCompanion {
     }
 
     pub fn type_by_id(type_id: TypeId) -> &'static STypeCompanion {
-        match type_id {
-            // TODO: use type id from const (DRY)
-            TypeId(108) => &scontext::S_CONTEXT_TYPE_COMPANION,
-            _ => todo!(),
+        if type_id == scontext::S_CONTEXT_TYPE_COMPANION.type_id() {
+            &scontext::S_CONTEXT_TYPE_COMPANION
+        } else {
+            todo!("cannot find STypeCompanion for {0:?} type id", type_id)
         }
     }
 
