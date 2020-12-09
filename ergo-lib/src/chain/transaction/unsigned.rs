@@ -71,7 +71,7 @@ impl UnsignedTransaction {
         self.tx_id.clone()
     }
 
-    /// message to be signed by the [`Prover`] (serialized tx)
+    /// message to be signed by the [`crate::sigma_protocol::prover::Prover`] (serialized tx)
     pub fn bytes_to_sign(&self) -> Vec<u8> {
         let empty_proofs_input = self
             .inputs

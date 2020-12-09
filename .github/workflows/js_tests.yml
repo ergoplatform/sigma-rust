@@ -1,0 +1,34 @@
+name: JS tests
+on:
+  push:
+    branches:
+      - master
+      - develop
+  pull_request:
+    types:
+      - opened
+      - synchronize
+
+
+jobs:
+  js_tests:
+    name: run JS tests
+    runs-on: ubuntu-latest
+    defaults:
+      run: 
+        working-directory: bindings/ergo-lib-wasm
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+
+      - name: install deps
+        run: |
+          curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh -s -- -f
+          curl -sL https://deb.nodesource.com/setup_12.x | sudo -E bash -
+          sudo apt-get -y install nodejs
+
+      - name: run tests
+        run: |
+          wasm-pack build
+          npm install && npm run test
+

@@ -26,6 +26,8 @@ thiserror = "1"
 bs58 = "0.3.1"
 num-bigint = "0.3.0"
 rand = "0.7"
+lazy_static = "1.4"
+derive_more = "0.99"
 
 [features]
 default = ["json"]

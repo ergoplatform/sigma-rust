@@ -23,11 +23,13 @@ impl DataSerializer {
             Value::Byte(v) => w.put_i8(*v),
             Value::Short(v) => w.put_i16(*v),
             Value::Int(v) => w.put_i32(*v),
+            // Value::TInt(v) => w.put_i32(v.raw),
             Value::Long(v) => w.put_i64(*v),
             Value::BigInt => todo!(),
             Value::GroupElement(ecp) => ecp.sigma_serialize(w),
             Value::SigmaProp(s) => s.value().sigma_serialize(w),
             Value::CBox(_) => todo!(),
+            // Value::TBox(_) => todo!(),
             Value::AvlTree => todo!(),
             Value::Coll(ct) => match ct {
                 Coll::Primitive(CollPrim::CollByte(b)) => {
@@ -41,6 +43,7 @@ impl DataSerializer {
                 }
             },
             Value::Tup(_) => todo!(),
+            Value::Context(_) => todo!(), // TODO: throw error? it should not be here
         }
     }
 

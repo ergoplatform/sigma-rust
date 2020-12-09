@@ -1,7 +1,14 @@
 //! SType hierarchy
 
+use crate::chain::ergo_box::ErgoBox;
 use crate::serialization::types::TypeCode;
+use crate::sigma_protocol::dlog_group::EcPoint;
+use crate::sigma_protocol::sigma_boolean::ProveDlog;
+use crate::sigma_protocol::sigma_boolean::SigmaBoolean;
+use crate::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
+use crate::sigma_protocol::sigma_boolean::SigmaProp;
 
+use super::scontext::SContext;
 use super::sfunc::SFunc;
 use super::stype_companion::STypeCompanion;
 
@@ -38,6 +45,8 @@ pub enum SType {
     STup(Vec<SType>),
     /// Function (signature)
     SFunc(Box<SFunc>),
+    /// Context object ("CONTEXT" in ErgoScript)
+    SContext(SContext),
 }
 
 impl SType {
@@ -59,11 +68,12 @@ impl SType {
             SType::SColl(_) => todo!(),
             SType::STup(_) => todo!(),
             SType::SFunc(_) => todo!(),
+            SType::SContext(_) => todo!(),
         }
     }
 
     /// Get STypeCompanion instance associated with this SType
-    pub fn type_companion(&self) -> Option<STypeCompanion> {
+    pub fn type_companion(&self) -> Option<Box<STypeCompanion>> {
         todo!()
     }
 
@@ -112,6 +122,42 @@ impl LiftIntoSType for i32 {
 impl LiftIntoSType for i64 {
     fn stype() -> SType {
         SType::SLong
+    }
+}
+
+impl LiftIntoSType for ErgoBox {
+    fn stype() -> SType {
+        SType::SBox
+    }
+}
+
+impl LiftIntoSType for SigmaBoolean {
+    fn stype() -> SType {
+        SType::SSigmaProp
+    }
+}
+
+impl LiftIntoSType for SigmaProofOfKnowledgeTree {
+    fn stype() -> SType {
+        SType::SSigmaProp
+    }
+}
+
+impl LiftIntoSType for SigmaProp {
+    fn stype() -> SType {
+        SType::SSigmaProp
+    }
+}
+
+impl LiftIntoSType for ProveDlog {
+    fn stype() -> SType {
+        SType::SSigmaProp
+    }
+}
+
+impl LiftIntoSType for EcPoint {
+    fn stype() -> SType {
+        SType::SGroupElement
     }
 }
 

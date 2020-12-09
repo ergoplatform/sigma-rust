@@ -1,6 +1,11 @@
+//! Ergo data type
+
 use std::convert::TryFrom;
+use std::rc::Rc;
 
 use crate::chain::ergo_box::ErgoBox;
+// use crate::eval::context::Context;
+use crate::eval::context::Context;
 use crate::sigma_protocol::dlog_group::EcPoint;
 use crate::sigma_protocol::sigma_boolean::ProveDlog;
 use crate::sigma_protocol::sigma_boolean::SigmaBoolean;
@@ -79,6 +84,8 @@ pub enum Value {
     Coll(Coll),
     /// Tuple (arbitrary type values)
     Tup(Vec<Value>),
+    /// Transaction(and blockchain) context info
+    Context(Rc<Context>),
 }
 
 impl Value {
@@ -130,6 +137,12 @@ impl Into<Value> for EcPoint {
     }
 }
 
+impl From<ErgoBox> for Value {
+    fn from(b: ErgoBox) -> Self {
+        Value::CBox(Box::new(b))
+    }
+}
+
 /// Marker trait to select types for which CollElems::NonPrimitive is used to store elements as Vec<ConstantVal>
 pub trait StoredNonPrimitive {}
 
@@ -137,6 +150,7 @@ impl StoredNonPrimitive for bool {}
 impl StoredNonPrimitive for i16 {}
 impl StoredNonPrimitive for i32 {}
 impl StoredNonPrimitive for i64 {}
+impl StoredNonPrimitive for ErgoBox {}
 
 impl<T: LiftIntoSType + StoredNonPrimitive + Into<Value>> Into<Value> for Vec<T> {
     fn into(self) -> Value {
@@ -219,6 +233,33 @@ impl TryExtractFrom<Value> for SigmaProp {
     }
 }
 
+impl TryExtractFrom<Value> for ErgoBox {
+    fn try_extract_from(c: Value) -> Result<Self, TryExtractFromError> {
+        match c {
+            Value::CBox(b) => Ok(*b),
+            _ => Err(TryExtractFromError(format!(
+                "expected ErgoBox, found {:?}",
+                c
+            ))),
+        }
+    }
+}
+
+impl<T: TryExtractFrom<Value> + StoredNonPrimitive> TryExtractFrom<Value> for Vec<T> {
+    fn try_extract_from(c: Value) -> Result<Self, TryExtractFromError> {
+        match c {
+            Value::Coll(Coll::NonPrimitive { elem_tpe: _, v }) => {
+                v.into_iter().map(T::try_extract_from).collect()
+            }
+            _ => Err(TryExtractFromError(format!(
+                "expected {:?}, found {:?}",
+                std::any::type_name::<Self>(),
+                c
+            ))),
+        }
+    }
+}
+
 impl TryFrom<Value> for ProveDlog {
     type Error = TryExtractFromError;
     fn try_from(cv: Value) -> Result<Self, Self::Error> {
@@ -235,6 +276,18 @@ impl TryFrom<Value> for ProveDlog {
             _ => Err(TryExtractFromError(format!(
                 "expected SigmaProp, found {:?}",
                 cv
+            ))),
+        }
+    }
+}
+
+impl TryExtractFrom<Value> for Rc<Context> {
+    fn try_extract_from(v: Value) -> Result<Self, TryExtractFromError> {
+        match v {
+            Value::Context(ctx) => Ok(ctx),
+            _ => Err(TryExtractFromError(format!(
+                "expected Context, found {:?}",
+                v
             ))),
         }
     }

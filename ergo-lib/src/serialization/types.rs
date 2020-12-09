@@ -128,6 +128,7 @@ impl SigmaSerializable for SType {
             SType::SColl(_) => todo!(),
             SType::STup(_) => todo!(),
             SType::SFunc(_) => todo!(),
+            SType::SContext(_) => todo!(),
         }
     }
 

@@ -3,7 +3,7 @@ use super::stype_param::STypeParam;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct SFunc {
-    t_dom: Vec<SType>,
-    t_range: SType,
-    tpe_params: Vec<STypeParam>,
+    pub t_dom: Vec<SType>,
+    pub t_range: SType,
+    pub tpe_params: Vec<STypeParam>,
 }
