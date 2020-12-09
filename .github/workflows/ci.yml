@@ -87,17 +87,25 @@ jobs:
         with:
           command: test
           args: --verbose --release
-      - name: Generate coverage file
+      - name: rust-tarpaulin code coverage check
         if: matrix.os == 'ubuntu-latest' && github.event_name == 'pull_request'
-        run: |
-          cargo install cargo-tarpaulin --vers "^0.13"
-          cargo tarpaulin --out Xml
-      - name: Upload to Codecov
-        if: matrix.os == 'ubuntu-latest' && github.event_name == 'pull_request'
-        uses: codecov/codecov-action@v1
+        uses: actions-rs/tarpaulin@master
         with:
-          file: cobertura.xml
-          
+          args: '-v --release --out Lcov --exclude-files bindings/*'
+      - name: Push code coverage results to coveralls.io
+        if: matrix.os == 'ubuntu-latest' && github.event_name == 'pull_request'
+        uses: coverallsapp/github-action@master
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          parallel: true
+          path-to-lcov: ./lcov.info
+      - name: Coveralls Finished
+        if: matrix.os == 'ubuntu-latest' && github.event_name == 'pull_request'
+        uses: coverallsapp/github-action@master
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          parallel-finished: true
+        
   doc-links:
     name: Intra-documentation links
     runs-on: ubuntu-latest
