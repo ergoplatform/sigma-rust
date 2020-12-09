@@ -1,4 +1,4 @@
-name: Test, lint, fmt
+name: Tests
 
 on:
   push:

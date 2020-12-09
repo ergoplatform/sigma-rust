@@ -161,7 +161,7 @@ impl<T: LiftIntoSType + StoredNonPrimitive + Into<Value>> From<Vec<T>> for Const
 
 /// Extract value wrapped in a type
 pub trait TryExtractInto<F> {
-    /// Extract value of the given type from any type (e.g. ['crate::ast::Constant'], [`crate::ast::Value`])
+    /// Extract value of the given type from any type (e.g. ['Constant'], [`super::value::Value`])
     /// on which [`TryExtractFrom`] is implemented
     fn try_extract_into<T: TryExtractFrom<F>>(self) -> Result<T, TryExtractFromError>;
 }

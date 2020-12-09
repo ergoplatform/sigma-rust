@@ -38,7 +38,7 @@ pub struct TxBuilder<S: ErgoBoxAssets> {
 
 impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
     /// Creates new TxBuilder
-    /// `box_selection` - selected input boxes  (via [`BoxSelector`])
+    /// `box_selection` - selected input boxes  (via [`super::box_selector::BoxSelector`])
     /// `output_candidates` - output boxes to be "created" in this transaction,
     /// `current_height` - chain height that will be used in additionally created boxes (change, miner's fee, etc.),
     /// `fee_amount` - miner's fee (higher values will speed up inclusion in blocks),

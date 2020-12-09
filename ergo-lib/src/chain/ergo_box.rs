@@ -301,7 +301,7 @@ impl SigmaSerializable for ErgoBox {
 
 /// Contains the same fields as `ErgoBox`, except if transaction id and index,
 /// that will be calculated after full transaction formation.
-/// Use [`ErgoBoxCandidateBuilder`] to create an instance.
+/// Use [`box_builder::ErgoBoxCandidateBuilder`] to create an instance.
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct ErgoBoxCandidate {
     /// amount of money associated with the box

@@ -1,3 +1,5 @@
+//! Ergo data type
+
 use std::convert::TryFrom;
 use std::rc::Rc;
 

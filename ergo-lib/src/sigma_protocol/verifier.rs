@@ -44,7 +44,7 @@ pub struct VerificationResult {
     pub cost: u64,
 }
 
-/// Verifier for the proofs generater by [`Prover`]
+/// Verifier for the proofs generater by [`super::prover::Prover`]
 pub trait Verifier: Evaluator {
     /// Executes the script in a given context.
     /// Step 1: Deserialize context variables

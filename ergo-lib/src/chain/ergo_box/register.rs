@@ -46,7 +46,7 @@ impl NonMandatoryRegisterId {
     ];
 
     /// get register by it's index starting from 0
-    /// `i` is expected to be in range 0..[`NUM_REGS`] , otherwise panic
+    /// `i` is expected to be in range 0..[`Self::NUM_REGS`] , otherwise panic
     pub fn get_by_zero_index(i: usize) -> NonMandatoryRegisterId {
         assert!(i < NonMandatoryRegisterId::NUM_REGS);
         NonMandatoryRegisterId::REG_IDS[i]
