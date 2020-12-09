@@ -97,14 +97,7 @@ jobs:
         uses: coverallsapp/github-action@master
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          parallel: true
           path-to-lcov: ./lcov.info
-      - name: Coveralls Finished
-        if: matrix.os == 'ubuntu-latest' && github.event_name == 'pull_request'
-        uses: coverallsapp/github-action@master
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          parallel-finished: true
         
   doc-links:
     name: Intra-documentation links
