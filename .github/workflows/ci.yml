@@ -48,9 +48,6 @@ jobs:
   build_wo_default_features:
     name: Build without default features
     runs-on: ubuntu-latest
-    defaults:
-      run: 
-        working-directory: ergo-lib
     steps:
       - uses: actions/checkout@v1
       - uses: actions-rs/toolchain@v1
@@ -61,7 +58,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --no-default-features
+          args: --no-default-features --manifest-path ergo-lib/Cargo.toml
 
   test:
     name: Test on ${{ matrix.os }}
