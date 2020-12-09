@@ -91,7 +91,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest' && github.event_name == 'pull_request'
         uses: actions-rs/tarpaulin@master
         with:
-          args: '-v --release --out Lcov --exclude-files bindings/*'
+          args: '-v --out Lcov --exclude-files bindings/*'
       - name: Push code coverage results to coveralls.io
         if: matrix.os == 'ubuntu-latest' && github.event_name == 'pull_request'
         uses: coverallsapp/github-action@master
