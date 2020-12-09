@@ -1,17 +1,24 @@
 [![Latest Version](https://img.shields.io/crates/v/ergo-lib.svg)](https://crates.io/crates/ergo-lib)
 [![Documentation](https://docs.rs/ergo-lib/badge.svg)](https://docs.rs/crate/ergo-lib)
 
-Features:
+## Features:
 - ErgoTree AST;
-- Interpreter;
 - Transactions, boxes, etc.;
 - JSON serialization;
-- Transaction creation and signing;
+- Box builder(with mint token support);
+- Transaction creation(builder) and signing;
+- Box selection for funds and assets (with token burning support);
 
-# Usage
+
+## Interpreter (what's implemented):
+- global vars (`INPUTS`, `OUTPUTS`, `SELF`, `HEIGHT`);
+- `Context` properties (`dataInputs`);
+
+## Usage 
 ## Crate features
-### `json`
+## `json` (default feature)
 JSON serialization for chain types using `serde`.
+
 
 
 
