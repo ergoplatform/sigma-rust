@@ -11,6 +11,7 @@
 #![deny(missing_docs)]
 // Clippy exclusions
 #![allow(clippy::unit_arg)]
+#![deny(broken_intra_doc_links)]
 
 mod big_integer;
 mod eval;
