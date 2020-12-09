@@ -87,7 +87,17 @@ jobs:
         with:
           command: test
           args: --verbose --release
-
+      - name: Generate coverage file
+        if: matrix.os == 'ubuntu-latest' && github.event_name == 'pull_request'
+        run: |
+          cargo install cargo-tarpaulin --vers "^0.13"
+          cargo tarpaulin --out Xml
+      - name: Upload to Codecov
+        if: matrix.os == 'ubuntu-latest' && github.event_name == 'pull_request'
+        uses: codecov/codecov-action@v1
+        with:
+          file: cobertura.xml
+          
   doc-links:
     name: Intra-documentation links
     runs-on: ubuntu-latest
