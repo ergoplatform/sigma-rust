@@ -1,5 +1,6 @@
 //! Box registers
 
+use crate::chain::json::ergo_box::ConstantHolder;
 use crate::{ast::constant::Constant, serialization::SerializationError};
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
@@ -93,7 +94,7 @@ pub struct NonMandatoryRegisterIdParsingError();
     feature = "json",
     serde(
         into = "HashMap<NonMandatoryRegisterId, Constant>",
-        try_from = "HashMap<NonMandatoryRegisterId, Constant>"
+        try_from = "HashMap<NonMandatoryRegisterId, crate::chain::json::ergo_box::ConstantHolder>"
     )
 )]
 pub struct NonMandatoryRegisters(Vec<Constant>);
@@ -185,6 +186,17 @@ impl TryFrom<HashMap<NonMandatoryRegisterId, Constant>> for NonMandatoryRegister
                 })?;
             Ok(NonMandatoryRegisters(res))
         }
+    }
+}
+
+impl TryFrom<HashMap<NonMandatoryRegisterId, ConstantHolder>> for NonMandatoryRegisters {
+    type Error = NonMandatoryRegistersError;
+    fn try_from(
+        value: HashMap<NonMandatoryRegisterId, ConstantHolder>,
+    ) -> Result<Self, Self::Error> {
+        let cm: HashMap<NonMandatoryRegisterId, Constant> =
+            value.into_iter().map(|(k, v)| (k, v.into())).collect();
+        NonMandatoryRegisters::try_from(cm)
     }
 }
 

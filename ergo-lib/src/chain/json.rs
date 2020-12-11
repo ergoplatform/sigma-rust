@@ -39,6 +39,16 @@ pub mod ergo_tree {
 }
 
 pub mod ergo_box {
+    use core::fmt;
+    use serde::de::{self, MapAccess, Visitor};
+    use serde::Deserializer;
+    use std::convert::TryFrom;
+    use std::marker::PhantomData;
+    use std::str::FromStr;
+
+    use crate::ast::constant::Constant;
+    use crate::chain::Base16DecodedBytes;
+    use crate::serialization::SigmaSerializable;
     use crate::{
         chain::{
             ergo_box::{BoxId, BoxValue, NonMandatoryRegisters},
@@ -76,6 +86,84 @@ pub mod ergo_box {
         /// number of box (from 0 to total number of boxes the transaction with transactionId created - 1)
         #[serde(rename = "index")]
         pub index: u16,
+    }
+
+    #[derive(Deserialize, PartialEq, Eq, Debug, Clone)]
+    pub struct ConstantHolder(
+        #[serde(deserialize_with = "constant_as_string_or_struct")] RichConstant,
+    );
+
+    impl From<ConstantHolder> for Constant {
+        fn from(ch: ConstantHolder) -> Self {
+            ch.0.raw_value
+        }
+    }
+
+    #[derive(Deserialize, PartialEq, Eq, Debug, Clone)]
+    struct RichConstant {
+        #[serde(rename = "rawValue")]
+        raw_value: Constant,
+    }
+
+    // #[derive(PartialEq, Eq, Debug, Clone)]
+    // pub enum ConstantParsingError {
+    // DecodeError(base16::DecodeError),
+    // DeserializationError(SerializationError),
+    // }
+
+    impl FromStr for RichConstant {
+        type Err = ();
+        fn from_str(s: &str) -> Result<Self, Self::Err> {
+            // TODO: handle errors
+            let bytes = Base16DecodedBytes::try_from(s).unwrap();
+            let c = Constant::sigma_parse_bytes(bytes.into()).unwrap();
+            Ok(RichConstant { raw_value: c })
+        }
+    }
+
+    // via https://serde.rs/string-or-struct.html
+    pub fn constant_as_string_or_struct<'de, T, D>(deserializer: D) -> Result<T, D::Error>
+    where
+        T: Deserialize<'de> + FromStr<Err = ()>,
+        D: Deserializer<'de>,
+    {
+        // This is a Visitor that forwards string types to T's `FromStr` impl and
+        // forwards map types to T's `Deserialize` impl. The `PhantomData` is to
+        // keep the compiler from complaining about T being an unused generic type
+        // parameter. We need T in order to know the Value type for the Visitor
+        // impl.
+        struct StringOrStruct<T>(PhantomData<fn() -> T>);
+
+        impl<'de, T> Visitor<'de> for StringOrStruct<T>
+        where
+            T: Deserialize<'de> + FromStr<Err = ()>,
+        {
+            type Value = T;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("string or map")
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<T, E>
+            where
+                E: de::Error,
+            {
+                Ok(FromStr::from_str(value).unwrap())
+            }
+
+            fn visit_map<M>(self, map: M) -> Result<T, M::Error>
+            where
+                M: MapAccess<'de>,
+            {
+                // `MapAccessDeserializer` is a wrapper that turns a `MapAccess`
+                // into a `Deserializer`, allowing it to be used as the input to T's
+                // `Deserialize` implementation. T then deserializes itself using
+                // the entries from the map visitor.
+                Deserialize::deserialize(de::value::MapAccessDeserializer::new(map))
+            }
+        }
+
+        deserializer.deserialize_any(StringOrStruct(PhantomData))
     }
 }
 
@@ -285,5 +373,42 @@ mod tests {
         "#;
         let b: ErgoBox = serde_json::from_str(box_json).unwrap();
         assert_eq!(b.value, 2875858910u64.try_into().unwrap());
+    }
+
+    #[test]
+    fn parse_ergo_box_from_explorer_api_v2() {
+        let box_json = r#"
+        {
+            "mainChain": true,
+            "spentTransactionId": null,
+            "additionalRegisters": {
+                "R4": {
+                    "decodedValue": "Coll(-89,30,-127,32,-20,-100,-42,0,-25,-9,-25,107,-100,27,10,-97,127,127,-93,109,-48,70,51,-111,27,85,107,-116,97,102,87,45)",
+                    "valueType": "Coll[Byte]",
+                    "rawValue": "0e20a71e8120ec9cd600e7f7e76b9c1b0a9f7f7fa36dd04633911b556b8c6166572d"
+                }
+            },
+            "assets": [
+                {
+                    "amount": 1,
+                    "index": 0,
+                    "tokenId": "77d14a018507949d1a88a631f76663e8e5101f57305dd5ebd319a41028d80456"
+                }
+            ],
+            "address": "6Vs43fLottAzin3EiEiswbSD31ETscqBLy9i3zTWCwUVuG79fWuP7S3Kko5PEK56UEBWSTE8GuuXq3ZYzWKCGmzPQ9y5AU4hvwGcTsYPH74qLsm3kmXctHLRnEVAxvsviB5aTRJo41adKHZ4EJSdWJpNUuJM4BJXGpM7BJnjT9cNB63QMtMUrfqaq8Ku8aJ7jM1VtXZFQiNH1pzwNFRQzU4fD4Dg8VqTtaAVWw98zKgGZmm35pq8QbAb5je796CWnQQRzDuGdPxwfBzzVCPjCf5hpFev56odduByacWPGYnd671A7CLrF7iSqae2ZHs4YmeXvAbBUW6s3A7U8YZAdPvaugBjNEkP9eVYZjDR4ppWcGukcrnjWBSqcv9nrBMudcLQLZwS653mVCbD8rqki2u2DjR4PMMtSQLAnH4HkeZFnz3w8Nav7YXkgviAFYR5AEdse8sUUKmb34AhU2uCxCJw6thqRfcMsWwaRHetzkhp6YoAy66EXmpVgM7pDo9RxpE9aRwPbxY6BwZ8",
+            "ergoTree": "100c04000402040204000580dac40904000e20dd26438230986cfe7305ad958451b69e55ad5ac37c8a355bfb08d810edd7a20f05000400050a04040e207bd873b8a886daa7a8bfacdad11d36aeee36c248aaf5779bcd8d41a13e4c1604d80bd601c5a7d602b2a4730000d603b2a4730100d604db63087203d605b2a5730200d606c27205d607e4c67202040ed608b2a5730300d609e4c67208040ed60ac27202d60bc27208d1ed937201c57202ecedededed93720b720a92c17208730493db63087208db63087202947209720792b0b5db6501fed9010c63eded938cb2db6308720c73050001730693e4c6720c040e720993e4c6720c050e72017307d9010c41639a8c720c018cb2db63088c720c02730800027309ededededededed938cb27204730a0001730b937204db6308720593e4c6a7040ecb720694c27203720693e4c672030405e4c67205040593e4c672030505e4c67205050593c17203c17205ededed937207720993720a720b93db63087202db6308720893c17202c17208",
+            "creationHeight": 377423,
+            "index": 0,
+            "value": 10000000,
+            "transactionId": "bfafb4a736ce21412a6da0ce10952d73808764648a1eae3adebc97fc5b00aa22",
+            "boxId": "8134d857446810eb8db0e1e13cc4025d8c7babfca363a36c3549fe651ad67956"
+        }
+        "#;
+        let b: ErgoBox = serde_json::from_str(box_json).unwrap();
+        assert_eq!(b.value, 10000000u64.try_into().unwrap());
+        assert!(b
+            .additional_registers
+            .get(NonMandatoryRegisterId::R4)
+            .is_some());
     }
 }
