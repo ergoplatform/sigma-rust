@@ -1,5 +1,6 @@
 //! Box registers
 
+#[cfg(feature = "json")]
 use crate::chain::json::ergo_box::ConstantHolder;
 use crate::{ast::constant::Constant, serialization::SerializationError};
 #[cfg(feature = "json")]
@@ -189,6 +190,7 @@ impl TryFrom<HashMap<NonMandatoryRegisterId, Constant>> for NonMandatoryRegister
     }
 }
 
+#[cfg(feature = "json")]
 impl TryFrom<HashMap<NonMandatoryRegisterId, ConstantHolder>> for NonMandatoryRegisters {
     type Error = NonMandatoryRegistersError;
     fn try_from(
