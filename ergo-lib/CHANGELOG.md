@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Added 
 
 - Interpreter: added global vars (`INPUTS`, `OUTPUTS`, `SELF`, `HEIGHT`), `Context` properties (`dataInputs`) [#155](https://github.com/ergoplatform/sigma-rust/pull/155);
-- Explorer API v2 format parsing for box.additionalRegisters [#161](https://github.com/ergoplatform/sigma-rust/pull/161);
+- Explorer API v1 format parsing for box.additionalRegisters [#161](https://github.com/ergoplatform/sigma-rust/pull/161);
 
 ## [0.4.1] - 2020-11-19
 
