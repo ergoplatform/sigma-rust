@@ -39,6 +39,20 @@ pub mod ergo_tree {
 }
 
 pub mod ergo_box {
+    use core::fmt;
+    use serde::de::{self, MapAccess, Visitor};
+    use serde::Deserializer;
+    use std::convert::TryFrom;
+    use std::marker::PhantomData;
+    use std::str::FromStr;
+
+    extern crate derive_more;
+    use derive_more::From;
+
+    use crate::ast::constant::Constant;
+    use crate::chain::Base16DecodedBytes;
+    use crate::serialization::SerializationError;
+    use crate::serialization::SigmaSerializable;
     use crate::{
         chain::{
             ergo_box::{BoxId, BoxValue, NonMandatoryRegisters},
@@ -76,6 +90,88 @@ pub mod ergo_box {
         /// number of box (from 0 to total number of boxes the transaction with transactionId created - 1)
         #[serde(rename = "index")]
         pub index: u16,
+    }
+
+    #[derive(Deserialize, PartialEq, Eq, Debug, Clone)]
+    pub struct ConstantHolder(
+        #[serde(deserialize_with = "constant_as_string_or_struct")] RichConstant,
+    );
+
+    impl From<ConstantHolder> for Constant {
+        fn from(ch: ConstantHolder) -> Self {
+            ch.0.raw_value
+        }
+    }
+
+    #[derive(Deserialize, PartialEq, Eq, Debug, Clone)]
+    struct RichConstant {
+        #[serde(rename = "rawValue")]
+        raw_value: Constant,
+    }
+
+    use thiserror::Error;
+
+    #[derive(Error, PartialEq, Eq, Debug, Clone, From)]
+    pub enum ConstantParsingError {
+        #[error("Base16 decoding error: {0}")]
+        DecodeError(base16::DecodeError),
+        #[error("Deserialization error: {0}")]
+        DeserializationError(SerializationError),
+    }
+
+    impl FromStr for RichConstant {
+        type Err = ConstantParsingError;
+        fn from_str(s: &str) -> Result<Self, Self::Err> {
+            let bytes = Base16DecodedBytes::try_from(s)?;
+            let c = Constant::sigma_parse_bytes(bytes.into())?;
+            Ok(RichConstant { raw_value: c })
+        }
+    }
+
+    // via https://serde.rs/string-or-struct.html
+    pub fn constant_as_string_or_struct<'de, T, D>(deserializer: D) -> Result<T, D::Error>
+    where
+        T: Deserialize<'de> + FromStr<Err = ConstantParsingError>,
+        D: Deserializer<'de>,
+    {
+        // This is a Visitor that forwards string types to T's `FromStr` impl and
+        // forwards map types to T's `Deserialize` impl. The `PhantomData` is to
+        // keep the compiler from complaining about T being an unused generic type
+        // parameter. We need T in order to know the Value type for the Visitor
+        // impl.
+        struct StringOrStruct<T>(PhantomData<fn() -> T>);
+
+        impl<'de, T> Visitor<'de> for StringOrStruct<T>
+        where
+            T: Deserialize<'de> + FromStr<Err = ConstantParsingError>,
+        {
+            type Value = T;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("string or map")
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<T, E>
+            where
+                E: de::Error,
+            {
+                FromStr::from_str(value)
+                    .map_err(|_| de::Error::custom("error parsing constant from string: {value}"))
+            }
+
+            fn visit_map<M>(self, map: M) -> Result<T, M::Error>
+            where
+                M: MapAccess<'de>,
+            {
+                // `MapAccessDeserializer` is a wrapper that turns a `MapAccess`
+                // into a `Deserializer`, allowing it to be used as the input to T's
+                // `Deserialize` implementation. T then deserializes itself using
+                // the entries from the map visitor.
+                Deserialize::deserialize(de::value::MapAccessDeserializer::new(map))
+            }
+        }
+
+        deserializer.deserialize_any(StringOrStruct(PhantomData))
     }
 }
 
@@ -167,6 +263,30 @@ mod tests {
         "#;
         let regs: NonMandatoryRegisters = serde_json::from_str(json).unwrap();
         assert_eq!(regs.get_ordered_values().len(), 2)
+    }
+
+    #[test]
+    fn parse_registers_explorer_api_v2() {
+        let json = r#"
+            {
+                "R4": {
+                    "decodedValue": "Coll(-89,30,-127,32,-20,-100,-42,0,-25,-9,-25,107,-100,27,10,-97,127,127,-93,109,-48,70,51,-111,27,85,107,-116,97,102,87,45)",
+                    "valueType": "Coll[Byte]",
+                    "rawValue": "0e20a71e8120ec9cd600e7f7e76b9c1b0a9f7f7fa36dd04633911b556b8c6166572d"
+                }
+            }
+        "#;
+        let regs: NonMandatoryRegisters = serde_json::from_str(json).unwrap();
+        assert!(regs.get(NonMandatoryRegisterId::R4).is_some());
+    }
+
+    #[test]
+    fn parse_registers_error() {
+        let json = r#"
+        {"R4":"0"}
+        "#;
+        let regs: Result<NonMandatoryRegisters, _> = serde_json::from_str(json);
+        assert!(regs.is_err());
     }
 
     #[test]
