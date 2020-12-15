@@ -18,6 +18,8 @@ use super::{
     transaction::TxId,
 };
 
+use crate::ast::box_methods::RegisterId;
+use crate::ast::constant::Constant;
 use crate::{
     ergo_tree::ErgoTree,
     serialization::{
@@ -148,6 +150,17 @@ impl ErgoBox {
     fn calc_box_id(&self) -> BoxId {
         let bytes = self.sigma_serialize_bytes();
         BoxId(blake2b256_hash(&bytes))
+    }
+
+    /// Get register value
+    pub fn get_register(&self, id: RegisterId) -> Option<Constant> {
+        match id {
+            RegisterId::MandatoryRegisterId(id) => match id {
+                MandatoryRegisterId::R0 => Some(self.value.clone().into()),
+                _ => todo!(),
+            },
+            RegisterId::NonMandatoryRegisterId(id) => self.additional_registers.get(id).cloned(),
+        }
     }
 }
 

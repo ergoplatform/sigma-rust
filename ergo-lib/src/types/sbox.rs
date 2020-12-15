@@ -24,9 +24,7 @@ static S_BOX_TYPE_COMPANION_HEAD: STypeCompanionHead = STypeCompanionHead {
 static GET_REG_EVAL_FN: EvalFn = |obj, args| {
     Ok(obj
         .try_extract_into::<ErgoBox>()?
-        // TODO: make box.get_reg() that will return both mandatory and additional registers
-        .additional_registers
-        .get(
+        .get_register(
             args.get(0)
                 .cloned()
                 .ok_or_else(|| EvalError::NotFound("register index is missing".to_string()))?
@@ -35,8 +33,8 @@ static GET_REG_EVAL_FN: EvalFn = |obj, args| {
         )
         // TODO: add register id to the error
         .ok_or_else(|| EvalError::NotFound("no value in register".to_string()))?
-        .v
-        .clone())
+        .v)
+    // TODO: return Opt
 };
 
 lazy_static! {

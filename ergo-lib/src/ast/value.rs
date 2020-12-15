@@ -4,7 +4,6 @@ use std::convert::TryFrom;
 use std::rc::Rc;
 
 use crate::chain::ergo_box::ErgoBox;
-// use crate::eval::context::Context;
 use crate::eval::context::Context;
 use crate::sigma_protocol::dlog_group::EcPoint;
 use crate::sigma_protocol::sigma_boolean::ProveDlog;
@@ -81,11 +80,13 @@ pub enum Value {
     /// AVL tree
     AvlTree,
     /// Collection of values of the same type
-    Coll(Coll),
+    Coll(Box<Coll>),
     /// Tuple (arbitrary type values)
     Tup(Vec<Value>),
     /// Transaction(and blockchain) context info
     Context(Rc<Context>),
+    /// Optional value
+    Opt(Box<Opt>),
 }
 
 impl Value {

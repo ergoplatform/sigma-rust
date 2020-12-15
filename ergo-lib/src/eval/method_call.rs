@@ -30,18 +30,14 @@ mod tests {
 
     use super::*;
 
-    #[ignore = "until GET_REG_EVAL_FN todos are fixed"]
     #[test]
     fn eval_box_get_reg() {
         let mc = MethodCall {
             obj: Box::new(Expr::GlobalVars(GlobalVars::SelfBox)),
             method: sbox::GET_REG_METHOD.clone(),
-            args: vec![Constant::from(4i8).into()],
+            args: vec![Constant::from(0i8).into()],
         };
         let ctx = Rc::new(force_any_val::<Context>());
-        assert_eq!(
-            eval_out::<Vec<ErgoBox>>(&mc.into(), ctx.clone()),
-            ctx.data_inputs
-        );
+        assert_eq!(eval_out::<i64>(&mc.into(), ctx.clone()), ctx.self_box.value);
     }
 }

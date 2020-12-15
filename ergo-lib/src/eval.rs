@@ -1,10 +1,10 @@
 //! Interpreter
 use std::rc::Rc;
 
+use crate::ast::box_methods::RegisterIdOutOfBounds;
 use crate::ast::constant::TryExtractFromError;
 use crate::ast::expr::Expr;
 use crate::ast::value::Value;
-use crate::chain::ergo_box::NonMandatoryRegisterIdOutOfBoundsError;
 use crate::sigma_protocol::sigma_boolean::SigmaBoolean;
 
 use cost_accum::CostAccumulator;
@@ -52,8 +52,8 @@ pub enum EvalError {
     #[error("Not found: {0}")]
     NotFound(String),
     /// Register id out of bounds
-    #[error("{0}")]
-    RegisterIdOutOfBounds(#[from] NonMandatoryRegisterIdOutOfBoundsError),
+    #[error("{0:?}")]
+    RegisterIdOutOfBounds(#[from] RegisterIdOutOfBounds),
 }
 
 /// Result of expression reduction procedure (see `reduce_to_crypto`).

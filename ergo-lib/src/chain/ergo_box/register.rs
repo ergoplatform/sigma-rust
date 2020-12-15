@@ -230,6 +230,19 @@ impl From<NonMandatoryRegistersError> for SerializationError {
     }
 }
 
+/// Register ids that every box have (box properties exposed as registers)
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+pub enum MandatoryRegisterId {
+    /// Monetary value, in Ergo tokens
+    R0 = 0,
+    /// Guarding script
+    R1 = 1,
+    /// Secondary tokens
+    R2 = 2,
+    /// Reference to transaction and output id where the box was created
+    R3 = 3,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

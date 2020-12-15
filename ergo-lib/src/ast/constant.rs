@@ -1,5 +1,6 @@
 //! Constant(Literal) IR node
 
+use crate::chain::ergo_box::BoxValue;
 use crate::chain::ergo_box::ErgoBox;
 use crate::chain::{Base16DecodedBytes, Base16EncodedBytes};
 use crate::types::stype::LiftIntoSType;
@@ -127,6 +128,12 @@ impl From<ErgoBox> for Constant {
             tpe: SType::SBox,
             v: b.into(),
         }
+    }
+}
+
+impl From<BoxValue> for Constant {
+    fn from(v: BoxValue) -> Self {
+        v.as_i64().into()
     }
 }
 
