@@ -1,4 +1,4 @@
-use crate::serialization::op_code::OpCode;
+use crate::{serialization::op_code::OpCode, types::stype::SType};
 
 use super::expr::Expr;
 
@@ -9,12 +9,14 @@ pub struct RegisterId(u8); // should be a sum of NonMandatoryRegisterId and Mand
 #[derive(PartialEq, Eq, Debug, Clone)]
 /// Methods for Box type instance
 pub enum BoxM {
-    /// Box.RX methods
+    /// Box.RX methods (get register value)
     ExtractRegisterAs {
         /// Box
         input: Box<Expr>,
         /// Register id to extract value from
         register_id: RegisterId,
+        /// Type
+        tpe: SType,
     },
 }
 

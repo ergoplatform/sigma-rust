@@ -38,7 +38,7 @@ static DATA_INPUTS_EVAL_FN: EvalFn = |obj, _args| {
 };
 
 lazy_static! {
-    static ref DATA_INPUTS_PROPERTY_RAW: SMethodDesc = SMethodDesc {
+    static ref DATA_INPUTS_PROPERTY_METHOD_DESC: SMethodDesc = SMethodDesc {
         method_id: MethodId(1),
         name: "dataInputs",
         tpe: SType::SFunc(Box::new(SFunc {
@@ -53,11 +53,11 @@ lazy_static! {
 lazy_static! {
     pub static ref S_CONTEXT_TYPE_COMPANION: STypeCompanion = STypeCompanion::new(
         &S_CONTEXT_TYPE_COMPANION_HEAD,
-        vec![&DATA_INPUTS_PROPERTY_RAW]
+        vec![&DATA_INPUTS_PROPERTY_METHOD_DESC]
     );
 }
 
 lazy_static! {
     pub static ref DATA_INPUTS_PROPERTY: SMethod =
-        SMethod::new(&S_CONTEXT_TYPE_COMPANION, &DATA_INPUTS_PROPERTY_RAW,);
+        SMethod::new(&S_CONTEXT_TYPE_COMPANION, &DATA_INPUTS_PROPERTY_METHOD_DESC,);
 }

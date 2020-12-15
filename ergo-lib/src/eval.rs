@@ -4,6 +4,7 @@ use std::rc::Rc;
 use crate::ast::constant::TryExtractFromError;
 use crate::ast::expr::Expr;
 use crate::ast::value::Value;
+use crate::chain::ergo_box::NonMandatoryRegisterIdOutOfBoundsError;
 use crate::sigma_protocol::sigma_boolean::SigmaBoolean;
 
 use cost_accum::CostAccumulator;
@@ -47,6 +48,12 @@ pub enum EvalError {
     /// Unexpected value type
     #[error("Unexpected value type: {0:?}")]
     TryExtractFrom(#[from] TryExtractFromError),
+    /// Not found (missing value, argument, etc.)
+    #[error("Not found: {0}")]
+    NotFound(String),
+    /// Register id out of bounds
+    #[error("{0}")]
+    RegisterIdOutOfBounds(#[from] NonMandatoryRegisterIdOutOfBoundsError),
 }
 
 /// Result of expression reduction procedure (see `reduce_to_crypto`).

@@ -83,7 +83,29 @@ impl TryFrom<String> for NonMandatoryRegisterId {
     }
 }
 
-#[derive(Error, Debug)]
+impl TryFrom<i8> for NonMandatoryRegisterId {
+    type Error = NonMandatoryRegisterIdOutOfBoundsError;
+
+    fn try_from(value: i8) -> Result<Self, Self::Error> {
+        let v_usize = value as usize;
+        if v_usize >= NonMandatoryRegisterId::START_INDEX
+            && v_usize <= NonMandatoryRegisterId::END_INDEX
+        {
+            Ok(NonMandatoryRegisterId::get_by_zero_index(
+                v_usize - NonMandatoryRegisterId::START_INDEX,
+            ))
+        } else {
+            Err(NonMandatoryRegisterIdOutOfBoundsError(value))
+        }
+    }
+}
+
+#[derive(Error, PartialEq, Eq, Clone, Debug)]
+#[error("register id {0} is out of bounds")]
+/// register id is out of bounds
+pub struct NonMandatoryRegisterIdOutOfBoundsError(i8);
+
+#[derive(Error, PartialEq, Eq, Debug, Clone)]
 #[error("failed to parse register id")]
 /// Error for failed parsing of the register id from string
 pub struct NonMandatoryRegisterIdParsingError();

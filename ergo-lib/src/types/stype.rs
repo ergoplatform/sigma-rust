@@ -11,10 +11,13 @@ use crate::sigma_protocol::sigma_boolean::SigmaProp;
 use super::scontext::SContext;
 use super::sfunc::SFunc;
 use super::stype_companion::STypeCompanion;
+use super::stype_param::STypeVar;
 
 /// Every type descriptor is a tree represented by nodes in SType hierarchy.
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum SType {
+    /// Type variable (generic)
+    STypeVar(STypeVar),
     /// TBD
     SAny,
     /// Boolean
@@ -69,6 +72,7 @@ impl SType {
             SType::STup(_) => todo!(),
             SType::SFunc(_) => todo!(),
             SType::SContext(_) => todo!(),
+            SType::STypeVar(_) => todo!(),
         }
     }
 

@@ -129,6 +129,7 @@ impl SigmaSerializable for SType {
             SType::STup(_) => todo!(),
             SType::SFunc(_) => todo!(),
             SType::SContext(_) => todo!(),
+            SType::STypeVar(_) => todo!(),
         }
     }
 

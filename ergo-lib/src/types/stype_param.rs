@@ -2,7 +2,11 @@ use super::stype::SType;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct STypeVar {
-    name: String,
+    pub name: &'static str,
+}
+
+impl STypeVar {
+    pub const T: STypeVar = STypeVar { name: "T" };
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]

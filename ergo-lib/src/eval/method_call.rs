@@ -17,29 +17,31 @@ impl Evaluable for MethodCall {
 
 #[cfg(test)]
 mod tests {
-    // use std::rc::Rc;
+    use std::rc::Rc;
 
-    // use crate::ast::expr::Expr;
-    // use crate::chain::ergo_box::ErgoBox;
-    // use crate::eval::context::Context;
-    // use crate::eval::tests::eval_out;
-    // use crate::test_util::force_any_val;
-    // use crate::types::scontext;
+    use crate::ast::constant::Constant;
+    use crate::ast::expr::Expr;
+    use crate::ast::global_vars::GlobalVars;
+    use crate::chain::ergo_box::ErgoBox;
+    use crate::eval::context::Context;
+    use crate::eval::tests::eval_out;
+    use crate::test_util::force_any_val;
+    use crate::types::sbox;
 
-    // use super::*;
+    use super::*;
 
-    // #[test]
-    // fn eval_context_data_inputs() {
-    //     let mc = MethodCall {
-    //         tpe: scontext::DATA_INPUTS_METHOD.tpe().clone(),
-    //         obj: Box::new(Expr::Context),
-    //         method: scontext::DATA_INPUTS_METHOD.clone(),
-    //         args: vec![],
-    //     };
-    //     let ctx = Rc::new(force_any_val::<Context>());
-    //     assert_eq!(
-    //         eval_out::<Vec<ErgoBox>>(&mc.into(), ctx.clone()),
-    //         ctx.data_inputs
-    //     );
-    // }
+    #[ignore = "until GET_REG_EVAL_FN todos are fixed"]
+    #[test]
+    fn eval_box_get_reg() {
+        let mc = MethodCall {
+            obj: Box::new(Expr::GlobalVars(GlobalVars::SelfBox)),
+            method: sbox::GET_REG_METHOD.clone(),
+            args: vec![Constant::from(4i8).into()],
+        };
+        let ctx = Rc::new(force_any_val::<Context>());
+        assert_eq!(
+            eval_out::<Vec<ErgoBox>>(&mc.into(), ctx.clone()),
+            ctx.data_inputs
+        );
+    }
 }
