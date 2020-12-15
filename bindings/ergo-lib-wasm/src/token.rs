@@ -34,6 +34,11 @@ impl TokenId {
             .map(chain::token::TokenId)
             .map(TokenId)
     }
+
+    /// Base16 encoded string
+    pub fn to_str(&self) -> String {
+        self.0 .0.clone().into()
+    }
 }
 
 impl From<TokenId> for chain::token::TokenId {
