@@ -29,7 +29,11 @@ impl Evaluable for Expr {
                 // })
             }
             Expr::Context => Ok(Value::Context(ectx.ctx.clone())),
-            _ => Err(EvalError::UnexpectedExpr),
+            Expr::OptM(v) => v.eval(env, ectx),
+            _ => Err(EvalError::UnexpectedExpr(format!(
+                "Don't know how to eval Expr: {}",
+                self
+            ))),
         }
     }
 }

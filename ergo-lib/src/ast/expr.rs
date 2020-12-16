@@ -10,6 +10,7 @@ use super::constant::ConstantPlaceholder;
 use super::global_vars::GlobalVars;
 use super::method_call::MethodCall;
 use super::ops;
+use super::opt_methods::OptM;
 use super::predef_func::PredefFunc;
 use super::property_call::PropertyCall;
 
@@ -39,6 +40,8 @@ pub enum Expr {
     ProperyCall(PropertyCall),
     /// Binary operation
     BinOp(ops::BinOp, Box<Expr>, Box<Expr>),
+    /// Option methods
+    OptM(Box<OptM>),
 }
 
 impl Expr {

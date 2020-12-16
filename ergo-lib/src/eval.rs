@@ -20,6 +20,7 @@ pub(crate) mod cost_accum;
 pub(crate) mod expr;
 pub(crate) mod global_vars;
 pub(crate) mod method_call;
+pub(crate) mod opt_methods;
 pub(crate) mod property_call;
 
 /// Environment for the interpreter
@@ -38,10 +39,9 @@ pub enum EvalError {
     /// Only boolean or SigmaBoolean is a valid result expr type
     #[error("Only boolean or SigmaBoolean is a valid result expr type")]
     InvalidResultType,
-    /// Unsupported Expr encountered during the evaluation
-    #[error("Unsupported Expr encountered during the evaluation")]
-    // TODO: store unexpected expr
-    UnexpectedExpr,
+    /// Unexpected Expr encountered during the evaluation
+    #[error("unexpected Expr: {0:?}")]
+    UnexpectedExpr(String),
     /// Error on cost calculation
     #[error("Error on cost calculation: {0:?}")]
     CostError(#[from] CostError),
