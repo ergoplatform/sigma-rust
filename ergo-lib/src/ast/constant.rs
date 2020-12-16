@@ -141,9 +141,9 @@ impl From<Vec<u8>> for Constant {
     fn from(v: Vec<u8>) -> Self {
         Constant {
             tpe: SType::SColl(Box::new(SType::SByte)),
-            v: Value::Coll(Coll::Primitive(CollPrim::CollByte(
+            v: Value::Coll(Box::new(Coll::Primitive(CollPrim::CollByte(
                 v.into_iter().map(|b| b as i8).collect(),
-            ))),
+            )))),
         }
     }
 }
@@ -152,7 +152,7 @@ impl From<Vec<i8>> for Constant {
     fn from(v: Vec<i8>) -> Constant {
         Constant {
             tpe: SType::SColl(Box::new(SType::SByte)),
-            v: Value::Coll(Coll::Primitive(CollPrim::CollByte(v))),
+            v: Value::Coll(Box::new(Coll::Primitive(CollPrim::CollByte(v)))),
         }
     }
 }
@@ -199,7 +199,14 @@ impl<T: TryExtractFrom<Value>> TryExtractFrom<Constant> for T {
 impl TryExtractFrom<Constant> for Vec<i8> {
     fn try_extract_from(c: Constant) -> Result<Self, TryExtractFromError> {
         match c.v {
-            Value::Coll(Coll::Primitive(CollPrim::CollByte(bs))) => Ok(bs),
+            Value::Coll(v) => match *v {
+                Coll::Primitive(CollPrim::CollByte(bs)) => Ok(bs),
+                _ => Err(TryExtractFromError(format!(
+                    "expected {:?}, found {:?}",
+                    std::any::type_name::<Self>(),
+                    v
+                ))),
+            },
             _ => Err(TryExtractFromError(format!(
                 "expected {:?}, found {:?}",
                 std::any::type_name::<Self>(),

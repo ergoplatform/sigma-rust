@@ -1,6 +1,7 @@
 use std::convert::TryInto;
 
 use crate::ast::constant::TryExtractInto;
+use crate::ast::value::Value;
 use crate::chain::ergo_box::ErgoBox;
 use crate::eval::EvalError;
 
@@ -22,19 +23,17 @@ static S_BOX_TYPE_COMPANION_HEAD: STypeCompanionHead = STypeCompanionHead {
 };
 
 static GET_REG_EVAL_FN: EvalFn = |obj, args| {
-    Ok(obj
-        .try_extract_into::<ErgoBox>()?
-        .get_register(
-            args.get(0)
-                .cloned()
-                .ok_or_else(|| EvalError::NotFound("register index is missing".to_string()))?
-                .try_extract_into::<i8>()?
-                .try_into()?,
-        )
-        // TODO: add register id to the error
-        .ok_or_else(|| EvalError::NotFound("no value in register".to_string()))?
-        .v)
-    // TODO: return Opt
+    Ok(Value::Opt(Box::new(
+        obj.try_extract_into::<ErgoBox>()?
+            .get_register(
+                args.get(0)
+                    .cloned()
+                    .ok_or_else(|| EvalError::NotFound("register index is missing".to_string()))?
+                    .try_extract_into::<i8>()?
+                    .try_into()?,
+            )
+            .map(|c| c.v),
+    )))
 };
 
 lazy_static! {

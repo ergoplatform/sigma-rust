@@ -31,7 +31,7 @@ impl DataSerializer {
             Value::CBox(_) => todo!(),
             // Value::TBox(_) => todo!(),
             Value::AvlTree => todo!(),
-            Value::Coll(ct) => match ct {
+            Value::Coll(ct) => match &**ct {
                 Coll::Primitive(CollPrim::CollByte(b)) => {
                     w.put_usize_as_u16(b.len())?;
                     w.write_all(b.clone().as_vec_u8().as_slice())
@@ -43,6 +43,7 @@ impl DataSerializer {
                 }
             },
             Value::Tup(_) => todo!(),
+            Value::Opt(_) => todo!(), // unsupported, see https://github.com/ScorexFoundation/sigmastate-interpreter/issues/659
             Value::Context(_) => todo!(), // TODO: throw error? it should not be here
         }
     }
@@ -65,9 +66,9 @@ impl DataSerializer {
                 let len = r.get_u16()? as usize;
                 let mut buf = vec![0u8; len];
                 r.read_exact(&mut buf)?;
-                Value::Coll(Coll::Primitive(CollPrim::CollByte(
+                Value::Coll(Box::new(Coll::Primitive(CollPrim::CollByte(
                     buf.into_iter().map(|v| v as i8).collect(),
-                )))
+                ))))
             }
             SColl(elem_type) => {
                 let len = r.get_u16()? as usize;
@@ -75,10 +76,10 @@ impl DataSerializer {
                 for _ in 0..len {
                     elems.push(DataSerializer::sigma_parse(elem_type, r)?);
                 }
-                Value::Coll(Coll::NonPrimitive {
+                Value::Coll(Box::new(Coll::NonPrimitive {
                     elem_tpe: *elem_type.clone(),
                     v: elems,
-                })
+                }))
             }
             STup(types) => {
                 let mut items = Vec::new();

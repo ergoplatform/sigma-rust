@@ -1,4 +1,5 @@
 use std::convert::TryFrom;
+use std::convert::TryInto;
 
 use crate::chain::ergo_box::ErgoBox;
 use crate::chain::ergo_box::MandatoryRegisterId;
@@ -23,13 +24,23 @@ pub enum RegisterId {
 
 #[derive(Error, PartialEq, Eq, Debug, Clone)]
 #[error("register id {0} is out of bounds (0 - 9)")]
-pub struct RegisterIdOutOfBounds(i8);
+pub struct RegisterIdOutOfBounds(pub i8);
 
 impl TryFrom<i8> for RegisterId {
     type Error = RegisterIdOutOfBounds;
 
     fn try_from(value: i8) -> Result<Self, Self::Error> {
-        todo!()
+        if value < 0 {
+            return Err(RegisterIdOutOfBounds(value));
+        }
+        let v = value as usize;
+        if v < NonMandatoryRegisterId::START_INDEX {
+            Ok(RegisterId::MandatoryRegisterId(value.try_into()?))
+        } else if v <= NonMandatoryRegisterId::END_INDEX {
+            Ok(RegisterId::NonMandatoryRegisterId(value.try_into()?))
+        } else {
+            Err(RegisterIdOutOfBounds(value))
+        }
     }
 }
 
@@ -61,16 +72,14 @@ impl Evaluable for BoxM {
                 input,
                 register_id,
                 tpe: _,
-            } => input
-                .eval(env, ctx)?
-                .try_extract_into::<ErgoBox>()?
-                .get_register(*register_id)
-                .map(|c| c.v)
-                .ok_or_else(|| {
-                    EvalError::NotFound(format!("no value in register {0:?}", register_id))
-                }),
+            } => Ok(Value::Opt(Box::new(
+                input
+                    .eval(env, ctx)?
+                    .try_extract_into::<ErgoBox>()?
+                    .get_register(*register_id)
+                    .map(|c| c.v),
+            ))),
         }
-        // TODO: return Opt
     }
 }
 

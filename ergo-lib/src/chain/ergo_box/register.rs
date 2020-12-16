@@ -1,5 +1,6 @@
 //! Box registers
 
+use crate::ast::box_methods::RegisterIdOutOfBounds;
 #[cfg(feature = "json")]
 use crate::chain::json::ergo_box::ConstantHolder;
 use crate::{ast::constant::Constant, serialization::SerializationError};
@@ -84,7 +85,7 @@ impl TryFrom<String> for NonMandatoryRegisterId {
 }
 
 impl TryFrom<i8> for NonMandatoryRegisterId {
-    type Error = NonMandatoryRegisterIdOutOfBoundsError;
+    type Error = RegisterIdOutOfBounds;
 
     fn try_from(value: i8) -> Result<Self, Self::Error> {
         let v_usize = value as usize;
@@ -95,15 +96,10 @@ impl TryFrom<i8> for NonMandatoryRegisterId {
                 v_usize - NonMandatoryRegisterId::START_INDEX,
             ))
         } else {
-            Err(NonMandatoryRegisterIdOutOfBoundsError(value))
+            Err(RegisterIdOutOfBounds(value))
         }
     }
 }
-
-#[derive(Error, PartialEq, Eq, Clone, Debug)]
-#[error("register id {0} is out of bounds")]
-/// register id is out of bounds
-pub struct NonMandatoryRegisterIdOutOfBoundsError(i8);
 
 #[derive(Error, PartialEq, Eq, Debug, Clone)]
 #[error("failed to parse register id")]
@@ -241,6 +237,20 @@ pub enum MandatoryRegisterId {
     R2 = 2,
     /// Reference to transaction and output id where the box was created
     R3 = 3,
+}
+
+impl TryFrom<i8> for MandatoryRegisterId {
+    type Error = RegisterIdOutOfBounds;
+
+    fn try_from(value: i8) -> Result<Self, Self::Error> {
+        match value {
+            v if v == MandatoryRegisterId::R0 as i8 => Ok(MandatoryRegisterId::R0),
+            v if v == MandatoryRegisterId::R1 as i8 => Ok(MandatoryRegisterId::R1),
+            v if v == MandatoryRegisterId::R2 as i8 => Ok(MandatoryRegisterId::R2),
+            v if v == MandatoryRegisterId::R3 as i8 => Ok(MandatoryRegisterId::R3),
+            _ => Err(RegisterIdOutOfBounds(value)),
+        }
+    }
 }
 
 #[cfg(test)]

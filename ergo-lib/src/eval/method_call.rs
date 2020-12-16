@@ -22,7 +22,6 @@ mod tests {
     use crate::ast::constant::Constant;
     use crate::ast::expr::Expr;
     use crate::ast::global_vars::GlobalVars;
-    use crate::chain::ergo_box::ErgoBox;
     use crate::eval::context::Context;
     use crate::eval::tests::eval_out;
     use crate::test_util::force_any_val;
@@ -38,6 +37,9 @@ mod tests {
             args: vec![Constant::from(0i8).into()],
         };
         let ctx = Rc::new(force_any_val::<Context>());
-        assert_eq!(eval_out::<i64>(&mc.into(), ctx.clone()), ctx.self_box.value);
+        assert_eq!(
+            eval_out::<i64>(&mc.into(), ctx.clone()),
+            ctx.self_box.value.as_i64()
+        );
     }
 }
