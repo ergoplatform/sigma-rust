@@ -22,7 +22,7 @@ mod tests {
     use crate::ast::constant::Constant;
     use crate::ast::expr::Expr;
     use crate::ast::global_vars::GlobalVars;
-    use crate::ast::opt_methods::OptM;
+    use crate::ast::option_get::OptionGet;
     use crate::eval::context::Context;
     use crate::eval::tests::eval_out;
     use crate::test_util::force_any_val;
@@ -38,7 +38,7 @@ mod tests {
             args: vec![Constant::from(0i8).into()],
         }
         .into();
-        let option_get_expr: Expr = Box::new(OptM::Get(mc.into())).into();
+        let option_get_expr: Expr = Box::new(OptionGet { input: mc }).into();
         let ctx = Rc::new(force_any_val::<Context>());
         assert_eq!(
             eval_out::<i64>(&option_get_expr, ctx.clone()),
