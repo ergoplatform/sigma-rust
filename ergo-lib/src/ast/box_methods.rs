@@ -22,6 +22,10 @@ pub enum RegisterId {
     NonMandatoryRegisterId(NonMandatoryRegisterId),
 }
 
+impl RegisterId {
+    pub const R0: RegisterId = RegisterId::MandatoryRegisterId(MandatoryRegisterId::R0);
+}
+
 #[derive(Error, PartialEq, Eq, Debug, Clone)]
 #[error("register id {0} is out of bounds (0 - 9)")]
 pub struct RegisterIdOutOfBounds(pub i8);
