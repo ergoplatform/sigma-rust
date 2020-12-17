@@ -92,6 +92,7 @@ mod tests {
     use std::rc::Rc;
 
     use crate::ast::global_vars::GlobalVars;
+    use crate::ast::opt_methods::OptM;
     use crate::eval::context::Context;
     use crate::eval::tests::eval_out;
     use crate::test_util::force_any_val;
@@ -100,13 +101,15 @@ mod tests {
 
     #[test]
     fn eval_box_get_reg() {
-        let mc = BoxM::ExtractRegisterAs {
-            input: Box::new(Expr::GlobalVars(GlobalVars::SelfBox)),
-            register_id: RegisterId::MandatoryRegisterId(MandatoryRegisterId::R0),
-            tpe: SType::SOption(Box::new(SType::SLong)),
-        };
+        let get_reg_expr: Expr = BoxM::ExtractRegisterAs {
+            input: Box::new(GlobalVars::SelfBox.into()),
+            register_id: RegisterId::R0,
+            tpe: SType::SOption(SType::SLong.into()),
+        }
+        .into();
+        let option_get_expr: Expr = Box::new(OptM::Get(get_reg_expr.into())).into();
         let ctx = Rc::new(force_any_val::<Context>());
-        let v = eval_out::<i64>(&mc.into(), ctx.clone());
+        let v = eval_out::<i64>(&option_get_expr, ctx.clone());
         assert_eq!(v, ctx.self_box.value.as_i64());
     }
 }

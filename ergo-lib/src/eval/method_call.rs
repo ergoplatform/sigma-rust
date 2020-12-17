@@ -22,6 +22,7 @@ mod tests {
     use crate::ast::constant::Constant;
     use crate::ast::expr::Expr;
     use crate::ast::global_vars::GlobalVars;
+    use crate::ast::opt_methods::OptM;
     use crate::eval::context::Context;
     use crate::eval::tests::eval_out;
     use crate::test_util::force_any_val;
@@ -31,14 +32,16 @@ mod tests {
 
     #[test]
     fn eval_box_get_reg() {
-        let mc = MethodCall {
-            obj: Box::new(Expr::GlobalVars(GlobalVars::SelfBox)),
+        let mc: Expr = MethodCall {
+            obj: Box::new(GlobalVars::SelfBox.into()),
             method: sbox::GET_REG_METHOD.clone(),
             args: vec![Constant::from(0i8).into()],
-        };
+        }
+        .into();
+        let option_get_expr: Expr = Box::new(OptM::Get(mc.into())).into();
         let ctx = Rc::new(force_any_val::<Context>());
         assert_eq!(
-            eval_out::<i64>(&mc.into(), ctx.clone()),
+            eval_out::<i64>(&option_get_expr, ctx.clone()),
             ctx.self_box.value.as_i64()
         );
     }
