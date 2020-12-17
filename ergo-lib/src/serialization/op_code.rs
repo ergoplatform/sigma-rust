@@ -32,6 +32,8 @@ impl OpCode {
     pub const PROPERTY_CALL: OpCode = Self::new_op_code(107);
     pub const METHOD_CALL: OpCode = Self::new_op_code(108);
 
+    pub const OPTION_GET: OpCode = Self::new_op_code(116);
+
     pub const CONTEXT: OpCode = Self::new_op_code(142);
 
     const fn new_op_code(shift: u8) -> OpCode {

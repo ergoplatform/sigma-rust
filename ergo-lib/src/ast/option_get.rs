@@ -4,10 +4,21 @@ use crate::eval::Env;
 use crate::eval::EvalContext;
 use crate::eval::EvalError;
 use crate::eval::Evaluable;
+use crate::serialization::op_code::OpCode;
+use crate::serialization::sigma_byte_reader::SigmaByteRead;
+use crate::serialization::sigma_byte_writer::SigmaByteWrite;
+use crate::serialization::SerializationError;
+use crate::serialization::SigmaSerializable;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct OptionGet {
     pub input: Expr,
+}
+
+impl OptionGet {
+    pub fn op_code(&self) -> OpCode {
+        OpCode::OPTION_GET
+    }
 }
 
 impl Evaluable for OptionGet {
@@ -25,6 +36,18 @@ impl Evaluable for OptionGet {
     }
 }
 
+impl SigmaSerializable for OptionGet {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
+        self.input.sigma_serialize(w)
+    }
+
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+        Ok(OptionGet {
+            input: Expr::sigma_parse(r)?,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::rc::Rc;
@@ -35,6 +58,7 @@ mod tests {
     use crate::ast::global_vars::GlobalVars;
     use crate::eval::context::Context;
     use crate::eval::tests::eval_out;
+    use crate::serialization::sigma_serialize_roundtrip;
     use crate::test_util::force_any_val;
     use crate::types::stype::SType;
 
@@ -55,5 +79,14 @@ mod tests {
         let ctx = Rc::new(force_any_val::<Context>());
         let v = eval_out::<i64>(&option_get_expr, ctx.clone());
         assert_eq!(v, ctx.self_box.value.as_i64());
+    }
+
+    #[test]
+    fn ser_roundtrip() {
+        let e: Expr = Box::new(OptionGet {
+            input: Expr::Context,
+        })
+        .into();
+        assert_eq![sigma_serialize_roundtrip(&e), e];
     }
 }
