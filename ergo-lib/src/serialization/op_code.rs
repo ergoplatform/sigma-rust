@@ -27,10 +27,15 @@ impl OpCode {
     pub const SELF_BOX: OpCode = Self::new_op_code(55);
 
     pub const FOLD: OpCode = Self::new_op_code(64);
+
+    pub const EXTRACT_REGISTER_AS: OpCode = Self::new_op_code(86);
+
     pub const PROVE_DLOG: OpCode = Self::new_op_code(93);
 
     pub const PROPERTY_CALL: OpCode = Self::new_op_code(107);
     pub const METHOD_CALL: OpCode = Self::new_op_code(108);
+
+    pub const OPTION_GET: OpCode = Self::new_op_code(116);
 
     pub const CONTEXT: OpCode = Self::new_op_code(142);
 

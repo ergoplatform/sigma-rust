@@ -34,6 +34,13 @@ impl TypeCode {
     pub const COLLECTION_TYPE_CODE: TypeCode =
         Self::new((TypeCode::MAX_PRIM_TYPECODE + 1) * TypeCode::COLLECTION_TYPE_CONSTR_ID);
 
+    pub const OPTION_TYPE_CONSTR_ID: u8 = 3;
+    pub const OPTION_COLLECTION_TYPE_CONSTR_ID: u8 = 4;
+    pub const OPTION_TYPE_CODE: TypeCode =
+        Self::new((TypeCode::MAX_PRIM_TYPECODE + 1) * TypeCode::OPTION_TYPE_CONSTR_ID);
+    pub const OPTION_COLLECTION_TYPE_CODE: TypeCode =
+        Self::new((TypeCode::MAX_PRIM_TYPECODE + 1) * TypeCode::OPTION_COLLECTION_TYPE_CONSTR_ID);
+
     const fn new(c: u8) -> TypeCode {
         TypeCode(c)
     }
@@ -120,7 +127,20 @@ impl SigmaSerializable for SType {
 
             SType::SBox => todo!(),
             SType::SAvlTree => todo!(),
-            SType::SOption(_) => todo!(),
+            SType::SOption(elem_type) if is_stype_embeddable(elem_type) => {
+                let code = TypeCode::OPTION_TYPE_CODE + elem_type.type_code();
+                code.sigma_serialize(w)
+            }
+            SType::SOption(elem_type) => match &**elem_type {
+                SType::SColl(elem_type) if is_stype_embeddable(elem_type.as_ref()) => {
+                    let code = TypeCode::OPTION_COLLECTION_TYPE_CODE + elem_type.type_code();
+                    code.sigma_serialize(w)
+                }
+                _ => {
+                    TypeCode::OPTION_TYPE_CODE.sigma_serialize(w)?;
+                    elem_type.sigma_serialize(w)
+                }
+            },
             SType::SColl(elem_type) if is_stype_embeddable(elem_type) => {
                 let code = TypeCode::COLLECTION_TYPE_CODE + elem_type.type_code();
                 code.sigma_serialize(w)
@@ -129,6 +149,7 @@ impl SigmaSerializable for SType {
             SType::STup(_) => todo!(),
             SType::SFunc(_) => todo!(),
             SType::SContext(_) => todo!(),
+            SType::STypeVar(_) => todo!(),
         }
     }
 
@@ -144,6 +165,16 @@ impl SigmaSerializable for SType {
             1 => {
                 let t_elem = get_embeddable_type(prim_id)?;
                 SType::SColl(Box::new(t_elem))
+            }
+            // Option[_]
+            3 => {
+                let t_elem = get_embeddable_type(prim_id)?;
+                SType::SOption(Box::new(t_elem))
+            }
+            // Option[Coll[_]]
+            4 => {
+                let t_elem = get_embeddable_type(prim_id)?;
+                SType::SOption(SType::SColl(t_elem.into()).into())
             }
             _ => {
                 return Err(SerializationError::NotImplementedYet(

@@ -2,11 +2,69 @@
 
 #[cfg(feature = "json")]
 use crate::chain::json::ergo_box::ConstantHolder;
+use crate::serialization::sigma_byte_reader::SigmaByteRead;
+use crate::serialization::sigma_byte_writer::SigmaByteWrite;
+use crate::serialization::SigmaSerializable;
 use crate::{ast::constant::Constant, serialization::SerializationError};
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
+use std::convert::TryInto;
 use std::{collections::HashMap, convert::TryFrom};
 use thiserror::Error;
+
+/// Box register id (0-9)
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+pub enum RegisterId {
+    /// Id for mandatory registers (0-3)
+    MandatoryRegisterId(MandatoryRegisterId),
+    /// Id for non-mandotory registers (4-9)
+    NonMandatoryRegisterId(NonMandatoryRegisterId),
+}
+
+impl RegisterId {
+    /// R0 register id (box.value)
+    pub const R0: RegisterId = RegisterId::MandatoryRegisterId(MandatoryRegisterId::R0);
+}
+
+/// Register id out of bounds error (not in 0-9 range)
+#[derive(Error, PartialEq, Eq, Debug, Clone)]
+#[error("register id {0} is out of bounds (0 - 9)")]
+pub struct RegisterIdOutOfBounds(pub i8);
+
+impl TryFrom<i8> for RegisterId {
+    type Error = RegisterIdOutOfBounds;
+
+    fn try_from(value: i8) -> Result<Self, Self::Error> {
+        if value < 0 {
+            return Err(RegisterIdOutOfBounds(value));
+        }
+        let v = value as usize;
+        if v < NonMandatoryRegisterId::START_INDEX {
+            Ok(RegisterId::MandatoryRegisterId(value.try_into()?))
+        } else if v <= NonMandatoryRegisterId::END_INDEX {
+            Ok(RegisterId::NonMandatoryRegisterId(value.try_into()?))
+        } else {
+            Err(RegisterIdOutOfBounds(value))
+        }
+    }
+}
+
+impl SigmaSerializable for RegisterId {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
+        let byte = match self {
+            RegisterId::MandatoryRegisterId(id) => *id as i8,
+            RegisterId::NonMandatoryRegisterId(id) => *id as i8,
+        };
+        w.put_i8(byte)
+    }
+
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+        let reg_id = r.get_i8()?;
+        RegisterId::try_from(reg_id).map_err(|_| {
+            SerializationError::ValueOutOfBounds(format!("Register id out of bounds: {}", reg_id))
+        })
+    }
+}
 
 /// newtype for additional registers R4 - R9
 #[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
@@ -83,7 +141,24 @@ impl TryFrom<String> for NonMandatoryRegisterId {
     }
 }
 
-#[derive(Error, Debug)]
+impl TryFrom<i8> for NonMandatoryRegisterId {
+    type Error = RegisterIdOutOfBounds;
+
+    fn try_from(value: i8) -> Result<Self, Self::Error> {
+        let v_usize = value as usize;
+        if v_usize >= NonMandatoryRegisterId::START_INDEX
+            && v_usize <= NonMandatoryRegisterId::END_INDEX
+        {
+            Ok(NonMandatoryRegisterId::get_by_zero_index(
+                v_usize - NonMandatoryRegisterId::START_INDEX,
+            ))
+        } else {
+            Err(RegisterIdOutOfBounds(value))
+        }
+    }
+}
+
+#[derive(Error, PartialEq, Eq, Debug, Clone)]
 #[error("failed to parse register id")]
 /// Error for failed parsing of the register id from string
 pub struct NonMandatoryRegisterIdParsingError();
@@ -205,6 +280,33 @@ impl TryFrom<HashMap<NonMandatoryRegisterId, ConstantHolder>> for NonMandatoryRe
 impl From<NonMandatoryRegistersError> for SerializationError {
     fn from(error: NonMandatoryRegistersError) -> Self {
         SerializationError::Misc(error.to_string())
+    }
+}
+
+/// Register ids that every box have (box properties exposed as registers)
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+pub enum MandatoryRegisterId {
+    /// Monetary value, in Ergo tokens
+    R0 = 0,
+    /// Guarding script
+    R1 = 1,
+    /// Secondary tokens
+    R2 = 2,
+    /// Reference to transaction and output id where the box was created
+    R3 = 3,
+}
+
+impl TryFrom<i8> for MandatoryRegisterId {
+    type Error = RegisterIdOutOfBounds;
+
+    fn try_from(value: i8) -> Result<Self, Self::Error> {
+        match value {
+            v if v == MandatoryRegisterId::R0 as i8 => Ok(MandatoryRegisterId::R0),
+            v if v == MandatoryRegisterId::R1 as i8 => Ok(MandatoryRegisterId::R1),
+            v if v == MandatoryRegisterId::R2 as i8 => Ok(MandatoryRegisterId::R2),
+            v if v == MandatoryRegisterId::R3 as i8 => Ok(MandatoryRegisterId::R3),
+            _ => Err(RegisterIdOutOfBounds(value)),
+        }
     }
 }
 

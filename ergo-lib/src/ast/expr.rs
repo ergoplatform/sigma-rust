@@ -3,13 +3,14 @@ use core::fmt;
 use crate::serialization::op_code::OpCode;
 use crate::types::stype::SType;
 
-use super::box_methods::BoxM;
 use super::coll_methods::CollM;
 use super::constant::Constant;
 use super::constant::ConstantPlaceholder;
+use super::extract_reg_as::ExtractRegisterAs;
 use super::global_vars::GlobalVars;
 use super::method_call::MethodCall;
 use super::ops;
+use super::option_get::OptionGet;
 use super::predef_func::PredefFunc;
 use super::property_call::PropertyCall;
 
@@ -27,8 +28,6 @@ pub enum Expr {
     PredefFunc(PredefFunc),
     /// Collection type methods
     CollM(CollM),
-    /// Box methods
-    BoxM(BoxM),
     Context,
     // Global(Global),
     /// Predefined global variables
@@ -39,6 +38,10 @@ pub enum Expr {
     ProperyCall(PropertyCall),
     /// Binary operation
     BinOp(ops::BinOp, Box<Expr>, Box<Expr>),
+    /// Option get method
+    OptionGet(Box<OptionGet>),
+    /// Extract register's value (box.RX properties)
+    ExtractRegisterAs(Box<ExtractRegisterAs>),
 }
 
 impl Expr {
@@ -51,6 +54,8 @@ impl Expr {
             Expr::MethodCall(v) => v.op_code(),
             Expr::ProperyCall(v) => v.op_code(),
             Expr::Context => OpCode::CONTEXT,
+            Expr::OptionGet(v) => v.op_code(),
+            Expr::ExtractRegisterAs(v) => v.op_code(),
             _ => todo!("{0:?}", self),
         }
     }

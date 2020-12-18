@@ -3,8 +3,10 @@ use crate::ast::coll_methods::CollM;
 use crate::ast::constant::Constant;
 use crate::ast::constant::ConstantPlaceholder;
 use crate::ast::expr::Expr;
+use crate::ast::extract_reg_as::ExtractRegisterAs;
 use crate::ast::global_vars::GlobalVars;
 use crate::ast::method_call::MethodCall;
+use crate::ast::option_get::OptionGet;
 use crate::ast::property_call::PropertyCall;
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
@@ -35,6 +37,8 @@ impl SigmaSerializable for Expr {
                     Expr::MethodCall(mc) => mc.sigma_serialize(w),
                     Expr::ProperyCall(pc) => pc.sigma_serialize(w),
                     Expr::Context => Ok(()),
+                    Expr::OptionGet(v) => v.sigma_serialize(w),
+                    Expr::ExtractRegisterAs(v) => v.sigma_serialize(w),
                     _ => panic!(format!("don't know how to serialize {:?}", expr)),
                 }
             }
@@ -75,6 +79,10 @@ impl SigmaSerializable for Expr {
                 OpCode::PROPERTY_CALL => Ok(Expr::ProperyCall(PropertyCall::sigma_parse(r)?)),
                 OpCode::METHOD_CALL => Ok(Expr::MethodCall(MethodCall::sigma_parse(r)?)),
                 OpCode::CONTEXT => Ok(Expr::Context),
+                OpCode::OPTION_GET => Ok(Box::new(OptionGet::sigma_parse(r)?).into()),
+                OpCode::EXTRACT_REGISTER_AS => {
+                    Ok(Box::new(ExtractRegisterAs::sigma_parse(r)?).into())
+                }
                 o => Err(SerializationError::NotImplementedOpCode(o.value())),
             }
         }

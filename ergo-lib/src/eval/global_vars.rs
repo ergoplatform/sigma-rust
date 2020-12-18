@@ -12,7 +12,10 @@ impl Evaluable for GlobalVars {
             GlobalVars::Height => Ok(ectx.ctx.height.clone().into()),
             GlobalVars::SelfBox => Ok(ectx.ctx.self_box.clone().into()),
             GlobalVars::Outputs => Ok(ectx.ctx.outputs.clone().into()),
-            _ => Err(EvalError::UnexpectedExpr),
+            _ => Err(EvalError::UnexpectedExpr(format!(
+                "Don't know how to eval GlobalVars: {0:?}",
+                self
+            ))),
         }
     }
 }

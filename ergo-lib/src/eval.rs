@@ -4,6 +4,7 @@ use std::rc::Rc;
 use crate::ast::constant::TryExtractFromError;
 use crate::ast::expr::Expr;
 use crate::ast::value::Value;
+use crate::chain::ergo_box::RegisterIdOutOfBounds;
 use crate::sigma_protocol::sigma_boolean::SigmaBoolean;
 
 use cost_accum::CostAccumulator;
@@ -37,16 +38,21 @@ pub enum EvalError {
     /// Only boolean or SigmaBoolean is a valid result expr type
     #[error("Only boolean or SigmaBoolean is a valid result expr type")]
     InvalidResultType,
-    /// Unsupported Expr encountered during the evaluation
-    #[error("Unsupported Expr encountered during the evaluation")]
-    // TODO: store unexpected expr
-    UnexpectedExpr,
+    /// Unexpected Expr encountered during the evaluation
+    #[error("unexpected Expr: {0:?}")]
+    UnexpectedExpr(String),
     /// Error on cost calculation
     #[error("Error on cost calculation: {0:?}")]
     CostError(#[from] CostError),
     /// Unexpected value type
     #[error("Unexpected value type: {0:?}")]
     TryExtractFrom(#[from] TryExtractFromError),
+    /// Not found (missing value, argument, etc.)
+    #[error("Not found: {0}")]
+    NotFound(String),
+    /// Register id out of bounds
+    #[error("{0:?}")]
+    RegisterIdOutOfBounds(#[from] RegisterIdOutOfBounds),
 }
 
 /// Result of expression reduction procedure (see `reduce_to_crypto`).

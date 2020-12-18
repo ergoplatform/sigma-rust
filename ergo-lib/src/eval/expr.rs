@@ -13,7 +13,7 @@ impl Evaluable for Expr {
             Expr::Const(c) => Ok(c.v.clone()),
             Expr::PredefFunc(_) => todo!(),
             Expr::CollM(_) => todo!(),
-            Expr::BoxM(_) => todo!(),
+            Expr::ExtractRegisterAs(v) => v.eval(env, ectx),
             Expr::GlobalVars(v) => v.eval(env, ectx),
             Expr::MethodCall(v) => v.eval(env, ectx),
             Expr::ProperyCall(v) => v.eval(env, ectx),
@@ -29,7 +29,11 @@ impl Evaluable for Expr {
                 // })
             }
             Expr::Context => Ok(Value::Context(ectx.ctx.clone())),
-            _ => Err(EvalError::UnexpectedExpr),
+            Expr::OptionGet(v) => v.eval(env, ectx),
+            _ => Err(EvalError::UnexpectedExpr(format!(
+                "Don't know how to eval Expr: {}",
+                self
+            ))),
         }
     }
 }

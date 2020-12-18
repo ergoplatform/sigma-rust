@@ -4,7 +4,6 @@ use std::convert::TryFrom;
 use std::rc::Rc;
 
 use crate::chain::ergo_box::ErgoBox;
-// use crate::eval::context::Context;
 use crate::eval::context::Context;
 use crate::sigma_protocol::dlog_group::EcPoint;
 use crate::sigma_protocol::sigma_boolean::ProveDlog;
@@ -81,11 +80,13 @@ pub enum Value {
     /// AVL tree
     AvlTree,
     /// Collection of values of the same type
-    Coll(Coll),
+    Coll(Box<Coll>),
     /// Tuple (arbitrary type values)
     Tup(Vec<Value>),
     /// Transaction(and blockchain) context info
     Context(Rc<Context>),
+    /// Optional value
+    Opt(Box<Option<Value>>),
 }
 
 impl Value {
@@ -154,10 +155,10 @@ impl StoredNonPrimitive for ErgoBox {}
 
 impl<T: LiftIntoSType + StoredNonPrimitive + Into<Value>> Into<Value> for Vec<T> {
     fn into(self) -> Value {
-        Value::Coll(Coll::NonPrimitive {
+        Value::Coll(Box::new(Coll::NonPrimitive {
             elem_tpe: T::stype(),
             v: self.into_iter().map(|i| i.into()).collect(),
-        })
+        }))
     }
 }
 
@@ -248,9 +249,16 @@ impl TryExtractFrom<Value> for ErgoBox {
 impl<T: TryExtractFrom<Value> + StoredNonPrimitive> TryExtractFrom<Value> for Vec<T> {
     fn try_extract_from(c: Value) -> Result<Self, TryExtractFromError> {
         match c {
-            Value::Coll(Coll::NonPrimitive { elem_tpe: _, v }) => {
-                v.into_iter().map(T::try_extract_from).collect()
-            }
+            Value::Coll(coll) => match *coll {
+                Coll::NonPrimitive { elem_tpe: _, v } => {
+                    v.into_iter().map(T::try_extract_from).collect()
+                }
+                _ => Err(TryExtractFromError(format!(
+                    "expected {:?}, found {:?}",
+                    std::any::type_name::<Self>(),
+                    coll
+                ))),
+            },
             _ => Err(TryExtractFromError(format!(
                 "expected {:?}, found {:?}",
                 std::any::type_name::<Self>(),
