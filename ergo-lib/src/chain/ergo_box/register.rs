@@ -2,6 +2,9 @@
 
 #[cfg(feature = "json")]
 use crate::chain::json::ergo_box::ConstantHolder;
+use crate::serialization::sigma_byte_reader::SigmaByteRead;
+use crate::serialization::sigma_byte_writer::SigmaByteWrite;
+use crate::serialization::SigmaSerializable;
 use crate::{ast::constant::Constant, serialization::SerializationError};
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
@@ -43,6 +46,23 @@ impl TryFrom<i8> for RegisterId {
         } else {
             Err(RegisterIdOutOfBounds(value))
         }
+    }
+}
+
+impl SigmaSerializable for RegisterId {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
+        let byte = match self {
+            RegisterId::MandatoryRegisterId(id) => *id as i8,
+            RegisterId::NonMandatoryRegisterId(id) => *id as i8,
+        };
+        w.put_i8(byte)
+    }
+
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+        let reg_id = r.get_i8()?;
+        RegisterId::try_from(reg_id).map_err(|_| {
+            SerializationError::ValueOutOfBounds(format!("Register id out of bounds: {}", reg_id))
+        })
     }
 }
 

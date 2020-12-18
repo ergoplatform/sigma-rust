@@ -55,6 +55,7 @@ impl Expr {
             Expr::ProperyCall(v) => v.op_code(),
             Expr::Context => OpCode::CONTEXT,
             Expr::OptionGet(v) => v.op_code(),
+            Expr::ExtractRegisterAs(v) => v.op_code(),
             _ => todo!("{0:?}", self),
         }
     }
