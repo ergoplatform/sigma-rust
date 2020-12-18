@@ -8,7 +8,7 @@ use super::Evaluable;
 
 impl Evaluable for PropertyCall {
     fn eval(&self, env: &Env, ectx: &mut EvalContext) -> Result<Value, EvalError> {
-        let ov = (*self.obj).eval(env, ectx)?;
+        let ov = self.obj.eval(env, ectx)?;
         self.method.eval_fn()(ov, vec![])
     }
 }
@@ -28,14 +28,12 @@ mod tests {
 
     #[test]
     fn eval_context_data_inputs() {
-        let pc = PropertyCall {
-            obj: Box::new(Expr::Context),
+        let pc: Expr = Box::new(PropertyCall {
+            obj: Expr::Context,
             method: scontext::DATA_INPUTS_PROPERTY.clone(),
-        };
+        })
+        .into();
         let ctx = Rc::new(force_any_val::<Context>());
-        assert_eq!(
-            eval_out::<Vec<ErgoBox>>(&pc.into(), ctx.clone()),
-            ctx.data_inputs
-        );
+        assert_eq!(eval_out::<Vec<ErgoBox>>(&pc, ctx.clone()), ctx.data_inputs);
     }
 }

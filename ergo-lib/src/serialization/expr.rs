@@ -1,5 +1,5 @@
-use super::{fold::FoldSerializer, op_code::OpCode, sigma_byte_writer::SigmaByteWrite};
-use crate::ast::coll_methods::CollM;
+use super::{op_code::OpCode, sigma_byte_writer::SigmaByteWrite};
+use crate::ast::coll_fold::Fold;
 use crate::ast::constant::Constant;
 use crate::ast::constant::ConstantPlaceholder;
 use crate::ast::expr::Expr;
@@ -19,7 +19,7 @@ impl SigmaSerializable for Expr {
         match self {
             Expr::Const(c) => match w.constant_store() {
                 Some(cs) => {
-                    let ph = cs.put(c.clone());
+                    let ph = cs.put(*c.clone());
                     ph.op_code().sigma_serialize(w)?;
                     ph.sigma_serialize(w)
                 }
@@ -29,9 +29,7 @@ impl SigmaSerializable for Expr {
                 let op_code = self.op_code();
                 op_code.sigma_serialize(w)?;
                 match expr {
-                    Expr::CollM(cm) => match cm {
-                        CollM::Fold { .. } => FoldSerializer::sigma_serialize(expr, w),
-                    },
+                    Expr::Fold(op) => op.sigma_serialize(w),
                     Expr::ConstPlaceholder(cp) => cp.sigma_serialize(w),
                     Expr::GlobalVars(_) => Ok(()),
                     Expr::MethodCall(mc) => mc.sigma_serialize(w),
@@ -56,28 +54,30 @@ impl SigmaSerializable for Expr {
         }?;
         if first_byte <= OpCode::LAST_CONSTANT_CODE.value() {
             let constant = Constant::sigma_parse(r)?;
-            Ok(Expr::Const(constant))
+            Ok(Expr::Const(constant.into()))
         } else {
             let op_code = OpCode::sigma_parse(r)?;
             match op_code {
-                FoldSerializer::OP_CODE => FoldSerializer::sigma_parse(r),
+                OpCode::FOLD => Ok(Box::new(Fold::sigma_parse(r)?).into()),
                 ConstantPlaceholder::OP_CODE => {
                     let cp = ConstantPlaceholder::sigma_parse(r)?;
                     if r.substitute_placeholders() {
                         // ConstantPlaceholder itself can be created only if a corresponding
                         // constant is in the constant_store, thus unwrap() is safe here
                         let c = r.constant_store().get(cp.id).unwrap();
-                        Ok(Expr::Const(c.clone()))
+                        Ok(Expr::Const(c.clone().into()))
                     } else {
-                        Ok(Expr::ConstPlaceholder(cp))
+                        Ok(Expr::ConstPlaceholder(cp.into()))
                     }
                 }
-                OpCode::HEIGHT => Ok(Expr::GlobalVars(GlobalVars::Height)),
-                OpCode::SELF_BOX => Ok(Expr::GlobalVars(GlobalVars::SelfBox)),
-                OpCode::INPUTS => Ok(Expr::GlobalVars(GlobalVars::Inputs)),
-                OpCode::OUTPUTS => Ok(Expr::GlobalVars(GlobalVars::Outputs)),
-                OpCode::PROPERTY_CALL => Ok(Expr::ProperyCall(PropertyCall::sigma_parse(r)?)),
-                OpCode::METHOD_CALL => Ok(Expr::MethodCall(MethodCall::sigma_parse(r)?)),
+                OpCode::HEIGHT => Ok(Expr::GlobalVars(GlobalVars::Height.into())),
+                OpCode::SELF_BOX => Ok(Expr::GlobalVars(GlobalVars::SelfBox.into())),
+                OpCode::INPUTS => Ok(Expr::GlobalVars(GlobalVars::Inputs.into())),
+                OpCode::OUTPUTS => Ok(Expr::GlobalVars(GlobalVars::Outputs.into())),
+                OpCode::PROPERTY_CALL => {
+                    Ok(Expr::ProperyCall(PropertyCall::sigma_parse(r)?.into()))
+                }
+                OpCode::METHOD_CALL => Ok(Expr::MethodCall(MethodCall::sigma_parse(r)?.into())),
                 OpCode::CONTEXT => Ok(Expr::Context),
                 OpCode::OPTION_GET => Ok(Box::new(OptionGet::sigma_parse(r)?).into()),
                 OpCode::EXTRACT_REGISTER_AS => {

@@ -4,7 +4,6 @@ mod constant;
 mod constant_placeholder;
 mod data;
 mod expr;
-mod fold;
 mod global_vars;
 mod method_call;
 mod property_call;

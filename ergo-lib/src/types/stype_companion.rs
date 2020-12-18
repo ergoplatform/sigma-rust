@@ -6,6 +6,7 @@ use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::SerializationError;
 use crate::serialization::SigmaSerializable;
 
+use super::sbox;
 use super::scontext;
 use super::smethod::MethodId;
 use super::smethod::SMethod;
@@ -44,6 +45,8 @@ impl STypeCompanion {
     pub fn type_by_id(type_id: TypeId) -> &'static STypeCompanion {
         if type_id == scontext::S_CONTEXT_TYPE_COMPANION.type_id() {
             &scontext::S_CONTEXT_TYPE_COMPANION
+        } else if type_id == sbox::S_BOX_TYPE_COMPANION.type_id() {
+            &sbox::S_BOX_TYPE_COMPANION
         } else {
             todo!("cannot find STypeCompanion for {0:?} type id", type_id)
         }

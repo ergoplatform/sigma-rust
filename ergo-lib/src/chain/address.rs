@@ -86,12 +86,15 @@ impl Address {
     pub fn recreate_from_ergo_tree(tree: &ErgoTree) -> Result<Address, AddressError> {
         match tree.proposition() {
             Ok(expr) => Ok(match &*expr {
-                Expr::Const(Constant {
-                    tpe: SType::SSigmaProp,
-                    v,
-                }) => ProveDlog::try_from(v.clone())
-                    .map(Address::P2PK)
-                    .unwrap_or_else(|_| Address::P2S(tree.sigma_serialize_bytes())),
+                Expr::Const(c) => match &**c {
+                    Constant {
+                        tpe: SType::SSigmaProp,
+                        v,
+                    } => ProveDlog::try_from(v.clone())
+                        .map(Address::P2PK)
+                        .unwrap_or_else(|_| Address::P2S(tree.sigma_serialize_bytes())),
+                    _ => Address::P2S(tree.sigma_serialize_bytes()),
+                },
                 _ => Address::P2S(tree.sigma_serialize_bytes()),
             }),
             Err(_) => Ok(Address::P2S(tree.sigma_serialize_bytes())),
@@ -118,12 +121,12 @@ impl Address {
     /// script encoded in the address
     pub fn script(&self) -> Result<ErgoTree, SerializationError> {
         match self {
-            Address::P2PK(prove_dlog) => Ok(ErgoTree::from(Rc::new(Expr::Const(
+            Address::P2PK(prove_dlog) => Ok(ErgoTree::from(Rc::new(Expr::Const(Box::new(
                 SigmaProp::new(SigmaBoolean::ProofOfKnowledge(
                     SigmaProofOfKnowledgeTree::ProveDlog(prove_dlog.clone()),
                 ))
                 .into(),
-            )))),
+            ))))),
             Address::P2S(bytes) => ErgoTree::sigma_parse_bytes(bytes.to_vec()),
         }
     }

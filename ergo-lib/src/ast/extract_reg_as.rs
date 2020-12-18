@@ -18,7 +18,7 @@ use super::value::Value;
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ExtractRegisterAs {
     /// Box
-    pub input: Box<Expr>,
+    pub input: Expr,
     /// Register id to extract value from
     pub register_id: RegisterId,
     /// Type
@@ -51,7 +51,7 @@ impl SigmaSerializable for ExtractRegisterAs {
     }
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
-        let input = Expr::sigma_parse(r)?.into();
+        let input = Expr::sigma_parse(r)?;
         let register_id = RegisterId::sigma_parse(r)?;
         let tpe = SType::sigma_parse(r)?;
         Ok(ExtractRegisterAs {
@@ -78,7 +78,7 @@ mod tests {
     #[test]
     fn eval_box_get_reg() {
         let get_reg_expr: Expr = Box::new(ExtractRegisterAs {
-            input: Box::new(GlobalVars::SelfBox.into()),
+            input: Box::new(GlobalVars::SelfBox).into(),
             register_id: RegisterId::R0,
             tpe: SType::SOption(SType::SLong.into()),
         })
@@ -95,7 +95,7 @@ mod tests {
     #[test]
     fn ser_roundtrip() {
         let e: Expr = Box::new(ExtractRegisterAs {
-            input: Box::new(GlobalVars::SelfBox.into()),
+            input: Box::new(GlobalVars::SelfBox).into(),
             register_id: RegisterId::R0,
             tpe: SType::SOption(SType::SLong.into()),
         })

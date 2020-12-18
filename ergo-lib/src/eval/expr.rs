@@ -12,7 +12,7 @@ impl Evaluable for Expr {
         match self {
             Expr::Const(c) => Ok(c.v.clone()),
             Expr::PredefFunc(_) => todo!(),
-            Expr::CollM(_) => todo!(),
+            Expr::Fold(_) => todo!(),
             Expr::ExtractRegisterAs(v) => v.eval(env, ectx),
             Expr::GlobalVars(v) => v.eval(env, ectx),
             Expr::MethodCall(v) => v.eval(env, ectx),
