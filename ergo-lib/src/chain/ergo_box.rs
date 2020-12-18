@@ -18,7 +18,6 @@ use super::{
     transaction::TxId,
 };
 
-use crate::ast::box_methods::RegisterId;
 use crate::ast::constant::Constant;
 use crate::{
     ergo_tree::ErgoTree,

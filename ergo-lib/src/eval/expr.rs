@@ -13,7 +13,7 @@ impl Evaluable for Expr {
             Expr::Const(c) => Ok(c.v.clone()),
             Expr::PredefFunc(_) => todo!(),
             Expr::CollM(_) => todo!(),
-            Expr::BoxM(v) => v.eval(env, ectx),
+            Expr::ExtractRegisterAs(v) => v.eval(env, ectx),
             Expr::GlobalVars(v) => v.eval(env, ectx),
             Expr::MethodCall(v) => v.eval(env, ectx),
             Expr::ProperyCall(v) => v.eval(env, ectx),

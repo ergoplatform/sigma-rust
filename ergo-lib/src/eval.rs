@@ -1,10 +1,10 @@
 //! Interpreter
 use std::rc::Rc;
 
-use crate::ast::box_methods::RegisterIdOutOfBounds;
 use crate::ast::constant::TryExtractFromError;
 use crate::ast::expr::Expr;
 use crate::ast::value::Value;
+use crate::chain::ergo_box::RegisterIdOutOfBounds;
 use crate::sigma_protocol::sigma_boolean::SigmaBoolean;
 
 use cost_accum::CostAccumulator;

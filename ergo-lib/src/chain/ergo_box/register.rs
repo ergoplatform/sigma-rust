@@ -1,13 +1,50 @@
 //! Box registers
 
-use crate::ast::box_methods::RegisterIdOutOfBounds;
 #[cfg(feature = "json")]
 use crate::chain::json::ergo_box::ConstantHolder;
 use crate::{ast::constant::Constant, serialization::SerializationError};
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
+use std::convert::TryInto;
 use std::{collections::HashMap, convert::TryFrom};
 use thiserror::Error;
+
+/// Box register id (0-9)
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+pub enum RegisterId {
+    /// Id for mandatory registers (0-3)
+    MandatoryRegisterId(MandatoryRegisterId),
+    /// Id for non-mandotory registers (4-9)
+    NonMandatoryRegisterId(NonMandatoryRegisterId),
+}
+
+impl RegisterId {
+    /// R0 register id (box.value)
+    pub const R0: RegisterId = RegisterId::MandatoryRegisterId(MandatoryRegisterId::R0);
+}
+
+/// Register id out of bounds error (not in 0-9 range)
+#[derive(Error, PartialEq, Eq, Debug, Clone)]
+#[error("register id {0} is out of bounds (0 - 9)")]
+pub struct RegisterIdOutOfBounds(pub i8);
+
+impl TryFrom<i8> for RegisterId {
+    type Error = RegisterIdOutOfBounds;
+
+    fn try_from(value: i8) -> Result<Self, Self::Error> {
+        if value < 0 {
+            return Err(RegisterIdOutOfBounds(value));
+        }
+        let v = value as usize;
+        if v < NonMandatoryRegisterId::START_INDEX {
+            Ok(RegisterId::MandatoryRegisterId(value.try_into()?))
+        } else if v <= NonMandatoryRegisterId::END_INDEX {
+            Ok(RegisterId::NonMandatoryRegisterId(value.try_into()?))
+        } else {
+            Err(RegisterIdOutOfBounds(value))
+        }
+    }
+}
 
 /// newtype for additional registers R4 - R9
 #[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]

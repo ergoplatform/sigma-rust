@@ -52,10 +52,10 @@ impl SigmaSerializable for OptionGet {
 mod tests {
     use std::rc::Rc;
 
-    use crate::ast::box_methods::BoxM;
-    use crate::ast::box_methods::RegisterId;
     use crate::ast::expr::Expr;
+    use crate::ast::extract_reg_as::ExtractRegisterAs;
     use crate::ast::global_vars::GlobalVars;
+    use crate::chain::ergo_box::RegisterId;
     use crate::eval::context::Context;
     use crate::eval::tests::eval_out;
     use crate::serialization::sigma_serialize_roundtrip;
@@ -66,11 +66,11 @@ mod tests {
 
     #[test]
     fn eval_get() {
-        let get_reg_expr: Expr = BoxM::ExtractRegisterAs {
+        let get_reg_expr: Expr = Box::new(ExtractRegisterAs {
             input: Box::new(GlobalVars::SelfBox.into()),
             register_id: RegisterId::R0,
             tpe: SType::SOption(SType::SLong.into()),
-        }
+        })
         .into();
         let option_get_expr: Expr = Box::new(OptionGet {
             input: get_reg_expr,
