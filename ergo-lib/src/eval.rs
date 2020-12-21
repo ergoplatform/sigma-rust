@@ -92,8 +92,8 @@ pub trait Evaluator {
 }
 
 pub struct EvalContext {
-    ctx: Rc<Context>,
-    cost_accum: CostAccumulator,
+    pub ctx: Rc<Context>,
+    pub cost_accum: CostAccumulator,
 }
 
 impl EvalContext {

@@ -9,7 +9,7 @@ use super::constant::ConstantPlaceholder;
 use super::extract_reg_as::ExtractRegisterAs;
 use super::global_vars::GlobalVars;
 use super::method_call::MethodCall;
-use super::ops;
+use super::ops::BinOp;
 use super::option_get::OptionGet;
 use super::predef_func::PredefFunc;
 use super::property_call::PropertyCall;
@@ -37,7 +37,7 @@ pub enum Expr {
     /// Property call
     ProperyCall(Box<PropertyCall>),
     /// Binary operation
-    BinOp(ops::BinOp, Box<Expr>, Box<Expr>),
+    BinOp(Box<BinOp>),
     /// Option get method
     OptionGet(Box<OptionGet>),
     /// Extract register's value (box.RX properties)
