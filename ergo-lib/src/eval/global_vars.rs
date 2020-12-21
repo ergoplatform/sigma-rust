@@ -35,7 +35,7 @@ mod tests {
     fn eval_height() {
         let ctx = Rc::new(force_any_val::<Context>());
         assert_eq!(
-            eval_out::<i32>(&GlobalVars::Height.into(), ctx.clone()),
+            eval_out::<i32>(&Box::new(GlobalVars::Height).into(), ctx.clone()),
             ctx.height
         );
     }
@@ -44,7 +44,7 @@ mod tests {
     fn eval_self_box() {
         let ctx = Rc::new(force_any_val::<Context>());
         assert_eq!(
-            eval_out::<ErgoBox>(&GlobalVars::SelfBox.into(), ctx.clone()),
+            eval_out::<ErgoBox>(&Box::new(GlobalVars::SelfBox).into(), ctx.clone()),
             ctx.self_box
         );
     }
@@ -53,7 +53,7 @@ mod tests {
     fn eval_outputs() {
         let ctx = Rc::new(force_any_val::<Context>());
         assert_eq!(
-            eval_out::<Vec<ErgoBox>>(&GlobalVars::Outputs.into(), ctx.clone()),
+            eval_out::<Vec<ErgoBox>>(&Box::new(GlobalVars::Outputs).into(), ctx.clone()),
             ctx.outputs
         );
     }

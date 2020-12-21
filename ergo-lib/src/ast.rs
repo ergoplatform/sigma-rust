@@ -1,6 +1,6 @@
 //! AST for ErgoTree
 
-pub(crate) mod coll_methods;
+pub(crate) mod coll_fold;
 pub(crate) mod expr;
 pub(crate) mod extract_reg_as;
 pub(crate) mod global_vars;

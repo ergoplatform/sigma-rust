@@ -3,7 +3,7 @@ use core::fmt;
 use crate::serialization::op_code::OpCode;
 use crate::types::stype::SType;
 
-use super::coll_methods::CollM;
+use super::coll_fold::Fold;
 use super::constant::Constant;
 use super::constant::ConstantPlaceholder;
 use super::extract_reg_as::ExtractRegisterAs;
@@ -21,21 +21,21 @@ use derive_more::From;
 /// Expression in ErgoTree
 pub enum Expr {
     /// Constant value
-    Const(Constant),
+    Const(Box<Constant>),
     /// Placeholder for a constant
-    ConstPlaceholder(ConstantPlaceholder),
+    ConstPlaceholder(Box<ConstantPlaceholder>),
     /// Predefined functions (global)
-    PredefFunc(PredefFunc),
-    /// Collection type methods
-    CollM(CollM),
+    PredefFunc(Box<PredefFunc>),
+    /// Collection fold op
+    Fold(Box<Fold>),
     Context,
     // Global(Global),
     /// Predefined global variables
-    GlobalVars(GlobalVars),
+    GlobalVars(Box<GlobalVars>),
     /// Method call
-    MethodCall(MethodCall),
+    MethodCall(Box<MethodCall>),
     /// Property call
-    ProperyCall(PropertyCall),
+    ProperyCall(Box<PropertyCall>),
     /// Binary operation
     BinOp(ops::BinOp, Box<Expr>, Box<Expr>),
     /// Option get method
@@ -87,7 +87,7 @@ mod tests {
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            prop_oneof![any::<Constant>().prop_map(Expr::Const)].boxed()
+            prop_oneof![any::<Constant>().prop_map(Box::new).prop_map(Expr::Const)].boxed()
         }
     }
 }

@@ -8,7 +8,7 @@ use super::Evaluable;
 
 impl Evaluable for MethodCall {
     fn eval(&self, env: &Env, ectx: &mut EvalContext) -> Result<Value, EvalError> {
-        let ov = (*self.obj).eval(env, ectx)?;
+        let ov = self.obj.eval(env, ectx)?;
         let argsv: Result<Vec<Value>, EvalError> =
             self.args.iter().map(|arg| arg.eval(env, ectx)).collect();
         self.method.eval_fn()(ov, argsv?)
@@ -32,11 +32,11 @@ mod tests {
 
     #[test]
     fn eval_box_get_reg() {
-        let mc: Expr = MethodCall {
-            obj: Box::new(GlobalVars::SelfBox.into()),
+        let mc: Expr = Box::new(MethodCall {
+            obj: Box::new(GlobalVars::SelfBox).into(),
             method: sbox::GET_REG_METHOD.clone(),
-            args: vec![Constant::from(0i8).into()],
-        }
+            args: vec![Box::new(Constant::from(0i8)).into()],
+        })
         .into();
         let option_get_expr: Expr = Box::new(OptionGet { input: mc }).into();
         let ctx = Rc::new(force_any_val::<Context>());

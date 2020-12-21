@@ -31,7 +31,7 @@ impl SigmaSerializable for MethodCall {
             args.push(Expr::sigma_parse(r)?);
         }
         Ok(MethodCall {
-            obj: Box::new(obj),
+            obj,
             method: SMethod::from_ids(type_id, method_id),
             args,
         })
@@ -40,20 +40,21 @@ impl SigmaSerializable for MethodCall {
 
 #[cfg(test)]
 mod tests {
-    // use crate::ast::expr::Expr;
-    // use crate::ast::method_call::MethodCall;
-    // use crate::serialization::sigma_serialize_roundtrip;
-    // use crate::types::scontext;
+    use crate::ast::constant::Constant;
+    use crate::ast::expr::Expr;
+    use crate::ast::global_vars::GlobalVars;
+    use crate::ast::method_call::MethodCall;
+    use crate::serialization::sigma_serialize_roundtrip;
+    use crate::types::sbox;
 
-    // #[test]
-    // fn ser_roundtrip_property() {
-    //     let mc = MethodCall {
-    //         tpe: scontext::DATA_INPUTS_METHOD.tpe().clone(),
-    //         obj: Box::new(Expr::Context),
-    //         method: scontext::DATA_INPUTS_METHOD.clone(),
-    //         args: vec![],
-    //     };
-    //     let expr = Expr::MethodCall(mc);
-    //     assert_eq![sigma_serialize_roundtrip(&expr), expr];
-    // }
+    #[test]
+    fn ser_roundtrip_property() {
+        let mc: Expr = Box::new(MethodCall {
+            obj: Box::new(GlobalVars::SelfBox).into(),
+            method: sbox::GET_REG_METHOD.clone(),
+            args: vec![Box::new(Constant::from(0i8)).into()],
+        })
+        .into();
+        assert_eq![sigma_serialize_roundtrip(&mc), mc];
+    }
 }

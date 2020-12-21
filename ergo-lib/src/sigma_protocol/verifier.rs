@@ -142,7 +142,7 @@ mod tests {
             let tree = ErgoTree::from(Rc::new(Expr::Const(Constant {
                 tpe: SType::SSigmaProp,
                 v: pk.into(),
-            })));
+            }.into())));
 
             let prover = TestProver {
                 secrets: vec![PrivateInput::DlogProverInput(secret)],

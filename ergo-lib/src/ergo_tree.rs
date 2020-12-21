@@ -141,9 +141,12 @@ impl ErgoTree {
 impl From<Rc<Expr>> for ErgoTree {
     fn from(expr: Rc<Expr>) -> Self {
         match expr.as_ref() {
-            Expr::Const(Constant { tpe, .. }) if *tpe == SType::SSigmaProp => {
-                ErgoTree::without_segregation(expr)
-            }
+            Expr::Const(c) => match &**c {
+                Constant { tpe, .. } if *tpe == SType::SSigmaProp => {
+                    ErgoTree::without_segregation(expr)
+                }
+                _ => ErgoTree::with_segregation(expr),
+            },
             _ => ErgoTree::with_segregation(expr),
         }
     }
@@ -277,10 +280,15 @@ impl TryFrom<ErgoTree> for ProveDlog {
             .proposition()
             .map_err(|_| TryExtractFromError("cannot read root expr".to_string()))?;
         match expr {
-            Expr::Const(Constant {
-                tpe: SType::SSigmaProp,
-                v,
-            }) => ProveDlog::try_from(v.clone()),
+            Expr::Const(c) => match &**c {
+                Constant {
+                    tpe: SType::SSigmaProp,
+                    v,
+                } => ProveDlog::try_from(v.clone()),
+                _ => Err(TryExtractFromError(
+                    "expected ProveDlog in the root".to_string(),
+                )),
+            },
             _ => Err(TryExtractFromError(
                 "expected ProveDlog in the root".to_string(),
             )),
@@ -296,6 +304,7 @@ mod tests {
     use crate::chain;
     use crate::chain::Base16DecodedBytes;
     use crate::serialization::sigma_serialize_roundtrip;
+    use crate::sigma_protocol::sigma_boolean::SigmaBoolean;
     use crate::sigma_protocol::sigma_boolean::SigmaProp;
     use proptest::prelude::*;
 
@@ -306,9 +315,9 @@ mod tests {
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             prop_oneof![
                 // make sure that P2PK tree is included
-                any::<ProveDlog>().prop_map(|p| ErgoTree::from(Rc::new(Expr::from(
-                    Constant::from(SigmaProp::from(p))
-                )))),
+                any::<ProveDlog>().prop_map(|p| ErgoTree::from(Rc::new(Expr::Const(Box::new(
+                    Constant::from(SigmaProp::from(SigmaBoolean::from(p)))
+                ))))),
             ]
             .boxed()
         }
@@ -354,10 +363,13 @@ mod tests {
 
     #[test]
     fn test_constant_segregation() {
-        let expr = Expr::Const(Constant {
-            tpe: SType::SBoolean,
-            v: Value::Boolean(true),
-        });
+        let expr = Expr::Const(
+            Constant {
+                tpe: SType::SBoolean,
+                v: Value::Boolean(true),
+            }
+            .into(),
+        );
         let ergo_tree = ErgoTree::with_segregation(Rc::new(expr.clone()));
         let bytes = ergo_tree.sigma_serialize_bytes();
         let parsed_expr = ErgoTree::sigma_parse_bytes(bytes)

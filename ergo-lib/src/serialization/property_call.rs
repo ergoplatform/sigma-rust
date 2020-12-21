@@ -24,7 +24,7 @@ impl SigmaSerializable for PropertyCall {
         let method_id = MethodId::sigma_parse(r)?;
         let obj = Expr::sigma_parse(r)?;
         Ok(PropertyCall {
-            obj: Box::new(obj),
+            obj,
             method: SMethod::from_ids(type_id, method_id),
         })
     }
@@ -40,9 +40,10 @@ mod tests {
     #[test]
     fn ser_roundtrip_property() {
         let mc = PropertyCall {
-            obj: Box::new(Expr::Context),
+            obj: Expr::Context,
             method: scontext::DATA_INPUTS_PROPERTY.clone(),
-        };
+        }
+        .into();
         let expr = Expr::ProperyCall(mc);
         assert_eq![sigma_serialize_roundtrip(&expr), expr];
     }

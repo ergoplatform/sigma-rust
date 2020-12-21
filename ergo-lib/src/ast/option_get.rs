@@ -67,7 +67,7 @@ mod tests {
     #[test]
     fn eval_get() {
         let get_reg_expr: Expr = Box::new(ExtractRegisterAs {
-            input: Box::new(GlobalVars::SelfBox.into()),
+            input: Box::new(GlobalVars::SelfBox).into(),
             register_id: RegisterId::R0,
             tpe: SType::SOption(SType::SLong.into()),
         })

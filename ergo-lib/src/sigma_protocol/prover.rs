@@ -311,10 +311,13 @@ mod tests {
 
     #[test]
     fn test_prove_true_prop() {
-        let bool_true_tree = ErgoTree::from(Rc::new(Expr::Const(Constant {
-            tpe: SType::SBoolean,
-            v: Value::Boolean(true),
-        })));
+        let bool_true_tree = ErgoTree::from(Rc::new(Expr::Const(
+            Constant {
+                tpe: SType::SBoolean,
+                v: Value::Boolean(true),
+            }
+            .into(),
+        )));
         let message = vec![0u8; 100];
 
         let prover = TestProver { secrets: vec![] };
@@ -330,10 +333,13 @@ mod tests {
 
     #[test]
     fn test_prove_false_prop() {
-        let bool_false_tree = ErgoTree::from(Rc::new(Expr::Const(Constant {
-            tpe: SType::SBoolean,
-            v: Value::Boolean(false),
-        })));
+        let bool_false_tree = ErgoTree::from(Rc::new(Expr::Const(
+            Constant {
+                tpe: SType::SBoolean,
+                v: Value::Boolean(false),
+            }
+            .into(),
+        )));
         let message = vec![0u8; 100];
 
         let prover = TestProver { secrets: vec![] };
@@ -351,10 +357,13 @@ mod tests {
     fn test_prove_pk_prop() {
         let secret = DlogProverInput::random();
         let pk = secret.public_image();
-        let tree = ErgoTree::from(Rc::new(Expr::Const(Constant {
-            tpe: SType::SSigmaProp,
-            v: pk.into(),
-        })));
+        let tree = ErgoTree::from(Rc::new(Expr::Const(
+            Constant {
+                tpe: SType::SSigmaProp,
+                v: pk.into(),
+            }
+            .into(),
+        )));
         let message = vec![0u8; 100];
 
         let prover = TestProver {
