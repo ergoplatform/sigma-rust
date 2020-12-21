@@ -166,6 +166,15 @@ impl<T: LiftIntoSType + StoredNonPrimitive + Into<Value>> From<Vec<T>> for Const
     }
 }
 
+impl<T: LiftIntoSType + Into<Value>> From<Option<T>> for Constant {
+    fn from(opt: Option<T>) -> Self {
+        Constant {
+            tpe: SType::SOption(Box::new(T::stype())),
+            v: opt.into(),
+        }
+    }
+}
+
 /// Extract value wrapped in a type
 pub trait TryExtractInto<F> {
     /// Extract value of the given type from any type (e.g. ['Constant'], [`super::value::Value`])

@@ -54,3 +54,73 @@ impl Evaluable for BinOp {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::rc::Rc;
+
+    use crate::ast::constant::Constant;
+    use crate::eval::context::Context;
+    use crate::eval::tests::eval_out;
+    use crate::test_util::force_any_val;
+
+    use super::*;
+
+    #[test]
+    fn num_eq_op() {
+        let left: Constant = 1i64.into();
+        let right: Constant = 1i64.into();
+        let eq_op: Expr = Box::new(BinOp {
+            kind: BinOpKind::Logic(LogicOp::Eq),
+            left: Box::new(left).into(),
+            right: Box::new(right).into(),
+        })
+        .into();
+        let ctx = Rc::new(force_any_val::<Context>());
+        assert!(eval_out::<bool>(&eq_op, ctx));
+    }
+
+    #[test]
+    fn num_eq_op_fail() {
+        let left: Constant = 1i64.into();
+        let right: Constant = 2i64.into();
+        let eq_op: Expr = Box::new(BinOp {
+            kind: BinOpKind::Logic(LogicOp::Eq),
+            left: Box::new(left).into(),
+            right: Box::new(right).into(),
+        })
+        .into();
+        let ctx = Rc::new(force_any_val::<Context>());
+        assert!(!eval_out::<bool>(&eq_op, ctx));
+    }
+
+    #[test]
+    fn option_eq_op() {
+        let left: Constant = Some(1i64).into();
+        let right: Constant = Some(1i64).into();
+        let eq_op: Expr = Box::new(BinOp {
+            kind: BinOpKind::Logic(LogicOp::Eq),
+            left: Box::new(left).into(),
+            right: Box::new(right).into(),
+        })
+        .into();
+        let ctx = Rc::new(force_any_val::<Context>());
+        assert!(eval_out::<bool>(&eq_op, ctx));
+    }
+
+    #[test]
+    fn option_eq_op_fail() {
+        let left: Constant = Some(1i64).into();
+        let right: Constant = Some(2i64).into();
+        let eq_op: Expr = Box::new(BinOp {
+            kind: BinOpKind::Logic(LogicOp::Eq),
+            left: Box::new(left).into(),
+            right: Box::new(right).into(),
+        })
+        .into();
+        let ctx = Rc::new(force_any_val::<Context>());
+        assert!(!eval_out::<bool>(&eq_op, ctx));
+    }
+
+    // TODO: add Some(_) != None test for Option
+}

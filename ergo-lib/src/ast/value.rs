@@ -144,6 +144,12 @@ impl From<ErgoBox> for Value {
     }
 }
 
+impl<T: Into<Value>> From<Option<T>> for Value {
+    fn from(opt: Option<T>) -> Self {
+        Value::Opt(Box::new(opt.map(|v| v.into())))
+    }
+}
+
 /// Marker trait to select types for which CollElems::NonPrimitive is used to store elements as Vec<ConstantVal>
 pub trait StoredNonPrimitive {}
 
