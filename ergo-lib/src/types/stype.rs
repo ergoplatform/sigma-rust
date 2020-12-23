@@ -165,6 +165,12 @@ impl LiftIntoSType for EcPoint {
     }
 }
 
+impl<T: LiftIntoSType> LiftIntoSType for Option<T> {
+    fn stype() -> SType {
+        SType::SOption(Box::new(T::stype()))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

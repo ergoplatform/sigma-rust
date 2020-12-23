@@ -144,6 +144,12 @@ impl From<ErgoBox> for Value {
     }
 }
 
+impl From<Vec<i8>> for Value {
+    fn from(v: Vec<i8>) -> Self {
+        Value::Coll(Box::new(Coll::Primitive(CollPrim::CollByte(v))))
+    }
+}
+
 impl<T: Into<Value>> From<Option<T>> for Value {
     fn from(opt: Option<T>) -> Self {
         Value::Opt(Box::new(opt.map(|v| v.into())))
@@ -158,12 +164,13 @@ impl StoredNonPrimitive for i16 {}
 impl StoredNonPrimitive for i32 {}
 impl StoredNonPrimitive for i64 {}
 impl StoredNonPrimitive for ErgoBox {}
+impl<T: StoredNonPrimitive> StoredNonPrimitive for Option<T> {}
 
-impl<T: LiftIntoSType + StoredNonPrimitive + Into<Value>> Into<Value> for Vec<T> {
-    fn into(self) -> Value {
+impl<T: LiftIntoSType + StoredNonPrimitive + Into<Value>> From<Vec<T>> for Value {
+    fn from(v: Vec<T>) -> Self {
         Value::Coll(Box::new(Coll::NonPrimitive {
             elem_tpe: T::stype(),
-            v: self.into_iter().map(|i| i.into()).collect(),
+            v: v.into_iter().map(|i| i.into()).collect(),
         }))
     }
 }

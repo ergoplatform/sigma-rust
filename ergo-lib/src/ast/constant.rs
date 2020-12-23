@@ -152,7 +152,7 @@ impl From<Vec<i8>> for Constant {
     fn from(v: Vec<i8>) -> Constant {
         Constant {
             tpe: SType::SColl(Box::new(SType::SByte)),
-            v: Value::Coll(Box::new(Coll::Primitive(CollPrim::CollByte(v)))),
+            v: v.into(),
         }
     }
 }

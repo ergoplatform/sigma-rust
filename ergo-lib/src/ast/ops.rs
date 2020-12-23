@@ -32,6 +32,7 @@ pub enum BinOpKind {
     Logic(LogicOp),
 }
 
+// TODO: extract into ops::bin_op
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct BinOp {
     pub kind: BinOpKind,
@@ -66,10 +67,7 @@ mod tests {
 
     use super::*;
 
-    #[test]
-    fn num_eq_op() {
-        let left: Constant = 1i64.into();
-        let right: Constant = 1i64.into();
+    fn check_eq(left: Constant, right: Constant) -> bool {
         let eq_op: Expr = Box::new(BinOp {
             kind: BinOpKind::Logic(LogicOp::Eq),
             left: Box::new(left).into(),
@@ -77,50 +75,50 @@ mod tests {
         })
         .into();
         let ctx = Rc::new(force_any_val::<Context>());
-        assert!(eval_out::<bool>(&eq_op, ctx));
+        eval_out::<bool>(&eq_op, ctx)
     }
 
     #[test]
-    fn num_eq_op_fail() {
-        let left: Constant = 1i64.into();
-        let right: Constant = 2i64.into();
-        let eq_op: Expr = Box::new(BinOp {
-            kind: BinOpKind::Logic(LogicOp::Eq),
-            left: Box::new(left).into(),
-            right: Box::new(right).into(),
-        })
-        .into();
-        let ctx = Rc::new(force_any_val::<Context>());
-        assert!(!eval_out::<bool>(&eq_op, ctx));
+    fn num_eq() {
+        assert!(check_eq(1i64.into(), 1i64.into()));
     }
 
     #[test]
-    fn option_eq_op() {
-        let left: Constant = Some(1i64).into();
-        let right: Constant = Some(1i64).into();
-        let eq_op: Expr = Box::new(BinOp {
-            kind: BinOpKind::Logic(LogicOp::Eq),
-            left: Box::new(left).into(),
-            right: Box::new(right).into(),
-        })
-        .into();
-        let ctx = Rc::new(force_any_val::<Context>());
-        assert!(eval_out::<bool>(&eq_op, ctx));
+    fn num_neq() {
+        assert!(!check_eq(2i64.into(), 1i64.into()));
     }
 
     #[test]
-    fn option_eq_op_fail() {
-        let left: Constant = Some(1i64).into();
-        let right: Constant = Some(2i64).into();
-        let eq_op: Expr = Box::new(BinOp {
-            kind: BinOpKind::Logic(LogicOp::Eq),
-            left: Box::new(left).into(),
-            right: Box::new(right).into(),
-        })
-        .into();
-        let ctx = Rc::new(force_any_val::<Context>());
-        assert!(!eval_out::<bool>(&eq_op, ctx));
+    fn option_eq() {
+        assert!(check_eq(Some(1i64).into(), Some(1i64).into()));
+        let none: Option<i64> = None;
+        assert!(check_eq(none.into(), none.into()));
+        // Option<Vec<i8>>
+        assert!(check_eq(
+            Some(vec![1i8, 2i8]).into(),
+            Some(vec![1i8, 2i8]).into()
+        ));
+        // Vec<Option<i64>>
+        assert!(check_eq(
+            vec![Some(1i64), Some(1i64)].into(),
+            vec![Some(1i64), Some(1i64)].into()
+        ));
     }
 
-    // TODO: add Some(_) != None test for Option
+    #[test]
+    fn option_neq() {
+        assert!(!check_eq(Some(2i64).into(), Some(1i64).into()));
+        let none: Option<i64> = None;
+        assert!(!check_eq(none.into(), Some(1i64).into()));
+        // Option<Vec<i8>>
+        assert!(!check_eq(
+            Some(vec![1i8, 2i8]).into(),
+            Some(vec![2i8, 2i8]).into()
+        ));
+        // Vec<Option<i64>>
+        assert!(!check_eq(
+            vec![Some(1i64), Some(1i64)].into(),
+            vec![Some(2i64), Some(1i64)].into()
+        ));
+    }
 }
