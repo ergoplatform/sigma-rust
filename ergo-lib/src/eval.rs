@@ -13,10 +13,9 @@ use thiserror::Error;
 use self::context::Context;
 use self::cost_accum::CostError;
 
-mod costs;
-
 pub(crate) mod context;
 pub(crate) mod cost_accum;
+pub(crate) mod costs;
 pub(crate) mod expr;
 pub(crate) mod global_vars;
 pub(crate) mod method_call;

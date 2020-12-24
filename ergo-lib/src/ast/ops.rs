@@ -1,5 +1,8 @@
 //! Operators in ErgoTree
 
+use eval::costs::Costs;
+
+use crate::eval;
 use crate::eval::Env;
 use crate::eval::EvalContext;
 use crate::eval::EvalError;
@@ -44,8 +47,7 @@ impl Evaluable for BinOp {
     fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
         let lv = self.left.eval(env, ctx)?;
         let rv = self.right.eval(env, ctx)?;
-        // TODO: costing
-        // ctx.cost_accum.add(cost)
+        ctx.cost_accum.add(Costs::DEFAULT.eq_const_size)?;
         match self.kind {
             BinOpKind::Num(_) => todo!(),
             BinOpKind::Logic(op) => match op {
