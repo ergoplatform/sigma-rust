@@ -47,7 +47,7 @@ pub enum SType {
     /// Collection of elements of the same type
     SColl(Box<SType>),
     /// Tuple (elements can have different types)
-    STup(Vec<SType>),
+    STuple(Vec<SType>),
     /// Function (signature)
     SFunc(Box<SFunc>),
     /// Context object ("CONTEXT" in ErgoScript)
@@ -71,7 +71,7 @@ impl SType {
             SType::SAvlTree => todo!(),
             SType::SOption(_) => todo!(),
             SType::SColl(_) => todo!(),
-            SType::STup(_) => todo!(),
+            SType::STuple(_) => todo!(),
             SType::SFunc(_) => todo!(),
             SType::SContext(_) => todo!(),
             SType::STypeVar(_) => todo!(),
@@ -172,7 +172,7 @@ impl<T: LiftIntoSType> LiftIntoSType for Option<T> {
 impl LiftIntoSType for Tuple {
     fn stype() -> SType {
         let v: Vec<SType> = [for_tuples!(  #( Tuple::stype() ),* )].to_vec();
-        SType::STup(v)
+        SType::STuple(v)
     }
 }
 
@@ -195,6 +195,26 @@ mod tests {
         .boxed()
     }
 
+    fn container_type(elem_strategy: BoxedStrategy<SType>) -> BoxedStrategy<SType> {
+        prop_oneof![
+            elem_strategy
+                .clone()
+                .prop_map(|tpe| SType::SColl(Box::new(tpe))),
+            elem_strategy.prop_map(|tpe| SType::SOption(Box::new(tpe))),
+        ]
+        .boxed()
+    }
+
+    fn nested_type_level(level: usize) -> BoxedStrategy<SType> {
+        if level == 0 {
+            primitive_type()
+        } else {
+            container_type(nested_type_level(level - 1))
+        }
+    }
+
+    // TODO: add STup generation
+
     impl Arbitrary for SType {
         type Parameters = ();
         type Strategy = BoxedStrategy<Self>;
@@ -202,7 +222,10 @@ mod tests {
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             prop_oneof![
                 primitive_type(),
-                primitive_type().prop_map(|tpe| SType::SColl(Box::new(tpe))),
+                nested_type_level(1),
+                // TODO: implement serialization and enable
+                // nested_type_level(2),
+                // nested_type_level(3),
             ]
             .boxed()
         }

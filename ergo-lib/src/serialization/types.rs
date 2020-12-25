@@ -146,7 +146,7 @@ impl SigmaSerializable for SType {
                 code.sigma_serialize(w)
             }
             SType::SColl(_) => todo!(),
-            SType::STup(_) => todo!(),
+            SType::STuple(_) => todo!(),
             SType::SFunc(_) => todo!(),
             SType::SContext(_) => todo!(),
             SType::STypeVar(_) => todo!(),
@@ -196,6 +196,7 @@ mod tests {
 
         #[test]
         fn ser_roundtrip(v in any::<SType>()) {
+            dbg!(v.clone());
             prop_assert_eq![sigma_serialize_roundtrip(&v), v];
         }
     }

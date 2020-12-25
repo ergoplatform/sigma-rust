@@ -182,7 +182,7 @@ impl Into<Constant> for Tuple {
         let constants: Vec<Constant> = [for_tuples!(  #( Tuple.into() ),* )].to_vec();
         let (types, values) = constants.into_iter().map(|c| (c.tpe, c.v)).unzip();
         Constant {
-            tpe: SType::STup(types),
+            tpe: SType::STuple(types),
             v: Value::Tup(values),
         }
     }
@@ -277,7 +277,7 @@ mod tests {
 
         #[test]
         fn test_try_extract_from(c in any::<Constant>()) {
-            // let c = force_any_val::<Constant>();
+            // TODO: add SOption and STuple
             match c.clone().tpe {
                 SType::SBoolean => {
                     let _ = bool::try_extract_from(c).unwrap();

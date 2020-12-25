@@ -81,7 +81,7 @@ impl DataSerializer {
                     v: elems,
                 }))
             }
-            STup(types) => {
+            STuple(types) => {
                 let mut items = Vec::new();
                 types.iter().try_for_each(|tpe| {
                     DataSerializer::sigma_parse(tpe, r).map(|v| items.push(v))
