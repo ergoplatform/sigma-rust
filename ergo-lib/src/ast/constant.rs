@@ -9,6 +9,7 @@ use crate::{
     serialization::{SerializationError, SigmaSerializable},
     sigma_protocol::{dlog_group::EcPoint, sigma_boolean::SigmaProp},
 };
+use impl_trait_for_tuples::impl_for_tuples;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
@@ -171,6 +172,18 @@ impl<T: LiftIntoSType + Into<Value>> From<Option<T>> for Constant {
         Constant {
             tpe: SType::SOption(Box::new(T::stype())),
             v: opt.into(),
+        }
+    }
+}
+
+#[impl_for_tuples(4)]
+impl Into<Constant> for Tuple {
+    fn into(self) -> Constant {
+        let constants: Vec<Constant> = [for_tuples!(  #( Tuple.into() ),* )].to_vec();
+        let (types, values) = constants.into_iter().map(|c| (c.tpe, c.v)).unzip();
+        Constant {
+            tpe: SType::STup(types),
+            v: Value::Tup(values),
         }
     }
 }

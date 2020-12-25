@@ -1,5 +1,7 @@
 //! SType hierarchy
 
+use impl_trait_for_tuples::impl_for_tuples;
+
 use crate::chain::ergo_box::ErgoBox;
 use crate::serialization::types::TypeCode;
 use crate::sigma_protocol::dlog_group::EcPoint;
@@ -79,11 +81,6 @@ impl SType {
     /// Get STypeCompanion instance associated with this SType
     pub fn type_companion(&self) -> Option<Box<STypeCompanion>> {
         todo!()
-    }
-
-    /// Create new SColl with the given element type
-    pub fn new_scoll(elem_type: SType) -> SType {
-        SType::SColl(Box::new(elem_type))
     }
 }
 
@@ -171,6 +168,14 @@ impl<T: LiftIntoSType> LiftIntoSType for Option<T> {
     }
 }
 
+#[impl_for_tuples(4)]
+impl LiftIntoSType for Tuple {
+    fn stype() -> SType {
+        let v: Vec<SType> = [for_tuples!(  #( Tuple::stype() ),* )].to_vec();
+        SType::STup(v)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -197,7 +202,7 @@ mod tests {
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             prop_oneof![
                 primitive_type(),
-                primitive_type().prop_map(SType::new_scoll),
+                primitive_type().prop_map(|tpe| SType::SColl(Box::new(tpe))),
             ]
             .boxed()
         }

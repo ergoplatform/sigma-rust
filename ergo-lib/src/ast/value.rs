@@ -3,6 +3,8 @@
 use std::convert::TryFrom;
 use std::rc::Rc;
 
+use impl_trait_for_tuples::impl_for_tuples;
+
 use crate::chain::ergo_box::ErgoBox;
 use crate::eval::context::Context;
 use crate::sigma_protocol::dlog_group::EcPoint;
@@ -172,6 +174,14 @@ impl<T: LiftIntoSType + StoredNonPrimitive + Into<Value>> From<Vec<T>> for Value
             elem_tpe: T::stype(),
             v: v.into_iter().map(|i| i.into()).collect(),
         }))
+    }
+}
+
+#[impl_for_tuples(4)]
+impl Into<Value> for Tuple {
+    fn into(self) -> Value {
+        let v: Vec<Value> = [for_tuples!(  #( Tuple.into() ),* )].to_vec();
+        Value::Tup(v)
     }
 }
 

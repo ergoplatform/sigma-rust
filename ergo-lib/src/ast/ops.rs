@@ -123,4 +123,9 @@ mod tests {
             vec![Some(2i64), Some(1i64)].into()
         ));
     }
+
+    #[test]
+    fn tuple_eq() {
+        assert!(check_eq((1i64, true).into(), (1i64, true).into()));
+    }
 }
