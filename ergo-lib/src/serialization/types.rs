@@ -30,12 +30,31 @@ impl TypeCode {
     pub const SSIGMAPROP: TypeCode = Self::new(8);
     pub const SANY: TypeCode = Self::new(97);
 
-    pub const COLLECTION_TYPE_CONSTR_ID: u8 = 1;
+    const COLLECTION_TYPE_CONSTR_ID: u8 = 1;
     pub const COLLECTION_TYPE_CODE: TypeCode =
         Self::new((TypeCode::MAX_PRIM_TYPECODE + 1) * TypeCode::COLLECTION_TYPE_CONSTR_ID);
 
-    pub const OPTION_TYPE_CONSTR_ID: u8 = 3;
-    pub const OPTION_COLLECTION_TYPE_CONSTR_ID: u8 = 4;
+    const TUPLE_PAIR1_CONSTR_ID: u8 = 5;
+    pub const TUPLE_PAIR1: TypeCode =
+        Self::new((TypeCode::MAX_PRIM_TYPECODE + 1) * TypeCode::TUPLE_PAIR1_CONSTR_ID);
+
+    const TUPLE_PAIR2_CONSTR_ID: u8 = 6;
+    pub const TUPLE_PAIR2: TypeCode =
+        Self::new((TypeCode::MAX_PRIM_TYPECODE + 1) * TypeCode::TUPLE_PAIR2_CONSTR_ID);
+
+    pub const TUPLE_TRIPLE: TypeCode = Self::TUPLE_PAIR2;
+
+    const TUPLE_PAIR_SYMMETRIC_TYPE_CONSTR_ID: u8 = 7;
+    pub const TUPLE_PAIR_SYMMETRIC: TypeCode = Self::new(
+        (TypeCode::MAX_PRIM_TYPECODE + 1) * TypeCode::TUPLE_PAIR_SYMMETRIC_TYPE_CONSTR_ID,
+    );
+
+    pub const TUPLE_QUADRUPLE: TypeCode = Self::TUPLE_PAIR_SYMMETRIC;
+
+    pub const TUPLE: TypeCode = Self::new((TypeCode::MAX_PRIM_TYPECODE + 1) * 8);
+
+    const OPTION_TYPE_CONSTR_ID: u8 = 3;
+    const OPTION_COLLECTION_TYPE_CONSTR_ID: u8 = 4;
     pub const OPTION_TYPE_CODE: TypeCode =
         Self::new((TypeCode::MAX_PRIM_TYPECODE + 1) * TypeCode::OPTION_TYPE_CONSTR_ID);
     pub const OPTION_COLLECTION_TYPE_CODE: TypeCode =
@@ -145,8 +164,59 @@ impl SigmaSerializable for SType {
                 let code = TypeCode::COLLECTION_TYPE_CODE + elem_type.type_code();
                 code.sigma_serialize(w)
             }
-            SType::SColl(_) => todo!(),
-            SType::STuple(_) => todo!(),
+            SType::SColl(elem_type) => match &**elem_type {
+                SType::SColl(inner_elem_type) if is_stype_embeddable(inner_elem_type.as_ref()) => {
+                    todo!()
+                }
+                _ => todo!(),
+            },
+            SType::STuple(tup) if tup.len() < 2 => {
+                todo!("invalid tuple type with less than 2 items")
+            }
+            SType::STuple(tup) => match tup.as_slice() {
+                [t1, t2] => match (t1, t2) {
+                    (p, _) if is_stype_embeddable(p) => {
+                        if p == t2 {
+                            // Symmetric pair of primitive types (`(Int, Int)`, `(Byte,Byte)`, etc.)
+                            let code = TypeCode::TUPLE_PAIR_SYMMETRIC + p.type_code();
+                            code.sigma_serialize(w)
+                        } else {
+                            // Pair of types where first is primitive (`(_, Int)`)
+                            let code = TypeCode::TUPLE_PAIR1 + p.type_code();
+                            code.sigma_serialize(w)?;
+                            t2.sigma_serialize(w)
+                        }
+                    }
+                    (_, p) if is_stype_embeddable(p) => {
+                        // Pair of types where second is primitive (`(Int, _)`)
+                        let code = TypeCode::TUPLE_PAIR2 + p.type_code();
+                        code.sigma_serialize(w)?;
+                        t1.sigma_serialize(w)
+                    }
+                    (_, _) => {
+                        // Pair of non-primitive types (`((Int, Byte), (Boolean,Box))`, etc.)
+                        TypeCode::TUPLE_PAIR1.sigma_serialize(w)?;
+                        t1.sigma_serialize(w)?;
+                        t2.sigma_serialize(w)
+                    }
+                },
+                _ => match tup.len() {
+                    3 => {
+                        TypeCode::TUPLE_TRIPLE.sigma_serialize(w)?;
+                        tup.iter().try_for_each(|i| i.sigma_serialize(w))
+                    }
+                    4 => {
+                        TypeCode::TUPLE_QUADRUPLE.sigma_serialize(w)?;
+                        tup.iter().try_for_each(|i| i.sigma_serialize(w))
+                    }
+                    _ => {
+                        assert!(tup.len() <= 255);
+                        TypeCode::TUPLE.sigma_serialize(w)?;
+                        w.put_u8(tup.len() as u8)?;
+                        tup.iter().try_for_each(|i| i.sigma_serialize(w))
+                    }
+                },
+            },
             SType::SFunc(_) => todo!(),
             SType::SContext(_) => todo!(),
             SType::STypeVar(_) => todo!(),
@@ -155,31 +225,87 @@ impl SigmaSerializable for SType {
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
         // for reference see http://github.com/ScorexFoundation/sigmastate-interpreter/blob/25251c1313b0131835f92099f02cef8a5d932b5e/sigmastate/src/main/scala/sigmastate/serialization/TypeSerializer.scala#L118-L118
-        let type_code = TypeCode::sigma_parse(r)?;
-        let constr_id = type_code.value() / TypeCode::PRIM_RANGE;
-        let prim_id = type_code.value() % TypeCode::PRIM_RANGE;
-        let tpe = match constr_id {
-            // primitive
-            0 => get_embeddable_type(type_code.value())?,
-            // Coll[_]
-            1 => {
-                let t_elem = get_embeddable_type(prim_id)?;
-                SType::SColl(Box::new(t_elem))
+        let c = TypeCode::sigma_parse(r)?;
+
+        let tpe = if c.value() < TypeCode::TUPLE.value() {
+            let constr_id = c.value() / TypeCode::PRIM_RANGE;
+            let prim_id = c.value() % TypeCode::PRIM_RANGE;
+            match constr_id {
+                // primitive
+                0 => get_embeddable_type(c.value())?,
+                // Coll[_]
+                1 => {
+                    let t_elem = get_embeddable_type(prim_id)?;
+                    SType::SColl(Box::new(t_elem))
+                }
+                // Option[_]
+                3 => {
+                    let t_elem = get_embeddable_type(prim_id)?;
+                    SType::SOption(Box::new(t_elem))
+                }
+                // Option[Coll[_]]
+                4 => {
+                    let t_elem = get_embeddable_type(prim_id)?;
+                    SType::SOption(SType::SColl(t_elem.into()).into())
+                }
+                TypeCode::TUPLE_PAIR1_CONSTR_ID => {
+                    // (_, t2)
+                    let (t1, t2) = if prim_id == 0 {
+                        // Pair of non-primitive types (`((Int, Byte), (Boolean,Box))`, etc.)
+                        (Self::sigma_parse(r)?, Self::sigma_parse(r)?)
+                    } else {
+                        // Pair of types where first is primitive (`(_, Int)`)
+                        (get_embeddable_type(prim_id)?, Self::sigma_parse(r)?)
+                    };
+                    SType::STuple(vec![t1, t2])
+                }
+                TypeCode::TUPLE_PAIR2_CONSTR_ID => {
+                    // (t1, _)
+                    if prim_id == 0 {
+                        // Triple of types
+                        let t1 = Self::sigma_parse(r)?;
+                        let t2 = Self::sigma_parse(r)?;
+                        let t3 = Self::sigma_parse(r)?;
+                        SType::STuple(vec![t1, t2, t3])
+                    } else {
+                        // Pair of types where second is primitive (`(Int, _)`)
+                        let t2 = get_embeddable_type(prim_id)?;
+                        let t1 = Self::sigma_parse(r)?;
+                        SType::STuple(vec![t1, t2])
+                    }
+                }
+                TypeCode::TUPLE_PAIR_SYMMETRIC_TYPE_CONSTR_ID => {
+                    // (_, _)
+                    if prim_id == 0 {
+                        // Quadriple of types
+                        let t1 = Self::sigma_parse(r)?;
+                        let t2 = Self::sigma_parse(r)?;
+                        let t3 = Self::sigma_parse(r)?;
+                        let t4 = Self::sigma_parse(r)?;
+                        SType::STuple(vec![t1, t2, t3, t4])
+                    } else {
+                        // Symmetric pair of primitive types (`(Int, Int)`, `(Byte,Byte)`, etc.)
+                        let t = get_embeddable_type(prim_id)?;
+                        SType::STuple(vec![t.clone(), t])
+                    }
+                }
+                _ => {
+                    return Err(SerializationError::NotImplementedYet(
+                        "parsing type is not yet implemented".to_string(),
+                    ))
+                }
             }
-            // Option[_]
-            3 => {
-                let t_elem = get_embeddable_type(prim_id)?;
-                SType::SOption(Box::new(t_elem))
-            }
-            // Option[Coll[_]]
-            4 => {
-                let t_elem = get_embeddable_type(prim_id)?;
-                SType::SOption(SType::SColl(t_elem.into()).into())
-            }
-            _ => {
-                return Err(SerializationError::NotImplementedYet(
-                    "parsing type is not yet implemented".to_string(),
-                ))
+        } else {
+            match c {
+                TypeCode::TUPLE => {
+                    let len = r.get_u8()?;
+                    let mut items = Vec::with_capacity(len as usize);
+                    for _ in 0..len {
+                        items.push(SType::sigma_parse(r)?);
+                    }
+                    SType::STuple(items)
+                }
+                _ => todo!(),
             }
         };
         Ok(tpe)

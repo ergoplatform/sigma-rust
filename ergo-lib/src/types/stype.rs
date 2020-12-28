@@ -47,6 +47,7 @@ pub enum SType {
     /// Collection of elements of the same type
     SColl(Box<SType>),
     /// Tuple (elements can have different types)
+    // TODO: make a struct and guard size (2..=255 items)
     STuple(Vec<SType>),
     /// Function (signature)
     SFunc(Box<SFunc>),
@@ -195,39 +196,25 @@ mod tests {
         .boxed()
     }
 
-    fn container_type(elem_strategy: BoxedStrategy<SType>) -> BoxedStrategy<SType> {
-        prop_oneof![
-            elem_strategy
-                .clone()
-                .prop_map(|tpe| SType::SColl(Box::new(tpe))),
-            elem_strategy.prop_map(|tpe| SType::SOption(Box::new(tpe))),
-        ]
-        .boxed()
-    }
-
-    fn nested_type_level(level: usize) -> BoxedStrategy<SType> {
-        if level == 0 {
-            primitive_type()
-        } else {
-            container_type(nested_type_level(level - 1))
-        }
-    }
-
-    // TODO: add STup generation
-
     impl Arbitrary for SType {
         type Parameters = ();
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            prop_oneof![
-                primitive_type(),
-                nested_type_level(1),
-                // TODO: implement serialization and enable
-                // nested_type_level(2),
-                // nested_type_level(3),
-            ]
-            .boxed()
+            primitive_type()
+                .prop_recursive(
+                    2,  // no more than this branches deep
+                    64, // total elements target
+                    16, // each collection max size
+                    |elem| {
+                        prop_oneof![
+                            prop::collection::vec(elem.clone(), 2..5).prop_map(SType::STuple),
+                            elem.clone().prop_map(|tpe| SType::SColl(Box::new(tpe))),
+                            elem.prop_map(|tpe| SType::SOption(Box::new(tpe))),
+                        ]
+                    },
+                )
+                .boxed()
         }
     }
 }
