@@ -218,35 +218,10 @@ impl<T: TryExtractFrom<Value>> TryExtractFrom<Constant> for T {
     }
 }
 
-impl TryExtractFrom<Constant> for Vec<i8> {
-    fn try_extract_from(c: Constant) -> Result<Self, TryExtractFromError> {
-        match c.v {
-            Value::Coll(v) => match *v {
-                Coll::Primitive(CollPrim::CollByte(bs)) => Ok(bs),
-                _ => Err(TryExtractFromError(format!(
-                    "expected {:?}, found {:?}",
-                    std::any::type_name::<Self>(),
-                    v
-                ))),
-            },
-            _ => Err(TryExtractFromError(format!(
-                "expected {:?}, found {:?}",
-                std::any::type_name::<Self>(),
-                c.v
-            ))),
-        }
-    }
-}
-
-impl TryExtractFrom<Constant> for Vec<u8> {
-    fn try_extract_from(cv: Constant) -> Result<Self, TryExtractFromError> {
-        use crate::util::FromVecI8;
-        Vec::<i8>::try_extract_from(cv).map(Vec::<u8>::from_vec_i8)
-    }
-}
-
 #[cfg(test)]
 mod tests {
+    use core::fmt;
+
     use super::*;
     use proptest::collection::vec;
     use proptest::prelude::*;
@@ -273,44 +248,96 @@ mod tests {
         }
     }
 
+    fn test_constant_roundtrip<T>(v: T)
+    where
+        T: TryExtractInto<T> + TryExtractFrom<Value> + Into<Constant> + fmt::Debug + Eq + Clone,
+    {
+        let constant: Constant = v.clone().into();
+        let v_extracted: T = constant.try_extract_into::<T>().unwrap();
+        assert_eq!(v, v_extracted);
+    }
+
     proptest! {
 
         #[test]
-        fn test_try_extract_from(c in any::<Constant>()) {
-            // TODO: add SOption and STuple
-            match c.clone().tpe {
-                SType::SBoolean => {
-                    let _ = bool::try_extract_from(c).unwrap();
-                }
-                SType::SByte => {
-                    let _ = i8::try_extract_from(c).unwrap();
-                }
-                SType::SShort => {
-                    let _ = i16::try_extract_from(c).unwrap();
-                }
-                SType::SInt => {
-                    let _ = i32::try_extract_from(c).unwrap();
-                }
-                SType::SLong => {
-                    let _ = i64::try_extract_from(c).unwrap();
-                }
-                SType::SGroupElement => {
-                    let _ = EcPoint::try_extract_from(c).unwrap();
-                }
-                SType::SSigmaProp => {
-                    let _ = SigmaProp::try_extract_from(c).unwrap();
-                }
-                SType::SColl(elem_type) => {
-                    match *elem_type {
-                        SType::SByte => { let _ = Vec::<i8>::try_extract_from(c).unwrap(); }
-                        SType::SShort => { let _ = Vec::<i16>::try_extract_from(c).unwrap(); }
-                        SType::SInt => { let _ = Vec::<i32>::try_extract_from(c).unwrap(); }
-                        SType::SLong => { let _ = Vec::<i64>::try_extract_from(c).unwrap(); }
-                        _ => todo!()
-                    }
-                }
-                _ => todo!(),
-            };
+        fn bool_roundtrip(v in any::<bool>()) {
+            test_constant_roundtrip(v);
         }
+
+        #[test]
+        fn i8_roundtrip(v in any::<i8>()) {
+            test_constant_roundtrip(v);
+        }
+
+        #[test]
+        fn i16_roundtrip(v in any::<i16>()) {
+            test_constant_roundtrip(v);
+        }
+
+        #[test]
+        fn i32_roundtrip(v in any::<i32>()) {
+            test_constant_roundtrip(v);
+        }
+
+        #[test]
+        fn i64_roundtrip(v in any::<i64>()) {
+            test_constant_roundtrip(v);
+        }
+
+        #[test]
+        fn group_element_roundtrip(v in any::<EcPoint>()) {
+            test_constant_roundtrip(v);
+        }
+
+        #[test]
+        fn sigma_prop_roundtrip(v in any::<SigmaProp>()) {
+            test_constant_roundtrip(v);
+        }
+
+        #[test]
+        fn vec_i8_roundtrip(v in any::<Vec<i8>>()) {
+            test_constant_roundtrip(v);
+        }
+
+        #[test]
+        fn vec_u8_roundtrip(v in any::<Vec<u8>>()) {
+            test_constant_roundtrip(v);
+        }
+
+        #[test]
+        fn vec_i16_roundtrip(v in any::<Vec<i16>>()) {
+            test_constant_roundtrip(v);
+        }
+
+        #[test]
+        fn vec_i32_roundtrip(v in any::<Vec<i32>>()) {
+            test_constant_roundtrip(v);
+        }
+
+        #[test]
+        fn vec_i64_roundtrip(v in any::<Vec<i64>>()) {
+            test_constant_roundtrip(v);
+        }
+
+        #[test]
+        fn option_primitive_type_roundtrip(v in any::<Option<i64>>()) {
+            test_constant_roundtrip(v);
+        }
+
+        #[test]
+        fn option_nested_type_roundtrip(v in any::<Option<Vec<(i64, bool)>>>()) {
+            test_constant_roundtrip(v);
+        }
+
+        #[test]
+        fn tuple_primitive_types_roundtrip(v in any::<(i64, bool)>()) {
+            test_constant_roundtrip(v);
+        }
+
+        #[test]
+        fn tuple_nested_types_roundtrip(v in any::<(Option<i64>, Vec<i8>)>()) {
+            test_constant_roundtrip(v);
+        }
+
     }
 }

@@ -291,6 +291,33 @@ impl<T: TryExtractFrom<Value> + StoredNonPrimitive> TryExtractFrom<Value> for Ve
     }
 }
 
+impl TryExtractFrom<Value> for Vec<i8> {
+    fn try_extract_from(v: Value) -> Result<Self, TryExtractFromError> {
+        match v {
+            Value::Coll(v) => match *v {
+                Coll::Primitive(CollPrim::CollByte(bs)) => Ok(bs),
+                _ => Err(TryExtractFromError(format!(
+                    "expected {:?}, found {:?}",
+                    std::any::type_name::<Self>(),
+                    v
+                ))),
+            },
+            _ => Err(TryExtractFromError(format!(
+                "expected {:?}, found {:?}",
+                std::any::type_name::<Self>(),
+                v
+            ))),
+        }
+    }
+}
+
+impl TryExtractFrom<Value> for Vec<u8> {
+    fn try_extract_from(v: Value) -> Result<Self, TryExtractFromError> {
+        use crate::util::FromVecI8;
+        Vec::<i8>::try_extract_from(v).map(Vec::<u8>::from_vec_i8)
+    }
+}
+
 impl TryFrom<Value> for ProveDlog {
     type Error = TryExtractFromError;
     fn try_from(cv: Value) -> Result<Self, Self::Error> {
@@ -316,6 +343,18 @@ impl TryExtractFrom<Value> for Rc<Context> {
     fn try_extract_from(v: Value) -> Result<Self, TryExtractFromError> {
         match v {
             Value::Context(ctx) => Ok(ctx),
+            _ => Err(TryExtractFromError(format!(
+                "expected Context, found {:?}",
+                v
+            ))),
+        }
+    }
+}
+
+impl<T: TryExtractFrom<Value>> TryExtractFrom<Value> for Option<T> {
+    fn try_extract_from(v: Value) -> Result<Self, TryExtractFromError> {
+        match v {
+            Value::Opt(inner_value) => Ok(inner_value.map(|i| T::try_extract_from(i))),
             _ => Err(TryExtractFromError(format!(
                 "expected Context, found {:?}",
                 v
