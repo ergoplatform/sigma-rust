@@ -70,9 +70,9 @@ impl SType {
             SType::SSigmaProp => TypeCode::SSIGMAPROP,
             SType::SBox => todo!(),
             SType::SAvlTree => todo!(),
-            SType::SOption(_) => todo!(),
-            SType::SColl(_) => todo!(),
-            SType::STuple(_) => todo!(),
+            SType::SOption(_) => TypeCode::OPTION,
+            SType::SColl(_) => TypeCode::COLLECTION,
+            SType::STuple(_) => TypeCode::TUPLE,
             SType::SFunc(_) => todo!(),
             SType::SContext(_) => todo!(),
             SType::STypeVar(_) => todo!(),
@@ -203,12 +203,12 @@ mod tests {
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             primitive_type()
                 .prop_recursive(
-                    2,  // no more than this branches deep
+                    4,  // no more than this branches deep
                     64, // total elements target
                     16, // each collection max size
                     |elem| {
                         prop_oneof![
-                            prop::collection::vec(elem.clone(), 2..5).prop_map(SType::STuple),
+                            prop::collection::vec(elem.clone(), 2..=4).prop_map(SType::STuple),
                             elem.clone().prop_map(|tpe| SType::SColl(Box::new(tpe))),
                             elem.prop_map(|tpe| SType::SOption(Box::new(tpe))),
                         ]

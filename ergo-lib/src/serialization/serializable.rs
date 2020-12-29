@@ -12,9 +12,9 @@ use thiserror::Error;
 /// Ways serialization might fail
 #[derive(Error, Eq, PartialEq, Debug, Clone)]
 pub enum SerializationError {
-    /// Failed to parse op
-    #[error("op parsing error")]
-    InvalidOpCode,
+    /// Invalid op code
+    #[error("invalid op code: {0}")]
+    InvalidOpCode(u8),
     /// Lacking support for the op
     #[error("not implemented op error")]
     NotImplementedOpCode(u8),

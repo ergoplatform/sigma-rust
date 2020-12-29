@@ -28,11 +28,15 @@ impl TypeCode {
     pub const SBIGINT: TypeCode = Self::new(6);
     pub const SGROUP_ELEMENT: TypeCode = Self::new(7);
     pub const SSIGMAPROP: TypeCode = Self::new(8);
+
     pub const SANY: TypeCode = Self::new(97);
 
-    const COLLECTION_TYPE_CONSTR_ID: u8 = 1;
-    pub const COLLECTION_TYPE_CODE: TypeCode =
-        Self::new((TypeCode::MAX_PRIM_TYPECODE + 1) * TypeCode::COLLECTION_TYPE_CONSTR_ID);
+    const COLLECTION_CONSTR_ID: u8 = 1;
+    pub const COLLECTION: TypeCode =
+        Self::new((TypeCode::MAX_PRIM_TYPECODE + 1) * TypeCode::COLLECTION_CONSTR_ID);
+    const NESTED_COLLECTION_CONSTS_ID: u8 = 2;
+    pub const NESTED_COLLECTION: TypeCode =
+        Self::new((TypeCode::MAX_PRIM_TYPECODE + 1) * TypeCode::NESTED_COLLECTION_CONSTS_ID);
 
     const TUPLE_PAIR1_CONSTR_ID: u8 = 5;
     pub const TUPLE_PAIR1: TypeCode =
@@ -53,11 +57,11 @@ impl TypeCode {
 
     pub const TUPLE: TypeCode = Self::new((TypeCode::MAX_PRIM_TYPECODE + 1) * 8);
 
-    const OPTION_TYPE_CONSTR_ID: u8 = 3;
+    const OPTION_CONSTR_ID: u8 = 3;
     const OPTION_COLLECTION_TYPE_CONSTR_ID: u8 = 4;
-    pub const OPTION_TYPE_CODE: TypeCode =
-        Self::new((TypeCode::MAX_PRIM_TYPECODE + 1) * TypeCode::OPTION_TYPE_CONSTR_ID);
-    pub const OPTION_COLLECTION_TYPE_CODE: TypeCode =
+    pub const OPTION: TypeCode =
+        Self::new((TypeCode::MAX_PRIM_TYPECODE + 1) * TypeCode::OPTION_CONSTR_ID);
+    pub const OPTION_COLLECTION: TypeCode =
         Self::new((TypeCode::MAX_PRIM_TYPECODE + 1) * TypeCode::OPTION_COLLECTION_TYPE_CONSTR_ID);
 
     const fn new(c: u8) -> TypeCode {
@@ -100,7 +104,7 @@ fn get_embeddable_type(code: u8) -> Result<SType, SerializationError> {
         TypeCode::SBIGINT => Ok(SType::SBigInt),
         TypeCode::SGROUP_ELEMENT => Ok(SType::SGroupElement),
         TypeCode::SSIGMAPROP => Ok(SType::SSigmaProp),
-        _ => Err(SerializationError::InvalidOpCode),
+        _ => Err(SerializationError::InvalidOpCode(code)),
     }
 }
 
@@ -147,28 +151,32 @@ impl SigmaSerializable for SType {
             SType::SBox => todo!(),
             SType::SAvlTree => todo!(),
             SType::SOption(elem_type) if is_stype_embeddable(elem_type) => {
-                let code = TypeCode::OPTION_TYPE_CODE + elem_type.type_code();
+                let code = TypeCode::OPTION + elem_type.type_code();
                 code.sigma_serialize(w)
             }
             SType::SOption(elem_type) => match &**elem_type {
                 SType::SColl(elem_type) if is_stype_embeddable(elem_type.as_ref()) => {
-                    let code = TypeCode::OPTION_COLLECTION_TYPE_CODE + elem_type.type_code();
+                    let code = TypeCode::OPTION_COLLECTION + elem_type.type_code();
                     code.sigma_serialize(w)
                 }
                 _ => {
-                    TypeCode::OPTION_TYPE_CODE.sigma_serialize(w)?;
+                    TypeCode::OPTION.sigma_serialize(w)?;
                     elem_type.sigma_serialize(w)
                 }
             },
             SType::SColl(elem_type) if is_stype_embeddable(elem_type) => {
-                let code = TypeCode::COLLECTION_TYPE_CODE + elem_type.type_code();
+                let code = TypeCode::COLLECTION + elem_type.type_code();
                 code.sigma_serialize(w)
             }
             SType::SColl(elem_type) => match &**elem_type {
                 SType::SColl(inner_elem_type) if is_stype_embeddable(inner_elem_type.as_ref()) => {
-                    todo!()
+                    let code = TypeCode::NESTED_COLLECTION + inner_elem_type.type_code();
+                    code.sigma_serialize(w)
                 }
-                _ => todo!(),
+                _ => {
+                    TypeCode::COLLECTION.sigma_serialize(w)?;
+                    elem_type.sigma_serialize(w)
+                }
             },
             SType::STuple(tup) if tup.len() < 2 => {
                 todo!("invalid tuple type with less than 2 items")
@@ -235,17 +243,22 @@ impl SigmaSerializable for SType {
                 0 => get_embeddable_type(c.value())?,
                 // Coll[_]
                 1 => {
-                    let t_elem = get_embeddable_type(prim_id)?;
+                    let t_elem = get_arg_type(r, prim_id)?;
                     SType::SColl(Box::new(t_elem))
+                }
+                // Coll[Coll[_]]
+                2 => {
+                    let t_elem = get_arg_type(r, prim_id)?;
+                    SType::SColl(Box::new(SType::SColl(Box::new(t_elem))))
                 }
                 // Option[_]
                 3 => {
-                    let t_elem = get_embeddable_type(prim_id)?;
+                    let t_elem = get_arg_type(r, prim_id)?;
                     SType::SOption(Box::new(t_elem))
                 }
                 // Option[Coll[_]]
                 4 => {
-                    let t_elem = get_embeddable_type(prim_id)?;
+                    let t_elem = get_arg_type(r, prim_id)?;
                     SType::SOption(SType::SColl(t_elem.into()).into())
                 }
                 TypeCode::TUPLE_PAIR1_CONSTR_ID => {
@@ -309,6 +322,14 @@ impl SigmaSerializable for SType {
             }
         };
         Ok(tpe)
+    }
+}
+
+fn get_arg_type<R: SigmaByteRead>(r: &mut R, prim_id: u8) -> Result<SType, SerializationError> {
+    if prim_id == 0 {
+        SType::sigma_parse(r)
+    } else {
+        get_embeddable_type(prim_id)
     }
 }
 
