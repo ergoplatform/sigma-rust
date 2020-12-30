@@ -354,7 +354,34 @@ impl TryExtractFrom<Value> for Rc<Context> {
 impl<T: TryExtractFrom<Value>> TryExtractFrom<Value> for Option<T> {
     fn try_extract_from(v: Value) -> Result<Self, TryExtractFromError> {
         match v {
-            Value::Opt(inner_value) => Ok(inner_value.map(|i| T::try_extract_from(i))),
+            Value::Opt(opt) => match opt.map(T::try_extract_from) {
+                Some(inner_value) => inner_value.map(Some),
+                None => Ok(None),
+            },
+            _ => Err(TryExtractFromError(format!(
+                "expected Context, found {:?}",
+                v
+            ))),
+        }
+    }
+}
+
+#[impl_for_tuples(4)]
+impl TryExtractFrom<Value> for Tuple {
+    fn try_extract_from(v: Value) -> Result<Self, TryExtractFromError> {
+        match v {
+            Value::Tup(items) => {
+                let mut iter = items.into_iter();
+                Ok(
+                    for_tuples!( ( #( 
+                                Tuple::try_extract_from(
+                                    iter
+                                        .next()
+                                        .ok_or_else(|| TryExtractFromError("not enough items in STuple".to_string()))?
+                                )? 
+                                ),* ) ),
+                )
+            }
             _ => Err(TryExtractFromError(format!(
                 "expected Context, found {:?}",
                 v
