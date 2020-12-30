@@ -245,6 +245,29 @@ mod tests {
         .boxed()
     }
 
+    fn coll_from_constant(c: Constant, length: usize) -> Constant {
+        Constant {
+            tpe: SType::SColl(Box::new(c.tpe.clone())),
+            v: Value::Coll(Box::new(if c.tpe == SType::SByte {
+                let mut values: Vec<i8> = Vec::with_capacity(length);
+                let byte: i8 = c.v.try_extract_into().unwrap();
+                for _ in 0..length {
+                    values.push(byte);
+                }
+                Coll::Primitive(CollPrim::CollByte(values))
+            } else {
+                let mut values: Vec<Value> = Vec::with_capacity(length);
+                for _ in 0..length {
+                    values.push(c.v.clone());
+                }
+                Coll::NonPrimitive {
+                    elem_tpe: c.tpe,
+                    v: values,
+                }
+            })),
+        }
+    }
+
     impl Arbitrary for Constant {
         type Parameters = ();
         type Strategy = BoxedStrategy<Self>;
@@ -253,21 +276,10 @@ mod tests {
             prop_oneof![primitive_type_value().prop_recursive(4, 64, 15, |elem| {
                 prop_oneof![
                     // Coll[_]
-                    elem.clone().prop_map(|c| Constant {
-                        tpe: SType::SColl(Box::new(c.tpe.clone())),
-                        v: Value::Coll(Box::new(if c.tpe == SType::SByte {
-                            Coll::Primitive(CollPrim::CollByte(vec![c
-                                .v
-                                .try_extract_into()
-                                .unwrap()]))
-                        } else {
-                            Coll::NonPrimitive {
-                                elem_tpe: c.tpe,
-                                // TODO: variable length
-                                v: vec![c.v],
-                            }
-                        }))
-                    }),
+                    elem.clone().prop_map(|c| coll_from_constant(c, 0)),
+                    elem.clone().prop_map(|c| coll_from_constant(c, 1)),
+                    elem.clone().prop_map(|c| coll_from_constant(c, 2)),
+                    elem.clone().prop_map(|c| coll_from_constant(c, 10)),
                     // no Option[_] since it cannot be serialized (for now)
                     // // Some(v)
                     // elem.clone().prop_map(|c| Constant {
