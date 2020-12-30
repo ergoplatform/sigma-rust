@@ -172,7 +172,7 @@ impl StoredNonPrimitive for EcPoint {}
 impl StoredNonPrimitive for SigmaProp {}
 impl<T: StoredNonPrimitive> StoredNonPrimitive for Option<T> {}
 
-#[impl_for_tuples(2,4)]
+#[impl_for_tuples(2, 4)]
 impl StoredNonPrimitive for Tuple {}
 
 impl<T: LiftIntoSType + StoredNonPrimitive + Into<Value>> From<Vec<T>> for Value {
@@ -184,7 +184,7 @@ impl<T: LiftIntoSType + StoredNonPrimitive + Into<Value>> From<Vec<T>> for Value
     }
 }
 
-#[impl_for_tuples(2,4)]
+#[impl_for_tuples(2, 4)]
 impl Into<Value> for Tuple {
     fn into(self) -> Value {
         let v: Vec<Value> = [for_tuples!(  #( Tuple.into() ),* )].to_vec();
@@ -373,22 +373,20 @@ impl<T: TryExtractFrom<Value>> TryExtractFrom<Value> for Option<T> {
     }
 }
 
-#[impl_for_tuples(2,4)]
+#[impl_for_tuples(2, 4)]
 impl TryExtractFrom<Value> for Tuple {
     fn try_extract_from(v: Value) -> Result<Self, TryExtractFromError> {
         match v {
             Value::Tup(items) => {
                 let mut iter = items.iter();
-                Ok(
-                    for_tuples!( ( #( 
+                Ok(for_tuples!( ( #(
                                 Tuple::try_extract_from(
                                     iter
                                         .next()
                                         .cloned()
                                         .ok_or_else(|| TryExtractFromError("not enough items in STuple".to_string()))?
-                                )? 
-                                ),* ) ),
-                )
+                                )?
+                                ),* ) ))
             }
             _ => Err(TryExtractFromError(format!(
                 "expected Context, found {:?}",
