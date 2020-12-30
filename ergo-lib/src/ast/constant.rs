@@ -13,6 +13,7 @@ use impl_trait_for_tuples::impl_for_tuples;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
+use std::convert::TryInto;
 
 mod constant_placeholder;
 
@@ -180,10 +181,11 @@ impl<T: LiftIntoSType + Into<Value>> From<Option<T>> for Constant {
 impl Into<Constant> for Tuple {
     fn into(self) -> Constant {
         let constants: Vec<Constant> = [for_tuples!(  #( Tuple.into() ),* )].to_vec();
-        let (types, values) = constants.into_iter().map(|c| (c.tpe, c.v)).unzip();
+        let (types, values): (Vec<SType>, Vec<Value>) =
+            constants.into_iter().map(|c| (c.tpe, c.v)).unzip();
         Constant {
-            tpe: SType::STuple(types),
-            v: Value::Tup(values),
+            tpe: SType::STuple(types.try_into().unwrap()),
+            v: Value::Tup(values.try_into().unwrap()),
         }
     }
 }
@@ -221,6 +223,8 @@ impl<T: TryExtractFrom<Value>> TryExtractFrom<Constant> for T {
 #[cfg(test)]
 mod tests {
     use core::fmt;
+
+    use crate::types::stype::TupleItems;
 
     use super::*;
     use proptest::collection::vec;
@@ -278,8 +282,24 @@ mod tests {
 
                     // Tuple
                     vec(elem, 2..=4).prop_map(|constants| Constant {
-                        tpe: SType::STuple(constants.clone().into_iter().map(|c| c.tpe).collect()),
-                        v: Value::Tup(constants.into_iter().map(|c| c.v).collect())
+                        tpe: SType::STuple(
+                            TupleItems::try_from(
+                                constants
+                                    .clone()
+                                    .into_iter()
+                                    .map(|c| c.tpe)
+                                    .collect::<Vec<SType>>()
+                            )
+                            .unwrap()
+                        ),
+                        v: Value::Tup(
+                            constants
+                                .into_iter()
+                                .map(|c| c.v)
+                                .collect::<Vec<Value>>()
+                                .try_into()
+                                .unwrap()
+                        )
                     }),
                 ]
             })]

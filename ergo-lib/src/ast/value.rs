@@ -1,6 +1,7 @@
 //! Ergo data type
 
 use std::convert::TryFrom;
+use std::convert::TryInto;
 use std::rc::Rc;
 
 use impl_trait_for_tuples::impl_for_tuples;
@@ -14,6 +15,7 @@ use crate::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
 use crate::sigma_protocol::sigma_boolean::SigmaProp;
 use crate::types::stype::LiftIntoSType;
 use crate::types::stype::SType;
+use crate::types::stype::TupleItems;
 
 use super::constant::TryExtractFrom;
 use super::constant::TryExtractFromError;
@@ -84,7 +86,7 @@ pub enum Value {
     /// Collection of values of the same type
     Coll(Box<Coll>),
     /// Tuple (arbitrary type values)
-    Tup(Vec<Value>),
+    Tup(TupleItems<Value>),
     /// Transaction(and blockchain) context info
     Context(Rc<Context>),
     /// Optional value
@@ -186,7 +188,7 @@ impl<T: LiftIntoSType + StoredNonPrimitive + Into<Value>> From<Vec<T>> for Value
 impl Into<Value> for Tuple {
     fn into(self) -> Value {
         let v: Vec<Value> = [for_tuples!(  #( Tuple.into() ),* )].to_vec();
-        Value::Tup(v)
+        Value::Tup(v.try_into().unwrap())
     }
 }
 
@@ -376,12 +378,13 @@ impl TryExtractFrom<Value> for Tuple {
     fn try_extract_from(v: Value) -> Result<Self, TryExtractFromError> {
         match v {
             Value::Tup(items) => {
-                let mut iter = items.into_iter();
+                let mut iter = items.iter();
                 Ok(
                     for_tuples!( ( #( 
                                 Tuple::try_extract_from(
                                     iter
                                         .next()
+                                        .cloned()
                                         .ok_or_else(|| TryExtractFromError("not enough items in STuple".to_string()))?
                                 )? 
                                 ),* ) ),

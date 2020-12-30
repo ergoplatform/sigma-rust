@@ -11,6 +11,7 @@ use crate::types::stype::SType;
 use crate::util::AsVecU8;
 
 use super::sigma_byte_writer::SigmaByteWrite;
+use std::convert::TryInto;
 use std::io;
 
 pub struct DataSerializer {}
@@ -40,13 +41,9 @@ impl DataSerializer {
                         .try_for_each(|e| DataSerializer::sigma_serialize(e, w))
                 }
             },
-            Value::Tup(items) => {
-                let len = items.len();
-                assert!(len <= 255, "to many tuple items");
-                items
-                    .iter()
-                    .try_for_each(|i| DataSerializer::sigma_serialize(i, w))
-            }
+            Value::Tup(items) => items
+                .iter()
+                .try_for_each(|i| DataSerializer::sigma_serialize(i, w)),
             Value::Opt(_) => panic!(), // unsupported, see https://github.com/ScorexFoundation/sigmastate-interpreter/issues/659
             Value::Context(_) => todo!(), // TODO: throw error? it should not be here
         }
@@ -90,7 +87,10 @@ impl DataSerializer {
                 types.iter().try_for_each(|tpe| {
                     DataSerializer::sigma_parse(tpe, r).map(|v| items.push(v))
                 })?;
-                Value::Tup(items)
+                // we get the tuple item value for each tuple item type,
+                // since items types quantity has checked bounds, we can be sure that items count
+                // is correct
+                Value::Tup(items.try_into().unwrap())
             }
 
             c => {

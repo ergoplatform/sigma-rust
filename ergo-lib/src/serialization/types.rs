@@ -6,6 +6,7 @@ use crate::serialization::{
 };
 use crate::types::stype::SType;
 use sigma_ser::vlq_encode;
+use std::convert::TryInto;
 use std::{io, ops::Add};
 use vlq_encode::WriteSigmaVlqExt;
 
@@ -178,10 +179,7 @@ impl SigmaSerializable for SType {
                     elem_type.sigma_serialize(w)
                 }
             },
-            SType::STuple(tup) if tup.len() < 2 => {
-                todo!("invalid tuple type with less than 2 items")
-            }
-            SType::STuple(tup) => match tup.as_slice() {
+            SType::STuple(items) => match items.clone().as_slice() {
                 [t1, t2] => match (t1, t2) {
                     (p, _) if is_stype_embeddable(p) => {
                         if p == t2 {
@@ -208,20 +206,19 @@ impl SigmaSerializable for SType {
                         t2.sigma_serialize(w)
                     }
                 },
-                _ => match tup.len() {
+                _ => match items.len() {
                     3 => {
                         TypeCode::TUPLE_TRIPLE.sigma_serialize(w)?;
-                        tup.iter().try_for_each(|i| i.sigma_serialize(w))
+                        items.iter().try_for_each(|i| i.sigma_serialize(w))
                     }
                     4 => {
                         TypeCode::TUPLE_QUADRUPLE.sigma_serialize(w)?;
-                        tup.iter().try_for_each(|i| i.sigma_serialize(w))
+                        items.iter().try_for_each(|i| i.sigma_serialize(w))
                     }
                     _ => {
-                        assert!(tup.len() <= 255, "too many tuple items");
                         TypeCode::TUPLE.sigma_serialize(w)?;
-                        w.put_u8(tup.len() as u8)?;
-                        tup.iter().try_for_each(|i| i.sigma_serialize(w))
+                        w.put_u8(items.len() as u8)?;
+                        items.iter().try_for_each(|i| i.sigma_serialize(w))
                     }
                 },
             },
@@ -270,7 +267,7 @@ impl SigmaSerializable for SType {
                         // Pair of types where first is primitive (`(_, Int)`)
                         (get_embeddable_type(prim_id)?, Self::sigma_parse(r)?)
                     };
-                    SType::STuple(vec![t1, t2])
+                    SType::STuple(vec![t1, t2].try_into().unwrap())
                 }
                 TypeCode::TUPLE_PAIR2_CONSTR_ID => {
                     // (t1, _)
@@ -279,12 +276,12 @@ impl SigmaSerializable for SType {
                         let t1 = Self::sigma_parse(r)?;
                         let t2 = Self::sigma_parse(r)?;
                         let t3 = Self::sigma_parse(r)?;
-                        SType::STuple(vec![t1, t2, t3])
+                        SType::STuple(vec![t1, t2, t3].try_into().unwrap())
                     } else {
                         // Pair of types where second is primitive (`(Int, _)`)
                         let t2 = get_embeddable_type(prim_id)?;
                         let t1 = Self::sigma_parse(r)?;
-                        SType::STuple(vec![t1, t2])
+                        SType::STuple(vec![t1, t2].try_into().unwrap())
                     }
                 }
                 TypeCode::TUPLE_PAIR_SYMMETRIC_TYPE_CONSTR_ID => {
@@ -295,11 +292,11 @@ impl SigmaSerializable for SType {
                         let t2 = Self::sigma_parse(r)?;
                         let t3 = Self::sigma_parse(r)?;
                         let t4 = Self::sigma_parse(r)?;
-                        SType::STuple(vec![t1, t2, t3, t4])
+                        SType::STuple(vec![t1, t2, t3, t4].try_into().unwrap())
                     } else {
                         // Symmetric pair of primitive types (`(Int, Int)`, `(Byte,Byte)`, etc.)
                         let t = get_embeddable_type(prim_id)?;
-                        SType::STuple(vec![t.clone(), t])
+                        SType::STuple(vec![t.clone(), t].try_into().unwrap())
                     }
                 }
                 _ => {
@@ -316,7 +313,11 @@ impl SigmaSerializable for SType {
                     for _ in 0..len {
                         items.push(SType::sigma_parse(r)?);
                     }
-                    SType::STuple(items)
+                    SType::STuple(
+                        items
+                            .try_into()
+                            .map_err(|_| SerializationError::TupleItemsOutOfBounds(len as usize))?,
+                    )
                 }
                 _ => todo!(),
             }

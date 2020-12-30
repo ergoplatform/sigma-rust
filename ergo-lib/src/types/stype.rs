@@ -1,5 +1,9 @@
 //! SType hierarchy
 
+use std::convert::TryFrom;
+use std::convert::TryInto;
+use std::slice::Iter;
+
 use impl_trait_for_tuples::impl_for_tuples;
 
 use crate::chain::ergo_box::ErgoBox;
@@ -47,8 +51,7 @@ pub enum SType {
     /// Collection of elements of the same type
     SColl(Box<SType>),
     /// Tuple (elements can have different types)
-    // TODO: make a struct and guard size (2..=255 items). Same for Value::Opt
-    STuple(Vec<SType>),
+    STuple(TupleItems<SType>),
     /// Function (signature)
     SFunc(Box<SFunc>),
     /// Context object ("CONTEXT" in ErgoScript)
@@ -82,6 +85,48 @@ impl SType {
     /// Get STypeCompanion instance associated with this SType
     pub fn type_companion(&self) -> Option<Box<STypeCompanion>> {
         todo!()
+    }
+}
+
+/// Tuple items with bounds check (2..=255)
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct TupleItems<T>(Vec<T>);
+
+#[allow(clippy::len_without_is_empty)]
+impl<T> TupleItems<T> {
+    // pub fn into_vec(self) -> Vec<T> {
+    //     self.0
+    // }
+
+    /// Get the length (quantity)
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    /// Get an iterator
+    pub fn iter(&self) -> Iter<T> {
+        self.0.iter()
+    }
+
+    /// Get a slice
+    pub fn as_slice(&self) -> &[T] {
+        self.0.as_slice()
+    }
+}
+
+/// Out of bounds items quantity error
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct STupleItemsOutOfBoundsError();
+
+impl<T> TryFrom<Vec<T>> for TupleItems<T> {
+    type Error = STupleItemsOutOfBoundsError;
+
+    fn try_from(items: Vec<T>) -> Result<Self, Self::Error> {
+        if items.len() >= 2 && items.len() <= 255 {
+            Ok(TupleItems(items))
+        } else {
+            Err(STupleItemsOutOfBoundsError())
+        }
     }
 }
 
@@ -173,7 +218,7 @@ impl<T: LiftIntoSType> LiftIntoSType for Option<T> {
 impl LiftIntoSType for Tuple {
     fn stype() -> SType {
         let v: Vec<SType> = [for_tuples!(  #( Tuple::stype() ),* )].to_vec();
-        SType::STuple(v)
+        SType::STuple(v.try_into().unwrap())
     }
 }
 
@@ -208,7 +253,8 @@ mod tests {
                     16, // each collection max size
                     |elem| {
                         prop_oneof![
-                            prop::collection::vec(elem.clone(), 2..=4).prop_map(SType::STuple),
+                            prop::collection::vec(elem.clone(), 2..=4)
+                                .prop_map(|elems| SType::STuple(elems.try_into().unwrap())),
                             elem.clone().prop_map(|tpe| SType::SColl(Box::new(tpe))),
                             elem.prop_map(|tpe| SType::SOption(Box::new(tpe))),
                         ]
