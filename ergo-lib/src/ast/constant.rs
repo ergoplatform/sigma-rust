@@ -226,24 +226,63 @@ mod tests {
     use proptest::collection::vec;
     use proptest::prelude::*;
 
+    fn primitive_type_value() -> BoxedStrategy<Constant> {
+        prop_oneof![
+            any::<bool>().prop_map_into(),
+            any::<i8>().prop_map_into(),
+            any::<i16>().prop_map_into(),
+            any::<i32>().prop_map_into(),
+            any::<i64>().prop_map_into(),
+            any::<EcPoint>().prop_map_into(),
+            any::<SigmaProp>().prop_map_into(),
+            vec(any::<i8>(), 0..100).prop_map_into(),
+            vec(any::<i64>(), 0..100).prop_map_into(),
+        ]
+        .boxed()
+    }
+
     impl Arbitrary for Constant {
         type Parameters = ();
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            prop_oneof![
-                any::<bool>().prop_map_into(),
-                any::<i8>().prop_map_into(),
-                any::<i16>().prop_map_into(),
-                any::<i32>().prop_map_into(),
-                any::<i64>().prop_map_into(),
-                any::<EcPoint>().prop_map_into(),
-                any::<SigmaProp>().prop_map_into(),
-                (vec(any::<i8>(), 0..100)).prop_map_into(),
-                (vec(any::<i16>(), 0..100)).prop_map_into(),
-                (vec(any::<i32>(), 0..100)).prop_map_into(),
-                (vec(any::<i64>(), 0..100)).prop_map_into(),
-            ]
+            prop_oneof![primitive_type_value().prop_recursive(4, 64, 15, |elem| {
+                prop_oneof![
+                    // Coll[_]
+                    elem.clone().prop_map(|c| Constant {
+                        tpe: SType::SColl(Box::new(c.tpe.clone())),
+                        v: Value::Coll(Box::new(if c.tpe == SType::SByte {
+                            Coll::Primitive(CollPrim::CollByte(vec![c
+                                .v
+                                .try_extract_into()
+                                .unwrap()]))
+                        } else {
+                            Coll::NonPrimitive {
+                                elem_tpe: c.tpe,
+                                // TODO: variable length
+                                v: vec![c.v],
+                            }
+                        }))
+                    }),
+                    // no Option[_] since it cannot be serialized (for now)
+                    // // Some(v)
+                    // elem.clone().prop_map(|c| Constant {
+                    //     tpe: SType::SOption(Box::new(c.tpe)),
+                    //     v: Value::Opt(Box::new(Some(c.v)))
+                    // }),
+                    // // None
+                    // elem.prop_map(|c| Constant {
+                    //     tpe: SType::SOption(Box::new(c.tpe)),
+                    //     v: Value::Opt(Box::new(None))
+                    // })
+
+                    // Tuple
+                    vec(elem, 2..=4).prop_map(|constants| Constant {
+                        tpe: SType::STuple(constants.clone().into_iter().map(|c| c.tpe).collect()),
+                        v: Value::Tup(constants.into_iter().map(|c| c.v).collect())
+                    }),
+                ]
+            })]
             .boxed()
         }
     }

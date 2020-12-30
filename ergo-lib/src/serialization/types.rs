@@ -218,7 +218,7 @@ impl SigmaSerializable for SType {
                         tup.iter().try_for_each(|i| i.sigma_serialize(w))
                     }
                     _ => {
-                        assert!(tup.len() <= 255);
+                        assert!(tup.len() <= 255, "too many tuple items");
                         TypeCode::TUPLE.sigma_serialize(w)?;
                         w.put_u8(tup.len() as u8)?;
                         tup.iter().try_for_each(|i| i.sigma_serialize(w))

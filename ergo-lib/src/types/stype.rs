@@ -47,7 +47,7 @@ pub enum SType {
     /// Collection of elements of the same type
     SColl(Box<SType>),
     /// Tuple (elements can have different types)
-    // TODO: make a struct and guard size (2..=255 items)
+    // TODO: make a struct and guard size (2..=255 items). Same for Value::Opt
     STuple(Vec<SType>),
     /// Function (signature)
     SFunc(Box<SFunc>),

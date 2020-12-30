@@ -23,13 +23,11 @@ impl DataSerializer {
             Value::Byte(v) => w.put_i8(*v),
             Value::Short(v) => w.put_i16(*v),
             Value::Int(v) => w.put_i32(*v),
-            // Value::TInt(v) => w.put_i32(v.raw),
             Value::Long(v) => w.put_i64(*v),
             Value::BigInt => todo!(),
             Value::GroupElement(ecp) => ecp.sigma_serialize(w),
             Value::SigmaProp(s) => s.value().sigma_serialize(w),
             Value::CBox(_) => todo!(),
-            // Value::TBox(_) => todo!(),
             Value::AvlTree => todo!(),
             Value::Coll(ct) => match &**ct {
                 Coll::Primitive(CollPrim::CollByte(b)) => {
@@ -42,8 +40,14 @@ impl DataSerializer {
                         .try_for_each(|e| DataSerializer::sigma_serialize(e, w))
                 }
             },
-            Value::Tup(_) => todo!(),
-            Value::Opt(_) => todo!(), // unsupported, see https://github.com/ScorexFoundation/sigmastate-interpreter/issues/659
+            Value::Tup(items) => {
+                let len = items.len();
+                assert!(len <= 255, "to many tuple items");
+                items
+                    .iter()
+                    .try_for_each(|i| DataSerializer::sigma_serialize(i, w))
+            }
+            Value::Opt(_) => panic!(), // unsupported, see https://github.com/ScorexFoundation/sigmastate-interpreter/issues/659
             Value::Context(_) => todo!(), // TODO: throw error? it should not be here
         }
     }
