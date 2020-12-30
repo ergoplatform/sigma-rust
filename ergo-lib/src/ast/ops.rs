@@ -128,4 +128,14 @@ mod tests {
     fn tuple_eq() {
         assert!(check_eq((1i64, true).into(), (1i64, true).into()));
     }
+
+    use proptest::prelude::*;
+
+    proptest! {
+
+        #[test]
+        fn test_eq(v in any::<Constant>()) {
+            prop_assert![check_eq(v.clone(), v)];
+        }
+    }
 }
