@@ -361,10 +361,7 @@ impl TryExtractFrom<Value> for Rc<Context> {
 impl<T: TryExtractFrom<Value>> TryExtractFrom<Value> for Option<T> {
     fn try_extract_from(v: Value) -> Result<Self, TryExtractFromError> {
         match v {
-            Value::Opt(opt) => match opt.map(T::try_extract_from) {
-                Some(inner_value) => inner_value.map(Some),
-                None => Ok(None),
-            },
+            Value::Opt(opt) => opt.map(T::try_extract_from).transpose(),
             _ => Err(TryExtractFromError(format!(
                 "expected Context, found {:?}",
                 v
