@@ -52,6 +52,7 @@ impl Evaluable for BinOp {
             BinOpKind::Num(_) => todo!(),
             BinOpKind::Logic(op) => match op {
                 LogicOp::Eq => Ok(Value::Boolean(lv == rv)),
+                LogicOp::Neq => Ok(Value::Boolean(lv != rv)),
                 _ => todo!(),
             },
         }
@@ -69,39 +70,46 @@ mod tests {
 
     use super::*;
 
-    fn check_eq(left: Constant, right: Constant) -> bool {
+    fn check_eq_neq(left: Constant, right: Constant) -> bool {
         let eq_op: Expr = Box::new(BinOp {
             kind: BinOpKind::Logic(LogicOp::Eq),
+            left: Box::new(left.clone()).into(),
+            right: Box::new(right.clone()).into(),
+        })
+        .into();
+        let ctx = Rc::new(force_any_val::<Context>());
+        let neq_op: Expr = Box::new(BinOp {
+            kind: BinOpKind::Logic(LogicOp::Neq),
             left: Box::new(left).into(),
             right: Box::new(right).into(),
         })
         .into();
-        let ctx = Rc::new(force_any_val::<Context>());
-        eval_out::<bool>(&eq_op, ctx)
+        let ctx1 = Rc::new(force_any_val::<Context>());
+        eval_out::<bool>(&eq_op, ctx) && !eval_out::<bool>(&neq_op, ctx1)
     }
 
     #[test]
     fn num_eq() {
-        assert!(check_eq(1i64.into(), 1i64.into()));
+        assert!(check_eq_neq(1i64.into(), 1i64.into()));
     }
 
     #[test]
     fn num_neq() {
-        assert!(!check_eq(2i64.into(), 1i64.into()));
+        assert!(!check_eq_neq(2i64.into(), 1i64.into()));
     }
 
     #[test]
     fn option_eq() {
-        assert!(check_eq(Some(1i64).into(), Some(1i64).into()));
+        assert!(check_eq_neq(Some(1i64).into(), Some(1i64).into()));
         let none: Option<i64> = None;
-        assert!(check_eq(none.into(), none.into()));
+        assert!(check_eq_neq(none.into(), none.into()));
         // Option<Vec<i8>>
-        assert!(check_eq(
+        assert!(check_eq_neq(
             Some(vec![1i8, 2i8]).into(),
             Some(vec![1i8, 2i8]).into()
         ));
         // Vec<Option<i64>>
-        assert!(check_eq(
+        assert!(check_eq_neq(
             vec![Some(1i64), Some(1i64)].into(),
             vec![Some(1i64), Some(1i64)].into()
         ));
@@ -109,16 +117,16 @@ mod tests {
 
     #[test]
     fn option_neq() {
-        assert!(!check_eq(Some(2i64).into(), Some(1i64).into()));
+        assert!(!check_eq_neq(Some(2i64).into(), Some(1i64).into()));
         let none: Option<i64> = None;
-        assert!(!check_eq(none.into(), Some(1i64).into()));
+        assert!(!check_eq_neq(none.into(), Some(1i64).into()));
         // Option<Vec<i8>>
-        assert!(!check_eq(
+        assert!(!check_eq_neq(
             Some(vec![1i8, 2i8]).into(),
             Some(vec![2i8, 2i8]).into()
         ));
         // Vec<Option<i64>>
-        assert!(!check_eq(
+        assert!(!check_eq_neq(
             vec![Some(1i64), Some(1i64)].into(),
             vec![Some(2i64), Some(1i64)].into()
         ));
@@ -126,7 +134,7 @@ mod tests {
 
     #[test]
     fn tuple_eq() {
-        assert!(check_eq((1i64, true).into(), (1i64, true).into()));
+        assert!(check_eq_neq((1i64, true).into(), (1i64, true).into()));
     }
 
     use proptest::prelude::*;
@@ -135,7 +143,7 @@ mod tests {
 
         #[test]
         fn test_eq(v in any::<Constant>()) {
-            prop_assert![check_eq(v.clone(), v)];
+            prop_assert![check_eq_neq(v.clone(), v)];
         }
     }
 }
