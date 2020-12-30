@@ -176,7 +176,7 @@ impl<T: LiftIntoSType + Into<Value>> From<Option<T>> for Constant {
     }
 }
 
-#[impl_for_tuples(4)]
+#[impl_for_tuples(2, 4)]
 impl Into<Constant> for Tuple {
     fn into(self) -> Constant {
         let constants: Vec<Constant> = [for_tuples!(  #( Tuple.into() ),* )].to_vec();
@@ -320,24 +320,35 @@ mod tests {
         }
 
         #[test]
+        fn vec_sigmaprop_roundtrip(v in any::<Vec<SigmaProp>>()) {
+            test_constant_roundtrip(v);
+        }
+
+        #[test]
         fn option_primitive_type_roundtrip(v in any::<Option<i64>>()) {
             test_constant_roundtrip(v);
         }
 
-        // #[test]
-        // fn option_nested_type_roundtrip(v in any::<Option<Vec<(i64, bool)>>>()) {
-        //     test_constant_roundtrip(v);
-        // }
+        #[test]
+        fn option_nested_vector_type_roundtrip(v in any::<Option<Vec<(i64, bool)>>>()) {
+            test_constant_roundtrip(v);
+        }
+
+        #[test]
+        fn option_nested_tuple_type_roundtrip(v in any::<Option<(i64, bool)>>()) {
+            test_constant_roundtrip(v);
+        }
+
 
         #[test]
         fn tuple_primitive_types_roundtrip(v in any::<(i64, bool)>()) {
             test_constant_roundtrip(v);
         }
 
-        // #[test]
-        // fn tuple_nested_types_roundtrip(v in any::<(Option<i64>, Vec<i8>)>()) {
-        //     test_constant_roundtrip(v);
-        // }
+        #[test]
+        fn tuple_nested_types_roundtrip(v in any::<(Option<i64>, Vec<SigmaProp>)>()) {
+            test_constant_roundtrip(v);
+        }
 
     }
 }

@@ -169,7 +169,7 @@ impl<T: LiftIntoSType> LiftIntoSType for Option<T> {
     }
 }
 
-#[impl_for_tuples(4)]
+#[impl_for_tuples(2, 4)]
 impl LiftIntoSType for Tuple {
     fn stype() -> SType {
         let v: Vec<SType> = [for_tuples!(  #( Tuple::stype() ),* )].to_vec();
