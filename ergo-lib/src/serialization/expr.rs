@@ -1,6 +1,7 @@
 use super::bin_op::bin_op_sigma_parse;
 use super::bin_op::bin_op_sigma_serialize;
 use super::{op_code::OpCode, sigma_byte_writer::SigmaByteWrite};
+use crate::ast::bin_op::LogicOp;
 use crate::ast::coll_fold::Fold;
 use crate::ast::constant::Constant;
 use crate::ast::constant::ConstantPlaceholder;
@@ -8,7 +9,6 @@ use crate::ast::expr::Expr;
 use crate::ast::extract_reg_as::ExtractRegisterAs;
 use crate::ast::global_vars::GlobalVars;
 use crate::ast::method_call::MethodCall;
-use crate::ast::ops::LogicOp;
 use crate::ast::option_get::OptionGet;
 use crate::ast::property_call::PropertyCall;
 use crate::serialization::{

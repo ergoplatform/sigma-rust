@@ -1,8 +1,8 @@
 use std::io::Error;
 
+use crate::ast::bin_op::BinOp;
+use crate::ast::bin_op::BinOpKind;
 use crate::ast::expr::Expr;
-use crate::ast::ops::BinOp;
-use crate::ast::ops::BinOpKind;
 
 use super::sigma_byte_reader::SigmaByteRead;
 use super::sigma_byte_writer::SigmaByteWrite;
@@ -32,7 +32,7 @@ pub fn bin_op_sigma_parse<R: SigmaByteRead>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ast::ops::LogicOp;
+    use crate::ast::bin_op::LogicOp;
     use crate::serialization::sigma_serialize_roundtrip;
     use crate::test_util::force_any_val;
 

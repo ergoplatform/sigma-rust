@@ -3,13 +3,13 @@ use core::fmt;
 use crate::serialization::op_code::OpCode;
 use crate::types::stype::SType;
 
+use super::bin_op::BinOp;
 use super::coll_fold::Fold;
 use super::constant::Constant;
 use super::constant::ConstantPlaceholder;
 use super::extract_reg_as::ExtractRegisterAs;
 use super::global_vars::GlobalVars;
 use super::method_call::MethodCall;
-use super::ops::BinOp;
 use super::option_get::OptionGet;
 use super::predef_func::PredefFunc;
 use super::property_call::PropertyCall;
