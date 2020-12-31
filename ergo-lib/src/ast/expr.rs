@@ -56,6 +56,7 @@ impl Expr {
             Expr::Context => OpCode::CONTEXT,
             Expr::OptionGet(v) => v.op_code(),
             Expr::ExtractRegisterAs(v) => v.op_code(),
+            Expr::BinOp(op) => op.op_code(),
             _ => todo!("{0:?}", self),
         }
     }

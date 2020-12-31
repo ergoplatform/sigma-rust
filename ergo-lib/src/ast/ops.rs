@@ -7,14 +7,25 @@ use crate::eval::Env;
 use crate::eval::EvalContext;
 use crate::eval::EvalError;
 use crate::eval::Evaluable;
+use crate::serialization::op_code::OpCode;
 
 use super::expr::Expr;
 use super::value::Value;
+
+extern crate derive_more;
+use derive_more::From;
+
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 /// Operations for numerical types
 pub enum NumOp {
     /// Addition
     Add,
+}
+
+impl From<NumOp> for OpCode {
+    fn from(_: NumOp) -> Self {
+        todo!()
+    }
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
@@ -27,12 +38,31 @@ pub enum LogicOp {
     LT,
 }
 
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+impl From<LogicOp> for OpCode {
+    fn from(op: LogicOp) -> Self {
+        match op {
+            LogicOp::Eq => OpCode::EQ,
+            LogicOp::NEq => OpCode::NEQ,
+            _ => todo!(),
+        }
+    }
+}
+
+#[derive(PartialEq, Eq, Debug, Clone, Copy, From)]
 /// Binary operations
 pub enum BinOpKind {
     /// Binary operations for numerical types
     Num(NumOp),
     Logic(LogicOp),
+}
+
+impl From<BinOpKind> for OpCode {
+    fn from(op: BinOpKind) -> Self {
+        match op {
+            BinOpKind::Num(o) => o.into(),
+            BinOpKind::Logic(o) => o.into(),
+        }
+    }
 }
 
 // TODO: extract into ops::bin_op
@@ -41,6 +71,12 @@ pub struct BinOp {
     pub kind: BinOpKind,
     pub left: Expr,
     pub right: Expr,
+}
+
+impl BinOp {
+    pub fn op_code(&self) -> OpCode {
+        self.kind.into()
+    }
 }
 
 impl Evaluable for BinOp {

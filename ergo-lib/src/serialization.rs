@@ -1,5 +1,6 @@
 //! Serializers
 
+mod bin_op;
 mod constant;
 mod constant_placeholder;
 mod data;

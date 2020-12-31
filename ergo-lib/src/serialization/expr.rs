@@ -1,3 +1,5 @@
+use super::bin_op::bin_op_sigma_parse;
+use super::bin_op::bin_op_sigma_serialize;
 use super::{op_code::OpCode, sigma_byte_writer::SigmaByteWrite};
 use crate::ast::coll_fold::Fold;
 use crate::ast::constant::Constant;
@@ -6,6 +8,7 @@ use crate::ast::expr::Expr;
 use crate::ast::extract_reg_as::ExtractRegisterAs;
 use crate::ast::global_vars::GlobalVars;
 use crate::ast::method_call::MethodCall;
+use crate::ast::ops::LogicOp;
 use crate::ast::option_get::OptionGet;
 use crate::ast::property_call::PropertyCall;
 use crate::serialization::{
@@ -37,6 +40,7 @@ impl SigmaSerializable for Expr {
                     Expr::Context => Ok(()),
                     Expr::OptionGet(v) => v.sigma_serialize(w),
                     Expr::ExtractRegisterAs(v) => v.sigma_serialize(w),
+                    Expr::BinOp(op) => bin_op_sigma_serialize(op, w),
                     _ => panic!(format!("don't know how to serialize {:?}", expr)),
                 }
             }
@@ -83,6 +87,8 @@ impl SigmaSerializable for Expr {
                 OpCode::EXTRACT_REGISTER_AS => {
                     Ok(Box::new(ExtractRegisterAs::sigma_parse(r)?).into())
                 }
+                OpCode::EQ => Ok(bin_op_sigma_parse(LogicOp::Eq.into(), r)?),
+                OpCode::NEQ => Ok(bin_op_sigma_parse(LogicOp::NEq.into(), r)?),
                 o => Err(SerializationError::NotImplementedOpCode(o.value())),
             }
         }
