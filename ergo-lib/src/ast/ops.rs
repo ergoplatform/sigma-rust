@@ -20,7 +20,7 @@ pub enum NumOp {
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub enum LogicOp {
     Eq,
-    Neq,
+    NEq,
     GE,
     GT,
     LE,
@@ -52,7 +52,7 @@ impl Evaluable for BinOp {
             BinOpKind::Num(_) => todo!(),
             BinOpKind::Logic(op) => match op {
                 LogicOp::Eq => Ok(Value::Boolean(lv == rv)),
-                LogicOp::Neq => Ok(Value::Boolean(lv != rv)),
+                LogicOp::NEq => Ok(Value::Boolean(lv != rv)),
                 _ => todo!(),
             },
         }
@@ -79,7 +79,7 @@ mod tests {
         .into();
         let ctx = Rc::new(force_any_val::<Context>());
         let neq_op: Expr = Box::new(BinOp {
-            kind: BinOpKind::Logic(LogicOp::Neq),
+            kind: BinOpKind::Logic(LogicOp::NEq),
             left: Box::new(left).into(),
             right: Box::new(right).into(),
         })
