@@ -65,7 +65,6 @@ impl From<BinOpKind> for OpCode {
     }
 }
 
-// TODO: extract into ops::bin_op
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct BinOp {
     pub kind: BinOpKind,
