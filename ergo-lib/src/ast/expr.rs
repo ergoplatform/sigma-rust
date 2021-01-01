@@ -93,7 +93,7 @@ pub mod tests {
         fn default() -> Self {
             ArbExprParams {
                 tpe: SType::SBoolean,
-                nesting_level: 4,
+                nesting_level: 2,
             }
         }
     }
