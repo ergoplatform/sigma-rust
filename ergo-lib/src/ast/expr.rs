@@ -98,7 +98,7 @@ pub mod tests {
         }
     }
 
-    fn arb_bool_expr(nesting_level: usize) -> BoxedStrategy<Expr> {
+    fn bool_nested_expr(nesting_level: usize) -> BoxedStrategy<Expr> {
         prop_oneof![any_with::<BinOp>(ArbExprParams {
             tpe: SType::SBoolean,
             nesting_level
@@ -108,31 +108,33 @@ pub mod tests {
         .boxed()
     }
 
-    fn any_expr(nesting_level: usize) -> BoxedStrategy<Expr> {
-        prop_oneof![arb_bool_expr(nesting_level)]
+    fn any_nested_expr(nesting_level: usize) -> BoxedStrategy<Expr> {
+        prop_oneof![bool_nested_expr(nesting_level)]
     }
 
-    fn arb_expr_with_type(tpe: SType, nesting_level: usize) -> BoxedStrategy<Expr> {
+    fn nested_expr(tpe: SType, nesting_level: usize) -> BoxedStrategy<Expr> {
         match tpe {
-            SType::SAny => any_expr(nesting_level),
-            SType::SBoolean => arb_bool_expr(nesting_level),
-            // SType::SByte => {}
-            // SType::SShort => {}
-            // SType::SInt => {}
-            // SType::SLong => {}
-            // SType::SBigInt => {}
-            // SType::SGroupElement => {}
-            // SType::SSigmaProp => {}
-            // SType::SBox => {}
-            // SType::SAvlTree => {}
-            // SType::SOption(_) => {}
-            // SType::SColl(_) => {}
-            // SType::STuple(_) => {}
-            // SType::SFunc(_) => {}
-            // SType::SContext(_) => {}
+            SType::SAny => any_nested_expr(nesting_level),
+            SType::SBoolean => bool_nested_expr(nesting_level),
             _ => todo!(),
         }
         .boxed()
+    }
+
+    fn int_non_nested_expr() -> BoxedStrategy<Expr> {
+        prop_oneof![Just(Box::new(GlobalVars::Height).into()),].boxed()
+    }
+
+    fn any_non_nested_expr() -> BoxedStrategy<Expr> {
+        prop_oneof![int_non_nested_expr()]
+    }
+
+    fn non_nested_expr(tpe: &SType) -> BoxedStrategy<Expr> {
+        match tpe {
+            SType::SAny => any_non_nested_expr(),
+            SType::SInt => int_non_nested_expr(),
+            _ => todo!(),
+        }
     }
 
     impl Arbitrary for Expr {
@@ -141,12 +143,16 @@ pub mod tests {
 
         fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
             if args.nesting_level == 0 {
-                any_with::<Constant>(args.tpe)
-                    .prop_map(Box::new)
-                    .prop_map(Expr::Const)
-                    .boxed()
+                prop_oneof![
+                    any_with::<Constant>(args.tpe.clone())
+                        .prop_map(Box::new)
+                        .prop_map(Expr::Const)
+                        .boxed(),
+                    non_nested_expr(&args.tpe)
+                ]
+                .boxed()
             } else {
-                arb_expr_with_type(args.tpe, args.nesting_level - 1)
+                nested_expr(args.tpe, args.nesting_level - 1)
             }
         }
     }
