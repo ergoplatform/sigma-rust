@@ -31,6 +31,7 @@ mod tests {
 
         #[test]
         fn ser_roundtrip(v in any::<Constant>()) {
+            dbg!(&v);
             prop_assert_eq![sigma_serialize_roundtrip(&v), v];
         }
     }

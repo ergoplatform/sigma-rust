@@ -33,8 +33,10 @@ pub fn bin_op_sigma_parse<R: SigmaByteRead>(
 mod tests {
     use super::*;
     use crate::ast::bin_op::LogicOp;
+    use crate::ast::expr::tests::ArbExprParams;
     use crate::serialization::sigma_serialize_roundtrip;
-    use crate::test_util::force_any_val;
+    use crate::test_util::force_any_val_with;
+    use crate::types::stype::SType;
 
     fn test_ser_roundtrip(kind: BinOpKind, left: Expr, right: Expr) {
         let eq_op: Expr = Box::new(BinOp { kind, left, right }).into();
@@ -45,8 +47,14 @@ mod tests {
     fn ser_roundtrip_eq() {
         test_ser_roundtrip(
             LogicOp::Eq.into(),
-            force_any_val::<Expr>(),
-            force_any_val::<Expr>(),
+            force_any_val_with::<Expr>(ArbExprParams {
+                tpe: SType::SAny,
+                depth: 1,
+            }),
+            force_any_val_with::<Expr>(ArbExprParams {
+                tpe: SType::SAny,
+                depth: 1,
+            }),
         )
     }
 
@@ -54,8 +62,14 @@ mod tests {
     fn ser_roundtrip_neq() {
         test_ser_roundtrip(
             LogicOp::NEq.into(),
-            force_any_val::<Expr>(),
-            force_any_val::<Expr>(),
+            force_any_val_with::<Expr>(ArbExprParams {
+                tpe: SType::SAny,
+                depth: 1,
+            }),
+            force_any_val_with::<Expr>(ArbExprParams {
+                tpe: SType::SAny,
+                depth: 1,
+            }),
         )
     }
 }

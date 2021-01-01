@@ -27,3 +27,30 @@ impl Evaluable for Expr {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::rc::Rc;
+
+    use crate::ast::expr::tests::*;
+    use crate::eval::context::Context;
+    use crate::eval::cost_accum::CostAccumulator;
+    use crate::test_util::force_any_val;
+    use crate::types::stype::SType;
+
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+
+        #[test]
+        fn eval(e in any_with::<Expr>(ArbExprParams{tpe: SType::SBoolean, depth: 4})) {
+            dbg!(&e);
+            let ctx = Rc::new(force_any_val::<Context>());
+            let cost_accum = CostAccumulator::new(0, None);
+            let mut ectx = EvalContext::new(ctx, cost_accum);
+            let r = e.eval(&Env::empty(), &mut ectx);
+            prop_assert!(r.is_ok());
+        }
+    }
+}

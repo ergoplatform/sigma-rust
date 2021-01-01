@@ -77,18 +77,83 @@ impl fmt::Display for Expr {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     #![allow(unused_imports)]
     use super::*;
     use crate::sigma_protocol::sigma_boolean::SigmaProp;
     use proptest::prelude::*;
 
+    #[derive(PartialEq, Eq, Debug, Clone)]
+    pub struct ArbExprParams {
+        pub tpe: SType,
+        pub depth: usize,
+    }
+
+    impl Default for ArbExprParams {
+        fn default() -> Self {
+            ArbExprParams {
+                tpe: SType::SBoolean,
+                depth: 2,
+            }
+        }
+    }
+
+    fn bool_nested_expr(depth: usize) -> BoxedStrategy<Expr> {
+        prop_oneof![any_with::<BinOp>(ArbExprParams {
+            tpe: SType::SBoolean,
+            depth
+        })
+        .prop_map(Box::new)
+        .prop_map_into()]
+        .boxed()
+    }
+
+    fn any_nested_expr(depth: usize) -> BoxedStrategy<Expr> {
+        prop_oneof![bool_nested_expr(depth)]
+    }
+
+    fn nested_expr(tpe: SType, depth: usize) -> BoxedStrategy<Expr> {
+        match tpe {
+            SType::SAny => any_nested_expr(depth),
+            SType::SBoolean => bool_nested_expr(depth),
+            _ => todo!(),
+        }
+        .boxed()
+    }
+
+    fn int_non_nested_expr() -> BoxedStrategy<Expr> {
+        prop_oneof![Just(Box::new(GlobalVars::Height).into()),].boxed()
+    }
+
+    fn any_non_nested_expr() -> BoxedStrategy<Expr> {
+        prop_oneof![int_non_nested_expr()]
+    }
+
+    fn non_nested_expr(tpe: &SType) -> BoxedStrategy<Expr> {
+        match tpe {
+            SType::SAny => any_non_nested_expr(),
+            SType::SInt => int_non_nested_expr(),
+            _ => todo!(),
+        }
+    }
+
     impl Arbitrary for Expr {
-        type Parameters = ();
+        type Parameters = ArbExprParams;
         type Strategy = BoxedStrategy<Self>;
 
-        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            prop_oneof![any::<Constant>().prop_map(Box::new).prop_map(Expr::Const)].boxed()
+        fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
+            if args.depth == 0 {
+                prop_oneof![
+                    any_with::<Constant>(args.tpe.clone())
+                        .prop_map(Box::new)
+                        .prop_map(Expr::Const)
+                        .boxed(),
+                    non_nested_expr(&args.tpe)
+                ]
+                .boxed()
+            } else {
+                nested_expr(args.tpe, args.depth - 1)
+            }
         }
     }
 }
