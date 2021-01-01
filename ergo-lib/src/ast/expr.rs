@@ -86,36 +86,36 @@ pub mod tests {
     #[derive(PartialEq, Eq, Debug, Clone)]
     pub struct ArbExprParams {
         pub tpe: SType,
-        pub nesting_level: usize,
+        pub depth: usize,
     }
 
     impl Default for ArbExprParams {
         fn default() -> Self {
             ArbExprParams {
                 tpe: SType::SBoolean,
-                nesting_level: 2,
+                depth: 2,
             }
         }
     }
 
-    fn bool_nested_expr(nesting_level: usize) -> BoxedStrategy<Expr> {
+    fn bool_nested_expr(depth: usize) -> BoxedStrategy<Expr> {
         prop_oneof![any_with::<BinOp>(ArbExprParams {
             tpe: SType::SBoolean,
-            nesting_level
+            depth
         })
         .prop_map(Box::new)
         .prop_map_into()]
         .boxed()
     }
 
-    fn any_nested_expr(nesting_level: usize) -> BoxedStrategy<Expr> {
-        prop_oneof![bool_nested_expr(nesting_level)]
+    fn any_nested_expr(depth: usize) -> BoxedStrategy<Expr> {
+        prop_oneof![bool_nested_expr(depth)]
     }
 
-    fn nested_expr(tpe: SType, nesting_level: usize) -> BoxedStrategy<Expr> {
+    fn nested_expr(tpe: SType, depth: usize) -> BoxedStrategy<Expr> {
         match tpe {
-            SType::SAny => any_nested_expr(nesting_level),
-            SType::SBoolean => bool_nested_expr(nesting_level),
+            SType::SAny => any_nested_expr(depth),
+            SType::SBoolean => bool_nested_expr(depth),
             _ => todo!(),
         }
         .boxed()
@@ -142,7 +142,7 @@ pub mod tests {
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
-            if args.nesting_level == 0 {
+            if args.depth == 0 {
                 prop_oneof![
                     any_with::<Constant>(args.tpe.clone())
                         .prop_map(Box::new)
@@ -152,7 +152,7 @@ pub mod tests {
                 ]
                 .boxed()
             } else {
-                nested_expr(args.tpe, args.nesting_level - 1)
+                nested_expr(args.tpe, args.depth - 1)
             }
         }
     }

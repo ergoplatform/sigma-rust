@@ -44,7 +44,7 @@ mod tests {
     proptest! {
 
         #[test]
-        fn eval(e in any_with::<Expr>(ArbExprParams{tpe: SType::SBoolean, nesting_level: 4})) {
+        fn eval(e in any_with::<Expr>(ArbExprParams{tpe: SType::SBoolean, depth: 4})) {
             dbg!(&e);
             let ctx = Rc::new(force_any_val::<Context>());
             let cost_accum = CostAccumulator::new(0, None);

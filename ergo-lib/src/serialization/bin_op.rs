@@ -49,11 +49,11 @@ mod tests {
             LogicOp::Eq.into(),
             force_any_val_with::<Expr>(ArbExprParams {
                 tpe: SType::SAny,
-                nesting_level: 1,
+                depth: 1,
             }),
             force_any_val_with::<Expr>(ArbExprParams {
                 tpe: SType::SAny,
-                nesting_level: 1,
+                depth: 1,
             }),
         )
     }
@@ -64,11 +64,11 @@ mod tests {
             LogicOp::NEq.into(),
             force_any_val_with::<Expr>(ArbExprParams {
                 tpe: SType::SAny,
-                nesting_level: 1,
+                depth: 1,
             }),
             force_any_val_with::<Expr>(ArbExprParams {
                 tpe: SType::SAny,
-                nesting_level: 1,
+                depth: 1,
             }),
         )
     }

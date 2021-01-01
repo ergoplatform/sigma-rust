@@ -118,11 +118,11 @@ pub mod tests {
                     any::<LogicOp>().prop_map_into(),
                     any_with::<Expr>(ArbExprParams {
                         tpe: SType::SAny,
-                        nesting_level: args.nesting_level,
+                        depth: args.depth,
                     }),
                     any_with::<Expr>(ArbExprParams {
                         tpe: SType::SAny,
-                        nesting_level: args.nesting_level,
+                        depth: args.depth,
                     }),
                 )
                     .prop_map(|(kind, left, right)| BinOp { kind, left, right }),
