@@ -109,6 +109,7 @@ fn get_embeddable_type(code: u8) -> Result<SType, SerializationError> {
     }
 }
 
+#[allow(clippy::match_like_matches_macro)]
 fn is_stype_embeddable(tpe: &SType) -> bool {
     match tpe {
         SType::SBoolean => true,

@@ -126,8 +126,8 @@ impl TryFrom<String> for NonMandatoryRegisterId {
             let index = (&str[1..2])
                 .parse::<usize>()
                 .map_err(|_| NonMandatoryRegisterIdParsingError())?;
-            if index >= NonMandatoryRegisterId::START_INDEX
-                && index <= NonMandatoryRegisterId::END_INDEX
+            if (NonMandatoryRegisterId::START_INDEX..=NonMandatoryRegisterId::END_INDEX)
+                .contains(&index)
             {
                 Ok(NonMandatoryRegisterId::get_by_zero_index(
                     index - NonMandatoryRegisterId::START_INDEX,
@@ -146,8 +146,8 @@ impl TryFrom<i8> for NonMandatoryRegisterId {
 
     fn try_from(value: i8) -> Result<Self, Self::Error> {
         let v_usize = value as usize;
-        if v_usize >= NonMandatoryRegisterId::START_INDEX
-            && v_usize <= NonMandatoryRegisterId::END_INDEX
+        if (NonMandatoryRegisterId::START_INDEX..=NonMandatoryRegisterId::END_INDEX)
+            .contains(&v_usize)
         {
             Ok(NonMandatoryRegisterId::get_by_zero_index(
                 v_usize - NonMandatoryRegisterId::START_INDEX,

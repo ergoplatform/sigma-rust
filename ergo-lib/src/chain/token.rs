@@ -100,7 +100,7 @@ impl TryFrom<u64> for TokenAmount {
     type Error = TokenAmountError;
 
     fn try_from(v: u64) -> Result<Self, Self::Error> {
-        if v >= TokenAmount::MIN_RAW && v <= TokenAmount::MAX_RAW {
+        if (TokenAmount::MIN_RAW..=TokenAmount::MAX_RAW).contains(&v) {
             Ok(TokenAmount(v))
         } else {
             Err(TokenAmountError::OutOfBounds(v))

@@ -90,12 +90,12 @@ jobs:
           command: test
           args: --verbose --release
       - name: rust-tarpaulin code coverage check
-        if: matrix.os == 'ubuntu-latest' && github.event_name == 'pull_request'
+        if: matrix.os == 'ubuntu-latest'
         uses: actions-rs/tarpaulin@master
         with:
           args: '-v --out Lcov --exclude-files bindings/*'
       - name: Upload coverage report to Codecov
-        if: matrix.os == 'ubuntu-latest' && github.event_name == 'pull_request'
+        if: matrix.os == 'ubuntu-latest'
         uses: codecov/codecov-action@v1
         with:
           fail_ci_if_error: true
