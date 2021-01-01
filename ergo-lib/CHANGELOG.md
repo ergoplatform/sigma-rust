@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
+
+### Added 
+- `SType::STuple()` and `Value::Tup()` types to store tuples. Implemented serialization, conversion between Rust types and `Constant`(`Value`, `SType`) [#166](https://github.com/ergoplatform/sigma-rust/pull/166);
+- `EQ(==)`, `NEQ(!=)` implementation [#166](https://github.com/ergoplatform/sigma-rust/pull/166);
+
 ## [0.4.2] - 2020-12-21
 
 ### Added 

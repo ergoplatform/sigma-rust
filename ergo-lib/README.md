@@ -13,6 +13,8 @@
 ## Interpreter (what's implemented):
 - global vars (`INPUTS`, `OUTPUTS`, `SELF`, `HEIGHT`);
 - `Context` properties (`dataInputs`);
+- Value types with serialization for most of them(types and values);
+- `EQ`(`==`), `NEQ`(`!=`);
 
 ## Usage 
 ## Crate features

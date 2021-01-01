@@ -69,6 +69,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
@@ -92,12 +94,17 @@ jobs:
         uses: actions-rs/tarpaulin@master
         with:
           args: '-v --out Lcov --exclude-files bindings/*'
-      - name: Push code coverage results to coveralls.io
+      - name: Upload coverage report to Codecov
         if: matrix.os == 'ubuntu-latest' && github.event_name == 'pull_request'
-        uses: coverallsapp/github-action@master
+        uses: codecov/codecov-action@v1
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          path-to-lcov: ./lcov.info
+          fail_ci_if_error: true
+      # - name: Push code coverage results to coveralls.io
+      #   if: matrix.os == 'ubuntu-latest' && github.event_name == 'pull_request'
+      #   uses: coverallsapp/github-action@master
+      #   with:
+      #     github-token: ${{ secrets.GITHUB_TOKEN }}
+      #     path-to-lcov: ./lcov.info
         
   doc-links:
     name: Intra-documentation links

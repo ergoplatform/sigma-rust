@@ -12,9 +12,9 @@ use thiserror::Error;
 /// Ways serialization might fail
 #[derive(Error, Eq, PartialEq, Debug, Clone)]
 pub enum SerializationError {
-    /// Failed to parse op
-    #[error("op parsing error")]
-    InvalidOpCode,
+    /// Invalid op code
+    #[error("invalid op code: {0}")]
+    InvalidOpCode(u8),
     /// Lacking support for the op
     #[error("not implemented op error")]
     NotImplementedOpCode(u8),
@@ -39,6 +39,9 @@ pub enum SerializationError {
     /// Value out of bounds
     #[error("Value out of bounds: {0}")]
     ValueOutOfBounds(String),
+    /// Tuple items out of bounds
+    #[error("Tuple items out of bounds: {0}")]
+    TupleItemsOutOfBounds(usize),
 }
 
 impl From<vlq_encode::VlqEncodingError> for SerializationError {

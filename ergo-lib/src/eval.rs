@@ -13,10 +13,9 @@ use thiserror::Error;
 use self::context::Context;
 use self::cost_accum::CostError;
 
-mod costs;
-
 pub(crate) mod context;
 pub(crate) mod cost_accum;
+pub(crate) mod costs;
 pub(crate) mod expr;
 pub(crate) mod global_vars;
 pub(crate) mod method_call;
@@ -92,8 +91,8 @@ pub trait Evaluator {
 }
 
 pub struct EvalContext {
-    ctx: Rc<Context>,
-    cost_accum: CostAccumulator,
+    pub ctx: Rc<Context>,
+    pub cost_accum: CostAccumulator,
 }
 
 impl EvalContext {
@@ -108,37 +107,6 @@ pub trait Evaluable {
     /// Evaluation routine to be implement by each node
     fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError>;
 }
-
-// #[allow(unconditional_recursion)]
-// fn eval(
-//     expr: &Expr,
-//     env: &Env,
-//     ca: &mut CostAccumulator,
-//     ctx: &Context,
-// ) -> Result<Value, EvalError> {
-//     match expr {
-//         Expr::Const(c) => Ok(c.v.clone()),
-//         Expr::Coll { .. } => todo!(),
-//         Expr::Tup { .. } => todo!(),
-//         Expr::PredefFunc(_) => todo!(),
-//         Expr::CollM(_) => todo!(),
-//         Expr::BoxM(_) => todo!(),
-//         Expr::GlobalVars(v) => v.eval(env, ca, ctx),
-//         Expr::MethodCall(v) => v.eval(env, ca, ctx),
-//         Expr::BinOp(_bin_op, l, r) => {
-//             let _v_l = eval(l, env, ca, ctx)?;
-//             let _v_r = eval(r, env, ca, ctx)?;
-//             ca.add_cost_of(expr);
-//             todo!()
-//             // Ok(match bin_op {
-//             //     BinOp::Num(op) => match op {
-//             //         NumOp::Add => v_l + v_r,
-//             //     },
-//             // })
-//         }
-//         _ => Err(EvalError::UnexpectedExpr),
-//     }
-// }
 
 #[cfg(test)]
 pub mod tests {

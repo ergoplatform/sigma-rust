@@ -1,5 +1,11 @@
 //! SType hierarchy
 
+use std::convert::TryFrom;
+use std::convert::TryInto;
+use std::slice::Iter;
+
+use impl_trait_for_tuples::impl_for_tuples;
+
 use crate::chain::ergo_box::ErgoBox;
 use crate::serialization::types::TypeCode;
 use crate::sigma_protocol::dlog_group::EcPoint;
@@ -45,7 +51,7 @@ pub enum SType {
     /// Collection of elements of the same type
     SColl(Box<SType>),
     /// Tuple (elements can have different types)
-    STup(Vec<SType>),
+    STuple(TupleItems<SType>),
     /// Function (signature)
     SFunc(Box<SFunc>),
     /// Context object ("CONTEXT" in ErgoScript)
@@ -67,9 +73,9 @@ impl SType {
             SType::SSigmaProp => TypeCode::SSIGMAPROP,
             SType::SBox => todo!(),
             SType::SAvlTree => todo!(),
-            SType::SOption(_) => todo!(),
-            SType::SColl(_) => todo!(),
-            SType::STup(_) => todo!(),
+            SType::SOption(_) => TypeCode::OPTION,
+            SType::SColl(_) => TypeCode::COLLECTION,
+            SType::STuple(_) => TypeCode::TUPLE,
             SType::SFunc(_) => todo!(),
             SType::SContext(_) => todo!(),
             SType::STypeVar(_) => todo!(),
@@ -80,10 +86,47 @@ impl SType {
     pub fn type_companion(&self) -> Option<Box<STypeCompanion>> {
         todo!()
     }
+}
 
-    /// Create new SColl with the given element type
-    pub fn new_scoll(elem_type: SType) -> SType {
-        SType::SColl(Box::new(elem_type))
+/// Tuple items with bounds check (2..=255)
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct TupleItems<T>(Vec<T>);
+
+#[allow(clippy::len_without_is_empty)]
+impl<T> TupleItems<T> {
+    // pub fn into_vec(self) -> Vec<T> {
+    //     self.0
+    // }
+
+    /// Get the length (quantity)
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    /// Get an iterator
+    pub fn iter(&self) -> Iter<T> {
+        self.0.iter()
+    }
+
+    /// Get a slice
+    pub fn as_slice(&self) -> &[T] {
+        self.0.as_slice()
+    }
+}
+
+/// Out of bounds items quantity error
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct STupleItemsOutOfBoundsError();
+
+impl<T> TryFrom<Vec<T>> for TupleItems<T> {
+    type Error = STupleItemsOutOfBoundsError;
+
+    fn try_from(items: Vec<T>) -> Result<Self, Self::Error> {
+        if items.len() >= 2 && items.len() <= 255 {
+            Ok(TupleItems(items))
+        } else {
+            Err(STupleItemsOutOfBoundsError())
+        }
     }
 }
 
@@ -165,6 +208,20 @@ impl LiftIntoSType for EcPoint {
     }
 }
 
+impl<T: LiftIntoSType> LiftIntoSType for Option<T> {
+    fn stype() -> SType {
+        SType::SOption(Box::new(T::stype()))
+    }
+}
+
+#[impl_for_tuples(2, 4)]
+impl LiftIntoSType for Tuple {
+    fn stype() -> SType {
+        let v: Vec<SType> = [for_tuples!(  #( Tuple::stype() ),* )].to_vec();
+        SType::STuple(v.try_into().unwrap())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -189,11 +246,21 @@ mod tests {
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            prop_oneof![
-                primitive_type(),
-                primitive_type().prop_map(SType::new_scoll),
-            ]
-            .boxed()
+            primitive_type()
+                .prop_recursive(
+                    4,  // no more than this branches deep
+                    64, // total elements target
+                    16, // each collection max size
+                    |elem| {
+                        prop_oneof![
+                            prop::collection::vec(elem.clone(), 2..=4)
+                                .prop_map(|elems| SType::STuple(elems.try_into().unwrap())),
+                            elem.clone().prop_map(|tpe| SType::SColl(Box::new(tpe))),
+                            elem.prop_map(|tpe| SType::SOption(Box::new(tpe))),
+                        ]
+                    },
+                )
+                .boxed()
         }
     }
 }

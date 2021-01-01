@@ -11,6 +11,7 @@ use crate::types::stype::SType;
 use crate::util::AsVecU8;
 
 use super::sigma_byte_writer::SigmaByteWrite;
+use std::convert::TryInto;
 use std::io;
 
 pub struct DataSerializer {}
@@ -23,13 +24,11 @@ impl DataSerializer {
             Value::Byte(v) => w.put_i8(*v),
             Value::Short(v) => w.put_i16(*v),
             Value::Int(v) => w.put_i32(*v),
-            // Value::TInt(v) => w.put_i32(v.raw),
             Value::Long(v) => w.put_i64(*v),
             Value::BigInt => todo!(),
             Value::GroupElement(ecp) => ecp.sigma_serialize(w),
             Value::SigmaProp(s) => s.value().sigma_serialize(w),
             Value::CBox(_) => todo!(),
-            // Value::TBox(_) => todo!(),
             Value::AvlTree => todo!(),
             Value::Coll(ct) => match &**ct {
                 Coll::Primitive(CollPrim::CollByte(b)) => {
@@ -42,8 +41,10 @@ impl DataSerializer {
                         .try_for_each(|e| DataSerializer::sigma_serialize(e, w))
                 }
             },
-            Value::Tup(_) => todo!(),
-            Value::Opt(_) => todo!(), // unsupported, see https://github.com/ScorexFoundation/sigmastate-interpreter/issues/659
+            Value::Tup(items) => items
+                .iter()
+                .try_for_each(|i| DataSerializer::sigma_serialize(i, w)),
+            Value::Opt(_) => panic!(), // unsupported, see https://github.com/ScorexFoundation/sigmastate-interpreter/issues/659
             Value::Context(_) => todo!(), // TODO: throw error? it should not be here
         }
     }
@@ -81,12 +82,15 @@ impl DataSerializer {
                     v: elems,
                 }))
             }
-            STup(types) => {
+            STuple(types) => {
                 let mut items = Vec::new();
                 types.iter().try_for_each(|tpe| {
                     DataSerializer::sigma_parse(tpe, r).map(|v| items.push(v))
                 })?;
-                Value::Tup(items)
+                // we get the tuple item value for each tuple item type,
+                // since items types quantity has checked bounds, we can be sure that items count
+                // is correct
+                Value::Tup(items.try_into().unwrap())
             }
 
             c => {

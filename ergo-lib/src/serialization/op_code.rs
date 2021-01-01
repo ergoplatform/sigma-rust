@@ -20,6 +20,9 @@ impl OpCode {
 
     pub const CONSTANT_PLACEHOLDER: OpCode = Self::new_op_code(3);
 
+    pub const EQ: OpCode = Self::new_op_code(35);
+    pub const NEQ: OpCode = Self::new_op_code(36);
+
     /// Environment (context methods)
     pub const HEIGHT: OpCode = Self::new_op_code(51);
     pub const INPUTS: OpCode = Self::new_op_code(52);

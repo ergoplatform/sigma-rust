@@ -1,7 +1,10 @@
 //! Ergo data type
 
 use std::convert::TryFrom;
+use std::convert::TryInto;
 use std::rc::Rc;
+
+use impl_trait_for_tuples::impl_for_tuples;
 
 use crate::chain::ergo_box::ErgoBox;
 use crate::eval::context::Context;
@@ -12,6 +15,7 @@ use crate::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
 use crate::sigma_protocol::sigma_boolean::SigmaProp;
 use crate::types::stype::LiftIntoSType;
 use crate::types::stype::SType;
+use crate::types::stype::TupleItems;
 
 use super::constant::TryExtractFrom;
 use super::constant::TryExtractFromError;
@@ -82,7 +86,7 @@ pub enum Value {
     /// Collection of values of the same type
     Coll(Box<Coll>),
     /// Tuple (arbitrary type values)
-    Tup(Vec<Value>),
+    Tup(TupleItems<Value>),
     /// Transaction(and blockchain) context info
     Context(Rc<Context>),
     /// Optional value
@@ -144,6 +148,18 @@ impl From<ErgoBox> for Value {
     }
 }
 
+impl From<Vec<i8>> for Value {
+    fn from(v: Vec<i8>) -> Self {
+        Value::Coll(Box::new(Coll::Primitive(CollPrim::CollByte(v))))
+    }
+}
+
+impl<T: Into<Value>> From<Option<T>> for Value {
+    fn from(opt: Option<T>) -> Self {
+        Value::Opt(Box::new(opt.map(|v| v.into())))
+    }
+}
+
 /// Marker trait to select types for which CollElems::NonPrimitive is used to store elements as Vec<ConstantVal>
 pub trait StoredNonPrimitive {}
 
@@ -152,13 +168,27 @@ impl StoredNonPrimitive for i16 {}
 impl StoredNonPrimitive for i32 {}
 impl StoredNonPrimitive for i64 {}
 impl StoredNonPrimitive for ErgoBox {}
+impl StoredNonPrimitive for EcPoint {}
+impl StoredNonPrimitive for SigmaProp {}
+impl<T: StoredNonPrimitive> StoredNonPrimitive for Option<T> {}
 
-impl<T: LiftIntoSType + StoredNonPrimitive + Into<Value>> Into<Value> for Vec<T> {
-    fn into(self) -> Value {
+#[impl_for_tuples(2, 4)]
+impl StoredNonPrimitive for Tuple {}
+
+impl<T: LiftIntoSType + StoredNonPrimitive + Into<Value>> From<Vec<T>> for Value {
+    fn from(v: Vec<T>) -> Self {
         Value::Coll(Box::new(Coll::NonPrimitive {
             elem_tpe: T::stype(),
-            v: self.into_iter().map(|i| i.into()).collect(),
+            v: v.into_iter().map(|i| i.into()).collect(),
         }))
+    }
+}
+
+#[impl_for_tuples(2, 4)]
+impl Into<Value> for Tuple {
+    fn into(self) -> Value {
+        let v: Vec<Value> = [for_tuples!(  #( Tuple.into() ),* )].to_vec();
+        Value::Tup(v.try_into().unwrap())
     }
 }
 
@@ -268,6 +298,33 @@ impl<T: TryExtractFrom<Value> + StoredNonPrimitive> TryExtractFrom<Value> for Ve
     }
 }
 
+impl TryExtractFrom<Value> for Vec<i8> {
+    fn try_extract_from(v: Value) -> Result<Self, TryExtractFromError> {
+        match v {
+            Value::Coll(v) => match *v {
+                Coll::Primitive(CollPrim::CollByte(bs)) => Ok(bs),
+                _ => Err(TryExtractFromError(format!(
+                    "expected {:?}, found {:?}",
+                    std::any::type_name::<Self>(),
+                    v
+                ))),
+            },
+            _ => Err(TryExtractFromError(format!(
+                "expected {:?}, found {:?}",
+                std::any::type_name::<Self>(),
+                v
+            ))),
+        }
+    }
+}
+
+impl TryExtractFrom<Value> for Vec<u8> {
+    fn try_extract_from(v: Value) -> Result<Self, TryExtractFromError> {
+        use crate::util::FromVecI8;
+        Vec::<i8>::try_extract_from(v).map(Vec::<u8>::from_vec_i8)
+    }
+}
+
 impl TryFrom<Value> for ProveDlog {
     type Error = TryExtractFromError;
     fn try_from(cv: Value) -> Result<Self, Self::Error> {
@@ -293,6 +350,41 @@ impl TryExtractFrom<Value> for Rc<Context> {
     fn try_extract_from(v: Value) -> Result<Self, TryExtractFromError> {
         match v {
             Value::Context(ctx) => Ok(ctx),
+            _ => Err(TryExtractFromError(format!(
+                "expected Context, found {:?}",
+                v
+            ))),
+        }
+    }
+}
+
+impl<T: TryExtractFrom<Value>> TryExtractFrom<Value> for Option<T> {
+    fn try_extract_from(v: Value) -> Result<Self, TryExtractFromError> {
+        match v {
+            Value::Opt(opt) => opt.map(T::try_extract_from).transpose(),
+            _ => Err(TryExtractFromError(format!(
+                "expected Context, found {:?}",
+                v
+            ))),
+        }
+    }
+}
+
+#[impl_for_tuples(2, 4)]
+impl TryExtractFrom<Value> for Tuple {
+    fn try_extract_from(v: Value) -> Result<Self, TryExtractFromError> {
+        match v {
+            Value::Tup(items) => {
+                let mut iter = items.iter();
+                Ok(for_tuples!( ( #(
+                                Tuple::try_extract_from(
+                                    iter
+                                        .next()
+                                        .cloned()
+                                        .ok_or_else(|| TryExtractFromError("not enough items in STuple".to_string()))?
+                                )?
+                                ),* ) ))
+            }
             _ => Err(TryExtractFromError(format!(
                 "expected Context, found {:?}",
                 v

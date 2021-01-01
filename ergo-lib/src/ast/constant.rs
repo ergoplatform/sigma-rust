@@ -9,9 +9,11 @@ use crate::{
     serialization::{SerializationError, SigmaSerializable},
     sigma_protocol::{dlog_group::EcPoint, sigma_boolean::SigmaProp},
 };
+use impl_trait_for_tuples::impl_for_tuples;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
+use std::convert::TryInto;
 
 mod constant_placeholder;
 
@@ -152,7 +154,7 @@ impl From<Vec<i8>> for Constant {
     fn from(v: Vec<i8>) -> Constant {
         Constant {
             tpe: SType::SColl(Box::new(SType::SByte)),
-            v: Value::Coll(Box::new(Coll::Primitive(CollPrim::CollByte(v)))),
+            v: v.into(),
         }
     }
 }
@@ -162,6 +164,28 @@ impl<T: LiftIntoSType + StoredNonPrimitive + Into<Value>> From<Vec<T>> for Const
         Constant {
             tpe: Vec::<T>::stype(),
             v: v.into(),
+        }
+    }
+}
+
+impl<T: LiftIntoSType + Into<Value>> From<Option<T>> for Constant {
+    fn from(opt: Option<T>) -> Self {
+        Constant {
+            tpe: SType::SOption(Box::new(T::stype())),
+            v: opt.into(),
+        }
+    }
+}
+
+#[impl_for_tuples(2, 4)]
+impl Into<Constant> for Tuple {
+    fn into(self) -> Constant {
+        let constants: Vec<Constant> = [for_tuples!(  #( Tuple.into() ),* )].to_vec();
+        let (types, values): (Vec<SType>, Vec<Value>) =
+            constants.into_iter().map(|c| (c.tpe, c.v)).unzip();
+        Constant {
+            tpe: SType::STuple(types.try_into().unwrap()),
+            v: Value::Tup(values.try_into().unwrap()),
         }
     }
 }
@@ -196,99 +220,206 @@ impl<T: TryExtractFrom<Value>> TryExtractFrom<Constant> for T {
     }
 }
 
-impl TryExtractFrom<Constant> for Vec<i8> {
-    fn try_extract_from(c: Constant) -> Result<Self, TryExtractFromError> {
-        match c.v {
-            Value::Coll(v) => match *v {
-                Coll::Primitive(CollPrim::CollByte(bs)) => Ok(bs),
-                _ => Err(TryExtractFromError(format!(
-                    "expected {:?}, found {:?}",
-                    std::any::type_name::<Self>(),
-                    v
-                ))),
-            },
-            _ => Err(TryExtractFromError(format!(
-                "expected {:?}, found {:?}",
-                std::any::type_name::<Self>(),
-                c.v
-            ))),
-        }
-    }
-}
-
-impl TryExtractFrom<Constant> for Vec<u8> {
-    fn try_extract_from(cv: Constant) -> Result<Self, TryExtractFromError> {
-        use crate::util::FromVecI8;
-        Vec::<i8>::try_extract_from(cv).map(Vec::<u8>::from_vec_i8)
-    }
-}
-
 #[cfg(test)]
 mod tests {
+    use core::fmt;
+
+    use crate::types::stype::TupleItems;
+
     use super::*;
     use proptest::collection::vec;
     use proptest::prelude::*;
+
+    fn primitive_type_value() -> BoxedStrategy<Constant> {
+        prop_oneof![
+            any::<bool>().prop_map_into(),
+            any::<i8>().prop_map_into(),
+            any::<i16>().prop_map_into(),
+            any::<i32>().prop_map_into(),
+            any::<i64>().prop_map_into(),
+            any::<EcPoint>().prop_map_into(),
+            any::<SigmaProp>().prop_map_into(),
+            vec(any::<i8>(), 0..100).prop_map_into(),
+            vec(any::<i64>(), 0..100).prop_map_into(),
+        ]
+        .boxed()
+    }
+
+    fn coll_from_constant(c: Constant, length: usize) -> Constant {
+        Constant {
+            tpe: SType::SColl(Box::new(c.tpe.clone())),
+            v: Value::Coll(Box::new(if c.tpe == SType::SByte {
+                let mut values: Vec<i8> = Vec::with_capacity(length);
+                let byte: i8 = c.v.try_extract_into().unwrap();
+                for _ in 0..length {
+                    values.push(byte);
+                }
+                Coll::Primitive(CollPrim::CollByte(values))
+            } else {
+                let mut values: Vec<Value> = Vec::with_capacity(length);
+                for _ in 0..length {
+                    values.push(c.v.clone());
+                }
+                Coll::NonPrimitive {
+                    elem_tpe: c.tpe,
+                    v: values,
+                }
+            })),
+        }
+    }
 
     impl Arbitrary for Constant {
         type Parameters = ();
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            prop_oneof![
-                any::<bool>().prop_map_into(),
-                any::<i8>().prop_map_into(),
-                any::<i16>().prop_map_into(),
-                any::<i32>().prop_map_into(),
-                any::<i64>().prop_map_into(),
-                any::<EcPoint>().prop_map_into(),
-                any::<SigmaProp>().prop_map_into(),
-                (vec(any::<i8>(), 0..100)).prop_map_into(),
-                (vec(any::<i16>(), 0..100)).prop_map_into(),
-                (vec(any::<i32>(), 0..100)).prop_map_into(),
-                (vec(any::<i64>(), 0..100)).prop_map_into(),
-            ]
+            prop_oneof![primitive_type_value().prop_recursive(4, 64, 15, |elem| {
+                prop_oneof![
+                    // Coll[_]
+                    elem.clone().prop_map(|c| coll_from_constant(c, 0)),
+                    elem.clone().prop_map(|c| coll_from_constant(c, 1)),
+                    elem.clone().prop_map(|c| coll_from_constant(c, 2)),
+                    elem.clone().prop_map(|c| coll_from_constant(c, 10)),
+                    // no Option[_] since it cannot be serialized (for now)
+                    // // Some(v)
+                    // elem.clone().prop_map(|c| Constant {
+                    //     tpe: SType::SOption(Box::new(c.tpe)),
+                    //     v: Value::Opt(Box::new(Some(c.v)))
+                    // }),
+                    // // None
+                    // elem.prop_map(|c| Constant {
+                    //     tpe: SType::SOption(Box::new(c.tpe)),
+                    //     v: Value::Opt(Box::new(None))
+                    // })
+
+                    // Tuple
+                    vec(elem, 2..=4).prop_map(|constants| Constant {
+                        tpe: SType::STuple(
+                            TupleItems::try_from(
+                                constants
+                                    .clone()
+                                    .into_iter()
+                                    .map(|c| c.tpe)
+                                    .collect::<Vec<SType>>()
+                            )
+                            .unwrap()
+                        ),
+                        v: Value::Tup(
+                            constants
+                                .into_iter()
+                                .map(|c| c.v)
+                                .collect::<Vec<Value>>()
+                                .try_into()
+                                .unwrap()
+                        )
+                    }),
+                ]
+            })]
             .boxed()
         }
+    }
+
+    fn test_constant_roundtrip<T>(v: T)
+    where
+        T: TryExtractInto<T> + TryExtractFrom<Value> + Into<Constant> + fmt::Debug + Eq + Clone,
+    {
+        let constant: Constant = v.clone().into();
+        let v_extracted: T = constant.try_extract_into::<T>().unwrap();
+        assert_eq!(v, v_extracted);
     }
 
     proptest! {
 
         #[test]
-        fn test_try_extract_from(c in any::<Constant>()) {
-            // let c = force_any_val::<Constant>();
-            match c.clone().tpe {
-                SType::SBoolean => {
-                    let _ = bool::try_extract_from(c).unwrap();
-                }
-                SType::SByte => {
-                    let _ = i8::try_extract_from(c).unwrap();
-                }
-                SType::SShort => {
-                    let _ = i16::try_extract_from(c).unwrap();
-                }
-                SType::SInt => {
-                    let _ = i32::try_extract_from(c).unwrap();
-                }
-                SType::SLong => {
-                    let _ = i64::try_extract_from(c).unwrap();
-                }
-                SType::SGroupElement => {
-                    let _ = EcPoint::try_extract_from(c).unwrap();
-                }
-                SType::SSigmaProp => {
-                    let _ = SigmaProp::try_extract_from(c).unwrap();
-                }
-                SType::SColl(elem_type) => {
-                    match *elem_type {
-                        SType::SByte => { let _ = Vec::<i8>::try_extract_from(c).unwrap(); }
-                        SType::SShort => { let _ = Vec::<i16>::try_extract_from(c).unwrap(); }
-                        SType::SInt => { let _ = Vec::<i32>::try_extract_from(c).unwrap(); }
-                        SType::SLong => { let _ = Vec::<i64>::try_extract_from(c).unwrap(); }
-                        _ => todo!()
-                    }
-                }
-                _ => todo!(),
-            };
+        fn bool_roundtrip(v in any::<bool>()) {
+            test_constant_roundtrip(v);
         }
+
+        #[test]
+        fn i8_roundtrip(v in any::<i8>()) {
+            test_constant_roundtrip(v);
+        }
+
+        #[test]
+        fn i16_roundtrip(v in any::<i16>()) {
+            test_constant_roundtrip(v);
+        }
+
+        #[test]
+        fn i32_roundtrip(v in any::<i32>()) {
+            test_constant_roundtrip(v);
+        }
+
+        #[test]
+        fn i64_roundtrip(v in any::<i64>()) {
+            test_constant_roundtrip(v);
+        }
+
+        #[test]
+        fn group_element_roundtrip(v in any::<EcPoint>()) {
+            test_constant_roundtrip(v);
+        }
+
+        #[test]
+        fn sigma_prop_roundtrip(v in any::<SigmaProp>()) {
+            test_constant_roundtrip(v);
+        }
+
+        #[test]
+        fn vec_i8_roundtrip(v in any::<Vec<i8>>()) {
+            test_constant_roundtrip(v);
+        }
+
+        #[test]
+        fn vec_u8_roundtrip(v in any::<Vec<u8>>()) {
+            test_constant_roundtrip(v);
+        }
+
+        #[test]
+        fn vec_i16_roundtrip(v in any::<Vec<i16>>()) {
+            test_constant_roundtrip(v);
+        }
+
+        #[test]
+        fn vec_i32_roundtrip(v in any::<Vec<i32>>()) {
+            test_constant_roundtrip(v);
+        }
+
+        #[test]
+        fn vec_i64_roundtrip(v in any::<Vec<i64>>()) {
+            test_constant_roundtrip(v);
+        }
+
+        #[test]
+        fn vec_sigmaprop_roundtrip(v in any::<Vec<SigmaProp>>()) {
+            test_constant_roundtrip(v);
+        }
+
+        #[test]
+        fn option_primitive_type_roundtrip(v in any::<Option<i64>>()) {
+            test_constant_roundtrip(v);
+        }
+
+        #[test]
+        fn option_nested_vector_type_roundtrip(v in any::<Option<Vec<(i64, bool)>>>()) {
+            test_constant_roundtrip(v);
+        }
+
+        #[test]
+        fn option_nested_tuple_type_roundtrip(v in any::<Option<(i64, bool)>>()) {
+            test_constant_roundtrip(v);
+        }
+
+
+        #[test]
+        fn tuple_primitive_types_roundtrip(v in any::<(i64, bool)>()) {
+            test_constant_roundtrip(v);
+        }
+
+        #[test]
+        fn tuple_nested_types_roundtrip(v in any::<(Option<i64>, Vec<SigmaProp>)>()) {
+            test_constant_roundtrip(v);
+        }
+
     }
 }

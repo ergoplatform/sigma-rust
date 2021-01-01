@@ -337,6 +337,7 @@ mod tests {
         assert!(ErgoTree::sigma_parse_bytes(vec![
             ErgoTreeHeader::CONSTANT_SEGREGATION_FLAG,
             1,
+            0,
             99,
             99
         ])
