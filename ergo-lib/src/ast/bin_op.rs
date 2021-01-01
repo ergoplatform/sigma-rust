@@ -15,6 +15,9 @@ use super::value::Value;
 extern crate derive_more;
 use derive_more::From;
 
+#[cfg(test)]
+use proptest_derive::Arbitrary;
+
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 /// Operations for numerical types
 pub enum NumOp {
@@ -29,13 +32,14 @@ impl From<NumOp> for OpCode {
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
+#[cfg_attr(test, derive(Arbitrary))]
 pub enum LogicOp {
     Eq,
     NEq,
-    GE,
-    GT,
-    LE,
-    LT,
+    // GE,
+    // GT,
+    // LE,
+    // LT,
 }
 
 impl From<LogicOp> for OpCode {
@@ -43,7 +47,6 @@ impl From<LogicOp> for OpCode {
         match op {
             LogicOp::Eq => OpCode::EQ,
             LogicOp::NEq => OpCode::NEQ,
-            _ => todo!(),
         }
     }
 }
@@ -52,14 +55,14 @@ impl From<LogicOp> for OpCode {
 /// Binary operations
 pub enum BinOpKind {
     /// Binary operations for numerical types
-    Num(NumOp),
+    // Num(NumOp),
     Logic(LogicOp),
 }
 
 impl From<BinOpKind> for OpCode {
     fn from(op: BinOpKind) -> Self {
         match op {
-            BinOpKind::Num(o) => o.into(),
+            // BinOpKind::Num(o) => o.into(),
             BinOpKind::Logic(o) => o.into(),
         }
     }
@@ -84,26 +87,56 @@ impl Evaluable for BinOp {
         let rv = self.right.eval(env, ctx)?;
         ctx.cost_accum.add(Costs::DEFAULT.eq_const_size)?;
         match self.kind {
-            BinOpKind::Num(_) => todo!(),
             BinOpKind::Logic(op) => match op {
                 LogicOp::Eq => Ok(Value::Boolean(lv == rv)),
                 LogicOp::NEq => Ok(Value::Boolean(lv != rv)),
-                _ => todo!(),
             },
         }
     }
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use std::rc::Rc;
 
     use crate::ast::constant::Constant;
+    use crate::ast::expr::tests::ArbExprParams;
     use crate::eval::context::Context;
     use crate::eval::tests::eval_out;
     use crate::test_util::force_any_val;
+    use crate::types::stype::SType;
 
     use super::*;
+
+    impl Arbitrary for BinOp {
+        type Parameters = ArbExprParams;
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
+            match args.tpe {
+                SType::SBoolean => (
+                    any::<LogicOp>().prop_map_into(),
+                    any_with::<Expr>(ArbExprParams {
+                        tpe: SType::SAny,
+                        nesting_level: args.nesting_level,
+                    }),
+                    any_with::<Expr>(ArbExprParams {
+                        tpe: SType::SAny,
+                        nesting_level: args.nesting_level,
+                    }),
+                )
+                    .prop_map(|(kind, left, right)| BinOp { kind, left, right }),
+
+                _ => todo!(),
+                // SType::SByte => {}
+                // SType::SShort => {}
+                // SType::SInt => {}
+                // SType::SLong => {}
+                // SType::SBigInt => {}
+            }
+            .boxed()
+        }
+    }
 
     fn check_eq_neq(left: Constant, right: Constant) -> bool {
         let eq_op: Expr = Box::new(BinOp {

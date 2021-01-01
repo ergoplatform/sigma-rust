@@ -239,8 +239,8 @@ mod tests {
             any::<i64>().prop_map_into(),
             any::<EcPoint>().prop_map_into(),
             any::<SigmaProp>().prop_map_into(),
+            // although it's not strictly a primitive type, byte array is widely used as one
             vec(any::<i8>(), 0..100).prop_map_into(),
-            vec(any::<i64>(), 0..100).prop_map_into(),
         ]
         .boxed()
     }
@@ -268,54 +268,85 @@ mod tests {
         }
     }
 
+    fn const_with_type(tpe: SType) -> BoxedStrategy<Constant> {
+        match tpe {
+            SType::SAny => any::<Constant>(),
+            SType::SBoolean => any::<bool>().prop_map_into().boxed(),
+            SType::SByte => any::<i8>().prop_map_into().boxed(),
+            SType::SShort => any::<i16>().prop_map_into().boxed(),
+            SType::SInt => any::<i32>().prop_map_into().boxed(),
+            SType::SLong => any::<i64>().prop_map_into().boxed(),
+            // SType::SBigInt => {}
+            SType::SGroupElement => any::<EcPoint>().prop_map_into().boxed(),
+            SType::SSigmaProp => any::<SigmaProp>().prop_map_into().boxed(),
+            // SType::SBox => {}
+            // SType::SAvlTree => {}
+            // SType::SOption(tpe) =>
+            // SType::SColl() => {}
+            // SType::STuple(_) => {}
+            _ => todo!(),
+        }
+    }
+
+    impl Default for SType {
+        fn default() -> Self {
+            SType::SAny
+        }
+    }
+
     impl Arbitrary for Constant {
-        type Parameters = ();
+        type Parameters = SType;
         type Strategy = BoxedStrategy<Self>;
 
-        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            prop_oneof![primitive_type_value().prop_recursive(4, 64, 15, |elem| {
-                prop_oneof![
-                    // Coll[_]
-                    elem.clone().prop_map(|c| coll_from_constant(c, 0)),
-                    elem.clone().prop_map(|c| coll_from_constant(c, 1)),
-                    elem.clone().prop_map(|c| coll_from_constant(c, 2)),
-                    elem.clone().prop_map(|c| coll_from_constant(c, 10)),
-                    // no Option[_] since it cannot be serialized (for now)
-                    // // Some(v)
-                    // elem.clone().prop_map(|c| Constant {
-                    //     tpe: SType::SOption(Box::new(c.tpe)),
-                    //     v: Value::Opt(Box::new(Some(c.v)))
-                    // }),
-                    // // None
-                    // elem.prop_map(|c| Constant {
-                    //     tpe: SType::SOption(Box::new(c.tpe)),
-                    //     v: Value::Opt(Box::new(None))
-                    // })
+        fn arbitrary_with(tpe: Self::Parameters) -> Self::Strategy {
+            match tpe {
+                SType::SAny => {
+                    prop_oneof![primitive_type_value().prop_recursive(3, 16, 8, |elem| {
+                        prop_oneof![
+                            // Coll[_]
+                            elem.clone().prop_map(|c| coll_from_constant(c, 0)),
+                            elem.clone().prop_map(|c| coll_from_constant(c, 1)),
+                            elem.clone().prop_map(|c| coll_from_constant(c, 2)),
+                            elem.clone().prop_map(|c| coll_from_constant(c, 10)),
+                            // no Option[_] since it cannot be serialized (for now)
+                            // // Some(v)
+                            // elem.clone().prop_map(|c| Constant {
+                            //     tpe: SType::SOption(Box::new(c.tpe)),
+                            //     v: Value::Opt(Box::new(Some(c.v)))
+                            // }),
+                            // // None
+                            // elem.prop_map(|c| Constant {
+                            //     tpe: SType::SOption(Box::new(c.tpe)),
+                            //     v: Value::Opt(Box::new(None))
+                            // })
 
-                    // Tuple
-                    vec(elem, 2..=4).prop_map(|constants| Constant {
-                        tpe: SType::STuple(
-                            TupleItems::try_from(
-                                constants
-                                    .clone()
-                                    .into_iter()
-                                    .map(|c| c.tpe)
-                                    .collect::<Vec<SType>>()
-                            )
-                            .unwrap()
-                        ),
-                        v: Value::Tup(
-                            constants
-                                .into_iter()
-                                .map(|c| c.v)
-                                .collect::<Vec<Value>>()
-                                .try_into()
-                                .unwrap()
-                        )
-                    }),
-                ]
-            })]
-            .boxed()
+                            // Tuple
+                            vec(elem, 2..=4).prop_map(|constants| Constant {
+                                tpe: SType::STuple(
+                                    TupleItems::try_from(
+                                        constants
+                                            .clone()
+                                            .into_iter()
+                                            .map(|c| c.tpe)
+                                            .collect::<Vec<SType>>()
+                                    )
+                                    .unwrap()
+                                ),
+                                v: Value::Tup(
+                                    constants
+                                        .into_iter()
+                                        .map(|c| c.v)
+                                        .collect::<Vec<Value>>()
+                                        .try_into()
+                                        .unwrap()
+                                )
+                            }),
+                        ]
+                    })]
+                    .boxed()
+                }
+                _ => const_with_type(tpe),
+            }
         }
     }
 

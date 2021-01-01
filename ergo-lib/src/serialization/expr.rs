@@ -94,3 +94,19 @@ impl SigmaSerializable for Expr {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::serialization::sigma_serialize_roundtrip;
+    use proptest::prelude::*;
+
+    proptest! {
+
+        #[test]
+        fn ser_roundtrip(v in any::<Expr>()) {
+            dbg!(&v);
+            prop_assert_eq![sigma_serialize_roundtrip(&v), v];
+        }
+    }
+}

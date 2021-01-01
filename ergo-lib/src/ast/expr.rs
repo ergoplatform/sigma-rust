@@ -77,18 +77,77 @@ impl fmt::Display for Expr {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     #![allow(unused_imports)]
     use super::*;
     use crate::sigma_protocol::sigma_boolean::SigmaProp;
     use proptest::prelude::*;
 
+    #[derive(PartialEq, Eq, Debug, Clone)]
+    pub struct ArbExprParams {
+        pub tpe: SType,
+        pub nesting_level: usize,
+    }
+
+    impl Default for ArbExprParams {
+        fn default() -> Self {
+            ArbExprParams {
+                tpe: SType::SBoolean,
+                nesting_level: 4,
+            }
+        }
+    }
+
+    fn arb_bool_expr(nesting_level: usize) -> BoxedStrategy<Expr> {
+        prop_oneof![any_with::<BinOp>(ArbExprParams {
+            tpe: SType::SBoolean,
+            nesting_level
+        })
+        .prop_map(Box::new)
+        .prop_map_into()]
+        .boxed()
+    }
+
+    fn any_expr(nesting_level: usize) -> BoxedStrategy<Expr> {
+        prop_oneof![arb_bool_expr(nesting_level)]
+    }
+
+    fn arb_expr_with_type(tpe: SType, nesting_level: usize) -> BoxedStrategy<Expr> {
+        match tpe {
+            SType::SAny => any_expr(nesting_level),
+            SType::SBoolean => arb_bool_expr(nesting_level),
+            // SType::SByte => {}
+            // SType::SShort => {}
+            // SType::SInt => {}
+            // SType::SLong => {}
+            // SType::SBigInt => {}
+            // SType::SGroupElement => {}
+            // SType::SSigmaProp => {}
+            // SType::SBox => {}
+            // SType::SAvlTree => {}
+            // SType::SOption(_) => {}
+            // SType::SColl(_) => {}
+            // SType::STuple(_) => {}
+            // SType::SFunc(_) => {}
+            // SType::SContext(_) => {}
+            _ => todo!(),
+        }
+        .boxed()
+    }
+
     impl Arbitrary for Expr {
-        type Parameters = ();
+        type Parameters = ArbExprParams;
         type Strategy = BoxedStrategy<Self>;
 
-        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            prop_oneof![any::<Constant>().prop_map(Box::new).prop_map(Expr::Const)].boxed()
+        fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
+            if args.nesting_level == 0 {
+                any_with::<Constant>(args.tpe)
+                    .prop_map(Box::new)
+                    .prop_map(Expr::Const)
+                    .boxed()
+            } else {
+                arb_expr_with_type(args.tpe, args.nesting_level - 1)
+            }
         }
     }
 }
