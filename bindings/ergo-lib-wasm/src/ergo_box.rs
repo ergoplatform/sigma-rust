@@ -170,6 +170,13 @@ impl ErgoBox {
     pub fn to_json(&self) -> Result<JsValue, JsValue> {
         JsValue::from_serde(&self.0.clone()).map_err(|e| JsValue::from_str(&format!("{}", e)))
     }
+
+    /// JSON representation
+    pub fn from_json(json: &str) -> Result<ErgoBox, JsValue> {
+        serde_json::from_str(json)
+            .map(Self)
+            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+    }
 }
 
 impl From<ErgoBox> for chain::ergo_box::ErgoBox {
