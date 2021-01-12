@@ -23,6 +23,10 @@ impl Env {
         Env { store: new_store }
     }
 
+    pub fn insert(&mut self, idx: i32, v: Value) {
+        self.store.insert(idx, v);
+    }
+
     /// Get an element
     pub fn get(&self, idx: i32) -> Option<&Value> {
         self.store.get(&idx)
