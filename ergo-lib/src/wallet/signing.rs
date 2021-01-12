@@ -5,13 +5,13 @@ use std::rc::Rc;
 use crate::chain::transaction::Input;
 use crate::eval::context::Context;
 use crate::eval::context::ContextError;
+use crate::eval::env::Env;
 use crate::{
     chain::{
         ergo_box::ErgoBox,
         ergo_state_context::ErgoStateContext,
         transaction::{unsigned::UnsignedTransaction, Transaction},
     },
-    eval::Env,
     sigma_protocol::prover::{Prover, ProverError},
 };
 

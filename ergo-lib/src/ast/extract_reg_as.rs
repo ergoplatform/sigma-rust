@@ -1,6 +1,6 @@
 use crate::chain::ergo_box::ErgoBox;
 use crate::chain::ergo_box::RegisterId;
-use crate::eval::Env;
+use crate::eval::env::Env;
 use crate::eval::EvalContext;
 use crate::eval::EvalError;
 use crate::eval::Evaluable;

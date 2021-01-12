@@ -1,4 +1,4 @@
-use crate::eval::Env;
+use crate::eval::env::Env;
 use crate::eval::EvalContext;
 use crate::eval::EvalError;
 use crate::eval::Evaluable;
@@ -55,7 +55,7 @@ impl Evaluable for Fold {
                     .args
                     .first()
                     .ok_or_else(|| EvalError::NotFound("empty argument for fold op".to_string()))?;
-                let env1 = env.clone().put(func_arg.idx, arg);
+                let env1 = env.clone().extend(func_arg.idx, arg);
                 func_value.body.eval(&env1, ctx)
             }
             _ => Err(EvalError::UnexpectedValue(format!(

@@ -1,6 +1,6 @@
 use super::expr::Expr;
 use crate::ast::value::Value;
-use crate::eval::Env;
+use crate::eval::env::Env;
 use crate::eval::EvalContext;
 use crate::eval::EvalError;
 use crate::eval::Evaluable;

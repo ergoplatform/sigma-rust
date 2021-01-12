@@ -61,7 +61,7 @@ impl Coll {
     }
 }
 
-/// Constant value
+/// Runtime value
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum Value {
     /// Boolean
