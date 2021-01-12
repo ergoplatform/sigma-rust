@@ -19,6 +19,7 @@ use crate::types::stype::TupleItems;
 
 use super::constant::TryExtractFrom;
 use super::constant::TryExtractFromError;
+use super::func_value::FuncValue;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 /// Collection for primitive values (i.e byte array)
@@ -91,6 +92,8 @@ pub enum Value {
     Context(Rc<Context>),
     /// Optional value
     Opt(Box<Option<Value>>),
+    /// lambda
+    FuncValue(Box<FuncValue>),
 }
 
 impl Value {

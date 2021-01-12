@@ -3,11 +3,13 @@ use core::fmt;
 use crate::serialization::op_code::OpCode;
 use crate::types::stype::SType;
 
+use super::apply::Apply;
 use super::bin_op::BinOp;
 use super::coll_fold::Fold;
 use super::constant::Constant;
 use super::constant::ConstantPlaceholder;
 use super::extract_reg_as::ExtractRegisterAs;
+use super::func_value::FuncValue;
 use super::global_vars::GlobalVars;
 use super::method_call::MethodCall;
 use super::option_get::OptionGet;
@@ -26,12 +28,14 @@ pub enum Expr {
     ConstPlaceholder(Box<ConstantPlaceholder>),
     /// Predefined functions (global)
     PredefFunc(Box<PredefFunc>),
-    /// Collection fold op
-    Fold(Box<Fold>),
     Context,
     // Global(Global),
     /// Predefined global variables
     GlobalVars(Box<GlobalVars>),
+    /// Function definition
+    FuncValue(Box<FuncValue>),
+    /// Function application
+    Apply(Box<Apply>),
     /// Method call
     MethodCall(Box<MethodCall>),
     /// Property call
@@ -42,6 +46,8 @@ pub enum Expr {
     OptionGet(Box<OptionGet>),
     /// Extract register's value (box.RX properties)
     ExtractRegisterAs(Box<ExtractRegisterAs>),
+    /// Collection fold op
+    Fold(Box<Fold>),
 }
 
 impl Expr {

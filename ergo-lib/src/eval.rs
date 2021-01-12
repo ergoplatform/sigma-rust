@@ -22,12 +22,21 @@ pub(crate) mod method_call;
 pub(crate) mod property_call;
 
 /// Environment for the interpreter
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Env();
 
 impl Env {
     /// Empty environment
     pub fn empty() -> Env {
         Env()
+    }
+
+    pub fn put(self, idx: i32, v: Value) -> Env {
+        todo!()
+    }
+
+    pub fn get(&self, idx: i32) -> Option<&Value> {
+        todo!()
     }
 }
 
@@ -52,6 +61,9 @@ pub enum EvalError {
     /// Register id out of bounds
     #[error("{0:?}")]
     RegisterIdOutOfBounds(#[from] RegisterIdOutOfBounds),
+    /// Unexpected value
+    #[error("unexpected value: {0:?}")]
+    UnexpectedValue(String),
 }
 
 /// Result of expression reduction procedure (see `reduce_to_crypto`).
