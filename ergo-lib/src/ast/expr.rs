@@ -5,6 +5,7 @@ use crate::types::stype::SType;
 
 use super::apply::Apply;
 use super::bin_op::BinOp;
+use super::block::BlockValue;
 use super::coll_fold::Fold;
 use super::constant::Constant;
 use super::constant::ConstantPlaceholder;
@@ -15,6 +16,8 @@ use super::method_call::MethodCall;
 use super::option_get::OptionGet;
 use super::predef_func::PredefFunc;
 use super::property_call::PropertyCall;
+use super::val_def::ValDef;
+use super::val_use::ValUse;
 
 extern crate derive_more;
 use derive_more::From;
@@ -40,6 +43,12 @@ pub enum Expr {
     MethodCall(Box<MethodCall>),
     /// Property call
     ProperyCall(Box<PropertyCall>),
+    /// Block (statements, followed by an expression)
+    BlockValue(Box<BlockValue>),
+    /// let-bound expression
+    ValDef(Box<ValDef>),
+    /// Reference to ValDef
+    ValUse(Box<ValUse>),
     /// Binary operation
     BinOp(Box<BinOp>),
     /// Option get method
