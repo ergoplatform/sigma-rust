@@ -20,7 +20,7 @@ impl Evaluable for Apply {
         let args_v = args_v_res?;
         match func_v {
             Value::FuncValue(fv) => {
-                let arg_ids: Vec<i32> = fv.args.iter().map(|a| a.idx).collect();
+                let arg_ids: Vec<u32> = fv.args.iter().map(|a| a.idx).collect();
                 let mut cur_env = env.clone();
                 arg_ids.iter().zip(args_v).for_each(|(idx, arg_v)| {
                     cur_env.insert(*idx, arg_v);
@@ -69,7 +69,6 @@ mod tests {
         let body = Expr::BlockValue(Box::new(BlockValue {
             items: vec![ValDef {
                 id: 2,
-                tpe_args: vec![],
                 rhs: Expr::Const(Box::new(1i32.into())),
             }],
             result: bin_op,

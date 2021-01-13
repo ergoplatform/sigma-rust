@@ -5,7 +5,7 @@ use crate::ast::value::Value;
 /// Environment for the interpreter
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Env {
-    store: HashMap<i32, Value>,
+    store: HashMap<u32, Value>,
 }
 
 impl Env {
@@ -17,18 +17,18 @@ impl Env {
     }
 
     /// Extend this environment (create new) with added element
-    pub fn extend(&self, idx: i32, v: Value) -> Env {
+    pub fn extend(&self, idx: u32, v: Value) -> Env {
         let mut new_store = self.store.clone();
         new_store.insert(idx, v);
         Env { store: new_store }
     }
 
-    pub fn insert(&mut self, idx: i32, v: Value) {
+    pub fn insert(&mut self, idx: u32, v: Value) {
         self.store.insert(idx, v);
     }
 
     /// Get an element
-    pub fn get(&self, idx: i32) -> Option<&Value> {
+    pub fn get(&self, idx: u32) -> Option<&Value> {
         self.store.get(&idx)
     }
 }

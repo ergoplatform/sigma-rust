@@ -9,7 +9,7 @@ use super::value::Value;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct FuncArg {
-    pub idx: i32,
+    pub idx: u32,
     pub tpe: SType,
 }
 
