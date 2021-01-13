@@ -1,5 +1,3 @@
-use core::fmt;
-
 use crate::serialization::op_code::OpCode;
 use crate::types::stype::SType;
 
@@ -82,12 +80,6 @@ impl Expr {
             Expr::Const(c) => &c.tpe,
             _ => todo!(),
         }
-    }
-}
-
-impl fmt::Display for Expr {
-    fn fmt(&self, _: &mut fmt::Formatter<'_>) -> fmt::Result {
-        todo!()
     }
 }
 

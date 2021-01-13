@@ -20,8 +20,12 @@ impl Evaluable for Expr {
             Expr::BinOp(op) => op.eval(env, ctx),
             Expr::Context => Ok(Value::Context(ctx.ctx.clone())),
             Expr::OptionGet(v) => v.eval(env, ctx),
+            Expr::Apply(op) => op.eval(env, ctx),
+            Expr::FuncValue(op) => op.eval(env, ctx),
+            Expr::ValUse(op) => op.eval(env, ctx),
+            Expr::BlockValue(op) => op.eval(env, ctx),
             _ => Err(EvalError::UnexpectedExpr(format!(
-                "Don't know how to eval Expr: {}",
+                "Don't know how to eval Expr: {0:?}",
                 self
             ))),
         }
