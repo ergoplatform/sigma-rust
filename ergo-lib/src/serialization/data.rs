@@ -44,9 +44,8 @@ impl DataSerializer {
             Value::Tup(items) => items
                 .iter()
                 .try_for_each(|i| DataSerializer::sigma_serialize(i, w)),
-            Value::Opt(_) => panic!(), // unsupported, see https://github.com/ScorexFoundation/sigmastate-interpreter/issues/659
-            Value::Context(_) => todo!(), // TODO: throw error? it should not be here
-            Value::FuncValue(_) => panic!(), // should not be here
+            Value::Opt(_) => panic!("Option is not yet supported"), // unsupported, see https://github.com/ScorexFoundation/sigmastate-interpreter/issues/659
+            _ => panic!("serialization is not supported for value: {0:?}", c),
         }
     }
 
