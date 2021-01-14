@@ -52,7 +52,7 @@ android {
 
     useLibrary 'android.test.runner'
 
-    ndkVersion "21.3.6528147"
+    ndkVersion "22.0.7026061"
 
     defaultConfig {
         minSdkVersion buildConfig.minSdkVersion
@@ -78,7 +78,7 @@ android {
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
         }
     }
-    
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
