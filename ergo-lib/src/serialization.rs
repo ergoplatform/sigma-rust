@@ -9,6 +9,7 @@ mod global_vars;
 mod method_call;
 mod property_call;
 mod sigmaboolean;
+mod val_def_type_store;
 
 pub(crate) mod constant_store;
 pub(crate) mod ergo_box;

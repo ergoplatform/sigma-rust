@@ -1,4 +1,5 @@
 use crate::serialization::op_code::OpCode;
+use crate::types::scontext::SContext;
 use crate::types::stype::SType;
 
 use super::apply::Apply;
@@ -70,18 +71,38 @@ impl Expr {
             Expr::OptionGet(v) => v.op_code(),
             Expr::ExtractRegisterAs(v) => v.op_code(),
             Expr::BinOp(op) => op.op_code(),
-            _ => todo!("{0:?}", self),
+            Expr::BlockValue(op) => op.op_code(),
+            Expr::ValUse(op) => op.op_code(),
+            _ => todo!("not yet implemented opcode for {0:?}", self),
         }
     }
 
     /// Type of the expression
-    pub fn tpe(&self) -> &SType {
+    pub fn tpe(&self) -> SType {
         match self {
-            Expr::Const(c) => &c.tpe,
-            _ => todo!(),
+            Expr::Const(v) => v.tpe.clone(),
+            Expr::ConstPlaceholder(v) => v.tpe.clone(),
+            Expr::PredefFunc(v) => v.tpe(),
+            Expr::Context => SType::SContext(SContext()),
+            Expr::GlobalVars(v) => v.tpe(),
+            Expr::FuncValue(v) => v.tpe(),
+            Expr::Apply(v) => v.tpe(),
+            Expr::MethodCall(v) => v.tpe(),
+            Expr::ProperyCall(v) => v.tpe(),
+            Expr::BlockValue(v) => v.tpe(),
+            Expr::ValDef(v) => v.tpe(),
+            Expr::ValUse(v) => v.tpe.clone(),
+            Expr::BinOp(v) => v.tpe(),
+            Expr::OptionGet(v) => v.tpe(),
+            Expr::ExtractRegisterAs(v) => v.tpe.clone(),
+            Expr::Fold(v) => v.tpe(),
         }
     }
 }
+
+/// Unexpected argument on node construction (i.e non-Option input in OptionGet)
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct InvalidArgumentError(pub String);
 
 #[cfg(test)]
 pub mod tests {

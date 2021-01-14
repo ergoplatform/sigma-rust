@@ -1,4 +1,5 @@
 use super::expr::Expr;
+use super::expr::InvalidArgumentError;
 use crate::ast::value::Value;
 use crate::eval::env::Env;
 use crate::eval::EvalContext;
@@ -9,15 +10,36 @@ use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::SerializationError;
 use crate::serialization::SigmaSerializable;
+use crate::types::stype::SType;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct OptionGet {
-    pub input: Expr,
+    input: Expr,
 }
 
 impl OptionGet {
+    pub fn new(input: Expr) -> Result<Self, InvalidArgumentError> {
+        match input.tpe() {
+            SType::SOption(_) => Ok(OptionGet { input }),
+            _ => Err(InvalidArgumentError(format!(
+                "expected OptionGet::input type to be SOption, got: {0:?}",
+                input.tpe(),
+            ))),
+        }
+    }
+
     pub fn op_code(&self) -> OpCode {
         OpCode::OPTION_GET
+    }
+
+    pub fn tpe(&self) -> SType {
+        match self.input.tpe() {
+            SType::SOption(o) => *o,
+            _ => panic!(
+                "expected OptionGet::input type to be SOption, got: {0:?}",
+                self.input.tpe()
+            ),
+        }
     }
 }
 

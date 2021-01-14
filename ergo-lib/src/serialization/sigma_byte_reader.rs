@@ -1,5 +1,6 @@
 //! Sigma byte stream writer
 use super::constant_store::ConstantStore;
+use super::val_def_type_store::ValDefTypeStore;
 use sigma_ser::{peekable_reader::Peekable, vlq_encode::ReadSigmaVlqExt};
 use std::io::Read;
 
@@ -8,6 +9,7 @@ pub struct SigmaByteReader<R> {
     inner: R,
     constant_store: ConstantStore,
     substitute_placeholders: bool,
+    val_def_type_store: ValDefTypeStore,
 }
 
 impl<R: Peekable> SigmaByteReader<R> {
@@ -17,6 +19,7 @@ impl<R: Peekable> SigmaByteReader<R> {
             inner: pr,
             constant_store,
             substitute_placeholders: false,
+            val_def_type_store: ValDefTypeStore::new(),
         }
     }
 
@@ -30,6 +33,7 @@ impl<R: Peekable> SigmaByteReader<R> {
             inner: pr,
             constant_store,
             substitute_placeholders: true,
+            val_def_type_store: ValDefTypeStore::new(),
         }
     }
 }
@@ -44,6 +48,9 @@ pub trait SigmaByteRead: ReadSigmaVlqExt {
 
     /// Set new constant store
     fn set_constant_store(&mut self, constant_store: ConstantStore);
+
+    /// ValDef types store (resolves tpe on ValUse parsing)
+    fn val_def_type_store(&mut self) -> &mut ValDefTypeStore;
 }
 
 impl<R: Peekable> Read for SigmaByteReader<R> {
@@ -69,5 +76,9 @@ impl<R: ReadSigmaVlqExt> SigmaByteRead for SigmaByteReader<R> {
 
     fn set_constant_store(&mut self, constant_store: ConstantStore) {
         self.constant_store = constant_store;
+    }
+
+    fn val_def_type_store(&mut self) -> &mut ValDefTypeStore {
+        &mut self.val_def_type_store
     }
 }

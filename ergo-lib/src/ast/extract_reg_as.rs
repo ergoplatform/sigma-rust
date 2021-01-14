@@ -83,10 +83,7 @@ mod tests {
             tpe: SType::SOption(SType::SLong.into()),
         })
         .into();
-        let option_get_expr: Expr = Box::new(OptionGet {
-            input: get_reg_expr,
-        })
-        .into();
+        let option_get_expr: Expr = Box::new(OptionGet::new(get_reg_expr).unwrap()).into();
         let ctx = Rc::new(force_any_val::<Context>());
         let v = eval_out::<i64>(&option_get_expr, ctx.clone());
         assert_eq!(v, ctx.self_box.value.as_i64());

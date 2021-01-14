@@ -6,6 +6,7 @@ use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::SerializationError;
 use crate::serialization::SigmaSerializable;
+use crate::types::stype::SType;
 use crate::types::stype::TupleItems;
 
 use super::expr::Expr;
@@ -22,6 +23,12 @@ pub struct Fold {
     zero: Expr,
     /// Function (lambda)
     fold_op: Expr,
+}
+
+impl Fold {
+    pub fn tpe(&self) -> SType {
+        self.zero.tpe()
+    }
 }
 
 impl SigmaSerializable for Fold {
