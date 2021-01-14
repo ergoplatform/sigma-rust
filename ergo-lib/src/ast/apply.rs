@@ -108,7 +108,7 @@ mod tests {
     }
 
     #[test]
-    fn user_defined_func() {
+    fn eval_user_defined_func_call() {
         let arg = Expr::Const(Box::new(1i32.into()));
         let bin_op = Expr::BinOp(Box::new(BinOp {
             kind: LogicOp::Eq.into(),
