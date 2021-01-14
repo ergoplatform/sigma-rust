@@ -4,6 +4,7 @@ use crate::eval::env::Env;
 use crate::eval::EvalContext;
 use crate::eval::EvalError;
 use crate::eval::Evaluable;
+use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::SerializationError;
@@ -55,6 +56,10 @@ impl FuncValue {
             tpe_params: vec![],
         }))
     }
+
+    pub fn op_code(&self) -> OpCode {
+        OpCode::FUNC_VALUE
+    }
 }
 
 impl Evaluable for FuncValue {
@@ -71,6 +76,8 @@ impl SigmaSerializable for FuncValue {
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
         let args = Vec::<FuncArg>::sigma_parse(r)?;
+        args.iter()
+            .for_each(|a| r.val_def_type_store().insert(a.idx, a.tpe.clone()));
         let body = Expr::sigma_parse(r)?;
         Ok(FuncValue { args, body })
     }
@@ -101,7 +108,8 @@ mod tests {
 
         #[test]
         fn ser_roundtrip(func_value in any::<FuncValue>()) {
-            prop_assert_eq![sigma_serialize_roundtrip(&func_value), func_value];
+            let e = Expr::FuncValue(func_value.into());
+            prop_assert_eq![sigma_serialize_roundtrip(&e), e];
         }
     }
 }

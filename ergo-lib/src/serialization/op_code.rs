@@ -36,7 +36,9 @@ impl OpCode {
 
     pub const PROVE_DLOG: OpCode = Self::new_op_code(93);
 
+    pub const VAL_DEF: OpCode = Self::new_op_code(102);
     pub const BLOCK_VALUE: OpCode = Self::new_op_code(104);
+    pub const FUNC_VALUE: OpCode = Self::new_op_code(105);
     pub const PROPERTY_CALL: OpCode = Self::new_op_code(107);
     pub const METHOD_CALL: OpCode = Self::new_op_code(108);
 

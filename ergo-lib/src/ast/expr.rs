@@ -73,6 +73,8 @@ impl Expr {
             Expr::BinOp(op) => op.op_code(),
             Expr::BlockValue(op) => op.op_code(),
             Expr::ValUse(op) => op.op_code(),
+            Expr::FuncValue(op) => op.op_code(),
+            Expr::ValDef(op) => op.op_code(),
             _ => todo!("not yet implemented opcode for {0:?}", self),
         }
     }

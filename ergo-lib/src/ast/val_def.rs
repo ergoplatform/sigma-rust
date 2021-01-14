@@ -1,5 +1,6 @@
 use std::io::Error;
 
+use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::SerializationError;
@@ -44,6 +45,10 @@ impl ValDef {
     pub fn tpe(&self) -> SType {
         self.rhs.tpe()
     }
+
+    pub fn op_code(&self) -> OpCode {
+        OpCode::VAL_DEF
+    }
 }
 
 impl SigmaSerializable for ValDef {
@@ -72,7 +77,8 @@ mod tests {
 
         #[test]
         fn ser_roundtrip(v in any::<ValDef>()) {
-            prop_assert_eq![sigma_serialize_roundtrip(&v), v];
+            let e = Expr::ValDef(v.into());
+            prop_assert_eq![sigma_serialize_roundtrip(&e), e];
         }
     }
 }

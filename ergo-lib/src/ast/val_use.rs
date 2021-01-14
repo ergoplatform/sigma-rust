@@ -55,6 +55,8 @@ impl SigmaSerializable for ValUse {
 mod tests {
     use crate::ast::block::BlockValue;
     use crate::ast::expr::Expr;
+    use crate::ast::func_value::FuncArg;
+    use crate::ast::func_value::FuncValue;
     use crate::ast::val_def::ValDef;
     use crate::serialization::sigma_serialize_roundtrip;
 
@@ -65,7 +67,7 @@ mod tests {
     proptest! {
 
         #[test]
-        fn ser_roundtrip(v in any::<ValDef>()) {
+        fn ser_roundtrip_block_value(v in any::<ValDef>()) {
             // ValDef should put the type into the ValDefStore for ValUse to read
             let block = Expr::BlockValue(Box::new(BlockValue {
                 items: vec![v.clone()],
@@ -74,7 +76,14 @@ mod tests {
             prop_assert_eq![sigma_serialize_roundtrip(&block), block];
         }
 
+        #[test]
+        fn ser_roundtrip_func_value(v in any::<FuncArg>()) {
+            let func = Expr::FuncValue(Box::new(FuncValue {
+                args: vec![v.clone()],
+                body: Box::new(ValUse{ val_id: v.idx, tpe: v.tpe }).into(),
+            }));
+            prop_assert_eq![sigma_serialize_roundtrip(&func), func];
+        }
 
-        // TODO: test store in FuncValue
     }
 }

@@ -8,10 +8,12 @@ use crate::ast::constant::Constant;
 use crate::ast::constant::ConstantPlaceholder;
 use crate::ast::expr::Expr;
 use crate::ast::extract_reg_as::ExtractRegisterAs;
+use crate::ast::func_value::FuncValue;
 use crate::ast::global_vars::GlobalVars;
 use crate::ast::method_call::MethodCall;
 use crate::ast::option_get::OptionGet;
 use crate::ast::property_call::PropertyCall;
+use crate::ast::val_def::ValDef;
 use crate::ast::val_use::ValUse;
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
@@ -45,6 +47,8 @@ impl SigmaSerializable for Expr {
                     Expr::BinOp(op) => bin_op_sigma_serialize(op, w),
                     Expr::BlockValue(op) => op.sigma_serialize(w),
                     Expr::ValUse(op) => op.sigma_serialize(w),
+                    Expr::ValDef(op) => op.sigma_serialize(w),
+                    Expr::FuncValue(op) => op.sigma_serialize(w),
                     _ => panic!(format!("don't know how to serialize {:?}", expr)),
                 }
             }
@@ -94,6 +98,8 @@ impl SigmaSerializable for Expr {
                 OpCode::EQ => Ok(bin_op_sigma_parse(LogicOp::Eq.into(), r)?),
                 OpCode::NEQ => Ok(bin_op_sigma_parse(LogicOp::NEq.into(), r)?),
                 OpCode::BLOCK_VALUE => Ok(Expr::BlockValue(BlockValue::sigma_parse(r)?.into())),
+                OpCode::FUNC_VALUE => Ok(Expr::FuncValue(FuncValue::sigma_parse(r)?.into())),
+                OpCode::VAL_DEF => Ok(Expr::ValDef(ValDef::sigma_parse(r)?.into())),
                 OpCode::VAL_USE => Ok(Expr::ValUse(ValUse::sigma_parse(r)?.into())),
                 o => Err(SerializationError::NotImplementedOpCode(o.value())),
             }
