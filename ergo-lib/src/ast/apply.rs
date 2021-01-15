@@ -11,21 +11,43 @@ use crate::serialization::SigmaSerializable;
 use crate::types::stype::SType;
 
 use super::expr::Expr;
+use super::expr::InvalidArgumentError;
 use super::val_def::ValId;
 use super::value::Value;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Apply {
-    pub func: Expr,
-    pub args: Vec<Expr>,
+    func: Expr,
+    args: Vec<Expr>,
 }
 
 impl Apply {
+    pub fn new(func: Expr, args: Vec<Expr>) -> Result<Self, InvalidArgumentError> {
+        let func = match func.tpe() {
+            SType::SColl(_) => Ok(func),
+            SType::SFunc(sfunc) => {
+                let arg_types: Vec<SType> = args.iter().map(|a| a.tpe()).collect();
+                if sfunc.t_dom != arg_types {
+                    Err(InvalidArgumentError(format!(
+                        "Expected args: {0:?}, got: {1:?}",
+                        sfunc.t_dom, args
+                    )))
+                } else {
+                    Ok(func)
+                }
+            }
+            _ => Err(InvalidArgumentError(format!(
+                "unexpected Apply::func: {0:?}",
+                func.tpe(),
+            ))),
+        }?;
+        Ok(Apply { func, args })
+    }
+
     pub fn tpe(&self) -> SType {
         match self.func.tpe() {
             SType::SColl(_) => todo!(),
             SType::SFunc(f) => f.t_range,
-            // TODO: add checked constructor (like in OptionGet)
             _ => panic!("unexpected Apply::func: {0:?}", self.func.tpe()),
         }
     }
@@ -63,7 +85,7 @@ impl SigmaSerializable for Apply {
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
         let func = Expr::sigma_parse(r)?;
         let args = Vec::<Expr>::sigma_parse(r)?;
-        Ok(Apply { func, args })
+        Ok(Apply::new(func, args)?)
     }
 }
 
@@ -94,7 +116,20 @@ mod tests {
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             (any::<Expr>(), vec(any::<Expr>(), 1..10))
-                .prop_map(|(func, args)| Self { func, args })
+                .prop_map(|(body, args)| {
+                    let func = Box::new(FuncValue::new(
+                        args.iter()
+                            .enumerate()
+                            .map(|(idx, arg)| FuncArg {
+                                idx: (idx as u32).into(),
+                                tpe: arg.tpe(),
+                            })
+                            .collect(),
+                        body,
+                    ))
+                    .into();
+                    Self { func, args }
+                })
                 .boxed()
         }
     }

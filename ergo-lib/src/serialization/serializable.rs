@@ -1,4 +1,5 @@
 //! Serialization of Ergo types
+use crate::ast::expr::InvalidArgumentError;
 use crate::ast::val_def::ValId;
 
 use super::{
@@ -47,6 +48,9 @@ pub enum SerializationError {
     /// ValDef type for a given index not found in ValDefTypeStore store
     #[error("ValDef type for an index {0:?} not found in ValDefTypeStore store")]
     ValDefIdNotFound(ValId),
+    /// Invalid argument on node creation
+    #[error("Invalid argument: {0:?}")]
+    InvalidArgument(InvalidArgumentError),
 }
 
 impl From<vlq_encode::VlqEncodingError> for SerializationError {
@@ -58,6 +62,12 @@ impl From<vlq_encode::VlqEncodingError> for SerializationError {
 impl From<io::Error> for SerializationError {
     fn from(error: io::Error) -> Self {
         SerializationError::Io(error.to_string())
+    }
+}
+
+impl From<InvalidArgumentError> for SerializationError {
+    fn from(e: InvalidArgumentError) -> Self {
+        SerializationError::InvalidArgument(e)
     }
 }
 

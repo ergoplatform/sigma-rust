@@ -64,9 +64,7 @@ impl SigmaSerializable for OptionGet {
     }
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
-        Ok(OptionGet {
-            input: Expr::sigma_parse(r)?,
-        })
+        Ok(OptionGet::new(Expr::sigma_parse(r)?)?)
     }
 }
 
@@ -105,8 +103,14 @@ mod tests {
 
     #[test]
     fn ser_roundtrip() {
+        let get_reg_expr: Expr = Box::new(ExtractRegisterAs {
+            input: Box::new(GlobalVars::SelfBox).into(),
+            register_id: RegisterId::R0,
+            tpe: SType::SOption(SType::SLong.into()),
+        })
+        .into();
         let e: Expr = Box::new(OptionGet {
-            input: Expr::Context,
+            input: get_reg_expr,
         })
         .into();
         assert_eq![sigma_serialize_roundtrip(&e), e];
