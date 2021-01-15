@@ -1,4 +1,4 @@
-[![codecov](https://codecov.io/gh/ergoplatform/sigma-rust/branch/develop/graph/badge.svg?token=W1ITCGM9ZP)](https://codecov.io/gh/ergoplatform/sigma-rust)
+[![Coverage Status](https://coveralls.io/repos/github/ergoplatform/sigma-rust/badge.svg)](https://coveralls.io/github/ergoplatform/sigma-rust)
 
 Rust implementation of [ErgoScript](https://github.com/ScorexFoundation/sigmastate-interpreter) cryptocurrency scripting language. 
 
