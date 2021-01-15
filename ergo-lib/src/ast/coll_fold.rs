@@ -59,11 +59,11 @@ impl Evaluable for Fold {
         let mut fold_op_call = |arg: Value| match &fold_op_v {
             Value::FuncValue(func_value) => {
                 let func_arg = func_value
-                    .args
+                    .args()
                     .first()
                     .ok_or_else(|| EvalError::NotFound("empty argument for fold op".to_string()))?;
                 let env1 = env.clone().extend(func_arg.idx, arg);
-                func_value.body.eval(&env1, ctx)
+                func_value.body().eval(&env1, ctx)
             }
             _ => Err(EvalError::UnexpectedValue(format!(
                 "expected fold_op to be Value::FuncValue got: {0:?}",

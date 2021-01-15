@@ -39,12 +39,12 @@ impl Evaluable for Apply {
         let args_v = args_v_res?;
         match func_v {
             Value::FuncValue(fv) => {
-                let arg_ids: Vec<ValId> = fv.args.iter().map(|a| a.idx).collect();
+                let arg_ids: Vec<ValId> = fv.args().iter().map(|a| a.idx).collect();
                 let mut cur_env = env.clone();
                 arg_ids.iter().zip(args_v).for_each(|(idx, arg_v)| {
                     cur_env.insert(*idx, arg_v);
                 });
-                fv.body.eval(&cur_env, ctx)
+                fv.body().eval(&cur_env, ctx)
             }
             _ => Err(EvalError::UnexpectedValue(format!(
                 "expected func_v to be Value::FuncValue got: {0:?}",
@@ -129,13 +129,13 @@ mod tests {
             result: bin_op,
         }));
         let apply: Expr = Box::new(Apply {
-            func: Expr::FuncValue(Box::new(FuncValue {
-                args: vec![FuncArg {
+            func: Expr::FuncValue(Box::new(FuncValue::new(
+                vec![FuncArg {
                     idx: 1.into(),
                     tpe: SType::SInt,
                 }],
                 body,
-            })),
+            ))),
             args: vec![arg],
         })
         .into();

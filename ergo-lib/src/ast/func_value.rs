@@ -41,20 +41,33 @@ impl SigmaSerializable for FuncArg {
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct FuncValue {
-    pub args: Vec<FuncArg>,
-    pub body: Expr,
+    args: Vec<FuncArg>,
+    body: Expr,
+    tpe: SType,
 }
 
 impl FuncValue {
-    pub fn tpe(&self) -> SType {
-        // TODO: move to a field? to cache the value
-        let t_dom = self.args.iter().map(|fa| fa.tpe.clone()).collect();
-        let t_range = self.body.tpe();
-        SType::SFunc(Box::new(SFunc {
+    pub fn new(args: Vec<FuncArg>, body: Expr) -> Self {
+        let t_dom = args.iter().map(|fa| fa.tpe.clone()).collect();
+        let t_range = body.tpe();
+        let tpe = SType::SFunc(Box::new(SFunc {
             t_dom,
             t_range,
             tpe_params: vec![],
-        }))
+        }));
+        FuncValue { args, body, tpe }
+    }
+
+    pub fn args(&self) -> &[FuncArg] {
+        self.args.as_ref()
+    }
+
+    pub fn body(&self) -> &Expr {
+        &self.body
+    }
+
+    pub fn tpe(&self) -> SType {
+        self.tpe.clone()
     }
 
     pub fn op_code(&self) -> OpCode {
@@ -79,7 +92,7 @@ impl SigmaSerializable for FuncValue {
         args.iter()
             .for_each(|a| r.val_def_type_store().insert(a.idx, a.tpe.clone()));
         let body = Expr::sigma_parse(r)?;
-        Ok(FuncValue { args, body })
+        Ok(FuncValue::new(args, body))
     }
 }
 
@@ -99,7 +112,7 @@ mod tests {
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             (any::<Expr>(), vec(any::<FuncArg>(), 1..10))
-                .prop_map(|(body, args)| Self { args, body })
+                .prop_map(|(body, args)| Self::new(args, body))
                 .boxed()
         }
     }

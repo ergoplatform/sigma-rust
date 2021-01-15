@@ -78,10 +78,10 @@ mod tests {
 
         #[test]
         fn ser_roundtrip_func_value(v in any::<FuncArg>()) {
-            let func = Expr::FuncValue(Box::new(FuncValue {
-                args: vec![v.clone()],
-                body: Box::new(ValUse{ val_id: v.idx, tpe: v.tpe }).into(),
-            }));
+            let body = Box::new(ValUse{ val_id: v.idx, tpe: v.tpe.clone() }).into();
+            let func = Expr::FuncValue(Box::new(
+                    FuncValue::new(vec![v], body)
+                    ));
             prop_assert_eq![sigma_serialize_roundtrip(&func), func];
         }
 
