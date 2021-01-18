@@ -8,6 +8,7 @@ use super::block::BlockValue;
 use super::coll_fold::Fold;
 use super::constant::Constant;
 use super::constant::ConstantPlaceholder;
+use super::extract_amount::ExtractAmount;
 use super::extract_reg_as::ExtractRegisterAs;
 use super::func_value::FuncValue;
 use super::global_vars::GlobalVars;
@@ -15,6 +16,7 @@ use super::method_call::MethodCall;
 use super::option_get::OptionGet;
 use super::predef_func::PredefFunc;
 use super::property_call::PropertyCall;
+use super::select_field::SelectField;
 use super::val_def::ValDef;
 use super::val_use::ValUse;
 
@@ -56,6 +58,10 @@ pub enum Expr {
     ExtractRegisterAs(Box<ExtractRegisterAs>),
     /// Collection fold op
     Fold(Box<Fold>),
+    /// Tuple field access
+    SelectField(SelectField),
+    /// Box monetary value
+    ExtractAmount(ExtractAmount),
 }
 
 impl Expr {
@@ -98,6 +104,8 @@ impl Expr {
             Expr::OptionGet(v) => v.tpe(),
             Expr::ExtractRegisterAs(v) => v.tpe.clone(),
             Expr::Fold(v) => v.tpe(),
+            Expr::SelectField(v) => v.tpe(),
+            Expr::ExtractAmount(v) => v.tpe(),
         }
     }
 }

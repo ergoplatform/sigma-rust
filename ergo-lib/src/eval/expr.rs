@@ -12,7 +12,7 @@ impl Evaluable for Expr {
         match self {
             Expr::Const(c) => Ok(c.v.clone()),
             Expr::PredefFunc(_) => todo!(),
-            Expr::Fold(_) => todo!(),
+            Expr::Fold(op) => op.eval(env, ctx),
             Expr::ExtractRegisterAs(op) => op.eval(env, ctx),
             Expr::GlobalVars(op) => op.eval(env, ctx),
             Expr::MethodCall(op) => op.eval(env, ctx),
@@ -24,6 +24,8 @@ impl Evaluable for Expr {
             Expr::FuncValue(op) => op.eval(env, ctx),
             Expr::ValUse(op) => op.eval(env, ctx),
             Expr::BlockValue(op) => op.eval(env, ctx),
+            Expr::SelectField(op) => op.eval(env, ctx),
+            Expr::ExtractAmount(op) => op.eval(env, ctx),
             _ => Err(EvalError::UnexpectedExpr(format!(
                 "Don't know how to eval Expr: {0:?}",
                 self

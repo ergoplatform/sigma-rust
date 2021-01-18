@@ -10,6 +10,7 @@ use crate::eval::Evaluable;
 use crate::serialization::op_code::OpCode;
 use crate::types::stype::SType;
 
+use super::constant::TryExtractInto;
 use super::expr::Expr;
 use super::value::Value;
 
@@ -56,14 +57,14 @@ impl From<LogicOp> for OpCode {
 /// Binary operations
 pub enum BinOpKind {
     /// Binary operations for numerical types
-    // Num(NumOp),
+    Num(NumOp),
     Logic(LogicOp),
 }
 
 impl From<BinOpKind> for OpCode {
     fn from(op: BinOpKind) -> Self {
         match op {
-            // BinOpKind::Num(o) => o.into(),
+            BinOpKind::Num(o) => o.into(),
             BinOpKind::Logic(o) => o.into(),
         }
     }
@@ -84,6 +85,7 @@ impl BinOp {
     pub fn tpe(&self) -> SType {
         match self.kind {
             BinOpKind::Logic(_) => SType::SBoolean,
+            BinOpKind::Num(_) => self.left.tpe(),
         }
     }
 }
@@ -97,6 +99,19 @@ impl Evaluable for BinOp {
             BinOpKind::Logic(op) => match op {
                 LogicOp::Eq => Ok(Value::Boolean(lv == rv)),
                 LogicOp::NEq => Ok(Value::Boolean(lv != rv)),
+            },
+            BinOpKind::Num(op) => match op {
+                NumOp::Add => match lv {
+                    Value::Byte(_) => todo!(),
+                    Value::Short(_) => todo!(),
+                    Value::Int(_) => todo!(),
+                    Value::Long(lvv) => Ok(Value::Long(lvv + rv.try_extract_into::<i64>()?)),
+                    Value::BigInt => todo!(),
+                    _ => Err(EvalError::UnexpectedValue(format!(
+                        "expected BinOp::left to be numeric value, got {0:?}",
+                        lv
+                    ))),
+                },
             },
         }
     }

@@ -224,7 +224,7 @@ impl<T: TryExtractFrom<Value>> TryExtractFrom<Constant> for T {
 mod tests {
     use core::fmt;
 
-    use crate::types::stype::TupleItems;
+    use crate::types::stuple::STuple;
 
     use super::*;
     use proptest::collection::vec;
@@ -323,7 +323,7 @@ mod tests {
                             // Tuple
                             vec(elem, 2..=4).prop_map(|constants| Constant {
                                 tpe: SType::STuple(
-                                    TupleItems::try_from(
+                                    STuple::try_from(
                                         constants
                                             .clone()
                                             .into_iter()

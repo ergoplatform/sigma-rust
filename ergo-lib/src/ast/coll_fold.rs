@@ -6,8 +6,8 @@ use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::SerializationError;
 use crate::serialization::SigmaSerializable;
+use crate::types::stuple::TupleItems;
 use crate::types::stype::SType;
-use crate::types::stype::TupleItems;
 
 use super::expr::Expr;
 use super::value::Coll::NonPrimitive;
@@ -88,5 +88,79 @@ impl Evaluable for Fold {
                 input_v
             ))),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::convert::TryInto;
+    use std::rc::Rc;
+
+    use crate::ast::bin_op::BinOp;
+    use crate::ast::bin_op::NumOp;
+    use crate::ast::expr::Expr;
+    use crate::ast::extract_amount::ExtractAmount;
+    use crate::ast::func_value::FuncArg;
+    use crate::ast::func_value::FuncValue;
+    use crate::ast::property_call::PropertyCall;
+    use crate::ast::select_field::SelectField;
+    use crate::ast::val_use::ValUse;
+    use crate::eval::context::Context;
+    use crate::eval::tests::eval_out;
+    use crate::test_util::force_any_val;
+    use crate::types::scontext;
+    use crate::types::stuple::STuple;
+
+    use super::*;
+
+    #[test]
+    fn eval_box_value() {
+        let data_inputs: Expr = Box::new(PropertyCall {
+            obj: Expr::Context,
+            method: scontext::DATA_INPUTS_PROPERTY.clone(),
+        })
+        .into();
+        let tuple: Expr = Box::new(ValUse {
+            val_id: 1.into(),
+            tpe: SType::STuple(STuple {
+                items: TupleItems::pair(SType::SLong, SType::SBox),
+            }),
+        })
+        .into();
+        let fold_op_body: Expr = Box::new(BinOp {
+            kind: NumOp::Add.into(),
+            left: Expr::SelectField(
+                SelectField::new(tuple.clone(), 1.try_into().unwrap()).unwrap(),
+            ),
+            // TODO: wrap in PropertyCall for value
+            right: Expr::ExtractAmount(
+                ExtractAmount::new(Expr::SelectField(
+                    SelectField::new(tuple, 2.try_into().unwrap()).unwrap(),
+                ))
+                .unwrap(),
+            ),
+        })
+        .into();
+        let expr: Expr = Box::new(Fold {
+            input: data_inputs,
+            zero: Expr::Const(Box::new(0i64.into())),
+            fold_op: Expr::FuncValue(Box::new(FuncValue::new(
+                vec![FuncArg {
+                    idx: 1.into(),
+                    tpe: SType::STuple(STuple {
+                        items: TupleItems::pair(SType::SLong, SType::SBox),
+                    }),
+                }],
+                fold_op_body,
+            ))),
+        })
+        .into();
+        let ctx = Rc::new(force_any_val::<Context>());
+        assert_eq!(
+            eval_out::<i64>(&expr, ctx.clone()),
+            ctx.data_inputs
+                .iter()
+                .fold(0i64, |acc, b| acc + b.value.as_i64())
+        );
     }
 }

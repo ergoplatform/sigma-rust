@@ -1,8 +1,6 @@
 //! SType hierarchy
 
-use std::convert::TryFrom;
 use std::convert::TryInto;
-use std::slice::Iter;
 
 use impl_trait_for_tuples::impl_for_tuples;
 
@@ -16,6 +14,7 @@ use crate::sigma_protocol::sigma_boolean::SigmaProp;
 
 use super::scontext::SContext;
 use super::sfunc::SFunc;
+use super::stuple::STuple;
 use super::stype_companion::STypeCompanion;
 use super::stype_param::STypeVar;
 
@@ -51,7 +50,7 @@ pub enum SType {
     /// Collection of elements of the same type
     SColl(Box<SType>),
     /// Tuple (elements can have different types)
-    STuple(TupleItems<SType>),
+    STuple(STuple),
     /// Function (signature)
     SFunc(Box<SFunc>),
     /// Context object ("CONTEXT" in ErgoScript)
@@ -85,53 +84,6 @@ impl SType {
     /// Get STypeCompanion instance associated with this SType
     pub fn type_companion(&self) -> Option<Box<STypeCompanion>> {
         todo!()
-    }
-}
-
-/// Tuple items with bounds check (2..=255)
-#[derive(PartialEq, Eq, Debug, Clone)]
-pub struct TupleItems<T>(Vec<T>);
-
-#[allow(clippy::len_without_is_empty)]
-impl<T> TupleItems<T> {
-    // pub fn into_vec(self) -> Vec<T> {
-    //     self.0
-    // }
-
-    /// Create a pair
-    pub fn pair(t1: T, t2: T) -> TupleItems<T> {
-        TupleItems(vec![t1, t2])
-    }
-
-    /// Get the length (quantity)
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    /// Get an iterator
-    pub fn iter(&self) -> Iter<T> {
-        self.0.iter()
-    }
-
-    /// Get a slice
-    pub fn as_slice(&self) -> &[T] {
-        self.0.as_slice()
-    }
-}
-
-/// Out of bounds items quantity error
-#[derive(PartialEq, Eq, Debug, Clone)]
-pub struct STupleItemsOutOfBoundsError();
-
-impl<T> TryFrom<Vec<T>> for TupleItems<T> {
-    type Error = STupleItemsOutOfBoundsError;
-
-    fn try_from(items: Vec<T>) -> Result<Self, Self::Error> {
-        if items.len() >= 2 && items.len() <= 255 {
-            Ok(TupleItems(items))
-        } else {
-            Err(STupleItemsOutOfBoundsError())
-        }
     }
 }
 
