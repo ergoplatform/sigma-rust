@@ -11,8 +11,8 @@ pub struct PropertyCall {
 }
 
 impl PropertyCall {
-    pub fn tpe(&self) -> &SType {
-        self.method.tpe()
+    pub fn tpe(&self) -> SType {
+        self.method.tpe().clone()
     }
 
     pub fn op_code(&self) -> OpCode {

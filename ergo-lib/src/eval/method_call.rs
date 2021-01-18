@@ -38,7 +38,7 @@ mod tests {
             args: vec![Box::new(Constant::from(0i8)).into()],
         })
         .into();
-        let option_get_expr: Expr = Box::new(OptionGet { input: mc }).into();
+        let option_get_expr: Expr = Box::new(OptionGet::new(mc).unwrap()).into();
         let ctx = Rc::new(force_any_val::<Context>());
         assert_eq!(
             eval_out::<i64>(&option_get_expr, ctx.clone()),

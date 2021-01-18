@@ -1,3 +1,5 @@
+use crate::types::stype::SType;
+
 use super::expr::Expr;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -8,4 +10,12 @@ pub enum PredefFunc {
         /// Byte array
         input: Box<Expr>,
     },
+}
+
+impl PredefFunc {
+    pub fn tpe(&self) -> SType {
+        match self {
+            PredefFunc::Sha256 { input: _ } => todo!(),
+        }
+    }
 }

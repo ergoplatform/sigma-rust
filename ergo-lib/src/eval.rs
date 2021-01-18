@@ -12,24 +12,16 @@ use thiserror::Error;
 
 use self::context::Context;
 use self::cost_accum::CostError;
+use self::env::Env;
 
 pub(crate) mod context;
 pub(crate) mod cost_accum;
 pub(crate) mod costs;
+pub(crate) mod env;
 pub(crate) mod expr;
 pub(crate) mod global_vars;
 pub(crate) mod method_call;
 pub(crate) mod property_call;
-
-/// Environment for the interpreter
-pub struct Env();
-
-impl Env {
-    /// Empty environment
-    pub fn empty() -> Env {
-        Env()
-    }
-}
 
 /// Interpreter errors
 #[derive(Error, PartialEq, Eq, Debug, Clone)]
@@ -52,6 +44,9 @@ pub enum EvalError {
     /// Register id out of bounds
     #[error("{0:?}")]
     RegisterIdOutOfBounds(#[from] RegisterIdOutOfBounds),
+    /// Unexpected value
+    #[error("unexpected value: {0:?}")]
+    UnexpectedValue(String),
 }
 
 /// Result of expression reduction procedure (see `reduce_to_crypto`).
@@ -112,11 +107,12 @@ pub trait Evaluable {
 pub mod tests {
 
     use crate::ast::constant::TryExtractFrom;
+    use crate::ast::constant::TryExtractInto;
 
+    use super::env::Env;
     use super::*;
 
     pub fn eval_out<T: TryExtractFrom<Value>>(expr: &Expr, ctx: Rc<Context>) -> T {
-        use crate::ast::constant::TryExtractInto;
         let cost_accum = CostAccumulator::new(0, None);
         let mut ectx = EvalContext::new(ctx, cost_accum);
         expr.eval(&Env::empty(), &mut ectx)

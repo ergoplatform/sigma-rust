@@ -16,8 +16,7 @@ impl SigmaSerializable for MethodCall {
         self.method.obj_type.type_id().sigma_serialize(w)?;
         self.method.method_id().sigma_serialize(w)?;
         self.obj.sigma_serialize(w)?;
-        w.put_u32(self.args.len() as u32)?;
-        self.args.iter().try_for_each(|a| a.sigma_serialize(w))?;
+        self.args.sigma_serialize(w)?;
         Ok(())
     }
 
@@ -25,16 +24,9 @@ impl SigmaSerializable for MethodCall {
         let type_id = TypeId::sigma_parse(r)?;
         let method_id = MethodId::sigma_parse(r)?;
         let obj = Expr::sigma_parse(r)?;
-        let args_count = r.get_u32()?;
-        let mut args = Vec::with_capacity(args_count as usize);
-        for _ in 0..args_count {
-            args.push(Expr::sigma_parse(r)?);
-        }
-        Ok(MethodCall {
-            obj,
-            method: SMethod::from_ids(type_id, method_id),
-            args,
-        })
+        let args = Vec::<Expr>::sigma_parse(r)?;
+        let method = SMethod::from_ids(type_id, method_id);
+        Ok(MethodCall { obj, method, args })
     }
 }
 

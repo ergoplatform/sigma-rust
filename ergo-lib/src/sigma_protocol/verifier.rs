@@ -12,7 +12,8 @@ use super::{
 };
 use crate::ergo_tree::{ErgoTree, ErgoTreeParsingError};
 use crate::eval::context::Context;
-use crate::eval::{Env, EvalError, Evaluator};
+use crate::eval::env::Env;
+use crate::eval::{EvalError, Evaluator};
 use dlog_protocol::FirstDlogProverMessage;
 
 /// Errors on proof verification

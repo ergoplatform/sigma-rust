@@ -1,4 +1,5 @@
 use crate::serialization::op_code::OpCode;
+use crate::types::stype::SType;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 /// Predefined global variables
@@ -20,6 +21,15 @@ impl GlobalVars {
             GlobalVars::Inputs => OpCode::INPUTS,
             GlobalVars::Outputs => OpCode::OUTPUTS,
             GlobalVars::Height => OpCode::HEIGHT,
+        }
+    }
+
+    pub fn tpe(&self) -> SType {
+        match self {
+            GlobalVars::Inputs => SType::SColl(Box::new(SType::SBox)),
+            GlobalVars::Outputs => SType::SColl(Box::new(SType::SBox)),
+            GlobalVars::Height => SType::SInt,
+            GlobalVars::SelfBox => SType::SBox,
         }
     }
 }

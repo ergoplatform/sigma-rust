@@ -3,11 +3,12 @@
 use eval::costs::Costs;
 
 use crate::eval;
-use crate::eval::Env;
+use crate::eval::env::Env;
 use crate::eval::EvalContext;
 use crate::eval::EvalError;
 use crate::eval::Evaluable;
 use crate::serialization::op_code::OpCode;
+use crate::types::stype::SType;
 
 use super::expr::Expr;
 use super::value::Value;
@@ -78,6 +79,12 @@ pub struct BinOp {
 impl BinOp {
     pub fn op_code(&self) -> OpCode {
         self.kind.into()
+    }
+
+    pub fn tpe(&self) -> SType {
+        match self.kind {
+            BinOpKind::Logic(_) => SType::SBoolean,
+        }
     }
 }
 

@@ -12,8 +12,11 @@ pub struct MethodCall {
 }
 
 impl MethodCall {
-    pub fn tpe(&self) -> &SType {
-        self.method.tpe()
+    pub fn tpe(&self) -> SType {
+        match self.method.tpe() {
+            SType::SFunc(sfunc) => sfunc.t_range.clone(),
+            tpe => tpe.clone(),
+        }
     }
 
     pub fn op_code(&self) -> OpCode {

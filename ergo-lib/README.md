@@ -15,6 +15,7 @@
 - `Context` properties (`dataInputs`);
 - Value types with serialization for most of them(types and values);
 - `EQ`(`==`), `NEQ`(`!=`);
+- `BlockValue`, `ValDef`, `ValUse`, `FuncValue`, `Apply`;
 
 ## Usage 
 ## Crate features

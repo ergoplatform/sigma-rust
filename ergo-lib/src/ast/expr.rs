@@ -1,18 +1,22 @@
-use core::fmt;
-
 use crate::serialization::op_code::OpCode;
+use crate::types::scontext::SContext;
 use crate::types::stype::SType;
 
+use super::apply::Apply;
 use super::bin_op::BinOp;
+use super::block::BlockValue;
 use super::coll_fold::Fold;
 use super::constant::Constant;
 use super::constant::ConstantPlaceholder;
 use super::extract_reg_as::ExtractRegisterAs;
+use super::func_value::FuncValue;
 use super::global_vars::GlobalVars;
 use super::method_call::MethodCall;
 use super::option_get::OptionGet;
 use super::predef_func::PredefFunc;
 use super::property_call::PropertyCall;
+use super::val_def::ValDef;
+use super::val_use::ValUse;
 
 extern crate derive_more;
 use derive_more::From;
@@ -26,22 +30,32 @@ pub enum Expr {
     ConstPlaceholder(Box<ConstantPlaceholder>),
     /// Predefined functions (global)
     PredefFunc(Box<PredefFunc>),
-    /// Collection fold op
-    Fold(Box<Fold>),
     Context,
     // Global(Global),
     /// Predefined global variables
     GlobalVars(Box<GlobalVars>),
+    /// Function definition
+    FuncValue(Box<FuncValue>),
+    /// Function application
+    Apply(Box<Apply>),
     /// Method call
     MethodCall(Box<MethodCall>),
     /// Property call
     ProperyCall(Box<PropertyCall>),
+    /// Block (statements, followed by an expression)
+    BlockValue(Box<BlockValue>),
+    /// let-bound expression
+    ValDef(Box<ValDef>),
+    /// Reference to ValDef
+    ValUse(Box<ValUse>),
     /// Binary operation
     BinOp(Box<BinOp>),
     /// Option get method
     OptionGet(Box<OptionGet>),
     /// Extract register's value (box.RX properties)
     ExtractRegisterAs(Box<ExtractRegisterAs>),
+    /// Collection fold op
+    Fold(Box<Fold>),
 }
 
 impl Expr {
@@ -57,24 +71,40 @@ impl Expr {
             Expr::OptionGet(v) => v.op_code(),
             Expr::ExtractRegisterAs(v) => v.op_code(),
             Expr::BinOp(op) => op.op_code(),
-            _ => todo!("{0:?}", self),
+            Expr::BlockValue(op) => op.op_code(),
+            Expr::ValUse(op) => op.op_code(),
+            Expr::FuncValue(op) => op.op_code(),
+            Expr::ValDef(op) => op.op_code(),
+            _ => todo!("not yet implemented opcode for {0:?}", self),
         }
     }
 
     /// Type of the expression
-    pub fn tpe(&self) -> &SType {
+    pub fn tpe(&self) -> SType {
         match self {
-            Expr::Const(c) => &c.tpe,
-            _ => todo!(),
+            Expr::Const(v) => v.tpe.clone(),
+            Expr::ConstPlaceholder(v) => v.tpe.clone(),
+            Expr::PredefFunc(v) => v.tpe(),
+            Expr::Context => SType::SContext(SContext()),
+            Expr::GlobalVars(v) => v.tpe(),
+            Expr::FuncValue(v) => v.tpe(),
+            Expr::Apply(v) => v.tpe(),
+            Expr::MethodCall(v) => v.tpe(),
+            Expr::ProperyCall(v) => v.tpe(),
+            Expr::BlockValue(v) => v.tpe(),
+            Expr::ValDef(v) => v.tpe(),
+            Expr::ValUse(v) => v.tpe.clone(),
+            Expr::BinOp(v) => v.tpe(),
+            Expr::OptionGet(v) => v.tpe(),
+            Expr::ExtractRegisterAs(v) => v.tpe.clone(),
+            Expr::Fold(v) => v.tpe(),
         }
     }
 }
 
-impl fmt::Display for Expr {
-    fn fmt(&self, _: &mut fmt::Formatter<'_>) -> fmt::Result {
-        todo!()
-    }
-}
+/// Unexpected argument on node construction (i.e non-Option input in OptionGet)
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct InvalidArgumentError(pub String);
 
 #[cfg(test)]
 pub mod tests {

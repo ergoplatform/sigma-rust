@@ -98,6 +98,11 @@ impl<T> TupleItems<T> {
     //     self.0
     // }
 
+    /// Create a pair
+    pub fn pair(t1: T, t2: T) -> TupleItems<T> {
+        TupleItems(vec![t1, t2])
+    }
+
     /// Get the length (quantity)
     pub fn len(&self) -> usize {
         self.0.len()

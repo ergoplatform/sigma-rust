@@ -1,6 +1,7 @@
 use super::expr::Expr;
+use super::expr::InvalidArgumentError;
 use crate::ast::value::Value;
-use crate::eval::Env;
+use crate::eval::env::Env;
 use crate::eval::EvalContext;
 use crate::eval::EvalError;
 use crate::eval::Evaluable;
@@ -9,15 +10,36 @@ use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::SerializationError;
 use crate::serialization::SigmaSerializable;
+use crate::types::stype::SType;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct OptionGet {
-    pub input: Expr,
+    input: Expr,
 }
 
 impl OptionGet {
+    pub fn new(input: Expr) -> Result<Self, InvalidArgumentError> {
+        match input.tpe() {
+            SType::SOption(_) => Ok(OptionGet { input }),
+            _ => Err(InvalidArgumentError(format!(
+                "expected OptionGet::input type to be SOption, got: {0:?}",
+                input.tpe(),
+            ))),
+        }
+    }
+
     pub fn op_code(&self) -> OpCode {
         OpCode::OPTION_GET
+    }
+
+    pub fn tpe(&self) -> SType {
+        match self.input.tpe() {
+            SType::SOption(o) => *o,
+            _ => panic!(
+                "expected OptionGet::input type to be SOption, got: {0:?}",
+                self.input.tpe()
+            ),
+        }
     }
 }
 
@@ -42,9 +64,7 @@ impl SigmaSerializable for OptionGet {
     }
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
-        Ok(OptionGet {
-            input: Expr::sigma_parse(r)?,
-        })
+        Ok(OptionGet::new(Expr::sigma_parse(r)?)?)
     }
 }
 
@@ -83,8 +103,14 @@ mod tests {
 
     #[test]
     fn ser_roundtrip() {
+        let get_reg_expr: Expr = Box::new(ExtractRegisterAs {
+            input: Box::new(GlobalVars::SelfBox).into(),
+            register_id: RegisterId::R0,
+            tpe: SType::SOption(SType::SLong.into()),
+        })
+        .into();
         let e: Expr = Box::new(OptionGet {
-            input: Expr::Context,
+            input: get_reg_expr,
         })
         .into();
         assert_eq![sigma_serialize_roundtrip(&e), e];

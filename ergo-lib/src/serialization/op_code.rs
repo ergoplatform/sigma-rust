@@ -18,6 +18,7 @@ impl OpCode {
     pub const LAST_DATA_TYPE: OpCode = OpCode(111);
     pub const LAST_CONSTANT_CODE: OpCode = OpCode(Self::LAST_DATA_TYPE.value() + 1);
 
+    pub const VAL_USE: OpCode = Self::new_op_code(2);
     pub const CONSTANT_PLACEHOLDER: OpCode = Self::new_op_code(3);
 
     pub const EQ: OpCode = Self::new_op_code(35);
@@ -35,6 +36,9 @@ impl OpCode {
 
     pub const PROVE_DLOG: OpCode = Self::new_op_code(93);
 
+    pub const VAL_DEF: OpCode = Self::new_op_code(102);
+    pub const BLOCK_VALUE: OpCode = Self::new_op_code(104);
+    pub const FUNC_VALUE: OpCode = Self::new_op_code(105);
     pub const PROPERTY_CALL: OpCode = Self::new_op_code(107);
     pub const METHOD_CALL: OpCode = Self::new_op_code(108);
 
