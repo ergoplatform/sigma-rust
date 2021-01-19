@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Added 
 - `BlockValue`, `ValDef`, `ValUse`, `FuncValue`, `Apply` IR nodes evaluation and serialization [#171](https://github.com/ergoplatform/sigma-rust/pull/171);
 - `SimpleBoxSelector`: sort inputs by target tokens and skip inputs that does not have target tokens [#175](https://github.com/ergoplatform/sigma-rust/pull/175);
+- `Fold`(collection), `ExtractAmount`(`Box.value`), `SelectField`(tuple field access) IR nodes evaluation and serialization [#173]()
 
 ## [0.4.3] - 2021-01-15
 
