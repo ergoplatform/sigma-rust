@@ -75,7 +75,7 @@ mod tests {
             (
                 0..i32::MAX,
                 any::<ErgoBox>(),
-                vec(any::<ErgoBox>(), 0..3),
+                vec(any::<ErgoBox>(), 1..3),
                 vec(any::<ErgoBox>(), 0..3),
             )
                 .prop_map(|(height, self_box, outputs, data_inputs)| Self {

@@ -4,6 +4,7 @@ use super::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
 };
+use crate::types::stuple::STuple;
 use crate::types::stype::SType;
 use sigma_ser::vlq_encode;
 use std::convert::TryInto;
@@ -180,7 +181,7 @@ impl SigmaSerializable for SType {
                     elem_type.sigma_serialize(w)
                 }
             },
-            SType::STuple(items) => match items.clone().as_slice() {
+            SType::STuple(STuple { items }) => match items.clone().as_slice() {
                 [t1, t2] => match (t1, t2) {
                     (p, _) if is_stype_embeddable(p) => {
                         if p == t2 {

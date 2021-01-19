@@ -16,6 +16,7 @@
 - Value types with serialization for most of them(types and values);
 - `EQ`(`==`), `NEQ`(`!=`);
 - `BlockValue`, `ValDef`, `ValUse`, `FuncValue`, `Apply`;
+- `Fold`(collection), `ExtractAmount`(`Box.value`), `SelectField`(tuple field access); 
 
 ## Usage 
 ## Crate features

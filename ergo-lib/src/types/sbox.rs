@@ -22,6 +22,11 @@ static S_BOX_TYPE_COMPANION_HEAD: STypeCompanionHead = STypeCompanionHead {
     type_name: "Box",
 };
 
+lazy_static! {
+    pub static ref S_BOX_TYPE_COMPANION: STypeCompanion =
+        STypeCompanion::new(&S_BOX_TYPE_COMPANION_HEAD, vec![&GET_REG_METHOD_DESC]);
+}
+
 static GET_REG_EVAL_FN: EvalFn = |obj, args| {
     Ok(Value::Opt(Box::new(
         obj.try_extract_into::<ErgoBox>()?
@@ -50,11 +55,57 @@ lazy_static! {
 }
 
 lazy_static! {
-    pub static ref S_BOX_TYPE_COMPANION: STypeCompanion =
-        STypeCompanion::new(&S_BOX_TYPE_COMPANION_HEAD, vec![&GET_REG_METHOD_DESC]);
+    pub static ref GET_REG_METHOD: SMethod =
+        SMethod::new(&S_BOX_TYPE_COMPANION, &GET_REG_METHOD_DESC,);
 }
 
 lazy_static! {
-    pub static ref GET_REG_METHOD: SMethod =
-        SMethod::new(&S_BOX_TYPE_COMPANION, &GET_REG_METHOD_DESC,);
+    static ref VALUE_METHOD_DESC: SMethodDesc = SMethodDesc {
+        method_id: MethodId(1),
+        name: "getReg",
+        tpe: SType::SFunc(Box::new(SFunc {
+            t_dom: vec![SType::SBox],
+            t_range: SType::SLong,
+            tpe_params: vec![],
+        })),
+        eval_fn: VALUE_EVAL_FN,
+    };
+}
+
+lazy_static! {
+    pub static ref VALUE_METHOD: SMethod = SMethod::new(&S_BOX_TYPE_COMPANION, &VALUE_METHOD_DESC,);
+}
+
+static VALUE_EVAL_FN: EvalFn = |obj, _args| {
+    Ok(Value::Long(
+        obj.try_extract_into::<ErgoBox>()?.value.as_i64(),
+    ))
+};
+
+#[cfg(test)]
+mod tests {
+    use std::rc::Rc;
+
+    use crate::ast::expr::Expr;
+    use crate::ast::global_vars::GlobalVars;
+    use crate::ast::property_call::PropertyCall;
+    use crate::eval::context::Context;
+    use crate::eval::tests::eval_out;
+    use crate::test_util::force_any_val;
+
+    use super::*;
+
+    #[test]
+    fn eval_box_value() {
+        let expr: Expr = Box::new(PropertyCall {
+            obj: Box::new(GlobalVars::SelfBox).into(),
+            method: VALUE_METHOD.clone(),
+        })
+        .into();
+        let ctx = Rc::new(force_any_val::<Context>());
+        assert_eq!(
+            eval_out::<i64>(&expr, ctx.clone()),
+            ctx.self_box.value.as_i64()
+        );
+    }
 }

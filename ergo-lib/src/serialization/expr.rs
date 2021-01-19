@@ -7,12 +7,14 @@ use crate::ast::coll_fold::Fold;
 use crate::ast::constant::Constant;
 use crate::ast::constant::ConstantPlaceholder;
 use crate::ast::expr::Expr;
+use crate::ast::extract_amount::ExtractAmount;
 use crate::ast::extract_reg_as::ExtractRegisterAs;
 use crate::ast::func_value::FuncValue;
 use crate::ast::global_vars::GlobalVars;
 use crate::ast::method_call::MethodCall;
 use crate::ast::option_get::OptionGet;
 use crate::ast::property_call::PropertyCall;
+use crate::ast::select_field::SelectField;
 use crate::ast::val_def::ValDef;
 use crate::ast::val_use::ValUse;
 use crate::serialization::{
@@ -49,6 +51,8 @@ impl SigmaSerializable for Expr {
                     Expr::ValUse(op) => op.sigma_serialize(w),
                     Expr::ValDef(op) => op.sigma_serialize(w),
                     Expr::FuncValue(op) => op.sigma_serialize(w),
+                    Expr::ExtractAmount(op) => op.sigma_serialize(w),
+                    Expr::SelectField(op) => op.sigma_serialize(w),
                     _ => panic!(format!("don't know how to serialize {:?}", expr)),
                 }
             }
@@ -101,6 +105,8 @@ impl SigmaSerializable for Expr {
                 OpCode::FUNC_VALUE => Ok(Expr::FuncValue(FuncValue::sigma_parse(r)?.into())),
                 OpCode::VAL_DEF => Ok(Expr::ValDef(ValDef::sigma_parse(r)?.into())),
                 OpCode::VAL_USE => Ok(Expr::ValUse(ValUse::sigma_parse(r)?.into())),
+                OpCode::EXTRACT_AMOUNT => Ok(Expr::ExtractAmount(ExtractAmount::sigma_parse(r)?)),
+                OpCode::SELECT_FIELD => Ok(Expr::SelectField(SelectField::sigma_parse(r)?)),
                 o => Err(SerializationError::NotImplementedOpCode(o.value())),
             }
         }

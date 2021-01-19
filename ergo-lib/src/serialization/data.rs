@@ -7,6 +7,7 @@ use crate::serialization::{
 use crate::sigma_protocol::{
     dlog_group::EcPoint, sigma_boolean::SigmaBoolean, sigma_boolean::SigmaProp,
 };
+use crate::types::stuple;
 use crate::types::stype::SType;
 use crate::util::AsVecU8;
 
@@ -82,7 +83,7 @@ impl DataSerializer {
                     v: elems,
                 }))
             }
-            STuple(types) => {
+            STuple(stuple::STuple { items: types }) => {
                 let mut items = Vec::new();
                 types.iter().try_for_each(|tpe| {
                     DataSerializer::sigma_parse(tpe, r).map(|v| items.push(v))

@@ -201,7 +201,7 @@ pub mod tests {
 
     impl Default for ArbBoxValueRange {
         fn default() -> Self {
-            ArbBoxValueRange(BoxValue::MIN_RAW..BoxValue::MAX_RAW)
+            ArbBoxValueRange(BoxValue::MIN_RAW..(BoxValue::MAX_RAW / 10))
         }
     }
 
