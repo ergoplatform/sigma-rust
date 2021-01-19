@@ -87,6 +87,12 @@ impl SType {
     }
 }
 
+impl From<STuple> for SType {
+    fn from(v: STuple) -> Self {
+        SType::STuple(v)
+    }
+}
+
 /// Conversion to SType
 pub trait LiftIntoSType {
     /// get SType

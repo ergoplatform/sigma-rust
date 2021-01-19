@@ -6,10 +6,12 @@ use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::SerializationError;
 use crate::serialization::SigmaSerializable;
+use crate::types::stuple::STuple;
 use crate::types::stuple::TupleItems;
 use crate::types::stype::SType;
 
 use super::expr::Expr;
+use super::expr::InvalidArgumentError;
 use super::value::Coll::NonPrimitive;
 use super::value::Coll::Primitive;
 use super::value::CollPrim;
@@ -26,6 +28,38 @@ pub struct Fold {
 }
 
 impl Fold {
+    pub fn new(input: Expr, zero: Expr, fold_op: Expr) -> Result<Self, InvalidArgumentError> {
+        let input_elem_type: SType = *match input.tpe() {
+            SType::SColl(elem_type) => Ok(elem_type),
+            SType::SFunc(sfunc) => match sfunc.t_range {
+                SType::SColl(elem_type) => Ok(elem_type),
+                _ => Err(InvalidArgumentError(format!(
+                    "Expected Fold input to be SColl, got {0:?}",
+                    sfunc.t_range
+                ))),
+            },
+            _ => Err(InvalidArgumentError(format!(
+                "Expected Fold input to be SColl, got {0:?}",
+                input.tpe()
+            ))),
+        }?;
+        match fold_op.tpe() {
+            SType::SFunc(sfunc)
+                if sfunc.t_dom == vec![STuple::pair(zero.tpe(), input_elem_type).into()] =>
+            {
+                Ok(Fold {
+                    input,
+                    zero,
+                    fold_op,
+                })
+            }
+            _ => Err(InvalidArgumentError(format!(
+                "Invalid fold_op tpe: {0:?}",
+                fold_op.tpe()
+            ))),
+        }
+    }
+
     pub fn tpe(&self) -> SType {
         self.zero.tpe()
     }
@@ -107,11 +141,14 @@ mod tests {
     use crate::ast::val_use::ValUse;
     use crate::eval::context::Context;
     use crate::eval::tests::eval_out;
+    use crate::serialization::sigma_serialize_roundtrip;
     use crate::test_util::force_any_val;
     use crate::types::scontext;
     use crate::types::stuple::STuple;
 
     use super::*;
+
+    use proptest::prelude::*;
 
     #[test]
     fn eval_box_value() {
@@ -132,7 +169,6 @@ mod tests {
             left: Expr::SelectField(
                 SelectField::new(tuple.clone(), 1.try_into().unwrap()).unwrap(),
             ),
-            // TODO: wrap in PropertyCall for value
             right: Expr::ExtractAmount(
                 ExtractAmount::new(Expr::SelectField(
                     SelectField::new(tuple, 2.try_into().unwrap()).unwrap(),
@@ -141,19 +177,22 @@ mod tests {
             ),
         })
         .into();
-        let expr: Expr = Box::new(Fold {
-            input: data_inputs,
-            zero: Expr::Const(Box::new(0i64.into())),
-            fold_op: Expr::FuncValue(Box::new(FuncValue::new(
-                vec![FuncArg {
-                    idx: 1.into(),
-                    tpe: SType::STuple(STuple {
-                        items: TupleItems::pair(SType::SLong, SType::SBox),
-                    }),
-                }],
-                fold_op_body,
-            ))),
-        })
+        let expr: Expr = Box::new(
+            Fold::new(
+                data_inputs,
+                Expr::Const(Box::new(0i64.into())),
+                Expr::FuncValue(Box::new(FuncValue::new(
+                    vec![FuncArg {
+                        idx: 1.into(),
+                        tpe: SType::STuple(STuple {
+                            items: TupleItems::pair(SType::SLong, SType::SBox),
+                        }),
+                    }],
+                    fold_op_body,
+                ))),
+            )
+            .unwrap(),
+        )
         .into();
         let ctx = Rc::new(force_any_val::<Context>());
         assert_eq!(
@@ -162,5 +201,28 @@ mod tests {
                 .iter()
                 .fold(0i64, |acc, b| acc + b.value.as_i64())
         );
+    }
+
+    impl Arbitrary for Fold {
+        type Strategy = BoxedStrategy<Self>;
+        type Parameters = ();
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            (any::<Expr>(), any::<Expr>(), any::<Expr>())
+                .prop_map(|(input, zero, fold_op)| Self {
+                    input,
+                    zero,
+                    fold_op,
+                })
+                .boxed()
+        }
+    }
+
+    proptest! {
+
+        #[test]
+        fn ser_roundtrip(v in any::<Fold>()) {
+            prop_assert_eq![sigma_serialize_roundtrip(&v), v];
+        }
     }
 }

@@ -69,6 +69,14 @@ pub struct STuple {
     pub items: TupleItems<SType>,
 }
 
+impl STuple {
+    pub fn pair(t1: SType, t2: SType) -> Self {
+        STuple {
+            items: vec![t1, t2].try_into().unwrap(),
+        }
+    }
+}
+
 // pub struct STupleCompanion();
 
 // static S_TUPLE_TYPE_COMPANION_HEAD: STypeCompanionHead = STypeCompanionHead {
