@@ -4,6 +4,11 @@ use crate::eval::env::Env;
 use crate::eval::EvalContext;
 use crate::eval::EvalError;
 use crate::eval::Evaluable;
+use crate::serialization::op_code::OpCode;
+use crate::serialization::sigma_byte_reader::SigmaByteRead;
+use crate::serialization::sigma_byte_writer::SigmaByteWrite;
+use crate::serialization::SerializationError;
+use crate::serialization::SigmaSerializable;
 use crate::types::stuple::STuple;
 use crate::types::stuple::STupleItemsOutOfBoundsError;
 use crate::types::stype::SType;
@@ -31,6 +36,22 @@ impl TryFrom<u8> for TupleFieldIndex {
 impl From<TupleFieldIndex> for usize {
     fn from(v: TupleFieldIndex) -> Self {
         v.0 as usize
+    }
+}
+
+impl SigmaSerializable for TupleFieldIndex {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
+        w.put_u8(self.0)
+    }
+
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+        let field_index = r.get_u8()?;
+        TupleFieldIndex::try_from(field_index).map_err(|_| {
+            SerializationError::ValueOutOfBounds(format!(
+                "invalid tuple field index: {0}",
+                field_index
+            ))
+        })
     }
 }
 
@@ -63,6 +84,10 @@ impl SelectField {
             ))),
         }
     }
+
+    pub fn op_code(&self) -> OpCode {
+        OpCode::SELECT_FIELD
+    }
 }
 
 impl SelectField {
@@ -89,5 +114,38 @@ impl Evaluable for SelectField {
                 input_v
             ))),
         }
+    }
+}
+
+impl SigmaSerializable for SelectField {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
+        self.input.sigma_serialize(w)?;
+        self.field_index.sigma_serialize(w)
+    }
+
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+        let input = Expr::sigma_parse(r)?.into();
+        let field_index = TupleFieldIndex::sigma_parse(r)?;
+        Ok(SelectField { input, field_index })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::convert::TryInto;
+
+    use crate::serialization::sigma_serialize_roundtrip;
+
+    use super::*;
+
+    #[test]
+    fn ser_roundtrip() {
+        let e: Expr = SelectField::new(
+            Expr::Const(Box::new((1i64, true).into())),
+            1u8.try_into().unwrap(),
+        )
+        .unwrap()
+        .into();
+        assert_eq![sigma_serialize_roundtrip(&e), e];
     }
 }

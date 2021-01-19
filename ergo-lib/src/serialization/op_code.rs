@@ -21,6 +21,8 @@ impl OpCode {
     pub const VAL_USE: OpCode = Self::new_op_code(2);
     pub const CONSTANT_PLACEHOLDER: OpCode = Self::new_op_code(3);
 
+    pub const SELECT_FIELD: OpCode = Self::new_op_code(28);
+
     pub const EQ: OpCode = Self::new_op_code(35);
     pub const NEQ: OpCode = Self::new_op_code(36);
 

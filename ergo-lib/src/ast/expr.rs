@@ -82,6 +82,7 @@ impl Expr {
             Expr::FuncValue(op) => op.op_code(),
             Expr::ValDef(op) => op.op_code(),
             Expr::ExtractAmount(op) => op.op_code(),
+            Expr::SelectField(op) => op.op_code(),
             _ => todo!("not yet implemented opcode for {0:?}", self),
         }
     }
