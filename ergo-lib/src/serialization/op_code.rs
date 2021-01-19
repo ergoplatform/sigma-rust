@@ -32,6 +32,7 @@ impl OpCode {
 
     pub const FOLD: OpCode = Self::new_op_code(64);
 
+    pub const EXTRACT_AMOUNT: OpCode = Self::new_op_code(81);
     pub const EXTRACT_REGISTER_AS: OpCode = Self::new_op_code(86);
 
     pub const PROVE_DLOG: OpCode = Self::new_op_code(93);
