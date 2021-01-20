@@ -282,7 +282,10 @@ mod tests {
             // SType::SBox => {}
             // SType::SAvlTree => {}
             // SType::SOption(tpe) =>
-            // SType::SColl() => {}
+            SType::SColl(elem_tpe) => match *elem_tpe {
+                SType::SByte => any::<Vec<u8>>().prop_map_into().boxed(),
+                _ => todo!(),
+            },
             // SType::STuple(_) => {}
             _ => todo!(),
         }

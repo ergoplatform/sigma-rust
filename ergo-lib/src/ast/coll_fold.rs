@@ -2,6 +2,7 @@ use crate::eval::env::Env;
 use crate::eval::EvalContext;
 use crate::eval::EvalError;
 use crate::eval::Evaluable;
+use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::SerializationError;
@@ -29,15 +30,8 @@ pub struct Fold {
 
 impl Fold {
     pub fn new(input: Expr, zero: Expr, fold_op: Expr) -> Result<Self, InvalidArgumentError> {
-        let input_elem_type: SType = *match input.tpe() {
+        let input_elem_type: SType = *match input.post_eval_tpe() {
             SType::SColl(elem_type) => Ok(elem_type),
-            SType::SFunc(sfunc) => match *sfunc.t_range {
-                SType::SColl(elem_type) => Ok(elem_type),
-                _ => Err(InvalidArgumentError(format!(
-                    "Expected Fold input to be SColl, got {0:?}",
-                    sfunc.t_range
-                ))),
-            },
             _ => Err(InvalidArgumentError(format!(
                 "Expected Fold input to be SColl, got {0:?}",
                 input.tpe()
@@ -62,6 +56,10 @@ impl Fold {
 
     pub fn tpe(&self) -> SType {
         self.zero.tpe()
+    }
+
+    pub fn op_code(&self) -> OpCode {
+        OpCode::FOLD
     }
 }
 
@@ -221,7 +219,8 @@ mod tests {
 
         #[test]
         fn ser_roundtrip(v in any::<Fold>()) {
-            prop_assert_eq![sigma_serialize_roundtrip(&v), v];
+            let expr: Expr = v.into();
+            prop_assert_eq![sigma_serialize_roundtrip(&expr), expr];
         }
     }
 }
