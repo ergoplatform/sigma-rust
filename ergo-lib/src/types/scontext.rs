@@ -41,11 +41,11 @@ lazy_static! {
     static ref DATA_INPUTS_PROPERTY_METHOD_DESC: SMethodDesc = SMethodDesc {
         method_id: MethodId(1),
         name: "dataInputs",
-        tpe: SType::SFunc(Box::new(SFunc {
+        tpe: SType::SFunc(SFunc {
             t_dom: vec![SType::SContext(SContext())],
-            t_range: SType::SColl(Box::new(SType::SBox)),
+            t_range: Box::new(SType::SColl(Box::new(SType::SBox))),
             tpe_params: vec![],
-        })),
+        }),
         eval_fn: DATA_INPUTS_EVAL_FN,
     };
 }

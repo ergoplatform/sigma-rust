@@ -50,7 +50,7 @@ impl Apply {
     pub fn tpe(&self) -> SType {
         match self.func.tpe() {
             SType::SColl(_) => todo!(),
-            SType::SFunc(f) => f.t_range,
+            SType::SFunc(f) => *f.t_range,
             _ => panic!("unexpected Apply::func: {0:?}", self.func.tpe()),
         }
     }

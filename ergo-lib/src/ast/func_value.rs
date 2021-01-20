@@ -50,11 +50,11 @@ impl FuncValue {
     pub fn new(args: Vec<FuncArg>, body: Expr) -> Self {
         let t_dom = args.iter().map(|fa| fa.tpe.clone()).collect();
         let t_range = body.tpe();
-        let tpe = SType::SFunc(Box::new(SFunc {
+        let tpe = SType::SFunc(SFunc {
             t_dom,
-            t_range,
+            t_range: Box::new(t_range),
             tpe_params: vec![],
-        }));
+        });
         FuncValue {
             args,
             body: Box::new(body),

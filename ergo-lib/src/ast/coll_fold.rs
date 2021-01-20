@@ -31,7 +31,7 @@ impl Fold {
     pub fn new(input: Expr, zero: Expr, fold_op: Expr) -> Result<Self, InvalidArgumentError> {
         let input_elem_type: SType = *match input.tpe() {
             SType::SColl(elem_type) => Ok(elem_type),
-            SType::SFunc(sfunc) => match sfunc.t_range {
+            SType::SFunc(sfunc) => match *sfunc.t_range {
                 SType::SColl(elem_type) => Ok(elem_type),
                 _ => Err(InvalidArgumentError(format!(
                     "Expected Fold input to be SColl, got {0:?}",

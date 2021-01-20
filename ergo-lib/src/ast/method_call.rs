@@ -14,7 +14,7 @@ pub struct MethodCall {
 impl MethodCall {
     pub fn tpe(&self) -> SType {
         match self.method.tpe() {
-            SType::SFunc(sfunc) => sfunc.t_range.clone(),
+            SType::SFunc(sfunc) => *sfunc.t_range.clone(),
             tpe => tpe.clone(),
         }
     }

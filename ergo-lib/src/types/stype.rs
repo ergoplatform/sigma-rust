@@ -52,7 +52,7 @@ pub enum SType {
     /// Tuple (elements can have different types)
     STuple(STuple),
     /// Function (signature)
-    SFunc(Box<SFunc>),
+    SFunc(SFunc),
     /// Context object ("CONTEXT" in ErgoScript)
     SContext(SContext),
 }
