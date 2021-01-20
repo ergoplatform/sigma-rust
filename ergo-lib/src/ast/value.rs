@@ -94,7 +94,7 @@ pub enum Value {
     /// Optional value
     Opt(Box<Option<Value>>),
     /// lambda
-    FuncValue(Box<FuncValue>),
+    FuncValue(FuncValue),
 }
 
 impl Value {
