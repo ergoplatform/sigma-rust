@@ -103,7 +103,7 @@ impl Evaluable for Fold {
             ))),
         };
         match input_v {
-            Value::Coll(coll) => match *coll {
+            Value::Coll(coll) => match coll {
                 Primitive(CollPrim::CollByte(coll_byte)) => {
                     coll_byte.iter().try_fold(zero_v, |acc, byte| {
                         let tup_arg = Value::Tup(TupleItems::pair(acc, Value::Byte(*byte)));

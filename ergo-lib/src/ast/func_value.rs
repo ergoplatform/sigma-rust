@@ -81,7 +81,7 @@ impl FuncValue {
 
 impl Evaluable for FuncValue {
     fn eval(&self, _env: &Env, _ctx: &mut EvalContext) -> Result<Value, EvalError> {
-        Ok(Value::FuncValue(Box::new(self.clone())))
+        Ok(Value::FuncValue(self.clone()))
     }
 }
 
