@@ -3,6 +3,7 @@ use super::bin_op::bin_op_sigma_serialize;
 use super::{op_code::OpCode, sigma_byte_writer::SigmaByteWrite};
 use crate::ast::bin_op::LogicOp;
 use crate::ast::block::BlockValue;
+use crate::ast::calc_blake2b256::CalcBlake2b256;
 use crate::ast::coll_fold::Fold;
 use crate::ast::constant::Constant;
 use crate::ast::constant::ConstantPlaceholder;
@@ -53,6 +54,7 @@ impl SigmaSerializable for Expr {
                     Expr::FuncValue(op) => op.sigma_serialize(w),
                     Expr::ExtractAmount(op) => op.sigma_serialize(w),
                     Expr::SelectField(op) => op.sigma_serialize(w),
+                    Expr::CalcBlake2b256(op) => op.sigma_serialize(w),
                     _ => panic!(format!("don't know how to serialize {:?}", expr)),
                 }
             }
@@ -103,6 +105,7 @@ impl SigmaSerializable for Expr {
                 OpCode::VAL_USE => Ok(Expr::ValUse(ValUse::sigma_parse(r)?)),
                 OpCode::EXTRACT_AMOUNT => Ok(Expr::ExtractAmount(ExtractAmount::sigma_parse(r)?)),
                 OpCode::SELECT_FIELD => Ok(Expr::SelectField(SelectField::sigma_parse(r)?)),
+                OpCode::CALC_BLAKE2B256 => Ok(CalcBlake2b256::sigma_parse(r)?.into()),
                 o => Err(SerializationError::NotImplementedOpCode(o.value())),
             }
         }

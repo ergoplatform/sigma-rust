@@ -16,6 +16,7 @@ use crate::sigma_protocol::sigma_boolean::SigmaProp;
 use crate::types::stuple::TupleItems;
 use crate::types::stype::LiftIntoSType;
 use crate::types::stype::SType;
+use crate::util::AsVecI8;
 
 use super::constant::TryExtractFrom;
 use super::constant::TryExtractFromError;
@@ -154,6 +155,12 @@ impl From<ErgoBox> for Value {
 impl From<Vec<i8>> for Value {
     fn from(v: Vec<i8>) -> Self {
         Value::Coll(Box::new(Coll::Primitive(CollPrim::CollByte(v))))
+    }
+}
+
+impl From<Vec<u8>> for Value {
+    fn from(v: Vec<u8>) -> Self {
+        Value::Coll(Box::new(Coll::Primitive(CollPrim::CollByte(v.as_vec_i8()))))
     }
 }
 

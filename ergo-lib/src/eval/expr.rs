@@ -11,7 +11,7 @@ impl Evaluable for Expr {
         ctx.cost_accum.add_cost_of(self)?;
         match self {
             Expr::Const(c) => Ok(c.v.clone()),
-            Expr::PredefFunc(_) => todo!(),
+            Expr::CalcBlake2b256(op) => op.eval(env, ctx),
             Expr::Fold(op) => op.eval(env, ctx),
             Expr::ExtractRegisterAs(op) => op.eval(env, ctx),
             Expr::GlobalVars(op) => op.eval(env, ctx),

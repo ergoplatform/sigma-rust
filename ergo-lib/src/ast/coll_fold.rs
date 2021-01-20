@@ -2,6 +2,7 @@ use crate::eval::env::Env;
 use crate::eval::EvalContext;
 use crate::eval::EvalError;
 use crate::eval::Evaluable;
+use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::SerializationError;
@@ -62,6 +63,10 @@ impl Fold {
 
     pub fn tpe(&self) -> SType {
         self.zero.tpe()
+    }
+
+    pub fn op_code(&self) -> OpCode {
+        OpCode::FOLD
     }
 }
 
@@ -221,7 +226,8 @@ mod tests {
 
         #[test]
         fn ser_roundtrip(v in any::<Fold>()) {
-            prop_assert_eq![sigma_serialize_roundtrip(&v), v];
+            let expr: Expr = v.into();
+            prop_assert_eq![sigma_serialize_roundtrip(&expr), expr];
         }
     }
 }

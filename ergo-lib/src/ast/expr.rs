@@ -5,6 +5,7 @@ use crate::types::stype::SType;
 use super::apply::Apply;
 use super::bin_op::BinOp;
 use super::block::BlockValue;
+use super::calc_blake2b256::CalcBlake2b256;
 use super::coll_fold::Fold;
 use super::constant::Constant;
 use super::constant::ConstantPlaceholder;
@@ -14,7 +15,6 @@ use super::func_value::FuncValue;
 use super::global_vars::GlobalVars;
 use super::method_call::MethodCall;
 use super::option_get::OptionGet;
-use super::predef_func::PredefFunc;
 use super::property_call::PropertyCall;
 use super::select_field::SelectField;
 use super::val_def::ValDef;
@@ -31,7 +31,8 @@ pub enum Expr {
     /// Placeholder for a constant
     ConstPlaceholder(ConstantPlaceholder),
     /// Predefined functions (global)
-    PredefFunc(PredefFunc),
+    /// Blake2b256 hash calculation
+    CalcBlake2b256(CalcBlake2b256),
     Context,
     // Global(Global),
     /// Predefined global variables
@@ -83,6 +84,8 @@ impl Expr {
             Expr::ValDef(op) => op.op_code(),
             Expr::ExtractAmount(op) => op.op_code(),
             Expr::SelectField(op) => op.op_code(),
+            Expr::Fold(op) => op.op_code(),
+            Expr::CalcBlake2b256(op) => op.op_code(),
             _ => todo!("not yet implemented opcode for {0:?}", self),
         }
     }
@@ -92,7 +95,7 @@ impl Expr {
         match self {
             Expr::Const(v) => v.tpe.clone(),
             Expr::ConstPlaceholder(v) => v.tpe.clone(),
-            Expr::PredefFunc(v) => v.tpe(),
+            Expr::CalcBlake2b256(v) => v.tpe(),
             Expr::Context => SType::SContext(SContext()),
             Expr::GlobalVars(v) => v.tpe(),
             Expr::FuncValue(v) => v.tpe(),
@@ -155,6 +158,7 @@ pub mod tests {
         match tpe {
             SType::SAny => any_nested_expr(depth),
             SType::SBoolean => bool_nested_expr(depth),
+            // SType::SColl(elem_type) => coll_nested_expr(elem_type, depth),
             _ => todo!(),
         }
         .boxed()
@@ -168,10 +172,20 @@ pub mod tests {
         prop_oneof![int_non_nested_expr()]
     }
 
+    fn coll_non_nested_expr(elem_tpe: &SType) -> BoxedStrategy<Expr> {
+        match elem_tpe {
+            SType::SByte => any_with::<Constant>(SType::SColl(Box::new(SType::SByte)))
+                .prop_map(Expr::Const)
+                .boxed(),
+            _ => todo!(),
+        }
+    }
+
     fn non_nested_expr(tpe: &SType) -> BoxedStrategy<Expr> {
         match tpe {
             SType::SAny => any_non_nested_expr(),
             SType::SInt => int_non_nested_expr(),
+            SType::SColl(elem_type) => coll_non_nested_expr(elem_type),
             _ => todo!(),
         }
     }

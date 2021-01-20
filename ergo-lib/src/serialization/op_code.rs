@@ -37,6 +37,7 @@ impl OpCode {
     pub const EXTRACT_AMOUNT: OpCode = Self::new_op_code(81);
     pub const EXTRACT_REGISTER_AS: OpCode = Self::new_op_code(86);
 
+    pub const CALC_BLAKE2B256: OpCode = Self::new_op_code(91);
     pub const PROVE_DLOG: OpCode = Self::new_op_code(93);
 
     pub const VAL_DEF: OpCode = Self::new_op_code(102);
