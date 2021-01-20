@@ -279,10 +279,15 @@ impl TryFrom<json::ergo_box::ErgoBoxFromJson> for ErgoBox {
             box_id,
             ..box_with_zero_id
         };
-        if ergo_box.box_id() == box_json.box_id {
-            Ok(ergo_box)
-        } else {
-            Err(ErgoBoxFromJsonError::InvalidBoxId)
+        match box_json.box_id {
+            Some(box_id) => {
+                if ergo_box.box_id() == box_id {
+                    Ok(ergo_box)
+                } else {
+                    Err(ErgoBoxFromJsonError::InvalidBoxId)
+                }
+            }
+            None => Ok(ergo_box),
         }
     }
 }
