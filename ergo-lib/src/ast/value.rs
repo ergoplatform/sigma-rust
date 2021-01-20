@@ -86,7 +86,7 @@ pub enum Value {
     /// AVL tree
     AvlTree,
     /// Collection of values of the same type
-    Coll(Box<Coll>),
+    Coll(Coll),
     /// Tuple (arbitrary type values)
     Tup(TupleItems<Value>),
     /// Transaction(and blockchain) context info
@@ -154,13 +154,13 @@ impl From<ErgoBox> for Value {
 
 impl From<Vec<i8>> for Value {
     fn from(v: Vec<i8>) -> Self {
-        Value::Coll(Box::new(Coll::Primitive(CollPrim::CollByte(v))))
+        Value::Coll(Coll::Primitive(CollPrim::CollByte(v)))
     }
 }
 
 impl From<Vec<u8>> for Value {
     fn from(v: Vec<u8>) -> Self {
-        Value::Coll(Box::new(Coll::Primitive(CollPrim::CollByte(v.as_vec_i8()))))
+        Value::Coll(Coll::Primitive(CollPrim::CollByte(v.as_vec_i8())))
     }
 }
 
@@ -187,10 +187,10 @@ impl StoredNonPrimitive for Tuple {}
 
 impl<T: LiftIntoSType + StoredNonPrimitive + Into<Value>> From<Vec<T>> for Value {
     fn from(v: Vec<T>) -> Self {
-        Value::Coll(Box::new(Coll::NonPrimitive {
+        Value::Coll(Coll::NonPrimitive {
             elem_tpe: T::stype(),
             v: v.into_iter().map(|i| i.into()).collect(),
-        }))
+        })
     }
 }
 
@@ -289,7 +289,7 @@ impl TryExtractFrom<Value> for ErgoBox {
 impl<T: TryExtractFrom<Value> + StoredNonPrimitive> TryExtractFrom<Value> for Vec<T> {
     fn try_extract_from(c: Value) -> Result<Self, TryExtractFromError> {
         match c {
-            Value::Coll(coll) => match *coll {
+            Value::Coll(coll) => match coll {
                 Coll::NonPrimitive { elem_tpe: _, v } => {
                     v.into_iter().map(T::try_extract_from).collect()
                 }
@@ -311,7 +311,7 @@ impl<T: TryExtractFrom<Value> + StoredNonPrimitive> TryExtractFrom<Value> for Ve
 impl TryExtractFrom<Value> for Vec<i8> {
     fn try_extract_from(v: Value) -> Result<Self, TryExtractFromError> {
         match v {
-            Value::Coll(v) => match *v {
+            Value::Coll(v) => match v {
                 Coll::Primitive(CollPrim::CollByte(bs)) => Ok(bs),
                 _ => Err(TryExtractFromError(format!(
                     "expected {:?}, found {:?}",

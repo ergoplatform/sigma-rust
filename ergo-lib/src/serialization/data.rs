@@ -31,7 +31,7 @@ impl DataSerializer {
             Value::SigmaProp(s) => s.value().sigma_serialize(w),
             Value::CBox(_) => todo!(),
             Value::AvlTree => todo!(),
-            Value::Coll(ct) => match &**ct {
+            Value::Coll(ct) => match ct {
                 Coll::Primitive(CollPrim::CollByte(b)) => {
                     w.put_usize_as_u16(b.len())?;
                     w.write_all(b.clone().as_vec_u8().as_slice())
@@ -68,9 +68,9 @@ impl DataSerializer {
                 let len = r.get_u16()? as usize;
                 let mut buf = vec![0u8; len];
                 r.read_exact(&mut buf)?;
-                Value::Coll(Box::new(Coll::Primitive(CollPrim::CollByte(
+                Value::Coll(Coll::Primitive(CollPrim::CollByte(
                     buf.into_iter().map(|v| v as i8).collect(),
-                ))))
+                )))
             }
             SColl(elem_type) => {
                 let len = r.get_u16()? as usize;
@@ -78,10 +78,10 @@ impl DataSerializer {
                 for _ in 0..len {
                     elems.push(DataSerializer::sigma_parse(elem_type, r)?);
                 }
-                Value::Coll(Box::new(Coll::NonPrimitive {
+                Value::Coll(Coll::NonPrimitive {
                     elem_tpe: *elem_type.clone(),
                     v: elems,
-                }))
+                })
             }
             STuple(stuple::STuple { items: types }) => {
                 let mut items = Vec::new();

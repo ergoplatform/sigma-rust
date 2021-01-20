@@ -143,9 +143,9 @@ impl From<Vec<u8>> for Constant {
     fn from(v: Vec<u8>) -> Self {
         Constant {
             tpe: SType::SColl(Box::new(SType::SByte)),
-            v: Value::Coll(Box::new(Coll::Primitive(CollPrim::CollByte(
+            v: Value::Coll(Coll::Primitive(CollPrim::CollByte(
                 v.into_iter().map(|b| b as i8).collect(),
-            )))),
+            ))),
         }
     }
 }
@@ -248,7 +248,7 @@ mod tests {
     fn coll_from_constant(c: Constant, length: usize) -> Constant {
         Constant {
             tpe: SType::SColl(Box::new(c.tpe.clone())),
-            v: Value::Coll(Box::new(if c.tpe == SType::SByte {
+            v: Value::Coll(if c.tpe == SType::SByte {
                 let mut values: Vec<i8> = Vec::with_capacity(length);
                 let byte: i8 = c.v.try_extract_into().unwrap();
                 for _ in 0..length {
@@ -264,7 +264,7 @@ mod tests {
                     elem_tpe: c.tpe,
                     v: values,
                 }
-            })),
+            }),
         }
     }
 
