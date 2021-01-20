@@ -139,7 +139,7 @@ mod tests {
                 let tree = ErgoTree::from(Rc::new(Expr::Const(Constant {
                     tpe: SType::SSigmaProp,
                     v: pk.into(),
-                }.into())));
+                })));
                 ErgoBox::new(BoxValue::SAFE_USER_MIN,
                              tree,
                              vec![],
@@ -155,7 +155,7 @@ mod tests {
             let ergo_tree = ErgoTree::from(Rc::new(Expr::Const(Constant {
                     tpe: SType::SSigmaProp,
                     v: secrets.get(0).unwrap().public_image().into(),
-            }.into())));
+            })));
             let candidate = ErgoBoxCandidateBuilder::new(BoxValue::SAFE_USER_MIN, ergo_tree, 0)
                 .build().unwrap();
             let output_candidates = vec![candidate];

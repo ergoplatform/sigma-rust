@@ -17,7 +17,7 @@ use super::value::Value;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Apply {
-    func: Expr,
+    func: Box<Expr>,
     args: Vec<Expr>,
 }
 
@@ -41,13 +41,16 @@ impl Apply {
                 func.tpe(),
             ))),
         }?;
-        Ok(Apply { func, args })
+        Ok(Apply {
+            func: Box::new(func),
+            args,
+        })
     }
 
     pub fn tpe(&self) -> SType {
         match self.func.tpe() {
             SType::SColl(_) => todo!(),
-            SType::SFunc(f) => f.t_range,
+            SType::SFunc(f) => *f.t_range,
             _ => panic!("unexpected Apply::func: {0:?}", self.func.tpe()),
         }
     }
@@ -117,17 +120,19 @@ mod tests {
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             (any::<Expr>(), vec(any::<Expr>(), 1..10))
                 .prop_map(|(body, args)| {
-                    let func = Box::new(FuncValue::new(
-                        args.iter()
-                            .enumerate()
-                            .map(|(idx, arg)| FuncArg {
-                                idx: (idx as u32).into(),
-                                tpe: arg.tpe(),
-                            })
-                            .collect(),
-                        body,
-                    ))
-                    .into();
+                    let func = Box::new(
+                        FuncValue::new(
+                            args.iter()
+                                .enumerate()
+                                .map(|(idx, arg)| FuncArg {
+                                    idx: (idx as u32).into(),
+                                    tpe: arg.tpe(),
+                                })
+                                .collect(),
+                            body,
+                        )
+                        .into(),
+                    );
                     Self { func, args }
                 })
                 .boxed()
@@ -144,35 +149,44 @@ mod tests {
 
     #[test]
     fn eval_user_defined_func_call() {
-        let arg = Expr::Const(Box::new(1i32.into()));
-        let bin_op = Expr::BinOp(Box::new(BinOp {
+        let arg = Expr::Const(1i32.into());
+        let bin_op = Expr::BinOp(BinOp {
             kind: LogicOp::Eq.into(),
-            left: Expr::ValUse(Box::new(ValUse {
-                val_id: 1.into(),
-                tpe: SType::SInt,
-            })),
-            right: Expr::ValUse(Box::new(ValUse {
-                val_id: 2.into(),
-                tpe: SType::SInt,
-            })),
-        }));
-        let body = Expr::BlockValue(Box::new(BlockValue {
+            left: Box::new(
+                ValUse {
+                    val_id: 1.into(),
+                    tpe: SType::SInt,
+                }
+                .into(),
+            ),
+            right: Box::new(
+                ValUse {
+                    val_id: 2.into(),
+                    tpe: SType::SInt,
+                }
+                .into(),
+            ),
+        });
+        let body = Expr::BlockValue(BlockValue {
             items: vec![ValDef {
                 id: 2.into(),
-                rhs: Expr::Const(Box::new(1i32.into())),
+                rhs: Box::new(Expr::Const(1i32.into())),
             }],
-            result: bin_op,
-        }));
-        let apply: Expr = Box::new(Apply {
-            func: Expr::FuncValue(Box::new(FuncValue::new(
-                vec![FuncArg {
-                    idx: 1.into(),
-                    tpe: SType::SInt,
-                }],
-                body,
-            ))),
+            result: Box::new(bin_op),
+        });
+        let apply: Expr = Apply {
+            func: Box::new(
+                FuncValue::new(
+                    vec![FuncArg {
+                        idx: 1.into(),
+                        tpe: SType::SInt,
+                    }],
+                    body,
+                )
+                .into(),
+            ),
             args: vec![arg],
-        })
+        }
         .into();
         let ctx = Rc::new(force_any_val::<Context>());
         assert!(eval_out::<bool>(&apply, ctx));

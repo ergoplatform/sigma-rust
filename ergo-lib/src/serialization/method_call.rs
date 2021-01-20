@@ -26,7 +26,11 @@ impl SigmaSerializable for MethodCall {
         let obj = Expr::sigma_parse(r)?;
         let args = Vec::<Expr>::sigma_parse(r)?;
         let method = SMethod::from_ids(type_id, method_id);
-        Ok(MethodCall { obj, method, args })
+        Ok(MethodCall {
+            obj: Box::new(obj),
+            method,
+            args,
+        })
     }
 }
 
@@ -41,11 +45,11 @@ mod tests {
 
     #[test]
     fn ser_roundtrip_property() {
-        let mc: Expr = Box::new(MethodCall {
-            obj: Box::new(GlobalVars::SelfBox).into(),
+        let mc: Expr = MethodCall {
+            obj: Box::new(GlobalVars::SelfBox.into()),
             method: sbox::GET_REG_METHOD.clone(),
-            args: vec![Box::new(Constant::from(0i8)).into()],
-        })
+            args: vec![Constant::from(0i8).into()],
+        }
         .into();
         assert_eq![sigma_serialize_roundtrip(&mc), mc];
     }

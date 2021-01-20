@@ -76,9 +76,9 @@ pub fn fiat_shamir_tree_to_bytes(tree: &ProofTree) -> Vec<u8> {
         _ => todo!(),
     };
 
-    let prop_tree = ErgoTree::with_segregation(Rc::new(Expr::Const(Box::new(
+    let prop_tree = ErgoTree::with_segregation(Rc::new(Expr::Const(
         SigmaProp::new(leaf.proposition()).into(),
-    ))));
+    )));
     let mut prop_bytes = prop_tree.sigma_serialize_bytes();
     // TODO: is unwrap safe here? Create new type with non-optional commitment? Decide when other scenarios
     // are implemented (leafs and trees)

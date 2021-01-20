@@ -28,7 +28,7 @@ impl SigmaSerializable for Expr {
         match self {
             Expr::Const(c) => match w.constant_store() {
                 Some(cs) => {
-                    let ph = cs.put(*c.clone());
+                    let ph = cs.put(c.clone());
                     ph.op_code().sigma_serialize(w)?;
                     ph.sigma_serialize(w)
                 }
@@ -70,41 +70,37 @@ impl SigmaSerializable for Expr {
         }?;
         if first_byte <= OpCode::LAST_CONSTANT_CODE.value() {
             let constant = Constant::sigma_parse(r)?;
-            Ok(Expr::Const(constant.into()))
+            Ok(Expr::Const(constant))
         } else {
             let op_code = OpCode::sigma_parse(r)?;
             match op_code {
-                OpCode::FOLD => Ok(Box::new(Fold::sigma_parse(r)?).into()),
+                OpCode::FOLD => Ok(Fold::sigma_parse(r)?.into()),
                 ConstantPlaceholder::OP_CODE => {
                     let cp = ConstantPlaceholder::sigma_parse(r)?;
                     if r.substitute_placeholders() {
                         // ConstantPlaceholder itself can be created only if a corresponding
                         // constant is in the constant_store, thus unwrap() is safe here
                         let c = r.constant_store().get(cp.id).unwrap();
-                        Ok(Expr::Const(c.clone().into()))
+                        Ok(Expr::Const(c.clone()))
                     } else {
-                        Ok(Expr::ConstPlaceholder(cp.into()))
+                        Ok(Expr::ConstPlaceholder(cp))
                     }
                 }
-                OpCode::HEIGHT => Ok(Expr::GlobalVars(GlobalVars::Height.into())),
-                OpCode::SELF_BOX => Ok(Expr::GlobalVars(GlobalVars::SelfBox.into())),
-                OpCode::INPUTS => Ok(Expr::GlobalVars(GlobalVars::Inputs.into())),
-                OpCode::OUTPUTS => Ok(Expr::GlobalVars(GlobalVars::Outputs.into())),
-                OpCode::PROPERTY_CALL => {
-                    Ok(Expr::ProperyCall(PropertyCall::sigma_parse(r)?.into()))
-                }
-                OpCode::METHOD_CALL => Ok(Expr::MethodCall(MethodCall::sigma_parse(r)?.into())),
+                OpCode::HEIGHT => Ok(Expr::GlobalVars(GlobalVars::Height)),
+                OpCode::SELF_BOX => Ok(Expr::GlobalVars(GlobalVars::SelfBox)),
+                OpCode::INPUTS => Ok(Expr::GlobalVars(GlobalVars::Inputs)),
+                OpCode::OUTPUTS => Ok(Expr::GlobalVars(GlobalVars::Outputs)),
+                OpCode::PROPERTY_CALL => Ok(Expr::ProperyCall(PropertyCall::sigma_parse(r)?)),
+                OpCode::METHOD_CALL => Ok(Expr::MethodCall(MethodCall::sigma_parse(r)?)),
                 OpCode::CONTEXT => Ok(Expr::Context),
-                OpCode::OPTION_GET => Ok(Box::new(OptionGet::sigma_parse(r)?).into()),
-                OpCode::EXTRACT_REGISTER_AS => {
-                    Ok(Box::new(ExtractRegisterAs::sigma_parse(r)?).into())
-                }
+                OpCode::OPTION_GET => Ok(OptionGet::sigma_parse(r)?.into()),
+                OpCode::EXTRACT_REGISTER_AS => Ok(ExtractRegisterAs::sigma_parse(r)?.into()),
                 OpCode::EQ => Ok(bin_op_sigma_parse(LogicOp::Eq.into(), r)?),
                 OpCode::NEQ => Ok(bin_op_sigma_parse(LogicOp::NEq.into(), r)?),
-                OpCode::BLOCK_VALUE => Ok(Expr::BlockValue(BlockValue::sigma_parse(r)?.into())),
-                OpCode::FUNC_VALUE => Ok(Expr::FuncValue(FuncValue::sigma_parse(r)?.into())),
-                OpCode::VAL_DEF => Ok(Expr::ValDef(ValDef::sigma_parse(r)?.into())),
-                OpCode::VAL_USE => Ok(Expr::ValUse(ValUse::sigma_parse(r)?.into())),
+                OpCode::BLOCK_VALUE => Ok(Expr::BlockValue(BlockValue::sigma_parse(r)?)),
+                OpCode::FUNC_VALUE => Ok(Expr::FuncValue(FuncValue::sigma_parse(r)?)),
+                OpCode::VAL_DEF => Ok(Expr::ValDef(ValDef::sigma_parse(r)?)),
+                OpCode::VAL_USE => Ok(Expr::ValUse(ValUse::sigma_parse(r)?)),
                 OpCode::EXTRACT_AMOUNT => Ok(Expr::ExtractAmount(ExtractAmount::sigma_parse(r)?)),
                 OpCode::SELECT_FIELD => Ok(Expr::SelectField(SelectField::sigma_parse(r)?)),
                 o => Err(SerializationError::NotImplementedOpCode(o.value())),

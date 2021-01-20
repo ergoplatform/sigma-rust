@@ -10,7 +10,7 @@ mod tests {
 
         #[test]
         fn ser_roundtrip(v in any::<GlobalVars>()) {
-            let expr = Expr::GlobalVars(v.into());
+            let expr = Expr::GlobalVars(v);
             prop_assert_eq![sigma_serialize_roundtrip(&expr), expr];
         }
     }

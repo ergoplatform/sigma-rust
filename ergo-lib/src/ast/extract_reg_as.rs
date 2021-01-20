@@ -18,7 +18,7 @@ use super::value::Value;
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ExtractRegisterAs {
     /// Box
-    pub input: Expr,
+    pub input: Box<Expr>,
     /// Register id to extract value from
     pub register_id: RegisterId,
     /// Type
@@ -55,7 +55,7 @@ impl SigmaSerializable for ExtractRegisterAs {
         let register_id = RegisterId::sigma_parse(r)?;
         let tpe = SType::sigma_parse(r)?;
         Ok(ExtractRegisterAs {
-            input,
+            input: Box::new(input),
             register_id,
             tpe,
         })
@@ -77,13 +77,13 @@ mod tests {
 
     #[test]
     fn eval_box_get_reg() {
-        let get_reg_expr: Expr = Box::new(ExtractRegisterAs {
-            input: Box::new(GlobalVars::SelfBox).into(),
+        let get_reg_expr: Expr = ExtractRegisterAs {
+            input: Box::new(GlobalVars::SelfBox.into()),
             register_id: RegisterId::R0,
             tpe: SType::SOption(SType::SLong.into()),
-        })
+        }
         .into();
-        let option_get_expr: Expr = Box::new(OptionGet::new(get_reg_expr).unwrap()).into();
+        let option_get_expr: Expr = OptionGet::new(get_reg_expr).unwrap().into();
         let ctx = Rc::new(force_any_val::<Context>());
         let v = eval_out::<i64>(&option_get_expr, ctx.clone());
         assert_eq!(v, ctx.self_box.value.as_i64());
@@ -91,11 +91,11 @@ mod tests {
 
     #[test]
     fn ser_roundtrip() {
-        let e: Expr = Box::new(ExtractRegisterAs {
-            input: Box::new(GlobalVars::SelfBox).into(),
+        let e: Expr = ExtractRegisterAs {
+            input: Box::new(GlobalVars::SelfBox.into()),
             register_id: RegisterId::R0,
             tpe: SType::SOption(SType::SLong.into()),
-        })
+        }
         .into();
         assert_eq![sigma_serialize_roundtrip(&e), e];
     }

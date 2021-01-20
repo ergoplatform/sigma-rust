@@ -45,11 +45,11 @@ lazy_static! {
     static ref GET_REG_METHOD_DESC: SMethodDesc = SMethodDesc {
         method_id: MethodId(7),
         name: "getReg",
-        tpe: SType::SFunc(Box::new(SFunc {
+        tpe: SType::SFunc(SFunc {
             t_dom: vec![SType::SBox, SType::SByte],
-            t_range: SType::SOption(Box::new(SType::STypeVar(STypeVar::T))),
+            t_range: Box::new(SType::SOption(Box::new(SType::STypeVar(STypeVar::T)))),
             tpe_params: vec![],
-        })),
+        }),
         eval_fn: GET_REG_EVAL_FN,
     };
 }
@@ -63,11 +63,11 @@ lazy_static! {
     static ref VALUE_METHOD_DESC: SMethodDesc = SMethodDesc {
         method_id: MethodId(1),
         name: "getReg",
-        tpe: SType::SFunc(Box::new(SFunc {
+        tpe: SType::SFunc(SFunc {
             t_dom: vec![SType::SBox],
-            t_range: SType::SLong,
+            t_range: Box::new(SType::SLong),
             tpe_params: vec![],
-        })),
+        }),
         eval_fn: VALUE_EVAL_FN,
     };
 }
@@ -97,10 +97,10 @@ mod tests {
 
     #[test]
     fn eval_box_value() {
-        let expr: Expr = Box::new(PropertyCall {
-            obj: Box::new(GlobalVars::SelfBox).into(),
+        let expr: Expr = PropertyCall {
+            obj: Box::new(GlobalVars::SelfBox.into()),
             method: VALUE_METHOD.clone(),
-        })
+        }
         .into();
         let ctx = Rc::new(force_any_val::<Context>());
         assert_eq!(

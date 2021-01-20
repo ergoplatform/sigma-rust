@@ -14,13 +14,15 @@ use crate::types::stype::SType;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct OptionGet {
-    input: Expr,
+    input: Box<Expr>,
 }
 
 impl OptionGet {
     pub fn new(input: Expr) -> Result<Self, InvalidArgumentError> {
         match input.tpe() {
-            SType::SOption(_) => Ok(OptionGet { input }),
+            SType::SOption(_) => Ok(OptionGet {
+                input: Box::new(input),
+            }),
             _ => Err(InvalidArgumentError(format!(
                 "expected OptionGet::input type to be SOption, got: {0:?}",
                 input.tpe(),
@@ -86,15 +88,15 @@ mod tests {
 
     #[test]
     fn eval_get() {
-        let get_reg_expr: Expr = Box::new(ExtractRegisterAs {
-            input: Box::new(GlobalVars::SelfBox).into(),
+        let get_reg_expr: Expr = ExtractRegisterAs {
+            input: Box::new(GlobalVars::SelfBox.into()),
             register_id: RegisterId::R0,
             tpe: SType::SOption(SType::SLong.into()),
-        })
+        }
         .into();
-        let option_get_expr: Expr = Box::new(OptionGet {
-            input: get_reg_expr,
-        })
+        let option_get_expr: Expr = OptionGet {
+            input: Box::new(get_reg_expr),
+        }
         .into();
         let ctx = Rc::new(force_any_val::<Context>());
         let v = eval_out::<i64>(&option_get_expr, ctx.clone());
@@ -103,15 +105,15 @@ mod tests {
 
     #[test]
     fn ser_roundtrip() {
-        let get_reg_expr: Expr = Box::new(ExtractRegisterAs {
-            input: Box::new(GlobalVars::SelfBox).into(),
+        let get_reg_expr: Expr = ExtractRegisterAs {
+            input: Box::new(GlobalVars::SelfBox.into()),
             register_id: RegisterId::R0,
             tpe: SType::SOption(SType::SLong.into()),
-        })
+        }
         .into();
-        let e: Expr = Box::new(OptionGet {
-            input: get_reg_expr,
-        })
+        let e: Expr = OptionGet {
+            input: Box::new(get_reg_expr),
+        }
         .into();
         assert_eq![sigma_serialize_roundtrip(&e), e];
     }

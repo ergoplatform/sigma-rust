@@ -86,7 +86,7 @@ impl Address {
     pub fn recreate_from_ergo_tree(tree: &ErgoTree) -> Result<Address, AddressError> {
         match tree.proposition() {
             Ok(expr) => Ok(match &*expr {
-                Expr::Const(c) => match &**c {
+                Expr::Const(c) => match c {
                     Constant {
                         tpe: SType::SSigmaProp,
                         v,
@@ -121,12 +121,12 @@ impl Address {
     /// script encoded in the address
     pub fn script(&self) -> Result<ErgoTree, SerializationError> {
         match self {
-            Address::P2PK(prove_dlog) => Ok(ErgoTree::from(Rc::new(Expr::Const(Box::new(
+            Address::P2PK(prove_dlog) => Ok(ErgoTree::from(Rc::new(Expr::Const(
                 SigmaProp::new(SigmaBoolean::ProofOfKnowledge(
                     SigmaProofOfKnowledgeTree::ProveDlog(prove_dlog.clone()),
                 ))
                 .into(),
-            ))))),
+            )))),
             Address::P2S(bytes) => ErgoTree::sigma_parse_bytes(bytes.to_vec()),
         }
     }

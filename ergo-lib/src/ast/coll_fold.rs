@@ -20,18 +20,18 @@ use super::value::Value;
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Fold {
     /// Collection
-    input: Expr,
+    input: Box<Expr>,
     /// Initial value for accumulator
-    zero: Expr,
+    zero: Box<Expr>,
     /// Function (lambda)
-    fold_op: Expr,
+    fold_op: Box<Expr>,
 }
 
 impl Fold {
     pub fn new(input: Expr, zero: Expr, fold_op: Expr) -> Result<Self, InvalidArgumentError> {
         let input_elem_type: SType = *match input.tpe() {
             SType::SColl(elem_type) => Ok(elem_type),
-            SType::SFunc(sfunc) => match sfunc.t_range {
+            SType::SFunc(sfunc) => match *sfunc.t_range {
                 SType::SColl(elem_type) => Ok(elem_type),
                 _ => Err(InvalidArgumentError(format!(
                     "Expected Fold input to be SColl, got {0:?}",
@@ -48,9 +48,9 @@ impl Fold {
                 if sfunc.t_dom == vec![STuple::pair(zero.tpe(), input_elem_type).into()] =>
             {
                 Ok(Fold {
-                    input,
-                    zero,
-                    fold_op,
+                    input: input.into(),
+                    zero: zero.into(),
+                    fold_op: fold_op.into(),
                 })
             }
             _ => Err(InvalidArgumentError(format!(
@@ -73,9 +73,9 @@ impl SigmaSerializable for Fold {
     }
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
-        let input = Expr::sigma_parse(r)?;
-        let zero = Expr::sigma_parse(r)?;
-        let fold_op = Expr::sigma_parse(r)?;
+        let input = Expr::sigma_parse(r)?.into();
+        let zero = Expr::sigma_parse(r)?.into();
+        let fold_op = Expr::sigma_parse(r)?.into();
         Ok(Fold {
             input,
             zero,
@@ -152,47 +152,46 @@ mod tests {
 
     #[test]
     fn eval_box_value() {
-        let data_inputs: Expr = Box::new(PropertyCall {
-            obj: Expr::Context,
+        let data_inputs: Expr = PropertyCall {
+            obj: Box::new(Expr::Context),
             method: scontext::DATA_INPUTS_PROPERTY.clone(),
-        })
+        }
         .into();
-        let tuple: Expr = Box::new(ValUse {
+        let tuple: Expr = ValUse {
             val_id: 1.into(),
             tpe: SType::STuple(STuple {
                 items: TupleItems::pair(SType::SLong, SType::SBox),
             }),
-        })
+        }
         .into();
-        let fold_op_body: Expr = Box::new(BinOp {
+        let fold_op_body: Expr = BinOp {
             kind: NumOp::Add.into(),
-            left: Expr::SelectField(
+            left: Box::new(Expr::SelectField(
                 SelectField::new(tuple.clone(), 1.try_into().unwrap()).unwrap(),
-            ),
-            right: Expr::ExtractAmount(
+            )),
+            right: Box::new(Expr::ExtractAmount(
                 ExtractAmount::new(Expr::SelectField(
                     SelectField::new(tuple, 2.try_into().unwrap()).unwrap(),
                 ))
                 .unwrap(),
-            ),
-        })
+            )),
+        }
         .into();
-        let expr: Expr = Box::new(
-            Fold::new(
-                data_inputs,
-                Expr::Const(Box::new(0i64.into())),
-                Expr::FuncValue(Box::new(FuncValue::new(
-                    vec![FuncArg {
-                        idx: 1.into(),
-                        tpe: SType::STuple(STuple {
-                            items: TupleItems::pair(SType::SLong, SType::SBox),
-                        }),
-                    }],
-                    fold_op_body,
-                ))),
+        let expr: Expr = Fold::new(
+            data_inputs,
+            Expr::Const(0i64.into()),
+            FuncValue::new(
+                vec![FuncArg {
+                    idx: 1.into(),
+                    tpe: SType::STuple(STuple {
+                        items: TupleItems::pair(SType::SLong, SType::SBox),
+                    }),
+                }],
+                fold_op_body,
             )
-            .unwrap(),
+            .into(),
         )
+        .unwrap()
         .into();
         let ctx = Rc::new(force_any_val::<Context>());
         assert_eq!(
@@ -210,9 +209,9 @@ mod tests {
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             (any::<Expr>(), any::<Expr>(), any::<Expr>())
                 .prop_map(|(input, zero, fold_op)| Self {
-                    input,
-                    zero,
-                    fold_op,
+                    input: input.into(),
+                    zero: zero.into(),
+                    fold_op: fold_op.into(),
                 })
                 .boxed()
         }

@@ -42,7 +42,7 @@ impl SigmaSerializable for FuncArg {
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct FuncValue {
     args: Vec<FuncArg>,
-    body: Expr,
+    body: Box<Expr>,
     tpe: SType,
 }
 
@@ -50,12 +50,16 @@ impl FuncValue {
     pub fn new(args: Vec<FuncArg>, body: Expr) -> Self {
         let t_dom = args.iter().map(|fa| fa.tpe.clone()).collect();
         let t_range = body.tpe();
-        let tpe = SType::SFunc(Box::new(SFunc {
+        let tpe = SType::SFunc(SFunc {
             t_dom,
-            t_range,
+            t_range: Box::new(t_range),
             tpe_params: vec![],
-        }));
-        FuncValue { args, body, tpe }
+        });
+        FuncValue {
+            args,
+            body: Box::new(body),
+            tpe,
+        }
     }
 
     pub fn args(&self) -> &[FuncArg] {
@@ -121,7 +125,7 @@ mod tests {
 
         #[test]
         fn ser_roundtrip(func_value in any::<FuncValue>()) {
-            let e = Expr::FuncValue(func_value.into());
+            let e = Expr::FuncValue(func_value);
             prop_assert_eq![sigma_serialize_roundtrip(&e), e];
         }
     }

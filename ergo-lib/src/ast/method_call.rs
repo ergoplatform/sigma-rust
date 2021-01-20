@@ -6,7 +6,7 @@ use super::expr::Expr;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct MethodCall {
-    pub obj: Expr,
+    pub obj: Box<Expr>,
     pub method: SMethod,
     pub args: Vec<Expr>,
 }
@@ -14,7 +14,7 @@ pub struct MethodCall {
 impl MethodCall {
     pub fn tpe(&self) -> SType {
         match self.method.tpe() {
-            SType::SFunc(sfunc) => sfunc.t_range.clone(),
+            SType::SFunc(sfunc) => *sfunc.t_range.clone(),
             tpe => tpe.clone(),
         }
     }

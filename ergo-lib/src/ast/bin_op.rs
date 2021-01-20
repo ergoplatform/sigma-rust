@@ -73,8 +73,8 @@ impl From<BinOpKind> for OpCode {
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct BinOp {
     pub kind: BinOpKind,
-    pub left: Expr,
-    pub right: Expr,
+    pub left: Box<Expr>,
+    pub right: Box<Expr>,
 }
 
 impl BinOp {
@@ -147,7 +147,11 @@ pub mod tests {
                         depth: args.depth,
                     }),
                 )
-                    .prop_map(|(kind, left, right)| BinOp { kind, left, right }),
+                    .prop_map(|(kind, left, right)| BinOp {
+                        kind,
+                        left: Box::new(left),
+                        right: Box::new(right),
+                    }),
 
                 _ => todo!(),
                 // SType::SByte => {}
@@ -161,18 +165,18 @@ pub mod tests {
     }
 
     fn check_eq_neq(left: Constant, right: Constant) -> bool {
-        let eq_op: Expr = Box::new(BinOp {
+        let eq_op: Expr = BinOp {
             kind: BinOpKind::Logic(LogicOp::Eq),
-            left: Box::new(left.clone()).into(),
-            right: Box::new(right.clone()).into(),
-        })
+            left: Box::new(left.clone().into()),
+            right: Box::new(right.clone().into()),
+        }
         .into();
         let ctx = Rc::new(force_any_val::<Context>());
-        let neq_op: Expr = Box::new(BinOp {
+        let neq_op: Expr = BinOp {
             kind: BinOpKind::Logic(LogicOp::NEq),
-            left: Box::new(left).into(),
-            right: Box::new(right).into(),
-        })
+            left: Box::new(left.into()),
+            right: Box::new(right.into()),
+        }
         .into();
         let ctx1 = Rc::new(force_any_val::<Context>());
         eval_out::<bool>(&eq_op, ctx) && !eval_out::<bool>(&neq_op, ctx1)

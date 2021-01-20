@@ -27,37 +27,37 @@ use derive_more::From;
 /// Expression in ErgoTree
 pub enum Expr {
     /// Constant value
-    Const(Box<Constant>),
+    Const(Constant),
     /// Placeholder for a constant
-    ConstPlaceholder(Box<ConstantPlaceholder>),
+    ConstPlaceholder(ConstantPlaceholder),
     /// Predefined functions (global)
-    PredefFunc(Box<PredefFunc>),
+    PredefFunc(PredefFunc),
     Context,
     // Global(Global),
     /// Predefined global variables
-    GlobalVars(Box<GlobalVars>),
+    GlobalVars(GlobalVars),
     /// Function definition
-    FuncValue(Box<FuncValue>),
+    FuncValue(FuncValue),
     /// Function application
-    Apply(Box<Apply>),
+    Apply(Apply),
     /// Method call
-    MethodCall(Box<MethodCall>),
+    MethodCall(MethodCall),
     /// Property call
-    ProperyCall(Box<PropertyCall>),
+    ProperyCall(PropertyCall),
     /// Block (statements, followed by an expression)
-    BlockValue(Box<BlockValue>),
+    BlockValue(BlockValue),
     /// let-bound expression
-    ValDef(Box<ValDef>),
+    ValDef(ValDef),
     /// Reference to ValDef
-    ValUse(Box<ValUse>),
+    ValUse(ValUse),
     /// Binary operation
-    BinOp(Box<BinOp>),
+    BinOp(BinOp),
     /// Option get method
-    OptionGet(Box<OptionGet>),
+    OptionGet(OptionGet),
     /// Extract register's value (box.RX properties)
-    ExtractRegisterAs(Box<ExtractRegisterAs>),
+    ExtractRegisterAs(ExtractRegisterAs),
     /// Collection fold op
-    Fold(Box<Fold>),
+    Fold(Fold),
     /// Tuple field access
     SelectField(SelectField),
     /// Box monetary value
@@ -143,7 +143,6 @@ pub mod tests {
             tpe: SType::SBoolean,
             depth
         })
-        .prop_map(Box::new)
         .prop_map_into()]
         .boxed()
     }
@@ -162,7 +161,7 @@ pub mod tests {
     }
 
     fn int_non_nested_expr() -> BoxedStrategy<Expr> {
-        prop_oneof![Just(Box::new(GlobalVars::Height).into()),].boxed()
+        prop_oneof![Just(GlobalVars::Height.into()),].boxed()
     }
 
     fn any_non_nested_expr() -> BoxedStrategy<Expr> {
@@ -185,7 +184,6 @@ pub mod tests {
             if args.depth == 0 {
                 prop_oneof![
                     any_with::<Constant>(args.tpe.clone())
-                        .prop_map(Box::new)
                         .prop_map(Expr::Const)
                         .boxed(),
                     non_nested_expr(&args.tpe)
