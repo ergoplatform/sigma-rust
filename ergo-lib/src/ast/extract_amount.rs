@@ -20,16 +20,10 @@ pub struct ExtractAmount {
 
 impl ExtractAmount {
     pub fn new(input: Expr) -> Result<Self, InvalidArgumentError> {
-        if input.tpe() == SType::SBox {
-            Ok(ExtractAmount {
-                input: input.into(),
-            })
-        } else {
-            Err(InvalidArgumentError(format!(
-                "ExtractAmount type expected to be SBox, got {0:?}",
-                input.tpe()
-            )))
-        }
+        input.check_post_eval_tpe(SType::SBox)?;
+        Ok(ExtractAmount {
+            input: input.into(),
+        })
     }
 
     pub fn tpe(&self) -> SType {

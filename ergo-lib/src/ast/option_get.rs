@@ -19,7 +19,7 @@ pub struct OptionGet {
 
 impl OptionGet {
     pub fn new(input: Expr) -> Result<Self, InvalidArgumentError> {
-        match input.tpe() {
+        match input.post_eval_tpe() {
             SType::SOption(_) => Ok(OptionGet {
                 input: Box::new(input),
             }),

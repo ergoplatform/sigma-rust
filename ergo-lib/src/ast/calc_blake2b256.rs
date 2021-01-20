@@ -12,6 +12,7 @@ use crate::types::stype::SType;
 use crate::util::AsVecU8;
 
 use super::expr::Expr;
+use super::expr::InvalidArgumentError;
 use super::value::Coll;
 use super::value::CollPrim;
 use super::value::Value;
@@ -22,6 +23,13 @@ pub struct CalcBlake2b256 {
 }
 
 impl CalcBlake2b256 {
+    pub fn new(input: Expr) -> Result<Self, InvalidArgumentError> {
+        input.check_post_eval_tpe(SType::SColl(Box::new(SType::SByte)))?;
+        Ok(CalcBlake2b256 {
+            input: Box::new(input),
+        })
+    }
+
     pub fn tpe(&self) -> SType {
         SType::SColl(Box::new(SType::SByte))
     }
@@ -60,9 +68,8 @@ impl SigmaSerializable for CalcBlake2b256 {
     }
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
-        Ok(CalcBlake2b256 {
-            input: Expr::sigma_parse(r)?.into(),
-        })
+        let input = Expr::sigma_parse(r)?;
+        Ok(CalcBlake2b256::new(input)?)
     }
 }
 

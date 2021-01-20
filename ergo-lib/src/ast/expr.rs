@@ -113,11 +113,39 @@ impl Expr {
             Expr::ExtractAmount(v) => v.tpe(),
         }
     }
+
+    pub fn post_eval_tpe(&self) -> SType {
+        match self.tpe() {
+            SType::SFunc(sfunc) => *sfunc.t_range,
+            tpe => tpe,
+        }
+    }
+
+    pub fn check_post_eval_tpe(&self, expected_tpe: SType) -> Result<(), InvalidExprEvalTypeError> {
+        let expr_tpe = self.post_eval_tpe();
+        if expr_tpe == expected_tpe {
+            Ok(())
+        } else {
+            Err(InvalidExprEvalTypeError(format!(
+                "expected: {0:?}, got: {1:?}",
+                expected_tpe, expr_tpe
+            )))
+        }
+    }
 }
 
 /// Unexpected argument on node construction (i.e non-Option input in OptionGet)
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct InvalidArgumentError(pub String);
+
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct InvalidExprEvalTypeError(pub String);
+
+impl From<InvalidExprEvalTypeError> for InvalidArgumentError {
+    fn from(e: InvalidExprEvalTypeError) -> Self {
+        InvalidArgumentError(format!("{0:?}", e))
+    }
+}
 
 #[cfg(test)]
 pub mod tests {
