@@ -69,19 +69,17 @@ mod tests {
         #[test]
         fn ser_roundtrip_block_value(v in any::<ValDef>()) {
             // ValDef should put the type into the ValDefStore for ValUse to read
-            let block = Expr::BlockValue(Box::new(BlockValue {
+            let block: Expr = BlockValue {
                 items: vec![v.clone()],
-                result: Box::new(ValUse{ val_id: v.id, tpe: v.tpe() }).into(),
-            }));
+                result: Box::new(ValUse{ val_id: v.id, tpe: v.tpe() }.into()),
+            }.into();
             prop_assert_eq![sigma_serialize_roundtrip(&block), block];
         }
 
         #[test]
         fn ser_roundtrip_func_value(v in any::<FuncArg>()) {
-            let body = Box::new(ValUse{ val_id: v.idx, tpe: v.tpe.clone() }).into();
-            let func = Expr::FuncValue(Box::new(
-                    FuncValue::new(vec![v], body)
-                    ));
+            let body = ValUse{ val_id: v.idx, tpe: v.tpe.clone() }.into();
+            let func: Expr = FuncValue::new(vec![v], body).into();
             prop_assert_eq![sigma_serialize_roundtrip(&func), func];
         }
 

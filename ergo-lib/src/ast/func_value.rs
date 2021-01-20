@@ -42,7 +42,7 @@ impl SigmaSerializable for FuncArg {
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct FuncValue {
     args: Vec<FuncArg>,
-    body: Expr,
+    body: Box<Expr>,
     tpe: SType,
 }
 
@@ -55,7 +55,11 @@ impl FuncValue {
             t_range,
             tpe_params: vec![],
         }));
-        FuncValue { args, body, tpe }
+        FuncValue {
+            args,
+            body: Box::new(body),
+            tpe,
+        }
     }
 
     pub fn args(&self) -> &[FuncArg] {
@@ -121,7 +125,7 @@ mod tests {
 
         #[test]
         fn ser_roundtrip(func_value in any::<FuncValue>()) {
-            let e = Expr::FuncValue(func_value.into());
+            let e = Expr::FuncValue(func_value);
             prop_assert_eq![sigma_serialize_roundtrip(&e), e];
         }
     }

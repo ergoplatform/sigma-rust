@@ -38,7 +38,7 @@ impl SigmaSerializable for ValId {
 #[cfg_attr(test, derive(Arbitrary))]
 pub struct ValDef {
     pub id: ValId,
-    pub rhs: Expr,
+    pub rhs: Box<Expr>,
 }
 
 impl ValDef {
@@ -61,7 +61,10 @@ impl SigmaSerializable for ValDef {
         let id = ValId::sigma_parse(r)?;
         let rhs = Expr::sigma_parse(r)?;
         r.val_def_type_store().insert(id, rhs.tpe());
-        Ok(ValDef { id, rhs })
+        Ok(ValDef {
+            id,
+            rhs: Box::new(rhs),
+        })
     }
 }
 
@@ -77,7 +80,7 @@ mod tests {
 
         #[test]
         fn ser_roundtrip(v in any::<ValDef>()) {
-            let e = Expr::ValDef(v.into());
+            let e = Expr::ValDef(v);
             prop_assert_eq![sigma_serialize_roundtrip(&e), e];
         }
     }

@@ -76,7 +76,7 @@ mod tests {
     #[test]
     fn ser_roundtrip() {
         let e: Expr = ExtractAmount {
-            input: Box::new(Box::new(GlobalVars::SelfBox).into()),
+            input: Box::new(GlobalVars::SelfBox.into()),
         }
         .into();
         assert_eq![sigma_serialize_roundtrip(&e), e];

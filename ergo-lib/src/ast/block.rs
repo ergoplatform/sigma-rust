@@ -25,7 +25,7 @@ use super::value::Value;
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct BlockValue {
     pub items: Vec<ValDef>,
-    pub result: Expr,
+    pub result: Box<Expr>,
 }
 
 impl BlockValue {
@@ -58,7 +58,10 @@ impl SigmaSerializable for BlockValue {
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
         let items = Vec::<ValDef>::sigma_parse(r)?;
         let result = Expr::sigma_parse(r)?;
-        Ok(BlockValue { items, result })
+        Ok(BlockValue {
+            items,
+            result: Box::new(result),
+        })
     }
 }
 
@@ -78,7 +81,10 @@ mod tests {
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             (any::<Expr>(), vec(any::<ValDef>(), 0..10))
-                .prop_map(|(result, items)| Self { items, result })
+                .prop_map(|(result, items)| Self {
+                    items,
+                    result: Box::new(result),
+                })
                 .boxed()
         }
     }
@@ -87,7 +93,7 @@ mod tests {
 
         #[test]
         fn ser_roundtrip(block in any::<BlockValue>()) {
-            let e = Expr::BlockValue(block.into());
+            let e = Expr::BlockValue(block);
             prop_assert_eq![sigma_serialize_roundtrip(&e), e];
         }
     }

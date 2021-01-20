@@ -6,7 +6,7 @@ use super::expr::Expr;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct MethodCall {
-    pub obj: Expr,
+    pub obj: Box<Expr>,
     pub method: SMethod,
     pub args: Vec<Expr>,
 }

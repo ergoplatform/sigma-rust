@@ -21,11 +21,11 @@ pub fn bin_op_sigma_parse<R: SigmaByteRead>(
 ) -> Result<Expr, SerializationError> {
     let left = Expr::sigma_parse(r)?;
     let right = Expr::sigma_parse(r)?;
-    Ok(Box::new(BinOp {
+    Ok(BinOp {
         kind: op_kind,
-        left,
-        right,
-    })
+        left: Box::new(left),
+        right: Box::new(right),
+    }
     .into())
 }
 
@@ -39,7 +39,12 @@ mod tests {
     use crate::types::stype::SType;
 
     fn test_ser_roundtrip(kind: BinOpKind, left: Expr, right: Expr) {
-        let eq_op: Expr = Box::new(BinOp { kind, left, right }).into();
+        let eq_op: Expr = BinOp {
+            kind,
+            left: Box::new(left),
+            right: Box::new(right),
+        }
+        .into();
         assert_eq![sigma_serialize_roundtrip(&eq_op), eq_op];
     }
 

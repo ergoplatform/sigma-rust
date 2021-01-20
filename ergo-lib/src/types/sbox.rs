@@ -97,10 +97,10 @@ mod tests {
 
     #[test]
     fn eval_box_value() {
-        let expr: Expr = Box::new(PropertyCall {
-            obj: Box::new(GlobalVars::SelfBox).into(),
+        let expr: Expr = PropertyCall {
+            obj: Box::new(GlobalVars::SelfBox.into()),
             method: VALUE_METHOD.clone(),
-        })
+        }
         .into();
         let ctx = Rc::new(force_any_val::<Context>());
         assert_eq!(

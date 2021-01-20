@@ -141,7 +141,7 @@ impl ErgoTree {
 impl From<Rc<Expr>> for ErgoTree {
     fn from(expr: Rc<Expr>) -> Self {
         match expr.as_ref() {
-            Expr::Const(c) => match &**c {
+            Expr::Const(c) => match c {
                 Constant { tpe, .. } if *tpe == SType::SSigmaProp => {
                     ErgoTree::without_segregation(expr)
                 }
@@ -280,7 +280,7 @@ impl TryFrom<ErgoTree> for ProveDlog {
             .proposition()
             .map_err(|_| TryExtractFromError("cannot read root expr".to_string()))?;
         match expr {
-            Expr::Const(c) => match &**c {
+            Expr::Const(c) => match c {
                 Constant {
                     tpe: SType::SSigmaProp,
                     v,
@@ -315,9 +315,9 @@ mod tests {
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             prop_oneof![
                 // make sure that P2PK tree is included
-                any::<ProveDlog>().prop_map(|p| ErgoTree::from(Rc::new(Expr::Const(Box::new(
+                any::<ProveDlog>().prop_map(|p| ErgoTree::from(Rc::new(Expr::Const(
                     Constant::from(SigmaProp::from(SigmaBoolean::from(p)))
-                ))))),
+                )))),
             ]
             .boxed()
         }
@@ -364,13 +364,10 @@ mod tests {
 
     #[test]
     fn test_constant_segregation() {
-        let expr = Expr::Const(
-            Constant {
-                tpe: SType::SBoolean,
-                v: Value::Boolean(true),
-            }
-            .into(),
-        );
+        let expr = Expr::Const(Constant {
+            tpe: SType::SBoolean,
+            v: Value::Boolean(true),
+        });
         let ergo_tree = ErgoTree::with_segregation(Rc::new(expr.clone()));
         let bytes = ergo_tree.sigma_serialize_bytes();
         let parsed_expr = ErgoTree::sigma_parse_bytes(bytes)

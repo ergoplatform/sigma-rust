@@ -140,12 +140,9 @@ mod tests {
 
     #[test]
     fn ser_roundtrip() {
-        let e: Expr = SelectField::new(
-            Expr::Const(Box::new((1i64, true).into())),
-            1u8.try_into().unwrap(),
-        )
-        .unwrap()
-        .into();
+        let e: Expr = SelectField::new(Expr::Const((1i64, true).into()), 1u8.try_into().unwrap())
+            .unwrap()
+            .into();
         assert_eq![sigma_serialize_roundtrip(&e), e];
     }
 }
