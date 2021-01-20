@@ -344,7 +344,10 @@ mod tests {
         }"#;
         let b: ErgoBox = serde_json::from_str(box_json).unwrap();
         let id: String = b.box_id().into();
-        assert_eq!(id, "e56847ed19b3dc6b72828fcfb992fdf7310828cf291221269b7ffc72fd66706e");
+        assert_eq!(
+            id,
+            "e56847ed19b3dc6b72828fcfb992fdf7310828cf291221269b7ffc72fd66706e"
+        );
     }
 
     #[test]

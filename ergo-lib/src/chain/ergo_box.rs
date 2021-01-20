@@ -287,7 +287,7 @@ impl TryFrom<json::ergo_box::ErgoBoxFromJson> for ErgoBox {
                     Err(ErgoBoxFromJsonError::InvalidBoxId)
                 }
             }
-            None => Ok(ergo_box)
+            None => Ok(ergo_box),
         }
     }
 }
