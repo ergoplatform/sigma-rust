@@ -26,8 +26,9 @@ use derive_more::From;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
 /// Operations for numerical types
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+#[cfg_attr(test, derive(Arbitrary))]
 pub enum NumOp {
     Plus,
     Minus,
@@ -36,8 +37,13 @@ pub enum NumOp {
 }
 
 impl From<NumOp> for OpCode {
-    fn from(_: NumOp) -> Self {
-        todo!()
+    fn from(op: NumOp) -> Self {
+        match op {
+            NumOp::Plus => OpCode::PLUS,
+            NumOp::Minus => OpCode::MINUS,
+            NumOp::Multiply => OpCode::MULTIPLY,
+            NumOp::Divide => OpCode::DIVISION,
+        }
     }
 }
 
@@ -61,8 +67,9 @@ impl From<LogicOp> for OpCode {
     }
 }
 
-#[derive(PartialEq, Eq, Debug, Clone, Copy, From)]
 /// Binary operations
+#[derive(PartialEq, Eq, Debug, Clone, Copy, From)]
+#[cfg_attr(test, derive(Arbitrary))]
 pub enum BinOpKind {
     /// Binary operations for numerical types
     Num(NumOp),
@@ -224,6 +231,7 @@ pub mod tests {
     use crate::eval::context::Context;
     use crate::eval::tests::eval_out;
     use crate::eval::tests::try_eval_out;
+    use crate::serialization::sigma_serialize_roundtrip;
     use crate::test_util::force_any_val;
     use crate::types::stype::SType;
 
@@ -250,16 +258,32 @@ pub mod tests {
                         kind,
                         left: Box::new(left),
                         right: Box::new(right),
-                    }),
+                    })
+                    .boxed(),
 
-                _ => todo!(),
+                _ => (
+                    any::<BinOpKind>(),
+                    any_with::<Expr>(ArbExprParams {
+                        tpe: SType::SAny,
+                        depth: args.depth,
+                    }),
+                    any_with::<Expr>(ArbExprParams {
+                        tpe: SType::SAny,
+                        depth: args.depth,
+                    }),
+                )
+                    .prop_map(|(kind, left, right)| BinOp {
+                        kind,
+                        left: Box::new(left),
+                        right: Box::new(right),
+                    })
+                    .boxed(),
                 // SType::SByte => {}
                 // SType::SShort => {}
                 // SType::SInt => {}
                 // SType::SLong => {}
                 // SType::SBigInt => {}
             }
-            .boxed()
         }
     }
 
@@ -384,6 +408,12 @@ pub mod tests {
             prop_assert_eq!(eval_num_op(NumOp::Minus, l.into(), r.into()).ok(), l.checked_sub(r));
             prop_assert_eq!(eval_num_op(NumOp::Multiply, l.into(), r.into()).ok(), l.checked_mul(r));
             prop_assert_eq!(eval_num_op(NumOp::Divide, l.into(), r.into()).ok(), l.checked_div(r));
+        }
+
+        #[test]
+        fn ser_roundtrip(v in any_with::<BinOp>(ArbExprParams {tpe: SType::SAny, depth: 0})) {
+            let expr: Expr = v.into();
+            prop_assert_eq![sigma_serialize_roundtrip(&expr), expr];
         }
     }
 }
