@@ -1,8 +1,8 @@
 use super::bin_op::bin_op_sigma_parse;
 use super::bin_op::bin_op_sigma_serialize;
 use super::{op_code::OpCode, sigma_byte_writer::SigmaByteWrite};
-use crate::ast::bin_op::LogicOp;
-use crate::ast::bin_op::NumOp;
+use crate::ast::bin_op::ArithOp;
+use crate::ast::bin_op::RelationOp;
 use crate::ast::block::BlockValue;
 use crate::ast::calc_blake2b256::CalcBlake2b256;
 use crate::ast::coll_fold::Fold;
@@ -98,12 +98,16 @@ impl SigmaSerializable for Expr {
                 OpCode::CONTEXT => Ok(Expr::Context),
                 OpCode::OPTION_GET => Ok(OptionGet::sigma_parse(r)?.into()),
                 OpCode::EXTRACT_REGISTER_AS => Ok(ExtractRegisterAs::sigma_parse(r)?.into()),
-                OpCode::EQ => Ok(bin_op_sigma_parse(LogicOp::Eq.into(), r)?),
-                OpCode::NEQ => Ok(bin_op_sigma_parse(LogicOp::NEq.into(), r)?),
-                OpCode::PLUS => Ok(bin_op_sigma_parse(NumOp::Plus.into(), r)?),
-                OpCode::MINUS => Ok(bin_op_sigma_parse(NumOp::Minus.into(), r)?),
-                OpCode::MULTIPLY => Ok(bin_op_sigma_parse(NumOp::Multiply.into(), r)?),
-                OpCode::DIVISION => Ok(bin_op_sigma_parse(NumOp::Divide.into(), r)?),
+                OpCode::EQ => Ok(bin_op_sigma_parse(RelationOp::Eq.into(), r)?),
+                OpCode::NEQ => Ok(bin_op_sigma_parse(RelationOp::NEq.into(), r)?),
+                OpCode::GT => Ok(bin_op_sigma_parse(RelationOp::GT.into(), r)?),
+                OpCode::LT => Ok(bin_op_sigma_parse(RelationOp::LT.into(), r)?),
+                OpCode::GE => Ok(bin_op_sigma_parse(RelationOp::GE.into(), r)?),
+                OpCode::LE => Ok(bin_op_sigma_parse(RelationOp::LE.into(), r)?),
+                OpCode::PLUS => Ok(bin_op_sigma_parse(ArithOp::Plus.into(), r)?),
+                OpCode::MINUS => Ok(bin_op_sigma_parse(ArithOp::Minus.into(), r)?),
+                OpCode::MULTIPLY => Ok(bin_op_sigma_parse(ArithOp::Multiply.into(), r)?),
+                OpCode::DIVISION => Ok(bin_op_sigma_parse(ArithOp::Divide.into(), r)?),
                 OpCode::BLOCK_VALUE => Ok(Expr::BlockValue(BlockValue::sigma_parse(r)?)),
                 OpCode::FUNC_VALUE => Ok(Expr::FuncValue(FuncValue::sigma_parse(r)?)),
                 OpCode::VAL_DEF => Ok(Expr::ValDef(ValDef::sigma_parse(r)?)),

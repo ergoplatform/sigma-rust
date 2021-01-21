@@ -128,8 +128,8 @@ mod tests {
     use std::convert::TryInto;
     use std::rc::Rc;
 
+    use crate::ast::bin_op::ArithOp;
     use crate::ast::bin_op::BinOp;
-    use crate::ast::bin_op::NumOp;
     use crate::ast::expr::Expr;
     use crate::ast::extract_amount::ExtractAmount;
     use crate::ast::func_value::FuncArg;
@@ -181,7 +181,7 @@ mod tests {
             }
             .into();
             let fold_op_body: Expr = BinOp {
-                kind: NumOp::Plus.into(),
+                kind: ArithOp::Plus.into(),
                 left: Box::new(Expr::SelectField(
                     SelectField::new(tuple.clone(), 1.try_into().unwrap()).unwrap(),
                 )),

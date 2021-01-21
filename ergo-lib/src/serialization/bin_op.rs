@@ -32,7 +32,7 @@ pub fn bin_op_sigma_parse<R: SigmaByteRead>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ast::bin_op::LogicOp;
+    use crate::ast::bin_op::RelationOp;
     use crate::ast::expr::tests::ArbExprParams;
     use crate::serialization::sigma_serialize_roundtrip;
     use crate::test_util::force_any_val_with;
@@ -51,7 +51,7 @@ mod tests {
     #[test]
     fn ser_roundtrip_eq() {
         test_ser_roundtrip(
-            LogicOp::Eq.into(),
+            RelationOp::Eq.into(),
             force_any_val_with::<Expr>(ArbExprParams {
                 tpe: SType::SAny,
                 depth: 1,
@@ -66,7 +66,7 @@ mod tests {
     #[test]
     fn ser_roundtrip_neq() {
         test_ser_roundtrip(
-            LogicOp::NEq.into(),
+            RelationOp::NEq.into(),
             force_any_val_with::<Expr>(ArbExprParams {
                 tpe: SType::SAny,
                 depth: 1,

@@ -97,7 +97,7 @@ mod tests {
     use std::rc::Rc;
 
     use crate::ast::bin_op::BinOp;
-    use crate::ast::bin_op::LogicOp;
+    use crate::ast::bin_op::RelationOp;
     use crate::ast::block::BlockValue;
     use crate::ast::func_value::*;
     use crate::ast::val_def::ValDef;
@@ -151,7 +151,7 @@ mod tests {
     fn eval_user_defined_func_call() {
         let arg = Expr::Const(1i32.into());
         let bin_op = Expr::BinOp(BinOp {
-            kind: LogicOp::Eq.into(),
+            kind: RelationOp::Eq.into(),
             left: Box::new(
                 ValUse {
                     val_id: 1.into(),
