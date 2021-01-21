@@ -17,7 +17,8 @@
 - `EQ`(`==`), `NEQ`(`!=`);
 - `BlockValue`, `ValDef`, `ValUse`, `FuncValue`, `Apply`;
 - `Fold`(collection), `ExtractAmount`(`Box.value`), `SelectField`(tuple field access); 
-- `CalcBlake2b256`
+- `CalcBlake2b256`;
+- Arithmetic ops (`+, -, *, /`);
 
 ## Usage 
 ## Crate features
