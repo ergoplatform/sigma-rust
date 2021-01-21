@@ -29,6 +29,7 @@ rand = "0.7"
 lazy_static = "1.4"
 derive_more = "0.99"
 impl-trait-for-tuples = "0.2.0"
+num = "0.3.1"
 
 [features]
 default = ["json"]

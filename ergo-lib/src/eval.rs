@@ -30,7 +30,7 @@ pub enum EvalError {
     #[error("Only boolean or SigmaBoolean is a valid result expr type")]
     InvalidResultType,
     /// Unexpected Expr encountered during the evaluation
-    #[error("unexpected Expr: {0:?}")]
+    #[error("Unexpected Expr: {0:?}")]
     UnexpectedExpr(String),
     /// Error on cost calculation
     #[error("Error on cost calculation: {0:?}")]
@@ -45,8 +45,11 @@ pub enum EvalError {
     #[error("{0:?}")]
     RegisterIdOutOfBounds(#[from] RegisterIdOutOfBounds),
     /// Unexpected value
-    #[error("unexpected value: {0:?}")]
+    #[error("Unexpected value: {0:?}")]
     UnexpectedValue(String),
+    /// Arithmetic exception error
+    #[error("Arithmetic exception: {0:?}")]
+    ArithmeticException(String),
 }
 
 /// Result of expression reduction procedure (see `reduce_to_crypto`).
@@ -119,5 +122,15 @@ pub mod tests {
             .unwrap()
             .try_extract_into::<T>()
             .unwrap()
+    }
+
+    pub fn try_eval_out<T: TryExtractFrom<Value>>(
+        expr: &Expr,
+        ctx: Rc<Context>,
+    ) -> Result<T, EvalError> {
+        let cost_accum = CostAccumulator::new(0, None);
+        let mut ectx = EvalContext::new(ctx, cost_accum);
+        expr.eval(&Env::empty(), &mut ectx)
+            .and_then(|v| v.try_extract_into::<T>().map_err(EvalError::TryExtractFrom))
     }
 }

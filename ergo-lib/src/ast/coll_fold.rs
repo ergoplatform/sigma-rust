@@ -163,7 +163,7 @@ mod tests {
         }
         .into();
         let fold_op_body: Expr = BinOp {
-            kind: NumOp::Add.into(),
+            kind: NumOp::Plus.into(),
             left: Box::new(Expr::SelectField(
                 SelectField::new(tuple.clone(), 1.try_into().unwrap()).unwrap(),
             )),
