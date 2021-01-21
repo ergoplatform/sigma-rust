@@ -140,65 +140,12 @@ mod tests {
     use crate::eval::context::Context;
     use crate::eval::tests::eval_out;
     use crate::serialization::sigma_serialize_roundtrip;
-    use crate::test_util::force_any_val;
     use crate::types::scontext;
     use crate::types::stuple::STuple;
 
     use super::*;
 
     use proptest::prelude::*;
-
-    #[test]
-    fn eval_box_value() {
-        let data_inputs: Expr = PropertyCall {
-            obj: Box::new(Expr::Context),
-            method: scontext::DATA_INPUTS_PROPERTY.clone(),
-        }
-        .into();
-        let tuple: Expr = ValUse {
-            val_id: 1.into(),
-            tpe: SType::STuple(STuple {
-                items: TupleItems::pair(SType::SLong, SType::SBox),
-            }),
-        }
-        .into();
-        let fold_op_body: Expr = BinOp {
-            kind: NumOp::Plus.into(),
-            left: Box::new(Expr::SelectField(
-                SelectField::new(tuple.clone(), 1.try_into().unwrap()).unwrap(),
-            )),
-            right: Box::new(Expr::ExtractAmount(
-                ExtractAmount::new(Expr::SelectField(
-                    SelectField::new(tuple, 2.try_into().unwrap()).unwrap(),
-                ))
-                .unwrap(),
-            )),
-        }
-        .into();
-        let expr: Expr = Fold::new(
-            data_inputs,
-            Expr::Const(0i64.into()),
-            FuncValue::new(
-                vec![FuncArg {
-                    idx: 1.into(),
-                    tpe: SType::STuple(STuple {
-                        items: TupleItems::pair(SType::SLong, SType::SBox),
-                    }),
-                }],
-                fold_op_body,
-            )
-            .into(),
-        )
-        .unwrap()
-        .into();
-        let ctx = Rc::new(force_any_val::<Context>());
-        assert_eq!(
-            eval_out::<i64>(&expr, ctx.clone()),
-            ctx.data_inputs
-                .iter()
-                .fold(0i64, |acc, b| acc + b.value.as_i64())
-        );
-    }
 
     impl Arbitrary for Fold {
         type Strategy = BoxedStrategy<Self>;
@@ -216,6 +163,60 @@ mod tests {
     }
 
     proptest! {
+
+        #![proptest_config(ProptestConfig::with_cases(16))]
+
+        #[test]
+        fn eval_box_value(ctx in any::<Context>()) {
+            let data_inputs: Expr = PropertyCall {
+                obj: Box::new(Expr::Context),
+                method: scontext::DATA_INPUTS_PROPERTY.clone(),
+            }
+            .into();
+            let tuple: Expr = ValUse {
+                val_id: 1.into(),
+                tpe: SType::STuple(STuple {
+                    items: TupleItems::pair(SType::SLong, SType::SBox),
+                }),
+            }
+            .into();
+            let fold_op_body: Expr = BinOp {
+                kind: NumOp::Plus.into(),
+                left: Box::new(Expr::SelectField(
+                    SelectField::new(tuple.clone(), 1.try_into().unwrap()).unwrap(),
+                )),
+                right: Box::new(Expr::ExtractAmount(
+                    ExtractAmount::new(Expr::SelectField(
+                        SelectField::new(tuple, 2.try_into().unwrap()).unwrap(),
+                    ))
+                    .unwrap(),
+                )),
+            }
+            .into();
+            let expr: Expr = Fold::new(
+                data_inputs,
+                Expr::Const(0i64.into()),
+                FuncValue::new(
+                    vec![FuncArg {
+                        idx: 1.into(),
+                        tpe: SType::STuple(STuple {
+                            items: TupleItems::pair(SType::SLong, SType::SBox),
+                        }),
+                    }],
+                    fold_op_body,
+                )
+                .into(),
+            )
+            .unwrap()
+            .into();
+            let ctx = Rc::new(ctx);
+            assert_eq!(
+                eval_out::<i64>(&expr, ctx.clone()),
+                ctx.data_inputs
+                    .iter()
+                    .fold(0i64, |acc, b| acc + b.value.as_i64())
+            );
+        }
 
         #[test]
         fn ser_roundtrip(v in any::<Fold>()) {
