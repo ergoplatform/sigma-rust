@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added 
 - `CalcBlake2b256` IR node evaluation and serialization [#179](https://github.com/ergoplatform/sigma-rust/pull/179);
+- Arith ops (`+, -, *, /`) IR node evaluation and serialization [#181](https://github.com/ergoplatform/sigma-rust/pull/181);
 
 ## [0.4.4] - 2021-01-20
 

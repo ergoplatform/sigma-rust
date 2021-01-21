@@ -1,6 +1,11 @@
 //! Operators in ErgoTree
 
 use eval::costs::Costs;
+use num::CheckedAdd;
+use num::CheckedDiv;
+use num::CheckedMul;
+use num::CheckedSub;
+use num::Num;
 
 use crate::eval;
 use crate::eval::env::Env;
@@ -10,6 +15,7 @@ use crate::eval::Evaluable;
 use crate::serialization::op_code::OpCode;
 use crate::types::stype::SType;
 
+use super::constant::TryExtractFrom;
 use super::constant::TryExtractInto;
 use super::expr::Expr;
 use super::value::Value;
@@ -20,16 +26,24 @@ use derive_more::From;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
 /// Operations for numerical types
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+#[cfg_attr(test, derive(Arbitrary))]
 pub enum NumOp {
-    /// Addition
-    Add,
+    Plus,
+    Minus,
+    Multiply,
+    Divide,
 }
 
 impl From<NumOp> for OpCode {
-    fn from(_: NumOp) -> Self {
-        todo!()
+    fn from(op: NumOp) -> Self {
+        match op {
+            NumOp::Plus => OpCode::PLUS,
+            NumOp::Minus => OpCode::MINUS,
+            NumOp::Multiply => OpCode::MULTIPLY,
+            NumOp::Divide => OpCode::DIVISION,
+        }
     }
 }
 
@@ -53,8 +67,9 @@ impl From<LogicOp> for OpCode {
     }
 }
 
-#[derive(PartialEq, Eq, Debug, Clone, Copy, From)]
 /// Binary operations
+#[derive(PartialEq, Eq, Debug, Clone, Copy, From)]
+#[cfg_attr(test, derive(Arbitrary))]
 pub enum BinOpKind {
     /// Binary operations for numerical types
     Num(NumOp),
@@ -90,6 +105,62 @@ impl BinOp {
     }
 }
 
+fn eval_plus<T>(lv_raw: T, rv: Value) -> Result<Value, EvalError>
+where
+    T: Num + CheckedAdd + TryExtractFrom<Value> + Into<Value> + std::fmt::Display,
+{
+    let rv_raw = rv.try_extract_into::<T>()?;
+    Ok((lv_raw.checked_add(&rv_raw).ok_or_else(|| {
+        EvalError::ArithmeticException(format!(
+            "({0}) + ({1}) resulted in overflow",
+            lv_raw, rv_raw
+        ))
+    })?)
+    .into())
+}
+
+fn eval_minus<T>(lv_raw: T, rv: Value) -> Result<Value, EvalError>
+where
+    T: Num + CheckedSub + TryExtractFrom<Value> + Into<Value> + std::fmt::Display,
+{
+    let rv_raw = rv.try_extract_into::<T>()?;
+    Ok((lv_raw.checked_sub(&rv_raw).ok_or_else(|| {
+        EvalError::ArithmeticException(format!(
+            "({0}) - ({1}) resulted in overflow",
+            lv_raw, rv_raw
+        ))
+    })?)
+    .into())
+}
+
+fn eval_mul<T>(lv_raw: T, rv: Value) -> Result<Value, EvalError>
+where
+    T: Num + CheckedMul + TryExtractFrom<Value> + Into<Value> + std::fmt::Display,
+{
+    let rv_raw = rv.try_extract_into::<T>()?;
+    Ok((lv_raw.checked_mul(&rv_raw).ok_or_else(|| {
+        EvalError::ArithmeticException(format!(
+            "({0}) * ({1}) resulted in overflow",
+            lv_raw, rv_raw
+        ))
+    })?)
+    .into())
+}
+
+fn eval_div<T>(lv_raw: T, rv: Value) -> Result<Value, EvalError>
+where
+    T: Num + CheckedDiv + TryExtractFrom<Value> + Into<Value> + std::fmt::Display,
+{
+    let rv_raw = rv.try_extract_into::<T>()?;
+    Ok((lv_raw.checked_div(&rv_raw).ok_or_else(|| {
+        EvalError::ArithmeticException(format!(
+            "({0}) / ({1}) resulted in exception",
+            lv_raw, rv_raw
+        ))
+    })?)
+    .into())
+}
+
 impl Evaluable for BinOp {
     fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
         let lv = self.left.eval(env, ctx)?;
@@ -101,11 +172,44 @@ impl Evaluable for BinOp {
                 LogicOp::NEq => Ok(Value::Boolean(lv != rv)),
             },
             BinOpKind::Num(op) => match op {
-                NumOp::Add => match lv {
-                    Value::Byte(_) => todo!(),
-                    Value::Short(_) => todo!(),
-                    Value::Int(_) => todo!(),
-                    Value::Long(lvv) => Ok(Value::Long(lvv + rv.try_extract_into::<i64>()?)),
+                NumOp::Plus => match lv {
+                    Value::Byte(lv_raw) => eval_plus(lv_raw, rv),
+                    Value::Short(lv_raw) => eval_plus(lv_raw, rv),
+                    Value::Int(lv_raw) => eval_plus(lv_raw, rv),
+                    Value::Long(lv_raw) => eval_plus(lv_raw, rv),
+                    Value::BigInt => todo!(),
+                    _ => Err(EvalError::UnexpectedValue(format!(
+                        "expected BinOp::left to be numeric value, got {0:?}",
+                        lv
+                    ))),
+                },
+                NumOp::Minus => match lv {
+                    Value::Byte(lv_raw) => eval_minus(lv_raw, rv),
+                    Value::Short(lv_raw) => eval_minus(lv_raw, rv),
+                    Value::Int(lv_raw) => eval_minus(lv_raw, rv),
+                    Value::Long(lv_raw) => eval_minus(lv_raw, rv),
+                    Value::BigInt => todo!(),
+                    _ => Err(EvalError::UnexpectedValue(format!(
+                        "expected BinOp::left to be numeric value, got {0:?}",
+                        lv
+                    ))),
+                },
+                NumOp::Multiply => match lv {
+                    Value::Byte(lv_raw) => eval_mul(lv_raw, rv),
+                    Value::Short(lv_raw) => eval_mul(lv_raw, rv),
+                    Value::Int(lv_raw) => eval_mul(lv_raw, rv),
+                    Value::Long(lv_raw) => eval_mul(lv_raw, rv),
+                    Value::BigInt => todo!(),
+                    _ => Err(EvalError::UnexpectedValue(format!(
+                        "expected BinOp::left to be numeric value, got {0:?}",
+                        lv
+                    ))),
+                },
+                NumOp::Divide => match lv {
+                    Value::Byte(lv_raw) => eval_div(lv_raw, rv),
+                    Value::Short(lv_raw) => eval_div(lv_raw, rv),
+                    Value::Int(lv_raw) => eval_div(lv_raw, rv),
+                    Value::Long(lv_raw) => eval_div(lv_raw, rv),
                     Value::BigInt => todo!(),
                     _ => Err(EvalError::UnexpectedValue(format!(
                         "expected BinOp::left to be numeric value, got {0:?}",
@@ -122,9 +226,12 @@ pub mod tests {
     use std::rc::Rc;
 
     use crate::ast::constant::Constant;
+    use crate::ast::constant::TryExtractFrom;
     use crate::ast::expr::tests::ArbExprParams;
     use crate::eval::context::Context;
     use crate::eval::tests::eval_out;
+    use crate::eval::tests::try_eval_out;
+    use crate::serialization::sigma_serialize_roundtrip;
     use crate::test_util::force_any_val;
     use crate::types::stype::SType;
 
@@ -151,16 +258,32 @@ pub mod tests {
                         kind,
                         left: Box::new(left),
                         right: Box::new(right),
-                    }),
+                    })
+                    .boxed(),
 
-                _ => todo!(),
+                _ => (
+                    any::<BinOpKind>(),
+                    any_with::<Expr>(ArbExprParams {
+                        tpe: SType::SAny,
+                        depth: args.depth,
+                    }),
+                    any_with::<Expr>(ArbExprParams {
+                        tpe: SType::SAny,
+                        depth: args.depth,
+                    }),
+                )
+                    .prop_map(|(kind, left, right)| BinOp {
+                        kind,
+                        left: Box::new(left),
+                        right: Box::new(right),
+                    })
+                    .boxed(),
                 // SType::SByte => {}
                 // SType::SShort => {}
                 // SType::SInt => {}
                 // SType::SLong => {}
                 // SType::SBigInt => {}
             }
-            .boxed()
         }
     }
 
@@ -231,6 +354,21 @@ pub mod tests {
         assert!(check_eq_neq((1i64, true).into(), (1i64, true).into()));
     }
 
+    fn eval_num_op<T: TryExtractFrom<Value>>(
+        op: NumOp,
+        left: Constant,
+        right: Constant,
+    ) -> Result<T, EvalError> {
+        let expr: Expr = BinOp {
+            kind: BinOpKind::Num(op),
+            left: Box::new(left.into()),
+            right: Box::new(right.into()),
+        }
+        .into();
+        let ctx = Rc::new(force_any_val::<Context>());
+        try_eval_out::<T>(&expr, ctx)
+    }
+
     use proptest::prelude::*;
 
     proptest! {
@@ -238,6 +376,44 @@ pub mod tests {
         #[test]
         fn test_eq(v in any::<Constant>()) {
             prop_assert![check_eq_neq(v.clone(), v)];
+        }
+
+        #[test]
+        fn test_arith_slong(l in any::<i64>(), r in any::<i64>()) {
+            prop_assert_eq!(eval_num_op(NumOp::Plus, l.into(), r.into()).ok(), l.checked_add(r));
+            prop_assert_eq!(eval_num_op(NumOp::Minus, l.into(), r.into()).ok(), l.checked_sub(r));
+            prop_assert_eq!(eval_num_op(NumOp::Multiply, l.into(), r.into()).ok(), l.checked_mul(r));
+            prop_assert_eq!(eval_num_op(NumOp::Divide, l.into(), r.into()).ok(), l.checked_div(r));
+        }
+
+        #[test]
+        fn test_arith_sint(l in any::<i32>(), r in any::<i32>()) {
+            prop_assert_eq!(eval_num_op(NumOp::Plus, l.into(), r.into()).ok(), l.checked_add(r));
+            prop_assert_eq!(eval_num_op(NumOp::Minus, l.into(), r.into()).ok(), l.checked_sub(r));
+            prop_assert_eq!(eval_num_op(NumOp::Multiply, l.into(), r.into()).ok(), l.checked_mul(r));
+            prop_assert_eq!(eval_num_op(NumOp::Divide, l.into(), r.into()).ok(), l.checked_div(r));
+        }
+
+        #[test]
+        fn test_arith_sshort(l in any::<i16>(), r in any::<i16>()) {
+            prop_assert_eq!(eval_num_op(NumOp::Plus, l.into(), r.into()).ok(), l.checked_add(r));
+            prop_assert_eq!(eval_num_op(NumOp::Minus, l.into(), r.into()).ok(), l.checked_sub(r));
+            prop_assert_eq!(eval_num_op(NumOp::Multiply, l.into(), r.into()).ok(), l.checked_mul(r));
+            prop_assert_eq!(eval_num_op(NumOp::Divide, l.into(), r.into()).ok(), l.checked_div(r));
+        }
+
+        #[test]
+        fn test_arith_sbyte(l in any::<i8>(), r in any::<i8>()) {
+            prop_assert_eq!(eval_num_op(NumOp::Plus, l.into(), r.into()).ok(), l.checked_add(r));
+            prop_assert_eq!(eval_num_op(NumOp::Minus, l.into(), r.into()).ok(), l.checked_sub(r));
+            prop_assert_eq!(eval_num_op(NumOp::Multiply, l.into(), r.into()).ok(), l.checked_mul(r));
+            prop_assert_eq!(eval_num_op(NumOp::Divide, l.into(), r.into()).ok(), l.checked_div(r));
+        }
+
+        #[test]
+        fn ser_roundtrip(v in any_with::<BinOp>(ArbExprParams {tpe: SType::SAny, depth: 0})) {
+            let expr: Expr = v.into();
+            prop_assert_eq![sigma_serialize_roundtrip(&expr), expr];
         }
     }
 }

@@ -26,6 +26,11 @@ impl OpCode {
     pub const EQ: OpCode = Self::new_op_code(35);
     pub const NEQ: OpCode = Self::new_op_code(36);
 
+    pub const MINUS: OpCode = Self::new_op_code(41);
+    pub const PLUS: OpCode = Self::new_op_code(42);
+    pub const MULTIPLY: OpCode = Self::new_op_code(44);
+    pub const DIVISION: OpCode = Self::new_op_code(45);
+
     /// Environment (context methods)
     pub const HEIGHT: OpCode = Self::new_op_code(51);
     pub const INPUTS: OpCode = Self::new_op_code(52);
