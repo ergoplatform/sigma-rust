@@ -93,7 +93,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         uses: actions-rs/tarpaulin@master
         with:
-          args: '-v --out Lcov --exclude-files bindings/*'
+          args: '--timeout=360 -v --out Lcov --exclude-files bindings/*'
       # - name: Upload coverage report to Codecov
       #   if: matrix.os == 'ubuntu-latest'
       #   uses: codecov/codecov-action@v1

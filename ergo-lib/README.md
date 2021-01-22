@@ -19,6 +19,7 @@
 - `Fold`(collection), `ExtractAmount`(`Box.value`), `SelectField`(tuple field access); 
 - `CalcBlake2b256`;
 - Arithmetic ops (`+, -, *, /`);
+- Comparison ops (`>, >=, <, <=`);
 
 ## Usage 
 ## Crate features

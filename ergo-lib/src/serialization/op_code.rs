@@ -23,6 +23,10 @@ impl OpCode {
 
     pub const SELECT_FIELD: OpCode = Self::new_op_code(28);
 
+    pub const LT: OpCode = Self::new_op_code(31);
+    pub const LE: OpCode = Self::new_op_code(32);
+    pub const GT: OpCode = Self::new_op_code(33);
+    pub const GE: OpCode = Self::new_op_code(34);
     pub const EQ: OpCode = Self::new_op_code(35);
     pub const NEQ: OpCode = Self::new_op_code(36);
 

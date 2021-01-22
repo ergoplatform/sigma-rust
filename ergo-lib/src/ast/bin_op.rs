@@ -29,40 +29,44 @@ use proptest_derive::Arbitrary;
 /// Operations for numerical types
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 #[cfg_attr(test, derive(Arbitrary))]
-pub enum NumOp {
+pub enum ArithOp {
     Plus,
     Minus,
     Multiply,
     Divide,
 }
 
-impl From<NumOp> for OpCode {
-    fn from(op: NumOp) -> Self {
+impl From<ArithOp> for OpCode {
+    fn from(op: ArithOp) -> Self {
         match op {
-            NumOp::Plus => OpCode::PLUS,
-            NumOp::Minus => OpCode::MINUS,
-            NumOp::Multiply => OpCode::MULTIPLY,
-            NumOp::Divide => OpCode::DIVISION,
+            ArithOp::Plus => OpCode::PLUS,
+            ArithOp::Minus => OpCode::MINUS,
+            ArithOp::Multiply => OpCode::MULTIPLY,
+            ArithOp::Divide => OpCode::DIVISION,
         }
     }
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 #[cfg_attr(test, derive(Arbitrary))]
-pub enum LogicOp {
+pub enum RelationOp {
     Eq,
     NEq,
-    // GE,
-    // GT,
-    // LE,
-    // LT,
+    GE,
+    GT,
+    LE,
+    LT,
 }
 
-impl From<LogicOp> for OpCode {
-    fn from(op: LogicOp) -> Self {
+impl From<RelationOp> for OpCode {
+    fn from(op: RelationOp) -> Self {
         match op {
-            LogicOp::Eq => OpCode::EQ,
-            LogicOp::NEq => OpCode::NEQ,
+            RelationOp::Eq => OpCode::EQ,
+            RelationOp::NEq => OpCode::NEQ,
+            RelationOp::GE => OpCode::GE,
+            RelationOp::GT => OpCode::GT,
+            RelationOp::LE => OpCode::LE,
+            RelationOp::LT => OpCode::LT,
         }
     }
 }
@@ -71,16 +75,15 @@ impl From<LogicOp> for OpCode {
 #[derive(PartialEq, Eq, Debug, Clone, Copy, From)]
 #[cfg_attr(test, derive(Arbitrary))]
 pub enum BinOpKind {
-    /// Binary operations for numerical types
-    Num(NumOp),
-    Logic(LogicOp),
+    Arith(ArithOp),
+    Relation(RelationOp),
 }
 
 impl From<BinOpKind> for OpCode {
     fn from(op: BinOpKind) -> Self {
         match op {
-            BinOpKind::Num(o) => o.into(),
-            BinOpKind::Logic(o) => o.into(),
+            BinOpKind::Arith(o) => o.into(),
+            BinOpKind::Relation(o) => o.into(),
         }
     }
 }
@@ -99,8 +102,8 @@ impl BinOp {
 
     pub fn tpe(&self) -> SType {
         match self.kind {
-            BinOpKind::Logic(_) => SType::SBoolean,
-            BinOpKind::Num(_) => self.left.tpe(),
+            BinOpKind::Relation(_) => SType::SBoolean,
+            BinOpKind::Arith(_) => self.left.tpe(),
         }
     }
 }
@@ -161,18 +164,78 @@ where
     .into())
 }
 
+fn eval_ge(lv: Value, rv: Value) -> Result<Value, EvalError> {
+    match lv {
+        Value::Byte(lv_raw) => Ok((lv_raw >= rv.try_extract_into::<i8>()?).into()),
+        Value::Short(lv_raw) => Ok((lv_raw >= rv.try_extract_into::<i16>()?).into()),
+        Value::Int(lv_raw) => Ok((lv_raw >= rv.try_extract_into::<i32>()?).into()),
+        Value::Long(lv_raw) => Ok((lv_raw >= rv.try_extract_into::<i64>()?).into()),
+        Value::BigInt => todo!(),
+        _ => Err(EvalError::UnexpectedValue(format!(
+            "expected BinOp::left to be numeric value, got {0:?}",
+            lv
+        ))),
+    }
+}
+
+fn eval_gt(lv: Value, rv: Value) -> Result<Value, EvalError> {
+    match lv {
+        Value::Byte(lv_raw) => Ok((lv_raw > rv.try_extract_into::<i8>()?).into()),
+        Value::Short(lv_raw) => Ok((lv_raw > rv.try_extract_into::<i16>()?).into()),
+        Value::Int(lv_raw) => Ok((lv_raw > rv.try_extract_into::<i32>()?).into()),
+        Value::Long(lv_raw) => Ok((lv_raw > rv.try_extract_into::<i64>()?).into()),
+        Value::BigInt => todo!(),
+        _ => Err(EvalError::UnexpectedValue(format!(
+            "expected BinOp::left to be numeric value, got {0:?}",
+            lv
+        ))),
+    }
+}
+
+fn eval_lt(lv: Value, rv: Value) -> Result<Value, EvalError> {
+    match lv {
+        Value::Byte(lv_raw) => Ok((lv_raw < rv.try_extract_into::<i8>()?).into()),
+        Value::Short(lv_raw) => Ok((lv_raw < rv.try_extract_into::<i16>()?).into()),
+        Value::Int(lv_raw) => Ok((lv_raw < rv.try_extract_into::<i32>()?).into()),
+        Value::Long(lv_raw) => Ok((lv_raw < rv.try_extract_into::<i64>()?).into()),
+        Value::BigInt => todo!(),
+        _ => Err(EvalError::UnexpectedValue(format!(
+            "expected BinOp::left to be numeric value, got {0:?}",
+            lv
+        ))),
+    }
+}
+
+fn eval_le(lv: Value, rv: Value) -> Result<Value, EvalError> {
+    match lv {
+        Value::Byte(lv_raw) => Ok((lv_raw <= rv.try_extract_into::<i8>()?).into()),
+        Value::Short(lv_raw) => Ok((lv_raw <= rv.try_extract_into::<i16>()?).into()),
+        Value::Int(lv_raw) => Ok((lv_raw <= rv.try_extract_into::<i32>()?).into()),
+        Value::Long(lv_raw) => Ok((lv_raw <= rv.try_extract_into::<i64>()?).into()),
+        Value::BigInt => todo!(),
+        _ => Err(EvalError::UnexpectedValue(format!(
+            "expected BinOp::left to be numeric value, got {0:?}",
+            lv
+        ))),
+    }
+}
+
 impl Evaluable for BinOp {
     fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
         let lv = self.left.eval(env, ctx)?;
         let rv = self.right.eval(env, ctx)?;
         ctx.cost_accum.add(Costs::DEFAULT.eq_const_size)?;
         match self.kind {
-            BinOpKind::Logic(op) => match op {
-                LogicOp::Eq => Ok(Value::Boolean(lv == rv)),
-                LogicOp::NEq => Ok(Value::Boolean(lv != rv)),
+            BinOpKind::Relation(op) => match op {
+                RelationOp::Eq => Ok(Value::Boolean(lv == rv)),
+                RelationOp::NEq => Ok(Value::Boolean(lv != rv)),
+                RelationOp::GT => eval_gt(lv, rv),
+                RelationOp::LT => eval_lt(lv, rv),
+                RelationOp::GE => eval_ge(lv, rv),
+                RelationOp::LE => eval_le(lv, rv),
             },
-            BinOpKind::Num(op) => match op {
-                NumOp::Plus => match lv {
+            BinOpKind::Arith(op) => match op {
+                ArithOp::Plus => match lv {
                     Value::Byte(lv_raw) => eval_plus(lv_raw, rv),
                     Value::Short(lv_raw) => eval_plus(lv_raw, rv),
                     Value::Int(lv_raw) => eval_plus(lv_raw, rv),
@@ -183,7 +246,7 @@ impl Evaluable for BinOp {
                         lv
                     ))),
                 },
-                NumOp::Minus => match lv {
+                ArithOp::Minus => match lv {
                     Value::Byte(lv_raw) => eval_minus(lv_raw, rv),
                     Value::Short(lv_raw) => eval_minus(lv_raw, rv),
                     Value::Int(lv_raw) => eval_minus(lv_raw, rv),
@@ -194,7 +257,7 @@ impl Evaluable for BinOp {
                         lv
                     ))),
                 },
-                NumOp::Multiply => match lv {
+                ArithOp::Multiply => match lv {
                     Value::Byte(lv_raw) => eval_mul(lv_raw, rv),
                     Value::Short(lv_raw) => eval_mul(lv_raw, rv),
                     Value::Int(lv_raw) => eval_mul(lv_raw, rv),
@@ -205,7 +268,7 @@ impl Evaluable for BinOp {
                         lv
                     ))),
                 },
-                NumOp::Divide => match lv {
+                ArithOp::Divide => match lv {
                     Value::Byte(lv_raw) => eval_div(lv_raw, rv),
                     Value::Short(lv_raw) => eval_div(lv_raw, rv),
                     Value::Int(lv_raw) => eval_div(lv_raw, rv),
@@ -244,7 +307,7 @@ pub mod tests {
         fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
             match args.tpe {
                 SType::SBoolean => (
-                    any::<LogicOp>().prop_map_into(),
+                    any::<RelationOp>().prop_map_into(),
                     any_with::<Expr>(ArbExprParams {
                         tpe: SType::SAny,
                         depth: args.depth,
@@ -289,14 +352,14 @@ pub mod tests {
 
     fn check_eq_neq(left: Constant, right: Constant) -> bool {
         let eq_op: Expr = BinOp {
-            kind: BinOpKind::Logic(LogicOp::Eq),
+            kind: BinOpKind::Relation(RelationOp::Eq),
             left: Box::new(left.clone().into()),
             right: Box::new(right.clone().into()),
         }
         .into();
         let ctx = Rc::new(force_any_val::<Context>());
         let neq_op: Expr = BinOp {
-            kind: BinOpKind::Logic(LogicOp::NEq),
+            kind: BinOpKind::Relation(RelationOp::NEq),
             left: Box::new(left.into()),
             right: Box::new(right.into()),
         }
@@ -355,18 +418,29 @@ pub mod tests {
     }
 
     fn eval_num_op<T: TryExtractFrom<Value>>(
-        op: NumOp,
+        op: ArithOp,
         left: Constant,
         right: Constant,
     ) -> Result<T, EvalError> {
         let expr: Expr = BinOp {
-            kind: BinOpKind::Num(op),
+            kind: BinOpKind::Arith(op),
             left: Box::new(left.into()),
             right: Box::new(right.into()),
         }
         .into();
         let ctx = Rc::new(force_any_val::<Context>());
         try_eval_out::<T>(&expr, ctx)
+    }
+
+    fn eval_relation_op(op: RelationOp, left: Constant, right: Constant) -> bool {
+        let expr: Expr = BinOp {
+            kind: BinOpKind::Relation(op),
+            left: Box::new(left.into()),
+            right: Box::new(right.into()),
+        }
+        .into();
+        let ctx = Rc::new(force_any_val::<Context>());
+        eval_out::<bool>(&expr, ctx)
     }
 
     use proptest::prelude::*;
@@ -379,35 +453,55 @@ pub mod tests {
         }
 
         #[test]
-        fn test_arith_slong(l in any::<i64>(), r in any::<i64>()) {
-            prop_assert_eq!(eval_num_op(NumOp::Plus, l.into(), r.into()).ok(), l.checked_add(r));
-            prop_assert_eq!(eval_num_op(NumOp::Minus, l.into(), r.into()).ok(), l.checked_sub(r));
-            prop_assert_eq!(eval_num_op(NumOp::Multiply, l.into(), r.into()).ok(), l.checked_mul(r));
-            prop_assert_eq!(eval_num_op(NumOp::Divide, l.into(), r.into()).ok(), l.checked_div(r));
+        fn test_num_slong(l in any::<i64>(), r in any::<i64>()) {
+            prop_assert_eq!(eval_num_op(ArithOp::Plus, l.into(), r.into()).ok(), l.checked_add(r));
+            prop_assert_eq!(eval_num_op(ArithOp::Minus, l.into(), r.into()).ok(), l.checked_sub(r));
+            prop_assert_eq!(eval_num_op(ArithOp::Multiply, l.into(), r.into()).ok(), l.checked_mul(r));
+            prop_assert_eq!(eval_num_op(ArithOp::Divide, l.into(), r.into()).ok(), l.checked_div(r));
+
+            prop_assert_eq!(eval_relation_op(RelationOp::GT, l.into(), r.into()), l > r);
+            prop_assert_eq!(eval_relation_op(RelationOp::LT, l.into(), r.into()), l < r);
+            prop_assert_eq!(eval_relation_op(RelationOp::GE, l.into(), r.into()), l >= r);
+            prop_assert_eq!(eval_relation_op(RelationOp::LE, l.into(), r.into()), l <= r);
         }
 
         #[test]
-        fn test_arith_sint(l in any::<i32>(), r in any::<i32>()) {
-            prop_assert_eq!(eval_num_op(NumOp::Plus, l.into(), r.into()).ok(), l.checked_add(r));
-            prop_assert_eq!(eval_num_op(NumOp::Minus, l.into(), r.into()).ok(), l.checked_sub(r));
-            prop_assert_eq!(eval_num_op(NumOp::Multiply, l.into(), r.into()).ok(), l.checked_mul(r));
-            prop_assert_eq!(eval_num_op(NumOp::Divide, l.into(), r.into()).ok(), l.checked_div(r));
+        fn test_num_sint(l in any::<i32>(), r in any::<i32>()) {
+            prop_assert_eq!(eval_num_op(ArithOp::Plus, l.into(), r.into()).ok(), l.checked_add(r));
+            prop_assert_eq!(eval_num_op(ArithOp::Minus, l.into(), r.into()).ok(), l.checked_sub(r));
+            prop_assert_eq!(eval_num_op(ArithOp::Multiply, l.into(), r.into()).ok(), l.checked_mul(r));
+            prop_assert_eq!(eval_num_op(ArithOp::Divide, l.into(), r.into()).ok(), l.checked_div(r));
+
+            prop_assert_eq!(eval_relation_op(RelationOp::GT, l.into(), r.into()), l > r);
+            prop_assert_eq!(eval_relation_op(RelationOp::LT, l.into(), r.into()), l < r);
+            prop_assert_eq!(eval_relation_op(RelationOp::GE, l.into(), r.into()), l >= r);
+            prop_assert_eq!(eval_relation_op(RelationOp::LE, l.into(), r.into()), l <= r);
         }
 
         #[test]
-        fn test_arith_sshort(l in any::<i16>(), r in any::<i16>()) {
-            prop_assert_eq!(eval_num_op(NumOp::Plus, l.into(), r.into()).ok(), l.checked_add(r));
-            prop_assert_eq!(eval_num_op(NumOp::Minus, l.into(), r.into()).ok(), l.checked_sub(r));
-            prop_assert_eq!(eval_num_op(NumOp::Multiply, l.into(), r.into()).ok(), l.checked_mul(r));
-            prop_assert_eq!(eval_num_op(NumOp::Divide, l.into(), r.into()).ok(), l.checked_div(r));
+        fn test_num_sshort(l in any::<i16>(), r in any::<i16>()) {
+            prop_assert_eq!(eval_num_op(ArithOp::Plus, l.into(), r.into()).ok(), l.checked_add(r));
+            prop_assert_eq!(eval_num_op(ArithOp::Minus, l.into(), r.into()).ok(), l.checked_sub(r));
+            prop_assert_eq!(eval_num_op(ArithOp::Multiply, l.into(), r.into()).ok(), l.checked_mul(r));
+            prop_assert_eq!(eval_num_op(ArithOp::Divide, l.into(), r.into()).ok(), l.checked_div(r));
+
+            prop_assert_eq!(eval_relation_op(RelationOp::GT, l.into(), r.into()), l > r);
+            prop_assert_eq!(eval_relation_op(RelationOp::LT, l.into(), r.into()), l < r);
+            prop_assert_eq!(eval_relation_op(RelationOp::GE, l.into(), r.into()), l >= r);
+            prop_assert_eq!(eval_relation_op(RelationOp::LE, l.into(), r.into()), l <= r);
         }
 
         #[test]
-        fn test_arith_sbyte(l in any::<i8>(), r in any::<i8>()) {
-            prop_assert_eq!(eval_num_op(NumOp::Plus, l.into(), r.into()).ok(), l.checked_add(r));
-            prop_assert_eq!(eval_num_op(NumOp::Minus, l.into(), r.into()).ok(), l.checked_sub(r));
-            prop_assert_eq!(eval_num_op(NumOp::Multiply, l.into(), r.into()).ok(), l.checked_mul(r));
-            prop_assert_eq!(eval_num_op(NumOp::Divide, l.into(), r.into()).ok(), l.checked_div(r));
+        fn test_num_sbyte(l in any::<i8>(), r in any::<i8>()) {
+            prop_assert_eq!(eval_num_op(ArithOp::Plus, l.into(), r.into()).ok(), l.checked_add(r));
+            prop_assert_eq!(eval_num_op(ArithOp::Minus, l.into(), r.into()).ok(), l.checked_sub(r));
+            prop_assert_eq!(eval_num_op(ArithOp::Multiply, l.into(), r.into()).ok(), l.checked_mul(r));
+            prop_assert_eq!(eval_num_op(ArithOp::Divide, l.into(), r.into()).ok(), l.checked_div(r));
+
+            prop_assert_eq!(eval_relation_op(RelationOp::GT, l.into(), r.into()), l > r);
+            prop_assert_eq!(eval_relation_op(RelationOp::LT, l.into(), r.into()), l < r);
+            prop_assert_eq!(eval_relation_op(RelationOp::GE, l.into(), r.into()), l >= r);
+            prop_assert_eq!(eval_relation_op(RelationOp::LE, l.into(), r.into()), l <= r);
         }
 
         #[test]
