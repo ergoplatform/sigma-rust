@@ -283,7 +283,8 @@ mod tests {
             // SType::SAvlTree => {}
             // SType::SOption(tpe) =>
             SType::SColl(elem_tpe) => match *elem_tpe {
-                SType::SByte => any::<Vec<u8>>().prop_map_into().boxed(),
+                SType::SByte => vec(any::<u8>(), 0..400).prop_map_into().boxed(),
+                SType::SBoolean => vec(any::<bool>(), 0..400).prop_map_into().boxed(),
                 _ => todo!(),
             },
             // SType::STuple(_) => {}

@@ -8,7 +8,9 @@ use crate::ast::bin_op::RelationOp;
 use crate::ast::block::BlockValue;
 use crate::ast::calc_blake2b256::CalcBlake2b256;
 use crate::ast::coll_fold::Fold;
-use crate::ast::collection::Collection;
+use crate::ast::collection::bool_const_coll_sigma_parse;
+use crate::ast::collection::coll_sigma_parse;
+use crate::ast::collection::coll_sigma_serialize;
 use crate::ast::constant::Constant;
 use crate::ast::constant::ConstantPlaceholder;
 use crate::ast::expr::Expr;
@@ -60,7 +62,7 @@ impl SigmaSerializable for Expr {
                     Expr::ExtractAmount(op) => op.sigma_serialize(w),
                     Expr::SelectField(op) => op.sigma_serialize(w),
                     Expr::CalcBlake2b256(op) => op.sigma_serialize(w),
-                    Expr::Collection(op) => op.sigma_serialize(w),
+                    Expr::Collection(op) => coll_sigma_serialize(op, w),
                     Expr::And(op) => op.sigma_serialize(w),
                     Expr::Const(_) => panic!("unexpected constant"), // handled in the code above (external match)
                 }
@@ -123,8 +125,8 @@ impl SigmaSerializable for Expr {
                 OpCode::SELECT_FIELD => Ok(Expr::SelectField(SelectField::sigma_parse(r)?)),
                 OpCode::CALC_BLAKE2B256 => Ok(CalcBlake2b256::sigma_parse(r)?.into()),
                 And::OP_CODE => Ok(And::sigma_parse(r)?.into()),
-                OpCode::COLL_DECL => Ok(Collection::sigma_parse(r)?.into()),
-                OpCode::COLL_DECL_BOOL_CONST => Ok(Collection::sigma_parse(r)?.into()),
+                OpCode::COLL_DECL => Ok(coll_sigma_parse(r)?.into()),
+                OpCode::COLL_DECL_BOOL_CONST => Ok(bool_const_coll_sigma_parse(r)?.into()),
                 o => Err(SerializationError::NotImplementedOpCode(o.value())),
             }
         }

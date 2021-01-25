@@ -11,6 +11,8 @@ use super::coll_fold::Fold;
 use super::collection::Collection;
 use super::constant::Constant;
 use super::constant::ConstantPlaceholder;
+use super::constant::TryExtractFrom;
+use super::constant::TryExtractFromError;
 use super::extract_amount::ExtractAmount;
 use super::extract_reg_as::ExtractRegisterAs;
 use super::func_value::FuncValue;
@@ -157,6 +159,18 @@ impl From<InvalidExprEvalTypeError> for InvalidArgumentError {
     }
 }
 
+impl<T: TryExtractFrom<Constant>> TryExtractFrom<Expr> for T {
+    fn try_extract_from(v: Expr) -> Result<Self, super::constant::TryExtractFromError> {
+        match v {
+            Expr::Const(c) => Ok(T::try_extract_from(c)?),
+            _ => Err(TryExtractFromError(format!(
+                "expected Expr::Const, found {:?}",
+                v
+            ))),
+        }
+    }
+}
+
 #[cfg(test)]
 pub mod tests {
     #![allow(unused_imports)]
@@ -191,7 +205,7 @@ pub mod tests {
 
     fn coll_nested_expr(depth: usize, elem_tpe: &SType) -> BoxedStrategy<Expr> {
         match elem_tpe {
-            SType::SBoolean => vec(bool_nested_expr(depth), 0..4)
+            SType::SBoolean => vec(bool_nested_expr(depth), 0..10)
                 .prop_map(|items| Collection::new(SType::SBoolean, items).unwrap())
                 .prop_map_into(),
             _ => todo!(),
@@ -217,8 +231,12 @@ pub mod tests {
         prop_oneof![Just(GlobalVars::Height.into()),].boxed()
     }
 
+    fn bool_non_nested_expr() -> BoxedStrategy<Expr> {
+        prop_oneof![any_with::<Constant>(SType::SBoolean).prop_map_into()].boxed()
+    }
+
     fn any_non_nested_expr() -> BoxedStrategy<Expr> {
-        prop_oneof![int_non_nested_expr()]
+        prop_oneof![int_non_nested_expr(), bool_non_nested_expr()].boxed()
     }
 
     fn coll_non_nested_expr(elem_tpe: &SType) -> BoxedStrategy<Expr> {
@@ -229,8 +247,7 @@ pub mod tests {
             SType::SBoolean => any_with::<Constant>(SType::SColl(Box::new(SType::SBoolean)))
                 .prop_map(Expr::Const)
                 .boxed(),
-
-            _ => todo!(),
+            _ => todo!("Collection of {0:?} is not yet implemented", elem_tpe),
         }
     }
 
@@ -238,8 +255,9 @@ pub mod tests {
         match tpe {
             SType::SAny => any_non_nested_expr(),
             SType::SInt => int_non_nested_expr(),
+            SType::SBoolean => bool_non_nested_expr(),
             SType::SColl(elem_type) => coll_non_nested_expr(elem_type),
-            _ => todo!(),
+            _ => todo!("{0:?} is not yet implemented", tpe),
         }
     }
 

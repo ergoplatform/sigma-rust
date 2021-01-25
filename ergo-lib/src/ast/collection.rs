@@ -1,3 +1,5 @@
+use bit_vec::BitVec;
+
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
@@ -6,6 +8,7 @@ use crate::serialization::SigmaSerializable;
 use crate::types::stype::SType;
 
 use super::constant::Constant;
+use super::constant::TryExtractInto;
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
 
@@ -55,21 +58,95 @@ impl Collection {
     }
 }
 
-impl SigmaSerializable for Collection {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
-        // TODO: handle bool const array
-        w.put_u16(self.items.len() as u16)?;
-        self.elem_tpe.sigma_serialize(w)?;
-        self.items.iter().try_for_each(|i| i.sigma_serialize(w))
+pub fn coll_sigma_serialize<W: SigmaByteWrite>(
+    coll: &Collection,
+    w: &mut W,
+) -> Result<(), std::io::Error> {
+    w.put_u16(coll.items.len() as u16)?;
+    if coll.is_bool_const_coll {
+        // TODO: move to SigmaByteWrite::put_bits
+        let mut bits = BitVec::from_elem(coll.items.len(), true);
+        coll.clone()
+            .items
+            .into_iter()
+            .enumerate()
+            .for_each(|(idx, i)| bits.set(idx, i.try_extract_into::<bool>().unwrap()));
+        w.write_all(bits.to_bytes().as_slice())
+    } else {
+        coll.elem_tpe.sigma_serialize(w)?;
+        coll.items.iter().try_for_each(|i| i.sigma_serialize(w))
+    }
+}
+
+pub fn coll_sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Collection, SerializationError> {
+    let items_count = r.get_u16()?;
+    let elem_tpe = SType::sigma_parse(r)?;
+    let mut items = Vec::with_capacity(items_count as usize);
+    for _ in 0..items_count {
+        items.push(Expr::sigma_parse(r)?);
+    }
+    Ok(Collection::new(elem_tpe, items)?)
+}
+
+pub fn bool_const_coll_sigma_parse<R: SigmaByteRead>(
+    r: &mut R,
+) -> Result<Collection, SerializationError> {
+    let items_count = r.get_u16()?;
+    let byte_num = (items_count + 7) / 8;
+    let mut buf = vec![0u8; byte_num as usize];
+    r.read_exact(&mut buf)?;
+    let mut bits = BitVec::from_bytes(buf.as_slice());
+    bits.truncate(items_count as usize);
+    let items = bits.iter().map(|bit| Expr::Const(bit.into())).collect();
+    Ok(Collection::new(SType::SBoolean, items)?)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::ast::expr::tests::ArbExprParams;
+    use crate::serialization::sigma_serialize_roundtrip;
+
+    use super::*;
+    use proptest::collection::*;
+    use proptest::prelude::*;
+
+    impl Arbitrary for Collection {
+        type Strategy = BoxedStrategy<Self>;
+        type Parameters = ArbExprParams;
+
+        fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
+            prop_oneof![
+                vec(
+                    any_with::<Expr>(ArbExprParams {
+                        tpe: args.clone().tpe,
+                        depth: args.depth,
+                    }),
+                    0..19
+                ),
+                vec(
+                    any_with::<Constant>(args.clone().tpe).prop_map_into(),
+                    0..19
+                )
+            ]
+            .prop_map(move |items| Self::new(args.clone().tpe, items).unwrap())
+            .boxed()
+        }
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
-        let items_count = r.get_u16()?;
-        let elem_tpe = SType::sigma_parse(r)?;
-        let mut items = Vec::with_capacity(items_count as usize);
-        for _ in 0..items_count {
-            items.push(Expr::sigma_parse(r)?);
+    proptest! {
+
+        #[test]
+        fn ser_roundtrip(v in any::<Collection>()) {
+            dbg!(&v);
+            let expr: Expr = v.into();
+            prop_assert_eq![sigma_serialize_roundtrip(&expr), expr];
         }
-        Ok(Self::new(elem_tpe, items)?)
+
+        #[test]
+        fn ser_roundtrip_bool_const(v in any_with::<Collection>(ArbExprParams{tpe: SType::SBoolean, depth: 0})) {
+            dbg!(&v);
+            let expr: Expr = v.into();
+            prop_assert_eq![sigma_serialize_roundtrip(&expr), expr];
+        }
     }
 }
