@@ -21,8 +21,8 @@ impl OpCode {
     pub const VAL_USE: OpCode = Self::new_op_code(2);
     pub const CONSTANT_PLACEHOLDER: OpCode = Self::new_op_code(3);
 
-    pub const COLL_DECL: OpCode = Self::new_op_code(19); // reserved 20
-    pub const COLL_DECL_BOOL_CONST: OpCode = Self::new_op_code(21);
+    pub const COLL: OpCode = Self::new_op_code(19); // reserved 20
+    pub const COLL_OF_BOOL_CONST: OpCode = Self::new_op_code(21);
 
     pub const SELECT_FIELD: OpCode = Self::new_op_code(28);
 

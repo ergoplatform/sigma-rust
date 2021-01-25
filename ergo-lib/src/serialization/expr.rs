@@ -125,8 +125,8 @@ impl SigmaSerializable for Expr {
                 OpCode::SELECT_FIELD => Ok(Expr::SelectField(SelectField::sigma_parse(r)?)),
                 OpCode::CALC_BLAKE2B256 => Ok(CalcBlake2b256::sigma_parse(r)?.into()),
                 And::OP_CODE => Ok(And::sigma_parse(r)?.into()),
-                OpCode::COLL_DECL => Ok(coll_sigma_parse(r)?.into()),
-                OpCode::COLL_DECL_BOOL_CONST => Ok(bool_const_coll_sigma_parse(r)?.into()),
+                OpCode::COLL => Ok(coll_sigma_parse(r)?.into()),
+                OpCode::COLL_OF_BOOL_CONST => Ok(bool_const_coll_sigma_parse(r)?.into()),
                 o => Err(SerializationError::NotImplementedOpCode(o.value())),
             }
         }
