@@ -1,3 +1,7 @@
+use crate::eval::env::Env;
+use crate::eval::EvalContext;
+use crate::eval::EvalError;
+use crate::eval::Evaluable;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
@@ -9,6 +13,9 @@ use super::constant::TryExtractFromError;
 use super::constant::TryExtractInto;
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
+use super::value::CollKind;
+use super::value::CollPrim;
+use super::value::Value;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum Collection {
@@ -51,6 +58,31 @@ impl Collection {
             Collection::BoolConstants(_) => OpCode::COLL_OF_BOOL_CONST,
             Collection::Exprs { .. } => OpCode::COLL,
         }
+    }
+}
+
+impl Evaluable for Collection {
+    fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
+        Ok(match self {
+            Collection::BoolConstants(bools) => bools.clone().into(),
+            Collection::Exprs { elem_tpe, items } => {
+                let items_v: Result<Vec<Value>, EvalError> =
+                    items.iter().map(|i| i.eval(env, ctx)).collect();
+                match elem_tpe {
+                    SType::SByte => {
+                        let bytes: Result<Vec<i8>, TryExtractFromError> = items_v?
+                            .into_iter()
+                            .map(|i| i.try_extract_into::<i8>())
+                            .collect();
+                        Value::Coll(CollKind::Primitive(CollPrim::CollByte(bytes?)))
+                    }
+                    _ => Value::Coll(CollKind::NonPrimitive {
+                        elem_tpe: elem_tpe.clone(),
+                        v: items_v?,
+                    }),
+                }
+            }
+        })
     }
 }
 
