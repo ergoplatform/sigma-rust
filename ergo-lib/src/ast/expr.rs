@@ -2,11 +2,13 @@ use crate::serialization::op_code::OpCode;
 use crate::types::scontext::SContext;
 use crate::types::stype::SType;
 
+use super::and::And;
 use super::apply::Apply;
 use super::bin_op::BinOp;
 use super::block::BlockValue;
 use super::calc_blake2b256::CalcBlake2b256;
 use super::coll_fold::Fold;
+use super::collection::Collection;
 use super::constant::Constant;
 use super::constant::ConstantPlaceholder;
 use super::extract_amount::ExtractAmount;
@@ -30,6 +32,8 @@ pub enum Expr {
     Const(Constant),
     /// Placeholder for a constant
     ConstPlaceholder(ConstantPlaceholder),
+    /// Collection declaration (array of expressions of the same type)
+    Collection(Collection),
     /// Predefined functions (global)
     /// Blake2b256 hash calculation
     CalcBlake2b256(CalcBlake2b256),
@@ -53,6 +57,8 @@ pub enum Expr {
     ValUse(ValUse),
     /// Binary operation
     BinOp(BinOp),
+    /// Logical AND
+    And(And),
     /// Option get method
     OptionGet(OptionGet),
     /// Extract register's value (box.RX properties)
@@ -69,24 +75,26 @@ impl Expr {
     /// Code (used in serialization)
     pub fn op_code(&self) -> OpCode {
         match self {
-            Expr::Const(_) => todo!(),
-            Expr::ConstPlaceholder(cp) => cp.op_code(),
-            Expr::GlobalVars(v) => v.op_code(),
-            Expr::MethodCall(v) => v.op_code(),
-            Expr::ProperyCall(v) => v.op_code(),
+            Expr::ConstPlaceholder(op) => op.op_code(),
+            Expr::Collection(op) => op.op_code(),
+            Expr::GlobalVars(op) => op.op_code(),
+            Expr::MethodCall(op) => op.op_code(),
+            Expr::ProperyCall(op) => op.op_code(),
             Expr::Context => OpCode::CONTEXT,
-            Expr::OptionGet(v) => v.op_code(),
-            Expr::ExtractRegisterAs(v) => v.op_code(),
+            Expr::OptionGet(op) => op.op_code(),
+            Expr::ExtractRegisterAs(op) => op.op_code(),
             Expr::BinOp(op) => op.op_code(),
             Expr::BlockValue(op) => op.op_code(),
             Expr::ValUse(op) => op.op_code(),
             Expr::FuncValue(op) => op.op_code(),
+            Expr::Apply(op) => op.op_code(),
             Expr::ValDef(op) => op.op_code(),
             Expr::ExtractAmount(op) => op.op_code(),
             Expr::SelectField(op) => op.op_code(),
             Expr::Fold(op) => op.op_code(),
             Expr::CalcBlake2b256(op) => op.op_code(),
-            _ => todo!("not yet implemented opcode for {0:?}", self),
+            Expr::And(op) => op.op_code(),
+            Expr::Const(_) => panic!("constant does not have op code assigned"),
         }
     }
 
@@ -94,6 +102,7 @@ impl Expr {
     pub fn tpe(&self) -> SType {
         match self {
             Expr::Const(v) => v.tpe.clone(),
+            Expr::Collection(v) => v.tpe(),
             Expr::ConstPlaceholder(v) => v.tpe.clone(),
             Expr::CalcBlake2b256(v) => v.tpe(),
             Expr::Context => SType::SContext(SContext()),
@@ -111,6 +120,7 @@ impl Expr {
             Expr::Fold(v) => v.tpe(),
             Expr::SelectField(v) => v.tpe(),
             Expr::ExtractAmount(v) => v.tpe(),
+            Expr::And(v) => v.tpe(),
         }
     }
 
@@ -152,6 +162,7 @@ pub mod tests {
     #![allow(unused_imports)]
     use super::*;
     use crate::sigma_protocol::sigma_boolean::SigmaProp;
+    use proptest::collection::*;
     use proptest::prelude::*;
 
     #[derive(PartialEq, Eq, Debug, Clone)]
@@ -178,6 +189,16 @@ pub mod tests {
         .boxed()
     }
 
+    fn coll_nested_expr(depth: usize, elem_tpe: &SType) -> BoxedStrategy<Expr> {
+        match elem_tpe {
+            SType::SBoolean => vec(bool_nested_expr(depth), 0..4)
+                .prop_map(|items| Collection::new(SType::SBoolean, items).unwrap())
+                .prop_map_into(),
+            _ => todo!(),
+        }
+        .boxed()
+    }
+
     fn any_nested_expr(depth: usize) -> BoxedStrategy<Expr> {
         prop_oneof![bool_nested_expr(depth)]
     }
@@ -186,7 +207,7 @@ pub mod tests {
         match tpe {
             SType::SAny => any_nested_expr(depth),
             SType::SBoolean => bool_nested_expr(depth),
-            // SType::SColl(elem_type) => coll_nested_expr(elem_type, depth),
+            SType::SColl(elem_type) => coll_nested_expr(depth, elem_type.as_ref()),
             _ => todo!(),
         }
         .boxed()
@@ -205,6 +226,10 @@ pub mod tests {
             SType::SByte => any_with::<Constant>(SType::SColl(Box::new(SType::SByte)))
                 .prop_map(Expr::Const)
                 .boxed(),
+            SType::SBoolean => any_with::<Constant>(SType::SColl(Box::new(SType::SBoolean)))
+                .prop_map(Expr::Const)
+                .boxed(),
+
             _ => todo!(),
         }
     }

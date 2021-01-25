@@ -13,8 +13,8 @@ use crate::types::stype::SType;
 
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
-use super::value::Coll::NonPrimitive;
-use super::value::Coll::Primitive;
+use super::value::CollKind::NonPrimitive;
+use super::value::CollKind::Primitive;
 use super::value::CollPrim;
 use super::value::Value;
 
