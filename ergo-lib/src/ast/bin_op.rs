@@ -56,6 +56,7 @@ pub enum RelationOp {
     GT,
     LE,
     LT,
+    And,
 }
 
 impl From<RelationOp> for OpCode {
@@ -67,6 +68,7 @@ impl From<RelationOp> for OpCode {
             RelationOp::GT => OpCode::GT,
             RelationOp::LE => OpCode::LE,
             RelationOp::LT => OpCode::LT,
+            RelationOp::And => OpCode::BIN_AND,
         }
     }
 }
@@ -222,24 +224,30 @@ fn eval_le(lv: Value, rv: Value) -> Result<Value, EvalError> {
 
 impl Evaluable for BinOp {
     fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
-        let lv = self.left.eval(env, ctx)?;
-        let rv = self.right.eval(env, ctx)?;
         ctx.cost_accum.add(Costs::DEFAULT.eq_const_size)?;
+        let lv = self.left.eval(env, ctx)?;
+        // using closure to keep right value from evaluation (for lazy AND, OR)
+        let mut rv = || self.right.eval(env, ctx);
         match self.kind {
             BinOpKind::Relation(op) => match op {
-                RelationOp::Eq => Ok(Value::Boolean(lv == rv)),
-                RelationOp::NEq => Ok(Value::Boolean(lv != rv)),
-                RelationOp::GT => eval_gt(lv, rv),
-                RelationOp::LT => eval_lt(lv, rv),
-                RelationOp::GE => eval_ge(lv, rv),
-                RelationOp::LE => eval_le(lv, rv),
+                RelationOp::Eq => Ok(Value::Boolean(lv == rv()?)),
+                RelationOp::NEq => Ok(Value::Boolean(lv != rv()?)),
+                RelationOp::GT => eval_gt(lv, rv()?),
+                RelationOp::LT => eval_lt(lv, rv()?),
+                RelationOp::GE => eval_ge(lv, rv()?),
+                RelationOp::LE => eval_le(lv, rv()?),
+                RelationOp::And => Ok(Value::Boolean(if lv.try_extract_into::<bool>()? {
+                    rv()?.try_extract_into::<bool>()?
+                } else {
+                    false
+                })),
             },
             BinOpKind::Arith(op) => match op {
                 ArithOp::Plus => match lv {
-                    Value::Byte(lv_raw) => eval_plus(lv_raw, rv),
-                    Value::Short(lv_raw) => eval_plus(lv_raw, rv),
-                    Value::Int(lv_raw) => eval_plus(lv_raw, rv),
-                    Value::Long(lv_raw) => eval_plus(lv_raw, rv),
+                    Value::Byte(lv_raw) => eval_plus(lv_raw, rv()?),
+                    Value::Short(lv_raw) => eval_plus(lv_raw, rv()?),
+                    Value::Int(lv_raw) => eval_plus(lv_raw, rv()?),
+                    Value::Long(lv_raw) => eval_plus(lv_raw, rv()?),
                     Value::BigInt => todo!(),
                     _ => Err(EvalError::UnexpectedValue(format!(
                         "expected BinOp::left to be numeric value, got {0:?}",
@@ -247,10 +255,10 @@ impl Evaluable for BinOp {
                     ))),
                 },
                 ArithOp::Minus => match lv {
-                    Value::Byte(lv_raw) => eval_minus(lv_raw, rv),
-                    Value::Short(lv_raw) => eval_minus(lv_raw, rv),
-                    Value::Int(lv_raw) => eval_minus(lv_raw, rv),
-                    Value::Long(lv_raw) => eval_minus(lv_raw, rv),
+                    Value::Byte(lv_raw) => eval_minus(lv_raw, rv()?),
+                    Value::Short(lv_raw) => eval_minus(lv_raw, rv()?),
+                    Value::Int(lv_raw) => eval_minus(lv_raw, rv()?),
+                    Value::Long(lv_raw) => eval_minus(lv_raw, rv()?),
                     Value::BigInt => todo!(),
                     _ => Err(EvalError::UnexpectedValue(format!(
                         "expected BinOp::left to be numeric value, got {0:?}",
@@ -258,10 +266,10 @@ impl Evaluable for BinOp {
                     ))),
                 },
                 ArithOp::Multiply => match lv {
-                    Value::Byte(lv_raw) => eval_mul(lv_raw, rv),
-                    Value::Short(lv_raw) => eval_mul(lv_raw, rv),
-                    Value::Int(lv_raw) => eval_mul(lv_raw, rv),
-                    Value::Long(lv_raw) => eval_mul(lv_raw, rv),
+                    Value::Byte(lv_raw) => eval_mul(lv_raw, rv()?),
+                    Value::Short(lv_raw) => eval_mul(lv_raw, rv()?),
+                    Value::Int(lv_raw) => eval_mul(lv_raw, rv()?),
+                    Value::Long(lv_raw) => eval_mul(lv_raw, rv()?),
                     Value::BigInt => todo!(),
                     _ => Err(EvalError::UnexpectedValue(format!(
                         "expected BinOp::left to be numeric value, got {0:?}",
@@ -269,10 +277,10 @@ impl Evaluable for BinOp {
                     ))),
                 },
                 ArithOp::Divide => match lv {
-                    Value::Byte(lv_raw) => eval_div(lv_raw, rv),
-                    Value::Short(lv_raw) => eval_div(lv_raw, rv),
-                    Value::Int(lv_raw) => eval_div(lv_raw, rv),
-                    Value::Long(lv_raw) => eval_div(lv_raw, rv),
+                    Value::Byte(lv_raw) => eval_div(lv_raw, rv()?),
+                    Value::Short(lv_raw) => eval_div(lv_raw, rv()?),
+                    Value::Int(lv_raw) => eval_div(lv_raw, rv()?),
+                    Value::Long(lv_raw) => eval_div(lv_raw, rv()?),
                     Value::BigInt => todo!(),
                     _ => Err(EvalError::UnexpectedValue(format!(
                         "expected BinOp::left to be numeric value, got {0:?}",
@@ -417,6 +425,26 @@ pub mod tests {
         assert!(check_eq_neq((1i64, true).into(), (1i64, true).into()));
     }
 
+    #[test]
+    fn bin_and_eval_laziness() {
+        let e: Expr = BinOp {
+            kind: BinOpKind::Relation(RelationOp::And),
+            left: Box::new(Expr::Const(false.into())),
+            // something that should blow-up the evaluation
+            right: Box::new(
+                BinOp {
+                    kind: ArithOp::Divide.into(),
+                    left: Box::new(Expr::Const(1i32.into())),
+                    right: Box::new(Expr::Const(0i32.into())),
+                }
+                .into(),
+            ),
+        }
+        .into();
+        let ctx = Rc::new(force_any_val::<Context>());
+        assert_eq!(eval_out::<bool>(&e, ctx), false);
+    }
+
     fn eval_num_op<T: TryExtractFrom<Value>>(
         op: ArithOp,
         left: Constant,
@@ -502,6 +530,11 @@ pub mod tests {
             prop_assert_eq!(eval_relation_op(RelationOp::LT, l.into(), r.into()), l < r);
             prop_assert_eq!(eval_relation_op(RelationOp::GE, l.into(), r.into()), l >= r);
             prop_assert_eq!(eval_relation_op(RelationOp::LE, l.into(), r.into()), l <= r);
+        }
+
+        #[test]
+        fn test_bin_and(l in any::<bool>(), r in any::<bool>()) {
+            prop_assert_eq!(eval_relation_op(RelationOp::And, l.into(), r.into()), l && r);
         }
 
         #[test]

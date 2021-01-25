@@ -62,6 +62,9 @@ impl OpCode {
 
     pub const OPTION_GET: OpCode = Self::new_op_code(116);
 
+    pub const BIN_OR: OpCode = Self::new_op_code(124);
+    pub const BIN_AND: OpCode = Self::new_op_code(125);
+
     pub const CONTEXT: OpCode = Self::new_op_code(142);
 
     const fn new_op_code(shift: u8) -> OpCode {
