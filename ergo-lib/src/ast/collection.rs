@@ -1,5 +1,3 @@
-use bit_vec::BitVec;
-
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
@@ -15,6 +13,7 @@ use super::expr::InvalidArgumentError;
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Collection {
     elem_tpe: SType,
+    // todo: use enum (exprs vs. bools)
     items: Vec<Expr>,
     is_bool_const_coll: bool,
 }
@@ -64,14 +63,13 @@ pub fn coll_sigma_serialize<W: SigmaByteWrite>(
 ) -> Result<(), std::io::Error> {
     w.put_u16(coll.items.len() as u16)?;
     if coll.is_bool_const_coll {
-        // TODO: move to SigmaByteWrite::put_bits
-        let mut bits = BitVec::from_elem(coll.items.len(), true);
-        coll.clone()
+        let bools: Vec<bool> = coll
+            .clone()
             .items
             .into_iter()
-            .enumerate()
-            .for_each(|(idx, i)| bits.set(idx, i.try_extract_into::<bool>().unwrap()));
-        w.write_all(bits.to_bytes().as_slice())
+            .map(|expr| expr.try_extract_into::<bool>().unwrap())
+            .collect();
+        w.put_bits(bools.as_slice())
     } else {
         coll.elem_tpe.sigma_serialize(w)?;
         coll.items.iter().try_for_each(|i| i.sigma_serialize(w))
@@ -92,12 +90,8 @@ pub fn bool_const_coll_sigma_parse<R: SigmaByteRead>(
     r: &mut R,
 ) -> Result<Collection, SerializationError> {
     let items_count = r.get_u16()?;
-    let byte_num = (items_count + 7) / 8;
-    let mut buf = vec![0u8; byte_num as usize];
-    r.read_exact(&mut buf)?;
-    let mut bits = BitVec::from_bytes(buf.as_slice());
-    bits.truncate(items_count as usize);
-    let items = bits.iter().map(|bit| Expr::Const(bit.into())).collect();
+    let bools = r.get_bits(items_count as usize)?;
+    let items = bools.into_iter().map(|b| Expr::Const(b.into())).collect();
     Ok(Collection::new(SType::SBoolean, items)?)
 }
 
