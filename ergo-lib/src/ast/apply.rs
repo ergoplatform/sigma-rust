@@ -4,6 +4,7 @@ use crate::eval::env::Env;
 use crate::eval::EvalContext;
 use crate::eval::EvalError;
 use crate::eval::Evaluable;
+use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::SerializationError;
@@ -53,6 +54,10 @@ impl Apply {
             SType::SFunc(f) => *f.t_range,
             _ => panic!("unexpected Apply::func: {0:?}", self.func.tpe()),
         }
+    }
+
+    pub fn op_code(&self) -> OpCode {
+        OpCode::APPLY
     }
 }
 
@@ -143,7 +148,8 @@ mod tests {
 
         #[test]
         fn ser_roundtrip(v in any::<Apply>()) {
-            prop_assert_eq![sigma_serialize_roundtrip(&v), v];
+            let expr: Expr = v.into();
+            prop_assert_eq![sigma_serialize_roundtrip(&expr), expr];
         }
     }
 

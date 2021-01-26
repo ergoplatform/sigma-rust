@@ -13,7 +13,7 @@ use crate::util::AsVecU8;
 
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
-use super::value::Coll;
+use super::value::CollKind;
 use super::value::CollPrim;
 use super::value::Value;
 
@@ -44,7 +44,7 @@ impl Evaluable for CalcBlake2b256 {
         let input_v = self.input.eval(env, ctx)?;
         match input_v.clone() {
             Value::Coll(coll) => match coll {
-                Coll::Primitive(CollPrim::CollByte(coll_byte)) => {
+                CollKind::Primitive(CollPrim::CollByte(coll_byte)) => {
                     let expected_hash: Vec<u8> =
                         blake2b256_hash(coll_byte.as_vec_u8().as_slice()).0.to_vec();
                     Ok(expected_hash.into())

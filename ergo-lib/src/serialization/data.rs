@@ -1,4 +1,4 @@
-use crate::ast::value::Coll;
+use crate::ast::value::CollKind;
 use crate::ast::value::CollPrim;
 use crate::ast::value::Value;
 use crate::serialization::{
@@ -32,11 +32,11 @@ impl DataSerializer {
             Value::CBox(_) => todo!(),
             Value::AvlTree => todo!(),
             Value::Coll(ct) => match ct {
-                Coll::Primitive(CollPrim::CollByte(b)) => {
+                CollKind::Primitive(CollPrim::CollByte(b)) => {
                     w.put_usize_as_u16(b.len())?;
                     w.write_all(b.clone().as_vec_u8().as_slice())
                 }
-                Coll::NonPrimitive { elem_tpe: _, v } => {
+                CollKind::NonPrimitive { elem_tpe: _, v } => {
                     w.put_usize_as_u16(v.len())?;
                     v.iter()
                         .try_for_each(|e| DataSerializer::sigma_serialize(e, w))
@@ -68,7 +68,7 @@ impl DataSerializer {
                 let len = r.get_u16()? as usize;
                 let mut buf = vec![0u8; len];
                 r.read_exact(&mut buf)?;
-                Value::Coll(Coll::Primitive(CollPrim::CollByte(
+                Value::Coll(CollKind::Primitive(CollPrim::CollByte(
                     buf.into_iter().map(|v| v as i8).collect(),
                 )))
             }
@@ -78,7 +78,7 @@ impl DataSerializer {
                 for _ in 0..len {
                     elems.push(DataSerializer::sigma_parse(elem_type, r)?);
                 }
-                Value::Coll(Coll::NonPrimitive {
+                Value::Coll(CollKind::NonPrimitive {
                     elem_tpe: *elem_type.clone(),
                     v: elems,
                 })

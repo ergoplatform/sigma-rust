@@ -26,10 +26,10 @@ impl Evaluable for Expr {
             Expr::BlockValue(op) => op.eval(env, ctx),
             Expr::SelectField(op) => op.eval(env, ctx),
             Expr::ExtractAmount(op) => op.eval(env, ctx),
-            _ => Err(EvalError::UnexpectedExpr(format!(
-                "Don't know how to eval Expr: {0:?}",
-                self
-            ))),
+            Expr::ConstPlaceholder(_) => panic!("ConstPlaceholder cannot be evaluated"),
+            Expr::Collection(op) => op.eval(env, ctx),
+            Expr::ValDef(_) => panic!("ValDef is evaluated in BlockValue"),
+            Expr::And(op) => op.eval(env, ctx),
         }
     }
 }

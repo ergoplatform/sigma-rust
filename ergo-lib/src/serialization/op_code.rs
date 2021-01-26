@@ -21,6 +21,9 @@ impl OpCode {
     pub const VAL_USE: OpCode = Self::new_op_code(2);
     pub const CONSTANT_PLACEHOLDER: OpCode = Self::new_op_code(3);
 
+    pub const COLL: OpCode = Self::new_op_code(19); // reserved 20
+    pub const COLL_OF_BOOL_CONST: OpCode = Self::new_op_code(21);
+
     pub const SELECT_FIELD: OpCode = Self::new_op_code(28);
 
     pub const LT: OpCode = Self::new_op_code(31);
@@ -29,6 +32,7 @@ impl OpCode {
     pub const GE: OpCode = Self::new_op_code(34);
     pub const EQ: OpCode = Self::new_op_code(35);
     pub const NEQ: OpCode = Self::new_op_code(36);
+    pub const AND: OpCode = Self::new_op_code(38);
 
     pub const MINUS: OpCode = Self::new_op_code(41);
     pub const PLUS: OpCode = Self::new_op_code(42);
@@ -52,10 +56,14 @@ impl OpCode {
     pub const VAL_DEF: OpCode = Self::new_op_code(102);
     pub const BLOCK_VALUE: OpCode = Self::new_op_code(104);
     pub const FUNC_VALUE: OpCode = Self::new_op_code(105);
+    pub const APPLY: OpCode = Self::new_op_code(106);
     pub const PROPERTY_CALL: OpCode = Self::new_op_code(107);
     pub const METHOD_CALL: OpCode = Self::new_op_code(108);
 
     pub const OPTION_GET: OpCode = Self::new_op_code(116);
+
+    pub const BIN_OR: OpCode = Self::new_op_code(124);
+    pub const BIN_AND: OpCode = Self::new_op_code(125);
 
     pub const CONTEXT: OpCode = Self::new_op_code(142);
 

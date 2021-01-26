@@ -3,6 +3,7 @@ use std::convert::TryFrom;
 use std::io;
 
 use crate::peekable_reader;
+use bit_vec::BitVec;
 use peekable_reader::Peekable;
 #[cfg(test)]
 use proptest::{num::u64, prelude::*};
@@ -94,7 +95,17 @@ pub trait WriteSigmaVlqExt: io::Write {
         }
         buffer[position] = value as u8;
 
-        Self::write_all(self, &buffer[..position + 1])
+        self.write_all(&buffer[..position + 1])
+    }
+
+    /// Encode bool array as bit vector, filling trailing bits with `false`
+    fn put_bits(&mut self, bools: &[bool]) -> io::Result<()> {
+        let mut bits = BitVec::from_elem(bools.len(), true);
+        bools
+            .iter()
+            .enumerate()
+            .for_each(|(idx, i)| bits.set(idx, *i));
+        self.write_all(bits.to_bytes().as_slice())
     }
 }
 
@@ -164,6 +175,16 @@ pub trait ReadSigmaVlqExt: peekable_reader::Peekable {
         }
         Err(VlqEncodingError::VlqDecodingFailed)
     }
+
+    /// Read a vector of bits with the given size
+    fn get_bits(&mut self, size: usize) -> Result<Vec<bool>, VlqEncodingError> {
+        let byte_num = (size + 7) / 8;
+        let mut buf = vec![0u8; byte_num];
+        self.read_exact(&mut buf)?;
+        let mut bits = BitVec::from_bytes(buf.as_slice());
+        bits.truncate(size);
+        Ok(bits.iter().collect::<Vec<bool>>())
+    }
 }
 
 /// Mark all types implementing `Read` as implementing the extension.
@@ -174,6 +195,7 @@ impl<R: Peekable + ?Sized> ReadSigmaVlqExt for R {}
 mod tests {
     use super::*;
     use peekable_reader::PeekableReader;
+    use proptest::collection;
     use std::io::Cursor;
 
     #[test]
@@ -288,5 +310,14 @@ mod tests {
             }
             prop_assert_eq![dec, arr];
         }
+
+        #[test]
+        fn prop_bits_roundtrip(bits in collection::vec(any::<bool>(), 0..400)) {
+            let mut w = Cursor::new(vec![]);
+            w.put_bits(&bits).unwrap();
+            let mut r = PeekableReader::new(Cursor::new(w.into_inner()));
+            prop_assert_eq![bits.clone(), r.get_bits(bits.len()).unwrap()];
+        }
+
     }
 }

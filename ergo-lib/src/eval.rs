@@ -115,6 +115,16 @@ pub mod tests {
     use super::env::Env;
     use super::*;
 
+    pub fn eval_out_wo_ctx<T: TryExtractFrom<Value>>(expr: &Expr) -> T {
+        let cost_accum = CostAccumulator::new(0, None);
+        let ctx = Rc::new(Context::dummy());
+        let mut ectx = EvalContext::new(ctx, cost_accum);
+        expr.eval(&Env::empty(), &mut ectx)
+            .unwrap()
+            .try_extract_into::<T>()
+            .unwrap()
+    }
+
     pub fn eval_out<T: TryExtractFrom<Value>>(expr: &Expr, ctx: Rc<Context>) -> T {
         let cost_accum = CostAccumulator::new(0, None);
         let mut ectx = EvalContext::new(ctx, cost_accum);

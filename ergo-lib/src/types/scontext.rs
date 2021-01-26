@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use crate::ast::constant::TryExtractInto;
-use crate::ast::value::Coll;
+use crate::ast::value::CollKind;
 use crate::ast::value::Value;
 use crate::eval::context::Context;
 
@@ -25,7 +25,7 @@ static S_CONTEXT_TYPE_COMPANION_HEAD: STypeCompanionHead = STypeCompanionHead {
 };
 
 static DATA_INPUTS_EVAL_FN: EvalFn = |obj, _args| {
-    Ok(Value::Coll(Coll::NonPrimitive {
+    Ok(Value::Coll(CollKind::NonPrimitive {
         v: obj
             .try_extract_into::<Rc<Context>>()?
             .data_inputs

@@ -1,11 +1,16 @@
 use super::bin_op::bin_op_sigma_parse;
 use super::bin_op::bin_op_sigma_serialize;
 use super::{op_code::OpCode, sigma_byte_writer::SigmaByteWrite};
+use crate::ast::and::And;
+use crate::ast::apply::Apply;
 use crate::ast::bin_op::ArithOp;
 use crate::ast::bin_op::RelationOp;
 use crate::ast::block::BlockValue;
 use crate::ast::calc_blake2b256::CalcBlake2b256;
 use crate::ast::coll_fold::Fold;
+use crate::ast::collection::bool_const_coll_sigma_parse;
+use crate::ast::collection::coll_sigma_parse;
+use crate::ast::collection::coll_sigma_serialize;
 use crate::ast::constant::Constant;
 use crate::ast::constant::ConstantPlaceholder;
 use crate::ast::expr::Expr;
@@ -53,10 +58,13 @@ impl SigmaSerializable for Expr {
                     Expr::ValUse(op) => op.sigma_serialize(w),
                     Expr::ValDef(op) => op.sigma_serialize(w),
                     Expr::FuncValue(op) => op.sigma_serialize(w),
+                    Expr::Apply(op) => op.sigma_serialize(w),
                     Expr::ExtractAmount(op) => op.sigma_serialize(w),
                     Expr::SelectField(op) => op.sigma_serialize(w),
                     Expr::CalcBlake2b256(op) => op.sigma_serialize(w),
-                    _ => panic!(format!("don't know how to serialize {:?}", expr)),
+                    Expr::Collection(op) => coll_sigma_serialize(op, w),
+                    Expr::And(op) => op.sigma_serialize(w),
+                    Expr::Const(_) => panic!("unexpected constant"), // handled in the code above (external match)
                 }
             }
         }
@@ -100,6 +108,7 @@ impl SigmaSerializable for Expr {
                 OpCode::EXTRACT_REGISTER_AS => Ok(ExtractRegisterAs::sigma_parse(r)?.into()),
                 OpCode::EQ => Ok(bin_op_sigma_parse(RelationOp::Eq.into(), r)?),
                 OpCode::NEQ => Ok(bin_op_sigma_parse(RelationOp::NEq.into(), r)?),
+                OpCode::BIN_AND => Ok(bin_op_sigma_parse(RelationOp::And.into(), r)?),
                 OpCode::GT => Ok(bin_op_sigma_parse(RelationOp::GT.into(), r)?),
                 OpCode::LT => Ok(bin_op_sigma_parse(RelationOp::LT.into(), r)?),
                 OpCode::GE => Ok(bin_op_sigma_parse(RelationOp::GE.into(), r)?),
@@ -110,11 +119,15 @@ impl SigmaSerializable for Expr {
                 OpCode::DIVISION => Ok(bin_op_sigma_parse(ArithOp::Divide.into(), r)?),
                 OpCode::BLOCK_VALUE => Ok(Expr::BlockValue(BlockValue::sigma_parse(r)?)),
                 OpCode::FUNC_VALUE => Ok(Expr::FuncValue(FuncValue::sigma_parse(r)?)),
+                OpCode::APPLY => Ok(Expr::Apply(Apply::sigma_parse(r)?)),
                 OpCode::VAL_DEF => Ok(Expr::ValDef(ValDef::sigma_parse(r)?)),
                 OpCode::VAL_USE => Ok(Expr::ValUse(ValUse::sigma_parse(r)?)),
                 OpCode::EXTRACT_AMOUNT => Ok(Expr::ExtractAmount(ExtractAmount::sigma_parse(r)?)),
                 OpCode::SELECT_FIELD => Ok(Expr::SelectField(SelectField::sigma_parse(r)?)),
                 OpCode::CALC_BLAKE2B256 => Ok(CalcBlake2b256::sigma_parse(r)?.into()),
+                And::OP_CODE => Ok(And::sigma_parse(r)?.into()),
+                OpCode::COLL => Ok(coll_sigma_parse(r)?.into()),
+                OpCode::COLL_OF_BOOL_CONST => Ok(bool_const_coll_sigma_parse(r)?.into()),
                 o => Err(SerializationError::NotImplementedOpCode(o.value())),
             }
         }
