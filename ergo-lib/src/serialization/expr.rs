@@ -109,6 +109,7 @@ impl SigmaSerializable for Expr {
                 OpCode::EQ => Ok(bin_op_sigma_parse(RelationOp::Eq.into(), r)?),
                 OpCode::NEQ => Ok(bin_op_sigma_parse(RelationOp::NEq.into(), r)?),
                 OpCode::BIN_AND => Ok(bin_op_sigma_parse(RelationOp::And.into(), r)?),
+                OpCode::BIN_OR => Ok(bin_op_sigma_parse(RelationOp::Or.into(), r)?),
                 OpCode::GT => Ok(bin_op_sigma_parse(RelationOp::GT.into(), r)?),
                 OpCode::LT => Ok(bin_op_sigma_parse(RelationOp::LT.into(), r)?),
                 OpCode::GE => Ok(bin_op_sigma_parse(RelationOp::GE.into(), r)?),

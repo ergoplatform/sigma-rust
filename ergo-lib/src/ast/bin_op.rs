@@ -57,6 +57,7 @@ pub enum RelationOp {
     LE,
     LT,
     And,
+    Or,
 }
 
 impl From<RelationOp> for OpCode {
@@ -69,6 +70,7 @@ impl From<RelationOp> for OpCode {
             RelationOp::LE => OpCode::LE,
             RelationOp::LT => OpCode::LT,
             RelationOp::And => OpCode::BIN_AND,
+            RelationOp::Or => OpCode::BIN_OR,
         }
     }
 }
@@ -240,6 +242,11 @@ impl Evaluable for BinOp {
                     rv()?.try_extract_into::<bool>()?
                 } else {
                     false
+                })),
+                RelationOp::Or => Ok(Value::Boolean(if !lv.try_extract_into::<bool>()? {
+                    rv()?.try_extract_into::<bool>()?
+                } else {
+                    true
                 })),
             },
             BinOpKind::Arith(op) => match op {
@@ -425,6 +432,26 @@ pub mod tests {
     }
 
     #[test]
+    fn bin_or_eval_laziness() {
+        let e: Expr = BinOp {
+            kind: BinOpKind::Relation(RelationOp::Or),
+            left: Box::new(Expr::Const(true.into())),
+            // something that should blow-up the evaluation
+            right: Box::new(
+                BinOp {
+                    kind: ArithOp::Divide.into(),
+                    left: Box::new(Expr::Const(1i32.into())),
+                    right: Box::new(Expr::Const(0i32.into())),
+                }
+                .into(),
+            ),
+        }
+        .into();
+        let ctx = Rc::new(force_any_val::<Context>());
+        assert_eq!(eval_out::<bool>(&e, ctx), true);
+    }
+
+    #[test]
     fn bin_and_eval_laziness() {
         let e: Expr = BinOp {
             kind: BinOpKind::Relation(RelationOp::And),
@@ -532,8 +559,9 @@ pub mod tests {
         }
 
         #[test]
-        fn test_bin_and(l in any::<bool>(), r in any::<bool>()) {
+        fn test_and_or(l in any::<bool>(), r in any::<bool>()) {
             prop_assert_eq!(eval_relation_op(RelationOp::And, l.into(), r.into()), l && r);
+            prop_assert_eq!(eval_relation_op(RelationOp::Or, l.into(), r.into()), l || r);
         }
 
     }
