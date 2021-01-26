@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Arith ops (`+, -, *, /`) IR node evaluation and serialization [#181](https://github.com/ergoplatform/sigma-rust/pull/181);
 - Comparison ops (`>, >=, <, <=`) IR node evaluation and serialization [#182](https://github.com/ergoplatform/sigma-rust/pull/182);
 - `AND`, `Collection` (collection declaration), `BinAnd` IR nodes evaluation and serialization [#183](https://github.com/ergoplatform/sigma-rust/pull/183);
+- `Or`, `BinOr` IR nodes evaluation and serialization [#184](https://github.com/ergoplatform/sigma-rust/pull/184);
 
 ## [0.4.4] - 2021-01-20
 
