@@ -14,6 +14,7 @@ pub(crate) mod func_value;
 pub(crate) mod global_vars;
 pub(crate) mod method_call;
 pub(crate) mod option_get;
+pub(crate) mod or;
 pub(crate) mod property_call;
 pub(crate) mod select_field;
 pub(crate) mod val_def;

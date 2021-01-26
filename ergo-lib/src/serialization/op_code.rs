@@ -33,6 +33,7 @@ impl OpCode {
     pub const EQ: OpCode = Self::new_op_code(35);
     pub const NEQ: OpCode = Self::new_op_code(36);
     pub const AND: OpCode = Self::new_op_code(38);
+    pub const OR: OpCode = Self::new_op_code(39);
 
     pub const MINUS: OpCode = Self::new_op_code(41);
     pub const PLUS: OpCode = Self::new_op_code(42);
