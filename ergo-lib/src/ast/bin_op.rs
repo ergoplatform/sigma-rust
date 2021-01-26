@@ -302,7 +302,6 @@ pub mod tests {
     use crate::eval::context::Context;
     use crate::eval::tests::eval_out;
     use crate::eval::tests::try_eval_out;
-    use crate::serialization::sigma_serialize_roundtrip;
     use crate::test_util::force_any_val;
     use crate::types::stype::SType;
 
@@ -537,10 +536,5 @@ pub mod tests {
             prop_assert_eq!(eval_relation_op(RelationOp::And, l.into(), r.into()), l && r);
         }
 
-        #[test]
-        fn ser_roundtrip(v in any_with::<BinOp>(ArbExprParams {tpe: SType::SAny, depth: 0})) {
-            let expr: Expr = v.into();
-            prop_assert_eq![sigma_serialize_roundtrip(&expr), expr];
-        }
     }
 }

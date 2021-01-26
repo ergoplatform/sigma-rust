@@ -65,6 +65,12 @@ impl From<io::Error> for SerializationError {
     }
 }
 
+impl From<&io::Error> for SerializationError {
+    fn from(error: &io::Error) -> Self {
+        SerializationError::Io(error.to_string())
+    }
+}
+
 impl From<InvalidArgumentError> for SerializationError {
     fn from(e: InvalidArgumentError) -> Self {
         SerializationError::InvalidArgument(e)
