@@ -1,3 +1,5 @@
+use crate::ast::constant::TryExtractFromError;
+use crate::ast::constant::TryExtractInto;
 use crate::ast::value::CollKind;
 use crate::ast::value::CollPrim;
 use crate::ast::value::Value;
@@ -36,6 +38,18 @@ impl DataSerializer {
                     w.put_usize_as_u16(b.len())?;
                     w.write_all(b.clone().as_vec_u8().as_slice())
                 }
+                CollKind::NonPrimitive {
+                    elem_tpe: SType::SBoolean,
+                    v,
+                } => {
+                    w.put_usize_as_u16(v.len())?;
+                    let maybe_bools: Result<Vec<bool>, TryExtractFromError> = v
+                        .clone()
+                        .into_iter()
+                        .map(|i| i.try_extract_into::<bool>())
+                        .collect();
+                    w.put_bits(maybe_bools.unwrap().as_slice())
+                }
                 CollKind::NonPrimitive { elem_tpe: _, v } => {
                     w.put_usize_as_u16(v.len())?;
                     v.iter()
@@ -71,6 +85,14 @@ impl DataSerializer {
                 Value::Coll(CollKind::Primitive(CollPrim::CollByte(
                     buf.into_iter().map(|v| v as i8).collect(),
                 )))
+            }
+            SColl(elem_type) if **elem_type == SBoolean => {
+                let len = r.get_u16()? as usize;
+                let bools = r.get_bits(len)?;
+                Value::Coll(CollKind::NonPrimitive {
+                    elem_tpe: *elem_type.clone(),
+                    v: bools.into_iter().map(|b| b.into()).collect(),
+                })
             }
             SColl(elem_type) => {
                 let len = r.get_u16()? as usize;

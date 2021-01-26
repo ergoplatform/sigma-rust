@@ -20,6 +20,7 @@ use crate::ast::func_value::FuncValue;
 use crate::ast::global_vars::GlobalVars;
 use crate::ast::method_call::MethodCall;
 use crate::ast::option_get::OptionGet;
+use crate::ast::or::Or;
 use crate::ast::property_call::PropertyCall;
 use crate::ast::select_field::SelectField;
 use crate::ast::val_def::ValDef;
@@ -45,6 +46,7 @@ impl SigmaSerializable for Expr {
                 let op_code = self.op_code();
                 op_code.sigma_serialize(w)?;
                 match expr {
+                    Expr::Const(_) => panic!("unexpected constant"), // handled in the code above (external match)
                     Expr::Fold(op) => op.sigma_serialize(w),
                     Expr::ConstPlaceholder(cp) => cp.sigma_serialize(w),
                     Expr::GlobalVars(_) => Ok(()),
@@ -64,7 +66,7 @@ impl SigmaSerializable for Expr {
                     Expr::CalcBlake2b256(op) => op.sigma_serialize(w),
                     Expr::Collection(op) => coll_sigma_serialize(op, w),
                     Expr::And(op) => op.sigma_serialize(w),
-                    Expr::Const(_) => panic!("unexpected constant"), // handled in the code above (external match)
+                    Expr::Or(op) => op.sigma_serialize(w),
                 }
             }
         }
@@ -109,6 +111,7 @@ impl SigmaSerializable for Expr {
                 OpCode::EQ => Ok(bin_op_sigma_parse(RelationOp::Eq.into(), r)?),
                 OpCode::NEQ => Ok(bin_op_sigma_parse(RelationOp::NEq.into(), r)?),
                 OpCode::BIN_AND => Ok(bin_op_sigma_parse(RelationOp::And.into(), r)?),
+                OpCode::BIN_OR => Ok(bin_op_sigma_parse(RelationOp::Or.into(), r)?),
                 OpCode::GT => Ok(bin_op_sigma_parse(RelationOp::GT.into(), r)?),
                 OpCode::LT => Ok(bin_op_sigma_parse(RelationOp::LT.into(), r)?),
                 OpCode::GE => Ok(bin_op_sigma_parse(RelationOp::GE.into(), r)?),
@@ -126,6 +129,7 @@ impl SigmaSerializable for Expr {
                 OpCode::SELECT_FIELD => Ok(Expr::SelectField(SelectField::sigma_parse(r)?)),
                 OpCode::CALC_BLAKE2B256 => Ok(CalcBlake2b256::sigma_parse(r)?.into()),
                 And::OP_CODE => Ok(And::sigma_parse(r)?.into()),
+                Or::OP_CODE => Ok(Or::sigma_parse(r)?.into()),
                 OpCode::COLL => Ok(coll_sigma_parse(r)?.into()),
                 OpCode::COLL_OF_BOOL_CONST => Ok(bool_const_coll_sigma_parse(r)?.into()),
                 o => Err(SerializationError::NotImplementedOpCode(o.value())),

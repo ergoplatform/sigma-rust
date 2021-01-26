@@ -20,8 +20,8 @@
 - `CalcBlake2b256`;
 - Arithmetic ops (`+, -, *, /`);
 - Comparison ops (`>, >=, <, <=`);
-- `AND`, `Collection` (collection declaration); 
-- `BinAnd`;
+- `AND`, `OR`, `Collection` (collection declaration); 
+- `BinAnd`, `BinOr`;
 
 ## Usage 
 ## Crate features

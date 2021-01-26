@@ -30,6 +30,7 @@ impl Evaluable for Expr {
             Expr::Collection(op) => op.eval(env, ctx),
             Expr::ValDef(_) => panic!("ValDef is evaluated in BlockValue"),
             Expr::And(op) => op.eval(env, ctx),
+            Expr::Or(op) => op.eval(env, ctx),
         }
     }
 }

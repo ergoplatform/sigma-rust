@@ -19,6 +19,7 @@ use super::func_value::FuncValue;
 use super::global_vars::GlobalVars;
 use super::method_call::MethodCall;
 use super::option_get::OptionGet;
+use super::or::Or;
 use super::property_call::PropertyCall;
 use super::select_field::SelectField;
 use super::val_def::ValDef;
@@ -61,6 +62,8 @@ pub enum Expr {
     BinOp(BinOp),
     /// Logical AND
     And(And),
+    /// Logical OR
+    Or(Or),
     /// Option get method
     OptionGet(OptionGet),
     /// Extract register's value (box.RX properties)
@@ -77,6 +80,7 @@ impl Expr {
     /// Code (used in serialization)
     pub fn op_code(&self) -> OpCode {
         match self {
+            Expr::Const(_) => panic!("constant does not have op code assigned"),
             Expr::ConstPlaceholder(op) => op.op_code(),
             Expr::Collection(op) => op.op_code(),
             Expr::GlobalVars(op) => op.op_code(),
@@ -96,7 +100,7 @@ impl Expr {
             Expr::Fold(op) => op.op_code(),
             Expr::CalcBlake2b256(op) => op.op_code(),
             Expr::And(op) => op.op_code(),
-            Expr::Const(_) => panic!("constant does not have op code assigned"),
+            Expr::Or(op) => op.op_code(),
         }
     }
 
@@ -123,6 +127,7 @@ impl Expr {
             Expr::SelectField(v) => v.tpe(),
             Expr::ExtractAmount(v) => v.tpe(),
             Expr::And(v) => v.tpe(),
+            Expr::Or(v) => v.tpe(),
         }
     }
 
