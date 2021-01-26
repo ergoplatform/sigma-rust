@@ -181,6 +181,7 @@ impl StoredNonPrimitive for ErgoBox {}
 impl StoredNonPrimitive for EcPoint {}
 impl StoredNonPrimitive for SigmaProp {}
 impl<T: StoredNonPrimitive> StoredNonPrimitive for Option<T> {}
+impl<T> StoredNonPrimitive for Vec<T> {}
 
 #[impl_for_tuples(2, 4)]
 impl StoredNonPrimitive for Tuple {}
@@ -335,6 +336,12 @@ impl TryExtractFrom<Value> for Vec<u8> {
     }
 }
 
+impl TryExtractFrom<Value> for Value {
+    fn try_extract_from(v: Value) -> Result<Self, TryExtractFromError> {
+        Ok(v)
+    }
+}
+
 impl TryFrom<Value> for ProveDlog {
     type Error = TryExtractFromError;
     fn try_from(cv: Value) -> Result<Self, Self::Error> {
@@ -400,5 +407,30 @@ impl TryExtractFrom<Value> for Tuple {
                 v
             ))),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn byte_u8_array_into() {
+        let bytes = vec![1u8, 2u8, 3u8];
+        let value: Value = bytes.into();
+        assert!(matches!(
+            value,
+            Value::Coll(CollKind::Primitive(CollPrim::CollByte(_)))
+        ))
+    }
+
+    #[test]
+    fn byte_i8_array_into() {
+        let bytes = vec![1i8, 2i8, 3i8];
+        let value: Value = bytes.into();
+        assert!(matches!(
+            value,
+            Value::Coll(CollKind::Primitive(CollPrim::CollByte(_)))
+        ))
     }
 }

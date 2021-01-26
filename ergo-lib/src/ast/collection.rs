@@ -125,6 +125,7 @@ pub fn bool_const_coll_sigma_parse<R: SigmaByteRead>(
 mod tests {
     use crate::ast::constant::Constant;
     use crate::ast::expr::tests::ArbExprParams;
+    use crate::eval::tests::eval_out_wo_ctx;
     use crate::serialization::sigma_serialize_roundtrip;
 
     use super::*;
@@ -137,15 +138,9 @@ mod tests {
 
         fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
             prop_oneof![
+                vec(any_with::<Expr>(args.clone()), 0..19),
                 vec(
-                    any_with::<Expr>(ArbExprParams {
-                        tpe: args.clone().tpe,
-                        depth: args.depth,
-                    }),
-                    0..19
-                ),
-                vec(
-                    any_with::<Constant>(args.clone().tpe).prop_map_into(),
+                    any_with::<Constant>(args.tpe.clone()).prop_map_into(),
                     0..19
                 )
             ]
@@ -168,6 +163,39 @@ mod tests {
             dbg!(&v);
             let expr: Expr = v.into();
             prop_assert_eq![sigma_serialize_roundtrip(&expr), expr];
+        }
+
+        #[test]
+        fn eval_byte_coll(bytes in any::<Vec<i8>>()) {
+            let value: Value = bytes.clone().into();
+            let exprs: Vec<Expr> = bytes.into_iter().map(|b| Expr::Const(b.into())).collect();
+            let coll: Expr = Collection::new(SType::SByte, exprs).unwrap().into();
+            let res = eval_out_wo_ctx::<Value>(&coll);
+            prop_assert_eq!(res, value);
+        }
+
+        #[test]
+        fn eval_bool_coll(bools in any::<Vec<bool>>()) {
+            let exprs: Vec<Expr> = bools.clone().into_iter().map(|b| Expr::Const(b.into())).collect();
+            let coll: Expr = Collection::new(SType::SBoolean, exprs).unwrap().into();
+            let res = eval_out_wo_ctx::<Vec<bool>>(&coll);
+            prop_assert_eq!(res, bools);
+        }
+
+        #[test]
+        fn eval_long_coll(longs in any::<Vec<i64>>()) {
+            let exprs: Vec<Expr> = longs.clone().into_iter().map(|b| Expr::Const(b.into())).collect();
+            let coll: Expr = Collection::new(SType::SLong, exprs).unwrap().into();
+            let res = eval_out_wo_ctx::<Vec<i64>>(&coll);
+            prop_assert_eq!(res, longs);
+        }
+
+        #[test]
+        fn eval_bytes_coll_coll(bb in any::<Vec<Vec<i8>>>()) {
+            let exprs: Vec<Expr> = bb.clone().into_iter().map(|b| Expr::Const(b.into())).collect();
+            let coll: Expr = Collection::new(SType::SColl(SType::SByte.into()), exprs).unwrap().into();
+            let res = eval_out_wo_ctx::<Vec<Vec<i8>>>(&coll);
+            prop_assert_eq!(res, bb);
         }
     }
 }
