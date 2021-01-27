@@ -18,6 +18,7 @@ use crate::ast::extract_amount::ExtractAmount;
 use crate::ast::extract_reg_as::ExtractRegisterAs;
 use crate::ast::func_value::FuncValue;
 use crate::ast::global_vars::GlobalVars;
+use crate::ast::logical_not::LogicalNot;
 use crate::ast::method_call::MethodCall;
 use crate::ast::option_get::OptionGet;
 use crate::ast::or::Or;
@@ -67,6 +68,7 @@ impl SigmaSerializable for Expr {
                     Expr::Collection(op) => coll_sigma_serialize(op, w),
                     Expr::And(op) => op.sigma_serialize(w),
                     Expr::Or(op) => op.sigma_serialize(w),
+                    Expr::LogicalNot(op) => op.sigma_serialize(w),
                 }
             }
         }
@@ -110,6 +112,7 @@ impl SigmaSerializable for Expr {
                 OpCode::EXTRACT_REGISTER_AS => Ok(ExtractRegisterAs::sigma_parse(r)?.into()),
                 OpCode::EQ => Ok(bin_op_sigma_parse(RelationOp::Eq.into(), r)?),
                 OpCode::NEQ => Ok(bin_op_sigma_parse(RelationOp::NEq.into(), r)?),
+                OpCode::LOGICAL_NOT => Ok(LogicalNot::sigma_parse(r)?.into()),
                 OpCode::BIN_AND => Ok(bin_op_sigma_parse(RelationOp::And.into(), r)?),
                 OpCode::BIN_OR => Ok(bin_op_sigma_parse(RelationOp::Or.into(), r)?),
                 OpCode::GT => Ok(bin_op_sigma_parse(RelationOp::GT.into(), r)?),

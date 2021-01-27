@@ -22,6 +22,7 @@
 - Comparison ops (`>, >=, <, <=`);
 - `AND`, `OR`, `Collection` (collection declaration); 
 - `BinAnd`, `BinOr`;
+- `LogicalNot` (`!`);
 
 ## Usage 
 ## Crate features
