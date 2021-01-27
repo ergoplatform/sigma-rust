@@ -17,6 +17,7 @@ use super::extract_amount::ExtractAmount;
 use super::extract_reg_as::ExtractRegisterAs;
 use super::func_value::FuncValue;
 use super::global_vars::GlobalVars;
+use super::logical_not::LogicalNot;
 use super::method_call::MethodCall;
 use super::option_get::OptionGet;
 use super::or::Or;
@@ -64,6 +65,8 @@ pub enum Expr {
     And(And),
     /// Logical OR
     Or(Or),
+    /// LogicalNot
+    LogicalNot(LogicalNot),
     /// Option get method
     OptionGet(OptionGet),
     /// Extract register's value (box.RX properties)
@@ -101,6 +104,7 @@ impl Expr {
             Expr::CalcBlake2b256(op) => op.op_code(),
             Expr::And(op) => op.op_code(),
             Expr::Or(op) => op.op_code(),
+            Expr::LogicalNot(op) => op.op_code(),
         }
     }
 
@@ -128,6 +132,7 @@ impl Expr {
             Expr::ExtractAmount(v) => v.tpe(),
             Expr::And(v) => v.tpe(),
             Expr::Or(v) => v.tpe(),
+            Expr::LogicalNot(v) => v.tpe(),
         }
     }
 
@@ -199,12 +204,26 @@ pub mod tests {
         }
     }
 
-    fn bool_nested_expr(depth: usize) -> BoxedStrategy<Expr> {
+    fn int_nested_expr(depth: usize) -> BoxedStrategy<Expr> {
         prop_oneof![any_with::<BinOp>(ArbExprParams {
-            tpe: SType::SBoolean,
+            tpe: SType::SInt,
             depth
         })
-        .prop_map_into()]
+        .prop_map_into(),]
+        .boxed()
+    }
+
+    fn bool_nested_expr(depth: usize) -> BoxedStrategy<Expr> {
+        prop_oneof![
+            any_with::<BinOp>(ArbExprParams {
+                tpe: SType::SBoolean,
+                depth
+            })
+            .prop_map_into(),
+            any_with::<And>(depth).prop_map_into(),
+            any_with::<Or>(depth).prop_map_into(),
+            any_with::<LogicalNot>(depth).prop_map_into(),
+        ]
         .boxed()
     }
 
@@ -219,13 +238,14 @@ pub mod tests {
     }
 
     fn any_nested_expr(depth: usize) -> BoxedStrategy<Expr> {
-        prop_oneof![bool_nested_expr(depth)]
+        prop_oneof![bool_nested_expr(depth), int_nested_expr(depth)].boxed()
     }
 
     fn nested_expr(tpe: SType, depth: usize) -> BoxedStrategy<Expr> {
         match tpe {
             SType::SAny => any_nested_expr(depth),
             SType::SBoolean => bool_nested_expr(depth),
+            SType::SInt => int_nested_expr(depth),
             SType::SColl(elem_type) => coll_nested_expr(depth, elem_type.as_ref()),
             _ => todo!(),
         }

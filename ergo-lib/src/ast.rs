@@ -19,6 +19,7 @@ pub(crate) mod property_call;
 pub(crate) mod select_field;
 pub(crate) mod val_def;
 pub(crate) mod val_use;
+pub(crate) mod logical_not;
 
 pub mod constant;
 pub mod value;
