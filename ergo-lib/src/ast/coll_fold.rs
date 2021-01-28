@@ -13,9 +13,8 @@ use crate::types::stype::SType;
 
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
-use super::value::CollKind::NonPrimitive;
-use super::value::CollKind::Primitive;
-use super::value::CollPrim;
+use super::value::CollKind;
+use super::value::NativeColl;
 use super::value::Value;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -104,13 +103,16 @@ impl Evaluable for Fold {
         };
         match input_v {
             Value::Coll(coll) => match coll {
-                Primitive(CollPrim::CollByte(coll_byte)) => {
+                CollKind::NativeColl(NativeColl::CollByte(coll_byte)) => {
                     coll_byte.iter().try_fold(zero_v, |acc, byte| {
                         let tup_arg = Value::Tup(TupleItems::pair(acc, Value::Byte(*byte)));
                         fold_op_call(tup_arg)
                     })
                 }
-                NonPrimitive { elem_tpe: _, v } => v.iter().try_fold(zero_v, |acc, item| {
+                CollKind::WrappedColl {
+                    elem_tpe: _,
+                    items: v,
+                } => v.iter().try_fold(zero_v, |acc, item| {
                     let tup_arg = Value::Tup(TupleItems::pair(acc, item.clone()));
                     fold_op_call(tup_arg)
                 }),

@@ -14,7 +14,7 @@ use super::constant::TryExtractInto;
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
 use super::value::CollKind;
-use super::value::CollPrim;
+use super::value::NativeColl;
 use super::value::Value;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -77,11 +77,11 @@ impl Evaluable for Collection {
                             .into_iter()
                             .map(|i| i.try_extract_into::<i8>())
                             .collect();
-                        Value::Coll(CollKind::Primitive(CollPrim::CollByte(bytes?)))
+                        Value::Coll(CollKind::NativeColl(NativeColl::CollByte(bytes?)))
                     }
-                    _ => Value::Coll(CollKind::NonPrimitive {
+                    _ => Value::Coll(CollKind::WrappedColl {
                         elem_tpe: elem_tpe.clone(),
-                        v: items_v?,
+                        items: items_v?,
                     }),
                 }
             }

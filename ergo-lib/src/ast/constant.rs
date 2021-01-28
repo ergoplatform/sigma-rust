@@ -20,7 +20,7 @@ mod constant_placeholder;
 pub(crate) use constant_placeholder::*;
 
 use super::value::CollKind;
-use super::value::CollPrim;
+use super::value::NativeColl;
 use super::value::StoredNonPrimitive;
 use super::value::Value;
 
@@ -143,7 +143,7 @@ impl From<Vec<u8>> for Constant {
     fn from(v: Vec<u8>) -> Self {
         Constant {
             tpe: SType::SColl(Box::new(SType::SByte)),
-            v: Value::Coll(CollKind::Primitive(CollPrim::CollByte(
+            v: Value::Coll(CollKind::NativeColl(NativeColl::CollByte(
                 v.into_iter().map(|b| b as i8).collect(),
             ))),
         }
@@ -254,15 +254,15 @@ mod tests {
                 for _ in 0..length {
                     values.push(byte);
                 }
-                CollKind::Primitive(CollPrim::CollByte(values))
+                CollKind::NativeColl(NativeColl::CollByte(values))
             } else {
                 let mut values: Vec<Value> = Vec::with_capacity(length);
                 for _ in 0..length {
                     values.push(c.v.clone());
                 }
-                CollKind::NonPrimitive {
+                CollKind::WrappedColl {
                     elem_tpe: c.tpe,
-                    v: values,
+                    items: values,
                 }
             }),
         }
