@@ -6,6 +6,7 @@ pub(crate) mod bin_op;
 pub(crate) mod block;
 pub(crate) mod calc_blake2b256;
 pub(crate) mod coll_fold;
+pub(crate) mod coll_map;
 pub(crate) mod collection;
 pub(crate) mod expr;
 pub(crate) mod extract_amount;

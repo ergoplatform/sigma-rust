@@ -288,7 +288,7 @@ mod tests {
                 _ => todo!(),
             },
             // SType::STuple(_) => {}
-            _ => todo!(),
+            _ => todo!("{0:?} not yet implemented", tpe),
         }
     }
 

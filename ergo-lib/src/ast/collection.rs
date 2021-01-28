@@ -47,10 +47,13 @@ impl Collection {
     }
 
     pub fn tpe(&self) -> SType {
-        match self {
-            Collection::BoolConstants(_) => SType::SBoolean,
-            Collection::Exprs { elem_tpe, items: _ } => elem_tpe.clone(),
-        }
+        SType::SColl(
+            match self {
+                Collection::BoolConstants(_) => SType::SBoolean,
+                Collection::Exprs { elem_tpe, items: _ } => elem_tpe.clone(),
+            }
+            .into(),
+        )
     }
 
     pub fn op_code(&self) -> OpCode {
