@@ -20,6 +20,7 @@ use crate::util::AsVecI8;
 
 use super::constant::TryExtractFrom;
 use super::constant::TryExtractFromError;
+use super::constant::TryExtractInto;
 use super::func_value::FuncValue;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -41,23 +42,50 @@ impl CollPrim {
 /// Collection elements
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum CollKind {
+    // TODO: rename to Native?
     /// Collection elements stored as a vector of primitive types
     Primitive(CollPrim),
+    // TODO: rename to Wrapped?
     /// Collection elements stored as a vector of ConstantVals
     NonPrimitive {
         /// Collection element type
         elem_tpe: SType,
+        // TODO: rename to items
         /// Collection elements
         v: Vec<Value>,
     },
 }
 
 impl CollKind {
+    /// Build a collection from items, storing them as Rust types values when neccessary
+    pub fn from_vec(elem_tpe: SType, items: Vec<Value>) -> Result<CollKind, TryExtractFromError> {
+        match elem_tpe {
+            SType::SByte => items
+                .into_iter()
+                .map(|v| v.try_extract_into::<i8>())
+                .collect::<Result<Vec<i8>, TryExtractFromError>>()
+                .map(|bytes| CollKind::Primitive(CollPrim::CollByte(bytes))),
+            _ => Ok(CollKind::NonPrimitive { elem_tpe, v: items }),
+        }
+    }
+
     /// Collection element type
     pub fn elem_tpe(&self) -> &SType {
         match self {
             cp @ CollKind::Primitive(_) => cp.elem_tpe(),
             CollKind::NonPrimitive { elem_tpe, .. } => elem_tpe,
+        }
+    }
+
+    /// Return items, as vector of Values
+    pub fn as_vec(&self) -> Vec<Value> {
+        match self {
+            CollKind::Primitive(CollPrim::CollByte(coll_byte)) => coll_byte
+                .clone()
+                .into_iter()
+                .map(|byte| byte.into())
+                .collect(),
+            CollKind::NonPrimitive { elem_tpe: _, v } => v.clone(),
         }
     }
 }

@@ -10,14 +10,9 @@ use crate::serialization::SigmaSerializable;
 use crate::types::sfunc::SFunc;
 use crate::types::stype::SType;
 
-use super::constant::TryExtractFromError;
-use super::constant::TryExtractInto;
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
 use super::value::CollKind;
-use super::value::CollKind::NonPrimitive;
-use super::value::CollKind::Primitive;
-use super::value::CollPrim;
 use super::value::Value;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -110,16 +105,16 @@ impl Evaluable for Map {
             })?
             .clone();
         let normalized_input_vals: Vec<Value> = match input_v {
-            Value::Coll(coll) => match coll {
-                Primitive(CollPrim::CollByte(coll_byte)) if mapper_input_tpe == SType::SByte => {
-                    Ok(coll_byte.into_iter().map(|byte| byte.into()).collect())
-                }
-                NonPrimitive { elem_tpe, v } if elem_tpe == mapper_input_tpe => Ok(v), // .iter()
-                _ => Err(EvalError::UnexpectedValue(format!(
-                    "expected Map input to be Value::Coll({0:?}), got: {1:?}",
-                    mapper_input_tpe, coll
-                ))),
-            },
+            Value::Coll(coll) => {
+                if *coll.elem_tpe() != mapper_input_tpe {
+                    return Err(EvalError::UnexpectedValue(format!(
+                        "expected Map input element type to be {0:?}, got: {1:?}",
+                        mapper_input_tpe,
+                        coll.elem_tpe()
+                    )));
+                };
+                Ok(coll.as_vec())
+            }
             _ => Err(EvalError::UnexpectedValue(format!(
                 "expected Map input to be Value::Coll, got: {0:?}",
                 input_v
@@ -129,19 +124,11 @@ impl Evaluable for Map {
             .iter()
             .map(|item| mapper_call(item.clone()))
             .collect::<Result<Vec<Value>, EvalError>>()
-            .map(|values| match self.out_elem_tpe() {
-                SType::SByte => values
-                    .into_iter()
-                    .map(|v| v.try_extract_into::<i8>())
-                    .collect::<Result<Vec<i8>, TryExtractFromError>>()
-                    .map_err(EvalError::TryExtractFrom)
-                    .map(|bytes| bytes.into()),
-                _ => Ok(Value::Coll(CollKind::NonPrimitive {
-                    elem_tpe: self.out_elem_tpe(),
-                    v: values,
-                })),
+            .map(|values| {
+                CollKind::from_vec(self.out_elem_tpe(), values).map_err(EvalError::TryExtractFrom)
             })
             .and_then(|v| v) // flatten <Result<Result<Value, _>, _>
+            .map(Value::Coll)
     }
 }
 
