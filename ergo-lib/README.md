@@ -23,6 +23,7 @@
 - `AND`, `OR`, `Collection` (collection declaration); 
 - `BinAnd`, `BinOr`;
 - `LogicalNot` (`!`);
+- `Map`, `Filter` collection ops;
 
 ## Usage 
 ## Crate features
