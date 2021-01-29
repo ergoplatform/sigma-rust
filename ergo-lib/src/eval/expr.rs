@@ -33,6 +33,7 @@ impl Evaluable for Expr {
             Expr::Or(op) => op.eval(env, ctx),
             Expr::LogicalNot(op) => op.eval(env, ctx),
             Expr::Map(op) => op.eval(env, ctx),
+            Expr::Filter(op) => op.eval(env, ctx),
         }
     }
 }

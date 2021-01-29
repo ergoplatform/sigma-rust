@@ -7,6 +7,7 @@ use super::apply::Apply;
 use super::bin_op::BinOp;
 use super::block::BlockValue;
 use super::calc_blake2b256::CalcBlake2b256;
+use super::coll_filter::Filter;
 use super::coll_fold::Fold;
 use super::coll_map::Map;
 use super::collection::Collection;
@@ -76,6 +77,8 @@ pub enum Expr {
     Fold(Fold),
     /// Collection map op
     Map(Map),
+    /// Collection filter op
+    Filter(Filter),
     /// Tuple field access
     SelectField(SelectField),
     /// Box monetary value
@@ -109,6 +112,7 @@ impl Expr {
             Expr::Or(op) => op.op_code(),
             Expr::LogicalNot(op) => op.op_code(),
             Expr::Map(op) => op.op_code(),
+            Expr::Filter(op) => op.op_code(),
         }
     }
 
@@ -138,6 +142,7 @@ impl Expr {
             Expr::Or(v) => v.tpe(),
             Expr::LogicalNot(v) => v.tpe(),
             Expr::Map(v) => v.tpe(),
+            Expr::Filter(v) => v.tpe(),
         }
     }
 
