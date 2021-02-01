@@ -14,7 +14,7 @@ use super::constant::TryExtractInto;
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
 use super::value::CollKind;
-use super::value::CollPrim;
+use super::value::NativeColl;
 use super::value::Value;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -47,10 +47,13 @@ impl Collection {
     }
 
     pub fn tpe(&self) -> SType {
-        match self {
-            Collection::BoolConstants(_) => SType::SBoolean,
-            Collection::Exprs { elem_tpe, items: _ } => elem_tpe.clone(),
-        }
+        SType::SColl(
+            match self {
+                Collection::BoolConstants(_) => SType::SBoolean,
+                Collection::Exprs { elem_tpe, items: _ } => elem_tpe.clone(),
+            }
+            .into(),
+        )
     }
 
     pub fn op_code(&self) -> OpCode {
@@ -74,11 +77,11 @@ impl Evaluable for Collection {
                             .into_iter()
                             .map(|i| i.try_extract_into::<i8>())
                             .collect();
-                        Value::Coll(CollKind::Primitive(CollPrim::CollByte(bytes?)))
+                        Value::Coll(CollKind::NativeColl(NativeColl::CollByte(bytes?)))
                     }
-                    _ => Value::Coll(CollKind::NonPrimitive {
+                    _ => Value::Coll(CollKind::WrappedColl {
                         elem_tpe: elem_tpe.clone(),
-                        v: items_v?,
+                        items: items_v?,
                     }),
                 }
             }

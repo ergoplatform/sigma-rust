@@ -25,8 +25,8 @@ static S_CONTEXT_TYPE_COMPANION_HEAD: STypeCompanionHead = STypeCompanionHead {
 };
 
 static DATA_INPUTS_EVAL_FN: EvalFn = |obj, _args| {
-    Ok(Value::Coll(CollKind::NonPrimitive {
-        v: obj
+    Ok(Value::Coll(CollKind::WrappedColl {
+        items: obj
             .try_extract_into::<Rc<Context>>()?
             .data_inputs
             .clone()

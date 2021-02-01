@@ -20,20 +20,21 @@ use crate::util::AsVecI8;
 
 use super::constant::TryExtractFrom;
 use super::constant::TryExtractFromError;
+use super::constant::TryExtractInto;
 use super::func_value::FuncValue;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 /// Collection for primitive values (i.e byte array)
-pub enum CollPrim {
+pub enum NativeColl {
     /// Collection of bytes
     CollByte(Vec<i8>),
 }
 
-impl CollPrim {
+impl NativeColl {
     /// Collection element type
     pub fn elem_tpe(&self) -> &SType {
         match self {
-            CollPrim::CollByte(_) => &SType::SByte,
+            NativeColl::CollByte(_) => &SType::SByte,
         }
     }
 }
@@ -41,23 +42,50 @@ impl CollPrim {
 /// Collection elements
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum CollKind {
-    /// Collection elements stored as a vector of primitive types
-    Primitive(CollPrim),
-    /// Collection elements stored as a vector of ConstantVals
-    NonPrimitive {
+    /// Collection elements stored as a vector of Rust values
+    NativeColl(NativeColl),
+    /// Collection elements stored as a vector of Value's
+    WrappedColl {
         /// Collection element type
         elem_tpe: SType,
         /// Collection elements
-        v: Vec<Value>,
+        items: Vec<Value>,
     },
 }
 
 impl CollKind {
+    /// Build a collection from items, storing them as Rust types values when neccessary
+    pub fn from_vec(elem_tpe: SType, items: Vec<Value>) -> Result<CollKind, TryExtractFromError> {
+        match elem_tpe {
+            SType::SByte => items
+                .into_iter()
+                .map(|v| v.try_extract_into::<i8>())
+                .collect::<Result<Vec<i8>, TryExtractFromError>>()
+                .map(|bytes| CollKind::NativeColl(NativeColl::CollByte(bytes))),
+            _ => Ok(CollKind::WrappedColl { elem_tpe, items }),
+        }
+    }
+
     /// Collection element type
     pub fn elem_tpe(&self) -> &SType {
         match self {
-            cp @ CollKind::Primitive(_) => cp.elem_tpe(),
-            CollKind::NonPrimitive { elem_tpe, .. } => elem_tpe,
+            cp @ CollKind::NativeColl(_) => cp.elem_tpe(),
+            CollKind::WrappedColl { elem_tpe, .. } => elem_tpe,
+        }
+    }
+
+    /// Return items, as vector of Values
+    pub fn as_vec(&self) -> Vec<Value> {
+        match self {
+            CollKind::NativeColl(NativeColl::CollByte(coll_byte)) => coll_byte
+                .clone()
+                .into_iter()
+                .map(|byte| byte.into())
+                .collect(),
+            CollKind::WrappedColl {
+                elem_tpe: _,
+                items: v,
+            } => v.clone(),
         }
     }
 }
@@ -154,13 +182,13 @@ impl From<ErgoBox> for Value {
 
 impl From<Vec<i8>> for Value {
     fn from(v: Vec<i8>) -> Self {
-        Value::Coll(CollKind::Primitive(CollPrim::CollByte(v)))
+        Value::Coll(CollKind::NativeColl(NativeColl::CollByte(v)))
     }
 }
 
 impl From<Vec<u8>> for Value {
     fn from(v: Vec<u8>) -> Self {
-        Value::Coll(CollKind::Primitive(CollPrim::CollByte(v.as_vec_i8())))
+        Value::Coll(CollKind::NativeColl(NativeColl::CollByte(v.as_vec_i8())))
     }
 }
 
@@ -188,9 +216,9 @@ impl StoredNonPrimitive for Tuple {}
 
 impl<T: LiftIntoSType + StoredNonPrimitive + Into<Value>> From<Vec<T>> for Value {
     fn from(v: Vec<T>) -> Self {
-        Value::Coll(CollKind::NonPrimitive {
+        Value::Coll(CollKind::WrappedColl {
             elem_tpe: T::stype(),
-            v: v.into_iter().map(|i| i.into()).collect(),
+            items: v.into_iter().map(|i| i.into()).collect(),
         })
     }
 }
@@ -291,9 +319,10 @@ impl<T: TryExtractFrom<Value> + StoredNonPrimitive> TryExtractFrom<Value> for Ve
     fn try_extract_from(c: Value) -> Result<Self, TryExtractFromError> {
         match c {
             Value::Coll(coll) => match coll {
-                CollKind::NonPrimitive { elem_tpe: _, v } => {
-                    v.into_iter().map(T::try_extract_from).collect()
-                }
+                CollKind::WrappedColl {
+                    elem_tpe: _,
+                    items: v,
+                } => v.into_iter().map(T::try_extract_from).collect(),
                 _ => Err(TryExtractFromError(format!(
                     "expected {:?}, found {:?}",
                     std::any::type_name::<Self>(),
@@ -313,7 +342,7 @@ impl TryExtractFrom<Value> for Vec<i8> {
     fn try_extract_from(v: Value) -> Result<Self, TryExtractFromError> {
         match v {
             Value::Coll(v) => match v {
-                CollKind::Primitive(CollPrim::CollByte(bs)) => Ok(bs),
+                CollKind::NativeColl(NativeColl::CollByte(bs)) => Ok(bs),
                 _ => Err(TryExtractFromError(format!(
                     "expected {:?}, found {:?}",
                     std::any::type_name::<Self>(),
@@ -420,7 +449,7 @@ mod tests {
         let value: Value = bytes.into();
         assert!(matches!(
             value,
-            Value::Coll(CollKind::Primitive(CollPrim::CollByte(_)))
+            Value::Coll(CollKind::NativeColl(NativeColl::CollByte(_)))
         ))
     }
 
@@ -430,7 +459,36 @@ mod tests {
         let value: Value = bytes.into();
         assert!(matches!(
             value,
-            Value::Coll(CollKind::Primitive(CollPrim::CollByte(_)))
+            Value::Coll(CollKind::NativeColl(NativeColl::CollByte(_)))
         ))
+    }
+
+    #[test]
+    fn byte_from_vec_roundtrip() {
+        let bytes = vec![1i8, 2i8, 3i8];
+        let wrapped: Vec<Value> = bytes.into_iter().map(|b| b.into()).collect();
+        let coll = CollKind::from_vec(SType::SByte, wrapped.clone()).unwrap();
+        assert!(matches!(
+            coll,
+            CollKind::NativeColl(NativeColl::CollByte(_))
+        ));
+        let as_vec = coll.as_vec();
+        assert_eq!(as_vec, wrapped);
+    }
+
+    #[test]
+    fn wrapped_from_vec_roundtrip() {
+        let longs = vec![1i64, 2i64, 3i64];
+        let wrapped: Vec<Value> = longs.into_iter().map(|b| b.into()).collect();
+        let coll = CollKind::from_vec(SType::SLong, wrapped.clone()).unwrap();
+        assert!(matches!(
+            coll,
+            CollKind::WrappedColl {
+                elem_tpe: SType::SLong,
+                items: _,
+            }
+        ));
+        let as_vec = coll.as_vec();
+        assert_eq!(as_vec, wrapped);
     }
 }

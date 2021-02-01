@@ -1,7 +1,7 @@
 use crate::ast::constant::TryExtractFromError;
 use crate::ast::constant::TryExtractInto;
 use crate::ast::value::CollKind;
-use crate::ast::value::CollPrim;
+use crate::ast::value::NativeColl;
 use crate::ast::value::Value;
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
@@ -34,13 +34,13 @@ impl DataSerializer {
             Value::CBox(_) => todo!(),
             Value::AvlTree => todo!(),
             Value::Coll(ct) => match ct {
-                CollKind::Primitive(CollPrim::CollByte(b)) => {
+                CollKind::NativeColl(NativeColl::CollByte(b)) => {
                     w.put_usize_as_u16(b.len())?;
                     w.write_all(b.clone().as_vec_u8().as_slice())
                 }
-                CollKind::NonPrimitive {
+                CollKind::WrappedColl {
                     elem_tpe: SType::SBoolean,
-                    v,
+                    items: v,
                 } => {
                     w.put_usize_as_u16(v.len())?;
                     let maybe_bools: Result<Vec<bool>, TryExtractFromError> = v
@@ -50,7 +50,10 @@ impl DataSerializer {
                         .collect();
                     w.put_bits(maybe_bools.unwrap().as_slice())
                 }
-                CollKind::NonPrimitive { elem_tpe: _, v } => {
+                CollKind::WrappedColl {
+                    elem_tpe: _,
+                    items: v,
+                } => {
                     w.put_usize_as_u16(v.len())?;
                     v.iter()
                         .try_for_each(|e| DataSerializer::sigma_serialize(e, w))
@@ -82,16 +85,16 @@ impl DataSerializer {
                 let len = r.get_u16()? as usize;
                 let mut buf = vec![0u8; len];
                 r.read_exact(&mut buf)?;
-                Value::Coll(CollKind::Primitive(CollPrim::CollByte(
+                Value::Coll(CollKind::NativeColl(NativeColl::CollByte(
                     buf.into_iter().map(|v| v as i8).collect(),
                 )))
             }
             SColl(elem_type) if **elem_type == SBoolean => {
                 let len = r.get_u16()? as usize;
                 let bools = r.get_bits(len)?;
-                Value::Coll(CollKind::NonPrimitive {
+                Value::Coll(CollKind::WrappedColl {
                     elem_tpe: *elem_type.clone(),
-                    v: bools.into_iter().map(|b| b.into()).collect(),
+                    items: bools.into_iter().map(|b| b.into()).collect(),
                 })
             }
             SColl(elem_type) => {
@@ -100,9 +103,9 @@ impl DataSerializer {
                 for _ in 0..len {
                     elems.push(DataSerializer::sigma_parse(elem_type, r)?);
                 }
-                Value::Coll(CollKind::NonPrimitive {
+                Value::Coll(CollKind::WrappedColl {
                     elem_tpe: *elem_type.clone(),
-                    v: elems,
+                    items: elems,
                 })
             }
             STuple(stuple::STuple { items: types }) => {

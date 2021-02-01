@@ -7,7 +7,9 @@ use crate::ast::bin_op::ArithOp;
 use crate::ast::bin_op::RelationOp;
 use crate::ast::block::BlockValue;
 use crate::ast::calc_blake2b256::CalcBlake2b256;
+use crate::ast::coll_filter::Filter;
 use crate::ast::coll_fold::Fold;
+use crate::ast::coll_map::Map;
 use crate::ast::collection::bool_const_coll_sigma_parse;
 use crate::ast::collection::coll_sigma_parse;
 use crate::ast::collection::coll_sigma_serialize;
@@ -69,6 +71,8 @@ impl SigmaSerializable for Expr {
                     Expr::And(op) => op.sigma_serialize(w),
                     Expr::Or(op) => op.sigma_serialize(w),
                     Expr::LogicalNot(op) => op.sigma_serialize(w),
+                    Expr::Map(op) => op.sigma_serialize(w),
+                    Expr::Filter(op) => op.sigma_serialize(w),
                 }
             }
         }
@@ -135,6 +139,8 @@ impl SigmaSerializable for Expr {
                 Or::OP_CODE => Ok(Or::sigma_parse(r)?.into()),
                 OpCode::COLL => Ok(coll_sigma_parse(r)?.into()),
                 OpCode::COLL_OF_BOOL_CONST => Ok(bool_const_coll_sigma_parse(r)?.into()),
+                Map::OP_CODE => Ok(Map::sigma_parse(r)?.into()),
+                Filter::OP_CODE => Ok(Filter::sigma_parse(r)?.into()),
                 o => Err(SerializationError::NotImplementedOpCode(o.value())),
             }
         }

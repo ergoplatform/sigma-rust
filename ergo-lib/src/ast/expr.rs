@@ -7,7 +7,9 @@ use super::apply::Apply;
 use super::bin_op::BinOp;
 use super::block::BlockValue;
 use super::calc_blake2b256::CalcBlake2b256;
+use super::coll_filter::Filter;
 use super::coll_fold::Fold;
+use super::coll_map::Map;
 use super::collection::Collection;
 use super::constant::Constant;
 use super::constant::ConstantPlaceholder;
@@ -73,6 +75,10 @@ pub enum Expr {
     ExtractRegisterAs(ExtractRegisterAs),
     /// Collection fold op
     Fold(Fold),
+    /// Collection map op
+    Map(Map),
+    /// Collection filter op
+    Filter(Filter),
     /// Tuple field access
     SelectField(SelectField),
     /// Box monetary value
@@ -105,6 +111,8 @@ impl Expr {
             Expr::And(op) => op.op_code(),
             Expr::Or(op) => op.op_code(),
             Expr::LogicalNot(op) => op.op_code(),
+            Expr::Map(op) => op.op_code(),
+            Expr::Filter(op) => op.op_code(),
         }
     }
 
@@ -133,6 +141,8 @@ impl Expr {
             Expr::And(v) => v.tpe(),
             Expr::Or(v) => v.tpe(),
             Expr::LogicalNot(v) => v.tpe(),
+            Expr::Map(v) => v.tpe(),
+            Expr::Filter(v) => v.tpe(),
         }
     }
 
@@ -185,7 +195,9 @@ impl<T: TryExtractFrom<Constant>> TryExtractFrom<Expr> for T {
 pub mod tests {
     #![allow(unused_imports)]
     use super::*;
+    use crate::ast::func_value::FuncArg;
     use crate::sigma_protocol::sigma_boolean::SigmaProp;
+    use crate::types::sfunc::SFunc;
     use proptest::collection::*;
     use proptest::prelude::*;
 
@@ -286,19 +298,42 @@ pub mod tests {
         }
     }
 
+    fn sfunc_expr(sfunc: SFunc) -> BoxedStrategy<Expr> {
+        match (sfunc.t_dom.first().unwrap(), *sfunc.t_range) {
+            (SType::SBoolean, SType::SBoolean) => any_with::<Expr>(ArbExprParams {
+                tpe: SType::SBoolean,
+                depth: 2,
+            })
+            .prop_map(|expr| {
+                Expr::FuncValue(FuncValue::new(
+                    vec![FuncArg {
+                        idx: 1.into(),
+                        tpe: SType::SBoolean,
+                    }],
+                    expr,
+                ))
+            })
+            .boxed(),
+            _ => todo!(),
+        }
+    }
+
     impl Arbitrary for Expr {
         type Parameters = ArbExprParams;
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
             if args.depth == 0 {
-                prop_oneof![
-                    any_with::<Constant>(args.tpe.clone())
-                        .prop_map(Expr::Const)
-                        .boxed(),
-                    non_nested_expr(&args.tpe)
-                ]
-                .boxed()
+                match args.tpe {
+                    SType::SFunc(sfunc) => sfunc_expr(sfunc),
+                    _ => prop_oneof![
+                        any_with::<Constant>(args.tpe.clone())
+                            .prop_map(Expr::Const)
+                            .boxed(),
+                        non_nested_expr(&args.tpe)
+                    ]
+                    .boxed(),
+                }
             } else {
                 nested_expr(args.tpe, args.depth - 1)
             }
