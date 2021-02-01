@@ -21,6 +21,7 @@ pub(crate) mod option_get;
 pub(crate) mod or;
 pub(crate) mod property_call;
 pub(crate) mod select_field;
+pub(crate) mod upcast;
 pub(crate) mod val_def;
 pub(crate) mod val_use;
 

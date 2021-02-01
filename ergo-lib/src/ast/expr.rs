@@ -26,6 +26,7 @@ use super::option_get::OptionGet;
 use super::or::Or;
 use super::property_call::PropertyCall;
 use super::select_field::SelectField;
+use super::upcast::Upcast;
 use super::val_def::ValDef;
 use super::val_use::ValUse;
 
@@ -86,6 +87,8 @@ pub enum Expr {
     ExtractAmount(ExtractAmount),
     /// Bool to SigmaProp
     BoolToSigmaProp(BoolToSigmaProp),
+    /// Upcast numeric value
+    Upcast(Upcast),
 }
 
 impl Expr {
@@ -117,6 +120,7 @@ impl Expr {
             Expr::Map(op) => op.op_code(),
             Expr::Filter(op) => op.op_code(),
             Expr::BoolToSigmaProp(op) => op.op_code(),
+            Expr::Upcast(op) => op.op_code(),
         }
     }
 
@@ -148,6 +152,7 @@ impl Expr {
             Expr::Map(v) => v.tpe(),
             Expr::Filter(v) => v.tpe(),
             Expr::BoolToSigmaProp(v) => v.tpe(),
+            Expr::Upcast(v) => v.tpe(),
         }
     }
 

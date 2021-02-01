@@ -27,6 +27,7 @@ use crate::ast::option_get::OptionGet;
 use crate::ast::or::Or;
 use crate::ast::property_call::PropertyCall;
 use crate::ast::select_field::SelectField;
+use crate::ast::upcast::Upcast;
 use crate::ast::val_def::ValDef;
 use crate::ast::val_use::ValUse;
 use crate::serialization::{
@@ -75,6 +76,7 @@ impl SigmaSerializable for Expr {
                     Expr::Map(op) => op.sigma_serialize(w),
                     Expr::Filter(op) => op.sigma_serialize(w),
                     Expr::BoolToSigmaProp(op) => op.sigma_serialize(w),
+                    Expr::Upcast(op) => op.sigma_serialize(w),
                 }
             }
         }
@@ -144,6 +146,7 @@ impl SigmaSerializable for Expr {
                 Map::OP_CODE => Ok(Map::sigma_parse(r)?.into()),
                 Filter::OP_CODE => Ok(Filter::sigma_parse(r)?.into()),
                 BoolToSigmaProp::OP_CODE => Ok(BoolToSigmaProp::sigma_parse(r)?.into()),
+                Upcast::OP_CODE => Ok(Upcast::sigma_parse(r)?.into()),
                 o => Err(SerializationError::NotImplementedOpCode(format!(
                     "{0}(shift {1})",
                     o.value(),

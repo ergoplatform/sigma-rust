@@ -35,6 +35,7 @@ impl Evaluable for Expr {
             Expr::Map(op) => op.eval(env, ctx),
             Expr::Filter(op) => op.eval(env, ctx),
             Expr::BoolToSigmaProp(op) => op.eval(env, ctx),
+            Expr::Upcast(op) => op.eval(env, ctx),
         }
     }
 }
