@@ -6,6 +6,7 @@ use super::and::And;
 use super::apply::Apply;
 use super::bin_op::BinOp;
 use super::block::BlockValue;
+use super::bool_to_sigma::BoolToSigmaProp;
 use super::calc_blake2b256::CalcBlake2b256;
 use super::coll_filter::Filter;
 use super::coll_fold::Fold;
@@ -83,6 +84,8 @@ pub enum Expr {
     SelectField(SelectField),
     /// Box monetary value
     ExtractAmount(ExtractAmount),
+    /// Bool to SigmaProp
+    BoolToSigmaProp(BoolToSigmaProp),
 }
 
 impl Expr {
@@ -113,6 +116,7 @@ impl Expr {
             Expr::LogicalNot(op) => op.op_code(),
             Expr::Map(op) => op.op_code(),
             Expr::Filter(op) => op.op_code(),
+            Expr::BoolToSigmaProp(op) => op.op_code(),
         }
     }
 
@@ -143,6 +147,7 @@ impl Expr {
             Expr::LogicalNot(v) => v.tpe(),
             Expr::Map(v) => v.tpe(),
             Expr::Filter(v) => v.tpe(),
+            Expr::BoolToSigmaProp(v) => v.tpe(),
         }
     }
 

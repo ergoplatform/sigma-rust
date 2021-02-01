@@ -176,6 +176,10 @@ impl OpCode {
     pub const fn value(self) -> u8 {
         self.0
     }
+
+    pub const fn shift(self) -> u8 {
+        self.0 - Self::LAST_CONSTANT_CODE.value()
+    }
 }
 
 impl SigmaSerializable for OpCode {

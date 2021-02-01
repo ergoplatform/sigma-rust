@@ -20,7 +20,7 @@ pub enum SerializationError {
     InvalidOpCode(u8),
     /// Lacking support for the op
     #[error("not implemented op error")]
-    NotImplementedOpCode(u8),
+    NotImplementedOpCode(String),
     /// Failed to parse type
     #[error("type parsing error")]
     InvalidTypePrefix,
