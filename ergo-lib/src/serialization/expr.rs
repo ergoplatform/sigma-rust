@@ -8,6 +8,7 @@ use crate::ast::bin_op::RelationOp;
 use crate::ast::block::BlockValue;
 use crate::ast::bool_to_sigma::BoolToSigmaProp;
 use crate::ast::calc_blake2b256::CalcBlake2b256;
+use crate::ast::coll_by_index::ByIndex;
 use crate::ast::coll_filter::Filter;
 use crate::ast::coll_fold::Fold;
 use crate::ast::coll_map::Map;
@@ -79,6 +80,7 @@ impl SigmaSerializable for Expr {
                     Expr::BoolToSigmaProp(op) => op.sigma_serialize(w),
                     Expr::Upcast(op) => op.sigma_serialize(w),
                     Expr::If(op) => op.sigma_serialize(w),
+                    Expr::ByIndex(op) => op.sigma_serialize(w),
                 }
             }
         }
@@ -153,6 +155,7 @@ impl SigmaSerializable for Expr {
                 BoolToSigmaProp::OP_CODE => Ok(BoolToSigmaProp::sigma_parse(r)?.into()),
                 Upcast::OP_CODE => Ok(Upcast::sigma_parse(r)?.into()),
                 If::OP_CODE => Ok(If::sigma_parse(r)?.into()),
+                ByIndex::OP_CODE => Ok(ByIndex::sigma_parse(r)?.into()),
                 o => Err(SerializationError::NotImplementedOpCode(format!(
                     "{0}(shift {1})",
                     o.value(),
@@ -187,7 +190,7 @@ mod tests {
     }
 
     #[test]
-    fn age_usd_bank_contract() {
+    fn simplified_age_usd_bank_contract() {
         // simplified version of
         // https://github.com/Emurgo/age-usd/tree/main/ageusd-smart-contracts/v0.4
         /*
@@ -342,5 +345,164 @@ mod tests {
             .try_into()
             .unwrap();
         assert!(res);
+    }
+
+    #[test]
+    fn full_age_usd_bank_contract() {
+        // almost full version of
+        // https://github.com/Emurgo/age-usd/tree/main/ageusd-smart-contracts/v0.4
+        /*
+        {
+
+          val rcDefaultPrice = 1000000L
+
+          val minStorageRent = 10000000L
+
+          val feePercent = 1
+
+          val HEIGHT = 377771
+
+          val coolingOffHeight: Int = 377770
+          val INF = 1000000000L
+
+          val longMax = 9223372036854775807L
+
+          val minReserveRatioPercent = 400L // percent
+          val defaultMaxReserveRatioPercent = 800L // percent
+
+            val dataInput = CONTEXT.dataInputs(0)
+            //val validDataInput = dataInput.tokens(0)._1 == oraclePoolNFT
+            val validDataInput = true
+
+            val bankBoxIn = SELF
+            val bankBoxOut = OUTPUTS(0)
+
+            val rateBox = dataInput
+            val receiptBox = OUTPUTS(1)
+
+            val rate = rateBox.R4[Long].get / 100
+            // val rate = 100000000 / 100
+
+            val scCircIn = bankBoxIn.R4[Long].get
+            // val scCircIn = 100L
+            val rcCircIn = bankBoxIn.R5[Long].get
+            // val rcCircIn = 100L
+            val bcReserveIn = bankBoxIn.value
+            // val bcReserveIn = 100000000L
+
+            val scTokensIn = bankBoxIn.tokens(0)._2
+            // val scTokensIn = 100
+            val rcTokensIn = bankBoxIn.tokens(1)._2
+            // val rcTokensIn = 100
+
+            val scCircOut = bankBoxOut.R4[Long].get
+            //val scCircOut = 100
+            val rcCircOut = bankBoxOut.R5[Long].get
+            //val rcCircOut = 101
+
+            val scTokensOut = bankBoxOut.tokens(0)._2
+            //val scTokensOut = 100
+            val rcTokensOut = bankBoxOut.tokens(1)._2
+            //val rcTokensOut = 99
+
+            val totalScIn = scTokensIn + scCircIn
+            val totalScOut = scTokensOut + scCircOut
+
+            val totalRcIn = rcTokensIn + rcCircIn
+            val totalRcOut = rcTokensOut + rcCircOut
+
+            val rcExchange = rcTokensIn != rcTokensOut
+            val scExchange = scTokensIn != scTokensOut
+
+            val rcExchangeXorScExchange = (rcExchange || scExchange) && !(rcExchange && scExchange)
+
+            val circDelta = receiptBox.R4[Long].get
+            //val circDelta = 1L
+            val bcReserveDelta = receiptBox.R5[Long].get
+            //val bcReserveDelta = 1010000L
+
+            val bcReserveOut = bankBoxOut.value
+            //val bcReserveOut = 100000000L + 1010000L
+
+            val rcCircDelta = if (rcExchange) circDelta else 0L
+            val scCircDelta = if (rcExchange) 0L else circDelta
+
+            val validDeltas = (scCircIn + scCircDelta == scCircOut) &&
+                              (rcCircIn + rcCircDelta == rcCircOut) &&
+                              (bcReserveIn + bcReserveDelta == bcReserveOut)
+
+            val coinsConserved = totalRcIn == totalRcOut && totalScIn == totalScOut
+
+            val tokenIdsConserved = bankBoxOut.tokens(0)._1 == bankBoxIn.tokens(0)._1 && // also ensures that at least one token exists
+                                     bankBoxOut.tokens(1)._1 == bankBoxIn.tokens(1)._1 && // also ensures that at least one token exists
+                                     bankBoxOut.tokens(2)._1 == bankBoxIn.tokens(2)._1    // also ensures that at least one token exists
+
+            //val tokenIdsConserved = true
+
+            //val mandatoryRateConditions = rateBox.tokens(0)._1 == oraclePoolNFT
+            val mandatoryRateConditions = true
+            val mandatoryBankConditions = bankBoxOut.value >= minStorageRent &&
+                                          rcExchangeXorScExchange &&
+                                          coinsConserved &&
+                                          validDeltas &&
+                                          tokenIdsConserved
+
+            // exchange equations
+            val bcReserveNeededOut = scCircOut * rate
+            val bcReserveNeededIn = scCircIn * rate
+            val liabilitiesIn = max(min(bcReserveIn, bcReserveNeededIn), 0)
+
+
+            val maxReserveRatioPercent = if (HEIGHT > coolingOffHeight) defaultMaxReserveRatioPercent else INF
+
+            val reserveRatioPercentOut =
+                if (bcReserveNeededOut == 0) maxReserveRatioPercent else bcReserveOut * 100 / bcReserveNeededOut
+
+            val validReserveRatio = if (scExchange) {
+              if (scCircDelta > 0) {
+                reserveRatioPercentOut >= minReserveRatioPercent
+              } else true
+            } else {
+              if (rcCircDelta > 0) {
+                reserveRatioPercentOut <= maxReserveRatioPercent
+              } else {
+                reserveRatioPercentOut >= minReserveRatioPercent
+              }
+            }
+
+            val brDeltaExpected = if (scExchange) { // sc
+              val liableRate = if (scCircIn == 0) longMax else liabilitiesIn / scCircIn
+              val scNominalPrice = min(rate, liableRate)
+              scNominalPrice * scCircDelta
+            } else { // rc
+              val equityIn = bcReserveIn - liabilitiesIn
+              val equityRate = if (rcCircIn == 0) rcDefaultPrice else equityIn / rcCircIn
+              val rcNominalPrice = if (equityIn == 0) rcDefaultPrice else equityRate
+              rcNominalPrice * rcCircDelta
+            }
+
+            val fee = brDeltaExpected * feePercent / 100
+
+            val actualFee = if (fee < 0) {fee * -1} else fee
+            // actualFee is always positive, irrespective of brDeltaExpected
+
+            val brDeltaExpectedWithFee = brDeltaExpected + actualFee
+
+            mandatoryRateConditions &&
+            mandatoryBankConditions &&
+            bcReserveDelta == brDeltaExpectedWithFee &&
+            validReserveRatio &&
+            validDataInput
+        }
+                         */
+        let p2s_addr_str = "5Gd8oR4AHjCtYTCb1gcLYoKi7hKbLJ5LhUYaGqrqU1cirThocCm8dSGXQ3JBrh8rXedDEhuYXJgcuXFokg8v8SauEnyMvGveYHnDvDpNAE5DiAjyEocMK5Dp9ZojHqRqwJiA3k54Ve5A2nKqZy2VJfUxZmRga3JvCA93mBqyqH9H1GXGmJHM5228nadByUue1KpQaWJU3Vdy9VWc2omfzdS33jwYmgjMooKiWnGef7c8hwe8vkSdaswbzkRbLebMaSD8a4azgHycAfyWBqEBRfQa3FEnyVVSg1i9af55i8LVcEnwF3u6UsnwhHN7m9mi3RHjbX3N3HAgwZR1DH2C2s3EY9kg3hnDeANKicxwM2rWhZGzdQ42heqRzaZxupLxhzErBRFiQ4kh1J4wHa5xN4bHSL861XtA1GWJc2LUDfXNjJu5D6KUwK36uvn4ueTbrMjnoLvYXeSKRLsr29RGj265KDJTGrPigmkW5VKAmCmdg7KcAxQ8CkJu1Pi7roy9iV2mGJq44uBL2L3EzND6ophw5zDyhvngD4QEZZDjT9LcAm9sVGhJ6fcNQT4Zo7u1EmuTe7Ey3DPsJ44pfKpMSnP4ue56Gb5iwzZuCEq5zc3XWTC6sesUrGcWVzP7hzX6bUe7KN49wFAyDdMKbpay5W5hJdfSeTdKX8Yb5kMspQKWEM3YrDo51CxMKLoJwZwAjbGsPT5jvDXiBGpu9c5Wq1FQXDUox9QWvuT9JzWFPNTDwAnUVwiYZY3EvEuefE2pvMT8QfHzD6YNmXuxPcLJkPrfj";
+        let encoder = AddressEncoder::new(NetworkPrefix::Mainnet);
+        let addr = encoder.parse_address_from_str(p2s_addr_str).unwrap();
+        let script = addr.script().unwrap().proposition().unwrap();
+        dbg!(&script);
+        let res: bool = eval_out_wo_ctx::<SigmaProp>(script.as_ref())
+            .try_into()
+            .unwrap();
+        assert!(!res);
     }
 }

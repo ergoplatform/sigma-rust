@@ -128,6 +128,27 @@ impl<T: SigmaSerializable> SigmaSerializable for Vec<T> {
     }
 }
 
+impl<T: SigmaSerializable> SigmaSerializable for Option<Box<T>> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
+        match self {
+            Some(v) => {
+                w.put_u8(1)?;
+                v.sigma_serialize(w)
+            }
+            None => w.put_u8(0),
+        }
+    }
+
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+        let tag = r.get_u8()?;
+        Ok(if tag != 0 {
+            Some(T::sigma_parse(r)?.into())
+        } else {
+            None
+        })
+    }
+}
+
 /// serialization roundtrip
 #[cfg(test)]
 pub fn sigma_serialize_roundtrip<T: SigmaSerializable>(v: &T) -> T {
