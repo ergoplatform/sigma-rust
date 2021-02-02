@@ -11,7 +11,6 @@ use crate::types::stype::SType;
 
 use super::constant::TryExtractInto;
 use super::expr::Expr;
-use super::expr::InvalidArgumentError;
 use super::value::Value;
 
 /// If, non-lazy - evaluate both branches
