@@ -24,6 +24,9 @@
 - `BinAnd`, `BinOr`;
 - `LogicalNot` (`!`);
 - `Map`, `Filter` collection ops;
+- `BoolToSigmaProp`;
+- `If`;
+- `Min`, `Max`;
 
 ## Usage 
 ## Crate features

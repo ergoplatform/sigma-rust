@@ -3,6 +3,9 @@
 use crate::chain::ergo_box::BoxValue;
 use crate::chain::ergo_box::ErgoBox;
 use crate::chain::{Base16DecodedBytes, Base16EncodedBytes};
+use crate::sigma_protocol::sigma_boolean::ProveDlog;
+use crate::sigma_protocol::sigma_boolean::SigmaBoolean;
+use crate::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
 use crate::types::stype::LiftIntoSType;
 use crate::types::stype::SType;
 use crate::{
@@ -110,7 +113,7 @@ impl From<SigmaProp> for Constant {
     fn from(v: SigmaProp) -> Constant {
         Constant {
             tpe: SType::SSigmaProp,
-            v: v.into(),
+            v: Box::new(v).into(),
         }
     }
 }
@@ -174,6 +177,14 @@ impl<T: LiftIntoSType + Into<Value>> From<Option<T>> for Constant {
             tpe: SType::SOption(Box::new(T::stype())),
             v: opt.into(),
         }
+    }
+}
+
+impl From<ProveDlog> for Constant {
+    fn from(v: ProveDlog) -> Self {
+        Constant::from(SigmaProp::from(SigmaBoolean::from(
+            SigmaProofOfKnowledgeTree::from(v),
+        )))
     }
 }
 

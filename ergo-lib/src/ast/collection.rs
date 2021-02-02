@@ -9,6 +9,7 @@ use crate::serialization::SerializationError;
 use crate::serialization::SigmaSerializable;
 use crate::types::stype::SType;
 
+use super::constant::Constant;
 use super::constant::TryExtractFromError;
 use super::constant::TryExtractInto;
 use super::expr::Expr;
@@ -35,7 +36,7 @@ impl Collection {
             let maybe_bools: Result<Vec<bool>, TryExtractFromError> = items
                 .clone()
                 .into_iter()
-                .map(|i| i.try_extract_into::<bool>())
+                .map(|i| i.try_extract_into::<Constant>()?.try_extract_into::<bool>())
                 .collect();
             match maybe_bools {
                 Ok(bools) => Ok(Collection::BoolConstants(bools)),

@@ -1,3 +1,6 @@
+use std::convert::TryFrom;
+use std::convert::TryInto;
+
 use crate::serialization::op_code::OpCode;
 use crate::types::scontext::SContext;
 use crate::types::stype::SType;
@@ -6,6 +9,7 @@ use super::and::And;
 use super::apply::Apply;
 use super::bin_op::BinOp;
 use super::block::BlockValue;
+use super::bool_to_sigma::BoolToSigmaProp;
 use super::calc_blake2b256::CalcBlake2b256;
 use super::coll_filter::Filter;
 use super::coll_fold::Fold;
@@ -19,19 +23,22 @@ use super::extract_amount::ExtractAmount;
 use super::extract_reg_as::ExtractRegisterAs;
 use super::func_value::FuncValue;
 use super::global_vars::GlobalVars;
+use super::if_op::If;
 use super::logical_not::LogicalNot;
 use super::method_call::MethodCall;
 use super::option_get::OptionGet;
 use super::or::Or;
 use super::property_call::PropertyCall;
 use super::select_field::SelectField;
+use super::upcast::Upcast;
 use super::val_def::ValDef;
 use super::val_use::ValUse;
 
 extern crate derive_more;
 use derive_more::From;
+use derive_more::TryInto;
 
-#[derive(PartialEq, Eq, Debug, Clone, From)]
+#[derive(PartialEq, Eq, Debug, Clone, From, TryInto)]
 /// Expression in ErgoTree
 pub enum Expr {
     /// Constant value
@@ -61,6 +68,8 @@ pub enum Expr {
     ValDef(ValDef),
     /// Reference to ValDef
     ValUse(ValUse),
+    /// If, non-lazy - evaluate both branches
+    If(If),
     /// Binary operation
     BinOp(BinOp),
     /// Logical AND
@@ -83,6 +92,10 @@ pub enum Expr {
     SelectField(SelectField),
     /// Box monetary value
     ExtractAmount(ExtractAmount),
+    /// Bool to SigmaProp
+    BoolToSigmaProp(BoolToSigmaProp),
+    /// Upcast numeric value
+    Upcast(Upcast),
 }
 
 impl Expr {
@@ -113,6 +126,9 @@ impl Expr {
             Expr::LogicalNot(op) => op.op_code(),
             Expr::Map(op) => op.op_code(),
             Expr::Filter(op) => op.op_code(),
+            Expr::BoolToSigmaProp(op) => op.op_code(),
+            Expr::Upcast(op) => op.op_code(),
+            Expr::If(op) => op.op_code(),
         }
     }
 
@@ -143,6 +159,9 @@ impl Expr {
             Expr::LogicalNot(v) => v.tpe(),
             Expr::Map(v) => v.tpe(),
             Expr::Filter(v) => v.tpe(),
+            Expr::BoolToSigmaProp(v) => v.tpe(),
+            Expr::Upcast(v) => v.tpe(),
+            Expr::If(v) => v.tpe(),
         }
     }
 
@@ -179,15 +198,16 @@ impl From<InvalidExprEvalTypeError> for InvalidArgumentError {
     }
 }
 
-impl<T: TryExtractFrom<Constant>> TryExtractFrom<Expr> for T {
-    fn try_extract_from(v: Expr) -> Result<Self, super::constant::TryExtractFromError> {
-        match v {
-            Expr::Const(c) => Ok(T::try_extract_from(c)?),
-            _ => Err(TryExtractFromError(format!(
-                "expected Expr::Const, found {:?}",
+impl<T: TryFrom<Expr>> TryExtractFrom<Expr> for T {
+    fn try_extract_from(v: Expr) -> Result<Self, TryExtractFromError> {
+        let res: Result<Self, TryExtractFromError> = v.clone().try_into().map_err(|_| {
+            TryExtractFromError(format!(
+                "Cannot extract {0:?} from {1:?}",
+                std::any::type_name::<T>(),
                 v
-            ))),
-        }
+            ))
+        });
+        res
     }
 }
 

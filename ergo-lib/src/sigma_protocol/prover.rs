@@ -352,10 +352,7 @@ mod tests {
     fn test_prove_pk_prop() {
         let secret = DlogProverInput::random();
         let pk = secret.public_image();
-        let tree = ErgoTree::from(Rc::new(Expr::Const(Constant {
-            tpe: SType::SSigmaProp,
-            v: pk.into(),
-        })));
+        let tree = ErgoTree::from(Rc::new(Expr::Const(pk.into())));
         let message = vec![0u8; 100];
 
         let prover = TestProver {
