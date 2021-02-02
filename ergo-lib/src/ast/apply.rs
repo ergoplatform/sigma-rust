@@ -177,7 +177,8 @@ mod tests {
             items: vec![ValDef {
                 id: 2.into(),
                 rhs: Box::new(Expr::Const(1i32.into())),
-            }],
+            }
+            .into()],
             result: Box::new(bin_op),
         });
         let apply: Expr = Apply {

@@ -91,11 +91,12 @@ impl SigmaSerializable for Expr {
                 res
             }
         }?;
-        if first_byte <= OpCode::LAST_CONSTANT_CODE.value() {
+        let res = if first_byte <= OpCode::LAST_CONSTANT_CODE.value() {
             let constant = Constant::sigma_parse(r)?;
             Ok(Expr::Const(constant))
         } else {
             let op_code = OpCode::sigma_parse(r)?;
+            dbg!(&op_code.shift());
             match op_code {
                 OpCode::FOLD => Ok(Fold::sigma_parse(r)?.into()),
                 ConstantPlaceholder::OP_CODE => {
@@ -153,7 +154,9 @@ impl SigmaSerializable for Expr {
                     o.shift()
                 ))),
             }
-        }
+        };
+        dbg!(&res);
+        res
     }
 }
 

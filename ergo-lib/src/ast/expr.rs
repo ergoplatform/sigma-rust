@@ -189,12 +189,14 @@ impl From<InvalidExprEvalTypeError> for InvalidArgumentError {
     }
 }
 
-impl<T: TryExtractFrom<Constant>> TryExtractFrom<Expr> for T {
-    fn try_extract_from(v: Expr) -> Result<Self, super::constant::TryExtractFromError> {
+impl<T: Into<Expr>> TryExtractFrom<Expr> for T {
+    fn try_extract_from(v: Expr) -> Result<Self, TryExtractFromError> {
         match v {
-            Expr::Const(c) => Ok(T::try_extract_from(c)?),
+            Expr::Const(_) => Ok(T::try_extract_from(v)?),
+            Expr::ValDef(_) => Ok(T::try_extract_from(v)?),
             _ => Err(TryExtractFromError(format!(
-                "expected Expr::Const, found {:?}",
+                "Don't know how to extract {0:?} from {1:?}",
+                std::any::type_name::<T>(),
                 v
             ))),
         }

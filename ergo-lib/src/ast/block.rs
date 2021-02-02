@@ -11,6 +11,7 @@ use crate::serialization::SerializationError;
 use crate::serialization::SigmaSerializable;
 use crate::types::stype::SType;
 
+use super::constant::TryExtractInto;
 use super::expr::Expr;
 use super::val_def::ValDef;
 use super::value::Value;
@@ -24,7 +25,7 @@ use super::value::Value;
  */
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct BlockValue {
-    pub items: Vec<ValDef>,
+    pub items: Vec<Expr>,
     pub result: Box<Expr>,
 }
 
@@ -42,8 +43,9 @@ impl Evaluable for BlockValue {
     fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
         let mut cur_env = env.clone();
         for i in self.items.iter() {
-            let v: Value = i.rhs.eval(&cur_env, ctx)?;
-            cur_env.insert(i.id, v);
+            let val_def = i.clone().try_extract_into::<ValDef>()?;
+            let v: Value = val_def.rhs.eval(&cur_env, ctx)?;
+            cur_env.insert(val_def.id, v);
         }
         self.result.eval(&cur_env, ctx)
     }
@@ -56,7 +58,8 @@ impl SigmaSerializable for BlockValue {
     }
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
-        let items = Vec::<ValDef>::sigma_parse(r)?;
+        let items = Vec::<Expr>::sigma_parse(r)?;
+        dbg!(&items);
         let result = Expr::sigma_parse(r)?;
         Ok(BlockValue {
             items,
@@ -69,7 +72,6 @@ impl SigmaSerializable for BlockValue {
 mod tests {
     use crate::ast::block::BlockValue;
     use crate::ast::expr::Expr;
-    use crate::ast::val_def::ValDef;
     use crate::serialization::sigma_serialize_roundtrip;
 
     use proptest::collection::vec;
@@ -80,7 +82,7 @@ mod tests {
         type Parameters = ();
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            (any::<Expr>(), vec(any::<ValDef>(), 0..10))
+            (any::<Expr>(), vec(any::<Expr>(), 0..10))
                 .prop_map(|(result, items)| Self {
                     items,
                     result: Box::new(result),
