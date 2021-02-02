@@ -90,9 +90,7 @@ mod tests {
     use proptest::collection::vec;
     use proptest::prelude::*;
 
-    use crate::ast::constant::Constant;
     use crate::ast::expr::Expr;
-    use crate::types::stype::SType;
     use crate::{
         chain::{
             ergo_box::{box_builder::ErgoBoxCandidateBuilder, BoxValue, NonMandatoryRegisters},
@@ -136,10 +134,7 @@ mod tests {
         fn test_tx_signing(secrets in vec(any::<DlogProverInput>(), 1..10)) {
             let boxes_to_spend: Vec<ErgoBox> = secrets.iter().map(|secret|{
                 let pk = secret.public_image();
-                let tree = ErgoTree::from(Rc::new(Expr::Const(Constant {
-                    tpe: SType::SSigmaProp,
-                    v: pk.into(),
-                })));
+                let tree = ErgoTree::from(Rc::new(Expr::Const(pk.into())));
                 ErgoBox::new(BoxValue::SAFE_USER_MIN,
                              tree,
                              vec![],
@@ -152,10 +147,7 @@ mod tests {
                 secrets: secrets.clone().into_iter().map(PrivateInput::DlogProverInput).collect(),
             };
             let inputs = boxes_to_spend.clone().into_iter().map(UnsignedInput::from).collect();
-            let ergo_tree = ErgoTree::from(Rc::new(Expr::Const(Constant {
-                    tpe: SType::SSigmaProp,
-                    v: secrets.get(0).unwrap().public_image().into(),
-            })));
+            let ergo_tree = ErgoTree::from(Rc::new(Expr::Const(secrets.get(0).unwrap().public_image().into())));
             let candidate = ErgoBoxCandidateBuilder::new(BoxValue::SAFE_USER_MIN, ergo_tree, 0)
                 .build().unwrap();
             let output_candidates = vec![candidate];

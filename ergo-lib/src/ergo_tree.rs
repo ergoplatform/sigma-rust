@@ -305,6 +305,7 @@ mod tests {
     use crate::chain::Base16DecodedBytes;
     use crate::serialization::sigma_serialize_roundtrip;
     use crate::sigma_protocol::sigma_boolean::SigmaBoolean;
+    use crate::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
     use crate::sigma_protocol::sigma_boolean::SigmaProp;
     use proptest::prelude::*;
 
@@ -315,9 +316,7 @@ mod tests {
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             prop_oneof![
                 // make sure that P2PK tree is included
-                any::<ProveDlog>().prop_map(|p| ErgoTree::from(Rc::new(Expr::Const(
-                    Constant::from(SigmaProp::from(SigmaBoolean::from(p)))
-                )))),
+                any::<ProveDlog>().prop_map(|p| ErgoTree::from(Rc::new(Expr::Const(p.into())))),
             ]
             .boxed()
         }

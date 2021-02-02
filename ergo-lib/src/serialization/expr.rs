@@ -167,10 +167,14 @@ impl SigmaSerializable for Expr {
 
 #[cfg(test)]
 mod tests {
+    use std::convert::TryInto;
+
     use super::*;
     use crate::chain::address::AddressEncoder;
     use crate::chain::address::NetworkPrefix;
+    use crate::eval::tests::eval_out_wo_ctx;
     use crate::serialization::sigma_serialize_roundtrip;
+    use crate::sigma_protocol::sigma_boolean::SigmaProp;
     use proptest::prelude::*;
 
     proptest! {
@@ -333,6 +337,10 @@ mod tests {
         let encoder = AddressEncoder::new(NetworkPrefix::Mainnet);
         let addr = encoder.parse_address_from_str(p2s_addr_str).unwrap();
         let script = addr.script().unwrap().proposition().unwrap();
-        dbg!(script);
+        dbg!(&script);
+        let res: bool = eval_out_wo_ctx::<SigmaProp>(script.as_ref())
+            .try_into()
+            .unwrap();
+        assert!(res);
     }
 }

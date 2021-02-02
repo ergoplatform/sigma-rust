@@ -122,13 +122,11 @@ impl Verifier for TestVerifier {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ast::constant::Constant;
     use crate::ast::expr::Expr;
     use crate::sigma_protocol::{
         private_input::{DlogProverInput, PrivateInput},
         prover::{Prover, TestProver},
     };
-    use crate::types::stype::SType;
     use proptest::prelude::*;
     use std::rc::Rc;
 
@@ -140,10 +138,7 @@ mod tests {
         fn test_prover_verifier_p2pk(secret in any::<DlogProverInput>(), message in any::<Vec<u8>>()) {
             prop_assume!(!message.is_empty());
             let pk = secret.public_image();
-            let tree = ErgoTree::from(Rc::new(Expr::Const(Constant {
-                tpe: SType::SSigmaProp,
-                v: pk.into(),
-            })));
+            let tree = ErgoTree::from(Rc::new(Expr::Const(pk.into())));
 
             let prover = TestProver {
                 secrets: vec![PrivateInput::DlogProverInput(secret)],

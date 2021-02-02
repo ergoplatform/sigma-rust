@@ -23,6 +23,9 @@ use super::constant::TryExtractFromError;
 use super::constant::TryExtractInto;
 use super::func_value::FuncValue;
 
+extern crate derive_more;
+use derive_more::From;
+
 #[derive(PartialEq, Eq, Debug, Clone)]
 /// Collection for primitive values (i.e byte array)
 pub enum NativeColl {
@@ -91,7 +94,7 @@ impl CollKind {
 }
 
 /// Runtime value
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone, From)]
 pub enum Value {
     /// Boolean
     Boolean(bool),
@@ -129,36 +132,6 @@ impl Value {
     /// Create Sigma property constant
     pub fn sigma_prop(prop: SigmaProp) -> Value {
         Value::SigmaProp(Box::new(prop))
-    }
-}
-
-impl Into<Value> for bool {
-    fn into(self) -> Value {
-        Value::Boolean(self)
-    }
-}
-
-impl Into<Value> for i8 {
-    fn into(self) -> Value {
-        Value::Byte(self)
-    }
-}
-
-impl Into<Value> for i16 {
-    fn into(self) -> Value {
-        Value::Short(self)
-    }
-}
-
-impl Into<Value> for i32 {
-    fn into(self) -> Value {
-        Value::Int(self)
-    }
-}
-
-impl Into<Value> for i64 {
-    fn into(self) -> Value {
-        Value::Long(self)
     }
 }
 

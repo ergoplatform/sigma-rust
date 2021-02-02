@@ -2,7 +2,13 @@
 
 use super::dlog_group::EcPoint;
 use crate::serialization::op_code::OpCode;
+use std::convert::TryFrom;
 use std::convert::TryInto;
+
+extern crate derive_more;
+use derive_more::From;
+use derive_more::Into;
+use derive_more::TryInto;
 
 /// Construct a new SigmaBoolean value representing public key of discrete logarithm signature protocol.
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -17,12 +23,6 @@ impl ProveDlog {
         ProveDlog {
             h: Box::new(ecpoint),
         }
-    }
-}
-
-impl From<ProveDlog> for SigmaProofOfKnowledgeTree {
-    fn from(pd: ProveDlog) -> Self {
-        SigmaProofOfKnowledgeTree::ProveDlog(pd)
     }
 }
 
@@ -43,7 +43,7 @@ pub struct ProveDHTuple {
 }
 
 /// Sigma proposition
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone, From)]
 pub enum SigmaProofOfKnowledgeTree {
     /// public key of Diffie Hellman signature protocol
     ProveDHTuple(ProveDHTuple),
@@ -53,7 +53,7 @@ pub enum SigmaProofOfKnowledgeTree {
 
 /// Algebraic data type of sigma proposition expressions
 /// Values of this type are used as values of SigmaProp type
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone, From, TryInto)]
 pub enum SigmaBoolean {
     /// Represents boolean values (true/false)
     TrivialProp(bool),
@@ -75,12 +75,6 @@ impl SigmaBoolean {
     }
 }
 
-impl<T: Into<SigmaProofOfKnowledgeTree>> From<T> for SigmaBoolean {
-    fn from(t: T) -> Self {
-        SigmaBoolean::ProofOfKnowledge(t.into())
-    }
-}
-
 /// Failed to extract specified underlying type from SigmaBoolean
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ConversionError;
@@ -96,7 +90,7 @@ impl TryInto<ProveDlog> for SigmaBoolean {
 }
 
 /// Proposition which can be proven and verified by sigma protocol.
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone, From, Into)]
 pub struct SigmaProp(SigmaBoolean);
 
 impl SigmaProp {
@@ -111,9 +105,11 @@ impl SigmaProp {
     }
 }
 
-impl<T: Into<SigmaBoolean>> From<T> for SigmaProp {
-    fn from(t: T) -> Self {
-        SigmaProp(t.into())
+impl TryFrom<SigmaProp> for bool {
+    type Error = ConversionError;
+
+    fn try_from(value: SigmaProp) -> Result<Self, Self::Error> {
+        value.0.try_into().map_err(|_| ConversionError)
     }
 }
 
