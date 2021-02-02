@@ -228,6 +228,22 @@ fn eval_le(lv: Value, rv: Value) -> Result<Value, EvalError> {
     }
 }
 
+fn eval_max<T>(lv_raw: T, rv: Value) -> Result<Value, EvalError>
+where
+    T: Num + Ord + TryExtractFrom<Value> + Into<Value>,
+{
+    let rv_raw = rv.try_extract_into::<T>()?;
+    Ok((lv_raw.max(rv_raw)).into())
+}
+
+fn eval_min<T>(lv_raw: T, rv: Value) -> Result<Value, EvalError>
+where
+    T: Num + Ord + TryExtractFrom<Value> + Into<Value>,
+{
+    let rv_raw = rv.try_extract_into::<T>()?;
+    Ok((lv_raw.min(rv_raw)).into())
+}
+
 impl Evaluable for BinOp {
     fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
         ctx.cost_accum.add(Costs::DEFAULT.eq_const_size)?;
@@ -298,8 +314,28 @@ impl Evaluable for BinOp {
                         lv
                     ))),
                 },
-                ArithOp::Max => todo!(),
-                ArithOp::Min => todo!(),
+                ArithOp::Max => match lv {
+                    Value::Byte(lv_raw) => eval_max(lv_raw, rv()?),
+                    Value::Short(lv_raw) => eval_max(lv_raw, rv()?),
+                    Value::Int(lv_raw) => eval_max(lv_raw, rv()?),
+                    Value::Long(lv_raw) => eval_max(lv_raw, rv()?),
+                    Value::BigInt => todo!(),
+                    _ => Err(EvalError::UnexpectedValue(format!(
+                        "expected BinOp::left to be numeric value, got {0:?}",
+                        lv
+                    ))),
+                },
+                ArithOp::Min => match lv {
+                    Value::Byte(lv_raw) => eval_min(lv_raw, rv()?),
+                    Value::Short(lv_raw) => eval_min(lv_raw, rv()?),
+                    Value::Int(lv_raw) => eval_min(lv_raw, rv()?),
+                    Value::Long(lv_raw) => eval_min(lv_raw, rv()?),
+                    Value::BigInt => todo!(),
+                    _ => Err(EvalError::UnexpectedValue(format!(
+                        "expected BinOp::left to be numeric value, got {0:?}",
+                        lv
+                    ))),
+                },
             },
         }
     }
@@ -536,6 +572,8 @@ pub mod tests {
             prop_assert_eq!(eval_num_op(ArithOp::Minus, l.into(), r.into()).ok(), l.checked_sub(r));
             prop_assert_eq!(eval_num_op(ArithOp::Multiply, l.into(), r.into()).ok(), l.checked_mul(r));
             prop_assert_eq!(eval_num_op(ArithOp::Divide, l.into(), r.into()).ok(), l.checked_div(r));
+            prop_assert_eq!(eval_num_op::<i64>(ArithOp::Max, l.into(), r.into()).unwrap(), l.max(r));
+            prop_assert_eq!(eval_num_op::<i64>(ArithOp::Min, l.into(), r.into()).unwrap(), l.min(r));
 
             prop_assert_eq!(eval_relation_op(RelationOp::GT, l.into(), r.into()), l > r);
             prop_assert_eq!(eval_relation_op(RelationOp::LT, l.into(), r.into()), l < r);
@@ -549,6 +587,8 @@ pub mod tests {
             prop_assert_eq!(eval_num_op(ArithOp::Minus, l.into(), r.into()).ok(), l.checked_sub(r));
             prop_assert_eq!(eval_num_op(ArithOp::Multiply, l.into(), r.into()).ok(), l.checked_mul(r));
             prop_assert_eq!(eval_num_op(ArithOp::Divide, l.into(), r.into()).ok(), l.checked_div(r));
+            prop_assert_eq!(eval_num_op::<i32>(ArithOp::Max, l.into(), r.into()).unwrap(), l.max(r));
+            prop_assert_eq!(eval_num_op::<i32>(ArithOp::Min, l.into(), r.into()).unwrap(), l.min(r));
 
             prop_assert_eq!(eval_relation_op(RelationOp::GT, l.into(), r.into()), l > r);
             prop_assert_eq!(eval_relation_op(RelationOp::LT, l.into(), r.into()), l < r);
@@ -562,6 +602,8 @@ pub mod tests {
             prop_assert_eq!(eval_num_op(ArithOp::Minus, l.into(), r.into()).ok(), l.checked_sub(r));
             prop_assert_eq!(eval_num_op(ArithOp::Multiply, l.into(), r.into()).ok(), l.checked_mul(r));
             prop_assert_eq!(eval_num_op(ArithOp::Divide, l.into(), r.into()).ok(), l.checked_div(r));
+            prop_assert_eq!(eval_num_op::<i16>(ArithOp::Max, l.into(), r.into()).unwrap(), l.max(r));
+            prop_assert_eq!(eval_num_op::<i16>(ArithOp::Min, l.into(), r.into()).unwrap(), l.min(r));
 
             prop_assert_eq!(eval_relation_op(RelationOp::GT, l.into(), r.into()), l > r);
             prop_assert_eq!(eval_relation_op(RelationOp::LT, l.into(), r.into()), l < r);
@@ -575,6 +617,8 @@ pub mod tests {
             prop_assert_eq!(eval_num_op(ArithOp::Minus, l.into(), r.into()).ok(), l.checked_sub(r));
             prop_assert_eq!(eval_num_op(ArithOp::Multiply, l.into(), r.into()).ok(), l.checked_mul(r));
             prop_assert_eq!(eval_num_op(ArithOp::Divide, l.into(), r.into()).ok(), l.checked_div(r));
+            prop_assert_eq!(eval_num_op::<i8>(ArithOp::Max, l.into(), r.into()).unwrap(), l.max(r));
+            prop_assert_eq!(eval_num_op::<i8>(ArithOp::Min, l.into(), r.into()).unwrap(), l.min(r));
 
             prop_assert_eq!(eval_relation_op(RelationOp::GT, l.into(), r.into()), l > r);
             prop_assert_eq!(eval_relation_op(RelationOp::LT, l.into(), r.into()), l < r);
