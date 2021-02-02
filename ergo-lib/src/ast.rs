@@ -15,6 +15,7 @@ pub(crate) mod extract_amount;
 pub(crate) mod extract_reg_as;
 pub(crate) mod func_value;
 pub(crate) mod global_vars;
+pub(crate) mod if_op;
 pub(crate) mod logical_not;
 pub(crate) mod method_call;
 pub(crate) mod option_get;

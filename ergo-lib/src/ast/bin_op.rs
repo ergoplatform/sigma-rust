@@ -34,6 +34,8 @@ pub enum ArithOp {
     Minus,
     Multiply,
     Divide,
+    Max,
+    Min,
 }
 
 impl From<ArithOp> for OpCode {
@@ -43,6 +45,8 @@ impl From<ArithOp> for OpCode {
             ArithOp::Minus => OpCode::MINUS,
             ArithOp::Multiply => OpCode::MULTIPLY,
             ArithOp::Divide => OpCode::DIVISION,
+            ArithOp::Max => OpCode::MAX,
+            ArithOp::Min => OpCode::MIN,
         }
     }
 }
@@ -294,6 +298,8 @@ impl Evaluable for BinOp {
                         lv
                     ))),
                 },
+                ArithOp::Max => todo!(),
+                ArithOp::Min => todo!(),
             },
         }
     }

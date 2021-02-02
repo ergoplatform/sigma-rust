@@ -21,6 +21,7 @@ use crate::ast::extract_amount::ExtractAmount;
 use crate::ast::extract_reg_as::ExtractRegisterAs;
 use crate::ast::func_value::FuncValue;
 use crate::ast::global_vars::GlobalVars;
+use crate::ast::if_op::If;
 use crate::ast::logical_not::LogicalNot;
 use crate::ast::method_call::MethodCall;
 use crate::ast::option_get::OptionGet;
@@ -77,6 +78,7 @@ impl SigmaSerializable for Expr {
                     Expr::Filter(op) => op.sigma_serialize(w),
                     Expr::BoolToSigmaProp(op) => op.sigma_serialize(w),
                     Expr::Upcast(op) => op.sigma_serialize(w),
+                    Expr::If(op) => op.sigma_serialize(w),
                 }
             }
         }
@@ -132,6 +134,8 @@ impl SigmaSerializable for Expr {
                 OpCode::MINUS => Ok(bin_op_sigma_parse(ArithOp::Minus.into(), r)?),
                 OpCode::MULTIPLY => Ok(bin_op_sigma_parse(ArithOp::Multiply.into(), r)?),
                 OpCode::DIVISION => Ok(bin_op_sigma_parse(ArithOp::Divide.into(), r)?),
+                OpCode::MAX => Ok(bin_op_sigma_parse(ArithOp::Max.into(), r)?),
+                OpCode::MIN => Ok(bin_op_sigma_parse(ArithOp::Min.into(), r)?),
                 OpCode::BLOCK_VALUE => Ok(Expr::BlockValue(BlockValue::sigma_parse(r)?)),
                 OpCode::FUNC_VALUE => Ok(Expr::FuncValue(FuncValue::sigma_parse(r)?)),
                 OpCode::APPLY => Ok(Expr::Apply(Apply::sigma_parse(r)?)),
@@ -148,6 +152,7 @@ impl SigmaSerializable for Expr {
                 Filter::OP_CODE => Ok(Filter::sigma_parse(r)?.into()),
                 BoolToSigmaProp::OP_CODE => Ok(BoolToSigmaProp::sigma_parse(r)?.into()),
                 Upcast::OP_CODE => Ok(Upcast::sigma_parse(r)?.into()),
+                If::OP_CODE => Ok(If::sigma_parse(r)?.into()),
                 o => Err(SerializationError::NotImplementedOpCode(format!(
                     "{0}(shift {1})",
                     o.value(),

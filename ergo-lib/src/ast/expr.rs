@@ -20,6 +20,7 @@ use super::extract_amount::ExtractAmount;
 use super::extract_reg_as::ExtractRegisterAs;
 use super::func_value::FuncValue;
 use super::global_vars::GlobalVars;
+use super::if_op::If;
 use super::logical_not::LogicalNot;
 use super::method_call::MethodCall;
 use super::option_get::OptionGet;
@@ -63,6 +64,8 @@ pub enum Expr {
     ValDef(ValDef),
     /// Reference to ValDef
     ValUse(ValUse),
+    /// If, non-lazy - evaluate both branches
+    If(If),
     /// Binary operation
     BinOp(BinOp),
     /// Logical AND
@@ -121,6 +124,7 @@ impl Expr {
             Expr::Filter(op) => op.op_code(),
             Expr::BoolToSigmaProp(op) => op.op_code(),
             Expr::Upcast(op) => op.op_code(),
+            Expr::If(op) => op.op_code(),
         }
     }
 
@@ -153,6 +157,7 @@ impl Expr {
             Expr::Filter(v) => v.tpe(),
             Expr::BoolToSigmaProp(v) => v.tpe(),
             Expr::Upcast(v) => v.tpe(),
+            Expr::If(v) => v.tpe(),
         }
     }
 

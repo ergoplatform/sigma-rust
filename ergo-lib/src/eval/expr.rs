@@ -36,6 +36,7 @@ impl Evaluable for Expr {
             Expr::Filter(op) => op.eval(env, ctx),
             Expr::BoolToSigmaProp(op) => op.eval(env, ctx),
             Expr::Upcast(op) => op.eval(env, ctx),
+            Expr::If(op) => op.eval(env, ctx),
         }
     }
 }
