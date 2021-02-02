@@ -1,3 +1,6 @@
+use std::convert::TryFrom;
+use std::convert::TryInto;
+
 use crate::serialization::op_code::OpCode;
 use crate::types::scontext::SContext;
 use crate::types::stype::SType;
@@ -33,8 +36,9 @@ use super::val_use::ValUse;
 
 extern crate derive_more;
 use derive_more::From;
+use derive_more::TryInto;
 
-#[derive(PartialEq, Eq, Debug, Clone, From)]
+#[derive(PartialEq, Eq, Debug, Clone, From, TryInto)]
 /// Expression in ErgoTree
 pub enum Expr {
     /// Constant value
@@ -194,17 +198,16 @@ impl From<InvalidExprEvalTypeError> for InvalidArgumentError {
     }
 }
 
-impl<T: Into<Expr>> TryExtractFrom<Expr> for T {
+impl<T: TryFrom<Expr>> TryExtractFrom<Expr> for T {
     fn try_extract_from(v: Expr) -> Result<Self, TryExtractFromError> {
-        match v {
-            Expr::Const(_) => Ok(T::try_extract_from(v)?),
-            Expr::ValDef(_) => Ok(T::try_extract_from(v)?),
-            _ => Err(TryExtractFromError(format!(
-                "Don't know how to extract {0:?} from {1:?}",
+        let res: Result<Self, TryExtractFromError> = v.clone().try_into().map_err(|_| {
+            TryExtractFromError(format!(
+                "Cannot extract {0:?} from {1:?}",
                 std::any::type_name::<T>(),
                 v
-            ))),
-        }
+            ))
+        });
+        res
     }
 }
 

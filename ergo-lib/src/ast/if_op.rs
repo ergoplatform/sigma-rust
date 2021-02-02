@@ -9,7 +9,9 @@ use crate::serialization::SerializationError;
 use crate::serialization::SigmaSerializable;
 use crate::types::stype::SType;
 
+use super::constant::TryExtractInto;
 use super::expr::Expr;
+use super::expr::InvalidArgumentError;
 use super::value::Value;
 
 /// If, non-lazy - evaluate both branches
@@ -34,7 +36,14 @@ impl If {
 
 impl Evaluable for If {
     fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
-        todo!()
+        let condition_v = self.condition.eval(env, ctx)?;
+        let true_branch_v = self.true_branch.eval(env, ctx)?;
+        let false_branch_v = self.false_branch.eval(env, ctx)?;
+        Ok(if condition_v.try_extract_into::<bool>()? {
+            true_branch_v
+        } else {
+            false_branch_v
+        })
     }
 }
 
@@ -62,6 +71,7 @@ mod tests {
 
     use crate::ast::expr::tests::ArbExprParams;
     use crate::ast::expr::Expr;
+    use crate::eval::tests::eval_out_wo_ctx;
     use crate::serialization::sigma_serialize_roundtrip;
 
     use super::*;
@@ -89,6 +99,18 @@ mod tests {
         }
     }
 
+    #[test]
+    fn eval() {
+        let expr: Expr = If {
+            condition: Expr::Const(true.into()).into(),
+            true_branch: Expr::Const(1i64.into()).into(),
+            false_branch: Expr::Const(2i64.into()).into(),
+        }
+        .into();
+        let res = eval_out_wo_ctx::<i64>(&expr);
+        assert_eq!(res, 1);
+    }
+
     proptest! {
 
         #[test]
@@ -97,12 +119,5 @@ mod tests {
             prop_assert_eq![sigma_serialize_roundtrip(&expr), expr];
         }
 
-        // #[test]
-        // fn eval(bools in collection::vec(any::<bool>(), 0..10)) {
-        //     let expr: Expr = If {input: Expr::Const(bools.clone().into()).into()}.into();
-        //     let ctx = Rc::new(force_any_val::<Context>());
-        //     let res = eval_out::<bool>(&expr, ctx);
-        //     prop_assert_eq!(res, bools.iter().all(|b| *b));
-        // }
     }
 }
