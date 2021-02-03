@@ -28,6 +28,7 @@
 - `If`;
 - `Min`, `Max`;
 - `ByIndex`, `Box.tokens`;
+- `ExtractScriptBytes` (`Box.propositionBytes`);
 
 ## Usage 
 ## Crate features
