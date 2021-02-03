@@ -24,7 +24,7 @@ pub(crate) use constant_placeholder::*;
 
 use super::value::CollKind;
 use super::value::NativeColl;
-use super::value::StoredNonPrimitive;
+use super::value::StoreWrapped;
 use super::value::Value;
 
 use thiserror::Error;
@@ -162,7 +162,7 @@ impl From<Vec<i8>> for Constant {
     }
 }
 
-impl<T: LiftIntoSType + StoredNonPrimitive + Into<Value>> From<Vec<T>> for Constant {
+impl<T: LiftIntoSType + StoreWrapped + Into<Value>> From<Vec<T>> for Constant {
     fn from(v: Vec<T>) -> Self {
         Constant {
             tpe: Vec::<T>::stype(),
