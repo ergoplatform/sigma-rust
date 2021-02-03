@@ -85,7 +85,7 @@ mod tests {
     proptest! {
 
         #[test]
-        fn ser_roundtrip(v in any_with::<And>(2)) {
+        fn ser_roundtrip(v in any_with::<And>(1)) {
             let expr: Expr = v.into();
             prop_assert_eq![sigma_serialize_roundtrip(&expr), expr];
         }

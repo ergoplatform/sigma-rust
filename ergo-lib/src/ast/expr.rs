@@ -236,7 +236,7 @@ pub mod tests {
         fn default() -> Self {
             ArbExprParams {
                 tpe: SType::SBoolean,
-                depth: 2,
+                depth: 1,
             }
         }
     }

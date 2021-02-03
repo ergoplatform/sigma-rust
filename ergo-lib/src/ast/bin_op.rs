@@ -561,6 +561,8 @@ pub mod tests {
 
     proptest! {
 
+        #![proptest_config(ProptestConfig::with_cases(32))]
+
         #[test]
         fn test_eq(v in any::<Constant>()) {
             prop_assert![check_eq_neq(v.clone(), v)];
