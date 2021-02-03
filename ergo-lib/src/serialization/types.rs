@@ -315,14 +315,14 @@ impl SigmaSerializable for SType {
                     for _ in 0..len {
                         items.push(SType::sigma_parse(r)?);
                     }
-                    SType::STuple(
-                        items
-                            .try_into()
-                            .map_err(|_| SerializationError::TupleItemsOutOfBounds(len as usize))?,
-                    )
+                    Ok(SType::STuple(items.try_into().map_err(|_| {
+                        SerializationError::TupleItemsOutOfBounds(len as usize)
+                    })?))
                 }
-                _ => todo!(),
-            }
+                _ => Err(SerializationError::NotImplementedYet(
+                    "parsing type is not yet implemented".to_string(),
+                )),
+            }?
         };
         Ok(tpe)
     }
