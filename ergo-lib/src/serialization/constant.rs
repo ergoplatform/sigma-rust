@@ -24,13 +24,14 @@ impl SigmaSerializable for Constant {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ast::constant::tests::ArbConstantParams;
     use crate::serialization::sigma_serialize_roundtrip;
     use proptest::prelude::*;
 
     proptest! {
 
         #[test]
-        fn ser_roundtrip(v in any::<Constant>()) {
+        fn ser_roundtrip(v in any_with::<Constant>(ArbConstantParams::AnyWithDepth(4))) {
             dbg!(&v);
             prop_assert_eq![sigma_serialize_roundtrip(&v), v];
         }

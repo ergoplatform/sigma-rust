@@ -294,7 +294,7 @@ pub mod tests {
     }
 
     fn bool_non_nested_expr() -> BoxedStrategy<Expr> {
-        prop_oneof![any_with::<Constant>(SType::SBoolean).prop_map_into()].boxed()
+        prop_oneof![any_with::<Constant>(SType::SBoolean.into()).prop_map_into()].boxed()
     }
 
     fn any_non_nested_expr() -> BoxedStrategy<Expr> {
@@ -303,10 +303,10 @@ pub mod tests {
 
     fn coll_non_nested_expr(elem_tpe: &SType) -> BoxedStrategy<Expr> {
         match elem_tpe {
-            SType::SByte => any_with::<Constant>(SType::SColl(Box::new(SType::SByte)))
+            SType::SByte => any_with::<Constant>(SType::SColl(Box::new(SType::SByte)).into())
                 .prop_map(Expr::Const)
                 .boxed(),
-            SType::SBoolean => any_with::<Constant>(SType::SColl(Box::new(SType::SBoolean)))
+            SType::SBoolean => any_with::<Constant>(SType::SColl(Box::new(SType::SBoolean)).into())
                 .prop_map(Expr::Const)
                 .boxed(),
             _ => todo!("Collection of {0:?} is not yet implemented", elem_tpe),
@@ -352,7 +352,7 @@ pub mod tests {
                 match args.tpe {
                     SType::SFunc(sfunc) => sfunc_expr(sfunc),
                     _ => prop_oneof![
-                        any_with::<Constant>(args.tpe.clone())
+                        any_with::<Constant>(args.tpe.clone().into())
                             .prop_map(Expr::Const)
                             .boxed(),
                         non_nested_expr(&args.tpe)

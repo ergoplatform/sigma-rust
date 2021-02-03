@@ -127,6 +127,7 @@ pub fn bool_const_coll_sigma_parse<R: SigmaByteRead>(
 
 #[cfg(test)]
 mod tests {
+    use crate::ast::constant::tests::ArbConstantParams;
     use crate::ast::constant::Constant;
     use crate::ast::expr::tests::ArbExprParams;
     use crate::eval::tests::eval_out_wo_ctx;
@@ -144,7 +145,8 @@ mod tests {
             prop_oneof![
                 vec(any_with::<Expr>(args.clone()), 0..19),
                 vec(
-                    any_with::<Constant>(args.tpe.clone()).prop_map_into(),
+                    any_with::<Constant>(ArbConstantParams::Exact(args.tpe.clone()))
+                        .prop_map_into(),
                     0..19
                 )
             ]

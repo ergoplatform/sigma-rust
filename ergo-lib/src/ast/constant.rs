@@ -232,7 +232,7 @@ impl<T: TryExtractFrom<Value>> TryExtractFrom<Constant> for T {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use core::fmt;
 
     use crate::types::stuple::STuple;
@@ -240,6 +240,10 @@ mod tests {
     use super::*;
     use proptest::collection::vec;
     use proptest::prelude::*;
+
+    extern crate derive_more;
+    use derive_more::From;
+    use derive_more::TryInto;
 
     fn primitive_type_value() -> BoxedStrategy<Constant> {
         prop_oneof![
@@ -303,64 +307,75 @@ mod tests {
         }
     }
 
-    impl Default for SType {
+    impl Default for ArbConstantParams {
         fn default() -> Self {
-            SType::SAny
+            ArbConstantParams::AnyWithDepth(1)
         }
     }
 
+    #[derive(PartialEq, Eq, Debug, Clone, From, TryInto)]
+    pub enum ArbConstantParams {
+        AnyWithDepth(u8),
+        Exact(SType),
+    }
+
     impl Arbitrary for Constant {
-        type Parameters = SType;
+        type Parameters = ArbConstantParams;
         type Strategy = BoxedStrategy<Self>;
 
-        fn arbitrary_with(tpe: Self::Parameters) -> Self::Strategy {
-            match tpe {
-                SType::SAny => {
-                    prop_oneof![primitive_type_value().prop_recursive(2, 16, 8, |elem| {
-                        prop_oneof![
-                            // Coll[_]
-                            elem.clone().prop_map(|c| coll_from_constant(c, 0)),
-                            elem.clone().prop_map(|c| coll_from_constant(c, 1)),
-                            elem.clone().prop_map(|c| coll_from_constant(c, 2)),
-                            elem.clone().prop_map(|c| coll_from_constant(c, 10)),
-                            // no Option[_] since it cannot be serialized (for now)
-                            // // Some(v)
-                            // elem.clone().prop_map(|c| Constant {
-                            //     tpe: SType::SOption(Box::new(c.tpe)),
-                            //     v: Value::Opt(Box::new(Some(c.v)))
-                            // }),
-                            // // None
-                            // elem.prop_map(|c| Constant {
-                            //     tpe: SType::SOption(Box::new(c.tpe)),
-                            //     v: Value::Opt(Box::new(None))
-                            // })
+        fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
+            match args {
+                ArbConstantParams::AnyWithDepth(depth) => {
+                    prop_oneof![primitive_type_value().prop_recursive(
+                        depth as u32,
+                        16,
+                        8,
+                        |elem| {
+                            prop_oneof![
+                                // Coll[_]
+                                elem.clone().prop_map(|c| coll_from_constant(c, 0)),
+                                elem.clone().prop_map(|c| coll_from_constant(c, 1)),
+                                elem.clone().prop_map(|c| coll_from_constant(c, 2)),
+                                elem.clone().prop_map(|c| coll_from_constant(c, 10)),
+                                // no Option[_] since it cannot be serialized (for now)
+                                // // Some(v)
+                                // elem.clone().prop_map(|c| Constant {
+                                //     tpe: SType::SOption(Box::new(c.tpe)),
+                                //     v: Value::Opt(Box::new(Some(c.v)))
+                                // }),
+                                // // None
+                                // elem.prop_map(|c| Constant {
+                                //     tpe: SType::SOption(Box::new(c.tpe)),
+                                //     v: Value::Opt(Box::new(None))
+                                // })
 
-                            // Tuple
-                            vec(elem, 2..=4).prop_map(|constants| Constant {
-                                tpe: SType::STuple(
-                                    STuple::try_from(
-                                        constants
-                                            .clone()
-                                            .into_iter()
-                                            .map(|c| c.tpe)
-                                            .collect::<Vec<SType>>()
-                                    )
-                                    .unwrap()
-                                ),
-                                v: Value::Tup(
-                                    constants
-                                        .into_iter()
-                                        .map(|c| c.v)
-                                        .collect::<Vec<Value>>()
-                                        .try_into()
+                                // Tuple
+                                vec(elem, 2..=4).prop_map(|constants| Constant {
+                                    tpe: SType::STuple(
+                                        STuple::try_from(
+                                            constants
+                                                .clone()
+                                                .into_iter()
+                                                .map(|c| c.tpe)
+                                                .collect::<Vec<SType>>()
+                                        )
                                         .unwrap()
-                                )
-                            }),
-                        ]
-                    })]
+                                    ),
+                                    v: Value::Tup(
+                                        constants
+                                            .into_iter()
+                                            .map(|c| c.v)
+                                            .collect::<Vec<Value>>()
+                                            .try_into()
+                                            .unwrap()
+                                    )
+                                }),
+                            ]
+                        }
+                    )]
                     .boxed()
                 }
-                _ => const_with_type(tpe),
+                ArbConstantParams::Exact(tpe) => const_with_type(tpe),
             }
         }
     }
