@@ -27,6 +27,7 @@
 - `BoolToSigmaProp`;
 - `If`;
 - `Min`, `Max`;
+- `ByIndex`, `Box.tokens`;
 
 ## Usage 
 ## Crate features

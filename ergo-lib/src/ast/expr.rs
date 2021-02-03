@@ -11,6 +11,7 @@ use super::bin_op::BinOp;
 use super::block::BlockValue;
 use super::bool_to_sigma::BoolToSigmaProp;
 use super::calc_blake2b256::CalcBlake2b256;
+use super::coll_by_index::ByIndex;
 use super::coll_filter::Filter;
 use super::coll_fold::Fold;
 use super::coll_map::Map;
@@ -82,6 +83,8 @@ pub enum Expr {
     OptionGet(OptionGet),
     /// Extract register's value (box.RX properties)
     ExtractRegisterAs(ExtractRegisterAs),
+    /// Collection, get element by index
+    ByIndex(ByIndex),
     /// Collection fold op
     Fold(Fold),
     /// Collection map op
@@ -129,6 +132,7 @@ impl Expr {
             Expr::BoolToSigmaProp(op) => op.op_code(),
             Expr::Upcast(op) => op.op_code(),
             Expr::If(op) => op.op_code(),
+            Expr::ByIndex(op) => op.op_code(),
         }
     }
 
@@ -150,7 +154,7 @@ impl Expr {
             Expr::ValUse(v) => v.tpe.clone(),
             Expr::BinOp(v) => v.tpe(),
             Expr::OptionGet(v) => v.tpe(),
-            Expr::ExtractRegisterAs(v) => v.tpe.clone(),
+            Expr::ExtractRegisterAs(v) => v.tpe(),
             Expr::Fold(v) => v.tpe(),
             Expr::SelectField(v) => v.tpe(),
             Expr::ExtractAmount(v) => v.tpe(),
@@ -162,6 +166,7 @@ impl Expr {
             Expr::BoolToSigmaProp(v) => v.tpe(),
             Expr::Upcast(v) => v.tpe(),
             Expr::If(v) => v.tpe(),
+            Expr::ByIndex(v) => v.tpe(),
         }
     }
 
@@ -231,7 +236,7 @@ pub mod tests {
         fn default() -> Self {
             ArbExprParams {
                 tpe: SType::SBoolean,
-                depth: 2,
+                depth: 1,
             }
         }
     }

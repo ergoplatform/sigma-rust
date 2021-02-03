@@ -37,6 +37,12 @@ impl From<BoxId> for TokenId {
     }
 }
 
+impl From<TokenId> for Vec<i8> {
+    fn from(v: TokenId) -> Self {
+        v.0.into()
+    }
+}
+
 impl SigmaSerializable for TokenId {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
         self.0.sigma_serialize(w)?;

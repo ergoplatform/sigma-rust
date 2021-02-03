@@ -316,7 +316,7 @@ mod tests {
         fn arbitrary_with(tpe: Self::Parameters) -> Self::Strategy {
             match tpe {
                 SType::SAny => {
-                    prop_oneof![primitive_type_value().prop_recursive(3, 16, 8, |elem| {
+                    prop_oneof![primitive_type_value().prop_recursive(2, 16, 8, |elem| {
                         prop_oneof![
                             // Coll[_]
                             elem.clone().prop_map(|c| coll_from_constant(c, 0)),

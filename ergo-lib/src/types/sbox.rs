@@ -10,6 +10,7 @@ use super::smethod::EvalFn;
 use super::smethod::MethodId;
 use super::smethod::SMethod;
 use super::smethod::SMethodDesc;
+use super::stuple::STuple;
 use super::stype::SType;
 use super::stype_companion::STypeCompanion;
 use super::stype_companion::STypeCompanionHead;
@@ -23,8 +24,34 @@ static S_BOX_TYPE_COMPANION_HEAD: STypeCompanionHead = STypeCompanionHead {
 };
 
 lazy_static! {
-    pub static ref S_BOX_TYPE_COMPANION: STypeCompanion =
-        STypeCompanion::new(&S_BOX_TYPE_COMPANION_HEAD, vec![&GET_REG_METHOD_DESC]);
+    pub static ref S_BOX_TYPE_COMPANION: STypeCompanion = STypeCompanion::new(
+        &S_BOX_TYPE_COMPANION_HEAD,
+        vec![
+            &GET_REG_METHOD_DESC,
+            &VALUE_METHOD_DESC,
+            &TOKENS_METHOD_DESC
+        ]
+    );
+}
+
+static VALUE_EVAL_FN: EvalFn = |obj, _args| {
+    Ok(Value::Long(
+        obj.try_extract_into::<ErgoBox>()?.value.as_i64(),
+    ))
+};
+
+lazy_static! {
+    static ref VALUE_METHOD_DESC: SMethodDesc = SMethodDesc {
+        method_id: MethodId(1),
+        name: "value",
+        tpe: SType::SFunc(SFunc {
+            t_dom: vec![SType::SBox],
+            t_range: Box::new(SType::SLong),
+            tpe_params: vec![],
+        }),
+        eval_fn: VALUE_EVAL_FN,
+    };
+    pub static ref VALUE_METHOD: SMethod = SMethod::new(&S_BOX_TYPE_COMPANION, &VALUE_METHOD_DESC,);
 }
 
 static GET_REG_EVAL_FN: EvalFn = |obj, args| {
@@ -52,35 +79,38 @@ lazy_static! {
         }),
         eval_fn: GET_REG_EVAL_FN,
     };
-}
-
-lazy_static! {
     pub static ref GET_REG_METHOD: SMethod =
         SMethod::new(&S_BOX_TYPE_COMPANION, &GET_REG_METHOD_DESC,);
 }
 
+static TOKENS_EVAL_FN: EvalFn = |obj, _args| {
+    let res: Value = obj
+        .try_extract_into::<ErgoBox>()?
+        .tokens
+        .into_iter()
+        .map(|t| (t.token_id.into(), t.amount.into()))
+        .collect::<Vec<(Vec<i8>, i64)>>()
+        .into();
+    Ok(res)
+};
+
 lazy_static! {
-    static ref VALUE_METHOD_DESC: SMethodDesc = SMethodDesc {
-        method_id: MethodId(1),
-        name: "getReg",
+    static ref TOKENS_METHOD_DESC: SMethodDesc = SMethodDesc {
+        method_id: MethodId(8),
+        name: "tokens",
         tpe: SType::SFunc(SFunc {
             t_dom: vec![SType::SBox],
-            t_range: Box::new(SType::SLong),
+            t_range: Box::new(SType::SColl(Box::new(SType::STuple(STuple::pair(
+                SType::SColl(Box::new(SType::SByte)),
+                SType::SLong
+            ))))),
             tpe_params: vec![],
         }),
-        eval_fn: VALUE_EVAL_FN,
+        eval_fn: TOKENS_EVAL_FN,
     };
+    pub static ref TOKENS_METHOD: SMethod =
+        SMethod::new(&S_BOX_TYPE_COMPANION, &TOKENS_METHOD_DESC,);
 }
-
-lazy_static! {
-    pub static ref VALUE_METHOD: SMethod = SMethod::new(&S_BOX_TYPE_COMPANION, &VALUE_METHOD_DESC,);
-}
-
-static VALUE_EVAL_FN: EvalFn = |obj, _args| {
-    Ok(Value::Long(
-        obj.try_extract_into::<ErgoBox>()?.value.as_i64(),
-    ))
-};
 
 #[cfg(test)]
 mod tests {
@@ -106,6 +136,25 @@ mod tests {
         assert_eq!(
             eval_out::<i64>(&expr, ctx.clone()),
             ctx.self_box.value.as_i64()
+        );
+    }
+
+    #[test]
+    fn eval_box_tokens() {
+        let expr: Expr = PropertyCall {
+            obj: Box::new(GlobalVars::SelfBox.into()),
+            method: TOKENS_METHOD.clone(),
+        }
+        .into();
+        let ctx = Rc::new(force_any_val::<Context>());
+        assert_eq!(
+            eval_out::<Vec<(Vec<i8>, i64)>>(&expr, ctx.clone()),
+            ctx.self_box
+                .tokens
+                .clone()
+                .into_iter()
+                .map(|t| (t.token_id.into(), t.amount.into()))
+                .collect::<Vec<(Vec<i8>, i64)>>()
         );
     }
 }

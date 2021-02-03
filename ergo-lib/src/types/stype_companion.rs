@@ -52,10 +52,10 @@ impl STypeCompanion {
         }
     }
 
-    pub fn method_by_id(&'static self, method_id: MethodId) -> Option<SMethod> {
+    pub fn method_by_id(&'static self, method_id: &MethodId) -> Option<SMethod> {
         self.methods
             .iter()
-            .find(|m| m.method_id == method_id)
+            .find(|m| m.method_id == *method_id)
             .map(|m| m.as_method(self))
     }
 

@@ -50,6 +50,9 @@ pub enum EvalError {
     /// Arithmetic exception error
     #[error("Arithmetic exception: {0:?}")]
     ArithmeticException(String),
+    /// Misc error
+    #[error("error: {0:?}")]
+    Misc(String),
 }
 
 /// Result of expression reduction procedure (see `reduce_to_crypto`).
@@ -116,13 +119,8 @@ pub mod tests {
     use super::*;
 
     pub fn eval_out_wo_ctx<T: TryExtractFrom<Value>>(expr: &Expr) -> T {
-        let cost_accum = CostAccumulator::new(0, None);
         let ctx = Rc::new(Context::dummy());
-        let mut ectx = EvalContext::new(ctx, cost_accum);
-        expr.eval(&Env::empty(), &mut ectx)
-            .unwrap()
-            .try_extract_into::<T>()
-            .unwrap()
+        eval_out(expr, ctx)
     }
 
     pub fn eval_out<T: TryExtractFrom<Value>>(expr: &Expr, ctx: Rc<Context>) -> T {
@@ -142,5 +140,10 @@ pub mod tests {
         let mut ectx = EvalContext::new(ctx, cost_accum);
         expr.eval(&Env::empty(), &mut ectx)
             .and_then(|v| v.try_extract_into::<T>().map_err(EvalError::TryExtractFrom))
+    }
+
+    pub fn try_eval_out_wo_ctx<T: TryExtractFrom<Value>>(expr: &Expr) -> Result<T, EvalError> {
+        let ctx = Rc::new(Context::dummy());
+        try_eval_out(expr, ctx)
     }
 }
