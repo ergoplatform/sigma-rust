@@ -171,7 +171,6 @@ impl<T: Into<Value>> From<Option<T>> for Value {
     }
 }
 
-// TODO: rename to StoreWrapped
 /// Marker trait to select types which stored as Vec of wrapped Value's
 pub trait StoreWrapped {}
 

@@ -56,9 +56,7 @@ impl SigmaSerializable for ExtractScriptBytes {
     }
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
-        Ok(ExtractScriptBytes {
-            input: Expr::sigma_parse(r)?.into(),
-        })
+        Ok(ExtractScriptBytes::new(Expr::sigma_parse(r)?)?)
     }
 }
 
