@@ -13,21 +13,54 @@ use crate::types::stype::SType;
 
 use super::constant::TryExtractInto;
 use super::expr::Expr;
+use super::expr::InvalidArgumentError;
 use super::value::Value;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ExtractRegisterAs {
     /// Box
-    pub input: Box<Expr>,
+    input: Box<Expr>,
     /// Register id to extract value from
-    pub register_id: RegisterId,
-    /// Type
-    pub tpe: SType,
+    register_id: RegisterId,
+    /// Result type, to be wrapped in SOption
+    elem_tpe: SType,
 }
 
 impl ExtractRegisterAs {
+    pub const OP_CODE: OpCode = OpCode::EXTRACT_REGISTER_AS;
+
+    pub fn new(
+        input: Expr,
+        register_id: RegisterId,
+        tpe: SType,
+    ) -> Result<Self, InvalidArgumentError> {
+        if input.post_eval_tpe() != SType::SBox {
+            return Err(InvalidArgumentError(format!(
+                "expected input to be SBox, got {0:?}",
+                input
+            )));
+        }
+        let elem_tpe = match tpe {
+            SType::SOption(t) => Ok(*t),
+            _ => Err(InvalidArgumentError(format!(
+                "expected tpe to be SOption, got {0:?}",
+                tpe
+            ))),
+        }?;
+
+        Ok(ExtractRegisterAs {
+            input: input.into(),
+            register_id,
+            elem_tpe,
+        })
+    }
+
     pub fn op_code(&self) -> OpCode {
-        OpCode::EXTRACT_REGISTER_AS
+        Self::OP_CODE
+    }
+
+    pub fn tpe(&self) -> SType {
+        SType::SOption(self.elem_tpe.clone().into())
     }
 }
 
@@ -47,18 +80,18 @@ impl SigmaSerializable for ExtractRegisterAs {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
         self.input.sigma_serialize(w)?;
         self.register_id.sigma_serialize(w)?;
-        self.tpe.sigma_serialize(w)
+        self.elem_tpe.sigma_serialize(w)
     }
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
         let input = Expr::sigma_parse(r)?;
         let register_id = RegisterId::sigma_parse(r)?;
-        let tpe = SType::sigma_parse(r)?;
-        Ok(ExtractRegisterAs {
-            input: Box::new(input),
+        let elem_tpe = SType::sigma_parse(r)?;
+        Ok(ExtractRegisterAs::new(
+            input,
             register_id,
-            tpe,
-        })
+            SType::SOption(elem_tpe.into()),
+        )?)
     }
 }
 
@@ -77,11 +110,12 @@ mod tests {
 
     #[test]
     fn eval_box_get_reg() {
-        let get_reg_expr: Expr = ExtractRegisterAs {
-            input: Box::new(GlobalVars::SelfBox.into()),
-            register_id: RegisterId::R0,
-            tpe: SType::SOption(SType::SLong.into()),
-        }
+        let get_reg_expr: Expr = ExtractRegisterAs::new(
+            GlobalVars::SelfBox.into(),
+            RegisterId::R0,
+            SType::SOption(SType::SLong.into()),
+        )
+        .unwrap()
         .into();
         let option_get_expr: Expr = OptionGet::new(get_reg_expr).unwrap().into();
         let ctx = Rc::new(force_any_val::<Context>());
@@ -91,11 +125,12 @@ mod tests {
 
     #[test]
     fn ser_roundtrip() {
-        let e: Expr = ExtractRegisterAs {
-            input: Box::new(GlobalVars::SelfBox.into()),
-            register_id: RegisterId::R0,
-            tpe: SType::SOption(SType::SLong.into()),
-        }
+        let e: Expr = ExtractRegisterAs::new(
+            GlobalVars::SelfBox.into(),
+            RegisterId::R0,
+            SType::SOption(SType::SLong.into()),
+        )
+        .unwrap()
         .into();
         assert_eq![sigma_serialize_roundtrip(&e), e];
     }

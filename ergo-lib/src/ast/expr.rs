@@ -154,7 +154,7 @@ impl Expr {
             Expr::ValUse(v) => v.tpe.clone(),
             Expr::BinOp(v) => v.tpe(),
             Expr::OptionGet(v) => v.tpe(),
-            Expr::ExtractRegisterAs(v) => v.tpe.clone(),
+            Expr::ExtractRegisterAs(v) => v.tpe(),
             Expr::Fold(v) => v.tpe(),
             Expr::SelectField(v) => v.tpe(),
             Expr::ExtractAmount(v) => v.tpe(),

@@ -171,6 +171,7 @@ impl<T: Into<Value>> From<Option<T>> for Value {
     }
 }
 
+// TODO: rename to StoreWrapped
 /// Marker trait to select types for which CollElems::NonPrimitive is used to store elements as Vec<ConstantVal>
 pub trait StoredNonPrimitive {}
 

@@ -122,7 +122,7 @@ impl SigmaSerializable for Expr {
                 OpCode::METHOD_CALL => Ok(Expr::MethodCall(MethodCall::sigma_parse(r)?)),
                 OpCode::CONTEXT => Ok(Expr::Context),
                 OpCode::OPTION_GET => Ok(OptionGet::sigma_parse(r)?.into()),
-                OpCode::EXTRACT_REGISTER_AS => Ok(ExtractRegisterAs::sigma_parse(r)?.into()),
+                ExtractRegisterAs::OP_CODE => Ok(ExtractRegisterAs::sigma_parse(r)?.into()),
                 OpCode::EQ => Ok(bin_op_sigma_parse(RelationOp::Eq.into(), r)?),
                 OpCode::NEQ => Ok(bin_op_sigma_parse(RelationOp::NEq.into(), r)?),
                 OpCode::LOGICAL_NOT => Ok(LogicalNot::sigma_parse(r)?.into()),
@@ -176,6 +176,7 @@ mod tests {
     use crate::chain::address::AddressEncoder;
     use crate::chain::address::NetworkPrefix;
     use crate::eval::tests::eval_out_wo_ctx;
+    use crate::eval::tests::try_eval_out_wo_ctx;
     use crate::serialization::sigma_serialize_roundtrip;
     use crate::sigma_protocol::sigma_boolean::SigmaProp;
     use proptest::prelude::*;
@@ -500,9 +501,7 @@ mod tests {
         let addr = encoder.parse_address_from_str(p2s_addr_str).unwrap();
         let script = addr.script().unwrap().proposition().unwrap();
         dbg!(&script);
-        let res: bool = eval_out_wo_ctx::<SigmaProp>(script.as_ref())
-            .try_into()
-            .unwrap();
-        assert!(!res);
+        let res = try_eval_out_wo_ctx::<SigmaProp>(script.as_ref());
+        assert!(res.is_err(), "ByIndex should fail on empty collection");
     }
 }

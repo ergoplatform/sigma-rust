@@ -88,11 +88,12 @@ mod tests {
 
     #[test]
     fn eval_get() {
-        let get_reg_expr: Expr = ExtractRegisterAs {
-            input: Box::new(GlobalVars::SelfBox.into()),
-            register_id: RegisterId::R0,
-            tpe: SType::SOption(SType::SLong.into()),
-        }
+        let get_reg_expr: Expr = ExtractRegisterAs::new(
+            GlobalVars::SelfBox.into(),
+            RegisterId::R0,
+            SType::SOption(SType::SLong.into()),
+        )
+        .unwrap()
         .into();
         let option_get_expr: Expr = OptionGet {
             input: Box::new(get_reg_expr),
@@ -105,11 +106,12 @@ mod tests {
 
     #[test]
     fn ser_roundtrip() {
-        let get_reg_expr: Expr = ExtractRegisterAs {
-            input: Box::new(GlobalVars::SelfBox.into()),
-            register_id: RegisterId::R0,
-            tpe: SType::SOption(SType::SLong.into()),
-        }
+        let get_reg_expr: Expr = ExtractRegisterAs::new(
+            GlobalVars::SelfBox.into(),
+            RegisterId::R0,
+            SType::SOption(SType::SLong.into()),
+        )
+        .unwrap()
         .into();
         let e: Expr = OptionGet {
             input: Box::new(get_reg_expr),

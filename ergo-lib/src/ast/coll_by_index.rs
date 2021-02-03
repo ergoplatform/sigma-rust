@@ -9,6 +9,7 @@ use crate::serialization::SerializationError;
 use crate::serialization::SigmaSerializable;
 use crate::types::stype::SType;
 
+use super::constant::TryExtractInto;
 use super::expr::Expr;
 use super::value::Value;
 
@@ -23,7 +24,7 @@ impl ByIndex {
     pub const OP_CODE: OpCode = OpCode::BY_INDEX;
 
     pub fn tpe(&self) -> SType {
-        match self.input.tpe() {
+        match self.input.post_eval_tpe() {
             SType::SColl(elem_tpe) => *elem_tpe,
             _ => panic!("collection is expected"),
         }
@@ -54,8 +55,32 @@ impl SigmaSerializable for ByIndex {
 }
 
 impl Evaluable for ByIndex {
-    fn eval(&self, _env: &Env, _ctx: &mut EvalContext) -> Result<Value, EvalError> {
-        todo!()
+    fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
+        let input_v = self.input.eval(env, ctx)?;
+        let index_v = self.index.eval(env, ctx)?;
+        let normalized_input_vals: Vec<Value> = match input_v {
+            Value::Coll(coll) => Ok(coll.as_vec()),
+            _ => Err(EvalError::UnexpectedValue(format!(
+                "ByIndex: expected input to be Value::Coll, got: {0:?}",
+                input_v
+            ))),
+        }?;
+        match self.default.clone() {
+            Some(default) => {
+                let _default_v = default.eval(env, ctx)?;
+                todo!()
+            }
+            None => normalized_input_vals
+                .get(index_v.clone().try_extract_into::<i32>()? as usize)
+                .cloned()
+                .ok_or_else(|| {
+                    EvalError::Misc(format!(
+                        "ByIndex: index {0:?} out of bounds for collection size {1:?}",
+                        index_v,
+                        normalized_input_vals.len()
+                    ))
+                }),
+        }
     }
 }
 

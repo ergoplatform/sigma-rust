@@ -1,3 +1,4 @@
+use crate::util::AsVecI8;
 use crate::{
     chain::{Base16DecodedBytes, Base16EncodedBytes},
     serialization::{sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable},
@@ -53,6 +54,12 @@ impl From<[u8; Digest32::SIZE]> for Digest32 {
 impl Into<Base16EncodedBytes> for Digest32 {
     fn into(self) -> Base16EncodedBytes {
         Base16EncodedBytes::new(self.0.as_ref())
+    }
+}
+
+impl From<Digest32> for Vec<i8> {
+    fn from(v: Digest32) -> Self {
+        v.0.to_vec().as_vec_i8()
     }
 }
 
