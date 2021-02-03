@@ -4,6 +4,7 @@ Rust implementation of [ErgoScript](https://github.com/ScorexFoundation/sigmasta
 
 ## Crates
 [ergo-lib](https://github.com/ergoplatform/sigma-rust/tree/develop/ergo-lib) [![Latest Version](https://img.shields.io/crates/v/ergo-lib.svg)](https://crates.io/crates/ergo-lib) [![Documentation](https://docs.rs/ergo-lib/badge.svg)](https://docs.rs/crate/ergo-lib)
+[sigma-ser](https://github.com/ergoplatform/sigma-rust/tree/develop/sigma-ser) [![Latest Version](https://img.shields.io/crates/v/sigma-ser.svg)](https://crates.io/crates/sigma-ser) [![Documentation](https://docs.rs/sigma-ser/badge.svg)](https://docs.rs/crate/sigma-ser)
 
 Main crate with ErgoTree AST, interpreter, chain types (transactions, boxes, etc.), JSON serialization, tx creation and signing.
 
