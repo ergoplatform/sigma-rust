@@ -27,6 +27,26 @@ lazy_static! {
         STypeCompanion::new(&S_BOX_TYPE_COMPANION_HEAD, vec![&GET_REG_METHOD_DESC]);
 }
 
+static VALUE_EVAL_FN: EvalFn = |obj, _args| {
+    Ok(Value::Long(
+        obj.try_extract_into::<ErgoBox>()?.value.as_i64(),
+    ))
+};
+
+lazy_static! {
+    static ref VALUE_METHOD_DESC: SMethodDesc = SMethodDesc {
+        method_id: MethodId(1),
+        name: "value",
+        tpe: SType::SFunc(SFunc {
+            t_dom: vec![SType::SBox],
+            t_range: Box::new(SType::SLong),
+            tpe_params: vec![],
+        }),
+        eval_fn: VALUE_EVAL_FN,
+    };
+    pub static ref VALUE_METHOD: SMethod = SMethod::new(&S_BOX_TYPE_COMPANION, &VALUE_METHOD_DESC,);
+}
+
 static GET_REG_EVAL_FN: EvalFn = |obj, args| {
     Ok(Value::Opt(Box::new(
         obj.try_extract_into::<ErgoBox>()?
@@ -55,26 +75,6 @@ lazy_static! {
     pub static ref GET_REG_METHOD: SMethod =
         SMethod::new(&S_BOX_TYPE_COMPANION, &GET_REG_METHOD_DESC,);
 }
-
-lazy_static! {
-    static ref VALUE_METHOD_DESC: SMethodDesc = SMethodDesc {
-        method_id: MethodId(1),
-        name: "value",
-        tpe: SType::SFunc(SFunc {
-            t_dom: vec![SType::SBox],
-            t_range: Box::new(SType::SLong),
-            tpe_params: vec![],
-        }),
-        eval_fn: VALUE_EVAL_FN,
-    };
-    pub static ref VALUE_METHOD: SMethod = SMethod::new(&S_BOX_TYPE_COMPANION, &VALUE_METHOD_DESC,);
-}
-
-static VALUE_EVAL_FN: EvalFn = |obj, _args| {
-    Ok(Value::Long(
-        obj.try_extract_into::<ErgoBox>()?.value.as_i64(),
-    ))
-};
 
 #[cfg(test)]
 mod tests {
