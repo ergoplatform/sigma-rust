@@ -22,6 +22,7 @@ use super::constant::TryExtractFrom;
 use super::constant::TryExtractFromError;
 use super::extract_amount::ExtractAmount;
 use super::extract_reg_as::ExtractRegisterAs;
+use super::extract_script_bytes::ExtractScriptBytes;
 use super::func_value::FuncValue;
 use super::global_vars::GlobalVars;
 use super::if_op::If;
@@ -83,6 +84,8 @@ pub enum Expr {
     OptionGet(OptionGet),
     /// Extract register's value (box.RX properties)
     ExtractRegisterAs(ExtractRegisterAs),
+    /// Extract box's guarding script serialized to bytes
+    ExtractScriptBytes(ExtractScriptBytes),
     /// Collection, get element by index
     ByIndex(ByIndex),
     /// Collection fold op
@@ -133,6 +136,7 @@ impl Expr {
             Expr::Upcast(op) => op.op_code(),
             Expr::If(op) => op.op_code(),
             Expr::ByIndex(op) => op.op_code(),
+            Expr::ExtractScriptBytes(op) => op.op_code(),
         }
     }
 
@@ -167,6 +171,7 @@ impl Expr {
             Expr::Upcast(v) => v.tpe(),
             Expr::If(v) => v.tpe(),
             Expr::ByIndex(v) => v.tpe(),
+            Expr::ExtractScriptBytes(v) => v.tpe(),
         }
     }
 

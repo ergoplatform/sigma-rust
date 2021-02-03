@@ -27,7 +27,7 @@ impl ExtractAmount {
     }
 
     pub fn tpe(&self) -> SType {
-        SType::SBox
+        SType::SLong
     }
 
     pub fn op_code(&self) -> OpCode {

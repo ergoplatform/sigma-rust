@@ -38,6 +38,7 @@ impl Evaluable for Expr {
             Expr::Upcast(op) => op.eval(env, ctx),
             Expr::If(op) => op.eval(env, ctx),
             Expr::ByIndex(op) => op.eval(env, ctx),
+            Expr::ExtractScriptBytes(op) => op.eval(env, ctx),
         }
     }
 }

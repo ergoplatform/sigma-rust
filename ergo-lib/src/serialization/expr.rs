@@ -20,6 +20,7 @@ use crate::ast::constant::ConstantPlaceholder;
 use crate::ast::expr::Expr;
 use crate::ast::extract_amount::ExtractAmount;
 use crate::ast::extract_reg_as::ExtractRegisterAs;
+use crate::ast::extract_script_bytes::ExtractScriptBytes;
 use crate::ast::func_value::FuncValue;
 use crate::ast::global_vars::GlobalVars;
 use crate::ast::if_op::If;
@@ -81,6 +82,7 @@ impl SigmaSerializable for Expr {
                     Expr::Upcast(op) => op.sigma_serialize(w),
                     Expr::If(op) => op.sigma_serialize(w),
                     Expr::ByIndex(op) => op.sigma_serialize(w),
+                    Expr::ExtractScriptBytes(op) => op.sigma_serialize(w),
                 }
             }
         }
@@ -123,6 +125,7 @@ impl SigmaSerializable for Expr {
                 OpCode::CONTEXT => Ok(Expr::Context),
                 OpCode::OPTION_GET => Ok(OptionGet::sigma_parse(r)?.into()),
                 ExtractRegisterAs::OP_CODE => Ok(ExtractRegisterAs::sigma_parse(r)?.into()),
+                ExtractScriptBytes::OP_CODE => Ok(ExtractScriptBytes::sigma_parse(r)?.into()),
                 OpCode::EQ => Ok(bin_op_sigma_parse(RelationOp::Eq.into(), r)?),
                 OpCode::NEQ => Ok(bin_op_sigma_parse(RelationOp::NEq.into(), r)?),
                 OpCode::LOGICAL_NOT => Ok(LogicalNot::sigma_parse(r)?.into()),
