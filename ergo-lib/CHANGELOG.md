@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - `LogicalNot` IR nodes evaluation and serialization [#185](https://github.com/ergoplatform/sigma-rust/pull/185);
 - `Map`, `Filter` IR nodes evaluation and serialization [#186](https://github.com/ergoplatform/sigma-rust/pull/186);
 - `BoolToSigmaProp`, `If`, `Min`, `Max` IR nodes evaluation and serialization [#187](https://github.com/ergoplatform/sigma-rust/pull/187);
+- `ByIndex`, `Box.tokens` IR nodes evaluation and serialization [#188](https://github.com/ergoplatform/sigma-rust/pull/188);
 
 ## [0.4.4] - 2021-01-20
 
