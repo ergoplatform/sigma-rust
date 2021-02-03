@@ -169,7 +169,7 @@ mod tests {
         #![proptest_config(ProptestConfig::with_cases(16))]
 
         #[test]
-        fn eval_box_value(ctx in any::<Context>()) {
+        fn eval_fold(ctx in any::<Context>()) {
             let data_inputs: Expr = PropertyCall {
                 obj: Box::new(Expr::Context),
                 method: scontext::DATA_INPUTS_PROPERTY.clone(),

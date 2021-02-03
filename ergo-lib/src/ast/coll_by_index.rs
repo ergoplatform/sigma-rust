@@ -11,6 +11,7 @@ use crate::types::stype::SType;
 
 use super::constant::TryExtractInto;
 use super::expr::Expr;
+use super::expr::InvalidArgumentError;
 use super::value::Value;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -22,6 +23,41 @@ pub struct ByIndex {
 
 impl ByIndex {
     pub const OP_CODE: OpCode = OpCode::BY_INDEX;
+
+    pub fn new(
+        input: Expr,
+        index: Expr,
+        default: Option<Box<Expr>>,
+    ) -> Result<Self, InvalidArgumentError> {
+        let input_elem_type: SType = *match input.post_eval_tpe() {
+            SType::SColl(elem_type) => Ok(elem_type),
+            _ => Err(InvalidArgumentError(format!(
+                "Expected Map input to be SColl, got {0:?}",
+                input.tpe()
+            ))),
+        }?;
+        if index.post_eval_tpe() != SType::SInt {
+            return Err(InvalidArgumentError(format!(
+                "ByIndex: expected index type to be SInt, got {0:?}",
+                index
+            )));
+        }
+        if !default
+            .clone()
+            .map(|expr| expr.post_eval_tpe() == input_elem_type)
+            .unwrap_or(true)
+        {
+            return Err(InvalidArgumentError(format!(
+                "ByIndex: expected default type to be {0:?}, got {1:?}",
+                input_elem_type, default
+            )));
+        }
+        Ok(Self {
+            input: input.into(),
+            index: index.into(),
+            default,
+        })
+    }
 
     pub fn tpe(&self) -> SType {
         match self.input.post_eval_tpe() {
@@ -43,14 +79,10 @@ impl SigmaSerializable for ByIndex {
     }
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
-        let input = Expr::sigma_parse(r)?.into();
-        let index = Expr::sigma_parse(r)?.into();
+        let input = Expr::sigma_parse(r)?;
+        let index = Expr::sigma_parse(r)?;
         let default = Option::<Box<Expr>>::sigma_parse(r)?;
-        Ok(Self {
-            input,
-            index,
-            default,
-        })
+        Ok(Self::new(input, index, default)?)
     }
 }
 
@@ -67,8 +99,11 @@ impl Evaluable for ByIndex {
         }?;
         match self.default.clone() {
             Some(default) => {
-                let _default_v = default.eval(env, ctx)?;
-                todo!()
+                let default_v = default.eval(env, ctx)?;
+                Ok(normalized_input_vals
+                    .get(index_v.try_extract_into::<i32>()? as usize)
+                    .cloned()
+                    .unwrap_or(default_v))
             }
             None => normalized_input_vals
                 .get(index_v.clone().try_extract_into::<i32>()? as usize)
@@ -87,19 +122,45 @@ impl Evaluable for ByIndex {
 #[cfg(test)]
 mod tests {
 
+    use std::rc::Rc;
+
+    use crate::ast::expr::tests::ArbExprParams;
     use crate::ast::expr::Expr;
+    use crate::ast::global_vars::GlobalVars;
+    use crate::chain::ergo_box::ErgoBox;
+    use crate::eval::context::Context;
+    use crate::eval::tests::eval_out;
+    use crate::eval::tests::eval_out_wo_ctx;
     use crate::serialization::sigma_serialize_roundtrip;
+    use crate::test_util::force_any_val;
 
     use super::*;
 
     use proptest::prelude::*;
+    use proptest::result::Probability;
 
     impl Arbitrary for ByIndex {
         type Strategy = BoxedStrategy<Self>;
-        type Parameters = ();
+        type Parameters = ArbExprParams;
 
-        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            (any::<Expr>(), any::<Expr>(), any::<Option<Box<Expr>>>())
+        fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
+            (
+                any_with::<Expr>(ArbExprParams {
+                    tpe: SType::SColl(args.tpe.clone().into()),
+                    depth: args.depth,
+                }),
+                any_with::<Expr>(ArbExprParams {
+                    tpe: SType::SInt,
+                    depth: 0,
+                }),
+                any_with::<Option<Box<Expr>>>((
+                    Probability::default(),
+                    ArbExprParams {
+                        tpe: args.tpe,
+                        depth: 0,
+                    },
+                )),
+            )
                 .prop_map(|(input, index, default)| Self {
                     input: input.into(),
                     index: index.into(),
@@ -118,5 +179,29 @@ mod tests {
             let expr: Expr = v.into();
             prop_assert_eq![sigma_serialize_roundtrip(&expr), expr];
         }
+    }
+
+    #[test]
+    fn eval() {
+        let expr: Expr = ByIndex::new(GlobalVars::Outputs.into(), Expr::Const(0i32.into()), None)
+            .unwrap()
+            .into();
+        let ctx = Rc::new(force_any_val::<Context>());
+        assert_eq!(
+            eval_out::<ErgoBox>(&expr, ctx.clone()),
+            ctx.outputs.get(0).unwrap().clone()
+        );
+    }
+
+    #[test]
+    fn eval_with_default() {
+        let expr: Expr = ByIndex::new(
+            Expr::Const(vec![1i64, 2i64].into()),
+            Expr::Const(3i32.into()),
+            Some(Box::new(Expr::Const(5i64.into()))),
+        )
+        .unwrap()
+        .into();
+        assert_eq!(eval_out_wo_ctx::<i64>(&expr), 5);
     }
 }

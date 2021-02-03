@@ -138,4 +138,23 @@ mod tests {
             ctx.self_box.value.as_i64()
         );
     }
+
+    #[test]
+    fn eval_box_tokens() {
+        let expr: Expr = PropertyCall {
+            obj: Box::new(GlobalVars::SelfBox.into()),
+            method: TOKENS_METHOD.clone(),
+        }
+        .into();
+        let ctx = Rc::new(force_any_val::<Context>());
+        assert_eq!(
+            eval_out::<Vec<(Vec<i8>, i64)>>(&expr, ctx.clone()),
+            ctx.self_box
+                .tokens
+                .clone()
+                .into_iter()
+                .map(|t| (t.token_id.into(), t.amount.into()))
+                .collect::<Vec<(Vec<i8>, i64)>>()
+        );
+    }
 }
