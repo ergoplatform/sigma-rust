@@ -41,7 +41,13 @@ impl SMethod {
 
     pub fn from_ids(type_id: TypeId, method_id: MethodId) -> Self {
         let obj_type = STypeCompanion::type_by_id(type_id);
-        obj_type.method_by_id(method_id).unwrap()
+        match obj_type.method_by_id(&method_id) {
+            Some(m) => m,
+            None => panic!(
+                "no method id {0:?} found in type companion with type id {1:?}",
+                method_id, type_id
+            ),
+        }
     }
 
     pub fn tpe(&self) -> &SType {

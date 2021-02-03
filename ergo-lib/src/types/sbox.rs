@@ -52,9 +52,6 @@ lazy_static! {
         }),
         eval_fn: GET_REG_EVAL_FN,
     };
-}
-
-lazy_static! {
     pub static ref GET_REG_METHOD: SMethod =
         SMethod::new(&S_BOX_TYPE_COMPANION, &GET_REG_METHOD_DESC,);
 }
@@ -62,7 +59,7 @@ lazy_static! {
 lazy_static! {
     static ref VALUE_METHOD_DESC: SMethodDesc = SMethodDesc {
         method_id: MethodId(1),
-        name: "getReg",
+        name: "value",
         tpe: SType::SFunc(SFunc {
             t_dom: vec![SType::SBox],
             t_range: Box::new(SType::SLong),
@@ -70,9 +67,6 @@ lazy_static! {
         }),
         eval_fn: VALUE_EVAL_FN,
     };
-}
-
-lazy_static! {
     pub static ref VALUE_METHOD: SMethod = SMethod::new(&S_BOX_TYPE_COMPANION, &VALUE_METHOD_DESC,);
 }
 
