@@ -12,6 +12,7 @@ use crate::ast::coll_by_index::ByIndex;
 use crate::ast::coll_filter::Filter;
 use crate::ast::coll_fold::Fold;
 use crate::ast::coll_map::Map;
+use crate::ast::coll_size::SizeOf;
 use crate::ast::collection::bool_const_coll_sigma_parse;
 use crate::ast::collection::coll_sigma_parse;
 use crate::ast::collection::coll_sigma_serialize;
@@ -83,6 +84,7 @@ impl SigmaSerializable for Expr {
                     Expr::If(op) => op.sigma_serialize(w),
                     Expr::ByIndex(op) => op.sigma_serialize(w),
                     Expr::ExtractScriptBytes(op) => op.sigma_serialize(w),
+                    Expr::SizeOf(op) => op.sigma_serialize(w),
                 }
             }
         }
@@ -159,6 +161,7 @@ impl SigmaSerializable for Expr {
                 Upcast::OP_CODE => Ok(Upcast::sigma_parse(r)?.into()),
                 If::OP_CODE => Ok(If::sigma_parse(r)?.into()),
                 ByIndex::OP_CODE => Ok(ByIndex::sigma_parse(r)?.into()),
+                SizeOf::OP_CODE => Ok(SizeOf::sigma_parse(r)?.into()),
                 o => Err(SerializationError::NotImplementedOpCode(format!(
                     "{0}(shift {1})",
                     o.value(),
@@ -356,150 +359,155 @@ mod tests {
         // almost full version of
         // https://github.com/Emurgo/age-usd/tree/main/ageusd-smart-contracts/v0.4
         /*
-        {
+            {
 
-          val rcDefaultPrice = 1000000L
+              val rcDefaultPrice = 1000000L
 
-          val minStorageRent = 10000000L
+              val minStorageRent = 10000000L
 
-          val feePercent = 1
+              val feePercent = 1
 
-          val HEIGHT = 377771
+              val HEIGHT = 377771
 
-          val coolingOffHeight: Int = 377770
-          val INF = 1000000000L
+              val coolingOffHeight: Int = 377770
+              val INF = 1000000000L
 
-          val longMax = 9223372036854775807L
+              val longMax = 9223372036854775807L
 
-          val minReserveRatioPercent = 400L // percent
-          val defaultMaxReserveRatioPercent = 800L // percent
+              val minReserveRatioPercent = 400L // percent
+              val defaultMaxReserveRatioPercent = 800L // percent
 
-            val dataInput = CONTEXT.dataInputs(0)
-            //val validDataInput = dataInput.tokens(0)._1 == oraclePoolNFT
-            val validDataInput = true
+              val isExchange = if (CONTEXT.dataInputs.size > 0) {
+                val dataInput = CONTEXT.dataInputs(0)
+                //val validDataInput = dataInput.tokens(0)._1 == oraclePoolNFT
+                val validDataInput = true
 
-            val bankBoxIn = SELF
-            val bankBoxOut = OUTPUTS(0)
+                val bankBoxIn = SELF
+                val bankBoxOut = OUTPUTS(0)
 
-            val rateBox = dataInput
-            val receiptBox = OUTPUTS(1)
+                val rateBox = dataInput
+                val receiptBox = OUTPUTS(1)
 
-            val rate = rateBox.R4[Long].get / 100
-            // val rate = 100000000 / 100
+                val rate = rateBox.R4[Long].get / 100
+                // val rate = 100000000 / 100
 
-            val scCircIn = bankBoxIn.R4[Long].get
-            // val scCircIn = 100L
-            val rcCircIn = bankBoxIn.R5[Long].get
-            // val rcCircIn = 100L
-            val bcReserveIn = bankBoxIn.value
-            // val bcReserveIn = 100000000L
+                val scCircIn = bankBoxIn.R4[Long].get
+                // val scCircIn = 100L
+                val rcCircIn = bankBoxIn.R5[Long].get
+                // val rcCircIn = 100L
+                val bcReserveIn = bankBoxIn.value
+                // val bcReserveIn = 100000000L
 
-            val scTokensIn = bankBoxIn.tokens(0)._2
-            // val scTokensIn = 100
-            val rcTokensIn = bankBoxIn.tokens(1)._2
-            // val rcTokensIn = 100
+                val scTokensIn = bankBoxIn.tokens(0)._2
+                // val scTokensIn = 100
+                val rcTokensIn = bankBoxIn.tokens(1)._2
+                // val rcTokensIn = 100
 
-            val scCircOut = bankBoxOut.R4[Long].get
-            //val scCircOut = 100
-            val rcCircOut = bankBoxOut.R5[Long].get
-            //val rcCircOut = 101
+                val scCircOut = bankBoxOut.R4[Long].get
+                //val scCircOut = 100
+                val rcCircOut = bankBoxOut.R5[Long].get
+                //val rcCircOut = 101
 
-            val scTokensOut = bankBoxOut.tokens(0)._2
-            //val scTokensOut = 100
-            val rcTokensOut = bankBoxOut.tokens(1)._2
-            //val rcTokensOut = 99
+                val scTokensOut = bankBoxOut.tokens(0)._2
+                //val scTokensOut = 100
+                val rcTokensOut = bankBoxOut.tokens(1)._2
+                //val rcTokensOut = 99
 
-            val totalScIn = scTokensIn + scCircIn
-            val totalScOut = scTokensOut + scCircOut
+                val totalScIn = scTokensIn + scCircIn
+                val totalScOut = scTokensOut + scCircOut
 
-            val totalRcIn = rcTokensIn + rcCircIn
-            val totalRcOut = rcTokensOut + rcCircOut
+                val totalRcIn = rcTokensIn + rcCircIn
+                val totalRcOut = rcTokensOut + rcCircOut
 
-            val rcExchange = rcTokensIn != rcTokensOut
-            val scExchange = scTokensIn != scTokensOut
+                val rcExchange = rcTokensIn != rcTokensOut
+                val scExchange = scTokensIn != scTokensOut
 
-            val rcExchangeXorScExchange = (rcExchange || scExchange) && !(rcExchange && scExchange)
+                val rcExchangeXorScExchange = (rcExchange || scExchange) && !(rcExchange && scExchange)
 
-            val circDelta = receiptBox.R4[Long].get
-            //val circDelta = 1L
-            val bcReserveDelta = receiptBox.R5[Long].get
-            //val bcReserveDelta = 1010000L
+                val circDelta = receiptBox.R4[Long].get
+                //val circDelta = 1L
+                val bcReserveDelta = receiptBox.R5[Long].get
+                //val bcReserveDelta = 1010000L
 
-            val bcReserveOut = bankBoxOut.value
-            //val bcReserveOut = 100000000L + 1010000L
+                val bcReserveOut = bankBoxOut.value
+                //val bcReserveOut = 100000000L + 1010000L
 
-            val rcCircDelta = if (rcExchange) circDelta else 0L
-            val scCircDelta = if (rcExchange) 0L else circDelta
+                val rcCircDelta = if (rcExchange) circDelta else 0L
+                val scCircDelta = if (rcExchange) 0L else circDelta
 
-            val validDeltas = (scCircIn + scCircDelta == scCircOut) &&
-                              (rcCircIn + rcCircDelta == rcCircOut) &&
-                              (bcReserveIn + bcReserveDelta == bcReserveOut)
+                val validDeltas = (scCircIn + scCircDelta == scCircOut) &&
+                                  (rcCircIn + rcCircDelta == rcCircOut) &&
+                                  (bcReserveIn + bcReserveDelta == bcReserveOut)
 
-            val coinsConserved = totalRcIn == totalRcOut && totalScIn == totalScOut
+                val coinsConserved = totalRcIn == totalRcOut && totalScIn == totalScOut
 
-            val tokenIdsConserved = bankBoxOut.tokens(0)._1 == bankBoxIn.tokens(0)._1 && // also ensures that at least one token exists
-                                     bankBoxOut.tokens(1)._1 == bankBoxIn.tokens(1)._1 && // also ensures that at least one token exists
-                                     bankBoxOut.tokens(2)._1 == bankBoxIn.tokens(2)._1    // also ensures that at least one token exists
+                val tokenIdsConserved = bankBoxOut.tokens(0)._1 == bankBoxIn.tokens(0)._1 && // also ensures that at least one token exists
+                                         bankBoxOut.tokens(1)._1 == bankBoxIn.tokens(1)._1 && // also ensures that at least one token exists
+                                         bankBoxOut.tokens(2)._1 == bankBoxIn.tokens(2)._1    // also ensures that at least one token exists
 
-            //val tokenIdsConserved = true
+                //val tokenIdsConserved = true
 
-            //val mandatoryRateConditions = rateBox.tokens(0)._1 == oraclePoolNFT
-            val mandatoryRateConditions = true
-            val mandatoryBankConditions = bankBoxOut.value >= minStorageRent &&
-                                          rcExchangeXorScExchange &&
-                                          coinsConserved &&
-                                          validDeltas &&
-                                          tokenIdsConserved
+                //val mandatoryRateConditions = rateBox.tokens(0)._1 == oraclePoolNFT
+                val mandatoryRateConditions = true
+                val mandatoryBankConditions = bankBoxOut.value >= minStorageRent &&
+                                              rcExchangeXorScExchange &&
+                                              coinsConserved &&
+                                              validDeltas &&
+                                              tokenIdsConserved
 
-            // exchange equations
-            val bcReserveNeededOut = scCircOut * rate
-            val bcReserveNeededIn = scCircIn * rate
-            val liabilitiesIn = max(min(bcReserveIn, bcReserveNeededIn), 0)
+                // exchange equations
+                val bcReserveNeededOut = scCircOut * rate
+                val bcReserveNeededIn = scCircIn * rate
+                val liabilitiesIn = max(min(bcReserveIn, bcReserveNeededIn), 0)
 
 
-            val maxReserveRatioPercent = if (HEIGHT > coolingOffHeight) defaultMaxReserveRatioPercent else INF
+                val maxReserveRatioPercent = if (HEIGHT > coolingOffHeight) defaultMaxReserveRatioPercent else INF
 
-            val reserveRatioPercentOut =
-                if (bcReserveNeededOut == 0) maxReserveRatioPercent else bcReserveOut * 100 / bcReserveNeededOut
+                val reserveRatioPercentOut =
+                    if (bcReserveNeededOut == 0) maxReserveRatioPercent else bcReserveOut * 100 / bcReserveNeededOut
 
-            val validReserveRatio = if (scExchange) {
-              if (scCircDelta > 0) {
-                reserveRatioPercentOut >= minReserveRatioPercent
-              } else true
-            } else {
-              if (rcCircDelta > 0) {
-                reserveRatioPercentOut <= maxReserveRatioPercent
-              } else {
-                reserveRatioPercentOut >= minReserveRatioPercent
-              }
-            }
+                val validReserveRatio = if (scExchange) {
+                  if (scCircDelta > 0) {
+                    reserveRatioPercentOut >= minReserveRatioPercent
+                  } else true
+                } else {
+                  if (rcCircDelta > 0) {
+                    reserveRatioPercentOut <= maxReserveRatioPercent
+                  } else {
+                    reserveRatioPercentOut >= minReserveRatioPercent
+                  }
+                }
 
-            val brDeltaExpected = if (scExchange) { // sc
-              val liableRate = if (scCircIn == 0) longMax else liabilitiesIn / scCircIn
-              val scNominalPrice = min(rate, liableRate)
-              scNominalPrice * scCircDelta
-            } else { // rc
-              val equityIn = bcReserveIn - liabilitiesIn
-              val equityRate = if (rcCircIn == 0) rcDefaultPrice else equityIn / rcCircIn
-              val rcNominalPrice = if (equityIn == 0) rcDefaultPrice else equityRate
-              rcNominalPrice * rcCircDelta
-            }
+                val brDeltaExpected = if (scExchange) { // sc
+                  val liableRate = if (scCircIn == 0) longMax else liabilitiesIn / scCircIn
+                  val scNominalPrice = min(rate, liableRate)
+                  scNominalPrice * scCircDelta
+                } else { // rc
+                  val equityIn = bcReserveIn - liabilitiesIn
+                  val equityRate = if (rcCircIn == 0) rcDefaultPrice else equityIn / rcCircIn
+                  val rcNominalPrice = if (equityIn == 0) rcDefaultPrice else equityRate
+                  rcNominalPrice * rcCircDelta
+                }
 
-            val fee = brDeltaExpected * feePercent / 100
+                val fee = brDeltaExpected * feePercent / 100
 
-            val actualFee = if (fee < 0) {fee * -1} else fee
-            // actualFee is always positive, irrespective of brDeltaExpected
+                val actualFee = if (fee < 0) {fee * -1} else fee
+                // actualFee is always positive, irrespective of brDeltaExpected
 
-            val brDeltaExpectedWithFee = brDeltaExpected + actualFee
+                val brDeltaExpectedWithFee = brDeltaExpected + actualFee
 
-            mandatoryRateConditions &&
-            mandatoryBankConditions &&
-            bcReserveDelta == brDeltaExpectedWithFee &&
-            validReserveRatio &&
-            validDataInput
+                mandatoryRateConditions &&
+                mandatoryBankConditions &&
+                bcReserveDelta == brDeltaExpectedWithFee &&
+                validReserveRatio &&
+                validDataInput
+            } else false
+
+            sigmaProp(isExchange || // INPUTS(0).tokens(0)._1 == updateNFT &&
+                CONTEXT.dataInputs.size == 0)
         }
-                         */
-        let p2s_addr_str = "5Gd8oR4AHjCtYTCb1gcLYoKi7hKbLJ5LhUYaGqrqU1cirThocCm8dSGXQ3JBrh8rXedDEhuYXJgcuXFokg8v8SauEnyMvGveYHnDvDpNAE5DiAjyEocMK5Dp9ZojHqRqwJiA3k54Ve5A2nKqZy2VJfUxZmRga3JvCA93mBqyqH9H1GXGmJHM5228nadByUue1KpQaWJU3Vdy9VWc2omfzdS33jwYmgjMooKiWnGef7c8hwe8vkSdaswbzkRbLebMaSD8a4azgHycAfyWBqEBRfQa3FEnyVVSg1i9af55i8LVcEnwF3u6UsnwhHN7m9mi3RHjbX3N3HAgwZR1DH2C2s3EY9kg3hnDeANKicxwM2rWhZGzdQ42heqRzaZxupLxhzErBRFiQ4kh1J4wHa5xN4bHSL861XtA1GWJc2LUDfXNjJu5D6KUwK36uvn4ueTbrMjnoLvYXeSKRLsr29RGj265KDJTGrPigmkW5VKAmCmdg7KcAxQ8CkJu1Pi7roy9iV2mGJq44uBL2L3EzND6ophw5zDyhvngD4QEZZDjT9LcAm9sVGhJ6fcNQT4Zo7u1EmuTe7Ey3DPsJ44pfKpMSnP4ue56Gb5iwzZuCEq5zc3XWTC6sesUrGcWVzP7hzX6bUe7KN49wFAyDdMKbpay5W5hJdfSeTdKX8Yb5kMspQKWEM3YrDo51CxMKLoJwZwAjbGsPT5jvDXiBGpu9c5Wq1FQXDUox9QWvuT9JzWFPNTDwAnUVwiYZY3EvEuefE2pvMT8QfHzD6YNmXuxPcLJkPrfj";
+        */
+        let p2s_addr_str = "HfdbQC2Zwr5vfAUxdmjmX6b3TxQbq5w764pwsz9LLKyZVhv7SpifLB22PieCgvzSaFLomv8HNr9dxxQSSYaQg6ZyFL37nPfuVib3hVL8h42jajp754NXGqv1s4eKcbPsKkBMeTmYVSSGrpnZHzjqvcT4oN8rqKGUtLVXHs4QKyBwwNQKS5KNC8DLkdvHUQRNv5r8pCJ6ehTi31h1rfLVTsaMhAeDcYCs1uS7YMXk3msfH36krAskv8TgApoFJ1DarszwiacTuE1o4N6o4PJJifAgJ1WH4XuGRieYE1k3fo631benRDQw9nQ49p4oqAda5aXTNmabAsfCgAR8jbmUzzi3UCyYJgRUtXp7ijaGfr6o3hXd5VHDZe4gM6Vw4Ly3s881WZX2WWNedrXNqKKMVXKk55jbgn3ZmFpZiLtvPHSBCG7ULyARrTz2rAUC16StdYBqPuhHpRKEx3QYeFTYJGcMbsMGompAkCxG37X7ZVs7m7xCpPuP3AqxWtWdxkTzw5FCHALsu6ZD334n8mFgn9kiif4tbShpBo1AJu6dP22XvPU3S93q5LuNaXx6d7u5VFrpQKSN6WnhkU4LUfh3t8YU1ZBATrQDGRkaji59pqoNDuwVSfn7g1UhcMWdMnwzrCNNq1jsX2KrkX7o81aS7LEmz6xAySdyvubGh51oXNd2cmgbJ9at2Tp3hNi9FwWG5iEk882AZ7gby6QktknAwyaw9CL5qdodeh4t659H42SoqK2ATtfrZgjU5b5pYAzNp9EjFHCKkYxTo7t5G1vHHZUXjTbkzc22ggJdH3BvZYEcdQtUCLbEFJSCiMp2RjxEmyh";
         let encoder = AddressEncoder::new(NetworkPrefix::Mainnet);
         let addr = encoder.parse_address_from_str(p2s_addr_str).unwrap();
         let script = addr.script().unwrap().proposition().unwrap();
