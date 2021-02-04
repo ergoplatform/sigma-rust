@@ -15,6 +15,7 @@ use super::coll_by_index::ByIndex;
 use super::coll_filter::Filter;
 use super::coll_fold::Fold;
 use super::coll_map::Map;
+use super::coll_size::SizeOf;
 use super::collection::Collection;
 use super::constant::Constant;
 use super::constant::ConstantPlaceholder;
@@ -88,6 +89,8 @@ pub enum Expr {
     ExtractScriptBytes(ExtractScriptBytes),
     /// Collection, get element by index
     ByIndex(ByIndex),
+    /// Collection size
+    SizeOf(SizeOf),
     /// Collection fold op
     Fold(Fold),
     /// Collection map op
@@ -137,6 +140,7 @@ impl Expr {
             Expr::If(op) => op.op_code(),
             Expr::ByIndex(op) => op.op_code(),
             Expr::ExtractScriptBytes(op) => op.op_code(),
+            Expr::SizeOf(op) => op.op_code(),
         }
     }
 
@@ -172,6 +176,7 @@ impl Expr {
             Expr::If(v) => v.tpe(),
             Expr::ByIndex(v) => v.tpe(),
             Expr::ExtractScriptBytes(v) => v.tpe(),
+            Expr::SizeOf(v) => v.tpe(),
         }
     }
 
@@ -273,10 +278,25 @@ pub mod tests {
         match elem_tpe {
             SType::SBoolean => vec(bool_nested_expr(depth), 0..10)
                 .prop_map(|items| Collection::new(SType::SBoolean, items).unwrap())
-                .prop_map_into(),
+                .prop_map_into()
+                .boxed(),
+
+            SType::STypeVar(_) => prop_oneof![
+                vec(bool_nested_expr(depth), 0..10).prop_map(|items| Collection::new(
+                    SType::SBoolean,
+                    items
+                )
+                .unwrap()),
+                vec(int_nested_expr(depth), 0..10).prop_map(|items| Collection::new(
+                    SType::SInt,
+                    items
+                )
+                .unwrap())
+            ]
+            .prop_map_into()
+            .boxed(),
             _ => todo!(),
         }
-        .boxed()
     }
 
     fn any_nested_expr(depth: usize) -> BoxedStrategy<Expr> {
