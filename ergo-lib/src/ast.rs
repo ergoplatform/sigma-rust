@@ -14,6 +14,7 @@ pub(crate) mod collection;
 pub(crate) mod expr;
 pub(crate) mod extract_amount;
 pub(crate) mod extract_reg_as;
+pub(crate) mod extract_script_bytes;
 pub(crate) mod func_value;
 pub(crate) mod global_vars;
 pub(crate) mod if_op;

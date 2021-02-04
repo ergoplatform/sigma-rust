@@ -171,24 +171,23 @@ impl<T: Into<Value>> From<Option<T>> for Value {
     }
 }
 
-// TODO: rename to StoreWrapped
-/// Marker trait to select types for which CollElems::NonPrimitive is used to store elements as Vec<ConstantVal>
-pub trait StoredNonPrimitive {}
+/// Marker trait to select types which stored as Vec of wrapped Value's
+pub trait StoreWrapped {}
 
-impl StoredNonPrimitive for bool {}
-impl StoredNonPrimitive for i16 {}
-impl StoredNonPrimitive for i32 {}
-impl StoredNonPrimitive for i64 {}
-impl StoredNonPrimitive for ErgoBox {}
-impl StoredNonPrimitive for EcPoint {}
-impl StoredNonPrimitive for SigmaProp {}
-impl<T: StoredNonPrimitive> StoredNonPrimitive for Option<T> {}
-impl<T> StoredNonPrimitive for Vec<T> {}
+impl StoreWrapped for bool {}
+impl StoreWrapped for i16 {}
+impl StoreWrapped for i32 {}
+impl StoreWrapped for i64 {}
+impl StoreWrapped for ErgoBox {}
+impl StoreWrapped for EcPoint {}
+impl StoreWrapped for SigmaProp {}
+impl<T: StoreWrapped> StoreWrapped for Option<T> {}
+impl<T> StoreWrapped for Vec<T> {}
 
 #[impl_for_tuples(2, 4)]
-impl StoredNonPrimitive for Tuple {}
+impl StoreWrapped for Tuple {}
 
-impl<T: LiftIntoSType + StoredNonPrimitive + Into<Value>> From<Vec<T>> for Value {
+impl<T: LiftIntoSType + StoreWrapped + Into<Value>> From<Vec<T>> for Value {
     fn from(v: Vec<T>) -> Self {
         Value::Coll(CollKind::WrappedColl {
             elem_tpe: T::stype(),
@@ -289,7 +288,7 @@ impl TryExtractFrom<Value> for ErgoBox {
     }
 }
 
-impl<T: TryExtractFrom<Value> + StoredNonPrimitive> TryExtractFrom<Value> for Vec<T> {
+impl<T: TryExtractFrom<Value> + StoreWrapped> TryExtractFrom<Value> for Vec<T> {
     fn try_extract_from(c: Value) -> Result<Self, TryExtractFromError> {
         match c {
             Value::Coll(coll) => match coll {
