@@ -36,7 +36,10 @@
 ## `json` (default feature)
 JSON serialization for chain types using `serde`.
 
+## ErgoScript
+[ErgoScript Language Description](https://github.com/ScorexFoundation/sigmastate-interpreter/blob/develop/docs/LangSpec.md)
 
+[ErgoTree Specification](https://github.com/ScorexFoundation/sigmastate-interpreter/tree/develop/docs/spec)
 
 
 
