@@ -31,9 +31,8 @@
 - `ExtractScriptBytes` (`Box.propositionBytes`);
 - `SizeOf` (`Coll.size`);
 
-## Usage 
 ## Crate features
-## `json` (default feature)
+### `json` (default feature)
 JSON serialization for chain types using `serde`.
 
 ## ErgoScript Language
