@@ -22,6 +22,18 @@ Bindings:
 ## Changelog
 See [CHANGELOG.md](ergo-lib/CHANGELOG.md).
 
+## Usage Examples
+To get better understanding on how to use it in your project check out how its being used in the following projects:
+
+- [Ergo Headless dApp Framework](https://github.com/Emurgo/ergo-headless-dapp-framework);
+- [Ergo Node Interface Library](https://github.com/Emurgo/ergo-node-interface);
+- [Oracle Core](https://github.com/ergoplatform/oracle-core);
+- [AgeUSD Stablecoin Protocol](https://github.com/Emurgo/age-usd);
+- [Yoroi wallet](https://github.com/Emurgo/yoroi-frontend) (WASM bindings);
+- [Ergo Desktop Wallet](https://github.com/ErgoWallet/ergowallet-desktop) (WASM bindings);
+
+Also take a look at tests where various usage scenarios were implemented.
+
 ## Contributing
 See [Contributing](CONTRIBUTING.md) guide.
 
