@@ -15,45 +15,30 @@
 
 [ErgoTree Specification](https://github.com/ScorexFoundation/sigmastate-interpreter/tree/develop/docs/spec)
 
-## Interpreter (what's implemented):
-- global vars (`INPUTS`, `OUTPUTS`, `SELF`, `HEIGHT`);
-- `Context` properties (`dataInputs`);
-- Value types with serialization for most of them(types and values);
-- `EQ`(`==`), `NEQ`(`!=`);
-- `BlockValue`, `ValDef`, `ValUse`, `FuncValue`, `Apply`;
-- `Fold`(collection), `ExtractAmount`(`Box.value`), `SelectField`(tuple field access); 
-- `CalcBlake2b256`;
-- Arithmetic ops (`+, -, *, /`);
-- Comparison ops (`>, >=, <, <=`);
-- `AND`, `OR`, `Collection` (collection declaration); 
-- `BinAnd`, `BinOr`;
-- `LogicalNot` (`!`);
-- `Map`, `Filter` collection ops;
-- `BoolToSigmaProp`;
-- `If`;
-- `Min`, `Max`;
-- `ByIndex`, `Box.tokens`;
-- `ExtractScriptBytes` (`Box.propositionBytes`);
-- `SizeOf` (`Coll.size`);
+## ErgoTree interpreter
+
+Implemented operations (IR nodes) are denoted with :heavy_check_mark:.
 
 ### General
 
 - :heavy_check_mark: Blocks (`BlockValue`);
-- Variable definition (`ValDef`, `ValUse`);
-- Function definition (`FuncValue`);
-- Function application(`Apply`);
+- :heavy_check_mark: Variable definition (`ValDef`, `ValUse`);
+- :heavy_check_mark: Function definition (`FuncValue`);
+- :heavy_check_mark: Function application(`Apply`);
+- :heavy_check_mark: Tuplse field access
+- :heavy_check_mark: 'If' conditional
 
 ### Operations
 
-- comparison: `>, <, >=, <=, ==, !=`;
-- arithmetic: ` +, -, *, /, %`;
-- logical: ` &&, ||`;
+- :heavy_check_mark: comparison: `>, <, >=, <=, ==, !=`;
+- :heavy_check_mark: arithmetic: ` +, -, *, /, %`;
+- :heavy_check_mark: logical: ` &&, ||`;
 - | (bitwise OR);
 - & (bitwise AND);
 - ^ (logical XOR);
 - ^ (bitwise XOR);
 - `|` (byte-wise XOR of two collections of bytes);
-- unary `!`;
+- :heavy_check_mark: unary `!`;
 - unary `-`;
 - unary `~` (bit inversion);
 - `>>`, `<<`, `>>>` (bit shifts);
@@ -67,15 +52,15 @@
 - byteArrayToBigInt
 - byteArrayToLong
 - downcast
-- upcast
-- allOf
-- anyOf
+- :heavy_check_mark: upcast
+- :heavy_check_mark: allOf
+- :heavy_check_mark: anyOf
 - atLeast
-- min
-- max
+- :heavy_check_mark: min
+- :heavy_check_mark: max
 - avlTree
 - treeLookup
-- blake2b256
+- :heavy_check_mark: blake2b256
 - sha256
 - proveDlog
 - proveDHTuple
@@ -154,15 +139,15 @@
 
 #### Box
 
-- value
-- propositionBytes
+- :heavy_check_mark: value
+- :heavy_check_mark: propositionBytes
 - bytes
 - bytesWithoutRef
 - id
 - creationInfo
-- getReg
-- tokens
-- R0 .. R9
+- :heavy_check_mark: getReg
+- :heavy_check_mark: tokens
+- :heavy_check_mark: R0 .. R9
 
 #### AvlTree 
 
@@ -214,13 +199,13 @@
 
 #### Context
 
-- dataInputs
+- :heavy_check_mark: dataInputs
 - headers
 - preHeader
-- INPUTS
-- OUTPUTS
-- HEIGHT
-- SELF
+- :heavy_check_mark: INPUTS
+- :heavy_check_mark: OUTPUTS
+- :heavy_check_mark: HEIGHT
+- :heavy_check_mark: SELF
 - selfBoxIndex
 - LastBlockUtxoRootHash
 - minerPubKey
@@ -228,16 +213,16 @@
 
 #### Collection
 
-- size
+- :heavy_check_mark: size
 - getOrElse
-- map
+- :heavy_check_mark: map
 - exists
-- fold
+- :heavy_check_mark: fold
 - forall
 - slice
-- filter
+- :heavy_check_mark: filter
 - append
-- apply
+- :heavy_check_mark: apply
 - indices
 - flatMap
 - patch
@@ -249,7 +234,7 @@
 #### Option
 
 - isDefined
-- get
+- :heavy_check_mark: get
 - getOrElse
 - map
 - filter
