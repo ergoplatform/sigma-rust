@@ -13,7 +13,7 @@ use super::constant::TryExtractInto;
 use super::expr::Expr;
 use super::value::Value;
 
-/// If, non-lazy - evaluate both branches
+/// If (lazy)
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct If {
     condition: Box<Expr>,
@@ -36,13 +36,11 @@ impl If {
 impl Evaluable for If {
     fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
         let condition_v = self.condition.eval(env, ctx)?;
-        let true_branch_v = self.true_branch.eval(env, ctx)?;
-        let false_branch_v = self.false_branch.eval(env, ctx)?;
-        Ok(if condition_v.try_extract_into::<bool>()? {
-            true_branch_v
+        if condition_v.try_extract_into::<bool>()? {
+            self.true_branch.eval(env, ctx)
         } else {
-            false_branch_v
-        })
+            self.false_branch.eval(env, ctx)
+        }
     }
 }
 
@@ -68,6 +66,8 @@ impl SigmaSerializable for If {
 #[cfg(test)]
 mod tests {
 
+    use crate::ast::bin_op::ArithOp;
+    use crate::ast::bin_op::BinOp;
     use crate::ast::expr::tests::ArbExprParams;
     use crate::ast::expr::Expr;
     use crate::eval::tests::eval_out_wo_ctx;
@@ -104,6 +104,45 @@ mod tests {
             condition: Expr::Const(true.into()).into(),
             true_branch: Expr::Const(1i64.into()).into(),
             false_branch: Expr::Const(2i64.into()).into(),
+        }
+        .into();
+        let res = eval_out_wo_ctx::<i64>(&expr);
+        assert_eq!(res, 1);
+    }
+
+    #[test]
+    fn eval_laziness_true_branch() {
+        let expr: Expr = If {
+            condition: Expr::Const(true.into()).into(),
+            true_branch: Expr::Const(1i64.into()).into(),
+            false_branch: 
+                // something that should blow-up the evaluation
+                Box::new(BinOp {
+                                    kind: ArithOp::Divide.into(),
+                                    left: Box::new(Expr::Const(1i64.into())),
+                                    right: Box::new(Expr::Const(0i64.into())),
+                                }
+                                .into()),
+        }
+        .into();
+        let res = eval_out_wo_ctx::<i64>(&expr);
+        assert_eq!(res, 1);
+    }
+
+    #[test]
+    fn eval_laziness_false_branch() {
+        let expr: Expr = If {
+            condition:  
+                Expr::Const(false.into()).into(),
+            true_branch: 
+                // something that should blow-up the evaluation
+                     Box::new(BinOp {
+                                    kind: ArithOp::Divide.into(),
+                                    left: Box::new(Expr::Const(1i64.into())),
+                                    right: Box::new(Expr::Const(0i64.into())),
+                                }
+                                .into()),
+            false_branch: Expr::Const(1i64.into()).into(),
         }
         .into();
         let res = eval_out_wo_ctx::<i64>(&expr);

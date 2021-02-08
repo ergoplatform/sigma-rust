@@ -112,6 +112,8 @@ pub trait Evaluable {
 #[cfg(test)]
 pub mod tests {
 
+    #![allow(dead_code)]
+
     use crate::ast::constant::TryExtractFrom;
     use crate::ast::constant::TryExtractInto;
 
