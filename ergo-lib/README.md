@@ -18,6 +18,7 @@
 ## ErgoTree interpreter
 
 Implemented operations (IR nodes) are denoted with :heavy_check_mark:.
+Descriptions for the operations can be found in [ErgoTree Specification](https://github.com/ScorexFoundation/sigmastate-interpreter/tree/develop/docs/spec)
 
 ### General
 
