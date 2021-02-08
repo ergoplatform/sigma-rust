@@ -115,14 +115,14 @@ mod tests {
         let expr: Expr = If {
             condition: Expr::Const(true.into()).into(),
             true_branch: Expr::Const(1i64.into()).into(),
-            false_branch: 
-                // something that should blow-up the evaluation
-                Box::new(BinOp {
-                                    kind: ArithOp::Divide.into(),
-                                    left: Box::new(Expr::Const(1i64.into())),
-                                    right: Box::new(Expr::Const(0i64.into())),
-                                }
-                                .into()),
+            false_branch: Box::new(
+                BinOp {
+                    kind: ArithOp::Divide.into(),
+                    left: Box::new(Expr::Const(1i64.into())),
+                    right: Box::new(Expr::Const(0i64.into())),
+                }
+                .into(),
+            ),
         }
         .into();
         let res = eval_out_wo_ctx::<i64>(&expr);
@@ -132,16 +132,15 @@ mod tests {
     #[test]
     fn eval_laziness_false_branch() {
         let expr: Expr = If {
-            condition:  
-                Expr::Const(false.into()).into(),
-            true_branch: 
-                // something that should blow-up the evaluation
-                     Box::new(BinOp {
-                                    kind: ArithOp::Divide.into(),
-                                    left: Box::new(Expr::Const(1i64.into())),
-                                    right: Box::new(Expr::Const(0i64.into())),
-                                }
-                                .into()),
+            condition: Expr::Const(false.into()).into(),
+            true_branch: Box::new(
+                BinOp {
+                    kind: ArithOp::Divide.into(),
+                    left: Box::new(Expr::Const(1i64.into())),
+                    right: Box::new(Expr::Const(0i64.into())),
+                }
+                .into(),
+            ),
             false_branch: Expr::Const(1i64.into()).into(),
         }
         .into();
