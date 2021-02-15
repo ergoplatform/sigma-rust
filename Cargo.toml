@@ -7,6 +7,10 @@ members = [
     "bindings/ergo-lib-c",
     "bindings/ergo-lib-jni",
     "lexer",
+    "syntax",
+    "parser",
+    "ast",
+    "hir"
 ]
 
 [profile.release]

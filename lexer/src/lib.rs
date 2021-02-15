@@ -1,3 +1,5 @@
+// Initial version is copied from https://github.com/arzg/eldiro
+// Checkout https://arzg.github.io/lang/ for description
 mod token_kind;
 pub use token_kind::TokenKind;
 

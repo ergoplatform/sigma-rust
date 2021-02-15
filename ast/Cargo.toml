@@ -1,0 +1,18 @@
+[package]
+name = "ast"
+version = "0.1.0"
+license = "CC0-1.0"
+authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
+edition = "2018"
+description = "AST for ErgoScript"
+repository = "https://github.com/ergoplatform/sigma-rust"
+exclude = [
+    "proptest-regressions/*"
+]
+
+[dependencies]
+syntax = {path = "../syntax"}
+text-size = "1.1.0"
+
+[dev-dependencies]
+parser = {path = "../parser"}

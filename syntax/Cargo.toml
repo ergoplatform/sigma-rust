@@ -1,0 +1,17 @@
+[package]
+name = "syntax"
+version = "0.1.0"
+license = "CC0-1.0"
+authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
+edition = "2018"
+description = "Syntax for ErgoScript"
+repository = "https://github.com/ergoplatform/sigma-rust"
+exclude = [
+    "proptest-regressions/*"
+]
+
+[dependencies]
+lexer = {path = "../lexer"}
+num-derive = "0.3.3"
+num-traits = "0.2.14"
+rowan = "0.12.1"
