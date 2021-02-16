@@ -107,6 +107,9 @@ fn lhs(p: &mut Parser) -> Option<CompletedMarker> {
     let cm = if p.at(TokenKind::Number) {
         literal(p)
     } else if p.at(TokenKind::Ident) {
+        ident(p)
+        // variable_ref(p)
+    } else if p.at(TokenKind::ValKw) {
         variable_ref(p)
     } else if p.at(TokenKind::Minus) {
         prefix_expr(p)
@@ -162,6 +165,14 @@ fn variable_ref(p: &mut Parser) -> CompletedMarker {
     let m = p.start();
     p.bump();
     m.complete(p, SyntaxKind::VariableRef)
+}
+
+fn ident(p: &mut Parser) -> CompletedMarker {
+    assert!(p.at(TokenKind::Ident));
+
+    let m = p.start();
+    p.bump();
+    m.complete(p, SyntaxKind::Ident)
 }
 
 fn prefix_expr(p: &mut Parser) -> CompletedMarker {

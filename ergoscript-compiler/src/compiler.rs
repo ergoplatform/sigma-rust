@@ -1,11 +1,11 @@
 //! ErgoScript compiler
 
 use super::binder::BinderError;
-use super::binder::ScriptEnv;
 use super::hir::HirError;
 use crate::ast;
 use crate::binder;
 use crate::hir;
+use crate::ScriptEnv;
 
 extern crate derive_more;
 use derive_more::From;
@@ -21,13 +21,32 @@ pub enum CompileError {
 }
 
 /// Compiles given source code to HIR, or returns an error
-pub fn compile_hir(source: String, env: ScriptEnv) -> Result<hir::Expr, CompileError> {
+pub fn compile_hir(source: &str, env: ScriptEnv) -> Result<hir::Expr, CompileError> {
     let parse = super::parser::parse(&source);
-    println!("{}", parse.debug_tree());
+    dbg!(parse.debug_tree());
     let syntax = parse.syntax();
+    dbg!(&syntax);
     let root = ast::Root::cast(syntax).unwrap();
     let hir = hir::lower(root)?;
+    dbg!(&hir);
     let binder = binder::Binder::new(env);
     let res = binder.bind(hir)?;
     Ok(res)
+}
+
+#[cfg(test)]
+pub fn check(input: &str, expected_tree: expect_test::Expect) {
+    let parse = compile_hir(input, ScriptEnv::new());
+    expected_tree.assert_eq(&parse.unwrap().debug_tree());
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use expect_test::expect;
+
+    #[test]
+    fn test_height() {
+        check("HEIGHT", expect![[]]);
+    }
 }

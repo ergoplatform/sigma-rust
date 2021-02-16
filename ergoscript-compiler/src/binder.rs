@@ -1,19 +1,8 @@
-use std::collections::HashMap;
-
-use ergo_lib::ast::constant::Constant;
-
 use crate::hir;
 use crate::hir::Expr;
 use crate::hir::ExprKind;
 use crate::hir::GlobalVars;
-
-pub struct ScriptEnv(HashMap<String, Constant>);
-
-impl ScriptEnv {
-    pub fn get(&self, key: &str) -> Option<&Constant> {
-        self.0.get(key)
-    }
-}
+use crate::ScriptEnv;
 
 #[derive(Debug, PartialEq)]
 pub struct BinderError();

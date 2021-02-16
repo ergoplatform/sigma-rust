@@ -45,6 +45,11 @@ impl Expr {
             _ => todo!(),
         }
     }
+
+    pub fn debug_tree(&self) -> String {
+        let tree = format!("{:#?}", self);
+        tree
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]

@@ -6,7 +6,7 @@
 #![deny(non_camel_case_types)]
 #![deny(non_snake_case)]
 #![deny(unused_mut)]
-// #![deny(dead_code)]
+#![deny(dead_code)]
 #![deny(unused_imports)]
 #![deny(missing_docs)]
 // Clippy exclusions
@@ -20,4 +20,8 @@ mod lexer;
 mod parser;
 mod syntax;
 
-pub mod compiler;
+mod compiler;
+mod script_env;
+
+pub use compiler::compile_hir;
+pub use script_env::ScriptEnv;

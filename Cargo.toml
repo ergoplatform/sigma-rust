@@ -1,12 +1,12 @@
 [workspace]
 members = [
     "sigma-ser",
+    "ergoscript-compiler",
     "ergo-lib",
     "bindings/ergo-lib-wasm",
     "bindings/ergo-lib-c-core",
     "bindings/ergo-lib-c",
-    "bindings/ergo-lib-jni",
-    "ergoscript-compiler"
+    "bindings/ergo-lib-jni"
 ]
 
 [profile.release]
