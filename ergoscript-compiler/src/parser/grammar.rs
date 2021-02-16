@@ -1,10 +1,11 @@
 mod expr;
 mod stmt;
 
-use crate::parser::marker::CompletedMarker;
+use crate::lexer::TokenKind;
 use crate::parser::Parser;
-use lexer::TokenKind;
-use syntax::SyntaxKind;
+use crate::syntax::SyntaxKind;
+
+use super::marker::CompletedMarker;
 
 pub(crate) fn root(p: &mut Parser) -> CompletedMarker {
     let m = p.start();
@@ -18,7 +19,7 @@ pub(crate) fn root(p: &mut Parser) -> CompletedMarker {
 
 #[cfg(test)]
 mod tests {
-    use crate::check;
+    use crate::parser::check;
     use expect_test::expect;
 
     #[test]

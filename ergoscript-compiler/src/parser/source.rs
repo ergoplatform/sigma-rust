@@ -1,17 +1,19 @@
-use lexer::{Token, TokenKind};
 use text_size::TextRange;
 
-pub(crate) struct Source<'t, 'input> {
+use crate::lexer::Token;
+use crate::lexer::TokenKind;
+
+pub struct Source<'t, 'input> {
     tokens: &'t [Token<'input>],
     cursor: usize,
 }
 
 impl<'t, 'input> Source<'t, 'input> {
-    pub(crate) fn new(tokens: &'t [Token<'input>]) -> Self {
+    pub fn new(tokens: &'t [Token<'input>]) -> Self {
         Self { tokens, cursor: 0 }
     }
 
-    pub(crate) fn next_token(&mut self) -> Option<&'t Token<'input>> {
+    pub fn next_token(&mut self) -> Option<&'t Token<'input>> {
         self.eat_trivia();
 
         let token = self.tokens.get(self.cursor)?;
@@ -20,12 +22,12 @@ impl<'t, 'input> Source<'t, 'input> {
         Some(token)
     }
 
-    pub(crate) fn peek_kind(&mut self) -> Option<TokenKind> {
+    pub fn peek_kind(&mut self) -> Option<TokenKind> {
         self.eat_trivia();
         self.peek_kind_raw()
     }
 
-    pub(crate) fn peek_token(&mut self) -> Option<&Token> {
+    pub fn peek_token(&mut self) -> Option<&Token> {
         self.eat_trivia();
         self.peek_token_raw()
     }
@@ -40,7 +42,7 @@ impl<'t, 'input> Source<'t, 'input> {
         self.peek_kind_raw().map_or(false, TokenKind::is_trivia)
     }
 
-    pub(crate) fn last_token_range(&self) -> Option<TextRange> {
+    pub fn last_token_range(&self) -> Option<TextRange> {
         self.tokens.last().map(|Token { range, .. }| *range)
     }
 

@@ -193,7 +193,7 @@ fn paren_expr(p: &mut Parser) -> CompletedMarker {
 
 #[cfg(test)]
 mod tests {
-    use crate::check;
+    use crate::parser::check;
     use expect_test::expect;
 
     #[test]

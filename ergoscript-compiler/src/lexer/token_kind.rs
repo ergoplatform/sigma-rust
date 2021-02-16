@@ -85,8 +85,8 @@ impl fmt::Display for TokenKind {
 
 #[cfg(test)]
 mod tests {
+    use super::super::Lexer;
     use super::*;
-    use crate::Lexer;
 
     fn check(input: &str, kind: TokenKind) {
         let mut lexer = Lexer::new(input);

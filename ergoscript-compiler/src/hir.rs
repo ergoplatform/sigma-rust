@@ -1,6 +1,7 @@
 //! High-level Intermediate Representation
 //! Refered as frontend representation in sigmastate
-use syntax::SyntaxKind;
+use super::ast;
+use crate::syntax::SyntaxKind;
 use text_size::TextRange;
 
 extern crate derive_more;

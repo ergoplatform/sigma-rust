@@ -1,6 +1,6 @@
 // Initial version is copied from https://github.com/arzg/eldiro
 // Checkout https://arzg.github.io/lang/ for description
-use lexer::TokenKind;
+use super::lexer::TokenKind;
 use num_derive::{FromPrimitive, ToPrimitive};
 use num_traits::{FromPrimitive, ToPrimitive};
 

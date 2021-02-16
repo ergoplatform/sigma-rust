@@ -1,8 +1,8 @@
 use crate::parser::ParseError;
-use syntax::SyntaxKind;
+use crate::syntax::SyntaxKind;
 
 #[derive(Debug, PartialEq)]
-pub(crate) enum Event {
+pub enum Event {
     StartNode {
         kind: SyntaxKind,
         forward_parent: Option<usize>,

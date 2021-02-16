@@ -1,4 +1,4 @@
-use syntax::{SyntaxElement, SyntaxKind, SyntaxNode, SyntaxToken};
+use super::syntax::{SyntaxElement, SyntaxKind, SyntaxNode, SyntaxToken};
 use text_size::TextRange;
 
 // #[derive(Debug)]

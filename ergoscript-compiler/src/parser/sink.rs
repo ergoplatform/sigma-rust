@@ -1,12 +1,13 @@
-use crate::event::Event;
+use crate::lexer::Token;
 use crate::parser::ParseError;
-use crate::Parse;
-use lexer::Token;
+use crate::syntax::ErgoScriptLanguage;
 use rowan::{GreenNodeBuilder, Language};
 use std::mem;
-use syntax::ErgoScriptLanguage;
 
-pub(crate) struct Sink<'t, 'input> {
+use super::event::Event;
+use super::parse::Parse;
+
+pub struct Sink<'t, 'input> {
     builder: GreenNodeBuilder<'static>,
     tokens: &'t [Token<'input>],
     cursor: usize,
@@ -15,7 +16,7 @@ pub(crate) struct Sink<'t, 'input> {
 }
 
 impl<'t, 'input> Sink<'t, 'input> {
-    pub(crate) fn new(tokens: &'t [Token<'input>], events: Vec<Event>) -> Self {
+    pub fn new(tokens: &'t [Token<'input>], events: Vec<Event>) -> Self {
         Self {
             builder: GreenNodeBuilder::new(),
             tokens,
@@ -25,7 +26,7 @@ impl<'t, 'input> Sink<'t, 'input> {
         }
     }
 
-    pub(crate) fn finish(mut self) -> Parse {
+    pub fn finish(mut self) -> Parse {
         for idx in 0..self.events.len() {
             match mem::replace(&mut self.events[idx], Event::Placeholder) {
                 Event::StartNode {

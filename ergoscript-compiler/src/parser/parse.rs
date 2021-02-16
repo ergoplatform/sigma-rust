@@ -1,17 +1,15 @@
+use rowan::GreenNode;
+
+use crate::lexer::Lexer;
+use crate::syntax::SyntaxNode;
+
+use super::parse_error::ParseError;
+use super::sink::Sink;
+use super::source::Source;
+use super::Parser;
+
 // Initial version is copied from https://github.com/arzg/eldiro
 // Checkout https://arzg.github.io/lang/ for description
-mod event;
-mod grammar;
-mod parser;
-mod sink;
-mod source;
-
-use crate::parser::{ParseError, Parser};
-use lexer::Lexer;
-use rowan::GreenNode;
-use sink::Sink;
-use source::Source;
-use syntax::SyntaxNode;
 
 pub fn parse(input: &str) -> Parse {
     let tokens: Vec<_> = Lexer::new(input).collect();
@@ -24,8 +22,8 @@ pub fn parse(input: &str) -> Parse {
 }
 
 pub struct Parse {
-    green_node: GreenNode,
-    errors: Vec<ParseError>,
+    pub green_node: GreenNode,
+    pub errors: Vec<ParseError>,
 }
 
 impl Parse {
@@ -47,10 +45,4 @@ impl Parse {
     pub fn syntax(&self) -> SyntaxNode {
         SyntaxNode::new_root(self.green_node.clone())
     }
-}
-
-#[cfg(test)]
-fn check(input: &str, expected_tree: expect_test::Expect) {
-    let parse = parse(input);
-    expected_tree.assert_eq(&parse.debug_tree());
 }
