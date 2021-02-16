@@ -1,5 +1,10 @@
 //! High-level Intermediate Representation
 //! Refered as frontend representation in sigmastate
+
+mod rewrite;
+
+pub use rewrite::rewrite;
+
 use super::ast;
 use crate::syntax::SyntaxKind;
 use text_size::TextRange;
@@ -7,18 +12,25 @@ use text_size::TextRange;
 extern crate derive_more;
 use derive_more::From;
 
-#[derive(Debug, PartialEq)]
+pub fn lower(ast: ast::Root) -> Result<Expr, HirError> {
+    // TODO: return error if more than one expr is found
+    let first_expr = ast.children().next().unwrap();
+    Expr::lower(&first_expr)
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub struct Expr {
     pub kind: ExprKind,
     pub span: TextRange,
 }
 
 // TODO: refine: span, expected, found?
+#[derive(Debug, PartialEq)]
 pub struct HirError(pub String);
 
 impl Expr {
-    pub fn lower(expr: ast::Expr) -> Result<Expr, HirError> {
-        match &expr {
+    pub fn lower(expr: &ast::Expr) -> Result<Expr, HirError> {
+        match expr {
             ast::Expr::BinaryExpr(ast) => Ok(Expr {
                 kind: Binary::lower(ast)?.into(),
                 span: ast.span(),
@@ -35,13 +47,13 @@ impl Expr {
     }
 }
 
-#[derive(Debug, PartialEq)]
-pub struct Spanned<T> {
+#[derive(Debug, PartialEq, Clone)]
+pub struct Spanned<T: Clone> {
     pub node: T,
     pub span: TextRange,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Binary {
     pub op: Spanned<BinaryOp>,
     pub lhs: Box<Expr>,
@@ -59,8 +71,8 @@ impl Binary {
             _ => unreachable!(),
         };
 
-        let lhs = Expr::lower(ast.lhs().unwrap());
-        let rhs = Expr::lower(ast.rhs().unwrap());
+        let lhs = Expr::lower(&ast.lhs().unwrap());
+        let rhs = Expr::lower(&ast.rhs().unwrap());
 
         Ok(Binary {
             op: Spanned {
@@ -73,10 +85,11 @@ impl Binary {
     }
 }
 
-#[derive(Debug, PartialEq, From)]
+#[derive(Debug, PartialEq, From, Clone)]
 pub enum ExprKind {
     Ident(String),
     Binary(Binary),
+    GlobalVars(GlobalVars),
     // ...
     // Block
     // ValNode
@@ -86,7 +99,7 @@ pub enum ExprKind {
     // Lambda
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum BinaryOp {
     Add,
     Sub,
@@ -94,7 +107,12 @@ pub enum BinaryOp {
     Div,
 }
 
-#[derive(Debug, PartialEq)]
-pub enum UnaryOp {
-    Neg,
+// #[derive(Debug, PartialEq, Clone)]
+// pub enum UnaryOp {
+//     Neg,
+// }
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum GlobalVars {
+    Height,
 }

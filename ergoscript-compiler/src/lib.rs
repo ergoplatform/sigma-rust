@@ -14,7 +14,10 @@
 #![deny(broken_intra_doc_links)]
 
 mod ast;
+mod binder;
 mod hir;
 mod lexer;
 mod parser;
 mod syntax;
+
+pub mod compiler;

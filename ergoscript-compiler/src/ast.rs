@@ -55,6 +55,22 @@ impl Ident {
     // }
 }
 
+pub struct Root(SyntaxNode);
+
+impl Root {
+    pub fn cast(node: SyntaxNode) -> Option<Self> {
+        if node.kind() == SyntaxKind::Root {
+            Some(Self(node))
+        } else {
+            None
+        }
+    }
+
+    pub fn children(&self) -> impl Iterator<Item = Expr> {
+        self.0.children().filter_map(Expr::cast)
+    }
+}
+
 #[derive(Debug)]
 pub enum Expr {
     Ident(Ident),

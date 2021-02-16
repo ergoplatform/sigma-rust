@@ -6,6 +6,8 @@ mod parse_error;
 mod sink;
 mod source;
 
+pub(crate) use parse::parse;
+
 use std::mem;
 
 use crate::lexer::Token;
