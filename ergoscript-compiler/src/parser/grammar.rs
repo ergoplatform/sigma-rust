@@ -7,7 +7,7 @@ use crate::syntax::SyntaxKind;
 
 use super::marker::CompletedMarker;
 
-pub(crate) fn root(p: &mut Parser) -> CompletedMarker {
+pub fn root(p: &mut Parser) -> CompletedMarker {
     let m = p.start();
 
     while !p.at_end() {

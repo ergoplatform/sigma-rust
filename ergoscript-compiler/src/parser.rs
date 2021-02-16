@@ -39,14 +39,14 @@ impl<'t, 'input> Parser<'t, 'input> {
         self.events
     }
 
-    pub fn start(&mut self) -> Marker {
+    fn start(&mut self) -> Marker {
         let pos = self.events.len();
         self.events.push(Event::Placeholder);
 
         Marker::new(pos)
     }
 
-    pub fn expect(&mut self, kind: TokenKind) {
+    fn expect(&mut self, kind: TokenKind) {
         if self.at(kind) {
             self.bump();
         } else {
@@ -54,7 +54,7 @@ impl<'t, 'input> Parser<'t, 'input> {
         }
     }
 
-    pub fn error(&mut self) {
+    fn error(&mut self) {
         let current_token = self.source.peek_token();
 
         let (found, range) = if let Some(Token { kind, range, .. }) = current_token {
@@ -78,13 +78,13 @@ impl<'t, 'input> Parser<'t, 'input> {
         }
     }
 
-    pub fn bump(&mut self) {
+    fn bump(&mut self) {
         self.expected_kinds.clear();
         self.source.next_token().unwrap();
         self.events.push(Event::AddToken);
     }
 
-    pub fn at(&mut self, kind: TokenKind) -> bool {
+    fn at(&mut self, kind: TokenKind) -> bool {
         self.expected_kinds.push(kind);
         self.peek() == Some(kind)
     }
@@ -93,7 +93,7 @@ impl<'t, 'input> Parser<'t, 'input> {
         self.peek().map_or(false, |k| set.contains(&k))
     }
 
-    pub fn at_end(&mut self) -> bool {
+    fn at_end(&mut self) -> bool {
         self.peek().is_none()
     }
 
