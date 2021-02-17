@@ -28,7 +28,9 @@ mod tests {
 
     #[test]
     fn parse_variable_definition() {
-        check("val foo = bar", expect![[r#"
+        check(
+            "val foo = bar",
+            expect![[r#"
             Root@0..13
               VariableDef@0..13
                 ValKw@0..3 "val"
@@ -38,6 +40,7 @@ mod tests {
                 Equals@8..9 "="
                 Whitespace@9..10 " "
                 Ident@10..13
-                  Ident@10..13 "bar""#]]);
+                  Ident@10..13 "bar""#]],
+        );
     }
 }
