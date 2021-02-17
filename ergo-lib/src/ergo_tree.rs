@@ -280,15 +280,10 @@ impl TryFrom<ErgoTree> for ProveDlog {
             .proposition()
             .map_err(|_| TryExtractFromError("cannot read root expr".to_string()))?;
         match expr {
-            Expr::Const(c) => match c {
-                Constant {
-                    tpe: SType::SSigmaProp,
-                    v,
-                } => ProveDlog::try_from(v.clone()),
-                _ => Err(TryExtractFromError(
-                    "expected ProveDlog in the root".to_string(),
-                )),
-            },
+            Expr::Const(Constant {
+                tpe: SType::SSigmaProp,
+                v,
+            }) => ProveDlog::try_from(v.clone()),
             _ => Err(TryExtractFromError(
                 "expected ProveDlog in the root".to_string(),
             )),
