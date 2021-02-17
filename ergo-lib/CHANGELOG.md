@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
+
+### Added 
+- Explorer v1 API support for box register parsing [#197](https://github.com/ergoplatform/sigma-rust/pull/197);
+
 ## [0.5.0] - 2021-02-04
 
 ### Added 
