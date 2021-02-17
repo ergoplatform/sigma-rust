@@ -47,6 +47,12 @@ mod tests {
 
     #[test]
     fn test_height() {
-        check("HEIGHT", expect![[]]);
+        check("HEIGHT", expect![[r#"
+            Expr {
+                kind: GlobalVars(
+                    Height,
+                ),
+                span: 0..6,
+            }"#]]);
     }
 }

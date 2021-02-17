@@ -22,13 +22,11 @@ mod tests {
     use crate::parser::check;
     use expect_test::expect;
 
-    // #[test]
-    // fn parse_multiple_statements() {
-    //     check("val a = 1;\na", expect![[]]);
-    // }
-
     #[test]
     fn parse_ident() {
-        check("HEIGHT", expect![[]]);
+        check("HEIGHT", expect![[r#"
+            Root@0..6
+              Ident@0..6
+                Ident@0..6 "HEIGHT""#]]);
     }
 }

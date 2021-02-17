@@ -109,8 +109,8 @@ fn lhs(p: &mut Parser) -> Option<CompletedMarker> {
     } else if p.at(TokenKind::Ident) {
         ident(p)
         // variable_ref(p)
-    } else if p.at(TokenKind::ValKw) {
-        variable_ref(p)
+        // } else if p.at(TokenKind::ValKw) {
+        //     variable_ref(p)
     } else if p.at(TokenKind::Minus) {
         prefix_expr(p)
     } else if p.at(TokenKind::LParen) {
@@ -159,13 +159,13 @@ fn literal(p: &mut Parser) -> CompletedMarker {
     m.complete(p, SyntaxKind::Literal)
 }
 
-fn variable_ref(p: &mut Parser) -> CompletedMarker {
-    assert!(p.at(TokenKind::Ident));
+// fn variable_ref(p: &mut Parser) -> CompletedMarker {
+//     assert!(p.at(TokenKind::Ident));
 
-    let m = p.start();
-    p.bump();
-    m.complete(p, SyntaxKind::VariableRef)
-}
+//     let m = p.start();
+//     p.bump();
+//     m.complete(p, SyntaxKind::VariableRef)
+// }
 
 fn ident(p: &mut Parser) -> CompletedMarker {
     assert!(p.at(TokenKind::Ident));
@@ -252,17 +252,6 @@ Root@0..3
                   Literal@1..8
                     Number@1..4 "123"
                     Whitespace@4..8 "    ""#]],
-        );
-    }
-
-    #[test]
-    fn parse_variable_ref() {
-        check(
-            "counter1",
-            expect![[r#"
-                Root@0..8
-                  VariableRef@0..8
-                    Ident@0..8 "counter1""#]],
         );
     }
 
@@ -473,20 +462,6 @@ Root@0..3
                         Literal@5..6
                           Number@5..6 "3"
                       RParen@6..7 ")""#]],
-        );
-    }
-
-    #[test]
-    fn parse_unclosed_parentheses() {
-        check(
-            "(foo1",
-            expect![[r#"
-                Root@0..5
-                  ParenExpr@0..5
-                    LParen@0..1 "("
-                    VariableRef@1..5
-                      Ident@1..5 "foo1"
-                error at 1..5: expected ‘+’, ‘-’, ‘*’, ‘/’ or ‘)’"#]],
         );
     }
 }

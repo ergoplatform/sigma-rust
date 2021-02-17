@@ -23,6 +23,6 @@ pub fn rewrite<E, F: Fn(&Expr) -> Result<Option<Expr>, E>>(e: Expr, f: F) -> Res
                 span: e.span,
             },
         },
-        _ => todo!(),
+        ExprKind::GlobalVars(_) => f(&e)?.unwrap_or(e),
     })
 }

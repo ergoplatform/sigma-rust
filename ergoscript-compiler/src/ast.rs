@@ -78,7 +78,6 @@ pub enum Expr {
     Literal(Literal),
     ParenExpr(ParenExpr),
     UnaryExpr(UnaryExpr),
-    VariableRef(VariableRef),
 }
 
 impl Expr {
@@ -88,7 +87,7 @@ impl Expr {
             SyntaxKind::Literal => Self::Literal(Literal(node)),
             SyntaxKind::ParenExpr => Self::ParenExpr(ParenExpr(node)),
             SyntaxKind::PrefixExpr => Self::UnaryExpr(UnaryExpr(node)),
-            SyntaxKind::VariableRef => Self::VariableRef(VariableRef(node)),
+            SyntaxKind::Ident => Self::Ident(Ident(node)),
             _ => return None,
         };
 
@@ -171,14 +170,5 @@ impl UnaryExpr {
             .children_with_tokens()
             .filter_map(SyntaxElement::into_token)
             .find(|token| token.kind() == SyntaxKind::Minus)
-    }
-}
-
-#[derive(Debug)]
-pub struct VariableRef(SyntaxNode);
-
-impl VariableRef {
-    pub fn name(&self) -> Option<SyntaxToken> {
-        self.0.first_token()
     }
 }
