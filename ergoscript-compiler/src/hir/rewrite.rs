@@ -20,7 +20,7 @@ pub fn rewrite<E, F: Fn(&Expr) -> Result<Option<Expr>, E>>(e: Expr, f: F) -> Res
                     rhs: Box::new(r.unwrap_or(*binary.rhs.clone())),
                 }
                 .into(),
-                span: e.span,
+                ..e
             },
         },
         ExprKind::GlobalVars(_) => f(&e)?.unwrap_or(e),

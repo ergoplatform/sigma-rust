@@ -24,12 +24,9 @@ mod tests {
 
     #[test]
     fn parse_ident() {
-        check(
-            "HEIGHT",
-            expect![[r#"
+        check("HEIGHT", expect![[r#"
             Root@0..6
               Ident@0..6
-                Ident@0..6 "HEIGHT""#]],
-        );
+                Ident@0..6 "HEIGHT""#]]);
     }
 }

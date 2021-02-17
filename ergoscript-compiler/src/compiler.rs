@@ -3,8 +3,10 @@
 use super::binder::BinderError;
 use super::hir::HirError;
 use crate::ast;
-use crate::binder;
+use crate::binder::Binder;
 use crate::hir;
+use crate::type_infer::assign_type;
+use crate::type_infer::TypeInferenceError;
 use crate::ScriptEnv;
 
 extern crate derive_more;
@@ -18,6 +20,8 @@ pub enum CompileError {
     HirError(HirError),
     /// Error on binder pass
     BinderError(BinderError),
+    /// Error on type inference pass
+    TypeInferenceError(TypeInferenceError),
 }
 
 /// Compiles given source code to HIR, or returns an error
@@ -29,8 +33,9 @@ pub fn compile_hir(source: &str, env: ScriptEnv) -> Result<hir::Expr, CompileErr
     let root = ast::Root::cast(syntax).unwrap();
     let hir = hir::lower(root)?;
     dbg!(&hir);
-    let binder = binder::Binder::new(env);
-    let res = binder.bind(hir)?;
+    let binder = Binder::new(env);
+    let bind = binder.bind(hir)?;
+    let res = assign_type(bind)?;
     Ok(res)
 }
 
@@ -55,6 +60,9 @@ mod tests {
                     Height,
                 ),
                 span: 0..6,
+                tpe: Some(
+                    SInt,
+                ),
             }"#]],
         );
     }

@@ -3,6 +3,7 @@
 
 mod rewrite;
 
+use ergo_lib::types::stype::SType;
 pub use rewrite::rewrite;
 
 use super::ast;
@@ -22,6 +23,7 @@ pub fn lower(ast: ast::Root) -> Result<Expr, HirError> {
 pub struct Expr {
     pub kind: ExprKind,
     pub span: TextRange,
+    pub tpe: Option<SType>,
 }
 
 // TODO: refine: span, expected, found?
@@ -34,12 +36,14 @@ impl Expr {
             ast::Expr::BinaryExpr(ast) => Ok(Expr {
                 kind: Binary::lower(ast)?.into(),
                 span: ast.span(),
+                tpe: None,
             }),
             ast::Expr::Ident(ast) => ast
                 .name()
                 .map(|node| Expr {
                     kind: ExprKind::Ident(node.text().to_string()),
                     span: ast.span(),
+                    tpe: None,
                 })
                 .ok_or_else(|| HirError("".to_string())),
             _ => todo!(),
@@ -120,4 +124,12 @@ pub enum BinaryOp {
 #[derive(Debug, PartialEq, Clone)]
 pub enum GlobalVars {
     Height,
+}
+
+impl GlobalVars {
+    pub fn tpe(&self) -> SType {
+        match self {
+            GlobalVars::Height => SType::SInt,
+        }
+    }
 }

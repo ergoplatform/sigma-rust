@@ -19,6 +19,7 @@ mod hir;
 mod lexer;
 mod parser;
 mod syntax;
+mod type_infer;
 
 mod compiler;
 mod script_env;

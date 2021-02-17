@@ -27,10 +27,15 @@ fn rewrite(expr: Expr, env: &ScriptEnv) -> Result<Expr, BinderError> {
             ExprKind::Ident(ident) => match env.get(ident) {
                 Some(_) => todo!(),
                 None => match ident.as_ref() {
-                    "HEIGHT" => Some(Expr {
-                        kind: GlobalVars::Height.into(),
-                        span: e.span,
-                    }),
+                    "HEIGHT" => {
+                        let v = GlobalVars::Height;
+                        let tpe = v.tpe();
+                        Some(Expr {
+                            kind: v.into(),
+                            span: e.span,
+                            tpe: tpe.into(),
+                        })
+                    }
                     _ => None,
                 },
             },
