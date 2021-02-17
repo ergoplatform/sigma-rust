@@ -13,16 +13,16 @@
 #![allow(clippy::unit_arg)]
 #![deny(broken_intra_doc_links)]
 
-mod ast;
-mod binder;
-mod hir;
-mod lexer;
-mod parser;
-mod syntax;
-mod type_infer;
+pub(crate) mod ast;
+pub(crate) mod binder;
+pub(crate) mod hir;
+pub(crate) mod lexer;
+pub(crate) mod parser;
+pub(crate) mod syntax;
+pub(crate) mod type_infer;
 
-mod compiler;
-mod script_env;
+pub(crate) mod compiler;
+pub(crate) mod script_env;
 
 pub use compiler::compile_hir;
 pub use script_env::ScriptEnv;
