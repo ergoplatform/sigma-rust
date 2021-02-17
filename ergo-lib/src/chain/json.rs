@@ -105,7 +105,7 @@ pub mod ergo_box {
 
     #[derive(Deserialize, PartialEq, Eq, Debug, Clone)]
     struct RichConstant {
-        #[serde(rename = "rawValue")]
+        #[serde(rename = "rawValue", alias = "serializedValue")]
         raw_value: Constant,
     }
 
@@ -424,5 +424,14 @@ mod tests {
         "#;
         let b: ErgoBox = serde_json::from_str(box_json).unwrap();
         assert_eq!(b.value, 2875858910u64.try_into().unwrap());
+    }
+
+    #[test]
+    fn parse_registers_explorer_api_v1() {
+        let json = r#"
+            {"R4":{"serializedValue":"0500","sigmaType":"SLong","renderedValue":"0"}}
+                                                                                                                                           "#;
+        let regs: NonMandatoryRegisters = serde_json::from_str(json).unwrap();
+        assert!(regs.get(NonMandatoryRegisterId::R4).is_some());
     }
 }
