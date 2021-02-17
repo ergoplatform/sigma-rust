@@ -86,15 +86,12 @@ impl Address {
     pub fn recreate_from_ergo_tree(tree: &ErgoTree) -> Result<Address, AddressError> {
         match tree.proposition() {
             Ok(expr) => Ok(match &*expr {
-                Expr::Const(c) => match c {
-                    Constant {
-                        tpe: SType::SSigmaProp,
-                        v,
-                    } => ProveDlog::try_from(v.clone())
-                        .map(Address::P2PK)
-                        .unwrap_or_else(|_| Address::P2S(tree.sigma_serialize_bytes())),
-                    _ => Address::P2S(tree.sigma_serialize_bytes()),
-                },
+                Expr::Const(Constant {
+                    tpe: SType::SSigmaProp,
+                    v,
+                }) => ProveDlog::try_from(v.clone())
+                    .map(Address::P2PK)
+                    .unwrap_or_else(|_| Address::P2S(tree.sigma_serialize_bytes())),
                 _ => Address::P2S(tree.sigma_serialize_bytes()),
             }),
             Err(_) => Ok(Address::P2S(tree.sigma_serialize_bytes())),

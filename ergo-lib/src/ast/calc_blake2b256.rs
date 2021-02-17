@@ -43,17 +43,11 @@ impl Evaluable for CalcBlake2b256 {
     fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
         let input_v = self.input.eval(env, ctx)?;
         match input_v.clone() {
-            Value::Coll(coll) => match coll {
-                CollKind::NativeColl(NativeColl::CollByte(coll_byte)) => {
-                    let expected_hash: Vec<u8> =
-                        blake2b256_hash(coll_byte.as_vec_u8().as_slice()).0.to_vec();
-                    Ok(expected_hash.into())
-                }
-                _ => Err(EvalError::UnexpectedValue(format!(
-                    "expected CalcBlake2b256 input to be byte array, got: {0:?}",
-                    input_v
-                ))),
-            },
+            Value::Coll(CollKind::NativeColl(NativeColl::CollByte(coll_byte))) => {
+                let expected_hash: Vec<u8> =
+                    blake2b256_hash(coll_byte.as_vec_u8().as_slice()).0.to_vec();
+                Ok(expected_hash.into())
+            }
             _ => Err(EvalError::UnexpectedValue(format!(
                 "expected CalcBlake2b256 input to be byte array, got: {0:?}",
                 input_v
