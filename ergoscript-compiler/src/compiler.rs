@@ -13,7 +13,8 @@ use crate::ScriptEnv;
 extern crate derive_more;
 use derive_more::From;
 use ergo_lib::ergo_tree::ErgoTree;
-use mir::MirError;
+use mir::lower::MirError;
+use mir::type_check::TypeCheckError;
 
 // TODO: convert to struct and add span, message?
 /// Compilation errors
@@ -26,6 +27,7 @@ pub enum CompileError {
     /// Error on type inference pass
     TypeInferenceError(TypeInferenceError),
     MirError(MirError),
+    TypeCheckError(TypeCheckError),
 }
 
 /// Compiles given source code to [`ErgoTree`], or returns an error
@@ -40,9 +42,9 @@ pub fn compile(source: &str, env: ScriptEnv) -> Result<ErgoTree, CompileError> {
     let binder = Binder::new(env);
     let bind = binder.bind(hir)?;
     let typed = assign_type(bind)?;
-    let p = typed.debug_tree();
-    println!("{}", p);
-    let res = mir::lower(typed)?;
+    dbg!(typed.debug_tree());
+    let mir = mir::lower::lower(typed)?;
+    let res = mir::type_check::type_check(mir)?;
     Ok(res.into())
 }
 
