@@ -2,7 +2,7 @@
 
 pub(crate) mod and;
 pub(crate) mod apply;
-pub(crate) mod bin_op;
+pub mod bin_op;
 pub(crate) mod block;
 pub(crate) mod bool_to_sigma;
 pub(crate) mod calc_blake2b256;

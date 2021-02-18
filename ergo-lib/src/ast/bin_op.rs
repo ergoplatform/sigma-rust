@@ -30,11 +30,17 @@ use proptest_derive::Arbitrary;
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 #[cfg_attr(test, derive(Arbitrary))]
 pub enum ArithOp {
+    /// Addition
     Plus,
+    /// Subtraction
     Minus,
+    /// Multiplication
     Multiply,
+    /// Division
     Divide,
+    /// Max of two values
     Max,
+    /// Min of two values
     Min,
 }
 
@@ -51,16 +57,25 @@ impl From<ArithOp> for OpCode {
     }
 }
 
+/// Relational operations
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 #[cfg_attr(test, derive(Arbitrary))]
 pub enum RelationOp {
+    /// Equality
     Eq,
+    /// Non-equality
     NEq,
+    /// Greater of equal
     GE,
+    /// Greater than..
     GT,
+    /// Less or equal
     LE,
+    /// Less then
     LT,
+    /// Logical AND
     And,
+    /// Logical OR
     Or,
 }
 
@@ -83,7 +98,9 @@ impl From<RelationOp> for OpCode {
 #[derive(PartialEq, Eq, Debug, Clone, Copy, From)]
 #[cfg_attr(test, derive(Arbitrary))]
 pub enum BinOpKind {
+    /// Arithmetic operations
     Arith(ArithOp),
+    /// Relation operations (equality, comparison, etc.)
     Relation(RelationOp),
 }
 
@@ -96,18 +113,24 @@ impl From<BinOpKind> for OpCode {
     }
 }
 
+/// Binary operation
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct BinOp {
+    /// Operation kind
     pub kind: BinOpKind,
+    /// Left operand
     pub left: Box<Expr>,
+    /// Right operand
     pub right: Box<Expr>,
 }
 
 impl BinOp {
+    /// Op code (serialization)
     pub fn op_code(&self) -> OpCode {
         self.kind.into()
     }
 
+    /// Type
     pub fn tpe(&self) -> SType {
         match self.kind {
             BinOpKind::Relation(_) => SType::SBoolean,
