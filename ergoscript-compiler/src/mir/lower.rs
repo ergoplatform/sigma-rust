@@ -8,14 +8,14 @@ use hir::BinaryOp;
 use crate::hir;
 
 #[derive(Debug, PartialEq)]
-pub struct MirError {}
+pub struct MirLoweringError {}
 
-pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirError> {
+pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
     let mir: Expr = match &hir_expr.kind {
         hir::ExprKind::GlobalVars(hir) => match hir {
             hir::GlobalVars::Height => GlobalVars::Height.into(),
         },
-        hir::ExprKind::Ident(_) => return Err(MirError {}),
+        hir::ExprKind::Ident(_) => return Err(MirLoweringError {}),
         hir::ExprKind::Binary(hir) => {
             let l = lower(*hir.lhs.clone())?;
             let r = lower(*hir.rhs.clone())?;
@@ -27,10 +27,10 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirError> {
             .into()
         }
     };
-    if mir.tpe() == hir_expr.tpe.ok_or(MirError {})? {
+    if mir.tpe() == hir_expr.tpe.ok_or(MirLoweringError {})? {
         Ok(mir)
     } else {
-        Err(MirError {})
+        Err(MirLoweringError {})
     }
 }
 

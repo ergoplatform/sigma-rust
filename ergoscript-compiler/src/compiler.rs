@@ -13,7 +13,7 @@ use crate::ScriptEnv;
 extern crate derive_more;
 use derive_more::From;
 use ergo_lib::ergo_tree::ErgoTree;
-use mir::lower::MirError;
+use mir::lower::MirLoweringError;
 use mir::type_check::TypeCheckError;
 
 // TODO: convert to struct and add span, message?
@@ -26,7 +26,7 @@ pub enum CompileError {
     BinderError(BinderError),
     /// Error on type inference pass
     TypeInferenceError(TypeInferenceError),
-    MirError(MirError),
+    MirLoweringError(MirLoweringError),
     TypeCheckError(TypeCheckError),
 }
 
