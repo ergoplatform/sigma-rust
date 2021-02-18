@@ -5,12 +5,14 @@ use super::hir::HirError;
 use crate::ast;
 use crate::binder::Binder;
 use crate::hir;
+use crate::mir;
 use crate::type_infer::assign_type;
 use crate::type_infer::TypeInferenceError;
 use crate::ScriptEnv;
 
 extern crate derive_more;
 use derive_more::From;
+use mir::MirError;
 
 // TODO: convert to struct and add span, message?
 /// Compilation errors
@@ -22,10 +24,11 @@ pub enum CompileError {
     BinderError(BinderError),
     /// Error on type inference pass
     TypeInferenceError(TypeInferenceError),
+    MirError(MirError),
 }
 
-/// Compiles given source code to HIR, or returns an error
-pub fn compile_hir(source: &str, env: ScriptEnv) -> Result<hir::Expr, CompileError> {
+/// Compiles given source code to MIR, or returns an error
+pub fn compile(source: &str, env: ScriptEnv) -> Result<ergo_lib::ast::expr::Expr, CompileError> {
     let parse = super::parser::parse(&source);
     dbg!(parse.debug_tree());
     let syntax = parse.syntax();
@@ -35,14 +38,17 @@ pub fn compile_hir(source: &str, env: ScriptEnv) -> Result<hir::Expr, CompileErr
     dbg!(&hir);
     let binder = Binder::new(env);
     let bind = binder.bind(hir)?;
-    let res = assign_type(bind)?;
+    let typed = assign_type(bind)?;
+    let p = typed.debug_tree();
+    println!("{}", p);
+    let res = mir::lower(typed)?;
     Ok(res)
 }
 
 #[cfg(test)]
 pub fn check(input: &str, expected_tree: expect_test::Expect) {
-    let parse = compile_hir(input, ScriptEnv::new());
-    expected_tree.assert_eq(&parse.unwrap().debug_tree());
+    let res = compile(input, ScriptEnv::new());
+    expected_tree.assert_eq(&res.unwrap().debug_tree());
 }
 
 #[cfg(test)]
@@ -55,15 +61,9 @@ mod tests {
         check(
             "HEIGHT",
             expect![[r#"
-            Expr {
-                kind: GlobalVars(
-                    Height,
-                ),
-                span: 0..6,
-                tpe: Some(
-                    SInt,
-                ),
-            }"#]],
+            GlobalVars(
+                Height,
+            )"#]],
         );
     }
 }

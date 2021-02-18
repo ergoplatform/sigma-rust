@@ -33,10 +33,21 @@ pub fn assign_type(expr: Expr) -> Result<Expr, TypeInferenceError> {
 }
 
 #[cfg(test)]
-mod tests {
-    use expect_test::expect;
+pub fn check(input: &str, expected_tree: expect_test::Expect) {
+    let parse = super::parser::parse(input);
+    let syntax = parse.syntax();
+    let root = crate::ast::Root::cast(syntax).unwrap();
+    let hir = hir::lower(root).unwrap();
+    let binder = crate::binder::Binder::new(crate::ScriptEnv::new());
+    let bind = binder.bind(hir).unwrap();
+    let res = assign_type(bind).unwrap();
+    expected_tree.assert_eq(&res.debug_tree());
+}
 
-    use crate::compiler::check;
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use expect_test::expect;
 
     #[test]
     fn bin_smoke() {

@@ -1,3 +1,5 @@
+//! Global variables
+
 use crate::serialization::op_code::OpCode;
 use crate::types::stype::SType;
 
@@ -15,6 +17,7 @@ pub enum GlobalVars {
 }
 
 impl GlobalVars {
+    /// Op code (serialization)
     pub fn op_code(&self) -> OpCode {
         match self {
             GlobalVars::SelfBox => OpCode::SELF_BOX,
@@ -24,6 +27,7 @@ impl GlobalVars {
         }
     }
 
+    /// Type
     pub fn tpe(&self) -> SType {
         match self {
             GlobalVars::Inputs => SType::SColl(Box::new(SType::SBox)),
