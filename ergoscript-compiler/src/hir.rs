@@ -46,7 +46,7 @@ impl Expr {
                     tpe: None,
                 })
                 .ok_or_else(|| HirError("".to_string())),
-            _ => todo!(),
+            _ => todo!("{0:?}", expr),
         }
     }
 

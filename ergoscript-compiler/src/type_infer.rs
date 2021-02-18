@@ -6,7 +6,6 @@ use crate::hir::ExprKind;
 #[derive(Debug, PartialEq)]
 pub struct TypeInferenceError {}
 
-// TODO: do only type inference? Type check on MIR?
 pub fn assign_type(expr: Expr) -> Result<Expr, TypeInferenceError> {
     hir::rewrite(expr, |e| {
         Ok(match &e.kind {
@@ -31,4 +30,51 @@ pub fn assign_type(expr: Expr) -> Result<Expr, TypeInferenceError> {
             _ => None,
         })
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use expect_test::expect;
+
+    use crate::compiler::check;
+
+    #[test]
+    fn bin_smoke() {
+        check(
+            "HEIGHT + HEIGHT",
+            expect![[r#"
+            Expr {
+                kind: Binary(
+                    Binary {
+                        op: Spanned {
+                            node: Add,
+                            span: 7..8,
+                        },
+                        lhs: Expr {
+                            kind: GlobalVars(
+                                Height,
+                            ),
+                            span: 0..7,
+                            tpe: Some(
+                                SInt,
+                            ),
+                        },
+                        rhs: Expr {
+                            kind: GlobalVars(
+                                Height,
+                            ),
+                            span: 9..15,
+                            tpe: Some(
+                                SInt,
+                            ),
+                        },
+                    },
+                ),
+                span: 0..15,
+                tpe: Some(
+                    SInt,
+                ),
+            }"#]],
+        );
+    }
 }
