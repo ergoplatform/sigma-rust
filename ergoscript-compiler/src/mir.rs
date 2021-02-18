@@ -11,7 +11,7 @@ use crate::hir;
 pub struct MirError {}
 
 pub fn lower(e: hir::Expr) -> Result<Expr, MirError> {
-    Ok(match &e.kind {
+    let mir: Expr = match &e.kind {
         hir::ExprKind::GlobalVars(hir) => match hir {
             hir::GlobalVars::Height => GlobalVars::Height.into(),
         },
@@ -26,7 +26,12 @@ pub fn lower(e: hir::Expr) -> Result<Expr, MirError> {
             }
             .into()
         }
-    })
+    };
+    if mir.tpe() == e.tpe.ok_or(MirError {})? {
+        Ok(mir)
+    } else {
+        Err(MirError {})
+    }
 }
 
 impl From<hir::BinaryOp> for BinOpKind {
