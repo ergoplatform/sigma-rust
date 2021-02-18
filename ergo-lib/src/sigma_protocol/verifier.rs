@@ -138,7 +138,7 @@ mod tests {
         fn test_prover_verifier_p2pk(secret in any::<DlogProverInput>(), message in any::<Vec<u8>>()) {
             prop_assume!(!message.is_empty());
             let pk = secret.public_image();
-            let tree = ErgoTree::from(Rc::new(Expr::Const(pk.into())));
+            let tree = ErgoTree::from(Expr::Const(pk.into()));
 
             let prover = TestProver {
                 secrets: vec![PrivateInput::DlogProverInput(secret)],

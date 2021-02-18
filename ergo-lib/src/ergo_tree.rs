@@ -106,18 +106,18 @@ impl ErgoTree {
     }
 
     /// Build ErgoTree using expr as is, without constants segregated
-    pub fn without_segregation(expr: Rc<Expr>) -> ErgoTree {
+    pub fn without_segregation(expr: Expr) -> ErgoTree {
         ErgoTree {
             header: ErgoTree::DEFAULT_HEADER,
             tree: Ok(ParsedTree {
                 constants: Vec::new(),
-                root: Ok(expr),
+                root: Ok(Rc::new(expr)),
             }),
         }
     }
 
     /// Build ErgoTree with constants segregated from expr
-    pub fn with_segregation(expr: Rc<Expr>) -> ErgoTree {
+    pub fn with_segregation(expr: &Expr) -> ErgoTree {
         let mut data = Vec::new();
         let mut cs = ConstantStore::empty();
         let mut w = SigmaByteWriter::new(&mut data, Some(&mut cs));
@@ -136,18 +136,24 @@ impl ErgoTree {
             }),
         }
     }
+
+    /// Prints with newlines
+    pub fn debug_tree(&self) -> String {
+        let tree = format!("{:#?}", self);
+        tree
+    }
 }
 
-impl From<Rc<Expr>> for ErgoTree {
-    fn from(expr: Rc<Expr>) -> Self {
-        match expr.as_ref() {
+impl From<Expr> for ErgoTree {
+    fn from(expr: Expr) -> Self {
+        match &expr {
             Expr::Const(c) => match c {
                 Constant { tpe, .. } if *tpe == SType::SSigmaProp => {
                     ErgoTree::without_segregation(expr)
                 }
-                _ => ErgoTree::with_segregation(expr),
+                _ => ErgoTree::with_segregation(&expr),
             },
-            _ => ErgoTree::with_segregation(expr),
+            _ => ErgoTree::with_segregation(&expr),
         }
     }
 }
@@ -311,7 +317,7 @@ mod tests {
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             prop_oneof![
                 // make sure that P2PK tree is included
-                any::<ProveDlog>().prop_map(|p| ErgoTree::from(Rc::new(Expr::Const(p.into())))),
+                any::<ProveDlog>().prop_map(|p| ErgoTree::from(Expr::Const(p.into()))),
             ]
             .boxed()
         }
@@ -362,7 +368,7 @@ mod tests {
             tpe: SType::SBoolean,
             v: Value::Boolean(true),
         });
-        let ergo_tree = ErgoTree::with_segregation(Rc::new(expr.clone()));
+        let ergo_tree = ErgoTree::with_segregation(&expr);
         let bytes = ergo_tree.sigma_serialize_bytes();
         let parsed_expr = ErgoTree::sigma_parse_bytes(bytes)
             .unwrap()

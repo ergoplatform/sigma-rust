@@ -12,10 +12,7 @@ use crate::{
         sigma_boolean::{ProveDlog, SigmaBoolean, SigmaProofOfKnowledgeTree, SigmaProp},
     },
 };
-use std::{
-    convert::{TryFrom, TryInto},
-    rc::Rc,
-};
+use std::convert::{TryFrom, TryInto};
 use thiserror::Error;
 
 /**
@@ -118,12 +115,12 @@ impl Address {
     /// script encoded in the address
     pub fn script(&self) -> Result<ErgoTree, SerializationError> {
         match self {
-            Address::P2PK(prove_dlog) => Ok(ErgoTree::from(Rc::new(Expr::Const(
+            Address::P2PK(prove_dlog) => Ok(ErgoTree::from(Expr::Const(
                 SigmaProp::new(SigmaBoolean::ProofOfKnowledge(
                     SigmaProofOfKnowledgeTree::ProveDlog(prove_dlog.clone()),
                 ))
                 .into(),
-            )))),
+            ))),
             Address::P2S(bytes) => ErgoTree::sigma_parse_bytes(bytes.to_vec()),
         }
     }

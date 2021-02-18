@@ -12,6 +12,7 @@ use crate::ScriptEnv;
 
 extern crate derive_more;
 use derive_more::From;
+use ergo_lib::ergo_tree::ErgoTree;
 use mir::MirError;
 
 // TODO: convert to struct and add span, message?
@@ -27,8 +28,8 @@ pub enum CompileError {
     MirError(MirError),
 }
 
-/// Compiles given source code to MIR, or returns an error
-pub fn compile(source: &str, env: ScriptEnv) -> Result<ergo_lib::ast::expr::Expr, CompileError> {
+/// Compiles given source code to [`ErgoTree`], or returns an error
+pub fn compile(source: &str, env: ScriptEnv) -> Result<ErgoTree, CompileError> {
     let parse = super::parser::parse(&source);
     dbg!(parse.debug_tree());
     let syntax = parse.syntax();
@@ -42,7 +43,7 @@ pub fn compile(source: &str, env: ScriptEnv) -> Result<ergo_lib::ast::expr::Expr
     let p = typed.debug_tree();
     println!("{}", p);
     let res = mir::lower(typed)?;
-    Ok(res)
+    Ok(res.into())
 }
 
 #[cfg(test)]
@@ -61,9 +62,21 @@ mod tests {
         check(
             "HEIGHT",
             expect![[r#"
-            GlobalVars(
-                Height,
-            )"#]],
+            ErgoTree {
+                header: ErgoTreeHeader(
+                    16,
+                ),
+                tree: Ok(
+                    ParsedTree {
+                        constants: [],
+                        root: Ok(
+                            GlobalVars(
+                                Height,
+                            ),
+                        ),
+                    },
+                ),
+            }"#]],
         );
     }
 }

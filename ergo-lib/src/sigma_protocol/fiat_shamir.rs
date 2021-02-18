@@ -9,10 +9,7 @@ use super::{
 use crate::{ast::expr::Expr, ergo_tree::ErgoTree, serialization::SigmaSerializable};
 use blake2::digest::{Update, VariableOutput};
 use blake2::VarBlake2b;
-use std::{
-    convert::{TryFrom, TryInto},
-    rc::Rc,
-};
+use std::convert::{TryFrom, TryInto};
 use thiserror::Error;
 
 #[cfg(test)]
@@ -76,9 +73,8 @@ pub fn fiat_shamir_tree_to_bytes(tree: &ProofTree) -> Vec<u8> {
         _ => todo!(),
     };
 
-    let prop_tree = ErgoTree::with_segregation(Rc::new(Expr::Const(
-        SigmaProp::new(leaf.proposition()).into(),
-    )));
+    let prop_tree =
+        ErgoTree::with_segregation(&Expr::Const(SigmaProp::new(leaf.proposition()).into()));
     let mut prop_bytes = prop_tree.sigma_serialize_bytes();
     // TODO: is unwrap safe here? Create new type with non-optional commitment? Decide when other scenarios
     // are implemented (leafs and trees)
