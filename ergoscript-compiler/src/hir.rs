@@ -13,7 +13,7 @@ use text_size::TextRange;
 extern crate derive_more;
 use derive_more::From;
 
-pub fn lower(ast: ast::Root) -> Result<Expr, HirError> {
+pub fn lower(ast: ast::Root) -> Result<Expr, HirLoweringError> {
     // TODO: return error if more than one expr is found
     let first_expr = ast.children().next().unwrap();
     Expr::lower(&first_expr)
@@ -28,10 +28,10 @@ pub struct Expr {
 
 // TODO: refine: span, expected, found?
 #[derive(Debug, PartialEq)]
-pub struct HirError(pub String);
+pub struct HirLoweringError(pub String);
 
 impl Expr {
-    pub fn lower(expr: &ast::Expr) -> Result<Expr, HirError> {
+    pub fn lower(expr: &ast::Expr) -> Result<Expr, HirLoweringError> {
         match expr {
             ast::Expr::BinaryExpr(ast) => Ok(Expr {
                 kind: Binary::lower(ast)?.into(),
@@ -45,7 +45,7 @@ impl Expr {
                     span: ast.span(),
                     tpe: None,
                 })
-                .ok_or_else(|| HirError("".to_string())),
+                .ok_or_else(|| HirLoweringError("".to_string())),
             _ => todo!("{0:?}", expr),
         }
     }
@@ -70,7 +70,7 @@ pub struct Binary {
 }
 
 impl Binary {
-    fn lower(ast: &ast::BinaryExpr) -> Result<Binary, HirError> {
+    fn lower(ast: &ast::BinaryExpr) -> Result<Binary, HirLoweringError> {
         // TODO: unwraps -> errors
         let op = match ast.op().unwrap().kind() {
             SyntaxKind::Plus => BinaryOp::Plus,

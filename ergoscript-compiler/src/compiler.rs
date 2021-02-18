@@ -1,7 +1,7 @@
 //! ErgoScript compiler
 
 use super::binder::BinderError;
-use super::hir::HirError;
+use super::hir::HirLoweringError;
 use crate::ast;
 use crate::binder::Binder;
 use crate::hir;
@@ -20,13 +20,15 @@ use mir::type_check::TypeCheckError;
 /// Compilation errors
 #[derive(Debug, PartialEq, From)]
 pub enum CompileError {
-    /// HIR lowering error
-    HirError(HirError),
+    /// Error on AST to HIR lowering
+    HirLoweringError(HirLoweringError),
     /// Error on binder pass
     BinderError(BinderError),
     /// Error on type inference pass
     TypeInferenceError(TypeInferenceError),
+    /// Error on HIT to MIR lowering
     MirLoweringError(MirLoweringError),
+    /// Error on type checking
     TypeCheckError(TypeCheckError),
 }
 
