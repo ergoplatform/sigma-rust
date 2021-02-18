@@ -10,7 +10,7 @@ pub fn assign_type(expr: Expr) -> Result<Expr, TypeInferenceError> {
     hir::rewrite(expr, |e| {
         Ok(match &e.kind {
             ExprKind::Binary(Binary { op, lhs, rhs }) => match op.node {
-                hir::BinaryOp::Add => {
+                hir::BinaryOp::Plus => {
                     let l = assign_type(*lhs.clone())?;
                     let r = assign_type(*rhs.clone())?;
                     let tpe = l.tpe.clone();
@@ -58,7 +58,7 @@ mod tests {
                 kind: Binary(
                     Binary {
                         op: Spanned {
-                            node: Add,
+                            node: Plus,
                             span: 7..8,
                         },
                         lhs: Expr {

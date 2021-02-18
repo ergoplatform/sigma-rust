@@ -73,10 +73,10 @@ impl Binary {
     fn lower(ast: &ast::BinaryExpr) -> Result<Binary, HirError> {
         // TODO: unwraps -> errors
         let op = match ast.op().unwrap().kind() {
-            SyntaxKind::Plus => BinaryOp::Add,
-            SyntaxKind::Minus => BinaryOp::Sub,
-            SyntaxKind::Star => BinaryOp::Mul,
-            SyntaxKind::Slash => BinaryOp::Div,
+            SyntaxKind::Plus => BinaryOp::Plus,
+            SyntaxKind::Minus => BinaryOp::Minus,
+            SyntaxKind::Star => BinaryOp::Multiply,
+            SyntaxKind::Slash => BinaryOp::Divide,
             _ => unreachable!(),
         };
 
@@ -110,10 +110,10 @@ pub enum ExprKind {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum BinaryOp {
-    Add,
-    Sub,
-    Mul,
-    Div,
+    Plus,
+    Minus,
+    Multiply,
+    Divide,
 }
 
 // #[derive(Debug, PartialEq, Clone)]

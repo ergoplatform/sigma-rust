@@ -38,10 +38,10 @@ impl From<hir::BinaryOp> for BinOpKind {
     fn from(op: hir::BinaryOp) -> Self {
         // TODO: rename BinaryOp variants to be inline with MIR
         match op {
-            BinaryOp::Add => ArithOp::Plus.into(),
-            BinaryOp::Sub => ArithOp::Minus.into(),
-            BinaryOp::Mul => ArithOp::Multiply.into(),
-            BinaryOp::Div => ArithOp::Divide.into(),
+            BinaryOp::Plus => ArithOp::Plus.into(),
+            BinaryOp::Minus => ArithOp::Minus.into(),
+            BinaryOp::Multiply => ArithOp::Multiply.into(),
+            BinaryOp::Divide => ArithOp::Divide.into(),
         }
     }
 }
