@@ -2,7 +2,7 @@ mod event;
 mod grammar;
 mod marker;
 mod parse;
-mod parse_error;
+pub(crate) mod parse_error;
 mod sink;
 mod source;
 
@@ -19,7 +19,7 @@ use self::marker::Marker;
 use self::parse_error::ParseError;
 use self::source::Source;
 
-const RECOVERY_SET: [TokenKind; 1] = [TokenKind::ValKw];
+// const RECOVERY_SET: [TokenKind; 1] = [TokenKind::ValKw];
 
 pub struct Parser<'t, 'input> {
     pub source: Source<'t, 'input>,
@@ -70,10 +70,11 @@ impl<'t, 'input> Parser<'t, 'input> {
         self.events.push(Event::Error(ParseError {
             expected: mem::take(&mut self.expected_kinds),
             found,
-            range,
+            span: range,
         }));
 
-        if !self.at_set(&RECOVERY_SET) && !self.at_end() {
+        // if !self.at_set(&RECOVERY_SET) && !self.at_end() {
+        if !self.at_end() {
             let m = self.start();
             self.bump();
             m.complete(self, SyntaxKind::Error);

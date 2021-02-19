@@ -35,6 +35,22 @@ use text_size::TextRange;
 //     }
 // }
 
+pub struct Root(SyntaxNode);
+
+impl Root {
+    pub fn cast(node: SyntaxNode) -> Option<Self> {
+        if node.kind() == SyntaxKind::Root {
+            Some(Self(node))
+        } else {
+            None
+        }
+    }
+
+    pub fn children(&self) -> impl Iterator<Item = Expr> {
+        self.0.children().filter_map(Expr::cast)
+    }
+}
+
 #[derive(Debug)]
 pub struct Ident(SyntaxNode);
 
@@ -53,22 +69,6 @@ impl Ident {
     // pub fn value(&self) -> Option<Expr> {
     //     self.0.children().find_map(Expr::cast)
     // }
-}
-
-pub struct Root(SyntaxNode);
-
-impl Root {
-    pub fn cast(node: SyntaxNode) -> Option<Self> {
-        if node.kind() == SyntaxKind::Root {
-            Some(Self(node))
-        } else {
-            None
-        }
-    }
-
-    pub fn children(&self) -> impl Iterator<Item = Expr> {
-        self.0.children().filter_map(Expr::cast)
-    }
 }
 
 #[derive(Debug)]
@@ -121,7 +121,11 @@ impl BinaryExpr {
             .find(|token| {
                 matches!(
                     token.kind(),
-                    SyntaxKind::Plus | SyntaxKind::Minus | SyntaxKind::Star | SyntaxKind::Slash,
+                    SyntaxKind::Plus
+                        | SyntaxKind::Minus
+                        | SyntaxKind::Star
+                        | SyntaxKind::Slash
+                        | SyntaxKind::And,
                 )
             })
     }

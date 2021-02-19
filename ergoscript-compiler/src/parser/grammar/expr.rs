@@ -372,15 +372,15 @@ Root@0..3
         check(
             "(2+",
             expect![[r#"
-                Root@0..3
-                  ParenExpr@0..3
-                    LParen@0..1 "("
-                    InfixExpr@1..3
-                      Literal@1..2
-                        Number@1..2 "2"
-                      Plus@2..3 "+"
-                error at 2..3: expected number, identifier, ‘-’ or ‘(’
-                error at 2..3: expected ‘)’"#]],
+            Root@0..3
+              ParenExpr@0..3
+                LParen@0..1 "("
+                InfixExpr@1..3
+                  Literal@1..2
+                    Number@1..2 "2"
+                  Plus@2..3 "+"
+            error: expected number, identifier, ‘-’ or ‘(’
+            error: expected ‘)’"#]],
         );
     }
 

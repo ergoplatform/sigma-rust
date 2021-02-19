@@ -1,23 +1,25 @@
 use std::fmt;
 use text_size::TextRange;
 
+use crate::error::pretty_error_desc;
 use crate::lexer::TokenKind;
 
 #[derive(Debug, PartialEq)]
 pub struct ParseError {
-    pub(super) expected: Vec<TokenKind>,
-    pub(super) found: Option<TokenKind>,
-    pub(super) range: TextRange,
+    pub expected: Vec<TokenKind>,
+    pub found: Option<TokenKind>,
+    pub span: TextRange,
+}
+
+impl ParseError {
+    pub fn pretty_desc(&self, source: &str) -> String {
+        pretty_error_desc(source, self.span, &self.to_string())
+    }
 }
 
 impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "error at {}..{}: expected ",
-            u32::from(self.range.start()),
-            u32::from(self.range.end()),
-        )?;
+        write!(f, "error: expected ")?;
 
         let num_expected = self.expected.len();
         let is_first = |idx| idx == 0;
@@ -55,7 +57,7 @@ mod tests {
         let error = ParseError {
             expected,
             found,
-            range: {
+            span: {
                 let start = range.start.into();
                 let end = range.end.into();
                 TextRange::new(start, end)
@@ -71,18 +73,13 @@ mod tests {
             vec![TokenKind::Equals],
             Some(TokenKind::Ident),
             10..20,
-            "error at 10..20: expected ‘=’, but found identifier",
+            "error: expected ‘=’, but found identifier",
         );
     }
 
     #[test]
     fn one_expected_did_not_find() {
-        check(
-            vec![TokenKind::RParen],
-            None,
-            5..6,
-            "error at 5..6: expected ‘)’",
-        );
+        check(vec![TokenKind::RParen], None, 5..6, "error: expected ‘)’");
     }
 
     #[test]
@@ -91,7 +88,7 @@ mod tests {
             vec![TokenKind::Plus, TokenKind::Minus],
             Some(TokenKind::Equals),
             0..1,
-            "error at 0..1: expected ‘+’ or ‘-’, but found ‘=’",
+            "error: expected ‘+’ or ‘-’, but found ‘=’",
         );
     }
 
@@ -106,7 +103,7 @@ mod tests {
             ],
             Some(TokenKind::ValKw),
             100..105,
-            "error at 100..105: expected number, identifier, ‘-’ or ‘(’, but found ‘val’",
+            "error: expected number, identifier, ‘-’ or ‘(’, but found ‘val’",
         );
     }
 }

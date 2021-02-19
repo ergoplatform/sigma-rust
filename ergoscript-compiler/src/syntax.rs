@@ -15,6 +15,7 @@ pub enum SyntaxKind {
     Minus,
     Star,
     Slash,
+    And,
     Equals,
     LParen,
     RParen,
@@ -49,6 +50,7 @@ impl From<TokenKind> for SyntaxKind {
             TokenKind::RBrace => Self::RBrace,
             TokenKind::Comment => Self::Comment,
             TokenKind::Error => Self::Error,
+            TokenKind::And => Self::And,
         }
     }
 }

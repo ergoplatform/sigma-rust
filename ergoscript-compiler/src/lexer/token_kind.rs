@@ -32,6 +32,9 @@ pub enum TokenKind {
     #[token("/")]
     Slash,
 
+    #[token("&&")]
+    And,
+
     #[token("=")]
     Equals,
 
@@ -72,6 +75,7 @@ impl fmt::Display for TokenKind {
             Self::Minus => "‘-’",
             Self::Star => "‘*’",
             Self::Slash => "‘/’",
+            Self::And => "‘&&’",
             Self::Equals => "‘=’",
             Self::LParen => "‘(’",
             Self::RParen => "‘)’",

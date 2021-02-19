@@ -7,6 +7,7 @@ use ergo_lib::types::stype::SType;
 pub use rewrite::rewrite;
 
 use super::ast;
+use crate::error::pretty_error_desc;
 use crate::syntax::SyntaxKind;
 use text_size::TextRange;
 
@@ -28,7 +29,20 @@ pub struct Expr {
 
 // TODO: refine: span, expected, found?
 #[derive(Debug, PartialEq)]
-pub struct HirLoweringError(pub String);
+pub struct HirLoweringError {
+    msg: String,
+    span: TextRange,
+}
+
+impl HirLoweringError {
+    pub fn new(msg: String, span: TextRange) -> Self {
+        HirLoweringError { msg, span }
+    }
+
+    pub fn pretty_desc(&self, source: &str) -> String {
+        pretty_error_desc(&source, self.span, &self.msg)
+    }
+}
 
 impl Expr {
     pub fn lower(expr: &ast::Expr) -> Result<Expr, HirLoweringError> {
@@ -45,7 +59,9 @@ impl Expr {
                     span: ast.span(),
                     tpe: None,
                 })
-                .ok_or_else(|| HirLoweringError("".to_string())),
+                .ok_or_else(|| {
+                    HirLoweringError::new(format!("Empty Ident.name: {:?}", ast), ast.span())
+                }),
             _ => todo!("{0:?}", expr),
         }
     }
@@ -77,7 +93,12 @@ impl Binary {
             SyntaxKind::Minus => BinaryOp::Minus,
             SyntaxKind::Star => BinaryOp::Multiply,
             SyntaxKind::Slash => BinaryOp::Divide,
-            _ => unreachable!(),
+            _ => {
+                return Err(HirLoweringError::new(
+                    format!("unknown binary operator: {:?}", ast.op()),
+                    ast.op().unwrap().text_range(),
+                ))
+            }
         };
 
         let lhs = Expr::lower(&ast.lhs().unwrap());
