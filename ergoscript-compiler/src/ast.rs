@@ -75,31 +75,31 @@ impl Ident {
 pub enum Expr {
     Ident(Ident),
     BinaryExpr(BinaryExpr),
-    Literal(Literal),
-    ParenExpr(ParenExpr),
-    UnaryExpr(UnaryExpr),
+    // Literal(Literal),
+    // ParenExpr(ParenExpr),
+    // UnaryExpr(UnaryExpr),
 }
 
 impl Expr {
     pub fn cast(node: SyntaxNode) -> Option<Self> {
         let result = match node.kind() {
-            SyntaxKind::InfixExpr => Self::BinaryExpr(BinaryExpr(node)),
-            SyntaxKind::Literal => Self::Literal(Literal(node)),
-            SyntaxKind::ParenExpr => Self::ParenExpr(ParenExpr(node)),
-            SyntaxKind::PrefixExpr => Self::UnaryExpr(UnaryExpr(node)),
             SyntaxKind::Ident => Self::Ident(Ident(node)),
+            SyntaxKind::InfixExpr => Self::BinaryExpr(BinaryExpr(node)),
+            // SyntaxKind::Literal => Self::Literal(Literal(node)),
+            // SyntaxKind::ParenExpr => Self::ParenExpr(ParenExpr(node)),
+            // SyntaxKind::PrefixExpr => Self::UnaryExpr(UnaryExpr(node)),
             _ => return None,
         };
 
         Some(result)
     }
 
-    pub fn span(&self) -> TextRange {
-        match self {
-            Expr::Ident(node) => node.0.text_range(),
-            _ => todo!(),
-        }
-    }
+    // pub fn span(&self) -> TextRange {
+    //     match self {
+    //         Expr::Ident(node) => node.0.text_range(),
+    //         _ => todo!(),
+    //     }
+    // }
 }
 
 #[derive(Debug)]
@@ -135,44 +135,44 @@ impl BinaryExpr {
     }
 }
 
-#[derive(Debug)]
-pub struct Literal(SyntaxNode);
+// #[derive(Debug)]
+// pub struct Literal(SyntaxNode);
 
-impl Literal {
-    pub fn cast(node: SyntaxNode) -> Option<Self> {
-        if node.kind() == SyntaxKind::Literal {
-            Some(Self(node))
-        } else {
-            None
-        }
-    }
+// impl Literal {
+//     pub fn cast(node: SyntaxNode) -> Option<Self> {
+//         if node.kind() == SyntaxKind::Literal {
+//             Some(Self(node))
+//         } else {
+//             None
+//         }
+//     }
 
-    pub fn parse(&self) -> Option<u64> {
-        self.0.first_token().unwrap().text().parse().ok()
-    }
-}
+//     pub fn parse(&self) -> Option<u64> {
+//         self.0.first_token().unwrap().text().parse().ok()
+//     }
+// }
 
-#[derive(Debug)]
-pub struct ParenExpr(SyntaxNode);
+// #[derive(Debug)]
+// pub struct ParenExpr(SyntaxNode);
 
-impl ParenExpr {
-    pub fn expr(&self) -> Option<Expr> {
-        self.0.children().find_map(Expr::cast)
-    }
-}
+// impl ParenExpr {
+//     pub fn expr(&self) -> Option<Expr> {
+//         self.0.children().find_map(Expr::cast)
+//     }
+// }
 
-#[derive(Debug)]
-pub struct UnaryExpr(SyntaxNode);
+// #[derive(Debug)]
+// pub struct UnaryExpr(SyntaxNode);
 
-impl UnaryExpr {
-    pub fn expr(&self) -> Option<Expr> {
-        self.0.children().find_map(Expr::cast)
-    }
+// impl UnaryExpr {
+//     pub fn expr(&self) -> Option<Expr> {
+//         self.0.children().find_map(Expr::cast)
+//     }
 
-    pub fn op(&self) -> Option<SyntaxToken> {
-        self.0
-            .children_with_tokens()
-            .filter_map(SyntaxElement::into_token)
-            .find(|token| token.kind() == SyntaxKind::Minus)
-    }
-}
+//     pub fn op(&self) -> Option<SyntaxToken> {
+//         self.0
+//             .children_with_tokens()
+//             .filter_map(SyntaxElement::into_token)
+//             .find(|token| token.kind() == SyntaxKind::Minus)
+//     }
+// }

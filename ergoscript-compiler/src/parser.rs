@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 mod event;
 mod grammar;
 mod marker;

@@ -61,7 +61,6 @@ impl Expr {
                 .ok_or_else(|| {
                     HirLoweringError::new(format!("Empty Ident.name: {:?}", ast), ast.span())
                 }),
-            _ => todo!("{0:?}", expr),
         }
     }
 
