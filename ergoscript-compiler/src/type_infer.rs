@@ -1,10 +1,26 @@
+use rowan::TextRange;
+
+use crate::error::pretty_error_desc;
 use crate::hir;
 use crate::hir::Binary;
 use crate::hir::Expr;
 use crate::hir::ExprKind;
 
 #[derive(Debug, PartialEq)]
-pub struct TypeInferenceError {}
+pub struct TypeInferenceError {
+    msg: String,
+    span: TextRange,
+}
+
+impl TypeInferenceError {
+    pub fn new(msg: String, span: TextRange) -> Self {
+        Self { msg, span }
+    }
+
+    pub fn pretty_desc(&self, source: &str) -> String {
+        pretty_error_desc(&source, self.span, &self.msg)
+    }
+}
 
 pub fn assign_type(expr: Expr) -> Result<Expr, TypeInferenceError> {
     hir::rewrite(expr, |e| {

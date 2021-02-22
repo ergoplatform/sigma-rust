@@ -1,3 +1,6 @@
+use rowan::TextRange;
+
+use crate::error::pretty_error_desc;
 use crate::hir;
 use crate::hir::Expr;
 use crate::hir::ExprKind;
@@ -5,7 +8,20 @@ use crate::hir::GlobalVars;
 use crate::ScriptEnv;
 
 #[derive(Debug, PartialEq)]
-pub struct BinderError();
+pub struct BinderError {
+    msg: String,
+    span: TextRange,
+}
+
+impl BinderError {
+    pub fn new(msg: String, span: TextRange) -> Self {
+        Self { msg, span }
+    }
+
+    pub fn pretty_desc(&self, source: &str) -> String {
+        pretty_error_desc(&source, self.span, &self.msg)
+    }
+}
 
 pub struct Binder {
     env: ScriptEnv,

@@ -4,18 +4,38 @@ use ergo_lib::ast::bin_op::BinOpKind;
 use ergo_lib::ast::expr::Expr;
 use ergo_lib::ast::global_vars::GlobalVars;
 use hir::BinaryOp;
+use rowan::TextRange;
 
+use crate::error::pretty_error_desc;
 use crate::hir;
 
 #[derive(Debug, PartialEq)]
-pub struct MirLoweringError {}
+pub struct MirLoweringError {
+    msg: String,
+    span: TextRange,
+}
+
+impl MirLoweringError {
+    pub fn new(msg: String, span: TextRange) -> Self {
+        Self { msg, span }
+    }
+
+    pub fn pretty_desc(&self, source: &str) -> String {
+        pretty_error_desc(&source, self.span, &self.msg)
+    }
+}
 
 pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
     let mir: Expr = match &hir_expr.kind {
         hir::ExprKind::GlobalVars(hir) => match hir {
             hir::GlobalVars::Height => GlobalVars::Height.into(),
         },
-        hir::ExprKind::Ident(_) => return Err(MirLoweringError {}),
+        hir::ExprKind::Ident(_) => {
+            return Err(MirLoweringError::new(
+                format!("MIR error: Unresolved Ident {0:?}", hir_expr),
+                hir_expr.span,
+            ))
+        }
         hir::ExprKind::Binary(hir) => {
             let l = lower(*hir.lhs.clone())?;
             let r = lower(*hir.rhs.clone())?;
@@ -27,10 +47,23 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
             .into()
         }
     };
-    if mir.tpe() == hir_expr.tpe.ok_or(MirLoweringError {})? {
+    let hir_tpe = hir_expr.tpe.clone().ok_or_else(|| {
+        MirLoweringError::new(
+            format!("MIR error: missing tpe for HIR: {0:?}", hir_expr),
+            hir_expr.span,
+        )
+    })?;
+    if mir.tpe() == hir_tpe {
         Ok(mir)
     } else {
-        Err(MirLoweringError {})
+        Err(MirLoweringError::new(
+            format!(
+                "MIR error: lowered MIR type != HIR type ({0:?} != {1:?})",
+                mir.tpe(),
+                hir_expr.tpe
+            ),
+            hir_expr.span,
+        ))
     }
 }
 

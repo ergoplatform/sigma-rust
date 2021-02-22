@@ -37,15 +37,14 @@ pub enum CompileError {
 impl CompileError {
     pub fn pretty_desc(&self, source: &str) -> String {
         match self {
-            CompileError::HirLoweringError(e) => e.pretty_desc(source),
             CompileError::ParseError(errors) => {
                 errors.iter().map(|e| e.pretty_desc(source)).collect()
             }
-            _ => todo!(),
-            // CompileError::BinderError(e) => e.pretty_desc(source),
-            // CompileError::TypeInferenceError(e) => e.pr
-            // CompileError::MirLoweringError(e) => {}
-            // CompileError::TypeCheckError(e) => {}
+            CompileError::HirLoweringError(e) => e.pretty_desc(source),
+            CompileError::BinderError(e) => e.pretty_desc(source),
+            CompileError::TypeInferenceError(e) => e.pretty_desc(source),
+            CompileError::MirLoweringError(e) => e.pretty_desc(source),
+            CompileError::TypeCheckError(e) => e.pretty_desc(),
         }
     }
 }
