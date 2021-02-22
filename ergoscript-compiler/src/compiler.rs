@@ -114,10 +114,10 @@ mod tests {
         check(
             "HSB.HEIGHT",
             expect![[r#"
- 
-            [m[1m[38;5;12m1 | [mHSB.HEIGHT                                                                                                     
-              [1m[38;5;12m|   [1m[38;5;9m^^ error: expected ‘+’, ‘-’, ‘*’, ‘/’, ‘val’, number, identifier, ‘-’ or ‘(’, but found an unrecognized token
-            [m"#]],
+            error: expected ‘+’, ‘-’, ‘*’, ‘/’, ‘val’, number, identifier, ‘-’ or ‘(’, but found an unrecognized token
+            line: 1
+            HSB.HEIGHT
+              ^^"#]],
         );
     }
 }
