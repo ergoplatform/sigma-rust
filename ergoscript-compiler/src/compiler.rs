@@ -17,7 +17,6 @@ use ergo_lib::ergo_tree::ErgoTree;
 use mir::lower::MirLoweringError;
 use mir::type_check::TypeCheckError;
 
-// TODO: convert to struct and add span, message?
 /// Compilation errors
 #[derive(Debug, PartialEq, From)]
 pub enum CompileError {

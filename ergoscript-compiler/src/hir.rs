@@ -27,7 +27,6 @@ pub struct Expr {
     pub tpe: Option<SType>,
 }
 
-// TODO: refine: span, expected, found?
 #[derive(Debug, PartialEq)]
 pub struct HirLoweringError {
     msg: String,
