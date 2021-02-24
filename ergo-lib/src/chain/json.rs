@@ -13,8 +13,8 @@ where
 pub mod ergo_tree {
 
     use super::*;
-    use crate::ergo_tree::ErgoTree;
-    use crate::serialization::SigmaSerializable;
+    use ergotree_ir::ergo_tree::ErgoTree;
+    use ergotree_ir::serialization::SigmaSerializable;
     use serde::{Deserialize, Deserializer, Serializer};
 
     pub fn serialize<S>(ergo_tree: &ErgoTree, serializer: S) -> Result<S::Ok, S::Error>
@@ -40,6 +40,10 @@ pub mod ergo_tree {
 
 pub mod ergo_box {
     use core::fmt;
+    use ergotree_ir::ergo_tree::ErgoTree;
+    use ergotree_ir::mir::constant::Constant;
+    use ergotree_ir::serialization::SerializationError;
+    use ergotree_ir::serialization::SigmaSerializable;
     use serde::de::{self, MapAccess, Visitor};
     use serde::Deserializer;
     use std::convert::TryFrom;
@@ -49,17 +53,11 @@ pub mod ergo_box {
     extern crate derive_more;
     use derive_more::From;
 
-    use crate::ast::constant::Constant;
     use crate::chain::Base16DecodedBytes;
-    use crate::serialization::SerializationError;
-    use crate::serialization::SigmaSerializable;
-    use crate::{
-        chain::{
-            ergo_box::{BoxId, BoxValue, NonMandatoryRegisters},
-            token::Token,
-            transaction::TxId,
-        },
-        ergo_tree::ErgoTree,
+    use crate::chain::{
+        ergo_box::{BoxId, BoxValue, NonMandatoryRegisters},
+        token::Token,
+        transaction::TxId,
     };
     use serde::Deserialize;
 
@@ -104,6 +102,7 @@ pub mod ergo_box {
     }
 
     #[derive(Deserialize, PartialEq, Eq, Debug, Clone)]
+    #[serde(into = "Base16EncodedBytes", try_from = "Base16DecodedBytes")]
     struct RichConstant {
         #[serde(rename = "rawValue", alias = "serializedValue")]
         raw_value: Constant,
@@ -117,6 +116,15 @@ pub mod ergo_box {
         DecodeError(base16::DecodeError),
         #[error("Deserialization error: {0}")]
         DeserializationError(SerializationError),
+    }
+
+    impl TryFrom<Base16DecodedBytes> for RichConstant {
+        type Error = ConstantParsingError;
+
+        fn try_from(bytes: Base16DecodedBytes) -> Result<Self, Self::Error> {
+            let c = Constant::sigma_parse_bytes(bytes.into())?;
+            Ok(RichConstant { raw_value: c })
+        }
     }
 
     impl FromStr for RichConstant {
@@ -215,10 +223,48 @@ pub mod transaction {
     }
 }
 
+// use serde::{Deserialize, Serialize};
+
+// use super::Base16DecodedBytes;
+// use super::Base16EncodedBytes;
+
+// #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+// pub struct ProverResultJson {
+//     /// proof that satisfies final sigma proposition
+//     #[cfg_attr(feature = "json", serde(rename = "proofBytes"))]
+//     pub proof: Vec<u8>,
+//     /// user-defined variables to be put into context
+//     #[cfg_attr(feature = "json", serde(rename = "extension"))]
+//     pub extension: ContextExtensionJson,
+// }
+
+// #[derive(PartialEq, Debug, Clone)]
+// #[cfg_attr(
+//     feature = "json",
+//     derive(Serialize, Deserialize),
+//     serde(
+//         into = "HashMap<String, Base16EncodedBytes>",
+//         try_from = "HashMap<String, Base16DecodedBytes>"
+//     )
+// )]
+// pub struct ContextExtensionJson(ContextExtension);
+
+// impl Into<HashMap<String, Base16EncodedBytes>> for ContextExtensionJson {
+//     fn into(self) -> HashMap<String, Base16EncodedBytes> {
+//         todo!()
+//     }
+// }
+
+// impl TryFrom<HashMap<String, Base16DecodedBytes>> for ContextExtensionJson {
+//     type Error = base16::DecodeError;
+//     fn try_from(value: HashMap<String, Base16DecodedBytes>) -> Result<Self, Self::Error> {
+//         todo!()
+//     }
+// }
+
 #[cfg(test)]
 mod tests {
     use crate::chain::transaction::unsigned::UnsignedTransaction;
-    use crate::sigma_protocol::prover::ContextExtension;
     use std::convert::TryInto;
 
     use super::super::ergo_box::*;
@@ -300,8 +346,8 @@ mod tests {
 
     #[test]
     fn parse_empty_context_extension() {
-        let c: ContextExtension = serde_json::from_str("{}").unwrap();
-        assert_eq!(c, ContextExtension::empty());
+        let c: WrappedContextExtension = serde_json::from_str("{}").unwrap();
+        assert_eq!(c, WrappedContextExtension::empty());
     }
 
     #[test]
@@ -309,10 +355,10 @@ mod tests {
         let json = r#"
         {"1" :"05b0b5cad8e6dbaef44a", "3":"048ce5d4e505"}
         "#;
-        let c: ContextExtension = serde_json::from_str(json).unwrap();
-        assert_eq!(c.values.len(), 2);
-        assert!(c.values.get(&1u8).is_some());
-        assert!(c.values.get(&3u8).is_some());
+        let c: WrappedContextExtension = serde_json::from_str(json).unwrap();
+        assert_eq!(c.values().len(), 2);
+        assert!(c.values().get(&1u8).is_some());
+        assert!(c.values().get(&3u8).is_some());
     }
 
     #[test]

@@ -1,4 +1,4 @@
-use ergo_lib::ast::expr::Expr;
+use ergotree_ir::mir::expr::Expr;
 
 #[derive(Debug, PartialEq)]
 pub struct TypeCheckError {
@@ -15,6 +15,7 @@ impl TypeCheckError {
     }
 }
 
+// TODO: move to ergotree_ir crate
 pub fn type_check(e: Expr) -> Result<Expr, TypeCheckError> {
     // not really a relevant check, since such kind of check should be in BinOp::new()
     match &e {

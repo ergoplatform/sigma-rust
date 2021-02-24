@@ -1,17 +1,19 @@
 //! Address types
 
 use super::digest32;
-use crate::ast::constant::Constant;
-use crate::ast::expr::Expr;
-use crate::types::stype::SType;
-use crate::{
-    ergo_tree::{ErgoTree, ErgoTreeParsingError},
-    serialization::{SerializationError, SigmaSerializable},
-    sigma_protocol::{
-        dlog_group::EcPoint,
-        sigma_boolean::{ProveDlog, SigmaBoolean, SigmaProofOfKnowledgeTree, SigmaProp},
-    },
-};
+
+use ergotree_ir::ergo_tree::ErgoTree;
+use ergotree_ir::ergo_tree::ErgoTreeParsingError;
+use ergotree_ir::mir::constant::Constant;
+use ergotree_ir::mir::expr::Expr;
+use ergotree_ir::serialization::SerializationError;
+use ergotree_ir::serialization::SigmaSerializable;
+use ergotree_ir::sigma_protocol::dlog_group::EcPoint;
+use ergotree_ir::sigma_protocol::sigma_boolean::ProveDlog;
+use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
+use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
+use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProp;
+use ergotree_ir::types::stype::SType;
 use std::convert::{TryFrom, TryInto};
 use thiserror::Error;
 

@@ -12,10 +12,11 @@ use super::{
 use crate::chain::transaction::ErgoBox;
 #[cfg(feature = "json")]
 use crate::chain::transaction::TransactionFromJsonError;
-use crate::serialization::SigmaSerializable;
-use crate::sigma_protocol::prover::{ProofBytes, ProverResult};
 #[cfg(feature = "json")]
 use core::convert::TryFrom;
+use ergotree_ir::serialization::SigmaSerializable;
+use ergotree_ir::sigma_protocol::prover::ProofBytes;
+use ergotree_ir::sigma_protocol::prover::ProverResult;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 
@@ -71,17 +72,19 @@ impl UnsignedTransaction {
         self.tx_id.clone()
     }
 
-    /// message to be signed by the [`crate::sigma_protocol::prover::Prover`] (serialized tx)
+    /// message to be signed by the [`ergotree_ir::sigma_protocol::prover::Prover`] (serialized tx)
     pub fn bytes_to_sign(&self) -> Vec<u8> {
         let empty_proofs_input = self
             .inputs
             .iter()
-            .map(|ui| Input {
-                box_id: ui.box_id.clone(),
-                spending_proof: ProverResult {
-                    proof: ProofBytes::Empty,
-                    extension: ui.extension.clone(),
-                },
+            .map(|ui| {
+                Input::new(
+                    ui.box_id.clone(),
+                    ProverResult {
+                        proof: ProofBytes::Empty,
+                        extension: ui.extension.clone().into(),
+                    },
+                )
             })
             .collect();
         let tx = Transaction::new(

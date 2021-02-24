@@ -1,8 +1,9 @@
 //! Ergo contract
 
+use ergotree_ir::ergo_tree::ErgoTree;
+use ergotree_ir::serialization::SerializationError;
+
 use super::address::Address;
-use crate::ergo_tree::ErgoTree;
-use crate::serialization::SerializationError;
 
 /// High-level wrapper for ErgoTree
 #[derive(PartialEq, Eq, Debug, Clone)]

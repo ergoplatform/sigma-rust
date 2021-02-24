@@ -3,14 +3,14 @@
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 
-use crate::ast::constant::Constant;
 use crate::chain::token::Token;
-use crate::ergo_tree::ErgoTree;
-use crate::serialization::SigmaSerializable;
 
 use super::box_value::BoxValue;
 use super::register::{NonMandatoryRegisterId, NonMandatoryRegisters, NonMandatoryRegistersError};
 use super::ErgoBoxCandidate;
+use ergotree_ir::ergo_tree::ErgoTree;
+use ergotree_ir::mir::constant::Constant;
+use ergotree_ir::serialization::SigmaSerializable;
 use thiserror::Error;
 
 /// ErgoBoxCandidate builder errors
@@ -243,6 +243,7 @@ mod tests {
     use NonMandatoryRegisterId::*;
 
     use crate::chain::token::TokenId;
+    use crate::chain::Base16Str;
     use crate::test_util::force_any_val;
 
     use super::*;

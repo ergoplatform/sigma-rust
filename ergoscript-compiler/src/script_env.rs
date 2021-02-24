@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use ergo_lib::ast::constant::Constant;
+use ergotree_ir::mir::constant::Constant;
 
 /// Environment with values substituted for identifiers during compilation
 pub struct ScriptEnv(HashMap<String, Constant>);

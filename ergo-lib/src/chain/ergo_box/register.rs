@@ -2,10 +2,12 @@
 
 #[cfg(feature = "json")]
 use crate::chain::json::ergo_box::ConstantHolder;
-use crate::serialization::sigma_byte_reader::SigmaByteRead;
-use crate::serialization::sigma_byte_writer::SigmaByteWrite;
-use crate::serialization::SigmaSerializable;
-use crate::{ast::constant::Constant, serialization::SerializationError};
+use crate::chain::Base16EncodedBytes;
+use ergotree_ir::mir::constant::Constant;
+use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
+use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
+use ergotree_ir::serialization::SerializationError;
+use ergotree_ir::serialization::SigmaSerializable;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
@@ -169,7 +171,7 @@ pub struct NonMandatoryRegisterIdParsingError();
 #[cfg_attr(
     feature = "json",
     serde(
-        into = "HashMap<NonMandatoryRegisterId, Constant>",
+        into = "HashMap<NonMandatoryRegisterId, Base16EncodedBytes>",
         try_from = "HashMap<NonMandatoryRegisterId, crate::chain::json::ergo_box::ConstantHolder>"
     )
 )]
@@ -235,12 +237,12 @@ pub enum NonMandatoryRegistersError {
     NonDenselyPacked(u8),
 }
 
-impl Into<HashMap<NonMandatoryRegisterId, Constant>> for NonMandatoryRegisters {
-    fn into(self) -> HashMap<NonMandatoryRegisterId, Constant> {
+impl Into<HashMap<NonMandatoryRegisterId, Base16EncodedBytes>> for NonMandatoryRegisters {
+    fn into(self) -> HashMap<NonMandatoryRegisterId, Base16EncodedBytes> {
         self.0
             .into_iter()
             .enumerate()
-            .map(|(i, c)| (NonMandatoryRegisterId::get_by_zero_index(i), c))
+            .map(|(i, c)| (NonMandatoryRegisterId::get_by_zero_index(i), c.into()))
             .collect()
     }
 }
@@ -333,19 +335,21 @@ mod tests {
 
         #[test]
         fn hash_map_roundtrip(regs in any::<NonMandatoryRegisters>()) {
-            let hash_map: HashMap<NonMandatoryRegisterId, Constant> = regs.clone().into();
-            let regs_from_map = NonMandatoryRegisters::try_from(hash_map);
-            prop_assert![regs_from_map.is_ok()];
-            prop_assert_eq![regs_from_map.unwrap(), regs];
+            todo!()
+            // let hash_map: HashMap<NonMandatoryRegisterId, Constant> = regs.clone().into();
+            // let regs_from_map = NonMandatoryRegisters::try_from(hash_map);
+            // prop_assert![regs_from_map.is_ok()];
+            // prop_assert_eq![regs_from_map.unwrap(), regs];
         }
 
         #[test]
         fn get(regs in any::<NonMandatoryRegisters>()) {
-            let hash_map: HashMap<NonMandatoryRegisterId, Constant> = regs.clone().into();
-            hash_map.keys().try_for_each(|reg_id| {
-                prop_assert_eq![regs.get(*reg_id), hash_map.get(reg_id)];
-                Ok(())
-            })?;
+            todo!()
+            // let hash_map: HashMap<NonMandatoryRegisterId, Constant> = regs.clone().into();
+            // hash_map.keys().try_for_each(|reg_id| {
+            //     prop_assert_eq![regs.get(*reg_id), hash_map.get(reg_id)];
+            //     Ok(())
+            // })?;
         }
     }
 

@@ -1,7 +1,5 @@
 //! ProverResult
 
-use ergo_lib::serialization::SigmaSerializable;
-use ergo_lib::sigma_protocol;
 use wasm_bindgen::prelude::*;
 
 use crate::context_extension::ContextExtension;
@@ -11,13 +9,13 @@ use derive_more::{From, Into};
 /// Proof of correctness of tx spending
 #[wasm_bindgen]
 #[derive(PartialEq, Debug, Clone, From, Into)]
-pub struct ProverResult(sigma_protocol::prover::ProverResult);
+pub struct ProverResult(ergo_lib::chain::transaction::input::WrappedProverResult);
 
 #[wasm_bindgen]
 impl ProverResult {
     /// Get proof
     pub fn proof(&self) -> Vec<u8> {
-        self.0.proof.sigma_serialize_bytes()
+        self.0.proof.clone()
     }
 
     /// Get extension

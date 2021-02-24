@@ -3,7 +3,7 @@
 
 mod rewrite;
 
-use ergo_lib::types::stype::SType;
+use ergotree_ir::types::stype::SType;
 pub use rewrite::rewrite;
 
 use super::ast;

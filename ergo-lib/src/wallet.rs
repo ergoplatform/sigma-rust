@@ -5,16 +5,15 @@ pub mod secret_key;
 pub mod signing;
 pub mod tx_builder;
 
+use ergotree_ir::sigma_protocol::private_input::PrivateInput;
+use ergotree_ir::sigma_protocol::prover::Prover;
+use ergotree_ir::sigma_protocol::prover::TestProver;
 use secret_key::SecretKey;
 use signing::{sign_transaction, TxSigningError};
 use thiserror::Error;
 
 use crate::chain::ergo_state_context::ErgoStateContext;
 use crate::chain::transaction::Transaction;
-use crate::sigma_protocol::{
-    private_input::PrivateInput,
-    prover::{Prover, TestProver},
-};
 
 use self::signing::TransactionContext;
 

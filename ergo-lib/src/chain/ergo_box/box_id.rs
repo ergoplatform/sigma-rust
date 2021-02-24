@@ -5,7 +5,7 @@ use std::io;
 use serde::{Deserialize, Serialize};
 
 use super::super::digest32::Digest32;
-use crate::serialization::{
+use ergotree_ir::serialization::{
     sigma_byte_reader::SigmaByteRead, sigma_byte_writer::SigmaByteWrite, SerializationError,
     SigmaSerializable,
 };
@@ -54,7 +54,7 @@ impl SigmaSerializable for BoxId {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::serialization::sigma_serialize_roundtrip;
+    use ergotree_ir::serialization::sigma_serialize_roundtrip;
     use proptest::prelude::*;
 
     proptest! {

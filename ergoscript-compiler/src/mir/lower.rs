@@ -1,8 +1,8 @@
-use ergo_lib::ast::bin_op::ArithOp;
-use ergo_lib::ast::bin_op::BinOp;
-use ergo_lib::ast::bin_op::BinOpKind;
-use ergo_lib::ast::expr::Expr;
-use ergo_lib::ast::global_vars::GlobalVars;
+use ergotree_ir::mir::bin_op::ArithOp;
+use ergotree_ir::mir::bin_op::BinOp;
+use ergotree_ir::mir::bin_op::BinOpKind;
+use ergotree_ir::mir::expr::Expr;
+use ergotree_ir::mir::global_vars::GlobalVars;
 use hir::BinaryOp;
 use rowan::TextRange;
 

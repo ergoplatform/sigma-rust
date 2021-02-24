@@ -13,7 +13,7 @@ use crate::ScriptEnv;
 
 extern crate derive_more;
 use derive_more::From;
-use ergo_lib::ergo_tree::ErgoTree;
+use ergotree_ir::ergo_tree::ErgoTree;
 use mir::lower::MirLoweringError;
 use mir::type_check::TypeCheckError;
 

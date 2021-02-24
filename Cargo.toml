@@ -1,7 +1,9 @@
 [workspace]
 members = [
     "sigma-ser",
+    "sigma-util",
     "ergoscript-compiler",
+    "ergotree-ir",
     "ergo-lib",
     "bindings/ergo-lib-wasm",
     "bindings/ergo-lib-c-core",

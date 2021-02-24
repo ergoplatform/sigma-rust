@@ -2,6 +2,11 @@
 
 use std::collections::HashSet;
 
+use ergotree_ir::serialization::SerializationError;
+use ergotree_ir::serialization::SigmaSerializable;
+use ergotree_ir::sigma_protocol;
+use ergotree_ir::sigma_protocol::prover::ProofBytes;
+use ergotree_ir::sigma_protocol::prover::ProverResult;
 use thiserror::Error;
 
 use crate::chain::address::{Address, AddressEncoder, NetworkPrefix};
@@ -15,9 +20,6 @@ use crate::chain::{
     transaction::unsigned::UnsignedTransaction,
 };
 use crate::constants::MINERS_FEE_MAINNET_ADDRESS;
-use crate::serialization::{SerializationError, SigmaSerializable};
-use crate::sigma_protocol;
-use crate::sigma_protocol::prover::{ProofBytes, ProverResult};
 
 use super::box_selector::{BoxSelection, BoxSelectorError};
 
@@ -114,13 +116,13 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
                 // mock proof of the size of ProveDlog's proof (P2PK box spending)
                 // as it's the most often used proof
                 let proof = ProofBytes::Some(vec![0u8, sigma_protocol::SOUNDNESS_BYTES as u8]);
-                Input {
-                    box_id: ui.box_id.clone(),
-                    spending_proof: ProverResult {
+                Input::new(
+                    ui.box_id.clone(),
+                    ProverResult {
                         proof,
-                        extension: ui.extension.clone(),
+                        extension: ui.extension.clone().into(),
                     },
-                }
+                )
             })
             .collect();
         let signed_tx_mock = Transaction::new(inputs, tx.data_inputs, tx.output_candidates);
@@ -282,6 +284,7 @@ mod tests {
 
     use std::convert::TryInto;
 
+    use ergotree_ir::ergo_tree::ErgoTree;
     use proptest::{collection::vec, prelude::*};
 
     use crate::chain::{
@@ -289,7 +292,6 @@ mod tests {
         token::{tests::ArbTokenIdParam, Token, TokenAmount, TokenId},
         transaction::TxId,
     };
-    use crate::ergo_tree::ErgoTree;
     use crate::test_util::{force_any_val, force_any_val_with};
     use crate::wallet::box_selector::{BoxSelector, SimpleBoxSelector};
 

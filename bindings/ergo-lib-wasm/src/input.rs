@@ -76,7 +76,7 @@ impl Input {
 
     /// Get the spending proof
     pub fn spending_proof(&self) -> prover_result::ProverResult {
-        self.0.spending_proof.clone().into()
+        self.0.wrapped_spending_proof.clone().into()
     }
 }
 

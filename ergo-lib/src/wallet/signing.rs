@@ -2,19 +2,22 @@
 
 use std::rc::Rc;
 
+use crate::chain::ergo_box::BoxId;
 use crate::chain::transaction::Input;
-use crate::eval::context::Context;
-use crate::eval::context::ContextError;
-use crate::eval::env::Env;
-use crate::{
-    chain::{
-        ergo_box::ErgoBox,
-        ergo_state_context::ErgoStateContext,
-        transaction::{unsigned::UnsignedTransaction, Transaction},
-    },
-    sigma_protocol::prover::{Prover, ProverError},
+use crate::chain::{
+    ergo_box::ErgoBox,
+    ergo_state_context::ErgoStateContext,
+    transaction::{unsigned::UnsignedTransaction, Transaction},
 };
 
+use ergotree_ir::eval::context::Context;
+use ergotree_ir::eval::env::Env;
+use ergotree_ir::ir_ergo_box::IrBoxId;
+use ergotree_ir::ir_ergo_box::IrErgoBox;
+use ergotree_ir::ir_ergo_box::IrErgoBoxArena;
+use ergotree_ir::ir_ergo_box::IrErgoBoxArenaError;
+use ergotree_ir::sigma_protocol::prover::Prover;
+use ergotree_ir::sigma_protocol::prover::ProverError;
 use thiserror::Error;
 
 /// Errors on transaction signing
@@ -27,8 +30,8 @@ pub enum TxSigningError {
     #[error("Input box not found (index {0})")]
     InputBoxNotFound(usize),
     /// Context creation error
-    #[error("Context error: {0:?}")]
-    ContextError(#[from] ContextError),
+    #[error("Context error: {0}")]
+    ContextError(String),
 }
 
 /// Transaction and an additional info required for signing
@@ -40,6 +43,65 @@ pub struct TransactionContext {
     pub boxes_to_spend: Vec<ErgoBox>,
     /// Boxes corresponding to [`UnsignedTransaction::data_inputs`]
     pub data_boxes: Vec<ErgoBox>,
+}
+
+/// Holding all ErgoBox needed for interpreter [`ergotree_ir::eval::context::Context`]
+#[derive(Debug)]
+pub struct ErgoBoxArena {}
+
+impl ErgoBoxArena {
+    /// Create new arena and store given boxes
+    pub fn new(self_box: ErgoBox, outputs: Vec<ErgoBox>, data_inputs: Vec<ErgoBox>) -> Self {
+        todo!()
+    }
+}
+
+impl IrErgoBoxArena for ErgoBoxArena {
+    fn get(&self, id: &IrBoxId) -> Result<Rc<dyn IrErgoBox>, IrErgoBoxArenaError> {
+        todo!()
+    }
+}
+
+impl From<BoxId> for IrBoxId {
+    fn from(id: BoxId) -> Self {
+        IrBoxId::new(*id.0 .0)
+    }
+}
+
+/// `self_index` - index of the SELF box in the tx_ctx.boxes_to_spend
+pub fn make_context(
+    state_ctx: &ErgoStateContext,
+    tx_ctx: &TransactionContext,
+    self_index: usize,
+) -> Result<Context, TxSigningError> {
+    let height = state_ctx.pre_header.height;
+    let self_box =
+        tx_ctx
+            .boxes_to_spend
+            .get(self_index)
+            .cloned()
+            .ok_or(TxSigningError::ContextError(
+                "self_index is out of bounds".to_string(),
+            ))?;
+    let outputs: Vec<ErgoBox> = tx_ctx
+        .spending_tx
+        .output_candidates
+        .iter()
+        .enumerate()
+        .map(|(idx, b)| ErgoBox::from_box_candidate(b, tx_ctx.spending_tx.id(), idx as u16))
+        .collect();
+    let data_inputs: Vec<ErgoBox> = tx_ctx.data_boxes.clone();
+    let self_box_ir = self_box.box_id().into();
+    let outputs_ir = outputs.iter().map(|b| b.box_id().into()).collect();
+    let data_inputs_ir = data_inputs.iter().map(|b| b.box_id().into()).collect();
+    let box_arena = Rc::new(ErgoBoxArena::new(self_box, outputs, data_inputs));
+    Ok(Context {
+        box_arena,
+        height,
+        self_box: self_box_ir,
+        outputs: outputs_ir,
+        data_inputs: data_inputs_ir,
+    })
 }
 
 /// Signs a transaction (generating proofs for inputs)
@@ -57,7 +119,7 @@ pub fn sign_transaction(
         .enumerate()
         .try_for_each(|(idx, input_box)| {
             if let Some(unsigned_input) = tx.inputs.get(idx) {
-                let ctx = Rc::new(Context::new(state_context, &tx_context, idx)?);
+                let ctx = Rc::new(make_context(state_context, &tx_context, idx)?);
                 prover
                     .prove(
                         &input_box.ergo_tree,
@@ -66,10 +128,7 @@ pub fn sign_transaction(
                         message_to_sign.as_slice(),
                     )
                     .map(|proof| {
-                        let input = Input {
-                            box_id: unsigned_input.box_id.clone(),
-                            spending_proof: proof,
-                        };
+                        let input = Input::new(unsigned_input.box_id.clone(), proof);
                         signed_inputs.push(input);
                     })
                     .map_err(|e| TxSigningError::ProverError(e, idx))
@@ -87,22 +146,22 @@ pub fn sign_transaction(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ergotree_ir::sigma_protocol::private_input::DlogProverInput;
+    use ergotree_ir::sigma_protocol::private_input::PrivateInput;
+    use ergotree_ir::sigma_protocol::prover::TestProver;
+    use ergotree_ir::sigma_protocol::verifier::TestVerifier;
+    use ergotree_ir::sigma_protocol::verifier::Verifier;
+    use ergotree_ir::sigma_protocol::verifier::VerifierError;
+    use ergotree_ir::test_util::force_any_val;
     use proptest::collection::vec;
     use proptest::prelude::*;
 
-    use crate::ast::expr::Expr;
-    use crate::{
-        chain::{
-            ergo_box::{box_builder::ErgoBoxCandidateBuilder, BoxValue, NonMandatoryRegisters},
-            transaction::{TxId, UnsignedInput},
-        },
-        ergo_tree::ErgoTree,
-        sigma_protocol::{
-            private_input::{DlogProverInput, PrivateInput},
-            prover::TestProver,
-            verifier::{TestVerifier, Verifier, VerifierError},
-        },
+    use crate::chain::{
+        ergo_box::{box_builder::ErgoBoxCandidateBuilder, BoxValue, NonMandatoryRegisters},
+        transaction::{TxId, UnsignedInput},
     };
+    use ergotree_ir::ergo_tree::ErgoTree;
+    use ergotree_ir::mir::expr::Expr;
     use std::rc::Rc;
 
     fn verify_tx_proofs(
@@ -118,8 +177,8 @@ mod tests {
                 let res = verifier.verify(
                     &b.ergo_tree,
                     &Env::empty(),
-                    Rc::new(Context::dummy()),
-                    &input.spending_proof.proof,
+                    Rc::new(force_any_val::<Context>()),
+                    &input.spending_proof().proof,
                     &message,
                 )?;
                 Ok(res.result && acc)
@@ -158,6 +217,5 @@ mod tests {
             let signed_tx = res.unwrap();
             prop_assert!(verify_tx_proofs(&signed_tx, &boxes_to_spend).unwrap());
         }
-
     }
 }
