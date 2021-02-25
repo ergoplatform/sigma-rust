@@ -34,21 +34,24 @@ pub mod arbitrary {
                 vec(any::<IrErgoBoxDummy>(), 0..3),
             )
                 .prop_map(|(height, self_box, outputs, data_inputs)| {
+                    let self_box_id = self_box.id.clone();
+                    let outputs_ids = outputs.iter().map(|b| b.id.clone()).collect();
+                    let data_inputs_ids = data_inputs.iter().map(|b| b.id.clone()).collect();
                     let mut m = HashMap::new();
-                    m.insert(self_box.id, self_box);
+                    m.insert(self_box_id.clone(), self_box);
                     outputs.into_iter().for_each(|b| {
-                        m.insert(b.id, b);
+                        m.insert(b.id.clone(), b);
                     });
                     data_inputs.into_iter().for_each(|b| {
-                        m.insert(b.id, b);
+                        m.insert(b.id.clone(), b);
                     });
                     let box_arena = IrErgoBoxDummyArena(m);
                     Self {
                         box_arena: Rc::new(box_arena) as Rc<dyn IrErgoBoxArena>,
                         height,
-                        self_box: self_box.id,
-                        outputs: outputs.iter().map(|b| b.id).collect(),
-                        data_inputs: data_inputs.iter().map(|b| b.id).collect(),
+                        self_box: self_box_id,
+                        outputs: outputs_ids,
+                        data_inputs: data_inputs_ids,
                     }
                 })
                 .boxed()
