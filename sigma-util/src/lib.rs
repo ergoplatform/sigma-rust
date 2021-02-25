@@ -1,14 +1,19 @@
-use std::convert::TryInto;
+//! Ergo primitives
 
-use blake2::digest::{Update, VariableOutput};
-use blake2::VarBlake2b;
+// Coding conventions
+#![forbid(unsafe_code)]
+#![deny(non_upper_case_globals)]
+#![deny(non_camel_case_types)]
+#![deny(non_snake_case)]
+#![deny(unused_mut)]
+#![deny(dead_code)]
+#![deny(unused_imports)]
+#![deny(missing_docs)]
+// Clippy exclusions
+#![allow(clippy::unit_arg)]
+#![deny(broken_intra_doc_links)]
 
-/// Blake2b256 hash (256 bit)
-pub fn blake2b256_hash(bytes: &[u8]) -> Box<[u8; 32]> {
-    // unwrap is safe 32 bytes is a valid hash size (<= 512 && 32 % 8 == 0)
-    let mut hasher = VarBlake2b::new(32).unwrap();
-    hasher.update(bytes);
-    let hash = hasher.finalize_boxed();
-    // unwrap is safe due to hash size is expected to be 32
-    hash.try_into().unwrap()
-}
+pub mod hash;
+
+/// 32 byte array used in box, transaction ids (hash)
+pub const DIGEST32_SIZE: usize = 32;

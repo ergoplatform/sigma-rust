@@ -25,7 +25,7 @@ pub struct Digest32(pub Box<[u8; Digest32::SIZE]>);
 
 impl Digest32 {
     /// Digest size 32 bytes
-    pub const SIZE: usize = 32;
+    pub const SIZE: usize = sigma_util::DIGEST32_SIZE;
 
     /// All zeros
     pub fn zero() -> Digest32 {
@@ -35,7 +35,7 @@ impl Digest32 {
 
 /// Blake2b256 hash (256 bit)
 pub fn blake2b256_hash(bytes: &[u8]) -> Digest32 {
-    Digest32(sigma_util::blake2b256_hash(bytes))
+    Digest32(sigma_util::hash::blake2b256_hash(bytes))
 }
 
 impl From<[u8; Digest32::SIZE]> for Digest32 {

@@ -1,3 +1,5 @@
+use sigma_util::hash::blake2b256_hash;
+
 use crate::eval::env::Env;
 use crate::eval::EvalContext;
 use crate::eval::EvalError;
@@ -9,7 +11,6 @@ use crate::serialization::SerializationError;
 use crate::serialization::SigmaSerializable;
 use crate::types::stype::SType;
 use crate::util::AsVecU8;
-use sigma_util::blake2b256_hash;
 
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
