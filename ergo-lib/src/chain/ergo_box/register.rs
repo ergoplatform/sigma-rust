@@ -247,6 +247,16 @@ impl Into<HashMap<NonMandatoryRegisterId, Base16EncodedBytes>> for NonMandatoryR
     }
 }
 
+impl Into<HashMap<NonMandatoryRegisterId, Constant>> for NonMandatoryRegisters {
+    fn into(self) -> HashMap<NonMandatoryRegisterId, Constant> {
+        self.0
+            .into_iter()
+            .enumerate()
+            .map(|(i, c)| (NonMandatoryRegisterId::get_by_zero_index(i), c))
+            .collect()
+    }
+}
+
 impl TryFrom<HashMap<NonMandatoryRegisterId, Constant>> for NonMandatoryRegisters {
     type Error = NonMandatoryRegistersError;
     fn try_from(reg_map: HashMap<NonMandatoryRegisterId, Constant>) -> Result<Self, Self::Error> {
@@ -335,21 +345,19 @@ mod tests {
 
         #[test]
         fn hash_map_roundtrip(regs in any::<NonMandatoryRegisters>()) {
-            todo!()
-            // let hash_map: HashMap<NonMandatoryRegisterId, Constant> = regs.clone().into();
-            // let regs_from_map = NonMandatoryRegisters::try_from(hash_map);
-            // prop_assert![regs_from_map.is_ok()];
-            // prop_assert_eq![regs_from_map.unwrap(), regs];
+            let hash_map: HashMap<NonMandatoryRegisterId, Constant> = regs.clone().into();
+            let regs_from_map = NonMandatoryRegisters::try_from(hash_map);
+            prop_assert![regs_from_map.is_ok()];
+            prop_assert_eq![regs_from_map.unwrap(), regs];
         }
 
         #[test]
         fn get(regs in any::<NonMandatoryRegisters>()) {
-            todo!()
-            // let hash_map: HashMap<NonMandatoryRegisterId, Constant> = regs.clone().into();
-            // hash_map.keys().try_for_each(|reg_id| {
-            //     prop_assert_eq![regs.get(*reg_id), hash_map.get(reg_id)];
-            //     Ok(())
-            // })?;
+            let hash_map: HashMap<NonMandatoryRegisterId, Constant> = regs.clone().into();
+            hash_map.keys().try_for_each(|reg_id| {
+                prop_assert_eq![regs.get(*reg_id), hash_map.get(reg_id)];
+                Ok(())
+            })?;
         }
     }
 
