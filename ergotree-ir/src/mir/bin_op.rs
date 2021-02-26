@@ -450,7 +450,6 @@ pub mod tests {
     use crate::mir::constant::Constant;
     use crate::mir::constant::TryExtractFrom;
     use crate::test_util::force_any_val;
-    use crate::types::stype::SType;
 
     use super::*;
 

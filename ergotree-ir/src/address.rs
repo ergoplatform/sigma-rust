@@ -1,19 +1,18 @@
 //! Address types
 
-use super::digest32;
-
-use ergotree_ir::ergo_tree::ErgoTree;
-use ergotree_ir::ergo_tree::ErgoTreeParsingError;
-use ergotree_ir::mir::constant::Constant;
-use ergotree_ir::mir::expr::Expr;
-use ergotree_ir::serialization::SerializationError;
-use ergotree_ir::serialization::SigmaSerializable;
-use ergotree_ir::sigma_protocol::dlog_group::EcPoint;
-use ergotree_ir::sigma_protocol::sigma_boolean::ProveDlog;
-use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
-use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
-use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProp;
-use ergotree_ir::types::stype::SType;
+use crate::ergo_tree::ErgoTree;
+use crate::ergo_tree::ErgoTreeParsingError;
+use crate::mir::constant::Constant;
+use crate::mir::expr::Expr;
+use crate::serialization::SerializationError;
+use crate::serialization::SigmaSerializable;
+use crate::sigma_protocol::dlog_group::EcPoint;
+use crate::sigma_protocol::sigma_boolean::ProveDlog;
+use crate::sigma_protocol::sigma_boolean::SigmaBoolean;
+use crate::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
+use crate::sigma_protocol::sigma_boolean::SigmaProp;
+use crate::types::stype::SType;
+use sigma_util::hash::blake2b256_hash;
 use std::convert::{TryFrom, TryInto};
 use thiserror::Error;
 
@@ -297,8 +296,7 @@ impl AddressEncoder {
     }
 
     fn calc_checksum(bytes: &[u8]) -> [u8; AddressEncoder::CHECKSUM_LENGTH] {
-        let v: Vec<u8> = digest32::blake2b256_hash(bytes)
-            .0
+        let v: Vec<u8> = blake2b256_hash(bytes)
             .to_vec()
             .into_iter()
             .take(AddressEncoder::CHECKSUM_LENGTH)
@@ -396,10 +394,8 @@ impl AddressEncoder {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use crate::chain::Base16DecodedBytes;
-
+#[cfg(feature = "arbitrary")]
+pub mod arbitrary {
     use super::*;
     use proptest::prelude::*;
 
@@ -414,15 +410,18 @@ mod tests {
                     Ok(dlog) => Address::P2PK(dlog),
                     Err(_) => Address::P2S(t.sigma_serialize_bytes()),
                 }),
-                Just(Address::P2S(
-                    Base16DecodedBytes::try_from(non_parseable_tree)
-                        .unwrap()
-                        .into()
-                ))
+                Just(Address::P2S(base16::decode(non_parseable_tree).unwrap()))
             ]
             .boxed()
         }
     }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+    use proptest::prelude::*;
 
     proptest! {
 

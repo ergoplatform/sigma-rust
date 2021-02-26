@@ -5,6 +5,7 @@ use std::fmt::Debug;
 use std::rc::Rc;
 use thiserror::Error;
 
+// TODO: use Digest32 newtype
 #[derive(PartialEq, Eq, Debug, Clone, Hash)]
 pub struct IrBoxId([u8; DIGEST32_SIZE]);
 
@@ -65,31 +66,34 @@ pub struct IrErgoBoxDummy {
 
 impl IrErgoBox for IrErgoBoxDummy {
     fn id(&self) -> &[u8; DIGEST32_SIZE] {
-        todo!()
+        &self.id.0
     }
 
     fn value(&self) -> i64 {
-        todo!()
+        self.value
     }
 
     fn tokens(&self) -> Vec<(Vec<i8>, i64)> {
-        todo!()
+        self.tokens.clone()
     }
 
     fn additional_registers(&self) -> &[Constant] {
-        todo!()
+        self.additional_registers.as_slice()
     }
 
     fn get_register(&self, id: i8) -> Option<Constant> {
-        todo!()
+        match id {
+            0 => Some(self.value.into()),
+            _ => self.additional_registers.get(id as usize).cloned(),
+        }
     }
 
     fn creation_height(&self) -> i32 {
-        todo!()
+        self.creation_height
     }
 
     fn script_bytes(&self) -> Vec<u8> {
-        todo!()
+        self.script_bytes.clone()
     }
 }
 

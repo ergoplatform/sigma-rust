@@ -177,11 +177,12 @@ impl SigmaSerializable for Expr {
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
 mod tests {
+    use crate::address::AddressEncoder;
+    use crate::address::NetworkPrefix;
     use std::convert::TryInto;
+    use std::rc::Rc;
 
     use super::*;
-    // use crate::chain::address::AddressEncoder;
-    // use crate::chain::address::NetworkPrefix;
     use crate::eval::tests::eval_out_wo_ctx;
     use crate::serialization::sigma_serialize_roundtrip;
     use crate::sigma_protocol::sigma_boolean::SigmaProp;
@@ -344,15 +345,14 @@ mod tests {
         }
                  */
         let p2s_addr_str = "7Nq5tKsVYCgneNgEfA2BJKwGsWozezNLhCNsRBihcHVFkDTuTThd4Qt1bi7NfCK1HuuVfjksMrEftV6MEFajjuyp1TMD2PX7SYWvkg9zH4CtgpdoBjekCNXs5XawxXnW6FT7GCqXTpJUP2TkkuqBh1df99PTigehys36uZz9wQnkrJXrv3mw3Yy4CM622qe5wdqLtpEonjazEmsw8weqEYegDyfJnswDvDkLPXtcCB86i19jik4fnSTtCcYj3jpWCQ7WL5dZn1ivs5JGRsR2ioNCRiZd3Gu1zJBgbHkMg41Z6VeCRWXjGY99BUtgtQiepSHGHajFCVcFAHhVxccdVUPCxGeEL6c2dNx6qzEkVfTfHs5qBgJewR8KCZTCVTurNBHeqCSVdxnfFvhW3f72cNrae5E1UhTAXU2iX4LZMHQsKyefY24Aq1b1srTyRWLpixjbcezFqA2TKjGSn1p1ruxbR7AQpW24ByPKT9sFE9ii4qNeXDnLcGtAAGS9FC5SD1s516a4NCu6v9zZfTvRKGkCwt78J8DEVnhTbttjcsvqFsUXQrvAv7TGVsaT4mL6B7F5BhRoZwFkgRXqFUVCWvgqJrwwjFRtbc5aZz";
-        todo!()
-        // let encoder = AddressEncoder::new(NetworkPrefix::Mainnet);
-        // let addr = encoder.parse_address_from_str(p2s_addr_str).unwrap();
-        // let script = addr.script().unwrap().proposition().unwrap();
-        // dbg!(&script);
-        // let res: bool = eval_out_wo_ctx::<SigmaProp>(script.as_ref())
-        //     .try_into()
-        //     .unwrap();
-        // assert!(res);
+        let encoder = AddressEncoder::new(NetworkPrefix::Mainnet);
+        let addr = encoder.parse_address_from_str(p2s_addr_str).unwrap();
+        let script: Rc<Expr> = addr.script().unwrap().proposition().unwrap();
+        dbg!(&script);
+        let res: bool = eval_out_wo_ctx::<SigmaProp>(script.as_ref())
+            .try_into()
+            .unwrap();
+        assert!(res);
     }
 
     #[test]
@@ -509,10 +509,9 @@ mod tests {
         }
         */
         let p2s_addr_str = "HfdbQC2Zwr5vfAUxdmjmX6b3TxQbq5w764pwsz9LLKyZVhv7SpifLB22PieCgvzSaFLomv8HNr9dxxQSSYaQg6ZyFL37nPfuVib3hVL8h42jajp754NXGqv1s4eKcbPsKkBMeTmYVSSGrpnZHzjqvcT4oN8rqKGUtLVXHs4QKyBwwNQKS5KNC8DLkdvHUQRNv5r8pCJ6ehTi31h1rfLVTsaMhAeDcYCs1uS7YMXk3msfH36krAskv8TgApoFJ1DarszwiacTuE1o4N6o4PJJifAgJ1WH4XuGRieYE1k3fo631benRDQw9nQ49p4oqAda5aXTNmabAsfCgAR8jbmUzzi3UCyYJgRUtXp7ijaGfr6o3hXd5VHDZe4gM6Vw4Ly3s881WZX2WWNedrXNqKKMVXKk55jbgn3ZmFpZiLtvPHSBCG7ULyARrTz2rAUC16StdYBqPuhHpRKEx3QYeFTYJGcMbsMGompAkCxG37X7ZVs7m7xCpPuP3AqxWtWdxkTzw5FCHALsu6ZD334n8mFgn9kiif4tbShpBo1AJu6dP22XvPU3S93q5LuNaXx6d7u5VFrpQKSN6WnhkU4LUfh3t8YU1ZBATrQDGRkaji59pqoNDuwVSfn7g1UhcMWdMnwzrCNNq1jsX2KrkX7o81aS7LEmz6xAySdyvubGh51oXNd2cmgbJ9at2Tp3hNi9FwWG5iEk882AZ7gby6QktknAwyaw9CL5qdodeh4t659H42SoqK2ATtfrZgjU5b5pYAzNp9EjFHCKkYxTo7t5G1vHHZUXjTbkzc22ggJdH3BvZYEcdQtUCLbEFJSCiMp2RjxEmyh";
-        todo!()
-        // let encoder = AddressEncoder::new(NetworkPrefix::Mainnet);
-        // let addr = encoder.parse_address_from_str(p2s_addr_str).unwrap();
-        // let script = addr.script().unwrap().proposition().unwrap();
-        // dbg!(&script);
+        let encoder = AddressEncoder::new(NetworkPrefix::Mainnet);
+        let addr = encoder.parse_address_from_str(p2s_addr_str).unwrap();
+        let script = addr.script().unwrap().proposition().unwrap();
+        dbg!(&script);
     }
 }

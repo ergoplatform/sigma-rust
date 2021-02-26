@@ -5,8 +5,6 @@ use crate::serialization::{
     SigmaSerializable,
 };
 use indexmap::IndexMap;
-#[cfg(feature = "arbitrary")]
-use proptest_derive::Arbitrary;
 use std::collections::HashMap;
 use std::{convert::TryFrom, io, num::ParseIntError};
 
@@ -116,7 +114,7 @@ mod arbitrary {
 mod tests {
     use super::*;
     use crate::serialization::sigma_serialize_roundtrip;
-    use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
+    use proptest::prelude::*;
 
     proptest! {
 

@@ -2,6 +2,7 @@
 
 use std::collections::HashSet;
 
+use ergotree_ir::address::{Address, AddressEncoder, NetworkPrefix};
 use ergotree_ir::serialization::SerializationError;
 use ergotree_ir::serialization::SigmaSerializable;
 use ergotree_ir::sigma_protocol;
@@ -9,7 +10,6 @@ use ergotree_ir::sigma_protocol::prover::ProofBytes;
 use ergotree_ir::sigma_protocol::prover::ProverResult;
 use thiserror::Error;
 
-use crate::chain::address::{Address, AddressEncoder, NetworkPrefix};
 use crate::chain::contract::Contract;
 use crate::chain::ergo_box::box_builder::{ErgoBoxCandidateBuilder, ErgoBoxCandidateBuilderError};
 use crate::chain::ergo_box::{sum_tokens_from_boxes, sum_value, BoxId, BoxValue, BoxValueError};

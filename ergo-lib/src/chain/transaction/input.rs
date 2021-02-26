@@ -133,7 +133,7 @@ impl Input {
             box_id: self.box_id.clone(),
             wrapped_spending_proof: ProverResult {
                 proof: ProofBytes::Empty,
-                extension: self.spending_proof().extension.into(),
+                extension: self.spending_proof().extension,
             }
             .into(),
         }

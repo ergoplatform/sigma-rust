@@ -29,13 +29,13 @@ impl-trait-for-tuples = "0.2.0"
 num = "0.3.1"
 proptest = {version = "1.0.0", optional = true }
 proptest-derive = {version = "0.3.0", optional = true }
-# serde = { version = "1.0", features = ["derive"], optional = true }
+bs58 = "0.4.0"
+base16 = "0.2.1"
 
 [features]
 default = []
 arbitrary = ["proptest", "proptest-derive"]
 
 [dev-dependencies]
-ergoscript-compiler = { version = "^0.1.0", path = "../ergoscript-compiler" }
 proptest = "1.0.0"
 

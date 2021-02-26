@@ -320,6 +320,8 @@ pub mod arbitrary {
 #[cfg(feature = "arbitrary")]
 mod tests {
     use super::*;
+    use crate::address::AddressEncoder;
+    use crate::address::NetworkPrefix;
     use crate::mir::value::Value;
     use crate::serialization::sigma_serialize_roundtrip;
     use proptest::prelude::*;
@@ -353,15 +355,12 @@ mod tests {
 
     #[test]
     fn test_constant_segregation_header_flag_support() {
-        todo!()
-        // let encoder = chain::address::AddressEncoder::new(chain::address::NetworkPrefix::Mainnet);
-        // let address = encoder
-        //     .parse_address_from_str("9hzP24a2q8KLPVCUk7gdMDXYc7vinmGuxmLp5KU7k9UwptgYBYV")
-        //     .unwrap();
-
-        // let contract = chain::contract::Contract::pay_to_address(&address).unwrap();
-        // let bytes = &contract.ergo_tree().sigma_serialize_bytes();
-        // assert_eq!(&bytes[..2], vec![0u8, 8u8].as_slice());
+        let encoder = AddressEncoder::new(NetworkPrefix::Mainnet);
+        let address = encoder
+            .parse_address_from_str("9hzP24a2q8KLPVCUk7gdMDXYc7vinmGuxmLp5KU7k9UwptgYBYV")
+            .unwrap();
+        let bytes = address.script().unwrap().sigma_serialize_bytes();
+        assert_eq!(&bytes[..2], vec![0u8, 8u8].as_slice());
     }
 
     #[test]
