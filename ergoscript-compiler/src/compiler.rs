@@ -7,9 +7,9 @@ use crate::binder::Binder;
 use crate::hir;
 use crate::mir;
 use crate::parser::parse_error::ParseError;
+use crate::script_env::ScriptEnv;
 use crate::type_infer::assign_type;
 use crate::type_infer::TypeInferenceError;
-use crate::ScriptEnv;
 
 extern crate derive_more;
 use derive_more::From;
@@ -20,6 +20,7 @@ use mir::type_check::TypeCheckError;
 /// Compilation errors
 #[derive(Debug, PartialEq, From)]
 pub enum CompileError {
+    /// Parser error
     ParseError(Vec<ParseError>),
     /// Error on AST to HIR lowering
     HirLoweringError(HirLoweringError),
@@ -34,6 +35,7 @@ pub enum CompileError {
 }
 
 impl CompileError {
+    /// Pretty formatted error with CST/AST/IR, etc.
     pub fn pretty_desc(&self, source: &str) -> String {
         match self {
             CompileError::ParseError(errors) => {
@@ -70,7 +72,7 @@ pub fn compile(source: &str, env: ScriptEnv) -> Result<ErgoTree, CompileError> {
 }
 
 #[cfg(test)]
-pub fn check(input: &str, expected_tree: expect_test::Expect) {
+fn check(input: &str, expected_tree: expect_test::Expect) {
     let res = compile(input, ScriptEnv::new());
 
     let expected_out = res

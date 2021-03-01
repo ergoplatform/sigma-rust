@@ -15,15 +15,13 @@
 
 pub(crate) mod ast;
 pub(crate) mod binder;
-pub(crate) mod compiler;
 pub(crate) mod error;
 pub(crate) mod hir;
 pub(crate) mod lexer;
 pub(crate) mod mir;
 pub(crate) mod parser;
-pub(crate) mod script_env;
 pub(crate) mod syntax;
 pub(crate) mod type_infer;
 
-pub use compiler::compile;
-pub use script_env::ScriptEnv;
+pub mod compiler;
+pub mod script_env;

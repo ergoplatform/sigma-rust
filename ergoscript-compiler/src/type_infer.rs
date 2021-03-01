@@ -54,7 +54,7 @@ pub fn check(input: &str, expected_tree: expect_test::Expect) {
     let syntax = parse.syntax();
     let root = crate::ast::Root::cast(syntax).unwrap();
     let hir = hir::lower(root).unwrap();
-    let binder = crate::binder::Binder::new(crate::ScriptEnv::new());
+    let binder = crate::binder::Binder::new(crate::script_env::ScriptEnv::new());
     let bind = binder.bind(hir).unwrap();
     let res = assign_type(bind).unwrap();
     expected_tree.assert_eq(&res.debug_tree());
