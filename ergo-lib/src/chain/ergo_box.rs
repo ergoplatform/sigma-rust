@@ -30,7 +30,6 @@ use indexmap::IndexSet;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-#[cfg(feature = "json")]
 use std::convert::TryFrom;
 use std::io;
 #[cfg(feature = "json")]
