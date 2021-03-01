@@ -8,12 +8,14 @@ mod register;
 pub use box_id::*;
 pub use box_value::*;
 use ergotree_ir::ergo_tree::ErgoTree;
+use ergotree_ir::ir_ergo_box::IrErgoBox;
 use ergotree_ir::mir::constant::Constant;
 use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
 use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
 use ergotree_ir::serialization::SerializationError;
 use ergotree_ir::serialization::SigmaSerializable;
 pub use register::*;
+use sigma_util::DIGEST32_SIZE;
 
 #[cfg(feature = "json")]
 use super::json;
@@ -158,6 +160,42 @@ impl ErgoBox {
             },
             RegisterId::NonMandatoryRegisterId(id) => self.additional_registers.get(id).cloned(),
         }
+    }
+}
+
+impl IrErgoBox for ErgoBox {
+    fn id(&self) -> &[u8; DIGEST32_SIZE] {
+        &self.box_id.0 .0
+    }
+
+    fn value(&self) -> i64 {
+        self.value.as_i64()
+    }
+
+    fn tokens(&self) -> Vec<(Vec<i8>, i64)> {
+        self.tokens
+            .clone()
+            .into_iter()
+            .map(|t| (t.token_id.into(), t.amount.into()))
+            .collect()
+    }
+
+    fn additional_registers(&self) -> &[Constant] {
+        self.additional_registers.get_ordered_values()
+    }
+
+    fn get_register(&self, id: i8) -> Option<Constant> {
+        RegisterId::try_from(id)
+            .ok()
+            .and_then(|reg_id| self.get_register(reg_id))
+    }
+
+    fn creation_height(&self) -> i32 {
+        self.creation_height as i32
+    }
+
+    fn script_bytes(&self) -> Vec<u8> {
+        self.sigma_serialize_bytes()
     }
 }
 

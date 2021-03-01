@@ -1,5 +1,6 @@
 //! Transaction signing
 
+use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::chain::ergo_box::BoxId;
@@ -47,18 +48,30 @@ pub struct TransactionContext {
 
 /// Holding all ErgoBox needed for interpreter [`ergotree_ir::eval::context::Context`]
 #[derive(Debug)]
-pub struct ErgoBoxArena {}
+pub struct ErgoBoxArena(HashMap<BoxId, ErgoBox>);
 
 impl ErgoBoxArena {
     /// Create new arena and store given boxes
     pub fn new(self_box: ErgoBox, outputs: Vec<ErgoBox>, data_inputs: Vec<ErgoBox>) -> Self {
-        todo!()
+        let mut m = HashMap::new();
+        m.insert(self_box.box_id(), self_box);
+        outputs.into_iter().for_each(|b| {
+            m.insert(b.box_id(), b);
+        });
+        data_inputs.into_iter().for_each(|b| {
+            m.insert(b.box_id(), b);
+        });
+        ErgoBoxArena(m)
     }
 }
 
 impl IrErgoBoxArena for ErgoBoxArena {
     fn get(&self, id: &IrBoxId) -> Result<Rc<dyn IrErgoBox>, IrErgoBoxArenaError> {
-        todo!()
+        self.0
+            .get(&id.into())
+            .cloned()
+            .ok_or_else(|| IrErgoBoxArenaError(format!("ErgoBox with id {0:?} not found", id)))
+            .map(|b| Rc::new(b) as Rc<dyn IrErgoBox>)
     }
 }
 
@@ -178,7 +191,7 @@ mod tests {
                     &b.ergo_tree,
                     &Env::empty(),
                     Rc::new(force_any_val::<Context>()),
-                    &input.spending_proof().proof,
+                    &input.spending_proof.proof,
                     &message,
                 )?;
                 Ok(res.result && acc)

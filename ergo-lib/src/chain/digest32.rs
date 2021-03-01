@@ -56,6 +56,12 @@ impl From<Digest32> for Vec<i8> {
     }
 }
 
+impl From<Digest32> for [u8; Digest32::SIZE] {
+    fn from(v: Digest32) -> Self {
+        *v.0
+    }
+}
+
 impl TryFrom<Base16DecodedBytes> for Digest32 {
     type Error = Digest32Error;
     fn try_from(bytes: Base16DecodedBytes) -> Result<Self, Self::Error> {

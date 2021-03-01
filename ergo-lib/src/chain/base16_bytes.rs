@@ -74,12 +74,12 @@ pub trait Base16Str {
 
 impl Base16Str for &Constant {
     fn base16_str(&self) -> String {
-        todo!()
+        base16::encode_lower(&self.sigma_serialize_bytes())
     }
 }
 
 impl Base16Str for Constant {
     fn base16_str(&self) -> String {
-        todo!()
+        base16::encode_lower(&self.sigma_serialize_bytes())
     }
 }

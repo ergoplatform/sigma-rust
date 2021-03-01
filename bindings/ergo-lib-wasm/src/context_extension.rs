@@ -1,7 +1,6 @@
 //! ProverResult
 
 use crate::ast::Constant;
-use ergo_lib::chain::transaction::WrappedContextExtension;
 use wasm_bindgen::prelude::*;
 
 extern crate derive_more;
@@ -10,7 +9,7 @@ use derive_more::{From, Into};
 /// Proof of correctness of tx spending
 #[wasm_bindgen]
 #[derive(PartialEq, Debug, Clone, From, Into)]
-pub struct ContextExtension(WrappedContextExtension);
+pub struct ContextExtension(ergotree_ir::sigma_protocol::prover::ContextExtension);
 
 #[wasm_bindgen]
 impl ContextExtension {

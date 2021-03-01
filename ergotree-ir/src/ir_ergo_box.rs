@@ -7,7 +7,7 @@ use thiserror::Error;
 
 // TODO: use Digest32 newtype
 #[derive(PartialEq, Eq, Debug, Clone, Hash)]
-pub struct IrBoxId([u8; DIGEST32_SIZE]);
+pub struct IrBoxId(pub [u8; DIGEST32_SIZE]);
 
 impl IrBoxId {
     pub fn new(id: [u8; DIGEST32_SIZE]) -> Self {

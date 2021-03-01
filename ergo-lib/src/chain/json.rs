@@ -1,6 +1,13 @@
 //! JSON serialization
 
+use ergotree_ir::mir::constant::Constant;
+use ergotree_ir::sigma_protocol::prover::ContextExtension;
+use ergotree_ir::sigma_protocol::prover::ProofBytes;
+use ergotree_ir::sigma_protocol::prover::ProverResult;
+use indexmap::IndexMap;
 use serde::Serializer;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 pub fn serialize_bytes<S, T>(bytes: T, serializer: S) -> Result<S::Ok, S::Error>
 where
@@ -60,6 +67,7 @@ pub mod ergo_box {
         transaction::TxId,
     };
     use serde::Deserialize;
+    use thiserror::Error;
 
     #[derive(Deserialize, PartialEq, Eq, Debug, Clone)]
     pub struct ErgoBoxFromJson {
@@ -97,18 +105,19 @@ pub mod ergo_box {
 
     impl From<ConstantHolder> for Constant {
         fn from(ch: ConstantHolder) -> Self {
-            ch.0.raw_value
+            ch.0.raw_value.0
         }
     }
 
     #[derive(Deserialize, PartialEq, Eq, Debug, Clone)]
-    #[serde(into = "Base16EncodedBytes", try_from = "Base16DecodedBytes")]
     struct RichConstant {
         #[serde(rename = "rawValue", alias = "serializedValue")]
-        raw_value: Constant,
+        raw_value: ConstantWrapper,
     }
 
-    use thiserror::Error;
+    #[derive(Deserialize, PartialEq, Eq, Debug, Clone)]
+    #[serde(try_from = "Base16DecodedBytes")]
+    struct ConstantWrapper(Constant);
 
     #[derive(Error, PartialEq, Eq, Debug, Clone, From)]
     pub enum ConstantParsingError {
@@ -118,12 +127,12 @@ pub mod ergo_box {
         DeserializationError(SerializationError),
     }
 
-    impl TryFrom<Base16DecodedBytes> for RichConstant {
+    impl TryFrom<Base16DecodedBytes> for ConstantWrapper {
         type Error = ConstantParsingError;
 
         fn try_from(bytes: Base16DecodedBytes) -> Result<Self, Self::Error> {
             let c = Constant::sigma_parse_bytes(bytes.into())?;
-            Ok(RichConstant { raw_value: c })
+            Ok(ConstantWrapper(c))
         }
     }
 
@@ -132,7 +141,9 @@ pub mod ergo_box {
         fn from_str(s: &str) -> Result<Self, Self::Err> {
             let bytes = Base16DecodedBytes::try_from(s)?;
             let c = Constant::sigma_parse_bytes(bytes.into())?;
-            Ok(RichConstant { raw_value: c })
+            Ok(RichConstant {
+                raw_value: ConstantWrapper(c),
+            })
         }
     }
 
@@ -223,44 +234,53 @@ pub mod transaction {
     }
 }
 
-// use serde::{Deserialize, Serialize};
+#[cfg_attr(
+    feature = "json",
+    derive(Serialize, Deserialize),
+    serde(into = "HashMap<String, String>", try_from = "HashMap<String, String>"),
+    serde(remote = "ContextExtension")
+)]
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub(crate) struct ContextExtensionSerde {
+    values: IndexMap<u8, Constant>,
+}
 
-// use super::Base16DecodedBytes;
-// use super::Base16EncodedBytes;
+#[cfg_attr(
+    feature = "json",
+    derive(Serialize, Deserialize),
+    serde(remote = "ProverResult")
+)]
+#[derive(PartialEq, Debug, Clone)]
+pub struct ProverResultSerde {
+    /// proof that satisfies final sigma proposition
+    #[cfg_attr(
+        feature = "json",
+        serde(rename = "proofBytes"),
+        serde(with = "crate::chain::json::ProofBytesSerde")
+    )]
+    pub proof: ProofBytes,
+    /// user-defined variables to be put into context
+    #[cfg_attr(
+        feature = "json",
+        serde(rename = "extension"),
+        serde(with = "crate::chain::json::ContextExtensionSerde")
+    )]
+    pub extension: ContextExtension,
+}
 
-// #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-// pub struct ProverResultJson {
-//     /// proof that satisfies final sigma proposition
-//     #[cfg_attr(feature = "json", serde(rename = "proofBytes"))]
-//     pub proof: Vec<u8>,
-//     /// user-defined variables to be put into context
-//     #[cfg_attr(feature = "json", serde(rename = "extension"))]
-//     pub extension: ContextExtensionJson,
-// }
-
-// #[derive(PartialEq, Debug, Clone)]
-// #[cfg_attr(
-//     feature = "json",
-//     derive(Serialize, Deserialize),
-//     serde(
-//         into = "HashMap<String, Base16EncodedBytes>",
-//         try_from = "HashMap<String, Base16DecodedBytes>"
-//     )
-// )]
-// pub struct ContextExtensionJson(ContextExtension);
-
-// impl Into<HashMap<String, Base16EncodedBytes>> for ContextExtensionJson {
-//     fn into(self) -> HashMap<String, Base16EncodedBytes> {
-//         todo!()
-//     }
-// }
-
-// impl TryFrom<HashMap<String, Base16DecodedBytes>> for ContextExtensionJson {
-//     type Error = base16::DecodeError;
-//     fn try_from(value: HashMap<String, Base16DecodedBytes>) -> Result<Self, Self::Error> {
-//         todo!()
-//     }
-// }
+#[cfg_attr(
+    feature = "json",
+    derive(Serialize, Deserialize),
+    serde(into = "String", try_from = "String"),
+    serde(remote = "ProofBytes")
+)]
+#[derive(PartialEq, Eq, Hash, Debug, Clone)]
+pub enum ProofBytesSerde {
+    /// Empty proof
+    Empty,
+    /// Non-empty proof
+    Some(Vec<u8>),
+}
 
 #[cfg(test)]
 mod tests {
@@ -346,8 +366,9 @@ mod tests {
 
     #[test]
     fn parse_empty_context_extension() {
-        let c: WrappedContextExtension = serde_json::from_str("{}").unwrap();
-        assert_eq!(c, WrappedContextExtension::empty());
+        let mut de = serde_json::Deserializer::from_str("{}");
+        let c: ContextExtension = ContextExtensionSerde::deserialize(&mut de).unwrap();
+        assert_eq!(c, ContextExtension::empty());
     }
 
     #[test]
@@ -355,10 +376,11 @@ mod tests {
         let json = r#"
         {"1" :"05b0b5cad8e6dbaef44a", "3":"048ce5d4e505"}
         "#;
-        let c: WrappedContextExtension = serde_json::from_str(json).unwrap();
-        assert_eq!(c.values().len(), 2);
-        assert!(c.values().get(&1u8).is_some());
-        assert!(c.values().get(&3u8).is_some());
+        let mut de = serde_json::Deserializer::from_str(json);
+        let c: ContextExtension = ContextExtensionSerde::deserialize(&mut de).unwrap();
+        assert_eq!(c.values.len(), 2);
+        assert!(c.values.get(&1u8).is_some());
+        assert!(c.values.get(&3u8).is_some());
     }
 
     #[test]

@@ -6,18 +6,11 @@ use crate::serialization::{
 };
 use indexmap::IndexMap;
 use std::collections::HashMap;
-use std::{convert::TryFrom, io, num::ParseIntError};
+use std::{convert::TryFrom, io};
+use thiserror::Error;
 
 /// User-defined variables to be put into context
 #[derive(Debug, PartialEq, Eq, Clone)]
-// #[cfg_attr(
-//     feature = "json",
-//     derive(Serialize, Deserialize),
-//     serde(
-//         into = "HashMap<String, Constant>",
-//         try_from = "HashMap<String, Constant>"
-//     )
-// )]
 pub struct ContextExtension {
     /// key-value pairs of variable id and it's value
     pub values: IndexMap<u8, Constant>,
@@ -59,23 +52,51 @@ impl SigmaSerializable for ContextExtension {
     }
 }
 
-impl Into<HashMap<String, Constant>> for ContextExtension {
-    fn into(self) -> HashMap<String, Constant> {
+// for JSON encoding in ergo-lib
+impl Into<HashMap<String, String>> for ContextExtension {
+    fn into(self) -> HashMap<String, String> {
         self.values
             .into_iter()
-            .map(|(k, v)| (format!("{}", k), v))
+            .map(|(k, v)| {
+                (
+                    format!("{}", k),
+                    base16::encode_lower(&v.sigma_serialize_bytes()),
+                )
+            })
             .collect()
     }
 }
 
-impl TryFrom<HashMap<String, Constant>> for ContextExtension {
-    type Error = ParseIntError;
-    fn try_from(values_str: HashMap<String, Constant>) -> Result<Self, Self::Error> {
+/// Error parsing Constant from base16-encoded string
+#[derive(Error, Eq, PartialEq, Debug, Clone)]
+#[error("Error parsing constant: {0}")]
+pub struct ConstantParsingError(pub String);
+
+// for JSON encoding in ergo-lib
+impl TryFrom<HashMap<String, String>> for ContextExtension {
+    type Error = ConstantParsingError;
+    fn try_from(values_str: HashMap<String, String>) -> Result<Self, Self::Error> {
         let values = values_str.iter().try_fold(
             IndexMap::with_capacity(values_str.len()),
             |mut acc, pair| {
-                let idx: u8 = pair.0.parse()?;
-                acc.insert(idx, pair.1.clone());
+                let idx: u8 = pair.0.parse().map_err(|_| {
+                    ConstantParsingError(format!("cannot parse index from {0:?}", pair.0))
+                })?;
+                let constant_bytes = base16::decode(pair.1).map_err(|_| {
+                    ConstantParsingError(format!(
+                        "cannot decode base16 constant bytes from {0:?}",
+                        pair.1
+                    ))
+                })?;
+                acc.insert(
+                    idx,
+                    Constant::sigma_parse_bytes(constant_bytes).map_err(|_| {
+                        ConstantParsingError(format!(
+                            "cannot deserialize constant bytes from {0:?}",
+                            pair.1
+                        ))
+                    })?,
+                );
                 Ok(acc)
             },
         )?;

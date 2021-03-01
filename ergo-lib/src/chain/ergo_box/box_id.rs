@@ -1,6 +1,7 @@
 //! Box id type
 use std::io;
 
+use ergotree_ir::ir_ergo_box::IrBoxId;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 
@@ -38,6 +39,12 @@ impl From<Digest32> for BoxId {
 impl Into<String> for BoxId {
     fn into(self) -> String {
         self.0.into()
+    }
+}
+
+impl From<&IrBoxId> for BoxId {
+    fn from(irb: &IrBoxId) -> Self {
+        BoxId(irb.0.into())
     }
 }
 
