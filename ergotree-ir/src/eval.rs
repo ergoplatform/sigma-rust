@@ -154,5 +154,4 @@ pub mod tests {
         let ctx = Rc::new(force_any_val::<Context>());
         try_eval_out(expr, ctx)
     }
-
 }
