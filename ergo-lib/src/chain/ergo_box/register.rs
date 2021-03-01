@@ -4,10 +4,7 @@
 use crate::chain::json::ergo_box::ConstantHolder;
 use crate::chain::Base16EncodedBytes;
 use ergotree_ir::mir::constant::Constant;
-use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
-use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
 use ergotree_ir::serialization::SerializationError;
-use ergotree_ir::serialization::SigmaSerializable;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
@@ -48,23 +45,6 @@ impl TryFrom<i8> for RegisterId {
         } else {
             Err(RegisterIdOutOfBounds(value))
         }
-    }
-}
-
-impl SigmaSerializable for RegisterId {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
-        let byte = match self {
-            RegisterId::MandatoryRegisterId(id) => *id as i8,
-            RegisterId::NonMandatoryRegisterId(id) => *id as i8,
-        };
-        w.put_i8(byte)
-    }
-
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
-        let reg_id = r.get_i8()?;
-        RegisterId::try_from(reg_id).map_err(|_| {
-            SerializationError::ValueOutOfBounds(format!("Register id out of bounds: {}", reg_id))
-        })
     }
 }
 
@@ -358,6 +338,11 @@ mod tests {
                 prop_assert_eq![regs.get(*reg_id), hash_map.get(reg_id)];
                 Ok(())
             })?;
+        }
+
+        #[test]
+        fn reg_id_from_byte(reg_id_byte in 0i8..NonMandatoryRegisterId::END_INDEX as i8) {
+            assert!(RegisterId::try_from(reg_id_byte).is_ok());
         }
     }
 
