@@ -27,7 +27,7 @@ static DATA_INPUTS_EVAL_FN: EvalFn = |ctx, _obj, _args| {
             .data_inputs
             .clone()
             .into_iter()
-            .map(|b| Value::CBox(b))
+            .map(Value::CBox)
             .collect(),
         elem_tpe: SType::SBox,
     }))

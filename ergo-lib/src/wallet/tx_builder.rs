@@ -7,7 +7,6 @@ use ergotree_ir::serialization::SerializationError;
 use ergotree_ir::serialization::SigmaSerializable;
 use ergotree_ir::sigma_protocol;
 use ergotree_ir::sigma_protocol::prover::ProofBytes;
-use ergotree_ir::sigma_protocol::prover::ProverResult;
 use thiserror::Error;
 
 use crate::chain::contract::Contract;
@@ -118,9 +117,9 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
                 let proof = ProofBytes::Some(vec![0u8, sigma_protocol::SOUNDNESS_BYTES as u8]);
                 Input::new(
                     ui.box_id.clone(),
-                    ProverResult {
+                    crate::chain::transaction::input::prover_result::ProverResult {
                         proof,
-                        extension: ui.extension.clone().into(),
+                        extension: ui.extension.clone(),
                     },
                 )
             })

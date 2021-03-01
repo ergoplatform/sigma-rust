@@ -3,6 +3,7 @@
 use super::input::{Input, UnsignedInput};
 #[cfg(feature = "json")]
 use super::json;
+use super::prover_result::ProverResult;
 use super::DataInput;
 use super::{
     super::{digest32::blake2b256_hash, ergo_box::ErgoBoxCandidate},
@@ -16,7 +17,6 @@ use crate::chain::transaction::TransactionFromJsonError;
 use core::convert::TryFrom;
 use ergotree_ir::serialization::SigmaSerializable;
 use ergotree_ir::sigma_protocol::prover::ProofBytes;
-use ergotree_ir::sigma_protocol::prover::ProverResult;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 
@@ -82,7 +82,7 @@ impl UnsignedTransaction {
                     ui.box_id.clone(),
                     ProverResult {
                         proof: ProofBytes::Empty,
-                        extension: ui.extension.clone().into(),
+                        extension: ui.extension.clone(),
                     },
                 )
             })

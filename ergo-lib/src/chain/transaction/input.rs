@@ -1,4 +1,7 @@
 //! Transaction input
+
+pub mod prover_result;
+
 use std::io;
 
 use crate::chain::ergo_box::{BoxId, ErgoBoxId};
@@ -8,9 +11,10 @@ use ergotree_ir::serialization::SerializationError;
 use ergotree_ir::serialization::SigmaSerializable;
 use ergotree_ir::sigma_protocol::prover::ContextExtension;
 use ergotree_ir::sigma_protocol::prover::ProofBytes;
-use ergotree_ir::sigma_protocol::prover::ProverResult;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
+
+use self::prover_result::ProverResult;
 
 /// Unsigned (without proofs) transaction input
 #[derive(PartialEq, Debug, Clone)]
@@ -51,11 +55,7 @@ pub struct Input {
     #[cfg_attr(feature = "json", serde(rename = "boxId"))]
     pub box_id: BoxId,
     /// proof of spending correctness
-    #[cfg_attr(
-        feature = "json",
-        serde(rename = "spendingProof",),
-        serde(with = "crate::chain::json::ProverResultSerde")
-    )]
+    #[cfg_attr(feature = "json", serde(rename = "spendingProof",))]
     pub spending_proof: ProverResult,
 }
 

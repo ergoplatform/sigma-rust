@@ -88,14 +88,11 @@ pub fn make_context(
     self_index: usize,
 ) -> Result<Context, TxSigningError> {
     let height = state_ctx.pre_header.height;
-    let self_box =
-        tx_ctx
-            .boxes_to_spend
-            .get(self_index)
-            .cloned()
-            .ok_or(TxSigningError::ContextError(
-                "self_index is out of bounds".to_string(),
-            ))?;
+    let self_box = tx_ctx
+        .boxes_to_spend
+        .get(self_index)
+        .cloned()
+        .ok_or_else(|| TxSigningError::ContextError("self_index is out of bounds".to_string()))?;
     let outputs: Vec<ErgoBox> = tx_ctx
         .spending_tx
         .output_candidates
@@ -141,7 +138,7 @@ pub fn sign_transaction(
                         message_to_sign.as_slice(),
                     )
                     .map(|proof| {
-                        let input = Input::new(unsigned_input.box_id.clone(), proof);
+                        let input = Input::new(unsigned_input.box_id.clone(), proof.into());
                         signed_inputs.push(input);
                     })
                     .map_err(|e| TxSigningError::ProverError(e, idx))

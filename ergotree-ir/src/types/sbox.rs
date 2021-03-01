@@ -64,7 +64,7 @@ static GET_REG_EVAL_FN: EvalFn = |ctx, obj, args| {
                     .ok_or_else(|| EvalError::NotFound("register index is missing".to_string()))?
                     .try_extract_into::<i8>()?,
             )
-            .map(|c| c.v.clone()),
+            .map(|c| c.v),
     )))
 };
 

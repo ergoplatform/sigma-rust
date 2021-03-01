@@ -38,7 +38,7 @@ impl From<Vec<u8>> for ProofBytes {
     }
 }
 
-// for JSON encoding in ergo-lib
+// for JSON encoding in ergo-lib as Base16-encoded string
 impl Into<String> for ProofBytes {
     fn into(self) -> String {
         match self {
@@ -90,19 +90,6 @@ pub struct ProverResult {
     pub extension: ContextExtension,
 }
 
-impl SigmaSerializable for ProverResult {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
-        self.proof.sigma_serialize(w)?;
-        self.extension.sigma_serialize(w)?;
-        Ok(())
-    }
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
-        let proof = ProofBytes::sigma_parse(r)?;
-        let extension = ContextExtension::sigma_parse(r)?;
-        Ok(ProverResult { proof, extension })
-    }
-}
-
 #[cfg(feature = "arbitrary")]
 pub mod arbitrary {
     use super::*;
@@ -120,33 +107,6 @@ pub mod arbitrary {
                     .boxed()
             ]
             .boxed()
-        }
-    }
-
-    impl Arbitrary for ProverResult {
-        type Parameters = ();
-        type Strategy = BoxedStrategy<Self>;
-
-        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            (any::<ProofBytes>(), any::<ContextExtension>())
-                .prop_map(|(proof, extension)| Self { proof, extension })
-                .boxed()
-        }
-    }
-}
-
-#[cfg(test)]
-#[cfg(feature = "arbitrary")]
-mod tests {
-    use super::*;
-    use crate::serialization::sigma_serialize_roundtrip;
-    use proptest::prelude::*;
-
-    proptest! {
-
-        #[test]
-        fn ser_roundtrip(v in any::<ProverResult>()) {
-            prop_assert_eq![sigma_serialize_roundtrip(&v), v];
         }
     }
 }

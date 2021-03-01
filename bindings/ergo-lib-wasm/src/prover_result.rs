@@ -9,13 +9,13 @@ use derive_more::{From, Into};
 /// Proof of correctness of tx spending
 #[wasm_bindgen]
 #[derive(PartialEq, Debug, Clone, From, Into)]
-pub struct ProverResult(ergo_lib::chain::transaction::input::WrappedProverResult);
+pub struct ProverResult(ergo_lib::chain::transaction::input::prover_result::ProverResult);
 
 #[wasm_bindgen]
 impl ProverResult {
     /// Get proof
     pub fn proof(&self) -> Vec<u8> {
-        self.0.proof.clone()
+        self.0.proof.clone().into()
     }
 
     /// Get extension

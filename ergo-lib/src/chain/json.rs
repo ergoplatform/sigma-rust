@@ -3,7 +3,6 @@
 use ergotree_ir::mir::constant::Constant;
 use ergotree_ir::sigma_protocol::prover::ContextExtension;
 use ergotree_ir::sigma_protocol::prover::ProofBytes;
-use ergotree_ir::sigma_protocol::prover::ProverResult;
 use indexmap::IndexMap;
 use serde::Serializer;
 use serde::{Deserialize, Serialize};
@@ -243,29 +242,6 @@ pub mod transaction {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub(crate) struct ContextExtensionSerde {
     values: IndexMap<u8, Constant>,
-}
-
-#[cfg_attr(
-    feature = "json",
-    derive(Serialize, Deserialize),
-    serde(remote = "ProverResult")
-)]
-#[derive(PartialEq, Debug, Clone)]
-pub struct ProverResultSerde {
-    /// proof that satisfies final sigma proposition
-    #[cfg_attr(
-        feature = "json",
-        serde(rename = "proofBytes"),
-        serde(with = "crate::chain::json::ProofBytesSerde")
-    )]
-    pub proof: ProofBytes,
-    /// user-defined variables to be put into context
-    #[cfg_attr(
-        feature = "json",
-        serde(rename = "extension"),
-        serde(with = "crate::chain::json::ContextExtensionSerde")
-    )]
-    pub extension: ContextExtension,
 }
 
 #[cfg_attr(
