@@ -521,6 +521,7 @@ mod tests {
     use super::box_value::tests::ArbBoxValueRange;
     use super::*;
     use crate::test_util::force_any_val;
+    use ergotree_ir::mir::constant::TryExtractInto;
     use ergotree_ir::serialization::sigma_serialize_roundtrip;
     use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
 
@@ -592,6 +593,18 @@ mod tests {
                     .unwrap()
             ),
             u64::from(token.amount) * 4
+        );
+    }
+
+    #[test]
+    fn get_register_mandatory() {
+        let b = force_any_val::<ErgoBox>();
+        assert_eq!(
+            b.value.as_i64(),
+            b.get_register(RegisterId::R0)
+                .unwrap()
+                .try_extract_into::<i64>()
+                .unwrap()
         );
     }
 
