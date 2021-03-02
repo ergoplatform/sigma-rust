@@ -12,6 +12,5 @@ crate-type = ["lib"]
 
 [dependencies]
 ergo-lib = { version = "^0.5.1", path = "../../ergo-lib" }
-ergotree-ir = { version = "^0.5.1", path = "../../ergotree-ir" }
 thiserror = "1"
 

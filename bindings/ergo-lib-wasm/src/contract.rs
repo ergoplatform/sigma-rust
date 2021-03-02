@@ -1,6 +1,6 @@
 //! Contract, for easier ErgoTree generation
 use ergo_lib::chain;
-use ergoscript_compiler::script_env::ScriptEnv;
+use ergo_lib::ergoscript_compiler::script_env::ScriptEnv;
 use wasm_bindgen::prelude::*;
 
 use crate::address::Address;

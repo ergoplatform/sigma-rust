@@ -1,8 +1,8 @@
 //! Secret key
 use std::convert::TryInto;
 
+use ergo_lib::ergotree_ir::sigma_protocol::private_input::DlogProverInput;
 use ergo_lib::wallet;
-use ergotree_ir::sigma_protocol::private_input::DlogProverInput;
 use wasm_bindgen::prelude::*;
 
 use crate::address::Address;

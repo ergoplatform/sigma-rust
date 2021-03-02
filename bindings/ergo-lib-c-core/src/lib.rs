@@ -13,9 +13,9 @@
 mod error;
 pub use error::*;
 
-use ergotree_ir::address::{AddressEncoder, NetworkPrefix};
+use ergo_lib::ergotree_ir::address::{AddressEncoder, NetworkPrefix};
 
-pub struct Address(ergotree_ir::address::Address);
+pub struct Address(ergo_lib::ergotree_ir::address::Address);
 pub type AddressPtr = *mut Address;
 
 pub unsafe fn address_from_testnet(

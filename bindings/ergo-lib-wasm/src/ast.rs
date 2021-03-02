@@ -2,7 +2,7 @@
 
 use crate::utils::I64;
 use ergo_lib::chain::Base16Str;
-use ergotree_ir::mir::constant::TryExtractFrom;
+use ergo_lib::ergotree_ir::mir::constant::TryExtractFrom;
 use js_sys::Uint8Array;
 use std::convert::TryFrom;
 use wasm_bindgen::prelude::*;
@@ -13,7 +13,7 @@ use derive_more::{From, Into};
 /// Ergo constant(evaluated) values
 #[wasm_bindgen]
 #[derive(PartialEq, Eq, Debug, Clone, From, Into)]
-pub struct Constant(ergotree_ir::mir::constant::Constant);
+pub struct Constant(ergo_lib::ergotree_ir::mir::constant::Constant);
 
 #[wasm_bindgen]
 impl Constant {
@@ -26,7 +26,7 @@ impl Constant {
                     base16_bytes_str.clone()
                 ))
             })?;
-        ergotree_ir::mir::constant::Constant::try_from(bytes)
+        ergo_lib::ergotree_ir::mir::constant::Constant::try_from(bytes)
             .map_err(|e| JsValue::from_str(&format! {"{:?}", e}))
             .map(Constant)
     }
