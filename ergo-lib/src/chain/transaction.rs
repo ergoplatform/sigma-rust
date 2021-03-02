@@ -1,10 +1,14 @@
 //! Ergo transaction
 
 mod data_input;
-mod input;
+pub mod input;
 pub mod unsigned;
 
 pub use data_input::*;
+use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
+use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
+use ergotree_ir::serialization::SerializationError;
+use ergotree_ir::serialization::SigmaSerializable;
 pub use input::*;
 
 #[cfg(feature = "json")]
@@ -14,10 +18,6 @@ use super::{
     ergo_box::ErgoBox,
     ergo_box::ErgoBoxCandidate,
     token::TokenId,
-};
-use crate::serialization::{
-    sigma_byte_reader::SigmaByteRead, sigma_byte_writer::SigmaByteWrite, SerializationError,
-    SigmaSerializable,
 };
 use indexmap::IndexSet;
 #[cfg(test)]
@@ -271,8 +271,8 @@ impl TryFrom<json::transaction::TransactionJson> for Transaction {
 pub mod tests {
 
     use super::*;
-    use crate::serialization::sigma_serialize_roundtrip;
 
+    use ergotree_ir::serialization::sigma_serialize_roundtrip;
     use proptest::prelude::*;
     use proptest::{arbitrary::Arbitrary, collection::vec};
 

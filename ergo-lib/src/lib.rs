@@ -14,18 +14,14 @@
 #![deny(broken_intra_doc_links)]
 
 mod big_integer;
-mod eval;
 
-pub mod ast;
 pub mod chain;
 pub mod constants;
-pub mod serialization;
-pub mod sigma_protocol;
-pub mod types;
-pub mod util;
 pub mod wallet;
-
-pub mod ergo_tree;
 
 #[cfg(test)]
 pub mod test_util;
+
+/// Re-exported types from dependencies
+pub extern crate ergoscript_compiler;
+pub extern crate ergotree_ir;

@@ -1,6 +1,12 @@
 //! JSON serialization
 
+use ergotree_ir::mir::constant::Constant;
+use ergotree_ir::sigma_protocol::prover::ContextExtension;
+use ergotree_ir::sigma_protocol::prover::ProofBytes;
+use indexmap::IndexMap;
 use serde::Serializer;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 pub fn serialize_bytes<S, T>(bytes: T, serializer: S) -> Result<S::Ok, S::Error>
 where
@@ -13,8 +19,8 @@ where
 pub mod ergo_tree {
 
     use super::*;
-    use crate::ergo_tree::ErgoTree;
-    use crate::serialization::SigmaSerializable;
+    use ergotree_ir::ergo_tree::ErgoTree;
+    use ergotree_ir::serialization::SigmaSerializable;
     use serde::{Deserialize, Deserializer, Serializer};
 
     pub fn serialize<S>(ergo_tree: &ErgoTree, serializer: S) -> Result<S::Ok, S::Error>
@@ -40,6 +46,10 @@ pub mod ergo_tree {
 
 pub mod ergo_box {
     use core::fmt;
+    use ergotree_ir::ergo_tree::ErgoTree;
+    use ergotree_ir::mir::constant::Constant;
+    use ergotree_ir::serialization::SerializationError;
+    use ergotree_ir::serialization::SigmaSerializable;
     use serde::de::{self, MapAccess, Visitor};
     use serde::Deserializer;
     use std::convert::TryFrom;
@@ -49,19 +59,14 @@ pub mod ergo_box {
     extern crate derive_more;
     use derive_more::From;
 
-    use crate::ast::constant::Constant;
     use crate::chain::Base16DecodedBytes;
-    use crate::serialization::SerializationError;
-    use crate::serialization::SigmaSerializable;
-    use crate::{
-        chain::{
-            ergo_box::{BoxId, BoxValue, NonMandatoryRegisters},
-            token::Token,
-            transaction::TxId,
-        },
-        ergo_tree::ErgoTree,
+    use crate::chain::{
+        ergo_box::{BoxId, BoxValue, NonMandatoryRegisters},
+        token::Token,
+        transaction::TxId,
     };
     use serde::Deserialize;
+    use thiserror::Error;
 
     #[derive(Deserialize, PartialEq, Eq, Debug, Clone)]
     pub struct ErgoBoxFromJson {
@@ -99,17 +104,19 @@ pub mod ergo_box {
 
     impl From<ConstantHolder> for Constant {
         fn from(ch: ConstantHolder) -> Self {
-            ch.0.raw_value
+            ch.0.raw_value.0
         }
     }
 
     #[derive(Deserialize, PartialEq, Eq, Debug, Clone)]
     struct RichConstant {
         #[serde(rename = "rawValue", alias = "serializedValue")]
-        raw_value: Constant,
+        raw_value: ConstantWrapper,
     }
 
-    use thiserror::Error;
+    #[derive(Deserialize, PartialEq, Eq, Debug, Clone)]
+    #[serde(try_from = "Base16DecodedBytes")]
+    struct ConstantWrapper(Constant);
 
     #[derive(Error, PartialEq, Eq, Debug, Clone, From)]
     pub enum ConstantParsingError {
@@ -119,12 +126,23 @@ pub mod ergo_box {
         DeserializationError(SerializationError),
     }
 
+    impl TryFrom<Base16DecodedBytes> for ConstantWrapper {
+        type Error = ConstantParsingError;
+
+        fn try_from(bytes: Base16DecodedBytes) -> Result<Self, Self::Error> {
+            let c = Constant::sigma_parse_bytes(bytes.into())?;
+            Ok(ConstantWrapper(c))
+        }
+    }
+
     impl FromStr for RichConstant {
         type Err = ConstantParsingError;
         fn from_str(s: &str) -> Result<Self, Self::Err> {
             let bytes = Base16DecodedBytes::try_from(s)?;
             let c = Constant::sigma_parse_bytes(bytes.into())?;
-            Ok(RichConstant { raw_value: c })
+            Ok(RichConstant {
+                raw_value: ConstantWrapper(c),
+            })
         }
     }
 
@@ -215,10 +233,34 @@ pub mod transaction {
     }
 }
 
+#[cfg_attr(
+    feature = "json",
+    derive(Serialize, Deserialize),
+    serde(into = "HashMap<String, String>", try_from = "HashMap<String, String>"),
+    serde(remote = "ContextExtension")
+)]
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub(crate) struct ContextExtensionSerde {
+    values: IndexMap<u8, Constant>,
+}
+
+#[cfg_attr(
+    feature = "json",
+    derive(Serialize, Deserialize),
+    serde(into = "String", try_from = "String"),
+    serde(remote = "ProofBytes")
+)]
+#[derive(PartialEq, Eq, Hash, Debug, Clone)]
+pub enum ProofBytesSerde {
+    /// Empty proof
+    Empty,
+    /// Non-empty proof
+    Some(Vec<u8>),
+}
+
 #[cfg(test)]
 mod tests {
     use crate::chain::transaction::unsigned::UnsignedTransaction;
-    use crate::sigma_protocol::prover::ContextExtension;
     use std::convert::TryInto;
 
     use super::super::ergo_box::*;
@@ -300,7 +342,8 @@ mod tests {
 
     #[test]
     fn parse_empty_context_extension() {
-        let c: ContextExtension = serde_json::from_str("{}").unwrap();
+        let mut de = serde_json::Deserializer::from_str("{}");
+        let c: ContextExtension = ContextExtensionSerde::deserialize(&mut de).unwrap();
         assert_eq!(c, ContextExtension::empty());
     }
 
@@ -309,7 +352,8 @@ mod tests {
         let json = r#"
         {"1" :"05b0b5cad8e6dbaef44a", "3":"048ce5d4e505"}
         "#;
-        let c: ContextExtension = serde_json::from_str(json).unwrap();
+        let mut de = serde_json::Deserializer::from_str(json);
+        let c: ContextExtension = ContextExtensionSerde::deserialize(&mut de).unwrap();
         assert_eq!(c.values.len(), 2);
         assert!(c.values.get(&1u8).is_some());
         assert!(c.values.get(&3u8).is_some());

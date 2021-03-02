@@ -6,11 +6,9 @@ mod json;
 mod base16_bytes;
 mod digest32;
 
-pub use base16_bytes::Base16DecodedBytes;
-pub use base16_bytes::Base16EncodedBytes;
+pub use base16_bytes::*;
 pub use digest32::*;
 
-pub mod address;
 pub mod contract;
 pub mod ergo_box;
 pub mod ergo_state_context;

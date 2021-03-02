@@ -1,7 +1,8 @@
 //! Box value newtype
 
 use crate::chain::token::TokenAmountError;
-use crate::serialization::{
+use ergotree_ir::mir::constant::Constant;
+use ergotree_ir::serialization::{
     sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
 };
 #[cfg(feature = "json")]
@@ -139,6 +140,12 @@ impl From<BoxValue> for i64 {
     fn from(v: BoxValue) -> Self {
         // it's safe since upper bound is i64::MAX
         v.0 as i64
+    }
+}
+
+impl From<BoxValue> for Constant {
+    fn from(v: BoxValue) -> Self {
+        v.as_i64().into()
     }
 }
 

@@ -1,5 +1,8 @@
 //! Transitioning type for Base16 encoded bytes in JSON serialization
 
+use ergotree_ir::mir::constant::Constant;
+use ergotree_ir::serialization::SerializationError;
+use ergotree_ir::serialization::SigmaSerializable;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
@@ -46,5 +49,37 @@ impl TryFrom<&str> for Base16DecodedBytes {
 impl From<Base16DecodedBytes> for Vec<u8> {
     fn from(b: Base16DecodedBytes) -> Self {
         b.0
+    }
+}
+
+impl From<Constant> for Base16EncodedBytes {
+    fn from(v: Constant) -> Base16EncodedBytes {
+        Base16EncodedBytes::new(&v.sigma_serialize_bytes())
+    }
+}
+
+impl TryFrom<Base16DecodedBytes> for Constant {
+    type Error = SerializationError;
+
+    fn try_from(value: Base16DecodedBytes) -> Result<Self, Self::Error> {
+        Constant::sigma_parse_bytes(value.0)
+    }
+}
+
+/// Encodes serialized bytes as Base16
+pub trait Base16Str {
+    /// Returns serialized bytes encoded as Base16
+    fn base16_str(&self) -> String;
+}
+
+impl Base16Str for &Constant {
+    fn base16_str(&self) -> String {
+        base16::encode_lower(&self.sigma_serialize_bytes())
+    }
+}
+
+impl Base16Str for Constant {
+    fn base16_str(&self) -> String {
+        base16::encode_lower(&self.sigma_serialize_bytes())
     }
 }

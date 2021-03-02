@@ -3,10 +3,10 @@
 use std::io;
 
 use crate::chain::ergo_box::BoxId;
-use crate::serialization::{
-    sigma_byte_reader::SigmaByteRead, sigma_byte_writer::SigmaByteWrite, SerializationError,
-    SigmaSerializable,
-};
+use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
+use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
+use ergotree_ir::serialization::SerializationError;
+use ergotree_ir::serialization::SigmaSerializable;
 #[cfg(test)]
 use proptest::prelude::*;
 #[cfg(test)]
@@ -43,8 +43,9 @@ impl SigmaSerializable for DataInput {
 
 #[cfg(test)]
 mod tests {
+    use ergotree_ir::serialization::sigma_serialize_roundtrip;
+
     use super::*;
-    use crate::serialization::sigma_serialize_roundtrip;
 
     proptest! {
 

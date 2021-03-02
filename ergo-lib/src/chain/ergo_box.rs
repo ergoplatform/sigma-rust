@@ -7,7 +7,15 @@ mod register;
 
 pub use box_id::*;
 pub use box_value::*;
+use ergotree_ir::ergo_tree::ErgoTree;
+use ergotree_ir::ir_ergo_box::IrErgoBox;
+use ergotree_ir::mir::constant::Constant;
+use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
+use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
+use ergotree_ir::serialization::SerializationError;
+use ergotree_ir::serialization::SigmaSerializable;
 pub use register::*;
+use sigma_util::DIGEST32_SIZE;
 
 #[cfg(feature = "json")]
 use super::json;
@@ -18,25 +26,16 @@ use super::{
     transaction::TxId,
 };
 
-use crate::ast::constant::Constant;
-use crate::{
-    ergo_tree::ErgoTree,
-    serialization::{
-        ergo_box::{parse_box_with_indexed_digests, serialize_box_with_indexed_digests},
-        sigma_byte_reader::SigmaByteRead,
-        sigma_byte_writer::SigmaByteWrite,
-        SerializationError, SigmaSerializable,
-    },
-};
 use indexmap::IndexSet;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-#[cfg(feature = "json")]
 use std::convert::TryFrom;
 use std::io;
 #[cfg(feature = "json")]
 use thiserror::Error;
+
+use std::convert::TryInto;
 
 /// Box (aka coin, or an unspent output) is a basic concept of a UTXO-based cryptocurrency.
 /// In Bitcoin, such an object is associated with some monetary value (arbitrary,
@@ -160,6 +159,42 @@ impl ErgoBox {
             },
             RegisterId::NonMandatoryRegisterId(id) => self.additional_registers.get(id).cloned(),
         }
+    }
+}
+
+impl IrErgoBox for ErgoBox {
+    fn id(&self) -> &[u8; DIGEST32_SIZE] {
+        &self.box_id.0 .0
+    }
+
+    fn value(&self) -> i64 {
+        self.value.as_i64()
+    }
+
+    fn tokens(&self) -> Vec<(Vec<i8>, i64)> {
+        self.tokens
+            .clone()
+            .into_iter()
+            .map(|t| (t.token_id.into(), t.amount.into()))
+            .collect()
+    }
+
+    fn additional_registers(&self) -> &[Constant] {
+        self.additional_registers.get_ordered_values()
+    }
+
+    fn get_register(&self, id: i8) -> Option<Constant> {
+        RegisterId::try_from(id)
+            .ok()
+            .and_then(|reg_id| self.get_register(reg_id))
+    }
+
+    fn creation_height(&self) -> i32 {
+        self.creation_height as i32
+    }
+
+    fn script_bytes(&self) -> Vec<u8> {
+        self.sigma_serialize_bytes()
     }
 }
 
@@ -384,13 +419,110 @@ impl From<ErgoBox> for ErgoBoxCandidate {
     }
 }
 
+/// ErgoBox and ErgoBoxCandidate serialization
+
+/// Box serialization with token ids optionally saved in transaction
+/// (in this case only token index is saved)
+pub fn serialize_box_with_indexed_digests<W: SigmaByteWrite>(
+    box_value: &BoxValue,
+    ergo_tree_bytes: Vec<u8>,
+    tokens: &[Token],
+    additional_registers: &NonMandatoryRegisters,
+    creation_height: u32,
+    token_ids_in_tx: Option<&IndexSet<TokenId>>,
+    w: &mut W,
+) -> Result<(), io::Error> {
+    // reference implementation - https://github.com/ScorexFoundation/sigmastate-interpreter/blob/9b20cb110effd1987ff76699d637174a4b2fb441/sigmastate/src/main/scala/org/ergoplatform/ErgoBoxCandidate.scala#L95-L95
+    box_value.sigma_serialize(w)?;
+    w.write_all(&ergo_tree_bytes[..])?;
+    w.put_u32(creation_height)?;
+    w.put_u8(u8::try_from(tokens.len()).unwrap())?;
+
+    tokens.iter().try_for_each(|t| {
+        match token_ids_in_tx {
+            Some(token_ids) => w.put_u32(
+                u32::try_from(
+                    token_ids
+                        .get_full(&t.token_id)
+                        // this is not a true runtime error it just means that
+                        // calling site messed up the token ids
+                        .expect("failed to find token id in tx's digest index")
+                        .0,
+                )
+                .unwrap(),
+            ),
+            None => t.token_id.sigma_serialize(w),
+        }
+        .and_then(|()| w.put_u64(t.amount.into()))
+    })?;
+
+    let regs_num = additional_registers.len();
+    w.put_u8(regs_num as u8)?;
+
+    additional_registers
+        .get_ordered_values()
+        .iter()
+        .try_for_each(|c| c.sigma_serialize(w))?;
+
+    Ok(())
+}
+
+/// Box deserialization with token ids optionally parsed in transaction
+pub fn parse_box_with_indexed_digests<R: SigmaByteRead>(
+    digests_in_tx: Option<&IndexSet<TokenId>>,
+    r: &mut R,
+) -> Result<ErgoBoxCandidate, SerializationError> {
+    // reference implementation -https://github.com/ScorexFoundation/sigmastate-interpreter/blob/9b20cb110effd1987ff76699d637174a4b2fb441/sigmastate/src/main/scala/org/ergoplatform/ErgoBoxCandidate.scala#L144-L144
+
+    let value = BoxValue::sigma_parse(r)?;
+    let ergo_tree = ErgoTree::sigma_parse(r)?;
+    let creation_height = r.get_u32()?;
+    let tokens_count = r.get_u8()?;
+    let mut tokens = Vec::with_capacity(tokens_count as usize);
+    for _ in 0..tokens_count {
+        let token_id = match digests_in_tx {
+            None => TokenId::sigma_parse(r)?,
+            Some(digests) => {
+                let digest_index = r.get_u32()?;
+                match digests.get_index(digest_index as usize) {
+                    Some(i) => Ok((*i).clone()),
+                    None => Err(SerializationError::Misc(
+                        "failed to find token id in tx digests".to_string(),
+                    )),
+                }?
+            }
+        };
+        let amount = r.get_u64()?;
+        tokens.push(Token {
+            token_id,
+            amount: amount.try_into()?,
+        })
+    }
+
+    let regs_num = r.get_u8()?;
+    let mut additional_regs = Vec::with_capacity(regs_num as usize);
+    for _ in 0..regs_num {
+        let v = Constant::sigma_parse(r)?;
+        additional_regs.push(v);
+    }
+    let additional_registers = NonMandatoryRegisters::from_ordered_values(additional_regs)?;
+    Ok(ErgoBoxCandidate {
+        value,
+        ergo_tree,
+        tokens,
+        additional_registers,
+        creation_height,
+    })
+}
+
 #[cfg(test)]
 mod tests {
 
     use super::box_value::tests::ArbBoxValueRange;
     use super::*;
-    use crate::serialization::sigma_serialize_roundtrip;
     use crate::test_util::force_any_val;
+    use ergotree_ir::mir::constant::TryExtractInto;
+    use ergotree_ir::serialization::sigma_serialize_roundtrip;
     use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
 
     impl Arbitrary for ErgoBoxCandidate {
@@ -461,6 +593,18 @@ mod tests {
                     .unwrap()
             ),
             u64::from(token.amount) * 4
+        );
+    }
+
+    #[test]
+    fn get_register_mandatory() {
+        let b = force_any_val::<ErgoBox>();
+        assert_eq!(
+            b.value.as_i64(),
+            b.get_register(RegisterId::R0)
+                .unwrap()
+                .try_extract_into::<i64>()
+                .unwrap()
         );
     }
 

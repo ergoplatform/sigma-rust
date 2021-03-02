@@ -1,16 +1,20 @@
 //! Transaction input
+
+pub mod prover_result;
+
 use std::io;
 
 use crate::chain::ergo_box::{BoxId, ErgoBoxId};
-use crate::serialization::{
-    sigma_byte_reader::SigmaByteRead, sigma_byte_writer::SigmaByteWrite, SerializationError,
-    SigmaSerializable,
-};
-use crate::sigma_protocol::prover::ContextExtension;
-use crate::sigma_protocol::prover::ProofBytes;
-use crate::sigma_protocol::prover::ProverResult;
+use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
+use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
+use ergotree_ir::serialization::SerializationError;
+use ergotree_ir::serialization::SigmaSerializable;
+use ergotree_ir::sigma_protocol::prover::ContextExtension;
+use ergotree_ir::sigma_protocol::prover::ProofBytes;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
+
+use self::prover_result::ProverResult;
 
 /// Unsigned (without proofs) transaction input
 #[derive(PartialEq, Debug, Clone)]
@@ -21,16 +25,24 @@ pub struct UnsignedInput {
     #[cfg_attr(feature = "json", serde(rename = "boxId"))]
     pub box_id: BoxId,
     /// user-defined variables to be put into context
-    #[cfg_attr(feature = "json", serde(rename = "extension"))]
+    #[cfg_attr(
+        feature = "json",
+        serde(rename = "extension",),
+        serde(with = "crate::chain::json::ContextExtensionSerde")
+    )]
     pub extension: ContextExtension,
+}
+
+impl UnsignedInput {
+    /// Create new with empty ContextExtension
+    pub fn new(box_id: BoxId, extension: ContextExtension) -> Self {
+        UnsignedInput { box_id, extension }
+    }
 }
 
 impl<T: ErgoBoxId> From<T> for UnsignedInput {
     fn from(b: T) -> Self {
-        UnsignedInput {
-            box_id: b.box_id(),
-            extension: ContextExtension::empty(),
-        }
+        UnsignedInput::new(b.box_id(), ContextExtension::empty())
     }
 }
 
@@ -43,11 +55,19 @@ pub struct Input {
     #[cfg_attr(feature = "json", serde(rename = "boxId"))]
     pub box_id: BoxId,
     /// proof of spending correctness
-    #[cfg_attr(feature = "json", serde(rename = "spendingProof"))]
+    #[cfg_attr(feature = "json", serde(rename = "spendingProof",))]
     pub spending_proof: ProverResult,
 }
 
 impl Input {
+    /// Create new
+    pub fn new(box_id: BoxId, spending_proof: ProverResult) -> Self {
+        Self {
+            box_id,
+            spending_proof,
+        }
+    }
+
     /// input with an empty proof
     pub fn input_to_sign(&self) -> Input {
         Input {
@@ -79,7 +99,7 @@ impl SigmaSerializable for Input {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::serialization::sigma_serialize_roundtrip;
+    use ergotree_ir::serialization::sigma_serialize_roundtrip;
     use proptest::prelude::*;
 
     proptest! {

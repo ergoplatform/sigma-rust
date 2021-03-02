@@ -1,11 +1,12 @@
 //! Box id type
 use std::io;
 
+use ergotree_ir::ir_ergo_box::IrBoxId;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 
 use super::super::digest32::Digest32;
-use crate::serialization::{
+use ergotree_ir::serialization::{
     sigma_byte_reader::SigmaByteRead, sigma_byte_writer::SigmaByteWrite, SerializationError,
     SigmaSerializable,
 };
@@ -41,6 +42,12 @@ impl Into<String> for BoxId {
     }
 }
 
+impl From<&IrBoxId> for BoxId {
+    fn from(irb: &IrBoxId) -> Self {
+        BoxId(irb.0.into())
+    }
+}
+
 impl SigmaSerializable for BoxId {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
         self.0.sigma_serialize(w)?;
@@ -54,7 +61,7 @@ impl SigmaSerializable for BoxId {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::serialization::sigma_serialize_roundtrip;
+    use ergotree_ir::serialization::sigma_serialize_roundtrip;
     use proptest::prelude::*;
 
     proptest! {

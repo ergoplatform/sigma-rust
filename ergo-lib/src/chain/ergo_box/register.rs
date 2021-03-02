@@ -2,10 +2,9 @@
 
 #[cfg(feature = "json")]
 use crate::chain::json::ergo_box::ConstantHolder;
-use crate::serialization::sigma_byte_reader::SigmaByteRead;
-use crate::serialization::sigma_byte_writer::SigmaByteWrite;
-use crate::serialization::SigmaSerializable;
-use crate::{ast::constant::Constant, serialization::SerializationError};
+use crate::chain::Base16EncodedBytes;
+use ergotree_ir::mir::constant::Constant;
+use ergotree_ir::serialization::SerializationError;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
@@ -46,23 +45,6 @@ impl TryFrom<i8> for RegisterId {
         } else {
             Err(RegisterIdOutOfBounds(value))
         }
-    }
-}
-
-impl SigmaSerializable for RegisterId {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
-        let byte = match self {
-            RegisterId::MandatoryRegisterId(id) => *id as i8,
-            RegisterId::NonMandatoryRegisterId(id) => *id as i8,
-        };
-        w.put_i8(byte)
-    }
-
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
-        let reg_id = r.get_i8()?;
-        RegisterId::try_from(reg_id).map_err(|_| {
-            SerializationError::ValueOutOfBounds(format!("Register id out of bounds: {}", reg_id))
-        })
     }
 }
 
@@ -169,7 +151,7 @@ pub struct NonMandatoryRegisterIdParsingError();
 #[cfg_attr(
     feature = "json",
     serde(
-        into = "HashMap<NonMandatoryRegisterId, Constant>",
+        into = "HashMap<NonMandatoryRegisterId, Base16EncodedBytes>",
         try_from = "HashMap<NonMandatoryRegisterId, crate::chain::json::ergo_box::ConstantHolder>"
     )
 )]
@@ -233,6 +215,16 @@ pub enum NonMandatoryRegistersError {
     /// Set of non-mandatory indexes are not densely packed
     #[error("registers are not densely packed (register R{0} is missing)")]
     NonDenselyPacked(u8),
+}
+
+impl Into<HashMap<NonMandatoryRegisterId, Base16EncodedBytes>> for NonMandatoryRegisters {
+    fn into(self) -> HashMap<NonMandatoryRegisterId, Base16EncodedBytes> {
+        self.0
+            .into_iter()
+            .enumerate()
+            .map(|(i, c)| (NonMandatoryRegisterId::get_by_zero_index(i), c.into()))
+            .collect()
+    }
 }
 
 impl Into<HashMap<NonMandatoryRegisterId, Constant>> for NonMandatoryRegisters {
@@ -346,6 +338,11 @@ mod tests {
                 prop_assert_eq![regs.get(*reg_id), hash_map.get(reg_id)];
                 Ok(())
             })?;
+        }
+
+        #[test]
+        fn reg_id_from_byte(reg_id_byte in 0i8..NonMandatoryRegisterId::END_INDEX as i8) {
+            assert!(RegisterId::try_from(reg_id_byte).is_ok());
         }
     }
 

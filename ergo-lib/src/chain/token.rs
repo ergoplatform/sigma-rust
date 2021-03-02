@@ -1,6 +1,6 @@
 //! Token related types
 
-use crate::serialization::{
+use ergotree_ir::serialization::{
     sigma_byte_reader::SigmaByteRead, sigma_byte_writer::SigmaByteWrite, SerializationError,
     SigmaSerializable,
 };
@@ -152,7 +152,7 @@ impl From<(TokenId, TokenAmount)> for Token {
 pub mod tests {
     use super::*;
     use crate::chain::Base16DecodedBytes;
-    use crate::serialization::sigma_serialize_roundtrip;
+    use ergotree_ir::serialization::sigma_serialize_roundtrip;
     use proptest::prelude::*;
 
     pub enum ArbTokenIdParam {
