@@ -16,6 +16,7 @@ As a heads up, we'll be running your PR through the following CI jobs:
 When we're ready to release, a project owner should do the following:
 
 - Create(checkout) a release branch (naming convention `release/vX-Y-Z` using the `ergo-lib` version);
+- install or update "cargo release" (via `cargo install cargo-release`);
 - `cargo release minor -no-dev-version -vv --dry-run` if you intend to bump a minor version 
   or change `minor` to `major` to bump a major version, `patch` to bump a patch/hotfix version 
   (you might want to add any crates  without changes to `--exclude` option list, e.g. `sigma-ser`, `sigma-util`, etc.)
