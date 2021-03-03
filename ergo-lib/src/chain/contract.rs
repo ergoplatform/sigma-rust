@@ -1,8 +1,5 @@
 //! Ergo contract
 
-use ergoscript_compiler::compiler::compile;
-use ergoscript_compiler::compiler::CompileError;
-use ergoscript_compiler::script_env::ScriptEnv;
 use ergotree_ir::address::Address;
 use ergotree_ir::ergo_tree::ErgoTree;
 use ergotree_ir::serialization::SerializationError;
@@ -30,8 +27,12 @@ impl Contract {
     }
 
     /// Compiles a contract from ErgoScript source code
-    pub fn compile(source: &str, env: ScriptEnv) -> Result<Contract, CompileError> {
-        let ergo_tree = compile(source, env)?;
+    #[cfg(feature = "compiler")]
+    pub fn compile(
+        source: &str,
+        env: ergoscript_compiler::script_env::ScriptEnv,
+    ) -> Result<Contract, ergoscript_compiler::compiler::CompileError> {
+        let ergo_tree = ergoscript_compiler::compiler::compile(source, env)?;
         Ok(Contract { ergo_tree })
     }
 }
@@ -40,9 +41,11 @@ impl Contract {
 mod tests {
     use super::*;
 
+    #[cfg(feature = "compiler")]
     #[test]
     fn compile() {
-        let contract = Contract::compile("HEIGHT", ScriptEnv::new()).unwrap();
+        let contract =
+            Contract::compile("HEIGHT", ergoscript_compiler::script_env::ScriptEnv::new()).unwrap();
         dbg!(&contract);
     }
 }
