@@ -1,4 +1,4 @@
-use ergotree_ir::mir::expr::Expr;
+use crate::mir::expr::Expr;
 
 #[derive(Debug, PartialEq)]
 pub struct TypeCheckError {

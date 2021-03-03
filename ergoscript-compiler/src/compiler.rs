@@ -14,8 +14,8 @@ use crate::type_infer::TypeInferenceError;
 extern crate derive_more;
 use derive_more::From;
 use ergotree_ir::ergo_tree::ErgoTree;
+use ergotree_ir::type_check::TypeCheckError;
 use mir::lower::MirLoweringError;
-use mir::type_check::TypeCheckError;
 
 /// Compilation errors
 #[derive(Debug, PartialEq, From)]
@@ -70,7 +70,7 @@ pub fn compile_expr(
     let typed = assign_type(bind)?;
     dbg!(typed.debug_tree());
     let mir = mir::lower::lower(typed)?;
-    let res = mir::type_check::type_check(mir)?;
+    let res = ergotree_ir::type_check::type_check(mir)?;
     Ok(res)
 }
 

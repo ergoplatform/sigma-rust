@@ -18,5 +18,6 @@ pub mod ir_ergo_box;
 pub mod mir;
 pub mod serialization;
 pub mod sigma_protocol;
+pub mod type_check;
 pub mod types;
 pub mod util;
