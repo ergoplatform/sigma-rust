@@ -16,7 +16,7 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 sigma-ser = { version = "^0.2.0", path = "../sigma-ser" }
 sigma-util = { version = "^0.2.0", path = "../sigma-util" }
-ergotree-ir = { version = "^0.5.1", path = "../ergotree-ir" }
+ergotree-ir = { version = "^0.6.0", path = "../ergotree-ir" }
 indexmap = "1.3.2"
 k256 = { version = "0.4.2", features = ["rand", "zeroize"] }
 blake2 = "0.9"
@@ -38,7 +38,7 @@ default = []
 arbitrary = ["proptest", "proptest-derive"]
 
 [dev-dependencies]
-ergotree-ir = { version = "^0.5.1", path = "../ergotree-ir", features = ["arbitrary"] }
+ergotree-ir = { version = "^0.6.0", path = "../ergotree-ir", features = ["arbitrary"] }
 ergoscript-compiler = { version = "^0.1.0", path = "../ergoscript-compiler" }
 proptest = "1.0.0"
 test-util = { version = "0.1.0", path = "../test-util" }
