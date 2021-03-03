@@ -84,11 +84,12 @@ mod proptests {
 
 #[cfg(test)]
 mod tests {
+    use test_util::force_any_val_with;
+
     use super::*;
     use crate::mir::bin_op::RelationOp;
     use crate::mir::expr::arbitrary::ArbExprParams;
     use crate::serialization::sigma_serialize_roundtrip;
-    use crate::test_util::force_any_val_with;
     use crate::types::stype::SType;
 
     fn test_ser_roundtrip(kind: BinOpKind, left: Expr, right: Expr) {

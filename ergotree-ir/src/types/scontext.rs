@@ -1,8 +1,4 @@
-use crate::mir::value::CollKind;
-use crate::mir::value::Value;
-
 use super::sfunc::SFunc;
-use super::smethod::EvalFn;
 use super::smethod::MethodId;
 use super::smethod::SMethod;
 use super::smethod::SMethodDesc;
@@ -15,34 +11,23 @@ use lazy_static::lazy_static;
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct SContext();
 
+pub const TYPE_ID: TypeId = TypeId(101);
+
 static S_CONTEXT_TYPE_COMPANION_HEAD: STypeCompanionHead = STypeCompanionHead {
-    type_id: TypeId(101),
+    type_id: TYPE_ID,
     type_name: "Context",
 };
 
-static DATA_INPUTS_EVAL_FN: EvalFn = |ctx, _obj, _args| {
-    // TODO: check that obj is Value::Context
-    Ok(Value::Coll(CollKind::WrappedColl {
-        items: ctx
-            .data_inputs
-            .clone()
-            .into_iter()
-            .map(Value::CBox)
-            .collect(),
-        elem_tpe: SType::SBox,
-    }))
-};
-
+pub const DATA_INPUTS_PROPERTY_METHOD_ID: MethodId = MethodId(1);
 lazy_static! {
     static ref DATA_INPUTS_PROPERTY_METHOD_DESC: SMethodDesc = SMethodDesc {
-        method_id: MethodId(1),
+        method_id: DATA_INPUTS_PROPERTY_METHOD_ID,
         name: "dataInputs",
         tpe: SType::SFunc(SFunc {
             t_dom: vec![SType::SContext(SContext())],
             t_range: Box::new(SType::SColl(Box::new(SType::SBox))),
             tpe_params: vec![],
         }),
-        eval_fn: DATA_INPUTS_EVAL_FN,
     };
 }
 

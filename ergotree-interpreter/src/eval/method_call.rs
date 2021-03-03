@@ -1,0 +1,51 @@
+use ergotree_ir::mir::method_call::MethodCall;
+use ergotree_ir::mir::value::Value;
+
+use super::smethod_eval_fn;
+use super::Env;
+use super::EvalContext;
+use super::EvalError;
+use super::Evaluable;
+
+impl Evaluable for MethodCall {
+    fn eval(&self, env: &Env, ectx: &mut EvalContext) -> Result<Value, EvalError> {
+        let ov = self.obj.eval(env, ectx)?;
+        let argsv: Result<Vec<Value>, EvalError> =
+            self.args.iter().map(|arg| arg.eval(env, ectx)).collect();
+        smethod_eval_fn(&self.method)(ectx.ctx.clone(), ov, argsv?)
+    }
+}
+
+#[cfg(test)]
+#[cfg(feature = "arbitrary")]
+mod tests {
+    use std::rc::Rc;
+
+    use ergotree_ir::mir::constant::Constant;
+    use ergotree_ir::mir::expr::Expr;
+    use ergotree_ir::mir::global_vars::GlobalVars;
+    use ergotree_ir::mir::option_get::OptionGet;
+    use ergotree_ir::types::sbox;
+    use test_util::force_any_val;
+
+    use crate::eval::context::Context;
+    use crate::eval::tests::eval_out;
+
+    use super::*;
+
+    #[test]
+    fn eval_box_get_reg() {
+        let mc: Expr = MethodCall {
+            obj: Box::new(GlobalVars::SelfBox.into()),
+            method: sbox::GET_REG_METHOD.clone(),
+            args: vec![Constant::from(0i8).into()],
+        }
+        .into();
+        let option_get_expr: Expr = OptionGet::new(mc).unwrap().into();
+        let ctx = Rc::new(force_any_val::<Context>());
+        assert_eq!(
+            eval_out::<i64>(&option_get_expr, ctx.clone()),
+            ctx.self_box.get_box(&ctx.box_arena).unwrap().value()
+        );
+    }
+}

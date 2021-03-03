@@ -1,23 +1,15 @@
-use crate::eval::env::Env;
-use crate::eval::EvalContext;
-use crate::eval::EvalError;
-use crate::eval::Evaluable;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::SerializationError;
 use crate::serialization::SigmaSerializable;
-use crate::sigma_protocol::sigma_boolean::SigmaBoolean;
-use crate::sigma_protocol::sigma_boolean::SigmaProp;
 use crate::types::stype::SType;
 
-use super::constant::TryExtractInto;
 use super::expr::Expr;
-use super::value::Value;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct BoolToSigmaProp {
-    input: Box<Expr>,
+    pub input: Box<Expr>,
 }
 
 impl BoolToSigmaProp {
@@ -41,14 +33,6 @@ impl SigmaSerializable for BoolToSigmaProp {
         Ok(Self {
             input: Expr::sigma_parse(r)?.into(),
         })
-    }
-}
-
-impl Evaluable for BoolToSigmaProp {
-    fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
-        let input_v = self.input.eval(env, ctx)?;
-        let input_v_bool = input_v.try_extract_into::<bool>()?;
-        Ok((SigmaProp::new(SigmaBoolean::TrivialProp(input_v_bool))).into())
     }
 }
 
@@ -80,7 +64,6 @@ pub mod arbitrary {
 #[cfg(feature = "arbitrary")]
 mod tests {
 
-    use crate::eval::tests::eval_out_wo_ctx;
     use crate::mir::expr::Expr;
     use crate::serialization::sigma_serialize_roundtrip;
 
@@ -96,11 +79,5 @@ mod tests {
             prop_assert_eq![sigma_serialize_roundtrip(&expr), expr];
         }
 
-        #[test]
-        fn eval(b in any::<bool>()) {
-            let expr: Expr = BoolToSigmaProp {input: Expr::Const(b.into()).into()}.into();
-            let res = eval_out_wo_ctx::<SigmaProp>(&expr);
-            prop_assert_eq!(res, SigmaProp::new(SigmaBoolean::TrivialProp(b)));
-        }
     }
 }

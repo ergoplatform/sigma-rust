@@ -1,8 +1,8 @@
 //! JSON serialization
 
+use ergotree_interpreter::sigma_protocol::prover::ContextExtension;
+use ergotree_interpreter::sigma_protocol::prover::ProofBytes;
 use ergotree_ir::mir::constant::Constant;
-use ergotree_ir::sigma_protocol::prover::ContextExtension;
-use ergotree_ir::sigma_protocol::prover::ProofBytes;
 use indexmap::IndexMap;
 use serde::Serializer;
 use serde::{Deserialize, Serialize};

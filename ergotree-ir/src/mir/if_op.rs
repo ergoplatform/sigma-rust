@@ -1,7 +1,4 @@
-use crate::eval::env::Env;
-use crate::eval::EvalContext;
-use crate::eval::EvalError;
-use crate::eval::Evaluable;
+use super::expr::Expr;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
@@ -9,16 +6,12 @@ use crate::serialization::SerializationError;
 use crate::serialization::SigmaSerializable;
 use crate::types::stype::SType;
 
-use super::constant::TryExtractInto;
-use super::expr::Expr;
-use super::value::Value;
-
 /// If (lazy)
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct If {
-    condition: Box<Expr>,
-    true_branch: Box<Expr>,
-    false_branch: Box<Expr>,
+    pub condition: Box<Expr>,
+    pub true_branch: Box<Expr>,
+    pub false_branch: Box<Expr>,
 }
 
 impl If {
@@ -30,17 +23,6 @@ impl If {
 
     pub fn op_code(&self) -> OpCode {
         Self::OP_CODE
-    }
-}
-
-impl Evaluable for If {
-    fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
-        let condition_v = self.condition.eval(env, ctx)?;
-        if condition_v.try_extract_into::<bool>()? {
-            self.true_branch.eval(env, ctx)
-        } else {
-            self.false_branch.eval(env, ctx)
-        }
     }
 }
 
@@ -94,66 +76,10 @@ pub mod arbitrary {
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
 mod tests {
-
-    use crate::eval::tests::eval_out_wo_ctx;
-    use crate::mir::bin_op::ArithOp;
-    use crate::mir::bin_op::BinOp;
+    use super::*;
     use crate::mir::expr::Expr;
     use crate::serialization::sigma_serialize_roundtrip;
-
-    use super::*;
-
     use proptest::prelude::*;
-
-    #[test]
-    fn eval() {
-        let expr: Expr = If {
-            condition: Expr::Const(true.into()).into(),
-            true_branch: Expr::Const(1i64.into()).into(),
-            false_branch: Expr::Const(2i64.into()).into(),
-        }
-        .into();
-        let res = eval_out_wo_ctx::<i64>(&expr);
-        assert_eq!(res, 1);
-    }
-
-    #[test]
-    fn eval_laziness_true_branch() {
-        let expr: Expr = If {
-            condition: Expr::Const(true.into()).into(),
-            true_branch: Expr::Const(1i64.into()).into(),
-            false_branch: Box::new(
-                BinOp {
-                    kind: ArithOp::Divide.into(),
-                    left: Box::new(Expr::Const(1i64.into())),
-                    right: Box::new(Expr::Const(0i64.into())),
-                }
-                .into(),
-            ),
-        }
-        .into();
-        let res = eval_out_wo_ctx::<i64>(&expr);
-        assert_eq!(res, 1);
-    }
-
-    #[test]
-    fn eval_laziness_false_branch() {
-        let expr: Expr = If {
-            condition: Expr::Const(false.into()).into(),
-            true_branch: Box::new(
-                BinOp {
-                    kind: ArithOp::Divide.into(),
-                    left: Box::new(Expr::Const(1i64.into())),
-                    right: Box::new(Expr::Const(0i64.into())),
-                }
-                .into(),
-            ),
-            false_branch: Expr::Const(1i64.into()).into(),
-        }
-        .into();
-        let res = eval_out_wo_ctx::<i64>(&expr);
-        assert_eq!(res, 1);
-    }
 
     proptest! {
 

@@ -1,7 +1,3 @@
-use crate::eval::env::Env;
-use crate::eval::EvalContext;
-use crate::eval::EvalError;
-use crate::eval::Evaluable;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
@@ -9,13 +5,11 @@ use crate::serialization::SerializationError;
 use crate::serialization::SigmaSerializable;
 use crate::types::stype::SType;
 
-use super::constant::TryExtractInto;
 use super::expr::Expr;
-use super::value::Value;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct And {
-    input: Box<Expr>,
+    pub input: Box<Expr>,
 }
 
 impl And {
@@ -27,14 +21,6 @@ impl And {
 
     pub fn op_code(&self) -> OpCode {
         Self::OP_CODE
-    }
-}
-
-impl Evaluable for And {
-    fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
-        let input_v = self.input.eval(env, ctx)?;
-        let input_v_bools = input_v.try_extract_into::<Vec<bool>>()?;
-        Ok(input_v_bools.iter().all(|b| *b).into())
     }
 }
 
@@ -75,17 +61,9 @@ pub mod arbitrary {
 
 #[cfg(test)]
 mod tests {
-    use std::rc::Rc;
-
-    use crate::eval::context::Context;
-    use crate::eval::tests::eval_out;
+    use super::*;
     use crate::mir::expr::Expr;
     use crate::serialization::sigma_serialize_roundtrip;
-    use crate::test_util::force_any_val;
-
-    use super::*;
-
-    use proptest::collection;
     use proptest::prelude::*;
 
     proptest! {
@@ -96,12 +74,5 @@ mod tests {
             prop_assert_eq![sigma_serialize_roundtrip(&expr), expr];
         }
 
-        #[test]
-        fn eval(bools in collection::vec(any::<bool>(), 0..10)) {
-            let expr: Expr = And {input: Expr::Const(bools.clone().into()).into()}.into();
-            let ctx = Rc::new(force_any_val::<Context>());
-            let res = eval_out::<bool>(&expr, ctx);
-            prop_assert_eq!(res, bools.iter().all(|b| *b));
-        }
     }
 }

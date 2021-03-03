@@ -5,12 +5,12 @@ pub mod prover_result;
 use std::io;
 
 use crate::chain::ergo_box::{BoxId, ErgoBoxId};
+use ergotree_interpreter::sigma_protocol::prover::ContextExtension;
+use ergotree_interpreter::sigma_protocol::prover::ProofBytes;
 use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
 use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
 use ergotree_ir::serialization::SerializationError;
 use ergotree_ir::serialization::SigmaSerializable;
-use ergotree_ir::sigma_protocol::prover::ContextExtension;
-use ergotree_ir::sigma_protocol::prover::ProofBytes;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 

@@ -14,8 +14,8 @@ use crate::type_infer::TypeInferenceError;
 extern crate derive_more;
 use derive_more::From;
 use ergotree_ir::ergo_tree::ErgoTree;
+use ergotree_ir::type_check::TypeCheckError;
 use mir::lower::MirLoweringError;
-use mir::type_check::TypeCheckError;
 
 /// Compilation errors
 #[derive(Debug, PartialEq, From)]
@@ -50,8 +50,11 @@ impl CompileError {
     }
 }
 
-/// Compiles given source code to [`ErgoTree`], or returns an error
-pub fn compile(source: &str, env: ScriptEnv) -> Result<ErgoTree, CompileError> {
+/// Compiles given source code to [`ergotree_ir::mir::expr::Expr`], or returns an error
+pub fn compile_expr(
+    source: &str,
+    env: ScriptEnv,
+) -> Result<ergotree_ir::mir::expr::Expr, CompileError> {
     let parse = super::parser::parse(&source);
     dbg!(parse.debug_tree());
     if !parse.errors.is_empty() {
@@ -67,8 +70,14 @@ pub fn compile(source: &str, env: ScriptEnv) -> Result<ErgoTree, CompileError> {
     let typed = assign_type(bind)?;
     dbg!(typed.debug_tree());
     let mir = mir::lower::lower(typed)?;
-    let res = mir::type_check::type_check(mir)?;
-    Ok(res.into())
+    let res = ergotree_ir::type_check::type_check(mir)?;
+    Ok(res)
+}
+
+/// Compiles given source code to [`ErgoTree`], or returns an error
+pub fn compile(source: &str, env: ScriptEnv) -> Result<ErgoTree, CompileError> {
+    let expr = compile_expr(source, env)?;
+    Ok(expr.into())
 }
 
 #[cfg(test)]

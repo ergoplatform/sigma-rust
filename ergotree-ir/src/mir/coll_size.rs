@@ -1,7 +1,3 @@
-use crate::eval::env::Env;
-use crate::eval::EvalContext;
-use crate::eval::EvalError;
-use crate::eval::Evaluable;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
@@ -11,11 +7,10 @@ use crate::types::stype::SType;
 
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
-use super::value::Value;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct SizeOf {
-    input: Box<Expr>,
+    pub input: Box<Expr>,
 }
 
 impl SizeOf {
@@ -53,20 +48,6 @@ impl SigmaSerializable for SizeOf {
     }
 }
 
-impl Evaluable for SizeOf {
-    fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
-        let input_v = self.input.eval(env, ctx)?;
-        let normalized_input_vals: Vec<Value> = match input_v {
-            Value::Coll(coll) => Ok(coll.as_vec()),
-            _ => Err(EvalError::UnexpectedValue(format!(
-                "SizeOf: expected input to be Value::Coll, got: {0:?}",
-                input_v
-            ))),
-        }?;
-        Ok((normalized_input_vals.len() as i32).into())
-    }
-}
-
 #[cfg(feature = "arbitrary")]
 pub mod arbitrary {
     use crate::mir::expr::arbitrary::ArbExprParams;
@@ -95,17 +76,9 @@ pub mod arbitrary {
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
 mod tests {
-    use std::rc::Rc;
-
-    use crate::eval::context::Context;
-    use crate::eval::tests::eval_out;
-    use crate::mir::expr::Expr;
-    use crate::mir::global_vars::GlobalVars;
-    use crate::serialization::sigma_serialize_roundtrip;
-    use crate::test_util::force_any_val;
-
     use super::*;
-
+    use crate::mir::expr::Expr;
+    use crate::serialization::sigma_serialize_roundtrip;
     use proptest::prelude::*;
 
     proptest! {
@@ -118,15 +91,5 @@ mod tests {
             prop_assert_eq![sigma_serialize_roundtrip(&expr), expr];
         }
 
-    }
-
-    #[test]
-    fn eval() {
-        let expr: Expr = SizeOf::new(GlobalVars::Outputs.into()).unwrap().into();
-        let ctx = Rc::new(force_any_val::<Context>());
-        assert_eq!(
-            eval_out::<i32>(&expr, ctx.clone()),
-            ctx.outputs.len() as i32
-        );
     }
 }
