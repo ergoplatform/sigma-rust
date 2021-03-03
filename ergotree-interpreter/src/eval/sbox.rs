@@ -44,7 +44,7 @@ mod tests {
     use ergotree_ir::mir::global_vars::GlobalVars;
     use ergotree_ir::mir::property_call::PropertyCall;
     use ergotree_ir::types::sbox;
-    use test_util::force_any_val;
+    use sigma_test_util::force_any_val;
 
     use crate::eval::context::Context;
     use crate::eval::tests::eval_out;

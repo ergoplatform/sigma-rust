@@ -38,5 +38,5 @@ arbitrary = ["proptest", "proptest-derive"]
 
 [dev-dependencies]
 proptest = "1.0.0"
-test-util = { version = "0.1.0", path = "../test-util" }
+sigma-test-util = { version = "0.1.0", path = "../sigma-test-util" }
 

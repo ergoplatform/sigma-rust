@@ -240,7 +240,7 @@ impl ErgoBoxCandidateBuilder {
 #[cfg(test)]
 mod tests {
 
-    use test_util::force_any_val;
+    use sigma_test_util::force_any_val;
     use NonMandatoryRegisterId::*;
 
     use crate::chain::token::TokenId;

@@ -1,5 +1,5 @@
 [package]
-name = "test-util"
+name = "sigma-test-util"
 version = "0.1.0"
 license = "CC0-1.0"
 authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]

@@ -34,8 +34,8 @@ mod tests {
     use crate::eval::tests::eval_out;
     use ergotree_ir::mir::expr::Expr;
     use proptest::prelude::*;
+    use sigma_test_util::force_any_val;
     use std::rc::Rc;
-    use test_util::force_any_val;
 
     proptest! {
 

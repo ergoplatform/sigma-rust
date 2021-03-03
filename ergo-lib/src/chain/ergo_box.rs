@@ -523,7 +523,7 @@ mod tests {
     use ergotree_ir::mir::constant::TryExtractInto;
     use ergotree_ir::serialization::sigma_serialize_roundtrip;
     use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
-    use test_util::force_any_val;
+    use sigma_test_util::force_any_val;
 
     impl Arbitrary for ErgoBoxCandidate {
         type Parameters = ArbBoxValueRange;

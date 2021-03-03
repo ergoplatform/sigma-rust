@@ -310,8 +310,8 @@ mod tests {
     use ergotree_ir::mir::expr::Expr;
     use ergotree_ir::mir::value::Value;
     use ergotree_ir::types::stype::SType;
+    use sigma_test_util::force_any_val;
     use std::rc::Rc;
-    use test_util::force_any_val;
 
     #[test]
     fn test_prove_true_prop() {

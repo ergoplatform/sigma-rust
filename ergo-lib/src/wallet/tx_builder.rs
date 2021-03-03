@@ -285,8 +285,8 @@ mod tests {
 
     use ergotree_ir::ergo_tree::ErgoTree;
     use proptest::{collection::vec, prelude::*};
-    use test_util::force_any_val;
-    use test_util::force_any_val_with;
+    use sigma_test_util::force_any_val;
+    use sigma_test_util::force_any_val_with;
 
     use crate::chain::{
         ergo_box::{checked_sum, ErgoBox, NonMandatoryRegisters},

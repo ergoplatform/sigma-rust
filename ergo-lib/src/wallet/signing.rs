@@ -166,7 +166,7 @@ mod tests {
     use ergotree_ir::address::NetworkPrefix;
     use proptest::collection::vec;
     use proptest::prelude::*;
-    use test_util::force_any_val;
+    use sigma_test_util::force_any_val;
 
     use crate::chain::{
         ergo_box::{box_builder::ErgoBoxCandidateBuilder, BoxValue, NonMandatoryRegisters},

@@ -29,7 +29,7 @@ mod tests {
     use ergoscript_compiler::compiler::compile_expr;
     use ergoscript_compiler::script_env::ScriptEnv;
     use ergotree_ir::ir_ergo_box::IrBoxId;
-    use test_util::force_any_val;
+    use sigma_test_util::force_any_val;
 
     use super::*;
 

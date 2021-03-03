@@ -1,6 +1,6 @@
 [workspace]
 members = [
-    "test-util",
+    "sigma-test-util",
     "sigma-ser",
     "sigma-util",
     "ergoscript-compiler",

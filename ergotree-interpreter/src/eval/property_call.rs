@@ -22,8 +22,8 @@ mod tests {
     use ergotree_ir::ir_ergo_box::IrBoxId;
     use ergotree_ir::mir::expr::Expr;
     use ergotree_ir::types::scontext;
+    use sigma_test_util::force_any_val;
     use std::rc::Rc;
-    use test_util::force_any_val;
 
     #[test]
     fn eval_context_data_inputs() {

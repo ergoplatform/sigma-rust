@@ -84,7 +84,7 @@ mod proptests {
 
 #[cfg(test)]
 mod tests {
-    use test_util::force_any_val_with;
+    use sigma_test_util::force_any_val_with;
 
     use super::*;
     use crate::mir::bin_op::RelationOp;

@@ -164,7 +164,7 @@ pub mod tests {
     use super::*;
     use ergotree_ir::mir::constant::TryExtractFrom;
     use ergotree_ir::mir::constant::TryExtractInto;
-    use test_util::force_any_val;
+    use sigma_test_util::force_any_val;
 
     pub fn eval_out_wo_ctx<T: TryExtractFrom<Value>>(expr: &Expr) -> T {
         let ctx = Rc::new(force_any_val::<Context>());

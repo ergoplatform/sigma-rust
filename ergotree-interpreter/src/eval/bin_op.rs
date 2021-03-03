@@ -254,8 +254,8 @@ mod tests {
     use ergotree_ir::mir::constant::Constant;
     use ergotree_ir::mir::expr::Expr;
     use proptest::prelude::*;
+    use sigma_test_util::force_any_val;
     use std::rc::Rc;
-    use test_util::force_any_val;
 
     fn check_eq_neq(left: Constant, right: Constant) -> bool {
         let eq_op: Expr = BinOp {

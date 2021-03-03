@@ -44,7 +44,7 @@ proptest-derive = "0.3.0"
 rand = "0.7.3"
 ergotree-ir = { version = "^0.6.0", path = "../ergotree-ir", features = ["arbitrary"] }
 ergotree-interpreter = { version = "^0.6.0", path = "../ergotree-interpreter", features = ["arbitrary"] }
-test-util = { version = "0.1.0", path = "../test-util" }
+sigma-test-util = { version = "0.1.0", path = "../sigma-test-util" }
 
 [dev-dependencies.proptest]
 # wasm support, via https://altsysrq.github.io/proptest-book/proptest/wasm.html

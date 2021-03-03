@@ -26,8 +26,8 @@ mod tests {
     use crate::eval::tests::eval_out;
     use ergotree_ir::mir::expr::Expr;
     use ergotree_ir::mir::global_vars::GlobalVars;
+    use sigma_test_util::force_any_val;
     use std::rc::Rc;
-    use test_util::force_any_val;
 
     #[test]
     fn eval() {
