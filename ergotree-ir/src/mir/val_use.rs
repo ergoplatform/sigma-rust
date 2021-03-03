@@ -1,18 +1,12 @@
 use std::io;
 
-use crate::eval::env::Env;
-use crate::eval::EvalContext;
-use crate::eval::EvalError;
-use crate::eval::Evaluable;
+use super::val_def::ValId;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::SerializationError;
 use crate::serialization::SigmaSerializable;
 use crate::types::stype::SType;
-
-use super::val_def::ValId;
-use super::value::Value;
 
 /** Special node which represents a reference to ValDef in was introduced as result of CSE. */
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -24,14 +18,6 @@ pub struct ValUse {
 impl ValUse {
     pub fn op_code(&self) -> OpCode {
         OpCode::VAL_USE
-    }
-}
-
-impl Evaluable for ValUse {
-    fn eval(&self, env: &Env, _ctx: &mut EvalContext) -> Result<Value, EvalError> {
-        env.get(self.val_id).cloned().ok_or_else(|| {
-            EvalError::NotFound(format!("no value in env for id: {0:?}", self.val_id))
-        })
     }
 }
 

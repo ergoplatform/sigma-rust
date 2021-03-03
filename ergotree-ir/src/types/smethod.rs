@@ -1,13 +1,8 @@
-use std::io::Error;
-use std::rc::Rc;
-
-use crate::eval::context::Context;
-use crate::eval::EvalError;
-use crate::mir::value::Value;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::SerializationError;
 use crate::serialization::SigmaSerializable;
+use std::io::Error;
 
 use super::stype::SType;
 use super::stype_companion::STypeCompanion;
@@ -63,20 +58,13 @@ impl SMethod {
     pub fn method_id(&self) -> MethodId {
         self.method_raw.method_id.clone()
     }
-
-    pub fn eval_fn(&self) -> EvalFn {
-        self.method_raw.eval_fn
-    }
 }
-
-pub type EvalFn = fn(ctx: Rc<Context>, Value, Vec<Value>) -> Result<Value, EvalError>;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct SMethodDesc {
     pub name: &'static str,
     pub method_id: MethodId,
     pub tpe: SType,
-    pub eval_fn: EvalFn,
 }
 
 impl SMethodDesc {

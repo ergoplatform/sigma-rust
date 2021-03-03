@@ -11,14 +11,14 @@ use crate::chain::{
     transaction::{unsigned::UnsignedTransaction, Transaction},
 };
 
-use ergotree_ir::eval::context::Context;
-use ergotree_ir::eval::env::Env;
+use ergotree_interpreter::eval::context::Context;
+use ergotree_interpreter::eval::env::Env;
+use ergotree_interpreter::sigma_protocol::prover::Prover;
+use ergotree_interpreter::sigma_protocol::prover::ProverError;
 use ergotree_ir::ir_ergo_box::IrBoxId;
 use ergotree_ir::ir_ergo_box::IrErgoBox;
 use ergotree_ir::ir_ergo_box::IrErgoBoxArena;
 use ergotree_ir::ir_ergo_box::IrErgoBoxArenaError;
-use ergotree_ir::sigma_protocol::prover::Prover;
-use ergotree_ir::sigma_protocol::prover::ProverError;
 use thiserror::Error;
 
 /// Errors on transaction signing
@@ -46,7 +46,7 @@ pub struct TransactionContext {
     pub data_boxes: Vec<ErgoBox>,
 }
 
-/// Holding all ErgoBox needed for interpreter [`ergotree_ir::eval::context::Context`]
+/// Holding all ErgoBox needed for interpreter [`ergotree_interpreter::eval::context::Context`]
 #[derive(Debug)]
 pub struct ErgoBoxArena(HashMap<BoxId, ErgoBox>);
 
@@ -156,15 +156,17 @@ pub fn sign_transaction(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ergotree_ir::sigma_protocol::private_input::DlogProverInput;
-    use ergotree_ir::sigma_protocol::private_input::PrivateInput;
-    use ergotree_ir::sigma_protocol::prover::TestProver;
-    use ergotree_ir::sigma_protocol::verifier::TestVerifier;
-    use ergotree_ir::sigma_protocol::verifier::Verifier;
-    use ergotree_ir::sigma_protocol::verifier::VerifierError;
-    use ergotree_ir::test_util::force_any_val;
+    use ergotree_interpreter::sigma_protocol::private_input::DlogProverInput;
+    use ergotree_interpreter::sigma_protocol::private_input::PrivateInput;
+    use ergotree_interpreter::sigma_protocol::prover::TestProver;
+    use ergotree_interpreter::sigma_protocol::verifier::TestVerifier;
+    use ergotree_interpreter::sigma_protocol::verifier::Verifier;
+    use ergotree_interpreter::sigma_protocol::verifier::VerifierError;
+    use ergotree_ir::address::AddressEncoder;
+    use ergotree_ir::address::NetworkPrefix;
     use proptest::collection::vec;
     use proptest::prelude::*;
+    use test_util::force_any_val;
 
     use crate::chain::{
         ergo_box::{box_builder::ErgoBoxCandidateBuilder, BoxValue, NonMandatoryRegisters},
@@ -227,5 +229,104 @@ mod tests {
             let signed_tx = res.unwrap();
             prop_assert!(verify_tx_proofs(&signed_tx, &boxes_to_spend).unwrap());
         }
+    }
+
+    #[test]
+    fn test_proof_from_mainnet() {
+        use crate::chain::transaction::Transaction;
+
+        let tx_json = r#"
+         {
+      "id": "0e6acf3f18b95bdc5bb1b060baa1eafe53bd89fb08b0e86d6cc00fbdd9e43189",
+      "inputs": [
+        {
+          "boxId": "f353ae1b2027e40ea318e7a2673ea4bbaa281b7acee518a0994c5cbdefb05f55",
+          "spendingProof": {
+            "proofBytes":"",
+            "extension": {}
+          }
+        },
+        {
+          "boxId": "56111b039b86f71004b768d2e8b4579f1d79e28e7a617fd5add57a5239498c26",
+          "spendingProof": {
+            "proofBytes": "6542a8b8914b103dcbc36d77da3bd58e42ca35755a5190b507764b0bae330b924ce86acfa1b5f9bfc8216c3c4628738e8274d902bea06b48",
+            "extension": {}
+          }
+        }
+      ],
+      "dataInputs": [
+        {
+          "boxId": "e26d41ed030a30cd563681e72f0b9c07825ac983f8c253a87a43c1da21958ece"
+        }
+      ],
+      "outputs": [
+        {
+          "boxId": "55be517150fcb7f0f1661ad3ab30f1ac62084b83ad6aa772579bc06cbb52832e",
+          "value": 1000000,
+          "ergoTree": "100604000400050004000e20b662db51cf2dc39f110a021c2a31c74f0a1a18ffffbf73e8a051a7b8c0f09ebc0e2079974b2314c531e62776e6bc4babff35b37b178cebf0976fc0f416ff34ddbc4fd803d601b2a5730000d602e4c6a70407d603b2db6501fe730100ea02d1ededededed93e4c672010407720293e4c67201050ec5720391e4c672010605730293c27201c2a793db63087201db6308a7ed938cb2db6308720373030001730493cbc272037305cd7202",
+          "assets": [
+            {
+              "tokenId": "12caaacb51c89646fac9a3786eb98d0113bd57d68223ccc11754a4f67281daed",
+              "amount": 1
+            }
+          ],
+          "creationHeight": 299218,
+          "additionalRegisters": {
+            "R4": "070327e65711a59378c59359c3e1d0f7abe906479eccb76094e50fe79d743ccc15e6",
+            "R5": "0e20e26d41ed030a30cd563681e72f0b9c07825ac983f8c253a87a43c1da21958ece",
+            "R6": "05feaff5de0f"
+          },
+          "transactionId": "0e6acf3f18b95bdc5bb1b060baa1eafe53bd89fb08b0e86d6cc00fbdd9e43189",
+          "index": 0
+        },
+        {
+          "boxId": "fa4a484c855d32a60987a4ddcf1c506aa6bab1c4cb0293c2d5ff35fcd11f2c7b",
+          "value": 1000000,
+          "ergoTree": "1005040004000e36100204a00b08cd0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798ea02d192a39a8cc7a701730073011001020402d19683030193a38cc7b2a57300000193c2b2a57301007473027303830108cdeeac93b1a57304",
+          "assets": [],
+          "creationHeight": 299218,
+          "additionalRegisters": {},
+          "transactionId": "0e6acf3f18b95bdc5bb1b060baa1eafe53bd89fb08b0e86d6cc00fbdd9e43189",
+          "index": 1
+        },
+        {
+          "boxId": "3dee27d0dfb193fd6a263cf2b5b58cab99cb640d1443cd1ce63d909ad3a54197",
+          "value": 44516500000,
+          "ergoTree": "0008cd0327e65711a59378c59359c3e1d0f7abe906479eccb76094e50fe79d743ccc15e6",
+          "assets": [],
+          "creationHeight": 299218,
+          "additionalRegisters": {},
+          "transactionId": "0e6acf3f18b95bdc5bb1b060baa1eafe53bd89fb08b0e86d6cc00fbdd9e43189",
+          "index": 2
+        }
+      ],
+      "size": 673
+    }
+        "#;
+
+        let encoder = AddressEncoder::new(NetworkPrefix::Mainnet);
+        let decoded_addr = encoder
+            .parse_address_from_str("9gmNsqrqdSppLUBqg2UzREmmivgqh1r3jmNcLAc53hk3YCvAGWE")
+            .unwrap();
+
+        let ergo_tree = decoded_addr.script().unwrap();
+
+        // let spending_proof_input1 = Base16DecodedBytes::try_from("6542a8b8914b103dcbc36d77da3bd58e42ca35755a5190b507764b0bae330b924ce86acfa1b5f9bfc8216c3c4628738e8274d902bea06b48".to_string()).unwrap();
+        let tx: Transaction = serde_json::from_str(tx_json).unwrap();
+        let tx_id_str: String = tx.id().into();
+        assert_eq!(
+            "0e6acf3f18b95bdc5bb1b060baa1eafe53bd89fb08b0e86d6cc00fbdd9e43189",
+            tx_id_str
+        );
+        let message = tx.bytes_to_sign();
+        let verifier = TestVerifier;
+        let ver_res = verifier.verify(
+            &ergo_tree,
+            &Env::empty(),
+            Rc::new(force_any_val::<Context>()),
+            &tx.inputs.get(1).unwrap().spending_proof.proof,
+            message.as_slice(),
+        );
+        assert_eq!(ver_res.unwrap().result, true);
     }
 }

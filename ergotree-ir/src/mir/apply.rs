@@ -1,9 +1,5 @@
 use std::io;
 
-use crate::eval::env::Env;
-use crate::eval::EvalContext;
-use crate::eval::EvalError;
-use crate::eval::Evaluable;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
@@ -13,13 +9,11 @@ use crate::types::stype::SType;
 
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
-use super::val_def::ValId;
-use super::value::Value;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Apply {
-    func: Box<Expr>,
-    args: Vec<Expr>,
+    pub func: Box<Expr>,
+    pub args: Vec<Expr>,
 }
 
 impl Apply {
@@ -61,29 +55,6 @@ impl Apply {
     }
 }
 
-impl Evaluable for Apply {
-    fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
-        let func_v = self.func.eval(env, ctx)?;
-        let args_v_res: Result<Vec<Value>, EvalError> =
-            self.args.iter().map(|arg| arg.eval(env, ctx)).collect();
-        let args_v = args_v_res?;
-        match func_v {
-            Value::FuncValue(fv) => {
-                let arg_ids: Vec<ValId> = fv.args().iter().map(|a| a.idx).collect();
-                let mut cur_env = env.clone();
-                arg_ids.iter().zip(args_v).for_each(|(idx, arg_v)| {
-                    cur_env.insert(*idx, arg_v);
-                });
-                fv.body().eval(&cur_env, ctx)
-            }
-            _ => Err(EvalError::UnexpectedValue(format!(
-                "expected func_v to be Value::FuncValue got: {0:?}",
-                func_v
-            ))),
-        }
-    }
-}
-
 impl SigmaSerializable for Apply {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
         self.func.sigma_serialize(w)?;
@@ -100,19 +71,9 @@ impl SigmaSerializable for Apply {
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
 mod tests {
-    use std::rc::Rc;
 
-    use crate::eval::context::Context;
-    use crate::eval::tests::eval_out;
-    use crate::mir::bin_op::BinOp;
-    use crate::mir::bin_op::RelationOp;
-    use crate::mir::block::BlockValue;
     use crate::mir::func_value::*;
-    use crate::mir::val_def::ValDef;
-    use crate::mir::val_use::ValUse;
     use crate::serialization::sigma_serialize_roundtrip;
-    use crate::test_util::force_any_val;
-    use crate::types::stype::SType;
 
     use super::*;
 
@@ -152,51 +113,5 @@ mod tests {
             let expr: Expr = v.into();
             prop_assert_eq![sigma_serialize_roundtrip(&expr), expr];
         }
-    }
-
-    #[test]
-    fn eval_user_defined_func_call() {
-        let arg = Expr::Const(1i32.into());
-        let bin_op = Expr::BinOp(BinOp {
-            kind: RelationOp::Eq.into(),
-            left: Box::new(
-                ValUse {
-                    val_id: 1.into(),
-                    tpe: SType::SInt,
-                }
-                .into(),
-            ),
-            right: Box::new(
-                ValUse {
-                    val_id: 2.into(),
-                    tpe: SType::SInt,
-                }
-                .into(),
-            ),
-        });
-        let body = Expr::BlockValue(BlockValue {
-            items: vec![ValDef {
-                id: 2.into(),
-                rhs: Box::new(Expr::Const(1i32.into())),
-            }
-            .into()],
-            result: Box::new(bin_op),
-        });
-        let apply: Expr = Apply {
-            func: Box::new(
-                FuncValue::new(
-                    vec![FuncArg {
-                        idx: 1.into(),
-                        tpe: SType::SInt,
-                    }],
-                    body,
-                )
-                .into(),
-            ),
-            args: vec![arg],
-        }
-        .into();
-        let ctx = Rc::new(force_any_val::<Context>());
-        assert!(eval_out::<bool>(&apply, ctx));
     }
 }

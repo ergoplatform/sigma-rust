@@ -2,12 +2,12 @@
 
 use std::io;
 
+use ergotree_interpreter::sigma_protocol::prover::ContextExtension;
+use ergotree_interpreter::sigma_protocol::prover::ProofBytes;
 use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
 use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
 use ergotree_ir::serialization::SerializationError;
 use ergotree_ir::serialization::SigmaSerializable;
-use ergotree_ir::sigma_protocol::prover::ContextExtension;
-use ergotree_ir::sigma_protocol::prover::ProofBytes;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 
@@ -31,8 +31,8 @@ pub struct ProverResult {
     pub extension: ContextExtension,
 }
 
-impl From<ergotree_ir::sigma_protocol::prover::ProverResult> for ProverResult {
-    fn from(ir: ergotree_ir::sigma_protocol::prover::ProverResult) -> Self {
+impl From<ergotree_interpreter::sigma_protocol::prover::ProverResult> for ProverResult {
+    fn from(ir: ergotree_interpreter::sigma_protocol::prover::ProverResult) -> Self {
         ProverResult {
             proof: ir.proof,
             extension: ir.extension,

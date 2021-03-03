@@ -2,11 +2,11 @@
 
 use std::collections::HashSet;
 
+use ergotree_interpreter::sigma_protocol;
+use ergotree_interpreter::sigma_protocol::prover::ProofBytes;
 use ergotree_ir::address::{Address, AddressEncoder, NetworkPrefix};
 use ergotree_ir::serialization::SerializationError;
 use ergotree_ir::serialization::SigmaSerializable;
-use ergotree_ir::sigma_protocol;
-use ergotree_ir::sigma_protocol::prover::ProofBytes;
 use thiserror::Error;
 
 use crate::chain::contract::Contract;
@@ -285,13 +285,14 @@ mod tests {
 
     use ergotree_ir::ergo_tree::ErgoTree;
     use proptest::{collection::vec, prelude::*};
+    use test_util::force_any_val;
+    use test_util::force_any_val_with;
 
     use crate::chain::{
         ergo_box::{checked_sum, ErgoBox, NonMandatoryRegisters},
         token::{tests::ArbTokenIdParam, Token, TokenAmount, TokenId},
         transaction::TxId,
     };
-    use crate::test_util::{force_any_val, force_any_val_with};
     use crate::wallet::box_selector::{BoxSelector, SimpleBoxSelector};
 
     use super::*;

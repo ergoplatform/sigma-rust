@@ -1,7 +1,3 @@
-use crate::eval::env::Env;
-use crate::eval::EvalContext;
-use crate::eval::EvalError;
-use crate::eval::Evaluable;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
@@ -12,16 +8,14 @@ use crate::types::stype::SType;
 
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
-use super::value::CollKind;
-use super::value::Value;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Map {
     /// Collection
-    input: Box<Expr>,
+    pub input: Box<Expr>,
     /// Function (lambda) to apply to each element
-    mapper: Box<Expr>,
-    mapper_sfunc: SFunc,
+    pub mapper: Box<Expr>,
+    pub mapper_sfunc: SFunc,
 }
 
 impl Map {
@@ -74,64 +68,6 @@ impl SigmaSerializable for Map {
     }
 }
 
-impl Evaluable for Map {
-    fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
-        let input_v = self.input.eval(env, ctx)?;
-        let mapper_v = self.mapper.eval(env, ctx)?;
-        let input_v_clone = input_v.clone();
-        let mut mapper_call = |arg: Value| match &mapper_v {
-            Value::FuncValue(func_value) => {
-                let func_arg = func_value.args().first().ok_or_else(|| {
-                    EvalError::NotFound(
-                        "Map: evaluated mapper has empty arguments list".to_string(),
-                    )
-                })?;
-                let env1 = env.clone().extend(func_arg.idx, arg);
-                func_value.body().eval(&env1, ctx)
-            }
-            _ => Err(EvalError::UnexpectedValue(format!(
-                "expected mapper to be Value::FuncValue got: {0:?}",
-                input_v_clone
-            ))),
-        };
-        let mapper_input_tpe = self
-            .mapper_sfunc
-            .t_dom
-            .first()
-            .ok_or_else(|| {
-                EvalError::NotFound(
-                    "Map: mapper SFunc.t_dom is empty (does not have arguments)".to_string(),
-                )
-            })?
-            .clone();
-        let normalized_input_vals: Vec<Value> = match input_v {
-            Value::Coll(coll) => {
-                if *coll.elem_tpe() != mapper_input_tpe {
-                    return Err(EvalError::UnexpectedValue(format!(
-                        "expected Map input element type to be {0:?}, got: {1:?}",
-                        mapper_input_tpe,
-                        coll.elem_tpe()
-                    )));
-                };
-                Ok(coll.as_vec())
-            }
-            _ => Err(EvalError::UnexpectedValue(format!(
-                "expected Map input to be Value::Coll, got: {0:?}",
-                input_v
-            ))),
-        }?;
-        normalized_input_vals
-            .iter()
-            .map(|item| mapper_call(item.clone()))
-            .collect::<Result<Vec<Value>, EvalError>>()
-            .map(|values| {
-                CollKind::from_vec(self.out_elem_tpe(), values).map_err(EvalError::TryExtractFrom)
-            })
-            .and_then(|v| v) // flatten <Result<Result<Value, _>, _>
-            .map(Value::Coll)
-    }
-}
-
 #[cfg(feature = "arbitrary")]
 pub mod arbitrary {
     use super::*;
@@ -166,71 +102,14 @@ pub mod arbitrary {
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
 mod tests {
-    use std::rc::Rc;
-
-    use crate::eval::context::Context;
-    use crate::eval::tests::eval_out;
-    use crate::mir::bin_op::ArithOp;
-    use crate::mir::bin_op::BinOp;
-    use crate::mir::expr::Expr;
-    use crate::mir::extract_amount::ExtractAmount;
-    use crate::mir::func_value::FuncArg;
-    use crate::mir::func_value::FuncValue;
-    use crate::mir::property_call::PropertyCall;
-    use crate::mir::val_use::ValUse;
-    use crate::serialization::sigma_serialize_roundtrip;
-    use crate::types::scontext;
-
     use super::*;
-
+    use crate::mir::expr::Expr;
+    use crate::serialization::sigma_serialize_roundtrip;
     use proptest::prelude::*;
 
     proptest! {
 
         #![proptest_config(ProptestConfig::with_cases(16))]
-
-        #[test]
-        fn eval_box_value(ctx in any::<Context>()) {
-            let data_inputs: Expr = PropertyCall {
-                obj: Box::new(Expr::Context),
-                method: scontext::DATA_INPUTS_PROPERTY.clone(),
-            }
-            .into();
-            let val_use: Expr = ValUse {
-                val_id: 1.into(),
-                tpe: SType::SBox,
-            }
-            .into();
-            let mapper_body: Expr = BinOp {
-                kind: ArithOp::Plus.into(),
-                left: Box::new(Expr::Const(1i64.into())),
-                right: Box::new(Expr::ExtractAmount(
-                        ExtractAmount::new(val_use)
-                    .unwrap(),
-                )),
-            }
-            .into();
-            let expr: Expr = Map::new(
-                data_inputs,
-                FuncValue::new(
-                    vec![FuncArg {
-                        idx: 1.into(),
-                        tpe: SType::SBox,
-                    }],
-                    mapper_body,
-                )
-                .into(),
-            )
-            .unwrap()
-            .into();
-            let ctx = Rc::new(ctx);
-            assert_eq!(
-                eval_out::<Vec<i64>>(&expr, ctx.clone()),
-                ctx.data_inputs
-                    .iter()
-                    .map(| b| b.get_box(&ctx.box_arena).unwrap().value() + 1).collect::<Vec<i64>>()
-            );
-        }
 
         #[test]
         fn ser_roundtrip(v in any::<Map>()) {

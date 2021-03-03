@@ -1,0 +1,50 @@
+use ergotree_ir::ir_ergo_box::IrBoxId;
+use ergotree_ir::mir::constant::TryExtractInto;
+use ergotree_ir::mir::extract_reg_as::ExtractRegisterAs;
+use ergotree_ir::mir::value::Value;
+
+use crate::eval::env::Env;
+use crate::eval::EvalContext;
+use crate::eval::EvalError;
+use crate::eval::Evaluable;
+
+impl Evaluable for ExtractRegisterAs {
+    fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
+        let ir_box_id = self.input.eval(env, ctx)?.try_extract_into::<IrBoxId>()?;
+        Ok(Value::Opt(Box::new(
+            ctx.ctx
+                .box_arena
+                .get(&ir_box_id)?
+                .get_register(self.register_id)
+                .map(|c| c.v),
+        )))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::eval::context::Context;
+    use crate::eval::tests::eval_out;
+    use ergotree_ir::mir::expr::Expr;
+    use ergotree_ir::mir::global_vars::GlobalVars;
+    use ergotree_ir::mir::option_get::OptionGet;
+    use ergotree_ir::types::stype::SType;
+    use std::rc::Rc;
+    use test_util::force_any_val;
+
+    #[test]
+    fn eval_box_get_reg() {
+        let get_reg_expr: Expr = ExtractRegisterAs::new(
+            GlobalVars::SelfBox.into(),
+            0,
+            SType::SOption(SType::SLong.into()),
+        )
+        .unwrap()
+        .into();
+        let option_get_expr: Expr = OptionGet::new(get_reg_expr).unwrap().into();
+        let ctx = Rc::new(force_any_val::<Context>());
+        let v = eval_out::<i64>(&option_get_expr, ctx.clone());
+        assert_eq!(v, ctx.self_box.get_box(&ctx.box_arena).unwrap().value());
+    }
+}

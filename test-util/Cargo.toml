@@ -1,0 +1,17 @@
+[package]
+name = "test-util"
+version = "0.1.0"
+license = "CC0-1.0"
+authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
+edition = "2018"
+description = "Test utilities for Ergo"
+repository = "https://github.com/ergoplatform/sigma-rust"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+proptest = {version = "1.0.0"}
+proptest-derive = {version = "0.3.0"}
+
+[dev-dependencies]

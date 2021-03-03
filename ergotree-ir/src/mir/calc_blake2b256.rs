@@ -1,26 +1,16 @@
-use sigma_util::hash::blake2b256_hash;
-
-use crate::eval::env::Env;
-use crate::eval::EvalContext;
-use crate::eval::EvalError;
-use crate::eval::Evaluable;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::SerializationError;
 use crate::serialization::SigmaSerializable;
 use crate::types::stype::SType;
-use crate::util::AsVecU8;
 
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
-use super::value::CollKind;
-use super::value::NativeColl;
-use super::value::Value;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct CalcBlake2b256 {
-    input: Box<Expr>,
+    pub input: Box<Expr>,
 }
 
 impl CalcBlake2b256 {
@@ -37,23 +27,6 @@ impl CalcBlake2b256 {
 
     pub fn op_code(&self) -> OpCode {
         OpCode::CALC_BLAKE2B256
-    }
-}
-
-impl Evaluable for CalcBlake2b256 {
-    fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
-        let input_v = self.input.eval(env, ctx)?;
-        match input_v.clone() {
-            Value::Coll(CollKind::NativeColl(NativeColl::CollByte(coll_byte))) => {
-                let expected_hash: Vec<u8> =
-                    blake2b256_hash(coll_byte.as_vec_u8().as_slice()).to_vec();
-                Ok(expected_hash.into())
-            }
-            _ => Err(EvalError::UnexpectedValue(format!(
-                "expected CalcBlake2b256 input to be byte array, got: {0:?}",
-                input_v
-            ))),
-        }
     }
 }
 
@@ -95,30 +68,11 @@ pub mod arbitrary {
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
 mod tests {
-    use std::rc::Rc;
-
-    use crate::eval::context::Context;
-    use crate::eval::tests::eval_out;
-    use crate::serialization::sigma_serialize_roundtrip;
-    use crate::test_util::force_any_val;
-    use crate::util::AsVecU8;
-
     use super::*;
-
+    use crate::serialization::sigma_serialize_roundtrip;
     use proptest::prelude::*;
 
     proptest! {
-
-        #[test]
-        fn eval(byte_array in any::<Vec<u8>>()) {
-            let expected_hash = blake2b256_hash(byte_array.as_slice()).to_vec();
-            let expr: Expr = CalcBlake2b256 {
-                input: Box::new(Expr::Const(byte_array.into())),
-            }
-            .into();
-            let ctx = Rc::new(force_any_val::<Context>());
-            assert_eq!(eval_out::<Vec<i8>>(&expr, ctx).as_vec_u8(), expected_hash);
-        }
 
         #[test]
         fn ser_roundtrip(v in any::<CalcBlake2b256>()) {

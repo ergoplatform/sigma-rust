@@ -19,9 +19,7 @@ pub mod chain;
 pub mod constants;
 pub mod wallet;
 
-#[cfg(test)]
-pub mod test_util;
-
 /// Re-exported types from dependencies
 pub extern crate ergoscript_compiler;
+pub extern crate ergotree_interpreter;
 pub extern crate ergotree_ir;

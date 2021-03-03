@@ -1,9 +1,5 @@
 use std::io;
 
-use crate::eval::env::Env;
-use crate::eval::EvalContext;
-use crate::eval::EvalError;
-use crate::eval::Evaluable;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
@@ -14,7 +10,6 @@ use crate::types::stype::SType;
 
 use super::expr::Expr;
 use super::val_def::ValId;
-use super::value::Value;
 
 #[cfg(test)]
 use proptest_derive::Arbitrary;
@@ -76,12 +71,6 @@ impl FuncValue {
 
     pub fn op_code(&self) -> OpCode {
         OpCode::FUNC_VALUE
-    }
-}
-
-impl Evaluable for FuncValue {
-    fn eval(&self, _env: &Env, _ctx: &mut EvalContext) -> Result<Value, EvalError> {
-        Ok(Value::FuncValue(self.clone()))
     }
 }
 

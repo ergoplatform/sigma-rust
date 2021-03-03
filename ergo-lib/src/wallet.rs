@@ -5,9 +5,9 @@ pub mod secret_key;
 pub mod signing;
 pub mod tx_builder;
 
-use ergotree_ir::sigma_protocol::private_input::PrivateInput;
-use ergotree_ir::sigma_protocol::prover::Prover;
-use ergotree_ir::sigma_protocol::prover::TestProver;
+use ergotree_interpreter::sigma_protocol::private_input::PrivateInput;
+use ergotree_interpreter::sigma_protocol::prover::Prover;
+use ergotree_interpreter::sigma_protocol::prover::TestProver;
 use secret_key::SecretKey;
 use signing::{sign_transaction, TxSigningError};
 use thiserror::Error;

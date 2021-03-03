@@ -15,8 +15,8 @@ use crate::chain::transaction::ErgoBox;
 use crate::chain::transaction::TransactionFromJsonError;
 #[cfg(feature = "json")]
 use core::convert::TryFrom;
+use ergotree_interpreter::sigma_protocol::prover::ProofBytes;
 use ergotree_ir::serialization::SigmaSerializable;
-use ergotree_ir::sigma_protocol::prover::ProofBytes;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 
@@ -72,7 +72,7 @@ impl UnsignedTransaction {
         self.tx_id.clone()
     }
 
-    /// message to be signed by the [`ergotree_ir::sigma_protocol::prover::Prover`] (serialized tx)
+    /// message to be signed by the [`ergotree_interpreter::sigma_protocol::prover::Prover`] (serialized tx)
     pub fn bytes_to_sign(&self) -> Vec<u8> {
         let empty_proofs_input = self
             .inputs

@@ -1,9 +1,5 @@
 use std::convert::TryFrom;
 
-use crate::eval::env::Env;
-use crate::eval::EvalContext;
-use crate::eval::EvalError;
-use crate::eval::Evaluable;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
@@ -15,7 +11,6 @@ use crate::types::stype::SType;
 
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
-use super::value::Value;
 
 /// Tuple field access index (1..255)
 #[derive(PartialEq, Eq, Debug, Copy, Clone)]
@@ -57,8 +52,8 @@ impl SigmaSerializable for TupleFieldIndex {
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct SelectField {
-    input: Box<Expr>,
-    field_index: TupleFieldIndex,
+    pub input: Box<Expr>,
+    pub field_index: TupleFieldIndex,
 }
 
 impl SelectField {
@@ -95,24 +90,6 @@ impl SelectField {
         match self.input.tpe() {
             SType::STuple(STuple { items }) => items.get(self.field_index).unwrap().clone(),
             tpe => panic!("expected input type to be STuple, got {0:?}", tpe),
-        }
-    }
-}
-
-impl Evaluable for SelectField {
-    fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
-        let input_v = self.input.eval(env, ctx)?;
-        match input_v {
-            Value::Tup(items) => items.get(self.field_index).cloned().ok_or_else(|| {
-                EvalError::NotFound(format!(
-                    "SelectField field index is out of bounds. Index: {0:?}, tuple: {1:?}",
-                    self.field_index, items
-                ))
-            }),
-            _ => Err(EvalError::UnexpectedValue(format!(
-                "expected SelectField input to be Value::Tup, got: {0:?}",
-                input_v
-            ))),
         }
     }
 }

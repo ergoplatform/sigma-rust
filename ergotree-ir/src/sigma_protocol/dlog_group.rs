@@ -27,7 +27,7 @@ use std::{
     ops::{Add, Mul, Neg},
 };
 
-use super::private_input::DlogProverInput;
+// use super::private_input::DlogProverInput;
 
 /// Elliptic curve point
 #[derive(PartialEq, Debug, Clone)]
@@ -87,11 +87,11 @@ pub fn exponentiate(base: &EcPoint, exponent: &Scalar) -> EcPoint {
     }
 }
 
-/// Creates a random member of this Dlog group
-pub fn random_element() -> EcPoint {
-    let sk = DlogProverInput::random();
-    exponentiate(&generator(), &sk.w)
-}
+// /// Creates a random member of this Dlog group
+// pub fn random_element() -> EcPoint {
+//     let sk = DlogProverInput::random();
+//     exponentiate(&generator(), &sk.w)
+// }
 
 /// Creates a random scalar, a big-endian integer in the range [0, n), where n is group order
 pub fn random_scalar_in_group_range() -> Scalar {
@@ -145,7 +145,11 @@ pub mod arbitrary {
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            prop_oneof![Just(generator()), Just(identity()), Just(random_element()),].boxed()
+            prop_oneof![
+                Just(generator()),
+                Just(identity()), /*Just(random_element()),*/
+            ]
+            .boxed()
         }
     }
 }
