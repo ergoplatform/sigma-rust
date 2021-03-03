@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
-## [0.6.0] - 2021-03-03
+## [0.7.0] - 2021-03-03
 
 ### Added 
 - ErgoScript compiler pipeline draft (`ergoscript-compiler` crate) and added a feature(default) "compiler" in `ergo-lib` with compiler exposed via `Contract::compile(source)`;
@@ -116,8 +116,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - ErgoTree constant values conversion.
 
 <!-- next-url -->
-[Unreleased]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.6.0...HEAD
-[0.6.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.5.1...ergo-lib-v0.6.0
+[Unreleased]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.7.0...HEAD
+[0.7.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.5.1...ergo-lib-v0.7.0
 [0.5.1]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.5.0...ergo-lib-v0.5.1
 [0.5.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.4.4...ergo-lib-v0.5.0
 [0.4.4]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.4.3...ergo-lib-v0.4.4
