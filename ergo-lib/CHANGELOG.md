@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
+
+### Added 
+- `ErgoTree:to_base16_bytes()` returns Base16-encoded serialized bytes;
+
 ## [0.5.1] - 2021-02-17
 
 ### Added 
