@@ -8,7 +8,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [Unreleased] - ReleaseDate
 
 ### Added 
+- ErgoScript compiler pipeline draft (`ergoscript-compiler` crate) and added a feature(default) "compiler" in `ergo-lib` with compiler exposed via `Contract::compile(source)`;
 - `ErgoTree:to_base16_bytes()` returns Base16-encoded serialized bytes;
+
+
+### Changed
+- Extract Ergotree IR with serialization from `ergo-lib` crate into `ergotree-ir` crate;
+- Extract ErgoTree IR interpreter from `ergo-lib` crate into `ergotree-interpreter` crate;
+
 
 ## [0.5.1] - 2021-02-17
 
