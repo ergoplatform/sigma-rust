@@ -33,4 +33,9 @@ impl ErgoTree {
     pub fn to_bytes(&self) -> Vec<u8> {
         self.0.sigma_serialize_bytes()
     }
+
+    /// Returns Base16-encoded serialized bytes
+    pub fn to_base16_bytes(&self) -> String {
+        self.0.to_base16_bytes()
+    }
 }

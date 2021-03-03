@@ -142,6 +142,12 @@ impl ErgoTree {
         let tree = format!("{:#?}", self);
         tree
     }
+
+    /// Returns Base16-encoded serialized bytes
+    pub fn to_base16_bytes(&self) -> String {
+        let bytes = self.sigma_serialize_bytes();
+        base16::encode_lower(&bytes)
+    }
 }
 
 impl From<Expr> for ErgoTree {
