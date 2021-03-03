@@ -26,6 +26,8 @@ mod tests {
 
     use crate::eval::context::Context;
     use crate::eval::tests::eval_out;
+    use ergoscript_compiler::compiler::compile_expr;
+    use ergoscript_compiler::script_env::ScriptEnv;
     use ergotree_ir::ir_ergo_box::IrBoxId;
     use test_util::force_any_val;
 
@@ -34,10 +36,8 @@ mod tests {
     #[test]
     fn eval_height() {
         let ctx = Rc::new(force_any_val::<Context>());
-        assert_eq!(
-            eval_out::<i32>(&GlobalVars::Height.into(), ctx.clone()),
-            ctx.height
-        );
+        let expr = compile_expr("HEIGHT", ScriptEnv::new()).unwrap();
+        assert_eq!(eval_out::<i32>(&expr, ctx.clone()), ctx.height);
     }
 
     #[test]

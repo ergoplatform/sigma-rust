@@ -50,8 +50,11 @@ impl CompileError {
     }
 }
 
-/// Compiles given source code to [`ErgoTree`], or returns an error
-pub fn compile(source: &str, env: ScriptEnv) -> Result<ErgoTree, CompileError> {
+/// Compiles given source code to [`ergotree_ir::mir::expr::Expr`], or returns an error
+pub fn compile_expr(
+    source: &str,
+    env: ScriptEnv,
+) -> Result<ergotree_ir::mir::expr::Expr, CompileError> {
     let parse = super::parser::parse(&source);
     dbg!(parse.debug_tree());
     if !parse.errors.is_empty() {
@@ -68,7 +71,13 @@ pub fn compile(source: &str, env: ScriptEnv) -> Result<ErgoTree, CompileError> {
     dbg!(typed.debug_tree());
     let mir = mir::lower::lower(typed)?;
     let res = mir::type_check::type_check(mir)?;
-    Ok(res.into())
+    Ok(res)
+}
+
+/// Compiles given source code to [`ErgoTree`], or returns an error
+pub fn compile(source: &str, env: ScriptEnv) -> Result<ErgoTree, CompileError> {
+    let expr = compile_expr(source, env)?;
+    Ok(expr.into())
 }
 
 #[cfg(test)]
