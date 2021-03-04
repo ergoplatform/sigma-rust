@@ -24,6 +24,7 @@ impl Env {
         Env { store: new_store }
     }
 
+    /// Insert a Value for the given ValId
     pub fn insert(&mut self, idx: ValId, v: Value) {
         self.store.insert(idx, v);
     }
