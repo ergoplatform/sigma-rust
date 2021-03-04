@@ -8,12 +8,15 @@ use crate::types::stype::SType;
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
 
+/// Box value
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ExtractAmount {
+    /// Box (SBox type)
     pub input: Box<Expr>,
 }
 
 impl ExtractAmount {
+    /// Create new object, returns an error if any of the requirements failed
     pub fn new(input: Expr) -> Result<Self, InvalidArgumentError> {
         input.check_post_eval_tpe(SType::SBox)?;
         Ok(ExtractAmount {
@@ -21,11 +24,12 @@ impl ExtractAmount {
         })
     }
 
+    /// Type
     pub fn tpe(&self) -> SType {
         SType::SLong
     }
 
-    pub fn op_code(&self) -> OpCode {
+    pub(crate) fn op_code(&self) -> OpCode {
         OpCode::EXTRACT_AMOUNT
     }
 }

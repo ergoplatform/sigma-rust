@@ -18,7 +18,7 @@ pub enum GlobalVars {
 
 impl GlobalVars {
     /// Op code (serialization)
-    pub fn op_code(&self) -> OpCode {
+    pub(crate) fn op_code(&self) -> OpCode {
         match self {
             GlobalVars::SelfBox => OpCode::SELF_BOX,
             GlobalVars::Inputs => OpCode::INPUTS,

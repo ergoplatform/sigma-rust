@@ -61,7 +61,8 @@ pub enum PrivateInput {
 }
 
 #[cfg(feature = "arbitrary")]
-pub mod arbitrary {
+/// Arbitrary impl
+mod arbitrary {
     use super::*;
     use proptest::prelude::*;
 

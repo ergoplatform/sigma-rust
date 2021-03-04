@@ -4,7 +4,6 @@ use std::convert::TryFrom;
 use std::convert::TryInto;
 
 use crate::serialization::op_code::OpCode;
-use crate::types::scontext::SContext;
 use crate::types::stype::SType;
 
 use super::and::And;
@@ -112,7 +111,7 @@ pub enum Expr {
 
 impl Expr {
     /// Code (used in serialization)
-    pub fn op_code(&self) -> OpCode {
+    pub(crate) fn op_code(&self) -> OpCode {
         match self {
             Expr::Const(_) => panic!("constant does not have op code assigned"),
             Expr::ConstPlaceholder(op) => op.op_code(),
@@ -154,7 +153,7 @@ impl Expr {
             Expr::Collection(v) => v.tpe(),
             Expr::ConstPlaceholder(v) => v.tpe.clone(),
             Expr::CalcBlake2b256(v) => v.tpe(),
-            Expr::Context => SType::SContext(SContext()),
+            Expr::Context => SType::SContext,
             Expr::GlobalVars(v) => v.tpe(),
             Expr::FuncValue(v) => v.tpe(),
             Expr::Apply(v) => v.tpe(),
@@ -239,16 +238,20 @@ impl<T: TryFrom<Expr>> TryExtractFrom<Expr> for T {
 }
 
 #[cfg(feature = "arbitrary")]
-pub mod arbitrary {
+/// Arbitrary impl
+pub(crate) mod arbitrary {
     use super::*;
     use crate::mir::func_value::FuncArg;
     use crate::types::sfunc::SFunc;
     use proptest::collection::*;
     use proptest::prelude::*;
 
+    /// Parameters for arbitrary Expr generation
     #[derive(PartialEq, Eq, Debug, Clone)]
     pub struct ArbExprParams {
+        /// Expr type
         pub tpe: SType,
+        /// Expr tree depth (levels)
         pub depth: usize,
     }
 

@@ -304,7 +304,7 @@ impl TryFrom<ErgoTree> for ProveDlog {
 }
 
 #[cfg(feature = "arbitrary")]
-pub mod arbitrary {
+pub(crate) mod arbitrary {
     use super::*;
     use proptest::prelude::*;
 

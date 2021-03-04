@@ -89,7 +89,8 @@ pub struct ProverResult {
 }
 
 #[cfg(feature = "arbitrary")]
-pub mod arbitrary {
+/// Arbitrary impl
+mod arbitrary {
     use super::*;
     use proptest::{collection::vec, prelude::*};
 

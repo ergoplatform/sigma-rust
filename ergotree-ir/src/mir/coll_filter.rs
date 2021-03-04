@@ -7,18 +7,21 @@ use crate::serialization::SerializationError;
 use crate::serialization::SigmaSerializable;
 use crate::types::stype::SType;
 
+/// Selects all elements of the collection that satisfy the condition
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Filter {
     /// Collection
     pub input: Box<Expr>,
     /// Function (lambda) to test each element
     pub condition: Box<Expr>,
+    /// Collection element type
     pub elem_tpe: SType,
 }
 
 impl Filter {
-    pub const OP_CODE: OpCode = OpCode::FILTER;
+    pub(crate) const OP_CODE: OpCode = OpCode::FILTER;
 
+    /// Create new object, returns an error if any of the requirements failed
     pub fn new(input: Expr, condition: Expr) -> Result<Self, InvalidArgumentError> {
         let input_elem_type: SType = *match input.post_eval_tpe() {
             SType::SColl(elem_type) => Ok(elem_type),
@@ -45,11 +48,12 @@ impl Filter {
         }
     }
 
+    /// Type
     pub fn tpe(&self) -> SType {
         SType::SColl(self.elem_tpe.clone().into())
     }
 
-    pub fn op_code(&self) -> OpCode {
+    pub(crate) fn op_code(&self) -> OpCode {
         Self::OP_CODE
     }
 }
@@ -68,7 +72,8 @@ impl SigmaSerializable for Filter {
 }
 
 #[cfg(feature = "arbitrary")]
-pub mod arbitrary {
+/// Arbitrary impl
+mod arbitrary {
     use super::*;
     use crate::mir::expr::arbitrary::ArbExprParams;
     use crate::types::sfunc::SFunc;

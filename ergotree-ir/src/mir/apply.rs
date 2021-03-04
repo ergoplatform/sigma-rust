@@ -1,3 +1,4 @@
+//! Application of function
 use std::io;
 
 use crate::serialization::op_code::OpCode;
@@ -10,13 +11,17 @@ use crate::types::stype::SType;
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
 
+/// Application of function `func` to given arguments `args`
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Apply {
+    /// Function
     pub func: Box<Expr>,
+    /// Arguments
     pub args: Vec<Expr>,
 }
 
 impl Apply {
+    /// Create new object, returns an error if any of the requirements failed
     pub fn new(func: Expr, args: Vec<Expr>) -> Result<Self, InvalidArgumentError> {
         let func = match func.tpe() {
             SType::SColl(_) => Ok(func),
@@ -42,6 +47,7 @@ impl Apply {
         })
     }
 
+    /// Type
     pub fn tpe(&self) -> SType {
         match self.func.tpe() {
             SType::SColl(_) => todo!(),
@@ -50,7 +56,7 @@ impl Apply {
         }
     }
 
-    pub fn op_code(&self) -> OpCode {
+    pub(crate) fn op_code(&self) -> OpCode {
         OpCode::APPLY
     }
 }
@@ -69,7 +75,6 @@ impl SigmaSerializable for Apply {
 }
 
 #[cfg(test)]
-#[cfg(feature = "arbitrary")]
 mod tests {
 
     use crate::mir::func_value::*;

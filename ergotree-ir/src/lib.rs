@@ -1,3 +1,5 @@
+//! ErgoTree, MIR (Middle-level Internal Representation)
+
 // Coding conventions
 #![forbid(unsafe_code)]
 #![deny(non_upper_case_globals)]
@@ -6,8 +8,7 @@
 #![deny(unused_mut)]
 #![deny(dead_code)]
 #![deny(unused_imports)]
-// TODO: add docs and enable
-// #![deny(missing_docs)]
+#![deny(missing_docs)]
 // Clippy exclusions
 #![allow(clippy::unit_arg)]
 #![deny(broken_intra_doc_links)]

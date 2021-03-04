@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 use super::sfunc::SFunc;
 use super::smethod::MethodId;
 use super::smethod::SMethod;
@@ -7,9 +9,6 @@ use super::stype_companion::STypeCompanion;
 use super::stype_companion::STypeCompanionHead;
 use super::stype_companion::TypeId;
 use lazy_static::lazy_static;
-
-#[derive(PartialEq, Eq, Debug, Clone)]
-pub struct SContext();
 
 pub const TYPE_ID: TypeId = TypeId(101);
 
@@ -24,7 +23,7 @@ lazy_static! {
         method_id: DATA_INPUTS_PROPERTY_METHOD_ID,
         name: "dataInputs",
         tpe: SType::SFunc(SFunc {
-            t_dom: vec![SType::SContext(SContext())],
+            t_dom: vec![SType::SContext],
             t_range: Box::new(SType::SColl(Box::new(SType::SBox))),
             tpe_params: vec![],
         }),

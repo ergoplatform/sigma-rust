@@ -6,22 +6,26 @@ use crate::serialization::SerializationError;
 use crate::serialization::SigmaSerializable;
 use crate::types::stype::SType;
 
-/// If (lazy)
+/// If (lazy evaluation)
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct If {
+    /// Condition (SBoolean)
     pub condition: Box<Expr>,
+    /// Expr, evaluated if condition is True
     pub true_branch: Box<Expr>,
+    /// Expr evaluated if condition is False
     pub false_branch: Box<Expr>,
 }
 
 impl If {
-    pub const OP_CODE: OpCode = OpCode::IF;
+    pub(crate) const OP_CODE: OpCode = OpCode::IF;
 
+    /// Type
     pub fn tpe(&self) -> SType {
         self.true_branch.tpe()
     }
 
-    pub fn op_code(&self) -> OpCode {
+    pub(crate) fn op_code(&self) -> OpCode {
         Self::OP_CODE
     }
 }
@@ -46,7 +50,8 @@ impl SigmaSerializable for If {
 }
 
 #[cfg(feature = "arbitrary")]
-pub mod arbitrary {
+/// Arbitrary impl
+mod arbitrary {
     use super::*;
     use crate::mir::expr::arbitrary::ArbExprParams;
     use proptest::prelude::*;

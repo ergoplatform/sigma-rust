@@ -1,3 +1,5 @@
+mod ir_ergo_box_dummy;
+
 use std::rc::Rc;
 
 use ergotree_ir::ir_ergo_box::IrBoxId;
@@ -13,12 +15,11 @@ pub struct Context {
 }
 
 #[cfg(feature = "arbitrary")]
-pub mod arbitrary {
+mod arbitrary {
     use std::collections::HashMap;
 
+    use super::ir_ergo_box_dummy::*;
     use super::*;
-    use ergotree_ir::ir_ergo_box::IrErgoBoxDummy;
-    use ergotree_ir::ir_ergo_box::IrErgoBoxDummyArena;
     use proptest::collection::vec;
     use proptest::prelude::*;
 

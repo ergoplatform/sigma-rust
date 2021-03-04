@@ -27,8 +27,6 @@ use std::{
     ops::{Add, Mul, Neg},
 };
 
-// use super::private_input::DlogProverInput;
-
 /// Elliptic curve point
 #[derive(PartialEq, Debug, Clone)]
 pub struct EcPoint(ProjectivePoint);
@@ -135,8 +133,9 @@ impl SigmaSerializable for EcPoint {
     }
 }
 
+/// Arbitrary impl for EcPoint
 #[cfg(feature = "arbitrary")]
-pub mod arbitrary {
+mod arbitrary {
     use super::*;
     use proptest::prelude::*;
 

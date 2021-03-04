@@ -1,3 +1,5 @@
+//! AND logical conjunction
+
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
@@ -7,19 +9,22 @@ use crate::types::stype::SType;
 
 use super::expr::Expr;
 
+/// AND logical conjunction
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct And {
+    /// Collection of SBoolean
     pub input: Box<Expr>,
 }
 
 impl And {
-    pub const OP_CODE: OpCode = OpCode::AND;
+    pub(crate) const OP_CODE: OpCode = OpCode::AND;
 
+    /// Type
     pub fn tpe(&self) -> SType {
         SType::SBoolean
     }
 
-    pub fn op_code(&self) -> OpCode {
+    pub(crate) fn op_code(&self) -> OpCode {
         Self::OP_CODE
     }
 }
@@ -36,8 +41,9 @@ impl SigmaSerializable for And {
     }
 }
 
+/// Arbitrary impl
 #[cfg(feature = "arbitrary")]
-pub mod arbitrary {
+mod arbitrary {
     use super::*;
     use crate::mir::expr::arbitrary::ArbExprParams;
     use proptest::prelude::*;

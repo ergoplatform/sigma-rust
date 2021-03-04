@@ -9,18 +9,21 @@ use crate::types::stype::SType;
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
 
+/// Builds a new collection by applying a function to all elements of this collection.
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Map {
     /// Collection
     pub input: Box<Expr>,
     /// Function (lambda) to apply to each element
     pub mapper: Box<Expr>,
+    /// Type signature of the function(mapper)
     pub mapper_sfunc: SFunc,
 }
 
 impl Map {
-    pub const OP_CODE: OpCode = OpCode::MAP;
+    pub(crate) const OP_CODE: OpCode = OpCode::MAP;
 
+    /// Create new object, returns an error if any of the requirements failed
     pub fn new(input: Expr, mapper: Expr) -> Result<Self, InvalidArgumentError> {
         let input_elem_type: SType = *match input.post_eval_tpe() {
             SType::SColl(elem_type) => Ok(elem_type),
@@ -42,15 +45,17 @@ impl Map {
         }
     }
 
+    /// Type
     pub fn tpe(&self) -> SType {
         SType::SColl(self.mapper_sfunc.t_range.clone())
     }
 
+    /// Type of the element in the resulted collection
     pub fn out_elem_tpe(&self) -> SType {
         *self.mapper_sfunc.t_range.clone()
     }
 
-    pub fn op_code(&self) -> OpCode {
+    pub(crate) fn op_code(&self) -> OpCode {
         Self::OP_CODE
     }
 }
@@ -69,7 +74,8 @@ impl SigmaSerializable for Map {
 }
 
 #[cfg(feature = "arbitrary")]
-pub mod arbitrary {
+/// Arbitrary impl
+mod arbitrary {
     use super::*;
     use crate::mir::expr::arbitrary::ArbExprParams;
     use proptest::prelude::*;

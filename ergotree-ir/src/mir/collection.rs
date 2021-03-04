@@ -11,13 +11,22 @@ use super::constant::TryExtractInto;
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
 
+/// Collection of elements
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum Collection {
+    /// Special representation for an array of boolean constants
     BoolConstants(Vec<bool>),
-    Exprs { elem_tpe: SType, items: Vec<Expr> },
+    /// Colllection of elements, where each element is an expression
+    Exprs {
+        /// Element type
+        elem_tpe: SType,
+        /// Elements
+        items: Vec<Expr>,
+    },
 }
 
 impl Collection {
+    /// Create new object, returns an error if any of the requirements failed
     pub fn new(elem_tpe: SType, items: Vec<Expr>) -> Result<Self, InvalidArgumentError> {
         if !items.iter().all(|i| i.tpe() == elem_tpe) {
             return Err(InvalidArgumentError(format!(
@@ -40,6 +49,7 @@ impl Collection {
         }
     }
 
+    /// Type
     pub fn tpe(&self) -> SType {
         SType::SColl(
             match self {
@@ -50,7 +60,7 @@ impl Collection {
         )
     }
 
-    pub fn op_code(&self) -> OpCode {
+    pub(crate) fn op_code(&self) -> OpCode {
         match self {
             Collection::BoolConstants(_) => OpCode::COLL_OF_BOOL_CONST,
             Collection::Exprs { .. } => OpCode::COLL,
@@ -58,7 +68,7 @@ impl Collection {
     }
 }
 
-pub fn coll_sigma_serialize<W: SigmaByteWrite>(
+pub(crate) fn coll_sigma_serialize<W: SigmaByteWrite>(
     coll: &Collection,
     w: &mut W,
 ) -> Result<(), std::io::Error> {
@@ -75,7 +85,9 @@ pub fn coll_sigma_serialize<W: SigmaByteWrite>(
     }
 }
 
-pub fn coll_sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Collection, SerializationError> {
+pub(crate) fn coll_sigma_parse<R: SigmaByteRead>(
+    r: &mut R,
+) -> Result<Collection, SerializationError> {
     let items_count = r.get_u16()?;
     let elem_tpe = SType::sigma_parse(r)?;
     let mut items = Vec::with_capacity(items_count as usize);
@@ -85,7 +97,7 @@ pub fn coll_sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Collection, Seria
     Ok(Collection::Exprs { elem_tpe, items })
 }
 
-pub fn bool_const_coll_sigma_parse<R: SigmaByteRead>(
+pub(crate) fn bool_const_coll_sigma_parse<R: SigmaByteRead>(
     r: &mut R,
 ) -> Result<Collection, SerializationError> {
     let items_count = r.get_u16()?;
@@ -94,7 +106,8 @@ pub fn bool_const_coll_sigma_parse<R: SigmaByteRead>(
 }
 
 #[cfg(feature = "arbitrary")]
-pub mod arbitrary {
+/// Arbitrary impl
+mod arbitrary {
     use crate::mir::constant::arbitrary::ArbConstantParams;
     use crate::mir::expr::arbitrary::ArbExprParams;
 

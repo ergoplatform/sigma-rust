@@ -6,19 +6,22 @@ use crate::serialization::SerializationError;
 use crate::serialization::SigmaSerializable;
 use crate::types::stype::SType;
 
+/// Logical OR op on collection of SBoolean values
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Or {
+    /// Input collection
     pub input: Box<Expr>,
 }
 
 impl Or {
-    pub const OP_CODE: OpCode = OpCode::OR;
+    pub(crate) const OP_CODE: OpCode = OpCode::OR;
 
+    /// Type
     pub fn tpe(&self) -> SType {
         SType::SBoolean
     }
 
-    pub fn op_code(&self) -> OpCode {
+    pub(crate) fn op_code(&self) -> OpCode {
         Self::OP_CODE
     }
 }
@@ -36,7 +39,8 @@ impl SigmaSerializable for Or {
 }
 
 #[cfg(feature = "arbitrary")]
-pub mod arbitrary {
+/// Arbitrary impl
+mod arbitrary {
     use crate::mir::expr::arbitrary::ArbExprParams;
 
     use super::*;

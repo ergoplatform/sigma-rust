@@ -32,6 +32,7 @@ impl<T> TupleItems<T> {
         self.0.as_slice()
     }
 
+    /// Returns tuple element with 1-based given index
     pub fn get(&self, index: TupleFieldIndex) -> Option<&T> {
         let index_usize: usize = index.into();
         self.0.get(index_usize - 1)
@@ -64,12 +65,15 @@ impl TryFrom<Vec<SType>> for STuple {
     }
 }
 
+/// Tuple type
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct STuple {
+    /// Tuple element types
     pub items: TupleItems<SType>,
 }
 
 impl STuple {
+    /// Create a tuple type for a given type pair
     pub fn pair(t1: SType, t2: SType) -> Self {
         STuple {
             items: vec![t1, t2].try_into().unwrap(),

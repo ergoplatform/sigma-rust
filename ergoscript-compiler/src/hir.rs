@@ -146,6 +146,7 @@ pub enum GlobalVars {
 }
 
 impl GlobalVars {
+    /// Type
     pub fn tpe(&self) -> SType {
         match self {
             GlobalVars::Height => SType::SInt,
