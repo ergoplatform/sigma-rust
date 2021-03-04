@@ -65,7 +65,7 @@ pub enum SigmaBoolean {
 
 impl SigmaBoolean {
     /// get OpCode for serialization
-    pub fn op_code(&self) -> OpCode {
+    pub(crate) fn op_code(&self) -> OpCode {
         match self {
             SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(_)) => {
                 OpCode::PROVE_DLOG
@@ -113,8 +113,9 @@ impl TryFrom<SigmaProp> for bool {
     }
 }
 
+/// Arbitrary impl for ProveDlog
 #[cfg(feature = "arbitrary")]
-pub mod arbitrary {
+mod arbitrary {
     use super::*;
     use proptest::prelude::*;
 

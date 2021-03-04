@@ -1,3 +1,4 @@
+//! Block of statements ending with an expression
 use std::io;
 
 use super::expr::Expr;
@@ -8,7 +9,8 @@ use crate::serialization::SerializationError;
 use crate::serialization::SigmaSerializable;
 use crate::types::stype::SType;
 
-/** The order of ValDefs in the block is used to assign ids to ValUse(id) nodes
+/** Block of statements ending with an expression
+ * The order of ValDefs in the block is used to assign ids to ValUse(id) nodes
  * For all i: items(i).id == {number of ValDefs preceded in a graph} with respect to topological order.
  * Specific topological order doesn't really matter, what is important is to preserve semantic linkage
  * between ValUse(id) and ValDef with the corresponding id.
@@ -17,16 +19,19 @@ use crate::types::stype::SType;
  */
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct BlockValue {
+    /// Statements
     pub items: Vec<Expr>,
+    /// Resulting expr
     pub result: Box<Expr>,
 }
 
 impl BlockValue {
+    /// Type
     pub fn tpe(&self) -> SType {
         self.result.tpe()
     }
 
-    pub fn op_code(&self) -> OpCode {
+    pub(crate) fn op_code(&self) -> OpCode {
         OpCode::BLOCK_VALUE
     }
 }
@@ -48,8 +53,9 @@ impl SigmaSerializable for BlockValue {
     }
 }
 
+/// Arbitrary impl
 #[cfg(feature = "arbitrary")]
-pub mod arbitrary {
+mod arbitrary {
     use super::*;
     use proptest::collection::vec;
     use proptest::prelude::*;

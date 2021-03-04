@@ -8,16 +8,21 @@ use crate::types::stype::SType;
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
 
+/// Get collection element by index
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ByIndex {
+    /// Collection
     pub input: Box<Expr>,
+    /// Element index
     pub index: Box<Expr>,
+    /// Default value, returned if index is out of bounds in "Coll.getOrElse()" op
     pub default: Option<Box<Expr>>,
 }
 
 impl ByIndex {
-    pub const OP_CODE: OpCode = OpCode::BY_INDEX;
+    pub(crate) const OP_CODE: OpCode = OpCode::BY_INDEX;
 
+    /// Create new object, returns an error if any of the requirements failed
     pub fn new(
         input: Expr,
         index: Expr,
@@ -53,6 +58,7 @@ impl ByIndex {
         })
     }
 
+    /// Type
     pub fn tpe(&self) -> SType {
         match self.input.post_eval_tpe() {
             SType::SColl(elem_tpe) => *elem_tpe,
@@ -60,7 +66,7 @@ impl ByIndex {
         }
     }
 
-    pub fn op_code(&self) -> OpCode {
+    pub(crate) fn op_code(&self) -> OpCode {
         Self::OP_CODE
     }
 }
@@ -81,7 +87,8 @@ impl SigmaSerializable for ByIndex {
 }
 
 #[cfg(feature = "arbitrary")]
-pub mod arbitrary {
+/// Arbitrary impl
+mod arbitrary {
     use super::*;
     use crate::mir::expr::arbitrary::ArbExprParams;
     use proptest::prelude::*;

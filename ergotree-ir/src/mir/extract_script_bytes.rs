@@ -8,14 +8,17 @@ use crate::types::stype::SType;
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
 
+/// Serialized box guarding script
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ExtractScriptBytes {
+    /// Box, type of SBox
     pub input: Box<Expr>,
 }
 
 impl ExtractScriptBytes {
-    pub const OP_CODE: OpCode = OpCode::EXTRACT_SCRIPT_BYTES;
+    pub(crate) const OP_CODE: OpCode = OpCode::EXTRACT_SCRIPT_BYTES;
 
+    /// Create new object, returns an error if any of the requirements failed
     pub fn new(input: Expr) -> Result<Self, InvalidArgumentError> {
         input.check_post_eval_tpe(SType::SBox)?;
         Ok(ExtractScriptBytes {
@@ -23,11 +26,12 @@ impl ExtractScriptBytes {
         })
     }
 
+    /// Type
     pub fn tpe(&self) -> SType {
         SType::SColl(SType::SByte.into())
     }
 
-    pub fn op_code(&self) -> OpCode {
+    pub(crate) fn op_code(&self) -> OpCode {
         Self::OP_CODE
     }
 }

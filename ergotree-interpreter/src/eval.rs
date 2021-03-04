@@ -15,7 +15,9 @@ use self::context::Context;
 use self::cost_accum::CostError;
 use self::env::Env;
 
+/// Context(blockchain) for the interpreter
 pub mod context;
+/// Environment for
 pub mod env;
 
 pub(crate) mod and;
@@ -122,9 +124,9 @@ pub trait Evaluator {
 }
 
 #[derive(Debug)]
-pub struct EvalContext {
-    pub ctx: Rc<Context>,
-    pub cost_accum: CostAccumulator,
+pub(crate) struct EvalContext {
+    pub(crate) ctx: Rc<Context>,
+    pub(crate) cost_accum: CostAccumulator,
 }
 
 impl EvalContext {
@@ -135,7 +137,7 @@ impl EvalContext {
 
 /// Expression evaluation.
 /// Should be implemented by every node that can be evaluated.
-pub trait Evaluable {
+pub(crate) trait Evaluable {
     /// Evaluation routine to be implement by each node
     fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError>;
 }
@@ -159,7 +161,10 @@ fn smethod_eval_fn(method: &SMethod) -> EvalFn {
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
-pub mod tests {
+pub(crate) mod tests {
+
+    #![allow(dead_code)]
+
     use super::env::Env;
     use super::*;
     use ergotree_ir::mir::constant::TryExtractFrom;

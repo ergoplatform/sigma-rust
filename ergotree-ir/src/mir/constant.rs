@@ -192,7 +192,8 @@ impl<T: TryExtractFrom<Value>> TryExtractFrom<Constant> for T {
 }
 
 #[cfg(feature = "arbitrary")]
-pub mod arbitrary {
+/// Arbitrary impl
+pub(crate) mod arbitrary {
     use std::convert::TryFrom;
 
     use super::*;
@@ -272,9 +273,12 @@ pub mod arbitrary {
         }
     }
 
+    /// Parameters for arbitrary Constant generation
     #[derive(PartialEq, Eq, Debug, Clone, From, TryInto)]
     pub enum ArbConstantParams {
+        /// Constant of any type with a structrure of a given depth
         AnyWithDepth(u8),
+        /// Constant of a given type
         Exact(SType),
     }
 

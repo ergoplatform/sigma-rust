@@ -112,7 +112,7 @@ pub enum Expr {
 
 impl Expr {
     /// Code (used in serialization)
-    pub fn op_code(&self) -> OpCode {
+    pub(crate) fn op_code(&self) -> OpCode {
         match self {
             Expr::Const(_) => panic!("constant does not have op code assigned"),
             Expr::ConstPlaceholder(op) => op.op_code(),
@@ -239,7 +239,8 @@ impl<T: TryFrom<Expr>> TryExtractFrom<Expr> for T {
 }
 
 #[cfg(feature = "arbitrary")]
-pub mod arbitrary {
+/// Arbitrary impl
+mod arbitrary {
     use super::*;
     use crate::mir::func_value::FuncArg;
     use crate::types::sfunc::SFunc;

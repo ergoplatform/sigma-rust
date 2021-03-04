@@ -14,10 +14,13 @@ use super::val_def::ValId;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 
+/// Argument parameter for the user-defined function [`FuncValue`]
 #[derive(PartialEq, Eq, Debug, Clone)]
 #[cfg_attr(test, derive(Arbitrary))]
 pub struct FuncArg {
+    /// Value id (defined with [`super::val_def::ValDef`])
     pub idx: ValId,
+    /// Value type
     pub tpe: SType,
 }
 
@@ -34,6 +37,7 @@ impl SigmaSerializable for FuncArg {
     }
 }
 
+/// User-defined function
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct FuncValue {
     args: Vec<FuncArg>,
@@ -42,6 +46,7 @@ pub struct FuncValue {
 }
 
 impl FuncValue {
+    /// Create new object, returns an error if any of the requirements failed
     pub fn new(args: Vec<FuncArg>, body: Expr) -> Self {
         let t_dom = args.iter().map(|fa| fa.tpe.clone()).collect();
         let t_range = body.tpe();
@@ -57,19 +62,22 @@ impl FuncValue {
         }
     }
 
+    /// Function arguments
     pub fn args(&self) -> &[FuncArg] {
         self.args.as_ref()
     }
 
+    /// Function body
     pub fn body(&self) -> &Expr {
         &self.body
     }
 
+    /// Type
     pub fn tpe(&self) -> SType {
         self.tpe.clone()
     }
 
-    pub fn op_code(&self) -> OpCode {
+    pub(crate) fn op_code(&self) -> OpCode {
         OpCode::FUNC_VALUE
     }
 }

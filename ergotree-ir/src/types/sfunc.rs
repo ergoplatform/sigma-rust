@@ -1,6 +1,7 @@
 use super::stype::SType;
 use super::stype_param::STypeParam;
 
+/// Function signature type
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct SFunc {
     /// Function parameter types

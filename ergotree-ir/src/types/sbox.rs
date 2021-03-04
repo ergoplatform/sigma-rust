@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 use super::sfunc::SFunc;
 use super::smethod::MethodId;
 use super::smethod::SMethod;
@@ -10,9 +12,13 @@ use super::stype_companion::TypeId;
 use super::stype_param::STypeVar;
 use lazy_static::lazy_static;
 
+/// SBox type id
 pub const TYPE_ID: TypeId = TypeId(99);
+/// Box.value property
 pub const VALUE_METHOD_ID: MethodId = MethodId(1);
+/// Box.Rx property
 pub const GET_REG_METHOD_ID: MethodId = MethodId(7);
+/// Box.tokens property
 pub const TOKENS_METHOD_ID: MethodId = MethodId(8);
 
 static S_BOX_TYPE_COMPANION_HEAD: STypeCompanionHead = STypeCompanionHead {

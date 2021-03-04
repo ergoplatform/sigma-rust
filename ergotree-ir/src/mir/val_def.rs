@@ -15,6 +15,7 @@ use derive_more::From;
 #[cfg(feature = "arbitrary")]
 use proptest_derive::Arbitrary;
 
+/// Variable id
 #[derive(PartialEq, Eq, Hash, Debug, Clone, Copy, From)]
 #[cfg_attr(feature = "arbitrary", derive(Arbitrary))]
 pub struct ValId(u32);
@@ -37,16 +38,19 @@ impl SigmaSerializable for ValId {
 #[derive(PartialEq, Eq, Debug, Clone)]
 #[cfg_attr(test, derive(Arbitrary))]
 pub struct ValDef {
+    /// Variable id
     pub id: ValId,
+    /// Expr, bound to the variable
     pub rhs: Box<Expr>,
 }
 
 impl ValDef {
+    /// Type
     pub fn tpe(&self) -> SType {
         self.rhs.tpe()
     }
 
-    pub fn op_code(&self) -> OpCode {
+    pub(crate) fn op_code(&self) -> OpCode {
         OpCode::VAL_DEF
     }
 }

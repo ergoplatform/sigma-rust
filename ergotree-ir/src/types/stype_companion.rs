@@ -12,6 +12,7 @@ use super::smethod::MethodId;
 use super::smethod::SMethod;
 use super::smethod::SMethodDesc;
 
+/// Object type id
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub struct TypeId(pub u8);
 
@@ -26,11 +27,12 @@ impl SigmaSerializable for TypeId {
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct STypeCompanionHead {
+pub(crate) struct STypeCompanionHead {
     pub type_id: TypeId,
     pub type_name: &'static str,
 }
 
+/// Object's type companion
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct STypeCompanion {
     head: &'static STypeCompanionHead,
@@ -38,10 +40,14 @@ pub struct STypeCompanion {
 }
 
 impl STypeCompanion {
-    pub fn new(head: &'static STypeCompanionHead, methods: Vec<&'static SMethodDesc>) -> Self {
+    pub(crate) fn new(
+        head: &'static STypeCompanionHead,
+        methods: Vec<&'static SMethodDesc>,
+    ) -> Self {
         STypeCompanion { head, methods }
     }
 
+    /// Get type companion for a givec type id
     pub fn type_by_id(type_id: TypeId) -> &'static STypeCompanion {
         if type_id == scontext::S_CONTEXT_TYPE_COMPANION.type_id() {
             &scontext::S_CONTEXT_TYPE_COMPANION
@@ -52,6 +58,7 @@ impl STypeCompanion {
         }
     }
 
+    /// Get method signature for this object by a method id
     pub fn method_by_id(&'static self, method_id: &MethodId) -> Option<SMethod> {
         self.methods
             .iter()
@@ -59,14 +66,17 @@ impl STypeCompanion {
             .map(|m| m.as_method(self))
     }
 
+    /// Get list of method signatures for this object's type companion
     pub fn methods(&'static self) -> Vec<SMethod> {
         self.methods.iter().map(|m| m.as_method(self)).collect()
     }
 
+    /// Get object type id for this type companion
     pub fn type_id(&'static self) -> TypeId {
         self.head.type_id
     }
 
+    /// Get object's type name
     pub fn type_name(&'static self) -> &'static str {
         self.head.type_name
     }

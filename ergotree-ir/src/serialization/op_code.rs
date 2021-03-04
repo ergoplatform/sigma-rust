@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 #![allow(missing_docs)]
 
 use crate::serialization::{

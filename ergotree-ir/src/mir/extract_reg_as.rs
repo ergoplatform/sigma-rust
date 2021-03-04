@@ -8,6 +8,7 @@ use crate::types::stype::SType;
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
 
+/// Get box register value (Box.R1 - R9)
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ExtractRegisterAs {
     /// Box
@@ -19,8 +20,9 @@ pub struct ExtractRegisterAs {
 }
 
 impl ExtractRegisterAs {
-    pub const OP_CODE: OpCode = OpCode::EXTRACT_REGISTER_AS;
+    pub(crate) const OP_CODE: OpCode = OpCode::EXTRACT_REGISTER_AS;
 
+    /// Create new object, returns an error if any of the requirements failed
     pub fn new(input: Expr, register_id: i8, tpe: SType) -> Result<Self, InvalidArgumentError> {
         if input.post_eval_tpe() != SType::SBox {
             return Err(InvalidArgumentError(format!(
@@ -43,10 +45,11 @@ impl ExtractRegisterAs {
         })
     }
 
-    pub fn op_code(&self) -> OpCode {
+    pub(crate) fn op_code(&self) -> OpCode {
         Self::OP_CODE
     }
 
+    /// Type
     pub fn tpe(&self) -> SType {
         SType::SOption(self.elem_tpe.clone().into())
     }

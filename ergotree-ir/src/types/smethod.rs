@@ -22,20 +22,27 @@ impl SigmaSerializable for MethodId {
     }
 }
 
+/// Object method signature
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct SMethod {
+    /// Object type companion
     pub obj_type: &'static STypeCompanion,
     method_raw: &'static SMethodDesc,
 }
 
 impl SMethod {
-    pub fn new(obj_type: &'static STypeCompanion, method_raw: &'static SMethodDesc) -> SMethod {
+    /// Create new SMethod
+    pub(crate) fn new(
+        obj_type: &'static STypeCompanion,
+        method_raw: &'static SMethodDesc,
+    ) -> SMethod {
         SMethod {
             obj_type,
             method_raw,
         }
     }
 
+    /// Get method from type and method ids
     pub fn from_ids(type_id: TypeId, method_id: MethodId) -> Self {
         let obj_type = STypeCompanion::type_by_id(type_id);
         match obj_type.method_by_id(&method_id) {
@@ -47,28 +54,31 @@ impl SMethod {
         }
     }
 
+    /// Type
     pub fn tpe(&self) -> &SType {
         &self.method_raw.tpe
     }
 
+    /// Returns method name
     pub fn name(&self) -> &'static str {
         self.method_raw.name
     }
 
+    /// Returns method id
     pub fn method_id(&self) -> MethodId {
         self.method_raw.method_id.clone()
     }
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct SMethodDesc {
-    pub name: &'static str,
-    pub method_id: MethodId,
-    pub tpe: SType,
+pub(crate) struct SMethodDesc {
+    pub(crate) name: &'static str,
+    pub(crate) method_id: MethodId,
+    pub(crate) tpe: SType,
 }
 
 impl SMethodDesc {
-    pub fn as_method(&'static self, obj_type: &'static STypeCompanion) -> SMethod {
+    pub(crate) fn as_method(&'static self, obj_type: &'static STypeCompanion) -> SMethod {
         SMethod {
             obj_type,
             method_raw: self,

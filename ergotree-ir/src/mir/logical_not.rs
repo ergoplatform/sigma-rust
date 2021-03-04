@@ -6,19 +6,22 @@ use crate::serialization::SerializationError;
 use crate::serialization::SigmaSerializable;
 use crate::types::stype::SType;
 
+/// Logical NOT (inverts the input)
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct LogicalNot {
+    /// Input expr of SBoolean type
     pub input: Box<Expr>,
 }
 
 impl LogicalNot {
-    pub const OP_CODE: OpCode = OpCode::LOGICAL_NOT;
+    pub(crate) const OP_CODE: OpCode = OpCode::LOGICAL_NOT;
 
+    /// Type
     pub fn tpe(&self) -> SType {
         SType::SBoolean
     }
 
-    pub fn op_code(&self) -> OpCode {
+    pub(crate) fn op_code(&self) -> OpCode {
         Self::OP_CODE
     }
 }
@@ -36,7 +39,8 @@ impl SigmaSerializable for LogicalNot {
 }
 
 #[cfg(feature = "arbitrary")]
-pub mod arbitrary {
+/// Arbitrary impl
+mod arbitrary {
     use crate::mir::expr::arbitrary::ArbExprParams;
 
     use super::*;

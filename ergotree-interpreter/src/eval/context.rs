@@ -1,24 +1,31 @@
+mod ir_ergo_box_dummy;
+
 use std::rc::Rc;
 
 use ergotree_ir::ir_ergo_box::IrBoxId;
 use ergotree_ir::ir_ergo_box::IrErgoBoxArena;
 
+/// Interpreter's context (blockchain state)
 #[derive(Debug)]
 pub struct Context {
+    /// Arena with all boxes (from self, inputs, outputs, data_inputs)
     pub box_arena: Rc<dyn IrErgoBoxArena>,
+    /// Current height
     pub height: i32,
+    /// Box that contains the script we're evaluating (from spending transaction inputs)
     pub self_box: IrBoxId,
+    /// Spending transaction outputs
     pub outputs: Vec<IrBoxId>,
+    /// Spending transaction data inputs
     pub data_inputs: Vec<IrBoxId>,
 }
 
 #[cfg(feature = "arbitrary")]
-pub mod arbitrary {
+mod arbitrary {
     use std::collections::HashMap;
 
+    use super::ir_ergo_box_dummy::*;
     use super::*;
-    use ergotree_ir::ir_ergo_box::IrErgoBoxDummy;
-    use ergotree_ir::ir_ergo_box::IrErgoBoxDummyArena;
     use proptest::collection::vec;
     use proptest::prelude::*;
 

@@ -50,13 +50,17 @@ impl SigmaSerializable for TupleFieldIndex {
     }
 }
 
+/// Select a field of the tuple value
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct SelectField {
+    /// Tuple value
     pub input: Box<Expr>,
+    /// 1-based tuple field index (input._1 has field_index of 1)
     pub field_index: TupleFieldIndex,
 }
 
 impl SelectField {
+    /// Create new object, returns an error if any of the requirements failed
     pub fn new(input: Expr, field_index: TupleFieldIndex) -> Result<Self, InvalidArgumentError> {
         match input.tpe() {
             SType::STuple(STuple { items }) => {
@@ -80,12 +84,13 @@ impl SelectField {
         }
     }
 
-    pub fn op_code(&self) -> OpCode {
+    pub(crate) fn op_code(&self) -> OpCode {
         OpCode::SELECT_FIELD
     }
 }
 
 impl SelectField {
+    /// Type
     pub fn tpe(&self) -> SType {
         match self.input.tpe() {
             SType::STuple(STuple { items }) => items.get(self.field_index).unwrap().clone(),

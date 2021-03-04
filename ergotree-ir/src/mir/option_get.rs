@@ -7,12 +7,15 @@ use crate::serialization::SerializationError;
 use crate::serialization::SigmaSerializable;
 use crate::types::stype::SType;
 
+/// Returns the Option's value or error if no value
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct OptionGet {
+    /// Object of SOption type
     pub input: Box<Expr>,
 }
 
 impl OptionGet {
+    /// Create new object, returns an error if any of the requirements failed
     pub fn new(input: Expr) -> Result<Self, InvalidArgumentError> {
         match input.post_eval_tpe() {
             SType::SOption(_) => Ok(OptionGet {
@@ -25,10 +28,11 @@ impl OptionGet {
         }
     }
 
-    pub fn op_code(&self) -> OpCode {
+    pub(crate) fn op_code(&self) -> OpCode {
         OpCode::OPTION_GET
     }
 
+    /// Type
     pub fn tpe(&self) -> SType {
         match self.input.tpe() {
             SType::SOption(o) => *o,

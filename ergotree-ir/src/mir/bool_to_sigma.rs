@@ -1,3 +1,4 @@
+//! Embedding of Boolean values to SigmaProp
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
@@ -7,19 +8,25 @@ use crate::types::stype::SType;
 
 use super::expr::Expr;
 
+/** Embedding of Boolean values to SigmaProp values. As an example, this operation allows boolean experesions
+ * to be used as arguments of `atLeast(..., sigmaProp(boolExpr), ...)` operation.
+ * During execution results to either `TrueProp` or `FalseProp` values of SigmaProp type.
+ */
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct BoolToSigmaProp {
+    /// Expr of type SBoolean
     pub input: Box<Expr>,
 }
 
 impl BoolToSigmaProp {
-    pub const OP_CODE: OpCode = OpCode::BOOL_TO_SIGMA_PROP;
+    pub(crate) const OP_CODE: OpCode = OpCode::BOOL_TO_SIGMA_PROP;
 
+    /// Type
     pub fn tpe(&self) -> SType {
         SType::SBoolean
     }
 
-    pub fn op_code(&self) -> OpCode {
+    pub(crate) fn op_code(&self) -> OpCode {
         Self::OP_CODE
     }
 }
@@ -36,8 +43,9 @@ impl SigmaSerializable for BoolToSigmaProp {
     }
 }
 
+/// Arbitrary impl
 #[cfg(feature = "arbitrary")]
-pub mod arbitrary {
+mod arbitrary {
     use crate::mir::expr::arbitrary::ArbExprParams;
 
     use super::*;

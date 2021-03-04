@@ -8,14 +8,17 @@ use crate::types::stype::SType;
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
 
+/// Collection size
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct SizeOf {
+    /// Collection
     pub input: Box<Expr>,
 }
 
 impl SizeOf {
-    pub const OP_CODE: OpCode = OpCode::SIZE_OF;
+    pub(crate) const OP_CODE: OpCode = OpCode::SIZE_OF;
 
+    /// Create new object, returns an error if any of the requirements failed
     pub fn new(input: Expr) -> Result<Self, InvalidArgumentError> {
         match input.post_eval_tpe() {
             SType::SColl(_) => Ok(Self {
@@ -28,11 +31,12 @@ impl SizeOf {
         }
     }
 
+    /// Type
     pub fn tpe(&self) -> SType {
         SType::SInt
     }
 
-    pub fn op_code(&self) -> OpCode {
+    pub(crate) fn op_code(&self) -> OpCode {
         Self::OP_CODE
     }
 }
@@ -49,7 +53,8 @@ impl SigmaSerializable for SizeOf {
 }
 
 #[cfg(feature = "arbitrary")]
-pub mod arbitrary {
+/// Arbitrary impl
+mod arbitrary {
     use crate::mir::expr::arbitrary::ArbExprParams;
     use crate::types::stype_param::STypeVar;
 

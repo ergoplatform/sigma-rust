@@ -8,12 +8,15 @@ use crate::types::stype::SType;
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
 
+/// Calc Blake2b 256-bit hash
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct CalcBlake2b256 {
+    /// Byte array with SColl(SByte) expr type
     pub input: Box<Expr>,
 }
 
 impl CalcBlake2b256 {
+    /// Create new object, returns an error if any of the requirements failed
     pub fn new(input: Expr) -> Result<Self, InvalidArgumentError> {
         input.check_post_eval_tpe(SType::SColl(Box::new(SType::SByte)))?;
         Ok(CalcBlake2b256 {
@@ -21,11 +24,12 @@ impl CalcBlake2b256 {
         })
     }
 
+    /// Type
     pub fn tpe(&self) -> SType {
         SType::SColl(Box::new(SType::SByte))
     }
 
-    pub fn op_code(&self) -> OpCode {
+    pub(crate) fn op_code(&self) -> OpCode {
         OpCode::CALC_BLAKE2B256
     }
 }
@@ -42,7 +46,8 @@ impl SigmaSerializable for CalcBlake2b256 {
 }
 
 #[cfg(feature = "arbitrary")]
-pub mod arbitrary {
+/// Arbitrary impl
+mod arbitrary {
     use crate::mir::expr::arbitrary::ArbExprParams;
 
     use super::*;

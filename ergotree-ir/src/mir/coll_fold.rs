@@ -9,6 +9,8 @@ use crate::types::stype::SType;
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
 
+/// Applies a binary function to a start value and all elements of this collection,
+/// going left to right.
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Fold {
     /// Collection
@@ -20,6 +22,7 @@ pub struct Fold {
 }
 
 impl Fold {
+    /// Create new object, returns an error if any of the requirements failed
     pub fn new(input: Expr, zero: Expr, fold_op: Expr) -> Result<Self, InvalidArgumentError> {
         let input_elem_type: SType = *match input.post_eval_tpe() {
             SType::SColl(elem_type) => Ok(elem_type),
@@ -45,11 +48,12 @@ impl Fold {
         }
     }
 
+    /// Type
     pub fn tpe(&self) -> SType {
         self.zero.tpe()
     }
 
-    pub fn op_code(&self) -> OpCode {
+    pub(crate) fn op_code(&self) -> OpCode {
         OpCode::FOLD
     }
 }

@@ -12,7 +12,6 @@ use crate::sigma_protocol::sigma_boolean::SigmaBoolean;
 use crate::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
 use crate::sigma_protocol::sigma_boolean::SigmaProp;
 
-use super::scontext::SContext;
 use super::sfunc::SFunc;
 use super::stuple::STuple;
 use super::stype_companion::STypeCompanion;
@@ -54,7 +53,7 @@ pub enum SType {
     /// Function (signature)
     SFunc(SFunc),
     /// Context object ("CONTEXT" in ErgoScript)
-    SContext(SContext),
+    SContext,
 }
 
 impl SType {
@@ -76,7 +75,7 @@ impl SType {
             SType::SColl(_) => TypeCode::COLLECTION,
             SType::STuple(_) => TypeCode::TUPLE,
             SType::SFunc(_) => todo!(),
-            SType::SContext(_) => todo!(),
+            SType::SContext => todo!(),
             SType::STypeVar(_) => todo!(),
         }
     }

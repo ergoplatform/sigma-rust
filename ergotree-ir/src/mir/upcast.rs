@@ -1,4 +1,4 @@
-//! Operators in ErgoTree
+//! Numerical upcast
 
 use super::expr::Expr;
 use crate::serialization::op_code::OpCode;
@@ -10,19 +10,23 @@ use crate::types::stype::SType;
 
 use std::io::Error;
 
+/// Numerical upcast
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Upcast {
+    /// Numerical value to be upcasted
     pub input: Box<Expr>,
+    /// Target type for the input value to be upcasted to
     pub tpe: SType,
 }
 
 impl Upcast {
-    pub const OP_CODE: OpCode = OpCode::UPCAST;
+    pub(crate) const OP_CODE: OpCode = OpCode::UPCAST;
 
-    pub fn op_code(&self) -> OpCode {
+    pub(crate) fn op_code(&self) -> OpCode {
         Self::OP_CODE
     }
 
+    /// Type
     pub fn tpe(&self) -> SType {
         self.tpe.clone()
     }
@@ -42,7 +46,8 @@ impl SigmaSerializable for Upcast {
 }
 
 #[cfg(feature = "arbitrary")]
-pub mod arbitrary {
+/// Arbitrary impl
+mod arbitrary {
     use crate::mir::expr::arbitrary::ArbExprParams;
 
     use super::*;

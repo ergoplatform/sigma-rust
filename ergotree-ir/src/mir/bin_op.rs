@@ -110,7 +110,7 @@ pub struct BinOp {
 
 impl BinOp {
     /// Op code (serialization)
-    pub fn op_code(&self) -> OpCode {
+    pub(crate) fn op_code(&self) -> OpCode {
         self.kind.into()
     }
 
@@ -124,7 +124,8 @@ impl BinOp {
 }
 
 #[cfg(feature = "arbitrary")]
-pub mod arbitrary {
+/// Arbitrary impl
+mod arbitrary {
     use crate::mir::expr::arbitrary::ArbExprParams;
 
     use super::*;
