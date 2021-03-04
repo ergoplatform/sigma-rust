@@ -245,3 +245,5 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 ### `json` (default feature)
 JSON serialization for chain types using `serde`.
 
+### `compiler` (default feature)
+Compile `ErgoTree` from ErgoScript via `Contract::compile`.
