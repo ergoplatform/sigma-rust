@@ -157,4 +157,66 @@ mod tests {
             )"#]],
         );
     }
+
+    #[test]
+    fn bin_numeric_int() {
+        check(
+            "4+2",
+            expect![[r#"
+            BinOp(
+                BinOp {
+                    kind: Arith(
+                        Plus,
+                    ),
+                    left: Const(
+                        Constant {
+                            tpe: SInt,
+                            v: Int(
+                                4,
+                            ),
+                        },
+                    ),
+                    right: Const(
+                        Constant {
+                            tpe: SInt,
+                            v: Int(
+                                2,
+                            ),
+                        },
+                    ),
+                },
+            )"#]],
+        );
+    }
+
+    #[test]
+    fn bin_numeric_long() {
+        check(
+            "4L+2L",
+            expect![[r#"
+            BinOp(
+                BinOp {
+                    kind: Arith(
+                        Plus,
+                    ),
+                    left: Const(
+                        Constant {
+                            tpe: SLong,
+                            v: Long(
+                                4,
+                            ),
+                        },
+                    ),
+                    right: Const(
+                        Constant {
+                            tpe: SLong,
+                            v: Long(
+                                2,
+                            ),
+                        },
+                    ),
+                },
+            )"#]],
+        );
+    }
 }
