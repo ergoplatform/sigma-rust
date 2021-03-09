@@ -8,7 +8,6 @@ wasm-pack.log
 .vscode/
 **/node_modules
 **/dist
-**/docs
 package-lock.json
 # Generated C headers
 h/
