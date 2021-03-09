@@ -18,7 +18,10 @@ pub enum TokenKind {
     Ident,
 
     #[regex("[0-9]+")]
-    Number,
+    IntNumber,
+
+    #[regex("[0-9]+L")]
+    LongNumber,
 
     #[token("+")]
     Plus,
@@ -70,7 +73,8 @@ impl fmt::Display for TokenKind {
             Self::FnKw => "‘def’",
             Self::ValKw => "‘val’",
             Self::Ident => "identifier",
-            Self::Number => "number",
+            Self::IntNumber => "number",
+            Self::LongNumber => "number",
             Self::Plus => "‘+’",
             Self::Minus => "‘-’",
             Self::Star => "‘*’",
@@ -137,7 +141,7 @@ mod tests {
 
     #[test]
     fn lex_number() {
-        check("123456", TokenKind::Number);
+        check("123456", TokenKind::IntNumber);
     }
 
     #[test]

@@ -55,15 +55,7 @@ pub fn compile_expr(
     source: &str,
     env: ScriptEnv,
 ) -> Result<ergotree_ir::mir::expr::Expr, CompileError> {
-    let parse = super::parser::parse(&source);
-    dbg!(parse.debug_tree());
-    if !parse.errors.is_empty() {
-        return Err(CompileError::ParseError(parse.errors));
-    }
-    let syntax = parse.syntax();
-    dbg!(&syntax);
-    let root = ast::Root::cast(syntax).unwrap();
-    let hir = hir::lower(root)?;
+    let hir = compile_hir(source)?;
     dbg!(&hir);
     let binder = Binder::new(env);
     let bind = binder.bind(hir)?;
@@ -80,9 +72,22 @@ pub fn compile(source: &str, env: ScriptEnv) -> Result<ErgoTree, CompileError> {
     Ok(expr.into())
 }
 
+pub(crate) fn compile_hir(source: &str) -> Result<hir::Expr, CompileError> {
+    let parse = super::parser::parse(&source);
+    dbg!(parse.debug_tree());
+    if !parse.errors.is_empty() {
+        return Err(CompileError::ParseError(parse.errors));
+    }
+    let syntax = parse.syntax();
+    dbg!(&syntax);
+    let root = ast::Root::cast(syntax).unwrap();
+    let hir = hir::lower(root)?;
+    Ok(hir)
+}
+
 #[cfg(test)]
 fn check(input: &str, expected_tree: expect_test::Expect) {
-    let res = compile(input, ScriptEnv::new());
+    let res = compile_expr(input, ScriptEnv::new());
 
     let expected_out = res
         .map(|tree| tree.debug_tree())
@@ -100,21 +105,9 @@ mod tests {
         check(
             "HEIGHT",
             expect![[r#"
-            ErgoTree {
-                header: ErgoTreeHeader(
-                    16,
-                ),
-                tree: Ok(
-                    ParsedTree {
-                        constants: [],
-                        root: Ok(
-                            GlobalVars(
-                                Height,
-                            ),
-                        ),
-                    },
-                ),
-            }"#]],
+                GlobalVars(
+                    Height,
+                )"#]],
         );
     }
 
@@ -123,10 +116,10 @@ mod tests {
         check(
             "HSB.HEIGHT",
             expect![[r#"
-            error: expected ‘+’, ‘-’, ‘*’, ‘/’, ‘val’, number, identifier, ‘-’ or ‘(’, but found an unrecognized token
-            line: 1
-            HSB.HEIGHT
-              ^^"#]],
+                error: expected ‘+’, ‘-’, ‘*’, ‘/’, ‘val’, number, number, identifier, ‘-’ or ‘(’, but found an unrecognized token
+                line: 1
+                HSB.HEIGHT
+                  ^^"#]],
         );
     }
 }

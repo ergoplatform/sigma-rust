@@ -96,7 +96,7 @@ mod tests {
     fn multiple_expected_did_find() {
         check(
             vec![
-                TokenKind::Number,
+                TokenKind::IntNumber,
                 TokenKind::Ident,
                 TokenKind::Minus,
                 TokenKind::LParen,

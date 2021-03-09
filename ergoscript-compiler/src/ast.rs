@@ -75,7 +75,7 @@ impl Ident {
 pub enum Expr {
     Ident(Ident),
     BinaryExpr(BinaryExpr),
-    // Literal(Literal),
+    Literal(Literal),
     // ParenExpr(ParenExpr),
     // UnaryExpr(UnaryExpr),
 }
@@ -85,7 +85,8 @@ impl Expr {
         let result = match node.kind() {
             SyntaxKind::Ident => Self::Ident(Ident(node)),
             SyntaxKind::InfixExpr => Self::BinaryExpr(BinaryExpr(node)),
-            // SyntaxKind::Literal => Self::Literal(Literal(node)),
+            SyntaxKind::IntNumber => Self::Literal(Literal(node)),
+            SyntaxKind::LongNumber => Self::Literal(Literal(node)),
             // SyntaxKind::ParenExpr => Self::ParenExpr(ParenExpr(node)),
             // SyntaxKind::PrefixExpr => Self::UnaryExpr(UnaryExpr(node)),
             _ => return None,
@@ -135,22 +136,41 @@ impl BinaryExpr {
     }
 }
 
-// #[derive(Debug)]
-// pub struct Literal(SyntaxNode);
+#[derive(Debug)]
+pub enum LiteralValue {
+    Int(i32),
+    Long(i64),
+}
 
-// impl Literal {
-//     pub fn cast(node: SyntaxNode) -> Option<Self> {
-//         if node.kind() == SyntaxKind::Literal {
-//             Some(Self(node))
-//         } else {
-//             None
-//         }
-//     }
+#[derive(Debug)]
+pub struct Literal(SyntaxNode);
 
-//     pub fn parse(&self) -> Option<u64> {
-//         self.0.first_token().unwrap().text().parse().ok()
-//     }
-// }
+impl Literal {
+    // pub fn cast(node: SyntaxNode) -> Option<Self> {
+    //     if node.kind() == SyntaxKind::Literal {
+    //         Some(Self(node))
+    //     } else {
+    //         None
+    //     }
+    // }
+
+    pub fn parse(&self) -> Option<LiteralValue> {
+        let text = self.0.first_token().unwrap().text().to_string();
+        if text.ends_with('L') {
+            text.strip_suffix("L")
+                .unwrap()
+                .parse()
+                .ok()
+                .map(LiteralValue::Long)
+        } else {
+            text.parse().ok().map(LiteralValue::Int)
+        }
+    }
+
+    pub fn span(&self) -> TextRange {
+        self.0.text_range()
+    }
+}
 
 // #[derive(Debug)]
 // pub struct ParenExpr(SyntaxNode);
