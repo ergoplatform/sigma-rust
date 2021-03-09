@@ -61,6 +61,27 @@ impl Expr {
                 .ok_or_else(|| {
                     HirLoweringError::new(format!("Empty Ident.name: {:?}", ast), ast.span())
                 }),
+            ast::Expr::Literal(ast) => {
+                let v = ast.parse().ok_or_else(|| {
+                    HirLoweringError::new(
+                        format!("Failed to parse Literal from: {:?}", ast),
+                        ast.span(),
+                    )
+                })?;
+                let expr = match v {
+                    ast::LiteralValue::Int(v) => Expr {
+                        kind: Literal::Int(v).into(),
+                        span: ast.span(),
+                        tpe: Some(SType::SInt),
+                    },
+                    ast::LiteralValue::Long(v) => Expr {
+                        kind: Literal::Long(v).into(),
+                        span: ast.span(),
+                        tpe: Some(SType::SLong),
+                    },
+                };
+                Ok(expr)
+            }
         }
     }
 
@@ -118,6 +139,7 @@ pub enum ExprKind {
     Ident(String),
     Binary(Binary),
     GlobalVars(GlobalVars),
+    Literal(Literal),
     // ...
     // Block
     // ValNode
@@ -151,5 +173,46 @@ impl GlobalVars {
         match self {
             GlobalVars::Height => SType::SInt,
         }
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum Literal {
+    Int(i32),
+    Long(i64),
+}
+
+#[cfg(test)]
+mod tests {
+    use expect_test::expect;
+
+    use crate::compiler::compile_hir;
+
+    fn check(input: &str, expected_tree: expect_test::Expect) {
+        let res = compile_hir(input);
+
+        let expected_out = res
+            .map(|tree| tree.debug_tree())
+            .unwrap_or_else(|e| e.pretty_desc(input));
+        expected_tree.assert_eq(&expected_out);
+    }
+
+    #[test]
+    fn long_literal() {
+        check(
+            "42L",
+            expect![[r#"
+            Expr {
+                kind: Literal(
+                    Long(
+                        42,
+                    ),
+                ),
+                span: 0..3,
+                tpe: Some(
+                    SLong,
+                ),
+            }"#]],
+        );
     }
 }

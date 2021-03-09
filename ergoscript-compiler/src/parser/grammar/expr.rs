@@ -104,8 +104,10 @@ fn expr_binding_power(p: &mut Parser, minimum_binding_power: u8) -> Option<Compl
 }
 
 fn lhs(p: &mut Parser) -> Option<CompletedMarker> {
-    let cm = if p.at(TokenKind::Number) {
-        literal(p)
+    let cm = if p.at(TokenKind::IntNumber) {
+        int_number(p)
+    } else if p.at(TokenKind::LongNumber) {
+        long_number(p)
     } else if p.at(TokenKind::Ident) {
         ident(p)
         // variable_ref(p)
@@ -151,12 +153,18 @@ impl UnaryOp {
     }
 }
 
-fn literal(p: &mut Parser) -> CompletedMarker {
-    assert!(p.at(TokenKind::Number));
-
+fn int_number(p: &mut Parser) -> CompletedMarker {
+    assert!(p.at(TokenKind::IntNumber));
     let m = p.start();
     p.bump();
-    m.complete(p, SyntaxKind::Literal)
+    m.complete(p, SyntaxKind::IntNumber)
+}
+
+fn long_number(p: &mut Parser) -> CompletedMarker {
+    assert!(p.at(TokenKind::LongNumber));
+    let m = p.start();
+    p.bump();
+    m.complete(p, SyntaxKind::LongNumber)
 }
 
 // fn variable_ref(p: &mut Parser) -> CompletedMarker {
@@ -212,9 +220,9 @@ mod tests {
         check(
             "123",
             expect![[r#"
-Root@0..3
-  Literal@0..3
-    Number@0..3 "123""#]],
+                Root@0..3
+                  IntNumber@0..3
+                    IntNumber@0..3 "123""#]],
         );
     }
 
@@ -225,8 +233,8 @@ Root@0..3
             expect![[r#"
                 Root@0..6
                   Whitespace@0..2 "  "
-                  Literal@2..6
-                    Number@2..6 "9876""#]],
+                  IntNumber@2..6
+                    IntNumber@2..6 "9876""#]],
         );
     }
 
@@ -236,8 +244,8 @@ Root@0..3
             "999  ",
             expect![[r#"
                 Root@0..5
-                  Literal@0..5
-                    Number@0..3 "999"
+                  IntNumber@0..5
+                    IntNumber@0..3 "999"
                     Whitespace@3..5 "  ""#]],
         );
     }
@@ -249,8 +257,8 @@ Root@0..3
             expect![[r#"
                 Root@0..8
                   Whitespace@0..1 " "
-                  Literal@1..8
-                    Number@1..4 "123"
+                  IntNumber@1..8
+                    IntNumber@1..4 "123"
                     Whitespace@4..8 "    ""#]],
         );
     }
@@ -262,11 +270,11 @@ Root@0..3
             expect![[r#"
                 Root@0..3
                   InfixExpr@0..3
-                    Literal@0..1
-                      Number@0..1 "1"
+                    IntNumber@0..1
+                      IntNumber@0..1 "1"
                     Plus@1..2 "+"
-                    Literal@2..3
-                      Number@2..3 "3""#]],
+                    IntNumber@2..3
+                      IntNumber@2..3 "3""#]],
         );
     }
 
@@ -278,14 +286,14 @@ Root@0..3
                 Root@0..5
                   InfixExpr@0..5
                     InfixExpr@0..3
-                      Literal@0..1
-                        Number@0..1 "1"
+                      IntNumber@0..1
+                        IntNumber@0..1 "1"
                       Plus@1..2 "+"
-                      Literal@2..3
-                        Number@2..3 "2"
+                      IntNumber@2..3
+                        IntNumber@2..3 "2"
                     Plus@3..4 "+"
-                    Literal@4..5
-                      Number@4..5 "3""#]],
+                    IntNumber@4..5
+                      IntNumber@4..5 "3""#]],
         );
     }
 
@@ -297,18 +305,18 @@ Root@0..3
                 Root@0..7
                   InfixExpr@0..7
                     InfixExpr@0..5
-                      Literal@0..1
-                        Number@0..1 "1"
+                      IntNumber@0..1
+                        IntNumber@0..1 "1"
                       Plus@1..2 "+"
                       InfixExpr@2..5
-                        Literal@2..3
-                          Number@2..3 "2"
+                        IntNumber@2..3
+                          IntNumber@2..3 "2"
                         Star@3..4 "*"
-                        Literal@4..5
-                          Number@4..5 "3"
+                        IntNumber@4..5
+                          IntNumber@4..5 "3"
                     Minus@5..6 "-"
-                    Literal@6..7
-                      Number@6..7 "5""#]],
+                    IntNumber@6..7
+                      IntNumber@6..7 "5""#]],
         );
     }
 
@@ -320,18 +328,18 @@ Root@0..3
                 Root@0..11
                   Whitespace@0..1 " "
                   InfixExpr@1..11
-                    Literal@1..3
-                      Number@1..2 "1"
+                    IntNumber@1..3
+                      IntNumber@1..2 "1"
                       Whitespace@2..3 " "
                     Plus@3..4 "+"
                     Whitespace@4..6 "  "
                     InfixExpr@6..11
-                      Literal@6..7
-                        Number@6..7 "2"
+                      IntNumber@6..7
+                        IntNumber@6..7 "2"
                       Star@7..8 "*"
                       Whitespace@8..9 " "
-                      Literal@9..11
-                        Number@9..10 "3"
+                      IntNumber@9..11
+                        IntNumber@9..10 "3"
                         Whitespace@10..11 " ""#]],
         );
     }
@@ -348,20 +356,20 @@ Root@0..3
                   Whitespace@0..1 "\n"
                   InfixExpr@1..37
                     InfixExpr@1..22
-                      Literal@1..5
-                        Number@1..2 "1"
+                      IntNumber@1..5
+                        IntNumber@1..2 "1"
                         Whitespace@2..5 "\n  "
                       Plus@5..6 "+"
                       Whitespace@6..7 " "
-                      Literal@7..22
-                        Number@7..8 "1"
+                      IntNumber@7..22
+                        IntNumber@7..8 "1"
                         Whitespace@8..9 " "
                         Comment@9..19 "// Add one"
                         Whitespace@19..22 "\n  "
                     Plus@22..23 "+"
                     Whitespace@23..24 " "
-                    Literal@24..37
-                      Number@24..26 "10"
+                    IntNumber@24..37
+                      IntNumber@24..26 "10"
                       Whitespace@26..27 " "
                       Comment@27..37 "// Add ten""#]],
         );
@@ -372,15 +380,15 @@ Root@0..3
         check(
             "(2+",
             expect![[r#"
-            Root@0..3
-              ParenExpr@0..3
-                LParen@0..1 "("
-                InfixExpr@1..3
-                  Literal@1..2
-                    Number@1..2 "2"
-                  Plus@2..3 "+"
-            error: expected number, identifier, ‘-’ or ‘(’
-            error: expected ‘)’"#]],
+                Root@0..3
+                  ParenExpr@0..3
+                    LParen@0..1 "("
+                    InfixExpr@1..3
+                      IntNumber@1..2
+                        IntNumber@1..2 "2"
+                      Plus@2..3 "+"
+                error: expected number, number, identifier, ‘-’ or ‘(’
+                error: expected ‘)’"#]],
         );
     }
 
@@ -392,8 +400,8 @@ Root@0..3
                 Root@0..3
                   PrefixExpr@0..3
                     Minus@0..1 "-"
-                    Literal@1..3
-                      Number@1..3 "11""#]],
+                    IntNumber@1..3
+                      IntNumber@1..3 "11""#]],
         );
     }
 
@@ -406,11 +414,11 @@ Root@0..3
                   InfixExpr@0..6
                     PrefixExpr@0..3
                       Minus@0..1 "-"
-                      Literal@1..3
-                        Number@1..3 "20"
+                      IntNumber@1..3
+                        IntNumber@1..3 "20"
                     Plus@3..4 "+"
-                    Literal@4..6
-                      Number@4..6 "21""#]],
+                    IntNumber@4..6
+                      IntNumber@4..6 "21""#]],
         );
     }
 
@@ -432,8 +440,8 @@ Root@0..3
                             LParen@4..5 "("
                             ParenExpr@5..9
                               LParen@5..6 "("
-                              Literal@6..8
-                                Number@6..8 "11"
+                              IntNumber@6..8
+                                IntNumber@6..8 "11"
                               RParen@8..9 ")"
                             RParen@9..10 ")"
                           RParen@10..11 ")"
@@ -450,17 +458,17 @@ Root@0..3
             expect![[r#"
                 Root@0..7
                   InfixExpr@0..7
-                    Literal@0..1
-                      Number@0..1 "5"
+                    IntNumber@0..1
+                      IntNumber@0..1 "5"
                     Star@1..2 "*"
                     ParenExpr@2..7
                       LParen@2..3 "("
                       InfixExpr@3..6
-                        Literal@3..4
-                          Number@3..4 "2"
+                        IntNumber@3..4
+                          IntNumber@3..4 "2"
                         Plus@4..5 "+"
-                        Literal@5..6
-                          Number@5..6 "3"
+                        IntNumber@5..6
+                          IntNumber@5..6 "3"
                       RParen@6..7 ")""#]],
         );
     }

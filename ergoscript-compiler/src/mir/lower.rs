@@ -1,6 +1,7 @@
 use ergotree_ir::mir::bin_op::ArithOp;
 use ergotree_ir::mir::bin_op::BinOp;
 use ergotree_ir::mir::bin_op::BinOpKind;
+use ergotree_ir::mir::constant::Constant;
 use ergotree_ir::mir::expr::Expr;
 use ergotree_ir::mir::global_vars::GlobalVars;
 use hir::BinaryOp;
@@ -45,6 +46,13 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                 right: r.into(),
             }
             .into()
+        }
+        hir::ExprKind::Literal(hir) => {
+            let constant: Constant = match *hir {
+                hir::Literal::Int(v) => v.into(),
+                hir::Literal::Long(v) => v.into(),
+            };
+            constant.into()
         }
     };
     let hir_tpe = hir_expr.tpe.clone().ok_or_else(|| {
@@ -116,5 +124,37 @@ mod tests {
                 },
             )"#]],
         )
+    }
+
+    #[test]
+    fn literal_int() {
+        check(
+            "42",
+            expect![[r#"
+            Const(
+                Constant {
+                    tpe: SInt,
+                    v: Int(
+                        42,
+                    ),
+                },
+            )"#]],
+        );
+    }
+
+    #[test]
+    fn literal_long() {
+        check(
+            "42L",
+            expect![[r#"
+            Const(
+                Constant {
+                    tpe: SLong,
+                    v: Long(
+                        42,
+                    ),
+                },
+            )"#]],
+        );
     }
 }

@@ -10,7 +10,6 @@ use super::ExprKind;
 pub fn rewrite<E, F: Fn(&Expr) -> Result<Option<Expr>, E>>(e: Expr, f: F) -> Result<Expr, E> {
     let e = f(&e)?.unwrap_or(e);
     Ok(match &e.kind {
-        ExprKind::Ident(_) => f(&e)?.unwrap_or(e),
         ExprKind::Binary(binary) => match (f(&binary.lhs)?, f(&binary.rhs)?) {
             (None, None) => e,
             (l, r) => Expr {
@@ -23,6 +22,6 @@ pub fn rewrite<E, F: Fn(&Expr) -> Result<Option<Expr>, E>>(e: Expr, f: F) -> Res
                 ..e
             },
         },
-        ExprKind::GlobalVars(_) => f(&e)?.unwrap_or(e),
+        _ => f(&e)?.unwrap_or(e),
     })
 }

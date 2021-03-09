@@ -142,4 +142,26 @@ mod tests {
               Comment@0..9 "// hello!""#]],
         );
     }
+
+    #[test]
+    fn parse_int_literal() {
+        check(
+            "42",
+            expect![[r#"
+                Root@0..2
+                  IntNumber@0..2
+                    IntNumber@0..2 "42""#]],
+        );
+    }
+
+    #[test]
+    fn parse_long_literal() {
+        check(
+            "42L",
+            expect![[r#"
+                Root@0..3
+                  LongNumber@0..3
+                    LongNumber@0..3 "42L""#]],
+        );
+    }
 }
