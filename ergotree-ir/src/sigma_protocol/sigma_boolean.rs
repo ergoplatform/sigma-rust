@@ -113,6 +113,14 @@ impl TryFrom<SigmaProp> for bool {
     }
 }
 
+impl From<ProveDlog> for SigmaProp {
+    fn from(pd: ProveDlog) -> Self {
+        SigmaProp(SigmaBoolean::ProofOfKnowledge(
+            SigmaProofOfKnowledgeTree::ProveDlog(pd),
+        ))
+    }
+}
+
 /// Arbitrary impl for ProveDlog
 #[cfg(feature = "arbitrary")]
 mod arbitrary {

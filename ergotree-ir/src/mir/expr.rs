@@ -22,6 +22,7 @@ use super::constant::Constant;
 use super::constant::ConstantPlaceholder;
 use super::constant::TryExtractFrom;
 use super::constant::TryExtractFromError;
+use super::create_provedlog::CreateProveDlog;
 use super::extract_amount::ExtractAmount;
 use super::extract_reg_as::ExtractRegisterAs;
 use super::extract_script_bytes::ExtractScriptBytes;
@@ -107,6 +108,8 @@ pub enum Expr {
     BoolToSigmaProp(BoolToSigmaProp),
     /// Upcast numeric value
     Upcast(Upcast),
+    /// Create proveDlog from GroupElement(PK)
+    CreateProveDlog(CreateProveDlog),
 }
 
 impl Expr {
@@ -143,6 +146,7 @@ impl Expr {
             Expr::ByIndex(op) => op.op_code(),
             Expr::ExtractScriptBytes(op) => op.op_code(),
             Expr::SizeOf(op) => op.op_code(),
+            Expr::CreateProveDlog(op) => op.op_code(),
         }
     }
 
@@ -179,6 +183,7 @@ impl Expr {
             Expr::ByIndex(v) => v.tpe(),
             Expr::ExtractScriptBytes(v) => v.tpe(),
             Expr::SizeOf(v) => v.tpe(),
+            Expr::CreateProveDlog(v) => v.tpe(),
         }
     }
 

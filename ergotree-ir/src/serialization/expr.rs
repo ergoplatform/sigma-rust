@@ -18,6 +18,7 @@ use crate::mir::collection::coll_sigma_parse;
 use crate::mir::collection::coll_sigma_serialize;
 use crate::mir::constant::Constant;
 use crate::mir::constant::ConstantPlaceholder;
+use crate::mir::create_provedlog::CreateProveDlog;
 use crate::mir::expr::Expr;
 use crate::mir::extract_amount::ExtractAmount;
 use crate::mir::extract_reg_as::ExtractRegisterAs;
@@ -85,6 +86,7 @@ impl SigmaSerializable for Expr {
                     Expr::ByIndex(op) => op.sigma_serialize(w),
                     Expr::ExtractScriptBytes(op) => op.sigma_serialize(w),
                     Expr::SizeOf(op) => op.sigma_serialize(w),
+                    Expr::CreateProveDlog(op) => op.sigma_serialize(w),
                 }
             }
         }
@@ -162,6 +164,7 @@ impl SigmaSerializable for Expr {
                 If::OP_CODE => Ok(If::sigma_parse(r)?.into()),
                 ByIndex::OP_CODE => Ok(ByIndex::sigma_parse(r)?.into()),
                 SizeOf::OP_CODE => Ok(SizeOf::sigma_parse(r)?.into()),
+                CreateProveDlog::OP_CODE => Ok(CreateProveDlog::sigma_parse(r)?.into()),
                 o => Err(SerializationError::NotImplementedOpCode(format!(
                     "{0}(shift {1})",
                     o.value(),

@@ -40,6 +40,7 @@ impl Evaluable for Expr {
             Expr::ByIndex(op) => op.eval(env, ctx),
             Expr::ExtractScriptBytes(op) => op.eval(env, ctx),
             Expr::SizeOf(op) => op.eval(env, ctx),
+            Expr::CreateProveDlog(op) => op.eval(env, ctx),
         }
     }
 }

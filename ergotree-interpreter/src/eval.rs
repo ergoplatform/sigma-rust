@@ -34,6 +34,7 @@ pub(crate) mod coll_size;
 pub(crate) mod collection;
 pub(crate) mod cost_accum;
 pub(crate) mod costs;
+pub(crate) mod create_provedlog;
 pub(crate) mod expr;
 pub(crate) mod extract_amount;
 pub(crate) mod extract_reg_as;

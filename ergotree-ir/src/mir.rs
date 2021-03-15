@@ -20,6 +20,8 @@ pub mod coll_size;
 /// Collection of elements
 pub mod collection;
 pub mod constant;
+/// Create proveDlog from GroupElement(PK)
+pub mod create_provedlog;
 pub mod expr;
 /// Box value
 pub mod extract_amount;
