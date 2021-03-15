@@ -16,7 +16,7 @@ impl Evaluable for CreateProveDlog {
                 Ok(prove_dlog.into())
             }
             _ => Err(EvalError::UnexpectedValue(format!(
-                "Expected ExtractAmount input to be Value::CBox, got {0:?}",
+                "Expected CreateProveDlog input to be Value::GroupElement, got {0:?}",
                 value_v
             ))),
         }
