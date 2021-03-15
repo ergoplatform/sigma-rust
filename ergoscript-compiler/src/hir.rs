@@ -7,6 +7,7 @@ use ergotree_ir::types::stype::SType;
 pub use rewrite::rewrite;
 
 use super::ast;
+use crate::ast::AstError;
 use crate::error::pretty_error_desc;
 use crate::syntax::SyntaxKind;
 use text_size::TextRange;
@@ -43,6 +44,12 @@ impl HirLoweringError {
     }
 }
 
+impl From<AstError> for HirLoweringError {
+    fn from(ast: AstError) -> Self {
+        HirLoweringError::new(format!("AST error: {0}", ast.msg), ast.span)
+    }
+}
+
 impl Expr {
     pub fn lower(expr: &ast::Expr) -> Result<Expr, HirLoweringError> {
         match expr {
@@ -51,23 +58,16 @@ impl Expr {
                 span: ast.span(),
                 tpe: None,
             }),
-            ast::Expr::Ident(ast) => ast
-                .name()
-                .map(|node| Expr {
-                    kind: ExprKind::Ident(node.text().to_string()),
+            ast::Expr::Ident(ast) => {
+                let name = ast.name()?;
+                Ok(Expr {
+                    kind: ExprKind::Ident(name.text().to_string()),
                     span: ast.span(),
                     tpe: None,
                 })
-                .ok_or_else(|| {
-                    HirLoweringError::new(format!("Empty Ident.name: {:?}", ast), ast.span())
-                }),
+            }
             ast::Expr::Literal(ast) => {
-                let v = ast.parse().ok_or_else(|| {
-                    HirLoweringError::new(
-                        format!("Failed to parse Literal from: {:?}", ast),
-                        ast.span(),
-                    )
-                })?;
+                let v = ast.parse()?;
                 let expr = match v {
                     ast::LiteralValue::Int(v) => Expr {
                         kind: Literal::Int(v).into(),
@@ -106,8 +106,8 @@ pub struct Binary {
 
 impl Binary {
     fn lower(ast: &ast::BinaryExpr) -> Result<Binary, HirLoweringError> {
-        // TODO: unwraps -> errors
-        let op = match ast.op().unwrap().kind() {
+        let syntax_token = ast.op()?;
+        let op = match syntax_token.kind() {
             SyntaxKind::Plus => BinaryOp::Plus,
             SyntaxKind::Minus => BinaryOp::Minus,
             SyntaxKind::Star => BinaryOp::Multiply,
@@ -115,18 +115,18 @@ impl Binary {
             _ => {
                 return Err(HirLoweringError::new(
                     format!("unknown binary operator: {:?}", ast.op()),
-                    ast.op().unwrap().text_range(),
+                    syntax_token.text_range(),
                 ))
             }
         };
 
-        let lhs = Expr::lower(&ast.lhs().unwrap());
-        let rhs = Expr::lower(&ast.rhs().unwrap());
+        let lhs = Expr::lower(&ast.lhs()?);
+        let rhs = Expr::lower(&ast.rhs()?);
 
         Ok(Binary {
             op: Spanned {
                 node: op,
-                span: ast.op().unwrap().text_range(),
+                span: syntax_token.text_range(),
             },
             lhs: Box::new(lhs?),
             rhs: Box::new(rhs?),
