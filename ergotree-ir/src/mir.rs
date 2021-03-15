@@ -25,6 +25,8 @@ pub mod create_provedlog;
 pub mod expr;
 /// Box value
 pub mod extract_amount;
+/// Box.creationInfo (height, tx id + box index)
+pub mod extract_creation_info;
 /// Box register value (Box.RX)
 pub mod extract_reg_as;
 /// Box.scriptBytes

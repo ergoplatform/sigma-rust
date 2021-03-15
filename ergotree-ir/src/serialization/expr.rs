@@ -21,6 +21,7 @@ use crate::mir::constant::ConstantPlaceholder;
 use crate::mir::create_provedlog::CreateProveDlog;
 use crate::mir::expr::Expr;
 use crate::mir::extract_amount::ExtractAmount;
+use crate::mir::extract_creation_info::ExtractCreationInfo;
 use crate::mir::extract_reg_as::ExtractRegisterAs;
 use crate::mir::extract_script_bytes::ExtractScriptBytes;
 use crate::mir::func_value::FuncValue;
@@ -87,6 +88,7 @@ impl SigmaSerializable for Expr {
                     Expr::ExtractScriptBytes(op) => op.sigma_serialize(w),
                     Expr::SizeOf(op) => op.sigma_serialize(w),
                     Expr::CreateProveDlog(op) => op.sigma_serialize(w),
+                    Expr::ExtractCreationInfo(op) => op.sigma_serialize(w),
                 }
             }
         }
@@ -130,6 +132,7 @@ impl SigmaSerializable for Expr {
                 OpCode::OPTION_GET => Ok(OptionGet::sigma_parse(r)?.into()),
                 ExtractRegisterAs::OP_CODE => Ok(ExtractRegisterAs::sigma_parse(r)?.into()),
                 ExtractScriptBytes::OP_CODE => Ok(ExtractScriptBytes::sigma_parse(r)?.into()),
+                ExtractCreationInfo::OP_CODE => Ok(ExtractCreationInfo::sigma_parse(r)?.into()),
                 OpCode::EQ => Ok(bin_op_sigma_parse(RelationOp::Eq.into(), r)?),
                 OpCode::NEQ => Ok(bin_op_sigma_parse(RelationOp::NEq.into(), r)?),
                 OpCode::LOGICAL_NOT => Ok(LogicalNot::sigma_parse(r)?.into()),

@@ -24,6 +24,7 @@ use super::constant::TryExtractFrom;
 use super::constant::TryExtractFromError;
 use super::create_provedlog::CreateProveDlog;
 use super::extract_amount::ExtractAmount;
+use super::extract_creation_info::ExtractCreationInfo;
 use super::extract_reg_as::ExtractRegisterAs;
 use super::extract_script_bytes::ExtractScriptBytes;
 use super::func_value::FuncValue;
@@ -86,10 +87,15 @@ pub enum Expr {
     LogicalNot(LogicalNot),
     /// Option get method
     OptionGet(OptionGet),
+    /// Box monetary value
+    ExtractAmount(ExtractAmount),
     /// Extract register's value (box.RX properties)
     ExtractRegisterAs(ExtractRegisterAs),
     /// Extract box's guarding script serialized to bytes
     ExtractScriptBytes(ExtractScriptBytes),
+    /// Tuple of height when block got included into the blockchain and transaction identifier with
+    /// box index in the transaction outputs serialized to the byte array.
+    ExtractCreationInfo(ExtractCreationInfo),
     /// Collection, get element by index
     ByIndex(ByIndex),
     /// Collection size
@@ -102,8 +108,6 @@ pub enum Expr {
     Filter(Filter),
     /// Tuple field access
     SelectField(SelectField),
-    /// Box monetary value
-    ExtractAmount(ExtractAmount),
     /// Bool to SigmaProp
     BoolToSigmaProp(BoolToSigmaProp),
     /// Upcast numeric value
@@ -147,6 +151,7 @@ impl Expr {
             Expr::ExtractScriptBytes(op) => op.op_code(),
             Expr::SizeOf(op) => op.op_code(),
             Expr::CreateProveDlog(op) => op.op_code(),
+            Expr::ExtractCreationInfo(op) => op.op_code(),
         }
     }
 
@@ -184,6 +189,7 @@ impl Expr {
             Expr::ExtractScriptBytes(v) => v.tpe(),
             Expr::SizeOf(v) => v.tpe(),
             Expr::CreateProveDlog(v) => v.tpe(),
+            Expr::ExtractCreationInfo(v) => v.tpe(),
         }
     }
 
