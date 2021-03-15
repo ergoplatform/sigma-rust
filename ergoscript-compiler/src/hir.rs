@@ -16,8 +16,16 @@ extern crate derive_more;
 use derive_more::From;
 
 pub fn lower(ast: ast::Root) -> Result<Expr, HirLoweringError> {
-    // TODO: return error if more than one expr is found
-    let first_expr = ast.children().next().unwrap();
+    let exprs: Vec<ast::Expr> = ast.children().collect();
+    if exprs.len() > 1 {
+        return Err(HirLoweringError::new(
+            format!("More than one root expr found: {:?}", exprs),
+            ast.span(),
+        ));
+    }
+    let first_expr = exprs
+        .first()
+        .ok_or_else(|| AstError::new(format!("Cannot parse empty root: {:?}", ast), ast.span()))?;
     Expr::lower(&first_expr)
 }
 

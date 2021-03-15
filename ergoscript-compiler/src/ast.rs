@@ -19,6 +19,7 @@ impl AstError {
     }
 }
 
+#[derive(Debug)]
 pub struct Root(SyntaxNode);
 
 impl Root {
@@ -32,6 +33,10 @@ impl Root {
 
     pub fn children(&self) -> impl Iterator<Item = Expr> {
         self.0.children().filter_map(Expr::cast)
+    }
+
+    pub fn span(&self) -> TextRange {
+        self.0.text_range()
     }
 }
 
