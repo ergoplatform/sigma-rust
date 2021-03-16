@@ -35,6 +35,7 @@ use super::if_op::If;
 use super::logical_not::LogicalNot;
 use super::method_call::MethodCall;
 use super::option_get::OptionGet;
+use super::option_is_defined::OptionIsDefined;
 use super::or::Or;
 use super::property_call::PropertyCall;
 use super::select_field::SelectField;
@@ -88,8 +89,10 @@ pub enum Expr {
     Or(Or),
     /// LogicalNot
     LogicalNot(LogicalNot),
-    /// Option get method
+    /// Option.get method
     OptionGet(OptionGet),
+    /// Option.isDefined method
+    OptionIsDefined(OptionIsDefined),
     /// Box monetary value
     ExtractAmount(ExtractAmount),
     /// Extract register's value (box.RX properties)
@@ -164,6 +167,7 @@ impl Expr {
             Expr::Exists(op) => op.op_code(),
             Expr::ExtractId(op) => op.op_code(),
             Expr::SigmaPropBytes(op) => op.op_code(),
+            Expr::OptionIsDefined(op) => op.op_code(),
         }
     }
 
@@ -205,6 +209,7 @@ impl Expr {
             Expr::Exists(v) => v.tpe(),
             Expr::ExtractId(v) => v.tpe(),
             Expr::SigmaPropBytes(v) => v.tpe(),
+            Expr::OptionIsDefined(v) => v.tpe(),
         }
     }
 

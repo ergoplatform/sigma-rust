@@ -46,6 +46,8 @@ pub mod logical_not;
 pub mod method_call;
 /// Option.get() op
 pub mod option_get;
+/// Returns false if the option is None, true otherwise.
+pub mod option_is_defined;
 /// Logical OR op
 pub mod or;
 /// Object property call

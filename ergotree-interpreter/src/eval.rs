@@ -48,6 +48,7 @@ pub(crate) mod if_op;
 pub(crate) mod logical_not;
 pub(crate) mod method_call;
 pub(crate) mod option_get;
+pub(crate) mod option_is_defined;
 pub(crate) mod or;
 pub(crate) mod property_call;
 pub(crate) mod sbox;
