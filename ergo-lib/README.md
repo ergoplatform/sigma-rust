@@ -15,7 +15,7 @@
 
 ## ErgoTree interpreter
 
-To check what IR nodes are implemented check out [ergotree-ir README](ergotree-ir/README.md).
+To check what IR nodes are implemented check out [ergotree-ir README](../ergotree-ir/README.md).
 
 
 ## Crate features
