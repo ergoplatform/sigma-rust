@@ -1,7 +1,10 @@
 //! Sigma boolean types
 
 use super::dlog_group::EcPoint;
+use crate::ergo_tree::ErgoTree;
+use crate::mir::constant::Constant;
 use crate::serialization::op_code::OpCode;
+use crate::serialization::SigmaSerializable;
 use std::convert::TryFrom;
 use std::convert::TryInto;
 
@@ -102,6 +105,15 @@ impl SigmaProp {
     /// get [`SigmaBoolean`] value
     pub fn value(&self) -> &SigmaBoolean {
         &self.0
+    }
+
+    /// Serialized bytes of a SigmaProp value
+    pub fn prop_bytes(&self) -> Vec<u8> {
+        // in order to have comparisons like  `box.propositionBytes == pk.propBytes` we need to make sure
+        // the same serialization method is used in both cases
+        let c: Constant = self.clone().into();
+        let ergo_tree = ErgoTree::without_segregation(c.into());
+        ergo_tree.sigma_serialize_bytes()
     }
 }
 

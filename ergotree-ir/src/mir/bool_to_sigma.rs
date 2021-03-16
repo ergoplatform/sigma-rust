@@ -7,6 +7,7 @@ use crate::serialization::SigmaSerializable;
 use crate::types::stype::SType;
 
 use super::expr::Expr;
+use super::expr::InvalidArgumentError;
 
 /** Embedding of Boolean values to SigmaProp values. As an example, this operation allows boolean experesions
  * to be used as arguments of `atLeast(..., sigmaProp(boolExpr), ...)` operation.
@@ -20,6 +21,14 @@ pub struct BoolToSigmaProp {
 
 impl BoolToSigmaProp {
     pub(crate) const OP_CODE: OpCode = OpCode::BOOL_TO_SIGMA_PROP;
+
+    /// Create new object, returns an error if any of the requirements failed
+    pub fn new(input: Expr) -> Result<Self, InvalidArgumentError> {
+        input.check_post_eval_tpe(SType::SBoolean)?;
+        Ok(Self {
+            input: input.into(),
+        })
+    }
 
     /// Type
     pub fn tpe(&self) -> SType {

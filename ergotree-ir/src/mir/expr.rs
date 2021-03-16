@@ -38,6 +38,7 @@ use super::option_get::OptionGet;
 use super::or::Or;
 use super::property_call::PropertyCall;
 use super::select_field::SelectField;
+use super::sigma_prop_bytes::SigmaPropBytes;
 use super::upcast::Upcast;
 use super::val_def::ValDef;
 use super::val_use::ValUse;
@@ -120,6 +121,8 @@ pub enum Expr {
     Upcast(Upcast),
     /// Create proveDlog from GroupElement(PK)
     CreateProveDlog(CreateProveDlog),
+    /// Extract serialized bytes of a SigmaProp value
+    SigmaPropBytes(SigmaPropBytes),
 }
 
 impl Expr {
@@ -160,6 +163,7 @@ impl Expr {
             Expr::ExtractCreationInfo(op) => op.op_code(),
             Expr::Exists(op) => op.op_code(),
             Expr::ExtractId(op) => op.op_code(),
+            Expr::SigmaPropBytes(op) => op.op_code(),
         }
     }
 
@@ -200,6 +204,7 @@ impl Expr {
             Expr::ExtractCreationInfo(v) => v.tpe(),
             Expr::Exists(v) => v.tpe(),
             Expr::ExtractId(v) => v.tpe(),
+            Expr::SigmaPropBytes(v) => v.tpe(),
         }
     }
 

@@ -53,6 +53,7 @@ pub(crate) mod property_call;
 pub(crate) mod sbox;
 pub(crate) mod scontext;
 pub(crate) mod select_field;
+pub(crate) mod sigma_prop_bytes;
 pub(crate) mod upcast;
 pub(crate) mod val_use;
 
