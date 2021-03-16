@@ -9,6 +9,7 @@ use crate::mir::block::BlockValue;
 use crate::mir::bool_to_sigma::BoolToSigmaProp;
 use crate::mir::calc_blake2b256::CalcBlake2b256;
 use crate::mir::coll_by_index::ByIndex;
+use crate::mir::coll_exists::Exists;
 use crate::mir::coll_filter::Filter;
 use crate::mir::coll_fold::Fold;
 use crate::mir::coll_map::Map;
@@ -89,6 +90,7 @@ impl SigmaSerializable for Expr {
                     Expr::SizeOf(op) => op.sigma_serialize(w),
                     Expr::CreateProveDlog(op) => op.sigma_serialize(w),
                     Expr::ExtractCreationInfo(op) => op.sigma_serialize(w),
+                    Expr::Exists(op) => op.sigma_serialize(w),
                 }
             }
         }
@@ -162,6 +164,7 @@ impl SigmaSerializable for Expr {
                 OpCode::COLL_OF_BOOL_CONST => Ok(bool_const_coll_sigma_parse(r)?.into()),
                 Map::OP_CODE => Ok(Map::sigma_parse(r)?.into()),
                 Filter::OP_CODE => Ok(Filter::sigma_parse(r)?.into()),
+                Exists::OP_CODE => Ok(Exists::sigma_parse(r)?.into()),
                 BoolToSigmaProp::OP_CODE => Ok(BoolToSigmaProp::sigma_parse(r)?.into()),
                 Upcast::OP_CODE => Ok(Upcast::sigma_parse(r)?.into()),
                 If::OP_CODE => Ok(If::sigma_parse(r)?.into()),

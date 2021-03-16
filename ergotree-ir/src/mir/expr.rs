@@ -13,6 +13,7 @@ use super::block::BlockValue;
 use super::bool_to_sigma::BoolToSigmaProp;
 use super::calc_blake2b256::CalcBlake2b256;
 use super::coll_by_index::ByIndex;
+use super::coll_exists::Exists;
 use super::coll_filter::Filter;
 use super::coll_fold::Fold;
 use super::coll_map::Map;
@@ -106,6 +107,8 @@ pub enum Expr {
     Map(Map),
     /// Collection filter op
     Filter(Filter),
+    /// Tests whether a predicate holds for at least one element of this collection
+    Exists(Exists),
     /// Tuple field access
     SelectField(SelectField),
     /// Bool to SigmaProp
@@ -152,6 +155,7 @@ impl Expr {
             Expr::SizeOf(op) => op.op_code(),
             Expr::CreateProveDlog(op) => op.op_code(),
             Expr::ExtractCreationInfo(op) => op.op_code(),
+            Expr::Exists(op) => op.op_code(),
         }
     }
 
@@ -190,6 +194,7 @@ impl Expr {
             Expr::SizeOf(v) => v.tpe(),
             Expr::CreateProveDlog(v) => v.tpe(),
             Expr::ExtractCreationInfo(v) => v.tpe(),
+            Expr::Exists(v) => v.tpe(),
         }
     }
 

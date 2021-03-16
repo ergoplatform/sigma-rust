@@ -9,6 +9,8 @@ pub mod bool_to_sigma;
 pub mod calc_blake2b256;
 /// Get the collection element by index
 pub mod coll_by_index;
+/// Tests whether a predicate holds for at least one element of this collection
+pub mod coll_exists;
 /// Collection.filter
 pub mod coll_filter;
 /// Collection.fold
