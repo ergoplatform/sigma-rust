@@ -63,7 +63,7 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 - treeLookup
 - :heavy_check_mark: blake2b256
 - sha256
-- proveDlog
+- :heavy_check_mark: proveDlog
 - proveDHTuple
 - sigmaProp
 - executeFromVar
@@ -135,7 +135,7 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 
 #### SigmaProp
 
-- propBytes
+- :heavy_check_mark: propBytes
 - isProven
 
 #### Box
@@ -144,8 +144,8 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 - :heavy_check_mark: propositionBytes
 - bytes
 - bytesWithoutRef
-- id
-- creationInfo
+- :heavy_check_mark: id
+- :heavy_check_mark: creationInfo
 - :heavy_check_mark: getReg
 - :heavy_check_mark: tokens
 - :heavy_check_mark: R0 .. R9
@@ -217,7 +217,7 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 - :heavy_check_mark: size
 - getOrElse
 - :heavy_check_mark: map
-- exists
+- :heavy_check_mark: exists
 - :heavy_check_mark: fold
 - forall
 - slice
@@ -234,9 +234,9 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 
 #### Option
 
-- isDefined
+- :heavy_check_mark: isDefined
 - :heavy_check_mark: get
-- getOrElse
+- :heavy_check_mark: getOrElse
 - map
 - filter
 
