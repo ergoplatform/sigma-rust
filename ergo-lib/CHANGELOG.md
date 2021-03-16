@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
+
+### Added 
+- `proveDlog`, `box.creationInfo`, `Box.id`, `Coll.exists`, `SigmaProp.propBytes`, `Option.isDefined`, `Option.getOrElse` IR nodes (evaluation, serialization) [#209](https://github.com/ergoplatform/sigma-rust/pull/209);
+
 ## [0.7.0] - 2021-03-03
 
 ### Added 

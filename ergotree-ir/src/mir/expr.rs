@@ -13,6 +13,7 @@ use super::block::BlockValue;
 use super::bool_to_sigma::BoolToSigmaProp;
 use super::calc_blake2b256::CalcBlake2b256;
 use super::coll_by_index::ByIndex;
+use super::coll_exists::Exists;
 use super::coll_filter::Filter;
 use super::coll_fold::Fold;
 use super::coll_map::Map;
@@ -22,7 +23,10 @@ use super::constant::Constant;
 use super::constant::ConstantPlaceholder;
 use super::constant::TryExtractFrom;
 use super::constant::TryExtractFromError;
+use super::create_provedlog::CreateProveDlog;
 use super::extract_amount::ExtractAmount;
+use super::extract_creation_info::ExtractCreationInfo;
+use super::extract_id::ExtractId;
 use super::extract_reg_as::ExtractRegisterAs;
 use super::extract_script_bytes::ExtractScriptBytes;
 use super::func_value::FuncValue;
@@ -31,9 +35,12 @@ use super::if_op::If;
 use super::logical_not::LogicalNot;
 use super::method_call::MethodCall;
 use super::option_get::OptionGet;
+use super::option_get_or_else::OptionGetOrElse;
+use super::option_is_defined::OptionIsDefined;
 use super::or::Or;
 use super::property_call::PropertyCall;
 use super::select_field::SelectField;
+use super::sigma_prop_bytes::SigmaPropBytes;
 use super::upcast::Upcast;
 use super::val_def::ValDef;
 use super::val_use::ValUse;
@@ -83,12 +90,23 @@ pub enum Expr {
     Or(Or),
     /// LogicalNot
     LogicalNot(LogicalNot),
-    /// Option get method
+    /// Option.get method
     OptionGet(OptionGet),
+    /// Option.isDefined method
+    OptionIsDefined(OptionIsDefined),
+    /// Returns the option's value if the option is nonempty, otherwise return the result of evaluating `default`.
+    OptionGetOrElse(OptionGetOrElse),
+    /// Box monetary value
+    ExtractAmount(ExtractAmount),
     /// Extract register's value (box.RX properties)
     ExtractRegisterAs(ExtractRegisterAs),
     /// Extract box's guarding script serialized to bytes
     ExtractScriptBytes(ExtractScriptBytes),
+    /// Tuple of height when block got included into the blockchain and transaction identifier with
+    /// box index in the transaction outputs serialized to the byte array.
+    ExtractCreationInfo(ExtractCreationInfo),
+    /// Box id, Blake2b256 hash of this box's content, basically equals to `blake2b256(bytes)`
+    ExtractId(ExtractId),
     /// Collection, get element by index
     ByIndex(ByIndex),
     /// Collection size
@@ -99,14 +117,18 @@ pub enum Expr {
     Map(Map),
     /// Collection filter op
     Filter(Filter),
+    /// Tests whether a predicate holds for at least one element of this collection
+    Exists(Exists),
     /// Tuple field access
     SelectField(SelectField),
-    /// Box monetary value
-    ExtractAmount(ExtractAmount),
     /// Bool to SigmaProp
     BoolToSigmaProp(BoolToSigmaProp),
     /// Upcast numeric value
     Upcast(Upcast),
+    /// Create proveDlog from GroupElement(PK)
+    CreateProveDlog(CreateProveDlog),
+    /// Extract serialized bytes of a SigmaProp value
+    SigmaPropBytes(SigmaPropBytes),
 }
 
 impl Expr {
@@ -143,6 +165,13 @@ impl Expr {
             Expr::ByIndex(op) => op.op_code(),
             Expr::ExtractScriptBytes(op) => op.op_code(),
             Expr::SizeOf(op) => op.op_code(),
+            Expr::CreateProveDlog(op) => op.op_code(),
+            Expr::ExtractCreationInfo(op) => op.op_code(),
+            Expr::Exists(op) => op.op_code(),
+            Expr::ExtractId(op) => op.op_code(),
+            Expr::SigmaPropBytes(op) => op.op_code(),
+            Expr::OptionIsDefined(op) => op.op_code(),
+            Expr::OptionGetOrElse(op) => op.op_code(),
         }
     }
 
@@ -179,6 +208,13 @@ impl Expr {
             Expr::ByIndex(v) => v.tpe(),
             Expr::ExtractScriptBytes(v) => v.tpe(),
             Expr::SizeOf(v) => v.tpe(),
+            Expr::CreateProveDlog(v) => v.tpe(),
+            Expr::ExtractCreationInfo(v) => v.tpe(),
+            Expr::Exists(v) => v.tpe(),
+            Expr::ExtractId(v) => v.tpe(),
+            Expr::SigmaPropBytes(v) => v.tpe(),
+            Expr::OptionIsDefined(v) => v.tpe(),
+            Expr::OptionGetOrElse(v) => v.tpe(),
         }
     }
 

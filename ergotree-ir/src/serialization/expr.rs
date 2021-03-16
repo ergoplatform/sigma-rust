@@ -9,6 +9,7 @@ use crate::mir::block::BlockValue;
 use crate::mir::bool_to_sigma::BoolToSigmaProp;
 use crate::mir::calc_blake2b256::CalcBlake2b256;
 use crate::mir::coll_by_index::ByIndex;
+use crate::mir::coll_exists::Exists;
 use crate::mir::coll_filter::Filter;
 use crate::mir::coll_fold::Fold;
 use crate::mir::coll_map::Map;
@@ -18,8 +19,11 @@ use crate::mir::collection::coll_sigma_parse;
 use crate::mir::collection::coll_sigma_serialize;
 use crate::mir::constant::Constant;
 use crate::mir::constant::ConstantPlaceholder;
+use crate::mir::create_provedlog::CreateProveDlog;
 use crate::mir::expr::Expr;
 use crate::mir::extract_amount::ExtractAmount;
+use crate::mir::extract_creation_info::ExtractCreationInfo;
+use crate::mir::extract_id::ExtractId;
 use crate::mir::extract_reg_as::ExtractRegisterAs;
 use crate::mir::extract_script_bytes::ExtractScriptBytes;
 use crate::mir::func_value::FuncValue;
@@ -28,9 +32,12 @@ use crate::mir::if_op::If;
 use crate::mir::logical_not::LogicalNot;
 use crate::mir::method_call::MethodCall;
 use crate::mir::option_get::OptionGet;
+use crate::mir::option_get_or_else::OptionGetOrElse;
+use crate::mir::option_is_defined::OptionIsDefined;
 use crate::mir::or::Or;
 use crate::mir::property_call::PropertyCall;
 use crate::mir::select_field::SelectField;
+use crate::mir::sigma_prop_bytes::SigmaPropBytes;
 use crate::mir::upcast::Upcast;
 use crate::mir::val_def::ValDef;
 use crate::mir::val_use::ValUse;
@@ -85,6 +92,13 @@ impl SigmaSerializable for Expr {
                     Expr::ByIndex(op) => op.sigma_serialize(w),
                     Expr::ExtractScriptBytes(op) => op.sigma_serialize(w),
                     Expr::SizeOf(op) => op.sigma_serialize(w),
+                    Expr::CreateProveDlog(op) => op.sigma_serialize(w),
+                    Expr::ExtractCreationInfo(op) => op.sigma_serialize(w),
+                    Expr::Exists(op) => op.sigma_serialize(w),
+                    Expr::ExtractId(op) => op.sigma_serialize(w),
+                    Expr::SigmaPropBytes(op) => op.sigma_serialize(w),
+                    Expr::OptionIsDefined(op) => op.sigma_serialize(w),
+                    Expr::OptionGetOrElse(op) => op.sigma_serialize(w),
                 }
             }
         }
@@ -125,9 +139,13 @@ impl SigmaSerializable for Expr {
                 OpCode::PROPERTY_CALL => Ok(Expr::ProperyCall(PropertyCall::sigma_parse(r)?)),
                 OpCode::METHOD_CALL => Ok(Expr::MethodCall(MethodCall::sigma_parse(r)?)),
                 OpCode::CONTEXT => Ok(Expr::Context),
-                OpCode::OPTION_GET => Ok(OptionGet::sigma_parse(r)?.into()),
+                OptionGet::OP_CODE => Ok(OptionGet::sigma_parse(r)?.into()),
+                OptionIsDefined::OP_CODE => Ok(OptionIsDefined::sigma_parse(r)?.into()),
+                OptionGetOrElse::OP_CODE => Ok(OptionGetOrElse::sigma_parse(r)?.into()),
                 ExtractRegisterAs::OP_CODE => Ok(ExtractRegisterAs::sigma_parse(r)?.into()),
                 ExtractScriptBytes::OP_CODE => Ok(ExtractScriptBytes::sigma_parse(r)?.into()),
+                ExtractCreationInfo::OP_CODE => Ok(ExtractCreationInfo::sigma_parse(r)?.into()),
+                ExtractId::OP_CODE => Ok(ExtractId::sigma_parse(r)?.into()),
                 OpCode::EQ => Ok(bin_op_sigma_parse(RelationOp::Eq.into(), r)?),
                 OpCode::NEQ => Ok(bin_op_sigma_parse(RelationOp::NEq.into(), r)?),
                 OpCode::LOGICAL_NOT => Ok(LogicalNot::sigma_parse(r)?.into()),
@@ -148,7 +166,7 @@ impl SigmaSerializable for Expr {
                 OpCode::APPLY => Ok(Expr::Apply(Apply::sigma_parse(r)?)),
                 OpCode::VAL_DEF => Ok(Expr::ValDef(ValDef::sigma_parse(r)?)),
                 OpCode::VAL_USE => Ok(Expr::ValUse(ValUse::sigma_parse(r)?)),
-                OpCode::EXTRACT_AMOUNT => Ok(Expr::ExtractAmount(ExtractAmount::sigma_parse(r)?)),
+                ExtractAmount::OP_CODE => Ok(Expr::ExtractAmount(ExtractAmount::sigma_parse(r)?)),
                 OpCode::SELECT_FIELD => Ok(Expr::SelectField(SelectField::sigma_parse(r)?)),
                 OpCode::CALC_BLAKE2B256 => Ok(CalcBlake2b256::sigma_parse(r)?.into()),
                 And::OP_CODE => Ok(And::sigma_parse(r)?.into()),
@@ -157,11 +175,14 @@ impl SigmaSerializable for Expr {
                 OpCode::COLL_OF_BOOL_CONST => Ok(bool_const_coll_sigma_parse(r)?.into()),
                 Map::OP_CODE => Ok(Map::sigma_parse(r)?.into()),
                 Filter::OP_CODE => Ok(Filter::sigma_parse(r)?.into()),
+                Exists::OP_CODE => Ok(Exists::sigma_parse(r)?.into()),
                 BoolToSigmaProp::OP_CODE => Ok(BoolToSigmaProp::sigma_parse(r)?.into()),
                 Upcast::OP_CODE => Ok(Upcast::sigma_parse(r)?.into()),
                 If::OP_CODE => Ok(If::sigma_parse(r)?.into()),
                 ByIndex::OP_CODE => Ok(ByIndex::sigma_parse(r)?.into()),
                 SizeOf::OP_CODE => Ok(SizeOf::sigma_parse(r)?.into()),
+                CreateProveDlog::OP_CODE => Ok(CreateProveDlog::sigma_parse(r)?.into()),
+                SigmaPropBytes::OP_CODE => Ok(SigmaPropBytes::sigma_parse(r)?.into()),
                 o => Err(SerializationError::NotImplementedOpCode(format!(
                     "{0}(shift {1})",
                     o.value(),
@@ -193,7 +214,6 @@ mod tests {
         }
     }
 
-    #[test]
     #[test]
     fn full_age_usd_bank_contract() {
         // almost full version of

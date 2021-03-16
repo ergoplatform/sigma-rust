@@ -8,27 +8,27 @@ use crate::types::stype::SType;
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
 
-/// Box value
+/// Extract serialized bytes of a SigmaProp value
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct ExtractAmount {
-    /// Box (SBox type)
+pub struct SigmaPropBytes {
+    /// SigmaProp value
     pub input: Box<Expr>,
 }
 
-impl ExtractAmount {
-    pub(crate) const OP_CODE: OpCode = OpCode::EXTRACT_AMOUNT;
+impl SigmaPropBytes {
+    pub(crate) const OP_CODE: OpCode = OpCode::SIGMA_PROP_BYTES;
 
     /// Create new object, returns an error if any of the requirements failed
     pub fn new(input: Expr) -> Result<Self, InvalidArgumentError> {
-        input.check_post_eval_tpe(SType::SBox)?;
-        Ok(ExtractAmount {
+        input.check_post_eval_tpe(SType::SSigmaProp)?;
+        Ok(SigmaPropBytes {
             input: input.into(),
         })
     }
 
     /// Type
     pub fn tpe(&self) -> SType {
-        SType::SLong
+        SType::SColl(SType::SByte.into())
     }
 
     pub(crate) fn op_code(&self) -> OpCode {
@@ -36,32 +36,37 @@ impl ExtractAmount {
     }
 }
 
-impl SigmaSerializable for ExtractAmount {
+impl SigmaSerializable for SigmaPropBytes {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
         self.input.sigma_serialize(w)
     }
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
-        Ok(ExtractAmount {
-            input: Expr::sigma_parse(r)?.into(),
-        })
+        Ok(SigmaPropBytes::new(Expr::sigma_parse(r)?)?)
     }
 }
 
-#[cfg(test)]
 #[cfg(feature = "arbitrary")]
+#[cfg(test)]
 mod tests {
-    use crate::mir::global_vars::GlobalVars;
-    use crate::serialization::sigma_serialize_roundtrip;
-
     use super::*;
+    use crate::mir::constant::Constant;
+    use crate::serialization::sigma_serialize_roundtrip;
+    use crate::sigma_protocol::sigma_boolean::SigmaProp;
+    use proptest::prelude::*;
 
-    #[test]
-    fn ser_roundtrip() {
-        let e: Expr = ExtractAmount {
-            input: Box::new(GlobalVars::SelfBox.into()),
+    proptest! {
+
+        #![proptest_config(ProptestConfig::with_cases(8))]
+
+        #[test]
+        fn ser_roundtrip(v in any::<SigmaProp>()) {
+            let input: Constant = v.into();
+            let e: Expr = SigmaPropBytes {
+                input: Box::new(input.into()),
+            }
+            .into();
+            prop_assert_eq![sigma_serialize_roundtrip(&e), e];
         }
-        .into();
-        assert_eq![sigma_serialize_roundtrip(&e), e];
     }
 }

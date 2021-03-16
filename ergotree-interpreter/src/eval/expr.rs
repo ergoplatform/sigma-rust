@@ -40,6 +40,13 @@ impl Evaluable for Expr {
             Expr::ByIndex(op) => op.eval(env, ctx),
             Expr::ExtractScriptBytes(op) => op.eval(env, ctx),
             Expr::SizeOf(op) => op.eval(env, ctx),
+            Expr::CreateProveDlog(op) => op.eval(env, ctx),
+            Expr::ExtractCreationInfo(op) => op.eval(env, ctx),
+            Expr::Exists(op) => op.eval(env, ctx),
+            Expr::ExtractId(op) => op.eval(env, ctx),
+            Expr::SigmaPropBytes(op) => op.eval(env, ctx),
+            Expr::OptionIsDefined(op) => op.eval(env, ctx),
+            Expr::OptionGetOrElse(op) => op.eval(env, ctx),
         }
     }
 }

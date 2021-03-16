@@ -9,22 +9,28 @@ use crate::types::stype::SType;
 
 /// Returns the Option's value or error if no value
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct OptionGet {
+pub struct OptionGetOrElse {
     /// Object of SOption type
     pub input: Box<Expr>,
+    /// Default value if option is empty
+    pub default: Box<Expr>,
 }
 
-impl OptionGet {
-    pub(crate) const OP_CODE: OpCode = OpCode::OPTION_GET;
+impl OptionGetOrElse {
+    pub(crate) const OP_CODE: OpCode = OpCode::OPTION_GET_OR_ELSE;
 
     /// Create new object, returns an error if any of the requirements failed
-    pub fn new(input: Expr) -> Result<Self, InvalidArgumentError> {
+    pub fn new(input: Expr, default: Expr) -> Result<Self, InvalidArgumentError> {
         match input.post_eval_tpe() {
-            SType::SOption(_) => Ok(OptionGet {
-                input: Box::new(input),
-            }),
+            SType::SOption(elem_type) => {
+                default.check_post_eval_tpe(*elem_type)?;
+                Ok(OptionGetOrElse {
+                    input: Box::new(input),
+                    default: Box::new(default),
+                })
+            }
             _ => Err(InvalidArgumentError(format!(
-                "expected OptionGet::input type to be SOption, got: {0:?}",
+                "expected OptionGetOrElse::input type to be SOption, got: {0:?}",
                 input.tpe(),
             ))),
         }
@@ -39,20 +45,23 @@ impl OptionGet {
         match self.input.tpe() {
             SType::SOption(o) => *o,
             _ => panic!(
-                "expected OptionGet::input type to be SOption, got: {0:?}",
+                "expected OptionGetOrElse::input type to be SOption, got: {0:?}",
                 self.input.tpe()
             ),
         }
     }
 }
 
-impl SigmaSerializable for OptionGet {
+impl SigmaSerializable for OptionGetOrElse {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
-        self.input.sigma_serialize(w)
+        self.input.sigma_serialize(w)?;
+        self.default.sigma_serialize(w)
     }
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
-        Ok(OptionGet::new(Expr::sigma_parse(r)?)?)
+        let input = Expr::sigma_parse(r)?;
+        let default = Expr::sigma_parse(r)?;
+        Ok(OptionGetOrElse::new(input, default)?)
     }
 }
 
@@ -60,6 +69,7 @@ impl SigmaSerializable for OptionGet {
 #[cfg(feature = "arbitrary")]
 mod tests {
     use super::*;
+    use crate::mir::constant::Constant;
     use crate::mir::expr::Expr;
     use crate::mir::extract_reg_as::ExtractRegisterAs;
     use crate::mir::global_vars::GlobalVars;
@@ -75,10 +85,10 @@ mod tests {
         )
         .unwrap()
         .into();
-        let e: Expr = OptionGet {
-            input: Box::new(get_reg_expr),
-        }
-        .into();
+        let default_expr: Constant = 1i64.into();
+        let e: Expr = OptionGetOrElse::new(get_reg_expr, default_expr.into())
+            .unwrap()
+            .into();
         assert_eq![sigma_serialize_roundtrip(&e), e];
     }
 }

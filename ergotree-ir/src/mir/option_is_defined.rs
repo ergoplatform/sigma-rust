@@ -7,24 +7,24 @@ use crate::serialization::SerializationError;
 use crate::serialization::SigmaSerializable;
 use crate::types::stype::SType;
 
-/// Returns the Option's value or error if no value
+/// Returns false if the option is None, true otherwise.
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct OptionGet {
+pub struct OptionIsDefined {
     /// Object of SOption type
     pub input: Box<Expr>,
 }
 
-impl OptionGet {
-    pub(crate) const OP_CODE: OpCode = OpCode::OPTION_GET;
+impl OptionIsDefined {
+    pub(crate) const OP_CODE: OpCode = OpCode::OPTION_IS_DEFINED;
 
     /// Create new object, returns an error if any of the requirements failed
     pub fn new(input: Expr) -> Result<Self, InvalidArgumentError> {
         match input.post_eval_tpe() {
-            SType::SOption(_) => Ok(OptionGet {
+            SType::SOption(_) => Ok(OptionIsDefined {
                 input: Box::new(input),
             }),
             _ => Err(InvalidArgumentError(format!(
-                "expected OptionGet::input type to be SOption, got: {0:?}",
+                "expected OptionIsDefined::input type to be SOption, got: {0:?}",
                 input.tpe(),
             ))),
         }
@@ -36,23 +36,17 @@ impl OptionGet {
 
     /// Type
     pub fn tpe(&self) -> SType {
-        match self.input.tpe() {
-            SType::SOption(o) => *o,
-            _ => panic!(
-                "expected OptionGet::input type to be SOption, got: {0:?}",
-                self.input.tpe()
-            ),
-        }
+        SType::SBoolean
     }
 }
 
-impl SigmaSerializable for OptionGet {
+impl SigmaSerializable for OptionIsDefined {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
         self.input.sigma_serialize(w)
     }
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
-        Ok(OptionGet::new(Expr::sigma_parse(r)?)?)
+        Ok(OptionIsDefined::new(Expr::sigma_parse(r)?)?)
     }
 }
 
@@ -75,10 +69,7 @@ mod tests {
         )
         .unwrap()
         .into();
-        let e: Expr = OptionGet {
-            input: Box::new(get_reg_expr),
-        }
-        .into();
+        let e: Expr = OptionIsDefined::new(get_reg_expr).unwrap().into();
         assert_eq![sigma_serialize_roundtrip(&e), e];
     }
 }

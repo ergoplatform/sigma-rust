@@ -8,27 +8,27 @@ use crate::types::stype::SType;
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
 
-/// Box value
+/// Create ProveDlog from PK
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct ExtractAmount {
-    /// Box (SBox type)
-    pub input: Box<Expr>,
+pub struct CreateProveDlog {
+    /// GroupElement (PK)
+    pub value: Box<Expr>,
 }
 
-impl ExtractAmount {
-    pub(crate) const OP_CODE: OpCode = OpCode::EXTRACT_AMOUNT;
+impl CreateProveDlog {
+    pub(crate) const OP_CODE: OpCode = OpCode::PROVE_DLOG;
 
     /// Create new object, returns an error if any of the requirements failed
-    pub fn new(input: Expr) -> Result<Self, InvalidArgumentError> {
-        input.check_post_eval_tpe(SType::SBox)?;
-        Ok(ExtractAmount {
-            input: input.into(),
+    pub fn new(value: Expr) -> Result<Self, InvalidArgumentError> {
+        value.check_post_eval_tpe(SType::SGroupElement)?;
+        Ok(CreateProveDlog {
+            value: value.into(),
         })
     }
 
     /// Type
     pub fn tpe(&self) -> SType {
-        SType::SLong
+        SType::SSigmaProp
     }
 
     pub(crate) fn op_code(&self) -> OpCode {
@@ -36,14 +36,14 @@ impl ExtractAmount {
     }
 }
 
-impl SigmaSerializable for ExtractAmount {
+impl SigmaSerializable for CreateProveDlog {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
-        self.input.sigma_serialize(w)
+        self.value.sigma_serialize(w)
     }
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
-        Ok(ExtractAmount {
-            input: Expr::sigma_parse(r)?.into(),
+        Ok(CreateProveDlog {
+            value: Expr::sigma_parse(r)?.into(),
         })
     }
 }
@@ -51,16 +51,20 @@ impl SigmaSerializable for ExtractAmount {
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
 mod tests {
-    use crate::mir::global_vars::GlobalVars;
+    use sigma_test_util::force_any_val_with;
+
+    use crate::mir::constant::arbitrary::ArbConstantParams;
+    use crate::mir::constant::Constant;
     use crate::serialization::sigma_serialize_roundtrip;
 
     use super::*;
 
     #[test]
     fn ser_roundtrip() {
-        let e: Expr = ExtractAmount {
-            input: Box::new(GlobalVars::SelfBox.into()),
-        }
+        let e: Expr = CreateProveDlog::new(
+            force_any_val_with::<Constant>(ArbConstantParams::Exact(SType::SGroupElement)).into(),
+        )
+        .unwrap()
         .into();
         assert_eq![sigma_serialize_roundtrip(&e), e];
     }

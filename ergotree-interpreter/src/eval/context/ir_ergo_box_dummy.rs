@@ -29,6 +29,7 @@ pub(crate) struct IrErgoBoxDummy {
     pub(crate) additional_registers: Vec<Constant>,
     pub(crate) creation_height: i32,
     pub(crate) script_bytes: Vec<u8>,
+    pub(crate) creation_info: (i32, Vec<u8>),
 }
 
 impl IrErgoBox for IrErgoBoxDummy {
@@ -51,6 +52,7 @@ impl IrErgoBox for IrErgoBoxDummy {
     fn get_register(&self, id: i8) -> Option<Constant> {
         match id {
             0 => Some(self.value.into()),
+            3 => Some(self.creation_info.clone().into()),
             _ => self.additional_registers.get(id as usize).cloned(),
         }
     }
@@ -86,9 +88,18 @@ pub(crate) mod arbitrary {
                 1i32..1000,
                 vec(any::<Constant>(), 0..5),
                 vec(any::<u8>(), 100..1000),
+                vec(any::<u8>(), DIGEST32_SIZE + 2..=DIGEST32_SIZE + 2),
             )
                 .prop_map(
-                    |(id, value, tokens, creation_height, additional_registers, script_bytes)| {
+                    |(
+                        id,
+                        value,
+                        tokens,
+                        creation_height,
+                        additional_registers,
+                        script_bytes,
+                        tx_id_box_index,
+                    )| {
                         Self {
                             id: IrBoxId(id),
                             value,
@@ -99,6 +110,7 @@ pub(crate) mod arbitrary {
                             additional_registers,
                             creation_height,
                             script_bytes,
+                            creation_info: (creation_height, tx_id_box_index),
                         }
                     },
                 )

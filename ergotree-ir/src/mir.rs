@@ -9,6 +9,8 @@ pub mod bool_to_sigma;
 pub mod calc_blake2b256;
 /// Get the collection element by index
 pub mod coll_by_index;
+/// Tests whether a predicate holds for at least one element of this collection
+pub mod coll_exists;
 /// Collection.filter
 pub mod coll_filter;
 /// Collection.fold
@@ -20,9 +22,15 @@ pub mod coll_size;
 /// Collection of elements
 pub mod collection;
 pub mod constant;
+/// Create proveDlog from GroupElement(PK)
+pub mod create_provedlog;
 pub mod expr;
 /// Box value
 pub mod extract_amount;
+/// Box.creationInfo (height, tx id + box index)
+pub mod extract_creation_info;
+/// Box id, Blake2b256 hash of this box's content, basically equals to `blake2b256(bytes)`
+pub mod extract_id;
 /// Box register value (Box.RX)
 pub mod extract_reg_as;
 /// Box.scriptBytes
@@ -38,12 +46,18 @@ pub mod logical_not;
 pub mod method_call;
 /// Option.get() op
 pub mod option_get;
+/// Returns the Option's value or error if no value
+pub mod option_get_or_else;
+/// Returns false if the option is None, true otherwise.
+pub mod option_is_defined;
 /// Logical OR op
 pub mod or;
 /// Object property call
 pub mod property_call;
 /// Select a field of the tuple value
 pub mod select_field;
+/// Extract serialized bytes of a SigmaProp value
+pub mod sigma_prop_bytes;
 pub mod upcast;
 /// Variable definition
 pub mod val_def;
