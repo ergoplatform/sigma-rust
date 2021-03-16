@@ -215,7 +215,7 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 #### Collection
 
 - :heavy_check_mark: size
-- getOrElse
+- :heavy_check_mark: getOrElse
 - :heavy_check_mark: map
 - :heavy_check_mark: exists
 - :heavy_check_mark: fold
