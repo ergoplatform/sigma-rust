@@ -2,7 +2,6 @@
 [![Documentation](https://docs.rs/ergo-lib/badge.svg)](https://docs.rs/crate/ergo-lib)
 
 ## Features:
-- ErgoTree AST;
 - Transactions, boxes, etc.;
 - JSON serialization;
 - Box builder(with mint token support);
