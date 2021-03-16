@@ -35,6 +35,7 @@ use super::if_op::If;
 use super::logical_not::LogicalNot;
 use super::method_call::MethodCall;
 use super::option_get::OptionGet;
+use super::option_get_or_else::OptionGetOrElse;
 use super::option_is_defined::OptionIsDefined;
 use super::or::Or;
 use super::property_call::PropertyCall;
@@ -93,6 +94,8 @@ pub enum Expr {
     OptionGet(OptionGet),
     /// Option.isDefined method
     OptionIsDefined(OptionIsDefined),
+    /// Returns the option's value if the option is nonempty, otherwise return the result of evaluating `default`.
+    OptionGetOrElse(OptionGetOrElse),
     /// Box monetary value
     ExtractAmount(ExtractAmount),
     /// Extract register's value (box.RX properties)
@@ -168,6 +171,7 @@ impl Expr {
             Expr::ExtractId(op) => op.op_code(),
             Expr::SigmaPropBytes(op) => op.op_code(),
             Expr::OptionIsDefined(op) => op.op_code(),
+            Expr::OptionGetOrElse(op) => op.op_code(),
         }
     }
 
@@ -210,6 +214,7 @@ impl Expr {
             Expr::ExtractId(v) => v.tpe(),
             Expr::SigmaPropBytes(v) => v.tpe(),
             Expr::OptionIsDefined(v) => v.tpe(),
+            Expr::OptionGetOrElse(v) => v.tpe(),
         }
     }
 

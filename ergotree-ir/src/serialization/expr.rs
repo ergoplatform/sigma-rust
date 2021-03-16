@@ -32,6 +32,7 @@ use crate::mir::if_op::If;
 use crate::mir::logical_not::LogicalNot;
 use crate::mir::method_call::MethodCall;
 use crate::mir::option_get::OptionGet;
+use crate::mir::option_get_or_else::OptionGetOrElse;
 use crate::mir::option_is_defined::OptionIsDefined;
 use crate::mir::or::Or;
 use crate::mir::property_call::PropertyCall;
@@ -97,6 +98,7 @@ impl SigmaSerializable for Expr {
                     Expr::ExtractId(op) => op.sigma_serialize(w),
                     Expr::SigmaPropBytes(op) => op.sigma_serialize(w),
                     Expr::OptionIsDefined(op) => op.sigma_serialize(w),
+                    Expr::OptionGetOrElse(op) => op.sigma_serialize(w),
                 }
             }
         }
@@ -139,6 +141,7 @@ impl SigmaSerializable for Expr {
                 OpCode::CONTEXT => Ok(Expr::Context),
                 OptionGet::OP_CODE => Ok(OptionGet::sigma_parse(r)?.into()),
                 OptionIsDefined::OP_CODE => Ok(OptionIsDefined::sigma_parse(r)?.into()),
+                OptionGetOrElse::OP_CODE => Ok(OptionGetOrElse::sigma_parse(r)?.into()),
                 ExtractRegisterAs::OP_CODE => Ok(ExtractRegisterAs::sigma_parse(r)?.into()),
                 ExtractScriptBytes::OP_CODE => Ok(ExtractScriptBytes::sigma_parse(r)?.into()),
                 ExtractCreationInfo::OP_CODE => Ok(ExtractCreationInfo::sigma_parse(r)?.into()),
