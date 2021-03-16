@@ -65,7 +65,7 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 - sha256
 - :heavy_check_mark: proveDlog
 - proveDHTuple
-- sigmaProp
+- :heavy_check_mark: sigmaProp
 - executeFromVar
 - executeFromSelfReg
 - getVar
