@@ -42,9 +42,7 @@ impl SigmaSerializable for ExtractId {
     }
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
-        Ok(ExtractId {
-            input: Expr::sigma_parse(r)?.into(),
-        })
+        Ok(ExtractId::new(Expr::sigma_parse(r)?)?)
     }
 }
 
