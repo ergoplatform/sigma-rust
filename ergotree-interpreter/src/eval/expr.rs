@@ -43,6 +43,7 @@ impl Evaluable for Expr {
             Expr::CreateProveDlog(op) => op.eval(env, ctx),
             Expr::ExtractCreationInfo(op) => op.eval(env, ctx),
             Expr::Exists(op) => op.eval(env, ctx),
+            Expr::ExtractId(op) => op.eval(env, ctx),
         }
     }
 }

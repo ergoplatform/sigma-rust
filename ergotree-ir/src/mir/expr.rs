@@ -26,6 +26,7 @@ use super::constant::TryExtractFromError;
 use super::create_provedlog::CreateProveDlog;
 use super::extract_amount::ExtractAmount;
 use super::extract_creation_info::ExtractCreationInfo;
+use super::extract_id::ExtractId;
 use super::extract_reg_as::ExtractRegisterAs;
 use super::extract_script_bytes::ExtractScriptBytes;
 use super::func_value::FuncValue;
@@ -97,6 +98,8 @@ pub enum Expr {
     /// Tuple of height when block got included into the blockchain and transaction identifier with
     /// box index in the transaction outputs serialized to the byte array.
     ExtractCreationInfo(ExtractCreationInfo),
+    /// Box id, Blake2b256 hash of this box's content, basically equals to `blake2b256(bytes)`
+    ExtractId(ExtractId),
     /// Collection, get element by index
     ByIndex(ByIndex),
     /// Collection size
@@ -156,6 +159,7 @@ impl Expr {
             Expr::CreateProveDlog(op) => op.op_code(),
             Expr::ExtractCreationInfo(op) => op.op_code(),
             Expr::Exists(op) => op.op_code(),
+            Expr::ExtractId(op) => op.op_code(),
         }
     }
 
@@ -195,6 +199,7 @@ impl Expr {
             Expr::CreateProveDlog(v) => v.tpe(),
             Expr::ExtractCreationInfo(v) => v.tpe(),
             Expr::Exists(v) => v.tpe(),
+            Expr::ExtractId(v) => v.tpe(),
         }
     }
 

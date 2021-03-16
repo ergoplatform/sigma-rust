@@ -29,6 +29,8 @@ pub mod expr;
 pub mod extract_amount;
 /// Box.creationInfo (height, tx id + box index)
 pub mod extract_creation_info;
+/// Box id, Blake2b256 hash of this box's content, basically equals to `blake2b256(bytes)`
+pub mod extract_id;
 /// Box register value (Box.RX)
 pub mod extract_reg_as;
 /// Box.scriptBytes

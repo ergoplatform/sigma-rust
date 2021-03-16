@@ -39,6 +39,7 @@ pub(crate) mod create_provedlog;
 pub(crate) mod expr;
 pub(crate) mod extract_amount;
 pub(crate) mod extract_creation_info;
+pub(crate) mod extract_id;
 pub(crate) mod extract_reg_as;
 pub(crate) mod extract_script_bytes;
 pub(crate) mod func_value;

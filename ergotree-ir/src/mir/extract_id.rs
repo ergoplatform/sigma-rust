@@ -8,27 +8,27 @@ use crate::types::stype::SType;
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
 
-/// Box value
+/// Box id, Blake2b256 hash of this box's content, basically equals to `blake2b256(bytes)`
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct ExtractAmount {
+pub struct ExtractId {
     /// Box (SBox type)
     pub input: Box<Expr>,
 }
 
-impl ExtractAmount {
-    pub(crate) const OP_CODE: OpCode = OpCode::EXTRACT_AMOUNT;
+impl ExtractId {
+    pub(crate) const OP_CODE: OpCode = OpCode::EXTRACT_ID;
 
     /// Create new object, returns an error if any of the requirements failed
     pub fn new(input: Expr) -> Result<Self, InvalidArgumentError> {
         input.check_post_eval_tpe(SType::SBox)?;
-        Ok(ExtractAmount {
+        Ok(ExtractId {
             input: input.into(),
         })
     }
 
     /// Type
     pub fn tpe(&self) -> SType {
-        SType::SLong
+        SType::SColl(SType::SByte.into())
     }
 
     pub(crate) fn op_code(&self) -> OpCode {
@@ -36,13 +36,13 @@ impl ExtractAmount {
     }
 }
 
-impl SigmaSerializable for ExtractAmount {
+impl SigmaSerializable for ExtractId {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
         self.input.sigma_serialize(w)
     }
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
-        Ok(ExtractAmount {
+        Ok(ExtractId {
             input: Expr::sigma_parse(r)?.into(),
         })
     }
@@ -58,7 +58,7 @@ mod tests {
 
     #[test]
     fn ser_roundtrip() {
-        let e: Expr = ExtractAmount {
+        let e: Expr = ExtractId {
             input: Box::new(GlobalVars::SelfBox.into()),
         }
         .into();

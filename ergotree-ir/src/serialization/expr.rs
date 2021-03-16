@@ -23,6 +23,7 @@ use crate::mir::create_provedlog::CreateProveDlog;
 use crate::mir::expr::Expr;
 use crate::mir::extract_amount::ExtractAmount;
 use crate::mir::extract_creation_info::ExtractCreationInfo;
+use crate::mir::extract_id::ExtractId;
 use crate::mir::extract_reg_as::ExtractRegisterAs;
 use crate::mir::extract_script_bytes::ExtractScriptBytes;
 use crate::mir::func_value::FuncValue;
@@ -91,6 +92,7 @@ impl SigmaSerializable for Expr {
                     Expr::CreateProveDlog(op) => op.sigma_serialize(w),
                     Expr::ExtractCreationInfo(op) => op.sigma_serialize(w),
                     Expr::Exists(op) => op.sigma_serialize(w),
+                    Expr::ExtractId(op) => op.sigma_serialize(w),
                 }
             }
         }
@@ -135,6 +137,7 @@ impl SigmaSerializable for Expr {
                 ExtractRegisterAs::OP_CODE => Ok(ExtractRegisterAs::sigma_parse(r)?.into()),
                 ExtractScriptBytes::OP_CODE => Ok(ExtractScriptBytes::sigma_parse(r)?.into()),
                 ExtractCreationInfo::OP_CODE => Ok(ExtractCreationInfo::sigma_parse(r)?.into()),
+                ExtractId::OP_CODE => Ok(ExtractId::sigma_parse(r)?.into()),
                 OpCode::EQ => Ok(bin_op_sigma_parse(RelationOp::Eq.into(), r)?),
                 OpCode::NEQ => Ok(bin_op_sigma_parse(RelationOp::NEq.into(), r)?),
                 OpCode::LOGICAL_NOT => Ok(LogicalNot::sigma_parse(r)?.into()),
@@ -155,7 +158,7 @@ impl SigmaSerializable for Expr {
                 OpCode::APPLY => Ok(Expr::Apply(Apply::sigma_parse(r)?)),
                 OpCode::VAL_DEF => Ok(Expr::ValDef(ValDef::sigma_parse(r)?)),
                 OpCode::VAL_USE => Ok(Expr::ValUse(ValUse::sigma_parse(r)?)),
-                OpCode::EXTRACT_AMOUNT => Ok(Expr::ExtractAmount(ExtractAmount::sigma_parse(r)?)),
+                ExtractAmount::OP_CODE => Ok(Expr::ExtractAmount(ExtractAmount::sigma_parse(r)?)),
                 OpCode::SELECT_FIELD => Ok(Expr::SelectField(SelectField::sigma_parse(r)?)),
                 OpCode::CALC_BLAKE2B256 => Ok(CalcBlake2b256::sigma_parse(r)?.into()),
                 And::OP_CODE => Ok(And::sigma_parse(r)?.into()),
