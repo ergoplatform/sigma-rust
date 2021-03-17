@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Added 
 - `proveDlog`, `box.creationInfo`, `Box.id`, `Coll.exists`, `SigmaProp.propBytes`, `Option.isDefined`, `Option.getOrElse` IR nodes (evaluation, serialization) [#209](https://github.com/ergoplatform/sigma-rust/pull/209);
 - `Box.R0..R3` register access [#213](https://github.com/ergoplatform/sigma-rust/pull/213);
+- `-` negation for numeric types evaluation and serialization [#214](https://github.com/ergoplatform/sigma-rust/pull/214);
 
 ## [0.7.0] - 2021-03-03
 

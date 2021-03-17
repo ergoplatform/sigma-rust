@@ -32,7 +32,7 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 - ^ (bitwise XOR);
 - `|` (byte-wise XOR of two collections of bytes);
 - :heavy_check_mark: unary `!`;
-- unary `-`;
+- :heavy_check_mark: unary `-`;
 - unary `~` (bit inversion);
 - `>>`, `<<`, `>>>` (bit shifts);
 
