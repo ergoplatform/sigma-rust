@@ -1,7 +1,9 @@
 //! Box id type
+use std::convert::TryInto;
 use std::io;
 
 use ergotree_ir::ir_ergo_box::IrBoxId;
+
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 
@@ -44,7 +46,16 @@ impl Into<String> for BoxId {
 
 impl From<&IrBoxId> for BoxId {
     fn from(irb: &IrBoxId) -> Self {
-        BoxId(irb.0.into())
+        let u8bytes: Vec<u8> = irb.0.iter().map(|b| *b as u8).collect();
+        let arr: [u8; Digest32::SIZE] = u8bytes.as_slice().try_into().unwrap();
+        BoxId(arr.into())
+    }
+}
+
+impl From<BoxId> for IrBoxId {
+    fn from(id: BoxId) -> Self {
+        let i8bytes: Vec<i8> = id.0 .0.iter().map(|b| *b as i8).collect();
+        IrBoxId::new(i8bytes.try_into().unwrap())
     }
 }
 

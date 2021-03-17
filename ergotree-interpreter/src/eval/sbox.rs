@@ -32,7 +32,7 @@ pub static TOKENS_EVAL_FN: EvalFn = |ctx, obj, _args| {
     let res: Value = obj
         .try_extract_into::<IrBoxId>()?
         .get_box(&ctx.box_arena)?
-        .tokens()
+        .tokens_raw()
         .into();
     Ok(res)
 };
@@ -74,7 +74,7 @@ mod tests {
         let ctx = Rc::new(force_any_val::<Context>());
         assert_eq!(
             eval_out::<Vec<(Vec<i8>, i64)>>(&expr, ctx.clone()),
-            ctx.self_box.get_box(&ctx.box_arena).unwrap().tokens()
+            ctx.self_box.get_box(&ctx.box_arena).unwrap().tokens_raw()
         );
     }
 }

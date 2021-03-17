@@ -37,7 +37,7 @@ mod tests {
         .into();
         let ctx = Rc::new(force_any_val::<Context>());
         assert_eq!(
-            eval_out::<Vec<u8>>(&e, ctx.clone()),
+            eval_out::<Vec<i8>>(&e, ctx.clone()),
             ctx.self_box.get_box(&ctx.box_arena).unwrap().script_bytes()
         );
     }

@@ -8,18 +8,20 @@ mod register;
 pub use box_id::*;
 pub use box_value::*;
 use ergotree_ir::ergo_tree::ErgoTree;
+use ergotree_ir::ir_ergo_box::IrBoxId;
 use ergotree_ir::ir_ergo_box::IrErgoBox;
 use ergotree_ir::mir::constant::Constant;
 use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
 use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
 use ergotree_ir::serialization::SerializationError;
 use ergotree_ir::serialization::SigmaSerializable;
+use ergotree_ir::util::AsVecI8;
 pub use register::*;
-use sigma_util::DIGEST32_SIZE;
 
 #[cfg(feature = "json")]
 use super::json;
 use super::token::TokenAmount;
+use super::Digest32;
 use super::{
     digest32::blake2b256_hash,
     token::{Token, TokenId},
@@ -155,7 +157,9 @@ impl ErgoBox {
         match id {
             RegisterId::MandatoryRegisterId(id) => match id {
                 MandatoryRegisterId::R0 => Some(self.value.clone().into()),
-                _ => todo!(),
+                MandatoryRegisterId::R1 => Some(self.script_bytes().into()),
+                MandatoryRegisterId::R2 => Some(self.tokens_raw().into()),
+                MandatoryRegisterId::R3 => Some(self.creation_info().into()),
             },
             RegisterId::NonMandatoryRegisterId(id) => self.additional_registers.get(id).cloned(),
         }
@@ -163,15 +167,15 @@ impl ErgoBox {
 }
 
 impl IrErgoBox for ErgoBox {
-    fn id(&self) -> &[u8; DIGEST32_SIZE] {
-        &self.box_id.0 .0
+    fn id(&self) -> IrBoxId {
+        self.box_id.clone().into()
     }
 
     fn value(&self) -> i64 {
         self.value.as_i64()
     }
 
-    fn tokens(&self) -> Vec<(Vec<i8>, i64)> {
+    fn tokens_raw(&self) -> Vec<(Vec<i8>, i64)> {
         self.tokens
             .clone()
             .into_iter()
@@ -193,8 +197,17 @@ impl IrErgoBox for ErgoBox {
         self.creation_height as i32
     }
 
-    fn script_bytes(&self) -> Vec<u8> {
-        self.sigma_serialize_bytes()
+    fn script_bytes(&self) -> Vec<i8> {
+        self.sigma_serialize_bytes().as_vec_i8()
+    }
+
+    /// Tuple of height when block got included into the blockchain and transaction identifier with
+    /// box index in the transaction outputs serialized to the byte array.
+    fn creation_info(&self) -> (i32, Vec<i8>) {
+        let mut bytes = Vec::with_capacity(Digest32::SIZE + 2);
+        bytes.extend_from_slice(self.transaction_id.0 .0.as_ref());
+        bytes.extend_from_slice(&self.index.to_be_bytes());
+        (self.creation_height as i32, bytes.as_vec_i8())
     }
 }
 
@@ -520,7 +533,6 @@ mod tests {
 
     use super::box_value::tests::ArbBoxValueRange;
     use super::*;
-    use ergotree_ir::mir::constant::TryExtractInto;
     use ergotree_ir::serialization::sigma_serialize_roundtrip;
     use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
     use sigma_test_util::force_any_val;
@@ -599,13 +611,29 @@ mod tests {
     #[test]
     fn get_register_mandatory() {
         let b = force_any_val::<ErgoBox>();
+        assert_eq!(b.get_register(RegisterId::R0).unwrap(), b.value.into());
         assert_eq!(
-            b.value.as_i64(),
-            b.get_register(RegisterId::R0)
-                .unwrap()
-                .try_extract_into::<i64>()
-                .unwrap()
+            b.get_register(RegisterId::R1).unwrap(),
+            b.script_bytes().into()
         );
+        assert_eq!(
+            b.get_register(RegisterId::R2).unwrap(),
+            b.tokens_raw().into()
+        );
+        assert_eq!(
+            b.get_register(RegisterId::R3).unwrap(),
+            b.creation_info().into()
+        );
+    }
+
+    #[test]
+    fn creation_info() {
+        let b = force_any_val::<ErgoBox>();
+        assert_eq!(b.creation_info().0, b.creation_height as i32);
+        let mut expected_bytes = Vec::new();
+        expected_bytes.extend_from_slice(b.transaction_id.0 .0.as_ref());
+        expected_bytes.extend_from_slice(&b.index.to_be_bytes());
+        assert_eq!(b.creation_info().1, expected_bytes.to_vec().as_vec_i8());
     }
 
     proptest! {

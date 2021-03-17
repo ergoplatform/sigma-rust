@@ -23,6 +23,12 @@ pub enum RegisterId {
 impl RegisterId {
     /// R0 register id (box.value)
     pub const R0: RegisterId = RegisterId::MandatoryRegisterId(MandatoryRegisterId::R0);
+    /// R1 register id (serialized ErgoTree)
+    pub const R1: RegisterId = RegisterId::MandatoryRegisterId(MandatoryRegisterId::R1);
+    /// R2 register id (tokens)
+    pub const R2: RegisterId = RegisterId::MandatoryRegisterId(MandatoryRegisterId::R2);
+    /// R2 register id (creationInfo)
+    pub const R3: RegisterId = RegisterId::MandatoryRegisterId(MandatoryRegisterId::R3);
 }
 
 /// Register id out of bounds error (not in 0-9 range)

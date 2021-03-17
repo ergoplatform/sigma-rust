@@ -26,6 +26,7 @@ mod arbitrary {
 
     use super::ir_ergo_box_dummy::*;
     use super::*;
+    use ergotree_ir::ir_ergo_box::IrErgoBox;
     use proptest::collection::vec;
     use proptest::prelude::*;
 
@@ -40,16 +41,16 @@ mod arbitrary {
                 vec(any::<IrErgoBoxDummy>(), 0..3),
             )
                 .prop_map(|(height, self_box, outputs, data_inputs)| {
-                    let self_box_id = self_box.id.clone();
-                    let outputs_ids = outputs.iter().map(|b| b.id.clone()).collect();
-                    let data_inputs_ids = data_inputs.iter().map(|b| b.id.clone()).collect();
+                    let self_box_id = self_box.id();
+                    let outputs_ids = outputs.iter().map(|b| b.id()).collect();
+                    let data_inputs_ids = data_inputs.iter().map(|b| b.id()).collect();
                     let mut m = HashMap::new();
                     m.insert(self_box_id.clone(), self_box);
                     outputs.into_iter().for_each(|b| {
-                        m.insert(b.id.clone(), b);
+                        m.insert(b.id(), b);
                     });
                     data_inputs.into_iter().for_each(|b| {
-                        m.insert(b.id.clone(), b);
+                        m.insert(b.id(), b);
                     });
                     let box_arena = IrErgoBoxDummyArena(m);
                     Self {

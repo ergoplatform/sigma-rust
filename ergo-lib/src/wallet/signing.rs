@@ -75,12 +75,6 @@ impl IrErgoBoxArena for ErgoBoxArena {
     }
 }
 
-impl From<BoxId> for IrBoxId {
-    fn from(id: BoxId) -> Self {
-        IrBoxId::new(*id.0 .0)
-    }
-}
-
 /// `self_index` - index of the SELF box in the tx_ctx.boxes_to_spend
 pub fn make_context(
     state_ctx: &ErgoStateContext,
