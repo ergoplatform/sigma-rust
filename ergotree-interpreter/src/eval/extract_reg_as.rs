@@ -34,7 +34,7 @@ mod tests {
     use std::rc::Rc;
 
     #[test]
-    fn eval_box_get_reg() {
+    fn eval_box_get_reg_r0() {
         let get_reg_expr: Expr = ExtractRegisterAs::new(
             GlobalVars::SelfBox.into(),
             0,

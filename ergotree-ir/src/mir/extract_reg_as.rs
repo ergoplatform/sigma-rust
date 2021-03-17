@@ -8,12 +8,12 @@ use crate::types::stype::SType;
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
 
-/// Get box register value (Box.R1 - R9)
+/// Get box register value (Box.R0 - R9)
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ExtractRegisterAs {
     /// Box
     pub input: Box<Expr>,
-    /// Register id to extract value from
+    /// Register id to extract value from (0 is R0 .. 9 for R9)
     pub register_id: i8,
     /// Result type, to be wrapped in SOption
     pub elem_tpe: SType,

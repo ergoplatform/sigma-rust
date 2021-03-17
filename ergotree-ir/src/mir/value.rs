@@ -145,12 +145,6 @@ impl Into<Value> for EcPoint {
     }
 }
 
-// impl From<Box<dyn IrErgoBox>> for Value {
-//     fn from(b: dyn IrErgoBox) -> Self {
-//         Value::CBox(Box::new(b))
-//     }
-// }
-
 impl From<Vec<i8>> for Value {
     fn from(v: Vec<i8>) -> Self {
         Value::Coll(CollKind::NativeColl(NativeColl::CollByte(v)))

@@ -7,11 +7,11 @@ use thiserror::Error;
 
 /// Ergo box id
 #[derive(PartialEq, Eq, Debug, Clone, Hash)]
-pub struct IrBoxId(pub [u8; DIGEST32_SIZE]);
+pub struct IrBoxId(pub [i8; DIGEST32_SIZE]);
 
 impl IrBoxId {
     /// Make new box id
-    pub fn new(id: [u8; DIGEST32_SIZE]) -> Self {
+    pub fn new(id: [i8; DIGEST32_SIZE]) -> Self {
         IrBoxId(id)
     }
 
@@ -21,6 +21,11 @@ impl IrBoxId {
         arena: &Rc<dyn IrErgoBoxArena>,
     ) -> Result<Rc<dyn IrErgoBox>, IrErgoBoxArenaError> {
         arena.get(self)
+    }
+
+    /// Returns id as byte array
+    pub fn to_bytes(&self) -> Vec<i8> {
+        self.0.to_vec()
     }
 }
 
@@ -38,11 +43,11 @@ pub struct IrErgoBoxArenaError(pub String);
 /// Ergo box properties
 pub trait IrErgoBox: Debug {
     /// Box id
-    fn id(&self) -> &[u8; DIGEST32_SIZE];
+    fn id(&self) -> IrBoxId;
     /// Box value
     fn value(&self) -> i64;
     /// Box tokens
-    fn tokens(&self) -> Vec<(Vec<i8>, i64)>;
+    fn tokens_raw(&self) -> Vec<(Vec<i8>, i64)>;
     /// R4-R9 optional registers, where element with index 0 is R4, etc.
     fn additional_registers(&self) -> &[Constant];
     /// Returns a register value for the given register index (0 is R0, 9 is R9)
@@ -50,5 +55,8 @@ pub trait IrErgoBox: Debug {
     /// Box creation height
     fn creation_height(&self) -> i32;
     /// Box guarding script serialized
-    fn script_bytes(&self) -> Vec<u8>;
+    fn script_bytes(&self) -> Vec<i8>;
+    /// Tuple of height when block got included into the blockchain and transaction identifier with
+    /// box index in the transaction outputs serialized to the byte array.
+    fn creation_info(&self) -> (i32, Vec<i8>);
 }
