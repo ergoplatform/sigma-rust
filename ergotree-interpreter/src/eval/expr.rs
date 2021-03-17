@@ -47,6 +47,7 @@ impl Evaluable for Expr {
             Expr::SigmaPropBytes(op) => op.eval(env, ctx),
             Expr::OptionIsDefined(op) => op.eval(env, ctx),
             Expr::OptionGetOrElse(op) => op.eval(env, ctx),
+            Expr::Negation(op) => op.eval(env, ctx),
         }
     }
 }
