@@ -6,7 +6,6 @@ use ergotree_ir::ir_ergo_box::IrErgoBox;
 use ergotree_ir::ir_ergo_box::IrErgoBoxArena;
 use ergotree_ir::ir_ergo_box::IrErgoBoxArenaError;
 use ergotree_ir::mir::constant::Constant;
-use sigma_util::DIGEST32_SIZE;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub(crate) struct IrErgoBoxDummyArena(pub HashMap<IrBoxId, IrErgoBoxDummy>);
@@ -75,6 +74,7 @@ impl IrErgoBox for IrErgoBoxDummy {
 #[cfg(feature = "arbitrary")]
 /// Arbitrary impl
 pub(crate) mod arbitrary {
+    use sigma_util::DIGEST32_SIZE;
 
     use super::*;
     use proptest::collection::vec;
