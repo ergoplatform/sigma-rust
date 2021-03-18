@@ -8,11 +8,11 @@ use ergotree_ir::mir::constant::TryExtractFrom;
 use ergotree_ir::mir::constant::TryExtractInto;
 use ergotree_ir::mir::value::Value;
 use eval::costs::Costs;
-use num::CheckedAdd;
-use num::CheckedDiv;
-use num::CheckedMul;
-use num::CheckedSub;
-use num::Num;
+use num_traits::CheckedAdd;
+use num_traits::CheckedDiv;
+use num_traits::CheckedMul;
+use num_traits::CheckedSub;
+use num_traits::Num;
 
 use crate::eval;
 use crate::eval::env::Env;

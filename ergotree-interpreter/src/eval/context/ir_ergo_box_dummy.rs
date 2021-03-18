@@ -74,13 +74,12 @@ impl IrErgoBox for IrErgoBoxDummy {
 #[cfg(feature = "arbitrary")]
 /// Arbitrary impl
 pub(crate) mod arbitrary {
+    use num_traits::abs;
     use sigma_util::DIGEST32_SIZE;
 
     use super::*;
     use proptest::collection::vec;
     use proptest::prelude::*;
-
-    use num::abs;
 
     impl Arbitrary for IrErgoBoxDummy {
         type Parameters = ();

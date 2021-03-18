@@ -30,7 +30,7 @@ mod tests {
     use ergotree_ir::mir::constant::Constant;
     use ergotree_ir::mir::constant::TryExtractFrom;
     use ergotree_ir::mir::expr::Expr;
-    use num::Num;
+    use num_traits::Num;
 
     fn run_eval<T: Num + Into<Constant> + TryExtractFrom<Value>>(input: T) -> T {
         let expr: Expr = Negation::new(Expr::Const(input.into())).unwrap().into();
