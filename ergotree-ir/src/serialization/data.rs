@@ -1,3 +1,5 @@
+use num_bigint::BigInt;
+
 use crate::mir::constant::TryExtractFromError;
 use crate::mir::constant::TryExtractInto;
 use crate::mir::value::CollKind;
@@ -28,7 +30,11 @@ impl DataSerializer {
             Value::Short(v) => w.put_i16(*v),
             Value::Int(v) => w.put_i32(*v),
             Value::Long(v) => w.put_i64(*v),
-            Value::BigInt(_) => todo!(),
+            Value::BigInt(v) => {
+                let bytes = v.to_signed_bytes_be();
+                w.put_u16(bytes.len() as u16)?;
+                w.write_all(&&bytes)
+            }
             Value::GroupElement(ecp) => ecp.sigma_serialize(w),
             Value::SigmaProp(s) => s.value().sigma_serialize(w),
             Value::CBox(_) => todo!(),
@@ -79,6 +85,18 @@ impl DataSerializer {
             SShort => Value::Short(r.get_i16()?),
             SInt => Value::Int(r.get_i32()?),
             SLong => Value::Long(r.get_i64()?),
+            SBigInt => {
+                let size = r.get_u16()?;
+                if size > 32 {
+                    return Err(SerializationError::ValueOutOfBounds(format!(
+                        "serialized BigInt size {0} bytes exceeds 32",
+                        size
+                    )));
+                }
+                let mut buf = vec![0u8; size as usize];
+                r.read_exact(&mut buf)?;
+                Value::BigInt(BigInt::from_signed_bytes_be(buf.as_slice()))
+            }
             SGroupElement => Value::GroupElement(Box::new(EcPoint::sigma_parse(r)?)),
             SSigmaProp => Value::sigma_prop(SigmaProp::new(SigmaBoolean::sigma_parse(r)?)),
             SColl(elem_type) if **elem_type == SByte => {

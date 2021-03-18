@@ -208,6 +208,7 @@ pub(crate) mod arbitrary {
 
     use super::*;
     use crate::types::stuple::STuple;
+    use num_bigint::ToBigInt;
     use proptest::collection::vec;
     use proptest::prelude::*;
 
@@ -222,6 +223,7 @@ pub(crate) mod arbitrary {
             any::<i16>().prop_map_into(),
             any::<i32>().prop_map_into(),
             any::<i64>().prop_map_into(),
+            any::<i64>().prop_map(|v| v.to_bigint().unwrap().into()),
             any::<EcPoint>().prop_map_into(),
             any::<SigmaProp>().prop_map_into(),
             // although it's not strictly a primitive type, byte array is widely used as one
@@ -261,7 +263,9 @@ pub(crate) mod arbitrary {
             SType::SShort => any::<i16>().prop_map_into().boxed(),
             SType::SInt => any::<i32>().prop_map_into().boxed(),
             SType::SLong => any::<i64>().prop_map_into().boxed(),
-            // SType::SBigInt => {}
+            SType::SBigInt => any::<i64>()
+                .prop_map(|v| v.to_bigint().unwrap().into())
+                .boxed(),
             SType::SGroupElement => any::<EcPoint>().prop_map_into().boxed(),
             SType::SSigmaProp => any::<SigmaProp>().prop_map_into().boxed(),
             // SType::SBox => {}
