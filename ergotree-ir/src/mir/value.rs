@@ -4,6 +4,7 @@ use std::convert::TryFrom;
 use std::convert::TryInto;
 
 use impl_trait_for_tuples::impl_for_tuples;
+use num_bigint::BigInt;
 
 use crate::ir_ergo_box::IrBoxId;
 use crate::sigma_protocol::dlog_group::EcPoint;
@@ -105,7 +106,7 @@ pub enum Value {
     /// Long
     Long(i64),
     /// Big integer
-    BigInt,
+    BigInt(BigInt),
     /// GroupElement
     GroupElement(Box<EcPoint>),
     /// Sigma property

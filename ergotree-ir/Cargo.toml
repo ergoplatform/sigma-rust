@@ -27,6 +27,7 @@ proptest = {version = "1.0.0", optional = true }
 proptest-derive = {version = "0.3.0", optional = true }
 bs58 = "0.4.0"
 base16 = "0.2.1"
+num-bigint = "0.4.0"
 
 [features]
 default = []

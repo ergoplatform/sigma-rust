@@ -82,7 +82,7 @@ fn eval_ge(lv: Value, rv: Value) -> Result<Value, EvalError> {
         Value::Short(lv_raw) => Ok((lv_raw >= rv.try_extract_into::<i16>()?).into()),
         Value::Int(lv_raw) => Ok((lv_raw >= rv.try_extract_into::<i32>()?).into()),
         Value::Long(lv_raw) => Ok((lv_raw >= rv.try_extract_into::<i64>()?).into()),
-        Value::BigInt => todo!(),
+        Value::BigInt(_) => todo!(),
         _ => Err(EvalError::UnexpectedValue(format!(
             "expected BinOp::left to be numeric value, got {0:?}",
             lv
@@ -96,7 +96,7 @@ fn eval_gt(lv: Value, rv: Value) -> Result<Value, EvalError> {
         Value::Short(lv_raw) => Ok((lv_raw > rv.try_extract_into::<i16>()?).into()),
         Value::Int(lv_raw) => Ok((lv_raw > rv.try_extract_into::<i32>()?).into()),
         Value::Long(lv_raw) => Ok((lv_raw > rv.try_extract_into::<i64>()?).into()),
-        Value::BigInt => todo!(),
+        Value::BigInt(_) => todo!(),
         _ => Err(EvalError::UnexpectedValue(format!(
             "expected BinOp::left to be numeric value, got {0:?}",
             lv
@@ -110,7 +110,7 @@ fn eval_lt(lv: Value, rv: Value) -> Result<Value, EvalError> {
         Value::Short(lv_raw) => Ok((lv_raw < rv.try_extract_into::<i16>()?).into()),
         Value::Int(lv_raw) => Ok((lv_raw < rv.try_extract_into::<i32>()?).into()),
         Value::Long(lv_raw) => Ok((lv_raw < rv.try_extract_into::<i64>()?).into()),
-        Value::BigInt => todo!(),
+        Value::BigInt(_) => todo!(),
         _ => Err(EvalError::UnexpectedValue(format!(
             "expected BinOp::left to be numeric value, got {0:?}",
             lv
@@ -124,7 +124,7 @@ fn eval_le(lv: Value, rv: Value) -> Result<Value, EvalError> {
         Value::Short(lv_raw) => Ok((lv_raw <= rv.try_extract_into::<i16>()?).into()),
         Value::Int(lv_raw) => Ok((lv_raw <= rv.try_extract_into::<i32>()?).into()),
         Value::Long(lv_raw) => Ok((lv_raw <= rv.try_extract_into::<i64>()?).into()),
-        Value::BigInt => todo!(),
+        Value::BigInt(_) => todo!(),
         _ => Err(EvalError::UnexpectedValue(format!(
             "expected BinOp::left to be numeric value, got {0:?}",
             lv
@@ -179,7 +179,7 @@ impl Evaluable for BinOp {
                     Value::Short(lv_raw) => eval_plus(lv_raw, rv()?),
                     Value::Int(lv_raw) => eval_plus(lv_raw, rv()?),
                     Value::Long(lv_raw) => eval_plus(lv_raw, rv()?),
-                    Value::BigInt => todo!(),
+                    Value::BigInt(_) => todo!(),
                     _ => Err(EvalError::UnexpectedValue(format!(
                         "expected BinOp::left to be numeric value, got {0:?}",
                         lv
@@ -190,7 +190,7 @@ impl Evaluable for BinOp {
                     Value::Short(lv_raw) => eval_minus(lv_raw, rv()?),
                     Value::Int(lv_raw) => eval_minus(lv_raw, rv()?),
                     Value::Long(lv_raw) => eval_minus(lv_raw, rv()?),
-                    Value::BigInt => todo!(),
+                    Value::BigInt(_) => todo!(),
                     _ => Err(EvalError::UnexpectedValue(format!(
                         "expected BinOp::left to be numeric value, got {0:?}",
                         lv
@@ -201,7 +201,7 @@ impl Evaluable for BinOp {
                     Value::Short(lv_raw) => eval_mul(lv_raw, rv()?),
                     Value::Int(lv_raw) => eval_mul(lv_raw, rv()?),
                     Value::Long(lv_raw) => eval_mul(lv_raw, rv()?),
-                    Value::BigInt => todo!(),
+                    Value::BigInt(_) => todo!(),
                     _ => Err(EvalError::UnexpectedValue(format!(
                         "expected BinOp::left to be numeric value, got {0:?}",
                         lv
@@ -212,7 +212,7 @@ impl Evaluable for BinOp {
                     Value::Short(lv_raw) => eval_div(lv_raw, rv()?),
                     Value::Int(lv_raw) => eval_div(lv_raw, rv()?),
                     Value::Long(lv_raw) => eval_div(lv_raw, rv()?),
-                    Value::BigInt => todo!(),
+                    Value::BigInt(_) => todo!(),
                     _ => Err(EvalError::UnexpectedValue(format!(
                         "expected BinOp::left to be numeric value, got {0:?}",
                         lv
@@ -223,7 +223,7 @@ impl Evaluable for BinOp {
                     Value::Short(lv_raw) => eval_max(lv_raw, rv()?),
                     Value::Int(lv_raw) => eval_max(lv_raw, rv()?),
                     Value::Long(lv_raw) => eval_max(lv_raw, rv()?),
-                    Value::BigInt => todo!(),
+                    Value::BigInt(_) => todo!(),
                     _ => Err(EvalError::UnexpectedValue(format!(
                         "expected BinOp::left to be numeric value, got {0:?}",
                         lv
@@ -234,7 +234,7 @@ impl Evaluable for BinOp {
                     Value::Short(lv_raw) => eval_min(lv_raw, rv()?),
                     Value::Int(lv_raw) => eval_min(lv_raw, rv()?),
                     Value::Long(lv_raw) => eval_min(lv_raw, rv()?),
-                    Value::BigInt => todo!(),
+                    Value::BigInt(_) => todo!(),
                     _ => Err(EvalError::UnexpectedValue(format!(
                         "expected BinOp::left to be numeric value, got {0:?}",
                         lv
