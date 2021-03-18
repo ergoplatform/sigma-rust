@@ -3,6 +3,7 @@
 use std::convert::TryInto;
 
 use impl_trait_for_tuples::impl_for_tuples;
+use num_bigint::BigInt;
 
 use crate::ir_ergo_box::IrBoxId;
 use crate::serialization::types::TypeCode;
@@ -167,6 +168,12 @@ impl LiftIntoSType for ProveDlog {
 impl LiftIntoSType for EcPoint {
     fn stype() -> SType {
         SType::SGroupElement
+    }
+}
+
+impl LiftIntoSType for BigInt {
+    fn stype() -> SType {
+        SType::SBigInt
     }
 }
 

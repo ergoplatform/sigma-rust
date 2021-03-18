@@ -171,6 +171,7 @@ impl StoreWrapped for bool {}
 impl StoreWrapped for i16 {}
 impl StoreWrapped for i32 {}
 impl StoreWrapped for i64 {}
+impl StoreWrapped for BigInt {}
 impl StoreWrapped for IrBoxId {}
 impl StoreWrapped for EcPoint {}
 impl StoreWrapped for SigmaProp {}
@@ -334,6 +335,19 @@ impl TryExtractFrom<Value> for Vec<u8> {
 impl TryExtractFrom<Value> for Value {
     fn try_extract_from(v: Value) -> Result<Self, TryExtractFromError> {
         Ok(v)
+    }
+}
+
+impl TryExtractFrom<Value> for BigInt {
+    fn try_extract_from(v: Value) -> Result<Self, TryExtractFromError> {
+        match v {
+            Value::BigInt(bi) => Ok(bi),
+            _ => Err(TryExtractFromError(format!(
+                "expected {:?}, found {:?}",
+                std::any::type_name::<Self>(),
+                v
+            ))),
+        }
     }
 }
 
