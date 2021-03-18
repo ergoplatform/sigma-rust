@@ -34,6 +34,7 @@ use super::global_vars::GlobalVars;
 use super::if_op::If;
 use super::logical_not::LogicalNot;
 use super::method_call::MethodCall;
+use super::negation::Negation;
 use super::option_get::OptionGet;
 use super::option_get_or_else::OptionGetOrElse;
 use super::option_is_defined::OptionIsDefined;
@@ -90,6 +91,8 @@ pub enum Expr {
     Or(Or),
     /// LogicalNot
     LogicalNot(LogicalNot),
+    /// Negation on numeric type
+    Negation(Negation),
     /// Option.get method
     OptionGet(OptionGet),
     /// Option.isDefined method
@@ -172,6 +175,7 @@ impl Expr {
             Expr::SigmaPropBytes(op) => op.op_code(),
             Expr::OptionIsDefined(op) => op.op_code(),
             Expr::OptionGetOrElse(op) => op.op_code(),
+            Expr::Negation(op) => op.op_code(),
         }
     }
 
@@ -215,6 +219,7 @@ impl Expr {
             Expr::SigmaPropBytes(v) => v.tpe(),
             Expr::OptionIsDefined(v) => v.tpe(),
             Expr::OptionGetOrElse(v) => v.tpe(),
+            Expr::Negation(v) => v.tpe(),
         }
     }
 
@@ -367,6 +372,12 @@ pub(crate) mod arbitrary {
         prop_oneof![Just(GlobalVars::Height.into()),].boxed()
     }
 
+    fn constant(tpe: &SType) -> BoxedStrategy<Expr> {
+        any_with::<Constant>(tpe.clone().into())
+            .prop_map_into()
+            .boxed()
+    }
+
     fn bool_non_nested_expr() -> BoxedStrategy<Expr> {
         prop_oneof![any_with::<Constant>(SType::SBoolean.into()).prop_map_into()].boxed()
     }
@@ -393,7 +404,7 @@ pub(crate) mod arbitrary {
             SType::SInt => int_non_nested_expr(),
             SType::SBoolean => bool_non_nested_expr(),
             SType::SColl(elem_type) => coll_non_nested_expr(elem_type),
-            _ => todo!("{0:?} is not yet implemented", tpe),
+            t => constant(t),
         }
     }
 

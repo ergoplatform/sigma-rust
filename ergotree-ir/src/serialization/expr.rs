@@ -31,6 +31,7 @@ use crate::mir::global_vars::GlobalVars;
 use crate::mir::if_op::If;
 use crate::mir::logical_not::LogicalNot;
 use crate::mir::method_call::MethodCall;
+use crate::mir::negation::Negation;
 use crate::mir::option_get::OptionGet;
 use crate::mir::option_get_or_else::OptionGetOrElse;
 use crate::mir::option_is_defined::OptionIsDefined;
@@ -99,6 +100,7 @@ impl SigmaSerializable for Expr {
                     Expr::SigmaPropBytes(op) => op.sigma_serialize(w),
                     Expr::OptionIsDefined(op) => op.sigma_serialize(w),
                     Expr::OptionGetOrElse(op) => op.sigma_serialize(w),
+                    Expr::Negation(op) => op.sigma_serialize(w),
                 }
             }
         }
@@ -148,6 +150,7 @@ impl SigmaSerializable for Expr {
                 ExtractId::OP_CODE => Ok(ExtractId::sigma_parse(r)?.into()),
                 OpCode::EQ => Ok(bin_op_sigma_parse(RelationOp::Eq.into(), r)?),
                 OpCode::NEQ => Ok(bin_op_sigma_parse(RelationOp::NEq.into(), r)?),
+                Negation::OP_CODE => Ok(Negation::sigma_parse(r)?.into()),
                 OpCode::LOGICAL_NOT => Ok(LogicalNot::sigma_parse(r)?.into()),
                 OpCode::BIN_AND => Ok(bin_op_sigma_parse(RelationOp::And.into(), r)?),
                 OpCode::BIN_OR => Ok(bin_op_sigma_parse(RelationOp::Or.into(), r)?),

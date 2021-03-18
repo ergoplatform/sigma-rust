@@ -44,6 +44,8 @@ pub mod if_op;
 pub mod logical_not;
 /// Object method call
 pub mod method_call;
+/// Negation operation on numeric type.
+pub mod negation;
 /// Option.get() op
 pub mod option_get;
 /// Returns the Option's value or error if no value
