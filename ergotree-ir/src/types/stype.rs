@@ -85,6 +85,14 @@ impl SType {
     pub fn type_companion(&self) -> Option<Box<STypeCompanion>> {
         todo!()
     }
+
+    /// Check if type is numeric
+    pub fn is_numeric(&self) -> bool {
+        matches!(
+            self,
+            SType::SByte | SType::SShort | SType::SInt | SType::SLong | SType::SBigInt
+        )
+    }
 }
 
 impl From<STuple> for SType {

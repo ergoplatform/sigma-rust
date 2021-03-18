@@ -20,7 +20,7 @@ impl Negation {
     /// Create new object, returns an error if any of the requirements failed
     pub fn new(input: Expr) -> Result<Self, InvalidArgumentError> {
         match input.post_eval_tpe() {
-            SType::SByte | SType::SShort | SType::SInt | SType::SLong => Ok(Self {
+            SType::SByte | SType::SShort | SType::SInt | SType::SLong  => Ok(Self {
                 input: input.into(),
             }),
             tpe => Err(InvalidArgumentError(format!(

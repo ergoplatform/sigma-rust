@@ -1,6 +1,7 @@
 //! Numerical upcast
 
 use super::expr::Expr;
+use super::expr::InvalidArgumentError;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
@@ -21,6 +22,28 @@ pub struct Upcast {
 
 impl Upcast {
     pub(crate) const OP_CODE: OpCode = OpCode::UPCAST;
+
+    /// Create new object, returns an error if any of the requirements failed
+    pub fn new(input: Expr, target_tpe: SType) -> Result<Self, InvalidArgumentError> {
+        if !target_tpe.is_numeric() {
+            return Err(InvalidArgumentError(format!(
+                "Upcast: expected target type to be numeric, got {:?}",
+                target_tpe
+            )));
+        }
+        let post_eval_tpe = input.post_eval_tpe();
+        if post_eval_tpe.is_numeric() {
+            Ok(Self {
+                input: input.into(),
+                tpe: target_tpe,
+            })
+        } else {
+            Err(InvalidArgumentError(format!(
+                "Upcast: expected input value type to be numeric, got {:?}",
+                post_eval_tpe
+            )))
+        }
+    }
 
     pub(crate) fn op_code(&self) -> OpCode {
         Self::OP_CODE
@@ -62,10 +85,7 @@ mod arbitrary {
                 tpe: SType::SInt,
                 depth: 2,
             })
-            .prop_map(|input| Upcast {
-                input: Box::new(input),
-                tpe: SType::SLong,
-            })
+            .prop_map(|input| Upcast::new(input, SType::SLong).unwrap())
             .boxed()
         }
     }
