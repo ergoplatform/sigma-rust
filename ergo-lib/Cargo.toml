@@ -17,7 +17,7 @@ crate-type = ["cdylib", "rlib"]
 sigma-ser = { version = "^0.2.0", path = "../sigma-ser" }
 sigma-util = { version = "^0.2.0", path = "../sigma-util" }
 ergotree-ir = { version = "^0.8.0", path = "../ergotree-ir" }
-ergotree-interpreter = { version = "^0.7.0", path = "../ergotree-interpreter" }
+ergotree-interpreter = { version = "^0.8.0", path = "../ergotree-interpreter" }
 ergoscript-compiler = { version = "^0.4.0", path = "../ergoscript-compiler" , optional = true}
 indexmap = "1.3.2"
 base16 = "0.2.1"
@@ -36,7 +36,7 @@ wasm-bindgen-test = "0.3.10"
 proptest-derive = "0.3.0"
 rand = "0.7.3"
 ergotree-ir = { version = "^0.8.0", path = "../ergotree-ir", features = ["arbitrary"] }
-ergotree-interpreter = { version = "^0.7.0", path = "../ergotree-interpreter", features = ["arbitrary"] }
+ergotree-interpreter = { version = "^0.8.0", path = "../ergotree-interpreter", features = ["arbitrary"] }
 sigma-test-util = { version = "0.2.0", path = "../sigma-test-util" }
 
 [dev-dependencies.proptest]
