@@ -68,56 +68,6 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 
 ### Object properties and methods
 
-#### Byte
-
-- toByte
-- toShort
-- toInt
-- toLong
-- toBigInt
-- toBytes
-- toBits
-
-#### Short
-
-- toByte
-- toShort
-- toInt
-- toLong
-- toBigInt
-- toBytes
-- toBits
-
-#### Int
-
-- toByte
-- toShort
-- toInt
-- toLong
-- toBigInt
-- toBytes
-- toBits
-
-#### Long
-
-- toByte
-- toShort
-- toInt
-- toLong
-- toBigInt
-- toBytes
-- toBits
-
-#### BigInt
-
-- toByte
-- toShort
-- toInt
-- toLong
-- toBigInt
-- toBytes
-- toBits
-
 #### GroupElement
 
 - getEncoded
