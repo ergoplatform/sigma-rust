@@ -14,6 +14,7 @@ impl Evaluable for Negation {
             Value::Short(v) => Ok((-v).into()),
             Value::Int(v) => Ok((-v).into()),
             Value::Long(v) => Ok((-v).into()),
+            Value::BigInt(v) => Ok((-v).into()),
             _ => Err(EvalError::UnexpectedValue(format!(
                 "Expected Negation input to be numeric value, got {:?}",
                 input_v
@@ -30,7 +31,8 @@ mod tests {
     use ergotree_ir::mir::constant::Constant;
     use ergotree_ir::mir::constant::TryExtractFrom;
     use ergotree_ir::mir::expr::Expr;
-    use num::Num;
+    use num_bigint::ToBigInt;
+    use num_traits::Num;
 
     fn run_eval<T: Num + Into<Constant> + TryExtractFrom<Value>>(input: T) -> T {
         let expr: Expr = Negation::new(Expr::Const(input.into())).unwrap().into();
@@ -43,5 +45,9 @@ mod tests {
         assert_eq!(run_eval(1i16), -1i16);
         assert_eq!(run_eval(1i32), -1i32);
         assert_eq!(run_eval(1i64), -1i64);
+        assert_eq!(
+            run_eval(1i64.to_bigint().unwrap()),
+            (-1i64).to_bigint().unwrap()
+        );
     }
 }

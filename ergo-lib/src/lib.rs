@@ -13,8 +13,6 @@
 #![allow(clippy::unit_arg)]
 #![deny(broken_intra_doc_links)]
 
-mod big_integer;
-
 pub mod chain;
 pub mod constants;
 pub mod wallet;

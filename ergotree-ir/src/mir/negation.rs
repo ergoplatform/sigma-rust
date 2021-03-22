@@ -19,15 +19,16 @@ impl Negation {
 
     /// Create new object, returns an error if any of the requirements failed
     pub fn new(input: Expr) -> Result<Self, InvalidArgumentError> {
-        match input.post_eval_tpe() {
-            SType::SByte | SType::SShort | SType::SInt | SType::SLong => Ok(Self {
-                input: input.into(),
-            }),
-            tpe => Err(InvalidArgumentError(format!(
+        let post_eval_tpe = input.post_eval_tpe();
+        if !post_eval_tpe.is_numeric() {
+            return Err(InvalidArgumentError(format!(
                 "Negation: expected input type to be numeric, got {:?}",
-                tpe
-            ))),
+                post_eval_tpe
+            )));
         }
+        Ok(Self {
+            input: input.into(),
+        })
     }
 
     /// Type

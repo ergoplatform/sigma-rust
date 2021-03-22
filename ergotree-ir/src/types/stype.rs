@@ -3,6 +3,7 @@
 use std::convert::TryInto;
 
 use impl_trait_for_tuples::impl_for_tuples;
+use num_bigint::BigInt;
 
 use crate::ir_ergo_box::IrBoxId;
 use crate::serialization::types::TypeCode;
@@ -83,6 +84,14 @@ impl SType {
     /// Get STypeCompanion instance associated with this SType
     pub fn type_companion(&self) -> Option<Box<STypeCompanion>> {
         todo!()
+    }
+
+    /// Check if type is numeric
+    pub fn is_numeric(&self) -> bool {
+        matches!(
+            self,
+            SType::SByte | SType::SShort | SType::SInt | SType::SLong | SType::SBigInt
+        )
     }
 }
 
@@ -167,6 +176,12 @@ impl LiftIntoSType for ProveDlog {
 impl LiftIntoSType for EcPoint {
     fn stype() -> SType {
         SType::SGroupElement
+    }
+}
+
+impl LiftIntoSType for BigInt {
+    fn stype() -> SType {
+        SType::SBigInt
     }
 }
 

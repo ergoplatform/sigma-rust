@@ -8,11 +8,12 @@ use ergotree_ir::mir::constant::TryExtractFrom;
 use ergotree_ir::mir::constant::TryExtractInto;
 use ergotree_ir::mir::value::Value;
 use eval::costs::Costs;
-use num::CheckedAdd;
-use num::CheckedDiv;
-use num::CheckedMul;
-use num::CheckedSub;
-use num::Num;
+use num_bigint::BigInt;
+use num_traits::CheckedAdd;
+use num_traits::CheckedDiv;
+use num_traits::CheckedMul;
+use num_traits::CheckedSub;
+use num_traits::Num;
 
 use crate::eval;
 use crate::eval::env::Env;
@@ -82,7 +83,7 @@ fn eval_ge(lv: Value, rv: Value) -> Result<Value, EvalError> {
         Value::Short(lv_raw) => Ok((lv_raw >= rv.try_extract_into::<i16>()?).into()),
         Value::Int(lv_raw) => Ok((lv_raw >= rv.try_extract_into::<i32>()?).into()),
         Value::Long(lv_raw) => Ok((lv_raw >= rv.try_extract_into::<i64>()?).into()),
-        Value::BigInt => todo!(),
+        Value::BigInt(lv_raw) => Ok((lv_raw >= rv.try_extract_into::<BigInt>()?).into()),
         _ => Err(EvalError::UnexpectedValue(format!(
             "expected BinOp::left to be numeric value, got {0:?}",
             lv
@@ -96,7 +97,7 @@ fn eval_gt(lv: Value, rv: Value) -> Result<Value, EvalError> {
         Value::Short(lv_raw) => Ok((lv_raw > rv.try_extract_into::<i16>()?).into()),
         Value::Int(lv_raw) => Ok((lv_raw > rv.try_extract_into::<i32>()?).into()),
         Value::Long(lv_raw) => Ok((lv_raw > rv.try_extract_into::<i64>()?).into()),
-        Value::BigInt => todo!(),
+        Value::BigInt(lv_raw) => Ok((lv_raw > rv.try_extract_into::<BigInt>()?).into()),
         _ => Err(EvalError::UnexpectedValue(format!(
             "expected BinOp::left to be numeric value, got {0:?}",
             lv
@@ -110,7 +111,7 @@ fn eval_lt(lv: Value, rv: Value) -> Result<Value, EvalError> {
         Value::Short(lv_raw) => Ok((lv_raw < rv.try_extract_into::<i16>()?).into()),
         Value::Int(lv_raw) => Ok((lv_raw < rv.try_extract_into::<i32>()?).into()),
         Value::Long(lv_raw) => Ok((lv_raw < rv.try_extract_into::<i64>()?).into()),
-        Value::BigInt => todo!(),
+        Value::BigInt(lv_raw) => Ok((lv_raw < rv.try_extract_into::<BigInt>()?).into()),
         _ => Err(EvalError::UnexpectedValue(format!(
             "expected BinOp::left to be numeric value, got {0:?}",
             lv
@@ -124,7 +125,7 @@ fn eval_le(lv: Value, rv: Value) -> Result<Value, EvalError> {
         Value::Short(lv_raw) => Ok((lv_raw <= rv.try_extract_into::<i16>()?).into()),
         Value::Int(lv_raw) => Ok((lv_raw <= rv.try_extract_into::<i32>()?).into()),
         Value::Long(lv_raw) => Ok((lv_raw <= rv.try_extract_into::<i64>()?).into()),
-        Value::BigInt => todo!(),
+        Value::BigInt(lv_raw) => Ok((lv_raw <= rv.try_extract_into::<BigInt>()?).into()),
         _ => Err(EvalError::UnexpectedValue(format!(
             "expected BinOp::left to be numeric value, got {0:?}",
             lv
@@ -179,7 +180,7 @@ impl Evaluable for BinOp {
                     Value::Short(lv_raw) => eval_plus(lv_raw, rv()?),
                     Value::Int(lv_raw) => eval_plus(lv_raw, rv()?),
                     Value::Long(lv_raw) => eval_plus(lv_raw, rv()?),
-                    Value::BigInt => todo!(),
+                    Value::BigInt(lv_raw) => eval_plus(lv_raw, rv()?),
                     _ => Err(EvalError::UnexpectedValue(format!(
                         "expected BinOp::left to be numeric value, got {0:?}",
                         lv
@@ -190,7 +191,7 @@ impl Evaluable for BinOp {
                     Value::Short(lv_raw) => eval_minus(lv_raw, rv()?),
                     Value::Int(lv_raw) => eval_minus(lv_raw, rv()?),
                     Value::Long(lv_raw) => eval_minus(lv_raw, rv()?),
-                    Value::BigInt => todo!(),
+                    Value::BigInt(lv_raw) => eval_minus(lv_raw, rv()?),
                     _ => Err(EvalError::UnexpectedValue(format!(
                         "expected BinOp::left to be numeric value, got {0:?}",
                         lv
@@ -201,7 +202,7 @@ impl Evaluable for BinOp {
                     Value::Short(lv_raw) => eval_mul(lv_raw, rv()?),
                     Value::Int(lv_raw) => eval_mul(lv_raw, rv()?),
                     Value::Long(lv_raw) => eval_mul(lv_raw, rv()?),
-                    Value::BigInt => todo!(),
+                    Value::BigInt(lv_raw) => eval_mul(lv_raw, rv()?),
                     _ => Err(EvalError::UnexpectedValue(format!(
                         "expected BinOp::left to be numeric value, got {0:?}",
                         lv
@@ -212,7 +213,7 @@ impl Evaluable for BinOp {
                     Value::Short(lv_raw) => eval_div(lv_raw, rv()?),
                     Value::Int(lv_raw) => eval_div(lv_raw, rv()?),
                     Value::Long(lv_raw) => eval_div(lv_raw, rv()?),
-                    Value::BigInt => todo!(),
+                    Value::BigInt(lv_raw) => eval_div(lv_raw, rv()?),
                     _ => Err(EvalError::UnexpectedValue(format!(
                         "expected BinOp::left to be numeric value, got {0:?}",
                         lv
@@ -223,7 +224,7 @@ impl Evaluable for BinOp {
                     Value::Short(lv_raw) => eval_max(lv_raw, rv()?),
                     Value::Int(lv_raw) => eval_max(lv_raw, rv()?),
                     Value::Long(lv_raw) => eval_max(lv_raw, rv()?),
-                    Value::BigInt => todo!(),
+                    Value::BigInt(lv_raw) => eval_max(lv_raw, rv()?),
                     _ => Err(EvalError::UnexpectedValue(format!(
                         "expected BinOp::left to be numeric value, got {0:?}",
                         lv
@@ -234,7 +235,7 @@ impl Evaluable for BinOp {
                     Value::Short(lv_raw) => eval_min(lv_raw, rv()?),
                     Value::Int(lv_raw) => eval_min(lv_raw, rv()?),
                     Value::Long(lv_raw) => eval_min(lv_raw, rv()?),
-                    Value::BigInt => todo!(),
+                    Value::BigInt(lv_raw) => eval_min(lv_raw, rv()?),
                     _ => Err(EvalError::UnexpectedValue(format!(
                         "expected BinOp::left to be numeric value, got {0:?}",
                         lv
@@ -253,6 +254,7 @@ mod tests {
     use crate::eval::tests::try_eval_out;
     use ergotree_ir::mir::constant::Constant;
     use ergotree_ir::mir::expr::Expr;
+    use num_bigint::ToBigInt;
     use proptest::prelude::*;
     use sigma_test_util::force_any_val;
     use std::rc::Rc;
@@ -457,6 +459,24 @@ mod tests {
             prop_assert_eq!(eval_relation_op(RelationOp::LT, l.into(), r.into()), l < r);
             prop_assert_eq!(eval_relation_op(RelationOp::GE, l.into(), r.into()), l >= r);
             prop_assert_eq!(eval_relation_op(RelationOp::LE, l.into(), r.into()), l <= r);
+        }
+
+        #[test]
+        fn test_num_bigint(l_long in any::<i64>(), r_long in any::<i64>()) {
+            let l = l_long.to_bigint().unwrap();
+            let r = r_long.to_bigint().unwrap();
+            prop_assert_eq!(eval_num_op(ArithOp::Plus, l.clone().into(), r.clone().into()).ok(), l.checked_add(&r));
+            prop_assert_eq!(eval_num_op(ArithOp::Minus, l.clone().into(), r.clone().into()).ok(), l.checked_sub(&r));
+            prop_assert_eq!(eval_num_op(ArithOp::Multiply, l.clone().into(), r.clone().into()).ok(), l.checked_mul(&r));
+            prop_assert_eq!(eval_num_op(ArithOp::Divide, l.clone().into(), r.clone().into()).ok(), l.checked_div(&r));
+            prop_assert_eq!(eval_num_op::<BigInt>(ArithOp::Max, l.clone().into(),
+                    r.clone().into()).unwrap(), l.clone().max(r.clone()));
+            prop_assert_eq!(eval_num_op::<BigInt>(ArithOp::Min, l.clone().into(),
+                    r.clone().into()).unwrap(), l.clone().min(r.clone()));
+            prop_assert_eq!(eval_relation_op(RelationOp::GT, l.clone().into(), r.clone().into()), l > r);
+            prop_assert_eq!(eval_relation_op(RelationOp::LT, l.clone().into(), r.clone().into()), l < r);
+            prop_assert_eq!(eval_relation_op(RelationOp::GE, l.clone().into(), r.clone().into()), l >= r);
+            prop_assert_eq!(eval_relation_op(RelationOp::LE, l.clone().into(), r.clone().into()), l <= r);
         }
 
         #[test]

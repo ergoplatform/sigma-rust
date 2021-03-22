@@ -8,6 +8,7 @@ use crate::sigma_protocol::{dlog_group::EcPoint, sigma_boolean::SigmaProp};
 use crate::types::stype::LiftIntoSType;
 use crate::types::stype::SType;
 use impl_trait_for_tuples::impl_for_tuples;
+use num_bigint::BigInt;
 use std::convert::TryInto;
 
 mod constant_placeholder;
@@ -148,6 +149,15 @@ impl From<ProveDlog> for Constant {
     }
 }
 
+impl From<BigInt> for Constant {
+    fn from(b: BigInt) -> Self {
+        Constant {
+            tpe: SType::SBigInt,
+            v: b.into(),
+        }
+    }
+}
+
 #[impl_for_tuples(2, 4)]
 impl Into<Constant> for Tuple {
     fn into(self) -> Constant {
@@ -198,6 +208,7 @@ pub(crate) mod arbitrary {
 
     use super::*;
     use crate::types::stuple::STuple;
+    use num_bigint::ToBigInt;
     use proptest::collection::vec;
     use proptest::prelude::*;
 
@@ -212,6 +223,7 @@ pub(crate) mod arbitrary {
             any::<i16>().prop_map_into(),
             any::<i32>().prop_map_into(),
             any::<i64>().prop_map_into(),
+            any::<i64>().prop_map(|v| v.to_bigint().unwrap().into()),
             any::<EcPoint>().prop_map_into(),
             any::<SigmaProp>().prop_map_into(),
             // although it's not strictly a primitive type, byte array is widely used as one
@@ -251,7 +263,9 @@ pub(crate) mod arbitrary {
             SType::SShort => any::<i16>().prop_map_into().boxed(),
             SType::SInt => any::<i32>().prop_map_into().boxed(),
             SType::SLong => any::<i64>().prop_map_into().boxed(),
-            // SType::SBigInt => {}
+            SType::SBigInt => any::<i64>()
+                .prop_map(|v| v.to_bigint().unwrap().into())
+                .boxed(),
             SType::SGroupElement => any::<EcPoint>().prop_map_into().boxed(),
             SType::SSigmaProp => any::<SigmaProp>().prop_map_into().boxed(),
             // SType::SBox => {}
@@ -348,6 +362,7 @@ pub(crate) mod arbitrary {
 pub mod tests {
     use super::*;
     use core::fmt;
+    use num_bigint::ToBigInt;
     use proptest::prelude::*;
 
     fn test_constant_roundtrip<T>(v: T)
@@ -360,6 +375,8 @@ pub mod tests {
     }
 
     proptest! {
+
+        #![proptest_config(ProptestConfig::with_cases(8))]
 
         #[test]
         fn bool_roundtrip(v in any::<bool>()) {
@@ -383,6 +400,12 @@ pub mod tests {
 
         #[test]
         fn i64_roundtrip(v in any::<i64>()) {
+            test_constant_roundtrip(v);
+        }
+
+        #[test]
+        fn bigint_roundtrip(raw in any::<i64>()) {
+            let v = raw.to_bigint().unwrap();
             test_constant_roundtrip(v);
         }
 
@@ -418,6 +441,18 @@ pub mod tests {
 
         #[test]
         fn vec_i64_roundtrip(v in any::<Vec<i64>>()) {
+            test_constant_roundtrip(v);
+        }
+
+        #[test]
+        fn vec_bigint_roundtrip(raw in any::<Vec<i64>>()) {
+            let v: Vec<BigInt> = raw.into_iter().map(|i| i.to_bigint().unwrap()).collect();
+            test_constant_roundtrip(v);
+        }
+
+        #[test]
+        fn vec_option_bigint_roundtrip(raw in any::<Vec<i64>>()) {
+            let v: Vec<Option<BigInt>> = raw.into_iter().map(|i| i.to_bigint()).collect();
             test_constant_roundtrip(v);
         }
 
