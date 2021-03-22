@@ -1,4 +1,4 @@
-#![allow(missing_docs)]
+use crate::serialization::types::TypeCode;
 
 use super::sfunc::SFunc;
 use super::smethod::MethodId;
@@ -8,12 +8,11 @@ use super::stuple::STuple;
 use super::stype::SType;
 use super::stype_companion::STypeCompanion;
 use super::stype_companion::STypeCompanionHead;
-use super::stype_companion::TypeId;
 use super::stype_param::STypeVar;
 use lazy_static::lazy_static;
 
 /// SBox type id
-pub const TYPE_ID: TypeId = TypeId(99);
+pub const TYPE_ID: TypeCode = TypeCode::SBOX;
 /// Box.value property
 pub const VALUE_METHOD_ID: MethodId = MethodId(1);
 /// Box.Rx property
@@ -27,6 +26,7 @@ static S_BOX_TYPE_COMPANION_HEAD: STypeCompanionHead = STypeCompanionHead {
 };
 
 lazy_static! {
+    /// Box object type companion
     pub static ref S_BOX_TYPE_COMPANION: STypeCompanion = STypeCompanion::new(
         &S_BOX_TYPE_COMPANION_HEAD,
         vec![
@@ -47,6 +47,7 @@ lazy_static! {
             tpe_params: vec![],
         }),
     };
+    /// Box.value
     pub static ref VALUE_METHOD: SMethod = SMethod::new(&S_BOX_TYPE_COMPANION, &VALUE_METHOD_DESC,);
 }
 
@@ -60,6 +61,7 @@ lazy_static! {
             tpe_params: vec![],
         }),
     };
+    /// Box.getReg
     pub static ref GET_REG_METHOD: SMethod =
         SMethod::new(&S_BOX_TYPE_COMPANION, &GET_REG_METHOD_DESC,);
 }
@@ -77,6 +79,7 @@ lazy_static! {
             tpe_params: vec![],
         }),
     };
+    /// Box.tokens
     pub static ref TOKENS_METHOD: SMethod =
         SMethod::new(&S_BOX_TYPE_COMPANION, &TOKENS_METHOD_DESC,);
 }

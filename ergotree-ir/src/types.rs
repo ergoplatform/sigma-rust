@@ -2,8 +2,10 @@
 
 pub mod stype;
 
-/// Type representing a box
+/// Box object type companion
 pub mod sbox;
+/// Collection object type companion
+pub mod scoll;
 pub mod scontext;
 /// Function signature type
 pub mod sfunc;

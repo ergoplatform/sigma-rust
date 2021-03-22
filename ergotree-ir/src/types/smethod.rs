@@ -1,12 +1,12 @@
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
+use crate::serialization::types::TypeCode;
 use crate::serialization::SerializationError;
 use crate::serialization::SigmaSerializable;
 use std::io::Error;
 
 use super::stype::SType;
 use super::stype_companion::STypeCompanion;
-use super::stype_companion::TypeId;
 
 /// Method id unique among the methods of the same object
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -43,7 +43,7 @@ impl SMethod {
     }
 
     /// Get method from type and method ids
-    pub fn from_ids(type_id: TypeId, method_id: MethodId) -> Self {
+    pub fn from_ids(type_id: TypeCode, method_id: MethodId) -> Self {
         let obj_type = STypeCompanion::type_by_id(type_id);
         match obj_type.method_by_id(&method_id) {
             Some(m) => m,

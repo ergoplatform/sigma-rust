@@ -11,7 +11,7 @@ use std::convert::TryInto;
 use std::{io, ops::Add};
 use vlq_encode::WriteSigmaVlqExt;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct TypeCode(u8);
 
 impl TypeCode {
@@ -32,6 +32,8 @@ impl TypeCode {
     pub const SSIGMAPROP: TypeCode = Self::new(8);
 
     pub const SANY: TypeCode = Self::new(97);
+    pub const SBOX: TypeCode = Self::new(99);
+    pub const SCONTEXT: TypeCode = Self::new(101);
 
     const COLLECTION_CONSTR_ID: u8 = 1;
     pub const COLLECTION: TypeCode =

@@ -1,10 +1,6 @@
 use std::fmt::Debug;
-use std::io::Error;
 
-use crate::serialization::sigma_byte_reader::SigmaByteRead;
-use crate::serialization::sigma_byte_writer::SigmaByteWrite;
-use crate::serialization::SerializationError;
-use crate::serialization::SigmaSerializable;
+use crate::serialization::types::TypeCode;
 
 use super::sbox;
 use super::scontext;
@@ -12,23 +8,9 @@ use super::smethod::MethodId;
 use super::smethod::SMethod;
 use super::smethod::SMethodDesc;
 
-/// Object type id
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
-pub struct TypeId(pub u8);
-
-impl SigmaSerializable for TypeId {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), Error> {
-        w.put_u8(self.0)
-    }
-
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
-        Ok(Self(r.get_u8()?))
-    }
-}
-
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub(crate) struct STypeCompanionHead {
-    pub type_id: TypeId,
+    pub type_id: TypeCode,
     pub type_name: &'static str,
 }
 
@@ -48,7 +30,7 @@ impl STypeCompanion {
     }
 
     /// Get type companion for a givec type id
-    pub fn type_by_id(type_id: TypeId) -> &'static STypeCompanion {
+    pub fn type_by_id(type_id: TypeCode) -> &'static STypeCompanion {
         if type_id == scontext::S_CONTEXT_TYPE_COMPANION.type_id() {
             &scontext::S_CONTEXT_TYPE_COMPANION
         } else if type_id == sbox::S_BOX_TYPE_COMPANION.type_id() {
@@ -72,7 +54,7 @@ impl STypeCompanion {
     }
 
     /// Get object type id for this type companion
-    pub fn type_id(&'static self) -> TypeId {
+    pub fn type_id(&'static self) -> TypeCode {
         self.head.type_id
     }
 
