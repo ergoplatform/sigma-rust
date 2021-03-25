@@ -58,7 +58,7 @@ mod tests {
             scoll::INDEX_OF_METHOD
                 .clone()
                 .with_concrete_types(&[(STypeVar::T, SType::SLong)].iter().cloned().collect()),
-            vec![Expr::Const(2i64.into()), Expr::Const(0i32.into())],
+            vec![2i64.into(), 0i32.into()],
         )
         .unwrap()
         .into();
@@ -74,7 +74,7 @@ mod tests {
             scoll::INDEX_OF_METHOD
                 .clone()
                 .with_concrete_types(&[(STypeVar::T, SType::SLong)].iter().cloned().collect()),
-            vec![Expr::Const(3i64.into()), Expr::Const(0i32.into())],
+            vec![3i64.into(), 0i32.into()],
         )
         .unwrap()
         .into();

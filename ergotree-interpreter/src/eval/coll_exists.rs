@@ -13,14 +13,14 @@ impl Evaluable for Exists {
         let condition_v = self.condition.eval(env, ctx)?;
         let input_v_clone = input_v.clone();
         let mut condition_call = |arg: Value| match &condition_v {
-            Value::FuncValue(func_value) => {
-                let func_arg = func_value.args().first().ok_or_else(|| {
+            Value::Lambda(func_value) => {
+                let func_arg = func_value.args.first().ok_or_else(|| {
                     EvalError::NotFound(
                         "Exists: evaluated condition has empty arguments list".to_string(),
                     )
                 })?;
                 let env1 = env.clone().extend(func_arg.idx, arg);
-                func_value.body().eval(&env1, ctx)
+                func_value.body.eval(&env1, ctx)
             }
             _ => Err(EvalError::UnexpectedValue(format!(
                 "expected Exists::condition to be Value::FuncValue got: {0:?}",

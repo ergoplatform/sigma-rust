@@ -20,7 +20,8 @@ use crate::util::AsVecI8;
 use super::constant::TryExtractFrom;
 use super::constant::TryExtractFromError;
 use super::constant::TryExtractInto;
-use super::func_value::FuncValue;
+use super::expr::Expr;
+use super::func_value::FuncArg;
 
 extern crate derive_more;
 use derive_more::From;
@@ -92,6 +93,15 @@ impl CollKind {
     }
 }
 
+/// Lambda
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct Lambda {
+    /// Argument placeholders
+    pub args: Vec<FuncArg>,
+    /// Body
+    pub body: Box<Expr>,
+}
+
 /// Runtime value
 #[derive(PartialEq, Eq, Debug, Clone, From)]
 pub enum Value {
@@ -123,9 +133,8 @@ pub enum Value {
     Context,
     /// Optional value
     Opt(Box<Option<Value>>),
-    // TODO: use different struct (Lambda?)
     /// lambda
-    FuncValue(FuncValue),
+    Lambda(Lambda),
 }
 
 impl Value {

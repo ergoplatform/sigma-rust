@@ -4,6 +4,7 @@ use std::convert::TryFrom;
 use std::convert::TryInto;
 
 use crate::serialization::op_code::OpCode;
+use crate::types::stype::LiftIntoSType;
 use crate::types::stype::SType;
 
 use super::and::And;
@@ -45,6 +46,7 @@ use super::sigma_prop_bytes::SigmaPropBytes;
 use super::upcast::Upcast;
 use super::val_def::ValDef;
 use super::val_use::ValUse;
+use super::value::Value;
 
 extern crate derive_more;
 use derive_more::From;
@@ -248,6 +250,15 @@ impl Expr {
     pub fn debug_tree(&self) -> String {
         let tree = format!("{:#?}", self);
         tree
+    }
+}
+
+impl<T: Into<Value> + LiftIntoSType> From<T> for Expr {
+    fn from(t: T) -> Self {
+        Expr::Const(Constant {
+            tpe: T::stype(),
+            v: t.into(),
+        })
     }
 }
 

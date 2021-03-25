@@ -13,14 +13,14 @@ impl Evaluable for Map {
         let mapper_v = self.mapper.eval(env, ctx)?;
         let input_v_clone = input_v.clone();
         let mut mapper_call = |arg: Value| match &mapper_v {
-            Value::FuncValue(func_value) => {
-                let func_arg = func_value.args().first().ok_or_else(|| {
+            Value::Lambda(func_value) => {
+                let func_arg = func_value.args.first().ok_or_else(|| {
                     EvalError::NotFound(
                         "Map: evaluated mapper has empty arguments list".to_string(),
                     )
                 })?;
                 let env1 = env.clone().extend(func_arg.idx, arg);
-                func_value.body().eval(&env1, ctx)
+                func_value.body.eval(&env1, ctx)
             }
             _ => Err(EvalError::UnexpectedValue(format!(
                 "expected mapper to be Value::FuncValue got: {0:?}",
