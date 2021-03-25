@@ -14,9 +14,11 @@ pub struct PropertyCall {
 }
 
 impl PropertyCall {
+    // TODO: checked `new`
+
     /// Type
     pub fn tpe(&self) -> SType {
-        self.method.tpe().clone()
+        *self.method.tpe().t_range.clone()
     }
 
     pub(crate) fn op_code(&self) -> OpCode {

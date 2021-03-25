@@ -3,10 +3,13 @@ use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::types::TypeCode;
 use crate::serialization::SerializationError;
 use crate::serialization::SigmaSerializable;
+use std::collections::HashMap;
 use std::io::Error;
 
+use super::sfunc::SFunc;
 use super::stype::SType;
 use super::stype_companion::STypeCompanion;
+use super::stype_param::STypeVar;
 
 /// Method id unique among the methods of the same object
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -27,15 +30,12 @@ impl SigmaSerializable for MethodId {
 pub struct SMethod {
     /// Object type companion
     pub obj_type: &'static STypeCompanion,
-    method_raw: &'static SMethodDesc,
+    method_raw: SMethodDesc,
 }
 
 impl SMethod {
     /// Create new SMethod
-    pub(crate) fn new(
-        obj_type: &'static STypeCompanion,
-        method_raw: &'static SMethodDesc,
-    ) -> SMethod {
+    pub(crate) const fn new(obj_type: &'static STypeCompanion, method_raw: SMethodDesc) -> SMethod {
         SMethod {
             obj_type,
             method_raw,
@@ -55,7 +55,7 @@ impl SMethod {
     }
 
     /// Type
-    pub fn tpe(&self) -> &SType {
+    pub fn tpe(&self) -> &SFunc {
         &self.method_raw.tpe
     }
 
@@ -68,20 +68,33 @@ impl SMethod {
     pub fn method_id(&self) -> MethodId {
         self.method_raw.method_id.clone()
     }
+
+    /// Return new SMethod with type variables substituted
+    pub fn with_concrete_types(self, subst: &HashMap<STypeVar, SType>) -> Self {
+        let new_tpe = self.method_raw.tpe.clone().with_subst(subst);
+        Self {
+            method_raw: self.method_raw.with_tpe(new_tpe),
+            ..self
+        }
+    }
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub(crate) struct SMethodDesc {
     pub(crate) name: &'static str,
     pub(crate) method_id: MethodId,
-    pub(crate) tpe: SType,
+    pub(crate) tpe: SFunc,
 }
 
 impl SMethodDesc {
-    pub(crate) fn as_method(&'static self, obj_type: &'static STypeCompanion) -> SMethod {
+    pub(crate) fn as_method(&self, obj_type: &'static STypeCompanion) -> SMethod {
         SMethod {
             obj_type,
-            method_raw: self,
+            method_raw: self.clone(),
         }
+    }
+
+    pub(crate) fn with_tpe(self, tpe: SFunc) -> Self {
+        Self { tpe, ..self }
     }
 }

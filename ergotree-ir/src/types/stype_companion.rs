@@ -3,6 +3,7 @@ use std::fmt::Debug;
 use crate::serialization::types::TypeCode;
 
 use super::sbox;
+use super::scoll;
 use super::scontext;
 use super::smethod::MethodId;
 use super::smethod::SMethod;
@@ -22,7 +23,7 @@ pub struct STypeCompanion {
 }
 
 impl STypeCompanion {
-    pub(crate) fn new(
+    pub(crate) const fn new(
         head: &'static STypeCompanionHead,
         methods: Vec<&'static SMethodDesc>,
     ) -> Self {
@@ -35,6 +36,8 @@ impl STypeCompanion {
             &scontext::S_CONTEXT_TYPE_COMPANION
         } else if type_id == sbox::S_BOX_TYPE_COMPANION.type_id() {
             &sbox::S_BOX_TYPE_COMPANION
+        } else if type_id == scoll::S_COLL_TYPE_COMPANION.type_id() {
+            &scoll::S_COLL_TYPE_COMPANION
         } else {
             todo!("cannot find STypeCompanion for {0:?} type id", type_id)
         }

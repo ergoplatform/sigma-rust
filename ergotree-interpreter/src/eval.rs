@@ -54,6 +54,7 @@ pub(crate) mod option_is_defined;
 pub(crate) mod or;
 pub(crate) mod property_call;
 pub(crate) mod sbox;
+pub(crate) mod scoll;
 pub(crate) mod scontext;
 pub(crate) mod select_field;
 pub(crate) mod sigma_prop_bytes;
@@ -163,6 +164,9 @@ fn smethod_eval_fn(method: &SMethod) -> EvalFn {
             self::sbox::GET_REG_EVAL_FN
         }
         sbox::TYPE_ID if method.method_id() == sbox::TOKENS_METHOD_ID => self::sbox::TOKENS_EVAL_FN,
+        scoll::TYPE_ID if method.method_id() == scoll::INDEX_OF_METHOD_ID => {
+            self::scoll::INDEX_OF_EVAL_FN
+        }
         _ => todo!("no EvalFn for SMethod: {:?}", method),
     }
 }

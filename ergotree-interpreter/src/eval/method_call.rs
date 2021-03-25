@@ -35,11 +35,12 @@ mod tests {
 
     #[test]
     fn eval_box_get_reg() {
-        let mc: Expr = MethodCall {
-            obj: Box::new(GlobalVars::SelfBox.into()),
-            method: sbox::GET_REG_METHOD.clone(),
-            args: vec![Constant::from(0i8).into()],
-        }
+        let mc: Expr = MethodCall::new(
+            GlobalVars::SelfBox.into(),
+            sbox::GET_REG_METHOD.clone(),
+            vec![Constant::from(0i8).into()],
+        )
+        .unwrap()
         .into();
         let option_get_expr: Expr = OptionGet::new(mc).unwrap().into();
         let ctx = Rc::new(force_any_val::<Context>());

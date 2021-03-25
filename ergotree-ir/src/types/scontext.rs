@@ -23,11 +23,11 @@ lazy_static! {
     static ref DATA_INPUTS_PROPERTY_METHOD_DESC: SMethodDesc = SMethodDesc {
         method_id: DATA_INPUTS_PROPERTY_METHOD_ID,
         name: "dataInputs",
-        tpe: SType::SFunc(SFunc {
+        tpe: SFunc {
             t_dom: vec![SType::SContext],
             t_range: Box::new(SType::SColl(Box::new(SType::SBox))),
             tpe_params: vec![],
-        }),
+        },
     };
 }
 
@@ -39,6 +39,18 @@ lazy_static! {
 }
 
 lazy_static! {
-    pub static ref DATA_INPUTS_PROPERTY: SMethod =
-        SMethod::new(&S_CONTEXT_TYPE_COMPANION, &DATA_INPUTS_PROPERTY_METHOD_DESC,);
+    pub static ref DATA_INPUTS_PROPERTY: SMethod = SMethod::new(
+        &S_CONTEXT_TYPE_COMPANION,
+        DATA_INPUTS_PROPERTY_METHOD_DESC.clone(),
+    );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_from_ids() {
+        assert!(SMethod::from_ids(TYPE_ID, DATA_INPUTS_PROPERTY_METHOD_ID).name() == "dataInputs");
+    }
 }

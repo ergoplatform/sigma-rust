@@ -123,6 +123,7 @@ pub enum Value {
     Context,
     /// Optional value
     Opt(Box<Option<Value>>),
+    // TODO: use different struct (Lambda?)
     /// lambda
     FuncValue(FuncValue),
 }
@@ -132,7 +133,36 @@ impl Value {
     pub fn sigma_prop(prop: SigmaProp) -> Value {
         Value::SigmaProp(Box::new(prop))
     }
+
+    /// Compares values of if Value variants are the same, otherwise returns an error
+    pub fn checked_eq(&self, other: &Value) -> Result<bool, CheckedEqError> {
+        match (self, other) {
+            (Value::Boolean(this), Value::Boolean(that)) => Ok(this == that),
+            (Value::Byte(this), Value::Byte(that)) => Ok(this == that),
+            (Value::Short(this), Value::Short(that)) => Ok(this == that),
+            (Value::Int(this), Value::Int(that)) => Ok(this == that),
+            (Value::Long(this), Value::Long(that)) => Ok(this == that),
+            (Value::BigInt(this), Value::BigInt(that)) => Ok(this == that),
+            (Value::GroupElement(this), Value::GroupElement(that)) => Ok(this == that),
+            (Value::SigmaProp(this), Value::SigmaProp(that)) => Ok(this == that),
+            (Value::CBox(this), Value::CBox(that)) => Ok(this == that),
+            (Value::AvlTree, Value::AvlTree) => todo!(),
+            // TODO: expand
+            (Value::Coll(this), Value::Coll(that)) => Ok(this == that),
+            (Value::Tup(this), Value::Tup(that)) => Ok(this == that),
+            (Value::Context, Value::Context) => Ok(true),
+            (Value::Opt(this), Value::Opt(that)) => Ok(this == that),
+            (Value::FuncValue(this), Value::FuncValue(that)) => Ok(this == that),
+            (this, that) => Err(CheckedEqError(format!(
+                "Checked equality: expected Value's with same variants, got ({:?}, {:?})",
+                this, that
+            ))),
+        }
+    }
 }
+
+/// Error for when Value variants are not the same
+pub struct CheckedEqError(pub String);
 
 impl<T: Into<SigmaProp>> From<T> for Value {
     fn from(t: T) -> Self {

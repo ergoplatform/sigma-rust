@@ -34,12 +34,22 @@ lazy_static! {
     static ref INDEX_OF_METHOD_DESC: SMethodDesc = SMethodDesc {
         method_id: INDEX_OF_METHOD_ID,
         name: "indexOf",
-        tpe: SType::SFunc(SFunc {
-            t_dom: vec![SType::SColl(SType::STypeVar(STypeVar::T).into()), SType::SInt, SType::SInt],
+        tpe: SFunc {
+            t_dom: vec![SType::SColl(SType::STypeVar(STypeVar::T).into()), SType::STypeVar(STypeVar::T), SType::SInt],
             t_range: SType::SInt.into(),
             tpe_params: vec![],
-        }),
+        },
     };
     /// Box.value
-    pub static ref INDEX_OF_METHOD: SMethod = SMethod::new(&S_COLL_TYPE_COMPANION, &INDEX_OF_METHOD_DESC);
+    pub static ref INDEX_OF_METHOD: SMethod = SMethod::new(&S_COLL_TYPE_COMPANION, INDEX_OF_METHOD_DESC.clone());
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_from_ids() {
+        assert!(SMethod::from_ids(TYPE_ID, INDEX_OF_METHOD_ID).name() == "indexOf");
+    }
 }
