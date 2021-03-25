@@ -90,16 +90,14 @@ mod tests {
     use ergotree_ir::types::stype::SType;
     use proptest::prelude::*;
 
+    // PropertyCall {$an: Box::new($a), $bn: $b} ==>> PropertyCall::new($a, $b).unwrap()
     proptest! {
 
         #![proptest_config(ProptestConfig::with_cases(16))]
 
         #[test]
         fn eval_box_value(ctx in any::<Context>()) {
-            let data_inputs: Expr = PropertyCall {
-                obj: Box::new(Expr::Context),
-                method: scontext::DATA_INPUTS_PROPERTY.clone(),
-            }
+            let data_inputs: Expr = PropertyCall::new(Expr::Context, scontext::DATA_INPUTS_PROPERTY.clone()).unwrap()
             .into();
             let val_use: Expr = ValUse {
                 val_id: 1.into(),

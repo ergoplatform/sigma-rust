@@ -52,11 +52,9 @@ mod tests {
 
     #[test]
     fn eval_box_value() {
-        let expr: Expr = PropertyCall {
-            obj: Box::new(GlobalVars::SelfBox.into()),
-            method: sbox::VALUE_METHOD.clone(),
-        }
-        .into();
+        let expr: Expr = PropertyCall::new(GlobalVars::SelfBox.into(), sbox::VALUE_METHOD.clone())
+            .unwrap()
+            .into();
         let ctx = Rc::new(force_any_val::<Context>());
         assert_eq!(
             eval_out::<i64>(&expr, ctx.clone()),
@@ -66,11 +64,9 @@ mod tests {
 
     #[test]
     fn eval_box_tokens() {
-        let expr: Expr = PropertyCall {
-            obj: Box::new(GlobalVars::SelfBox.into()),
-            method: sbox::TOKENS_METHOD.clone(),
-        }
-        .into();
+        let expr: Expr = PropertyCall::new(GlobalVars::SelfBox.into(), sbox::TOKENS_METHOD.clone())
+            .unwrap()
+            .into();
         let ctx = Rc::new(force_any_val::<Context>());
         assert_eq!(
             eval_out::<Vec<(Vec<i8>, i64)>>(&expr, ctx.clone()),

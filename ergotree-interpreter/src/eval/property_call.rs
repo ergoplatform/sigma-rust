@@ -27,11 +27,9 @@ mod tests {
 
     #[test]
     fn eval_context_data_inputs() {
-        let pc: Expr = PropertyCall {
-            obj: Box::new(Expr::Context),
-            method: scontext::DATA_INPUTS_PROPERTY.clone(),
-        }
-        .into();
+        let pc: Expr = PropertyCall::new(Expr::Context, scontext::DATA_INPUTS_PROPERTY.clone())
+            .unwrap()
+            .into();
         let ctx = Rc::new(force_any_val::<Context>());
         assert_eq!(eval_out::<Vec<IrBoxId>>(&pc, ctx.clone()), ctx.data_inputs);
     }
