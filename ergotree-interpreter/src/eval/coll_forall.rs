@@ -56,67 +56,63 @@ impl Evaluable for ForAll {
 
 #[cfg(test)]
 mod tests {
-    use std::rc::Rc;
 
-    use crate::eval::context::Context;
-    use crate::eval::tests::eval_out;
+    use crate::eval::tests::eval_out_wo_ctx;
 
     use super::*;
 
     use ergotree_ir::mir::bin_op::BinOp;
     use ergotree_ir::mir::bin_op::RelationOp;
     use ergotree_ir::mir::expr::Expr;
-    use ergotree_ir::mir::extract_amount::ExtractAmount;
     use ergotree_ir::mir::func_value::FuncArg;
     use ergotree_ir::mir::func_value::FuncValue;
-    use ergotree_ir::mir::property_call::PropertyCall;
     use ergotree_ir::mir::val_use::ValUse;
-    use ergotree_ir::types::scontext;
     use ergotree_ir::types::stype::SType;
-    use proptest::prelude::*;
 
-    proptest! {
-
-        #![proptest_config(ProptestConfig::with_cases(8))]
-
-        #[test]
-        fn eval(ctx in any::<Context>()) {
-            let data_inputs: Expr = PropertyCall::new(Expr::Context, scontext::DATA_INPUTS_PROPERTY.clone()).unwrap()
-            .into();
-            let val_use: Expr = ValUse {
-                val_id: 1.into(),
-                tpe: SType::SBox,
-            }
-            .into();
-            let body: Expr = BinOp {
-                kind: RelationOp::LE.into(),
-                left: Box::new(Expr::Const(1i64.into())),
-                right: Box::new(Expr::ExtractAmount(
-                        ExtractAmount::new(val_use)
-                    .unwrap(),
-                )),
-            }
-            .into();
-            let expr: Expr = ForAll::new(
-                data_inputs,
-                FuncValue::new(
-                    vec![FuncArg {
-                        idx: 1.into(),
-                        tpe: SType::SBox,
-                    }],
-                    body,
-                )
+    fn check(coll: Vec<i32>) {
+        let body: Expr = BinOp {
+            kind: RelationOp::LE.into(),
+            left: Box::new(Expr::Const(1i32.into())),
+            right: Box::new(
+                ValUse {
+                    val_id: 1.into(),
+                    tpe: SType::SBox,
+                }
                 .into(),
-            )
-            .unwrap()
-            .into();
-            let ctx = Rc::new(ctx);
-            assert_eq!(
-                eval_out::<bool>(&expr, ctx.clone()),
-                ctx.data_inputs.clone()
-                    .into_iter()
-                    .all(| b| 1 <= b.get_box(&ctx.box_arena).unwrap().value())
-            );
+            ),
         }
+        .into();
+        let expr: Expr = ForAll::new(
+            coll.clone().into(),
+            FuncValue::new(
+                vec![FuncArg {
+                    idx: 1.into(),
+                    tpe: SType::SInt,
+                }],
+                body,
+            )
+            .into(),
+        )
+        .unwrap()
+        .into();
+        assert_eq!(
+            eval_out_wo_ctx::<bool>(&expr),
+            coll.iter().all(|it| 1 <= *it)
+        );
+    }
+
+    #[test]
+    fn eval_emty_coll() {
+        check(Vec::<i32>::new());
+    }
+
+    #[test]
+    fn eval_true() {
+        check(vec![1, 1]);
+    }
+
+    #[test]
+    fn eval_false() {
+        check(vec![1, 2]);
     }
 }

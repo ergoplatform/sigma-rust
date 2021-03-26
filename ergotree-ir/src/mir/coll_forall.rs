@@ -114,7 +114,7 @@ mod tests {
 
     proptest! {
 
-        #![proptest_config(ProptestConfig::with_cases(16))]
+        #![proptest_config(ProptestConfig::with_cases(4))]
 
         #[test]
         fn ser_roundtrip(v in any::<ForAll>()) {
