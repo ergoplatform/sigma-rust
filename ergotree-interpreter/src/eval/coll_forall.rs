@@ -1,4 +1,4 @@
-use ergotree_ir::mir::coll_exists::Exists;
+use ergotree_ir::mir::coll_forall::ForAll;
 use ergotree_ir::mir::constant::TryExtractInto;
 use ergotree_ir::mir::value::Value;
 
@@ -7,7 +7,7 @@ use crate::eval::EvalContext;
 use crate::eval::EvalError;
 use crate::eval::Evaluable;
 
-impl Evaluable for Exists {
+impl Evaluable for ForAll {
     fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
         let input_v = self.input.eval(env, ctx)?;
         let condition_v = self.condition.eval(env, ctx)?;
@@ -16,14 +16,14 @@ impl Evaluable for Exists {
             Value::Lambda(func_value) => {
                 let func_arg = func_value.args.first().ok_or_else(|| {
                     EvalError::NotFound(
-                        "Exists: evaluated condition has empty arguments list".to_string(),
+                        "ForAll: evaluated condition has empty arguments list".to_string(),
                     )
                 })?;
                 let env1 = env.clone().extend(func_arg.idx, arg);
                 func_value.body.eval(&env1, ctx)
             }
             _ => Err(EvalError::UnexpectedValue(format!(
-                "expected Exists::condition to be Value::FuncValue got: {0:?}",
+                "expected ForAll::condition to be Value::FuncValue got: {0:?}",
                 input_v_clone
             ))),
         };
@@ -31,7 +31,7 @@ impl Evaluable for Exists {
             Value::Coll(coll) => {
                 if *coll.elem_tpe() != self.elem_tpe {
                     return Err(EvalError::UnexpectedValue(format!(
-                        "expected Exists input element type to be {0:?}, got: {1:?}",
+                        "expected ForAll input element type to be {0:?}, got: {1:?}",
                         self.elem_tpe,
                         coll.elem_tpe()
                     )));
@@ -46,11 +46,11 @@ impl Evaluable for Exists {
 
         for item in normalized_input_vals.into_iter() {
             let res = condition_call(item)?.try_extract_into::<bool>()?;
-            if res {
-                return Ok(true.into());
+            if !res {
+                return Ok(false.into());
             }
         }
-        Ok(false.into())
+        Ok(true.into())
     }
 }
 
@@ -97,7 +97,7 @@ mod tests {
                 )),
             }
             .into();
-            let expr: Expr = Exists::new(
+            let expr: Expr = ForAll::new(
                 data_inputs,
                 FuncValue::new(
                     vec![FuncArg {
@@ -115,7 +115,7 @@ mod tests {
                 eval_out::<bool>(&expr, ctx.clone()),
                 ctx.data_inputs.clone()
                     .into_iter()
-                    .any(| b| 1 <= b.get_box(&ctx.box_arena).unwrap().value())
+                    .all(| b| 1 <= b.get_box(&ctx.box_arena).unwrap().value())
             );
         }
     }
