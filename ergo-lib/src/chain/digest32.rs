@@ -44,9 +44,9 @@ impl From<[u8; Digest32::SIZE]> for Digest32 {
     }
 }
 
-impl Into<Base16EncodedBytes> for Digest32 {
-    fn into(self) -> Base16EncodedBytes {
-        Base16EncodedBytes::new(self.0.as_ref())
+impl From<Digest32> for Base16EncodedBytes {
+    fn from(v: Digest32) -> Self {
+        Base16EncodedBytes::new(v.0.as_ref())
     }
 }
 
@@ -70,9 +70,9 @@ impl TryFrom<Base16DecodedBytes> for Digest32 {
     }
 }
 
-impl Into<String> for Digest32 {
-    fn into(self) -> String {
-        let bytes: Base16EncodedBytes = self.into();
+impl From<Digest32> for String {
+    fn from(v: Digest32) -> Self {
+        let bytes: Base16EncodedBytes = v.into();
         bytes.into()
     }
 }

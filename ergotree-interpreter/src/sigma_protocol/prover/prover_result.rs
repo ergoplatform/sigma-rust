@@ -17,9 +17,9 @@ pub enum ProofBytes {
     Some(Vec<u8>),
 }
 
-impl Into<Vec<u8>> for ProofBytes {
-    fn into(self) -> Vec<u8> {
-        match self {
+impl From<ProofBytes> for Vec<u8> {
+    fn from(v: ProofBytes) -> Self {
+        match v {
             ProofBytes::Empty => Vec::new(),
             ProofBytes::Some(bytes) => bytes,
         }
@@ -37,9 +37,9 @@ impl From<Vec<u8>> for ProofBytes {
 }
 
 // for JSON encoding in ergo-lib as Base16-encoded string
-impl Into<String> for ProofBytes {
-    fn into(self) -> String {
-        match self {
+impl From<ProofBytes> for String {
+    fn from(v: ProofBytes) -> Self {
+        match v {
             ProofBytes::Empty => "".to_string(),
             ProofBytes::Some(bytes) => base16::encode_lower(&bytes),
         }

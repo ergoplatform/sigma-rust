@@ -7,6 +7,9 @@ use wasm_bindgen::prelude::*;
 
 use crate::ergo_tree::ErgoTree;
 
+extern crate derive_more;
+use derive_more::{From, Into};
+
 /// Network type
 #[wasm_bindgen]
 #[repr(u8)]
@@ -116,7 +119,7 @@ impl From<ergo_lib::ergotree_ir::address::AddressTypePrefix> for AddressTypePref
  *
  */
 #[wasm_bindgen]
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone, From, Into)]
 pub struct Address(ergo_lib::ergotree_ir::address::Address);
 
 #[wasm_bindgen]
@@ -209,18 +212,6 @@ impl Address {
             .script()
             .map(|script| script.into())
             .map_err(|e| JsValue::from_str(&format!("{}", e)))
-    }
-}
-
-impl Into<ergo_lib::ergotree_ir::address::Address> for Address {
-    fn into(self) -> ergo_lib::ergotree_ir::address::Address {
-        self.0
-    }
-}
-
-impl From<ergo_lib::ergotree_ir::address::Address> for Address {
-    fn from(a: ergo_lib::ergotree_ir::address::Address) -> Self {
-        Address(a)
     }
 }
 

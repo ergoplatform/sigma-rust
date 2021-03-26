@@ -150,9 +150,9 @@ impl<T: Into<SigmaProp>> From<T> for Value {
     }
 }
 
-impl Into<Value> for EcPoint {
-    fn into(self) -> Value {
-        Value::GroupElement(Box::new(self))
+impl From<EcPoint> for Value {
+    fn from(v: EcPoint) -> Self {
+        Value::GroupElement(Box::new(v))
     }
 }
 
@@ -200,6 +200,7 @@ impl<T: LiftIntoSType + StoreWrapped + Into<Value>> From<Vec<T>> for Value {
     }
 }
 
+#[allow(clippy::clippy::from_over_into)]
 #[impl_for_tuples(2, 4)]
 impl Into<Value> for Tuple {
     fn into(self) -> Value {

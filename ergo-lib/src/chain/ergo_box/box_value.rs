@@ -204,17 +204,15 @@ pub mod tests {
     use super::*;
     use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
 
+    extern crate derive_more;
+    use derive_more::{From, Into};
+
+    #[derive(Debug, From, Into)]
     pub struct ArbBoxValueRange(Range<u64>);
 
     impl Default for ArbBoxValueRange {
         fn default() -> Self {
             ArbBoxValueRange(BoxValue::MIN_RAW..(BoxValue::MAX_RAW / 10))
-        }
-    }
-
-    impl Into<ArbBoxValueRange> for Range<u64> {
-        fn into(self) -> ArbBoxValueRange {
-            ArbBoxValueRange(self)
         }
     }
 

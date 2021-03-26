@@ -55,9 +55,9 @@ impl SigmaSerializable for TxId {
 }
 
 #[cfg(feature = "json")]
-impl Into<String> for TxId {
-    fn into(self) -> String {
-        self.0.into()
+impl From<TxId> for String {
+    fn from(v: TxId) -> Self {
+        v.0.into()
     }
 }
 
@@ -223,13 +223,13 @@ impl SigmaSerializable for Transaction {
 }
 
 #[cfg(feature = "json")]
-impl Into<json::transaction::TransactionJson> for Transaction {
-    fn into(self) -> json::transaction::TransactionJson {
+impl From<Transaction> for json::transaction::TransactionJson {
+    fn from(v: Transaction) -> Self {
         json::transaction::TransactionJson {
-            tx_id: self.tx_id.clone(),
-            inputs: self.inputs.clone(),
-            data_inputs: self.data_inputs.clone(),
-            outputs: self.outputs(),
+            tx_id: v.tx_id.clone(),
+            inputs: v.inputs.clone(),
+            data_inputs: v.data_inputs.clone(),
+            outputs: v.outputs(),
         }
     }
 }

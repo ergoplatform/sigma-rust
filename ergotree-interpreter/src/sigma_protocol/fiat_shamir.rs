@@ -33,9 +33,9 @@ pub fn fiat_shamir_hash_fn(input: &[u8]) -> FiatShamirHash {
     FiatShamirHash(taken.into_boxed_slice().try_into().unwrap())
 }
 
-impl Into<[u8; SOUNDNESS_BYTES]> for FiatShamirHash {
-    fn into(self) -> [u8; SOUNDNESS_BYTES] {
-        *self.0
+impl From<FiatShamirHash> for [u8; SOUNDNESS_BYTES] {
+    fn from(v: FiatShamirHash) -> Self {
+        *v.0
     }
 }
 

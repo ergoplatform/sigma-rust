@@ -101,9 +101,9 @@ impl NonMandatoryRegisterId {
     }
 }
 
-impl Into<String> for NonMandatoryRegisterId {
-    fn into(self) -> String {
-        format!("R{}", self as u8)
+impl From<NonMandatoryRegisterId> for String {
+    fn from(v: NonMandatoryRegisterId) -> Self {
+        format!("R{}", v as u8)
     }
 }
 
@@ -223,20 +223,18 @@ pub enum NonMandatoryRegistersError {
     NonDenselyPacked(u8),
 }
 
-impl Into<HashMap<NonMandatoryRegisterId, Base16EncodedBytes>> for NonMandatoryRegisters {
-    fn into(self) -> HashMap<NonMandatoryRegisterId, Base16EncodedBytes> {
-        self.0
-            .into_iter()
+impl From<NonMandatoryRegisters> for HashMap<NonMandatoryRegisterId, Base16EncodedBytes> {
+    fn from(v: NonMandatoryRegisters) -> Self {
+        v.0.into_iter()
             .enumerate()
             .map(|(i, c)| (NonMandatoryRegisterId::get_by_zero_index(i), c.into()))
             .collect()
     }
 }
 
-impl Into<HashMap<NonMandatoryRegisterId, Constant>> for NonMandatoryRegisters {
-    fn into(self) -> HashMap<NonMandatoryRegisterId, Constant> {
-        self.0
-            .into_iter()
+impl From<NonMandatoryRegisters> for HashMap<NonMandatoryRegisterId, Constant> {
+    fn from(v: NonMandatoryRegisters) -> Self {
+        v.0.into_iter()
             .enumerate()
             .map(|(i, c)| (NonMandatoryRegisterId::get_by_zero_index(i), c))
             .collect()

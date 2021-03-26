@@ -9,9 +9,9 @@ use std::convert::TryInto;
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Challenge(FiatShamirHash);
 
-impl Into<Scalar> for Challenge {
-    fn into(self) -> Scalar {
-        let v: [u8; SOUNDNESS_BYTES] = self.0.into();
+impl From<Challenge> for Scalar {
+    fn from(v: Challenge) -> Self {
+        let v: [u8; SOUNDNESS_BYTES] = v.0.into();
         // prepend zeroes to 32 bytes (big-endian)
         let mut prefix = vec![0u8; 8];
         prefix.append(&mut v.to_vec());
@@ -19,9 +19,9 @@ impl Into<Scalar> for Challenge {
     }
 }
 
-impl Into<Vec<u8>> for Challenge {
-    fn into(self) -> Vec<u8> {
-        let arr: [u8; SOUNDNESS_BYTES] = self.0.into();
+impl From<Challenge> for Vec<u8> {
+    fn from(v: Challenge) -> Self {
+        let arr: [u8; SOUNDNESS_BYTES] = v.0.into();
         arr.to_vec()
     }
 }
