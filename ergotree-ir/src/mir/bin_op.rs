@@ -50,13 +50,13 @@ pub enum RelationOp {
     /// Non-equality
     NEq,
     /// Greater of equal
-    GE,
+    Ge,
     /// Greater than..
-    GT,
+    Gt,
     /// Less or equal
-    LE,
+    Le,
     /// Less then
-    LT,
+    Lt,
     /// Logical AND
     And,
     /// Logical OR
@@ -68,10 +68,10 @@ impl From<RelationOp> for OpCode {
         match op {
             RelationOp::Eq => OpCode::EQ,
             RelationOp::NEq => OpCode::NEQ,
-            RelationOp::GE => OpCode::GE,
-            RelationOp::GT => OpCode::GT,
-            RelationOp::LE => OpCode::LE,
-            RelationOp::LT => OpCode::LT,
+            RelationOp::Ge => OpCode::GE,
+            RelationOp::Gt => OpCode::GT,
+            RelationOp::Le => OpCode::LE,
+            RelationOp::Lt => OpCode::LT,
             RelationOp::And => OpCode::BIN_AND,
             RelationOp::Or => OpCode::BIN_OR,
         }

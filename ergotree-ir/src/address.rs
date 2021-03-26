@@ -62,7 +62,7 @@ use thiserror::Error;
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum Address {
     /// serialized (compressed) public key
-    P2PK(ProveDlog),
+    P2Pk(ProveDlog),
     /// serialized script
     P2S(Vec<u8>),
     // P2SH([u8; 24]),
@@ -73,7 +73,7 @@ impl Address {
     pub fn p2pk_from_pk_bytes(bytes: &[u8]) -> Result<Address, SerializationError> {
         EcPoint::sigma_parse_bytes(bytes.to_vec())
             .map(ProveDlog::from)
-            .map(Address::P2PK)
+            .map(Address::P2Pk)
     }
 
     /// Re-create the address from ErgoTree that was built from the address
@@ -88,7 +88,7 @@ impl Address {
                     tpe: SType::SSigmaProp,
                     v,
                 }) => ProveDlog::try_from(v.clone())
-                    .map(Address::P2PK)
+                    .map(Address::P2Pk)
                     .unwrap_or_else(|_| Address::P2S(tree.sigma_serialize_bytes())),
                 _ => Address::P2S(tree.sigma_serialize_bytes()),
             }),
@@ -99,7 +99,7 @@ impl Address {
     /// address type prefix (for encoding)
     pub fn address_type_prefix(&self) -> AddressTypePrefix {
         match self {
-            Address::P2PK(_) => AddressTypePrefix::P2PK,
+            Address::P2Pk(_) => AddressTypePrefix::P2Pk,
             Address::P2S(_) => AddressTypePrefix::Pay2S,
             //Address::P2SH(_) => AddressTypePrefix::P2SH,
         }
@@ -108,7 +108,7 @@ impl Address {
     /// byte array
     pub fn content_bytes(&self) -> Vec<u8> {
         match self {
-            Address::P2PK(prove_dlog) => prove_dlog.h.sigma_serialize_bytes(),
+            Address::P2Pk(prove_dlog) => prove_dlog.h.sigma_serialize_bytes(),
             Address::P2S(bytes) => bytes.clone(),
         }
     }
@@ -116,7 +116,7 @@ impl Address {
     /// script encoded in the address
     pub fn script(&self) -> Result<ErgoTree, SerializationError> {
         match self {
-            Address::P2PK(prove_dlog) => Ok(ErgoTree::from(Expr::Const(
+            Address::P2Pk(prove_dlog) => Ok(ErgoTree::from(Expr::Const(
                 SigmaProp::new(SigmaBoolean::ProofOfKnowledge(
                     SigmaProofOfKnowledgeTree::ProveDlog(prove_dlog.clone()),
                 ))
@@ -174,9 +174,9 @@ pub enum AddressError {
 /// Address types
 pub enum AddressTypePrefix {
     /// 0x01 - Pay-to-PublicKey(P2PK) address
-    P2PK = 1,
+    P2Pk = 1,
     /// 0x02 - Pay-to-Script-Hash(P2SH)
-    Pay2SH = 2,
+    Pay2Sh = 2,
     /// 0x03 - Pay-to-Script(P2S)
     Pay2S = 3,
 }
@@ -185,8 +185,8 @@ impl TryFrom<u8> for AddressTypePrefix {
     type Error = AddressEncoderError;
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            v if v == AddressTypePrefix::P2PK as u8 => Ok(AddressTypePrefix::P2PK),
-            v if v == AddressTypePrefix::Pay2SH as u8 => Ok(AddressTypePrefix::Pay2SH),
+            v if v == AddressTypePrefix::P2Pk as u8 => Ok(AddressTypePrefix::P2Pk),
+            v if v == AddressTypePrefix::Pay2Sh as u8 => Ok(AddressTypePrefix::Pay2Sh),
             v if v == AddressTypePrefix::Pay2S as u8 => Ok(AddressTypePrefix::Pay2S),
             v => Err(AddressEncoderError::InvalidAddressType(v)),
         }
@@ -360,11 +360,11 @@ impl AddressEncoder {
         let content_bytes: Vec<u8> = without_checksum[1..].to_vec(); // without head_byte
         let address_type = AddressTypePrefix::try_from(bytes[0] & 0xF_u8)?;
         Ok(match address_type {
-            AddressTypePrefix::P2PK => {
-                Address::P2PK(ProveDlog::new(EcPoint::sigma_parse_bytes(content_bytes)?))
+            AddressTypePrefix::P2Pk => {
+                Address::P2Pk(ProveDlog::new(EcPoint::sigma_parse_bytes(content_bytes)?))
             }
             AddressTypePrefix::Pay2S => Address::P2S(content_bytes),
-            AddressTypePrefix::Pay2SH => todo!(),
+            AddressTypePrefix::Pay2Sh => todo!(),
         })
     }
 
@@ -407,7 +407,7 @@ pub(crate) mod arbitrary {
             let non_parseable_tree = "100204a00b08cd021dde34603426402615658f1d970cfa7c7bd92ac81a8b16eeebff264d59ce4604ea02d192a39a8cc7a70173007301";
             prop_oneof![
                 any::<ErgoTree>().prop_map(|t| match ProveDlog::try_from(t.clone()) {
-                    Ok(dlog) => Address::P2PK(dlog),
+                    Ok(dlog) => Address::P2Pk(dlog),
                     Err(_) => Address::P2S(t.sigma_serialize_bytes()),
                 }),
                 Just(Address::P2S(base16::decode(non_parseable_tree).unwrap()))

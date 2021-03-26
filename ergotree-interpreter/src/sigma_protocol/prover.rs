@@ -275,7 +275,7 @@ fn convert_to_unproven(ergo_lib: SigmaBoolean) -> UnprovenTree {
         // TODO: why it's even here? Make another SigmaBoolean without trivial props?
         SigmaBoolean::TrivialProp(_) => todo!(),
         SigmaBoolean::ProofOfKnowledge(pok) => match pok {
-            SigmaProofOfKnowledgeTree::ProveDHTuple(_) => todo!(),
+            SigmaProofOfKnowledgeTree::ProveDhTuple(_) => todo!(),
             SigmaProofOfKnowledgeTree::ProveDlog(prove_dlog) => UnprovenSchnorr {
                 proposition: prove_dlog,
                 commitment_opt: None,
@@ -285,7 +285,7 @@ fn convert_to_unproven(ergo_lib: SigmaBoolean) -> UnprovenTree {
             }
             .into(),
         },
-        SigmaBoolean::CAND(_) => todo!(),
+        SigmaBoolean::Cand(_) => todo!(),
     }
 }
 

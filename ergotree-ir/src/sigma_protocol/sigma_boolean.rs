@@ -38,7 +38,7 @@ impl From<EcPoint> for ProveDlog {
 /// Construct a new SigmaProp value representing public key of Diffie Hellman signature protocol.
 /// Common input: (g,h,u,v)
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct ProveDHTuple {
+pub struct ProveDhTuple {
     gv: Box<EcPoint>,
     hv: Box<EcPoint>,
     uv: Box<EcPoint>,
@@ -49,7 +49,7 @@ pub struct ProveDHTuple {
 #[derive(PartialEq, Eq, Debug, Clone, From)]
 pub enum SigmaProofOfKnowledgeTree {
     /// public key of Diffie Hellman signature protocol
-    ProveDHTuple(ProveDHTuple),
+    ProveDhTuple(ProveDhTuple),
     /// public key of discrete logarithm signature protocol
     ProveDlog(ProveDlog),
 }
@@ -63,7 +63,7 @@ pub enum SigmaBoolean {
     /// Sigma proposition
     ProofOfKnowledge(SigmaProofOfKnowledgeTree),
     /// AND conjunction for sigma propositions
-    CAND(Vec<SigmaBoolean>),
+    Cand(Vec<SigmaBoolean>),
 }
 
 impl SigmaBoolean {

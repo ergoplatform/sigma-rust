@@ -71,7 +71,7 @@ mod tests {
 
     fn check(coll: Vec<i32>) {
         let body: Expr = BinOp {
-            kind: RelationOp::LE.into(),
+            kind: RelationOp::Le.into(),
             left: Box::new(Expr::Const(1i32.into())),
             right: Box::new(
                 ValUse {

@@ -32,14 +32,14 @@ pub enum FirstProverMessage {
     /// Discrete log
     FirstDlogProverMessage(FirstDlogProverMessage),
     /// DH tupl
-    FirstDHTProverMessage,
+    FirstDhtProverMessage,
 }
 
 impl ProverMessage for FirstProverMessage {
     fn bytes(&self) -> Vec<u8> {
         match self {
             FirstProverMessage::FirstDlogProverMessage(fdpm) => fdpm.bytes(),
-            FirstProverMessage::FirstDHTProverMessage => todo!(),
+            FirstProverMessage::FirstDhtProverMessage => todo!(),
         }
     }
 }

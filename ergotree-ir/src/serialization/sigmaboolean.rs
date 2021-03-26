@@ -14,10 +14,10 @@ impl SigmaSerializable for SigmaBoolean {
         self.op_code().sigma_serialize(w)?;
         match self {
             SigmaBoolean::ProofOfKnowledge(proof) => match proof {
-                SigmaProofOfKnowledgeTree::ProveDHTuple { .. } => todo!(),
+                SigmaProofOfKnowledgeTree::ProveDhTuple { .. } => todo!(),
                 SigmaProofOfKnowledgeTree::ProveDlog(v) => v.sigma_serialize(w),
             },
-            SigmaBoolean::CAND(_) => todo!(),
+            SigmaBoolean::Cand(_) => todo!(),
             SigmaBoolean::TrivialProp(_) => Ok(()), // besides opCode no additional bytes
         }
     }
