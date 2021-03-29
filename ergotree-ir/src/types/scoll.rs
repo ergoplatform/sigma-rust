@@ -43,7 +43,7 @@ lazy_static! {
             tpe_params: vec![],
         },
     };
-    /// Box.value
+    /// Coll.indexOf
     pub static ref INDEX_OF_METHOD: SMethod = SMethod::new(&S_COLL_TYPE_COMPANION, INDEX_OF_METHOD_DESC.clone());
 }
 
@@ -60,7 +60,7 @@ lazy_static! {
             tpe_params: vec![],
         },
     };
-    /// Box.value
+    /// Coll.flatMap
     pub static ref FLATMAP_METHOD: SMethod = SMethod::new(&S_COLL_TYPE_COMPANION, FLATMAP_METHOD_DESC.clone());
 }
 
