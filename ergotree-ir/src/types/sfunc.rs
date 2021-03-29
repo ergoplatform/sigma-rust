@@ -16,6 +16,15 @@ pub struct SFunc {
 }
 
 impl SFunc {
+    /// Create new SFunc
+    pub fn new(t_dom: Vec<SType>, t_range: SType, tpe_params: Vec<STypeParam>) -> Self {
+        Self {
+            t_dom,
+            t_range: t_range.into(),
+            tpe_params,
+        }
+    }
+
     pub(crate) fn with_subst(self, subst: &HashMap<STypeVar, SType>) -> Self {
         let remaining_vars = self
             .tpe_params

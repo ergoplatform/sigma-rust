@@ -53,10 +53,9 @@ lazy_static! {
         name: "flatMap",
         tpe: SFunc {
             t_dom: vec![SType::SColl(SType::STypeVar(STypeVar::IV).into()),
-                SType::SFunc(SFunc {
-                    t_dom: vec![SType::STypeVar(STypeVar::IV)],
-                    t_range: SType::STypeVar(STypeVar::OV).into(),
-                    tpe_params: vec![]})],
+            SType::SFunc(
+                SFunc::new(vec![SType::STypeVar(STypeVar::IV)], SType::STypeVar(STypeVar::OV), vec![] ))
+            ],
             t_range: SType::SColl(SType::STypeVar(STypeVar::OV).into()).into(),
             tpe_params: vec![],
         },
