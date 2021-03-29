@@ -22,6 +22,8 @@ pub fn rewrite<E, F: Fn(&Expr) -> Result<Option<Expr>, E>>(e: Expr, f: F) -> Res
                 ..e
             },
         },
-        _ => f(&e)?.unwrap_or(e),
+        ExprKind::Ident(_) => f(&e)?.unwrap_or(e),
+        ExprKind::GlobalVars(_) => f(&e)?.unwrap_or(e),
+        ExprKind::Literal(_) => f(&e)?.unwrap_or(e),
     })
 }

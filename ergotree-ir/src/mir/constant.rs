@@ -158,6 +158,7 @@ impl From<BigInt> for Constant {
     }
 }
 
+#[allow(clippy::clippy::from_over_into)]
 #[impl_for_tuples(2, 4)]
 impl Into<Constant> for Tuple {
     fn into(self) -> Constant {

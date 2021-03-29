@@ -14,14 +14,14 @@ impl Evaluable for Filter {
         let condition_v = self.condition.eval(env, ctx)?;
         let input_v_clone = input_v.clone();
         let mut condition_call = |arg: Value| match &condition_v {
-            Value::FuncValue(func_value) => {
-                let func_arg = func_value.args().first().ok_or_else(|| {
+            Value::Lambda(func_value) => {
+                let func_arg = func_value.args.first().ok_or_else(|| {
                     EvalError::NotFound(
                         "Filter: evaluated condition has empty arguments list".to_string(),
                     )
                 })?;
                 let env1 = env.clone().extend(func_arg.idx, arg);
-                func_value.body().eval(&env1, ctx)
+                func_value.body.eval(&env1, ctx)
             }
             _ => Err(EvalError::UnexpectedValue(format!(
                 "expected Filter::condition to be Value::FuncValue got: {0:?}",
@@ -96,10 +96,7 @@ mod tests {
 
         #[test]
         fn eval_box_value(ctx in any::<Context>()) {
-            let data_inputs: Expr = PropertyCall {
-                obj: Box::new(Expr::Context),
-                method: scontext::DATA_INPUTS_PROPERTY.clone(),
-            }
+            let data_inputs: Expr = PropertyCall::new(Expr::Context, scontext::DATA_INPUTS_PROPERTY.clone()).unwrap()
             .into();
             let val_use: Expr = ValUse {
                 val_id: 1.into(),
@@ -107,7 +104,7 @@ mod tests {
             }
             .into();
             let body: Expr = BinOp {
-                kind: RelationOp::LE.into(),
+                kind: RelationOp::Le.into(),
                 left: Box::new(Expr::Const(1i64.into())),
                 right: Box::new(Expr::ExtractAmount(
                         ExtractAmount::new(val_use)

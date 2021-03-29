@@ -38,9 +38,9 @@ impl From<Digest32> for BoxId {
 }
 
 #[cfg(feature = "json")]
-impl Into<String> for BoxId {
-    fn into(self) -> String {
-        self.0.into()
+impl From<BoxId> for String {
+    fn from(v: BoxId) -> Self {
+        v.0.into()
     }
 }
 

@@ -159,10 +159,10 @@ impl Evaluable for BinOp {
             BinOpKind::Relation(op) => match op {
                 RelationOp::Eq => Ok(Value::Boolean(lv == rv()?)),
                 RelationOp::NEq => Ok(Value::Boolean(lv != rv()?)),
-                RelationOp::GT => eval_gt(lv, rv()?),
-                RelationOp::LT => eval_lt(lv, rv()?),
-                RelationOp::GE => eval_ge(lv, rv()?),
-                RelationOp::LE => eval_le(lv, rv()?),
+                RelationOp::Gt => eval_gt(lv, rv()?),
+                RelationOp::Lt => eval_lt(lv, rv()?),
+                RelationOp::Ge => eval_ge(lv, rv()?),
+                RelationOp::Le => eval_le(lv, rv()?),
                 RelationOp::And => Ok(Value::Boolean(if lv.try_extract_into::<bool>()? {
                     rv()?.try_extract_into::<bool>()?
                 } else {
@@ -410,10 +410,10 @@ mod tests {
             prop_assert_eq!(eval_num_op::<i64>(ArithOp::Max, l.into(), r.into()).unwrap(), l.max(r));
             prop_assert_eq!(eval_num_op::<i64>(ArithOp::Min, l.into(), r.into()).unwrap(), l.min(r));
 
-            prop_assert_eq!(eval_relation_op(RelationOp::GT, l.into(), r.into()), l > r);
-            prop_assert_eq!(eval_relation_op(RelationOp::LT, l.into(), r.into()), l < r);
-            prop_assert_eq!(eval_relation_op(RelationOp::GE, l.into(), r.into()), l >= r);
-            prop_assert_eq!(eval_relation_op(RelationOp::LE, l.into(), r.into()), l <= r);
+            prop_assert_eq!(eval_relation_op(RelationOp::Gt, l.into(), r.into()), l > r);
+            prop_assert_eq!(eval_relation_op(RelationOp::Lt, l.into(), r.into()), l < r);
+            prop_assert_eq!(eval_relation_op(RelationOp::Ge, l.into(), r.into()), l >= r);
+            prop_assert_eq!(eval_relation_op(RelationOp::Le, l.into(), r.into()), l <= r);
         }
 
         #[test]
@@ -425,10 +425,10 @@ mod tests {
             prop_assert_eq!(eval_num_op::<i32>(ArithOp::Max, l.into(), r.into()).unwrap(), l.max(r));
             prop_assert_eq!(eval_num_op::<i32>(ArithOp::Min, l.into(), r.into()).unwrap(), l.min(r));
 
-            prop_assert_eq!(eval_relation_op(RelationOp::GT, l.into(), r.into()), l > r);
-            prop_assert_eq!(eval_relation_op(RelationOp::LT, l.into(), r.into()), l < r);
-            prop_assert_eq!(eval_relation_op(RelationOp::GE, l.into(), r.into()), l >= r);
-            prop_assert_eq!(eval_relation_op(RelationOp::LE, l.into(), r.into()), l <= r);
+            prop_assert_eq!(eval_relation_op(RelationOp::Gt, l.into(), r.into()), l > r);
+            prop_assert_eq!(eval_relation_op(RelationOp::Lt, l.into(), r.into()), l < r);
+            prop_assert_eq!(eval_relation_op(RelationOp::Ge, l.into(), r.into()), l >= r);
+            prop_assert_eq!(eval_relation_op(RelationOp::Le, l.into(), r.into()), l <= r);
         }
 
         #[test]
@@ -440,10 +440,10 @@ mod tests {
             prop_assert_eq!(eval_num_op::<i16>(ArithOp::Max, l.into(), r.into()).unwrap(), l.max(r));
             prop_assert_eq!(eval_num_op::<i16>(ArithOp::Min, l.into(), r.into()).unwrap(), l.min(r));
 
-            prop_assert_eq!(eval_relation_op(RelationOp::GT, l.into(), r.into()), l > r);
-            prop_assert_eq!(eval_relation_op(RelationOp::LT, l.into(), r.into()), l < r);
-            prop_assert_eq!(eval_relation_op(RelationOp::GE, l.into(), r.into()), l >= r);
-            prop_assert_eq!(eval_relation_op(RelationOp::LE, l.into(), r.into()), l <= r);
+            prop_assert_eq!(eval_relation_op(RelationOp::Gt, l.into(), r.into()), l > r);
+            prop_assert_eq!(eval_relation_op(RelationOp::Lt, l.into(), r.into()), l < r);
+            prop_assert_eq!(eval_relation_op(RelationOp::Ge, l.into(), r.into()), l >= r);
+            prop_assert_eq!(eval_relation_op(RelationOp::Le, l.into(), r.into()), l <= r);
         }
 
         #[test]
@@ -455,10 +455,10 @@ mod tests {
             prop_assert_eq!(eval_num_op::<i8>(ArithOp::Max, l.into(), r.into()).unwrap(), l.max(r));
             prop_assert_eq!(eval_num_op::<i8>(ArithOp::Min, l.into(), r.into()).unwrap(), l.min(r));
 
-            prop_assert_eq!(eval_relation_op(RelationOp::GT, l.into(), r.into()), l > r);
-            prop_assert_eq!(eval_relation_op(RelationOp::LT, l.into(), r.into()), l < r);
-            prop_assert_eq!(eval_relation_op(RelationOp::GE, l.into(), r.into()), l >= r);
-            prop_assert_eq!(eval_relation_op(RelationOp::LE, l.into(), r.into()), l <= r);
+            prop_assert_eq!(eval_relation_op(RelationOp::Gt, l.into(), r.into()), l > r);
+            prop_assert_eq!(eval_relation_op(RelationOp::Lt, l.into(), r.into()), l < r);
+            prop_assert_eq!(eval_relation_op(RelationOp::Ge, l.into(), r.into()), l >= r);
+            prop_assert_eq!(eval_relation_op(RelationOp::Le, l.into(), r.into()), l <= r);
         }
 
         #[test]
@@ -473,10 +473,10 @@ mod tests {
                     r.clone().into()).unwrap(), l.clone().max(r.clone()));
             prop_assert_eq!(eval_num_op::<BigInt>(ArithOp::Min, l.clone().into(),
                     r.clone().into()).unwrap(), l.clone().min(r.clone()));
-            prop_assert_eq!(eval_relation_op(RelationOp::GT, l.clone().into(), r.clone().into()), l > r);
-            prop_assert_eq!(eval_relation_op(RelationOp::LT, l.clone().into(), r.clone().into()), l < r);
-            prop_assert_eq!(eval_relation_op(RelationOp::GE, l.clone().into(), r.clone().into()), l >= r);
-            prop_assert_eq!(eval_relation_op(RelationOp::LE, l.clone().into(), r.clone().into()), l <= r);
+            prop_assert_eq!(eval_relation_op(RelationOp::Gt, l.clone().into(), r.clone().into()), l > r);
+            prop_assert_eq!(eval_relation_op(RelationOp::Lt, l.clone().into(), r.clone().into()), l < r);
+            prop_assert_eq!(eval_relation_op(RelationOp::Ge, l.clone().into(), r.clone().into()), l >= r);
+            prop_assert_eq!(eval_relation_op(RelationOp::Le, l.clone().into(), r.clone().into()), l <= r);
         }
 
         #[test]

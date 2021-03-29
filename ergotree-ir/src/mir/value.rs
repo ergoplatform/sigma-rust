@@ -20,7 +20,8 @@ use crate::util::AsVecI8;
 use super::constant::TryExtractFrom;
 use super::constant::TryExtractFromError;
 use super::constant::TryExtractInto;
-use super::func_value::FuncValue;
+use super::expr::Expr;
+use super::func_value::FuncArg;
 
 extern crate derive_more;
 use derive_more::From;
@@ -92,6 +93,15 @@ impl CollKind {
     }
 }
 
+/// Lambda
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct Lambda {
+    /// Argument placeholders
+    pub args: Vec<FuncArg>,
+    /// Body
+    pub body: Box<Expr>,
+}
+
 /// Runtime value
 #[derive(PartialEq, Eq, Debug, Clone, From)]
 pub enum Value {
@@ -124,7 +134,7 @@ pub enum Value {
     /// Optional value
     Opt(Box<Option<Value>>),
     /// lambda
-    FuncValue(FuncValue),
+    Lambda(Lambda),
 }
 
 impl Value {
@@ -140,9 +150,9 @@ impl<T: Into<SigmaProp>> From<T> for Value {
     }
 }
 
-impl Into<Value> for EcPoint {
-    fn into(self) -> Value {
-        Value::GroupElement(Box::new(self))
+impl From<EcPoint> for Value {
+    fn from(v: EcPoint) -> Self {
+        Value::GroupElement(Box::new(v))
     }
 }
 
@@ -190,6 +200,7 @@ impl<T: LiftIntoSType + StoreWrapped + Into<Value>> From<Vec<T>> for Value {
     }
 }
 
+#[allow(clippy::clippy::from_over_into)]
 #[impl_for_tuples(2, 4)]
 impl Into<Value> for Tuple {
     fn into(self) -> Value {

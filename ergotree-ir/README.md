@@ -161,17 +161,17 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 - :heavy_check_mark: map
 - :heavy_check_mark: exists
 - :heavy_check_mark: fold
-- forall
+- :heavy_check_mark: forall
 - slice
 - :heavy_check_mark: filter
 - append
 - :heavy_check_mark: apply
 - indices
-- flatMap
+- :heavy_check_mark: flatMap
 - patch
 - updated
 - updateMany
-- indexOf
+- :heavy_check_mark: indexOf
 - zip
 
 #### Option

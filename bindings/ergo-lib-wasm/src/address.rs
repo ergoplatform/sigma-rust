@@ -7,6 +7,9 @@ use wasm_bindgen::prelude::*;
 
 use crate::ergo_tree::ErgoTree;
 
+extern crate derive_more;
+use derive_more::{From, Into};
+
 /// Network type
 #[wasm_bindgen]
 #[repr(u8)]
@@ -43,9 +46,9 @@ impl From<ergo_lib::ergotree_ir::address::NetworkPrefix> for NetworkPrefix {
 #[repr(u8)]
 pub enum AddressTypePrefix {
     /// 0x01 - Pay-to-PublicKey(P2PK) address
-    P2PK = 1,
+    P2Pk = 1,
     /// 0x02 - Pay-to-Script-Hash(P2SH)
-    Pay2SH = 2,
+    Pay2Sh = 2,
     /// 0x03 - Pay-to-Script(P2S)
     Pay2S = 3,
 }
@@ -54,8 +57,8 @@ impl From<AddressTypePrefix> for ergo_lib::ergotree_ir::address::AddressTypePref
     fn from(v: AddressTypePrefix) -> Self {
         use ergo_lib::ergotree_ir::address::AddressTypePrefix::*;
         match v {
-            AddressTypePrefix::P2PK => P2PK,
-            AddressTypePrefix::Pay2SH => Pay2SH,
+            AddressTypePrefix::P2Pk => P2Pk,
+            AddressTypePrefix::Pay2Sh => Pay2Sh,
             AddressTypePrefix::Pay2S => Pay2S,
         }
     }
@@ -65,8 +68,8 @@ impl From<ergo_lib::ergotree_ir::address::AddressTypePrefix> for AddressTypePref
     fn from(v: ergo_lib::ergotree_ir::address::AddressTypePrefix) -> Self {
         use AddressTypePrefix::*;
         match v {
-            ergo_lib::ergotree_ir::address::AddressTypePrefix::P2PK => P2PK,
-            ergo_lib::ergotree_ir::address::AddressTypePrefix::Pay2SH => Pay2SH,
+            ergo_lib::ergotree_ir::address::AddressTypePrefix::P2Pk => P2Pk,
+            ergo_lib::ergotree_ir::address::AddressTypePrefix::Pay2Sh => Pay2Sh,
             ergo_lib::ergotree_ir::address::AddressTypePrefix::Pay2S => Pay2S,
         }
     }
@@ -116,7 +119,7 @@ impl From<ergo_lib::ergotree_ir::address::AddressTypePrefix> for AddressTypePref
  *
  */
 #[wasm_bindgen]
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone, From, Into)]
 pub struct Address(ergo_lib::ergotree_ir::address::Address);
 
 #[wasm_bindgen]
@@ -198,7 +201,7 @@ impl Address {
     /// Create an address from a public key
     pub fn from_public_key(bytes: &[u8]) -> Result<Address, JsValue> {
         EcPoint::sigma_parse_bytes(bytes.to_vec())
-            .map(|point| ergo_lib::ergotree_ir::address::Address::P2PK(ProveDlog::new(point)))
+            .map(|point| ergo_lib::ergotree_ir::address::Address::P2Pk(ProveDlog::new(point)))
             .map(Address)
             .map_err(|e| JsValue::from_str(&format!("{}", e)))
     }
@@ -209,18 +212,6 @@ impl Address {
             .script()
             .map(|script| script.into())
             .map_err(|e| JsValue::from_str(&format!("{}", e)))
-    }
-}
-
-impl Into<ergo_lib::ergotree_ir::address::Address> for Address {
-    fn into(self) -> ergo_lib::ergotree_ir::address::Address {
-        self.0
-    }
-}
-
-impl From<ergo_lib::ergotree_ir::address::Address> for Address {
-    fn from(a: ergo_lib::ergotree_ir::address::Address) -> Self {
-        Address(a)
     }
 }
 

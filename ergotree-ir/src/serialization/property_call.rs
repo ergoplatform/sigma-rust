@@ -4,10 +4,10 @@ use crate::mir::expr::Expr;
 use crate::mir::property_call::PropertyCall;
 use crate::types::smethod::MethodId;
 use crate::types::smethod::SMethod;
-use crate::types::stype_companion::TypeId;
 
 use super::sigma_byte_reader::SigmaByteRead;
 use super::sigma_byte_writer::SigmaByteWrite;
+use super::types::TypeCode;
 use super::SerializationError;
 use super::SigmaSerializable;
 
@@ -20,13 +20,10 @@ impl SigmaSerializable for PropertyCall {
     }
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
-        let type_id = TypeId::sigma_parse(r)?;
+        let type_id = TypeCode::sigma_parse(r)?;
         let method_id = MethodId::sigma_parse(r)?;
         let obj = Expr::sigma_parse(r)?;
-        Ok(PropertyCall {
-            obj: Box::new(obj),
-            method: SMethod::from_ids(type_id, method_id),
-        })
+        Ok(PropertyCall::new(obj, SMethod::from_ids(type_id, method_id)).unwrap())
     }
 }
 
@@ -40,10 +37,7 @@ mod tests {
 
     #[test]
     fn ser_roundtrip_property() {
-        let mc = PropertyCall {
-            obj: Box::new(Expr::Context),
-            method: scontext::DATA_INPUTS_PROPERTY.clone(),
-        };
+        let mc = PropertyCall::new(Expr::Context, scontext::DATA_INPUTS_PROPERTY.clone()).unwrap();
         let expr = Expr::ProperyCall(mc);
         assert_eq![sigma_serialize_roundtrip(&expr), expr];
     }

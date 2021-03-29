@@ -53,9 +53,9 @@ impl SigmaSerializable for ContextExtension {
 }
 
 // for JSON encoding in ergo-lib
-impl Into<HashMap<String, String>> for ContextExtension {
-    fn into(self) -> HashMap<String, String> {
-        self.values
+impl From<ContextExtension> for HashMap<String, String> {
+    fn from(v: ContextExtension) -> Self {
+        v.values
             .into_iter()
             .map(|(k, v)| {
                 (

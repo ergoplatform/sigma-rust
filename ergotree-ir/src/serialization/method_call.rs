@@ -4,10 +4,10 @@ use crate::mir::expr::Expr;
 use crate::mir::method_call::MethodCall;
 use crate::types::smethod::MethodId;
 use crate::types::smethod::SMethod;
-use crate::types::stype_companion::TypeId;
 
 use super::sigma_byte_reader::SigmaByteRead;
 use super::sigma_byte_writer::SigmaByteWrite;
+use super::types::TypeCode;
 use super::SerializationError;
 use super::SigmaSerializable;
 
@@ -21,16 +21,12 @@ impl SigmaSerializable for MethodCall {
     }
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
-        let type_id = TypeId::sigma_parse(r)?;
+        let type_id = TypeCode::sigma_parse(r)?;
         let method_id = MethodId::sigma_parse(r)?;
         let obj = Expr::sigma_parse(r)?;
         let args = Vec::<Expr>::sigma_parse(r)?;
         let method = SMethod::from_ids(type_id, method_id);
-        Ok(MethodCall {
-            obj: Box::new(obj),
-            method,
-            args,
-        })
+        Ok(MethodCall::new(obj, method, args)?)
     }
 }
 
@@ -46,11 +42,12 @@ mod tests {
 
     #[test]
     fn ser_roundtrip_property() {
-        let mc: Expr = MethodCall {
-            obj: Box::new(GlobalVars::SelfBox.into()),
-            method: sbox::GET_REG_METHOD.clone(),
-            args: vec![Constant::from(0i8).into()],
-        }
+        let mc: Expr = MethodCall::new(
+            GlobalVars::SelfBox.into(),
+            sbox::GET_REG_METHOD.clone(),
+            vec![Constant::from(0i8).into()],
+        )
+        .unwrap()
         .into();
         assert_eq![sigma_serialize_roundtrip(&mc), mc];
     }

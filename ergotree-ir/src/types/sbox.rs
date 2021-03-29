@@ -1,4 +1,4 @@
-#![allow(missing_docs)]
+use crate::serialization::types::TypeCode;
 
 use super::sfunc::SFunc;
 use super::smethod::MethodId;
@@ -8,12 +8,11 @@ use super::stuple::STuple;
 use super::stype::SType;
 use super::stype_companion::STypeCompanion;
 use super::stype_companion::STypeCompanionHead;
-use super::stype_companion::TypeId;
 use super::stype_param::STypeVar;
 use lazy_static::lazy_static;
 
 /// SBox type id
-pub const TYPE_ID: TypeId = TypeId(99);
+pub const TYPE_ID: TypeCode = TypeCode::SBOX;
 /// Box.value property
 pub const VALUE_METHOD_ID: MethodId = MethodId(1);
 /// Box.Rx property
@@ -27,6 +26,7 @@ static S_BOX_TYPE_COMPANION_HEAD: STypeCompanionHead = STypeCompanionHead {
 };
 
 lazy_static! {
+    /// Box object type companion
     pub static ref S_BOX_TYPE_COMPANION: STypeCompanion = STypeCompanion::new(
         &S_BOX_TYPE_COMPANION_HEAD,
         vec![
@@ -41,42 +41,57 @@ lazy_static! {
     static ref VALUE_METHOD_DESC: SMethodDesc = SMethodDesc {
         method_id: VALUE_METHOD_ID,
         name: "value",
-        tpe: SType::SFunc(SFunc {
+        tpe: SFunc {
             t_dom: vec![SType::SBox],
             t_range: Box::new(SType::SLong),
             tpe_params: vec![],
-        }),
+        },
     };
-    pub static ref VALUE_METHOD: SMethod = SMethod::new(&S_BOX_TYPE_COMPANION, &VALUE_METHOD_DESC,);
+    /// Box.value
+    pub static ref VALUE_METHOD: SMethod = SMethod::new(&S_BOX_TYPE_COMPANION, VALUE_METHOD_DESC.clone(),);
 }
 
 lazy_static! {
     static ref GET_REG_METHOD_DESC: SMethodDesc = SMethodDesc {
         method_id: GET_REG_METHOD_ID,
         name: "getReg",
-        tpe: SType::SFunc(SFunc {
+        tpe: SFunc {
             t_dom: vec![SType::SBox, SType::SByte],
             t_range: Box::new(SType::SOption(Box::new(SType::STypeVar(STypeVar::T)))),
             tpe_params: vec![],
-        }),
+        },
     };
+    /// Box.getReg
     pub static ref GET_REG_METHOD: SMethod =
-        SMethod::new(&S_BOX_TYPE_COMPANION, &GET_REG_METHOD_DESC,);
+        SMethod::new(&S_BOX_TYPE_COMPANION, GET_REG_METHOD_DESC.clone(),);
 }
 
 lazy_static! {
     static ref TOKENS_METHOD_DESC: SMethodDesc = SMethodDesc {
         method_id: TOKENS_METHOD_ID,
         name: "tokens",
-        tpe: SType::SFunc(SFunc {
+        tpe: SFunc {
             t_dom: vec![SType::SBox],
             t_range: Box::new(SType::SColl(Box::new(SType::STuple(STuple::pair(
-                SType::SColl(Box::new(SType::SByte)),
-                SType::SLong
+                                SType::SColl(Box::new(SType::SByte)),
+                                SType::SLong
             ))))),
             tpe_params: vec![],
-        }),
+        },
     };
+    /// Box.tokens
     pub static ref TOKENS_METHOD: SMethod =
-        SMethod::new(&S_BOX_TYPE_COMPANION, &TOKENS_METHOD_DESC,);
+        SMethod::new(&S_BOX_TYPE_COMPANION, TOKENS_METHOD_DESC.clone(),);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_from_ids() {
+        assert!(SMethod::from_ids(TYPE_ID, VALUE_METHOD_ID).name() == "value");
+        assert!(SMethod::from_ids(TYPE_ID, GET_REG_METHOD_ID).name() == "getReg");
+        assert!(SMethod::from_ids(TYPE_ID, TOKENS_METHOD_ID).name() == "tokens");
+    }
 }

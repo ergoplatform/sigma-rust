@@ -4,6 +4,7 @@ use std::convert::TryFrom;
 use std::convert::TryInto;
 
 use crate::serialization::op_code::OpCode;
+use crate::types::stype::LiftIntoSType;
 use crate::types::stype::SType;
 
 use super::and::And;
@@ -16,6 +17,7 @@ use super::coll_by_index::ByIndex;
 use super::coll_exists::Exists;
 use super::coll_filter::Filter;
 use super::coll_fold::Fold;
+use super::coll_forall::ForAll;
 use super::coll_map::Map;
 use super::coll_size::SizeOf;
 use super::collection::Collection;
@@ -45,6 +47,7 @@ use super::sigma_prop_bytes::SigmaPropBytes;
 use super::upcast::Upcast;
 use super::val_def::ValDef;
 use super::val_use::ValUse;
+use super::value::Value;
 
 extern crate derive_more;
 use derive_more::From;
@@ -122,6 +125,8 @@ pub enum Expr {
     Filter(Filter),
     /// Tests whether a predicate holds for at least one element of this collection
     Exists(Exists),
+    /// Tests whether a predicate holds for all elements of this collection.
+    ForAll(ForAll),
     /// Tuple field access
     SelectField(SelectField),
     /// Bool to SigmaProp
@@ -176,6 +181,7 @@ impl Expr {
             Expr::OptionIsDefined(op) => op.op_code(),
             Expr::OptionGetOrElse(op) => op.op_code(),
             Expr::Negation(op) => op.op_code(),
+            Expr::ForAll(op) => op.op_code(),
         }
     }
 
@@ -220,6 +226,7 @@ impl Expr {
             Expr::OptionIsDefined(v) => v.tpe(),
             Expr::OptionGetOrElse(v) => v.tpe(),
             Expr::Negation(v) => v.tpe(),
+            Expr::ForAll(v) => v.tpe(),
         }
     }
 
@@ -248,6 +255,15 @@ impl Expr {
     pub fn debug_tree(&self) -> String {
         let tree = format!("{:#?}", self);
         tree
+    }
+}
+
+impl<T: Into<Value> + LiftIntoSType> From<T> for Expr {
+    fn from(t: T) -> Self {
+        Expr::Const(Constant {
+            tpe: T::stype(),
+            v: t.into(),
+        })
     }
 }
 

@@ -12,6 +12,7 @@ use crate::mir::coll_by_index::ByIndex;
 use crate::mir::coll_exists::Exists;
 use crate::mir::coll_filter::Filter;
 use crate::mir::coll_fold::Fold;
+use crate::mir::coll_forall::ForAll;
 use crate::mir::coll_map::Map;
 use crate::mir::coll_size::SizeOf;
 use crate::mir::collection::bool_const_coll_sigma_parse;
@@ -101,6 +102,7 @@ impl SigmaSerializable for Expr {
                     Expr::OptionIsDefined(op) => op.sigma_serialize(w),
                     Expr::OptionGetOrElse(op) => op.sigma_serialize(w),
                     Expr::Negation(op) => op.sigma_serialize(w),
+                    Expr::ForAll(op) => op.sigma_serialize(w),
                 }
             }
         }
@@ -154,10 +156,10 @@ impl SigmaSerializable for Expr {
                 OpCode::LOGICAL_NOT => Ok(LogicalNot::sigma_parse(r)?.into()),
                 OpCode::BIN_AND => Ok(bin_op_sigma_parse(RelationOp::And.into(), r)?),
                 OpCode::BIN_OR => Ok(bin_op_sigma_parse(RelationOp::Or.into(), r)?),
-                OpCode::GT => Ok(bin_op_sigma_parse(RelationOp::GT.into(), r)?),
-                OpCode::LT => Ok(bin_op_sigma_parse(RelationOp::LT.into(), r)?),
-                OpCode::GE => Ok(bin_op_sigma_parse(RelationOp::GE.into(), r)?),
-                OpCode::LE => Ok(bin_op_sigma_parse(RelationOp::LE.into(), r)?),
+                OpCode::GT => Ok(bin_op_sigma_parse(RelationOp::Gt.into(), r)?),
+                OpCode::LT => Ok(bin_op_sigma_parse(RelationOp::Lt.into(), r)?),
+                OpCode::GE => Ok(bin_op_sigma_parse(RelationOp::Ge.into(), r)?),
+                OpCode::LE => Ok(bin_op_sigma_parse(RelationOp::Le.into(), r)?),
                 OpCode::PLUS => Ok(bin_op_sigma_parse(ArithOp::Plus.into(), r)?),
                 OpCode::MINUS => Ok(bin_op_sigma_parse(ArithOp::Minus.into(), r)?),
                 OpCode::MULTIPLY => Ok(bin_op_sigma_parse(ArithOp::Multiply.into(), r)?),
@@ -179,6 +181,7 @@ impl SigmaSerializable for Expr {
                 Map::OP_CODE => Ok(Map::sigma_parse(r)?.into()),
                 Filter::OP_CODE => Ok(Filter::sigma_parse(r)?.into()),
                 Exists::OP_CODE => Ok(Exists::sigma_parse(r)?.into()),
+                ForAll::OP_CODE => Ok(ForAll::sigma_parse(r)?.into()),
                 BoolToSigmaProp::OP_CODE => Ok(BoolToSigmaProp::sigma_parse(r)?.into()),
                 Upcast::OP_CODE => Ok(Upcast::sigma_parse(r)?.into()),
                 If::OP_CODE => Ok(If::sigma_parse(r)?.into()),

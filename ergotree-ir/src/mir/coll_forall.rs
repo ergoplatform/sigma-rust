@@ -7,9 +7,9 @@ use crate::serialization::SerializationError;
 use crate::serialization::SigmaSerializable;
 use crate::types::stype::SType;
 
-/// Tests whether a predicate holds for at least one element of this collection
+/// Tests whether a predicate holds for all elements of this collection.
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct Exists {
+pub struct ForAll {
     /// Collection
     pub input: Box<Expr>,
     /// Function (lambda) to test each element
@@ -18,15 +18,15 @@ pub struct Exists {
     pub elem_tpe: SType,
 }
 
-impl Exists {
-    pub(crate) const OP_CODE: OpCode = OpCode::EXISTS;
+impl ForAll {
+    pub(crate) const OP_CODE: OpCode = OpCode::FOR_ALL;
 
     /// Create new object, returns an error if any of the requirements failed
     pub fn new(input: Expr, condition: Expr) -> Result<Self, InvalidArgumentError> {
         let input_elem_type: SType = *match input.post_eval_tpe() {
             SType::SColl(elem_type) => Ok(elem_type),
             _ => Err(InvalidArgumentError(format!(
-                "Expected Exists input to be SColl, got {0:?}",
+                "Expected ForAll input to be SColl, got {0:?}",
                 input.tpe()
             ))),
         }?;
@@ -35,7 +35,7 @@ impl Exists {
                 if sfunc.t_dom == vec![input_elem_type.clone()]
                     && *sfunc.t_range == SType::SBoolean =>
             {
-                Ok(Exists {
+                Ok(ForAll {
                     input: input.into(),
                     condition: condition.into(),
                     elem_tpe: input_elem_type,
@@ -58,7 +58,7 @@ impl Exists {
     }
 }
 
-impl SigmaSerializable for Exists {
+impl SigmaSerializable for ForAll {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
         self.input.sigma_serialize(w)?;
         self.condition.sigma_serialize(w)
@@ -67,7 +67,7 @@ impl SigmaSerializable for Exists {
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
         let input = Expr::sigma_parse(r)?;
         let condition = Expr::sigma_parse(r)?;
-        Ok(Exists::new(input, condition)?)
+        Ok(ForAll::new(input, condition)?)
     }
 }
 
@@ -79,7 +79,7 @@ mod arbitrary {
     use crate::types::sfunc::SFunc;
     use proptest::prelude::*;
 
-    impl Arbitrary for Exists {
+    impl Arbitrary for ForAll {
         type Strategy = BoxedStrategy<Self>;
         type Parameters = ();
 
@@ -98,7 +98,7 @@ mod arbitrary {
                     depth: 0,
                 }),
             )
-                .prop_map(|(input, mapper)| Exists::new(input, mapper).unwrap())
+                .prop_map(|(input, mapper)| ForAll::new(input, mapper).unwrap())
                 .boxed()
         }
     }
@@ -114,10 +114,10 @@ mod tests {
 
     proptest! {
 
-        #![proptest_config(ProptestConfig::with_cases(16))]
+        #![proptest_config(ProptestConfig::with_cases(4))]
 
         #[test]
-        fn ser_roundtrip(v in any::<Exists>()) {
+        fn ser_roundtrip(v in any::<ForAll>()) {
             let expr: Expr = v.into();
             prop_assert_eq![sigma_serialize_roundtrip(&expr), expr];
         }

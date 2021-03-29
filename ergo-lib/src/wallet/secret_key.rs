@@ -24,7 +24,7 @@ impl SecretKey {
     /// Address (encoded public image)
     pub fn get_address_from_public_image(&self) -> Address {
         match self {
-            SecretKey::DlogSecretKey(dpi) => Address::P2PK(dpi.public_image()),
+            SecretKey::DlogSecretKey(dpi) => Address::P2Pk(dpi.public_image()),
         }
     }
 

@@ -15,6 +15,8 @@ pub mod coll_exists;
 pub mod coll_filter;
 /// Collection.fold
 pub mod coll_fold;
+/// Tests whether a predicate holds for all elements of this collection
+pub mod coll_forall;
 /// Collection.map
 pub mod coll_map;
 /// Collection.size
