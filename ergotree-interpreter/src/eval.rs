@@ -152,7 +152,7 @@ pub(crate) trait Evaluable {
     fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError>;
 }
 
-type EvalFn = fn(ctx: Rc<Context>, Value, Vec<Value>) -> Result<Value, EvalError>;
+type EvalFn = fn(env: &Env, ctx: &mut EvalContext, Value, Vec<Value>) -> Result<Value, EvalError>;
 
 fn smethod_eval_fn(method: &SMethod) -> EvalFn {
     use ergotree_ir::types::*;
@@ -160,15 +160,18 @@ fn smethod_eval_fn(method: &SMethod) -> EvalFn {
         scontext::TYPE_ID if method.method_id() == scontext::DATA_INPUTS_PROPERTY_METHOD_ID => {
             self::scontext::DATA_INPUTS_EVAL_FN
         }
-        sbox::TYPE_ID if method.method_id() == sbox::VALUE_METHOD_ID => self::sbox::VALUE_EVAL_FN,
-        sbox::TYPE_ID if method.method_id() == sbox::GET_REG_METHOD_ID => {
-            self::sbox::GET_REG_EVAL_FN
-        }
-        sbox::TYPE_ID if method.method_id() == sbox::TOKENS_METHOD_ID => self::sbox::TOKENS_EVAL_FN,
-        scoll::TYPE_ID if method.method_id() == scoll::INDEX_OF_METHOD_ID => {
-            self::scoll::INDEX_OF_EVAL_FN
-        }
-        _ => todo!("no EvalFn for SMethod: {:?}", method),
+        sbox::TYPE_ID => match method.method_id() {
+            sbox::VALUE_METHOD_ID => self::sbox::VALUE_EVAL_FN,
+            sbox::GET_REG_METHOD_ID => self::sbox::GET_REG_EVAL_FN,
+            sbox::TOKENS_METHOD_ID => self::sbox::TOKENS_EVAL_FN,
+            method_id => panic!("Eval fn: unknown method id in SBox: {:?}", method_id),
+        },
+        scoll::TYPE_ID => match method.method_id() {
+            scoll::INDEX_OF_METHOD_ID => self::scoll::INDEX_OF_EVAL_FN,
+            scoll::FLATMAP_METHOD_ID => self::scoll::FLATMAP_EVAL_FN,
+            method_id => panic!("Eval fn: unknown method id in SCollection: {:?}", method_id),
+        },
+        type_id => todo!("Eval fn: unknown type id {:?}", type_id),
     }
 }
 

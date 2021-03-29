@@ -12,7 +12,7 @@ impl Evaluable for MethodCall {
         let ov = self.obj.eval(env, ectx)?;
         let argsv: Result<Vec<Value>, EvalError> =
             self.args.iter().map(|arg| arg.eval(env, ectx)).collect();
-        smethod_eval_fn(&self.method)(ectx.ctx.clone(), ov, argsv?)
+        smethod_eval_fn(&self.method)(env, ectx, ov, argsv?)
     }
 }
 

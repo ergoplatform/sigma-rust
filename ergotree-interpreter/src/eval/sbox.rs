@@ -6,18 +6,18 @@ use ergotree_ir::mir::value::Value;
 
 use super::EvalFn;
 
-pub static VALUE_EVAL_FN: EvalFn = |ctx, obj, _args| {
+pub(crate) static VALUE_EVAL_FN: EvalFn = |_env, ctx, obj, _args| {
     Ok(Value::Long(
         obj.try_extract_into::<IrBoxId>()?
-            .get_box(&ctx.box_arena)?
+            .get_box(&ctx.ctx.box_arena)?
             .value(),
     ))
 };
 
-pub static GET_REG_EVAL_FN: EvalFn = |ctx, obj, args| {
+pub(crate) static GET_REG_EVAL_FN: EvalFn = |_env, ctx, obj, args| {
     Ok(Value::Opt(Box::new(
         obj.try_extract_into::<IrBoxId>()?
-            .get_box(&ctx.box_arena)?
+            .get_box(&ctx.ctx.box_arena)?
             .get_register(
                 args.get(0)
                     .cloned()
@@ -28,10 +28,10 @@ pub static GET_REG_EVAL_FN: EvalFn = |ctx, obj, args| {
     )))
 };
 
-pub static TOKENS_EVAL_FN: EvalFn = |ctx, obj, _args| {
+pub(crate) static TOKENS_EVAL_FN: EvalFn = |_env, ctx, obj, _args| {
     let res: Value = obj
         .try_extract_into::<IrBoxId>()?
-        .get_box(&ctx.box_arena)?
+        .get_box(&ctx.ctx.box_arena)?
         .tokens_raw()
         .into();
     Ok(res)

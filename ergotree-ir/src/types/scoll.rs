@@ -14,6 +14,8 @@ use lazy_static::lazy_static;
 pub const TYPE_ID: TypeCode = TypeCode::COLLECTION;
 /// Coll.indexOf
 pub const INDEX_OF_METHOD_ID: MethodId = MethodId(26);
+/// Coll.flatmap
+pub const FLATMAP_METHOD_ID: MethodId = MethodId(1);
 
 static S_COLL_TYPE_COMPANION_HEAD: STypeCompanionHead = STypeCompanionHead {
     type_id: TYPE_ID,
@@ -26,6 +28,7 @@ lazy_static! {
         &S_COLL_TYPE_COMPANION_HEAD,
         vec![
             &INDEX_OF_METHOD_DESC,
+            &FLATMAP_METHOD_DESC
         ]
     );
 }
@@ -44,6 +47,24 @@ lazy_static! {
     pub static ref INDEX_OF_METHOD: SMethod = SMethod::new(&S_COLL_TYPE_COMPANION, INDEX_OF_METHOD_DESC.clone());
 }
 
+lazy_static! {
+    static ref FLATMAP_METHOD_DESC: SMethodDesc = SMethodDesc {
+        method_id: FLATMAP_METHOD_ID,
+        name: "flatmap",
+        tpe: SFunc {
+            t_dom: vec![SType::SColl(SType::STypeVar(STypeVar::IV).into()),
+                SType::SFunc(SFunc {
+                    t_dom: vec![SType::STypeVar(STypeVar::IV)],
+                    t_range: SType::STypeVar(STypeVar::OV).into(),
+                    tpe_params: vec![]})],
+            t_range: SType::SColl(SType::STypeVar(STypeVar::OV).into()).into(),
+            tpe_params: vec![],
+        },
+    };
+    /// Box.value
+    pub static ref FLATMAP_METHOD: SMethod = SMethod::new(&S_COLL_TYPE_COMPANION, FLATMAP_METHOD_DESC.clone());
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -51,5 +72,6 @@ mod tests {
     #[test]
     fn test_from_ids() {
         assert!(SMethod::from_ids(TYPE_ID, INDEX_OF_METHOD_ID).name() == "indexOf");
+        assert!(SMethod::from_ids(TYPE_ID, FLATMAP_METHOD_ID).name() == "flatmap");
     }
 }

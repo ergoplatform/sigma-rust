@@ -5,7 +5,7 @@ use ergotree_ir::types::stype::SType;
 use super::EvalError;
 use super::EvalFn;
 
-pub static DATA_INPUTS_EVAL_FN: EvalFn = |ctx, obj, _args| {
+pub(crate) static DATA_INPUTS_EVAL_FN: EvalFn = |_env, ctx, obj, _args| {
     if obj != Value::Context {
         return Err(EvalError::UnexpectedValue(format!(
             "Context.dataInputs: expected object of Value::Context, got {:?}",
@@ -14,6 +14,7 @@ pub static DATA_INPUTS_EVAL_FN: EvalFn = |ctx, obj, _args| {
     }
     Ok(Value::Coll(CollKind::WrappedColl {
         items: ctx
+            .ctx
             .data_inputs
             .clone()
             .into_iter()

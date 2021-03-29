@@ -10,6 +10,10 @@ pub struct STypeVar {
 impl STypeVar {
     /// "T" type variable
     pub const T: STypeVar = STypeVar { name: "T" };
+    /// "IV"(Input Value) type variable
+    pub const IV: STypeVar = STypeVar { name: "IV" };
+    /// "OV"(Input Value) type variable
+    pub const OV: STypeVar = STypeVar { name: "OV" };
 }
 
 /// Type parameter
