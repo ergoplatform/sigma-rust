@@ -50,7 +50,7 @@ lazy_static! {
 lazy_static! {
     static ref FLATMAP_METHOD_DESC: SMethodDesc = SMethodDesc {
         method_id: FLATMAP_METHOD_ID,
-        name: "flatmap",
+        name: "flatMap",
         tpe: SFunc {
             t_dom: vec![SType::SColl(SType::STypeVar(STypeVar::IV).into()),
                 SType::SFunc(SFunc {
@@ -72,6 +72,6 @@ mod tests {
     #[test]
     fn test_from_ids() {
         assert!(SMethod::from_ids(TYPE_ID, INDEX_OF_METHOD_ID).name() == "indexOf");
-        assert!(SMethod::from_ids(TYPE_ID, FLATMAP_METHOD_ID).name() == "flatmap");
+        assert!(SMethod::from_ids(TYPE_ID, FLATMAP_METHOD_ID).name() == "flatMap");
     }
 }
