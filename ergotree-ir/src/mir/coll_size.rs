@@ -67,7 +67,7 @@ mod arbitrary {
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             any_with::<Expr>(ArbExprParams {
-                tpe: SType::SColl(SType::STypeVar(STypeVar::T).into()),
+                tpe: SType::SColl(SType::STypeVar(STypeVar::t()).into()),
                 depth: 1,
             })
             .prop_map(|input| Self {

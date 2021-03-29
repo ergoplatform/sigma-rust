@@ -114,7 +114,7 @@ mod tests {
             coll_const.into(),
             scoll::INDEX_OF_METHOD
                 .clone()
-                .with_concrete_types(&[(STypeVar::T, SType::SLong)].iter().cloned().collect()),
+                .with_concrete_types(&[(STypeVar::t(), SType::SLong)].iter().cloned().collect()),
             vec![2i64.into(), 0i32.into()],
         )
         .unwrap()
@@ -130,7 +130,7 @@ mod tests {
             coll_const.into(),
             scoll::INDEX_OF_METHOD
                 .clone()
-                .with_concrete_types(&[(STypeVar::T, SType::SLong)].iter().cloned().collect()),
+                .with_concrete_types(&[(STypeVar::t(), SType::SLong)].iter().cloned().collect()),
             vec![3i64.into(), 0i32.into()],
         )
         .unwrap()
@@ -158,8 +158,8 @@ mod tests {
             coll_const.into(),
             scoll::FLATMAP_METHOD.clone().with_concrete_types(
                 &[
-                    (STypeVar::IV, SType::SLong),
-                    (STypeVar::OV, SType::SBoolean),
+                    (STypeVar::iv(), SType::SLong),
+                    (STypeVar::ov(), SType::SBoolean),
                 ]
                 .iter()
                 .cloned()

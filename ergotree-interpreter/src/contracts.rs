@@ -166,4 +166,25 @@ mod tests {
             .unwrap();
         assert!(res);
     }
+
+    #[test]
+    fn amm_pool() {
+        // from eip-14 https://github.com/ergoplatform/eips/pull/27/files
+        let p2s_addr_str = "k6fD5ht5e1itDejPFV2VzAoHv478KQCbDnLAL6XUVeEu8KDaboCVZAoFz2AtMoLqM3CgQfr2TZhpwz7K96AgwTXDvBVeTchJ31jjD46Di1W67H8wwFcivnY62UB6L7HWzCkbYuiZaAq2qSJta5Twt4A2Aaoy7xViWcyLUVNAyQYDJXKhVBAGwp76i2too5yWUmEU4zt9XnjJAUt1FFfurNtTNHNPDbqmTRE4crz347q6rfbvkMmg9Jtk9rSiPCQpKjdbZVzUnP4CUw6AvQH6rZXxgNMktAtjQdHhCnrCmf78FwCKqYS54asKd1MFgYNT4NzPwmdZF6JtQt1vvkjZXqpGkjy33xxDNYy8JZS8eeqVgZErPeJ1aj4aaK8gvmApUgGStMDFeFYjuQqZiZxEAHNdAXDg7hyGnmfzA6Hj9zcB7p9nKCDNhEQEMPL1kMG5aXvt2HUPXqiCkLrv596DaGmRMN3gMJaj1T1AfMYNwZozcJ9uUSK4i6Xham28HWAekTtDPhobnmjvkubwLVTtvUumWHtDWFxYSJPF7vqzgZqg6Y5unMF";
+        let encoder = AddressEncoder::new(NetworkPrefix::Mainnet);
+        let addr = encoder.parse_address_from_str(p2s_addr_str).unwrap();
+        assert!(addr.script().unwrap().proposition().is_ok());
+        let script: Rc<Expr> = addr.script().unwrap().proposition().unwrap();
+        dbg!(&script);
+    }
+
+    #[test]
+    fn amm_swap() {
+        // from eip-14 https://github.com/ergoplatform/eips/pull/27/files
+        let p2s_addr_str = "cLPHJ3MHuKAHoCUwGhcEFw5sWJqvPwFyKxTRj1aUoMwgAz78Fg3zLXRhBup9Te1WLau1gZXNmXvUmeXGCd7QLeqB7ArrT3v5cg26piEtqymM6j2SkgYVCobgoAGKeTf6nMLxv1uVrLdjt1GnPxG1MuWj7Es7Dfumotbx9YEaxwqtTUC5SKsJc9LCpAmNWRAQbU6tVVEvmfwWivrGoZ3L5C4DMisxN3U";
+        let encoder = AddressEncoder::new(NetworkPrefix::Mainnet);
+        let addr = encoder.parse_address_from_str(p2s_addr_str).unwrap();
+        let script: Rc<Expr> = addr.script().unwrap().proposition().unwrap();
+        dbg!(&script);
+    }
 }

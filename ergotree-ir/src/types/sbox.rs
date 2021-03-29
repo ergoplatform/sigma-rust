@@ -57,7 +57,7 @@ lazy_static! {
         name: "getReg",
         tpe: SFunc {
             t_dom: vec![SType::SBox, SType::SByte],
-            t_range: Box::new(SType::SOption(Box::new(SType::STypeVar(STypeVar::T)))),
+            t_range: Box::new(SType::SOption(Box::new(SType::STypeVar(STypeVar::t())))),
             tpe_params: vec![],
         },
     };

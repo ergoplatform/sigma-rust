@@ -38,7 +38,7 @@ lazy_static! {
         method_id: INDEX_OF_METHOD_ID,
         name: "indexOf",
         tpe: SFunc {
-            t_dom: vec![SType::SColl(SType::STypeVar(STypeVar::T).into()), SType::STypeVar(STypeVar::T), SType::SInt],
+            t_dom: vec![SType::SColl(SType::STypeVar(STypeVar::t()).into()), SType::STypeVar(STypeVar::t()), SType::SInt],
             t_range: SType::SInt.into(),
             tpe_params: vec![],
         },
@@ -52,11 +52,11 @@ lazy_static! {
         method_id: FLATMAP_METHOD_ID,
         name: "flatMap",
         tpe: SFunc {
-            t_dom: vec![SType::SColl(SType::STypeVar(STypeVar::IV).into()),
+            t_dom: vec![SType::SColl(SType::STypeVar(STypeVar::iv()).into()),
             SType::SFunc(
-                SFunc::new(vec![SType::STypeVar(STypeVar::IV)], SType::STypeVar(STypeVar::OV), vec![] ))
+                SFunc::new(vec![SType::STypeVar(STypeVar::iv())], SType::STypeVar(STypeVar::ov()), vec![] ))
             ],
-            t_range: SType::SColl(SType::STypeVar(STypeVar::OV).into()).into(),
+            t_range: SType::SColl(SType::STypeVar(STypeVar::ov()).into()).into(),
             tpe_params: vec![],
         },
     };

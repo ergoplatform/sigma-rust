@@ -62,7 +62,8 @@ impl SType {
     /// Type code used in serialization of SType values.
     pub fn type_code(&self) -> TypeCode {
         match self {
-            SType::SAny => todo!(),
+            SType::SFunc(_) => todo!(),
+            SType::SAny => TypeCode::SANY,
             SType::SBoolean => TypeCode::SBOOLEAN,
             SType::SByte => TypeCode::SBYTE,
             SType::SShort => TypeCode::SSHORT,
@@ -71,14 +72,13 @@ impl SType {
             SType::SBigInt => TypeCode::SBIGINT,
             SType::SGroupElement => TypeCode::SGROUP_ELEMENT,
             SType::SSigmaProp => TypeCode::SSIGMAPROP,
-            SType::SBox => todo!(),
-            SType::SAvlTree => todo!(),
+            SType::SBox => TypeCode::SBOX,
+            SType::SAvlTree => TypeCode::SAVL_TREE,
             SType::SOption(_) => TypeCode::OPTION,
             SType::SColl(_) => TypeCode::COLLECTION,
             SType::STuple(_) => TypeCode::TUPLE,
-            SType::SFunc(_) => todo!(),
-            SType::SContext => todo!(),
-            SType::STypeVar(_) => todo!(),
+            SType::SContext => TypeCode::SCONTEXT,
+            SType::STypeVar(_) => TypeCode::STYPE_VAR,
         }
     }
 
@@ -227,6 +227,10 @@ mod tests {
             Just(SType::SBigInt),
             Just(SType::SGroupElement),
             Just(SType::SSigmaProp),
+            Just(SType::SBox),
+            Just(SType::SAvlTree),
+            Just(SType::SContext),
+            Just(SType::STypeVar(STypeVar::t())),
         ]
         .boxed()
     }
