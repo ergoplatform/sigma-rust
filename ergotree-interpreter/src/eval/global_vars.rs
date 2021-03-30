@@ -12,10 +12,7 @@ impl Evaluable for GlobalVars {
             GlobalVars::Height => Ok(ectx.ctx.height.clone().into()),
             GlobalVars::SelfBox => Ok(ectx.ctx.self_box.clone().into()),
             GlobalVars::Outputs => Ok(ectx.ctx.outputs.clone().into()),
-            _ => Err(EvalError::UnexpectedExpr(format!(
-                "Don't know how to eval GlobalVars: {0:?}",
-                self
-            ))),
+            GlobalVars::Inputs => Ok(ectx.ctx.inputs.clone().into()),
         }
     }
 }
@@ -55,6 +52,15 @@ mod tests {
         assert_eq!(
             eval_out::<Vec<IrBoxId>>(&GlobalVars::Outputs.into(), ctx.clone()),
             ctx.outputs
+        );
+    }
+
+    #[test]
+    fn eval_inputs() {
+        let ctx = Rc::new(force_any_val::<Context>());
+        assert_eq!(
+            eval_out::<Vec<IrBoxId>>(&GlobalVars::Inputs.into(), ctx.clone()),
+            ctx.inputs
         );
     }
 }

@@ -176,6 +176,10 @@ mod tests {
         assert!(addr.script().unwrap().proposition().is_ok());
         let script: Rc<Expr> = addr.script().unwrap().proposition().unwrap();
         dbg!(&script);
+        // let res: bool = eval_out_wo_ctx::<SigmaProp>(script.as_ref())
+        //     .try_into()
+        //     .unwrap();
+        // assert!(!res);
     }
 
     #[test]
@@ -186,6 +190,10 @@ mod tests {
         let addr = encoder.parse_address_from_str(p2s_addr_str).unwrap();
         let script: Rc<Expr> = addr.script().unwrap().proposition().unwrap();
         dbg!(&script);
+        // let res: bool = eval_out_wo_ctx::<SigmaProp>(script.as_ref())
+        //     .try_into()
+        //     .unwrap();
+        // assert!(!res);
     }
 
     #[test]
@@ -196,5 +204,9 @@ mod tests {
         let addr = encoder.parse_address_from_str(p2s_addr_str).unwrap();
         let script: Rc<Expr> = addr.script().unwrap().proposition().unwrap();
         dbg!(&script);
+        // let res: bool = eval_out_wo_ctx::<SigmaProp>(script.as_ref())
+        //     .try_into()
+        //     .unwrap();
+        // assert!(!res);
     }
 }
