@@ -33,19 +33,21 @@ impl SigmaSerializable for MethodCall {
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
 mod tests {
-    use crate::mir::constant::Constant;
     use crate::mir::expr::Expr;
-    use crate::mir::global_vars::GlobalVars;
     use crate::mir::method_call::MethodCall;
     use crate::serialization::sigma_serialize_roundtrip;
-    use crate::types::sbox;
+    use crate::types::scoll;
+    use crate::types::stype::SType;
+    use crate::types::stype_param::STypeVar;
 
     #[test]
-    fn ser_roundtrip_property() {
+    fn ser_roundtrip() {
         let mc: Expr = MethodCall::new(
-            GlobalVars::SelfBox.into(),
-            sbox::GET_REG_METHOD.clone(),
-            vec![Constant::from(0i8).into()],
+            vec![1i64, 2i64].into(),
+            scoll::INDEX_OF_METHOD
+                .clone()
+                .with_concrete_types(&[(STypeVar::t(), SType::SLong)].iter().cloned().collect()),
+            vec![2i64.into(), 0i32.into()],
         )
         .unwrap()
         .into();
