@@ -59,6 +59,7 @@ pub(crate) mod scoll;
 pub(crate) mod scontext;
 pub(crate) mod select_field;
 pub(crate) mod sigma_prop_bytes;
+pub(crate) mod tuple;
 pub(crate) mod upcast;
 pub(crate) mod val_use;
 

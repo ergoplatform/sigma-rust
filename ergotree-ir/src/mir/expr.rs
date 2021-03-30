@@ -4,6 +4,7 @@ use std::convert::TryFrom;
 use std::convert::TryInto;
 
 use crate::serialization::op_code::OpCode;
+use crate::types::stuple::STupleItemsOutOfBoundsError;
 use crate::types::stype::LiftIntoSType;
 use crate::types::stype::SType;
 
@@ -44,6 +45,7 @@ use super::or::Or;
 use super::property_call::PropertyCall;
 use super::select_field::SelectField;
 use super::sigma_prop_bytes::SigmaPropBytes;
+use super::tuple::Tuple;
 use super::upcast::Upcast;
 use super::val_def::ValDef;
 use super::val_use::ValUse;
@@ -62,6 +64,8 @@ pub enum Expr {
     ConstPlaceholder(ConstantPlaceholder),
     /// Collection declaration (array of expressions of the same type)
     Collection(Collection),
+    /// Tuple declaration
+    Tuple(Tuple),
     /// Predefined functions (global)
     /// Blake2b256 hash calculation
     CalcBlake2b256(CalcBlake2b256),
@@ -182,6 +186,7 @@ impl Expr {
             Expr::OptionGetOrElse(op) => op.op_code(),
             Expr::Negation(op) => op.op_code(),
             Expr::ForAll(op) => op.op_code(),
+            Expr::Tuple(op) => op.op_code(),
         }
     }
 
@@ -227,6 +232,7 @@ impl Expr {
             Expr::OptionGetOrElse(v) => v.tpe(),
             Expr::Negation(v) => v.tpe(),
             Expr::ForAll(v) => v.tpe(),
+            Expr::Tuple(v) => v.tpe(),
         }
     }
 
@@ -277,6 +283,12 @@ pub struct InvalidExprEvalTypeError(pub String);
 
 impl From<InvalidExprEvalTypeError> for InvalidArgumentError {
     fn from(e: InvalidExprEvalTypeError) -> Self {
+        InvalidArgumentError(format!("{0:?}", e))
+    }
+}
+
+impl From<STupleItemsOutOfBoundsError> for InvalidArgumentError {
+    fn from(e: STupleItemsOutOfBoundsError) -> Self {
         InvalidArgumentError(format!("{0:?}", e))
     }
 }

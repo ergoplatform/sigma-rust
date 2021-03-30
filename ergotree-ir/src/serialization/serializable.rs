@@ -1,6 +1,7 @@
 //! Serialization of Ergo types
 use crate::mir::expr::InvalidArgumentError;
 use crate::mir::val_def::ValId;
+use crate::types::stuple::STupleItemsOutOfBoundsError;
 
 use super::{
     constant_store::ConstantStore,
@@ -74,6 +75,12 @@ impl From<&io::Error> for SerializationError {
 impl From<InvalidArgumentError> for SerializationError {
     fn from(e: InvalidArgumentError) -> Self {
         SerializationError::InvalidArgument(e)
+    }
+}
+
+impl From<STupleItemsOutOfBoundsError> for SerializationError {
+    fn from(e: STupleItemsOutOfBoundsError) -> Self {
+        SerializationError::ValueOutOfBounds(format!("{:?}", e))
     }
 }
 
