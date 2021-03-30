@@ -9,7 +9,6 @@ use crate::types::stuple::STuple;
 use crate::types::stuple::TupleItems;
 use crate::types::stype::SType;
 
-use super::constant::Constant;
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
 
@@ -66,6 +65,7 @@ impl SigmaSerializable for Tuple {
 mod arbitrary {
 
     use super::*;
+    use crate::mir::constant::Constant;
     use proptest::collection::*;
     use proptest::prelude::*;
 
