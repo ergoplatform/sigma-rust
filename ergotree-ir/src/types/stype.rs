@@ -219,6 +219,7 @@ mod tests {
 
     fn primitive_type() -> BoxedStrategy<SType> {
         prop_oneof![
+            Just(SType::SAny),
             Just(SType::SBoolean),
             Just(SType::SByte),
             Just(SType::SShort),
