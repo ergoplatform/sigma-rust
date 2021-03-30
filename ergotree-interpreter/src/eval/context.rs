@@ -18,6 +18,8 @@ pub struct Context {
     pub outputs: Vec<IrBoxId>,
     /// Spending transaction data inputs
     pub data_inputs: Vec<IrBoxId>,
+    /// Spending transaction inputs
+    pub inputs: Vec<IrBoxId>,
 }
 
 #[cfg(feature = "arbitrary")]
@@ -38,15 +40,20 @@ mod arbitrary {
                 0..i32::MAX,
                 any::<IrErgoBoxDummy>(),
                 vec(any::<IrErgoBoxDummy>(), 1..3),
+                vec(any::<IrErgoBoxDummy>(), 1..3),
                 vec(any::<IrErgoBoxDummy>(), 0..3),
             )
-                .prop_map(|(height, self_box, outputs, data_inputs)| {
+                .prop_map(|(height, self_box, outputs, inputs, data_inputs)| {
                     let self_box_id = self_box.id();
                     let outputs_ids = outputs.iter().map(|b| b.id()).collect();
+                    let inputs_ids = inputs.iter().map(|b| b.id()).collect();
                     let data_inputs_ids = data_inputs.iter().map(|b| b.id()).collect();
                     let mut m = HashMap::new();
                     m.insert(self_box_id.clone(), self_box);
                     outputs.into_iter().for_each(|b| {
+                        m.insert(b.id(), b);
+                    });
+                    inputs.into_iter().for_each(|b| {
                         m.insert(b.id(), b);
                     });
                     data_inputs.into_iter().for_each(|b| {
@@ -59,6 +66,7 @@ mod arbitrary {
                         self_box: self_box_id,
                         outputs: outputs_ids,
                         data_inputs: data_inputs_ids,
+                        inputs: inputs_ids,
                     }
                 })
                 .boxed()

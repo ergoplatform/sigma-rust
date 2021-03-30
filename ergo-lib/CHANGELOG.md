@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added 
 - `Coll.indexOf`, `flatMap`, `forall` IR nodes (evaluation, serialization) [#220](https://github.com/ergoplatform/sigma-rust/pull/220);
+- Complete types serialization implementation [#223](https://github.com/ergoplatform/sigma-rust/pull/223);
+- `Tuple` constructor evaluation and serialization [#223](https://github.com/ergoplatform/sigma-rust/pull/223);
 
 ## [0.8.0] - 2021-03-22
 

@@ -6,6 +6,7 @@ use crate::serialization::{
 };
 use crate::types::stuple::STuple;
 use crate::types::stype::SType;
+use crate::types::stype_param::STypeVar;
 use sigma_ser::vlq_encode;
 use std::convert::TryInto;
 use std::{io, ops::Add};
@@ -33,7 +34,10 @@ impl TypeCode {
 
     pub const SANY: TypeCode = Self::new(97);
     pub const SBOX: TypeCode = Self::new(99);
+    pub const SAVL_TREE: TypeCode = Self::new(100);
     pub const SCONTEXT: TypeCode = Self::new(101);
+    pub const SSTRING: TypeCode = Self::new(102);
+    pub const STYPE_VAR: TypeCode = Self::new(103);
 
     const COLLECTION_CONSTR_ID: u8 = 1;
     pub const COLLECTION: TypeCode =
@@ -142,8 +146,8 @@ impl SigmaSerializable for SType {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
         // for reference see http://github.com/ScorexFoundation/sigmastate-interpreter/blob/25251c1313b0131835f92099f02cef8a5d932b5e/sigmastate/src/main/scala/sigmastate/serialization/TypeSerializer.scala#L25-L25
         match self {
+            SType::SFunc(_) => todo!(),
             SType::SAny => self.type_code().sigma_serialize(w),
-
             SType::SBoolean => self.type_code().sigma_serialize(w),
             SType::SByte => self.type_code().sigma_serialize(w),
             SType::SShort => self.type_code().sigma_serialize(w),
@@ -152,9 +156,9 @@ impl SigmaSerializable for SType {
             SType::SBigInt => self.type_code().sigma_serialize(w),
             SType::SGroupElement => self.type_code().sigma_serialize(w),
             SType::SSigmaProp => self.type_code().sigma_serialize(w),
-
-            SType::SBox => todo!(),
-            SType::SAvlTree => todo!(),
+            SType::SBox => self.type_code().sigma_serialize(w),
+            SType::SAvlTree => self.type_code().sigma_serialize(w),
+            SType::SContext => self.type_code().sigma_serialize(w),
             SType::SOption(elem_type) if is_stype_embeddable(elem_type) => {
                 let code = TypeCode::OPTION + elem_type.type_code();
                 code.sigma_serialize(w)
@@ -226,9 +230,10 @@ impl SigmaSerializable for SType {
                     }
                 },
             },
-            SType::SFunc(_) => todo!(),
-            SType::SContext => todo!(),
-            SType::STypeVar(_) => todo!(),
+            SType::STypeVar(tv) => {
+                TypeCode::STYPE_VAR.sigma_serialize(w)?;
+                tv.sigma_serialize(w)
+            }
         }
     }
 
@@ -304,9 +309,10 @@ impl SigmaSerializable for SType {
                     }
                 }
                 _ => {
-                    return Err(SerializationError::NotImplementedYet(
-                        "parsing type is not yet implemented".to_string(),
-                    ))
+                    return Err(SerializationError::NotImplementedYet(format!(
+                        "case 1: parsing type is not yet implemented(constr_id == {:?})",
+                        constr_id
+                    )))
                 }
             }
         } else {
@@ -321,9 +327,15 @@ impl SigmaSerializable for SType {
                         SerializationError::TupleItemsOutOfBounds(len as usize)
                     })?))
                 }
-                _ => Err(SerializationError::NotImplementedYet(
-                    "parsing type is not yet implemented".to_string(),
-                )),
+                TypeCode::SANY => Ok(SType::SAny),
+                TypeCode::SBOX => Ok(SType::SBox),
+                TypeCode::SAVL_TREE => Ok(SType::SAvlTree),
+                TypeCode::SCONTEXT => Ok(SType::SContext),
+                TypeCode::STYPE_VAR => Ok(SType::STypeVar(STypeVar::sigma_parse(r)?)),
+                _ => Err(SerializationError::NotImplementedYet(format!(
+                    "case 2: parsing type is not yet implemented(c == {:?})",
+                    c
+                ))),
             }?
         };
         Ok(tpe)
@@ -349,7 +361,7 @@ mod tests {
 
         #[test]
         fn ser_roundtrip(v in any::<SType>()) {
-            dbg!(v.clone());
+            dbg!(&v);
             prop_assert_eq![sigma_serialize_roundtrip(&v), v];
         }
     }

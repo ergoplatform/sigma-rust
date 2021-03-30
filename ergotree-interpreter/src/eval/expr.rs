@@ -49,6 +49,7 @@ impl Evaluable for Expr {
             Expr::OptionGetOrElse(op) => op.eval(env, ctx),
             Expr::Negation(op) => op.eval(env, ctx),
             Expr::ForAll(op) => op.eval(env, ctx),
+            Expr::Tuple(op) => op.eval(env, ctx),
         }
     }
 }

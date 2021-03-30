@@ -52,10 +52,18 @@ pub struct ErgoBoxArena(HashMap<BoxId, ErgoBox>);
 
 impl ErgoBoxArena {
     /// Create new arena and store given boxes
-    pub fn new(self_box: ErgoBox, outputs: Vec<ErgoBox>, data_inputs: Vec<ErgoBox>) -> Self {
+    pub fn new(
+        self_box: ErgoBox,
+        outputs: Vec<ErgoBox>,
+        data_inputs: Vec<ErgoBox>,
+        inputs: Vec<ErgoBox>,
+    ) -> Self {
         let mut m = HashMap::new();
         m.insert(self_box.box_id(), self_box);
         outputs.into_iter().for_each(|b| {
+            m.insert(b.box_id(), b);
+        });
+        inputs.into_iter().for_each(|b| {
             m.insert(b.box_id(), b);
         });
         data_inputs.into_iter().for_each(|b| {
@@ -97,14 +105,25 @@ pub fn make_context(
     let data_inputs: Vec<ErgoBox> = tx_ctx.data_boxes.clone();
     let self_box_ir = self_box.box_id().into();
     let outputs_ir = outputs.iter().map(|b| b.box_id().into()).collect();
+    let inputs_ir = tx_ctx
+        .boxes_to_spend
+        .iter()
+        .map(|b| b.box_id().into())
+        .collect();
     let data_inputs_ir = data_inputs.iter().map(|b| b.box_id().into()).collect();
-    let box_arena = Rc::new(ErgoBoxArena::new(self_box, outputs, data_inputs));
+    let box_arena = Rc::new(ErgoBoxArena::new(
+        self_box,
+        outputs,
+        data_inputs,
+        tx_ctx.boxes_to_spend.clone(),
+    ));
     Ok(Context {
         box_arena,
         height,
         self_box: self_box_ir,
         outputs: outputs_ir,
         data_inputs: data_inputs_ir,
+        inputs: inputs_ir,
     })
 }
 

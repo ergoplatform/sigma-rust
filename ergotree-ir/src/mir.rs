@@ -62,6 +62,8 @@ pub mod property_call;
 pub mod select_field;
 /// Extract serialized bytes of a SigmaProp value
 pub mod sigma_prop_bytes;
+/// Tuple of elements
+pub mod tuple;
 pub mod upcast;
 /// Variable definition
 pub mod val_def;
