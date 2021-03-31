@@ -32,6 +32,11 @@ impl<T> TupleItems<T> {
         self.0.as_slice()
     }
 
+    /// Get a vector
+    pub fn to_vec(self) -> Vec<T> {
+        self.0
+    }
+
     /// Returns tuple element with 1-based given index
     pub fn get(&self, index: TupleFieldIndex) -> Option<&T> {
         let index_usize: usize = index.into();

@@ -10,6 +10,8 @@ use super::sfunc::SFunc;
 use super::stype::SType;
 use super::stype_companion::STypeCompanion;
 use super::stype_param::STypeVar;
+use super::type_unify::unify_many;
+use super::type_unify::TypeUnificationError;
 
 /// Method id unique among the methods of the same object
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -76,6 +78,19 @@ impl SMethod {
             method_raw: self.method_raw.with_tpe(new_tpe),
             ..self
         }
+    }
+
+    /// Specializes this instance by creating a new [`SMethod`] instance where signature
+    /// is specialized with respect to the given object and args types.
+    pub fn specialize_for(
+        self,
+        obj_tpe: SType,
+        args: Vec<SType>,
+    ) -> Result<SMethod, TypeUnificationError> {
+        let mut items2 = vec![obj_tpe];
+        let mut args = args;
+        items2.append(args.as_mut());
+        unify_many(self.tpe().t_dom.clone(), items2).map(|subst| self.with_concrete_types(&subst))
     }
 }
 

@@ -2,6 +2,7 @@
 use crate::mir::expr::InvalidArgumentError;
 use crate::mir::val_def::ValId;
 use crate::types::stuple::STupleItemsOutOfBoundsError;
+use crate::types::type_unify::TypeUnificationError;
 
 use super::{
     constant_store::ConstantStore,
@@ -82,6 +83,13 @@ impl From<STupleItemsOutOfBoundsError> for SerializationError {
     fn from(e: STupleItemsOutOfBoundsError) -> Self {
         SerializationError::ValueOutOfBounds(format!("{:?}", e))
     }
+}
+
+impl From<TypeUnificationError> for SerializationError {
+    fn from(e: TypeUnificationError) -> Self {
+        SerializationError::Misc(format!("{:?}", e))
+    }
+
 }
 
 /// Consensus-critical serialization for Ergo

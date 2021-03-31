@@ -41,4 +41,11 @@ impl SFunc {
             tpe_params: remaining_vars,
         }
     }
+
+    /// Returns function parameter types (t_dom) with added result type (t_range)
+    pub fn t_dom_plus_range(&self) -> Vec<SType> {
+        let mut res = self.t_dom.clone();
+        res.push(*self.t_range.clone());
+        res
+    }
 }
