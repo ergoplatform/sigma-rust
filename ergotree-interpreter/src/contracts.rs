@@ -195,6 +195,7 @@ mod tests {
         // assert!(!res);
     }
 
+    #[ignore = "continue after type unification"]
     #[test]
     fn ageusd_ballot() {
         // from eip-15 https://github.com/ergoplatform/eips/pull/27/files
