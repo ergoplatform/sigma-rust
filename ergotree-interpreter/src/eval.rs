@@ -37,6 +37,7 @@ pub(crate) mod collection;
 pub(crate) mod cost_accum;
 pub(crate) mod costs;
 pub(crate) mod create_provedlog;
+pub(crate) mod decode_point;
 pub(crate) mod expr;
 pub(crate) mod extract_amount;
 pub(crate) mod extract_creation_info;

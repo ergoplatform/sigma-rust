@@ -21,6 +21,7 @@ use crate::mir::collection::coll_sigma_serialize;
 use crate::mir::constant::Constant;
 use crate::mir::constant::ConstantPlaceholder;
 use crate::mir::create_provedlog::CreateProveDlog;
+use crate::mir::decode_point::DecodePoint;
 use crate::mir::expr::Expr;
 use crate::mir::extract_amount::ExtractAmount;
 use crate::mir::extract_creation_info::ExtractCreationInfo;
@@ -107,6 +108,7 @@ impl SigmaSerializable for Expr {
                     Expr::Negation(op) => op.sigma_serialize(w),
                     Expr::ForAll(op) => op.sigma_serialize(w),
                     Expr::Tuple(op) => op.sigma_serialize(w),
+                    Expr::DecodePoint(op) => op.sigma_serialize(w),
                     Expr::SigmaAnd(op) => op.sigma_serialize(w),
                     Expr::SigmaOr(op) => op.sigma_serialize(w),
                 }
@@ -196,6 +198,7 @@ impl SigmaSerializable for Expr {
                 CreateProveDlog::OP_CODE => Ok(CreateProveDlog::sigma_parse(r)?.into()),
                 SigmaPropBytes::OP_CODE => Ok(SigmaPropBytes::sigma_parse(r)?.into()),
                 Tuple::OP_CODE => Ok(Tuple::sigma_parse(r)?.into()),
+                DecodePoint::OP_CODE => Ok(DecodePoint::sigma_parse(r)?.into()),
                 SigmaAnd::OP_CODE => Ok(SigmaAnd::sigma_parse(r)?.into()),
                 SigmaOr::OP_CODE => Ok(SigmaOr::sigma_parse(r)?.into()),
                 o => Err(SerializationError::NotImplementedOpCode(format!(

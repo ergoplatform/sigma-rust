@@ -27,6 +27,7 @@ use super::constant::ConstantPlaceholder;
 use super::constant::TryExtractFrom;
 use super::constant::TryExtractFromError;
 use super::create_provedlog::CreateProveDlog;
+use super::decode_point::DecodePoint;
 use super::extract_amount::ExtractAmount;
 use super::extract_creation_info::ExtractCreationInfo;
 use super::extract_id::ExtractId;
@@ -143,6 +144,8 @@ pub enum Expr {
     CreateProveDlog(CreateProveDlog),
     /// Extract serialized bytes of a SigmaProp value
     SigmaPropBytes(SigmaPropBytes),
+    /// Decode byte array to EC point
+    DecodePoint(DecodePoint),
     /// AND conjunction for sigma propositions
     SigmaAnd(SigmaAnd),
     /// OR conjunction for sigma propositions
@@ -193,6 +196,7 @@ impl Expr {
             Expr::Negation(op) => op.op_code(),
             Expr::ForAll(op) => op.op_code(),
             Expr::Tuple(op) => op.op_code(),
+            Expr::DecodePoint(op) => op.op_code(),
             Expr::SigmaAnd(op) => op.op_code(),
             Expr::SigmaOr(op) => op.op_code(),
         }
@@ -241,6 +245,7 @@ impl Expr {
             Expr::Negation(v) => v.tpe(),
             Expr::ForAll(v) => v.tpe(),
             Expr::Tuple(v) => v.tpe(),
+            Expr::DecodePoint(v) => v.tpe(),
             Expr::SigmaAnd(v) => v.tpe(),
             Expr::SigmaOr(v) => v.tpe(),
         }
