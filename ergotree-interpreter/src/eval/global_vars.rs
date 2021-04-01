@@ -13,6 +13,7 @@ impl Evaluable for GlobalVars {
             GlobalVars::SelfBox => Ok(ectx.ctx.self_box.clone().into()),
             GlobalVars::Outputs => Ok(ectx.ctx.outputs.clone().into()),
             GlobalVars::Inputs => Ok(ectx.ctx.inputs.clone().into()),
+            GlobalVars::MinerPubKey => panic!("PANIK"),
         }
     }
 }
