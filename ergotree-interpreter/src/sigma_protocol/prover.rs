@@ -285,7 +285,7 @@ fn convert_to_unproven(ergo_lib: SigmaBoolean) -> UnprovenTree {
             }
             .into(),
         },
-        SigmaBoolean::Cand(_) => todo!(),
+        SigmaBoolean::SigmaConjecture(_) => todo!(),
     }
 }
 

@@ -54,6 +54,13 @@ pub enum SigmaProofOfKnowledgeTree {
     ProveDlog(ProveDlog),
 }
 
+/// Conjunctions for sigma propositions
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub enum SigmaConjecture {
+    /// AND
+    Cand(Vec<SigmaBoolean>),
+}
+
 /// Algebraic data type of sigma proposition expressions
 /// Values of this type are used as values of SigmaProp type
 #[derive(PartialEq, Eq, Debug, Clone, From, TryInto)]
@@ -62,8 +69,8 @@ pub enum SigmaBoolean {
     TrivialProp(bool),
     /// Sigma proposition
     ProofOfKnowledge(SigmaProofOfKnowledgeTree),
-    /// AND conjunction for sigma propositions
-    Cand(Vec<SigmaBoolean>),
+    /// Conjunctions for sigma propositions
+    SigmaConjecture(SigmaConjecture),
 }
 
 impl SigmaBoolean {
