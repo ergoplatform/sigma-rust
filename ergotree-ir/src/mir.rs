@@ -60,6 +60,8 @@ pub mod or;
 pub mod property_call;
 /// Select a field of the tuple value
 pub mod select_field;
+pub mod sigma_and;
+pub mod sigma_or;
 /// Extract serialized bytes of a SigmaProp value
 pub mod sigma_prop_bytes;
 /// Tuple of elements

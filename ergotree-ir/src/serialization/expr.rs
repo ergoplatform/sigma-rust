@@ -39,6 +39,8 @@ use crate::mir::option_is_defined::OptionIsDefined;
 use crate::mir::or::Or;
 use crate::mir::property_call::PropertyCall;
 use crate::mir::select_field::SelectField;
+use crate::mir::sigma_and::SigmaAnd;
+use crate::mir::sigma_or::SigmaOr;
 use crate::mir::sigma_prop_bytes::SigmaPropBytes;
 use crate::mir::tuple::Tuple;
 use crate::mir::upcast::Upcast;
@@ -105,6 +107,8 @@ impl SigmaSerializable for Expr {
                     Expr::Negation(op) => op.sigma_serialize(w),
                     Expr::ForAll(op) => op.sigma_serialize(w),
                     Expr::Tuple(op) => op.sigma_serialize(w),
+                    Expr::SigmaAnd(op) => op.sigma_serialize(w),
+                    Expr::SigmaOr(op) => op.sigma_serialize(w),
                 }
             }
         }
@@ -192,6 +196,8 @@ impl SigmaSerializable for Expr {
                 CreateProveDlog::OP_CODE => Ok(CreateProveDlog::sigma_parse(r)?.into()),
                 SigmaPropBytes::OP_CODE => Ok(SigmaPropBytes::sigma_parse(r)?.into()),
                 Tuple::OP_CODE => Ok(Tuple::sigma_parse(r)?.into()),
+                SigmaAnd::OP_CODE => Ok(SigmaAnd::sigma_parse(r)?.into()),
+                SigmaOr::OP_CODE => Ok(SigmaOr::sigma_parse(r)?.into()),
                 o => Err(SerializationError::NotImplementedOpCode(format!(
                     "{0}(shift {1})",
                     o.value(),
