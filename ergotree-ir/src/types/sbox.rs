@@ -57,7 +57,7 @@ lazy_static! {
         name: "getReg",
         tpe: SFunc {
             t_dom: vec![SType::SBox, SType::SByte],
-            t_range: Box::new(SType::SOption(Box::new(SType::STypeVar(STypeVar::t())))),
+            t_range: SType::SOption(Box::new(STypeVar::t().into())).into(),
             tpe_params: vec![],
         },
     };
@@ -72,10 +72,11 @@ lazy_static! {
         name: "tokens",
         tpe: SFunc {
             t_dom: vec![SType::SBox],
-            t_range: Box::new(SType::SColl(Box::new(SType::STuple(STuple::pair(
-                                SType::SColl(Box::new(SType::SByte)),
-                                SType::SLong
-            ))))),
+            t_range: SType::SColl(Box::new(
+                    STuple::pair(
+                        SType::SColl(SType::SByte.into()),
+                        SType::SLong
+                    ).into())).into(),
             tpe_params: vec![],
         },
     };
