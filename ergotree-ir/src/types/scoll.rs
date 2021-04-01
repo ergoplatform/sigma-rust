@@ -38,7 +38,7 @@ lazy_static! {
         method_id: INDEX_OF_METHOD_ID,
         name: "indexOf",
         tpe: SFunc {
-            t_dom: vec![SType::SColl(SType::STypeVar(STypeVar::t()).into()), SType::STypeVar(STypeVar::t()), SType::SInt],
+            t_dom: vec![SType::SColl(SType::STypeVar(STypeVar::t()).into()), STypeVar::t().into(), SType::SInt],
             t_range: SType::SInt.into(),
             tpe_params: vec![],
         },
@@ -51,14 +51,13 @@ lazy_static! {
     static ref FLATMAP_METHOD_DESC: SMethodDesc = SMethodDesc {
         method_id: FLATMAP_METHOD_ID,
         name: "flatMap",
-        tpe: SFunc {
-            t_dom: vec![SType::SColl(SType::STypeVar(STypeVar::iv()).into()),
-            SType::SFunc(
-                SFunc::new(vec![SType::STypeVar(STypeVar::iv())], SType::STypeVar(STypeVar::ov()), vec![] ))
-            ],
-            t_range: SType::SColl(SType::STypeVar(STypeVar::ov()).into()).into(),
-            tpe_params: vec![],
-        },
+        tpe: SFunc::new(
+            vec![
+                SType::SColl(SType::STypeVar(STypeVar::iv()).into()),
+                SFunc::new(vec![STypeVar::iv().into()], STypeVar::ov().into()).into()
+                ],
+            SType::SColl(SType::STypeVar(STypeVar::ov()).into()),
+        ),
     };
     /// Coll.flatMap
     pub static ref FLATMAP_METHOD: SMethod = SMethod::new(&S_COLL_TYPE_COMPANION, FLATMAP_METHOD_DESC.clone());

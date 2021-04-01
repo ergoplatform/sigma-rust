@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::convert::TryInto;
 use std::slice::Iter;
@@ -5,6 +6,7 @@ use std::slice::Iter;
 use crate::mir::select_field::TupleFieldIndex;
 
 use super::stype::SType;
+use super::stype_param::STypeVar;
 
 /// Tuple items with bounds check (2..=255)
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -36,6 +38,12 @@ impl<T> TupleItems<T> {
     pub fn get(&self, index: TupleFieldIndex) -> Option<&T> {
         let index_usize: usize = index.into();
         self.0.get(index_usize - 1)
+    }
+}
+
+impl<T> From<TupleItems<T>> for Vec<T> {
+    fn from(t: TupleItems<T>) -> Self {
+        t.0
     }
 }
 
@@ -77,6 +85,18 @@ impl STuple {
     pub fn pair(t1: SType, t2: SType) -> Self {
         STuple {
             items: vec![t1, t2].try_into().unwrap(),
+        }
+    }
+
+    pub(crate) fn with_subst(self, subst: &HashMap<STypeVar, SType>) -> Self {
+        STuple {
+            items: self
+                .items
+                .iter()
+                .map(|a| a.clone().with_subst(subst))
+                .collect::<Vec<SType>>()
+                .try_into()
+                .unwrap(),
         }
     }
 }

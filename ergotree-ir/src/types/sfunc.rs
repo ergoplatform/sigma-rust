@@ -17,11 +17,11 @@ pub struct SFunc {
 
 impl SFunc {
     /// Create new SFunc
-    pub fn new(t_dom: Vec<SType>, t_range: SType, tpe_params: Vec<STypeParam>) -> Self {
+    pub fn new(t_dom: Vec<SType>, t_range: SType) -> Self {
         Self {
             t_dom,
             t_range: t_range.into(),
-            tpe_params,
+            tpe_params: vec![],
         }
     }
 
@@ -40,5 +40,12 @@ impl SFunc {
             t_range: Box::new(self.t_range.with_subst(subst)),
             tpe_params: remaining_vars,
         }
+    }
+
+    /// Returns function parameter types (t_dom) with added result type (t_range)
+    pub fn t_dom_plus_range(&self) -> Vec<SType> {
+        let mut res = self.t_dom.clone();
+        res.push(*self.t_range.clone());
+        res
     }
 }

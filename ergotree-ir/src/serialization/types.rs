@@ -146,7 +146,7 @@ impl SigmaSerializable for SType {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
         // for reference see http://github.com/ScorexFoundation/sigmastate-interpreter/blob/25251c1313b0131835f92099f02cef8a5d932b5e/sigmastate/src/main/scala/sigmastate/serialization/TypeSerializer.scala#L25-L25
         match self {
-            SType::SFunc(_) => todo!(),
+            SType::SFunc(_) => panic!("SFunc is not supposed to be here"),
             SType::SAny => self.type_code().sigma_serialize(w),
             SType::SBoolean => self.type_code().sigma_serialize(w),
             SType::SByte => self.type_code().sigma_serialize(w),

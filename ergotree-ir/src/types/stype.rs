@@ -95,12 +95,31 @@ impl SType {
         )
     }
 
+    /// Check if type is primitive
+    pub fn is_prim(&self) -> bool {
+        matches!(
+            self,
+            SType::SByte
+                | SType::SShort
+                | SType::SInt
+                | SType::SLong
+                | SType::SBigInt
+                | SType::SAny
+                | SType::SGroupElement
+                | SType::SSigmaProp
+                | SType::SBox
+                | SType::SAvlTree
+                | SType::SContext
+                | SType::SBoolean
+        )
+    }
+
     pub(crate) fn with_subst(self, subst: &HashMap<STypeVar, SType>) -> Self {
         match self {
             SType::STypeVar(ref tpe_var) => subst.get(&tpe_var).cloned().unwrap_or(self),
             SType::SOption(tpe) => SType::SOption(tpe.with_subst(subst).into()),
             SType::SColl(tpe) => SType::SColl(tpe.with_subst(subst).into()),
-            SType::STuple(_) => todo!("type substitution in STuple is not yet implemented"),
+            SType::STuple(stup) => SType::STuple(stup.with_subst(subst)),
             SType::SFunc(sfunc) => SType::SFunc(sfunc.with_subst(subst)),
             _ => self,
         }
@@ -110,6 +129,18 @@ impl SType {
 impl From<STuple> for SType {
     fn from(v: STuple) -> Self {
         SType::STuple(v)
+    }
+}
+
+impl From<STypeVar> for SType {
+    fn from(v: STypeVar) -> Self {
+        SType::STypeVar(v)
+    }
+}
+
+impl From<SFunc> for SType {
+    fn from(v: SFunc) -> Self {
+        SType::SFunc(v)
     }
 }
 
@@ -213,11 +244,11 @@ impl LiftIntoSType for Tuple {
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use proptest::prelude::*;
 
-    fn primitive_type() -> BoxedStrategy<SType> {
+    pub(crate) fn primitive_type() -> BoxedStrategy<SType> {
         prop_oneof![
             Just(SType::SAny),
             Just(SType::SBoolean),
@@ -231,7 +262,6 @@ mod tests {
             Just(SType::SBox),
             Just(SType::SAvlTree),
             Just(SType::SContext),
-            Just(SType::STypeVar(STypeVar::t())),
         ]
         .boxed()
     }
@@ -241,7 +271,7 @@ mod tests {
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            primitive_type()
+            prop_oneof![primitive_type(), Just(SType::STypeVar(STypeVar::t())),]
                 .prop_recursive(
                     4,  // no more than this branches deep
                     64, // total elements target

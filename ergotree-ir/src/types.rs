@@ -17,3 +17,5 @@ pub mod stuple;
 pub mod stype_companion;
 /// Type parameters for generic signatures
 pub mod stype_param;
+/// Types unification
+pub mod type_unify;

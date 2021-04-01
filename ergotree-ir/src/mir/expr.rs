@@ -44,6 +44,8 @@ use super::option_is_defined::OptionIsDefined;
 use super::or::Or;
 use super::property_call::PropertyCall;
 use super::select_field::SelectField;
+use super::sigma_and::SigmaAnd;
+use super::sigma_or::SigmaOr;
 use super::sigma_prop_bytes::SigmaPropBytes;
 use super::tuple::Tuple;
 use super::upcast::Upcast;
@@ -141,6 +143,10 @@ pub enum Expr {
     CreateProveDlog(CreateProveDlog),
     /// Extract serialized bytes of a SigmaProp value
     SigmaPropBytes(SigmaPropBytes),
+    /// AND conjunction for sigma propositions
+    SigmaAnd(SigmaAnd),
+    /// OR conjunction for sigma propositions
+    SigmaOr(SigmaOr),
 }
 
 impl Expr {
@@ -187,6 +193,8 @@ impl Expr {
             Expr::Negation(op) => op.op_code(),
             Expr::ForAll(op) => op.op_code(),
             Expr::Tuple(op) => op.op_code(),
+            Expr::SigmaAnd(op) => op.op_code(),
+            Expr::SigmaOr(op) => op.op_code(),
         }
     }
 
@@ -233,6 +241,8 @@ impl Expr {
             Expr::Negation(v) => v.tpe(),
             Expr::ForAll(v) => v.tpe(),
             Expr::Tuple(v) => v.tpe(),
+            Expr::SigmaAnd(v) => v.tpe(),
+            Expr::SigmaOr(v) => v.tpe(),
         }
     }
 
