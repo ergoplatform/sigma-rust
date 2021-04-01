@@ -322,4 +322,9 @@ mod tests {
 
         check_error(SSigmaProp, SBoolean);
     }
+
+    #[test]
+    fn unify_diff_size() {
+        assert!(unify_many(vec![SInt, SLong], vec![SLong]).is_err());
+    }
 }
