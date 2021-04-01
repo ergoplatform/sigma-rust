@@ -54,6 +54,7 @@ use super::select_field::SelectField;
 use super::sigma_and::SigmaAnd;
 use super::sigma_or::SigmaOr;
 use super::sigma_prop_bytes::SigmaPropBytes;
+use super::subst_const::SubstConstants;
 use super::tuple::Tuple;
 use super::upcast::Upcast;
 use super::val_def::ValDef;
@@ -81,6 +82,8 @@ pub enum Expr {
     Const(Constant),
     /// Placeholder for a constant
     ConstPlaceholder(ConstantPlaceholder),
+    /// FIXME: Doc
+    SubstConstants(SubstConstants),
     /// Convert byte array to SLong
     ByteArrayToLong(ByteArrayToLong),
     /// Convert byte array to SLong
@@ -204,6 +207,7 @@ impl Expr {
             Expr::Append(op) => op.op_code(),
             Expr::Const(_) => panic!("constant does not have op code assigned"),
             Expr::ConstPlaceholder(op) => op.op_code(),
+            Expr::SubstConstants(op) => op.op_code(),
             Expr::ByteArrayToLong(op) => op.op_code(),
             Expr::ByteArrayToBigInt(op) => op.op_code(),
             Expr::LongToByteArray(op) => op.op_code(),
@@ -267,6 +271,7 @@ impl Expr {
             Expr::Append(ap) => ap.tpe(),
             Expr::Const(v) => v.tpe.clone(),
             Expr::Collection(v) => v.tpe(),
+            Expr::SubstConstants(_v) => todo!(),
             Expr::ByteArrayToLong(v) => v.tpe(),
             Expr::ByteArrayToBigInt(v) => v.tpe(),
             Expr::LongToByteArray(v) => v.tpe(),
