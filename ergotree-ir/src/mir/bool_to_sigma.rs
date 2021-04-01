@@ -32,7 +32,7 @@ impl BoolToSigmaProp {
 
     /// Type
     pub fn tpe(&self) -> SType {
-        SType::SBoolean
+        SType::SSigmaProp
     }
 
     pub(crate) fn op_code(&self) -> OpCode {
