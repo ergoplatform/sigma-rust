@@ -63,7 +63,7 @@ pub fn unify_one(t1: &SType, t2: &SType) -> Result<HashMap<STypeVar, SType>, Typ
         (SColl(elem_type1), SColl(elem_type2)) => unify_one(elem_type1, elem_type2),
         (SColl(elem_type1), STuple(_)) => unify_one(elem_type1, &SAny),
         (STuple(tuple1), STuple(tuple2)) if tuple1.items.len() == tuple2.items.len() => {
-            unify_many(tuple1.items.clone().to_vec(), tuple2.items.clone().to_vec())
+            unify_many(tuple1.items.clone().into(), tuple2.items.clone().into())
         }
         (SOption(elem_type1), SOption(elem_type2)) => unify_one(elem_type1, elem_type2),
         (SFunc(sfunc1), SFunc(sfunc2)) => {

@@ -89,7 +89,6 @@ impl From<TypeUnificationError> for SerializationError {
     fn from(e: TypeUnificationError) -> Self {
         SerializationError::Misc(format!("{:?}", e))
     }
-
 }
 
 /// Consensus-critical serialization for Ergo
