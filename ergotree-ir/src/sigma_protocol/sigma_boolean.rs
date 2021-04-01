@@ -59,6 +59,8 @@ pub enum SigmaProofOfKnowledgeTree {
 pub enum SigmaConjecture {
     /// AND
     Cand(Vec<SigmaBoolean>),
+    /// OR
+    Cor(Vec<SigmaBoolean>),
 }
 
 /// Algebraic data type of sigma proposition expressions
