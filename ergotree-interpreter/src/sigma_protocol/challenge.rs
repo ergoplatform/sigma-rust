@@ -7,7 +7,7 @@ use std::convert::TryInto;
 /// Challenge in Sigma protocol
 #[cfg_attr(feature = "arbitrary", derive(Arbitrary))]
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub(crate) struct Challenge(FiatShamirHash);
+pub struct Challenge(FiatShamirHash);
 
 impl From<Challenge> for Scalar {
     fn from(v: Challenge) -> Self {

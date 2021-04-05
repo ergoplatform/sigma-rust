@@ -11,7 +11,7 @@ use super::{
 
 /// Unchecked tree
 #[derive(PartialEq, Debug, Clone)]
-pub(crate) enum UncheckedTree {
+pub enum UncheckedTree {
     /// No proof needed
     NoProof,
     /// Unchecked sigma tree
@@ -20,7 +20,7 @@ pub(crate) enum UncheckedTree {
 
 /// Unchecked sigma tree
 #[derive(PartialEq, Debug, Clone)]
-pub(crate) enum UncheckedSigmaTree {
+pub enum UncheckedSigmaTree {
     /// Unchecked leaf
     UncheckedLeaf(UncheckedLeaf),
     /// Unchecked conjecture (OR, AND, ...)
@@ -53,7 +53,7 @@ impl From<UncheckedSigmaTree> for ProofTree {
 
 /// Unchecked leaf
 #[derive(PartialEq, Debug, Clone)]
-pub(crate) enum UncheckedLeaf {
+pub enum UncheckedLeaf {
     /// Unchecked Schnorr
     UncheckedSchnorr(UncheckedSchnorr),
 }
@@ -79,13 +79,12 @@ impl From<UncheckedSchnorr> for UncheckedLeaf {
     }
 }
 
-#[allow(missing_docs)]
 #[derive(PartialEq, Debug, Clone)]
-pub(crate) struct UncheckedSchnorr {
-    pub(crate) proposition: ProveDlog,
-    pub(crate) commitment_opt: Option<FirstDlogProverMessage>,
-    pub(crate) challenge: Challenge,
-    pub(crate) second_message: SecondDlogProverMessage,
+pub struct UncheckedSchnorr {
+    pub proposition: ProveDlog,
+    pub commitment_opt: Option<FirstDlogProverMessage>,
+    pub challenge: Challenge,
+    pub second_message: SecondDlogProverMessage,
 }
 
 impl From<UncheckedSchnorr> for UncheckedTree {

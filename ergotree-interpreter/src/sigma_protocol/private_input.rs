@@ -6,6 +6,9 @@ use k256::Scalar;
 
 use crate::util::IntoOption;
 
+extern crate derive_more;
+use derive_more::From;
+
 /// Secret key of discrete logarithm signature protocol
 #[derive(PartialEq, Debug, Clone)]
 pub struct DlogProverInput {
@@ -53,6 +56,7 @@ impl From<Scalar> for DlogProverInput {
 }
 
 /// Private inputs (secrets)
+#[derive(PartialEq, Debug, Clone, From)]
 pub enum PrivateInput {
     /// Discrete logarithm prover input
     DlogProverInput(DlogProverInput),

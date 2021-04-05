@@ -72,7 +72,6 @@ pub(crate) enum UnprovenConjecture {
     CandUnproven(CandUnproven),
 }
 
-#[allow(missing_docs)]
 #[derive(PartialEq, Debug, Clone)]
 pub(crate) struct UnprovenSchnorr {
     pub(crate) proposition: ProveDlog,
@@ -82,13 +81,33 @@ pub(crate) struct UnprovenSchnorr {
     pub(crate) simulated: bool,
 }
 
+/// Data type which encodes position of a node in a tree.
+///
+/// Position is encoded like following (the example provided is for CTHRESHOLD(2, Seq(pk1, pk2, pk3 && pk4)) :
+///
+///            0
+///          / | \
+///         /  |  \
+///       0-0 0-1 0-2
+///               /|
+///              / |
+///             /  |
+///            /   |
+///          0-2-0 0-2-1
+///
+/// So a hint associated with pk1 has a position "0-0", pk4 - "0-2-1" .
+///
+/// Please note that "0" prefix is for a crypto tree. There are several kinds of trees during evaluation.
+/// Initial mixed tree (ergoTree) would have another prefix.
+///
 #[derive(PartialEq, Debug, Clone)]
-pub(crate) struct NodePosition {
+pub struct NodePosition {
+    /// positions from root (inclusive) in top-down order
     positions: Vec<u32>,
 }
 
 impl NodePosition {
-    pub(crate) fn crypto_tree_prefix() -> Self {
+    pub fn crypto_tree_prefix() -> Self {
         NodePosition { positions: vec![0] }
     }
 }

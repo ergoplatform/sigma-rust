@@ -124,6 +124,7 @@ impl Verifier for TestVerifier {}
 #[cfg(feature = "arbitrary")]
 mod tests {
     use super::*;
+    use crate::sigma_protocol::prover::hint::HintsBag;
     use crate::sigma_protocol::{
         private_input::{DlogProverInput, PrivateInput},
         prover::{Prover, TestProver},
@@ -146,7 +147,7 @@ mod tests {
             let prover = TestProver {
                 secrets: vec![PrivateInput::DlogProverInput(secret)],
             };
-            let res = prover.prove(&tree, &Env::empty(), Rc::new(force_any_val::<Context>()), message.as_slice());
+            let res = prover.prove(&tree, &Env::empty(), Rc::new(force_any_val::<Context>()), message.as_slice(), HintsBag::empty());
             let proof = res.unwrap().proof;
 
             let verifier = TestVerifier;

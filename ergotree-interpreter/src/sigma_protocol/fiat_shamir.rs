@@ -20,10 +20,10 @@ use proptest_derive::Arbitrary;
 /// Hash type for Fiat-Shamir hash function (24-bytes)
 #[cfg_attr(feature = "arbitrary", derive(Arbitrary))]
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub(crate) struct FiatShamirHash(pub(crate) Box<[u8; SOUNDNESS_BYTES]>);
+pub struct FiatShamirHash(pub Box<[u8; SOUNDNESS_BYTES]>);
 
 /// Fiat-Shamir hash function
-pub(crate) fn fiat_shamir_hash_fn(input: &[u8]) -> FiatShamirHash {
+pub fn fiat_shamir_hash_fn(input: &[u8]) -> FiatShamirHash {
     // unwrap is safe, since 32 bytes is a valid hash size (<= 512 && 24 % 8 == 0)
     let mut hasher = VarBlake2b::new(GROUP_SIZE).unwrap();
     hasher.update(input);
@@ -50,7 +50,7 @@ impl TryFrom<&[u8]> for FiatShamirHash {
 /// Invalid byte array size
 #[derive(Error, Debug)]
 #[error("Invalid byte array size ({0})")]
-pub(crate) struct FiatShamirHashError(std::array::TryFromSliceError);
+pub struct FiatShamirHashError(std::array::TryFromSliceError);
 
 impl From<std::array::TryFromSliceError> for FiatShamirHashError {
     fn from(err: std::array::TryFromSliceError) -> Self {

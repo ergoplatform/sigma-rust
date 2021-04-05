@@ -1,5 +1,6 @@
 //! Transaction signing
 
+use ergotree_interpreter::sigma_protocol::prover::hint::HintsBag;
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -149,6 +150,7 @@ pub fn sign_transaction(
                         &Env::empty(),
                         ctx,
                         message_to_sign.as_slice(),
+                        HintsBag::empty(),
                     )
                     .map(|proof| {
                         let input = Input::new(unsigned_input.box_id.clone(), proof.into());

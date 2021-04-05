@@ -3,6 +3,8 @@
 mod context_extension;
 mod prover_result;
 
+pub mod hint;
+
 use crate::sigma_protocol::unproven_tree::CandUnproven;
 use crate::sigma_protocol::unproven_tree::NodePosition;
 use ergotree_ir::sigma_protocol::sigma_boolean::cand::Cand;
@@ -14,6 +16,8 @@ use ergotree_ir::ergo_tree::ErgoTreeParsingError;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaConjecture;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
 pub use prover_result::*;
+
+use self::hint::HintsBag;
 
 use super::unproven_tree;
 use super::unproven_tree::UnprovenConjecture;
@@ -81,6 +85,7 @@ pub trait Prover: Evaluator {
         env: &Env,
         ctx: Rc<Context>,
         message: &[u8],
+        hints_bag: HintsBag,
     ) -> Result<ProverResult, ProverError> {
         let expr = tree.proposition()?;
         let proof = self
@@ -91,7 +96,7 @@ pub trait Prover: Evaluator {
                 SigmaBoolean::TrivialProp(false) => Err(ProverError::ReducedToFalse),
                 sb => {
                     let tree = convert_to_unproven(sb);
-                    let unchecked_tree = prove_to_unchecked(self, tree, message)?;
+                    let unchecked_tree = prove_to_unchecked(self, tree, message, hints_bag)?;
                     Ok(UncheckedTree::UncheckedSigmaTree(unchecked_tree))
                 }
             });
@@ -105,13 +110,20 @@ pub trait Prover: Evaluator {
 /// The comments in this section are taken from the algorithm for the
 /// Sigma-protocol prover as described in the white paper
 /// https://ergoplatform.org/docs/ErgoScript.pdf (Appendix A)
+// if we are concerned about timing attacks against the prover, we should make sure that this code
+//  takes the same amount of time regardless of which nodes are real and which nodes are simulated
+//  In particular, we should avoid the use of exists and forall, because they short-circuit the evaluation
+//  once the right value is (or is not) found. We should also make all loops look similar, the same
+//  amount of copying is done regardless of what's real or simulated,
+//  real vs. simulated computations take the same time, etc.
 fn prove_to_unchecked<P: Prover + ?Sized>(
     prover: &P,
     unproven_tree: UnprovenTree,
     message: &[u8],
+    hints_bag: HintsBag,
 ) -> Result<UncheckedSigmaTree, ProverError> {
     // Prover Step 1: Mark as real everything the prover can prove
-    let step1 = mark_real(prover, unproven_tree)?;
+    let step1 = mark_real(prover, unproven_tree, hints_bag)?;
 
     // Prover Step 2: If the root of the tree is marked "simulated" then the prover does not have enough witnesses
     // to perform the proof. Abort.
@@ -161,11 +173,15 @@ fn prove_to_unchecked<P: Prover + ?Sized>(
 fn mark_real<P: Prover + ?Sized>(
     prover: &P,
     unproven_tree: UnprovenTree,
+    hints_bag: HintsBag,
 ) -> Result<UnprovenTree, ProverError> {
-    // TODO: update with hints_bag
     unproven_tree::rewrite(unproven_tree, |tree| {
         Ok(match tree {
             UnprovenTree::UnprovenLeaf(UnprovenLeaf::UnprovenSchnorr(us)) => {
+                // If the node is a leaf, mark it "real'' if either the witness for it is available or a hint shows the secret
+                // is known to an external participant in multi-signing;
+                // else mark it "simulated"
+                // TODO: update with hints_bag
                 let secret_known = prover.secrets().iter().any(|s| match s {
                     PrivateInput::DlogProverInput(dl) => dl.public_image() == us.proposition,
                     _ => false,
@@ -179,6 +195,7 @@ fn mark_real<P: Prover + ?Sized>(
                 )
             }
             UnprovenTree::UnprovenConjecture(UnprovenConjecture::CandUnproven(cand)) => {
+                // If the node is AND, mark it "real" if all of its children are marked real; else mark it "simulated"
                 let simulated = cand.children.iter().any(|c| c.simulated());
                 Some(
                     CandUnproven {
@@ -363,6 +380,7 @@ mod tests {
             &Env::empty(),
             Rc::new(force_any_val::<Context>()),
             message.as_slice(),
+            HintsBag::empty(),
         );
         assert!(res.is_ok());
         assert_eq!(res.unwrap().proof, ProofBytes::Empty);
@@ -382,6 +400,7 @@ mod tests {
             &Env::empty(),
             Rc::new(force_any_val::<Context>()),
             message.as_slice(),
+            HintsBag::empty(),
         );
         assert!(res.is_err());
         assert_eq!(res.err().unwrap(), ProverError::ReducedToFalse);
@@ -402,32 +421,33 @@ mod tests {
             &Env::empty(),
             Rc::new(force_any_val::<Context>()),
             message.as_slice(),
+            HintsBag::empty(),
         );
         assert!(res.is_ok());
         assert_ne!(res.unwrap().proof, ProofBytes::Empty);
     }
 
     #[test]
-    fn test_prove_sigma_and_bool() {
-        let secret = DlogProverInput::random();
-        let pk = secret.public_image();
-        let expr: Expr = SigmaAnd::new(vec![
-            Expr::Const(pk.into()),
-            SigmaBoolean::TrivialProp(true).into(),
-        ])
-        .unwrap()
-        .into();
+    fn test_prove_pk_and_pk() {
+        let secret1 = DlogProverInput::random();
+        let secret2 = DlogProverInput::random();
+        let pk1 = secret1.public_image();
+        let pk2 = secret2.public_image();
+        let expr: Expr = SigmaAnd::new(vec![Expr::Const(pk1.into()), Expr::Const(pk2.into())])
+            .unwrap()
+            .into();
         let tree: ErgoTree = expr.into();
         let message = vec![0u8; 100];
 
         let prover = TestProver {
-            secrets: vec![PrivateInput::DlogProverInput(secret)],
+            secrets: vec![secret1.into(), secret2.into()],
         };
         let res = prover.prove(
             &tree,
             &Env::empty(),
             Rc::new(force_any_val::<Context>()),
             message.as_slice(),
+            HintsBag::empty(),
         );
         assert!(res.is_ok());
         assert_ne!(res.unwrap().proof, ProofBytes::Empty);

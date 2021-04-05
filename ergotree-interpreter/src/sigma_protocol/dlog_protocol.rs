@@ -7,7 +7,7 @@ use k256::Scalar;
 
 /// First message from the prover (message `a` of `SigmaProtocol`) for discrete logarithm case
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub(crate) struct FirstDlogProverMessage(pub(crate) EcPoint);
+pub struct FirstDlogProverMessage(pub(crate) EcPoint);
 
 impl From<EcPoint> for FirstDlogProverMessage {
     fn from(ecp: EcPoint) -> Self {
@@ -29,9 +29,9 @@ impl From<FirstDlogProverMessage> for FirstProverMessage {
 
 /// Second message from the prover (message `z` of `SigmaProtocol`) for discrete logarithm case
 #[derive(PartialEq, Debug, Clone)]
-pub(crate) struct SecondDlogProverMessage {
+pub struct SecondDlogProverMessage {
     /// message `z`
-    pub(crate) z: Scalar,
+    pub z: Scalar,
 }
 
 impl From<Scalar> for SecondDlogProverMessage {
