@@ -1,8 +1,7 @@
 use ergotree_ir::mir::constant::TryExtractInto;
 use ergotree_ir::mir::sigma_or::SigmaOr;
 use ergotree_ir::mir::value::Value;
-use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
-use ergotree_ir::sigma_protocol::sigma_boolean::SigmaConjecture;
+use ergotree_ir::sigma_protocol::sigma_boolean::cor::Cor;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProp;
 
 use crate::eval::env::Env;
@@ -19,14 +18,16 @@ impl Evaluable for SigmaOr {
             .into_iter()
             .map(|sp| sp.into())
             .collect();
-        Ok(Value::SigmaProp(Box::new(SigmaProp::new(
-            SigmaBoolean::SigmaConjecture(SigmaConjecture::Cor(items_sigmabool)),
-        ))))
+        Ok(Value::SigmaProp(Box::new(SigmaProp::new(Cor::normalized(
+            items_sigmabool,
+        )))))
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
+    use ergotree_ir::sigma_protocol::sigma_boolean::SigmaConjecture;
     use std::rc::Rc;
 
     use crate::eval::context::Context;
@@ -44,14 +45,14 @@ mod tests {
         #![proptest_config(ProptestConfig::with_cases(8))]
 
         #[test]
-        fn eval(sigmaprops in collection::vec(any::<SigmaProp>(), 0..10)) {
+        fn eval(sigmaprops in collection::vec(any::<SigmaProp>(), 2..10)) {
             let items = sigmaprops.clone().into_iter().map(|sp| Expr::Const(sp.into())).collect();
             let expr: Expr = SigmaOr::new(items).unwrap().into();
             let ctx = Rc::new(force_any_val::<Context>());
             let res = eval_out::<SigmaProp>(&expr, ctx);
             let expected_sb: Vec<SigmaBoolean> = sigmaprops.into_iter().map(|sp| sp.into()).collect();
             prop_assert!(matches!(res.clone().into(), SigmaBoolean::SigmaConjecture(SigmaConjecture::Cor(_))));
-            if let SigmaBoolean::SigmaConjecture(SigmaConjecture::Cor(actual_sb)) = res.into() {
+            if let SigmaBoolean::SigmaConjecture(SigmaConjecture::Cor(Cor {items: actual_sb})) = res.into() {
                 prop_assert_eq!(actual_sb, expected_sb);
             }
         }

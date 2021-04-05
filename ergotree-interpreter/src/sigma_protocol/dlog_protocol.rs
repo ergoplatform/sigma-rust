@@ -7,7 +7,7 @@ use k256::Scalar;
 
 /// First message from the prover (message `a` of `SigmaProtocol`) for discrete logarithm case
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct FirstDlogProverMessage(pub EcPoint);
+pub(crate) struct FirstDlogProverMessage(pub(crate) EcPoint);
 
 impl From<EcPoint> for FirstDlogProverMessage {
     fn from(ecp: EcPoint) -> Self {
@@ -29,9 +29,9 @@ impl From<FirstDlogProverMessage> for FirstProverMessage {
 
 /// Second message from the prover (message `z` of `SigmaProtocol`) for discrete logarithm case
 #[derive(PartialEq, Debug, Clone)]
-pub struct SecondDlogProverMessage {
+pub(crate) struct SecondDlogProverMessage {
     /// message `z`
-    pub z: Scalar,
+    pub(crate) z: Scalar,
 }
 
 impl From<Scalar> for SecondDlogProverMessage {
@@ -41,7 +41,7 @@ impl From<Scalar> for SecondDlogProverMessage {
 }
 
 /// Interactive prover
-pub mod interactive_prover {
+pub(crate) mod interactive_prover {
     use super::{FirstDlogProverMessage, SecondDlogProverMessage};
     use crate::sigma_protocol::{private_input::DlogProverInput, Challenge};
     use ergotree_ir::sigma_protocol::dlog_group;
@@ -50,7 +50,7 @@ pub mod interactive_prover {
     use k256::Scalar;
 
     /// TBD
-    pub fn simulate(
+    pub(crate) fn simulate(
         _public_input: &ProveDlog,
         _challenge: &Challenge,
     ) -> (FirstDlogProverMessage, SecondDlogProverMessage) {
@@ -58,7 +58,7 @@ pub mod interactive_prover {
     }
 
     /// Create first message from the prover and a randomness
-    pub fn first_message() -> (Scalar, FirstDlogProverMessage) {
+    pub(crate) fn first_message() -> (Scalar, FirstDlogProverMessage) {
         let r = dlog_group::random_scalar_in_group_range();
         let g = dlog_group::generator();
         let a = dlog_group::exponentiate(&g, &r);
@@ -66,7 +66,7 @@ pub mod interactive_prover {
     }
 
     /// Create second message from the prover
-    pub fn second_message(
+    pub(crate) fn second_message(
         private_input: &DlogProverInput,
         rnd: Scalar,
         challenge: &Challenge,
@@ -86,7 +86,7 @@ pub mod interactive_prover {
      *
      * g^z = a*h^e => a = g^z/h^e
      */
-    pub fn compute_commitment(
+    pub(crate) fn compute_commitment(
         proposition: &ProveDlog,
         challenge: &Challenge,
         second_message: &SecondDlogProverMessage,

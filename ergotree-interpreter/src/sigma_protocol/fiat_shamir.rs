@@ -20,10 +20,10 @@ use proptest_derive::Arbitrary;
 /// Hash type for Fiat-Shamir hash function (24-bytes)
 #[cfg_attr(feature = "arbitrary", derive(Arbitrary))]
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct FiatShamirHash(pub Box<[u8; SOUNDNESS_BYTES]>);
+pub(crate) struct FiatShamirHash(pub(crate) Box<[u8; SOUNDNESS_BYTES]>);
 
 /// Fiat-Shamir hash function
-pub fn fiat_shamir_hash_fn(input: &[u8]) -> FiatShamirHash {
+pub(crate) fn fiat_shamir_hash_fn(input: &[u8]) -> FiatShamirHash {
     // unwrap is safe, since 32 bytes is a valid hash size (<= 512 && 24 % 8 == 0)
     let mut hasher = VarBlake2b::new(GROUP_SIZE).unwrap();
     hasher.update(input);
@@ -50,7 +50,7 @@ impl TryFrom<&[u8]> for FiatShamirHash {
 /// Invalid byte array size
 #[derive(Error, Debug)]
 #[error("Invalid byte array size ({0})")]
-pub struct FiatShamirHashError(std::array::TryFromSliceError);
+pub(crate) struct FiatShamirHashError(std::array::TryFromSliceError);
 
 impl From<std::array::TryFromSliceError> for FiatShamirHashError {
     fn from(err: std::array::TryFromSliceError) -> Self {
@@ -64,7 +64,7 @@ impl From<std::array::TryFromSliceError> for FiatShamirHashError {
 ///  For each leaf node, the string should contain the Sigma-protocol statement being proven and the commitment.
 ///  The string should not contain information on whether a node is marked "real" or "simulated",
 ///  and should not contain challenges, responses, or the real/simulated flag for any node.
-pub fn fiat_shamir_tree_to_bytes(tree: &ProofTree) -> Vec<u8> {
+pub(crate) fn fiat_shamir_tree_to_bytes(tree: &ProofTree) -> Vec<u8> {
     const LEAF_PREFIX: u8 = 1;
 
     let leaf: &dyn ProofTreeLeaf = match tree {

@@ -11,7 +11,7 @@ use super::{
 
 /// Unchecked tree
 #[derive(PartialEq, Debug, Clone)]
-pub enum UncheckedTree {
+pub(crate) enum UncheckedTree {
     /// No proof needed
     NoProof,
     /// Unchecked sigma tree
@@ -20,7 +20,7 @@ pub enum UncheckedTree {
 
 /// Unchecked sigma tree
 #[derive(PartialEq, Debug, Clone)]
-pub enum UncheckedSigmaTree {
+pub(crate) enum UncheckedSigmaTree {
     /// Unchecked leaf
     UncheckedLeaf(UncheckedLeaf),
     /// Unchecked conjecture (OR, AND, ...)
@@ -29,7 +29,7 @@ pub enum UncheckedSigmaTree {
 
 impl UncheckedSigmaTree {
     /// Get challenge
-    pub fn challenge(&self) -> Challenge {
+    pub(crate) fn challenge(&self) -> Challenge {
         match self {
             UncheckedSigmaTree::UncheckedLeaf(UncheckedLeaf::UncheckedSchnorr(us)) => {
                 us.challenge.clone()
@@ -53,7 +53,7 @@ impl From<UncheckedSigmaTree> for ProofTree {
 
 /// Unchecked leaf
 #[derive(PartialEq, Debug, Clone)]
-pub enum UncheckedLeaf {
+pub(crate) enum UncheckedLeaf {
     /// Unchecked Schnorr
     UncheckedSchnorr(UncheckedSchnorr),
 }
@@ -81,11 +81,11 @@ impl From<UncheckedSchnorr> for UncheckedLeaf {
 
 #[allow(missing_docs)]
 #[derive(PartialEq, Debug, Clone)]
-pub struct UncheckedSchnorr {
-    pub proposition: ProveDlog,
-    pub commitment_opt: Option<FirstDlogProverMessage>,
-    pub challenge: Challenge,
-    pub second_message: SecondDlogProverMessage,
+pub(crate) struct UncheckedSchnorr {
+    pub(crate) proposition: ProveDlog,
+    pub(crate) commitment_opt: Option<FirstDlogProverMessage>,
+    pub(crate) challenge: Challenge,
+    pub(crate) second_message: SecondDlogProverMessage,
 }
 
 impl From<UncheckedSchnorr> for UncheckedTree {

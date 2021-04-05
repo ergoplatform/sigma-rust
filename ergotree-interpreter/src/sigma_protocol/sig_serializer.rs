@@ -12,7 +12,7 @@ use k256::Scalar;
 use std::convert::{TryFrom, TryInto};
 
 /// Serialize proof tree signatures
-pub fn serialize_sig(tree: UncheckedTree) -> ProofBytes {
+pub(crate) fn serialize_sig(tree: UncheckedTree) -> ProofBytes {
     match tree {
         UncheckedTree::NoProof => ProofBytes::Empty,
         UncheckedTree::UncheckedSigmaTree(UncheckedSigmaTree::UncheckedLeaf(
@@ -33,7 +33,7 @@ pub fn serialize_sig(tree: UncheckedTree) -> ProofBytes {
  * non-leaf node by reading them from the proof or computing them.
  * Verifier Step 3: For every leaf node, read the response z provided in the proof.
  */
-pub fn parse_sig_compute_challenges(
+pub(crate) fn parse_sig_compute_challenges(
     exp: SigmaBoolean,
     proof: &ProofBytes,
 ) -> Result<UncheckedTree, SigParsingError> {
@@ -71,7 +71,7 @@ pub fn parse_sig_compute_challenges(
 
 /// Errors when parsing proof tree signatures
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub enum SigParsingError {
+pub(crate) enum SigParsingError {
     /// Invalid proof size (expected 32 bytes)
     InvalidProofSize,
 }

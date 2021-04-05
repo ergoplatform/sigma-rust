@@ -22,7 +22,7 @@ pub fn rewrite<E, F: Fn(&Expr) -> Result<Option<Expr>, E>>(e: Expr, f: F) -> Res
                 ..e
             },
         },
-        ExprKind::Ident(_) => f(&e)?.unwrap_or(e),
+        ExprKind::Ident(_) => f(&e)?.unwrap_or(e), // TODO: duplicate call to f?
         ExprKind::GlobalVars(_) => f(&e)?.unwrap_or(e),
         ExprKind::Literal(_) => f(&e)?.unwrap_or(e),
     })

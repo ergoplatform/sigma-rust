@@ -1,5 +1,8 @@
 //! Sigma protocols
 
+// TODO: remove when sigma protocol is fully implemented
+#![allow(dead_code)]
+
 pub mod private_input;
 pub mod prover;
 pub mod verifier;
@@ -20,15 +23,19 @@ use unchecked_tree::{UncheckedSigmaTree, UncheckedTree};
 use unproven_tree::{UnprovenLeaf, UnprovenSchnorr, UnprovenTree};
 
 use self::challenge::Challenge;
+use self::unchecked_tree::UncheckedSchnorr;
+
+extern crate derive_more;
+use derive_more::From;
 
 /** The message sent by a prover to its associated verifier as part of a sigma protocol interaction. */
-pub trait ProverMessage {
+pub(crate) trait ProverMessage {
     /// serialized message
     fn bytes(&self) -> Vec<u8>;
 }
 
 /** First message from the prover (message `a` of `SigmaProtocol`)*/
-pub enum FirstProverMessage {
+pub(crate) enum FirstProverMessage {
     /// Discrete log
     FirstDlogProverMessage(FirstDlogProverMessage),
     /// DH tupl
@@ -45,7 +52,8 @@ impl ProverMessage for FirstProverMessage {
 }
 
 /// Proof tree
-pub enum ProofTree {
+#[derive(PartialEq, Debug, Clone, From)]
+pub(crate) enum ProofTree {
     /// Unchecked tree
     UncheckedTree(UncheckedTree),
     /// Unproven tree
@@ -54,7 +62,7 @@ pub enum ProofTree {
 
 impl ProofTree {
     /// Create a new proof tree with a new challenge
-    pub fn with_challenge(&self, challenge: Challenge) -> ProofTree {
+    pub(crate) fn with_challenge(&self, challenge: Challenge) -> ProofTree {
         match self {
             ProofTree::UncheckedTree(_) => todo!(),
             ProofTree::UnprovenTree(ut) => match ut {
@@ -67,19 +75,20 @@ impl ProofTree {
                         .into(),
                     ),
                 },
+                UnprovenTree::UnprovenConjecture(_) => todo!(),
             },
         }
     }
 }
 
-impl<T: Into<UncheckedTree>> From<T> for ProofTree {
-    fn from(t: T) -> Self {
-        ProofTree::UncheckedTree(t.into())
+impl From<UncheckedSchnorr> for ProofTree {
+    fn from(v: UncheckedSchnorr) -> Self {
+        UncheckedTree::UncheckedSigmaTree(v.into()).into()
     }
 }
 
 /// Proof tree leaf
-pub trait ProofTreeLeaf {
+pub(crate) trait ProofTreeLeaf {
     /// Get proposition
     fn proposition(&self) -> SigmaBoolean;
 
@@ -88,13 +97,13 @@ pub trait ProofTreeLeaf {
 }
 
 /** Size of the binary representation of any group element (2 ^ groupSizeBits == <number of elements in a group>) */
-pub const GROUP_SIZE_BITS: usize = 256;
+pub(crate) const GROUP_SIZE_BITS: usize = 256;
 /** Number of bytes to represent any group element as byte array */
-pub const GROUP_SIZE: usize = GROUP_SIZE_BITS / 8;
+pub(crate) const GROUP_SIZE: usize = GROUP_SIZE_BITS / 8;
 
 /// Byte array of Group size (32 bytes)
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct GroupSizedBytes(pub Box<[u8; GROUP_SIZE]>);
+pub(crate) struct GroupSizedBytes(pub(crate) Box<[u8; GROUP_SIZE]>);
 
 impl From<GroupSizedBytes> for Scalar {
     fn from(b: GroupSizedBytes) -> Self {

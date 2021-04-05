@@ -1,5 +1,8 @@
 //! Sigma boolean types
 
+use self::cand::Cand;
+use self::cor::Cor;
+
 use super::dlog_group::EcPoint;
 use crate::ergo_tree::ErgoTree;
 use crate::mir::constant::Constant;
@@ -12,6 +15,9 @@ extern crate derive_more;
 use derive_more::From;
 use derive_more::Into;
 use derive_more::TryInto;
+
+pub mod cand;
+pub mod cor;
 
 /// Construct a new SigmaBoolean value representing public key of discrete logarithm signature protocol.
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -58,9 +64,9 @@ pub enum SigmaProofOfKnowledgeTree {
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum SigmaConjecture {
     /// AND
-    Cand(Vec<SigmaBoolean>),
+    Cand(Cand),
     /// OR
-    Cor(Vec<SigmaBoolean>),
+    Cor(Cor),
 }
 
 /// Algebraic data type of sigma proposition expressions
@@ -98,6 +104,12 @@ impl TryInto<ProveDlog> for SigmaBoolean {
             SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(pd)) => Ok(pd),
             _ => Err(ConversionError),
         }
+    }
+}
+
+impl From<ProveDlog> for SigmaBoolean {
+    fn from(v: ProveDlog) -> Self {
+        SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(v))
     }
 }
 
