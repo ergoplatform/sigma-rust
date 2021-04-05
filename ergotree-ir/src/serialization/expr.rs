@@ -149,6 +149,7 @@ impl SigmaSerializable for Expr {
                 OpCode::INPUTS => Ok(Expr::GlobalVars(GlobalVars::Inputs)),
                 OpCode::OUTPUTS => Ok(Expr::GlobalVars(GlobalVars::Outputs)),
                 OpCode::MINER_PUBKEY => Ok(Expr::GlobalVars(GlobalVars::MinerPubKey)),
+                OpCode::GLOBAL => Ok(Expr::GlobalVars(GlobalVars::Global)),
                 OpCode::PROPERTY_CALL => Ok(Expr::ProperyCall(PropertyCall::sigma_parse(r)?)),
                 OpCode::METHOD_CALL => Ok(Expr::MethodCall(MethodCall::sigma_parse(r)?)),
                 OpCode::CONTEXT => Ok(Expr::Context),

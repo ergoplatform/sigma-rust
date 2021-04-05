@@ -16,6 +16,8 @@ pub enum GlobalVars {
     SelfBox,
     /// FIXME: Doc
     MinerPubKey,
+    /// FIXME: Doc
+    Global,
 }
 
 impl GlobalVars {
@@ -27,6 +29,7 @@ impl GlobalVars {
             GlobalVars::Outputs => OpCode::OUTPUTS,
             GlobalVars::Height => OpCode::HEIGHT,
             GlobalVars::MinerPubKey => OpCode::MINER_PUBKEY,
+            GlobalVars::Global => OpCode::GLOBAL,
         }
     }
 
@@ -38,6 +41,7 @@ impl GlobalVars {
             GlobalVars::Height => SType::SInt,
             GlobalVars::SelfBox => SType::SBox,
             GlobalVars::MinerPubKey => SType::SGroupElement,
+            GlobalVars::Global => SType::SGlobal,
         }
     }
 }
