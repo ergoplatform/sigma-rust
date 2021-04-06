@@ -100,7 +100,7 @@ pub(crate) struct UnprovenSchnorr {
 /// Please note that "0" prefix is for a crypto tree. There are several kinds of trees during evaluation.
 /// Initial mixed tree (ergoTree) would have another prefix.
 ///
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct NodePosition {
     /// positions from root (inclusive) in top-down order
     positions: Vec<u32>,

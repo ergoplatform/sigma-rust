@@ -35,6 +35,7 @@ pub(crate) trait ProverMessage {
 }
 
 /** First message from the prover (message `a` of `SigmaProtocol`)*/
+#[derive(PartialEq, Debug, Clone)]
 pub enum FirstProverMessage {
     /// Discrete log
     FirstDlogProverMessage(FirstDlogProverMessage),

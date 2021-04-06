@@ -21,6 +21,7 @@ use self::hint::HintsBag;
 
 use super::unproven_tree;
 use super::unproven_tree::UnprovenConjecture;
+use super::ProofTreeLeaf;
 use super::{
     dlog_protocol,
     fiat_shamir::{fiat_shamir_hash_fn, fiat_shamir_tree_to_bytes},
@@ -177,23 +178,27 @@ fn mark_real<P: Prover + ?Sized>(
 ) -> Result<UnprovenTree, ProverError> {
     unproven_tree::rewrite(unproven_tree, |tree| {
         Ok(match tree {
-            UnprovenTree::UnprovenLeaf(UnprovenLeaf::UnprovenSchnorr(us)) => {
-                // If the node is a leaf, mark it "real'' if either the witness for it is available or a hint shows the secret
-                // is known to an external participant in multi-signing;
-                // else mark it "simulated"
-                // TODO: update with hints_bag
-                let secret_known = prover.secrets().iter().any(|s| match s {
-                    PrivateInput::DlogProverInput(dl) => dl.public_image() == us.proposition,
-                    _ => false,
-                });
-                Some(
-                    UnprovenSchnorr {
-                        simulated: !secret_known,
-                        ..us.clone()
-                    }
-                    .into(),
-                )
-            }
+            UnprovenTree::UnprovenLeaf(ul) => match ul {
+                UnprovenLeaf::UnprovenSchnorr(us) => {
+                    // If the node is a leaf, mark it "real'' if either the witness for it is
+                    // available or a hint shows the secret is known to an external participant in multi-signing;
+                    // else mark it "simulated"
+                    let secret_known = hints_bag.real_images().contains(&ul.proposition())
+                        || prover.secrets().iter().any(|s| match s {
+                            PrivateInput::DlogProverInput(dl) => {
+                                dl.public_image() == us.proposition
+                            }
+                            _ => false,
+                        });
+                    Some(
+                        UnprovenSchnorr {
+                            simulated: !secret_known,
+                            ..us.clone()
+                        }
+                        .into(),
+                    )
+                }
+            },
             UnprovenTree::UnprovenConjecture(UnprovenConjecture::CandUnproven(cand)) => {
                 // If the node is AND, mark it "real" if all of its children are marked real; else mark it "simulated"
                 let simulated = cand.children.iter().any(|c| c.simulated());
