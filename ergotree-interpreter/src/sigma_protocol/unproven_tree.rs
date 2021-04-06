@@ -30,6 +30,13 @@ impl UnprovenTree {
             }
         }
     }
+
+    pub(crate) fn with_position(self, updated: NodePosition) -> Self {
+        match self {
+            UnprovenTree::UnprovenLeaf(ul) => ul.with_position(updated).into(),
+            UnprovenTree::UnprovenConjecture(uc) => uc.with_position(updated).into(),
+        }
+    }
 }
 
 impl From<UnprovenSchnorr> for UnprovenTree {
@@ -49,6 +56,14 @@ impl From<CandUnproven> for UnprovenTree {
 pub(crate) enum UnprovenLeaf {
     /// Unproven Schnorr
     UnprovenSchnorr(UnprovenSchnorr),
+}
+
+impl UnprovenLeaf {
+    fn with_position(self, updated: NodePosition) -> Self {
+        match self {
+            UnprovenLeaf::UnprovenSchnorr(us) => us.with_position(updated).into(),
+        }
+    }
 }
 
 impl ProofTreeLeaf for UnprovenLeaf {
@@ -72,6 +87,26 @@ pub(crate) enum UnprovenConjecture {
     CandUnproven(CandUnproven),
 }
 
+impl UnprovenConjecture {
+    pub(crate) fn children(&self) -> Vec<UnprovenTree> {
+        match self {
+            UnprovenConjecture::CandUnproven(cand) => cand.children.clone(),
+        }
+    }
+
+    pub(crate) fn position(&self) -> NodePosition {
+        match self {
+            UnprovenConjecture::CandUnproven(cand) => cand.position.clone(),
+        }
+    }
+
+    fn with_position(self, updated: NodePosition) -> Self {
+        match self {
+            UnprovenConjecture::CandUnproven(cand) => cand.with_position(updated).into(),
+        }
+    }
+}
+
 #[derive(PartialEq, Debug, Clone)]
 pub(crate) struct UnprovenSchnorr {
     pub(crate) proposition: ProveDlog,
@@ -79,6 +114,16 @@ pub(crate) struct UnprovenSchnorr {
     pub(crate) randomness_opt: Option<Scalar>,
     pub(crate) challenge_opt: Option<Challenge>,
     pub(crate) simulated: bool,
+    pub(crate) position: NodePosition,
+}
+
+impl UnprovenSchnorr {
+    fn with_position(self, updated: NodePosition) -> Self {
+        UnprovenSchnorr {
+            position: updated,
+            ..self
+        }
+    }
 }
 
 /// Data type which encodes position of a node in a tree.
@@ -103,12 +148,18 @@ pub(crate) struct UnprovenSchnorr {
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct NodePosition {
     /// positions from root (inclusive) in top-down order
-    positions: Vec<u32>,
+    positions: Vec<usize>,
 }
 
 impl NodePosition {
     pub fn crypto_tree_prefix() -> Self {
         NodePosition { positions: vec![0] }
+    }
+
+    pub fn child(&self, child_idx: usize) -> NodePosition {
+        let mut positions = self.positions.clone();
+        positions.push(child_idx);
+        NodePosition { positions }
     }
 }
 
@@ -119,6 +170,15 @@ pub(crate) struct CandUnproven {
     pub(crate) simulated: bool,
     pub(crate) children: Vec<UnprovenTree>,
     pub(crate) position: NodePosition,
+}
+
+impl CandUnproven {
+    fn with_position(self, updated: NodePosition) -> Self {
+        CandUnproven {
+            position: updated,
+            ..self
+        }
+    }
 }
 
 pub(crate) fn rewrite<E, F: Fn(&UnprovenTree) -> Result<Option<UnprovenTree>, E>>(

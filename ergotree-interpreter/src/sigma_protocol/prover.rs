@@ -135,12 +135,11 @@ fn prove_to_unchecked<P: Prover + ?Sized>(
     // Prover Step 3: Change some "real" nodes to "simulated" to make sure each node
     // has the right number of simulated children.
 
-    // skipped, since it leaves UnprovenSchnorr untouched
-    // let step3 = self.polish_simulated(step1);
+    let step3 = polish_simulated(prover, step1)?;
 
     // Prover Steps 4, 5, and 6 together: find challenges for simulated nodes; simulate simulated leaves;
     // compute commitments for real leaves
-    let step6 = simulate_and_commit(prover, step1)?;
+    let step6 = simulate_and_commit(prover, step3)?;
 
     // Prover Steps 7: convert the relevant information in the tree (namely, tree structure, node types,
     // the statements being proven and commitments at the leaves)
@@ -214,13 +213,41 @@ fn mark_real<P: Prover + ?Sized>(
     })
 }
 
-/**
- Prover Step 3: This step will change some "real" nodes to "simulated" to make sure each node has
- the right number of simulated children.
- In a top-down traversal of the tree, do the following for each node:
-*/
-fn polish_simulated<P: Prover + ?Sized>(_prover: &P, _unproven_tree: UnprovenTree) -> UnprovenTree {
-    todo!()
+/// Set positions for children of a unproven inner node (conjecture, so AND/OR/THRESHOLD)
+fn set_positions(uc: UnprovenConjecture) -> UnprovenConjecture {
+    let upd_children: Vec<UnprovenTree> = uc
+        .children()
+        .into_iter()
+        .enumerate()
+        .map(|(idx, utree)| utree.with_position(uc.position().child(idx)))
+        .collect();
+    match uc {
+        UnprovenConjecture::CandUnproven(cand) => UnprovenConjecture::CandUnproven(CandUnproven {
+            children: upd_children,
+            ..cand
+        }),
+    }
+}
+
+/// Prover Step 3: This step will change some "real" nodes to "simulated" to make sure each node has
+/// the right number of simulated children.
+/// In a top-down traversal of the tree, do the following for each node:
+fn polish_simulated<P: Prover + ?Sized>(
+    _prover: &P,
+    unproven_tree: UnprovenTree,
+) -> Result<UnprovenTree, ProverError> {
+    unproven_tree::rewrite(unproven_tree, |tree| match tree {
+        UnprovenTree::UnprovenLeaf(_) => Ok(None),
+        UnprovenTree::UnprovenConjecture(UnprovenConjecture::CandUnproven(cand)) => {
+            // If the node is marked "simulated", mark all of its children "simulated"
+            let a: CandUnproven = if cand.simulated {
+                todo!()
+            } else {
+                cand.clone()
+            };
+            Ok(Some(set_positions(a.into()).into()))
+        }
+    })
 }
 
 /**
@@ -328,6 +355,7 @@ fn convert_to_unproven(sb: SigmaBoolean) -> UnprovenTree {
                 randomness_opt: None,
                 challenge_opt: None,
                 simulated: false,
+                position: NodePosition::crypto_tree_prefix(),
             }
             .into(),
         },
