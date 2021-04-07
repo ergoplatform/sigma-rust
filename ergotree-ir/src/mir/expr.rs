@@ -343,22 +343,13 @@ pub(crate) mod arbitrary {
         }
     }
 
-    fn int_nested_expr(depth: usize) -> BoxedStrategy<Expr> {
+    fn numeric_nested_expr(depth: usize, elem_tpe: &SType) -> BoxedStrategy<Expr> {
         prop_oneof![any_with::<BinOp>(ArbExprParams {
-            tpe: SType::SInt,
+            tpe: elem_tpe.clone(),
             depth
         })
         .prop_map_into(),]
         .boxed()
-    }
-
-    fn byte_nested_expr(depth: usize) -> BoxedStrategy<Expr> {
-        prop_oneof![any_with::<BinOp>(ArbExprParams {
-            tpe: SType::SByte,
-            depth
-        })
-        .prop_map_into(),]
-            .boxed()
     }
 
     fn bool_nested_expr(depth: usize) -> BoxedStrategy<Expr> {
@@ -375,16 +366,25 @@ pub(crate) mod arbitrary {
         .boxed()
     }
 
+    fn coll_nested_numeric(depth: usize, elem_tpe: &SType) -> BoxedStrategy<Expr> {
+        let ty = elem_tpe.clone();
+        vec(numeric_nested_expr(depth, elem_tpe), 0..10)
+            .prop_map(move |items| Collection::new(ty.clone(), items).unwrap())
+            .prop_map_into()
+            .boxed()
+    }
+
     fn coll_nested_expr(depth: usize, elem_tpe: &SType) -> BoxedStrategy<Expr> {
         match elem_tpe {
             SType::SBoolean => vec(bool_nested_expr(depth), 0..10)
                 .prop_map(|items| Collection::new(SType::SBoolean, items).unwrap())
                 .prop_map_into()
                 .boxed(),
-            SType::SByte => vec(byte_nested_expr(depth), 0..10)
-                .prop_map(|items| Collection::new(SType::SByte, items).unwrap())
-                .prop_map_into()
-                .boxed(),
+            SType::SByte => coll_nested_numeric(depth, elem_tpe),
+            SType::SShort => coll_nested_numeric(depth, elem_tpe),
+            SType::SInt => coll_nested_numeric(depth, elem_tpe),
+            SType::SLong => coll_nested_numeric(depth, elem_tpe),
+            SType::SBigInt => coll_nested_numeric(depth, elem_tpe),
 
             SType::STypeVar(_) => prop_oneof![
                 vec(bool_nested_expr(depth), 0..10).prop_map(|items| Collection::new(
@@ -392,11 +392,8 @@ pub(crate) mod arbitrary {
                     items
                 )
                 .unwrap()),
-                vec(int_nested_expr(depth), 0..10).prop_map(|items| Collection::new(
-                    SType::SInt,
-                    items
-                )
-                .unwrap())
+                vec(numeric_nested_expr(depth, &SType::SInt), 0..10)
+                    .prop_map(|items| Collection::new(SType::SInt, items).unwrap())
             ]
             .prop_map_into()
             .boxed(),
@@ -405,14 +402,27 @@ pub(crate) mod arbitrary {
     }
 
     fn any_nested_expr(depth: usize) -> BoxedStrategy<Expr> {
-        prop_oneof![bool_nested_expr(depth), int_nested_expr(depth)].boxed()
+        prop_oneof![
+            bool_nested_expr(depth),
+            numeric_nested_expr(depth, &SType::SByte),
+            numeric_nested_expr(depth, &SType::SShort),
+            numeric_nested_expr(depth, &SType::SInt),
+            numeric_nested_expr(depth, &SType::SLong),
+            numeric_nested_expr(depth, &SType::SBigInt),
+        ]
+        .boxed()
     }
 
     fn nested_expr(tpe: SType, depth: usize) -> BoxedStrategy<Expr> {
         match tpe {
             SType::SAny => any_nested_expr(depth),
             SType::SBoolean => bool_nested_expr(depth),
-            SType::SInt => int_nested_expr(depth),
+            SType::SByte => numeric_nested_expr(depth, &tpe),
+            SType::SShort => numeric_nested_expr(depth, &tpe),
+            SType::SInt => numeric_nested_expr(depth, &tpe),
+            SType::SLong => numeric_nested_expr(depth, &tpe),
+            SType::SBigInt => numeric_nested_expr(depth, &tpe),
+
             SType::SColl(elem_type) => coll_nested_expr(depth, elem_type.as_ref()),
             _ => todo!(),
         }
