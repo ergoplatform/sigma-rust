@@ -95,6 +95,18 @@ pub enum CommitmentHint {
     },
 }
 
+impl CommitmentHint {
+    /// A hint is related to a subtree (or a leaf) of a tree. Returns position in the tree.
+    pub fn position(&self) -> NodePosition {
+        todo!()
+    }
+
+    /// commitment to randomness used while proving knowledge of the secret
+    pub fn commitment(&self) -> FirstProverMessage {
+        todo!()
+    }
+}
+
 /// Collection of hints to be used by a prover
 pub struct HintsBag {
     /// Hints stored in a bag
@@ -107,14 +119,29 @@ impl HintsBag {
         HintsBag { hints: vec![] }
     }
 
+    /// Commitments from all CommitmentHints in the bag
+    pub fn commitments(&self) -> Vec<CommitmentHint> {
+        self.hints
+            .clone()
+            .into_iter()
+            .filter_map(|hint| {
+                if let Hint::CommitmentHint(v) = hint {
+                    Some(v)
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
     /// RealSecretProof hints only
     pub fn real_proofs(&self) -> Vec<RealSecretProof> {
         self.hints
             .clone()
             .into_iter()
             .filter_map(|hint| {
-                if let Hint::SecretProven(SecretProven::RealSecretProof(rsp)) = hint {
-                    Some(rsp)
+                if let Hint::SecretProven(SecretProven::RealSecretProof(v)) = hint {
+                    Some(v)
                 } else {
                     None
                 }
@@ -128,8 +155,8 @@ impl HintsBag {
             .clone()
             .into_iter()
             .filter_map(|hint| {
-                if let Hint::CommitmentHint(CommitmentHint::RealCommitment(rc)) = hint {
-                    Some(rc)
+                if let Hint::CommitmentHint(CommitmentHint::RealCommitment(v)) = hint {
+                    Some(v)
                 } else {
                     None
                 }

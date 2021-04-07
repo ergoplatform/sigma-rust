@@ -5,9 +5,11 @@ mod prover_result;
 
 pub mod hint;
 
+use crate::sigma_protocol::proof_tree::ProofTree;
 use crate::sigma_protocol::unproven_tree::CandUnproven;
 use crate::sigma_protocol::unproven_tree::NodePosition;
 use ergotree_ir::sigma_protocol::sigma_boolean::cand::Cand;
+use std::convert::TryInto;
 use std::rc::Rc;
 
 pub use context_extension::*;
@@ -19,7 +21,7 @@ pub use prover_result::*;
 
 use self::hint::HintsBag;
 
-use super::unproven_tree;
+use super::proof_tree;
 use super::unproven_tree::UnprovenConjecture;
 use super::ProofTreeLeaf;
 use super::{
@@ -28,8 +30,8 @@ use super::{
     private_input::PrivateInput,
     sig_serializer::serialize_sig,
     unchecked_tree::UncheckedSchnorr,
-    Challenge, ProofTree, SigmaBoolean, UncheckedSigmaTree, UncheckedTree, UnprovenLeaf,
-    UnprovenSchnorr, UnprovenTree,
+    Challenge, SigmaBoolean, UncheckedSigmaTree, UncheckedTree, UnprovenLeaf, UnprovenSchnorr,
+    UnprovenTree,
 };
 use crate::eval::context::Context;
 use crate::eval::env::Env;
@@ -60,6 +62,9 @@ pub enum ProverError {
     /// Cannot find a secret for "real" unproven leaf
     #[error("Cannot find a secret for \"real\" unproven leaf")]
     SecretNotFound,
+    /// Unexpected value encountered
+    #[error("Unexpected: {0}")]
+    Unexpected(String),
 }
 
 impl From<ErgoTreeParsingError> for ProverError {
@@ -86,7 +91,7 @@ pub trait Prover: Evaluator {
         env: &Env,
         ctx: Rc<Context>,
         message: &[u8],
-        hints_bag: HintsBag,
+        hints_bag: &HintsBag,
     ) -> Result<ProverResult, ProverError> {
         let expr = tree.proposition()?;
         let proof = self
@@ -121,7 +126,7 @@ fn prove_to_unchecked<P: Prover + ?Sized>(
     prover: &P,
     unproven_tree: UnprovenTree,
     message: &[u8],
-    hints_bag: HintsBag,
+    hints_bag: &HintsBag,
 ) -> Result<UncheckedSigmaTree, ProverError> {
     // Prover Step 1: Mark as real everything the prover can prove
     let step1 = mark_real(prover, unproven_tree, hints_bag)?;
@@ -139,12 +144,12 @@ fn prove_to_unchecked<P: Prover + ?Sized>(
 
     // Prover Steps 4, 5, and 6 together: find challenges for simulated nodes; simulate simulated leaves;
     // compute commitments for real leaves
-    let step6 = simulate_and_commit(prover, step3)?;
+    let step6 = simulate_and_commit(step3, hints_bag)?;
 
     // Prover Steps 7: convert the relevant information in the tree (namely, tree structure, node types,
     // the statements being proven and commitments at the leaves)
     // to a string
-    let var_name = fiat_shamir_tree_to_bytes(&step6);
+    let var_name = fiat_shamir_tree_to_bytes(&step6.clone().into());
     let mut s = var_name;
 
     // Prover Step 8: compute the challenge for the root of the tree as the Fiat-Shamir hash of s
@@ -154,7 +159,7 @@ fn prove_to_unchecked<P: Prover + ?Sized>(
     let step8 = step6.with_challenge(root_challenge);
 
     // Prover Step 9: complete the proof by computing challenges at real nodes and additionally responses at real leaves
-    let step9 = proving(prover, step8)?;
+    let step9 = proving(prover, step8.into())?;
 
     // Prover Step 10: output the right information into the proof
     match step9 {
@@ -173,11 +178,11 @@ fn prove_to_unchecked<P: Prover + ?Sized>(
 fn mark_real<P: Prover + ?Sized>(
     prover: &P,
     unproven_tree: UnprovenTree,
-    hints_bag: HintsBag,
+    hints_bag: &HintsBag,
 ) -> Result<UnprovenTree, ProverError> {
-    unproven_tree::rewrite(unproven_tree, |tree| {
+    proof_tree::rewrite::<ProverError, _>(unproven_tree.into(), |tree| {
         Ok(match tree {
-            UnprovenTree::UnprovenLeaf(ul) => match ul {
+            ProofTree::UnprovenTree(UnprovenTree::UnprovenLeaf(ul)) => match ul {
                 UnprovenLeaf::UnprovenSchnorr(us) => {
                     // If the node is a leaf, mark it "real'' if either the witness for it is
                     // available or a hint shows the secret is known to an external participant in multi-signing;
@@ -198,9 +203,15 @@ fn mark_real<P: Prover + ?Sized>(
                     )
                 }
             },
-            UnprovenTree::UnprovenConjecture(UnprovenConjecture::CandUnproven(cand)) => {
+            ProofTree::UnprovenTree(UnprovenTree::UnprovenConjecture(
+                UnprovenConjecture::CandUnproven(cand),
+            )) => {
                 // If the node is AND, mark it "real" if all of its children are marked real; else mark it "simulated"
-                let simulated = cand.children.iter().any(|c| c.simulated());
+                let simulated = cand.children.iter().any(|c| {
+                    // TODO: unwrap -> Err
+                    let unp: UnprovenTree = c.clone().try_into().unwrap();
+                    unp.simulated()
+                });
                 Some(
                     CandUnproven {
                         simulated,
@@ -209,13 +220,16 @@ fn mark_real<P: Prover + ?Sized>(
                     .into(),
                 )
             }
+            ProofTree::UncheckedTree(_) => None,
         })
-    })
+    })?
+    .try_into()
+    .map_err(|e: &str| ProverError::Unexpected(e.to_string()))
 }
 
 /// Set positions for children of a unproven inner node (conjecture, so AND/OR/THRESHOLD)
 fn set_positions(uc: UnprovenConjecture) -> UnprovenConjecture {
-    let upd_children: Vec<UnprovenTree> = uc
+    let upd_children: Vec<ProofTree> = uc
         .children()
         .into_iter()
         .enumerate()
@@ -236,9 +250,11 @@ fn polish_simulated<P: Prover + ?Sized>(
     _prover: &P,
     unproven_tree: UnprovenTree,
 ) -> Result<UnprovenTree, ProverError> {
-    unproven_tree::rewrite(unproven_tree, |tree| match tree {
-        UnprovenTree::UnprovenLeaf(_) => Ok(None),
-        UnprovenTree::UnprovenConjecture(UnprovenConjecture::CandUnproven(cand)) => {
+    proof_tree::rewrite::<ProverError, _>(unproven_tree.into(), |tree| match tree {
+        ProofTree::UnprovenTree(UnprovenTree::UnprovenLeaf(_)) => Ok(None),
+        ProofTree::UnprovenTree(UnprovenTree::UnprovenConjecture(
+            UnprovenConjecture::CandUnproven(cand),
+        )) => {
             // If the node is marked "simulated", mark all of its children "simulated"
             let a: CandUnproven = if cand.simulated {
                 todo!()
@@ -247,7 +263,10 @@ fn polish_simulated<P: Prover + ?Sized>(
             };
             Ok(Some(set_positions(a.into()).into()))
         }
-    })
+        ProofTree::UncheckedTree(_) => Ok(None),
+    })?
+    .try_into()
+    .map_err(|e: &str| ProverError::Unexpected(e.to_string()))
 }
 
 /**
@@ -257,44 +276,114 @@ fn polish_simulated<P: Prover + ?Sized>(
  Prover Step 6: For every leaf marked "real", use the first prover step of the Sigma-protocol for that leaf to
  compute the commitment a.
 */
-fn simulate_and_commit<P: Prover + ?Sized>(
-    _prover: &P,
-    tree: UnprovenTree,
-) -> Result<ProofTree, ProverError> {
-    match tree {
-        UnprovenTree::UnprovenLeaf(UnprovenLeaf::UnprovenSchnorr(us)) => {
-            if us.simulated {
-                // Step 5 (simulated leaf -- complete the simulation)
-                if let Some(challenge) = us.challenge_opt {
-                    let (fm, sm) =
-                        dlog_protocol::interactive_prover::simulate(&us.proposition, &challenge);
-                    Ok(ProofTree::UncheckedTree(
-                        UncheckedSchnorr {
-                            proposition: us.proposition,
-                            commitment_opt: Some(fm),
-                            challenge,
-                            second_message: sm,
+fn simulate_and_commit(
+    unproven_tree: UnprovenTree,
+    hints_bag: &HintsBag,
+) -> Result<UnprovenTree, ProverError> {
+    // TODO: streamline "try_into()" (remove type annotation and map_err())
+    proof_tree::rewrite::<ProverError, _>(unproven_tree.into(), |tree| {
+        match tree {
+            // Step 4 part 1: If the node is marked "real", then each of its simulated children gets a fresh uniformly
+            // random challenge in {0,1}^t.
+
+            // A real AND node has no simulated children
+            ProofTree::UnprovenTree(UnprovenTree::UnprovenConjecture(
+                UnprovenConjecture::CandUnproven(cand),
+            )) if cand.is_real() => Ok(None),
+            // Step 4 part 2: If the node is marked "simulated", let e_0 be the challenge computed for it.
+            // All of its children are simulated, and thus we compute challenges for all
+            // of them, as follows:
+            ProofTree::UnprovenTree(UnprovenTree::UnprovenConjecture(
+                UnprovenConjecture::CandUnproven(cand),
+            )) => {
+                // If the node is AND, then all of its children get e_0 as the challenge
+                // TODO: return an error
+                assert!(cand.challenge_opt.is_some());
+                if let Some(challenge) = cand.challenge_opt.clone() {
+                    let new_children = cand
+                        .children
+                        .clone()
+                        .into_iter()
+                        .map(|it| it.with_challenge(challenge.clone()))
+                        .collect();
+                    Ok(Some(
+                        CandUnproven {
+                            children: new_children,
+                            ..cand.clone()
                         }
                         .into(),
                     ))
                 } else {
-                    Err(ProverError::SimulatedLeafWithoutChallenge)
+                    todo!()
                 }
-            } else {
-                // Step 6 (real leaf -- compute the commitment a)
-                let (r, commitment) = dlog_protocol::interactive_prover::first_message();
-                Ok(ProofTree::UnprovenTree(
-                    UnprovenSchnorr {
-                        commitment_opt: Some(commitment),
-                        randomness_opt: Some(r),
-                        ..us
-                    }
-                    .into(),
-                ))
             }
+            ProofTree::UnprovenTree(UnprovenTree::UnprovenLeaf(UnprovenLeaf::UnprovenSchnorr(
+                us,
+            ))) => {
+                // Steps 5 & 6: first try pulling out commitment from the hints bag. If it exists proceed with it,
+                // otherwise, compute the commitment (if the node is real) or simulate it (if the node is simulated)
+
+                // Step 6 (real leaf -- compute the commitment a or take it from the hints bag)
+                let res: ProofTree = match hints_bag
+                    .commitments()
+                    .into_iter()
+                    .find(|c| c.position() == us.position)
+                {
+                    Some(cmt_hint) => {
+                        let pt: ProofTree = UnprovenSchnorr {
+                            commitment_opt: Some(
+                                cmt_hint
+                                    .commitment()
+                                    .try_into()
+                                    .map_err(|e: &str| ProverError::Unexpected(e.to_string()))?,
+                            ),
+                            ..us.clone()
+                        }
+                        .into();
+                        pt
+                    }
+                    None => {
+                        if us.simulated {
+                            // Step 5 (simulated leaf -- complete the simulation)
+                            if let Some(challenge) = us.challenge_opt.clone() {
+                                let (fm, sm) = dlog_protocol::interactive_prover::simulate(
+                                    &us.proposition,
+                                    &challenge,
+                                );
+                                Ok(ProofTree::UncheckedTree(
+                                    UncheckedSchnorr {
+                                        proposition: us.proposition.clone(),
+                                        commitment_opt: Some(fm),
+                                        challenge,
+                                        second_message: sm,
+                                    }
+                                    .into(),
+                                ))
+                            } else {
+                                Err(ProverError::SimulatedLeafWithoutChallenge)
+                            }
+                        } else {
+                            // Step 6 (real leaf -- compute the commitment a)
+                            let (r, commitment) =
+                                dlog_protocol::interactive_prover::first_message();
+                            Ok(ProofTree::UnprovenTree(
+                                UnprovenSchnorr {
+                                    commitment_opt: Some(commitment),
+                                    randomness_opt: Some(r),
+                                    ..us.clone()
+                                }
+                                .into(),
+                            ))
+                        }?
+                    }
+                };
+                Ok(Some(res))
+            }
+            ProofTree::UncheckedTree(_) => Ok(None),
         }
-        UnprovenTree::UnprovenConjecture(_) => todo!(),
-    }
+    })?
+    .try_into()
+    .map_err(|e: &str| ProverError::Unexpected(e.to_string()))
 }
 
 /**
@@ -364,7 +453,10 @@ fn convert_to_unproven(sb: SigmaBoolean) -> UnprovenTree {
                 proposition: sigma_trees.clone(),
                 challenge_opt: None,
                 simulated: false,
-                children: sigma_trees.into_iter().map(convert_to_unproven).collect(),
+                children: sigma_trees
+                    .into_iter()
+                    .map(|it| convert_to_unproven(it).into())
+                    .collect(),
                 position: NodePosition::crypto_tree_prefix(),
             }
             .into()
@@ -413,7 +505,7 @@ mod tests {
             &Env::empty(),
             Rc::new(force_any_val::<Context>()),
             message.as_slice(),
-            HintsBag::empty(),
+            &HintsBag::empty(),
         );
         assert!(res.is_ok());
         assert_eq!(res.unwrap().proof, ProofBytes::Empty);
@@ -433,7 +525,7 @@ mod tests {
             &Env::empty(),
             Rc::new(force_any_val::<Context>()),
             message.as_slice(),
-            HintsBag::empty(),
+            &HintsBag::empty(),
         );
         assert!(res.is_err());
         assert_eq!(res.err().unwrap(), ProverError::ReducedToFalse);
@@ -454,7 +546,7 @@ mod tests {
             &Env::empty(),
             Rc::new(force_any_val::<Context>()),
             message.as_slice(),
-            HintsBag::empty(),
+            &HintsBag::empty(),
         );
         assert!(res.is_ok());
         assert_ne!(res.unwrap().proof, ProofBytes::Empty);
@@ -480,7 +572,7 @@ mod tests {
             &Env::empty(),
             Rc::new(force_any_val::<Context>()),
             message.as_slice(),
-            HintsBag::empty(),
+            &HintsBag::empty(),
         );
         assert!(res.is_ok());
         assert_ne!(res.unwrap().proof, ProofBytes::Empty);

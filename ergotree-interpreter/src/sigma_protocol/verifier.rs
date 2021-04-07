@@ -147,7 +147,11 @@ mod tests {
             let prover = TestProver {
                 secrets: vec![PrivateInput::DlogProverInput(secret)],
             };
-            let res = prover.prove(&tree, &Env::empty(), Rc::new(force_any_val::<Context>()), message.as_slice(), HintsBag::empty());
+            let res = prover.prove(&tree,
+                &Env::empty(),
+                Rc::new(force_any_val::<Context>()),
+                message.as_slice(),
+                &HintsBag::empty());
             let proof = res.unwrap().proof;
 
             let verifier = TestVerifier;

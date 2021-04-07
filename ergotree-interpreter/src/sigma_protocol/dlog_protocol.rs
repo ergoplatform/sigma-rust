@@ -1,6 +1,6 @@
 //! Discrete logarithm signature protocol
 
-use super::{FirstProverMessage, ProverMessage};
+use super::ProverMessage;
 use ergotree_ir::serialization::SigmaSerializable;
 use ergotree_ir::sigma_protocol::dlog_group::EcPoint;
 use k256::Scalar;
@@ -18,12 +18,6 @@ impl From<EcPoint> for FirstDlogProverMessage {
 impl ProverMessage for FirstDlogProverMessage {
     fn bytes(&self) -> Vec<u8> {
         self.0.sigma_serialize_bytes()
-    }
-}
-
-impl From<FirstDlogProverMessage> for FirstProverMessage {
-    fn from(v: FirstDlogProverMessage) -> Self {
-        FirstProverMessage::FirstDlogProverMessage(v)
     }
 }
 

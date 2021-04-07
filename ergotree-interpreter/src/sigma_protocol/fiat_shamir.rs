@@ -1,9 +1,10 @@
 //! Fiat-Shamir transformation
 
 use super::{
+    proof_tree::ProofTree,
     unchecked_tree::{UncheckedSigmaTree, UncheckedTree},
     unproven_tree::UnprovenTree,
-    ProofTree, ProofTreeLeaf, ProverMessage, GROUP_SIZE, SOUNDNESS_BYTES,
+    ProofTreeLeaf, ProverMessage, GROUP_SIZE, SOUNDNESS_BYTES,
 };
 use blake2::digest::{Update, VariableOutput};
 use blake2::VarBlake2b;
@@ -68,11 +69,17 @@ pub(crate) fn fiat_shamir_tree_to_bytes(tree: &ProofTree) -> Vec<u8> {
     const LEAF_PREFIX: u8 = 1;
 
     let leaf: &dyn ProofTreeLeaf = match tree {
-        ProofTree::UncheckedTree(UncheckedTree::UncheckedSigmaTree(
-            UncheckedSigmaTree::UncheckedLeaf(ul),
-        )) => ul,
-        ProofTree::UnprovenTree(UnprovenTree::UnprovenLeaf(ul)) => ul,
-        _ => todo!(),
+        ProofTree::UncheckedTree(ut) => match ut {
+            UncheckedTree::NoProof => todo!(),
+            UncheckedTree::UncheckedSigmaTree(ust) => match ust {
+                UncheckedSigmaTree::UncheckedLeaf(ul) => ul,
+                UncheckedSigmaTree::UncheckedConjecture => todo!(),
+            },
+        },
+        ProofTree::UnprovenTree(ut) => match ut {
+            UnprovenTree::UnprovenLeaf(ul) => ul,
+            UnprovenTree::UnprovenConjecture(_) => todo!(),
+        },
     };
 
     let prop_tree =

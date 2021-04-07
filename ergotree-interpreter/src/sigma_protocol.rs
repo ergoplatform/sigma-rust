@@ -10,6 +10,7 @@ pub mod verifier;
 mod challenge;
 mod dlog_protocol;
 mod fiat_shamir;
+mod proof_tree;
 mod sig_serializer;
 mod unchecked_tree;
 mod unproven_tree;
@@ -25,8 +26,8 @@ use unproven_tree::{UnprovenLeaf, UnprovenSchnorr, UnprovenTree};
 use self::challenge::Challenge;
 use self::unchecked_tree::UncheckedSchnorr;
 
-extern crate derive_more;
 use derive_more::From;
+use derive_more::TryInto;
 
 /** The message sent by a prover to its associated verifier as part of a sigma protocol interaction. */
 pub(crate) trait ProverMessage {
@@ -35,7 +36,7 @@ pub(crate) trait ProverMessage {
 }
 
 /** First message from the prover (message `a` of `SigmaProtocol`)*/
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, From, TryInto)]
 pub enum FirstProverMessage {
     /// Discrete log
     FirstDlogProverMessage(FirstDlogProverMessage),
@@ -49,42 +50,6 @@ impl ProverMessage for FirstProverMessage {
             FirstProverMessage::FirstDlogProverMessage(fdpm) => fdpm.bytes(),
             FirstProverMessage::FirstDhtProverMessage => todo!(),
         }
-    }
-}
-
-/// Proof tree
-#[derive(PartialEq, Debug, Clone, From)]
-pub(crate) enum ProofTree {
-    /// Unchecked tree
-    UncheckedTree(UncheckedTree),
-    /// Unproven tree
-    UnprovenTree(UnprovenTree),
-}
-
-impl ProofTree {
-    /// Create a new proof tree with a new challenge
-    pub(crate) fn with_challenge(&self, challenge: Challenge) -> ProofTree {
-        match self {
-            ProofTree::UncheckedTree(_) => todo!(),
-            ProofTree::UnprovenTree(ut) => match ut {
-                UnprovenTree::UnprovenLeaf(ul) => match ul {
-                    UnprovenLeaf::UnprovenSchnorr(us) => ProofTree::UnprovenTree(
-                        UnprovenSchnorr {
-                            challenge_opt: Some(challenge),
-                            ..us.clone()
-                        }
-                        .into(),
-                    ),
-                },
-                UnprovenTree::UnprovenConjecture(_) => todo!(),
-            },
-        }
-    }
-}
-
-impl From<UncheckedSchnorr> for ProofTree {
-    fn from(v: UncheckedSchnorr) -> Self {
-        UncheckedTree::UncheckedSigmaTree(v.into()).into()
     }
 }
 

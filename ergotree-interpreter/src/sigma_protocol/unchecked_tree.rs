@@ -4,9 +4,10 @@ use ergotree_ir::sigma_protocol::sigma_boolean::ProveDlog;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
 
+use super::proof_tree::ProofTree;
 use super::{
     dlog_protocol::{FirstDlogProverMessage, SecondDlogProverMessage},
-    Challenge, FirstProverMessage, ProofTree, ProofTreeLeaf,
+    Challenge, FirstProverMessage, ProofTreeLeaf,
 };
 
 /// Unchecked tree

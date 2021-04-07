@@ -1,5 +1,6 @@
 //! Unproven tree types
 
+use super::proof_tree::ProofTree;
 use super::{dlog_protocol::FirstDlogProverMessage, Challenge, FirstProverMessage, ProofTreeLeaf};
 use ergotree_ir::sigma_protocol::sigma_boolean::ProveDlog;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
@@ -37,6 +38,13 @@ impl UnprovenTree {
             UnprovenTree::UnprovenConjecture(uc) => uc.with_position(updated).into(),
         }
     }
+
+    pub(crate) fn with_challenge(self, challenge: Challenge) -> Self {
+        match self {
+            UnprovenTree::UnprovenLeaf(ul) => ul.with_challenge(challenge).into(),
+            UnprovenTree::UnprovenConjecture(uc) => uc.with_challenge(challenge).into(),
+        }
+    }
 }
 
 impl From<UnprovenSchnorr> for UnprovenTree {
@@ -64,6 +72,12 @@ impl UnprovenLeaf {
             UnprovenLeaf::UnprovenSchnorr(us) => us.with_position(updated).into(),
         }
     }
+
+    fn with_challenge(self, challenge: Challenge) -> Self {
+        match self {
+            UnprovenLeaf::UnprovenSchnorr(us) => us.with_challenge(challenge).into(),
+        }
+    }
 }
 
 impl ProofTreeLeaf for UnprovenLeaf {
@@ -88,7 +102,7 @@ pub(crate) enum UnprovenConjecture {
 }
 
 impl UnprovenConjecture {
-    pub(crate) fn children(&self) -> Vec<UnprovenTree> {
+    pub(crate) fn children(&self) -> Vec<ProofTree> {
         match self {
             UnprovenConjecture::CandUnproven(cand) => cand.children.clone(),
         }
@@ -103,6 +117,12 @@ impl UnprovenConjecture {
     fn with_position(self, updated: NodePosition) -> Self {
         match self {
             UnprovenConjecture::CandUnproven(cand) => cand.with_position(updated).into(),
+        }
+    }
+
+    fn with_challenge(self, challenge: Challenge) -> Self {
+        match self {
+            UnprovenConjecture::CandUnproven(cand) => cand.with_challenge(challenge).into(),
         }
     }
 }
@@ -121,6 +141,13 @@ impl UnprovenSchnorr {
     fn with_position(self, updated: NodePosition) -> Self {
         UnprovenSchnorr {
             position: updated,
+            ..self
+        }
+    }
+
+    fn with_challenge(self, challenge: Challenge) -> Self {
+        UnprovenSchnorr {
+            challenge_opt: Some(challenge),
             ..self
         }
     }
@@ -168,44 +195,26 @@ pub(crate) struct CandUnproven {
     pub(crate) proposition: Vec<SigmaBoolean>,
     pub(crate) challenge_opt: Option<Challenge>,
     pub(crate) simulated: bool,
-    pub(crate) children: Vec<UnprovenTree>,
+    pub(crate) children: Vec<ProofTree>,
     pub(crate) position: NodePosition,
 }
 
 impl CandUnproven {
+    pub(crate) fn is_real(&self) -> bool {
+        !self.simulated
+    }
+
     fn with_position(self, updated: NodePosition) -> Self {
         CandUnproven {
             position: updated,
             ..self
         }
     }
-}
 
-pub(crate) fn rewrite<E, F: Fn(&UnprovenTree) -> Result<Option<UnprovenTree>, E>>(
-    tree: UnprovenTree,
-    f: F,
-) -> Result<UnprovenTree, E> {
-    let rewritten_tree = f(&tree)?.unwrap_or(tree);
-    Ok(match &rewritten_tree {
-        UnprovenTree::UnprovenLeaf(_) => rewritten_tree,
-        UnprovenTree::UnprovenConjecture(conj) => match conj {
-            UnprovenConjecture::CandUnproven(cand) => {
-                let maybe_rewritten_children = cand
-                    .children
-                    .clone()
-                    .into_iter()
-                    .map(|c| f(&c))
-                    .collect::<Result<Vec<Option<UnprovenTree>>, _>>()?;
-                let rewritten_children = maybe_rewritten_children
-                    .into_iter()
-                    .zip(cand.children.clone())
-                    .map(|(rc, c)| rc.unwrap_or(c))
-                    .collect::<Vec<UnprovenTree>>();
-                UnprovenTree::UnprovenConjecture(UnprovenConjecture::CandUnproven(CandUnproven {
-                    children: rewritten_children,
-                    ..cand.clone()
-                }))
-            }
-        },
-    })
+    fn with_challenge(self, challenge: Challenge) -> Self {
+        CandUnproven {
+            challenge_opt: Some(challenge),
+            ..self
+        }
+    }
 }
