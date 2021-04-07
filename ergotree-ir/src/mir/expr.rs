@@ -352,6 +352,15 @@ pub(crate) mod arbitrary {
         .boxed()
     }
 
+    fn byte_nested_expr(depth: usize) -> BoxedStrategy<Expr> {
+        prop_oneof![any_with::<BinOp>(ArbExprParams {
+            tpe: SType::SByte,
+            depth
+        })
+        .prop_map_into(),]
+            .boxed()
+    }
+
     fn bool_nested_expr(depth: usize) -> BoxedStrategy<Expr> {
         prop_oneof![
             any_with::<BinOp>(ArbExprParams {
@@ -370,6 +379,10 @@ pub(crate) mod arbitrary {
         match elem_tpe {
             SType::SBoolean => vec(bool_nested_expr(depth), 0..10)
                 .prop_map(|items| Collection::new(SType::SBoolean, items).unwrap())
+                .prop_map_into()
+                .boxed(),
+            SType::SByte => vec(byte_nested_expr(depth), 0..10)
+                .prop_map(|items| Collection::new(SType::SByte, items).unwrap())
                 .prop_map_into()
                 .boxed(),
 

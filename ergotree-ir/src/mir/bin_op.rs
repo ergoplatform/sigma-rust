@@ -173,6 +173,24 @@ mod arbitrary {
                     })
                     .boxed(),
 
+                SType::SByte => (
+                    any::<ArithOp>().prop_map_into(),
+                    any_with::<Expr>(ArbExprParams {
+                        tpe: SType::SByte,
+                        depth: args.depth,
+                    }),
+                    any_with::<Expr>(ArbExprParams {
+                        tpe: SType::SByte,
+                        depth: args.depth,
+                    }),
+                )
+                    .prop_map(|(kind, left, right)| BinOp {
+                        kind,
+                        left: Box::new(left),
+                        right: Box::new(right),
+                    })
+                    .boxed(),
+
                 _ => (
                     any::<BinOpKind>(),
                     any_with::<Expr>(ArbExprParams {
