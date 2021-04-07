@@ -3,6 +3,7 @@ use std::fmt::Debug;
 use crate::serialization::types::TypeCode;
 
 use super::sbox;
+use super::sglobal;
 use super::scoll;
 use super::scontext;
 use super::smethod::MethodId;
@@ -38,6 +39,8 @@ impl STypeCompanion {
             &sbox::S_BOX_TYPE_COMPANION
         } else if type_id == scoll::S_COLL_TYPE_COMPANION.type_id() {
             &scoll::S_COLL_TYPE_COMPANION
+        } else if type_id == sglobal::S_GLOBAL_TYPE_COMPANION.type_id() {
+            &sglobal::S_GLOBAL_TYPE_COMPANION
         } else {
             todo!("cannot find STypeCompanion for {0:?} type id", type_id)
         }

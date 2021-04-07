@@ -6,6 +6,8 @@ pub mod stype;
 pub mod sbox;
 /// Collection object type companion
 pub mod scoll;
+/// Global methods
+pub mod sglobal;
 pub mod scontext;
 /// Function signature type
 pub mod sfunc;
