@@ -51,6 +51,9 @@ mod tests {
 
     #[test]
     fn test_from_ids() {
-        assert!(SMethod::from_ids(TYPE_ID, DATA_INPUTS_PROPERTY_METHOD_ID).name() == "dataInputs");
+        assert!(
+            SMethod::from_ids(TYPE_ID, DATA_INPUTS_PROPERTY_METHOD_ID).map(|e| e.name())
+                == Ok("dataInputs")
+        );
     }
 }

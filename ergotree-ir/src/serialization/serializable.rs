@@ -9,6 +9,8 @@ use super::{
     sigma_byte_reader::{SigmaByteRead, SigmaByteReader},
     sigma_byte_writer::{SigmaByteWrite, SigmaByteWriter},
 };
+use crate::serialization::types::TypeCode;
+use crate::types::smethod::MethodId;
 use io::Cursor;
 use sigma_ser::{peekable_reader::PeekableReader, vlq_encode};
 use std::io;
@@ -53,6 +55,9 @@ pub enum SerializationError {
     /// Invalid argument on node creation
     #[error("Invalid argument: {0:?}")]
     InvalidArgument(InvalidArgumentError),
+    /// Unknown method ID for given type code
+    #[error("No method id {0:?} found in type companion with type id {1:?} ")]
+    UnknownMethodId(MethodId, TypeCode),
 }
 
 impl From<vlq_encode::VlqEncodingError> for SerializationError {
