@@ -50,6 +50,7 @@ impl Evaluable for Expr {
             Expr::Negation(op) => op.eval(env, ctx),
             Expr::ForAll(op) => op.eval(env, ctx),
             Expr::Tuple(op) => op.eval(env, ctx),
+            Expr::DecodePoint(op) => op.eval(env, ctx),
             Expr::SigmaAnd(op) => op.eval(env, ctx),
             Expr::SigmaOr(op) => op.eval(env, ctx),
         }

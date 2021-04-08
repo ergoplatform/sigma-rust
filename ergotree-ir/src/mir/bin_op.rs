@@ -136,6 +136,20 @@ mod arbitrary {
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
+            let numeric_binop = || -> BoxedStrategy<BinOp> {
+                (
+                    any::<ArithOp>().prop_map_into(),
+                    any_with::<Expr>(args.clone()),
+                    any_with::<Expr>(args.clone()),
+                )
+                    .prop_map(|(kind, left, right)| BinOp {
+                        kind,
+                        left: Box::new(left),
+                        right: Box::new(right),
+                    })
+                    .boxed()
+            };
+
             match args.tpe {
                 SType::SBoolean => (
                     any::<RelationOp>().prop_map_into(),
@@ -155,23 +169,11 @@ mod arbitrary {
                     })
                     .boxed(),
 
-                SType::SInt => (
-                    any::<ArithOp>().prop_map_into(),
-                    any_with::<Expr>(ArbExprParams {
-                        tpe: SType::SInt,
-                        depth: args.depth,
-                    }),
-                    any_with::<Expr>(ArbExprParams {
-                        tpe: SType::SInt,
-                        depth: args.depth,
-                    }),
-                )
-                    .prop_map(|(kind, left, right)| BinOp {
-                        kind,
-                        left: Box::new(left),
-                        right: Box::new(right),
-                    })
-                    .boxed(),
+                SType::SByte => numeric_binop(),
+                SType::SShort => numeric_binop(),
+                SType::SInt => numeric_binop(),
+                SType::SLong => numeric_binop(),
+                SType::SBigInt => numeric_binop(),
 
                 _ => (
                     any::<BinOpKind>(),
@@ -190,11 +192,6 @@ mod arbitrary {
                         right: Box::new(right),
                     })
                     .boxed(),
-                // SType::SByte => {}
-                // SType::SShort => {}
-                // SType::SInt => {}
-                // SType::SLong => {}
-                // SType::SBigInt => {}
             }
         }
     }
