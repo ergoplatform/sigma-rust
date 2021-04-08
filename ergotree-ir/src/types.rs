@@ -10,6 +10,8 @@ pub mod scoll;
 pub mod sglobal;
 /// Header's methods
 pub mod sheader;
+/// PreHeader's methods
+pub mod spreheader;
 pub mod scontext;
 /// Function signature type
 pub mod sfunc;

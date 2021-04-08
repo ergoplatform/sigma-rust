@@ -3,13 +3,14 @@ use std::fmt::Debug;
 use crate::serialization::types::TypeCode;
 
 use super::sbox;
-use super::sglobal;
-use super::sheader;
 use super::scoll;
 use super::scontext;
+use super::sglobal;
+use super::sheader;
 use super::smethod::MethodId;
 use super::smethod::SMethod;
 use super::smethod::SMethodDesc;
+use super::spreheader;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub(crate) struct STypeCompanionHead {
@@ -44,6 +45,8 @@ impl STypeCompanion {
             &sglobal::S_GLOBAL_TYPE_COMPANION
         } else if type_id == sheader::S_HEADER_TYPE_COMPANION.type_id() {
             &sheader::S_HEADER_TYPE_COMPANION
+        } else if type_id == spreheader::S_PRE_HEADER_TYPE_COMPANION.type_id() {
+            &spreheader::S_PRE_HEADER_TYPE_COMPANION
         } else {
             todo!("cannot find STypeCompanion for {0:?} type id", type_id)
         }
