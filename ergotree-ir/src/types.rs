@@ -8,6 +8,8 @@ pub mod sbox;
 pub mod scoll;
 /// Global methods
 pub mod sglobal;
+/// Header's methods
+pub mod sheader;
 pub mod scontext;
 /// Function signature type
 pub mod sfunc;

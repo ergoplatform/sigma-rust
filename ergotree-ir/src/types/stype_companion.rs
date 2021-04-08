@@ -4,6 +4,7 @@ use crate::serialization::types::TypeCode;
 
 use super::sbox;
 use super::sglobal;
+use super::sheader;
 use super::scoll;
 use super::scontext;
 use super::smethod::MethodId;
@@ -41,6 +42,8 @@ impl STypeCompanion {
             &scoll::S_COLL_TYPE_COMPANION
         } else if type_id == sglobal::S_GLOBAL_TYPE_COMPANION.type_id() {
             &sglobal::S_GLOBAL_TYPE_COMPANION
+        } else if type_id == sheader::S_HEADER_TYPE_COMPANION.type_id() {
+            &sheader::S_HEADER_TYPE_COMPANION
         } else {
             todo!("cannot find STypeCompanion for {0:?} type id", type_id)
         }
