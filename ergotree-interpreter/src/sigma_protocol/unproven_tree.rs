@@ -1,6 +1,8 @@
 //! Unproven tree types
 
+use super::proof_tree::ConjectureType;
 use super::proof_tree::ProofTree;
+use super::proof_tree::ProofTreeConjecture;
 use super::proof_tree::ProofTreeKind;
 use super::{dlog_protocol::FirstDlogProverMessage, Challenge, FirstProverMessage};
 use crate::sigma_protocol::proof_tree::ProofTreeLeaf;
@@ -51,7 +53,7 @@ impl UnprovenTree {
     pub(crate) fn as_tree_kind(&self) -> ProofTreeKind {
         match self {
             UnprovenTree::UnprovenLeaf(ul) => ProofTreeKind::Leaf(ul),
-            UnprovenTree::UnprovenConjecture(_) => todo!(),
+            UnprovenTree::UnprovenConjecture(uc) => ProofTreeKind::Conjecture(uc),
         }
     }
 }
@@ -132,6 +134,20 @@ impl UnprovenConjecture {
     fn with_challenge(self, challenge: Challenge) -> Self {
         match self {
             UnprovenConjecture::CandUnproven(cand) => cand.with_challenge(challenge).into(),
+        }
+    }
+}
+
+impl ProofTreeConjecture for UnprovenConjecture {
+    fn conjecture_type(&self) -> ConjectureType {
+        match self {
+            UnprovenConjecture::CandUnproven(_) => ConjectureType::And,
+        }
+    }
+
+    fn children(&self) -> &[ProofTree] {
+        match self {
+            UnprovenConjecture::CandUnproven(cand) => cand.children.as_ref(),
         }
     }
 }

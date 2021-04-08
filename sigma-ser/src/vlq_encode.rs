@@ -107,6 +107,11 @@ pub trait WriteSigmaVlqExt: io::Write {
             .for_each(|(idx, i)| bits.set(idx, *i));
         self.write_all(bits.to_bytes().as_slice())
     }
+
+    /// Put the two bytes of the big-endian representation of the i16 value into the writer.
+    fn put_i16_be_bytes(&mut self, v: i16) -> io::Result<()> {
+        self.write_all(v.to_be_bytes().as_ref())
+    }
 }
 
 /// Mark all types implementing `Write` as implementing the extension.
