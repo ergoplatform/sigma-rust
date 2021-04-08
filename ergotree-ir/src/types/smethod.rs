@@ -102,6 +102,17 @@ pub(crate) struct SMethodDesc {
 }
 
 impl SMethodDesc {
+    pub(crate) fn property(name: &'static str, tpe: SType, id: MethodId) -> SMethodDesc {
+        SMethodDesc {
+            method_id: id,
+            name,
+            tpe: SFunc {
+                t_dom: vec![],
+                t_range: tpe.into(),
+                tpe_params: vec![],
+            },
+        }
+    }
     pub(crate) fn as_method(&self, obj_type: &'static STypeCompanion) -> SMethod {
         SMethod {
             obj_type,
