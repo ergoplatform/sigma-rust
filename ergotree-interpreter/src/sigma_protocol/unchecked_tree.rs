@@ -5,9 +5,11 @@ use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
 
 use super::proof_tree::ProofTree;
+use super::proof_tree::ProofTreeKind;
+use super::proof_tree::ProofTreeLeaf;
 use super::{
     dlog_protocol::{FirstDlogProverMessage, SecondDlogProverMessage},
-    Challenge, FirstProverMessage, ProofTreeLeaf,
+    Challenge, FirstProverMessage,
 };
 
 /// Unchecked tree
@@ -17,6 +19,15 @@ pub enum UncheckedTree {
     NoProof,
     /// Unchecked sigma tree
     UncheckedSigmaTree(UncheckedSigmaTree),
+}
+
+impl UncheckedTree {
+    pub(crate) fn as_tree_kind(&self) -> ProofTreeKind {
+        match self {
+            UncheckedTree::NoProof => panic!("NoProof has not ProofTreeKind representation"),
+            UncheckedTree::UncheckedSigmaTree(ust) => ust.as_tree_kind(),
+        }
+    }
 }
 
 /// Unchecked sigma tree
@@ -35,6 +46,13 @@ impl UncheckedSigmaTree {
             UncheckedSigmaTree::UncheckedLeaf(UncheckedLeaf::UncheckedSchnorr(us)) => {
                 us.challenge.clone()
             }
+            UncheckedSigmaTree::UncheckedConjecture => todo!(),
+        }
+    }
+
+    pub(crate) fn as_tree_kind(&self) -> ProofTreeKind {
+        match self {
+            UncheckedSigmaTree::UncheckedLeaf(ul) => ProofTreeKind::Leaf(ul),
             UncheckedSigmaTree::UncheckedConjecture => todo!(),
         }
     }

@@ -1,6 +1,7 @@
 extern crate derive_more;
 use derive_more::From;
 use derive_more::TryInto;
+use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 
 use crate::sigma_protocol::unproven_tree::CandUnproven;
 use crate::sigma_protocol::unproven_tree::UnprovenConjecture;
@@ -11,6 +12,7 @@ use super::challenge::Challenge;
 use super::unchecked_tree::UncheckedTree;
 use super::unproven_tree::NodePosition;
 use super::unproven_tree::UnprovenTree;
+use super::FirstProverMessage;
 
 /// Proof tree
 #[derive(PartialEq, Debug, Clone, From, TryInto)]
@@ -34,6 +36,13 @@ impl ProofTree {
         match self {
             ProofTree::UncheckedTree(_) => todo!(),
             ProofTree::UnprovenTree(ut) => ut.clone().with_position(updated).into(),
+        }
+    }
+
+    pub(crate) fn as_tree_kind(&self) -> ProofTreeKind {
+        match self {
+            ProofTree::UncheckedTree(unch) => unch.as_tree_kind(),
+            ProofTree::UnprovenTree(unp) => unp.as_tree_kind(),
         }
     }
 }
@@ -60,6 +69,31 @@ impl From<UnprovenConjecture> for ProofTree {
     fn from(v: UnprovenConjecture) -> Self {
         UnprovenTree::UnprovenConjecture(v).into()
     }
+}
+
+/// Proof tree leaf
+pub(crate) trait ProofTreeLeaf {
+    /// Get proposition
+    fn proposition(&self) -> SigmaBoolean;
+
+    /// Get commitment
+    fn commitment_opt(&self) -> Option<FirstProverMessage>;
+}
+
+pub(crate) enum ConjectureType {
+    And = 0,
+    Or = 1,
+    Threshold = 2,
+}
+
+pub(crate) trait ProofTreeConjecture {
+    fn conjecture_type(&self) -> ConjectureType;
+    fn children(&self) -> &[ProofTree];
+}
+
+pub(crate) enum ProofTreeKind<'a> {
+    Leaf(&'a dyn ProofTreeLeaf),
+    Conjecture(&'a dyn ProofTreeConjecture),
 }
 
 pub(crate) fn rewrite<E, F: Fn(&ProofTree) -> Result<Option<ProofTree>, E>>(

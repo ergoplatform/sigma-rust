@@ -1,7 +1,9 @@
 //! Unproven tree types
 
 use super::proof_tree::ProofTree;
-use super::{dlog_protocol::FirstDlogProverMessage, Challenge, FirstProverMessage, ProofTreeLeaf};
+use super::proof_tree::ProofTreeKind;
+use super::{dlog_protocol::FirstDlogProverMessage, Challenge, FirstProverMessage};
+use crate::sigma_protocol::proof_tree::ProofTreeLeaf;
 use ergotree_ir::sigma_protocol::sigma_boolean::ProveDlog;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
@@ -43,6 +45,13 @@ impl UnprovenTree {
         match self {
             UnprovenTree::UnprovenLeaf(ul) => ul.with_challenge(challenge).into(),
             UnprovenTree::UnprovenConjecture(uc) => uc.with_challenge(challenge).into(),
+        }
+    }
+
+    pub(crate) fn as_tree_kind(&self) -> ProofTreeKind {
+        match self {
+            UnprovenTree::UnprovenLeaf(ul) => ProofTreeKind::Leaf(ul),
+            UnprovenTree::UnprovenConjecture(_) => todo!(),
         }
     }
 }

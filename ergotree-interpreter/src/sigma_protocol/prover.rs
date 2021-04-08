@@ -22,8 +22,8 @@ pub use prover_result::*;
 use self::hint::HintsBag;
 
 use super::proof_tree;
+use super::proof_tree::ProofTreeLeaf;
 use super::unproven_tree::UnprovenConjecture;
-use super::ProofTreeLeaf;
 use super::{
     dlog_protocol,
     fiat_shamir::{fiat_shamir_hash_fn, fiat_shamir_tree_to_bytes},

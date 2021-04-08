@@ -1,11 +1,7 @@
 //! Fiat-Shamir transformation
 
-use super::{
-    proof_tree::ProofTree,
-    unchecked_tree::{UncheckedSigmaTree, UncheckedTree},
-    unproven_tree::UnprovenTree,
-    ProofTreeLeaf, ProverMessage, GROUP_SIZE, SOUNDNESS_BYTES,
-};
+use super::proof_tree::ProofTreeKind;
+use crate::sigma_protocol::ProverMessage;
 use blake2::digest::{Update, VariableOutput};
 use blake2::VarBlake2b;
 use ergotree_ir::ergo_tree::ErgoTree;
@@ -17,6 +13,10 @@ use thiserror::Error;
 
 #[cfg(feature = "arbitrary")]
 use proptest_derive::Arbitrary;
+
+use super::proof_tree::ProofTree;
+use super::GROUP_SIZE;
+use super::SOUNDNESS_BYTES;
 
 /// Hash type for Fiat-Shamir hash function (24-bytes)
 #[cfg_attr(feature = "arbitrary", derive(Arbitrary))]
@@ -67,36 +67,26 @@ impl From<std::array::TryFromSliceError> for FiatShamirHashError {
 ///  and should not contain challenges, responses, or the real/simulated flag for any node.
 pub(crate) fn fiat_shamir_tree_to_bytes(tree: &ProofTree) -> Vec<u8> {
     const LEAF_PREFIX: u8 = 1;
-
-    let leaf: &dyn ProofTreeLeaf = match tree {
-        ProofTree::UncheckedTree(ut) => match ut {
-            UncheckedTree::NoProof => todo!(),
-            UncheckedTree::UncheckedSigmaTree(ust) => match ust {
-                UncheckedSigmaTree::UncheckedLeaf(ul) => ul,
-                UncheckedSigmaTree::UncheckedConjecture => todo!(),
-            },
-        },
-        ProofTree::UnprovenTree(ut) => match ut {
-            UnprovenTree::UnprovenLeaf(ul) => ul,
-            UnprovenTree::UnprovenConjecture(_) => todo!(),
-        },
-    };
-
-    let prop_tree =
-        ErgoTree::with_segregation(&Expr::Const(SigmaProp::new(leaf.proposition()).into()));
-    let mut prop_bytes = prop_tree.sigma_serialize_bytes();
-    // TODO: is unwrap safe here? Create new type with non-optional commitment? Decide when other scenarios
-    // are implemented (leafs and trees)
-    let mut commitment_bytes = leaf.commitment_opt().unwrap().bytes();
-    let mut res = vec![LEAF_PREFIX];
-    res.append((prop_bytes.len() as u16).to_be_bytes().to_vec().as_mut());
-    res.append(prop_bytes.as_mut());
-    res.append(
-        (commitment_bytes.len() as u16)
-            .to_be_bytes()
-            .to_vec()
-            .as_mut(),
-    );
-    res.append(commitment_bytes.as_mut());
-    res
+    match tree.as_tree_kind() {
+        ProofTreeKind::Leaf(leaf) => {
+            let prop_tree =
+                ErgoTree::with_segregation(&Expr::Const(SigmaProp::new(leaf.proposition()).into()));
+            let mut prop_bytes = prop_tree.sigma_serialize_bytes();
+            // TODO: is unwrap safe here? Create new type with non-optional commitment? Decide when other scenarios
+            // are implemented (leafs and trees)
+            let mut commitment_bytes = leaf.commitment_opt().unwrap().bytes();
+            let mut res = vec![LEAF_PREFIX];
+            res.append((prop_bytes.len() as u16).to_be_bytes().to_vec().as_mut());
+            res.append(prop_bytes.as_mut());
+            res.append(
+                (commitment_bytes.len() as u16)
+                    .to_be_bytes()
+                    .to_vec()
+                    .as_mut(),
+            );
+            res.append(commitment_bytes.as_mut());
+            res
+        }
+        ProofTreeKind::Conjecture(_) => todo!(),
+    }
 }
