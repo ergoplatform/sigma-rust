@@ -120,6 +120,9 @@ impl SType {
                 | SType::SAvlTree
                 | SType::SContext
                 | SType::SBoolean
+                | SType::SHeader
+                | SType::SPreHeader
+                | SType::SGlobal
         )
     }
 
@@ -271,6 +274,9 @@ pub(crate) mod tests {
             Just(SType::SBox),
             Just(SType::SAvlTree),
             Just(SType::SContext),
+            Just(SType::SHeader),
+            Just(SType::SPreHeader),
+            Just(SType::SGlobal),
         ]
         .boxed()
     }
