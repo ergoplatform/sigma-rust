@@ -29,6 +29,7 @@ use super::{
     fiat_shamir::{fiat_shamir_hash_fn, fiat_shamir_tree_to_bytes},
     private_input::PrivateInput,
     sig_serializer::serialize_sig,
+    unchecked_tree::UncheckedLeaf,
     unchecked_tree::UncheckedSchnorr,
     Challenge, SigmaBoolean, UncheckedSigmaTree, UncheckedTree, UnprovenLeaf, UnprovenSchnorr,
     UnprovenTree,
@@ -159,13 +160,10 @@ fn prove_to_unchecked<P: Prover + ?Sized>(
     let step8 = step6.with_challenge(root_challenge);
 
     // Prover Step 9: complete the proof by computing challenges at real nodes and additionally responses at real leaves
-    let step9 = proving(prover, step8.into())?;
+    let step9 = proving(prover, step8.into(), hints_bag)?;
 
     // Prover Step 10: output the right information into the proof
-    match step9 {
-        ProofTree::UncheckedTree(UncheckedTree::UncheckedSigmaTree(tree)) => Ok(tree),
-        _ => todo!(),
-    }
+    convert_to_unchecked(step9)
 }
 
 /**
@@ -391,45 +389,93 @@ fn simulate_and_commit(
  the challenge e for every node marked "real" below the root and, additionally, the response z for every leaf
  marked "real"
 */
-fn proving<P: Prover + ?Sized>(prover: &P, tree: ProofTree) -> Result<ProofTree, ProverError> {
-    // If the node is a leaf marked "real", compute its response according to the second prover step
-    // of the Sigma-protocol given the commitment, challenge, and witness
-    match tree {
-        ProofTree::UncheckedTree(_) => Ok(tree),
+fn proving<P: Prover + ?Sized>(
+    prover: &P,
+    tree: ProofTree,
+    hints_bag: &HintsBag,
+) -> Result<ProofTree, ProverError> {
+    match &tree {
+        ProofTree::UncheckedTree(unch) => match unch {
+            UncheckedTree::NoProof => Err(ProverError::Unexpected(
+                "Unexpected NoProof in proving()".to_string(),
+            )),
+            UncheckedTree::UncheckedSigmaTree(ust) => match ust {
+                UncheckedSigmaTree::UncheckedLeaf(_) => Ok(tree),
+                UncheckedSigmaTree::UncheckedConjecture => todo!(),
+            },
+        },
         ProofTree::UnprovenTree(unproven_tree) => match unproven_tree {
-            UnprovenTree::UnprovenLeaf(UnprovenLeaf::UnprovenSchnorr(us))
-                if unproven_tree.is_real() =>
-            {
-                if let Some(challenge) = us.challenge_opt.clone() {
-                    if let Some(priv_key) = prover
-                        .secrets()
-                        .iter()
-                        .flat_map(|s| match s {
-                            PrivateInput::DlogProverInput(dl) => vec![dl],
-                            _ => vec![],
-                        })
-                        .find(|prover_input| prover_input.public_image() == us.proposition)
-                    {
-                        let z = dlog_protocol::interactive_prover::second_message(
-                            &priv_key,
-                            us.randomness_opt.unwrap(),
-                            &challenge,
+            UnprovenTree::UnprovenConjecture(conj) => match conj {
+                UnprovenConjecture::CandUnproven(cand) => {
+                    if cand.is_real() {
+                        assert!(
+                            cand.challenge_opt.is_some(),
+                            "proving: CandUnproven.challenge_opt is empty"
                         );
-                        Ok(UncheckedSchnorr {
-                            proposition: us.proposition,
-                            commitment_opt: None,
-                            challenge,
-                            second_message: z,
+                        // If the node is AND, let each of its children have the challenge e_0
+                        if let Some(challenge) = cand.challenge_opt.clone() {
+                            let updated = cand
+                                .clone()
+                                .children
+                                .into_iter()
+                                .map(|child| child.with_challenge(challenge.clone()))
+                                .collect();
+                            Ok(cand.clone().with_children(updated).into())
+                        } else {
+                            Err(ProverError::Unexpected(
+                                "proving: CandUnproven.challenge_opt is empty".to_string(),
+                            ))
                         }
-                        .into())
                     } else {
-                        Err(ProverError::SecretNotFound)
+                        Ok(tree)
                     }
-                } else {
-                    Err(ProverError::RealUnprovenTreeWithoutChallenge)
                 }
+            },
+
+            // If the node is a leaf marked "real", compute its response according to the second prover step
+            // of the Sigma-protocol given the commitment, challenge, and witness, or pull response from the hints bag
+            UnprovenTree::UnprovenLeaf(unp_leaf) if unp_leaf.is_real() => match unp_leaf {
+                UnprovenLeaf::UnprovenSchnorr(us) => {
+                    if let Some(challenge) = us.challenge_opt.clone() {
+                        if let Some(priv_key) = prover
+                            .secrets()
+                            .iter()
+                            .flat_map(|s| match s {
+                                PrivateInput::DlogProverInput(dl) => vec![dl],
+                                _ => vec![],
+                            })
+                            .find(|prover_input| prover_input.public_image() == us.proposition)
+                        {
+                            let z = dlog_protocol::interactive_prover::second_message(
+                                &priv_key,
+                                us.randomness_opt.unwrap(),
+                                &challenge,
+                            );
+                            Ok(UncheckedSchnorr {
+                                proposition: us.proposition.clone(),
+                                commitment_opt: None,
+                                challenge,
+                                second_message: z,
+                            }
+                            .into())
+                        } else {
+                            Err(ProverError::SecretNotFound)
+                        }
+                    } else {
+                        Err(ProverError::RealUnprovenTreeWithoutChallenge)
+                    }
+                }
+            },
+            UnprovenTree::UnprovenLeaf(unp_leaf) => {
+                // if the simulated node is proven by someone else, take it from hints bag
+                let res: ProofTree = hints_bag
+                    .simulated_proofs()
+                    .into_iter()
+                    .find(|proof| proof.image == unp_leaf.proposition())
+                    .map(|proof| proof.unchecked_tree.into())
+                    .unwrap_or_else(|| unp_leaf.clone().into());
+                Ok(res)
             }
-            _ => todo!(),
         },
     }
 }
@@ -463,6 +509,28 @@ fn convert_to_unproven(sb: SigmaBoolean) -> UnprovenTree {
         }
         SigmaBoolean::SigmaConjecture(SigmaConjecture::Cor(_)) => todo!(),
         SigmaBoolean::TrivialProp(_) => panic!("TrivialProp is not expected here"),
+    }
+}
+
+fn convert_to_unchecked(tree: ProofTree) -> Result<UncheckedSigmaTree, ProverError> {
+    match &tree {
+        ProofTree::UncheckedTree(unch_tree) => match unch_tree {
+            UncheckedTree::NoProof => Err(ProverError::Unexpected(
+                "convert_to_unchecked: unexpected NoProof".to_string(),
+            )),
+            UncheckedTree::UncheckedSigmaTree(ust) => match ust {
+                UncheckedSigmaTree::UncheckedLeaf(ul) => match ul {
+                    UncheckedLeaf::UncheckedSchnorr(_) => Ok(ust.clone()),
+                },
+                UncheckedSigmaTree::UncheckedConjecture => todo!(),
+            },
+        },
+        ProofTree::UnprovenTree(unp_tree) => match unp_tree {
+            UnprovenTree::UnprovenLeaf(_) => todo!(),
+            UnprovenTree::UnprovenConjecture(conj) => match conj {
+                UnprovenConjecture::CandUnproven(_) => todo!(),
+            },
+        },
     }
 }
 

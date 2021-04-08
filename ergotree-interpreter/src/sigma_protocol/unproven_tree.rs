@@ -89,6 +89,12 @@ impl UnprovenLeaf {
             UnprovenLeaf::UnprovenSchnorr(us) => us.with_challenge(challenge).into(),
         }
     }
+
+    pub(crate) fn is_real(&self) -> bool {
+        match self {
+            UnprovenLeaf::UnprovenSchnorr(us) => us.is_real(),
+        }
+    }
 }
 
 impl ProofTreeLeaf for UnprovenLeaf {
@@ -176,6 +182,10 @@ impl UnprovenSchnorr {
             ..self
         }
     }
+
+    pub(crate) fn is_real(&self) -> bool {
+        !self.simulated
+    }
 }
 
 /// Data type which encodes position of a node in a tree.
@@ -241,5 +251,9 @@ impl CandUnproven {
             challenge_opt: Some(challenge),
             ..self
         }
+    }
+
+    pub(crate) fn with_children(self, children: Vec<ProofTree>) -> Self {
+        CandUnproven { children, ..self }
     }
 }

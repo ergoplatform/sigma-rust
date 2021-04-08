@@ -34,6 +34,20 @@ pub struct RealSecretProof {
     pub position: NodePosition,
 }
 
+/// A hint which contains a proof-of-knowledge for a secret associated with its public image "image",
+/// with also the mark that the proof is real.
+#[derive(PartialEq, Debug, Clone)]
+pub struct SimulatedSecretProof {
+    /// Public image of a secret which is proven
+    pub image: SigmaBoolean,
+    /// Challenge used for a proof
+    pub challenge: Challenge,
+    /// Proof in a tree form
+    pub unchecked_tree: UncheckedTree,
+    /// A hint is related to a subtree (or a leaf) of a tree. This field encodes a position in the tree.
+    pub position: NodePosition,
+}
+
 /// A hint which is indicating that a secret associated with its public image "image" is already proven.
 #[derive(PartialEq, Debug, Clone)]
 pub enum SecretProven {
@@ -42,16 +56,7 @@ pub enum SecretProven {
     RealSecretProof(RealSecretProof),
     /// A hint which contains a proof-of-knowledge for a secret associated with its public image "image",
     /// with also the mark that the proof is real.
-    SimulatedSecretProof {
-        /// Public image of a secret which is proven
-        image: SigmaBoolean,
-        /// Challenge used for a proof
-        challenge: Challenge,
-        /// Proof in a tree form
-        unchecked_tree: UncheckedTree,
-        /// A hint is related to a subtree (or a leaf) of a tree. This field encodes a position in the tree.
-        position: NodePosition,
-    },
+    SimulatedSecretProof(SimulatedSecretProof),
 }
 
 /// A hint which contains a commitment to randomness associated with a public image of a secret.
@@ -175,5 +180,20 @@ impl HintsBag {
             .collect();
         from_proofs.append(&mut from_comms);
         from_proofs
+    }
+
+    /// SimulatedSecretProof proofs only
+    pub fn simulated_proofs(&self) -> Vec<SimulatedSecretProof> {
+        self.hints
+            .clone()
+            .into_iter()
+            .filter_map(|hint| {
+                if let Hint::SecretProven(SecretProven::SimulatedSecretProof(v)) = hint {
+                    Some(v)
+                } else {
+                    None
+                }
+            })
+            .collect()
     }
 }
