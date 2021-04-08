@@ -150,7 +150,7 @@ pub fn sign_transaction(
                         &Env::empty(),
                         ctx,
                         message_to_sign.as_slice(),
-                        HintsBag::empty(),
+                        &HintsBag::empty(),
                     )
                     .map(|proof| {
                         let input = Input::new(unsigned_input.box_id.clone(), proof.into());
