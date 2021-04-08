@@ -6,17 +6,17 @@ pub mod stype;
 pub mod sbox;
 /// Collection object type companion
 pub mod scoll;
+pub mod scontext;
+/// Function signature type
+pub mod sfunc;
 /// Global methods
 pub mod sglobal;
 /// Header's methods
 pub mod sheader;
-/// PreHeader's methods
-pub mod spreheader;
-pub mod scontext;
-/// Function signature type
-pub mod sfunc;
 /// Object method(property) signature type
 pub mod smethod;
+/// PreHeader's methods
+pub mod spreheader;
 /// Tuple type
 pub mod stuple;
 /// Type companion for an object
