@@ -1,6 +1,6 @@
 [package]
 name = "ergoscript-compiler"
-version = "0.4.0"
+version = "0.5.0"
 license = "CC0-1.0"
 authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
 edition = "2018"
@@ -14,7 +14,7 @@ exclude = [
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-ergotree-ir = { version = "^0.8.0", path = "../ergotree-ir" }
+ergotree-ir = { version = "^0.9.0", path = "../ergotree-ir" }
 logos = "0.12"
 text-size = "1.1.0"
 derive_more = "0.99"
