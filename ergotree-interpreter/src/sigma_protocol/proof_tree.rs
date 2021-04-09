@@ -9,6 +9,7 @@ use crate::sigma_protocol::UncheckedSchnorr;
 use crate::sigma_protocol::UnprovenSchnorr;
 
 use super::challenge::Challenge;
+use super::unchecked_tree::UncheckedSigmaTree;
 use super::unchecked_tree::UncheckedTree;
 use super::unproven_tree::NodePosition;
 use super::unproven_tree::UnprovenLeaf;
@@ -75,6 +76,12 @@ impl From<UnprovenConjecture> for ProofTree {
 impl From<UnprovenLeaf> for ProofTree {
     fn from(v: UnprovenLeaf) -> Self {
         UnprovenTree::UnprovenLeaf(v).into()
+    }
+}
+
+impl From<UncheckedSigmaTree> for ProofTree {
+    fn from(ust: UncheckedSigmaTree) -> Self {
+        ProofTree::UncheckedTree(UncheckedTree::UncheckedSigmaTree(ust))
     }
 }
 

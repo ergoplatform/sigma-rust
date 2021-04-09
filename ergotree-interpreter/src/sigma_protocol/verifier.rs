@@ -110,7 +110,7 @@ fn compute_commitments(sp: UncheckedSigmaTree) -> UncheckedSigmaTree {
             }
             .into()
         }
-        UncheckedSigmaTree::UncheckedConjecture => todo!(),
+        UncheckedSigmaTree::UncheckedConjecture(_) => todo!(),
     }
 }
 

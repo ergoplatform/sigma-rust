@@ -12,7 +12,7 @@ mod dlog_protocol;
 mod fiat_shamir;
 mod proof_tree;
 mod sig_serializer;
-mod unchecked_tree;
+pub(crate) mod unchecked_tree;
 mod unproven_tree;
 
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
@@ -21,7 +21,7 @@ use k256::Scalar;
 use dlog_protocol::FirstDlogProverMessage;
 use std::convert::TryInto;
 use unchecked_tree::{UncheckedSigmaTree, UncheckedTree};
-use unproven_tree::{UnprovenLeaf, UnprovenSchnorr, UnprovenTree};
+use unproven_tree::{UnprovenLeaf, UnprovenSchnorr};
 
 use self::challenge::Challenge;
 use self::unchecked_tree::UncheckedSchnorr;

@@ -4,13 +4,17 @@ use ergotree_ir::sigma_protocol::sigma_boolean::ProveDlog;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
 
+use super::proof_tree::ConjectureType;
 use super::proof_tree::ProofTree;
+use super::proof_tree::ProofTreeConjecture;
 use super::proof_tree::ProofTreeKind;
 use super::proof_tree::ProofTreeLeaf;
 use super::{
     dlog_protocol::{FirstDlogProverMessage, SecondDlogProverMessage},
     Challenge, FirstProverMessage,
 };
+
+use derive_more::From;
 
 /// Unchecked tree
 #[derive(PartialEq, Debug, Clone)]
@@ -31,12 +35,12 @@ impl UncheckedTree {
 }
 
 /// Unchecked sigma tree
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, From)]
 pub enum UncheckedSigmaTree {
     /// Unchecked leaf
     UncheckedLeaf(UncheckedLeaf),
     /// Unchecked conjecture (OR, AND, ...)
-    UncheckedConjecture,
+    UncheckedConjecture(UncheckedConjecture),
 }
 
 impl UncheckedSigmaTree {
@@ -46,27 +50,21 @@ impl UncheckedSigmaTree {
             UncheckedSigmaTree::UncheckedLeaf(UncheckedLeaf::UncheckedSchnorr(us)) => {
                 us.challenge.clone()
             }
-            UncheckedSigmaTree::UncheckedConjecture => todo!(),
+            UncheckedSigmaTree::UncheckedConjecture(uc) => uc.challenge(),
         }
     }
 
     pub(crate) fn as_tree_kind(&self) -> ProofTreeKind {
         match self {
             UncheckedSigmaTree::UncheckedLeaf(ul) => ProofTreeKind::Leaf(ul),
-            UncheckedSigmaTree::UncheckedConjecture => todo!(),
+            UncheckedSigmaTree::UncheckedConjecture(uc) => ProofTreeKind::Conjecture(uc),
         }
     }
 }
 
-impl<T: Into<UncheckedLeaf>> From<T> for UncheckedSigmaTree {
-    fn from(t: T) -> Self {
-        UncheckedSigmaTree::UncheckedLeaf(t.into())
-    }
-}
-
-impl From<UncheckedSigmaTree> for ProofTree {
-    fn from(ust: UncheckedSigmaTree) -> Self {
-        ProofTree::UncheckedTree(UncheckedTree::UncheckedSigmaTree(ust))
+impl From<UncheckedSchnorr> for UncheckedSigmaTree {
+    fn from(v: UncheckedSchnorr) -> Self {
+        UncheckedSigmaTree::UncheckedLeaf(v.into())
     }
 }
 
@@ -109,5 +107,36 @@ pub struct UncheckedSchnorr {
 impl From<UncheckedSchnorr> for UncheckedTree {
     fn from(us: UncheckedSchnorr) -> Self {
         UncheckedTree::UncheckedSigmaTree(us.into())
+    }
+}
+
+#[derive(PartialEq, Debug, Clone)]
+pub enum UncheckedConjecture {
+    CandUnchecked {
+        challenge: Challenge,
+        children: Vec<UncheckedSigmaTree>,
+    },
+}
+
+impl UncheckedConjecture {
+    pub fn challenge(&self) -> Challenge {
+        match self {
+            UncheckedConjecture::CandUnchecked {
+                challenge,
+                children: _,
+            } => challenge.clone(),
+        }
+    }
+}
+
+impl ProofTreeConjecture for UncheckedConjecture {
+    fn conjecture_type(&self) -> ConjectureType {
+        match self {
+            UncheckedConjecture::CandUnchecked { .. } => ConjectureType::And,
+        }
+    }
+
+    fn children(&self) -> &[ProofTree] {
+        todo!()
     }
 }

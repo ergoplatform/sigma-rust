@@ -5,10 +5,17 @@ mod prover_result;
 
 pub mod hint;
 
+use crate::sigma_protocol::fiat_shamir::fiat_shamir_hash_fn;
+use crate::sigma_protocol::fiat_shamir::fiat_shamir_tree_to_bytes;
 use crate::sigma_protocol::proof_tree::ProofTree;
+use crate::sigma_protocol::unchecked_tree::UncheckedLeaf;
 use crate::sigma_protocol::unproven_tree::CandUnproven;
 use crate::sigma_protocol::unproven_tree::NodePosition;
+use crate::sigma_protocol::Challenge;
+use crate::sigma_protocol::UncheckedSigmaTree;
+use crate::sigma_protocol::UnprovenLeaf;
 use ergotree_ir::sigma_protocol::sigma_boolean::cand::Cand;
+use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 use std::convert::TryInto;
 use std::rc::Rc;
 
@@ -21,19 +28,17 @@ pub use prover_result::*;
 
 use self::hint::HintsBag;
 
+use super::dlog_protocol;
+use super::private_input::PrivateInput;
 use super::proof_tree;
 use super::proof_tree::ProofTreeLeaf;
+use super::sig_serializer::serialize_sig;
+use super::unchecked_tree::UncheckedConjecture;
+use super::unchecked_tree::UncheckedSchnorr;
+use super::unchecked_tree::UncheckedTree;
 use super::unproven_tree::UnprovenConjecture;
-use super::{
-    dlog_protocol,
-    fiat_shamir::{fiat_shamir_hash_fn, fiat_shamir_tree_to_bytes},
-    private_input::PrivateInput,
-    sig_serializer::serialize_sig,
-    unchecked_tree::UncheckedLeaf,
-    unchecked_tree::UncheckedSchnorr,
-    Challenge, SigmaBoolean, UncheckedSigmaTree, UncheckedTree, UnprovenLeaf, UnprovenSchnorr,
-    UnprovenTree,
-};
+use super::unproven_tree::UnprovenSchnorr;
+use super::unproven_tree::UnprovenTree;
 use crate::eval::context::Context;
 use crate::eval::env::Env;
 use crate::eval::{EvalError, Evaluator};
@@ -401,7 +406,9 @@ fn proving<P: Prover + ?Sized>(
             )),
             UncheckedTree::UncheckedSigmaTree(ust) => match ust {
                 UncheckedSigmaTree::UncheckedLeaf(_) => Ok(tree),
-                UncheckedSigmaTree::UncheckedConjecture => todo!(),
+                UncheckedSigmaTree::UncheckedConjecture(_) => Err(ProverError::Unexpected(
+                    format!("proving: unexpected {:?}", tree),
+                )),
             },
         },
         ProofTree::UnprovenTree(unproven_tree) => match unproven_tree {
@@ -522,13 +529,27 @@ fn convert_to_unchecked(tree: ProofTree) -> Result<UncheckedSigmaTree, ProverErr
                 UncheckedSigmaTree::UncheckedLeaf(ul) => match ul {
                     UncheckedLeaf::UncheckedSchnorr(_) => Ok(ust.clone()),
                 },
-                UncheckedSigmaTree::UncheckedConjecture => todo!(),
+                UncheckedSigmaTree::UncheckedConjecture(_) => Err(ProverError::Unexpected(
+                    format!("convert_to_unchecked: unexpected {:?}", tree),
+                )),
             },
         },
         ProofTree::UnprovenTree(unp_tree) => match unp_tree {
-            UnprovenTree::UnprovenLeaf(_) => todo!(),
+            UnprovenTree::UnprovenLeaf(_) => Err(ProverError::Unexpected(format!(
+                "convert_to_unchecked: unexpected {:?}",
+                tree
+            ))),
             UnprovenTree::UnprovenConjecture(conj) => match conj {
-                UnprovenConjecture::CandUnproven(_) => todo!(),
+                UnprovenConjecture::CandUnproven(cand) => Ok(UncheckedConjecture::CandUnchecked {
+                    challenge: cand.challenge_opt.clone().unwrap(),
+                    children: cand
+                        .children
+                        .clone()
+                        .into_iter()
+                        .map(convert_to_unchecked)
+                        .collect::<Result<Vec<UncheckedSigmaTree>, _>>()?,
+                }
+                .into()),
             },
         },
     }
@@ -642,7 +663,6 @@ mod tests {
             message.as_slice(),
             &HintsBag::empty(),
         );
-        assert!(res.is_ok());
         assert_ne!(res.unwrap().proof, ProofBytes::Empty);
     }
 }
