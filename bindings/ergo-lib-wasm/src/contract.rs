@@ -4,6 +4,7 @@ use ergo_lib::ergoscript_compiler::script_env::ScriptEnv;
 use wasm_bindgen::prelude::*;
 
 use crate::address::Address;
+use crate::ergo_tree::ErgoTree;
 
 /// Defines the contract(script) that will be guarding box contents
 #[wasm_bindgen]
@@ -24,6 +25,11 @@ impl Contract {
         chain::contract::Contract::compile(source, ScriptEnv::new())
             .map_err(|e| JsValue::from_str(e.pretty_desc(source).as_str()))
             .map(Contract)
+    }
+
+    /// Get the ErgoTree of the contract
+    pub fn ergo_tree(&self) -> ErgoTree {
+        self.0.ergo_tree().into()
     }
 }
 
