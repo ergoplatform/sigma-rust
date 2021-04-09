@@ -9,6 +9,8 @@ use crate::sigma_protocol::UncheckedSchnorr;
 use crate::sigma_protocol::UnprovenSchnorr;
 
 use super::challenge::Challenge;
+use super::prover::ProverError;
+use super::unchecked_tree::UncheckedConjecture;
 use super::unchecked_tree::UncheckedSigmaTree;
 use super::unchecked_tree::UncheckedTree;
 use super::unproven_tree::NodePosition;
@@ -85,6 +87,12 @@ impl From<UncheckedSigmaTree> for ProofTree {
     }
 }
 
+impl From<UncheckedConjecture> for ProofTree {
+    fn from(v: UncheckedConjecture) -> Self {
+        UncheckedTree::UncheckedSigmaTree(v.into()).into()
+    }
+}
+
 /// Proof tree leaf
 pub(crate) trait ProofTreeLeaf {
     /// Get proposition
@@ -110,14 +118,14 @@ pub(crate) enum ProofTreeKind<'a> {
     Conjecture(&'a dyn ProofTreeConjecture),
 }
 
-pub(crate) fn rewrite<E, F: Fn(&ProofTree) -> Result<Option<ProofTree>, E>>(
+pub(crate) fn rewrite<F: Fn(&ProofTree) -> Result<Option<ProofTree>, ProverError>>(
     tree: ProofTree,
     f: F,
-) -> Result<ProofTree, E> {
+) -> Result<ProofTree, ProverError> {
     // TODO: recursive call for arbitrary depth?
     let rewritten_tree = f(&tree)?.unwrap_or(tree);
     Ok(match &rewritten_tree {
-        ProofTree::UnprovenTree(ut) => match ut {
+        ProofTree::UnprovenTree(unp_tree) => match unp_tree {
             UnprovenTree::UnprovenLeaf(_) => rewritten_tree,
             UnprovenTree::UnprovenConjecture(conj) => match conj {
                 UnprovenConjecture::CandUnproven(cand) => {
@@ -142,6 +150,49 @@ pub(crate) fn rewrite<E, F: Fn(&ProofTree) -> Result<Option<ProofTree>, E>>(
                 }
             },
         },
-        ProofTree::UncheckedTree(_) => todo!(),
+        ProofTree::UncheckedTree(unch_tree) => {
+            match unch_tree {
+                UncheckedTree::NoProof => rewritten_tree,
+                UncheckedTree::UncheckedSigmaTree(ust) => {
+                    match ust {
+                        UncheckedSigmaTree::UncheckedLeaf(_) => rewritten_tree,
+                        UncheckedSigmaTree::UncheckedConjecture(conj) => {
+                            match conj {
+                                UncheckedConjecture::CandUnchecked {
+                                    challenge,
+                                    children,
+                                } => {
+                                    // TODO: reduce indentation; extract rewriting children?
+                                    let maybe_rewritten_children = children
+                                        .clone()
+                                        .into_iter()
+                                        .map(|c| f(&c.into()))
+                                        .collect::<Result<Vec<Option<ProofTree>>, _>>()?;
+                                    let rewritten_children = maybe_rewritten_children
+                                        .into_iter()
+                                        .zip(children.clone())
+                                        .map(|(rc, c)| rc.unwrap_or_else(|| c.into()));
+                                    let casted_children = rewritten_children
+                                        .into_iter()
+                                        .map(|c| {
+                                            if let ProofTree::UncheckedTree(UncheckedTree::UncheckedSigmaTree(ust)) = c {
+                                                Ok(ust)
+                                            } else {
+                                                Err(ProverError::Unexpected(format!("rewrite: expected UncheckedSigmaTree got: {:?}", c)))
+                                            }
+                                        })
+                                        .collect::<Result<Vec<UncheckedSigmaTree>, _>>()?;
+                                    UncheckedConjecture::CandUnchecked {
+                                        children: casted_children,
+                                        challenge: challenge.clone(),
+                                    }
+                                    .into()
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     })
 }
