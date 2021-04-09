@@ -37,7 +37,7 @@ lazy_static! {
         method_id: GROUP_GENERATOR_METHOD_ID,
         name: "groupGenerator",
         tpe: SFunc {
-            t_dom: vec![],
+            t_dom: vec![SType::SGlobal],
             t_range: SType::SGroupElement.into(),
             tpe_params: vec![],
         },
@@ -50,8 +50,9 @@ lazy_static! {
         name: "xor",
         tpe: SFunc {
             t_dom: vec![
+                SType::SGlobal,
                 SType::SColl(SType::SByte.into()),
-                SType::SColl(SType::SByte.into())
+                SType::SColl(SType::SByte.into()),
             ],
             t_range: SType::SColl(SType::SByte.into()).into(),
             tpe_params: vec![],

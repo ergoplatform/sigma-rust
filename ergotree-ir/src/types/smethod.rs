@@ -102,13 +102,18 @@ pub(crate) struct SMethodDesc {
 }
 
 impl SMethodDesc {
-    pub(crate) fn property(name: &'static str, tpe: SType, id: MethodId) -> SMethodDesc {
+    pub(crate) fn property(
+        obj_tpe: SType,
+        name: &'static str,
+        res_tpe: SType,
+        id: MethodId,
+    ) -> SMethodDesc {
         SMethodDesc {
             method_id: id,
             name,
             tpe: SFunc {
-                t_dom: vec![],
-                t_range: tpe.into(),
+                t_dom: vec![obj_tpe],
+                t_range: res_tpe.into(),
                 tpe_params: vec![],
             },
         }

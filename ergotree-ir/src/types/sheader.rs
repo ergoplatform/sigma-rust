@@ -41,75 +41,73 @@ lazy_static! {
 }
 
 lazy_static! {
-    static ref ID_METHOD_DESC: SMethodDesc =
-        SMethodDesc::property("id", SColl(SByte.into()), MethodId(1));
+    static ref ID_METHOD_DESC: SMethodDesc = property("id", SColl(SByte.into()), MethodId(1));
 }
 
 lazy_static! {
-    static ref VERSION_METHOD_DESC: SMethodDesc = SMethodDesc::property("id", SByte, MethodId(2));
+    static ref VERSION_METHOD_DESC: SMethodDesc = property("id", SByte, MethodId(2));
 }
 
 lazy_static! {
     static ref PARENT_ID_METHOD: SMethodDesc =
-        SMethodDesc::property("parentId", SColl(SByte.into()), MethodId(3));
+        property("parentId", SColl(SByte.into()), MethodId(3));
 }
 
 lazy_static! {
     static ref AD_PROOF_ROOT_METHOD: SMethodDesc =
-        SMethodDesc::property("ADProofsRoot", SColl(SByte.into()), MethodId(4));
+        property("ADProofsRoot", SColl(SByte.into()), MethodId(4));
 }
 
 lazy_static! {
-    static ref STATE_ROOT_METHOD: SMethodDesc =
-        SMethodDesc::property("stateRoot", SType::SAvlTree, MethodId(5));
+    static ref STATE_ROOT_METHOD: SMethodDesc = property("stateRoot", SType::SAvlTree, MethodId(5));
 }
 
 lazy_static! {
     static ref TRANSACTIONS_ROOT_METHOD: SMethodDesc =
-        SMethodDesc::property("transactionsRoot", SColl(SByte.into()), MethodId(6));
+        property("transactionsRoot", SColl(SByte.into()), MethodId(6));
 }
 
 lazy_static! {
-    static ref TIMESTAMP_METHOD: SMethodDesc =
-        SMethodDesc::property("timestamp", SType::SLong, MethodId(7));
+    static ref TIMESTAMP_METHOD: SMethodDesc = property("timestamp", SType::SLong, MethodId(7));
 }
 
 lazy_static! {
-    static ref N_BITS_METHOD: SMethodDesc =
-        SMethodDesc::property("nBits", SType::SLong, MethodId(8));
+    static ref N_BITS_METHOD: SMethodDesc = property("nBits", SType::SLong, MethodId(8));
 }
 
 lazy_static! {
-    static ref HEIGHT_METHOD: SMethodDesc =
-        SMethodDesc::property("height", SType::SInt, MethodId(9));
+    static ref HEIGHT_METHOD: SMethodDesc = property("height", SType::SInt, MethodId(9));
 }
 
 lazy_static! {
     static ref EXTENSION_ROOT_METHOD: SMethodDesc =
-        SMethodDesc::property("extensionRoot", SColl(SByte.into()), MethodId(10));
+        property("extensionRoot", SColl(SByte.into()), MethodId(10));
 }
 
 lazy_static! {
     static ref MINER_PK_METHOD: SMethodDesc =
-        SMethodDesc::property("minerPk", SType::SGroupElement, MethodId(11));
+        property("minerPk", SType::SGroupElement, MethodId(11));
 }
 
 lazy_static! {
     static ref POW_ONETIME_PK_METHOD: SMethodDesc =
-        SMethodDesc::property("powOnetimePk", SType::SGroupElement, MethodId(12));
+        property("powOnetimePk", SType::SGroupElement, MethodId(12));
 }
 
 lazy_static! {
     static ref POW_NONCE_METHOD: SMethodDesc =
-        SMethodDesc::property("powNonce", SColl(SByte.into()), MethodId(13));
+        property("powNonce", SColl(SByte.into()), MethodId(13));
 }
 
 lazy_static! {
     static ref POW_DISTANCE_METHOD: SMethodDesc =
-        SMethodDesc::property("powDistance", SType::SBigInt, MethodId(14));
+        property("powDistance", SType::SBigInt, MethodId(14));
 }
 
 lazy_static! {
-    static ref VOTES_METHOD: SMethodDesc =
-        SMethodDesc::property("votes", SColl(SByte.into()), MethodId(15));
+    static ref VOTES_METHOD: SMethodDesc = property("votes", SColl(SByte.into()), MethodId(15));
+}
+
+fn property(name: &'static str, res_tpe: SType, id: MethodId) -> SMethodDesc {
+    SMethodDesc::property(SType::SHeader, name, res_tpe, id)
 }
