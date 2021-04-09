@@ -16,4 +16,4 @@ crate-type = ["staticlib"]
 
 [dependencies]
 ergo-lib = {version = "^0.9.0", path = "../../ergo-lib"}
-ergo-lib-c-core = {version = "^0.8.0", path = "../ergo-lib-c-core"}
+ergo-lib-c-core = {version = "^0.9.0", path = "../ergo-lib-c-core"}
