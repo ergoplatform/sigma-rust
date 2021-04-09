@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Type unification (`SMethod` specialization) [#225](https://github.com/ergoplatform/sigma-rust/pull/226);
 - `SigmaAnd`, `SigmaOr` serialization [#225](https://github.com/ergoplatform/sigma-rust/pull/226);
 - `Contract::ergo_tree()` in WASM API;
+- `decodePoint` IR node (evaluation and serialization) [#227](https://github.com/ergoplatform/sigma-rust/pull/227);
 
 ## [0.8.0] - 2021-03-22
 

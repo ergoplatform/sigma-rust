@@ -63,7 +63,7 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 - getVar
 - allZK
 - anyZK
-- decodePoint
+- :heavy_check_mark: decodePoint
 - xorOf
 
 ### Object properties and methods
