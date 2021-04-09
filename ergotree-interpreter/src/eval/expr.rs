@@ -42,6 +42,7 @@ impl Evaluable for Expr {
             Expr::ExtractScriptBytes(op) => op.eval(env, ctx),
             Expr::SizeOf(op) => op.eval(env, ctx),
             Expr::CreateProveDlog(op) => op.eval(env, ctx),
+            Expr::CreateProveDHTuple(op) => panic!("PANIK: CreateProveDHTuple"),
             Expr::ExtractCreationInfo(op) => op.eval(env, ctx),
             Expr::Exists(op) => op.eval(env, ctx),
             Expr::ExtractId(op) => op.eval(env, ctx),

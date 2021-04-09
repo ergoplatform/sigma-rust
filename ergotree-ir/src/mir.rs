@@ -24,6 +24,8 @@ pub mod coll_size;
 /// Collection of elements
 pub mod collection;
 pub mod constant;
+/// Create proveDHTuple
+pub mod create_prove_dh_tuple;
 /// Create proveDlog from GroupElement(PK)
 pub mod create_provedlog;
 pub mod decode_point;
