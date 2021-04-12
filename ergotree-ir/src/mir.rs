@@ -30,6 +30,7 @@ pub mod create_prove_dh_tuple;
 /// Create proveDlog from GroupElement(PK)
 pub mod create_provedlog;
 pub mod decode_point;
+pub mod deserialize_register;
 pub mod expr;
 /// Box value
 pub mod extract_amount;
