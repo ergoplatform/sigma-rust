@@ -188,7 +188,7 @@ fn mark_real<P: Prover + ?Sized>(
     unproven_tree: UnprovenTree,
     hints_bag: &HintsBag,
 ) -> Result<UnprovenTree, ProverError> {
-    proof_tree::rewrite(unproven_tree.into(), |tree| {
+    proof_tree::rewrite(unproven_tree.into(), &|tree| {
         Ok(match tree {
             ProofTree::UnprovenTree(UnprovenTree::UnprovenLeaf(ul)) => match ul {
                 UnprovenLeaf::UnprovenSchnorr(us) => {
@@ -258,7 +258,7 @@ fn polish_simulated<P: Prover + ?Sized>(
     _prover: &P,
     unproven_tree: UnprovenTree,
 ) -> Result<UnprovenTree, ProverError> {
-    proof_tree::rewrite(unproven_tree.into(), |tree| match tree {
+    proof_tree::rewrite(unproven_tree.into(), &|tree| match tree {
         ProofTree::UnprovenTree(UnprovenTree::UnprovenLeaf(_)) => Ok(None),
         ProofTree::UnprovenTree(UnprovenTree::UnprovenConjecture(
             UnprovenConjecture::CandUnproven(cand),
@@ -289,7 +289,7 @@ fn simulate_and_commit(
     hints_bag: &HintsBag,
 ) -> Result<UnprovenTree, ProverError> {
     // TODO: streamline "try_into()" (remove map_err())
-    proof_tree::rewrite(unproven_tree.into(), |tree| {
+    proof_tree::rewrite(unproven_tree.into(), &|tree| {
         match tree {
             // Step 4 part 1: If the node is marked "real", then each of its simulated children gets a fresh uniformly
             // random challenge in {0,1}^t.
@@ -404,7 +404,7 @@ fn proving<P: Prover + ?Sized>(
     proof_tree: ProofTree,
     hints_bag: &HintsBag,
 ) -> Result<ProofTree, ProverError> {
-    proof_tree::rewrite(proof_tree, |tree| {
+    proof_tree::rewrite(proof_tree, &|tree| {
         match &tree {
             ProofTree::UncheckedTree(unch) => match unch {
                 UncheckedTree::NoProof => Err(ProverError::Unexpected(
@@ -664,6 +664,38 @@ mod tests {
 
         let prover = TestProver {
             secrets: vec![secret1.into(), secret2.into()],
+        };
+        let res = prover.prove(
+            &tree,
+            &Env::empty(),
+            Rc::new(force_any_val::<Context>()),
+            message.as_slice(),
+            &HintsBag::empty(),
+        );
+        assert_ne!(res.unwrap().proof, ProofBytes::Empty);
+    }
+
+    #[test]
+    fn test_prove_pk_and_and() {
+        let secret1 = DlogProverInput::random();
+        let secret2 = DlogProverInput::random();
+        let secret3 = DlogProverInput::random();
+        let pk1 = secret1.public_image();
+        let pk2 = secret2.public_image();
+        let pk3 = secret2.public_image();
+        let expr: Expr = SigmaAnd::new(vec![
+            Expr::Const(pk1.into()),
+            SigmaAnd::new(vec![Expr::Const(pk2.into()), Expr::Const(pk3.into())])
+                .unwrap()
+                .into(),
+        ])
+        .unwrap()
+        .into();
+        let tree: ErgoTree = expr.into();
+        let message = vec![0u8; 100];
+
+        let prover = TestProver {
+            secrets: vec![secret1.into(), secret2.into(), secret3.into()],
         };
         let res = prover.prove(
             &tree,
