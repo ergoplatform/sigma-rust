@@ -151,9 +151,9 @@ impl ProofTreeConjecture for UnprovenConjecture {
         }
     }
 
-    fn children(&self) -> &[ProofTree] {
+    fn children(&self) -> Vec<ProofTree> {
         match self {
-            UnprovenConjecture::CandUnproven(cand) => cand.children.as_ref(),
+            UnprovenConjecture::CandUnproven(cand) => cand.children.clone(),
         }
     }
 }

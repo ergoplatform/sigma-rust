@@ -110,7 +110,7 @@ pub(crate) enum ConjectureType {
 
 pub(crate) trait ProofTreeConjecture {
     fn conjecture_type(&self) -> ConjectureType;
-    fn children(&self) -> &[ProofTree];
+    fn children(&self) -> Vec<ProofTree>;
 }
 
 pub(crate) enum ProofTreeKind<'a> {

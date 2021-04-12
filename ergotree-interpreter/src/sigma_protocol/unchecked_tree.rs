@@ -136,7 +136,15 @@ impl ProofTreeConjecture for UncheckedConjecture {
         }
     }
 
-    fn children(&self) -> &[ProofTree] {
-        todo!()
+    fn children(&self) -> Vec<ProofTree> {
+        match self {
+            UncheckedConjecture::CandUnchecked {
+                challenge,
+                children,
+            } => children
+                .into_iter()
+                .map(|ust| ust.clone().into())
+                .collect::<Vec<ProofTree>>(),
+        }
     }
 }
