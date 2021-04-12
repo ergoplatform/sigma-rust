@@ -1,4 +1,8 @@
 use super::{fiat_shamir::FiatShamirHash, SOUNDNESS_BYTES};
+use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
+use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
+use ergotree_ir::serialization::SerializationError;
+use ergotree_ir::serialization::SigmaSerializable;
 use k256::Scalar;
 #[cfg(feature = "arbitrary")]
 use proptest_derive::Arbitrary;
@@ -29,5 +33,15 @@ impl From<Challenge> for Vec<u8> {
 impl From<FiatShamirHash> for Challenge {
     fn from(fsh: FiatShamirHash) -> Self {
         Challenge(fsh)
+    }
+}
+
+impl SigmaSerializable for Challenge {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
+        w.write_all(self.0 .0.as_ref())
+    }
+
+    fn sigma_parse<R: SigmaByteRead>(_r: &mut R) -> Result<Self, SerializationError> {
+        todo!()
     }
 }

@@ -37,7 +37,7 @@ mod tests {
         #[test]
         fn eval(ecp in any::<EcPoint>()) {
             let bytes = ecp.sigma_serialize_bytes();
-            let expr: Expr = DecodePoint {input: Expr::Const(bytes.clone().into()).into()}.into();
+            let expr: Expr = DecodePoint {input: Expr::Const(bytes.into()).into()}.into();
             let res = eval_out_wo_ctx::<EcPoint>(&expr);
             prop_assert_eq!(res, ecp);
         }

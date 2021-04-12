@@ -1,38 +1,76 @@
 //! Serialization of proof tree signatures
 
 use super::prover::ProofBytes;
-use super::{
-    fiat_shamir::FiatShamirHash,
-    unchecked_tree::{UncheckedLeaf, UncheckedSchnorr},
-    Challenge, GroupSizedBytes, SigmaBoolean, UncheckedSigmaTree, UncheckedTree,
-};
+use super::unchecked_tree::UncheckedConjecture;
+use super::unchecked_tree::UncheckedLeaf;
+use super::unchecked_tree::UncheckedSigmaTree;
+use super::unchecked_tree::UncheckedTree;
+use crate::sigma_protocol::fiat_shamir::FiatShamirHash;
+use crate::sigma_protocol::Challenge;
+use crate::sigma_protocol::GroupSizedBytes;
+use crate::sigma_protocol::UncheckedSchnorr;
 
+use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
+use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWriter;
+use ergotree_ir::serialization::SigmaSerializable;
+use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
 use k256::Scalar;
 use std::convert::{TryFrom, TryInto};
 
-/// Serialize proof tree signatures
+/// Recursively traverses the given node and serializes challenges and prover messages to the given writer.
+/// Note, sigma propositions and commitments are not serialized.
+/// Returns the proof bytes containing all the serialized challenges and prover messages (aka `z` values)
 pub(crate) fn serialize_sig(tree: UncheckedTree) -> ProofBytes {
     match tree {
         UncheckedTree::NoProof => ProofBytes::Empty,
-        UncheckedTree::UncheckedSigmaTree(UncheckedSigmaTree::UncheckedLeaf(
-            UncheckedLeaf::UncheckedSchnorr(us),
-        )) => {
-            let mut res: Vec<u8> = Vec::with_capacity(64);
-            res.append(&mut us.challenge.into());
-            let mut sm_bytes = us.second_message.z.to_bytes();
-            res.append(&mut sm_bytes.as_mut_slice().to_vec());
-            ProofBytes::Some(res)
+        UncheckedTree::UncheckedSigmaTree(ust) => {
+            let mut data = Vec::new();
+            let mut w = SigmaByteWriter::new(&mut data, None);
+            sig_write_bytes(&ust, &mut w, true)
+                // since serialization may fail only for underlying IO errors it's ok to force unwrap
+                .expect("serialization failed");
+            ProofBytes::Some(data)
         }
-        _ => todo!(),
     }
 }
 
-/**
- * Verifier Step 2: In a top-down traversal of the tree, obtain the challenges for the children of every
- * non-leaf node by reading them from the proof or computing them.
- * Verifier Step 3: For every leaf node, read the response z provided in the proof.
- */
+/// Recursively traverses the given node and serializes challenges and prover messages to the given writer.
+/// Note, sigma propositions and commitments are not serialized.
+/// Returns the proof bytes containing all the serialized challenges and prover messages (aka `z` values)
+fn sig_write_bytes<W: SigmaByteWrite>(
+    node: &UncheckedSigmaTree,
+    w: &mut W,
+    write_challenges: bool,
+) -> Result<(), std::io::Error> {
+    if write_challenges {
+        node.challenge().sigma_serialize(w)?;
+    }
+    match node {
+        UncheckedSigmaTree::UncheckedLeaf(leaf) => match leaf {
+            UncheckedLeaf::UncheckedSchnorr(us) => {
+                let mut sm_bytes = us.second_message.z.to_bytes();
+                w.write_all(sm_bytes.as_mut_slice())
+            }
+        },
+        UncheckedSigmaTree::UncheckedConjecture(conj) => match conj {
+            UncheckedConjecture::CandUnchecked {
+                challenge: _,
+                children,
+            } => {
+                // don't write children's challenges -- they are equal to the challenge of this node
+                for child in children {
+                    sig_write_bytes(child, w, false)?;
+                }
+                Ok(())
+            }
+        },
+    }
+}
+
+/// Verifier Step 2: In a top-down traversal of the tree, obtain the challenges for the children of every
+/// non-leaf node by reading them from the proof or computing them.
+/// Verifier Step 3: For every leaf node, read the response z provided in the proof.
 pub(crate) fn parse_sig_compute_challenges(
     exp: SigmaBoolean,
     proof: &ProofBytes,
