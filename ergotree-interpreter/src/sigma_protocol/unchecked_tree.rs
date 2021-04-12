@@ -17,7 +17,7 @@ use super::{
 use derive_more::From;
 
 /// Unchecked tree
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, From)]
 pub enum UncheckedTree {
     /// No proof needed
     NoProof,

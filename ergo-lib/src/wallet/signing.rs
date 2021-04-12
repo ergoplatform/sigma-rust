@@ -205,7 +205,7 @@ mod tests {
                     &b.ergo_tree,
                     &Env::empty(),
                     Rc::new(force_any_val::<Context>()),
-                    &input.spending_proof.proof,
+                    input.spending_proof.proof,
                     &message,
                 )?;
                 Ok(res.result && acc)
@@ -339,7 +339,7 @@ mod tests {
             &ergo_tree,
             &Env::empty(),
             Rc::new(force_any_val::<Context>()),
-            &tx.inputs.get(1).unwrap().spending_proof.proof,
+            tx.inputs.get(1).unwrap().spending_proof.proof.clone(),
             message.as_slice(),
         );
         assert_eq!(ver_res.unwrap().result, true);

@@ -3,6 +3,7 @@
 use std::rc::Rc;
 
 use super::prover::ProofBytes;
+use super::sig_serializer::SigParsingError;
 use super::{
     dlog_protocol,
     fiat_shamir::{fiat_shamir_hash_fn, fiat_shamir_tree_to_bytes},
@@ -17,25 +18,17 @@ use dlog_protocol::FirstDlogProverMessage;
 use ergotree_ir::ergo_tree::ErgoTree;
 use ergotree_ir::ergo_tree::ErgoTreeParsingError;
 
+use derive_more::From;
+
 /// Errors on proof verification
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone, From)]
 pub enum VerifierError {
     /// Failed to parse ErgoTree from bytes
     ErgoTreeError(ErgoTreeParsingError),
     /// Failed to evaluate ErgoTree
     EvalError(EvalError),
-}
-
-impl From<ErgoTreeParsingError> for VerifierError {
-    fn from(err: ErgoTreeParsingError) -> Self {
-        VerifierError::ErgoTreeError(err)
-    }
-}
-
-impl From<EvalError> for VerifierError {
-    fn from(err: EvalError) -> Self {
-        VerifierError::EvalError(err)
-    }
+    /// Signature parsing error
+    SigParsingError(SigParsingError),
 }
 
 /// Result of Box.ergoTree verification procedure (see `verify` method).
@@ -57,7 +50,7 @@ pub trait Verifier: Evaluator {
         tree: &ErgoTree,
         env: &Env,
         ctx: Rc<Context>,
-        proof: &ProofBytes,
+        proof: ProofBytes,
         message: &[u8],
     ) -> Result<VerificationResult, VerifierError> {
         let expr = tree.proposition()?;
@@ -66,9 +59,8 @@ pub trait Verifier: Evaluator {
             SigmaBoolean::TrivialProp(b) => b,
             sb => {
                 // Perform Verifier Steps 1-3
-                match parse_sig_compute_challenges(sb, proof) {
-                    Err(_) => false,
-                    Ok(UncheckedTree::UncheckedSigmaTree(sp)) => {
+                match parse_sig_compute_challenges(&sb, proof)? {
+                    UncheckedTree::UncheckedSigmaTree(sp) => {
                         // Perform Verifier Step 4
                         let new_root = compute_commitments(sp);
                         // Verifier Steps 5-6: Convert the tree to a string `s` for input to the Fiat-Shamir hash function,
@@ -80,7 +72,7 @@ pub trait Verifier: Evaluator {
                         let expected_challenge = fiat_shamir_hash_fn(s.as_slice());
                         new_root.challenge() == expected_challenge.into()
                     }
-                    Ok(_) => todo!(),
+                    UncheckedTree::NoProof => false,
                 }
             }
         };
@@ -130,13 +122,14 @@ mod tests {
         prover::{Prover, TestProver},
     };
     use ergotree_ir::mir::expr::Expr;
+    use ergotree_ir::mir::sigma_and::SigmaAnd;
     use proptest::prelude::*;
     use sigma_test_util::force_any_val;
     use std::rc::Rc;
 
     proptest! {
 
-        #![proptest_config(ProptestConfig::with_cases(16))]
+        #![proptest_config(ProptestConfig::with_cases(8))]
 
         #[test]
         fn test_prover_verifier_p2pk(secret in any::<DlogProverInput>(), message in any::<Vec<u8>>()) {
@@ -153,9 +146,41 @@ mod tests {
                 message.as_slice(),
                 &HintsBag::empty());
             let proof = res.unwrap().proof;
-
             let verifier = TestVerifier;
-            let ver_res = verifier.verify(&tree, &Env::empty(), Rc::new(force_any_val::<Context>()),  &proof, message.as_slice());
+            let ver_res = verifier.verify(&tree,
+                                          &Env::empty(),
+                                          Rc::new(force_any_val::<Context>()),
+                                          proof,
+                                          message.as_slice());
+            prop_assert_eq!(ver_res.unwrap().result, true);
+        }
+
+        #[test]
+        fn test_prover_verifier_conj_and(secret1 in any::<DlogProverInput>(),
+                                         secret2 in any::<DlogProverInput>(),
+                                         message in any::<Vec<u8>>()) {
+            prop_assume!(!message.is_empty());
+            let pk1 = secret1.public_image();
+            let pk2 = secret2.public_image();
+            let expr: Expr = SigmaAnd::new(vec![Expr::Const(pk1.into()), Expr::Const(pk2.into())])
+                .unwrap()
+                .into();
+            let tree = ErgoTree::from(expr);
+            let prover = TestProver {
+                secrets: vec![PrivateInput::DlogProverInput(secret1), PrivateInput::DlogProverInput(secret2)],
+            };
+            let res = prover.prove(&tree,
+                &Env::empty(),
+                Rc::new(force_any_val::<Context>()),
+                message.as_slice(),
+                &HintsBag::empty());
+            let proof = res.unwrap().proof;
+            let verifier = TestVerifier;
+            let ver_res = verifier.verify(&tree,
+                                          &Env::empty(),
+                                          Rc::new(force_any_val::<Context>()),
+                                          proof,
+                                          message.as_slice());
             prop_assert_eq!(ver_res.unwrap().result, true);
         }
     }
