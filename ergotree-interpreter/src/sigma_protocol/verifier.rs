@@ -141,16 +141,17 @@ mod tests {
     };
     use ergotree_ir::mir::expr::Expr;
     use ergotree_ir::mir::sigma_and::SigmaAnd;
+    use proptest::collection::vec;
     use proptest::prelude::*;
     use sigma_test_util::force_any_val;
     use std::rc::Rc;
 
     proptest! {
 
-        #![proptest_config(ProptestConfig::with_cases(8))]
+        #![proptest_config(ProptestConfig::with_cases(4))]
 
         #[test]
-        fn test_prover_verifier_p2pk(secret in any::<DlogProverInput>(), message in any::<Vec<u8>>()) {
+        fn test_prover_verifier_p2pk(secret in any::<DlogProverInput>(), message in vec(any::<u8>(), 100..200)) {
             prop_assume!(!message.is_empty());
             let pk = secret.public_image();
             let tree = ErgoTree::from(Expr::Const(pk.into()));
@@ -173,12 +174,10 @@ mod tests {
             prop_assert_eq!(ver_res.unwrap().result, true);
         }
 
-        // TODO: add test for PK1 & (PK2 & PK3)
-
         #[test]
         fn test_prover_verifier_conj_and(secret1 in any::<DlogProverInput>(),
                                          secret2 in any::<DlogProverInput>(),
-                                         message in any::<Vec<u8>>()) {
+                                         message in vec(any::<u8>(), 100..200)) {
             prop_assume!(!message.is_empty());
             let pk1 = secret1.public_image();
             let pk2 = secret2.public_image();
@@ -188,6 +187,43 @@ mod tests {
             let tree = ErgoTree::from(expr);
             let prover = TestProver {
                 secrets: vec![PrivateInput::DlogProverInput(secret1), PrivateInput::DlogProverInput(secret2)],
+            };
+            let res = prover.prove(&tree,
+                &Env::empty(),
+                Rc::new(force_any_val::<Context>()),
+                message.as_slice(),
+                &HintsBag::empty());
+            let proof = res.unwrap().proof;
+            let verifier = TestVerifier;
+            let ver_res = verifier.verify(&tree,
+                                          &Env::empty(),
+                                          Rc::new(force_any_val::<Context>()),
+                                          proof,
+                                          message.as_slice());
+            prop_assert_eq!(ver_res.unwrap().result, true);
+        }
+
+        #[test]
+        fn test_prover_verifier_conj_and_and(secret1 in any::<DlogProverInput>(),
+                                             secret2 in any::<DlogProverInput>(),
+                                             secret3 in any::<DlogProverInput>(),
+                                             message in vec(any::<u8>(), 100..200)) {
+            prop_assume!(!message.is_empty());
+            let pk1 = secret1.public_image();
+            let pk2 = secret2.public_image();
+            let pk3 = secret3.public_image();
+            let expr: Expr = SigmaAnd::new(vec![
+                Expr::Const(pk1.into()),
+                SigmaAnd::new(vec![Expr::Const(pk2.into()), Expr::Const(pk3.into())])
+                    .unwrap()
+                    .into(),
+            ]).unwrap().into();
+            let tree = ErgoTree::from(expr);
+            let prover = TestProver {
+                secrets: vec![PrivateInput::DlogProverInput(secret1),
+                    PrivateInput::DlogProverInput(secret2),
+                    PrivateInput::DlogProverInput(secret3)
+                ],
             };
             let res = prover.prove(&tree,
                 &Env::empty(),
