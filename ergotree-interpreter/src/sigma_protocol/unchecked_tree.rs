@@ -139,10 +139,10 @@ impl ProofTreeConjecture for UncheckedConjecture {
     fn children(&self) -> Vec<ProofTree> {
         match self {
             UncheckedConjecture::CandUnchecked {
-                challenge,
+                challenge: _,
                 children,
             } => children
-                .into_iter()
+                .iter()
                 .map(|ust| ust.clone().into())
                 .collect::<Vec<ProofTree>>(),
         }
