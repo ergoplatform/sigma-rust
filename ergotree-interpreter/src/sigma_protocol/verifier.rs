@@ -146,13 +146,23 @@ mod tests {
     use sigma_test_util::force_any_val;
     use std::rc::Rc;
 
+    fn proof_append_byte(proof: &ProofBytes) -> ProofBytes {
+        match proof {
+            ProofBytes::Empty => panic!(),
+            ProofBytes::Some(bytes) => {
+                let mut new_bytes = bytes.clone();
+                new_bytes.push(1u8);
+                ProofBytes::Some(new_bytes)
+            }
+        }
+    }
+
     proptest! {
 
         #![proptest_config(ProptestConfig::with_cases(4))]
 
         #[test]
         fn test_prover_verifier_p2pk(secret in any::<DlogProverInput>(), message in vec(any::<u8>(), 100..200)) {
-            prop_assume!(!message.is_empty());
             let pk = secret.public_image();
             let tree = ErgoTree::from(Expr::Const(pk.into()));
 
@@ -166,19 +176,37 @@ mod tests {
                 &HintsBag::empty());
             let proof = res.unwrap().proof;
             let verifier = TestVerifier;
-            let ver_res = verifier.verify(&tree,
-                                          &Env::empty(),
-                                          Rc::new(force_any_val::<Context>()),
-                                          proof,
-                                          message.as_slice());
-            prop_assert_eq!(ver_res.unwrap().result, true);
+            prop_assert_eq!(verifier.verify(&tree,
+                                            &Env::empty(),
+                                            Rc::new(force_any_val::<Context>()),
+                                            proof.clone(),
+                                            message.as_slice())
+                            .unwrap().result,
+                            true);
+
+            // possible to append bytes
+            prop_assert_eq!(verifier.verify(&tree,
+                                            &Env::empty(),
+                                            Rc::new(force_any_val::<Context>()),
+                                            proof_append_byte(&proof),
+                                            message.as_slice())
+                            .unwrap().result,
+                            true);
+
+            // wrong message
+            prop_assert_eq!(verifier.verify(&tree,
+                                            &Env::empty(),
+                                            Rc::new(force_any_val::<Context>()),
+                                            proof,
+                                            vec![1u8; 100].as_slice())
+                            .unwrap().result,
+                            false);
         }
 
         #[test]
         fn test_prover_verifier_conj_and(secret1 in any::<DlogProverInput>(),
                                          secret2 in any::<DlogProverInput>(),
                                          message in vec(any::<u8>(), 100..200)) {
-            prop_assume!(!message.is_empty());
             let pk1 = secret1.public_image();
             let pk2 = secret2.public_image();
             let expr: Expr = SigmaAnd::new(vec![Expr::Const(pk1.into()), Expr::Const(pk2.into())])
@@ -208,7 +236,6 @@ mod tests {
                                              secret2 in any::<DlogProverInput>(),
                                              secret3 in any::<DlogProverInput>(),
                                              message in vec(any::<u8>(), 100..200)) {
-            prop_assume!(!message.is_empty());
             let pk1 = secret1.public_image();
             let pk2 = secret2.public_image();
             let pk3 = secret3.public_image();
@@ -240,4 +267,7 @@ mod tests {
             prop_assert_eq!(ver_res.unwrap().result, true);
         }
     }
+
+    // TODO: draft an issue for prover/verifier spec sharing test vectors with sigmastate
+    // Test vector should have: SigmaBoolean, secrets, proof
 }
