@@ -6,6 +6,8 @@ use super::proof_tree::ProofTreeConjecture;
 use super::proof_tree::ProofTreeKind;
 use super::{dlog_protocol::FirstDlogProverMessage, Challenge, FirstProverMessage};
 use crate::sigma_protocol::proof_tree::ProofTreeLeaf;
+use ergotree_ir::sigma_protocol::sigma_boolean::cand::Cand;
+use ergotree_ir::sigma_protocol::sigma_boolean::cor::Cor;
 use ergotree_ir::sigma_protocol::sigma_boolean::ProveDlog;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
@@ -30,9 +32,10 @@ impl UnprovenTree {
     pub(crate) fn simulated(&self) -> bool {
         match self {
             UnprovenTree::UnprovenLeaf(UnprovenLeaf::UnprovenSchnorr(us)) => us.simulated,
-            UnprovenTree::UnprovenConjecture(UnprovenConjecture::CandUnproven(cand)) => {
-                cand.simulated
-            }
+            UnprovenTree::UnprovenConjecture(uc) => match uc {
+                UnprovenConjecture::CandUnproven(cand) => cand.simulated,
+                UnprovenConjecture::CorUnproven(cor) => cor.simulated,
+            },
         }
     }
 
@@ -47,6 +50,13 @@ impl UnprovenTree {
         match self {
             UnprovenTree::UnprovenLeaf(ul) => ul.with_challenge(challenge).into(),
             UnprovenTree::UnprovenConjecture(uc) => uc.with_challenge(challenge).into(),
+        }
+    }
+
+    pub(crate) fn with_simulated(self, simulated: bool) -> Self {
+        match self {
+            UnprovenTree::UnprovenLeaf(ul) => ul.with_simulated(simulated).into(),
+            UnprovenTree::UnprovenConjecture(uc) => uc.with_simulated(simulated).into(),
         }
     }
 
@@ -70,6 +80,12 @@ impl From<CandUnproven> for UnprovenTree {
     }
 }
 
+impl From<CorUnproven> for UnprovenTree {
+    fn from(v: CorUnproven) -> Self {
+        UnprovenTree::UnprovenConjecture(v.into())
+    }
+}
+
 /// Unproven leaf types
 #[derive(PartialEq, Debug, Clone, From)]
 pub(crate) enum UnprovenLeaf {
@@ -87,6 +103,12 @@ impl UnprovenLeaf {
     fn with_challenge(self, challenge: Challenge) -> Self {
         match self {
             UnprovenLeaf::UnprovenSchnorr(us) => us.with_challenge(challenge).into(),
+        }
+    }
+
+    fn with_simulated(self, simulated: bool) -> Self {
+        match self {
+            UnprovenLeaf::UnprovenSchnorr(us) => us.with_simulated(simulated).into(),
         }
     }
 
@@ -116,30 +138,42 @@ impl ProofTreeLeaf for UnprovenLeaf {
 #[derive(PartialEq, Debug, Clone, From)]
 pub(crate) enum UnprovenConjecture {
     CandUnproven(CandUnproven),
+    CorUnproven(CorUnproven),
 }
 
 impl UnprovenConjecture {
     pub(crate) fn children(&self) -> Vec<ProofTree> {
         match self {
             UnprovenConjecture::CandUnproven(cand) => cand.children.clone(),
+            UnprovenConjecture::CorUnproven(cor) => cor.children.clone(),
         }
     }
 
     pub(crate) fn position(&self) -> NodePosition {
         match self {
             UnprovenConjecture::CandUnproven(cand) => cand.position.clone(),
+            UnprovenConjecture::CorUnproven(cor) => cor.position.clone(),
         }
     }
 
     fn with_position(self, updated: NodePosition) -> Self {
         match self {
             UnprovenConjecture::CandUnproven(cand) => cand.with_position(updated).into(),
+            UnprovenConjecture::CorUnproven(cor) => cor.with_position(updated).into(),
         }
     }
 
     fn with_challenge(self, challenge: Challenge) -> Self {
         match self {
             UnprovenConjecture::CandUnproven(cand) => cand.with_challenge(challenge).into(),
+            UnprovenConjecture::CorUnproven(cor) => cor.with_challenge(challenge).into(),
+        }
+    }
+
+    fn with_simulated(self, simulated: bool) -> Self {
+        match self {
+            UnprovenConjecture::CandUnproven(cand) => cand.with_simulated(simulated).into(),
+            UnprovenConjecture::CorUnproven(cor) => cor.with_simulated(simulated).into(),
         }
     }
 }
@@ -148,12 +182,14 @@ impl ProofTreeConjecture for UnprovenConjecture {
     fn conjecture_type(&self) -> ConjectureType {
         match self {
             UnprovenConjecture::CandUnproven(_) => ConjectureType::And,
+            UnprovenConjecture::CorUnproven(_) => ConjectureType::Or,
         }
     }
 
     fn children(&self) -> Vec<ProofTree> {
         match self {
             UnprovenConjecture::CandUnproven(cand) => cand.children.clone(),
+            UnprovenConjecture::CorUnproven(cor) => cor.children.clone(),
         }
     }
 }
@@ -181,6 +217,10 @@ impl UnprovenSchnorr {
             challenge_opt: Some(challenge),
             ..self
         }
+    }
+
+    fn with_simulated(self, simulated: bool) -> Self {
+        UnprovenSchnorr { simulated, ..self }
     }
 
     pub(crate) fn is_real(&self) -> bool {
@@ -228,7 +268,7 @@ impl NodePosition {
 
 #[derive(PartialEq, Debug, Clone)]
 pub(crate) struct CandUnproven {
-    pub(crate) proposition: Vec<SigmaBoolean>,
+    pub(crate) proposition: Cand,
     pub(crate) challenge_opt: Option<Challenge>,
     pub(crate) simulated: bool,
     pub(crate) children: Vec<ProofTree>,
@@ -254,7 +294,48 @@ impl CandUnproven {
         }
     }
 
+    fn with_simulated(self, simulated: bool) -> Self {
+        Self { simulated, ..self }
+    }
+
     pub(crate) fn with_children(self, children: Vec<ProofTree>) -> Self {
         CandUnproven { children, ..self }
+    }
+}
+
+#[derive(PartialEq, Debug, Clone)]
+pub(crate) struct CorUnproven {
+    pub(crate) proposition: Cor,
+    pub(crate) challenge_opt: Option<Challenge>,
+    pub(crate) simulated: bool,
+    pub(crate) children: Vec<ProofTree>,
+    pub(crate) position: NodePosition,
+}
+
+impl CorUnproven {
+    pub(crate) fn is_real(&self) -> bool {
+        !self.simulated
+    }
+
+    fn with_position(self, updated: NodePosition) -> Self {
+        Self {
+            position: updated,
+            ..self
+        }
+    }
+
+    fn with_challenge(self, challenge: Challenge) -> Self {
+        Self {
+            challenge_opt: Some(challenge),
+            ..self
+        }
+    }
+
+    fn with_simulated(self, simulated: bool) -> Self {
+        Self { simulated, ..self }
+    }
+
+    pub(crate) fn with_children(self, children: Vec<ProofTree>) -> Self {
+        Self { children, ..self }
     }
 }

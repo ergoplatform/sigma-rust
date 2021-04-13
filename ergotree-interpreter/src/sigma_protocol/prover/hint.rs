@@ -59,6 +59,18 @@ pub enum SecretProven {
     SimulatedSecretProof(SimulatedSecretProof),
 }
 
+impl SecretProven {
+    /// A hint is related to a subtree (or a leaf) of a tree. This field encodes a position in the tree.
+    pub fn position(&self) -> &NodePosition {
+        todo!()
+    }
+
+    /// Challenge used for a proof
+    pub fn challenge(&self) -> &Challenge {
+        todo!()
+    }
+}
+
 /// A hint which contains a commitment to randomness associated with a public image of a secret.
 #[derive(PartialEq, Debug, Clone)]
 pub struct RealCommitment {
@@ -195,5 +207,10 @@ impl HintsBag {
                 }
             })
             .collect()
+    }
+
+    /// All proofs from SecretProven variants
+    pub fn proofs(&self) -> Vec<SecretProven> {
+        todo!()
     }
 }

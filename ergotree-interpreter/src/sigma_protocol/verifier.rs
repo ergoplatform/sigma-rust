@@ -268,6 +268,8 @@ mod tests {
         }
     }
 
+    // TODO: add custom SigmaBoolean generator for  PK + AND + OR of various depth and test prover/verifier
+
     // TODO: draft an issue for prover/verifier spec sharing test vectors with sigmastate
     // Test vector should have: SigmaBoolean, secrets, proof
 }

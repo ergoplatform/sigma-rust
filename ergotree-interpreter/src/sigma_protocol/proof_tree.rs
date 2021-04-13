@@ -13,6 +13,7 @@ use super::prover::ProverError;
 use super::unchecked_tree::UncheckedConjecture;
 use super::unchecked_tree::UncheckedSigmaTree;
 use super::unchecked_tree::UncheckedTree;
+use super::unproven_tree::CorUnproven;
 use super::unproven_tree::NodePosition;
 use super::unproven_tree::UnprovenLeaf;
 use super::unproven_tree::UnprovenTree;
@@ -49,6 +50,10 @@ impl ProofTree {
             ProofTree::UnprovenTree(unp) => unp.as_tree_kind(),
         }
     }
+
+    pub(crate) fn position(&self) -> &NodePosition {
+        todo!()
+    }
 }
 
 impl From<UncheckedSchnorr> for ProofTree {
@@ -65,6 +70,12 @@ impl From<UnprovenSchnorr> for ProofTree {
 
 impl From<CandUnproven> for ProofTree {
     fn from(v: CandUnproven) -> Self {
+        UnprovenTree::UnprovenConjecture(v.into()).into()
+    }
+}
+
+impl From<CorUnproven> for ProofTree {
+    fn from(v: CorUnproven) -> Self {
         UnprovenTree::UnprovenConjecture(v.into()).into()
     }
 }
@@ -118,6 +129,29 @@ pub(crate) enum ProofTreeKind<'a> {
     Conjecture(&'a dyn ProofTreeConjecture),
 }
 
+pub(crate) fn rewrite_children<
+    T: Into<ProofTree> + Clone,
+    F: Fn(&ProofTree) -> Result<Option<ProofTree>, ProverError>,
+>(
+    children: Vec<T>,
+    f: &F,
+) -> Result<Vec<ProofTree>, ProverError> {
+    children
+        .into_iter()
+        .map(|c| {
+            f(&c.clone().into()).map(|opt| {
+                // recursively rewrite the underlying tree
+                if let Some(tree) = opt {
+                    rewrite(tree, f)
+                } else {
+                    rewrite(c.into(), f)
+                }
+            })
+        })
+        .flatten()
+        .collect()
+}
+
 pub(crate) fn rewrite<F: Fn(&ProofTree) -> Result<Option<ProofTree>, ProverError>>(
     tree: ProofTree,
     f: &F,
@@ -127,29 +161,18 @@ pub(crate) fn rewrite<F: Fn(&ProofTree) -> Result<Option<ProofTree>, ProverError
         ProofTree::UnprovenTree(unp_tree) => match unp_tree {
             UnprovenTree::UnprovenLeaf(_) => rewritten_tree,
             UnprovenTree::UnprovenConjecture(conj) => match conj {
-                UnprovenConjecture::CandUnproven(cand) => {
-                    let rewritten_children = cand
-                        .children
-                        .clone()
-                        .into_iter()
-                        .map(|c| {
-                            f(&c).map(|opt| {
-                                // recursively rewrite the underlying tree
-                                if let Some(tree) = opt {
-                                    rewrite(tree, f)
-                                } else {
-                                    rewrite(c, f)
-                                }
-                            })
-                        })
-                        .flatten()
-                        .collect::<Result<Vec<ProofTree>, ProverError>>()?;
-                    UnprovenTree::UnprovenConjecture(UnprovenConjecture::CandUnproven(
-                        CandUnproven {
-                            children: rewritten_children,
-                            ..cand.clone()
-                        },
-                    ))
+                UnprovenConjecture::CandUnproven(cand) => UnprovenTree::UnprovenConjecture(
+                    UnprovenConjecture::CandUnproven(CandUnproven {
+                        children: rewrite_children(cand.children.clone(), f)?,
+                        ..cand.clone()
+                    }),
+                )
+                .into(),
+                UnprovenConjecture::CorUnproven(cor) => {
+                    UnprovenTree::UnprovenConjecture(UnprovenConjecture::CorUnproven(CorUnproven {
+                        children: rewrite_children(cor.children.clone(), f)?,
+                        ..cor.clone()
+                    }))
                     .into()
                 }
             },
@@ -166,22 +189,8 @@ pub(crate) fn rewrite<F: Fn(&ProofTree) -> Result<Option<ProofTree>, ProverError
                                     challenge,
                                     children,
                                 } => {
-                                    // TODO: reduce indentation; extract rewriting children?
-                                    let rewritten_children = children
-                                        .clone()
-                                        .into_iter()
-                                        .map(|c| {
-                                            f(&c.clone().into()).map(|opt| {
-                                                // recursively rewrite the underlying tree
-                                                if let Some(tree) = opt {
-                                                    rewrite(tree, f)
-                                                } else {
-                                                    rewrite(c.into(), f)
-                                                }
-                                            })
-                                        })
-                                        .flatten()
-                                        .collect::<Result<Vec<ProofTree>, ProverError>>()?;
+                                    // TODO: reduce indentation?
+                                    let rewritten_children = rewrite_children(children.clone(), f)?;
                                     let casted_children = rewritten_children
                                         .into_iter()
                                         .map(|c| {
