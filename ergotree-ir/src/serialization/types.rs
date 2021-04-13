@@ -38,6 +38,9 @@ impl TypeCode {
     pub const SCONTEXT: TypeCode = Self::new(101);
     pub const SSTRING: TypeCode = Self::new(102);
     pub const STYPE_VAR: TypeCode = Self::new(103);
+    pub const SHEADER: TypeCode = Self::new(104);
+    pub const SPRE_HEADER: TypeCode = Self::new(105);
+    pub const SGLOBAL: TypeCode = Self::new(106);
 
     const COLLECTION_CONSTR_ID: u8 = 1;
     pub const COLLECTION: TypeCode =
@@ -159,6 +162,9 @@ impl SigmaSerializable for SType {
             SType::SBox => self.type_code().sigma_serialize(w),
             SType::SAvlTree => self.type_code().sigma_serialize(w),
             SType::SContext => self.type_code().sigma_serialize(w),
+            SType::SHeader => self.type_code().sigma_serialize(w),
+            SType::SPreHeader => self.type_code().sigma_serialize(w),
+            SType::SGlobal => self.type_code().sigma_serialize(w),
             SType::SOption(elem_type) if is_stype_embeddable(elem_type) => {
                 let code = TypeCode::OPTION + elem_type.type_code();
                 code.sigma_serialize(w)
@@ -332,7 +338,11 @@ impl SigmaSerializable for SType {
                 TypeCode::SAVL_TREE => Ok(SType::SAvlTree),
                 TypeCode::SCONTEXT => Ok(SType::SContext),
                 TypeCode::STYPE_VAR => Ok(SType::STypeVar(STypeVar::sigma_parse(r)?)),
+                TypeCode::SHEADER => Ok(SType::SHeader),
+                TypeCode::SPRE_HEADER => Ok(SType::SPreHeader),
+                TypeCode::SGLOBAL => Ok(SType::SGlobal),
                 _ => Err(SerializationError::NotImplementedYet(format!(
+                    // FIXME: should we just tell that type code is malforled?
                     "case 2: parsing type is not yet implemented(c == {:?})",
                     c
                 ))),

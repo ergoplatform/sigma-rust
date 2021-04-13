@@ -9,8 +9,14 @@ pub mod scoll;
 pub mod scontext;
 /// Function signature type
 pub mod sfunc;
+/// Global methods
+pub mod sglobal;
+/// Header's methods
+pub mod sheader;
 /// Object method(property) signature type
 pub mod smethod;
+/// PreHeader's methods
+pub mod spreheader;
 /// Tuple type
 pub mod stuple;
 /// Type companion for an object
