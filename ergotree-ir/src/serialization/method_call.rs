@@ -26,7 +26,7 @@ impl SigmaSerializable for MethodCall {
         let obj = Expr::sigma_parse(r)?;
         let args = Vec::<Expr>::sigma_parse(r)?;
         let arg_types = args.iter().map(|arg| arg.tpe()).collect();
-        let method = SMethod::from_ids(type_id, method_id).specialize_for(obj.tpe(), arg_types)?;
+        let method = SMethod::from_ids(type_id, method_id)?.specialize_for(obj.tpe(), arg_types)?;
         Ok(MethodCall::new(obj, method, args)?)
     }
 }
