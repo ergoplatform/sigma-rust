@@ -1,6 +1,7 @@
 //! Fiat-Shamir transformation
 
 use super::proof_tree::ProofTreeKind;
+use super::secure_random_bytes;
 use crate::sigma_protocol::ProverMessage;
 use blake2::digest::{Update, VariableOutput};
 use blake2::VarBlake2b;
@@ -24,6 +25,15 @@ use super::SOUNDNESS_BYTES;
 #[cfg_attr(feature = "arbitrary", derive(Arbitrary))]
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct FiatShamirHash(pub Box<[u8; SOUNDNESS_BYTES]>);
+
+impl FiatShamirHash {
+    pub fn secure_random() -> Self {
+        secure_random_bytes(SOUNDNESS_BYTES)
+            .as_slice()
+            .try_into()
+            .unwrap()
+    }
+}
 
 /// Fiat-Shamir hash function
 pub fn fiat_shamir_hash_fn(input: &[u8]) -> FiatShamirHash {

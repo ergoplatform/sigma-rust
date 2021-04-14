@@ -23,6 +23,12 @@ impl From<Challenge> for Scalar {
     }
 }
 
+impl Challenge {
+    pub fn secure_random() -> Self {
+        Self(FiatShamirHash::secure_random())
+    }
+}
+
 impl From<Challenge> for Vec<u8> {
     fn from(v: Challenge) -> Self {
         let arr: [u8; SOUNDNESS_BYTES] = v.0.into();

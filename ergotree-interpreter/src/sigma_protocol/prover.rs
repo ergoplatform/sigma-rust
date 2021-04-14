@@ -39,7 +39,6 @@ use super::unchecked_tree::UncheckedTree;
 use super::unproven_tree::UnprovenConjecture;
 use super::unproven_tree::UnprovenSchnorr;
 use super::unproven_tree::UnprovenTree;
-use super::SOUNDNESS_BYTES;
 
 use crate::eval::context::Context;
 use crate::eval::env::Env;
@@ -351,14 +350,6 @@ fn polish_simulated<P: Prover + ?Sized>(
     .map_err(|e: &str| ProverError::Unexpected(e.to_string()))
 }
 
-fn secure_random_byte(how_many: usize) -> Vec<u8> {
-    use rand::rngs::OsRng;
-    use rand::RngCore;
-    let mut bytes: Vec<u8> = vec![0; how_many];
-    OsRng.fill_bytes(&mut bytes);
-    bytes
-}
-
 /**
  Prover Step 4: In a top-down traversal of the tree, compute the challenges e for simulated children of every node
  Prover Step 5: For every leaf marked "simulated", use the simulator of the Sigma-protocol for that leaf
@@ -402,7 +393,7 @@ fn simulate_and_commit(
                                 .into_iter()
                                 .find(|p| p.position() == c.position())
                                 .map(|p| p.challenge().clone())
-                                .unwrap_or(secure_random_byte(SOUNDNESS_BYTES).try_into().unwrap());
+                                .unwrap_or_else(Challenge::secure_random);
                             c.with_challenge(new_challenge)
                         }
                     })
