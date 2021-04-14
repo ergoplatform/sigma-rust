@@ -41,6 +41,8 @@ pub mod extract_script_bytes;
 /// User-defined function
 pub mod func_value;
 pub mod global_vars;
+/// Headers data types
+pub mod header;
 /// If-else conditional op
 pub mod if_op;
 /// Logical NOT op

@@ -14,6 +14,8 @@ pub enum GlobalVars {
     Height,
     /// ErgoBox instance, which script is being evaluated
     SelfBox,
+    /// FIXME: Doc
+    MinerPubKey,
 }
 
 impl GlobalVars {
@@ -24,6 +26,7 @@ impl GlobalVars {
             GlobalVars::Inputs => OpCode::INPUTS,
             GlobalVars::Outputs => OpCode::OUTPUTS,
             GlobalVars::Height => OpCode::HEIGHT,
+            GlobalVars::MinerPubKey => OpCode::MINER_PUBKEY,
         }
     }
 
@@ -34,6 +37,7 @@ impl GlobalVars {
             GlobalVars::Outputs => SType::SColl(Box::new(SType::SBox)),
             GlobalVars::Height => SType::SInt,
             GlobalVars::SelfBox => SType::SBox,
+            GlobalVars::MinerPubKey => SType::SGroupElement,
         }
     }
 }
@@ -50,7 +54,14 @@ mod tests {
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             use GlobalVars::*;
-            prop_oneof![Just(Inputs), Just(Outputs), Just(Height), Just(SelfBox),].boxed()
+            prop_oneof![
+                Just(Inputs),
+                Just(Outputs),
+                Just(Height),
+                Just(SelfBox),
+                Just(MinerPubKey)
+            ]
+            .boxed()
         }
     }
 }

@@ -124,6 +124,7 @@ pub fn make_context(
         outputs: outputs_ir,
         data_inputs: data_inputs_ir,
         inputs: inputs_ir,
+        pre_header: state_ctx.pre_header.clone(),
     })
 }
 

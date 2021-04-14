@@ -4,6 +4,7 @@ use std::rc::Rc;
 
 use ergotree_ir::ir_ergo_box::IrBoxId;
 use ergotree_ir::ir_ergo_box::IrErgoBoxArena;
+use ergotree_ir::mir::header::PreHeader;
 
 /// Interpreter's context (blockchain state)
 #[derive(Debug)]
@@ -20,6 +21,8 @@ pub struct Context {
     pub data_inputs: Vec<IrBoxId>,
     /// Spending transaction inputs
     pub inputs: Vec<IrBoxId>,
+    /// Pre header of current block
+    pub pre_header: PreHeader,
 }
 
 #[cfg(feature = "arbitrary")]
@@ -42,33 +45,37 @@ mod arbitrary {
                 vec(any::<IrErgoBoxDummy>(), 1..3),
                 vec(any::<IrErgoBoxDummy>(), 1..3),
                 vec(any::<IrErgoBoxDummy>(), 0..3),
+                any::<PreHeader>(),
             )
-                .prop_map(|(height, self_box, outputs, inputs, data_inputs)| {
-                    let self_box_id = self_box.id();
-                    let outputs_ids = outputs.iter().map(|b| b.id()).collect();
-                    let inputs_ids = inputs.iter().map(|b| b.id()).collect();
-                    let data_inputs_ids = data_inputs.iter().map(|b| b.id()).collect();
-                    let mut m = HashMap::new();
-                    m.insert(self_box_id.clone(), self_box);
-                    outputs.into_iter().for_each(|b| {
-                        m.insert(b.id(), b);
-                    });
-                    inputs.into_iter().for_each(|b| {
-                        m.insert(b.id(), b);
-                    });
-                    data_inputs.into_iter().for_each(|b| {
-                        m.insert(b.id(), b);
-                    });
-                    let box_arena = IrErgoBoxDummyArena(m);
-                    Self {
-                        box_arena: Rc::new(box_arena) as Rc<dyn IrErgoBoxArena>,
-                        height,
-                        self_box: self_box_id,
-                        outputs: outputs_ids,
-                        data_inputs: data_inputs_ids,
-                        inputs: inputs_ids,
-                    }
-                })
+                .prop_map(
+                    |(height, self_box, outputs, inputs, data_inputs, pre_header)| {
+                        let self_box_id = self_box.id();
+                        let outputs_ids = outputs.iter().map(|b| b.id()).collect();
+                        let inputs_ids = inputs.iter().map(|b| b.id()).collect();
+                        let data_inputs_ids = data_inputs.iter().map(|b| b.id()).collect();
+                        let mut m = HashMap::new();
+                        m.insert(self_box_id.clone(), self_box);
+                        outputs.into_iter().for_each(|b| {
+                            m.insert(b.id(), b);
+                        });
+                        inputs.into_iter().for_each(|b| {
+                            m.insert(b.id(), b);
+                        });
+                        data_inputs.into_iter().for_each(|b| {
+                            m.insert(b.id(), b);
+                        });
+                        let box_arena = IrErgoBoxDummyArena(m);
+                        Self {
+                            box_arena: Rc::new(box_arena) as Rc<dyn IrErgoBoxArena>,
+                            height,
+                            self_box: self_box_id,
+                            outputs: outputs_ids,
+                            data_inputs: data_inputs_ids,
+                            inputs: inputs_ids,
+                            pre_header,
+                        }
+                    },
+                )
                 .boxed()
         }
 
