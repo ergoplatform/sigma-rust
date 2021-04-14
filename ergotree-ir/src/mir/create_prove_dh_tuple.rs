@@ -11,7 +11,7 @@ use crate::mir::expr::InvalidArgumentError;
 
 /// Diffie-Hellman tuple.
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct CreateProveDHTuple {
+pub struct CreateProveDhTuple {
     /// Group generator `g`
     pub gv: Box<Expr>,
     /// Point `g^x`
@@ -22,7 +22,7 @@ pub struct CreateProveDHTuple {
     pub vv: Box<Expr>,
 }
 
-impl CreateProveDHTuple {
+impl CreateProveDhTuple {
     pub(crate) const OP_CODE: OpCode = OpCode::PROVE_DIFFIE_HELLMAN_TUPLE;
 
     /// Create ProveDHTuple from four points on elliptic curve
@@ -31,7 +31,7 @@ impl CreateProveDHTuple {
         hv.check_post_eval_tpe(SType::SGroupElement)?;
         uv.check_post_eval_tpe(SType::SGroupElement)?;
         vv.check_post_eval_tpe(SType::SGroupElement)?;
-        Ok(CreateProveDHTuple {
+        Ok(CreateProveDhTuple {
             gv: gv.into(),
             hv: hv.into(),
             uv: uv.into(),
@@ -49,7 +49,7 @@ impl CreateProveDHTuple {
     }
 }
 
-impl SigmaSerializable for CreateProveDHTuple {
+impl SigmaSerializable for CreateProveDhTuple {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
         self.gv.sigma_serialize(w)?;
         self.hv.sigma_serialize(w)?;
@@ -62,7 +62,7 @@ impl SigmaSerializable for CreateProveDHTuple {
         let hv = Expr::sigma_parse(r)?.into();
         let uv = Expr::sigma_parse(r)?.into();
         let vv = Expr::sigma_parse(r)?.into();
-        Ok(CreateProveDHTuple { gv, hv, uv, vv })
+        Ok(CreateProveDhTuple { gv, hv, uv, vv })
     }
 }
 
@@ -79,7 +79,7 @@ mod tests {
 
     #[test]
     fn ser_roundtrip() {
-        let e: Expr = CreateProveDHTuple::new(
+        let e: Expr = CreateProveDhTuple::new(
             force_any_val_with::<Constant>(ArbConstantParams::Exact(SType::SGroupElement)).into(),
             force_any_val_with::<Constant>(ArbConstantParams::Exact(SType::SGroupElement)).into(),
             force_any_val_with::<Constant>(ArbConstantParams::Exact(SType::SGroupElement)).into(),
