@@ -211,6 +211,16 @@ impl HintsBag {
 
     /// All proofs from SecretProven variants
     pub fn proofs(&self) -> Vec<SecretProven> {
-        todo!()
+        self.hints
+            .clone()
+            .into_iter()
+            .filter_map(|hint| {
+                if let Hint::SecretProven(sp) = hint {
+                    Some(sp)
+                } else {
+                    None
+                }
+            })
+            .collect()
     }
 }
