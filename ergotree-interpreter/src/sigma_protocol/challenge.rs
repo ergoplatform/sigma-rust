@@ -6,6 +6,7 @@ use ergotree_ir::serialization::SigmaSerializable;
 use k256::Scalar;
 #[cfg(feature = "arbitrary")]
 use proptest_derive::Arbitrary;
+use std::convert::TryFrom;
 use std::convert::TryInto;
 
 /// Challenge in Sigma protocol
@@ -26,6 +27,17 @@ impl From<Challenge> for Scalar {
 impl Challenge {
     pub fn secure_random() -> Self {
         Self(FiatShamirHash::secure_random())
+    }
+
+    pub fn xor(self, other: Challenge) -> Self {
+        let this: [u8; SOUNDNESS_BYTES] = self.0.into();
+        let that: [u8; SOUNDNESS_BYTES] = other.0.into();
+        let res: Vec<u8> = this
+            .iter()
+            .zip(that.iter())
+            .map(|(&x1, &x2)| x1 ^ x2)
+            .collect();
+        FiatShamirHash::try_from(res.as_slice()).unwrap().into()
     }
 }
 

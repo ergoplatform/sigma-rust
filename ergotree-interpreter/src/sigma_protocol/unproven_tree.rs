@@ -66,6 +66,13 @@ impl UnprovenTree {
             UnprovenTree::UnprovenConjecture(uc) => ProofTreeKind::Conjecture(uc),
         }
     }
+
+    pub(crate) fn challenge(&self) -> Option<Challenge> {
+        match self {
+            UnprovenTree::UnprovenLeaf(leaf) => leaf.challenge(),
+            UnprovenTree::UnprovenConjecture(conj) => conj.challenge(),
+        }
+    }
 }
 
 impl From<UnprovenSchnorr> for UnprovenTree {
@@ -117,6 +124,12 @@ impl UnprovenLeaf {
             UnprovenLeaf::UnprovenSchnorr(us) => us.is_real(),
         }
     }
+
+    pub(crate) fn challenge(&self) -> Option<Challenge> {
+        match self {
+            UnprovenLeaf::UnprovenSchnorr(us) => us.challenge_opt.clone(),
+        }
+    }
 }
 
 impl ProofTreeLeaf for UnprovenLeaf {
@@ -153,6 +166,13 @@ impl UnprovenConjecture {
         match self {
             UnprovenConjecture::CandUnproven(cand) => cand.position.clone(),
             UnprovenConjecture::CorUnproven(cor) => cor.position.clone(),
+        }
+    }
+
+    fn challenge(&self) -> Option<Challenge> {
+        match self {
+            UnprovenConjecture::CandUnproven(cand) => cand.challenge_opt.clone(),
+            UnprovenConjecture::CorUnproven(cor) => cor.challenge_opt.clone(),
         }
     }
 

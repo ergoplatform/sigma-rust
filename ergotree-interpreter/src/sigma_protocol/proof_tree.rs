@@ -54,6 +54,13 @@ impl ProofTree {
     pub(crate) fn position(&self) -> &NodePosition {
         todo!()
     }
+
+    pub(crate) fn challenge(&self) -> Option<Challenge> {
+        match self {
+            ProofTree::UncheckedTree(unch) => unch.challenge(),
+            ProofTree::UnprovenTree(unp) => unp.challenge(),
+        }
+    }
 }
 
 impl From<UncheckedSchnorr> for ProofTree {

@@ -32,6 +32,13 @@ impl UncheckedTree {
             UncheckedTree::UncheckedSigmaTree(ust) => ust.as_tree_kind(),
         }
     }
+
+    pub(crate) fn challenge(&self) -> Option<Challenge> {
+        match self {
+            UncheckedTree::NoProof => None,
+            UncheckedTree::UncheckedSigmaTree(ust) => Some(ust.challenge()),
+        }
+    }
 }
 
 /// Unchecked sigma tree

@@ -540,10 +540,6 @@ fn proving<P: Prover + ?Sized>(
                 UnprovenTree::UnprovenConjecture(conj) => match conj {
                     UnprovenConjecture::CandUnproven(cand) => {
                         if cand.is_real() {
-                            assert!(
-                                cand.challenge_opt.is_some(),
-                                "proving: CandUnproven.challenge_opt is empty"
-                            );
                             // If the node is AND, let each of its children have the challenge e_0
                             if let Some(challenge) = cand.challenge_opt.clone() {
                                 let updated = cand
@@ -562,7 +558,45 @@ fn proving<P: Prover + ?Sized>(
                             Ok(None)
                         }
                     }
-                    UnprovenConjecture::CorUnproven(_) => todo!(),
+                    UnprovenConjecture::CorUnproven(cor) => {
+                        // If the node is OR, it has only one child marked "real".
+                        // Let this child have the challenge equal to the XOR of the challenges of all
+                        // the other children and e_0
+                        if cor.is_real() {
+                            if let Some(root_challenge) = &cor.challenge_opt {
+                                let challenge: Challenge = cor
+                                    .children
+                                    .clone()
+                                    .into_iter()
+                                    .flat_map(|c| c.challenge())
+                                    .fold(root_challenge.clone(), |acc, c| acc.xor(c));
+                                let children = cor
+                                    .children
+                                    .clone()
+                                    .into_iter()
+                                    .map(|c| match c {
+                                        ProofTree::UnprovenTree(ref ut) if ut.is_real() => {
+                                            c.with_challenge(challenge.clone())
+                                        }
+                                        _ => c,
+                                    })
+                                    .collect();
+                                Ok(Some(
+                                    CorUnproven {
+                                        children,
+                                        ..cor.clone()
+                                    }
+                                    .into(),
+                                ))
+                            } else {
+                                Err(ProverError::Unexpected(
+                                    "proving: CorUnproven.challenge_opt is empty".to_string(),
+                                ))
+                            }
+                        } else {
+                            Ok(None)
+                        }
+                    }
                 },
 
                 // If the node is a leaf marked "real", compute its response according to the second prover step
@@ -839,7 +873,6 @@ mod tests {
         assert_ne!(res.unwrap().proof, ProofBytes::Empty);
     }
 
-    #[ignore = ""]
     #[test]
     fn test_prove_pk_or_pk() {
         let secret1 = DlogProverInput::random();
