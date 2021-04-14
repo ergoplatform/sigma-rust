@@ -39,10 +39,14 @@ impl From<EcPoint> for ProveDlog {
 /// Common input: (g,h,u,v)
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ProveDhTuple {
-    gv: Box<EcPoint>,
-    hv: Box<EcPoint>,
-    uv: Box<EcPoint>,
-    vv: Box<EcPoint>,
+    /// Generator `g`
+    pub gv: Box<EcPoint>,
+    /// Point `g^x`
+    pub hv: Box<EcPoint>,
+    /// Point `g^y`
+    pub uv: Box<EcPoint>,
+    /// Point `g^xy`
+    pub vv: Box<EcPoint>,
 }
 
 /// Sigma proposition
