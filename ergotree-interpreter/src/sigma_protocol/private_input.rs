@@ -1,10 +1,8 @@
 //! Private input types for the prover's secrets
-use elliptic_curve::FromBytes;
 use ergotree_ir::sigma_protocol::dlog_group;
 use ergotree_ir::sigma_protocol::sigma_boolean::ProveDlog;
+use k256::elliptic_curve::ff::PrimeField;
 use k256::Scalar;
-
-use crate::util::IntoOption;
 
 extern crate derive_more;
 use derive_more::From;
@@ -31,9 +29,7 @@ impl DlogProverInput {
     /// Returns None if the byte array does not contain a big-endian integer in the range
     /// [0, modulus).
     pub fn from_bytes(bytes: &[u8; DlogProverInput::SIZE_BYTES]) -> Option<DlogProverInput> {
-        Scalar::from_bytes(bytes.into())
-            .into_option()
-            .map(DlogProverInput::from)
+        Scalar::from_repr(bytes.clone().into()).map(DlogProverInput::from)
     }
 
     /// byte representation of the underlying scalar

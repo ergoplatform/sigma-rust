@@ -18,10 +18,10 @@
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
 };
-use k256::{AffinePoint, ProjectivePoint, PublicKey, Scalar};
+use k256::elliptic_curve::sec1::ToEncodedPoint;
+use k256::{ProjectivePoint, PublicKey, Scalar};
 use sigma_ser::vlq_encode;
 
-use elliptic_curve::weierstrass::public_key::FromPublicKey;
 use std::{
     io,
     ops::{Add, Mul, Neg},
@@ -100,13 +100,12 @@ pub fn random_scalar_in_group_range() -> Scalar {
 impl SigmaSerializable for EcPoint {
     fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
         let caff = self.0.to_affine();
-        if bool::from(caff.is_some()) {
-            let pubkey = PublicKey::Compressed(caff.unwrap().into());
-            w.write_all(pubkey.as_bytes())?;
-        } else {
+        if caff.is_identity().into() {
             // infinity point
             let zeroes = [0u8; EcPoint::GROUP_SIZE];
             w.write_all(&zeroes)?;
+        } else {
+            w.write_all(caff.to_encoded_point(true).as_bytes())?;
         }
         Ok(())
     }
@@ -115,17 +114,10 @@ impl SigmaSerializable for EcPoint {
         let mut buf = [0; EcPoint::GROUP_SIZE];
         r.read_exact(&mut buf[..])?;
         if buf[0] != 0 {
-            let pubkey = PublicKey::from_bytes(&buf[..]).ok_or_else(|| {
-                SerializationError::Misc("failed to parse PK from bytes".to_string())
+            let pubkey = PublicKey::from_sec1_bytes(&buf[..]).map_err(|e| {
+                SerializationError::Misc(format!("failed to parse PK from bytes: {:?}", e))
             })?;
-            let cp = AffinePoint::from_public_key(&pubkey);
-            if bool::from(cp.is_none()) {
-                Err(SerializationError::Misc(
-                    "failed to get affine point from PK".to_string(),
-                ))
-            } else {
-                Ok(EcPoint(ProjectivePoint::from(cp.unwrap())))
-            }
+            Ok(EcPoint(pubkey.to_projective()))
         } else {
             // infinity point
             Ok(EcPoint(ProjectivePoint::identity()))
@@ -156,6 +148,7 @@ mod arbitrary {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::mir::expr::Expr;
     use crate::serialization::sigma_serialize_roundtrip;
     use proptest::prelude::*;
 
@@ -163,7 +156,8 @@ mod tests {
 
         #[test]
         fn ser_roundtrip(v in any::<EcPoint>()) {
-            prop_assert_eq![sigma_serialize_roundtrip(&v), v];
+            let e: Expr = v.into();
+            prop_assert_eq![sigma_serialize_roundtrip(&e), e];
         }
     }
 }

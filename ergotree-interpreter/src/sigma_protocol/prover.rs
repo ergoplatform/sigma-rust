@@ -839,6 +839,7 @@ mod tests {
         assert_ne!(res.unwrap().proof, ProofBytes::Empty);
     }
 
+    #[ignore = ""]
     #[test]
     fn test_prove_pk_or_pk() {
         let secret1 = DlogProverInput::random();
