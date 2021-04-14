@@ -34,3 +34,37 @@ impl PreHeader {
         }
     }
 }
+
+#[cfg(feature = "arbitrary")]
+mod arbitrary {
+    use crate::mir::header::PreHeader;
+    use crate::sigma_protocol::dlog_group::EcPoint;
+    use proptest::collection::vec;
+    use proptest::prelude::*;
+
+    impl Arbitrary for PreHeader {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<PreHeader>;
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            (
+                vec(any::<u8>(), 32),
+                // Timestamps between 2000-2050
+                946_674_000_000..2_500_400_300_000u64,
+                any::<u64>(),
+                0..1_000_000,
+                any::<Box<EcPoint>>(),
+            )
+                .prop_map(|(parent_id, timestamp, n_bits, height, miner_pk)| Self {
+                    version: 1,
+                    parent_id,
+                    timestamp,
+                    n_bits,
+                    height,
+                    miner_pk,
+                    votes: Vec::new(),
+                })
+                .boxed()
+        }
+    }
+}
