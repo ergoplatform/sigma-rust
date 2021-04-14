@@ -14,7 +14,6 @@ impl Evaluable for GlobalVars {
             GlobalVars::Outputs => Ok(ectx.ctx.outputs.clone().into()),
             GlobalVars::Inputs => Ok(ectx.ctx.inputs.clone().into()),
             GlobalVars::MinerPubKey => panic!("PANIK"),
-            GlobalVars::Global => panic!("PANIK"),
         }
     }
 }

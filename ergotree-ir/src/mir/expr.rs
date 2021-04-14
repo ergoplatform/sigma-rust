@@ -74,7 +74,8 @@ pub enum Expr {
     CalcBlake2b256(CalcBlake2b256),
     /// Context variables (external)
     Context,
-    // Global(Global),
+    /// Special global value which is used to define methods
+    Global,
     /// Predefined global variables
     GlobalVars(GlobalVars),
     /// Function definition
@@ -162,6 +163,7 @@ impl Expr {
             Expr::GlobalVars(op) => op.op_code(),
             Expr::MethodCall(op) => op.op_code(),
             Expr::ProperyCall(op) => op.op_code(),
+            Expr::Global => OpCode::GLOBAL,
             Expr::Context => OpCode::CONTEXT,
             Expr::OptionGet(op) => op.op_code(),
             Expr::ExtractRegisterAs(op) => op.op_code(),
@@ -209,6 +211,7 @@ impl Expr {
             Expr::Collection(v) => v.tpe(),
             Expr::ConstPlaceholder(v) => v.tpe.clone(),
             Expr::CalcBlake2b256(v) => v.tpe(),
+            Expr::Global => SType::SGlobal,
             Expr::Context => SType::SContext,
             Expr::GlobalVars(v) => v.tpe(),
             Expr::FuncValue(v) => v.tpe(),
