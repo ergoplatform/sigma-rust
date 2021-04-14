@@ -36,6 +36,7 @@ pub(crate) mod coll_size;
 pub(crate) mod collection;
 pub(crate) mod cost_accum;
 pub(crate) mod costs;
+pub(crate) mod create_prove_dh_tuple;
 pub(crate) mod create_provedlog;
 pub(crate) mod decode_point;
 pub(crate) mod expr;

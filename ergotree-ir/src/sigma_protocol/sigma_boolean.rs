@@ -137,6 +137,13 @@ impl From<ProveDlog> for SigmaProp {
     }
 }
 
+impl From<ProveDhTuple> for SigmaProp {
+    fn from(dh: ProveDhTuple) -> Self {
+        SigmaProp(SigmaBoolean::ProofOfKnowledge(
+            SigmaProofOfKnowledgeTree::ProveDhTuple(dh),
+        ))
+    }
+}
 /// Arbitrary impl for ProveDlog
 #[cfg(feature = "arbitrary")]
 mod arbitrary {
