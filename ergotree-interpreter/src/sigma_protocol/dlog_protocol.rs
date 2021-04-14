@@ -36,6 +36,8 @@ impl From<Scalar> for SecondDlogProverMessage {
 
 /// Interactive prover
 pub(crate) mod interactive_prover {
+    use std::ops::Mul;
+
     use super::{FirstDlogProverMessage, SecondDlogProverMessage};
     use crate::sigma_protocol::{private_input::DlogProverInput, Challenge};
     use ergotree_ir::sigma_protocol::dlog_group;
@@ -43,12 +45,20 @@ pub(crate) mod interactive_prover {
     use ergotree_ir::sigma_protocol::sigma_boolean::ProveDlog;
     use k256::Scalar;
 
-    /// TBD
     pub(crate) fn simulate(
-        _public_input: &ProveDlog,
-        _challenge: &Challenge,
+        public_input: &ProveDlog,
+        challenge: &Challenge,
     ) -> (FirstDlogProverMessage, SecondDlogProverMessage) {
-        todo!()
+        //SAMPLE a random z <- Zq
+        let z = dlog_group::random_scalar_in_group_range();
+
+        //COMPUTE a = g^z*h^(-e)  (where -e here means -e mod q)
+        let e: Scalar = challenge.clone().into();
+        let minus_e = e.negate();
+        let h_to_e = dlog_group::exponentiate(&public_input.h, &minus_e);
+        let g_to_z = dlog_group::exponentiate(&dlog_group::generator(), &z);
+        let a = g_to_z * &h_to_e;
+        (FirstDlogProverMessage(a), SecondDlogProverMessage { z })
     }
 
     /// Create first message from the prover and a randomness
