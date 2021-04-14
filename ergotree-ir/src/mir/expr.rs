@@ -55,6 +55,7 @@ use super::val_use::ValUse;
 use super::value::Value;
 
 extern crate derive_more;
+use crate::mir::create_prove_dh_tuple::CreateProveDhTuple;
 use derive_more::From;
 use derive_more::TryInto;
 
@@ -143,6 +144,8 @@ pub enum Expr {
     Upcast(Upcast),
     /// Create proveDlog from GroupElement(PK)
     CreateProveDlog(CreateProveDlog),
+    /// Create proveDlog from GroupElement(PK)
+    CreateProveDhTuple(CreateProveDhTuple),
     /// Extract serialized bytes of a SigmaProp value
     SigmaPropBytes(SigmaPropBytes),
     /// Decode byte array to EC point
@@ -189,6 +192,7 @@ impl Expr {
             Expr::ExtractScriptBytes(op) => op.op_code(),
             Expr::SizeOf(op) => op.op_code(),
             Expr::CreateProveDlog(op) => op.op_code(),
+            Expr::CreateProveDhTuple(op) => op.op_code(),
             Expr::ExtractCreationInfo(op) => op.op_code(),
             Expr::Exists(op) => op.op_code(),
             Expr::ExtractId(op) => op.op_code(),
@@ -239,6 +243,7 @@ impl Expr {
             Expr::ExtractScriptBytes(v) => v.tpe(),
             Expr::SizeOf(v) => v.tpe(),
             Expr::CreateProveDlog(v) => v.tpe(),
+            Expr::CreateProveDhTuple(v) => v.tpe(),
             Expr::ExtractCreationInfo(v) => v.tpe(),
             Expr::Exists(v) => v.tpe(),
             Expr::ExtractId(v) => v.tpe(),
