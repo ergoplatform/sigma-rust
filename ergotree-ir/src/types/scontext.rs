@@ -2,11 +2,11 @@
 
 use crate::serialization::types::TypeCode;
 
-use super::sfunc::SFunc;
 use super::smethod::MethodId;
 use super::smethod::SMethod;
 use super::smethod::SMethodDesc;
 use super::stype::SType;
+use super::stype::SType::{SColl,SBox};
 use super::stype_companion::STypeCompanion;
 use super::stype_companion::STypeCompanionHead;
 use lazy_static::lazy_static;
@@ -20,15 +20,8 @@ static S_CONTEXT_TYPE_COMPANION_HEAD: STypeCompanionHead = STypeCompanionHead {
 
 pub const DATA_INPUTS_PROPERTY_METHOD_ID: MethodId = MethodId(1);
 lazy_static! {
-    static ref DATA_INPUTS_PROPERTY_METHOD_DESC: SMethodDesc = SMethodDesc {
-        method_id: DATA_INPUTS_PROPERTY_METHOD_ID,
-        name: "dataInputs",
-        tpe: SFunc {
-            t_dom: vec![SType::SContext],
-            t_range: Box::new(SType::SColl(Box::new(SType::SBox))),
-            tpe_params: vec![],
-        },
-    };
+    static ref DATA_INPUTS_PROPERTY_METHOD_DESC: SMethodDesc =
+    property("dataInputs", SColl(SBox.into()).into(), DATA_INPUTS_PROPERTY_METHOD_ID);
 }
 
 lazy_static! {
@@ -43,6 +36,10 @@ lazy_static! {
         &S_CONTEXT_TYPE_COMPANION,
         DATA_INPUTS_PROPERTY_METHOD_DESC.clone(),
     );
+}
+
+fn property(name: &'static str, res_tpe: SType, id: MethodId) -> SMethodDesc {
+    SMethodDesc::property(SType::SContext, name, res_tpe, id)
 }
 
 #[cfg(test)]
