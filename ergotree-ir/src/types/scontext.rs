@@ -18,17 +18,19 @@ static S_CONTEXT_TYPE_COMPANION_HEAD: STypeCompanionHead = STypeCompanionHead {
     type_name: "Context",
 };
 
-pub const DATA_INPUTS_PROPERTY_METHOD_ID: MethodId = MethodId(1);
-lazy_static! {
-    static ref DATA_INPUTS_PROPERTY_METHOD_DESC: SMethodDesc =
-    property("dataInputs", SColl(SBox.into()).into(), DATA_INPUTS_PROPERTY_METHOD_ID);
-}
-
 lazy_static! {
     pub static ref S_CONTEXT_TYPE_COMPANION: STypeCompanion = STypeCompanion::new(
         &S_CONTEXT_TYPE_COMPANION_HEAD,
         vec![&DATA_INPUTS_PROPERTY_METHOD_DESC]
     );
+}
+
+// ---- Methods ----
+
+pub const DATA_INPUTS_PROPERTY_METHOD_ID: MethodId = MethodId(1);
+lazy_static! {
+    static ref DATA_INPUTS_PROPERTY_METHOD_DESC: SMethodDesc =
+    property("dataInputs", SColl(SBox.into()).into(), DATA_INPUTS_PROPERTY_METHOD_ID);
 }
 
 lazy_static! {
