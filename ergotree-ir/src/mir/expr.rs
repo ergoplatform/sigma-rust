@@ -55,6 +55,7 @@ use super::val_use::ValUse;
 use super::value::Value;
 
 extern crate derive_more;
+use crate::mir::atleast::Atleast;
 use crate::mir::create_prove_dh_tuple::CreateProveDhTuple;
 use derive_more::From;
 use derive_more::TryInto;
@@ -101,6 +102,8 @@ pub enum Expr {
     And(And),
     /// Logical OR
     Or(Or),
+    /// THRESHOLD composition for sigma expressions
+    Atleast(Atleast),
     /// LogicalNot
     LogicalNot(LogicalNot),
     /// Negation on numeric type
@@ -182,6 +185,7 @@ impl Expr {
             Expr::CalcBlake2b256(op) => op.op_code(),
             Expr::And(op) => op.op_code(),
             Expr::Or(op) => op.op_code(),
+            Expr::Atleast(op) => op.op_code(),
             Expr::LogicalNot(op) => op.op_code(),
             Expr::Map(op) => op.op_code(),
             Expr::Filter(op) => op.op_code(),
@@ -233,6 +237,7 @@ impl Expr {
             Expr::ExtractAmount(v) => v.tpe(),
             Expr::And(v) => v.tpe(),
             Expr::Or(v) => v.tpe(),
+            Expr::Atleast(v) => v.tpe(),
             Expr::LogicalNot(v) => v.tpe(),
             Expr::Map(v) => v.tpe(),
             Expr::Filter(v) => v.tpe(),

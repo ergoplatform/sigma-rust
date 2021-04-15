@@ -32,6 +32,7 @@ impl Evaluable for Expr {
             Expr::ValDef(_) => panic!("ValDef is evaluated in BlockValue"),
             Expr::And(op) => op.eval(env, ctx),
             Expr::Or(op) => op.eval(env, ctx),
+            Expr::Atleast(_) => todo!(),
             Expr::LogicalNot(op) => op.eval(env, ctx),
             Expr::Map(op) => op.eval(env, ctx),
             Expr::Filter(op) => op.eval(env, ctx),

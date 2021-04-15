@@ -3,6 +3,7 @@ use super::bin_op::bin_op_sigma_serialize;
 use super::{op_code::OpCode, sigma_byte_writer::SigmaByteWrite};
 use crate::mir::and::And;
 use crate::mir::apply::Apply;
+use crate::mir::atleast::Atleast;
 use crate::mir::bin_op::ArithOp;
 use crate::mir::bin_op::RelationOp;
 use crate::mir::block::BlockValue;
@@ -91,6 +92,7 @@ impl SigmaSerializable for Expr {
                     Expr::Collection(op) => coll_sigma_serialize(op, w),
                     Expr::And(op) => op.sigma_serialize(w),
                     Expr::Or(op) => op.sigma_serialize(w),
+                    Expr::Atleast(op) => op.sigma_serialize(w),
                     Expr::LogicalNot(op) => op.sigma_serialize(w),
                     Expr::Map(op) => op.sigma_serialize(w),
                     Expr::Filter(op) => op.sigma_serialize(w),
@@ -189,6 +191,7 @@ impl SigmaSerializable for Expr {
                 OpCode::CALC_BLAKE2B256 => Ok(CalcBlake2b256::sigma_parse(r)?.into()),
                 And::OP_CODE => Ok(And::sigma_parse(r)?.into()),
                 Or::OP_CODE => Ok(Or::sigma_parse(r)?.into()),
+                Atleast::OP_CODE => Ok(Atleast::sigma_parse(r)?.into()),
                 OpCode::COLL => Ok(coll_sigma_parse(r)?.into()),
                 OpCode::COLL_OF_BOOL_CONST => Ok(bool_const_coll_sigma_parse(r)?.into()),
                 Map::OP_CODE => Ok(Map::sigma_parse(r)?.into()),
