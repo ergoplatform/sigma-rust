@@ -148,7 +148,17 @@ impl<T: SigmaSerializable> SigmaSerializable for Vec<T> {
     }
 }
 
-impl<T: SigmaSerializable> SigmaSerializable for Option<Box<T>> {
+impl<T: SigmaSerializable> SigmaSerializable for Box<T> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
+        let x: &T = self;
+        x.sigma_serialize(w)
+    }
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+        Ok(Box::new(T::sigma_parse(r)? ))
+    }
+}
+
+impl<T: SigmaSerializable> SigmaSerializable for Option<T> {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
         match self {
             Some(v) => {
