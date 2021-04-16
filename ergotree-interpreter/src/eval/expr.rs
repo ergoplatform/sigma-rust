@@ -57,6 +57,7 @@ impl Evaluable for Expr {
             Expr::SigmaAnd(_) => todo!(),
             Expr::SigmaOr(_) => todo!(),
             Expr::DeserializeRegister(_) => todo!(),
+            Expr::DeserializeContext(_) => todo!(),
             Expr::GetVar(op) => op.eval(env, ctx),
         }
     }

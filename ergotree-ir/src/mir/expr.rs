@@ -57,6 +57,7 @@ use super::value::Value;
 extern crate derive_more;
 use crate::mir::atleast::Atleast;
 use crate::mir::create_prove_dh_tuple::CreateProveDhTuple;
+use crate::mir::deserialize_context::DeserializeContext;
 use crate::mir::deserialize_register::DeserializeRegister;
 use crate::mir::get_var::GetVar;
 use derive_more::From;
@@ -163,6 +164,8 @@ pub enum Expr {
     GetVar(GetVar),
     /// FIXME: WTF
     DeserializeRegister(DeserializeRegister),
+    /// FIME: WTF
+    DeserializeContext(DeserializeContext),
 }
 
 impl Expr {
@@ -217,6 +220,7 @@ impl Expr {
             Expr::SigmaOr(op) => op.op_code(),
             Expr::GetVar(op) => op.op_code(),
             Expr::DeserializeRegister(op) => op.op_code(),
+            Expr::DeserializeContext(op) => op.op_code(),
         }
     }
 
@@ -270,6 +274,7 @@ impl Expr {
             Expr::SigmaAnd(v) => v.tpe(),
             Expr::SigmaOr(v) => v.tpe(),
             Expr::DeserializeRegister(v) => v.tpe(),
+            Expr::DeserializeContext(v) => v.tpe(),
             Expr::GetVar(v) => v.tpe(),
         }
     }
