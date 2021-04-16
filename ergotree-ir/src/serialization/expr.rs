@@ -14,6 +14,7 @@ use crate::mir::coll_exists::Exists;
 use crate::mir::coll_filter::Filter;
 use crate::mir::coll_fold::Fold;
 use crate::mir::coll_forall::ForAll;
+use crate::mir::get_var::GetVar;
 use crate::mir::coll_map::Map;
 use crate::mir::coll_size::SizeOf;
 use crate::mir::collection::bool_const_coll_sigma_parse;
@@ -116,6 +117,7 @@ impl SigmaSerializable for Expr {
                     Expr::DecodePoint(op) => op.sigma_serialize(w),
                     Expr::SigmaAnd(op) => op.sigma_serialize(w),
                     Expr::SigmaOr(op) => op.sigma_serialize(w),
+                    Expr::GetVar(op) => op.sigma_serialize(w),
                 }
             }
         }
@@ -210,6 +212,7 @@ impl SigmaSerializable for Expr {
                 DecodePoint::OP_CODE => Ok(DecodePoint::sigma_parse(r)?.into()),
                 SigmaAnd::OP_CODE => Ok(SigmaAnd::sigma_parse(r)?.into()),
                 SigmaOr::OP_CODE => Ok(SigmaOr::sigma_parse(r)?.into()),
+                GetVar::OP_CODE => Ok(GetVar::sigma_parse(r)?.into()),
                 o => Err(SerializationError::NotImplementedOpCode(format!(
                     "{0}(shift {1})",
                     o.value(),

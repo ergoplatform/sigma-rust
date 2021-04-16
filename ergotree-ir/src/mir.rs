@@ -43,6 +43,7 @@ pub mod extract_reg_as;
 pub mod extract_script_bytes;
 /// User-defined function
 pub mod func_value;
+pub mod get_var;
 pub mod global_vars;
 /// Headers data types
 pub mod header;
