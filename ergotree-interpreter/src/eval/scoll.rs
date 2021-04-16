@@ -84,7 +84,7 @@ pub(crate) static FLATMAP_EVAL_FN: EvalFn = |env, ctx, obj, args| {
         .map(|item| lambda_call(item.clone()))
         .collect::<Result<Vec<Value>, EvalError>>()
         .map(|values| {
-            CollKind::from_vec(lambda.body.tpe(), values).map_err(EvalError::TryExtractFrom)
+            CollKind::from_vec_vec(lambda.body.tpe(), values).map_err(EvalError::TryExtractFrom)
         })
         .and_then(|v| v) // flatten <Result<Result<Value, _>, _>
         .map(Value::Coll)
@@ -95,6 +95,7 @@ pub(crate) static FLATMAP_EVAL_FN: EvalFn = |env, ctx, obj, args| {
 mod tests {
     use ergotree_ir::mir::bin_op::BinOp;
     use ergotree_ir::mir::bin_op::RelationOp;
+    use ergotree_ir::mir::collection::Collection;
     use ergotree_ir::mir::constant::Constant;
     use ergotree_ir::mir::expr::Expr;
     use ergotree_ir::mir::func_value::FuncArg;
@@ -106,6 +107,7 @@ mod tests {
     use ergotree_ir::types::stype_param::STypeVar;
 
     use crate::eval::tests::eval_out_wo_ctx;
+    use ergotree_ir::types::stype::SType::SBoolean;
 
     #[test]
     fn eval_index_of() {
@@ -142,16 +144,20 @@ mod tests {
     #[test]
     fn eval_flatmap() {
         let coll_const: Constant = vec![1i64, 2i64].into();
-        let body: Expr = BinOp {
-            kind: RelationOp::Ge.into(),
-            left: Box::new(Expr::Const(1i64.into())),
-            right: Box::new(
-                ValUse {
-                    val_id: 1.into(),
-                    tpe: SType::SBox,
-                }
-                .into(),
-            ),
+        let body: Expr = Collection::Exprs {
+            elem_tpe: SBoolean,
+            items: vec![BinOp {
+                kind: RelationOp::Ge.into(),
+                left: Box::new(Expr::Const(1i64.into())),
+                right: Box::new(
+                    ValUse {
+                        val_id: 1.into(),
+                        tpe: SType::SBox,
+                    }
+                    .into(),
+                ),
+            }
+            .into()],
         }
         .into();
         let expr: Expr = MethodCall::new(
