@@ -123,12 +123,20 @@ pub enum UncheckedConjecture {
         challenge: Challenge,
         children: Vec<UncheckedSigmaTree>,
     },
+    CorUnchecked {
+        challenge: Challenge,
+        children: Vec<UncheckedSigmaTree>,
+    },
 }
 
 impl UncheckedConjecture {
     pub fn challenge(&self) -> Challenge {
         match self {
             UncheckedConjecture::CandUnchecked {
+                challenge,
+                children: _,
+            } => challenge.clone(),
+            UncheckedConjecture::CorUnchecked {
                 challenge,
                 children: _,
             } => challenge.clone(),
@@ -140,12 +148,20 @@ impl ProofTreeConjecture for UncheckedConjecture {
     fn conjecture_type(&self) -> ConjectureType {
         match self {
             UncheckedConjecture::CandUnchecked { .. } => ConjectureType::And,
+            UncheckedConjecture::CorUnchecked { .. } => ConjectureType::Or,
         }
     }
 
     fn children(&self) -> Vec<ProofTree> {
         match self {
             UncheckedConjecture::CandUnchecked {
+                challenge: _,
+                children,
+            } => children
+                .iter()
+                .map(|ust| ust.clone().into())
+                .collect::<Vec<ProofTree>>(),
+            UncheckedConjecture::CorUnchecked {
                 challenge: _,
                 children,
             } => children

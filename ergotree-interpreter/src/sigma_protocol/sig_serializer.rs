@@ -66,6 +66,17 @@ fn sig_write_bytes<W: SigmaByteWrite>(
                 }
                 Ok(())
             }
+            UncheckedConjecture::CorUnchecked {
+                challenge: _,
+                children,
+            } => {
+                // don't write last child's challenge -- it's computed by the verifier via XOR
+                for child in children.iter().take(children.len() - 1) {
+                    sig_write_bytes(child, w, true)?;
+                }
+                sig_write_bytes(children.last().unwrap(), w, false)?;
+                Ok(())
+            }
         },
     }
 }

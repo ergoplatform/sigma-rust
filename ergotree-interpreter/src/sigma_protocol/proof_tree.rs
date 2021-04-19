@@ -159,6 +159,24 @@ pub(crate) fn rewrite_children<
         .collect()
 }
 
+pub(crate) fn cast_to_ust(
+    children: Vec<ProofTree>,
+) -> Result<Vec<UncheckedSigmaTree>, ProverError> {
+    children
+        .into_iter()
+        .map(|c| {
+            if let ProofTree::UncheckedTree(UncheckedTree::UncheckedSigmaTree(ust)) = c {
+                Ok(ust)
+            } else {
+                Err(ProverError::Unexpected(format!(
+                    "rewrite: expected UncheckedSigmaTree got: {:?}",
+                    c
+                )))
+            }
+        })
+        .collect::<Result<Vec<UncheckedSigmaTree>, _>>()
+}
+
 pub(crate) fn rewrite<F: Fn(&ProofTree) -> Result<Option<ProofTree>, ProverError>>(
     tree: ProofTree,
     f: &F,
@@ -198,17 +216,20 @@ pub(crate) fn rewrite<F: Fn(&ProofTree) -> Result<Option<ProofTree>, ProverError
                                 } => {
                                     // TODO: reduce indentation?
                                     let rewritten_children = rewrite_children(children.clone(), f)?;
-                                    let casted_children = rewritten_children
-                                        .into_iter()
-                                        .map(|c| {
-                                            if let ProofTree::UncheckedTree(UncheckedTree::UncheckedSigmaTree(ust)) = c {
-                                                Ok(ust)
-                                            } else {
-                                                Err(ProverError::Unexpected(format!("rewrite: expected UncheckedSigmaTree got: {:?}", c)))
-                                            }
-                                        })
-                                        .collect::<Result<Vec<UncheckedSigmaTree>, _>>()?;
+                                    let casted_children = cast_to_ust(rewritten_children)?;
                                     UncheckedConjecture::CandUnchecked {
+                                        children: casted_children,
+                                        challenge: challenge.clone(),
+                                    }
+                                    .into()
+                                }
+                                UncheckedConjecture::CorUnchecked {
+                                    challenge,
+                                    children,
+                                } => {
+                                    let rewritten_children = rewrite_children(children.clone(), f)?;
+                                    let casted_children = cast_to_ust(rewritten_children)?;
+                                    UncheckedConjecture::CorUnchecked {
                                         children: casted_children,
                                         challenge: challenge.clone(),
                                     }

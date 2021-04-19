@@ -613,6 +613,7 @@ fn proving<P: Prover + ?Sized>(
                                 })
                                 .find(|prover_input| prover_input.public_image() == us.proposition)
                             {
+                                // TODO: unwrap -> Err
                                 let z = dlog_protocol::interactive_prover::second_message(
                                     &priv_key,
                                     us.randomness_opt.unwrap(),
@@ -714,6 +715,7 @@ fn convert_to_unchecked(tree: ProofTree) -> Result<UncheckedSigmaTree, ProverErr
             ))),
             UnprovenTree::UnprovenConjecture(conj) => match conj {
                 UnprovenConjecture::CandUnproven(cand) => Ok(UncheckedConjecture::CandUnchecked {
+                    // TODO: unwrap -> Err
                     challenge: cand.challenge_opt.clone().unwrap(),
                     children: cand
                         .children
@@ -723,7 +725,17 @@ fn convert_to_unchecked(tree: ProofTree) -> Result<UncheckedSigmaTree, ProverErr
                         .collect::<Result<Vec<UncheckedSigmaTree>, _>>()?,
                 }
                 .into()),
-                UnprovenConjecture::CorUnproven(_) => todo!(),
+                UnprovenConjecture::CorUnproven(cor) => Ok(UncheckedConjecture::CorUnchecked {
+                    // TODO: unwrap -> Err
+                    challenge: cor.challenge_opt.clone().unwrap(),
+                    children: cor
+                        .children
+                        .clone()
+                        .into_iter()
+                        .map(convert_to_unchecked)
+                        .collect::<Result<Vec<UncheckedSigmaTree>, _>>()?,
+                }
+                .into()),
             },
         },
     }
