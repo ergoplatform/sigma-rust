@@ -131,6 +131,8 @@ pub enum Value {
     Tup(TupleItems<Value>),
     /// Transaction(and blockchain) context info
     Context,
+    /// Global which is used to define global methods
+    Global,
     /// Optional value
     Opt(Box<Option<Value>>),
     /// lambda

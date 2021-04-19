@@ -91,8 +91,8 @@ mod tests {
 
     #[test]
     fn test_from_ids() {
-        assert!(SMethod::from_ids(TYPE_ID, VALUE_METHOD_ID).name() == "value");
-        assert!(SMethod::from_ids(TYPE_ID, GET_REG_METHOD_ID).name() == "getReg");
-        assert!(SMethod::from_ids(TYPE_ID, TOKENS_METHOD_ID).name() == "tokens");
+        assert!(SMethod::from_ids(TYPE_ID, VALUE_METHOD_ID).map(|e| e.name()) == Ok("value"));
+        assert!(SMethod::from_ids(TYPE_ID, GET_REG_METHOD_ID).map(|e| e.name()) == Ok("getReg"));
+        assert!(SMethod::from_ids(TYPE_ID, TOKENS_METHOD_ID).map(|e| e.name()) == Ok("tokens"));
     }
 }

@@ -56,6 +56,12 @@ pub enum SType {
     SFunc(SFunc),
     /// Context object ("CONTEXT" in ErgoScript)
     SContext,
+    /// Header of a block
+    SHeader,
+    /// Header of a block without solved mining puzzle
+    SPreHeader,
+    /// Data type introduced to unify handling of global and non-global (i.e. methods) operations.
+    SGlobal,
 }
 
 impl SType {
@@ -79,6 +85,9 @@ impl SType {
             SType::STuple(_) => TypeCode::TUPLE,
             SType::SContext => TypeCode::SCONTEXT,
             SType::STypeVar(_) => TypeCode::STYPE_VAR,
+            SType::SHeader => TypeCode::SHEADER,
+            SType::SPreHeader => TypeCode::SPRE_HEADER,
+            SType::SGlobal => TypeCode::SGLOBAL,
         }
     }
 
@@ -111,6 +120,9 @@ impl SType {
                 | SType::SAvlTree
                 | SType::SContext
                 | SType::SBoolean
+                | SType::SHeader
+                | SType::SPreHeader
+                | SType::SGlobal
         )
     }
 
@@ -262,6 +274,9 @@ pub(crate) mod tests {
             Just(SType::SBox),
             Just(SType::SAvlTree),
             Just(SType::SContext),
+            Just(SType::SHeader),
+            Just(SType::SPreHeader),
+            Just(SType::SGlobal),
         ]
         .boxed()
     }

@@ -69,7 +69,7 @@ mod tests {
 
     #[test]
     fn test_from_ids() {
-        assert!(SMethod::from_ids(TYPE_ID, INDEX_OF_METHOD_ID).name() == "indexOf");
-        assert!(SMethod::from_ids(TYPE_ID, FLATMAP_METHOD_ID).name() == "flatMap");
+        assert!(SMethod::from_ids(TYPE_ID, INDEX_OF_METHOD_ID).map(|e| e.name()) == Ok("indexOf"));
+        assert!(SMethod::from_ids(TYPE_ID, FLATMAP_METHOD_ID).map(|e| e.name()) == Ok("flatMap"));
     }
 }

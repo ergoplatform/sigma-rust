@@ -55,6 +55,7 @@ use super::val_use::ValUse;
 use super::value::Value;
 
 extern crate derive_more;
+use crate::mir::create_prove_dh_tuple::CreateProveDhTuple;
 use derive_more::From;
 use derive_more::TryInto;
 
@@ -74,7 +75,8 @@ pub enum Expr {
     CalcBlake2b256(CalcBlake2b256),
     /// Context variables (external)
     Context,
-    // Global(Global),
+    /// Special global value which is used to define methods
+    Global,
     /// Predefined global variables
     GlobalVars(GlobalVars),
     /// Function definition
@@ -142,6 +144,8 @@ pub enum Expr {
     Upcast(Upcast),
     /// Create proveDlog from GroupElement(PK)
     CreateProveDlog(CreateProveDlog),
+    /// Create proveDlog from GroupElement(PK)
+    CreateProveDhTuple(CreateProveDhTuple),
     /// Extract serialized bytes of a SigmaProp value
     SigmaPropBytes(SigmaPropBytes),
     /// Decode byte array to EC point
@@ -162,6 +166,7 @@ impl Expr {
             Expr::GlobalVars(op) => op.op_code(),
             Expr::MethodCall(op) => op.op_code(),
             Expr::ProperyCall(op) => op.op_code(),
+            Expr::Global => OpCode::GLOBAL,
             Expr::Context => OpCode::CONTEXT,
             Expr::OptionGet(op) => op.op_code(),
             Expr::ExtractRegisterAs(op) => op.op_code(),
@@ -187,6 +192,7 @@ impl Expr {
             Expr::ExtractScriptBytes(op) => op.op_code(),
             Expr::SizeOf(op) => op.op_code(),
             Expr::CreateProveDlog(op) => op.op_code(),
+            Expr::CreateProveDhTuple(op) => op.op_code(),
             Expr::ExtractCreationInfo(op) => op.op_code(),
             Expr::Exists(op) => op.op_code(),
             Expr::ExtractId(op) => op.op_code(),
@@ -209,6 +215,7 @@ impl Expr {
             Expr::Collection(v) => v.tpe(),
             Expr::ConstPlaceholder(v) => v.tpe.clone(),
             Expr::CalcBlake2b256(v) => v.tpe(),
+            Expr::Global => SType::SGlobal,
             Expr::Context => SType::SContext,
             Expr::GlobalVars(v) => v.tpe(),
             Expr::FuncValue(v) => v.tpe(),
@@ -236,6 +243,7 @@ impl Expr {
             Expr::ExtractScriptBytes(v) => v.tpe(),
             Expr::SizeOf(v) => v.tpe(),
             Expr::CreateProveDlog(v) => v.tpe(),
+            Expr::CreateProveDhTuple(v) => v.tpe(),
             Expr::ExtractCreationInfo(v) => v.tpe(),
             Expr::Exists(v) => v.tpe(),
             Expr::ExtractId(v) => v.tpe(),

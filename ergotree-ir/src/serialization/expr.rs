@@ -20,6 +20,7 @@ use crate::mir::collection::coll_sigma_parse;
 use crate::mir::collection::coll_sigma_serialize;
 use crate::mir::constant::Constant;
 use crate::mir::constant::ConstantPlaceholder;
+use crate::mir::create_prove_dh_tuple::CreateProveDhTuple;
 use crate::mir::create_provedlog::CreateProveDlog;
 use crate::mir::decode_point::DecodePoint;
 use crate::mir::expr::Expr;
@@ -74,6 +75,7 @@ impl SigmaSerializable for Expr {
                     Expr::GlobalVars(_) => Ok(()),
                     Expr::MethodCall(mc) => mc.sigma_serialize(w),
                     Expr::ProperyCall(pc) => pc.sigma_serialize(w),
+                    Expr::Global => Ok(()),
                     Expr::Context => Ok(()),
                     Expr::OptionGet(v) => v.sigma_serialize(w),
                     Expr::ExtractRegisterAs(v) => v.sigma_serialize(w),
@@ -99,6 +101,7 @@ impl SigmaSerializable for Expr {
                     Expr::ExtractScriptBytes(op) => op.sigma_serialize(w),
                     Expr::SizeOf(op) => op.sigma_serialize(w),
                     Expr::CreateProveDlog(op) => op.sigma_serialize(w),
+                    Expr::CreateProveDhTuple(op) => op.sigma_serialize(w),
                     Expr::ExtractCreationInfo(op) => op.sigma_serialize(w),
                     Expr::Exists(op) => op.sigma_serialize(w),
                     Expr::ExtractId(op) => op.sigma_serialize(w),
@@ -148,6 +151,8 @@ impl SigmaSerializable for Expr {
                 OpCode::SELF_BOX => Ok(Expr::GlobalVars(GlobalVars::SelfBox)),
                 OpCode::INPUTS => Ok(Expr::GlobalVars(GlobalVars::Inputs)),
                 OpCode::OUTPUTS => Ok(Expr::GlobalVars(GlobalVars::Outputs)),
+                OpCode::MINER_PUBKEY => Ok(Expr::GlobalVars(GlobalVars::MinerPubKey)),
+                OpCode::GLOBAL => Ok(Expr::Global),
                 OpCode::PROPERTY_CALL => Ok(Expr::ProperyCall(PropertyCall::sigma_parse(r)?)),
                 OpCode::METHOD_CALL => Ok(Expr::MethodCall(MethodCall::sigma_parse(r)?)),
                 OpCode::CONTEXT => Ok(Expr::Context),
@@ -196,6 +201,7 @@ impl SigmaSerializable for Expr {
                 ByIndex::OP_CODE => Ok(ByIndex::sigma_parse(r)?.into()),
                 SizeOf::OP_CODE => Ok(SizeOf::sigma_parse(r)?.into()),
                 CreateProveDlog::OP_CODE => Ok(CreateProveDlog::sigma_parse(r)?.into()),
+                CreateProveDhTuple::OP_CODE => Ok(CreateProveDhTuple::sigma_parse(r)?.into()),
                 SigmaPropBytes::OP_CODE => Ok(SigmaPropBytes::sigma_parse(r)?.into()),
                 Tuple::OP_CODE => Ok(Tuple::sigma_parse(r)?.into()),
                 DecodePoint::OP_CODE => Ok(DecodePoint::sigma_parse(r)?.into()),

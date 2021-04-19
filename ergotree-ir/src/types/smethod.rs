@@ -12,6 +12,7 @@ use super::stype_companion::STypeCompanion;
 use super::stype_param::STypeVar;
 use super::type_unify::unify_many;
 use super::type_unify::TypeUnificationError;
+use crate::serialization::SerializationError::UnknownMethodId;
 
 /// Method id unique among the methods of the same object
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -45,14 +46,11 @@ impl SMethod {
     }
 
     /// Get method from type and method ids
-    pub fn from_ids(type_id: TypeCode, method_id: MethodId) -> Self {
+    pub fn from_ids(type_id: TypeCode, method_id: MethodId) -> Result<Self, SerializationError> {
         let obj_type = STypeCompanion::type_by_id(type_id);
         match obj_type.method_by_id(&method_id) {
-            Some(m) => m,
-            None => panic!(
-                "no method id {0:?} found in type companion with type id {1:?}",
-                method_id, type_id
-            ),
+            Some(m) => Ok(m),
+            None => Err(UnknownMethodId(method_id, type_id)),
         }
     }
 
@@ -102,6 +100,22 @@ pub(crate) struct SMethodDesc {
 }
 
 impl SMethodDesc {
+    pub(crate) fn property(
+        obj_tpe: SType,
+        name: &'static str,
+        res_tpe: SType,
+        id: MethodId,
+    ) -> SMethodDesc {
+        SMethodDesc {
+            method_id: id,
+            name,
+            tpe: SFunc {
+                t_dom: vec![obj_tpe],
+                t_range: res_tpe.into(),
+                tpe_params: vec![],
+            },
+        }
+    }
     pub(crate) fn as_method(&self, obj_type: &'static STypeCompanion) -> SMethod {
         SMethod {
             obj_type,
