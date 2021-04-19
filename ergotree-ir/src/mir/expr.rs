@@ -339,6 +339,7 @@ impl<T: TryFrom<Expr>> TryExtractFrom<Expr> for T {
 pub(crate) mod arbitrary {
     use super::*;
     use crate::mir::func_value::FuncArg;
+    use crate::sigma_protocol::dlog_group::EcPoint;
     use crate::types::sfunc::SFunc;
     use proptest::collection::*;
     use proptest::prelude::*;
@@ -392,6 +393,13 @@ pub(crate) mod arbitrary {
             .boxed()
     }
 
+    fn sigma_prop_nester_expr(_depth: usize) -> BoxedStrategy<Expr> {
+        // FIXME: Here we only generate leaf with proof for single key. No connectives yet
+        any::<EcPoint>()
+            .prop_map(|pk| Expr::Const(pk.into()))
+            .boxed()
+    }
+
     fn coll_nested_expr(depth: usize, elem_tpe: &SType) -> BoxedStrategy<Expr> {
         match elem_tpe {
             SType::SBoolean => vec(bool_nested_expr(depth), 0..10)
@@ -415,7 +423,8 @@ pub(crate) mod arbitrary {
             ]
             .prop_map_into()
             .boxed(),
-            _ => todo!(),
+            SType::SSigmaProp => sigma_prop_nester_expr(depth),
+            _ => panic!("Nested expression not implemented for {:?}", &elem_tpe),
         }
     }
 
