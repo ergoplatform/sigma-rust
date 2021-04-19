@@ -6,7 +6,6 @@ use super::unchecked_tree::UncheckedLeaf;
 use super::unchecked_tree::UncheckedSigmaTree;
 use super::unchecked_tree::UncheckedTree;
 use crate::sigma_protocol::fiat_shamir::FiatShamirHash;
-use crate::sigma_protocol::unchecked_tree::UncheckedConjecture::CandUnchecked;
 use crate::sigma_protocol::Challenge;
 use crate::sigma_protocol::GroupSizedBytes;
 use crate::sigma_protocol::UncheckedSchnorr;
@@ -149,13 +148,39 @@ fn parse_sig_compute_challnges_reader<R: Read>(
                         Some(challenge.clone()),
                     )?);
                 }
-                Ok(CandUnchecked {
+                Ok(UncheckedConjecture::CandUnchecked {
                     challenge,
                     children,
                 }
                 .into())
             }
-            SigmaConjecture::Cor(_) => todo!("OR is not yet supported"),
+            SigmaConjecture::Cor(cor) => {
+                // Verifier Step 2: If the node is OR, then each of its children except rightmost
+                // one gets the challenge given in the proof for that node.
+                // The rightmost child gets a challenge computed as an XOR of the challenges of all the other children and e_0.
+
+                // Read all the children but the last and compute the XOR of all the challenges including e_0
+                let mut children: Vec<UncheckedSigmaTree> = Vec::new();
+                for it in cor.items.clone().iter().take(cor.items.len() - 1) {
+                    children.push(parse_sig_compute_challnges_reader(&it, r, None)?);
+                }
+                let xored_challenge = children
+                    .clone()
+                    .into_iter()
+                    .map(|c| c.challenge())
+                    .fold(challenge.clone(), |acc, c| acc.xor(c));
+                let last_child = parse_sig_compute_challnges_reader(
+                    cor.items.last().unwrap(),
+                    r,
+                    Some(xored_challenge),
+                )?;
+                children.push(last_child);
+                Ok(UncheckedConjecture::CorUnchecked {
+                    challenge,
+                    children,
+                }
+                .into())
+            }
         },
     }
 }
