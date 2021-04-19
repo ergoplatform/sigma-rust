@@ -63,9 +63,31 @@ impl CollKind {
             SType::SByte => items
                 .into_iter()
                 .map(|v| v.try_extract_into::<i8>())
-                .collect::<Result<Vec<i8>, TryExtractFromError>>()
+                .collect::<Result<Vec<_>, _>>()
                 .map(|bytes| CollKind::NativeColl(NativeColl::CollByte(bytes))),
             _ => Ok(CollKind::WrappedColl { elem_tpe, items }),
+        }
+    }
+
+    /// Build a collection from items where each is a collection as well, storing them as Rust types values when neccessary
+    pub fn from_vec_vec(
+        elem_tpe: SType,
+        items: Vec<Value>,
+    ) -> Result<CollKind, TryExtractFromError> {
+        match elem_tpe {
+            SType::SByte => items
+                .into_iter()
+                .map(|v| v.try_extract_into::<Vec<i8>>())
+                .collect::<Result<Vec<_>, _>>()
+                .map(|bytes| CollKind::NativeColl(NativeColl::CollByte(bytes.concat()))),
+            _ => items
+                .into_iter()
+                .map(|v| v.try_extract_into::<Vec<Value>>())
+                .collect::<Result<Vec<_>, _>>()
+                .map(|v| CollKind::WrappedColl {
+                    elem_tpe,
+                    items: v.concat(),
+                }),
         }
     }
 
@@ -189,6 +211,7 @@ impl StoreWrapped for EcPoint {}
 impl StoreWrapped for SigmaProp {}
 impl<T: StoreWrapped> StoreWrapped for Option<T> {}
 impl<T> StoreWrapped for Vec<T> {}
+impl StoreWrapped for Value {}
 
 #[impl_for_tuples(2, 4)]
 impl StoreWrapped for Tuple {}

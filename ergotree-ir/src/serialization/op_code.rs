@@ -126,7 +126,7 @@ impl OpCode {
     pub const SOME_VALUE: OpCode = Self::new_op_code(110);
     pub const NONE_VALUE: OpCode = Self::new_op_code(111);
 
-    pub const GET_VAR: OpCode = Self::new_op_code(114);
+    pub const GET_VAR: OpCode = Self::new_op_code(115);
     pub const OPTION_GET: OpCode = Self::new_op_code(116);
     pub const OPTION_GET_OR_ELSE: OpCode = Self::new_op_code(117);
     pub const OPTION_IS_DEFINED: OpCode = Self::new_op_code(118);

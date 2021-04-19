@@ -15,7 +15,7 @@ pub const TYPE_ID: TypeCode = TypeCode::COLLECTION;
 /// Coll.indexOf
 pub const INDEX_OF_METHOD_ID: MethodId = MethodId(26);
 /// Coll.flatmap
-pub const FLATMAP_METHOD_ID: MethodId = MethodId(1);
+pub const FLATMAP_METHOD_ID: MethodId = MethodId(15);
 
 static S_COLL_TYPE_COMPANION_HEAD: STypeCompanionHead = STypeCompanionHead {
     type_id: TYPE_ID,
@@ -54,7 +54,10 @@ lazy_static! {
         tpe: SFunc::new(
             vec![
                 SType::SColl(SType::STypeVar(STypeVar::iv()).into()),
-                SFunc::new(vec![STypeVar::iv().into()], STypeVar::ov().into()).into()
+                SFunc::new(
+                    vec![STypeVar::iv().into()],
+                    SType::SColl(Box::new(STypeVar::ov().into())),
+                ).into()
                 ],
             SType::SColl(SType::STypeVar(STypeVar::ov()).into()),
         ),
