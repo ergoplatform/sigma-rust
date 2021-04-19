@@ -295,6 +295,42 @@ mod tests {
                                           message.as_slice());
             prop_assert_eq!(ver_res.unwrap().result, true);
         }
+
+        #[test]
+        fn test_prover_verifier_conj_or_or(secret1 in any::<DlogProverInput>(),
+                                             secret2 in any::<DlogProverInput>(),
+                                             secret3 in any::<DlogProverInput>(),
+                                             message in vec(any::<u8>(), 100..200)) {
+            let pk1 = secret1.public_image();
+            let pk2 = secret2.public_image();
+            let pk3 = secret3.public_image();
+            let expr: Expr = SigmaOr::new(vec![
+                Expr::Const(pk1.into()),
+                SigmaOr::new(vec![Expr::Const(pk2.into()), Expr::Const(pk3.into())])
+                    .unwrap()
+                    .into(),
+            ]).unwrap().into();
+            let tree = ErgoTree::from(expr);
+            let prover = TestProver {
+                secrets: vec![PrivateInput::DlogProverInput(secret1),
+                    PrivateInput::DlogProverInput(secret2),
+                    PrivateInput::DlogProverInput(secret3)
+                ],
+            };
+            let res = prover.prove(&tree,
+                &Env::empty(),
+                Rc::new(force_any_val::<Context>()),
+                message.as_slice(),
+                &HintsBag::empty());
+            let proof = res.unwrap().proof;
+            let verifier = TestVerifier;
+            let ver_res = verifier.verify(&tree,
+                                          &Env::empty(),
+                                          Rc::new(force_any_val::<Context>()),
+                                          proof,
+                                          message.as_slice());
+            prop_assert_eq!(ver_res.unwrap().result, true);
+        }
     }
     // TODO: add custom SigmaBoolean generator for  PK + AND + OR of various depth and test prover/verifier
 
