@@ -63,7 +63,7 @@ impl CollKind {
             SType::SByte => items
                 .into_iter()
                 .map(|v| v.try_extract_into::<i8>())
-                .collect::<Result<Vec<i8>, TryExtractFromError>>()
+                .collect::<Result<Vec<_>, _>>()
                 .map(|bytes| CollKind::NativeColl(NativeColl::CollByte(bytes))),
             _ => Ok(CollKind::WrappedColl { elem_tpe, items }),
         }
@@ -78,12 +78,12 @@ impl CollKind {
             SType::SByte => items
                 .into_iter()
                 .map(|v| v.try_extract_into::<Vec<i8>>())
-                .collect::<Result<Vec<Vec<i8>>, TryExtractFromError>>()
+                .collect::<Result<Vec<_>, _>>()
                 .map(|bytes| CollKind::NativeColl(NativeColl::CollByte(bytes.concat()))),
             _ => items
                 .into_iter()
                 .map(|v| v.try_extract_into::<Vec<Value>>())
-                .collect::<Result<Vec<Vec<Value>>, TryExtractFromError>>()
+                .collect::<Result<Vec<_>, _>>()
                 .map(|v| CollKind::WrappedColl {
                     elem_tpe,
                     items: v.concat(),
