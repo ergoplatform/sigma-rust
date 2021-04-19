@@ -2,6 +2,7 @@
 
 pub mod and;
 pub mod apply;
+pub mod atleast;
 pub mod bin_op;
 pub mod block;
 pub mod bool_to_sigma;
