@@ -422,8 +422,6 @@ fn simulate_and_commit(
                 UnprovenConjecture::CandUnproven(cand),
             )) => {
                 // If the node is AND, then all of its children get e_0 as the challenge
-                // TODO: return an error
-                assert!(cand.challenge_opt.is_some());
                 if let Some(challenge) = cand.challenge_opt.clone() {
                     let new_children = cand
                         .children
@@ -439,17 +437,53 @@ fn simulate_and_commit(
                         .into(),
                     ))
                 } else {
-                    todo!()
+                    Err(ProverError::Unexpected(
+                        "simulate_and_commit: missing CandUnproven(simulated).challenge"
+                            .to_string(),
+                    ))
                 }
             }
 
             ProofTree::UnprovenTree(UnprovenTree::UnprovenConjecture(
-                UnprovenConjecture::CorUnproven(_),
+                UnprovenConjecture::CorUnproven(cor),
             )) => {
                 // If the node is OR, then each of its children except one gets a fresh uniformly random
                 // challenge in {0,1}^t. The remaining child gets a challenge computed as an XOR of the challenges of all
                 // the other children and e_0.
-                todo!()
+                if let Some(challenge) = cor.challenge_opt.clone() {
+                    let unproven_children = cast_to_unp(cor.children.clone())?;
+                    let mut tail: Vec<UnprovenTree> = unproven_children
+                        .clone()
+                        .into_iter()
+                        .skip(1)
+                        .map(|it| it.with_challenge(Challenge::secure_random()))
+                        .collect();
+                    let xored_challenge = tail
+                        .clone()
+                        .into_iter()
+                        .map(|c| c.challenge().unwrap())
+                        .into_iter()
+                        .fold(challenge, |acc, c| acc.xor(c));
+                    let head = unproven_children
+                        .first()
+                        .cloned()
+                        .unwrap()
+                        .with_challenge(xored_challenge);
+                    let mut new_children = vec![head];
+                    new_children.append(&mut tail);
+                    Ok(Some(
+                        CorUnproven {
+                            children: new_children.into_iter().map(|c| c.into()).collect(),
+                            ..cor.clone()
+                        }
+                        .into(),
+                    ))
+                } else {
+                    Err(ProverError::Unexpected(
+                        "simulate_and_commit: missing CandUnproven(simulated).challenge"
+                            .to_string(),
+                    ))
+                }
             }
 
             ProofTree::UnprovenTree(UnprovenTree::UnprovenLeaf(UnprovenLeaf::UnprovenSchnorr(
