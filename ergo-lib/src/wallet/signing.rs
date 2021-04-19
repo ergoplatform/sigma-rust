@@ -125,6 +125,7 @@ pub fn make_context(
         data_inputs: data_inputs_ir,
         inputs: inputs_ir,
         pre_header: state_ctx.pre_header.clone(),
+        var_map: HashMap::new(),
     })
 }
 

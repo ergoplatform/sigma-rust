@@ -1,9 +1,11 @@
 mod ir_ergo_box_dummy;
 
+use std::collections::HashMap;
 use std::rc::Rc;
 
 use ergotree_ir::ir_ergo_box::IrBoxId;
 use ergotree_ir::ir_ergo_box::IrErgoBoxArena;
+use ergotree_ir::mir::constant::Constant;
 use ergotree_ir::mir::header::PreHeader;
 
 /// Interpreter's context (blockchain state)
@@ -23,6 +25,8 @@ pub struct Context {
     pub inputs: Vec<IrBoxId>,
     /// Pre header of current block
     pub pre_header: PreHeader,
+    ///
+    pub var_map: HashMap<u8, Constant>,
 }
 
 #[cfg(feature = "arbitrary")]
@@ -73,6 +77,7 @@ mod arbitrary {
                             data_inputs: data_inputs_ids,
                             inputs: inputs_ids,
                             pre_header,
+                            var_map: HashMap::new(),
                         }
                     },
                 )
