@@ -279,8 +279,27 @@ fn set_positions(uc: UnprovenConjecture) -> UnprovenConjecture {
 /// (the node is guaranteed by step 1 to have at least one "real" child).
 /// Which particular child is left "real" is not important for security;
 /// the choice can be guided by efficiency or convenience considerations.
-fn make_cor_children_simulated(children: Vec<ProofTree>) -> Result<Vec<ProofTree>, ProverError> {
-    let casted_children = children
+fn make_cor_children_simulated(cor: CorUnproven) -> Result<CorUnproven, ProverError> {
+    let casted_children = cast_to_unp(cor.children)?;
+    // TODO: unwrap -> error
+    let first_real_child = casted_children.iter().find(|it| it.is_real()).unwrap();
+    let children = casted_children
+        .clone()
+        .into_iter()
+        .map(|c| {
+            if &c == first_real_child || c.simulated() {
+                c
+            } else {
+                c.with_simulated(true)
+            }
+        })
+        .map(|c| c.into())
+        .collect();
+    Ok(CorUnproven { children, ..cor })
+}
+
+fn cast_to_unp(children: Vec<ProofTree>) -> Result<Vec<UnprovenTree>, ProverError> {
+    children
         .into_iter()
         .map(|c| {
             if let ProofTree::UnprovenTree(ut) = c {
@@ -292,21 +311,7 @@ fn make_cor_children_simulated(children: Vec<ProofTree>) -> Result<Vec<ProofTree
                 )))
             }
         })
-        .collect::<Result<Vec<UnprovenTree>, _>>()?;
-    // TODO: error
-    let first_real_child = casted_children.iter().find(|it| it.is_real()).unwrap();
-    Ok(casted_children
-        .clone()
-        .into_iter()
-        .map(|c| {
-            if &c == first_real_child || c.simulated() {
-                c
-            } else {
-                c.with_simulated(true)
-            }
-        })
-        .map(|c| c.into())
-        .collect())
+        .collect()
 }
 
 /// Prover Step 3: This step will change some "real" nodes to "simulated" to make sure each node has
@@ -332,13 +337,16 @@ fn polish_simulated<P: Prover + ?Sized>(
                 UnprovenConjecture::CorUnproven(cor) => {
                     // If the node is marked "simulated", mark all of its children "simulated"
                     let o: CorUnproven = if cor.simulated {
-                        todo!()
-                    } else {
-                        // If the node is OR marked "real",  mark all but one of its children "simulated"
                         CorUnproven {
-                            children: make_cor_children_simulated(cor.children.clone())?,
+                            children: cast_to_unp(cor.children.clone())?
+                                .into_iter()
+                                .map(|c| c.with_simulated(true).into())
+                                .collect::<Vec<ProofTree>>(),
                             ..cor.clone()
                         }
+                    } else {
+                        // If the node is OR marked "real",  mark all but one of its children "simulated"
+                        make_cor_children_simulated(cor.clone())?
                     };
                     Ok(Some(set_positions(o.into()).into()))
                 }
@@ -899,6 +907,38 @@ mod tests {
 
         let prover = TestProver {
             secrets: vec![secret1.into(), secret2.into()],
+        };
+        let res = prover.prove(
+            &tree,
+            &Env::empty(),
+            Rc::new(force_any_val::<Context>()),
+            message.as_slice(),
+            &HintsBag::empty(),
+        );
+        assert_ne!(res.unwrap().proof, ProofBytes::Empty);
+    }
+
+    #[test]
+    fn test_prove_pk_or_or() {
+        let secret1 = DlogProverInput::random();
+        let secret2 = DlogProverInput::random();
+        let secret3 = DlogProverInput::random();
+        let pk1 = secret1.public_image();
+        let pk2 = secret2.public_image();
+        let pk3 = secret3.public_image();
+        let expr: Expr = SigmaOr::new(vec![
+            Expr::Const(pk1.into()),
+            SigmaOr::new(vec![Expr::Const(pk2.into()), Expr::Const(pk3.into())])
+                .unwrap()
+                .into(),
+        ])
+        .unwrap()
+        .into();
+        let tree: ErgoTree = expr.into();
+        let message = vec![0u8; 100];
+
+        let prover = TestProver {
+            secrets: vec![secret1.into(), secret2.into(), secret3.into()],
         };
         let res = prover.prove(
             &tree,
