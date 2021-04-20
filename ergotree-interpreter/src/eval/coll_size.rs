@@ -1,4 +1,4 @@
-use ergotree_ir::mir::coll_size::SizeOf;
+use ergotree_ir::mir::unary_node::SizeOf;
 use ergotree_ir::mir::value::Value;
 
 use crate::eval::env::Env;

@@ -24,7 +24,7 @@ mod tests {
     use ergotree_ir::mir::constant::Constant;
     use ergotree_ir::mir::expr::Expr;
     use ergotree_ir::mir::global_vars::GlobalVars;
-    use ergotree_ir::mir::option_get::OptionGet;
+    use ergotree_ir::mir::unary_node::OptionGet;
     use ergotree_ir::types::sbox;
     use sigma_test_util::force_any_val;
 

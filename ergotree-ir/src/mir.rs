@@ -6,8 +6,6 @@ pub mod atleast;
 pub mod bin_op;
 pub mod block;
 pub mod bool_to_sigma;
-/// Calc Blake2b hash
-pub mod calc_blake2b256;
 /// Get the collection element by index
 pub mod coll_by_index;
 /// Tests whether a predicate holds for at least one element of this collection
@@ -20,8 +18,6 @@ pub mod coll_fold;
 pub mod coll_forall;
 /// Collection.map
 pub mod coll_map;
-/// Collection.size
-pub mod coll_size;
 /// Collection of elements
 pub mod collection;
 pub mod constant;
@@ -57,8 +53,6 @@ pub mod logical_not;
 pub mod method_call;
 /// Negation operation on numeric type.
 pub mod negation;
-/// Option.get() op
-pub mod option_get;
 /// Returns the Option's value or error if no value
 pub mod option_get_or_else;
 /// Returns false if the option is None, true otherwise.
@@ -75,6 +69,7 @@ pub mod sigma_or;
 pub mod sigma_prop_bytes;
 /// Tuple of elements
 pub mod tuple;
+pub mod unary_node;
 pub mod upcast;
 /// Variable definition
 pub mod val_def;

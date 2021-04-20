@@ -1,4 +1,4 @@
-use ergotree_ir::mir::calc_blake2b256::CalcBlake2b256;
+use ergotree_ir::mir::unary_node::CalcBlake2b256;
 use ergotree_ir::mir::value::CollKind;
 use ergotree_ir::mir::value::NativeColl;
 use ergotree_ir::mir::value::Value;
@@ -42,9 +42,9 @@ mod tests {
         #[test]
         fn eval(byte_array in any::<Vec<u8>>()) {
             let expected_hash = blake2b256_hash(byte_array.as_slice()).to_vec();
-            let expr: Expr = CalcBlake2b256 {
-                input: Box::new(Expr::Const(byte_array.into())),
-            }
+            let expr: Expr = CalcBlake2b256::new(
+                Expr::Const(byte_array.into())
+            ).unwrap()
             .into();
             let ctx = Rc::new(force_any_val::<Context>());
             assert_eq!(eval_out::<Vec<i8>>(&expr, ctx).as_vec_u8(), expected_hash);

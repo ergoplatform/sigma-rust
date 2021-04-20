@@ -13,14 +13,13 @@ use super::apply::Apply;
 use super::bin_op::BinOp;
 use super::block::BlockValue;
 use super::bool_to_sigma::BoolToSigmaProp;
-use super::calc_blake2b256::CalcBlake2b256;
+// use super::calc_blake2b256::CalcBlake2b256;
 use super::coll_by_index::ByIndex;
 use super::coll_exists::Exists;
 use super::coll_filter::Filter;
 use super::coll_fold::Fold;
 use super::coll_forall::ForAll;
 use super::coll_map::Map;
-use super::coll_size::SizeOf;
 use super::collection::Collection;
 use super::constant::Constant;
 use super::constant::ConstantPlaceholder;
@@ -39,7 +38,6 @@ use super::if_op::If;
 use super::logical_not::LogicalNot;
 use super::method_call::MethodCall;
 use super::negation::Negation;
-use super::option_get::OptionGet;
 use super::option_get_or_else::OptionGetOrElse;
 use super::option_is_defined::OptionIsDefined;
 use super::or::Or;
@@ -49,6 +47,9 @@ use super::sigma_and::SigmaAnd;
 use super::sigma_or::SigmaOr;
 use super::sigma_prop_bytes::SigmaPropBytes;
 use super::tuple::Tuple;
+use super::unary_node;
+use super::unary_node::OptionGet;
+use super::unary_node::SizeOf;
 use super::upcast::Upcast;
 use super::val_def::ValDef;
 use super::val_use::ValUse;
@@ -76,7 +77,7 @@ pub enum Expr {
     Tuple(Tuple),
     /// Predefined functions (global)
     /// Blake2b256 hash calculation
-    CalcBlake2b256(CalcBlake2b256),
+    CalcBlake2b256(unary_node::CalcBlake2b256),
     /// Context variables (external)
     Context,
     /// Special global value which is used to define methods

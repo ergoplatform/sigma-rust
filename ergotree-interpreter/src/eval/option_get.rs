@@ -1,4 +1,4 @@
-use ergotree_ir::mir::option_get::OptionGet;
+use ergotree_ir::mir::unary_node::OptionGet;
 use ergotree_ir::mir::value::Value;
 
 use crate::eval::env::Env;
@@ -42,10 +42,7 @@ mod tests {
         )
         .unwrap()
         .into();
-        let option_get_expr: Expr = OptionGet {
-            input: Box::new(get_reg_expr),
-        }
-        .into();
+        let option_get_expr: Expr = OptionGet::new(get_reg_expr).unwrap().into();
         let ctx = Rc::new(force_any_val::<Context>());
         let v = eval_out::<i64>(&option_get_expr, ctx.clone());
         assert_eq!(v, ctx.self_box.get_box(&ctx.box_arena).unwrap().value());
