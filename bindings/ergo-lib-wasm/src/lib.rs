@@ -16,6 +16,7 @@
 
 pub mod address;
 pub mod ast;
+pub mod block_header;
 pub mod box_coll;
 pub mod box_selector;
 pub mod context_extension;
@@ -24,6 +25,7 @@ pub mod data_input;
 pub mod ergo_box;
 pub mod ergo_state_ctx;
 pub mod ergo_tree;
+pub mod header;
 pub mod input;
 pub mod prover_result;
 pub mod secret_key;

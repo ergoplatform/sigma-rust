@@ -56,6 +56,12 @@ impl From<Digest32> for Vec<i8> {
     }
 }
 
+impl From<Digest32> for Vec<u8> {
+    fn from(v: Digest32) -> Self {
+        v.0.to_vec()
+    }
+}
+
 impl From<Digest32> for [u8; Digest32::SIZE] {
     fn from(v: Digest32) -> Self {
         *v.0
