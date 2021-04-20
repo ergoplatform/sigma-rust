@@ -56,8 +56,8 @@ impl Evaluable for Expr {
             Expr::DecodePoint(op) => op.eval(env, ctx),
             Expr::SigmaAnd(_) => todo!(),
             Expr::SigmaOr(_) => todo!(),
-            Expr::DeserializeRegister(_) => todo!(),
-            Expr::DeserializeContext(_) => todo!(),
+            Expr::DeserializeRegister(op) => op.eval(env, ctx),
+            Expr::DeserializeContext(op) => op.eval(env, ctx),
             Expr::GetVar(op) => op.eval(env, ctx),
         }
     }

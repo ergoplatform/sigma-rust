@@ -65,6 +65,8 @@ pub(crate) mod sigma_prop_bytes;
 pub(crate) mod tuple;
 pub(crate) mod upcast;
 pub(crate) mod val_use;
+mod deserialize_register;
+mod deserialize_context;
 
 /// Interpreter errors
 #[derive(Error, PartialEq, Eq, Debug, Clone)]
