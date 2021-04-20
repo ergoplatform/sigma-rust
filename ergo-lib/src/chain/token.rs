@@ -9,6 +9,8 @@ use std::io;
 
 use super::digest32::Digest32;
 use super::ergo_box::BoxId;
+use derive_more::From;
+use derive_more::Into;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 #[cfg(feature = "json")]
@@ -16,28 +18,28 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 /// newtype for token id
-#[derive(PartialEq, Eq, Hash, Debug, Clone)]
+#[derive(PartialEq, Eq, Hash, Debug, Clone, From, Into)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
-pub struct TokenId(pub Digest32);
+pub struct TokenId(Digest32);
 
 impl TokenId {
     /// token id size in bytes
     pub const SIZE: usize = Digest32::SIZE;
 }
 
-impl From<Digest32> for TokenId {
-    fn from(d: Digest32) -> Self {
-        TokenId(d)
-    }
-}
-
 impl From<BoxId> for TokenId {
     fn from(i: BoxId) -> Self {
-        TokenId(i.0)
+        TokenId(i.into())
     }
 }
 
 impl From<TokenId> for Vec<i8> {
+    fn from(v: TokenId) -> Self {
+        v.0.into()
+    }
+}
+
+impl From<TokenId> for String {
     fn from(v: TokenId) -> Self {
         v.0.into()
     }

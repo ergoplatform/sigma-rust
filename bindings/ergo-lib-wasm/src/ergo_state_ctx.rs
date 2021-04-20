@@ -17,3 +17,6 @@ impl ErgoStateContext {
         ErgoStateContext(chain::ergo_state_context::ErgoStateContext::dummy())
     }
 }
+
+// TODO: add PreHeader, and build it from BlockHeader
+// TODO: add BlockHeader and parse them from JSON (REST API lastHeaders)
