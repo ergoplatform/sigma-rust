@@ -52,15 +52,9 @@ mod arbitrary {
         type Parameters = usize;
 
         fn arbitrary_with(_: Self::Parameters) -> Self::Strategy {
-            (
-                any::<u8>()
-                // any::<SType>(),
-            )
-            .prop_map(|var_id| Self {
-                var_id,
-                var_tpe: SType::SInt,
-            })
-            .boxed()
+            (any::<u8>(), any::<SType>())
+                .prop_map(|(var_id, var_tpe)| Self { var_id, var_tpe })
+                .boxed()
         }
     }
 }

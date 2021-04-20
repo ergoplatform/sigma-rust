@@ -254,7 +254,6 @@ impl LiftIntoSType for Tuple {
     }
 }
 
-#[cfg(test)]
 #[cfg(feature = "arbitrary")]
 pub(crate) mod tests {
     use super::*;
