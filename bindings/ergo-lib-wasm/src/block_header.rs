@@ -27,7 +27,7 @@ pub struct BlockHeaders(Vec<BlockHeader>);
 
 #[wasm_bindgen]
 impl BlockHeaders {
-    /// parse BlockHeader array from json
+    /// parse BlockHeader array from JSON (Node API)
     #[allow(clippy::boxed_local, clippy::or_fun_call)]
     pub fn from_json(boxes: Box<[JsValue]>) -> Result<BlockHeaders, JsValue> {
         boxes
