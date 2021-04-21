@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Implement GetVar [#236](https://github.com/ergoplatform/sigma-rust/pull/236)
 - Implement Atleast IR node (serialization) [#237](https://github.com/ergoplatform/sigma-rust/pull/237)
 - Implementation of Deserialize{Context,Register} (serialization) [#239](https://github.com/ergoplatform/sigma-rust/pull/239)
+- WASM: fix DataInput construction, ErgoStateContext construction from parsed JSON block headers [#238](https://github.com/ergoplatform/sigma-rust/pull/238) 
 
 ### Changed 
 - Explicitly handle errors in SMethod::from_ids & and PropertyCall deserialization [#231](https://github.com/ergoplatform/sigma-rust/pull/231);
