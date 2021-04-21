@@ -6,6 +6,19 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
+
+### Added 
+- Add MinerPubKey and Global as global variables [#232](https://github.com/ergoplatform/sigma-rust/pull/232);
+- Implement parser and evaluator for DH tuple [#233](https://github.com/ergoplatform/sigma-rust/pull/233);
+- Add method descriptions for SContext (serialization) [#235](https://github.com/ergoplatform/sigma-rust/pull/235)
+- Implement GetVar [#236](https://github.com/ergoplatform/sigma-rust/pull/236)
+- Implement Atleast IR node (serialization) [#237](https://github.com/ergoplatform/sigma-rust/pull/237)
+- Implementation of Deserialize{Context,Register} (serialization) [#239](https://github.com/ergoplatform/sigma-rust/pull/239)
+
+### Changed 
+- Explicitly handle errors in SMethod::from_ids & and PropertyCall deserialization [#231](https://github.com/ergoplatform/sigma-rust/pull/231);
+- Fix flatmap method & GET_VAR opcode [#234](https://github.com/ergoplatform/sigma-rust/pull/234);
+
 ## [0.9.0] - 2021-04-09
 
 ### Added 
