@@ -135,10 +135,11 @@ impl TagOpCode for TagSizeOf {
 /// Arbitrary impl
 mod arbitrary {
     use super::*;
+    use crate::mir::expr::arbitrary::ArbExprParams;
     use proptest::prelude::*;
 
     pub trait UnaryExpr {
-        fn gen_expr() -> BoxedStrategy<Expr>;
+        fn gen_expr_tpe() -> SType;
     }
 
     impl<T: TagOpCode + std::fmt::Debug + UnaryExpr> Arbitrary for Unary<T> {
@@ -146,9 +147,12 @@ mod arbitrary {
         type Parameters = ();
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            T::gen_expr()
-                .prop_map(|input| Self::new(input).unwrap())
-                .boxed()
+            any_with::<Expr>(ArbExprParams {
+                tpe: T::gen_expr_tpe(),
+                depth: 1,
+            })
+            .prop_map(|input| Self::new(input).unwrap())
+            .boxed()
         }
     }
 }
@@ -157,36 +161,26 @@ mod arbitrary {
 #[cfg(feature = "arbitrary")]
 mod tests {
     use super::*;
-    use crate::mir::expr::arbitrary::ArbExprParams;
     use crate::mir::unary_node::arbitrary::UnaryExpr;
     use crate::serialization::sigma_serialize_roundtrip;
     use crate::types::stype_param::STypeVar;
     use proptest::prelude::*;
 
     impl UnaryExpr for TagCalcBlake2b256 {
-        fn gen_expr() -> BoxedStrategy<Expr> {
-            any_with::<Expr>(ArbExprParams {
-                tpe: SType::SColl(SType::SByte.into()),
-                depth: 0,
-            })
+        fn gen_expr_tpe() -> SType {
+            SType::SColl(SType::SByte.into())
         }
     }
 
     impl UnaryExpr for TagSizeOf {
-        fn gen_expr() -> BoxedStrategy<Expr> {
-            any_with::<Expr>(ArbExprParams {
-                tpe: SType::SColl(SType::STypeVar(STypeVar::t()).into()),
-                depth: 1,
-            })
+        fn gen_expr_tpe() -> SType {
+            SType::SColl(SType::STypeVar(STypeVar::t()).into())
         }
     }
 
     impl UnaryExpr for TagOptionGet {
-        fn gen_expr() -> BoxedStrategy<Expr> {
-            any_with::<Expr>(ArbExprParams {
-                tpe: SType::SOption(SType::SInt.into()),
-                depth: 1,
-            })
+        fn gen_expr_tpe() -> SType {
+            SType::SOption(SType::SInt.into())
         }
     }
 
