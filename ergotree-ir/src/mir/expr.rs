@@ -57,6 +57,7 @@ use super::value::Value;
 extern crate derive_more;
 use crate::mir::atleast::Atleast;
 use crate::mir::create_prove_dh_tuple::CreateProveDhTuple;
+use crate::mir::get_var::GetVar;
 use derive_more::From;
 use derive_more::TryInto;
 
@@ -157,6 +158,8 @@ pub enum Expr {
     SigmaAnd(SigmaAnd),
     /// OR conjunction for sigma propositions
     SigmaOr(SigmaOr),
+    /// Extracts Context variable by id and type
+    GetVar(GetVar),
 }
 
 impl Expr {
@@ -209,6 +212,7 @@ impl Expr {
             Expr::DecodePoint(op) => op.op_code(),
             Expr::SigmaAnd(op) => op.op_code(),
             Expr::SigmaOr(op) => op.op_code(),
+            Expr::GetVar(op) => op.op_code(),
         }
     }
 
@@ -261,6 +265,7 @@ impl Expr {
             Expr::DecodePoint(v) => v.tpe(),
             Expr::SigmaAnd(v) => v.tpe(),
             Expr::SigmaOr(v) => v.tpe(),
+            Expr::GetVar(v) => v.tpe(),
         }
     }
 

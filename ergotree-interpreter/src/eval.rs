@@ -46,6 +46,7 @@ pub(crate) mod extract_id;
 pub(crate) mod extract_reg_as;
 pub(crate) mod extract_script_bytes;
 pub(crate) mod func_value;
+pub(crate) mod get_var;
 pub(crate) mod global_vars;
 pub(crate) mod if_op;
 pub(crate) mod logical_not;

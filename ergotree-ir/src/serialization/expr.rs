@@ -31,6 +31,7 @@ use crate::mir::extract_id::ExtractId;
 use crate::mir::extract_reg_as::ExtractRegisterAs;
 use crate::mir::extract_script_bytes::ExtractScriptBytes;
 use crate::mir::func_value::FuncValue;
+use crate::mir::get_var::GetVar;
 use crate::mir::global_vars::GlobalVars;
 use crate::mir::if_op::If;
 use crate::mir::logical_not::LogicalNot;
@@ -116,6 +117,7 @@ impl SigmaSerializable for Expr {
                     Expr::DecodePoint(op) => op.sigma_serialize(w),
                     Expr::SigmaAnd(op) => op.sigma_serialize(w),
                     Expr::SigmaOr(op) => op.sigma_serialize(w),
+                    Expr::GetVar(op) => op.sigma_serialize(w),
                 }
             }
         }
@@ -210,6 +212,7 @@ impl SigmaSerializable for Expr {
                 DecodePoint::OP_CODE => Ok(DecodePoint::sigma_parse(r)?.into()),
                 SigmaAnd::OP_CODE => Ok(SigmaAnd::sigma_parse(r)?.into()),
                 SigmaOr::OP_CODE => Ok(SigmaOr::sigma_parse(r)?.into()),
+                GetVar::OP_CODE => Ok(GetVar::sigma_parse(r)?.into()),
                 o => Err(SerializationError::NotImplementedOpCode(format!(
                     "{0}(shift {1})",
                     o.value(),
