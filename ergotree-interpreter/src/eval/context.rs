@@ -24,7 +24,7 @@ pub struct Context {
     pub inputs: Vec<IrBoxId>,
     /// Pre header of current block
     pub pre_header: PreHeader,
-    ///
+    /// prover-defined key-value pairs, that may be used inside a script
     pub extension: ContextExtension,
 }
 
