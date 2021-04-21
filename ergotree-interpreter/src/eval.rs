@@ -39,6 +39,8 @@ pub(crate) mod costs;
 pub(crate) mod create_prove_dh_tuple;
 pub(crate) mod create_provedlog;
 pub(crate) mod decode_point;
+mod deserialize_context;
+mod deserialize_register;
 pub(crate) mod expr;
 pub(crate) mod extract_amount;
 pub(crate) mod extract_creation_info;

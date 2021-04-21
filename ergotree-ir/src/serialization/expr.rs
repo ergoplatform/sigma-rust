@@ -24,6 +24,8 @@ use crate::mir::constant::ConstantPlaceholder;
 use crate::mir::create_prove_dh_tuple::CreateProveDhTuple;
 use crate::mir::create_provedlog::CreateProveDlog;
 use crate::mir::decode_point::DecodePoint;
+use crate::mir::deserialize_context::DeserializeContext;
+use crate::mir::deserialize_register::DeserializeRegister;
 use crate::mir::expr::Expr;
 use crate::mir::extract_amount::ExtractAmount;
 use crate::mir::extract_creation_info::ExtractCreationInfo;
@@ -118,6 +120,8 @@ impl SigmaSerializable for Expr {
                     Expr::SigmaAnd(op) => op.sigma_serialize(w),
                     Expr::SigmaOr(op) => op.sigma_serialize(w),
                     Expr::GetVar(op) => op.sigma_serialize(w),
+                    Expr::DeserializeRegister(op) => op.sigma_serialize(w),
+                    Expr::DeserializeContext(op) => op.sigma_serialize(w),
                 }
             }
         }
@@ -213,6 +217,8 @@ impl SigmaSerializable for Expr {
                 SigmaAnd::OP_CODE => Ok(SigmaAnd::sigma_parse(r)?.into()),
                 SigmaOr::OP_CODE => Ok(SigmaOr::sigma_parse(r)?.into()),
                 GetVar::OP_CODE => Ok(GetVar::sigma_parse(r)?.into()),
+                DeserializeRegister::OP_CODE => Ok(DeserializeRegister::sigma_parse(r)?.into()),
+                DeserializeContext::OP_CODE => Ok(DeserializeContext::sigma_parse(r)?.into()),
                 o => Err(SerializationError::NotImplementedOpCode(format!(
                     "{0}(shift {1})",
                     o.value(),
