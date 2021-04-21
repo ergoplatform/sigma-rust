@@ -39,6 +39,8 @@ pub(crate) mod costs;
 pub(crate) mod create_prove_dh_tuple;
 pub(crate) mod create_provedlog;
 pub(crate) mod decode_point;
+mod deserialize_context;
+mod deserialize_register;
 pub(crate) mod expr;
 pub(crate) mod extract_amount;
 pub(crate) mod extract_creation_info;
@@ -65,8 +67,6 @@ pub(crate) mod sigma_prop_bytes;
 pub(crate) mod tuple;
 pub(crate) mod upcast;
 pub(crate) mod val_use;
-mod deserialize_register;
-mod deserialize_context;
 
 /// Interpreter errors
 #[derive(Error, PartialEq, Eq, Debug, Clone)]

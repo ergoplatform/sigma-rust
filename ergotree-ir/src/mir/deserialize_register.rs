@@ -1,4 +1,4 @@
-//! Extract register of SELF box as byte array, deserialize it into Value and inline into executing script.
+//! Extract register of SELF box as `Coll[Byte]`, deserialize it into Value and inline into executing script.
 
 use super::expr::Expr;
 use crate::serialization::op_code::OpCode;
@@ -8,22 +8,23 @@ use crate::serialization::SerializationError;
 use crate::serialization::SigmaSerializable;
 use crate::types::stype::SType;
 
-/// Extract register of SELF box as byte array, deserialize it into Value and inline into executing script.
+/// Extract register of SELF box as `Coll[Byte]`, deserialize it into
+/// Value and inline into executing script.
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct DeserializeRegister {
     /// Register number
-    pub reg_n: u8,
+    pub reg: u8,
     /// Type of value in register
-    pub reg_tpe: SType,
-    /// FIXME:
-    pub reg_val: Option<Box<Expr>>,
+    pub tpe: SType,
+    /// Default value
+    pub default: Option<Box<Expr>>,
 }
 impl DeserializeRegister {
     pub(crate) const OP_CODE: OpCode = OpCode::DESERIALIZE_REGISTER;
 
-    /// FIXME: Is this true??
+    /// Type
     pub fn tpe(&self) -> SType {
-        self.reg_tpe.clone()
+        self.tpe.clone()
     }
 
     pub(crate) fn op_code(&self) -> OpCode {
@@ -33,20 +34,16 @@ impl DeserializeRegister {
 
 impl SigmaSerializable for DeserializeRegister {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
-        w.put_u8(self.reg_n)?;
-        self.reg_tpe.sigma_serialize(w)?;
-        self.reg_val.sigma_serialize(w)
+        w.put_u8(self.reg)?;
+        self.tpe.sigma_serialize(w)?;
+        self.default.sigma_serialize(w)
     }
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
-        let reg_n = r.get_u8()?;
-        let reg_tpe = SType::sigma_parse(r)?;
-        let reg_val = Option::<Box<Expr>>::sigma_parse(r)?;
-        Ok(Self {
-            reg_n,
-            reg_tpe,
-            reg_val,
-        })
+        let reg = r.get_u8()?;
+        let tpe = SType::sigma_parse(r)?;
+        let default = Option::<Box<Expr>>::sigma_parse(r)?;
+        Ok(Self { reg, tpe, default })
     }
 }
 
@@ -76,11 +73,7 @@ mod arbitrary {
                     .prop_map(Box::new),
                 ),
             )
-                .prop_map(|(reg_n, reg_tpe, reg_val)| Self {
-                    reg_n,
-                    reg_tpe,
-                    reg_val,
-                })
+                .prop_map(|(reg, tpe, default)| Self { reg, tpe, default })
                 .boxed()
         }
     }
