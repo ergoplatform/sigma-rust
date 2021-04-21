@@ -14,7 +14,7 @@ impl Evaluable for GetVar {
             None => Ok(Value::Opt(None.into())),
             Some(v) if v.tpe == self.var_tpe => Ok((Some(v.v.clone())).into()),
             Some(v) => Err(TryExtractFromError(format!(
-                "expected {:?}, found {:?}",
+                "GetVar: expected {:?}, found {:?}",
                 self.var_tpe, v.tpe
             ))
             .into()),
