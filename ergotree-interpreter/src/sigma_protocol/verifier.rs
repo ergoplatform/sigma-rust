@@ -278,22 +278,26 @@ mod tests {
                 .unwrap()
                 .into();
             let tree = ErgoTree::from(expr);
-            let prover = TestProver {
-                secrets: vec![PrivateInput::DlogProverInput(secret1), PrivateInput::DlogProverInput(secret2)],
-            };
-            let res = prover.prove(&tree,
-                &Env::empty(),
-                Rc::new(force_any_val::<Context>()),
-                message.as_slice(),
-                &HintsBag::empty());
-            let proof = res.unwrap().proof;
-            let verifier = TestVerifier;
-            let ver_res = verifier.verify(&tree,
-                                          &Env::empty(),
-                                          Rc::new(force_any_val::<Context>()),
-                                          proof,
-                                          message.as_slice());
-            prop_assert_eq!(ver_res.unwrap().result, true);
+            let secrets = vec![PrivateInput::DlogProverInput(secret1), PrivateInput::DlogProverInput(secret2)];
+            // any secret (out of 2) known to prover should be enough
+            for secret in secrets {
+                let prover = TestProver {
+                    secrets: vec![secret.clone()],
+                };
+                let res = prover.prove(&tree,
+                    &Env::empty(),
+                    Rc::new(force_any_val::<Context>()),
+                    message.as_slice(),
+                    &HintsBag::empty());
+                let proof = res.unwrap().proof;
+                let verifier = TestVerifier;
+                let ver_res = verifier.verify(&tree,
+                                              &Env::empty(),
+                                              Rc::new(force_any_val::<Context>()),
+                                              proof,
+                                              message.as_slice());
+                prop_assert_eq!(ver_res.unwrap().result, true, "verify failed on secret: {:?}", &secret);
+            }
         }
 
         #[test]
@@ -311,25 +315,30 @@ mod tests {
                     .into(),
             ]).unwrap().into();
             let tree = ErgoTree::from(expr);
-            let prover = TestProver {
-                secrets: vec![PrivateInput::DlogProverInput(secret1),
-                    PrivateInput::DlogProverInput(secret2),
-                    PrivateInput::DlogProverInput(secret3)
-                ],
-            };
-            let res = prover.prove(&tree,
-                &Env::empty(),
-                Rc::new(force_any_val::<Context>()),
-                message.as_slice(),
-                &HintsBag::empty());
-            let proof = res.unwrap().proof;
-            let verifier = TestVerifier;
-            let ver_res = verifier.verify(&tree,
-                                          &Env::empty(),
-                                          Rc::new(force_any_val::<Context>()),
-                                          proof,
-                                          message.as_slice());
-            prop_assert_eq!(ver_res.unwrap().result, true);
+            let secrets = vec![
+                PrivateInput::DlogProverInput(secret1),
+                PrivateInput::DlogProverInput(secret2),
+                PrivateInput::DlogProverInput(secret3)
+            ];
+            // any secret (out of 3) known to prover should be enough
+            for secret in secrets {
+                let prover = TestProver {
+                    secrets: vec![secret.clone()],
+                };
+                let res = prover.prove(&tree,
+                    &Env::empty(),
+                    Rc::new(force_any_val::<Context>()),
+                    message.as_slice(),
+                    &HintsBag::empty());
+                let proof = res.unwrap().proof;
+                let verifier = TestVerifier;
+                let ver_res = verifier.verify(&tree,
+                                              &Env::empty(),
+                                              Rc::new(force_any_val::<Context>()),
+                                              proof,
+                                              message.as_slice());
+                prop_assert_eq!(ver_res.unwrap().result, true, "verify failed on secret: {:?}", &secret);
+            }
         }
     }
     // TODO: add custom SigmaBoolean generator for  PK + AND + OR of various depth and test prover/verifier
