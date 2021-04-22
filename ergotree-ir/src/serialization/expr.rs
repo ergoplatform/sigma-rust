@@ -8,6 +8,7 @@ use crate::mir::bin_op::ArithOp;
 use crate::mir::bin_op::RelationOp;
 use crate::mir::block::BlockValue;
 use crate::mir::bool_to_sigma::BoolToSigmaProp;
+use crate::mir::byte_array_to_long::ByteArrayToLong;
 use crate::mir::calc_blake2b256::CalcBlake2b256;
 use crate::mir::coll_by_index::ByIndex;
 use crate::mir::coll_exists::Exists;
@@ -76,6 +77,7 @@ impl SigmaSerializable for Expr {
                     Expr::Const(_) => panic!("unexpected constant"), // handled in the code above (external match)
                     Expr::Fold(op) => op.sigma_serialize(w),
                     Expr::ConstPlaceholder(cp) => cp.sigma_serialize(w),
+                    Expr::ByteArrayToLong(s) => s.sigma_serialize(w),
                     Expr::GlobalVars(_) => Ok(()),
                     Expr::MethodCall(mc) => mc.sigma_serialize(w),
                     Expr::ProperyCall(pc) => pc.sigma_serialize(w),
@@ -214,6 +216,7 @@ impl SigmaSerializable for Expr {
                 SigmaPropBytes::OP_CODE => Ok(SigmaPropBytes::sigma_parse(r)?.into()),
                 Tuple::OP_CODE => Ok(Tuple::sigma_parse(r)?.into()),
                 DecodePoint::OP_CODE => Ok(DecodePoint::sigma_parse(r)?.into()),
+                OpCode::BYTE_ARRAY_TO_LONG => Ok(ByteArrayToLong::sigma_parse(r)?.into()),
                 SigmaAnd::OP_CODE => Ok(SigmaAnd::sigma_parse(r)?.into()),
                 SigmaOr::OP_CODE => Ok(SigmaOr::sigma_parse(r)?.into()),
                 GetVar::OP_CODE => Ok(GetVar::sigma_parse(r)?.into()),

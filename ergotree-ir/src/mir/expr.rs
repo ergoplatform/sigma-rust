@@ -13,6 +13,7 @@ use super::apply::Apply;
 use super::bin_op::BinOp;
 use super::block::BlockValue;
 use super::bool_to_sigma::BoolToSigmaProp;
+use super::byte_array_to_long::ByteArrayToLong;
 use super::calc_blake2b256::CalcBlake2b256;
 use super::coll_by_index::ByIndex;
 use super::coll_exists::Exists;
@@ -70,6 +71,8 @@ pub enum Expr {
     Const(Constant),
     /// Placeholder for a constant
     ConstPlaceholder(ConstantPlaceholder),
+    /// Convert byte array to SLong
+    ByteArrayToLong(ByteArrayToLong),
     /// Collection declaration (array of expressions of the same type)
     Collection(Collection),
     /// Tuple declaration
@@ -174,6 +177,7 @@ impl Expr {
         match self {
             Expr::Const(_) => panic!("constant does not have op code assigned"),
             Expr::ConstPlaceholder(op) => op.op_code(),
+            Expr::ByteArrayToLong(op) => op.op_code(),
             Expr::Collection(op) => op.op_code(),
             Expr::GlobalVars(op) => op.op_code(),
             Expr::MethodCall(op) => op.op_code(),
@@ -229,6 +233,7 @@ impl Expr {
         match self {
             Expr::Const(v) => v.tpe.clone(),
             Expr::Collection(v) => v.tpe(),
+            Expr::ByteArrayToLong(v) => v.tpe(),
             Expr::ConstPlaceholder(v) => v.tpe.clone(),
             Expr::CalcBlake2b256(v) => v.tpe(),
             Expr::Global => SType::SGlobal,

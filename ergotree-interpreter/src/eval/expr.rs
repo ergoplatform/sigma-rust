@@ -11,6 +11,7 @@ impl Evaluable for Expr {
         ctx.cost_accum.add_cost_of(self)?;
         match self {
             Expr::Const(c) => Ok(c.v.clone()),
+            Expr::ByteArrayToLong(op) => op.eval(env, ctx),
             Expr::CalcBlake2b256(op) => op.eval(env, ctx),
             Expr::Fold(op) => op.eval(env, ctx),
             Expr::ExtractRegisterAs(op) => op.eval(env, ctx),
