@@ -71,7 +71,7 @@ pub struct BlockHeader {
     #[cfg_attr(feature = "json", serde(rename = "nBits"))]
     pub n_bits: u64,
     /// Block height
-    pub height: i32,
+    pub height: u32,
     /// Votes
     pub votes: Votes,
 }

@@ -13,7 +13,7 @@ pub struct PreHeader {
     /// Current difficulty in a compressed view.
     pub n_bits: u64,
     /// Block height
-    pub height: i32,
+    pub height: u32,
     /// Public key of miner
     pub miner_pk: Box<dlog_group::EcPoint>,
     /// Votes
@@ -52,7 +52,7 @@ mod arbitrary {
                 // Timestamps between 2000-2050
                 946_674_000_000..2_500_400_300_000u64,
                 any::<u64>(),
-                0..1_000_000,
+                0..1_000_000u32,
                 any::<Box<EcPoint>>(),
             )
                 .prop_map(|(parent_id, timestamp, n_bits, height, miner_pk)| Self {
