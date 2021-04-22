@@ -13,7 +13,7 @@ pub struct Context {
     /// Arena with all boxes (from self, inputs, outputs, data_inputs)
     pub box_arena: Rc<dyn IrErgoBoxArena>,
     /// Current height
-    pub height: i32,
+    pub height: u32,
     /// Box that contains the script we're evaluating (from spending transaction inputs)
     pub self_box: IrBoxId,
     /// Spending transaction outputs
@@ -43,7 +43,7 @@ mod arbitrary {
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             (
-                0..i32::MAX,
+                0..i32::MAX as u32,
                 any::<IrErgoBoxDummy>(),
                 vec(any::<IrErgoBoxDummy>(), 1..3),
                 vec(any::<IrErgoBoxDummy>(), 1..3),

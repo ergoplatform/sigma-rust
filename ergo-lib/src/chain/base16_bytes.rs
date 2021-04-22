@@ -24,7 +24,7 @@ impl Base16EncodedBytes {
 
 /// Transitioning type for Base16 decoded bytes
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "json", serde(try_from = "String"))]
+#[cfg_attr(feature = "json", serde(try_from = "String", into = "String"))]
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Base16DecodedBytes(pub Vec<u8>);
 
@@ -32,6 +32,12 @@ impl TryFrom<String> for Base16DecodedBytes {
     type Error = base16::DecodeError;
     fn try_from(str: String) -> Result<Self, Self::Error> {
         Ok(Base16DecodedBytes(base16::decode(&str)?))
+    }
+}
+
+impl From<Base16DecodedBytes> for String {
+    fn from(b: Base16DecodedBytes) -> Self {
+        base16::encode_lower(&b.0)
     }
 }
 

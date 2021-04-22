@@ -149,7 +149,7 @@ impl ErgoBox {
 
     fn calc_box_id(&self) -> BoxId {
         let bytes = self.sigma_serialize_bytes();
-        BoxId(blake2b256_hash(&bytes))
+        blake2b256_hash(&bytes).into()
     }
 
     /// Get register value

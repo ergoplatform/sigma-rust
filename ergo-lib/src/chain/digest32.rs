@@ -56,9 +56,22 @@ impl From<Digest32> for Vec<i8> {
     }
 }
 
+impl From<Digest32> for Vec<u8> {
+    fn from(v: Digest32) -> Self {
+        v.0.to_vec()
+    }
+}
+
 impl From<Digest32> for [u8; Digest32::SIZE] {
     fn from(v: Digest32) -> Self {
         *v.0
+    }
+}
+
+impl From<Digest32> for String {
+    fn from(v: Digest32) -> Self {
+        let bytes: Base16EncodedBytes = v.into();
+        bytes.into()
     }
 }
 
@@ -70,10 +83,12 @@ impl TryFrom<Base16DecodedBytes> for Digest32 {
     }
 }
 
-impl From<Digest32> for String {
-    fn from(v: Digest32) -> Self {
-        let bytes: Base16EncodedBytes = v.into();
-        bytes.into()
+impl TryFrom<String> for Digest32 {
+    type Error = Digest32Error;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        let bytes = Base16DecodedBytes::try_from(value)?;
+        Digest32::try_from(bytes)
     }
 }
 
@@ -91,11 +106,11 @@ impl SigmaSerializable for Digest32 {
 
 /// Invalid byte array size
 #[derive(Error, Debug)]
-#[error("Invalid byte array size ({0})")]
-pub struct Digest32Error(std::array::TryFromSliceError);
-
-impl From<std::array::TryFromSliceError> for Digest32Error {
-    fn from(err: std::array::TryFromSliceError) -> Self {
-        Digest32Error(err)
-    }
+pub enum Digest32Error {
+    /// error decoding from Base16
+    #[error("error decoding from Base16: {0}")]
+    Base16DecodingError(#[from] base16::DecodeError),
+    /// Invalid byte array size
+    #[error("Invalid byte array size ({0})")]
+    InvalidSize(#[from] std::array::TryFromSliceError),
 }
