@@ -9,7 +9,7 @@ use super::Evaluable;
 impl Evaluable for GlobalVars {
     fn eval(&self, _env: &Env, ectx: &mut EvalContext) -> Result<Value, EvalError> {
         match self {
-            GlobalVars::Height => Ok(ectx.ctx.height.clone().into()),
+            GlobalVars::Height => Ok((ectx.ctx.height as i32).into()),
             GlobalVars::SelfBox => Ok(ectx.ctx.self_box.clone().into()),
             GlobalVars::Outputs => Ok(ectx.ctx.outputs.clone().into()),
             GlobalVars::Inputs => Ok(ectx.ctx.inputs.clone().into()),
@@ -35,7 +35,7 @@ mod tests {
     fn eval_height() {
         let ctx = Rc::new(force_any_val::<Context>());
         let expr = compile_expr("HEIGHT", ScriptEnv::new()).unwrap();
-        assert_eq!(eval_out::<i32>(&expr, ctx.clone()), ctx.height);
+        assert_eq!(eval_out::<i32>(&expr, ctx.clone()), ctx.height as i32);
     }
 
     #[test]

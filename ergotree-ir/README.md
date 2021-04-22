@@ -56,7 +56,7 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 - :heavy_check_mark: blake2b256
 - sha256
 - :heavy_check_mark: proveDlog
-- proveDHTuple
+- :heavy_check_mark: proveDHTuple
 - :heavy_check_mark: sigmaProp
 - executeFromVar
 - executeFromSelfReg
@@ -151,8 +151,8 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 - :heavy_check_mark: SELF
 - selfBoxIndex
 - LastBlockUtxoRootHash
-- minerPubKey
-- getVar
+- :heavy_check_mark: minerPubKey
+- :heavy_check_mark: getVar
 
 #### Collection
 

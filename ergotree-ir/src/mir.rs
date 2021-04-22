@@ -2,6 +2,7 @@
 
 pub mod and;
 pub mod apply;
+pub mod atleast;
 pub mod bin_op;
 pub mod block;
 pub mod bool_to_sigma;
@@ -29,6 +30,8 @@ pub mod create_prove_dh_tuple;
 /// Create proveDlog from GroupElement(PK)
 pub mod create_provedlog;
 pub mod decode_point;
+pub mod deserialize_context;
+pub mod deserialize_register;
 pub mod expr;
 /// Box value
 pub mod extract_amount;
@@ -42,6 +45,7 @@ pub mod extract_reg_as;
 pub mod extract_script_bytes;
 /// User-defined function
 pub mod func_value;
+pub mod get_var;
 pub mod global_vars;
 /// Headers data types
 pub mod header;

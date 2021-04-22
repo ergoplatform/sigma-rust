@@ -35,26 +35,22 @@ pub mod box_builder;
 
 /// Box id (32-byte digest)
 #[wasm_bindgen]
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone, From, Into)]
 pub struct BoxId(chain::ergo_box::BoxId);
 
 #[wasm_bindgen]
 impl BoxId {
+    /// Parse box id (32 byte digest) from base16-encoded string
+    #[allow(clippy::should_implement_trait)]
+    pub fn from_str(box_id_str: String) -> Result<BoxId, JsValue> {
+        chain::ergo_box::BoxId::try_from(box_id_str)
+            .map(BoxId)
+            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+    }
+
     /// Base16 encoded string
     pub fn to_str(&self) -> String {
         self.0.clone().into()
-    }
-}
-
-impl From<chain::ergo_box::BoxId> for BoxId {
-    fn from(b: chain::ergo_box::BoxId) -> Self {
-        BoxId(b)
-    }
-}
-
-impl From<BoxId> for chain::ergo_box::BoxId {
-    fn from(b: BoxId) -> Self {
-        b.0
     }
 }
 

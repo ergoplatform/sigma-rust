@@ -14,6 +14,15 @@ pub struct DataInput(chain::transaction::DataInput);
 
 #[wasm_bindgen]
 impl DataInput {
+    /// Parse box id (32 byte digest) from base16-encoded string
+    #[wasm_bindgen(constructor)]
+    pub fn new(box_id: BoxId) -> Self {
+        chain::transaction::DataInput {
+            box_id: box_id.into(),
+        }
+        .into()
+    }
+
     /// Get box id
     pub fn box_id(&self) -> BoxId {
         self.0.box_id.clone().into()

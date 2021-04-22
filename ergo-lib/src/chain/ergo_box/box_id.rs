@@ -1,4 +1,5 @@
 //! Box id type
+use std::convert::TryFrom;
 use std::convert::TryInto;
 use std::io;
 
@@ -7,7 +8,11 @@ use ergotree_ir::ir_ergo_box::IrBoxId;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 
+use crate::chain::Digest32Error;
+
 use super::super::digest32::Digest32;
+use derive_more::From;
+use derive_more::Into;
 use ergotree_ir::serialization::{
     sigma_byte_reader::SigmaByteRead, sigma_byte_writer::SigmaByteWrite, SerializationError,
     SigmaSerializable,
@@ -16,10 +21,10 @@ use ergotree_ir::serialization::{
 use proptest_derive::Arbitrary;
 
 /// newtype for box ids
-#[derive(PartialEq, Eq, Hash, Debug, Clone)]
+#[derive(PartialEq, Eq, Hash, Debug, Clone, From, Into)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 #[cfg_attr(test, derive(Arbitrary))]
-pub struct BoxId(pub Digest32);
+pub struct BoxId(Digest32);
 
 impl BoxId {
     /// Size in bytes
@@ -28,12 +33,6 @@ impl BoxId {
     /// All zeros
     pub fn zero() -> BoxId {
         BoxId(Digest32::zero())
-    }
-}
-
-impl From<Digest32> for BoxId {
-    fn from(v: Digest32) -> Self {
-        BoxId(v)
     }
 }
 
@@ -56,6 +55,14 @@ impl From<BoxId> for IrBoxId {
     fn from(id: BoxId) -> Self {
         let i8bytes: Vec<i8> = id.0 .0.iter().map(|b| *b as i8).collect();
         IrBoxId::new(i8bytes.try_into().unwrap())
+    }
+}
+
+impl TryFrom<String> for BoxId {
+    type Error = Digest32Error;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Ok(Digest32::try_from(value)?.into())
     }
 }
 

@@ -55,7 +55,11 @@ use super::val_use::ValUse;
 use super::value::Value;
 
 extern crate derive_more;
+use crate::mir::atleast::Atleast;
 use crate::mir::create_prove_dh_tuple::CreateProveDhTuple;
+use crate::mir::deserialize_context::DeserializeContext;
+use crate::mir::deserialize_register::DeserializeRegister;
+use crate::mir::get_var::GetVar;
 use derive_more::From;
 use derive_more::TryInto;
 
@@ -101,6 +105,8 @@ pub enum Expr {
     And(And),
     /// Logical OR
     Or(Or),
+    /// THRESHOLD composition for sigma expressions
+    Atleast(Atleast),
     /// LogicalNot
     LogicalNot(LogicalNot),
     /// Negation on numeric type
@@ -154,6 +160,12 @@ pub enum Expr {
     SigmaAnd(SigmaAnd),
     /// OR conjunction for sigma propositions
     SigmaOr(SigmaOr),
+    /// Extracts Context variable by id and type
+    GetVar(GetVar),
+    /// FIXME: WTF
+    DeserializeRegister(DeserializeRegister),
+    /// FIME: WTF
+    DeserializeContext(DeserializeContext),
 }
 
 impl Expr {
@@ -182,6 +194,7 @@ impl Expr {
             Expr::CalcBlake2b256(op) => op.op_code(),
             Expr::And(op) => op.op_code(),
             Expr::Or(op) => op.op_code(),
+            Expr::Atleast(op) => op.op_code(),
             Expr::LogicalNot(op) => op.op_code(),
             Expr::Map(op) => op.op_code(),
             Expr::Filter(op) => op.op_code(),
@@ -205,6 +218,9 @@ impl Expr {
             Expr::DecodePoint(op) => op.op_code(),
             Expr::SigmaAnd(op) => op.op_code(),
             Expr::SigmaOr(op) => op.op_code(),
+            Expr::GetVar(op) => op.op_code(),
+            Expr::DeserializeRegister(op) => op.op_code(),
+            Expr::DeserializeContext(op) => op.op_code(),
         }
     }
 
@@ -233,6 +249,7 @@ impl Expr {
             Expr::ExtractAmount(v) => v.tpe(),
             Expr::And(v) => v.tpe(),
             Expr::Or(v) => v.tpe(),
+            Expr::Atleast(v) => v.tpe(),
             Expr::LogicalNot(v) => v.tpe(),
             Expr::Map(v) => v.tpe(),
             Expr::Filter(v) => v.tpe(),
@@ -256,6 +273,9 @@ impl Expr {
             Expr::DecodePoint(v) => v.tpe(),
             Expr::SigmaAnd(v) => v.tpe(),
             Expr::SigmaOr(v) => v.tpe(),
+            Expr::DeserializeRegister(v) => v.tpe(),
+            Expr::DeserializeContext(v) => v.tpe(),
+            Expr::GetVar(v) => v.tpe(),
         }
     }
 
@@ -334,6 +354,7 @@ impl<T: TryFrom<Expr>> TryExtractFrom<Expr> for T {
 pub(crate) mod arbitrary {
     use super::*;
     use crate::mir::func_value::FuncArg;
+    use crate::sigma_protocol::dlog_group::EcPoint;
     use crate::types::sfunc::SFunc;
     use proptest::collection::*;
     use proptest::prelude::*;
@@ -387,6 +408,13 @@ pub(crate) mod arbitrary {
             .boxed()
     }
 
+    fn sigma_prop_nester_expr(_depth: usize) -> BoxedStrategy<Expr> {
+        // FIXME: Here we only generate leaf with proof for single key. No connectives yet
+        any::<EcPoint>()
+            .prop_map(|pk| Expr::Const(pk.into()))
+            .boxed()
+    }
+
     fn coll_nested_expr(depth: usize, elem_tpe: &SType) -> BoxedStrategy<Expr> {
         match elem_tpe {
             SType::SBoolean => vec(bool_nested_expr(depth), 0..10)
@@ -410,7 +438,8 @@ pub(crate) mod arbitrary {
             ]
             .prop_map_into()
             .boxed(),
-            _ => todo!(),
+            SType::SSigmaProp => sigma_prop_nester_expr(depth),
+            _ => panic!("Nested expression not implemented for {:?}", &elem_tpe),
         }
     }
 

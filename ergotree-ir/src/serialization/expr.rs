@@ -3,6 +3,7 @@ use super::bin_op::bin_op_sigma_serialize;
 use super::{op_code::OpCode, sigma_byte_writer::SigmaByteWrite};
 use crate::mir::and::And;
 use crate::mir::apply::Apply;
+use crate::mir::atleast::Atleast;
 use crate::mir::bin_op::ArithOp;
 use crate::mir::bin_op::RelationOp;
 use crate::mir::block::BlockValue;
@@ -23,6 +24,8 @@ use crate::mir::constant::ConstantPlaceholder;
 use crate::mir::create_prove_dh_tuple::CreateProveDhTuple;
 use crate::mir::create_provedlog::CreateProveDlog;
 use crate::mir::decode_point::DecodePoint;
+use crate::mir::deserialize_context::DeserializeContext;
+use crate::mir::deserialize_register::DeserializeRegister;
 use crate::mir::expr::Expr;
 use crate::mir::extract_amount::ExtractAmount;
 use crate::mir::extract_creation_info::ExtractCreationInfo;
@@ -30,6 +33,7 @@ use crate::mir::extract_id::ExtractId;
 use crate::mir::extract_reg_as::ExtractRegisterAs;
 use crate::mir::extract_script_bytes::ExtractScriptBytes;
 use crate::mir::func_value::FuncValue;
+use crate::mir::get_var::GetVar;
 use crate::mir::global_vars::GlobalVars;
 use crate::mir::if_op::If;
 use crate::mir::logical_not::LogicalNot;
@@ -91,6 +95,7 @@ impl SigmaSerializable for Expr {
                     Expr::Collection(op) => coll_sigma_serialize(op, w),
                     Expr::And(op) => op.sigma_serialize(w),
                     Expr::Or(op) => op.sigma_serialize(w),
+                    Expr::Atleast(op) => op.sigma_serialize(w),
                     Expr::LogicalNot(op) => op.sigma_serialize(w),
                     Expr::Map(op) => op.sigma_serialize(w),
                     Expr::Filter(op) => op.sigma_serialize(w),
@@ -114,6 +119,9 @@ impl SigmaSerializable for Expr {
                     Expr::DecodePoint(op) => op.sigma_serialize(w),
                     Expr::SigmaAnd(op) => op.sigma_serialize(w),
                     Expr::SigmaOr(op) => op.sigma_serialize(w),
+                    Expr::GetVar(op) => op.sigma_serialize(w),
+                    Expr::DeserializeRegister(op) => op.sigma_serialize(w),
+                    Expr::DeserializeContext(op) => op.sigma_serialize(w),
                 }
             }
         }
@@ -189,6 +197,7 @@ impl SigmaSerializable for Expr {
                 OpCode::CALC_BLAKE2B256 => Ok(CalcBlake2b256::sigma_parse(r)?.into()),
                 And::OP_CODE => Ok(And::sigma_parse(r)?.into()),
                 Or::OP_CODE => Ok(Or::sigma_parse(r)?.into()),
+                Atleast::OP_CODE => Ok(Atleast::sigma_parse(r)?.into()),
                 OpCode::COLL => Ok(coll_sigma_parse(r)?.into()),
                 OpCode::COLL_OF_BOOL_CONST => Ok(bool_const_coll_sigma_parse(r)?.into()),
                 Map::OP_CODE => Ok(Map::sigma_parse(r)?.into()),
@@ -207,6 +216,9 @@ impl SigmaSerializable for Expr {
                 DecodePoint::OP_CODE => Ok(DecodePoint::sigma_parse(r)?.into()),
                 SigmaAnd::OP_CODE => Ok(SigmaAnd::sigma_parse(r)?.into()),
                 SigmaOr::OP_CODE => Ok(SigmaOr::sigma_parse(r)?.into()),
+                GetVar::OP_CODE => Ok(GetVar::sigma_parse(r)?.into()),
+                DeserializeRegister::OP_CODE => Ok(DeserializeRegister::sigma_parse(r)?.into()),
+                DeserializeContext::OP_CODE => Ok(DeserializeContext::sigma_parse(r)?.into()),
                 o => Err(SerializationError::NotImplementedOpCode(format!(
                     "{0}(shift {1})",
                     o.value(),

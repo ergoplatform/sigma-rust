@@ -14,8 +14,8 @@ use crate::chain::{
 
 use ergotree_interpreter::eval::context::Context;
 use ergotree_interpreter::eval::env::Env;
-use ergotree_interpreter::sigma_protocol::prover::Prover;
 use ergotree_interpreter::sigma_protocol::prover::ProverError;
+use ergotree_interpreter::sigma_protocol::prover::{ContextExtension, Prover};
 use ergotree_ir::ir_ergo_box::IrBoxId;
 use ergotree_ir::ir_ergo_box::IrErgoBox;
 use ergotree_ir::ir_ergo_box::IrErgoBoxArena;
@@ -126,6 +126,7 @@ pub fn make_context(
         data_inputs: data_inputs_ir,
         inputs: inputs_ir,
         pre_header: state_ctx.pre_header.clone(),
+        extension: ContextExtension::empty(),
     })
 }
 

@@ -23,7 +23,7 @@ impl TokenId {
         TokenId(chain::token::TokenId::from(box_id))
     }
 
-    /// Parse token id (32 byte digets) from base16-encoded string
+    /// Parse token id (32 byte digest) from base16-encoded string
     #[allow(clippy::should_implement_trait)]
     pub fn from_str(str: &str) -> Result<TokenId, JsValue> {
         Base16DecodedBytes::try_from(str.to_string())
@@ -31,13 +31,13 @@ impl TokenId {
             .and_then(|bytes| {
                 Digest32::try_from(bytes).map_err(|e| JsValue::from_str(&format!("{}", e)))
             })
-            .map(chain::token::TokenId)
+            .map(|dig| dig.into())
             .map(TokenId)
     }
 
     /// Base16 encoded string
     pub fn to_str(&self) -> String {
-        self.0 .0.clone().into()
+        self.0.clone().into()
     }
 }
 
