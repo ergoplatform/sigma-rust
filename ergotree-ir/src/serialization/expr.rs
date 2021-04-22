@@ -38,6 +38,7 @@ use crate::mir::get_var::GetVar;
 use crate::mir::global_vars::GlobalVars;
 use crate::mir::if_op::If;
 use crate::mir::logical_not::LogicalNot;
+use crate::mir::long_to_byte_array::LongToByteArray;
 use crate::mir::method_call::MethodCall;
 use crate::mir::negation::Negation;
 use crate::mir::option_get::OptionGet;
@@ -78,6 +79,7 @@ impl SigmaSerializable for Expr {
                     Expr::Fold(op) => op.sigma_serialize(w),
                     Expr::ConstPlaceholder(cp) => cp.sigma_serialize(w),
                     Expr::ByteArrayToLong(s) => s.sigma_serialize(w),
+                    Expr::LongToByteArray(s) => s.sigma_serialize(w),
                     Expr::GlobalVars(_) => Ok(()),
                     Expr::MethodCall(mc) => mc.sigma_serialize(w),
                     Expr::ProperyCall(pc) => pc.sigma_serialize(w),
@@ -217,6 +219,7 @@ impl SigmaSerializable for Expr {
                 Tuple::OP_CODE => Ok(Tuple::sigma_parse(r)?.into()),
                 DecodePoint::OP_CODE => Ok(DecodePoint::sigma_parse(r)?.into()),
                 OpCode::BYTE_ARRAY_TO_LONG => Ok(ByteArrayToLong::sigma_parse(r)?.into()),
+                OpCode::LONG_TO_BYTE_ARRAY => Ok(LongToByteArray::sigma_parse(r)?.into()),
                 SigmaAnd::OP_CODE => Ok(SigmaAnd::sigma_parse(r)?.into()),
                 SigmaOr::OP_CODE => Ok(SigmaOr::sigma_parse(r)?.into()),
                 GetVar::OP_CODE => Ok(GetVar::sigma_parse(r)?.into()),

@@ -53,6 +53,7 @@ pub(crate) mod get_var;
 pub(crate) mod global_vars;
 pub(crate) mod if_op;
 pub(crate) mod logical_not;
+pub(crate) mod long_to_byte_array;
 pub(crate) mod method_call;
 pub(crate) mod negation;
 pub(crate) mod option_get;

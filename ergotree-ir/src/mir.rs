@@ -54,6 +54,7 @@ pub mod header;
 pub mod if_op;
 /// Logical NOT op
 pub mod logical_not;
+pub mod long_to_byte_array;
 /// Object method call
 pub mod method_call;
 /// Negation operation on numeric type.

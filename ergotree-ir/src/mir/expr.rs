@@ -38,6 +38,7 @@ use super::func_value::FuncValue;
 use super::global_vars::GlobalVars;
 use super::if_op::If;
 use super::logical_not::LogicalNot;
+use super::long_to_byte_array::LongToByteArray;
 use super::method_call::MethodCall;
 use super::negation::Negation;
 use super::option_get::OptionGet;
@@ -73,6 +74,8 @@ pub enum Expr {
     ConstPlaceholder(ConstantPlaceholder),
     /// Convert byte array to SLong
     ByteArrayToLong(ByteArrayToLong),
+    /// Convert SLong to a byte array
+    LongToByteArray(LongToByteArray),
     /// Collection declaration (array of expressions of the same type)
     Collection(Collection),
     /// Tuple declaration
@@ -178,6 +181,7 @@ impl Expr {
             Expr::Const(_) => panic!("constant does not have op code assigned"),
             Expr::ConstPlaceholder(op) => op.op_code(),
             Expr::ByteArrayToLong(op) => op.op_code(),
+            Expr::LongToByteArray(op) => op.op_code(),
             Expr::Collection(op) => op.op_code(),
             Expr::GlobalVars(op) => op.op_code(),
             Expr::MethodCall(op) => op.op_code(),
@@ -234,6 +238,7 @@ impl Expr {
             Expr::Const(v) => v.tpe.clone(),
             Expr::Collection(v) => v.tpe(),
             Expr::ByteArrayToLong(v) => v.tpe(),
+            Expr::LongToByteArray(v) => v.tpe(),
             Expr::ConstPlaceholder(v) => v.tpe.clone(),
             Expr::CalcBlake2b256(v) => v.tpe(),
             Expr::Global => SType::SGlobal,
