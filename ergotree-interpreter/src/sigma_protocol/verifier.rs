@@ -142,6 +142,8 @@ mod tests {
     use ergotree_ir::mir::expr::Expr;
     use ergotree_ir::mir::sigma_and::SigmaAnd;
     use ergotree_ir::mir::sigma_or::SigmaOr;
+    use ergotree_ir::serialization::SigmaSerializable;
+    use num_bigint::BigUint;
     use proptest::collection::vec;
     use proptest::prelude::*;
     use sigma_test_util::force_any_val;
@@ -341,6 +343,158 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn sig_test_vector_provedlog() {
+        // test vector data from
+        // https://github.com/ScorexFoundation/sigmastate-interpreter/blob/6c51c13f7a494a191a7ea5645e56b04fb46a418d/sigmastate/src/test/scala/sigmastate/crypto/SigningSpecification.scala#L14-L30
+        let msg =
+            base16::decode(b"1dc01772ee0171f5f614c673e3c7fa1107a8cf727bdf5a6dadb379e93c0d1d00")
+                .unwrap();
+        let sk = DlogProverInput::from_biguint(
+            BigUint::parse_bytes(
+                b"109749205800194830127901595352600384558037183218698112947062497909408298157746",
+                10,
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        let signature = base16::decode(b"bcb866ba434d5c77869ddcbc3f09ddd62dd2d2539bf99076674d1ae0c32338ea95581fdc18a3b66789904938ac641eba1a66d234070207a2").unwrap();
+
+        // check expected public key
+        assert_eq!(
+            base16::encode_lower(&sk.public_image().sigma_serialize_bytes()),
+            "03cb0d49e4eae7e57059a3da8ac52626d26fc11330af8fb093fa597d8b93deb7b1"
+        );
+
+        let expr: Expr = sk.public_image().into();
+        let verifier = TestVerifier;
+        let ver_res = verifier.verify(
+            &expr.into(),
+            &Env::empty(),
+            Rc::new(force_any_val::<Context>()),
+            signature.into(),
+            msg.as_slice(),
+        );
+        assert_eq!(ver_res.unwrap().result, true);
+    }
+
+    #[test]
+    fn sig_test_vector_conj_and() {
+        // corresponding sigmastate test
+        // in SigningSpecification.property("AND signature test vector")
+        let msg =
+            base16::decode(b"1dc01772ee0171f5f614c673e3c7fa1107a8cf727bdf5a6dadb379e93c0d1d00")
+                .unwrap();
+        let sk1 = DlogProverInput::from_biguint(
+            BigUint::parse_bytes(
+                b"109749205800194830127901595352600384558037183218698112947062497909408298157746",
+                10,
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        let sk2 = DlogProverInput::from_biguint(
+            BigUint::parse_bytes(
+                b"50415569076448343263191022044468203756975150511337537963383000142821297891310",
+                10,
+            )
+            .unwrap(),
+        )
+        .unwrap();
+
+        let signature = base16::decode(b"9b2ebb226be42df67817e9c56541de061997c3ea84e7e72dbb69edb7318d7bb525f9c16ccb1adc0ede4700a046d0a4ab1e239245460c1ba45e5637f7a2d4cc4cc460e5895125be73a2ca16091db2dcf51d3028043c2b9340").unwrap();
+
+        let expr: Expr = SigmaAnd::new(vec![
+            Expr::Const(sk1.public_image().into()),
+            Expr::Const(sk2.public_image().into()),
+        ])
+        .unwrap()
+        .into();
+        let tree: ErgoTree = expr.into();
+
+        // let prover = TestProver {
+        //     secrets: vec![sk1.into(), sk2.into()],
+        // };
+        // let res = prover.prove(
+        //     &tree,
+        //     &Env::empty(),
+        //     Rc::new(force_any_val::<Context>()),
+        //     msg.as_slice(),
+        //     &HintsBag::empty(),
+        // );
+        // let proof: Vec<u8> = res.unwrap().proof.into();
+        // dbg!(base16::encode_lower(&proof));
+
+        let verifier = TestVerifier;
+        let ver_res = verifier.verify(
+            &tree,
+            &Env::empty(),
+            Rc::new(force_any_val::<Context>()),
+            signature.into(),
+            msg.as_slice(),
+        );
+        assert_eq!(ver_res.unwrap().result, true);
+    }
+
+    #[test]
+    fn sig_test_vector_conj_or() {
+        // corresponding sigmastate test
+        // in SigningSpecification.property("OR signature test vector")
+        let msg =
+            base16::decode(b"1dc01772ee0171f5f614c673e3c7fa1107a8cf727bdf5a6dadb379e93c0d1d00")
+                .unwrap();
+        let sk1 = DlogProverInput::from_biguint(
+            BigUint::parse_bytes(
+                b"109749205800194830127901595352600384558037183218698112947062497909408298157746",
+                10,
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        let sk2 = DlogProverInput::from_biguint(
+            BigUint::parse_bytes(
+                b"50415569076448343263191022044468203756975150511337537963383000142821297891310",
+                10,
+            )
+            .unwrap(),
+        )
+        .unwrap();
+
+        let signature = base16::decode(b"ec94d2d5ef0e1e638237f53fd883c339f9771941f70020742a7dc85130aaee535c61321aa1e1367befb500256567b3e6f9c7a3720baa75ba6056305d7595748a93f23f9fc0eb9c1aaabc24acc4197030834d76d3c95ede60c5b59b4b306cd787d010e8217f34677d046646778877c669").unwrap();
+
+        let expr: Expr = SigmaOr::new(vec![
+            Expr::Const(sk1.public_image().into()),
+            Expr::Const(sk2.public_image().into()),
+        ])
+        .unwrap()
+        .into();
+        let tree: ErgoTree = expr.into();
+
+        // let prover = TestProver {
+        //     secrets: vec![sk1.into()],
+        // };
+        // let res = prover.prove(
+        //     &tree,
+        //     &Env::empty(),
+        //     Rc::new(force_any_val::<Context>()),
+        //     msg.as_slice(),
+        //     &HintsBag::empty(),
+        // );
+        // let proof: Vec<u8> = res.unwrap().proof.into();
+        // dbg!(base16::encode_lower(&proof));
+
+        let verifier = TestVerifier;
+        let ver_res = verifier.verify(
+            &tree,
+            &Env::empty(),
+            Rc::new(force_any_val::<Context>()),
+            signature.into(),
+            msg.as_slice(),
+        );
+        assert_eq!(ver_res.unwrap().result, true);
+    }
+
     // TODO: add custom SigmaBoolean generator for  PK + AND + OR of various depth and test prover/verifier
 
     // TODO: draft an issue for prover/verifier spec sharing test vectors with sigmastate

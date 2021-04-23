@@ -34,6 +34,14 @@ pub struct EcPoint(ProjectivePoint);
 impl EcPoint {
     /// Number of bytes to represent any group element as byte array
     pub const GROUP_SIZE: usize = 33;
+
+    /// Attempts to parse from Base16-encoded string
+    pub fn from_base16_str(str: String) -> Option<Self> {
+        base16::decode(&str)
+            .ok()
+            .map(|bytes| Self::sigma_parse_bytes(bytes).ok())
+            .flatten()
+    }
 }
 
 impl Eq for EcPoint {}
