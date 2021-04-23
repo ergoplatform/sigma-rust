@@ -12,6 +12,7 @@ impl Evaluable for Expr {
         match self {
             Expr::Const(c) => Ok(c.v.clone()),
             Expr::ByteArrayToLong(op) => op.eval(env, ctx),
+            Expr::ByteArrayToBigInt(op) => op.eval(env, ctx),
             Expr::LongToByteArray(op) => op.eval(env, ctx),
             Expr::CalcBlake2b256(op) => op.eval(env, ctx),
             Expr::Fold(op) => op.eval(env, ctx),

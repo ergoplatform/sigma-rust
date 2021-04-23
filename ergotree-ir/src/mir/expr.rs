@@ -58,6 +58,7 @@ use super::value::Value;
 
 extern crate derive_more;
 use crate::mir::atleast::Atleast;
+use crate::mir::byte_array_to_bigint::ByteArrayToBigInt;
 use crate::mir::create_prove_dh_tuple::CreateProveDhTuple;
 use crate::mir::deserialize_context::DeserializeContext;
 use crate::mir::deserialize_register::DeserializeRegister;
@@ -74,6 +75,8 @@ pub enum Expr {
     ConstPlaceholder(ConstantPlaceholder),
     /// Convert byte array to SLong
     ByteArrayToLong(ByteArrayToLong),
+    /// Convert byte array to SLong
+    ByteArrayToBigInt(ByteArrayToBigInt),
     /// Convert SLong to a byte array
     LongToByteArray(LongToByteArray),
     /// Collection declaration (array of expressions of the same type)
@@ -181,6 +184,7 @@ impl Expr {
             Expr::Const(_) => panic!("constant does not have op code assigned"),
             Expr::ConstPlaceholder(op) => op.op_code(),
             Expr::ByteArrayToLong(op) => op.op_code(),
+            Expr::ByteArrayToBigInt(op) => op.op_code(),
             Expr::LongToByteArray(op) => op.op_code(),
             Expr::Collection(op) => op.op_code(),
             Expr::GlobalVars(op) => op.op_code(),
@@ -238,6 +242,7 @@ impl Expr {
             Expr::Const(v) => v.tpe.clone(),
             Expr::Collection(v) => v.tpe(),
             Expr::ByteArrayToLong(v) => v.tpe(),
+            Expr::ByteArrayToBigInt(v) => v.tpe(),
             Expr::LongToByteArray(v) => v.tpe(),
             Expr::ConstPlaceholder(v) => v.tpe.clone(),
             Expr::CalcBlake2b256(v) => v.tpe(),

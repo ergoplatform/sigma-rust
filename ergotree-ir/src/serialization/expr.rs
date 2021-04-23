@@ -8,6 +8,7 @@ use crate::mir::bin_op::ArithOp;
 use crate::mir::bin_op::RelationOp;
 use crate::mir::block::BlockValue;
 use crate::mir::bool_to_sigma::BoolToSigmaProp;
+use crate::mir::byte_array_to_bigint::ByteArrayToBigInt;
 use crate::mir::byte_array_to_long::ByteArrayToLong;
 use crate::mir::calc_blake2b256::CalcBlake2b256;
 use crate::mir::coll_by_index::ByIndex;
@@ -79,6 +80,7 @@ impl SigmaSerializable for Expr {
                     Expr::Fold(op) => op.sigma_serialize(w),
                     Expr::ConstPlaceholder(cp) => cp.sigma_serialize(w),
                     Expr::ByteArrayToLong(s) => s.sigma_serialize(w),
+                    Expr::ByteArrayToBigInt(s) => s.sigma_serialize(w),
                     Expr::LongToByteArray(s) => s.sigma_serialize(w),
                     Expr::GlobalVars(_) => Ok(()),
                     Expr::MethodCall(mc) => mc.sigma_serialize(w),
@@ -219,6 +221,7 @@ impl SigmaSerializable for Expr {
                 Tuple::OP_CODE => Ok(Tuple::sigma_parse(r)?.into()),
                 DecodePoint::OP_CODE => Ok(DecodePoint::sigma_parse(r)?.into()),
                 OpCode::BYTE_ARRAY_TO_LONG => Ok(ByteArrayToLong::sigma_parse(r)?.into()),
+                OpCode::BYTE_ARRAY_TO_BIGINT => Ok(ByteArrayToBigInt::sigma_parse(r)?.into()),
                 OpCode::LONG_TO_BYTE_ARRAY => Ok(LongToByteArray::sigma_parse(r)?.into()),
                 SigmaAnd::OP_CODE => Ok(SigmaAnd::sigma_parse(r)?.into()),
                 SigmaOr::OP_CODE => Ok(SigmaOr::sigma_parse(r)?.into()),

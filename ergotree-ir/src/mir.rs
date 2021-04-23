@@ -6,6 +6,7 @@ pub mod atleast;
 pub mod bin_op;
 pub mod block;
 pub mod bool_to_sigma;
+pub mod byte_array_to_bigint;
 pub mod byte_array_to_long;
 /// Calc Blake2b hash
 pub mod calc_blake2b256;

@@ -25,6 +25,7 @@ pub(crate) mod apply;
 pub(crate) mod bin_op;
 pub(crate) mod block;
 pub(crate) mod bool_to_sigma;
+pub(crate) mod byte_array_to_bigint;
 pub(crate) mod byte_array_to_long;
 pub(crate) mod calc_blake2b256;
 pub(crate) mod coll_by_index;
