@@ -31,6 +31,7 @@ pub use prover_result::*;
 use self::hint::HintsBag;
 
 use super::dlog_protocol;
+use super::fiat_shamir::FiatShamirTreeSerializationError;
 use super::private_input::PrivateInput;
 use super::proof_tree;
 use super::proof_tree::ProofTreeLeaf;
@@ -45,10 +46,12 @@ use super::unproven_tree::UnprovenTree;
 use crate::eval::context::Context;
 use crate::eval::env::Env;
 use crate::eval::{EvalError, Evaluator};
+
+use derive_more::From;
 use thiserror::Error;
 
 /// Prover errors
-#[derive(Error, PartialEq, Eq, Debug, Clone)]
+#[derive(Error, PartialEq, Eq, Debug, Clone, From)]
 pub enum ProverError {
     /// Failed to parse ErgoTree
     #[error("Ergo tree error: {0}")]
@@ -74,12 +77,9 @@ pub enum ProverError {
     /// Unexpected value encountered
     #[error("Unexpected: {0}")]
     Unexpected(String),
-}
-
-impl From<ErgoTreeParsingError> for ProverError {
-    fn from(err: ErgoTreeParsingError) -> Self {
-        ProverError::ErgoTreeError(err)
-    }
+    /// Error while tree serialization for Fiat-Shamir hash
+    #[error("Fiat-Shamir tree serialization error: {0}")]
+    FiatShamirTreeSerializationError(FiatShamirTreeSerializationError),
 }
 
 /// Prover
@@ -161,7 +161,7 @@ fn prove_to_unchecked<P: Prover + ?Sized>(
     // Prover Steps 7: convert the relevant information in the tree (namely, tree structure, node types,
     // the statements being proven and commitments at the leaves)
     // to a string
-    let var_name = fiat_shamir_tree_to_bytes(&step6.clone().into());
+    let var_name = fiat_shamir_tree_to_bytes(&step6.clone().into())?;
     let mut s = var_name;
 
     // Prover Step 8: compute the challenge for the root of the tree as the Fiat-Shamir hash of s

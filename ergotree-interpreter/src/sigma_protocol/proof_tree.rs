@@ -1,5 +1,7 @@
 extern crate derive_more;
 
+use std::fmt::Debug;
+
 use derive_more::From;
 use derive_more::TryInto;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
@@ -117,7 +119,7 @@ impl From<UncheckedConjecture> for ProofTree {
 }
 
 /// Proof tree leaf
-pub(crate) trait ProofTreeLeaf {
+pub(crate) trait ProofTreeLeaf: Debug {
     /// Get proposition
     fn proposition(&self) -> SigmaBoolean;
 
@@ -128,8 +130,7 @@ pub(crate) trait ProofTreeLeaf {
 pub(crate) enum ConjectureType {
     And = 0,
     Or = 1,
-    #[allow(dead_code)] // TODO: remove when used
-    Threshold = 2,
+    // Threshold = 2,
 }
 
 pub(crate) trait ProofTreeConjecture {

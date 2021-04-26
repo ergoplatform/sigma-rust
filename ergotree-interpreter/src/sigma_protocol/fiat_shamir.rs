@@ -77,35 +77,48 @@ impl From<std::array::TryFromSliceError> for FiatShamirHashError {
 ///  For each leaf node, the string should contain the Sigma-protocol statement being proven and the commitment.
 ///  The string should not contain information on whether a node is marked "real" or "simulated",
 ///  and should not contain challenges, responses, or the real/simulated flag for any node.
-pub(crate) fn fiat_shamir_tree_to_bytes(tree: &ProofTree) -> Vec<u8> {
+pub(crate) fn fiat_shamir_tree_to_bytes(
+    tree: &ProofTree,
+) -> Result<Vec<u8>, FiatShamirTreeSerializationError> {
     let mut data = Vec::new();
     let mut w = SigmaByteWriter::new(&mut data, None);
-    fiat_shamir_write_bytes(tree, &mut w)
-        // since serialization may fail only for underlying IO errors it's ok to force unwrap
-        .expect("Fiat-Shamir hash function input serialization failed");
-    data
+    fiat_shamir_write_bytes(tree, &mut w)?;
+    Ok(data)
+}
+
+#[derive(Error, PartialEq, Eq, Debug, Clone)]
+#[error("FiatShamirTreeSerializationError: {0}")]
+pub struct FiatShamirTreeSerializationError(String);
+
+impl From<std::io::Error> for FiatShamirTreeSerializationError {
+    fn from(error: std::io::Error) -> Self {
+        FiatShamirTreeSerializationError(error.to_string())
+    }
 }
 
 fn fiat_shamir_write_bytes<W: SigmaByteWrite>(
     tree: &ProofTree,
     w: &mut W,
-) -> Result<(), std::io::Error> {
+) -> Result<(), FiatShamirTreeSerializationError> {
     const INTERNAL_NODE_PREFIX: u8 = 0;
     const LEAF_PREFIX: u8 = 1;
 
-    match tree.as_tree_kind() {
+    Ok(match tree.as_tree_kind() {
         ProofTreeKind::Leaf(leaf) => {
             let prop_tree =
                 ErgoTree::with_segregation(&Expr::Const(SigmaProp::new(leaf.proposition()).into()));
             let prop_bytes = prop_tree.sigma_serialize_bytes();
-            // TODO: is unwrap safe here? Create new type with non-optional commitment? Decide when other scenarios
-            // are implemented (leafs and trees)
-            let commitment_bytes = leaf.commitment_opt().unwrap().bytes();
+            let commitment_bytes = leaf
+                .commitment_opt()
+                .ok_or_else(|| {
+                    FiatShamirTreeSerializationError(format!("empty commitment in {:?}", leaf))
+                })?
+                .bytes();
             w.put_u8(LEAF_PREFIX)?;
             w.put_i16_be_bytes(prop_bytes.len() as i16)?;
             w.write_all(prop_bytes.as_ref())?;
             w.put_i16_be_bytes(commitment_bytes.len() as i16)?;
-            w.write_all(commitment_bytes.as_slice())
+            w.write_all(commitment_bytes.as_slice())?
         }
         ProofTreeKind::Conjecture(c) => {
             w.put_u8(INTERNAL_NODE_PREFIX)?;
@@ -114,7 +127,6 @@ fn fiat_shamir_write_bytes<W: SigmaByteWrite>(
             for child in c.children() {
                 fiat_shamir_write_bytes(&child, w)?;
             }
-            Ok(())
         }
-    }
+    })
 }

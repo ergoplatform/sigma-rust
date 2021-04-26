@@ -4,6 +4,7 @@
 
 use std::rc::Rc;
 
+use super::fiat_shamir::FiatShamirTreeSerializationError;
 use super::prover::ProofBytes;
 use super::sig_serializer::SigParsingError;
 use super::{
@@ -38,6 +39,9 @@ pub enum VerifierError {
     /// Unexpected value encountered
     #[error("Unexpected: {0}")]
     Unexpected(String),
+    /// Error while tree serialization for Fiat-Shamir hash
+    #[error("Fiat-Shamir tree serialization error: {0}")]
+    FiatShamirTreeSerializationError(FiatShamirTreeSerializationError),
 }
 
 /// Result of Box.ergoTree verification procedure (see `verify` method).
@@ -71,7 +75,7 @@ pub trait Verifier: Evaluator {
                 match parse_sig_compute_challenges(&sb, proof)? {
                     UncheckedTree::UncheckedSigmaTree(sp) => {
                         // Perform Verifier Steps 4-6
-                        check_commitments(sp, message)
+                        check_commitments(sp, message)?
                     }
                     UncheckedTree::NoProof => false,
                 }
@@ -85,17 +89,17 @@ pub trait Verifier: Evaluator {
 }
 
 /// Perform Verifier Steps 4-6
-fn check_commitments(sp: UncheckedSigmaTree, message: &[u8]) -> bool {
+fn check_commitments(sp: UncheckedSigmaTree, message: &[u8]) -> Result<bool, VerifierError> {
     // Perform Verifier Step 4
     let new_root = compute_commitments(sp);
-    let mut s = fiat_shamir_tree_to_bytes(&new_root.clone().into());
+    let mut s = fiat_shamir_tree_to_bytes(&new_root.clone().into())?;
     s.append(&mut message.to_vec());
     // Verifier Steps 5-6: Convert the tree to a string `s` for input to the Fiat-Shamir hash function,
     // using the same conversion as the prover in 7
     // Accept the proof if the challenge at the root of the tree is equal to the Fiat-Shamir hash of `s`
     // (and, if applicable,  the associated data). Reject otherwise.
     let expected_challenge = fiat_shamir_hash_fn(s.as_slice());
-    new_root.challenge() == expected_challenge.into()
+    Ok(new_root.challenge() == expected_challenge.into())
 }
 
 /// Verifier Step 4: For every leaf node, compute the commitment a from the challenge e and response $z$,
