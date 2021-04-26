@@ -328,7 +328,12 @@ fn polish_simulated<P: Prover + ?Sized>(
                 UnprovenConjecture::CandUnproven(cand) => {
                     // If the node is marked "simulated", mark all of its children "simulated"
                     let a: CandUnproven = if cand.simulated {
-                        todo!()
+                        cand.clone().with_children(
+                            cast_to_unp(cand.children.clone())?
+                                .into_iter()
+                                .map(|c| c.with_simulated(true).into())
+                                .collect(),
+                        )
                     } else {
                         cand.clone()
                     };

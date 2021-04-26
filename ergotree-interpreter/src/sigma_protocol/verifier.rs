@@ -495,7 +495,149 @@ mod tests {
         assert_eq!(ver_res.unwrap().result, true);
     }
 
-    // TODO: add custom SigmaBoolean generator for  PK + AND + OR of various depth and test prover/verifier
+    #[test]
+    fn sig_test_vector_conj_and_or() {
+        // corresponding sigmastate test
+        // in SigningSpecification.property("AND with OR signature test vector")
+        let msg =
+            base16::decode(b"1dc01772ee0171f5f614c673e3c7fa1107a8cf727bdf5a6dadb379e93c0d1d00")
+                .unwrap();
+        let sk1 = DlogProverInput::from_biguint(
+            BigUint::parse_bytes(
+                b"109749205800194830127901595352600384558037183218698112947062497909408298157746",
+                10,
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        let sk2 = DlogProverInput::from_biguint(
+            BigUint::parse_bytes(
+                b"50415569076448343263191022044468203756975150511337537963383000142821297891310",
+                10,
+            )
+            .unwrap(),
+        )
+        .unwrap();
+
+        let sk3 = DlogProverInput::from_biguint(
+            BigUint::parse_bytes(
+                b"34648336872573478681093104997365775365807654884817677358848426648354905397359",
+                10,
+            )
+            .unwrap(),
+        )
+        .unwrap();
+
+        let signature = base16::decode(b"397e005d85c161990d0e44853fbf14951ff76e393fe1939bb48f68e852cd5af028f6c7eaaed587f6d5435891a564d8f9a77288773ce5b526a670ab0278aa4278891db53a9842df6fba69f95f6d55cfe77dd7b4bdccc1a3378ac4524b51598cb813258f64c94e98c3ef891a6eb8cbfd2e527a9038ca50b5bb50058de55a859a169628e6ae5ba4cb0332c694e450782d6f").unwrap();
+
+        let expr: Expr = SigmaAnd::new(vec![
+            Expr::Const(sk1.public_image().into()),
+            SigmaOr::new(vec![
+                Expr::Const(sk2.public_image().into()),
+                Expr::Const(sk3.public_image().into()),
+            ])
+            .unwrap()
+            .into(),
+        ])
+        .unwrap()
+        .into();
+        let tree: ErgoTree = expr.into();
+
+        // let prover = TestProver {
+        //     secrets: vec![sk1.into(), sk2.into()],
+        // };
+        // let res = prover.prove(
+        //     &tree,
+        //     &Env::empty(),
+        //     Rc::new(force_any_val::<Context>()),
+        //     msg.as_slice(),
+        //     &HintsBag::empty(),
+        // );
+        // let proof: Vec<u8> = res.unwrap().proof.into();
+        // dbg!(base16::encode_lower(&proof));
+
+        let verifier = TestVerifier;
+        let ver_res = verifier.verify(
+            &tree,
+            &Env::empty(),
+            Rc::new(force_any_val::<Context>()),
+            signature.into(),
+            msg.as_slice(),
+        );
+        assert_eq!(ver_res.unwrap().result, true);
+    }
+
+    #[test]
+    fn sig_test_vector_conj_or_and() {
+        // corresponding sigmastate test
+        // in SigningSpecification.property("OR with AND signature test vector")
+        let msg =
+            base16::decode(b"1dc01772ee0171f5f614c673e3c7fa1107a8cf727bdf5a6dadb379e93c0d1d00")
+                .unwrap();
+        let sk1 = DlogProverInput::from_biguint(
+            BigUint::parse_bytes(
+                b"109749205800194830127901595352600384558037183218698112947062497909408298157746",
+                10,
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        let sk2 = DlogProverInput::from_biguint(
+            BigUint::parse_bytes(
+                b"50415569076448343263191022044468203756975150511337537963383000142821297891310",
+                10,
+            )
+            .unwrap(),
+        )
+        .unwrap();
+
+        let sk3 = DlogProverInput::from_biguint(
+            BigUint::parse_bytes(
+                b"34648336872573478681093104997365775365807654884817677358848426648354905397359",
+                10,
+            )
+            .unwrap(),
+        )
+        .unwrap();
+
+        let signature = base16::decode(b"a58b251be319a9656c21876b1136a59f42b18835dec6076c92f7a925ba28d2030218c177ab07563003eff5250cfafeb631ef610f4d710ab8e821bf632203adf23f4376580eaa17ddb36c0138f73a88551f45d92cde2b66dfbb5906c02e4d48106ff08be4a2fc29ec242f495468692f9ddeeb029dc5d8f38e2649cf09c44b67cbcfb3de4202026fb84d23ce2b4ff0f69b").unwrap();
+
+        let expr: Expr = SigmaOr::new(vec![
+            Expr::Const(sk1.public_image().into()),
+            SigmaAnd::new(vec![
+                Expr::Const(sk2.public_image().into()),
+                Expr::Const(sk3.public_image().into()),
+            ])
+            .unwrap()
+            .into(),
+        ])
+        .unwrap()
+        .into();
+        let tree: ErgoTree = expr.into();
+
+        // let prover = TestProver {
+        //     secrets: vec![sk1.into(), sk2.into()],
+        // };
+        // let res = prover.prove(
+        //     &tree,
+        //     &Env::empty(),
+        //     Rc::new(force_any_val::<Context>()),
+        //     msg.as_slice(),
+        //     &HintsBag::empty(),
+        // );
+        // let proof: Vec<u8> = res.unwrap().proof.into();
+        // dbg!(base16::encode_lower(&proof));
+
+        let verifier = TestVerifier;
+        let ver_res = verifier.verify(
+            &tree,
+            &Env::empty(),
+            Rc::new(force_any_val::<Context>()),
+            signature.into(),
+            msg.as_slice(),
+        );
+        assert_eq!(ver_res.unwrap().result, true);
+    }
 
     // TODO: draft an issue for prover/verifier spec sharing test vectors with sigmastate
     // Test vector should have: SigmaBoolean, secrets, proof
