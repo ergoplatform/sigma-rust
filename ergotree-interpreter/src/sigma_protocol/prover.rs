@@ -262,16 +262,8 @@ fn set_positions(uc: UnprovenConjecture) -> UnprovenConjecture {
         .map(|(idx, utree)| utree.with_position(uc.position().child(idx)))
         .collect();
     match uc {
-        UnprovenConjecture::CandUnproven(cand) => CandUnproven {
-            children: upd_children,
-            ..cand
-        }
-        .into(),
-        UnprovenConjecture::CorUnproven(cor) => CorUnproven {
-            children: upd_children,
-            ..cor
-        }
-        .into(),
+        UnprovenConjecture::CandUnproven(cand) => cand.with_children(upd_children).into(),
+        UnprovenConjecture::CorUnproven(cor) => cor.with_children(upd_children).into(),
     }
 }
 
@@ -901,16 +893,16 @@ mod tests {
     }
 
     #[test]
-    fn test_prove_pk_and_and() {
+    fn test_prove_pk_and_or() {
         let secret1 = DlogProverInput::random();
         let secret2 = DlogProverInput::random();
         let secret3 = DlogProverInput::random();
         let pk1 = secret1.public_image();
         let pk2 = secret2.public_image();
-        let pk3 = secret2.public_image();
+        let pk3 = secret3.public_image();
         let expr: Expr = SigmaAnd::new(vec![
             Expr::Const(pk1.into()),
-            SigmaAnd::new(vec![Expr::Const(pk2.into()), Expr::Const(pk3.into())])
+            SigmaOr::new(vec![Expr::Const(pk2.into()), Expr::Const(pk3.into())])
                 .unwrap()
                 .into(),
         ])
@@ -920,7 +912,7 @@ mod tests {
         let message = vec![0u8; 100];
 
         let prover = TestProver {
-            secrets: vec![secret1.into(), secret2.into(), secret3.into()],
+            secrets: vec![secret1.into(), secret2.into()],
         };
         let res = prover.prove(
             &tree,
@@ -958,7 +950,7 @@ mod tests {
     }
 
     #[test]
-    fn test_prove_pk_or_or() {
+    fn test_prove_pk_or_and() {
         let secret1 = DlogProverInput::random();
         let secret2 = DlogProverInput::random();
         let secret3 = DlogProverInput::random();
@@ -967,7 +959,7 @@ mod tests {
         let pk3 = secret3.public_image();
         let expr: Expr = SigmaOr::new(vec![
             Expr::Const(pk1.into()),
-            SigmaOr::new(vec![Expr::Const(pk2.into()), Expr::Const(pk3.into())])
+            SigmaAnd::new(vec![Expr::Const(pk2.into()), Expr::Const(pk3.into())])
                 .unwrap()
                 .into(),
         ])
@@ -977,7 +969,7 @@ mod tests {
         let message = vec![0u8; 100];
 
         let prover = TestProver {
-            secrets: vec![secret1.into(), secret2.into(), secret3.into()],
+            secrets: vec![secret2.into(), secret3.into()],
         };
         let res = prover.prove(
             &tree,

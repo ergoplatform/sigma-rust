@@ -1,8 +1,5 @@
 //! Sigma protocols
 
-// TODO: remove when sigma protocol is fully implemented
-#![allow(dead_code)]
-
 pub mod private_input;
 pub mod prover;
 pub mod verifier;
