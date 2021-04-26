@@ -17,6 +17,8 @@ pub struct LongToByteArray {
 }
 
 impl LongToByteArray {
+    pub(crate) const OP_CODE: OpCode = OpCode::LONG_TO_BYTE_ARRAY;
+
     /// Create new object, returns an error if any of the requirements failed
     pub fn new(input: Expr) -> Result<Self, InvalidArgumentError> {
         input.check_post_eval_tpe(SType::SLong)?;
@@ -31,7 +33,7 @@ impl LongToByteArray {
     }
 
     pub(crate) fn op_code(&self) -> OpCode {
-        OpCode::LONG_TO_BYTE_ARRAY
+        Self::OP_CODE
     }
 }
 

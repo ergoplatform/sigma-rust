@@ -17,6 +17,8 @@ pub struct ByteArrayToBigInt {
 }
 
 impl ByteArrayToBigInt {
+    pub(crate) const OP_CODE: OpCode = OpCode::BYTE_ARRAY_TO_BIGINT;
+
     /// Create new object, returns an error if any of the requirements failed
     pub fn new(input: Expr) -> Result<Self, InvalidArgumentError> {
         input.check_post_eval_tpe(SType::SColl(Box::new(SType::SByte)))?;
@@ -31,7 +33,7 @@ impl ByteArrayToBigInt {
     }
 
     pub(crate) fn op_code(&self) -> OpCode {
-        OpCode::BYTE_ARRAY_TO_BIGINT
+        Self::OP_CODE
     }
 }
 
