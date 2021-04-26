@@ -18,6 +18,7 @@ use ergotree_ir::sigma_protocol::sigma_boolean::SigmaConjecture;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
 use k256::Scalar;
 use std::io::Read;
+use thiserror::Error;
 
 /// Recursively traverses the given node and serializes challenges and prover messages to the given writer.
 /// Note, sigma propositions and commitments are not serialized.
@@ -187,9 +188,10 @@ fn parse_sig_compute_challnges_reader<R: Read>(
 
 // TODO: use io::Error directly?
 /// Errors when parsing proof tree signatures
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(Error, PartialEq, Eq, Debug, Clone)]
 pub enum SigParsingError {
     /// IO error
+    #[error("IO error: {0}")]
     IoError(String),
 }
 

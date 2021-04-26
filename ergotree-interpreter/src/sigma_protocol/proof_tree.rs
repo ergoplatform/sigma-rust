@@ -1,4 +1,5 @@
 extern crate derive_more;
+
 use derive_more::From;
 use derive_more::TryInto;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
@@ -51,8 +52,12 @@ impl ProofTree {
         }
     }
 
+    #[allow(dead_code)]
     pub(crate) fn position(&self) -> &NodePosition {
-        todo!()
+        match self {
+            ProofTree::UncheckedTree(_) => todo!(),
+            ProofTree::UnprovenTree(unp) => unp.position(),
+        }
     }
 
     pub(crate) fn challenge(&self) -> Option<Challenge> {
@@ -137,29 +142,27 @@ pub(crate) enum ProofTreeKind<'a> {
     Conjecture(&'a dyn ProofTreeConjecture),
 }
 
-pub(crate) fn cast_to_ust(
-    children: Vec<ProofTree>,
-) -> Result<Vec<UncheckedSigmaTree>, ProverError> {
-    children
-        .into_iter()
-        .map(|c| {
-            if let ProofTree::UncheckedTree(UncheckedTree::UncheckedSigmaTree(ust)) = c {
-                Ok(ust)
-            } else {
-                Err(ProverError::Unexpected(format!(
-                    "rewrite: expected UncheckedSigmaTree got: {:?}",
-                    c
-                )))
-            }
-        })
-        .collect::<Result<Vec<UncheckedSigmaTree>, _>>()
-}
-
 // TODO: add doc with an example
-pub(crate) fn rewrite<F: Fn(&ProofTree) -> Result<Option<ProofTree>, ProverError>>(
-    tree: ProofTree,
-    f: &F,
-) -> Result<ProofTree, ProverError> {
+pub(crate) fn rewrite<F>(tree: ProofTree, f: &F) -> Result<ProofTree, ProverError>
+where
+    F: Fn(&ProofTree) -> Result<Option<ProofTree>, ProverError>,
+{
+    let cast_to_ust = |children: Vec<ProofTree>| {
+        children
+            .into_iter()
+            .map(|c| {
+                if let ProofTree::UncheckedTree(UncheckedTree::UncheckedSigmaTree(ust)) = c {
+                    Ok(ust)
+                } else {
+                    Err(ProverError::Unexpected(format!(
+                        "rewrite: expected UncheckedSigmaTree got: {:?}",
+                        c
+                    )))
+                }
+            })
+            .collect::<Result<Vec<UncheckedSigmaTree>, _>>()
+    };
+
     let rewritten_tree = f(&tree)?.unwrap_or(tree);
     Ok(match &rewritten_tree {
         ProofTree::UnprovenTree(unp_tree) => match unp_tree {

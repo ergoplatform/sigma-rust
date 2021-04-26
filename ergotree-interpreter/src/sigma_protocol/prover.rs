@@ -1,5 +1,7 @@
 //! Interpreter with enhanced functionality to prove statements.
 
+#![deny(clippy::unwrap_used)]
+
 mod context_extension;
 mod prover_result;
 
@@ -216,11 +218,9 @@ fn mark_real<P: Prover + ?Sized>(
                 UnprovenTree::UnprovenConjecture(unp_conj) => match unp_conj {
                     UnprovenConjecture::CandUnproven(cand) => {
                         // If the node is AND, mark it "real" if all of its children are marked real; else mark it "simulated"
-                        let simulated = cand.children.iter().any(|c| {
-                            // TODO: unwrap -> Err
-                            let unp: UnprovenTree = c.clone().try_into().unwrap();
-                            unp.simulated()
-                        });
+                        let simulated = cast_to_unp(cand.children.clone())?
+                            .into_iter()
+                            .any(|c| c.simulated());
                         Some(
                             CandUnproven {
                                 simulated,
@@ -231,11 +231,9 @@ fn mark_real<P: Prover + ?Sized>(
                     }
                     UnprovenConjecture::CorUnproven(cor) => {
                         // If the node is OR, mark it "real" if at least one child is marked real; else mark it "simulated"
-                        let simulated = cor.children.iter().all(|c| {
-                            // TODO: unwrap -> Err
-                            let unp: UnprovenTree = c.clone().try_into().unwrap();
-                            unp.simulated()
-                        });
+                        let simulated = cast_to_unp(cor.children.clone())?
+                            .into_iter()
+                            .all(|c| c.simulated());
                         Some(
                             CorUnproven {
                                 simulated,
@@ -273,8 +271,15 @@ fn set_positions(uc: UnprovenConjecture) -> UnprovenConjecture {
 /// the choice can be guided by efficiency or convenience considerations.
 fn make_cor_children_simulated(cor: CorUnproven) -> Result<CorUnproven, ProverError> {
     let casted_children = cast_to_unp(cor.children)?;
-    // TODO: unwrap -> error
-    let first_real_child = casted_children.iter().find(|it| it.is_real()).unwrap();
+    let first_real_child = casted_children
+        .iter()
+        .find(|it| it.is_real())
+        .ok_or_else(|| {
+            ProverError::Unexpected(format!(
+                "make_cor_children_simulated: no real child is found amoung: {:?}",
+                casted_children
+            ))
+        })?;
     let children = casted_children
         .clone()
         .into_iter()
@@ -366,7 +371,6 @@ fn simulate_and_commit(
     unproven_tree: UnprovenTree,
     hints_bag: &HintsBag,
 ) -> Result<UnprovenTree, ProverError> {
-    // TODO: streamline "try_into()" (remove map_err())
     proof_tree::rewrite(unproven_tree.into(), &|tree| {
         match tree {
             // Step 4 part 1: If the node is marked "real", then each of its simulated children gets a fresh uniformly
@@ -381,14 +385,10 @@ fn simulate_and_commit(
             ProofTree::UnprovenTree(UnprovenTree::UnprovenConjecture(
                 UnprovenConjecture::CorUnproven(cor),
             )) if cor.is_real() => {
-                let new_children = cor
-                    .children
-                    .clone()
+                let new_children = cast_to_unp(cor.children.clone())?
                     .into_iter()
                     .map(|c| {
-                        // TODO: unwrap -> Err
-                        let unp: UnprovenTree = c.clone().try_into().unwrap();
-                        if unp.is_real() {
+                        if c.is_real() {
                             c
                         } else {
                             // take challenge from previously done proof stored in the hints bag,
@@ -402,6 +402,7 @@ fn simulate_and_commit(
                             c.with_challenge(new_challenge)
                         }
                     })
+                    .map(|c| c.into())
                     .collect();
                 Ok(Some(
                     CorUnproven {
@@ -455,17 +456,20 @@ fn simulate_and_commit(
                         .skip(1)
                         .map(|it| it.with_challenge(Challenge::secure_random()))
                         .collect();
-                    let xored_challenge = tail
-                        .clone()
-                        .into_iter()
-                        .map(|c| c.challenge().unwrap())
-                        .into_iter()
-                        .fold(challenge, |acc, c| acc.xor(c));
-                    let head = unproven_children
-                        .first()
-                        .cloned()
-                        .unwrap()
-                        .with_challenge(xored_challenge);
+                    let mut xored_challenge = challenge;
+                    for it in &tail {
+                        xored_challenge = xored_challenge.xor(it.challenge().ok_or_else(|| {
+                            ProverError::Unexpected(format!("no challenge in {:?}", it))
+                        })?);
+                    }
+                    let head = if let Some(first) = unproven_children.first() {
+                        first.clone().with_challenge(xored_challenge)
+                    } else {
+                        return Err(ProverError::Unexpected(format!(
+                            "empty children in {:?}",
+                            cor
+                        )));
+                    };
                     let mut new_children = vec![head];
                     new_children.append(&mut tail);
                     Ok(Some(
@@ -652,10 +656,14 @@ fn proving<P: Prover + ?Sized>(
                                 })
                                 .find(|prover_input| prover_input.public_image() == us.proposition)
                             {
-                                // TODO: unwrap -> Err
                                 let z = dlog_protocol::interactive_prover::second_message(
                                     &priv_key,
-                                    us.randomness_opt.unwrap(),
+                                    us.randomness_opt.ok_or_else(|| {
+                                        ProverError::Unexpected(format!(
+                                            "empty randomness in {:?}",
+                                            us
+                                        ))
+                                    })?,
                                     &challenge,
                                 );
                                 Ok(Some(
@@ -754,8 +762,9 @@ fn convert_to_unchecked(tree: ProofTree) -> Result<UncheckedSigmaTree, ProverErr
             ))),
             UnprovenTree::UnprovenConjecture(conj) => match conj {
                 UnprovenConjecture::CandUnproven(cand) => Ok(UncheckedConjecture::CandUnchecked {
-                    // TODO: unwrap -> Err
-                    challenge: cand.challenge_opt.clone().unwrap(),
+                    challenge: cand.challenge_opt.clone().ok_or_else(|| {
+                        ProverError::Unexpected(format!("no challenge in {:?}", cand))
+                    })?,
                     children: cand
                         .children
                         .clone()
@@ -765,8 +774,9 @@ fn convert_to_unchecked(tree: ProofTree) -> Result<UncheckedSigmaTree, ProverErr
                 }
                 .into()),
                 UnprovenConjecture::CorUnproven(cor) => Ok(UncheckedConjecture::CorUnchecked {
-                    // TODO: unwrap -> Err
-                    challenge: cor.challenge_opt.clone().unwrap(),
+                    challenge: cor.challenge_opt.clone().ok_or_else(|| {
+                        ProverError::Unexpected(format!("no challenge in {:?}", cor))
+                    })?,
                     children: cor
                         .children
                         .clone()
@@ -793,6 +803,7 @@ impl Prover for TestProver {
     }
 }
 
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
     use super::*;

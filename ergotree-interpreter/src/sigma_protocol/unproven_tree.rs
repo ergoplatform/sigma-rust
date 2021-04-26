@@ -69,8 +69,15 @@ impl UnprovenTree {
 
     pub(crate) fn challenge(&self) -> Option<Challenge> {
         match self {
-            UnprovenTree::UnprovenLeaf(leaf) => leaf.challenge(),
-            UnprovenTree::UnprovenConjecture(conj) => conj.challenge(),
+            UnprovenTree::UnprovenLeaf(ul) => ul.challenge(),
+            UnprovenTree::UnprovenConjecture(uc) => uc.challenge(),
+        }
+    }
+
+    pub(crate) fn position(&self) -> &NodePosition {
+        match self {
+            UnprovenTree::UnprovenLeaf(ul) => ul.position(),
+            UnprovenTree::UnprovenConjecture(uc) => uc.position(),
         }
     }
 }
@@ -130,6 +137,12 @@ impl UnprovenLeaf {
             UnprovenLeaf::UnprovenSchnorr(us) => us.challenge_opt.clone(),
         }
     }
+
+    pub(crate) fn position(&self) -> &NodePosition {
+        match self {
+            UnprovenLeaf::UnprovenSchnorr(us) => &us.position,
+        }
+    }
 }
 
 impl ProofTreeLeaf for UnprovenLeaf {
@@ -162,10 +175,10 @@ impl UnprovenConjecture {
         }
     }
 
-    pub(crate) fn position(&self) -> NodePosition {
+    pub(crate) fn position(&self) -> &NodePosition {
         match self {
-            UnprovenConjecture::CandUnproven(cand) => cand.position.clone(),
-            UnprovenConjecture::CorUnproven(cor) => cor.position.clone(),
+            UnprovenConjecture::CandUnproven(cand) => &cand.position,
+            UnprovenConjecture::CorUnproven(cor) => &cor.position,
         }
     }
 

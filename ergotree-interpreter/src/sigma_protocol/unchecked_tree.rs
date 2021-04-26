@@ -130,6 +130,38 @@ pub enum UncheckedConjecture {
 }
 
 impl UncheckedConjecture {
+    pub fn with_children(self, new_children: Vec<UncheckedSigmaTree>) -> Self {
+        match self {
+            UncheckedConjecture::CandUnchecked {
+                challenge,
+                children: _,
+            } => UncheckedConjecture::CandUnchecked {
+                challenge,
+                children: new_children,
+            },
+            UncheckedConjecture::CorUnchecked {
+                challenge,
+                children: _,
+            } => UncheckedConjecture::CorUnchecked {
+                challenge,
+                children: new_children,
+            },
+        }
+    }
+
+    pub fn children_ust(&self) -> &[UncheckedSigmaTree] {
+        match self {
+            UncheckedConjecture::CandUnchecked {
+                challenge: _,
+                children,
+            } => children,
+            UncheckedConjecture::CorUnchecked {
+                challenge: _,
+                children,
+            } => children,
+        }
+    }
+
     pub fn challenge(&self) -> Challenge {
         match self {
             UncheckedConjecture::CandUnchecked {

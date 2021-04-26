@@ -1,9 +1,9 @@
 //! Verifier
 
+#![deny(clippy::unwrap_used)]
+
 use std::rc::Rc;
 
-use super::proof_tree::rewrite;
-use super::proof_tree::ProofTree;
 use super::prover::ProofBytes;
 use super::sig_serializer::SigParsingError;
 use super::{
@@ -21,16 +21,23 @@ use ergotree_ir::ergo_tree::ErgoTree;
 use ergotree_ir::ergo_tree::ErgoTreeParsingError;
 
 use derive_more::From;
+use thiserror::Error;
 
 /// Errors on proof verification
-#[derive(PartialEq, Eq, Debug, Clone, From)]
+#[derive(Error, PartialEq, Eq, Debug, Clone, From)]
 pub enum VerifierError {
     /// Failed to parse ErgoTree from bytes
+    #[error("ErgoTreeError: {0}")]
     ErgoTreeError(ErgoTreeParsingError),
     /// Failed to evaluate ErgoTree
+    #[error("EvalError: {0}")]
     EvalError(EvalError),
     /// Signature parsing error
+    #[error("SigParsingError: {0}")]
     SigParsingError(SigParsingError),
+    /// Unexpected value encountered
+    #[error("Unexpected: {0}")]
+    Unexpected(String),
 }
 
 /// Result of Box.ergoTree verification procedure (see `verify` method).
@@ -95,32 +102,30 @@ fn check_commitments(sp: UncheckedSigmaTree, message: &[u8]) -> bool {
 /// per the verifier algorithm of the leaf's Sigma-protocol.
 /// If the verifier algorithm of the Sigma-protocol for any of the leaves rejects, then reject the entire proof.
 fn compute_commitments(sp: UncheckedSigmaTree) -> UncheckedSigmaTree {
-    let proof_tree = rewrite(sp.into(), &|tree| match tree {
-        ProofTree::UncheckedTree(UncheckedTree::UncheckedSigmaTree(ust)) => match ust {
-            UncheckedSigmaTree::UncheckedLeaf(UncheckedLeaf::UncheckedSchnorr(sn)) => {
+    match sp {
+        UncheckedSigmaTree::UncheckedLeaf(leaf) => match leaf {
+            UncheckedLeaf::UncheckedSchnorr(sn) => {
                 let a = dlog_protocol::interactive_prover::compute_commitment(
                     &sn.proposition,
                     &sn.challenge,
                     &sn.second_message,
                 );
-                Ok(Some(
-                    UncheckedSchnorr {
-                        commitment_opt: Some(FirstDlogProverMessage(a)),
-                        ..sn.clone()
-                    }
-                    .into(),
-                ))
+                UncheckedSchnorr {
+                    commitment_opt: Some(FirstDlogProverMessage(a)),
+                    ..sn
+                }
+                .into()
             }
-            UncheckedSigmaTree::UncheckedConjecture(_) => Ok(None),
         },
-        _ => Ok(None),
-    })
-    .unwrap();
-
-    if let ProofTree::UncheckedTree(UncheckedTree::UncheckedSigmaTree(ust)) = proof_tree {
-        ust
-    } else {
-        panic!(":(")
+        UncheckedSigmaTree::UncheckedConjecture(conj) => conj
+            .clone()
+            .with_children(
+                conj.children_ust()
+                    .iter()
+                    .map(|c| compute_commitments(c.clone()))
+                    .collect(),
+            )
+            .into(),
     }
 }
 
@@ -130,6 +135,7 @@ pub struct TestVerifier;
 impl Evaluator for TestVerifier {}
 impl Verifier for TestVerifier {}
 
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
 mod tests {
