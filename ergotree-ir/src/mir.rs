@@ -6,6 +6,8 @@ pub mod atleast;
 pub mod bin_op;
 pub mod block;
 pub mod bool_to_sigma;
+pub mod byte_array_to_bigint;
+pub mod byte_array_to_long;
 /// Calc Blake2b hash
 pub mod calc_blake2b256;
 /// Get the collection element by index
@@ -53,6 +55,7 @@ pub mod header;
 pub mod if_op;
 /// Logical NOT op
 pub mod logical_not;
+pub mod long_to_byte_array;
 /// Object method call
 pub mod method_call;
 /// Negation operation on numeric type.

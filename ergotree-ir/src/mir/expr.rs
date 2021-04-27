@@ -13,6 +13,7 @@ use super::apply::Apply;
 use super::bin_op::BinOp;
 use super::block::BlockValue;
 use super::bool_to_sigma::BoolToSigmaProp;
+use super::byte_array_to_long::ByteArrayToLong;
 use super::calc_blake2b256::CalcBlake2b256;
 use super::coll_by_index::ByIndex;
 use super::coll_exists::Exists;
@@ -37,6 +38,7 @@ use super::func_value::FuncValue;
 use super::global_vars::GlobalVars;
 use super::if_op::If;
 use super::logical_not::LogicalNot;
+use super::long_to_byte_array::LongToByteArray;
 use super::method_call::MethodCall;
 use super::negation::Negation;
 use super::option_get::OptionGet;
@@ -56,6 +58,7 @@ use super::value::Value;
 
 extern crate derive_more;
 use crate::mir::atleast::Atleast;
+use crate::mir::byte_array_to_bigint::ByteArrayToBigInt;
 use crate::mir::create_prove_dh_tuple::CreateProveDhTuple;
 use crate::mir::deserialize_context::DeserializeContext;
 use crate::mir::deserialize_register::DeserializeRegister;
@@ -70,6 +73,12 @@ pub enum Expr {
     Const(Constant),
     /// Placeholder for a constant
     ConstPlaceholder(ConstantPlaceholder),
+    /// Convert byte array to SLong
+    ByteArrayToLong(ByteArrayToLong),
+    /// Convert byte array to SLong
+    ByteArrayToBigInt(ByteArrayToBigInt),
+    /// Convert SLong to a byte array
+    LongToByteArray(LongToByteArray),
     /// Collection declaration (array of expressions of the same type)
     Collection(Collection),
     /// Tuple declaration
@@ -174,6 +183,9 @@ impl Expr {
         match self {
             Expr::Const(_) => panic!("constant does not have op code assigned"),
             Expr::ConstPlaceholder(op) => op.op_code(),
+            Expr::ByteArrayToLong(op) => op.op_code(),
+            Expr::ByteArrayToBigInt(op) => op.op_code(),
+            Expr::LongToByteArray(op) => op.op_code(),
             Expr::Collection(op) => op.op_code(),
             Expr::GlobalVars(op) => op.op_code(),
             Expr::MethodCall(op) => op.op_code(),
@@ -229,6 +241,9 @@ impl Expr {
         match self {
             Expr::Const(v) => v.tpe.clone(),
             Expr::Collection(v) => v.tpe(),
+            Expr::ByteArrayToLong(v) => v.tpe(),
+            Expr::ByteArrayToBigInt(v) => v.tpe(),
+            Expr::LongToByteArray(v) => v.tpe(),
             Expr::ConstPlaceholder(v) => v.tpe.clone(),
             Expr::CalcBlake2b256(v) => v.tpe(),
             Expr::Global => SType::SGlobal,
