@@ -5,19 +5,22 @@ use super::unchecked_tree::UncheckedConjecture;
 use super::unchecked_tree::UncheckedLeaf;
 use super::unchecked_tree::UncheckedSigmaTree;
 use super::unchecked_tree::UncheckedTree;
-use crate::sigma_protocol::fiat_shamir::FiatShamirHash;
 use crate::sigma_protocol::Challenge;
 use crate::sigma_protocol::GroupSizedBytes;
 use crate::sigma_protocol::UncheckedSchnorr;
 
+use ergotree_ir::serialization::sigma_byte_reader;
+use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
 use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
 use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWriter;
+use ergotree_ir::serialization::SerializationError;
 use ergotree_ir::serialization::SigmaSerializable;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaConjecture;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
+
+use derive_more::From;
 use k256::Scalar;
-use std::io::Read;
 use thiserror::Error;
 
 /// Recursively traverses the given node and serializes challenges and prover messages to the given writer.
@@ -71,10 +74,12 @@ fn sig_write_bytes<W: SigmaByteWrite>(
                 children,
             } => {
                 // don't write last child's challenge -- it's computed by the verifier via XOR
-                for child in children.iter().take(children.len() - 1) {
-                    sig_write_bytes(child, w, true)?;
+                if let Some((last, elements)) = children.split_last() {
+                    for child in elements {
+                        sig_write_bytes(child, w, true)?;
+                    }
+                    sig_write_bytes(last, w, false)?;
                 }
-                sig_write_bytes(children.last().unwrap(), w, false)?;
                 Ok(())
             }
         },
@@ -93,7 +98,7 @@ pub(crate) fn parse_sig_compute_challenges(
     match proof {
         ProofBytes::Empty => Ok(UncheckedTree::NoProof),
         ProofBytes::Some(mut proof_bytes) => {
-            let mut r = std::io::Cursor::new(proof_bytes.as_mut_slice());
+            let mut r = sigma_byte_reader::from_bytes(proof_bytes.as_mut_slice());
             parse_sig_compute_challnges_reader(exp, &mut r, None).map(|tree| tree.into())
         }
     }
@@ -103,7 +108,7 @@ pub(crate) fn parse_sig_compute_challenges(
 /// non-leaf node by reading them from the proof or computing them.
 /// Verifier Step 3: For every leaf node, read the response z provided in the proof.
 /// * `exp` - sigma proposition which defines the structure of bytes from the reader
-fn parse_sig_compute_challnges_reader<R: Read>(
+fn parse_sig_compute_challnges_reader<R: SigmaByteRead>(
     exp: &SigmaBoolean,
     r: &mut R,
     challenge_opt: Option<Challenge>,
@@ -112,9 +117,7 @@ fn parse_sig_compute_challnges_reader<R: Read>(
     let challenge = if let Some(c) = challenge_opt {
         c
     } else {
-        let mut chal_bytes: [u8; super::SOUNDNESS_BYTES] = [0; super::SOUNDNESS_BYTES];
-        r.read_exact(&mut chal_bytes)?;
-        Challenge::from(FiatShamirHash(Box::new(chal_bytes)))
+        Challenge::sigma_parse(r)?
     };
 
     match exp {
@@ -162,20 +165,21 @@ fn parse_sig_compute_challnges_reader<R: Read>(
 
                 // Read all the children but the last and compute the XOR of all the challenges including e_0
                 let mut children: Vec<UncheckedSigmaTree> = Vec::new();
-                for it in cor.items.clone().iter().take(cor.items.len() - 1) {
-                    children.push(parse_sig_compute_challnges_reader(&it, r, None)?);
+
+                if let Some((last, rest)) = cor.items.split_last() {
+                    for it in rest {
+                        children.push(parse_sig_compute_challnges_reader(&it, r, None)?);
+                    }
+                    let xored_challenge = children
+                        .clone()
+                        .into_iter()
+                        .map(|c| c.challenge())
+                        .fold(challenge.clone(), |acc, c| acc.xor(c));
+                    let last_child =
+                        parse_sig_compute_challnges_reader(last, r, Some(xored_challenge))?;
+                    children.push(last_child);
                 }
-                let xored_challenge = children
-                    .clone()
-                    .into_iter()
-                    .map(|c| c.challenge())
-                    .fold(challenge.clone(), |acc, c| acc.xor(c));
-                let last_child = parse_sig_compute_challnges_reader(
-                    cor.items.last().unwrap(),
-                    r,
-                    Some(xored_challenge),
-                )?;
-                children.push(last_child);
+
                 Ok(UncheckedConjecture::CorUnchecked {
                     challenge,
                     children,
@@ -188,11 +192,14 @@ fn parse_sig_compute_challnges_reader<R: Read>(
 
 // TODO: use io::Error directly?
 /// Errors when parsing proof tree signatures
-#[derive(Error, PartialEq, Eq, Debug, Clone)]
+#[derive(Error, PartialEq, Eq, Debug, Clone, From)]
 pub enum SigParsingError {
     /// IO error
     #[error("IO error: {0}")]
     IoError(String),
+    /// Serialization error
+    #[error("Serialization error: {0}")]
+    SerializationError(SerializationError),
 }
 
 impl From<std::io::Error> for SigParsingError {

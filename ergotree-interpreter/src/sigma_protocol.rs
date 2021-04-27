@@ -1,5 +1,7 @@
 //! Sigma protocols
 
+#![deny(clippy::unwrap_used)]
+
 pub mod private_input;
 pub mod prover;
 pub mod verifier;

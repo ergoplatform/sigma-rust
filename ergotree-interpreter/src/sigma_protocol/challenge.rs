@@ -37,6 +37,7 @@ impl Challenge {
             .zip(that.iter())
             .map(|(&x1, &x2)| x1 ^ x2)
             .collect();
+        #[allow(clippy::unwrap_used)] // since the size is unchanged
         FiatShamirHash::try_from(res.as_slice()).unwrap().into()
     }
 }
@@ -59,7 +60,9 @@ impl SigmaSerializable for Challenge {
         w.write_all(self.0 .0.as_ref())
     }
 
-    fn sigma_parse<R: SigmaByteRead>(_r: &mut R) -> Result<Self, SerializationError> {
-        todo!()
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+        let mut chal_bytes: [u8; super::SOUNDNESS_BYTES] = [0; super::SOUNDNESS_BYTES];
+        r.read_exact(&mut chal_bytes)?;
+        Ok(Challenge::from(FiatShamirHash(Box::new(chal_bytes))))
     }
 }

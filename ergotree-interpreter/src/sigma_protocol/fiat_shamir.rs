@@ -28,6 +28,7 @@ pub struct FiatShamirHash(pub Box<[u8; SOUNDNESS_BYTES]>);
 
 impl FiatShamirHash {
     pub fn secure_random() -> Self {
+        #[allow(clippy::unwrap_used)] // since we set the correct size
         secure_random_bytes(SOUNDNESS_BYTES)
             .as_slice()
             .try_into()
@@ -38,11 +39,13 @@ impl FiatShamirHash {
 /// Fiat-Shamir hash function
 pub fn fiat_shamir_hash_fn(input: &[u8]) -> FiatShamirHash {
     // unwrap is safe, since 32 bytes is a valid hash size (<= 512 && 24 % 8 == 0)
+    #[allow(clippy::unwrap_used)]
     let mut hasher = VarBlake2b::new(GROUP_SIZE).unwrap();
     hasher.update(input);
     let hash = hasher.finalize_boxed();
     let taken: Vec<u8> = hash.to_vec().into_iter().take(SOUNDNESS_BYTES).collect();
     // unwrap is safe due to hash size is expected to be SOUNDNESS_BYTES
+    #[allow(clippy::unwrap_used)]
     FiatShamirHash(taken.into_boxed_slice().try_into().unwrap())
 }
 

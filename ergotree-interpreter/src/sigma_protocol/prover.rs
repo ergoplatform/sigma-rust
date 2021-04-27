@@ -1,7 +1,5 @@
 //! Interpreter with enhanced functionality to prove statements.
 
-#![deny(clippy::unwrap_used)]
-
 mod context_extension;
 mod prover_result;
 

@@ -1,7 +1,5 @@
 //! Verifier
 
-#![deny(clippy::unwrap_used)]
-
 use std::rc::Rc;
 
 use super::fiat_shamir::FiatShamirTreeSerializationError;

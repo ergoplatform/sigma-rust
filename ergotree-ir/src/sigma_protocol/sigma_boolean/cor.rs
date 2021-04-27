@@ -25,6 +25,7 @@ impl Cor {
         if res.is_empty() {
             false.into()
         } else if res.len() == 1 {
+            #[allow(clippy::unwrap_used)]
             res.first().unwrap().clone()
         } else {
             SigmaBoolean::SigmaConjecture(SigmaConjecture::Cor(Cor { items: res }))
@@ -32,6 +33,7 @@ impl Cor {
     }
 }
 
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
     use super::*;

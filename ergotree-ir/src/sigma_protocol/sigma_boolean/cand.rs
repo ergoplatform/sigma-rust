@@ -25,6 +25,7 @@ impl Cand {
         if res.is_empty() {
             true.into()
         } else if res.len() == 1 {
+            #[allow(clippy::unwrap_used)]
             res.first().unwrap().clone()
         } else {
             SigmaBoolean::SigmaConjecture(SigmaConjecture::Cand(Cand { items: res }))
@@ -32,6 +33,7 @@ impl Cand {
     }
 }
 
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
     use super::*;
