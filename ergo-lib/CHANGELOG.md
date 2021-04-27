@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
+
+### Added 
+- AND, OR conjecture support in sigma protocol [#226](https://github.com/ergoplatform/sigma-rust/pull/226);
+
 ## [0.10.0] - 2021-04-22
 
 ### Added 

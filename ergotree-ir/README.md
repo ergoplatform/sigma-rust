@@ -61,8 +61,8 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 - executeFromVar
 - executeFromSelfReg
 - getVar
-- allZK
-- anyZK
+- :heavy_check_mark: allZK
+- :heavy_check_mark: anyZK
 - :heavy_check_mark: decodePoint
 - xorOf
 
