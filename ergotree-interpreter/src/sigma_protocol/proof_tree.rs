@@ -143,7 +143,8 @@ pub(crate) enum ProofTreeKind<'a> {
     Conjecture(&'a dyn ProofTreeConjecture),
 }
 
-// TODO: add doc with an example
+/// Traverses the tree in the top-down manner, calling `f` for every node/leaf and setting
+/// it's returned value (if `Some`) as new node/leaf or do nothing if it's returned `None`
 pub(crate) fn rewrite<F>(tree: ProofTree, f: &F) -> Result<ProofTree, ProverError>
 where
     F: Fn(&ProofTree) -> Result<Option<ProofTree>, ProverError>,

@@ -190,7 +190,6 @@ fn parse_sig_compute_challnges_reader<R: SigmaByteRead>(
     }
 }
 
-// TODO: use io::Error directly?
 /// Errors when parsing proof tree signatures
 #[derive(Error, PartialEq, Eq, Debug, Clone, From)]
 pub enum SigParsingError {
