@@ -201,7 +201,11 @@ mod arbitrary {
 mod tests {
 
     use super::*;
+    use crate::mir::constant::Constant;
+    use crate::mir::expr::Expr;
+    use crate::mir::value::Value::Boolean;
     use crate::serialization::sigma_serialize_roundtrip;
+    use crate::serialization::SigmaSerializable;
     use proptest::prelude::*;
 
     proptest! {
@@ -212,5 +216,27 @@ mod tests {
             prop_assert_eq![sigma_serialize_roundtrip(&expr), expr];
         }
 
+    }
+
+    // Test that binop with boolean literals serialized correctly
+    #[test]
+    fn regression_249() {
+        let e = Expr::sigma_parse_bytes(vec![0xed, 0x85, 0x03]);
+        assert_eq!(
+            e,
+            Ok(Expr::BinOp(BinOp {
+                kind: BinOpKind::Relation(RelationOp::And,),
+                left: Expr::Const(Constant {
+                    tpe: SType::SBoolean,
+                    v: Boolean(true),
+                })
+                .into(),
+                right: Expr::Const(Constant {
+                    tpe: SType::SBoolean,
+                    v: Boolean(true),
+                })
+                .into(),
+            }))
+        );
     }
 }
