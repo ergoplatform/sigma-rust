@@ -32,6 +32,7 @@ impl Tuple {
     /// Type
     pub fn tpe(&self) -> SType {
         let types: Vec<SType> = self.items.iter().map(|it| it.tpe()).collect();
+        #[allow(clippy::unwrap_used)]
         SType::STuple(STuple {
             items: types.try_into().unwrap(),
         })
@@ -61,6 +62,7 @@ impl SigmaSerializable for Tuple {
 }
 
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::unwrap_used)]
 /// Arbitrary impl
 mod arbitrary {
 

@@ -26,6 +26,7 @@ impl SigmaSerializable for ConstantPlaceholder {
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::expect_used)]
 mod tests {
     use super::*;
     use crate::mir::constant::Constant;

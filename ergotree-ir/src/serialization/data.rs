@@ -54,6 +54,7 @@ impl DataSerializer {
                         .into_iter()
                         .map(|i| i.try_extract_into::<bool>())
                         .collect();
+                    #[allow(clippy::unwrap_used)]
                     w.put_bits(maybe_bools.unwrap().as_slice())
                 }
                 CollKind::WrappedColl {
@@ -134,7 +135,7 @@ impl DataSerializer {
                 // we get the tuple item value for each tuple item type,
                 // since items types quantity has checked bounds, we can be sure that items count
                 // is correct
-                Value::Tup(items.try_into().unwrap())
+                Value::Tup(items.try_into()?)
             }
 
             c => {

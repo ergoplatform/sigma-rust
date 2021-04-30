@@ -116,6 +116,7 @@ pub trait SigmaSerializable: Sized {
     fn sigma_serialize_bytes(&self) -> Vec<u8> {
         let mut data = Vec::new();
         let mut w = SigmaByteWriter::new(&mut data, None);
+        #[allow(clippy::expect_used)]
         self.sigma_serialize(&mut w)
             // since serialization may fail only for underlying IO errors it's ok to force unwrap
             .expect("serialization failed");
@@ -169,6 +170,7 @@ impl<T: SigmaSerializable> SigmaSerializable for Option<Box<T>> {
 }
 
 /// serialization roundtrip
+#[allow(clippy::expect_used)]
 pub fn sigma_serialize_roundtrip<T: SigmaSerializable>(v: &T) -> T {
     let mut data = Vec::new();
     let mut w = SigmaByteWriter::new(&mut data, None);

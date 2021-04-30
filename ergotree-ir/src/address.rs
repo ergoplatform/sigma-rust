@@ -301,6 +301,7 @@ impl AddressEncoder {
             .into_iter()
             .take(AddressEncoder::CHECKSUM_LENGTH)
             .collect();
+        #[allow(clippy::unwrap_used)]
         v.as_slice().try_into().unwrap()
     }
 
@@ -395,6 +396,7 @@ impl AddressEncoder {
 }
 
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::unwrap_used)]
 pub(crate) mod arbitrary {
     use super::*;
     use proptest::prelude::*;
@@ -418,6 +420,7 @@ pub(crate) mod arbitrary {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
 
     use super::*;

@@ -72,6 +72,7 @@ impl SigmaSerializable for ForAll {
 }
 
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::unwrap_used)]
 /// Arbitrary impl
 mod arbitrary {
     use super::*;

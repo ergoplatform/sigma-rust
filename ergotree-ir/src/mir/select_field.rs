@@ -114,6 +114,7 @@ impl SigmaSerializable for SelectField {
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use std::convert::TryInto;
 

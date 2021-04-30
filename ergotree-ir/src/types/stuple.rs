@@ -83,12 +83,14 @@ pub struct STuple {
 impl STuple {
     /// Create a tuple type for a given type pair
     pub fn pair(t1: SType, t2: SType) -> Self {
+        #[allow(clippy::unwrap_used)]
         STuple {
             items: vec![t1, t2].try_into().unwrap(),
         }
     }
 
     pub(crate) fn with_subst(self, subst: &HashMap<STypeVar, SType>) -> Self {
+        #[allow(clippy::unwrap_used)]
         STuple {
             items: self
                 .items
