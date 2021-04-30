@@ -10,7 +10,8 @@ members = [
     "bindings/ergo-lib-wasm",
     "bindings/ergo-lib-c-core",
     "bindings/ergo-lib-c",
-    "bindings/ergo-lib-jni"
+    "bindings/ergo-lib-jni",
+    "bounded-vec"
 ]
 
 [profile.release]

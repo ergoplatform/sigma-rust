@@ -1,7 +1,6 @@
 //! Serialization of Ergo types
 use crate::mir::expr::InvalidArgumentError;
 use crate::mir::val_def::ValId;
-use crate::types::stuple::STupleItemsOutOfBoundsError;
 use crate::types::type_unify::TypeUnificationError;
 
 use super::{
@@ -11,6 +10,7 @@ use super::{
 };
 use crate::serialization::types::TypeCode;
 use crate::types::smethod::MethodId;
+use bounded_vec::BoundedVecOutOfBounds;
 use io::Cursor;
 use sigma_ser::{peekable_reader::PeekableReader, vlq_encode};
 use std::io;
@@ -84,8 +84,8 @@ impl From<InvalidArgumentError> for SerializationError {
     }
 }
 
-impl From<STupleItemsOutOfBoundsError> for SerializationError {
-    fn from(e: STupleItemsOutOfBoundsError) -> Self {
+impl From<BoundedVecOutOfBounds> for SerializationError {
+    fn from(e: BoundedVecOutOfBounds) -> Self {
         SerializationError::ValueOutOfBounds(format!("{:?}", e))
     }
 }

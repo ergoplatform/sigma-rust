@@ -1,0 +1,16 @@
+[package]
+name = "bounded-vec"
+version = "0.1.0"
+license = "CC0-1.0"
+authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
+edition = "2018"
+description = "Non-empty Vec wrapper with lower and upper bounds on items quantity"
+repository = "https://github.com/ergoplatform/bounded-vec"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+
+
+[dev-dependencies]

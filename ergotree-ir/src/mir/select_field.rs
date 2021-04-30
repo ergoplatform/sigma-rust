@@ -6,24 +6,27 @@ use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::SerializationError;
 use crate::serialization::SigmaSerializable;
 use crate::types::stuple::STuple;
-use crate::types::stuple::STupleItemsOutOfBoundsError;
 use crate::types::stype::SType;
 
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
 
-/// Tuple field access index (1..255)
+/// Tuple field access index (1..=255)
 #[derive(PartialEq, Eq, Debug, Copy, Clone)]
 pub struct TupleFieldIndex(u8);
 
+/// Error for tuple index being out of bounds (1..=255)
+#[derive(Debug)]
+pub struct TupleFieldIndexOutBounds;
+
 impl TryFrom<u8> for TupleFieldIndex {
-    type Error = STupleItemsOutOfBoundsError;
+    type Error = TupleFieldIndexOutBounds;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         if value >= 1 {
             Ok(TupleFieldIndex(value))
         } else {
-            Err(STupleItemsOutOfBoundsError())
+            Err(TupleFieldIndexOutBounds)
         }
     }
 }
