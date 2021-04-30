@@ -3,7 +3,8 @@ use std::convert::TryFrom;
 use std::io;
 
 use crate::peekable_reader;
-use bit_vec::BitVec;
+use bitvec::order::Lsb0;
+use bitvec::prelude::BitVec;
 use peekable_reader::Peekable;
 #[cfg(test)]
 use proptest::{num::u64, prelude::*};
@@ -100,12 +101,14 @@ pub trait WriteSigmaVlqExt: io::Write {
 
     /// Encode bool array as bit vector, filling trailing bits with `false`
     fn put_bits(&mut self, bools: &[bool]) -> io::Result<()> {
-        let mut bits = BitVec::from_elem(bools.len(), true);
-        bools
-            .iter()
-            .enumerate()
-            .for_each(|(idx, i)| bits.set(idx, *i));
-        self.write_all(bits.to_bytes().as_slice())
+        let mut bits = BitVec::<Lsb0, u8>::new();
+        for b in bools {
+            bits.push(*b);
+        }
+        for c in bits.as_bitslice().domain() {
+            self.put_u8(c)?;
+        }
+        Ok(())
     }
 }
 
@@ -181,9 +184,13 @@ pub trait ReadSigmaVlqExt: peekable_reader::Peekable {
         let byte_num = (size + 7) / 8;
         let mut buf = vec![0u8; byte_num];
         self.read_exact(&mut buf)?;
-        let mut bits = BitVec::from_bytes(buf.as_slice());
+        // May fail if number of bits in buf is larger that maximum value of usize
+        let mut bits = match BitVec::<Lsb0, u8>::from_slice(&buf) {
+            Ok(v) => v,
+            Err(_) => return Err(VlqEncodingError::VlqDecodingFailed),
+        };
         bits.truncate(size);
-        Ok(bits.iter().collect::<Vec<bool>>())
+        Ok(bits.iter().map(|x| *x).collect::<Vec<bool>>())
     }
 }
 
