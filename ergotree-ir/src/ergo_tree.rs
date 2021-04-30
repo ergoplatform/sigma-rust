@@ -81,24 +81,26 @@ impl ErgoTree {
 
     /// get Expr out of ErgoTree
     pub fn proposition(&self) -> Result<Rc<Expr>, ErgoTreeParsingError> {
-        let root = self
+        let tree = self
             .tree
             .clone()
-            .map_err(ErgoTreeParsingError::TreeParsingError)
-            .and_then(|t| t.root.map_err(ErgoTreeParsingError::RootParsingError))?;
+            .map_err(ErgoTreeParsingError::TreeParsingError)?;
+        let root = tree.root.map_err(ErgoTreeParsingError::RootParsingError)?;
         if self.header.is_constant_segregation() {
             let mut data = Vec::new();
             let mut cs = ConstantStore::empty();
             let mut w = SigmaByteWriter::new(&mut data, Some(&mut cs));
+            #[allow(clippy::unwrap_used)]
             root.sigma_serialize(&mut w).unwrap();
             let cursor = Cursor::new(&mut data[..]);
             let pr = PeekableReader::new(cursor);
             let mut sr = SigmaByteReader::new_with_substitute_placeholders(
                 pr,
-                ConstantStore::new(self.tree.clone().unwrap().constants),
+                ConstantStore::new(tree.constants),
             );
+            #[allow(clippy::unwrap_used)]
+            // if it was serialized, then we should deserialize it without error
             let parsed_expr = Expr::sigma_parse(&mut sr).unwrap();
-            // todo!("substitute placeholders: {:?}", self.tree);
             Ok(Rc::new(parsed_expr))
         } else {
             Ok(root)
@@ -121,12 +123,15 @@ impl ErgoTree {
         let mut data = Vec::new();
         let mut cs = ConstantStore::empty();
         let mut w = SigmaByteWriter::new(&mut data, Some(&mut cs));
+        #[allow(clippy::unwrap_used)]
         expr.sigma_serialize(&mut w).unwrap();
         let cursor = Cursor::new(&mut data[..]);
         let pr = PeekableReader::new(cursor);
         let constants = cs.get_all();
         let new_cs = ConstantStore::new(constants.clone());
         let mut sr = SigmaByteReader::new(pr, new_cs);
+        #[allow(clippy::unwrap_used)]
+        // if it was serialized, then we should deserialize it without error
         let parsed_expr = Expr::sigma_parse(&mut sr).unwrap();
         ErgoTree {
             header: ErgoTreeHeader(ErgoTreeHeader::CONSTANT_SEGREGATION_FLAG),
@@ -324,6 +329,7 @@ pub(crate) mod arbitrary {
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use crate::address::AddressEncoder;

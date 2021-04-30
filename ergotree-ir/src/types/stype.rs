@@ -247,6 +247,7 @@ impl<T: LiftIntoSType> LiftIntoSType for Option<T> {
 }
 
 #[impl_for_tuples(2, 4)]
+#[allow(clippy::unwrap_used)]
 impl LiftIntoSType for Tuple {
     fn stype() -> SType {
         let v: Vec<SType> = [for_tuples!(  #( Tuple::stype() ),* )].to_vec();
@@ -255,6 +256,7 @@ impl LiftIntoSType for Tuple {
 }
 
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::unwrap_used)]
 pub(crate) mod tests {
     use super::*;
     use proptest::prelude::*;

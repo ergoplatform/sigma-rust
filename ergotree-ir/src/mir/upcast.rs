@@ -69,6 +69,7 @@ impl SigmaSerializable for Upcast {
 }
 
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::unwrap_used)]
 /// Arbitrary impl
 mod arbitrary {
     use crate::mir::expr::arbitrary::ArbExprParams;

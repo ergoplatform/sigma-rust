@@ -50,6 +50,7 @@ impl SigmaSerializable for CreateProveDlog {
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use sigma_test_util::force_any_val_with;
 

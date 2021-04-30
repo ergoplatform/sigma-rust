@@ -52,6 +52,7 @@ impl SigmaSerializable for Negation {
 }
 
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::unwrap_used)]
 mod arbitrary {
     use crate::mir::expr::arbitrary::ArbExprParams;
 

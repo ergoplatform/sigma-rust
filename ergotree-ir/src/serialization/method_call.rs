@@ -33,6 +33,7 @@ impl SigmaSerializable for MethodCall {
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use crate::mir::expr::Expr;
     use crate::mir::method_call::MethodCall;

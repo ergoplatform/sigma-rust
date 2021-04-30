@@ -52,6 +52,7 @@ impl SigmaSerializable for OptionIsDefined {
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use crate::mir::expr::Expr;

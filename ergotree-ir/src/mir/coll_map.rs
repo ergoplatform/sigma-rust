@@ -75,6 +75,7 @@ impl SigmaSerializable for Map {
 
 #[cfg(feature = "arbitrary")]
 /// Arbitrary impl
+#[allow(clippy::unwrap_used)]
 mod arbitrary {
     use super::*;
     use crate::mir::expr::arbitrary::ArbExprParams;

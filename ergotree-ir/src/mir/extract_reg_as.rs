@@ -76,6 +76,7 @@ impl SigmaSerializable for ExtractRegisterAs {
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use crate::mir::global_vars::GlobalVars;

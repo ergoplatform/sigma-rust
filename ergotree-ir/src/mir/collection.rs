@@ -106,6 +106,7 @@ pub(crate) fn bool_const_coll_sigma_parse<R: SigmaByteRead>(
 }
 
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::unwrap_used)]
 /// Arbitrary impl
 mod arbitrary {
     use crate::mir::constant::arbitrary::ArbConstantParams;

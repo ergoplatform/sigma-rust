@@ -67,6 +67,7 @@ impl SigmaSerializable for OptionGetOrElse {
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use crate::mir::constant::Constant;

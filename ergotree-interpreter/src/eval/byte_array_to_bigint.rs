@@ -96,7 +96,7 @@ mod tests {
         buf[0] = 0b0111_1111;
         match eval_node(buf) {
             Ok(n) => assert_eq!(n, *MAX_BOUND),
-            Err(_) => assert!(false),
+            Err(_) => panic!(),
         }
     }
 
@@ -106,7 +106,7 @@ mod tests {
         buf[0] = 0b1000_0000;
         match eval_node(buf) {
             Ok(n) => assert_eq!(n, *MIN_BOUND),
-            Err(_) => assert!(false),
+            Err(_) => panic!(),
         }
     }
 

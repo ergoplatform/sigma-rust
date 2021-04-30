@@ -71,6 +71,7 @@ impl SigmaSerializable for Exists {
     }
 }
 
+#[allow(clippy::unwrap_used)]
 #[cfg(feature = "arbitrary")]
 /// Arbitrary impl
 mod arbitrary {
