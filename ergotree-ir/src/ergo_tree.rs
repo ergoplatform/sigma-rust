@@ -228,8 +228,8 @@ impl SigmaSerializable for ErgoTree {
         })
     }
 
-    fn sigma_parse_bytes(mut bytes: Vec<u8>) -> Result<Self, SerializationError> {
-        let cursor = Cursor::new(&mut bytes[..]);
+    fn sigma_parse_bytes(bytes: &[u8]) -> Result<Self, SerializationError> {
+        let cursor = Cursor::new(bytes);
         let mut r = SigmaByteReader::new(PeekableReader::new(cursor), ConstantStore::empty());
         let header = ErgoTreeHeader::sigma_parse(&mut r)?;
         let constants = if header.is_constant_segregation() {
@@ -350,7 +350,7 @@ mod tests {
     #[test]
     fn deserialization_non_parseable_tree_ok() {
         // constants length is set, invalid constant
-        assert!(ErgoTree::sigma_parse_bytes(vec![
+        assert!(ErgoTree::sigma_parse_bytes(&vec![
             ErgoTreeHeader::CONSTANT_SEGREGATION_FLAG,
             1,
             0,
@@ -363,7 +363,7 @@ mod tests {
     #[test]
     fn deserialization_non_parseable_root_ok() {
         // no constant segregation, Expr is invalid
-        assert!(ErgoTree::sigma_parse_bytes(vec![0, 0, 1]).is_ok());
+        assert!(ErgoTree::sigma_parse_bytes(&vec![0, 0, 1]).is_ok());
     }
 
     #[test]
@@ -384,7 +384,7 @@ mod tests {
         });
         let ergo_tree = ErgoTree::with_segregation(&expr);
         let bytes = ergo_tree.sigma_serialize_bytes();
-        let parsed_expr = ErgoTree::sigma_parse_bytes(bytes)
+        let parsed_expr = ErgoTree::sigma_parse_bytes(&bytes)
             .unwrap()
             .proposition()
             .unwrap();

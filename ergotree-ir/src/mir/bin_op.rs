@@ -223,7 +223,7 @@ mod tests {
     // Test that binop with boolean literals serialized correctly
     #[test]
     fn regression_249() {
-        let e = Expr::sigma_parse_bytes(vec![0xed, 0x85, 0x03]);
+        let e = Expr::sigma_parse_bytes(&vec![0xed, 0x85, 0x03]);
         assert_eq!(
             e,
             Ok(Expr::BinOp(BinOp {

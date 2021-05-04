@@ -13,7 +13,7 @@ use ergotree_ir::sigma_protocol::dlog_group::EcPoint;
 impl Evaluable for DecodePoint {
     fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
         let point_bytes = self.input.eval(env, ctx)?.try_extract_into::<Vec<u8>>()?;
-        let point: EcPoint = SigmaSerializable::sigma_parse_bytes(point_bytes).map_err(|_| {
+        let point: EcPoint = SigmaSerializable::sigma_parse_bytes(&point_bytes).map_err(|_| {
             Misc(String::from(
                 "DecodePoint: Failed to parse EC point from bytes",
             ))

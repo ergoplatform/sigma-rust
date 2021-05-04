@@ -39,7 +39,8 @@ pub mod ergo_tree {
         String::deserialize(deserializer)
             .and_then(|str| base16::decode(&str).map_err(|err| Error::custom(err.to_string())))
             .and_then(|bytes| {
-                ErgoTree::sigma_parse_bytes(bytes).map_err(|error| Error::custom(error.to_string()))
+                ErgoTree::sigma_parse_bytes(&bytes)
+                    .map_err(|error| Error::custom(error.to_string()))
             })
     }
 }
@@ -129,8 +130,8 @@ pub mod ergo_box {
     impl TryFrom<Base16DecodedBytes> for ConstantWrapper {
         type Error = ConstantParsingError;
 
-        fn try_from(bytes: Base16DecodedBytes) -> Result<Self, Self::Error> {
-            let c = Constant::sigma_parse_bytes(bytes.into())?;
+        fn try_from(Base16DecodedBytes(bytes): Base16DecodedBytes) -> Result<Self, Self::Error> {
+            let c = Constant::sigma_parse_bytes(&bytes)?;
             Ok(ConstantWrapper(c))
         }
     }
@@ -138,8 +139,8 @@ pub mod ergo_box {
     impl FromStr for RichConstant {
         type Err = ConstantParsingError;
         fn from_str(s: &str) -> Result<Self, Self::Err> {
-            let bytes = Base16DecodedBytes::try_from(s)?;
-            let c = Constant::sigma_parse_bytes(bytes.into())?;
+            let Base16DecodedBytes(bytes) = Base16DecodedBytes::try_from(s)?;
+            let c = Constant::sigma_parse_bytes(&bytes)?;
             Ok(RichConstant {
                 raw_value: ConstantWrapper(c),
             })
