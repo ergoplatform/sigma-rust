@@ -88,8 +88,8 @@ impl ErgoTree {
         let root = tree.root.map_err(ErgoTreeParsingError::RootParsingError)?;
         if self.header.is_constant_segregation() {
             let mut data = Vec::new();
-            let mut cs = ConstantStore::empty();
-            let mut w = SigmaByteWriter::new(&mut data, Some(&mut cs));
+            let cs = ConstantStore::empty();
+            let mut w = SigmaByteWriter::new(&mut data, Some(cs));
             #[allow(clippy::unwrap_used)]
             root.sigma_serialize(&mut w).unwrap();
             let cursor = Cursor::new(&mut data[..]);
@@ -121,13 +121,14 @@ impl ErgoTree {
     /// Build ErgoTree with constants segregated from expr
     pub fn with_segregation(expr: &Expr) -> ErgoTree {
         let mut data = Vec::new();
-        let mut cs = ConstantStore::empty();
-        let mut w = SigmaByteWriter::new(&mut data, Some(&mut cs));
+        let cs = ConstantStore::empty();
+        let mut w = SigmaByteWriter::new(&mut data, Some(cs));
         #[allow(clippy::unwrap_used)]
         expr.sigma_serialize(&mut w).unwrap();
+        #[allow(clippy::unwrap_used)]
+        let constants = w.constant_store_mut_ref().unwrap().get_all();
         let cursor = Cursor::new(&mut data[..]);
         let pr = PeekableReader::new(cursor);
-        let constants = cs.get_all();
         let new_cs = ConstantStore::new(constants.clone());
         let mut sr = SigmaByteReader::new(pr, new_cs);
         #[allow(clippy::unwrap_used)]

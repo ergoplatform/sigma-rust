@@ -6,15 +6,13 @@ use std::io::Write;
 /// Implementation for SigmaByteWrite
 pub struct SigmaByteWriter<'a, W> {
     inner: &'a mut W,
-    constant_store: Option<&'a mut ConstantStore>,
+    /// Constant store where constants (swapped for placeholders) are stored
+    pub constant_store: Option<ConstantStore>,
 }
 
 impl<'a, W: Write> SigmaByteWriter<'a, W> {
     /// Make a new writer with underlying Write and optional constant store
-    pub fn new(
-        w: &'a mut W,
-        constant_store: Option<&'a mut ConstantStore>,
-    ) -> SigmaByteWriter<'a, W> {
+    pub fn new(w: &'a mut W, constant_store: Option<ConstantStore>) -> SigmaByteWriter<'a, W> {
         SigmaByteWriter {
             inner: w,
             constant_store,
@@ -25,7 +23,7 @@ impl<'a, W: Write> SigmaByteWriter<'a, W> {
 /// Sigma byte writer trait with a store for constant segregation
 pub trait SigmaByteWrite: WriteSigmaVlqExt {
     /// Constant store (if any) attached to the writer to collect segregated constants
-    fn constant_store(&mut self) -> Option<&mut ConstantStore>;
+    fn constant_store_mut_ref(&mut self) -> Option<&mut ConstantStore>;
 }
 
 impl<'a, W: Write> Write for SigmaByteWriter<'a, W> {
@@ -39,10 +37,7 @@ impl<'a, W: Write> Write for SigmaByteWriter<'a, W> {
 }
 
 impl<'a, W: Write> SigmaByteWrite for SigmaByteWriter<'a, W> {
-    fn constant_store(&mut self) -> Option<&mut ConstantStore> {
-        match self.constant_store.as_mut() {
-            Some(store) => Some(store),
-            None => None,
-        }
+    fn constant_store_mut_ref(&mut self) -> Option<&mut ConstantStore> {
+        self.constant_store.as_mut()
     }
 }
