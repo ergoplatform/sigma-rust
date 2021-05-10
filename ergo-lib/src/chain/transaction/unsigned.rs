@@ -16,7 +16,6 @@ use crate::chain::transaction::TransactionFromJsonError;
 #[cfg(feature = "json")]
 use core::convert::TryFrom;
 use ergotree_interpreter::sigma_protocol::prover::ProofBytes;
-use ergotree_ir::serialization::SigmaSerializable;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 
@@ -92,7 +91,7 @@ impl UnsignedTransaction {
             self.data_inputs.clone(),
             self.output_candidates.clone(),
         );
-        tx.sigma_serialize_bytes()
+        tx.bytes_to_sign()
     }
 }
 
