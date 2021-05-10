@@ -31,9 +31,10 @@ impl TryFrom<u8> for TupleFieldIndex {
     }
 }
 
-impl From<TupleFieldIndex> for usize {
-    fn from(v: TupleFieldIndex) -> Self {
-        v.0 as usize
+impl TupleFieldIndex {
+    /// Returns a zero-based index
+    pub fn zero_based_index(&self) -> usize {
+        (self.0 - 1) as usize
     }
 }
 
@@ -67,7 +68,7 @@ impl SelectField {
     pub fn new(input: Expr, field_index: TupleFieldIndex) -> Result<Self, InvalidArgumentError> {
         match input.tpe() {
             SType::STuple(STuple { items }) => {
-                if items.len() >= field_index.into() {
+                if field_index.zero_based_index() < items.len() {
                     Ok(SelectField {
                         input: Box::new(input),
                         field_index,
@@ -96,7 +97,10 @@ impl SelectField {
     /// Type
     pub fn tpe(&self) -> SType {
         match self.input.tpe() {
-            SType::STuple(STuple { items }) => items.get(self.field_index).unwrap().clone(),
+            SType::STuple(STuple { items }) => items
+                .get(self.field_index.zero_based_index())
+                .unwrap()
+                .clone(),
             tpe => panic!("expected input type to be STuple, got {0:?}", tpe),
         }
     }

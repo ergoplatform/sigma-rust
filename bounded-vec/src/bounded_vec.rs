@@ -1,4 +1,5 @@
 use std::convert::TryFrom;
+use std::slice::Iter;
 
 /// Non-empty Vec bounded with minimal (L - lower bound) and maximal (U - upper bound) items quantity
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -67,9 +68,9 @@ impl<T, const L: usize, const U: usize> BoundedVec<T, L, U> {
         self.inner.len()
     }
 
-    /// Returns `true` if the vector contains no elements.
+    /// Always returns `false` (cannot be empty)
     pub fn is_empty(&self) -> bool {
-        self.inner.is_empty()
+        false
     }
 
     /// Extracts a slice containing the entire vector.
@@ -87,6 +88,51 @@ impl<T, const L: usize, const U: usize> BoundedVec<T, L, U> {
     pub fn last(&self) -> &T {
         #![allow(clippy::unwrap_used)]
         self.inner.last().unwrap()
+    }
+
+    /// Create a new `BoundedVec` by consuming `self` and mapping each element.
+    ///
+    /// This is useful as it keeps the knowledge that the length is >= U, <= L,
+    /// even through the old `BoundedVec` is consumed and turned into an iterator.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use bounded_vec::BoundedVec;
+    /// let data: BoundedVec<u8, 2, 8> = [1u8,2].into();
+    /// let data = data.mapped(|x|x*2);
+    /// assert_eq!(data, [2u8,4].into());
+    /// ```
+    pub fn mapped<F, N>(self, map_fn: F) -> BoundedVec<N, L, U>
+    where
+        F: FnMut(T) -> N,
+    {
+        BoundedVec {
+            inner: self.inner.into_iter().map(map_fn).collect::<Vec<_>>(),
+        }
+    }
+
+    /// Create a new `BoundedVec` by mapping references to the elements of self
+    ///
+    /// This is useful as it keeps the knowledge that the length is >= U, <= L,
+    /// will still hold for new `BoundedVec`
+    pub fn mapped_ref<F, N>(&self, map_fn: F) -> BoundedVec<N, L, U>
+    where
+        F: FnMut(&T) -> N,
+    {
+        BoundedVec {
+            inner: self.inner.iter().map(map_fn).collect::<Vec<_>>(),
+        }
+    }
+
+    /// Returns a reference for an element at index or `None` if out of bounds
+    pub fn get(&self, index: usize) -> Option<&T> {
+        self.inner.get(index)
+    }
+
+    /// Get an iterator
+    pub fn iter(&self) -> Iter<T> {
+        self.inner.iter()
     }
 }
 
