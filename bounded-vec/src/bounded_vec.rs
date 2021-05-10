@@ -38,6 +38,12 @@ pub enum BoundedVecOutOfBounds {
 
 impl<T, const L: usize, const U: usize> BoundedVec<T, L, U> {
     /// Creates new BoundedVec or returns error if items count is out of bounds
+    ///
+    /// # Example
+    /// ```
+    /// use bounded_vec::BoundedVec;
+    /// let data: BoundedVec<_, 2, 8> = BoundedVec::from_vec(vec![1u8, 2]).unwrap();
+    /// ```
     pub fn from_vec(items: Vec<T>) -> Result<Self, BoundedVecOutOfBounds> {
         // remove when feature(const_evaluatable_checked) is stable
         // and this requirement is encoded in type sig
@@ -59,32 +65,86 @@ impl<T, const L: usize, const U: usize> BoundedVec<T, L, U> {
     }
 
     /// Returns a reference to underlying `Vec``
+    ///
+    /// # Example
+    /// ```
+    /// use bounded_vec::BoundedVec;
+    /// use std::convert::TryInto;
+    ///
+    /// let data: BoundedVec<_, 2, 8> = vec![1u8, 2].try_into().unwrap();
+    /// assert_eq!(data.as_vec(), &vec![1u8,2]);
+    /// ```
     pub fn as_vec(&self) -> &Vec<T> {
         &self.inner
     }
 
     /// Returns the number of elements in the vector
+    ///
+    /// # Example
+    /// ```
+    /// use bounded_vec::BoundedVec;
+    /// use std::convert::TryInto;
+    ///
+    /// let data: BoundedVec<u8, 2, 4> = vec![1u8,2].try_into().unwrap();
+    /// assert_eq!(data.len(), 2);
+    /// ```
     pub fn len(&self) -> usize {
         self.inner.len()
     }
 
     /// Always returns `false` (cannot be empty)
+    ///
+    /// # Example
+    /// ```
+    /// use bounded_vec::BoundedVec;
+    /// use std::convert::TryInto;
+    ///
+    /// let data: BoundedVec<_, 2, 8> = vec![1u8, 2].try_into().unwrap();
+    /// assert_eq!(data.is_empty(), false);
+    /// ```
     pub fn is_empty(&self) -> bool {
         false
     }
 
     /// Extracts a slice containing the entire vector.
+    ///
+    /// # Example
+    /// ```
+    /// use bounded_vec::BoundedVec;
+    /// use std::convert::TryInto;
+    ///
+    /// let data: BoundedVec<_, 2, 8> = vec![1u8, 2].try_into().unwrap();
+    /// assert_eq!(data.as_slice(), &[1u8,2]);
+    /// ```
     pub fn as_slice(&self) -> &[T] {
         self.inner.as_slice()
     }
 
     /// Returns the first element of non-empty Vec
+    ///
+    /// # Example
+    /// ```
+    /// use bounded_vec::BoundedVec;
+    /// use std::convert::TryInto;
+    ///
+    /// let data: BoundedVec<_, 2, 8> = vec![1u8, 2].try_into().unwrap();
+    /// assert_eq!(*data.first(), 1);
+    /// ```
     pub fn first(&self) -> &T {
         #![allow(clippy::unwrap_used)]
         self.inner.first().unwrap()
     }
 
     /// Returns the last element of non-empty Vec
+    ///
+    /// # Example
+    /// ```
+    /// use bounded_vec::BoundedVec;
+    /// use std::convert::TryInto;
+    ///
+    /// let data: BoundedVec<_, 2, 8> = vec![1u8, 2].try_into().unwrap();
+    /// assert_eq!(*data.last(), 2);
+    /// ```
     pub fn last(&self) -> &T {
         #![allow(clippy::unwrap_used)]
         self.inner.last().unwrap()
@@ -116,6 +176,15 @@ impl<T, const L: usize, const U: usize> BoundedVec<T, L, U> {
     ///
     /// This is useful as it keeps the knowledge that the length is >= U, <= L,
     /// will still hold for new `BoundedVec`
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use bounded_vec::BoundedVec;
+    /// let data: BoundedVec<u8, 2, 8> = [1u8,2].into();
+    /// let data = data.mapped_ref(|x|x*2);
+    /// assert_eq!(data, [2u8,4].into());
+    /// ```
     pub fn mapped_ref<F, N>(&self, map_fn: F) -> BoundedVec<N, L, U>
     where
         F: FnMut(&T) -> N,
@@ -126,6 +195,15 @@ impl<T, const L: usize, const U: usize> BoundedVec<T, L, U> {
     }
 
     /// Returns a reference for an element at index or `None` if out of bounds
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use bounded_vec::BoundedVec;
+    /// let data: BoundedVec<u8, 2, 8> = [1u8,2].into();
+    /// let elem = *data.get(1).unwrap();
+    /// assert_eq!(elem, 2);
+    /// ```
     pub fn get(&self, index: usize) -> Option<&T> {
         self.inner.get(index)
     }
