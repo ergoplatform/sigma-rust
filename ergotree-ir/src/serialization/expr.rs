@@ -64,9 +64,9 @@ use std::io;
 impl SigmaSerializable for Expr {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
         match self {
-            Expr::Const(c) => match w.constant_store() {
+            Expr::Const(c) => match w.constant_store_mut_ref() {
                 Some(cs) => {
-                    let ph = cs.put(c.clone());
+                    let ph = (*cs).put(c.clone());
                     ph.op_code().sigma_serialize(w)?;
                     ph.sigma_serialize(w)
                 }
