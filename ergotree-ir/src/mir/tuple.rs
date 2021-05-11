@@ -1,13 +1,12 @@
 use std::convert::TryInto;
 
-use bounded_vec::BoundedVec;
-
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::SerializationError;
 use crate::serialization::SigmaSerializable;
 use crate::types::stuple::STuple;
+use crate::types::stuple::TupleItems;
 use crate::types::stype::SType;
 
 use super::expr::Expr;
@@ -17,7 +16,7 @@ use super::expr::InvalidArgumentError;
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Tuple {
     /// Tuple items
-    pub items: BoundedVec<Expr, 2, 255>,
+    pub items: TupleItems<Expr>,
 }
 
 impl Tuple {
