@@ -14,7 +14,6 @@ exclude = [
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-sigma-ser = { version = "^0.2.0", path = "../sigma-ser" }
 sigma-util = { version = "^0.2.0", path = "../sigma-util" }
 ergotree-ir = { version = "^0.10.0", path = "../ergotree-ir" }
 indexmap = "1.3.2"
