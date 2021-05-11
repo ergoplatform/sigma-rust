@@ -4,7 +4,6 @@ use std::convert::TryFrom;
 use std::convert::TryInto;
 
 use crate::serialization::op_code::OpCode;
-use crate::types::stuple::STupleItemsOutOfBoundsError;
 use crate::types::stype::LiftIntoSType;
 use crate::types::stype::SType;
 
@@ -63,6 +62,7 @@ use crate::mir::create_prove_dh_tuple::CreateProveDhTuple;
 use crate::mir::deserialize_context::DeserializeContext;
 use crate::mir::deserialize_register::DeserializeRegister;
 use crate::mir::get_var::GetVar;
+use bounded_vec::BoundedVecOutOfBounds;
 use derive_more::From;
 use derive_more::TryInto;
 
@@ -345,8 +345,8 @@ impl From<InvalidExprEvalTypeError> for InvalidArgumentError {
     }
 }
 
-impl From<STupleItemsOutOfBoundsError> for InvalidArgumentError {
-    fn from(e: STupleItemsOutOfBoundsError) -> Self {
+impl From<BoundedVecOutOfBounds> for InvalidArgumentError {
+    fn from(e: BoundedVecOutOfBounds) -> Self {
         InvalidArgumentError(format!("{0:?}", e))
     }
 }

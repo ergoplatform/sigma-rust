@@ -10,8 +10,13 @@ use crate::eval::Evaluable;
 
 impl Evaluable for Tuple {
     fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
-        let items_v: Result<Vec<Value>, EvalError> =
-            self.items.iter().map(|i| i.eval(env, ctx)).collect();
+        let items_v: Result<Vec<Value>, EvalError> = self
+            .items
+            .mapped_ref(|i| i.eval(env, ctx))
+            .as_vec()
+            .clone()
+            .into_iter()
+            .collect();
         Ok(Value::Tup(items_v?.try_into().unwrap()))
     }
 }
