@@ -54,6 +54,7 @@ impl Evaluable for ForAll {
     }
 }
 
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
 

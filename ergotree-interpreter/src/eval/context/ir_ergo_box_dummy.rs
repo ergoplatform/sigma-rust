@@ -124,6 +124,7 @@ pub(crate) mod arbitrary {
     }
 }
 
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
     use sigma_test_util::force_any_val;

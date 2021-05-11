@@ -52,6 +52,7 @@ impl Evaluable for Fold {
     }
 }
 
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
     use std::convert::TryInto;

@@ -247,6 +247,7 @@ impl Evaluable for BinOp {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use crate::eval::context::Context;

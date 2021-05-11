@@ -68,6 +68,7 @@ impl Evaluable for Filter {
     }
 }
 
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
     use std::rc::Rc;

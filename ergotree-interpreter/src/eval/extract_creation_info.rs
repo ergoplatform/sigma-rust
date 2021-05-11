@@ -19,6 +19,7 @@ impl Evaluable for ExtractCreationInfo {
     }
 }
 
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
     use crate::eval::tests::eval_out;
