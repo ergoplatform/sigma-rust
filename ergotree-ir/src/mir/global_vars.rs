@@ -14,7 +14,7 @@ pub enum GlobalVars {
     Height,
     /// ErgoBox instance, which script is being evaluated
     SelfBox,
-    /// FIXME: Doc
+    /// When interpreted evaluates to a ByteArrayConstant built from Context.minerPubkey
     MinerPubKey,
 }
 
