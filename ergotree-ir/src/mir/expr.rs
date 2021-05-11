@@ -171,8 +171,8 @@ pub enum Expr {
     SigmaOr(SigmaOr),
     /// Extracts Context variable by id and type
     GetVar(GetVar),
-    /// Extract register of SELF box as Coll[Byte], deserialize it into Value and inline into
-    /// executing script.
+    /// Extract register of SELF box as `Coll[Byte]`, deserialize it into Value and inline into
+    /// the executing script.
     DeserializeRegister(DeserializeRegister),
     /// Extracts context variable as `Coll[Byte]`, deserializes it to script and then executes
     /// this script in the current context. The original `Coll[Byte]` of the script is
