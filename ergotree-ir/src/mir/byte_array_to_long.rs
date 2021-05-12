@@ -1,13 +1,11 @@
 //! Convert byte array to SLong
 use crate::serialization::op_code::OpCode;
-use crate::serialization::sigma_byte_reader::SigmaByteRead;
-use crate::serialization::sigma_byte_writer::SigmaByteWrite;
-use crate::serialization::SerializationError;
-use crate::serialization::SigmaSerializable;
 use crate::types::stype::SType;
 
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
+use super::unary_op::UnaryOp;
+use super::unary_op::UnaryOpTryBuild;
 
 /// Convert byte array to SLong
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -37,14 +35,21 @@ impl ByteArrayToLong {
     }
 }
 
-impl SigmaSerializable for ByteArrayToLong {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
-        self.input.sigma_serialize(w)
+impl UnaryOp for ByteArrayToLong {
+    fn input(&self) -> &Expr {
+        &self.input
     }
+}
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
-        let input = Expr::sigma_parse(r)?;
-        Ok(ByteArrayToLong::new(input)?)
+impl UnaryOpTryBuild for ByteArrayToLong {
+    fn try_build(input: Expr) -> Result<Self, InvalidArgumentError>
+    where
+        Self: Sized,
+    {
+        input.check_post_eval_tpe(SType::SColl(Box::new(SType::SByte)))?;
+        Ok(ByteArrayToLong {
+            input: Box::new(input),
+        })
     }
 }
 
