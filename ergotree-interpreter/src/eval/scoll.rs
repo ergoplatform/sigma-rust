@@ -90,6 +90,7 @@ pub(crate) static FLATMAP_EVAL_FN: EvalFn = |env, ctx, obj, args| {
         .map(Value::Coll)
 };
 
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
 mod tests {

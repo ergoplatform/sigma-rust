@@ -37,6 +37,7 @@ pub(crate) static TOKENS_EVAL_FN: EvalFn = |_env, ctx, obj, _args| {
     Ok(res)
 };
 
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
 mod tests {

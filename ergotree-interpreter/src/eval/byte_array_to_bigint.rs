@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used)]
 use ergotree_ir::mir::byte_array_to_bigint::ByteArrayToBigInt;
 use ergotree_ir::mir::value::Value;
 
@@ -44,6 +45,7 @@ lazy_static! {
     static ref MIN_BOUND: num_bigint::BigInt = -Pow::pow(2.to_bigint().unwrap(), 255_u32);
 }
 
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
 

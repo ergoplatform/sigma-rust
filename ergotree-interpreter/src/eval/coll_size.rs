@@ -20,6 +20,7 @@ impl Evaluable for SizeOf {
     }
 }
 
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -186,6 +186,7 @@ fn smethod_eval_fn(method: &SMethod) -> EvalFn {
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::unwrap_used)]
 pub(crate) mod tests {
 
     #![allow(dead_code)]

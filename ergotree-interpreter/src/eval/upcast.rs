@@ -8,6 +8,7 @@ use crate::eval::EvalContext;
 use crate::eval::EvalError;
 use crate::eval::Evaluable;
 
+#[allow(clippy::unwrap_used)]
 fn upcast_to_bigint(in_v: Value) -> Result<Value, EvalError> {
     match in_v {
         Value::Byte(v) => Ok(v.to_bigint().unwrap().into()),
@@ -85,6 +86,7 @@ impl Evaluable for Upcast {
     }
 }
 
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
     use ergotree_ir::mir::constant::Constant;
