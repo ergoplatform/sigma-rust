@@ -1,3 +1,4 @@
+use crate::has_opcode::HasOpCode;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
@@ -28,10 +29,10 @@ impl CalcBlake2b256 {
     pub fn tpe(&self) -> SType {
         SType::SColl(Box::new(SType::SByte))
     }
+}
 
-    pub(crate) fn op_code(&self) -> OpCode {
-        OpCode::CALC_BLAKE2B256
-    }
+impl HasOpCode for CalcBlake2b256 {
+    const OP_CODE: OpCode = OpCode::CALC_BLAKE2B256;
 }
 
 impl SigmaSerializable for CalcBlake2b256 {
