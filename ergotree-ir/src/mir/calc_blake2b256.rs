@@ -1,4 +1,4 @@
-use crate::has_opcode::HasOpCode;
+use crate::has_opcode::HasStaticOpCode;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
@@ -31,7 +31,7 @@ impl CalcBlake2b256 {
     }
 }
 
-impl HasOpCode for CalcBlake2b256 {
+impl HasStaticOpCode for CalcBlake2b256 {
     const OP_CODE: OpCode = OpCode::CALC_BLAKE2B256;
 }
 
