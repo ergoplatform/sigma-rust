@@ -1,9 +1,8 @@
 use super::expr::Expr;
+use super::expr::InvalidArgumentError;
+use super::unary_op::UnaryOp;
+use super::unary_op::UnaryOpTryBuild;
 use crate::serialization::op_code::OpCode;
-use crate::serialization::sigma_byte_reader::SigmaByteRead;
-use crate::serialization::sigma_byte_writer::SigmaByteWrite;
-use crate::serialization::SerializationError;
-use crate::serialization::SigmaSerializable;
 use crate::types::stype::SType;
 
 /// Logical NOT (inverts the input)
@@ -26,14 +25,20 @@ impl LogicalNot {
     }
 }
 
-impl SigmaSerializable for LogicalNot {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
-        self.input.sigma_serialize(w)
+impl UnaryOp for LogicalNot {
+    fn input(&self) -> &Expr {
+        &self.input
     }
+}
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+impl UnaryOpTryBuild for LogicalNot {
+    fn try_build(input: Expr) -> Result<Self, InvalidArgumentError>
+    where
+        Self: Sized,
+    {
+        input.check_post_eval_tpe(SType::SBoolean)?;
         Ok(Self {
-            input: Expr::sigma_parse(r)?.into(),
+            input: input.into(),
         })
     }
 }

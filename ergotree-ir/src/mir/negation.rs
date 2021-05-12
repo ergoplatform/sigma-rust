@@ -1,10 +1,8 @@
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
+use super::unary_op::UnaryOp;
+use super::unary_op::UnaryOpTryBuild;
 use crate::serialization::op_code::OpCode;
-use crate::serialization::sigma_byte_reader::SigmaByteRead;
-use crate::serialization::sigma_byte_writer::SigmaByteWrite;
-use crate::serialization::SerializationError;
-use crate::serialization::SigmaSerializable;
 use crate::types::stype::SType;
 
 /// Negation operation on numeric type.
@@ -17,20 +15,6 @@ pub struct Negation {
 impl Negation {
     pub(crate) const OP_CODE: OpCode = OpCode::NEGATION;
 
-    /// Create new object, returns an error if any of the requirements failed
-    pub fn new(input: Expr) -> Result<Self, InvalidArgumentError> {
-        let post_eval_tpe = input.post_eval_tpe();
-        if !post_eval_tpe.is_numeric() {
-            return Err(InvalidArgumentError(format!(
-                "Negation: expected input type to be numeric, got {:?}",
-                post_eval_tpe
-            )));
-        }
-        Ok(Self {
-            input: input.into(),
-        })
-    }
-
     /// Type
     pub fn tpe(&self) -> SType {
         self.input.post_eval_tpe()
@@ -41,13 +25,27 @@ impl Negation {
     }
 }
 
-impl SigmaSerializable for Negation {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
-        self.input.sigma_serialize(w)
+impl UnaryOp for Negation {
+    fn input(&self) -> &Expr {
+        &self.input
     }
+}
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
-        Ok(Self::new(Expr::sigma_parse(r)?)?)
+impl UnaryOpTryBuild for Negation {
+    fn try_build(input: Expr) -> Result<Self, InvalidArgumentError>
+    where
+        Self: Sized,
+    {
+        let post_eval_tpe = input.post_eval_tpe();
+        if !post_eval_tpe.is_numeric() {
+            return Err(InvalidArgumentError(format!(
+                "Negation: expected input type to be numeric, got {:?}",
+                post_eval_tpe
+            )));
+        }
+        Ok(Self {
+            input: input.into(),
+        })
     }
 }
 
@@ -82,7 +80,7 @@ mod arbitrary {
                     depth: 0,
                 }),
             ]
-            .prop_map(|input| Self::new(input).unwrap())
+            .prop_map(|input| Self::try_build(input).unwrap())
             .boxed()
         }
     }

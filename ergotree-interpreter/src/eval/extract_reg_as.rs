@@ -30,6 +30,7 @@ mod tests {
     use ergotree_ir::mir::expr::Expr;
     use ergotree_ir::mir::global_vars::GlobalVars;
     use ergotree_ir::mir::option_get::OptionGet;
+    use ergotree_ir::mir::unary_op::UnaryOpTryBuild;
     use ergotree_ir::types::stype::SType;
     use sigma_test_util::force_any_val;
     use std::rc::Rc;
@@ -43,7 +44,7 @@ mod tests {
         )
         .unwrap()
         .into();
-        let option_get_expr: Expr = OptionGet::new(get_reg_expr).unwrap().into();
+        let option_get_expr: Expr = OptionGet::try_build(get_reg_expr).unwrap().into();
         let ctx = Rc::new(force_any_val::<Context>());
         let v = eval_out::<i64>(&option_get_expr, ctx.clone());
         assert_eq!(v, ctx.self_box.get_box(&ctx.box_arena).unwrap().value());

@@ -17,14 +17,6 @@ pub struct ByteArrayToLong {
 impl ByteArrayToLong {
     pub(crate) const OP_CODE: OpCode = OpCode::BYTE_ARRAY_TO_LONG;
 
-    /// Create new object, returns an error if any of the requirements failed
-    pub fn new(input: Expr) -> Result<Self, InvalidArgumentError> {
-        input.check_post_eval_tpe(SType::SColl(Box::new(SType::SByte)))?;
-        Ok(ByteArrayToLong {
-            input: Box::new(input),
-        })
-    }
-
     /// Type
     pub fn tpe(&self) -> SType {
         SType::SLong
