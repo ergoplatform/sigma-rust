@@ -68,6 +68,7 @@ mod tests {
     use ergotree_ir::mir::func_value::FuncValue;
     use ergotree_ir::mir::property_call::PropertyCall;
     use ergotree_ir::mir::select_field::SelectField;
+    use ergotree_ir::mir::unary_op::UnaryOpTryBuild;
     use ergotree_ir::mir::val_use::ValUse;
     use ergotree_ir::types::scontext;
     use ergotree_ir::types::stuple::STuple;
@@ -98,7 +99,7 @@ mod tests {
                     SelectField::new(tuple.clone(), 1.try_into().unwrap()).unwrap(),
                 )),
                 right: Box::new(Expr::ExtractAmount(
-                    ExtractAmount::new(Expr::SelectField(
+                    ExtractAmount::try_build(Expr::SelectField(
                         SelectField::new(tuple, 2.try_into().unwrap()).unwrap(),
                     ))
                     .unwrap(),

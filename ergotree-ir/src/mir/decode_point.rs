@@ -1,13 +1,12 @@
 //! Decode byte array to EC point
 
 use crate::serialization::op_code::OpCode;
-use crate::serialization::sigma_byte_reader::SigmaByteRead;
-use crate::serialization::sigma_byte_writer::SigmaByteWrite;
-use crate::serialization::SerializationError;
-use crate::serialization::SigmaSerializable;
 use crate::types::stype::SType;
 
 use super::expr::Expr;
+use super::expr::InvalidArgumentError;
+use super::unary_op::UnaryOp;
+use super::unary_op::UnaryOpTryBuild;
 
 /// Decode byte array to EC point
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -29,14 +28,17 @@ impl DecodePoint {
     }
 }
 
-impl SigmaSerializable for DecodePoint {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
-        self.input.sigma_serialize(w)
+impl UnaryOp for DecodePoint {
+    fn input(&self) -> &Expr {
+        &self.input
     }
+}
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+impl UnaryOpTryBuild for DecodePoint {
+    fn try_build(input: Expr) -> Result<Self, InvalidArgumentError> {
+        input.check_post_eval_tpe(SType::SColl(Box::new(SType::SByte)))?;
         Ok(Self {
-            input: Expr::sigma_parse(r)?.into(),
+            input: input.into(),
         })
     }
 }

@@ -1,10 +1,8 @@
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
+use super::unary_op::UnaryOp;
+use super::unary_op::UnaryOpTryBuild;
 use crate::serialization::op_code::OpCode;
-use crate::serialization::sigma_byte_reader::SigmaByteRead;
-use crate::serialization::sigma_byte_writer::SigmaByteWrite;
-use crate::serialization::SerializationError;
-use crate::serialization::SigmaSerializable;
 use crate::types::stype::SType;
 
 /// Returns false if the option is None, true otherwise.
@@ -17,19 +15,6 @@ pub struct OptionIsDefined {
 impl OptionIsDefined {
     pub(crate) const OP_CODE: OpCode = OpCode::OPTION_IS_DEFINED;
 
-    /// Create new object, returns an error if any of the requirements failed
-    pub fn new(input: Expr) -> Result<Self, InvalidArgumentError> {
-        match input.post_eval_tpe() {
-            SType::SOption(_) => Ok(OptionIsDefined {
-                input: Box::new(input),
-            }),
-            _ => Err(InvalidArgumentError(format!(
-                "expected OptionIsDefined::input type to be SOption, got: {0:?}",
-                input.tpe(),
-            ))),
-        }
-    }
-
     pub(crate) fn op_code(&self) -> OpCode {
         Self::OP_CODE
     }
@@ -40,13 +25,26 @@ impl OptionIsDefined {
     }
 }
 
-impl SigmaSerializable for OptionIsDefined {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
-        self.input.sigma_serialize(w)
+impl UnaryOp for OptionIsDefined {
+    fn input(&self) -> &Expr {
+        &self.input
     }
+}
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
-        Ok(OptionIsDefined::new(Expr::sigma_parse(r)?)?)
+impl UnaryOpTryBuild for OptionIsDefined {
+    fn try_build(input: Expr) -> Result<Self, InvalidArgumentError>
+    where
+        Self: Sized,
+    {
+        match input.post_eval_tpe() {
+            SType::SOption(_) => Ok(OptionIsDefined {
+                input: Box::new(input),
+            }),
+            _ => Err(InvalidArgumentError(format!(
+                "expected OptionIsDefined::input type to be SOption, got: {0:?}",
+                input.tpe(),
+            ))),
+        }
     }
 }
 
@@ -70,7 +68,7 @@ mod tests {
         )
         .unwrap()
         .into();
-        let e: Expr = OptionIsDefined::new(get_reg_expr).unwrap().into();
+        let e: Expr = OptionIsDefined::try_build(get_reg_expr).unwrap().into();
         assert_eq![sigma_serialize_roundtrip(&e), e];
     }
 }
