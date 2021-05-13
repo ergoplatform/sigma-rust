@@ -2,6 +2,7 @@
 
 use super::dlog_group::EcPoint;
 use crate::ergo_tree::ErgoTree;
+use crate::has_opcode::HasOpCode;
 use crate::mir::constant::Constant;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::SigmaSerializable;
@@ -70,9 +71,9 @@ pub enum SigmaBoolean {
     Cand(Vec<SigmaBoolean>),
 }
 
-impl SigmaBoolean {
+impl HasOpCode for SigmaBoolean {
     /// get OpCode for serialization
-    pub(crate) fn op_code(&self) -> OpCode {
+    fn op_code(&self) -> OpCode {
         match self {
             SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(_)) => {
                 OpCode::PROVE_DLOG
