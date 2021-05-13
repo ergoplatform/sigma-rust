@@ -5,6 +5,7 @@ use super::expr::Expr;
 use super::expr::InvalidArgumentError;
 use super::unary_op::UnaryOp;
 use super::unary_op::UnaryOpTryBuild;
+use crate::has_opcode::HasStaticOpCode;
 
 /// Box value
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -14,16 +15,14 @@ pub struct ExtractAmount {
 }
 
 impl ExtractAmount {
-    pub(crate) const OP_CODE: OpCode = OpCode::EXTRACT_AMOUNT;
-
     /// Type
     pub fn tpe(&self) -> SType {
         SType::SLong
     }
+}
 
-    pub(crate) fn op_code(&self) -> OpCode {
-        Self::OP_CODE
-    }
+impl HasStaticOpCode for ExtractAmount {
+    const OP_CODE: OpCode = OpCode::EXTRACT_AMOUNT;
 }
 
 impl UnaryOp for ExtractAmount {

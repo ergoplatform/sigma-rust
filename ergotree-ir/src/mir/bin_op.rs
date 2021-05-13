@@ -1,6 +1,7 @@
 //! Operators in ErgoTree
 
 use super::expr::Expr;
+use crate::has_opcode::HasOpCode;
 use crate::serialization::op_code::OpCode;
 use crate::types::stype::SType;
 
@@ -109,17 +110,18 @@ pub struct BinOp {
 }
 
 impl BinOp {
-    /// Op code (serialization)
-    pub(crate) fn op_code(&self) -> OpCode {
-        self.kind.into()
-    }
-
     /// Type
     pub fn tpe(&self) -> SType {
         match self.kind {
             BinOpKind::Relation(_) => SType::SBoolean,
             BinOpKind::Arith(_) => self.left.tpe(),
         }
+    }
+}
+
+impl HasOpCode for BinOp {
+    fn op_code(&self) -> OpCode {
+        self.kind.into()
     }
 }
 

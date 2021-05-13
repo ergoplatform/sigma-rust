@@ -4,6 +4,7 @@ use crate::types::stype::SType;
 
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
+use crate::has_opcode::HasStaticOpCode;
 
 /// Invocation of object's property
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -47,8 +48,8 @@ impl PropertyCall {
     pub fn tpe(&self) -> SType {
         *self.method.tpe().t_range.clone()
     }
+}
 
-    pub(crate) fn op_code(&self) -> OpCode {
-        OpCode::PROPERTY_CALL
-    }
+impl HasStaticOpCode for PropertyCall {
+    const OP_CODE: OpCode = OpCode::PROPERTY_CALL;
 }

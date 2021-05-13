@@ -5,6 +5,7 @@ use super::expr::Expr;
 use super::expr::InvalidArgumentError;
 use super::unary_op::UnaryOp;
 use super::unary_op::UnaryOpTryBuild;
+use crate::has_opcode::HasStaticOpCode;
 
 /// Collection size
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -14,16 +15,14 @@ pub struct SizeOf {
 }
 
 impl SizeOf {
-    pub(crate) const OP_CODE: OpCode = OpCode::SIZE_OF;
-
     /// Type
     pub fn tpe(&self) -> SType {
         SType::SInt
     }
+}
 
-    pub(crate) fn op_code(&self) -> OpCode {
-        Self::OP_CODE
-    }
+impl HasStaticOpCode for SizeOf {
+    const OP_CODE: OpCode = OpCode::SIZE_OF;
 }
 
 impl UnaryOp for SizeOf {

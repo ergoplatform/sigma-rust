@@ -5,6 +5,7 @@ use super::expr::Expr;
 use super::expr::InvalidArgumentError;
 use super::unary_op::UnaryOp;
 use super::unary_op::UnaryOpTryBuild;
+use crate::has_opcode::HasStaticOpCode;
 
 /// Box id, Blake2b256 hash of this box's content, basically equals to `blake2b256(bytes)`
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -14,16 +15,14 @@ pub struct ExtractId {
 }
 
 impl ExtractId {
-    pub(crate) const OP_CODE: OpCode = OpCode::EXTRACT_ID;
-
     /// Type
     pub fn tpe(&self) -> SType {
         SType::SColl(SType::SByte.into())
     }
+}
 
-    pub(crate) fn op_code(&self) -> OpCode {
-        Self::OP_CODE
-    }
+impl HasStaticOpCode for ExtractId {
+    const OP_CODE: OpCode = OpCode::EXTRACT_ID;
 }
 
 impl UnaryOp for ExtractId {

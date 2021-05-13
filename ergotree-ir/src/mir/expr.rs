@@ -3,6 +3,7 @@
 use std::convert::TryFrom;
 use std::convert::TryInto;
 
+use crate::has_opcode::HasOpCode;
 use crate::serialization::op_code::OpCode;
 use crate::types::stype::LiftIntoSType;
 use crate::types::stype::SType;

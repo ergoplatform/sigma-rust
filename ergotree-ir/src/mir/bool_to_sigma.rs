@@ -1,4 +1,5 @@
 //! Embedding of Boolean values to SigmaProp
+use crate::has_opcode::HasStaticOpCode;
 use crate::mir::unary_op::UnaryOp;
 use crate::mir::unary_op::UnaryOpTryBuild;
 use crate::serialization::op_code::OpCode;
@@ -18,16 +19,14 @@ pub struct BoolToSigmaProp {
 }
 
 impl BoolToSigmaProp {
-    pub(crate) const OP_CODE: OpCode = OpCode::BOOL_TO_SIGMA_PROP;
-
     /// Type
     pub fn tpe(&self) -> SType {
         SType::SSigmaProp
     }
+}
 
-    pub(crate) fn op_code(&self) -> OpCode {
-        Self::OP_CODE
-    }
+impl HasStaticOpCode for BoolToSigmaProp {
+    const OP_CODE: OpCode = OpCode::BOOL_TO_SIGMA_PROP;
 }
 
 impl UnaryOp for BoolToSigmaProp {

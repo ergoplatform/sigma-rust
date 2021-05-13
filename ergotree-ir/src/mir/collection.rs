@@ -1,3 +1,4 @@
+use crate::has_opcode::HasOpCode;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
@@ -59,8 +60,10 @@ impl Collection {
             .into(),
         )
     }
+}
 
-    pub(crate) fn op_code(&self) -> OpCode {
+impl HasOpCode for Collection {
+    fn op_code(&self) -> OpCode {
         match self {
             Collection::BoolConstants(_) => OpCode::COLL_OF_BOOL_CONST,
             Collection::Exprs { .. } => OpCode::COLL,

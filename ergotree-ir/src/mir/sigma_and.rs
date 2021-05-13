@@ -8,6 +8,7 @@ use crate::serialization::SigmaSerializable;
 use crate::types::stype::SType;
 
 use super::expr::Expr;
+use crate::has_opcode::HasStaticOpCode;
 
 /// AND conjunction for sigma propositions
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -17,16 +18,14 @@ pub struct SigmaAnd {
 }
 
 impl SigmaAnd {
-    pub(crate) const OP_CODE: OpCode = OpCode::SIGMA_AND;
-
     /// Type
     pub fn tpe(&self) -> SType {
         SType::SSigmaProp
     }
+}
 
-    pub(crate) fn op_code(&self) -> OpCode {
-        Self::OP_CODE
-    }
+impl HasStaticOpCode for SigmaAnd {
+    const OP_CODE: OpCode = OpCode::SIGMA_AND;
 }
 
 impl SigmaSerializable for SigmaAnd {

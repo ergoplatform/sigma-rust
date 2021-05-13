@@ -1,3 +1,4 @@
+use crate::has_opcode::HasStaticOpCode;
 use crate::serialization::op_code::OpCode;
 use crate::types::stype::SType;
 
@@ -18,10 +19,10 @@ impl CalcBlake2b256 {
     pub fn tpe(&self) -> SType {
         SType::SColl(Box::new(SType::SByte))
     }
+}
 
-    pub(crate) fn op_code(&self) -> OpCode {
-        OpCode::CALC_BLAKE2B256
-    }
+impl HasStaticOpCode for CalcBlake2b256 {
+    const OP_CODE: OpCode = OpCode::CALC_BLAKE2B256;
 }
 
 impl UnaryOp for CalcBlake2b256 {

@@ -1,6 +1,8 @@
 use super::bin_op::bin_op_sigma_parse;
 use super::bin_op::bin_op_sigma_serialize;
 use super::{op_code::OpCode, sigma_byte_writer::SigmaByteWrite};
+use crate::has_opcode::HasOpCode;
+use crate::has_opcode::HasStaticOpCode;
 use crate::mir::and::And;
 use crate::mir::apply::Apply;
 use crate::mir::atleast::Atleast;

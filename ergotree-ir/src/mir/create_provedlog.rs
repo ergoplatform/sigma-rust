@@ -5,6 +5,7 @@ use super::expr::Expr;
 use super::expr::InvalidArgumentError;
 use super::unary_op::UnaryOp;
 use super::unary_op::UnaryOpTryBuild;
+use crate::has_opcode::HasStaticOpCode;
 
 /// Create ProveDlog from PK
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -14,16 +15,14 @@ pub struct CreateProveDlog {
 }
 
 impl CreateProveDlog {
-    pub(crate) const OP_CODE: OpCode = OpCode::PROVE_DLOG;
-
     /// Type
     pub fn tpe(&self) -> SType {
         SType::SSigmaProp
     }
+}
 
-    pub(crate) fn op_code(&self) -> OpCode {
-        Self::OP_CODE
-    }
+impl HasStaticOpCode for CreateProveDlog {
+    const OP_CODE: OpCode = OpCode::PROVE_DLOG;
 }
 
 impl UnaryOp for CreateProveDlog {

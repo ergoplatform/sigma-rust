@@ -12,6 +12,7 @@ use super::expr::Expr;
 extern crate derive_more;
 use derive_more::From;
 
+use crate::has_opcode::HasStaticOpCode;
 #[cfg(feature = "arbitrary")]
 use proptest_derive::Arbitrary;
 
@@ -49,10 +50,10 @@ impl ValDef {
     pub fn tpe(&self) -> SType {
         self.rhs.tpe()
     }
+}
 
-    pub(crate) fn op_code(&self) -> OpCode {
-        OpCode::VAL_DEF
-    }
+impl HasStaticOpCode for ValDef {
+    const OP_CODE: OpCode = OpCode::VAL_DEF;
 }
 
 impl SigmaSerializable for ValDef {

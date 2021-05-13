@@ -1,5 +1,6 @@
 use std::io;
 
+use crate::has_opcode::HasStaticOpCode;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
@@ -76,10 +77,10 @@ impl FuncValue {
     pub fn tpe(&self) -> SType {
         self.tpe.clone()
     }
+}
 
-    pub(crate) fn op_code(&self) -> OpCode {
-        OpCode::FUNC_VALUE
-    }
+impl HasStaticOpCode for FuncValue {
+    const OP_CODE: OpCode = OpCode::FUNC_VALUE;
 }
 
 impl SigmaSerializable for FuncValue {

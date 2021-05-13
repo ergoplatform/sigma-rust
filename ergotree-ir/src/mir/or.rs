@@ -1,4 +1,5 @@
 use super::expr::Expr;
+use crate::has_opcode::HasStaticOpCode;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
@@ -14,16 +15,14 @@ pub struct Or {
 }
 
 impl Or {
-    pub(crate) const OP_CODE: OpCode = OpCode::OR;
-
     /// Type
     pub fn tpe(&self) -> SType {
         SType::SBoolean
     }
+}
 
-    pub(crate) fn op_code(&self) -> OpCode {
-        Self::OP_CODE
-    }
+impl HasStaticOpCode for Or {
+    const OP_CODE: OpCode = OpCode::OR;
 }
 
 impl SigmaSerializable for Or {

@@ -6,6 +6,7 @@ use super::expr::Expr;
 use super::expr::InvalidArgumentError;
 use super::unary_op::UnaryOp;
 use super::unary_op::UnaryOpTryBuild;
+use crate::has_opcode::HasStaticOpCode;
 
 /// Convert SLong to byte array
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -15,16 +16,14 @@ pub struct LongToByteArray {
 }
 
 impl LongToByteArray {
-    pub(crate) const OP_CODE: OpCode = OpCode::LONG_TO_BYTE_ARRAY;
-
     /// Type
     pub fn tpe(&self) -> SType {
         SType::SColl(SType::SByte.into())
     }
+}
 
-    pub(crate) fn op_code(&self) -> OpCode {
-        Self::OP_CODE
-    }
+impl HasStaticOpCode for LongToByteArray {
+    const OP_CODE: OpCode = OpCode::LONG_TO_BYTE_ARRAY;
 }
 
 impl UnaryOp for LongToByteArray {

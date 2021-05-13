@@ -8,6 +8,7 @@ use crate::types::stype::SType;
 
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
+use crate::has_opcode::HasStaticOpCode;
 
 /// Applies a binary function to a start value and all elements of this collection,
 /// going left to right.
@@ -52,10 +53,10 @@ impl Fold {
     pub fn tpe(&self) -> SType {
         self.zero.tpe()
     }
+}
 
-    pub(crate) fn op_code(&self) -> OpCode {
-        OpCode::FOLD
-    }
+impl HasStaticOpCode for Fold {
+    const OP_CODE: OpCode = OpCode::FOLD;
 }
 
 impl SigmaSerializable for Fold {
