@@ -1,9 +1,7 @@
 //! Embedding of Boolean values to SigmaProp
+use crate::mir::unary_op::UnaryOp;
+use crate::mir::unary_op::UnaryOpTryBuild;
 use crate::serialization::op_code::OpCode;
-use crate::serialization::sigma_byte_reader::SigmaByteRead;
-use crate::serialization::sigma_byte_writer::SigmaByteWrite;
-use crate::serialization::SerializationError;
-use crate::serialization::SigmaSerializable;
 use crate::types::stype::SType;
 
 use super::expr::Expr;
@@ -22,14 +20,6 @@ pub struct BoolToSigmaProp {
 impl BoolToSigmaProp {
     pub(crate) const OP_CODE: OpCode = OpCode::BOOL_TO_SIGMA_PROP;
 
-    /// Create new object, returns an error if any of the requirements failed
-    pub fn new(input: Expr) -> Result<Self, InvalidArgumentError> {
-        input.check_post_eval_tpe(SType::SBoolean)?;
-        Ok(Self {
-            input: input.into(),
-        })
-    }
-
     /// Type
     pub fn tpe(&self) -> SType {
         SType::SSigmaProp
@@ -40,14 +30,17 @@ impl BoolToSigmaProp {
     }
 }
 
-impl SigmaSerializable for BoolToSigmaProp {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
-        self.input.sigma_serialize(w)
+impl UnaryOp for BoolToSigmaProp {
+    fn input(&self) -> &Expr {
+        &self.input
     }
+}
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+impl UnaryOpTryBuild for BoolToSigmaProp {
+    fn try_build(input: Expr) -> Result<Self, InvalidArgumentError> {
+        input.check_post_eval_tpe(SType::SBoolean)?;
         Ok(Self {
-            input: Expr::sigma_parse(r)?.into(),
+            input: input.into(),
         })
     }
 }

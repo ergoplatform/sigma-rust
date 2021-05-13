@@ -78,6 +78,7 @@ pub mod sigma_or;
 pub mod sigma_prop_bytes;
 /// Tuple of elements
 pub mod tuple;
+pub mod unary_op;
 pub mod upcast;
 /// Variable definition
 pub mod val_def;
