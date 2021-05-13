@@ -6,6 +6,7 @@ use super::expr::Expr;
 use super::expr::InvalidArgumentError;
 use super::unary_op::UnaryOp;
 use super::unary_op::UnaryOpTryBuild;
+use crate::has_opcode::HasStaticOpCode;
 
 /// Tuple of height when block got included into the blockchain and transaction identifier with
 /// box index in the transaction outputs serialized to the byte array.
@@ -16,16 +17,14 @@ pub struct ExtractCreationInfo {
 }
 
 impl ExtractCreationInfo {
-    pub(crate) const OP_CODE: OpCode = OpCode::EXTRACT_CREATION_INFO;
-
     /// Type
     pub fn tpe(&self) -> SType {
         SType::STuple(STuple::pair(SType::SInt, SType::SColl(SType::SByte.into())))
     }
+}
 
-    pub(crate) fn op_code(&self) -> OpCode {
-        Self::OP_CODE
-    }
+impl HasStaticOpCode for ExtractCreationInfo {
+    const OP_CODE: OpCode = OpCode::EXTRACT_CREATION_INFO;
 }
 
 impl UnaryOp for ExtractCreationInfo {

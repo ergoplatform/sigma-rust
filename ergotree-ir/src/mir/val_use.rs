@@ -1,6 +1,7 @@
 use std::io;
 
 use super::val_def::ValId;
+use crate::has_opcode::HasStaticOpCode;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
@@ -17,10 +18,8 @@ pub struct ValUse {
     pub tpe: SType,
 }
 
-impl ValUse {
-    pub(crate) fn op_code(&self) -> OpCode {
-        OpCode::VAL_USE
-    }
+impl HasStaticOpCode for ValUse {
+    const OP_CODE: OpCode = OpCode::VAL_USE;
 }
 
 impl SigmaSerializable for ValUse {

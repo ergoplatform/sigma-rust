@@ -7,6 +7,7 @@ use super::expr::Expr;
 use super::expr::InvalidArgumentError;
 use super::unary_op::UnaryOp;
 use super::unary_op::UnaryOpTryBuild;
+use crate::has_opcode::HasStaticOpCode;
 
 /// Decode byte array to EC point
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -16,16 +17,14 @@ pub struct DecodePoint {
 }
 
 impl DecodePoint {
-    pub(crate) const OP_CODE: OpCode = OpCode::DECODE_POINT;
-
     /// Type
     pub fn tpe(&self) -> SType {
         SType::SGroupElement
     }
+}
 
-    pub(crate) fn op_code(&self) -> OpCode {
-        Self::OP_CODE
-    }
+impl HasStaticOpCode for DecodePoint {
+    const OP_CODE: OpCode = OpCode::DECODE_POINT;
 }
 
 impl UnaryOp for DecodePoint {

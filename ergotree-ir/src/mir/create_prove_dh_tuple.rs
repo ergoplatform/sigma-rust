@@ -6,8 +6,8 @@ use crate::serialization::SigmaSerializable;
 use crate::types::stype::SType;
 
 use super::expr::Expr;
+use crate::has_opcode::HasStaticOpCode;
 use crate::mir::expr::InvalidArgumentError;
-//use super::expr::InvalidArgumentError;
 
 /// Diffie-Hellman tuple.
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -23,8 +23,6 @@ pub struct CreateProveDhTuple {
 }
 
 impl CreateProveDhTuple {
-    pub(crate) const OP_CODE: OpCode = OpCode::PROVE_DIFFIE_HELLMAN_TUPLE;
-
     /// Create ProveDHTuple from four points on elliptic curve
     pub fn new(gv: Expr, hv: Expr, uv: Expr, vv: Expr) -> Result<Self, InvalidArgumentError> {
         gv.check_post_eval_tpe(SType::SGroupElement)?;
@@ -43,10 +41,10 @@ impl CreateProveDhTuple {
     pub fn tpe(&self) -> SType {
         SType::SSigmaProp
     }
+}
 
-    pub(crate) fn op_code(&self) -> OpCode {
-        Self::OP_CODE
-    }
+impl HasStaticOpCode for CreateProveDhTuple {
+    const OP_CODE: OpCode = OpCode::PROVE_DIFFIE_HELLMAN_TUPLE;
 }
 
 impl SigmaSerializable for CreateProveDhTuple {

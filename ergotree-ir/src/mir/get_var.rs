@@ -1,4 +1,5 @@
 //! Extracts Context variable by id and type
+use crate::has_opcode::HasStaticOpCode;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
@@ -16,16 +17,14 @@ pub struct GetVar {
 }
 
 impl GetVar {
-    pub(crate) const OP_CODE: OpCode = OpCode::GET_VAR;
-
     /// Type
     pub fn tpe(&self) -> SType {
         SType::SOption(self.var_tpe.clone().into())
     }
+}
 
-    pub(crate) fn op_code(&self) -> OpCode {
-        Self::OP_CODE
-    }
+impl HasStaticOpCode for GetVar {
+    const OP_CODE: OpCode = OpCode::GET_VAR;
 }
 
 impl SigmaSerializable for GetVar {

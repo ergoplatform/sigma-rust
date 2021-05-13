@@ -7,6 +7,7 @@ use crate::types::stype::SType;
 
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
+use crate::has_opcode::HasStaticOpCode;
 
 /// Get collection element by index
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -20,8 +21,6 @@ pub struct ByIndex {
 }
 
 impl ByIndex {
-    pub(crate) const OP_CODE: OpCode = OpCode::BY_INDEX;
-
     /// Create new object, returns an error if any of the requirements failed
     pub fn new(
         input: Expr,
@@ -65,10 +64,10 @@ impl ByIndex {
             _ => panic!("collection is expected"),
         }
     }
+}
 
-    pub(crate) fn op_code(&self) -> OpCode {
-        Self::OP_CODE
-    }
+impl HasStaticOpCode for ByIndex {
+    const OP_CODE: OpCode = OpCode::BY_INDEX;
 }
 
 impl SigmaSerializable for ByIndex {

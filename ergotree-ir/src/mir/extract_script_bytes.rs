@@ -5,6 +5,7 @@ use super::expr::Expr;
 use super::expr::InvalidArgumentError;
 use super::unary_op::UnaryOp;
 use super::unary_op::UnaryOpTryBuild;
+use crate::has_opcode::HasStaticOpCode;
 
 /// Serialized box guarding script
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -14,16 +15,14 @@ pub struct ExtractScriptBytes {
 }
 
 impl ExtractScriptBytes {
-    pub(crate) const OP_CODE: OpCode = OpCode::EXTRACT_SCRIPT_BYTES;
-
     /// Type
     pub fn tpe(&self) -> SType {
         SType::SColl(SType::SByte.into())
     }
+}
 
-    pub(crate) fn op_code(&self) -> OpCode {
-        Self::OP_CODE
-    }
+impl HasStaticOpCode for ExtractScriptBytes {
+    const OP_CODE: OpCode = OpCode::EXTRACT_SCRIPT_BYTES;
 }
 
 impl UnaryOp for ExtractScriptBytes {

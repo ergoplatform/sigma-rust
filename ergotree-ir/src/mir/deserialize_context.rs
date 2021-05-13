@@ -1,5 +1,6 @@
 //! Extracts context variable as byte array
 
+use crate::has_opcode::HasStaticOpCode;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
@@ -19,16 +20,14 @@ pub struct DeserializeContext {
     pub id: u8,
 }
 impl DeserializeContext {
-    pub(crate) const OP_CODE: OpCode = OpCode::DESERIALIZE_CONTEXT;
-
     /// Type of value
     pub fn tpe(&self) -> SType {
         self.tpe.clone()
     }
+}
 
-    pub(crate) fn op_code(&self) -> OpCode {
-        Self::OP_CODE
-    }
+impl HasStaticOpCode for DeserializeContext {
+    const OP_CODE: OpCode = OpCode::DESERIALIZE_CONTEXT;
 }
 
 impl SigmaSerializable for DeserializeContext {

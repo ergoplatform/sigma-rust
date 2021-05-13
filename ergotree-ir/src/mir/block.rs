@@ -2,6 +2,7 @@
 use std::io;
 
 use super::expr::Expr;
+use crate::has_opcode::HasStaticOpCode;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
@@ -30,10 +31,10 @@ impl BlockValue {
     pub fn tpe(&self) -> SType {
         self.result.tpe()
     }
+}
 
-    pub(crate) fn op_code(&self) -> OpCode {
-        OpCode::BLOCK_VALUE
-    }
+impl HasStaticOpCode for BlockValue {
+    const OP_CODE: OpCode = OpCode::BLOCK_VALUE;
 }
 
 impl SigmaSerializable for BlockValue {

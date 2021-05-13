@@ -2,6 +2,7 @@ use super::expr::Expr;
 use super::expr::InvalidArgumentError;
 use super::unary_op::UnaryOp;
 use super::unary_op::UnaryOpTryBuild;
+use crate::has_opcode::HasStaticOpCode;
 use crate::serialization::op_code::OpCode;
 use crate::types::stype::SType;
 
@@ -13,12 +14,6 @@ pub struct OptionGet {
 }
 
 impl OptionGet {
-    pub(crate) const OP_CODE: OpCode = OpCode::OPTION_GET;
-
-    pub(crate) fn op_code(&self) -> OpCode {
-        Self::OP_CODE
-    }
-
     /// Type
     pub fn tpe(&self) -> SType {
         match self.input.tpe() {
@@ -29,6 +24,10 @@ impl OptionGet {
             ),
         }
     }
+}
+
+impl HasStaticOpCode for OptionGet {
+    const OP_CODE: OpCode = OpCode::OPTION_GET;
 }
 
 impl UnaryOp for OptionGet {

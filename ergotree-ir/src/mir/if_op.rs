@@ -1,4 +1,5 @@
 use super::expr::Expr;
+use crate::has_opcode::HasStaticOpCode;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
@@ -18,16 +19,14 @@ pub struct If {
 }
 
 impl If {
-    pub(crate) const OP_CODE: OpCode = OpCode::IF;
-
     /// Type
     pub fn tpe(&self) -> SType {
         self.true_branch.tpe()
     }
+}
 
-    pub(crate) fn op_code(&self) -> OpCode {
-        Self::OP_CODE
-    }
+impl HasStaticOpCode for If {
+    const OP_CODE: OpCode = OpCode::IF;
 }
 
 impl SigmaSerializable for If {

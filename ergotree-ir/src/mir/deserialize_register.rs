@@ -1,6 +1,7 @@
 //! Extract register of SELF box as `Coll[Byte]`, deserialize it into Value and inline into executing script.
 
 use super::expr::Expr;
+use crate::has_opcode::HasStaticOpCode;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
@@ -20,16 +21,14 @@ pub struct DeserializeRegister {
     pub default: Option<Box<Expr>>,
 }
 impl DeserializeRegister {
-    pub(crate) const OP_CODE: OpCode = OpCode::DESERIALIZE_REGISTER;
-
     /// Type
     pub fn tpe(&self) -> SType {
         self.tpe.clone()
     }
+}
 
-    pub(crate) fn op_code(&self) -> OpCode {
-        Self::OP_CODE
-    }
+impl HasStaticOpCode for DeserializeRegister {
+    const OP_CODE: OpCode = OpCode::DESERIALIZE_REGISTER;
 }
 
 impl SigmaSerializable for DeserializeRegister {

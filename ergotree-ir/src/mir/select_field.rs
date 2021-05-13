@@ -10,6 +10,7 @@ use crate::types::stype::SType;
 
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
+use crate::has_opcode::HasStaticOpCode;
 
 /// Tuple field access index (1..=255)
 #[derive(PartialEq, Eq, Debug, Copy, Clone)]
@@ -87,10 +88,10 @@ impl SelectField {
             ))),
         }
     }
+}
 
-    pub(crate) fn op_code(&self) -> OpCode {
-        OpCode::SELECT_FIELD
-    }
+impl HasStaticOpCode for SelectField {
+    const OP_CODE: OpCode = OpCode::SELECT_FIELD;
 }
 
 impl SelectField {

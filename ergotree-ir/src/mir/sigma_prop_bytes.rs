@@ -5,6 +5,7 @@ use super::expr::Expr;
 use super::expr::InvalidArgumentError;
 use super::unary_op::UnaryOp;
 use super::unary_op::UnaryOpTryBuild;
+use crate::has_opcode::HasStaticOpCode;
 
 /// Extract serialized bytes of a SigmaProp value
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -14,16 +15,14 @@ pub struct SigmaPropBytes {
 }
 
 impl SigmaPropBytes {
-    pub(crate) const OP_CODE: OpCode = OpCode::SIGMA_PROP_BYTES;
-
     /// Type
     pub fn tpe(&self) -> SType {
         SType::SColl(SType::SByte.into())
     }
+}
 
-    pub(crate) fn op_code(&self) -> OpCode {
-        Self::OP_CODE
-    }
+impl HasStaticOpCode for SigmaPropBytes {
+    const OP_CODE: OpCode = OpCode::SIGMA_PROP_BYTES;
 }
 
 impl UnaryOp for SigmaPropBytes {
