@@ -33,10 +33,7 @@ impl UnaryOp for SizeOf {
 }
 
 impl UnaryOpTryBuild for SizeOf {
-    fn try_build(input: Expr) -> Result<Self, InvalidArgumentError>
-    where
-        Self: Sized,
-    {
+    fn try_build(input: Expr) -> Result<Self, InvalidArgumentError> {
         match input.post_eval_tpe() {
             SType::SColl(_) => Ok(Self {
                 input: input.into(),

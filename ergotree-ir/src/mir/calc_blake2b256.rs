@@ -31,10 +31,7 @@ impl UnaryOp for CalcBlake2b256 {
 }
 
 impl UnaryOpTryBuild for CalcBlake2b256 {
-    fn try_build(input: Expr) -> Result<Self, InvalidArgumentError>
-    where
-        Self: Sized,
-    {
+    fn try_build(input: Expr) -> Result<Self, InvalidArgumentError> {
         input.check_post_eval_tpe(SType::SColl(Box::new(SType::SByte)))?;
         Ok(CalcBlake2b256 {
             input: Box::new(input),

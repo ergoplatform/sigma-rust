@@ -38,10 +38,7 @@ impl UnaryOp for OptionGet {
 }
 
 impl UnaryOpTryBuild for OptionGet {
-    fn try_build(input: Expr) -> Result<Self, InvalidArgumentError>
-    where
-        Self: Sized,
-    {
+    fn try_build(input: Expr) -> Result<Self, InvalidArgumentError> {
         match input.post_eval_tpe() {
             SType::SOption(_) => Ok(OptionGet {
                 input: Box::new(input),

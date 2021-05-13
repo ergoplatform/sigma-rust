@@ -33,10 +33,7 @@ impl UnaryOp for SigmaPropBytes {
 }
 
 impl UnaryOpTryBuild for SigmaPropBytes {
-    fn try_build(input: Expr) -> Result<Self, InvalidArgumentError>
-    where
-        Self: Sized,
-    {
+    fn try_build(input: Expr) -> Result<Self, InvalidArgumentError> {
         input.check_post_eval_tpe(SType::SSigmaProp)?;
         Ok(SigmaPropBytes {
             input: input.into(),

@@ -33,10 +33,7 @@ impl UnaryOp for CreateProveDlog {
 }
 
 impl UnaryOpTryBuild for CreateProveDlog {
-    fn try_build(input: Expr) -> Result<Self, InvalidArgumentError>
-    where
-        Self: Sized,
-    {
+    fn try_build(input: Expr) -> Result<Self, InvalidArgumentError> {
         input.check_post_eval_tpe(SType::SGroupElement)?;
         Ok(CreateProveDlog {
             input: input.into(),

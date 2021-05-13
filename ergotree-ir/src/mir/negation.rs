@@ -32,10 +32,7 @@ impl UnaryOp for Negation {
 }
 
 impl UnaryOpTryBuild for Negation {
-    fn try_build(input: Expr) -> Result<Self, InvalidArgumentError>
-    where
-        Self: Sized,
-    {
+    fn try_build(input: Expr) -> Result<Self, InvalidArgumentError> {
         let post_eval_tpe = input.post_eval_tpe();
         if !post_eval_tpe.is_numeric() {
             return Err(InvalidArgumentError(format!(

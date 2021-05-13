@@ -15,11 +15,9 @@ pub trait UnaryOp {
 }
 
 /// Constructor for unary IR nodes that check the validity of the argument
-pub trait UnaryOpTryBuild {
+pub trait UnaryOpTryBuild: Sized {
     /// Create new IR node, returns an error if any of the requirements failed
-    fn try_build(input: Expr) -> Result<Self, InvalidArgumentError>
-    where
-        Self: Sized;
+    fn try_build(input: Expr) -> Result<Self, InvalidArgumentError>;
 }
 
 impl<T: UnaryOp + UnaryOpTryBuild> SigmaSerializable for T {
