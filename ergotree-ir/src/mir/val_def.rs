@@ -66,7 +66,6 @@ impl SigmaSerializable for ValDef {
         let id = ValId::sigma_parse(r)?;
         let rhs = Expr::sigma_parse(r)?;
         r.val_def_type_store().insert(id, rhs.tpe());
-        dbg!(&id, &rhs);
         Ok(ValDef {
             id,
             rhs: Box::new(rhs),

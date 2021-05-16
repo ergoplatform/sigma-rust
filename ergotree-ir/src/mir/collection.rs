@@ -150,14 +150,12 @@ mod tests {
 
         #[test]
         fn ser_roundtrip(v in any::<Collection>()) {
-            dbg!(&v);
             let expr: Expr = v.into();
             prop_assert_eq![sigma_serialize_roundtrip(&expr), expr];
         }
 
         #[test]
         fn ser_roundtrip_bool_const(v in any_with::<Collection>(ArbExprParams{tpe: SType::SBoolean, depth: 0})) {
-            dbg!(&v);
             let expr: Expr = v.into();
             prop_assert_eq![sigma_serialize_roundtrip(&expr), expr];
         }

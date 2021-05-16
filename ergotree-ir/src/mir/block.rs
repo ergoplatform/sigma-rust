@@ -45,7 +45,6 @@ impl SigmaSerializable for BlockValue {
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
         let items = Vec::<Expr>::sigma_parse(r)?;
-        dbg!(&items);
         let result = Expr::sigma_parse(r)?;
         Ok(BlockValue {
             items,
