@@ -243,14 +243,15 @@ impl SigmaSerializable for ErgoTree {
             for _ in 0..constants_len {
                 match Constant::sigma_parse(&mut r) {
                     Ok(c) => constants.push(c),
-                    Err(_) => {
+                    Err(err) => {
                         return Ok(ErgoTree {
                             header,
                             tree: Err(ErgoTreeConstantsParsingError {
                                 bytes: bytes[1..].to_vec(),
-                                error: SerializationError::NotImplementedYet(
-                                    "not all constant types serialization is supported".to_string(),
-                                ),
+                                error: SerializationError::NotImplementedYet(format!(
+                                    "Constant parsing error: {0}",
+                                    err
+                                )),
                             }),
                         })
                     }

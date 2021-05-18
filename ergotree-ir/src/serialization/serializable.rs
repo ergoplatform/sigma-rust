@@ -29,7 +29,7 @@ pub enum SerializationError {
     #[error("type parsing error")]
     InvalidTypePrefix,
     /// Failed to decode VLQ
-    #[error("vlq encode error")]
+    #[error("vlq encode error: {0}")]
     VlqEncode(vlq_encode::VlqEncodingError),
     /// IO fail (EOF, etc.)
     #[error("io error")]

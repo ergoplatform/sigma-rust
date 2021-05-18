@@ -8,27 +8,25 @@ use bitvec::prelude::BitVec;
 use peekable_reader::Peekable;
 #[cfg(test)]
 use proptest::{num::u64, prelude::*};
+use thiserror::Error;
 
 /// Ways VLQ encoding/decoding might fail
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Error, Debug, Clone, Eq, PartialEq)]
 pub enum VlqEncodingError {
     /// IO fail (EOF, etc.)
+    #[error("IO error: {0}")]
     Io(String),
     /// value bounds check error
-    TryFrom(std::num::TryFromIntError),
+    #[error("Bounds check error: {1} for input: {0}")]
+    TryFrom(String, std::num::TryFromIntError),
     /// Fail to decode a value from bytes
+    #[error("VLQ decoding failed")]
     VlqDecodingFailed,
 }
 
 impl From<io::Error> for VlqEncodingError {
     fn from(error: io::Error) -> Self {
         VlqEncodingError::Io(error.to_string())
-    }
-}
-
-impl From<std::num::TryFromIntError> for VlqEncodingError {
-    fn from(error: std::num::TryFromIntError) -> Self {
-        VlqEncodingError::TryFrom(error)
     }
 }
 
@@ -68,7 +66,7 @@ pub trait WriteSigmaVlqExt: io::Write {
 
     /// Encode using ZigZag and then VLQ.
     fn put_i32(&mut self, v: i32) -> io::Result<()> {
-        Self::put_u64(self, zig_zag_encode::encode_i32(v as i32) as u64)
+        Self::put_u64(self, zig_zag_encode::encode_i32(v) as u64)
     }
 
     /// Encode using VLQ.
@@ -135,25 +133,31 @@ pub trait ReadSigmaVlqExt: peekable_reader::Peekable {
     fn get_i16(&mut self) -> Result<i16, VlqEncodingError> {
         Self::get_u32(self).and_then(|v| {
             let vd = zig_zag_encode::decode_u32(v);
-            i16::try_from(vd).map_err(VlqEncodingError::TryFrom)
+            i16::try_from(vd).map_err(|err| VlqEncodingError::TryFrom(vd.to_string(), err))
         })
     }
 
     /// Read and decode using VLQ value written with [`WriteSigmaVlqExt::put_u16`]
     fn get_u16(&mut self) -> Result<u16, VlqEncodingError> {
-        Self::get_u64(self).and_then(|v| u16::try_from(v).map_err(VlqEncodingError::TryFrom))
+        Self::get_u64(self).and_then(|v| {
+            u16::try_from(v).map_err(|err| VlqEncodingError::TryFrom(v.to_string(), err))
+        })
     }
 
     /// Read and decode using VLQ and ZigZag value written with [`WriteSigmaVlqExt::put_i32`]
     fn get_i32(&mut self) -> Result<i32, VlqEncodingError> {
         Self::get_u64(self)
-            .and_then(|v| u32::try_from(v).map_err(VlqEncodingError::TryFrom))
-            .map(zig_zag_encode::decode_u32)
+            // .and_then(|v| {
+            //     u32::try_from(v).map_err(|err| VlqEncodingError::TryFrom(v.to_string(), err))
+            // })
+            .map(|v| zig_zag_encode::decode_u32(v as u32))
     }
 
     /// Read and decode using VLQ value written with [`WriteSigmaVlqExt::put_u32`]
     fn get_u32(&mut self) -> Result<u32, VlqEncodingError> {
-        Self::get_u64(self).and_then(|v| u32::try_from(v).map_err(VlqEncodingError::TryFrom))
+        Self::get_u64(self).and_then(|v| {
+            u32::try_from(v).map_err(|err| VlqEncodingError::TryFrom(v.to_string(), err))
+        })
     }
 
     /// Read and decode using VLQ and ZigZag value written with [`WriteSigmaVlqExt::put_i64`]
@@ -291,6 +295,19 @@ mod tests {
             let decoded_value = r.get_u64().unwrap();
             assert_eq!(decoded_value, value)
         }
+    }
+
+    #[test]
+    fn test_i32_ten_bytes_case() {
+        let input = 1234567890i32;
+        let mut w = Cursor::new(vec![]);
+        w.put_i32(input).unwrap();
+        let bytes = w.into_inner();
+        assert_eq!(bytes.len(), 10);
+        // 164, 139, 176, 153, 9,
+        let mut r = PeekableReader::new(Cursor::new(bytes));
+        let decoded_value = r.get_i32().unwrap();
+        assert_eq!(decoded_value, input);
     }
 
     #[cfg(test)]
