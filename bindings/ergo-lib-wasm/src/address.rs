@@ -200,7 +200,7 @@ impl Address {
 
     /// Create an address from a public key
     pub fn from_public_key(bytes: &[u8]) -> Result<Address, JsValue> {
-        EcPoint::sigma_parse_bytes(bytes.to_vec())
+        EcPoint::sigma_parse_bytes(bytes)
             .map(|point| ergo_lib::ergotree_ir::address::Address::P2Pk(ProveDlog::new(point)))
             .map(Address)
             .map_err(|e| JsValue::from_str(&format!("{}", e)))

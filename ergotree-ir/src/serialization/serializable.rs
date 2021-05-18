@@ -124,8 +124,8 @@ pub trait SigmaSerializable: Sized {
     }
 
     /// Parse `self` from the bytes
-    fn sigma_parse_bytes(mut bytes: Vec<u8>) -> Result<Self, SerializationError> {
-        let cursor = Cursor::new(&mut bytes[..]);
+    fn sigma_parse_bytes(bytes: &[u8]) -> Result<Self, SerializationError> {
+        let cursor = Cursor::new(bytes);
         let pr = PeekableReader::new(cursor);
         let mut sr = SigmaByteReader::new(pr, ConstantStore::empty());
         Self::sigma_parse(&mut sr)

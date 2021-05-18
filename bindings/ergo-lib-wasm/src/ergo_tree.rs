@@ -25,7 +25,7 @@ impl ErgoTree {
 
     /// Decode from encoded serialized ErgoTree
     pub fn from_bytes(data: Vec<u8>) -> Result<ErgoTree, JsValue> {
-        ergo_lib::ergotree_ir::ergo_tree::ErgoTree::sigma_parse_bytes(data)
+        ergo_lib::ergotree_ir::ergo_tree::ErgoTree::sigma_parse_bytes(&data)
             .map(ErgoTree)
             .map_err(|e| JsValue::from_str(&format!("{}", e)))
     }
