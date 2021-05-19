@@ -190,10 +190,7 @@ pub trait ReadSigmaVlqExt: peekable_reader::Peekable {
         let mut buf = vec![0u8; byte_num];
         self.read_exact(&mut buf)?;
         // May fail if number of bits in buf is larger that maximum value of usize
-        let mut bits = match BitVec::<Lsb0, u8>::from_slice(&buf) {
-            Ok(v) => v,
-            Err(_) => return Err(VlqEncodingError::VlqDecodingFailed),
-        };
+        let mut bits = BitVec::<Lsb0, u8>::from_vec(buf);
         bits.truncate(size);
         Ok(bits.iter().map(|x| *x).collect::<Vec<bool>>())
     }
