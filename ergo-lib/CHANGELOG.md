@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [Unreleased] - ReleaseDate
 
 ### Added 
+- `ByteArrayToLong` `ByteArrayToBigInt` `LongToByteArray` IR nodes [#244](https://github.com/ergoplatform/sigma-rust/pull/244);
 - `ErgoTree::constants_len`, `get_constant`, `set_constant` API for accessing the constants list in `ErgoTree` [#261](https://github.com/ergoplatform/sigma-rust/issues/261);
 
 ## [0.10.0] - 2021-04-22
