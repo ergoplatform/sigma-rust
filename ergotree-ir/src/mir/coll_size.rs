@@ -1,12 +1,11 @@
 use crate::serialization::op_code::OpCode;
-use crate::serialization::sigma_byte_reader::SigmaByteRead;
-use crate::serialization::sigma_byte_writer::SigmaByteWrite;
-use crate::serialization::SerializationError;
-use crate::serialization::SigmaSerializable;
 use crate::types::stype::SType;
 
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
+use super::unary_op::UnaryOp;
+use super::unary_op::UnaryOpTryBuild;
+use crate::has_opcode::HasStaticOpCode;
 
 /// Collection size
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -16,10 +15,24 @@ pub struct SizeOf {
 }
 
 impl SizeOf {
-    pub(crate) const OP_CODE: OpCode = OpCode::SIZE_OF;
+    /// Type
+    pub fn tpe(&self) -> SType {
+        SType::SInt
+    }
+}
 
-    /// Create new object, returns an error if any of the requirements failed
-    pub fn new(input: Expr) -> Result<Self, InvalidArgumentError> {
+impl HasStaticOpCode for SizeOf {
+    const OP_CODE: OpCode = OpCode::SIZE_OF;
+}
+
+impl UnaryOp for SizeOf {
+    fn input(&self) -> &Expr {
+        &self.input
+    }
+}
+
+impl UnaryOpTryBuild for SizeOf {
+    fn try_build(input: Expr) -> Result<Self, InvalidArgumentError> {
         match input.post_eval_tpe() {
             SType::SColl(_) => Ok(Self {
                 input: input.into(),
@@ -29,26 +42,6 @@ impl SizeOf {
                 input.tpe()
             ))),
         }
-    }
-
-    /// Type
-    pub fn tpe(&self) -> SType {
-        SType::SInt
-    }
-
-    pub(crate) fn op_code(&self) -> OpCode {
-        Self::OP_CODE
-    }
-}
-
-impl SigmaSerializable for SizeOf {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
-        self.input.sigma_serialize(w)
-    }
-
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
-        let input = Expr::sigma_parse(r)?;
-        Ok(Self::new(input)?)
     }
 }
 

@@ -16,6 +16,7 @@ impl Evaluable for MethodCall {
     }
 }
 
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
 mod tests {
@@ -25,6 +26,7 @@ mod tests {
     use ergotree_ir::mir::expr::Expr;
     use ergotree_ir::mir::global_vars::GlobalVars;
     use ergotree_ir::mir::option_get::OptionGet;
+    use ergotree_ir::mir::unary_op::UnaryOpTryBuild;
     use ergotree_ir::types::sbox;
     use sigma_test_util::force_any_val;
 
@@ -42,7 +44,7 @@ mod tests {
         )
         .unwrap()
         .into();
-        let option_get_expr: Expr = OptionGet::new(mc).unwrap().into();
+        let option_get_expr: Expr = OptionGet::try_build(mc).unwrap().into();
         let ctx = Rc::new(force_any_val::<Context>());
         assert_eq!(
             eval_out::<i64>(&option_get_expr, ctx.clone()),

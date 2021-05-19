@@ -18,6 +18,7 @@ impl Evaluable for GlobalVars {
     }
 }
 
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
     use std::rc::Rc;

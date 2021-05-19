@@ -71,7 +71,7 @@ pub enum Address {
 impl Address {
     /// Create a P2PK address from serialized PK bytes(EcPoint/GroupElement)
     pub fn p2pk_from_pk_bytes(bytes: &[u8]) -> Result<Address, SerializationError> {
-        EcPoint::sigma_parse_bytes(bytes.to_vec())
+        EcPoint::sigma_parse_bytes(bytes)
             .map(ProveDlog::from)
             .map(Address::P2Pk)
     }
@@ -122,7 +122,7 @@ impl Address {
                 ))
                 .into(),
             ))),
-            Address::P2S(bytes) => ErgoTree::sigma_parse_bytes(bytes.to_vec()),
+            Address::P2S(bytes) => ErgoTree::sigma_parse_bytes(bytes),
         }
     }
 }
@@ -301,6 +301,7 @@ impl AddressEncoder {
             .into_iter()
             .take(AddressEncoder::CHECKSUM_LENGTH)
             .collect();
+        #[allow(clippy::unwrap_used)]
         v.as_slice().try_into().unwrap()
     }
 
@@ -361,7 +362,7 @@ impl AddressEncoder {
         let address_type = AddressTypePrefix::try_from(bytes[0] & 0xF_u8)?;
         Ok(match address_type {
             AddressTypePrefix::P2Pk => {
-                Address::P2Pk(ProveDlog::new(EcPoint::sigma_parse_bytes(content_bytes)?))
+                Address::P2Pk(ProveDlog::new(EcPoint::sigma_parse_bytes(&content_bytes)?))
             }
             AddressTypePrefix::Pay2S => Address::P2S(content_bytes),
             AddressTypePrefix::Pay2Sh => todo!(),
@@ -395,6 +396,7 @@ impl AddressEncoder {
 }
 
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::unwrap_used)]
 pub(crate) mod arbitrary {
     use super::*;
     use proptest::prelude::*;
@@ -418,6 +420,7 @@ pub(crate) mod arbitrary {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
 
     use super::*;

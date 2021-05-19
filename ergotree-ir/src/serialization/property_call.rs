@@ -32,6 +32,7 @@ impl SigmaSerializable for PropertyCall {
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use crate::mir::expr::Expr;
     use crate::mir::property_call::PropertyCall;

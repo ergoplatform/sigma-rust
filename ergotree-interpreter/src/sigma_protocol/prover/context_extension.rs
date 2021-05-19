@@ -90,7 +90,7 @@ impl TryFrom<HashMap<String, String>> for ContextExtension {
                 })?;
                 acc.insert(
                     idx,
-                    Constant::sigma_parse_bytes(constant_bytes).map_err(|_| {
+                    Constant::sigma_parse_bytes(&constant_bytes).map_err(|_| {
                         ConstantParsingError(format!(
                             "cannot deserialize constant bytes from {0:?}",
                             pair.1

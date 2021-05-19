@@ -1,3 +1,4 @@
+use crate::has_opcode::HasStaticOpCode;
 use crate::serialization::op_code::OpCode;
 use crate::types::stype::SType;
 
@@ -10,12 +11,8 @@ pub struct ConstantPlaceholder {
     pub tpe: SType,
 }
 
-impl ConstantPlaceholder {
-    /// OpCode value
-    pub(crate) const OP_CODE: OpCode = OpCode::CONSTANT_PLACEHOLDER;
+impl ConstantPlaceholder {}
 
-    /// OpCode for the serialization
-    pub(crate) fn op_code(&self) -> OpCode {
-        OpCode::CONSTANT_PLACEHOLDER
-    }
+impl HasStaticOpCode for ConstantPlaceholder {
+    const OP_CODE: OpCode = OpCode::CONSTANT_PLACEHOLDER;
 }

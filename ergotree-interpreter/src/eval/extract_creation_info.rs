@@ -19,6 +19,7 @@ impl Evaluable for ExtractCreationInfo {
     }
 }
 
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
     use crate::eval::tests::eval_out;
@@ -27,13 +28,14 @@ mod tests {
 
     use ergotree_ir::mir::expr::Expr;
     use ergotree_ir::mir::global_vars::GlobalVars;
+    use ergotree_ir::mir::unary_op::UnaryOpTryBuild;
     use sigma_test_util::force_any_val;
 
     use super::*;
 
     #[test]
     fn eval() {
-        let expr: Expr = ExtractCreationInfo::new(GlobalVars::SelfBox.into())
+        let expr: Expr = ExtractCreationInfo::try_build(GlobalVars::SelfBox.into())
             .unwrap()
             .into();
         let ctx = Rc::new(force_any_val::<Context>());

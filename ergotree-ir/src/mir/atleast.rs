@@ -7,6 +7,7 @@ use crate::serialization::SigmaSerializable;
 use crate::types::stype::SType;
 
 use super::expr::Expr;
+use crate::has_opcode::HasStaticOpCode;
 
 /// THRESHOLD composition for sigma expressions
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -18,16 +19,14 @@ pub struct Atleast {
 }
 
 impl Atleast {
-    pub(crate) const OP_CODE: OpCode = OpCode::ATLEAST;
-
     /// Type
     pub fn tpe(&self) -> SType {
         SType::SSigmaProp
     }
+}
 
-    pub(crate) fn op_code(&self) -> OpCode {
-        Self::OP_CODE
-    }
+impl HasStaticOpCode for Atleast {
+    const OP_CODE: OpCode = OpCode::ATLEAST;
 }
 
 impl SigmaSerializable for Atleast {

@@ -1,4 +1,5 @@
 use super::{op_code::OpCode, sigma_byte_writer::SigmaByteWrite};
+use crate::has_opcode::HasOpCode;
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
 };

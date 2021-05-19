@@ -7,6 +7,7 @@ use crate::types::stype::SType;
 
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
+use crate::has_opcode::HasStaticOpCode;
 
 /// Get box register value (Box.R0 - R9)
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -20,8 +21,6 @@ pub struct ExtractRegisterAs {
 }
 
 impl ExtractRegisterAs {
-    pub(crate) const OP_CODE: OpCode = OpCode::EXTRACT_REGISTER_AS;
-
     /// Create new object, returns an error if any of the requirements failed
     pub fn new(input: Expr, register_id: i8, tpe: SType) -> Result<Self, InvalidArgumentError> {
         if input.post_eval_tpe() != SType::SBox {
@@ -45,14 +44,14 @@ impl ExtractRegisterAs {
         })
     }
 
-    pub(crate) fn op_code(&self) -> OpCode {
-        Self::OP_CODE
-    }
-
     /// Type
     pub fn tpe(&self) -> SType {
         SType::SOption(self.elem_tpe.clone().into())
     }
+}
+
+impl HasStaticOpCode for ExtractRegisterAs {
+    const OP_CODE: OpCode = OpCode::EXTRACT_REGISTER_AS;
 }
 
 impl SigmaSerializable for ExtractRegisterAs {
@@ -76,6 +75,7 @@ impl SigmaSerializable for ExtractRegisterAs {
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use crate::mir::global_vars::GlobalVars;

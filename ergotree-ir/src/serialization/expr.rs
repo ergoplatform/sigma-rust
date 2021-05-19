@@ -1,6 +1,8 @@
 use super::bin_op::bin_op_sigma_parse;
 use super::bin_op::bin_op_sigma_serialize;
 use super::{op_code::OpCode, sigma_byte_writer::SigmaByteWrite};
+use crate::has_opcode::HasOpCode;
+use crate::has_opcode::HasStaticOpCode;
 use crate::mir::and::And;
 use crate::mir::apply::Apply;
 use crate::mir::atleast::Atleast;
@@ -64,9 +66,9 @@ use std::io;
 impl SigmaSerializable for Expr {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
         match self {
-            Expr::Const(c) => match w.constant_store() {
+            Expr::Const(c) => match w.constant_store_mut_ref() {
                 Some(cs) => {
-                    let ph = cs.put(c.clone());
+                    let ph = (*cs).put(c.clone());
                     ph.op_code().sigma_serialize(w)?;
                     ph.sigma_serialize(w)
                 }
@@ -242,6 +244,7 @@ impl SigmaSerializable for Expr {
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use crate::address::AddressEncoder;
     use crate::address::NetworkPrefix;

@@ -9,6 +9,7 @@ use crate::serialization::SerializationError;
 use crate::serialization::SigmaSerializable;
 use crate::types::stype::SType;
 
+use crate::has_opcode::HasStaticOpCode;
 use std::io::Error;
 
 /// Numerical upcast
@@ -21,8 +22,6 @@ pub struct Upcast {
 }
 
 impl Upcast {
-    pub(crate) const OP_CODE: OpCode = OpCode::UPCAST;
-
     /// Create new object, returns an error if any of the requirements failed
     pub fn new(input: Expr, target_tpe: SType) -> Result<Self, InvalidArgumentError> {
         if !target_tpe.is_numeric() {
@@ -45,14 +44,14 @@ impl Upcast {
         }
     }
 
-    pub(crate) fn op_code(&self) -> OpCode {
-        Self::OP_CODE
-    }
-
     /// Type
     pub fn tpe(&self) -> SType {
         self.tpe.clone()
     }
+}
+
+impl HasStaticOpCode for Upcast {
+    const OP_CODE: OpCode = OpCode::UPCAST;
 }
 
 impl SigmaSerializable for Upcast {
@@ -69,6 +68,7 @@ impl SigmaSerializable for Upcast {
 }
 
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::unwrap_used)]
 /// Arbitrary impl
 mod arbitrary {
     use crate::mir::expr::arbitrary::ArbExprParams;

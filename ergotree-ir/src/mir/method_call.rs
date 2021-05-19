@@ -4,6 +4,7 @@ use crate::types::stype::SType;
 
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
+use crate::has_opcode::HasStaticOpCode;
 
 /** Represents in ErgoTree an invocation of method of the object `obj` with arguments `args`.
  * The SMethod instances in STypeCompanions may have type STypeIdent in methods types,
@@ -60,8 +61,8 @@ impl MethodCall {
     pub fn tpe(&self) -> SType {
         *self.method.tpe().t_range.clone()
     }
+}
 
-    pub(crate) fn op_code(&self) -> OpCode {
-        OpCode::METHOD_CALL
-    }
+impl HasStaticOpCode for MethodCall {
+    const OP_CODE: OpCode = OpCode::METHOD_CALL;
 }

@@ -10,6 +10,7 @@ use crate::types::stype::SType;
 
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
+use crate::has_opcode::HasStaticOpCode;
 
 /// Application of function `func` to given arguments `args`
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -55,10 +56,10 @@ impl Apply {
             _ => panic!("unexpected Apply::func: {0:?}", self.func.tpe()),
         }
     }
+}
 
-    pub(crate) fn op_code(&self) -> OpCode {
-        OpCode::APPLY
-    }
+impl HasStaticOpCode for Apply {
+    const OP_CODE: OpCode = OpCode::APPLY;
 }
 
 impl SigmaSerializable for Apply {

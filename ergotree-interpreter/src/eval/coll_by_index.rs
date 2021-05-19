@@ -40,6 +40,7 @@ impl Evaluable for ByIndex {
     }
 }
 
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
     use ergotree_ir::ir_ergo_box::IrBoxId;

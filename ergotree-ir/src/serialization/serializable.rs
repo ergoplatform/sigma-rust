@@ -1,7 +1,6 @@
 //! Serialization of Ergo types
 use crate::mir::expr::InvalidArgumentError;
 use crate::mir::val_def::ValId;
-use crate::types::stuple::STupleItemsOutOfBoundsError;
 use crate::types::type_unify::TypeUnificationError;
 
 use super::{
@@ -11,6 +10,7 @@ use super::{
 };
 use crate::serialization::types::TypeCode;
 use crate::types::smethod::MethodId;
+use bounded_vec::BoundedVecOutOfBounds;
 use io::Cursor;
 use sigma_ser::{peekable_reader::PeekableReader, vlq_encode};
 use std::io;
@@ -84,8 +84,8 @@ impl From<InvalidArgumentError> for SerializationError {
     }
 }
 
-impl From<STupleItemsOutOfBoundsError> for SerializationError {
-    fn from(e: STupleItemsOutOfBoundsError) -> Self {
+impl From<BoundedVecOutOfBounds> for SerializationError {
+    fn from(e: BoundedVecOutOfBounds) -> Self {
         SerializationError::ValueOutOfBounds(format!("{:?}", e))
     }
 }
@@ -116,6 +116,7 @@ pub trait SigmaSerializable: Sized {
     fn sigma_serialize_bytes(&self) -> Vec<u8> {
         let mut data = Vec::new();
         let mut w = SigmaByteWriter::new(&mut data, None);
+        #[allow(clippy::expect_used)]
         self.sigma_serialize(&mut w)
             // since serialization may fail only for underlying IO errors it's ok to force unwrap
             .expect("serialization failed");
@@ -123,8 +124,8 @@ pub trait SigmaSerializable: Sized {
     }
 
     /// Parse `self` from the bytes
-    fn sigma_parse_bytes(mut bytes: Vec<u8>) -> Result<Self, SerializationError> {
-        let cursor = Cursor::new(&mut bytes[..]);
+    fn sigma_parse_bytes(bytes: &[u8]) -> Result<Self, SerializationError> {
+        let cursor = Cursor::new(bytes);
         let pr = PeekableReader::new(cursor);
         let mut sr = SigmaByteReader::new(pr, ConstantStore::empty());
         Self::sigma_parse(&mut sr)
@@ -169,6 +170,7 @@ impl<T: SigmaSerializable> SigmaSerializable for Option<Box<T>> {
 }
 
 /// serialization roundtrip
+#[allow(clippy::expect_used)]
 pub fn sigma_serialize_roundtrip<T: SigmaSerializable>(v: &T) -> T {
     let mut data = Vec::new();
     let mut w = SigmaByteWriter::new(&mut data, None);

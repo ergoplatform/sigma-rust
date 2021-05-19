@@ -11,6 +11,7 @@ use crate::types::stype::SType;
 
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
+use crate::has_opcode::HasStaticOpCode;
 
 /// Tuple of elements
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -20,8 +21,6 @@ pub struct Tuple {
 }
 
 impl Tuple {
-    pub(crate) const OP_CODE: OpCode = OpCode::TUPLE;
-
     /// Create new object
     pub fn new(items: Vec<Expr>) -> Result<Self, InvalidArgumentError> {
         Ok(Tuple {
@@ -31,15 +30,14 @@ impl Tuple {
 
     /// Type
     pub fn tpe(&self) -> SType {
-        let types: Vec<SType> = self.items.iter().map(|it| it.tpe()).collect();
         SType::STuple(STuple {
-            items: types.try_into().unwrap(),
+            items: self.items.mapped_ref(|it| it.tpe()),
         })
     }
+}
 
-    pub(crate) fn op_code(&self) -> OpCode {
-        Self::OP_CODE
-    }
+impl HasStaticOpCode for Tuple {
+    const OP_CODE: OpCode = OpCode::TUPLE;
 }
 
 impl SigmaSerializable for Tuple {
@@ -61,6 +59,7 @@ impl SigmaSerializable for Tuple {
 }
 
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::unwrap_used)]
 /// Arbitrary impl
 mod arbitrary {
 

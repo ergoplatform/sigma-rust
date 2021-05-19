@@ -9,6 +9,7 @@ use crate::types::stype::SType;
 
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
+use crate::has_opcode::HasStaticOpCode;
 
 /// OR conjunction for sigma propositions
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -18,8 +19,6 @@ pub struct SigmaOr {
 }
 
 impl SigmaOr {
-    pub(crate) const OP_CODE: OpCode = OpCode::SIGMA_OR;
-
     /// Create new object, returns an error if any of the requirements failed
     pub fn new(items: Vec<Expr>) -> Result<Self, InvalidArgumentError> {
         let item_types: Vec<SType> = items
@@ -44,10 +43,10 @@ impl SigmaOr {
     pub fn tpe(&self) -> SType {
         SType::SSigmaProp
     }
+}
 
-    pub(crate) fn op_code(&self) -> OpCode {
-        Self::OP_CODE
-    }
+impl HasStaticOpCode for SigmaOr {
+    const OP_CODE: OpCode = OpCode::SIGMA_OR;
 }
 
 impl SigmaSerializable for SigmaOr {

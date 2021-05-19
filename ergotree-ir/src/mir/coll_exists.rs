@@ -1,5 +1,6 @@
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
+use crate::has_opcode::HasStaticOpCode;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
@@ -19,8 +20,6 @@ pub struct Exists {
 }
 
 impl Exists {
-    pub(crate) const OP_CODE: OpCode = OpCode::EXISTS;
-
     /// Create new object, returns an error if any of the requirements failed
     pub fn new(input: Expr, condition: Expr) -> Result<Self, InvalidArgumentError> {
         let input_elem_type: SType = *match input.post_eval_tpe() {
@@ -52,10 +51,10 @@ impl Exists {
     pub fn tpe(&self) -> SType {
         SType::SBoolean
     }
+}
 
-    pub(crate) fn op_code(&self) -> OpCode {
-        Self::OP_CODE
-    }
+impl HasStaticOpCode for Exists {
+    const OP_CODE: OpCode = OpCode::EXISTS;
 }
 
 impl SigmaSerializable for Exists {
@@ -71,6 +70,7 @@ impl SigmaSerializable for Exists {
     }
 }
 
+#[allow(clippy::unwrap_used)]
 #[cfg(feature = "arbitrary")]
 /// Arbitrary impl
 mod arbitrary {

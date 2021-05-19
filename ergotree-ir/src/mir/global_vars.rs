@@ -1,5 +1,6 @@
 //! Global variables
 
+use crate::has_opcode::HasOpCode;
 use crate::serialization::op_code::OpCode;
 use crate::types::stype::SType;
 
@@ -14,22 +15,11 @@ pub enum GlobalVars {
     Height,
     /// ErgoBox instance, which script is being evaluated
     SelfBox,
-    /// FIXME: Doc
+    /// When interpreted evaluates to a ByteArrayConstant built from Context.minerPubkey
     MinerPubKey,
 }
 
 impl GlobalVars {
-    /// Op code (serialization)
-    pub(crate) fn op_code(&self) -> OpCode {
-        match self {
-            GlobalVars::SelfBox => OpCode::SELF_BOX,
-            GlobalVars::Inputs => OpCode::INPUTS,
-            GlobalVars::Outputs => OpCode::OUTPUTS,
-            GlobalVars::Height => OpCode::HEIGHT,
-            GlobalVars::MinerPubKey => OpCode::MINER_PUBKEY,
-        }
-    }
-
     /// Type
     pub fn tpe(&self) -> SType {
         match self {
@@ -38,6 +28,19 @@ impl GlobalVars {
             GlobalVars::Height => SType::SInt,
             GlobalVars::SelfBox => SType::SBox,
             GlobalVars::MinerPubKey => SType::SGroupElement,
+        }
+    }
+}
+
+impl HasOpCode for GlobalVars {
+    /// Op code (serialization)
+    fn op_code(&self) -> OpCode {
+        match self {
+            GlobalVars::SelfBox => OpCode::SELF_BOX,
+            GlobalVars::Inputs => OpCode::INPUTS,
+            GlobalVars::Outputs => OpCode::OUTPUTS,
+            GlobalVars::Height => OpCode::HEIGHT,
+            GlobalVars::MinerPubKey => OpCode::MINER_PUBKEY,
         }
     }
 }

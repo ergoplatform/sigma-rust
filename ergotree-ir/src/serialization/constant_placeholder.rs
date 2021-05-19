@@ -26,6 +26,8 @@ impl SigmaSerializable for ConstantPlaceholder {
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::expect_used)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use crate::mir::constant::Constant;
@@ -44,12 +46,10 @@ mod tests {
             let mut data = Vec::new();
             let mut cs = ConstantStore::empty();
             let ph = cs.put(c);
-            let mut w = SigmaByteWriter::new(&mut data, Some(&mut cs));
+            let mut w = SigmaByteWriter::new(&mut data, Some(cs));
             ph.sigma_serialize(&mut w).expect("serialization failed");
-
-            let cursor = Cursor::new(&mut data[..]);
-            let pr = PeekableReader::new(cursor);
-            let mut sr = SigmaByteReader::new(pr, cs);
+            let cs2 =  w.constant_store.unwrap();
+            let mut sr = SigmaByteReader::new(PeekableReader::new(Cursor::new(&mut data[..])), cs2);
             let ph_parsed = ConstantPlaceholder::sigma_parse(&mut sr).expect("parse failed");
             prop_assert_eq![ph, ph_parsed];
         }

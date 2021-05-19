@@ -1,10 +1,9 @@
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
+use super::unary_op::UnaryOp;
+use super::unary_op::UnaryOpTryBuild;
+use crate::has_opcode::HasStaticOpCode;
 use crate::serialization::op_code::OpCode;
-use crate::serialization::sigma_byte_reader::SigmaByteRead;
-use crate::serialization::sigma_byte_writer::SigmaByteWrite;
-use crate::serialization::SerializationError;
-use crate::serialization::SigmaSerializable;
 use crate::types::stype::SType;
 
 /// Returns the Option's value or error if no value
@@ -15,25 +14,6 @@ pub struct OptionGet {
 }
 
 impl OptionGet {
-    pub(crate) const OP_CODE: OpCode = OpCode::OPTION_GET;
-
-    /// Create new object, returns an error if any of the requirements failed
-    pub fn new(input: Expr) -> Result<Self, InvalidArgumentError> {
-        match input.post_eval_tpe() {
-            SType::SOption(_) => Ok(OptionGet {
-                input: Box::new(input),
-            }),
-            _ => Err(InvalidArgumentError(format!(
-                "expected OptionGet::input type to be SOption, got: {0:?}",
-                input.tpe(),
-            ))),
-        }
-    }
-
-    pub(crate) fn op_code(&self) -> OpCode {
-        Self::OP_CODE
-    }
-
     /// Type
     pub fn tpe(&self) -> SType {
         match self.input.tpe() {
@@ -46,18 +26,33 @@ impl OptionGet {
     }
 }
 
-impl SigmaSerializable for OptionGet {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
-        self.input.sigma_serialize(w)
-    }
+impl HasStaticOpCode for OptionGet {
+    const OP_CODE: OpCode = OpCode::OPTION_GET;
+}
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
-        Ok(OptionGet::new(Expr::sigma_parse(r)?)?)
+impl UnaryOp for OptionGet {
+    fn input(&self) -> &Expr {
+        &self.input
+    }
+}
+
+impl UnaryOpTryBuild for OptionGet {
+    fn try_build(input: Expr) -> Result<Self, InvalidArgumentError> {
+        match input.post_eval_tpe() {
+            SType::SOption(_) => Ok(OptionGet {
+                input: Box::new(input),
+            }),
+            _ => Err(InvalidArgumentError(format!(
+                "expected OptionGet::input type to be SOption, got: {0:?}",
+                input.tpe(),
+            ))),
+        }
     }
 }
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use crate::mir::expr::Expr;

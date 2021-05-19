@@ -1,10 +1,9 @@
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
+use super::unary_op::UnaryOp;
+use super::unary_op::UnaryOpTryBuild;
+use crate::has_opcode::HasStaticOpCode;
 use crate::serialization::op_code::OpCode;
-use crate::serialization::sigma_byte_reader::SigmaByteRead;
-use crate::serialization::sigma_byte_writer::SigmaByteWrite;
-use crate::serialization::SerializationError;
-use crate::serialization::SigmaSerializable;
 use crate::types::stype::SType;
 
 /// Returns false if the option is None, true otherwise.
@@ -15,10 +14,27 @@ pub struct OptionIsDefined {
 }
 
 impl OptionIsDefined {
-    pub(crate) const OP_CODE: OpCode = OpCode::OPTION_IS_DEFINED;
+    /// Type
+    pub fn tpe(&self) -> SType {
+        SType::SBoolean
+    }
+}
 
-    /// Create new object, returns an error if any of the requirements failed
-    pub fn new(input: Expr) -> Result<Self, InvalidArgumentError> {
+impl HasStaticOpCode for OptionIsDefined {
+    const OP_CODE: OpCode = OpCode::OPTION_IS_DEFINED;
+}
+
+impl UnaryOp for OptionIsDefined {
+    fn input(&self) -> &Expr {
+        &self.input
+    }
+}
+
+impl UnaryOpTryBuild for OptionIsDefined {
+    fn try_build(input: Expr) -> Result<Self, InvalidArgumentError>
+    where
+        Self: Sized,
+    {
         match input.post_eval_tpe() {
             SType::SOption(_) => Ok(OptionIsDefined {
                 input: Box::new(input),
@@ -29,29 +45,11 @@ impl OptionIsDefined {
             ))),
         }
     }
-
-    pub(crate) fn op_code(&self) -> OpCode {
-        Self::OP_CODE
-    }
-
-    /// Type
-    pub fn tpe(&self) -> SType {
-        SType::SBoolean
-    }
-}
-
-impl SigmaSerializable for OptionIsDefined {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
-        self.input.sigma_serialize(w)
-    }
-
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
-        Ok(OptionIsDefined::new(Expr::sigma_parse(r)?)?)
-    }
 }
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use crate::mir::expr::Expr;
@@ -69,7 +67,7 @@ mod tests {
         )
         .unwrap()
         .into();
-        let e: Expr = OptionIsDefined::new(get_reg_expr).unwrap().into();
+        let e: Expr = OptionIsDefined::try_build(get_reg_expr).unwrap().into();
         assert_eq![sigma_serialize_roundtrip(&e), e];
     }
 }

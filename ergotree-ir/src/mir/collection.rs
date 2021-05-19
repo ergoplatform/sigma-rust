@@ -1,3 +1,4 @@
+use crate::has_opcode::HasOpCode;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
@@ -59,8 +60,10 @@ impl Collection {
             .into(),
         )
     }
+}
 
-    pub(crate) fn op_code(&self) -> OpCode {
+impl HasOpCode for Collection {
+    fn op_code(&self) -> OpCode {
         match self {
             Collection::BoolConstants(_) => OpCode::COLL_OF_BOOL_CONST,
             Collection::Exprs { .. } => OpCode::COLL,
@@ -106,6 +109,7 @@ pub(crate) fn bool_const_coll_sigma_parse<R: SigmaByteRead>(
 }
 
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::unwrap_used)]
 /// Arbitrary impl
 mod arbitrary {
     use crate::mir::constant::arbitrary::ArbConstantParams;

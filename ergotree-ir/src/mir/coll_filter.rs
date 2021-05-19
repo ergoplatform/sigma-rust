@@ -1,5 +1,6 @@
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
+use crate::has_opcode::HasStaticOpCode;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
@@ -19,8 +20,6 @@ pub struct Filter {
 }
 
 impl Filter {
-    pub(crate) const OP_CODE: OpCode = OpCode::FILTER;
-
     /// Create new object, returns an error if any of the requirements failed
     pub fn new(input: Expr, condition: Expr) -> Result<Self, InvalidArgumentError> {
         let input_elem_type: SType = *match input.post_eval_tpe() {
@@ -52,10 +51,10 @@ impl Filter {
     pub fn tpe(&self) -> SType {
         SType::SColl(self.elem_tpe.clone().into())
     }
+}
 
-    pub(crate) fn op_code(&self) -> OpCode {
-        Self::OP_CODE
-    }
+impl HasStaticOpCode for Filter {
+    const OP_CODE: OpCode = OpCode::FILTER;
 }
 
 impl SigmaSerializable for Filter {
@@ -72,6 +71,7 @@ impl SigmaSerializable for Filter {
 }
 
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::unwrap_used)]
 /// Arbitrary impl
 mod arbitrary {
     use super::*;

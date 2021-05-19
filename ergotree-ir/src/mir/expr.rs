@@ -3,8 +3,8 @@
 use std::convert::TryFrom;
 use std::convert::TryInto;
 
+use crate::has_opcode::HasOpCode;
 use crate::serialization::op_code::OpCode;
-use crate::types::stuple::STupleItemsOutOfBoundsError;
 use crate::types::stype::LiftIntoSType;
 use crate::types::stype::SType;
 
@@ -63,6 +63,7 @@ use crate::mir::create_prove_dh_tuple::CreateProveDhTuple;
 use crate::mir::deserialize_context::DeserializeContext;
 use crate::mir::deserialize_register::DeserializeRegister;
 use crate::mir::get_var::GetVar;
+use bounded_vec::BoundedVecOutOfBounds;
 use derive_more::From;
 use derive_more::TryInto;
 
@@ -171,9 +172,13 @@ pub enum Expr {
     SigmaOr(SigmaOr),
     /// Extracts Context variable by id and type
     GetVar(GetVar),
-    /// FIXME: WTF
+    /// Extract register of SELF box as `Coll[Byte]`, deserialize it into Value and inline into
+    /// the executing script.
     DeserializeRegister(DeserializeRegister),
-    /// FIME: WTF
+    /// Extracts context variable as `Coll[Byte]`, deserializes it to script and then executes
+    /// this script in the current context. The original `Coll[Byte]` of the script is
+    /// available as `getVar[Coll[Byte]](id)` On evaluation returns the result of the
+    /// script execution in the current context
     DeserializeContext(DeserializeContext),
 }
 
@@ -345,8 +350,8 @@ impl From<InvalidExprEvalTypeError> for InvalidArgumentError {
     }
 }
 
-impl From<STupleItemsOutOfBoundsError> for InvalidArgumentError {
-    fn from(e: STupleItemsOutOfBoundsError) -> Self {
+impl From<BoundedVecOutOfBounds> for InvalidArgumentError {
+    fn from(e: BoundedVecOutOfBounds) -> Self {
         InvalidArgumentError(format!("{0:?}", e))
     }
 }
@@ -365,6 +370,7 @@ impl<T: TryFrom<Expr>> TryExtractFrom<Expr> for T {
 }
 
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::unwrap_used)]
 /// Arbitrary impl
 pub(crate) mod arbitrary {
     use super::*;

@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used)]
 use ergotree_ir::mir::byte_array_to_bigint::ByteArrayToBigInt;
 use ergotree_ir::mir::value::Value;
 
@@ -44,6 +45,7 @@ lazy_static! {
     static ref MIN_BOUND: num_bigint::BigInt = -Pow::pow(2.to_bigint().unwrap(), 255_u32);
 }
 
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
 
@@ -96,7 +98,7 @@ mod tests {
         buf[0] = 0b0111_1111;
         match eval_node(buf) {
             Ok(n) => assert_eq!(n, *MAX_BOUND),
-            Err(_) => assert!(false),
+            Err(_) => panic!(),
         }
     }
 
@@ -106,7 +108,7 @@ mod tests {
         buf[0] = 0b1000_0000;
         match eval_node(buf) {
             Ok(n) => assert_eq!(n, *MIN_BOUND),
-            Err(_) => assert!(false),
+            Err(_) => panic!(),
         }
     }
 

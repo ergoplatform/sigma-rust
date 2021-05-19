@@ -1,5 +1,6 @@
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
+use crate::has_opcode::HasStaticOpCode;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
@@ -17,8 +18,6 @@ pub struct OptionGetOrElse {
 }
 
 impl OptionGetOrElse {
-    pub(crate) const OP_CODE: OpCode = OpCode::OPTION_GET_OR_ELSE;
-
     /// Create new object, returns an error if any of the requirements failed
     pub fn new(input: Expr, default: Expr) -> Result<Self, InvalidArgumentError> {
         match input.post_eval_tpe() {
@@ -36,10 +35,6 @@ impl OptionGetOrElse {
         }
     }
 
-    pub(crate) fn op_code(&self) -> OpCode {
-        Self::OP_CODE
-    }
-
     /// Type
     pub fn tpe(&self) -> SType {
         match self.input.tpe() {
@@ -50,6 +45,10 @@ impl OptionGetOrElse {
             ),
         }
     }
+}
+
+impl HasStaticOpCode for OptionGetOrElse {
+    const OP_CODE: OpCode = OpCode::OPTION_GET_OR_ELSE;
 }
 
 impl SigmaSerializable for OptionGetOrElse {
@@ -67,6 +66,7 @@ impl SigmaSerializable for OptionGetOrElse {
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use crate::mir::constant::Constant;

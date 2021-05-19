@@ -1,12 +1,11 @@
+use crate::has_opcode::HasStaticOpCode;
 use crate::serialization::op_code::OpCode;
-use crate::serialization::sigma_byte_reader::SigmaByteRead;
-use crate::serialization::sigma_byte_writer::SigmaByteWrite;
-use crate::serialization::SerializationError;
-use crate::serialization::SigmaSerializable;
 use crate::types::stype::SType;
 
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
+use super::unary_op::UnaryOp;
+use super::unary_op::UnaryOpTryBuild;
 
 /// Calc Blake2b 256-bit hash
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -16,32 +15,28 @@ pub struct CalcBlake2b256 {
 }
 
 impl CalcBlake2b256 {
-    /// Create new object, returns an error if any of the requirements failed
-    pub fn new(input: Expr) -> Result<Self, InvalidArgumentError> {
-        input.check_post_eval_tpe(SType::SColl(Box::new(SType::SByte)))?;
-        Ok(CalcBlake2b256 {
-            input: Box::new(input),
-        })
-    }
-
     /// Type
     pub fn tpe(&self) -> SType {
         SType::SColl(Box::new(SType::SByte))
     }
+}
 
-    pub(crate) fn op_code(&self) -> OpCode {
-        OpCode::CALC_BLAKE2B256
+impl HasStaticOpCode for CalcBlake2b256 {
+    const OP_CODE: OpCode = OpCode::CALC_BLAKE2B256;
+}
+
+impl UnaryOp for CalcBlake2b256 {
+    fn input(&self) -> &Expr {
+        &self.input
     }
 }
 
-impl SigmaSerializable for CalcBlake2b256 {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
-        self.input.sigma_serialize(w)
-    }
-
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
-        let input = Expr::sigma_parse(r)?;
-        Ok(CalcBlake2b256::new(input)?)
+impl UnaryOpTryBuild for CalcBlake2b256 {
+    fn try_build(input: Expr) -> Result<Self, InvalidArgumentError> {
+        input.check_post_eval_tpe(SType::SColl(Box::new(SType::SByte)))?;
+        Ok(CalcBlake2b256 {
+            input: Box::new(input),
+        })
     }
 }
 

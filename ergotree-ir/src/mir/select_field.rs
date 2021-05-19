@@ -6,31 +6,36 @@ use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::SerializationError;
 use crate::serialization::SigmaSerializable;
 use crate::types::stuple::STuple;
-use crate::types::stuple::STupleItemsOutOfBoundsError;
 use crate::types::stype::SType;
 
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
+use crate::has_opcode::HasStaticOpCode;
 
-/// Tuple field access index (1..255)
+/// Tuple field access index (1..=255)
 #[derive(PartialEq, Eq, Debug, Copy, Clone)]
 pub struct TupleFieldIndex(u8);
 
+/// Error for tuple index being out of bounds (1..=255)
+#[derive(Debug)]
+pub struct TupleFieldIndexOutBounds;
+
 impl TryFrom<u8> for TupleFieldIndex {
-    type Error = STupleItemsOutOfBoundsError;
+    type Error = TupleFieldIndexOutBounds;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         if value >= 1 {
             Ok(TupleFieldIndex(value))
         } else {
-            Err(STupleItemsOutOfBoundsError())
+            Err(TupleFieldIndexOutBounds)
         }
     }
 }
 
-impl From<TupleFieldIndex> for usize {
-    fn from(v: TupleFieldIndex) -> Self {
-        v.0 as usize
+impl TupleFieldIndex {
+    /// Returns a zero-based index
+    pub fn zero_based_index(&self) -> usize {
+        (self.0 - 1) as usize
     }
 }
 
@@ -64,7 +69,7 @@ impl SelectField {
     pub fn new(input: Expr, field_index: TupleFieldIndex) -> Result<Self, InvalidArgumentError> {
         match input.tpe() {
             SType::STuple(STuple { items }) => {
-                if items.len() >= field_index.into() {
+                if field_index.zero_based_index() < items.len() {
                     Ok(SelectField {
                         input: Box::new(input),
                         field_index,
@@ -83,17 +88,20 @@ impl SelectField {
             ))),
         }
     }
+}
 
-    pub(crate) fn op_code(&self) -> OpCode {
-        OpCode::SELECT_FIELD
-    }
+impl HasStaticOpCode for SelectField {
+    const OP_CODE: OpCode = OpCode::SELECT_FIELD;
 }
 
 impl SelectField {
     /// Type
     pub fn tpe(&self) -> SType {
         match self.input.tpe() {
-            SType::STuple(STuple { items }) => items.get(self.field_index).unwrap().clone(),
+            SType::STuple(STuple { items }) => items
+                .get(self.field_index.zero_based_index())
+                .unwrap()
+                .clone(),
             tpe => panic!("expected input type to be STuple, got {0:?}", tpe),
         }
     }
@@ -114,6 +122,7 @@ impl SigmaSerializable for SelectField {
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use std::convert::TryInto;
 

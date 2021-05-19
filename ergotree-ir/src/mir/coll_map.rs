@@ -8,6 +8,7 @@ use crate::types::stype::SType;
 
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
+use crate::has_opcode::HasStaticOpCode;
 
 /// Builds a new collection by applying a function to all elements of this collection.
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -21,8 +22,6 @@ pub struct Map {
 }
 
 impl Map {
-    pub(crate) const OP_CODE: OpCode = OpCode::MAP;
-
     /// Create new object, returns an error if any of the requirements failed
     pub fn new(input: Expr, mapper: Expr) -> Result<Self, InvalidArgumentError> {
         let input_elem_type: SType = *match input.post_eval_tpe() {
@@ -54,10 +53,10 @@ impl Map {
     pub fn out_elem_tpe(&self) -> SType {
         *self.mapper_sfunc.t_range.clone()
     }
+}
 
-    pub(crate) fn op_code(&self) -> OpCode {
-        Self::OP_CODE
-    }
+impl HasStaticOpCode for Map {
+    const OP_CODE: OpCode = OpCode::MAP;
 }
 
 impl SigmaSerializable for Map {
@@ -75,6 +74,7 @@ impl SigmaSerializable for Map {
 
 #[cfg(feature = "arbitrary")]
 /// Arbitrary impl
+#[allow(clippy::unwrap_used)]
 mod arbitrary {
     use super::*;
     use crate::mir::expr::arbitrary::ArbExprParams;
