@@ -25,6 +25,19 @@ struct ParsedTree {
     root: Result<Rc<Expr>, ErgoTreeRootParsingError>,
 }
 
+impl ParsedTree {
+    /// Sets new constant value for a given index in constants list (as stored in serialized ErgoTree),
+    /// and returns either previous constant or None if index is out of bounds
+    pub fn set_constant(&mut self, index: usize, constant: Constant) -> Option<Constant> {
+        if index >= self.constants.len() {
+            None
+        } else {
+            let replaced = std::mem::replace(&mut self.constants[index], constant);
+            Some(replaced)
+        }
+    }
+}
+
 /** The root of ErgoScript IR. Serialized instances of this class are self sufficient and can be passed around.
  */
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -153,6 +166,42 @@ impl ErgoTree {
     pub fn to_base16_bytes(&self) -> String {
         let bytes = self.sigma_serialize_bytes();
         base16::encode_lower(&bytes)
+    }
+
+    /// Returns constants number as stored in serialized ErgoTree or error if the parsing of
+    /// constants is failed
+    pub fn constants_len(&self) -> Result<usize, ErgoTreeConstantsParsingError> {
+        self.tree
+            .as_ref()
+            .map(|tree| tree.constants.len())
+            .map_err(|e| e.clone())
+    }
+
+    /// Returns constant with given index (as stored in serialized ErgoTree)
+    /// or None if index is out of bounds
+    /// or error if constants parsing were failed
+    pub fn get_constant(
+        &self,
+        index: usize,
+    ) -> Result<Option<Constant>, ErgoTreeConstantsParsingError> {
+        self.tree
+            .as_ref()
+            .map(|tree| tree.constants.get(index).cloned())
+            .map_err(|e| e.clone())
+    }
+
+    /// Sets new constant value for a given index in constants list (as stored in serialized ErgoTree),
+    /// and returns previous constant or None if index is out of bounds
+    /// or error if constants parsing were failed
+    pub fn set_constant(
+        &mut self,
+        index: usize,
+        constant: Constant,
+    ) -> Result<Option<Constant>, ErgoTreeConstantsParsingError> {
+        self.tree
+            .as_mut()
+            .map(|tree| tree.set_constant(index, constant))
+            .map_err(|e| e.clone())
     }
 }
 
@@ -389,5 +438,40 @@ mod tests {
             .proposition()
             .unwrap();
         assert_eq!(*parsed_expr, expr)
+    }
+
+    #[test]
+    fn test_constant_len() {
+        let expr = Expr::Const(Constant {
+            tpe: SType::SBoolean,
+            v: Value::Boolean(false),
+        });
+        let ergo_tree = ErgoTree::with_segregation(&expr);
+        assert_eq!(ergo_tree.constants_len().unwrap(), 1);
+    }
+
+    #[test]
+    fn test_get_constant() {
+        let expr = Expr::Const(Constant {
+            tpe: SType::SBoolean,
+            v: Value::Boolean(false),
+        });
+        let ergo_tree = ErgoTree::with_segregation(&expr);
+        assert_eq!(ergo_tree.constants_len().unwrap(), 1);
+        assert_eq!(ergo_tree.get_constant(0).unwrap().unwrap(), false.into());
+    }
+
+    #[test]
+    fn test_set_constant() {
+        let expr = Expr::Const(Constant {
+            tpe: SType::SBoolean,
+            v: Value::Boolean(false),
+        });
+        let mut ergo_tree = ErgoTree::with_segregation(&expr);
+        assert_eq!(
+            ergo_tree.set_constant(0, true.into()).unwrap().unwrap(),
+            false.into()
+        );
+        assert_eq!(ergo_tree.get_constant(0).unwrap().unwrap(), true.into());
     }
 }

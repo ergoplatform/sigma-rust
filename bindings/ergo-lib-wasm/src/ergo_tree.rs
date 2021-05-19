@@ -9,6 +9,8 @@ use wasm_bindgen::prelude::*;
 extern crate derive_more;
 use derive_more::{From, Into};
 
+use crate::ast::Constant;
+
 /// The root of ErgoScript IR. Serialized instances of this class are self sufficient and can be passed around.
 #[wasm_bindgen]
 #[derive(PartialEq, Eq, Debug, Clone, From, Into)]
@@ -37,5 +39,37 @@ impl ErgoTree {
     /// Returns Base16-encoded serialized bytes
     pub fn to_base16_bytes(&self) -> String {
         self.0.to_base16_bytes()
+    }
+
+    /// Returns constants number as stored in serialized ErgoTree or error if the parsing of
+    /// constants is failed
+    pub fn constants_len(&self) -> Result<usize, JsValue> {
+        self.0
+            .constants_len()
+            .map_err(|e| JsValue::from_str(&format!("{:?}", e)))
+    }
+
+    /// Returns constant with given index (as stored in serialized ErgoTree)
+    /// or None if index is out of bounds
+    /// or error if constants parsing were failed
+    pub fn get_constant(&self, index: usize) -> Result<Option<Constant>, JsValue> {
+        self.0
+            .get_constant(index)
+            .map(|opt| opt.map(|c| c.into()))
+            .map_err(|e| JsValue::from_str(&format!("{:?}", e)))
+    }
+
+    /// Sets new constant value for a given index in constants list (as stored in serialized ErgoTree),
+    /// and returns previous constant or None if index is out of bounds
+    /// or error if constants parsing were failed
+    pub fn set_constant(
+        &mut self,
+        index: usize,
+        constant: &Constant,
+    ) -> Result<Option<Constant>, JsValue> {
+        self.0
+            .set_constant(index, constant.clone().into())
+            .map(|opt| opt.map(|c| c.into()))
+            .map_err(|e| JsValue::from_str(&format!("{:?}", e)))
     }
 }
