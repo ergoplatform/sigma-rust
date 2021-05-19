@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
+## [0.11.0] - 2021-05-19
+
+### Added 
+- `ByteArrayToLong` `ByteArrayToBigInt` `LongToByteArray` IR nodes [#244](https://github.com/ergoplatform/sigma-rust/pull/244);
+- `ErgoTree::constants_len`, `get_constant`, `set_constant` API for accessing the constants list in `ErgoTree` [#261](https://github.com/ergoplatform/sigma-rust/issues/261);
+
 ## [0.10.0] - 2021-04-22
 
 ### Added 
@@ -150,7 +156,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - ErgoTree constant values conversion.
 
 <!-- next-url -->
-[Unreleased]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.10.0...HEAD
+[Unreleased]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.11.0...HEAD
+[0.11.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.10.0...ergo-lib-v0.11.0
 [0.10.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.9.0...ergo-lib-v0.10.0
 [0.9.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.8.0...ergo-lib-v0.9.0
 [0.8.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.7.0...ergo-lib-v0.8.0

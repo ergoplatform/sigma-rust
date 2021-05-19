@@ -64,7 +64,7 @@ impl TryFrom<Base16DecodedBytes> for Constant {
     type Error = SerializationError;
 
     fn try_from(value: Base16DecodedBytes) -> Result<Self, Self::Error> {
-        Constant::sigma_parse_bytes(value.0)
+        Constant::sigma_parse_bytes(&value.0)
     }
 }
 
