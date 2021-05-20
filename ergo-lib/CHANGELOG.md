@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
+
+### Added 
+- add `Transaction::outputs()` returning `ErgoBoxes`;
+
+### Changed 
+- rename  `Transaction::outputs()` and `UnsignedTransaction::outputs()` to `output_candidates()` in WASM (both return `ErgoBoxCandidates`);
+
+
 ## [0.11.0] - 2021-05-19
 
 ### Added 
