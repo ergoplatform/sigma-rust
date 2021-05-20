@@ -29,8 +29,8 @@ pub struct BlockHeaders(Vec<BlockHeader>);
 impl BlockHeaders {
     /// parse BlockHeader array from JSON (Node API)
     #[allow(clippy::boxed_local, clippy::or_fun_call)]
-    pub fn from_json(boxes: Box<[JsValue]>) -> Result<BlockHeaders, JsValue> {
-        boxes
+    pub fn from_json(json_vals: Box<[JsValue]>) -> Result<BlockHeaders, JsValue> {
+        json_vals
             .iter()
             .try_fold(vec![], |mut acc, jb| {
                 let b: chain::block_header::BlockHeader = if jb.is_string() {
