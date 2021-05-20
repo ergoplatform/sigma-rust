@@ -138,29 +138,29 @@ pub fn sign_transaction(
     let tx = tx_context.spending_tx.clone();
     let message_to_sign = tx.bytes_to_sign();
     let mut signed_inputs: Vec<Input> = vec![];
-    tx_context
-        .boxes_to_spend
-        .iter()
-        .enumerate()
-        .try_for_each(|(idx, input_box)| {
-            if let Some(unsigned_input) = tx.inputs.get(idx) {
-                let ctx = Rc::new(make_context(state_context, &tx_context, idx)?);
-                prover
-                    .prove(
-                        &input_box.ergo_tree,
-                        &Env::empty(),
-                        ctx,
-                        message_to_sign.as_slice(),
-                    )
-                    .map(|proof| {
-                        let input = Input::new(unsigned_input.box_id.clone(), proof.into());
-                        signed_inputs.push(input);
-                    })
-                    .map_err(|e| TxSigningError::ProverError(e, idx))
-            } else {
-                Err(TxSigningError::InputBoxNotFound(idx))
-            }
-        })?;
+    tx.inputs.iter().enumerate().try_for_each(|(idx, input)| {
+        if let Some(input_box) = tx_context
+            .boxes_to_spend
+            .iter()
+            .find(|b| b.box_id() == input.box_id)
+        {
+            let ctx = Rc::new(make_context(state_context, &tx_context, idx)?);
+            prover
+                .prove(
+                    &input_box.ergo_tree,
+                    &Env::empty(),
+                    ctx,
+                    message_to_sign.as_slice(),
+                )
+                .map(|proof| {
+                    let input = Input::new(input.box_id.clone(), proof.into());
+                    signed_inputs.push(input);
+                })
+                .map_err(|e| TxSigningError::ProverError(e, idx))
+        } else {
+            Err(TxSigningError::InputBoxNotFound(idx))
+        }
+    })?;
     Ok(Transaction::new(
         signed_inputs,
         tx.data_inputs,
@@ -181,6 +181,8 @@ mod tests {
     use ergotree_ir::address::NetworkPrefix;
     use proptest::collection::vec;
     use proptest::prelude::*;
+    use rand::prelude::SliceRandom;
+    use rand::thread_rng;
     use sigma_test_util::force_any_val;
 
     use crate::chain::{
@@ -197,19 +199,20 @@ mod tests {
     ) -> Result<bool, VerifierError> {
         let verifier = TestVerifier;
         let message = tx.bytes_to_sign();
-        boxes_to_spend
-            .iter()
-            .zip(tx.inputs.clone())
-            .try_fold(true, |acc, (b, input)| {
-                let res = verifier.verify(
-                    &b.ergo_tree,
-                    &Env::empty(),
-                    Rc::new(force_any_val::<Context>()),
-                    &input.spending_proof.proof,
-                    &message,
-                )?;
-                Ok(res.result && acc)
-            })
+        tx.inputs.iter().try_fold(true, |acc, input| {
+            let b = boxes_to_spend
+                .iter()
+                .find(|b| b.box_id() == input.box_id)
+                .unwrap();
+            let res = verifier.verify(
+                &b.ergo_tree,
+                &Env::empty(),
+                Rc::new(force_any_val::<Context>()),
+                &input.spending_proof.proof,
+                &message,
+            )?;
+            Ok(res.result && acc)
+        })
     }
 
     proptest! {
@@ -217,8 +220,8 @@ mod tests {
         #![proptest_config(ProptestConfig::with_cases(16))]
 
         #[test]
-        fn test_tx_signing(secrets in vec(any::<DlogProverInput>(), 1..10)) {
-            let boxes_to_spend: Vec<ErgoBox> = secrets.iter().map(|secret|{
+        fn test_tx_signing(secrets in vec(any::<DlogProverInput>(), 3..10)) {
+            let mut boxes_to_spend: Vec<ErgoBox> = secrets.iter().map(|secret|{
                 let pk = secret.public_image();
                 let tree = ErgoTree::from(Expr::Const(pk.into()));
                 ErgoBox::new(BoxValue::SAFE_USER_MIN,
@@ -232,7 +235,11 @@ mod tests {
             let prover = TestProver {
                 secrets: secrets.clone().into_iter().map(PrivateInput::DlogProverInput).collect(),
             };
-            let inputs = boxes_to_spend.clone().into_iter().map(UnsignedInput::from).collect();
+            let inputs: Vec<UnsignedInput> = boxes_to_spend.clone().into_iter().map(UnsignedInput::from).collect();
+            let mut rng = thread_rng();
+            // boxes_to_spend are in the different order to test inputs <-> boxes_to_spend association in the
+            // prover (it should not depend on both of them to be in the same order)
+            boxes_to_spend.shuffle(&mut rng);
             let ergo_tree = ErgoTree::from(Expr::Const(secrets.get(0).unwrap().public_image().into()));
             let candidate = ErgoBoxCandidateBuilder::new(BoxValue::SAFE_USER_MIN, ergo_tree, 0)
                 .build().unwrap();

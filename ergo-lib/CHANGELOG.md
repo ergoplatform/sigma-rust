@@ -8,11 +8,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [Unreleased] - ReleaseDate
 
 ### Added 
-- add `Transaction::outputs()` returning `ErgoBoxes`;
+- add `Transaction::outputs()` returning `ErgoBoxes` [#267](https://github.com/ergoplatform/sigma-rust/pull/267);
 
 ### Changed 
-- rename  `Transaction::outputs()` and `UnsignedTransaction::outputs()` to `output_candidates()` in WASM (both return `ErgoBoxCandidates`);
+- rename  `Transaction::outputs()` and `UnsignedTransaction::outputs()` to `output_candidates()` in WASM (both return `ErgoBoxCandidates`) [#267](https://github.com/ergoplatform/sigma-rust/pull/267);
 
+### Fixed 
+- fix input box lookup on tx signing[#268](https://github.com/ergoplatform/sigma-rust/pull/268);
 
 ## [0.11.0] - 2021-05-19
 
