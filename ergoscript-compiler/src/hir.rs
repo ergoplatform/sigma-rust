@@ -93,6 +93,7 @@ impl Expr {
         }
     }
 
+    #[cfg(test)]
     pub fn debug_tree(&self) -> String {
         let tree = format!("{:#?}", self);
         tree

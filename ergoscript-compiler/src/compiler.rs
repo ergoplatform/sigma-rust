@@ -56,11 +56,9 @@ pub fn compile_expr(
     env: ScriptEnv,
 ) -> Result<ergotree_ir::mir::expr::Expr, CompileError> {
     let hir = compile_hir(source)?;
-    dbg!(&hir);
     let binder = Binder::new(env);
     let bind = binder.bind(hir)?;
     let typed = assign_type(bind)?;
-    dbg!(typed.debug_tree());
     let mir = mir::lower::lower(typed)?;
     let res = ergotree_ir::type_check::type_check(mir)?;
     Ok(res)
@@ -74,12 +72,10 @@ pub fn compile(source: &str, env: ScriptEnv) -> Result<ErgoTree, CompileError> {
 
 pub(crate) fn compile_hir(source: &str) -> Result<hir::Expr, CompileError> {
     let parse = super::parser::parse(&source);
-    dbg!(parse.debug_tree());
     if !parse.errors.is_empty() {
         return Err(CompileError::ParseError(parse.errors));
     }
     let syntax = parse.syntax();
-    dbg!(&syntax);
     let root = ast::Root::cast(syntax).unwrap();
     let hir = hir::lower(root)?;
     Ok(hir)
