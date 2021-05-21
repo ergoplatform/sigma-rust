@@ -10,6 +10,9 @@ Packages(npm):
 - [ergo-lib-wasm-browser](https://www.npmjs.com/package/ergo-lib-wasm-browser) [![Latest version](https://img.shields.io/npm/v/ergo-lib-wasm-browser)](https://www.npmjs.com/package/ergo-lib-wasm-browser)
 - [ergo-lib-wasm-nodejs](https://www.npmjs.com/package/ergo-lib-wasm-nodejs) [![Latest version](https://img.shields.io/npm/v/ergo-lib-wasm-nodejs)](https://www.npmjs.com/package/ergo-lib-wasm-nodejs)
 
+## Alpha version
+On CI build (job `JS tests`) an alpha build of npm packages is published. The version of the alpha build is comprised of the next minor version with git commit hash suffix (i.e if the current version is `0.12.0` then alpha build will be `0.13.0-alpha-[COMMIT]`) and published with `alpha` tag. See `JS tests` CI job output for details. 
+
 ## Troubleshooting
 ### When I build the `ergo-lib-wasm` and include the `pkg` folder as dependency in my app I get "TypeError: TextDecoder is not a constructor".
 
