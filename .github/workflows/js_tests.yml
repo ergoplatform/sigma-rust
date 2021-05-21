@@ -42,12 +42,12 @@ jobs:
         uses: JS-DevTools/npm-publish@v1
         with:
           token: ${{ secrets.NPM_TOKEN }}
-          package: ./bindings/ergo_lib_wasm/pkg-nodejs/package.json
+          package: ./bindings/ergo-lib-wasm/pkg-nodejs/package.json
           tag: "alpha"
 
       - name: publish browser alpha version to npm
         uses: JS-DevTools/npm-publish@v1
         with:
           token: ${{ secrets.NPM_TOKEN }}
-          package: ./bindings/ergo_lib_wasm/pkg-browser/package.json
+          package: ./bindings/ergo-lib-wasm/pkg-browser/package.json
           tag: "alpha"
