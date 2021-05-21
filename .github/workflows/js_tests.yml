@@ -30,5 +30,24 @@ jobs:
       - name: run tests
         run: |
           wasm-pack build
-          npm install && npm run test
+          npm install
+          npm run test 
+          
+      - name: build alpha versions
+        run: |
+          npm run build-nodejs-alpha
+          npm run build-browser-alpha
 
+      - name: publish nodejs alpha version to npm
+        uses: JS-DevTools/npm-publish@v1
+        with:
+          token: ${{ secrets.NPM_TOKEN }}
+          package: ./bindings/ergo_lib_wasm/pkg-nodejs/package.json
+          tag: "alpha"
+
+      - name: publish browser alpha version to npm
+        uses: JS-DevTools/npm-publish@v1
+        with:
+          token: ${{ secrets.NPM_TOKEN }}
+          package: ./bindings/ergo_lib_wasm/pkg-browser/package.json
+          tag: "alpha"

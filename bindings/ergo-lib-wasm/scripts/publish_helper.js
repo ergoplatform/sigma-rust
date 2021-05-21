@@ -1,13 +1,16 @@
 const fs = require('fs');
-const oldPkg = require('../pkg/package.json');
+
+const arg = process.argv.slice(2)[0];
+
+const oldPkg = require(`../pkg${arg}/package.json`);
 
 // based on https://raw.githubusercontent.com/Emurgo/cardano-serialization-lib/master/scripts/publish-helper.js
 
 if (oldPkg.name === 'ergo-lib-wasm') {
-  oldPkg.name = oldPkg.name + process.argv.slice(2)[0];
+  oldPkg.name = oldPkg.name + arg;
 }
 
-if (process.argv.slice(2)[0] === '-browser') {
+if (arg === '-browser') {
   // due to a bug in wasm-pack, this file is missing from browser builds
   const missingFile = 'ergo_lib_wasm_bg.js';
   if (oldPkg.files.find(entry => entry === missingFile) == null) {
@@ -16,4 +19,4 @@ if (process.argv.slice(2)[0] === '-browser') {
 }
 
 console.log(oldPkg);
-fs.writeFileSync('./pkg/package.json', JSON.stringify(oldPkg, null, 2));
+fs.writeFileSync('./package.json', JSON.stringify(oldPkg, null, 2));
