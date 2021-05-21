@@ -5,9 +5,9 @@
         "test": "wasm-pack build --target nodejs && mocha --require @babel/register --require @babel/polyfill 'tests/test*.js'",
         "doc": "jsdoc -c jsdoc.json pkg/ergo_wallet_wasm.js README.md -d docs",
         "build-nodejs": "rm -rf ./pkg-nodejs && wasm-pack build --target nodejs --out-dir pkg-nodejs && cd pkg-nodejs && node ../scripts/publish_helper -nodejs",
-        "build-nodejs-alpha": "rm -rf ./pkg-nodejs && wasm-pack build --target nodejs --out-dir pkg-nodejs && cd pkg-nodejs && node ../scripts/publish_helper -nodejs && node ../scripts/set_alpha_version -nodejs $(git rev-parse --short HEAD)",
+        "build-nodejs-alpha": "rm -rf ./pkg-nodejs && wasm-pack build --target nodejs --out-dir pkg-nodejs && cd pkg-nodejs && node ../scripts/publish_helper -nodejs && npm version minor && node ../scripts/set_alpha_version -nodejs $(git rev-parse --short HEAD)",
         "build-browser": "rm -rf ./pkg-browser && wasm-pack build --target browser --out-dir pkg-browser && cd pkg-browser && node ../scripts/publish_helper -browser",
-        "build-browser-alpha": "rm -rf ./pkg-browser && wasm-pack build --target browser --out-dir pkg-browser && cd pkg-browser && node ../scripts/publish_helper -browser && node ../scripts/set_alpha_version -browser $(git rev-parse --short HEAD)",
+        "build-browser-alpha": "rm -rf ./pkg-browser && wasm-pack build --target browser --out-dir pkg-browser && cd pkg-browser && node ../scripts/publish_helper -browser && npm version minor && node ../scripts/set_alpha_version -browser $(git rev-parse --short HEAD)",
         "publish-nodejs": "npm run build-nodejs &&  cd pkg-nodejs && npm publish",
         "publish-browser": "npm run build-browser && cd pkg-browser && npm publish"
     },
