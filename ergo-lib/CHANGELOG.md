@@ -10,6 +10,17 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Added 
 - AND, OR conjecture support in sigma protocol [#226](https://github.com/ergoplatform/sigma-rust/pull/226);
 
+## [0.12.0] - 2021-05-20
+
+### Added 
+- add `Transaction::outputs()` returning `ErgoBoxes` [#267](https://github.com/ergoplatform/sigma-rust/pull/267);
+
+### Changed 
+- rename  `Transaction::outputs()` and `UnsignedTransaction::outputs()` to `output_candidates()` in WASM (both return `ErgoBoxCandidates`) [#267](https://github.com/ergoplatform/sigma-rust/pull/267);
+
+### Fixed 
+- fix input box lookup on tx signing[#268](https://github.com/ergoplatform/sigma-rust/pull/268);
+
 ## [0.11.0] - 2021-05-19
 
 ### Added 
@@ -160,7 +171,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - ErgoTree constant values conversion.
 
 <!-- next-url -->
-[Unreleased]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.11.0...HEAD
+[Unreleased]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.12.0...HEAD
+[0.12.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.11.0...ergo-lib-v0.12.0
 [0.11.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.10.0...ergo-lib-v0.11.0
 [0.10.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.9.0...ergo-lib-v0.10.0
 [0.9.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.8.0...ergo-lib-v0.9.0

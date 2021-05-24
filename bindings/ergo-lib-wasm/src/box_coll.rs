@@ -13,8 +13,8 @@ pub struct ErgoBoxes(Vec<ErgoBox>);
 impl ErgoBoxes {
     /// parse ErgoBox array from json
     #[allow(clippy::boxed_local, clippy::or_fun_call)]
-    pub fn from_boxes_json(boxes: Box<[JsValue]>) -> Result<ErgoBoxes, JsValue> {
-        boxes
+    pub fn from_boxes_json(json_vals: Box<[JsValue]>) -> Result<ErgoBoxes, JsValue> {
+        json_vals
             .iter()
             .try_fold(vec![], |mut acc, jb| {
                 let b: chain::ergo_box::ErgoBox = if jb.is_string() {

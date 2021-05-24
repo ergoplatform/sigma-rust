@@ -95,7 +95,14 @@ mod arbitrary {
         type Parameters = ();
         type Strategy = BoxedStrategy<Self>;
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            prop_oneof![Just(DlogProverInput::random()),].boxed()
+            prop_oneof![
+                Just(DlogProverInput::random()),
+                Just(DlogProverInput::random()),
+                Just(DlogProverInput::random()),
+                Just(DlogProverInput::random()),
+                Just(DlogProverInput::random()),
+            ]
+            .boxed()
         }
     }
 }

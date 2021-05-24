@@ -1,6 +1,7 @@
 //! Ergo transaction
 
 use crate::box_coll::ErgoBoxCandidates;
+use crate::box_coll::ErgoBoxes;
 use crate::data_input::DataInputs;
 use crate::input::{Inputs, UnsignedInputs};
 use ergo_lib::chain;
@@ -83,9 +84,14 @@ impl Transaction {
         self.0.data_inputs.clone().into()
     }
 
-    /// Outputs for transaction
-    pub fn outputs(&self) -> ErgoBoxCandidates {
+    /// Output candidates for transaction
+    pub fn output_candidates(&self) -> ErgoBoxCandidates {
         self.0.output_candidates.clone().into()
+    }
+
+    /// Returns ErgoBox's created from ErgoBoxCandidate's with tx id and indices
+    pub fn outputs(&self) -> ErgoBoxes {
+        self.0.outputs().into()
     }
 }
 
@@ -117,8 +123,8 @@ impl UnsignedTransaction {
         self.0.data_inputs.clone().into()
     }
 
-    /// Outputs for transaction
-    pub fn outputs(&self) -> ErgoBoxCandidates {
+    /// Output candidates for transaction
+    pub fn output_candidates(&self) -> ErgoBoxCandidates {
         self.0.output_candidates.clone().into()
     }
 
