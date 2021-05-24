@@ -72,4 +72,12 @@ impl ErgoTree {
             .map(|opt| opt.map(|c| c.into()))
             .map_err(|e| JsValue::from_str(&format!("{:?}", e)))
     }
+
+    /// Serialized proposition expression of SigmaProp type with
+    /// ConstantPlaceholder nodes instead of Constant nodes
+    pub fn template_bytes(&self) -> Result<Vec<u8>, JsValue> {
+        self.0
+            .template_bytes()
+            .map_err(|e| JsValue::from_str(&format!("{:?}", e)))
+    }
 }

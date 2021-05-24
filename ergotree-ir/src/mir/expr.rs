@@ -485,9 +485,8 @@ pub(crate) mod arbitrary {
             SType::SInt => numeric_nested_expr(depth, &tpe),
             SType::SLong => numeric_nested_expr(depth, &tpe),
             SType::SBigInt => numeric_nested_expr(depth, &tpe),
-
             SType::SColl(elem_type) => coll_nested_expr(depth, elem_type.as_ref()),
-            _ => todo!(),
+            _ => todo!("nested expr is not implemented for type: {:?}", tpe),
         }
         .boxed()
     }

@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
+
+### Added 
+- add `ErgoTree::template_bytes` [#274](https://github.com/ergoplatform/sigma-rust/pull/274);
+
 ## [0.12.0] - 2021-05-20
 
 ### Added 
