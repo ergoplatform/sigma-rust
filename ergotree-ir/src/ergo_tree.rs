@@ -434,6 +434,16 @@ mod tests {
     }
 
     #[test]
+    fn serialization_non_parseable_root_ok() {
+        // no constant segregation, Expr is invalid
+        let original = &[0, 0, 1];
+        let tree = ErgoTree::sigma_parse_bytes(original).unwrap();
+        // serialization should return bytes that were failed to parse
+        let bytes = tree.sigma_serialize_bytes();
+        assert_eq!(bytes, original);
+    }
+
+    #[test]
     fn test_constant_segregation_header_flag_support() {
         let encoder = AddressEncoder::new(NetworkPrefix::Mainnet);
         let address = encoder
