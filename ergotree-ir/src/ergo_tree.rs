@@ -378,6 +378,7 @@ impl TryFrom<ErgoTree> for ProveDlog {
 
 #[cfg(feature = "arbitrary")]
 pub(crate) mod arbitrary {
+
     use super::*;
     use proptest::prelude::*;
 
@@ -398,19 +399,27 @@ pub(crate) mod arbitrary {
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
 #[allow(clippy::unwrap_used)]
+#[allow(clippy::expect_used)]
 mod tests {
     use super::*;
     use crate::address::AddressEncoder;
     use crate::address::NetworkPrefix;
     use crate::mir::value::Value;
-    use crate::serialization::sigma_serialize_roundtrip;
     use proptest::prelude::*;
 
     proptest! {
 
         #[test]
         fn ser_roundtrip(v in any::<ErgoTree>()) {
-            prop_assert_eq![sigma_serialize_roundtrip(&(v)), v];
+            let mut data = Vec::new();
+            let mut w = SigmaByteWriter::new(&mut data, None);
+            v.sigma_serialize(&mut w).expect("serialization failed");
+            let cursor = Cursor::new(&mut data[..]);
+            let pr = PeekableReader::new(cursor);
+            let mut sr = SigmaByteReader::new(pr, ConstantStore::empty());
+            let res = ErgoTree::sigma_parse(&mut sr).expect("parse failed");
+            prop_assert_eq!(&res.template_bytes().unwrap(), &v.template_bytes().unwrap());
+            prop_assert_eq![res, v];
         }
     }
 
@@ -434,6 +443,7 @@ mod tests {
         let tree = ErgoTree::sigma_parse_bytes(original).unwrap();
         let bytes = tree.sigma_serialize_bytes();
         assert_eq!(bytes, original);
+        assert!(tree.template_bytes().is_err());
     }
 
     #[test]
@@ -450,6 +460,7 @@ mod tests {
         // serialization should return bytes that were failed to parse
         let bytes = tree.sigma_serialize_bytes();
         assert_eq!(bytes, original);
+        assert_eq!(tree.template_bytes().unwrap(), [0, 1]); // header byte is skipped
     }
 
     #[test]
