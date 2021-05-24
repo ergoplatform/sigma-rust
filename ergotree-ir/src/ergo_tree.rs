@@ -428,6 +428,15 @@ mod tests {
     }
 
     #[test]
+    fn serialization_non_parseable_tree_ok() {
+        // constants length is set, invalid constant
+        let original = &[ErgoTreeHeader::CONSTANT_SEGREGATION_FLAG, 1, 0, 99, 99];
+        let tree = ErgoTree::sigma_parse_bytes(original).unwrap();
+        let bytes = tree.sigma_serialize_bytes();
+        assert_eq!(bytes, original);
+    }
+
+    #[test]
     fn deserialization_non_parseable_root_ok() {
         // no constant segregation, Expr is invalid
         assert!(ErgoTree::sigma_parse_bytes(&[0, 0, 1]).is_ok());
