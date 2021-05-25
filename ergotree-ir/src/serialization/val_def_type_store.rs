@@ -12,7 +12,6 @@ impl ValDefTypeStore {
 
     pub fn insert(&mut self, id: ValId, tpe: SType) {
         self.0.insert(id, tpe);
-        dbg!(&self.0);
     }
 
     pub fn get(&self, id: &ValId) -> Option<&SType> {

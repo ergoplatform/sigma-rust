@@ -283,7 +283,6 @@ mod tests {
         #[test]
         fn tx_roundtrip(t in any::<Transaction>()) {
             let j = serde_json::to_string(&t)?;
-            // dbg!(j);
             eprintln!("{}", j);
             let t_parsed: Transaction = serde_json::from_str(&j)?;
             prop_assert_eq![t, t_parsed];
@@ -292,7 +291,6 @@ mod tests {
         #[test]
         fn unsigned_tx_roundtrip(t in any::<UnsignedTransaction>()) {
             let j = serde_json::to_string(&t)?;
-            // dbg!(j);
             eprintln!("{}", j);
             let t_parsed: UnsignedTransaction = serde_json::from_str(&j)?;
             prop_assert_eq![t, t_parsed];

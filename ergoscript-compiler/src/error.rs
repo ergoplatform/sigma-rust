@@ -2,10 +2,8 @@ use line_col::LineColLookup;
 use rowan::TextRange;
 
 pub fn pretty_error_desc(source: &str, span: TextRange, error_msg: &str) -> String {
-    dbg!(&span);
     let line_col_lookup = LineColLookup::new(source);
     let start_zero_based: usize = usize::from(span.start()) - 1;
-    dbg!(&start_zero_based);
     let end_zero_based: usize = usize::from(span.end()) - 1;
     let (line_start, col_start) = line_col_lookup.get(start_zero_based);
     let (line_end, col_end) = line_col_lookup.get(end_zero_based);
