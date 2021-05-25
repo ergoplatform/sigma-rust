@@ -367,19 +367,25 @@ impl SigmaSerializable for ErgoBox {
 /// Contains the same fields as `ErgoBox`, except if transaction id and index,
 /// that will be calculated after full transaction formation.
 /// Use [`box_builder::ErgoBoxCandidateBuilder`] to create an instance.
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct ErgoBoxCandidate {
     /// amount of money associated with the box
+    #[cfg_attr(feature = "json", serde(rename = "value"))]
     pub value: BoxValue,
     /// guarding script, which should be evaluated to true in order to open this box
+    #[cfg_attr(feature = "json", serde(rename = "ergoTree", with = "json::ergo_tree"))]
     pub ergo_tree: ErgoTree,
     /// secondary tokens the box contains
+    #[cfg_attr(feature = "json", serde(rename = "assets"))]
     pub tokens: Vec<Token>,
     ///  additional registers the box can carry over
+    #[cfg_attr(feature = "json", serde(rename = "additionalRegisters"))]
     pub additional_registers: NonMandatoryRegisters,
     /// height when a transaction containing the box was created.
     /// This height is declared by user and should not exceed height of the block,
     /// containing the transaction with this box.
+    #[cfg_attr(feature = "json", serde(rename = "creationHeight"))]
     pub creation_height: u32,
 }
 
