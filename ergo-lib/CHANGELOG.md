@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Added 
 - add `ErgoTree::template_bytes` [#274](https://github.com/ergoplatform/sigma-rust/pull/274);
 
+### Changed 
+- encode/decode `UnsignedTransaction` without `id` and using `ErgoBoxCandidate` for `outputs` instead of `ErgoBox` [#275](https://github.com/ergoplatform/sigma-rust/pull/275); 
+
 ## [0.12.0] - 2021-05-20
 
 ### Added 
