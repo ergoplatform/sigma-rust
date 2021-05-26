@@ -9,15 +9,14 @@ use crate::serialization::{
 };
 use crate::sigma_protocol::sigma_boolean::ProveDlog;
 use crate::types::stype::SType;
-use io::{Cursor, Read};
+use io::Cursor;
 
 use crate::serialization::constant_store::ConstantStore;
-use sigma_ser::{peekable_reader::PeekableReader, vlq_encode};
+use sigma_ser::peekable_reader::PeekableReader;
 use std::convert::TryFrom;
 use std::io;
 use std::rc::Rc;
 use thiserror::Error;
-use vlq_encode::ReadSigmaVlqExt;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 struct ParsedTree {
@@ -28,12 +27,19 @@ struct ParsedTree {
 impl ParsedTree {
     /// Sets new constant value for a given index in constants list (as stored in serialized ErgoTree),
     /// and returns either previous constant or None if index is out of bounds
-    pub fn set_constant(&mut self, index: usize, constant: Constant) -> Option<Constant> {
+    fn set_constant(&mut self, index: usize, constant: Constant) -> Option<Constant> {
         if index >= self.constants.len() {
             None
         } else {
             let replaced = std::mem::replace(&mut self.constants[index], constant);
             Some(replaced)
+        }
+    }
+
+    fn template_bytes(&self) -> Vec<u8> {
+        match self.root.clone().map(|root| root.sigma_serialize_bytes()) {
+            Ok(bytes) => bytes,
+            Err(e) => e.bytes, // if tree was failed to parse we already have it's bytes
         }
     }
 }
@@ -89,6 +95,37 @@ pub enum ErgoTreeParsingError {
 impl ErgoTree {
     const DEFAULT_HEADER: ErgoTreeHeader = ErgoTreeHeader(0);
 
+    fn sigma_parse_tree_bytes<R: SigmaByteRead>(
+        r: &mut R,
+        is_constant_segregation: bool,
+    ) -> Result<(Vec<Constant>, Vec<u8>), SerializationError> {
+        let constants = if is_constant_segregation {
+            ErgoTree::sigma_parse_constants(r)?
+        } else {
+            vec![]
+        };
+        let mut rest_of_the_bytes = Vec::new();
+        let _ = r.read_to_end(&mut rest_of_the_bytes);
+        Ok((constants, rest_of_the_bytes))
+    }
+
+    fn sigma_parse_constants<R: SigmaByteRead>(
+        r: &mut R,
+    ) -> Result<Vec<Constant>, SerializationError> {
+        let constants_len = r.get_u32()?;
+        if constants_len as usize > ErgoTree::MAX_CONSTANTS_COUNT {
+            return Err(SerializationError::ValueOutOfBounds(
+                "too many constants".to_string(),
+            ));
+        }
+        let mut constants = Vec::with_capacity(constants_len as usize);
+        for _ in 0..constants_len {
+            let c = Constant::sigma_parse(r)?;
+            constants.push(c);
+        }
+        Ok(constants)
+    }
+
     /// Reasonable limit for the number of constants allowed in the ErgoTree
     pub const MAX_CONSTANTS_COUNT: usize = 4096;
 
@@ -98,6 +135,9 @@ impl ErgoTree {
             .tree
             .clone()
             .map_err(ErgoTreeParsingError::TreeParsingError)?;
+        // This tree has ConstantPlaceholder nodes instead of Constant nodes.
+        // We need to substitute placeholders with constant values.
+        // So far the easiest way to do it is during deserialization (after the serialization)
         let root = tree.root.map_err(ErgoTreeParsingError::RootParsingError)?;
         if self.header.is_constant_segregation() {
             let mut data = Vec::new();
@@ -203,6 +243,12 @@ impl ErgoTree {
             .map(|tree| tree.set_constant(index, constant))
             .map_err(|e| e.clone())
     }
+
+    /// Serialized proposition expression of SigmaProp type with
+    /// ConstantPlaceholder nodes instead of Constant nodes
+    pub fn template_bytes(&self) -> Result<Vec<u8>, ErgoTreeConstantsParsingError> {
+        self.tree.clone().map(|tree| tree.template_bytes())
+    }
 }
 
 impl From<Expr> for ErgoTree {
@@ -251,18 +297,7 @@ impl SigmaSerializable for ErgoTree {
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
         let header = ErgoTreeHeader::sigma_parse(r)?;
         let constants = if header.is_constant_segregation() {
-            let constants_len = r.get_u32()?;
-            if constants_len as usize > ErgoTree::MAX_CONSTANTS_COUNT {
-                return Err(SerializationError::ValueOutOfBounds(
-                    "too many constants".to_string(),
-                ));
-            }
-            let mut constants = Vec::with_capacity(constants_len as usize);
-            for _ in 0..constants_len {
-                let c = Constant::sigma_parse(r)?;
-                constants.push(c);
-            }
-            constants
+            ErgoTree::sigma_parse_constants(r)?
         } else {
             vec![]
         };
@@ -281,61 +316,43 @@ impl SigmaSerializable for ErgoTree {
         let cursor = Cursor::new(bytes);
         let mut r = SigmaByteReader::new(PeekableReader::new(cursor), ConstantStore::empty());
         let header = ErgoTreeHeader::sigma_parse(&mut r)?;
-        let constants = if header.is_constant_segregation() {
-            let constants_len = r.get_u32()?;
-            if constants_len as usize > ErgoTree::MAX_CONSTANTS_COUNT {
-                return Err(SerializationError::ValueOutOfBounds(
-                    "too many constants".to_string(),
-                ));
-            }
-            let mut constants = Vec::with_capacity(constants_len as usize);
-            for _ in 0..constants_len {
-                match Constant::sigma_parse(&mut r) {
-                    Ok(c) => constants.push(c),
-                    Err(err) => {
-                        return Ok(ErgoTree {
-                            header,
-                            tree: Err(ErgoTreeConstantsParsingError {
-                                bytes: bytes[1..].to_vec(),
-                                error: SerializationError::NotImplementedYet(format!(
-                                    "Constant parsing error: {0}",
-                                    err
-                                )),
-                            }),
-                        })
-                    }
-                }
-            }
-            constants
-        } else {
-            vec![]
-        };
-        let mut rest_of_the_bytes = Vec::new();
-        let _ = r.read_to_end(&mut rest_of_the_bytes);
-        let rest_of_the_bytes_copy = rest_of_the_bytes.clone();
-        let mut new_r = SigmaByteReader::new(
-            PeekableReader::new(Cursor::new(&mut rest_of_the_bytes[..])),
-            ConstantStore::new(constants.clone()),
-        );
-
-        match Expr::sigma_parse(&mut new_r) {
-            Ok(parsed) => Ok(ErgoTree {
-                header,
-                tree: Ok(ParsedTree {
-                    constants,
-                    root: Ok(Rc::new(parsed)),
-                }),
-            }),
-            Err(err) => Ok(ErgoTree {
-                header,
-                tree: Ok(ParsedTree {
-                    constants,
-                    root: Err(ErgoTreeRootParsingError {
-                        bytes: rest_of_the_bytes_copy,
-                        error: err,
+        if let Ok((constants, mut rest_of_the_bytes)) =
+            ErgoTree::sigma_parse_tree_bytes(&mut r, header.is_constant_segregation())
+        {
+            let rest_of_the_bytes_copy = rest_of_the_bytes.clone();
+            let mut new_r = SigmaByteReader::new(
+                PeekableReader::new(Cursor::new(&mut rest_of_the_bytes[..])),
+                ConstantStore::new(constants.clone()),
+            );
+            match Expr::sigma_parse(&mut new_r) {
+                Ok(parsed) => Ok(ErgoTree {
+                    header,
+                    tree: Ok(ParsedTree {
+                        constants,
+                        root: Ok(Rc::new(parsed)),
                     }),
                 }),
-            }),
+                Err(err) => Ok(ErgoTree {
+                    header,
+                    tree: Ok(ParsedTree {
+                        constants,
+                        root: Err(ErgoTreeRootParsingError {
+                            bytes: rest_of_the_bytes_copy,
+                            error: err,
+                        }),
+                    }),
+                }),
+            }
+        } else {
+            Ok(ErgoTree {
+                header,
+                tree: Err(ErgoTreeConstantsParsingError {
+                    bytes: bytes[1..].to_vec(),
+                    error: SerializationError::NotImplementedYet(
+                        "not all constant types serialization is supported".to_string(),
+                    ),
+                }),
+            })
         }
     }
 }
@@ -361,6 +378,7 @@ impl TryFrom<ErgoTree> for ProveDlog {
 
 #[cfg(feature = "arbitrary")]
 pub(crate) mod arbitrary {
+
     use super::*;
     use proptest::prelude::*;
 
@@ -381,26 +399,34 @@ pub(crate) mod arbitrary {
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
 #[allow(clippy::unwrap_used)]
+#[allow(clippy::expect_used)]
 mod tests {
     use super::*;
     use crate::address::AddressEncoder;
     use crate::address::NetworkPrefix;
     use crate::mir::value::Value;
-    use crate::serialization::sigma_serialize_roundtrip;
     use proptest::prelude::*;
 
     proptest! {
 
         #[test]
         fn ser_roundtrip(v in any::<ErgoTree>()) {
-            prop_assert_eq![sigma_serialize_roundtrip(&(v)), v];
+            let mut data = Vec::new();
+            let mut w = SigmaByteWriter::new(&mut data, None);
+            v.sigma_serialize(&mut w).expect("serialization failed");
+            let cursor = Cursor::new(&mut data[..]);
+            let pr = PeekableReader::new(cursor);
+            let mut sr = SigmaByteReader::new(pr, ConstantStore::empty());
+            let res = ErgoTree::sigma_parse(&mut sr).expect("parse failed");
+            prop_assert_eq!(&res.template_bytes().unwrap(), &v.template_bytes().unwrap());
+            prop_assert_eq![res, v];
         }
     }
 
     #[test]
     fn deserialization_non_parseable_tree_ok() {
         // constants length is set, invalid constant
-        assert!(ErgoTree::sigma_parse_bytes(&vec![
+        assert!(ErgoTree::sigma_parse_bytes(&[
             ErgoTreeHeader::CONSTANT_SEGREGATION_FLAG,
             1,
             0,
@@ -411,9 +437,30 @@ mod tests {
     }
 
     #[test]
+    fn serialization_non_parseable_tree_ok() {
+        // constants length is set, invalid constant
+        let original = &[ErgoTreeHeader::CONSTANT_SEGREGATION_FLAG, 1, 0, 99, 99];
+        let tree = ErgoTree::sigma_parse_bytes(original).unwrap();
+        let bytes = tree.sigma_serialize_bytes();
+        assert_eq!(bytes, original);
+        assert!(tree.template_bytes().is_err());
+    }
+
+    #[test]
     fn deserialization_non_parseable_root_ok() {
         // no constant segregation, Expr is invalid
-        assert!(ErgoTree::sigma_parse_bytes(&vec![0, 0, 1]).is_ok());
+        assert!(ErgoTree::sigma_parse_bytes(&[0, 0, 1]).is_ok());
+    }
+
+    #[test]
+    fn serialization_non_parseable_root_ok() {
+        // no constant segregation, Expr is invalid
+        let original = &[0, 0, 1];
+        let tree = ErgoTree::sigma_parse_bytes(original).unwrap();
+        // serialization should return bytes that were failed to parse
+        let bytes = tree.sigma_serialize_bytes();
+        assert_eq!(bytes, original);
+        assert_eq!(tree.template_bytes().unwrap(), [0, 1]); // header byte is skipped
     }
 
     #[test]

@@ -174,3 +174,38 @@ it('TxBuilder burn token test', async () => {
   const tx = tx_builder.build();
   assert(tx != null);
 });
+
+it('use signed tx outputs as inputs in a new tx', async () => {
+  const sk = SecretKey.random_dlog();
+  // simulate existing box guarded by the sk key
+  const input_contract = Contract.pay_to_address(sk.get_address());
+  const input_box = new ErgoBox(BoxValue.from_i64(I64.from_str('100000000000')), 0, input_contract, TxId.zero(), 0, new Tokens());
+  // create a transaction that spends the "simulated" box
+  const recipient = Address.from_testnet_str('3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN');
+  const unspent_boxes = new ErgoBoxes(input_box);
+  const contract = Contract.pay_to_address(recipient);
+  const outbox_value = BoxValue.from_i64(I64.from_str('10000000000'));
+  const outbox = new ErgoBoxCandidateBuilder(outbox_value, contract, 0).build();
+  const tx_outputs = new ErgoBoxCandidates(outbox);
+  const fee = TxBuilder.SUGGESTED_TX_FEE();
+  const change_address = Address.from_testnet_str('3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN');
+  const min_change_value = BoxValue.SAFE_USER_MIN();
+  const box_selector = new SimpleBoxSelector();
+  const target_balance = BoxValue.from_i64(outbox_value.as_i64().checked_add(fee.as_i64()));
+  const box_selection = box_selector.select(unspent_boxes, target_balance, new Tokens());
+  const tx_builder = TxBuilder.new(box_selection, tx_outputs, 0, fee, change_address, min_change_value);
+  const tx = tx_builder.build();
+  const tx_data_inputs = ErgoBoxes.from_boxes_json([]);
+  const pre_header = PreHeader.from_block_header(block_headers.get(0));
+  const ctx = new ErgoStateContext(pre_header);
+  const sks = new SecretKeys();
+  sks.add(sk);
+  const wallet = Wallet.from_secrets(sks);
+  const signed_tx = wallet.sign_transaction(ctx, tx, unspent_boxes, tx_data_inputs);
+  assert(signed_tx != null);
+  // new tx
+  const new_box_selection = box_selector.select(signed_tx.outputs(), BoxValue.SAFE_USER_MIN(), new Tokens());
+  const new_tx_builder = TxBuilder.new(new_box_selection, tx_outputs, 0, fee, change_address, min_change_value);
+  const new_tx = tx_builder.build();
+  assert(new_tx != null);
+});

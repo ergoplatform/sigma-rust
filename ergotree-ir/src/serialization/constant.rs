@@ -33,7 +33,6 @@ mod tests {
 
         #[test]
         fn ser_roundtrip(v in any_with::<Constant>(ArbConstantParams::AnyWithDepth(4))) {
-            dbg!(&v);
             prop_assert_eq![sigma_serialize_roundtrip(&v), v];
         }
     }

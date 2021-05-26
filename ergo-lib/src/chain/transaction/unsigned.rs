@@ -1,43 +1,31 @@
 //! Unsigned (without proofs) transaction
 
 use super::input::{Input, UnsignedInput};
-#[cfg(feature = "json")]
-use super::json;
 use super::prover_result::ProverResult;
 use super::DataInput;
 use super::{
     super::{digest32::blake2b256_hash, ergo_box::ErgoBoxCandidate},
     Transaction, TxId,
 };
-#[cfg(feature = "json")]
-use crate::chain::transaction::ErgoBox;
-#[cfg(feature = "json")]
-use crate::chain::transaction::TransactionFromJsonError;
-#[cfg(feature = "json")]
-use core::convert::TryFrom;
 use ergotree_interpreter::sigma_protocol::prover::ProofBytes;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 
 /// Unsigned (inputs without proofs) transaction
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
-#[cfg_attr(
-    feature = "json",
-    serde(
-        try_from = "json::transaction::UnsignedTransactionJson",
-        into = "json::transaction::UnsignedTransactionJson"
-    )
-)]
 #[derive(PartialEq, Debug, Clone)]
 pub struct UnsignedTransaction {
     tx_id: TxId,
     /// unsigned inputs, that will be spent by this transaction.
+    #[cfg_attr(feature = "json", serde(rename = "inputs"))]
     pub inputs: Vec<UnsignedInput>,
     /// inputs, that are not going to be spent by transaction, but will be reachable from inputs
     /// scripts. `dataInputs` scripts will not be executed, thus their scripts costs are not
     /// included in transaction cost and they do not contain spending proofs.
+    #[cfg_attr(feature = "json", serde(rename = "dataInputs"))]
     pub data_inputs: Vec<DataInput>,
     /// box candidates to be created by this transaction
+    #[cfg_attr(feature = "json", serde(rename = "outputs"))]
     pub output_candidates: Vec<ErgoBoxCandidate>,
 }
 
@@ -92,49 +80,6 @@ impl UnsignedTransaction {
             self.output_candidates.clone(),
         );
         tx.bytes_to_sign()
-    }
-}
-
-#[cfg(feature = "json")]
-impl TryFrom<json::transaction::UnsignedTransactionJson> for UnsignedTransaction {
-    type Error = TransactionFromJsonError;
-    fn try_from(
-        tx_json: json::transaction::UnsignedTransactionJson,
-    ) -> std::result::Result<Self, Self::Error> {
-        let output_candidates = tx_json.outputs.iter().map(|o| o.clone().into()).collect();
-        let tx_to_sign = UnsignedTransaction {
-            tx_id: TxId::zero(),
-            inputs: tx_json.inputs,
-            data_inputs: tx_json.data_inputs,
-            output_candidates,
-        };
-        let tx_id = tx_to_sign.calc_tx_id();
-        let tx = UnsignedTransaction {
-            tx_id,
-            ..tx_to_sign
-        };
-        if tx.tx_id == tx_json.tx_id {
-            Ok(tx)
-        } else {
-            Err(TransactionFromJsonError::InvalidTxId)
-        }
-    }
-}
-
-#[cfg(feature = "json")]
-impl From<UnsignedTransaction> for json::transaction::UnsignedTransactionJson {
-    fn from(t: UnsignedTransaction) -> Self {
-        json::transaction::UnsignedTransactionJson {
-            tx_id: t.tx_id.clone(),
-            inputs: t.inputs.clone(),
-            data_inputs: t.data_inputs.clone(),
-            outputs: t
-                .output_candidates
-                .iter()
-                .enumerate()
-                .map(|(idx, c)| ErgoBox::from_box_candidate(c, t.tx_id.clone(), idx as u16))
-                .collect(),
-        }
     }
 }
 

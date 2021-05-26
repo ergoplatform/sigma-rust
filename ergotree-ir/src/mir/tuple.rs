@@ -94,7 +94,6 @@ mod tests {
 
         #[test]
         fn ser_roundtrip(v in any::<Tuple>()) {
-            dbg!(&v);
             let expr: Expr = v.into();
             prop_assert_eq![sigma_serialize_roundtrip(&expr), expr];
         }

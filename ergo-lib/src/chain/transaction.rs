@@ -116,7 +116,7 @@ impl Transaction {
         }
     }
 
-    /// create ErgoBox from ErgoBoxCandidate with tx id and indices
+    /// Returns ErgoBox's created from ErgoBoxCandidate's with tx id and indices
     pub fn outputs(&self) -> Vec<ErgoBox> {
         assert!(self.output_candidates.len() < u16::MAX as usize);
         self.output_candidates
