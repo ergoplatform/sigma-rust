@@ -208,6 +208,46 @@ mod tests {
     use peekable_reader::PeekableReader;
     use proptest::collection;
     use std::io::Cursor;
+    use std::io::Read;
+    use std::io::Write;
+
+    extern crate derive_more;
+    use derive_more::From;
+
+    #[derive(Debug, From, Clone, PartialEq)]
+    enum Val {
+        I8(i8),
+        U8(u8),
+        I16(i16),
+        U16(u16),
+        I32(i32),
+        U32(u32),
+        I64(i64),
+        U64(u64),
+        Bytes(Vec<u8>),
+        Bits(Vec<bool>),
+    }
+
+    impl Arbitrary for Val {
+        type Strategy = BoxedStrategy<Self>;
+        type Parameters = ();
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            prop_oneof![
+                any::<i8>().prop_map_into(),
+                any::<u8>().prop_map_into(),
+                any::<i16>().prop_map_into(),
+                any::<u16>().prop_map_into(),
+                any::<i32>().prop_map_into(),
+                any::<u32>().prop_map_into(),
+                any::<i64>().prop_map_into(),
+                any::<u64>().prop_map_into(),
+                any::<Vec<u8>>().prop_map_into(),
+                any::<Vec<bool>>().prop_map_into(),
+            ]
+            .boxed()
+        }
+    }
 
     #[test]
     fn test_write_u8() {
@@ -341,6 +381,47 @@ mod tests {
             w.put_bits(&bits).unwrap();
             let mut r = PeekableReader::new(Cursor::new(w.into_inner()));
             prop_assert_eq![bits.clone(), r.get_bits(bits.len()).unwrap()];
+        }
+
+        #[test]
+        fn arbitrary_values_list(vals in collection::vec(any::<Val>(), 0..100)) {
+            let mut w = Cursor::new(vec![]);
+            for val in vals.clone() {
+                match val {
+                    Val::I8(v) => w.put_i8(v).unwrap(),
+                    Val::U8(v) => w.put_u8(v).unwrap(),
+                    Val::I16(v) => w.put_i16(v).unwrap(),
+                    Val::U16(v) => w.put_u16(v).unwrap(),
+                    Val::I32(v) => w.put_i32(v).unwrap(),
+                    Val::U32(v) => w.put_u32(v).unwrap(),
+                    Val::I64(v) => w.put_i64(v).unwrap(),
+                    Val::U64(v) => w.put_u64(v).unwrap(),
+                    Val::Bytes(v) => w.write_all(&v).unwrap(),
+                    Val::Bits(v) => w.put_bits(&v).unwrap(),
+                }
+
+            }
+            let mut r = PeekableReader::new(Cursor::new(w.into_inner()));
+            let mut parsed_vals: Vec<Val> = Vec::new();
+            for val in vals.clone() {
+                match val {
+                    Val::I8(_) => parsed_vals.push(r.get_i8().unwrap().into()),
+                    Val::U8(_) => parsed_vals.push(r.get_u8().unwrap().into()),
+                    Val::I16(_) => parsed_vals.push(r.get_i16().unwrap().into()),
+                    Val::U16(_) => parsed_vals.push(r.get_u16().unwrap().into()),
+                    Val::I32(_) => parsed_vals.push(r.get_i32().unwrap().into()),
+                    Val::U32(_) => parsed_vals.push(r.get_u32().unwrap().into()),
+                    Val::I64(_) => parsed_vals.push(r.get_i64().unwrap().into()),
+                    Val::U64(_) => parsed_vals.push(r.get_u64().unwrap().into()),
+                    Val::Bytes(bytes) => {
+                        let mut buf = vec![0u8; bytes.len()];
+                        r.read_exact(&mut buf).unwrap();
+                        parsed_vals.push(buf.to_vec().into());
+                    },
+                    Val::Bits(bits) => parsed_vals.push(r.get_bits(bits.len()).unwrap().into()),
+                }
+            }
+            prop_assert_eq!(parsed_vals, vals);
         }
 
     }
