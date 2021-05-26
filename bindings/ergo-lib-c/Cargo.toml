@@ -15,5 +15,5 @@ exclude = [
 crate-type = ["staticlib"]
 
 [dependencies]
-ergo-lib = {version = "^0.12.0", path = "../../ergo-lib"}
+ergo-lib = {version = "^0.13.0", path = "../../ergo-lib"}
 ergo-lib-c-core = {version = "^0.12.0", path = "../ergo-lib-c-core"}
