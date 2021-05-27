@@ -263,6 +263,29 @@ mod tests {
         w.into_inner()
     }
 
+    fn bytes_u32(v: u32) -> Vec<u8> {
+        let mut w = Cursor::new(vec![]);
+        w.put_u32(v).unwrap();
+        w.into_inner()
+    }
+
+    fn bytes_i32(v: i32) -> Vec<u8> {
+        let mut w = Cursor::new(vec![]);
+        w.put_i32(v).unwrap();
+        w.into_inner()
+    }
+    fn bytes_u16(v: u16) -> Vec<u8> {
+        let mut w = Cursor::new(vec![]);
+        w.put_u16(v).unwrap();
+        w.into_inner()
+    }
+
+    fn bytes_i16(v: i16) -> Vec<u8> {
+        let mut w = Cursor::new(vec![]);
+        w.put_i16(v).unwrap();
+        w.into_inner()
+    }
+
     #[test]
     fn test_write_u8() {
         let mut w = Cursor::new(vec![]);
@@ -373,6 +396,329 @@ mod tests {
         ]))
         .get_u64()
         .is_err());
+    }
+
+    #[test]
+    fn i16_corner_cases() {
+        fn roundtrip(v: i16, expected_bytes: &[u8]) {
+            let mut w = Cursor::new(vec![]);
+            w.put_i16(v).unwrap();
+            let bytes = w.into_inner();
+            assert_eq!(bytes, expected_bytes);
+            let mut r = PeekableReader::new(Cursor::new(expected_bytes));
+            let decoded_value = r.get_i16().unwrap();
+            assert_eq!(decoded_value, v);
+        }
+
+        roundtrip(i16::MIN, &[0xFF, 0xFF, 0x03]);
+        roundtrip(-8194, &[0x83, 0x80, 0x01]);
+        roundtrip(-8193, &[0x81, 0x80, 0x01]);
+        roundtrip(-8192, &[0xFF, 0x7F]);
+        roundtrip(-8191, &[0xFD, 0x7F]);
+        roundtrip(-66, &[0x83, 0x01]);
+        assert_eq!(
+            PeekableReader::new(Cursor::new([0x83, 0x00]))
+                .get_i16()
+                .unwrap(),
+            -2
+        );
+        roundtrip(-65, &[0x81, 0x01]);
+        assert_eq!(
+            PeekableReader::new(Cursor::new([0x81, 0x00]))
+                .get_i16()
+                .unwrap(),
+            -1
+        );
+        roundtrip(-64, &[0x7F]);
+        roundtrip(-63, &[0x7D]);
+        roundtrip(-1, &[0x01]);
+        roundtrip(0, &[0]);
+        roundtrip(1, &[0x02]);
+        roundtrip(62, &[0x7C]);
+        roundtrip(63, &[0x7E]);
+        assert_eq!(
+            PeekableReader::new(Cursor::new([0x80, 0x00]))
+                .get_i16()
+                .unwrap(),
+            0
+        );
+        roundtrip(64, &[0x80, 0x01]);
+        assert_eq!(
+            PeekableReader::new(Cursor::new([0x82, 0x00]))
+                .get_i16()
+                .unwrap(),
+            1
+        );
+        roundtrip(65, &[0x82, 0x01]);
+        roundtrip(8190, &[0xFC, 0x7F]);
+        roundtrip(8191, &[0xFE, 0x7F]);
+        roundtrip(8192, &[0x80, 0x80, 0x01]);
+        roundtrip(8193, &[0x82, 0x80, 0x01]);
+        roundtrip(i16::MAX, &[0xFE, 0xFF, 0x03]);
+    }
+
+    #[test]
+    fn u16_corner_cases() {
+        fn roundtrip(v: u16, expected_bytes: &[u8]) {
+            let mut w = Cursor::new(vec![]);
+            w.put_u16(v).unwrap();
+            let bytes = w.into_inner();
+            assert_eq!(bytes, expected_bytes);
+            let mut r = PeekableReader::new(Cursor::new(expected_bytes));
+            let decoded_value = r.get_u16().unwrap();
+            assert_eq!(decoded_value, v);
+        }
+
+        roundtrip(0, &[0x00]);
+        roundtrip(1, &[0x01]);
+        roundtrip(126, &[0x7E]);
+        roundtrip(127, &[0x7F]);
+        roundtrip(128, &[0x80, 0x01]);
+        roundtrip(129, &[0x81, 0x01]);
+        roundtrip(16382, &[0xFE, 0x7F]);
+        roundtrip(16383, &[0xFF, 0x7F]);
+        roundtrip(16384, &[0x80, 0x80, 0x01]);
+        roundtrip(16385, &[0x81, 0x80, 0x01]);
+        roundtrip(65534, &[0xFE, 0xFF, 0x03]);
+        roundtrip(65535, &[0xFF, 0xFF, 0x03]);
+    }
+
+    #[test]
+    fn i32_corner_cases() {
+        fn roundtrip(v: i32, expected_bytes: &[u8]) {
+            let mut w = Cursor::new(vec![]);
+            w.put_i32(v).unwrap();
+            let bytes = w.into_inner();
+            assert_eq!(bytes, expected_bytes, "for {}", v);
+            let mut r = PeekableReader::new(Cursor::new(expected_bytes));
+            let decoded_value = r.get_i32().unwrap();
+            assert_eq!(decoded_value, v);
+        }
+
+        roundtrip(
+            i32::MIN,
+            &[0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x01],
+        ); // 10 bytes
+        roundtrip(
+            -1073741825,
+            &[0x81, 0x80, 0x80, 0x80, 0xF8, 0xFF, 0xFF, 0xFF, 0xFF, 0x01],
+        ); // 10 bytes
+        roundtrip(-1073741824, &[0xFF, 0xFF, 0xFF, 0xFF, 0x07]); // 5 bytes
+        roundtrip(-134217729, &[0x81, 0x80, 0x80, 0x80, 0x01]); // 5 bytes
+        roundtrip(-134217728, &[0xFF, 0xFF, 0xFF, 0x7F]); // 4 bytes
+        roundtrip(-1048577, &[0x81, 0x80, 0x80, 0x01]); // 4 bytes
+        roundtrip(-1048576, &[0xFF, 0xFF, 0x7F]);
+        roundtrip(-8194, &[0x83, 0x80, 0x01]);
+        roundtrip(-8193, &[0x81, 0x80, 0x01]);
+        roundtrip(-8192, &[0xFF, 0x7F]);
+        roundtrip(-8191, &[0xFD, 0x7F]);
+        roundtrip(-66, &[0x83, 0x01]);
+        roundtrip(-65, &[0x81, 0x01]);
+        roundtrip(-64, &[0x7F]);
+        roundtrip(-63, &[0x7D]);
+        roundtrip(-1, &[0x01]);
+        roundtrip(0, &[0]);
+        roundtrip(1, &[0x02]);
+        roundtrip(62, &[0x7C]);
+        roundtrip(63, &[0x7E]);
+        roundtrip(64, &[0x80, 0x01]);
+        roundtrip(65, &[0x82, 0x01]);
+        roundtrip(8190, &[0xFC, 0x7F]);
+        roundtrip(8191, &[0xFE, 0x7F]);
+        roundtrip(8192, &[0x80, 0x80, 0x01]);
+        roundtrip(8193, &[0x82, 0x80, 0x01]);
+        roundtrip(1048575, &[0xFE, 0xFF, 0x7F]);
+        roundtrip(1048576, &[0x80, 0x80, 0x80, 0x01]); // 4 bytes
+        roundtrip(134217727, &[0xFE, 0xFF, 0xFF, 0x7F]); // 4 bytes
+        roundtrip(134217728, &[0x80, 0x80, 0x80, 0x80, 0x01]); // 5 bytes
+        roundtrip(1073741823, &[0xFE, 0xFF, 0xFF, 0xFF, 0x07]); // 5 bytes
+        roundtrip(
+            1073741824,
+            &[0x80, 0x80, 0x80, 0x80, 0xF8, 0xFF, 0xFF, 0xFF, 0xFF, 0x01],
+        ); // 10 bytes
+        roundtrip(
+            i32::MAX,
+            &[0xFE, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x01],
+        ); // 10 bytes
+    }
+
+    #[test]
+    fn u32_corner_cases() {
+        fn roundtrip(v: u32, expected_bytes: &[u8]) {
+            let mut w = Cursor::new(vec![]);
+            w.put_u32(v).unwrap();
+            let bytes = w.into_inner();
+            assert_eq!(bytes, expected_bytes, "for {}", v);
+            let mut r = PeekableReader::new(Cursor::new(expected_bytes));
+            let decoded_value = r.get_u32().unwrap();
+            assert_eq!(decoded_value, v);
+        }
+
+        roundtrip(0, &[0]);
+        roundtrip(126, &[0x7E]);
+        roundtrip(127, &[0x7F]);
+        roundtrip(128, &[0x80, 0x01]);
+        roundtrip(129, &[0x81, 0x01]);
+        roundtrip(16383, &[0xFF, 0x7F]);
+        roundtrip(16384, &[0x80, 0x80, 0x01]);
+        roundtrip(16385, &[0x81, 0x80, 0x01]);
+        roundtrip(2097151, &[0xFF, 0xFF, 0x7F]);
+        roundtrip(2097152, &[0x80, 0x80, 0x80, 0x01]);
+        roundtrip(268435455, &[0xFF, 0xFF, 0xFF, 0x7F]);
+        roundtrip(268435456, &[0x80, 0x80, 0x80, 0x80, 0x01]);
+        roundtrip(u32::MAX, &[0xFF, 0xFF, 0xFF, 0xFF, 0x0F]);
+    }
+
+    #[test]
+    fn i64_corner_cases() {
+        fn roundtrip(v: i64, expected_bytes: &[u8]) {
+            let mut w = Cursor::new(vec![]);
+            w.put_i64(v).unwrap();
+            let bytes = w.into_inner();
+            assert_eq!(bytes, expected_bytes, "for {}", v);
+            let mut r = PeekableReader::new(Cursor::new(expected_bytes));
+            let decoded_value = r.get_i64().unwrap();
+            assert_eq!(decoded_value, v);
+        }
+
+        roundtrip(
+            i64::MIN,
+            &[0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x01],
+        ); // 10 bytes
+        roundtrip(
+            i64::MIN / 2 - 1,
+            &[0x81, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x01],
+        ); // 10 bytes
+        roundtrip(
+            i64::MIN / 2,
+            &[0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F],
+        ); // 9 bytes
+        roundtrip(
+            -36028797018963969,
+            &[0x81, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x01],
+        ); // 9 bytes
+        roundtrip(
+            -36028797018963968,
+            &[0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F],
+        ); // 8 bytes
+        roundtrip(
+            -281474976710657,
+            &[0x81, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x01],
+        ); // 8 bytes
+        roundtrip(
+            -281474976710656,
+            &[0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F],
+        ); // 7 bytes
+        roundtrip(-2199023255553, &[0x81, 0x80, 0x80, 0x80, 0x80, 0x80, 0x01]); // 7 bytes
+        roundtrip(-2199023255552, &[0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F]); // 6 bytes
+        roundtrip(-17179869185, &[0x81, 0x80, 0x80, 0x80, 0x80, 0x01]); // 6 bytes
+        roundtrip(-17179869184, &[0xFF, 0xFF, 0xFF, 0xFF, 0x7F]); // 5 bytes
+        roundtrip(-1073741824, &[0xFF, 0xFF, 0xFF, 0xFF, 0x07]); // 5 bytes
+        roundtrip(-134217729, &[0x81, 0x80, 0x80, 0x80, 0x01]); // 5 bytes
+        roundtrip(-134217728, &[0xFF, 0xFF, 0xFF, 0x7F]); // 4 bytes
+        roundtrip(-1048577, &[0x81, 0x80, 0x80, 0x01]); // 4 bytes
+        roundtrip(-1048576, &[0xFF, 0xFF, 0x7F]);
+        roundtrip(-8194, &[0x83, 0x80, 0x01]);
+        roundtrip(-8193, &[0x81, 0x80, 0x01]);
+        roundtrip(-8192, &[0xFF, 0x7F]);
+        roundtrip(-8191, &[0xFD, 0x7F]);
+        roundtrip(-66, &[0x83, 0x01]);
+        roundtrip(-65, &[0x81, 0x01]);
+        roundtrip(-64, &[0x7F]);
+        roundtrip(-63, &[0x7D]);
+        roundtrip(-1, &[0x01]);
+        roundtrip(0, &[0]);
+        roundtrip(1, &[0x02]);
+        roundtrip(62, &[0x7C]);
+        roundtrip(63, &[0x7E]);
+        roundtrip(64, &[0x80, 0x01]);
+        roundtrip(65, &[0x82, 0x01]);
+        roundtrip(8190, &[0xFC, 0x7F]);
+        roundtrip(8191, &[0xFE, 0x7F]);
+        roundtrip(8192, &[0x80, 0x80, 0x01]);
+        roundtrip(8193, &[0x82, 0x80, 0x01]);
+        roundtrip(1048575, &[0xFE, 0xFF, 0x7F]);
+        roundtrip(1048576, &[0x80, 0x80, 0x80, 0x01]); // 4 bytes
+        roundtrip(134217727, &[0xFE, 0xFF, 0xFF, 0x7F]); // 4 bytes
+        roundtrip(134217728, &[0x80, 0x80, 0x80, 0x80, 0x01]); // 5 bytes
+        roundtrip(1073741823, &[0xFE, 0xFF, 0xFF, 0xFF, 0x07]); // 5 bytes
+        roundtrip(17179869183, &[0xFE, 0xFF, 0xFF, 0xFF, 0x7F]); // 5 bytes
+        roundtrip(17179869184, &[0x80, 0x80, 0x80, 0x80, 0x80, 0x01]); // 6 bytes
+        roundtrip(2199023255551, &[0xFE, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F]); // 6 bytes
+        roundtrip(2199023255552, &[0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x01]); // 7 bytes
+        roundtrip(281474976710655, &[0xFE, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F]); // 7 bytes
+        roundtrip(
+            281474976710656,
+            &[0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x01],
+        ); // 8 bytes
+        roundtrip(
+            36028797018963967,
+            &[0xFE, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F],
+        ); // 8 bytes
+        roundtrip(
+            36028797018963968,
+            &[0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x01],
+        ); // 9 bytes
+        roundtrip(
+            i64::MAX / 2,
+            &[0xFE, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F],
+        ); // 9 bytes
+        roundtrip(
+            i64::MAX / 2 + 1,
+            &[0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x01],
+        ); // 10 bytes
+        roundtrip(
+            i64::MAX,
+            &[0xFE, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x01],
+        ); // 10 bytes
+    }
+
+    #[test]
+    fn u64_corner_cases() {
+        fn roundtrip(v: u64, expected_bytes: &[u8]) {
+            let mut w = Cursor::new(vec![]);
+            w.put_u64(v).unwrap();
+            let bytes = w.into_inner();
+            assert_eq!(bytes, expected_bytes, "for {}", v);
+            let mut r = PeekableReader::new(Cursor::new(expected_bytes));
+            let decoded_value = r.get_u64().unwrap();
+            assert_eq!(decoded_value, v);
+        }
+
+        roundtrip(0, &[0]);
+
+        roundtrip(126, &[0x7E]);
+        roundtrip(127, &[0x7F]);
+        roundtrip(128, &[0x80, 0x01]);
+        roundtrip(129, &[0x81, 0x01]);
+        roundtrip(16383, &[0xFF, 0x7F]);
+        roundtrip(16384, &[0x80, 0x80, 0x01]);
+        roundtrip(16385, &[0x81, 0x80, 0x01]);
+        roundtrip(2097151, &[0xFF, 0xFF, 0x7F]);
+        roundtrip(2097152, &[0x80, 0x80, 0x80, 0x01]); // 4 bytes
+        roundtrip(268435455, &[0xFF, 0xFF, 0xFF, 0x7F]); // 4 bytes
+        roundtrip(268435456, &[0x80, 0x80, 0x80, 0x80, 0x01]); // 5 bytes
+        roundtrip(34359738367, &[0xFF, 0xFF, 0xFF, 0xFF, 0x7F]); // 5 bytes
+        roundtrip(34359738368, &[0x80, 0x80, 0x80, 0x80, 0x80, 0x01]); // 6 bytes
+        roundtrip(4398046511103, &[0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F]); // 6 bytes
+        roundtrip(4398046511104, &[0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x01]); // 7 bytes
+        roundtrip(562949953421311, &[0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F]); // 7 bytes
+        roundtrip(
+            562949953421312,
+            &[0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x01],
+        ); // 8 bytes
+        roundtrip(
+            72057594037927935,
+            &[0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F],
+        ); // 8 bytes
+        roundtrip(
+            72057594037927936,
+            &[0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x01],
+        ); // 9 bytes
+        roundtrip(
+            i64::MAX as u64,
+            &[0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F],
+        ); // 10 bytes
     }
 
     #[cfg(test)]
@@ -508,7 +854,7 @@ mod tests {
         }
 
         #[test]
-        fn prop_u64_roundtrip(i in u64::ANY) {
+        fn u64_roundtrip(i in u64::ANY) {
             let mut w = Cursor::new(vec![]);
             w.put_u64(i).unwrap();
             let mut r = PeekableReader::new(Cursor::new(w.into_inner()));
@@ -516,7 +862,7 @@ mod tests {
         }
 
         #[test]
-        fn prop_i64_roundtrip(i in any::<i64>()) {
+        fn i64_roundtrip(i in any::<i64>()) {
             let mut w = Cursor::new(vec![]);
             w.put_i64(i).unwrap();
             let mut r = PeekableReader::new(Cursor::new(w.into_inner()));
@@ -586,5 +932,18 @@ mod tests {
             prop_assert_eq!(parsed_vals, vals);
         }
 
+        #[test]
+        fn u16_u32_u64_equivalence(i in any::<u16>()) {
+            let expected_bytes = bytes_u16(i);
+            prop_assert_eq!(&bytes_u64(i as u64), &expected_bytes);
+            prop_assert_eq!(&bytes_u32(i as u32), &expected_bytes);
+        }
+
+        #[test]
+        fn i16_i32_i64_equivalence(i in any::<i16>()) {
+            let expected_bytes = bytes_i16(i);
+            prop_assert_eq!(&bytes_i64(i as i64), &expected_bytes);
+            prop_assert_eq!(&bytes_i32(i as i32), &expected_bytes);
+        }
     }
 }
