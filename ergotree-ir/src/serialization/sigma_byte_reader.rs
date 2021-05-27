@@ -53,7 +53,7 @@ pub trait SigmaByteRead: ReadSigmaVlqExt {
     fn val_def_type_store(&mut self) -> &mut ValDefTypeStore;
 }
 
-impl<R: Peekable> Read for SigmaByteReader<R> {
+impl<R: Read> Read for SigmaByteReader<R> {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         self.inner.read(buf)
     }
