@@ -30,7 +30,7 @@ pub enum SerializationError {
     InvalidTypePrefix,
     /// Failed to decode VLQ
     #[error("vlq encode error: {0}")]
-    VlqEncode(vlq_encode::VlqEncodingError),
+    VlqEncode(#[from] vlq_encode::VlqEncodingError),
     /// IO fail (EOF, etc.)
     #[error("io error")]
     Io(String),
@@ -58,12 +58,6 @@ pub enum SerializationError {
     /// Unknown method ID for given type code
     #[error("No method id {0:?} found in type companion with type id {1:?} ")]
     UnknownMethodId(MethodId, TypeCode),
-}
-
-impl From<vlq_encode::VlqEncodingError> for SerializationError {
-    fn from(error: vlq_encode::VlqEncodingError) -> Self {
-        SerializationError::VlqEncode(error)
-    }
 }
 
 impl From<io::Error> for SerializationError {
