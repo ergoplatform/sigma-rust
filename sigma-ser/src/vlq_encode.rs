@@ -204,6 +204,8 @@ impl<R: Peekable + ?Sized> ReadSigmaVlqExt for R {}
 
 #[cfg(test)]
 mod tests {
+    // See corresponding test suite in
+    // https://github.com/ScorexFoundation/scorex-util/blob/9adb6c68b8a1c00ec17730e6da11c2976a892ad8/src/test/scala/scorex/util/serialization/VLQReaderWriterSpecification.scala#L11
     use super::*;
     use peekable_reader::PeekableReader;
     use proptest::collection;
@@ -247,6 +249,18 @@ mod tests {
             ]
             .boxed()
         }
+    }
+
+    fn bytes_u64(v: u64) -> Vec<u8> {
+        let mut w = Cursor::new(vec![]);
+        w.put_u64(v).unwrap();
+        w.into_inner()
+    }
+
+    fn bytes_i64(v: i64) -> Vec<u8> {
+        let mut w = Cursor::new(vec![]);
+        w.put_i64(v).unwrap();
+        w.into_inner()
     }
 
     #[test]
@@ -350,8 +364,148 @@ mod tests {
         assert_eq!(decoded_value, input);
     }
 
+    #[test]
+    fn malformed_input() {
+        // source: http://github.com/google/protobuf/blob/a7252bf42df8f0841cf3a0c85fdbf1a5172adecb/java/core/src/test/java/com/google/protobuf/CodedInputStreamTest.java#L281
+        assert!(PeekableReader::new(Cursor::new([0x80])).get_u64().is_err());
+        assert!(PeekableReader::new(Cursor::new([
+            0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x00
+        ]))
+        .get_u64()
+        .is_err());
+    }
+
     #[cfg(test)]
     proptest! {
+
+        #[test]
+        fn u64_check_size_1(v in 0u64..=127u64) {
+            prop_assert_eq!(bytes_u64(v).len(), 1);
+        }
+
+        #[test]
+        fn u64_check_size_2(v in 128u64..=16383u64) {
+            prop_assert_eq!(bytes_u64(v).len(), 2);
+        }
+        #[test]
+        fn u64_check_size_3(v in 16384u64..=2097151u64) {
+            prop_assert_eq!(bytes_u64(v).len(), 3);
+        }
+        #[test]
+        fn u64_check_size_4(v in 2097152u64..=268435455u64) {
+            prop_assert_eq!(bytes_u64(v).len(), 4);
+        }
+
+        #[test]
+        fn u64_check_size_5(v in 268435456u64..=34359738367u64) {
+            prop_assert_eq!(bytes_u64(v).len(), 5);
+        }
+
+        #[test]
+        fn u64_check_size_6(v in 34359738368u64..=4398046511103u64) {
+            prop_assert_eq!(bytes_u64(v).len(), 6);
+        }
+
+        #[test]
+        fn u64_check_size_7(v in 4398046511104u64..=562949953421311u64) {
+            prop_assert_eq!(bytes_u64(v).len(), 7);
+        }
+
+        #[test]
+        fn u64_check_size_8(v in 562949953421312u64..=72057594037927935u64) {
+            prop_assert_eq!(bytes_u64(v).len(), 8);
+        }
+
+        #[test]
+        fn u64_check_size_9(v in 72057594037927936u64..=u64::MAX) {
+            prop_assert_eq!(bytes_u64(v).len(), 9);
+        }
+
+        #[test]
+        fn i64_check_size_1(v in -64i64..=64i64 - 1) {
+            prop_assert_eq!(bytes_i64(v).len(), 1);
+        }
+
+        #[test]
+        fn i64_check_size_2_part1(v in -8192i64..=-64i64 - 1) {
+            prop_assert_eq!(bytes_i64(v).len(), 2);
+        }
+        #[test]
+        fn i64_check_size_2_part2(v in 64i64..=8192i64 - 1) {
+            prop_assert_eq!(bytes_i64(v).len(), 2);
+        }
+
+        #[test]
+        fn i64_check_size_3_part1(v in -1048576i64..=-8192i64 - 1) {
+            prop_assert_eq!(bytes_i64(v).len(), 3);
+        }
+        #[test]
+        fn i64_check_size_3_part2(v in 8192i64..=1048576i64 - 1) {
+            prop_assert_eq!(bytes_i64(v).len(), 3);
+        }
+
+        #[test]
+        fn i64_check_size_4_part1(v in -134217728i64..=-1048576i64 - 1) {
+            prop_assert_eq!(bytes_i64(v).len(), 4);
+        }
+        #[test]
+        fn i64_check_size_4_part2(v in 1048576i64..=134217728i64 - 1) {
+            prop_assert_eq!(bytes_i64(v).len(), 4);
+        }
+
+        #[test]
+        fn i64_check_size_5_part1(v in -17179869184i64..=-134217728i64 - 1) {
+            prop_assert_eq!(bytes_i64(v).len(), 5);
+        }
+        #[test]
+        fn i64_check_size_5_part2(v in 134217728i64..=17179869184i64 - 1) {
+            prop_assert_eq!(bytes_i64(v).len(), 5);
+        }
+
+        #[test]
+        fn i64_check_size_6_part1(v in -2199023255552i64..=-17179869184i64 - 1) {
+            prop_assert_eq!(bytes_i64(v).len(), 6);
+        }
+        #[test]
+        fn i64_check_size_6_part2(v in 17179869184i64..=2199023255552i64 - 1) {
+            prop_assert_eq!(bytes_i64(v).len(), 6);
+        }
+
+        #[test]
+        fn i64_check_size_7_part1(v in -281474976710656i64..=-2199023255552i64 - 1) {
+            prop_assert_eq!(bytes_i64(v).len(), 7);
+        }
+        #[test]
+        fn i64_check_size_7_part2(v in 2199023255552i64..=281474976710656i64 - 1) {
+            prop_assert_eq!(bytes_i64(v).len(), 7);
+        }
+
+        #[test]
+        fn i64_check_size_8_part1(v in -36028797018963968i64..=-281474976710656i64 - 1) {
+            prop_assert_eq!(bytes_i64(v).len(), 8);
+        }
+        #[test]
+        fn i64_check_size_8_part2(v in 281474976710656i64..=36028797018963968i64 - 1) {
+            prop_assert_eq!(bytes_i64(v).len(), 8);
+        }
+
+        #[test]
+        fn i64_check_size_9_part1(v in i64::MIN / 2..=-36028797018963968i64 - 1) {
+            prop_assert_eq!(bytes_i64(v).len(), 9);
+        }
+        #[test]
+        fn i64_check_size_9_part2(v in 36028797018963968i64..=i64::MAX / 2) {
+            prop_assert_eq!(bytes_i64(v).len(), 9);
+        }
+
+        #[test]
+        fn i64_check_size_10_part1(v in i64::MIN..=i64::MIN / 2 - 1) {
+            prop_assert_eq!(bytes_i64(v).len(), 10);
+        }
+        #[test]
+        fn i64_check_size_10_part2(v in i64::MAX / 2 + 1..=i64::MAX) {
+            prop_assert_eq!(bytes_i64(v).len(), 10);
+        }
 
         #[test]
         fn prop_u64_roundtrip(i in u64::ANY) {
@@ -359,6 +513,14 @@ mod tests {
             w.put_u64(i).unwrap();
             let mut r = PeekableReader::new(Cursor::new(w.into_inner()));
             prop_assert_eq![i, r.get_u64().unwrap()];
+        }
+
+        #[test]
+        fn prop_i64_roundtrip(i in any::<i64>()) {
+            let mut w = Cursor::new(vec![]);
+            w.put_i64(i).unwrap();
+            let mut r = PeekableReader::new(Cursor::new(w.into_inner()));
+            prop_assert_eq![i, r.get_i64().unwrap()];
         }
 
         #[test]
