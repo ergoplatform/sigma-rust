@@ -32,7 +32,7 @@ pub enum SerializationError {
     #[error("vlq encode error: {0}")]
     VlqEncode(#[from] vlq_encode::VlqEncodingError),
     /// IO fail (EOF, etc.)
-    #[error("io error")]
+    #[error("IO error: {0}")]
     Io(String),
     /// Misc fail
     #[error("misc error")]
