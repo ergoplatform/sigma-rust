@@ -2,10 +2,8 @@ use super::zig_zag_encode;
 use std::convert::TryFrom;
 use std::io;
 
-use crate::peekable_reader;
 use bitvec::order::Lsb0;
 use bitvec::prelude::BitVec;
-use peekable_reader::Peekable;
 #[cfg(test)]
 use proptest::{num::u64, prelude::*};
 
@@ -118,7 +116,7 @@ impl<W: io::Write + ?Sized> WriteSigmaVlqExt for W {}
 /// Read and decode values using VLQ (+ ZigZag for signed values) encoded and written with [`WriteSigmaVlqExt`]
 /// for VLQ see [[https://en.wikipedia.org/wiki/Variable-length_quantity]]
 /// for ZigZag see https://developers.google.com/protocol-buffers/docs/encoding#types
-pub trait ReadSigmaVlqExt: peekable_reader::Peekable {
+pub trait ReadSigmaVlqExt: io::Read {
     /// Read i8 without decoding
     fn get_i8(&mut self) -> Result<i8, io::Error> {
         Self::get_u8(self).map(|v| v as i8)
@@ -195,13 +193,11 @@ pub trait ReadSigmaVlqExt: peekable_reader::Peekable {
 }
 
 /// Mark all types implementing `Read` as implementing the extension.
-// impl<R: io::Read + ?Sized> ReadSigmaVlqExt for R {}
-impl<R: Peekable + ?Sized> ReadSigmaVlqExt for R {}
+impl<R: io::Read + ?Sized> ReadSigmaVlqExt for R {}
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use peekable_reader::PeekableReader;
     use proptest::collection;
     use std::io::Cursor;
 
@@ -217,7 +213,7 @@ mod tests {
 
     #[test]
     fn test_read_u8() {
-        let mut r = PeekableReader::new(Cursor::new(vec![0, 1, 255]));
+        let mut r = Cursor::new(vec![0, 1, 255]);
         assert_eq!(r.get_u8().unwrap(), 0);
         assert_eq!(r.get_u8().unwrap(), 1);
         assert_eq!(r.get_u8().unwrap(), 255);
@@ -287,7 +283,7 @@ mod tests {
     fn test_read_u64_expected_values() {
         for pair in expected_values() {
             let (bytes, value) = pair;
-            let mut r = PeekableReader::new(Cursor::new(bytes));
+            let mut r = Cursor::new(bytes);
             let decoded_value = r.get_u64().unwrap();
             assert_eq!(decoded_value, value)
         }
@@ -300,7 +296,7 @@ mod tests {
         fn prop_u64_roundtrip(i in u64::ANY) {
             let mut w = Cursor::new(vec![]);
             w.put_u64(i).unwrap();
-            let mut r = PeekableReader::new(Cursor::new(w.into_inner()));
+            let mut r = Cursor::new(w.into_inner());
             prop_assert_eq![i, r.get_u64().unwrap()];
         }
 
@@ -311,7 +307,7 @@ mod tests {
                 w.put_u64(*a).unwrap();
             }
             let mut dec = Vec::new();
-            let mut r = PeekableReader::new(Cursor::new(w.into_inner()));
+            let mut r = Cursor::new(w.into_inner());
             for _ in 0..arr.len() {
                 dec.push(r.get_u64().unwrap());
             }
@@ -322,7 +318,7 @@ mod tests {
         fn prop_bits_roundtrip(bits in collection::vec(any::<bool>(), 0..400)) {
             let mut w = Cursor::new(vec![]);
             w.put_bits(&bits).unwrap();
-            let mut r = PeekableReader::new(Cursor::new(w.into_inner()));
+            let mut r = Cursor::new(w.into_inner());
             prop_assert_eq![bits.clone(), r.get_bits(bits.len()).unwrap()];
         }
 
