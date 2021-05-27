@@ -39,7 +39,7 @@ impl<R: Peekable> SigmaByteReader<R> {
 }
 
 /// Sigma byte reader trait with a constant store to resolve segregated constants
-pub trait SigmaByteRead: ReadSigmaVlqExt {
+pub trait SigmaByteRead: ReadSigmaVlqExt + Peekable {
     /// Constant store with constants to resolve constant placeholder types
     fn constant_store(&mut self) -> &mut ConstantStore;
 
@@ -65,7 +65,7 @@ impl<R: Peekable> Peekable for SigmaByteReader<R> {
     }
 }
 
-impl<R: ReadSigmaVlqExt> SigmaByteRead for SigmaByteReader<R> {
+impl<R: ReadSigmaVlqExt + Peekable> SigmaByteRead for SigmaByteReader<R> {
     fn constant_store(&mut self) -> &mut ConstantStore {
         &mut self.constant_store
     }
