@@ -46,7 +46,7 @@ pub trait WriteSigmaVlqExt: io::Write {
 
     /// Encode using ZigZag and then VLQ.
     fn put_i16(&mut self, v: i16) -> io::Result<()> {
-        Self::put_u32(self, zig_zag_encode::encode_i32(v as i32))
+        Self::put_u32(self, zig_zag_encode::encode_i32(v as i32) as u32)
     }
 
     /// Encode using VLQ.
@@ -84,17 +84,21 @@ pub trait WriteSigmaVlqExt: io::Write {
         let mut buffer: [u8; 10] = [0; 10];
         let mut position = 0;
         let mut value = v;
-
-        // Base 128 Varints encoding for unsigned integers
-        // https://developers.google.com/protocol-buffers/docs/encoding?csw=1#varints
-        while value >= 0x80 {
-            buffer[position] = (value as u8) | 0x80;
-            value >>= 7;
-            position += 1;
+        // from https://github.com/ScorexFoundation/scorex-util/blob/3dc334f68ebefbfab6d33b57f2373e80245ab34d/src/main/scala/scorex/util/serialization/VLQWriter.scala#L97-L117
+        // original source: http://github.com/google/protobuf/blob/a7252bf42df8f0841cf3a0c85fdbf1a5172adecb/java/core/src/main/java/com/google/protobuf/CodedOutputStream.java#L1387
+        // see https://rosettacode.org/wiki/Variable-length_quantity for implementations in other languages
+        loop {
+            if (value & !0x7F) == 0 {
+                buffer[position] = value as u8;
+                position += 1;
+                break;
+            } else {
+                buffer[position] = (((value as i32) & 0x7F) | 0x80) as u8;
+                position += 1;
+                value >>= 7;
+            };
         }
-        buffer[position] = value as u8;
-
-        self.write_all(&buffer[..position + 1])
+        self.write_all(&buffer[..position])
     }
 
     /// Encode bool array as bit vector, filling trailing bits with `false`
@@ -131,7 +135,7 @@ pub trait ReadSigmaVlqExt: peekable_reader::Peekable {
 
     /// Read and decode using VLQ and ZigZag value written with [`WriteSigmaVlqExt::put_i16`]
     fn get_i16(&mut self) -> Result<i16, VlqEncodingError> {
-        Self::get_u32(self).and_then(|v| {
+        Self::get_u64(self).and_then(|v| {
             let vd = zig_zag_encode::decode_u32(v);
             i16::try_from(vd).map_err(|err| VlqEncodingError::TryFrom(vd.to_string(), err))
         })
@@ -146,11 +150,7 @@ pub trait ReadSigmaVlqExt: peekable_reader::Peekable {
 
     /// Read and decode using VLQ and ZigZag value written with [`WriteSigmaVlqExt::put_i32`]
     fn get_i32(&mut self) -> Result<i32, VlqEncodingError> {
-        Self::get_u64(self)
-            // .and_then(|v| {
-            //     u32::try_from(v).map_err(|err| VlqEncodingError::TryFrom(v.to_string(), err))
-            // })
-            .map(|v| zig_zag_encode::decode_u32(v as u32))
+        Self::get_u64(self).map(zig_zag_encode::decode_u32)
     }
 
     /// Read and decode using VLQ value written with [`WriteSigmaVlqExt::put_u32`]
@@ -489,7 +489,13 @@ mod tests {
             let mut w = Cursor::new(vec![]);
             w.put_i32(v).unwrap();
             let bytes = w.into_inner();
-            assert_eq!(bytes, expected_bytes, "for {}", v);
+            assert_eq!(
+                bytes,
+                expected_bytes,
+                "for {}, zigzag: {}",
+                v,
+                zig_zag_encode::encode_i32(v)
+            );
             let mut r = PeekableReader::new(Cursor::new(expected_bytes));
             let decoded_value = r.get_i32().unwrap();
             assert_eq!(decoded_value, v);
@@ -719,6 +725,10 @@ mod tests {
             i64::MAX as u64,
             &[0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F],
         ); // 10 bytes
+           // roundtrip(
+           //     i64::MAX as u64 + 1,
+           //     &[0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F],
+           // ); // 10 bytes
     }
 
     #[cfg(test)]
@@ -763,7 +773,7 @@ mod tests {
         }
 
         #[test]
-        fn u64_check_size_9(v in 72057594037927936u64..=u64::MAX) {
+        fn u64_check_size_9(v in 72057594037927936u64..=i64::MAX as u64) {
             prop_assert_eq!(bytes_u64(v).len(), 9);
         }
 
