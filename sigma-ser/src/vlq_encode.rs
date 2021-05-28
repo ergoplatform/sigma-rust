@@ -378,7 +378,7 @@ mod tests {
         let bytes = w.into_inner();
         assert_eq!(bytes.len(), 10);
         // 164, 139, 176, 153, 9,
-        let mut r = PeekableReader::new(Cursor::new(bytes));
+        let mut r = Cursor::new(bytes);
         let decoded_value = r.get_i32().unwrap();
         assert_eq!(decoded_value, input);
     }
@@ -386,12 +386,12 @@ mod tests {
     #[test]
     fn malformed_input() {
         // source: http://github.com/google/protobuf/blob/a7252bf42df8f0841cf3a0c85fdbf1a5172adecb/java/core/src/test/java/com/google/protobuf/CodedInputStreamTest.java#L281
-        assert!(PeekableReader::new(Cursor::new([0x80])).get_u64().is_err());
-        assert!(PeekableReader::new(Cursor::new([
-            0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x00
-        ]))
-        .get_u64()
-        .is_err());
+        assert!(Cursor::new([0x80]).get_u64().is_err());
+        assert!(
+            Cursor::new([0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x00])
+                .get_u64()
+                .is_err()
+        );
     }
 
     #[test]
@@ -401,7 +401,7 @@ mod tests {
             w.put_i16(v).unwrap();
             let bytes = w.into_inner();
             assert_eq!(bytes, expected_bytes);
-            let mut r = PeekableReader::new(Cursor::new(expected_bytes));
+            let mut r = Cursor::new(expected_bytes);
             let decoded_value = r.get_i16().unwrap();
             assert_eq!(decoded_value, v);
         }
@@ -412,19 +412,9 @@ mod tests {
         roundtrip(-8192, &[0xFF, 0x7F]);
         roundtrip(-8191, &[0xFD, 0x7F]);
         roundtrip(-66, &[0x83, 0x01]);
-        assert_eq!(
-            PeekableReader::new(Cursor::new([0x83, 0x00]))
-                .get_i16()
-                .unwrap(),
-            -2
-        );
+        assert_eq!(Cursor::new([0x83, 0x00]).get_i16().unwrap(), -2);
         roundtrip(-65, &[0x81, 0x01]);
-        assert_eq!(
-            PeekableReader::new(Cursor::new([0x81, 0x00]))
-                .get_i16()
-                .unwrap(),
-            -1
-        );
+        assert_eq!(Cursor::new([0x81, 0x00]).get_i16().unwrap(), -1);
         roundtrip(-64, &[0x7F]);
         roundtrip(-63, &[0x7D]);
         roundtrip(-1, &[0x01]);
@@ -432,19 +422,9 @@ mod tests {
         roundtrip(1, &[0x02]);
         roundtrip(62, &[0x7C]);
         roundtrip(63, &[0x7E]);
-        assert_eq!(
-            PeekableReader::new(Cursor::new([0x80, 0x00]))
-                .get_i16()
-                .unwrap(),
-            0
-        );
+        assert_eq!(Cursor::new([0x80, 0x00]).get_i16().unwrap(), 0);
         roundtrip(64, &[0x80, 0x01]);
-        assert_eq!(
-            PeekableReader::new(Cursor::new([0x82, 0x00]))
-                .get_i16()
-                .unwrap(),
-            1
-        );
+        assert_eq!(Cursor::new([0x82, 0x00]).get_i16().unwrap(), 1);
         roundtrip(65, &[0x82, 0x01]);
         roundtrip(8190, &[0xFC, 0x7F]);
         roundtrip(8191, &[0xFE, 0x7F]);
@@ -460,7 +440,7 @@ mod tests {
             w.put_u16(v).unwrap();
             let bytes = w.into_inner();
             assert_eq!(bytes, expected_bytes);
-            let mut r = PeekableReader::new(Cursor::new(expected_bytes));
+            let mut r = Cursor::new(expected_bytes);
             let decoded_value = r.get_u16().unwrap();
             assert_eq!(decoded_value, v);
         }
@@ -492,7 +472,7 @@ mod tests {
                 v,
                 zig_zag_encode::encode_i32(v)
             );
-            let mut r = PeekableReader::new(Cursor::new(expected_bytes));
+            let mut r = Cursor::new(expected_bytes);
             let decoded_value = r.get_i32().unwrap();
             assert_eq!(decoded_value, v);
         }
@@ -551,7 +531,7 @@ mod tests {
             w.put_u32(v).unwrap();
             let bytes = w.into_inner();
             assert_eq!(bytes, expected_bytes, "for {}", v);
-            let mut r = PeekableReader::new(Cursor::new(expected_bytes));
+            let mut r = Cursor::new(expected_bytes);
             let decoded_value = r.get_u32().unwrap();
             assert_eq!(decoded_value, v);
         }
@@ -578,7 +558,7 @@ mod tests {
             w.put_i64(v).unwrap();
             let bytes = w.into_inner();
             assert_eq!(bytes, expected_bytes, "for {}", v);
-            let mut r = PeekableReader::new(Cursor::new(expected_bytes));
+            let mut r = Cursor::new(expected_bytes);
             let decoded_value = r.get_i64().unwrap();
             assert_eq!(decoded_value, v);
         }
@@ -682,7 +662,7 @@ mod tests {
             w.put_u64(v).unwrap();
             let bytes = w.into_inner();
             assert_eq!(bytes, expected_bytes, "for {}", v);
-            let mut r = PeekableReader::new(Cursor::new(expected_bytes));
+            let mut r = Cursor::new(expected_bytes);
             let decoded_value = r.get_u64().unwrap();
             assert_eq!(decoded_value, v);
         }
@@ -871,7 +851,7 @@ mod tests {
         fn i64_roundtrip(i in any::<i64>()) {
             let mut w = Cursor::new(vec![]);
             w.put_i64(i).unwrap();
-            let mut r = PeekableReader::new(Cursor::new(w.into_inner()));
+            let mut r = Cursor::new(w.into_inner());
             prop_assert_eq![i, r.get_i64().unwrap()];
         }
 
@@ -915,7 +895,7 @@ mod tests {
                 }
 
             }
-            let mut r = PeekableReader::new(Cursor::new(w.into_inner()));
+            let mut r = Cursor::new(w.into_inner());
             let mut parsed_vals: Vec<Val> = Vec::new();
             for val in vals.clone() {
                 match val {
