@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
+
+### Fixed 
+- Fix VQL encoding/decoding for signed ints in ranges i32::MIN..-1073741825 and 1073741824..i32::MAX [#263](https://github.com/ergoplatform/sigma-rust/pull/263);
+
 ## [0.13.0] - 2021-05-26
 
 ### Added 
