@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
+## [0.13.1] - 2021-05-28
 
 ### Fixed 
 - Fix VQL encoding/decoding for signed ints in ranges i32::MIN..-1073741825 and 1073741824..i32::MAX [#263](https://github.com/ergoplatform/sigma-rust/pull/263);
@@ -179,7 +180,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - ErgoTree constant values conversion.
 
 <!-- next-url -->
-[Unreleased]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.13.0...HEAD
+[Unreleased]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.13.1...HEAD
+[0.13.1]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.13.0...ergo-lib-v0.13.1
 [0.13.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.12.0...ergo-lib-v0.13.0
 [0.12.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.11.0...ergo-lib-v0.12.0
 [0.11.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.10.0...ergo-lib-v0.11.0
