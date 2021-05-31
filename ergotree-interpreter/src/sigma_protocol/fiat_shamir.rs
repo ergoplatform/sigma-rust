@@ -1,7 +1,7 @@
 //! Fiat-Shamir transformation
 
+use super::crypto_utils::secure_random_bytes;
 use super::proof_tree::ProofTreeKind;
-use super::secure_random_bytes;
 use crate::sigma_protocol::ProverMessage;
 use blake2::digest::{Update, VariableOutput};
 use blake2::VarBlake2b;

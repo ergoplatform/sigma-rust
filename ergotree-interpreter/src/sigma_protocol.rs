@@ -7,11 +7,12 @@ pub mod prover;
 pub mod verifier;
 
 mod challenge;
+mod crypto_utils;
 mod dlog_protocol;
 mod fiat_shamir;
 mod proof_tree;
 mod sig_serializer;
-pub(crate) mod unchecked_tree;
+mod unchecked_tree;
 mod unproven_tree;
 
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
@@ -81,15 +82,6 @@ impl From<&[u8; GROUP_SIZE]> for GroupSizedBytes {
 pub const SOUNDNESS_BITS: usize = 192;
 /// A size of challenge in Sigma protocols, in bytes
 pub const SOUNDNESS_BYTES: usize = SOUNDNESS_BITS / 8;
-
-/// Generate cryptographically secure random bytes
-pub fn secure_random_bytes(how_many: usize) -> Vec<u8> {
-    use rand::rngs::OsRng;
-    use rand::RngCore;
-    let mut bytes: Vec<u8> = vec![0; how_many];
-    OsRng.fill_bytes(&mut bytes);
-    bytes
-}
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]

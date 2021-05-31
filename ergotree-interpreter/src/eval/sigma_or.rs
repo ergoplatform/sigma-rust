@@ -24,6 +24,7 @@ impl Evaluable for SigmaOr {
     }
 }
 
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
     use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
