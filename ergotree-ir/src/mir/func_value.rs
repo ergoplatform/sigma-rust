@@ -93,7 +93,6 @@ impl SigmaSerializable for FuncValue {
         let args = Vec::<FuncArg>::sigma_parse(r)?;
         args.iter()
             .for_each(|a| r.val_def_type_store().insert(a.idx, a.tpe.clone()));
-        dbg!(&args);
         let body = Expr::sigma_parse(r)?;
         Ok(FuncValue::new(args, body))
     }

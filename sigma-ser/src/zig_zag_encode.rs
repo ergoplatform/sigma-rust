@@ -6,17 +6,20 @@ use proptest::{num::i32, num::i64, prelude::*};
 /// negative values must be sign-extended to 64 bits to be varint encoded,
 /// thus always taking 10 bytes on the wire.)
 /// see https://developers.google.com/protocol-buffers/docs/encoding#types
-pub fn encode_i32(v: i32) -> u32 {
+///
+/// Although result should be of u32 we need to use u64 due to the signed Int
+/// used for result in Scala version
+pub fn encode_i32(v: i32) -> u64 {
     // Note:  the right-shift must be arithmetic
     // source: http://github.com/google/protobuf/blob/a7252bf42df8f0841cf3a0c85fdbf1a5172adecb/java/core/src/main/java/com/google/protobuf/CodedOutputStream.java#L934
-    ((v << 1) ^ (v >> 31)) as u32
+    ((v << 1) ^ (v >> 31)) as u64
 }
 
 /// Decode a signed value previously ZigZag-encoded with [`encode_i32`]
 /// see https://developers.google.com/protocol-buffers/docs/encoding#types
-pub fn decode_u32(v: u32) -> i32 {
+pub fn decode_u32(v: u64) -> i32 {
     // source: http://github.com/google/protobuf/blob/a7252bf42df8f0841cf3a0c85fdbf1a5172adecb/java/core/src/main/java/com/google/protobuf/CodedInputStream.java#L553
-    ((v >> 1) ^ (-((v & 1) as i32)) as u32) as i32
+    (v as u32 >> 1) as i32 ^ -(v as i32 & 1)
 }
 
 /// Encode a 64-bit value with ZigZag. ZigZag encodes signed integers
@@ -49,8 +52,8 @@ mod tests {
         assert_eq!(3, encode_i32(-2));
         assert_eq!(0x7FFF_FFFE, encode_i32(0x3FFF_FFFF));
         assert_eq!(0x7FFF_FFFF, encode_i32(0xC000_0000));
-        assert_eq!(0xFFFF_FFFE, encode_i32(0x7FFF_FFFF));
-        assert_eq!(0xFFFF_FFFF, encode_i32(0x8000_0000));
+        assert_eq!(0xFFFF_FFFE, encode_i32(0x7FFF_FFFF) as i32);
+        assert_eq!(0xFFFF_FFFF, encode_i32(0x8000_0000) as i32);
 
         assert_eq!(0, encode_i64(0));
         assert_eq!(1, encode_i64(-1));

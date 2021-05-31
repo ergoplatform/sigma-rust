@@ -195,7 +195,7 @@ pub mod ergo_box {
 }
 
 pub mod transaction {
-    use crate::chain::transaction::{DataInput, Input, UnsignedInput};
+    use crate::chain::transaction::{DataInput, Input};
     use crate::chain::{ergo_box::ErgoBox, transaction::TxId};
     use serde::{Deserialize, Serialize};
 
@@ -211,24 +211,6 @@ pub mod transaction {
         /// included in transaction cost and they do not contain spending proofs.
         #[cfg_attr(feature = "json", serde(rename = "dataInputs"))]
         pub data_inputs: Vec<DataInput>,
-        #[cfg_attr(feature = "json", serde(rename = "outputs"))]
-        pub outputs: Vec<ErgoBox>,
-    }
-
-    #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-    pub struct UnsignedTransactionJson {
-        #[cfg_attr(feature = "json", serde(rename = "id"))]
-        pub tx_id: TxId,
-        /// inputs, that will be spent by this transaction.
-        #[cfg_attr(feature = "json", serde(rename = "inputs"))]
-        pub inputs: Vec<UnsignedInput>,
-        /// inputs, that are not going to be spent by transaction, but will be reachable from inputs
-        /// scripts. `dataInputs` scripts will not be executed, thus their scripts costs are not
-        /// included in transaction cost and they do not contain spending proofs.
-        #[cfg_attr(feature = "json", serde(rename = "dataInputs"))]
-        pub data_inputs: Vec<DataInput>,
-        // we're using ErgoBox here instead of ErgoBoxCandidate,
-        // since ErgoBox is expected here in the node REST API
         #[cfg_attr(feature = "json", serde(rename = "outputs"))]
         pub outputs: Vec<ErgoBox>,
     }
@@ -283,7 +265,6 @@ mod tests {
         #[test]
         fn tx_roundtrip(t in any::<Transaction>()) {
             let j = serde_json::to_string(&t)?;
-            // dbg!(j);
             eprintln!("{}", j);
             let t_parsed: Transaction = serde_json::from_str(&j)?;
             prop_assert_eq![t, t_parsed];
@@ -292,7 +273,6 @@ mod tests {
         #[test]
         fn unsigned_tx_roundtrip(t in any::<UnsignedTransaction>()) {
             let j = serde_json::to_string(&t)?;
-            // dbg!(j);
             eprintln!("{}", j);
             let t_parsed: UnsignedTransaction = serde_json::from_str(&j)?;
             prop_assert_eq![t, t_parsed];

@@ -14,6 +14,8 @@ jobs:
   js_tests:
     name: run JS tests
     runs-on: ubuntu-latest
+    env:
+      HAS_NPM_TOKEN: ${{ secrets.NPM_TOKEN != '' }}
     defaults:
       run: 
         working-directory: bindings/ergo-lib-wasm
@@ -39,6 +41,7 @@ jobs:
           npm run build-browser-alpha
 
       - name: publish nodejs alpha version to npm
+        if: env.HAS_NPM_TOKEN == 'true'
         uses: JS-DevTools/npm-publish@v1
         with:
           token: ${{ secrets.NPM_TOKEN }}
@@ -46,6 +49,7 @@ jobs:
           tag: "alpha"
 
       - name: publish browser alpha version to npm
+        if: env.HAS_NPM_TOKEN == 'true'
         uses: JS-DevTools/npm-publish@v1
         with:
           token: ${{ secrets.NPM_TOKEN }}

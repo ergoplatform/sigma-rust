@@ -149,7 +149,6 @@ impl SigmaSerializable for Expr {
             Ok(Expr::Const(constant))
         } else {
             let op_code = OpCode::sigma_parse(r)?;
-            dbg!(&op_code.shift());
             match op_code {
                 OpCode::FOLD => Ok(Fold::sigma_parse(r)?.into()),
                 ConstantPlaceholder::OP_CODE => {
@@ -237,7 +236,6 @@ impl SigmaSerializable for Expr {
                 ))),
             }
         };
-        dbg!(&res);
         res
     }
 }
@@ -257,7 +255,6 @@ mod tests {
 
         #[test]
         fn ser_roundtrip(v in any::<Expr>()) {
-            dbg!(&v);
             prop_assert_eq![sigma_serialize_roundtrip(&v), v];
         }
     }
