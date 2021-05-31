@@ -4,6 +4,7 @@ use super::dlog_group::EcPoint;
 use crate::ergo_tree::ErgoTree;
 use crate::has_opcode::HasOpCode;
 use crate::mir::constant::Constant;
+use crate::mir::expr::Expr;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::SigmaSerializable;
 use std::convert::TryFrom;
@@ -117,7 +118,8 @@ impl SigmaProp {
         // in order to have comparisons like  `box.propositionBytes == pk.propBytes` we need to make sure
         // the same serialization method is used in both cases
         let c: Constant = self.clone().into();
-        let ergo_tree = ErgoTree::without_segregation(c.into());
+        let e: Expr = c.into();
+        let ergo_tree: ErgoTree = e.into();
         ergo_tree.sigma_serialize_bytes()
     }
 }

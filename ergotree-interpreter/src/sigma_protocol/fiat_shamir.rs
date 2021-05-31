@@ -7,7 +7,7 @@ use super::{
 };
 use blake2::digest::{Update, VariableOutput};
 use blake2::VarBlake2b;
-use ergotree_ir::ergo_tree::ErgoTree;
+use ergotree_ir::ergo_tree::{ErgoTree, ErgoTreeHeader};
 use ergotree_ir::mir::expr::Expr;
 use ergotree_ir::serialization::SigmaSerializable;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProp;
@@ -75,8 +75,10 @@ pub fn fiat_shamir_tree_to_bytes(tree: &ProofTree) -> Vec<u8> {
         _ => todo!(),
     };
 
-    let prop_tree =
-        ErgoTree::with_segregation(&Expr::Const(SigmaProp::new(leaf.proposition()).into()));
+    let prop_tree = ErgoTree::with_segregation(
+        ErgoTreeHeader::v0(true),
+        &Expr::Const(SigmaProp::new(leaf.proposition()).into()),
+    );
     let mut prop_bytes = prop_tree.sigma_serialize_bytes();
     // TODO: is unwrap safe here? Create new type with non-optional commitment? Decide when other scenarios
     // are implemented (leafs and trees)
