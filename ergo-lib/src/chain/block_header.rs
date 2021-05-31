@@ -80,7 +80,7 @@ pub struct BlockHeader {
     pub timestamp: u64,
     /// Current difficulty in a compressed view.
     #[cfg_attr(feature = "json", serde(rename = "nBits"))]
-    pub n_bits: u64,
+    pub n_bits: u32,
     /// Block height
     pub height: u32,
     /// Votes
