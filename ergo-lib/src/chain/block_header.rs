@@ -8,6 +8,7 @@ use ergotree_ir::sigma_protocol::dlog_group;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 
+use super::addigest::ADDigest;
 use super::Base16DecodedBytes;
 use super::Base16EncodedBytes;
 use super::Digest32;
@@ -76,6 +77,15 @@ pub struct BlockHeader {
     /// Id of a parent block
     #[cfg_attr(feature = "json", serde(rename = "parentId"))]
     pub parent_id: BlockId,
+    ///
+    #[cfg_attr(feature = "json", serde(rename = "adProofsRoot"))]
+    pub ad_proofs_root: Digest32,
+    ///
+    #[cfg_attr(feature = "json", serde(rename = "transactionsRoot"))]
+    pub transactions_root: Digest32,
+    ///
+    #[cfg_attr(feature = "json", serde(rename = "stateRoot"))]
+    pub state_root: ADDigest,
     /// Timestamp of a block in ms from UNIX epoch
     pub timestamp: u64,
     /// Current difficulty in a compressed view.
