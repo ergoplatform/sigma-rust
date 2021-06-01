@@ -485,6 +485,8 @@ impl TryFrom<ErgoTree> for ProveDlog {
 #[cfg(feature = "arbitrary")]
 pub(crate) mod arbitrary {
 
+    use crate::mir::expr::arbitrary::ArbExprParams;
+
     use super::*;
     use proptest::prelude::*;
 
@@ -492,13 +494,24 @@ pub(crate) mod arbitrary {
         type Parameters = ();
         type Strategy = BoxedStrategy<Self>;
 
-        // make sure that P2PK tree is included
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            // make sure that P2PK tree is included
             prop_oneof![
                 any::<ProveDlog>()
                     .prop_map(|p| ErgoTree::new(ErgoTreeHeader::v0(false), &Expr::Const(p.into()))),
                 any::<ProveDlog>()
                     .prop_map(|p| ErgoTree::new(ErgoTreeHeader::v1(false), &Expr::Const(p.into()))),
+                any_with::<Expr>(ArbExprParams {
+                    tpe: SType::SSigmaProp,
+                    depth: 1
+                })
+                // SigmaProp with constant segregation using both v0 and v1 versions
+                .prop_map(|e| ErgoTree::new(ErgoTreeHeader::v1(true), &e)),
+                any_with::<Expr>(ArbExprParams {
+                    tpe: SType::SSigmaProp,
+                    depth: 1
+                })
+                .prop_map(|e| ErgoTree::new(ErgoTreeHeader::v0(true), &e)),
             ]
             .boxed()
         }

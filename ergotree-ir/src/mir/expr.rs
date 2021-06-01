@@ -375,7 +375,7 @@ impl<T: TryFrom<Expr>> TryExtractFrom<Expr> for T {
 pub(crate) mod arbitrary {
     use super::*;
     use crate::mir::func_value::FuncArg;
-    use crate::sigma_protocol::dlog_group::EcPoint;
+    use crate::sigma_protocol::sigma_boolean::ProveDlog;
     use crate::types::sfunc::SFunc;
     use proptest::collection::*;
     use proptest::prelude::*;
@@ -429,11 +429,13 @@ pub(crate) mod arbitrary {
             .boxed()
     }
 
-    fn sigma_prop_nester_expr(_depth: usize) -> BoxedStrategy<Expr> {
-        // FIXME: Here we only generate leaf with proof for single key. No connectives yet
-        any::<EcPoint>()
-            .prop_map(|pk| Expr::Const(pk.into()))
-            .boxed()
+    fn sigma_prop_nested_expr(_depth: usize) -> BoxedStrategy<Expr> {
+        prop_oneof![
+            any::<ProveDlog>().prop_map(|pk| Expr::Const(pk.into())),
+            any::<SigmaAnd>().prop_map_into(),
+            any::<SigmaOr>().prop_map_into(),
+        ]
+        .boxed()
     }
 
     fn coll_nested_expr(depth: usize, elem_tpe: &SType) -> BoxedStrategy<Expr> {
@@ -459,7 +461,7 @@ pub(crate) mod arbitrary {
             ]
             .prop_map_into()
             .boxed(),
-            SType::SSigmaProp => sigma_prop_nester_expr(depth),
+            SType::SSigmaProp => sigma_prop_nested_expr(depth),
             _ => panic!("Nested expression not implemented for {:?}", &elem_tpe),
         }
     }
@@ -486,6 +488,7 @@ pub(crate) mod arbitrary {
             SType::SLong => numeric_nested_expr(depth, &tpe),
             SType::SBigInt => numeric_nested_expr(depth, &tpe),
             SType::SColl(elem_type) => coll_nested_expr(depth, elem_type.as_ref()),
+            SType::SSigmaProp => sigma_prop_nested_expr(depth),
             _ => todo!("nested expr is not implemented for type: {:?}", tpe),
         }
         .boxed()
