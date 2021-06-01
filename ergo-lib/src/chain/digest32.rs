@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use sigma_ser::vlq_encode;
 use std::convert::TryFrom;
 use std::convert::TryInto;
+use std::fmt::Formatter;
 use std::io;
 use thiserror::Error;
 
@@ -19,7 +20,7 @@ use thiserror::Error;
     feature = "json",
     serde(into = "Base16EncodedBytes", try_from = "Base16DecodedBytes")
 )]
-#[derive(PartialEq, Eq, Hash, Debug, Clone)]
+#[derive(PartialEq, Eq, Hash, Clone)]
 #[cfg_attr(test, derive(Arbitrary))]
 pub struct Digest32(pub Box<[u8; Digest32::SIZE]>);
 
@@ -30,6 +31,12 @@ impl Digest32 {
     /// All zeros
     pub fn zero() -> Digest32 {
         Digest32(Box::new([0u8; Digest32::SIZE]))
+    }
+}
+
+impl std::fmt::Debug for Digest32 {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        base16::encode_lower(&(*self.0)).fmt(f)
     }
 }
 
