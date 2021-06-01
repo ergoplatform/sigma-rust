@@ -47,8 +47,7 @@ impl From<TokenId> for String {
 
 impl SigmaSerializable for TokenId {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
-        self.0.sigma_serialize(w)?;
-        Ok(())
+        self.0.sigma_serialize(w)
     }
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
         Ok(Self(Digest32::sigma_parse(r)?))

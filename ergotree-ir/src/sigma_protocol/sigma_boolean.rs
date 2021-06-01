@@ -1,5 +1,8 @@
 //! Sigma boolean types
 
+use self::cand::Cand;
+use self::cor::Cor;
+
 use super::dlog_group::EcPoint;
 use crate::ergo_tree::ErgoTree;
 use crate::has_opcode::HasOpCode;
@@ -14,6 +17,9 @@ extern crate derive_more;
 use derive_more::From;
 use derive_more::Into;
 use derive_more::TryInto;
+
+pub mod cand;
+pub mod cor;
 
 /// Construct a new SigmaBoolean value representing public key of discrete logarithm signature protocol.
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -60,6 +66,15 @@ pub enum SigmaProofOfKnowledgeTree {
     ProveDlog(ProveDlog),
 }
 
+/// Conjunctions for sigma propositions
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub enum SigmaConjecture {
+    /// AND
+    Cand(Cand),
+    /// OR
+    Cor(Cor),
+}
+
 /// Algebraic data type of sigma proposition expressions
 /// Values of this type are used as values of SigmaProp type
 #[derive(PartialEq, Eq, Debug, Clone, From, TryInto)]
@@ -68,8 +83,8 @@ pub enum SigmaBoolean {
     TrivialProp(bool),
     /// Sigma proposition
     ProofOfKnowledge(SigmaProofOfKnowledgeTree),
-    /// AND conjunction for sigma propositions
-    Cand(Vec<SigmaBoolean>),
+    /// Conjunctions for sigma propositions
+    SigmaConjecture(SigmaConjecture),
 }
 
 impl HasOpCode for SigmaBoolean {
@@ -95,6 +110,12 @@ impl TryInto<ProveDlog> for SigmaBoolean {
             SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(pd)) => Ok(pd),
             _ => Err(ConversionError),
         }
+    }
+}
+
+impl From<ProveDlog> for SigmaBoolean {
+    fn from(v: ProveDlog) -> Self {
+        SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(v))
     }
 }
 

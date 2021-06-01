@@ -1,13 +1,13 @@
 //! Discrete logarithm signature protocol
 
-use super::{FirstProverMessage, ProverMessage};
+use super::ProverMessage;
 use ergotree_ir::serialization::SigmaSerializable;
 use ergotree_ir::sigma_protocol::dlog_group::EcPoint;
 use k256::Scalar;
 
 /// First message from the prover (message `a` of `SigmaProtocol`) for discrete logarithm case
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct FirstDlogProverMessage(pub EcPoint);
+pub struct FirstDlogProverMessage(pub(crate) EcPoint);
 
 impl From<EcPoint> for FirstDlogProverMessage {
     fn from(ecp: EcPoint) -> Self {
@@ -18,12 +18,6 @@ impl From<EcPoint> for FirstDlogProverMessage {
 impl ProverMessage for FirstDlogProverMessage {
     fn bytes(&self) -> Vec<u8> {
         self.0.sigma_serialize_bytes()
-    }
-}
-
-impl From<FirstDlogProverMessage> for FirstProverMessage {
-    fn from(v: FirstDlogProverMessage) -> Self {
-        FirstProverMessage::FirstDlogProverMessage(v)
     }
 }
 
@@ -41,7 +35,9 @@ impl From<Scalar> for SecondDlogProverMessage {
 }
 
 /// Interactive prover
-pub mod interactive_prover {
+pub(crate) mod interactive_prover {
+    use std::ops::Mul;
+
     use super::{FirstDlogProverMessage, SecondDlogProverMessage};
     use crate::sigma_protocol::{private_input::DlogProverInput, Challenge};
     use ergotree_ir::sigma_protocol::dlog_group;
@@ -49,16 +45,24 @@ pub mod interactive_prover {
     use ergotree_ir::sigma_protocol::sigma_boolean::ProveDlog;
     use k256::Scalar;
 
-    /// TBD
-    pub fn simulate(
-        _public_input: &ProveDlog,
-        _challenge: &Challenge,
+    pub(crate) fn simulate(
+        public_input: &ProveDlog,
+        challenge: &Challenge,
     ) -> (FirstDlogProverMessage, SecondDlogProverMessage) {
-        todo!()
+        //SAMPLE a random z <- Zq
+        let z = dlog_group::random_scalar_in_group_range();
+
+        //COMPUTE a = g^z*h^(-e)  (where -e here means -e mod q)
+        let e: Scalar = challenge.clone().into();
+        let minus_e = e.negate();
+        let h_to_e = dlog_group::exponentiate(&public_input.h, &minus_e);
+        let g_to_z = dlog_group::exponentiate(&dlog_group::generator(), &z);
+        let a = g_to_z * &h_to_e;
+        (FirstDlogProverMessage(a), SecondDlogProverMessage { z })
     }
 
     /// Create first message from the prover and a randomness
-    pub fn first_message() -> (Scalar, FirstDlogProverMessage) {
+    pub(crate) fn first_message() -> (Scalar, FirstDlogProverMessage) {
         let r = dlog_group::random_scalar_in_group_range();
         let g = dlog_group::generator();
         let a = dlog_group::exponentiate(&g, &r);
@@ -66,7 +70,7 @@ pub mod interactive_prover {
     }
 
     /// Create second message from the prover
-    pub fn second_message(
+    pub(crate) fn second_message(
         private_input: &DlogProverInput,
         rnd: Scalar,
         challenge: &Challenge,
@@ -86,7 +90,7 @@ pub mod interactive_prover {
      *
      * g^z = a*h^e => a = g^z/h^e
      */
-    pub fn compute_commitment(
+    pub(crate) fn compute_commitment(
         proposition: &ProveDlog,
         challenge: &Challenge,
         second_message: &SecondDlogProverMessage,

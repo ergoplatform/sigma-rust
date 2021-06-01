@@ -1,7 +1,9 @@
 //! Sigma byte stream writer
 use super::constant_store::ConstantStore;
 use super::val_def_type_store::ValDefTypeStore;
+use sigma_ser::peekable_reader::PeekableReader;
 use sigma_ser::{peekable_reader::Peekable, vlq_encode::ReadSigmaVlqExt};
+use std::io::Cursor;
 use std::io::Read;
 
 /// Implementation of SigmaByteRead
@@ -35,6 +37,16 @@ impl<R: Peekable> SigmaByteReader<R> {
             substitute_placeholders: true,
             val_def_type_store: ValDefTypeStore::new(),
         }
+    }
+}
+
+/// Create SigmaByteReader from a byte array (with empty constant store)
+pub fn from_bytes<T: AsRef<[u8]>>(bytes: T) -> SigmaByteReader<PeekableReader<Cursor<T>>> {
+    SigmaByteReader {
+        inner: PeekableReader::new(Cursor::new(bytes)),
+        constant_store: ConstantStore::empty(),
+        substitute_placeholders: false,
+        val_def_type_store: ValDefTypeStore::new(),
     }
 }
 

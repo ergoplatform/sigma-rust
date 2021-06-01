@@ -110,6 +110,11 @@ pub trait WriteSigmaVlqExt: io::Write {
         }
         Ok(())
     }
+
+    /// Put the two bytes of the big-endian representation of the i16 value into the writer.
+    fn put_i16_be_bytes(&mut self, v: i16) -> io::Result<()> {
+        self.write_all(v.to_be_bytes().as_ref())
+    }
 }
 
 /// Mark all types implementing `Write` as implementing the extension.
@@ -187,10 +192,7 @@ pub trait ReadSigmaVlqExt: io::Read {
         let mut buf = vec![0u8; byte_num];
         self.read_exact(&mut buf)?;
         // May fail if number of bits in buf is larger that maximum value of usize
-        let mut bits = match BitVec::<Lsb0, u8>::from_slice(&buf) {
-            Ok(v) => v,
-            Err(_) => return Err(VlqEncodingError::VlqDecodingFailed),
-        };
+        let mut bits = BitVec::<Lsb0, u8>::from_vec(buf);
         bits.truncate(size);
         Ok(bits.iter().map(|x| *x).collect::<Vec<bool>>())
     }

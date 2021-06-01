@@ -25,7 +25,7 @@ pub struct BlockId(Digest32);
     serde(into = "Base16EncodedBytes", try_from = "Base16DecodedBytes")
 )]
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct Votes(pub Box<[u8; 3]>);
+pub struct Votes(pub [u8; 3]);
 
 /// Votes errors
 #[derive(Error, Debug)]
@@ -40,7 +40,7 @@ impl TryFrom<Base16DecodedBytes> for Votes {
 
     fn try_from(bytes: Base16DecodedBytes) -> Result<Self, Self::Error> {
         let arr: [u8; 3] = bytes.0.as_slice().try_into()?;
-        Ok(Self(Box::new(arr)))
+        Ok(Self(arr))
     }
 }
 

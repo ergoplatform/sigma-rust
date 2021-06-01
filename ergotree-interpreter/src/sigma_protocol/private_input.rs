@@ -1,10 +1,15 @@
 //! Private input types for the prover's secrets
-use elliptic_curve::FromBytes;
+use std::convert::TryInto;
+
 use ergotree_ir::sigma_protocol::dlog_group;
 use ergotree_ir::sigma_protocol::sigma_boolean::ProveDlog;
+
+use k256::elliptic_curve::ff::PrimeField;
 use k256::Scalar;
 
-use crate::util::IntoOption;
+extern crate derive_more;
+use derive_more::From;
+use num_bigint::BigUint;
 
 /// Secret key of discrete logarithm signature protocol
 #[derive(PartialEq, Debug, Clone)]
@@ -25,12 +30,31 @@ impl DlogProverInput {
     }
 
     /// Attempts to parse the given byte array as an SEC-1-encoded scalar(secret key).
-    /// Returns None if the byte array does not contain a big-endian integer in the range
-    /// [0, modulus).
+    /// Returns None if the byte array does not contain a big-endian integer in the range [0, modulus).
     pub fn from_bytes(bytes: &[u8; DlogProverInput::SIZE_BYTES]) -> Option<DlogProverInput> {
-        Scalar::from_bytes(bytes.into())
-            .into_option()
-            .map(DlogProverInput::from)
+        Scalar::from_repr(bytes.clone().into()).map(DlogProverInput::from)
+    }
+
+    /// Attempts to parse the given Base16-encoded byte array as an SEC-1-encoded scalar(secret key).
+    /// Returns None if the byte array does not contain a big-endian integer in the range [0, modulus).
+    pub fn from_base16_str(str: String) -> Option<DlogProverInput> {
+        base16::decode(&str)
+            .ok()
+            .map(|bytes| bytes.as_slice().try_into().ok().map(Self::from_bytes))
+            .flatten()
+            .flatten()
+    }
+
+    /// Attempts to create DlogProverInput from BigUint
+    /// Returns None if not in the range [0, modulus).
+    pub fn from_biguint(b: BigUint) -> Option<DlogProverInput> {
+        let bytes = b.to_bytes_be();
+        bytes
+            .as_slice()
+            .try_into()
+            .ok()
+            .map(Self::from_bytes)
+            .flatten()
     }
 
     /// byte representation of the underlying scalar
@@ -53,6 +77,7 @@ impl From<Scalar> for DlogProverInput {
 }
 
 /// Private inputs (secrets)
+#[derive(PartialEq, Debug, Clone, From)]
 pub enum PrivateInput {
     /// Discrete logarithm prover input
     DlogProverInput(DlogProverInput),
