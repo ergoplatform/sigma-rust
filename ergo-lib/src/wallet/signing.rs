@@ -1,5 +1,6 @@
 //! Transaction signing
 
+use ergotree_interpreter::sigma_protocol::prover::hint::HintsBag;
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -151,6 +152,7 @@ pub fn sign_transaction(
                     &Env::empty(),
                     ctx,
                     message_to_sign.as_slice(),
+                    &HintsBag::empty(),
                 )
                 .map(|proof| {
                     let input = Input::new(input.box_id.clone(), proof.into());
@@ -208,7 +210,7 @@ mod tests {
                 &b.ergo_tree,
                 &Env::empty(),
                 Rc::new(force_any_val::<Context>()),
-                &input.spending_proof.proof,
+                input.spending_proof.proof.clone(),
                 &message,
             )?;
             Ok(res.result && acc)
@@ -346,7 +348,7 @@ mod tests {
             &ergo_tree,
             &Env::empty(),
             Rc::new(force_any_val::<Context>()),
-            &tx.inputs.get(1).unwrap().spending_proof.proof,
+            tx.inputs.get(1).unwrap().spending_proof.proof.clone(),
             message.as_slice(),
         );
         assert_eq!(ver_res.unwrap().result, true);

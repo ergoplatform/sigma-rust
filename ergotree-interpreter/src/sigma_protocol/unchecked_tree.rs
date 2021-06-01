@@ -4,13 +4,20 @@ use ergotree_ir::sigma_protocol::sigma_boolean::ProveDlog;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
 
+use super::proof_tree::ConjectureType;
+use super::proof_tree::ProofTree;
+use super::proof_tree::ProofTreeConjecture;
+use super::proof_tree::ProofTreeKind;
+use super::proof_tree::ProofTreeLeaf;
 use super::{
     dlog_protocol::{FirstDlogProverMessage, SecondDlogProverMessage},
-    Challenge, FirstProverMessage, ProofTree, ProofTreeLeaf,
+    Challenge, FirstProverMessage,
 };
 
+use derive_more::From;
+
 /// Unchecked tree
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, From)]
 pub enum UncheckedTree {
     /// No proof needed
     NoProof,
@@ -18,36 +25,53 @@ pub enum UncheckedTree {
     UncheckedSigmaTree(UncheckedSigmaTree),
 }
 
-/// Unchecked sigma tree
-#[derive(PartialEq, Debug, Clone)]
-pub enum UncheckedSigmaTree {
-    /// Unchecked leaf
-    UncheckedLeaf(UncheckedLeaf),
-    /// Unchecked conjecture (OR, AND, ...)
-    UncheckedConjecture,
-}
-
-impl UncheckedSigmaTree {
-    /// Get challenge
-    pub fn challenge(&self) -> Challenge {
+impl UncheckedTree {
+    pub(crate) fn as_tree_kind(&self) -> ProofTreeKind {
         match self {
-            UncheckedSigmaTree::UncheckedLeaf(UncheckedLeaf::UncheckedSchnorr(us)) => {
-                us.challenge.clone()
-            }
-            UncheckedSigmaTree::UncheckedConjecture => todo!(),
+            UncheckedTree::NoProof => panic!("NoProof has not ProofTreeKind representation"),
+            UncheckedTree::UncheckedSigmaTree(ust) => ust.as_tree_kind(),
+        }
+    }
+
+    pub(crate) fn challenge(&self) -> Option<Challenge> {
+        match self {
+            UncheckedTree::NoProof => None,
+            UncheckedTree::UncheckedSigmaTree(ust) => Some(ust.challenge()),
         }
     }
 }
 
-impl<T: Into<UncheckedLeaf>> From<T> for UncheckedSigmaTree {
-    fn from(t: T) -> Self {
-        UncheckedSigmaTree::UncheckedLeaf(t.into())
+/// Unchecked sigma tree
+#[derive(PartialEq, Debug, Clone, From)]
+pub enum UncheckedSigmaTree {
+    /// Unchecked leaf
+    UncheckedLeaf(UncheckedLeaf),
+    /// Unchecked conjecture (OR, AND, ...)
+    UncheckedConjecture(UncheckedConjecture),
+}
+
+impl UncheckedSigmaTree {
+    /// Get challenge
+    pub(crate) fn challenge(&self) -> Challenge {
+        match self {
+            UncheckedSigmaTree::UncheckedLeaf(UncheckedLeaf::UncheckedSchnorr(us)) => {
+                us.challenge.clone()
+            }
+            UncheckedSigmaTree::UncheckedConjecture(uc) => uc.challenge(),
+        }
+    }
+
+    pub(crate) fn as_tree_kind(&self) -> ProofTreeKind {
+        match self {
+            UncheckedSigmaTree::UncheckedLeaf(ul) => ProofTreeKind::Leaf(ul),
+            UncheckedSigmaTree::UncheckedConjecture(uc) => ProofTreeKind::Conjecture(uc),
+        }
     }
 }
 
-impl From<UncheckedSigmaTree> for ProofTree {
-    fn from(ust: UncheckedSigmaTree) -> Self {
-        ProofTree::UncheckedTree(UncheckedTree::UncheckedSigmaTree(ust))
+impl From<UncheckedSchnorr> for UncheckedSigmaTree {
+    fn from(v: UncheckedSchnorr) -> Self {
+        UncheckedSigmaTree::UncheckedLeaf(v.into())
     }
 }
 
@@ -79,7 +103,6 @@ impl From<UncheckedSchnorr> for UncheckedLeaf {
     }
 }
 
-#[allow(missing_docs)]
 #[derive(PartialEq, Debug, Clone)]
 pub struct UncheckedSchnorr {
     pub proposition: ProveDlog,
@@ -91,5 +114,92 @@ pub struct UncheckedSchnorr {
 impl From<UncheckedSchnorr> for UncheckedTree {
     fn from(us: UncheckedSchnorr) -> Self {
         UncheckedTree::UncheckedSigmaTree(us.into())
+    }
+}
+
+#[derive(PartialEq, Debug, Clone)]
+pub enum UncheckedConjecture {
+    CandUnchecked {
+        challenge: Challenge,
+        children: Vec<UncheckedSigmaTree>,
+    },
+    CorUnchecked {
+        challenge: Challenge,
+        children: Vec<UncheckedSigmaTree>,
+    },
+}
+
+impl UncheckedConjecture {
+    pub fn with_children(self, new_children: Vec<UncheckedSigmaTree>) -> Self {
+        match self {
+            UncheckedConjecture::CandUnchecked {
+                challenge,
+                children: _,
+            } => UncheckedConjecture::CandUnchecked {
+                challenge,
+                children: new_children,
+            },
+            UncheckedConjecture::CorUnchecked {
+                challenge,
+                children: _,
+            } => UncheckedConjecture::CorUnchecked {
+                challenge,
+                children: new_children,
+            },
+        }
+    }
+
+    pub fn children_ust(&self) -> &[UncheckedSigmaTree] {
+        match self {
+            UncheckedConjecture::CandUnchecked {
+                challenge: _,
+                children,
+            } => children,
+            UncheckedConjecture::CorUnchecked {
+                challenge: _,
+                children,
+            } => children,
+        }
+    }
+
+    pub fn challenge(&self) -> Challenge {
+        match self {
+            UncheckedConjecture::CandUnchecked {
+                challenge,
+                children: _,
+            } => challenge.clone(),
+            UncheckedConjecture::CorUnchecked {
+                challenge,
+                children: _,
+            } => challenge.clone(),
+        }
+    }
+}
+
+impl ProofTreeConjecture for UncheckedConjecture {
+    fn conjecture_type(&self) -> ConjectureType {
+        match self {
+            UncheckedConjecture::CandUnchecked { .. } => ConjectureType::And,
+            UncheckedConjecture::CorUnchecked { .. } => ConjectureType::Or,
+        }
+    }
+
+    fn children(&self) -> Vec<ProofTree> {
+        match self {
+            UncheckedConjecture::CandUnchecked {
+                challenge: _,
+                children,
+            } => children
+                .iter()
+                .map(|ust| ust.clone().into())
+                .collect::<Vec<ProofTree>>(),
+            UncheckedConjecture::CorUnchecked {
+                challenge: _,
+                children,
+            } => children
+                .iter()
+                .map(|ust| ust.clone().into())
+                .collect::<Vec<ProofTree>>(),
+        }
     }
 }

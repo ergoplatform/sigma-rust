@@ -388,6 +388,12 @@ impl TryExtractFrom<Value> for BigInt {
     }
 }
 
+impl<T: TryExtractFrom<Value> + StoreWrapped> TryExtractFrom<Vec<Value>> for Vec<T> {
+    fn try_extract_from(v: Vec<Value>) -> Result<Self, TryExtractFromError> {
+        v.into_iter().map(|it| it.try_extract_into::<T>()).collect()
+    }
+}
+
 impl TryFrom<Value> for ProveDlog {
     type Error = TryExtractFromError;
     fn try_from(cv: Value) -> Result<Self, Self::Error> {

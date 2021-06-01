@@ -8,6 +8,7 @@ use crate::serialization::SigmaSerializable;
 use crate::types::stype::SType;
 
 use super::expr::Expr;
+use super::expr::InvalidArgumentError;
 use crate::has_opcode::HasStaticOpCode;
 
 /// AND conjunction for sigma propositions
@@ -18,6 +19,26 @@ pub struct SigmaAnd {
 }
 
 impl SigmaAnd {
+    /// Create new object, returns an error if any of the requirements failed
+    pub fn new(items: Vec<Expr>) -> Result<Self, InvalidArgumentError> {
+        let item_types: Vec<SType> = items
+            .clone()
+            .into_iter()
+            .map(|it| it.post_eval_tpe())
+            .collect();
+        if item_types
+            .iter()
+            .all(|tpe| matches!(tpe, SType::SSigmaProp))
+        {
+            Ok(Self { items })
+        } else {
+            Err(InvalidArgumentError(format!(
+                "Sigma conjecture: expected all items be of type SSigmaProp, got {:?},\n items: {:?}",
+                item_types, items
+            )))
+        }
+    }
+
     /// Type
     pub fn tpe(&self) -> SType {
         SType::SSigmaProp
@@ -34,9 +55,7 @@ impl SigmaSerializable for SigmaAnd {
     }
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
-        Ok(Self {
-            items: Vec::<Expr>::sigma_parse(r)?,
-        })
+        Ok(Self::new(Vec::<Expr>::sigma_parse(r)?)?)
     }
 }
 
@@ -53,7 +72,7 @@ mod arbitrary {
         type Parameters = ();
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            vec(any_with::<Constant>(SType::SSigmaProp.into()), 2..5)
+            vec(any_with::<Constant>(SType::SSigmaProp.into()), 0..5)
                 .prop_map(|constants| Self {
                     items: constants.into_iter().map(|c| c.into()).collect(),
                 })
