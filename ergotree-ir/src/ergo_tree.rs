@@ -534,17 +534,20 @@ mod tests {
 
     proptest! {
 
-        // TODO: also test sigma_parse_bytes
-
         #[test]
         fn ser_roundtrip(v in any::<ErgoTree>()) {
             let mut data = Vec::new();
             let mut w = SigmaByteWriter::new(&mut data, None);
             v.sigma_serialize(&mut w).expect("serialization failed");
+            // sigma_parse
             let cursor = Cursor::new(&mut data[..]);
             let pr = PeekableReader::new(cursor);
             let mut sr = SigmaByteReader::new(pr, ConstantStore::empty());
             let res = ErgoTree::sigma_parse(&mut sr).expect("parse failed");
+            prop_assert_eq!(&res.template_bytes().unwrap(), &v.template_bytes().unwrap());
+            prop_assert_eq![&res, &v];
+            // sigma_parse_bytes
+            let res = ErgoTree::sigma_parse_bytes(&data).expect("parse failed");
             prop_assert_eq!(&res.template_bytes().unwrap(), &v.template_bytes().unwrap());
             prop_assert_eq![res, v];
         }
