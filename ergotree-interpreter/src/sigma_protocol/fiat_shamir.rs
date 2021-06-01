@@ -108,8 +108,8 @@ fn fiat_shamir_write_bytes<W: SigmaByteWrite>(
 
     Ok(match tree.as_tree_kind() {
         ProofTreeKind::Leaf(leaf) => {
-            let prop_tree = ErgoTree::with_segregation(
-                ErgoTreeHeader::default(),
+            let prop_tree = ErgoTree::new(
+                ErgoTreeHeader::v0(true),
                 &Expr::Const(SigmaProp::new(leaf.proposition()).into()),
             );
             let prop_bytes = prop_tree.sigma_serialize_bytes();

@@ -20,7 +20,6 @@ use sigma_ser::peekable_reader::PeekableReader;
 use std::convert::TryFrom;
 use std::io;
 use std::io::Write;
-use std::ops::BitOr;
 use std::rc::Rc;
 use thiserror::Error;
 
@@ -153,14 +152,6 @@ impl ErgoTreeHeader {
     }
 }
 
-impl BitOr for ErgoTreeHeader {
-    type Output = ErgoTreeHeader;
-
-    fn bitor(self, rhs: Self) -> Self::Output {
-        ErgoTreeHeader(self.0 | rhs.0)
-    }
-}
-
 impl Default for ErgoTreeHeader {
     fn default() -> Self {
         ErgoTreeHeader(ErgoTreeVersion::V0.into())
@@ -236,6 +227,41 @@ impl ErgoTree {
         Ok(constants)
     }
 
+    /// Creates a tree using provided header and root expression
+    pub fn new(header: ErgoTreeHeader, expr: &Expr) -> Self {
+        if header.is_constant_segregation() {
+            let mut data = Vec::new();
+            let cs = ConstantStore::empty();
+            let mut w = SigmaByteWriter::new(&mut data, Some(cs));
+            #[allow(clippy::unwrap_used)]
+            expr.sigma_serialize(&mut w).unwrap();
+            #[allow(clippy::unwrap_used)]
+            let constants = w.constant_store_mut_ref().unwrap().get_all();
+            let cursor = Cursor::new(&mut data[..]);
+            let pr = PeekableReader::new(cursor);
+            let new_cs = ConstantStore::new(constants.clone());
+            let mut sr = SigmaByteReader::new(pr, new_cs);
+            #[allow(clippy::unwrap_used)]
+            // if it was serialized, then we should deserialize it without error
+            let parsed_expr = Expr::sigma_parse(&mut sr).unwrap();
+            ErgoTree {
+                header: ErgoTreeHeader(ErgoTreeHeader::CONSTANT_SEGREGATION_FLAG | header.0),
+                tree: Ok(ParsedTree {
+                    constants,
+                    root: Ok(Rc::new(parsed_expr)),
+                }),
+            }
+        } else {
+            ErgoTree {
+                header,
+                tree: Ok(ParsedTree {
+                    constants: Vec::new(),
+                    root: Ok(Rc::new(expr.clone())),
+                }),
+            }
+        }
+    }
+
     /// Reasonable limit for the number of constants allowed in the ErgoTree
     pub const MAX_CONSTANTS_COUNT: usize = 4096;
 
@@ -267,44 +293,6 @@ impl ErgoTree {
             Ok(Rc::new(parsed_expr))
         } else {
             Ok(root)
-        }
-    }
-
-    // TODO: replace both *_segregation with `new` and deduce segregation from header
-
-    /// Build ErgoTree using expr as is, without constants segregated
-    pub fn without_segregation(header: ErgoTreeHeader, expr: Expr) -> ErgoTree {
-        ErgoTree {
-            header,
-            tree: Ok(ParsedTree {
-                constants: Vec::new(),
-                root: Ok(Rc::new(expr)),
-            }),
-        }
-    }
-
-    /// Build ErgoTree with constants segregated from expr
-    pub fn with_segregation(header: ErgoTreeHeader, expr: &Expr) -> ErgoTree {
-        let mut data = Vec::new();
-        let cs = ConstantStore::empty();
-        let mut w = SigmaByteWriter::new(&mut data, Some(cs));
-        #[allow(clippy::unwrap_used)]
-        expr.sigma_serialize(&mut w).unwrap();
-        #[allow(clippy::unwrap_used)]
-        let constants = w.constant_store_mut_ref().unwrap().get_all();
-        let cursor = Cursor::new(&mut data[..]);
-        let pr = PeekableReader::new(cursor);
-        let new_cs = ConstantStore::new(constants.clone());
-        let mut sr = SigmaByteReader::new(pr, new_cs);
-        #[allow(clippy::unwrap_used)]
-        // if it was serialized, then we should deserialize it without error
-        let parsed_expr = Expr::sigma_parse(&mut sr).unwrap();
-        ErgoTree {
-            header: ErgoTreeHeader(ErgoTreeHeader::CONSTANT_SEGREGATION_FLAG | header.0),
-            tree: Ok(ParsedTree {
-                constants,
-                root: Ok(Rc::new(parsed_expr)),
-            }),
         }
     }
 
@@ -368,11 +356,11 @@ impl From<Expr> for ErgoTree {
         match &expr {
             Expr::Const(c) => match c {
                 Constant { tpe, .. } if *tpe == SType::SSigmaProp => {
-                    ErgoTree::without_segregation(ErgoTreeHeader::default(), expr)
+                    ErgoTree::new(ErgoTreeHeader::v0(false), &expr)
                 }
-                _ => ErgoTree::with_segregation(ErgoTreeHeader::default(), &expr),
+                _ => ErgoTree::new(ErgoTreeHeader::v0(true), &expr),
             },
-            _ => ErgoTree::with_segregation(ErgoTreeHeader::default(), &expr),
+            _ => ErgoTree::new(ErgoTreeHeader::v0(true), &expr),
         }
     }
 }
@@ -507,14 +495,10 @@ pub(crate) mod arbitrary {
         // make sure that P2PK tree is included
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             prop_oneof![
-                any::<ProveDlog>().prop_map(|p| ErgoTree::without_segregation(
-                    ErgoTreeHeader::default(),
-                    Expr::Const(p.into())
-                )),
-                any::<ProveDlog>().prop_map(|p| ErgoTree::without_segregation(
-                    ErgoTreeHeader::default() | ErgoTreeHeader::HAS_SIZE_FLAG.into(),
-                    Expr::Const(p.into())
-                )),
+                any::<ProveDlog>()
+                    .prop_map(|p| ErgoTree::new(ErgoTreeHeader::v0(false), &Expr::Const(p.into()))),
+                any::<ProveDlog>()
+                    .prop_map(|p| ErgoTree::new(ErgoTreeHeader::v1(false), &Expr::Const(p.into()))),
             ]
             .boxed()
         }
@@ -609,7 +593,7 @@ mod tests {
             tpe: SType::SBoolean,
             v: Value::Boolean(true),
         });
-        let ergo_tree = ErgoTree::with_segregation(ErgoTreeHeader::default(), &expr);
+        let ergo_tree = ErgoTree::new(ErgoTreeHeader::default(), &expr);
         let bytes = ergo_tree.sigma_serialize_bytes();
         let parsed_expr = ErgoTree::sigma_parse_bytes(&bytes)
             .unwrap()
@@ -624,7 +608,7 @@ mod tests {
             tpe: SType::SBoolean,
             v: Value::Boolean(false),
         });
-        let ergo_tree = ErgoTree::with_segregation(ErgoTreeHeader::default(), &expr);
+        let ergo_tree = ErgoTree::new(ErgoTreeHeader::v0(true), &expr);
         assert_eq!(ergo_tree.constants_len().unwrap(), 1);
     }
 
@@ -634,7 +618,7 @@ mod tests {
             tpe: SType::SBoolean,
             v: Value::Boolean(false),
         });
-        let ergo_tree = ErgoTree::with_segregation(ErgoTreeHeader::default(), &expr);
+        let ergo_tree = ErgoTree::new(ErgoTreeHeader::v0(true), &expr);
         assert_eq!(ergo_tree.constants_len().unwrap(), 1);
         assert_eq!(ergo_tree.get_constant(0).unwrap().unwrap(), false.into());
     }
@@ -645,7 +629,7 @@ mod tests {
             tpe: SType::SBoolean,
             v: Value::Boolean(false),
         });
-        let mut ergo_tree = ErgoTree::with_segregation(ErgoTreeHeader::default(), &expr);
+        let mut ergo_tree = ErgoTree::new(ErgoTreeHeader::v0(true), &expr);
         assert_eq!(
             ergo_tree.set_constant(0, true.into()).unwrap().unwrap(),
             false.into()
