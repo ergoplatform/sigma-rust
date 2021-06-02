@@ -72,7 +72,7 @@ mod arbitrary {
         type Parameters = ();
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            vec(any_with::<Constant>(SType::SSigmaProp.into()), 0..5)
+            vec(any_with::<Constant>(SType::SSigmaProp.into()), 2..5)
                 .prop_map(|constants| Self {
                     items: constants.into_iter().map(|c| c.into()).collect(),
                 })

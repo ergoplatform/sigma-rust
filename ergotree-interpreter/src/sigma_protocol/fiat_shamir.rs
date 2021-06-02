@@ -5,7 +5,7 @@ use super::proof_tree::ProofTreeKind;
 use crate::sigma_protocol::ProverMessage;
 use blake2::digest::{Update, VariableOutput};
 use blake2::VarBlake2b;
-use ergotree_ir::ergo_tree::ErgoTree;
+use ergotree_ir::ergo_tree::{ErgoTree, ErgoTreeHeader};
 use ergotree_ir::mir::expr::Expr;
 use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
 use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWriter;
@@ -108,8 +108,10 @@ fn fiat_shamir_write_bytes<W: SigmaByteWrite>(
 
     Ok(match tree.as_tree_kind() {
         ProofTreeKind::Leaf(leaf) => {
-            let prop_tree =
-                ErgoTree::with_segregation(&Expr::Const(SigmaProp::new(leaf.proposition()).into()));
+            let prop_tree = ErgoTree::new(
+                ErgoTreeHeader::v0(true),
+                &Expr::Const(SigmaProp::new(leaf.proposition()).into()),
+            );
             let prop_bytes = prop_tree.sigma_serialize_bytes();
             let commitment_bytes = leaf
                 .commitment_opt()
