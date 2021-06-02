@@ -577,43 +577,97 @@ mod tests {
     }
 
     #[test]
-    fn deserialization_non_parseable_tree_ok() {
+    fn deserialization_non_parseable_tree_v0() {
         // constants length is set, invalid constant
-        assert!(ErgoTree::sigma_parse_bytes(&[
-            ErgoTreeHeader::CONSTANT_SEGREGATION_FLAG,
-            1,
-            0,
+        let bytes = [
+            ErgoTreeHeader::v0(true).into(),
+            1, // constants quantity
+            0, // invalid constant type
             99,
-            99
-        ])
-        .is_ok());
+            99,
+        ];
+        let tree = ErgoTree::sigma_parse_bytes(&bytes).unwrap();
+        assert!(tree.tree.is_err(), "parsing constants should fail");
+        assert_eq!(
+            tree.sigma_serialize_bytes(),
+            bytes,
+            "serialization should return original bytes"
+        );
+        assert!(
+            tree.template_bytes().is_err(),
+            "template bytes should not be parsed"
+        );
     }
 
     #[test]
-    fn serialization_non_parseable_tree_ok() {
-        // constants length is set, invalid constant
-        let original = &[ErgoTreeHeader::CONSTANT_SEGREGATION_FLAG, 1, 0, 99, 99];
-        let tree = ErgoTree::sigma_parse_bytes(original).unwrap();
-        let bytes = tree.sigma_serialize_bytes();
-        assert_eq!(bytes, original);
-        assert!(tree.template_bytes().is_err());
+    fn deserialization_non_parseable_tree_v1() {
+        // v1(size is set), constants length is set, invalid constant
+        let bytes = [
+            ErgoTreeHeader::v1(true).into(),
+            4, // tree size
+            1, // constants quantity
+            0, // invalid constant type
+            99,
+            99,
+        ];
+        let tree = ErgoTree::sigma_parse_bytes(&bytes).unwrap();
+        assert!(tree.tree.is_err(), "parsing constants should fail");
+        assert_eq!(
+            tree.sigma_serialize_bytes(),
+            bytes,
+            "serialization should return original bytes"
+        );
+        assert!(
+            tree.template_bytes().is_err(),
+            "template bytes should not be parsed"
+        );
     }
 
     #[test]
-    fn deserialization_non_parseable_root_ok() {
+    fn deserialization_non_parseable_root_v0() {
         // no constant segregation, Expr is invalid
-        assert!(ErgoTree::sigma_parse_bytes(&[0, 0, 1]).is_ok());
+        let bytes = [ErgoTreeHeader::v0(false).into(), 0, 1];
+        let tree = ErgoTree::sigma_parse_bytes(&bytes).unwrap();
+        assert!(
+            tree.tree.clone().unwrap().root.is_err(),
+            "parsing root should fail"
+        );
+        assert_eq!(
+            tree.sigma_serialize_bytes(),
+            bytes,
+            "serialization should return original bytes"
+        );
+        assert_eq!(
+            tree.template_bytes().unwrap(),
+            bytes[1..],
+            "template bytes should be parsed"
+        );
     }
 
     #[test]
-    fn serialization_non_parseable_root_ok() {
+    fn deserialization_non_parseable_root_v1() {
         // no constant segregation, Expr is invalid
-        let original = &[0, 0, 1];
-        let tree = ErgoTree::sigma_parse_bytes(original).unwrap();
-        // serialization should return bytes that were failed to parse
-        let bytes = tree.sigma_serialize_bytes();
-        assert_eq!(bytes, original);
-        assert_eq!(tree.template_bytes().unwrap(), [0, 1]); // header byte is skipped
+        let bytes = [
+            ErgoTreeHeader::v1(false).into(),
+            2, // tree size
+            0,
+            1,
+        ];
+        let tree = ErgoTree::sigma_parse_bytes(&bytes).unwrap();
+        assert!(
+            tree.tree.clone().unwrap().root.is_err(),
+            "parsing root should fail"
+        );
+        assert_eq!(
+            tree.sigma_serialize_bytes(),
+            bytes,
+            "serialization should return original bytes"
+        );
+        assert_eq!(
+            tree.template_bytes().unwrap(),
+            bytes[2..],
+            "template bytes should be parsed"
+        );
     }
 
     #[test]
