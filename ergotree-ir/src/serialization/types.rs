@@ -79,6 +79,12 @@ impl TypeCode {
         TypeCode(c)
     }
 
+    pub fn parse(b: u8) -> Result<Self, SerializationError> {
+        match b {
+            0 => Err(SerializationError::InvalidTypePrefix),
+            _ => Ok(Self(b)),
+        }
+    }
     pub const fn value(&self) -> u8 {
         self.0
     }
@@ -98,10 +104,7 @@ impl SigmaSerializable for TypeCode {
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
         let b = r.get_u8()?;
-        match b {
-            0 => Err(SerializationError::InvalidTypePrefix),
-            _ => Ok(Self(b)),
-        }
+        Self::parse(b)
     }
 }
 
