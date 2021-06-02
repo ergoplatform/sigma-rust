@@ -61,94 +61,21 @@ use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
 };
 
+use crate::serialization::types::TypeCode;
 use std::io;
 
-impl SigmaSerializable for Expr {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
-        match self {
-            Expr::Const(c) => match w.constant_store_mut_ref() {
-                Some(cs) => {
-                    let ph = (*cs).put(c.clone());
-                    ph.op_code().sigma_serialize(w)?;
-                    ph.sigma_serialize(w)
-                }
-                None => c.sigma_serialize(w),
-            },
-            expr => {
-                let op_code = self.op_code();
-                op_code.sigma_serialize(w)?;
-                match expr {
-                    Expr::Const(_) => panic!("unexpected constant"), // handled in the code above (external match)
-                    Expr::Fold(op) => op.sigma_serialize(w),
-                    Expr::ConstPlaceholder(cp) => cp.sigma_serialize(w),
-                    Expr::ByteArrayToLong(s) => s.sigma_serialize(w),
-                    Expr::ByteArrayToBigInt(s) => s.sigma_serialize(w),
-                    Expr::LongToByteArray(s) => s.sigma_serialize(w),
-                    Expr::GlobalVars(_) => Ok(()),
-                    Expr::MethodCall(mc) => mc.sigma_serialize(w),
-                    Expr::ProperyCall(pc) => pc.sigma_serialize(w),
-                    Expr::Global => Ok(()),
-                    Expr::Context => Ok(()),
-                    Expr::OptionGet(v) => v.sigma_serialize(w),
-                    Expr::ExtractRegisterAs(v) => v.sigma_serialize(w),
-                    Expr::BinOp(op) => bin_op_sigma_serialize(op, w),
-                    Expr::BlockValue(op) => op.sigma_serialize(w),
-                    Expr::ValUse(op) => op.sigma_serialize(w),
-                    Expr::ValDef(op) => op.sigma_serialize(w),
-                    Expr::FuncValue(op) => op.sigma_serialize(w),
-                    Expr::Apply(op) => op.sigma_serialize(w),
-                    Expr::ExtractAmount(op) => op.sigma_serialize(w),
-                    Expr::SelectField(op) => op.sigma_serialize(w),
-                    Expr::CalcBlake2b256(op) => op.sigma_serialize(w),
-                    Expr::Collection(op) => coll_sigma_serialize(op, w),
-                    Expr::And(op) => op.sigma_serialize(w),
-                    Expr::Or(op) => op.sigma_serialize(w),
-                    Expr::Atleast(op) => op.sigma_serialize(w),
-                    Expr::LogicalNot(op) => op.sigma_serialize(w),
-                    Expr::Map(op) => op.sigma_serialize(w),
-                    Expr::Filter(op) => op.sigma_serialize(w),
-                    Expr::BoolToSigmaProp(op) => op.sigma_serialize(w),
-                    Expr::Upcast(op) => op.sigma_serialize(w),
-                    Expr::If(op) => op.sigma_serialize(w),
-                    Expr::ByIndex(op) => op.sigma_serialize(w),
-                    Expr::ExtractScriptBytes(op) => op.sigma_serialize(w),
-                    Expr::SizeOf(op) => op.sigma_serialize(w),
-                    Expr::CreateProveDlog(op) => op.sigma_serialize(w),
-                    Expr::CreateProveDhTuple(op) => op.sigma_serialize(w),
-                    Expr::ExtractCreationInfo(op) => op.sigma_serialize(w),
-                    Expr::Exists(op) => op.sigma_serialize(w),
-                    Expr::ExtractId(op) => op.sigma_serialize(w),
-                    Expr::SigmaPropBytes(op) => op.sigma_serialize(w),
-                    Expr::OptionIsDefined(op) => op.sigma_serialize(w),
-                    Expr::OptionGetOrElse(op) => op.sigma_serialize(w),
-                    Expr::Negation(op) => op.sigma_serialize(w),
-                    Expr::ForAll(op) => op.sigma_serialize(w),
-                    Expr::Tuple(op) => op.sigma_serialize(w),
-                    Expr::DecodePoint(op) => op.sigma_serialize(w),
-                    Expr::SigmaAnd(op) => op.sigma_serialize(w),
-                    Expr::SigmaOr(op) => op.sigma_serialize(w),
-                    Expr::GetVar(op) => op.sigma_serialize(w),
-                    Expr::DeserializeRegister(op) => op.sigma_serialize(w),
-                    Expr::DeserializeContext(op) => op.sigma_serialize(w),
-                }
-            }
-        }
-    }
-
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
-        let first_byte = match r.peek_u8() {
-            Ok(b) => Ok(b),
-            Err(_) => {
-                let res = r.get_u8(); // get(consume) the error
-                assert!(res.is_err());
-                res
-            }
-        }?;
-        let res = if first_byte <= OpCode::LAST_CONSTANT_CODE.value() {
-            let constant = Constant::sigma_parse(r)?;
+impl Expr {
+    ///
+    pub fn parse_with_tag<R: SigmaByteRead>(
+        r: &mut R,
+        tag: u8,
+    ) -> Result<Self, SerializationError> {
+        let res = if tag <= OpCode::LAST_CONSTANT_CODE.value() {
+            let t_code = TypeCode::parse(tag)?;
+            let constant = Constant::parse_with_type_code(r, t_code)?;
             Ok(Expr::Const(constant))
         } else {
-            let op_code = OpCode::sigma_parse(r)?;
+            let op_code = OpCode::parse(tag);
             match op_code {
                 OpCode::FOLD => Ok(Fold::sigma_parse(r)?.into()),
                 ConstantPlaceholder::OP_CODE => {
@@ -237,6 +164,84 @@ impl SigmaSerializable for Expr {
             }
         };
         res
+    }
+}
+
+impl SigmaSerializable for Expr {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
+        match self {
+            Expr::Const(c) => match w.constant_store_mut_ref() {
+                Some(cs) => {
+                    let ph = (*cs).put(c.clone());
+                    ph.op_code().sigma_serialize(w)?;
+                    ph.sigma_serialize(w)
+                }
+                None => c.sigma_serialize(w),
+            },
+            expr => {
+                let op_code = self.op_code();
+                op_code.sigma_serialize(w)?;
+                match expr {
+                    Expr::Const(_) => panic!("unexpected constant"), // handled in the code above (external match)
+                    Expr::Fold(op) => op.sigma_serialize(w),
+                    Expr::ConstPlaceholder(cp) => cp.sigma_serialize(w),
+                    Expr::ByteArrayToLong(s) => s.sigma_serialize(w),
+                    Expr::ByteArrayToBigInt(s) => s.sigma_serialize(w),
+                    Expr::LongToByteArray(s) => s.sigma_serialize(w),
+                    Expr::GlobalVars(_) => Ok(()),
+                    Expr::MethodCall(mc) => mc.sigma_serialize(w),
+                    Expr::ProperyCall(pc) => pc.sigma_serialize(w),
+                    Expr::Global => Ok(()),
+                    Expr::Context => Ok(()),
+                    Expr::OptionGet(v) => v.sigma_serialize(w),
+                    Expr::ExtractRegisterAs(v) => v.sigma_serialize(w),
+                    Expr::BinOp(op) => bin_op_sigma_serialize(op, w),
+                    Expr::BlockValue(op) => op.sigma_serialize(w),
+                    Expr::ValUse(op) => op.sigma_serialize(w),
+                    Expr::ValDef(op) => op.sigma_serialize(w),
+                    Expr::FuncValue(op) => op.sigma_serialize(w),
+                    Expr::Apply(op) => op.sigma_serialize(w),
+                    Expr::ExtractAmount(op) => op.sigma_serialize(w),
+                    Expr::SelectField(op) => op.sigma_serialize(w),
+                    Expr::CalcBlake2b256(op) => op.sigma_serialize(w),
+                    Expr::Collection(op) => coll_sigma_serialize(op, w),
+                    Expr::And(op) => op.sigma_serialize(w),
+                    Expr::Or(op) => op.sigma_serialize(w),
+                    Expr::Atleast(op) => op.sigma_serialize(w),
+                    Expr::LogicalNot(op) => op.sigma_serialize(w),
+                    Expr::Map(op) => op.sigma_serialize(w),
+                    Expr::Filter(op) => op.sigma_serialize(w),
+                    Expr::BoolToSigmaProp(op) => op.sigma_serialize(w),
+                    Expr::Upcast(op) => op.sigma_serialize(w),
+                    Expr::If(op) => op.sigma_serialize(w),
+                    Expr::ByIndex(op) => op.sigma_serialize(w),
+                    Expr::ExtractScriptBytes(op) => op.sigma_serialize(w),
+                    Expr::SizeOf(op) => op.sigma_serialize(w),
+                    Expr::CreateProveDlog(op) => op.sigma_serialize(w),
+                    Expr::CreateProveDhTuple(op) => op.sigma_serialize(w),
+                    Expr::ExtractCreationInfo(op) => op.sigma_serialize(w),
+                    Expr::Exists(op) => op.sigma_serialize(w),
+                    Expr::ExtractId(op) => op.sigma_serialize(w),
+                    Expr::SigmaPropBytes(op) => op.sigma_serialize(w),
+                    Expr::OptionIsDefined(op) => op.sigma_serialize(w),
+                    Expr::OptionGetOrElse(op) => op.sigma_serialize(w),
+                    Expr::Negation(op) => op.sigma_serialize(w),
+                    Expr::ForAll(op) => op.sigma_serialize(w),
+                    Expr::Tuple(op) => op.sigma_serialize(w),
+                    Expr::DecodePoint(op) => op.sigma_serialize(w),
+                    Expr::SigmaAnd(op) => op.sigma_serialize(w),
+                    Expr::SigmaOr(op) => op.sigma_serialize(w),
+                    Expr::GetVar(op) => op.sigma_serialize(w),
+                    Expr::DeserializeRegister(op) => op.sigma_serialize(w),
+                    Expr::DeserializeContext(op) => op.sigma_serialize(w),
+                }
+            }
+        }
+    }
+
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+        let tag = r.get_u8()?;
+        Self::parse_with_tag(r, tag)
     }
 }
 
