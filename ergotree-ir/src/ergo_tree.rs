@@ -197,6 +197,60 @@ pub struct ErgoTree {
 }
 
 impl ErgoTree {
+    fn sigma_parse_sized<R: SigmaByteRead>(
+        r: &mut R,
+        header: ErgoTreeHeader,
+        size: u32,
+    ) -> Result<Self, SerializationError> {
+        let mut buf = vec![0u8; size as usize];
+        r.read_exact(buf.as_mut_slice())?;
+        if let Ok((constants, mut tree_bytes)) =
+            ErgoTree::sigma_parse_tree_bytes(buf.as_mut_slice(), header.is_constant_segregation())
+        {
+            let tree_bytes_copy = tree_bytes.clone();
+            let mut tree_reader = SigmaByteReader::new(
+                PeekableReader::new(Cursor::new(&mut tree_bytes[..])),
+                ConstantStore::new(constants.clone()),
+            );
+            match Expr::sigma_parse(&mut tree_reader) {
+                Ok(parsed) => Ok(ErgoTree {
+                    header,
+                    tree: Ok(ParsedTree {
+                        constants,
+                        root: Ok(Rc::new(parsed)),
+                    }),
+                }),
+                Err(err) => Ok(ErgoTree {
+                    header,
+                    tree: Ok(ParsedTree {
+                        constants,
+                        root: Err(ErgoTreeRootParsingError {
+                            root_expr_bytes: tree_bytes_copy,
+                            error: err,
+                        }),
+                    }),
+                }),
+            }
+        } else {
+            let mut whole_tree_bytes = Vec::new();
+            let mut w = SigmaByteWriter::new(&mut whole_tree_bytes, None);
+            header.sigma_serialize(&mut w)?;
+            if header.has_size() {
+                w.put_u32(size)?;
+            }
+            w.write_all(&buf)?;
+            Ok(ErgoTree {
+                header,
+                tree: Err(ErgoTreeConstantsParsingError {
+                    bytes: whole_tree_bytes,
+                    error: SerializationError::NotImplementedYet(
+                        "not all constant types serialization is supported".to_string(),
+                    ),
+                }),
+            })
+        }
+    }
+
     fn sigma_parse_tree_bytes(
         bytes: &mut [u8],
         is_constant_segregation: bool,
@@ -402,48 +456,49 @@ impl SigmaSerializable for ErgoTree {
         let header = ErgoTreeHeader::sigma_parse(r)?;
         if header.has_size() {
             let tree_size_bytes = r.get_u32()?;
-            let mut buf = vec![0u8; tree_size_bytes as usize];
-            r.read_exact(buf.as_mut_slice())?;
-            // TODO: extract and reuse in sigma_parse_bytes
-            if let Ok((constants, mut tree_bytes)) = ErgoTree::sigma_parse_tree_bytes(
-                buf.as_mut_slice(),
-                header.is_constant_segregation(),
-            ) {
-                let tree_bytes_copy = tree_bytes.clone();
-                let mut tree_reader = SigmaByteReader::new(
-                    PeekableReader::new(Cursor::new(&mut tree_bytes[..])),
-                    ConstantStore::new(constants.clone()),
-                );
-                match Expr::sigma_parse(&mut tree_reader) {
-                    Ok(parsed) => Ok(ErgoTree {
-                        header,
-                        tree: Ok(ParsedTree {
-                            constants,
-                            root: Ok(Rc::new(parsed)),
-                        }),
-                    }),
-                    Err(err) => Ok(ErgoTree {
-                        header,
-                        tree: Ok(ParsedTree {
-                            constants,
-                            root: Err(ErgoTreeRootParsingError {
-                                root_expr_bytes: tree_bytes_copy,
-                                error: err,
-                            }),
-                        }),
-                    }),
-                }
-            } else {
-                Ok(ErgoTree {
-                    header,
-                    tree: Err(ErgoTreeConstantsParsingError {
-                        bytes: buf, // TODO: add header and size
-                        error: SerializationError::NotImplementedYet(
-                            "not all constant types serialization is supported".to_string(),
-                        ),
-                    }),
-                })
-            }
+            ErgoTree::sigma_parse_sized(r, header, tree_size_bytes)
+            // let mut buf = vec![0u8; tree_size_bytes as usize];
+            // r.read_exact(buf.as_mut_slice())?;
+            // // TODO: extract and reuse in sigma_parse_bytes
+            // if let Ok((constants, mut tree_bytes)) = ErgoTree::sigma_parse_tree_bytes(
+            //     buf.as_mut_slice(),
+            //     header.is_constant_segregation(),
+            // ) {
+            //     let tree_bytes_copy = tree_bytes.clone();
+            //     let mut tree_reader = SigmaByteReader::new(
+            //         PeekableReader::new(Cursor::new(&mut tree_bytes[..])),
+            //         ConstantStore::new(constants.clone()),
+            //     );
+            //     match Expr::sigma_parse(&mut tree_reader) {
+            //         Ok(parsed) => Ok(ErgoTree {
+            //             header,
+            //             tree: Ok(ParsedTree {
+            //                 constants,
+            //                 root: Ok(Rc::new(parsed)),
+            //             }),
+            //         }),
+            //         Err(err) => Ok(ErgoTree {
+            //             header,
+            //             tree: Ok(ParsedTree {
+            //                 constants,
+            //                 root: Err(ErgoTreeRootParsingError {
+            //                     root_expr_bytes: tree_bytes_copy,
+            //                     error: err,
+            //                 }),
+            //             }),
+            //         }),
+            //     }
+            // } else {
+            //     Ok(ErgoTree {
+            //         header,
+            //         tree: Err(ErgoTreeConstantsParsingError {
+            //             bytes: buf, // TODO: add header and size
+            //             error: SerializationError::NotImplementedYet(
+            //                 "not all constant types serialization is supported".to_string(),
+            //             ),
+            //         }),
+            //     })
+            // }
         } else {
             let constants = if header.is_constant_segregation() {
                 ErgoTree::sigma_parse_constants(r)?
@@ -466,50 +521,53 @@ impl SigmaSerializable for ErgoTree {
         let cursor = Cursor::new(bytes);
         let mut r = SigmaByteReader::new(PeekableReader::new(cursor), ConstantStore::empty());
         let header = ErgoTreeHeader::sigma_parse(&mut r)?;
-        if header.has_size() {
-            let _tree_size_bytes = r.get_u32()?;
-        }
-        let mut rest_of_the_bytes = Vec::new();
-        r.read_to_end(&mut rest_of_the_bytes)?;
-        if let Ok((constants, mut tree_bytes)) = ErgoTree::sigma_parse_tree_bytes(
-            rest_of_the_bytes.as_mut_slice(),
-            header.is_constant_segregation(),
-        ) {
-            let tree_bytes_copy = tree_bytes.clone();
-            let mut new_r = SigmaByteReader::new(
-                PeekableReader::new(Cursor::new(&mut tree_bytes[..])),
-                ConstantStore::new(constants.clone()),
-            );
-            match Expr::sigma_parse(&mut new_r) {
-                Ok(parsed) => Ok(ErgoTree {
-                    header,
-                    tree: Ok(ParsedTree {
-                        constants,
-                        root: Ok(Rc::new(parsed)),
-                    }),
-                }),
-                Err(err) => Ok(ErgoTree {
-                    header,
-                    tree: Ok(ParsedTree {
-                        constants,
-                        root: Err(ErgoTreeRootParsingError {
-                            root_expr_bytes: tree_bytes_copy,
-                            error: err,
-                        }),
-                    }),
-                }),
-            }
+        let rest_of_the_bytes_len = if header.has_size() {
+            r.get_u32()?
         } else {
-            Ok(ErgoTree {
-                header,
-                tree: Err(ErgoTreeConstantsParsingError {
-                    bytes: bytes.to_vec(),
-                    error: SerializationError::NotImplementedYet(
-                        "not all constant types serialization is supported".to_string(),
-                    ),
-                }),
-            })
-        }
+            bytes.len() as u32 - 1 // skip the header byte
+        };
+        ErgoTree::sigma_parse_sized(&mut r, header, rest_of_the_bytes_len)
+        // let mut rest_of_the_bytes = Vec::new();
+        // r.read_to_end(&mut rest_of_the_bytes)?;
+        // if let Ok((constants, mut tree_bytes)) = ErgoTree::sigma_parse_tree_bytes(
+        //     rest_of_the_bytes.as_mut_slice(),
+        //     header.is_constant_segregation(),
+        // ) {
+        //     let tree_bytes_copy = tree_bytes.clone();
+        //     let mut new_r = SigmaByteReader::new(
+        //         PeekableReader::new(Cursor::new(&mut tree_bytes[..])),
+        //         ConstantStore::new(constants.clone()),
+        //     );
+        //     match Expr::sigma_parse(&mut new_r) {
+        //         Ok(parsed) => Ok(ErgoTree {
+        //             header,
+        //             tree: Ok(ParsedTree {
+        //                 constants,
+        //                 root: Ok(Rc::new(parsed)),
+        //             }),
+        //         }),
+        //         Err(err) => Ok(ErgoTree {
+        //             header,
+        //             tree: Ok(ParsedTree {
+        //                 constants,
+        //                 root: Err(ErgoTreeRootParsingError {
+        //                     root_expr_bytes: tree_bytes_copy,
+        //                     error: err,
+        //                 }),
+        //             }),
+        //         }),
+        //     }
+        // } else {
+        //     Ok(ErgoTree {
+        //         header,
+        //         tree: Err(ErgoTreeConstantsParsingError {
+        //             bytes: bytes.to_vec(),
+        //             error: SerializationError::NotImplementedYet(
+        //                 "not all constant types serialization is supported".to_string(),
+        //             ),
+        //         }),
+        //     })
+        // }
     }
 }
 
