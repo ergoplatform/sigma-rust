@@ -12,7 +12,7 @@ use crate::serialization::types::TypeCode;
 use crate::types::smethod::MethodId;
 use bounded_vec::BoundedVecOutOfBounds;
 use io::Cursor;
-use sigma_ser::{peekable_reader::PeekableReader, vlq_encode};
+use sigma_ser::vlq_encode;
 use std::io;
 use thiserror::Error;
 
@@ -120,8 +120,7 @@ pub trait SigmaSerializable: Sized {
     /// Parse `self` from the bytes
     fn sigma_parse_bytes(bytes: &[u8]) -> Result<Self, SerializationError> {
         let cursor = Cursor::new(bytes);
-        let pr = PeekableReader::new(cursor);
-        let mut sr = SigmaByteReader::new(pr, ConstantStore::empty());
+        let mut sr = SigmaByteReader::new(cursor, ConstantStore::empty());
         Self::sigma_parse(&mut sr)
     }
 }
@@ -170,7 +169,6 @@ pub fn sigma_serialize_roundtrip<T: SigmaSerializable>(v: &T) -> T {
     let mut w = SigmaByteWriter::new(&mut data, None);
     v.sigma_serialize(&mut w).expect("serialization failed");
     let cursor = Cursor::new(&mut data[..]);
-    let pr = PeekableReader::new(cursor);
-    let mut sr = SigmaByteReader::new(pr, ConstantStore::empty());
+    let mut sr = SigmaByteReader::new(cursor, ConstantStore::empty());
     T::sigma_parse(&mut sr).expect("parse failed")
 }

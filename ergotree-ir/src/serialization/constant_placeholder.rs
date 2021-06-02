@@ -37,7 +37,6 @@ mod tests {
     };
     use io::Cursor;
     use proptest::prelude::*;
-    use sigma_ser::peekable_reader::PeekableReader;
 
     proptest! {
 
@@ -49,7 +48,7 @@ mod tests {
             let mut w = SigmaByteWriter::new(&mut data, Some(cs));
             ph.sigma_serialize(&mut w).expect("serialization failed");
             let cs2 =  w.constant_store.unwrap();
-            let mut sr = SigmaByteReader::new(PeekableReader::new(Cursor::new(&mut data[..])), cs2);
+            let mut sr = SigmaByteReader::new(Cursor::new(&mut data[..]), cs2);
             let ph_parsed = ConstantPlaceholder::sigma_parse(&mut sr).expect("parse failed");
             prop_assert_eq![ph, ph_parsed];
         }

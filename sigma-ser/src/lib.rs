@@ -11,8 +11,6 @@
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
 
-/// io::Read wrapper with `peek` operation
-pub mod peekable_reader;
 /// VLQ encoder
 pub mod vlq_encode;
 /// ZigZag encoder

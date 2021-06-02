@@ -44,8 +44,8 @@ pub fn bin_op_sigma_parse<R: SigmaByteRead>(
     op_kind: BinOpKind,
     r: &mut R,
 ) -> Result<Expr, SerializationError> {
-    Ok(if r.peek_u8()? == OpCode::COLL_OF_BOOL_CONST.value() {
-        let _ = r.get_u8()?; // consume op code byte (peeked above)
+    let tag = r.get_u8()?;
+    Ok(if tag == OpCode::COLL_OF_BOOL_CONST.value() {
         let bools = r.get_bits(2)?;
         BinOp {
             kind: op_kind,
@@ -54,7 +54,7 @@ pub fn bin_op_sigma_parse<R: SigmaByteRead>(
         }
         .into()
     } else {
-        let left = Expr::sigma_parse(r)?;
+        let left = Expr::parse_with_tag(r, tag)?;
         let right = Expr::sigma_parse(r)?;
         BinOp {
             kind: op_kind,
