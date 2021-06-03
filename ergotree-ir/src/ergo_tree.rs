@@ -16,7 +16,6 @@ use sigma_ser::vlq_encode::WriteSigmaVlqExt;
 use crate::serialization::constant_store::ConstantStore;
 use derive_more::From;
 use derive_more::Into;
-use sigma_ser::peekable_reader::PeekableReader;
 use std::convert::TryFrom;
 use std::io;
 use std::io::Read;
@@ -209,7 +208,7 @@ impl ErgoTree {
         {
             let tree_bytes_copy = tree_bytes.clone();
             let mut tree_reader = SigmaByteReader::new(
-                PeekableReader::new(Cursor::new(&mut tree_bytes[..])),
+                Cursor::new(&mut tree_bytes[..]),
                 ConstantStore::new(constants.clone()),
             );
             match Expr::sigma_parse(&mut tree_reader) {
@@ -255,10 +254,7 @@ impl ErgoTree {
         bytes: &mut [u8],
         is_constant_segregation: bool,
     ) -> Result<(Vec<Constant>, Vec<u8>), SerializationError> {
-        let mut r = SigmaByteReader::new(
-            PeekableReader::new(Cursor::new(&bytes)),
-            ConstantStore::empty(),
-        );
+        let mut r = SigmaByteReader::new(Cursor::new(&bytes), ConstantStore::empty());
         let constants = if is_constant_segregation {
             ErgoTree::sigma_parse_constants(&mut r)?
         } else {
@@ -297,9 +293,8 @@ impl ErgoTree {
             #[allow(clippy::unwrap_used)]
             let constants = w.constant_store_mut_ref().unwrap().get_all();
             let cursor = Cursor::new(&mut data[..]);
-            let pr = PeekableReader::new(cursor);
             let new_cs = ConstantStore::new(constants.clone());
-            let mut sr = SigmaByteReader::new(pr, new_cs);
+            let mut sr = SigmaByteReader::new(cursor, new_cs);
             #[allow(clippy::unwrap_used)]
             // if it was serialized, then we should deserialize it without error
             let parsed_expr = Expr::sigma_parse(&mut sr).unwrap();
@@ -341,9 +336,8 @@ impl ErgoTree {
             #[allow(clippy::unwrap_used)]
             root.sigma_serialize(&mut w).unwrap();
             let cursor = Cursor::new(&mut data[..]);
-            let pr = PeekableReader::new(cursor);
             let mut sr = SigmaByteReader::new_with_substitute_placeholders(
-                pr,
+                cursor,
                 ConstantStore::new(tree.constants),
             );
             #[allow(clippy::unwrap_used)]
@@ -477,7 +471,7 @@ impl SigmaSerializable for ErgoTree {
 
     fn sigma_parse_bytes(bytes: &[u8]) -> Result<Self, SerializationError> {
         let cursor = Cursor::new(bytes);
-        let mut r = SigmaByteReader::new(PeekableReader::new(cursor), ConstantStore::empty());
+        let mut r = SigmaByteReader::new(cursor, ConstantStore::empty());
         let header = ErgoTreeHeader::sigma_parse(&mut r)?;
         let rest_of_the_bytes_len = if header.has_size() {
             r.get_u32()?
@@ -564,8 +558,7 @@ mod tests {
             v.sigma_serialize(&mut w).expect("serialization failed");
             // sigma_parse
             let cursor = Cursor::new(&mut data[..]);
-            let pr = PeekableReader::new(cursor);
-            let mut sr = SigmaByteReader::new(pr, ConstantStore::empty());
+            let mut sr = SigmaByteReader::new(cursor, ConstantStore::empty());
             let res = ErgoTree::sigma_parse(&mut sr).expect("parse failed");
             prop_assert_eq!(&res.template_bytes().unwrap(), &v.template_bytes().unwrap());
             prop_assert_eq![&res, &v];

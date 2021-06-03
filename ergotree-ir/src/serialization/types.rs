@@ -79,6 +79,13 @@ impl TypeCode {
         TypeCode(c)
     }
 
+    /// Parse type code from single byte.
+    pub fn parse(b: u8) -> Result<Self, SerializationError> {
+        match b {
+            0 => Err(SerializationError::InvalidTypePrefix),
+            _ => Ok(Self(b)),
+        }
+    }
     pub const fn value(&self) -> u8 {
         self.0
     }
@@ -98,10 +105,7 @@ impl SigmaSerializable for TypeCode {
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
         let b = r.get_u8()?;
-        match b {
-            0 => Err(SerializationError::InvalidTypePrefix),
-            _ => Ok(Self(b)),
-        }
+        Self::parse(b)
     }
 }
 
@@ -131,6 +135,123 @@ fn is_stype_embeddable(tpe: &SType) -> bool {
         SType::SGroupElement => true,
         SType::SSigmaProp => true,
         _ => false,
+    }
+}
+
+impl SType {
+    /// Parse type from byte stream. This function should be used instead of
+    /// `sigma_parse` when type code is already read for look-ahead
+    pub fn parse_with_type_code<R: SigmaByteRead>(
+        r: &mut R,
+        c: TypeCode,
+    ) -> Result<Self, SerializationError> {
+        let tpe = if c.value() < TypeCode::TUPLE.value() {
+            let constr_id = c.value() / TypeCode::PRIM_RANGE;
+            let prim_id = c.value() % TypeCode::PRIM_RANGE;
+            match constr_id {
+                // primitive
+                0 => get_embeddable_type(c.value())?,
+                // Coll[_]
+                1 => {
+                    let t_elem = get_arg_type(r, prim_id)?;
+                    SType::SColl(Box::new(t_elem))
+                }
+                // Coll[Coll[_]]
+                2 => {
+                    let t_elem = get_arg_type(r, prim_id)?;
+                    SType::SColl(Box::new(SType::SColl(Box::new(t_elem))))
+                }
+                // Option[_]
+                3 => {
+                    let t_elem = get_arg_type(r, prim_id)?;
+                    SType::SOption(Box::new(t_elem))
+                }
+                // Option[Coll[_]]
+                4 => {
+                    let t_elem = get_arg_type(r, prim_id)?;
+                    SType::SOption(SType::SColl(t_elem.into()).into())
+                }
+                TypeCode::TUPLE_PAIR1_CONSTR_ID => {
+                    // (_, t2)
+                    let (t1, t2) = if prim_id == 0 {
+                        // Pair of non-primitive types (`((Int, Byte), (Boolean,Box))`, etc.)
+                        (Self::sigma_parse(r)?, Self::sigma_parse(r)?)
+                    } else {
+                        // Pair of types where first is primitive (`(_, Int)`)
+                        (get_embeddable_type(prim_id)?, Self::sigma_parse(r)?)
+                    };
+                    #[allow(clippy::unwrap_used)]
+                    SType::STuple(vec![t1, t2].try_into().unwrap())
+                }
+                TypeCode::TUPLE_PAIR2_CONSTR_ID => {
+                    // (t1, _)
+                    if prim_id == 0 {
+                        // Triple of types
+                        let t1 = Self::sigma_parse(r)?;
+                        let t2 = Self::sigma_parse(r)?;
+                        let t3 = Self::sigma_parse(r)?;
+                        #[allow(clippy::unwrap_used)]
+                        SType::STuple(vec![t1, t2, t3].try_into().unwrap())
+                    } else {
+                        // Pair of types where second is primitive (`(Int, _)`)
+                        let t2 = get_embeddable_type(prim_id)?;
+                        let t1 = Self::sigma_parse(r)?;
+                        #[allow(clippy::unwrap_used)]
+                        SType::STuple(vec![t1, t2].try_into().unwrap())
+                    }
+                }
+                TypeCode::TUPLE_PAIR_SYMMETRIC_TYPE_CONSTR_ID => {
+                    // (_, _)
+                    if prim_id == 0 {
+                        // Quadriple of types
+                        let t1 = Self::sigma_parse(r)?;
+                        let t2 = Self::sigma_parse(r)?;
+                        let t3 = Self::sigma_parse(r)?;
+                        let t4 = Self::sigma_parse(r)?;
+                        #[allow(clippy::unwrap_used)]
+                        SType::STuple(vec![t1, t2, t3, t4].try_into().unwrap())
+                    } else {
+                        // Symmetric pair of primitive types (`(Int, Int)`, `(Byte,Byte)`, etc.)
+                        let t = get_embeddable_type(prim_id)?;
+                        #[allow(clippy::unwrap_used)]
+                        SType::STuple(vec![t.clone(), t].try_into().unwrap())
+                    }
+                }
+                _ => {
+                    return Err(SerializationError::NotImplementedYet(format!(
+                        "case 1: parsing type is not yet implemented(constr_id == {:?})",
+                        constr_id
+                    )))
+                }
+            }
+        } else {
+            match c {
+                TypeCode::TUPLE => {
+                    let len = r.get_u8()?;
+                    let mut items = Vec::with_capacity(len as usize);
+                    for _ in 0..len {
+                        items.push(SType::sigma_parse(r)?);
+                    }
+                    Ok(SType::STuple(items.try_into().map_err(|_| {
+                        SerializationError::TupleItemsOutOfBounds(len as usize)
+                    })?))
+                }
+                TypeCode::SANY => Ok(SType::SAny),
+                TypeCode::SBOX => Ok(SType::SBox),
+                TypeCode::SAVL_TREE => Ok(SType::SAvlTree),
+                TypeCode::SCONTEXT => Ok(SType::SContext),
+                TypeCode::STYPE_VAR => Ok(SType::STypeVar(STypeVar::sigma_parse(r)?)),
+                TypeCode::SHEADER => Ok(SType::SHeader),
+                TypeCode::SPRE_HEADER => Ok(SType::SPreHeader),
+                TypeCode::SGLOBAL => Ok(SType::SGlobal),
+                _ => Err(SerializationError::NotImplementedYet(format!(
+                    // FIXME: should we just tell that type code is malforled?
+                    "case 2: parsing type is not yet implemented(c == {:?})",
+                    c
+                ))),
+            }?
+        };
+        Ok(tpe)
     }
 }
 
@@ -246,114 +367,7 @@ impl SigmaSerializable for SType {
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
         // for reference see http://github.com/ScorexFoundation/sigmastate-interpreter/blob/25251c1313b0131835f92099f02cef8a5d932b5e/sigmastate/src/main/scala/sigmastate/serialization/TypeSerializer.scala#L118-L118
         let c = TypeCode::sigma_parse(r)?;
-
-        let tpe = if c.value() < TypeCode::TUPLE.value() {
-            let constr_id = c.value() / TypeCode::PRIM_RANGE;
-            let prim_id = c.value() % TypeCode::PRIM_RANGE;
-            match constr_id {
-                // primitive
-                0 => get_embeddable_type(c.value())?,
-                // Coll[_]
-                1 => {
-                    let t_elem = get_arg_type(r, prim_id)?;
-                    SType::SColl(Box::new(t_elem))
-                }
-                // Coll[Coll[_]]
-                2 => {
-                    let t_elem = get_arg_type(r, prim_id)?;
-                    SType::SColl(Box::new(SType::SColl(Box::new(t_elem))))
-                }
-                // Option[_]
-                3 => {
-                    let t_elem = get_arg_type(r, prim_id)?;
-                    SType::SOption(Box::new(t_elem))
-                }
-                // Option[Coll[_]]
-                4 => {
-                    let t_elem = get_arg_type(r, prim_id)?;
-                    SType::SOption(SType::SColl(t_elem.into()).into())
-                }
-                TypeCode::TUPLE_PAIR1_CONSTR_ID => {
-                    // (_, t2)
-                    let (t1, t2) = if prim_id == 0 {
-                        // Pair of non-primitive types (`((Int, Byte), (Boolean,Box))`, etc.)
-                        (Self::sigma_parse(r)?, Self::sigma_parse(r)?)
-                    } else {
-                        // Pair of types where first is primitive (`(_, Int)`)
-                        (get_embeddable_type(prim_id)?, Self::sigma_parse(r)?)
-                    };
-                    #[allow(clippy::unwrap_used)]
-                    SType::STuple(vec![t1, t2].try_into().unwrap())
-                }
-                TypeCode::TUPLE_PAIR2_CONSTR_ID => {
-                    // (t1, _)
-                    if prim_id == 0 {
-                        // Triple of types
-                        let t1 = Self::sigma_parse(r)?;
-                        let t2 = Self::sigma_parse(r)?;
-                        let t3 = Self::sigma_parse(r)?;
-                        #[allow(clippy::unwrap_used)]
-                        SType::STuple(vec![t1, t2, t3].try_into().unwrap())
-                    } else {
-                        // Pair of types where second is primitive (`(Int, _)`)
-                        let t2 = get_embeddable_type(prim_id)?;
-                        let t1 = Self::sigma_parse(r)?;
-                        #[allow(clippy::unwrap_used)]
-                        SType::STuple(vec![t1, t2].try_into().unwrap())
-                    }
-                }
-                TypeCode::TUPLE_PAIR_SYMMETRIC_TYPE_CONSTR_ID => {
-                    // (_, _)
-                    if prim_id == 0 {
-                        // Quadriple of types
-                        let t1 = Self::sigma_parse(r)?;
-                        let t2 = Self::sigma_parse(r)?;
-                        let t3 = Self::sigma_parse(r)?;
-                        let t4 = Self::sigma_parse(r)?;
-                        #[allow(clippy::unwrap_used)]
-                        SType::STuple(vec![t1, t2, t3, t4].try_into().unwrap())
-                    } else {
-                        // Symmetric pair of primitive types (`(Int, Int)`, `(Byte,Byte)`, etc.)
-                        let t = get_embeddable_type(prim_id)?;
-                        #[allow(clippy::unwrap_used)]
-                        SType::STuple(vec![t.clone(), t].try_into().unwrap())
-                    }
-                }
-                _ => {
-                    return Err(SerializationError::NotImplementedYet(format!(
-                        "case 1: parsing type is not yet implemented(constr_id == {:?})",
-                        constr_id
-                    )))
-                }
-            }
-        } else {
-            match c {
-                TypeCode::TUPLE => {
-                    let len = r.get_u8()?;
-                    let mut items = Vec::with_capacity(len as usize);
-                    for _ in 0..len {
-                        items.push(SType::sigma_parse(r)?);
-                    }
-                    Ok(SType::STuple(items.try_into().map_err(|_| {
-                        SerializationError::TupleItemsOutOfBounds(len as usize)
-                    })?))
-                }
-                TypeCode::SANY => Ok(SType::SAny),
-                TypeCode::SBOX => Ok(SType::SBox),
-                TypeCode::SAVL_TREE => Ok(SType::SAvlTree),
-                TypeCode::SCONTEXT => Ok(SType::SContext),
-                TypeCode::STYPE_VAR => Ok(SType::STypeVar(STypeVar::sigma_parse(r)?)),
-                TypeCode::SHEADER => Ok(SType::SHeader),
-                TypeCode::SPRE_HEADER => Ok(SType::SPreHeader),
-                TypeCode::SGLOBAL => Ok(SType::SGlobal),
-                _ => Err(SerializationError::NotImplementedYet(format!(
-                    // FIXME: should we just tell that type code is malforled?
-                    "case 2: parsing type is not yet implemented(c == {:?})",
-                    c
-                ))),
-            }?
-        };
-        Ok(tpe)
+        Self::parse_with_type_code(r, c)
     }
 }
 

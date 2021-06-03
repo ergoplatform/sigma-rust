@@ -1,8 +1,7 @@
 //! Sigma byte stream writer
 use super::constant_store::ConstantStore;
 use super::val_def_type_store::ValDefTypeStore;
-use sigma_ser::peekable_reader::PeekableReader;
-use sigma_ser::{peekable_reader::Peekable, vlq_encode::ReadSigmaVlqExt};
+use sigma_ser::vlq_encode::ReadSigmaVlqExt;
 use std::io::Cursor;
 use std::io::Read;
 
@@ -14,7 +13,7 @@ pub struct SigmaByteReader<R> {
     val_def_type_store: ValDefTypeStore,
 }
 
-impl<R: Peekable> SigmaByteReader<R> {
+impl<R: Read> SigmaByteReader<R> {
     /// Create new reader from PeekableReader
     pub fn new(pr: R, constant_store: ConstantStore) -> SigmaByteReader<R> {
         SigmaByteReader {
@@ -41,9 +40,9 @@ impl<R: Peekable> SigmaByteReader<R> {
 }
 
 /// Create SigmaByteReader from a byte array (with empty constant store)
-pub fn from_bytes<T: AsRef<[u8]>>(bytes: T) -> SigmaByteReader<PeekableReader<Cursor<T>>> {
+pub fn from_bytes<T: AsRef<[u8]>>(bytes: T) -> SigmaByteReader<Cursor<T>> {
     SigmaByteReader {
-        inner: PeekableReader::new(Cursor::new(bytes)),
+        inner: Cursor::new(bytes),
         constant_store: ConstantStore::empty(),
         substitute_placeholders: false,
         val_def_type_store: ValDefTypeStore::new(),
@@ -51,7 +50,7 @@ pub fn from_bytes<T: AsRef<[u8]>>(bytes: T) -> SigmaByteReader<PeekableReader<Cu
 }
 
 /// Sigma byte reader trait with a constant store to resolve segregated constants
-pub trait SigmaByteRead: ReadSigmaVlqExt + Peekable {
+pub trait SigmaByteRead: ReadSigmaVlqExt {
     /// Constant store with constants to resolve constant placeholder types
     fn constant_store(&mut self) -> &mut ConstantStore;
 
@@ -71,13 +70,7 @@ impl<R: Read> Read for SigmaByteReader<R> {
     }
 }
 
-impl<R: Peekable> Peekable for SigmaByteReader<R> {
-    fn peek_u8(&mut self) -> Result<u8, &std::io::Error> {
-        self.inner.peek_u8()
-    }
-}
-
-impl<R: ReadSigmaVlqExt + Peekable> SigmaByteRead for SigmaByteReader<R> {
+impl<R: ReadSigmaVlqExt> SigmaByteRead for SigmaByteReader<R> {
     fn constant_store(&mut self) -> &mut ConstantStore {
         &mut self.constant_store
     }
