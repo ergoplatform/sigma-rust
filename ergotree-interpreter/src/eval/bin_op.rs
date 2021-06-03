@@ -77,6 +77,30 @@ where
     .into())
 }
 
+fn eval_bit_and<T>(lv_raw: T, rv: Value) -> Result<Value, EvalError>
+where
+    T: Num + TryExtractFrom<Value> + Into<Value> + std::fmt::Display + std::ops::BitAnd<Output = T>,
+{
+    let rv_raw = rv.try_extract_into::<T>()?;
+    Ok((lv_raw & rv_raw).into())
+}
+
+fn eval_bit_or<T>(lv_raw: T, rv: Value) -> Result<Value, EvalError>
+where
+    T: Num + TryExtractFrom<Value> + Into<Value> + std::fmt::Display + std::ops::BitOr<Output = T>,
+{
+    let rv_raw = rv.try_extract_into::<T>()?;
+    Ok((lv_raw | rv_raw).into())
+}
+
+fn eval_bit_xor<T>(lv_raw: T, rv: Value) -> Result<Value, EvalError>
+where
+    T: Num + TryExtractFrom<Value> + Into<Value> + std::fmt::Display + std::ops::BitXor<Output = T>,
+{
+    let rv_raw = rv.try_extract_into::<T>()?;
+    Ok((lv_raw ^ rv_raw).into())
+}
+
 fn eval_ge(lv: Value, rv: Value) -> Result<Value, EvalError> {
     match lv {
         Value::Byte(lv_raw) => Ok((lv_raw >= rv.try_extract_into::<i8>()?).into()),
@@ -236,6 +260,39 @@ impl Evaluable for BinOp {
                     Value::Int(lv_raw) => eval_min(lv_raw, rv()?),
                     Value::Long(lv_raw) => eval_min(lv_raw, rv()?),
                     Value::BigInt(lv_raw) => eval_min(lv_raw, rv()?),
+                    _ => Err(EvalError::UnexpectedValue(format!(
+                        "expected BinOp::left to be numeric value, got {0:?}",
+                        lv
+                    ))),
+                },
+                ArithOp::BitAnd => match lv {
+                    Value::Byte(lv_raw) => eval_bit_and(lv_raw, rv()?),
+                    Value::Short(lv_raw) => eval_bit_and(lv_raw, rv()?),
+                    Value::Int(lv_raw) => eval_bit_and(lv_raw, rv()?),
+                    Value::Long(lv_raw) => eval_bit_and(lv_raw, rv()?),
+                    Value::BigInt(lv_raw) => eval_bit_and(lv_raw, rv()?),
+                    _ => Err(EvalError::UnexpectedValue(format!(
+                        "expected BinOp::left to be numeric value, got {0:?}",
+                        lv
+                    ))),
+                },
+                ArithOp::BitOr => match lv {
+                    Value::Byte(lv_raw) => eval_bit_or(lv_raw, rv()?),
+                    Value::Short(lv_raw) => eval_bit_or(lv_raw, rv()?),
+                    Value::Int(lv_raw) => eval_bit_or(lv_raw, rv()?),
+                    Value::Long(lv_raw) => eval_bit_or(lv_raw, rv()?),
+                    Value::BigInt(lv_raw) => eval_bit_or(lv_raw, rv()?),
+                    _ => Err(EvalError::UnexpectedValue(format!(
+                        "expected BinOp::left to be numeric value, got {0:?}",
+                        lv
+                    ))),
+                },
+                ArithOp::BitXor => match lv {
+                    Value::Byte(lv_raw) => eval_bit_xor(lv_raw, rv()?),
+                    Value::Short(lv_raw) => eval_bit_xor(lv_raw, rv()?),
+                    Value::Int(lv_raw) => eval_bit_xor(lv_raw, rv()?),
+                    Value::Long(lv_raw) => eval_bit_xor(lv_raw, rv()?),
+                    Value::BigInt(lv_raw) => eval_bit_xor(lv_raw, rv()?),
                     _ => Err(EvalError::UnexpectedValue(format!(
                         "expected BinOp::left to be numeric value, got {0:?}",
                         lv
@@ -411,6 +468,10 @@ mod tests {
             prop_assert_eq!(eval_num_op::<i64>(ArithOp::Max, l.into(), r.into()).unwrap(), l.max(r));
             prop_assert_eq!(eval_num_op::<i64>(ArithOp::Min, l.into(), r.into()).unwrap(), l.min(r));
 
+            prop_assert_eq!(eval_num_op(ArithOp::BitAnd, l.into(), r.into()), Ok(l & r));
+            prop_assert_eq!(eval_num_op(ArithOp::BitOr, l.into(), r.into()), Ok(l | r));
+            prop_assert_eq!(eval_num_op(ArithOp::BitXor, l.into(), r.into()), Ok(l ^ r));
+
             prop_assert_eq!(eval_relation_op(RelationOp::Gt, l.into(), r.into()), l > r);
             prop_assert_eq!(eval_relation_op(RelationOp::Lt, l.into(), r.into()), l < r);
             prop_assert_eq!(eval_relation_op(RelationOp::Ge, l.into(), r.into()), l >= r);
@@ -425,6 +486,10 @@ mod tests {
             prop_assert_eq!(eval_num_op(ArithOp::Divide, l.into(), r.into()).ok(), l.checked_div(r));
             prop_assert_eq!(eval_num_op::<i32>(ArithOp::Max, l.into(), r.into()).unwrap(), l.max(r));
             prop_assert_eq!(eval_num_op::<i32>(ArithOp::Min, l.into(), r.into()).unwrap(), l.min(r));
+
+            prop_assert_eq!(eval_num_op(ArithOp::BitAnd, l.into(), r.into()), Ok(l & r));
+            prop_assert_eq!(eval_num_op(ArithOp::BitOr, l.into(), r.into()), Ok(l | r));
+            prop_assert_eq!(eval_num_op(ArithOp::BitXor, l.into(), r.into()), Ok(l ^ r));
 
             prop_assert_eq!(eval_relation_op(RelationOp::Gt, l.into(), r.into()), l > r);
             prop_assert_eq!(eval_relation_op(RelationOp::Lt, l.into(), r.into()), l < r);
@@ -441,6 +506,10 @@ mod tests {
             prop_assert_eq!(eval_num_op::<i16>(ArithOp::Max, l.into(), r.into()).unwrap(), l.max(r));
             prop_assert_eq!(eval_num_op::<i16>(ArithOp::Min, l.into(), r.into()).unwrap(), l.min(r));
 
+            prop_assert_eq!(eval_num_op(ArithOp::BitAnd, l.into(), r.into()), Ok(l & r));
+            prop_assert_eq!(eval_num_op(ArithOp::BitOr, l.into(), r.into()), Ok(l | r));
+            prop_assert_eq!(eval_num_op(ArithOp::BitXor, l.into(), r.into()), Ok(l ^ r));
+
             prop_assert_eq!(eval_relation_op(RelationOp::Gt, l.into(), r.into()), l > r);
             prop_assert_eq!(eval_relation_op(RelationOp::Lt, l.into(), r.into()), l < r);
             prop_assert_eq!(eval_relation_op(RelationOp::Ge, l.into(), r.into()), l >= r);
@@ -455,6 +524,10 @@ mod tests {
             prop_assert_eq!(eval_num_op(ArithOp::Divide, l.into(), r.into()).ok(), l.checked_div(r));
             prop_assert_eq!(eval_num_op::<i8>(ArithOp::Max, l.into(), r.into()).unwrap(), l.max(r));
             prop_assert_eq!(eval_num_op::<i8>(ArithOp::Min, l.into(), r.into()).unwrap(), l.min(r));
+
+            prop_assert_eq!(eval_num_op(ArithOp::BitAnd, l.into(), r.into()), Ok(l & r));
+            prop_assert_eq!(eval_num_op(ArithOp::BitOr, l.into(), r.into()), Ok(l | r));
+            prop_assert_eq!(eval_num_op(ArithOp::BitXor, l.into(), r.into()), Ok(l ^ r));
 
             prop_assert_eq!(eval_relation_op(RelationOp::Gt, l.into(), r.into()), l > r);
             prop_assert_eq!(eval_relation_op(RelationOp::Lt, l.into(), r.into()), l < r);
@@ -474,6 +547,11 @@ mod tests {
                     r.clone().into()).unwrap(), l.clone().max(r.clone()));
             prop_assert_eq!(eval_num_op::<BigInt>(ArithOp::Min, l.clone().into(),
                     r.clone().into()).unwrap(), l.clone().min(r.clone()));
+
+            prop_assert_eq!(eval_num_op(ArithOp::BitAnd, l.clone().into(), r.clone().into()), Ok(&l & &r));
+            prop_assert_eq!(eval_num_op(ArithOp::BitOr, l.clone().into(), r.clone().into()), Ok(&l | &r));
+            prop_assert_eq!(eval_num_op(ArithOp::BitXor, l.clone().into(), r.clone().into()), Ok(&l ^ &r));
+
             prop_assert_eq!(eval_relation_op(RelationOp::Gt, l.clone().into(), r.clone().into()), l > r);
             prop_assert_eq!(eval_relation_op(RelationOp::Lt, l.clone().into(), r.clone().into()), l < r);
             prop_assert_eq!(eval_relation_op(RelationOp::Ge, l.clone().into(), r.clone().into()), l >= r);

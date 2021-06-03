@@ -27,6 +27,12 @@ pub enum ArithOp {
     Max,
     /// Min of two values
     Min,
+    /// Bitwise Or
+    BitOr,
+    /// Bitwise And
+    BitAnd,
+    /// Bitwise Xor
+    BitXor,
 }
 
 impl From<ArithOp> for OpCode {
@@ -38,6 +44,9 @@ impl From<ArithOp> for OpCode {
             ArithOp::Divide => OpCode::DIVISION,
             ArithOp::Max => OpCode::MAX,
             ArithOp::Min => OpCode::MIN,
+            ArithOp::BitOr => OpCode::BIT_OR,
+            ArithOp::BitAnd => OpCode::BIT_AND,
+            ArithOp::BitXor => OpCode::BIT_XOR,
         }
     }
 }
