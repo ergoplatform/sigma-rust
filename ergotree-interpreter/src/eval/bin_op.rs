@@ -77,28 +77,13 @@ where
     .into())
 }
 
-fn eval_bit_and<T>(lv_raw: T, rv: Value) -> Result<Value, EvalError>
+fn eval_bit_op<T, F>(lv_raw: T, rv: Value, op: F) -> Result<Value, EvalError>
 where
-    T: Num + TryExtractFrom<Value> + Into<Value> + std::fmt::Display + std::ops::BitAnd<Output = T>,
+    T: Num + TryExtractFrom<Value> + Into<Value> + std::fmt::Display,
+    F: FnOnce(T, T) -> T,
 {
     let rv_raw = rv.try_extract_into::<T>()?;
-    Ok((lv_raw & rv_raw).into())
-}
-
-fn eval_bit_or<T>(lv_raw: T, rv: Value) -> Result<Value, EvalError>
-where
-    T: Num + TryExtractFrom<Value> + Into<Value> + std::fmt::Display + std::ops::BitOr<Output = T>,
-{
-    let rv_raw = rv.try_extract_into::<T>()?;
-    Ok((lv_raw | rv_raw).into())
-}
-
-fn eval_bit_xor<T>(lv_raw: T, rv: Value) -> Result<Value, EvalError>
-where
-    T: Num + TryExtractFrom<Value> + Into<Value> + std::fmt::Display + std::ops::BitXor<Output = T>,
-{
-    let rv_raw = rv.try_extract_into::<T>()?;
-    Ok((lv_raw ^ rv_raw).into())
+    Ok(op(lv_raw, rv_raw).into())
 }
 
 fn eval_ge(lv: Value, rv: Value) -> Result<Value, EvalError> {
@@ -266,33 +251,33 @@ impl Evaluable for BinOp {
                     ))),
                 },
                 ArithOp::BitAnd => match lv {
-                    Value::Byte(lv_raw) => eval_bit_and(lv_raw, rv()?),
-                    Value::Short(lv_raw) => eval_bit_and(lv_raw, rv()?),
-                    Value::Int(lv_raw) => eval_bit_and(lv_raw, rv()?),
-                    Value::Long(lv_raw) => eval_bit_and(lv_raw, rv()?),
-                    Value::BigInt(lv_raw) => eval_bit_and(lv_raw, rv()?),
+                    Value::Byte(lv_raw) => eval_bit_op(lv_raw, rv()?, |l, r| l & r),
+                    Value::Short(lv_raw) => eval_bit_op(lv_raw, rv()?, |l, r| l & r),
+                    Value::Int(lv_raw) => eval_bit_op(lv_raw, rv()?, |l, r| l & r),
+                    Value::Long(lv_raw) => eval_bit_op(lv_raw, rv()?, |l, r| l & r),
+                    Value::BigInt(lv_raw) => eval_bit_op(lv_raw, rv()?, |l, r| l & r),
                     _ => Err(EvalError::UnexpectedValue(format!(
                         "expected BinOp::left to be numeric value, got {0:?}",
                         lv
                     ))),
                 },
                 ArithOp::BitOr => match lv {
-                    Value::Byte(lv_raw) => eval_bit_or(lv_raw, rv()?),
-                    Value::Short(lv_raw) => eval_bit_or(lv_raw, rv()?),
-                    Value::Int(lv_raw) => eval_bit_or(lv_raw, rv()?),
-                    Value::Long(lv_raw) => eval_bit_or(lv_raw, rv()?),
-                    Value::BigInt(lv_raw) => eval_bit_or(lv_raw, rv()?),
+                    Value::Byte(lv_raw) => eval_bit_op(lv_raw, rv()?, |l, r| l | r),
+                    Value::Short(lv_raw) => eval_bit_op(lv_raw, rv()?, |l, r| l | r),
+                    Value::Int(lv_raw) => eval_bit_op(lv_raw, rv()?, |l, r| l | r),
+                    Value::Long(lv_raw) => eval_bit_op(lv_raw, rv()?, |l, r| l | r),
+                    Value::BigInt(lv_raw) => eval_bit_op(lv_raw, rv()?, |l, r| l | r),
                     _ => Err(EvalError::UnexpectedValue(format!(
                         "expected BinOp::left to be numeric value, got {0:?}",
                         lv
                     ))),
                 },
                 ArithOp::BitXor => match lv {
-                    Value::Byte(lv_raw) => eval_bit_xor(lv_raw, rv()?),
-                    Value::Short(lv_raw) => eval_bit_xor(lv_raw, rv()?),
-                    Value::Int(lv_raw) => eval_bit_xor(lv_raw, rv()?),
-                    Value::Long(lv_raw) => eval_bit_xor(lv_raw, rv()?),
-                    Value::BigInt(lv_raw) => eval_bit_xor(lv_raw, rv()?),
+                    Value::Byte(lv_raw) => eval_bit_op(lv_raw, rv()?, |l, r| l ^ r),
+                    Value::Short(lv_raw) => eval_bit_op(lv_raw, rv()?, |l, r| l ^ r),
+                    Value::Int(lv_raw) => eval_bit_op(lv_raw, rv()?, |l, r| l ^ r),
+                    Value::Long(lv_raw) => eval_bit_op(lv_raw, rv()?, |l, r| l ^ r),
+                    Value::BigInt(lv_raw) => eval_bit_op(lv_raw, rv()?, |l, r| l ^ r),
                     _ => Err(EvalError::UnexpectedValue(format!(
                         "expected BinOp::left to be numeric value, got {0:?}",
                         lv
