@@ -8,7 +8,8 @@ use crate::types::stype::SType;
 use std::io;
 
 impl Constant {
-    ///
+    /// Parse constant from byte stream. This function should be used instead of
+    /// `sigma_parse` when type code is already read for look-ahead
     pub fn parse_with_type_code<R: SigmaByteRead>(
         r: &mut R,
         t_code: TypeCode,

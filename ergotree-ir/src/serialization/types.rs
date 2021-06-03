@@ -79,6 +79,7 @@ impl TypeCode {
         TypeCode(c)
     }
 
+    /// Parse type code from single byte.
     pub fn parse(b: u8) -> Result<Self, SerializationError> {
         match b {
             0 => Err(SerializationError::InvalidTypePrefix),
@@ -138,6 +139,8 @@ fn is_stype_embeddable(tpe: &SType) -> bool {
 }
 
 impl SType {
+    /// Parse type from byte stream. This function should be used instead of
+    /// `sigma_parse` when type code is already read for look-ahead
     pub fn parse_with_type_code<R: SigmaByteRead>(
         r: &mut R,
         c: TypeCode,

@@ -65,7 +65,8 @@ use crate::serialization::types::TypeCode;
 use std::io;
 
 impl Expr {
-    ///
+    /// Parse expression from byte stream. This function should be used instead of
+    /// `sigma_parse` when tag byte is already read for look-ahead
     pub fn parse_with_tag<R: SigmaByteRead>(
         r: &mut R,
         tag: u8,
