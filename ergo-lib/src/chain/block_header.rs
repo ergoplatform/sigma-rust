@@ -22,7 +22,10 @@ pub struct BlockId(Digest32);
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 #[cfg_attr(
     feature = "json",
-    serde(into = "Base16EncodedBytes", try_from = "Base16DecodedBytes")
+    serde(
+        into = "Base16EncodedBytes",
+        try_from = "crate::chain::json::block_header::VotesEncodingVariants"
+    )
 )]
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Votes(pub [u8; 3]);
@@ -39,7 +42,15 @@ impl TryFrom<Base16DecodedBytes> for Votes {
     type Error = VotesError;
 
     fn try_from(bytes: Base16DecodedBytes) -> Result<Self, Self::Error> {
-        let arr: [u8; 3] = bytes.0.as_slice().try_into()?;
+        bytes.0.try_into()
+    }
+}
+
+impl TryFrom<Vec<u8>> for Votes {
+    type Error = VotesError;
+
+    fn try_from(bytes: Vec<u8>) -> Result<Self, Self::Error> {
+        let arr: [u8; 3] = bytes.as_slice().try_into()?;
         Ok(Self(arr))
     }
 }

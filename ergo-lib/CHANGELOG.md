@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Added 
 - AND, OR conjecture support in sigma protocol [#226](https://github.com/ergoplatform/sigma-rust/pull/226);
 - Support for ErgoTree header v1 with tree size [#281](https://github.com/ergoplatform/sigma-rust/pull/281);
+- Add support for explorer v1 JSON format parsing for `BlockHeader::votes` [#285](https://github.com/ergoplatform/sigma-rust/pull/285);
 
 ## [0.13.1] - 2021-05-28
 

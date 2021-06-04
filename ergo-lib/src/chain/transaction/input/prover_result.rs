@@ -26,7 +26,7 @@ pub struct ProverResult {
     #[cfg_attr(
         feature = "json",
         serde(rename = "extension"),
-        serde(with = "crate::chain::json::ContextExtensionSerde")
+        serde(with = "crate::chain::json::context_extension::ContextExtensionSerde")
     )]
     pub extension: ContextExtension,
 }
