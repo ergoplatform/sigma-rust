@@ -163,7 +163,7 @@ impl SigmaSerializable for BoxValue {
 #[derive(Error, Eq, PartialEq, Debug, Clone)]
 pub enum BoxValueError {
     /// Value is out of bounds
-    #[error("Value is out of bounds: {0}")]
+    #[error("Box value is out of bounds: {0}")]
     OutOfBounds(u64),
     /// Overflow
     #[error("Overflow")]

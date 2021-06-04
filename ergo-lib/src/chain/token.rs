@@ -96,7 +96,7 @@ impl TokenAmount {
 #[derive(Error, Eq, PartialEq, Debug, Clone)]
 pub enum TokenAmountError {
     /// Value is out of bounds
-    #[error("Value is out of bounds: {0}")]
+    #[error("Token amount is out of bounds: {0}")]
     OutOfBounds(u64),
     /// Overflow
     #[error("Overflow")]
