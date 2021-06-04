@@ -409,15 +409,15 @@ mod tests {
         assert_eq!(eval_out::<bool>(&e, ctx), false);
     }
 
-    fn eval_num_op<T: TryExtractFrom<Value>>(
+    fn eval_num_op<T: TryExtractFrom<Value> + Into<Constant>>(
         op: ArithOp,
-        left: Constant,
-        right: Constant,
+        left: T,
+        right: T,
     ) -> Result<T, EvalError> {
         let expr: Expr = BinOp {
             kind: BinOpKind::Arith(op),
-            left: Box::new(left.into()),
-            right: Box::new(right.into()),
+            left: Box::new(left.into().into()),
+            right: Box::new(right.into().into()),
         }
         .into();
         let ctx = Rc::new(force_any_val::<Context>());
@@ -433,6 +433,36 @@ mod tests {
         .into();
         let ctx = Rc::new(force_any_val::<Context>());
         eval_out::<bool>(&expr, ctx)
+    }
+
+    #[test]
+    fn test_bigint_extremes() {
+        let b = BigInt::from;
+        // Our BigInt should behave like a 256 bit signed (two's complement) integer according to
+        // the language spec. These are the max and min values representable:
+        let max = || (b(1) << 255) - 1;
+        let min = || (b(1) << 255) * -1;
+
+        // The commented tests below are currently failing due to issue #288.
+
+        // assert!(   eval_num_op(ArithOp::Multiply, max(), b(2)).is_err());
+        assert_eq!(eval_num_op(ArithOp::Multiply, max(), b(1)), Ok(max()));
+        // assert!(   eval_num_op(ArithOp::Multiply, min(), b(2)).is_err());
+        assert_eq!(eval_num_op(ArithOp::Multiply, min(), b(1)), Ok(min()));
+
+        // assert!(   eval_num_op(ArithOp::Plus, max(), b(1)).is_err());
+        assert_eq!(eval_num_op(ArithOp::Plus, max(), b(0)), Ok(max()));
+        // assert!(   eval_num_op(ArithOp::Plus, min(), b(-1)).is_err());
+        assert_eq!(eval_num_op(ArithOp::Plus, min(), b(0)), Ok(min()));
+
+        // assert!(   eval_num_op(ArithOp::Minus, max(), b(-1)).is_err());
+        assert_eq!(eval_num_op(ArithOp::Minus, max(), b(0)), Ok(max()));
+        // assert!(   eval_num_op(ArithOp::Minus, min(), b(1)).is_err());
+        assert_eq!(eval_num_op(ArithOp::Minus, min(), b(0)), Ok(min()));
+
+        assert_eq!(eval_num_op(ArithOp::BitAnd, max(), min()), Ok(b(0)));
+        assert_eq!(eval_num_op(ArithOp::BitOr,  max(), min()), Ok(b(-1)));
+        assert_eq!(eval_num_op(ArithOp::BitXor, max(), min()), Ok(b(-1)));
     }
 
     proptest! {
