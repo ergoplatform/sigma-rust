@@ -26,10 +26,10 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 - :heavy_check_mark: comparison: `>, <, >=, <=, ==, !=`;
 - :heavy_check_mark: arithmetic: ` +, -, *, /, %`;
 - :heavy_check_mark: logical: ` &&, ||`;
-- | (bitwise OR);
-- & (bitwise AND);
+- :heavy_check_mark: | (bitwise OR);
+- :heavy_check_mark: & (bitwise AND);
+- :heavy_check_mark: ^ (bitwise XOR);
 - ^ (logical XOR);
-- ^ (bitwise XOR);
 - `|` (byte-wise XOR of two collections of bytes);
 - :heavy_check_mark: unary `!`;
 - :heavy_check_mark: unary `-`;
