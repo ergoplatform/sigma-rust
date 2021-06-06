@@ -3,15 +3,13 @@ use ergotree_ir::mir::byte_array_to_bigint::ByteArrayToBigInt;
 use ergotree_ir::mir::value::Value;
 
 use crate::eval::env::Env;
+use crate::eval::bigint::{MIN_BOUND, MAX_BOUND};
 use crate::eval::EvalContext;
 use crate::eval::EvalError;
 use crate::eval::EvalError::UnexpectedValue;
 use crate::eval::Evaluable;
 use ergotree_ir::mir::constant::TryExtractInto;
 use ergotree_ir::mir::value::Value::BigInt;
-use lazy_static::lazy_static;
-use num_bigint::ToBigInt;
-use num_traits::pow::Pow;
 
 impl Evaluable for ByteArrayToBigInt {
     fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
@@ -34,15 +32,6 @@ impl Evaluable for ByteArrayToBigInt {
         }
         Ok(BigInt(n))
     }
-}
-
-lazy_static! {
-    static ref MAX_BOUND: num_bigint::BigInt =
-        Pow::pow(2.to_bigint().unwrap(), 255_u32) - 1.to_bigint().unwrap();
-}
-
-lazy_static! {
-    static ref MIN_BOUND: num_bigint::BigInt = -Pow::pow(2.to_bigint().unwrap(), 255_u32);
 }
 
 #[allow(clippy::unwrap_used)]
