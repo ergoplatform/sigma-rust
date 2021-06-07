@@ -27,7 +27,7 @@ impl GlobalVars {
             GlobalVars::Outputs => SType::SColl(Box::new(SType::SBox)),
             GlobalVars::Height => SType::SInt,
             GlobalVars::SelfBox => SType::SBox,
-            GlobalVars::MinerPubKey => SType::SGroupElement,
+            GlobalVars::MinerPubKey => SType::SColl(Box::new(SType::SByte)),
         }
     }
 }
