@@ -25,6 +25,9 @@ pub struct Digest<const N: usize>(pub Box<[u8; N]>);
 /// Usually this is as blake2b hash of serialized form
 pub type Digest32 = Digest<32>;
 
+/// 33-byte digest
+pub type ADDigest = Digest<33>;
+
 impl<const N: usize> Digest<N> {
     /// Digest size 32 bytes
     pub const SIZE: usize = N;
