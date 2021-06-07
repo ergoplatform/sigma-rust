@@ -41,9 +41,9 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 - groupGenerator
 - xor
 - substConstants
-- longToByteArray
-- byteArrayToBigInt
-- byteArrayToLong
+- :heavy_check_mark: longToByteArray
+- :heavy_check_mark: byteArrayToBigInt
+- :heavy_check_mark: byteArrayToLong
 - downcast
 - :heavy_check_mark: upcast
 - :heavy_check_mark: allOf
@@ -58,9 +58,9 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 - :heavy_check_mark: proveDlog
 - :heavy_check_mark: proveDHTuple
 - :heavy_check_mark: sigmaProp
-- executeFromVar
-- executeFromSelfReg
-- getVar
+- :heavy_check_mark: executeFromVar
+- :heavy_check_mark: executeFromSelfReg
+- :heavy_check_mark: getVar
 - :heavy_check_mark: allZK
 - :heavy_check_mark: anyZK
 - :heavy_check_mark: decodePoint
