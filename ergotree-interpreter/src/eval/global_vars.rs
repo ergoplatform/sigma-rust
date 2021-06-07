@@ -5,6 +5,7 @@ use ergotree_ir::mir::value::Value;
 use super::EvalContext;
 use super::EvalError;
 use super::Evaluable;
+use ergotree_ir::serialization::SigmaSerializable;
 
 impl Evaluable for GlobalVars {
     fn eval(&self, _env: &Env, ectx: &mut EvalContext) -> Result<Value, EvalError> {
@@ -13,7 +14,9 @@ impl Evaluable for GlobalVars {
             GlobalVars::SelfBox => Ok(ectx.ctx.self_box.clone().into()),
             GlobalVars::Outputs => Ok(ectx.ctx.outputs.clone().into()),
             GlobalVars::Inputs => Ok(ectx.ctx.inputs.clone().into()),
-            GlobalVars::MinerPubKey => Ok(ectx.ctx.pre_header.miner_pk.clone().into()),
+            GlobalVars::MinerPubKey => {
+                Ok(ectx.ctx.pre_header.miner_pk.sigma_serialize_bytes().into())
+            }
         }
     }
 }
