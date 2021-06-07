@@ -2,8 +2,8 @@
 use ergotree_ir::mir::byte_array_to_bigint::ByteArrayToBigInt;
 use ergotree_ir::mir::value::Value;
 
+use crate::eval::bigint::{MAX_BOUND, MIN_BOUND};
 use crate::eval::env::Env;
-use crate::eval::bigint::{MIN_BOUND, MAX_BOUND};
 use crate::eval::EvalContext;
 use crate::eval::EvalError;
 use crate::eval::EvalError::UnexpectedValue;
