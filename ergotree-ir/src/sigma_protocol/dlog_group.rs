@@ -28,8 +28,15 @@ use std::{
 };
 
 /// Elliptic curve point
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Clone)]
 pub struct EcPoint(ProjectivePoint);
+
+impl std::fmt::Debug for EcPoint {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.write_str("EC:")?;
+        f.write_str(&base16::encode_lower(&self.sigma_serialize_bytes()))
+    }
+}
 
 impl EcPoint {
     /// Number of bytes to represent any group element as byte array
