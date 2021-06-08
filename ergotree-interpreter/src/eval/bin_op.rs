@@ -34,8 +34,8 @@ fn arithmetic_err<T: std::fmt::Display>(
     ))
 }
 
-fn check_bigint_overflow(res: Result<Value, EvalError>) -> Result<Value, EvalError> {
-    let bigint = res?.try_extract_into::<BigInt>()?;
+fn check_bigint_overflow(val: Value) -> Result<Value, EvalError> {
+    let bigint = val.try_extract_into::<BigInt>()?;
     if fits_in_256_bits(&bigint) {
         Ok(bigint.into())
     } else {
@@ -201,7 +201,7 @@ impl Evaluable for BinOp {
                     Value::Short(lv_raw) => eval_plus(lv_raw, rv()?),
                     Value::Int(lv_raw) => eval_plus(lv_raw, rv()?),
                     Value::Long(lv_raw) => eval_plus(lv_raw, rv()?),
-                    Value::BigInt(lv_raw) => check_bigint_overflow(eval_plus(lv_raw, rv()?)),
+                    Value::BigInt(lv_raw) => check_bigint_overflow(eval_plus(lv_raw, rv()?)?),
                     _ => Err(EvalError::UnexpectedValue(format!(
                         "expected BinOp::left to be numeric value, got {0:?}",
                         lv
@@ -212,7 +212,7 @@ impl Evaluable for BinOp {
                     Value::Short(lv_raw) => eval_minus(lv_raw, rv()?),
                     Value::Int(lv_raw) => eval_minus(lv_raw, rv()?),
                     Value::Long(lv_raw) => eval_minus(lv_raw, rv()?),
-                    Value::BigInt(lv_raw) => check_bigint_overflow(eval_minus(lv_raw, rv()?)),
+                    Value::BigInt(lv_raw) => check_bigint_overflow(eval_minus(lv_raw, rv()?)?),
                     _ => Err(EvalError::UnexpectedValue(format!(
                         "expected BinOp::left to be numeric value, got {0:?}",
                         lv
@@ -223,7 +223,7 @@ impl Evaluable for BinOp {
                     Value::Short(lv_raw) => eval_mul(lv_raw, rv()?),
                     Value::Int(lv_raw) => eval_mul(lv_raw, rv()?),
                     Value::Long(lv_raw) => eval_mul(lv_raw, rv()?),
-                    Value::BigInt(lv_raw) => check_bigint_overflow(eval_mul(lv_raw, rv()?)),
+                    Value::BigInt(lv_raw) => check_bigint_overflow(eval_mul(lv_raw, rv()?)?),
                     _ => Err(EvalError::UnexpectedValue(format!(
                         "expected BinOp::left to be numeric value, got {0:?}",
                         lv
@@ -235,7 +235,7 @@ impl Evaluable for BinOp {
                     Value::Int(lv_raw) => eval_div(lv_raw, rv()?),
                     Value::Long(lv_raw) => eval_div(lv_raw, rv()?),
                     // MIN / -1  can actually overflow
-                    Value::BigInt(lv_raw) => check_bigint_overflow(eval_div(lv_raw, rv()?)),
+                    Value::BigInt(lv_raw) => check_bigint_overflow(eval_div(lv_raw, rv()?)?),
                     _ => Err(EvalError::UnexpectedValue(format!(
                         "expected BinOp::left to be numeric value, got {0:?}",
                         lv
