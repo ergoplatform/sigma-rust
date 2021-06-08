@@ -129,7 +129,7 @@ fn fiat_shamir_write_bytes<W: SigmaByteWrite>(
             w.put_u8(INTERNAL_NODE_PREFIX)?;
             w.put_u8(c.conjecture_type() as u8)?;
             w.put_i16_be_bytes(c.children().len() as i16)?;
-            for child in c.children() {
+            for child in c.children().iter() {
                 fiat_shamir_write_bytes(&child, w)?;
             }
         }

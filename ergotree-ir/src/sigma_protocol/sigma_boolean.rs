@@ -14,12 +14,16 @@ use std::convert::TryFrom;
 use std::convert::TryInto;
 
 extern crate derive_more;
+use bounded_vec::BoundedVec;
 use derive_more::From;
 use derive_more::Into;
 use derive_more::TryInto;
 
 pub mod cand;
 pub mod cor;
+
+/// Sigma conjecture items type with bounds check (2..=1000)
+pub type SigmaConjectureItems<T> = BoundedVec<T, 2, 1000>;
 
 /// Construct a new SigmaBoolean value representing public key of discrete logarithm signature protocol.
 #[derive(PartialEq, Eq, Debug, Clone)]

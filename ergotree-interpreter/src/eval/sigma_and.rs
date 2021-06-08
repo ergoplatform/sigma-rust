@@ -11,13 +11,10 @@ use crate::eval::Evaluable;
 
 impl Evaluable for SigmaAnd {
     fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
-        let items_v_res: Result<Vec<Value>, EvalError> =
-            self.items.iter().map(|arg| arg.eval(env, ctx)).collect();
+        let items_v_res = self.items.try_mapped_ref(|it| it.eval(env, ctx));
         let items_sigmabool = items_v_res?
-            .try_extract_into::<Vec<SigmaProp>>()?
-            .into_iter()
-            .map(|sp| sp.into())
-            .collect();
+            .try_mapped(|it| it.try_extract_into::<SigmaProp>())?
+            .mapped(|it| it.value().clone());
         Ok(Value::SigmaProp(Box::new(SigmaProp::new(
             Cand::normalized(items_sigmabool),
         ))))
@@ -29,6 +26,7 @@ impl Evaluable for SigmaAnd {
 mod tests {
     use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
     use ergotree_ir::sigma_protocol::sigma_boolean::SigmaConjecture;
+    use std::convert::TryInto;
     use std::rc::Rc;
 
     use crate::eval::context::Context;
@@ -54,7 +52,7 @@ mod tests {
             let expected_sb: Vec<SigmaBoolean> = sigmaprops.into_iter().map(|sp| sp.into()).collect();
             prop_assert!(matches!(res.clone().into(), SigmaBoolean::SigmaConjecture(SigmaConjecture::Cand(_))));
             if let SigmaBoolean::SigmaConjecture(SigmaConjecture::Cand(Cand {items: actual_sb})) = res.into() {
-                prop_assert_eq!(actual_sb, expected_sb);
+                prop_assert_eq!(actual_sb, expected_sb.try_into().unwrap());
             }
         }
     }

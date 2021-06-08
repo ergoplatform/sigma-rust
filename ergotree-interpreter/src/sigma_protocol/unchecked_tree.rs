@@ -2,6 +2,7 @@
 
 use ergotree_ir::sigma_protocol::sigma_boolean::ProveDlog;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
+use ergotree_ir::sigma_protocol::sigma_boolean::SigmaConjectureItems;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
 
 use super::proof_tree::ConjectureType;
@@ -121,16 +122,16 @@ impl From<UncheckedSchnorr> for UncheckedTree {
 pub enum UncheckedConjecture {
     CandUnchecked {
         challenge: Challenge,
-        children: Vec<UncheckedSigmaTree>,
+        children: SigmaConjectureItems<UncheckedSigmaTree>,
     },
     CorUnchecked {
         challenge: Challenge,
-        children: Vec<UncheckedSigmaTree>,
+        children: SigmaConjectureItems<UncheckedSigmaTree>,
     },
 }
 
 impl UncheckedConjecture {
-    pub fn with_children(self, new_children: Vec<UncheckedSigmaTree>) -> Self {
+    pub fn with_children(self, new_children: SigmaConjectureItems<UncheckedSigmaTree>) -> Self {
         match self {
             UncheckedConjecture::CandUnchecked {
                 challenge,
@@ -149,7 +150,7 @@ impl UncheckedConjecture {
         }
     }
 
-    pub fn children_ust(&self) -> &[UncheckedSigmaTree] {
+    pub fn children_ust(&self) -> &SigmaConjectureItems<UncheckedSigmaTree> {
         match self {
             UncheckedConjecture::CandUnchecked {
                 challenge: _,
@@ -184,22 +185,16 @@ impl ProofTreeConjecture for UncheckedConjecture {
         }
     }
 
-    fn children(&self) -> Vec<ProofTree> {
+    fn children(&self) -> SigmaConjectureItems<ProofTree> {
         match self {
             UncheckedConjecture::CandUnchecked {
                 challenge: _,
                 children,
-            } => children
-                .iter()
-                .map(|ust| ust.clone().into())
-                .collect::<Vec<ProofTree>>(),
+            } => children.mapped(|ust| ust.clone().into()),
             UncheckedConjecture::CorUnchecked {
                 challenge: _,
                 children,
-            } => children
-                .iter()
-                .map(|ust| ust.clone().into())
-                .collect::<Vec<ProofTree>>(),
+            } => children.mapped(|ust| ust.clone().into()),
         }
     }
 }

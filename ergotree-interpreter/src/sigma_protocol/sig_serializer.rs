@@ -63,6 +63,7 @@ fn sig_write_bytes<W: SigmaByteWrite>(
                 challenge: _,
                 children,
             } => {
+                // TODO: implement into_iter
                 // don't write children's challenges -- they are equal to the challenge of this node
                 for child in children {
                     sig_write_bytes(child, w, false)?;

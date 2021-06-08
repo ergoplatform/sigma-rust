@@ -123,9 +123,7 @@ fn compute_commitments(sp: UncheckedSigmaTree) -> UncheckedSigmaTree {
             .clone()
             .with_children(
                 conj.children_ust()
-                    .iter()
-                    .map(|c| compute_commitments(c.clone()))
-                    .collect(),
+                    .mapped(|c| compute_commitments(c.clone())),
             )
             .into(),
     }

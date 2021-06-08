@@ -1,25 +1,27 @@
 //! AND conjunction for sigma proposition
+use std::convert::TryInto;
+
 use super::SigmaBoolean;
+use super::SigmaConjectureItems;
 use crate::sigma_protocol::sigma_boolean::SigmaConjecture;
 
 /// AND conjunction for sigma proposition
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Cand {
     /// Items of the conjunctions
-    pub items: Vec<SigmaBoolean>,
+    pub items: SigmaConjectureItems<SigmaBoolean>,
 }
 
 impl Cand {
     /// Connects the given sigma propositions into CAND proposition performing
     /// partial evaluation when some of them are trivial propositioins.
-    pub fn normalized(items: Vec<SigmaBoolean>) -> SigmaBoolean {
-        assert!(!items.is_empty());
-        let mut res = Vec::new();
-        for it in items {
+    pub fn normalized(items: SigmaConjectureItems<SigmaBoolean>) -> SigmaBoolean {
+        let mut res: Vec<SigmaBoolean> = Vec::new();
+        for it in items.iter() {
             match it {
-                SigmaBoolean::TrivialProp(false) => return it,
+                SigmaBoolean::TrivialProp(false) => return it.clone(),
                 SigmaBoolean::TrivialProp(true) => (),
-                _ => res.push(it),
+                _ => res.push(it.clone()),
             }
         }
         if res.is_empty() {
@@ -28,7 +30,11 @@ impl Cand {
             #[allow(clippy::unwrap_used)]
             res.first().unwrap().clone()
         } else {
-            SigmaBoolean::SigmaConjecture(SigmaConjecture::Cand(Cand { items: res }))
+            #[allow(clippy::unwrap_used)]
+            SigmaBoolean::SigmaConjecture(SigmaConjecture::Cand(Cand {
+                // should be 2 or more so unwrap is safe here
+                items: res.try_into().unwrap(),
+            }))
         }
     }
 }
@@ -43,20 +49,20 @@ mod tests {
 
     #[test]
     fn trivial_true() {
-        let cand = Cand::normalized(vec![true.into()]);
+        let cand = Cand::normalized(vec![true.into()].try_into().unwrap());
         assert!(matches!(cand, SigmaBoolean::TrivialProp(true)));
     }
 
     #[test]
     fn trivial_false() {
-        let cand = Cand::normalized(vec![false.into()]);
+        let cand = Cand::normalized(vec![false.into()].try_into().unwrap());
         assert!(matches!(cand, SigmaBoolean::TrivialProp(false)));
     }
 
     #[test]
     fn pk() {
         let pk = force_any_val::<ProveDlog>();
-        let cand = Cand::normalized(vec![pk.clone().into()]);
+        let cand = Cand::normalized(vec![pk.clone().into()].try_into().unwrap());
         let res: ProveDlog = cand.try_into().unwrap();
         assert_eq!(res, pk);
     }
@@ -64,7 +70,7 @@ mod tests {
     #[test]
     fn pk_triv_true() {
         let pk = force_any_val::<ProveDlog>();
-        let cand = Cand::normalized(vec![pk.clone().into(), true.into()]);
+        let cand = Cand::normalized(vec![pk.clone().into(), true.into()].try_into().unwrap());
         let res: ProveDlog = cand.try_into().unwrap();
         assert_eq!(res, pk);
     }
@@ -72,7 +78,7 @@ mod tests {
     #[test]
     fn pk_triv_false() {
         let pk = force_any_val::<ProveDlog>();
-        let cand = Cand::normalized(vec![pk.into(), false.into()]);
+        let cand = Cand::normalized(vec![pk.into(), false.into()].try_into().unwrap());
         assert!(matches!(cand, SigmaBoolean::TrivialProp(false)));
     }
 
@@ -80,7 +86,8 @@ mod tests {
     fn pk_pk() {
         let pk1 = force_any_val::<ProveDlog>();
         let pk2 = force_any_val::<ProveDlog>();
-        let pks = vec![pk1.into(), pk2.into()];
+        let pks: SigmaConjectureItems<SigmaBoolean> =
+            vec![pk1.into(), pk2.into()].try_into().unwrap();
         let cand = Cand::normalized(pks.clone());
         assert!(matches!(
             cand,
