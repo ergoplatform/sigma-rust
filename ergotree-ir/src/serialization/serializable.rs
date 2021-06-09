@@ -147,17 +147,11 @@ impl<T: SigmaSerializable, const L: usize, const U: usize> SigmaSerializable
     for BoundedVec<T, L, U>
 {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
-        w.put_u32(self.len() as u32)?;
-        self.iter().try_for_each(|i| i.sigma_serialize(w))
+        self.as_vec().sigma_serialize(w)
     }
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
-        let items_count = r.get_u32()?;
-        let mut items = Vec::with_capacity(items_count as usize);
-        for _ in 0..items_count {
-            items.push(T::sigma_parse(r)?);
-        }
-        Ok(items.try_into()?)
+        Ok(Vec::<T>::sigma_parse(r)?.try_into()?)
     }
 }
 

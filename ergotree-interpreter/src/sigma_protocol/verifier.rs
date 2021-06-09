@@ -294,7 +294,7 @@ mod tests {
                     Rc::new(force_any_val::<Context>()),
                     message.as_slice(),
                     &HintsBag::empty());
-                let proof = res.unwrap().proof;
+                let proof = res.unwrap_or_else(|_| panic!("proof failed for secret: {:?}", secret)).proof;
                 let verifier = TestVerifier;
                 let ver_res = verifier.verify(&tree,
                                               &Env::empty(),
@@ -335,7 +335,7 @@ mod tests {
                     Rc::new(force_any_val::<Context>()),
                     message.as_slice(),
                     &HintsBag::empty());
-                let proof = res.unwrap().proof;
+                let proof = res.unwrap_or_else(|_| panic!("proof failed for secret: {:?}", secret)).proof;
                 let verifier = TestVerifier;
                 let ver_res = verifier.verify(&tree,
                                               &Env::empty(),

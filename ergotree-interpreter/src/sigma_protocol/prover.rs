@@ -448,7 +448,10 @@ fn simulate_and_commit(
                             ProverError::Unexpected(format!("no challenge in {:?}", it))
                         })?);
                     }
-                    let head = unproven_children.first().clone();
+                    let head = unproven_children
+                        .first()
+                        .clone()
+                        .with_challenge(xored_challenge);
                     let mut new_children = vec![head];
                     new_children.append(&mut tail);
                     #[allow(clippy::unwrap_used)] // since quantity is preserved unwrap is safe here
