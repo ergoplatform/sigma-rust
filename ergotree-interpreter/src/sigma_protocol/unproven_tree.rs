@@ -10,6 +10,7 @@ use ergotree_ir::sigma_protocol::sigma_boolean::cand::Cand;
 use ergotree_ir::sigma_protocol::sigma_boolean::cor::Cor;
 use ergotree_ir::sigma_protocol::sigma_boolean::ProveDlog;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
+use ergotree_ir::sigma_protocol::sigma_boolean::SigmaConjectureItems;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
 use k256::Scalar;
 
@@ -168,7 +169,7 @@ pub(crate) enum UnprovenConjecture {
 }
 
 impl UnprovenConjecture {
-    pub(crate) fn children(&self) -> Vec<ProofTree> {
+    pub(crate) fn children(&self) -> SigmaConjectureItems<ProofTree> {
         match self {
             UnprovenConjecture::CandUnproven(cand) => cand.children.clone(),
             UnprovenConjecture::CorUnproven(cor) => cor.children.clone(),
@@ -219,7 +220,7 @@ impl ProofTreeConjecture for UnprovenConjecture {
         }
     }
 
-    fn children(&self) -> Vec<ProofTree> {
+    fn children(&self) -> SigmaConjectureItems<ProofTree> {
         match self {
             UnprovenConjecture::CandUnproven(cand) => cand.children.clone(),
             UnprovenConjecture::CorUnproven(cor) => cor.children.clone(),
@@ -304,7 +305,7 @@ pub(crate) struct CandUnproven {
     pub(crate) proposition: Cand,
     pub(crate) challenge_opt: Option<Challenge>,
     pub(crate) simulated: bool,
-    pub(crate) children: Vec<ProofTree>,
+    pub(crate) children: SigmaConjectureItems<ProofTree>,
     pub(crate) position: NodePosition,
 }
 
@@ -331,7 +332,7 @@ impl CandUnproven {
         Self { simulated, ..self }
     }
 
-    pub(crate) fn with_children(self, children: Vec<ProofTree>) -> Self {
+    pub(crate) fn with_children(self, children: SigmaConjectureItems<ProofTree>) -> Self {
         CandUnproven { children, ..self }
     }
 }
@@ -341,7 +342,7 @@ pub(crate) struct CorUnproven {
     pub(crate) proposition: Cor,
     pub(crate) challenge_opt: Option<Challenge>,
     pub(crate) simulated: bool,
-    pub(crate) children: Vec<ProofTree>,
+    pub(crate) children: SigmaConjectureItems<ProofTree>,
     pub(crate) position: NodePosition,
 }
 
@@ -368,7 +369,7 @@ impl CorUnproven {
         Self { simulated, ..self }
     }
 
-    pub(crate) fn with_children(self, children: Vec<ProofTree>) -> Self {
+    pub(crate) fn with_children(self, children: SigmaConjectureItems<ProofTree>) -> Self {
         Self { children, ..self }
     }
 }

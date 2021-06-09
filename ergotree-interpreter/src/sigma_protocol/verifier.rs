@@ -121,12 +121,7 @@ fn compute_commitments(sp: UncheckedSigmaTree) -> UncheckedSigmaTree {
         },
         UncheckedSigmaTree::UncheckedConjecture(conj) => conj
             .clone()
-            .with_children(
-                conj.children_ust()
-                    .iter()
-                    .map(|c| compute_commitments(c.clone()))
-                    .collect(),
-            )
+            .with_children(conj.children_ust().mapped(compute_commitments))
             .into(),
     }
 }
@@ -299,7 +294,7 @@ mod tests {
                     Rc::new(force_any_val::<Context>()),
                     message.as_slice(),
                     &HintsBag::empty());
-                let proof = res.unwrap().proof;
+                let proof = res.unwrap_or_else(|_| panic!("proof failed for secret: {:?}", secret)).proof;
                 let verifier = TestVerifier;
                 let ver_res = verifier.verify(&tree,
                                               &Env::empty(),
@@ -340,7 +335,7 @@ mod tests {
                     Rc::new(force_any_val::<Context>()),
                     message.as_slice(),
                     &HintsBag::empty());
-                let proof = res.unwrap().proof;
+                let proof = res.unwrap_or_else(|_| panic!("proof failed for secret: {:?}", secret)).proof;
                 let verifier = TestVerifier;
                 let ver_res = verifier.verify(&tree,
                                               &Env::empty(),

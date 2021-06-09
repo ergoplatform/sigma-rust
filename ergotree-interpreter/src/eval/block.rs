@@ -11,7 +11,7 @@ use crate::eval::Evaluable;
 impl Evaluable for BlockValue {
     fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
         let mut cur_env = env.clone();
-        for i in self.items.iter() {
+        for i in &self.items {
             let val_def = i.clone().try_extract_into::<ValDef>()?;
             let v: Value = val_def.rhs.eval(&cur_env, ctx)?;
             cur_env.insert(val_def.id, v);

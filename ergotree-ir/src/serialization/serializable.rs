@@ -10,9 +10,11 @@ use super::{
 };
 use crate::serialization::types::TypeCode;
 use crate::types::smethod::MethodId;
+use bounded_vec::BoundedVec;
 use bounded_vec::BoundedVecOutOfBounds;
 use io::Cursor;
 use sigma_ser::vlq_encode;
+use std::convert::TryInto;
 use std::io;
 use thiserror::Error;
 
@@ -138,6 +140,18 @@ impl<T: SigmaSerializable> SigmaSerializable for Vec<T> {
             items.push(T::sigma_parse(r)?);
         }
         Ok(items)
+    }
+}
+
+impl<T: SigmaSerializable, const L: usize, const U: usize> SigmaSerializable
+    for BoundedVec<T, L, U>
+{
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
+        self.as_vec().sigma_serialize(w)
+    }
+
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+        Ok(Vec::<T>::sigma_parse(r)?.try_into()?)
     }
 }
 

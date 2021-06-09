@@ -28,9 +28,9 @@ pub fn unify_many(
         .collect();
     let mut res = HashMap::new();
     for substitutions in list_of_substitutions? {
-        for (type_var, tpe) in substitutions.iter() {
+        for (type_var, tpe) in substitutions {
             match res.insert(type_var.clone(), tpe.clone()) {
-                Some(previous_val) if previous_val != *tpe => {
+                Some(previous_val) if previous_val != tpe => {
                     return Err(TypeUnificationError(format!(
                         "cannot merge new substitution {:?} for {:?} already exist substitution {:?}",
                         tpe, type_var, previous_val

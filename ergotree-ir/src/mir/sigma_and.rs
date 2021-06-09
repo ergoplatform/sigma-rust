@@ -1,10 +1,13 @@
 //! AND conjunction for sigma propositions
 
+use std::convert::TryInto;
+
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::SerializationError;
 use crate::serialization::SigmaSerializable;
+use crate::sigma_protocol::sigma_boolean::SigmaConjectureItems;
 use crate::types::stype::SType;
 
 use super::expr::Expr;
@@ -15,7 +18,7 @@ use crate::has_opcode::HasStaticOpCode;
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct SigmaAnd {
     /// Collection of SSigmaProp
-    pub items: Vec<Expr>,
+    pub items: SigmaConjectureItems<Expr>,
 }
 
 impl SigmaAnd {
@@ -30,7 +33,9 @@ impl SigmaAnd {
             .iter()
             .all(|tpe| matches!(tpe, SType::SSigmaProp))
         {
-            Ok(Self { items })
+            Ok(Self {
+                items: items.try_into()?,
+            })
         } else {
             Err(InvalidArgumentError(format!(
                 "Sigma conjecture: expected all items be of type SSigmaProp, got {:?},\n items: {:?}",
@@ -71,10 +76,16 @@ mod arbitrary {
         type Strategy = BoxedStrategy<Self>;
         type Parameters = ();
 
+        #[allow(clippy::unwrap_used)]
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             vec(any_with::<Constant>(SType::SSigmaProp.into()), 2..5)
                 .prop_map(|constants| Self {
-                    items: constants.into_iter().map(|c| c.into()).collect(),
+                    items: constants
+                        .into_iter()
+                        .map(|c| c.into())
+                        .collect::<Vec<Expr>>()
+                        .try_into()
+                        .unwrap(),
                 })
                 .boxed()
         }
