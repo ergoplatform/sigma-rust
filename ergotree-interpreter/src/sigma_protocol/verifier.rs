@@ -121,10 +121,7 @@ fn compute_commitments(sp: UncheckedSigmaTree) -> UncheckedSigmaTree {
         },
         UncheckedSigmaTree::UncheckedConjecture(conj) => conj
             .clone()
-            .with_children(
-                conj.children_ust()
-                    .mapped(|c| compute_commitments(c.clone())),
-            )
+            .with_children(conj.children_ust().mapped(compute_commitments))
             .into(),
     }
 }

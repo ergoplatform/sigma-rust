@@ -17,11 +17,11 @@ impl Cand {
     /// partial evaluation when some of them are trivial propositioins.
     pub fn normalized(items: SigmaConjectureItems<SigmaBoolean>) -> SigmaBoolean {
         let mut res: Vec<SigmaBoolean> = Vec::new();
-        for it in items.iter() {
+        for it in items {
             match it {
-                SigmaBoolean::TrivialProp(false) => return it.clone(),
+                SigmaBoolean::TrivialProp(false) => return it,
                 SigmaBoolean::TrivialProp(true) => (),
-                _ => res.push(it.clone()),
+                _ => res.push(it),
             }
         }
         if res.is_empty() {
@@ -49,22 +49,14 @@ mod tests {
 
     #[test]
     fn trivial_true() {
-        let cand = Cand::normalized(vec![true.into()].try_into().unwrap());
+        let cand = Cand::normalized(vec![true.into(), true.into()].try_into().unwrap());
         assert!(matches!(cand, SigmaBoolean::TrivialProp(true)));
     }
 
     #[test]
     fn trivial_false() {
-        let cand = Cand::normalized(vec![false.into()].try_into().unwrap());
+        let cand = Cand::normalized(vec![false.into(), true.into()].try_into().unwrap());
         assert!(matches!(cand, SigmaBoolean::TrivialProp(false)));
-    }
-
-    #[test]
-    fn pk() {
-        let pk = force_any_val::<ProveDlog>();
-        let cand = Cand::normalized(vec![pk.clone().into()].try_into().unwrap());
-        let res: ProveDlog = cand.try_into().unwrap();
-        assert_eq!(res, pk);
     }
 
     #[test]

@@ -252,19 +252,13 @@ fn mark_real<P: Prover + ?Sized>(
 
 /// Set positions for children of a unproven inner node (conjecture, so AND/OR/THRESHOLD)
 fn set_positions(uc: UnprovenConjecture) -> UnprovenConjecture {
-    let upd_children: Vec<ProofTree> = uc
+    let upd_children = uc
         .children()
-        .iter()
-        .enumerate()
-        .map(|(idx, utree)| utree.with_position(uc.position().child(idx)))
-        .collect();
+        .enumerated()
+        .mapped(|(idx, utree)| utree.with_position(uc.position().child(idx)));
     match uc {
-        UnprovenConjecture::CandUnproven(cand) => {
-            cand.with_children(upd_children.try_into().unwrap()).into()
-        }
-        UnprovenConjecture::CorUnproven(cor) => {
-            cor.with_children(upd_children.try_into().unwrap()).into()
-        }
+        UnprovenConjecture::CandUnproven(cand) => cand.with_children(upd_children).into(),
+        UnprovenConjecture::CorUnproven(cor) => cor.with_children(upd_children).into(),
     }
 }
 
@@ -444,7 +438,7 @@ fn simulate_and_commit(
                     let unproven_children = cast_to_unp(cor.children.clone())?;
                     let mut tail: Vec<UnprovenTree> = unproven_children
                         .clone()
-                        .iter()
+                        .into_iter()
                         .skip(1)
                         .map(|it| it.with_challenge(Challenge::secure_random()))
                         .collect();
@@ -457,6 +451,7 @@ fn simulate_and_commit(
                     let head = unproven_children.first().clone();
                     let mut new_children = vec![head];
                     new_children.append(&mut tail);
+                    #[allow(clippy::unwrap_used)] // since quantity is preserved unwrap is safe here
                     Ok(Some(
                         CorUnproven {
                             children: new_children

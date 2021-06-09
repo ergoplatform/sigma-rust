@@ -150,7 +150,7 @@ impl UncheckedConjecture {
         }
     }
 
-    pub fn children_ust(&self) -> &SigmaConjectureItems<UncheckedSigmaTree> {
+    pub fn children_ust(self) -> SigmaConjectureItems<UncheckedSigmaTree> {
         match self {
             UncheckedConjecture::CandUnchecked {
                 challenge: _,
@@ -190,11 +190,11 @@ impl ProofTreeConjecture for UncheckedConjecture {
             UncheckedConjecture::CandUnchecked {
                 challenge: _,
                 children,
-            } => children.mapped(|ust| ust.clone().into()),
+            } => children.mapped_ref(|ust| ust.clone().into()),
             UncheckedConjecture::CorUnchecked {
                 challenge: _,
                 children,
-            } => children.mapped(|ust| ust.clone().into()),
+            } => children.mapped_ref(|ust| ust.clone().into()),
         }
     }
 }

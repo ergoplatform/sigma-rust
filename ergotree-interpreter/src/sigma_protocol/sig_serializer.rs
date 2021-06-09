@@ -1,5 +1,7 @@
 //! Serialization of proof tree signatures
 
+use std::convert::TryInto;
+
 use super::prover::ProofBytes;
 use super::unchecked_tree::UncheckedConjecture;
 use super::unchecked_tree::UncheckedLeaf;
@@ -63,7 +65,6 @@ fn sig_write_bytes<W: SigmaByteWrite>(
                 challenge: _,
                 children,
             } => {
-                // TODO: implement into_iter
                 // don't write children's challenges -- they are equal to the challenge of this node
                 for child in children {
                     sig_write_bytes(child, w, false)?;
@@ -75,12 +76,11 @@ fn sig_write_bytes<W: SigmaByteWrite>(
                 children,
             } => {
                 // don't write last child's challenge -- it's computed by the verifier via XOR
-                if let Some((last, elements)) = children.split_last() {
-                    for child in elements {
-                        sig_write_bytes(child, w, true)?;
-                    }
-                    sig_write_bytes(last, w, false)?;
+                let (last, elements) = children.split_last();
+                for child in elements {
+                    sig_write_bytes(child, w, true)?;
                 }
+                sig_write_bytes(last, w, false)?;
                 Ok(())
             }
         },
@@ -145,14 +145,9 @@ fn parse_sig_compute_challnges_reader<R: SigmaByteRead>(
             SigmaConjecture::Cand(cand) => {
                 // Verifier Step 2: If the node is AND, then all of its children get e_0 as
                 // the challenge
-                let mut children: Vec<UncheckedSigmaTree> = Vec::new();
-                for it in cand.items.clone() {
-                    children.push(parse_sig_compute_challnges_reader(
-                        &it,
-                        r,
-                        Some(challenge.clone()),
-                    )?);
-                }
+                let children = cand.items.try_mapped_ref(|it| {
+                    parse_sig_compute_challnges_reader(it, r, Some(challenge.clone()))
+                })?;
                 Ok(UncheckedConjecture::CandUnchecked {
                     challenge,
                     children,
@@ -167,23 +162,23 @@ fn parse_sig_compute_challnges_reader<R: SigmaByteRead>(
                 // Read all the children but the last and compute the XOR of all the challenges including e_0
                 let mut children: Vec<UncheckedSigmaTree> = Vec::new();
 
-                if let Some((last, rest)) = cor.items.split_last() {
-                    for it in rest {
-                        children.push(parse_sig_compute_challnges_reader(&it, r, None)?);
-                    }
-                    let xored_challenge = children
-                        .clone()
-                        .into_iter()
-                        .map(|c| c.challenge())
-                        .fold(challenge.clone(), |acc, c| acc.xor(c));
-                    let last_child =
-                        parse_sig_compute_challnges_reader(last, r, Some(xored_challenge))?;
-                    children.push(last_child);
+                let (last, rest) = cor.items.split_last();
+                for it in rest {
+                    children.push(parse_sig_compute_challnges_reader(&it, r, None)?);
                 }
+                let xored_challenge = children
+                    .clone()
+                    .into_iter()
+                    .map(|c| c.challenge())
+                    .fold(challenge.clone(), |acc, c| acc.xor(c));
+                let last_child =
+                    parse_sig_compute_challnges_reader(last, r, Some(xored_challenge))?;
+                children.push(last_child);
 
+                #[allow(clippy::unwrap_used)] // since quantity is preserved unwrap is safe here
                 Ok(UncheckedConjecture::CorUnchecked {
                     challenge,
-                    children,
+                    children: children.try_into().unwrap(),
                 }
                 .into())
             }

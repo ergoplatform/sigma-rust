@@ -18,11 +18,11 @@ impl Cor {
     pub fn normalized(items: SigmaConjectureItems<SigmaBoolean>) -> SigmaBoolean {
         assert!(!items.is_empty());
         let mut res = Vec::new();
-        for it in items.iter() {
+        for it in items {
             match it {
-                SigmaBoolean::TrivialProp(true) => return it.clone(),
+                SigmaBoolean::TrivialProp(true) => return it,
                 SigmaBoolean::TrivialProp(false) => (),
-                _ => res.push(it.clone()),
+                _ => res.push(it),
             }
         }
         if res.is_empty() {
@@ -50,22 +50,14 @@ mod tests {
 
     #[test]
     fn trivial_true() {
-        let cor = Cor::normalized(vec![true.into()].try_into().unwrap());
+        let cor = Cor::normalized(vec![true.into(), false.into()].try_into().unwrap());
         assert!(matches!(cor, SigmaBoolean::TrivialProp(true)));
     }
 
     #[test]
     fn trivial_false() {
-        let cor = Cor::normalized(vec![false.into()].try_into().unwrap());
+        let cor = Cor::normalized(vec![false.into(), false.into()].try_into().unwrap());
         assert!(matches!(cor, SigmaBoolean::TrivialProp(false)));
-    }
-
-    #[test]
-    fn pk() {
-        let pk = force_any_val::<ProveDlog>();
-        let cor = Cor::normalized(vec![pk.clone().into()].try_into().unwrap());
-        let res: ProveDlog = cor.try_into().unwrap();
-        assert_eq!(res, pk);
     }
 
     #[test]

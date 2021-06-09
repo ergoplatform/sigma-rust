@@ -44,7 +44,7 @@ impl Evaluable for Exists {
             ))),
         }?;
 
-        for item in normalized_input_vals.into_iter() {
+        for item in normalized_input_vals {
             let res = condition_call(item)?.try_extract_into::<bool>()?;
             if res {
                 return Ok(true.into());
