@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
+## [0.13.2] - 2021-06-09
 
 ### Added 
 - AND, OR conjecture support in sigma protocol [#226](https://github.com/ergoplatform/sigma-rust/pull/226);
@@ -196,7 +197,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - ErgoTree constant values conversion.
 
 <!-- next-url -->
-[Unreleased]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.13.1...HEAD
+[Unreleased]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.13.2...HEAD
+[0.13.2]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.13.1...ergo-lib-v0.13.2
 [0.13.1]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.13.0...ergo-lib-v0.13.1
 [0.13.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.12.0...ergo-lib-v0.13.0
 [0.12.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.11.0...ergo-lib-v0.12.0
