@@ -16,23 +16,44 @@ use num_traits::CheckedSub;
 use num_traits::Num;
 
 use crate::eval;
+use crate::eval::bigint::fits_in_256_bits;
 use crate::eval::env::Env;
 use crate::eval::EvalContext;
 use crate::eval::EvalError;
 use crate::eval::Evaluable;
+
+fn arithmetic_err<T: std::fmt::Display>(
+    op: &str,
+    lv_raw: T,
+    rv_raw: T,
+    err_str: &str,
+) -> EvalError {
+    EvalError::ArithmeticException(format!(
+        "({0}) {1} ({2}) resulted in {3}",
+        lv_raw, op, rv_raw, err_str
+    ))
+}
+
+fn check_bigint_overflow(val: Value) -> Result<Value, EvalError> {
+    let bigint = val.try_extract_into::<BigInt>()?;
+    if fits_in_256_bits(&bigint) {
+        Ok(bigint.into())
+    } else {
+        Err(EvalError::ArithmeticException(
+            "Arithmetic Overflow on BigInt operation".to_string(),
+        ))
+    }
+}
 
 fn eval_plus<T>(lv_raw: T, rv: Value) -> Result<Value, EvalError>
 where
     T: Num + CheckedAdd + TryExtractFrom<Value> + Into<Value> + std::fmt::Display,
 {
     let rv_raw = rv.try_extract_into::<T>()?;
-    Ok((lv_raw.checked_add(&rv_raw).ok_or_else(|| {
-        EvalError::ArithmeticException(format!(
-            "({0}) + ({1}) resulted in overflow",
-            lv_raw, rv_raw
-        ))
-    })?)
-    .into())
+    lv_raw
+        .checked_add(&rv_raw)
+        .ok_or_else(|| arithmetic_err("+", lv_raw, rv_raw, "overflow"))
+        .map(|t| t.into()) // convert T to Value
 }
 
 fn eval_minus<T>(lv_raw: T, rv: Value) -> Result<Value, EvalError>
@@ -40,13 +61,10 @@ where
     T: Num + CheckedSub + TryExtractFrom<Value> + Into<Value> + std::fmt::Display,
 {
     let rv_raw = rv.try_extract_into::<T>()?;
-    Ok((lv_raw.checked_sub(&rv_raw).ok_or_else(|| {
-        EvalError::ArithmeticException(format!(
-            "({0}) - ({1}) resulted in overflow",
-            lv_raw, rv_raw
-        ))
-    })?)
-    .into())
+    lv_raw
+        .checked_sub(&rv_raw)
+        .ok_or_else(|| arithmetic_err("-", lv_raw, rv_raw, "overflow"))
+        .map(|t| t.into()) // convert T to Value
 }
 
 fn eval_mul<T>(lv_raw: T, rv: Value) -> Result<Value, EvalError>
@@ -54,13 +72,10 @@ where
     T: Num + CheckedMul + TryExtractFrom<Value> + Into<Value> + std::fmt::Display,
 {
     let rv_raw = rv.try_extract_into::<T>()?;
-    Ok((lv_raw.checked_mul(&rv_raw).ok_or_else(|| {
-        EvalError::ArithmeticException(format!(
-            "({0}) * ({1}) resulted in overflow",
-            lv_raw, rv_raw
-        ))
-    })?)
-    .into())
+    lv_raw
+        .checked_mul(&rv_raw)
+        .ok_or_else(|| arithmetic_err("*", lv_raw, rv_raw, "overflow"))
+        .map(|t| t.into()) // convert T to Value
 }
 
 fn eval_div<T>(lv_raw: T, rv: Value) -> Result<Value, EvalError>
@@ -68,13 +83,10 @@ where
     T: Num + CheckedDiv + TryExtractFrom<Value> + Into<Value> + std::fmt::Display,
 {
     let rv_raw = rv.try_extract_into::<T>()?;
-    Ok((lv_raw.checked_div(&rv_raw).ok_or_else(|| {
-        EvalError::ArithmeticException(format!(
-            "({0}) / ({1}) resulted in exception",
-            lv_raw, rv_raw
-        ))
-    })?)
-    .into())
+    lv_raw
+        .checked_div(&rv_raw)
+        .ok_or_else(|| arithmetic_err("/", lv_raw, rv_raw, "exception"))
+        .map(|t| t.into()) // convert T to Value
 }
 
 fn eval_bit_op<T, F>(lv_raw: T, rv: Value, op: F) -> Result<Value, EvalError>
@@ -189,7 +201,7 @@ impl Evaluable for BinOp {
                     Value::Short(lv_raw) => eval_plus(lv_raw, rv()?),
                     Value::Int(lv_raw) => eval_plus(lv_raw, rv()?),
                     Value::Long(lv_raw) => eval_plus(lv_raw, rv()?),
-                    Value::BigInt(lv_raw) => eval_plus(lv_raw, rv()?),
+                    Value::BigInt(lv_raw) => check_bigint_overflow(eval_plus(lv_raw, rv()?)?),
                     _ => Err(EvalError::UnexpectedValue(format!(
                         "expected BinOp::left to be numeric value, got {0:?}",
                         lv
@@ -200,7 +212,7 @@ impl Evaluable for BinOp {
                     Value::Short(lv_raw) => eval_minus(lv_raw, rv()?),
                     Value::Int(lv_raw) => eval_minus(lv_raw, rv()?),
                     Value::Long(lv_raw) => eval_minus(lv_raw, rv()?),
-                    Value::BigInt(lv_raw) => eval_minus(lv_raw, rv()?),
+                    Value::BigInt(lv_raw) => check_bigint_overflow(eval_minus(lv_raw, rv()?)?),
                     _ => Err(EvalError::UnexpectedValue(format!(
                         "expected BinOp::left to be numeric value, got {0:?}",
                         lv
@@ -211,7 +223,7 @@ impl Evaluable for BinOp {
                     Value::Short(lv_raw) => eval_mul(lv_raw, rv()?),
                     Value::Int(lv_raw) => eval_mul(lv_raw, rv()?),
                     Value::Long(lv_raw) => eval_mul(lv_raw, rv()?),
-                    Value::BigInt(lv_raw) => eval_mul(lv_raw, rv()?),
+                    Value::BigInt(lv_raw) => check_bigint_overflow(eval_mul(lv_raw, rv()?)?),
                     _ => Err(EvalError::UnexpectedValue(format!(
                         "expected BinOp::left to be numeric value, got {0:?}",
                         lv
@@ -222,7 +234,8 @@ impl Evaluable for BinOp {
                     Value::Short(lv_raw) => eval_div(lv_raw, rv()?),
                     Value::Int(lv_raw) => eval_div(lv_raw, rv()?),
                     Value::Long(lv_raw) => eval_div(lv_raw, rv()?),
-                    Value::BigInt(lv_raw) => eval_div(lv_raw, rv()?),
+                    // MIN / -1  can actually overflow
+                    Value::BigInt(lv_raw) => check_bigint_overflow(eval_div(lv_raw, rv()?)?),
                     _ => Err(EvalError::UnexpectedValue(format!(
                         "expected BinOp::left to be numeric value, got {0:?}",
                         lv
@@ -445,19 +458,23 @@ mod tests {
 
         // The commented tests below are currently failing due to issue #288.
 
-        // assert!(   eval_num_op(ArithOp::Multiply, max(), b(2)).is_err());
+        assert!(eval_num_op(ArithOp::Multiply, max(), b(2)).is_err());
         assert_eq!(eval_num_op(ArithOp::Multiply, max(), b(1)), Ok(max()));
-        // assert!(   eval_num_op(ArithOp::Multiply, min(), b(2)).is_err());
+        assert!(eval_num_op(ArithOp::Multiply, min(), b(2)).is_err());
         assert_eq!(eval_num_op(ArithOp::Multiply, min(), b(1)), Ok(min()));
 
-        // assert!(   eval_num_op(ArithOp::Plus, max(), b(1)).is_err());
+        assert!(eval_num_op(ArithOp::Divide, min(), b(-1)).is_err());
+        assert_eq!(eval_num_op(ArithOp::Divide, min() + 1, b(-1)), Ok(max()));
+        assert!(eval_num_op(ArithOp::Divide, b(20), b(0)).is_err());
+
+        assert!(eval_num_op(ArithOp::Plus, max(), b(1)).is_err());
         assert_eq!(eval_num_op(ArithOp::Plus, max(), b(0)), Ok(max()));
-        // assert!(   eval_num_op(ArithOp::Plus, min(), b(-1)).is_err());
+        assert!(eval_num_op(ArithOp::Plus, min(), b(-1)).is_err());
         assert_eq!(eval_num_op(ArithOp::Plus, min(), b(0)), Ok(min()));
 
-        // assert!(   eval_num_op(ArithOp::Minus, max(), b(-1)).is_err());
+        assert!(eval_num_op(ArithOp::Minus, max(), b(-1)).is_err());
         assert_eq!(eval_num_op(ArithOp::Minus, max(), b(0)), Ok(max()));
-        // assert!(   eval_num_op(ArithOp::Minus, min(), b(1)).is_err());
+        assert!(eval_num_op(ArithOp::Minus, min(), b(1)).is_err());
         assert_eq!(eval_num_op(ArithOp::Minus, min(), b(0)), Ok(min()));
 
         assert_eq!(eval_num_op(ArithOp::BitAnd, max(), min()), Ok(b(0)));
