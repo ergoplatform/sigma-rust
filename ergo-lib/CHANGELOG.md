@@ -11,6 +11,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - AND, OR conjecture support in sigma protocol [#226](https://github.com/ergoplatform/sigma-rust/pull/226);
 - Support for ErgoTree header v1 with tree size [#281](https://github.com/ergoplatform/sigma-rust/pull/281);
 - Add support for explorer v1 JSON format parsing for `BlockHeader::votes` [#285](https://github.com/ergoplatform/sigma-rust/pull/285);
+- Add bitwise binary operators (&|^) [#290](https://github.com/ergoplatform/sigma-rust/pull/290);
+
+### Changed
+- make `ergotree_ir::serialization::constant_store` module public;
+- `Peekable` trait is removed in `sigma_ser` crate [#284](https://github.com/ergoplatform/sigma-rust/pull/284);
+
+### Fixed 
+- change `MINER_PUBKEY` type to `Coll[Byte]` [#291](https://github.com/ergoplatform/sigma-rust/pull/291);
+- Make BigInt arithmetic ops check for 256-bit overflow [#294](https://github.com/ergoplatform/sigma-rust/pull/294);
+- Fix numeric negation to give an error on overflow [#294](https://github.com/ergoplatform/sigma-rust/pull/294); 
 
 ## [0.13.1] - 2021-05-28
 
