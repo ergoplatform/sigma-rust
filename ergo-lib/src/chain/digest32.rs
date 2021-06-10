@@ -3,8 +3,6 @@ use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
 use ergotree_ir::serialization::SerializationError;
 use ergotree_ir::serialization::SigmaSerializable;
 use ergotree_ir::util::AsVecI8;
-#[cfg(test)]
-use proptest_derive::Arbitrary;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 use sigma_ser::vlq_encode;
@@ -14,27 +12,33 @@ use std::fmt::Formatter;
 use std::io;
 use thiserror::Error;
 
-/// 32 byte array used in box, transaction ids (hash)
+/// N-bytes array in a box. `Digest32` is most type synonym.
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 #[cfg_attr(
     feature = "json",
     serde(into = "Base16EncodedBytes", try_from = "Base16DecodedBytes")
 )]
 #[derive(PartialEq, Eq, Hash, Clone)]
-#[cfg_attr(test, derive(Arbitrary))]
-pub struct Digest32(pub Box<[u8; Digest32::SIZE]>);
+pub struct Digest<const N: usize>(pub Box<[u8; N]>);
 
-impl Digest32 {
+/// 32 byte array used as ID of some value: block, transaction, etc.
+/// Usually this is as blake2b hash of serialized form
+pub type Digest32 = Digest<32>;
+
+/// AVL tree digest: root hash along with tree height (33 bytes)
+pub type ADDigest = Digest<33>;
+
+impl<const N: usize> Digest<N> {
     /// Digest size 32 bytes
-    pub const SIZE: usize = sigma_util::DIGEST32_SIZE;
+    pub const SIZE: usize = N;
 
     /// All zeros
-    pub fn zero() -> Digest32 {
-        Digest32(Box::new([0u8; Digest32::SIZE]))
+    pub fn zero() -> Digest<N> {
+        Digest(Box::new([0u8; N]))
     }
 }
 
-impl std::fmt::Debug for Digest32 {
+impl<const N: usize> std::fmt::Debug for Digest<N> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         base16::encode_lower(&(*self.0)).fmt(f)
     }
@@ -42,70 +46,70 @@ impl std::fmt::Debug for Digest32 {
 
 /// Blake2b256 hash (256 bit)
 pub fn blake2b256_hash(bytes: &[u8]) -> Digest32 {
-    Digest32(sigma_util::hash::blake2b256_hash(bytes))
+    Digest(sigma_util::hash::blake2b256_hash(bytes))
 }
 
-impl From<[u8; Digest32::SIZE]> for Digest32 {
-    fn from(bytes: [u8; Digest32::SIZE]) -> Self {
-        Digest32(Box::new(bytes))
+impl<const N: usize> From<[u8; N]> for Digest<N> {
+    fn from(bytes: [u8; N]) -> Self {
+        Digest(Box::new(bytes))
     }
 }
 
-impl From<Digest32> for Base16EncodedBytes {
-    fn from(v: Digest32) -> Self {
+impl<const N: usize> From<Digest<N>> for Base16EncodedBytes {
+    fn from(v: Digest<N>) -> Self {
         Base16EncodedBytes::new(v.0.as_ref())
     }
 }
 
-impl From<Digest32> for Vec<i8> {
-    fn from(v: Digest32) -> Self {
+impl<const N: usize> From<Digest<N>> for Vec<i8> {
+    fn from(v: Digest<N>) -> Self {
         v.0.to_vec().as_vec_i8()
     }
 }
 
-impl From<Digest32> for Vec<u8> {
-    fn from(v: Digest32) -> Self {
+impl<const N: usize> From<Digest<N>> for Vec<u8> {
+    fn from(v: Digest<N>) -> Self {
         v.0.to_vec()
     }
 }
 
-impl From<Digest32> for [u8; Digest32::SIZE] {
-    fn from(v: Digest32) -> Self {
+impl<const N: usize> From<Digest<N>> for [u8; N] {
+    fn from(v: Digest<N>) -> Self {
         *v.0
     }
 }
 
-impl From<Digest32> for String {
-    fn from(v: Digest32) -> Self {
+impl<const N: usize> From<Digest<N>> for String {
+    fn from(v: Digest<N>) -> Self {
         let bytes: Base16EncodedBytes = v.into();
         bytes.into()
     }
 }
 
-impl TryFrom<Base16DecodedBytes> for Digest32 {
+impl<const N: usize> TryFrom<Base16DecodedBytes> for Digest<N> {
     type Error = Digest32Error;
     fn try_from(bytes: Base16DecodedBytes) -> Result<Self, Self::Error> {
-        let arr: [u8; Digest32::SIZE] = bytes.0.as_slice().try_into()?;
-        Ok(Digest32(Box::new(arr)))
+        let arr: [u8; N] = bytes.0.as_slice().try_into()?;
+        Ok(Digest(Box::new(arr)))
     }
 }
 
-impl TryFrom<String> for Digest32 {
+impl<const N: usize> TryFrom<String> for Digest<N> {
     type Error = Digest32Error;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         let bytes = Base16DecodedBytes::try_from(value)?;
-        Digest32::try_from(bytes)
+        Digest::<N>::try_from(bytes)
     }
 }
 
-impl SigmaSerializable for Digest32 {
+impl<const N: usize> SigmaSerializable for Digest<N> {
     fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
         w.write_all(self.0.as_ref())?;
         Ok(())
     }
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
-        let mut bytes = [0; Digest32::SIZE];
+        let mut bytes = [0; N];
         r.read_exact(&mut bytes)?;
         Ok(Self(bytes.into()))
     }
@@ -120,4 +124,23 @@ pub enum Digest32Error {
     /// Invalid byte array size
     #[error("Invalid byte array size ({0})")]
     InvalidSize(#[from] std::array::TryFromSliceError),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Digest;
+    use proptest::prelude::{Arbitrary, BoxedStrategy};
+    use proptest::{collection::vec, prelude::*};
+    use std::convert::TryInto;
+
+    impl<const N: usize> Arbitrary for Digest<N> {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_: Self::Parameters) -> Self::Strategy {
+            vec(any::<u8>(), Self::SIZE)
+                .prop_map(|v| Digest(Box::new(v.try_into().unwrap())))
+                .boxed()
+        }
+    }
 }
