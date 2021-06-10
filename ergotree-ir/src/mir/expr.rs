@@ -15,6 +15,7 @@ use super::block::BlockValue;
 use super::bool_to_sigma::BoolToSigmaProp;
 use super::byte_array_to_long::ByteArrayToLong;
 use super::calc_blake2b256::CalcBlake2b256;
+use super::calc_sha256::CalcSha256;
 use super::coll_by_index::ByIndex;
 use super::coll_exists::Exists;
 use super::coll_filter::Filter;
@@ -87,6 +88,8 @@ pub enum Expr {
     /// Predefined functions (global)
     /// Blake2b256 hash calculation
     CalcBlake2b256(CalcBlake2b256),
+    /// Sha256 hash calculation
+    CalcSha256(CalcSha256),
     /// Context variables (external)
     Context,
     /// Special global value which is used to define methods
@@ -209,6 +212,7 @@ impl Expr {
             Expr::SelectField(op) => op.op_code(),
             Expr::Fold(op) => op.op_code(),
             Expr::CalcBlake2b256(op) => op.op_code(),
+            Expr::CalcSha256(op) => op.op_code(),
             Expr::And(op) => op.op_code(),
             Expr::Or(op) => op.op_code(),
             Expr::Atleast(op) => op.op_code(),
@@ -251,6 +255,7 @@ impl Expr {
             Expr::LongToByteArray(v) => v.tpe(),
             Expr::ConstPlaceholder(v) => v.tpe.clone(),
             Expr::CalcBlake2b256(v) => v.tpe(),
+            Expr::CalcSha256(v) => v.tpe(),
             Expr::Global => SType::SGlobal,
             Expr::Context => SType::SContext,
             Expr::GlobalVars(v) => v.tpe(),
