@@ -74,6 +74,13 @@ impl Transaction {
         JsValue::from_serde(&self.0.clone()).map_err(|e| JsValue::from_str(&format!("{}", e)))
     }
 
+    /// JSON representation
+    pub fn from_json(json: &str) -> Result<Transaction, JsValue> {
+        serde_json::from_str(json)
+            .map(Self)
+            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+    }
+
     /// Inputs for transaction
     pub fn inputs(&self) -> Inputs {
         self.0.inputs.clone().into()
