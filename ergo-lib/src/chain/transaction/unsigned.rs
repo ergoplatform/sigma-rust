@@ -1,15 +1,18 @@
 //! Unsigned (without proofs) transaction
 
 use super::input::{Input, UnsignedInput};
+#[cfg(feature = "json")]
+use super::json;
 use super::prover_result::ProverResult;
 use super::DataInput;
 use super::{
     super::{digest32::blake2b256_hash, ergo_box::ErgoBoxCandidate},
-    json, Transaction, TxId,
+    Transaction, TxId,
 };
 use ergotree_interpreter::sigma_protocol::prover::ProofBytes;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "json")]
 use std::convert::TryFrom;
 
 /// Unsigned (inputs without proofs) transaction
