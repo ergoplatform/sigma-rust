@@ -25,7 +25,7 @@ pub struct Digest<const N: usize>(pub Box<[u8; N]>);
 /// Usually this is as blake2b hash of serialized form
 pub type Digest32 = Digest<32>;
 
-/// 33-byte digest
+/// AVL tree digest: root hash along with tree height (33 bytes)
 pub type ADDigest = Digest<33>;
 
 impl<const N: usize> Digest<N> {
