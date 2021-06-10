@@ -10,6 +10,8 @@ pub mod byte_array_to_bigint;
 pub mod byte_array_to_long;
 /// Calc Blake2b hash
 pub mod calc_blake2b256;
+/// Calc Sha256 hash
+pub mod calc_sha256;
 /// Get the collection element by index
 pub mod coll_by_index;
 /// Tests whether a predicate holds for at least one element of this collection

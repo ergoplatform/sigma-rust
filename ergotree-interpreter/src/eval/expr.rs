@@ -15,6 +15,7 @@ impl Evaluable for Expr {
             Expr::ByteArrayToBigInt(op) => op.eval(env, ctx),
             Expr::LongToByteArray(op) => op.eval(env, ctx),
             Expr::CalcBlake2b256(op) => op.eval(env, ctx),
+            Expr::CalcSha256(op) => op.eval(env, ctx),
             Expr::Fold(op) => op.eval(env, ctx),
             Expr::ExtractRegisterAs(op) => op.eval(env, ctx),
             Expr::GlobalVars(op) => op.eval(env, ctx),
