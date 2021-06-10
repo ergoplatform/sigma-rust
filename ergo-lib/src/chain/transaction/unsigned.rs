@@ -5,7 +5,7 @@ use super::prover_result::ProverResult;
 use super::DataInput;
 use super::{
     super::{digest32::blake2b256_hash, ergo_box::ErgoBoxCandidate},
-    Transaction, TxId, json
+    json, Transaction, TxId,
 };
 use ergotree_interpreter::sigma_protocol::prover::ProofBytes;
 #[cfg(feature = "json")]
