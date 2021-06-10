@@ -92,9 +92,9 @@ impl UnsignedTransaction {
 impl From<UnsignedTransaction> for json::transaction::UnsignedTransactionJson {
     fn from(v: UnsignedTransaction) -> Self {
         json::transaction::UnsignedTransactionJson {
-            inputs: v.inputs.clone(),
-            data_inputs: v.data_inputs.clone(),
-            outputs: v.output_candidates.clone(),
+            inputs: v.inputs,
+            data_inputs: v.data_inputs,
+            outputs: v.output_candidates,
         }
     }
 }
