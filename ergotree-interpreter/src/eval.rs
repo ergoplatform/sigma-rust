@@ -37,6 +37,7 @@ pub(crate) mod coll_fold;
 pub(crate) mod coll_forall;
 pub(crate) mod coll_map;
 pub(crate) mod coll_size;
+pub(crate) mod coll_slice;
 pub(crate) mod collection;
 pub(crate) mod cost_accum;
 pub(crate) mod costs;

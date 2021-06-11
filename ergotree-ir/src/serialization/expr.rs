@@ -21,6 +21,7 @@ use crate::mir::coll_fold::Fold;
 use crate::mir::coll_forall::ForAll;
 use crate::mir::coll_map::Map;
 use crate::mir::coll_size::SizeOf;
+use crate::mir::coll_slice::Slice;
 use crate::mir::collection::bool_const_coll_sigma_parse;
 use crate::mir::collection::coll_sigma_parse;
 use crate::mir::collection::coll_sigma_serialize;
@@ -151,6 +152,7 @@ impl Expr {
                 If::OP_CODE => Ok(If::sigma_parse(r)?.into()),
                 ByIndex::OP_CODE => Ok(ByIndex::sigma_parse(r)?.into()),
                 SizeOf::OP_CODE => Ok(SizeOf::sigma_parse(r)?.into()),
+                Slice::OP_CODE => Ok(Slice::sigma_parse(r)?.into()),
                 CreateProveDlog::OP_CODE => Ok(CreateProveDlog::sigma_parse(r)?.into()),
                 CreateProveDhTuple::OP_CODE => Ok(CreateProveDhTuple::sigma_parse(r)?.into()),
                 SigmaPropBytes::OP_CODE => Ok(SigmaPropBytes::sigma_parse(r)?.into()),
@@ -227,6 +229,7 @@ impl SigmaSerializable for Expr {
                     Expr::ByIndex(op) => op.sigma_serialize(w),
                     Expr::ExtractScriptBytes(op) => op.sigma_serialize(w),
                     Expr::SizeOf(op) => op.sigma_serialize(w),
+                    Expr::Slice(op) => op.sigma_serialize(w),
                     Expr::CreateProveDlog(op) => op.sigma_serialize(w),
                     Expr::CreateProveDhTuple(op) => op.sigma_serialize(w),
                     Expr::ExtractCreationInfo(op) => op.sigma_serialize(w),
