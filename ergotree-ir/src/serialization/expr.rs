@@ -13,6 +13,7 @@ use crate::mir::bool_to_sigma::BoolToSigmaProp;
 use crate::mir::byte_array_to_bigint::ByteArrayToBigInt;
 use crate::mir::byte_array_to_long::ByteArrayToLong;
 use crate::mir::calc_blake2b256::CalcBlake2b256;
+use crate::mir::calc_sha256::CalcSha256;
 use crate::mir::coll_by_index::ByIndex;
 use crate::mir::coll_exists::Exists;
 use crate::mir::coll_filter::Filter;
@@ -133,6 +134,7 @@ impl Expr {
                 ExtractAmount::OP_CODE => Ok(Expr::ExtractAmount(ExtractAmount::sigma_parse(r)?)),
                 OpCode::SELECT_FIELD => Ok(Expr::SelectField(SelectField::sigma_parse(r)?)),
                 OpCode::CALC_BLAKE2B256 => Ok(CalcBlake2b256::sigma_parse(r)?.into()),
+                CalcSha256::OP_CODE => Ok(CalcSha256::sigma_parse(r)?.into()),
                 And::OP_CODE => Ok(And::sigma_parse(r)?.into()),
                 Or::OP_CODE => Ok(Or::sigma_parse(r)?.into()),
                 Atleast::OP_CODE => Ok(Atleast::sigma_parse(r)?.into()),
@@ -208,6 +210,7 @@ impl SigmaSerializable for Expr {
                     Expr::ExtractAmount(op) => op.sigma_serialize(w),
                     Expr::SelectField(op) => op.sigma_serialize(w),
                     Expr::CalcBlake2b256(op) => op.sigma_serialize(w),
+                    Expr::CalcSha256(op) => op.sigma_serialize(w),
                     Expr::Collection(op) => coll_sigma_serialize(op, w),
                     Expr::And(op) => op.sigma_serialize(w),
                     Expr::Or(op) => op.sigma_serialize(w),

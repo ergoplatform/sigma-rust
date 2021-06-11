@@ -12,6 +12,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 blake2 = "0.9"
+sha2 = "0.9"
 
 
 [dev-dependencies]

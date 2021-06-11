@@ -54,7 +54,7 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 - avlTree
 - treeLookup
 - :heavy_check_mark: blake2b256
-- sha256 [#299](https://github.com/ergoplatform/sigma-rust/issues/299)
+- :heavy_check_mark: sha256
 - :heavy_check_mark: proveDlog
 - :heavy_check_mark: proveDHTuple
 - :heavy_check_mark: sigmaProp
