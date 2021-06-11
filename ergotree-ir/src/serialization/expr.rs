@@ -14,6 +14,7 @@ use crate::mir::byte_array_to_bigint::ByteArrayToBigInt;
 use crate::mir::byte_array_to_long::ByteArrayToLong;
 use crate::mir::calc_blake2b256::CalcBlake2b256;
 use crate::mir::calc_sha256::CalcSha256;
+use crate::mir::coll_append::Append;
 use crate::mir::coll_by_index::ByIndex;
 use crate::mir::coll_exists::Exists;
 use crate::mir::coll_filter::Filter;
@@ -79,6 +80,7 @@ impl Expr {
         } else {
             let op_code = OpCode::parse(tag);
             match op_code {
+                OpCode::APPEND => Ok(Append::sigma_parse(r)?.into()),
                 OpCode::FOLD => Ok(Fold::sigma_parse(r)?.into()),
                 ConstantPlaceholder::OP_CODE => {
                     let cp = ConstantPlaceholder::sigma_parse(r)?;
@@ -189,6 +191,7 @@ impl SigmaSerializable for Expr {
                 op_code.sigma_serialize(w)?;
                 match expr {
                     Expr::Const(_) => panic!("unexpected constant"), // handled in the code above (external match)
+                    Expr::Append(ap) => ap.sigma_serialize(w),
                     Expr::Fold(op) => op.sigma_serialize(w),
                     Expr::ConstPlaceholder(cp) => cp.sigma_serialize(w),
                     Expr::ByteArrayToLong(s) => s.sigma_serialize(w),

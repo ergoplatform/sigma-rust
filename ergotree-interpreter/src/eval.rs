@@ -30,6 +30,7 @@ pub(crate) mod byte_array_to_bigint;
 pub(crate) mod byte_array_to_long;
 pub(crate) mod calc_blake2b256;
 pub(crate) mod calc_sha256;
+pub(crate) mod coll_append;
 pub(crate) mod coll_by_index;
 pub(crate) mod coll_exists;
 pub(crate) mod coll_filter;

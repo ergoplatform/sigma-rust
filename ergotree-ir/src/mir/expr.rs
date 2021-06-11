@@ -16,6 +16,7 @@ use super::bool_to_sigma::BoolToSigmaProp;
 use super::byte_array_to_long::ByteArrayToLong;
 use super::calc_blake2b256::CalcBlake2b256;
 use super::calc_sha256::CalcSha256;
+use super::coll_append::Append;
 use super::coll_by_index::ByIndex;
 use super::coll_exists::Exists;
 use super::coll_filter::Filter;
@@ -71,6 +72,8 @@ use derive_more::TryInto;
 #[derive(PartialEq, Eq, Debug, Clone, From, TryInto)]
 /// Expression in ErgoTree
 pub enum Expr {
+    /// Append - Concatenation of two collections
+    Append(Append),
     /// Constant value
     Const(Constant),
     /// Placeholder for a constant
@@ -189,6 +192,7 @@ impl Expr {
     /// Code (used in serialization)
     pub(crate) fn op_code(&self) -> OpCode {
         match self {
+            Expr::Append(op) => op.op_code(),
             Expr::Const(_) => panic!("constant does not have op code assigned"),
             Expr::ConstPlaceholder(op) => op.op_code(),
             Expr::ByteArrayToLong(op) => op.op_code(),
@@ -248,6 +252,7 @@ impl Expr {
     /// Type of the expression
     pub fn tpe(&self) -> SType {
         match self {
+            Expr::Append(ap) => ap.tpe(),
             Expr::Const(v) => v.tpe.clone(),
             Expr::Collection(v) => v.tpe(),
             Expr::ByteArrayToLong(v) => v.tpe(),

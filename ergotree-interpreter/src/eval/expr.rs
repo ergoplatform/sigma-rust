@@ -43,6 +43,7 @@ impl Evaluable for Expr {
             Expr::BoolToSigmaProp(op) => op.eval(env, ctx),
             Expr::Upcast(op) => op.eval(env, ctx),
             Expr::If(op) => op.eval(env, ctx),
+            Expr::Append(op) => op.eval(env, ctx),
             Expr::ByIndex(op) => op.eval(env, ctx),
             Expr::ExtractScriptBytes(op) => op.eval(env, ctx),
             Expr::SizeOf(op) => op.eval(env, ctx),
