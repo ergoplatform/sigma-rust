@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
+
+### Added 
+- Implement CalcSha256 op for byte arrays [#303](https://github.com/ergoplatform/sigma-rust/pull/303);
+
+### Fixes
+- Parsing of `UnsignedTransaction` from JSON [#304](https://github.com/ergoplatform/sigma-rust/pull/304);
+
 ## [0.13.2] - 2021-06-09
 
 ### Added 
