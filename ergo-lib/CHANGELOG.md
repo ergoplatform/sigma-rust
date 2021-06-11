@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
+## [0.13.3] - 2021-06-11
 
 ### Added 
 - Implement CalcSha256 op for byte arrays [#303](https://github.com/ergoplatform/sigma-rust/pull/303);
@@ -204,7 +205,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - ErgoTree constant values conversion.
 
 <!-- next-url -->
-[Unreleased]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.13.2...HEAD
+[Unreleased]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.13.3...HEAD
+[0.13.3]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.13.2...ergo-lib-v0.13.3
 [0.13.2]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.13.1...ergo-lib-v0.13.2
 [0.13.1]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.13.0...ergo-lib-v0.13.1
 [0.13.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.12.0...ergo-lib-v0.13.0
