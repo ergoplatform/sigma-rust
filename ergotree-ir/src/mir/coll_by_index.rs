@@ -30,7 +30,7 @@ impl ByIndex {
         let input_elem_type: SType = *match input.post_eval_tpe() {
             SType::SColl(elem_type) => Ok(elem_type),
             _ => Err(InvalidArgumentError(format!(
-                "Expected Map input to be SColl, got {0:?}",
+                "Expected ByIndex input to be SColl, got {0:?}",
                 input.tpe()
             ))),
         }?;
