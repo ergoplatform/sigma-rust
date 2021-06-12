@@ -1,15 +1,14 @@
-use ergotree_ir::mir::xor::Xor;
 use ergotree_ir::mir::value::CollKind;
 use ergotree_ir::mir::value::NativeColl;
 use ergotree_ir::mir::value::Value;
+use ergotree_ir::mir::xor::Xor;
 
 use crate::eval::env::Env;
 use crate::eval::EvalContext;
 use crate::eval::EvalError;
 use crate::eval::Evaluable;
 
-fn _helper_xor(mut x : Vec<i8>, y : Vec<i8>) -> Vec<i8> {
-
+fn _helper_xor(mut x: Vec<i8>, y: Vec<i8>) -> Vec<i8> {
     x.iter_mut().zip(y.iter()).for_each(|(x1, x2)| *x1 ^= *x2);
     x
 }
@@ -20,10 +19,11 @@ impl Evaluable for Xor {
         let right_v = self.right.eval(env, ctx)?;
 
         match (left_v.clone(), right_v.clone()) {
-            (Value::Coll(CollKind::NativeColl(NativeColl::CollByte(l_byte))),
-            Value::Coll(CollKind::NativeColl(NativeColl::CollByte(r_byte)))) => {
-                    
-                let xor = _helper_xor(l_byte.clone(), r_byte.clone());                        
+            (
+                Value::Coll(CollKind::NativeColl(NativeColl::CollByte(l_byte))),
+                Value::Coll(CollKind::NativeColl(NativeColl::CollByte(r_byte))),
+            ) => {
+                let xor = _helper_xor(l_byte.clone(), r_byte.clone());
                 Ok(xor.into())
             }
             _ => Err(EvalError::UnexpectedValue(format!(
@@ -47,11 +47,10 @@ mod tests {
 
     #[test]
     fn eval_1_xor_0() {
-
         let left = vec![1 as i8];
         let right = vec![0 as i8];
         let expected_xor = vec![1 as i8];
-        
+
         let expr: Expr = Xor {
             left: Box::new(Expr::Const(left.into())),
             right: Box::new(Expr::Const(right.into())),
@@ -64,11 +63,10 @@ mod tests {
 
     #[test]
     fn eval_0_xor_1() {
-
         let left = vec![0 as i8];
         let right = vec![1 as i8];
         let expected_xor = vec![1 as i8];
-        
+
         let expr: Expr = Xor {
             left: Box::new(Expr::Const(left.into())),
             right: Box::new(Expr::Const(right.into())),
@@ -81,11 +79,10 @@ mod tests {
 
     #[test]
     fn eval_1_xor_1() {
-
         let left = vec![1 as i8];
         let right = vec![1 as i8];
         let expected_xor = vec![0 as i8];
-        
+
         let expr: Expr = Xor {
             left: Box::new(Expr::Const(left.into())),
             right: Box::new(Expr::Const(right.into())),
@@ -98,11 +95,10 @@ mod tests {
 
     #[test]
     fn eval_0_xor_0() {
-
         let left = vec![0 as i8];
         let right = vec![0 as i8];
         let expected_xor = vec![0 as i8];
-        
+
         let expr: Expr = Xor {
             left: Box::new(Expr::Const(left.into())),
             right: Box::new(Expr::Const(right.into())),
@@ -115,11 +111,10 @@ mod tests {
 
     #[test]
     fn eval_1100_xor_0101() {
-
         let left = vec![1 as i8, 1 as i8, 0 as i8, 0 as i8];
         let right = vec![0 as i8, 1 as i8, 0 as i8, 1 as i8];
         let expected_xor = vec![1 as i8, 0 as i8, 0 as i8, 1 as i8];
-        
+
         let expr: Expr = Xor {
             left: Box::new(Expr::Const(left.into())),
             right: Box::new(Expr::Const(right.into())),
@@ -136,7 +131,7 @@ mod tests {
         fn eval_any(left_bytes in any::<Vec<i8>>(), right_bytes in any::<Vec<i8>>()) {
 
             let expected_xor = _helper_xor(left_bytes.clone(), right_bytes.clone());
-            
+
             let expr: Expr = Xor {
                 left: Box::new(Expr::Const(left_bytes.into())),
                 right: Box::new(Expr::Const(right_bytes.into())),

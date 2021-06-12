@@ -70,8 +70,6 @@ pub mod option_get_or_else;
 pub mod option_is_defined;
 /// Logical OR op
 pub mod or;
-/// Byte-wise XOR op
-pub mod xor;
 /// Object property call
 pub mod property_call;
 /// Select a field of the tuple value
@@ -89,3 +87,5 @@ pub mod val_def;
 /// Variable reference
 pub mod val_use;
 pub mod value;
+/// Byte-wise XOR op
+pub mod xor;

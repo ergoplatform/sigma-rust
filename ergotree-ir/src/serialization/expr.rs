@@ -49,7 +49,6 @@ use crate::mir::option_get::OptionGet;
 use crate::mir::option_get_or_else::OptionGetOrElse;
 use crate::mir::option_is_defined::OptionIsDefined;
 use crate::mir::or::Or;
-use crate::mir::xor::Xor;
 use crate::mir::property_call::PropertyCall;
 use crate::mir::select_field::SelectField;
 use crate::mir::sigma_and::SigmaAnd;
@@ -59,6 +58,7 @@ use crate::mir::tuple::Tuple;
 use crate::mir::upcast::Upcast;
 use crate::mir::val_def::ValDef;
 use crate::mir::val_use::ValUse;
+use crate::mir::xor::Xor;
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
 };

@@ -20,29 +20,26 @@ pub struct Xor {
 impl Xor {
     /// Create new object, return error if type matching fails
     pub fn new(left: Expr, right: Expr) -> Result<Self, InvalidArgumentError> {
-        let left_type : SType = left.post_eval_tpe();
-        let right_type : SType = right.post_eval_tpe();
-        
+        let left_type: SType = left.post_eval_tpe();
+        let right_type: SType = right.post_eval_tpe();
+
         match (left_type, right_type) {
-            (SType::SColl(l), SType::SColl(r)) => {
-                match (*l, *r) {
-                    (SType::SByte, SType::SByte) => {
-                        Ok(Xor {
-                            left: left.into(), 
-                            right: right.into()
-                        })
-                    }
-                    (l,r) => {
-                        Err(InvalidArgumentError(format!("XOR types differ: {0:?}", (l, r))))
-                    }
-                }
-            }
-            (l, r) => {
-                Err(InvalidArgumentError(format!("Invalid XOR op tpe: {0:?}", (l, r)))) 
-            }
+            (SType::SColl(l), SType::SColl(r)) => match (*l, *r) {
+                (SType::SByte, SType::SByte) => Ok(Xor {
+                    left: left.into(),
+                    right: right.into(),
+                }),
+                (l, r) => Err(InvalidArgumentError(format!(
+                    "XOR types differ: {0:?}",
+                    (l, r)
+                ))),
+            },
+            (l, r) => Err(InvalidArgumentError(format!(
+                "Invalid XOR op tpe: {0:?}",
+                (l, r)
+            ))),
         }
     }
-
 
     /// Type
     pub fn tpe(&self) -> SType {
@@ -80,18 +77,18 @@ mod arbitrary {
         type Parameters = ();
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-        (
-            any_with::<Expr>(ArbExprParams {
-                tpe: SType::SColl(Box::new(SType::SByte)),
-                depth: 0,
-            }),
-            any_with::<Expr>(ArbExprParams {
-                tpe: SType::SColl(Box::new(SType::SByte)),
-                depth: 0,
-            }),
-        )
-            .prop_map(|(left, right)| Xor::new(left, right).unwrap())
-            .boxed()
+            (
+                any_with::<Expr>(ArbExprParams {
+                    tpe: SType::SColl(Box::new(SType::SByte)),
+                    depth: 0,
+                }),
+                any_with::<Expr>(ArbExprParams {
+                    tpe: SType::SColl(Box::new(SType::SByte)),
+                    depth: 0,
+                }),
+            )
+                .prop_map(|(left, right)| Xor::new(left, right).unwrap())
+                .boxed()
         }
     }
 }

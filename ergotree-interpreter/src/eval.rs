@@ -63,7 +63,6 @@ pub(crate) mod option_get;
 pub(crate) mod option_get_or_else;
 pub(crate) mod option_is_defined;
 pub(crate) mod or;
-pub(crate) mod xor;
 pub(crate) mod property_call;
 pub(crate) mod sbox;
 pub(crate) mod scoll;
@@ -75,6 +74,7 @@ pub(crate) mod sigma_prop_bytes;
 pub(crate) mod tuple;
 pub(crate) mod upcast;
 pub(crate) mod val_use;
+pub(crate) mod xor;
 
 /// Interpreter errors
 #[derive(Error, PartialEq, Eq, Debug, Clone)]
