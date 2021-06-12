@@ -53,10 +53,7 @@ impl Slice {
 
     /// Type
     pub fn tpe(&self) -> SType {
-        match self.input.post_eval_tpe() {
-            SType::SColl(elem_tpe) => *elem_tpe,
-            _ => panic!("collection is expected"),
-        }
+        self.input.tpe()
     }
 }
 
