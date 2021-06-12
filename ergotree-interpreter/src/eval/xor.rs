@@ -23,7 +23,7 @@ impl Evaluable for Xor {
                 Value::Coll(CollKind::NativeColl(NativeColl::CollByte(l_byte))),
                 Value::Coll(CollKind::NativeColl(NativeColl::CollByte(r_byte))),
             ) => {
-                let xor = _helper_xor(l_byte.clone(), r_byte.clone());
+                let xor = _helper_xor(l_byte, r_byte);
                 Ok(xor.into())
             }
             _ => Err(EvalError::UnexpectedValue(format!(
