@@ -8,7 +8,7 @@ use crate::eval::EvalContext;
 use crate::eval::EvalError;
 use crate::eval::Evaluable;
 
-fn _helper_xor(mut x: Vec<i8>, y: Vec<i8>) -> Vec<i8> {
+fn helper_xor(mut x: Vec<i8>, y: Vec<i8>) -> Vec<i8> {
     x.iter_mut().zip(y.iter()).for_each(|(x1, x2)| *x1 ^= *x2);
     x
 }
@@ -23,7 +23,7 @@ impl Evaluable for Xor {
                 Value::Coll(CollKind::NativeColl(NativeColl::CollByte(l_byte))),
                 Value::Coll(CollKind::NativeColl(NativeColl::CollByte(r_byte))),
             ) => {
-                let xor = _helper_xor(l_byte, r_byte);
+                let xor = helper_xor(l_byte, r_byte);
                 Ok(xor.into())
             }
             _ => Err(EvalError::UnexpectedValue(format!(
@@ -130,7 +130,7 @@ mod tests {
         #[test]
         fn eval_any(left_bytes in any::<Vec<i8>>(), right_bytes in any::<Vec<i8>>()) {
 
-            let expected_xor = _helper_xor(left_bytes.clone(), right_bytes.clone());
+            let expected_xor = helper_xor(left_bytes.clone(), right_bytes.clone());
 
             let expr: Expr = Xor {
                 left: Box::new(Expr::Const(left_bytes.into())),
