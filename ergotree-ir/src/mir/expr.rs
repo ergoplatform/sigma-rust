@@ -23,6 +23,7 @@ use super::coll_fold::Fold;
 use super::coll_forall::ForAll;
 use super::coll_map::Map;
 use super::coll_size::SizeOf;
+use super::coll_slice::Slice;
 use super::collection::Collection;
 use super::constant::Constant;
 use super::constant::ConstantPlaceholder;
@@ -148,6 +149,8 @@ pub enum Expr {
     ByIndex(ByIndex),
     /// Collection size
     SizeOf(SizeOf),
+    /// Collection slice
+    Slice(Slice),
     /// Collection fold op
     Fold(Fold),
     /// Collection map op
@@ -229,6 +232,7 @@ impl Expr {
             Expr::ByIndex(op) => op.op_code(),
             Expr::ExtractScriptBytes(op) => op.op_code(),
             Expr::SizeOf(op) => op.op_code(),
+            Expr::Slice(op) => op.op_code(),
             Expr::CreateProveDlog(op) => op.op_code(),
             Expr::CreateProveDhTuple(op) => op.op_code(),
             Expr::ExtractCreationInfo(op) => op.op_code(),
@@ -289,6 +293,7 @@ impl Expr {
             Expr::ByIndex(v) => v.tpe(),
             Expr::ExtractScriptBytes(v) => v.tpe(),
             Expr::SizeOf(v) => v.tpe(),
+            Expr::Slice(v) => v.tpe(),
             Expr::CreateProveDlog(v) => v.tpe(),
             Expr::CreateProveDhTuple(v) => v.tpe(),
             Expr::ExtractCreationInfo(v) => v.tpe(),

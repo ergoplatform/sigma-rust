@@ -26,6 +26,8 @@ pub mod coll_forall;
 pub mod coll_map;
 /// Collection.size
 pub mod coll_size;
+/// Collection.slice
+pub mod coll_slice;
 /// Collection of elements
 pub mod collection;
 pub mod constant;
