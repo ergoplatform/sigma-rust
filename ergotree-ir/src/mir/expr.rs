@@ -56,6 +56,7 @@ use super::upcast::Upcast;
 use super::val_def::ValDef;
 use super::val_use::ValUse;
 use super::value::Value;
+use super::xor::Xor;
 
 extern crate derive_more;
 use crate::mir::atleast::Atleast;
@@ -118,6 +119,8 @@ pub enum Expr {
     And(And),
     /// Logical OR
     Or(Or),
+    /// Byte-wise XOR
+    Xor(Xor),
     /// THRESHOLD composition for sigma expressions
     Atleast(Atleast),
     /// LogicalNot
@@ -215,6 +218,7 @@ impl Expr {
             Expr::CalcSha256(op) => op.op_code(),
             Expr::And(op) => op.op_code(),
             Expr::Or(op) => op.op_code(),
+            Expr::Xor(op) => op.op_code(),
             Expr::Atleast(op) => op.op_code(),
             Expr::LogicalNot(op) => op.op_code(),
             Expr::Map(op) => op.op_code(),
@@ -274,6 +278,7 @@ impl Expr {
             Expr::ExtractAmount(v) => v.tpe(),
             Expr::And(v) => v.tpe(),
             Expr::Or(v) => v.tpe(),
+            Expr::Xor(v) => v.tpe(),
             Expr::Atleast(v) => v.tpe(),
             Expr::LogicalNot(v) => v.tpe(),
             Expr::Map(v) => v.tpe(),

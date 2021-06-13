@@ -58,6 +58,7 @@ use crate::mir::tuple::Tuple;
 use crate::mir::upcast::Upcast;
 use crate::mir::val_def::ValDef;
 use crate::mir::val_use::ValUse;
+use crate::mir::xor::Xor;
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
 };
@@ -137,6 +138,7 @@ impl Expr {
                 CalcSha256::OP_CODE => Ok(CalcSha256::sigma_parse(r)?.into()),
                 And::OP_CODE => Ok(And::sigma_parse(r)?.into()),
                 Or::OP_CODE => Ok(Or::sigma_parse(r)?.into()),
+                Xor::OP_CODE => Ok(Xor::sigma_parse(r)?.into()),
                 Atleast::OP_CODE => Ok(Atleast::sigma_parse(r)?.into()),
                 OpCode::COLL => Ok(coll_sigma_parse(r)?.into()),
                 OpCode::COLL_OF_BOOL_CONST => Ok(bool_const_coll_sigma_parse(r)?.into()),
@@ -214,6 +216,7 @@ impl SigmaSerializable for Expr {
                     Expr::Collection(op) => coll_sigma_serialize(op, w),
                     Expr::And(op) => op.sigma_serialize(w),
                     Expr::Or(op) => op.sigma_serialize(w),
+                    Expr::Xor(op) => op.sigma_serialize(w),
                     Expr::Atleast(op) => op.sigma_serialize(w),
                     Expr::LogicalNot(op) => op.sigma_serialize(w),
                     Expr::Map(op) => op.sigma_serialize(w),

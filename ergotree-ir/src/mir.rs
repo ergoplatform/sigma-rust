@@ -87,3 +87,5 @@ pub mod val_def;
 /// Variable reference
 pub mod val_use;
 pub mod value;
+/// Byte-wise XOR op
+pub mod xor;
