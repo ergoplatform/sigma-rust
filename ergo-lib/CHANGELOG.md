@@ -8,7 +8,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [Unreleased] - ReleaseDate
 
 ### Added 
+- `Coll.slice` [#309](https://github.com/ergoplatform/sigma-rust/pull/309);
+- Byte-wise XOR for byte arrays [#310](https://github.com/ergoplatform/sigma-rust/pull/310);
 - `Constant::from_i64_str_array` and `to_i64_str_array` for `Coll[Long]` encoding [#311](https://github.com/ergoplatform/sigma-rust/pull/311);
+
+### Changed
+- `ergotree-ir::mir::constant::constant_placeholder` module is public;
 
 ## [0.13.3] - 2021-06-11
 
