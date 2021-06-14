@@ -2,7 +2,7 @@
 
 use crate::utils::I64;
 use ergo_lib::chain::Base16Str;
-use ergo_lib::ergotree_ir::mir::constant::TryExtractFrom;
+use ergo_lib::ergotree_ir::mir::constant::{TryExtractFrom, TryExtractInto};
 use js_sys::Uint8Array;
 use std::convert::TryFrom;
 use wasm_bindgen::prelude::*;
@@ -68,5 +68,45 @@ impl Constant {
         Vec::<u8>::try_extract_from(self.0.clone())
             .map(|v| Uint8Array::from(v.as_slice()))
             .map_err(|e| JsValue::from_str(&format! {"{:?}", e}))
+    }
+
+    /// Create Coll[Long] from string array
+    #[allow(clippy::boxed_local)]
+    pub fn from_i64_str_array(arr: Box<[JsValue]>) -> Result<Constant, JsValue> {
+        arr.iter()
+            .try_fold(vec![], |mut acc, l| {
+                let b: i64 = if l.is_string() {
+                    let l_str = l
+                        .as_string()
+                        .ok_or_else(|| JsValue::from_str("i64 as a string"))?;
+                    serde_json::from_str(l_str.as_str())
+                } else {
+                    l.into_serde::<i64>()
+                }
+                .map_err(|e| {
+                    JsValue::from_str(&format!(
+                        "Failed to parse i64 from JSON string: {:?} \n with error: {}",
+                        l, e
+                    ))
+                })?;
+                acc.push(b);
+                Ok(acc)
+            })
+            .map(|longs| longs.into())
+            .map(Constant)
+    }
+
+    /// Extract Coll[Long] as string array
+    #[allow(clippy::boxed_local)]
+    pub fn to_i64_str_array(&self) -> Result<Box<[JsValue]>, JsValue> {
+        let vec_i64 = self
+            .0
+            .clone()
+            .try_extract_into::<Vec<i64>>()
+            .map_err(|e| JsValue::from_str(&format!("Constant has wrong type: {:?}", e)))?;
+        Ok(vec_i64
+            .iter()
+            .map(|it| JsValue::from_str(&it.to_string()))
+            .collect())
     }
 }
