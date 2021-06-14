@@ -70,10 +70,10 @@ impl Constant {
             .map_err(|e| JsValue::from_str(&format! {"{:?}", e}))
     }
 
-    /// Create from string array
+    /// Create Coll[Long] from string array
     #[allow(clippy::boxed_local)]
-    pub fn from_i64_str_array(v: Box<[JsValue]>) -> Result<Constant, JsValue> {
-        v.iter()
+    pub fn from_i64_str_array(arr: Box<[JsValue]>) -> Result<Constant, JsValue> {
+        arr.iter()
             .try_fold(vec![], |mut acc, l| {
                 let b: i64 = if l.is_string() {
                     let l_str = l
@@ -96,7 +96,7 @@ impl Constant {
             .map(Constant)
     }
 
-    /// Extract i64 as string array
+    /// Extract Coll[Long] as string array
     #[allow(clippy::boxed_local)]
     pub fn to_i64_str_array(&self) -> Result<Box<[JsValue]>, JsValue> {
         let vec_i64 = self
