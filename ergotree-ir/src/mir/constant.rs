@@ -13,7 +13,7 @@ use std::convert::TryInto;
 
 mod constant_placeholder;
 
-pub(crate) use constant_placeholder::*;
+pub use constant_placeholder::*;
 
 use super::value::CollKind;
 use super::value::NativeColl;

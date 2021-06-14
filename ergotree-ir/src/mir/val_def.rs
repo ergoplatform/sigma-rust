@@ -19,7 +19,7 @@ use proptest_derive::Arbitrary;
 /// Variable id
 #[derive(PartialEq, Eq, Hash, Debug, Clone, Copy, From)]
 #[cfg_attr(feature = "arbitrary", derive(Arbitrary))]
-pub struct ValId(u32);
+pub struct ValId(pub u32);
 
 impl SigmaSerializable for ValId {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), Error> {
