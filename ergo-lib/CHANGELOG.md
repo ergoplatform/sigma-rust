@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
+
+### Added 
+- `Constant::from_i64_str_array` and `to_i64_str_array` for `Coll[Long]` encoding [#311](https://github.com/ergoplatform/sigma-rust/pull/311);
+
 ## [0.13.3] - 2021-06-11
 
 ### Added 
