@@ -1,5 +1,6 @@
 //! Unproven tree types
 
+use super::dlog_protocol::FirstDhTupleProverMessage;
 use super::proof_tree::ConjectureType;
 use super::proof_tree::ProofTree;
 use super::proof_tree::ProofTreeConjecture;
@@ -8,6 +9,7 @@ use super::{dlog_protocol::FirstDlogProverMessage, Challenge, FirstProverMessage
 use crate::sigma_protocol::proof_tree::ProofTreeLeaf;
 use ergotree_ir::sigma_protocol::sigma_boolean::cand::Cand;
 use ergotree_ir::sigma_protocol::sigma_boolean::cor::Cor;
+use ergotree_ir::sigma_protocol::sigma_boolean::ProveDhTuple;
 use ergotree_ir::sigma_protocol::sigma_boolean::ProveDlog;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaConjectureItems;
@@ -32,11 +34,8 @@ impl UnprovenTree {
 
     pub(crate) fn simulated(&self) -> bool {
         match self {
-            UnprovenTree::UnprovenLeaf(UnprovenLeaf::UnprovenSchnorr(us)) => us.simulated,
-            UnprovenTree::UnprovenConjecture(uc) => match uc {
-                UnprovenConjecture::CandUnproven(cand) => cand.simulated,
-                UnprovenConjecture::CorUnproven(cor) => cor.simulated,
-            },
+            UnprovenTree::UnprovenLeaf(ul) => ul.simulated(),
+            UnprovenTree::UnprovenConjecture(uc) => uc.simulated(),
         }
     }
 
@@ -106,42 +105,56 @@ impl From<CorUnproven> for UnprovenTree {
 pub(crate) enum UnprovenLeaf {
     /// Unproven Schnorr
     UnprovenSchnorr(UnprovenSchnorr),
+    UnprovenDhTuple(UnprovenDhTuple),
 }
 
 impl UnprovenLeaf {
     fn with_position(self, updated: NodePosition) -> Self {
         match self {
             UnprovenLeaf::UnprovenSchnorr(us) => us.with_position(updated).into(),
+            UnprovenLeaf::UnprovenDhTuple(ut) => ut.with_position(updated).into(),
         }
     }
 
     fn with_challenge(self, challenge: Challenge) -> Self {
         match self {
             UnprovenLeaf::UnprovenSchnorr(us) => us.with_challenge(challenge).into(),
+            UnprovenLeaf::UnprovenDhTuple(ut) => ut.with_challenge(challenge).into(),
         }
     }
 
     fn with_simulated(self, simulated: bool) -> Self {
         match self {
             UnprovenLeaf::UnprovenSchnorr(us) => us.with_simulated(simulated).into(),
+            UnprovenLeaf::UnprovenDhTuple(ut) => ut.with_simulated(simulated).into(),
         }
     }
 
     pub(crate) fn is_real(&self) -> bool {
         match self {
             UnprovenLeaf::UnprovenSchnorr(us) => us.is_real(),
+            UnprovenLeaf::UnprovenDhTuple(ut) => ut.is_real(),
         }
     }
 
     pub(crate) fn challenge(&self) -> Option<Challenge> {
         match self {
             UnprovenLeaf::UnprovenSchnorr(us) => us.challenge_opt.clone(),
+            UnprovenLeaf::UnprovenDhTuple(ut) => ut.challenge_opt.clone(),
         }
     }
 
     pub(crate) fn position(&self) -> &NodePosition {
         match self {
             UnprovenLeaf::UnprovenSchnorr(us) => &us.position,
+            UnprovenLeaf::UnprovenDhTuple(ut) => &ut.position,
+        }
+    }
+
+    pub(crate) fn simulated(&self) -> bool {
+        match self {
+            UnprovenLeaf::UnprovenSchnorr(us) => us.simulated,
+            UnprovenLeaf::UnprovenDhTuple(udht) => udht.simulated,
         }
     }
 }
@@ -152,12 +165,16 @@ impl ProofTreeLeaf for UnprovenLeaf {
             UnprovenLeaf::UnprovenSchnorr(us) => SigmaBoolean::ProofOfKnowledge(
                 SigmaProofOfKnowledgeTree::ProveDlog(us.proposition.clone()),
             ),
+            UnprovenLeaf::UnprovenDhTuple(udht) => SigmaBoolean::ProofOfKnowledge(
+                SigmaProofOfKnowledgeTree::ProveDhTuple(udht.proposition.clone()),
+            ),
         }
     }
 
     fn commitment_opt(&self) -> Option<FirstProverMessage> {
         match self {
             UnprovenLeaf::UnprovenSchnorr(us) => us.commitment_opt.clone().map(Into::into),
+            UnprovenLeaf::UnprovenDhTuple(udht) => udht.commitment_opt.clone().map(Into::into),
         }
     }
 }
@@ -210,6 +227,13 @@ impl UnprovenConjecture {
             UnprovenConjecture::CorUnproven(cor) => cor.with_simulated(simulated).into(),
         }
     }
+
+    fn simulated(&self) -> bool {
+        match self {
+            UnprovenConjecture::CandUnproven(au) => au.simulated,
+            UnprovenConjecture::CorUnproven(ou) => ou.simulated,
+        }
+    }
 }
 
 impl ProofTreeConjecture for UnprovenConjecture {
@@ -255,6 +279,40 @@ impl UnprovenSchnorr {
 
     fn with_simulated(self, simulated: bool) -> Self {
         UnprovenSchnorr { simulated, ..self }
+    }
+
+    pub(crate) fn is_real(&self) -> bool {
+        !self.simulated
+    }
+}
+
+#[derive(PartialEq, Debug, Clone)]
+pub(crate) struct UnprovenDhTuple {
+    pub(crate) proposition: ProveDhTuple,
+    pub(crate) commitment_opt: Option<FirstDhTupleProverMessage>,
+    pub(crate) randomness_opt: Option<Scalar>,
+    pub(crate) challenge_opt: Option<Challenge>,
+    pub(crate) simulated: bool,
+    pub(crate) position: NodePosition,
+}
+
+impl UnprovenDhTuple {
+    fn with_position(self, updated: NodePosition) -> Self {
+        UnprovenDhTuple {
+            position: updated,
+            ..self
+        }
+    }
+
+    fn with_challenge(self, challenge: Challenge) -> Self {
+        UnprovenDhTuple {
+            challenge_opt: Some(challenge),
+            ..self
+        }
+    }
+
+    fn with_simulated(self, simulated: bool) -> Self {
+        UnprovenDhTuple { simulated, ..self }
     }
 
     pub(crate) fn is_real(&self) -> bool {

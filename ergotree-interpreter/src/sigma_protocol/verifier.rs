@@ -113,7 +113,7 @@ fn compute_commitments(sp: UncheckedSigmaTree) -> UncheckedSigmaTree {
                     &sn.second_message,
                 );
                 UncheckedSchnorr {
-                    commitment_opt: Some(FirstDlogProverMessage(a)),
+                    commitment_opt: Some(FirstDlogProverMessage(a.into())),
                     ..sn
                 }
                 .into()
