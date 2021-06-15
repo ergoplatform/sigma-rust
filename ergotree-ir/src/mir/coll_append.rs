@@ -6,7 +6,6 @@ use crate::serialization::SigmaSerializable;
 // use crate::types::stuple::STuple;
 use crate::types::stype::SType;
 
-
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
 use crate::has_opcode::HasStaticOpCode;
@@ -23,9 +22,7 @@ pub struct Append {
 impl Append {
     /// Create new object, returns an error if any of the requirements failed
     pub fn new(input: Expr, col_2: Expr) -> Result<Self, InvalidArgumentError> {
-        let first_elem_type : SType = input.post_eval_tpe();
-        let second_elem_type : SType = col_2.post_eval_tpe();
-        match (first_elem_type, second_elem_type) {
+        match (input.post_eval_tpe(), col_2.post_eval_tpe()) {
             (SType::SColl(x), SType::SColl(y)) => {
                 if x == y {
                     Ok(Append{input: input.into(), col_2: col_2.into()})
@@ -60,7 +57,6 @@ impl Append {
 }
 
 impl HasStaticOpCode for Append {
-    // OpCode Append is already defined by previous programer; static number 67 assigned
     const OP_CODE: OpCode = OpCode::APPEND;
 }
 
@@ -74,7 +70,6 @@ impl SigmaSerializable for Append {
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
         let input = Expr::sigma_parse(r)?.into();
         let col_2 = Expr::sigma_parse(r)?.into();
-        // InvalidArgumentError can create SerializationError; no map_err needed
         Ok(Append::new(input, col_2)?)
     }
 }
@@ -83,8 +78,8 @@ impl SigmaSerializable for Append {
 #[cfg(feature = "arbitrary")]
 mod tests {
     use super::*;
-    use crate::mir::expr::Expr;
     use crate::mir::expr::arbitrary::ArbExprParams;
+    use crate::mir::expr::Expr;
     use crate::serialization::sigma_serialize_roundtrip;
     use proptest::prelude::*;
 
@@ -102,7 +97,7 @@ mod tests {
                     tpe: SType::SColl(SType::SBoolean.into()),
                     depth: 1,
                 }),
-            )                
+            )
                 .prop_map(|(input, col_2)| Self {
                     input: input.into(),
                     col_2: col_2.into(),
