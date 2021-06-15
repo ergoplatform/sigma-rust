@@ -51,7 +51,7 @@ impl Append {
     pub fn tpe(&self) -> SType {
         // Type is supposed to be the same on input and col_2
         // Append::new checks types but later modifications are unchecked
-        // return type of first element
+        // return type of input collection
         self.input.tpe()
     }
 }
@@ -68,8 +68,8 @@ impl SigmaSerializable for Append {
     }
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
-        let input = Expr::sigma_parse(r)?.into();
-        let col_2 = Expr::sigma_parse(r)?.into();
+        let input = Expr::sigma_parse(r)?;
+        let col_2 = Expr::sigma_parse(r)?;
         Ok(Append::new(input, col_2)?)
     }
 }
