@@ -5,6 +5,7 @@ use ergotree_ir::sigma_protocol::dlog_group;
 use ergotree_ir::sigma_protocol::sigma_boolean::ProveDhTuple;
 use ergotree_ir::sigma_protocol::sigma_boolean::ProveDlog;
 
+use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 use k256::elliptic_curve::ff::PrimeField;
 use k256::Scalar;
 
@@ -78,6 +79,9 @@ impl From<Scalar> for DlogProverInput {
 }
 
 /// Diffie-Hellman tuple and secret
+/// Used in a proof that of equality of discrete logarithms (i.e., a proof of a Diffie-Hellman tuple):
+/// given group elements g, h, u, v, the proof convinces a verifier that the prover knows `w` such
+/// that `u = g^w` and `v = h^w`, without revealing `w`
 #[derive(PartialEq, Debug, Clone)]
 pub struct DhTupleProverInput {
     /// Diffie-Hellman tuple's secret
@@ -113,8 +117,18 @@ impl DhTupleProverInput {
 pub enum PrivateInput {
     /// Discrete logarithm prover input
     DlogProverInput(DlogProverInput),
-    /// DH tuple prover input
+    /// Diffie-Hellman tuple prover input
     DhTupleProverInput(DhTupleProverInput),
+}
+
+impl PrivateInput {
+    /// Public image of the private input
+    pub fn proposition(&self) -> SigmaBoolean {
+        match self {
+            PrivateInput::DlogProverInput(dl) => dl.public_image().into(),
+            PrivateInput::DhTupleProverInput(dht) => dht.public_image().clone().into(),
+        }
+    }
 }
 
 #[cfg(feature = "arbitrary")]

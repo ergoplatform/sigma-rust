@@ -15,10 +15,12 @@ use crate::sigma_protocol::UnprovenSchnorr;
 use super::challenge::Challenge;
 use super::prover::ProverError;
 use super::unchecked_tree::UncheckedConjecture;
+use super::unchecked_tree::UncheckedDhTuple;
 use super::unchecked_tree::UncheckedSigmaTree;
 use super::unchecked_tree::UncheckedTree;
 use super::unproven_tree::CorUnproven;
 use super::unproven_tree::NodePosition;
+use super::unproven_tree::UnprovenDhTuple;
 use super::unproven_tree::UnprovenLeaf;
 use super::unproven_tree::UnprovenTree;
 use super::FirstProverMessage;
@@ -77,8 +79,20 @@ impl From<UncheckedSchnorr> for ProofTree {
     }
 }
 
+impl From<UncheckedDhTuple> for ProofTree {
+    fn from(v: UncheckedDhTuple) -> Self {
+        UncheckedTree::UncheckedSigmaTree(v.into()).into()
+    }
+}
+
 impl From<UnprovenSchnorr> for ProofTree {
     fn from(v: UnprovenSchnorr) -> Self {
+        UnprovenTree::UnprovenLeaf(v.into()).into()
+    }
+}
+
+impl From<UnprovenDhTuple> for ProofTree {
+    fn from(v: UnprovenDhTuple) -> Self {
         UnprovenTree::UnprovenLeaf(v.into()).into()
     }
 }

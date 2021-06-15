@@ -118,6 +118,7 @@ fn compute_commitments(sp: UncheckedSigmaTree) -> UncheckedSigmaTree {
                 }
                 .into()
             }
+            UncheckedLeaf::UncheckedDhTuple(_) => todo!(),
         },
         UncheckedSigmaTree::UncheckedConjecture(conj) => conj
             .clone()

@@ -1,6 +1,6 @@
 //! Unproven tree types
 
-use super::dlog_protocol::FirstDhTupleProverMessage;
+use super::dht_protocol::FirstDhTupleProverMessage;
 use super::proof_tree::ConjectureType;
 use super::proof_tree::ProofTree;
 use super::proof_tree::ProofTreeConjecture;
@@ -100,6 +100,12 @@ impl From<CorUnproven> for UnprovenTree {
     }
 }
 
+impl From<UnprovenDhTuple> for UnprovenTree {
+    fn from(v: UnprovenDhTuple) -> Self {
+        UnprovenTree::UnprovenLeaf(v.into())
+    }
+}
+
 /// Unproven leaf types
 #[derive(PartialEq, Debug, Clone, From)]
 pub(crate) enum UnprovenLeaf {
@@ -109,21 +115,21 @@ pub(crate) enum UnprovenLeaf {
 }
 
 impl UnprovenLeaf {
-    fn with_position(self, updated: NodePosition) -> Self {
+    pub(crate) fn with_position(self, updated: NodePosition) -> Self {
         match self {
             UnprovenLeaf::UnprovenSchnorr(us) => us.with_position(updated).into(),
             UnprovenLeaf::UnprovenDhTuple(ut) => ut.with_position(updated).into(),
         }
     }
 
-    fn with_challenge(self, challenge: Challenge) -> Self {
+    pub(crate) fn with_challenge(self, challenge: Challenge) -> Self {
         match self {
             UnprovenLeaf::UnprovenSchnorr(us) => us.with_challenge(challenge).into(),
             UnprovenLeaf::UnprovenDhTuple(ut) => ut.with_challenge(challenge).into(),
         }
     }
 
-    fn with_simulated(self, simulated: bool) -> Self {
+    pub(crate) fn with_simulated(self, simulated: bool) -> Self {
         match self {
             UnprovenLeaf::UnprovenSchnorr(us) => us.with_simulated(simulated).into(),
             UnprovenLeaf::UnprovenDhTuple(ut) => ut.with_simulated(simulated).into(),
@@ -287,13 +293,13 @@ impl UnprovenSchnorr {
 }
 
 #[derive(PartialEq, Debug, Clone)]
-pub(crate) struct UnprovenDhTuple {
-    pub(crate) proposition: ProveDhTuple,
-    pub(crate) commitment_opt: Option<FirstDhTupleProverMessage>,
-    pub(crate) randomness_opt: Option<Scalar>,
-    pub(crate) challenge_opt: Option<Challenge>,
-    pub(crate) simulated: bool,
-    pub(crate) position: NodePosition,
+pub struct UnprovenDhTuple {
+    pub proposition: ProveDhTuple,
+    pub commitment_opt: Option<FirstDhTupleProverMessage>,
+    pub randomness_opt: Option<Scalar>,
+    pub challenge_opt: Option<Challenge>,
+    pub simulated: bool,
+    pub position: NodePosition,
 }
 
 impl UnprovenDhTuple {
@@ -313,6 +319,13 @@ impl UnprovenDhTuple {
 
     fn with_simulated(self, simulated: bool) -> Self {
         UnprovenDhTuple { simulated, ..self }
+    }
+
+    pub fn with_commitment(self, commitment: FirstDhTupleProverMessage) -> Self {
+        Self {
+            commitment_opt: Some(commitment),
+            ..self
+        }
     }
 
     pub(crate) fn is_real(&self) -> bool {
