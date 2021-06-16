@@ -32,7 +32,7 @@ impl ProverMessage for FirstDhTupleProverMessage {
 //z = r + ew mod q
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct SecondDhTupleProverMessage {
-    z: Scalar,
+    pub z: Scalar,
 }
 
 /// Interactive prover
