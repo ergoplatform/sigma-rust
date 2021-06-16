@@ -50,11 +50,10 @@ use crate::eval::context::Context;
 use crate::eval::env::Env;
 use crate::eval::{EvalError, Evaluator};
 
-use derive_more::From;
 use thiserror::Error;
 
 /// Prover errors
-#[derive(Error, PartialEq, Eq, Debug, Clone, From)]
+#[derive(Error, PartialEq, Eq, Debug, Clone)]
 pub enum ProverError {
     /// Failed to parse ErgoTree
     #[error("Ergo tree error: {0}")]
@@ -83,6 +82,21 @@ pub enum ProverError {
     /// Error while tree serialization for Fiat-Shamir hash
     #[error("Fiat-Shamir tree serialization error: {0}")]
     FiatShamirTreeSerializationError(FiatShamirTreeSerializationError),
+    /// Not yet implemented
+    #[error("not yet implemented: {0}")]
+    NotYetImplemented(String),
+}
+
+impl From<ErgoTreeParsingError> for ProverError {
+    fn from(e: ErgoTreeParsingError) -> Self {
+        ProverError::ErgoTreeError(e)
+    }
+}
+
+impl From<FiatShamirTreeSerializationError> for ProverError {
+    fn from(e: FiatShamirTreeSerializationError) -> Self {
+        ProverError::FiatShamirTreeSerializationError(e)
+    }
 }
 
 /// Prover
@@ -736,7 +750,11 @@ fn proving<P: Prover + ?Sized>(
                                         pi
                                     )))
                                 }
-                                None => todo!(),
+                                None => {
+                                    return Err(ProverError::NotYetImplemented(
+                                        "when secret not found".to_string(),
+                                    ))
+                                }
                             };
                             Ok(Some(
                                 UncheckedDhTuple {
