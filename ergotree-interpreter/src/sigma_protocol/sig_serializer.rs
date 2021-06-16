@@ -2,11 +2,12 @@
 
 use std::convert::TryInto;
 
+use super::dht_protocol::SecondDhTupleProverMessage;
 use super::prover::ProofBytes;
-use super::unchecked_tree::UncheckedConjecture;
 use super::unchecked_tree::UncheckedLeaf;
 use super::unchecked_tree::UncheckedSigmaTree;
 use super::unchecked_tree::UncheckedTree;
+use super::unchecked_tree::{UncheckedConjecture, UncheckedDhTuple};
 use crate::sigma_protocol::Challenge;
 use crate::sigma_protocol::GroupSizedBytes;
 use crate::sigma_protocol::UncheckedSchnorr;
@@ -143,7 +144,19 @@ fn parse_sig_compute_challnges_reader<R: SigmaByteRead>(
                 }
                 .into())
             }
-            SigmaProofOfKnowledgeTree::ProveDhTuple(_) => todo!("DHT is not yet supported"),
+            SigmaProofOfKnowledgeTree::ProveDhTuple(dh) => {
+                // Verifier Step 3: For every leaf node, read the response z provided in the proof.
+                let mut scalar_bytes: [u8; super::GROUP_SIZE] = [0; super::GROUP_SIZE];
+                r.read_exact(&mut scalar_bytes)?;
+                let z = Scalar::from(GroupSizedBytes(scalar_bytes.into()));
+                Ok(UncheckedDhTuple {
+                    proposition: dh.clone(),
+                    commitment_opt: None,
+                    challenge,
+                    second_message: SecondDhTupleProverMessage { z },
+                }
+                .into())
+            }
         },
         SigmaBoolean::SigmaConjecture(conj) => match conj {
             SigmaConjecture::Cand(cand) => {

@@ -151,6 +151,21 @@ mod arbitrary {
             .boxed()
         }
     }
+
+    impl Arbitrary for DhTupleProverInput {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            prop_oneof![
+                Just(DhTupleProverInput::random()),
+                Just(DhTupleProverInput::random()),
+                Just(DhTupleProverInput::random()),
+                Just(DhTupleProverInput::random()),
+                Just(DhTupleProverInput::random()),
+            ]
+            .boxed()
+        }
+    }
 }
 
 #[cfg(test)]
