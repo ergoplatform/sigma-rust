@@ -703,7 +703,55 @@ fn proving<P: Prover + ?Sized>(
                             Err(ProverError::RealUnprovenTreeWithoutChallenge)
                         }
                     }
-                    UnprovenLeaf::UnprovenDhTuple(_) => todo!(),
+                    UnprovenLeaf::UnprovenDhTuple(dhu) => {
+                        // If the node is a leaf marked "real", compute its response according to the second prover step
+                        // of the Sigma-protocol given the commitment, challenge, and witness, or pull response from
+                        // the hints bag
+                        if let Some(dhu_challenge) = dhu.challenge_opt.clone() {
+                            let priv_key_opt = prover
+                                .secrets()
+                                .iter()
+                                .find(|s| s.proposition() == dhu.proposition.clone().into());
+                            let z = match priv_key_opt {
+                                Some(PrivateInput::DhTupleProverInput(priv_key)) => hints_bag
+                                    .own_commitments()
+                                    .iter()
+                                    .find(|c| c.position == dhu.position)
+                                    .map(|oc| {
+                                        dht_protocol::interactive_prover::second_message(
+                                            priv_key,
+                                            &oc.secret_randomness,
+                                            &dhu_challenge,
+                                        )
+                                    })
+                                    .unwrap_or_else(|| {
+                                        dht_protocol::interactive_prover::second_message(
+                                            priv_key,
+                                            &dhu.randomness_opt.unwrap(),
+                                            &dhu_challenge,
+                                        )
+                                    }),
+                                Some(pi) => {
+                                    return Err(ProverError::Unexpected(format!(
+                                        "Expected DH prover input in prover secrets, got {:?}",
+                                        pi
+                                    )))
+                                }
+                                None => todo!(),
+                            };
+                            Ok(Some(
+                                UncheckedDhTuple {
+                                    proposition: dhu.proposition.clone(),
+                                    commitment_opt: None,
+                                    challenge: dhu_challenge,
+                                    second_message: z,
+                                }
+                                .into(),
+                            ))
+                        } else {
+                            Err(ProverError::RealUnprovenTreeWithoutChallenge)
+                        }
+                    }
                 },
                 UnprovenTree::UnprovenLeaf(unp_leaf) => {
                     // if the simulated node is proven by someone else, take it from hints bag

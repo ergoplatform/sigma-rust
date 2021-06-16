@@ -39,6 +39,7 @@ pub struct SecondDhTupleProverMessage {
 pub(crate) mod interactive_prover {
 
     use super::*;
+    use crate::sigma_protocol::private_input::DhTupleProverInput;
     use crate::sigma_protocol::Challenge;
     use ergotree_ir::sigma_protocol::dlog_group;
     use ergotree_ir::sigma_protocol::sigma_boolean::ProveDhTuple;
@@ -58,5 +59,18 @@ pub(crate) mod interactive_prover {
         let a = dlog_group::exponentiate(&public_input.g, &r);
         let b = dlog_group::exponentiate(&public_input.h, &r);
         (r, FirstDhTupleProverMessage::new(a, b))
+    }
+
+    pub(crate) fn second_message(
+        private_input: &DhTupleProverInput,
+        rnd: &Scalar,
+        challenge: &Challenge,
+    ) -> SecondDhTupleProverMessage {
+        let e: Scalar = challenge.clone().into();
+        // modulo multiplication, no need to explicit mod op
+        let ew = e.mul(&private_input.w);
+        // modulo addition, no need to explicit mod op
+        let z = rnd.add(&ew);
+        SecondDhTupleProverMessage { z }
     }
 }
