@@ -52,7 +52,22 @@ pub(crate) mod interactive_prover {
         public_input: &ProveDhTuple,
         challenge: &Challenge,
     ) -> (FirstDhTupleProverMessage, SecondDhTupleProverMessage) {
-        todo!()
+        //SAMPLE a random z <- Zq
+        let z = dlog_group::random_scalar_in_group_range();
+
+        // COMPUTE a = g^z*u^(-e) and b = h^z*v^{-e}  (where -e here means -e mod q)
+        let e: Scalar = challenge.clone().into();
+        let minus_e = e.negate();
+        let h_to_z = dlog_group::exponentiate(&public_input.h, &z);
+        let g_to_z = dlog_group::exponentiate(&public_input.g, &z);
+        let u_to_minus_e = dlog_group::exponentiate(&public_input.u, &minus_e);
+        let v_to_minus_e = dlog_group::exponentiate(&public_input.v, &minus_e);
+        let a = g_to_z.mul(&u_to_minus_e);
+        let b = h_to_z.mul(&v_to_minus_e);
+        (
+            FirstDhTupleProverMessage::new(a, b),
+            SecondDhTupleProverMessage { z },
+        )
     }
 
     pub(crate) fn first_message(
