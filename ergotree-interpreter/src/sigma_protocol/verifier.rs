@@ -181,7 +181,7 @@ mod tests {
 
     proptest! {
 
-        #![proptest_config(ProptestConfig::with_cases(4))]
+        #![proptest_config(ProptestConfig::with_cases(16))]
 
         #[test]
         fn test_prover_verifier_p2pk(secret in any::<DlogProverInput>(), message in vec(any::<u8>(), 100..200)) {
@@ -268,8 +268,8 @@ mod tests {
         }
 
         #[test]
-        fn test_prover_verifier_conj_and(secret1 in any::<DlogProverInput>(),
-                                         secret2 in any::<DlogProverInput>(),
+        fn test_prover_verifier_conj_and(secret1 in any::<PrivateInput>(),
+                                         secret2 in any::<PrivateInput>(),
                                          message in vec(any::<u8>(), 100..200)) {
             let pk1 = secret1.public_image();
             let pk2 = secret2.public_image();
@@ -278,7 +278,7 @@ mod tests {
                 .into();
             let tree = ErgoTree::from(expr);
             let prover = TestProver {
-                secrets: vec![PrivateInput::DlogProverInput(secret1), PrivateInput::DlogProverInput(secret2)],
+                secrets: vec![secret1, secret2],
             };
             let res = prover.prove(&tree,
                 &Env::empty(),
@@ -296,9 +296,9 @@ mod tests {
         }
 
         #[test]
-        fn test_prover_verifier_conj_and_and(secret1 in any::<DlogProverInput>(),
-                                             secret2 in any::<DlogProverInput>(),
-                                             secret3 in any::<DlogProverInput>(),
+        fn test_prover_verifier_conj_and_and(secret1 in any::<PrivateInput>(),
+                                             secret2 in any::<PrivateInput>(),
+                                             secret3 in any::<PrivateInput>(),
                                              message in vec(any::<u8>(), 100..200)) {
             let pk1 = secret1.public_image();
             let pk2 = secret2.public_image();
@@ -310,12 +310,7 @@ mod tests {
                     .into(),
             ]).unwrap().into();
             let tree = ErgoTree::from(expr);
-            let prover = TestProver {
-                secrets: vec![PrivateInput::DlogProverInput(secret1),
-                    PrivateInput::DlogProverInput(secret2),
-                    PrivateInput::DlogProverInput(secret3)
-                ],
-            };
+            let prover = TestProver { secrets: vec![secret1, secret2, secret3] };
             let res = prover.prove(&tree,
                 &Env::empty(),
                 Rc::new(force_any_val::<Context>()),
@@ -332,8 +327,8 @@ mod tests {
         }
 
         #[test]
-        fn test_prover_verifier_conj_or(secret1 in any::<DlogProverInput>(),
-                                         secret2 in any::<DlogProverInput>(),
+        fn test_prover_verifier_conj_or(secret1 in any::<PrivateInput>(),
+                                         secret2 in any::<PrivateInput>(),
                                          message in vec(any::<u8>(), 100..200)) {
             let pk1 = secret1.public_image();
             let pk2 = secret2.public_image();
@@ -341,7 +336,7 @@ mod tests {
                 .unwrap()
                 .into();
             let tree = ErgoTree::from(expr);
-            let secrets = vec![PrivateInput::DlogProverInput(secret1), PrivateInput::DlogProverInput(secret2)];
+            let secrets = vec![secret1, secret2];
             // any secret (out of 2) known to prover should be enough
             for secret in secrets {
                 let prover = TestProver {
@@ -364,9 +359,9 @@ mod tests {
         }
 
         #[test]
-        fn test_prover_verifier_conj_or_or(secret1 in any::<DlogProverInput>(),
-                                             secret2 in any::<DlogProverInput>(),
-                                             secret3 in any::<DlogProverInput>(),
+        fn test_prover_verifier_conj_or_or(secret1 in any::<PrivateInput>(),
+                                             secret2 in any::<PrivateInput>(),
+                                             secret3 in any::<PrivateInput>(),
                                              message in vec(any::<u8>(), 100..200)) {
             let pk1 = secret1.public_image();
             let pk2 = secret2.public_image();
@@ -378,11 +373,7 @@ mod tests {
                     .into(),
             ]).unwrap().into();
             let tree = ErgoTree::from(expr);
-            let secrets = vec![
-                PrivateInput::DlogProverInput(secret1),
-                PrivateInput::DlogProverInput(secret2),
-                PrivateInput::DlogProverInput(secret3)
-            ];
+            let secrets = vec![secret1, secret2, secret3];
             // any secret (out of 3) known to prover should be enough
             for secret in secrets {
                 let prover = TestProver {
