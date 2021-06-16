@@ -549,46 +549,50 @@ fn simulate_and_commit(
                 // or simulate it (if the node is simulated)
 
                 // Step 6 (real leaf -- compute the commitment a or take it from the hints bag)
-                let res: ProofTree = hints_bag
+                let res: Result<ProofTree, _> = hints_bag
                     .commitments()
                     .iter()
                     .find(|c| c.position() == dhu.position)
                     .map(|cmt_hint| {
-                        dhu.clone()
+                        Ok(dhu
+                            .clone()
                             .with_commitment(match cmt_hint.commitment() {
                                 FirstDlogProverMessage(_) => panic!("not expected here"),
                                 FirstDhtProverMessage(dhtm) => dhtm,
                             })
-                            .into()
+                            .into())
                     })
                     .unwrap_or_else(|| {
                         if dhu.simulated {
                             // Step 5 (simulated leaf -- complete the simulation)
-                            assert!(dhu.challenge_opt.is_some());
-                            let (fm, sm) = dht_protocol::interactive_prover::simulate(
-                                &dhu.proposition,
-                                &dhu.challenge_opt.clone().unwrap(),
-                            );
-                            UncheckedDhTuple {
-                                proposition: dhu.proposition.clone(),
-                                commitment_opt: Some(fm),
-                                challenge: dhu.challenge_opt.clone().unwrap(),
-                                second_message: sm,
+                            if let Some(dhu_challenge) = dhu.challenge_opt.clone() {
+                                let (fm, sm) = dht_protocol::interactive_prover::simulate(
+                                    &dhu.proposition,
+                                    &dhu_challenge,
+                                );
+                                Ok(UncheckedDhTuple {
+                                    proposition: dhu.proposition.clone(),
+                                    commitment_opt: Some(fm),
+                                    challenge: dhu_challenge,
+                                    second_message: sm,
+                                }
+                                .into())
+                            } else {
+                                Err(ProverError::SimulatedLeafWithoutChallenge)
                             }
-                            .into()
                         } else {
                             // Step 6 -- compute the commitment
                             let (r, fm) =
                                 dht_protocol::interactive_prover::first_message(&dhu.proposition);
-                            UnprovenDhTuple {
+                            Ok(UnprovenDhTuple {
                                 commitment_opt: Some(fm),
                                 randomness_opt: Some(r),
                                 ..dhu.clone()
                             }
-                            .into()
+                            .into())
                         }
                     });
-                Ok(Some(res))
+                Ok(Some(res?))
             }
             ProofTree::UncheckedTree(_) => Ok(None),
         }
@@ -726,24 +730,29 @@ fn proving<P: Prover + ?Sized>(
                                 .iter()
                                 .find(|s| s.public_image() == dhu.proposition.clone().into());
                             let z = match priv_key_opt {
-                                Some(PrivateInput::DhTupleProverInput(priv_key)) => hints_bag
+                                Some(PrivateInput::DhTupleProverInput(priv_key)) => match hints_bag
                                     .own_commitments()
                                     .iter()
                                     .find(|c| c.position == dhu.position)
-                                    .map(|oc| {
+                                {
+                                    Some(commitment_from_hints_bag) => {
                                         dht_protocol::interactive_prover::second_message(
                                             priv_key,
-                                            &oc.secret_randomness,
+                                            &commitment_from_hints_bag.secret_randomness,
                                             &dhu_challenge,
                                         )
-                                    })
-                                    .unwrap_or_else(|| {
-                                        dht_protocol::interactive_prover::second_message(
-                                            priv_key,
-                                            &dhu.randomness_opt.unwrap(),
-                                            &dhu_challenge,
-                                        )
-                                    }),
+                                    }
+                                    None => dht_protocol::interactive_prover::second_message(
+                                        priv_key,
+                                        &dhu.randomness_opt.ok_or_else(|| {
+                                            ProverError::Unexpected(format!(
+                                                "empty randomness in {:?}",
+                                                dhu
+                                            ))
+                                        })?,
+                                        &dhu_challenge,
+                                    ),
+                                },
                                 Some(pi) => {
                                     return Err(ProverError::Unexpected(format!(
                                         "Expected DH prover input in prover secrets, got {:?}",
