@@ -43,6 +43,7 @@ use super::if_op::If;
 use super::logical_not::LogicalNot;
 use super::long_to_byte_array::LongToByteArray;
 use super::method_call::MethodCall;
+use super::multiply_group::MultiplyGroup;
 use super::negation::Negation;
 use super::option_get::OptionGet;
 use super::option_get_or_else::OptionGetOrElse;
@@ -192,6 +193,8 @@ pub enum Expr {
     /// available as `getVar[Coll[Byte]](id)` On evaluation returns the result of the
     /// script execution in the current context
     DeserializeContext(DeserializeContext),
+    /// MultiplyGroup op for GroupElement
+    MultiplyGroup(MultiplyGroup),
 }
 
 impl Expr {
@@ -254,6 +257,7 @@ impl Expr {
             Expr::GetVar(op) => op.op_code(),
             Expr::DeserializeRegister(op) => op.op_code(),
             Expr::DeserializeContext(op) => op.op_code(),
+            Expr::MultiplyGroup(op) => op.op_code(),
         }
     }
 
@@ -316,6 +320,7 @@ impl Expr {
             Expr::DeserializeRegister(v) => v.tpe(),
             Expr::DeserializeContext(v) => v.tpe(),
             Expr::GetVar(v) => v.tpe(),
+            Expr::MultiplyGroup(v) => v.tpe(),
         }
     }
 

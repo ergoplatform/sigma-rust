@@ -64,6 +64,8 @@ pub mod logical_not;
 pub mod long_to_byte_array;
 /// Object method call
 pub mod method_call;
+/// Multiply op for GroupElement
+pub mod multiply_group;
 /// Negation operation on numeric type.
 pub mod negation;
 /// Option.get() op
