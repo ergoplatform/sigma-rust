@@ -87,7 +87,10 @@ pub enum UncheckedLeaf {
 
 impl UncheckedLeaf {
     pub fn challenge(&self) -> Challenge {
-        todo!()
+        match self {
+            UncheckedLeaf::UncheckedSchnorr(us) => us.challenge.clone(),
+            UncheckedLeaf::UncheckedDhTuple(udht) => udht.challenge.clone(),
+        }
     }
 }
 

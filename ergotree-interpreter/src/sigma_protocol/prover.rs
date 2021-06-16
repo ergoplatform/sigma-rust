@@ -10,7 +10,6 @@ use crate::sigma_protocol::fiat_shamir::fiat_shamir_hash_fn;
 use crate::sigma_protocol::fiat_shamir::fiat_shamir_tree_to_bytes;
 use crate::sigma_protocol::proof_tree::ProofTree;
 use crate::sigma_protocol::unchecked_tree::UncheckedDhTuple;
-use crate::sigma_protocol::unchecked_tree::UncheckedLeaf;
 use crate::sigma_protocol::unproven_tree::CandUnproven;
 use crate::sigma_protocol::unproven_tree::CorUnproven;
 use crate::sigma_protocol::unproven_tree::NodePosition;
@@ -820,10 +819,7 @@ fn convert_to_unchecked(tree: ProofTree) -> Result<UncheckedSigmaTree, ProverErr
                 "convert_to_unchecked: unexpected NoProof".to_string(),
             )),
             UncheckedTree::UncheckedSigmaTree(ust) => match ust {
-                UncheckedSigmaTree::UncheckedLeaf(ul) => match ul {
-                    UncheckedLeaf::UncheckedSchnorr(_) => Ok(ust.clone()),
-                    UncheckedLeaf::UncheckedDhTuple(_) => todo!(),
-                },
+                UncheckedSigmaTree::UncheckedLeaf(_) => Ok(ust.clone()),
                 UncheckedSigmaTree::UncheckedConjecture(_) => Err(ProverError::Unexpected(
                     format!("convert_to_unchecked: unexpected {:?}", tree),
                 )),
