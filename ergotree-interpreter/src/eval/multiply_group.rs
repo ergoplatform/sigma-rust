@@ -1,5 +1,5 @@
-use ergotree_ir::mir::value::Value;
 use ergotree_ir::mir::multiply_group::MultiplyGroup;
+use ergotree_ir::mir::value::Value;
 
 use crate::eval::env::Env;
 use crate::eval::EvalContext;
@@ -12,12 +12,7 @@ impl Evaluable for MultiplyGroup {
         let right_v = self.right.eval(env, ctx)?;
 
         match (left_v.clone(), right_v.clone()) {
-            (
-                Value::GroupElement(left),
-                Value::GroupElement(right),
-            ) => {
-                Ok((*left * &*right).into())
-            }
+            (Value::GroupElement(left), Value::GroupElement(right)) => Ok((*left * &*right).into()),
             _ => Err(EvalError::UnexpectedValue(format!(
                 "Expected MultiplyGroup input to be GroupElement, got: {0:?}",
                 (left_v, right_v)
@@ -38,7 +33,7 @@ mod tests {
     use proptest::prelude::*;
     use sigma_test_util::force_any_val;
     use std::rc::Rc;
-    
+
     proptest! {
 
         #[test]

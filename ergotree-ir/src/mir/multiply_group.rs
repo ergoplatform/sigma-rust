@@ -21,15 +21,12 @@ pub struct MultiplyGroup {
 impl MultiplyGroup {
     /// Create new object, returns an error if any of the requirements failed
     pub fn new(left: Expr, right: Expr) -> Result<Self, InvalidArgumentError> {
-
         match (left.tpe(), right.tpe()) {
-            (SType::SGroupElement, SType::SGroupElement) => {
-                Ok(MultiplyGroup {
-                    left: left.into(),
-                    right: right.into(),
-                })
-            }
-            (_,_) => Err(InvalidArgumentError(format!(
+            (SType::SGroupElement, SType::SGroupElement) => Ok(MultiplyGroup {
+                left: left.into(),
+                right: right.into(),
+            }),
+            (_, _) => Err(InvalidArgumentError(format!(
                 "MultiplyGroup Expected: (SGroupElement, SGroupElement), Actual: {0:?}",
                 (left.tpe(), right.tpe())
             ))),
@@ -55,10 +52,7 @@ impl SigmaSerializable for MultiplyGroup {
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
         let left = Expr::sigma_parse(r)?.into();
         let right = Expr::sigma_parse(r)?.into();
-        Ok(MultiplyGroup {
-            left,
-            right,
-        })
+        Ok(MultiplyGroup { left, right })
     }
 }
 
@@ -97,7 +91,7 @@ mod tests {
     use crate::mir::expr::Expr;
     use crate::serialization::sigma_serialize_roundtrip;
     use proptest::prelude::*;
-    
+
     proptest! {
 
         #![proptest_config(ProptestConfig::with_cases(16))]
