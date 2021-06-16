@@ -693,22 +693,25 @@ fn convert_to_unproven(sb: SigmaBoolean) -> UnprovenTree {
             }
             .into(),
         },
-        SigmaBoolean::SigmaConjecture(SigmaConjecture::Cand(cand)) => CandUnproven {
-            proposition: cand.clone(),
-            challenge_opt: None,
-            simulated: false,
-            children: cand.items.mapped(|it| convert_to_unproven(it).into()),
-            position: NodePosition::crypto_tree_prefix(),
-        }
-        .into(),
-        SigmaBoolean::SigmaConjecture(SigmaConjecture::Cor(cor)) => CorUnproven {
-            proposition: cor.clone(),
-            challenge_opt: None,
-            simulated: false,
-            children: cor.items.mapped(|it| convert_to_unproven(it).into()),
-            position: NodePosition::crypto_tree_prefix(),
-        }
-        .into(),
+        SigmaBoolean::SigmaConjecture(conj) => match conj {
+            SigmaConjecture::Cand(cand) => CandUnproven {
+                proposition: cand.clone(),
+                challenge_opt: None,
+                simulated: false,
+                children: cand.items.mapped(|it| convert_to_unproven(it).into()),
+                position: NodePosition::crypto_tree_prefix(),
+            }
+            .into(),
+            SigmaConjecture::Cor(cor) => CorUnproven {
+                proposition: cor.clone(),
+                challenge_opt: None,
+                simulated: false,
+                children: cor.items.mapped(|it| convert_to_unproven(it).into()),
+                position: NodePosition::crypto_tree_prefix(),
+            }
+            .into(),
+            SigmaConjecture::Cthreshold(_) => todo!(),
+        },
         SigmaBoolean::TrivialProp(_) => panic!("TrivialProp is not expected here"),
     }
 }

@@ -2,6 +2,7 @@
 
 use self::cand::Cand;
 use self::cor::Cor;
+use self::cthreshold::Cthreshold;
 
 use super::dlog_group::EcPoint;
 use crate::ergo_tree::ErgoTree;
@@ -21,6 +22,7 @@ use derive_more::TryInto;
 
 pub mod cand;
 pub mod cor;
+pub mod cthreshold;
 
 /// Sigma conjecture items type with bounds check (2..=1000)
 pub type SigmaConjectureItems<T> = BoundedVec<T, 2, 1000>;
@@ -77,6 +79,8 @@ pub enum SigmaConjecture {
     Cand(Cand),
     /// OR
     Cor(Cor),
+    /// THRESHOLD
+    Cthreshold(Cthreshold),
 }
 
 /// Algebraic data type of sigma proposition expressions
@@ -98,6 +102,11 @@ impl HasOpCode for SigmaBoolean {
             SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(_)) => {
                 OpCode::PROVE_DLOG
             }
+            SigmaBoolean::SigmaConjecture(conj) => match conj {
+                SigmaConjecture::Cand(_) => todo!(),
+                SigmaConjecture::Cor(_) => todo!(),
+                SigmaConjecture::Cthreshold(_) => OpCode::ATLEAST,
+            },
             _ => todo!(),
         }
     }

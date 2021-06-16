@@ -182,6 +182,7 @@ fn parse_sig_compute_challnges_reader<R: SigmaByteRead>(
                 }
                 .into())
             }
+            SigmaConjecture::Cthreshold(_) => todo!(),
         },
     }
 }

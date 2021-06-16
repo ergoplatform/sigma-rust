@@ -5,9 +5,10 @@ use crate::serialization::{
 };
 use crate::sigma_protocol::{
     dlog_group::EcPoint,
-    sigma_boolean::{ProveDlog, SigmaBoolean, SigmaProofOfKnowledgeTree},
+    sigma_boolean::{ProveDlog, SigmaBoolean, SigmaConjecture, SigmaProofOfKnowledgeTree},
 };
 
+use crate::sigma_protocol::sigma_boolean::cthreshold::Cthreshold;
 use std::io;
 
 impl SigmaSerializable for SigmaBoolean {
@@ -18,7 +19,11 @@ impl SigmaSerializable for SigmaBoolean {
                 SigmaProofOfKnowledgeTree::ProveDhTuple { .. } => todo!(),
                 SigmaProofOfKnowledgeTree::ProveDlog(v) => v.sigma_serialize(w),
             },
-            SigmaBoolean::SigmaConjecture(_) => todo!(),
+            SigmaBoolean::SigmaConjecture(conj) => match conj {
+                SigmaConjecture::Cand(_) => todo!(),
+                SigmaConjecture::Cor(_) => todo!(),
+                SigmaConjecture::Cthreshold(c) => c.sigma_serialize(w),
+            },
             SigmaBoolean::TrivialProp(_) => Ok(()), // besides opCode no additional bytes
         }
     }
@@ -29,6 +34,12 @@ impl SigmaSerializable for SigmaBoolean {
             OpCode::PROVE_DLOG => Ok(SigmaBoolean::ProofOfKnowledge(
                 SigmaProofOfKnowledgeTree::ProveDlog(ProveDlog::sigma_parse(r)?),
             )),
+            OpCode::ATLEAST => {
+                let c = Cthreshold::sigma_parse(r)?;
+                Ok(SigmaBoolean::SigmaConjecture(SigmaConjecture::Cthreshold(
+                    c,
+                )))
+            }
             _ => todo!(),
         }
     }
