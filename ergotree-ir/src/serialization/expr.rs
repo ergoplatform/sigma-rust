@@ -46,6 +46,7 @@ use crate::mir::if_op::If;
 use crate::mir::logical_not::LogicalNot;
 use crate::mir::long_to_byte_array::LongToByteArray;
 use crate::mir::method_call::MethodCall;
+use crate::mir::multiply_group::MultiplyGroup;
 use crate::mir::negation::Negation;
 use crate::mir::option_get::OptionGet;
 use crate::mir::option_get_or_else::OptionGetOrElse;
@@ -168,6 +169,7 @@ impl Expr {
                 GetVar::OP_CODE => Ok(GetVar::sigma_parse(r)?.into()),
                 DeserializeRegister::OP_CODE => Ok(DeserializeRegister::sigma_parse(r)?.into()),
                 DeserializeContext::OP_CODE => Ok(DeserializeContext::sigma_parse(r)?.into()),
+                MultiplyGroup::OP_CODE => Ok(MultiplyGroup::sigma_parse(r)?.into()),
                 o => Err(SerializationError::NotImplementedOpCode(format!(
                     "{0}(shift {1})",
                     o.value(),
@@ -250,6 +252,7 @@ impl SigmaSerializable for Expr {
                     Expr::GetVar(op) => op.sigma_serialize(w),
                     Expr::DeserializeRegister(op) => op.sigma_serialize(w),
                     Expr::DeserializeContext(op) => op.sigma_serialize(w),
+                    Expr::MultiplyGroup(op) => op.sigma_serialize(w),
                 }
             }
         }
