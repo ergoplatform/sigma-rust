@@ -32,6 +32,7 @@ use super::constant::TryExtractFrom;
 use super::constant::TryExtractFromError;
 use super::create_provedlog::CreateProveDlog;
 use super::decode_point::DecodePoint;
+use super::exponentiate::Exponentiate;
 use super::extract_amount::ExtractAmount;
 use super::extract_creation_info::ExtractCreationInfo;
 use super::extract_id::ExtractId;
@@ -195,6 +196,8 @@ pub enum Expr {
     DeserializeContext(DeserializeContext),
     /// MultiplyGroup op for GroupElement
     MultiplyGroup(MultiplyGroup),
+    /// Exponentiate op for GroupElement
+    Exponentiate(Exponentiate),
 }
 
 impl Expr {
@@ -258,6 +261,7 @@ impl Expr {
             Expr::DeserializeRegister(op) => op.op_code(),
             Expr::DeserializeContext(op) => op.op_code(),
             Expr::MultiplyGroup(op) => op.op_code(),
+            Expr::Exponentiate(op) => op.op_code(),
         }
     }
 
@@ -321,6 +325,7 @@ impl Expr {
             Expr::DeserializeContext(v) => v.tpe(),
             Expr::GetVar(v) => v.tpe(),
             Expr::MultiplyGroup(v) => v.tpe(),
+            Expr::Exponentiate(v) => v.tpe(),
         }
     }
 

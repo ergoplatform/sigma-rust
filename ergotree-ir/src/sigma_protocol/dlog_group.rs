@@ -18,8 +18,10 @@
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
 };
+use k256::elliptic_curve::ff::PrimeField;
 use k256::elliptic_curve::sec1::ToEncodedPoint;
 use k256::{ProjectivePoint, PublicKey, Scalar};
+use num_bigint::BigUint;
 use sigma_ser::vlq_encode;
 
 use std::{
@@ -103,6 +105,20 @@ pub fn exponentiate(base: &EcPoint, exponent: &Scalar) -> EcPoint {
 pub fn random_scalar_in_group_range() -> Scalar {
     use rand::rngs::OsRng;
     Scalar::generate_vartime(&mut OsRng)
+}
+
+/// Attempts to create Scalar from BigUint
+/// Returns None if not in the range [0, modulus).
+pub fn from_biguint(b: BigUint) -> Option<Scalar> {
+    let bytes_be = b.to_bytes_be();
+    let bytes = bytes_be.as_slice().clone();
+
+    let mut bytes_32 = [0; 32];
+    for (i, v) in bytes.clone().iter().enumerate() {
+        bytes_32[i] = *v;
+    }
+
+    Scalar::from_repr(bytes_32.clone().into())
 }
 
 impl SigmaSerializable for EcPoint {
