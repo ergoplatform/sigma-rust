@@ -32,7 +32,7 @@ mod tests {
 
     #[test]
     fn eval() {
-        assert!(check(true));
+        assert!(!check(true));
         assert!(check(false));
     }
 }

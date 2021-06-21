@@ -419,7 +419,7 @@ mod tests {
         }
         .into();
         let ctx = Rc::new(force_any_val::<Context>());
-        assert!(eval_out::<bool>(&e, ctx));
+        assert!(!eval_out::<bool>(&e, ctx));
     }
 
     fn eval_num_op<T: TryExtractFrom<Value> + Into<Constant>>(
