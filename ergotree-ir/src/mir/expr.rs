@@ -544,10 +544,19 @@ pub(crate) mod arbitrary {
 
     fn coll_non_nested_expr(elem_tpe: &SType) -> BoxedStrategy<Expr> {
         match elem_tpe {
+            SType::SBoolean => any_with::<Constant>(SType::SColl(Box::new(SType::SBoolean)).into())
+                .prop_map(Expr::Const)
+                .boxed(),
             SType::SByte => any_with::<Constant>(SType::SColl(Box::new(SType::SByte)).into())
                 .prop_map(Expr::Const)
                 .boxed(),
-            SType::SBoolean => any_with::<Constant>(SType::SColl(Box::new(SType::SBoolean)).into())
+            SType::SShort => any_with::<Constant>(SType::SColl(Box::new(SType::SShort)).into())
+                .prop_map(Expr::Const)
+                .boxed(),
+            SType::SInt => any_with::<Constant>(SType::SColl(Box::new(SType::SInt)).into())
+                .prop_map(Expr::Const)
+                .boxed(),
+            SType::SLong => any_with::<Constant>(SType::SColl(Box::new(SType::SLong)).into())
                 .prop_map(Expr::Const)
                 .boxed(),
             _ => todo!("Collection of {0:?} is not yet implemented", elem_tpe),
