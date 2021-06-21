@@ -86,13 +86,11 @@ pub trait Prover: Evaluator {
     /// Secrets of the prover
     fn secrets(&self) -> &[PrivateInput];
 
-    /**
-     * The comments in this section are taken from the algorithm for the
-     * Sigma-protocol prover as described in the ErgoScript white-paper
-     * https://ergoplatform.org/docs/ErgoScript.pdf , Appendix A
-     *
-     * Generate proofs for the given message for ErgoTree reduced to Sigma boolean expression
-     */
+    /// The comments in this section are taken from the algorithm for the
+    /// Sigma-protocol prover as described in the ErgoScript white-paper
+    /// <https://ergoplatform.org/docs/ErgoScript.pdf>, Appendix A
+    ///  
+    /// Generate proofs for the given message for ErgoTree reduced to Sigma boolean expression
     fn prove(
         &self,
         tree: &ErgoTree,
@@ -123,7 +121,7 @@ pub trait Prover: Evaluator {
 
 /// The comments in this section are taken from the algorithm for the
 /// Sigma-protocol prover as described in the white paper
-/// https://ergoplatform.org/docs/ErgoScript.pdf (Appendix A)
+/// <https://ergoplatform.org/docs/ErgoScript.pdf> (Appendix A)
 // if we are concerned about timing attacks against the prover, we should make sure that this code
 //  takes the same amount of time regardless of which nodes are real and which nodes are simulated
 //  In particular, we should avoid the use of exists and forall, because they short-circuit the evaluation
