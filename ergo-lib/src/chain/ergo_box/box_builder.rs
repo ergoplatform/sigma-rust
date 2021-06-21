@@ -126,7 +126,7 @@ impl ErgoBoxCandidateBuilder {
         self.additional_registers.remove(register_id);
     }
 
-    /// Mint token, as defined in https://github.com/ergoplatform/eips/blob/master/eip-0004.md
+    /// Mint token, as defined in <https://github.com/ergoplatform/eips/blob/master/eip-0004.md>
     /// `token` - token id(box id of the first input box in transaction) and token amount,
     /// `token_name` - token name (will be encoded in R4),
     /// `token_desc` - token description (will be encoded in R5),

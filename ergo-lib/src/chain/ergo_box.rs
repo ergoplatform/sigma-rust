@@ -156,7 +156,7 @@ impl ErgoBox {
     pub fn get_register(&self, id: RegisterId) -> Option<Constant> {
         match id {
             RegisterId::MandatoryRegisterId(id) => match id {
-                MandatoryRegisterId::R0 => Some(self.value.clone().into()),
+                MandatoryRegisterId::R0 => Some(self.value.into()),
                 MandatoryRegisterId::R1 => Some(self.script_bytes().into()),
                 MandatoryRegisterId::R2 => Some(self.tokens_raw().into()),
                 MandatoryRegisterId::R3 => Some(self.creation_info().into()),

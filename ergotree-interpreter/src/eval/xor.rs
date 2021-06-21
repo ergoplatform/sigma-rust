@@ -47,9 +47,9 @@ mod tests {
 
     #[test]
     fn eval_1_xor_0() {
-        let left = vec![1 as i8];
-        let right = vec![0 as i8];
-        let expected_xor = vec![1 as i8];
+        let left = vec![1_i8];
+        let right = vec![0_i8];
+        let expected_xor = vec![1_i8];
 
         let expr: Expr = Xor {
             left: Box::new(Expr::Const(left.into())),
@@ -63,9 +63,9 @@ mod tests {
 
     #[test]
     fn eval_0_xor_1() {
-        let left = vec![0 as i8];
-        let right = vec![1 as i8];
-        let expected_xor = vec![1 as i8];
+        let left = vec![0_i8];
+        let right = vec![1_i8];
+        let expected_xor = vec![1_i8];
 
         let expr: Expr = Xor {
             left: Box::new(Expr::Const(left.into())),
@@ -79,9 +79,9 @@ mod tests {
 
     #[test]
     fn eval_1_xor_1() {
-        let left = vec![1 as i8];
-        let right = vec![1 as i8];
-        let expected_xor = vec![0 as i8];
+        let left = vec![1_i8];
+        let right = vec![1_i8];
+        let expected_xor = vec![0_i8];
 
         let expr: Expr = Xor {
             left: Box::new(Expr::Const(left.into())),
@@ -95,9 +95,9 @@ mod tests {
 
     #[test]
     fn eval_0_xor_0() {
-        let left = vec![0 as i8];
-        let right = vec![0 as i8];
-        let expected_xor = vec![0 as i8];
+        let left = vec![0_i8];
+        let right = vec![0_i8];
+        let expected_xor = vec![0_i8];
 
         let expr: Expr = Xor {
             left: Box::new(Expr::Const(left.into())),
@@ -111,9 +111,9 @@ mod tests {
 
     #[test]
     fn eval_1100_xor_0101() {
-        let left = vec![1 as i8, 1 as i8, 0 as i8, 0 as i8];
-        let right = vec![0 as i8, 1 as i8, 0 as i8, 1 as i8];
-        let expected_xor = vec![1 as i8, 0 as i8, 0 as i8, 1 as i8];
+        let left = vec![1_i8, 1, 0, 0];
+        let right = vec![0_i8, 1, 0, 1];
+        let expected_xor = vec![1_i8, 0, 0, 1];
 
         let expr: Expr = Xor {
             left: Box::new(Expr::Const(left.into())),

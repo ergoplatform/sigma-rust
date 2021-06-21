@@ -5,7 +5,7 @@ use proptest::{num::i32, num::i64, prelude::*};
 /// into values that can be efficiently encoded with VLQ. (Otherwise,
 /// negative values must be sign-extended to 64 bits to be varint encoded,
 /// thus always taking 10 bytes on the wire.)
-/// see https://developers.google.com/protocol-buffers/docs/encoding#types
+/// see <https://developers.google.com/protocol-buffers/docs/encoding#types>
 ///
 /// Although result should be of u32 we need to use u64 due to the signed Int
 /// used for result in Scala version
@@ -16,7 +16,7 @@ pub fn encode_i32(v: i32) -> u64 {
 }
 
 /// Decode a signed value previously ZigZag-encoded with [`encode_i32`]
-/// see https://developers.google.com/protocol-buffers/docs/encoding#types
+/// see <https://developers.google.com/protocol-buffers/docs/encoding#types>
 pub fn decode_u32(v: u64) -> i32 {
     // source: http://github.com/google/protobuf/blob/a7252bf42df8f0841cf3a0c85fdbf1a5172adecb/java/core/src/main/java/com/google/protobuf/CodedInputStream.java#L553
     (v as u32 >> 1) as i32 ^ -(v as i32 & 1)
@@ -26,14 +26,14 @@ pub fn decode_u32(v: u64) -> i32 {
 /// into values that can be efficiently encoded with varint. (Otherwise,
 /// negative values must be sign-extended to 64 bits to be varint encoded,
 /// thus always taking 10 bytes on the wire.)
-/// see https://developers.google.com/protocol-buffers/docs/encoding#types
+/// see <https://developers.google.com/protocol-buffers/docs/encoding#types>
 pub fn encode_i64(v: i64) -> u64 {
     // source: http://github.com/google/protobuf/blob/a7252bf42df8f0841cf3a0c85fdbf1a5172adecb/java/core/src/main/java/com/google/protobuf/CodedOutputStream.java#L949
     ((v << 1) ^ (v >> 63)) as u64
 }
 
 /// Decode a signed value previously ZigZag-encoded with [`encode_i64`]
-/// see https://developers.google.com/protocol-buffers/docs/encoding#types
+/// see <https://developers.google.com/protocol-buffers/docs/encoding#types>
 pub fn decode_u64(v: u64) -> i64 {
     // source: http://github.com/google/protobuf/blob/a7252bf42df8f0841cf3a0c85fdbf1a5172adecb/java/core/src/main/java/com/google/protobuf/CodedInputStream.java#L566
     ((v >> 1) ^ (-((v & 1) as i64)) as u64) as i64

@@ -39,7 +39,7 @@ mod tests {
         #[test]
         fn eval_any(left in any::<EcPoint>(), right in any::<EcPoint>()) {
 
-            let expected_mul = left.clone() * &right.clone();
+            let expected_mul = left.clone() * &right;
 
             let expr: Expr = MultiplyGroup {
                 left: Box::new(Expr::Const(left.into())),

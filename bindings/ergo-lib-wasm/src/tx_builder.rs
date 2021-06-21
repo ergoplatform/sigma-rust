@@ -83,7 +83,7 @@ impl TxBuilder {
 
     /// Get fee amount
     pub fn fee_amount(&self) -> BoxValue {
-        self.0.fee_amount().clone().into()
+        self.0.fee_amount().into()
     }
 
     /// Get change
@@ -93,6 +93,6 @@ impl TxBuilder {
 
     /// Get min change value
     pub fn min_change_value(&self) -> BoxValue {
-        self.0.min_change_value().clone().into()
+        self.0.min_change_value().into()
     }
 }

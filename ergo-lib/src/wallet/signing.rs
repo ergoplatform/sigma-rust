@@ -351,6 +351,6 @@ mod tests {
             tx.inputs.get(1).unwrap().spending_proof.proof.clone(),
             message.as_slice(),
         );
-        assert_eq!(ver_res.unwrap().result, true);
+        assert!(ver_res.unwrap().result);
     }
 }

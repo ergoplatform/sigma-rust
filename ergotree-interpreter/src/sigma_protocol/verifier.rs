@@ -379,7 +379,7 @@ mod tests {
             signature.into(),
             msg.as_slice(),
         );
-        assert_eq!(ver_res.unwrap().result, true);
+        assert!(ver_res.unwrap().result);
     }
 
     #[test]
@@ -437,7 +437,7 @@ mod tests {
             signature.into(),
             msg.as_slice(),
         );
-        assert_eq!(ver_res.unwrap().result, true);
+        assert!(ver_res.unwrap().result);
     }
 
     #[test]
@@ -495,7 +495,7 @@ mod tests {
             signature.into(),
             msg.as_slice(),
         );
-        assert_eq!(ver_res.unwrap().result, true);
+        assert!(ver_res.unwrap().result);
     }
 
     #[test]
@@ -567,7 +567,7 @@ mod tests {
             signature.into(),
             msg.as_slice(),
         );
-        assert_eq!(ver_res.unwrap().result, true);
+        assert!(ver_res.unwrap().result);
     }
 
     #[test]
@@ -639,6 +639,6 @@ mod tests {
             signature.into(),
             msg.as_slice(),
         );
-        assert_eq!(ver_res.unwrap().result, true);
+        assert!(ver_res.unwrap().result);
     }
 }

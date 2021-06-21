@@ -49,8 +49,8 @@ pub fn bin_op_sigma_parse<R: SigmaByteRead>(
         let bools = r.get_bits(2)?;
         BinOp {
             kind: op_kind,
-            left: Box::new(Expr::Const(bools.get(0).unwrap().clone().into())),
-            right: Box::new(Expr::Const(bools.get(1).unwrap().clone().into())),
+            left: Box::new(Expr::Const((*bools.get(0).unwrap()).into())),
+            right: Box::new(Expr::Const((*bools.get(1).unwrap()).into())),
         }
         .into()
     } else {
