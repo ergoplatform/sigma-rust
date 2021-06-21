@@ -1,27 +1,35 @@
-//! FIXME
-
+//! Substitution of constants in serialized sigma expression
+use super::expr::Expr;
+use crate::mir::expr::InvalidArgumentError;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::SerializationError;
 use crate::serialization::SigmaSerializable;
-//use crate::types::stype::SType;
-
-use super::expr::Expr;
+use crate::types::stype::SType;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
-/// FIXME: DOC
+/// Substitute constants in the serialized representation of sigma script. Returns
+/// original scriptBytes array where only specified constants are replaced and all
+/// other bytes remain exactly the same.
 pub struct SubstConstants {
-    /// FIXME: DOC
+    /// Serialized ergo tree with ConstantSegregationFlag set to 1.
     pub script_bytes: Box<Expr>,
-    /// FIXME: DOC
+    /// Zero based indexes in ErgoTree.constants array which should be
+    /// replaced with new values.
     pub positions: Box<Expr>,
-    /// FIXME: DOC
+    /// New values to be injected into the corresponding positions in ErgoTree.constants
+    /// array.
     pub new_values: Box<Expr>,
 }
 
 impl SubstConstants {
     pub(crate) const OP_CODE: OpCode = OpCode::SUBST_CONSTANTS;
+
+    /// Type of returned value
+    pub fn tpe(&self) -> SType {
+        SType::SColl(SType::SByte.into())
+    }
 
     pub(crate) fn op_code(&self) -> OpCode {
         Self::OP_CODE
@@ -36,8 +44,14 @@ impl SigmaSerializable for SubstConstants {
     }
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
-        let script_bytes = Expr::sigma_parse(r)?.into();
-        let positions = Expr::sigma_parse(r)?.into();
+        let script_bytes = Box::new(Expr::sigma_parse(r)?);
+        script_bytes
+            .check_post_eval_tpe(SType::SColl(SType::SByte.into()))
+            .map_err(InvalidArgumentError::from)?;
+        let positions = Box::new(Expr::sigma_parse(r)?);
+        positions
+            .check_post_eval_tpe(SType::SColl(SType::SInt.into()))
+            .map_err(InvalidArgumentError::from)?;
         let new_values = Expr::sigma_parse(r)?.into();
         Ok(Self {
             script_bytes,
@@ -51,6 +65,7 @@ impl SigmaSerializable for SubstConstants {
 #[cfg(feature = "arbitrary")]
 mod tests {
     use super::*;
+    use crate::mir::expr::arbitrary::ArbExprParams;
     use crate::mir::expr::Expr;
     use crate::serialization::sigma_serialize_roundtrip;
     use proptest::prelude::*;
@@ -60,10 +75,20 @@ mod tests {
         type Parameters = ();
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            (any::<Box<Expr>>(), any::<Box<Expr>>(), any::<Box<Expr>>())
+            (
+                any_with::<Expr>(ArbExprParams {
+                    tpe: SType::SColl(SType::SByte.into()),
+                    depth: 0,
+                }),
+                any_with::<Expr>(ArbExprParams {
+                    tpe: SType::SColl(SType::SInt.into()),
+                    depth: 0,
+                }),
+                any::<Box<Expr>>(),
+            )
                 .prop_map(|(script_bytes, positions, new_values)| Self {
-                    script_bytes,
-                    positions,
+                    script_bytes: script_bytes.into(),
+                    positions: positions.into(),
                     new_values,
                 })
                 .boxed()

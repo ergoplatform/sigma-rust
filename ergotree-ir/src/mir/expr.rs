@@ -82,7 +82,7 @@ pub enum Expr {
     Const(Constant),
     /// Placeholder for a constant
     ConstPlaceholder(ConstantPlaceholder),
-    /// FIXME: Doc
+    /// Substitute constants in serialized ergo tree
     SubstConstants(SubstConstants),
     /// Convert byte array to SLong
     ByteArrayToLong(ByteArrayToLong),
@@ -271,7 +271,7 @@ impl Expr {
             Expr::Append(ap) => ap.tpe(),
             Expr::Const(v) => v.tpe.clone(),
             Expr::Collection(v) => v.tpe(),
-            Expr::SubstConstants(_v) => todo!(),
+            Expr::SubstConstants(v) => v.tpe(),
             Expr::ByteArrayToLong(v) => v.tpe(),
             Expr::ByteArrayToBigInt(v) => v.tpe(),
             Expr::LongToByteArray(v) => v.tpe(),
