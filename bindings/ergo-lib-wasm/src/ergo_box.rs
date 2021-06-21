@@ -251,7 +251,7 @@ impl ErgoBoxAssetsData {
 
     /// Value part of the box
     pub fn value(&self) -> BoxValue {
-        self.0.value.clone().into()
+        self.0.value.into()
     }
 
     /// Tokens part of the box

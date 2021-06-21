@@ -48,6 +48,6 @@ mod tests {
         let ctx = Rc::new(force_any_val::<Context>());
         let v = eval_out::<bool>(&option_expr, ctx);
         // R0 is always defined (box value)
-        assert_eq!(v, true);
+        assert!(v);
     }
 }

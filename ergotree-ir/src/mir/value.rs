@@ -225,7 +225,7 @@ impl<T: LiftIntoSType + StoreWrapped + Into<Value>> From<Vec<T>> for Value {
     }
 }
 
-#[allow(clippy::clippy::from_over_into)]
+#[allow(clippy::from_over_into)]
 #[allow(clippy::unwrap_used)]
 #[impl_for_tuples(2, 4)]
 impl Into<Value> for Tuple {
