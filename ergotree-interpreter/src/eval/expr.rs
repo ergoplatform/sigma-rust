@@ -11,6 +11,7 @@ impl Evaluable for Expr {
         ctx.cost_accum.add_cost_of(self)?;
         match self {
             Expr::Const(c) => Ok(c.v.clone()),
+            Expr::SubstConstants(_) => todo!(),
             Expr::ByteArrayToLong(op) => op.eval(env, ctx),
             Expr::ByteArrayToBigInt(op) => op.eval(env, ctx),
             Expr::LongToByteArray(op) => op.eval(env, ctx),

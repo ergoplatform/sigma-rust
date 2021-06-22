@@ -275,8 +275,11 @@ pub(crate) mod arbitrary {
             // SType::SAvlTree => {}
             // SType::SOption(tpe) =>
             SType::SColl(elem_tpe) => match *elem_tpe {
-                SType::SByte => vec(any::<u8>(), 0..400).prop_map_into().boxed(),
                 SType::SBoolean => vec(any::<bool>(), 0..400).prop_map_into().boxed(),
+                SType::SByte => vec(any::<u8>(), 0..400).prop_map_into().boxed(),
+                SType::SShort => vec(any::<i16>(), 0..400).prop_map_into().boxed(),
+                SType::SInt => vec(any::<i32>(), 0..400).prop_map_into().boxed(),
+                SType::SLong => vec(any::<i64>(), 0..400).prop_map_into().boxed(),
                 _ => todo!(),
             },
             // SType::STuple(_) => {}

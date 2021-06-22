@@ -54,6 +54,7 @@ use super::select_field::SelectField;
 use super::sigma_and::SigmaAnd;
 use super::sigma_or::SigmaOr;
 use super::sigma_prop_bytes::SigmaPropBytes;
+use super::subst_const::SubstConstants;
 use super::tuple::Tuple;
 use super::upcast::Upcast;
 use super::val_def::ValDef;
@@ -81,6 +82,8 @@ pub enum Expr {
     Const(Constant),
     /// Placeholder for a constant
     ConstPlaceholder(ConstantPlaceholder),
+    /// Substitute constants in serialized ergo tree
+    SubstConstants(SubstConstants),
     /// Convert byte array to SLong
     ByteArrayToLong(ByteArrayToLong),
     /// Convert byte array to SLong
@@ -204,6 +207,7 @@ impl Expr {
             Expr::Append(op) => op.op_code(),
             Expr::Const(_) => panic!("constant does not have op code assigned"),
             Expr::ConstPlaceholder(op) => op.op_code(),
+            Expr::SubstConstants(op) => op.op_code(),
             Expr::ByteArrayToLong(op) => op.op_code(),
             Expr::ByteArrayToBigInt(op) => op.op_code(),
             Expr::LongToByteArray(op) => op.op_code(),
@@ -267,6 +271,7 @@ impl Expr {
             Expr::Append(ap) => ap.tpe(),
             Expr::Const(v) => v.tpe.clone(),
             Expr::Collection(v) => v.tpe(),
+            Expr::SubstConstants(v) => v.tpe(),
             Expr::ByteArrayToLong(v) => v.tpe(),
             Expr::ByteArrayToBigInt(v) => v.tpe(),
             Expr::LongToByteArray(v) => v.tpe(),
@@ -539,10 +544,19 @@ pub(crate) mod arbitrary {
 
     fn coll_non_nested_expr(elem_tpe: &SType) -> BoxedStrategy<Expr> {
         match elem_tpe {
+            SType::SBoolean => any_with::<Constant>(SType::SColl(Box::new(SType::SBoolean)).into())
+                .prop_map(Expr::Const)
+                .boxed(),
             SType::SByte => any_with::<Constant>(SType::SColl(Box::new(SType::SByte)).into())
                 .prop_map(Expr::Const)
                 .boxed(),
-            SType::SBoolean => any_with::<Constant>(SType::SColl(Box::new(SType::SBoolean)).into())
+            SType::SShort => any_with::<Constant>(SType::SColl(Box::new(SType::SShort)).into())
+                .prop_map(Expr::Const)
+                .boxed(),
+            SType::SInt => any_with::<Constant>(SType::SColl(Box::new(SType::SInt)).into())
+                .prop_map(Expr::Const)
+                .boxed(),
+            SType::SLong => any_with::<Constant>(SType::SColl(Box::new(SType::SLong)).into())
                 .prop_map(Expr::Const)
                 .boxed(),
             _ => todo!("Collection of {0:?} is not yet implemented", elem_tpe),

@@ -57,6 +57,7 @@ use crate::mir::select_field::SelectField;
 use crate::mir::sigma_and::SigmaAnd;
 use crate::mir::sigma_or::SigmaOr;
 use crate::mir::sigma_prop_bytes::SigmaPropBytes;
+use crate::mir::subst_const::SubstConstants;
 use crate::mir::tuple::Tuple;
 use crate::mir::upcast::Upcast;
 use crate::mir::val_def::ValDef;
@@ -161,6 +162,7 @@ impl Expr {
                 SigmaPropBytes::OP_CODE => Ok(SigmaPropBytes::sigma_parse(r)?.into()),
                 Tuple::OP_CODE => Ok(Tuple::sigma_parse(r)?.into()),
                 DecodePoint::OP_CODE => Ok(DecodePoint::sigma_parse(r)?.into()),
+                SubstConstants::OP_CODE => Ok(SubstConstants::sigma_parse(r)?.into()),
                 ByteArrayToLong::OP_CODE => Ok(ByteArrayToLong::sigma_parse(r)?.into()),
                 ByteArrayToBigInt::OP_CODE => Ok(ByteArrayToBigInt::sigma_parse(r)?.into()),
                 LongToByteArray::OP_CODE => Ok(LongToByteArray::sigma_parse(r)?.into()),
@@ -200,6 +202,7 @@ impl SigmaSerializable for Expr {
                     Expr::Append(ap) => ap.sigma_serialize(w),
                     Expr::Fold(op) => op.sigma_serialize(w),
                     Expr::ConstPlaceholder(cp) => cp.sigma_serialize(w),
+                    Expr::SubstConstants(s) => s.sigma_serialize(w),
                     Expr::ByteArrayToLong(s) => s.sigma_serialize(w),
                     Expr::ByteArrayToBigInt(s) => s.sigma_serialize(w),
                     Expr::LongToByteArray(s) => s.sigma_serialize(w),
