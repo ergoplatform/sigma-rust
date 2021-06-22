@@ -55,7 +55,7 @@ impl SigmaSerializable for CreateProveDhTuple {
         self.v.sigma_serialize(w)
     }
 
-    #[allow(clippy::clippy::many_single_char_names)]
+    #[allow(clippy::many_single_char_names)]
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
         let g = Expr::sigma_parse(r)?.into();
         let h = Expr::sigma_parse(r)?.into();

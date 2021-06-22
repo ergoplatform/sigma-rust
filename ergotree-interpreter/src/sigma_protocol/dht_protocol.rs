@@ -97,7 +97,7 @@ pub(crate) mod interactive_prover {
     /// and prover's response ("z")
     ///
     /// g^z = a*u^e, h^z = b*v^e  => a = g^z/u^e, b = h^z/v^e
-    #[allow(clippy::clippy::many_single_char_names)]
+    #[allow(clippy::many_single_char_names)]
     pub(crate) fn compute_commitment(
         proposition: &ProveDhTuple,
         challenge: &Challenge,

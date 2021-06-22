@@ -92,7 +92,7 @@ pub struct DhTupleProverInput {
 
 impl DhTupleProverInput {
     /// Create random secret and Diffie-Hellman tuple
-    #[allow(clippy::clippy::many_single_char_names)]
+    #[allow(clippy::many_single_char_names)]
     pub fn random() -> Self {
         let g = dlog_group::generator();
         let h = dlog_group::exponentiate(
