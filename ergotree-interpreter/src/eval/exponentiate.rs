@@ -37,7 +37,7 @@ impl Evaluable for Exponentiate {
                 Ok(dlog_group::exponentiate(&group, &exp).into())
             }
             _ => Err(EvalError::UnexpectedValue(format!(
-                "Expected Exponentiate input to be (GroupElement, BigInt), got: {0:?}",
+                "Exponentiate input should be GroupElement, BigInt (<= 256 bit). Received: {0:?}",
                 (left_v, right_v)
             ))),
         }
@@ -67,7 +67,7 @@ mod tests {
             let r_g_array = pi.w.to_bytes();
             let r_b_array: &[u8] = r_g_array.as_slice();
 
-            let right: BigInt = BigInt::from_bytes_le(Sign::Plus, r_b_array);
+            let right: BigInt = BigInt::from_bytes_be(Sign::Plus, r_b_array);
 
             let expected_exp = dlog_group::exponentiate(
                 &left,
@@ -83,23 +83,35 @@ mod tests {
             let ctx = Rc::new(force_any_val::<Context>());
             assert_eq!(eval_out::<EcPoint>(&expr, ctx), expected_exp);
         }
+    }
 
-        #[test]
-        fn eval_negative_exponent(left in any::<EcPoint>(), pi in any::<DlogProverInput>()) {
-
-            let r_g_array = pi.w.negate().to_bytes();
-            let r_b_array: &[u8] = r_g_array.as_slice();
-
-            let right: BigInt = BigInt::from_bytes_le(Sign::Minus, r_b_array);
-
-            let expr: Expr = Exponentiate {
-                left: Box::new(Expr::Const(left.into())),
-                right: Box::new(Expr::Const(right.into())),
-            }
-            .into();
-
-            let ctx = Rc::new(force_any_val::<Context>());
-            assert!(try_eval_out::<EcPoint>(&expr, ctx).is_err());
+    #[test]
+    fn eval_exponent_negative() {
+        let left = force_any_val::<EcPoint>();
+        let right = BigInt::parse_bytes(b"-1", 10).unwrap();
+        let expr: Expr = Exponentiate {
+            left: Box::new(Expr::Const(left.into())),
+            right: Box::new(Expr::Const(right.into())),
         }
+        .into();
+
+        let ctx = Rc::new(force_any_val::<Context>());
+        assert!(try_eval_out::<EcPoint>(&expr, ctx).is_err());
+    }
+
+    #[test]
+    fn eval_exponent_greater_than_256_bit() {
+        let left = force_any_val::<EcPoint>();
+        let right = BigInt::parse_bytes
+            (b"2240553423075396383515373673723462837462821468959827293462897346923874293642946928374923875928657983456938759287459236459287459238759346592837", 10)
+            .unwrap();
+        let expr: Expr = Exponentiate {
+            left: Box::new(Expr::Const(left.into())),
+            right: Box::new(Expr::Const(right.into())),
+        }
+        .into();
+
+        let ctx = Rc::new(force_any_val::<Context>());
+        assert!(try_eval_out::<EcPoint>(&expr, ctx).is_err());
     }
 }
