@@ -113,11 +113,14 @@ pub fn from_biguint(b: BigUint) -> Option<Scalar> {
     let bytes_be = b.to_bytes_be();
     let bytes = bytes_be.as_slice().clone();
 
+    if bytes.len() > 32 {
+        return None;
+    }
+
     let mut bytes_32 = [0; 32];
     for (i, v) in bytes.clone().iter().enumerate() {
         bytes_32[i] = *v;
     }
-
     Scalar::from_repr(bytes_32.clone().into())
 }
 

@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 67083f0ef4fefbbf0552bdac212b6fe9e9aee0301b478cc7fb3586b8309afa91 # shrinks to left = EcPoint(ProjectivePoint { x: FieldElement(FieldElementImpl { value: FieldElement5x52([705178180786072, 3855836460717471, 4089131105950716, 3301581525494108, 133858670344668]), magnitude: 1, normalized: true }), y: FieldElement(FieldElementImpl { value: FieldElement5x52([2199641648059576, 1278080618437060, 3959378566518708, 3455034269351872, 79417610544803]), magnitude: 1, normalized: true }), z: FieldElement(FieldElementImpl { value: FieldElement5x52([1, 0, 0, 0, 0]), magnitude: 1, normalized: true }) }), pi = DlogProverInput { w: Scalar(Scalar4x64([5456259605422432484, 11580192672318993179, 17224773805017293705, 4463950502689053464])) }

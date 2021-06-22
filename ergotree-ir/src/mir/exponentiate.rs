@@ -14,14 +14,14 @@ use crate::has_opcode::HasStaticOpCode;
 pub struct Exponentiate {
     /// GroupElement
     pub left: Box<Expr>,
-    /// GroupElement
+    /// Expr of type BigInt
     pub right: Box<Expr>,
 }
 
 impl Exponentiate {
     /// Create new object, returns an error if any of the requirements failed
     pub fn new(left: Expr, right: Expr) -> Result<Self, InvalidArgumentError> {
-        match (left.tpe(), right.tpe()) {
+        match (left.post_eval_tpe(), right.post_eval_tpe()) {
             (SType::SGroupElement, SType::SBigInt) => Ok(Exponentiate {
                 left: left.into(),
                 right: right.into(),

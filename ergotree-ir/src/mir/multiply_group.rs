@@ -21,7 +21,7 @@ pub struct MultiplyGroup {
 impl MultiplyGroup {
     /// Create new object, returns an error if any of the requirements failed
     pub fn new(left: Expr, right: Expr) -> Result<Self, InvalidArgumentError> {
-        match (left.tpe(), right.tpe()) {
+        match (left.post_eval_tpe(), right.post_eval_tpe()) {
             (SType::SGroupElement, SType::SGroupElement) => Ok(MultiplyGroup {
                 left: left.into(),
                 right: right.into(),

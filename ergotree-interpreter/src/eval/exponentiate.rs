@@ -15,7 +15,15 @@ impl Evaluable for Exponentiate {
         let right_v = self.right.eval(env, ctx)?;
 
         let right_bui: Option<BigUint> = match right_v.clone() {
-            Value::BigInt(bi) => BigInt::to_biguint(&bi),
+            Value::BigInt(bi) => match bi.sign() {
+                num_bigint::Sign::Minus => {
+                    return Err(EvalError::UnexpectedValue(format!(
+                        "Expected Exponentiate op exponent to be positive, got: {0:?}",
+                        bi
+                    )))
+                }
+                _ => BigInt::to_biguint(&bi),
+            },
             _ => None,
         };
 
@@ -41,12 +49,12 @@ impl Evaluable for Exponentiate {
 mod tests {
     use super::*;
     use crate::eval::context::Context;
-    use crate::eval::tests::eval_out;
+    use crate::eval::tests::{eval_out, try_eval_out};
+    use crate::sigma_protocol::private_input::DlogProverInput;
 
     use ergotree_ir::mir::expr::Expr;
     use ergotree_ir::sigma_protocol::dlog_group::EcPoint;
-    use num_bigint::RandBigInt;
-    use num_traits::Signed;
+    use num_bigint::{BigInt, Sign};
     use proptest::prelude::*;
     use sigma_test_util::force_any_val;
     use std::rc::Rc;
@@ -54,10 +62,12 @@ mod tests {
     proptest! {
 
         #[test]
-        fn eval_any(left in any::<EcPoint>()) {
+        fn eval_any(left in any::<EcPoint>(), pi in any::<DlogProverInput>()) {
 
-            let mut rng = rand::thread_rng();
-            let right = rng.gen_bigint(64).abs();
+            let r_g_array = pi.w.to_bytes();
+            let r_b_array: &[u8] = r_g_array.as_slice();
+
+            let right: BigInt = BigInt::from_bytes_le(Sign::Plus, r_b_array);
 
             let expected_exp = dlog_group::exponentiate(
                 &left,
@@ -72,6 +82,24 @@ mod tests {
 
             let ctx = Rc::new(force_any_val::<Context>());
             assert_eq!(eval_out::<EcPoint>(&expr, ctx), expected_exp);
+        }
+
+        #[test]
+        fn eval_negative_exponent(left in any::<EcPoint>(), pi in any::<DlogProverInput>()) {
+
+            let r_g_array = pi.w.negate().to_bytes();
+            let r_b_array: &[u8] = r_g_array.as_slice();
+
+            let right: BigInt = BigInt::from_bytes_le(Sign::Minus, r_b_array);
+
+            let expr: Expr = Exponentiate {
+                left: Box::new(Expr::Const(left.into())),
+                right: Box::new(Expr::Const(right.into())),
+            }
+            .into();
+
+            let ctx = Rc::new(force_any_val::<Context>());
+            assert!(try_eval_out::<EcPoint>(&expr, ctx).is_err());
         }
     }
 }
