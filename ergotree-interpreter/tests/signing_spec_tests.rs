@@ -49,7 +49,8 @@ fn sig_test_vector_provedlog() {
 
 #[test]
 fn sig_test_vector_prove_dht() {
-    // TODO: implement in sigmastate and leave a reference here
+    // corresponding sigmastate test
+    // in SigningSpecification.property("ProveDHT signature test vector")
     let msg = base16::decode(b"1dc01772ee0171f5f614c673e3c7fa1107a8cf727bdf5a6dadb379e93c0d1d00")
         .unwrap();
     let pdht = ProveDhTuple::sigma_parse_bytes(&base16::decode(b"0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f817980280c66feee88d56e47bf3f47c4109d9218c60c373a472a0d9537507c7ee828c4802a96f19e97df31606183c1719400682d1d40b1ce50c9a1ed1b19845e2b1b551bf0255ac02191cb229891fb1b674ea9df7fc8426350131d821fc4a53f29c3b1cb21a").unwrap()).unwrap();
@@ -190,6 +191,54 @@ fn sig_test_vector_conj_or() {
     let verifier = TestVerifier;
     let ver_res = verifier.verify(
         &tree,
+        &Env::empty(),
+        Rc::new(force_any_val::<Context>()),
+        signature.into(),
+        msg.as_slice(),
+    );
+    assert!(ver_res.unwrap().result);
+}
+
+#[test]
+fn sig_test_vector_conj_or_prove_dht() {
+    // corresponding sigmastate test
+    // in SigningSpecification.property("OR with ProveDHT signature test vector")
+    let msg = base16::decode(b"1dc01772ee0171f5f614c673e3c7fa1107a8cf727bdf5a6dadb379e93c0d1d00")
+        .unwrap();
+    let sk1 = DlogProverInput::from_biguint(
+        BigUint::parse_bytes(
+            b"109749205800194830127901595352600384558037183218698112947062497909408298157746",
+            10,
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    let pdht = ProveDhTuple::sigma_parse_bytes(&base16::decode(b"0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f817980214487635ebffa60b13a166bd0721c5f0ab603fc74168d7764d7ec5ef2107f5d40334c5b7efa5a4a22b83d102d2e6521eaa660fa911c5a213af63c8460f2327513b026a0be2a277291d42daad3830cb16a4ef20e4f1f7c36384f3fee065f0f143a355").unwrap()).unwrap();
+    // let random_pdht_input = DhTupleProverInput::random();
+    // let pdht = random_pdht_input.public_image().clone();
+    // dbg!(base16::encode_lower(&pdht.sigma_serialize_bytes()));
+    let signature = base16::decode(b"a80daebdcd57874296f49fd9910ddaefbf517ca076b6e16b97678e96a20239978836e7ec5b795cf3a55616d394f07c004f85e0d3e71880d4734b57ea874c7eba724e8887280f1affadaad962ee916b39207af2d2ab2a69a2e6f4d652f7389cc4f582bbe6d7937c59aa64cf2965a8b36a").unwrap();
+    let expr: Expr = SigmaOr::new(vec![Expr::Const(sk1.public_image().into()), pdht.into()])
+        .unwrap()
+        .into();
+
+    // let tree: ErgoTree = expr.clone().into();
+    // let prover = TestProver {
+    //     secrets: vec![random_pdht_input.into()],
+    // };
+    // let res = prover.prove(
+    //     &tree,
+    //     &Env::empty(),
+    //     Rc::new(force_any_val::<Context>()),
+    //     msg.as_slice(),
+    //     &HintsBag::empty(),
+    // );
+    // let proof: Vec<u8> = res.unwrap().proof.into();
+    // dbg!(base16::encode_lower(&proof));
+
+    let verifier = TestVerifier;
+    let ver_res = verifier.verify(
+        &expr.into(),
         &Env::empty(),
         Rc::new(force_any_val::<Context>()),
         signature.into(),
