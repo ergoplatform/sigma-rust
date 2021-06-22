@@ -111,17 +111,17 @@ pub fn random_scalar_in_group_range() -> Scalar {
 /// Returns None if not in the range [0, modulus).
 pub fn from_biguint(b: BigUint) -> Option<Scalar> {
     let bytes_be = b.to_bytes_be();
-    let bytes = bytes_be.as_slice().clone();
+    let bytes = bytes_be.as_slice();
 
     if bytes.len() > 32 {
         return None;
     }
 
     let mut bytes_32 = [0; 32];
-    for (i, v) in bytes.clone().iter().enumerate() {
+    for (i, v) in bytes.iter().enumerate() {
         bytes_32[i] = *v;
     }
-    Scalar::from_repr(bytes_32.clone().into())
+    Scalar::from_repr(bytes_32.into())
 }
 
 impl SigmaSerializable for EcPoint {
