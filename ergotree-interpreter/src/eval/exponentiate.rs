@@ -27,12 +27,12 @@ impl Evaluable for Exponentiate {
             _ => None,
         };
 
-        let right_scalar: Option<Scalar> = match right_bui.clone() {
+        let right_scalar: Option<Scalar> = match right_bui {
             Some(bui) => dlog_group::from_biguint(bui),
             _ => None,
         };
 
-        match (left_v.clone(), right_scalar.clone()) {
+        match (left_v.clone(), right_scalar) {
             (Value::GroupElement(group), Some(exp)) => {
                 Ok(dlog_group::exponentiate(&group, &exp).into())
             }
