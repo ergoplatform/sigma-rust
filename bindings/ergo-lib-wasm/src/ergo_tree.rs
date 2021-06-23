@@ -59,8 +59,9 @@ impl ErgoTree {
             .map_err(|e| JsValue::from_str(&format!("{:?}", e)))
     }
 
-    /// Returns new ErgoTree with a new constant value for a given index in constants list (as stored in serialized ErgoTree),
-    /// or an error
+    /// Consumes the calling ErgoTree and returns new ErgoTree with a new constant value
+    /// for a given index in constants list (as stored in serialized ErgoTree), or an error.
+    /// After the call the calling ErgoTree will be null.
     pub fn with_constant(self, index: usize, constant: &Constant) -> Result<ErgoTree, JsValue> {
         self.0
             .with_constant(index, constant.clone().into())
