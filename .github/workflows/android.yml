@@ -30,5 +30,6 @@ jobs:
         with:
           api-level: 29
           ndk: 21.3.6528147 
+          emulator-build: 6110076
           script: cd ./bindings/ergo-lib-jni && ./gradlew connectedCheck
 
