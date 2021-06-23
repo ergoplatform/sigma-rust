@@ -59,17 +59,12 @@ impl ErgoTree {
             .map_err(|e| JsValue::from_str(&format!("{:?}", e)))
     }
 
-    /// Sets new constant value for a given index in constants list (as stored in serialized ErgoTree),
-    /// and returns previous constant or None if index is out of bounds
-    /// or error if constants parsing were failed
-    pub fn set_constant(
-        &mut self,
-        index: usize,
-        constant: &Constant,
-    ) -> Result<Option<Constant>, JsValue> {
+    /// Returns new ErgoTree with a new constant value for a given index in constants list (as stored in serialized ErgoTree),
+    /// or an error
+    pub fn with_constant(self, index: usize, constant: &Constant) -> Result<ErgoTree, JsValue> {
         self.0
-            .set_constant(index, constant.clone().into())
-            .map(|opt| opt.map(|c| c.into()))
+            .with_constant(index, constant.clone().into())
+            .map(ErgoTree)
             .map_err(|e| JsValue::from_str(&format!("{:?}", e)))
     }
 
