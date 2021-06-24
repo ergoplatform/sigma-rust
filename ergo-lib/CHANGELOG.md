@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Byte-wise XOR for byte arrays [#310](https://github.com/ergoplatform/sigma-rust/pull/310);
 - `Constant::from_i64_str_array` and `to_i64_str_array` for `Coll[Long]` encoding [#311](https://github.com/ergoplatform/sigma-rust/pull/311);
 - `Coll.append` [#308](https://github.com/ergoplatform/sigma-rust/pull/308);
+- `MultiplyGroup` IR node for GroupElement [#316](https://github.com/ergoplatform/sigma-rust/pull/316);
+- `SubstConst` IR node and serialization [#318] (https://github.com/ergoplatform/sigma-rust/pull/318);
+-  Better Debug print for EC point [#319](https://github.com/ergoplatform/sigma-rust/pull/319);
 
 ### Changed
 - `ergotree-ir::mir::constant::constant_placeholder` module is public;
