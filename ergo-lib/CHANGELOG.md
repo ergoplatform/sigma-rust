@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Changed
 - `ergotree-ir::mir::constant::constant_placeholder` module is public;
+- `ErgoTree::set_constant` is removed in favor of `ErgoTree::with_constant` with an added check for matching constant type[#323](https://github.com/ergoplatform/sigma-rust/pull/323);
 
 ## [0.13.3] - 2021-06-11
 
