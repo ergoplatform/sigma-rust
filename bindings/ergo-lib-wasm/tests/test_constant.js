@@ -48,4 +48,8 @@ it('roundtrip Constant array of i64', async () => {
   expect(decoded_c_value.toString()).equal(value_str.toString());
 });
 
-
+it('Constant from EcPoint bytes', async () => {
+  let base16_bytes_str = `02d6b2141c21e4f337e9b065a031a6269fb5a49253094fc6243d38662eb765db00`;
+  let c = Constant.from_ecpoint_bytes(Uint8Array.from(Buffer.from(base16_bytes_str, 'hex')));
+  expect(c != null);
+});

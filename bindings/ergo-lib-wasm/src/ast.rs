@@ -3,6 +3,9 @@
 use crate::utils::I64;
 use ergo_lib::chain::Base16Str;
 use ergo_lib::ergotree_ir::mir::constant::{TryExtractFrom, TryExtractInto};
+use ergo_lib::ergotree_ir::serialization::SigmaSerializable;
+use ergo_lib::ergotree_ir::sigma_protocol::dlog_group::EcPoint;
+use ergo_lib::ergotree_ir::sigma_protocol::sigma_boolean::ProveDlog;
 use js_sys::Uint8Array;
 use std::convert::TryFrom;
 use wasm_bindgen::prelude::*;
@@ -108,5 +111,13 @@ impl Constant {
             .iter()
             .map(|it| JsValue::from_str(&it.to_string()))
             .collect())
+    }
+
+    /// Parse raw [`EcPoint`] value from bytes and make [`ProveDlog`] constant
+    pub fn from_ecpoint_bytes(bytes: &[u8]) -> Result<Constant, JsValue> {
+        let ecp = EcPoint::sigma_parse_bytes(bytes)
+            .map_err(|e| JsValue::from_str(&format!("{:?}", e)))?;
+        let c: ergo_lib::ergotree_ir::mir::constant::Constant = ProveDlog::new(ecp).into();
+        Ok(c.into())
     }
 }
