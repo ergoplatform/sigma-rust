@@ -14,7 +14,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - `Coll.append` [#308](https://github.com/ergoplatform/sigma-rust/pull/308);
 - `MultiplyGroup` IR node for GroupElement [#316](https://github.com/ergoplatform/sigma-rust/pull/316);
 - `SubstConst` IR node and serialization [#318] (https://github.com/ergoplatform/sigma-rust/pull/318);
--  Better Debug print for EC point [#319](https://github.com/ergoplatform/sigma-rust/pull/319);
+- Better Debug print for EC point [#319](https://github.com/ergoplatform/sigma-rust/pull/319);
+- `Constant::from_ecpoint_bytes` to Wasm API [#324](https://github.com/ergoplatform/sigma-rust/pull/324);
 
 ### Changed
 - `ergotree-ir::mir::constant::constant_placeholder` module is public;
