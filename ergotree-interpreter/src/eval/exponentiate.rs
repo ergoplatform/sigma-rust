@@ -2,7 +2,6 @@ use ergotree_ir::mir::exponentiate::Exponentiate;
 use ergotree_ir::mir::value::Value;
 use ergotree_ir::sigma_protocol::dlog_group;
 use k256::Scalar;
-use num_bigint::{BigInt, BigUint};
 
 use crate::eval::env::Env;
 use crate::eval::EvalContext;
@@ -14,30 +13,17 @@ impl Evaluable for Exponentiate {
         let left_v = self.left.eval(env, ctx)?;
         let right_v = self.right.eval(env, ctx)?;
 
-        let right_bui: Option<BigUint> = match right_v.clone() {
-            Value::BigInt(bi) => match bi.sign() {
-                num_bigint::Sign::Minus => {
-                    return Err(EvalError::UnexpectedValue(format!(
-                        "Expected Exponentiate op exponent to be positive, got: {0:?}",
-                        bi
-                    )))
-                }
-                _ => BigInt::to_biguint(&bi),
-            },
+        let exp_scalar: Option<Scalar> = match right_v.clone() {
+            Value::BigInt(bi) => dlog_group::bigint_to_scalar(bi),
             _ => None,
         };
 
-        let right_scalar: Option<Scalar> = match right_bui {
-            Some(bui) => dlog_group::from_biguint(bui),
-            _ => None,
-        };
-
-        match (left_v.clone(), right_scalar) {
+        match (left_v.clone(), exp_scalar) {
             (Value::GroupElement(group), Some(exp)) => {
                 Ok(dlog_group::exponentiate(&group, &exp).into())
             }
             _ => Err(EvalError::UnexpectedValue(format!(
-                "Exponentiate input should be GroupElement, BigInt (<= 256 bit). Received: {0:?}",
+                "Exponentiate input should be GroupElement, BigInt (positive, <= 256 bit). Received: {0:?}",
                 (left_v, right_v)
             ))),
         }
@@ -53,8 +39,8 @@ mod tests {
     use crate::sigma_protocol::private_input::DlogProverInput;
 
     use ergotree_ir::mir::expr::Expr;
-    use ergotree_ir::sigma_protocol::dlog_group::EcPoint;
-    use num_bigint::{BigInt, Sign};
+    use ergotree_ir::sigma_protocol::dlog_group::{scalar_to_bigint, EcPoint};
+    use num_bigint::BigInt;
     use proptest::prelude::*;
     use sigma_test_util::force_any_val;
     use std::rc::Rc;
@@ -64,14 +50,11 @@ mod tests {
         #[test]
         fn eval_any(left in any::<EcPoint>(), pi in any::<DlogProverInput>()) {
 
-            let r_g_array = pi.w.to_bytes();
-            let r_b_array: &[u8] = r_g_array.as_slice();
-
-            let right: BigInt = BigInt::from_bytes_be(Sign::Plus, r_b_array);
+            let right: BigInt = scalar_to_bigint(pi.w);
 
             let expected_exp = dlog_group::exponentiate(
                 &left,
-                &dlog_group::from_biguint(BigInt::to_biguint(&right).unwrap()).unwrap()
+                &dlog_group::bigint_to_scalar(right.clone()).unwrap()
             );
 
             let expr: Expr = Exponentiate {

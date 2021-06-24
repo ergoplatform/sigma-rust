@@ -21,7 +21,7 @@ use crate::serialization::{
 use k256::elliptic_curve::ff::PrimeField;
 use k256::elliptic_curve::sec1::ToEncodedPoint;
 use k256::{ProjectivePoint, PublicKey, Scalar};
-use num_bigint::BigUint;
+use num_bigint::{BigInt, Sign};
 use sigma_ser::vlq_encode;
 
 use std::{
@@ -107,22 +107,62 @@ pub fn random_scalar_in_group_range() -> Scalar {
     Scalar::generate_vartime(&mut OsRng)
 }
 
-/// Attempts to create Scalar from BigUint
-/// Returns None if not in the range [0, modulus).
-pub fn from_biguint(b: BigUint) -> Option<Scalar> {
-    let bytes_be = b.to_bytes_be();
-    let bytes = bytes_be.as_slice();
+/// Attempts to create BigInt from Scalar
+pub fn scalar_to_bigint(s: Scalar) -> BigInt {
+    let r_g_array = s.to_bytes();
+    let r_b_array: &[u8] = r_g_array.as_slice();
+    BigInt::from_bytes_be(Sign::Plus, r_b_array)
+}
 
-    if bytes.len() > 32 {
+/// Attempts to create Scalar from BigInt
+/// Returns None if not in the range [0, modulus).
+pub fn bigint_to_scalar(bi: BigInt) -> Option<Scalar> {
+    if num_bigint::Sign::Minus == bi.sign() {
         return None;
     }
 
-    let mut bytes_32 = [0; 32];
-    for (i, v) in bytes.iter().enumerate() {
-        bytes_32[i] = *v;
+    match BigInt::to_biguint(&bi) {
+        Some(bui) => {
+            let bytes_be = bui.to_bytes_be();
+            let bytes = bytes_be.as_slice();
+
+            if bytes.len() > 32 {
+                return None;
+            }
+
+            let mut bytes_32 = [0; 32];
+            for (i, v) in bytes.iter().enumerate() {
+                bytes_32[i] = *v;
+            }
+            Scalar::from_repr(bytes_32.into())
+        }
+        _ => None,
     }
-    Scalar::from_repr(bytes_32.into())
 }
+
+// /// Attempts to create Scalar from BigInt
+// /// Returns None if not in the range [0, modulus).
+// pub fn bigint_to_scalar(bi: BigInt) -> Option<Scalar> {
+
+//     fn to_bytes_32(bytes: &[u8]) -> [u8; 32] {
+//         let mut bytes_32 = [0; 32];
+//         for (i, v) in bytes.iter().enumerate() {
+//             bytes_32[i] = *v;
+//         };
+//         return bytes_32
+//     }
+
+//     if num_bigint::Sign::Minus == bi.sign() {
+//         return None;
+//     }
+
+//     BigInt::to_biguint(&bi)
+//         .map(|bui| bui.to_bytes_be().clone())
+//         .map(|bytes_be| bytes_be.as_slice())
+//         .filter(|bytes| !(bytes.len() > 32))
+//         .map(|bytes| to_bytes_32(bytes))
+//         .and_then(|bytes_32| Scalar::from_repr(bytes_32.into()))
+// }
 
 impl SigmaSerializable for EcPoint {
     fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
