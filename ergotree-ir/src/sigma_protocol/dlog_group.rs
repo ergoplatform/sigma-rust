@@ -140,30 +140,6 @@ pub fn bigint_to_scalar(bi: BigInt) -> Option<Scalar> {
     }
 }
 
-// /// Attempts to create Scalar from BigInt
-// /// Returns None if not in the range [0, modulus).
-// pub fn bigint_to_scalar(bi: BigInt) -> Option<Scalar> {
-
-//     fn to_bytes_32(bytes: &[u8]) -> [u8; 32] {
-//         let mut bytes_32 = [0; 32];
-//         for (i, v) in bytes.iter().enumerate() {
-//             bytes_32[i] = *v;
-//         };
-//         return bytes_32
-//     }
-
-//     if num_bigint::Sign::Minus == bi.sign() {
-//         return None;
-//     }
-
-//     BigInt::to_biguint(&bi)
-//         .map(|bui| bui.to_bytes_be().clone())
-//         .map(|bytes_be| bytes_be.as_slice())
-//         .filter(|bytes| !(bytes.len() > 32))
-//         .map(|bytes| to_bytes_32(bytes))
-//         .and_then(|bytes_32| Scalar::from_repr(bytes_32.into()))
-// }
-
 impl SigmaSerializable for EcPoint {
     fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
         let caff = self.0.to_affine();
@@ -226,5 +202,17 @@ mod tests {
             let e: Expr = v.into();
             prop_assert_eq![sigma_serialize_roundtrip(&e), e];
         }
+    }
+
+    #[test]
+    fn scalar_bigint_roundtrip() {
+        let rand_scalar: Scalar = random_scalar_in_group_range();
+        let as_bigint: BigInt = scalar_to_bigint(rand_scalar);
+        let as_scalar: Option<Scalar> = bigint_to_scalar(as_bigint);
+
+        match as_scalar {
+            Some(s) => assert_eq!(rand_scalar, s),
+            _ => panic!(),
+        };
     }
 }
