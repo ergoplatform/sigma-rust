@@ -188,6 +188,7 @@ mod arbitrary {
     }
 }
 
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -208,11 +209,6 @@ mod tests {
     fn scalar_bigint_roundtrip() {
         let rand_scalar: Scalar = random_scalar_in_group_range();
         let as_bigint: BigInt = scalar_to_bigint(rand_scalar);
-        let as_scalar: Option<Scalar> = bigint_to_scalar(as_bigint);
-
-        match as_scalar {
-            Some(s) => assert_eq!(rand_scalar, s),
-            _ => panic!(),
-        };
+        assert_eq!(rand_scalar, bigint_to_scalar(as_bigint).unwrap());
     }
 }
