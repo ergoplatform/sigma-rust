@@ -40,6 +40,8 @@ pub mod create_provedlog;
 pub mod decode_point;
 pub mod deserialize_context;
 pub mod deserialize_register;
+/// Exponentiate op for GroupElement
+pub mod exponentiate;
 pub mod expr;
 /// Box value
 pub mod extract_amount;

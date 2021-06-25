@@ -18,8 +18,10 @@
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
 };
+use k256::elliptic_curve::ff::PrimeField;
 use k256::elliptic_curve::sec1::ToEncodedPoint;
 use k256::{ProjectivePoint, PublicKey, Scalar};
+use num_bigint::{BigInt, Sign};
 use sigma_ser::vlq_encode;
 
 use std::{
@@ -112,6 +114,39 @@ pub fn random_scalar_in_group_range() -> Scalar {
     Scalar::generate_vartime(&mut OsRng)
 }
 
+/// Attempts to create BigInt from Scalar
+pub fn scalar_to_bigint(s: Scalar) -> BigInt {
+    let r_g_array = s.to_bytes();
+    let r_b_array: &[u8] = r_g_array.as_slice();
+    BigInt::from_bytes_be(Sign::Plus, r_b_array)
+}
+
+/// Attempts to create Scalar from BigInt
+/// Returns None if not in the range [0, modulus).
+pub fn bigint_to_scalar(bi: BigInt) -> Option<Scalar> {
+    if num_bigint::Sign::Minus == bi.sign() {
+        return None;
+    }
+
+    match BigInt::to_biguint(&bi) {
+        Some(bui) => {
+            let bytes_be = bui.to_bytes_be();
+            let bytes = bytes_be.as_slice();
+
+            if bytes.len() > 32 {
+                return None;
+            }
+
+            let mut bytes_32 = [0; 32];
+            for (i, v) in bytes.iter().enumerate() {
+                bytes_32[i] = *v;
+            }
+            Scalar::from_repr(bytes_32.into())
+        }
+        _ => None,
+    }
+}
+
 impl SigmaSerializable for EcPoint {
     fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
         let caff = self.0.to_affine();
@@ -160,6 +195,7 @@ mod arbitrary {
     }
 }
 
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -174,5 +210,12 @@ mod tests {
             let e: Expr = v.into();
             prop_assert_eq![sigma_serialize_roundtrip(&e), e];
         }
+    }
+
+    #[test]
+    fn scalar_bigint_roundtrip() {
+        let rand_scalar: Scalar = random_scalar_in_group_range();
+        let as_bigint: BigInt = scalar_to_bigint(rand_scalar);
+        assert_eq!(rand_scalar, bigint_to_scalar(as_bigint).unwrap());
     }
 }

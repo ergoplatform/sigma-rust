@@ -9,25 +9,25 @@ use super::expr::Expr;
 use super::expr::InvalidArgumentError;
 use crate::has_opcode::HasStaticOpCode;
 
-/// Multiply two GroupElement
+/// Exponentiate op for GroupElement
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct MultiplyGroup {
+pub struct Exponentiate {
     /// GroupElement
     pub left: Box<Expr>,
-    /// GroupElement
+    /// Expr of type BigInt
     pub right: Box<Expr>,
 }
 
-impl MultiplyGroup {
+impl Exponentiate {
     /// Create new object, returns an error if any of the requirements failed
     pub fn new(left: Expr, right: Expr) -> Result<Self, InvalidArgumentError> {
         match (left.post_eval_tpe(), right.post_eval_tpe()) {
-            (SType::SGroupElement, SType::SGroupElement) => Ok(MultiplyGroup {
+            (SType::SGroupElement, SType::SBigInt) => Ok(Exponentiate {
                 left: left.into(),
                 right: right.into(),
             }),
             (_, _) => Err(InvalidArgumentError(format!(
-                "MultiplyGroup Expected: (SGroupElement, SGroupElement), Actual: {0:?}",
+                "Exponentiate Expected: (SGroupElement, SBigInt), Actual: {0:?}",
                 (left.tpe(), right.tpe())
             ))),
         }
@@ -39,11 +39,11 @@ impl MultiplyGroup {
     }
 }
 
-impl HasStaticOpCode for MultiplyGroup {
-    const OP_CODE: OpCode = OpCode::MULTIPLY_GROUP;
+impl HasStaticOpCode for Exponentiate {
+    const OP_CODE: OpCode = OpCode::EXPONENTIATE;
 }
 
-impl SigmaSerializable for MultiplyGroup {
+impl SigmaSerializable for Exponentiate {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
         self.left.sigma_serialize(w)?;
         self.right.sigma_serialize(w)
@@ -52,7 +52,7 @@ impl SigmaSerializable for MultiplyGroup {
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
         let left = Expr::sigma_parse(r)?.into();
         let right = Expr::sigma_parse(r)?.into();
-        Ok(MultiplyGroup { left, right })
+        Ok(Exponentiate { left, right })
     }
 }
 
@@ -63,7 +63,7 @@ mod arbitrary {
     use crate::mir::expr::arbitrary::ArbExprParams;
     use proptest::prelude::*;
 
-    impl Arbitrary for MultiplyGroup {
+    impl Arbitrary for Exponentiate {
         type Strategy = BoxedStrategy<Self>;
         type Parameters = usize;
 
@@ -74,11 +74,11 @@ mod arbitrary {
                     depth: args,
                 }),
                 any_with::<Expr>(ArbExprParams {
-                    tpe: SType::SGroupElement,
+                    tpe: SType::SBigInt,
                     depth: args,
                 }),
             )
-                .prop_map(|(left, right)| MultiplyGroup::new(left, right).unwrap())
+                .prop_map(|(left, right)| Exponentiate::new(left, right).unwrap())
                 .boxed()
         }
     }
@@ -97,7 +97,7 @@ mod tests {
         #![proptest_config(ProptestConfig::with_cases(16))]
 
         #[test]
-        fn ser_roundtrip(v in any::<MultiplyGroup>()) {
+        fn ser_roundtrip(v in any::<Exponentiate>()) {
             let expr: Expr = v.into();
             prop_assert_eq![sigma_serialize_roundtrip(&expr), expr];
         }

@@ -68,6 +68,7 @@ impl Evaluable for Expr {
             Expr::DeserializeContext(op) => op.eval(env, ctx),
             Expr::GetVar(op) => op.eval(env, ctx),
             Expr::MultiplyGroup(op) => op.eval(env, ctx),
+            Expr::Exponentiate(op) => op.eval(env, ctx),
         }
     }
 }
