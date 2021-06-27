@@ -4,9 +4,9 @@ use std::collections::HashMap;
 use std::convert::TryInto;
 
 use impl_trait_for_tuples::impl_for_tuples;
-use num_bigint::BigInt;
 
 use crate::ir_ergo_box::IrBoxId;
+use crate::mir::bigint256::BigInt256;
 use crate::serialization::types::TypeCode;
 use crate::sigma_protocol::dlog_group::EcPoint;
 use crate::sigma_protocol::sigma_boolean::ProveDlog;
@@ -234,7 +234,7 @@ impl LiftIntoSType for EcPoint {
     }
 }
 
-impl LiftIntoSType for BigInt {
+impl LiftIntoSType for BigInt256 {
     fn stype() -> SType {
         SType::SBigInt
     }

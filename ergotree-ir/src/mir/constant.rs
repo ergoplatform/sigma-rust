@@ -8,13 +8,13 @@ use crate::sigma_protocol::{dlog_group::EcPoint, sigma_boolean::SigmaProp};
 use crate::types::stype::LiftIntoSType;
 use crate::types::stype::SType;
 use impl_trait_for_tuples::impl_for_tuples;
-use num_bigint::BigInt;
 use std::convert::TryInto;
 
 mod constant_placeholder;
 
 pub use constant_placeholder::*;
 
+use super::bigint256::BigInt256;
 use super::value::CollKind;
 use super::value::NativeColl;
 use super::value::StoreWrapped;
@@ -149,8 +149,8 @@ impl From<ProveDlog> for Constant {
     }
 }
 
-impl From<BigInt> for Constant {
-    fn from(b: BigInt) -> Self {
+impl From<BigInt256> for Constant {
+    fn from(b: BigInt256) -> Self {
         Constant {
             tpe: SType::SBigInt,
             v: b.into(),
@@ -211,7 +211,6 @@ pub(crate) mod arbitrary {
 
     use super::*;
     use crate::types::stuple::STuple;
-    use num_bigint::ToBigInt;
     use proptest::collection::vec;
     use proptest::prelude::*;
 
@@ -226,7 +225,7 @@ pub(crate) mod arbitrary {
             any::<i16>().prop_map_into(),
             any::<i32>().prop_map_into(),
             any::<i64>().prop_map_into(),
-            any::<i64>().prop_map(|v| v.to_bigint().unwrap().into()),
+            any::<i64>().prop_map(|v| BigInt256::try_from(v).unwrap().into()),
             any::<EcPoint>().prop_map_into(),
             any::<SigmaProp>().prop_map_into(),
             // although it's not strictly a primitive type, byte array is widely used as one
@@ -267,7 +266,7 @@ pub(crate) mod arbitrary {
             SType::SInt => any::<i32>().prop_map_into().boxed(),
             SType::SLong => any::<i64>().prop_map_into().boxed(),
             SType::SBigInt => any::<i64>()
-                .prop_map(|v| v.to_bigint().unwrap().into())
+                .prop_map(|v| BigInt256::try_from(v).unwrap().into())
                 .boxed(),
             SType::SGroupElement => any::<EcPoint>().prop_map_into().boxed(),
             SType::SSigmaProp => any::<SigmaProp>().prop_map_into().boxed(),
@@ -369,8 +368,8 @@ pub(crate) mod arbitrary {
 pub mod tests {
     use super::*;
     use core::fmt;
-    use num_bigint::ToBigInt;
     use proptest::prelude::*;
+    use std::convert::TryFrom;
 
     fn test_constant_roundtrip<T>(v: T)
     where
@@ -412,7 +411,7 @@ pub mod tests {
 
         #[test]
         fn bigint_roundtrip(raw in any::<i64>()) {
-            let v = raw.to_bigint().unwrap();
+            let v = BigInt256::try_from(raw).unwrap();
             test_constant_roundtrip(v);
         }
 
@@ -453,13 +452,13 @@ pub mod tests {
 
         #[test]
         fn vec_bigint_roundtrip(raw in any::<Vec<i64>>()) {
-            let v: Vec<BigInt> = raw.into_iter().map(|i| i.to_bigint().unwrap()).collect();
+            let v: Vec<BigInt256> = raw.into_iter().map(|i| BigInt256::try_from(i).unwrap()).collect();
             test_constant_roundtrip(v);
         }
 
         #[test]
         fn vec_option_bigint_roundtrip(raw in any::<Vec<i64>>()) {
-            let v: Vec<Option<BigInt>> = raw.into_iter().map(|i| i.to_bigint()).collect();
+            let v: Vec<Option<BigInt256>> = raw.into_iter().map(|i| BigInt256::try_from(i).ok()).collect();
             test_constant_roundtrip(v);
         }
 

@@ -4,7 +4,6 @@ use std::convert::TryFrom;
 use std::convert::TryInto;
 
 use impl_trait_for_tuples::impl_for_tuples;
-use num_bigint::BigInt;
 
 use crate::ir_ergo_box::IrBoxId;
 use crate::sigma_protocol::dlog_group::EcPoint;
@@ -17,6 +16,7 @@ use crate::types::stype::LiftIntoSType;
 use crate::types::stype::SType;
 use crate::util::AsVecI8;
 
+use super::bigint256::BigInt256;
 use super::constant::TryExtractFrom;
 use super::constant::TryExtractFromError;
 use super::constant::TryExtractInto;
@@ -138,7 +138,7 @@ pub enum Value {
     /// Long
     Long(i64),
     /// Big integer
-    BigInt(BigInt),
+    BigInt(BigInt256),
     /// GroupElement
     GroupElement(Box<EcPoint>),
     /// Sigma property
@@ -205,7 +205,7 @@ impl StoreWrapped for bool {}
 impl StoreWrapped for i16 {}
 impl StoreWrapped for i32 {}
 impl StoreWrapped for i64 {}
-impl StoreWrapped for BigInt {}
+impl StoreWrapped for BigInt256 {}
 impl StoreWrapped for IrBoxId {}
 impl StoreWrapped for EcPoint {}
 impl StoreWrapped for SigmaProp {}
@@ -375,7 +375,7 @@ impl TryExtractFrom<Value> for Value {
     }
 }
 
-impl TryExtractFrom<Value> for BigInt {
+impl TryExtractFrom<Value> for BigInt256 {
     fn try_extract_from(v: Value) -> Result<Self, TryExtractFromError> {
         match v {
             Value::BigInt(bi) => Ok(bi),
