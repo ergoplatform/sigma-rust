@@ -1,7 +1,8 @@
+use ergotree_ir::bigint256::BigInt256;
 use ergotree_ir::mir::upcast::Upcast;
 use ergotree_ir::mir::value::Value;
 use ergotree_ir::types::stype::SType;
-use num_bigint::ToBigInt;
+use std::convert::TryFrom;
 
 use crate::eval::env::Env;
 use crate::eval::EvalContext;
@@ -11,13 +12,13 @@ use crate::eval::Evaluable;
 #[allow(clippy::unwrap_used)]
 fn upcast_to_bigint(in_v: Value) -> Result<Value, EvalError> {
     match in_v {
-        Value::Byte(v) => Ok(v.to_bigint().unwrap().into()),
-        Value::Short(v) => Ok(v.to_bigint().unwrap().into()),
-        Value::Int(v) => Ok(v.to_bigint().unwrap().into()),
-        Value::Long(v) => Ok(v.to_bigint().unwrap().into()),
+        Value::Byte(v) => Ok(BigInt256::try_from(v).unwrap().into()),
+        Value::Short(v) => Ok(BigInt256::try_from(v).unwrap().into()),
+        Value::Int(v) => Ok(BigInt256::try_from(v).unwrap().into()),
+        Value::Long(v) => Ok(BigInt256::try_from(v).unwrap().into()),
         Value::BigInt(_) => Ok(in_v),
         _ => Err(EvalError::UnexpectedValue(format!(
-            "Upcast: cannot upcast {0:?} to Long",
+            "Upcast: cannot upcast {0:?} to BigInt",
             in_v
         ))),
     }
@@ -90,8 +91,8 @@ impl Evaluable for Upcast {
 #[cfg(test)]
 mod tests {
     use ergotree_ir::mir::constant::Constant;
-    use num_bigint::BigInt;
     use sigma_test_util::force_any_val;
+    use std::convert::TryInto;
 
     use crate::eval::tests::eval_out_wo_ctx;
 
@@ -118,8 +119,8 @@ mod tests {
             v as i64
         );
         assert_eq!(
-            eval_out_wo_ctx::<BigInt>(&Upcast::new(c.into(), SType::SBigInt).unwrap().into()),
-            v.to_bigint().unwrap()
+            eval_out_wo_ctx::<BigInt256>(&Upcast::new(c.into(), SType::SBigInt).unwrap().into()),
+            v.try_into().unwrap()
         );
     }
 
@@ -140,8 +141,8 @@ mod tests {
             v as i64
         );
         assert_eq!(
-            eval_out_wo_ctx::<BigInt>(&Upcast::new(c.into(), SType::SBigInt).unwrap().into()),
-            v.to_bigint().unwrap()
+            eval_out_wo_ctx::<BigInt256>(&Upcast::new(c.into(), SType::SBigInt).unwrap().into()),
+            v.try_into().unwrap()
         );
     }
 
@@ -158,8 +159,8 @@ mod tests {
             v as i64
         );
         assert_eq!(
-            eval_out_wo_ctx::<BigInt>(&Upcast::new(c.into(), SType::SBigInt).unwrap().into()),
-            v.to_bigint().unwrap()
+            eval_out_wo_ctx::<BigInt256>(&Upcast::new(c.into(), SType::SBigInt).unwrap().into()),
+            v.try_into().unwrap()
         );
     }
 
@@ -172,18 +173,18 @@ mod tests {
             v as i64
         );
         assert_eq!(
-            eval_out_wo_ctx::<BigInt>(&Upcast::new(c.into(), SType::SBigInt).unwrap().into()),
-            v.to_bigint().unwrap()
+            eval_out_wo_ctx::<BigInt256>(&Upcast::new(c.into(), SType::SBigInt).unwrap().into()),
+            v.try_into().unwrap()
         );
     }
 
     #[test]
     fn from_bigint() {
-        let v = force_any_val::<i64>().to_bigint().unwrap();
+        let v: BigInt256 = force_any_val::<i64>().try_into().unwrap();
         let c: Constant = v.clone().into();
         assert_eq!(
-            eval_out_wo_ctx::<BigInt>(&Upcast::new(c.into(), SType::SBigInt).unwrap().into()),
-            v.to_bigint().unwrap()
+            eval_out_wo_ctx::<BigInt256>(&Upcast::new(c.into(), SType::SBigInt).unwrap().into()),
+            v.try_into().unwrap()
         );
     }
 }

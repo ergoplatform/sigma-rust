@@ -1,7 +1,6 @@
 use ergotree_ir::mir::negation::Negation;
 use ergotree_ir::mir::value::Value;
 
-use crate::eval::bigint::fits_in_256_bits;
 use crate::eval::env::Env;
 use crate::eval::EvalContext;
 use crate::eval::EvalError;
@@ -25,14 +24,7 @@ impl Evaluable for Negation {
             Value::Short(v) => neg(&v),
             Value::Int(v) => neg(&v),
             Value::Long(v) => neg(&v),
-            Value::BigInt(v) => {
-                let neg_v = -v;
-                if fits_in_256_bits(&neg_v) {
-                    Ok((neg_v).into())
-                } else {
-                    Err(overflow_err(&-neg_v))
-                }
-            }
+            Value::BigInt(v) => neg(&v),
             _ => Err(EvalError::UnexpectedValue(format!(
                 "Expected Negation input to be numeric value, got {:?}",
                 input_v
@@ -47,12 +39,13 @@ mod tests {
 
     use super::*;
     use crate::eval::tests::try_eval_out_wo_ctx;
+    use ergotree_ir::bigint256::BigInt256;
     use ergotree_ir::mir::constant::Constant;
     use ergotree_ir::mir::constant::TryExtractFrom;
     use ergotree_ir::mir::expr::Expr;
     use ergotree_ir::mir::unary_op::UnaryOpTryBuild;
-    use num_bigint::ToBigInt;
-    use num_traits::Num;
+    use num_traits::{Bounded, Num};
+    use std::convert::TryFrom;
 
     fn try_run_eval<T: Num + Into<Constant> + TryExtractFrom<Value>>(
         input: T,
@@ -77,9 +70,9 @@ mod tests {
         assert_eq!(run_eval(1i64), -1i64);
         assert!(try_run_eval(i64::MIN).is_err());
         assert_eq!(
-            run_eval(1i64.to_bigint().unwrap()),
-            (-1i64).to_bigint().unwrap()
+            run_eval(BigInt256::try_from(1i64).unwrap()),
+            BigInt256::try_from(-1i64).unwrap()
         );
-        assert!(try_run_eval(crate::eval::bigint::MIN_BOUND.clone()).is_err());
+        assert!(try_run_eval(BigInt256::min_value()).is_err());
     }
 }

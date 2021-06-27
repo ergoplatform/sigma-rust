@@ -1,5 +1,6 @@
 //! Operators in ErgoTree
 
+use ergotree_ir::bigint256::BigInt256;
 use ergotree_ir::mir::bin_op::ArithOp;
 use ergotree_ir::mir::bin_op::BinOp;
 use ergotree_ir::mir::bin_op::BinOpKind;
@@ -8,7 +9,6 @@ use ergotree_ir::mir::constant::TryExtractFrom;
 use ergotree_ir::mir::constant::TryExtractInto;
 use ergotree_ir::mir::value::Value;
 use eval::costs::Costs;
-use num_bigint::BigInt;
 use num_traits::CheckedAdd;
 use num_traits::CheckedDiv;
 use num_traits::CheckedMul;
@@ -16,7 +16,6 @@ use num_traits::CheckedSub;
 use num_traits::Num;
 
 use crate::eval;
-use crate::eval::bigint::fits_in_256_bits;
 use crate::eval::env::Env;
 use crate::eval::EvalContext;
 use crate::eval::EvalError;
@@ -32,17 +31,6 @@ fn arithmetic_err<T: std::fmt::Display>(
         "({0}) {1} ({2}) resulted in {3}",
         lv_raw, op, rv_raw, err_str
     ))
-}
-
-fn check_bigint_overflow(val: Value) -> Result<Value, EvalError> {
-    let bigint = val.try_extract_into::<BigInt>()?;
-    if fits_in_256_bits(&bigint) {
-        Ok(bigint.into())
-    } else {
-        Err(EvalError::ArithmeticException(
-            "Arithmetic Overflow on BigInt operation".to_string(),
-        ))
-    }
 }
 
 fn eval_plus<T>(lv_raw: T, rv: Value) -> Result<Value, EvalError>
@@ -104,7 +92,7 @@ fn eval_ge(lv: Value, rv: Value) -> Result<Value, EvalError> {
         Value::Short(lv_raw) => Ok((lv_raw >= rv.try_extract_into::<i16>()?).into()),
         Value::Int(lv_raw) => Ok((lv_raw >= rv.try_extract_into::<i32>()?).into()),
         Value::Long(lv_raw) => Ok((lv_raw >= rv.try_extract_into::<i64>()?).into()),
-        Value::BigInt(lv_raw) => Ok((lv_raw >= rv.try_extract_into::<BigInt>()?).into()),
+        Value::BigInt(lv_raw) => Ok((lv_raw >= rv.try_extract_into::<BigInt256>()?).into()),
         _ => Err(EvalError::UnexpectedValue(format!(
             "expected BinOp::left to be numeric value, got {0:?}",
             lv
@@ -118,7 +106,7 @@ fn eval_gt(lv: Value, rv: Value) -> Result<Value, EvalError> {
         Value::Short(lv_raw) => Ok((lv_raw > rv.try_extract_into::<i16>()?).into()),
         Value::Int(lv_raw) => Ok((lv_raw > rv.try_extract_into::<i32>()?).into()),
         Value::Long(lv_raw) => Ok((lv_raw > rv.try_extract_into::<i64>()?).into()),
-        Value::BigInt(lv_raw) => Ok((lv_raw > rv.try_extract_into::<BigInt>()?).into()),
+        Value::BigInt(lv_raw) => Ok((lv_raw > rv.try_extract_into::<BigInt256>()?).into()),
         _ => Err(EvalError::UnexpectedValue(format!(
             "expected BinOp::left to be numeric value, got {0:?}",
             lv
@@ -132,7 +120,7 @@ fn eval_lt(lv: Value, rv: Value) -> Result<Value, EvalError> {
         Value::Short(lv_raw) => Ok((lv_raw < rv.try_extract_into::<i16>()?).into()),
         Value::Int(lv_raw) => Ok((lv_raw < rv.try_extract_into::<i32>()?).into()),
         Value::Long(lv_raw) => Ok((lv_raw < rv.try_extract_into::<i64>()?).into()),
-        Value::BigInt(lv_raw) => Ok((lv_raw < rv.try_extract_into::<BigInt>()?).into()),
+        Value::BigInt(lv_raw) => Ok((lv_raw < rv.try_extract_into::<BigInt256>()?).into()),
         _ => Err(EvalError::UnexpectedValue(format!(
             "expected BinOp::left to be numeric value, got {0:?}",
             lv
@@ -146,7 +134,7 @@ fn eval_le(lv: Value, rv: Value) -> Result<Value, EvalError> {
         Value::Short(lv_raw) => Ok((lv_raw <= rv.try_extract_into::<i16>()?).into()),
         Value::Int(lv_raw) => Ok((lv_raw <= rv.try_extract_into::<i32>()?).into()),
         Value::Long(lv_raw) => Ok((lv_raw <= rv.try_extract_into::<i64>()?).into()),
-        Value::BigInt(lv_raw) => Ok((lv_raw <= rv.try_extract_into::<BigInt>()?).into()),
+        Value::BigInt(lv_raw) => Ok((lv_raw <= rv.try_extract_into::<BigInt256>()?).into()),
         _ => Err(EvalError::UnexpectedValue(format!(
             "expected BinOp::left to be numeric value, got {0:?}",
             lv
@@ -201,7 +189,7 @@ impl Evaluable for BinOp {
                     Value::Short(lv_raw) => eval_plus(lv_raw, rv()?),
                     Value::Int(lv_raw) => eval_plus(lv_raw, rv()?),
                     Value::Long(lv_raw) => eval_plus(lv_raw, rv()?),
-                    Value::BigInt(lv_raw) => check_bigint_overflow(eval_plus(lv_raw, rv()?)?),
+                    Value::BigInt(lv_raw) => eval_plus(lv_raw, rv()?),
                     _ => Err(EvalError::UnexpectedValue(format!(
                         "expected BinOp::left to be numeric value, got {0:?}",
                         lv
@@ -212,7 +200,7 @@ impl Evaluable for BinOp {
                     Value::Short(lv_raw) => eval_minus(lv_raw, rv()?),
                     Value::Int(lv_raw) => eval_minus(lv_raw, rv()?),
                     Value::Long(lv_raw) => eval_minus(lv_raw, rv()?),
-                    Value::BigInt(lv_raw) => check_bigint_overflow(eval_minus(lv_raw, rv()?)?),
+                    Value::BigInt(lv_raw) => eval_minus(lv_raw, rv()?),
                     _ => Err(EvalError::UnexpectedValue(format!(
                         "expected BinOp::left to be numeric value, got {0:?}",
                         lv
@@ -223,7 +211,7 @@ impl Evaluable for BinOp {
                     Value::Short(lv_raw) => eval_mul(lv_raw, rv()?),
                     Value::Int(lv_raw) => eval_mul(lv_raw, rv()?),
                     Value::Long(lv_raw) => eval_mul(lv_raw, rv()?),
-                    Value::BigInt(lv_raw) => check_bigint_overflow(eval_mul(lv_raw, rv()?)?),
+                    Value::BigInt(lv_raw) => eval_mul(lv_raw, rv()?),
                     _ => Err(EvalError::UnexpectedValue(format!(
                         "expected BinOp::left to be numeric value, got {0:?}",
                         lv
@@ -235,7 +223,7 @@ impl Evaluable for BinOp {
                     Value::Int(lv_raw) => eval_div(lv_raw, rv()?),
                     Value::Long(lv_raw) => eval_div(lv_raw, rv()?),
                     // MIN / -1  can actually overflow
-                    Value::BigInt(lv_raw) => check_bigint_overflow(eval_div(lv_raw, rv()?)?),
+                    Value::BigInt(lv_raw) => eval_div(lv_raw, rv()?),
                     _ => Err(EvalError::UnexpectedValue(format!(
                         "expected BinOp::left to be numeric value, got {0:?}",
                         lv
@@ -310,9 +298,10 @@ mod tests {
     use crate::eval::tests::try_eval_out;
     use ergotree_ir::mir::constant::Constant;
     use ergotree_ir::mir::expr::Expr;
-    use num_bigint::ToBigInt;
+    use num_traits::Bounded;
     use proptest::prelude::*;
     use sigma_test_util::force_any_val;
+    use std::convert::TryFrom;
     use std::rc::Rc;
 
     fn check_eq_neq(left: Constant, right: Constant) -> bool {
@@ -450,13 +439,11 @@ mod tests {
 
     #[test]
     fn test_bigint_extremes() {
-        let b = BigInt::from;
+        let b = |n| BigInt256::try_from(n).unwrap();
         // Our BigInt should behave like a 256 bit signed (two's complement) integer according to
         // the language spec. These are the max and min values representable:
-        let max = || (b(1) << 255) - 1;
-        let min = || (b(1) << 255) * -1;
-
-        // The commented tests below are currently failing due to issue #288.
+        let max = BigInt256::max_value;
+        let min = BigInt256::min_value;
 
         assert!(eval_num_op(ArithOp::Multiply, max(), b(2)).is_err());
         assert_eq!(eval_num_op(ArithOp::Multiply, max(), b(1)), Ok(max()));
@@ -464,7 +451,7 @@ mod tests {
         assert_eq!(eval_num_op(ArithOp::Multiply, min(), b(1)), Ok(min()));
 
         assert!(eval_num_op(ArithOp::Divide, min(), b(-1)).is_err());
-        assert_eq!(eval_num_op(ArithOp::Divide, min() + 1, b(-1)), Ok(max()));
+        assert_eq!(eval_num_op(ArithOp::Divide, min() + b(1), b(-1)), Ok(max()));
         assert!(eval_num_op(ArithOp::Divide, b(20), b(0)).is_err());
 
         assert!(eval_num_op(ArithOp::Plus, max(), b(1)).is_err());
@@ -569,15 +556,15 @@ mod tests {
 
         #[test]
         fn test_num_bigint(l_long in any::<i64>(), r_long in any::<i64>()) {
-            let l = l_long.to_bigint().unwrap();
-            let r = r_long.to_bigint().unwrap();
+            let l = BigInt256::try_from(l_long).unwrap();
+            let r = BigInt256::try_from(r_long).unwrap();
             prop_assert_eq!(eval_num_op(ArithOp::Plus, l.clone(), r.clone()).ok(), l.checked_add(&r));
             prop_assert_eq!(eval_num_op(ArithOp::Minus, l.clone(), r.clone()).ok(), l.checked_sub(&r));
             prop_assert_eq!(eval_num_op(ArithOp::Multiply, l.clone(), r.clone()).ok(), l.checked_mul(&r));
             prop_assert_eq!(eval_num_op(ArithOp::Divide, l.clone(), r.clone()).ok(), l.checked_div(&r));
-            prop_assert_eq!(eval_num_op::<BigInt>(ArithOp::Max, l.clone(),
+            prop_assert_eq!(eval_num_op::<BigInt256>(ArithOp::Max, l.clone(),
                     r.clone()).unwrap(), l.clone().max(r.clone()));
-            prop_assert_eq!(eval_num_op::<BigInt>(ArithOp::Min, l.clone(),
+            prop_assert_eq!(eval_num_op::<BigInt256>(ArithOp::Min, l.clone(),
                     r.clone()).unwrap(), l.clone().min(r.clone()));
 
             prop_assert_eq!(eval_num_op(ArithOp::BitAnd, l.clone(), r.clone()), Ok(&l & &r));
