@@ -69,7 +69,7 @@ impl ParsedTree {
         let mut w = SigmaByteWriter::new(&mut data, None);
         header.sigma_serialize(&mut w).unwrap();
         if header.is_constant_segregation() {
-            w.put_usize_as_u32(self.constants.len()).unwrap();
+            w.put_usize_as_u32_unwrapped(self.constants.len()).unwrap();
             self.constants
                 .iter()
                 .try_for_each(|c| c.sigma_serialize(&mut w))
@@ -468,7 +468,7 @@ impl SigmaSerializable for ErgoTree {
                 let bytes = parsed_tree.sigma_serialize_without_size(&self.header);
                 if self.header.has_size() {
                     self.header.sigma_serialize(w)?;
-                    w.put_usize_as_u32(bytes.len() - 1)?; // skip the header byte
+                    w.put_usize_as_u32_unwrapped(bytes.len() - 1)?; // skip the header byte
                     w.write_all(&bytes[1..])?; // skip the header byte
                 } else {
                     w.write_all(&bytes)?;

@@ -150,9 +150,9 @@ impl Transaction {
 impl SigmaSerializable for Transaction {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
         // reference implementation - https://github.com/ScorexFoundation/sigmastate-interpreter/blob/9b20cb110effd1987ff76699d637174a4b2fb441/sigmastate/src/main/scala/org/ergoplatform/ErgoLikeTransaction.scala#L112-L112
-        w.put_usize_as_u16(self.inputs.len())?;
+        w.put_usize_as_u16_unwrapped(self.inputs.len())?;
         self.inputs.iter().try_for_each(|i| i.sigma_serialize(w))?;
-        w.put_usize_as_u16(self.data_inputs.len())?;
+        w.put_usize_as_u16_unwrapped(self.data_inputs.len())?;
         self.data_inputs
             .iter()
             .try_for_each(|i| i.sigma_serialize(w))?;
@@ -172,7 +172,7 @@ impl SigmaSerializable for Transaction {
             .try_for_each(|t_id| t_id.sigma_serialize(w))?;
 
         // serialize outputs
-        w.put_usize_as_u16(self.output_candidates.len())?;
+        w.put_usize_as_u16_unwrapped(self.output_candidates.len())?;
         self.output_candidates.iter().try_for_each(|o| {
             ErgoBoxCandidate::serialize_body_with_indexed_digests(o, Some(&distinct_token_ids), w)
         })?;

@@ -41,14 +41,14 @@ impl DataSerializer {
             Value::AvlTree => todo!(),
             Value::Coll(ct) => match ct {
                 CollKind::NativeColl(NativeColl::CollByte(b)) => {
-                    w.put_usize_as_u16(b.len())?;
+                    w.put_usize_as_u16_unwrapped(b.len())?;
                     w.write_all(b.clone().as_vec_u8().as_slice())
                 }
                 CollKind::WrappedColl {
                     elem_tpe: SType::SBoolean,
                     items: v,
                 } => {
-                    w.put_usize_as_u16(v.len())?;
+                    w.put_usize_as_u16_unwrapped(v.len())?;
                     let maybe_bools: Result<Vec<bool>, TryExtractFromError> = v
                         .clone()
                         .into_iter()
@@ -61,7 +61,7 @@ impl DataSerializer {
                     elem_tpe: _,
                     items: v,
                 } => {
-                    w.put_usize_as_u16(v.len())?;
+                    w.put_usize_as_u16_unwrapped(v.len())?;
                     v.iter()
                         .try_for_each(|e| DataSerializer::sigma_serialize(e, w))
                 }
