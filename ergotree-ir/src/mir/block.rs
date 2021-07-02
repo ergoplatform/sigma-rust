@@ -76,6 +76,7 @@ mod arbitrary {
 }
 
 #[cfg(test)]
+#[allow(clippy::panic)]
 pub mod tests {
     use crate::mir::block::BlockValue;
     use crate::mir::expr::Expr;

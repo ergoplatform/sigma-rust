@@ -76,6 +76,7 @@ impl SigmaSerializable for Apply {
 }
 
 #[cfg(test)]
+#[allow(clippy::panic)]
 mod tests {
 
     use crate::mir::func_value::*;

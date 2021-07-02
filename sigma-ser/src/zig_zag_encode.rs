@@ -69,6 +69,7 @@ mod tests {
 }
 
 #[cfg(test)]
+#[allow(clippy::panic)]
 proptest! {
 
     #[test]

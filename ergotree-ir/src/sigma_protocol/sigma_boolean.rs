@@ -6,7 +6,7 @@ use self::cthreshold::Cthreshold;
 
 use super::dlog_group::EcPoint;
 use crate::ergo_tree::ErgoTree;
-use crate::has_opcode::HasOpCode;
+use crate::has_opcode::{HasOpCode, HasStaticOpCode};
 use crate::mir::constant::Constant;
 use crate::mir::expr::Expr;
 use crate::serialization::op_code::OpCode;
@@ -43,6 +43,10 @@ impl ProveDlog {
     }
 }
 
+impl HasStaticOpCode for ProveDlog {
+    const OP_CODE: OpCode = OpCode::PROVE_DLOG;
+}
+
 impl From<EcPoint> for ProveDlog {
     fn from(p: EcPoint) -> Self {
         ProveDlog::new(p)
@@ -63,6 +67,10 @@ pub struct ProveDhTuple {
     pub vv: Box<EcPoint>,
 }
 
+impl HasStaticOpCode for ProveDhTuple {
+    const OP_CODE: OpCode = OpCode::PROVE_DIFFIE_HELLMAN_TUPLE;
+}
+
 /// Sigma proposition
 #[derive(PartialEq, Eq, Debug, Clone, From)]
 pub enum SigmaProofOfKnowledgeTree {
@@ -70,6 +78,15 @@ pub enum SigmaProofOfKnowledgeTree {
     ProveDhTuple(ProveDhTuple),
     /// public key of discrete logarithm signature protocol
     ProveDlog(ProveDlog),
+}
+
+impl HasOpCode for SigmaProofOfKnowledgeTree {
+    fn op_code(&self) -> OpCode {
+        match self {
+            SigmaProofOfKnowledgeTree::ProveDhTuple(dh) => dh.op_code(),
+            SigmaProofOfKnowledgeTree::ProveDlog(dlog) => dlog.op_code(),
+        }
+    }
 }
 
 /// Conjunctions for sigma propositions
@@ -81,6 +98,16 @@ pub enum SigmaConjecture {
     Cor(Cor),
     /// THRESHOLD
     Cthreshold(Cthreshold),
+}
+
+impl HasOpCode for SigmaConjecture {
+    fn op_code(&self) -> OpCode {
+        match self {
+            SigmaConjecture::Cand(cand) => cand.op_code(),
+            SigmaConjecture::Cor(cor) => cor.op_code(),
+            SigmaConjecture::Cthreshold(ct) => ct.op_code(),
+        }
+    }
 }
 
 /// Algebraic data type of sigma proposition expressions
@@ -99,15 +126,15 @@ impl HasOpCode for SigmaBoolean {
     /// get OpCode for serialization
     fn op_code(&self) -> OpCode {
         match self {
-            SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(_)) => {
-                OpCode::PROVE_DLOG
+            SigmaBoolean::ProofOfKnowledge(kt) => kt.op_code(),
+            SigmaBoolean::SigmaConjecture(sc) => sc.op_code(),
+            SigmaBoolean::TrivialProp(tp) => {
+                if *tp {
+                    OpCode::TRIVIAL_PROP_TRUE
+                } else {
+                    OpCode::TRIVIAL_PROP_FALSE
+                }
             }
-            SigmaBoolean::SigmaConjecture(conj) => match conj {
-                SigmaConjecture::Cand(_) => todo!(),
-                SigmaConjecture::Cor(_) => todo!(),
-                SigmaConjecture::Cthreshold(_) => OpCode::ATLEAST,
-            },
-            _ => todo!(),
         }
     }
 }

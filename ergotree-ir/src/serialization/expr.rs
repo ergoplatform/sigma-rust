@@ -273,6 +273,7 @@ impl SigmaSerializable for Expr {
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
 #[allow(clippy::unwrap_used)]
+#[allow(clippy::panic)]
 mod tests {
     use crate::address::AddressEncoder;
     use crate::address::NetworkPrefix;

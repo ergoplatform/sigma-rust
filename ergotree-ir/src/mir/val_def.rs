@@ -75,6 +75,7 @@ impl SigmaSerializable for ValDef {
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::panic)]
 mod tests {
     use crate::serialization::sigma_serialize_roundtrip;
 

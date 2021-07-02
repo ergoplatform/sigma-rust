@@ -205,6 +205,7 @@ impl<R: io::Read + ?Sized> ReadSigmaVlqExt for R {}
 
 #[allow(clippy::unwrap_used)]
 #[cfg(test)]
+#[allow(clippy::panic)]
 mod tests {
     // See corresponding test suite in
     // https://github.com/ScorexFoundation/scorex-util/blob/9adb6c68b8a1c00ec17730e6da11c2976a892ad8/src/test/scala/scorex/util/serialization/VLQReaderWriterSpecification.scala#L11

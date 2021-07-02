@@ -42,6 +42,7 @@ impl UnaryOpTryBuild for SigmaPropBytes {
 
 #[cfg(feature = "arbitrary")]
 #[cfg(test)]
+#[allow(clippy::panic)]
 mod tests {
     use super::*;
     use crate::mir::constant::Constant;

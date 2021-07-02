@@ -34,6 +34,7 @@ impl SigmaSerializable for Constant {
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::panic)]
 mod tests {
     use super::*;
     use crate::mir::constant::arbitrary::ArbConstantParams;

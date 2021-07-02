@@ -2,6 +2,8 @@
 
 use super::SigmaBoolean;
 use super::SigmaConjectureItems;
+use crate::has_opcode::HasStaticOpCode;
+use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::{SerializationError, SigmaSerializable};
@@ -15,6 +17,10 @@ pub struct Cthreshold {
     pub n: i32,
     /// Items of the proposal
     pub items: SigmaConjectureItems<SigmaBoolean>,
+}
+
+impl HasStaticOpCode for Cthreshold {
+    const OP_CODE: OpCode = OpCode::ATLEAST;
 }
 
 impl SigmaSerializable for Cthreshold {

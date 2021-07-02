@@ -51,7 +51,7 @@ impl STypeCompanion {
         } else if type_id == spreheader::S_PRE_HEADER_TYPE_COMPANION.type_id() {
             &spreheader::S_PRE_HEADER_TYPE_COMPANION
         } else {
-            todo!("cannot find STypeCompanion for {0:?} type id", type_id)
+            panic!("cannot find STypeCompanion for {0:?} type id", type_id)
         }
     }
 

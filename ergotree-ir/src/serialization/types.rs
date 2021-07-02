@@ -381,6 +381,7 @@ fn get_arg_type<R: SigmaByteRead>(r: &mut R, prim_id: u8) -> Result<SType, Seria
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::panic)]
 mod tests {
     use super::*;
     use crate::serialization::sigma_serialize_roundtrip;

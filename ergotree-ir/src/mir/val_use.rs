@@ -40,6 +40,7 @@ impl SigmaSerializable for ValUse {
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::panic)]
 mod tests {
     use crate::mir::block::BlockValue;
     use crate::mir::expr::Expr;

@@ -1,5 +1,5 @@
 use super::{op_code::OpCode, sigma_byte_writer::SigmaByteWrite};
-use crate::has_opcode::HasOpCode;
+use crate::has_opcode::{HasOpCode, HasStaticOpCode};
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
 };
@@ -31,10 +31,10 @@ impl SigmaSerializable for SigmaBoolean {
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
         let op_code = OpCode::sigma_parse(r)?;
         match op_code {
-            OpCode::PROVE_DLOG => Ok(SigmaBoolean::ProofOfKnowledge(
+            ProveDlog::OP_CODE => Ok(SigmaBoolean::ProofOfKnowledge(
                 SigmaProofOfKnowledgeTree::ProveDlog(ProveDlog::sigma_parse(r)?),
             )),
-            OpCode::ATLEAST => {
+            Cthreshold::OP_CODE => {
                 let c = Cthreshold::sigma_parse(r)?;
                 Ok(SigmaBoolean::SigmaConjecture(SigmaConjecture::Cthreshold(
                     c,

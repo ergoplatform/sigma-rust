@@ -406,6 +406,8 @@ impl<T: TryFrom<Expr>> TryExtractFrom<Expr> for T {
 
 #[cfg(feature = "arbitrary")]
 #[allow(clippy::unwrap_used)]
+#[allow(clippy::panic)]
+#[allow(clippy::todo)]
 /// Arbitrary impl
 pub(crate) mod arbitrary {
     use super::*;

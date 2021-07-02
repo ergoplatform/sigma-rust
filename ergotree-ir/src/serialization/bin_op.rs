@@ -67,6 +67,7 @@ pub fn bin_op_sigma_parse<R: SigmaByteRead>(
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::panic)]
 mod proptests {
     use super::*;
     use crate::mir::expr::arbitrary::ArbExprParams;

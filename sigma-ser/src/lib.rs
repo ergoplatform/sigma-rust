@@ -14,6 +14,7 @@
 #![deny(clippy::expect_used)]
 #![deny(clippy::todo)]
 #![deny(clippy::unimplemented)]
+#![deny(clippy::panic)]
 
 /// VLQ encoder
 pub mod vlq_encode;

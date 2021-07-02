@@ -93,6 +93,7 @@ mod arbitrary {
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::panic)]
 pub mod proptests {
 
     use super::*;
