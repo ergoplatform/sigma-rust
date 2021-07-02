@@ -30,7 +30,7 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 - :heavy_check_mark: & (bitwise AND);
 - :heavy_check_mark: ^ (bitwise XOR);
 - ^ (logical XOR);
-- `|` (byte-wise XOR of two collections of bytes) [#296](https://github.com/ergoplatform/sigma-rust/issues/296);
+- :heavy_check_mark: `|` (byte-wise XOR of two collections of bytes) [#296](https://github.com/ergoplatform/sigma-rust/issues/296);
 - :heavy_check_mark: unary `!`;
 - :heavy_check_mark: unary `-`;
 - unary `~` (bit inversion);
@@ -71,8 +71,8 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 #### GroupElement
 
 - getEncoded
-- exp [#297](https://github.com/ergoplatform/sigma-rust/issues/297)
-- multiply [#298](https://github.com/ergoplatform/sigma-rust/issues/298)
+- :heavy_check_mark: exp [#297](https://github.com/ergoplatform/sigma-rust/issues/297)
+- :heavy_check_mark: multiply [#298](https://github.com/ergoplatform/sigma-rust/issues/298)
 - negate
 
 #### SigmaProp
@@ -162,9 +162,9 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 - :heavy_check_mark: exists
 - :heavy_check_mark: fold
 - :heavy_check_mark: forall
-- slice [#300](https://github.com/ergoplatform/sigma-rust/issues/300)
+- :heavy_check_mark: slice [#300](https://github.com/ergoplatform/sigma-rust/issues/300)
 - :heavy_check_mark: filter
-- append [#301](https://github.com/ergoplatform/sigma-rust/issues/301)
+- :heavy_check_mark: append [#301](https://github.com/ergoplatform/sigma-rust/issues/301)
 - :heavy_check_mark: apply
 - indices
 - :heavy_check_mark: flatMap
