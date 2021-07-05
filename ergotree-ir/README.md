@@ -38,7 +38,7 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 
 ### Predefined functions
 
-- groupGenerator
+- groupGenerator [#332](https://github.com/ergoplatform/sigma-rust/issues/332)
 - xor
 - substConstants
 - :heavy_check_mark: longToByteArray
@@ -70,10 +70,10 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 
 #### GroupElement
 
-- getEncoded
+- getEncoded [#330](https://github.com/ergoplatform/sigma-rust/issues/330)
 - :heavy_check_mark: exp [#297](https://github.com/ergoplatform/sigma-rust/issues/297)
 - :heavy_check_mark: multiply [#298](https://github.com/ergoplatform/sigma-rust/issues/298)
-- negate
+- negate [#331](https://github.com/ergoplatform/sigma-rust/issues/331)
 
 #### SigmaProp
 
@@ -166,13 +166,13 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 - :heavy_check_mark: filter
 - :heavy_check_mark: append [#301](https://github.com/ergoplatform/sigma-rust/issues/301)
 - :heavy_check_mark: apply
-- indices
+- indices [#314](https://github.com/ergoplatform/sigma-rust/issues/314)
 - :heavy_check_mark: flatMap
 - patch
 - updated
 - updateMany
 - :heavy_check_mark: indexOf
-- zip
+- zip [#329](https://github.com/ergoplatform/sigma-rust/issues/329)
 
 #### Option
 
