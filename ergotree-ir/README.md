@@ -9,30 +9,12 @@
 
 [ErgoTree Specification](https://github.com/ScorexFoundation/sigmastate-interpreter/tree/develop/docs/spec)
 
-Implemented operations (IR nodes) are denoted with :heavy_check_mark:.
 Descriptions for the operations can be found in [ErgoTree Specification](https://github.com/ScorexFoundation/sigmastate-interpreter/tree/develop/docs/spec)
 
-### General
-
-- :heavy_check_mark: Blocks (`BlockValue`);
-- :heavy_check_mark: Variable definition (`ValDef`, `ValUse`);
-- :heavy_check_mark: Function definition (`FuncValue`);
-- :heavy_check_mark: Function application(`Apply`);
-- :heavy_check_mark: Tuplse field access
-- :heavy_check_mark: 'If' conditional
+Not yet implemented operations:
 
 ### Operations
-
-- :heavy_check_mark: comparison: `>, <, >=, <=, ==, !=`;
-- :heavy_check_mark: arithmetic: ` +, -, *, /, %`;
-- :heavy_check_mark: logical: ` &&, ||`;
-- :heavy_check_mark: | (bitwise OR);
-- :heavy_check_mark: & (bitwise AND);
-- :heavy_check_mark: ^ (bitwise XOR);
 - ^ (logical XOR);
-- :heavy_check_mark: `|` (byte-wise XOR of two collections of bytes) [#296](https://github.com/ergoplatform/sigma-rust/issues/296);
-- :heavy_check_mark: unary `!`;
-- :heavy_check_mark: unary `-`;
 - unary `~` (bit inversion);
 - `>>`, `<<`, `>>>` (bit shifts);
 
@@ -41,29 +23,10 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 - groupGenerator [#332](https://github.com/ergoplatform/sigma-rust/issues/332)
 - xor
 - substConstants
-- :heavy_check_mark: longToByteArray
-- :heavy_check_mark: byteArrayToBigInt
-- :heavy_check_mark: byteArrayToLong
 - downcast
-- :heavy_check_mark: upcast
-- :heavy_check_mark: allOf
-- :heavy_check_mark: anyOf
 - atLeast
-- :heavy_check_mark: min
-- :heavy_check_mark: max
 - avlTree
 - treeLookup
-- :heavy_check_mark: blake2b256
-- :heavy_check_mark: sha256
-- :heavy_check_mark: proveDlog
-- :heavy_check_mark: proveDHTuple
-- :heavy_check_mark: sigmaProp
-- :heavy_check_mark: executeFromVar
-- :heavy_check_mark: executeFromSelfReg
-- :heavy_check_mark: getVar
-- :heavy_check_mark: allZK
-- :heavy_check_mark: anyZK
-- :heavy_check_mark: decodePoint
 - xorOf
 
 ### Object properties and methods
@@ -71,26 +34,16 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 #### GroupElement
 
 - getEncoded [#330](https://github.com/ergoplatform/sigma-rust/issues/330)
-- :heavy_check_mark: exp [#297](https://github.com/ergoplatform/sigma-rust/issues/297)
-- :heavy_check_mark: multiply [#298](https://github.com/ergoplatform/sigma-rust/issues/298)
 - negate [#331](https://github.com/ergoplatform/sigma-rust/issues/331)
 
 #### SigmaProp
 
-- :heavy_check_mark: propBytes
 - isProven
 
 #### Box
 
-- :heavy_check_mark: value
-- :heavy_check_mark: propositionBytes
 - bytes
 - bytesWithoutRef
-- :heavy_check_mark: id
-- :heavy_check_mark: creationInfo
-- :heavy_check_mark: getReg
-- :heavy_check_mark: tokens
-- :heavy_check_mark: R0 .. R9
 
 #### AvlTree 
 
@@ -142,43 +95,120 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 
 #### Context
 
-- :heavy_check_mark: dataInputs
 - headers
 - preHeader
-- :heavy_check_mark: INPUTS
-- :heavy_check_mark: OUTPUTS
-- :heavy_check_mark: HEIGHT
-- :heavy_check_mark: SELF
 - selfBoxIndex
 - LastBlockUtxoRootHash
-- :heavy_check_mark: minerPubKey
-- :heavy_check_mark: getVar
 
 #### Collection
 
-- :heavy_check_mark: size
-- :heavy_check_mark: getOrElse
-- :heavy_check_mark: map
-- :heavy_check_mark: exists
-- :heavy_check_mark: fold
-- :heavy_check_mark: forall
-- :heavy_check_mark: slice [#300](https://github.com/ergoplatform/sigma-rust/issues/300)
-- :heavy_check_mark: filter
-- :heavy_check_mark: append [#301](https://github.com/ergoplatform/sigma-rust/issues/301)
-- :heavy_check_mark: apply
 - indices [#314](https://github.com/ergoplatform/sigma-rust/issues/314)
-- :heavy_check_mark: flatMap
 - patch
 - updated
 - updateMany
-- :heavy_check_mark: indexOf
 - zip [#329](https://github.com/ergoplatform/sigma-rust/issues/329)
 
 #### Option
 
-- :heavy_check_mark: isDefined
-- :heavy_check_mark: get
-- :heavy_check_mark: getOrElse
 - map
 - filter
+
+
+
+Implemented operations (IR nodes): 
+
+### General
+
+- Blocks (`BlockValue`);
+- Variable definition (`ValDef`, `ValUse`);
+- Function definition (`FuncValue`);
+- Function application(`Apply`);
+- Tuplse field access
+- 'If' conditional
+
+### Operations
+
+- comparison: `>, <, >=, <=, ==, !=`;
+- arithmetic: ` +, -, *, /, %`;
+- logical: ` &&, ||`;
+- | (bitwise OR);
+- & (bitwise AND);
+- ^ (bitwise XOR);
+- `|` (byte-wise XOR of two collections of bytes) [#296](https://github.com/ergoplatform/sigma-rust/issues/296);
+- unary `!`;
+- unary `-`;
+
+### Predefined functions
+
+- longToByteArray
+- byteArrayToBigInt
+- byteArrayToLong
+- upcast
+- allOf
+- anyOf
+- min
+- max
+- blake2b256
+- sha256
+- proveDlog
+- proveDHTuple
+- sigmaProp
+- executeFromVar
+- executeFromSelfReg
+- getVar
+- allZK
+- anyZK
+- decodePoint
+
+### Object properties and methods
+
+#### GroupElement
+
+- exp [#297](https://github.com/ergoplatform/sigma-rust/issues/297)
+- multiply [#298](https://github.com/ergoplatform/sigma-rust/issues/298)
+
+#### SigmaProp
+
+- propBytes
+
+#### Box
+
+- value
+- propositionBytes
+- id
+- creationInfo
+- getReg
+- tokens
+- R0 .. R9
+
+#### Context
+
+- dataInputs
+- INPUTS
+- OUTPUTS
+- HEIGHT
+- SELF
+- minerPubKey
+- getVar
+
+#### Collection
+
+- size
+- getOrElse
+- map
+- exists
+- fold
+- forall
+- slice [#300](https://github.com/ergoplatform/sigma-rust/issues/300)
+- filter
+- append [#301](https://github.com/ergoplatform/sigma-rust/issues/301)
+- apply
+- flatMap
+- indexOf
+
+#### Option
+
+- isDefined
+- get
+- getOrElse
 
