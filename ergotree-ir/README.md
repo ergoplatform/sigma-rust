@@ -11,7 +11,7 @@
 
 Descriptions for the operations can be found in [ErgoTree Specification](https://github.com/ScorexFoundation/sigmastate-interpreter/tree/develop/docs/spec)
 
-Not yet implemented operations:
+## Not yet implemented operations:
 
 ### Operations
 - ^ (logical XOR);
@@ -115,7 +115,7 @@ Not yet implemented operations:
 
 
 
-Implemented operations (IR nodes): 
+## Implemented operations (IR nodes): 
 
 ### General
 
