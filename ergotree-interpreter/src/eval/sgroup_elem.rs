@@ -6,7 +6,6 @@ use ergotree_ir::sigma_protocol::dlog_group::EcPoint;
 use super::EvalFn;
 
 pub(crate) static NEGATE_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
-    println!("IN NEGATE: {:?}", obj);
     let negated: EcPoint = match obj {
         Value::GroupElement(ec_point) => Ok(-(*ec_point)),
         _ => Err(EvalError::UnexpectedValue(format!(
