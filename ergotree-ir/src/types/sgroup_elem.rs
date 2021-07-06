@@ -9,9 +9,9 @@ use super::stype_companion::STypeCompanion;
 use super::stype_companion::STypeCompanionHead;
 use lazy_static::lazy_static;
 
-/// SBox type id
+/// SGroupElement type id
 pub const TYPE_ID: TypeCode = TypeCode::SGROUP_ELEMENT;
-/// Box.value property
+/// GroupElement.negate
 pub const NEGATE_METHOD_ID: MethodId = MethodId(5);
 
 static S_GROUP_ELEM_TYPE_COMPANION_HEAD: STypeCompanionHead = STypeCompanionHead {
@@ -41,4 +41,14 @@ lazy_static! {
     };
     /// GroupElement.negate
     pub static ref NEGATE_METHOD: SMethod = SMethod::new(&S_GROUP_ELEM_TYPE_COMPANION, NEGATE_METHOD_DESC.clone(),);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_from_ids() {
+        assert!(SMethod::from_ids(TYPE_ID, NEGATE_METHOD_ID).map(|e| e.name()) == Ok("negate"));
+    }
 }

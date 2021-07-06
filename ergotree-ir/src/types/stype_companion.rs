@@ -6,6 +6,7 @@ use super::sbox;
 use super::scoll;
 use super::scontext;
 use super::sglobal;
+use super::sgroup_elem;
 use super::sheader;
 use super::smethod::MethodId;
 use super::smethod::SMethod;
@@ -41,6 +42,8 @@ impl STypeCompanion {
             &sbox::S_BOX_TYPE_COMPANION
         } else if type_id == scoll::S_COLL_TYPE_COMPANION.type_id() {
             &scoll::S_COLL_TYPE_COMPANION
+        } else if type_id == sgroup_elem::S_GROUP_ELEM_TYPE_COMPANION.type_id() {
+            &sgroup_elem::S_GROUP_ELEM_TYPE_COMPANION
         } else if type_id == sglobal::S_GLOBAL_TYPE_COMPANION.type_id() {
             &sglobal::S_GLOBAL_TYPE_COMPANION
         } else if type_id == sheader::S_HEADER_TYPE_COMPANION.type_id() {
