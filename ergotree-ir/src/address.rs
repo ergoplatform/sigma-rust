@@ -176,7 +176,7 @@ pub enum AddressTypePrefix {
     /// 0x01 - Pay-to-PublicKey(P2PK) address
     P2Pk = 1,
     /// 0x02 - Pay-to-Script-Hash(P2SH)
-    Pay2Sh = 2,
+    // Pay2Sh = 2,
     /// 0x03 - Pay-to-Script(P2S)
     Pay2S = 3,
 }
@@ -186,7 +186,7 @@ impl TryFrom<u8> for AddressTypePrefix {
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             v if v == AddressTypePrefix::P2Pk as u8 => Ok(AddressTypePrefix::P2Pk),
-            v if v == AddressTypePrefix::Pay2Sh as u8 => Ok(AddressTypePrefix::Pay2Sh),
+            // v if v == AddressTypePrefix::Pay2Sh as u8 => Ok(AddressTypePrefix::Pay2Sh),
             v if v == AddressTypePrefix::Pay2S as u8 => Ok(AddressTypePrefix::Pay2S),
             v => Err(AddressEncoderError::InvalidAddressType(v)),
         }
@@ -365,7 +365,7 @@ impl AddressEncoder {
                 Address::P2Pk(ProveDlog::new(EcPoint::sigma_parse_bytes(&content_bytes)?))
             }
             AddressTypePrefix::Pay2S => Address::P2S(content_bytes),
-            AddressTypePrefix::Pay2Sh => todo!(),
+            // AddressTypePrefix::Pay2Sh => todo!(""),
         })
     }
 

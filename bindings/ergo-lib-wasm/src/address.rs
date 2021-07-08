@@ -48,7 +48,7 @@ pub enum AddressTypePrefix {
     /// 0x01 - Pay-to-PublicKey(P2PK) address
     P2Pk = 1,
     /// 0x02 - Pay-to-Script-Hash(P2SH)
-    Pay2Sh = 2,
+    // Pay2Sh = 2,
     /// 0x03 - Pay-to-Script(P2S)
     Pay2S = 3,
 }
@@ -58,7 +58,7 @@ impl From<AddressTypePrefix> for ergo_lib::ergotree_ir::address::AddressTypePref
         use ergo_lib::ergotree_ir::address::AddressTypePrefix::*;
         match v {
             AddressTypePrefix::P2Pk => P2Pk,
-            AddressTypePrefix::Pay2Sh => Pay2Sh,
+            // AddressTypePrefix::Pay2Sh => Pay2Sh,
             AddressTypePrefix::Pay2S => Pay2S,
         }
     }
@@ -69,7 +69,7 @@ impl From<ergo_lib::ergotree_ir::address::AddressTypePrefix> for AddressTypePref
         use AddressTypePrefix::*;
         match v {
             ergo_lib::ergotree_ir::address::AddressTypePrefix::P2Pk => P2Pk,
-            ergo_lib::ergotree_ir::address::AddressTypePrefix::Pay2Sh => Pay2Sh,
+            // ergo_lib::ergotree_ir::address::AddressTypePrefix::Pay2Sh => Pay2Sh,
             ergo_lib::ergotree_ir::address::AddressTypePrefix::Pay2S => Pay2S,
         }
     }
