@@ -1,8 +1,8 @@
 use crate::eval::EvalError;
 
 use ergotree_ir::mir::value::Value;
-use ergotree_ir::sigma_protocol::dlog_group::EcPoint;
 use ergotree_ir::serialization::SigmaSerializable;
+use ergotree_ir::sigma_protocol::dlog_group::EcPoint;
 
 use super::EvalFn;
 
@@ -50,8 +50,8 @@ mod tests {
             sgroup_elem::GET_ENCODED_METHOD.clone(),
             vec![],
         )
-            .unwrap()
-            .into();
+        .unwrap()
+        .into();
 
         let res: Vec<u8> = eval_out_wo_ctx::<Vec<u8>>(&expr);
         let roundtrip_res: EcPoint = SigmaSerializable::sigma_parse_bytes(&res).unwrap();
