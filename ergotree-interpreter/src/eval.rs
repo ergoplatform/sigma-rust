@@ -72,6 +72,7 @@ pub(crate) mod sbox;
 pub(crate) mod scoll;
 pub(crate) mod scontext;
 pub(crate) mod select_field;
+pub(crate) mod sgroup_elem;
 pub(crate) mod sigma_and;
 pub(crate) mod sigma_or;
 pub(crate) mod sigma_prop_bytes;
@@ -188,6 +189,13 @@ fn smethod_eval_fn(method: &SMethod) -> EvalFn {
             scoll::INDEX_OF_METHOD_ID => self::scoll::INDEX_OF_EVAL_FN,
             scoll::FLATMAP_METHOD_ID => self::scoll::FLATMAP_EVAL_FN,
             method_id => panic!("Eval fn: unknown method id in SCollection: {:?}", method_id),
+        },
+        sgroup_elem::TYPE_ID => match method.method_id() {
+            sgroup_elem::NEGATE_METHOD_ID => self::sgroup_elem::NEGATE_EVAL_FN,
+            method_id => panic!(
+                "Eval fn: unknown method id in SGroupElement: {:?}",
+                method_id
+            ),
         },
         type_id => todo!("Eval fn: unknown type id {:?}", type_id),
     }

@@ -11,6 +11,8 @@ pub mod scontext;
 pub mod sfunc;
 /// Global methods
 pub mod sglobal;
+/// GroupElement methods
+pub mod sgroup_elem;
 /// Header's methods
 pub mod sheader;
 /// Object method(property) signature type
