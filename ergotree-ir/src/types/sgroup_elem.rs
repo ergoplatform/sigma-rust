@@ -7,10 +7,13 @@ use super::smethod::SMethodDesc;
 use super::stype::SType;
 use super::stype_companion::STypeCompanion;
 use super::stype_companion::STypeCompanionHead;
+use super::stype_param::STypeVar;
 use lazy_static::lazy_static;
 
 /// SGroupElement type id
 pub const TYPE_ID: TypeCode = TypeCode::SGROUP_ELEMENT;
+/// GroupElement.getEncoded
+pub const GET_ENCODED_METHOD_ID: MethodId = MethodId(2);
 /// GroupElement.negate
 pub const NEGATE_METHOD_ID: MethodId = MethodId(5);
 
@@ -24,20 +27,33 @@ lazy_static! {
     pub static ref S_GROUP_ELEM_TYPE_COMPANION: STypeCompanion = STypeCompanion::new(
         &S_GROUP_ELEM_TYPE_COMPANION_HEAD,
         vec![
+            &GET_ENCODED_METHOD_DESC,
             &NEGATE_METHOD_DESC
         ]
     );
 }
 
 lazy_static! {
+    static ref GET_ENCODED_METHOD_DESC: SMethodDesc = SMethodDesc {
+        method_id: GET_ENCODED_METHOD_ID,
+        name: "getEncoded",
+        tpe: SFunc::new(
+            vec![SType::SGroupElement],
+            SType::SColl(SType::STypeVar(STypeVar::ov()).into()),
+        )
+    };
+    /// GroupElement.geEncoded
+    pub static ref GET_ENCODED_METHOD: SMethod = SMethod::new(&S_GROUP_ELEM_TYPE_COMPANION, GET_ENCODED_METHOD_DESC.clone(),);
+}
+
+lazy_static! {
     static ref NEGATE_METHOD_DESC: SMethodDesc = SMethodDesc {
         method_id: NEGATE_METHOD_ID,
         name: "negate",
-        tpe: SFunc {
-            t_dom: vec![SType::SGroupElement],
-            t_range: Box::new(SType::SGroupElement),
-            tpe_params: vec![],
-        },
+        tpe: SFunc::new(
+            vec![SType::SGroupElement],
+            SType::SGroupElement,
+        )
     };
     /// GroupElement.negate
     pub static ref NEGATE_METHOD: SMethod = SMethod::new(&S_GROUP_ELEM_TYPE_COMPANION, NEGATE_METHOD_DESC.clone(),);
@@ -49,6 +65,9 @@ mod tests {
 
     #[test]
     fn test_from_ids() {
+        assert!(
+            SMethod::from_ids(TYPE_ID, GET_ENCODED_METHOD_ID).map(|e| e.name()) == Ok("getEncoded")
+        );
         assert!(SMethod::from_ids(TYPE_ID, NEGATE_METHOD_ID).map(|e| e.name()) == Ok("negate"));
     }
 }

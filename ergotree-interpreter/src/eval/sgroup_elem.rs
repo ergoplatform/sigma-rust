@@ -2,8 +2,21 @@ use crate::eval::EvalError;
 
 use ergotree_ir::mir::value::Value;
 use ergotree_ir::sigma_protocol::dlog_group::EcPoint;
+use ergotree_ir::serialization::SigmaSerializable;
 
 use super::EvalFn;
+
+pub(crate) static GET_ENCODED_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
+    let encoded: Vec<u8> = match obj {
+        Value::GroupElement(ec_point) => Ok(ec_point.sigma_serialize_bytes()),
+        _ => Err(EvalError::UnexpectedValue(format!(
+            "expected obj to be Value::GroupElement, got: {0:?}",
+            obj
+        ))),
+    }?;
+
+    Ok(Value::from(encoded))
+};
 
 pub(crate) static NEGATE_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
     let negated: EcPoint = match obj {
@@ -25,8 +38,27 @@ mod tests {
     use ergotree_ir::types::sgroup_elem;
 
     use crate::eval::tests::eval_out_wo_ctx;
+    use ergotree_ir::serialization::SigmaSerializable;
     use ergotree_ir::sigma_protocol::dlog_group::EcPoint;
     use sigma_test_util::force_any_val;
+
+    #[test]
+    fn eval_get_encoded() {
+        let input = force_any_val::<EcPoint>();
+        let expr: Expr = MethodCall::new(
+            input.clone().into(),
+            sgroup_elem::GET_ENCODED_METHOD.clone(),
+            vec![],
+        )
+            .unwrap()
+            .into();
+
+        let res: Vec<u8> = eval_out_wo_ctx::<Vec<u8>>(&expr);
+        let roundtrip_res: EcPoint = SigmaSerializable::sigma_parse_bytes(&res).unwrap();
+
+        assert!(res.len() > 0);
+        assert_eq!(input, roundtrip_res)
+    }
 
     #[test]
     fn eval_negate() {
