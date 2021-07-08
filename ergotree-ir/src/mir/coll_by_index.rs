@@ -18,6 +18,8 @@ pub struct ByIndex {
     pub index: Box<Expr>,
     /// Default value, returned if index is out of bounds in "Coll.getOrElse()" op
     pub default: Option<Box<Expr>>,
+    /// Input collection element type
+    input_elem_tpe: SType,
 }
 
 impl ByIndex {
@@ -54,15 +56,13 @@ impl ByIndex {
             input: input.into(),
             index: index.into(),
             default,
+            input_elem_tpe: input_elem_type,
         })
     }
 
     /// Type
     pub fn tpe(&self) -> SType {
-        match self.input.post_eval_tpe() {
-            SType::SColl(elem_tpe) => *elem_tpe,
-            _ => panic!("collection is expected"),
-        }
+        self.input_elem_tpe.clone()
     }
 }
 
@@ -86,6 +86,7 @@ impl SigmaSerializable for ByIndex {
 }
 
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::unwrap_used)]
 /// Arbitrary impl
 mod arbitrary {
     use super::*;
@@ -115,11 +116,7 @@ mod arbitrary {
                     },
                 )),
             )
-                .prop_map(|(input, index, default)| Self {
-                    input: input.into(),
-                    index: index.into(),
-                    default,
-                })
+                .prop_map(|(input, index, default)| Self::new(input, index, default).unwrap())
                 .boxed()
         }
     }
