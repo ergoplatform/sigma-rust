@@ -7,7 +7,6 @@ use super::smethod::SMethodDesc;
 use super::stype::SType;
 use super::stype_companion::STypeCompanion;
 use super::stype_companion::STypeCompanionHead;
-use super::stype_param::STypeVar;
 use lazy_static::lazy_static;
 
 /// SGroupElement type id
@@ -39,7 +38,7 @@ lazy_static! {
         name: "getEncoded",
         tpe: SFunc::new(
             vec![SType::SGroupElement],
-            SType::SColl(SType::STypeVar(STypeVar::ov()).into()),
+            SType::SColl(Box::new(SType::SByte)),
         )
     };
     /// GroupElement.geEncoded
