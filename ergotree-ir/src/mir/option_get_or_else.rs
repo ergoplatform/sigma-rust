@@ -15,17 +15,20 @@ pub struct OptionGetOrElse {
     pub input: Box<Expr>,
     /// Default value if option is empty
     pub default: Box<Expr>,
+    /// Option element type
+    elem_tpe: SType,
 }
 
 impl OptionGetOrElse {
     /// Create new object, returns an error if any of the requirements failed
     pub fn new(input: Expr, default: Expr) -> Result<Self, InvalidArgumentError> {
         match input.post_eval_tpe() {
-            SType::SOption(elem_type) => {
-                default.check_post_eval_tpe(*elem_type)?;
+            SType::SOption(elem_tpe) => {
+                default.check_post_eval_tpe(*elem_tpe.clone())?;
                 Ok(OptionGetOrElse {
                     input: Box::new(input),
                     default: Box::new(default),
+                    elem_tpe: *elem_tpe,
                 })
             }
             _ => Err(InvalidArgumentError(format!(
@@ -37,13 +40,7 @@ impl OptionGetOrElse {
 
     /// Type
     pub fn tpe(&self) -> SType {
-        match self.input.tpe() {
-            SType::SOption(o) => *o,
-            _ => panic!(
-                "expected OptionGetOrElse::input type to be SOption, got: {0:?}",
-                self.input.tpe()
-            ),
-        }
+        self.elem_tpe.clone()
     }
 }
 
