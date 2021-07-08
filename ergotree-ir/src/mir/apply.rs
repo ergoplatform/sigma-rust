@@ -19,13 +19,13 @@ pub struct Apply {
     pub func: Box<Expr>,
     /// Arguments
     pub args: Vec<Expr>,
+    tpe: SType,
 }
 
 impl Apply {
     /// Create new object, returns an error if any of the requirements failed
     pub fn new(func: Expr, args: Vec<Expr>) -> Result<Self, InvalidArgumentError> {
-        let func = match func.tpe() {
-            SType::SColl(_) => Ok(func),
+        match func.tpe() {
             SType::SFunc(sfunc) => {
                 let arg_types: Vec<SType> = args.iter().map(|a| a.tpe()).collect();
                 if sfunc.t_dom != arg_types {
@@ -34,27 +34,23 @@ impl Apply {
                         sfunc.t_dom, args
                     )))
                 } else {
-                    Ok(func)
+                    Ok(Apply {
+                        func: Box::new(func),
+                        args,
+                        tpe: *sfunc.t_range,
+                    })
                 }
             }
             _ => Err(InvalidArgumentError(format!(
                 "unexpected Apply::func: {0:?}",
                 func.tpe(),
             ))),
-        }?;
-        Ok(Apply {
-            func: Box::new(func),
-            args,
-        })
+        }
     }
 
     /// Type
     pub fn tpe(&self) -> SType {
-        match self.func.tpe() {
-            SType::SColl(_) => todo!(),
-            SType::SFunc(f) => *f.t_range,
-            _ => panic!("unexpected Apply::func: {0:?}", self.func.tpe()),
-        }
+        self.tpe.clone()
     }
 }
 
@@ -77,6 +73,7 @@ impl SigmaSerializable for Apply {
 
 #[cfg(test)]
 #[allow(clippy::panic)]
+#[allow(clippy::unwrap_used)]
 mod tests {
 
     use crate::mir::func_value::*;
@@ -94,20 +91,18 @@ mod tests {
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             (any::<Expr>(), vec(any::<Expr>(), 1..10))
                 .prop_map(|(body, args)| {
-                    let func = Box::new(
-                        FuncValue::new(
-                            args.iter()
-                                .enumerate()
-                                .map(|(idx, arg)| FuncArg {
-                                    idx: (idx as u32).into(),
-                                    tpe: arg.tpe(),
-                                })
-                                .collect(),
-                            body,
-                        )
-                        .into(),
-                    );
-                    Self { func, args }
+                    let func = FuncValue::new(
+                        args.iter()
+                            .enumerate()
+                            .map(|(idx, arg)| FuncArg {
+                                idx: (idx as u32).into(),
+                                tpe: arg.tpe(),
+                            })
+                            .collect(),
+                        body,
+                    )
+                    .into();
+                    Self::new(func, args).unwrap()
                 })
                 .boxed()
         }
