@@ -343,9 +343,12 @@ impl Expr {
     }
 
     /// Check if given expected_tpe type is the same as the expression's post-evaluation type
-    pub fn check_post_eval_tpe(&self, expected_tpe: SType) -> Result<(), InvalidExprEvalTypeError> {
+    pub fn check_post_eval_tpe(
+        &self,
+        expected_tpe: &SType,
+    ) -> Result<(), InvalidExprEvalTypeError> {
         let expr_tpe = self.post_eval_tpe();
-        if expr_tpe == expected_tpe {
+        if &expr_tpe == expected_tpe {
             Ok(())
         } else {
             Err(InvalidExprEvalTypeError(format!(

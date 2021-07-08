@@ -53,7 +53,7 @@ impl FuncValue {
         let t_range = body.tpe();
         let tpe = SType::SFunc(SFunc {
             t_dom,
-            t_range: Box::new(t_range),
+            t_range: Box::new(t_range.clone()),
             tpe_params: vec![],
         });
         FuncValue {

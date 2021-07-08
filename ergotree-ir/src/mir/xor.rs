@@ -20,8 +20,8 @@ pub struct Xor {
 impl Xor {
     /// Create new object, return error if type matching fails
     pub fn new(left: Expr, right: Expr) -> Result<Self, InvalidArgumentError> {
-        let left_type: SType = left.post_eval_tpe();
-        let right_type: SType = right.post_eval_tpe();
+        let left_type: SType = left.post_eval_tpe().clone();
+        let right_type: SType = right.post_eval_tpe().clone();
 
         match (left_type, right_type) {
             (SType::SColl(l), SType::SColl(r)) => match (*l, *r) {

@@ -22,13 +22,13 @@ pub struct OptionGetOrElse {
 impl OptionGetOrElse {
     /// Create new object, returns an error if any of the requirements failed
     pub fn new(input: Expr, default: Expr) -> Result<Self, InvalidArgumentError> {
-        match input.post_eval_tpe() {
+        match input.post_eval_tpe().clone() {
             SType::SOption(elem_tpe) => {
-                default.check_post_eval_tpe(*elem_tpe.clone())?;
+                default.check_post_eval_tpe(elem_tpe.as_ref())?;
                 Ok(OptionGetOrElse {
                     input: Box::new(input),
                     default: Box::new(default),
-                    elem_tpe: *elem_tpe,
+                    elem_tpe: *elem_tpe.clone(),
                 })
             }
             _ => Err(InvalidArgumentError(format!(

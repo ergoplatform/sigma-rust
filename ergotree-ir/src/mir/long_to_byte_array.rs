@@ -37,7 +37,7 @@ impl UnaryOpTryBuild for LongToByteArray {
     where
         Self: Sized,
     {
-        input.check_post_eval_tpe(SType::SLong)?;
+        input.check_post_eval_tpe(&SType::SLong)?;
         Ok(LongToByteArray {
             input: input.into(),
         })

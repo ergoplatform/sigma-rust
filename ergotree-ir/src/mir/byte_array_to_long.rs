@@ -34,7 +34,7 @@ impl UnaryOp for ByteArrayToLong {
 
 impl UnaryOpTryBuild for ByteArrayToLong {
     fn try_build(input: Expr) -> Result<Self, InvalidArgumentError> {
-        input.check_post_eval_tpe(SType::SColl(Box::new(SType::SByte)))?;
+        input.check_post_eval_tpe(&SType::SColl(Box::new(SType::SByte)))?;
         Ok(ByteArrayToLong {
             input: Box::new(input),
         })

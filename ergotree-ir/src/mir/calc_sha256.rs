@@ -33,7 +33,7 @@ impl UnaryOp for CalcSha256 {
 
 impl UnaryOpTryBuild for CalcSha256 {
     fn try_build(input: Expr) -> Result<Self, InvalidArgumentError> {
-        input.check_post_eval_tpe(SType::SColl(Box::new(SType::SByte)))?;
+        input.check_post_eval_tpe(&SType::SColl(Box::new(SType::SByte)))?;
         Ok(CalcSha256 {
             input: Box::new(input),
         })

@@ -29,8 +29,8 @@ impl ByIndex {
         index: Expr,
         default: Option<Box<Expr>>,
     ) -> Result<Self, InvalidArgumentError> {
-        let input_elem_type: SType = *match input.post_eval_tpe() {
-            SType::SColl(elem_type) => Ok(elem_type),
+        let input_elem_type: SType = match input.post_eval_tpe() {
+            SType::SColl(elem_type) => Ok(*elem_type.clone()),
             _ => Err(InvalidArgumentError(format!(
                 "Expected ByIndex input to be SColl, got {0:?}",
                 input.tpe()

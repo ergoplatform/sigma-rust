@@ -25,9 +25,9 @@ pub struct Apply {
 impl Apply {
     /// Create new object, returns an error if any of the requirements failed
     pub fn new(func: Expr, args: Vec<Expr>) -> Result<Self, InvalidArgumentError> {
-        match func.tpe() {
+        match func.tpe().clone() {
             SType::SFunc(sfunc) => {
-                let arg_types: Vec<SType> = args.iter().map(|a| a.tpe()).collect();
+                let arg_types: Vec<SType> = args.iter().map(|a| a.tpe().clone()).collect();
                 if sfunc.t_dom != arg_types {
                     Err(InvalidArgumentError(format!(
                         "Expected args: {0:?}, got: {1:?}",
@@ -96,7 +96,7 @@ mod tests {
                             .enumerate()
                             .map(|(idx, arg)| FuncArg {
                                 idx: (idx as u32).into(),
-                                tpe: arg.tpe(),
+                                tpe: arg.tpe().clone(),
                             })
                             .collect(),
                         body,

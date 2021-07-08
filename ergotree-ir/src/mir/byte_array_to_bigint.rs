@@ -34,7 +34,7 @@ impl UnaryOp for ByteArrayToBigInt {
 
 impl UnaryOpTryBuild for ByteArrayToBigInt {
     fn try_build(input: Expr) -> Result<Self, InvalidArgumentError> {
-        input.check_post_eval_tpe(SType::SColl(Box::new(SType::SByte)))?;
+        input.check_post_eval_tpe(&SType::SColl(Box::new(SType::SByte)))?;
         Ok(ByteArrayToBigInt {
             input: Box::new(input),
         })

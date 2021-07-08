@@ -35,7 +35,7 @@ impl UnaryOp for DecodePoint {
 
 impl UnaryOpTryBuild for DecodePoint {
     fn try_build(input: Expr) -> Result<Self, InvalidArgumentError> {
-        input.check_post_eval_tpe(SType::SColl(Box::new(SType::SByte)))?;
+        input.check_post_eval_tpe(&SType::SColl(Box::new(SType::SByte)))?;
         Ok(Self {
             input: input.into(),
         })

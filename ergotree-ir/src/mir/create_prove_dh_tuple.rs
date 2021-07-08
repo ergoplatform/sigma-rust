@@ -25,10 +25,10 @@ pub struct CreateProveDhTuple {
 impl CreateProveDhTuple {
     /// Create ProveDHTuple from four points on elliptic curve
     pub fn new(gv: Expr, hv: Expr, uv: Expr, vv: Expr) -> Result<Self, InvalidArgumentError> {
-        gv.check_post_eval_tpe(SType::SGroupElement)?;
-        hv.check_post_eval_tpe(SType::SGroupElement)?;
-        uv.check_post_eval_tpe(SType::SGroupElement)?;
-        vv.check_post_eval_tpe(SType::SGroupElement)?;
+        gv.check_post_eval_tpe(&SType::SGroupElement)?;
+        hv.check_post_eval_tpe(&SType::SGroupElement)?;
+        uv.check_post_eval_tpe(&SType::SGroupElement)?;
+        vv.check_post_eval_tpe(&SType::SGroupElement)?;
         Ok(CreateProveDhTuple {
             gv: gv.into(),
             hv: hv.into(),

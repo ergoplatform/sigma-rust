@@ -22,8 +22,8 @@ pub struct ForAll {
 impl ForAll {
     /// Create new object, returns an error if any of the requirements failed
     pub fn new(input: Expr, condition: Expr) -> Result<Self, InvalidArgumentError> {
-        let input_elem_type: SType = *match input.post_eval_tpe() {
-            SType::SColl(elem_type) => Ok(elem_type),
+        let input_elem_type: SType = match input.post_eval_tpe() {
+            SType::SColl(elem_type) => Ok(*elem_type.clone()),
             _ => Err(InvalidArgumentError(format!(
                 "Expected ForAll input to be SColl, got {0:?}",
                 input.tpe()
