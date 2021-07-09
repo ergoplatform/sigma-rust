@@ -17,6 +17,8 @@ pub enum GlobalVars {
     SelfBox,
     /// When interpreted evaluates to a ByteArrayConstant built from Context.minerPubkey
     MinerPubKey,
+    /// GroupElement (EcPoint) generator
+    GroupGenerator,
 }
 
 impl GlobalVars {
@@ -28,6 +30,7 @@ impl GlobalVars {
             GlobalVars::Height => SType::SInt,
             GlobalVars::SelfBox => SType::SBox,
             GlobalVars::MinerPubKey => SType::SColl(Box::new(SType::SByte)),
+            GlobalVars::GroupGenerator => SType::SGroupElement,
         }
     }
 }
@@ -41,6 +44,7 @@ impl HasOpCode for GlobalVars {
             GlobalVars::Outputs => OpCode::OUTPUTS,
             GlobalVars::Height => OpCode::HEIGHT,
             GlobalVars::MinerPubKey => OpCode::MINER_PUBKEY,
+            GlobalVars::GroupGenerator => OpCode::GROUP_GENERATOR,
         }
     }
 }
@@ -62,7 +66,8 @@ mod tests {
                 Just(Outputs),
                 Just(Height),
                 Just(SelfBox),
-                Just(MinerPubKey)
+                Just(MinerPubKey),
+                Just(GroupGenerator)
             ]
             .boxed()
         }

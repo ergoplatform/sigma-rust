@@ -103,6 +103,7 @@ impl Expr {
                 OpCode::INPUTS => Ok(Expr::GlobalVars(GlobalVars::Inputs)),
                 OpCode::OUTPUTS => Ok(Expr::GlobalVars(GlobalVars::Outputs)),
                 OpCode::MINER_PUBKEY => Ok(Expr::GlobalVars(GlobalVars::MinerPubKey)),
+                OpCode::GROUP_GENERATOR => Ok(Expr::GlobalVars(GlobalVars::GroupGenerator)),
                 OpCode::GLOBAL => Ok(Expr::Global),
                 OpCode::PROPERTY_CALL => Ok(Expr::ProperyCall(PropertyCall::sigma_parse(r)?)),
                 OpCode::METHOD_CALL => Ok(Expr::MethodCall(MethodCall::sigma_parse(r)?)),
