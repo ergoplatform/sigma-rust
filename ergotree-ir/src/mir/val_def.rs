@@ -65,7 +65,7 @@ impl SigmaSerializable for ValDef {
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
         let id = ValId::sigma_parse(r)?;
         let rhs = Expr::sigma_parse(r)?;
-        r.val_def_type_store().insert(id, rhs.tpe().clone());
+        r.val_def_type_store().insert(id, rhs.tpe());
         Ok(ValDef {
             id,
             rhs: Box::new(rhs),

@@ -27,7 +27,7 @@ impl SigmaAnd {
         let item_types: Vec<SType> = items
             .clone()
             .into_iter()
-            .map(|it| it.post_eval_tpe().clone())
+            .map(|it| it.post_eval_tpe())
             .collect();
         if item_types
             .iter()

@@ -25,17 +25,17 @@ impl Map {
     /// Create new object, returns an error if any of the requirements failed
     pub fn new(input: Expr, mapper: Expr) -> Result<Self, InvalidArgumentError> {
         let input_elem_type: SType = match input.post_eval_tpe() {
-            SType::SColl(elem_type) => Ok(*elem_type.clone()),
+            SType::SColl(elem_type) => Ok(*elem_type),
             _ => Err(InvalidArgumentError(format!(
                 "Expected Map input to be SColl, got {0:?}",
                 input.tpe()
             ))),
         }?;
-        match mapper.tpe().clone() {
+        match mapper.tpe() {
             SType::SFunc(sfunc) if sfunc.t_dom == vec![input_elem_type] => Ok(Map {
                 input: input.into(),
                 mapper: mapper.into(),
-                mapper_sfunc: sfunc.clone(),
+                mapper_sfunc: sfunc,
             }),
             _ => Err(InvalidArgumentError(format!(
                 "Invalid mapper tpe: {0:?}",

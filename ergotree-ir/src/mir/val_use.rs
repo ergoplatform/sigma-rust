@@ -60,7 +60,7 @@ mod tests {
             // ValDef should put the type into the ValDefStore for ValUse to read
             let block: Expr = BlockValue {
                 items: vec![v.clone().into()],
-                result: Box::new(ValUse{ val_id: v.id, tpe: v.tpe().clone() }.into()),
+                result: Box::new(ValUse{ val_id: v.id, tpe: v.tpe() }.into()),
             }.into();
             prop_assert_eq![sigma_serialize_roundtrip(&block), block];
         }

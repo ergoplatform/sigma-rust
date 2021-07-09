@@ -34,10 +34,10 @@ impl UnaryOp for OptionGet {
 
 impl UnaryOpTryBuild for OptionGet {
     fn try_build(input: Expr) -> Result<Self, InvalidArgumentError> {
-        match input.post_eval_tpe().clone() {
+        match input.post_eval_tpe() {
             SType::SOption(elem_tpe) => Ok(OptionGet {
                 input: Box::new(input),
-                elem_tpe: *elem_tpe.clone(),
+                elem_tpe: *elem_tpe,
             }),
             _ => Err(InvalidArgumentError(format!(
                 "expected OptionGet::input type to be SOption, got: {0:?}",
