@@ -11,6 +11,7 @@ use crate::sigma_protocol::{
 use crate::sigma_protocol::sigma_boolean::cthreshold::Cthreshold;
 use std::io;
 
+#[allow(clippy::todo)] // until https://github.com/ergoplatform/sigma-rust/issues/338 is implemented
 impl SigmaSerializable for SigmaBoolean {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
         self.op_code().sigma_serialize(w)?;
