@@ -11,7 +11,7 @@ pub struct PreHeader {
     /// Timestamp of a block in ms from UNIX epoch
     pub timestamp: u64,
     /// Current difficulty in a compressed view.
-    pub n_bits: u64,
+    pub n_bits: u32,
     /// Block height
     pub height: u32,
     /// Public key of miner
@@ -51,7 +51,7 @@ mod arbitrary {
                 vec(any::<u8>(), 32),
                 // Timestamps between 2000-2050
                 946_674_000_000..2_500_400_300_000u64,
-                any::<u64>(),
+                any::<u32>(),
                 0..1_000_000u32,
                 any::<Box<EcPoint>>(),
             )
