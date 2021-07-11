@@ -3,6 +3,8 @@
 pub mod and;
 pub mod apply;
 pub mod atleast;
+/// 256-bit integer type
+pub mod bigint256;
 pub mod bin_op;
 pub mod block;
 pub mod bool_to_sigma;

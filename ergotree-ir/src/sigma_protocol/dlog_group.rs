@@ -15,14 +15,16 @@
 //!
 //! On the other hand, any group element can be mapped to some string.
 
+use crate::mir::bigint256::BigInt256;
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
 };
 use k256::elliptic_curve::ff::PrimeField;
 use k256::elliptic_curve::sec1::ToEncodedPoint;
 use k256::{ProjectivePoint, PublicKey, Scalar};
-use num_bigint::{BigInt, Sign};
+use num_bigint::Sign;
 use sigma_ser::vlq_encode;
+use std::convert::TryFrom;
 
 use std::{
     io,
@@ -115,36 +117,28 @@ pub fn random_scalar_in_group_range() -> Scalar {
 }
 
 /// Attempts to create BigInt from Scalar
-pub fn scalar_to_bigint(s: Scalar) -> BigInt {
+pub fn scalar_to_bigint256(s: Scalar) -> BigInt256 {
     let r_g_array = s.to_bytes();
     let r_b_array: &[u8] = r_g_array.as_slice();
-    BigInt::from_bytes_be(Sign::Plus, r_b_array)
+    BigInt256::try_from(r_b_array).unwrap()
 }
 
-/// Attempts to create Scalar from BigInt
+/// Attempts to create Scalar from BigInt256
 /// Returns None if not in the range [0, modulus).
-pub fn bigint_to_scalar(bi: BigInt) -> Option<Scalar> {
-    if num_bigint::Sign::Minus == bi.sign() {
+pub fn bigint256_to_scalar(bi: BigInt256) -> Option<Scalar> {
+    if Sign::Minus == bi.sign() {
         return None;
     }
 
-    match BigInt::to_biguint(&bi) {
-        Some(bui) => {
-            let bytes_be = bui.to_bytes_be();
-            let bytes = bytes_be.as_slice();
-
-            if bytes.len() > 32 {
-                return None;
-            }
-
-            let mut bytes_32 = [0; 32];
-            for (i, v) in bytes.iter().enumerate() {
-                bytes_32[i] = *v;
-            }
-            Scalar::from_repr(bytes_32.into())
-        }
-        _ => None,
+    // Ignore the sign, we have already checked it
+    let (_, bytes_be) = bi.to_bytes_be();
+    let bytes = bytes_be.as_slice();
+    debug_assert!(bytes.len() <= 32);
+    let mut bytes_32 = [0; 32];
+    for (i, v) in bytes.iter().enumerate() {
+        bytes_32[i] = *v;
     }
+    Scalar::from_repr(bytes_32.into())
 }
 
 impl SigmaSerializable for EcPoint {
@@ -213,9 +207,9 @@ mod tests {
     }
 
     #[test]
-    fn scalar_bigint_roundtrip() {
+    fn scalar_bigint256_roundtrip() {
         let rand_scalar: Scalar = random_scalar_in_group_range();
-        let as_bigint: BigInt = scalar_to_bigint(rand_scalar);
-        assert_eq!(rand_scalar, bigint_to_scalar(as_bigint).unwrap());
+        let as_bigint256: BigInt256 = scalar_to_bigint256(rand_scalar);
+        assert_eq!(rand_scalar, bigint256_to_scalar(as_bigint256).unwrap());
     }
 }
