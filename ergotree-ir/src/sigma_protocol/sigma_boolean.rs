@@ -63,6 +63,18 @@ pub struct ProveDhTuple {
     pub vv: Box<EcPoint>,
 }
 
+impl ProveDhTuple {
+    /// create new public key
+    pub fn new(gv: EcPoint, hv: EcPoint, uv: EcPoint, vv: EcPoint) -> ProveDhTuple {
+        ProveDhTuple {
+            gv: Box::new(gv),
+            hv: Box::new(hv),
+            uv: Box::new(uv),
+            vv: Box::new(vv),
+        }
+    }
+}
+
 /// Sigma proposition
 #[derive(PartialEq, Eq, Debug, Clone, From)]
 pub enum SigmaProofOfKnowledgeTree {
@@ -102,9 +114,12 @@ impl HasOpCode for SigmaBoolean {
             SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(_)) => {
                 OpCode::PROVE_DLOG
             }
+            SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDhTuple(_)) => {
+                OpCode::PROVE_DIFFIE_HELLMAN_TUPLE
+            }
             SigmaBoolean::SigmaConjecture(conj) => match conj {
-                SigmaConjecture::Cand(_) => todo!(),
-                SigmaConjecture::Cor(_) => todo!(),
+                SigmaConjecture::Cand(_) => OpCode::AND,
+                SigmaConjecture::Cor(_) => OpCode::OR,
                 SigmaConjecture::Cthreshold(_) => OpCode::ATLEAST,
             },
             _ => todo!(),
@@ -196,6 +211,22 @@ mod arbitrary {
         }
     }
 
+    impl Arbitrary for ProveDhTuple {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            (
+                any::<EcPoint>(),
+                any::<EcPoint>(),
+                any::<EcPoint>(),
+                any::<EcPoint>(),
+            )
+                .prop_map(|(gv, hv, uv, vv)| ProveDhTuple::new(gv, hv, uv, vv))
+                .boxed()
+        }
+    }
+
     impl Arbitrary for SigmaBoolean {
         type Parameters = ();
         type Strategy = BoxedStrategy<Self>;
@@ -220,4 +251,16 @@ mod arbitrary {
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use super::*;
+    use crate::serialization::sigma_serialize_roundtrip;
+    use proptest::prelude::*;
+
+    proptest! {
+
+        #[test]
+        fn sigma_boolean_ser_roundtrip(v in any::<SigmaBoolean>()) {
+            prop_assert_eq![sigma_serialize_roundtrip(&v), v]
+        }
+    }
+}

@@ -3,7 +3,11 @@ use std::convert::TryInto;
 
 use super::SigmaBoolean;
 use super::SigmaConjectureItems;
+use crate::serialization::sigma_byte_reader::SigmaByteRead;
+use crate::serialization::sigma_byte_writer::SigmaByteWrite;
+use crate::serialization::{SerializationError, SigmaSerializable};
 use crate::sigma_protocol::sigma_boolean::SigmaConjecture;
+use std::io::Error;
 
 /// AND conjunction for sigma proposition
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -36,6 +40,17 @@ impl Cand {
                 items: res.try_into().unwrap(),
             }))
         }
+    }
+}
+
+impl SigmaSerializable for Cand {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), Error> {
+        self.items.sigma_serialize(w)
+    }
+
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+        let items = SigmaConjectureItems::<_>::sigma_parse(r)?;
+        Ok(Cand { items })
     }
 }
 
