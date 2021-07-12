@@ -69,6 +69,10 @@ pub struct ProveDhTuple {
     pub v: Box<EcPoint>,
 }
 
+impl HasStaticOpCode for ProveDhTuple {
+    const OP_CODE: OpCode = OpCode::PROVE_DIFFIE_HELLMAN_TUPLE;
+}
+
 impl ProveDhTuple {
     /// Create new instance
     pub fn new(g: EcPoint, h: EcPoint, u: EcPoint, v: EcPoint) -> Self {
@@ -79,10 +83,6 @@ impl ProveDhTuple {
             v: v.into(),
         }
     }
-}
-
-impl HasStaticOpCode for ProveDhTuple {
-    const OP_CODE: OpCode = OpCode::PROVE_DIFFIE_HELLMAN_TUPLE;
 }
 
 /// Sigma proposition
@@ -173,9 +173,67 @@ impl From<ProveDlog> for SigmaBoolean {
     }
 }
 
+impl TryInto<ProveDhTuple> for SigmaBoolean {
+    type Error = ConversionError;
+    fn try_into(self) -> Result<ProveDhTuple, Self::Error> {
+        match self {
+            SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDhTuple(pdh)) => Ok(pdh),
+            _ => Err(ConversionError),
+        }
+    }
+}
+
 impl From<ProveDhTuple> for SigmaBoolean {
     fn from(v: ProveDhTuple) -> Self {
         SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDhTuple(v))
+    }
+}
+
+impl TryInto<Cand> for SigmaBoolean {
+    type Error = ConversionError;
+    fn try_into(self) -> Result<Cand, Self::Error> {
+        match self {
+            SigmaBoolean::SigmaConjecture(SigmaConjecture::Cand(c)) => Ok(c),
+            _ => Err(ConversionError),
+        }
+    }
+}
+
+impl From<Cand> for SigmaBoolean {
+    fn from(v: Cand) -> Self {
+        SigmaBoolean::SigmaConjecture(SigmaConjecture::Cand(v))
+    }
+}
+
+impl TryInto<Cor> for SigmaBoolean {
+    type Error = ConversionError;
+    fn try_into(self) -> Result<Cor, Self::Error> {
+        match self {
+            SigmaBoolean::SigmaConjecture(SigmaConjecture::Cor(c)) => Ok(c),
+            _ => Err(ConversionError),
+        }
+    }
+}
+
+impl From<Cor> for SigmaBoolean {
+    fn from(v: Cor) -> Self {
+        SigmaBoolean::SigmaConjecture(SigmaConjecture::Cor(v))
+    }
+}
+
+impl TryInto<Cthreshold> for SigmaBoolean {
+    type Error = ConversionError;
+    fn try_into(self) -> Result<Cthreshold, Self::Error> {
+        match self {
+            SigmaBoolean::SigmaConjecture(SigmaConjecture::Cthreshold(c)) => Ok(c),
+            _ => Err(ConversionError),
+        }
+    }
+}
+
+impl From<Cthreshold> for SigmaBoolean {
+    fn from(v: Cthreshold) -> Self {
+        SigmaBoolean::SigmaConjecture(SigmaConjecture::Cthreshold(v))
     }
 }
 
@@ -230,8 +288,10 @@ impl From<ProveDhTuple> for SigmaProp {
 }
 /// Arbitrary impl for ProveDlog
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::unwrap_used)]
 mod arbitrary {
     use super::*;
+    use proptest::collection::vec;
     use proptest::prelude::*;
 
     impl Arbitrary for ProveDlog {
@@ -243,14 +303,49 @@ mod arbitrary {
         }
     }
 
-    impl Arbitrary for SigmaBoolean {
+    impl Arbitrary for ProveDhTuple {
         type Parameters = ();
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            (any::<ProveDlog>())
-                .prop_map(|p| {
-                    SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(p))
+            (
+                any::<EcPoint>(),
+                any::<EcPoint>(),
+                any::<EcPoint>(),
+                any::<EcPoint>(),
+            )
+                .prop_map(|(gv, hv, uv, vv)| ProveDhTuple::new(gv, hv, uv, vv))
+                .boxed()
+        }
+    }
+
+    pub fn primitive_type_value() -> BoxedStrategy<SigmaBoolean> {
+        prop_oneof![
+            any::<ProveDlog>().prop_map_into(),
+            any::<ProveDhTuple>().prop_map_into(),
+        ]
+        .boxed()
+    }
+
+    impl Arbitrary for SigmaBoolean {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_: Self::Parameters) -> Self::Strategy {
+            primitive_type_value()
+                .prop_recursive(1, 8, 4, |elem| {
+                    prop_oneof![
+                        vec(elem.clone(), 2..=4)
+                            .prop_map(|elems| Cand {
+                                items: elems.try_into().unwrap()
+                            })
+                            .prop_map_into(),
+                        vec(elem, 2..=4)
+                            .prop_map(|elems| Cor {
+                                items: elems.try_into().unwrap()
+                            })
+                            .prop_map_into(),
+                    ]
                 })
                 .boxed()
         }
@@ -267,4 +362,17 @@ mod arbitrary {
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use super::*;
+    use crate::serialization::sigma_serialize_roundtrip;
+    use proptest::prelude::*;
+
+    proptest! {
+
+        #[test]
+        fn sigma_boolean_ser_roundtrip(
+            v in any::<SigmaBoolean>()) {
+                prop_assert_eq![sigma_serialize_roundtrip(&v), v]
+        }
+    }
+}

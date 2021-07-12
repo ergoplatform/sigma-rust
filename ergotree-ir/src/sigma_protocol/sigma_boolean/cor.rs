@@ -5,6 +5,9 @@ use super::SigmaBoolean;
 use super::SigmaConjectureItems;
 use crate::has_opcode::HasStaticOpCode;
 use crate::serialization::op_code::OpCode;
+use crate::serialization::sigma_byte_reader::SigmaByteRead;
+use crate::serialization::sigma_byte_writer::SigmaByteWrite;
+use crate::serialization::{SigmaParsingError, SigmaSerializable, SigmaSerializeResult};
 use crate::sigma_protocol::sigma_boolean::SigmaConjecture;
 
 /// OR conjunction for sigma proposition
@@ -46,11 +49,45 @@ impl Cor {
     }
 }
 
+impl SigmaSerializable for Cor {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
+        self.items.sigma_serialize(w)
+    }
+
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
+        let items = SigmaConjectureItems::<_>::sigma_parse(r)?;
+        Ok(Cor { items })
+    }
+}
+
+#[cfg(feature = "arbitrary")]
+#[allow(clippy::unwrap_used)]
+mod arbitrary {
+    use super::*;
+    use proptest::collection::vec;
+    use proptest::prelude::*;
+
+    impl Arbitrary for Cor {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            vec(any::<SigmaBoolean>(), 2..=4)
+                .prop_map(|items| Cor {
+                    items: items.try_into().unwrap(),
+                })
+                .boxed()
+        }
+    }
+}
+
 #[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::serialization::sigma_serialize_roundtrip;
     use crate::sigma_protocol::sigma_boolean::ProveDlog;
+    use proptest::prelude::*;
     use sigma_test_util::force_any_val;
     use std::convert::TryInto;
 
@@ -92,5 +129,14 @@ mod tests {
             cor,
             SigmaBoolean::SigmaConjecture(SigmaConjecture::Cor(Cor {items})) if items == pks
         ));
+    }
+
+    proptest! {
+
+        #[test]
+        fn sigma_proposition_ser_roundtrip(
+            v in any_with::<Cor>(())) {
+                prop_assert_eq![sigma_serialize_roundtrip(&v), v]
+        }
     }
 }
