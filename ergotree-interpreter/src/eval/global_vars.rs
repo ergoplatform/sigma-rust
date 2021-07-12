@@ -1,11 +1,12 @@
 use crate::eval::Env;
 use ergotree_ir::mir::global_vars::GlobalVars;
 use ergotree_ir::mir::value::Value;
+use ergotree_ir::serialization::SigmaSerializable;
+use ergotree_ir::sigma_protocol::dlog_group;
 
 use super::EvalContext;
 use super::EvalError;
 use super::Evaluable;
-use ergotree_ir::serialization::SigmaSerializable;
 
 impl Evaluable for GlobalVars {
     fn eval(&self, _env: &Env, ectx: &mut EvalContext) -> Result<Value, EvalError> {
@@ -17,6 +18,7 @@ impl Evaluable for GlobalVars {
             GlobalVars::MinerPubKey => {
                 Ok(ectx.ctx.pre_header.miner_pk.sigma_serialize_bytes().into())
             }
+            GlobalVars::GroupGenerator => Ok(dlog_group::generator().into()),
         }
     }
 }
@@ -31,6 +33,7 @@ mod tests {
     use ergoscript_compiler::compiler::compile_expr;
     use ergoscript_compiler::script_env::ScriptEnv;
     use ergotree_ir::ir_ergo_box::IrBoxId;
+    use ergotree_ir::sigma_protocol::dlog_group::EcPoint;
     use sigma_test_util::force_any_val;
 
     use super::*;
@@ -66,6 +69,15 @@ mod tests {
         assert_eq!(
             eval_out::<Vec<IrBoxId>>(&GlobalVars::Inputs.into(), ctx.clone()),
             ctx.inputs
+        );
+    }
+
+    #[test]
+    fn eval_group_generator() {
+        let ctx = Rc::new(force_any_val::<Context>());
+        assert_eq!(
+            eval_out::<EcPoint>(&GlobalVars::GroupGenerator.into(), ctx.clone()),
+            dlog_group::generator()
         );
     }
 }
