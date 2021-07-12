@@ -2,7 +2,7 @@
 #![allow(missing_docs)]
 
 use crate::serialization::{
-    sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
+    sigma_byte_reader::SigmaByteRead, SigmaParsingError, SigmaSerializable,
 };
 use sigma_ser::vlq_encode;
 
@@ -188,7 +188,7 @@ impl SigmaSerializable for OpCode {
         w.put_u8(self.0)?;
         Ok(())
     }
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let code = r.get_u8()?;
         Ok(OpCode::parse(code))
     }

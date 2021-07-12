@@ -65,7 +65,7 @@ use crate::mir::val_def::ValDef;
 use crate::mir::val_use::ValUse;
 use crate::mir::xor::Xor;
 use crate::serialization::{
-    sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
+    sigma_byte_reader::SigmaByteRead, SigmaParsingError, SigmaSerializable,
 };
 
 use crate::serialization::types::TypeCode;
@@ -74,10 +74,7 @@ use std::io;
 impl Expr {
     /// Parse expression from byte stream. This function should be used instead of
     /// `sigma_parse` when tag byte is already read for look-ahead
-    pub fn parse_with_tag<R: SigmaByteRead>(
-        r: &mut R,
-        tag: u8,
-    ) -> Result<Self, SerializationError> {
+    pub fn parse_with_tag<R: SigmaByteRead>(r: &mut R, tag: u8) -> Result<Self, SigmaParsingError> {
         let res = if tag <= OpCode::LAST_CONSTANT_CODE.value() {
             let t_code = TypeCode::parse(tag)?;
             let constant = Constant::parse_with_type_code(r, t_code)?;
@@ -174,7 +171,7 @@ impl Expr {
                 DeserializeContext::OP_CODE => Ok(DeserializeContext::sigma_parse(r)?.into()),
                 MultiplyGroup::OP_CODE => Ok(MultiplyGroup::sigma_parse(r)?.into()),
                 Exponentiate::OP_CODE => Ok(Exponentiate::sigma_parse(r)?.into()),
-                o => Err(SerializationError::NotImplementedOpCode(format!(
+                o => Err(SigmaParsingError::NotImplementedOpCode(format!(
                     "{0}(shift {1})",
                     o.value(),
                     o.shift()
@@ -264,7 +261,7 @@ impl SigmaSerializable for Expr {
         }
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let tag = r.get_u8()?;
         Self::parse_with_tag(r, tag)
     }

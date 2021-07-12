@@ -6,7 +6,7 @@ use crate::has_opcode::HasStaticOpCode;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
-use crate::serialization::{SerializationError, SigmaSerializable};
+use crate::serialization::{SigmaParsingError, SigmaSerializable};
 use std::io::Error;
 // use crate::sigma_protocol::sigma_boolean::SigmaConjecture;
 
@@ -29,7 +29,7 @@ impl SigmaSerializable for Cthreshold {
         self.items.sigma_serialize(w)
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let n = r.get_i32()?;
         let items = SigmaConjectureItems::<_>::sigma_parse(r)?;
         Ok(Cthreshold { n, items })

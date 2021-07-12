@@ -13,7 +13,7 @@ use ergotree_ir::ir_ergo_box::IrErgoBox;
 use ergotree_ir::mir::constant::Constant;
 use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
 use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
-use ergotree_ir::serialization::SerializationError;
+use ergotree_ir::serialization::SigmaParsingError;
 use ergotree_ir::serialization::SigmaSerializable;
 use ergotree_ir::util::AsVecI8;
 pub use register::*;
@@ -356,7 +356,7 @@ impl SigmaSerializable for ErgoBox {
         w.put_u16(self.index)?;
         Ok(())
     }
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let box_candidate = ErgoBoxCandidate::parse_body_with_indexed_digests(None, r)?;
         let tx_id = TxId::sigma_parse(r)?;
         let index = r.get_u16()?;
@@ -412,7 +412,7 @@ impl ErgoBoxCandidate {
     pub fn parse_body_with_indexed_digests<R: SigmaByteRead>(
         digests_in_tx: Option<&IndexSet<TokenId>>,
         r: &mut R,
-    ) -> Result<ErgoBoxCandidate, SerializationError> {
+    ) -> Result<ErgoBoxCandidate, SigmaParsingError> {
         parse_box_with_indexed_digests(digests_in_tx, r)
     }
 }
@@ -421,7 +421,7 @@ impl SigmaSerializable for ErgoBoxCandidate {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
         self.serialize_body_with_indexed_digests(None, w)
     }
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         ErgoBoxCandidate::parse_body_with_indexed_digests(None, r)
     }
 }
@@ -490,7 +490,7 @@ pub fn serialize_box_with_indexed_digests<W: SigmaByteWrite>(
 pub fn parse_box_with_indexed_digests<R: SigmaByteRead>(
     digests_in_tx: Option<&IndexSet<TokenId>>,
     r: &mut R,
-) -> Result<ErgoBoxCandidate, SerializationError> {
+) -> Result<ErgoBoxCandidate, SigmaParsingError> {
     // reference implementation -https://github.com/ScorexFoundation/sigmastate-interpreter/blob/9b20cb110effd1987ff76699d637174a4b2fb441/sigmastate/src/main/scala/org/ergoplatform/ErgoBoxCandidate.scala#L144-L144
 
     let value = BoxValue::sigma_parse(r)?;
@@ -505,7 +505,7 @@ pub fn parse_box_with_indexed_digests<R: SigmaByteRead>(
                 let digest_index = r.get_u32()?;
                 match digests.get_index(digest_index as usize) {
                     Some(i) => Ok((*i).clone()),
-                    None => Err(SerializationError::Misc(
+                    None => Err(SigmaParsingError::Misc(
                         "failed to find token id in tx digests".to_string(),
                     )),
                 }?

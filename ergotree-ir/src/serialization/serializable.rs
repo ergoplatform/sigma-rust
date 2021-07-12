@@ -20,7 +20,15 @@ use thiserror::Error;
 
 /// Ways serialization might fail
 #[derive(Error, Eq, PartialEq, Debug, Clone)]
-pub enum SerializationError {
+pub enum SigmaSerializationError {
+    /// IO fail (EOF, etc.)
+    #[error("IO error: {0}")]
+    Io(String),
+}
+
+/// Ways parsing might fail
+#[derive(Error, Eq, PartialEq, Debug, Clone)]
+pub enum SigmaParsingError {
     /// Invalid op code
     #[error("invalid op code: {0}")]
     InvalidOpCode(u8),
@@ -62,51 +70,51 @@ pub enum SerializationError {
     UnknownMethodId(MethodId, TypeCode),
 }
 
-impl From<io::Error> for SerializationError {
+impl From<io::Error> for SigmaParsingError {
     fn from(error: io::Error) -> Self {
-        SerializationError::Io(error.to_string())
+        SigmaParsingError::Io(error.to_string())
     }
 }
 
-impl From<&io::Error> for SerializationError {
+impl From<&io::Error> for SigmaParsingError {
     fn from(error: &io::Error) -> Self {
-        SerializationError::Io(error.to_string())
+        SigmaParsingError::Io(error.to_string())
     }
 }
 
-impl From<InvalidArgumentError> for SerializationError {
+impl From<InvalidArgumentError> for SigmaParsingError {
     fn from(e: InvalidArgumentError) -> Self {
-        SerializationError::InvalidArgument(e)
+        SigmaParsingError::InvalidArgument(e)
     }
 }
 
-impl From<BoundedVecOutOfBounds> for SerializationError {
+impl From<BoundedVecOutOfBounds> for SigmaParsingError {
     fn from(e: BoundedVecOutOfBounds) -> Self {
-        SerializationError::ValueOutOfBounds(format!("{:?}", e))
+        SigmaParsingError::ValueOutOfBounds(format!("{:?}", e))
     }
 }
 
-impl From<TypeUnificationError> for SerializationError {
+impl From<TypeUnificationError> for SigmaParsingError {
     fn from(e: TypeUnificationError) -> Self {
-        SerializationError::Misc(format!("{:?}", e))
+        SigmaParsingError::Misc(format!("{:?}", e))
     }
 }
+
+/// Result type for [`SigmaSerializable::sigma_serialize`]
+pub type SigmaSerializeResult = Result<(), SigmaParsingError>;
 
 /// Consensus-critical serialization for Ergo
 pub trait SigmaSerializable: Sized {
     /// Write `self` to the given `writer`.
     /// This function has a `sigma_` prefix to alert the reader that the
     /// serialization in use is consensus-critical serialization    
-    /// Notice that the error type is [`std::io::Error`]; this indicates that
-    /// serialization MUST be infallible up to errors in the underlying writer.
-    /// In other words, any type implementing `SigmaSerializable`
-    /// must make illegal states unrepresentable.
+    // fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult;
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error>;
 
     /// Try to read `self` from the given `reader`.
     /// `sigma-` prefix to alert the reader that the serialization in use
     /// is consensus-critical
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError>;
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError>;
 
     /// Serialize any SigmaSerializable value into bytes
     fn sigma_serialize_bytes(&self) -> Vec<u8> {
@@ -120,7 +128,7 @@ pub trait SigmaSerializable: Sized {
     }
 
     /// Parse `self` from the bytes
-    fn sigma_parse_bytes(bytes: &[u8]) -> Result<Self, SerializationError> {
+    fn sigma_parse_bytes(bytes: &[u8]) -> Result<Self, SigmaParsingError> {
         let cursor = Cursor::new(bytes);
         let mut sr = SigmaByteReader::new(cursor, ConstantStore::empty());
         Self::sigma_parse(&mut sr)
@@ -133,7 +141,7 @@ impl<T: SigmaSerializable> SigmaSerializable for Vec<T> {
         self.iter().try_for_each(|i| i.sigma_serialize(w))
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let items_count = r.get_u32()?;
         let mut items = Vec::with_capacity(items_count as usize);
         for _ in 0..items_count {
@@ -150,7 +158,7 @@ impl<T: SigmaSerializable, const L: usize, const U: usize> SigmaSerializable
         self.as_vec().sigma_serialize(w)
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         Ok(Vec::<T>::sigma_parse(r)?.try_into()?)
     }
 }
@@ -166,7 +174,7 @@ impl<T: SigmaSerializable> SigmaSerializable for Option<Box<T>> {
         }
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let tag = r.get_u8()?;
         Ok(if tag != 0 {
             Some(T::sigma_parse(r)?.into())

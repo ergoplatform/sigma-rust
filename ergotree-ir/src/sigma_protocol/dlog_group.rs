@@ -16,7 +16,7 @@
 //! On the other hand, any group element can be mapped to some string.
 
 use crate::serialization::{
-    sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
+    sigma_byte_reader::SigmaByteRead, SigmaParsingError, SigmaSerializable,
 };
 use k256::elliptic_curve::ff::PrimeField;
 use k256::elliptic_curve::sec1::ToEncodedPoint;
@@ -160,12 +160,12 @@ impl SigmaSerializable for EcPoint {
         Ok(())
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let mut buf = [0; EcPoint::GROUP_SIZE];
         r.read_exact(&mut buf[..])?;
         if buf[0] != 0 {
             let pubkey = PublicKey::from_sec1_bytes(&buf[..]).map_err(|e| {
-                SerializationError::Misc(format!("failed to parse PK from bytes: {:?}", e))
+                SigmaParsingError::Misc(format!("failed to parse PK from bytes: {:?}", e))
             })?;
             Ok(EcPoint(pubkey.to_projective()))
         } else {

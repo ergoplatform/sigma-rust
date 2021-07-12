@@ -2,7 +2,7 @@
 
 use super::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::{
-    sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
+    sigma_byte_reader::SigmaByteRead, SigmaParsingError, SigmaSerializable,
 };
 use crate::types::stuple::STuple;
 use crate::types::stype::SType;
@@ -80,9 +80,9 @@ impl TypeCode {
     }
 
     /// Parse type code from single byte.
-    pub fn parse(b: u8) -> Result<Self, SerializationError> {
+    pub fn parse(b: u8) -> Result<Self, SigmaParsingError> {
         match b {
-            0 => Err(SerializationError::InvalidTypePrefix),
+            0 => Err(SigmaParsingError::InvalidTypePrefix),
             _ => Ok(Self(b)),
         }
     }
@@ -103,13 +103,13 @@ impl SigmaSerializable for TypeCode {
         w.put_u8(self.value())
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let b = r.get_u8()?;
         Self::parse(b)
     }
 }
 
-fn get_embeddable_type(code: u8) -> Result<SType, SerializationError> {
+fn get_embeddable_type(code: u8) -> Result<SType, SigmaParsingError> {
     match TypeCode::new(code) {
         TypeCode::SBOOLEAN => Ok(SType::SBoolean),
         TypeCode::SBYTE => Ok(SType::SByte),
@@ -119,7 +119,7 @@ fn get_embeddable_type(code: u8) -> Result<SType, SerializationError> {
         TypeCode::SBIGINT => Ok(SType::SBigInt),
         TypeCode::SGROUP_ELEMENT => Ok(SType::SGroupElement),
         TypeCode::SSIGMAPROP => Ok(SType::SSigmaProp),
-        _ => Err(SerializationError::InvalidOpCode(code)),
+        _ => Err(SigmaParsingError::InvalidOpCode(code)),
     }
 }
 
@@ -144,7 +144,7 @@ impl SType {
     pub fn parse_with_type_code<R: SigmaByteRead>(
         r: &mut R,
         c: TypeCode,
-    ) -> Result<Self, SerializationError> {
+    ) -> Result<Self, SigmaParsingError> {
         let tpe = if c.value() < TypeCode::TUPLE.value() {
             let constr_id = c.value() / TypeCode::PRIM_RANGE;
             let prim_id = c.value() % TypeCode::PRIM_RANGE;
@@ -218,7 +218,7 @@ impl SType {
                     }
                 }
                 _ => {
-                    return Err(SerializationError::NotImplementedYet(format!(
+                    return Err(SigmaParsingError::NotImplementedYet(format!(
                         "case 1: parsing type is not yet implemented(constr_id == {:?})",
                         constr_id
                     )))
@@ -233,7 +233,7 @@ impl SType {
                         items.push(SType::sigma_parse(r)?);
                     }
                     Ok(SType::STuple(items.try_into().map_err(|_| {
-                        SerializationError::TupleItemsOutOfBounds(len as usize)
+                        SigmaParsingError::TupleItemsOutOfBounds(len as usize)
                     })?))
                 }
                 TypeCode::SANY => Ok(SType::SAny),
@@ -244,7 +244,7 @@ impl SType {
                 TypeCode::SHEADER => Ok(SType::SHeader),
                 TypeCode::SPRE_HEADER => Ok(SType::SPreHeader),
                 TypeCode::SGLOBAL => Ok(SType::SGlobal),
-                _ => Err(SerializationError::NotImplementedYet(format!(
+                _ => Err(SigmaParsingError::NotImplementedYet(format!(
                     // FIXME: should we just tell that type code is malforled?
                     "case 2: parsing type is not yet implemented(c == {:?})",
                     c
@@ -364,14 +364,14 @@ impl SigmaSerializable for SType {
         }
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         // for reference see http://github.com/ScorexFoundation/sigmastate-interpreter/blob/25251c1313b0131835f92099f02cef8a5d932b5e/sigmastate/src/main/scala/sigmastate/serialization/TypeSerializer.scala#L118-L118
         let c = TypeCode::sigma_parse(r)?;
         Self::parse_with_type_code(r, c)
     }
 }
 
-fn get_arg_type<R: SigmaByteRead>(r: &mut R, prim_id: u8) -> Result<SType, SerializationError> {
+fn get_arg_type<R: SigmaByteRead>(r: &mut R, prim_id: u8) -> Result<SType, SigmaParsingError> {
     if prim_id == 0 {
         SType::sigma_parse(r)
     } else {

@@ -6,7 +6,7 @@ use crate::has_opcode::HasStaticOpCode;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
-use crate::serialization::SerializationError;
+use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
 use crate::types::stype::SType;
 
@@ -43,7 +43,7 @@ impl SigmaSerializable for BlockValue {
         self.result.sigma_serialize(w)
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let items = Vec::<Expr>::sigma_parse(r)?;
         let result = Expr::sigma_parse(r)?;
         Ok(BlockValue {

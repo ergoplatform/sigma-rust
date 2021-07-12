@@ -6,7 +6,7 @@ use crate::mir::value::CollKind;
 use crate::mir::value::NativeColl;
 use crate::mir::value::Value;
 use crate::serialization::{
-    sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
+    sigma_byte_reader::SigmaByteRead, SigmaParsingError, SigmaSerializable,
 };
 use crate::sigma_protocol::{
     dlog_group::EcPoint, sigma_boolean::SigmaBoolean, sigma_boolean::SigmaProp,
@@ -77,7 +77,7 @@ impl DataSerializer {
     pub fn sigma_parse<R: SigmaByteRead>(
         tpe: &SType,
         r: &mut R,
-    ) -> Result<Value, SerializationError> {
+    ) -> Result<Value, SigmaParsingError> {
         // for reference see http://github.com/ScorexFoundation/sigmastate-interpreter/blob/25251c1313b0131835f92099f02cef8a5d932b5e/sigmastate/src/main/scala/sigmastate/serialization/DataSerializer.scala#L84-L84
         use SType::*;
         Ok(match tpe {
@@ -89,7 +89,7 @@ impl DataSerializer {
             SBigInt => {
                 let size = r.get_u16()?;
                 if size > 32 {
-                    return Err(SerializationError::ValueOutOfBounds(format!(
+                    return Err(SigmaParsingError::ValueOutOfBounds(format!(
                         "serialized BigInt size {0} bytes exceeds 32",
                         size
                     )));
@@ -139,7 +139,7 @@ impl DataSerializer {
             }
 
             c => {
-                return Err(SerializationError::NotImplementedYet(format!(
+                return Err(SigmaParsingError::NotImplementedYet(format!(
                     "parsing of constant value of type {:?} is not yet supported",
                     c
                 )))

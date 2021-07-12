@@ -15,7 +15,7 @@ use ergotree_ir::serialization::sigma_byte_reader;
 use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
 use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
 use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWriter;
-use ergotree_ir::serialization::SerializationError;
+use ergotree_ir::serialization::SigmaParsingError;
 use ergotree_ir::serialization::SigmaSerializable;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaConjecture;
@@ -195,7 +195,7 @@ pub enum SigParsingError {
     IoError(String),
     /// Serialization error
     #[error("Serialization error: {0}")]
-    SerializationError(SerializationError),
+    SerializationError(SigmaParsingError),
 }
 
 impl From<std::io::Error> for SigParsingError {

@@ -4,7 +4,7 @@
 use crate::chain::json::ergo_box::ConstantHolder;
 use crate::chain::Base16EncodedBytes;
 use ergotree_ir::mir::constant::Constant;
-use ergotree_ir::serialization::SerializationError;
+use ergotree_ir::serialization::SigmaParsingError;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
@@ -273,9 +273,9 @@ impl TryFrom<HashMap<NonMandatoryRegisterId, ConstantHolder>> for NonMandatoryRe
     }
 }
 
-impl From<NonMandatoryRegistersError> for SerializationError {
+impl From<NonMandatoryRegistersError> for SigmaParsingError {
     fn from(error: NonMandatoryRegistersError) -> Self {
-        SerializationError::Misc(error.to_string())
+        SigmaParsingError::Misc(error.to_string())
     }
 }
 

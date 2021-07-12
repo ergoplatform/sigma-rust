@@ -1,7 +1,7 @@
 use super::{op_code::OpCode, sigma_byte_writer::SigmaByteWrite};
 use crate::has_opcode::{HasOpCode, HasStaticOpCode};
 use crate::serialization::{
-    sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
+    sigma_byte_reader::SigmaByteRead, SigmaParsingError, SigmaSerializable,
 };
 use crate::sigma_protocol::{
     dlog_group::EcPoint,
@@ -29,7 +29,7 @@ impl SigmaSerializable for SigmaBoolean {
         }
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let op_code = OpCode::sigma_parse(r)?;
         match op_code {
             ProveDlog::OP_CODE => Ok(SigmaBoolean::ProofOfKnowledge(
@@ -51,7 +51,7 @@ impl SigmaSerializable for ProveDlog {
         self.h.sigma_serialize(w)
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let p = EcPoint::sigma_parse(r)?;
         Ok(ProveDlog::new(p))
     }

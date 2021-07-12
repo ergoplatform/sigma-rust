@@ -4,7 +4,7 @@ use crate::ergo_tree::ErgoTree;
 use crate::ergo_tree::ErgoTreeParsingError;
 use crate::mir::constant::Constant;
 use crate::mir::expr::Expr;
-use crate::serialization::SerializationError;
+use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
 use crate::sigma_protocol::dlog_group::EcPoint;
 use crate::sigma_protocol::sigma_boolean::ProveDlog;
@@ -70,7 +70,7 @@ pub enum Address {
 
 impl Address {
     /// Create a P2PK address from serialized PK bytes(EcPoint/GroupElement)
-    pub fn p2pk_from_pk_bytes(bytes: &[u8]) -> Result<Address, SerializationError> {
+    pub fn p2pk_from_pk_bytes(bytes: &[u8]) -> Result<Address, SigmaParsingError> {
         EcPoint::sigma_parse_bytes(bytes)
             .map(ProveDlog::from)
             .map(Address::P2Pk)
@@ -114,7 +114,7 @@ impl Address {
     }
 
     /// script encoded in the address
-    pub fn script(&self) -> Result<ErgoTree, SerializationError> {
+    pub fn script(&self) -> Result<ErgoTree, SigmaParsingError> {
         match self {
             Address::P2Pk(prove_dlog) => Ok(ErgoTree::from(Expr::Const(
                 SigmaProp::new(SigmaBoolean::ProofOfKnowledge(
@@ -240,7 +240,7 @@ pub enum AddressEncoderError {
 
     /// deserialization failed
     #[error("deserialization failed {0}")]
-    DeserializationFailed(SerializationError),
+    DeserializationFailed(SigmaParsingError),
 }
 
 impl From<bs58::decode::Error> for AddressEncoderError {
@@ -249,8 +249,8 @@ impl From<bs58::decode::Error> for AddressEncoderError {
     }
 }
 
-impl From<SerializationError> for AddressEncoderError {
-    fn from(err: SerializationError) -> Self {
+impl From<SigmaParsingError> for AddressEncoderError {
+    fn from(err: SigmaParsingError) -> Self {
         AddressEncoderError::DeserializationFailed(err)
     }
 }

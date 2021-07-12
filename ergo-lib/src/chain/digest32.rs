@@ -1,6 +1,6 @@
 use crate::chain::{Base16DecodedBytes, Base16EncodedBytes};
 use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
-use ergotree_ir::serialization::SerializationError;
+use ergotree_ir::serialization::SigmaParsingError;
 use ergotree_ir::serialization::SigmaSerializable;
 use ergotree_ir::util::AsVecI8;
 #[cfg(feature = "json")]
@@ -108,7 +108,7 @@ impl<const N: usize> SigmaSerializable for Digest<N> {
         w.write_all(self.0.as_ref())?;
         Ok(())
     }
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let mut bytes = [0; N];
         r.read_exact(&mut bytes)?;
         Ok(Self(bytes.into()))

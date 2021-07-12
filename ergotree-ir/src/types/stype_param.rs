@@ -1,6 +1,6 @@
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
-use crate::serialization::SerializationError;
+use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
 
 use super::stype::SType;
@@ -45,13 +45,13 @@ impl SigmaSerializable for STypeVar {
         w.write_all(bytes)
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let name_len = r.get_u8()?;
         let mut bytes = vec![0; name_len as usize];
         r.read_exact(&mut bytes)?;
         Ok(STypeVar {
             name: String::from_utf8(bytes).map_err(|err| {
-                SerializationError::ValueOutOfBounds(format!(
+                SigmaParsingError::ValueOutOfBounds(format!(
                     "cannot parse UTF-8 STypeVar::name from bytes with error: {:?}",
                     err
                 ))

@@ -78,19 +78,18 @@ mod tests {
             .into()],
             result: Box::new(bin_op),
         });
-        let apply: Expr = Apply {
-            func: Box::new(
-                FuncValue::new(
-                    vec![FuncArg {
-                        idx: 1.into(),
-                        tpe: SType::SInt,
-                    }],
-                    body,
-                )
-                .into(),
-            ),
-            args: vec![arg],
-        }
+        let apply: Expr = Apply::new(
+            FuncValue::new(
+                vec![FuncArg {
+                    idx: 1.into(),
+                    tpe: SType::SInt,
+                }],
+                body,
+            )
+            .into(),
+            vec![arg],
+        )
+        .unwrap()
         .into();
         let ctx = Rc::new(force_any_val::<Context>());
         assert!(eval_out::<bool>(&apply, ctx));

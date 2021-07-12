@@ -3,7 +3,7 @@ use std::convert::TryFrom;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
-use crate::serialization::SerializationError;
+use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
 use crate::types::stuple::STuple;
 use crate::types::stype::SType;
@@ -44,10 +44,10 @@ impl SigmaSerializable for TupleFieldIndex {
         w.put_u8(self.0)
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let field_index = r.get_u8()?;
         TupleFieldIndex::try_from(field_index).map_err(|_| {
-            SerializationError::ValueOutOfBounds(format!(
+            SigmaParsingError::ValueOutOfBounds(format!(
                 "invalid tuple field index: {0}",
                 field_index
             ))
@@ -110,7 +110,7 @@ impl SigmaSerializable for SelectField {
         self.field_index.sigma_serialize(w)
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let input = Expr::sigma_parse(r)?;
         let field_index = TupleFieldIndex::sigma_parse(r)?;
         Ok(SelectField::new(input, field_index)?)

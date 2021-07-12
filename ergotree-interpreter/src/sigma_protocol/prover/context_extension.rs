@@ -2,7 +2,7 @@
 use ergotree_ir::mir::constant::Constant;
 use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
 use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
-use ergotree_ir::serialization::SerializationError;
+use ergotree_ir::serialization::SigmaParsingError;
 use ergotree_ir::serialization::SigmaSerializable;
 use indexmap::IndexMap;
 use std::collections::HashMap;
@@ -41,7 +41,7 @@ impl SigmaSerializable for ContextExtension {
         Ok(())
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let values_count = r.get_u8()?;
         let mut values: IndexMap<u8, Constant> = IndexMap::with_capacity(values_count as usize);
         for _ in 0..values_count {

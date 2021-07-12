@@ -3,7 +3,7 @@ use std::io::Error;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
-use crate::serialization::SerializationError;
+use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
 use crate::types::stype::SType;
 
@@ -26,7 +26,7 @@ impl SigmaSerializable for ValId {
         w.put_u32(self.0)
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let id = r.get_u32()?;
         Ok(ValId(id))
     }
@@ -62,7 +62,7 @@ impl SigmaSerializable for ValDef {
         self.rhs.sigma_serialize(w)
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let id = ValId::sigma_parse(r)?;
         let rhs = Expr::sigma_parse(r)?;
         r.val_def_type_store().insert(id, rhs.tpe());

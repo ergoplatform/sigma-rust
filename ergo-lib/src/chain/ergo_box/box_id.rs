@@ -14,7 +14,7 @@ use super::super::digest32::Digest32;
 use derive_more::From;
 use derive_more::Into;
 use ergotree_ir::serialization::{
-    sigma_byte_reader::SigmaByteRead, sigma_byte_writer::SigmaByteWrite, SerializationError,
+    sigma_byte_reader::SigmaByteRead, sigma_byte_writer::SigmaByteWrite, SigmaParsingError,
     SigmaSerializable,
 };
 #[cfg(test)]
@@ -71,7 +71,7 @@ impl SigmaSerializable for BoxId {
         self.0.sigma_serialize(w)?;
         Ok(())
     }
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         Ok(Self(Digest32::sigma_parse(r)?))
     }
 }

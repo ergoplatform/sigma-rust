@@ -3,7 +3,7 @@
 use crate::chain::token::TokenAmountError;
 use ergotree_ir::mir::constant::Constant;
 use ergotree_ir::serialization::{
-    sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
+    sigma_byte_reader::SigmaByteRead, SigmaParsingError, SigmaSerializable,
 };
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
@@ -153,7 +153,7 @@ impl SigmaSerializable for BoxValue {
     fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
         w.put_u64(self.0 as u64)
     }
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let v = r.get_u64()?;
         Ok(BoxValue::try_from(v)?)
     }
@@ -170,15 +170,15 @@ pub enum BoxValueError {
     Overflow,
 }
 
-impl From<BoxValueError> for SerializationError {
+impl From<BoxValueError> for SigmaParsingError {
     fn from(e: BoxValueError) -> Self {
-        SerializationError::ValueOutOfBounds(format!("{}", e))
+        SigmaParsingError::ValueOutOfBounds(format!("{}", e))
     }
 }
 
-impl From<TokenAmountError> for SerializationError {
+impl From<TokenAmountError> for SigmaParsingError {
     fn from(e: TokenAmountError) -> Self {
-        SerializationError::ValueOutOfBounds(format!("{}", e))
+        SigmaParsingError::ValueOutOfBounds(format!("{}", e))
     }
 }
 

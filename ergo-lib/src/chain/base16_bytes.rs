@@ -1,7 +1,7 @@
 //! Transitioning type for Base16 encoded bytes in JSON serialization
 
 use ergotree_ir::mir::constant::Constant;
-use ergotree_ir::serialization::SerializationError;
+use ergotree_ir::serialization::SigmaParsingError;
 use ergotree_ir::serialization::SigmaSerializable;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
@@ -61,7 +61,7 @@ impl From<Constant> for Base16EncodedBytes {
 }
 
 impl TryFrom<Base16DecodedBytes> for Constant {
-    type Error = SerializationError;
+    type Error = SigmaParsingError;
 
     fn try_from(value: Base16DecodedBytes) -> Result<Self, Self::Error> {
         Constant::sigma_parse_bytes(&value.0)

@@ -8,7 +8,7 @@ use crate::types::smethod::SMethod;
 use super::sigma_byte_reader::SigmaByteRead;
 use super::sigma_byte_writer::SigmaByteWrite;
 use super::types::TypeCode;
-use super::SerializationError;
+use super::SigmaParsingError;
 use super::SigmaSerializable;
 
 impl SigmaSerializable for MethodCall {
@@ -20,7 +20,7 @@ impl SigmaSerializable for MethodCall {
         Ok(())
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let type_id = TypeCode::sigma_parse(r)?;
         let method_id = MethodId::sigma_parse(r)?;
         let obj = Expr::sigma_parse(r)?;

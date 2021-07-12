@@ -1,7 +1,7 @@
 //! Token related types
 
 use ergotree_ir::serialization::{
-    sigma_byte_reader::SigmaByteRead, sigma_byte_writer::SigmaByteWrite, SerializationError,
+    sigma_byte_reader::SigmaByteRead, sigma_byte_writer::SigmaByteWrite, SigmaParsingError,
     SigmaSerializable,
 };
 use std::convert::TryFrom;
@@ -49,7 +49,7 @@ impl SigmaSerializable for TokenId {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
         self.0.sigma_serialize(w)
     }
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         Ok(Self(Digest32::sigma_parse(r)?))
     }
 }

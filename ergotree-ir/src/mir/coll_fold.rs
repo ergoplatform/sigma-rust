@@ -1,7 +1,7 @@
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
-use crate::serialization::SerializationError;
+use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
 use crate::types::stuple::STuple;
 use crate::types::stype::SType;
@@ -66,7 +66,7 @@ impl SigmaSerializable for Fold {
         self.fold_op.sigma_serialize(w)
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let input = Expr::sigma_parse(r)?.into();
         let zero = Expr::sigma_parse(r)?.into();
         let fold_op = Expr::sigma_parse(r)?.into();

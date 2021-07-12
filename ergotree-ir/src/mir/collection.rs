@@ -2,7 +2,7 @@ use crate::has_opcode::HasOpCode;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
-use crate::serialization::SerializationError;
+use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
 use crate::types::stype::SType;
 
@@ -90,7 +90,7 @@ pub(crate) fn coll_sigma_serialize<W: SigmaByteWrite>(
 
 pub(crate) fn coll_sigma_parse<R: SigmaByteRead>(
     r: &mut R,
-) -> Result<Collection, SerializationError> {
+) -> Result<Collection, SigmaParsingError> {
     let items_count = r.get_u16()?;
     let elem_tpe = SType::sigma_parse(r)?;
     let mut items = Vec::with_capacity(items_count as usize);
@@ -102,7 +102,7 @@ pub(crate) fn coll_sigma_parse<R: SigmaByteRead>(
 
 pub(crate) fn bool_const_coll_sigma_parse<R: SigmaByteRead>(
     r: &mut R,
-) -> Result<Collection, SerializationError> {
+) -> Result<Collection, SigmaParsingError> {
     let items_count = r.get_u16()?;
     let bools = r.get_bits(items_count as usize)?;
     Ok(Collection::BoolConstants(bools))

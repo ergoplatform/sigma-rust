@@ -10,7 +10,7 @@ use crate::types::stype::SType;
 use super::op_code::OpCode;
 use super::sigma_byte_reader::SigmaByteRead;
 use super::sigma_byte_writer::SigmaByteWrite;
-use super::SerializationError;
+use super::SigmaParsingError;
 use super::SigmaSerializable;
 
 pub fn bin_op_sigma_serialize<W: SigmaByteWrite>(bin_op: &BinOp, w: &mut W) -> Result<(), Error> {
@@ -43,7 +43,7 @@ pub fn bin_op_sigma_serialize<W: SigmaByteWrite>(bin_op: &BinOp, w: &mut W) -> R
 pub fn bin_op_sigma_parse<R: SigmaByteRead>(
     op_kind: BinOpKind,
     r: &mut R,
-) -> Result<Expr, SerializationError> {
+) -> Result<Expr, SigmaParsingError> {
     let tag = r.get_u8()?;
     Ok(if tag == OpCode::COLL_OF_BOOL_CONST.value() {
         let bools = r.get_bits(2)?;

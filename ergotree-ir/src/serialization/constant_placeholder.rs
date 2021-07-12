@@ -1,7 +1,7 @@
 use super::sigma_byte_writer::SigmaByteWrite;
 use crate::mir::constant::ConstantPlaceholder;
 use crate::serialization::{
-    sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
+    sigma_byte_reader::SigmaByteRead, SigmaParsingError, SigmaSerializable,
 };
 
 use std::io;
@@ -11,7 +11,7 @@ impl SigmaSerializable for ConstantPlaceholder {
         w.put_u32(self.id)
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let id = r.get_u32()?;
         if let Some(c) = r.constant_store().get(id) {
             Ok(ConstantPlaceholder {
@@ -19,7 +19,7 @@ impl SigmaSerializable for ConstantPlaceholder {
                 tpe: c.tpe.clone(),
             })
         } else {
-            Err(SerializationError::ConstantForPlaceholderNotFound(id))
+            Err(SigmaParsingError::ConstantForPlaceholderNotFound(id))
         }
     }
 }
