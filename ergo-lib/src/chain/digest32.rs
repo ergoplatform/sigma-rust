@@ -1,15 +1,15 @@
 use crate::chain::{Base16DecodedBytes, Base16EncodedBytes};
 use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
+use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
 use ergotree_ir::serialization::SigmaParsingError;
 use ergotree_ir::serialization::SigmaSerializable;
+use ergotree_ir::serialization::SigmaSerializeResult;
 use ergotree_ir::util::AsVecI8;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
-use sigma_ser::vlq_encode;
 use std::convert::TryFrom;
 use std::convert::TryInto;
 use std::fmt::Formatter;
-use std::io;
 use thiserror::Error;
 
 /// N-bytes array in a box. `Digest32` is most type synonym.
@@ -104,10 +104,7 @@ impl<const N: usize> TryFrom<String> for Digest<N> {
 }
 
 impl<const N: usize> SigmaSerializable for Digest<N> {
-    fn sigma_serialize<W: SigmaByteWrite>(
-        &self,
-        w: &mut W,
-    ) -> crate::serialization::SigmaSerializeResult {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         w.write_all(self.0.as_ref())?;
         Ok(())
     }

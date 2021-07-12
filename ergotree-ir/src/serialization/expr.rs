@@ -69,7 +69,7 @@ use crate::serialization::{
 };
 
 use crate::serialization::types::TypeCode;
-use std::io;
+
 
 impl Expr {
     /// Parse expression from byte stream. This function should be used instead of

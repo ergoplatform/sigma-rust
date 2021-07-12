@@ -1,11 +1,11 @@
 //! Token related types
 
+use ergotree_ir::serialization::SigmaSerializeResult;
 use ergotree_ir::serialization::{
     sigma_byte_reader::SigmaByteRead, sigma_byte_writer::SigmaByteWrite, SigmaParsingError,
     SigmaSerializable,
 };
 use std::convert::TryFrom;
-use std::io;
 
 use super::digest32::Digest32;
 use super::ergo_box::BoxId;
@@ -46,10 +46,7 @@ impl From<TokenId> for String {
 }
 
 impl SigmaSerializable for TokenId {
-    fn sigma_serialize<W: SigmaByteWrite>(
-        &self,
-        w: &mut W,
-    ) -> crate::serialization::SigmaSerializeResult {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         self.0.sigma_serialize(w)
     }
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {

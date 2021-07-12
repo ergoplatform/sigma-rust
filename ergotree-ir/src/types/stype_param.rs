@@ -2,6 +2,7 @@ use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
+use crate::serialization::SigmaSerializeResult;
 
 use super::stype::SType;
 
@@ -35,17 +36,15 @@ impl STypeVar {
 }
 
 impl SigmaSerializable for STypeVar {
-    fn sigma_serialize<W: SigmaByteWrite>(
-        &self,
-        w: &mut W,
-    ) -> crate::serialization::SigmaSerializeResult {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         let bytes = self.name.as_bytes();
         assert!(
             bytes.len() < u8::MAX as usize,
             "STypeVar::name exceeds 255 bytes"
         );
         w.put_u8(bytes.len() as u8)?;
-        w.write_all(bytes)
+        w.write_all(bytes)?;
+        Ok(())
     }
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {

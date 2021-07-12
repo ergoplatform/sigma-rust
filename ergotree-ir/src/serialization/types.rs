@@ -1,16 +1,15 @@
 #![allow(missing_docs)]
 
 use super::sigma_byte_writer::SigmaByteWrite;
+use crate::serialization::SigmaSerializeResult;
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SigmaParsingError, SigmaSerializable,
 };
 use crate::types::stuple::STuple;
 use crate::types::stype::SType;
 use crate::types::stype_param::STypeVar;
-use sigma_ser::vlq_encode;
 use std::convert::TryInto;
-use std::{io, ops::Add};
-use vlq_encode::WriteSigmaVlqExt;
+use std::ops::Add;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct TypeCode(u8);
@@ -99,11 +98,9 @@ impl Add for TypeCode {
 }
 
 impl SigmaSerializable for TypeCode {
-    fn sigma_serialize<W: SigmaByteWrite>(
-        &self,
-        w: &mut W,
-    ) -> crate::serialization::SigmaSerializeResult {
-        w.put_u8(self.value())
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
+        w.put_u8(self.value())?;
+        Ok(())
     }
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
@@ -270,7 +267,7 @@ impl SType {
  * Collection of non-primitive type is serialized as (CollectionTypeCode, serialize(elementType))
  */
 impl SigmaSerializable for SType {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         // for reference see http://github.com/ScorexFoundation/sigmastate-interpreter/blob/25251c1313b0131835f92099f02cef8a5d932b5e/sigmastate/src/main/scala/sigmastate/serialization/TypeSerializer.scala#L25-L25
         match self {
             SType::SFunc(_) => panic!("SFunc is not supposed to be here"),

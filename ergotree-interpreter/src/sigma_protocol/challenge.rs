@@ -3,6 +3,7 @@ use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
 use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
 use ergotree_ir::serialization::SigmaParsingError;
 use ergotree_ir::serialization::SigmaSerializable;
+use ergotree_ir::serialization::SigmaSerializeResult;
 use k256::Scalar;
 #[cfg(feature = "arbitrary")]
 use proptest_derive::Arbitrary;
@@ -56,11 +57,9 @@ impl From<FiatShamirHash> for Challenge {
 }
 
 impl SigmaSerializable for Challenge {
-    fn sigma_serialize<W: SigmaByteWrite>(
-        &self,
-        w: &mut W,
-    ) -> crate::serialization::SigmaSerializeResult {
-        w.write_all(self.0 .0.as_ref())
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
+        w.write_all(self.0 .0.as_ref())?;
+        Ok(())
     }
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {

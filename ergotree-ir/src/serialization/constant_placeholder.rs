@@ -1,17 +1,14 @@
 use super::sigma_byte_writer::SigmaByteWrite;
 use crate::mir::constant::ConstantPlaceholder;
+use crate::serialization::SigmaSerializeResult;
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SigmaParsingError, SigmaSerializable,
 };
 
-use std::io;
-
 impl SigmaSerializable for ConstantPlaceholder {
-    fn sigma_serialize<W: SigmaByteWrite>(
-        &self,
-        w: &mut W,
-    ) -> crate::serialization::SigmaSerializeResult {
-        w.put_u32(self.id)
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
+        w.put_u32(self.id)?;
+        Ok(())
     }
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
@@ -39,8 +36,8 @@ mod tests {
         constant_store::ConstantStore, sigma_byte_reader::SigmaByteReader,
         sigma_byte_writer::SigmaByteWriter,
     };
-    use io::Cursor;
     use proptest::prelude::*;
+    use std::io::Cursor;
 
     proptest! {
 

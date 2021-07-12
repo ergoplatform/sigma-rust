@@ -26,6 +26,12 @@ pub enum SigmaSerializationError {
     Io(String),
 }
 
+impl From<io::Error> for SigmaSerializationError {
+    fn from(error: io::Error) -> Self {
+        SigmaSerializationError::Io(error.to_string())
+    }
+}
+
 /// Ways parsing might fail
 #[derive(Error, Eq, PartialEq, Debug, Clone)]
 pub enum SigmaParsingError {
@@ -101,7 +107,7 @@ impl From<TypeUnificationError> for SigmaParsingError {
 }
 
 /// Result type for [`SigmaSerializable::sigma_serialize`]
-pub type SigmaSerializeResult = Result<(), SigmaParsingError>;
+pub type SigmaSerializeResult = Result<(), SigmaSerializationError>;
 
 /// Consensus-critical serialization for Ergo
 pub trait SigmaSerializable: Sized {
@@ -109,10 +115,7 @@ pub trait SigmaSerializable: Sized {
     /// This function has a `sigma_` prefix to alert the reader that the
     /// serialization in use is consensus-critical serialization    
     // fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult;
-    fn sigma_serialize<W: SigmaByteWrite>(
-        &self,
-        w: &mut W,
-    ) -> crate::serialization::SigmaSerializeResult;
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult;
 
     /// Try to read `self` from the given `reader`.
     /// `sigma-` prefix to alert the reader that the serialization in use
@@ -139,7 +142,7 @@ pub trait SigmaSerializable: Sized {
 }
 
 impl<T: SigmaSerializable> SigmaSerializable for Vec<T> {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         w.put_u32(self.len() as u32)?;
         self.iter().try_for_each(|i| i.sigma_serialize(w))
     }
@@ -157,7 +160,7 @@ impl<T: SigmaSerializable> SigmaSerializable for Vec<T> {
 impl<T: SigmaSerializable, const L: usize, const U: usize> SigmaSerializable
     for BoundedVec<T, L, U>
 {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         self.as_vec().sigma_serialize(w)
     }
 
@@ -167,13 +170,13 @@ impl<T: SigmaSerializable, const L: usize, const U: usize> SigmaSerializable
 }
 
 impl<T: SigmaSerializable> SigmaSerializable for Option<Box<T>> {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         match self {
             Some(v) => {
                 w.put_u8(1)?;
                 v.sigma_serialize(w)
             }
-            None => w.put_u8(0),
+            None => Ok(w.put_u8(0)?),
         }
     }
 

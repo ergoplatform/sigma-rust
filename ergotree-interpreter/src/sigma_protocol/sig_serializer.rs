@@ -17,6 +17,7 @@ use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
 use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWriter;
 use ergotree_ir::serialization::SigmaParsingError;
 use ergotree_ir::serialization::SigmaSerializable;
+use ergotree_ir::serialization::SigmaSerializeResult;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaConjecture;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
@@ -49,7 +50,7 @@ fn sig_write_bytes<W: SigmaByteWrite>(
     node: &UncheckedSigmaTree,
     w: &mut W,
     write_challenges: bool,
-) -> Result<(), std::io::Error> {
+) -> SigmaSerializeResult {
     if write_challenges {
         node.challenge().sigma_serialize(w)?;
     }
@@ -57,7 +58,8 @@ fn sig_write_bytes<W: SigmaByteWrite>(
         UncheckedSigmaTree::UncheckedLeaf(leaf) => match leaf {
             UncheckedLeaf::UncheckedSchnorr(us) => {
                 let mut sm_bytes = us.second_message.z.to_bytes();
-                w.write_all(sm_bytes.as_mut_slice())
+                w.write_all(sm_bytes.as_mut_slice())?;
+                Ok(())
             }
         },
         UncheckedSigmaTree::UncheckedConjecture(conj) => match conj {

@@ -1,10 +1,9 @@
-use std::io::Error;
-
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
+use crate::serialization::SigmaSerializeResult;
 use crate::types::stype::SType;
 
 use super::expr::Expr;
@@ -21,15 +20,12 @@ use proptest_derive::Arbitrary;
 #[cfg_attr(feature = "arbitrary", derive(Arbitrary))]
 pub struct ValId(pub u32);
 
-impl SigmaSerializable for ValId {
-    fn sigma_serialize<W: SigmaByteWrite>(
-        &self,
-        w: &mut W,
-    ) -> crate::serialization::SigmaSerializeResult {
+impl ValId {
+    pub(crate) fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> std::io::Result<()> {
         w.put_u32(self.0)
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
+    pub(crate) fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let id = r.get_u32()?;
         Ok(ValId(id))
     }
@@ -60,7 +56,7 @@ impl HasStaticOpCode for ValDef {
 }
 
 impl SigmaSerializable for ValDef {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         self.id.sigma_serialize(w)?;
         self.rhs.sigma_serialize(w)
     }

@@ -15,6 +15,7 @@ use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
 use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
 use ergotree_ir::serialization::SigmaParsingError;
 use ergotree_ir::serialization::SigmaSerializable;
+use ergotree_ir::serialization::SigmaSerializeResult;
 use ergotree_ir::util::AsVecI8;
 pub use register::*;
 
@@ -33,7 +34,6 @@ use indexmap::IndexSet;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::convert::TryFrom;
-use std::io;
 #[cfg(feature = "json")]
 use thiserror::Error;
 
@@ -341,10 +341,7 @@ impl TryFrom<json::ergo_box::ErgoBoxFromJson> for ErgoBox {
 }
 
 impl SigmaSerializable for ErgoBox {
-    fn sigma_serialize<W: SigmaByteWrite>(
-        &self,
-        w: &mut W,
-    ) -> crate::serialization::SigmaSerializeResult {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         let ergo_tree_bytes = self.ergo_tree.sigma_serialize_bytes();
         serialize_box_with_indexed_digests(
             &self.value,
@@ -399,7 +396,7 @@ impl ErgoBoxCandidate {
         &self,
         token_ids_in_tx: Option<&IndexSet<TokenId>>,
         w: &mut W,
-    ) -> Result<(), io::Error> {
+    ) -> SigmaSerializeResult {
         serialize_box_with_indexed_digests(
             &self.value,
             self.ergo_tree.sigma_serialize_bytes(),
@@ -421,7 +418,7 @@ impl ErgoBoxCandidate {
 }
 
 impl SigmaSerializable for ErgoBoxCandidate {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         self.serialize_body_with_indexed_digests(None, w)
     }
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
@@ -453,7 +450,7 @@ pub fn serialize_box_with_indexed_digests<W: SigmaByteWrite>(
     creation_height: u32,
     token_ids_in_tx: Option<&IndexSet<TokenId>>,
     w: &mut W,
-) -> Result<(), io::Error> {
+) -> SigmaSerializeResult {
     // reference implementation - https://github.com/ScorexFoundation/sigmastate-interpreter/blob/9b20cb110effd1987ff76699d637174a4b2fb441/sigmastate/src/main/scala/org/ergoplatform/ErgoBoxCandidate.scala#L95-L95
     box_value.sigma_serialize(w)?;
     w.write_all(&ergo_tree_bytes[..])?;
@@ -462,7 +459,7 @@ pub fn serialize_box_with_indexed_digests<W: SigmaByteWrite>(
 
     tokens.iter().try_for_each(|t| {
         match token_ids_in_tx {
-            Some(token_ids) => w.put_u32(
+            Some(token_ids) => Ok(w.put_u32(
                 u32::try_from(
                     token_ids
                         .get_full(&t.token_id)
@@ -472,10 +469,10 @@ pub fn serialize_box_with_indexed_digests<W: SigmaByteWrite>(
                         .0,
                 )
                 .unwrap(),
-            ),
+            )?),
             None => t.token_id.sigma_serialize(w),
         }
-        .and_then(|()| w.put_u64(t.amount.into()))
+        .and_then(|()| Ok(w.put_u64(t.amount.into())?))
     })?;
 
     let regs_num = additional_registers.len();

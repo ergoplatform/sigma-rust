@@ -1,10 +1,10 @@
 //! Box id type
 use std::convert::TryFrom;
 use std::convert::TryInto;
-use std::io;
 
 use ergotree_ir::ir_ergo_box::IrBoxId;
 
+use ergotree_ir::serialization::SigmaSerializeResult;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 
@@ -67,10 +67,7 @@ impl TryFrom<String> for BoxId {
 }
 
 impl SigmaSerializable for BoxId {
-    fn sigma_serialize<W: SigmaByteWrite>(
-        &self,
-        w: &mut W,
-    ) -> crate::serialization::SigmaSerializeResult {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         self.0.sigma_serialize(w)?;
         Ok(())
     }

@@ -1,11 +1,10 @@
-use std::io;
-
 use crate::has_opcode::HasStaticOpCode;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
+use crate::serialization::SigmaSerializeResult;
 use crate::types::sfunc::SFunc;
 use crate::types::stype::SType;
 
@@ -87,7 +86,7 @@ impl HasStaticOpCode for FuncValue {
 }
 
 impl SigmaSerializable for FuncValue {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         self.args.sigma_serialize(w)?;
         self.body.sigma_serialize(w)
     }

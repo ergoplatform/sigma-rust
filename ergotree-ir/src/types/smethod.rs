@@ -2,9 +2,7 @@ use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::types::TypeCode;
 use crate::serialization::SigmaParsingError;
-use crate::serialization::SigmaSerializable;
 use std::collections::HashMap;
-use std::io::Error;
 
 use super::sfunc::SFunc;
 use super::stype::SType;
@@ -18,15 +16,12 @@ use crate::serialization::SigmaParsingError::UnknownMethodId;
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct MethodId(pub u8);
 
-impl SigmaSerializable for MethodId {
-    fn sigma_serialize<W: SigmaByteWrite>(
-        &self,
-        w: &mut W,
-    ) -> crate::serialization::SigmaSerializeResult {
+impl MethodId {
+    pub(crate) fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> std::io::Result<()> {
         w.put_u8(self.0)
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
+    pub(crate) fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> std::io::Result<Self> {
         Ok(Self(r.get_u8()?))
     }
 }

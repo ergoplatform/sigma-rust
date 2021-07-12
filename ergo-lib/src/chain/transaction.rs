@@ -9,6 +9,7 @@ use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
 use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
 use ergotree_ir::serialization::SigmaParsingError;
 use ergotree_ir::serialization::SigmaSerializable;
+use ergotree_ir::serialization::SigmaSerializeResult;
 pub use input::*;
 
 #[cfg(feature = "json")]
@@ -26,7 +27,6 @@ use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
 use std::convert::TryFrom;
-use std::io;
 use std::iter::FromIterator;
 #[cfg(feature = "json")]
 use thiserror::Error;
@@ -45,10 +45,7 @@ impl TxId {
 }
 
 impl SigmaSerializable for TxId {
-    fn sigma_serialize<W: SigmaByteWrite>(
-        &self,
-        w: &mut W,
-    ) -> crate::serialization::SigmaSerializeResult {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         self.0.sigma_serialize(w)?;
         Ok(())
     }
@@ -151,7 +148,7 @@ impl Transaction {
 }
 
 impl SigmaSerializable for Transaction {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         // reference implementation - https://github.com/ScorexFoundation/sigmastate-interpreter/blob/9b20cb110effd1987ff76699d637174a4b2fb441/sigmastate/src/main/scala/org/ergoplatform/ErgoLikeTransaction.scala#L112-L112
         w.put_usize_as_u16_unwrapped(self.inputs.len())?;
         self.inputs.iter().try_for_each(|i| i.sigma_serialize(w))?;

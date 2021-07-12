@@ -4,6 +4,7 @@ use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
+use crate::serialization::SigmaSerializeResult;
 use crate::types::stype::SType;
 
 use super::constant::Constant;
@@ -74,11 +75,12 @@ impl HasOpCode for Collection {
 pub(crate) fn coll_sigma_serialize<W: SigmaByteWrite>(
     coll: &Collection,
     w: &mut W,
-) -> Result<(), std::io::Error> {
+) -> SigmaSerializeResult {
     match coll {
         Collection::BoolConstants(bools) => {
             w.put_u16(bools.len() as u16)?;
-            w.put_bits(bools.as_slice())
+            w.put_bits(bools.as_slice())?;
+            Ok(())
         }
         Collection::Exprs { elem_tpe, items } => {
             w.put_u16(items.len() as u16)?;

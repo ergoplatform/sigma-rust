@@ -4,9 +4,10 @@ use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
 use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
 use ergotree_ir::serialization::SigmaParsingError;
 use ergotree_ir::serialization::SigmaSerializable;
+use ergotree_ir::serialization::SigmaSerializeResult;
 use indexmap::IndexMap;
 use std::collections::HashMap;
-use std::{convert::TryFrom, io};
+use std::convert::TryFrom;
 use thiserror::Error;
 
 /// User-defined variables to be put into context
@@ -26,10 +27,7 @@ impl ContextExtension {
 }
 
 impl SigmaSerializable for ContextExtension {
-    fn sigma_serialize<W: SigmaByteWrite>(
-        &self,
-        w: &mut W,
-    ) -> crate::serialization::SigmaSerializeResult {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         w.put_u8(self.values.len() as u8)?;
         let mut sorted_values: Vec<(&u8, &Constant)> = self.values.iter().collect();
         // stable order is important for tx id generation

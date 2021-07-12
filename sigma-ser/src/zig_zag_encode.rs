@@ -39,6 +39,7 @@ pub fn decode_u64(v: u64) -> i64 {
     ((v >> 1) ^ (-((v & 1) as i64)) as u64) as i64
 }
 #[cfg(test)]
+#[allow(clippy::panic)]
 mod tests {
     use super::*;
 
@@ -66,22 +67,20 @@ mod tests {
         assert_eq!(0xFFFF_FFFF_FFFF_FFFE, encode_i64(0x7FFF_FFFF_FFFF_FFFF));
         assert_eq!(0xFFFF_FFFF_FFFF_FFFF, encode_i64(0x8000_0000_0000_0000));
     }
-}
 
-#[cfg(test)]
-#[allow(clippy::panic)]
-proptest! {
+    proptest! {
 
-    #[test]
-    fn encode_i32_roundtrip(i in i32::ANY) {
-        let dec = decode_u32(encode_i32(i));
-        prop_assert_eq![i, dec];
+        #[test]
+        fn encode_i32_roundtrip(i in i32::ANY) {
+            let dec = decode_u32(encode_i32(i));
+            prop_assert_eq![i, dec];
+        }
+
+        #[test]
+        fn encode_i64_roundtrip(i in i64::ANY) {
+            let dec = decode_u64(encode_i64(i));
+            prop_assert_eq![i, dec];
+        }
+
     }
-
-    #[test]
-    fn encode_i64_roundtrip(i in i64::ANY) {
-        let dec = decode_u64(encode_i64(i));
-        prop_assert_eq![i, dec];
-    }
-
 }

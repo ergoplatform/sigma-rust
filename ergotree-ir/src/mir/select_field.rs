@@ -5,6 +5,7 @@ use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
+use crate::serialization::SigmaSerializeResult;
 use crate::types::stuple::STuple;
 use crate::types::stype::SType;
 
@@ -40,11 +41,9 @@ impl TupleFieldIndex {
 }
 
 impl SigmaSerializable for TupleFieldIndex {
-    fn sigma_serialize<W: SigmaByteWrite>(
-        &self,
-        w: &mut W,
-    ) -> crate::serialization::SigmaSerializeResult {
-        w.put_u8(self.0)
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
+        w.put_u8(self.0)?;
+        Ok(())
     }
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
@@ -108,7 +107,7 @@ impl SelectField {
 }
 
 impl SigmaSerializable for SelectField {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         self.input.sigma_serialize(w)?;
         self.field_index.sigma_serialize(w)
     }

@@ -1,5 +1,3 @@
-use std::io;
-
 use super::val_def::ValId;
 use crate::has_opcode::HasStaticOpCode;
 use crate::serialization::op_code::OpCode;
@@ -7,6 +5,7 @@ use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
+use crate::serialization::SigmaSerializeResult;
 use crate::types::stype::SType;
 
 /** Special node which represents a reference to ValDef in was introduced as result of CSE. */
@@ -23,11 +22,9 @@ impl HasStaticOpCode for ValUse {
 }
 
 impl SigmaSerializable for ValUse {
-    fn sigma_serialize<W: SigmaByteWrite>(
-        &self,
-        w: &mut W,
-    ) -> crate::serialization::SigmaSerializeResult {
-        self.val_id.sigma_serialize(w)
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
+        self.val_id.sigma_serialize(w)?;
+        Ok(())
     }
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {

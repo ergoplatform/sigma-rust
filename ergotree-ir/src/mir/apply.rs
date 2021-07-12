@@ -1,5 +1,5 @@
 //! Application of function
-use std::io;
+
 
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;

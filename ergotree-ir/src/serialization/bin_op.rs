@@ -1,5 +1,3 @@
-use std::io::Error;
-
 use crate::mir::bin_op::BinOp;
 use crate::mir::bin_op::BinOpKind;
 use crate::mir::constant::Constant;
@@ -12,8 +10,12 @@ use super::sigma_byte_reader::SigmaByteRead;
 use super::sigma_byte_writer::SigmaByteWrite;
 use super::SigmaParsingError;
 use super::SigmaSerializable;
+use super::SigmaSerializeResult;
 
-pub fn bin_op_sigma_serialize<W: SigmaByteWrite>(bin_op: &BinOp, w: &mut W) -> Result<(), Error> {
+pub fn bin_op_sigma_serialize<W: SigmaByteWrite>(
+    bin_op: &BinOp,
+    w: &mut W,
+) -> SigmaSerializeResult {
     match (*bin_op.clone().left, *bin_op.clone().right) {
         (
             Expr::Const(Constant {
@@ -31,7 +33,8 @@ pub fn bin_op_sigma_serialize<W: SigmaByteWrite>(bin_op: &BinOp, w: &mut W) -> R
                 l.try_extract_into::<bool>().unwrap(),
                 r.try_extract_into::<bool>().unwrap(),
             ];
-            w.put_bits(&arr)
+            w.put_bits(&arr)?;
+            Ok(())
         }
         _ => {
             bin_op.left.sigma_serialize(w)?;

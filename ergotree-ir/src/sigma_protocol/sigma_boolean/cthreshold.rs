@@ -7,7 +7,7 @@ use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::{SigmaParsingError, SigmaSerializable};
-use std::io::Error;
+
 // use crate::sigma_protocol::sigma_boolean::SigmaConjecture;
 
 /// THRESHOLD conjunction for sigma proposition

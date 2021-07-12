@@ -1,11 +1,11 @@
 use super::{data::DataSerializer, sigma_byte_writer::SigmaByteWrite};
 use crate::mir::constant::Constant;
 use crate::serialization::types::TypeCode;
+use crate::serialization::SigmaSerializeResult;
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SigmaParsingError, SigmaSerializable,
 };
 use crate::types::stype::SType;
-use std::io;
 
 impl Constant {
     /// Parse constant from byte stream. This function should be used instead of
@@ -20,10 +20,7 @@ impl Constant {
     }
 }
 impl SigmaSerializable for Constant {
-    fn sigma_serialize<W: SigmaByteWrite>(
-        &self,
-        w: &mut W,
-    ) -> crate::serialization::SigmaSerializeResult {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         self.tpe.sigma_serialize(w)?;
         DataSerializer::sigma_serialize(&self.v, w)
     }

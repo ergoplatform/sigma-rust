@@ -1,3 +1,4 @@
+use super::SigmaSerializeResult;
 use super::{op_code::OpCode, sigma_byte_writer::SigmaByteWrite};
 use crate::has_opcode::{HasOpCode, HasStaticOpCode};
 use crate::serialization::{
@@ -9,14 +10,10 @@ use crate::sigma_protocol::{
 };
 
 use crate::sigma_protocol::sigma_boolean::cthreshold::Cthreshold;
-use std::io;
 
 #[allow(clippy::todo)] // until https://github.com/ergoplatform/sigma-rust/issues/338 is implemented
 impl SigmaSerializable for SigmaBoolean {
-    fn sigma_serialize<W: SigmaByteWrite>(
-        &self,
-        w: &mut W,
-    ) -> crate::serialization::SigmaSerializeResult {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         self.op_code().sigma_serialize(w)?;
         match self {
             SigmaBoolean::ProofOfKnowledge(proof) => match proof {
@@ -50,7 +47,7 @@ impl SigmaSerializable for SigmaBoolean {
 }
 
 impl SigmaSerializable for ProveDlog {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         self.h.sigma_serialize(w)
     }
 

@@ -2,12 +2,10 @@
 #![allow(missing_docs)]
 
 use crate::serialization::{
-    sigma_byte_reader::SigmaByteRead, SigmaParsingError, SigmaSerializable,
+    sigma_byte_reader::SigmaByteRead, SigmaParsingError, SigmaSerializable, SigmaSerializeResult,
 };
-use sigma_ser::vlq_encode;
 
-use std::io;
-use vlq_encode::WriteSigmaVlqExt;
+use super::sigma_byte_writer::SigmaByteWrite;
 
 #[derive(PartialEq, Eq, Hash, Copy, Clone, Debug)]
 pub struct OpCode(u8);
@@ -184,10 +182,7 @@ impl OpCode {
 }
 
 impl SigmaSerializable for OpCode {
-    fn sigma_serialize<W: SigmaByteWrite>(
-        &self,
-        w: &mut W,
-    ) -> crate::serialization::SigmaSerializeResult {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         w.put_u8(self.0)?;
         Ok(())
     }

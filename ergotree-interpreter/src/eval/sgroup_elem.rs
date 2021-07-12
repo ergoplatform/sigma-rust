@@ -56,7 +56,7 @@ mod tests {
         let res: Vec<u8> = eval_out_wo_ctx::<Vec<u8>>(&expr);
         let roundtrip_res: EcPoint = SigmaSerializable::sigma_parse_bytes(&res).unwrap();
 
-        assert!(res.len() > 0);
+        assert!(!res.is_empty());
         assert_eq!(input, roundtrip_res)
     }
 

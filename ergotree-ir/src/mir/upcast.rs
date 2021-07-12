@@ -10,7 +10,7 @@ use crate::serialization::SigmaSerializable;
 use crate::types::stype::SType;
 
 use crate::has_opcode::HasStaticOpCode;
-use std::io::Error;
+
 
 /// Numerical upcast
 #[derive(PartialEq, Eq, Debug, Clone)]

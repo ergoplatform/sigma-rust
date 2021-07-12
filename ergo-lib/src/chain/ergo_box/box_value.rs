@@ -2,13 +2,14 @@
 
 use crate::chain::token::TokenAmountError;
 use ergotree_ir::mir::constant::Constant;
+use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
+use ergotree_ir::serialization::SigmaSerializeResult;
 use ergotree_ir::serialization::{
     sigma_byte_reader::SigmaByteRead, SigmaParsingError, SigmaSerializable,
 };
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
-use sigma_ser::vlq_encode;
-use std::{convert::TryFrom, io};
+use std::convert::TryFrom;
 use thiserror::Error;
 
 /// Box value in nanoERGs with bound checks
@@ -150,11 +151,9 @@ impl From<BoxValue> for Constant {
 }
 
 impl SigmaSerializable for BoxValue {
-    fn sigma_serialize<W: SigmaByteWrite>(
-        &self,
-        w: &mut W,
-    ) -> crate::serialization::SigmaSerializeResult {
-        w.put_u64(self.0 as u64)
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
+        w.put_u64(self.0 as u64)?;
+        Ok(())
     }
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let v = r.get_u64()?;

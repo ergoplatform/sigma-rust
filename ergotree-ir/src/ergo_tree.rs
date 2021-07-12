@@ -2,6 +2,7 @@
 use crate::mir::constant::Constant;
 use crate::mir::constant::TryExtractFromError;
 use crate::mir::expr::Expr;
+use crate::serialization::SigmaSerializeResult;
 use crate::serialization::{
     sigma_byte_reader::{SigmaByteRead, SigmaByteReader},
     sigma_byte_writer::{SigmaByteWrite, SigmaByteWriter},
@@ -114,6 +115,16 @@ pub enum SetConstantError {
 ///  That new language will give an interpretation for the new bytes.
 #[derive(PartialEq, Eq, Debug, Clone, From, Into)]
 pub struct ErgoTreeHeader(u8);
+
+impl ErgoTreeHeader {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
+        w.put_u8(self.0)
+    }
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, std::io::Error> {
+        let header = r.get_u8()?;
+        Ok(ErgoTreeHeader(header))
+    }
+}
 
 /// ErgoTree version 0..=7, should fit in 3 bits
 #[derive(PartialEq, Eq, Debug, Clone, Into)]
@@ -450,22 +461,9 @@ impl From<Expr> for ErgoTree {
         }
     }
 }
-impl SigmaSerializable for ErgoTreeHeader {
-    fn sigma_serialize<W: SigmaByteWrite>(
-        &self,
-        w: &mut W,
-    ) -> crate::serialization::SigmaSerializeResult {
-        w.put_u8(self.0)?;
-        Ok(())
-    }
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
-        let header = r.get_u8()?;
-        Ok(ErgoTreeHeader(header))
-    }
-}
 
 impl SigmaSerializable for ErgoTree {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         match &self.tree {
             Ok(parsed_tree) => {
                 let bytes = parsed_tree.sigma_serialize_without_size(&self.header);

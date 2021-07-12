@@ -2,8 +2,6 @@
 
 pub mod prover_result;
 
-use std::io;
-
 use crate::chain::ergo_box::{BoxId, ErgoBoxId};
 use ergotree_interpreter::sigma_protocol::prover::ContextExtension;
 use ergotree_interpreter::sigma_protocol::prover::ProofBytes;
@@ -11,6 +9,7 @@ use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
 use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
 use ergotree_ir::serialization::SigmaParsingError;
 use ergotree_ir::serialization::SigmaSerializable;
+use ergotree_ir::serialization::SigmaSerializeResult;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 
@@ -81,10 +80,7 @@ impl Input {
 }
 
 impl SigmaSerializable for Input {
-    fn sigma_serialize<W: SigmaByteWrite>(
-        &self,
-        w: &mut W,
-    ) -> crate::serialization::SigmaSerializeResult {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         self.box_id.sigma_serialize(w)?;
         self.spending_proof.sigma_serialize(w)?;
         Ok(())

@@ -15,6 +15,7 @@
 //!
 //! On the other hand, any group element can be mapped to some string.
 
+use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SigmaParsingError, SigmaSerializable,
 };
@@ -22,12 +23,8 @@ use k256::elliptic_curve::ff::PrimeField;
 use k256::elliptic_curve::sec1::ToEncodedPoint;
 use k256::{ProjectivePoint, PublicKey, Scalar};
 use num_bigint::{BigInt, Sign};
-use sigma_ser::vlq_encode;
 
-use std::{
-    io,
-    ops::{Add, Mul, Neg},
-};
+use std::ops::{Add, Mul, Neg};
 
 /// Elliptic curve point
 #[derive(PartialEq, Clone)]
