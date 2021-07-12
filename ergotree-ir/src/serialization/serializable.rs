@@ -109,7 +109,10 @@ pub trait SigmaSerializable: Sized {
     /// This function has a `sigma_` prefix to alert the reader that the
     /// serialization in use is consensus-critical serialization    
     // fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult;
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error>;
+    fn sigma_serialize<W: SigmaByteWrite>(
+        &self,
+        w: &mut W,
+    ) -> crate::serialization::SigmaSerializeResult;
 
     /// Try to read `self` from the given `reader`.
     /// `sigma-` prefix to alert the reader that the serialization in use

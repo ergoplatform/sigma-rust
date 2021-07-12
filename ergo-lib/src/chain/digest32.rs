@@ -104,7 +104,10 @@ impl<const N: usize> TryFrom<String> for Digest<N> {
 }
 
 impl<const N: usize> SigmaSerializable for Digest<N> {
-    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(
+        &self,
+        w: &mut W,
+    ) -> crate::serialization::SigmaSerializeResult {
         w.write_all(self.0.as_ref())?;
         Ok(())
     }

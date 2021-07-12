@@ -24,7 +24,10 @@ impl HasStaticOpCode for Cthreshold {
 }
 
 impl SigmaSerializable for Cthreshold {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(
+        &self,
+        w: &mut W,
+    ) -> crate::serialization::SigmaSerializeResult {
         w.put_i32(self.n)?;
         self.items.sigma_serialize(w)
     }

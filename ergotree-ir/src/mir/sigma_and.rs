@@ -55,7 +55,10 @@ impl HasStaticOpCode for SigmaAnd {
 }
 
 impl SigmaSerializable for SigmaAnd {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(
+        &self,
+        w: &mut W,
+    ) -> crate::serialization::SigmaSerializeResult {
         self.items.sigma_serialize(w)
     }
 

@@ -30,7 +30,10 @@ impl HasStaticOpCode for Atleast {
 }
 
 impl SigmaSerializable for Atleast {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(
+        &self,
+        w: &mut W,
+    ) -> crate::serialization::SigmaSerializeResult {
         self.n_required.sigma_serialize(w)?;
         self.expressions.sigma_serialize(w)
     }

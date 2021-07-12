@@ -81,7 +81,10 @@ impl Input {
 }
 
 impl SigmaSerializable for Input {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(
+        &self,
+        w: &mut W,
+    ) -> crate::serialization::SigmaSerializeResult {
         self.box_id.sigma_serialize(w)?;
         self.spending_proof.sigma_serialize(w)?;
         Ok(())

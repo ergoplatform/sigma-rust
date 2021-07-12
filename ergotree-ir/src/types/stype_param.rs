@@ -35,7 +35,10 @@ impl STypeVar {
 }
 
 impl SigmaSerializable for STypeVar {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(
+        &self,
+        w: &mut W,
+    ) -> crate::serialization::SigmaSerializeResult {
         let bytes = self.name.as_bytes();
         assert!(
             bytes.len() < u8::MAX as usize,

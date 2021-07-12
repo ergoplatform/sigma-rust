@@ -31,7 +31,10 @@ impl From<BoxId> for DataInput {
 }
 
 impl SigmaSerializable for DataInput {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(
+        &self,
+        w: &mut W,
+    ) -> crate::serialization::SigmaSerializeResult {
         self.box_id.sigma_serialize(w)?;
         Ok(())
     }

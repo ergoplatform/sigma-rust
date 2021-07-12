@@ -41,7 +41,10 @@ impl From<ergotree_interpreter::sigma_protocol::prover::ProverResult> for Prover
 }
 
 impl SigmaSerializable for ProverResult {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(
+        &self,
+        w: &mut W,
+    ) -> crate::serialization::SigmaSerializeResult {
         self.proof.sigma_serialize(w)?;
         self.extension.sigma_serialize(w)?;
         Ok(())

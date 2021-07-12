@@ -184,7 +184,10 @@ impl OpCode {
 }
 
 impl SigmaSerializable for OpCode {
-    fn sigma_serialize<W: WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(
+        &self,
+        w: &mut W,
+    ) -> crate::serialization::SigmaSerializeResult {
         w.put_u8(self.0)?;
         Ok(())
     }

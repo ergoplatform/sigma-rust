@@ -13,7 +13,10 @@ use std::io;
 
 #[allow(clippy::todo)] // until https://github.com/ergoplatform/sigma-rust/issues/338 is implemented
 impl SigmaSerializable for SigmaBoolean {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(
+        &self,
+        w: &mut W,
+    ) -> crate::serialization::SigmaSerializeResult {
         self.op_code().sigma_serialize(w)?;
         match self {
             SigmaBoolean::ProofOfKnowledge(proof) => match proof {

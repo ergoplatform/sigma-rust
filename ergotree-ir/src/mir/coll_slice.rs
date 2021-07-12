@@ -62,7 +62,10 @@ impl HasStaticOpCode for Slice {
 }
 
 impl SigmaSerializable for Slice {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(
+        &self,
+        w: &mut W,
+    ) -> crate::serialization::SigmaSerializeResult {
         self.input.sigma_serialize(w)?;
         self.from.sigma_serialize(w)?;
         self.until.sigma_serialize(w)

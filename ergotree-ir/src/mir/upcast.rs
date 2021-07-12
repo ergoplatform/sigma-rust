@@ -55,7 +55,10 @@ impl HasStaticOpCode for Upcast {
 }
 
 impl SigmaSerializable for Upcast {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(
+        &self,
+        w: &mut W,
+    ) -> crate::serialization::SigmaSerializeResult {
         self.input.sigma_serialize(w)?;
         self.tpe.sigma_serialize(w)
     }

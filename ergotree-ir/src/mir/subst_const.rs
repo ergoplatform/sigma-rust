@@ -37,7 +37,10 @@ impl SubstConstants {
 }
 
 impl SigmaSerializable for SubstConstants {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(
+        &self,
+        w: &mut W,
+    ) -> crate::serialization::SigmaSerializeResult {
         self.script_bytes.sigma_serialize(w)?;
         self.positions.sigma_serialize(w)?;
         self.new_values.sigma_serialize(w)

@@ -22,7 +22,10 @@ use std::io;
 pub struct DataSerializer {}
 
 impl DataSerializer {
-    pub fn sigma_serialize<W: SigmaByteWrite>(c: &Value, w: &mut W) -> Result<(), io::Error> {
+    pub fn sigma_serialize<W: SigmaByteWrite>(
+        &self,
+        w: &mut W,
+    ) -> crate::serialization::SigmaSerializeResult {
         // for reference see http://github.com/ScorexFoundation/sigmastate-interpreter/blob/25251c1313b0131835f92099f02cef8a5d932b5e/sigmastate/src/main/scala/sigmastate/serialization/DataSerializer.scala#L26-L26
         match c {
             Value::Boolean(v) => w.put_u8(if *v { 1 } else { 0 }),

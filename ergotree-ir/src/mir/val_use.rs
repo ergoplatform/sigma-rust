@@ -23,7 +23,10 @@ impl HasStaticOpCode for ValUse {
 }
 
 impl SigmaSerializable for ValUse {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(
+        &self,
+        w: &mut W,
+    ) -> crate::serialization::SigmaSerializeResult {
         self.val_id.sigma_serialize(w)
     }
 

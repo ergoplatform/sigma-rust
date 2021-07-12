@@ -31,7 +31,10 @@ impl HasStaticOpCode for DeserializeContext {
 }
 
 impl SigmaSerializable for DeserializeContext {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(
+        &self,
+        w: &mut W,
+    ) -> crate::serialization::SigmaSerializeResult {
         self.tpe.sigma_serialize(w)?;
         w.put_u8(self.id)
     }

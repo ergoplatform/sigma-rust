@@ -56,7 +56,10 @@ impl TryFrom<String> for ProofBytes {
 }
 
 impl SigmaSerializable for ProofBytes {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(
+        &self,
+        w: &mut W,
+    ) -> crate::serialization::SigmaSerializeResult {
         match self {
             ProofBytes::Empty => w.put_u16(0)?,
             ProofBytes::Some(bytes) => {

@@ -28,7 +28,10 @@ impl HasStaticOpCode for GetVar {
 }
 
 impl SigmaSerializable for GetVar {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(
+        &self,
+        w: &mut W,
+    ) -> crate::serialization::SigmaSerializeResult {
         w.put_u8(self.var_id)?;
         self.var_tpe.sigma_serialize(w)
     }

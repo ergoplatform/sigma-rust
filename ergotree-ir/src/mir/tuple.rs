@@ -41,7 +41,10 @@ impl HasStaticOpCode for Tuple {
 }
 
 impl SigmaSerializable for Tuple {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(
+        &self,
+        w: &mut W,
+    ) -> crate::serialization::SigmaSerializeResult {
         w.put_u8(self.items.len() as u8)?;
         self.items.iter().try_for_each(|i| i.sigma_serialize(w))
     }

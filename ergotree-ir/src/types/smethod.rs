@@ -19,7 +19,10 @@ use crate::serialization::SigmaParsingError::UnknownMethodId;
 pub struct MethodId(pub u8);
 
 impl SigmaSerializable for MethodId {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(
+        &self,
+        w: &mut W,
+    ) -> crate::serialization::SigmaSerializeResult {
         w.put_u8(self.0)
     }
 

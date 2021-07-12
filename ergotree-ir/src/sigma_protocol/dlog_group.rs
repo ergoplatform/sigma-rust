@@ -148,7 +148,10 @@ pub fn bigint_to_scalar(bi: BigInt) -> Option<Scalar> {
 }
 
 impl SigmaSerializable for EcPoint {
-    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(
+        &self,
+        w: &mut W,
+    ) -> crate::serialization::SigmaSerializeResult {
         let caff = self.0.to_affine();
         if caff.is_identity().into() {
             // infinity point

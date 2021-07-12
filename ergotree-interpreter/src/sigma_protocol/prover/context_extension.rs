@@ -26,7 +26,10 @@ impl ContextExtension {
 }
 
 impl SigmaSerializable for ContextExtension {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(
+        &self,
+        w: &mut W,
+    ) -> crate::serialization::SigmaSerializeResult {
         w.put_u8(self.values.len() as u8)?;
         let mut sorted_values: Vec<(&u8, &Constant)> = self.values.iter().collect();
         // stable order is important for tx id generation

@@ -183,7 +183,10 @@ impl Expr {
 }
 
 impl SigmaSerializable for Expr {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(
+        &self,
+        w: &mut W,
+    ) -> crate::serialization::SigmaSerializeResult {
         match self {
             Expr::Const(c) => match w.constant_store_mut_ref() {
                 Some(cs) => {

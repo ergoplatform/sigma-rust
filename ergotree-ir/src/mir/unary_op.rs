@@ -21,7 +21,10 @@ pub trait UnaryOpTryBuild: Sized {
 }
 
 impl<T: UnaryOp + UnaryOpTryBuild> SigmaSerializable for T {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(
+        &self,
+        w: &mut W,
+    ) -> crate::serialization::SigmaSerializeResult {
         self.input().sigma_serialize(w)
     }
 

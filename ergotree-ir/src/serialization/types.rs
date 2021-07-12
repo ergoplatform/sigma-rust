@@ -99,7 +99,10 @@ impl Add for TypeCode {
 }
 
 impl SigmaSerializable for TypeCode {
-    fn sigma_serialize<W: WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(
+        &self,
+        w: &mut W,
+    ) -> crate::serialization::SigmaSerializeResult {
         w.put_u8(self.value())
     }
 

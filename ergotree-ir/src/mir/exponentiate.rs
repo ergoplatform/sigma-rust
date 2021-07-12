@@ -44,7 +44,10 @@ impl HasStaticOpCode for Exponentiate {
 }
 
 impl SigmaSerializable for Exponentiate {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(
+        &self,
+        w: &mut W,
+    ) -> crate::serialization::SigmaSerializeResult {
         self.left.sigma_serialize(w)?;
         self.right.sigma_serialize(w)
     }

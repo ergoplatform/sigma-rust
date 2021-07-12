@@ -38,7 +38,10 @@ impl HasStaticOpCode for BlockValue {
 }
 
 impl SigmaSerializable for BlockValue {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(
+        &self,
+        w: &mut W,
+    ) -> crate::serialization::SigmaSerializeResult {
         self.items.sigma_serialize(w)?;
         self.result.sigma_serialize(w)
     }

@@ -71,7 +71,10 @@ impl HasStaticOpCode for ByIndex {
 }
 
 impl SigmaSerializable for ByIndex {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(
+        &self,
+        w: &mut W,
+    ) -> crate::serialization::SigmaSerializeResult {
         self.input.sigma_serialize(w)?;
         self.index.sigma_serialize(w)?;
         self.default.sigma_serialize(w)

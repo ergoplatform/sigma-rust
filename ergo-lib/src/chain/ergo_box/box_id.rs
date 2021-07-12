@@ -67,7 +67,10 @@ impl TryFrom<String> for BoxId {
 }
 
 impl SigmaSerializable for BoxId {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(
+        &self,
+        w: &mut W,
+    ) -> crate::serialization::SigmaSerializeResult {
         self.0.sigma_serialize(w)?;
         Ok(())
     }

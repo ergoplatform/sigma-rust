@@ -59,7 +59,10 @@ impl HasStaticOpCode for Apply {
 }
 
 impl SigmaSerializable for Apply {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(
+        &self,
+        w: &mut W,
+    ) -> crate::serialization::SigmaSerializeResult {
         self.func.sigma_serialize(w)?;
         self.args.sigma_serialize(w)
     }

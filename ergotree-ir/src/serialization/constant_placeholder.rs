@@ -7,7 +7,10 @@ use crate::serialization::{
 use std::io;
 
 impl SigmaSerializable for ConstantPlaceholder {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(
+        &self,
+        w: &mut W,
+    ) -> crate::serialization::SigmaSerializeResult {
         w.put_u32(self.id)
     }
 

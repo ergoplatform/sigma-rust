@@ -341,7 +341,10 @@ impl TryFrom<json::ergo_box::ErgoBoxFromJson> for ErgoBox {
 }
 
 impl SigmaSerializable for ErgoBox {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(
+        &self,
+        w: &mut W,
+    ) -> crate::serialization::SigmaSerializeResult {
         let ergo_tree_bytes = self.ergo_tree.sigma_serialize_bytes();
         serialize_box_with_indexed_digests(
             &self.value,

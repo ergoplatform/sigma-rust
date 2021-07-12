@@ -30,7 +30,10 @@ impl HasStaticOpCode for If {
 }
 
 impl SigmaSerializable for If {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(
+        &self,
+        w: &mut W,
+    ) -> crate::serialization::SigmaSerializeResult {
         self.condition.sigma_serialize(w)?;
         self.true_branch.sigma_serialize(w)?;
         self.false_branch.sigma_serialize(w)

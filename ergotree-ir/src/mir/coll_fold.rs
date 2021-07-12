@@ -60,7 +60,10 @@ impl HasStaticOpCode for Fold {
 }
 
 impl SigmaSerializable for Fold {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(
+        &self,
+        w: &mut W,
+    ) -> crate::serialization::SigmaSerializeResult {
         self.input.sigma_serialize(w)?;
         self.zero.sigma_serialize(w)?;
         self.fold_op.sigma_serialize(w)

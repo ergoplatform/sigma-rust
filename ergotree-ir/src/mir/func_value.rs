@@ -26,7 +26,10 @@ pub struct FuncArg {
 }
 
 impl SigmaSerializable for FuncArg {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(
+        &self,
+        w: &mut W,
+    ) -> crate::serialization::SigmaSerializeResult {
         self.idx.sigma_serialize(w)?;
         self.tpe.sigma_serialize(w)
     }

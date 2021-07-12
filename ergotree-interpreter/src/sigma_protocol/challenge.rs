@@ -56,7 +56,10 @@ impl From<FiatShamirHash> for Challenge {
 }
 
 impl SigmaSerializable for Challenge {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(
+        &self,
+        w: &mut W,
+    ) -> crate::serialization::SigmaSerializeResult {
         w.write_all(self.0 .0.as_ref())
     }
 
