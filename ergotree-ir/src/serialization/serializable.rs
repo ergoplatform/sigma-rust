@@ -24,6 +24,9 @@ pub enum SigmaSerializationError {
     /// IO fail (EOF, etc.)
     #[error("IO error: {0}")]
     Io(String),
+    /// Invalid expression
+    #[error("InvalidExpr: {0}")]
+    InvalidExpr(String),
 }
 
 impl From<io::Error> for SigmaSerializationError {
