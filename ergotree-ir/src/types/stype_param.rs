@@ -17,13 +17,13 @@ use super::stype::SType;
 #[derive(PartialEq, Eq, Clone)]
 pub struct STypeVar {
     /// Type variable name (e.g. "T")
-    name: BoundedVec<u8, 1, 254>,
+    name_bytes: BoundedVec<u8, 1, 254>,
 }
 
 #[allow(clippy::derive_hash_xor_eq)]
 impl Hash for STypeVar {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.name.as_vec().hash(state);
+        self.name_bytes.as_vec().hash(state);
     }
 }
 
@@ -35,47 +35,56 @@ impl std::fmt::Debug for STypeVar {
 
 impl STypeVar {
     /// Creates type variable from UTF8 text string of 1..255 length or returns an error
-    pub fn new(name: String) -> Result<Self, InvalidArgumentError> {
-        if name.as_bytes().len() < u8::MAX as usize {
-            Ok(Self {
-                name: name.into_bytes().try_into()?,
-            })
-        } else {
-            Err(InvalidArgumentError(format!(
-                "'{0}' exceeds max length (254 bytes)",
-                name
-            )))
-        }
+    pub fn new_from_str(name: &'static str) -> Result<Self, InvalidArgumentError> {
+        Ok(Self {
+            name_bytes: name.to_string().into_bytes().try_into()?,
+        })
+    }
+
+    /// Creates type variable from bytes of UTF8 text string of 1..255 length or returns an error
+    pub fn new_from_bytes(bytes: Vec<u8>) -> Result<Self, InvalidArgumentError> {
+        // test if its UTF8
+        Ok(match String::from_utf8(bytes.clone()) {
+            Ok(_) => Self {
+                name_bytes: bytes.try_into()?,
+            },
+            Err(_) => {
+                return Err(InvalidArgumentError(format!(
+                    "STypeVar: cannot decode {:?} from UTF8",
+                    bytes
+                )))
+            }
+        })
     }
 
     /// Returns text representation (e.g "T", etc.)
     pub fn as_string(&self) -> String {
         #[allow(clippy::unwrap_used)]
-        String::from_utf8(self.name.as_vec().clone()).unwrap()
+        String::from_utf8(self.name_bytes.as_vec().clone()).unwrap()
     }
 
     /// "T" type variable
     pub fn t() -> Self {
         #[allow(clippy::unwrap_used)]
-        STypeVar::new("T".to_string()).unwrap()
+        STypeVar::new_from_str("T").unwrap()
     }
 
     /// "IV"(Input Value) type variable
     pub fn iv() -> STypeVar {
         #[allow(clippy::unwrap_used)]
-        STypeVar::new("IV".to_string()).unwrap()
+        STypeVar::new_from_str("IV").unwrap()
     }
     /// "OV"(Input Value) type variable
     pub fn ov() -> STypeVar {
         #[allow(clippy::unwrap_used)]
-        STypeVar::new("OV".to_string()).unwrap()
+        STypeVar::new_from_str("OV").unwrap()
     }
 }
 
 impl SigmaSerializable for STypeVar {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
-        w.put_u8(self.name.len() as u8)?;
-        w.write_all(self.name.as_slice())?;
+        w.put_u8(self.name_bytes.len() as u8)?;
+        w.write_all(self.name_bytes.as_slice())?;
         Ok(())
     }
 
@@ -83,9 +92,7 @@ impl SigmaSerializable for STypeVar {
         let name_len = r.get_u8()?;
         let mut bytes = vec![0; name_len as usize];
         r.read_exact(&mut bytes)?;
-        Ok(STypeVar {
-            name: bytes.try_into()?,
-        })
+        Ok(STypeVar::new_from_bytes(bytes)?)
     }
 }
 
