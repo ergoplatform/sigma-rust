@@ -64,7 +64,6 @@ impl ParsedTree {
         }
     }
 
-    #[allow(clippy::unwrap_used)] // writer can fail only from OOM, so unwrap is pretty safe here
     fn sigma_serialize_without_size(&self, header: &ErgoTreeHeader) -> Vec<u8> {
         let mut data = Vec::new();
         let mut w = SigmaByteWriter::new(&mut data, None);
@@ -323,15 +322,11 @@ impl ErgoTree {
             let mut data = Vec::new();
             let cs = ConstantStore::empty();
             let mut w = SigmaByteWriter::new(&mut data, Some(cs));
-            #[allow(clippy::unwrap_used)]
             expr.sigma_serialize(&mut w).unwrap();
-            #[allow(clippy::unwrap_used)]
             let constants = w.constant_store_mut_ref().unwrap().get_all();
             let cursor = Cursor::new(&mut data[..]);
             let new_cs = ConstantStore::new(constants.clone());
             let mut sr = SigmaByteReader::new(cursor, new_cs);
-            #[allow(clippy::unwrap_used)]
-            // if it was serialized, then we should deserialize it without error
             let parsed_expr = Expr::sigma_parse(&mut sr).unwrap();
             ErgoTree {
                 header: ErgoTreeHeader(ErgoTreeHeader::CONSTANT_SEGREGATION_FLAG | header.0),
@@ -368,15 +363,12 @@ impl ErgoTree {
             let mut data = Vec::new();
             let cs = ConstantStore::empty();
             let mut w = SigmaByteWriter::new(&mut data, Some(cs));
-            #[allow(clippy::unwrap_used)]
             root.sigma_serialize(&mut w).unwrap();
             let cursor = Cursor::new(&mut data[..]);
             let mut sr = SigmaByteReader::new_with_substitute_placeholders(
                 cursor,
                 ConstantStore::new(tree.constants),
             );
-            #[allow(clippy::unwrap_used)]
-            // if it was serialized, then we should deserialize it without error
             let parsed_expr = Expr::sigma_parse(&mut sr).unwrap();
             Ok(Rc::new(parsed_expr))
         } else {

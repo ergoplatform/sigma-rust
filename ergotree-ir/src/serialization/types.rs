@@ -186,7 +186,6 @@ impl SType {
                         // Pair of types where first is primitive (`(_, Int)`)
                         (get_embeddable_type(prim_id)?, Self::sigma_parse(r)?)
                     };
-                    #[allow(clippy::unwrap_used)]
                     SType::STuple(vec![t1, t2].try_into().unwrap())
                 }
                 TypeCode::TUPLE_PAIR2_CONSTR_ID => {
@@ -202,7 +201,6 @@ impl SType {
                         // Pair of types where second is primitive (`(Int, _)`)
                         let t2 = get_embeddable_type(prim_id)?;
                         let t1 = Self::sigma_parse(r)?;
-                        #[allow(clippy::unwrap_used)]
                         SType::STuple(vec![t1, t2].try_into().unwrap())
                     }
                 }
@@ -219,7 +217,6 @@ impl SType {
                     } else {
                         // Symmetric pair of primitive types (`(Int, Int)`, `(Byte,Byte)`, etc.)
                         let t = get_embeddable_type(prim_id)?;
-                        #[allow(clippy::unwrap_used)]
                         SType::STuple(vec![t.clone(), t].try_into().unwrap())
                     }
                 }

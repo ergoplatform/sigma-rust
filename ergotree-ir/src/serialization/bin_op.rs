@@ -28,7 +28,6 @@ pub fn bin_op_sigma_serialize<W: SigmaByteWrite>(
             }),
         ) => {
             OpCode::COLL_OF_BOOL_CONST.sigma_serialize(w)?;
-            #[allow(clippy::unwrap_used)]
             let arr = [
                 l.try_extract_into::<bool>().unwrap(),
                 r.try_extract_into::<bool>().unwrap(),

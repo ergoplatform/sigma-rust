@@ -67,6 +67,7 @@ impl SigmaSerializable for SigmaAnd {
 
 /// Arbitrary impl
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::unwrap_used)]
 mod arbitrary {
     use super::*;
     use crate::mir::constant::Constant;
@@ -77,7 +78,6 @@ mod arbitrary {
         type Strategy = BoxedStrategy<Self>;
         type Parameters = ();
 
-        #[allow(clippy::unwrap_used)]
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             vec(any_with::<Constant>(SType::SSigmaProp.into()), 2..5)
                 .prop_map(|constants| Self {
