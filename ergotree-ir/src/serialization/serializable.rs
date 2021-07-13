@@ -1,6 +1,6 @@
 //! Serialization of Ergo types
-use crate::mir::expr::InvalidArgumentError;
 use crate::mir::val_def::ValId;
+use crate::mir::{constant::TryExtractFromError, expr::InvalidArgumentError};
 use crate::types::type_unify::TypeUnificationError;
 
 use super::{
@@ -24,14 +24,26 @@ pub enum SigmaSerializationError {
     /// IO fail (EOF, etc.)
     #[error("IO error: {0}")]
     Io(String),
-    /// Invalid expression
-    #[error("InvalidExpr: {0}")]
-    InvalidExpr(String),
+    /// Feature not yet implemented
+    #[error("serialization not yet implemented: {0}")]
+    NotImplementedYet(&'static str),
+    /// Unexpected value type
+    #[error("Unexpected value type: {0:?}")]
+    TryExtractFrom(TryExtractFromError),
+    /// Feature not supported
+    #[error("serialization not supported: {0}")]
+    NotSupported(&'static str),
 }
 
 impl From<io::Error> for SigmaSerializationError {
     fn from(error: io::Error) -> Self {
         SigmaSerializationError::Io(error.to_string())
+    }
+}
+
+impl From<TryExtractFromError> for SigmaSerializationError {
+    fn from(e: TryExtractFromError) -> Self {
+        SigmaSerializationError::TryExtractFrom(e)
     }
 }
 
@@ -57,7 +69,7 @@ pub enum SigmaParsingError {
     #[error("misc error")]
     Misc(String),
     /// Feature not yet implemented
-    #[error("feature not yet implemented: {0}")]
+    #[error("parsing not yet implemented: {0}")]
     NotImplementedYet(String),
     /// Constant with given index not found in constant store
     #[error("Constant with index {0} not found in constant store")]
@@ -77,6 +89,9 @@ pub enum SigmaParsingError {
     /// Unknown method ID for given type code
     #[error("No method id {0:?} found in type companion with type id {1:?} ")]
     UnknownMethodId(MethodId, TypeCode),
+    /// Feature not supported
+    #[error("parsing not supported: {0}")]
+    NotSupported(&'static str),
 }
 
 impl From<io::Error> for SigmaParsingError {

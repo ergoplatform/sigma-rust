@@ -1,6 +1,8 @@
 #![allow(missing_docs)]
 
+use super::op_code::OpCode;
 use super::sigma_byte_writer::SigmaByteWrite;
+use super::SigmaSerializationError;
 use crate::serialization::SigmaSerializeResult;
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SigmaParsingError, SigmaSerializable,
@@ -15,6 +17,10 @@ use std::ops::Add;
 pub struct TypeCode(u8);
 
 impl TypeCode {
+    /// SFunc types occupy remaining space of byte values [FirstFuncType .. 255]
+    pub const FIRST_FUNC_CODE: TypeCode = Self::new(OpCode::LAST_DATA_TYPE.value());
+    pub const LAST_FUNC_CODE: TypeCode = Self::new(255);
+
     /// Type code of the last valid prim type so that (1 to LastPrimTypeCode) is a range of valid codes.
     pub const LAST_PRIM_TYPECODE: u8 = 8;
 
@@ -270,7 +276,7 @@ impl SigmaSerializable for SType {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         // for reference see http://github.com/ScorexFoundation/sigmastate-interpreter/blob/25251c1313b0131835f92099f02cef8a5d932b5e/sigmastate/src/main/scala/sigmastate/serialization/TypeSerializer.scala#L25-L25
         match self {
-            SType::SFunc(_) => panic!("SFunc is not supposed to be here"),
+            SType::SFunc(_) => Err(SigmaSerializationError::NotSupported("SFunc")),
             SType::SAny => self.type_code().sigma_serialize(w),
             SType::SBoolean => self.type_code().sigma_serialize(w),
             SType::SByte => self.type_code().sigma_serialize(w),

@@ -1,3 +1,10 @@
+use std::convert::TryInto;
+use std::fmt::Formatter;
+use std::hash::Hash;
+
+use bounded_vec::BoundedVec;
+
+use crate::mir::expr::InvalidArgumentError;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::SigmaParsingError;
@@ -7,43 +14,68 @@ use crate::serialization::SigmaSerializeResult;
 use super::stype::SType;
 
 /// Type variable for generic signatures
-#[derive(PartialEq, Eq, Debug, Clone, Hash)]
+#[derive(PartialEq, Eq, Clone)]
 pub struct STypeVar {
     /// Type variable name (e.g. "T")
-    pub name: String,
+    name: BoundedVec<u8, 1, 254>,
+}
+
+#[allow(clippy::derive_hash_xor_eq)]
+impl Hash for STypeVar {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.name.as_vec().hash(state);
+    }
+}
+
+impl std::fmt::Debug for STypeVar {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        self.as_string().fmt(f)
+    }
 }
 
 impl STypeVar {
+    /// Creates type variable from UTF8 text string of 1..255 length or returns an error
+    pub fn new(name: String) -> Result<Self, InvalidArgumentError> {
+        if name.as_bytes().len() < u8::MAX as usize {
+            Ok(Self {
+                name: name.into_bytes().try_into()?,
+            })
+        } else {
+            Err(InvalidArgumentError(format!(
+                "'{0}' exceeds max length (254 bytes)",
+                name
+            )))
+        }
+    }
+
+    /// Returns text representation (e.g "T", etc.)
+    pub fn as_string(&self) -> String {
+        #[allow(clippy::unwrap_used)]
+        String::from_utf8(self.name.as_vec().clone()).unwrap()
+    }
+
     /// "T" type variable
     pub fn t() -> Self {
-        STypeVar {
-            name: "T".to_string(),
-        }
+        #[allow(clippy::unwrap_used)]
+        STypeVar::new("T".to_string()).unwrap()
     }
 
     /// "IV"(Input Value) type variable
     pub fn iv() -> STypeVar {
-        STypeVar {
-            name: "IV".to_string(),
-        }
+        #[allow(clippy::unwrap_used)]
+        STypeVar::new("IV".to_string()).unwrap()
     }
     /// "OV"(Input Value) type variable
     pub fn ov() -> STypeVar {
-        STypeVar {
-            name: "OV".to_string(),
-        }
+        #[allow(clippy::unwrap_used)]
+        STypeVar::new("OV".to_string()).unwrap()
     }
 }
 
 impl SigmaSerializable for STypeVar {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
-        let bytes = self.name.as_bytes();
-        assert!(
-            bytes.len() < u8::MAX as usize,
-            "STypeVar::name exceeds 255 bytes"
-        );
-        w.put_u8(bytes.len() as u8)?;
-        w.write_all(bytes)?;
+        w.put_u8(self.name.len() as u8)?;
+        w.write_all(self.name.as_slice())?;
         Ok(())
     }
 
@@ -52,12 +84,7 @@ impl SigmaSerializable for STypeVar {
         let mut bytes = vec![0; name_len as usize];
         r.read_exact(&mut bytes)?;
         Ok(STypeVar {
-            name: String::from_utf8(bytes).map_err(|err| {
-                SigmaParsingError::ValueOutOfBounds(format!(
-                    "cannot parse UTF-8 STypeVar::name from bytes with error: {:?}",
-                    err
-                ))
-            })?,
+            name: bytes.try_into()?,
         })
     }
 }

@@ -5,6 +5,7 @@ use crate::mir::constant::TryExtractInto;
 use crate::mir::value::CollKind;
 use crate::mir::value::NativeColl;
 use crate::mir::value::Value;
+use crate::serialization::SigmaSerializationError;
 use crate::serialization::SigmaSerializeResult;
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SigmaParsingError, SigmaSerializable,
@@ -37,8 +38,8 @@ impl DataSerializer {
             }
             Value::GroupElement(ecp) => ecp.sigma_serialize(w)?,
             Value::SigmaProp(s) => s.value().sigma_serialize(w)?,
-            Value::CBox(_) => todo!(),
-            Value::AvlTree => todo!(),
+            Value::CBox(_) => return Err(SigmaSerializationError::NotImplementedYet("Box")),
+            Value::AvlTree => return Err(SigmaSerializationError::NotImplementedYet("AvlTree")),
             Value::Coll(ct) => match ct {
                 CollKind::NativeColl(NativeColl::CollByte(b)) => {
                     w.put_usize_as_u16_unwrapped(b.len())?;
@@ -54,7 +55,7 @@ impl DataSerializer {
                         .into_iter()
                         .map(|i| i.try_extract_into::<bool>())
                         .collect();
-                    w.put_bits(maybe_bools.unwrap().as_slice())?
+                    w.put_bits(maybe_bools?.as_slice())?
                 }
                 CollKind::WrappedColl {
                     elem_tpe: _,
@@ -68,8 +69,14 @@ impl DataSerializer {
             Value::Tup(items) => items
                 .iter()
                 .try_for_each(|i| DataSerializer::sigma_serialize(i, w))?,
-            Value::Opt(_) => panic!("Option is not yet supported"), // unsupported, see https://github.com/ScorexFoundation/sigmastate-interpreter/issues/659
-            _ => panic!("serialization is not supported for value: {0:?}", c),
+            // unsupported, see
+            // https://github.com/ScorexFoundation/sigmastate-interpreter/issues/659
+            Value::Opt(_) => {
+                return Err(SigmaSerializationError::NotSupported("Option"));
+            }
+            Value::Context => return Err(SigmaSerializationError::NotSupported("Context")),
+            Value::Global => return Err(SigmaSerializationError::NotSupported("Global")),
+            Value::Lambda(_) => return Err(SigmaSerializationError::NotSupported("Lambda")),
         })
     }
 
@@ -136,13 +143,24 @@ impl DataSerializer {
                 // is correct
                 Value::Tup(items.try_into()?)
             }
-
-            c => {
-                return Err(SigmaParsingError::NotImplementedYet(format!(
-                    "parsing of constant value of type {:?} is not yet supported",
-                    c
-                )))
+            SBox => {
+                return Err(SigmaParsingError::NotImplementedYet(
+                    "SBox data".to_string(),
+                ))
             }
+            SAvlTree => {
+                return Err(SigmaParsingError::NotImplementedYet(
+                    "SAvlTree data".to_string(),
+                ))
+            }
+            STypeVar(_) => return Err(SigmaParsingError::NotSupported("TypeVar data")),
+            SAny => return Err(SigmaParsingError::NotSupported("SAny data")),
+            SOption(_) => return Err(SigmaParsingError::NotSupported("SOption data")),
+            SFunc(_) => return Err(SigmaParsingError::NotSupported("SFunc data")),
+            SContext => return Err(SigmaParsingError::NotSupported("SContext data")),
+            SHeader => return Err(SigmaParsingError::NotSupported("SHeader data")),
+            SPreHeader => return Err(SigmaParsingError::NotSupported("SPreHeader data")),
+            SGlobal => return Err(SigmaParsingError::NotSupported("SGlobal data")),
         })
     }
 }

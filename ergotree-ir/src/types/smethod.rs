@@ -45,7 +45,7 @@ impl SMethod {
 
     /// Get method from type and method ids
     pub fn from_ids(type_id: TypeCode, method_id: MethodId) -> Result<Self, SigmaParsingError> {
-        let obj_type = STypeCompanion::type_by_id(type_id);
+        let obj_type = STypeCompanion::type_by_id(type_id)?;
         match obj_type.method_by_id(&method_id) {
             Some(m) => Ok(m),
             None => Err(UnknownMethodId(method_id, type_id)),

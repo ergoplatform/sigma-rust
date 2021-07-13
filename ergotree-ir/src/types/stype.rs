@@ -67,7 +67,7 @@ impl SType {
     /// Type code used in serialization of SType values.
     pub fn type_code(&self) -> TypeCode {
         match self {
-            SType::SFunc(_) => todo!(),
+            SType::SFunc(_) => TypeCode::FIRST_FUNC_CODE,
             SType::SAny => TypeCode::SANY,
             SType::SBoolean => TypeCode::SBOOLEAN,
             SType::SByte => TypeCode::SBYTE,
