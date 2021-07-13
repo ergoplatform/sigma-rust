@@ -2,10 +2,11 @@
 use crate::mir::constant::Constant;
 use crate::mir::constant::TryExtractFromError;
 use crate::mir::expr::Expr;
+use crate::serialization::SigmaSerializeResult;
 use crate::serialization::{
     sigma_byte_reader::{SigmaByteRead, SigmaByteReader},
     sigma_byte_writer::{SigmaByteWrite, SigmaByteWriter},
-    SerializationError, SigmaSerializable,
+    SigmaParsingError, SigmaSerializable,
 };
 use crate::sigma_protocol::sigma_boolean::ProveDlog;
 use crate::types::stype::SType;
@@ -63,13 +64,12 @@ impl ParsedTree {
         }
     }
 
-    #[allow(clippy::unwrap_used)] // writer can fail only from OOM, so unwrap is pretty safe here
     fn sigma_serialize_without_size(&self, header: &ErgoTreeHeader) -> Vec<u8> {
         let mut data = Vec::new();
         let mut w = SigmaByteWriter::new(&mut data, None);
         header.sigma_serialize(&mut w).unwrap();
         if header.is_constant_segregation() {
-            w.put_usize_as_u32(self.constants.len()).unwrap();
+            w.put_usize_as_u32_unwrapped(self.constants.len()).unwrap();
             self.constants
                 .iter()
                 .try_for_each(|c| c.sigma_serialize(&mut w))
@@ -114,6 +114,16 @@ pub enum SetConstantError {
 ///  That new language will give an interpretation for the new bytes.
 #[derive(PartialEq, Eq, Debug, Clone, From, Into)]
 pub struct ErgoTreeHeader(u8);
+
+impl ErgoTreeHeader {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
+        w.put_u8(self.0)
+    }
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, std::io::Error> {
+        let header = r.get_u8()?;
+        Ok(ErgoTreeHeader(header))
+    }
+}
 
 /// ErgoTree version 0..=7, should fit in 3 bits
 #[derive(PartialEq, Eq, Debug, Clone, Into)]
@@ -188,7 +198,7 @@ pub struct ErgoTreeConstantsParsingError {
     /// Ergo tree bytes (failed to deserialize)
     pub bytes: Vec<u8>,
     /// Deserialization error
-    pub error: SerializationError,
+    pub error: SigmaParsingError,
 }
 
 /// ErgoTree root expr parsing (deserialization) error
@@ -197,7 +207,7 @@ pub struct ErgoTreeRootParsingError {
     /// Ergo tree root expr bytes (failed to deserialize)
     pub root_expr_bytes: Vec<u8>,
     /// Deserialization error
-    pub error: SerializationError,
+    pub error: SigmaParsingError,
 }
 
 /// ErgoTree parsing (deserialization) error
@@ -224,7 +234,7 @@ impl ErgoTree {
         r: &mut R,
         header: ErgoTreeHeader,
         size: u32,
-    ) -> Result<Self, SerializationError> {
+    ) -> Result<Self, SigmaParsingError> {
         let mut buf = vec![0u8; size as usize];
         r.read_exact(buf.as_mut_slice())?;
         if let Ok((constants, mut tree_bytes)) =
@@ -266,7 +276,7 @@ impl ErgoTree {
                 header,
                 tree: Err(ErgoTreeConstantsParsingError {
                     bytes: whole_tree_bytes,
-                    error: SerializationError::NotImplementedYet(
+                    error: SigmaParsingError::NotImplementedYet(
                         "not all constant types serialization is supported".to_string(),
                     ),
                 }),
@@ -277,7 +287,7 @@ impl ErgoTree {
     fn sigma_parse_tree_bytes(
         bytes: &mut [u8],
         is_constant_segregation: bool,
-    ) -> Result<(Vec<Constant>, Vec<u8>), SerializationError> {
+    ) -> Result<(Vec<Constant>, Vec<u8>), SigmaParsingError> {
         let mut r = SigmaByteReader::new(Cursor::new(&bytes), ConstantStore::empty());
         let constants = if is_constant_segregation {
             ErgoTree::sigma_parse_constants(&mut r)?
@@ -291,10 +301,10 @@ impl ErgoTree {
 
     fn sigma_parse_constants<R: SigmaByteRead>(
         r: &mut R,
-    ) -> Result<Vec<Constant>, SerializationError> {
+    ) -> Result<Vec<Constant>, SigmaParsingError> {
         let constants_len = r.get_u32()?;
         if constants_len as usize > ErgoTree::MAX_CONSTANTS_COUNT {
-            return Err(SerializationError::ValueOutOfBounds(
+            return Err(SigmaParsingError::ValueOutOfBounds(
                 "too many constants".to_string(),
             ));
         }
@@ -312,15 +322,11 @@ impl ErgoTree {
             let mut data = Vec::new();
             let cs = ConstantStore::empty();
             let mut w = SigmaByteWriter::new(&mut data, Some(cs));
-            #[allow(clippy::unwrap_used)]
             expr.sigma_serialize(&mut w).unwrap();
-            #[allow(clippy::unwrap_used)]
             let constants = w.constant_store_mut_ref().unwrap().get_all();
             let cursor = Cursor::new(&mut data[..]);
             let new_cs = ConstantStore::new(constants.clone());
             let mut sr = SigmaByteReader::new(cursor, new_cs);
-            #[allow(clippy::unwrap_used)]
-            // if it was serialized, then we should deserialize it without error
             let parsed_expr = Expr::sigma_parse(&mut sr).unwrap();
             ErgoTree {
                 header: ErgoTreeHeader(ErgoTreeHeader::CONSTANT_SEGREGATION_FLAG | header.0),
@@ -357,15 +363,12 @@ impl ErgoTree {
             let mut data = Vec::new();
             let cs = ConstantStore::empty();
             let mut w = SigmaByteWriter::new(&mut data, Some(cs));
-            #[allow(clippy::unwrap_used)]
             root.sigma_serialize(&mut w).unwrap();
             let cursor = Cursor::new(&mut data[..]);
             let mut sr = SigmaByteReader::new_with_substitute_placeholders(
                 cursor,
                 ConstantStore::new(tree.constants),
             );
-            #[allow(clippy::unwrap_used)]
-            // if it was serialized, then we should deserialize it without error
             let parsed_expr = Expr::sigma_parse(&mut sr).unwrap();
             Ok(Rc::new(parsed_expr))
         } else {
@@ -450,25 +453,15 @@ impl From<Expr> for ErgoTree {
         }
     }
 }
-impl SigmaSerializable for ErgoTreeHeader {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
-        w.put_u8(self.0)?;
-        Ok(())
-    }
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
-        let header = r.get_u8()?;
-        Ok(ErgoTreeHeader(header))
-    }
-}
 
 impl SigmaSerializable for ErgoTree {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         match &self.tree {
             Ok(parsed_tree) => {
                 let bytes = parsed_tree.sigma_serialize_without_size(&self.header);
                 if self.header.has_size() {
                     self.header.sigma_serialize(w)?;
-                    w.put_usize_as_u32(bytes.len() - 1)?; // skip the header byte
+                    w.put_usize_as_u32_unwrapped(bytes.len() - 1)?; // skip the header byte
                     w.write_all(&bytes[1..])?; // skip the header byte
                 } else {
                     w.write_all(&bytes)?;
@@ -479,7 +472,7 @@ impl SigmaSerializable for ErgoTree {
         Ok(())
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let header = ErgoTreeHeader::sigma_parse(r)?;
         if header.has_size() {
             let tree_size_bytes = r.get_u32()?;
@@ -502,7 +495,7 @@ impl SigmaSerializable for ErgoTree {
         }
     }
 
-    fn sigma_parse_bytes(bytes: &[u8]) -> Result<Self, SerializationError> {
+    fn sigma_parse_bytes(bytes: &[u8]) -> Result<Self, SigmaParsingError> {
         let cursor = Cursor::new(bytes);
         let mut r = SigmaByteReader::new(cursor, ConstantStore::empty());
         let header = ErgoTreeHeader::sigma_parse(&mut r)?;
@@ -573,6 +566,7 @@ pub(crate) mod arbitrary {
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
 #[allow(clippy::unwrap_used)]
+#[allow(clippy::panic)]
 #[allow(clippy::expect_used)]
 mod tests {
     use super::*;

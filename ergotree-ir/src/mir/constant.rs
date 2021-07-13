@@ -205,6 +205,7 @@ impl<T: TryExtractFrom<Value>> TryExtractFrom<Constant> for T {
 
 #[cfg(feature = "arbitrary")]
 #[allow(clippy::unwrap_used)]
+#[allow(clippy::todo)]
 /// Arbitrary impl
 pub(crate) mod arbitrary {
     use std::convert::TryFrom;
@@ -366,6 +367,7 @@ pub(crate) mod arbitrary {
 
 #[allow(clippy::unwrap_used)]
 #[cfg(test)]
+#[allow(clippy::panic)]
 pub mod tests {
     use super::*;
     use core::fmt;

@@ -3,8 +3,9 @@ use std::convert::TryFrom;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
-use crate::serialization::SerializationError;
+use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
+use crate::serialization::SigmaSerializeResult;
 use crate::types::stuple::STuple;
 use crate::types::stype::SType;
 
@@ -40,14 +41,15 @@ impl TupleFieldIndex {
 }
 
 impl SigmaSerializable for TupleFieldIndex {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
-        w.put_u8(self.0)
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
+        w.put_u8(self.0)?;
+        Ok(())
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let field_index = r.get_u8()?;
         TupleFieldIndex::try_from(field_index).map_err(|_| {
-            SerializationError::ValueOutOfBounds(format!(
+            SigmaParsingError::ValueOutOfBounds(format!(
                 "invalid tuple field index: {0}",
                 field_index
             ))
@@ -62,6 +64,8 @@ pub struct SelectField {
     pub input: Box<Expr>,
     /// 1-based tuple field index (input._1 has field_index of 1)
     pub field_index: TupleFieldIndex,
+    /// Field type
+    field_tpe: SType,
 }
 
 impl SelectField {
@@ -69,10 +73,11 @@ impl SelectField {
     pub fn new(input: Expr, field_index: TupleFieldIndex) -> Result<Self, InvalidArgumentError> {
         match input.tpe() {
             SType::STuple(STuple { items }) => {
-                if field_index.zero_based_index() < items.len() {
+                if let Some(field_tpe) = items.get(field_index.zero_based_index()) {
                     Ok(SelectField {
                         input: Box::new(input),
                         field_index,
+                        field_tpe: field_tpe.clone(),
                     })
                 } else {
                     Err(InvalidArgumentError(format!(
@@ -97,26 +102,20 @@ impl HasStaticOpCode for SelectField {
 impl SelectField {
     /// Type
     pub fn tpe(&self) -> SType {
-        match self.input.tpe() {
-            SType::STuple(STuple { items }) => items
-                .get(self.field_index.zero_based_index())
-                .unwrap()
-                .clone(),
-            tpe => panic!("expected input type to be STuple, got {0:?}", tpe),
-        }
+        self.field_tpe.clone()
     }
 }
 
 impl SigmaSerializable for SelectField {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         self.input.sigma_serialize(w)?;
         self.field_index.sigma_serialize(w)
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
-        let input = Expr::sigma_parse(r)?.into();
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
+        let input = Expr::sigma_parse(r)?;
         let field_index = TupleFieldIndex::sigma_parse(r)?;
-        Ok(SelectField { input, field_index })
+        Ok(SelectField::new(input, field_index)?)
     }
 }
 

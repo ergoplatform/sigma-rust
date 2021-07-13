@@ -37,7 +37,7 @@ impl UnaryOpTryBuild for LongToByteArray {
     where
         Self: Sized,
     {
-        input.check_post_eval_tpe(SType::SLong)?;
+        input.check_post_eval_tpe(&SType::SLong)?;
         Ok(LongToByteArray {
             input: input.into(),
         })
@@ -71,6 +71,7 @@ mod arbitrary {
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::panic)]
 mod tests {
     use super::*;
     use crate::serialization::sigma_serialize_roundtrip;

@@ -1,7 +1,7 @@
 use core::fmt;
 use ergotree_ir::ergo_tree::ErgoTree;
 use ergotree_ir::mir::constant::Constant;
-use ergotree_ir::serialization::SerializationError;
+use ergotree_ir::serialization::SigmaParsingError;
 use ergotree_ir::serialization::SigmaSerializable;
 use serde::de::{self, MapAccess, Visitor};
 use serde::Deserializer;
@@ -74,7 +74,7 @@ pub enum ConstantParsingError {
     #[error("Base16 decoding error: {0}")]
     DecodeError(base16::DecodeError),
     #[error("Deserialization error: {0}")]
-    DeserializationError(SerializationError),
+    DeserializationError(SigmaParsingError),
 }
 
 impl TryFrom<Base16DecodedBytes> for ConstantWrapper {

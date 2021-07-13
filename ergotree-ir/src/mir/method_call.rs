@@ -34,7 +34,7 @@ impl MethodCall {
                 "MethodCall: expected arguments count {} does not match provided arguments count {}",
                 method.tpe().t_dom.len(), args.len() + 1)));
         }
-        let mut expected_types = vec![obj.tpe()];
+        let mut expected_types: Vec<SType> = vec![obj.tpe()];
         let arg_types: Vec<SType> = args.clone().into_iter().map(|a| a.tpe()).collect();
         expected_types.extend(arg_types);
         if !method

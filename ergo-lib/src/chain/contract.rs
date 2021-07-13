@@ -2,7 +2,7 @@
 
 use ergotree_ir::address::Address;
 use ergotree_ir::ergo_tree::ErgoTree;
-use ergotree_ir::serialization::SerializationError;
+use ergotree_ir::serialization::SigmaParsingError;
 
 /// High-level wrapper for ErgoTree
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -17,7 +17,7 @@ impl Contract {
     }
 
     /// create new contract that allow spending for a given Address
-    pub fn pay_to_address(address: &Address) -> Result<Contract, SerializationError> {
+    pub fn pay_to_address(address: &Address) -> Result<Contract, SigmaParsingError> {
         Ok(Contract::new(address.script()?))
     }
 

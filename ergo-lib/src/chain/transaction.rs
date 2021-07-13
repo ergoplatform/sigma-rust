@@ -7,8 +7,9 @@ pub mod unsigned;
 pub use data_input::*;
 use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
 use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
-use ergotree_ir::serialization::SerializationError;
+use ergotree_ir::serialization::SigmaParsingError;
 use ergotree_ir::serialization::SigmaSerializable;
+use ergotree_ir::serialization::SigmaSerializeResult;
 pub use input::*;
 
 #[cfg(feature = "json")]
@@ -26,7 +27,6 @@ use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
 use std::convert::TryFrom;
-use std::io;
 use std::iter::FromIterator;
 #[cfg(feature = "json")]
 use thiserror::Error;
@@ -45,11 +45,11 @@ impl TxId {
 }
 
 impl SigmaSerializable for TxId {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         self.0.sigma_serialize(w)?;
         Ok(())
     }
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         Ok(Self(Digest32::sigma_parse(r)?))
     }
 }
@@ -148,11 +148,11 @@ impl Transaction {
 }
 
 impl SigmaSerializable for Transaction {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         // reference implementation - https://github.com/ScorexFoundation/sigmastate-interpreter/blob/9b20cb110effd1987ff76699d637174a4b2fb441/sigmastate/src/main/scala/org/ergoplatform/ErgoLikeTransaction.scala#L112-L112
-        w.put_usize_as_u16(self.inputs.len())?;
+        w.put_usize_as_u16_unwrapped(self.inputs.len())?;
         self.inputs.iter().try_for_each(|i| i.sigma_serialize(w))?;
-        w.put_usize_as_u16(self.data_inputs.len())?;
+        w.put_usize_as_u16_unwrapped(self.data_inputs.len())?;
         self.data_inputs
             .iter()
             .try_for_each(|i| i.sigma_serialize(w))?;
@@ -172,14 +172,14 @@ impl SigmaSerializable for Transaction {
             .try_for_each(|t_id| t_id.sigma_serialize(w))?;
 
         // serialize outputs
-        w.put_usize_as_u16(self.output_candidates.len())?;
+        w.put_usize_as_u16_unwrapped(self.output_candidates.len())?;
         self.output_candidates.iter().try_for_each(|o| {
             ErgoBoxCandidate::serialize_body_with_indexed_digests(o, Some(&distinct_token_ids), w)
         })?;
         Ok(())
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         // reference implementation - https://github.com/ScorexFoundation/sigmastate-interpreter/blob/9b20cb110effd1987ff76699d637174a4b2fb441/sigmastate/src/main/scala/org/ergoplatform/ErgoLikeTransaction.scala#L146-L146
 
         // parse transaction inputs
@@ -199,7 +199,7 @@ impl SigmaSerializable for Transaction {
         // parse distinct ids of tokens in transaction outputs
         let tokens_count = r.get_u32()?;
         if tokens_count as usize > Transaction::MAX_OUTPUTS_COUNT * ErgoBox::MAX_TOKENS_COUNT {
-            return Err(SerializationError::ValueOutOfBounds(
+            return Err(SigmaParsingError::ValueOutOfBounds(
                 "too many tokens in transaction".to_string(),
             ));
         }

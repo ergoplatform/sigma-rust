@@ -1,8 +1,9 @@
 use super::{fiat_shamir::FiatShamirHash, SOUNDNESS_BYTES};
 use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
 use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
-use ergotree_ir::serialization::SerializationError;
+use ergotree_ir::serialization::SigmaParsingError;
 use ergotree_ir::serialization::SigmaSerializable;
+use ergotree_ir::serialization::SigmaSerializeResult;
 use k256::Scalar;
 #[cfg(feature = "arbitrary")]
 use proptest_derive::Arbitrary;
@@ -56,11 +57,12 @@ impl From<FiatShamirHash> for Challenge {
 }
 
 impl SigmaSerializable for Challenge {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
-        w.write_all(self.0 .0.as_ref())
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
+        w.write_all(self.0 .0.as_ref())?;
+        Ok(())
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let mut chal_bytes: [u8; super::SOUNDNESS_BYTES] = [0; super::SOUNDNESS_BYTES];
         r.read_exact(&mut chal_bytes)?;
         Ok(Challenge::from(FiatShamirHash(Box::new(chal_bytes))))

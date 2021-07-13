@@ -1,12 +1,12 @@
 //! Block of statements ending with an expression
-use std::io;
+
 
 use super::expr::Expr;
 use crate::has_opcode::HasStaticOpCode;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
-use crate::serialization::SerializationError;
+use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
 use crate::types::stype::SType;
 
@@ -38,12 +38,15 @@ impl HasStaticOpCode for BlockValue {
 }
 
 impl SigmaSerializable for BlockValue {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(
+        &self,
+        w: &mut W,
+    ) -> crate::serialization::SigmaSerializeResult {
         self.items.sigma_serialize(w)?;
         self.result.sigma_serialize(w)
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let items = Vec::<Expr>::sigma_parse(r)?;
         let result = Expr::sigma_parse(r)?;
         Ok(BlockValue {
@@ -76,6 +79,7 @@ mod arbitrary {
 }
 
 #[cfg(test)]
+#[allow(clippy::panic)]
 pub mod tests {
     use crate::mir::block::BlockValue;
     use crate::mir::expr::Expr;

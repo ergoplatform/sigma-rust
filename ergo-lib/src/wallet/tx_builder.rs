@@ -5,7 +5,7 @@ use std::collections::HashSet;
 use ergotree_interpreter::sigma_protocol;
 use ergotree_interpreter::sigma_protocol::prover::ProofBytes;
 use ergotree_ir::address::{Address, AddressEncoder, NetworkPrefix};
-use ergotree_ir::serialization::SerializationError;
+use ergotree_ir::serialization::SigmaParsingError;
 use ergotree_ir::serialization::SigmaSerializable;
 use thiserror::Error;
 
@@ -263,7 +263,7 @@ pub enum TxBuilderError {
     BoxValueError(#[from] BoxValueError),
     /// Serialization error
     #[error("Serialization error")]
-    SerializationError(#[from] SerializationError),
+    SerializationError(#[from] SigmaParsingError),
     /// Invalid arguments
     #[error("Invalid arguments: {0}")]
     InvalidArgs(String),

@@ -35,7 +35,7 @@ impl UnaryOp for DecodePoint {
 
 impl UnaryOpTryBuild for DecodePoint {
     fn try_build(input: Expr) -> Result<Self, InvalidArgumentError> {
-        input.check_post_eval_tpe(SType::SColl(Box::new(SType::SByte)))?;
+        input.check_post_eval_tpe(&SType::SColl(Box::new(SType::SByte)))?;
         Ok(Self {
             input: input.into(),
         })
@@ -67,6 +67,7 @@ mod arbitrary {
 }
 
 #[cfg(test)]
+#[allow(clippy::panic)]
 mod tests {
     use super::*;
     use crate::mir::expr::Expr;

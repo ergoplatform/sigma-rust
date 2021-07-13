@@ -11,18 +11,14 @@ use crate::types::stype::SType;
 pub struct OptionGet {
     /// Object of SOption type
     pub input: Box<Expr>,
+    /// Option element type
+    elem_tpe: SType,
 }
 
 impl OptionGet {
     /// Type
     pub fn tpe(&self) -> SType {
-        match self.input.tpe() {
-            SType::SOption(o) => *o,
-            _ => panic!(
-                "expected OptionGet::input type to be SOption, got: {0:?}",
-                self.input.tpe()
-            ),
-        }
+        self.elem_tpe.clone()
     }
 }
 
@@ -39,8 +35,9 @@ impl UnaryOp for OptionGet {
 impl UnaryOpTryBuild for OptionGet {
     fn try_build(input: Expr) -> Result<Self, InvalidArgumentError> {
         match input.post_eval_tpe() {
-            SType::SOption(_) => Ok(OptionGet {
+            SType::SOption(elem_tpe) => Ok(OptionGet {
                 input: Box::new(input),
+                elem_tpe: *elem_tpe,
             }),
             _ => Err(InvalidArgumentError(format!(
                 "expected OptionGet::input type to be SOption, got: {0:?}",
@@ -70,10 +67,7 @@ mod tests {
         )
         .unwrap()
         .into();
-        let e: Expr = OptionGet {
-            input: Box::new(get_reg_expr),
-        }
-        .into();
+        let e: Expr = OptionGet::try_build(get_reg_expr).unwrap().into();
         assert_eq![sigma_serialize_roundtrip(&e), e];
     }
 }

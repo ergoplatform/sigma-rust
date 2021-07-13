@@ -1,17 +1,17 @@
 use super::sigma_byte_writer::SigmaByteWrite;
 use crate::mir::constant::ConstantPlaceholder;
+use crate::serialization::SigmaSerializeResult;
 use crate::serialization::{
-    sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
+    sigma_byte_reader::SigmaByteRead, SigmaParsingError, SigmaSerializable,
 };
 
-use std::io;
-
 impl SigmaSerializable for ConstantPlaceholder {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
-        w.put_u32(self.id)
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
+        w.put_u32(self.id)?;
+        Ok(())
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let id = r.get_u32()?;
         if let Some(c) = r.constant_store().get(id) {
             Ok(ConstantPlaceholder {
@@ -19,7 +19,7 @@ impl SigmaSerializable for ConstantPlaceholder {
                 tpe: c.tpe.clone(),
             })
         } else {
-            Err(SerializationError::ConstantForPlaceholderNotFound(id))
+            Err(SigmaParsingError::ConstantForPlaceholderNotFound(id))
         }
     }
 }
@@ -28,6 +28,7 @@ impl SigmaSerializable for ConstantPlaceholder {
 #[cfg(feature = "arbitrary")]
 #[allow(clippy::expect_used)]
 #[allow(clippy::unwrap_used)]
+#[allow(clippy::panic)]
 mod tests {
     use super::*;
     use crate::mir::constant::Constant;
@@ -35,8 +36,8 @@ mod tests {
         constant_store::ConstantStore, sigma_byte_reader::SigmaByteReader,
         sigma_byte_writer::SigmaByteWriter,
     };
-    use io::Cursor;
     use proptest::prelude::*;
+    use std::io::Cursor;
 
     proptest! {
 

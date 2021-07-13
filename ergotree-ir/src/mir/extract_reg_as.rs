@@ -1,7 +1,7 @@
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
-use crate::serialization::SerializationError;
+use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
 use crate::types::stype::SType;
 
@@ -55,13 +55,16 @@ impl HasStaticOpCode for ExtractRegisterAs {
 }
 
 impl SigmaSerializable for ExtractRegisterAs {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(
+        &self,
+        w: &mut W,
+    ) -> crate::serialization::SigmaSerializeResult {
         self.input.sigma_serialize(w)?;
         w.put_i8(self.register_id)?;
         self.elem_tpe.sigma_serialize(w)
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let input = Expr::sigma_parse(r)?;
         let register_id = r.get_i8()?;
         let elem_tpe = SType::sigma_parse(r)?;

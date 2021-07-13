@@ -1,12 +1,11 @@
 //! DataInput type
 
-use std::io;
-
 use crate::chain::ergo_box::BoxId;
 use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
 use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
-use ergotree_ir::serialization::SerializationError;
+use ergotree_ir::serialization::SigmaParsingError;
 use ergotree_ir::serialization::SigmaSerializable;
+use ergotree_ir::serialization::SigmaSerializeResult;
 #[cfg(test)]
 use proptest::prelude::*;
 #[cfg(test)]
@@ -31,11 +30,11 @@ impl From<BoxId> for DataInput {
 }
 
 impl SigmaSerializable for DataInput {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         self.box_id.sigma_serialize(w)?;
         Ok(())
     }
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let box_id = BoxId::sigma_parse(r)?;
         Ok(DataInput { box_id })
     }

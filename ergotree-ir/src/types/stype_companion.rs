@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 
 use crate::serialization::types::TypeCode;
+use crate::serialization::SigmaParsingError;
 
 use super::sbox;
 use super::scoll;
@@ -35,8 +36,8 @@ impl STypeCompanion {
     }
 
     /// Get type companion for a givec type id
-    pub fn type_by_id(type_id: TypeCode) -> &'static STypeCompanion {
-        if type_id == scontext::S_CONTEXT_TYPE_COMPANION.type_id() {
+    pub fn type_by_id(type_id: TypeCode) -> Result<&'static STypeCompanion, SigmaParsingError> {
+        Ok(if type_id == scontext::S_CONTEXT_TYPE_COMPANION.type_id() {
             &scontext::S_CONTEXT_TYPE_COMPANION
         } else if type_id == sbox::S_BOX_TYPE_COMPANION.type_id() {
             &sbox::S_BOX_TYPE_COMPANION
@@ -51,8 +52,11 @@ impl STypeCompanion {
         } else if type_id == spreheader::S_PRE_HEADER_TYPE_COMPANION.type_id() {
             &spreheader::S_PRE_HEADER_TYPE_COMPANION
         } else {
-            todo!("cannot find STypeCompanion for {0:?} type id", type_id)
-        }
+            return Err(SigmaParsingError::NotImplementedYet(format!(
+                "cannot find STypeCompanion for {0:?} type id",
+                type_id,
+            )));
+        })
     }
 
     /// Get method signature for this object by a method id

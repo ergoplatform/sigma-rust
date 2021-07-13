@@ -10,6 +10,11 @@
 #![deny(unused_imports)]
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
+#![deny(clippy::unwrap_used)]
+#![deny(clippy::expect_used)]
+#![deny(clippy::todo)]
+#![deny(clippy::unimplemented)]
+#![deny(clippy::panic)]
 
 /// VLQ encoder
 pub mod vlq_encode;

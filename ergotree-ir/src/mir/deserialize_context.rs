@@ -4,8 +4,9 @@ use crate::has_opcode::HasStaticOpCode;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
-use crate::serialization::SerializationError;
+use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
+use crate::serialization::SigmaSerializeResult;
 use crate::types::stype::SType;
 
 /// Extracts context variable as `Coll[Byte]`, deserializes it to script and then executes
@@ -31,12 +32,13 @@ impl HasStaticOpCode for DeserializeContext {
 }
 
 impl SigmaSerializable for DeserializeContext {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         self.tpe.sigma_serialize(w)?;
-        w.put_u8(self.id)
+        w.put_u8(self.id)?;
+        Ok(())
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let tpe = SType::sigma_parse(r)?;
         let id = r.get_u8()?;
         Ok(Self { tpe, id })
@@ -64,6 +66,7 @@ mod arbitrary {
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::panic)]
 mod tests {
     use crate::mir::expr::Expr;
     use crate::serialization::sigma_serialize_roundtrip;
