@@ -1,7 +1,7 @@
 //! Hints for a prover which helps the prover to prove a statement.
 
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
-use num_bigint::BigInt;
+use k256::Scalar;
 
 use crate::sigma_protocol::challenge::Challenge;
 use crate::sigma_protocol::unchecked_tree::UncheckedTree;
@@ -82,23 +82,27 @@ pub struct RealCommitment {
     pub position: NodePosition,
 }
 
+/// A hint which a commitment to randomness associated with a public image of a secret, as well as randomness itself.
+/// Please note that this randomness should be kept in secret by the prover.
+#[derive(PartialEq, Debug, Clone)]
+pub struct OwnCommitment {
+    ///  image of a secret
+    pub image: SigmaBoolean,
+    /// randomness
+    pub secret_randomness: Scalar,
+    /// commitment to randomness used while proving knowledge of the secret
+    pub commitment: FirstProverMessage,
+    /// A hint is related to a subtree (or a leaf) of a tree. This field encodes a position in the tree.
+    pub position: NodePosition,
+}
+
 /// A family of hints which are about a correspondence between a public image of a secret image and prover's commitment
 /// to randomness ("a" in a sigma protocol).
 #[derive(PartialEq, Debug, Clone)]
 pub enum CommitmentHint {
-    /// * A hint which a commitment to randomness associated with a public image of a secret, as well as randomness itself.
-    ///  * Please note that this randomness should be kept in secret by the prover.
-    ///  *
-    OwnCommitment {
-        ///  image of a secret
-        image: SigmaBoolean,
-        /// randomness
-        secret_randomness: BigInt,
-        /// commitment to randomness used while proving knowledge of the secret
-        commitment: FirstProverMessage,
-        /// A hint is related to a subtree (or a leaf) of a tree. This field encodes a position in the tree.
-        position: NodePosition,
-    },
+    /// A hint which a commitment to randomness associated with a public image of a secret, as well as randomness itself.
+    /// Please note that this randomness should be kept in secret by the prover.
+    OwnCommitment(OwnCommitment),
     /// A hint which contains a commitment to randomness associated with a public image of a secret.
     RealCommitment(RealCommitment),
     ///A hint which contains a commitment to randomness associated with a public image of a secret.
@@ -173,6 +177,21 @@ impl HintsBag {
             .into_iter()
             .filter_map(|hint| {
                 if let Hint::CommitmentHint(CommitmentHint::RealCommitment(v)) = hint {
+                    Some(v)
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    /// OwnCommitment hints only
+    pub fn own_commitments(&self) -> Vec<OwnCommitment> {
+        self.hints
+            .clone()
+            .into_iter()
+            .filter_map(|hint| {
+                if let Hint::CommitmentHint(CommitmentHint::OwnCommitment(v)) = hint {
                     Some(v)
                 } else {
                     None

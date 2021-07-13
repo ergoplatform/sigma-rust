@@ -2,8 +2,10 @@
 use std::convert::TryInto;
 
 use ergotree_ir::sigma_protocol::dlog_group;
+use ergotree_ir::sigma_protocol::sigma_boolean::ProveDhTuple;
 use ergotree_ir::sigma_protocol::sigma_boolean::ProveDlog;
 
+use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 use k256::elliptic_curve::ff::PrimeField;
 use k256::Scalar;
 
@@ -76,13 +78,57 @@ impl From<Scalar> for DlogProverInput {
     }
 }
 
+/// Diffie-Hellman tuple and secret
+/// Used in a proof that of equality of discrete logarithms (i.e., a proof of a Diffie-Hellman tuple):
+/// given group elements g, h, u, v, the proof convinces a verifier that the prover knows `w` such
+/// that `u = g^w` and `v = h^w`, without revealing `w`
+#[derive(PartialEq, Debug, Clone)]
+pub struct DhTupleProverInput {
+    /// Diffie-Hellman tuple's secret
+    pub w: Scalar,
+    /// Diffie-Hellman tuple
+    pub common_input: ProveDhTuple,
+}
+
+impl DhTupleProverInput {
+    /// Create random secret and Diffie-Hellman tuple
+    #[allow(clippy::many_single_char_names)]
+    pub fn random() -> Self {
+        let g = dlog_group::generator();
+        let h = dlog_group::exponentiate(
+            &dlog_group::generator(),
+            &dlog_group::random_scalar_in_group_range(),
+        );
+        let w = dlog_group::random_scalar_in_group_range();
+        let u = dlog_group::exponentiate(&g, &w);
+        let v = dlog_group::exponentiate(&h, &w);
+        let common_input = ProveDhTuple::new(g, h, u, v);
+        Self { w, common_input }
+    }
+
+    /// Public image (Diffie-Hellman tuple)
+    pub fn public_image(&self) -> &ProveDhTuple {
+        &self.common_input
+    }
+}
+
 /// Private inputs (secrets)
 #[derive(PartialEq, Debug, Clone, From)]
 pub enum PrivateInput {
     /// Discrete logarithm prover input
     DlogProverInput(DlogProverInput),
-    /// DH tuple prover input
-    DiffieHellmanTupleProverInput,
+    /// Diffie-Hellman tuple prover input
+    DhTupleProverInput(DhTupleProverInput),
+}
+
+impl PrivateInput {
+    /// Public image of the private input
+    pub fn public_image(&self) -> SigmaBoolean {
+        match self {
+            PrivateInput::DlogProverInput(dl) => dl.public_image().into(),
+            PrivateInput::DhTupleProverInput(dht) => dht.public_image().clone().into(),
+        }
+    }
 }
 
 #[cfg(feature = "arbitrary")]
@@ -101,6 +147,33 @@ mod arbitrary {
                 Just(DlogProverInput::random()),
                 Just(DlogProverInput::random()),
                 Just(DlogProverInput::random()),
+            ]
+            .boxed()
+        }
+    }
+
+    impl Arbitrary for DhTupleProverInput {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            prop_oneof![
+                Just(DhTupleProverInput::random()),
+                Just(DhTupleProverInput::random()),
+                Just(DhTupleProverInput::random()),
+                Just(DhTupleProverInput::random()),
+                Just(DhTupleProverInput::random()),
+            ]
+            .boxed()
+        }
+    }
+
+    impl Arbitrary for PrivateInput {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            prop_oneof![
+                any::<DlogProverInput>().prop_map_into(),
+                any::<DhTupleProverInput>().prop_map_into(),
             ]
             .boxed()
         }
