@@ -154,7 +154,7 @@ fn prove_to_unchecked<P: Prover + ?Sized>(
 ) -> Result<UncheckedSigmaTree, ProverError> {
     // Prover Step 1: Mark as real everything the prover can prove
     let step1 = mark_real(prover, unproven_tree, hints_bag)?;
-    dbg!(&step1);
+    // dbg!(&step1);
 
     // Prover Step 2: If the root of the tree is marked "simulated" then the prover does not have enough witnesses
     // to perform the proof. Abort.
@@ -166,12 +166,12 @@ fn prove_to_unchecked<P: Prover + ?Sized>(
     // has the right number of simulated children.
 
     let step3 = polish_simulated(prover, step1)?;
-    dbg!(&step3);
+    // dbg!(&step3);
 
     // Prover Steps 4, 5, and 6 together: find challenges for simulated nodes; simulate simulated leaves;
     // compute commitments for real leaves
     let step6 = simulate_and_commit(step3, hints_bag)?;
-    dbg!(&step6);
+    // dbg!(&step6);
 
     // Prover Steps 7: convert the relevant information in the tree (namely, tree structure, node types,
     // the statements being proven and commitments at the leaves)
@@ -184,11 +184,11 @@ fn prove_to_unchecked<P: Prover + ?Sized>(
     s.append(&mut message.to_vec());
     let root_challenge: Challenge = fiat_shamir_hash_fn(s.as_slice()).into();
     let step8 = step6.with_challenge(root_challenge);
-    dbg!(&step8);
+    // dbg!(&step8);
 
     // Prover Step 9: complete the proof by computing challenges at real nodes and additionally responses at real leaves
     let step9 = proving(prover, step8.into(), hints_bag)?;
-    dbg!(&step9);
+    // dbg!(&step9);
     // Prover Step 10: output the right information into the proof
     convert_to_unchecked(step9)
 }

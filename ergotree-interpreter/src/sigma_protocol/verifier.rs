@@ -162,6 +162,7 @@ mod tests {
     use ergotree_ir::mir::sigma_and::SigmaAnd;
     use ergotree_ir::mir::sigma_or::SigmaOr;
     use ergotree_ir::serialization::SigmaSerializable;
+    use ergotree_ir::sigma_protocol::sigma_boolean::ProveDhTuple;
     use num_bigint::BigUint;
     use proptest::collection::vec;
     use proptest::prelude::*;
@@ -424,6 +425,44 @@ mod tests {
         let verifier = TestVerifier;
         let ver_res = verifier.verify(
             &expr.try_into().unwrap(),
+            &Env::empty(),
+            Rc::new(force_any_val::<Context>()),
+            signature.into(),
+            msg.as_slice(),
+        );
+        assert!(ver_res.unwrap().result);
+    }
+
+    #[test]
+    fn sig_test_vector_prove_dht() {
+        // TODO: implement in sigmastate and leave a reference here
+        let msg =
+            base16::decode(b"1dc01772ee0171f5f614c673e3c7fa1107a8cf727bdf5a6dadb379e93c0d1d00")
+                .unwrap();
+        let pdht = ProveDhTuple::sigma_parse_bytes(&base16::decode(b"0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f817980280c66feee88d56e47bf3f47c4109d9218c60c373a472a0d9537507c7ee828c4802a96f19e97df31606183c1719400682d1d40b1ce50c9a1ed1b19845e2b1b551bf0255ac02191cb229891fb1b674ea9df7fc8426350131d821fc4a53f29c3b1cb21a").unwrap()).unwrap();
+        // let pdht = random_pdht_input.public_image().clone();
+        dbg!(base16::encode_lower(&pdht.sigma_serialize_bytes()));
+        let signature = base16::decode(b"eba93a69b28cfdea261e9ea8914fca9a0b3868d50ce68c94f32e875730f8ca361bd3783c5d3e25802e54f49bd4fb9fafe51f4e8aafbf9815").unwrap();
+        let expr: Expr = pdht.into();
+
+        // let random_pdht_input = DhTupleProverInput::random();
+        // let tree: ErgoTree = expr.clone().into();
+        // let prover = TestProver {
+        //     secrets: vec![random_pdht_input.into()],
+        // };
+        // let res = prover.prove(
+        //     &tree,
+        //     &Env::empty(),
+        //     Rc::new(force_any_val::<Context>()),
+        //     msg.as_slice(),
+        //     &HintsBag::empty(),
+        // );
+        // let proof: Vec<u8> = res.unwrap().proof.into();
+        // dbg!(base16::encode_lower(&proof));
+
+        let verifier = TestVerifier;
+        let ver_res = verifier.verify(
+            &expr.into(),
             &Env::empty(),
             Rc::new(force_any_val::<Context>()),
             signature.into(),
