@@ -87,8 +87,8 @@ pub enum ProverError {
     NotYetImplemented(String),
 }
 
-impl From<ErgoTreeParsingError> for ProverError {
-    fn from(e: ErgoTreeParsingError) -> Self {
+impl From<ErgoTreeError> for ProverError {
+    fn from(e: ErgoTreeError) -> Self {
         ProverError::ErgoTreeError(e)
     }
 }
@@ -1077,7 +1077,7 @@ mod tests {
     fn test_prove_dht_prop() {
         let secret = DhTupleProverInput::random();
         let pi = secret.public_image();
-        let tree = ErgoTree::from(Expr::Const(pi.clone().into()));
+        let tree = ErgoTree::try_from(Expr::Const(pi.clone().into())).unwrap();
         let message = vec![0u8; 100];
 
         let prover = TestProver {

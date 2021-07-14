@@ -2,9 +2,12 @@
 
 use std::rc::Rc;
 
+use super::dht_protocol;
+use super::dht_protocol::FirstDhTupleProverMessage;
 use super::fiat_shamir::FiatShamirTreeSerializationError;
 use super::prover::ProofBytes;
 use super::sig_serializer::SigParsingError;
+use super::unchecked_tree::UncheckedDhTuple;
 use super::{
     dlog_protocol,
     fiat_shamir::{fiat_shamir_hash_fn, fiat_shamir_tree_to_bytes},
@@ -118,7 +121,18 @@ fn compute_commitments(sp: UncheckedSigmaTree) -> UncheckedSigmaTree {
                 }
                 .into()
             }
-            UncheckedLeaf::UncheckedDhTuple(_) => todo!(),
+            UncheckedLeaf::UncheckedDhTuple(dh) => {
+                let (a, b) = dht_protocol::interactive_prover::compute_commitment(
+                    &dh.proposition,
+                    &dh.challenge,
+                    &dh.second_message,
+                );
+                UncheckedDhTuple {
+                    commitment_opt: Some(FirstDhTupleProverMessage::new(a, b)),
+                    ..dh
+                }
+                .into()
+            }
         },
         UncheckedSigmaTree::UncheckedConjecture(conj) => conj
             .clone()
@@ -138,6 +152,7 @@ impl Verifier for TestVerifier {}
 #[cfg(feature = "arbitrary")]
 mod tests {
     use super::*;
+    use crate::sigma_protocol::private_input::DhTupleProverInput;
     use crate::sigma_protocol::prover::hint::HintsBag;
     use crate::sigma_protocol::{
         private_input::{DlogProverInput, PrivateInput},
@@ -176,6 +191,48 @@ mod tests {
 
             let prover = TestProver {
                 secrets: vec![PrivateInput::DlogProverInput(secret)],
+            };
+            let res = prover.prove(&tree,
+                &Env::empty(),
+                Rc::new(force_any_val::<Context>()),
+                message.as_slice(),
+                &HintsBag::empty());
+            let proof = res.unwrap().proof;
+            let verifier = TestVerifier;
+            prop_assert_eq!(verifier.verify(&tree,
+                                            &Env::empty(),
+                                            Rc::new(force_any_val::<Context>()),
+                                            proof.clone(),
+                                            message.as_slice())
+                            .unwrap().result,
+                            true);
+
+            // possible to append bytes
+            prop_assert_eq!(verifier.verify(&tree,
+                                            &Env::empty(),
+                                            Rc::new(force_any_val::<Context>()),
+                                            proof_append_byte(&proof),
+                                            message.as_slice())
+                            .unwrap().result,
+                            true);
+
+            // wrong message
+            prop_assert_eq!(verifier.verify(&tree,
+                                            &Env::empty(),
+                                            Rc::new(force_any_val::<Context>()),
+                                            proof,
+                                            vec![1u8; 100].as_slice())
+                            .unwrap().result,
+                            false);
+        }
+
+        #[test]
+        fn test_prover_verifier_dht(secret in any::<DhTupleProverInput>(), message in vec(any::<u8>(), 100..200)) {
+            let pk = secret.public_image().clone();
+            let tree = ErgoTree::try_from(Expr::Const(pk.into())).unwrap();
+
+            let prover = TestProver {
+                secrets: vec![PrivateInput::DhTupleProverInput(secret)],
             };
             let res = prover.prove(&tree,
                 &Env::empty(),

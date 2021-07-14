@@ -59,7 +59,7 @@ impl SigmaSerializable for ProveDlog {
 }
 
 impl SigmaSerializable for ProveDhTuple {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         self.g.sigma_serialize(w)?;
         self.h.sigma_serialize(w)?;
         self.u.sigma_serialize(w)?;
@@ -67,7 +67,7 @@ impl SigmaSerializable for ProveDhTuple {
     }
 
     #[allow(clippy::many_single_char_names)]
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let g = EcPoint::sigma_parse(r)?;
         let h = EcPoint::sigma_parse(r)?;
         let u = EcPoint::sigma_parse(r)?;

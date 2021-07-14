@@ -92,7 +92,7 @@ pub struct DhTupleProverInput {
 
 impl DhTupleProverInput {
     /// Create random secret and Diffie-Hellman tuple
-    #[allow(clippy::clippy::many_single_char_names)]
+    #[allow(clippy::many_single_char_names)]
     pub fn random() -> Self {
         let g = dlog_group::generator();
         let h = dlog_group::exponentiate(
@@ -147,6 +147,21 @@ mod arbitrary {
                 Just(DlogProverInput::random()),
                 Just(DlogProverInput::random()),
                 Just(DlogProverInput::random()),
+            ]
+            .boxed()
+        }
+    }
+
+    impl Arbitrary for DhTupleProverInput {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            prop_oneof![
+                Just(DhTupleProverInput::random()),
+                Just(DhTupleProverInput::random()),
+                Just(DhTupleProverInput::random()),
+                Just(DhTupleProverInput::random()),
+                Just(DhTupleProverInput::random()),
             ]
             .boxed()
         }

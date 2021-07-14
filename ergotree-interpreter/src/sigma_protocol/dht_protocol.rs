@@ -22,9 +22,10 @@ impl FirstDhTupleProverMessage {
 }
 
 impl ProverMessage for FirstDhTupleProverMessage {
+    #[allow(clippy::unwrap_used)] // since only EcPoint is serialized here it's safe to unwrap
     fn bytes(&self) -> Vec<u8> {
-        let mut res = self.a.sigma_serialize_bytes();
-        res.append(self.b.sigma_serialize_bytes().as_mut());
+        let mut res = self.a.sigma_serialize_bytes().unwrap();
+        res.append(self.b.sigma_serialize_bytes().unwrap().as_mut());
         res
     }
 }
@@ -37,6 +38,8 @@ pub struct SecondDhTupleProverMessage {
 
 /// Interactive prover
 pub(crate) mod interactive_prover {
+
+    use std::ops::Mul;
 
     use super::*;
     use crate::sigma_protocol::private_input::DhTupleProverInput;
@@ -72,5 +75,37 @@ pub(crate) mod interactive_prover {
         // modulo addition, no need to explicit mod op
         let z = rnd.add(&ew);
         SecondDhTupleProverMessage { z }
+    }
+
+    /// The function computes initial prover's commitment to randomness
+    /// ("a" message of the sigma-protocol, which in this case has two parts "a" and "b")
+    /// based on the verifier's challenge ("e")
+    /// and prover's response ("z")
+    ///
+    /// g^z = a*u^e, h^z = b*v^e  => a = g^z/u^e, b = h^z/v^e
+    #[allow(clippy::many_single_char_names)]
+    pub(crate) fn compute_commitment(
+        proposition: &ProveDhTuple,
+        challenge: &Challenge,
+        second_message: &SecondDhTupleProverMessage,
+    ) -> (EcPoint, EcPoint) {
+        let g = proposition.g.clone();
+        let h = proposition.h.clone();
+        let u = proposition.u.clone();
+        let v = proposition.v.clone();
+
+        let z = second_message.z;
+
+        let e: Scalar = challenge.clone().into();
+
+        let g_to_z = dlog_group::exponentiate(&g, &z);
+        let h_to_z = dlog_group::exponentiate(&h, &z);
+
+        let u_to_e = dlog_group::exponentiate(&u, &e);
+        let v_to_e = dlog_group::exponentiate(&v, &e);
+
+        let a = g_to_z.mul(&dlog_group::inverse(&u_to_e));
+        let b = h_to_z.mul(&dlog_group::inverse(&v_to_e));
+        (a, b)
     }
 }
