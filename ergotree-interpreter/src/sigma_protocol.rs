@@ -8,6 +8,7 @@ pub mod verifier;
 
 mod challenge;
 mod crypto_utils;
+mod dht_protocol;
 mod dlog_protocol;
 mod fiat_shamir;
 mod proof_tree;
@@ -24,7 +25,7 @@ use unchecked_tree::{UncheckedSigmaTree, UncheckedTree};
 use unproven_tree::{UnprovenLeaf, UnprovenSchnorr};
 
 use self::challenge::Challenge;
-use self::dlog_protocol::FirstDhTupleProverMessage;
+use self::dht_protocol::FirstDhTupleProverMessage;
 use self::unchecked_tree::UncheckedSchnorr;
 
 use derive_more::From;

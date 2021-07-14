@@ -61,6 +61,7 @@ fn sig_write_bytes<W: SigmaByteWrite>(
                 w.write_all(sm_bytes.as_mut_slice())?;
                 Ok(())
             }
+            UncheckedLeaf::UncheckedDhTuple(_) => todo!(),
         },
         UncheckedSigmaTree::UncheckedConjecture(conj) => match conj {
             UncheckedConjecture::CandUnchecked {

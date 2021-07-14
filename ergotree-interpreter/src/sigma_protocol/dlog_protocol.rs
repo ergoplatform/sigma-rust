@@ -23,21 +23,6 @@ impl ProverMessage for FirstDlogProverMessage {
     }
 }
 
-/// a = g^r, b = h^r
-#[derive(PartialEq, Eq, Debug, Clone)]
-pub struct FirstDhTupleProverMessage {
-    a: Box<EcPoint>,
-    b: Box<EcPoint>,
-}
-
-impl ProverMessage for FirstDhTupleProverMessage {
-    fn bytes(&self) -> Vec<u8> {
-        let mut res = self.a.sigma_serialize_bytes();
-        res.append(self.b.sigma_serialize_bytes().as_mut());
-        res
-    }
-}
-
 /// Second message from the prover (message `z` of `SigmaProtocol`) for discrete logarithm case
 #[derive(PartialEq, Debug, Clone)]
 pub struct SecondDlogProverMessage {

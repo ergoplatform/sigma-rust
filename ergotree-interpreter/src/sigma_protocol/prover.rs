@@ -5,13 +5,16 @@ mod prover_result;
 
 pub mod hint;
 
+use crate::sigma_protocol::dht_protocol;
 use crate::sigma_protocol::fiat_shamir::fiat_shamir_hash_fn;
 use crate::sigma_protocol::fiat_shamir::fiat_shamir_tree_to_bytes;
 use crate::sigma_protocol::proof_tree::ProofTree;
+use crate::sigma_protocol::unchecked_tree::UncheckedDhTuple;
 use crate::sigma_protocol::unchecked_tree::UncheckedLeaf;
 use crate::sigma_protocol::unproven_tree::CandUnproven;
 use crate::sigma_protocol::unproven_tree::CorUnproven;
 use crate::sigma_protocol::unproven_tree::NodePosition;
+use crate::sigma_protocol::unproven_tree::UnprovenDhTuple;
 use crate::sigma_protocol::Challenge;
 use crate::sigma_protocol::UncheckedSigmaTree;
 use crate::sigma_protocol::UnprovenLeaf;
@@ -41,6 +44,8 @@ use super::unchecked_tree::UncheckedTree;
 use super::unproven_tree::UnprovenConjecture;
 use super::unproven_tree::UnprovenSchnorr;
 use super::unproven_tree::UnprovenTree;
+use super::FirstProverMessage::FirstDhtProverMessage;
+use super::FirstProverMessage::FirstDlogProverMessage;
 
 use crate::eval::context::Context;
 use crate::eval::env::Env;
@@ -190,29 +195,17 @@ fn mark_real<P: Prover + ?Sized>(
     proof_tree::rewrite(unproven_tree.into(), &|tree| {
         Ok(match tree {
             ProofTree::UnprovenTree(unp) => match unp {
-                UnprovenTree::UnprovenLeaf(unp_leaf) => match unp_leaf {
-                    UnprovenLeaf::UnprovenSchnorr(us) => {
-                        // If the node is a leaf, mark it "real'' if either the witness for it is
-                        // available or a hint shows the secret is known to an external participant in multi-signing;
-                        // else mark it "simulated"
-                        let secret_known =
-                            hints_bag.real_images().contains(&unp_leaf.proposition())
-                                || prover.secrets().iter().any(|s| match s {
-                                    PrivateInput::DlogProverInput(dl) => {
-                                        dl.public_image() == us.proposition
-                                    }
-                                    _ => false,
-                                });
-                        Some(
-                            UnprovenSchnorr {
-                                simulated: !secret_known,
-                                ..us.clone()
-                            }
-                            .into(),
-                        )
-                    }
-                    UnprovenLeaf::UnprovenDhTuple(_) => todo!(),
-                },
+                UnprovenTree::UnprovenLeaf(unp_leaf) => {
+                    // If the node is a leaf, mark it "real'' if either the witness for it is
+                    // available or a hint shows the secret is known to an external participant in multi-signing;
+                    // else mark it "simulated"
+                    let secret_known = hints_bag.real_images().contains(&unp_leaf.proposition())
+                        || prover
+                            .secrets()
+                            .iter()
+                            .any(|s| s.proposition() == unp_leaf.proposition());
+                    Some(unp_leaf.clone().with_simulated(!secret_known).into())
+                }
                 UnprovenTree::UnprovenConjecture(unp_conj) => match unp_conj {
                     UnprovenConjecture::CandUnproven(cand) => {
                         // If the node is AND, mark it "real" if all of its children are marked real; else mark it "simulated"
@@ -537,9 +530,52 @@ fn simulate_and_commit(
                 Ok(Some(res))
             }
             ProofTree::UnprovenTree(UnprovenTree::UnprovenLeaf(UnprovenLeaf::UnprovenDhTuple(
-                ut,
+                dhu,
             ))) => {
-                todo!();
+                //Steps 5 & 6: pull out commitment from the hints bag, otherwise, compute the commitment(if the node is real),
+                // or simulate it (if the node is simulated)
+
+                // Step 6 (real leaf -- compute the commitment a or take it from the hints bag)
+                let res: ProofTree = hints_bag
+                    .commitments()
+                    .iter()
+                    .find(|c| c.position() == dhu.position)
+                    .map(|cmt_hint| {
+                        dhu.clone()
+                            .with_commitment(match cmt_hint.commitment() {
+                                FirstDlogProverMessage(_) => panic!("not expected here"),
+                                FirstDhtProverMessage(dhtm) => dhtm,
+                            })
+                            .into()
+                    })
+                    .unwrap_or_else(|| {
+                        if dhu.simulated {
+                            // Step 5 (simulated leaf -- complete the simulation)
+                            assert!(dhu.challenge_opt.is_some());
+                            let (fm, sm) = dht_protocol::interactive_prover::simulate(
+                                &dhu.proposition,
+                                &dhu.challenge_opt.clone().unwrap(),
+                            );
+                            UncheckedDhTuple {
+                                proposition: dhu.proposition.clone(),
+                                commitment_opt: Some(fm),
+                                challenge: dhu.challenge_opt.clone().unwrap(),
+                                second_message: sm,
+                            }
+                            .into()
+                        } else {
+                            // Step 6 -- compute the commitment
+                            let (r, fm) =
+                                dht_protocol::interactive_prover::first_message(&dhu.proposition);
+                            UnprovenDhTuple {
+                                commitment_opt: Some(fm),
+                                randomness_opt: Some(r),
+                                ..dhu.clone()
+                            }
+                            .into()
+                        }
+                    });
+                Ok(Some(res))
             }
             ProofTree::UncheckedTree(_) => Ok(None),
         }
@@ -687,7 +723,15 @@ fn proving<P: Prover + ?Sized>(
 fn convert_to_unproven(sb: SigmaBoolean) -> UnprovenTree {
     match sb {
         SigmaBoolean::ProofOfKnowledge(pok) => match pok {
-            SigmaProofOfKnowledgeTree::ProveDhTuple(_) => todo!(),
+            SigmaProofOfKnowledgeTree::ProveDhTuple(pdht) => UnprovenDhTuple {
+                proposition: pdht,
+                commitment_opt: None,
+                randomness_opt: None,
+                challenge_opt: None,
+                simulated: false,
+                position: NodePosition::crypto_tree_prefix(),
+            }
+            .into(),
             SigmaProofOfKnowledgeTree::ProveDlog(prove_dlog) => UnprovenSchnorr {
                 proposition: prove_dlog,
                 commitment_opt: None,
@@ -730,6 +774,7 @@ fn convert_to_unchecked(tree: ProofTree) -> Result<UncheckedSigmaTree, ProverErr
             UncheckedTree::UncheckedSigmaTree(ust) => match ust {
                 UncheckedSigmaTree::UncheckedLeaf(ul) => match ul {
                     UncheckedLeaf::UncheckedSchnorr(_) => Ok(ust.clone()),
+                    UncheckedLeaf::UncheckedDhTuple(_) => todo!(),
                 },
                 UncheckedSigmaTree::UncheckedConjecture(_) => Err(ProverError::Unexpected(
                     format!("convert_to_unchecked: unexpected {:?}", tree),
