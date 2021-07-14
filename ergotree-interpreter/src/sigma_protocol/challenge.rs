@@ -1,9 +1,6 @@
 use super::{fiat_shamir::FiatShamirHash, SOUNDNESS_BYTES};
 use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
 use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
-use ergotree_ir::serialization::SigmaParsingError;
-use ergotree_ir::serialization::SigmaSerializable;
-use ergotree_ir::serialization::SigmaSerializeResult;
 use k256::Scalar;
 #[cfg(feature = "arbitrary")]
 use proptest_derive::Arbitrary;
@@ -21,7 +18,9 @@ impl From<Challenge> for Scalar {
         // prepend zeroes to 32 bytes (big-endian)
         let mut prefix = vec![0u8; 8];
         prefix.append(&mut v.to_vec());
-        Scalar::from_bytes_reduced(prefix.as_slice().try_into().expect("32 bytes"))
+        #[allow(clippy::unwrap_used)]
+        // since it's 32 bytes it's safe to unwrap
+        Scalar::from_bytes_reduced(prefix.as_slice().try_into().unwrap())
     }
 }
 
@@ -41,6 +40,17 @@ impl Challenge {
         #[allow(clippy::unwrap_used)] // since the size is unchanged
         FiatShamirHash::try_from(res.as_slice()).unwrap().into()
     }
+
+    pub fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
+        w.write_all(self.0 .0.as_ref())?;
+        Ok(())
+    }
+
+    pub fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, std::io::Error> {
+        let mut chal_bytes: [u8; super::SOUNDNESS_BYTES] = [0; super::SOUNDNESS_BYTES];
+        r.read_exact(&mut chal_bytes)?;
+        Ok(Challenge::from(FiatShamirHash(Box::new(chal_bytes))))
+    }
 }
 
 impl From<Challenge> for Vec<u8> {
@@ -53,18 +63,5 @@ impl From<Challenge> for Vec<u8> {
 impl From<FiatShamirHash> for Challenge {
     fn from(fsh: FiatShamirHash) -> Self {
         Challenge(fsh)
-    }
-}
-
-impl SigmaSerializable for Challenge {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
-        w.write_all(self.0 .0.as_ref())?;
-        Ok(())
-    }
-
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
-        let mut chal_bytes: [u8; super::SOUNDNESS_BYTES] = [0; super::SOUNDNESS_BYTES];
-        r.read_exact(&mut chal_bytes)?;
-        Ok(Challenge::from(FiatShamirHash(Box::new(chal_bytes))))
     }
 }
