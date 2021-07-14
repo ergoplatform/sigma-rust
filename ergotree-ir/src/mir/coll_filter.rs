@@ -6,6 +6,7 @@ use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
+use crate::serialization::SigmaSerializeResult;
 use crate::types::stype::SType;
 
 /// Selects all elements of the collection that satisfy the condition
@@ -58,10 +59,7 @@ impl HasStaticOpCode for Filter {
 }
 
 impl SigmaSerializable for Filter {
-    fn sigma_serialize<W: SigmaByteWrite>(
-        &self,
-        w: &mut W,
-    ) -> crate::serialization::SigmaSerializeResult {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         self.input.sigma_serialize(w)?;
         self.condition.sigma_serialize(w)
     }

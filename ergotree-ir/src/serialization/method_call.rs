@@ -8,12 +8,10 @@ use super::sigma_byte_writer::SigmaByteWrite;
 use super::types::TypeCode;
 use super::SigmaParsingError;
 use super::SigmaSerializable;
+use super::SigmaSerializeResult;
 
 impl SigmaSerializable for MethodCall {
-    fn sigma_serialize<W: SigmaByteWrite>(
-        &self,
-        w: &mut W,
-    ) -> crate::serialization::SigmaSerializeResult {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         self.method.obj_type.type_id().sigma_serialize(w)?;
         self.method.method_id().sigma_serialize(w)?;
         self.obj.sigma_serialize(w)?;

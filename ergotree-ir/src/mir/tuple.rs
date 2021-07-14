@@ -5,6 +5,7 @@ use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
+use crate::serialization::SigmaSerializeResult;
 use crate::types::stuple::STuple;
 use crate::types::stuple::TupleItems;
 use crate::types::stype::SType;
@@ -41,10 +42,7 @@ impl HasStaticOpCode for Tuple {
 }
 
 impl SigmaSerializable for Tuple {
-    fn sigma_serialize<W: SigmaByteWrite>(
-        &self,
-        w: &mut W,
-    ) -> crate::serialization::SigmaSerializeResult {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         w.put_u8(self.items.len() as u8)?;
         self.items.iter().try_for_each(|i| i.sigma_serialize(w))
     }

@@ -3,6 +3,7 @@ use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
+use crate::serialization::SigmaSerializeResult;
 use crate::types::stuple::STuple;
 use crate::types::stype::SType;
 
@@ -60,10 +61,7 @@ impl HasStaticOpCode for Fold {
 }
 
 impl SigmaSerializable for Fold {
-    fn sigma_serialize<W: SigmaByteWrite>(
-        &self,
-        w: &mut W,
-    ) -> crate::serialization::SigmaSerializeResult {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         self.input.sigma_serialize(w)?;
         self.zero.sigma_serialize(w)?;
         self.fold_op.sigma_serialize(w)

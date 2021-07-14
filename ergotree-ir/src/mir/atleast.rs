@@ -4,6 +4,7 @@ use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
+use crate::serialization::SigmaSerializeResult;
 use crate::types::stype::SType;
 
 use super::expr::Expr;
@@ -30,10 +31,7 @@ impl HasStaticOpCode for Atleast {
 }
 
 impl SigmaSerializable for Atleast {
-    fn sigma_serialize<W: SigmaByteWrite>(
-        &self,
-        w: &mut W,
-    ) -> crate::serialization::SigmaSerializeResult {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         self.n_required.sigma_serialize(w)?;
         self.expressions.sigma_serialize(w)
     }

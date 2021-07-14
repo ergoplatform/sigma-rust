@@ -7,6 +7,7 @@ use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
+use crate::serialization::SigmaSerializeResult;
 use crate::types::stype::SType;
 
 /// Extract register of SELF box as `Coll[Byte]`, deserialize it into
@@ -32,10 +33,7 @@ impl HasStaticOpCode for DeserializeRegister {
 }
 
 impl SigmaSerializable for DeserializeRegister {
-    fn sigma_serialize<W: SigmaByteWrite>(
-        &self,
-        w: &mut W,
-    ) -> crate::serialization::SigmaSerializeResult {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         w.put_u8(self.reg)?;
         self.tpe.sigma_serialize(w)?;
         self.default.sigma_serialize(w)

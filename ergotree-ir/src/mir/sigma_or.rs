@@ -7,6 +7,7 @@ use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
+use crate::serialization::SigmaSerializeResult;
 use crate::sigma_protocol::sigma_boolean::SigmaConjectureItems;
 use crate::types::stype::SType;
 
@@ -55,10 +56,7 @@ impl HasStaticOpCode for SigmaOr {
 }
 
 impl SigmaSerializable for SigmaOr {
-    fn sigma_serialize<W: SigmaByteWrite>(
-        &self,
-        w: &mut W,
-    ) -> crate::serialization::SigmaSerializeResult {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         self.items.sigma_serialize(w)
     }
 

@@ -6,6 +6,7 @@ use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
+use crate::serialization::SigmaSerializeResult;
 use crate::types::stype::SType;
 
 /// Byte-wise XOR op on byte arrays
@@ -52,10 +53,7 @@ impl HasStaticOpCode for Xor {
 }
 
 impl SigmaSerializable for Xor {
-    fn sigma_serialize<W: SigmaByteWrite>(
-        &self,
-        w: &mut W,
-    ) -> crate::serialization::SigmaSerializeResult {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         self.left.sigma_serialize(w)?;
         self.right.sigma_serialize(w)
     }

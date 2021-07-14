@@ -16,6 +16,7 @@
 //! On the other hand, any group element can be mapped to some string.
 
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
+use crate::serialization::SigmaSerializeResult;
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SigmaParsingError, SigmaSerializable,
 };
@@ -148,10 +149,7 @@ pub fn bigint_to_scalar(bi: BigInt) -> Option<Scalar> {
 }
 
 impl SigmaSerializable for EcPoint {
-    fn sigma_serialize<W: SigmaByteWrite>(
-        &self,
-        w: &mut W,
-    ) -> crate::serialization::SigmaSerializeResult {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         let caff = self.0.to_affine();
         if caff.is_identity().into() {
             // infinity point

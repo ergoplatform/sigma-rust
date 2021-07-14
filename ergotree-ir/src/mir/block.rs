@@ -7,6 +7,7 @@ use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
+use crate::serialization::SigmaSerializeResult;
 use crate::types::stype::SType;
 
 /** Block of statements ending with an expression
@@ -37,10 +38,7 @@ impl HasStaticOpCode for BlockValue {
 }
 
 impl SigmaSerializable for BlockValue {
-    fn sigma_serialize<W: SigmaByteWrite>(
-        &self,
-        w: &mut W,
-    ) -> crate::serialization::SigmaSerializeResult {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         self.items.sigma_serialize(w)?;
         self.result.sigma_serialize(w)
     }
