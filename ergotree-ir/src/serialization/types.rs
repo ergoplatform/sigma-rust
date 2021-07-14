@@ -18,8 +18,8 @@ pub struct TypeCode(u8);
 
 impl TypeCode {
     /// SFunc types occupy remaining space of byte values [FirstFuncType .. 255]
-    pub const FIRST_FUNC_CODE: TypeCode = Self::new(OpCode::LAST_DATA_TYPE.value());
-    pub const LAST_FUNC_CODE: TypeCode = Self::new(255);
+    pub const FIRST_FUNC_TYPE: TypeCode = Self::new(OpCode::LAST_DATA_TYPE.value());
+    pub const LAST_FUNC_TYPE: TypeCode = Self::new(255);
 
     /// Type code of the last valid prim type so that (1 to LastPrimTypeCode) is a range of valid codes.
     pub const LAST_PRIM_TYPECODE: u8 = 8;

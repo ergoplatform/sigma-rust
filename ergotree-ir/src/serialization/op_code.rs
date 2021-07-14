@@ -24,11 +24,12 @@ impl OpCode {
     /// We use optimized encoding of constant values to save space in serialization.
     /// Since Box registers are stored as Constant nodes we save 1 byte for each register.
     /// This is due to convention that Value.opCode falling in [1..LastDataType] region is a constant.
-    /// Thus, we can just decode an instance of SType and then decode data using [`DataSerializer`].
+    /// Thus, we can just decode an instance of SType and then decode
+    /// data using [`crate::serialization::data::DataSerializer`].
     /// Decoding of constants depends on the first byte and in general is a recursive procedure
     /// consuming some number of bytes from Reader.
     pub const CONSTANT_CODE: OpCode = OpCode(0);
-    /// The last constant code is equal to [`super::TypeCode::FIRST_FUNC_TYPE`] which represent
+    /// The last constant code is equal to [`crate::serialization::types::TypeCode::FIRST_FUNC_TYPE`] which represent
     /// generic function type.
     /// We use this single code to represent all functional constants, since we don't have
     /// enough space in single byte.
