@@ -151,6 +151,8 @@ impl Verifier for TestVerifier {}
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
 mod tests {
+    use std::convert::TryFrom;
+
     use crate::sigma_protocol::private_input::{DhTupleProverInput, DlogProverInput, PrivateInput};
     use crate::sigma_protocol::prover::hint::HintsBag;
     use crate::sigma_protocol::prover::{Prover, TestProver};
@@ -180,7 +182,7 @@ mod tests {
         #[test]
         fn test_prover_verifier_p2pk(secret in any::<DlogProverInput>(), message in vec(any::<u8>(), 100..200)) {
             let pk = secret.public_image();
-            let tree = ErgoTree::from(Expr::Const(pk.into()));
+            let tree = ErgoTree::try_from(Expr::Const(pk.into())).unwrap();
 
             let prover = TestProver {
                 secrets: vec![PrivateInput::DlogProverInput(secret)],
@@ -222,7 +224,7 @@ mod tests {
         #[test]
         fn test_prover_verifier_dht(secret in any::<DhTupleProverInput>(), message in vec(any::<u8>(), 100..200)) {
             let pk = secret.public_image().clone();
-            let tree = ErgoTree::from(Expr::Const(pk.into()));
+            let tree = ErgoTree::try_from(Expr::Const(pk.into())).unwrap();
 
             let prover = TestProver {
                 secrets: vec![PrivateInput::DhTupleProverInput(secret)],
@@ -270,7 +272,7 @@ mod tests {
             let expr: Expr = SigmaAnd::new(vec![Expr::Const(pk1.into()), Expr::Const(pk2.into())])
                 .unwrap()
                 .into();
-            let tree = ErgoTree::from(expr);
+            let tree = ErgoTree::try_from(expr).unwrap();
             let prover = TestProver {
                 secrets: vec![secret1, secret2],
             };
@@ -303,7 +305,7 @@ mod tests {
                     .unwrap()
                     .into(),
             ]).unwrap().into();
-            let tree = ErgoTree::from(expr);
+            let tree = ErgoTree::try_from(expr).unwrap();
             let prover = TestProver { secrets: vec![secret1, secret2, secret3] };
             let res = prover.prove(&tree,
                 &Env::empty(),
@@ -329,7 +331,7 @@ mod tests {
             let expr: Expr = SigmaOr::new(vec![Expr::Const(pk1.into()), Expr::Const(pk2.into())])
                 .unwrap()
                 .into();
-            let tree = ErgoTree::from(expr);
+            let tree = ErgoTree::try_from(expr).unwrap();
             let secrets = vec![secret1, secret2];
             // any secret (out of 2) known to prover should be enough
             for secret in secrets {
@@ -366,7 +368,7 @@ mod tests {
                     .unwrap()
                     .into(),
             ]).unwrap().into();
-            let tree = ErgoTree::from(expr);
+            let tree = ErgoTree::try_from(expr).unwrap();
             let secrets = vec![secret1, secret2, secret3];
             // any secret (out of 3) known to prover should be enough
             for secret in secrets {

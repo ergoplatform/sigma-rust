@@ -238,7 +238,7 @@ fn sig_test_vector_conj_or_prove_dht() {
 
     let verifier = TestVerifier;
     let ver_res = verifier.verify(
-        &expr.into(),
+        &expr.try_into().unwrap(),
         &Env::empty(),
         Rc::new(force_any_val::<Context>()),
         signature.into(),
