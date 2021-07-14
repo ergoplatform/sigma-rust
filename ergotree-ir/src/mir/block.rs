@@ -1,6 +1,5 @@
 //! Block of statements ending with an expression
 
-
 use super::expr::Expr;
 use crate::has_opcode::HasStaticOpCode;
 use crate::serialization::op_code::OpCode;

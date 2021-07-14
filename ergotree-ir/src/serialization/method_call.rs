@@ -1,5 +1,3 @@
-
-
 use crate::mir::expr::Expr;
 use crate::mir::method_call::MethodCall;
 use crate::types::smethod::MethodId;

@@ -11,7 +11,6 @@ use crate::types::stype::SType;
 
 use crate::has_opcode::HasStaticOpCode;
 
-
 /// Numerical upcast
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Upcast {
