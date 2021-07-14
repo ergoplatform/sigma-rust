@@ -22,7 +22,7 @@ use std::rc::Rc;
 
 pub use context_extension::*;
 use ergotree_ir::ergo_tree::ErgoTree;
-use ergotree_ir::ergo_tree::ErgoTreeParsingError;
+use ergotree_ir::ergo_tree::ErgoTreeError;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaConjecture;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
 pub use prover_result::*;
@@ -54,7 +54,7 @@ use thiserror::Error;
 pub enum ProverError {
     /// Failed to parse ErgoTree
     #[error("Ergo tree error: {0}")]
-    ErgoTreeError(ErgoTreeParsingError),
+    ErgoTreeError(ErgoTreeError),
     /// Failed to evaluate ErgoTree
     #[error("Evaluation error: {0}")]
     EvalError(EvalError),
@@ -779,14 +779,16 @@ mod tests {
     use ergotree_ir::mir::value::Value;
     use ergotree_ir::types::stype::SType;
     use sigma_test_util::force_any_val;
+    use std::convert::TryFrom;
     use std::rc::Rc;
 
     #[test]
     fn test_prove_true_prop() {
-        let bool_true_tree = ErgoTree::from(Expr::Const(Constant {
+        let bool_true_tree = ErgoTree::try_from(Expr::Const(Constant {
             tpe: SType::SBoolean,
             v: Value::Boolean(true),
-        }));
+        }))
+        .unwrap();
         let message = vec![0u8; 100];
 
         let prover = TestProver { secrets: vec![] };
@@ -803,10 +805,11 @@ mod tests {
 
     #[test]
     fn test_prove_false_prop() {
-        let bool_false_tree = ErgoTree::from(Expr::Const(Constant {
+        let bool_false_tree = ErgoTree::try_from(Expr::Const(Constant {
             tpe: SType::SBoolean,
             v: Value::Boolean(false),
-        }));
+        }))
+        .unwrap();
         let message = vec![0u8; 100];
 
         let prover = TestProver { secrets: vec![] };
@@ -825,7 +828,7 @@ mod tests {
     fn test_prove_pk_prop() {
         let secret = DlogProverInput::random();
         let pk = secret.public_image();
-        let tree = ErgoTree::from(Expr::Const(pk.into()));
+        let tree = ErgoTree::try_from(Expr::Const(pk.into())).unwrap();
         let message = vec![0u8; 100];
 
         let prover = TestProver {
@@ -851,7 +854,7 @@ mod tests {
         let expr: Expr = SigmaAnd::new(vec![Expr::Const(pk1.into()), Expr::Const(pk2.into())])
             .unwrap()
             .into();
-        let tree: ErgoTree = expr.into();
+        let tree: ErgoTree = expr.try_into().unwrap();
         let message = vec![0u8; 100];
 
         let prover = TestProver {
@@ -883,7 +886,7 @@ mod tests {
         ])
         .unwrap()
         .into();
-        let tree: ErgoTree = expr.into();
+        let tree: ErgoTree = expr.try_into().unwrap();
         let message = vec![0u8; 100];
 
         let prover = TestProver {
@@ -908,7 +911,7 @@ mod tests {
         let expr: Expr = SigmaOr::new(vec![Expr::Const(pk1.into()), Expr::Const(pk2.into())])
             .unwrap()
             .into();
-        let tree: ErgoTree = expr.into();
+        let tree: ErgoTree = expr.try_into().unwrap();
         let message = vec![0u8; 100];
 
         let prover = TestProver {
@@ -940,7 +943,7 @@ mod tests {
         ])
         .unwrap()
         .into();
-        let tree: ErgoTree = expr.into();
+        let tree: ErgoTree = expr.try_into().unwrap();
         let message = vec![0u8; 100];
 
         let prover = TestProver {

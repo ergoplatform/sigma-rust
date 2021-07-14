@@ -8,7 +8,7 @@ use super::EvalFn;
 
 pub(crate) static GET_ENCODED_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
     let encoded: Vec<u8> = match obj {
-        Value::GroupElement(ec_point) => Ok(ec_point.sigma_serialize_bytes()),
+        Value::GroupElement(ec_point) => Ok(ec_point.sigma_serialize_bytes()?),
         _ => Err(EvalError::UnexpectedValue(format!(
             "expected obj to be Value::GroupElement, got: {0:?}",
             obj

@@ -17,7 +17,9 @@ impl From<EcPoint> for FirstDlogProverMessage {
 
 impl ProverMessage for FirstDlogProverMessage {
     fn bytes(&self) -> Vec<u8> {
-        self.0.sigma_serialize_bytes()
+        #[allow(clippy::unwrap_used)]
+        // EcPoint serialization can only on OOM
+        self.0.sigma_serialize_bytes().unwrap()
     }
 }
 

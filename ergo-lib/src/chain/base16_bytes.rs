@@ -56,7 +56,7 @@ impl From<Base16DecodedBytes> for Vec<u8> {
 
 impl From<Constant> for Base16EncodedBytes {
     fn from(v: Constant) -> Base16EncodedBytes {
-        Base16EncodedBytes::new(&v.sigma_serialize_bytes())
+        Base16EncodedBytes::new(&v.sigma_serialize_bytes().unwrap())
     }
 }
 
@@ -76,12 +76,12 @@ pub trait Base16Str {
 
 impl Base16Str for &Constant {
     fn base16_str(&self) -> String {
-        base16::encode_lower(&self.sigma_serialize_bytes())
+        base16::encode_lower(&self.sigma_serialize_bytes().unwrap())
     }
 }
 
 impl Base16Str for Constant {
     fn base16_str(&self) -> String {
-        base16::encode_lower(&self.sigma_serialize_bytes())
+        base16::encode_lower(&self.sigma_serialize_bytes().unwrap())
     }
 }

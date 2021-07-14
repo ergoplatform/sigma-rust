@@ -10,6 +10,7 @@ use super::{
     Transaction, TxId,
 };
 use ergotree_interpreter::sigma_protocol::prover::ProofBytes;
+use ergotree_ir::serialization::SigmaSerializationError;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "json")]
@@ -43,23 +44,23 @@ impl UnsignedTransaction {
         inputs: Vec<UnsignedInput>,
         data_inputs: Vec<DataInput>,
         output_candidates: Vec<ErgoBoxCandidate>,
-    ) -> UnsignedTransaction {
+    ) -> Result<UnsignedTransaction, SigmaSerializationError> {
         let tx_to_sign = UnsignedTransaction {
             tx_id: TxId::zero(),
             inputs,
             data_inputs,
             output_candidates,
         };
-        let tx_id = tx_to_sign.calc_tx_id();
-        UnsignedTransaction {
+        let tx_id = tx_to_sign.calc_tx_id()?;
+        Ok(UnsignedTransaction {
             tx_id,
             ..tx_to_sign
-        }
+        })
     }
 
-    fn calc_tx_id(&self) -> TxId {
-        let bytes = self.bytes_to_sign();
-        TxId(blake2b256_hash(&bytes))
+    fn calc_tx_id(&self) -> Result<TxId, SigmaSerializationError> {
+        let bytes = self.bytes_to_sign()?;
+        Ok(TxId(blake2b256_hash(&bytes)))
     }
 
     /// Get transaction id
@@ -68,7 +69,7 @@ impl UnsignedTransaction {
     }
 
     /// message to be signed by the [`ergotree_interpreter::sigma_protocol::prover::Prover`] (serialized tx)
-    pub fn bytes_to_sign(&self) -> Vec<u8> {
+    pub fn bytes_to_sign(&self) -> Result<Vec<u8>, SigmaSerializationError> {
         let empty_proofs_input = self
             .inputs
             .iter()
@@ -86,7 +87,7 @@ impl UnsignedTransaction {
             empty_proofs_input,
             self.data_inputs.clone(),
             self.output_candidates.clone(),
-        );
+        )?;
         tx.bytes_to_sign()
     }
 }
@@ -107,11 +108,8 @@ impl TryFrom<json::transaction::UnsignedTransactionJson> for UnsignedTransaction
     // We never return this type but () fails to compile (can't format) and ! is experimental
     type Error = String;
     fn try_from(tx_json: json::transaction::UnsignedTransactionJson) -> Result<Self, Self::Error> {
-        Ok(UnsignedTransaction::new(
-            tx_json.inputs,
-            tx_json.data_inputs,
-            tx_json.outputs,
-        ))
+        UnsignedTransaction::new(tx_json.inputs, tx_json.data_inputs, tx_json.outputs)
+            .map_err(|e| format!("unsigned tx serialization failed: {0}", e))
     }
 }
 
@@ -131,7 +129,9 @@ pub mod tests {
                 vec(any::<DataInput>(), 0..10),
                 vec(any::<ErgoBoxCandidate>(), 1..10),
             )
-                .prop_map(|(inputs, data_inputs, outputs)| Self::new(inputs, data_inputs, outputs))
+                .prop_map(|(inputs, data_inputs, outputs)| {
+                    Self::new(inputs, data_inputs, outputs).unwrap()
+                })
                 .boxed()
         }
         type Strategy = BoxedStrategy<Self>;
@@ -143,7 +143,7 @@ pub mod tests {
 
         #[test]
         fn test_unsigned_tx_bytes_to_sign(v in any::<UnsignedTransaction>()) {
-            prop_assert!(!v.bytes_to_sign().is_empty());
+            prop_assert!(!v.bytes_to_sign().unwrap().is_empty());
         }
 
     }

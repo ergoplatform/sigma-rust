@@ -71,6 +71,7 @@ use crate::mir::get_var::GetVar;
 use bounded_vec::BoundedVecOutOfBounds;
 use derive_more::From;
 use derive_more::TryInto;
+use thiserror::Error;
 
 #[derive(PartialEq, Eq, Debug, Clone, From, TryInto)]
 /// Expression in ErgoTree
@@ -308,7 +309,8 @@ impl<T: Into<Value> + LiftIntoSType> From<T> for Expr {
 }
 
 /// Unexpected argument on node construction (i.e non-Option input in OptionGet)
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(Error, PartialEq, Eq, Debug, Clone)]
+#[error("InvalidArgumentError: {0}")]
 pub struct InvalidArgumentError(pub String);
 
 /// Invalid (unexpected) expr type

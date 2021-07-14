@@ -5,7 +5,7 @@ use self::cor::Cor;
 use self::cthreshold::Cthreshold;
 
 use super::dlog_group::EcPoint;
-use crate::ergo_tree::ErgoTree;
+use crate::ergo_tree::{ErgoTree, ErgoTreeError};
 use crate::has_opcode::{HasOpCode, HasStaticOpCode};
 use crate::mir::constant::Constant;
 use crate::mir::expr::Expr;
@@ -175,13 +175,13 @@ impl SigmaProp {
     }
 
     /// Serialized bytes of a SigmaProp value
-    pub fn prop_bytes(&self) -> Vec<u8> {
+    pub fn prop_bytes(&self) -> Result<Vec<u8>, ErgoTreeError> {
         // in order to have comparisons like  `box.propositionBytes == pk.propBytes` we need to make sure
         // the same serialization method is used in both cases
         let c: Constant = self.clone().into();
         let e: Expr = c.into();
-        let ergo_tree: ErgoTree = e.into();
-        ergo_tree.sigma_serialize_bytes()
+        let ergo_tree: ErgoTree = e.try_into()?;
+        Ok(ergo_tree.sigma_serialize_bytes()?)
     }
 }
 

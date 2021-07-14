@@ -1,5 +1,6 @@
 //! ErgoBox representation in IR
 use crate::mir::constant::Constant;
+use crate::serialization::SigmaSerializationError;
 use sigma_util::DIGEST32_SIZE;
 use std::fmt::Debug;
 use std::rc::Rc;
@@ -55,7 +56,7 @@ pub trait IrErgoBox: Debug {
     /// Box creation height
     fn creation_height(&self) -> i32;
     /// Box guarding script serialized
-    fn script_bytes(&self) -> Vec<i8>;
+    fn script_bytes(&self) -> Result<Vec<i8>, SigmaSerializationError>;
     /// Tuple of height when block got included into the blockchain and transaction identifier with
     /// box index in the transaction outputs serialized to the byte array.
     fn creation_info(&self) -> (i32, Vec<i8>);

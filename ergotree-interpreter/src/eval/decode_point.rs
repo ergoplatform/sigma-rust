@@ -23,6 +23,7 @@ impl Evaluable for DecodePoint {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use crate::eval::tests::eval_out_wo_ctx;
 
@@ -36,7 +37,7 @@ mod tests {
 
         #[test]
         fn eval(ecp in any::<EcPoint>()) {
-            let bytes = ecp.sigma_serialize_bytes();
+            let bytes = ecp.sigma_serialize_bytes().unwrap();
             let expr: Expr = DecodePoint {input: Expr::Const(bytes.into()).into()}.into();
             let res = eval_out_wo_ctx::<EcPoint>(&expr);
             prop_assert_eq!(res, ecp);

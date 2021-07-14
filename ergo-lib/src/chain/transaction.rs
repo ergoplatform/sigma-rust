@@ -9,6 +9,7 @@ use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
 use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
 use ergotree_ir::serialization::SigmaParsingError;
 use ergotree_ir::serialization::SigmaSerializable;
+use ergotree_ir::serialization::SigmaSerializationError;
 use ergotree_ir::serialization::SigmaSerializeResult;
 pub use input::*;
 
@@ -88,9 +89,14 @@ pub struct Transaction {
     /// scripts. `dataInputs` scripts will not be executed, thus their scripts costs are not
     /// included in transaction cost and they do not contain spending proofs.
     pub data_inputs: Vec<DataInput>,
-    /// box candidates to be created by this transaction. Differ from ordinary ones in that
+
+    /// box candidates to be created by this transaction. Differ from [`Self::outputs`] in that
     /// they do not include transaction id and index
     pub output_candidates: Vec<ErgoBoxCandidate>,
+
+    /// Boxes to be created by this transaction. Differ from [`Self::output_candidates`] in that
+    /// they include transaction id and index
+    pub outputs: Vec<ErgoBox>,
 }
 
 impl Transaction {
@@ -102,37 +108,36 @@ impl Transaction {
         inputs: Vec<Input>,
         data_inputs: Vec<DataInput>,
         output_candidates: Vec<ErgoBoxCandidate>,
-    ) -> Transaction {
+    ) -> Result<Transaction, SigmaSerializationError> {
+        // TODO: use BoundedVec for inputs and outputs
+        assert!(output_candidates.len() < u16::MAX as usize);
         let tx_to_sign = Transaction {
             tx_id: TxId::zero(),
             inputs,
             data_inputs,
-            output_candidates,
+            output_candidates: output_candidates.clone(),
+            outputs: vec![],
         };
-        let tx_id = tx_to_sign.calc_tx_id();
-        Transaction {
-            tx_id,
-            ..tx_to_sign
-        }
-    }
-
-    /// Returns ErgoBox's created from ErgoBoxCandidate's with tx id and indices
-    pub fn outputs(&self) -> Vec<ErgoBox> {
-        assert!(self.output_candidates.len() < u16::MAX as usize);
-        self.output_candidates
+        let tx_id = tx_to_sign.calc_tx_id()?;
+        let outputs = output_candidates
             .iter()
             .enumerate()
-            .map(|(idx, bc)| ErgoBox::from_box_candidate(bc, self.tx_id.clone(), idx as u16))
-            .collect()
+            .map(|(idx, bc)| ErgoBox::from_box_candidate(bc, tx_id.clone(), idx as u16))
+            .collect::<Result<Vec<ErgoBox>, SigmaSerializationError>>()?;
+        Ok(Transaction {
+            tx_id,
+            outputs,
+            ..tx_to_sign
+        })
     }
 
-    fn calc_tx_id(&self) -> TxId {
-        let bytes = self.bytes_to_sign();
-        TxId(blake2b256_hash(&bytes))
+    fn calc_tx_id(&self) -> Result<TxId, SigmaSerializationError> {
+        let bytes = self.bytes_to_sign()?;
+        Ok(TxId(blake2b256_hash(&bytes)))
     }
 
     /// Serialized tx with empty proofs
-    pub fn bytes_to_sign(&self) -> Vec<u8> {
+    pub fn bytes_to_sign(&self) -> Result<Vec<u8>, SigmaSerializationError> {
         let empty_proof_inputs = self.inputs.iter().map(|i| i.input_to_sign()).collect();
         let tx_to_sign = Transaction {
             inputs: empty_proof_inputs,
@@ -218,7 +223,7 @@ impl SigmaSerializable for Transaction {
             )?)
         }
 
-        Ok(Transaction::new(inputs, data_inputs, outputs))
+        Ok(Transaction::new(inputs, data_inputs, outputs)?)
     }
 }
 
@@ -229,7 +234,7 @@ impl From<Transaction> for json::transaction::TransactionJson {
             tx_id: v.tx_id.clone(),
             inputs: v.inputs.clone(),
             data_inputs: v.data_inputs.clone(),
-            outputs: v.outputs(),
+            outputs: v.outputs,
         }
     }
 }
@@ -241,6 +246,9 @@ pub enum TransactionFromJsonError {
     /// Tx id parsed from JSON differs from calculated from serialized bytes
     #[error("Tx id parsed from JSON differs from calculated from serialized bytes")]
     InvalidTxId,
+    /// Serialization failed (id calculation)
+    #[error("Serialization failed (id calculation)")]
+    SerializationError,
 }
 
 #[cfg(feature = "json")]
@@ -248,17 +256,8 @@ impl TryFrom<json::transaction::TransactionJson> for Transaction {
     type Error = TransactionFromJsonError;
     fn try_from(tx_json: json::transaction::TransactionJson) -> Result<Self, Self::Error> {
         let output_candidates = tx_json.outputs.iter().map(|o| o.clone().into()).collect();
-        let tx_to_sign = Transaction {
-            tx_id: TxId::zero(),
-            inputs: tx_json.inputs,
-            data_inputs: tx_json.data_inputs,
-            output_candidates,
-        };
-        let tx_id = tx_to_sign.calc_tx_id();
-        let tx = Transaction {
-            tx_id,
-            ..tx_to_sign
-        };
+        let tx = Transaction::new(tx_json.inputs, tx_json.data_inputs, output_candidates)
+            .map_err(|_| TransactionFromJsonError::SerializationError)?;
         if tx.tx_id == tx_json.tx_id {
             Ok(tx)
         } else {
@@ -285,7 +284,9 @@ pub mod tests {
                 vec(any::<DataInput>(), 0..10),
                 vec(any::<ErgoBoxCandidate>(), 1..10),
             )
-                .prop_map(|(inputs, data_inputs, outputs)| Self::new(inputs, data_inputs, outputs))
+                .prop_map(|(inputs, data_inputs, outputs)| {
+                    Self::new(inputs, data_inputs, outputs).unwrap()
+                })
                 .boxed()
         }
         type Strategy = BoxedStrategy<Self>;

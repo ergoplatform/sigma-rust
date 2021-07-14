@@ -28,10 +28,7 @@ pub fn bin_op_sigma_serialize<W: SigmaByteWrite>(
             }),
         ) => {
             OpCode::COLL_OF_BOOL_CONST.sigma_serialize(w)?;
-            let arr = [
-                l.try_extract_into::<bool>().unwrap(),
-                r.try_extract_into::<bool>().unwrap(),
-            ];
+            let arr = [l.try_extract_into::<bool>()?, r.try_extract_into::<bool>()?];
             w.put_bits(&arr)?;
             Ok(())
         }

@@ -1,6 +1,7 @@
 //! Transaction signing
 
 use ergotree_interpreter::sigma_protocol::prover::hint::HintsBag;
+use ergotree_ir::serialization::SigmaSerializationError;
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -34,6 +35,9 @@ pub enum TxSigningError {
     /// Context creation error
     #[error("Context error: {0}")]
     ContextError(String),
+    /// Tx serialization failed (id calculation)
+    #[error("Transaction serialization failed: {0}")]
+    SerializationError(#[from] SigmaSerializationError),
 }
 
 /// Transaction and an additional info required for signing
@@ -96,13 +100,13 @@ pub fn make_context(
         .get(self_index)
         .cloned()
         .ok_or_else(|| TxSigningError::ContextError("self_index is out of bounds".to_string()))?;
-    let outputs: Vec<ErgoBox> = tx_ctx
+    let outputs = tx_ctx
         .spending_tx
         .output_candidates
         .iter()
         .enumerate()
         .map(|(idx, b)| ErgoBox::from_box_candidate(b, tx_ctx.spending_tx.id(), idx as u16))
-        .collect();
+        .collect::<Result<Vec<ErgoBox>, SigmaSerializationError>>()?;
     let data_inputs: Vec<ErgoBox> = tx_ctx.data_boxes.clone();
     let self_box_ir = self_box.box_id().into();
     let outputs_ir = outputs.iter().map(|b| b.box_id().into()).collect();
@@ -137,7 +141,7 @@ pub fn sign_transaction(
     state_context: &ErgoStateContext,
 ) -> Result<Transaction, TxSigningError> {
     let tx = tx_context.spending_tx.clone();
-    let message_to_sign = tx.bytes_to_sign();
+    let message_to_sign = tx.bytes_to_sign()?;
     let mut signed_inputs: Vec<Input> = vec![];
     tx.inputs.iter().enumerate().try_for_each(|(idx, input)| {
         if let Some(input_box) = tx_context
@@ -167,7 +171,7 @@ pub fn sign_transaction(
         signed_inputs,
         tx.data_inputs,
         tx.output_candidates,
-    ))
+    )?)
 }
 
 #[cfg(test)]
@@ -193,6 +197,7 @@ mod tests {
     };
     use ergotree_ir::ergo_tree::ErgoTree;
     use ergotree_ir::mir::expr::Expr;
+    use std::convert::TryFrom;
     use std::rc::Rc;
 
     fn verify_tx_proofs(
@@ -200,7 +205,7 @@ mod tests {
         boxes_to_spend: &[ErgoBox],
     ) -> Result<bool, VerifierError> {
         let verifier = TestVerifier;
-        let message = tx.bytes_to_sign();
+        let message = tx.bytes_to_sign().unwrap();
         tx.inputs.iter().try_fold(true, |acc, input| {
             let b = boxes_to_spend
                 .iter()
@@ -225,14 +230,14 @@ mod tests {
         fn test_tx_signing(secrets in vec(any::<DlogProverInput>(), 3..10)) {
             let mut boxes_to_spend: Vec<ErgoBox> = secrets.iter().map(|secret|{
                 let pk = secret.public_image();
-                let tree = ErgoTree::from(Expr::Const(pk.into()));
+                let tree = ErgoTree::try_from(Expr::Const(pk.into())).unwrap();
                 ErgoBox::new(BoxValue::SAFE_USER_MIN,
                              tree,
                              vec![],
                              NonMandatoryRegisters::empty(),
                              0,
                              TxId::zero(),
-                             0)
+                             0).unwrap()
             }).collect();
             let prover = TestProver {
                 secrets: secrets.clone().into_iter().map(PrivateInput::DlogProverInput).collect(),
@@ -242,11 +247,11 @@ mod tests {
             // boxes_to_spend are in the different order to test inputs <-> boxes_to_spend association in the
             // prover (it should not depend on both of them to be in the same order)
             boxes_to_spend.shuffle(&mut rng);
-            let ergo_tree = ErgoTree::from(Expr::Const(secrets.get(0).unwrap().public_image().into()));
+            let ergo_tree = ErgoTree::try_from(Expr::Const(secrets.get(0).unwrap().public_image().into())).unwrap();
             let candidate = ErgoBoxCandidateBuilder::new(BoxValue::SAFE_USER_MIN, ergo_tree, 0)
                 .build().unwrap();
             let output_candidates = vec![candidate];
-            let tx = UnsignedTransaction::new(inputs, vec![], output_candidates);
+            let tx = UnsignedTransaction::new(inputs, vec![], output_candidates).unwrap();
             let tx_context = TransactionContext { spending_tx: tx,
                                                   boxes_to_spend: boxes_to_spend.clone(), data_boxes: vec![] };
             let res = sign_transaction(Box::new(prover).as_ref(), tx_context, &ErgoStateContext::dummy());
@@ -342,7 +347,7 @@ mod tests {
             "0e6acf3f18b95bdc5bb1b060baa1eafe53bd89fb08b0e86d6cc00fbdd9e43189",
             tx_id_str
         );
-        let message = tx.bytes_to_sign();
+        let message = tx.bytes_to_sign().unwrap();
         let verifier = TestVerifier;
         let ver_res = verifier.verify(
             &ergo_tree,

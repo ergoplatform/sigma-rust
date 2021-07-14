@@ -186,7 +186,7 @@ impl SType {
                         // Pair of types where first is primitive (`(_, Int)`)
                         (get_embeddable_type(prim_id)?, Self::sigma_parse(r)?)
                     };
-                    SType::STuple(vec![t1, t2].try_into().unwrap())
+                    STuple::pair(t1, t2).into()
                 }
                 TypeCode::TUPLE_PAIR2_CONSTR_ID => {
                     // (t1, _)
@@ -201,7 +201,7 @@ impl SType {
                         // Pair of types where second is primitive (`(Int, _)`)
                         let t2 = get_embeddable_type(prim_id)?;
                         let t1 = Self::sigma_parse(r)?;
-                        SType::STuple(vec![t1, t2].try_into().unwrap())
+                        STuple::pair(t1, t2).into()
                     }
                 }
                 TypeCode::TUPLE_PAIR_SYMMETRIC_TYPE_CONSTR_ID => {
@@ -217,7 +217,7 @@ impl SType {
                     } else {
                         // Symmetric pair of primitive types (`(Int, Int)`, `(Byte,Byte)`, etc.)
                         let t = get_embeddable_type(prim_id)?;
-                        SType::STuple(vec![t.clone(), t].try_into().unwrap())
+                        STuple::pair(t.clone(), t).into()
                     }
                 }
                 _ => {

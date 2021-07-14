@@ -53,7 +53,7 @@ impl SigmaSerializable for ContextExtension {
     }
 }
 
-// for JSON encoding in ergo-lib
+/// for JSON encoding in ergo-lib
 impl From<ContextExtension> for HashMap<String, String> {
     fn from(v: ContextExtension) -> Self {
         v.values
@@ -61,7 +61,9 @@ impl From<ContextExtension> for HashMap<String, String> {
             .map(|(k, v)| {
                 (
                     format!("{}", k),
-                    base16::encode_lower(&v.sigma_serialize_bytes()),
+                    // TODO: remove unwrap and handle error
+                    #[allow(clippy::unwrap_used)]
+                    base16::encode_lower(&v.sigma_serialize_bytes().unwrap()),
                 )
             })
             .collect()

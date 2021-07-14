@@ -30,10 +30,13 @@ use std::ops::{Add, Mul, Neg};
 #[derive(PartialEq, Clone)]
 pub struct EcPoint(ProjectivePoint);
 
+#[allow(clippy::unwrap_used)]
 impl std::fmt::Debug for EcPoint {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         f.write_str("EC:")?;
-        f.write_str(&base16::encode_lower(&self.sigma_serialize_bytes()))
+        f.write_str(&base16::encode_lower(
+            &self.sigma_serialize_bytes().unwrap(),
+        ))
     }
 }
 

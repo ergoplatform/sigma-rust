@@ -24,13 +24,13 @@ pub enum SigmaSerializationError {
     /// IO fail (EOF, etc.)
     #[error("IO error: {0}")]
     Io(String),
-    /// Feature not yet implemented
+    /// Serialization not yet implemented
     #[error("serialization not yet implemented: {0}")]
     NotImplementedYet(&'static str),
     /// Unexpected value type
-    #[error("Unexpected value type: {0:?}")]
-    TryExtractFrom(TryExtractFromError),
-    /// Feature not supported
+    #[error("Unexpected value: {0:?}")]
+    UnexpectedValue(TryExtractFromError),
+    /// Serialization not supported
     #[error("serialization not supported: {0}")]
     NotSupported(&'static str),
 }
@@ -43,7 +43,7 @@ impl From<io::Error> for SigmaSerializationError {
 
 impl From<TryExtractFromError> for SigmaSerializationError {
     fn from(e: TryExtractFromError) -> Self {
-        SigmaSerializationError::TryExtractFrom(e)
+        SigmaSerializationError::UnexpectedValue(e)
     }
 }
 
@@ -85,13 +85,16 @@ pub enum SigmaParsingError {
     ValDefIdNotFound(ValId),
     /// Invalid argument on node creation
     #[error("Invalid argument: {0:?}")]
-    InvalidArgument(InvalidArgumentError),
+    InvalidArgument(#[from] InvalidArgumentError),
     /// Unknown method ID for given type code
     #[error("No method id {0:?} found in type companion with type id {1:?} ")]
     UnknownMethodId(MethodId, TypeCode),
     /// Feature not supported
     #[error("parsing not supported: {0}")]
     NotSupported(&'static str),
+    /// Serialization error
+    #[error("serialization error: {0}")]
+    SerializationError(#[from] SigmaSerializationError),
 }
 
 impl From<io::Error> for SigmaParsingError {
@@ -103,12 +106,6 @@ impl From<io::Error> for SigmaParsingError {
 impl From<&io::Error> for SigmaParsingError {
     fn from(error: &io::Error) -> Self {
         SigmaParsingError::Io(error.to_string())
-    }
-}
-
-impl From<InvalidArgumentError> for SigmaParsingError {
-    fn from(e: InvalidArgumentError) -> Self {
-        SigmaParsingError::InvalidArgument(e)
     }
 }
 
@@ -141,14 +138,11 @@ pub trait SigmaSerializable: Sized {
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError>;
 
     /// Serialize any SigmaSerializable value into bytes
-    fn sigma_serialize_bytes(&self) -> Vec<u8> {
+    fn sigma_serialize_bytes(&self) -> Result<Vec<u8>, SigmaSerializationError> {
         let mut data = Vec::new();
         let mut w = SigmaByteWriter::new(&mut data, None);
-        #[allow(clippy::expect_used)]
-        self.sigma_serialize(&mut w)
-            // since serialization may fail only for underlying IO errors it's ok to force unwrap
-            .expect("serialization failed");
-        data
+        self.sigma_serialize(&mut w)?;
+        Ok(data)
     }
 
     /// Parse `self` from the bytes

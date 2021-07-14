@@ -98,7 +98,7 @@ impl Transaction {
 
     /// Returns ErgoBox's created from ErgoBoxCandidate's with tx id and indices
     pub fn outputs(&self) -> ErgoBoxes {
-        self.0.outputs().into()
+        self.0.outputs.clone().into()
     }
 }
 

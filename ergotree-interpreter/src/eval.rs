@@ -1,10 +1,12 @@
 //! Interpreter
 use std::rc::Rc;
 
+use ergotree_ir::ergo_tree::ErgoTreeError;
 use ergotree_ir::ir_ergo_box::IrErgoBoxArenaError;
 use ergotree_ir::mir::constant::TryExtractFromError;
 use ergotree_ir::mir::expr::Expr;
 use ergotree_ir::mir::value::Value;
+use ergotree_ir::serialization::SigmaSerializationError;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 
 use cost_accum::CostAccumulator;
@@ -114,6 +116,12 @@ pub enum EvalError {
     /// Misc error
     #[error("error: {0}")]
     Misc(String),
+    /// Sigma serialization error
+    #[error("Serialization error: {0}")]
+    SigmaSerializationError(#[from] SigmaSerializationError),
+    /// ErgoTree error
+    #[error("ErgoTree error: {0}")]
+    ErgoTreeError(#[from] ErgoTreeError),
 }
 
 /// Result of expression reduction procedure (see `reduce_to_crypto`).

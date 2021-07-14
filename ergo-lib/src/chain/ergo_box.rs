@@ -15,6 +15,7 @@ use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
 use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
 use ergotree_ir::serialization::SigmaParsingError;
 use ergotree_ir::serialization::SigmaSerializable;
+use ergotree_ir::serialization::SigmaSerializationError;
 use ergotree_ir::serialization::SigmaSerializeResult;
 use ergotree_ir::util::AsVecI8;
 pub use register::*;
@@ -100,7 +101,7 @@ impl ErgoBox {
         creation_height: u32,
         transaction_id: TxId,
         index: u16,
-    ) -> ErgoBox {
+    ) -> Result<ErgoBox, SigmaSerializationError> {
         let box_with_zero_id = ErgoBox {
             box_id: BoxId::zero(),
             value,
@@ -111,11 +112,11 @@ impl ErgoBox {
             transaction_id,
             index,
         };
-        let box_id = box_with_zero_id.calc_box_id();
-        ErgoBox {
+        let box_id = box_with_zero_id.calc_box_id()?;
+        Ok(ErgoBox {
             box_id,
             ..box_with_zero_id
-        }
+        })
     }
 
     /// Box id (Blake2b256 hash of serialized box)
@@ -129,7 +130,7 @@ impl ErgoBox {
         box_candidate: &ErgoBoxCandidate,
         transaction_id: TxId,
         index: u16,
-    ) -> ErgoBox {
+    ) -> Result<ErgoBox, SigmaSerializationError> {
         let box_with_zero_id = ErgoBox {
             box_id: BoxId::zero(),
             value: box_candidate.value,
@@ -140,16 +141,16 @@ impl ErgoBox {
             transaction_id,
             index,
         };
-        let box_id = box_with_zero_id.calc_box_id();
-        ErgoBox {
+        let box_id = box_with_zero_id.calc_box_id()?;
+        Ok(ErgoBox {
             box_id,
             ..box_with_zero_id
-        }
+        })
     }
 
-    fn calc_box_id(&self) -> BoxId {
-        let bytes = self.sigma_serialize_bytes();
-        blake2b256_hash(&bytes).into()
+    fn calc_box_id(&self) -> Result<BoxId, SigmaSerializationError> {
+        let bytes = self.sigma_serialize_bytes()?;
+        Ok(blake2b256_hash(&bytes).into())
     }
 
     /// Get register value
@@ -157,7 +158,7 @@ impl ErgoBox {
         match id {
             RegisterId::MandatoryRegisterId(id) => match id {
                 MandatoryRegisterId::R0 => Some(self.value.into()),
-                MandatoryRegisterId::R1 => Some(self.script_bytes().into()),
+                MandatoryRegisterId::R1 => Some(self.script_bytes().unwrap().into()),
                 MandatoryRegisterId::R2 => Some(self.tokens_raw().into()),
                 MandatoryRegisterId::R3 => Some(self.creation_info().into()),
             },
@@ -197,8 +198,8 @@ impl IrErgoBox for ErgoBox {
         self.creation_height as i32
     }
 
-    fn script_bytes(&self) -> Vec<i8> {
-        self.sigma_serialize_bytes().as_vec_i8()
+    fn script_bytes(&self) -> Result<Vec<i8>, SigmaSerializationError> {
+        Ok(self.sigma_serialize_bytes()?.as_vec_i8())
     }
 
     /// Tuple of height when block got included into the blockchain and transaction identifier with
@@ -306,6 +307,9 @@ pub enum ErgoBoxFromJsonError {
     /// Box id parsed from JSON differs from calculated from box serialized bytes
     #[error("Box id parsed from JSON differs from calculated from box serialized bytes")]
     InvalidBoxId,
+    /// Box serialization failed (id calculation)
+    #[error("Box serialization failed (id calculation): {0}")]
+    SerializationError(#[from] SigmaSerializationError),
 }
 
 #[cfg(feature = "json")]
@@ -322,7 +326,7 @@ impl TryFrom<json::ergo_box::ErgoBoxFromJson> for ErgoBox {
             transaction_id: box_json.transaction_id,
             index: box_json.index,
         };
-        let box_id = box_with_zero_id.calc_box_id();
+        let box_id = box_with_zero_id.calc_box_id()?;
         let ergo_box = ErgoBox {
             box_id,
             ..box_with_zero_id
@@ -342,7 +346,7 @@ impl TryFrom<json::ergo_box::ErgoBoxFromJson> for ErgoBox {
 
 impl SigmaSerializable for ErgoBox {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
-        let ergo_tree_bytes = self.ergo_tree.sigma_serialize_bytes();
+        let ergo_tree_bytes = self.ergo_tree.sigma_serialize_bytes()?;
         serialize_box_with_indexed_digests(
             &self.value,
             ergo_tree_bytes,
@@ -360,7 +364,7 @@ impl SigmaSerializable for ErgoBox {
         let box_candidate = ErgoBoxCandidate::parse_body_with_indexed_digests(None, r)?;
         let tx_id = TxId::sigma_parse(r)?;
         let index = r.get_u16()?;
-        Ok(ErgoBox::from_box_candidate(&box_candidate, tx_id, index))
+        Ok(ErgoBox::from_box_candidate(&box_candidate, tx_id, index)?)
     }
 }
 
@@ -399,7 +403,7 @@ impl ErgoBoxCandidate {
     ) -> SigmaSerializeResult {
         serialize_box_with_indexed_digests(
             &self.value,
-            self.ergo_tree.sigma_serialize_bytes(),
+            self.ergo_tree.sigma_serialize_bytes()?,
             &self.tokens,
             &self.additional_registers,
             self.creation_height,
@@ -578,7 +582,7 @@ mod tests {
                 any::<u16>(),
             )
                 .prop_map(|(box_candidate, tx_id, index)| {
-                    Self::from_box_candidate(&box_candidate, tx_id, index)
+                    Self::from_box_candidate(&box_candidate, tx_id, index).unwrap()
                 })
                 .boxed()
         }
@@ -620,7 +624,7 @@ mod tests {
         assert_eq!(b.get_register(RegisterId::R0).unwrap(), b.value.into());
         assert_eq!(
             b.get_register(RegisterId::R1).unwrap(),
-            b.script_bytes().into()
+            b.script_bytes().unwrap().into()
         );
         assert_eq!(
             b.get_register(RegisterId::R2).unwrap(),
