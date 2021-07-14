@@ -16,7 +16,7 @@ impl Evaluable for GlobalVars {
             GlobalVars::Outputs => Ok(ectx.ctx.outputs.clone().into()),
             GlobalVars::Inputs => Ok(ectx.ctx.inputs.clone().into()),
             GlobalVars::MinerPubKey => {
-                Ok(ectx.ctx.pre_header.miner_pk.sigma_serialize_bytes().into())
+                Ok(ectx.ctx.pre_header.miner_pk.sigma_serialize_bytes()?.into())
             }
             GlobalVars::GroupGenerator => Ok(dlog_group::generator().into()),
         }

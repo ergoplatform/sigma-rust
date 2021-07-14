@@ -32,13 +32,17 @@ impl ErgoTree {
             .map_err(|e| JsValue::from_str(&format!("{}", e)))
     }
     /// Encode Ergo tree as serialized bytes
-    pub fn to_bytes(&self) -> Vec<u8> {
-        self.0.sigma_serialize_bytes()
+    pub fn to_bytes(&self) -> Result<Vec<u8>, JsValue> {
+        self.0
+            .sigma_serialize_bytes()
+            .map_err(|e| JsValue::from_str(&format!("{}", e)))
     }
 
     /// Returns Base16-encoded serialized bytes
-    pub fn to_base16_bytes(&self) -> String {
-        self.0.to_base16_bytes()
+    pub fn to_base16_bytes(&self) -> Result<String, JsValue> {
+        self.0
+            .to_base16_bytes()
+            .map_err(|e| JsValue::from_str(&format!("{}", e)))
     }
 
     /// Returns constants number as stored in serialized ErgoTree or error if the parsing of

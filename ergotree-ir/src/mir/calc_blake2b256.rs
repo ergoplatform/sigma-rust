@@ -33,7 +33,7 @@ impl UnaryOp for CalcBlake2b256 {
 
 impl UnaryOpTryBuild for CalcBlake2b256 {
     fn try_build(input: Expr) -> Result<Self, InvalidArgumentError> {
-        input.check_post_eval_tpe(SType::SColl(Box::new(SType::SByte)))?;
+        input.check_post_eval_tpe(&SType::SColl(Box::new(SType::SByte)))?;
         Ok(CalcBlake2b256 {
             input: Box::new(input),
         })
@@ -67,6 +67,7 @@ mod arbitrary {
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::panic)]
 mod tests {
     use super::*;
     use crate::serialization::sigma_serialize_roundtrip;

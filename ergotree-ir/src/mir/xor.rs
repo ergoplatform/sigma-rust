@@ -4,8 +4,9 @@ use crate::has_opcode::HasStaticOpCode;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
-use crate::serialization::SerializationError;
+use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
+use crate::serialization::SigmaSerializeResult;
 use crate::types::stype::SType;
 
 /// Byte-wise XOR op on byte arrays
@@ -52,12 +53,12 @@ impl HasStaticOpCode for Xor {
 }
 
 impl SigmaSerializable for Xor {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         self.left.sigma_serialize(w)?;
         self.right.sigma_serialize(w)
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let left = Expr::sigma_parse(r)?;
         let right = Expr::sigma_parse(r)?;
         Ok(Xor::new(left, right)?)
@@ -94,6 +95,7 @@ mod arbitrary {
 }
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::panic)]
 mod tests {
     use super::*;
     use crate::mir::expr::Expr;

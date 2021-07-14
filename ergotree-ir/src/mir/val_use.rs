@@ -1,12 +1,11 @@
-use std::io;
-
 use super::val_def::ValId;
 use crate::has_opcode::HasStaticOpCode;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
-use crate::serialization::SerializationError;
+use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
+use crate::serialization::SigmaSerializeResult;
 use crate::types::stype::SType;
 
 /** Special node which represents a reference to ValDef in was introduced as result of CSE. */
@@ -23,16 +22,17 @@ impl HasStaticOpCode for ValUse {
 }
 
 impl SigmaSerializable for ValUse {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
-        self.val_id.sigma_serialize(w)
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
+        self.val_id.sigma_serialize(w)?;
+        Ok(())
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let val_id = ValId::sigma_parse(r)?;
         let tpe = r
             .val_def_type_store()
             .get(&val_id)
-            .ok_or(SerializationError::ValDefIdNotFound(val_id))?
+            .ok_or(SigmaParsingError::ValDefIdNotFound(val_id))?
             .clone();
         Ok(ValUse { val_id, tpe })
     }
@@ -40,6 +40,7 @@ impl SigmaSerializable for ValUse {
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::panic)]
 mod tests {
     use crate::mir::block::BlockValue;
     use crate::mir::expr::Expr;

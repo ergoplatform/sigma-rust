@@ -5,8 +5,7 @@ use std::collections::HashSet;
 use ergotree_interpreter::sigma_protocol;
 use ergotree_interpreter::sigma_protocol::prover::ProofBytes;
 use ergotree_ir::address::{Address, AddressEncoder, NetworkPrefix};
-use ergotree_ir::serialization::SerializationError;
-use ergotree_ir::serialization::SigmaSerializable;
+use ergotree_ir::serialization::{SigmaParsingError, SigmaSerializable, SigmaSerializationError};
 use thiserror::Error;
 
 use crate::chain::contract::Contract;
@@ -124,8 +123,8 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
                 )
             })
             .collect();
-        let signed_tx_mock = Transaction::new(inputs, tx.data_inputs, tx.output_candidates);
-        Ok(signed_tx_mock.sigma_serialize_bytes().len())
+        let signed_tx_mock = Transaction::new(inputs, tx.data_inputs, tx.output_candidates)?;
+        Ok(signed_tx_mock.sigma_serialize_bytes()?.len())
     }
 
     fn build_tx(&self) -> Result<UnsignedTransaction, TxBuilderError> {
@@ -230,7 +229,7 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
                 .collect(),
             self.data_inputs.clone(),
             output_candidates,
-        ))
+        )?)
     }
 
     /// Build the unsigned transaction
@@ -261,9 +260,9 @@ pub enum TxBuilderError {
     /// Box value error
     #[error("Box value error")]
     BoxValueError(#[from] BoxValueError),
-    /// Serialization error
-    #[error("Serialization error")]
-    SerializationError(#[from] SerializationError),
+    /// Parsing error
+    #[error("Parsing error: {0}")]
+    ParsingError(#[from] SigmaParsingError),
     /// Invalid arguments
     #[error("Invalid arguments: {0}")]
     InvalidArgs(String),
@@ -276,6 +275,9 @@ pub enum TxBuilderError {
     /// Not enough coins
     #[error("Not enough coins({0} nanoERGs are missing)")]
     NotEnoughCoins(u64),
+    /// Tx serialization failed (id calculation)
+    #[error("Transaction serialization failed: {0}")]
+    SerializationError(#[from] SigmaSerializationError),
 }
 
 #[cfg(test)]
@@ -363,7 +365,8 @@ mod tests {
             1,
             force_any_val::<TxId>(),
             0,
-        );
+        )
+        .unwrap();
         let inputs: Vec<ErgoBox> = vec![input_box];
         let tx_fee = BoxValue::SAFE_USER_MIN;
         let out_box_value = BoxValue::SAFE_USER_MIN;
@@ -404,7 +407,8 @@ mod tests {
             1,
             force_any_val::<TxId>(),
             0,
-        );
+        )
+        .unwrap();
         let token_pair = Token {
             token_id: TokenId::from(input_box.box_id()),
             amount: 1.try_into().unwrap(),
@@ -526,7 +530,8 @@ mod tests {
             1,
             force_any_val::<TxId>(),
             0,
-        );
+        )
+        .unwrap();
         let tx_fee = super::SUGGESTED_TX_FEE;
         let out_box_value = input.value.checked_sub(&tx_fee).unwrap();
         let box_builder =

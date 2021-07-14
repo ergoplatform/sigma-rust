@@ -15,28 +15,29 @@
 //!
 //! On the other hand, any group element can be mapped to some string.
 
+use crate::serialization::sigma_byte_writer::SigmaByteWrite;
+use crate::serialization::SigmaSerializeResult;
 use crate::serialization::{
-    sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
+    sigma_byte_reader::SigmaByteRead, SigmaParsingError, SigmaSerializable,
 };
 use k256::elliptic_curve::ff::PrimeField;
 use k256::elliptic_curve::sec1::ToEncodedPoint;
 use k256::{ProjectivePoint, PublicKey, Scalar};
 use num_bigint::{BigInt, Sign};
-use sigma_ser::vlq_encode;
 
-use std::{
-    io,
-    ops::{Add, Mul, Neg},
-};
+use std::ops::{Add, Mul, Neg};
 
 /// Elliptic curve point
 #[derive(PartialEq, Clone)]
 pub struct EcPoint(ProjectivePoint);
 
+#[allow(clippy::unwrap_used)]
 impl std::fmt::Debug for EcPoint {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         f.write_str("EC:")?;
-        f.write_str(&base16::encode_lower(&self.sigma_serialize_bytes()))
+        f.write_str(&base16::encode_lower(
+            &self.sigma_serialize_bytes().unwrap(),
+        ))
     }
 }
 
@@ -148,7 +149,7 @@ pub fn bigint_to_scalar(bi: BigInt) -> Option<Scalar> {
 }
 
 impl SigmaSerializable for EcPoint {
-    fn sigma_serialize<W: vlq_encode::WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         let caff = self.0.to_affine();
         if caff.is_identity().into() {
             // infinity point
@@ -160,12 +161,12 @@ impl SigmaSerializable for EcPoint {
         Ok(())
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let mut buf = [0; EcPoint::GROUP_SIZE];
         r.read_exact(&mut buf[..])?;
         if buf[0] != 0 {
             let pubkey = PublicKey::from_sec1_bytes(&buf[..]).map_err(|e| {
-                SerializationError::Misc(format!("failed to parse PK from bytes: {:?}", e))
+                SigmaParsingError::Misc(format!("failed to parse PK from bytes: {:?}", e))
             })?;
             Ok(EcPoint(pubkey.to_projective()))
         } else {
@@ -197,6 +198,7 @@ mod arbitrary {
 
 #[allow(clippy::unwrap_used)]
 #[cfg(test)]
+#[allow(clippy::panic)]
 mod tests {
     use super::*;
     use crate::mir::expr::Expr;

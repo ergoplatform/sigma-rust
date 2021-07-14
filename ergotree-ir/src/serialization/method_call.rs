@@ -1,5 +1,3 @@
-use std::io::Error;
-
 use crate::mir::expr::Expr;
 use crate::mir::method_call::MethodCall;
 use crate::types::smethod::MethodId;
@@ -8,11 +6,12 @@ use crate::types::smethod::SMethod;
 use super::sigma_byte_reader::SigmaByteRead;
 use super::sigma_byte_writer::SigmaByteWrite;
 use super::types::TypeCode;
-use super::SerializationError;
+use super::SigmaParsingError;
 use super::SigmaSerializable;
+use super::SigmaSerializeResult;
 
 impl SigmaSerializable for MethodCall {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         self.method.obj_type.type_id().sigma_serialize(w)?;
         self.method.method_id().sigma_serialize(w)?;
         self.obj.sigma_serialize(w)?;
@@ -20,7 +19,7 @@ impl SigmaSerializable for MethodCall {
         Ok(())
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let type_id = TypeCode::sigma_parse(r)?;
         let method_id = MethodId::sigma_parse(r)?;
         let obj = Expr::sigma_parse(r)?;

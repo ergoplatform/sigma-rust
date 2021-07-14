@@ -8,7 +8,7 @@ use super::EvalFn;
 
 pub(crate) static GET_ENCODED_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
     let encoded: Vec<u8> = match obj {
-        Value::GroupElement(ec_point) => Ok(ec_point.sigma_serialize_bytes()),
+        Value::GroupElement(ec_point) => Ok(ec_point.sigma_serialize_bytes()?),
         _ => Err(EvalError::UnexpectedValue(format!(
             "expected obj to be Value::GroupElement, got: {0:?}",
             obj
@@ -56,7 +56,7 @@ mod tests {
         let res: Vec<u8> = eval_out_wo_ctx::<Vec<u8>>(&expr);
         let roundtrip_res: EcPoint = SigmaSerializable::sigma_parse_bytes(&res).unwrap();
 
-        assert!(res.len() > 0);
+        assert!(!res.is_empty());
         assert_eq!(input, roundtrip_res)
     }
 

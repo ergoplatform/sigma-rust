@@ -1,8 +1,9 @@
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
-use crate::serialization::SerializationError;
+use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
+use crate::serialization::SigmaSerializeResult;
 use crate::types::stype::SType;
 
 use super::expr::Expr;
@@ -18,6 +19,8 @@ pub struct ByIndex {
     pub index: Box<Expr>,
     /// Default value, returned if index is out of bounds in "Coll.getOrElse()" op
     pub default: Option<Box<Expr>>,
+    /// Input collection element type
+    input_elem_tpe: SType,
 }
 
 impl ByIndex {
@@ -27,8 +30,8 @@ impl ByIndex {
         index: Expr,
         default: Option<Box<Expr>>,
     ) -> Result<Self, InvalidArgumentError> {
-        let input_elem_type: SType = *match input.post_eval_tpe() {
-            SType::SColl(elem_type) => Ok(elem_type),
+        let input_elem_type: SType = match input.post_eval_tpe() {
+            SType::SColl(elem_type) => Ok(*elem_type),
             _ => Err(InvalidArgumentError(format!(
                 "Expected ByIndex input to be SColl, got {0:?}",
                 input.tpe()
@@ -54,15 +57,13 @@ impl ByIndex {
             input: input.into(),
             index: index.into(),
             default,
+            input_elem_tpe: input_elem_type,
         })
     }
 
     /// Type
     pub fn tpe(&self) -> SType {
-        match self.input.post_eval_tpe() {
-            SType::SColl(elem_tpe) => *elem_tpe,
-            _ => panic!("collection is expected"),
-        }
+        self.input_elem_tpe.clone()
     }
 }
 
@@ -71,13 +72,13 @@ impl HasStaticOpCode for ByIndex {
 }
 
 impl SigmaSerializable for ByIndex {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         self.input.sigma_serialize(w)?;
         self.index.sigma_serialize(w)?;
         self.default.sigma_serialize(w)
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let input = Expr::sigma_parse(r)?;
         let index = Expr::sigma_parse(r)?;
         let default = Option::<Box<Expr>>::sigma_parse(r)?;
@@ -86,6 +87,7 @@ impl SigmaSerializable for ByIndex {
 }
 
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::unwrap_used)]
 /// Arbitrary impl
 mod arbitrary {
     use super::*;
@@ -115,11 +117,7 @@ mod arbitrary {
                     },
                 )),
             )
-                .prop_map(|(input, index, default)| Self {
-                    input: input.into(),
-                    index: index.into(),
-                    default,
-                })
+                .prop_map(|(input, index, default)| Self::new(input, index, default).unwrap())
                 .boxed()
         }
     }
@@ -127,6 +125,7 @@ mod arbitrary {
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::panic)]
 mod tests {
     use super::*;
     use crate::mir::expr::Expr;

@@ -1,8 +1,9 @@
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
-use crate::serialization::SerializationError;
+use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
+use crate::serialization::SigmaSerializeResult;
 use crate::types::stuple::STuple;
 use crate::types::stype::SType;
 
@@ -25,8 +26,8 @@ pub struct Fold {
 impl Fold {
     /// Create new object, returns an error if any of the requirements failed
     pub fn new(input: Expr, zero: Expr, fold_op: Expr) -> Result<Self, InvalidArgumentError> {
-        let input_elem_type: SType = *match input.post_eval_tpe() {
-            SType::SColl(elem_type) => Ok(elem_type),
+        let input_elem_type: SType = match input.post_eval_tpe() {
+            SType::SColl(elem_type) => Ok(*elem_type),
             _ => Err(InvalidArgumentError(format!(
                 "Expected Fold input to be SColl, got {0:?}",
                 input.tpe()
@@ -60,13 +61,13 @@ impl HasStaticOpCode for Fold {
 }
 
 impl SigmaSerializable for Fold {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         self.input.sigma_serialize(w)?;
         self.zero.sigma_serialize(w)?;
         self.fold_op.sigma_serialize(w)
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let input = Expr::sigma_parse(r)?.into();
         let zero = Expr::sigma_parse(r)?.into();
         let fold_op = Expr::sigma_parse(r)?.into();
@@ -80,6 +81,7 @@ impl SigmaSerializable for Fold {
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::panic)]
 mod tests {
     use super::*;
     use crate::mir::expr::Expr;

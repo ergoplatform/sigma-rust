@@ -33,7 +33,7 @@ impl UnaryOp for SigmaPropBytes {
 
 impl UnaryOpTryBuild for SigmaPropBytes {
     fn try_build(input: Expr) -> Result<Self, InvalidArgumentError> {
-        input.check_post_eval_tpe(SType::SSigmaProp)?;
+        input.check_post_eval_tpe(&SType::SSigmaProp)?;
         Ok(SigmaPropBytes {
             input: input.into(),
         })
@@ -42,6 +42,7 @@ impl UnaryOpTryBuild for SigmaPropBytes {
 
 #[cfg(feature = "arbitrary")]
 #[cfg(test)]
+#[allow(clippy::panic)]
 mod tests {
     use super::*;
     use crate::mir::constant::Constant;

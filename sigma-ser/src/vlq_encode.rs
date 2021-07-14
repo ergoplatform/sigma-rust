@@ -52,13 +52,15 @@ pub trait WriteSigmaVlqExt: io::Write {
         Self::put_u64(self, v as u64)
     }
 
-    /// Cast to u16 (with range check) and encode using VLQ
-    fn put_usize_as_u16(&mut self, v: usize) -> io::Result<()> {
+    /// Cast to u16 (panics if out of range) and encode using VLQ
+    fn put_usize_as_u16_unwrapped(&mut self, v: usize) -> io::Result<()> {
+        #[allow(clippy::unwrap_used)]
         Self::put_u16(self, u16::try_from(v).unwrap())
     }
 
-    /// Cast to u32 (with range check) and encode using VLQ
-    fn put_usize_as_u32(&mut self, v: usize) -> io::Result<()> {
+    /// Cast to u32 (panics if out of range) and encode using VLQ
+    fn put_usize_as_u32_unwrapped(&mut self, v: usize) -> io::Result<()> {
+        #[allow(clippy::unwrap_used)]
         Self::put_u32(self, u32::try_from(v).unwrap())
     }
 
@@ -201,7 +203,9 @@ pub trait ReadSigmaVlqExt: io::Read {
 /// Mark all types implementing `Read` as implementing the extension.
 impl<R: io::Read + ?Sized> ReadSigmaVlqExt for R {}
 
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
+#[allow(clippy::panic)]
 mod tests {
     // See corresponding test suite in
     // https://github.com/ScorexFoundation/scorex-util/blob/9adb6c68b8a1c00ec17730e6da11c2976a892ad8/src/test/scala/scorex/util/serialization/VLQReaderWriterSpecification.scala#L11

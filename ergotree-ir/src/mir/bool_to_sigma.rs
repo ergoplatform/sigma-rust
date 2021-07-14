@@ -37,7 +37,7 @@ impl UnaryOp for BoolToSigmaProp {
 
 impl UnaryOpTryBuild for BoolToSigmaProp {
     fn try_build(input: Expr) -> Result<Self, InvalidArgumentError> {
-        input.check_post_eval_tpe(SType::SBoolean)?;
+        input.check_post_eval_tpe(&SType::SBoolean)?;
         Ok(Self {
             input: input.into(),
         })
@@ -71,6 +71,7 @@ mod arbitrary {
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::panic)]
 mod tests {
 
     use crate::mir::expr::Expr;

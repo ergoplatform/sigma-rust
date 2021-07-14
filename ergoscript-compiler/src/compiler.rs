@@ -10,10 +10,12 @@ use crate::parser::parse_error::ParseError;
 use crate::script_env::ScriptEnv;
 use crate::type_infer::assign_type;
 use crate::type_infer::TypeInferenceError;
+use std::convert::TryInto;
 
 extern crate derive_more;
 use derive_more::From;
 use ergotree_ir::ergo_tree::ErgoTree;
+use ergotree_ir::ergo_tree::ErgoTreeError;
 use ergotree_ir::type_check::TypeCheckError;
 use mir::lower::MirLoweringError;
 
@@ -32,6 +34,8 @@ pub enum CompileError {
     MirLoweringError(MirLoweringError),
     /// Error on type checking
     TypeCheckError(TypeCheckError),
+    /// ErgoTree error
+    ErgoTreeError(ErgoTreeError),
 }
 
 impl CompileError {
@@ -46,6 +50,7 @@ impl CompileError {
             CompileError::TypeInferenceError(e) => e.pretty_desc(source),
             CompileError::MirLoweringError(e) => e.pretty_desc(source),
             CompileError::TypeCheckError(e) => e.pretty_desc(),
+            CompileError::ErgoTreeError(e) => format!("{:?}", e),
         }
     }
 }
@@ -67,7 +72,7 @@ pub fn compile_expr(
 /// Compiles given source code to [`ErgoTree`], or returns an error
 pub fn compile(source: &str, env: ScriptEnv) -> Result<ErgoTree, CompileError> {
     let expr = compile_expr(source, env)?;
-    Ok(expr.into())
+    Ok(expr.try_into()?)
 }
 
 pub(crate) fn compile_hir(source: &str) -> Result<hir::Expr, CompileError> {

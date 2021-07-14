@@ -2,11 +2,12 @@
 use ergotree_ir::mir::constant::Constant;
 use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
 use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
-use ergotree_ir::serialization::SerializationError;
+use ergotree_ir::serialization::SigmaParsingError;
 use ergotree_ir::serialization::SigmaSerializable;
+use ergotree_ir::serialization::SigmaSerializeResult;
 use indexmap::IndexMap;
 use std::collections::HashMap;
-use std::{convert::TryFrom, io};
+use std::convert::TryFrom;
 use thiserror::Error;
 
 /// User-defined variables to be put into context
@@ -26,7 +27,7 @@ impl ContextExtension {
 }
 
 impl SigmaSerializable for ContextExtension {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         w.put_u8(self.values.len() as u8)?;
         let mut sorted_values: Vec<(&u8, &Constant)> = self.values.iter().collect();
         // stable order is important for tx id generation
@@ -41,7 +42,7 @@ impl SigmaSerializable for ContextExtension {
         Ok(())
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let values_count = r.get_u8()?;
         let mut values: IndexMap<u8, Constant> = IndexMap::with_capacity(values_count as usize);
         for _ in 0..values_count {
@@ -49,21 +50,6 @@ impl SigmaSerializable for ContextExtension {
             values.insert(idx, Constant::sigma_parse(r)?);
         }
         Ok(ContextExtension { values })
-    }
-}
-
-// for JSON encoding in ergo-lib
-impl From<ContextExtension> for HashMap<String, String> {
-    fn from(v: ContextExtension) -> Self {
-        v.values
-            .into_iter()
-            .map(|(k, v)| {
-                (
-                    format!("{}", k),
-                    base16::encode_lower(&v.sigma_serialize_bytes()),
-                )
-            })
-            .collect()
     }
 }
 

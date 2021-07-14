@@ -5,8 +5,9 @@ use crate::has_opcode::HasStaticOpCode;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
-use crate::serialization::SerializationError;
+use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
+use crate::serialization::SigmaSerializeResult;
 use crate::types::stype::SType;
 
 /// Extract register of SELF box as `Coll[Byte]`, deserialize it into
@@ -32,13 +33,13 @@ impl HasStaticOpCode for DeserializeRegister {
 }
 
 impl SigmaSerializable for DeserializeRegister {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         w.put_u8(self.reg)?;
         self.tpe.sigma_serialize(w)?;
         self.default.sigma_serialize(w)
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let reg = r.get_u8()?;
         let tpe = SType::sigma_parse(r)?;
         let default = Option::<Box<Expr>>::sigma_parse(r)?;
@@ -80,6 +81,7 @@ mod arbitrary {
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::panic)]
 mod tests {
     use crate::mir::expr::Expr;
     use crate::serialization::sigma_serialize_roundtrip;

@@ -65,7 +65,9 @@ pub(crate) struct GroupSizedBytes(pub(crate) Box<[u8; GROUP_SIZE]>);
 impl From<GroupSizedBytes> for Scalar {
     fn from(b: GroupSizedBytes) -> Self {
         let sl: &[u8] = b.0.as_ref();
-        Scalar::from_bytes_reduced(sl.try_into().expect(""))
+        #[allow(clippy::unwrap_used)]
+        // since it's 32 bytes it's safe to unwrap
+        Scalar::from_bytes_reduced(sl.try_into().unwrap())
     }
 }
 

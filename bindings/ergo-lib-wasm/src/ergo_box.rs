@@ -114,7 +114,7 @@ impl ErgoBox {
         tx_id: &TxId,
         index: u16,
         tokens: &Tokens,
-    ) -> ErgoBox {
+    ) -> Result<ErgoBox, JsValue> {
         let chain_contract: chain::contract::Contract = contract.clone().into();
         let b = chain::ergo_box::ErgoBox::new(
             value.0,
@@ -124,8 +124,9 @@ impl ErgoBox {
             creation_height,
             tx_id.clone().into(),
             index,
-        );
-        ErgoBox(b)
+        )
+        .map_err(|e| JsValue::from_str(&format!("{}", e)))?;
+        Ok(ErgoBox(b))
     }
 
     /// Get box id

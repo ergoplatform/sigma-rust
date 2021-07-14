@@ -16,7 +16,6 @@ use crate::sigma_protocol::sigma_boolean::SigmaProp;
 
 use super::sfunc::SFunc;
 use super::stuple::STuple;
-use super::stype_companion::STypeCompanion;
 use super::stype_param::STypeVar;
 
 /// Every type descriptor is a tree represented by nodes in SType hierarchy.
@@ -68,7 +67,7 @@ impl SType {
     /// Type code used in serialization of SType values.
     pub fn type_code(&self) -> TypeCode {
         match self {
-            SType::SFunc(_) => todo!(),
+            SType::SFunc(_) => TypeCode::FIRST_FUNC_TYPE,
             SType::SAny => TypeCode::SANY,
             SType::SBoolean => TypeCode::SBOOLEAN,
             SType::SByte => TypeCode::SBYTE,
@@ -89,11 +88,6 @@ impl SType {
             SType::SPreHeader => TypeCode::SPRE_HEADER,
             SType::SGlobal => TypeCode::SGLOBAL,
         }
-    }
-
-    /// Get STypeCompanion instance associated with this SType
-    pub fn type_companion(&self) -> Option<Box<STypeCompanion>> {
-        todo!()
     }
 
     /// Check if type is numeric

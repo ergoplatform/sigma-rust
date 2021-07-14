@@ -6,6 +6,7 @@ use ergotree_ir::ir_ergo_box::IrErgoBox;
 use ergotree_ir::ir_ergo_box::IrErgoBoxArena;
 use ergotree_ir::ir_ergo_box::IrErgoBoxArenaError;
 use ergotree_ir::mir::constant::Constant;
+use ergotree_ir::serialization::SigmaSerializationError;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub(crate) struct IrErgoBoxDummyArena(pub HashMap<IrBoxId, IrErgoBoxDummy>);
@@ -62,8 +63,8 @@ impl IrErgoBox for IrErgoBoxDummy {
         self.creation_height
     }
 
-    fn script_bytes(&self) -> Vec<i8> {
-        self.script_bytes.clone()
+    fn script_bytes(&self) -> Result<Vec<i8>, SigmaSerializationError> {
+        Ok(self.script_bytes.clone())
     }
 
     fn creation_info(&self) -> (i32, Vec<i8>) {
@@ -135,7 +136,7 @@ mod tests {
     fn get_register() {
         let b = force_any_val::<IrErgoBoxDummy>();
         assert_eq!(b.get_register(0).unwrap(), b.value().into());
-        assert_eq!(b.get_register(1).unwrap(), b.script_bytes().into());
+        assert_eq!(b.get_register(1).unwrap(), b.script_bytes().unwrap().into());
         assert_eq!(b.get_register(2).unwrap(), b.tokens_raw().into());
         assert_eq!(b.get_register(3).unwrap(), b.creation_info().into());
     }

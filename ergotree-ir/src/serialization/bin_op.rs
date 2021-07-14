@@ -1,5 +1,3 @@
-use std::io::Error;
-
 use crate::mir::bin_op::BinOp;
 use crate::mir::bin_op::BinOpKind;
 use crate::mir::constant::Constant;
@@ -10,10 +8,14 @@ use crate::types::stype::SType;
 use super::op_code::OpCode;
 use super::sigma_byte_reader::SigmaByteRead;
 use super::sigma_byte_writer::SigmaByteWrite;
-use super::SerializationError;
+use super::SigmaParsingError;
 use super::SigmaSerializable;
+use super::SigmaSerializeResult;
 
-pub fn bin_op_sigma_serialize<W: SigmaByteWrite>(bin_op: &BinOp, w: &mut W) -> Result<(), Error> {
+pub fn bin_op_sigma_serialize<W: SigmaByteWrite>(
+    bin_op: &BinOp,
+    w: &mut W,
+) -> SigmaSerializeResult {
     match (*bin_op.clone().left, *bin_op.clone().right) {
         (
             Expr::Const(Constant {
@@ -26,12 +28,9 @@ pub fn bin_op_sigma_serialize<W: SigmaByteWrite>(bin_op: &BinOp, w: &mut W) -> R
             }),
         ) => {
             OpCode::COLL_OF_BOOL_CONST.sigma_serialize(w)?;
-            #[allow(clippy::unwrap_used)]
-            let arr = [
-                l.try_extract_into::<bool>().unwrap(),
-                r.try_extract_into::<bool>().unwrap(),
-            ];
-            w.put_bits(&arr)
+            let arr = [l.try_extract_into::<bool>()?, r.try_extract_into::<bool>()?];
+            w.put_bits(&arr)?;
+            Ok(())
         }
         _ => {
             bin_op.left.sigma_serialize(w)?;
@@ -43,7 +42,7 @@ pub fn bin_op_sigma_serialize<W: SigmaByteWrite>(bin_op: &BinOp, w: &mut W) -> R
 pub fn bin_op_sigma_parse<R: SigmaByteRead>(
     op_kind: BinOpKind,
     r: &mut R,
-) -> Result<Expr, SerializationError> {
+) -> Result<Expr, SigmaParsingError> {
     let tag = r.get_u8()?;
     Ok(if tag == OpCode::COLL_OF_BOOL_CONST.value() {
         let bools = r.get_bits(2)?;
@@ -67,6 +66,7 @@ pub fn bin_op_sigma_parse<R: SigmaByteRead>(
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::panic)]
 mod proptests {
     use super::*;
     use crate::mir::expr::arbitrary::ArbExprParams;

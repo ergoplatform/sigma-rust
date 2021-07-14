@@ -1,11 +1,12 @@
 //! Address types
 
 use crate::ergo_tree::ErgoTree;
-use crate::ergo_tree::ErgoTreeParsingError;
+use crate::ergo_tree::ErgoTreeError;
 use crate::mir::constant::Constant;
 use crate::mir::expr::Expr;
-use crate::serialization::SerializationError;
+use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
+use crate::serialization::SigmaSerializationError;
 use crate::sigma_protocol::dlog_group::EcPoint;
 use crate::sigma_protocol::sigma_boolean::ProveDlog;
 use crate::sigma_protocol::sigma_boolean::SigmaBoolean;
@@ -70,7 +71,7 @@ pub enum Address {
 
 impl Address {
     /// Create a P2PK address from serialized PK bytes(EcPoint/GroupElement)
-    pub fn p2pk_from_pk_bytes(bytes: &[u8]) -> Result<Address, SerializationError> {
+    pub fn p2pk_from_pk_bytes(bytes: &[u8]) -> Result<Address, SigmaParsingError> {
         EcPoint::sigma_parse_bytes(bytes)
             .map(ProveDlog::from)
             .map(Address::P2Pk)
@@ -87,12 +88,13 @@ impl Address {
                 Expr::Const(Constant {
                     tpe: SType::SSigmaProp,
                     v,
-                }) => ProveDlog::try_from(v.clone())
-                    .map(Address::P2Pk)
-                    .unwrap_or_else(|_| Address::P2S(tree.sigma_serialize_bytes())),
-                _ => Address::P2S(tree.sigma_serialize_bytes()),
+                }) => match ProveDlog::try_from(v.clone()).map(Address::P2Pk) {
+                    Ok(p2pk) => p2pk,
+                    Err(_) => Address::P2S(tree.sigma_serialize_bytes()?),
+                },
+                _ => Address::P2S(tree.sigma_serialize_bytes()?),
             }),
-            Err(_) => Ok(Address::P2S(tree.sigma_serialize_bytes())),
+            Err(_) => Ok(Address::P2S(tree.sigma_serialize_bytes()?)),
         }
     }
 
@@ -108,20 +110,29 @@ impl Address {
     /// byte array
     pub fn content_bytes(&self) -> Vec<u8> {
         match self {
-            Address::P2Pk(prove_dlog) => prove_dlog.h.sigma_serialize_bytes(),
+            Address::P2Pk(prove_dlog) => {
+                #[allow(clippy::unwrap_used)]
+                // Since ProveDlog is a simple IR node we can be sure no other errors besides OOM could be here
+                prove_dlog.h.sigma_serialize_bytes().unwrap()
+            }
             Address::P2S(bytes) => bytes.clone(),
         }
     }
 
     /// script encoded in the address
-    pub fn script(&self) -> Result<ErgoTree, SerializationError> {
+    pub fn script(&self) -> Result<ErgoTree, SigmaParsingError> {
         match self {
-            Address::P2Pk(prove_dlog) => Ok(ErgoTree::from(Expr::Const(
-                SigmaProp::new(SigmaBoolean::ProofOfKnowledge(
-                    SigmaProofOfKnowledgeTree::ProveDlog(prove_dlog.clone()),
+            Address::P2Pk(prove_dlog) => {
+                #[allow(clippy::unwrap_used)]
+                // Since ProveDlog is a simple IR node we can be sure no other errors besides OOM could be here
+                Ok(ErgoTree::try_from(Expr::Const(
+                    SigmaProp::new(SigmaBoolean::ProofOfKnowledge(
+                        SigmaProofOfKnowledgeTree::ProveDlog(prove_dlog.clone()),
+                    ))
+                    .into(),
                 ))
-                .into(),
-            ))),
+                .unwrap())
+            }
             Address::P2S(bytes) => ErgoTree::sigma_parse_bytes(bytes),
         }
     }
@@ -167,8 +178,14 @@ pub enum AddressError {
     #[error("Unexpected ErgoTree: {0:?}, \n reason: {1}")]
     UnexpectedErgoTree(ErgoTree, String),
     /// ErgoTree parsing error
-    #[error("ErgoTree parsing error: {0}")]
-    ErgoTreeParsingError(#[from] ErgoTreeParsingError),
+    #[error("ErgoTree error: {0}")]
+    ErgoTreeError(#[from] ErgoTreeError),
+}
+
+impl From<SigmaSerializationError> for AddressError {
+    fn from(e: SigmaSerializationError) -> Self {
+        ErgoTreeError::RootSerializationError(e).into()
+    }
 }
 
 /// Address types
@@ -176,7 +193,7 @@ pub enum AddressTypePrefix {
     /// 0x01 - Pay-to-PublicKey(P2PK) address
     P2Pk = 1,
     /// 0x02 - Pay-to-Script-Hash(P2SH)
-    Pay2Sh = 2,
+    // Pay2Sh = 2,
     /// 0x03 - Pay-to-Script(P2S)
     Pay2S = 3,
 }
@@ -186,7 +203,7 @@ impl TryFrom<u8> for AddressTypePrefix {
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             v if v == AddressTypePrefix::P2Pk as u8 => Ok(AddressTypePrefix::P2Pk),
-            v if v == AddressTypePrefix::Pay2Sh as u8 => Ok(AddressTypePrefix::Pay2Sh),
+            // v if v == AddressTypePrefix::Pay2Sh as u8 => Ok(AddressTypePrefix::Pay2Sh),
             v if v == AddressTypePrefix::Pay2S as u8 => Ok(AddressTypePrefix::Pay2S),
             v => Err(AddressEncoderError::InvalidAddressType(v)),
         }
@@ -240,7 +257,7 @@ pub enum AddressEncoderError {
 
     /// deserialization failed
     #[error("deserialization failed {0}")]
-    DeserializationFailed(SerializationError),
+    DeserializationFailed(SigmaParsingError),
 }
 
 impl From<bs58::decode::Error> for AddressEncoderError {
@@ -249,8 +266,8 @@ impl From<bs58::decode::Error> for AddressEncoderError {
     }
 }
 
-impl From<SerializationError> for AddressEncoderError {
-    fn from(err: SerializationError) -> Self {
+impl From<SigmaParsingError> for AddressEncoderError {
+    fn from(err: SigmaParsingError) -> Self {
         AddressEncoderError::DeserializationFailed(err)
     }
 }
@@ -365,7 +382,7 @@ impl AddressEncoder {
                 Address::P2Pk(ProveDlog::new(EcPoint::sigma_parse_bytes(&content_bytes)?))
             }
             AddressTypePrefix::Pay2S => Address::P2S(content_bytes),
-            AddressTypePrefix::Pay2Sh => todo!(),
+            // AddressTypePrefix::Pay2Sh => todo!(""),
         })
     }
 
@@ -410,7 +427,7 @@ pub(crate) mod arbitrary {
             prop_oneof![
                 any::<ErgoTree>().prop_map(|t| match ProveDlog::try_from(t.clone()) {
                     Ok(dlog) => Address::P2Pk(dlog),
-                    Err(_) => Address::P2S(t.sigma_serialize_bytes()),
+                    Err(_) => Address::P2S(t.sigma_serialize_bytes().unwrap()),
                 }),
                 Just(Address::P2S(base16::decode(non_parseable_tree).unwrap()))
             ]
@@ -421,6 +438,7 @@ pub(crate) mod arbitrary {
 
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
+#[allow(clippy::panic)]
 mod tests {
 
     use super::*;

@@ -8,7 +8,10 @@ pub fn serialize<S>(ergo_tree: &ErgoTree, serializer: S) -> Result<S::Ok, S::Err
 where
     S: Serializer,
 {
-    let bytes = ergo_tree.sigma_serialize_bytes();
+    use serde::ser::Error;
+    let bytes = ergo_tree
+        .sigma_serialize_bytes()
+        .map_err(|err| Error::custom(err.to_string()))?;
     serialize_bytes(&bytes[..], serializer)
 }
 

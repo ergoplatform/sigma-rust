@@ -3,8 +3,6 @@
 use std::convert::TryFrom;
 use std::convert::TryInto;
 
-use crate::has_opcode::HasOpCode;
-use crate::serialization::op_code::OpCode;
 use crate::types::stype::LiftIntoSType;
 use crate::types::stype::SType;
 
@@ -73,6 +71,7 @@ use crate::mir::get_var::GetVar;
 use bounded_vec::BoundedVecOutOfBounds;
 use derive_more::From;
 use derive_more::TryInto;
+use thiserror::Error;
 
 #[derive(PartialEq, Eq, Debug, Clone, From, TryInto)]
 /// Expression in ErgoTree
@@ -204,71 +203,6 @@ pub enum Expr {
 }
 
 impl Expr {
-    /// Code (used in serialization)
-    pub(crate) fn op_code(&self) -> OpCode {
-        match self {
-            Expr::Append(op) => op.op_code(),
-            Expr::Const(_) => panic!("constant does not have op code assigned"),
-            Expr::ConstPlaceholder(op) => op.op_code(),
-            Expr::SubstConstants(op) => op.op_code(),
-            Expr::ByteArrayToLong(op) => op.op_code(),
-            Expr::ByteArrayToBigInt(op) => op.op_code(),
-            Expr::LongToByteArray(op) => op.op_code(),
-            Expr::Collection(op) => op.op_code(),
-            Expr::GlobalVars(op) => op.op_code(),
-            Expr::MethodCall(op) => op.op_code(),
-            Expr::ProperyCall(op) => op.op_code(),
-            Expr::Global => OpCode::GLOBAL,
-            Expr::Context => OpCode::CONTEXT,
-            Expr::OptionGet(op) => op.op_code(),
-            Expr::ExtractRegisterAs(op) => op.op_code(),
-            Expr::BinOp(op) => op.op_code(),
-            Expr::BlockValue(op) => op.op_code(),
-            Expr::ValUse(op) => op.op_code(),
-            Expr::FuncValue(op) => op.op_code(),
-            Expr::Apply(op) => op.op_code(),
-            Expr::ValDef(op) => op.op_code(),
-            Expr::ExtractAmount(op) => op.op_code(),
-            Expr::SelectField(op) => op.op_code(),
-            Expr::Fold(op) => op.op_code(),
-            Expr::CalcBlake2b256(op) => op.op_code(),
-            Expr::CalcSha256(op) => op.op_code(),
-            Expr::And(op) => op.op_code(),
-            Expr::Or(op) => op.op_code(),
-            Expr::Xor(op) => op.op_code(),
-            Expr::Atleast(op) => op.op_code(),
-            Expr::LogicalNot(op) => op.op_code(),
-            Expr::Map(op) => op.op_code(),
-            Expr::Filter(op) => op.op_code(),
-            Expr::BoolToSigmaProp(op) => op.op_code(),
-            Expr::Upcast(op) => op.op_code(),
-            Expr::If(op) => op.op_code(),
-            Expr::ByIndex(op) => op.op_code(),
-            Expr::ExtractScriptBytes(op) => op.op_code(),
-            Expr::SizeOf(op) => op.op_code(),
-            Expr::Slice(op) => op.op_code(),
-            Expr::CreateProveDlog(op) => op.op_code(),
-            Expr::CreateProveDhTuple(op) => op.op_code(),
-            Expr::ExtractCreationInfo(op) => op.op_code(),
-            Expr::Exists(op) => op.op_code(),
-            Expr::ExtractId(op) => op.op_code(),
-            Expr::SigmaPropBytes(op) => op.op_code(),
-            Expr::OptionIsDefined(op) => op.op_code(),
-            Expr::OptionGetOrElse(op) => op.op_code(),
-            Expr::Negation(op) => op.op_code(),
-            Expr::ForAll(op) => op.op_code(),
-            Expr::Tuple(op) => op.op_code(),
-            Expr::DecodePoint(op) => op.op_code(),
-            Expr::SigmaAnd(op) => op.op_code(),
-            Expr::SigmaOr(op) => op.op_code(),
-            Expr::GetVar(op) => op.op_code(),
-            Expr::DeserializeRegister(op) => op.op_code(),
-            Expr::DeserializeContext(op) => op.op_code(),
-            Expr::MultiplyGroup(op) => op.op_code(),
-            Expr::Exponentiate(op) => op.op_code(),
-        }
-    }
-
     /// Type of the expression
     pub fn tpe(&self) -> SType {
         match self {
@@ -343,9 +277,12 @@ impl Expr {
     }
 
     /// Check if given expected_tpe type is the same as the expression's post-evaluation type
-    pub fn check_post_eval_tpe(&self, expected_tpe: SType) -> Result<(), InvalidExprEvalTypeError> {
+    pub fn check_post_eval_tpe(
+        &self,
+        expected_tpe: &SType,
+    ) -> Result<(), InvalidExprEvalTypeError> {
         let expr_tpe = self.post_eval_tpe();
-        if expr_tpe == expected_tpe {
+        if &expr_tpe == expected_tpe {
             Ok(())
         } else {
             Err(InvalidExprEvalTypeError(format!(
@@ -372,7 +309,8 @@ impl<T: Into<Value> + LiftIntoSType> From<T> for Expr {
 }
 
 /// Unexpected argument on node construction (i.e non-Option input in OptionGet)
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(Error, PartialEq, Eq, Debug, Clone)]
+#[error("InvalidArgumentError: {0}")]
 pub struct InvalidArgumentError(pub String);
 
 /// Invalid (unexpected) expr type
@@ -406,6 +344,8 @@ impl<T: TryFrom<Expr>> TryExtractFrom<Expr> for T {
 
 #[cfg(feature = "arbitrary")]
 #[allow(clippy::unwrap_used)]
+#[allow(clippy::panic)]
+#[allow(clippy::todo)]
 /// Arbitrary impl
 pub(crate) mod arbitrary {
     use super::*;

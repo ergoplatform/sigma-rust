@@ -5,8 +5,9 @@ use std::convert::TryInto;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
-use crate::serialization::SerializationError;
+use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
+use crate::serialization::SigmaSerializeResult;
 use crate::sigma_protocol::sigma_boolean::SigmaConjectureItems;
 use crate::types::stype::SType;
 
@@ -55,17 +56,18 @@ impl HasStaticOpCode for SigmaAnd {
 }
 
 impl SigmaSerializable for SigmaAnd {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         self.items.sigma_serialize(w)
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         Ok(Self::new(Vec::<Expr>::sigma_parse(r)?)?)
     }
 }
 
 /// Arbitrary impl
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::unwrap_used)]
 mod arbitrary {
     use super::*;
     use crate::mir::constant::Constant;
@@ -76,7 +78,6 @@ mod arbitrary {
         type Strategy = BoxedStrategy<Self>;
         type Parameters = ();
 
-        #[allow(clippy::unwrap_used)]
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             vec(any_with::<Constant>(SType::SSigmaProp.into()), 2..5)
                 .prop_map(|constants| Self {
@@ -93,6 +94,7 @@ mod arbitrary {
 }
 
 #[cfg(test)]
+#[allow(clippy::panic)]
 mod tests {
     use super::*;
     use crate::mir::expr::Expr;

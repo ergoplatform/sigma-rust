@@ -1,18 +1,42 @@
 use ergotree_interpreter::sigma_protocol::prover::ContextExtension;
-use ergotree_ir::mir::constant::Constant;
+use ergotree_ir::{mir::constant::Constant, serialization::SigmaSerializable};
 use indexmap::IndexMap;
-use serde::{Deserialize, Serialize};
+use serde::{ser::SerializeMap, Deserialize, Serialize};
 use std::collections::HashMap;
 
 #[cfg_attr(
     feature = "json",
-    derive(Serialize, Deserialize),
-    serde(into = "HashMap<String, String>", try_from = "HashMap<String, String>"),
+    derive(Deserialize),
+    serde(try_from = "HashMap<String, String>"),
     serde(remote = "ContextExtension")
 )]
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub(crate) struct ContextExtensionSerde {
     values: IndexMap<u8, Constant>,
+}
+
+#[cfg(feature = "json")]
+impl Serialize for ContextExtensionSerde {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::Error;
+        let mut map = serializer.serialize_map(Some(self.values.len()))?;
+        for (k, v) in &self.values {
+            map.serialize_entry(
+                &format!("{}", k),
+                &base16::encode_lower(&v.sigma_serialize_bytes().map_err(Error::custom)?),
+            )?;
+        }
+        map.end()
+    }
+}
+
+impl From<ContextExtension> for ContextExtensionSerde {
+    fn from(ce: ContextExtension) -> Self {
+        ContextExtensionSerde { values: ce.values }
+    }
 }
 
 #[cfg(test)]

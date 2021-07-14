@@ -1,7 +1,8 @@
+use super::SigmaSerializeResult;
 use super::{op_code::OpCode, sigma_byte_writer::SigmaByteWrite};
-use crate::has_opcode::HasOpCode;
+use crate::has_opcode::{HasOpCode, HasStaticOpCode};
 use crate::serialization::{
-    sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
+    sigma_byte_reader::SigmaByteRead, SigmaParsingError, SigmaSerializable,
 };
 use crate::sigma_protocol::{
     dlog_group::EcPoint,
@@ -9,10 +10,10 @@ use crate::sigma_protocol::{
 };
 
 use crate::sigma_protocol::sigma_boolean::cthreshold::Cthreshold;
-use std::io;
 
+#[allow(clippy::todo)] // until https://github.com/ergoplatform/sigma-rust/issues/338 is implemented
 impl SigmaSerializable for SigmaBoolean {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         self.op_code().sigma_serialize(w)?;
         match self {
             SigmaBoolean::ProofOfKnowledge(proof) => match proof {
@@ -28,13 +29,13 @@ impl SigmaSerializable for SigmaBoolean {
         }
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let op_code = OpCode::sigma_parse(r)?;
         match op_code {
-            OpCode::PROVE_DLOG => Ok(SigmaBoolean::ProofOfKnowledge(
+            ProveDlog::OP_CODE => Ok(SigmaBoolean::ProofOfKnowledge(
                 SigmaProofOfKnowledgeTree::ProveDlog(ProveDlog::sigma_parse(r)?),
             )),
-            OpCode::ATLEAST => {
+            Cthreshold::OP_CODE => {
                 let c = Cthreshold::sigma_parse(r)?;
                 Ok(SigmaBoolean::SigmaConjecture(SigmaConjecture::Cthreshold(
                     c,
@@ -46,11 +47,11 @@ impl SigmaSerializable for SigmaBoolean {
 }
 
 impl SigmaSerializable for ProveDlog {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         self.h.sigma_serialize(w)
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let p = EcPoint::sigma_parse(r)?;
         Ok(ProveDlog::new(p))
     }

@@ -10,7 +10,7 @@ impl Evaluable for SigmaPropBytes {
     fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
         let input_v = self.input.eval(env, ctx)?;
         match input_v {
-            Value::SigmaProp(sigma_prop) => Ok(sigma_prop.prop_bytes().into()),
+            Value::SigmaProp(sigma_prop) => Ok(sigma_prop.prop_bytes()?.into()),
             _ => Err(EvalError::UnexpectedValue(format!(
                 "Expected SigmaPropBytes input to be Value::SigmaProp, got {0:?}",
                 input_v
@@ -21,6 +21,7 @@ impl Evaluable for SigmaPropBytes {
 
 #[cfg(feature = "arbitrary")]
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use crate::eval::tests::eval_out_wo_ctx;
@@ -35,7 +36,7 @@ mod tests {
 
         #[test]
         fn eval(v in any::<SigmaProp>()) {
-            let expected_bytes = v.prop_bytes();
+            let expected_bytes = v.prop_bytes().unwrap();
             let input: Constant = v.into();
             let e: Expr = SigmaPropBytes {
                 input: Box::new(input.into()),

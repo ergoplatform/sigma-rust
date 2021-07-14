@@ -4,8 +4,9 @@ use crate::has_opcode::HasStaticOpCode;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
-use crate::serialization::SerializationError;
+use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
+use crate::serialization::SigmaSerializeResult;
 use crate::types::stype::SType;
 
 /// Returns the Option's value or error if no value
@@ -15,17 +16,20 @@ pub struct OptionGetOrElse {
     pub input: Box<Expr>,
     /// Default value if option is empty
     pub default: Box<Expr>,
+    /// Option element type
+    elem_tpe: SType,
 }
 
 impl OptionGetOrElse {
     /// Create new object, returns an error if any of the requirements failed
     pub fn new(input: Expr, default: Expr) -> Result<Self, InvalidArgumentError> {
         match input.post_eval_tpe() {
-            SType::SOption(elem_type) => {
-                default.check_post_eval_tpe(*elem_type)?;
+            SType::SOption(elem_tpe) => {
+                default.check_post_eval_tpe(elem_tpe.as_ref())?;
                 Ok(OptionGetOrElse {
                     input: Box::new(input),
                     default: Box::new(default),
+                    elem_tpe: *elem_tpe,
                 })
             }
             _ => Err(InvalidArgumentError(format!(
@@ -37,13 +41,7 @@ impl OptionGetOrElse {
 
     /// Type
     pub fn tpe(&self) -> SType {
-        match self.input.tpe() {
-            SType::SOption(o) => *o,
-            _ => panic!(
-                "expected OptionGetOrElse::input type to be SOption, got: {0:?}",
-                self.input.tpe()
-            ),
-        }
+        self.elem_tpe.clone()
     }
 }
 
@@ -52,12 +50,12 @@ impl HasStaticOpCode for OptionGetOrElse {
 }
 
 impl SigmaSerializable for OptionGetOrElse {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         self.input.sigma_serialize(w)?;
         self.default.sigma_serialize(w)
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let input = Expr::sigma_parse(r)?;
         let default = Expr::sigma_parse(r)?;
         Ok(OptionGetOrElse::new(input, default)?)

@@ -5,8 +5,10 @@ use crate::mir::constant::TryExtractInto;
 use crate::mir::value::CollKind;
 use crate::mir::value::NativeColl;
 use crate::mir::value::Value;
+use crate::serialization::SigmaSerializationError;
+use crate::serialization::SigmaSerializeResult;
 use crate::serialization::{
-    sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
+    sigma_byte_reader::SigmaByteRead, SigmaParsingError, SigmaSerializable,
 };
 use crate::sigma_protocol::{
     dlog_group::EcPoint, sigma_boolean::SigmaBoolean, sigma_boolean::SigmaProp,
@@ -17,67 +19,71 @@ use crate::util::AsVecU8;
 
 use super::sigma_byte_writer::SigmaByteWrite;
 use std::convert::TryInto;
-use std::io;
 
 pub struct DataSerializer {}
 
 impl DataSerializer {
-    pub fn sigma_serialize<W: SigmaByteWrite>(c: &Value, w: &mut W) -> Result<(), io::Error> {
+    pub fn sigma_serialize<W: SigmaByteWrite>(c: &Value, w: &mut W) -> SigmaSerializeResult {
         // for reference see http://github.com/ScorexFoundation/sigmastate-interpreter/blob/25251c1313b0131835f92099f02cef8a5d932b5e/sigmastate/src/main/scala/sigmastate/serialization/DataSerializer.scala#L26-L26
-        match c {
-            Value::Boolean(v) => w.put_u8(if *v { 1 } else { 0 }),
-            Value::Byte(v) => w.put_i8(*v),
-            Value::Short(v) => w.put_i16(*v),
-            Value::Int(v) => w.put_i32(*v),
-            Value::Long(v) => w.put_i64(*v),
+        Ok(match c {
+            Value::Boolean(v) => w.put_u8(if *v { 1 } else { 0 })?,
+            Value::Byte(v) => w.put_i8(*v)?,
+            Value::Short(v) => w.put_i16(*v)?,
+            Value::Int(v) => w.put_i32(*v)?,
+            Value::Long(v) => w.put_i64(*v)?,
             Value::BigInt(v) => {
                 let bytes = v.to_signed_bytes_be();
                 w.put_u16(bytes.len() as u16)?;
-                w.write_all(&&bytes)
+                w.write_all(&&bytes)?
             }
-            Value::GroupElement(ecp) => ecp.sigma_serialize(w),
-            Value::SigmaProp(s) => s.value().sigma_serialize(w),
-            Value::CBox(_) => todo!(),
-            Value::AvlTree => todo!(),
+            Value::GroupElement(ecp) => ecp.sigma_serialize(w)?,
+            Value::SigmaProp(s) => s.value().sigma_serialize(w)?,
+            Value::CBox(_) => return Err(SigmaSerializationError::NotImplementedYet("Box")),
+            Value::AvlTree => return Err(SigmaSerializationError::NotImplementedYet("AvlTree")),
             Value::Coll(ct) => match ct {
                 CollKind::NativeColl(NativeColl::CollByte(b)) => {
-                    w.put_usize_as_u16(b.len())?;
-                    w.write_all(b.clone().as_vec_u8().as_slice())
+                    w.put_usize_as_u16_unwrapped(b.len())?;
+                    w.write_all(b.clone().as_vec_u8().as_slice())?
                 }
                 CollKind::WrappedColl {
                     elem_tpe: SType::SBoolean,
                     items: v,
                 } => {
-                    w.put_usize_as_u16(v.len())?;
+                    w.put_usize_as_u16_unwrapped(v.len())?;
                     let maybe_bools: Result<Vec<bool>, TryExtractFromError> = v
                         .clone()
                         .into_iter()
                         .map(|i| i.try_extract_into::<bool>())
                         .collect();
-                    #[allow(clippy::unwrap_used)]
-                    w.put_bits(maybe_bools.unwrap().as_slice())
+                    w.put_bits(maybe_bools?.as_slice())?
                 }
                 CollKind::WrappedColl {
                     elem_tpe: _,
                     items: v,
                 } => {
-                    w.put_usize_as_u16(v.len())?;
+                    w.put_usize_as_u16_unwrapped(v.len())?;
                     v.iter()
-                        .try_for_each(|e| DataSerializer::sigma_serialize(e, w))
+                        .try_for_each(|e| DataSerializer::sigma_serialize(e, w))?
                 }
             },
             Value::Tup(items) => items
                 .iter()
-                .try_for_each(|i| DataSerializer::sigma_serialize(i, w)),
-            Value::Opt(_) => panic!("Option is not yet supported"), // unsupported, see https://github.com/ScorexFoundation/sigmastate-interpreter/issues/659
-            _ => panic!("serialization is not supported for value: {0:?}", c),
-        }
+                .try_for_each(|i| DataSerializer::sigma_serialize(i, w))?,
+            // unsupported, see
+            // https://github.com/ScorexFoundation/sigmastate-interpreter/issues/659
+            Value::Opt(_) => {
+                return Err(SigmaSerializationError::NotSupported("Option"));
+            }
+            Value::Context => return Err(SigmaSerializationError::NotSupported("Context")),
+            Value::Global => return Err(SigmaSerializationError::NotSupported("Global")),
+            Value::Lambda(_) => return Err(SigmaSerializationError::NotSupported("Lambda")),
+        })
     }
 
     pub fn sigma_parse<R: SigmaByteRead>(
         tpe: &SType,
         r: &mut R,
-    ) -> Result<Value, SerializationError> {
+    ) -> Result<Value, SigmaParsingError> {
         // for reference see http://github.com/ScorexFoundation/sigmastate-interpreter/blob/25251c1313b0131835f92099f02cef8a5d932b5e/sigmastate/src/main/scala/sigmastate/serialization/DataSerializer.scala#L84-L84
         use SType::*;
         Ok(match tpe {
@@ -89,7 +95,7 @@ impl DataSerializer {
             SBigInt => {
                 let size = r.get_u16()?;
                 if size > 32 {
-                    return Err(SerializationError::ValueOutOfBounds(format!(
+                    return Err(SigmaParsingError::ValueOutOfBounds(format!(
                         "serialized BigInt size {0} bytes exceeds 32",
                         size
                     )));
@@ -137,13 +143,24 @@ impl DataSerializer {
                 // is correct
                 Value::Tup(items.try_into()?)
             }
-
-            c => {
-                return Err(SerializationError::NotImplementedYet(format!(
-                    "parsing of constant value of type {:?} is not yet supported",
-                    c
-                )))
+            SBox => {
+                return Err(SigmaParsingError::NotImplementedYet(
+                    "SBox data".to_string(),
+                ))
             }
+            SAvlTree => {
+                return Err(SigmaParsingError::NotImplementedYet(
+                    "SAvlTree data".to_string(),
+                ))
+            }
+            STypeVar(_) => return Err(SigmaParsingError::NotSupported("TypeVar data")),
+            SAny => return Err(SigmaParsingError::NotSupported("SAny data")),
+            SOption(_) => return Err(SigmaParsingError::NotSupported("SOption data")),
+            SFunc(_) => return Err(SigmaParsingError::NotSupported("SFunc data")),
+            SContext => return Err(SigmaParsingError::NotSupported("SContext data")),
+            SHeader => return Err(SigmaParsingError::NotSupported("SHeader data")),
+            SPreHeader => return Err(SigmaParsingError::NotSupported("SPreHeader data")),
+            SGlobal => return Err(SigmaParsingError::NotSupported("SGlobal data")),
         })
     }
 }

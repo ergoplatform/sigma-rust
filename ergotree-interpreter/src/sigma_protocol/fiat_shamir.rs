@@ -108,11 +108,16 @@ fn fiat_shamir_write_bytes<W: SigmaByteWrite>(
 
     Ok(match tree.as_tree_kind() {
         ProofTreeKind::Leaf(leaf) => {
+            #[allow(clippy::unwrap_used)]
+            // Since expr is fairly simple it can only fail on OOM
             let prop_tree = ErgoTree::new(
                 ErgoTreeHeader::v0(true),
                 &Expr::Const(SigmaProp::new(leaf.proposition()).into()),
-            );
-            let prop_bytes = prop_tree.sigma_serialize_bytes();
+            )
+            .unwrap();
+            #[allow(clippy::unwrap_used)]
+            // Since expr is fairly simple it can only fail on OOM
+            let prop_bytes = prop_tree.sigma_serialize_bytes().unwrap();
             let commitment_bytes = leaf
                 .commitment_opt()
                 .ok_or_else(|| {

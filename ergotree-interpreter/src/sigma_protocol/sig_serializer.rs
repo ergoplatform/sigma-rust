@@ -7,6 +7,8 @@ use super::unchecked_tree::UncheckedConjecture;
 use super::unchecked_tree::UncheckedLeaf;
 use super::unchecked_tree::UncheckedSigmaTree;
 use super::unchecked_tree::UncheckedTree;
+use super::GROUP_SIZE;
+use super::SOUNDNESS_BYTES;
 use crate::sigma_protocol::Challenge;
 use crate::sigma_protocol::GroupSizedBytes;
 use crate::sigma_protocol::UncheckedSchnorr;
@@ -15,8 +17,7 @@ use ergotree_ir::serialization::sigma_byte_reader;
 use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
 use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
 use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWriter;
-use ergotree_ir::serialization::SerializationError;
-use ergotree_ir::serialization::SigmaSerializable;
+use ergotree_ir::serialization::SigmaParsingError;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaConjecture;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
@@ -32,11 +33,11 @@ pub(crate) fn serialize_sig(tree: UncheckedTree) -> ProofBytes {
     match tree {
         UncheckedTree::NoProof => ProofBytes::Empty,
         UncheckedTree::UncheckedSigmaTree(ust) => {
-            let mut data = Vec::new();
+            let mut data = Vec::with_capacity(SOUNDNESS_BYTES + GROUP_SIZE);
             let mut w = SigmaByteWriter::new(&mut data, None);
-            sig_write_bytes(&ust, &mut w, true)
-                // since serialization may fail only for underlying IO errors it's ok to force unwrap
-                .expect("serialization failed");
+            #[allow(clippy::unwrap_used)]
+            // since serialization may fail only for underlying IO errors (OOM, etc.) it's ok to force unwrap
+            sig_write_bytes(&ust, &mut w, true).unwrap();
             ProofBytes::Some(data)
         }
     }
@@ -57,7 +58,8 @@ fn sig_write_bytes<W: SigmaByteWrite>(
         UncheckedSigmaTree::UncheckedLeaf(leaf) => match leaf {
             UncheckedLeaf::UncheckedSchnorr(us) => {
                 let mut sm_bytes = us.second_message.z.to_bytes();
-                w.write_all(sm_bytes.as_mut_slice())
+                w.write_all(sm_bytes.as_mut_slice())?;
+                Ok(())
             }
         },
         UncheckedSigmaTree::UncheckedConjecture(conj) => match conj {
@@ -195,7 +197,7 @@ pub enum SigParsingError {
     IoError(String),
     /// Serialization error
     #[error("Serialization error: {0}")]
-    SerializationError(SerializationError),
+    SerializationError(SigmaParsingError),
 }
 
 impl From<std::io::Error> for SigParsingError {

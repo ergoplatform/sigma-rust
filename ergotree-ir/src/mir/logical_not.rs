@@ -32,7 +32,7 @@ impl UnaryOp for LogicalNot {
 
 impl UnaryOpTryBuild for LogicalNot {
     fn try_build(input: Expr) -> Result<Self, InvalidArgumentError> {
-        input.check_post_eval_tpe(SType::SBoolean)?;
+        input.check_post_eval_tpe(&SType::SBoolean)?;
         Ok(Self {
             input: input.into(),
         })
@@ -65,6 +65,7 @@ mod arbitrary {
 }
 
 #[cfg(test)]
+#[allow(clippy::panic)]
 mod tests {
     use super::*;
     use crate::mir::expr::Expr;

@@ -14,12 +14,12 @@
 #![deny(broken_intra_doc_links)]
 #![deny(clippy::unwrap_used)]
 #![deny(clippy::expect_used)]
+// #![deny(clippy::todo)]
+// #![deny(clippy::unimplemented)]
+// #![deny(clippy::panic)]
 
 mod contracts;
 mod util;
 
 pub mod eval;
-// TODO: remove after https://github.com/ergoplatform/sigma-rust/pull/226 is merged
-#[allow(clippy::unwrap_used)]
-#[allow(clippy::expect_used)]
 pub mod sigma_protocol;

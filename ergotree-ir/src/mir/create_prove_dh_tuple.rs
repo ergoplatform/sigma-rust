@@ -1,8 +1,9 @@
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
-use crate::serialization::SerializationError;
+use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
+use crate::serialization::SigmaSerializeResult;
 use crate::types::stype::SType;
 
 use super::expr::Expr;
@@ -25,10 +26,10 @@ pub struct CreateProveDhTuple {
 impl CreateProveDhTuple {
     /// Create ProveDHTuple from four points on elliptic curve
     pub fn new(gv: Expr, hv: Expr, uv: Expr, vv: Expr) -> Result<Self, InvalidArgumentError> {
-        gv.check_post_eval_tpe(SType::SGroupElement)?;
-        hv.check_post_eval_tpe(SType::SGroupElement)?;
-        uv.check_post_eval_tpe(SType::SGroupElement)?;
-        vv.check_post_eval_tpe(SType::SGroupElement)?;
+        gv.check_post_eval_tpe(&SType::SGroupElement)?;
+        hv.check_post_eval_tpe(&SType::SGroupElement)?;
+        uv.check_post_eval_tpe(&SType::SGroupElement)?;
+        vv.check_post_eval_tpe(&SType::SGroupElement)?;
         Ok(CreateProveDhTuple {
             gv: gv.into(),
             hv: hv.into(),
@@ -48,14 +49,14 @@ impl HasStaticOpCode for CreateProveDhTuple {
 }
 
 impl SigmaSerializable for CreateProveDhTuple {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         self.gv.sigma_serialize(w)?;
         self.hv.sigma_serialize(w)?;
         self.uv.sigma_serialize(w)?;
         self.vv.sigma_serialize(w)
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let gv = Expr::sigma_parse(r)?.into();
         let hv = Expr::sigma_parse(r)?.into();
         let uv = Expr::sigma_parse(r)?.into();

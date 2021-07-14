@@ -18,6 +18,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - `Constant::from_ecpoint_bytes` to Wasm API [#324](https://github.com/ergoplatform/sigma-rust/pull/324);
 
 ### Changed
+- `SigmaSerializable:sigma_serialize` errors are extended beyond `io::Error` [#328](https://github.com/ergoplatform/sigma-rust/pull/328);
+- `SigmaSerializable:sigma_serialize_bytes` made failible (returns `Result`) [#328](https://github.com/ergoplatform/sigma-rust/pull/328);
+- `ErgoBox::new`, `from_box_candidate` made failible (returns `Result`) [#328](https://github.com/ergoplatform/sigma-rust/pull/328);
+- `ErgoTree::new`, `template_bytes`, `to_base16_bytes` made failible (returns `Result`) [#328](https://github.com/ergoplatform/sigma-rust/pull/328);
+- `Transaction::new`  made failible (returns `Result`) [#328](https://github.com/ergoplatform/sigma-rust/pull/328);
+- WASM `ErgoBox::new`, `byte_to_sign` made failible (returns `Result`) [#328](https://github.com/ergoplatform/sigma-rust/pull/328);
+- WASM `ErgoTree::to_bytes`, `to_base16_bytes` made failible (returns `Result`) [#328](https://github.com/ergoplatform/sigma-rust/pull/328);
 - `ergotree-ir::mir::constant::constant_placeholder` module is public;
 - `ErgoTree::set_constant` is removed in favor of `ErgoTree::with_constant` with an added check for matching constant type[#323](https://github.com/ergoplatform/sigma-rust/pull/323);
 

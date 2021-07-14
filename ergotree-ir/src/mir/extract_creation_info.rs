@@ -35,7 +35,7 @@ impl UnaryOp for ExtractCreationInfo {
 
 impl UnaryOpTryBuild for ExtractCreationInfo {
     fn try_build(input: Expr) -> Result<Self, InvalidArgumentError> {
-        input.check_post_eval_tpe(SType::SBox)?;
+        input.check_post_eval_tpe(&SType::SBox)?;
         Ok(ExtractCreationInfo {
             input: input.into(),
         })

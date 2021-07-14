@@ -1,21 +1,26 @@
 #![allow(missing_docs)]
 
+use super::op_code::OpCode;
 use super::sigma_byte_writer::SigmaByteWrite;
+use super::SigmaSerializationError;
+use crate::serialization::SigmaSerializeResult;
 use crate::serialization::{
-    sigma_byte_reader::SigmaByteRead, SerializationError, SigmaSerializable,
+    sigma_byte_reader::SigmaByteRead, SigmaParsingError, SigmaSerializable,
 };
 use crate::types::stuple::STuple;
 use crate::types::stype::SType;
 use crate::types::stype_param::STypeVar;
-use sigma_ser::vlq_encode;
 use std::convert::TryInto;
-use std::{io, ops::Add};
-use vlq_encode::WriteSigmaVlqExt;
+use std::ops::Add;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct TypeCode(u8);
 
 impl TypeCode {
+    /// SFunc types occupy remaining space of byte values [FirstFuncType .. 255]
+    pub const FIRST_FUNC_TYPE: TypeCode = Self::new(OpCode::LAST_DATA_TYPE.value());
+    pub const LAST_FUNC_TYPE: TypeCode = Self::new(255);
+
     /// Type code of the last valid prim type so that (1 to LastPrimTypeCode) is a range of valid codes.
     pub const LAST_PRIM_TYPECODE: u8 = 8;
 
@@ -80,9 +85,9 @@ impl TypeCode {
     }
 
     /// Parse type code from single byte.
-    pub fn parse(b: u8) -> Result<Self, SerializationError> {
+    pub fn parse(b: u8) -> Result<Self, SigmaParsingError> {
         match b {
-            0 => Err(SerializationError::InvalidTypePrefix),
+            0 => Err(SigmaParsingError::InvalidTypePrefix),
             _ => Ok(Self(b)),
         }
     }
@@ -99,17 +104,18 @@ impl Add for TypeCode {
 }
 
 impl SigmaSerializable for TypeCode {
-    fn sigma_serialize<W: WriteSigmaVlqExt>(&self, w: &mut W) -> Result<(), io::Error> {
-        w.put_u8(self.value())
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
+        w.put_u8(self.value())?;
+        Ok(())
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let b = r.get_u8()?;
         Self::parse(b)
     }
 }
 
-fn get_embeddable_type(code: u8) -> Result<SType, SerializationError> {
+fn get_embeddable_type(code: u8) -> Result<SType, SigmaParsingError> {
     match TypeCode::new(code) {
         TypeCode::SBOOLEAN => Ok(SType::SBoolean),
         TypeCode::SBYTE => Ok(SType::SByte),
@@ -119,7 +125,7 @@ fn get_embeddable_type(code: u8) -> Result<SType, SerializationError> {
         TypeCode::SBIGINT => Ok(SType::SBigInt),
         TypeCode::SGROUP_ELEMENT => Ok(SType::SGroupElement),
         TypeCode::SSIGMAPROP => Ok(SType::SSigmaProp),
-        _ => Err(SerializationError::InvalidOpCode(code)),
+        _ => Err(SigmaParsingError::InvalidOpCode(code)),
     }
 }
 
@@ -144,7 +150,7 @@ impl SType {
     pub fn parse_with_type_code<R: SigmaByteRead>(
         r: &mut R,
         c: TypeCode,
-    ) -> Result<Self, SerializationError> {
+    ) -> Result<Self, SigmaParsingError> {
         let tpe = if c.value() < TypeCode::TUPLE.value() {
             let constr_id = c.value() / TypeCode::PRIM_RANGE;
             let prim_id = c.value() % TypeCode::PRIM_RANGE;
@@ -180,8 +186,7 @@ impl SType {
                         // Pair of types where first is primitive (`(_, Int)`)
                         (get_embeddable_type(prim_id)?, Self::sigma_parse(r)?)
                     };
-                    #[allow(clippy::unwrap_used)]
-                    SType::STuple(vec![t1, t2].try_into().unwrap())
+                    STuple::pair(t1, t2).into()
                 }
                 TypeCode::TUPLE_PAIR2_CONSTR_ID => {
                     // (t1, _)
@@ -196,8 +201,7 @@ impl SType {
                         // Pair of types where second is primitive (`(Int, _)`)
                         let t2 = get_embeddable_type(prim_id)?;
                         let t1 = Self::sigma_parse(r)?;
-                        #[allow(clippy::unwrap_used)]
-                        SType::STuple(vec![t1, t2].try_into().unwrap())
+                        STuple::pair(t1, t2).into()
                     }
                 }
                 TypeCode::TUPLE_PAIR_SYMMETRIC_TYPE_CONSTR_ID => {
@@ -213,12 +217,11 @@ impl SType {
                     } else {
                         // Symmetric pair of primitive types (`(Int, Int)`, `(Byte,Byte)`, etc.)
                         let t = get_embeddable_type(prim_id)?;
-                        #[allow(clippy::unwrap_used)]
-                        SType::STuple(vec![t.clone(), t].try_into().unwrap())
+                        STuple::pair(t.clone(), t).into()
                     }
                 }
                 _ => {
-                    return Err(SerializationError::NotImplementedYet(format!(
+                    return Err(SigmaParsingError::NotImplementedYet(format!(
                         "case 1: parsing type is not yet implemented(constr_id == {:?})",
                         constr_id
                     )))
@@ -233,7 +236,7 @@ impl SType {
                         items.push(SType::sigma_parse(r)?);
                     }
                     Ok(SType::STuple(items.try_into().map_err(|_| {
-                        SerializationError::TupleItemsOutOfBounds(len as usize)
+                        SigmaParsingError::TupleItemsOutOfBounds(len as usize)
                     })?))
                 }
                 TypeCode::SANY => Ok(SType::SAny),
@@ -244,7 +247,7 @@ impl SType {
                 TypeCode::SHEADER => Ok(SType::SHeader),
                 TypeCode::SPRE_HEADER => Ok(SType::SPreHeader),
                 TypeCode::SGLOBAL => Ok(SType::SGlobal),
-                _ => Err(SerializationError::NotImplementedYet(format!(
+                _ => Err(SigmaParsingError::NotImplementedYet(format!(
                     // FIXME: should we just tell that type code is malforled?
                     "case 2: parsing type is not yet implemented(c == {:?})",
                     c
@@ -267,10 +270,10 @@ impl SType {
  * Collection of non-primitive type is serialized as (CollectionTypeCode, serialize(elementType))
  */
 impl SigmaSerializable for SType {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         // for reference see http://github.com/ScorexFoundation/sigmastate-interpreter/blob/25251c1313b0131835f92099f02cef8a5d932b5e/sigmastate/src/main/scala/sigmastate/serialization/TypeSerializer.scala#L25-L25
         match self {
-            SType::SFunc(_) => panic!("SFunc is not supposed to be here"),
+            SType::SFunc(_) => Err(SigmaSerializationError::NotSupported("SFunc")),
             SType::SAny => self.type_code().sigma_serialize(w),
             SType::SBoolean => self.type_code().sigma_serialize(w),
             SType::SByte => self.type_code().sigma_serialize(w),
@@ -364,14 +367,14 @@ impl SigmaSerializable for SType {
         }
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         // for reference see http://github.com/ScorexFoundation/sigmastate-interpreter/blob/25251c1313b0131835f92099f02cef8a5d932b5e/sigmastate/src/main/scala/sigmastate/serialization/TypeSerializer.scala#L118-L118
         let c = TypeCode::sigma_parse(r)?;
         Self::parse_with_type_code(r, c)
     }
 }
 
-fn get_arg_type<R: SigmaByteRead>(r: &mut R, prim_id: u8) -> Result<SType, SerializationError> {
+fn get_arg_type<R: SigmaByteRead>(r: &mut R, prim_id: u8) -> Result<SType, SigmaParsingError> {
     if prim_id == 0 {
         SType::sigma_parse(r)
     } else {
@@ -381,6 +384,7 @@ fn get_arg_type<R: SigmaByteRead>(r: &mut R, prim_id: u8) -> Result<SType, Seria
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::panic)]
 mod tests {
     use super::*;
     use crate::serialization::sigma_serialize_roundtrip;

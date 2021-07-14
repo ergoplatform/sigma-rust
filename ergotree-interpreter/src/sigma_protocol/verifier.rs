@@ -17,7 +17,7 @@ use crate::eval::env::Env;
 use crate::eval::{EvalError, Evaluator};
 use dlog_protocol::FirstDlogProverMessage;
 use ergotree_ir::ergo_tree::ErgoTree;
-use ergotree_ir::ergo_tree::ErgoTreeParsingError;
+use ergotree_ir::ergo_tree::ErgoTreeError;
 
 use derive_more::From;
 use thiserror::Error;
@@ -27,7 +27,7 @@ use thiserror::Error;
 pub enum VerifierError {
     /// Failed to parse ErgoTree from bytes
     #[error("ErgoTreeError: {0}")]
-    ErgoTreeError(ErgoTreeParsingError),
+    ErgoTreeError(ErgoTreeError),
     /// Failed to evaluate ErgoTree
     #[error("EvalError: {0}")]
     EvalError(EvalError),
@@ -150,6 +150,7 @@ mod tests {
     use proptest::collection::vec;
     use proptest::prelude::*;
     use sigma_test_util::force_any_val;
+    use std::convert::{TryFrom, TryInto};
     use std::rc::Rc;
 
     fn proof_append_byte(proof: &ProofBytes) -> ProofBytes {
@@ -170,7 +171,7 @@ mod tests {
         #[test]
         fn test_prover_verifier_p2pk(secret in any::<DlogProverInput>(), message in vec(any::<u8>(), 100..200)) {
             let pk = secret.public_image();
-            let tree = ErgoTree::from(Expr::Const(pk.into()));
+            let tree = ErgoTree::try_from(Expr::Const(pk.into())).unwrap();
 
             let prover = TestProver {
                 secrets: vec![PrivateInput::DlogProverInput(secret)],
@@ -218,7 +219,7 @@ mod tests {
             let expr: Expr = SigmaAnd::new(vec![Expr::Const(pk1.into()), Expr::Const(pk2.into())])
                 .unwrap()
                 .into();
-            let tree = ErgoTree::from(expr);
+            let tree = ErgoTree::try_from(expr).unwrap();
             let prover = TestProver {
                 secrets: vec![PrivateInput::DlogProverInput(secret1), PrivateInput::DlogProverInput(secret2)],
             };
@@ -251,7 +252,7 @@ mod tests {
                     .unwrap()
                     .into(),
             ]).unwrap().into();
-            let tree = ErgoTree::from(expr);
+            let tree = ErgoTree::try_from(expr).unwrap();
             let prover = TestProver {
                 secrets: vec![PrivateInput::DlogProverInput(secret1),
                     PrivateInput::DlogProverInput(secret2),
@@ -282,7 +283,7 @@ mod tests {
             let expr: Expr = SigmaOr::new(vec![Expr::Const(pk1.into()), Expr::Const(pk2.into())])
                 .unwrap()
                 .into();
-            let tree = ErgoTree::from(expr);
+            let tree = ErgoTree::try_from(expr).unwrap();
             let secrets = vec![PrivateInput::DlogProverInput(secret1), PrivateInput::DlogProverInput(secret2)];
             // any secret (out of 2) known to prover should be enough
             for secret in secrets {
@@ -319,7 +320,7 @@ mod tests {
                     .unwrap()
                     .into(),
             ]).unwrap().into();
-            let tree = ErgoTree::from(expr);
+            let tree = ErgoTree::try_from(expr).unwrap();
             let secrets = vec![
                 PrivateInput::DlogProverInput(secret1),
                 PrivateInput::DlogProverInput(secret2),
@@ -366,14 +367,14 @@ mod tests {
 
         // check expected public key
         assert_eq!(
-            base16::encode_lower(&sk.public_image().sigma_serialize_bytes()),
+            base16::encode_lower(&sk.public_image().sigma_serialize_bytes().unwrap()),
             "03cb0d49e4eae7e57059a3da8ac52626d26fc11330af8fb093fa597d8b93deb7b1"
         );
 
         let expr: Expr = sk.public_image().into();
         let verifier = TestVerifier;
         let ver_res = verifier.verify(
-            &expr.into(),
+            &expr.try_into().unwrap(),
             &Env::empty(),
             Rc::new(force_any_val::<Context>()),
             signature.into(),
@@ -414,7 +415,7 @@ mod tests {
         ])
         .unwrap()
         .into();
-        let tree: ErgoTree = expr.into();
+        let tree: ErgoTree = expr.try_into().unwrap();
 
         // let prover = TestProver {
         //     secrets: vec![sk1.into(), sk2.into()],
@@ -472,7 +473,7 @@ mod tests {
         ])
         .unwrap()
         .into();
-        let tree: ErgoTree = expr.into();
+        let tree: ErgoTree = expr.try_into().unwrap();
 
         // let prover = TestProver {
         //     secrets: vec![sk1.into()],
@@ -544,7 +545,7 @@ mod tests {
         ])
         .unwrap()
         .into();
-        let tree: ErgoTree = expr.into();
+        let tree: ErgoTree = expr.try_into().unwrap();
 
         // let prover = TestProver {
         //     secrets: vec![sk1.into(), sk2.into()],
@@ -616,7 +617,7 @@ mod tests {
         ])
         .unwrap()
         .into();
-        let tree: ErgoTree = expr.into();
+        let tree: ErgoTree = expr.try_into().unwrap();
 
         // let prover = TestProver {
         //     secrets: vec![sk1.into(), sk2.into()],

@@ -1,11 +1,10 @@
-use std::io;
-
 use crate::has_opcode::HasStaticOpCode;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
-use crate::serialization::SerializationError;
+use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
+use crate::serialization::SigmaSerializeResult;
 use crate::types::sfunc::SFunc;
 use crate::types::stype::SType;
 
@@ -26,12 +25,12 @@ pub struct FuncArg {
 }
 
 impl SigmaSerializable for FuncArg {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         self.idx.sigma_serialize(w)?;
         self.tpe.sigma_serialize(w)
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let idx = ValId::sigma_parse(r)?;
         let tpe = SType::sigma_parse(r)?;
         Ok(FuncArg { idx, tpe })
@@ -84,12 +83,12 @@ impl HasStaticOpCode for FuncValue {
 }
 
 impl SigmaSerializable for FuncValue {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         self.args.sigma_serialize(w)?;
         self.body.sigma_serialize(w)
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let args = Vec::<FuncArg>::sigma_parse(r)?;
         args.iter()
             .for_each(|a| r.val_def_type_store().insert(a.idx, a.tpe.clone()));
@@ -100,6 +99,7 @@ impl SigmaSerializable for FuncValue {
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::panic)]
 mod tests {
     use crate::mir::expr::Expr;
     use crate::serialization::sigma_serialize_roundtrip;

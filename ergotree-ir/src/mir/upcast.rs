@@ -5,12 +5,12 @@ use super::expr::InvalidArgumentError;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
-use crate::serialization::SerializationError;
+use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
+use crate::serialization::SigmaSerializeResult;
 use crate::types::stype::SType;
 
 use crate::has_opcode::HasStaticOpCode;
-use std::io::Error;
 
 /// Numerical upcast
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -55,12 +55,12 @@ impl HasStaticOpCode for Upcast {
 }
 
 impl SigmaSerializable for Upcast {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         self.input.sigma_serialize(w)?;
         self.tpe.sigma_serialize(w)
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let input = Expr::sigma_parse(r)?.into();
         let tpe = SType::sigma_parse(r)?;
         Ok(Upcast { input, tpe })
@@ -93,6 +93,7 @@ mod arbitrary {
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::panic)]
 pub mod proptests {
 
     use super::*;

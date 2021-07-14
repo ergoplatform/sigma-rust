@@ -3,7 +3,7 @@
 mod bin_op;
 mod constant;
 mod constant_placeholder;
-mod data;
+pub(crate) mod data;
 mod expr;
 mod global_vars;
 mod method_call;

@@ -3,6 +3,8 @@ use std::convert::TryInto;
 
 use super::SigmaBoolean;
 use super::SigmaConjectureItems;
+use crate::has_opcode::HasStaticOpCode;
+use crate::serialization::op_code::OpCode;
 use crate::sigma_protocol::sigma_boolean::SigmaConjecture;
 
 /// AND conjunction for sigma proposition
@@ -10,6 +12,10 @@ use crate::sigma_protocol::sigma_boolean::SigmaConjecture;
 pub struct Cand {
     /// Items of the conjunctions
     pub items: SigmaConjectureItems<SigmaBoolean>,
+}
+
+impl HasStaticOpCode for Cand {
+    const OP_CODE: OpCode = OpCode::AND;
 }
 
 impl Cand {

@@ -77,6 +77,7 @@ pub fn unify_one(t1: &SType, t2: &SType) -> Result<HashMap<STypeVar, SType>, Typ
 
 #[allow(clippy::unwrap_used)]
 #[cfg(test)]
+#[allow(clippy::panic)]
 mod tests {
     use super::super::stype::tests::primitive_type;
     use super::*;

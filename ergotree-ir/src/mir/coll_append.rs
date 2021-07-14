@@ -1,8 +1,9 @@
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
-use crate::serialization::SerializationError;
+use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
+use crate::serialization::SigmaSerializeResult;
 // use crate::types::stuple::STuple;
 use crate::types::stype::SType;
 
@@ -61,13 +62,13 @@ impl HasStaticOpCode for Append {
 }
 
 impl SigmaSerializable for Append {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         self.input.sigma_serialize(w)?;
         self.col_2.sigma_serialize(w)?;
         Ok(())
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let input = Expr::sigma_parse(r)?;
         let col_2 = Expr::sigma_parse(r)?;
         Ok(Append::new(input, col_2)?)
@@ -76,6 +77,7 @@ impl SigmaSerializable for Append {
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::panic)]
 mod tests {
     use super::*;
     use crate::mir::expr::arbitrary::ArbExprParams;

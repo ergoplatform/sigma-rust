@@ -2,8 +2,9 @@ use crate::has_opcode::HasOpCode;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
-use crate::serialization::SerializationError;
+use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
+use crate::serialization::SigmaSerializeResult;
 use crate::types::stype::SType;
 
 use super::constant::Constant;
@@ -74,11 +75,12 @@ impl HasOpCode for Collection {
 pub(crate) fn coll_sigma_serialize<W: SigmaByteWrite>(
     coll: &Collection,
     w: &mut W,
-) -> Result<(), std::io::Error> {
+) -> SigmaSerializeResult {
     match coll {
         Collection::BoolConstants(bools) => {
             w.put_u16(bools.len() as u16)?;
-            w.put_bits(bools.as_slice())
+            w.put_bits(bools.as_slice())?;
+            Ok(())
         }
         Collection::Exprs { elem_tpe, items } => {
             w.put_u16(items.len() as u16)?;
@@ -90,7 +92,7 @@ pub(crate) fn coll_sigma_serialize<W: SigmaByteWrite>(
 
 pub(crate) fn coll_sigma_parse<R: SigmaByteRead>(
     r: &mut R,
-) -> Result<Collection, SerializationError> {
+) -> Result<Collection, SigmaParsingError> {
     let items_count = r.get_u16()?;
     let elem_tpe = SType::sigma_parse(r)?;
     let mut items = Vec::with_capacity(items_count as usize);
@@ -102,7 +104,7 @@ pub(crate) fn coll_sigma_parse<R: SigmaByteRead>(
 
 pub(crate) fn bool_const_coll_sigma_parse<R: SigmaByteRead>(
     r: &mut R,
-) -> Result<Collection, SerializationError> {
+) -> Result<Collection, SigmaParsingError> {
     let items_count = r.get_u16()?;
     let bools = r.get_bits(items_count as usize)?;
     Ok(Collection::BoolConstants(bools))
@@ -140,6 +142,7 @@ mod arbitrary {
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::panic)]
 mod tests {
     use super::*;
     use crate::mir::expr::arbitrary::ArbExprParams;

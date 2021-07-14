@@ -10,7 +10,7 @@ use super::register::{NonMandatoryRegisterId, NonMandatoryRegisters, NonMandator
 use super::ErgoBoxCandidate;
 use ergotree_ir::ergo_tree::ErgoTree;
 use ergotree_ir::mir::constant::Constant;
-use ergotree_ir::serialization::SigmaSerializable;
+use ergotree_ir::serialization::{SigmaSerializable, SigmaSerializationError};
 use thiserror::Error;
 
 /// ErgoBoxCandidate builder errors
@@ -36,6 +36,10 @@ pub enum ErgoBoxCandidateBuilderError {
     /// When minting token R4, R5, R6 register are holding issued token info(according to EIP4) and cannot be used
     #[error("R4, R5, R6 are holding issuing token info and cannot be used(found {0:?} are used)")]
     MintedTokenRegisterOverwriteError(NonMandatoryRegisterId),
+
+    /// Serialization error
+    #[error("serialization error: {0}")]
+    SerializationError(#[from] SigmaSerializationError),
 }
 
 /// Minted token info (id, amount, name, desc)
@@ -99,7 +103,7 @@ impl ErgoBoxCandidateBuilder {
     /// Calculate serialized box size(in bytes)
     pub fn calc_box_size_bytes(&self) -> Result<usize, ErgoBoxCandidateBuilderError> {
         let b = self.build_box()?;
-        Ok(b.sigma_serialize_bytes().len())
+        Ok(b.sigma_serialize_bytes()?.len())
     }
 
     /// Calculate minimal box value for the current box serialized size(in bytes)
@@ -217,7 +221,7 @@ impl ErgoBoxCandidateBuilder {
             additional_registers: regs,
             creation_height: self.creation_height,
         };
-        let box_size_bytes = b.sigma_serialize_bytes().len();
+        let box_size_bytes = b.sigma_serialize_bytes()?.len();
         let min_box_value: BoxValue = (box_size_bytes as i64 * self.min_value_per_byte as i64)
             .try_into()
             .unwrap();
@@ -287,7 +291,7 @@ mod tests {
             ErgoBoxCandidateBuilder::new(BoxValue::SAFE_USER_MIN, force_any_val::<ErgoTree>(), 1);
         let estimated_box_size = builder.calc_box_size_bytes().unwrap();
         let b = builder.build().unwrap();
-        assert_eq!(b.sigma_serialize_bytes().len(), estimated_box_size);
+        assert_eq!(b.sigma_serialize_bytes().unwrap().len(), estimated_box_size);
     }
 
     #[test]

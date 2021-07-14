@@ -1,7 +1,7 @@
 //! Transitioning type for Base16 encoded bytes in JSON serialization
 
 use ergotree_ir::mir::constant::Constant;
-use ergotree_ir::serialization::SerializationError;
+use ergotree_ir::serialization::SigmaParsingError;
 use ergotree_ir::serialization::SigmaSerializable;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
@@ -56,12 +56,12 @@ impl From<Base16DecodedBytes> for Vec<u8> {
 
 impl From<Constant> for Base16EncodedBytes {
     fn from(v: Constant) -> Base16EncodedBytes {
-        Base16EncodedBytes::new(&v.sigma_serialize_bytes())
+        Base16EncodedBytes::new(&v.sigma_serialize_bytes().unwrap())
     }
 }
 
 impl TryFrom<Base16DecodedBytes> for Constant {
-    type Error = SerializationError;
+    type Error = SigmaParsingError;
 
     fn try_from(value: Base16DecodedBytes) -> Result<Self, Self::Error> {
         Constant::sigma_parse_bytes(&value.0)
@@ -76,12 +76,12 @@ pub trait Base16Str {
 
 impl Base16Str for &Constant {
     fn base16_str(&self) -> String {
-        base16::encode_lower(&self.sigma_serialize_bytes())
+        base16::encode_lower(&self.sigma_serialize_bytes().unwrap())
     }
 }
 
 impl Base16Str for Constant {
     fn base16_str(&self) -> String {
-        base16::encode_lower(&self.sigma_serialize_bytes())
+        base16::encode_lower(&self.sigma_serialize_bytes().unwrap())
     }
 }

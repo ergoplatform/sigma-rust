@@ -4,8 +4,9 @@ use crate::has_opcode::HasStaticOpCode;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
-use crate::serialization::SerializationError;
+use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
+use crate::serialization::SigmaSerializeResult;
 use crate::types::stype::SType;
 
 /// Selects all elements of the collection that satisfy the condition
@@ -22,8 +23,8 @@ pub struct Filter {
 impl Filter {
     /// Create new object, returns an error if any of the requirements failed
     pub fn new(input: Expr, condition: Expr) -> Result<Self, InvalidArgumentError> {
-        let input_elem_type: SType = *match input.post_eval_tpe() {
-            SType::SColl(elem_type) => Ok(elem_type),
+        let input_elem_type: SType = match input.post_eval_tpe() {
+            SType::SColl(elem_type) => Ok(*elem_type),
             _ => Err(InvalidArgumentError(format!(
                 "Expected Map input to be SColl, got {0:?}",
                 input.tpe()
@@ -58,12 +59,12 @@ impl HasStaticOpCode for Filter {
 }
 
 impl SigmaSerializable for Filter {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         self.input.sigma_serialize(w)?;
         self.condition.sigma_serialize(w)
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SerializationError> {
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let input = Expr::sigma_parse(r)?;
         let condition = Expr::sigma_parse(r)?;
         Ok(Filter::new(input, condition)?)
@@ -106,6 +107,7 @@ mod arbitrary {
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::panic)]
 mod tests {
     use super::*;
     use crate::mir::expr::Expr;
