@@ -287,6 +287,12 @@ mod tests {
     use crate::serialization::sigma_serialize_roundtrip;
     use proptest::prelude::*;
 
+    #[test]
+    fn ser_global() {
+        let e = Expr::Global;
+        assert_eq!(sigma_serialize_roundtrip(&e), e);
+    }
+
     proptest! {
 
         #[test]
