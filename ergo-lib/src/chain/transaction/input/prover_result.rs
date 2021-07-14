@@ -7,11 +7,13 @@ use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
 use ergotree_ir::serialization::SigmaParsingError;
 use ergotree_ir::serialization::SigmaSerializable;
 use ergotree_ir::serialization::SigmaSerializeResult;
+
+#[cfg(feature = "json")]
+use crate::chain::json::context_extension::ContextExtensionSerde;
+#[cfg(feature = "json")]
 use serde::ser::SerializeStruct;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
-
-use crate::chain::json::context_extension::ContextExtensionSerde;
 
 /// Wrapped IR [`ProverResult`] for Serde
 #[cfg_attr(feature = "json", derive(Deserialize))]
