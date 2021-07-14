@@ -28,7 +28,7 @@ impl OpCode {
     /// Decoding of constants depends on the first byte and in general is a recursive procedure
     /// consuming some number of bytes from Reader.
     pub const CONSTANT_CODE: OpCode = OpCode(0);
-    /// The last constant code is equal to [`TypeCode::FIRST_FUNC_TYPE`] which represent
+    /// The last constant code is equal to [`super::TypeCode::FIRST_FUNC_TYPE`] which represent
     /// generic function type.
     /// We use this single code to represent all functional constants, since we don't have
     /// enough space in single byte.
