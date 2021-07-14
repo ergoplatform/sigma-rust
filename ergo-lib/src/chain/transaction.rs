@@ -110,6 +110,7 @@ impl Transaction {
         output_candidates: Vec<ErgoBoxCandidate>,
     ) -> Result<Transaction, SigmaSerializationError> {
         // TODO: use BoundedVec for inputs and outputs
+        // https://github.com/ergoplatform/sigma-rust/issues/327
         assert!(output_candidates.len() < u16::MAX as usize);
         let tx_to_sign = Transaction {
             tx_id: TxId::zero(),

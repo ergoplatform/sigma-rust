@@ -53,23 +53,6 @@ impl SigmaSerializable for ContextExtension {
     }
 }
 
-/// for JSON encoding in ergo-lib
-impl From<ContextExtension> for HashMap<String, String> {
-    fn from(v: ContextExtension) -> Self {
-        v.values
-            .into_iter()
-            .map(|(k, v)| {
-                (
-                    format!("{}", k),
-                    // TODO: remove unwrap and handle error
-                    #[allow(clippy::unwrap_used)]
-                    base16::encode_lower(&v.sigma_serialize_bytes().unwrap()),
-                )
-            })
-            .collect()
-    }
-}
-
 /// Error parsing Constant from base16-encoded string
 #[derive(Error, Eq, PartialEq, Debug, Clone)]
 #[error("Error parsing constant: {0}")]

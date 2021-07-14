@@ -7,11 +7,14 @@ use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
 use ergotree_ir::serialization::SigmaParsingError;
 use ergotree_ir::serialization::SigmaSerializable;
 use ergotree_ir::serialization::SigmaSerializeResult;
+use serde::ser::SerializeStruct;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 
+use crate::chain::json::context_extension::ContextExtensionSerde;
+
 /// Wrapped IR [`ProverResult`] for Serde
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Deserialize))]
 #[derive(PartialEq, Debug, Clone)]
 pub struct ProverResult {
     /// proof that satisfies final sigma proposition
@@ -28,6 +31,22 @@ pub struct ProverResult {
         serde(with = "crate::chain::json::context_extension::ContextExtensionSerde")
     )]
     pub extension: ContextExtension,
+}
+
+#[cfg(feature = "json")]
+impl Serialize for ProverResult {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut s = serializer.serialize_struct("ProverResult", 2)?;
+        s.serialize_field("proofBytes", &String::from(self.proof.clone()))?;
+        s.serialize_field(
+            "extension",
+            &ContextExtensionSerde::from(self.extension.clone()),
+        )?;
+        s.end()
+    }
 }
 
 impl From<ergotree_interpreter::sigma_protocol::prover::ProverResult> for ProverResult {

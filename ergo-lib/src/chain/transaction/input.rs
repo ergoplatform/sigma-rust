@@ -3,6 +3,7 @@
 pub mod prover_result;
 
 use crate::chain::ergo_box::{BoxId, ErgoBoxId};
+use crate::chain::json::context_extension::ContextExtensionSerde;
 use ergotree_interpreter::sigma_protocol::prover::ContextExtension;
 use ergotree_interpreter::sigma_protocol::prover::ProofBytes;
 use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
@@ -10,6 +11,7 @@ use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
 use ergotree_ir::serialization::SigmaParsingError;
 use ergotree_ir::serialization::SigmaSerializable;
 use ergotree_ir::serialization::SigmaSerializeResult;
+use serde::ser::SerializeStruct;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 
@@ -18,7 +20,7 @@ use self::prover_result::ProverResult;
 /// Unsigned (without proofs) transaction input
 #[derive(PartialEq, Debug, Clone)]
 #[cfg_attr(test, derive(proptest_derive::Arbitrary))]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Deserialize))]
 pub struct UnsignedInput {
     /// id of the box to spent
     #[cfg_attr(feature = "json", serde(rename = "boxId"))]
@@ -30,6 +32,22 @@ pub struct UnsignedInput {
         serde(with = "crate::chain::json::context_extension::ContextExtensionSerde")
     )]
     pub extension: ContextExtension,
+}
+
+#[cfg(feature = "json")]
+impl Serialize for UnsignedInput {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut s = serializer.serialize_struct("UnsignedInput", 2)?;
+        s.serialize_field("boxId", &self.box_id)?;
+        s.serialize_field(
+            "extension",
+            &ContextExtensionSerde::from(self.extension.clone()),
+        )?;
+        s.end()
+    }
 }
 
 impl UnsignedInput {
