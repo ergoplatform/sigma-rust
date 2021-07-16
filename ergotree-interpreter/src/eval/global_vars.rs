@@ -76,7 +76,7 @@ mod tests {
     fn eval_group_generator() {
         let ctx = Rc::new(force_any_val::<Context>());
         assert_eq!(
-            eval_out::<EcPoint>(&GlobalVars::GroupGenerator.into(), ctx.clone()),
+            eval_out::<EcPoint>(&GlobalVars::GroupGenerator.into(), ctx),
             dlog_group::generator()
         );
     }
