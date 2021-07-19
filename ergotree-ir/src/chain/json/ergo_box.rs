@@ -12,7 +12,6 @@ use crate::serialization::SigmaSerializationError;
 use core::fmt;
 use serde::de::{self, MapAccess, Visitor};
 use serde::Deserializer;
-use serde_with::serde_as;
 use std::convert::TryFrom;
 use std::marker::PhantomData;
 use std::str::FromStr;
@@ -25,13 +24,11 @@ use thiserror::Error;
 
 mod box_value;
 
-#[serde_as]
 #[derive(Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct ErgoBoxFromJson {
     #[serde(rename = "boxId", alias = "id")]
     pub box_id: Option<BoxId>,
     /// amount of money associated with the box
-    #[serde_as(as = "serde_with::PickFirst<(_, serde_with::DisplayFromStr)>")]
     #[serde(rename = "value")]
     // Tries to decode as u64 first, then fallback to string. Encodes as u64 always
     // see details - https://docs.rs/serde_with/1.9.4/serde_with/struct.PickFirst.html
@@ -172,6 +169,7 @@ mod tests {
     use crate::chain::ergo_box::NonMandatoryRegisterId;
     use crate::chain::ergo_box::NonMandatoryRegisters;
     use crate::chain::token::Token;
+    use pretty_assertions::assert_eq;
     use proptest::prelude::*;
 
     proptest! {
@@ -359,5 +357,14 @@ mod tests {
         }"#;
         let t: Token = serde_json::from_str(token_json).unwrap();
         assert_eq!(t.amount, 99999999998u64.try_into().unwrap());
+    }
+
+    #[test]
+    fn encode_token_amount_as_str() {
+        let token_json = "{\n  \"tokenId\": \"2d554219a80c011cc51509e34fa4950965bb8e01de4d012536e766c9ca08bc2c\",\n  \"amount\": \"99999999998\"\n}";
+        let t: Token = serde_json::from_str(token_json).unwrap();
+        assert_eq!(t.amount, 99999999998u64.try_into().unwrap());
+        let to_json = serde_json::to_string_pretty(&t).unwrap();
+        assert_eq!(to_json, token_json);
     }
 }

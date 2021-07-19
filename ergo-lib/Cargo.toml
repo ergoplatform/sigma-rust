@@ -46,6 +46,7 @@ rand = "0.8.4"
 ergotree-ir = { version = "^0.13.0", path = "../ergotree-ir", features = ["arbitrary"] }
 ergotree-interpreter = { version = "^0.13.0", path = "../ergotree-interpreter", features = ["arbitrary"] }
 sigma-test-util = { version = "0.2.0", path = "../sigma-test-util" }
+pretty_assertions = "0.7.2"
 
 [dev-dependencies.proptest]
 # wasm support, via https://altsysrq.github.io/proptest-book/proptest/wasm.html

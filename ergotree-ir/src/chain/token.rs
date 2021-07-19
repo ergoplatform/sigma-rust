@@ -72,7 +72,8 @@ pub struct TokenAmount(u64);
 #[serde_with::serde_as]
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Debug, Clone, Copy, PartialOrd, Ord)]
 pub struct TokenAmount(
-    #[serde_as(as = "serde_with::PickFirst<(_, serde_with::DisplayFromStr)>")] u64,
+    // #[serde_as(as = "serde_with::PickFirst<(_, serde_with::DisplayFromStr)>")] u64,
+    #[serde_as(as = "serde_with::PickFirst<(serde_with::DisplayFromStr, _)>")] u64,
 );
 
 impl TokenAmount {

@@ -11,10 +11,20 @@ use ergotree_ir::serialization::{
 use std::convert::TryFrom;
 use thiserror::Error;
 
-#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+#[cfg(not(feature = "json"))]
 #[derive(PartialEq, Eq, Hash, Debug, Clone, Copy, FromStr)]
 /// Box value in nanoERGs with bound checks
 pub struct BoxValue(pub(crate) u64);
+
+#[cfg(feature = "json")]
+#[serde_with::serde_as]
+#[derive(
+    serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash, Debug, Clone, Copy, FromStr,
+)]
+/// Box value in nanoERGs with bound checks
+pub struct BoxValue(
+    #[serde_as(as = "serde_with::PickFirst<(serde_with::DisplayFromStr, _)>")] pub(crate) u64,
+);
 
 impl BoxValue {
     /// Minimal box value per byte of the serialized box that was set on on launch
