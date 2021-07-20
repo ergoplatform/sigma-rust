@@ -72,7 +72,9 @@ pub struct TokenAmount(u64);
 #[serde_with::serde_as]
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Debug, Clone, Copy, PartialOrd, Ord)]
 pub struct TokenAmount(
-    #[serde_as(as = "serde_with::PickFirst<(serde_with::DisplayFromStr, _)>")] u64,
+    // Tries to decode as u64 first, then fallback to string. Encodes as u64 always
+    // see details - https://docs.rs/serde_with/1.9.4/serde_with/struct.PickFirst.html
+    #[serde_as(as = "serde_with::PickFirst<(_, serde_with::DisplayFromStr)>")] u64,
 );
 
 impl TokenAmount {

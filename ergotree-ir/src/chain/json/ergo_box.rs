@@ -358,8 +358,8 @@ mod tests {
     }
 
     #[test]
-    fn encode_token_amount_as_str() {
-        let token_json = "{\n  \"tokenId\": \"2d554219a80c011cc51509e34fa4950965bb8e01de4d012536e766c9ca08bc2c\",\n  \"amount\": \"99999999998\"\n}";
+    fn encode_token_amount_as_num() {
+        let token_json = "{\n  \"tokenId\": \"2d554219a80c011cc51509e34fa4950965bb8e01de4d012536e766c9ca08bc2c\",\n  \"amount\": 99999999998\n}";
         let t: Token = serde_json::from_str(token_json).unwrap();
         assert_eq!(t.amount, 99999999998u64.try_into().unwrap());
         let to_json = serde_json::to_string_pretty(&t).unwrap();

@@ -17,10 +17,9 @@ mod tests {
         assert_eq!(v, 67500000000u64.try_into().unwrap());
     }
 
-    #[ignore = "moved to wasm"]
     #[test]
-    fn encode_value_as_str() {
-        let json = "\"67500000000\"";
+    fn encode_value_as_num() {
+        let json = "67500000000";
         let v: BoxValue = serde_json::from_str(json).unwrap();
         assert_eq!(v, 67500000000u64.try_into().unwrap());
         let to_json = serde_json::to_string_pretty(&v).unwrap();
