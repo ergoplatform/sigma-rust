@@ -6,6 +6,7 @@ use crate::data_input::DataInputs;
 use crate::error_conversion::to_js;
 use crate::input::{Inputs, UnsignedInputs};
 use crate::json::TransactionJsonDapp;
+use crate::json::UnsignedTransactionJsonDapp;
 use ergo_lib::chain;
 use ergo_lib::chain::transaction::distinct_token_ids;
 use ergo_lib::ergotree_ir::chain::base16_bytes::Base16DecodedBytes;
@@ -172,9 +173,15 @@ impl UnsignedTransaction {
         self.0.output_candidates.as_vec().clone().into()
     }
 
-    /// JSON representation
+    /// JSON representation (compatible with Ergo Node/Explorer API)
     pub fn to_json(&self) -> Result<JsValue, JsValue> {
         JsValue::from_serde(&self.0.clone()).map_err(to_js)
+    }
+
+    /// JSON representation (with box value and token amount encoding as strings)
+    pub fn to_json_dapp(&self) -> Result<JsValue, JsValue> {
+        let tx_dapp: UnsignedTransactionJsonDapp = self.0.clone().into();
+        JsValue::from_serde(&tx_dapp).map_err(|e| JsValue::from_str(&format!("{}", e)))
     }
 
     /// JSON representation
