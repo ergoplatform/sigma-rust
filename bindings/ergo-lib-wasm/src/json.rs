@@ -180,13 +180,12 @@ mod tests {
     proptest! {
 
         #[test]
-        fn ergo_box_roundtrip(b in any::<ErgoBox>()) {
-            let b_dapp: ErgoBoxJsonDapp = b.into();
-            let j = serde_json::to_string(&b_dapp).unwrap();
+        fn ergo_box_roundtrip_to_json(b in any::<ErgoBox>()) {
+            let wasm_box: crate::ergo_box::ErgoBox = b.into();
+            let j = wasm_box.to_json().unwrap();
             // eprintln!("{}", j);
-            let b_parsed: ErgoBox = serde_json::from_str(&j)?;
-            prop_assert_eq![b_dapp, b_parsed.into()];
+            let wasm_box_parsed = crate::ergo_box::ErgoBox::from_json(&j).unwrap();
+            prop_assert_eq![wasm_box, wasm_box_parsed];
         }
-
     }
 }
