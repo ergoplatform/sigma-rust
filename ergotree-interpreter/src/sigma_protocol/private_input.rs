@@ -91,21 +91,6 @@ pub struct DhTupleProverInput {
 }
 
 impl DhTupleProverInput {
-    /// Create random secret and Diffie-Hellman tuple
-    #[allow(clippy::many_single_char_names)]
-    pub fn random() -> Self {
-        let g = dlog_group::generator();
-        let h = dlog_group::exponentiate(
-            &dlog_group::generator(),
-            &dlog_group::random_scalar_in_group_range(),
-        );
-        let w = dlog_group::random_scalar_in_group_range();
-        let u = dlog_group::exponentiate(&g, &w);
-        let v = dlog_group::exponentiate(&h, &w);
-        let common_input = ProveDhTuple::new(g, h, u, v);
-        Self { w, common_input }
-    }
-
     /// Public image (Diffie-Hellman tuple)
     pub fn public_image(&self) -> &ProveDhTuple {
         &self.common_input
@@ -133,9 +118,24 @@ impl PrivateInput {
 
 #[cfg(feature = "arbitrary")]
 /// Arbitrary impl
-mod arbitrary {
+pub(crate) mod arbitrary {
     use super::*;
     use proptest::prelude::*;
+
+    /// Create random secret and Diffie-Hellman tuple
+    #[allow(clippy::many_single_char_names)]
+    pub fn random_dht_prover_input() -> DhTupleProverInput {
+        let g = dlog_group::generator();
+        let h = dlog_group::exponentiate(
+            &dlog_group::generator(),
+            &dlog_group::random_scalar_in_group_range(),
+        );
+        let w = dlog_group::random_scalar_in_group_range();
+        let u = dlog_group::exponentiate(&g, &w);
+        let v = dlog_group::exponentiate(&h, &w);
+        let common_input = ProveDhTuple::new(g, h, u, v);
+        DhTupleProverInput { w, common_input }
+    }
 
     impl Arbitrary for DlogProverInput {
         type Parameters = ();
@@ -157,11 +157,11 @@ mod arbitrary {
         type Strategy = BoxedStrategy<Self>;
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             prop_oneof![
-                Just(DhTupleProverInput::random()),
-                Just(DhTupleProverInput::random()),
-                Just(DhTupleProverInput::random()),
-                Just(DhTupleProverInput::random()),
-                Just(DhTupleProverInput::random()),
+                Just(random_dht_prover_input()),
+                Just(random_dht_prover_input()),
+                Just(random_dht_prover_input()),
+                Just(random_dht_prover_input()),
+                Just(random_dht_prover_input()),
             ]
             .boxed()
         }

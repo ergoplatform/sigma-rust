@@ -894,7 +894,8 @@ impl Prover for TestProver {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::sigma_protocol::private_input::{DhTupleProverInput, DlogProverInput};
+    use crate::sigma_protocol::private_input::arbitrary::random_dht_prover_input;
+    use crate::sigma_protocol::private_input::DlogProverInput;
     use ergotree_ir::mir::constant::Constant;
     use ergotree_ir::mir::expr::Expr;
     use ergotree_ir::mir::sigma_and::SigmaAnd;
@@ -1084,7 +1085,7 @@ mod tests {
 
     #[test]
     fn test_prove_dht_prop() {
-        let secret = DhTupleProverInput::random();
+        let secret = random_dht_prover_input();
         let pi = secret.public_image();
         let tree = ErgoTree::try_from(Expr::Const(pi.clone().into())).unwrap();
         let message = vec![0u8; 100];
