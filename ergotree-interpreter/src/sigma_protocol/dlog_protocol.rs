@@ -47,6 +47,10 @@ pub(crate) mod interactive_prover {
     use ergotree_ir::sigma_protocol::sigma_boolean::ProveDlog;
     use k256::Scalar;
 
+    /// Step 5 from https://ergoplatform.org/docs/ErgoScript.pdf
+    /// For every leaf marked “simulated”, use the simulator of the sigma protocol for that leaf
+    /// to compute the commitment "a" and the response "z", given the challenge "e" that
+    /// is already stored in the leaf
     pub(crate) fn simulate(
         public_input: &ProveDlog,
         challenge: &Challenge,
@@ -66,7 +70,9 @@ pub(crate) mod interactive_prover {
         )
     }
 
-    /// Create first message from the prover and a randomness
+    /// Step 6 from https://ergoplatform.org/docs/ErgoScript.pdf
+    /// For every leaf marked “real”, use the first prover step of the sigma protocol for
+    /// that leaf to compute the necessary randomness "r" and the commitment "a"
     pub(crate) fn first_message() -> (Scalar, FirstDlogProverMessage) {
         let r = dlog_group::random_scalar_in_group_range();
         let g = dlog_group::generator();
@@ -74,7 +80,10 @@ pub(crate) mod interactive_prover {
         (r, FirstDlogProverMessage(a.into()))
     }
 
-    /// Create second message from the prover
+    /// Step 9 part 2 from https://ergoplatform.org/docs/ErgoScript.pdf
+    /// compute its response "z" according to the second prover step(step 5 in whitepaper)
+    /// of the sigma protocol given the randomness "r"(rnd) used for the commitment "a",
+    /// the challenge "e", and witness w.
     pub(crate) fn second_message(
         private_input: &DlogProverInput,
         rnd: Scalar,
@@ -88,13 +97,11 @@ pub(crate) mod interactive_prover {
         z.into()
     }
 
-    /**
-     * The function computes initial prover's commitment to randomness
-     * ("a" message of the sigma-protocol) based on the verifier's challenge ("e")
-     * and prover's response ("z")
-     *
-     * g^z = a*h^e => a = g^z/h^e
-     */
+    /// The function computes initial prover's commitment to randomness
+    /// ("a" message of the sigma-protocol) based on the verifier's challenge ("e")
+    /// and prover's response ("z")
+    ///  
+    /// g^z = a*h^e => a = g^z/h^e
     pub(crate) fn compute_commitment(
         proposition: &ProveDlog,
         challenge: &Challenge,
