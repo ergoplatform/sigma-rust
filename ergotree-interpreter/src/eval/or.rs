@@ -15,6 +15,7 @@ impl Evaluable for Or {
     }
 }
 
+#[allow(clippy::panic)]
 #[cfg(test)]
 mod tests {
     use super::*;

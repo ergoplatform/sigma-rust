@@ -37,6 +37,7 @@ impl Evaluable for Collection {
 }
 
 #[allow(clippy::unwrap_used)]
+#[allow(clippy::panic)]
 #[cfg(test)]
 mod tests {
     use super::*;

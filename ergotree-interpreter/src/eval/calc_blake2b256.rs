@@ -28,6 +28,7 @@ impl Evaluable for CalcBlake2b256 {
 }
 
 #[cfg(test)]
+#[allow(clippy::panic)]
 mod tests {
     use super::*;
     use crate::eval::context::Context;

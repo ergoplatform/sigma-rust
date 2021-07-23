@@ -148,6 +148,7 @@ impl Evaluator for TestVerifier {}
 impl Verifier for TestVerifier {}
 
 #[allow(clippy::unwrap_used)]
+#[allow(clippy::panic)]
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
 mod tests {

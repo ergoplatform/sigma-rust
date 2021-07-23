@@ -117,6 +117,7 @@ pub(crate) mod interactive_prover {
     }
 }
 
+#[allow(clippy::panic)]
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
 mod tests {

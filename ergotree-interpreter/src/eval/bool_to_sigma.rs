@@ -18,6 +18,7 @@ impl Evaluable for BoolToSigmaProp {
 }
 
 #[cfg(test)]
+#[allow(clippy::panic)]
 mod tests {
     use super::*;
     use crate::eval::tests::eval_out_wo_ctx;

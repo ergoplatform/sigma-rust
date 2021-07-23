@@ -34,6 +34,7 @@ impl Evaluable for Xor {
     }
 }
 
+#[allow(clippy::panic)]
 #[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
