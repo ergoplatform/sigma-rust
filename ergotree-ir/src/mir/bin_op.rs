@@ -67,10 +67,6 @@ pub enum RelationOp {
     Le,
     /// Less then
     Lt,
-    /// Logical AND
-    And,
-    /// Logical OR
-    Or,
 }
 
 impl From<RelationOp> for OpCode {
@@ -82,8 +78,28 @@ impl From<RelationOp> for OpCode {
             RelationOp::Gt => OpCode::GT,
             RelationOp::Le => OpCode::LE,
             RelationOp::Lt => OpCode::LT,
-            RelationOp::And => OpCode::BIN_AND,
-            RelationOp::Or => OpCode::BIN_OR,
+        }
+    }
+}
+
+/// Logical operations
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+#[cfg_attr(feature = "arbitrary", derive(Arbitrary))]
+pub enum LogicalOp {
+    /// Logical AND
+    And,
+    /// Logical OR
+    Or,
+    /// Logical XOR
+    Xor,
+}
+
+impl From<LogicalOp> for OpCode {
+    fn from(op: LogicalOp) -> Self {
+        match op {
+            LogicalOp::And => OpCode::BIN_AND,
+            LogicalOp::Or => OpCode::BIN_OR,
+            LogicalOp::Xor => OpCode::BIN_XOR,
         }
     }
 }
@@ -96,6 +112,8 @@ pub enum BinOpKind {
     Arith(ArithOp),
     /// Relation operations (equality, comparison, etc.)
     Relation(RelationOp),
+    /// Logical operations
+    Logical(LogicalOp),
 }
 
 impl From<BinOpKind> for OpCode {
@@ -103,6 +121,7 @@ impl From<BinOpKind> for OpCode {
         match op {
             BinOpKind::Arith(o) => o.into(),
             BinOpKind::Relation(o) => o.into(),
+            BinOpKind::Logical(o) => o.into(),
         }
     }
 }
@@ -124,6 +143,7 @@ impl BinOp {
         match self.kind {
             BinOpKind::Relation(_) => SType::SBoolean,
             BinOpKind::Arith(_) => self.left.tpe(),
+            BinOpKind::Logical(_) => SType::SBoolean,
         }
     }
 }
@@ -162,23 +182,36 @@ mod arbitrary {
             };
 
             match args.tpe {
-                SType::SBoolean => (
-                    any::<RelationOp>().prop_map_into(),
-                    any_with::<Expr>(ArbExprParams {
-                        tpe: SType::SAny,
-                        depth: args.depth,
-                    }),
-                    any_with::<Expr>(ArbExprParams {
-                        tpe: SType::SAny,
-                        depth: args.depth,
-                    }),
-                )
-                    .prop_map(|(kind, left, right)| BinOp {
-                        kind,
-                        left: Box::new(left),
-                        right: Box::new(right),
-                    })
-                    .boxed(),
+                SType::SBoolean => prop_oneof![
+                    (
+                        any::<RelationOp>().prop_map_into(),
+                        any_with::<Expr>(ArbExprParams {
+                            tpe: SType::SAny,
+                            depth: args.depth,
+                        }),
+                        any_with::<Expr>(ArbExprParams {
+                            tpe: SType::SAny,
+                            depth: args.depth,
+                        }),
+                    ),
+                    (
+                        any::<LogicalOp>().prop_map_into(),
+                        any_with::<Expr>(ArbExprParams {
+                            tpe: SType::SBoolean,
+                            depth: args.depth,
+                        }),
+                        any_with::<Expr>(ArbExprParams {
+                            tpe: SType::SBoolean,
+                            depth: args.depth,
+                        }),
+                    )
+                ]
+                .prop_map(|(kind, left, right)| BinOp {
+                    kind,
+                    left: Box::new(left),
+                    right: Box::new(right),
+                })
+                .boxed(),
 
                 SType::SByte => numeric_binop(),
                 SType::SShort => numeric_binop(),
@@ -237,7 +270,7 @@ mod tests {
         assert_eq!(
             e,
             Ok(Expr::BinOp(BinOp {
-                kind: BinOpKind::Relation(RelationOp::And,),
+                kind: BinOpKind::Logical(LogicalOp::And,),
                 left: Expr::Const(Constant {
                     tpe: SType::SBoolean,
                     v: Boolean(true),

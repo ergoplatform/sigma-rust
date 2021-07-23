@@ -1,9 +1,9 @@
 //! Operators in ErgoTree
 
-use ergotree_ir::mir::bin_op::ArithOp;
 use ergotree_ir::mir::bin_op::BinOp;
 use ergotree_ir::mir::bin_op::BinOpKind;
 use ergotree_ir::mir::bin_op::RelationOp;
+use ergotree_ir::mir::bin_op::{ArithOp, LogicalOp};
 use ergotree_ir::mir::constant::TryExtractFrom;
 use ergotree_ir::mir::constant::TryExtractInto;
 use ergotree_ir::mir::value::Value;
@@ -174,9 +174,26 @@ impl Evaluable for BinOp {
     fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
         ctx.cost_accum.add(Costs::DEFAULT.eq_const_size)?;
         let lv = self.left.eval(env, ctx)?;
-        // using closure to keep right value from evaluation (for lazy AND, OR)
+        // using closure to keep right value from evaluation (for lazy AND, OR, XOR)
         let mut rv = || self.right.eval(env, ctx);
         match self.kind {
+            BinOpKind::Logical(op) => match op {
+                LogicalOp::And => Ok(Value::Boolean(if lv.try_extract_into::<bool>()? {
+                    rv()?.try_extract_into::<bool>()?
+                } else {
+                    false
+                })),
+                LogicalOp::Or => Ok(Value::Boolean(if !lv.try_extract_into::<bool>()? {
+                    rv()?.try_extract_into::<bool>()?
+                } else {
+                    true
+                })),
+                LogicalOp::Xor => Ok(Value::Boolean(if lv.try_extract_into::<bool>()? {
+                    !rv()?.try_extract_into::<bool>()?
+                } else {
+                    rv()?.try_extract_into::<bool>()?
+                })),
+            },
             BinOpKind::Relation(op) => match op {
                 RelationOp::Eq => Ok(Value::Boolean(lv == rv()?)),
                 RelationOp::NEq => Ok(Value::Boolean(lv != rv()?)),
@@ -184,16 +201,6 @@ impl Evaluable for BinOp {
                 RelationOp::Lt => eval_lt(lv, rv()?),
                 RelationOp::Ge => eval_ge(lv, rv()?),
                 RelationOp::Le => eval_le(lv, rv()?),
-                RelationOp::And => Ok(Value::Boolean(if lv.try_extract_into::<bool>()? {
-                    rv()?.try_extract_into::<bool>()?
-                } else {
-                    false
-                })),
-                RelationOp::Or => Ok(Value::Boolean(if !lv.try_extract_into::<bool>()? {
-                    rv()?.try_extract_into::<bool>()?
-                } else {
-                    true
-                })),
             },
             BinOpKind::Arith(op) => match op {
                 ArithOp::Plus => match lv {
@@ -385,7 +392,7 @@ mod tests {
     #[test]
     fn bin_or_eval_laziness() {
         let e: Expr = BinOp {
-            kind: BinOpKind::Relation(RelationOp::Or),
+            kind: BinOpKind::Logical(LogicalOp::Or),
             left: Box::new(Expr::Const(true.into())),
             // something that should blow-up the evaluation
             right: Box::new(
@@ -405,7 +412,7 @@ mod tests {
     #[test]
     fn bin_and_eval_laziness() {
         let e: Expr = BinOp {
-            kind: BinOpKind::Relation(RelationOp::And),
+            kind: BinOpKind::Logical(LogicalOp::And),
             left: Box::new(Expr::Const(false.into())),
             // something that should blow-up the evaluation
             right: Box::new(
@@ -440,6 +447,17 @@ mod tests {
     fn eval_relation_op<T: Into<Constant>>(op: RelationOp, left: T, right: T) -> bool {
         let expr: Expr = BinOp {
             kind: BinOpKind::Relation(op),
+            left: Box::new(left.into().into()),
+            right: Box::new(right.into().into()),
+        }
+        .into();
+        let ctx = Rc::new(force_any_val::<Context>());
+        eval_out::<bool>(&expr, ctx)
+    }
+
+    fn eval_logical_op<T: Into<Constant>>(op: LogicalOp, left: T, right: T) -> bool {
+        let expr: Expr = BinOp {
+            kind: BinOpKind::Logical(op),
             left: Box::new(left.into().into()),
             right: Box::new(right.into().into()),
         }
@@ -591,10 +609,10 @@ mod tests {
         }
 
         #[test]
-        fn test_and_or(l in any::<bool>(), r in any::<bool>()) {
-            prop_assert_eq!(eval_relation_op(RelationOp::And, l, r), l && r);
-            prop_assert_eq!(eval_relation_op(RelationOp::Or, l, r), l || r);
+        fn test_and_or_xor(l in any::<bool>(), r in any::<bool>()) {
+            prop_assert_eq!(eval_logical_op(LogicalOp::And, l, r), l && r);
+            prop_assert_eq!(eval_logical_op(LogicalOp::Or, l, r), l || r);
+            prop_assert_eq!(eval_logical_op(LogicalOp::Xor, l, r), (l || r) && !(l && r));
         }
-
     }
 }
