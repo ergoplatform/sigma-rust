@@ -39,39 +39,27 @@ impl TryFrom<&[u8]> for BigInt256 {
     }
 }
 
-impl TryFrom<i8> for BigInt256 {
-    type Error = String;
-
-    fn try_from(value: i8) -> Result<Self, Self::Error> {
-        let n = BigInt::from(value);
-        Self::try_from(n)
+impl From<i8> for BigInt256 {
+    fn from(value: i8) -> Self {
+        Self(Int256::from(value))
     }
 }
 
-impl TryFrom<i16> for BigInt256 {
-    type Error = String;
-
-    fn try_from(value: i16) -> Result<Self, Self::Error> {
-        let n = BigInt::from(value);
-        Self::try_from(n)
+impl From<i16> for BigInt256 {
+    fn from(value: i16) -> Self {
+        Self(Int256::from(value))
     }
 }
 
-impl TryFrom<i32> for BigInt256 {
-    type Error = String;
-
-    fn try_from(value: i32) -> Result<Self, Self::Error> {
-        let n = BigInt::from(value);
-        Self::try_from(n)
+impl From<i32> for BigInt256 {
+    fn from(value: i32) -> Self {
+        Self(Int256::from(value))
     }
 }
 
-impl TryFrom<i64> for BigInt256 {
-    type Error = String;
-
-    fn try_from(value: i64) -> Result<Self, Self::Error> {
-        let n = BigInt::from(value);
-        Self::try_from(n)
+impl From<i64> for BigInt256 {
+    fn from(value: i64) -> Self {
+        Self(Int256::from(value))
     }
 }
 

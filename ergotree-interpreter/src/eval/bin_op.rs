@@ -301,7 +301,6 @@ mod tests {
     use num_traits::Bounded;
     use proptest::prelude::*;
     use sigma_test_util::force_any_val;
-    use std::convert::TryFrom;
     use std::rc::Rc;
 
     fn check_eq_neq(left: Constant, right: Constant) -> bool {
@@ -439,7 +438,7 @@ mod tests {
 
     #[test]
     fn test_bigint_extremes() {
-        let b = |n| BigInt256::try_from(n).unwrap();
+        let b = |n| BigInt256::from(n);
         // Our BigInt should behave like a 256 bit signed (two's complement) integer according to
         // the language spec. These are the max and min values representable:
         let max = BigInt256::max_value;
@@ -556,8 +555,8 @@ mod tests {
 
         #[test]
         fn test_num_bigint(l_long in any::<i64>(), r_long in any::<i64>()) {
-            let l = BigInt256::try_from(l_long).unwrap();
-            let r = BigInt256::try_from(r_long).unwrap();
+            let l = BigInt256::from(l_long);
+            let r = BigInt256::from(r_long);
             prop_assert_eq!(eval_num_op(ArithOp::Plus, l.clone(), r.clone()).ok(), l.checked_add(&r));
             prop_assert_eq!(eval_num_op(ArithOp::Minus, l.clone(), r.clone()).ok(), l.checked_sub(&r));
             prop_assert_eq!(eval_num_op(ArithOp::Multiply, l.clone(), r.clone()).ok(), l.checked_mul(&r));

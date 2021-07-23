@@ -226,7 +226,7 @@ pub(crate) mod arbitrary {
             any::<i16>().prop_map_into(),
             any::<i32>().prop_map_into(),
             any::<i64>().prop_map_into(),
-            any::<i64>().prop_map(|v| BigInt256::try_from(v).unwrap().into()),
+            any::<i64>().prop_map(|v| BigInt256::from(v).into()),
             any::<EcPoint>().prop_map_into(),
             any::<SigmaProp>().prop_map_into(),
             // although it's not strictly a primitive type, byte array is widely used as one
@@ -266,9 +266,7 @@ pub(crate) mod arbitrary {
             SType::SShort => any::<i16>().prop_map_into().boxed(),
             SType::SInt => any::<i32>().prop_map_into().boxed(),
             SType::SLong => any::<i64>().prop_map_into().boxed(),
-            SType::SBigInt => any::<i64>()
-                .prop_map(|v| BigInt256::try_from(v).unwrap().into())
-                .boxed(),
+            SType::SBigInt => any::<i64>().prop_map(|v| BigInt256::from(v).into()).boxed(),
             SType::SGroupElement => any::<EcPoint>().prop_map_into().boxed(),
             SType::SSigmaProp => any::<SigmaProp>().prop_map_into().boxed(),
             // SType::SBox => {}
@@ -371,7 +369,6 @@ pub mod tests {
     use super::*;
     use core::fmt;
     use proptest::prelude::*;
-    use std::convert::TryFrom;
 
     fn test_constant_roundtrip<T>(v: T)
     where
@@ -413,7 +410,7 @@ pub mod tests {
 
         #[test]
         fn bigint_roundtrip(raw in any::<i64>()) {
-            let v = BigInt256::try_from(raw).unwrap();
+            let v = BigInt256::from(raw);
             test_constant_roundtrip(v);
         }
 
@@ -454,13 +451,13 @@ pub mod tests {
 
         #[test]
         fn vec_bigint_roundtrip(raw in any::<Vec<i64>>()) {
-            let v: Vec<BigInt256> = raw.into_iter().map(|i| BigInt256::try_from(i).unwrap()).collect();
+            let v: Vec<BigInt256> = raw.into_iter().map(|i| BigInt256::from(i)).collect();
             test_constant_roundtrip(v);
         }
 
         #[test]
         fn vec_option_bigint_roundtrip(raw in any::<Vec<i64>>()) {
-            let v: Vec<Option<BigInt256>> = raw.into_iter().map(|i| BigInt256::try_from(i).ok()).collect();
+            let v: Vec<Option<BigInt256>> = raw.into_iter().map(|i| Some(BigInt256::from(i))).collect();
             test_constant_roundtrip(v);
         }
 

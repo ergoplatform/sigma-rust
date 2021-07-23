@@ -45,7 +45,6 @@ mod tests {
     use ergotree_ir::mir::expr::Expr;
     use ergotree_ir::mir::unary_op::UnaryOpTryBuild;
     use num_traits::{Bounded, Num};
-    use std::convert::TryFrom;
 
     fn try_run_eval<T: Num + Into<Constant> + TryExtractFrom<Value>>(
         input: T,
@@ -69,10 +68,7 @@ mod tests {
         assert!(try_run_eval(i32::MIN).is_err());
         assert_eq!(run_eval(1i64), -1i64);
         assert!(try_run_eval(i64::MIN).is_err());
-        assert_eq!(
-            run_eval(BigInt256::try_from(1i64).unwrap()),
-            BigInt256::try_from(-1i64).unwrap()
-        );
+        assert_eq!(run_eval(BigInt256::from(1i64)), BigInt256::from(-1i64));
         assert!(try_run_eval(BigInt256::min_value()).is_err());
     }
 }

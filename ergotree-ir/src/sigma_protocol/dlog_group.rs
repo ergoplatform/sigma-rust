@@ -118,6 +118,9 @@ pub fn random_scalar_in_group_range() -> Scalar {
 
 /// Attempts to create BigInt256 from Scalar
 /// Returns None if s > 2^255 - 1
+/// Since Scalar is in [0, n) range, where n is the group order
+/// (FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFE BAAEDCE6 AF48A03B BFD25E8C D0364141)
+/// it might not fit into 256-bit BigInt because BigInt uses 1 bit for sign.
 pub fn scalar_to_bigint256(s: Scalar) -> Option<BigInt256> {
     let r_g_array = s.to_bytes();
     let r_b_array: &[u8] = r_g_array.as_slice();
