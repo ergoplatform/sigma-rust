@@ -612,7 +612,7 @@ mod tests {
         fn test_and_or_xor(l in any::<bool>(), r in any::<bool>()) {
             prop_assert_eq!(eval_logical_op(LogicalOp::And, l, r), l && r);
             prop_assert_eq!(eval_logical_op(LogicalOp::Or, l, r), l || r);
-            prop_assert_eq!(eval_logical_op(LogicalOp::Xor, l, r), (l || r) && !(l && r));
+            prop_assert_eq!(eval_logical_op(LogicalOp::Xor, l, r), l ^ r);
         }
     }
 }
