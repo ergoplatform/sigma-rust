@@ -1,4 +1,5 @@
 use crate::serialization::types::TypeCode;
+use crate::types::stuple::STuple;
 
 use super::sfunc::SFunc;
 use super::smethod::MethodId;
@@ -16,6 +17,8 @@ pub const TYPE_ID: TypeCode = TypeCode::COLLECTION;
 pub const INDEX_OF_METHOD_ID: MethodId = MethodId(26);
 /// Coll.flatmap
 pub const FLATMAP_METHOD_ID: MethodId = MethodId(15);
+/// Coll.zip
+pub const ZIP_METHOD_ID: MethodId = MethodId(14);
 
 static S_COLL_TYPE_COMPANION_HEAD: STypeCompanionHead = STypeCompanionHead {
     type_id: TYPE_ID,
@@ -28,7 +31,8 @@ lazy_static! {
         &S_COLL_TYPE_COMPANION_HEAD,
         vec![
             &INDEX_OF_METHOD_DESC,
-            &FLATMAP_METHOD_DESC
+            &FLATMAP_METHOD_DESC,
+            &ZIP_METHOD_DESC
         ]
     );
 }
@@ -66,6 +70,24 @@ lazy_static! {
     pub static ref FLATMAP_METHOD: SMethod = SMethod::new(&S_COLL_TYPE_COMPANION, FLATMAP_METHOD_DESC.clone());
 }
 
+lazy_static! {
+    static ref ZIP_METHOD_DESC: SMethodDesc = SMethodDesc {
+        method_id: ZIP_METHOD_ID,
+        name: "zip",
+        tpe: SFunc::new(
+            vec![
+                SType::SColl(SType::STypeVar(STypeVar::t()).into()),
+                SType::SColl(SType::STypeVar(STypeVar::iv()).into())
+            ],
+            SType::SColl(SType::STuple(STuple::pair(
+                STypeVar::t().into(), STypeVar::iv().into()
+            )).into())
+        )
+    };
+    /// Coll.zip
+    pub static ref ZIP_METHOD: SMethod = SMethod::new(&S_COLL_TYPE_COMPANION, ZIP_METHOD_DESC.clone());
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -74,5 +96,6 @@ mod tests {
     fn test_from_ids() {
         assert!(SMethod::from_ids(TYPE_ID, INDEX_OF_METHOD_ID).map(|e| e.name()) == Ok("indexOf"));
         assert!(SMethod::from_ids(TYPE_ID, FLATMAP_METHOD_ID).map(|e| e.name()) == Ok("flatMap"));
+        assert!(SMethod::from_ids(TYPE_ID, ZIP_METHOD_ID).map(|e| e.name()) == Ok("zip"));
     }
 }

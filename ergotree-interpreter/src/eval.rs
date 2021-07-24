@@ -196,6 +196,7 @@ fn smethod_eval_fn(method: &SMethod) -> EvalFn {
         scoll::TYPE_ID => match method.method_id() {
             scoll::INDEX_OF_METHOD_ID => self::scoll::INDEX_OF_EVAL_FN,
             scoll::FLATMAP_METHOD_ID => self::scoll::FLATMAP_EVAL_FN,
+            scoll::ZIP_METHOD_ID => self::scoll::ZIP_EVAL_FN,
             method_id => panic!("Eval fn: unknown method id in SCollection: {:?}", method_id),
         },
         sgroup_elem::TYPE_ID => match method.method_id() {
