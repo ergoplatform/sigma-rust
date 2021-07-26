@@ -4,6 +4,7 @@ use crate::eval::Evaluable;
 use ergotree_ir::mir::constant::TryExtractInto;
 use ergotree_ir::mir::value::CollKind;
 use ergotree_ir::mir::value::Value;
+use ergotree_ir::types::stuple::STuple;
 
 use super::EvalFn;
 
@@ -88,6 +89,37 @@ pub(crate) static FLATMAP_EVAL_FN: EvalFn = |env, ctx, obj, args| {
         })
         .and_then(|v| v) // flatten <Result<Result<Value, _>, _>
         .map(Value::Coll)
+};
+
+pub(crate) static ZIP_EVAL_FN: EvalFn = |_env, _ctx, obj, args| {
+    let (type_1, coll_1) = match obj {
+        Value::Coll(coll) => Ok((coll.elem_tpe().clone(), coll.as_vec())),
+        _ => Err(EvalError::UnexpectedValue(format!(
+            "expected obj to be Value::Coll, got: {0:?}",
+            obj
+        ))),
+    }?;
+    let arg_1 = args
+        .get(0)
+        .cloned()
+        .ok_or_else(|| EvalError::NotFound("zip: missing first arg".to_string()))?;
+    let (type_2, coll_2) = match arg_1 {
+        Value::Coll(coll) => Ok((coll.elem_tpe().clone(), coll.as_vec())),
+        _ => Err(EvalError::UnexpectedValue(format!(
+            "expected first arg to be Value::Coll, got: {0:?}",
+            arg_1
+        ))),
+    }?;
+    let zip = coll_1
+        .into_iter()
+        .zip(coll_2.into_iter())
+        .map(|(a, b)| Value::Tup([a, b].into()))
+        .collect::<Vec<Value>>();
+    let coll_zip = CollKind::from_vec(STuple::pair(type_1, type_2).into(), zip);
+    match coll_zip {
+        Ok(coll) => Ok(Value::Coll(coll)),
+        Err(e) => Err(EvalError::TryExtractFrom(e)),
+    }
 };
 
 #[allow(clippy::unwrap_used)]
@@ -185,5 +217,139 @@ mod tests {
         .into();
         let res = eval_out_wo_ctx::<Vec<bool>>(&expr);
         assert_eq!(res, vec![true, false]);
+    }
+
+    #[test]
+    fn eval_zip_empty() {
+        // Both empty
+        let empty_coll_const: Constant = Vec::<i64>::new().into();
+        let empty_input: Constant = Vec::<bool>::new().into();
+        let expr: Expr = MethodCall::new(
+            empty_coll_const.into(),
+            scoll::ZIP_METHOD.clone().with_concrete_types(
+                &[
+                    (STypeVar::t(), SType::SLong),
+                    (STypeVar::iv(), SType::SBoolean),
+                ]
+                .iter()
+                .cloned()
+                .collect(),
+            ),
+            vec![empty_input.into()],
+        )
+        .unwrap()
+        .into();
+        let res = eval_out_wo_ctx::<Vec<(i64, bool)>>(&expr);
+        assert_eq!(res, Vec::<(i64, bool)>::new());
+
+        // Only obj empty
+        let empty_coll_const: Constant = Vec::<i64>::new().into();
+        let input: Constant = vec![true, false].into();
+        let expr: Expr = MethodCall::new(
+            empty_coll_const.into(),
+            scoll::ZIP_METHOD.clone().with_concrete_types(
+                &[
+                    (STypeVar::t(), SType::SLong),
+                    (STypeVar::iv(), SType::SBoolean),
+                ]
+                .iter()
+                .cloned()
+                .collect(),
+            ),
+            vec![input.into()],
+        )
+        .unwrap()
+        .into();
+        let res = eval_out_wo_ctx::<Vec<(i64, bool)>>(&expr);
+        assert_eq!(res, Vec::<(i64, bool)>::new());
+
+        // Only input empty
+        let coll_const: Constant = vec![1i64, 2i64].into();
+        let empty_input: Constant = Vec::<bool>::new().into();
+        let expr: Expr = MethodCall::new(
+            coll_const.into(),
+            scoll::ZIP_METHOD.clone().with_concrete_types(
+                &[
+                    (STypeVar::t(), SType::SLong),
+                    (STypeVar::iv(), SType::SBoolean),
+                ]
+                .iter()
+                .cloned()
+                .collect(),
+            ),
+            vec![empty_input.into()],
+        )
+        .unwrap()
+        .into();
+        let res = eval_out_wo_ctx::<Vec<(i64, bool)>>(&expr);
+        assert_eq!(res, Vec::<(i64, bool)>::new());
+    }
+
+    #[test]
+    fn eval_zip_same_length() {
+        let coll_const: Constant = vec![1i64, 2i64].into();
+        let input: Constant = vec![true, false].into();
+        let expr: Expr = MethodCall::new(
+            coll_const.into(),
+            scoll::ZIP_METHOD.clone().with_concrete_types(
+                &[
+                    (STypeVar::t(), SType::SLong),
+                    (STypeVar::iv(), SType::SBoolean),
+                ]
+                .iter()
+                .cloned()
+                .collect(),
+            ),
+            vec![input.into()],
+        )
+        .unwrap()
+        .into();
+        let res = eval_out_wo_ctx::<Vec<(i64, bool)>>(&expr);
+        assert_eq!(res, vec![(1i64, true), (2, false)]);
+    }
+
+    #[test]
+    fn eval_zip_different_lengths() {
+        // Input shorter than obj
+        let coll_const: Constant = vec![1i64, 2i64].into();
+        let short_input: Constant = vec![true].into();
+        let expr: Expr = MethodCall::new(
+            coll_const.into(),
+            scoll::ZIP_METHOD.clone().with_concrete_types(
+                &[
+                    (STypeVar::t(), SType::SLong),
+                    (STypeVar::iv(), SType::SBoolean),
+                ]
+                .iter()
+                .cloned()
+                .collect(),
+            ),
+            vec![short_input.into()],
+        )
+        .unwrap()
+        .into();
+        let res = eval_out_wo_ctx::<Vec<(i64, bool)>>(&expr);
+        assert_eq!(res, vec![(1i64, true)]);
+
+        // Input longer than obj
+        let coll_const: Constant = vec![1i64, 2i64].into();
+        let long_input: Constant = vec![true, false, true].into();
+        let expr: Expr = MethodCall::new(
+            coll_const.into(),
+            scoll::ZIP_METHOD.clone().with_concrete_types(
+                &[
+                    (STypeVar::t(), SType::SLong),
+                    (STypeVar::iv(), SType::SBoolean),
+                ]
+                .iter()
+                .cloned()
+                .collect(),
+            ),
+            vec![long_input.into()],
+        )
+        .unwrap()
+        .into();
+        let res = eval_out_wo_ctx::<Vec<(i64, bool)>>(&expr);
+        assert_eq!(res, vec![(1i64, true), (2, false)]);
     }
 }
