@@ -188,11 +188,9 @@ impl Evaluable for BinOp {
                 } else {
                     true
                 })),
-                LogicalOp::Xor => Ok(Value::Boolean(if lv.try_extract_into::<bool>()? {
-                    !rv()?.try_extract_into::<bool>()?
-                } else {
-                    rv()?.try_extract_into::<bool>()?
-                })),
+                LogicalOp::Xor => Ok(Value::Boolean(
+                    lv.try_extract_into::<bool>()? ^ rv()?.try_extract_into::<bool>()?,
+                )),
             },
             BinOpKind::Relation(op) => match op {
                 RelationOp::Eq => Ok(Value::Boolean(lv == rv()?)),
