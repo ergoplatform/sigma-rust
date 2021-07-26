@@ -7,6 +7,7 @@ use crate::mir::and::And;
 use crate::mir::apply::Apply;
 use crate::mir::atleast::Atleast;
 use crate::mir::bin_op::ArithOp;
+use crate::mir::bin_op::LogicalOp;
 use crate::mir::bin_op::RelationOp;
 use crate::mir::block::BlockValue;
 use crate::mir::bool_to_sigma::BoolToSigmaProp;
@@ -116,8 +117,9 @@ impl Expr {
                 OpCode::NEQ => Ok(bin_op_sigma_parse(RelationOp::NEq.into(), r)?),
                 Negation::OP_CODE => Ok(Negation::sigma_parse(r)?.into()),
                 OpCode::LOGICAL_NOT => Ok(LogicalNot::sigma_parse(r)?.into()),
-                OpCode::BIN_AND => Ok(bin_op_sigma_parse(RelationOp::And.into(), r)?),
-                OpCode::BIN_OR => Ok(bin_op_sigma_parse(RelationOp::Or.into(), r)?),
+                OpCode::BIN_AND => Ok(bin_op_sigma_parse(LogicalOp::And.into(), r)?),
+                OpCode::BIN_OR => Ok(bin_op_sigma_parse(LogicalOp::Or.into(), r)?),
+                OpCode::BIN_XOR => Ok(bin_op_sigma_parse(LogicalOp::Xor.into(), r)?),
                 OpCode::GT => Ok(bin_op_sigma_parse(RelationOp::Gt.into(), r)?),
                 OpCode::LT => Ok(bin_op_sigma_parse(RelationOp::Lt.into(), r)?),
                 OpCode::GE => Ok(bin_op_sigma_parse(RelationOp::Ge.into(), r)?),
