@@ -1,5 +1,3 @@
-use num_bigint::BigInt;
-
 use crate::mir::constant::TryExtractFromError;
 use crate::mir::constant::TryExtractInto;
 use crate::mir::value::CollKind;
@@ -102,7 +100,10 @@ impl DataSerializer {
                 }
                 let mut buf = vec![0u8; size as usize];
                 r.read_exact(&mut buf)?;
-                Value::BigInt(BigInt::from_signed_bytes_be(buf.as_slice()))
+                match buf.as_slice().try_into() {
+                    Ok(x) => Value::BigInt(x),
+                    Err(e) => return Err(SigmaParsingError::ValueOutOfBounds(e)),
+                }
             }
             SGroupElement => Value::GroupElement(Box::new(EcPoint::sigma_parse(r)?)),
             SSigmaProp => Value::sigma_prop(SigmaProp::new(SigmaBoolean::sigma_parse(r)?)),
