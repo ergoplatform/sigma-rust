@@ -30,6 +30,9 @@ base16 = "0.2.1"
 num-bigint = "0.4.0"
 # bounded-vec = { git = "https://github.com/ergoplatform/bounded-vec", rev="78f1c83" }
 bounded-vec = { version = "^0.3.0" }
+num256 = "0.3.1"
+num-traits = "0.2.14"
+num-derive = "0.3.3"
 
 [features]
 default = []
@@ -38,4 +41,3 @@ arbitrary = ["proptest", "proptest-derive"]
 [dev-dependencies]
 proptest = "1.0.0"
 sigma-test-util = { version = "0.2.0", path = "../sigma-test-util" }
-

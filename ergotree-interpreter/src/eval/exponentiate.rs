@@ -14,7 +14,7 @@ impl Evaluable for Exponentiate {
         let right_v = self.right.eval(env, ctx)?;
 
         let exp_scalar: Option<Scalar> = match right_v.clone() {
-            Value::BigInt(bi) => dlog_group::bigint_to_scalar(bi),
+            Value::BigInt(bi) => dlog_group::bigint256_to_scalar(bi),
             _ => None,
         };
 
@@ -38,9 +38,10 @@ mod tests {
     use crate::eval::tests::{eval_out, try_eval_out};
     use crate::sigma_protocol::private_input::DlogProverInput;
 
+    use ergotree_ir::bigint256::BigInt256;
     use ergotree_ir::mir::expr::Expr;
-    use ergotree_ir::sigma_protocol::dlog_group::{scalar_to_bigint, EcPoint};
-    use num_bigint::BigInt;
+    use ergotree_ir::sigma_protocol::dlog_group::{scalar_to_bigint256, EcPoint};
+    use num_traits::Num;
     use proptest::prelude::*;
     use sigma_test_util::force_any_val;
     use std::rc::Rc;
@@ -49,12 +50,13 @@ mod tests {
 
         #[test]
         fn eval_any(left in any::<EcPoint>(), pi in any::<DlogProverInput>()) {
-
-            let right: BigInt = scalar_to_bigint(pi.w);
+            // Shift right to make sure that the MSB is 0, so that the Scalar
+            // can be converted to a BigInt256 and back
+            let right: BigInt256 = scalar_to_bigint256(pi.w >> 1).unwrap();
 
             let expected_exp = dlog_group::exponentiate(
                 &left,
-                &dlog_group::bigint_to_scalar(right.clone()).unwrap()
+                &dlog_group::bigint256_to_scalar(right.clone()).unwrap()
             );
 
             let expr: Expr = Exponentiate {
@@ -71,23 +73,7 @@ mod tests {
     #[test]
     fn eval_exponent_negative() {
         let left = force_any_val::<EcPoint>();
-        let right = BigInt::parse_bytes(b"-1", 10).unwrap();
-        let expr: Expr = Exponentiate {
-            left: Box::new(Expr::Const(left.into())),
-            right: Box::new(Expr::Const(right.into())),
-        }
-        .into();
-
-        let ctx = Rc::new(force_any_val::<Context>());
-        assert!(try_eval_out::<EcPoint>(&expr, ctx).is_err());
-    }
-
-    #[test]
-    fn eval_exponent_greater_than_256_bit() {
-        let left = force_any_val::<EcPoint>();
-        let right = BigInt::parse_bytes
-            (b"2240553423075396383515373673723462837462821468959827293462897346923874293642946928374923875928657983456938759287459236459287459238759346592837", 10)
-            .unwrap();
+        let right = BigInt256::from_str_radix("-1", 10).unwrap();
         let expr: Expr = Exponentiate {
             left: Box::new(Expr::Const(left.into())),
             right: Box::new(Expr::Const(right.into())),
