@@ -58,13 +58,25 @@ impl From<EcPoint> for ProveDlog {
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ProveDhTuple {
     /// Generator `g`
-    pub gv: Box<EcPoint>,
+    pub g: Box<EcPoint>,
     /// Point `g^x`
-    pub hv: Box<EcPoint>,
+    pub h: Box<EcPoint>,
     /// Point `g^y`
-    pub uv: Box<EcPoint>,
+    pub u: Box<EcPoint>,
     /// Point `g^xy`
-    pub vv: Box<EcPoint>,
+    pub v: Box<EcPoint>,
+}
+
+impl ProveDhTuple {
+    /// Create new instance
+    pub fn new(g: EcPoint, h: EcPoint, u: EcPoint, v: EcPoint) -> Self {
+        Self {
+            g: g.into(),
+            h: h.into(),
+            u: u.into(),
+            v: v.into(),
+        }
+    }
 }
 
 impl HasStaticOpCode for ProveDhTuple {

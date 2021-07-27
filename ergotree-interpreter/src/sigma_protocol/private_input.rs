@@ -2,6 +2,7 @@
 use std::convert::TryInto;
 
 use ergotree_ir::sigma_protocol::dlog_group;
+use ergotree_ir::sigma_protocol::sigma_boolean::ProveDhTuple;
 use ergotree_ir::sigma_protocol::sigma_boolean::ProveDlog;
 
 use k256::elliptic_curve::ff::PrimeField;
@@ -76,13 +77,44 @@ impl From<Scalar> for DlogProverInput {
     }
 }
 
+/// Diffie-Hellman tuple and secret
+#[derive(PartialEq, Debug, Clone)]
+pub struct DhTupleProverInput {
+    /// Diffie-Hellman tuple's secret
+    pub w: Scalar,
+    /// Diffie-Hellman tuple
+    pub common_input: ProveDhTuple,
+}
+
+impl DhTupleProverInput {
+    /// Create random secret and Diffie-Hellman tuple
+    #[allow(clippy::clippy::many_single_char_names)]
+    pub fn random() -> Self {
+        let g = dlog_group::generator();
+        let h = dlog_group::exponentiate(
+            &dlog_group::generator(),
+            &dlog_group::random_scalar_in_group_range(),
+        );
+        let w = dlog_group::random_scalar_in_group_range();
+        let u = dlog_group::exponentiate(&g, &w);
+        let v = dlog_group::exponentiate(&h, &w);
+        let common_input = ProveDhTuple::new(g, h, u, v);
+        Self { w, common_input }
+    }
+
+    /// Public image (Diffie-Hellman tuple)
+    pub fn public_image(&self) -> &ProveDhTuple {
+        &self.common_input
+    }
+}
+
 /// Private inputs (secrets)
 #[derive(PartialEq, Debug, Clone, From)]
 pub enum PrivateInput {
     /// Discrete logarithm prover input
     DlogProverInput(DlogProverInput),
     /// DH tuple prover input
-    DiffieHellmanTupleProverInput,
+    DhTupleProverInput(DhTupleProverInput),
 }
 
 #[cfg(feature = "arbitrary")]

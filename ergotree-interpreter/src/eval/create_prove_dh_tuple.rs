@@ -11,16 +11,10 @@ use crate::eval::Evaluable;
 
 impl Evaluable for CreateProveDhTuple {
     fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
-        let gv = self.gv.eval(env, ctx)?.try_extract_into::<EcPoint>()?;
-        let hv = self.hv.eval(env, ctx)?.try_extract_into::<EcPoint>()?;
-        let uv = self.uv.eval(env, ctx)?.try_extract_into::<EcPoint>()?;
-        let vv = self.vv.eval(env, ctx)?.try_extract_into::<EcPoint>()?;
-        Ok(ProveDhTuple {
-            gv: gv.into(),
-            hv: hv.into(),
-            uv: uv.into(),
-            vv: vv.into(),
-        }
-        .into())
+        let g = self.g.eval(env, ctx)?.try_extract_into::<EcPoint>()?;
+        let h = self.h.eval(env, ctx)?.try_extract_into::<EcPoint>()?;
+        let u = self.u.eval(env, ctx)?.try_extract_into::<EcPoint>()?;
+        let v = self.v.eval(env, ctx)?.try_extract_into::<EcPoint>()?;
+        Ok(ProveDhTuple::new(g, h, u, v).into())
     }
 }

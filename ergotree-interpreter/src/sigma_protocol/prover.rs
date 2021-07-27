@@ -211,6 +211,7 @@ fn mark_real<P: Prover + ?Sized>(
                             .into(),
                         )
                     }
+                    UnprovenLeaf::UnprovenDhTuple(_) => todo!(),
                 },
                 UnprovenTree::UnprovenConjecture(unp_conj) => match unp_conj {
                     UnprovenConjecture::CandUnproven(cand) => {
@@ -535,6 +536,11 @@ fn simulate_and_commit(
                 };
                 Ok(Some(res))
             }
+            ProofTree::UnprovenTree(UnprovenTree::UnprovenLeaf(UnprovenLeaf::UnprovenDhTuple(
+                ut,
+            ))) => {
+                todo!();
+            }
             ProofTree::UncheckedTree(_) => Ok(None),
         }
     })?
@@ -661,6 +667,7 @@ fn proving<P: Prover + ?Sized>(
                             Err(ProverError::RealUnprovenTreeWithoutChallenge)
                         }
                     }
+                    UnprovenLeaf::UnprovenDhTuple(_) => todo!(),
                 },
                 UnprovenTree::UnprovenLeaf(unp_leaf) => {
                     // if the simulated node is proven by someone else, take it from hints bag
@@ -771,7 +778,7 @@ impl Prover for TestProver {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::sigma_protocol::private_input::DlogProverInput;
+    use crate::sigma_protocol::private_input::{DhTupleProverInput, DlogProverInput};
     use ergotree_ir::mir::constant::Constant;
     use ergotree_ir::mir::expr::Expr;
     use ergotree_ir::mir::sigma_and::SigmaAnd;
@@ -956,6 +963,27 @@ mod tests {
             message.as_slice(),
             &HintsBag::empty(),
         );
+        assert_ne!(res.unwrap().proof, ProofBytes::Empty);
+    }
+
+    #[test]
+    fn test_prove_dht_prop() {
+        let secret = DhTupleProverInput::random();
+        let pi = secret.public_image();
+        let tree = ErgoTree::from(Expr::Const(pi.clone().into()));
+        let message = vec![0u8; 100];
+
+        let prover = TestProver {
+            secrets: vec![PrivateInput::DhTupleProverInput(secret)],
+        };
+        let res = prover.prove(
+            &tree,
+            &Env::empty(),
+            Rc::new(force_any_val::<Context>()),
+            message.as_slice(),
+            &HintsBag::empty(),
+        );
+        assert!(res.is_ok());
         assert_ne!(res.unwrap().proof, ProofBytes::Empty);
     }
 }

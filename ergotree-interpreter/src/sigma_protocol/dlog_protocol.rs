@@ -7,11 +7,11 @@ use k256::Scalar;
 
 /// First message from the prover (message `a` of `SigmaProtocol`) for discrete logarithm case
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct FirstDlogProverMessage(pub(crate) EcPoint);
+pub struct FirstDlogProverMessage(pub(crate) Box<EcPoint>);
 
 impl From<EcPoint> for FirstDlogProverMessage {
     fn from(ecp: EcPoint) -> Self {
-        FirstDlogProverMessage(ecp)
+        FirstDlogProverMessage(ecp.into())
     }
 }
 
@@ -20,6 +20,21 @@ impl ProverMessage for FirstDlogProverMessage {
         #[allow(clippy::unwrap_used)]
         // EcPoint serialization can only on OOM
         self.0.sigma_serialize_bytes().unwrap()
+    }
+}
+
+/// a = g^r, b = h^r
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct FirstDhTupleProverMessage {
+    a: Box<EcPoint>,
+    b: Box<EcPoint>,
+}
+
+impl ProverMessage for FirstDhTupleProverMessage {
+    fn bytes(&self) -> Vec<u8> {
+        let mut res = self.a.sigma_serialize_bytes();
+        res.append(self.b.sigma_serialize_bytes().as_mut());
+        res
     }
 }
 
@@ -60,7 +75,10 @@ pub(crate) mod interactive_prover {
         let h_to_e = dlog_group::exponentiate(&public_input.h, &minus_e);
         let g_to_z = dlog_group::exponentiate(&dlog_group::generator(), &z);
         let a = g_to_z * &h_to_e;
-        (FirstDlogProverMessage(a), SecondDlogProverMessage { z })
+        (
+            FirstDlogProverMessage(a.into()),
+            SecondDlogProverMessage { z },
+        )
     }
 
     /// Create first message from the prover and a randomness
@@ -68,7 +86,7 @@ pub(crate) mod interactive_prover {
         let r = dlog_group::random_scalar_in_group_range();
         let g = dlog_group::generator();
         let a = dlog_group::exponentiate(&g, &r);
-        (r, FirstDlogProverMessage(a))
+        (r, FirstDlogProverMessage(a.into()))
     }
 
     /// Create second message from the prover
@@ -126,7 +144,7 @@ mod tests {
             let (r, commitment) = interactive_prover::first_message();
             let second_message = interactive_prover::second_message(&secret, r, &challenge);
             let a = interactive_prover::compute_commitment(&pk, &challenge, &second_message);
-            prop_assert_eq!(a, commitment.0);
+            prop_assert_eq!(a, *commitment.0);
         }
     }
 }

@@ -14,27 +14,27 @@ use crate::mir::expr::InvalidArgumentError;
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct CreateProveDhTuple {
     /// Group generator `g`
-    pub gv: Box<Expr>,
+    pub g: Box<Expr>,
     /// Point `g^x`
-    pub hv: Box<Expr>,
+    pub h: Box<Expr>,
     /// Point `g^y`
-    pub uv: Box<Expr>,
+    pub u: Box<Expr>,
     /// Point `g^xy`
-    pub vv: Box<Expr>,
+    pub v: Box<Expr>,
 }
 
 impl CreateProveDhTuple {
     /// Create ProveDHTuple from four points on elliptic curve
-    pub fn new(gv: Expr, hv: Expr, uv: Expr, vv: Expr) -> Result<Self, InvalidArgumentError> {
-        gv.check_post_eval_tpe(&SType::SGroupElement)?;
-        hv.check_post_eval_tpe(&SType::SGroupElement)?;
-        uv.check_post_eval_tpe(&SType::SGroupElement)?;
-        vv.check_post_eval_tpe(&SType::SGroupElement)?;
+    pub fn new(g: Expr, h: Expr, u: Expr, v: Expr) -> Result<Self, InvalidArgumentError> {
+        g.check_post_eval_tpe(&SType::SGroupElement)?;
+        h.check_post_eval_tpe(&SType::SGroupElement)?;
+        u.check_post_eval_tpe(&SType::SGroupElement)?;
+        v.check_post_eval_tpe(&SType::SGroupElement)?;
         Ok(CreateProveDhTuple {
-            gv: gv.into(),
-            hv: hv.into(),
-            uv: uv.into(),
-            vv: vv.into(),
+            g: g.into(),
+            h: h.into(),
+            u: u.into(),
+            v: v.into(),
         })
     }
 
@@ -50,18 +50,19 @@ impl HasStaticOpCode for CreateProveDhTuple {
 
 impl SigmaSerializable for CreateProveDhTuple {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
-        self.gv.sigma_serialize(w)?;
-        self.hv.sigma_serialize(w)?;
-        self.uv.sigma_serialize(w)?;
-        self.vv.sigma_serialize(w)
+        self.g.sigma_serialize(w)?;
+        self.h.sigma_serialize(w)?;
+        self.u.sigma_serialize(w)?;
+        self.v.sigma_serialize(w)
     }
 
+    #[allow(clippy::many_single_char_names)]
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
-        let gv = Expr::sigma_parse(r)?.into();
-        let hv = Expr::sigma_parse(r)?.into();
-        let uv = Expr::sigma_parse(r)?.into();
-        let vv = Expr::sigma_parse(r)?.into();
-        Ok(CreateProveDhTuple { gv, hv, uv, vv })
+        let g = Expr::sigma_parse(r)?.into();
+        let h = Expr::sigma_parse(r)?.into();
+        let u = Expr::sigma_parse(r)?.into();
+        let v = Expr::sigma_parse(r)?.into();
+        Ok(CreateProveDhTuple { g, h, u, v })
     }
 }
 
