@@ -1,10 +1,13 @@
 //! Unchecked proof tree types
 
+use ergotree_ir::sigma_protocol::sigma_boolean::ProveDhTuple;
 use ergotree_ir::sigma_protocol::sigma_boolean::ProveDlog;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaConjectureItems;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
 
+use super::dht_protocol::FirstDhTupleProverMessage;
+use super::dht_protocol::SecondDhTupleProverMessage;
 use super::proof_tree::ConjectureType;
 use super::proof_tree::ProofTree;
 use super::proof_tree::ProofTreeConjecture;
@@ -55,9 +58,7 @@ impl UncheckedSigmaTree {
     /// Get challenge
     pub(crate) fn challenge(&self) -> Challenge {
         match self {
-            UncheckedSigmaTree::UncheckedLeaf(UncheckedLeaf::UncheckedSchnorr(us)) => {
-                us.challenge.clone()
-            }
+            UncheckedSigmaTree::UncheckedLeaf(ul) => ul.challenge(),
             UncheckedSigmaTree::UncheckedConjecture(uc) => uc.challenge(),
         }
     }
@@ -77,10 +78,20 @@ impl From<UncheckedSchnorr> for UncheckedSigmaTree {
 }
 
 /// Unchecked leaf
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, From)]
 pub enum UncheckedLeaf {
     /// Unchecked Schnorr
     UncheckedSchnorr(UncheckedSchnorr),
+    UncheckedDhTuple(UncheckedDhTuple),
+}
+
+impl UncheckedLeaf {
+    pub fn challenge(&self) -> Challenge {
+        match self {
+            UncheckedLeaf::UncheckedSchnorr(us) => us.challenge.clone(),
+            UncheckedLeaf::UncheckedDhTuple(udht) => udht.challenge.clone(),
+        }
+    }
 }
 
 impl ProofTreeLeaf for UncheckedLeaf {
@@ -89,18 +100,16 @@ impl ProofTreeLeaf for UncheckedLeaf {
             UncheckedLeaf::UncheckedSchnorr(us) => SigmaBoolean::ProofOfKnowledge(
                 SigmaProofOfKnowledgeTree::ProveDlog(us.proposition.clone()),
             ),
+            UncheckedLeaf::UncheckedDhTuple(dhu) => SigmaBoolean::ProofOfKnowledge(
+                SigmaProofOfKnowledgeTree::ProveDhTuple(dhu.proposition.clone()),
+            ),
         }
     }
     fn commitment_opt(&self) -> Option<FirstProverMessage> {
         match self {
             UncheckedLeaf::UncheckedSchnorr(us) => us.commitment_opt.clone().map(Into::into),
+            UncheckedLeaf::UncheckedDhTuple(udh) => udh.commitment_opt.clone().map(Into::into),
         }
-    }
-}
-
-impl From<UncheckedSchnorr> for UncheckedLeaf {
-    fn from(us: UncheckedSchnorr) -> Self {
-        UncheckedLeaf::UncheckedSchnorr(us)
     }
 }
 
@@ -115,6 +124,26 @@ pub struct UncheckedSchnorr {
 impl From<UncheckedSchnorr> for UncheckedTree {
     fn from(us: UncheckedSchnorr) -> Self {
         UncheckedTree::UncheckedSigmaTree(us.into())
+    }
+}
+
+impl From<UncheckedDhTuple> for UncheckedSigmaTree {
+    fn from(dh: UncheckedDhTuple) -> Self {
+        UncheckedSigmaTree::UncheckedLeaf(dh.into())
+    }
+}
+
+#[derive(PartialEq, Debug, Clone)]
+pub struct UncheckedDhTuple {
+    pub proposition: ProveDhTuple,
+    pub commitment_opt: Option<FirstDhTupleProverMessage>,
+    pub challenge: Challenge,
+    pub second_message: SecondDhTupleProverMessage,
+}
+
+impl From<UncheckedDhTuple> for UncheckedTree {
+    fn from(dh: UncheckedDhTuple) -> Self {
+        UncheckedTree::UncheckedSigmaTree(dh.into())
     }
 }
 

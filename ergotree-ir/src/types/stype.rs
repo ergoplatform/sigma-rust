@@ -9,10 +9,10 @@ use crate::bigint256::BigInt256;
 use crate::ir_ergo_box::IrBoxId;
 use crate::serialization::types::TypeCode;
 use crate::sigma_protocol::dlog_group::EcPoint;
-use crate::sigma_protocol::sigma_boolean::ProveDlog;
 use crate::sigma_protocol::sigma_boolean::SigmaBoolean;
 use crate::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
 use crate::sigma_protocol::sigma_boolean::SigmaProp;
+use crate::sigma_protocol::sigma_boolean::{ProveDhTuple, ProveDlog};
 
 use super::sfunc::SFunc;
 use super::stuple::STuple;
@@ -231,6 +231,12 @@ impl LiftIntoSType for EcPoint {
 impl LiftIntoSType for BigInt256 {
     fn stype() -> SType {
         SType::SBigInt
+    }
+}
+
+impl LiftIntoSType for ProveDhTuple {
+    fn stype() -> SType {
+        SType::SSigmaProp
     }
 }
 

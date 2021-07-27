@@ -4,6 +4,7 @@ use crate::has_opcode::{HasOpCode, HasStaticOpCode};
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SigmaParsingError, SigmaSerializable,
 };
+use crate::sigma_protocol::sigma_boolean::ProveDhTuple;
 use crate::sigma_protocol::{
     dlog_group::EcPoint,
     sigma_boolean::{ProveDlog, SigmaBoolean, SigmaConjecture, SigmaProofOfKnowledgeTree},
@@ -17,7 +18,7 @@ impl SigmaSerializable for SigmaBoolean {
         self.op_code().sigma_serialize(w)?;
         match self {
             SigmaBoolean::ProofOfKnowledge(proof) => match proof {
-                SigmaProofOfKnowledgeTree::ProveDhTuple { .. } => todo!(),
+                SigmaProofOfKnowledgeTree::ProveDhTuple(v) => v.sigma_serialize(w),
                 SigmaProofOfKnowledgeTree::ProveDlog(v) => v.sigma_serialize(w),
             },
             SigmaBoolean::SigmaConjecture(conj) => match conj {
@@ -54,5 +55,23 @@ impl SigmaSerializable for ProveDlog {
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let p = EcPoint::sigma_parse(r)?;
         Ok(ProveDlog::new(p))
+    }
+}
+
+impl SigmaSerializable for ProveDhTuple {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
+        self.g.sigma_serialize(w)?;
+        self.h.sigma_serialize(w)?;
+        self.u.sigma_serialize(w)?;
+        self.v.sigma_serialize(w)
+    }
+
+    #[allow(clippy::many_single_char_names)]
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
+        let g = EcPoint::sigma_parse(r)?;
+        let h = EcPoint::sigma_parse(r)?;
+        let u = EcPoint::sigma_parse(r)?;
+        let v = EcPoint::sigma_parse(r)?;
+        Ok(ProveDhTuple::new(g, h, u, v))
     }
 }

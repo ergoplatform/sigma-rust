@@ -54,17 +54,31 @@ impl From<EcPoint> for ProveDlog {
 }
 
 /// Construct a new SigmaProp value representing public key of Diffie Hellman signature protocol.
-/// Common input: (g,h,u,v)
+/// Used in a proof that of equality of discrete logarithms (i.e., a proof of a Diffie-Hellman tuple):
+/// given group elements g, h, u, v, the proof convinces a verifier that the prover knows `w` such
+/// that `u = g^w` and `v = h^w`, without revealing `w`
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ProveDhTuple {
-    /// Generator `g`
-    pub gv: Box<EcPoint>,
-    /// Point `g^x`
-    pub hv: Box<EcPoint>,
-    /// Point `g^y`
-    pub uv: Box<EcPoint>,
-    /// Point `g^xy`
-    pub vv: Box<EcPoint>,
+    /// Generator g
+    pub g: Box<EcPoint>,
+    /// Point h
+    pub h: Box<EcPoint>,
+    /// Point `u = g^w`
+    pub u: Box<EcPoint>,
+    /// Point `v= h^w`
+    pub v: Box<EcPoint>,
+}
+
+impl ProveDhTuple {
+    /// Create new instance
+    pub fn new(g: EcPoint, h: EcPoint, u: EcPoint, v: EcPoint) -> Self {
+        Self {
+            g: g.into(),
+            h: h.into(),
+            u: u.into(),
+            v: v.into(),
+        }
+    }
 }
 
 impl HasStaticOpCode for ProveDhTuple {
@@ -156,6 +170,12 @@ impl TryInto<ProveDlog> for SigmaBoolean {
 impl From<ProveDlog> for SigmaBoolean {
     fn from(v: ProveDlog) -> Self {
         SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(v))
+    }
+}
+
+impl From<ProveDhTuple> for SigmaBoolean {
+    fn from(v: ProveDhTuple) -> Self {
+        SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDhTuple(v))
     }
 }
 

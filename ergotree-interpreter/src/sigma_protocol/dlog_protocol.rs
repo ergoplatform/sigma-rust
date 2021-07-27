@@ -7,11 +7,11 @@ use k256::Scalar;
 
 /// First message from the prover (message `a` of `SigmaProtocol`) for discrete logarithm case
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct FirstDlogProverMessage(pub(crate) EcPoint);
+pub struct FirstDlogProverMessage(pub(crate) Box<EcPoint>);
 
 impl From<EcPoint> for FirstDlogProverMessage {
     fn from(ecp: EcPoint) -> Self {
-        FirstDlogProverMessage(ecp)
+        FirstDlogProverMessage(ecp.into())
     }
 }
 
@@ -41,18 +41,23 @@ pub(crate) mod interactive_prover {
     use std::ops::Mul;
 
     use super::{FirstDlogProverMessage, SecondDlogProverMessage};
+    use crate::sigma_protocol::crypto_utils;
     use crate::sigma_protocol::{private_input::DlogProverInput, Challenge};
     use ergotree_ir::sigma_protocol::dlog_group;
     use ergotree_ir::sigma_protocol::dlog_group::EcPoint;
     use ergotree_ir::sigma_protocol::sigma_boolean::ProveDlog;
     use k256::Scalar;
 
+    /// Step 5 from https://ergoplatform.org/docs/ErgoScript.pdf
+    /// For every leaf marked “simulated”, use the simulator of the sigma protocol for that leaf
+    /// to compute the commitment "a" and the response "z", given the challenge "e" that
+    /// is already stored in the leaf
     pub(crate) fn simulate(
         public_input: &ProveDlog,
         challenge: &Challenge,
     ) -> (FirstDlogProverMessage, SecondDlogProverMessage) {
         //SAMPLE a random z <- Zq
-        let z = dlog_group::random_scalar_in_group_range();
+        let z = dlog_group::random_scalar_in_group_range(crypto_utils::secure_rng());
 
         //COMPUTE a = g^z*h^(-e)  (where -e here means -e mod q)
         let e: Scalar = challenge.clone().into();
@@ -60,18 +65,26 @@ pub(crate) mod interactive_prover {
         let h_to_e = dlog_group::exponentiate(&public_input.h, &minus_e);
         let g_to_z = dlog_group::exponentiate(&dlog_group::generator(), &z);
         let a = g_to_z * &h_to_e;
-        (FirstDlogProverMessage(a), SecondDlogProverMessage { z })
+        (
+            FirstDlogProverMessage(a.into()),
+            SecondDlogProverMessage { z },
+        )
     }
 
-    /// Create first message from the prover and a randomness
+    /// Step 6 from https://ergoplatform.org/docs/ErgoScript.pdf
+    /// For every leaf marked “real”, use the first prover step of the sigma protocol for
+    /// that leaf to compute the necessary randomness "r" and the commitment "a"
     pub(crate) fn first_message() -> (Scalar, FirstDlogProverMessage) {
-        let r = dlog_group::random_scalar_in_group_range();
+        let r = dlog_group::random_scalar_in_group_range(crypto_utils::secure_rng());
         let g = dlog_group::generator();
         let a = dlog_group::exponentiate(&g, &r);
-        (r, FirstDlogProverMessage(a))
+        (r, FirstDlogProverMessage(a.into()))
     }
 
-    /// Create second message from the prover
+    /// Step 9 part 2 from https://ergoplatform.org/docs/ErgoScript.pdf
+    /// compute its response "z" according to the second prover step(step 5 in whitepaper)
+    /// of the sigma protocol given the randomness "r"(rnd) used for the commitment "a",
+    /// the challenge "e", and witness w.
     pub(crate) fn second_message(
         private_input: &DlogProverInput,
         rnd: Scalar,
@@ -85,13 +98,11 @@ pub(crate) mod interactive_prover {
         z.into()
     }
 
-    /**
-     * The function computes initial prover's commitment to randomness
-     * ("a" message of the sigma-protocol) based on the verifier's challenge ("e")
-     * and prover's response ("z")
-     *
-     * g^z = a*h^e => a = g^z/h^e
-     */
+    /// The function computes initial prover's commitment to randomness
+    /// ("a" message of the sigma-protocol) based on the verifier's challenge ("e")
+    /// and prover's response ("z")
+    ///  
+    /// g^z = a*h^e => a = g^z/h^e
     pub(crate) fn compute_commitment(
         proposition: &ProveDlog,
         challenge: &Challenge,
@@ -126,7 +137,7 @@ mod tests {
             let (r, commitment) = interactive_prover::first_message();
             let second_message = interactive_prover::second_message(&secret, r, &challenge);
             let a = interactive_prover::compute_commitment(&pk, &challenge, &second_message);
-            prop_assert_eq!(a, commitment.0);
+            prop_assert_eq!(a, *commitment.0);
         }
     }
 }

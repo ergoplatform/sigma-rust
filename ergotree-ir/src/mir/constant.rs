@@ -2,9 +2,9 @@
 
 use crate::bigint256::BigInt256;
 use crate::ir_ergo_box::IrBoxId;
-use crate::sigma_protocol::sigma_boolean::ProveDlog;
 use crate::sigma_protocol::sigma_boolean::SigmaBoolean;
 use crate::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
+use crate::sigma_protocol::sigma_boolean::{ProveDhTuple, ProveDlog};
 use crate::sigma_protocol::{dlog_group::EcPoint, sigma_boolean::SigmaProp};
 use crate::types::stype::LiftIntoSType;
 use crate::types::stype::SType;
@@ -146,6 +146,20 @@ impl From<ProveDlog> for Constant {
         Constant::from(SigmaProp::from(SigmaBoolean::from(
             SigmaProofOfKnowledgeTree::from(v),
         )))
+    }
+}
+
+impl From<ProveDhTuple> for Constant {
+    fn from(dht: ProveDhTuple) -> Self {
+        Constant::from(SigmaProp::from(SigmaBoolean::from(
+            SigmaProofOfKnowledgeTree::from(dht),
+        )))
+    }
+}
+
+impl From<SigmaBoolean> for Constant {
+    fn from(sb: SigmaBoolean) -> Self {
+        Constant::from(SigmaProp::from(sb))
     }
 }
 

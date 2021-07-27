@@ -8,6 +8,7 @@ pub mod verifier;
 
 mod challenge;
 mod crypto_utils;
+mod dht_protocol;
 mod dlog_protocol;
 mod fiat_shamir;
 mod proof_tree;
@@ -24,6 +25,7 @@ use unchecked_tree::{UncheckedSigmaTree, UncheckedTree};
 use unproven_tree::{UnprovenLeaf, UnprovenSchnorr};
 
 use self::challenge::Challenge;
+use self::dht_protocol::FirstDhTupleProverMessage;
 use self::unchecked_tree::UncheckedSchnorr;
 
 use derive_more::From;
@@ -41,14 +43,14 @@ pub enum FirstProverMessage {
     /// Discrete log
     FirstDlogProverMessage(FirstDlogProverMessage),
     /// DH tupl
-    FirstDhtProverMessage,
+    FirstDhtProverMessage(FirstDhTupleProverMessage),
 }
 
 impl ProverMessage for FirstProverMessage {
     fn bytes(&self) -> Vec<u8> {
         match self {
             FirstProverMessage::FirstDlogProverMessage(fdpm) => fdpm.bytes(),
-            FirstProverMessage::FirstDhtProverMessage => todo!(),
+            FirstProverMessage::FirstDhtProverMessage(fdhtpm) => fdhtpm.bytes(),
         }
     }
 }

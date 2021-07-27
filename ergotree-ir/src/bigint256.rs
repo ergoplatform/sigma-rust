@@ -230,6 +230,7 @@ impl fmt::Display for BigInt256 {
     }
 }
 
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
     use super::*;
