@@ -216,7 +216,7 @@ fn mark_real<P: Prover + ?Sized>(
                         || prover
                             .secrets()
                             .iter()
-                            .any(|s| s.proposition() == unp_leaf.proposition());
+                            .any(|s| s.public_image() == unp_leaf.proposition());
                     Some(unp_leaf.clone().with_simulated(!secret_known).into())
                 }
                 UnprovenTree::UnprovenConjecture(unp_conj) => match unp_conj {
@@ -724,7 +724,7 @@ fn proving<P: Prover + ?Sized>(
                             let priv_key_opt = prover
                                 .secrets()
                                 .iter()
-                                .find(|s| s.proposition() == dhu.proposition.clone().into());
+                                .find(|s| s.public_image() == dhu.proposition.clone().into());
                             let z = match priv_key_opt {
                                 Some(PrivateInput::DhTupleProverInput(priv_key)) => hints_bag
                                     .own_commitments()

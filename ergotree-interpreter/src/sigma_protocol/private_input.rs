@@ -123,7 +123,7 @@ pub enum PrivateInput {
 
 impl PrivateInput {
     /// Public image of the private input
-    pub fn proposition(&self) -> SigmaBoolean {
+    pub fn public_image(&self) -> SigmaBoolean {
         match self {
             PrivateInput::DlogProverInput(dl) => dl.public_image().into(),
             PrivateInput::DhTupleProverInput(dht) => dht.public_image().clone().into(),
@@ -162,6 +162,18 @@ mod arbitrary {
                 Just(DhTupleProverInput::random()),
                 Just(DhTupleProverInput::random()),
                 Just(DhTupleProverInput::random()),
+            ]
+            .boxed()
+        }
+    }
+
+    impl Arbitrary for PrivateInput {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            prop_oneof![
+                any::<DlogProverInput>().prop_map_into(),
+                any::<DhTupleProverInput>().prop_map_into(),
             ]
             .boxed()
         }

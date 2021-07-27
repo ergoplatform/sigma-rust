@@ -157,6 +157,12 @@ impl From<ProveDhTuple> for Constant {
     }
 }
 
+impl From<SigmaBoolean> for Constant {
+    fn from(sb: SigmaBoolean) -> Self {
+        Constant::from(SigmaProp::from(sb))
+    }
+}
+
 impl From<BigInt256> for Constant {
     fn from(b: BigInt256) -> Self {
         Constant {
