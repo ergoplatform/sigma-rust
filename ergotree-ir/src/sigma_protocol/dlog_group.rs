@@ -25,6 +25,7 @@ use k256::elliptic_curve::ff::PrimeField;
 use k256::elliptic_curve::sec1::ToEncodedPoint;
 use k256::{ProjectivePoint, PublicKey, Scalar};
 use num_bigint::Sign;
+use rand::RngCore;
 use std::convert::TryFrom;
 use std::ops::{Add, Mul, Neg};
 
@@ -111,9 +112,9 @@ pub fn exponentiate(base: &EcPoint, exponent: &Scalar) -> EcPoint {
 // }
 
 /// Creates a random scalar, a big-endian integer in the range [0, n), where n is group order
-pub fn random_scalar_in_group_range() -> Scalar {
-    use rand::rngs::OsRng;
-    Scalar::generate_vartime(&mut OsRng)
+/// Use cryptographically secure PRNG (like rand::thread_rng())
+pub fn random_scalar_in_group_range(rng: impl RngCore) -> Scalar {
+    Scalar::generate_vartime(rng)
 }
 
 /// Attempts to create BigInt256 from Scalar
@@ -201,6 +202,7 @@ mod tests {
     use crate::mir::expr::Expr;
     use crate::serialization::sigma_serialize_roundtrip;
     use proptest::prelude::*;
+    use rand::thread_rng;
 
     proptest! {
 
@@ -215,7 +217,7 @@ mod tests {
     fn scalar_bigint256_roundtrip() {
         // Shift right to make sure that the MSB is 0, so that the Scalar can be
         // converted to a BigInt256 and back
-        let rand_scalar: Scalar = random_scalar_in_group_range() >> 1;
+        let rand_scalar: Scalar = random_scalar_in_group_range(thread_rng()) >> 1;
         let as_bigint256: BigInt256 = scalar_to_bigint256(rand_scalar).unwrap();
         assert_eq!(rand_scalar, bigint256_to_scalar(as_bigint256).unwrap());
     }

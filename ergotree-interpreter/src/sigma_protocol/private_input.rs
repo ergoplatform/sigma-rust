@@ -13,6 +13,8 @@ extern crate derive_more;
 use derive_more::From;
 use num_bigint::BigUint;
 
+use super::crypto_utils;
+
 /// Secret key of discrete logarithm signature protocol
 #[derive(PartialEq, Debug, Clone)]
 pub struct DlogProverInput {
@@ -27,7 +29,7 @@ impl DlogProverInput {
     /// generates random secret in the range [0, n), where n is DLog group order.
     pub fn random() -> DlogProverInput {
         DlogProverInput {
-            w: dlog_group::random_scalar_in_group_range(),
+            w: dlog_group::random_scalar_in_group_range(crypto_utils::secure_rng()),
         }
     }
 
@@ -91,6 +93,21 @@ pub struct DhTupleProverInput {
 }
 
 impl DhTupleProverInput {
+    /// Create random secret and Diffie-Hellman tuple
+    #[allow(clippy::many_single_char_names)]
+    pub fn random() -> DhTupleProverInput {
+        let g = dlog_group::generator();
+        let h = dlog_group::exponentiate(
+            &dlog_group::generator(),
+            &dlog_group::random_scalar_in_group_range(crypto_utils::secure_rng()),
+        );
+        let w = dlog_group::random_scalar_in_group_range(crypto_utils::secure_rng());
+        let u = dlog_group::exponentiate(&g, &w);
+        let v = dlog_group::exponentiate(&h, &w);
+        let common_input = ProveDhTuple::new(g, h, u, v);
+        DhTupleProverInput { w, common_input }
+    }
+
     /// Public image (Diffie-Hellman tuple)
     pub fn public_image(&self) -> &ProveDhTuple {
         &self.common_input
@@ -119,23 +136,9 @@ impl PrivateInput {
 #[cfg(feature = "arbitrary")]
 /// Arbitrary impl
 pub(crate) mod arbitrary {
+
     use super::*;
     use proptest::prelude::*;
-
-    /// Create random secret and Diffie-Hellman tuple
-    #[allow(clippy::many_single_char_names)]
-    pub fn random_dht_prover_input() -> DhTupleProverInput {
-        let g = dlog_group::generator();
-        let h = dlog_group::exponentiate(
-            &dlog_group::generator(),
-            &dlog_group::random_scalar_in_group_range(),
-        );
-        let w = dlog_group::random_scalar_in_group_range();
-        let u = dlog_group::exponentiate(&g, &w);
-        let v = dlog_group::exponentiate(&h, &w);
-        let common_input = ProveDhTuple::new(g, h, u, v);
-        DhTupleProverInput { w, common_input }
-    }
 
     impl Arbitrary for DlogProverInput {
         type Parameters = ();
@@ -157,11 +160,11 @@ pub(crate) mod arbitrary {
         type Strategy = BoxedStrategy<Self>;
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             prop_oneof![
-                Just(random_dht_prover_input()),
-                Just(random_dht_prover_input()),
-                Just(random_dht_prover_input()),
-                Just(random_dht_prover_input()),
-                Just(random_dht_prover_input()),
+                Just(DhTupleProverInput::random()),
+                Just(DhTupleProverInput::random()),
+                Just(DhTupleProverInput::random()),
+                Just(DhTupleProverInput::random()),
+                Just(DhTupleProverInput::random()),
             ]
             .boxed()
         }

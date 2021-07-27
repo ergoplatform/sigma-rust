@@ -243,10 +243,9 @@ mod tests {
                 secrets: secrets.clone().into_iter().map(PrivateInput::DlogProverInput).collect(),
             };
             let inputs: Vec<UnsignedInput> = boxes_to_spend.clone().into_iter().map(UnsignedInput::from).collect();
-            let mut rng = thread_rng();
             // boxes_to_spend are in the different order to test inputs <-> boxes_to_spend association in the
             // prover (it should not depend on both of them to be in the same order)
-            boxes_to_spend.shuffle(&mut rng);
+            boxes_to_spend.shuffle(&mut thread_rng());
             let ergo_tree = ErgoTree::try_from(Expr::Const(secrets.get(0).unwrap().public_image().into())).unwrap();
             let candidate = ErgoBoxCandidateBuilder::new(BoxValue::SAFE_USER_MIN, ergo_tree, 0)
                 .build().unwrap();

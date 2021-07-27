@@ -42,6 +42,7 @@ pub(crate) mod interactive_prover {
     use std::ops::Mul;
 
     use super::*;
+    use crate::sigma_protocol::crypto_utils;
     use crate::sigma_protocol::private_input::DhTupleProverInput;
     use crate::sigma_protocol::Challenge;
     use ergotree_ir::sigma_protocol::dlog_group;
@@ -57,7 +58,7 @@ pub(crate) mod interactive_prover {
         challenge: &Challenge,
     ) -> (FirstDhTupleProverMessage, SecondDhTupleProverMessage) {
         //SAMPLE a random z <- Zq
-        let z = dlog_group::random_scalar_in_group_range();
+        let z = dlog_group::random_scalar_in_group_range(crypto_utils::secure_rng());
 
         // COMPUTE a = g^z*u^(-e) and b = h^z*v^{-e}  (where -e here means -e mod q)
         let e: Scalar = challenge.clone().into();
@@ -82,7 +83,7 @@ pub(crate) mod interactive_prover {
     pub(crate) fn first_message(
         public_input: &ProveDhTuple,
     ) -> (Scalar, FirstDhTupleProverMessage) {
-        let r = dlog_group::random_scalar_in_group_range();
+        let r = dlog_group::random_scalar_in_group_range(crypto_utils::secure_rng());
         let a = dlog_group::exponentiate(&public_input.g, &r);
         let b = dlog_group::exponentiate(&public_input.h, &r);
         (r, FirstDhTupleProverMessage::new(a, b))

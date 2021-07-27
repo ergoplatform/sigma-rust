@@ -41,6 +41,7 @@ pub(crate) mod interactive_prover {
     use std::ops::Mul;
 
     use super::{FirstDlogProverMessage, SecondDlogProverMessage};
+    use crate::sigma_protocol::crypto_utils;
     use crate::sigma_protocol::{private_input::DlogProverInput, Challenge};
     use ergotree_ir::sigma_protocol::dlog_group;
     use ergotree_ir::sigma_protocol::dlog_group::EcPoint;
@@ -56,7 +57,7 @@ pub(crate) mod interactive_prover {
         challenge: &Challenge,
     ) -> (FirstDlogProverMessage, SecondDlogProverMessage) {
         //SAMPLE a random z <- Zq
-        let z = dlog_group::random_scalar_in_group_range();
+        let z = dlog_group::random_scalar_in_group_range(crypto_utils::secure_rng());
 
         //COMPUTE a = g^z*h^(-e)  (where -e here means -e mod q)
         let e: Scalar = challenge.clone().into();
@@ -74,7 +75,7 @@ pub(crate) mod interactive_prover {
     /// For every leaf marked “real”, use the first prover step of the sigma protocol for
     /// that leaf to compute the necessary randomness "r" and the commitment "a"
     pub(crate) fn first_message() -> (Scalar, FirstDlogProverMessage) {
-        let r = dlog_group::random_scalar_in_group_range();
+        let r = dlog_group::random_scalar_in_group_range(crypto_utils::secure_rng());
         let g = dlog_group::generator();
         let a = dlog_group::exponentiate(&g, &r);
         (r, FirstDlogProverMessage(a.into()))
