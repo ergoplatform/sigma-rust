@@ -490,19 +490,19 @@ fn simulate_and_commit(
                 let res: ProofTree = match hints_bag
                     .commitments()
                     .into_iter()
-                    .find(|c| c.position() == us.position)
+                    .find(|c| c.position() == &us.position)
                 {
                     Some(cmt_hint) => {
-                        let pt: ProofTree = UnprovenSchnorr {
-                            commitment_opt: Some(
-                                cmt_hint
-                                    .commitment()
-                                    .try_into()
-                                    .map_err(|e: &str| ProverError::Unexpected(e.to_string()))?,
-                            ),
-                            ..us.clone()
-                        }
-                        .into();
+                        let pt: ProofTree =
+                            UnprovenSchnorr {
+                                commitment_opt: Some(
+                                    cmt_hint.commitment().clone().try_into().map_err(
+                                        |e: &str| ProverError::Unexpected(e.to_string()),
+                                    )?,
+                                ),
+                                ..us.clone()
+                            }
+                            .into();
                         pt
                     }
                     None => {
@@ -552,13 +552,13 @@ fn simulate_and_commit(
                 let res: Result<ProofTree, _> = hints_bag
                     .commitments()
                     .iter()
-                    .find(|c| c.position() == dhu.position)
+                    .find(|c| c.position() == &dhu.position)
                     .map(|cmt_hint| {
                         Ok(dhu
                             .clone()
                             .with_commitment(match cmt_hint.commitment() {
                                 FirstDlogProverMessage(_) => panic!("not expected here"),
-                                FirstDhtProverMessage(dhtm) => dhtm,
+                                FirstDhtProverMessage(dhtm) => dhtm.clone(),
                             })
                             .into())
                     })

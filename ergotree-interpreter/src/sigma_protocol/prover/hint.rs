@@ -62,12 +62,18 @@ pub enum SecretProven {
 impl SecretProven {
     /// A hint is related to a subtree (or a leaf) of a tree. This field encodes a position in the tree.
     pub fn position(&self) -> &NodePosition {
-        todo!()
+        match self {
+            SecretProven::RealSecretProof(proof) => &proof.position,
+            SecretProven::SimulatedSecretProof(proof) => &proof.position,
+        }
     }
 
     /// Challenge used for a proof
     pub fn challenge(&self) -> &Challenge {
-        todo!()
+        match self {
+            SecretProven::RealSecretProof(proof) => &proof.challenge,
+            SecretProven::SimulatedSecretProof(proof) => &proof.challenge,
+        }
     }
 }
 
@@ -96,6 +102,17 @@ pub struct OwnCommitment {
     pub position: NodePosition,
 }
 
+///A hint which contains a commitment to randomness associated with a public image of a secret.
+#[derive(PartialEq, Debug, Clone)]
+pub struct SimulatedCommitment {
+    /// image of a secret
+    pub image: SigmaBoolean,
+    /// commitment to randomness used while proving knowledge of the secret
+    pub commitment: FirstProverMessage,
+    /// A hint is related to a subtree (or a leaf) of a tree. This field encodes a position in the tree.
+    pub position: NodePosition,
+}
+
 /// A family of hints which are about a correspondence between a public image of a secret image and prover's commitment
 /// to randomness ("a" in a sigma protocol).
 #[derive(PartialEq, Debug, Clone)]
@@ -106,25 +123,26 @@ pub enum CommitmentHint {
     /// A hint which contains a commitment to randomness associated with a public image of a secret.
     RealCommitment(RealCommitment),
     ///A hint which contains a commitment to randomness associated with a public image of a secret.
-    SimulatedCommitment {
-        /// image of a secret
-        image: SigmaBoolean,
-        /// commitment to randomness used while proving knowledge of the secret
-        commitment: FirstProverMessage,
-        /// A hint is related to a subtree (or a leaf) of a tree. This field encodes a position in the tree.
-        position: NodePosition,
-    },
+    SimulatedCommitment(SimulatedCommitment),
 }
 
 impl CommitmentHint {
     /// A hint is related to a subtree (or a leaf) of a tree. Returns position in the tree.
-    pub fn position(&self) -> NodePosition {
-        todo!()
+    pub fn position(&self) -> &NodePosition {
+        match self {
+            CommitmentHint::OwnCommitment(comm) => &comm.position,
+            CommitmentHint::RealCommitment(comm) => &comm.position,
+            CommitmentHint::SimulatedCommitment(comm) => &comm.position,
+        }
     }
 
     /// commitment to randomness used while proving knowledge of the secret
-    pub fn commitment(&self) -> FirstProverMessage {
-        todo!()
+    pub fn commitment(&self) -> &FirstProverMessage {
+        match self {
+            CommitmentHint::OwnCommitment(comm) => &comm.commitment,
+            CommitmentHint::RealCommitment(comm) => &comm.commitment,
+            CommitmentHint::SimulatedCommitment(comm) => &comm.commitment,
+        }
     }
 }
 
