@@ -45,8 +45,11 @@ impl UncheckedTree {
         }
     }
 
-    pub(crate) fn with_challenge(&self, challenge: Challenge) -> Self {
-        todo!()
+    pub(crate) fn with_challenge(self, challenge: Challenge) -> Self {
+        match self {
+            UncheckedTree::UncheckedLeaf(ul) => ul.with_challenge(challenge).into(),
+            UncheckedTree::UncheckedConjecture(uc) => uc.with_challenge(challenge).into(),
+        }
     }
 }
 
@@ -63,6 +66,13 @@ impl UncheckedLeaf {
         match self {
             UncheckedLeaf::UncheckedSchnorr(us) => us.challenge.clone(),
             UncheckedLeaf::UncheckedDhTuple(udht) => udht.challenge.clone(),
+        }
+    }
+
+    pub fn with_challenge(self, challenge: Challenge) -> Self {
+        match self {
+            UncheckedLeaf::UncheckedSchnorr(us) => us.with_challenge(challenge).into(),
+            UncheckedLeaf::UncheckedDhTuple(udht) => udht.with_challenge(challenge).into(),
         }
     }
 }
@@ -94,6 +104,12 @@ pub struct UncheckedSchnorr {
     pub second_message: SecondDlogProverMessage,
 }
 
+impl UncheckedSchnorr {
+    pub fn with_challenge(self, challenge: Challenge) -> Self {
+        UncheckedSchnorr { challenge, ..self }
+    }
+}
+
 impl From<UncheckedSchnorr> for UncheckedTree {
     fn from(us: UncheckedSchnorr) -> Self {
         UncheckedTree::UncheckedLeaf(us.into())
@@ -112,6 +128,12 @@ pub struct UncheckedDhTuple {
     pub commitment_opt: Option<FirstDhTupleProverMessage>,
     pub challenge: Challenge,
     pub second_message: SecondDhTupleProverMessage,
+}
+
+impl UncheckedDhTuple {
+    pub fn with_challenge(self, challenge: Challenge) -> Self {
+        UncheckedDhTuple { challenge, ..self }
+    }
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -169,6 +191,25 @@ impl UncheckedConjecture {
                 challenge,
                 children: _,
             } => challenge.clone(),
+        }
+    }
+
+    pub fn with_challenge(self, challenge: Challenge) -> Self {
+        match self {
+            UncheckedConjecture::CandUnchecked {
+                challenge: _,
+                children,
+            } => UncheckedConjecture::CandUnchecked {
+                challenge,
+                children,
+            },
+            UncheckedConjecture::CorUnchecked {
+                challenge: _,
+                children,
+            } => UncheckedConjecture::CorUnchecked {
+                challenge,
+                children,
+            },
         }
     }
 }
