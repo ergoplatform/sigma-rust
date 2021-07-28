@@ -119,9 +119,9 @@ fn parse_sig_compute_challnges_reader<R: SigmaByteRead>(
     };
 
     match exp {
-        SigmaBoolean::TrivialProp(_) => {
-            panic!("TrivialProp should be handled before this call")
-        }
+        SigmaBoolean::TrivialProp(_) => Err(SigParsingError::Unexpected(
+            "parse_sig_compute_challenges: TrivialProp should be handled before this call",
+        )),
         SigmaBoolean::ProofOfKnowledge(tree) => match tree {
             SigmaProofOfKnowledgeTree::ProveDlog(dl) => {
                 // Verifier Step 3: For every leaf node, read the response z provided in the proof.
@@ -191,7 +191,9 @@ fn parse_sig_compute_challnges_reader<R: SigmaByteRead>(
                 }
                 .into())
             }
-            SigmaConjecture::Cthreshold(_) => todo!(),
+            SigmaConjecture::Cthreshold(_) => Err(SigParsingError::Unexpected(
+                "parse_sig_compute_challenges: CTHRESHOLD is not yet implemented",
+            )),
         },
     }
 }
@@ -205,6 +207,9 @@ pub enum SigParsingError {
     /// Serialization error
     #[error("Serialization error: {0}")]
     SerializationError(SigmaParsingError),
+    /// Unexpected error
+    #[error("Unexpected error: {0}")]
+    Unexpected(&'static str),
 }
 
 impl From<std::io::Error> for SigParsingError {

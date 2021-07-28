@@ -124,7 +124,7 @@ pub trait Prover: Evaluator {
                 SigmaBoolean::TrivialProp(true) => Ok(None),
                 SigmaBoolean::TrivialProp(false) => Err(ProverError::ReducedToFalse),
                 sb => {
-                    let tree = convert_to_unproven(sb);
+                    let tree = convert_to_unproven(sb)?;
                     let unchecked_tree = prove_to_unchecked(self, tree, message, hints_bag)?;
                     Ok(Some(unchecked_tree))
                 }
@@ -567,7 +567,11 @@ fn simulate_and_commit(
                         Ok(dhu
                             .clone()
                             .with_commitment(match cmt_hint.commitment() {
-                                FirstDlogProverMessage(_) => panic!("not expected here"),
+                                FirstDlogProverMessage(_) => {
+                                    return Err(ProverError::Unexpected(
+                                        "Step 5 & 6 for UnprovenDhTuple: FirstDlogProverMessage is not expected here".to_string(),
+                                    ))
+                                }
                                 FirstDhtProverMessage(dhtm) => dhtm.clone(),
                             })
                             .into())
@@ -800,8 +804,8 @@ fn proving<P: Prover + ?Sized>(
     })
 }
 
-fn convert_to_unproven(sb: SigmaBoolean) -> UnprovenTree {
-    match sb {
+fn convert_to_unproven(sb: SigmaBoolean) -> Result<UnprovenTree, ProverError> {
+    Ok(match sb {
         SigmaBoolean::ProofOfKnowledge(pok) => match pok {
             SigmaProofOfKnowledgeTree::ProveDhTuple(pdht) => UnprovenDhTuple {
                 proposition: pdht,
@@ -827,7 +831,9 @@ fn convert_to_unproven(sb: SigmaBoolean) -> UnprovenTree {
                 proposition: cand.clone(),
                 challenge_opt: None,
                 simulated: false,
-                children: cand.items.mapped(|it| convert_to_unproven(it).into()),
+                children: cand
+                    .items
+                    .try_mapped(|it| convert_to_unproven(it).map(Into::into))?,
                 position: NodePosition::crypto_tree_prefix(),
             }
             .into(),
@@ -835,14 +841,24 @@ fn convert_to_unproven(sb: SigmaBoolean) -> UnprovenTree {
                 proposition: cor.clone(),
                 challenge_opt: None,
                 simulated: false,
-                children: cor.items.mapped(|it| convert_to_unproven(it).into()),
+                children: cor
+                    .items
+                    .try_mapped(|it| convert_to_unproven(it).map(Into::into))?,
                 position: NodePosition::crypto_tree_prefix(),
             }
             .into(),
-            SigmaConjecture::Cthreshold(_) => todo!(),
+            SigmaConjecture::Cthreshold(_) => {
+                return Err(ProverError::NotYetImplemented(
+                    "Cthreshold is not yet implemented".to_string(),
+                ))
+            }
         },
-        SigmaBoolean::TrivialProp(_) => panic!("TrivialProp is not expected here"),
-    }
+        SigmaBoolean::TrivialProp(_) => {
+            return Err(ProverError::Unexpected(
+                "TrivialProp is not expected here".to_string(),
+            ))
+        }
+    })
 }
 
 fn convert_to_unchecked(tree: ProofTree) -> Result<UncheckedTree, ProverError> {
