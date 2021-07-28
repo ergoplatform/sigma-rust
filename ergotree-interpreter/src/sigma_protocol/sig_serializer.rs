@@ -99,7 +99,7 @@ pub(crate) fn parse_sig_compute_challenges(
     mut proof_bytes: Vec<u8>,
 ) -> Result<UncheckedTree, SigParsingError> {
     let mut r = sigma_byte_reader::from_bytes(proof_bytes.as_mut_slice());
-    parse_sig_compute_challnges_reader(exp, &mut r, None).map(|tree| tree.into())
+    parse_sig_compute_challnges_reader(exp, &mut r, None)
 }
 
 /// Verifier Step 2: In a top-down traversal of the tree, obtain the challenges for the children of every

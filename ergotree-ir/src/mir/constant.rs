@@ -465,7 +465,7 @@ pub mod tests {
 
         #[test]
         fn vec_bigint_roundtrip(raw in any::<Vec<i64>>()) {
-            let v: Vec<BigInt256> = raw.into_iter().map(|i| BigInt256::from(i)).collect();
+            let v: Vec<BigInt256> = raw.into_iter().map(BigInt256::from).collect();
             test_constant_roundtrip(v);
         }
 
