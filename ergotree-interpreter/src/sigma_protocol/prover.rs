@@ -15,7 +15,6 @@ use crate::sigma_protocol::unproven_tree::CorUnproven;
 use crate::sigma_protocol::unproven_tree::NodePosition;
 use crate::sigma_protocol::unproven_tree::UnprovenDhTuple;
 use crate::sigma_protocol::Challenge;
-use crate::sigma_protocol::UncheckedSigmaTree;
 use crate::sigma_protocol::UnprovenLeaf;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaConjectureItems;
@@ -118,20 +117,24 @@ pub trait Prover: Evaluator {
         hints_bag: &HintsBag,
     ) -> Result<ProverResult, ProverError> {
         let expr = tree.proposition()?;
-        let proof = self
+        let unchecked_tree_opt = self
             .reduce_to_crypto(expr.as_ref(), env, ctx)
             .map_err(ProverError::EvalError)
             .and_then(|v| match v.sigma_prop {
-                SigmaBoolean::TrivialProp(true) => Ok(UncheckedTree::NoProof),
+                SigmaBoolean::TrivialProp(true) => Ok(None),
                 SigmaBoolean::TrivialProp(false) => Err(ProverError::ReducedToFalse),
                 sb => {
                     let tree = convert_to_unproven(sb);
                     let unchecked_tree = prove_to_unchecked(self, tree, message, hints_bag)?;
-                    Ok(UncheckedTree::UncheckedSigmaTree(unchecked_tree))
+                    Ok(Some(unchecked_tree))
                 }
-            });
-        proof.map(|v| ProverResult {
-            proof: serialize_sig(v),
+            })?;
+        let proof = match unchecked_tree_opt {
+            Some(tree) => serialize_sig(tree),
+            None => ProofBytes::Empty,
+        };
+        Ok(ProverResult {
+            proof,
             extension: ContextExtension::empty(),
         })
     }
@@ -151,7 +154,7 @@ fn prove_to_unchecked<P: Prover + ?Sized>(
     unproven_tree: UnprovenTree,
     message: &[u8],
     hints_bag: &HintsBag,
-) -> Result<UncheckedSigmaTree, ProverError> {
+) -> Result<UncheckedTree, ProverError> {
     // Prover Step 1: Mark as real everything the prover can prove
     let step1 = mark_real(prover, unproven_tree, hints_bag)?;
     // dbg!(&step1);
@@ -614,15 +617,11 @@ fn proving<P: Prover + ?Sized>(
     proof_tree::rewrite(proof_tree, &|tree| {
         match &tree {
             ProofTree::UncheckedTree(unch) => match unch {
-                UncheckedTree::NoProof => Err(ProverError::Unexpected(
-                    "Unexpected NoProof in proving()".to_string(),
-                )),
-                UncheckedTree::UncheckedSigmaTree(ust) => match ust {
-                    UncheckedSigmaTree::UncheckedLeaf(_) => Ok(None),
-                    UncheckedSigmaTree::UncheckedConjecture(_) => Err(ProverError::Unexpected(
-                        format!("proving: unexpected {:?}", tree),
-                    )),
-                },
+                UncheckedTree::UncheckedLeaf(_) => Ok(None),
+                UncheckedTree::UncheckedConjecture(_) => Err(ProverError::Unexpected(format!(
+                    "proving: unexpected {:?}",
+                    tree
+                ))),
             },
             ProofTree::UnprovenTree(unproven_tree) => match unproven_tree {
                 UnprovenTree::UnprovenConjecture(conj) => match conj {
@@ -839,18 +838,14 @@ fn convert_to_unproven(sb: SigmaBoolean) -> UnprovenTree {
     }
 }
 
-fn convert_to_unchecked(tree: ProofTree) -> Result<UncheckedSigmaTree, ProverError> {
+fn convert_to_unchecked(tree: ProofTree) -> Result<UncheckedTree, ProverError> {
     match &tree {
         ProofTree::UncheckedTree(unch_tree) => match unch_tree {
-            UncheckedTree::NoProof => Err(ProverError::Unexpected(
-                "convert_to_unchecked: unexpected NoProof".to_string(),
-            )),
-            UncheckedTree::UncheckedSigmaTree(ust) => match ust {
-                UncheckedSigmaTree::UncheckedLeaf(_) => Ok(ust.clone()),
-                UncheckedSigmaTree::UncheckedConjecture(_) => Err(ProverError::Unexpected(
-                    format!("convert_to_unchecked: unexpected {:?}", tree),
-                )),
-            },
+            UncheckedTree::UncheckedLeaf(_) => Ok(unch_tree.clone()),
+            UncheckedTree::UncheckedConjecture(_) => Err(ProverError::Unexpected(format!(
+                "convert_to_unchecked: unexpected {:?}",
+                tree
+            ))),
         },
         ProofTree::UnprovenTree(unp_tree) => match unp_tree {
             UnprovenTree::UnprovenLeaf(_) => Err(ProverError::Unexpected(format!(

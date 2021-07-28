@@ -16,7 +16,6 @@ use super::challenge::Challenge;
 use super::prover::ProverError;
 use super::unchecked_tree::UncheckedConjecture;
 use super::unchecked_tree::UncheckedDhTuple;
-use super::unchecked_tree::UncheckedSigmaTree;
 use super::unchecked_tree::UncheckedTree;
 use super::unproven_tree::CorUnproven;
 use super::unproven_tree::NodePosition;
@@ -67,7 +66,7 @@ impl ProofTree {
 
     pub(crate) fn challenge(&self) -> Option<Challenge> {
         match self {
-            ProofTree::UncheckedTree(unch) => unch.challenge(),
+            ProofTree::UncheckedTree(unch) => Some(unch.challenge()),
             ProofTree::UnprovenTree(unp) => unp.challenge(),
         }
     }
@@ -75,13 +74,13 @@ impl ProofTree {
 
 impl From<UncheckedSchnorr> for ProofTree {
     fn from(v: UncheckedSchnorr) -> Self {
-        UncheckedTree::UncheckedSigmaTree(v.into()).into()
+        UncheckedTree::UncheckedLeaf(v.into()).into()
     }
 }
 
 impl From<UncheckedDhTuple> for ProofTree {
     fn from(v: UncheckedDhTuple) -> Self {
-        UncheckedTree::UncheckedSigmaTree(v.into()).into()
+        UncheckedTree::UncheckedLeaf(v.into()).into()
     }
 }
 
@@ -121,15 +120,9 @@ impl From<UnprovenLeaf> for ProofTree {
     }
 }
 
-impl From<UncheckedSigmaTree> for ProofTree {
-    fn from(ust: UncheckedSigmaTree) -> Self {
-        ProofTree::UncheckedTree(UncheckedTree::UncheckedSigmaTree(ust))
-    }
-}
-
 impl From<UncheckedConjecture> for ProofTree {
     fn from(v: UncheckedConjecture) -> Self {
-        UncheckedTree::UncheckedSigmaTree(v.into()).into()
+        UncheckedTree::UncheckedConjecture(v).into()
     }
 }
 
@@ -166,7 +159,7 @@ where
 {
     let cast_to_ust = |children: SigmaConjectureItems<ProofTree>| {
         children.try_mapped(|c| {
-            if let ProofTree::UncheckedTree(UncheckedTree::UncheckedSigmaTree(ust)) = c {
+            if let ProofTree::UncheckedTree(ust) = c {
                 Ok(ust)
             } else {
                 Err(ProverError::Unexpected(format!(
@@ -199,37 +192,34 @@ where
             },
         },
         ProofTree::UncheckedTree(unch_tree) => match unch_tree {
-            UncheckedTree::NoProof => rewritten_tree,
-            UncheckedTree::UncheckedSigmaTree(ust) => match ust {
-                UncheckedSigmaTree::UncheckedLeaf(_) => rewritten_tree,
-                UncheckedSigmaTree::UncheckedConjecture(conj) => match conj {
+            UncheckedTree::UncheckedLeaf(_) => rewritten_tree,
+            UncheckedTree::UncheckedConjecture(conj) => match conj {
+                UncheckedConjecture::CandUnchecked {
+                    challenge,
+                    children,
+                } => {
+                    let rewritten_children =
+                        children.clone().try_mapped(|c| rewrite(c.into(), f))?;
+                    let casted_children = cast_to_ust(rewritten_children)?;
                     UncheckedConjecture::CandUnchecked {
-                        challenge,
-                        children,
-                    } => {
-                        let rewritten_children =
-                            children.clone().try_mapped(|c| rewrite(c.into(), f))?;
-                        let casted_children = cast_to_ust(rewritten_children)?;
-                        UncheckedConjecture::CandUnchecked {
-                            children: casted_children,
-                            challenge: challenge.clone(),
-                        }
-                        .into()
+                        children: casted_children,
+                        challenge: challenge.clone(),
                     }
+                    .into()
+                }
+                UncheckedConjecture::CorUnchecked {
+                    challenge,
+                    children,
+                } => {
+                    let rewritten_children =
+                        children.clone().try_mapped(|c| rewrite(c.into(), f))?;
+                    let casted_children = cast_to_ust(rewritten_children)?;
                     UncheckedConjecture::CorUnchecked {
-                        challenge,
-                        children,
-                    } => {
-                        let rewritten_children =
-                            children.clone().try_mapped(|c| rewrite(c.into(), f))?;
-                        let casted_children = cast_to_ust(rewritten_children)?;
-                        UncheckedConjecture::CorUnchecked {
-                            children: casted_children,
-                            challenge: challenge.clone(),
-                        }
-                        .into()
+                        children: casted_children,
+                        challenge: challenge.clone(),
                     }
-                },
+                    .into()
+                }
             },
         },
     })
