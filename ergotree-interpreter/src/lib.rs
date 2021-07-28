@@ -14,9 +14,9 @@
 #![deny(broken_intra_doc_links)]
 #![deny(clippy::unwrap_used)]
 #![deny(clippy::expect_used)]
-// #![deny(clippy::todo)]
-// #![deny(clippy::unimplemented)]
-// #![deny(clippy::panic)]
+#![deny(clippy::todo)]
+#![deny(clippy::unimplemented)]
+#![deny(clippy::panic)]
 
 mod contracts;
 mod util;

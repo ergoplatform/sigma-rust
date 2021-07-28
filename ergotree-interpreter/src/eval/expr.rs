@@ -11,7 +11,7 @@ impl Evaluable for Expr {
         ctx.cost_accum.add_cost_of(self)?;
         match self {
             Expr::Const(c) => Ok(c.v.clone()),
-            Expr::SubstConstants(_) => todo!(),
+            Expr::SubstConstants(_) => Err(EvalError::NotImplementedYet("Expr::SubstConstants")),
             Expr::ByteArrayToLong(op) => op.eval(env, ctx),
             Expr::ByteArrayToBigInt(op) => op.eval(env, ctx),
             Expr::LongToByteArray(op) => op.eval(env, ctx),
@@ -32,13 +32,17 @@ impl Evaluable for Expr {
             Expr::BlockValue(op) => op.eval(env, ctx),
             Expr::SelectField(op) => op.eval(env, ctx),
             Expr::ExtractAmount(op) => op.eval(env, ctx),
-            Expr::ConstPlaceholder(_) => panic!("ConstPlaceholder cannot be evaluated"),
+            Expr::ConstPlaceholder(_) => Err(EvalError::UnexpectedExpr(
+                ("ConstPlaceholder is not supported").to_string(),
+            )),
             Expr::Collection(op) => op.eval(env, ctx),
-            Expr::ValDef(_) => panic!("ValDef is evaluated in BlockValue"),
+            Expr::ValDef(_) => Err(EvalError::UnexpectedExpr(
+                ("ValDef is evaluated in BlockValue").to_string(),
+            )),
             Expr::And(op) => op.eval(env, ctx),
             Expr::Or(op) => op.eval(env, ctx),
             Expr::Xor(op) => op.eval(env, ctx),
-            Expr::Atleast(_) => todo!(),
+            Expr::Atleast(_) => Err(EvalError::NotImplementedYet("Expr:Atleast")),
             Expr::LogicalNot(op) => op.eval(env, ctx),
             Expr::Map(op) => op.eval(env, ctx),
             Expr::Filter(op) => op.eval(env, ctx),
