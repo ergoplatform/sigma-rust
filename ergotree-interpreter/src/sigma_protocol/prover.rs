@@ -259,15 +259,22 @@ fn mark_real<P: Prover + ?Sized>(
 }
 
 /// Set positions for children of a unproven inner node (conjecture, so AND/OR/THRESHOLD)
-fn set_positions(uc: UnprovenConjecture) -> UnprovenConjecture {
+fn set_positions(uc: UnprovenConjecture) -> Result<UnprovenConjecture, ProverError> {
     let upd_children = uc
         .children()
+        .try_mapped(|c| match c {
+            ProofTree::UncheckedTree(unch) => Err(ProverError::Unexpected(format!(
+                "set_positions: unexpected UncheckedTree: {:?}",
+                unch
+            ))),
+            ProofTree::UnprovenTree(unp) => Ok(unp),
+        })?
         .enumerated()
-        .mapped(|(idx, utree)| utree.with_position(uc.position().child(idx)));
-    match uc {
+        .mapped(|(idx, utree)| utree.with_position(uc.position().child(idx)).into());
+    Ok(match uc {
         UnprovenConjecture::CandUnproven(cand) => cand.with_children(upd_children).into(),
         UnprovenConjecture::CorUnproven(cor) => cor.with_children(upd_children).into(),
-    }
+    })
 }
 
 /// If the node is OR marked "real",  mark all but one of its children "simulated"
@@ -334,7 +341,7 @@ fn polish_simulated<P: Prover + ?Sized>(
                     } else {
                         cand.clone()
                     };
-                    Ok(Some(set_positions(a.into()).into()))
+                    Ok(Some(set_positions(a.into())?.into()))
                 }
                 UnprovenConjecture::CorUnproven(cor) => {
                     // If the node is marked "simulated", mark all of its children "simulated"
@@ -348,7 +355,7 @@ fn polish_simulated<P: Prover + ?Sized>(
                         // If the node is OR marked "real",  mark all but one of its children "simulated"
                         make_cor_children_simulated(cor.clone())?
                     };
-                    Ok(Some(set_positions(o.into()).into()))
+                    Ok(Some(set_positions(o.into())?.into()))
                 }
             },
         },

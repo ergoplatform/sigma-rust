@@ -20,27 +20,6 @@ use super::{
 
 use derive_more::From;
 
-// /// Unchecked tree
-// #[derive(PartialEq, Debug, Clone, From)]
-// pub enum UncheckedTree {
-//     /// Unchecked sigma tree
-//     UncheckedSigmaTree(UncheckedSigmaTree),
-// }
-
-// impl UncheckedTree {
-//     pub(crate) fn as_tree_kind(&self) -> ProofTreeKind {
-//         match self {
-//             UncheckedTree::UncheckedSigmaTree(ust) => ust.as_tree_kind(),
-//         }
-//     }
-
-//     pub(crate) fn challenge(&self) -> Challenge {
-//         match self {
-//             UncheckedTree::UncheckedSigmaTree(ust) => ust.challenge(),
-//         }
-//     }
-// }
-
 /// Unchecked sigma tree
 #[derive(PartialEq, Debug, Clone, From)]
 pub enum UncheckedTree {
@@ -64,6 +43,10 @@ impl UncheckedTree {
             UncheckedTree::UncheckedLeaf(ul) => ProofTreeKind::Leaf(ul),
             UncheckedTree::UncheckedConjecture(uc) => ProofTreeKind::Conjecture(uc),
         }
+    }
+
+    pub(crate) fn with_challenge(&self, challenge: Challenge) -> Self {
+        todo!()
     }
 }
 

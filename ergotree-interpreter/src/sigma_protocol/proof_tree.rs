@@ -18,7 +18,6 @@ use super::unchecked_tree::UncheckedConjecture;
 use super::unchecked_tree::UncheckedDhTuple;
 use super::unchecked_tree::UncheckedTree;
 use super::unproven_tree::CorUnproven;
-use super::unproven_tree::NodePosition;
 use super::unproven_tree::UnprovenDhTuple;
 use super::unproven_tree::UnprovenLeaf;
 use super::unproven_tree::UnprovenTree;
@@ -37,15 +36,8 @@ impl ProofTree {
     /// Create a new proof tree with a new challenge
     pub(crate) fn with_challenge(&self, challenge: Challenge) -> ProofTree {
         match self {
-            ProofTree::UncheckedTree(_) => todo!(),
+            ProofTree::UncheckedTree(uc) => uc.clone().with_challenge(challenge).into(),
             ProofTree::UnprovenTree(ut) => ut.clone().with_challenge(challenge).into(),
-        }
-    }
-
-    pub(crate) fn with_position(&self, updated: NodePosition) -> Self {
-        match self {
-            ProofTree::UncheckedTree(_) => todo!(),
-            ProofTree::UnprovenTree(ut) => ut.clone().with_position(updated).into(),
         }
     }
 
@@ -53,14 +45,6 @@ impl ProofTree {
         match self {
             ProofTree::UncheckedTree(unch) => unch.as_tree_kind(),
             ProofTree::UnprovenTree(unp) => unp.as_tree_kind(),
-        }
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn position(&self) -> &NodePosition {
-        match self {
-            ProofTree::UncheckedTree(_) => todo!(),
-            ProofTree::UnprovenTree(unp) => unp.position(),
         }
     }
 
