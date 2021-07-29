@@ -4,12 +4,15 @@ use crate::has_opcode::{HasOpCode, HasStaticOpCode};
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SigmaParsingError, SigmaSerializable,
 };
-use crate::sigma_protocol::sigma_boolean::ProveDhTuple;
 use crate::sigma_protocol::{
     dlog_group::EcPoint,
-    sigma_boolean::{ProveDlog, SigmaBoolean, SigmaConjecture, SigmaProofOfKnowledgeTree},
+    sigma_boolean::{
+        ProveDhTuple, ProveDlog, SigmaBoolean, SigmaConjecture, SigmaProofOfKnowledgeTree,
+    },
 };
 
+use crate::sigma_protocol::sigma_boolean::cand::Cand;
+use crate::sigma_protocol::sigma_boolean::cor::Cor;
 use crate::sigma_protocol::sigma_boolean::cthreshold::Cthreshold;
 
 #[allow(clippy::todo)] // until https://github.com/ergoplatform/sigma-rust/issues/338 is implemented
@@ -22,8 +25,8 @@ impl SigmaSerializable for SigmaBoolean {
                 SigmaProofOfKnowledgeTree::ProveDlog(v) => v.sigma_serialize(w),
             },
             SigmaBoolean::SigmaConjecture(conj) => match conj {
-                SigmaConjecture::Cand(_) => todo!(),
-                SigmaConjecture::Cor(_) => todo!(),
+                SigmaConjecture::Cand(c) => c.sigma_serialize(w),
+                SigmaConjecture::Cor(c) => c.sigma_serialize(w),
                 SigmaConjecture::Cthreshold(c) => c.sigma_serialize(w),
             },
             SigmaBoolean::TrivialProp(_) => Ok(()), // besides opCode no additional bytes
@@ -36,6 +39,17 @@ impl SigmaSerializable for SigmaBoolean {
             ProveDlog::OP_CODE => Ok(SigmaBoolean::ProofOfKnowledge(
                 SigmaProofOfKnowledgeTree::ProveDlog(ProveDlog::sigma_parse(r)?),
             )),
+            ProveDhTuple::OP_CODE => Ok(SigmaBoolean::ProofOfKnowledge(
+                SigmaProofOfKnowledgeTree::ProveDhTuple(ProveDhTuple::sigma_parse(r)?),
+            )),
+            Cand::OP_CODE => {
+                let c = Cand::sigma_parse(r)?;
+                Ok(SigmaBoolean::SigmaConjecture(SigmaConjecture::Cand(c)))
+            }
+            Cor::OP_CODE => {
+                let c = Cor::sigma_parse(r)?;
+                Ok(SigmaBoolean::SigmaConjecture(SigmaConjecture::Cor(c)))
+            }
             Cthreshold::OP_CODE => {
                 let c = Cthreshold::sigma_parse(r)?;
                 Ok(SigmaBoolean::SigmaConjecture(SigmaConjecture::Cthreshold(
