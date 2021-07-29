@@ -26,7 +26,7 @@ pub fn lower(ast: ast::Root) -> Result<Expr, HirLoweringError> {
     let first_expr = exprs
         .first()
         .ok_or_else(|| AstError::new(format!("Cannot parse empty root: {:?}", ast), ast.span()))?;
-    Expr::lower(&first_expr)
+    Expr::lower(first_expr)
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -48,7 +48,7 @@ impl HirLoweringError {
     }
 
     pub fn pretty_desc(&self, source: &str) -> String {
-        pretty_error_desc(&source, self.span, &self.msg)
+        pretty_error_desc(source, self.span, &self.msg)
     }
 }
 

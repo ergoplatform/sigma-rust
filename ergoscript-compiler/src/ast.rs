@@ -15,7 +15,7 @@ impl AstError {
     }
 
     pub fn pretty_desc(&self, source: &str) -> String {
-        pretty_error_desc(&source, self.span, &self.msg)
+        pretty_error_desc(source, self.span, &self.msg)
     }
 }
 
@@ -57,6 +57,7 @@ impl Ident {
     }
 }
 
+#[allow(clippy::enum_variant_names)]
 #[derive(Debug)]
 pub enum Expr {
     Ident(Ident),
@@ -155,7 +156,7 @@ impl Literal {
     pub fn parse(&self) -> Result<LiteralValue, AstError> {
         let text = self.0.first_token().unwrap().text().to_string();
         if text.ends_with('L') {
-            text.strip_suffix("L")
+            text.strip_suffix('L')
                 .unwrap()
                 .parse()
                 .ok()

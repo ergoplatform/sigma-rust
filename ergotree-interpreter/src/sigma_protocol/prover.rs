@@ -705,7 +705,7 @@ fn proving<P: Prover + ?Sized>(
                                 .find(|prover_input| prover_input.public_image() == us.proposition)
                             {
                                 let z = dlog_protocol::interactive_prover::second_message(
-                                    &priv_key,
+                                    priv_key,
                                     us.randomness_opt.ok_or_else(|| {
                                         ProverError::Unexpected(format!(
                                             "empty randomness in {:?}",

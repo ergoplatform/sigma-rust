@@ -102,14 +102,12 @@ mod arbitrary {
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             vec(any::<Constant>(), 0..10)
                 .prop_map(|constants| {
-                    let pairs: Vec<(u8, Constant)> = constants
+                    let pairs = constants
                         .into_iter()
                         .enumerate()
                         .map(|(idx, c)| (idx as u8, c))
                         .collect();
-                    Self {
-                        values: pairs.into_iter().collect(),
-                    }
+                    Self { values: pairs }
                 })
                 .boxed()
         }

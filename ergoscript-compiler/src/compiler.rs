@@ -76,7 +76,7 @@ pub fn compile(source: &str, env: ScriptEnv) -> Result<ErgoTree, CompileError> {
 }
 
 pub(crate) fn compile_hir(source: &str) -> Result<hir::Expr, CompileError> {
-    let parse = super::parser::parse(&source);
+    let parse = super::parser::parse(source);
     if !parse.errors.is_empty() {
         return Err(CompileError::ParseError(parse.errors));
     }
