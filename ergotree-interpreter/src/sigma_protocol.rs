@@ -21,7 +21,7 @@ use k256::Scalar;
 
 use dlog_protocol::FirstDlogProverMessage;
 use std::convert::TryInto;
-use unchecked_tree::{UncheckedSigmaTree, UncheckedTree};
+use unchecked_tree::UncheckedTree;
 use unproven_tree::{UnprovenLeaf, UnprovenSchnorr};
 
 use self::challenge::Challenge;

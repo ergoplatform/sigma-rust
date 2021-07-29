@@ -22,6 +22,7 @@ impl Evaluable for SigmaPropBytes {
 #[cfg(feature = "arbitrary")]
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
+#[allow(clippy::panic)]
 mod tests {
     use super::*;
     use crate::eval::tests::eval_out_wo_ctx;

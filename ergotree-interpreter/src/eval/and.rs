@@ -15,6 +15,7 @@ impl Evaluable for And {
     }
 }
 
+#[allow(clippy::panic)]
 #[cfg(test)]
 mod tests {
     use std::rc::Rc;

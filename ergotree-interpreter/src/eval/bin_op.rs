@@ -294,6 +294,7 @@ impl Evaluable for BinOp {
     }
 }
 
+#[allow(clippy::panic)]
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {

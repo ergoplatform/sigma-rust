@@ -13,7 +13,7 @@ use super::{
     fiat_shamir::{fiat_shamir_hash_fn, fiat_shamir_tree_to_bytes},
     sig_serializer::parse_sig_compute_challenges,
     unchecked_tree::{UncheckedLeaf, UncheckedSchnorr},
-    SigmaBoolean, UncheckedSigmaTree, UncheckedTree,
+    SigmaBoolean, UncheckedTree,
 };
 use crate::eval::context::Context;
 use crate::eval::env::Env;
@@ -72,13 +72,14 @@ pub trait Verifier: Evaluator {
         let res: bool = match cprop {
             SigmaBoolean::TrivialProp(b) => b,
             sb => {
-                // Perform Verifier Steps 1-3
-                match parse_sig_compute_challenges(&sb, proof)? {
-                    UncheckedTree::UncheckedSigmaTree(sp) => {
+                match proof {
+                    ProofBytes::Empty => false,
+                    ProofBytes::Some(proof_bytes) => {
+                        // Perform Verifier Steps 1-3
+                        let unchecked_tree = parse_sig_compute_challenges(&sb, proof_bytes)?;
                         // Perform Verifier Steps 4-6
-                        check_commitments(sp, message)?
+                        check_commitments(unchecked_tree, message)?
                     }
-                    UncheckedTree::NoProof => false,
                 }
             }
         };
@@ -90,7 +91,7 @@ pub trait Verifier: Evaluator {
 }
 
 /// Perform Verifier Steps 4-6
-fn check_commitments(sp: UncheckedSigmaTree, message: &[u8]) -> Result<bool, VerifierError> {
+fn check_commitments(sp: UncheckedTree, message: &[u8]) -> Result<bool, VerifierError> {
     // Perform Verifier Step 4
     let new_root = compute_commitments(sp);
     let mut s = fiat_shamir_tree_to_bytes(&new_root.clone().into())?;
@@ -106,9 +107,9 @@ fn check_commitments(sp: UncheckedSigmaTree, message: &[u8]) -> Result<bool, Ver
 /// Verifier Step 4: For every leaf node, compute the commitment a from the challenge e and response $z$,
 /// per the verifier algorithm of the leaf's Sigma-protocol.
 /// If the verifier algorithm of the Sigma-protocol for any of the leaves rejects, then reject the entire proof.
-fn compute_commitments(sp: UncheckedSigmaTree) -> UncheckedSigmaTree {
+fn compute_commitments(sp: UncheckedTree) -> UncheckedTree {
     match sp {
-        UncheckedSigmaTree::UncheckedLeaf(leaf) => match leaf {
+        UncheckedTree::UncheckedLeaf(leaf) => match leaf {
             UncheckedLeaf::UncheckedSchnorr(sn) => {
                 let a = dlog_protocol::interactive_prover::compute_commitment(
                     &sn.proposition,
@@ -134,7 +135,7 @@ fn compute_commitments(sp: UncheckedSigmaTree) -> UncheckedSigmaTree {
                 .into()
             }
         },
-        UncheckedSigmaTree::UncheckedConjecture(conj) => conj
+        UncheckedTree::UncheckedConjecture(conj) => conj
             .clone()
             .with_children(conj.children_ust().mapped(compute_commitments))
             .into(),
@@ -148,6 +149,7 @@ impl Evaluator for TestVerifier {}
 impl Verifier for TestVerifier {}
 
 #[allow(clippy::unwrap_used)]
+#[allow(clippy::panic)]
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
 mod tests {

@@ -5,7 +5,6 @@ use std::convert::TryInto;
 use super::prover::ProofBytes;
 use super::unchecked_tree::UncheckedConjecture;
 use super::unchecked_tree::UncheckedLeaf;
-use super::unchecked_tree::UncheckedSigmaTree;
 use super::unchecked_tree::UncheckedTree;
 use super::GROUP_SIZE;
 use super::SOUNDNESS_BYTES;
@@ -32,24 +31,19 @@ use thiserror::Error;
 /// Note, sigma propositions and commitments are not serialized.
 /// Returns the proof bytes containing all the serialized challenges and prover messages (aka `z` values)
 pub(crate) fn serialize_sig(tree: UncheckedTree) -> ProofBytes {
-    match tree {
-        UncheckedTree::NoProof => ProofBytes::Empty,
-        UncheckedTree::UncheckedSigmaTree(ust) => {
-            let mut data = Vec::with_capacity(SOUNDNESS_BYTES + GROUP_SIZE);
-            let mut w = SigmaByteWriter::new(&mut data, None);
-            #[allow(clippy::unwrap_used)]
-            // since serialization may fail only for underlying IO errors (OOM, etc.) it's ok to force unwrap
-            sig_write_bytes(&ust, &mut w, true).unwrap();
-            ProofBytes::Some(data)
-        }
-    }
+    let mut data = Vec::with_capacity(SOUNDNESS_BYTES + GROUP_SIZE);
+    let mut w = SigmaByteWriter::new(&mut data, None);
+    #[allow(clippy::unwrap_used)]
+    // since serialization may fail only for underlying IO errors (OOM, etc.) it's ok to force unwrap
+    sig_write_bytes(&tree, &mut w, true).unwrap();
+    ProofBytes::Some(data)
 }
 
 /// Recursively traverses the given node and serializes challenges and prover messages to the given writer.
 /// Note, sigma propositions and commitments are not serialized.
 /// Returns the proof bytes containing all the serialized challenges and prover messages (aka `z` values)
 fn sig_write_bytes<W: SigmaByteWrite>(
-    node: &UncheckedSigmaTree,
+    node: &UncheckedTree,
     w: &mut W,
     write_challenges: bool,
 ) -> Result<(), std::io::Error> {
@@ -57,7 +51,7 @@ fn sig_write_bytes<W: SigmaByteWrite>(
         node.challenge().sigma_serialize(w)?;
     }
     match node {
-        UncheckedSigmaTree::UncheckedLeaf(leaf) => match leaf {
+        UncheckedTree::UncheckedLeaf(leaf) => match leaf {
             UncheckedLeaf::UncheckedSchnorr(us) => {
                 let mut sm_bytes = us.second_message.z.to_bytes();
                 w.write_all(sm_bytes.as_mut_slice())?;
@@ -68,7 +62,7 @@ fn sig_write_bytes<W: SigmaByteWrite>(
                 w.write_all(sm_bytes.as_mut_slice())
             }
         },
-        UncheckedSigmaTree::UncheckedConjecture(conj) => match conj {
+        UncheckedTree::UncheckedConjecture(conj) => match conj {
             UncheckedConjecture::CandUnchecked {
                 challenge: _,
                 children,
@@ -102,15 +96,10 @@ fn sig_write_bytes<W: SigmaByteWrite>(
 /// * `proof` - proof to extract challenges from
 pub(crate) fn parse_sig_compute_challenges(
     exp: &SigmaBoolean,
-    proof: ProofBytes,
+    mut proof_bytes: Vec<u8>,
 ) -> Result<UncheckedTree, SigParsingError> {
-    match proof {
-        ProofBytes::Empty => Ok(UncheckedTree::NoProof),
-        ProofBytes::Some(mut proof_bytes) => {
-            let mut r = sigma_byte_reader::from_bytes(proof_bytes.as_mut_slice());
-            parse_sig_compute_challnges_reader(exp, &mut r, None).map(|tree| tree.into())
-        }
-    }
+    let mut r = sigma_byte_reader::from_bytes(proof_bytes.as_mut_slice());
+    parse_sig_compute_challnges_reader(exp, &mut r, None)
 }
 
 /// Verifier Step 2: In a top-down traversal of the tree, obtain the challenges for the children of every
@@ -121,7 +110,7 @@ fn parse_sig_compute_challnges_reader<R: SigmaByteRead>(
     exp: &SigmaBoolean,
     r: &mut R,
     challenge_opt: Option<Challenge>,
-) -> Result<UncheckedSigmaTree, SigParsingError> {
+) -> Result<UncheckedTree, SigParsingError> {
     // Verifier Step 2: Let e_0 be the challenge in the node here (e_0 is called "challenge" in the code)
     let challenge = if let Some(c) = challenge_opt {
         c
@@ -130,9 +119,9 @@ fn parse_sig_compute_challnges_reader<R: SigmaByteRead>(
     };
 
     match exp {
-        SigmaBoolean::TrivialProp(_) => {
-            panic!("TrivialProp should be handled before this call")
-        }
+        SigmaBoolean::TrivialProp(_) => Err(SigParsingError::Unexpected(
+            "parse_sig_compute_challenges: TrivialProp should be handled before this call",
+        )),
         SigmaBoolean::ProofOfKnowledge(tree) => match tree {
             SigmaProofOfKnowledgeTree::ProveDlog(dl) => {
                 // Verifier Step 3: For every leaf node, read the response z provided in the proof.
@@ -180,7 +169,7 @@ fn parse_sig_compute_challnges_reader<R: SigmaByteRead>(
                 // The rightmost child gets a challenge computed as an XOR of the challenges of all the other children and e_0.
 
                 // Read all the children but the last and compute the XOR of all the challenges including e_0
-                let mut children: Vec<UncheckedSigmaTree> = Vec::new();
+                let mut children: Vec<UncheckedTree> = Vec::new();
 
                 let (last, rest) = cor.items.split_last();
                 for it in rest {
@@ -202,7 +191,9 @@ fn parse_sig_compute_challnges_reader<R: SigmaByteRead>(
                 }
                 .into())
             }
-            SigmaConjecture::Cthreshold(_) => todo!(),
+            SigmaConjecture::Cthreshold(_) => Err(SigParsingError::Unexpected(
+                "parse_sig_compute_challenges: CTHRESHOLD is not yet implemented",
+            )),
         },
     }
 }
@@ -216,6 +207,9 @@ pub enum SigParsingError {
     /// Serialization error
     #[error("Serialization error: {0}")]
     SerializationError(SigmaParsingError),
+    /// Unexpected error
+    #[error("Unexpected error: {0}")]
+    Unexpected(&'static str),
 }
 
 impl From<std::io::Error> for SigParsingError {

@@ -20,60 +20,36 @@ use super::{
 
 use derive_more::From;
 
-/// Unchecked tree
-#[derive(PartialEq, Debug, Clone, From)]
-pub enum UncheckedTree {
-    /// No proof needed
-    NoProof,
-    /// Unchecked sigma tree
-    UncheckedSigmaTree(UncheckedSigmaTree),
-}
-
-impl UncheckedTree {
-    pub(crate) fn as_tree_kind(&self) -> ProofTreeKind {
-        match self {
-            UncheckedTree::NoProof => panic!("NoProof has not ProofTreeKind representation"),
-            UncheckedTree::UncheckedSigmaTree(ust) => ust.as_tree_kind(),
-        }
-    }
-
-    pub(crate) fn challenge(&self) -> Option<Challenge> {
-        match self {
-            UncheckedTree::NoProof => None,
-            UncheckedTree::UncheckedSigmaTree(ust) => Some(ust.challenge()),
-        }
-    }
-}
-
 /// Unchecked sigma tree
 #[derive(PartialEq, Debug, Clone, From)]
-pub enum UncheckedSigmaTree {
+pub enum UncheckedTree {
     /// Unchecked leaf
     UncheckedLeaf(UncheckedLeaf),
     /// Unchecked conjecture (OR, AND, ...)
     UncheckedConjecture(UncheckedConjecture),
 }
 
-impl UncheckedSigmaTree {
+impl UncheckedTree {
     /// Get challenge
     pub(crate) fn challenge(&self) -> Challenge {
         match self {
-            UncheckedSigmaTree::UncheckedLeaf(ul) => ul.challenge(),
-            UncheckedSigmaTree::UncheckedConjecture(uc) => uc.challenge(),
+            UncheckedTree::UncheckedLeaf(ul) => ul.challenge(),
+            UncheckedTree::UncheckedConjecture(uc) => uc.challenge(),
         }
     }
 
     pub(crate) fn as_tree_kind(&self) -> ProofTreeKind {
         match self {
-            UncheckedSigmaTree::UncheckedLeaf(ul) => ProofTreeKind::Leaf(ul),
-            UncheckedSigmaTree::UncheckedConjecture(uc) => ProofTreeKind::Conjecture(uc),
+            UncheckedTree::UncheckedLeaf(ul) => ProofTreeKind::Leaf(ul),
+            UncheckedTree::UncheckedConjecture(uc) => ProofTreeKind::Conjecture(uc),
         }
     }
-}
 
-impl From<UncheckedSchnorr> for UncheckedSigmaTree {
-    fn from(v: UncheckedSchnorr) -> Self {
-        UncheckedSigmaTree::UncheckedLeaf(v.into())
+    pub(crate) fn with_challenge(self, challenge: Challenge) -> Self {
+        match self {
+            UncheckedTree::UncheckedLeaf(ul) => ul.with_challenge(challenge).into(),
+            UncheckedTree::UncheckedConjecture(uc) => uc.with_challenge(challenge).into(),
+        }
     }
 }
 
@@ -90,6 +66,13 @@ impl UncheckedLeaf {
         match self {
             UncheckedLeaf::UncheckedSchnorr(us) => us.challenge.clone(),
             UncheckedLeaf::UncheckedDhTuple(udht) => udht.challenge.clone(),
+        }
+    }
+
+    pub fn with_challenge(self, challenge: Challenge) -> Self {
+        match self {
+            UncheckedLeaf::UncheckedSchnorr(us) => us.with_challenge(challenge).into(),
+            UncheckedLeaf::UncheckedDhTuple(udht) => udht.with_challenge(challenge).into(),
         }
     }
 }
@@ -121,15 +104,21 @@ pub struct UncheckedSchnorr {
     pub second_message: SecondDlogProverMessage,
 }
 
-impl From<UncheckedSchnorr> for UncheckedTree {
-    fn from(us: UncheckedSchnorr) -> Self {
-        UncheckedTree::UncheckedSigmaTree(us.into())
+impl UncheckedSchnorr {
+    pub fn with_challenge(self, challenge: Challenge) -> Self {
+        UncheckedSchnorr { challenge, ..self }
     }
 }
 
-impl From<UncheckedDhTuple> for UncheckedSigmaTree {
+impl From<UncheckedSchnorr> for UncheckedTree {
+    fn from(us: UncheckedSchnorr) -> Self {
+        UncheckedTree::UncheckedLeaf(us.into())
+    }
+}
+
+impl From<UncheckedDhTuple> for UncheckedTree {
     fn from(dh: UncheckedDhTuple) -> Self {
-        UncheckedSigmaTree::UncheckedLeaf(dh.into())
+        UncheckedTree::UncheckedLeaf(dh.into())
     }
 }
 
@@ -141,9 +130,9 @@ pub struct UncheckedDhTuple {
     pub second_message: SecondDhTupleProverMessage,
 }
 
-impl From<UncheckedDhTuple> for UncheckedTree {
-    fn from(dh: UncheckedDhTuple) -> Self {
-        UncheckedTree::UncheckedSigmaTree(dh.into())
+impl UncheckedDhTuple {
+    pub fn with_challenge(self, challenge: Challenge) -> Self {
+        UncheckedDhTuple { challenge, ..self }
     }
 }
 
@@ -151,16 +140,16 @@ impl From<UncheckedDhTuple> for UncheckedTree {
 pub enum UncheckedConjecture {
     CandUnchecked {
         challenge: Challenge,
-        children: SigmaConjectureItems<UncheckedSigmaTree>,
+        children: SigmaConjectureItems<UncheckedTree>,
     },
     CorUnchecked {
         challenge: Challenge,
-        children: SigmaConjectureItems<UncheckedSigmaTree>,
+        children: SigmaConjectureItems<UncheckedTree>,
     },
 }
 
 impl UncheckedConjecture {
-    pub fn with_children(self, new_children: SigmaConjectureItems<UncheckedSigmaTree>) -> Self {
+    pub fn with_children(self, new_children: SigmaConjectureItems<UncheckedTree>) -> Self {
         match self {
             UncheckedConjecture::CandUnchecked {
                 challenge,
@@ -179,7 +168,7 @@ impl UncheckedConjecture {
         }
     }
 
-    pub fn children_ust(self) -> SigmaConjectureItems<UncheckedSigmaTree> {
+    pub fn children_ust(self) -> SigmaConjectureItems<UncheckedTree> {
         match self {
             UncheckedConjecture::CandUnchecked {
                 challenge: _,
@@ -202,6 +191,25 @@ impl UncheckedConjecture {
                 challenge,
                 children: _,
             } => challenge.clone(),
+        }
+    }
+
+    pub fn with_challenge(self, challenge: Challenge) -> Self {
+        match self {
+            UncheckedConjecture::CandUnchecked {
+                challenge: _,
+                children,
+            } => UncheckedConjecture::CandUnchecked {
+                challenge,
+                children,
+            },
+            UncheckedConjecture::CorUnchecked {
+                challenge: _,
+                children,
+            } => UncheckedConjecture::CorUnchecked {
+                challenge,
+                children,
+            },
         }
     }
 }
