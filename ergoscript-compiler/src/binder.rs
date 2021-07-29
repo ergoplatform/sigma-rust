@@ -19,7 +19,7 @@ impl BinderError {
     }
 
     pub fn pretty_desc(&self, source: &str) -> String {
-        pretty_error_desc(&source, self.span, &self.msg)
+        pretty_error_desc(source, self.span, &self.msg)
     }
 }
 

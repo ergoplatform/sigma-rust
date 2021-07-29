@@ -24,7 +24,10 @@ use crate::serialization::{
 use k256::elliptic_curve::ff::PrimeField;
 use k256::elliptic_curve::sec1::ToEncodedPoint;
 use k256::{ProjectivePoint, PublicKey, Scalar};
+use num_bigint::BigUint;
 use num_bigint::Sign;
+use num_bigint::ToBigUint;
+use num_traits::ToPrimitive;
 use rand::RngCore;
 use std::convert::TryFrom;
 use std::ops::{Add, Mul, Neg};
@@ -123,27 +126,39 @@ pub fn random_scalar_in_group_range(rng: impl RngCore) -> Scalar {
 /// (FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFE BAAEDCE6 AF48A03B BFD25E8C D0364141)
 /// it might not fit into 256-bit BigInt because BigInt uses 1 bit for sign.
 pub fn scalar_to_bigint256(s: Scalar) -> Option<BigInt256> {
-    let r_g_array = s.to_bytes();
-    let r_b_array: &[u8] = r_g_array.as_slice();
-    BigInt256::try_from(r_b_array).ok()
+    // from https://github.com/RustCrypto/elliptic-curves/blob/fe737c56add103e4e8ff270d0c05ffdb6107b8d6/k256/src/arithmetic/scalar.rs#L598-L602
+    let bytes = s.to_bytes();
+    #[allow(clippy::unwrap_used)]
+    let bu: BigUint = bytes
+        .iter()
+        .enumerate()
+        .map(|(i, w)| w.to_biguint().unwrap() << ((31 - i) * 8))
+        .sum();
+    BigInt256::try_from(bu).ok()
+}
+
+fn biguint_to_bytes(x: &BigUint) -> [u8; 32] {
+    // from https://github.com/RustCrypto/elliptic-curves/blob/fe737c56add103e4e8ff270d0c05ffdb6107b8d6/k256/src/arithmetic/scalar.rs#L587-L588
+    let mask = BigUint::from(u8::MAX);
+    let mut bytes = [0u8; 32];
+    #[allow(clippy::needless_range_loop)]
+    #[allow(clippy::unwrap_used)]
+    for i in 0..32 {
+        bytes[i] = ((x >> ((31 - i) * 8)) as BigUint & &mask).to_u8().unwrap();
+    }
+    bytes
 }
 
 /// Attempts to create Scalar from BigInt256
 /// Returns None if not in the range [0, modulus).
 pub fn bigint256_to_scalar(bi: BigInt256) -> Option<Scalar> {
-    let (sign, bytes_be) = bi.to_bytes_be();
-
-    if Sign::Minus == sign {
+    if Sign::Minus == bi.sign() {
         return None;
     }
-
-    let bytes = bytes_be.as_slice();
-    debug_assert!(bytes.len() <= 32);
-    let mut bytes_32 = [0; 32];
-    for (i, v) in bytes.iter().enumerate() {
-        bytes_32[i] = *v;
-    }
-    Scalar::from_repr(bytes_32.into())
+    #[allow(clippy::unwrap_used)] // since it's 256-bit BigInt it should always fit into BigUint
+    let bu = bi.to_biguint().unwrap();
+    let bytes = biguint_to_bytes(&bu);
+    Scalar::from_repr(bytes.into())
 }
 
 impl SigmaSerializable for EcPoint {
@@ -201,8 +216,48 @@ mod tests {
     use super::*;
     use crate::mir::expr::Expr;
     use crate::serialization::sigma_serialize_roundtrip;
+    use num_bigint::BigUint;
+    use num_bigint::ToBigUint;
     use proptest::prelude::*;
-    use rand::thread_rng;
+
+    // the following Scalar <-> BigUint helpers are from k256::arithmetic::scalar
+
+    /// Converts a byte array (big-endian) to BigUint.
+    fn bytes_to_biguint(bytes: &[u8; 32]) -> BigUint {
+        bytes
+            .iter()
+            .enumerate()
+            .map(|(i, w)| w.to_biguint().unwrap() << ((31 - i) * 8))
+            .sum()
+    }
+
+    fn scalar_to_biguint(scalar: &Scalar) -> Option<BigUint> {
+        Some(bytes_to_biguint(scalar.to_bytes().as_ref()))
+    }
+
+    fn biguint_to_scalar(x: &BigUint) -> Scalar {
+        debug_assert!(x < &modulus_as_biguint());
+        let bytes = biguint_to_bytes(x);
+        Scalar::from_repr(bytes.into()).unwrap()
+    }
+
+    /// Returns the scalar modulus as a `BigUint` object.
+    fn modulus_as_biguint() -> BigUint {
+        scalar_to_biguint(&Scalar::one().negate()).unwrap() + 1.to_biguint().unwrap()
+    }
+
+    prop_compose! {
+        fn scalar()(bytes in any::<[u8; 32]>()) -> Scalar {
+            let mut res = bytes_to_biguint(&bytes);
+            let m = modulus_as_biguint();
+            // Modulus is 256 bit long, same as the maximum `res`,
+            // so this is guaranteed to land us in the correct range.
+            if res >= m {
+                res -= m;
+            }
+            biguint_to_scalar(&res)
+        }
+    }
 
     proptest! {
 
@@ -211,14 +266,22 @@ mod tests {
             let e: Expr = v.into();
             prop_assert_eq![sigma_serialize_roundtrip(&e), e];
         }
-    }
 
-    #[test]
-    fn scalar_bigint256_roundtrip() {
-        // Shift right to make sure that the MSB is 0, so that the Scalar can be
-        // converted to a BigInt256 and back
-        let rand_scalar: Scalar = random_scalar_in_group_range(thread_rng()) >> 1;
-        let as_bigint256: BigInt256 = scalar_to_bigint256(rand_scalar).unwrap();
-        assert_eq!(rand_scalar, bigint256_to_scalar(as_bigint256).unwrap());
+        #[test]
+        fn scalar_biguint_roundtrip(scalar in scalar()) {
+            let bu = scalar_to_biguint(&scalar).unwrap();
+            let to_scalar = biguint_to_scalar(&bu);
+            prop_assert_eq!(scalar, to_scalar);
+        }
+
+        #[test]
+        fn scalar_bigint256_roundtrip(scalar in scalar()) {
+            // Shift right to make sure that the MSB is 0, so that the Scalar can be
+            // converted to a BigInt256
+            let shifted_scalar = scalar >> 1;
+            let as_bigint256: BigInt256 = scalar_to_bigint256(shifted_scalar).unwrap();
+            let to_scalar = bigint256_to_scalar(as_bigint256).unwrap();
+            prop_assert_eq!(shifted_scalar, to_scalar);
+        }
     }
 }

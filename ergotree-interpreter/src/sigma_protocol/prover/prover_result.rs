@@ -61,7 +61,7 @@ impl SigmaSerializable for ProofBytes {
             ProofBytes::Empty => w.put_u16(0)?,
             ProofBytes::Some(bytes) => {
                 w.put_u16(bytes.len() as u16)?;
-                w.write_all(&bytes)?;
+                w.write_all(bytes)?;
             }
         }
         Ok(())

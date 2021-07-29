@@ -173,7 +173,7 @@ fn parse_sig_compute_challnges_reader<R: SigmaByteRead>(
 
                 let (last, rest) = cor.items.split_last();
                 for it in rest {
-                    children.push(parse_sig_compute_challnges_reader(&it, r, None)?);
+                    children.push(parse_sig_compute_challnges_reader(it, r, None)?);
                 }
                 let xored_challenge = children
                     .clone()

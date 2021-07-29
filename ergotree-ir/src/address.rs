@@ -349,7 +349,7 @@ impl AddressEncoder {
         };
 
         let network_prefix = (bytes[0] & 0xF0).try_into()?;
-        AddressEncoder::unchecked_parse_address_from_bytes(&bytes).map(|addr| NetworkAddress {
+        AddressEncoder::unchecked_parse_address_from_bytes(bytes).map(|addr| NetworkAddress {
             address: addr,
             network: network_prefix,
         })
@@ -388,7 +388,7 @@ impl AddressEncoder {
 
     /// encode address as Base58 encoded string
     pub fn address_to_str(&self, address: &Address) -> String {
-        AddressEncoder::encode_address_as_string(self.network_prefix, &address)
+        AddressEncoder::encode_address_as_string(self.network_prefix, address)
     }
 
     /// encode address as Base58 encoded string
@@ -406,7 +406,7 @@ impl AddressEncoder {
     pub fn encode_address_as_string(network_prefix: NetworkPrefix, address: &Address) -> String {
         bs58::encode(AddressEncoder::encode_address_as_bytes(
             network_prefix,
-            &address,
+            address,
         ))
         .into_string()
     }

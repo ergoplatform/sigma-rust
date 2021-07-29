@@ -32,7 +32,7 @@ impl DataSerializer {
             Value::BigInt(v) => {
                 let bytes = v.to_signed_bytes_be();
                 w.put_u16(bytes.len() as u16)?;
-                w.write_all(&&bytes)?
+                w.write_all(&bytes)?
             }
             Value::GroupElement(ecp) => ecp.sigma_serialize(w)?,
             Value::SigmaProp(s) => s.value().sigma_serialize(w)?,
