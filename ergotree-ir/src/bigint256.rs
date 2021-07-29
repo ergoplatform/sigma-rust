@@ -6,6 +6,8 @@ use std::ops::{Add, BitAnd, BitOr, BitXor, Deref, Div, Mul, Neg, Rem, Sub};
 
 use num256::int256::Int256;
 use num_bigint::BigInt;
+use num_bigint::BigUint;
+use num_bigint::ToBigInt;
 use num_derive::{One, Zero};
 use num_traits::{Bounded, CheckedAdd, CheckedDiv, CheckedMul, CheckedNeg, CheckedSub, Num};
 
@@ -26,6 +28,22 @@ impl TryFrom<BigInt> for BigInt256 {
             ))
         } else {
             Ok(Self(Int256(value)))
+        }
+    }
+}
+
+impl TryFrom<BigUint> for BigInt256 {
+    type Error = String;
+
+    fn try_from(value: BigUint) -> Result<Self, Self::Error> {
+        #[allow(clippy::unwrap_used)]
+        if value > Self::max_value().0 .0.to_biguint().unwrap() {
+            Err(format!(
+                "BigInt256: Value {} is larger than 2^255 - 1",
+                value
+            ))
+        } else {
+            Ok(Self(Int256(value.to_bigint().unwrap())))
         }
     }
 }
