@@ -48,7 +48,7 @@ pub(crate) mod interactive_prover {
     use ergotree_ir::sigma_protocol::sigma_boolean::ProveDlog;
     use k256::Scalar;
 
-    /// Step 5 from https://ergoplatform.org/docs/ErgoScript.pdf
+    /// Step 5 from <https://ergoplatform.org/docs/ErgoScript.pdf>
     /// For every leaf marked “simulated”, use the simulator of the sigma protocol for that leaf
     /// to compute the commitment "a" and the response "z", given the challenge "e" that
     /// is already stored in the leaf
@@ -71,7 +71,7 @@ pub(crate) mod interactive_prover {
         )
     }
 
-    /// Step 6 from https://ergoplatform.org/docs/ErgoScript.pdf
+    /// Step 6 from <https://ergoplatform.org/docs/ErgoScript.pdf>
     /// For every leaf marked “real”, use the first prover step of the sigma protocol for
     /// that leaf to compute the necessary randomness "r" and the commitment "a"
     pub(crate) fn first_message() -> (Scalar, FirstDlogProverMessage) {
@@ -81,7 +81,7 @@ pub(crate) mod interactive_prover {
         (r, FirstDlogProverMessage(a.into()))
     }
 
-    /// Step 9 part 2 from https://ergoplatform.org/docs/ErgoScript.pdf
+    /// Step 9 part 2 from <https://ergoplatform.org/docs/ErgoScript.pdf>
     /// compute its response "z" according to the second prover step(step 5 in whitepaper)
     /// of the sigma protocol given the randomness "r"(rnd) used for the commitment "a",
     /// the challenge "e", and witness w.
