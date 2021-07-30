@@ -19,7 +19,6 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 
 ### Predefined functions
 
-- xor
 - substConstants
 - downcast
 - atLeast
