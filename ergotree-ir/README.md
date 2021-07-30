@@ -14,13 +14,11 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 # Not yet implemented operations:
 
 ### Operations
-- ^ (logical XOR);
 - unary `~` (bit inversion);
 - `>>`, `<<`, `>>>` (bit shifts);
 
 ### Predefined functions
 
-- groupGenerator [#332](https://github.com/ergoplatform/sigma-rust/issues/332)
 - xor
 - substConstants
 - downcast
@@ -30,11 +28,6 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 - xorOf
 
 ### Object properties and methods
-
-#### GroupElement
-
-- getEncoded [#330](https://github.com/ergoplatform/sigma-rust/issues/330)
-- negate [#331](https://github.com/ergoplatform/sigma-rust/issues/331)
 
 #### SigmaProp
 
@@ -106,7 +99,6 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 - patch
 - updated
 - updateMany
-- zip [#329](https://github.com/ergoplatform/sigma-rust/issues/329)
 
 #### Option
 
@@ -137,6 +129,7 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 - `|` (byte-wise XOR of two collections of bytes) [#296](https://github.com/ergoplatform/sigma-rust/issues/296);
 - unary `!`;
 - unary `-`;
+- ^ (logical XOR);
 
 ### Predefined functions
 
@@ -159,6 +152,7 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 - allZK
 - anyZK
 - decodePoint
+- groupGenerator [#332](https://github.com/ergoplatform/sigma-rust/issues/332)
 
 ### Object properties and methods
 
@@ -166,6 +160,8 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 
 - exp [#297](https://github.com/ergoplatform/sigma-rust/issues/297)
 - multiply [#298](https://github.com/ergoplatform/sigma-rust/issues/298)
+- getEncoded [#330](https://github.com/ergoplatform/sigma-rust/issues/330)
+- negate [#331](https://github.com/ergoplatform/sigma-rust/issues/331)
 
 #### SigmaProp
 
@@ -205,6 +201,7 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 - apply
 - flatMap
 - indexOf
+- zip [#329](https://github.com/ergoplatform/sigma-rust/issues/329)
 
 #### Option
 
