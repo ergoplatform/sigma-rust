@@ -15,7 +15,6 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 
 ### Operations
 - unary `~` (bit inversion);
-- `>>`, `<<`, `>>>` (bit shifts);
 
 ### Predefined functions
 
