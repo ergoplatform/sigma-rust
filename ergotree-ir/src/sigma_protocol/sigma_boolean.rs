@@ -362,6 +362,7 @@ mod arbitrary {
 }
 
 #[cfg(test)]
+#[allow(clippy::panic)]
 mod tests {
     use super::*;
     use crate::serialization::sigma_serialize_roundtrip;
