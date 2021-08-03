@@ -227,7 +227,7 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
                 .collect::<Vec<UnsignedInput>>()
                 .try_into()?,
             self.data_inputs.clone(),
-            output_candidates,
+            output_candidates.try_into()?,
         )?)
     }
 

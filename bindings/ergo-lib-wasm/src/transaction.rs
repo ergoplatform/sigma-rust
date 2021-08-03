@@ -93,7 +93,7 @@ impl Transaction {
 
     /// Output candidates for transaction
     pub fn output_candidates(&self) -> ErgoBoxCandidates {
-        self.0.output_candidates.clone().into()
+        self.0.output_candidates.as_vec().clone().into()
     }
 
     /// Returns ErgoBox's created from ErgoBoxCandidate's with tx id and indices
@@ -132,7 +132,7 @@ impl UnsignedTransaction {
 
     /// Output candidates for transaction
     pub fn output_candidates(&self) -> ErgoBoxCandidates {
-        self.0.output_candidates.clone().into()
+        self.0.output_candidates.as_vec().clone().into()
     }
 
     /// JSON representation

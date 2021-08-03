@@ -38,7 +38,7 @@ pub struct UnsignedTransaction {
     /// included in transaction cost and they do not contain spending proofs.
     pub data_inputs: Vec<DataInput>,
     /// box candidates to be created by this transaction
-    pub output_candidates: Vec<ErgoBoxCandidate>,
+    pub output_candidates: TxIoVec<ErgoBoxCandidate>,
 }
 
 impl UnsignedTransaction {
@@ -46,7 +46,7 @@ impl UnsignedTransaction {
     pub fn new(
         inputs: TxIoVec<UnsignedInput>,
         data_inputs: Vec<DataInput>,
-        output_candidates: Vec<ErgoBoxCandidate>,
+        output_candidates: TxIoVec<ErgoBoxCandidate>,
     ) -> Result<UnsignedTransaction, SigmaSerializationError> {
         let tx_to_sign = UnsignedTransaction {
             tx_id: TxId::zero(),
@@ -97,7 +97,7 @@ impl From<UnsignedTransaction> for json::transaction::UnsignedTransactionJson {
         json::transaction::UnsignedTransactionJson {
             inputs: v.inputs.as_vec().clone(),
             data_inputs: v.data_inputs,
-            outputs: v.output_candidates,
+            outputs: v.output_candidates.as_vec().clone(),
         }
     }
 }
@@ -113,7 +113,10 @@ impl TryFrom<json::transaction::UnsignedTransactionJson> for UnsignedTransaction
                 .try_into()
                 .map_err(|e: bounded_vec::BoundedVecOutOfBounds| e.to_string())?,
             tx_json.data_inputs,
-            tx_json.outputs,
+            tx_json
+                .outputs
+                .try_into()
+                .map_err(|e: bounded_vec::BoundedVecOutOfBounds| e.to_string())?,
         )
         .map_err(|e| format!("unsigned tx serialization failed: {0}", e))
     }
@@ -136,7 +139,12 @@ pub mod tests {
                 vec(any::<ErgoBoxCandidate>(), 1..10),
             )
                 .prop_map(|(inputs, data_inputs, outputs)| {
-                    Self::new(inputs.try_into().unwrap(), data_inputs, outputs).unwrap()
+                    Self::new(
+                        inputs.try_into().unwrap(),
+                        data_inputs,
+                        outputs.try_into().unwrap(),
+                    )
+                    .unwrap()
                 })
                 .boxed()
         }
