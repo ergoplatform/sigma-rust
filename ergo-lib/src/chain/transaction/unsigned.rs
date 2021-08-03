@@ -10,13 +10,13 @@ use super::{
     super::{digest32::blake2b256_hash, ergo_box::ErgoBoxCandidate},
     Transaction, TxId,
 };
-use bounded_vec::BoundedVecOutOfBounds;
 use ergotree_interpreter::sigma_protocol::prover::ProofBytes;
 use ergotree_ir::serialization::SigmaSerializationError;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "json")]
 use std::convert::TryFrom;
+#[cfg(feature = "json")]
 use std::convert::TryInto;
 
 /// Unsigned (inputs without proofs) transaction
@@ -111,7 +111,7 @@ impl TryFrom<json::transaction::UnsignedTransactionJson> for UnsignedTransaction
             tx_json
                 .inputs
                 .try_into()
-                .map_err(|e: BoundedVecOutOfBounds| e.to_string())?,
+                .map_err(|e: bounded_vec::BoundedVecOutOfBounds| e.to_string())?,
             tx_json.data_inputs,
             tx_json.outputs,
         )

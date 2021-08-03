@@ -5,7 +5,6 @@ pub mod input;
 pub mod unsigned;
 
 use bounded_vec::BoundedVec;
-use bounded_vec::BoundedVecOutOfBounds;
 pub use data_input::*;
 use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
 use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
@@ -258,7 +257,7 @@ pub enum TransactionFromJsonError {
     SerializationError,
     /// Invalid tx input count
     #[error("Invalid Tx inputs: {0:?}")]
-    InvalidInputsCount(BoundedVecOutOfBounds),
+    InvalidInputsCount(bounded_vec::BoundedVecOutOfBounds),
 }
 
 #[cfg(feature = "json")]
