@@ -83,7 +83,7 @@ impl Transaction {
 
     /// Inputs for transaction
     pub fn inputs(&self) -> Inputs {
-        self.0.inputs.clone().into()
+        self.0.inputs.as_vec().clone().into()
     }
 
     /// Data inputs for transaction
@@ -122,7 +122,7 @@ impl UnsignedTransaction {
 
     /// Inputs for transaction
     pub fn inputs(&self) -> UnsignedInputs {
-        self.0.inputs.clone().into()
+        self.0.inputs.as_vec().clone().into()
     }
 
     /// Data inputs for transaction

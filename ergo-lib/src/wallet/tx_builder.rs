@@ -1,7 +1,9 @@
 //! Builder for an UnsignedTransaction
 
 use std::collections::HashSet;
+use std::convert::TryInto;
 
+use bounded_vec::BoundedVecOutOfBounds;
 use ergotree_interpreter::sigma_protocol;
 use ergotree_interpreter::sigma_protocol::prover::ProofBytes;
 use ergotree_ir::address::{Address, AddressEncoder, NetworkPrefix};
@@ -107,22 +109,18 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
     /// Estimated serialized transaction size in bytes after signing (assuming P2PK box spending)
     pub fn estimate_tx_size_bytes(&self) -> Result<usize, TxBuilderError> {
         let tx = self.build_tx()?;
-        let inputs = tx
-            .inputs
-            .iter()
-            .map(|ui| {
-                // mock proof of the size of ProveDlog's proof (P2PK box spending)
-                // as it's the most often used proof
-                let proof = ProofBytes::Some(vec![0u8, sigma_protocol::SOUNDNESS_BYTES as u8]);
-                Input::new(
-                    ui.box_id.clone(),
-                    crate::chain::transaction::input::prover_result::ProverResult {
-                        proof,
-                        extension: ui.extension.clone(),
-                    },
-                )
-            })
-            .collect();
+        let inputs = tx.inputs.mapped(|ui| {
+            // mock proof of the size of ProveDlog's proof (P2PK box spending)
+            // as it's the most often used proof
+            let proof = ProofBytes::Some(vec![0u8, sigma_protocol::SOUNDNESS_BYTES as u8]);
+            Input::new(
+                ui.box_id.clone(),
+                crate::chain::transaction::input::prover_result::ProverResult {
+                    proof,
+                    extension: ui.extension,
+                },
+            )
+        });
         let signed_tx_mock = Transaction::new(inputs, tx.data_inputs, tx.output_candidates)?;
         Ok(signed_tx_mock.sigma_serialize_bytes()?.len())
     }
@@ -226,7 +224,8 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
                 .clone()
                 .into_iter()
                 .map(UnsignedInput::from)
-                .collect(),
+                .collect::<Vec<UnsignedInput>>()
+                .try_into()?,
             self.data_inputs.clone(),
             output_candidates,
         )?)
@@ -278,6 +277,9 @@ pub enum TxBuilderError {
     /// Tx serialization failed (id calculation)
     #[error("Transaction serialization failed: {0}")]
     SerializationError(#[from] SigmaSerializationError),
+    /// Invalid Tx input count
+    #[error("Invalid tx inputs count: {0}")]
+    InvalidInputsCount(#[from] BoundedVecOutOfBounds),
 }
 
 #[cfg(test)]

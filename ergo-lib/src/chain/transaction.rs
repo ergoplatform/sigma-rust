@@ -4,6 +4,8 @@ mod data_input;
 pub mod input;
 pub mod unsigned;
 
+use bounded_vec::BoundedVec;
+use bounded_vec::BoundedVecOutOfBounds;
 pub use data_input::*;
 use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
 use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
@@ -28,6 +30,7 @@ use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
 use std::convert::TryFrom;
+use std::convert::TryInto;
 use std::iter::FromIterator;
 #[cfg(feature = "json")]
 use thiserror::Error;
@@ -62,6 +65,9 @@ impl From<TxId> for String {
     }
 }
 
+/// BouncedVec type for Tx inputs and output_candidates
+pub type TxIoVec<T> = BoundedVec<T, 1, { u16::MAX as usize }>;
+
 /**
  * ErgoTransaction is an atomic state transition operation. It destroys Boxes from the state
  * and creates new ones. If transaction is spending boxes protected by some non-trivial scripts,
@@ -84,7 +90,7 @@ impl From<TxId> for String {
 pub struct Transaction {
     tx_id: TxId,
     /// inputs, that will be spent by this transaction.
-    pub inputs: Vec<Input>,
+    pub inputs: TxIoVec<Input>,
     /// inputs, that are not going to be spent by transaction, but will be reachable from inputs
     /// scripts. `dataInputs` scripts will not be executed, thus their scripts costs are not
     /// included in transaction cost and they do not contain spending proofs.
@@ -105,7 +111,7 @@ impl Transaction {
 
     /// Creates new transaction
     pub fn new(
-        inputs: Vec<Input>,
+        inputs: TxIoVec<Input>,
         data_inputs: Vec<DataInput>,
         output_candidates: Vec<ErgoBoxCandidate>,
     ) -> Result<Transaction, SigmaSerializationError> {
@@ -139,7 +145,7 @@ impl Transaction {
 
     /// Serialized tx with empty proofs
     pub fn bytes_to_sign(&self) -> Result<Vec<u8>, SigmaSerializationError> {
-        let empty_proof_inputs = self.inputs.iter().map(|i| i.input_to_sign()).collect();
+        let empty_proof_inputs = self.inputs.mapped_ref(|i| i.input_to_sign());
         let tx_to_sign = Transaction {
             inputs: empty_proof_inputs,
             ..(*self).clone()
@@ -224,7 +230,7 @@ impl SigmaSerializable for Transaction {
             )?)
         }
 
-        Ok(Transaction::new(inputs, data_inputs, outputs)?)
+        Ok(Transaction::new(inputs.try_into()?, data_inputs, outputs)?)
     }
 }
 
@@ -233,7 +239,7 @@ impl From<Transaction> for json::transaction::TransactionJson {
     fn from(v: Transaction) -> Self {
         json::transaction::TransactionJson {
             tx_id: v.tx_id.clone(),
-            inputs: v.inputs.clone(),
+            inputs: v.inputs.as_vec().clone(),
             data_inputs: v.data_inputs.clone(),
             outputs: v.outputs,
         }
@@ -250,6 +256,9 @@ pub enum TransactionFromJsonError {
     /// Serialization failed (id calculation)
     #[error("Serialization failed (id calculation)")]
     SerializationError,
+    /// Invalid tx input count
+    #[error("Invalid Tx inputs: {0:?}")]
+    InvalidInputsCount(BoundedVecOutOfBounds),
 }
 
 #[cfg(feature = "json")]
@@ -257,8 +266,15 @@ impl TryFrom<json::transaction::TransactionJson> for Transaction {
     type Error = TransactionFromJsonError;
     fn try_from(tx_json: json::transaction::TransactionJson) -> Result<Self, Self::Error> {
         let output_candidates = tx_json.outputs.iter().map(|o| o.clone().into()).collect();
-        let tx = Transaction::new(tx_json.inputs, tx_json.data_inputs, output_candidates)
-            .map_err(|_| TransactionFromJsonError::SerializationError)?;
+        let tx = Transaction::new(
+            tx_json
+                .inputs
+                .try_into()
+                .map_err(TransactionFromJsonError::InvalidInputsCount)?,
+            tx_json.data_inputs,
+            output_candidates,
+        )
+        .map_err(|_| TransactionFromJsonError::SerializationError)?;
         if tx.tx_id == tx_json.tx_id {
             Ok(tx)
         } else {
@@ -269,6 +285,8 @@ impl TryFrom<json::transaction::TransactionJson> for Transaction {
 
 #[cfg(test)]
 pub mod tests {
+
+    use std::convert::TryInto;
 
     use super::*;
 
@@ -286,7 +304,7 @@ pub mod tests {
                 vec(any::<ErgoBoxCandidate>(), 1..10),
             )
                 .prop_map(|(inputs, data_inputs, outputs)| {
-                    Self::new(inputs, data_inputs, outputs).unwrap()
+                    Self::new(inputs.try_into().unwrap(), data_inputs, outputs).unwrap()
                 })
                 .boxed()
         }

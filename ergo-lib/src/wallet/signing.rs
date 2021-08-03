@@ -142,8 +142,7 @@ pub fn sign_transaction(
 ) -> Result<Transaction, TxSigningError> {
     let tx = tx_context.spending_tx.clone();
     let message_to_sign = tx.bytes_to_sign()?;
-    let mut signed_inputs: Vec<Input> = vec![];
-    tx.inputs.iter().enumerate().try_for_each(|(idx, input)| {
+    let signed_inputs = tx.inputs.enumerated().try_mapped(|(idx, input)| {
         if let Some(input_box) = tx_context
             .boxes_to_spend
             .iter()
@@ -158,10 +157,7 @@ pub fn sign_transaction(
                     message_to_sign.as_slice(),
                     &HintsBag::empty(),
                 )
-                .map(|proof| {
-                    let input = Input::new(input.box_id.clone(), proof.into());
-                    signed_inputs.push(input);
-                })
+                .map(|proof| Input::new(input.box_id.clone(), proof.into()))
                 .map_err(|e| TxSigningError::ProverError(e, idx))
         } else {
             Err(TxSigningError::InputBoxNotFound(idx))
@@ -198,6 +194,7 @@ mod tests {
     use ergotree_ir::ergo_tree::ErgoTree;
     use ergotree_ir::mir::expr::Expr;
     use std::convert::TryFrom;
+    use std::convert::TryInto;
     use std::rc::Rc;
 
     fn verify_tx_proofs(
@@ -250,7 +247,7 @@ mod tests {
             let candidate = ErgoBoxCandidateBuilder::new(BoxValue::SAFE_USER_MIN, ergo_tree, 0)
                 .build().unwrap();
             let output_candidates = vec![candidate];
-            let tx = UnsignedTransaction::new(inputs, vec![], output_candidates).unwrap();
+            let tx = UnsignedTransaction::new(inputs.try_into().unwrap(), vec![], output_candidates).unwrap();
             let tx_context = TransactionContext { spending_tx: tx,
                                                   boxes_to_spend: boxes_to_spend.clone(), data_boxes: vec![] };
             let res = sign_transaction(Box::new(prover).as_ref(), tx_context, &ErgoStateContext::dummy());
