@@ -20,13 +20,6 @@ pub struct STypeVar {
     name_bytes: BoundedVec<u8, 1, 254>,
 }
 
-// #[allow(clippy::derive_hash_xor_eq)]
-// impl Hash for STypeVar {
-//     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-//         self.name_bytes.as_vec().hash(state);
-//     }
-// }
-
 impl std::fmt::Debug for STypeVar {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         self.as_string().fmt(f)
