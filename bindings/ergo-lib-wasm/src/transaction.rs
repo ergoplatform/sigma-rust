@@ -83,17 +83,22 @@ impl Transaction {
 
     /// Inputs for transaction
     pub fn inputs(&self) -> Inputs {
-        self.0.inputs.clone().into()
+        self.0.inputs.as_vec().clone().into()
     }
 
     /// Data inputs for transaction
     pub fn data_inputs(&self) -> DataInputs {
-        self.0.data_inputs.clone().into()
+        self.0
+            .data_inputs
+            .clone()
+            .map(|di| di.as_vec().clone())
+            .unwrap_or_default()
+            .into()
     }
 
     /// Output candidates for transaction
     pub fn output_candidates(&self) -> ErgoBoxCandidates {
-        self.0.output_candidates.clone().into()
+        self.0.output_candidates.as_vec().clone().into()
     }
 
     /// Returns ErgoBox's created from ErgoBoxCandidate's with tx id and indices
@@ -122,17 +127,22 @@ impl UnsignedTransaction {
 
     /// Inputs for transaction
     pub fn inputs(&self) -> UnsignedInputs {
-        self.0.inputs.clone().into()
+        self.0.inputs.as_vec().clone().into()
     }
 
     /// Data inputs for transaction
     pub fn data_inputs(&self) -> DataInputs {
-        self.0.data_inputs.clone().into()
+        self.0
+            .clone()
+            .data_inputs
+            .map(|di| di.as_vec().clone())
+            .unwrap_or_default()
+            .into()
     }
 
     /// Output candidates for transaction
     pub fn output_candidates(&self) -> ErgoBoxCandidates {
-        self.0.output_candidates.clone().into()
+        self.0.output_candidates.as_vec().clone().into()
     }
 
     /// JSON representation

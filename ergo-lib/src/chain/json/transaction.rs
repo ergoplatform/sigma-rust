@@ -44,6 +44,8 @@ mod tests {
 
     proptest! {
 
+        #![proptest_config(ProptestConfig::with_cases(64))]
+
         #[test]
         fn tx_roundtrip(t in any::<Transaction>()) {
             let j = serde_json::to_string(&t)?;

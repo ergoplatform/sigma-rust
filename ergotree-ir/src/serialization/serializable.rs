@@ -95,6 +95,9 @@ pub enum SigmaParsingError {
     /// Serialization error
     #[error("serialization error: {0}")]
     SerializationError(#[from] SigmaSerializationError),
+    /// Invalid item quantity in BoundedVec
+    #[error("Invalid item quantity in BoundedVec: {0}")]
+    BoundedVecOutOfBounds(#[from] BoundedVecOutOfBounds),
 }
 
 impl From<io::Error> for SigmaParsingError {
@@ -106,12 +109,6 @@ impl From<io::Error> for SigmaParsingError {
 impl From<&io::Error> for SigmaParsingError {
     fn from(error: &io::Error) -> Self {
         SigmaParsingError::Io(error.to_string())
-    }
-}
-
-impl From<BoundedVecOutOfBounds> for SigmaParsingError {
-    fn from(e: BoundedVecOutOfBounds) -> Self {
-        SigmaParsingError::ValueOutOfBounds(format!("{:?}", e))
     }
 }
 

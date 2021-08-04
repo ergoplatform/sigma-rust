@@ -25,6 +25,8 @@ serde = { version = "1.0", features = ["derive"], optional = true }
 serde_json = "1.0"
 thiserror = "1"
 derive_more = "0.99"
+# bounded-vec = { git = "https://github.com/ergoplatform/bounded-vec", rev="f684d78" }
+bounded-vec = { version = "^0.4.0" } 
 
 [features]
 default = ["json", "compiler"]
