@@ -36,7 +36,7 @@ pub struct UnsignedTransaction {
     /// inputs, that are not going to be spent by transaction, but will be reachable from inputs
     /// scripts. `dataInputs` scripts will not be executed, thus their scripts costs are not
     /// included in transaction cost and they do not contain spending proofs.
-    pub data_inputs: Vec<DataInput>,
+    pub data_inputs: Option<TxIoVec<DataInput>>,
     /// box candidates to be created by this transaction
     pub output_candidates: TxIoVec<ErgoBoxCandidate>,
 }
@@ -45,7 +45,7 @@ impl UnsignedTransaction {
     /// Creates new transaction
     pub fn new(
         inputs: TxIoVec<UnsignedInput>,
-        data_inputs: Vec<DataInput>,
+        data_inputs: Option<TxIoVec<DataInput>>,
         output_candidates: TxIoVec<ErgoBoxCandidate>,
     ) -> Result<UnsignedTransaction, SigmaSerializationError> {
         let tx_to_sign = UnsignedTransaction {
@@ -96,7 +96,10 @@ impl From<UnsignedTransaction> for json::transaction::UnsignedTransactionJson {
     fn from(v: UnsignedTransaction) -> Self {
         json::transaction::UnsignedTransactionJson {
             inputs: v.inputs.as_vec().clone(),
-            data_inputs: v.data_inputs,
+            data_inputs: v
+                .data_inputs
+                .map(|di| di.as_vec().clone())
+                .unwrap_or_default(),
             outputs: v.output_candidates.as_vec().clone(),
         }
     }
@@ -112,7 +115,7 @@ impl TryFrom<json::transaction::UnsignedTransactionJson> for UnsignedTransaction
                 .inputs
                 .try_into()
                 .map_err(|e: bounded_vec::BoundedVecOutOfBounds| e.to_string())?,
-            tx_json.data_inputs,
+            tx_json.data_inputs.try_into().ok(),
             tx_json
                 .outputs
                 .try_into()
@@ -141,7 +144,7 @@ pub mod tests {
                 .prop_map(|(inputs, data_inputs, outputs)| {
                     Self::new(
                         inputs.try_into().unwrap(),
-                        data_inputs,
+                        data_inputs.try_into().ok(),
                         outputs.try_into().unwrap(),
                     )
                     .unwrap()

@@ -88,7 +88,12 @@ impl Transaction {
 
     /// Data inputs for transaction
     pub fn data_inputs(&self) -> DataInputs {
-        self.0.data_inputs.clone().into()
+        self.0
+            .data_inputs
+            .clone()
+            .map(|di| di.as_vec().clone())
+            .unwrap_or_default()
+            .into()
     }
 
     /// Output candidates for transaction
@@ -127,7 +132,12 @@ impl UnsignedTransaction {
 
     /// Data inputs for transaction
     pub fn data_inputs(&self) -> DataInputs {
-        self.0.data_inputs.clone().into()
+        self.0
+            .clone()
+            .data_inputs
+            .map(|di| di.as_vec().clone())
+            .unwrap_or_default()
+            .into()
     }
 
     /// Output candidates for transaction

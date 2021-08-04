@@ -226,7 +226,7 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
                 .map(UnsignedInput::from)
                 .collect::<Vec<UnsignedInput>>()
                 .try_into()?,
-            self.data_inputs.clone(),
+            self.data_inputs.clone().try_into().ok(),
             output_candidates.try_into()?,
         )?)
     }
@@ -596,7 +596,7 @@ mod tests {
             prop_assert!(tx.output_candidates.iter().any(|b| {
                 b.value == miners_fee
             }), "box with miner's fee {:?} is not found in outputs: {:?}", miners_fee, tx.output_candidates);
-            prop_assert_eq!(tx.data_inputs, data_inputs, "unexpected data inputs");
+            prop_assert_eq!(tx.data_inputs.map(|i| i.as_vec().clone()).unwrap_or_default(), data_inputs, "unexpected data inputs");
         }
     }
 }

@@ -248,7 +248,7 @@ mod tests {
                 .build().unwrap();
             let output_candidates = vec![candidate];
             let tx = UnsignedTransaction::new(inputs.try_into().unwrap(),
-                vec![], output_candidates.try_into().unwrap()).unwrap();
+                None, output_candidates.try_into().unwrap()).unwrap();
             let tx_context = TransactionContext { spending_tx: tx,
                                                   boxes_to_spend: boxes_to_spend.clone(), data_boxes: vec![] };
             let res = sign_transaction(Box::new(prover).as_ref(), tx_context, &ErgoStateContext::dummy());

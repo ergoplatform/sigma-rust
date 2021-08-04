@@ -93,7 +93,7 @@ pub struct Transaction {
     /// inputs, that are not going to be spent by transaction, but will be reachable from inputs
     /// scripts. `dataInputs` scripts will not be executed, thus their scripts costs are not
     /// included in transaction cost and they do not contain spending proofs.
-    pub data_inputs: Vec<DataInput>,
+    pub data_inputs: Option<TxIoVec<DataInput>>,
 
     /// box candidates to be created by this transaction. Differ from [`Self::outputs`] in that
     /// they do not include transaction id and index
@@ -111,7 +111,7 @@ impl Transaction {
     /// Creates new transaction
     pub fn new(
         inputs: TxIoVec<Input>,
-        data_inputs: Vec<DataInput>,
+        data_inputs: Option<TxIoVec<DataInput>>,
         output_candidates: TxIoVec<ErgoBoxCandidate>,
     ) -> Result<Transaction, SigmaSerializationError> {
         let tx_to_sign = Transaction {
@@ -160,10 +160,12 @@ impl SigmaSerializable for Transaction {
         // reference implementation - https://github.com/ScorexFoundation/sigmastate-interpreter/blob/9b20cb110effd1987ff76699d637174a4b2fb441/sigmastate/src/main/scala/org/ergoplatform/ErgoLikeTransaction.scala#L112-L112
         w.put_usize_as_u16_unwrapped(self.inputs.len())?;
         self.inputs.iter().try_for_each(|i| i.sigma_serialize(w))?;
-        w.put_usize_as_u16_unwrapped(self.data_inputs.len())?;
-        self.data_inputs
-            .iter()
-            .try_for_each(|i| i.sigma_serialize(w))?;
+        if let Some(data_inputs) = &self.data_inputs {
+            w.put_usize_as_u16_unwrapped(data_inputs.len())?;
+            data_inputs.iter().try_for_each(|i| i.sigma_serialize(w))?;
+        } else {
+            w.put_u16(0)?;
+        }
 
         // Serialize distinct ids of tokens in transaction outputs.
         // This optimization is crucial to allow up to MaxTokens (== 255) in a box.
@@ -228,7 +230,7 @@ impl SigmaSerializable for Transaction {
 
         Ok(Transaction::new(
             inputs.try_into()?,
-            data_inputs,
+            data_inputs.try_into().ok(),
             outputs.try_into()?,
         )?)
     }
@@ -240,7 +242,10 @@ impl From<Transaction> for json::transaction::TransactionJson {
         json::transaction::TransactionJson {
             tx_id: v.tx_id.clone(),
             inputs: v.inputs.as_vec().clone(),
-            data_inputs: v.data_inputs.clone(),
+            data_inputs: v
+                .data_inputs
+                .map(|di| di.as_vec().clone())
+                .unwrap_or_default(),
             outputs: v.outputs,
         }
     }
@@ -260,8 +265,11 @@ pub enum TransactionFromJsonError {
     #[error("Invalid Tx inputs: {0:?}")]
     InvalidInputsCount(bounded_vec::BoundedVecOutOfBounds),
     /// Invalid tx output_candidates count
-    #[error("Invalid Tx inputs: {0:?}")]
+    #[error("Invalid Tx output_candidates: {0:?}")]
     InvalidOutputCandidatesCount(bounded_vec::BoundedVecOutOfBounds),
+    /// Invalid tx data inputs count
+    #[error("Invalid Tx data inputs: {0:?}")]
+    InvalidDataInputsCount(bounded_vec::BoundedVecOutOfBounds),
 }
 
 #[cfg(feature = "json")]
@@ -275,7 +283,7 @@ impl TryFrom<json::transaction::TransactionJson> for Transaction {
                 .inputs
                 .try_into()
                 .map_err(TransactionFromJsonError::InvalidInputsCount)?,
-            tx_json.data_inputs,
+            tx_json.data_inputs.try_into().ok(),
             output_candidates
                 .try_into()
                 .map_err(TransactionFromJsonError::InvalidOutputCandidatesCount)?,
@@ -312,7 +320,7 @@ pub mod tests {
                 .prop_map(|(inputs, data_inputs, outputs)| {
                     Self::new(
                         inputs.try_into().unwrap(),
-                        data_inputs,
+                        data_inputs.try_into().ok(),
                         outputs.try_into().unwrap(),
                     )
                     .unwrap()
@@ -323,6 +331,8 @@ pub mod tests {
     }
 
     proptest! {
+
+        #![proptest_config(ProptestConfig::with_cases(64))]
 
         #[test]
         fn tx_ser_roundtrip(v in any::<Transaction>()) {
