@@ -36,6 +36,22 @@ impl STuple {
         }
     }
 
+    /// Create a triple type
+    pub fn triple(t1: SType, t2: SType, t3: SType) -> Self {
+        #[allow(clippy::unwrap_used)]
+        STuple {
+            items: vec![t1, t2, t3].try_into().unwrap(),
+        }
+    }
+
+    /// Create a quadruple type
+    pub fn quadruple(t1: SType, t2: SType, t3: SType, t4: SType) -> Self {
+        #[allow(clippy::unwrap_used)]
+        STuple {
+            items: vec![t1, t2, t3, t4].try_into().unwrap(),
+        }
+    }
+
     pub(crate) fn with_subst(self, subst: &HashMap<STypeVar, SType>) -> Self {
         STuple {
             items: self.items.mapped(|a| a.with_subst(subst)),

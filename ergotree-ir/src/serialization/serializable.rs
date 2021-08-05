@@ -8,7 +8,6 @@ use super::{
     sigma_byte_reader::{SigmaByteRead, SigmaByteReader},
     sigma_byte_writer::{SigmaByteWrite, SigmaByteWriter},
 };
-use crate::serialization::types::TypeCode;
 use crate::types::smethod::MethodId;
 use bounded_vec::BoundedVec;
 use bounded_vec::BoundedVecOutOfBounds;
@@ -58,7 +57,7 @@ pub enum SigmaParsingError {
     NotImplementedOpCode(String),
     /// Failed to parse type
     #[error("type parsing error")]
-    InvalidTypePrefix,
+    InvalidTypeCode(u8),
     /// Failed to decode VLQ
     #[error("vlq encode error: {0}")]
     VlqEncode(#[from] vlq_encode::VlqEncodingError),
@@ -88,7 +87,7 @@ pub enum SigmaParsingError {
     InvalidArgument(#[from] InvalidArgumentError),
     /// Unknown method ID for given type code
     #[error("No method id {0:?} found in type companion with type id {1:?} ")]
-    UnknownMethodId(MethodId, TypeCode),
+    UnknownMethodId(MethodId, u8),
     /// Feature not supported
     #[error("parsing not supported: {0}")]
     NotSupported(&'static str),

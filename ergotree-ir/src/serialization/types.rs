@@ -1,5 +1,3 @@
-#![allow(missing_docs)]
-
 use super::op_code::OpCode;
 use super::sigma_byte_writer::SigmaByteWrite;
 use super::SigmaSerializationError;
@@ -7,99 +5,162 @@ use crate::serialization::SigmaSerializeResult;
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SigmaParsingError, SigmaSerializable,
 };
-use crate::types::stuple::STuple;
+use crate::types::stuple;
 use crate::types::stype::SType;
-use crate::types::stype_param::STypeVar;
+use crate::types::stype_param;
+use num_derive::FromPrimitive;
+use num_traits::FromPrimitive;
 use std::convert::TryInto;
-use std::ops::Add;
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub struct TypeCode(u8);
+// TODO: add comments
+// TODO: re-organize enum variants by ascending values
+
+#[allow(non_camel_case_types)]
+#[allow(clippy::upper_case_acronyms)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, FromPrimitive)]
+#[repr(u8)]
+pub enum TypeCode {
+    SBOOLEAN = 1,
+    SBYTE = 2,
+    SSHORT = 3,
+    SINT = 4,
+    SLONG = 5,
+    SBIGINT = 6,
+    SGROUP_ELEMENT = 7,
+    SSIGMAPROP = 8,
+
+    SANY = 97,
+    SBOX = 99,
+    SAVL_TREE = 100,
+    SCONTEXT = 101,
+    // SSTRING = 102,
+    STYPE_VAR = 103,
+    SHEADER = 104,
+    SPRE_HEADER = 105,
+    SGLOBAL = 106,
+
+    COLL = (TypeCode::MAX_PRIM_TYPECODE + 1) * TypeCode::COLLECTION_CONSTR_ID, // 12 * 1
+
+    COLL_BOOL = TypeCode::COLL as u8 + TypeCode::SBOOLEAN as u8, // 13
+    COLL_BYTE = TypeCode::COLL as u8 + TypeCode::SBYTE as u8,    // 14
+    COLL_SHORT = TypeCode::COLL as u8 + TypeCode::SSHORT as u8,  // 15
+    COLL_INT = TypeCode::COLL as u8 + TypeCode::SINT as u8,      // 16
+    COLL_LONG = TypeCode::COLL as u8 + TypeCode::SLONG as u8,    // 17
+    COLL_BIGINT = TypeCode::COLL as u8 + TypeCode::SBIGINT as u8, // 18
+    COLL_GROUP_ELEMENT = TypeCode::COLL as u8 + TypeCode::SGROUP_ELEMENT as u8, // 19
+    COLL_SIGMAPROP = TypeCode::COLL as u8 + TypeCode::SSIGMAPROP as u8, // 20
+
+    NESTED_COLL_BOOL = TypeCode::NESTED_COLL as u8 + TypeCode::SBOOLEAN as u8, // 25
+    NESTED_COLL_BYTE = TypeCode::NESTED_COLL as u8 + TypeCode::SBYTE as u8,    // 26
+    NESTED_COLL_SHORT = TypeCode::NESTED_COLL as u8 + TypeCode::SSHORT as u8,  // 27
+    NESTED_COLL_INT = TypeCode::NESTED_COLL as u8 + TypeCode::SINT as u8,      // 28
+    NESTED_COLL_LONG = TypeCode::NESTED_COLL as u8 + TypeCode::SLONG as u8,    // 29
+    NESTED_COLL_BIGINT = TypeCode::NESTED_COLL as u8 + TypeCode::SBIGINT as u8, // 30
+    NESTED_COLL_GROUP_ELEMENT = TypeCode::NESTED_COLL as u8 + TypeCode::SGROUP_ELEMENT as u8, // 31
+    NESTED_COLL_SIGMAPROP = TypeCode::NESTED_COLL as u8 + TypeCode::SSIGMAPROP as u8, // 32
+
+    TUPLE_PAIR_SYMMETRIC_BOOL = TypeCode::TUPLE_PAIR_SYMMETRIC as u8 + TypeCode::SBOOLEAN as u8,
+    TUPLE_PAIR_SYMMETRIC_BYTE = TypeCode::TUPLE_PAIR_SYMMETRIC as u8 + TypeCode::SBYTE as u8,
+    TUPLE_PAIR_SYMMETRIC_SHORT = TypeCode::TUPLE_PAIR_SYMMETRIC as u8 + TypeCode::SSHORT as u8,
+    TUPLE_PAIR_SYMMETRIC_INT = TypeCode::TUPLE_PAIR_SYMMETRIC as u8 + TypeCode::SINT as u8,
+    TUPLE_PAIR_SYMMETRIC_LONG = TypeCode::TUPLE_PAIR_SYMMETRIC as u8 + TypeCode::SLONG as u8,
+    TUPLE_PAIR_SYMMETRIC_BIGINT = TypeCode::TUPLE_PAIR_SYMMETRIC as u8 + TypeCode::SBIGINT as u8,
+    TUPLE_PAIR_SYMMETRIC_GROUP_ELEMENT =
+        TypeCode::TUPLE_PAIR_SYMMETRIC as u8 + TypeCode::SGROUP_ELEMENT as u8,
+    TUPLE_PAIR_SYMMETRIC_SIGMAPROP =
+        TypeCode::TUPLE_PAIR_SYMMETRIC as u8 + TypeCode::SSIGMAPROP as u8,
+
+    TUPLE_PAIR1 = (TypeCode::MAX_PRIM_TYPECODE + 1) * TypeCode::TUPLE_PAIR1_CONSTR_ID,
+    TUPLE_PAIR1_BOOL = TypeCode::TUPLE_PAIR1 as u8 + TypeCode::SBOOLEAN as u8,
+    TUPLE_PAIR1_BYTE = TypeCode::TUPLE_PAIR1 as u8 + TypeCode::SBYTE as u8,
+    TUPLE_PAIR1_SHORT = TypeCode::TUPLE_PAIR1 as u8 + TypeCode::SSHORT as u8,
+    TUPLE_PAIR1_INT = TypeCode::TUPLE_PAIR1 as u8 + TypeCode::SINT as u8,
+    TUPLE_PAIR1_LONG = TypeCode::TUPLE_PAIR1 as u8 + TypeCode::SLONG as u8,
+    TUPLE_PAIR1_BIGINT = TypeCode::TUPLE_PAIR1 as u8 + TypeCode::SBIGINT as u8,
+    TUPLE_PAIR1_GROUP_ELEMENT = TypeCode::TUPLE_PAIR1 as u8 + TypeCode::SGROUP_ELEMENT as u8,
+    TUPLE_PAIR1_SIGMAPROP = TypeCode::TUPLE_PAIR1 as u8 + TypeCode::SSIGMAPROP as u8,
+
+    TUPLE_PAIR2_BOOL = TypeCode::TUPLE_PAIR2 as u8 + TypeCode::SBOOLEAN as u8,
+    TUPLE_PAIR2_BYTE = TypeCode::TUPLE_PAIR2 as u8 + TypeCode::SBYTE as u8,
+    TUPLE_PAIR2_SHORT = TypeCode::TUPLE_PAIR2 as u8 + TypeCode::SSHORT as u8,
+    TUPLE_PAIR2_INT = TypeCode::TUPLE_PAIR2 as u8 + TypeCode::SINT as u8,
+    TUPLE_PAIR2_LONG = TypeCode::TUPLE_PAIR2 as u8 + TypeCode::SLONG as u8,
+    TUPLE_PAIR2_BIGINT = TypeCode::TUPLE_PAIR2 as u8 + TypeCode::SBIGINT as u8,
+    TUPLE_PAIR2_GROUP_ELEMENT = TypeCode::TUPLE_PAIR2 as u8 + TypeCode::SGROUP_ELEMENT as u8,
+    TUPLE_PAIR2_SIGMAPROP = TypeCode::TUPLE_PAIR2 as u8 + TypeCode::SSIGMAPROP as u8,
+
+    TUPLE = (TypeCode::MAX_PRIM_TYPECODE + 1) * 8,
+
+    TUPLE_TRIPLE = Self::TUPLE_PAIR2,
+
+    TUPLE_QUADRUPLE = Self::TUPLE_PAIR_SYMMETRIC,
+
+    OPTION = (TypeCode::MAX_PRIM_TYPECODE + 1) * TypeCode::OPTION_CONSTR_ID, // 12 * 3 = 36
+    OPTION_BOOL = TypeCode::OPTION as u8 + TypeCode::SBOOLEAN as u8,         // 37
+    OPTION_BYTE = TypeCode::OPTION as u8 + TypeCode::SBYTE as u8,            // 38
+    OPTION_SHORT = TypeCode::OPTION as u8 + TypeCode::SSHORT as u8,          // 39
+    OPTION_INT = TypeCode::OPTION as u8 + TypeCode::SINT as u8,              // 40
+    OPTION_LONG = TypeCode::OPTION as u8 + TypeCode::SLONG as u8,            // 41
+    OPTION_BIGINT = TypeCode::OPTION as u8 + TypeCode::SBIGINT as u8,        // 42
+    OPTION_GROUP_ELEMENT = TypeCode::OPTION as u8 + TypeCode::SGROUP_ELEMENT as u8, // 43
+    OPTION_SIGMAPROP = TypeCode::OPTION as u8 + TypeCode::SSIGMAPROP as u8,  // 44
+
+    OPTION_COLL_BOOL = TypeCode::OPTION_COLLECTION as u8 + TypeCode::SBOOLEAN as u8,
+    OPTION_COLL_BYTE = TypeCode::OPTION_COLLECTION as u8 + TypeCode::SBYTE as u8,
+    OPTION_COLL_SHORT = TypeCode::OPTION_COLLECTION as u8 + TypeCode::SSHORT as u8,
+    OPTION_COLL_INT = TypeCode::OPTION_COLLECTION as u8 + TypeCode::SINT as u8,
+    OPTION_COLL_LONG = TypeCode::OPTION_COLLECTION as u8 + TypeCode::SLONG as u8,
+    OPTION_COLL_BIGINT = TypeCode::OPTION_COLLECTION as u8 + TypeCode::SBIGINT as u8,
+    OPTION_COLL_GROUP_ELEMENT = TypeCode::OPTION_COLLECTION as u8 + TypeCode::SGROUP_ELEMENT as u8,
+    OPTION_COLL_SIGMAPROP = TypeCode::OPTION_COLLECTION as u8 + TypeCode::SSIGMAPROP as u8,
+}
 
 impl TypeCode {
     /// SFunc types occupy remaining space of byte values [FirstFuncType .. 255]
-    pub const FIRST_FUNC_TYPE: TypeCode = Self::new(OpCode::LAST_DATA_TYPE.value());
-    pub const LAST_FUNC_TYPE: TypeCode = Self::new(255);
+    #[allow(dead_code)]
+    const FIRST_FUNC_TYPE: u8 = OpCode::LAST_DATA_TYPE.value();
+    #[allow(dead_code)]
+    const LAST_FUNC_TYPE: u8 = 255;
 
     /// Type code of the last valid prim type so that (1 to LastPrimTypeCode) is a range of valid codes.
-    pub const LAST_PRIM_TYPECODE: u8 = 8;
+    #[allow(dead_code)]
+    const LAST_PRIM_TYPECODE: u8 = 8;
 
     /// Upper limit of the interval of valid type codes for primitive types
-    pub const MAX_PRIM_TYPECODE: u8 = 11;
-    pub const PRIM_RANGE: u8 = (TypeCode::MAX_PRIM_TYPECODE + 1);
-
-    pub const SBOOLEAN: TypeCode = Self::new(1);
-    pub const SBYTE: TypeCode = Self::new(2);
-    pub const SSHORT: TypeCode = Self::new(3);
-    pub const SINT: TypeCode = Self::new(4);
-    pub const SLONG: TypeCode = Self::new(5);
-    pub const SBIGINT: TypeCode = Self::new(6);
-    pub const SGROUP_ELEMENT: TypeCode = Self::new(7);
-    pub const SSIGMAPROP: TypeCode = Self::new(8);
-
-    pub const SANY: TypeCode = Self::new(97);
-    pub const SBOX: TypeCode = Self::new(99);
-    pub const SAVL_TREE: TypeCode = Self::new(100);
-    pub const SCONTEXT: TypeCode = Self::new(101);
-    pub const SSTRING: TypeCode = Self::new(102);
-    pub const STYPE_VAR: TypeCode = Self::new(103);
-    pub const SHEADER: TypeCode = Self::new(104);
-    pub const SPRE_HEADER: TypeCode = Self::new(105);
-    pub const SGLOBAL: TypeCode = Self::new(106);
+    const MAX_PRIM_TYPECODE: u8 = 11;
+    #[allow(dead_code)]
+    const PRIM_RANGE: u8 = (TypeCode::MAX_PRIM_TYPECODE + 1);
 
     const COLLECTION_CONSTR_ID: u8 = 1;
-    pub const COLLECTION: TypeCode =
-        Self::new((TypeCode::MAX_PRIM_TYPECODE + 1) * TypeCode::COLLECTION_CONSTR_ID);
+
     const NESTED_COLLECTION_CONSTS_ID: u8 = 2;
-    pub const NESTED_COLLECTION: TypeCode =
-        Self::new((TypeCode::MAX_PRIM_TYPECODE + 1) * TypeCode::NESTED_COLLECTION_CONSTS_ID);
+    const NESTED_COLL: u8 =
+        (TypeCode::MAX_PRIM_TYPECODE + 1) * TypeCode::NESTED_COLLECTION_CONSTS_ID; // 12 * 2 = 24
 
     const TUPLE_PAIR1_CONSTR_ID: u8 = 5;
-    pub const TUPLE_PAIR1: TypeCode =
-        Self::new((TypeCode::MAX_PRIM_TYPECODE + 1) * TypeCode::TUPLE_PAIR1_CONSTR_ID);
 
     const TUPLE_PAIR2_CONSTR_ID: u8 = 6;
-    pub const TUPLE_PAIR2: TypeCode =
-        Self::new((TypeCode::MAX_PRIM_TYPECODE + 1) * TypeCode::TUPLE_PAIR2_CONSTR_ID);
-
-    pub const TUPLE_TRIPLE: TypeCode = Self::TUPLE_PAIR2;
+    const TUPLE_PAIR2: u8 = (TypeCode::MAX_PRIM_TYPECODE + 1) * TypeCode::TUPLE_PAIR2_CONSTR_ID;
 
     const TUPLE_PAIR_SYMMETRIC_TYPE_CONSTR_ID: u8 = 7;
-    pub const TUPLE_PAIR_SYMMETRIC: TypeCode = Self::new(
-        (TypeCode::MAX_PRIM_TYPECODE + 1) * TypeCode::TUPLE_PAIR_SYMMETRIC_TYPE_CONSTR_ID,
-    );
-
-    pub const TUPLE_QUADRUPLE: TypeCode = Self::TUPLE_PAIR_SYMMETRIC;
-
-    pub const TUPLE: TypeCode = Self::new((TypeCode::MAX_PRIM_TYPECODE + 1) * 8);
+    const TUPLE_PAIR_SYMMETRIC: u8 =
+        (TypeCode::MAX_PRIM_TYPECODE + 1) * TypeCode::TUPLE_PAIR_SYMMETRIC_TYPE_CONSTR_ID;
 
     const OPTION_CONSTR_ID: u8 = 3;
     const OPTION_COLLECTION_TYPE_CONSTR_ID: u8 = 4;
-    pub const OPTION: TypeCode =
-        Self::new((TypeCode::MAX_PRIM_TYPECODE + 1) * TypeCode::OPTION_CONSTR_ID);
-    pub const OPTION_COLLECTION: TypeCode =
-        Self::new((TypeCode::MAX_PRIM_TYPECODE + 1) * TypeCode::OPTION_COLLECTION_TYPE_CONSTR_ID);
+    const OPTION_COLLECTION: u8 =
+        (TypeCode::MAX_PRIM_TYPECODE + 1) * TypeCode::OPTION_COLLECTION_TYPE_CONSTR_ID;
 
-    const fn new(c: u8) -> TypeCode {
-        TypeCode(c)
-    }
-
-    /// Parse type code from single byte.
-    pub fn parse(b: u8) -> Result<Self, SigmaParsingError> {
-        match b {
-            0 => Err(SigmaParsingError::InvalidTypePrefix),
-            _ => Ok(Self(b)),
+    /// Parse type code from byte
+    pub(crate) fn parse(b: u8) -> Result<Self, SigmaParsingError> {
+        match FromPrimitive::from_u8(b) {
+            Some(t) => Ok(t),
+            None => Err(SigmaParsingError::InvalidTypeCode(b)), // 0 =>
         }
     }
-    pub const fn value(&self) -> u8 {
-        self.0
-    }
-}
 
-impl Add for TypeCode {
-    type Output = TypeCode;
-    fn add(self, rhs: Self) -> TypeCode {
-        TypeCode::new(self.0 + rhs.0)
+    pub(crate) const fn value(&self) -> u8 {
+        *self as u8
     }
 }
 
@@ -115,146 +176,163 @@ impl SigmaSerializable for TypeCode {
     }
 }
 
-fn get_embeddable_type(code: u8) -> Result<SType, SigmaParsingError> {
-    match TypeCode::new(code) {
-        TypeCode::SBOOLEAN => Ok(SType::SBoolean),
-        TypeCode::SBYTE => Ok(SType::SByte),
-        TypeCode::SSHORT => Ok(SType::SShort),
-        TypeCode::SINT => Ok(SType::SInt),
-        TypeCode::SLONG => Ok(SType::SLong),
-        TypeCode::SBIGINT => Ok(SType::SBigInt),
-        TypeCode::SGROUP_ELEMENT => Ok(SType::SGroupElement),
-        TypeCode::SSIGMAPROP => Ok(SType::SSigmaProp),
-        _ => Err(SigmaParsingError::InvalidOpCode(code)),
-    }
-}
-
-#[allow(clippy::match_like_matches_macro)]
-fn is_stype_embeddable(tpe: &SType) -> bool {
-    match tpe {
-        SType::SBoolean => true,
-        SType::SByte => true,
-        SType::SShort => true,
-        SType::SInt => true,
-        SType::SLong => true,
-        SType::SBigInt => true,
-        SType::SGroupElement => true,
-        SType::SSigmaProp => true,
-        _ => false,
-    }
-}
-
 impl SType {
     /// Parse type from byte stream. This function should be used instead of
     /// `sigma_parse` when type code is already read for look-ahead
-    pub fn parse_with_type_code<R: SigmaByteRead>(
+    pub(crate) fn parse_with_type_code<R: SigmaByteRead>(
         r: &mut R,
         c: TypeCode,
     ) -> Result<Self, SigmaParsingError> {
-        let tpe = if c.value() < TypeCode::TUPLE.value() {
-            let constr_id = c.value() / TypeCode::PRIM_RANGE;
-            let prim_id = c.value() % TypeCode::PRIM_RANGE;
-            match constr_id {
-                // primitive
-                0 => get_embeddable_type(c.value())?,
-                // Coll[_]
-                1 => {
-                    let t_elem = get_arg_type(r, prim_id)?;
-                    SType::SColl(Box::new(t_elem))
-                }
-                // Coll[Coll[_]]
-                2 => {
-                    let t_elem = get_arg_type(r, prim_id)?;
-                    SType::SColl(Box::new(SType::SColl(Box::new(t_elem))))
-                }
-                // Option[_]
-                3 => {
-                    let t_elem = get_arg_type(r, prim_id)?;
-                    SType::SOption(Box::new(t_elem))
-                }
-                // Option[Coll[_]]
-                4 => {
-                    let t_elem = get_arg_type(r, prim_id)?;
-                    SType::SOption(SType::SColl(t_elem.into()).into())
-                }
-                TypeCode::TUPLE_PAIR1_CONSTR_ID => {
-                    // (_, t2)
-                    let (t1, t2) = if prim_id == 0 {
-                        // Pair of non-primitive types (`((Int, Byte), (Boolean,Box))`, etc.)
-                        (Self::sigma_parse(r)?, Self::sigma_parse(r)?)
-                    } else {
-                        // Pair of types where first is primitive (`(_, Int)`)
-                        (get_embeddable_type(prim_id)?, Self::sigma_parse(r)?)
-                    };
-                    STuple::pair(t1, t2).into()
-                }
-                TypeCode::TUPLE_PAIR2_CONSTR_ID => {
-                    // (t1, _)
-                    if prim_id == 0 {
-                        // Triple of types
-                        let t1 = Self::sigma_parse(r)?;
-                        let t2 = Self::sigma_parse(r)?;
-                        let t3 = Self::sigma_parse(r)?;
-                        #[allow(clippy::unwrap_used)]
-                        SType::STuple(vec![t1, t2, t3].try_into().unwrap())
-                    } else {
-                        // Pair of types where second is primitive (`(Int, _)`)
-                        let t2 = get_embeddable_type(prim_id)?;
-                        let t1 = Self::sigma_parse(r)?;
-                        STuple::pair(t1, t2).into()
-                    }
-                }
-                TypeCode::TUPLE_PAIR_SYMMETRIC_TYPE_CONSTR_ID => {
-                    // (_, _)
-                    if prim_id == 0 {
-                        // Quadriple of types
-                        let t1 = Self::sigma_parse(r)?;
-                        let t2 = Self::sigma_parse(r)?;
-                        let t3 = Self::sigma_parse(r)?;
-                        let t4 = Self::sigma_parse(r)?;
-                        #[allow(clippy::unwrap_used)]
-                        SType::STuple(vec![t1, t2, t3, t4].try_into().unwrap())
-                    } else {
-                        // Symmetric pair of primitive types (`(Int, Int)`, `(Byte,Byte)`, etc.)
-                        let t = get_embeddable_type(prim_id)?;
-                        STuple::pair(t.clone(), t).into()
-                    }
-                }
-                _ => {
-                    return Err(SigmaParsingError::NotImplementedYet(format!(
-                        "case 1: parsing type is not yet implemented(constr_id == {:?})",
-                        constr_id
-                    )))
-                }
+        use SType::*;
+        Ok(match c {
+            TypeCode::SBOOLEAN => SBoolean,
+            TypeCode::SBYTE => SByte,
+            TypeCode::SSHORT => SShort,
+            TypeCode::SINT => SInt,
+            TypeCode::SLONG => SLong,
+            TypeCode::SBIGINT => SBigInt,
+            TypeCode::SGROUP_ELEMENT => SGroupElement,
+            TypeCode::SSIGMAPROP => SSigmaProp,
+
+            TypeCode::OPTION_BOOL => SOption(SBoolean.into()),
+            TypeCode::OPTION_BYTE => SOption(SByte.into()),
+            TypeCode::OPTION_SHORT => SOption(SShort.into()),
+            TypeCode::OPTION_INT => SOption(SInt.into()),
+            TypeCode::OPTION_LONG => SOption(SLong.into()),
+            TypeCode::OPTION_BIGINT => SOption(SBigInt.into()),
+            TypeCode::OPTION_GROUP_ELEMENT => SOption(SGroupElement.into()),
+            TypeCode::OPTION_SIGMAPROP => SOption(SSigmaProp.into()),
+
+            TypeCode::OPTION_COLL_BOOL => SOption(SColl(SBoolean.into()).into()),
+            TypeCode::OPTION_COLL_BYTE => SOption(SColl(SByte.into()).into()),
+            TypeCode::OPTION_COLL_SHORT => SOption(SColl(SShort.into()).into()),
+            TypeCode::OPTION_COLL_INT => SOption(SColl(SInt.into()).into()),
+            TypeCode::OPTION_COLL_LONG => SOption(SColl(SLong.into()).into()),
+            TypeCode::OPTION_COLL_BIGINT => SOption(SColl(SBigInt.into()).into()),
+            TypeCode::OPTION_COLL_GROUP_ELEMENT => SOption(SColl(SGroupElement.into()).into()),
+            TypeCode::OPTION_COLL_SIGMAPROP => SOption(SColl(SSigmaProp.into()).into()),
+
+            TypeCode::OPTION => SOption(SType::sigma_parse(r)?.into()),
+
+            TypeCode::COLL_BOOL => SColl(SBoolean.into()),
+            TypeCode::COLL_BYTE => SColl(SByte.into()),
+            TypeCode::COLL_SHORT => SColl(SShort.into()),
+            TypeCode::COLL_INT => SColl(SInt.into()),
+            TypeCode::COLL_LONG => SColl(SLong.into()),
+            TypeCode::COLL_BIGINT => SColl(SBigInt.into()),
+            TypeCode::COLL_GROUP_ELEMENT => SColl(SGroupElement.into()),
+            TypeCode::COLL_SIGMAPROP => SColl(SSigmaProp.into()),
+
+            TypeCode::NESTED_COLL_BOOL => SColl(SColl(SBoolean.into()).into()),
+            TypeCode::NESTED_COLL_BYTE => SColl(SColl(SByte.into()).into()),
+            TypeCode::NESTED_COLL_SHORT => SColl(SColl(SShort.into()).into()),
+            TypeCode::NESTED_COLL_INT => SColl(SColl(SInt.into()).into()),
+            TypeCode::NESTED_COLL_LONG => SColl(SColl(SLong.into()).into()),
+            TypeCode::NESTED_COLL_BIGINT => SColl(SColl(SBigInt.into()).into()),
+            TypeCode::NESTED_COLL_GROUP_ELEMENT => SColl(SColl(SGroupElement.into()).into()),
+            TypeCode::NESTED_COLL_SIGMAPROP => SColl(SColl(SSigmaProp.into()).into()),
+
+            TypeCode::COLL => SColl(SType::sigma_parse(r)?.into()),
+
+            TypeCode::TUPLE_PAIR_SYMMETRIC_BOOL => STuple(stuple::STuple::pair(SBoolean, SBoolean)),
+            TypeCode::TUPLE_PAIR_SYMMETRIC_BYTE => STuple(stuple::STuple::pair(SByte, SByte)),
+            TypeCode::TUPLE_PAIR_SYMMETRIC_SHORT => STuple(stuple::STuple::pair(SShort, SShort)),
+            TypeCode::TUPLE_PAIR_SYMMETRIC_INT => STuple(stuple::STuple::pair(SInt, SInt)),
+            TypeCode::TUPLE_PAIR_SYMMETRIC_LONG => STuple(stuple::STuple::pair(SLong, SLong)),
+            TypeCode::TUPLE_PAIR_SYMMETRIC_BIGINT => STuple(stuple::STuple::pair(SBigInt, SBigInt)),
+            TypeCode::TUPLE_PAIR_SYMMETRIC_GROUP_ELEMENT => {
+                STuple(stuple::STuple::pair(SGroupElement, SGroupElement))
             }
-        } else {
-            match c {
-                TypeCode::TUPLE => {
-                    let len = r.get_u8()?;
-                    let mut items = Vec::with_capacity(len as usize);
-                    for _ in 0..len {
-                        items.push(SType::sigma_parse(r)?);
-                    }
-                    Ok(SType::STuple(items.try_into().map_err(|_| {
-                        SigmaParsingError::TupleItemsOutOfBounds(len as usize)
-                    })?))
+            TypeCode::TUPLE_PAIR_SYMMETRIC_SIGMAPROP => {
+                STuple(stuple::STuple::pair(SSigmaProp, SSigmaProp))
+            }
+
+            TypeCode::TUPLE_PAIR1_BOOL => {
+                STuple(stuple::STuple::pair(SBoolean, SType::sigma_parse(r)?))
+            }
+            TypeCode::TUPLE_PAIR1_BYTE => {
+                STuple(stuple::STuple::pair(SByte, SType::sigma_parse(r)?))
+            }
+            TypeCode::TUPLE_PAIR1_SHORT => {
+                STuple(stuple::STuple::pair(SShort, SType::sigma_parse(r)?))
+            }
+            TypeCode::TUPLE_PAIR1_INT => STuple(stuple::STuple::pair(SInt, SType::sigma_parse(r)?)),
+            TypeCode::TUPLE_PAIR1_LONG => {
+                STuple(stuple::STuple::pair(SLong, SType::sigma_parse(r)?))
+            }
+            TypeCode::TUPLE_PAIR1_BIGINT => {
+                STuple(stuple::STuple::pair(SBigInt, SType::sigma_parse(r)?))
+            }
+            TypeCode::TUPLE_PAIR1_GROUP_ELEMENT => {
+                STuple(stuple::STuple::pair(SGroupElement, SType::sigma_parse(r)?))
+            }
+            TypeCode::TUPLE_PAIR1_SIGMAPROP => {
+                STuple(stuple::STuple::pair(SSigmaProp, SType::sigma_parse(r)?))
+            }
+
+            TypeCode::TUPLE_PAIR2_BOOL => {
+                STuple(stuple::STuple::pair(SType::sigma_parse(r)?, SBoolean))
+            }
+            TypeCode::TUPLE_PAIR2_BYTE => {
+                STuple(stuple::STuple::pair(SType::sigma_parse(r)?, SByte))
+            }
+            TypeCode::TUPLE_PAIR2_SHORT => {
+                STuple(stuple::STuple::pair(SType::sigma_parse(r)?, SShort))
+            }
+            TypeCode::TUPLE_PAIR2_INT => STuple(stuple::STuple::pair(SType::sigma_parse(r)?, SInt)),
+            TypeCode::TUPLE_PAIR2_LONG => {
+                STuple(stuple::STuple::pair(SType::sigma_parse(r)?, SLong))
+            }
+            TypeCode::TUPLE_PAIR2_BIGINT => {
+                STuple(stuple::STuple::pair(SType::sigma_parse(r)?, SBigInt))
+            }
+            TypeCode::TUPLE_PAIR2_GROUP_ELEMENT => {
+                STuple(stuple::STuple::pair(SType::sigma_parse(r)?, SGroupElement))
+            }
+            TypeCode::TUPLE_PAIR2_SIGMAPROP => {
+                STuple(stuple::STuple::pair(SType::sigma_parse(r)?, SSigmaProp))
+            }
+
+            TypeCode::TUPLE_PAIR1 => STuple(stuple::STuple::pair(
+                SType::sigma_parse(r)?,
+                SType::sigma_parse(r)?,
+            )),
+
+            TypeCode::TUPLE_TRIPLE => STuple(stuple::STuple::triple(
+                SType::sigma_parse(r)?,
+                SType::sigma_parse(r)?,
+                SType::sigma_parse(r)?,
+            )),
+
+            TypeCode::TUPLE_QUADRUPLE => STuple(stuple::STuple::quadruple(
+                SType::sigma_parse(r)?,
+                SType::sigma_parse(r)?,
+                SType::sigma_parse(r)?,
+                SType::sigma_parse(r)?,
+            )),
+
+            TypeCode::TUPLE => {
+                let len = r.get_u8()?;
+                let mut items = Vec::with_capacity(len as usize);
+                for _ in 0..len {
+                    items.push(SType::sigma_parse(r)?);
                 }
-                TypeCode::SANY => Ok(SType::SAny),
-                TypeCode::SBOX => Ok(SType::SBox),
-                TypeCode::SAVL_TREE => Ok(SType::SAvlTree),
-                TypeCode::SCONTEXT => Ok(SType::SContext),
-                TypeCode::STYPE_VAR => Ok(SType::STypeVar(STypeVar::sigma_parse(r)?)),
-                TypeCode::SHEADER => Ok(SType::SHeader),
-                TypeCode::SPRE_HEADER => Ok(SType::SPreHeader),
-                TypeCode::SGLOBAL => Ok(SType::SGlobal),
-                _ => Err(SigmaParsingError::NotImplementedYet(format!(
-                    // FIXME: should we just tell that type code is malforled?
-                    "case 2: parsing type is not yet implemented(c == {:?})",
-                    c
-                ))),
-            }?
-        };
-        Ok(tpe)
+                SType::STuple(
+                    items
+                        .try_into()
+                        .map_err(|_| SigmaParsingError::TupleItemsOutOfBounds(len as usize))?,
+                )
+            }
+
+            TypeCode::SANY => SAny,
+            TypeCode::SBOX => SBox,
+            TypeCode::SAVL_TREE => SAvlTree,
+            TypeCode::SCONTEXT => SContext,
+            TypeCode::STYPE_VAR => STypeVar(stype_param::STypeVar::sigma_parse(r)?),
+            TypeCode::SHEADER => SHeader,
+            TypeCode::SPRE_HEADER => SPreHeader,
+            TypeCode::SGLOBAL => SGlobal,
+        })
     }
 }
 
@@ -272,72 +350,161 @@ impl SType {
 impl SigmaSerializable for SType {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         // for reference see http://github.com/ScorexFoundation/sigmastate-interpreter/blob/25251c1313b0131835f92099f02cef8a5d932b5e/sigmastate/src/main/scala/sigmastate/serialization/TypeSerializer.scala#L25-L25
+        use SType::*;
         match self {
             SType::SFunc(_) => Err(SigmaSerializationError::NotSupported("SFunc")),
-            SType::SAny => self.type_code().sigma_serialize(w),
-            SType::SBoolean => self.type_code().sigma_serialize(w),
-            SType::SByte => self.type_code().sigma_serialize(w),
-            SType::SShort => self.type_code().sigma_serialize(w),
-            SType::SInt => self.type_code().sigma_serialize(w),
-            SType::SLong => self.type_code().sigma_serialize(w),
-            SType::SBigInt => self.type_code().sigma_serialize(w),
-            SType::SGroupElement => self.type_code().sigma_serialize(w),
-            SType::SSigmaProp => self.type_code().sigma_serialize(w),
-            SType::SBox => self.type_code().sigma_serialize(w),
-            SType::SAvlTree => self.type_code().sigma_serialize(w),
-            SType::SContext => self.type_code().sigma_serialize(w),
-            SType::SHeader => self.type_code().sigma_serialize(w),
-            SType::SPreHeader => self.type_code().sigma_serialize(w),
-            SType::SGlobal => self.type_code().sigma_serialize(w),
-            SType::SOption(elem_type) if is_stype_embeddable(elem_type) => {
-                let code = TypeCode::OPTION + elem_type.type_code();
-                code.sigma_serialize(w)
-            }
-            SType::SOption(elem_type) => match &**elem_type {
-                SType::SColl(elem_type) if is_stype_embeddable(elem_type.as_ref()) => {
-                    let code = TypeCode::OPTION_COLLECTION + elem_type.type_code();
-                    code.sigma_serialize(w)
-                }
+            SType::SAny => TypeCode::SANY.sigma_serialize(w),
+            SType::SBoolean => TypeCode::SBOOLEAN.sigma_serialize(w),
+            SType::SByte => TypeCode::SBYTE.sigma_serialize(w),
+            SType::SShort => TypeCode::SSHORT.sigma_serialize(w),
+            SType::SInt => TypeCode::SINT.sigma_serialize(w),
+            SType::SLong => TypeCode::SLONG.sigma_serialize(w),
+            SType::SBigInt => TypeCode::SBIGINT.sigma_serialize(w),
+            SType::SGroupElement => TypeCode::SGROUP_ELEMENT.sigma_serialize(w),
+            SType::SSigmaProp => TypeCode::SSIGMAPROP.sigma_serialize(w),
+            SType::SBox => TypeCode::SBOX.sigma_serialize(w),
+            SType::SAvlTree => TypeCode::SAVL_TREE.sigma_serialize(w),
+            SType::SContext => TypeCode::SCONTEXT.sigma_serialize(w),
+            SType::SHeader => TypeCode::SHEADER.sigma_serialize(w),
+            SType::SPreHeader => TypeCode::SPRE_HEADER.sigma_serialize(w),
+            SType::SGlobal => TypeCode::SGLOBAL.sigma_serialize(w),
+            SOption(elem_type) => match &**elem_type {
+                SBoolean => TypeCode::OPTION_BOOL.sigma_serialize(w),
+                SByte => TypeCode::OPTION_BYTE.sigma_serialize(w),
+                SShort => TypeCode::OPTION_SHORT.sigma_serialize(w),
+                SInt => TypeCode::OPTION_INT.sigma_serialize(w),
+                SLong => TypeCode::OPTION_LONG.sigma_serialize(w),
+                SBigInt => TypeCode::OPTION_BIGINT.sigma_serialize(w),
+                SGroupElement => TypeCode::OPTION_GROUP_ELEMENT.sigma_serialize(w),
+                SSigmaProp => TypeCode::OPTION_SIGMAPROP.sigma_serialize(w),
+                SColl(inner_elem_type) => match &**inner_elem_type {
+                    SBoolean => TypeCode::OPTION_COLL_BOOL.sigma_serialize(w),
+                    SByte => TypeCode::OPTION_COLL_BYTE.sigma_serialize(w),
+                    SShort => TypeCode::OPTION_COLL_SHORT.sigma_serialize(w),
+                    SInt => TypeCode::OPTION_COLL_INT.sigma_serialize(w),
+                    SLong => TypeCode::OPTION_COLL_LONG.sigma_serialize(w),
+                    SBigInt => TypeCode::OPTION_COLL_BIGINT.sigma_serialize(w),
+                    SGroupElement => TypeCode::OPTION_COLL_GROUP_ELEMENT.sigma_serialize(w),
+                    SSigmaProp => TypeCode::OPTION_COLL_SIGMAPROP.sigma_serialize(w),
+                    _ => {
+                        TypeCode::OPTION.sigma_serialize(w)?;
+                        elem_type.sigma_serialize(w)
+                    }
+                },
                 _ => {
                     TypeCode::OPTION.sigma_serialize(w)?;
                     elem_type.sigma_serialize(w)
                 }
             },
-            SType::SColl(elem_type) if is_stype_embeddable(elem_type) => {
-                let code = TypeCode::COLLECTION + elem_type.type_code();
-                code.sigma_serialize(w)
-            }
+
             SType::SColl(elem_type) => match &**elem_type {
-                SType::SColl(inner_elem_type) if is_stype_embeddable(inner_elem_type.as_ref()) => {
-                    let code = TypeCode::NESTED_COLLECTION + inner_elem_type.type_code();
-                    code.sigma_serialize(w)
-                }
+                SBoolean => TypeCode::COLL_BOOL.sigma_serialize(w),
+                SByte => TypeCode::COLL_BYTE.sigma_serialize(w),
+                SShort => TypeCode::COLL_SHORT.sigma_serialize(w),
+                SInt => TypeCode::COLL_INT.sigma_serialize(w),
+                SLong => TypeCode::COLL_LONG.sigma_serialize(w),
+                SBigInt => TypeCode::COLL_BIGINT.sigma_serialize(w),
+                SGroupElement => TypeCode::COLL_GROUP_ELEMENT.sigma_serialize(w),
+                SSigmaProp => TypeCode::COLL_SIGMAPROP.sigma_serialize(w),
+                SColl(inner_elem_type) => match &**inner_elem_type {
+                    SBoolean => TypeCode::NESTED_COLL_BOOL.sigma_serialize(w),
+                    SByte => TypeCode::NESTED_COLL_BYTE.sigma_serialize(w),
+                    SShort => TypeCode::NESTED_COLL_SHORT.sigma_serialize(w),
+                    SInt => TypeCode::NESTED_COLL_INT.sigma_serialize(w),
+                    SLong => TypeCode::NESTED_COLL_LONG.sigma_serialize(w),
+                    SBigInt => TypeCode::NESTED_COLL_BIGINT.sigma_serialize(w),
+                    SGroupElement => TypeCode::NESTED_COLL_GROUP_ELEMENT.sigma_serialize(w),
+                    SSigmaProp => TypeCode::NESTED_COLL_SIGMAPROP.sigma_serialize(w),
+                    _ => {
+                        // if not "embeddable" type fallback to generic Coll type code following
+                        // elem type code
+                        TypeCode::COLL.sigma_serialize(w)?;
+                        elem_type.sigma_serialize(w)
+                    }
+                },
                 _ => {
-                    TypeCode::COLLECTION.sigma_serialize(w)?;
+                    // if not "embeddable" type fallback to generic Coll type code following
+                    // elem type code
+                    TypeCode::COLL.sigma_serialize(w)?;
                     elem_type.sigma_serialize(w)
                 }
             },
-            SType::STuple(STuple { items }) => match items.clone().as_slice() {
+            SType::STuple(stuple::STuple { items }) => match items.clone().as_slice() {
                 [t1, t2] => match (t1, t2) {
-                    (p, _) if is_stype_embeddable(p) => {
-                        if p == t2 {
-                            // Symmetric pair of primitive types (`(Int, Int)`, `(Byte,Byte)`, etc.)
-                            let code = TypeCode::TUPLE_PAIR_SYMMETRIC + p.type_code();
-                            code.sigma_serialize(w)
-                        } else {
-                            // Pair of types where first is primitive (`(_, Int)`)
-                            let code = TypeCode::TUPLE_PAIR1 + p.type_code();
-                            code.sigma_serialize(w)?;
-                            t2.sigma_serialize(w)
-                        }
+                    (SBoolean, SBoolean) => TypeCode::TUPLE_PAIR_SYMMETRIC_BOOL.sigma_serialize(w),
+                    (SByte, SByte) => TypeCode::TUPLE_PAIR_SYMMETRIC_BYTE.sigma_serialize(w),
+                    (SInt, SInt) => TypeCode::TUPLE_PAIR_SYMMETRIC_INT.sigma_serialize(w),
+                    (SLong, SLong) => TypeCode::TUPLE_PAIR_SYMMETRIC_LONG.sigma_serialize(w),
+                    (SBigInt, SBigInt) => TypeCode::TUPLE_PAIR_SYMMETRIC_BIGINT.sigma_serialize(w),
+                    (SGroupElement, SGroupElement) => {
+                        TypeCode::TUPLE_PAIR_SYMMETRIC_GROUP_ELEMENT.sigma_serialize(w)
                     }
-                    (_, p) if is_stype_embeddable(p) => {
-                        // Pair of types where second is primitive (`(Int, _)`)
-                        let code = TypeCode::TUPLE_PAIR2 + p.type_code();
-                        code.sigma_serialize(w)?;
+                    (SSigmaProp, SSigmaProp) => {
+                        TypeCode::TUPLE_PAIR_SYMMETRIC_SIGMAPROP.sigma_serialize(w)
+                    }
+
+                    (SBoolean, t2) => {
+                        TypeCode::TUPLE_PAIR1_BOOL.sigma_serialize(w)?;
+                        t2.sigma_serialize(w)
+                    }
+                    (SByte, t2) => {
+                        TypeCode::TUPLE_PAIR1_BYTE.sigma_serialize(w)?;
+                        t2.sigma_serialize(w)
+                    }
+                    (SInt, t2) => {
+                        TypeCode::TUPLE_PAIR1_INT.sigma_serialize(w)?;
+                        t2.sigma_serialize(w)
+                    }
+                    (SLong, t2) => {
+                        TypeCode::TUPLE_PAIR1_LONG.sigma_serialize(w)?;
+                        t2.sigma_serialize(w)
+                    }
+                    (SBigInt, t2) => {
+                        TypeCode::TUPLE_PAIR1_BIGINT.sigma_serialize(w)?;
+                        t2.sigma_serialize(w)
+                    }
+                    (SGroupElement, t2) => {
+                        TypeCode::TUPLE_PAIR1_GROUP_ELEMENT.sigma_serialize(w)?;
+                        t2.sigma_serialize(w)
+                    }
+                    (SSigmaProp, t2) => {
+                        TypeCode::TUPLE_PAIR1_SIGMAPROP.sigma_serialize(w)?;
+                        t2.sigma_serialize(w)
+                    }
+
+                    (t1, SBoolean) => {
+                        TypeCode::TUPLE_PAIR2_BOOL.sigma_serialize(w)?;
                         t1.sigma_serialize(w)
                     }
-                    (_, _) => {
+                    (t1, SByte) => {
+                        TypeCode::TUPLE_PAIR2_BYTE.sigma_serialize(w)?;
+                        t1.sigma_serialize(w)
+                    }
+                    (t1, SShort) => {
+                        TypeCode::TUPLE_PAIR2_SHORT.sigma_serialize(w)?;
+                        t1.sigma_serialize(w)
+                    }
+                    (t1, SInt) => {
+                        TypeCode::TUPLE_PAIR2_INT.sigma_serialize(w)?;
+                        t1.sigma_serialize(w)
+                    }
+                    (t1, SLong) => {
+                        TypeCode::TUPLE_PAIR2_LONG.sigma_serialize(w)?;
+                        t1.sigma_serialize(w)
+                    }
+                    (t1, SBigInt) => {
+                        TypeCode::TUPLE_PAIR2_BIGINT.sigma_serialize(w)?;
+                        t1.sigma_serialize(w)
+                    }
+                    (t1, SGroupElement) => {
+                        TypeCode::TUPLE_PAIR2_GROUP_ELEMENT.sigma_serialize(w)?;
+                        t1.sigma_serialize(w)
+                    }
+                    (t1, SSigmaProp) => {
+                        TypeCode::TUPLE_PAIR2_SIGMAPROP.sigma_serialize(w)?;
+                        t1.sigma_serialize(w)
+                    }
+                    (t1, t2) => {
                         // Pair of non-primitive types (`((Int, Byte), (Boolean,Box))`, etc.)
                         TypeCode::TUPLE_PAIR1.sigma_serialize(w)?;
                         t1.sigma_serialize(w)?;
@@ -360,6 +527,7 @@ impl SigmaSerializable for SType {
                     }
                 },
             },
+
             SType::STypeVar(tv) => {
                 TypeCode::STYPE_VAR.sigma_serialize(w)?;
                 tv.sigma_serialize(w)
@@ -371,14 +539,6 @@ impl SigmaSerializable for SType {
         // for reference see http://github.com/ScorexFoundation/sigmastate-interpreter/blob/25251c1313b0131835f92099f02cef8a5d932b5e/sigmastate/src/main/scala/sigmastate/serialization/TypeSerializer.scala#L118-L118
         let c = TypeCode::sigma_parse(r)?;
         Self::parse_with_type_code(r, c)
-    }
-}
-
-fn get_arg_type<R: SigmaByteRead>(r: &mut R, prim_id: u8) -> Result<SType, SigmaParsingError> {
-    if prim_id == 0 {
-        SType::sigma_parse(r)
-    } else {
-        get_embeddable_type(prim_id)
     }
 }
 
