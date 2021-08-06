@@ -19,6 +19,8 @@ pub const INDEX_OF_METHOD_ID: MethodId = MethodId(26);
 pub const FLATMAP_METHOD_ID: MethodId = MethodId(15);
 /// Coll.zip
 pub const ZIP_METHOD_ID: MethodId = MethodId(14);
+/// Coll.indices
+pub const INDICES_METHOD_ID: MethodId = MethodId(29);
 
 static S_COLL_TYPE_COMPANION_HEAD: STypeCompanionHead = STypeCompanionHead {
     type_id: TYPE_ID,
@@ -32,7 +34,8 @@ lazy_static! {
         vec![
             &INDEX_OF_METHOD_DESC,
             &FLATMAP_METHOD_DESC,
-            &ZIP_METHOD_DESC
+            &ZIP_METHOD_DESC,
+            &INDICES_METHOD_DESC,
         ]
     );
 }
@@ -88,6 +91,21 @@ lazy_static! {
     pub static ref ZIP_METHOD: SMethod = SMethod::new(&S_COLL_TYPE_COMPANION, ZIP_METHOD_DESC.clone());
 }
 
+lazy_static! {
+    static ref INDICES_METHOD_DESC: SMethodDesc = SMethodDesc {
+        method_id: INDICES_METHOD_ID,
+        name: "indices",
+        tpe: SFunc::new(
+            vec![
+                SType::SColl(SType::STypeVar(STypeVar::t()).into()),
+            ],
+            SType::SColl(SType::SInt.into())
+        )
+    };
+    /// Coll.indices
+    pub static ref INDICES_METHOD: SMethod = SMethod::new(&S_COLL_TYPE_COMPANION, INDICES_METHOD_DESC.clone());
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -97,5 +115,6 @@ mod tests {
         assert!(SMethod::from_ids(TYPE_ID, INDEX_OF_METHOD_ID).map(|e| e.name()) == Ok("indexOf"));
         assert!(SMethod::from_ids(TYPE_ID, FLATMAP_METHOD_ID).map(|e| e.name()) == Ok("flatMap"));
         assert!(SMethod::from_ids(TYPE_ID, ZIP_METHOD_ID).map(|e| e.name()) == Ok("zip"));
+        assert!(SMethod::from_ids(TYPE_ID, INDICES_METHOD_ID).map(|e| e.name()) == Ok("indices"));
     }
 }

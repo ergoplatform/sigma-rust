@@ -5,8 +5,10 @@ use ergotree_ir::mir::constant::TryExtractInto;
 use ergotree_ir::mir::value::CollKind;
 use ergotree_ir::mir::value::Value;
 use ergotree_ir::types::stuple::STuple;
+use ergotree_ir::types::stype::SType::SInt;
 
 use super::EvalFn;
+use std::convert::TryFrom;
 
 pub(crate) static INDEX_OF_EVAL_FN: EvalFn = |_env, _ctx, obj, args| {
     Ok(Value::Int({
@@ -117,6 +119,28 @@ pub(crate) static ZIP_EVAL_FN: EvalFn = |_env, _ctx, obj, args| {
         .collect::<Vec<Value>>();
     let coll_zip = CollKind::from_vec(STuple::pair(type_1, type_2).into(), zip);
     match coll_zip {
+        Ok(coll) => Ok(Value::Coll(coll)),
+        Err(e) => Err(EvalError::TryExtractFrom(e)),
+    }
+};
+
+pub(crate) static INDICES_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
+    let normalized_input_vals: Vec<Value> = match obj {
+        Value::Coll(coll) => Ok(coll.as_vec()),
+        _ => Err(EvalError::UnexpectedValue(format!(
+            "expected obj to be Value::Coll, got: {0:?}",
+            obj
+        ))),
+    }?;
+    let indices = normalized_input_vals
+        .into_iter()
+        .enumerate()
+        .flat_map(|(i, _)| i32::try_from(i))
+        .map(Value::Int)
+        .collect::<Vec<Value>>();
+    let coll_indices = CollKind::from_vec(SInt, indices);
+
+    match coll_indices {
         Ok(coll) => Ok(Value::Coll(coll)),
         Err(e) => Err(EvalError::TryExtractFrom(e)),
     }
@@ -351,5 +375,37 @@ mod tests {
         .into();
         let res = eval_out_wo_ctx::<Vec<(i64, bool)>>(&expr);
         assert_eq!(res, vec![(1i64, true), (2, false)]);
+    }
+
+    #[test]
+    fn eval_indices() {
+        let coll_const: Constant = vec![1i64, 2i64, 3i64].into();
+        let expr: Expr = MethodCall::new(
+            coll_const.into(),
+            scoll::INDICES_METHOD
+                .clone()
+                .with_concrete_types(&[(STypeVar::t(), SType::SLong)].iter().cloned().collect()),
+            vec![],
+        )
+        .unwrap()
+        .into();
+        let res = eval_out_wo_ctx::<Vec<i32>>(&expr);
+        assert_eq!(res, vec![0i32, 1i32, 2i32]);
+    }
+
+    #[test]
+    fn eval_indices_empty_coll() {
+        let coll_const: Constant = Vec::<i64>::new().into();
+        let expr: Expr = MethodCall::new(
+            coll_const.into(),
+            scoll::INDICES_METHOD
+                .clone()
+                .with_concrete_types(&[(STypeVar::t(), SType::SLong)].iter().cloned().collect()),
+            vec![],
+        )
+        .unwrap()
+        .into();
+        let res = eval_out_wo_ctx::<Vec<i32>>(&expr);
+        assert_eq!(res, vec![]);
     }
 }
