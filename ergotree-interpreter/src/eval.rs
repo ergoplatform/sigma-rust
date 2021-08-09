@@ -6,6 +6,7 @@ use ergotree_ir::ir_ergo_box::IrErgoBoxArenaError;
 use ergotree_ir::mir::constant::TryExtractFromError;
 use ergotree_ir::mir::expr::Expr;
 use ergotree_ir::mir::value::Value;
+use ergotree_ir::serialization::SigmaParsingError;
 use ergotree_ir::serialization::SigmaSerializationError;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 
@@ -118,6 +119,9 @@ pub enum EvalError {
     /// Sigma serialization error
     #[error("Serialization error: {0}")]
     SigmaSerializationError(#[from] SigmaSerializationError),
+    /// Sigma serialization parsing error
+    #[error("Serialization parsing error: {0}")]
+    SigmaParsingError(#[from] SigmaParsingError),
     /// ErgoTree error
     #[error("ErgoTree error: {0}")]
     ErgoTreeError(#[from] ErgoTreeError),
