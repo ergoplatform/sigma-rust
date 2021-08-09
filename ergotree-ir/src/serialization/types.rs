@@ -29,26 +29,15 @@ pub enum TypeCode {
     SGROUP_ELEMENT = 7,
     SSIGMAPROP = 8,
 
-    SANY = 97,
-    SBOX = 99,
-    SAVL_TREE = 100,
-    SCONTEXT = 101,
-    // SSTRING = 102,
-    STYPE_VAR = 103,
-    SHEADER = 104,
-    SPRE_HEADER = 105,
-    SGLOBAL = 106,
-
     COLL = (TypeCode::MAX_PRIM_TYPECODE + 1) * TypeCode::COLLECTION_CONSTR_ID, // 12 * 1
-
-    COLL_BOOL = TypeCode::COLL as u8 + TypeCode::SBOOLEAN as u8, // 13
-    COLL_BYTE = TypeCode::COLL as u8 + TypeCode::SBYTE as u8,    // 14
-    COLL_SHORT = TypeCode::COLL as u8 + TypeCode::SSHORT as u8,  // 15
-    COLL_INT = TypeCode::COLL as u8 + TypeCode::SINT as u8,      // 16
-    COLL_LONG = TypeCode::COLL as u8 + TypeCode::SLONG as u8,    // 17
-    COLL_BIGINT = TypeCode::COLL as u8 + TypeCode::SBIGINT as u8, // 18
+    COLL_BOOL = TypeCode::COLL as u8 + TypeCode::SBOOLEAN as u8,               // 13
+    COLL_BYTE = TypeCode::COLL as u8 + TypeCode::SBYTE as u8,                  // 14
+    COLL_SHORT = TypeCode::COLL as u8 + TypeCode::SSHORT as u8,                // 15
+    COLL_INT = TypeCode::COLL as u8 + TypeCode::SINT as u8,                    // 16
+    COLL_LONG = TypeCode::COLL as u8 + TypeCode::SLONG as u8,                  // 17
+    COLL_BIGINT = TypeCode::COLL as u8 + TypeCode::SBIGINT as u8,              // 18
     COLL_GROUP_ELEMENT = TypeCode::COLL as u8 + TypeCode::SGROUP_ELEMENT as u8, // 19
-    COLL_SIGMAPROP = TypeCode::COLL as u8 + TypeCode::SSIGMAPROP as u8, // 20
+    COLL_SIGMAPROP = TypeCode::COLL as u8 + TypeCode::SSIGMAPROP as u8,        // 20
 
     NESTED_COLL_BOOL = TypeCode::NESTED_COLL as u8 + TypeCode::SBOOLEAN as u8, // 25
     NESTED_COLL_BYTE = TypeCode::NESTED_COLL as u8 + TypeCode::SBYTE as u8,    // 26
@@ -58,42 +47,6 @@ pub enum TypeCode {
     NESTED_COLL_BIGINT = TypeCode::NESTED_COLL as u8 + TypeCode::SBIGINT as u8, // 30
     NESTED_COLL_GROUP_ELEMENT = TypeCode::NESTED_COLL as u8 + TypeCode::SGROUP_ELEMENT as u8, // 31
     NESTED_COLL_SIGMAPROP = TypeCode::NESTED_COLL as u8 + TypeCode::SSIGMAPROP as u8, // 32
-
-    TUPLE_PAIR_SYMMETRIC_BOOL = TypeCode::TUPLE_PAIR_SYMMETRIC as u8 + TypeCode::SBOOLEAN as u8,
-    TUPLE_PAIR_SYMMETRIC_BYTE = TypeCode::TUPLE_PAIR_SYMMETRIC as u8 + TypeCode::SBYTE as u8,
-    TUPLE_PAIR_SYMMETRIC_SHORT = TypeCode::TUPLE_PAIR_SYMMETRIC as u8 + TypeCode::SSHORT as u8,
-    TUPLE_PAIR_SYMMETRIC_INT = TypeCode::TUPLE_PAIR_SYMMETRIC as u8 + TypeCode::SINT as u8,
-    TUPLE_PAIR_SYMMETRIC_LONG = TypeCode::TUPLE_PAIR_SYMMETRIC as u8 + TypeCode::SLONG as u8,
-    TUPLE_PAIR_SYMMETRIC_BIGINT = TypeCode::TUPLE_PAIR_SYMMETRIC as u8 + TypeCode::SBIGINT as u8,
-    TUPLE_PAIR_SYMMETRIC_GROUP_ELEMENT =
-        TypeCode::TUPLE_PAIR_SYMMETRIC as u8 + TypeCode::SGROUP_ELEMENT as u8,
-    TUPLE_PAIR_SYMMETRIC_SIGMAPROP =
-        TypeCode::TUPLE_PAIR_SYMMETRIC as u8 + TypeCode::SSIGMAPROP as u8,
-
-    TUPLE_PAIR1 = (TypeCode::MAX_PRIM_TYPECODE + 1) * TypeCode::TUPLE_PAIR1_CONSTR_ID,
-    TUPLE_PAIR1_BOOL = TypeCode::TUPLE_PAIR1 as u8 + TypeCode::SBOOLEAN as u8,
-    TUPLE_PAIR1_BYTE = TypeCode::TUPLE_PAIR1 as u8 + TypeCode::SBYTE as u8,
-    TUPLE_PAIR1_SHORT = TypeCode::TUPLE_PAIR1 as u8 + TypeCode::SSHORT as u8,
-    TUPLE_PAIR1_INT = TypeCode::TUPLE_PAIR1 as u8 + TypeCode::SINT as u8,
-    TUPLE_PAIR1_LONG = TypeCode::TUPLE_PAIR1 as u8 + TypeCode::SLONG as u8,
-    TUPLE_PAIR1_BIGINT = TypeCode::TUPLE_PAIR1 as u8 + TypeCode::SBIGINT as u8,
-    TUPLE_PAIR1_GROUP_ELEMENT = TypeCode::TUPLE_PAIR1 as u8 + TypeCode::SGROUP_ELEMENT as u8,
-    TUPLE_PAIR1_SIGMAPROP = TypeCode::TUPLE_PAIR1 as u8 + TypeCode::SSIGMAPROP as u8,
-
-    TUPLE_PAIR2_BOOL = TypeCode::TUPLE_PAIR2 as u8 + TypeCode::SBOOLEAN as u8,
-    TUPLE_PAIR2_BYTE = TypeCode::TUPLE_PAIR2 as u8 + TypeCode::SBYTE as u8,
-    TUPLE_PAIR2_SHORT = TypeCode::TUPLE_PAIR2 as u8 + TypeCode::SSHORT as u8,
-    TUPLE_PAIR2_INT = TypeCode::TUPLE_PAIR2 as u8 + TypeCode::SINT as u8,
-    TUPLE_PAIR2_LONG = TypeCode::TUPLE_PAIR2 as u8 + TypeCode::SLONG as u8,
-    TUPLE_PAIR2_BIGINT = TypeCode::TUPLE_PAIR2 as u8 + TypeCode::SBIGINT as u8,
-    TUPLE_PAIR2_GROUP_ELEMENT = TypeCode::TUPLE_PAIR2 as u8 + TypeCode::SGROUP_ELEMENT as u8,
-    TUPLE_PAIR2_SIGMAPROP = TypeCode::TUPLE_PAIR2 as u8 + TypeCode::SSIGMAPROP as u8,
-
-    TUPLE = (TypeCode::MAX_PRIM_TYPECODE + 1) * 8,
-
-    TUPLE_TRIPLE = Self::TUPLE_PAIR2,
-
-    TUPLE_QUADRUPLE = Self::TUPLE_PAIR_SYMMETRIC,
 
     OPTION = (TypeCode::MAX_PRIM_TYPECODE + 1) * TypeCode::OPTION_CONSTR_ID, // 12 * 3 = 36
     OPTION_BOOL = TypeCode::OPTION as u8 + TypeCode::SBOOLEAN as u8,         // 37
@@ -105,14 +58,60 @@ pub enum TypeCode {
     OPTION_GROUP_ELEMENT = TypeCode::OPTION as u8 + TypeCode::SGROUP_ELEMENT as u8, // 43
     OPTION_SIGMAPROP = TypeCode::OPTION as u8 + TypeCode::SSIGMAPROP as u8,  // 44
 
-    OPTION_COLL_BOOL = TypeCode::OPTION_COLLECTION as u8 + TypeCode::SBOOLEAN as u8,
-    OPTION_COLL_BYTE = TypeCode::OPTION_COLLECTION as u8 + TypeCode::SBYTE as u8,
-    OPTION_COLL_SHORT = TypeCode::OPTION_COLLECTION as u8 + TypeCode::SSHORT as u8,
-    OPTION_COLL_INT = TypeCode::OPTION_COLLECTION as u8 + TypeCode::SINT as u8,
-    OPTION_COLL_LONG = TypeCode::OPTION_COLLECTION as u8 + TypeCode::SLONG as u8,
-    OPTION_COLL_BIGINT = TypeCode::OPTION_COLLECTION as u8 + TypeCode::SBIGINT as u8,
-    OPTION_COLL_GROUP_ELEMENT = TypeCode::OPTION_COLLECTION as u8 + TypeCode::SGROUP_ELEMENT as u8,
-    OPTION_COLL_SIGMAPROP = TypeCode::OPTION_COLLECTION as u8 + TypeCode::SSIGMAPROP as u8,
+    OPTION_COLL_BOOL = TypeCode::OPTION_COLLECTION as u8 + TypeCode::SBOOLEAN as u8, // 49
+    OPTION_COLL_BYTE = TypeCode::OPTION_COLLECTION as u8 + TypeCode::SBYTE as u8,    // 50
+    OPTION_COLL_SHORT = TypeCode::OPTION_COLLECTION as u8 + TypeCode::SSHORT as u8,  // 51
+    OPTION_COLL_INT = TypeCode::OPTION_COLLECTION as u8 + TypeCode::SINT as u8,      // 52
+    OPTION_COLL_LONG = TypeCode::OPTION_COLLECTION as u8 + TypeCode::SLONG as u8,    // 53
+    OPTION_COLL_BIGINT = TypeCode::OPTION_COLLECTION as u8 + TypeCode::SBIGINT as u8, // 54
+    OPTION_COLL_GROUP_ELEMENT = TypeCode::OPTION_COLLECTION as u8 + TypeCode::SGROUP_ELEMENT as u8, // 55
+    OPTION_COLL_SIGMAPROP = TypeCode::OPTION_COLLECTION as u8 + TypeCode::SSIGMAPROP as u8, // 56
+
+    TUPLE_PAIR1 = (TypeCode::MAX_PRIM_TYPECODE + 1) * TypeCode::TUPLE_PAIR1_CONSTR_ID, // 12 * 5 = 60
+    TUPLE_PAIR1_BOOL = TypeCode::TUPLE_PAIR1 as u8 + TypeCode::SBOOLEAN as u8,         // 61
+    TUPLE_PAIR1_BYTE = TypeCode::TUPLE_PAIR1 as u8 + TypeCode::SBYTE as u8,            // 62
+    TUPLE_PAIR1_SHORT = TypeCode::TUPLE_PAIR1 as u8 + TypeCode::SSHORT as u8,          // 63
+    TUPLE_PAIR1_INT = TypeCode::TUPLE_PAIR1 as u8 + TypeCode::SINT as u8,              // 64
+    TUPLE_PAIR1_LONG = TypeCode::TUPLE_PAIR1 as u8 + TypeCode::SLONG as u8,            // 65
+    TUPLE_PAIR1_BIGINT = TypeCode::TUPLE_PAIR1 as u8 + TypeCode::SBIGINT as u8,        // 66
+    TUPLE_PAIR1_GROUP_ELEMENT = TypeCode::TUPLE_PAIR1 as u8 + TypeCode::SGROUP_ELEMENT as u8, // 67
+    TUPLE_PAIR1_SIGMAPROP = TypeCode::TUPLE_PAIR1 as u8 + TypeCode::SSIGMAPROP as u8,  // 68
+
+    TUPLE_TRIPLE = Self::TUPLE_PAIR2, // 72
+
+    TUPLE_PAIR2_BOOL = TypeCode::TUPLE_PAIR2 as u8 + TypeCode::SBOOLEAN as u8, // 73
+    TUPLE_PAIR2_BYTE = TypeCode::TUPLE_PAIR2 as u8 + TypeCode::SBYTE as u8,    // 74
+    TUPLE_PAIR2_SHORT = TypeCode::TUPLE_PAIR2 as u8 + TypeCode::SSHORT as u8,  // 75
+    TUPLE_PAIR2_INT = TypeCode::TUPLE_PAIR2 as u8 + TypeCode::SINT as u8,      // 76
+    TUPLE_PAIR2_LONG = TypeCode::TUPLE_PAIR2 as u8 + TypeCode::SLONG as u8,    // 77
+    TUPLE_PAIR2_BIGINT = TypeCode::TUPLE_PAIR2 as u8 + TypeCode::SBIGINT as u8, // 78
+    TUPLE_PAIR2_GROUP_ELEMENT = TypeCode::TUPLE_PAIR2 as u8 + TypeCode::SGROUP_ELEMENT as u8, // 79
+    TUPLE_PAIR2_SIGMAPROP = TypeCode::TUPLE_PAIR2 as u8 + TypeCode::SSIGMAPROP as u8, // 80
+
+    TUPLE_QUADRUPLE = Self::TUPLE_PAIR_SYMMETRIC, // 84
+
+    TUPLE_PAIR_SYMMETRIC_BOOL = TypeCode::TUPLE_PAIR_SYMMETRIC as u8 + TypeCode::SBOOLEAN as u8, // 85
+    TUPLE_PAIR_SYMMETRIC_BYTE = TypeCode::TUPLE_PAIR_SYMMETRIC as u8 + TypeCode::SBYTE as u8, // 86
+    TUPLE_PAIR_SYMMETRIC_SHORT = TypeCode::TUPLE_PAIR_SYMMETRIC as u8 + TypeCode::SSHORT as u8, // 87
+    TUPLE_PAIR_SYMMETRIC_INT = TypeCode::TUPLE_PAIR_SYMMETRIC as u8 + TypeCode::SINT as u8, // 88
+    TUPLE_PAIR_SYMMETRIC_LONG = TypeCode::TUPLE_PAIR_SYMMETRIC as u8 + TypeCode::SLONG as u8, // 89
+    TUPLE_PAIR_SYMMETRIC_BIGINT = TypeCode::TUPLE_PAIR_SYMMETRIC as u8 + TypeCode::SBIGINT as u8, // 90
+    TUPLE_PAIR_SYMMETRIC_GROUP_ELEMENT =
+        TypeCode::TUPLE_PAIR_SYMMETRIC as u8 + TypeCode::SGROUP_ELEMENT as u8, // 91
+    TUPLE_PAIR_SYMMETRIC_SIGMAPROP =
+        TypeCode::TUPLE_PAIR_SYMMETRIC as u8 + TypeCode::SSIGMAPROP as u8, // 92
+
+    TUPLE = (TypeCode::MAX_PRIM_TYPECODE + 1) * 8, // 12 * 8 = 96
+
+    SANY = 97,
+    SBOX = 99,
+    SAVL_TREE = 100,
+    SCONTEXT = 101,
+    // SSTRING = 102,
+    STYPE_VAR = 103,
+    SHEADER = 104,
+    SPRE_HEADER = 105,
+    SGLOBAL = 106,
 }
 
 impl TypeCode {
@@ -128,8 +127,6 @@ impl TypeCode {
 
     /// Upper limit of the interval of valid type codes for primitive types
     const MAX_PRIM_TYPECODE: u8 = 11;
-    #[allow(dead_code)]
-    const PRIM_RANGE: u8 = (TypeCode::MAX_PRIM_TYPECODE + 1);
 
     const COLLECTION_CONSTR_ID: u8 = 1;
 
@@ -137,25 +134,25 @@ impl TypeCode {
     const NESTED_COLL: u8 =
         (TypeCode::MAX_PRIM_TYPECODE + 1) * TypeCode::NESTED_COLLECTION_CONSTS_ID; // 12 * 2 = 24
 
-    const TUPLE_PAIR1_CONSTR_ID: u8 = 5;
-
-    const TUPLE_PAIR2_CONSTR_ID: u8 = 6;
-    const TUPLE_PAIR2: u8 = (TypeCode::MAX_PRIM_TYPECODE + 1) * TypeCode::TUPLE_PAIR2_CONSTR_ID;
-
-    const TUPLE_PAIR_SYMMETRIC_TYPE_CONSTR_ID: u8 = 7;
-    const TUPLE_PAIR_SYMMETRIC: u8 =
-        (TypeCode::MAX_PRIM_TYPECODE + 1) * TypeCode::TUPLE_PAIR_SYMMETRIC_TYPE_CONSTR_ID;
-
     const OPTION_CONSTR_ID: u8 = 3;
     const OPTION_COLLECTION_TYPE_CONSTR_ID: u8 = 4;
     const OPTION_COLLECTION: u8 =
-        (TypeCode::MAX_PRIM_TYPECODE + 1) * TypeCode::OPTION_COLLECTION_TYPE_CONSTR_ID;
+        (TypeCode::MAX_PRIM_TYPECODE + 1) * TypeCode::OPTION_COLLECTION_TYPE_CONSTR_ID; // 12 * 4 = 48
+
+    const TUPLE_PAIR1_CONSTR_ID: u8 = 5;
+
+    const TUPLE_PAIR2_CONSTR_ID: u8 = 6;
+    const TUPLE_PAIR2: u8 = (TypeCode::MAX_PRIM_TYPECODE + 1) * TypeCode::TUPLE_PAIR2_CONSTR_ID; // 12 * 6 = 72
+
+    const TUPLE_PAIR_SYMMETRIC_TYPE_CONSTR_ID: u8 = 7;
+    const TUPLE_PAIR_SYMMETRIC: u8 =
+        (TypeCode::MAX_PRIM_TYPECODE + 1) * TypeCode::TUPLE_PAIR_SYMMETRIC_TYPE_CONSTR_ID; // 12 * 7 = 84
 
     /// Parse type code from byte
     pub(crate) fn parse(b: u8) -> Result<Self, SigmaParsingError> {
         match FromPrimitive::from_u8(b) {
             Some(t) => Ok(t),
-            None => Err(SigmaParsingError::InvalidTypeCode(b)), // 0 =>
+            None => Err(SigmaParsingError::InvalidTypeCode(b)),
         }
     }
 
@@ -194,26 +191,7 @@ impl SType {
             TypeCode::SGROUP_ELEMENT => SGroupElement,
             TypeCode::SSIGMAPROP => SSigmaProp,
 
-            TypeCode::OPTION_BOOL => SOption(SBoolean.into()),
-            TypeCode::OPTION_BYTE => SOption(SByte.into()),
-            TypeCode::OPTION_SHORT => SOption(SShort.into()),
-            TypeCode::OPTION_INT => SOption(SInt.into()),
-            TypeCode::OPTION_LONG => SOption(SLong.into()),
-            TypeCode::OPTION_BIGINT => SOption(SBigInt.into()),
-            TypeCode::OPTION_GROUP_ELEMENT => SOption(SGroupElement.into()),
-            TypeCode::OPTION_SIGMAPROP => SOption(SSigmaProp.into()),
-
-            TypeCode::OPTION_COLL_BOOL => SOption(SColl(SBoolean.into()).into()),
-            TypeCode::OPTION_COLL_BYTE => SOption(SColl(SByte.into()).into()),
-            TypeCode::OPTION_COLL_SHORT => SOption(SColl(SShort.into()).into()),
-            TypeCode::OPTION_COLL_INT => SOption(SColl(SInt.into()).into()),
-            TypeCode::OPTION_COLL_LONG => SOption(SColl(SLong.into()).into()),
-            TypeCode::OPTION_COLL_BIGINT => SOption(SColl(SBigInt.into()).into()),
-            TypeCode::OPTION_COLL_GROUP_ELEMENT => SOption(SColl(SGroupElement.into()).into()),
-            TypeCode::OPTION_COLL_SIGMAPROP => SOption(SColl(SSigmaProp.into()).into()),
-
-            TypeCode::OPTION => SOption(SType::sigma_parse(r)?.into()),
-
+            TypeCode::COLL => SColl(SType::sigma_parse(r)?.into()),
             TypeCode::COLL_BOOL => SColl(SBoolean.into()),
             TypeCode::COLL_BYTE => SColl(SByte.into()),
             TypeCode::COLL_SHORT => SColl(SShort.into()),
@@ -232,21 +210,29 @@ impl SType {
             TypeCode::NESTED_COLL_GROUP_ELEMENT => SColl(SColl(SGroupElement.into()).into()),
             TypeCode::NESTED_COLL_SIGMAPROP => SColl(SColl(SSigmaProp.into()).into()),
 
-            TypeCode::COLL => SColl(SType::sigma_parse(r)?.into()),
+            TypeCode::OPTION => SOption(SType::sigma_parse(r)?.into()),
+            TypeCode::OPTION_BOOL => SOption(SBoolean.into()),
+            TypeCode::OPTION_BYTE => SOption(SByte.into()),
+            TypeCode::OPTION_SHORT => SOption(SShort.into()),
+            TypeCode::OPTION_INT => SOption(SInt.into()),
+            TypeCode::OPTION_LONG => SOption(SLong.into()),
+            TypeCode::OPTION_BIGINT => SOption(SBigInt.into()),
+            TypeCode::OPTION_GROUP_ELEMENT => SOption(SGroupElement.into()),
+            TypeCode::OPTION_SIGMAPROP => SOption(SSigmaProp.into()),
 
-            TypeCode::TUPLE_PAIR_SYMMETRIC_BOOL => STuple(stuple::STuple::pair(SBoolean, SBoolean)),
-            TypeCode::TUPLE_PAIR_SYMMETRIC_BYTE => STuple(stuple::STuple::pair(SByte, SByte)),
-            TypeCode::TUPLE_PAIR_SYMMETRIC_SHORT => STuple(stuple::STuple::pair(SShort, SShort)),
-            TypeCode::TUPLE_PAIR_SYMMETRIC_INT => STuple(stuple::STuple::pair(SInt, SInt)),
-            TypeCode::TUPLE_PAIR_SYMMETRIC_LONG => STuple(stuple::STuple::pair(SLong, SLong)),
-            TypeCode::TUPLE_PAIR_SYMMETRIC_BIGINT => STuple(stuple::STuple::pair(SBigInt, SBigInt)),
-            TypeCode::TUPLE_PAIR_SYMMETRIC_GROUP_ELEMENT => {
-                STuple(stuple::STuple::pair(SGroupElement, SGroupElement))
-            }
-            TypeCode::TUPLE_PAIR_SYMMETRIC_SIGMAPROP => {
-                STuple(stuple::STuple::pair(SSigmaProp, SSigmaProp))
-            }
+            TypeCode::OPTION_COLL_BOOL => SOption(SColl(SBoolean.into()).into()),
+            TypeCode::OPTION_COLL_BYTE => SOption(SColl(SByte.into()).into()),
+            TypeCode::OPTION_COLL_SHORT => SOption(SColl(SShort.into()).into()),
+            TypeCode::OPTION_COLL_INT => SOption(SColl(SInt.into()).into()),
+            TypeCode::OPTION_COLL_LONG => SOption(SColl(SLong.into()).into()),
+            TypeCode::OPTION_COLL_BIGINT => SOption(SColl(SBigInt.into()).into()),
+            TypeCode::OPTION_COLL_GROUP_ELEMENT => SOption(SColl(SGroupElement.into()).into()),
+            TypeCode::OPTION_COLL_SIGMAPROP => SOption(SColl(SSigmaProp.into()).into()),
 
+            TypeCode::TUPLE_PAIR1 => STuple(stuple::STuple::pair(
+                SType::sigma_parse(r)?,
+                SType::sigma_parse(r)?,
+            )),
             TypeCode::TUPLE_PAIR1_BOOL => {
                 STuple(stuple::STuple::pair(SBoolean, SType::sigma_parse(r)?))
             }
@@ -269,6 +255,12 @@ impl SType {
             TypeCode::TUPLE_PAIR1_SIGMAPROP => {
                 STuple(stuple::STuple::pair(SSigmaProp, SType::sigma_parse(r)?))
             }
+
+            TypeCode::TUPLE_TRIPLE => STuple(stuple::STuple::triple(
+                SType::sigma_parse(r)?,
+                SType::sigma_parse(r)?,
+                SType::sigma_parse(r)?,
+            )),
 
             TypeCode::TUPLE_PAIR2_BOOL => {
                 STuple(stuple::STuple::pair(SType::sigma_parse(r)?, SBoolean))
@@ -293,23 +285,25 @@ impl SType {
                 STuple(stuple::STuple::pair(SType::sigma_parse(r)?, SSigmaProp))
             }
 
-            TypeCode::TUPLE_PAIR1 => STuple(stuple::STuple::pair(
-                SType::sigma_parse(r)?,
-                SType::sigma_parse(r)?,
-            )),
-
-            TypeCode::TUPLE_TRIPLE => STuple(stuple::STuple::triple(
-                SType::sigma_parse(r)?,
-                SType::sigma_parse(r)?,
-                SType::sigma_parse(r)?,
-            )),
-
             TypeCode::TUPLE_QUADRUPLE => STuple(stuple::STuple::quadruple(
                 SType::sigma_parse(r)?,
                 SType::sigma_parse(r)?,
                 SType::sigma_parse(r)?,
                 SType::sigma_parse(r)?,
             )),
+
+            TypeCode::TUPLE_PAIR_SYMMETRIC_BOOL => STuple(stuple::STuple::pair(SBoolean, SBoolean)),
+            TypeCode::TUPLE_PAIR_SYMMETRIC_BYTE => STuple(stuple::STuple::pair(SByte, SByte)),
+            TypeCode::TUPLE_PAIR_SYMMETRIC_SHORT => STuple(stuple::STuple::pair(SShort, SShort)),
+            TypeCode::TUPLE_PAIR_SYMMETRIC_INT => STuple(stuple::STuple::pair(SInt, SInt)),
+            TypeCode::TUPLE_PAIR_SYMMETRIC_LONG => STuple(stuple::STuple::pair(SLong, SLong)),
+            TypeCode::TUPLE_PAIR_SYMMETRIC_BIGINT => STuple(stuple::STuple::pair(SBigInt, SBigInt)),
+            TypeCode::TUPLE_PAIR_SYMMETRIC_GROUP_ELEMENT => {
+                STuple(stuple::STuple::pair(SGroupElement, SGroupElement))
+            }
+            TypeCode::TUPLE_PAIR_SYMMETRIC_SIGMAPROP => {
+                STuple(stuple::STuple::pair(SSigmaProp, SSigmaProp))
+            }
 
             TypeCode::TUPLE => {
                 let len = r.get_u8()?;
