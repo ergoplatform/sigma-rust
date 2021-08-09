@@ -7,7 +7,6 @@ use impl_trait_for_tuples::impl_for_tuples;
 
 use crate::bigint256::BigInt256;
 use crate::ir_ergo_box::IrBoxId;
-use crate::serialization::types::TypeCode;
 use crate::sigma_protocol::dlog_group::EcPoint;
 use crate::sigma_protocol::sigma_boolean::SigmaBoolean;
 use crate::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
@@ -64,32 +63,6 @@ pub enum SType {
 }
 
 impl SType {
-    /// Type code used in serialization of SType values.
-    pub fn type_code(&self) -> TypeCode {
-        match self {
-            SType::SFunc(_) => TypeCode::FIRST_FUNC_TYPE,
-            SType::SAny => TypeCode::SANY,
-            SType::SBoolean => TypeCode::SBOOLEAN,
-            SType::SByte => TypeCode::SBYTE,
-            SType::SShort => TypeCode::SSHORT,
-            SType::SInt => TypeCode::SINT,
-            SType::SLong => TypeCode::SLONG,
-            SType::SBigInt => TypeCode::SBIGINT,
-            SType::SGroupElement => TypeCode::SGROUP_ELEMENT,
-            SType::SSigmaProp => TypeCode::SSIGMAPROP,
-            SType::SBox => TypeCode::SBOX,
-            SType::SAvlTree => TypeCode::SAVL_TREE,
-            SType::SOption(_) => TypeCode::OPTION,
-            SType::SColl(_) => TypeCode::COLLECTION,
-            SType::STuple(_) => TypeCode::TUPLE,
-            SType::SContext => TypeCode::SCONTEXT,
-            SType::STypeVar(_) => TypeCode::STYPE_VAR,
-            SType::SHeader => TypeCode::SHEADER,
-            SType::SPreHeader => TypeCode::SPRE_HEADER,
-            SType::SGlobal => TypeCode::SGLOBAL,
-        }
-    }
-
     /// Check if type is numeric
     pub fn is_numeric(&self) -> bool {
         matches!(
@@ -294,7 +267,7 @@ pub(crate) mod tests {
                     16, // each collection max size
                     |elem| {
                         prop_oneof![
-                            prop::collection::vec(elem.clone(), 2..=4)
+                            prop::collection::vec(elem.clone(), 2..=5)
                                 .prop_map(|elems| SType::STuple(elems.try_into().unwrap())),
                             elem.clone().prop_map(|tpe| SType::SColl(Box::new(tpe))),
                             elem.prop_map(|tpe| SType::SOption(Box::new(tpe))),

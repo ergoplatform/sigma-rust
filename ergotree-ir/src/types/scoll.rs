@@ -12,7 +12,7 @@ use super::stype_param::STypeVar;
 use lazy_static::lazy_static;
 
 /// type id
-pub const TYPE_ID: TypeCode = TypeCode::COLLECTION;
+pub const TYPE_ID: TypeCode = TypeCode::COLL;
 /// Coll.indexOf
 pub const INDEX_OF_METHOD_ID: MethodId = MethodId(26);
 /// Coll.flatmap
