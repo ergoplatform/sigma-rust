@@ -21,6 +21,8 @@ pub const FLATMAP_METHOD_ID: MethodId = MethodId(15);
 pub const ZIP_METHOD_ID: MethodId = MethodId(14);
 /// Coll.indices
 pub const INDICES_METHOD_ID: MethodId = MethodId(29);
+/// Coll.indices
+pub const UPDATED_METHOD_ID: MethodId = MethodId(20);
 
 static S_COLL_TYPE_COMPANION_HEAD: STypeCompanionHead = STypeCompanionHead {
     type_id: TYPE_ID,
@@ -36,6 +38,7 @@ lazy_static! {
             &FLATMAP_METHOD_DESC,
             &ZIP_METHOD_DESC,
             &INDICES_METHOD_DESC,
+            &UPDATED_METHOD_DESC,
         ]
     );
 }
@@ -45,7 +48,10 @@ lazy_static! {
         method_id: INDEX_OF_METHOD_ID,
         name: "indexOf",
         tpe: SFunc {
-            t_dom: vec![SType::SColl(SType::STypeVar(STypeVar::t()).into()), STypeVar::t().into(), SType::SInt],
+            t_dom: vec![
+                SType::SColl(SType::STypeVar(STypeVar::t()).into()),
+                STypeVar::t().into(),
+                SType::SInt],
             t_range: SType::SInt.into(),
             tpe_params: vec![],
         },
@@ -106,6 +112,24 @@ lazy_static! {
     pub static ref INDICES_METHOD: SMethod = SMethod::new(&S_COLL_TYPE_COMPANION, INDICES_METHOD_DESC.clone());
 }
 
+lazy_static! {
+    static ref UPDATED_METHOD_DESC: SMethodDesc = SMethodDesc {
+        method_id: UPDATED_METHOD_ID,
+        name: "updated",
+        tpe: SFunc::new(
+            vec![
+                SType::SColl(SType::STypeVar(STypeVar::t()).into()),
+                SType::SInt,
+                SType::STypeVar(STypeVar::t())
+
+            ],
+            SType::SColl(SType::STypeVar(STypeVar::t()).into())
+        )
+    };
+    /// Coll.updated
+    pub static ref UPDATED_METHOD: SMethod = SMethod::new(&S_COLL_TYPE_COMPANION, UPDATED_METHOD_DESC.clone());
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -116,5 +140,6 @@ mod tests {
         assert!(SMethod::from_ids(TYPE_ID, FLATMAP_METHOD_ID).map(|e| e.name()) == Ok("flatMap"));
         assert!(SMethod::from_ids(TYPE_ID, ZIP_METHOD_ID).map(|e| e.name()) == Ok("zip"));
         assert!(SMethod::from_ids(TYPE_ID, INDICES_METHOD_ID).map(|e| e.name()) == Ok("indices"));
+        assert!(SMethod::from_ids(TYPE_ID, UPDATED_METHOD_ID).map(|e| e.name()) == Ok("updated"));
     }
 }
