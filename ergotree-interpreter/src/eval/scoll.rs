@@ -5,8 +5,10 @@ use ergotree_ir::mir::constant::TryExtractInto;
 use ergotree_ir::mir::value::CollKind;
 use ergotree_ir::mir::value::Value;
 use ergotree_ir::types::stuple::STuple;
+use ergotree_ir::types::stype::SType::SInt;
 
 use super::EvalFn;
+use std::convert::TryFrom;
 
 pub(crate) static INDEX_OF_EVAL_FN: EvalFn = |_env, _ctx, obj, args| {
     Ok(Value::Int({
@@ -122,6 +124,66 @@ pub(crate) static ZIP_EVAL_FN: EvalFn = |_env, _ctx, obj, args| {
     }
 };
 
+pub(crate) static INDICES_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
+    let normalized_input_vals: Vec<Value> = match obj {
+        Value::Coll(coll) => Ok(coll.as_vec()),
+        _ => Err(EvalError::UnexpectedValue(format!(
+            "expected obj to be Value::Coll, got: {0:?}",
+            obj
+        ))),
+    }?;
+    let indices_i32 = normalized_input_vals
+        .into_iter()
+        .enumerate()
+        .map(|(i, _)| i32::try_from(i))
+        .collect::<Result<Vec<i32>, _>>();
+    let indices_val =
+        indices_i32.map(|vec_i32| vec_i32.into_iter().map(Value::Int).collect::<Vec<Value>>());
+    match indices_val {
+        Ok(vec_val) => match CollKind::from_vec(SInt, vec_val) {
+            Ok(coll) => Ok(Value::Coll(coll)),
+            Err(e) => Err(EvalError::TryExtractFrom(e)),
+        },
+        Err(e) => Err(EvalError::UnexpectedValue(format!(
+            "Coll length overflow: {0:?}",
+            e
+        ))),
+    }
+};
+
+pub(crate) static UPDATED_EVAL_FN: EvalFn = |_env, _ctx, obj, args| {
+    let (input_tpe, normalized_input_vals) = match obj {
+        Value::Coll(coll) => Ok((coll.elem_tpe().clone(), coll.as_vec())),
+        _ => Err(EvalError::UnexpectedValue(format!(
+            "expected obj to be Value::Coll, got: {0:?}",
+            obj
+        ))),
+    }?;
+
+    let target_index_val = args
+        .get(0)
+        .cloned()
+        .ok_or_else(|| EvalError::NotFound("updated: missing first arg (index)".to_string()))?;
+    let update_val = args
+        .get(1)
+        .cloned()
+        .ok_or_else(|| EvalError::NotFound("updated: missing second arg (update)".to_string()))?;
+
+    let target_index_usize = target_index_val.clone().try_extract_into::<i32>()? as usize;
+    let mut res = normalized_input_vals;
+
+    match res.get_mut(target_index_usize) {
+        Some(elem) => {
+            *elem = update_val;
+            Ok(Value::Coll(CollKind::from_vec(input_tpe, res)?))
+        }
+        None => Err(EvalError::UnexpectedValue(format!(
+            "updated: target index out of bounds, got: {:?}",
+            target_index_val
+        ))),
+    }
+};
+
 #[allow(clippy::unwrap_used)]
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
@@ -139,7 +201,7 @@ mod tests {
     use ergotree_ir::types::stype::SType;
     use ergotree_ir::types::stype_param::STypeVar;
 
-    use crate::eval::tests::eval_out_wo_ctx;
+    use crate::eval::tests::{eval_out_wo_ctx, try_eval_out_wo_ctx};
     use ergotree_ir::types::stype::SType::SBoolean;
 
     #[test]
@@ -351,5 +413,68 @@ mod tests {
         .into();
         let res = eval_out_wo_ctx::<Vec<(i64, bool)>>(&expr);
         assert_eq!(res, vec![(1i64, true), (2, false)]);
+    }
+
+    #[test]
+    fn eval_indices() {
+        let coll_const: Constant = vec![1i64, 2i64, 3i64].into();
+        let expr: Expr = MethodCall::new(
+            coll_const.into(),
+            scoll::INDICES_METHOD
+                .clone()
+                .with_concrete_types(&[(STypeVar::t(), SType::SLong)].iter().cloned().collect()),
+            vec![],
+        )
+        .unwrap()
+        .into();
+        let res = eval_out_wo_ctx::<Vec<i32>>(&expr);
+        assert_eq!(res, vec![0i32, 1i32, 2i32]);
+    }
+
+    #[test]
+    fn eval_indices_empty_coll() {
+        let coll_const: Constant = Vec::<i64>::new().into();
+        let expr: Expr = MethodCall::new(
+            coll_const.into(),
+            scoll::INDICES_METHOD
+                .clone()
+                .with_concrete_types(&[(STypeVar::t(), SType::SLong)].iter().cloned().collect()),
+            vec![],
+        )
+        .unwrap()
+        .into();
+        let res = eval_out_wo_ctx::<Vec<i32>>(&expr);
+        assert_eq!(res, vec![]);
+    }
+
+    #[test]
+    fn eval_update() {
+        let coll_const: Constant = vec![1i64, 2i64, 3i64].into();
+        let expr: Expr = MethodCall::new(
+            coll_const.into(),
+            scoll::UPDATED_METHOD
+                .clone()
+                .with_concrete_types(&[(STypeVar::t(), SType::SLong)].iter().cloned().collect()),
+            vec![1i32.into(), 5i64.into()],
+        )
+        .unwrap()
+        .into();
+        let res = eval_out_wo_ctx::<Vec<i64>>(&expr);
+        assert_eq!(res, vec![1i64, 5i64, 3i64]);
+    }
+
+    #[test]
+    fn eval_update_oob() {
+        let coll_const: Constant = vec![1i64, 2i64, 3i64].into();
+        let expr: Expr = MethodCall::new(
+            coll_const.into(),
+            scoll::UPDATED_METHOD
+                .clone()
+                .with_concrete_types(&[(STypeVar::t(), SType::SLong)].iter().cloned().collect()),
+            vec![5i32.into(), 5i64.into()],
+        )
+        .unwrap()
+        .into();
+        assert!(try_eval_out_wo_ctx::<Vec<i64>>(&expr).is_err());
     }
 }
