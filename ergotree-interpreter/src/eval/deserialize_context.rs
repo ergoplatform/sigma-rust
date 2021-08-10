@@ -50,6 +50,24 @@ mod tests {
     use super::*;
 
     #[test]
+    fn eval() {
+        let expr: Expr = DeserializeContext {
+            tpe: SType::SBoolean,
+            id: 1,
+        }
+        .into();
+        let inner_expr: Expr = true.into();
+        let ctx_ext = ContextExtension {
+            values: [(1u8, inner_expr.sigma_serialize_bytes().unwrap().into())]
+                .iter()
+                .cloned()
+                .collect(),
+        };
+        let ctx = force_any_val::<Context>().with_extension(ctx_ext);
+        assert!(try_eval_out::<bool>(&expr, Rc::new(ctx)).unwrap());
+    }
+
+    #[test]
     fn eval_id_not_found() {
         let expr: Expr = DeserializeContext {
             tpe: SType::SBoolean,

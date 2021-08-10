@@ -23,13 +23,13 @@ impl IrErgoBoxArena for IrErgoBoxDummyArena {
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub(crate) struct IrErgoBoxDummy {
-    id: IrBoxId,
-    value: i64,
-    tokens: Vec<(Vec<i8>, i64)>,
-    additional_registers: Vec<Constant>,
-    creation_height: i32,
-    script_bytes: Vec<i8>,
-    creation_info: (i32, Vec<i8>),
+    pub(crate) id: IrBoxId,
+    pub(crate) value: i64,
+    pub(crate) tokens: Vec<(Vec<i8>, i64)>,
+    pub(crate) additional_registers: Vec<Constant>,
+    pub(crate) creation_height: i32,
+    pub(crate) script_bytes: Vec<i8>,
+    pub(crate) creation_info: (i32, Vec<i8>),
 }
 
 impl IrErgoBox for IrErgoBoxDummy {

@@ -1,4 +1,4 @@
-mod ir_ergo_box_dummy;
+pub(crate) mod ir_ergo_box_dummy;
 
 use std::rc::Rc;
 
