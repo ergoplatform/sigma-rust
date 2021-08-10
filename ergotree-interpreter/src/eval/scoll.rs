@@ -132,17 +132,22 @@ pub(crate) static INDICES_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
             obj
         ))),
     }?;
-    let indices = normalized_input_vals
+    let indices_i32 = normalized_input_vals
         .into_iter()
         .enumerate()
-        .flat_map(|(i, _)| i32::try_from(i))
-        .map(Value::Int)
-        .collect::<Vec<Value>>();
-    let coll_indices = CollKind::from_vec(SInt, indices);
-
-    match coll_indices {
-        Ok(coll) => Ok(Value::Coll(coll)),
-        Err(e) => Err(EvalError::TryExtractFrom(e)),
+        .map(|(i, _)| i32::try_from(i))
+        .collect::<Result<Vec<i32>, _>>();
+    let indices_val =
+        indices_i32.map(|vec_i32| vec_i32.into_iter().map(Value::Int).collect::<Vec<Value>>());
+    match indices_val {
+        Ok(vec_val) => match CollKind::from_vec(SInt, vec_val) {
+            Ok(coll) => Ok(Value::Coll(coll)),
+            Err(e) => Err(EvalError::TryExtractFrom(e)),
+        },
+        Err(e) => Err(EvalError::UnexpectedValue(format!(
+            "Coll length overflow: {0:?}",
+            e
+        ))),
     }
 };
 

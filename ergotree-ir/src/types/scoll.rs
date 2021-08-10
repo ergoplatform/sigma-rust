@@ -18,10 +18,10 @@ pub const INDEX_OF_METHOD_ID: MethodId = MethodId(26);
 /// Coll.flatmap
 pub const FLATMAP_METHOD_ID: MethodId = MethodId(15);
 /// Coll.zip
-pub const ZIP_METHOD_ID: MethodId = MethodId(14);
+pub const ZIP_METHOD_ID: MethodId = MethodId(29);
 /// Coll.indices
-pub const INDICES_METHOD_ID: MethodId = MethodId(29);
-/// Coll.indices
+pub const INDICES_METHOD_ID: MethodId = MethodId(14);
+/// Coll.updated
 pub const UPDATED_METHOD_ID: MethodId = MethodId(20);
 
 static S_COLL_TYPE_COMPANION_HEAD: STypeCompanionHead = STypeCompanionHead {
