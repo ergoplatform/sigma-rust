@@ -128,6 +128,16 @@ mod tests {
         let ctx = make_ctx_with_self_box(b.clone());
         assert!(try_eval_out::<Value>(&expr, Rc::new(ctx)).is_err());
 
+        // default with wrong type provided
+        let expr: Expr = DeserializeRegister {
+            reg: 5,
+            tpe: SType::SInt,
+            default: Some(Box::new(true.into())),
+        }
+        .into();
+        let ctx = make_ctx_with_self_box(b.clone());
+        assert!(try_eval_out::<i32>(&expr, Rc::new(ctx)).is_err());
+
         // default provided
         let expr: Expr = DeserializeRegister {
             reg: 5,
