@@ -44,7 +44,6 @@ mod tests {
 
     use crate::eval::context::Context;
     use crate::eval::tests::try_eval_out;
-    use crate::eval::tests::try_eval_out_wo_ctx;
     use crate::sigma_protocol::prover::ContextExtension;
 
     use super::*;
@@ -74,8 +73,8 @@ mod tests {
             id: 1,
         }
         .into();
-
-        assert!(try_eval_out_wo_ctx::<bool>(&expr).is_err());
+        let ctx = force_any_val::<Context>().with_extension(ContextExtension::empty());
+        assert!(try_eval_out::<bool>(&expr, Rc::new(ctx)).is_err());
     }
 
     #[test]
