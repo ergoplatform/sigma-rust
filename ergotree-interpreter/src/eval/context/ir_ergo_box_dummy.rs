@@ -55,7 +55,7 @@ impl IrErgoBox for IrErgoBoxDummy {
             1 => Some(self.script_bytes.clone().into()),
             2 => Some(self.tokens.clone().into()),
             3 => Some(self.creation_info.clone().into()),
-            _ => self.additional_registers.get(id as usize).cloned(),
+            _ => self.additional_registers.get(id as usize - 4).cloned(),
         }
     }
 
