@@ -1,4 +1,4 @@
-mod ir_ergo_box_dummy;
+pub(crate) mod ir_ergo_box_dummy;
 
 use std::rc::Rc;
 
@@ -26,6 +26,16 @@ pub struct Context {
     pub pre_header: PreHeader,
     /// prover-defined key-value pairs, that may be used inside a script
     pub extension: ContextExtension,
+}
+
+impl Context {
+    /// Return a new Context with given context extension
+    pub fn with_extension(self, ext: ContextExtension) -> Self {
+        Context {
+            extension: ext,
+            ..self
+        }
+    }
 }
 
 #[cfg(feature = "arbitrary")]

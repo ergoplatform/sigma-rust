@@ -10,15 +10,14 @@ use crate::serialization::SigmaSerializable;
 use crate::serialization::SigmaSerializeResult;
 use crate::types::stype::SType;
 
-/// Extract register of SELF box as `Coll[Byte]`, deserialize it into
-/// Value and inline into executing script.
+/// Extract register of SELF box as `Coll[Byte]`, deserialize and execute Expr out of it
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct DeserializeRegister {
-    /// Register number
+    /// Register number (0 .. =9 for R0-R9 registers)
     pub reg: u8,
-    /// Type of value in register
+    /// Type of expression serialized in register
     pub tpe: SType,
-    /// Default value
+    /// Default value (expression that would be executed if register is empty)
     pub default: Option<Box<Expr>>,
 }
 impl DeserializeRegister {
