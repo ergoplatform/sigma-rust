@@ -13,8 +13,7 @@ crate-type = ["staticlib", "cdylib"]
 path = "src/main/rust/lib.rs"
 
 [dependencies]
-jni = "0.17.0"
-failure = "0.1"
+jni = "0.19.0"
 log = "0.4"
 ergo-lib = {version = "^0.13.0", path = "../../ergo-lib"}
 ergo-lib-c-core = {version = "^0.13.0", path = "../ergo-lib-c-core"}

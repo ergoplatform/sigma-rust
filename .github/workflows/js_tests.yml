@@ -12,7 +12,7 @@ on:
 
 jobs:
   js_tests:
-    name: run JS tests
+    name: run JS tests and publish alpha versions
     runs-on: ubuntu-latest
     env:
       HAS_NPM_TOKEN: ${{ secrets.NPM_TOKEN != '' }}
