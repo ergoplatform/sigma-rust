@@ -12,12 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use failure::Error;
 use jni::JNIEnv;
 use std::any::Any;
 use std::thread;
 
-type ExceptionResult<T> = thread::Result<Result<T, Error>>;
+type ExceptionResult<T> = thread::Result<Result<T, jni::errors::Error>>;
 
 // Returns value or "throws" exception. `error_val` is returned, because exception will be thrown
 // at the Java side. So this function should be used only for the `panic::catch_unwind` result.
@@ -57,18 +56,12 @@ fn throw(env: &JNIEnv, description: &str) {
     let exception = match env.find_class("java/lang/RuntimeException") {
         Ok(val) => val,
         Err(e) => {
-            error!(
-                "Unable to find 'RuntimeException' class: {}",
-                e.description()
-            );
+            error!("Unable to find 'RuntimeException' class: {:?}", e);
             return;
         }
     };
     if let Err(e) = env.throw_new(exception, description) {
-        error!(
-            "Unable to find 'RuntimeException' class: {}",
-            e.description()
-        );
+        error!("Unable to find 'RuntimeException' class: {:?}", e);
     }
 }
 
