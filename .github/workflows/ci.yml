@@ -28,7 +28,7 @@ jobs:
           args: --no-default-features --manifest-path ergo-lib/Cargo.toml
 
   test:
-    name: Run tests on ${{ matrix.os }}
+    name: Tests on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
