@@ -2,16 +2,6 @@ name: Security audit
 
 on:
   push:
-    branches:
-      - master
-      - develop
-    paths: 
-      - '**/Cargo.toml'
-      - '**/Cargo.lock'
-  pull_request:
-    types:
-      - opened
-      - synchronize
     paths: 
       - '**/Cargo.toml'
       - '**/Cargo.lock'
