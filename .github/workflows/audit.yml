@@ -1,28 +1,26 @@
-name: cargo audit 
+name: Security audit 
 
 on:
   push:
     branches:
       - master
       - develop
+    paths: 
+      - '**/Cargo.toml'
+      - '**/Cargo.lock'
   pull_request:
     types:
       - opened
       - synchronize
+    paths: 
+      - '**/Cargo.toml'
+      - '**/Cargo.lock'
 
 jobs:
-  audit:
-    name: cargo audit
+  security_audit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v1
+      - uses: actions-rs/audit-check@v1
         with:
-          toolchain: stable
-          components: audit
-          override: true
-      - name: cargo audit
-        uses: actions-rs/cargo@v1
-        with:
-          command: audit
-          args: -deny warnings
+          token: ${{ secrets.GITHUB_TOKEN }}
