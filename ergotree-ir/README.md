@@ -94,7 +94,6 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 #### Collection
 
 - patch
-- updateMany
 
 #### Option
 
@@ -200,6 +199,7 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 - zip [#329](https://github.com/ergoplatform/sigma-rust/issues/329)
 - indices [#314](https://github.com/ergoplatform/sigma-rust/issues/314)
 - updated [#358](https://github.com/ergoplatform/sigma-rust/issues/358)
+- updateMany [#359](https://github.com/ergoplatform/sigma-rust/issues/359)
 
 #### Option
 

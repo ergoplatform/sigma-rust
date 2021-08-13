@@ -210,6 +210,7 @@ fn smethod_eval_fn(method: &SMethod) -> Result<EvalFn, EvalError> {
             scoll::ZIP_METHOD_ID => self::scoll::ZIP_EVAL_FN,
             scoll::INDICES_METHOD_ID => self::scoll::INDICES_EVAL_FN,
             scoll::UPDATED_METHOD_ID => self::scoll::UPDATED_EVAL_FN,
+            scoll::UPDATE_MANY_METHOD_ID => self::scoll::UPDATE_MANY_EVAL_FN,
             method_id => {
                 return Err(EvalError::NotFound(format!(
                     "Eval fn: unknown method id in SCollection: {:?}",
