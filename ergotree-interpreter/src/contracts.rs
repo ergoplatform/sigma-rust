@@ -161,7 +161,7 @@ mod tests {
         let encoder = AddressEncoder::new(NetworkPrefix::Mainnet);
         let addr = encoder.parse_address_from_str(p2s_addr_str).unwrap();
         let script: Rc<Expr> = addr.script().unwrap().proposition().unwrap();
-        dbg!(&script);
+        // dbg!(&script);
         let res: bool = eval_out_wo_ctx::<SigmaProp>(script.as_ref())
             .try_into()
             .unwrap();
@@ -174,8 +174,8 @@ mod tests {
         let p2s_addr_str = "MUbV38YgqHy7XbsoXWF5z7EZm524Ybdwe5p9WDrbhruZRtehkRPT92imXer2eTkjwPDfboa1pR3zb3deVKVq3H7Xt98qcTqLuSBSbHb7izzo5jphEpcnqyKJ2xhmpNPVvmtbdJNdvdopPrHHDBbAGGeW7XYTQwEeoRfosXzcDtiGgw97b2aqjTsNFmZk7khBEQywjYfmoDc9nUCJMZ3vbSspnYo3LarLe55mh2Np8MNJqUN9APA6XkhZCrTTDRZb1B4krgFY1sVMswg2ceqguZRvC9pqt3tUUxmSnB24N6dowfVJKhLXwHPbrkHViBv1AKAJTmEaQW2DN1fRmD9ypXxZk8GXmYtxTtrj3BiunQ4qzUCu1eGzxSREjpkFSi2ATLSSDqUwxtRz639sHM6Lav4axoJNPCHbY8pvuBKUxgnGRex8LEGM8DeEJwaJCaoy8dBw9Lz49nq5mSsXLeoC4xpTUmp47Bh7GAZtwkaNreCu74m9rcZ8Di4w1cmdsiK1NWuDh9pJ2Bv7u3EfcurHFVqCkT3P86JUbKnXeNxCypfrWsFuYNKYqmjsix82g9vWcGMmAcu5nagxD4iET86iE2tMMfZZ5vqZNvntQswJyQqv2Wc6MTh4jQx1q2qJZCQe4QdEK63meTGbZNNKMctHQbp3gRkZYNrBtxQyVtNLR8xEY8zGp85GeQKbb37vqLXxRpGiigAdMe3XZA4hhYPmAAU5hpSMYaRAjtvvMT3bNiHRACGrfjvSsEG9G2zY5in2YWz5X9zXQLGTYRsQ4uNFkYoQRCBdjNxGv6R58Xq74zCgt19TxYZ87gPWxkXpWwTaHogG1eps8WXt8QzwJ9rVx6Vu9a5GjtcGsQxHovWmYixgBU8X9fPNJ9UQhYyAWbjtRSuVBtDAmoV1gCBEPwnYVP5GCGhCocbwoYhZkZjFZy6ws4uxVLid3FxuvhWvQrVEDYp7WRvGXbNdCbcSXnbeTrPMey1WPaXX";
         let encoder = AddressEncoder::new(NetworkPrefix::Mainnet);
         let addr = encoder.parse_address_from_str(p2s_addr_str).unwrap();
-        let script: Rc<Expr> = addr.script().unwrap().proposition().unwrap();
-        dbg!(&script);
+        let _script: Rc<Expr> = addr.script().unwrap().proposition().unwrap();
+        // dbg!(&script);
         // let res: bool = eval_out_wo_ctx::<SigmaProp>(script.as_ref())
         //     .try_into()
         //     .unwrap();
@@ -188,8 +188,8 @@ mod tests {
         let p2s_addr_str = "VLyjpv3dse3PbatT83GnDkBQasGqY52dAEdi9XpXhuSUn1FS1Tm7XxtAgmBiqY9pJXtEAsDKwX9ygSjrFu7vnUQZudhC2sSmxhxqgD3ZxJ2VsGwmPG77F6EiEZhcq71oqEq31y9XvCCXL5nqqszdENPAVhu7xT296qZ7w1x6hmwdh9ZE89bjfgbhfNYopoqsCaNLWYHJ12TDSY93kaGqCVKSu6gEF1gLpXBfRCnAPPxYswJPmK8oWDn8PKrUGs3MjVsj6bGXiW3VTGP4VsNH8YSSkjyj1FZ9azLsyfnNJ3zah2zUHdCCqY6PjH9JfHf9joCPf6TusvXgr71XWvh5e2HPEPQr4eJMD4S96cGTiSs3J5XcRd1tCDYoiis8nxv99zFFhHgpqXHgeqjhJ5sPot9eRYTsmm4cRTVLXYAiuKPS2qW5";
         let encoder = AddressEncoder::new(NetworkPrefix::Mainnet);
         let addr = encoder.parse_address_from_str(p2s_addr_str).unwrap();
-        let script: Rc<Expr> = addr.script().unwrap().proposition().unwrap();
-        dbg!(&script);
+        let _script: Rc<Expr> = addr.script().unwrap().proposition().unwrap();
+        // dbg!(&script);
         // let res: bool = eval_out_wo_ctx::<SigmaProp>(script.as_ref())
         //     .try_into()
         //     .unwrap();
@@ -202,8 +202,8 @@ mod tests {
         let p2s_addr_str = "22ELWBHzyWGjPRE48ZJDfFmD24myYdG3vHz8CipSS7rgE65ABmEj9QJiy3rG2PTJeCaZw9VX56GY6uoA3hQch7i5BfFU3AprUWTABi4X1VWtRdK9yrYJkmN6fq8hGfvmWTrsyh4fXZoGETpLuXQViYo194ajej2h7dr3oqNATdMskSXzxJi83bFdAvQ";
         let encoder = AddressEncoder::new(NetworkPrefix::Mainnet);
         let addr = encoder.parse_address_from_str(p2s_addr_str).unwrap();
-        let script: Rc<Expr> = addr.script().unwrap().proposition().unwrap();
-        dbg!(&script);
+        let _script: Rc<Expr> = addr.script().unwrap().proposition().unwrap();
+        // dbg!(&script);
         // let res: bool = eval_out_wo_ctx::<SigmaProp>(script.as_ref())
         //     .try_into()
         //     .unwrap();
@@ -217,8 +217,8 @@ mod tests {
         let encoder = AddressEncoder::new(NetworkPrefix::Mainnet);
         let addr = encoder.parse_address_from_str(p2s_addr_str).unwrap();
         assert!(addr.script().unwrap().proposition().is_ok());
-        let script: Rc<Expr> = addr.script().unwrap().proposition().unwrap();
-        dbg!(&script);
+        let _script: Rc<Expr> = addr.script().unwrap().proposition().unwrap();
+        // dbg!(&script);
         // let res: bool = eval_out_wo_ctx::<SigmaProp>(script.as_ref())
         //     .try_into()
         //     .unwrap();
@@ -231,8 +231,8 @@ mod tests {
         let p2s_addr_str = "cLPHJ3MHuKAHoCUwGhcEFw5sWJqvPwFyKxTRj1aUoMwgAz78Fg3zLXRhBup9Te1WLau1gZXNmXvUmeXGCd7QLeqB7ArrT3v5cg26piEtqymM6j2SkgYVCobgoAGKeTf6nMLxv1uVrLdjt1GnPxG1MuWj7Es7Dfumotbx9YEaxwqtTUC5SKsJc9LCpAmNWRAQbU6tVVEvmfwWivrGoZ3L5C4DMisxN3U";
         let encoder = AddressEncoder::new(NetworkPrefix::Mainnet);
         let addr = encoder.parse_address_from_str(p2s_addr_str).unwrap();
-        let script: Rc<Expr> = addr.script().unwrap().proposition().unwrap();
-        dbg!(&script);
+        let _script: Rc<Expr> = addr.script().unwrap().proposition().unwrap();
+        // dbg!(&script);
         // let res: bool = eval_out_wo_ctx::<SigmaProp>(script.as_ref())
         //     .try_into()
         //     .unwrap();
@@ -245,8 +245,8 @@ mod tests {
         let p2s_addr_str = "3STRfQWC9Xb5wAxBiEQ74uTFSemk1oHn43mwj9tMCeu2a3A4kie1bY2qsCdRaEmdQoq3B4tXQuzq9nm84A8PmBgCzgGDEZf2pgYoAUc6krZxUY3rvKWW44ZpzN3u5bFRpKDo6rxKtxX2tw99xmfyfaVBejgDaTfsib2PSVsu9hrLQ3SouECWHQMjDA3Pi8ZuCvQeW8GDkZfHPr3SgwaxY1jpY2njsmf3JBASMoVZ6Mfpg63Q6mBno7mKUSCE7vNHHUZe2V7JEikwjPkaxSWxnwy3J17faGtiEHZLKiNQ9WNtsJLbdVp56dQGfC2zaiXjhx1XJK6m4Nh2M8yEvSuBzanRBAJqrNseGS97tk2iLqqfHrqqmmDsHY3mujCURky4SLr7YLk4B";
         let encoder = AddressEncoder::new(NetworkPrefix::Mainnet);
         let addr = encoder.parse_address_from_str(p2s_addr_str).unwrap();
-        let script: Rc<Expr> = addr.script().unwrap().proposition().unwrap();
-        dbg!(&script);
+        let _script: Rc<Expr> = addr.script().unwrap().proposition().unwrap();
+        // dbg!(&script);
         // let res: bool = eval_out_wo_ctx::<SigmaProp>(script.as_ref())
         //     .try_into()
         //     .unwrap();
@@ -259,8 +259,8 @@ mod tests {
         let p2s_addr_str = "6Mv73vd1MnJp6AQg5vHGP9nujFc3Y1PL5gzeUt9PzCaUiQug7ueQGU1bDkmFkCspq4LU8j3T8yY6UyJQKSfah5qEDzjx8QCJF47NBG5jxgPxmBHkM6cUgnYa5ngzn9jrpAn379UC7o5nugTg3HYWZGk3APMcRftkrC3EgroiVMEmSkDcDwaebkNWKfKe3JXgewoTrgZ2YLMafr3JfX47C1zddoWDhS8TWryQYEprkP334eisuh1Fr2iNTW9ruV6m38cRkfRfzSBHYq45mvNLH7JQo6uQZ4NFPx4t27Q5A3mSqCpk7ATThFcQmc2w3Pp2F6xL87c94gxk83G8UEqkAhmaNfoj19zji9rxqRzq9gJeTLBraHR2DchKtahH8HhFPg5DZ4SjwJ4MHqTDF";
         let encoder = AddressEncoder::new(NetworkPrefix::Mainnet);
         let addr = encoder.parse_address_from_str(p2s_addr_str).unwrap();
-        let script: Rc<Expr> = addr.script().unwrap().proposition().unwrap();
-        dbg!(&script);
+        let _script: Rc<Expr> = addr.script().unwrap().proposition().unwrap();
+        // dbg!(&script);
         // let res: bool = eval_out_wo_ctx::<SigmaProp>(script.as_ref())
         //     .try_into()
         //     .unwrap();
@@ -273,8 +273,8 @@ mod tests {
         let p2s_addr_str = "AhCu1UkNT4c9q3B2Lb7gNgvZWCdXL8iYgmNxTYiy4S3wgKWFFW6kz9v7pvY8NqC7g4wgXXwzJY1fQVn2xrLkiyiQWsorq5dR7d5KnDAY43H4GvSVjaDciadXCSHCb8jgk8mFSQCwoZHweLmMJ25312wT85AySJgYUuzdUxMz4EnQpiwZR2XVZq3M81gycuqP9gUryryjN4J1cAF3yL3kZR3rREubBvJ2CY5hF74Xaj2jwajivkESkqq22ieWWG2sK7dk1A7KHr1MmiXGcUBAMMGPAu3mVCeFW9SongxP9hodnJThLknjWRBBBC6wq5jNkSdHrMbdaQM3XesXqGTk9KwWpnSL92E96muU2k8FQbo5isps1r5ciYVrFptfEAC3tWbwcVmRKtrgxtCex6bP5aBZYjaH6L9QQbkYriDAcQ1iZcpf3hHCqURjRXL7i72C3aGBwzzspQvhLof6x4f4gPxTCtF1bNUxddUL6DJ1PbQWzVH8taivjhHohis6sRn3Akvv4xaZRJdKZ8rDuiounRKNXi8VoNgVEZbSFYtfweRSdsiXJCkhtehLWdtFTk1eg7djASdBGKaguvtEBcGaAALVDUoH479VskPUQ6hrfS7KcWrATBdb8sf4W5MFpx7UNitzq2fzSKC96mQRUzy5uELe7Y7vexm5ArNEyr6ARkypZypSzJ2CEifjVxxRBEWVtbdqHrwP4gWv6cMdbqFWwuXAw2BZQnWpZFtKAGQ9m";
         let encoder = AddressEncoder::new(NetworkPrefix::Mainnet);
         let addr = encoder.parse_address_from_str(p2s_addr_str).unwrap();
-        let script: Rc<Expr> = addr.script().unwrap().proposition().unwrap();
-        dbg!(&script);
+        let _script: Rc<Expr> = addr.script().unwrap().proposition().unwrap();
+        // dbg!(&script);
         // let res: bool = eval_out_wo_ctx::<SigmaProp>(script.as_ref())
         //     .try_into()
         //     .unwrap();
