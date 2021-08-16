@@ -29,8 +29,8 @@ impl From<io::Error> for VlqEncodingError {
 }
 
 /// Write encoded unsigned values using VLQ and signed values first with ZigZag, then using VLQ
-/// for VLQ see <https://en.wikipedia.org/wiki/Variable-length_quantity>
-/// for ZigZag see <https://developers.google.com/protocol-buffers/docs/encoding#types>
+/// for VLQ see https://en.wikipedia.org/wiki/Variable-length_quantity (GLE)
+/// for ZigZag see https://developers.google.com/protocol-buffers/docs/encoding#types
 pub trait WriteSigmaVlqExt: io::Write {
     /// Write i8 without encoding
     fn put_i8(&mut self, v: i8) -> io::Result<()> {
@@ -86,7 +86,6 @@ pub trait WriteSigmaVlqExt: io::Write {
         let mut value = v;
         // from https://github.com/ScorexFoundation/scorex-util/blob/3dc334f68ebefbfab6d33b57f2373e80245ab34d/src/main/scala/scorex/util/serialization/VLQWriter.scala#L97-L117
         // original source: http://github.com/google/protobuf/blob/a7252bf42df8f0841cf3a0c85fdbf1a5172adecb/java/core/src/main/java/com/google/protobuf/CodedOutputStream.java#L1387
-        // see https://rosettacode.org/wiki/Variable-length_quantity for implementations in other languages
         loop {
             if (value & !0x7F) == 0 {
                 buffer[position] = value as u8;
@@ -123,8 +122,8 @@ pub trait WriteSigmaVlqExt: io::Write {
 impl<W: io::Write + ?Sized> WriteSigmaVlqExt for W {}
 
 /// Read and decode values using VLQ (+ ZigZag for signed values) encoded and written with [`WriteSigmaVlqExt`]
-/// for VLQ see <https://en.wikipedia.org/wiki/Variable-length_quantity>
-/// for ZigZag see <https://developers.google.com/protocol-buffers/docs/encoding#types>
+/// for VLQ see https://en.wikipedia.org/wiki/Variable-length_quantity (GLE)
+/// for ZigZag see https://developers.google.com/protocol-buffers/docs/encoding#types
 pub trait ReadSigmaVlqExt: io::Read {
     /// Read i8 without decoding
     fn get_i8(&mut self) -> Result<i8, io::Error> {
@@ -174,7 +173,6 @@ pub trait ReadSigmaVlqExt: io::Read {
     fn get_u64(&mut self) -> Result<u64, VlqEncodingError> {
         // source: http://github.com/google/protobuf/blob/a7252bf42df8f0841cf3a0c85fdbf1a5172adecb/java/core/src/main/java/com/google/protobuf/CodedInputStream.java#L2653
         // for faster version see: http://github.com/google/protobuf/blob/a7252bf42df8f0841cf3a0c85fdbf1a5172adecb/java/core/src/main/java/com/google/protobuf/CodedInputStream.java#L1085
-        // see https://rosettacode.org/wiki/Variable-length_quantity for implementations in other languages
         let mut result: i64 = 0;
         let mut shift = 0;
         while shift < 64 {
