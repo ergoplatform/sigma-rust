@@ -151,6 +151,60 @@ pub(crate) static INDICES_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
     }
 };
 
+pub(crate) static PATCH_EVAL_FN: EvalFn = |_env, _ctx, obj, args| {
+    let (input_tpe, normalized_input_vals) = match obj {
+        Value::Coll(coll) => Ok((coll.elem_tpe().clone(), coll.as_vec())),
+        _ => Err(EvalError::UnexpectedValue(format!(
+            "expected obj to be Value::Coll, got: {0:?}",
+            obj
+        ))),
+    }?;
+    let from_index_val = args
+        .get(0)
+        .cloned()
+        .ok_or_else(|| EvalError::NotFound("patch: missing first arg (from)".to_string()))?;
+    let patch_val = args
+        .get(1)
+        .cloned()
+        .ok_or_else(|| EvalError::NotFound("patch: missing second arg (patch)".to_string()))?;
+    let replaced_val = args
+        .get(2)
+        .cloned()
+        .ok_or_else(|| EvalError::NotFound("patch: missing second arg (replaced)".to_string()))?;
+
+    let from = from_index_val.try_extract_into::<i32>()? as usize;
+    let replaced = replaced_val.try_extract_into::<i32>()? as usize;
+    let patch = match patch_val {
+        Value::Coll(coll) => Ok(coll.as_vec()),
+        _ => Err(EvalError::UnexpectedValue(format!(
+            "expected patch arg to be Value::Coll, got: {0:?}",
+            patch_val
+        ))),
+    }?;
+    let mut iter = normalized_input_vals.iter().peekable();
+    let mut res = vec![];
+    let mut i = 0;
+
+    while i < from && iter.peek().is_some() {
+        if let Some(elem) = iter.next().cloned() {
+            res.push(elem)
+        }
+        i += 1;
+    }
+    res.extend(patch.into_iter());
+    i = replaced;
+    while i > 0 && iter.peek().is_some() {
+        iter.next();
+        i -= 1;
+    }
+    while iter.peek().is_some() {
+        if let Some(elem) = iter.next().cloned() {
+            res.push(elem)
+        }
+    }
+    Ok(Value::Coll(CollKind::from_vec(input_tpe, res)?))
+};
+
 pub(crate) static UPDATED_EVAL_FN: EvalFn = |_env, _ctx, obj, args| {
     let (input_tpe, normalized_input_vals) = match obj {
         Value::Coll(coll) => Ok((coll.elem_tpe().clone(), coll.as_vec())),
@@ -517,6 +571,60 @@ mod tests {
     }
 
     #[test]
+    fn eval_patch() {
+        let coll_const: Constant = vec![1i64, 5i64, 5i64].into();
+        let patch_input: Vec<i64> = vec![2i64, 3i64];
+
+        let expr: Expr = MethodCall::new(
+            coll_const.into(),
+            scoll::PATCH_METHOD
+                .clone()
+                .with_concrete_types(&[(STypeVar::t(), SType::SLong)].iter().cloned().collect()),
+            vec![1i32.into(), patch_input.into(), 2i32.into()],
+        )
+        .unwrap()
+        .into();
+        let res = eval_out_wo_ctx::<Vec<i64>>(&expr);
+        assert_eq!(res, vec![1i64, 2i64, 3i64]);
+    }
+
+    #[test]
+    fn eval_patch_addition() {
+        let coll_const: Constant = vec![1i64, 2i64, 4i64, 5i64].into();
+        let patch_input: Vec<i64> = vec![3i64];
+
+        let expr: Expr = MethodCall::new(
+            coll_const.into(),
+            scoll::PATCH_METHOD
+                .clone()
+                .with_concrete_types(&[(STypeVar::t(), SType::SLong)].iter().cloned().collect()),
+            vec![2i32.into(), patch_input.into(), 0i32.into()],
+        )
+        .unwrap()
+        .into();
+        let res = eval_out_wo_ctx::<Vec<i64>>(&expr);
+        assert_eq!(res, vec![1i64, 2i64, 3i64, 4i64, 5i64]);
+    }
+
+    #[test]
+    fn eval_patch_subtraction() {
+        let coll_const: Constant = vec![1i64, 2i64, 5i64, 5i64, 4i64, 5i64].into();
+        let patch_input: Vec<i64> = vec![3i64];
+
+        let expr: Expr = MethodCall::new(
+            coll_const.into(),
+            scoll::PATCH_METHOD
+                .clone()
+                .with_concrete_types(&[(STypeVar::t(), SType::SLong)].iter().cloned().collect()),
+            vec![2i32.into(), patch_input.into(), 2i32.into()],
+        )
+        .unwrap()
+        .into();
+        let res = eval_out_wo_ctx::<Vec<i64>>(&expr);
+        assert_eq!(res, vec![1i64, 2i64, 3i64, 4i64, 5i64]);
+    }
+
+    #[test]
     fn eval_update() {
         let coll_const: Constant = vec![1i64, 2i64, 3i64].into();
         let expr: Expr = MethodCall::new(
@@ -551,8 +659,8 @@ mod tests {
     fn eval_update_many() {
         let coll_const: Constant = vec![1i64, 2i64, 3i64].into();
 
-        let indexes_input: Vec<i32> = vec![1i32.into(), 2i32.into()];
-        let updates_input: Vec<i64> = vec![5i64.into(), 6i64.into()];
+        let indexes_input: Vec<i32> = vec![1i32, 2i32];
+        let updates_input: Vec<i64> = vec![5i64, 6i64];
         let expr: Expr = MethodCall::new(
             coll_const.into(),
             scoll::UPDATE_MANY_METHOD
@@ -570,8 +678,8 @@ mod tests {
     fn eval_update_many_index_oob() {
         let coll_const: Constant = vec![1i64, 2i64, 3i64].into();
 
-        let indexes_input: Vec<i32> = vec![1i32.into(), 5i32.into()];
-        let updates_input: Vec<i64> = vec![5i64.into(), 6i64.into()];
+        let indexes_input: Vec<i32> = vec![1i32, 5i32];
+        let updates_input: Vec<i64> = vec![5i64, 6i64];
         let expr: Expr = MethodCall::new(
             coll_const.into(),
             scoll::UPDATE_MANY_METHOD
@@ -588,8 +696,8 @@ mod tests {
     fn eval_update_many_len_mismatch() {
         let coll_const: Constant = vec![1i64, 2i64, 3i64].into();
 
-        let indexes_input: Vec<i32> = vec![1i32.into()];
-        let updates_input: Vec<i64> = vec![5i64.into(), 6i64.into()];
+        let indexes_input: Vec<i32> = vec![1i32];
+        let updates_input: Vec<i64> = vec![5i64, 6i64];
         let expr: Expr = MethodCall::new(
             coll_const.into(),
             scoll::UPDATE_MANY_METHOD

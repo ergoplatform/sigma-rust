@@ -21,6 +21,8 @@ pub const FLATMAP_METHOD_ID: MethodId = MethodId(15);
 pub const ZIP_METHOD_ID: MethodId = MethodId(29);
 /// Coll.indices
 pub const INDICES_METHOD_ID: MethodId = MethodId(14);
+/// Coll.patch
+pub const PATCH_METHOD_ID: MethodId = MethodId(19);
 /// Coll.updated
 pub const UPDATED_METHOD_ID: MethodId = MethodId(20);
 /// Coll.updateMany
@@ -42,6 +44,7 @@ lazy_static! {
             &INDICES_METHOD_DESC,
             &UPDATED_METHOD_DESC,
             &UPDATE_MANY_METHOD_DESC,
+            &PATCH_METHOD_DESC,
         ]
     );
 }
@@ -114,6 +117,25 @@ lazy_static! {
     /// Coll.indices
     pub static ref INDICES_METHOD: SMethod = SMethod::new(&S_COLL_TYPE_COMPANION, INDICES_METHOD_DESC.clone());
 }
+
+lazy_static! {
+    static ref PATCH_METHOD_DESC: SMethodDesc = SMethodDesc {
+        method_id: PATCH_METHOD_ID,
+        name: "patch",
+        tpe: SFunc::new(
+            vec![
+                SType::SColl(SType::STypeVar(STypeVar::t()).into()),
+                SType::SInt,
+                SType::SColl(SType::STypeVar(STypeVar::t()).into()),
+                SType::SInt,
+            ],
+            SType::SColl(SType::STypeVar(STypeVar::t()).into())
+        )
+    };
+    /// Coll.patch
+    pub static ref PATCH_METHOD: SMethod = SMethod::new(&S_COLL_TYPE_COMPANION, PATCH_METHOD_DESC.clone());
+}
+
 lazy_static! {
     static ref UPDATED_METHOD_DESC: SMethodDesc = SMethodDesc {
         method_id: UPDATED_METHOD_ID,
@@ -160,6 +182,7 @@ mod tests {
         assert!(SMethod::from_ids(TYPE_ID, FLATMAP_METHOD_ID).map(|e| e.name()) == Ok("flatMap"));
         assert!(SMethod::from_ids(TYPE_ID, ZIP_METHOD_ID).map(|e| e.name()) == Ok("zip"));
         assert!(SMethod::from_ids(TYPE_ID, INDICES_METHOD_ID).map(|e| e.name()) == Ok("indices"));
+        assert!(SMethod::from_ids(TYPE_ID, PATCH_METHOD_ID).map(|e| e.name()) == Ok("patch"));
         assert!(SMethod::from_ids(TYPE_ID, UPDATED_METHOD_ID).map(|e| e.name()) == Ok("updated"));
         assert!(
             SMethod::from_ids(TYPE_ID, UPDATE_MANY_METHOD_ID).map(|e| e.name()) == Ok("updateMany")
