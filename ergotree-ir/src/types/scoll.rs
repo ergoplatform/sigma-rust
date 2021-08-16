@@ -21,8 +21,12 @@ pub const FLATMAP_METHOD_ID: MethodId = MethodId(15);
 pub const ZIP_METHOD_ID: MethodId = MethodId(29);
 /// Coll.indices
 pub const INDICES_METHOD_ID: MethodId = MethodId(14);
+/// Coll.patch
+pub const PATCH_METHOD_ID: MethodId = MethodId(19);
 /// Coll.updated
 pub const UPDATED_METHOD_ID: MethodId = MethodId(20);
+/// Coll.updateMany
+pub const UPDATE_MANY_METHOD_ID: MethodId = MethodId(21);
 
 static S_COLL_TYPE_COMPANION_HEAD: STypeCompanionHead = STypeCompanionHead {
     type_id: TYPE_ID,
@@ -39,6 +43,8 @@ lazy_static! {
             &ZIP_METHOD_DESC,
             &INDICES_METHOD_DESC,
             &UPDATED_METHOD_DESC,
+            &UPDATE_MANY_METHOD_DESC,
+            &PATCH_METHOD_DESC,
         ]
     );
 }
@@ -113,6 +119,24 @@ lazy_static! {
 }
 
 lazy_static! {
+    static ref PATCH_METHOD_DESC: SMethodDesc = SMethodDesc {
+        method_id: PATCH_METHOD_ID,
+        name: "patch",
+        tpe: SFunc::new(
+            vec![
+                SType::SColl(SType::STypeVar(STypeVar::t()).into()),
+                SType::SInt,
+                SType::SColl(SType::STypeVar(STypeVar::t()).into()),
+                SType::SInt,
+            ],
+            SType::SColl(SType::STypeVar(STypeVar::t()).into())
+        )
+    };
+    /// Coll.patch
+    pub static ref PATCH_METHOD: SMethod = SMethod::new(&S_COLL_TYPE_COMPANION, PATCH_METHOD_DESC.clone());
+}
+
+lazy_static! {
     static ref UPDATED_METHOD_DESC: SMethodDesc = SMethodDesc {
         method_id: UPDATED_METHOD_ID,
         name: "updated",
@@ -130,6 +154,24 @@ lazy_static! {
     pub static ref UPDATED_METHOD: SMethod = SMethod::new(&S_COLL_TYPE_COMPANION, UPDATED_METHOD_DESC.clone());
 }
 
+lazy_static! {
+    static ref UPDATE_MANY_METHOD_DESC: SMethodDesc = SMethodDesc {
+        method_id: UPDATE_MANY_METHOD_ID,
+        name: "updateMany",
+        tpe: SFunc::new(
+            vec![
+                SType::SColl(SType::STypeVar(STypeVar::t()).into()),
+                SType::SColl(SType::SInt.into()),
+                SType::SColl(SType::STypeVar(STypeVar::t()).into())
+
+            ],
+            SType::SColl(SType::STypeVar(STypeVar::t()).into())
+        )
+    };
+    /// Coll.updateMany
+    pub static ref UPDATE_MANY_METHOD: SMethod = SMethod::new(&S_COLL_TYPE_COMPANION, UPDATE_MANY_METHOD_DESC.clone());
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -140,6 +182,10 @@ mod tests {
         assert!(SMethod::from_ids(TYPE_ID, FLATMAP_METHOD_ID).map(|e| e.name()) == Ok("flatMap"));
         assert!(SMethod::from_ids(TYPE_ID, ZIP_METHOD_ID).map(|e| e.name()) == Ok("zip"));
         assert!(SMethod::from_ids(TYPE_ID, INDICES_METHOD_ID).map(|e| e.name()) == Ok("indices"));
+        assert!(SMethod::from_ids(TYPE_ID, PATCH_METHOD_ID).map(|e| e.name()) == Ok("patch"));
         assert!(SMethod::from_ids(TYPE_ID, UPDATED_METHOD_ID).map(|e| e.name()) == Ok("updated"));
+        assert!(
+            SMethod::from_ids(TYPE_ID, UPDATE_MANY_METHOD_ID).map(|e| e.name()) == Ok("updateMany")
+        );
     }
 }

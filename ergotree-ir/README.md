@@ -91,10 +91,6 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 - selfBoxIndex
 - LastBlockUtxoRootHash
 
-#### Collection
-
-- patch
-- updateMany
 
 #### Option
 
@@ -199,7 +195,9 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 - indexOf
 - zip [#329](https://github.com/ergoplatform/sigma-rust/issues/329)
 - indices [#314](https://github.com/ergoplatform/sigma-rust/issues/314)
+- patch [#357](https://github.com/ergoplatform/sigma-rust/issues/357)
 - updated [#358](https://github.com/ergoplatform/sigma-rust/issues/358)
+- updateMany [#359](https://github.com/ergoplatform/sigma-rust/issues/359)
 
 #### Option
 
