@@ -170,7 +170,7 @@ pub(crate) static PATCH_EVAL_FN: EvalFn = |_env, _ctx, obj, args| {
     let replaced_val = args
         .get(2)
         .cloned()
-        .ok_or_else(|| EvalError::NotFound("patch: missing second arg (replaced)".to_string()))?;
+        .ok_or_else(|| EvalError::NotFound("patch: missing third arg (replaced)".to_string()))?;
 
     let from = from_index_val.try_extract_into::<i32>()? as usize;
     let replaced = replaced_val.try_extract_into::<i32>()? as usize;
@@ -181,27 +181,14 @@ pub(crate) static PATCH_EVAL_FN: EvalFn = |_env, _ctx, obj, args| {
             patch_val
         ))),
     }?;
-    let mut iter = normalized_input_vals.iter().peekable();
-    let mut res = vec![];
-    let mut i = 0;
 
-    while i < from && iter.peek().is_some() {
-        if let Some(elem) = iter.next().cloned() {
-            res.push(elem)
-        }
-        i += 1;
-    }
-    res.extend(patch.into_iter());
-    i = replaced;
-    while i > 0 && iter.peek().is_some() {
-        iter.next();
-        i -= 1;
-    }
-    while iter.peek().is_some() {
-        if let Some(elem) = iter.next().cloned() {
-            res.push(elem)
-        }
-    }
+    let res = normalized_input_vals
+        .iter()
+        .take(from)
+        .chain(patch.iter())
+        .chain(normalized_input_vals.iter().skip(from + replaced))
+        .cloned()
+        .collect();
     Ok(Value::Coll(CollKind::from_vec(input_tpe, res)?))
 };
 
@@ -255,8 +242,8 @@ pub(crate) static UPDATE_MANY_EVAL_FN: EvalFn =
             EvalError::NotFound("updated: missing second arg (updates)".to_string())
         })?;
 
-        let updates_val = match updates_arg {
-            Value::Coll(coll) => Ok(coll.as_vec()),
+        let (updates_tpe, updates_val) = match updates_arg {
+            Value::Coll(coll) => Ok((coll.elem_tpe().clone(), coll.as_vec())),
             _ => Err(EvalError::UnexpectedValue(format!(
                 "expected first arg to be Value::Coll, got: {0:?}",
                 updates_arg
@@ -280,6 +267,13 @@ pub(crate) static UPDATE_MANY_EVAL_FN: EvalFn =
                 indexes_len, updates_len, indexes_usize, updates_val
             )));
         };
+        if input_tpe != updates_tpe {
+            return Err(EvalError::UnexpectedValue(format!(
+                "Collections should be same type but was: \
+            {0:?} and {1:?}. \n Inputs: {2:?} \n Updates: {3:?}",
+                input_tpe, updates_tpe, normalized_input_vals, updates_val
+            )));
+        };
 
         let mut i = 0;
         let mut res = normalized_input_vals;
@@ -297,7 +291,7 @@ pub(crate) static UPDATE_MANY_EVAL_FN: EvalFn =
                 Some(elem) => *elem = update,
                 None => {
                     return Err(EvalError::UnexpectedValue(format!(
-                        "updateMany index not found, got: {0:?}",
+                        "updateMany index out of bounds, got: {0:?}",
                         pos
                     )))
                 }
@@ -617,6 +611,24 @@ mod tests {
                 .clone()
                 .with_concrete_types(&[(STypeVar::t(), SType::SLong)].iter().cloned().collect()),
             vec![2i32.into(), patch_input.into(), 2i32.into()],
+        )
+        .unwrap()
+        .into();
+        let res = eval_out_wo_ctx::<Vec<i64>>(&expr);
+        assert_eq!(res, vec![1i64, 2i64, 3i64, 4i64, 5i64]);
+    }
+
+    #[test]
+    fn eval_patch_index_oob() {
+        let coll_const: Constant = vec![1i64, 2i64, 3i64].into();
+        let patch_input: Vec<i64> = vec![4i64, 5i64];
+
+        let expr: Expr = MethodCall::new(
+            coll_const.into(),
+            scoll::PATCH_METHOD
+                .clone()
+                .with_concrete_types(&[(STypeVar::t(), SType::SLong)].iter().cloned().collect()),
+            vec![9i32.into(), patch_input.into(), 9i32.into()],
         )
         .unwrap()
         .into();
