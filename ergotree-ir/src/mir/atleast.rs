@@ -8,6 +8,7 @@ use crate::serialization::SigmaSerializeResult;
 use crate::types::stype::SType;
 
 use super::expr::Expr;
+use super::expr::InvalidArgumentError;
 use crate::has_opcode::HasStaticOpCode;
 
 /// THRESHOLD composition for sigma expressions
@@ -20,6 +21,27 @@ pub struct Atleast {
 }
 
 impl Atleast {
+    /// Create new object, returns an error if any of the requirements failed
+    pub fn new(bound: Expr, input: Expr) -> Result<Self, InvalidArgumentError> {
+        if input.post_eval_tpe() != SType::SColl(SType::SSigmaProp.into()) {
+            return Err(InvalidArgumentError(format!(
+                "Expected Atleast input to be SColl, got {0:?}",
+                input.tpe()
+            )));
+        }
+        if bound.post_eval_tpe() != SType::SInt {
+            return Err(InvalidArgumentError(format!(
+                "Atleast: expected bound type to be SInt, got {0:?}",
+                bound
+            )));
+        }
+
+        Ok(Self {
+            bound: bound.into(),
+            input: input.into(),
+        })
+    }
+
     /// Type
     pub fn tpe(&self) -> SType {
         SType::SSigmaProp
@@ -37,12 +59,9 @@ impl SigmaSerializable for Atleast {
     }
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
-        let n_required = Expr::sigma_parse(r)?.into();
-        let expressions = Expr::sigma_parse(r)?.into();
-        Ok(Self {
-            bound: n_required,
-            input: expressions,
-        })
+        let bound = Expr::sigma_parse(r)?;
+        let input = Expr::sigma_parse(r)?;
+        Ok(Self::new(bound, input)?)
     }
 }
 
