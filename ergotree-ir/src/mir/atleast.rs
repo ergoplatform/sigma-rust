@@ -14,9 +14,9 @@ use crate::has_opcode::HasStaticOpCode;
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Atleast {
     /// Number of Sigma-expression that should be proved
-    pub n_required: Box<Expr>,
+    pub bound: Box<Expr>,
     /// Collection of Sigma-expressions
-    pub expressions: Box<Expr>,
+    pub input: Box<Expr>,
 }
 
 impl Atleast {
@@ -32,16 +32,16 @@ impl HasStaticOpCode for Atleast {
 
 impl SigmaSerializable for Atleast {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
-        self.n_required.sigma_serialize(w)?;
-        self.expressions.sigma_serialize(w)
+        self.bound.sigma_serialize(w)?;
+        self.input.sigma_serialize(w)
     }
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let n_required = Expr::sigma_parse(r)?.into();
         let expressions = Expr::sigma_parse(r)?.into();
         Ok(Self {
-            n_required,
-            expressions,
+            bound: n_required,
+            input: expressions,
         })
     }
 }
@@ -69,8 +69,8 @@ mod arbitrary {
                 }),
             )
                 .prop_map(|(n, expr)| Self {
-                    n_required: n.into(),
-                    expressions: expr.into(),
+                    bound: n.into(),
+                    input: expr.into(),
                 })
                 .boxed()
         }
