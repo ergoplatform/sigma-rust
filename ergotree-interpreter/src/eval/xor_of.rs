@@ -30,11 +30,14 @@ mod tests {
     proptest! {
 
         #[test]
-        fn eval(bools in collection::vec(any::<bool>(), 10..=20)) {
+        fn eval(bools in collection::vec(any::<bool>(), 0..=10)) {
             let expr: Expr = XorOf {input: Expr::Const(bools.clone().into()).into()}.into();
             let ctx = Rc::new(force_any_val::<Context>());
             let res = eval_out::<bool>(&expr, ctx);
-            prop_assert_eq!(res, bools.into_iter().filter(|x| *x).count() & 1 == 1);
+
+            let mut expected = false;
+            bools.into_iter().for_each(|v| expected ^= v);
+            prop_assert_eq!(res, expected);
         }
     }
 }
