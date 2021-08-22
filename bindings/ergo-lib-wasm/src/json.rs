@@ -4,6 +4,7 @@ use derive_more::FromStr;
 use ergo_lib::chain::ergo_box::BoxId;
 use ergo_lib::chain::ergo_box::BoxValue;
 use ergo_lib::chain::ergo_box::ErgoBox;
+use ergo_lib::chain::ergo_box::ErgoBoxCandidate;
 use ergo_lib::chain::ergo_box::NonMandatoryRegisters;
 use ergo_lib::chain::token::Token;
 use ergo_lib::chain::token::TokenId;
@@ -59,8 +60,12 @@ pub(crate) struct UnsignedTransactionJsonEip12 {
 }
 
 impl From<UnsignedTransaction> for UnsignedTransactionJsonEip12 {
-    fn from(_: UnsignedTransaction) -> Self {
-        todo!()
+    fn from(t: UnsignedTransaction) -> Self {
+        UnsignedTransactionJsonEip12 {
+            inputs: t.inputs,
+            data_inputs: t.data_inputs,
+            outputs: t.output_candidates.into_iter().map(|b| b.into()).collect(),
+        }
     }
 }
 
@@ -129,6 +134,18 @@ pub(crate) struct ErgoBoxCandidateJsonEip12 {
     /// containing the transaction with this box.
     #[serde(rename = "creationHeight")]
     pub creation_height: u32,
+}
+
+impl From<ErgoBoxCandidate> for ErgoBoxCandidateJsonEip12 {
+    fn from(b: ErgoBoxCandidate) -> Self {
+        ErgoBoxCandidateJsonEip12 {
+            value: b.value.into(),
+            ergo_tree: b.ergo_tree,
+            tokens: b.tokens.into_iter().map(|t| t.into()).collect(),
+            additional_registers: b.additional_registers,
+            creation_height: b.creation_height,
+        }
+    }
 }
 
 #[serde_with::serde_as]
