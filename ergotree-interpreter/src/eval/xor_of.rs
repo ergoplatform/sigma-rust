@@ -11,7 +11,7 @@ impl Evaluable for XorOf {
     fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
         let input_v = self.input.eval(env, ctx)?;
         let input_v_bools = input_v.try_extract_into::<Vec<bool>>()?;
-        Ok((input_v_bools.into_iter().filter(|x| *x).count() & 1 == 1).into())
+        Ok(input_v_bools.into_iter().fold(false, |a, b| a ^ b).into())
     }
 }
 
@@ -34,9 +34,8 @@ mod tests {
             let expr: Expr = XorOf {input: Expr::Const(bools.clone().into()).into()}.into();
             let ctx = Rc::new(force_any_val::<Context>());
             let res = eval_out::<bool>(&expr, ctx);
-
-            let mut expected = false;
-            bools.into_iter().for_each(|v| expected ^= v);
+            // eval is true when collection has odd number of "true" values
+            let expected = bools.into_iter().filter(|x| *x).count() & 1 == 1;
             prop_assert_eq!(res, expected);
         }
     }
