@@ -31,6 +31,16 @@ num-bigint = "0.4.0"
 proptest = {version = "1.0.0", optional = true }
 proptest-derive = {version = "0.3.0", optional = true }
 
+[dependencies.proptest]
+# wasm support, via https://altsysrq.github.io/proptest-book/proptest/wasm.html
+version = "1.0.0"
+# The default feature set includes things like process forking which are not
+# supported in Web Assembly.
+default-features = false
+# Enable using the `std` crate.
+features = ["std"]
+optional = true
+
 [dependencies.serde_with]
 version = "1.9.1"
 features = [ "json" ]
@@ -50,11 +60,3 @@ ergotree-interpreter = { version = "^0.13.0", path = "../ergotree-interpreter", 
 sigma-test-util = { version = "0.2.0", path = "../sigma-test-util" }
 pretty_assertions = "0.7.2"
 
-[dev-dependencies.proptest]
-# wasm support, via https://altsysrq.github.io/proptest-book/proptest/wasm.html
-version = "1.0.0"
-# The default feature set includes things like process forking which are not
-# supported in Web Assembly.
-default-features = false
-# Enable using the `std` crate.
-features = ["std"]
