@@ -1,5 +1,7 @@
 //! JSON serialization according to EIP-12 (using strings for BoxValue and TokenAmount)
 
+use std::convert::TryInto;
+
 use derive_more::FromStr;
 use ergo_lib::chain::ergo_box::BoxId;
 use ergo_lib::chain::ergo_box::BoxValue;
@@ -37,8 +39,11 @@ impl From<Transaction> for TransactionJsonEip12 {
     fn from(t: Transaction) -> Self {
         TransactionJsonEip12 {
             tx_id: t.id(),
-            inputs: t.inputs,
-            data_inputs: t.data_inputs,
+            inputs: t.inputs.try_into().unwrap(),
+            data_inputs: t
+                .data_inputs
+                .map(|di| di.try_into().unwrap())
+                .unwrap_or_else(Vec::new),
             outputs: t.outputs.into_iter().map(|b| b.into()).collect(),
         }
     }
@@ -62,8 +67,11 @@ pub(crate) struct UnsignedTransactionJsonEip12 {
 impl From<UnsignedTransaction> for UnsignedTransactionJsonEip12 {
     fn from(t: UnsignedTransaction) -> Self {
         UnsignedTransactionJsonEip12 {
-            inputs: t.inputs,
-            data_inputs: t.data_inputs,
+            inputs: t.inputs.try_into().unwrap(),
+            data_inputs: t
+                .data_inputs
+                .map(|di| di.try_into().unwrap())
+                .unwrap_or_else(Vec::new),
             outputs: t.output_candidates.into_iter().map(|b| b.into()).collect(),
         }
     }
