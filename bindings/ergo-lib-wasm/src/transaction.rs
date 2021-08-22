@@ -100,7 +100,7 @@ impl Transaction {
     }
 
     /// JSON representation according to EIP-12 https://github.com/ergoplatform/eips/pull/23
-    /// (similar to [`Self::to_json`], but with box value and token amount encoding as strings)
+    /// (similar to [`Self::to_json`], but as JS object with box value and token amount encoding as strings)
     pub fn to_js_eip12(&self) -> Result<JsValue, JsValue> {
         let tx_dapp: TransactionJsonEip12 = self.0.clone().into();
         JsValue::from_serde(&tx_dapp).map_err(|e| JsValue::from_str(&format!("{}", e)))
