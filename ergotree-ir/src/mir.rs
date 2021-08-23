@@ -98,3 +98,5 @@ pub mod val_use;
 pub mod value;
 /// Byte-wise XOR op
 pub mod xor;
+/// XOR for collection of booleans
+pub mod xor_of;

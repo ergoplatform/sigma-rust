@@ -68,6 +68,7 @@ use crate::mir::create_prove_dh_tuple::CreateProveDhTuple;
 use crate::mir::deserialize_context::DeserializeContext;
 use crate::mir::deserialize_register::DeserializeRegister;
 use crate::mir::get_var::GetVar;
+use crate::mir::xor_of::XorOf;
 use bounded_vec::BoundedVecOutOfBounds;
 use derive_more::From;
 use derive_more::TryInto;
@@ -200,6 +201,8 @@ pub enum Expr {
     MultiplyGroup(MultiplyGroup),
     /// Exponentiate op for GroupElement
     Exponentiate(Exponentiate),
+    /// XOR for collection of booleans
+    XorOf(XorOf),
 }
 
 impl Expr {
@@ -265,6 +268,7 @@ impl Expr {
             Expr::GetVar(v) => v.tpe(),
             Expr::MultiplyGroup(v) => v.tpe(),
             Expr::Exponentiate(v) => v.tpe(),
+            Expr::XorOf(v) => v.tpe(),
         }
     }
 

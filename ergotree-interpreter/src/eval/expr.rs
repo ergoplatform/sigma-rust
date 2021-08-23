@@ -73,6 +73,7 @@ impl Evaluable for Expr {
             Expr::GetVar(op) => op.eval(env, ctx),
             Expr::MultiplyGroup(op) => op.eval(env, ctx),
             Expr::Exponentiate(op) => op.eval(env, ctx),
+            Expr::XorOf(op) => op.eval(env, ctx),
         }
     }
 }

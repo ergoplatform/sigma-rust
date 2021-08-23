@@ -70,6 +70,7 @@ use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SigmaParsingError, SigmaSerializable,
 };
 
+use crate::mir::xor_of::XorOf;
 use crate::serialization::types::TypeCode;
 
 impl Expr {
@@ -174,6 +175,7 @@ impl Expr {
                 DeserializeContext::OP_CODE => Ok(DeserializeContext::sigma_parse(r)?.into()),
                 MultiplyGroup::OP_CODE => Ok(MultiplyGroup::sigma_parse(r)?.into()),
                 Exponentiate::OP_CODE => Ok(Exponentiate::sigma_parse(r)?.into()),
+                XorOf::OP_CODE => Ok(XorOf::sigma_parse(r)?.into()),
                 o => Err(SigmaParsingError::NotImplementedOpCode(format!(
                     "{0}(shift {1})",
                     o.value(),
@@ -269,6 +271,7 @@ impl SigmaSerializable for Expr {
             Expr::DeserializeContext(op) => op.sigma_serialize_w_opcode(w),
             Expr::MultiplyGroup(op) => op.sigma_serialize_w_opcode(w),
             Expr::Exponentiate(op) => op.sigma_serialize_w_opcode(w),
+            Expr::XorOf(op) => op.sigma_serialize_w_opcode(w),
         }
     }
 
