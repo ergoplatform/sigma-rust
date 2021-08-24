@@ -23,7 +23,6 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 - atLeast
 - avlTree
 - treeLookup
-- xorOf
 
 ### Object properties and methods
 
@@ -145,6 +144,7 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 - anyZK
 - decodePoint
 - groupGenerator [#332](https://github.com/ergoplatform/sigma-rust/issues/332)
+- xorOf [#356](https://github.com/ergoplatform/sigma-rust/issues/356)
 
 ### Object properties and methods
 
