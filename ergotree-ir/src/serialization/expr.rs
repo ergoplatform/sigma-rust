@@ -7,6 +7,7 @@ use crate::mir::and::And;
 use crate::mir::apply::Apply;
 use crate::mir::atleast::Atleast;
 use crate::mir::bin_op::ArithOp;
+use crate::mir::bin_op::BitOp;
 use crate::mir::bin_op::LogicalOp;
 use crate::mir::bin_op::RelationOp;
 use crate::mir::block::BlockValue;
@@ -131,9 +132,9 @@ impl Expr {
                 OpCode::DIVISION => Ok(bin_op_sigma_parse(ArithOp::Divide.into(), r)?),
                 OpCode::MAX => Ok(bin_op_sigma_parse(ArithOp::Max.into(), r)?),
                 OpCode::MIN => Ok(bin_op_sigma_parse(ArithOp::Min.into(), r)?),
-                OpCode::BIT_OR => Ok(bin_op_sigma_parse(ArithOp::BitOr.into(), r)?),
-                OpCode::BIT_AND => Ok(bin_op_sigma_parse(ArithOp::BitAnd.into(), r)?),
-                OpCode::BIT_XOR => Ok(bin_op_sigma_parse(ArithOp::BitXor.into(), r)?),
+                OpCode::BIT_OR => Ok(bin_op_sigma_parse(BitOp::BitOr.into(), r)?),
+                OpCode::BIT_AND => Ok(bin_op_sigma_parse(BitOp::BitAnd.into(), r)?),
+                OpCode::BIT_XOR => Ok(bin_op_sigma_parse(BitOp::BitXor.into(), r)?),
                 OpCode::BLOCK_VALUE => Ok(Expr::BlockValue(BlockValue::sigma_parse(r)?)),
                 OpCode::FUNC_VALUE => Ok(Expr::FuncValue(FuncValue::sigma_parse(r)?)),
                 OpCode::APPLY => Ok(Expr::Apply(Apply::sigma_parse(r)?)),

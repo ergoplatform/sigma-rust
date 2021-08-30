@@ -27,12 +27,6 @@ pub enum ArithOp {
     Max,
     /// Min of two values
     Min,
-    /// Bitwise Or
-    BitOr,
-    /// Bitwise And
-    BitAnd,
-    /// Bitwise Xor
-    BitXor,
 }
 
 impl From<ArithOp> for OpCode {
@@ -44,9 +38,6 @@ impl From<ArithOp> for OpCode {
             ArithOp::Divide => OpCode::DIVISION,
             ArithOp::Max => OpCode::MAX,
             ArithOp::Min => OpCode::MIN,
-            ArithOp::BitOr => OpCode::BIT_OR,
-            ArithOp::BitAnd => OpCode::BIT_AND,
-            ArithOp::BitXor => OpCode::BIT_XOR,
         }
     }
 }
@@ -104,6 +95,28 @@ impl From<LogicalOp> for OpCode {
     }
 }
 
+/// Bitwise operations
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+#[cfg_attr(feature = "arbitrary", derive(Arbitrary))]
+pub enum BitOp {
+    /// Bitwise Or
+    BitOr,
+    /// Bitwise And
+    BitAnd,
+    /// Bitwise Xor
+    BitXor,
+}
+
+impl From<BitOp> for OpCode {
+    fn from(op: BitOp) -> Self {
+        match op {
+            BitOp::BitOr => OpCode::BIT_OR,
+            BitOp::BitAnd => OpCode::BIT_AND,
+            BitOp::BitXor => OpCode::BIT_XOR,
+        }
+    }
+}
+
 /// Binary operations
 #[derive(PartialEq, Eq, Debug, Clone, Copy, From)]
 #[cfg_attr(feature = "arbitrary", derive(Arbitrary))]
@@ -114,6 +127,8 @@ pub enum BinOpKind {
     Relation(RelationOp),
     /// Logical operations
     Logical(LogicalOp),
+    /// Bitwise operations
+    Bit(BitOp),
 }
 
 impl From<BinOpKind> for OpCode {
@@ -122,6 +137,7 @@ impl From<BinOpKind> for OpCode {
             BinOpKind::Arith(o) => o.into(),
             BinOpKind::Relation(o) => o.into(),
             BinOpKind::Logical(o) => o.into(),
+            BinOpKind::Bit(o) => o.into(),
         }
     }
 }
@@ -144,6 +160,7 @@ impl BinOp {
             BinOpKind::Relation(_) => SType::SBoolean,
             BinOpKind::Arith(_) => self.left.tpe(),
             BinOpKind::Logical(_) => SType::SBoolean,
+            BinOpKind::Bit(_) => self.left.tpe(),
         }
     }
 }
@@ -169,7 +186,10 @@ mod arbitrary {
         fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
             let numeric_binop = || -> BoxedStrategy<BinOp> {
                 (
-                    any::<ArithOp>().prop_map_into(),
+                    prop_oneof![
+                        any::<ArithOp>().prop_map_into(),
+                        any::<BitOp>().prop_map_into(),
+                    ],
                     any_with::<Expr>(args.clone()),
                     any_with::<Expr>(args.clone()),
                 )
