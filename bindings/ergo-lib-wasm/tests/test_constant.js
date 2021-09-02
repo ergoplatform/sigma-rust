@@ -1,7 +1,7 @@
 import { expect, assert } from 'chai';
 
 import {
-    Constant, I64
+  Constant, I64
 } from '../pkg/ergo_lib_wasm';
 
 it('decode Constant i32', async () => {
@@ -53,3 +53,24 @@ it('Constant from EcPoint bytes', async () => {
   let c = Constant.from_ecpoint_bytes(Uint8Array.from(Buffer.from(base16_bytes_str, 'hex')));
   expect(c != null);
 });
+
+it('roundtrip tuple of byte arrays', async () => {
+  let bytes1 = new Uint8Array([1, 1, 2, 255]);
+  let bytes2 = new Uint8Array([5, 6, 7, 255]);
+  let c = Constant.from_tuple_coll_bytes(bytes1, bytes2);
+  let encoded = c.encode_to_base16();
+  let decoded_c = Constant.decode_from_base16(encoded);
+  let decoded_c_value = decoded_c.to_tuple_coll_bytes();
+  expect(decoded_c_value.toString()).equal([bytes1, bytes2].toString());
+});
+
+it('roundtrip tuple of i64', async () => {
+  let value_str1 = '9223372036854775807'; // i64 max value
+  let value_str2 = '29428734987293874';
+  let c = Constant.from_tuple_i64(I64.from_str(value_str1), I64.from_str(value_str2));
+  let encoded = c.encode_to_base16();
+  let decoded_c = Constant.decode_from_base16(encoded);
+  let decoded_c_value = decoded_c.to_tuple_i64();
+  expect(decoded_c_value.toString()).equal([value_str1, value_str2].toString());
+});
+

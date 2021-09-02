@@ -120,4 +120,44 @@ impl Constant {
         let c: ergo_lib::ergotree_ir::mir::constant::Constant = ProveDlog::new(ecp).into();
         Ok(c.into())
     }
+
+    /// Create `(Coll[Byte], Coll[Byte])` tuple Constant
+    pub fn from_tuple_coll_bytes(bytes1: &[u8], bytes2: &[u8]) -> Constant {
+        let t = (bytes1.to_vec(), bytes2.to_vec());
+        let c: ergo_lib::ergotree_ir::mir::constant::Constant = t.into();
+        c.into()
+    }
+
+    /// Extract `(Coll[Byte], Coll[Byte])` tuple from Constant as array of Uint8Array
+    pub fn to_tuple_coll_bytes(&self) -> Result<Vec<Uint8Array>, JsValue> {
+        let (bytes1, bytes2) = self
+            .0
+            .clone()
+            .try_extract_into::<(Vec<u8>, Vec<u8>)>()
+            .map_err(|e| JsValue::from_str(&format!("{:?}", e)))?;
+        Ok(vec![
+            Uint8Array::from(bytes1.as_slice()),
+            Uint8Array::from(bytes2.as_slice()),
+        ])
+    }
+
+    /// Create `(Long, Long)` tuple Constant
+    pub fn from_tuple_i64(l1: &I64, l2: &I64) -> Constant {
+        let c: ergo_lib::ergotree_ir::mir::constant::Constant =
+            (i64::from((*l1).clone()), i64::from((*l2).clone())).into();
+        c.into()
+    }
+
+    /// Extract `(Long, Long)` tuple from Constant as array of strings
+    pub fn to_tuple_i64(&self) -> Result<Vec<JsValue>, JsValue> {
+        let (l1, l2) = self
+            .0
+            .clone()
+            .try_extract_into::<(i64, i64)>()
+            .map_err(|e| JsValue::from_str(&format!("{:?}", e)))?;
+        Ok(vec![
+            JsValue::from_str(&l1.to_string()),
+            JsValue::from_str(&l2.to_string()),
+        ])
+    }
 }
