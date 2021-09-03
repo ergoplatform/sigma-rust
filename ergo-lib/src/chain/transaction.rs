@@ -161,6 +161,23 @@ impl Transaction {
     }
 }
 
+/// Returns distinct token ids from all given ErgoBoxCandidate's
+pub fn distinct_token_ids<I>(output_candidates: I) -> IndexSet<TokenId>
+where
+    I: IntoIterator<Item = ErgoBoxCandidate>,
+{
+    let token_ids: Vec<TokenId> = output_candidates
+        .into_iter()
+        .flat_map(|b| {
+            b.tokens
+                .iter()
+                .map(|t| t.token_id.clone())
+                .collect::<Vec<TokenId>>()
+        })
+        .collect();
+    IndexSet::<_>::from_iter(token_ids)
+}
+
 impl SigmaSerializable for Transaction {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         // reference implementation - https://github.com/ScorexFoundation/sigmastate-interpreter/blob/9b20cb110effd1987ff76699d637174a4b2fb441/sigmastate/src/main/scala/org/ergoplatform/ErgoLikeTransaction.scala#L112-L112
@@ -176,12 +193,7 @@ impl SigmaSerializable for Transaction {
         // Serialize distinct ids of tokens in transaction outputs.
         // This optimization is crucial to allow up to MaxTokens (== 255) in a box.
         // Without it total size of all token ids 255 * 32 = 8160, way beyond MaxBoxSize (== 4K)
-        let token_ids: Vec<TokenId> = self
-            .output_candidates
-            .iter()
-            .flat_map(|b| b.tokens.iter().map(|t| t.token_id.clone()))
-            .collect();
-        let distinct_token_ids: IndexSet<TokenId> = IndexSet::from_iter(token_ids);
+        let distinct_token_ids = distinct_token_ids(self.output_candidates.clone());
         w.put_u32(u32::try_from(distinct_token_ids.len()).unwrap())?;
         distinct_token_ids
             .iter()

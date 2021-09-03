@@ -1,5 +1,8 @@
 //! Unsigned (without proofs) transaction
 
+use crate::chain::token::TokenId;
+
+use super::distinct_token_ids;
 use super::input::{Input, UnsignedInput};
 #[cfg(feature = "json")]
 use super::json;
@@ -12,6 +15,7 @@ use super::{
 };
 use ergotree_interpreter::sigma_protocol::prover::ProofBytes;
 use ergotree_ir::serialization::SigmaSerializationError;
+use indexmap::IndexSet;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "json")]
@@ -66,13 +70,7 @@ impl UnsignedTransaction {
         Ok(TxId(blake2b256_hash(&bytes)))
     }
 
-    /// Get transaction id
-    pub fn id(&self) -> TxId {
-        self.tx_id.clone()
-    }
-
-    /// message to be signed by the [`ergotree_interpreter::sigma_protocol::prover::Prover`] (serialized tx)
-    pub fn bytes_to_sign(&self) -> Result<Vec<u8>, SigmaSerializationError> {
+    fn to_tx_wo_proofs(&self) -> Result<Transaction, SigmaSerializationError> {
         let empty_proofs_input = self.inputs.mapped_ref(|ui| {
             Input::new(
                 ui.box_id.clone(),
@@ -82,12 +80,27 @@ impl UnsignedTransaction {
                 },
             )
         });
-        let tx = Transaction::new(
+        Transaction::new(
             empty_proofs_input,
             self.data_inputs.clone(),
             self.output_candidates.clone(),
-        )?;
+        )
+    }
+
+    /// Get transaction id
+    pub fn id(&self) -> TxId {
+        self.tx_id.clone()
+    }
+
+    /// message to be signed by the [`ergotree_interpreter::sigma_protocol::prover::Prover`] (serialized tx)
+    pub fn bytes_to_sign(&self) -> Result<Vec<u8>, SigmaSerializationError> {
+        let tx = self.to_tx_wo_proofs()?;
         tx.bytes_to_sign()
+    }
+
+    /// Returns distinct token ids from all output_candidates
+    pub fn distinct_token_ids(&self) -> IndexSet<TokenId> {
+        distinct_token_ids(self.output_candidates.clone())
     }
 }
 
