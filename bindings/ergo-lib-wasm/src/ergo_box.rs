@@ -224,6 +224,11 @@ impl BoxValue {
     pub fn as_i64(&self) -> I64 {
         self.0.as_i64().into()
     }
+
+    /// big-endian byte array representation
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.0.as_u64().to_be_bytes().to_vec()
+    }
 }
 
 impl From<BoxValue> for chain::ergo_box::BoxValue {

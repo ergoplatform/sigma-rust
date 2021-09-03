@@ -102,6 +102,11 @@ impl TokenAmount {
             Ok(Self(raw))
         }
     }
+
+    /// Get the value as u64
+    pub fn as_u64(&self) -> &u64 {
+        &self.0
+    }
 }
 
 /// BoxValue errors
