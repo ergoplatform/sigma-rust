@@ -20,6 +20,7 @@ use std::convert::TryFrom;
 
 use chain::ergo_box::NonMandatoryRegisters;
 use ergo_lib::chain;
+use js_sys::Uint8Array;
 use wasm_bindgen::prelude::*;
 
 use crate::ast::Constant;
@@ -52,6 +53,11 @@ impl BoxId {
     /// Base16 encoded string
     pub fn to_str(&self) -> String {
         self.0.clone().into()
+    }
+
+    /// Returns byte array (32 bytes)
+    pub fn as_bytes(&self) -> Uint8Array {
+        Uint8Array::from(self.0.as_ref())
     }
 }
 

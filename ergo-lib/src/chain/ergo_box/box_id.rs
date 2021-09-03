@@ -36,6 +36,12 @@ impl BoxId {
     }
 }
 
+impl AsRef<[u8]> for BoxId {
+    fn as_ref(&self) -> &[u8] {
+        self.0.as_ref()
+    }
+}
+
 #[cfg(feature = "json")]
 impl From<BoxId> for String {
     fn from(v: BoxId) -> Self {

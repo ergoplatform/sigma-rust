@@ -39,6 +39,18 @@ impl From<TokenId> for Vec<i8> {
     }
 }
 
+impl From<TokenId> for Vec<u8> {
+    fn from(v: TokenId) -> Self {
+        v.0.into()
+    }
+}
+
+impl AsRef<[u8]> for TokenId {
+    fn as_ref(&self) -> &[u8] {
+        self.0.as_ref()
+    }
+}
+
 impl From<TokenId> for String {
     fn from(v: TokenId) -> Self {
         v.0.into()

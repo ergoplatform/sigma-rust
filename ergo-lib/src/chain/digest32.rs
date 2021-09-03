@@ -115,6 +115,12 @@ impl<const N: usize> SigmaSerializable for Digest<N> {
     }
 }
 
+impl AsRef<[u8]> for Digest32 {
+    fn as_ref(&self) -> &[u8] {
+        &self.0[..]
+    }
+}
+
 /// Invalid byte array size
 #[derive(Error, Debug)]
 pub enum Digest32Error {

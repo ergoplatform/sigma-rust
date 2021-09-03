@@ -64,6 +64,12 @@ impl From<TxId> for String {
     }
 }
 
+impl AsRef<[u8]> for TxId {
+    fn as_ref(&self) -> &[u8] {
+        self.0.as_ref()
+    }
+}
+
 /// BouncedVec type for Tx inputs and output_candidates
 pub type TxIoVec<T> = BoundedVec<T, 1, { u16::MAX as usize }>;
 
