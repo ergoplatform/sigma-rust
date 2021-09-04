@@ -91,10 +91,6 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 - LastBlockUtxoRootHash
 
 
-#### Option
-
-- map
-- filter
 
 
 
@@ -204,4 +200,6 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 - isDefined
 - get
 - getOrElse
+- map [#360](https://github.com/ergoplatform/sigma-rust/issues/360)
+- filter [#360](https://github.com/ergoplatform/sigma-rust/issues/360)
 

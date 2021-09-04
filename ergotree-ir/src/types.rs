@@ -17,6 +17,8 @@ pub mod sgroup_elem;
 pub mod sheader;
 /// Object method(property) signature type
 pub mod smethod;
+/// Option object type companion
+pub mod soption;
 /// PreHeader's methods
 pub mod spreheader;
 /// Tuple type

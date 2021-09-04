@@ -12,6 +12,7 @@ use super::sheader;
 use super::smethod::MethodId;
 use super::smethod::SMethod;
 use super::smethod::SMethodDesc;
+use super::soption;
 use super::spreheader;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -51,6 +52,8 @@ impl STypeCompanion {
             &sheader::S_HEADER_TYPE_COMPANION
         } else if type_id == spreheader::S_PRE_HEADER_TYPE_COMPANION.type_id() {
             &spreheader::S_PRE_HEADER_TYPE_COMPANION
+        } else if type_id == soption::S_OPTION_TYPE_COMPANION.type_id() {
+            &soption::S_OPTION_TYPE_COMPANION
         } else {
             return Err(SigmaParsingError::NotImplementedYet(format!(
                 "cannot find STypeCompanion for {0:?} type id",
