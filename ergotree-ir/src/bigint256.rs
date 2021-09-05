@@ -2,7 +2,7 @@
 
 use std::convert::TryFrom;
 use std::fmt;
-use std::ops::{Add, BitAnd, BitOr, BitXor, Deref, Div, Mul, Neg, Rem, Sub};
+use std::ops::{Add, BitAnd, BitOr, BitXor, Deref, Div, Mul, Neg, Not, Rem, Sub};
 
 use num256::int256::Int256;
 use num_bigint::BigInt;
@@ -157,6 +157,15 @@ impl Neg for BigInt256 {
 
     fn neg(self) -> Self::Output {
         BigInt256(-self.0)
+    }
+}
+
+impl Not for BigInt256 {
+    type Output = Self;
+
+    fn not(self) -> Self::Output {
+        // Int256 currently doesn't have an impl for Not
+        BigInt256(Int256(!self.0 .0))
     }
 }
 
