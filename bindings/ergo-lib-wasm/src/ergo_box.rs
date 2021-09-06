@@ -20,6 +20,7 @@ use std::convert::TryFrom;
 
 use chain::ergo_box::NonMandatoryRegisters;
 use ergo_lib::chain;
+use ergo_lib::ergotree_ir::serialization::SigmaSerializable;
 use js_sys::Uint8Array;
 use wasm_bindgen::prelude::*;
 
@@ -178,6 +179,15 @@ impl ErgoBox {
     /// JSON representation
     pub fn from_json(json: &str) -> Result<ErgoBox, JsValue> {
         serde_json::from_str(json).map(Self).map_err(to_js)
+    }
+
+    /// Serialized additional register as defined in ErgoBox serialization (registers count,
+    /// followed by every non-empyt register value serialized)
+    pub fn serialized_additional_registers(&self) -> Result<Vec<u8>, JsValue> {
+        self.0
+            .additional_registers
+            .sigma_serialize_bytes()
+            .map_err(|e| JsValue::from_str(&format!("{}", e)))
     }
 }
 

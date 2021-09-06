@@ -4,7 +4,11 @@
 use crate::chain::json::ergo_box::ConstantHolder;
 use crate::chain::Base16EncodedBytes;
 use ergotree_ir::mir::constant::Constant;
+use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
+use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
 use ergotree_ir::serialization::SigmaParsingError;
+use ergotree_ir::serialization::SigmaSerializable;
+use ergotree_ir::serialization::SigmaSerializeResult;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
@@ -212,6 +216,27 @@ impl NonMandatoryRegisters {
     }
 }
 
+impl SigmaSerializable for NonMandatoryRegisters {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
+        let regs_num = self.len();
+        w.put_u8(regs_num as u8)?;
+
+        self.get_ordered_values()
+            .iter()
+            .try_for_each(|c| c.sigma_serialize(w))
+    }
+
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
+        let regs_num = r.get_u8()?;
+        let mut additional_regs = Vec::with_capacity(regs_num as usize);
+        for _ in 0..regs_num {
+            let v = Constant::sigma_parse(r)?;
+            additional_regs.push(v);
+        }
+        Ok(NonMandatoryRegisters::from_ordered_values(additional_regs)?)
+    }
+}
+
 /// Possible errors when building NonMandatoryRegisters
 #[derive(Error, PartialEq, Eq, Clone, Debug)]
 pub enum NonMandatoryRegistersError {
@@ -309,6 +334,7 @@ impl TryFrom<i8> for MandatoryRegisterId {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ergotree_ir::serialization::sigma_serialize_roundtrip;
     use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
 
     impl Arbitrary for NonMandatoryRegisters {
@@ -347,6 +373,11 @@ mod tests {
         #[test]
         fn reg_id_from_byte(reg_id_byte in 0i8..NonMandatoryRegisterId::END_INDEX as i8) {
             assert!(RegisterId::try_from(reg_id_byte).is_ok());
+        }
+
+        #[test]
+        fn ser_roundtrip(regs in any::<NonMandatoryRegisters>()) {
+            prop_assert_eq![sigma_serialize_roundtrip(&regs), regs];
         }
     }
 
