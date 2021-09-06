@@ -64,7 +64,7 @@ lazy_static! {
                     SType::SBoolean,
                 ).into()
                 ],
-            SType::SOption(SType::STypeVar(STypeVar::ov()).into()),
+            SType::SOption(SType::STypeVar(STypeVar::iv()).into()),
         ),
     };
     /// Option.map

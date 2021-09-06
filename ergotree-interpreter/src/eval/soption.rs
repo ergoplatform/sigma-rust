@@ -69,22 +69,27 @@ pub(crate) static FILTER_EVAL_FN: EvalFn = |env, ctx, obj, args| {
         ))),
     }?;
 
-    if let Some(v) = normalized_input_val {
-        if let Value::Boolean(predicate_res) = predicate_call(v.clone())? {
-            if predicate_res {
-                return Ok(Value::Opt(Box::new(Some(v))));
-            }
-        }
+    match normalized_input_val {
+        Some(val) => match predicate_call(val.clone())? {
+            Value::Boolean(predicate_res) => match predicate_res {
+                true => Ok(Value::Opt(Box::new(Some(val)))),
+                false => Ok(Value::Opt(Box::new(None))),
+            },
+            _ => Err(EvalError::UnexpectedValue(format!(
+                "expected filter predicate result to be boolean, got: {0:?}",
+                lambda.body.tpe()
+            ))),
+        },
+        None => Ok(Value::Opt(Box::new(None))),
     }
-    Ok(Value::Opt(Box::new(None)))
 };
 
 #[allow(clippy::unwrap_used)]
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
 mod tests {
-    use ergotree_ir::mir::bin_op::BinOp;
     use ergotree_ir::mir::bin_op::RelationOp;
+    use ergotree_ir::mir::bin_op::{ArithOp, BinOp};
     use ergotree_ir::mir::constant::Constant;
     use ergotree_ir::mir::expr::Expr;
     use ergotree_ir::mir::func_value::FuncArg;
@@ -209,15 +214,9 @@ mod tests {
 
         let expr: Expr = MethodCall::new(
             opt_const.into(),
-            soption::FILTER_METHOD.clone().with_concrete_types(
-                &[
-                    (STypeVar::iv(), SType::SLong),
-                    (STypeVar::ov(), SType::SBoolean),
-                ]
-                .iter()
-                .cloned()
-                .collect(),
-            ),
+            soption::FILTER_METHOD
+                .clone()
+                .with_concrete_types(&[(STypeVar::iv(), SType::SLong)].iter().cloned().collect()),
             vec![FuncValue::new(
                 vec![FuncArg {
                     idx: 1.into(),
@@ -253,15 +252,9 @@ mod tests {
 
         let expr: Expr = MethodCall::new(
             opt_const.into(),
-            soption::FILTER_METHOD.clone().with_concrete_types(
-                &[
-                    (STypeVar::iv(), SType::SLong),
-                    (STypeVar::ov(), SType::SBoolean),
-                ]
-                .iter()
-                .cloned()
-                .collect(),
-            ),
+            soption::FILTER_METHOD
+                .clone()
+                .with_concrete_types(&[(STypeVar::iv(), SType::SLong)].iter().cloned().collect()),
             vec![FuncValue::new(
                 vec![FuncArg {
                     idx: 1.into(),
@@ -298,15 +291,9 @@ mod tests {
 
         let expr: Expr = MethodCall::new(
             opt_const.into(),
-            soption::FILTER_METHOD.clone().with_concrete_types(
-                &[
-                    (STypeVar::iv(), SType::SLong),
-                    (STypeVar::ov(), SType::SBoolean),
-                ]
-                .iter()
-                .cloned()
-                .collect(),
-            ),
+            soption::FILTER_METHOD
+                .clone()
+                .with_concrete_types(&[(STypeVar::iv(), SType::SLong)].iter().cloned().collect()),
             vec![FuncValue::new(
                 vec![FuncArg {
                     idx: 1.into(),
@@ -321,5 +308,40 @@ mod tests {
 
         let res = eval_out_wo_ctx::<Value>(&expr);
         assert_eq!(res, Value::Opt(Box::new(Option::None)));
+    }
+
+    #[test]
+    fn eval_filter_predicate_invalid_tpe() {
+        let opt_const: Constant = Some(1i64).into();
+
+        let body: Expr = BinOp {
+            kind: ArithOp::Plus.into(),
+            left: Box::new(
+                ValUse {
+                    val_id: 1.into(),
+                    tpe: SType::SBox,
+                }
+                .into(),
+            ),
+            right: Box::new(Expr::Const(2i64.into())),
+        }
+        .into();
+        body.tpe();
+
+        assert!(MethodCall::new(
+            opt_const.into(),
+            soption::FILTER_METHOD
+                .clone()
+                .with_concrete_types(&[(STypeVar::iv(), SType::SLong)].iter().cloned().collect()),
+            vec![FuncValue::new(
+                vec![FuncArg {
+                    idx: 1.into(),
+                    tpe: SType::SLong,
+                }],
+                body,
+            )
+            .into()],
+        )
+        .is_err());
     }
 }
