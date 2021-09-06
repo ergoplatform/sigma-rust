@@ -156,11 +156,12 @@ impl Transaction {
                 proofs
                     .get(index)
                     .map(|proof| Input::from_unsigned_input(unsigned_input, proof.clone()))
-                    // TODO: make new error type?
-                    .ok_or(TransactionError::InvalidArgument(format!(
-                        "no proof for input index: {}",
-                        index
-                    )))
+                    .ok_or_else(|| {
+                        TransactionError::InvalidArgument(format!(
+                            "no proof for input index: {}",
+                            index
+                        ))
+                    })
             })?;
         Ok(Transaction::new(
             inputs,
