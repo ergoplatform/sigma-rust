@@ -66,6 +66,23 @@ pub struct Transaction(chain::transaction::Transaction);
 
 #[wasm_bindgen]
 impl Transaction {
+    /// Create Transaction from UnsignedTransaction and an array of proofs in the same order as
+    /// UnsignedTransaction.inputs with empty proof indicated with empty byte array
+    pub fn from_unsigned_tx(
+        unsigned_tx: UnsignedTransaction,
+        proofs: Vec<Uint8Array>,
+    ) -> Result<Transaction, JsValue> {
+        chain::transaction::Transaction::from_unsigned_tx(
+            unsigned_tx.0,
+            proofs
+                .into_iter()
+                .map(|bytes| bytes.to_vec().into())
+                .collect(),
+        )
+        .map_err(|e| JsValue::from_str(&format!("{}", e)))
+        .map(Into::into)
+    }
+
     /// Get id for transaction
     pub fn id(&self) -> TxId {
         self.0.id().into()

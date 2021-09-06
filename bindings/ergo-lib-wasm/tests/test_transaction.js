@@ -4,32 +4,32 @@ import {
   Address, Wallet, ErgoBox, ErgoBoxCandidateBuilder, Contract,
   ErgoBoxes, ErgoBoxCandidates,
   ErgoStateContext, TxBuilder, BoxValue, BoxSelector, I64, SecretKey, SecretKeys, TxId, DataInputs,
-  SimpleBoxSelector, Tokens, Token, TokenAmount, TokenId, BlockHeaders, PreHeader,
+  SimpleBoxSelector, Tokens, Token, TokenAmount, TokenId, BlockHeaders, PreHeader, Transaction,
 } from '../pkg/ergo_lib_wasm';
 
 const block_headers = BlockHeaders.from_json([{
-      "extensionId": "d16f25b14457186df4c5f6355579cc769261ce1aebc8209949ca6feadbac5a3f",
-      "difficulty": "626412390187008",
-      "votes": "040000",
-      "timestamp": 1618929697400,
-      "size": 221,
-      "stateRoot": "8ad868627ea4f7de6e2a2fe3f98fafe57f914e0f2ef3331c006def36c697f92713",
-      "height": 471746,
-      "nBits": 117586360,
-      "version": 2,
-      "id": "4caa17e62fe66ba7bd69597afdc996ae35b1ff12e0ba90c22ff288a4de10e91b",
-      "adProofsRoot": "d882aaf42e0a95eb95fcce5c3705adf758e591532f733efe790ac3c404730c39",
-      "transactionsRoot": "63eaa9aff76a1de3d71c81e4b2d92e8d97ae572a8e9ab9e66599ed0912dd2f8b",
-      "extensionHash": "3f91f3c680beb26615fdec251aee3f81aaf5a02740806c167c0f3c929471df44",
-      "powSolutions": {
-        "pk": "02b3a06d6eaa8671431ba1db4dd427a77f75a5c2acbd71bfb725d38adc2b55f669",
-        "w": "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
-        "n": "5939ecfee6b0d7f4",
-        "d": 0
-      },
-      "adProofsId": "86eaa41f328bee598e33e52c9e515952ad3b7874102f762847f17318a776a7ae",
-      "transactionsId": "ac80245714f25aa2fafe5494ad02a26d46e7955b8f5709f3659f1b9440797b3e",
-      "parentId": "6481752bace5fa5acba5d5ef7124d48826664742d46c974c98a2d60ace229a34"
+  "extensionId": "d16f25b14457186df4c5f6355579cc769261ce1aebc8209949ca6feadbac5a3f",
+  "difficulty": "626412390187008",
+  "votes": "040000",
+  "timestamp": 1618929697400,
+  "size": 221,
+  "stateRoot": "8ad868627ea4f7de6e2a2fe3f98fafe57f914e0f2ef3331c006def36c697f92713",
+  "height": 471746,
+  "nBits": 117586360,
+  "version": 2,
+  "id": "4caa17e62fe66ba7bd69597afdc996ae35b1ff12e0ba90c22ff288a4de10e91b",
+  "adProofsRoot": "d882aaf42e0a95eb95fcce5c3705adf758e591532f733efe790ac3c404730c39",
+  "transactionsRoot": "63eaa9aff76a1de3d71c81e4b2d92e8d97ae572a8e9ab9e66599ed0912dd2f8b",
+  "extensionHash": "3f91f3c680beb26615fdec251aee3f81aaf5a02740806c167c0f3c929471df44",
+  "powSolutions": {
+    "pk": "02b3a06d6eaa8671431ba1db4dd427a77f75a5c2acbd71bfb725d38adc2b55f669",
+    "w": "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
+    "n": "5939ecfee6b0d7f4",
+    "d": 0
+  },
+  "adProofsId": "86eaa41f328bee598e33e52c9e515952ad3b7874102f762847f17318a776a7ae",
+  "transactionsId": "ac80245714f25aa2fafe5494ad02a26d46e7955b8f5709f3659f1b9440797b3e",
+  "parentId": "6481752bace5fa5acba5d5ef7124d48826664742d46c974c98a2d60ace229a34"
 }]);
 
 it('TxBuilder test', async () => {
@@ -208,4 +208,39 @@ it('use signed tx outputs as inputs in a new tx', async () => {
   const new_tx_builder = TxBuilder.new(new_box_selection, tx_outputs, 0, fee, change_address, min_change_value);
   const new_tx = tx_builder.build();
   assert(new_tx != null);
+});
+
+it('Transaction::from_unsigned_tx test', async () => {
+  const recipient = Address.from_testnet_str('3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN');
+  const unspent_boxes = ErgoBoxes.from_boxes_json([
+    {
+      "boxId": "e56847ed19b3dc6b72828fcfb992fdf7310828cf291221269b7ffc72fd66706e",
+      "value": 67500000000,
+      "ergoTree": "100204a00b08cd021dde34603426402615658f1d970cfa7c7bd92ac81a8b16eeebff264d59ce4604ea02d192a39a8cc7a70173007301",
+      "assets": [],
+      "creationHeight": 284761,
+      "additionalRegisters": {},
+      "transactionId": "9148408c04c2e38a6402a7950d6157730fa7d49e9ab3b9cadec481d7769918e9",
+      "index": 1
+    }
+  ]);
+  const contract = Contract.pay_to_address(recipient);
+  const outbox_value = BoxValue.SAFE_USER_MIN();
+  const outbox = new ErgoBoxCandidateBuilder(outbox_value, contract, 0).build();
+  const tx_outputs = new ErgoBoxCandidates(outbox);
+  const fee = TxBuilder.SUGGESTED_TX_FEE();
+  const change_address = Address.from_testnet_str('3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN');
+  const min_change_value = BoxValue.SAFE_USER_MIN();
+  const data_inputs = new DataInputs();
+  const box_selector = new SimpleBoxSelector();
+  const target_balance = BoxValue.from_i64(outbox_value.as_i64().checked_add(fee.as_i64()));
+  const box_selection = box_selector.select(unspent_boxes, target_balance, new Tokens());
+  const tx_builder = TxBuilder.new(box_selection, tx_outputs, 0, fee, change_address, min_change_value);
+  tx_builder.set_data_inputs(data_inputs);
+  const tx = tx_builder.build();
+  assert(tx != null);
+  const proof = new Uint8Array([1, 1, 2, 255]);
+  const signed_tx = Transaction.from_unsigned_tx(tx, [proof]);
+  assert(signed_tx != null);
+  assert(signed_tx.inputs().get(0).spending_proof().proof().toString() == proof.toString());
 });

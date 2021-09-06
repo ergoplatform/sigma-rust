@@ -88,6 +88,17 @@ impl Input {
         }
     }
 
+    /// Create Input from UnsignedInput and a proof
+    pub fn from_unsigned_input(unsigned_input: UnsignedInput, proof_bytes: ProofBytes) -> Self {
+        Self::new(
+            unsigned_input.box_id,
+            ProverResult {
+                proof: proof_bytes,
+                extension: unsigned_input.extension,
+            },
+        )
+    }
+
     /// input with an empty proof
     pub fn input_to_sign(&self) -> Input {
         Input {

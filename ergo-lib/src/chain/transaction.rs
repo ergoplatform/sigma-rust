@@ -5,7 +5,10 @@ pub mod input;
 pub mod unsigned;
 
 use bounded_vec::BoundedVec;
+use thiserror::Error;
+
 pub use data_input::*;
+use ergotree_interpreter::sigma_protocol::prover::ProofBytes;
 use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
 use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
 use ergotree_ir::serialization::SigmaParsingError;
@@ -13,6 +16,8 @@ use ergotree_ir::serialization::SigmaSerializable;
 use ergotree_ir::serialization::SigmaSerializationError;
 use ergotree_ir::serialization::SigmaSerializeResult;
 pub use input::*;
+
+use self::unsigned::UnsignedTransaction;
 
 #[cfg(feature = "json")]
 use super::json;
@@ -31,8 +36,6 @@ use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use std::convert::TryInto;
 use std::iter::FromIterator;
-#[cfg(feature = "json")]
-use thiserror::Error;
 
 /// Transaction id (ModifierId in sigmastate)
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
@@ -138,6 +141,32 @@ impl Transaction {
             outputs,
             ..tx_to_sign
         })
+    }
+
+    /// Create Transaction from UnsignedTransaction and an array of proofs in the same order as
+    /// UnsignedTransaction.inputs
+    pub fn from_unsigned_tx(
+        unsigned_tx: UnsignedTransaction,
+        proofs: Vec<ProofBytes>,
+    ) -> Result<Self, TransactionError> {
+        let inputs = unsigned_tx
+            .inputs
+            .enumerated()
+            .try_mapped(|(index, unsigned_input)| {
+                proofs
+                    .get(index)
+                    .map(|proof| Input::from_unsigned_input(unsigned_input, proof.clone()))
+                    // TODO: make new error type?
+                    .ok_or(TransactionError::InvalidArgument(format!(
+                        "no proof for input index: {}",
+                        index
+                    )))
+            })?;
+        Ok(Transaction::new(
+            inputs,
+            unsigned_tx.data_inputs,
+            unsigned_tx.output_candidates,
+        )?)
     }
 
     fn calc_tx_id(&self) -> Result<TxId, SigmaSerializationError> {
@@ -252,6 +281,17 @@ impl SigmaSerializable for Transaction {
             outputs.try_into()?,
         )?)
     }
+}
+
+/// Error when working with Transaction
+#[derive(Error, Eq, PartialEq, Debug, Clone)]
+pub enum TransactionError {
+    /// Serialization error
+    #[error("Tx serialization error: {0}")]
+    SigmaSerializationError(#[from] SigmaSerializationError),
+    /// Invalid argument on tx construction
+    #[error("Tx innvalid argument: {0}")]
+    InvalidArgument(String),
 }
 
 #[cfg(feature = "json")]
