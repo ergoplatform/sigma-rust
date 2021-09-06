@@ -9,6 +9,7 @@ use crate::types::stype::SType;
 use super::and::And;
 use super::apply::Apply;
 use super::bin_op::BinOp;
+use super::bit_inversion::BitInversion;
 use super::block::BlockValue;
 use super::bool_to_sigma::BoolToSigmaProp;
 use super::byte_array_to_long::ByteArrayToLong;
@@ -136,6 +137,8 @@ pub enum Expr {
     LogicalNot(LogicalNot),
     /// Negation on numeric type
     Negation(Negation),
+    /// Bit inversion on numeric type
+    BitInversion(BitInversion),
     /// Option.get method
     OptionGet(OptionGet),
     /// Option.isDefined method
@@ -258,6 +261,7 @@ impl Expr {
             Expr::OptionIsDefined(v) => v.tpe(),
             Expr::OptionGetOrElse(v) => v.tpe(),
             Expr::Negation(v) => v.tpe(),
+            Expr::BitInversion(v) => v.tpe(),
             Expr::ForAll(v) => v.tpe(),
             Expr::Tuple(v) => v.tpe(),
             Expr::DecodePoint(v) => v.tpe(),

@@ -10,6 +10,7 @@ use crate::mir::bin_op::ArithOp;
 use crate::mir::bin_op::BitOp;
 use crate::mir::bin_op::LogicalOp;
 use crate::mir::bin_op::RelationOp;
+use crate::mir::bit_inversion::BitInversion;
 use crate::mir::block::BlockValue;
 use crate::mir::bool_to_sigma::BoolToSigmaProp;
 use crate::mir::byte_array_to_bigint::ByteArrayToBigInt;
@@ -118,6 +119,7 @@ impl Expr {
                 OpCode::EQ => Ok(bin_op_sigma_parse(RelationOp::Eq.into(), r)?),
                 OpCode::NEQ => Ok(bin_op_sigma_parse(RelationOp::NEq.into(), r)?),
                 Negation::OP_CODE => Ok(Negation::sigma_parse(r)?.into()),
+                BitInversion::OP_CODE => Ok(BitInversion::sigma_parse(r)?.into()),
                 OpCode::LOGICAL_NOT => Ok(LogicalNot::sigma_parse(r)?.into()),
                 OpCode::BIN_AND => Ok(bin_op_sigma_parse(LogicalOp::And.into(), r)?),
                 OpCode::BIN_OR => Ok(bin_op_sigma_parse(LogicalOp::Or.into(), r)?),
@@ -262,6 +264,7 @@ impl SigmaSerializable for Expr {
             Expr::OptionIsDefined(op) => op.sigma_serialize_w_opcode(w),
             Expr::OptionGetOrElse(op) => op.sigma_serialize_w_opcode(w),
             Expr::Negation(op) => op.sigma_serialize_w_opcode(w),
+            Expr::BitInversion(op) => op.sigma_serialize_w_opcode(w),
             Expr::ForAll(op) => op.sigma_serialize_w_opcode(w),
             Expr::Tuple(op) => op.sigma_serialize_w_opcode(w),
             Expr::DecodePoint(op) => op.sigma_serialize_w_opcode(w),

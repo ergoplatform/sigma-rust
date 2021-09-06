@@ -4,6 +4,8 @@ pub mod and;
 pub mod apply;
 pub mod atleast;
 pub mod bin_op;
+/// Bit inversion operation on numeric type.
+pub mod bit_inversion;
 pub mod block;
 pub mod bool_to_sigma;
 pub mod byte_array_to_bigint;

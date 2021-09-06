@@ -26,6 +26,7 @@ pub mod env;
 pub(crate) mod and;
 pub(crate) mod apply;
 pub(crate) mod bin_op;
+pub(crate) mod bit_inversion;
 pub(crate) mod block;
 pub(crate) mod bool_to_sigma;
 pub(crate) mod byte_array_to_bigint;
