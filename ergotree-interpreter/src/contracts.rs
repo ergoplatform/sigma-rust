@@ -280,4 +280,14 @@ mod tests {
         //     .unwrap();
         // assert!(!res);
     }
+
+    #[test]
+    fn eip_22_auction() {
+        // from https://github.com/ergoplatform/eips/blob/adbe21512cadf51a2d9af8406cfd418f95335899/eip-0022.md
+        let p2s_str = "GE68RH3VEgW6b4kN3GhYigrLxoXr9jMgMpmm3KnXJaYq1PzHieYhz7Uka86idxvBWLRLmpiA3HrxHPsX1jzQZEv5yaRDueiJqks1keM7iB1eYWMEVRUUq1MLFzdA1FHQwCfSakM3Uc8uBPqk2icxhoXvw1CVbUVtFCzcPrZzf8Jjf8gS5bCFpWQscHo14HTsdBxyV3dwL6wKu8LP8FuWJE7qCEgX9ToEiztH4ZLmFwBejnUFrCQqjLVLWpdgdnAXVyewiX9DxXKJKL4wNqhPUrYjmHEVvpZAezXjzfVMr7gKupTqAgx2AJYGh4winEDeYq9MVshX8xjJweGhbAm2RXN1euQpoepFaKqfrT2mQBTmr6edbbzYg6VJ7DoSCDzmcUupFAmZMjMiaUbgtyz2VEbPEKsmAFrZ6zdB5EUxhiYZMd6KdstsJwZCgKJSSCShTgpfqNLCdpR9JbZFQpA1uhUkuLMPvGi74V5EwijTEEtjmTVcWcVhJKv4GDr1Lqe2bMPq4jfEfqvemaY8FcrCsCSi2LZoQUeJ9VrBeotGTKccq8JhwnvNGhLUUrrm32v3bhU82jbtVBVFRD3FSv5hhS6pKHtTevjwuG7JWoR3LN7279A7zQGJWmkSWDoEhHjgxseqZ2G5bLB7ZVEzKM261QhwMwmXA1eWgq8zdBH1u9kFC9bMQ812q2DPZTuhzpBWJh74UGwaEgZLhnUrDKT58cEa4R3kfWyGCMoNw78q1E3a2eKDz8Va5wnixzT2SZFHU8DfHjPSz5rm8Mr3YxgRC6GzaasPDxTrZjuMJHU2exhqsoFvur7Q";
+
+        let encoder = AddressEncoder::new(NetworkPrefix::Mainnet);
+        let addr = encoder.parse_address_from_str(p2s_str).unwrap();
+        let _script: Rc<Expr> = addr.script().unwrap().proposition().unwrap();
+    }
 }
