@@ -432,7 +432,7 @@ impl<T: TryExtractFrom<Value>> TryExtractFrom<Value> for Option<T> {
         match v {
             Value::Opt(opt) => opt.map(T::try_extract_from).transpose(),
             _ => Err(TryExtractFromError(format!(
-                "expected Context, found {:?}",
+                "expected Option, found {:?}",
                 v
             ))),
         }

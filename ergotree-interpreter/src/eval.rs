@@ -79,6 +79,7 @@ pub(crate) mod sgroup_elem;
 pub(crate) mod sigma_and;
 pub(crate) mod sigma_or;
 pub(crate) mod sigma_prop_bytes;
+pub(crate) mod soption;
 pub(crate) mod tuple;
 pub(crate) mod upcast;
 pub(crate) mod val_use;
@@ -227,6 +228,16 @@ fn smethod_eval_fn(method: &SMethod) -> Result<EvalFn, EvalError> {
             method_id => {
                 return Err(EvalError::NotFound(format!(
                     "Eval fn: unknown method id in SGroupElement: {:?}",
+                    method_id
+                )))
+            }
+        },
+        soption::TYPE_ID => match method.method_id() {
+            soption::MAP_METHOD_ID => self::soption::MAP_EVAL_FN,
+            soption::FILTER_METHOD_ID => self::soption::FILTER_EVAL_FN,
+            method_id => {
+                return Err(EvalError::NotFound(format!(
+                    "Eval fn: unknown method id in SOption: {:?}",
                     method_id
                 )))
             }
