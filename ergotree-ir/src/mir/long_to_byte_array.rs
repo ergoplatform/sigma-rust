@@ -4,8 +4,8 @@ use crate::types::stype::SType;
 
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
-use super::unary_op::UnaryOp;
-use super::unary_op::UnaryOpTryBuild;
+use super::unary_op::OneArgOp;
+use super::unary_op::OneArgOpTryBuild;
 use crate::has_opcode::HasStaticOpCode;
 
 /// Convert SLong to byte array
@@ -26,13 +26,13 @@ impl HasStaticOpCode for LongToByteArray {
     const OP_CODE: OpCode = OpCode::LONG_TO_BYTE_ARRAY;
 }
 
-impl UnaryOp for LongToByteArray {
+impl OneArgOp for LongToByteArray {
     fn input(&self) -> &Expr {
         &self.input
     }
 }
 
-impl UnaryOpTryBuild for LongToByteArray {
+impl OneArgOpTryBuild for LongToByteArray {
     fn try_build(input: Expr) -> Result<Self, InvalidArgumentError>
     where
         Self: Sized,

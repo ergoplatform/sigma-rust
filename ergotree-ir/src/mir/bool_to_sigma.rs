@@ -1,7 +1,7 @@
 //! Embedding of Boolean values to SigmaProp
 use crate::has_opcode::HasStaticOpCode;
-use crate::mir::unary_op::UnaryOp;
-use crate::mir::unary_op::UnaryOpTryBuild;
+use crate::mir::unary_op::OneArgOp;
+use crate::mir::unary_op::OneArgOpTryBuild;
 use crate::serialization::op_code::OpCode;
 use crate::types::stype::SType;
 
@@ -29,13 +29,13 @@ impl HasStaticOpCode for BoolToSigmaProp {
     const OP_CODE: OpCode = OpCode::BOOL_TO_SIGMA_PROP;
 }
 
-impl UnaryOp for BoolToSigmaProp {
+impl OneArgOp for BoolToSigmaProp {
     fn input(&self) -> &Expr {
         &self.input
     }
 }
 
-impl UnaryOpTryBuild for BoolToSigmaProp {
+impl OneArgOpTryBuild for BoolToSigmaProp {
     fn try_build(input: Expr) -> Result<Self, InvalidArgumentError> {
         input.check_post_eval_tpe(&SType::SBoolean)?;
         Ok(Self {

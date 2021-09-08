@@ -4,8 +4,8 @@ use crate::types::stype::SType;
 
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
-use super::unary_op::UnaryOp;
-use super::unary_op::UnaryOpTryBuild;
+use super::unary_op::OneArgOp;
+use super::unary_op::OneArgOpTryBuild;
 use crate::has_opcode::HasStaticOpCode;
 
 /// Convert byte array to SBigInt
@@ -26,13 +26,13 @@ impl HasStaticOpCode for ByteArrayToBigInt {
     const OP_CODE: OpCode = OpCode::BYTE_ARRAY_TO_BIGINT;
 }
 
-impl UnaryOp for ByteArrayToBigInt {
+impl OneArgOp for ByteArrayToBigInt {
     fn input(&self) -> &Expr {
         &self.input
     }
 }
 
-impl UnaryOpTryBuild for ByteArrayToBigInt {
+impl OneArgOpTryBuild for ByteArrayToBigInt {
     fn try_build(input: Expr) -> Result<Self, InvalidArgumentError> {
         input.check_post_eval_tpe(&SType::SColl(Box::new(SType::SByte)))?;
         Ok(ByteArrayToBigInt {

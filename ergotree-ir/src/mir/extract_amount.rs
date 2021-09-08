@@ -3,8 +3,8 @@ use crate::types::stype::SType;
 
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
-use super::unary_op::UnaryOp;
-use super::unary_op::UnaryOpTryBuild;
+use super::unary_op::OneArgOp;
+use super::unary_op::OneArgOpTryBuild;
 use crate::has_opcode::HasStaticOpCode;
 
 /// Box value
@@ -25,13 +25,13 @@ impl HasStaticOpCode for ExtractAmount {
     const OP_CODE: OpCode = OpCode::EXTRACT_AMOUNT;
 }
 
-impl UnaryOp for ExtractAmount {
+impl OneArgOp for ExtractAmount {
     fn input(&self) -> &Expr {
         &self.input
     }
 }
 
-impl UnaryOpTryBuild for ExtractAmount {
+impl OneArgOpTryBuild for ExtractAmount {
     fn try_build(input: Expr) -> Result<Self, InvalidArgumentError> {
         input.check_post_eval_tpe(&SType::SBox)?;
         Ok(ExtractAmount {

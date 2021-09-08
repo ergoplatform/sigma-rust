@@ -4,8 +4,8 @@ use crate::types::stype::SType;
 
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
-use super::unary_op::UnaryOp;
-use super::unary_op::UnaryOpTryBuild;
+use super::unary_op::OneArgOp;
+use super::unary_op::OneArgOpTryBuild;
 
 /// Calc Sha 256-bit hash
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -25,13 +25,13 @@ impl HasStaticOpCode for CalcSha256 {
     const OP_CODE: OpCode = OpCode::CALC_SHA256;
 }
 
-impl UnaryOp for CalcSha256 {
+impl OneArgOp for CalcSha256 {
     fn input(&self) -> &Expr {
         &self.input
     }
 }
 
-impl UnaryOpTryBuild for CalcSha256 {
+impl OneArgOpTryBuild for CalcSha256 {
     fn try_build(input: Expr) -> Result<Self, InvalidArgumentError> {
         input.check_post_eval_tpe(&SType::SColl(Box::new(SType::SByte)))?;
         Ok(CalcSha256 {

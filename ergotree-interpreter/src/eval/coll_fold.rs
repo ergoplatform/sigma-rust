@@ -69,7 +69,7 @@ mod tests {
     use ergotree_ir::mir::func_value::FuncValue;
     use ergotree_ir::mir::property_call::PropertyCall;
     use ergotree_ir::mir::select_field::SelectField;
-    use ergotree_ir::mir::unary_op::UnaryOpTryBuild;
+    use ergotree_ir::mir::unary_op::OneArgOpTryBuild;
     use ergotree_ir::mir::val_use::ValUse;
     use ergotree_ir::types::scontext;
     use ergotree_ir::types::stuple::STuple;
