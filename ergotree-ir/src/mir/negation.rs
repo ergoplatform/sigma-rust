@@ -1,7 +1,7 @@
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
-use super::unary_op::UnaryOp;
-use super::unary_op::UnaryOpTryBuild;
+use super::unary_op::OneArgOp;
+use super::unary_op::OneArgOpTryBuild;
 use crate::has_opcode::HasStaticOpCode;
 use crate::serialization::op_code::OpCode;
 use crate::types::stype::SType;
@@ -24,13 +24,13 @@ impl HasStaticOpCode for Negation {
     const OP_CODE: OpCode = OpCode::NEGATION;
 }
 
-impl UnaryOp for Negation {
+impl OneArgOp for Negation {
     fn input(&self) -> &Expr {
         &self.input
     }
 }
 
-impl UnaryOpTryBuild for Negation {
+impl OneArgOpTryBuild for Negation {
     fn try_build(input: Expr) -> Result<Self, InvalidArgumentError> {
         let post_eval_tpe = input.post_eval_tpe();
         if !post_eval_tpe.is_numeric() {

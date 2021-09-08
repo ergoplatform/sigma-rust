@@ -5,8 +5,8 @@ use crate::types::stype::SType;
 
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
-use super::unary_op::UnaryOp;
-use super::unary_op::UnaryOpTryBuild;
+use super::unary_op::OneArgOp;
+use super::unary_op::OneArgOpTryBuild;
 use crate::has_opcode::HasStaticOpCode;
 
 /// Decode byte array to EC point
@@ -27,13 +27,13 @@ impl HasStaticOpCode for DecodePoint {
     const OP_CODE: OpCode = OpCode::DECODE_POINT;
 }
 
-impl UnaryOp for DecodePoint {
+impl OneArgOp for DecodePoint {
     fn input(&self) -> &Expr {
         &self.input
     }
 }
 
-impl UnaryOpTryBuild for DecodePoint {
+impl OneArgOpTryBuild for DecodePoint {
     fn try_build(input: Expr) -> Result<Self, InvalidArgumentError> {
         input.check_post_eval_tpe(&SType::SColl(Box::new(SType::SByte)))?;
         Ok(Self {

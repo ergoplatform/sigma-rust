@@ -4,8 +4,8 @@ use crate::types::stype::SType;
 
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
-use super::unary_op::UnaryOp;
-use super::unary_op::UnaryOpTryBuild;
+use super::unary_op::OneArgOp;
+use super::unary_op::OneArgOpTryBuild;
 use crate::has_opcode::HasStaticOpCode;
 
 /// Tuple of height when block got included into the blockchain and transaction identifier with
@@ -27,13 +27,13 @@ impl HasStaticOpCode for ExtractCreationInfo {
     const OP_CODE: OpCode = OpCode::EXTRACT_CREATION_INFO;
 }
 
-impl UnaryOp for ExtractCreationInfo {
+impl OneArgOp for ExtractCreationInfo {
     fn input(&self) -> &Expr {
         &self.input
     }
 }
 
-impl UnaryOpTryBuild for ExtractCreationInfo {
+impl OneArgOpTryBuild for ExtractCreationInfo {
     fn try_build(input: Expr) -> Result<Self, InvalidArgumentError> {
         input.check_post_eval_tpe(&SType::SBox)?;
         Ok(ExtractCreationInfo {

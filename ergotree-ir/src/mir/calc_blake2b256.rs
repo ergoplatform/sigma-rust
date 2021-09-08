@@ -4,8 +4,8 @@ use crate::types::stype::SType;
 
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
-use super::unary_op::UnaryOp;
-use super::unary_op::UnaryOpTryBuild;
+use super::unary_op::OneArgOp;
+use super::unary_op::OneArgOpTryBuild;
 
 /// Calc Blake2b 256-bit hash
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -25,13 +25,13 @@ impl HasStaticOpCode for CalcBlake2b256 {
     const OP_CODE: OpCode = OpCode::CALC_BLAKE2B256;
 }
 
-impl UnaryOp for CalcBlake2b256 {
+impl OneArgOp for CalcBlake2b256 {
     fn input(&self) -> &Expr {
         &self.input
     }
 }
 
-impl UnaryOpTryBuild for CalcBlake2b256 {
+impl OneArgOpTryBuild for CalcBlake2b256 {
     fn try_build(input: Expr) -> Result<Self, InvalidArgumentError> {
         input.check_post_eval_tpe(&SType::SColl(Box::new(SType::SByte)))?;
         Ok(CalcBlake2b256 {

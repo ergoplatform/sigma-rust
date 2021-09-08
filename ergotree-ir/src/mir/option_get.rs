@@ -1,7 +1,7 @@
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
-use super::unary_op::UnaryOp;
-use super::unary_op::UnaryOpTryBuild;
+use super::unary_op::OneArgOp;
+use super::unary_op::OneArgOpTryBuild;
 use crate::has_opcode::HasStaticOpCode;
 use crate::serialization::op_code::OpCode;
 use crate::types::stype::SType;
@@ -26,13 +26,13 @@ impl HasStaticOpCode for OptionGet {
     const OP_CODE: OpCode = OpCode::OPTION_GET;
 }
 
-impl UnaryOp for OptionGet {
+impl OneArgOp for OptionGet {
     fn input(&self) -> &Expr {
         &self.input
     }
 }
 
-impl UnaryOpTryBuild for OptionGet {
+impl OneArgOpTryBuild for OptionGet {
     fn try_build(input: Expr) -> Result<Self, InvalidArgumentError> {
         match input.post_eval_tpe() {
             SType::SOption(elem_tpe) => Ok(OptionGet {

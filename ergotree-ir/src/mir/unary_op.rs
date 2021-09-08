@@ -10,18 +10,18 @@ use super::expr::Expr;
 use super::expr::InvalidArgumentError;
 
 /// IR nodes with one input value(expr)
-pub trait UnaryOp {
+pub trait OneArgOp {
     /// Input value(expr) of the IR node
     fn input(&self) -> &Expr;
 }
 
 /// Constructor for unary IR nodes that check the validity of the argument
-pub trait UnaryOpTryBuild: Sized {
+pub trait OneArgOpTryBuild: Sized {
     /// Create new IR node, returns an error if any of the requirements failed
     fn try_build(input: Expr) -> Result<Self, InvalidArgumentError>;
 }
 
-impl<T: UnaryOp + UnaryOpTryBuild> SigmaSerializable for T {
+impl<T: OneArgOp + OneArgOpTryBuild> SigmaSerializable for T {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         self.input().sigma_serialize(w)
     }

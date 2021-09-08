@@ -3,8 +3,8 @@ use crate::types::stype::SType;
 
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
-use super::unary_op::UnaryOp;
-use super::unary_op::UnaryOpTryBuild;
+use super::unary_op::OneArgOp;
+use super::unary_op::OneArgOpTryBuild;
 use crate::has_opcode::HasStaticOpCode;
 
 /// Collection size
@@ -25,13 +25,13 @@ impl HasStaticOpCode for SizeOf {
     const OP_CODE: OpCode = OpCode::SIZE_OF;
 }
 
-impl UnaryOp for SizeOf {
+impl OneArgOp for SizeOf {
     fn input(&self) -> &Expr {
         &self.input
     }
 }
 
-impl UnaryOpTryBuild for SizeOf {
+impl OneArgOpTryBuild for SizeOf {
     fn try_build(input: Expr) -> Result<Self, InvalidArgumentError> {
         match input.post_eval_tpe() {
             SType::SColl(_) => Ok(Self {

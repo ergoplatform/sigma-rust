@@ -3,8 +3,8 @@ use crate::types::stype::SType;
 
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
-use super::unary_op::UnaryOp;
-use super::unary_op::UnaryOpTryBuild;
+use super::unary_op::OneArgOp;
+use super::unary_op::OneArgOpTryBuild;
 use crate::has_opcode::HasStaticOpCode;
 
 /// Extract serialized bytes of a SigmaProp value
@@ -25,13 +25,13 @@ impl HasStaticOpCode for SigmaPropBytes {
     const OP_CODE: OpCode = OpCode::SIGMA_PROP_BYTES;
 }
 
-impl UnaryOp for SigmaPropBytes {
+impl OneArgOp for SigmaPropBytes {
     fn input(&self) -> &Expr {
         &self.input
     }
 }
 
-impl UnaryOpTryBuild for SigmaPropBytes {
+impl OneArgOpTryBuild for SigmaPropBytes {
     fn try_build(input: Expr) -> Result<Self, InvalidArgumentError> {
         input.check_post_eval_tpe(&SType::SSigmaProp)?;
         Ok(SigmaPropBytes {

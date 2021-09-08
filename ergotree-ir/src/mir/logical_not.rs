@@ -1,7 +1,7 @@
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
-use super::unary_op::UnaryOp;
-use super::unary_op::UnaryOpTryBuild;
+use super::unary_op::OneArgOp;
+use super::unary_op::OneArgOpTryBuild;
 use crate::has_opcode::HasStaticOpCode;
 use crate::serialization::op_code::OpCode;
 use crate::types::stype::SType;
@@ -24,13 +24,13 @@ impl HasStaticOpCode for LogicalNot {
     const OP_CODE: OpCode = OpCode::LOGICAL_NOT;
 }
 
-impl UnaryOp for LogicalNot {
+impl OneArgOp for LogicalNot {
     fn input(&self) -> &Expr {
         &self.input
     }
 }
 
-impl UnaryOpTryBuild for LogicalNot {
+impl OneArgOpTryBuild for LogicalNot {
     fn try_build(input: Expr) -> Result<Self, InvalidArgumentError> {
         input.check_post_eval_tpe(&SType::SBoolean)?;
         Ok(Self {

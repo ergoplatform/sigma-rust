@@ -3,8 +3,8 @@ use crate::types::stype::SType;
 
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
-use super::unary_op::UnaryOp;
-use super::unary_op::UnaryOpTryBuild;
+use super::unary_op::OneArgOp;
+use super::unary_op::OneArgOpTryBuild;
 use crate::has_opcode::HasStaticOpCode;
 
 /// Box id, Blake2b256 hash of this box's content, basically equals to `blake2b256(bytes)`
@@ -25,13 +25,13 @@ impl HasStaticOpCode for ExtractId {
     const OP_CODE: OpCode = OpCode::EXTRACT_ID;
 }
 
-impl UnaryOp for ExtractId {
+impl OneArgOp for ExtractId {
     fn input(&self) -> &Expr {
         &self.input
     }
 }
 
-impl UnaryOpTryBuild for ExtractId {
+impl OneArgOpTryBuild for ExtractId {
     fn try_build(input: Expr) -> Result<Self, InvalidArgumentError> {
         input.check_post_eval_tpe(&SType::SBox)?;
         Ok(ExtractId {

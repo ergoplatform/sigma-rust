@@ -1,7 +1,7 @@
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
-use super::unary_op::UnaryOp;
-use super::unary_op::UnaryOpTryBuild;
+use super::unary_op::OneArgOp;
+use super::unary_op::OneArgOpTryBuild;
 use crate::has_opcode::HasStaticOpCode;
 use crate::serialization::op_code::OpCode;
 use crate::types::stype::SType;
@@ -24,13 +24,13 @@ impl HasStaticOpCode for OptionIsDefined {
     const OP_CODE: OpCode = OpCode::OPTION_IS_DEFINED;
 }
 
-impl UnaryOp for OptionIsDefined {
+impl OneArgOp for OptionIsDefined {
     fn input(&self) -> &Expr {
         &self.input
     }
 }
 
-impl UnaryOpTryBuild for OptionIsDefined {
+impl OneArgOpTryBuild for OptionIsDefined {
     fn try_build(input: Expr) -> Result<Self, InvalidArgumentError>
     where
         Self: Sized,

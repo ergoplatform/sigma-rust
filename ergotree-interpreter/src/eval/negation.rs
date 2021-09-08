@@ -43,7 +43,7 @@ mod tests {
     use ergotree_ir::mir::constant::Constant;
     use ergotree_ir::mir::constant::TryExtractFrom;
     use ergotree_ir::mir::expr::Expr;
-    use ergotree_ir::mir::unary_op::UnaryOpTryBuild;
+    use ergotree_ir::mir::unary_op::OneArgOpTryBuild;
     use num_traits::{Bounded, Num};
 
     fn try_run_eval<T: Num + Into<Constant> + TryExtractFrom<Value>>(
