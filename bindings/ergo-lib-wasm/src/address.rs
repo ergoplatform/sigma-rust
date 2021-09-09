@@ -5,7 +5,7 @@ use ergo_lib::ergotree_ir::sigma_protocol::dlog_group::EcPoint;
 use ergo_lib::ergotree_ir::sigma_protocol::sigma_boolean::ProveDlog;
 use wasm_bindgen::prelude::*;
 
-use crate::ergo_tree::ErgoTree;
+use crate::{ergo_tree::ErgoTree, error_conversion::conv};
 
 extern crate derive_more;
 use derive_more::{From, Into};
@@ -132,14 +132,14 @@ impl Address {
     pub fn recreate_from_ergo_tree(ergo_tree: &ErgoTree) -> Result<Address, JsValue> {
         ergo_lib::ergotree_ir::address::Address::recreate_from_ergo_tree(&ergo_tree.clone().into())
             .map(Address)
-            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+            .map_err(conv)
     }
 
     /// Create a P2PK address from serialized PK bytes(EcPoint/GroupElement)
     pub fn p2pk_from_pk_bytes(bytes: &[u8]) -> Result<Address, JsValue> {
         ergo_lib::ergotree_ir::address::Address::p2pk_from_pk_bytes(bytes)
             .map(Address)
-            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+            .map_err(conv)
     }
 
     /// Decode (base58) testnet address from string, checking that address is from the testnet
@@ -149,7 +149,7 @@ impl Address {
         )
         .parse_address_from_str(s)
         .map(Address)
-        .map_err(|e| JsValue::from_str(&format!("{}", e)))
+        .map_err(conv)
     }
 
     /// Decode (base58) mainnet address from string, checking that address is from the mainnet
@@ -159,7 +159,7 @@ impl Address {
         )
         .parse_address_from_str(s)
         .map(Address)
-        .map_err(|e| JsValue::from_str(&format!("{}", e)))
+        .map_err(conv)
     }
 
     /// Decode (base58) address from string without checking the network prefix
@@ -167,7 +167,7 @@ impl Address {
     pub fn from_base58(s: &str) -> Result<Address, JsValue> {
         ergo_lib::ergotree_ir::address::AddressEncoder::unchecked_parse_address_from_str(s)
             .map(Address)
-            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+            .map_err(conv)
     }
 
     /// Encode (base58) address
@@ -182,7 +182,7 @@ impl Address {
     pub fn from_bytes(data: Vec<u8>) -> Result<Address, JsValue> {
         ergo_lib::ergotree_ir::address::AddressEncoder::unchecked_parse_address_from_bytes(&data)
             .map(Address)
-            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+            .map_err(conv)
     }
 
     /// Encode address as serialized bytes (that includes the network prefix)
@@ -203,15 +203,12 @@ impl Address {
         EcPoint::sigma_parse_bytes(bytes)
             .map(|point| ergo_lib::ergotree_ir::address::Address::P2Pk(ProveDlog::new(point)))
             .map(Address)
-            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+            .map_err(conv)
     }
 
     /// Creates an ErgoTree script from the address
     pub fn to_ergo_tree(&self) -> Result<ErgoTree, JsValue> {
-        self.0
-            .script()
-            .map(|script| script.into())
-            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+        self.0.script().map(|script| script.into()).map_err(conv)
     }
 }
 
@@ -235,7 +232,7 @@ impl NetworkAddress {
     pub fn from_base58(s: &str) -> Result<NetworkAddress, JsValue> {
         ergo_lib::ergotree_ir::address::AddressEncoder::unchecked_parse_network_address_from_str(s)
             .map(NetworkAddress)
-            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+            .map_err(conv)
     }
 
     /// Encode (base58) address
@@ -249,7 +246,7 @@ impl NetworkAddress {
             &data,
         )
         .map(NetworkAddress)
-        .map_err(|e| JsValue::from_str(&format!("{}", e)))
+        .map_err(conv)
     }
 
     /// Encode address as serialized bytes

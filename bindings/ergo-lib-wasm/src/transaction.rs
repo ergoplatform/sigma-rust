@@ -3,6 +3,7 @@
 use crate::box_coll::ErgoBoxCandidates;
 use crate::box_coll::ErgoBoxes;
 use crate::data_input::DataInputs;
+use crate::error_conversion::conv;
 use crate::input::{Inputs, UnsignedInputs};
 use ergo_lib::chain;
 use std::convert::TryFrom;
@@ -71,14 +72,12 @@ impl Transaction {
 
     /// JSON representation
     pub fn to_json(&self) -> Result<JsValue, JsValue> {
-        JsValue::from_serde(&self.0.clone()).map_err(|e| JsValue::from_str(&format!("{}", e)))
+        JsValue::from_serde(&self.0.clone()).map_err(conv)
     }
 
     /// JSON representation
     pub fn from_json(json: &str) -> Result<Transaction, JsValue> {
-        serde_json::from_str(json)
-            .map(Self)
-            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+        serde_json::from_str(json).map(Self).map_err(conv)
     }
 
     /// Inputs for transaction
@@ -147,14 +146,12 @@ impl UnsignedTransaction {
 
     /// JSON representation
     pub fn to_json(&self) -> Result<JsValue, JsValue> {
-        JsValue::from_serde(&self.0.clone()).map_err(|e| JsValue::from_str(&format!("{}", e)))
+        JsValue::from_serde(&self.0.clone()).map_err(conv)
     }
 
     /// JSON representation
     pub fn from_json(json: &str) -> Result<UnsignedTransaction, JsValue> {
-        serde_json::from_str(json)
-            .map(Self)
-            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+        serde_json::from_str(json).map(Self).map_err(conv)
     }
 }
 

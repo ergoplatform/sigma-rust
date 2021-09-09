@@ -4,6 +4,7 @@ use wasm_bindgen::prelude::*;
 
 use crate::ast::Constant;
 use crate::contract::Contract;
+use crate::error_conversion::conv;
 use crate::token::Token;
 use crate::token::TokenAmount;
 use crate::token::TokenId;
@@ -55,9 +56,7 @@ impl ErgoBoxCandidateBuilder {
 
     /// Calculate serialized box size(in bytes)
     pub fn calc_box_size_bytes(&self) -> Result<usize, JsValue> {
-        self.0
-            .calc_box_size_bytes()
-            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+        self.0.calc_box_size_bytes().map_err(conv)
     }
 
     /// Calculate minimal box value for the current box serialized size(in bytes)
@@ -65,7 +64,7 @@ impl ErgoBoxCandidateBuilder {
         self.0
             .calc_min_box_value()
             .map(BoxValue::from)
-            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+            .map_err(conv)
     }
 
     /// Set register with a given id (R4-R9) to the given value
@@ -113,10 +112,6 @@ impl ErgoBoxCandidateBuilder {
 
     /// Build the box candidate
     pub fn build(&self) -> Result<ErgoBoxCandidate, JsValue> {
-        self.0
-            .clone()
-            .build()
-            .map_err(|e| JsValue::from_str(&format!("{}", e)))
-            .map(ErgoBoxCandidate)
+        self.0.clone().build().map_err(conv).map(ErgoBoxCandidate)
     }
 }

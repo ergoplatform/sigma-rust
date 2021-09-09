@@ -9,7 +9,7 @@ use wasm_bindgen::prelude::*;
 extern crate derive_more;
 use derive_more::{From, Into};
 
-use crate::ast::Constant;
+use crate::{ast::Constant, error_conversion::conv};
 
 /// The root of ErgoScript IR. Serialized instances of this class are self sufficient and can be passed around.
 #[wasm_bindgen]
@@ -29,20 +29,16 @@ impl ErgoTree {
     pub fn from_bytes(data: Vec<u8>) -> Result<ErgoTree, JsValue> {
         ergo_lib::ergotree_ir::ergo_tree::ErgoTree::sigma_parse_bytes(&data)
             .map(ErgoTree)
-            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+            .map_err(conv)
     }
     /// Encode Ergo tree as serialized bytes
     pub fn to_bytes(&self) -> Result<Vec<u8>, JsValue> {
-        self.0
-            .sigma_serialize_bytes()
-            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+        self.0.sigma_serialize_bytes().map_err(conv)
     }
 
     /// Returns Base16-encoded serialized bytes
     pub fn to_base16_bytes(&self) -> Result<String, JsValue> {
-        self.0
-            .to_base16_bytes()
-            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+        self.0.to_base16_bytes().map_err(conv)
     }
 
     /// Returns constants number as stored in serialized ErgoTree or error if the parsing of
