@@ -34,3 +34,5 @@ pub mod transaction;
 pub mod tx_builder;
 pub mod utils;
 pub mod wallet;
+
+mod error_conversion;

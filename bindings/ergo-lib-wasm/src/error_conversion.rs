@@ -1,0 +1,51 @@
+//! Trait implementations to simplify conversion of `ergo_lib` errors into `JsValue`s
+
+use ergo_lib::{
+    chain::{
+        ergo_box::{box_builder::ErgoBoxCandidateBuilderError, BoxValueError},
+        token::TokenAmountError,
+        Digest32Error,
+    },
+    ergotree_ir::{
+        address::{AddressEncoderError, AddressError},
+        mir::constant::TryExtractFromError,
+        serialization::{SigmaParsingError, SigmaSerializationError},
+    },
+    wallet::{box_selector::BoxSelectorError, tx_builder::TxBuilderError, WalletError},
+};
+use serde_json::error::Error;
+use wasm_bindgen::JsValue;
+
+/// Ideally we'd like to implement `From<E> for JsValue` for a range of different `ergo-lib` error
+/// types `E`, but Rust orphan rules prevent this. A way to get around this limitation is to wrap
+/// `Jsvalue` within a local type.
+pub struct JsValueWrap(JsValue);
+
+/// Converts any error satisfying `Into<JsValueWrap>` into `JsValue`.
+pub fn conv<S: Into<JsValueWrap>>(s: S) -> JsValue {
+    s.into().0
+}
+
+macro_rules! from_error_to_wrap {
+    ($t:ident) => {
+        impl std::convert::From<$t> for JsValueWrap {
+            fn from(e: $t) -> Self {
+                JsValueWrap(JsValue::from_str(&format!("{}", e)))
+            }
+        }
+    };
+}
+
+from_error_to_wrap!(AddressError);
+from_error_to_wrap!(SigmaParsingError);
+from_error_to_wrap!(AddressEncoderError);
+from_error_to_wrap!(ErgoBoxCandidateBuilderError);
+from_error_to_wrap!(TryExtractFromError);
+from_error_to_wrap!(BoxSelectorError);
+from_error_to_wrap!(Digest32Error);
+from_error_to_wrap!(SigmaSerializationError);
+from_error_to_wrap!(Error);
+from_error_to_wrap!(BoxValueError);
+from_error_to_wrap!(TokenAmountError);
+from_error_to_wrap!(TxBuilderError);
+from_error_to_wrap!(WalletError);

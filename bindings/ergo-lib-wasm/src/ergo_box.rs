@@ -24,6 +24,7 @@ use wasm_bindgen::prelude::*;
 
 use crate::ast::Constant;
 use crate::ergo_tree::ErgoTree;
+use crate::error_conversion::conv;
 use crate::token::Tokens;
 use crate::utils::I64;
 use crate::{contract::Contract, transaction::TxId};
@@ -45,7 +46,7 @@ impl BoxId {
     pub fn from_str(box_id_str: String) -> Result<BoxId, JsValue> {
         chain::ergo_box::BoxId::try_from(box_id_str)
             .map(BoxId)
-            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+            .map_err(conv)
     }
 
     /// Base16 encoded string
@@ -125,7 +126,7 @@ impl ErgoBox {
             tx_id.clone().into(),
             index,
         )
-        .map_err(|e| JsValue::from_str(&format!("{}", e)))?;
+        .map_err(conv)?;
         Ok(ErgoBox(b))
     }
 
@@ -165,14 +166,12 @@ impl ErgoBox {
 
     /// JSON representation
     pub fn to_json(&self) -> Result<JsValue, JsValue> {
-        JsValue::from_serde(&self.0.clone()).map_err(|e| JsValue::from_str(&format!("{}", e)))
+        JsValue::from_serde(&self.0.clone()).map_err(conv)
     }
 
     /// JSON representation
     pub fn from_json(json: &str) -> Result<ErgoBox, JsValue> {
-        serde_json::from_str(json)
-            .map(Self)
-            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+        serde_json::from_str(json).map(Self).map_err(conv)
     }
 }
 
@@ -211,8 +210,7 @@ impl BoxValue {
     /// Create from i64 with bounds check
     pub fn from_i64(v: &I64) -> Result<BoxValue, JsValue> {
         Ok(BoxValue(
-            chain::ergo_box::BoxValue::try_from(i64::from(v.clone()) as u64)
-                .map_err(|e| JsValue::from_str(&format!("{}", e)))?,
+            chain::ergo_box::BoxValue::try_from(i64::from(v.clone()) as u64).map_err(conv)?,
         ))
     }
 

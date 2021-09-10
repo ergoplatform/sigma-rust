@@ -2,7 +2,7 @@
 
 use wasm_bindgen::prelude::*;
 
-use crate::context_extension::ContextExtension;
+use crate::{context_extension::ContextExtension, error_conversion::conv};
 extern crate derive_more;
 use derive_more::{From, Into};
 
@@ -25,6 +25,6 @@ impl ProverResult {
 
     /// JSON representation
     pub fn to_json(&self) -> Result<JsValue, JsValue> {
-        JsValue::from_serde(&self.0.clone()).map_err(|e| JsValue::from_str(&format!("{}", e)))
+        JsValue::from_serde(&self.0.clone()).map_err(conv)
     }
 }

@@ -3,8 +3,8 @@ use ergo_lib::chain;
 use wasm_bindgen::prelude::*;
 
 use crate::{
-    box_coll::ErgoBoxes, ergo_state_ctx::ErgoStateContext, secret_key::SecretKeys,
-    transaction::Transaction, transaction::UnsignedTransaction,
+    box_coll::ErgoBoxes, ergo_state_ctx::ErgoStateContext, error_conversion::conv,
+    secret_key::SecretKeys, transaction::Transaction, transaction::UnsignedTransaction,
 };
 
 /// A collection of secret keys. This simplified signing by matching the secret keys to the correct inputs automatically.
@@ -46,7 +46,7 @@ impl Wallet {
         };
         self.0
             .sign_transaction(tx_context, &_state_context.clone().into())
-            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+            .map_err(conv)
             .map(Transaction::from)
     }
 }
