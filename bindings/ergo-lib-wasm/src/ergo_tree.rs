@@ -20,8 +20,7 @@ pub struct ErgoTree(ergo_lib::ergotree_ir::ergo_tree::ErgoTree);
 impl ErgoTree {
     /// Decode from base16 encoded serialized ErgoTree
     pub fn from_base16_bytes(s: &str) -> Result<ErgoTree, JsValue> {
-        let bytes = Base16DecodedBytes::try_from(s.to_string())
-            .map_err(|e| JsValue::from_str(&format!("{}", e)))?;
+        let bytes = Base16DecodedBytes::try_from(s.to_string()).map_err(conv)?;
         ErgoTree::from_bytes(bytes.0)
     }
 
@@ -44,9 +43,7 @@ impl ErgoTree {
     /// Returns constants number as stored in serialized ErgoTree or error if the parsing of
     /// constants is failed
     pub fn constants_len(&self) -> Result<usize, JsValue> {
-        self.0
-            .constants_len()
-            .map_err(|e| JsValue::from_str(&format!("{:?}", e)))
+        self.0.constants_len().map_err(conv)
     }
 
     /// Returns constant with given index (as stored in serialized ErgoTree)
@@ -56,7 +53,7 @@ impl ErgoTree {
         self.0
             .get_constant(index)
             .map(|opt| opt.map(|c| c.into()))
-            .map_err(|e| JsValue::from_str(&format!("{:?}", e)))
+            .map_err(conv)
     }
 
     /// Consumes the calling ErgoTree and returns new ErgoTree with a new constant value
@@ -66,14 +63,12 @@ impl ErgoTree {
         self.0
             .with_constant(index, constant.clone().into())
             .map(ErgoTree)
-            .map_err(|e| JsValue::from_str(&format!("{:?}", e)))
+            .map_err(conv)
     }
 
     /// Serialized proposition expression of SigmaProp type with
     /// ConstantPlaceholder nodes instead of Constant nodes
     pub fn template_bytes(&self) -> Result<Vec<u8>, JsValue> {
-        self.0
-            .template_bytes()
-            .map_err(|e| JsValue::from_str(&format!("{:?}", e)))
+        self.0.template_bytes().map_err(conv)
     }
 }

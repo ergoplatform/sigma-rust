@@ -5,6 +5,8 @@ use wasm_bindgen::prelude::*;
 extern crate derive_more;
 use derive_more::{From, Into};
 
+use crate::error_conversion::conv;
+
 /// Block header
 #[wasm_bindgen]
 #[derive(PartialEq, Eq, Debug, Clone, From, Into)]
@@ -14,9 +16,7 @@ pub struct BlockHeader(ergo_lib::chain::block_header::BlockHeader);
 impl BlockHeader {
     /// Parse from JSON (Node API)
     pub fn from_json(json: &str) -> Result<BlockHeader, JsValue> {
-        serde_json::from_str(json)
-            .map(Self)
-            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+        serde_json::from_str(json).map(Self).map_err(conv)
     }
 }
 

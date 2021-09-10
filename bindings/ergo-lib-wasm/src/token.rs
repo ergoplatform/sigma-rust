@@ -28,7 +28,7 @@ impl TokenId {
     #[allow(clippy::should_implement_trait)]
     pub fn from_str(str: &str) -> Result<TokenId, JsValue> {
         Base16DecodedBytes::try_from(str.to_string())
-            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+            .map_err(conv)
             .and_then(|bytes| Digest32::try_from(bytes).map_err(conv))
             .map(|dig| dig.into())
             .map(TokenId)
@@ -100,7 +100,7 @@ impl Token {
 
     /// JSON representation
     pub fn to_json(&self) -> Result<JsValue, JsValue> {
-        JsValue::from_serde(&self.0.clone()).map_err(|e| JsValue::from_str(&format!("{}", e)))
+        JsValue::from_serde(&self.0.clone()).map_err(conv)
     }
 }
 
