@@ -3,7 +3,7 @@
 use crate::box_coll::ErgoBoxCandidates;
 use crate::box_coll::ErgoBoxes;
 use crate::data_input::DataInputs;
-use crate::error_conversion::conv;
+use crate::error_conversion::to_js;
 use crate::input::{Inputs, UnsignedInputs};
 use ergo_lib::chain;
 use std::convert::TryFrom;
@@ -34,7 +34,7 @@ impl TxId {
     /// convert a hex string into a TxId
     #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Result<TxId, JsValue> {
-        let bytes = ergo_lib::chain::Base16DecodedBytes::try_from(s.to_string()).map_err(conv)?;
+        let bytes = ergo_lib::chain::Base16DecodedBytes::try_from(s.to_string()).map_err(to_js)?;
 
         bytes
             .try_into()
@@ -71,12 +71,12 @@ impl Transaction {
 
     /// JSON representation
     pub fn to_json(&self) -> Result<JsValue, JsValue> {
-        JsValue::from_serde(&self.0.clone()).map_err(conv)
+        JsValue::from_serde(&self.0.clone()).map_err(to_js)
     }
 
     /// JSON representation
     pub fn from_json(json: &str) -> Result<Transaction, JsValue> {
-        serde_json::from_str(json).map(Self).map_err(conv)
+        serde_json::from_str(json).map(Self).map_err(to_js)
     }
 
     /// Inputs for transaction
@@ -145,12 +145,12 @@ impl UnsignedTransaction {
 
     /// JSON representation
     pub fn to_json(&self) -> Result<JsValue, JsValue> {
-        JsValue::from_serde(&self.0.clone()).map_err(conv)
+        JsValue::from_serde(&self.0.clone()).map_err(to_js)
     }
 
     /// JSON representation
     pub fn from_json(json: &str) -> Result<UnsignedTransaction, JsValue> {
-        serde_json::from_str(json).map(Self).map_err(conv)
+        serde_json::from_str(json).map(Self).map_err(to_js)
     }
 }
 

@@ -26,7 +26,7 @@ use wasm_bindgen::JsValue;
 pub struct JsValueWrap(JsValue);
 
 /// Converts any error satisfying `Into<JsValueWrap>` into `JsValue`.
-pub fn conv<S: Into<JsValueWrap>>(s: S) -> JsValue {
+pub fn to_js<S: Into<JsValueWrap>>(s: S) -> JsValue {
     s.into().0
 }
 

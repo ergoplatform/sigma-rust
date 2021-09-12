@@ -1,6 +1,6 @@
 //! Ergo constant values
 
-use crate::error_conversion::conv;
+use crate::error_conversion::to_js;
 use crate::utils::I64;
 use ergo_lib::chain::Base16Str;
 use ergo_lib::ergotree_ir::mir::constant::{TryExtractFrom, TryExtractInto};
@@ -31,7 +31,7 @@ impl Constant {
                 ))
             })?;
         ergo_lib::ergotree_ir::mir::constant::Constant::try_from(bytes)
-            .map_err(conv)
+            .map_err(to_js)
             .map(Constant)
     }
 
@@ -47,7 +47,7 @@ impl Constant {
 
     /// Extract i32 value, returning error if wrong type
     pub fn to_i32(&self) -> Result<i32, JsValue> {
-        i32::try_extract_from(self.0.clone()).map_err(conv)
+        i32::try_extract_from(self.0.clone()).map_err(to_js)
     }
 
     /// Create from i64
@@ -58,7 +58,7 @@ impl Constant {
     /// Extract i64 value, returning error if wrong type
     pub fn to_i64(&self) -> Result<I64, JsValue> {
         i64::try_extract_from(self.0.clone())
-            .map_err(conv)
+            .map_err(to_js)
             .map(I64::from)
     }
 
@@ -71,7 +71,7 @@ impl Constant {
     pub fn to_byte_array(&self) -> Result<Uint8Array, JsValue> {
         Vec::<u8>::try_extract_from(self.0.clone())
             .map(|v| Uint8Array::from(v.as_slice()))
-            .map_err(conv)
+            .map_err(to_js)
     }
 
     /// Create `Coll[Long]` from string array
@@ -116,7 +116,7 @@ impl Constant {
 
     /// Parse raw [`EcPoint`] value from bytes and make [`ProveDlog`] constant
     pub fn from_ecpoint_bytes(bytes: &[u8]) -> Result<Constant, JsValue> {
-        let ecp = EcPoint::sigma_parse_bytes(bytes).map_err(conv)?;
+        let ecp = EcPoint::sigma_parse_bytes(bytes).map_err(to_js)?;
         let c: ergo_lib::ergotree_ir::mir::constant::Constant = ProveDlog::new(ecp).into();
         Ok(c.into())
     }
@@ -134,7 +134,7 @@ impl Constant {
             .0
             .clone()
             .try_extract_into::<(Vec<u8>, Vec<u8>)>()
-            .map_err(conv)?;
+            .map_err(to_js)?;
         Ok(vec![
             Uint8Array::from(bytes1.as_slice()),
             Uint8Array::from(bytes2.as_slice()),
@@ -154,7 +154,7 @@ impl Constant {
             .0
             .clone()
             .try_extract_into::<(i64, i64)>()
-            .map_err(conv)?;
+            .map_err(to_js)?;
         Ok(vec![
             JsValue::from_str(&l1.to_string()),
             JsValue::from_str(&l2.to_string()),

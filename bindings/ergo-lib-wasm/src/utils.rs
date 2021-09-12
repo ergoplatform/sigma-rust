@@ -2,7 +2,7 @@
 
 use wasm_bindgen::prelude::*;
 
-use crate::error_conversion::conv;
+use crate::error_conversion::to_js;
 
 /// helper methods to get the fee address for various networks
 #[wasm_bindgen]
@@ -30,7 +30,7 @@ impl I64 {
     /// Create from a standard rust string representation
     #[allow(clippy::should_implement_trait)]
     pub fn from_str(string: &str) -> Result<I64, JsValue> {
-        string.parse::<i64>().map_err(conv).map(I64)
+        string.parse::<i64>().map_err(to_js).map(I64)
     }
 
     /// String representation of the value for use from environments that don't support i64

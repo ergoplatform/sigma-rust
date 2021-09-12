@@ -3,7 +3,7 @@ use ergo_lib::chain;
 use wasm_bindgen::prelude::*;
 
 use crate::{
-    box_coll::ErgoBoxes, ergo_state_ctx::ErgoStateContext, error_conversion::conv,
+    box_coll::ErgoBoxes, ergo_state_ctx::ErgoStateContext, error_conversion::to_js,
     secret_key::SecretKeys, transaction::Transaction, transaction::UnsignedTransaction,
 };
 
@@ -46,7 +46,7 @@ impl Wallet {
         };
         self.0
             .sign_transaction(tx_context, &_state_context.clone().into())
-            .map_err(conv)
+            .map_err(to_js)
             .map(Transaction::from)
     }
 }

@@ -7,7 +7,7 @@ use wasm_bindgen::prelude::*;
 use crate::box_coll::ErgoBoxes;
 use crate::ergo_box::BoxValue;
 use crate::ergo_box::ErgoBoxAssetsDataList;
-use crate::error_conversion::conv;
+use crate::error_conversion::to_js;
 use crate::token::Tokens;
 
 extern crate derive_more;
@@ -72,7 +72,7 @@ impl SimpleBoxSelector {
                 target_balance.clone().into(),
                 target_tokens.as_slice(),
             )
-            .map_err(conv)
+            .map_err(to_js)
             .map(BoxSelection)
     }
 }
