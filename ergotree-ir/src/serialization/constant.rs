@@ -15,14 +15,14 @@ impl Constant {
         t_code: TypeCode,
     ) -> Result<Self, SigmaParsingError> {
         let tpe = SType::parse_with_type_code(r, t_code)?;
-        let v = DataSerializer::sigma_parse(&tpe, r)?;
+        let v = DataSerializer::sigma_parse_literal(&tpe, r)?;
         Ok(Constant { tpe, v })
     }
 }
 impl SigmaSerializable for Constant {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         self.tpe.sigma_serialize(w)?;
-        DataSerializer::sigma_serialize(&self.v, w)
+        DataSerializer::sigma_serialize_literal(&self.v, w)
     }
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
