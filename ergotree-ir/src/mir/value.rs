@@ -1,6 +1,5 @@
 //! Ergo data type
 
-use std::convert::TryFrom;
 use std::convert::TryInto;
 
 use impl_trait_for_tuples::impl_for_tuples;
@@ -8,15 +7,13 @@ use impl_trait_for_tuples::impl_for_tuples;
 use crate::bigint256::BigInt256;
 use crate::ir_ergo_box::IrBoxId;
 use crate::sigma_protocol::dlog_group::EcPoint;
-use crate::sigma_protocol::sigma_boolean::ProveDlog;
-use crate::sigma_protocol::sigma_boolean::SigmaBoolean;
-use crate::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
 use crate::sigma_protocol::sigma_boolean::SigmaProp;
 use crate::types::stuple::TupleItems;
 use crate::types::stype::LiftIntoSType;
 use crate::types::stype::SType;
 use crate::util::AsVecI8;
 
+use super::constant::Literal;
 use super::constant::TryExtractFrom;
 use super::constant::TryExtractFromError;
 use super::constant::TryExtractInto;
@@ -195,6 +192,38 @@ impl From<Vec<u8>> for Value {
 impl<T: Into<Value>> From<Option<T>> for Value {
     fn from(opt: Option<T>) -> Self {
         Value::Opt(Box::new(opt.map(|v| v.into())))
+    }
+}
+
+impl From<Literal> for Value {
+    fn from(lit: Literal) -> Self {
+        match lit {
+            Literal::Boolean(b) => Value::Boolean(b),
+            Literal::Byte(b) => Value::Byte(b),
+            Literal::Short(s) => Value::Short(s),
+            Literal::Int(i) => Value::Int(i),
+            Literal::Long(l) => Value::Long(l),
+            Literal::BigInt(b) => Value::BigInt(b),
+            Literal::SigmaProp(s) => Value::SigmaProp(s),
+            Literal::GroupElement(e) => Value::GroupElement(e),
+            Literal::CBox(i) => Value::CBox(i),
+            Literal::Coll(coll) => {
+                let converted_coll = match coll {
+                    super::constant::CollKind::NativeColl(n) => CollKind::NativeColl(n),
+                    super::constant::CollKind::WrappedColl { elem_tpe, items } => {
+                        CollKind::WrappedColl {
+                            elem_tpe,
+                            items: items.into_iter().map(|l| Value::from(l)).collect(),
+                        }
+                    }
+                };
+                Value::Coll(converted_coll)
+            }
+            Literal::Opt(lit) => {
+                Value::Opt(Box::new(lit.into_iter().next().map(|l| Value::from(l))))
+            }
+            Literal::Tup(t) => Value::Tup(t.mapped(|l| Value::from(l))),
+        }
     }
 }
 
@@ -391,27 +420,6 @@ impl TryExtractFrom<Value> for BigInt256 {
 impl<T: TryExtractFrom<Value> + StoreWrapped> TryExtractFrom<Vec<Value>> for Vec<T> {
     fn try_extract_from(v: Vec<Value>) -> Result<Self, TryExtractFromError> {
         v.into_iter().map(|it| it.try_extract_into::<T>()).collect()
-    }
-}
-
-impl TryFrom<Value> for ProveDlog {
-    type Error = TryExtractFromError;
-    fn try_from(cv: Value) -> Result<Self, Self::Error> {
-        match cv {
-            Value::SigmaProp(sp) => match sp.value() {
-                SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(
-                    prove_dlog,
-                )) => Ok(prove_dlog.clone()),
-                _ => Err(TryExtractFromError(format!(
-                    "expected ProveDlog, found {:?}",
-                    sp
-                ))),
-            },
-            _ => Err(TryExtractFromError(format!(
-                "expected SigmaProp, found {:?}",
-                cv
-            ))),
-        }
     }
 }
 

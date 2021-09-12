@@ -27,6 +27,7 @@ use super::coll_slice::Slice;
 use super::collection::Collection;
 use super::constant::Constant;
 use super::constant::ConstantPlaceholder;
+use super::constant::Literal;
 use super::constant::TryExtractFrom;
 use super::constant::TryExtractFromError;
 use super::create_provedlog::CreateProveDlog;
@@ -59,7 +60,6 @@ use super::tuple::Tuple;
 use super::upcast::Upcast;
 use super::val_def::ValDef;
 use super::val_use::ValUse;
-use super::value::Value;
 use super::xor::Xor;
 
 extern crate derive_more;
@@ -307,7 +307,7 @@ impl Expr {
     }
 }
 
-impl<T: Into<Value> + LiftIntoSType> From<T> for Expr {
+impl<T: Into<Literal> + LiftIntoSType> From<T> for Expr {
     fn from(t: T) -> Self {
         Expr::Const(Constant {
             tpe: T::stype(),

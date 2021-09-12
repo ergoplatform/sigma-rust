@@ -16,7 +16,7 @@ impl Evaluable for ExtractRegisterAs {
                 .box_arena
                 .get(&ir_box_id)?
                 .get_register(self.register_id)
-                .map(|c| c.v),
+                .map(|c| Value::from(c.v)),
         )))
     }
 }
