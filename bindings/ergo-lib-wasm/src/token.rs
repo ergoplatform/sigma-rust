@@ -8,7 +8,7 @@ use ergo_lib::chain::Digest32;
 use wasm_bindgen::prelude::*;
 
 use crate::ergo_box::BoxId;
-use crate::error_conversion::conv;
+use crate::error_conversion::to_js;
 use crate::utils::I64;
 
 /// Token id (32 byte digest)
@@ -28,8 +28,8 @@ impl TokenId {
     #[allow(clippy::should_implement_trait)]
     pub fn from_str(str: &str) -> Result<TokenId, JsValue> {
         Base16DecodedBytes::try_from(str.to_string())
-            .map_err(|e| JsValue::from_str(&format!("{}", e)))
-            .and_then(|bytes| Digest32::try_from(bytes).map_err(conv))
+            .map_err(to_js)
+            .and_then(|bytes| Digest32::try_from(bytes).map_err(to_js))
             .map(|dig| dig.into())
             .map(TokenId)
     }
@@ -56,7 +56,7 @@ impl TokenAmount {
     /// Create from i64 with bounds check
     pub fn from_i64(v: &I64) -> Result<TokenAmount, JsValue> {
         Ok(Self(
-            chain::token::TokenAmount::try_from(i64::from(v.clone()) as u64).map_err(conv)?,
+            chain::token::TokenAmount::try_from(i64::from(v.clone()) as u64).map_err(to_js)?,
         ))
     }
 
@@ -100,7 +100,7 @@ impl Token {
 
     /// JSON representation
     pub fn to_json(&self) -> Result<JsValue, JsValue> {
-        JsValue::from_serde(&self.0.clone()).map_err(|e| JsValue::from_str(&format!("{}", e)))
+        JsValue::from_serde(&self.0.clone()).map_err(to_js)
     }
 }
 

@@ -5,7 +5,7 @@ use wasm_bindgen::prelude::*;
 
 use crate::address::Address;
 use crate::ergo_tree::ErgoTree;
-use crate::error_conversion::conv;
+use crate::error_conversion::to_js;
 
 /// Defines the contract(script) that will be guarding box contents
 #[wasm_bindgen]
@@ -17,7 +17,7 @@ impl Contract {
     /// create new contract that allow spending of the guarded box by a given recipient ([`Address`])
     pub fn pay_to_address(recipient: &Address) -> Result<Contract, JsValue> {
         chain::contract::Contract::pay_to_address(&recipient.clone().into())
-            .map_err(conv)
+            .map_err(to_js)
             .map(Contract)
     }
 
