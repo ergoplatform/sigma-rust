@@ -35,7 +35,7 @@ fn sig_test_vector_provedlog() {
         "03cb0d49e4eae7e57059a3da8ac52626d26fc11330af8fb093fa597d8b93deb7b1"
     );
 
-    let expr: Expr = sk.public_image().into();
+    let expr: Expr = Expr::Const(sk.public_image().into());
     let verifier = TestVerifier;
     let ver_res = verifier.verify(
         &expr.try_into().unwrap(),
@@ -57,7 +57,7 @@ fn sig_test_vector_prove_dht() {
     // let pdht = random_pdht_input.public_image().clone();
     dbg!(base16::encode_lower(&pdht.sigma_serialize_bytes().unwrap()));
     let signature = base16::decode(b"eba93a69b28cfdea261e9ea8914fca9a0b3868d50ce68c94f32e875730f8ca361bd3783c5d3e25802e54f49bd4fb9fafe51f4e8aafbf9815").unwrap();
-    let expr: Expr = pdht.into();
+    let expr: Expr = Expr::Const(pdht.into());
 
     // let random_pdht_input = DhTupleProverInput::random();
     // let tree: ErgoTree = expr.clone().into();
@@ -218,9 +218,12 @@ fn sig_test_vector_conj_or_prove_dht() {
     // let pdht = random_pdht_input.public_image().clone();
     // dbg!(base16::encode_lower(&pdht.sigma_serialize_bytes()));
     let signature = base16::decode(b"a80daebdcd57874296f49fd9910ddaefbf517ca076b6e16b97678e96a20239978836e7ec5b795cf3a55616d394f07c004f85e0d3e71880d4734b57ea874c7eba724e8887280f1affadaad962ee916b39207af2d2ab2a69a2e6f4d652f7389cc4f582bbe6d7937c59aa64cf2965a8b36a").unwrap();
-    let expr: Expr = SigmaOr::new(vec![Expr::Const(sk1.public_image().into()), pdht.into()])
-        .unwrap()
-        .into();
+    let expr: Expr = SigmaOr::new(vec![
+        Expr::Const(sk1.public_image().into()),
+        Expr::Const(pdht.into()),
+    ])
+    .unwrap()
+    .into();
 
     // let tree: ErgoTree = expr.clone().into();
     // let prover = TestProver {
