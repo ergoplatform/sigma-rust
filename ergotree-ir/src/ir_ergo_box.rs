@@ -60,4 +60,6 @@ pub trait IrErgoBox: Debug {
     /// Tuple of height when block got included into the blockchain and transaction identifier with
     /// box index in the transaction outputs serialized to the byte array.
     fn creation_info(&self) -> (i32, Vec<i8>);
+    /// Box serialized bytes
+    fn bytes(&self) -> Result<Vec<i8>, SigmaSerializationError>;
 }

@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [Unreleased] - ReleaseDate
 
 ### Added 
+- `Box.bytes` [#390](https://github.com/ergoplatform/sigma-rust/pull/390);
 - add (Coll[Byte], Coll[Byte]) and (Long, Long) support for Constant conversion in JS [#386](https://github.com/ergoplatform/sigma-rust/pull/386);
 - `Coll.slice` [#309](https://github.com/ergoplatform/sigma-rust/pull/309);
 - Byte-wise XOR for byte arrays [#310](https://github.com/ergoplatform/sigma-rust/pull/310);

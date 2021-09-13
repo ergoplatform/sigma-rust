@@ -32,7 +32,6 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 
 #### Box
 
-- bytes
 - bytesWithoutRef
 
 #### AvlTree 
@@ -164,6 +163,7 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 - getReg
 - tokens
 - R0 .. R9
+- bytes
 
 #### Context
 
