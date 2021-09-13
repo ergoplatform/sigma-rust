@@ -1,6 +1,7 @@
 use crate::mir::constant::Literal;
 use crate::mir::constant::TryExtractFromError;
 use crate::mir::constant::TryExtractInto;
+use crate::mir::value::CollKind;
 use crate::mir::value::NativeColl;
 use crate::serialization::SigmaSerializationError;
 use crate::serialization::SigmaSerializeResult;
@@ -97,11 +98,11 @@ impl DataSerializer {
             Literal::SigmaProp(s) => s.value().sigma_serialize(w)?,
             Literal::CBox(_) => return Err(SigmaSerializationError::NotImplementedYet("Box")),
             Literal::Coll(ct) => match ct {
-                crate::mir::constant::CollKind::NativeColl(NativeColl::CollByte(b)) => {
+                CollKind::NativeColl(NativeColl::CollByte(b)) => {
                     w.put_usize_as_u16_unwrapped(b.len())?;
                     w.write_all(b.clone().as_vec_u8().as_slice())?
                 }
-                crate::mir::constant::CollKind::WrappedColl {
+                CollKind::WrappedColl {
                     elem_tpe: SType::SBoolean,
                     items: v,
                 } => {
@@ -113,7 +114,7 @@ impl DataSerializer {
                         .collect();
                     w.put_bits(maybe_bools?.as_slice())?
                 }
-                crate::mir::constant::CollKind::WrappedColl {
+                CollKind::WrappedColl {
                     elem_tpe: _,
                     items: v,
                 } => {
@@ -253,14 +254,14 @@ impl DataSerializer {
                 let len = r.get_u16()? as usize;
                 let mut buf = vec![0u8; len];
                 r.read_exact(&mut buf)?;
-                Literal::Coll(crate::mir::constant::CollKind::NativeColl(
-                    NativeColl::CollByte(buf.into_iter().map(|v| v as i8).collect()),
-                ))
+                Literal::Coll(CollKind::NativeColl(NativeColl::CollByte(
+                    buf.into_iter().map(|v| v as i8).collect(),
+                )))
             }
             SColl(elem_type) if **elem_type == SBoolean => {
                 let len = r.get_u16()? as usize;
                 let bools = r.get_bits(len)?;
-                Literal::Coll(crate::mir::constant::CollKind::WrappedColl {
+                Literal::Coll(CollKind::WrappedColl {
                     elem_tpe: *elem_type.clone(),
                     items: bools.into_iter().map(|b| b.into()).collect(),
                 })
@@ -271,7 +272,7 @@ impl DataSerializer {
                 for _ in 0..len {
                     elems.push(DataSerializer::sigma_parse_literal(elem_type, r)?);
                 }
-                Literal::Coll(crate::mir::constant::CollKind::WrappedColl {
+                Literal::Coll(CollKind::WrappedColl {
                     elem_tpe: *elem_type.clone(),
                     items: elems,
                 })
