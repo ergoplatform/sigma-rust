@@ -25,7 +25,6 @@ impl ProverResult {
 
     /// JSON representation as text (compatible with Ergo Node/Explorer API, numbers are encoded as numbers)
     pub fn to_json(&self) -> Result<String, JsValue> {
-        serde_json::to_string_pretty(&self.0.clone())
-            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+        serde_json::to_string_pretty(&self.0.clone()).map_err(to_js)
     }
 }
