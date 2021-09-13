@@ -30,6 +30,7 @@ pub(crate) struct IrErgoBoxDummy {
     pub(crate) creation_height: i32,
     pub(crate) script_bytes: Vec<i8>,
     pub(crate) creation_info: (i32, Vec<i8>),
+    pub(crate) sigma_serialize_bytes: Vec<i8>,
 }
 
 impl IrErgoBox for IrErgoBoxDummy {
@@ -70,6 +71,10 @@ impl IrErgoBox for IrErgoBoxDummy {
     fn creation_info(&self) -> (i32, Vec<i8>) {
         self.creation_info.clone()
     }
+
+    fn bytes(&self) -> Result<Vec<i8>, SigmaSerializationError> {
+        Ok(self.sigma_serialize_bytes.clone())
+    }
 }
 
 #[cfg(feature = "arbitrary")]
@@ -93,6 +98,7 @@ pub(crate) mod arbitrary {
                 1i32..1000,
                 vec(any::<Constant>(), 0..5),
                 vec(any::<i8>(), 100..1000),
+                vec(any::<i8>(), 100..1000),
                 vec(any::<i8>(), DIGEST32_SIZE + 2..=DIGEST32_SIZE + 2),
             )
                 .prop_map(
@@ -103,6 +109,7 @@ pub(crate) mod arbitrary {
                         creation_height,
                         additional_registers,
                         script_bytes,
+                        sigma_serialize_bytes,
                         tx_id_box_index,
                     )| {
                         Self {
@@ -115,6 +122,7 @@ pub(crate) mod arbitrary {
                             additional_registers,
                             creation_height,
                             script_bytes,
+                            sigma_serialize_bytes,
                             creation_info: (creation_height, tx_id_box_index),
                         }
                     },

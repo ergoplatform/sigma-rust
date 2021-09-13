@@ -199,7 +199,7 @@ impl IrErgoBox for ErgoBox {
     }
 
     fn script_bytes(&self) -> Result<Vec<i8>, SigmaSerializationError> {
-        Ok(self.sigma_serialize_bytes()?.as_vec_i8())
+        Ok(self.ergo_tree.sigma_serialize_bytes()?.as_vec_i8())
     }
 
     /// Tuple of height when block got included into the blockchain and transaction identifier with
@@ -209,6 +209,10 @@ impl IrErgoBox for ErgoBox {
         bytes.extend_from_slice(self.transaction_id.0 .0.as_ref());
         bytes.extend_from_slice(&self.index.to_be_bytes());
         (self.creation_height as i32, bytes.as_vec_i8())
+    }
+
+    fn bytes(&self) -> Result<Vec<i8>, SigmaSerializationError> {
+        Ok(self.sigma_serialize_bytes()?.as_vec_i8())
     }
 }
 

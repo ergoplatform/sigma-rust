@@ -53,6 +53,7 @@ mod deserialize_register;
 pub(crate) mod exponentiate;
 pub(crate) mod expr;
 pub(crate) mod extract_amount;
+pub(crate) mod extract_bytes;
 pub(crate) mod extract_creation_info;
 pub(crate) mod extract_id;
 pub(crate) mod extract_reg_as;

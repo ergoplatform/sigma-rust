@@ -39,6 +39,7 @@ use crate::mir::deserialize_register::DeserializeRegister;
 use crate::mir::exponentiate::Exponentiate;
 use crate::mir::expr::Expr;
 use crate::mir::extract_amount::ExtractAmount;
+use crate::mir::extract_bytes::ExtractBytes;
 use crate::mir::extract_creation_info::ExtractCreationInfo;
 use crate::mir::extract_id::ExtractId;
 use crate::mir::extract_reg_as::ExtractRegisterAs;
@@ -114,6 +115,7 @@ impl Expr {
                 OptionGetOrElse::OP_CODE => Ok(OptionGetOrElse::sigma_parse(r)?.into()),
                 ExtractRegisterAs::OP_CODE => Ok(ExtractRegisterAs::sigma_parse(r)?.into()),
                 ExtractScriptBytes::OP_CODE => Ok(ExtractScriptBytes::sigma_parse(r)?.into()),
+                ExtractBytes::OP_CODE => Ok(ExtractBytes::sigma_parse(r)?.into()),
                 ExtractCreationInfo::OP_CODE => Ok(ExtractCreationInfo::sigma_parse(r)?.into()),
                 ExtractId::OP_CODE => Ok(ExtractId::sigma_parse(r)?.into()),
                 OpCode::EQ => Ok(bin_op_sigma_parse(RelationOp::Eq.into(), r)?),
@@ -276,6 +278,7 @@ impl SigmaSerializable for Expr {
             Expr::MultiplyGroup(op) => op.sigma_serialize_w_opcode(w),
             Expr::Exponentiate(op) => op.sigma_serialize_w_opcode(w),
             Expr::XorOf(op) => op.sigma_serialize_w_opcode(w),
+            Expr::ExtractBytes(op) => op.sigma_serialize_w_opcode(w),
         }
     }
 
