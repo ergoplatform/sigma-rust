@@ -41,7 +41,7 @@ impl NativeColl {
 
 /// Collection elements
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub enum CollKind {
+pub enum CollKind<T> {
     /// Collection elements stored as a vector of Rust values
     NativeColl(NativeColl),
     /// Collection elements stored as a vector of Value's
@@ -49,13 +49,20 @@ pub enum CollKind {
         /// Collection element type
         elem_tpe: SType,
         /// Collection elements
-        items: Vec<Value>,
+        items: Vec<T>,
     },
 }
 
-impl CollKind {
+impl<T> CollKind<T>
+where
+    T: PartialEq + Eq + Clone,
+    T: From<i8>,
+    i8: TryExtractFrom<T>,
+    Vec<i8>: TryExtractFrom<T>,
+    Vec<T>: TryExtractFrom<T>,
+{
     /// Build a collection from items, storing them as Rust types values when neccessary
-    pub fn from_vec(elem_tpe: SType, items: Vec<Value>) -> Result<CollKind, TryExtractFromError> {
+    pub fn from_vec(elem_tpe: SType, items: Vec<T>) -> Result<CollKind<T>, TryExtractFromError> {
         match elem_tpe {
             SType::SByte => items
                 .into_iter()
@@ -69,8 +76,8 @@ impl CollKind {
     /// Build a collection from items where each is a collection as well, storing them as Rust types values when neccessary
     pub fn from_vec_vec(
         elem_tpe: SType,
-        items: Vec<Value>,
-    ) -> Result<CollKind, TryExtractFromError> {
+        items: Vec<T>,
+    ) -> Result<CollKind<T>, TryExtractFromError> {
         match elem_tpe {
             SType::SByte => items
                 .into_iter()
@@ -79,7 +86,7 @@ impl CollKind {
                 .map(|bytes| CollKind::NativeColl(NativeColl::CollByte(bytes.concat()))),
             _ => items
                 .into_iter()
-                .map(|v| v.try_extract_into::<Vec<Value>>())
+                .map(|v| v.try_extract_into::<Vec<T>>())
                 .collect::<Result<Vec<_>, _>>()
                 .map(|v| CollKind::WrappedColl {
                     elem_tpe,
@@ -97,7 +104,7 @@ impl CollKind {
     }
 
     /// Return items, as vector of Values
-    pub fn as_vec(&self) -> Vec<Value> {
+    pub fn as_vec(&self) -> Vec<T> {
         match self {
             CollKind::NativeColl(NativeColl::CollByte(coll_byte)) => coll_byte
                 .clone()
@@ -145,7 +152,7 @@ pub enum Value {
     /// AVL tree
     AvlTree,
     /// Collection of values of the same type
-    Coll(CollKind),
+    Coll(CollKind<Value>),
     /// Tuple (arbitrary type values)
     Tup(TupleItems<Value>),
     /// Transaction(and blockchain) context info
@@ -209,20 +216,16 @@ impl From<Literal> for Value {
             Literal::CBox(i) => Value::CBox(i),
             Literal::Coll(coll) => {
                 let converted_coll = match coll {
-                    super::constant::CollKind::NativeColl(n) => CollKind::NativeColl(n),
-                    super::constant::CollKind::WrappedColl { elem_tpe, items } => {
-                        CollKind::WrappedColl {
-                            elem_tpe,
-                            items: items.into_iter().map(|l| Value::from(l)).collect(),
-                        }
-                    }
+                    CollKind::NativeColl(n) => CollKind::NativeColl(n),
+                    CollKind::WrappedColl { elem_tpe, items } => CollKind::WrappedColl {
+                        elem_tpe,
+                        items: items.into_iter().map(Value::from).collect(),
+                    },
                 };
                 Value::Coll(converted_coll)
             }
-            Literal::Opt(lit) => {
-                Value::Opt(Box::new(lit.into_iter().next().map(|l| Value::from(l))))
-            }
-            Literal::Tup(t) => Value::Tup(t.mapped(|l| Value::from(l))),
+            Literal::Opt(lit) => Value::Opt(Box::new(lit.into_iter().next().map(Value::from))),
+            Literal::Tup(t) => Value::Tup(t.mapped(Value::from)),
         }
     }
 }

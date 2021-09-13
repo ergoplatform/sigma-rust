@@ -2,6 +2,7 @@
 
 use crate::bigint256::BigInt256;
 use crate::ir_ergo_box::IrBoxId;
+use crate::mir::value::CollKind;
 use crate::sigma_protocol::sigma_boolean::SigmaBoolean;
 use crate::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
 use crate::sigma_protocol::sigma_boolean::{ProveDhTuple, ProveDlog};
@@ -53,7 +54,7 @@ pub enum Literal {
     /// Ergo box ID
     CBox(IrBoxId),
     /// Collection
-    Coll(CollKind),
+    Coll(CollKind<Literal>),
     /// Option type
     Opt(Box<Option<Literal>>),
     /// Tuple (arbitrary type values)
@@ -537,78 +538,6 @@ impl TryFrom<Literal> for ProveDlog {
     }
 }
 
-/// Collection elements
-#[derive(PartialEq, Eq, Debug, Clone)]
-pub enum CollKind {
-    /// Collection elements stored as a vector of Rust values
-    NativeColl(NativeColl),
-    /// Collection elements stored as a vector of Value's
-    WrappedColl {
-        /// Collection element type
-        elem_tpe: SType,
-        /// Collection elements
-        items: Vec<Literal>,
-    },
-}
-
-impl CollKind {
-    /// Build a collection from items, storing them as Rust types values when neccessary
-    pub fn from_vec(elem_tpe: SType, items: Vec<Literal>) -> Result<CollKind, TryExtractFromError> {
-        match elem_tpe {
-            SType::SByte => items
-                .into_iter()
-                .map(|v| v.try_extract_into::<i8>())
-                .collect::<Result<Vec<_>, _>>()
-                .map(|bytes| CollKind::NativeColl(NativeColl::CollByte(bytes))),
-            _ => Ok(CollKind::WrappedColl { elem_tpe, items }),
-        }
-    }
-
-    /// Build a collection from items where each is a collection as well, storing them as Rust types values when neccessary
-    //pub fn from_vec_vec(
-    //    elem_tpe: SType,
-    //    items: Vec<Constant>,
-    //) -> Result<CollKind, TryExtractFromError> {
-    //    match elem_tpe {
-    //        SType::SByte => items
-    //            .into_iter()
-    //            .map(|v| v.try_extract_into::<Vec<i8>>())
-    //            .collect::<Result<Vec<_>, _>>()
-    //            .map(|bytes| CollKind::NativeColl(NativeColl::CollByte(bytes.concat()))),
-    //        _ => items
-    //            .into_iter()
-    //            .map(|v| v.try_extract_into::<Vec<Constant>>())
-    //            .collect::<Result<Vec<_>, _>>()
-    //            .map(|v| CollKind::WrappedColl {
-    //                elem_tpe,
-    //                items: v.concat(),
-    //            }),
-    //    }
-    //}
-
-    /// Collection element type
-    pub fn elem_tpe(&self) -> &SType {
-        match self {
-            cp @ CollKind::NativeColl(_) => cp.elem_tpe(),
-            CollKind::WrappedColl { elem_tpe, .. } => elem_tpe,
-        }
-    }
-
-    /// Return items, as vector of Values
-    pub fn as_vec(&self) -> Vec<Literal> {
-        match self {
-            CollKind::NativeColl(NativeColl::CollByte(coll_byte)) => coll_byte
-                .clone()
-                .into_iter()
-                .map(|byte| Literal::Byte(byte))
-                .collect(),
-            CollKind::WrappedColl {
-                elem_tpe: _,
-                items: v,
-            } => v.clone(),
-        }
-    }
-}
 #[cfg(feature = "arbitrary")]
 #[allow(clippy::unwrap_used)]
 #[allow(clippy::todo)]
@@ -617,6 +546,7 @@ pub(crate) mod arbitrary {
     use std::convert::TryFrom;
 
     use super::*;
+    use crate::mir::value::CollKind;
     use crate::types::stuple::STuple;
     use proptest::collection::vec;
     use proptest::prelude::*;
