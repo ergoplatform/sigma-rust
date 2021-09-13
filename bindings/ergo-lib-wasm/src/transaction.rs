@@ -5,8 +5,8 @@ use crate::box_coll::ErgoBoxes;
 use crate::data_input::DataInputs;
 use crate::error_conversion::to_js;
 use crate::input::{Inputs, UnsignedInputs};
-use crate::json::TransactionJsonDapp;
-use crate::json::UnsignedTransactionJsonDapp;
+use crate::json::TransactionJsonEip12;
+use crate::json::UnsignedTransactionJsonEip12;
 use ergo_lib::chain;
 use ergo_lib::chain::transaction::distinct_token_ids;
 use ergo_lib::ergotree_ir::chain::base16_bytes::Base16DecodedBytes;
@@ -102,7 +102,7 @@ impl Transaction {
     /// JSON representation according to EIP-12 https://github.com/ergoplatform/eips/pull/23
     /// (similar to [`Self::to_json`], but with box value and token amount encoding as strings)
     pub fn to_js_eip12(&self) -> Result<JsValue, JsValue> {
-        let tx_dapp: TransactionJsonDapp = self.0.clone().into();
+        let tx_dapp: TransactionJsonEip12 = self.0.clone().into();
         JsValue::from_serde(&tx_dapp).map_err(|e| JsValue::from_str(&format!("{}", e)))
     }
 
@@ -185,7 +185,7 @@ impl UnsignedTransaction {
     /// JSON representation according to EIP-12 https://github.com/ergoplatform/eips/pull/23
     /// (similar to [`Self::to_json`], but with box value and token amount encoding as strings)
     pub fn to_js_eip12(&self) -> Result<JsValue, JsValue> {
-        let tx_dapp: UnsignedTransactionJsonDapp = self.0.clone().into();
+        let tx_dapp: UnsignedTransactionJsonEip12 = self.0.clone().into();
         JsValue::from_serde(&tx_dapp).map_err(|e| JsValue::from_str(&format!("{}", e)))
     }
 

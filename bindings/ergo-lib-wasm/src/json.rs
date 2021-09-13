@@ -1,4 +1,4 @@
-//! JSON serialization using strings for BoxValue and TokenAmount
+//! JSON serialization according to EIP-12 (using strings for BoxValue and TokenAmount)
 
 use derive_more::FromStr;
 use ergo_lib::chain::ergo_box::BoxId;
@@ -17,7 +17,7 @@ use ergo_lib::ergotree_ir::ergo_tree::ErgoTree;
 use serde::Serialize;
 
 #[derive(Serialize, PartialEq, Debug, Clone)]
-pub(crate) struct TransactionJsonDapp {
+pub(crate) struct TransactionJsonEip12 {
     #[cfg_attr(feature = "json", serde(rename = "id"))]
     pub tx_id: TxId,
     /// inputs, that will be spent by this transaction.
@@ -29,12 +29,12 @@ pub(crate) struct TransactionJsonDapp {
     #[cfg_attr(feature = "json", serde(rename = "dataInputs"))]
     pub data_inputs: Vec<DataInput>,
     #[cfg_attr(feature = "json", serde(rename = "outputs"))]
-    pub outputs: Vec<ErgoBoxJsonDapp>,
+    pub outputs: Vec<ErgoBoxJsonEip12>,
 }
 
-impl From<Transaction> for TransactionJsonDapp {
+impl From<Transaction> for TransactionJsonEip12 {
     fn from(t: Transaction) -> Self {
-        TransactionJsonDapp {
+        TransactionJsonEip12 {
             tx_id: t.id(),
             inputs: t.inputs,
             data_inputs: t.data_inputs,
@@ -44,7 +44,7 @@ impl From<Transaction> for TransactionJsonDapp {
 }
 
 #[derive(Serialize, PartialEq, Debug, Clone)]
-pub(crate) struct UnsignedTransactionJsonDapp {
+pub(crate) struct UnsignedTransactionJsonEip12 {
     /// unsigned inputs, that will be spent by this transaction.
     #[cfg_attr(feature = "json", serde(rename = "inputs"))]
     pub inputs: Vec<UnsignedInput>,
@@ -55,28 +55,28 @@ pub(crate) struct UnsignedTransactionJsonDapp {
     pub data_inputs: Vec<DataInput>,
     /// box candidates to be created by this transaction
     #[cfg_attr(feature = "json", serde(rename = "outputs"))]
-    pub outputs: Vec<ErgoBoxCandidateJsonDapp>,
+    pub outputs: Vec<ErgoBoxCandidateJsonEip12>,
 }
 
-impl From<UnsignedTransaction> for UnsignedTransactionJsonDapp {
+impl From<UnsignedTransaction> for UnsignedTransactionJsonEip12 {
     fn from(_: UnsignedTransaction) -> Self {
         todo!()
     }
 }
 
 #[derive(Serialize, PartialEq, Eq, Debug, Clone)]
-pub(crate) struct ErgoBoxJsonDapp {
+pub(crate) struct ErgoBoxJsonEip12 {
     #[serde(rename = "boxId", alias = "id")]
     pub box_id: Option<BoxId>,
     /// amount of money associated with the box
     #[serde(rename = "value")]
-    pub value: BoxValueJsonDapp,
+    pub value: BoxValueJsonEip12,
     /// guarding script, which should be evaluated to true in order to open this box
     #[serde(rename = "ergoTree", with = "ergo_lib::chain::json::ergo_tree")]
     pub ergo_tree: ErgoTree,
     /// secondary tokens the box contains
     #[serde(rename = "assets")]
-    pub tokens: Vec<TokenJsonDapp>,
+    pub tokens: Vec<TokenJsonEip12>,
     ///  additional registers the box can carry over
     #[serde(rename = "additionalRegisters")]
     pub additional_registers: NonMandatoryRegisters,
@@ -93,9 +93,9 @@ pub(crate) struct ErgoBoxJsonDapp {
     pub index: u16,
 }
 
-impl From<ErgoBox> for ErgoBoxJsonDapp {
+impl From<ErgoBox> for ErgoBoxJsonEip12 {
     fn from(b: ErgoBox) -> Self {
-        ErgoBoxJsonDapp {
+        ErgoBoxJsonEip12 {
             box_id: b.box_id().into(),
             value: b.value.into(),
             ergo_tree: b.ergo_tree,
@@ -112,15 +112,15 @@ impl From<ErgoBox> for ErgoBoxJsonDapp {
 /// that will be calculated after full transaction formation.
 /// Use [`box_builder::ErgoBoxCandidateBuilder`] to create an instance.
 #[derive(Serialize, PartialEq, Eq, Clone, Debug)]
-pub(crate) struct ErgoBoxCandidateJsonDapp {
+pub(crate) struct ErgoBoxCandidateJsonEip12 {
     /// amount of money associated with the box
     #[serde(rename = "value")]
-    pub value: BoxValueJsonDapp,
+    pub value: BoxValueJsonEip12,
     /// guarding script, which should be evaluated to true in order to open this box
     #[serde(rename = "ergoTree", with = "ergo_lib::chain::json::ergo_tree")]
     pub ergo_tree: ErgoTree,
     #[serde(rename = "assets")]
-    pub tokens: Vec<TokenJsonDapp>,
+    pub tokens: Vec<TokenJsonEip12>,
     ///  additional registers the box can carry over
     #[serde(rename = "additionalRegisters")]
     pub additional_registers: NonMandatoryRegisters,
@@ -136,30 +136,30 @@ pub(crate) struct ErgoBoxCandidateJsonDapp {
     serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash, Debug, Clone, Copy, FromStr,
 )]
 /// Box value in nanoERGs with bound checks
-pub(crate) struct BoxValueJsonDapp(#[serde_as(as = "serde_with::DisplayFromStr")] u64);
+pub(crate) struct BoxValueJsonEip12(#[serde_as(as = "serde_with::DisplayFromStr")] u64);
 
-impl From<BoxValue> for BoxValueJsonDapp {
+impl From<BoxValue> for BoxValueJsonEip12 {
     fn from(bv: BoxValue) -> Self {
-        BoxValueJsonDapp(*bv.as_u64())
+        BoxValueJsonEip12(*bv.as_u64())
     }
 }
 
 /// Token represented with token id paired with it's amount
 #[derive(Serialize, PartialEq, Eq, Debug, Clone)]
-pub struct TokenJsonDapp {
+pub struct TokenJsonEip12 {
     /// token id
     #[serde(rename = "tokenId")]
     pub token_id: TokenId,
     /// token amount
     #[serde(rename = "amount")]
-    pub amount: TokenAmountJsonDapp,
+    pub amount: TokenAmountJsonEip12,
 }
 
-impl From<Token> for TokenJsonDapp {
+impl From<Token> for TokenJsonEip12 {
     fn from(t: Token) -> Self {
-        TokenJsonDapp {
+        TokenJsonEip12 {
             token_id: t.token_id,
-            amount: TokenAmountJsonDapp(t.amount.as_u64()),
+            amount: TokenAmountJsonEip12(t.amount.as_u64()),
         }
     }
 }
@@ -167,7 +167,7 @@ impl From<Token> for TokenJsonDapp {
 /// Token amount with bound checks
 #[serde_with::serde_as]
 #[derive(Serialize, PartialEq, Eq, Hash, Debug, Clone, Copy, PartialOrd, Ord)]
-pub struct TokenAmountJsonDapp(
+pub struct TokenAmountJsonEip12(
     // Encodes as string always
     #[serde_as(as = "serde_with::DisplayFromStr")] u64,
 );
