@@ -30,8 +30,8 @@ impl ErgoTree {
             .map(ErgoTree)
             .map_err(to_js)
     }
-    /// Encode Ergo tree as serialized bytes
-    pub fn to_bytes(&self) -> Result<Vec<u8>, JsValue> {
+    /// Returns serialized bytes or fails with error if ErgoTree cannot be serialized
+    pub fn sigma_serialize_bytes(&self) -> Result<Vec<u8>, JsValue> {
         self.0.sigma_serialize_bytes().map_err(to_js)
     }
 

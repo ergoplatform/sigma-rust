@@ -1,6 +1,7 @@
 //! ProverResult
 
 use crate::ast::Constant;
+use ergo_lib::ergotree_ir::serialization::SigmaSerializable;
 use wasm_bindgen::prelude::*;
 
 extern crate derive_more;
@@ -33,5 +34,12 @@ impl ContextExtension {
         let wrapped: ergo_lib::ergotree_interpreter::sigma_protocol::prover::ContextExtension =
             self.0.clone();
         wrapped.values.keys().cloned().collect()
+    }
+
+    /// Returns serialized bytes or fails with error if ContextExtension cannot be serialized
+    pub fn sigma_serialize_bytes(&self) -> Result<Vec<u8>, JsValue> {
+        self.0
+            .sigma_serialize_bytes()
+            .map_err(|e| JsValue::from_str(&format! {"{:?}", e}))
     }
 }

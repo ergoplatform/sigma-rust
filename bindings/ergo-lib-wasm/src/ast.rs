@@ -40,6 +40,13 @@ impl Constant {
         self.0.base16_str()
     }
 
+    /// Returns serialized bytes or fails with error if Constant cannot be serialized
+    pub fn sigma_serialize_bytes(&self) -> Result<Vec<u8>, JsValue> {
+        self.0
+            .sigma_serialize_bytes()
+            .map_err(|e| JsValue::from_str(&format! {"{:?}", e}))
+    }
+
     /// Create from i32 value
     pub fn from_i32(v: i32) -> Constant {
         Constant(v.into())
