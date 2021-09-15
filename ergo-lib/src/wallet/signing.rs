@@ -72,7 +72,8 @@ pub fn make_context(
         .map(|b| Rc::new(b) as Rc<dyn IrErgoBox>)
         .collect();
     let inputs_ir = tx_ctx
-        .boxes_to_spend.clone()
+        .boxes_to_spend
+        .clone()
         .into_iter()
         .map(|b| Rc::new(b) as Rc<dyn IrErgoBox>)
         .collect();
