@@ -6,6 +6,8 @@ use crate::data_input::DataInputs;
 use crate::error_conversion::to_js;
 use crate::input::{Inputs, UnsignedInputs};
 use ergo_lib::chain;
+use ergo_lib::chain::transaction::distinct_token_ids;
+use js_sys::Uint8Array;
 use std::convert::TryFrom;
 use std::convert::TryInto;
 use wasm_bindgen::prelude::*;
@@ -64,6 +66,23 @@ pub struct Transaction(chain::transaction::Transaction);
 
 #[wasm_bindgen]
 impl Transaction {
+    /// Create Transaction from UnsignedTransaction and an array of proofs in the same order as
+    /// UnsignedTransaction.inputs with empty proof indicated with empty byte array
+    pub fn from_unsigned_tx(
+        unsigned_tx: UnsignedTransaction,
+        proofs: Vec<Uint8Array>,
+    ) -> Result<Transaction, JsValue> {
+        chain::transaction::Transaction::from_unsigned_tx(
+            unsigned_tx.0,
+            proofs
+                .into_iter()
+                .map(|bytes| bytes.to_vec().into())
+                .collect(),
+        )
+        .map_err(|e| JsValue::from_str(&format!("{}", e)))
+        .map(Into::into)
+    }
+
     /// Get id for transaction
     pub fn id(&self) -> TxId {
         self.0.id().into()
@@ -151,6 +170,14 @@ impl UnsignedTransaction {
     /// JSON representation
     pub fn from_json(json: &str) -> Result<UnsignedTransaction, JsValue> {
         serde_json::from_str(json).map(Self).map_err(to_js)
+    }
+
+    /// Returns distinct token id from output_candidates as array of byte arrays
+    pub fn distinct_token_ids(&self) -> Vec<Uint8Array> {
+        distinct_token_ids(self.0.output_candidates.clone())
+            .iter()
+            .map(|id| Uint8Array::from(id.as_ref()))
+            .collect()
     }
 }
 

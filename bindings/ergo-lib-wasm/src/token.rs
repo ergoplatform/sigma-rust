@@ -5,6 +5,7 @@ use std::convert::TryFrom;
 use ergo_lib::chain;
 use ergo_lib::chain::Base16DecodedBytes;
 use ergo_lib::chain::Digest32;
+use js_sys::Uint8Array;
 use wasm_bindgen::prelude::*;
 
 use crate::ergo_box::BoxId;
@@ -38,6 +39,11 @@ impl TokenId {
     pub fn to_str(&self) -> String {
         self.0.clone().into()
     }
+
+    /// Returns byte array (32 bytes)
+    pub fn as_bytes(&self) -> Uint8Array {
+        Uint8Array::from(self.0.as_ref())
+    }
 }
 
 impl From<TokenId> for chain::token::TokenId {
@@ -63,6 +69,11 @@ impl TokenAmount {
     /// Get value as signed 64-bit long (I64)
     pub fn as_i64(&self) -> I64 {
         i64::from(self.0).into()
+    }
+
+    /// big-endian byte array representation
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.0.as_u64().to_be_bytes().to_vec()
     }
 }
 

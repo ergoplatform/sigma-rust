@@ -20,6 +20,8 @@ use std::convert::TryFrom;
 
 use chain::ergo_box::NonMandatoryRegisters;
 use ergo_lib::chain;
+use ergo_lib::ergotree_ir::serialization::SigmaSerializable;
+use js_sys::Uint8Array;
 use wasm_bindgen::prelude::*;
 
 use crate::ast::Constant;
@@ -52,6 +54,11 @@ impl BoxId {
     /// Base16 encoded string
     pub fn to_str(&self) -> String {
         self.0.clone().into()
+    }
+
+    /// Returns byte array (32 bytes)
+    pub fn as_bytes(&self) -> Uint8Array {
+        Uint8Array::from(self.0.as_ref())
     }
 }
 
@@ -173,6 +180,15 @@ impl ErgoBox {
     pub fn from_json(json: &str) -> Result<ErgoBox, JsValue> {
         serde_json::from_str(json).map(Self).map_err(to_js)
     }
+
+    /// Serialized additional register as defined in ErgoBox serialization (registers count,
+    /// followed by every non-empyt register value serialized)
+    pub fn serialized_additional_registers(&self) -> Result<Vec<u8>, JsValue> {
+        self.0
+            .additional_registers
+            .sigma_serialize_bytes()
+            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+    }
 }
 
 impl From<ErgoBox> for chain::ergo_box::ErgoBox {
@@ -217,6 +233,11 @@ impl BoxValue {
     /// Get value as signed 64-bit long (I64)
     pub fn as_i64(&self) -> I64 {
         self.0.as_i64().into()
+    }
+
+    /// big-endian byte array representation
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.0.as_u64().to_be_bytes().to_vec()
     }
 }
 

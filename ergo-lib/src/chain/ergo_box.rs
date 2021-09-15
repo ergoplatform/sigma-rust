@@ -482,16 +482,7 @@ pub fn serialize_box_with_indexed_digests<W: SigmaByteWrite>(
         }
         .and_then(|()| Ok(w.put_u64(t.amount.into())?))
     })?;
-
-    let regs_num = additional_registers.len();
-    w.put_u8(regs_num as u8)?;
-
-    additional_registers
-        .get_ordered_values()
-        .iter()
-        .try_for_each(|c| c.sigma_serialize(w))?;
-
-    Ok(())
+    additional_registers.sigma_serialize(w)
 }
 
 /// Box deserialization with token ids optionally parsed in transaction
@@ -526,13 +517,8 @@ pub fn parse_box_with_indexed_digests<R: SigmaByteRead>(
         })
     }
 
-    let regs_num = r.get_u8()?;
-    let mut additional_regs = Vec::with_capacity(regs_num as usize);
-    for _ in 0..regs_num {
-        let v = Constant::sigma_parse(r)?;
-        additional_regs.push(v);
-    }
-    let additional_registers = NonMandatoryRegisters::from_ordered_values(additional_regs)?;
+    let additional_registers = NonMandatoryRegisters::sigma_parse(r)?;
+
     Ok(ErgoBoxCandidate {
         value,
         ergo_tree,

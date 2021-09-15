@@ -5,7 +5,10 @@ pub mod input;
 pub mod unsigned;
 
 use bounded_vec::BoundedVec;
+use thiserror::Error;
+
 pub use data_input::*;
+use ergotree_interpreter::sigma_protocol::prover::ProofBytes;
 use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
 use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
 use ergotree_ir::serialization::SigmaParsingError;
@@ -13,6 +16,8 @@ use ergotree_ir::serialization::SigmaSerializable;
 use ergotree_ir::serialization::SigmaSerializationError;
 use ergotree_ir::serialization::SigmaSerializeResult;
 pub use input::*;
+
+use self::unsigned::UnsignedTransaction;
 
 #[cfg(feature = "json")]
 use super::json;
@@ -31,8 +36,6 @@ use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use std::convert::TryInto;
 use std::iter::FromIterator;
-#[cfg(feature = "json")]
-use thiserror::Error;
 
 /// Transaction id (ModifierId in sigmastate)
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
@@ -61,6 +64,12 @@ impl SigmaSerializable for TxId {
 impl From<TxId> for String {
     fn from(v: TxId) -> Self {
         v.0.into()
+    }
+}
+
+impl AsRef<[u8]> for TxId {
+    fn as_ref(&self) -> &[u8] {
+        self.0.as_ref()
     }
 }
 
@@ -134,6 +143,33 @@ impl Transaction {
         })
     }
 
+    /// Create Transaction from UnsignedTransaction and an array of proofs in the same order as
+    /// UnsignedTransaction.inputs
+    pub fn from_unsigned_tx(
+        unsigned_tx: UnsignedTransaction,
+        proofs: Vec<ProofBytes>,
+    ) -> Result<Self, TransactionError> {
+        let inputs = unsigned_tx
+            .inputs
+            .enumerated()
+            .try_mapped(|(index, unsigned_input)| {
+                proofs
+                    .get(index)
+                    .map(|proof| Input::from_unsigned_input(unsigned_input, proof.clone()))
+                    .ok_or_else(|| {
+                        TransactionError::InvalidArgument(format!(
+                            "no proof for input index: {}",
+                            index
+                        ))
+                    })
+            })?;
+        Ok(Transaction::new(
+            inputs,
+            unsigned_tx.data_inputs,
+            unsigned_tx.output_candidates,
+        )?)
+    }
+
     fn calc_tx_id(&self) -> Result<TxId, SigmaSerializationError> {
         let bytes = self.bytes_to_sign()?;
         Ok(TxId(blake2b256_hash(&bytes)))
@@ -155,6 +191,23 @@ impl Transaction {
     }
 }
 
+/// Returns distinct token ids from all given ErgoBoxCandidate's
+pub fn distinct_token_ids<I>(output_candidates: I) -> IndexSet<TokenId>
+where
+    I: IntoIterator<Item = ErgoBoxCandidate>,
+{
+    let token_ids: Vec<TokenId> = output_candidates
+        .into_iter()
+        .flat_map(|b| {
+            b.tokens
+                .iter()
+                .map(|t| t.token_id.clone())
+                .collect::<Vec<TokenId>>()
+        })
+        .collect();
+    IndexSet::<_>::from_iter(token_ids)
+}
+
 impl SigmaSerializable for Transaction {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         // reference implementation - https://github.com/ScorexFoundation/sigmastate-interpreter/blob/9b20cb110effd1987ff76699d637174a4b2fb441/sigmastate/src/main/scala/org/ergoplatform/ErgoLikeTransaction.scala#L112-L112
@@ -170,12 +223,7 @@ impl SigmaSerializable for Transaction {
         // Serialize distinct ids of tokens in transaction outputs.
         // This optimization is crucial to allow up to MaxTokens (== 255) in a box.
         // Without it total size of all token ids 255 * 32 = 8160, way beyond MaxBoxSize (== 4K)
-        let token_ids: Vec<TokenId> = self
-            .output_candidates
-            .iter()
-            .flat_map(|b| b.tokens.iter().map(|t| t.token_id.clone()))
-            .collect();
-        let distinct_token_ids: IndexSet<TokenId> = IndexSet::from_iter(token_ids);
+        let distinct_token_ids = distinct_token_ids(self.output_candidates.clone());
         w.put_u32(u32::try_from(distinct_token_ids.len()).unwrap())?;
         distinct_token_ids
             .iter()
@@ -234,6 +282,17 @@ impl SigmaSerializable for Transaction {
             outputs.try_into()?,
         )?)
     }
+}
+
+/// Error when working with Transaction
+#[derive(Error, Eq, PartialEq, Debug, Clone)]
+pub enum TransactionError {
+    /// Serialization error
+    #[error("Tx serialization error: {0}")]
+    SigmaSerializationError(#[from] SigmaSerializationError),
+    /// Invalid argument on tx construction
+    #[error("Tx innvalid argument: {0}")]
+    InvalidArgument(String),
 }
 
 #[cfg(feature = "json")]
