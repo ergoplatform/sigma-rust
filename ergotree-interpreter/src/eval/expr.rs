@@ -10,7 +10,7 @@ impl Evaluable for Expr {
     fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
         ctx.cost_accum.add_cost_of(self)?;
         match self {
-            Expr::Const(c) => Ok(c.v.clone()),
+            Expr::Const(c) => Ok(Value::from(c.v.clone())),
             Expr::SubstConstants(_) => Err(EvalError::NotImplementedYet("Expr::SubstConstants")),
             Expr::ByteArrayToLong(op) => op.eval(env, ctx),
             Expr::ByteArrayToBigInt(op) => op.eval(env, ctx),

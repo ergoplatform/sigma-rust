@@ -596,7 +596,7 @@ mod tests {
     use super::*;
     use crate::address::AddressEncoder;
     use crate::address::NetworkPrefix;
-    use crate::mir::value::Value;
+    use crate::mir::constant::Literal;
     use proptest::prelude::*;
 
     proptest! {
@@ -728,7 +728,7 @@ mod tests {
     fn test_constant_segregation() {
         let expr = Expr::Const(Constant {
             tpe: SType::SBoolean,
-            v: Value::Boolean(true),
+            v: Literal::Boolean(true),
         });
         let ergo_tree = ErgoTree::new(ErgoTreeHeader::default(), &expr).unwrap();
         let bytes = ergo_tree.sigma_serialize_bytes().unwrap();
@@ -743,7 +743,7 @@ mod tests {
     fn test_constant_len() {
         let expr = Expr::Const(Constant {
             tpe: SType::SBoolean,
-            v: Value::Boolean(false),
+            v: Literal::Boolean(false),
         });
         let ergo_tree = ErgoTree::new(ErgoTreeHeader::v0(true), &expr).unwrap();
         assert_eq!(ergo_tree.constants_len().unwrap(), 1);
@@ -753,7 +753,7 @@ mod tests {
     fn test_get_constant() {
         let expr = Expr::Const(Constant {
             tpe: SType::SBoolean,
-            v: Value::Boolean(false),
+            v: Literal::Boolean(false),
         });
         let ergo_tree = ErgoTree::new(ErgoTreeHeader::v0(true), &expr).unwrap();
         assert_eq!(ergo_tree.constants_len().unwrap(), 1);
@@ -764,7 +764,7 @@ mod tests {
     fn test_set_constant() {
         let expr = Expr::Const(Constant {
             tpe: SType::SBoolean,
-            v: Value::Boolean(false),
+            v: Literal::Boolean(false),
         });
         let ergo_tree = ErgoTree::new(ErgoTreeHeader::v0(true), &expr).unwrap();
         let new_ergo_tree = ergo_tree.with_constant(0, true.into()).unwrap();

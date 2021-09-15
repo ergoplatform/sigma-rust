@@ -2,23 +2,24 @@
 
 use crate::bigint256::BigInt256;
 use crate::ir_ergo_box::IrBoxId;
+use crate::mir::value::CollKind;
 use crate::sigma_protocol::sigma_boolean::SigmaBoolean;
 use crate::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
 use crate::sigma_protocol::sigma_boolean::{ProveDhTuple, ProveDlog};
 use crate::sigma_protocol::{dlog_group::EcPoint, sigma_boolean::SigmaProp};
+use crate::types::stuple::TupleItems;
 use crate::types::stype::LiftIntoSType;
 use crate::types::stype::SType;
 use impl_trait_for_tuples::impl_for_tuples;
+use std::convert::TryFrom;
 use std::convert::TryInto;
 
 mod constant_placeholder;
 
 pub use constant_placeholder::*;
 
-use super::value::CollKind;
 use super::value::NativeColl;
 use super::value::StoreWrapped;
-use super::value::Value;
 
 use thiserror::Error;
 
@@ -28,9 +29,119 @@ pub struct Constant {
     /// Constant type
     pub tpe: SType,
     /// Constant value
-    pub v: Value,
+    pub v: Literal,
 }
 
+#[derive(PartialEq, Eq, Debug, Clone)]
+/// Possible values for `Constant`
+pub enum Literal {
+    /// Boolean
+    Boolean(bool),
+    /// i8
+    Byte(i8),
+    /// Short
+    Short(i16),
+    /// Int
+    Int(i32),
+    /// Long
+    Long(i64),
+    /// Big integer
+    BigInt(BigInt256),
+    /// Sigma property
+    SigmaProp(Box<SigmaProp>),
+    /// GroupElement
+    GroupElement(Box<EcPoint>),
+    /// Ergo box ID
+    CBox(IrBoxId),
+    /// Collection
+    Coll(CollKind<Literal>),
+    /// Option type
+    Opt(Box<Option<Literal>>),
+    /// Tuple (arbitrary type values)
+    Tup(TupleItems<Literal>),
+}
+impl From<bool> for Literal {
+    fn from(v: bool) -> Literal {
+        Literal::Boolean(v)
+    }
+}
+
+impl From<i8> for Literal {
+    fn from(v: i8) -> Literal {
+        Literal::Byte(v)
+    }
+}
+
+impl From<i16> for Literal {
+    fn from(v: i16) -> Literal {
+        Literal::Short(v)
+    }
+}
+
+impl From<i32> for Literal {
+    fn from(v: i32) -> Literal {
+        Literal::Int(v)
+    }
+}
+
+impl From<i64> for Literal {
+    fn from(v: i64) -> Literal {
+        Literal::Long(v)
+    }
+}
+
+impl From<BigInt256> for Literal {
+    fn from(v: BigInt256) -> Literal {
+        Literal::BigInt(v)
+    }
+}
+
+impl From<SigmaProp> for Literal {
+    fn from(v: SigmaProp) -> Literal {
+        Literal::SigmaProp(Box::new(v))
+    }
+}
+
+impl From<EcPoint> for Literal {
+    fn from(v: EcPoint) -> Literal {
+        Literal::GroupElement(Box::new(v))
+    }
+}
+
+impl From<IrBoxId> for Literal {
+    fn from(b: IrBoxId) -> Self {
+        Literal::CBox(b)
+    }
+}
+
+impl From<Vec<u8>> for Literal {
+    fn from(v: Vec<u8>) -> Self {
+        Literal::Coll(CollKind::NativeColl(NativeColl::CollByte(
+            v.into_iter().map(|b| b as i8).collect(),
+        )))
+    }
+}
+
+impl From<Vec<i8>> for Literal {
+    fn from(v: Vec<i8>) -> Literal {
+        Literal::Coll(CollKind::NativeColl(NativeColl::CollByte(v)))
+    }
+}
+
+impl<T: LiftIntoSType + StoreWrapped + Into<Literal>> From<Vec<T>> for Literal {
+    fn from(v: Vec<T>) -> Self {
+        Literal::Coll(CollKind::WrappedColl {
+            elem_tpe: T::stype(),
+            items: v.into_iter().map(|i| i.into()).collect(),
+        })
+    }
+}
+
+impl<T: LiftIntoSType + Into<Literal>> From<Option<T>> for Literal {
+    fn from(opt: Option<T>) -> Self {
+        Literal::Opt(Box::new(opt.map(|e| e.into())))
+    }
+}
 impl From<bool> for Constant {
     fn from(v: bool) -> Constant {
         Constant {
@@ -80,7 +191,7 @@ impl From<SigmaProp> for Constant {
     fn from(v: SigmaProp) -> Constant {
         Constant {
             tpe: SType::SSigmaProp,
-            v: Box::new(v).into(),
+            v: v.into(),
         }
     }
 }
@@ -107,9 +218,7 @@ impl From<Vec<u8>> for Constant {
     fn from(v: Vec<u8>) -> Self {
         Constant {
             tpe: SType::SColl(Box::new(SType::SByte)),
-            v: Value::Coll(CollKind::NativeColl(NativeColl::CollByte(
-                v.into_iter().map(|b| b as i8).collect(),
-            ))),
+            v: v.into(),
         }
     }
 }
@@ -123,20 +232,23 @@ impl From<Vec<i8>> for Constant {
     }
 }
 
-impl<T: LiftIntoSType + StoreWrapped + Into<Value>> From<Vec<T>> for Constant {
+impl<T: LiftIntoSType + StoreWrapped + Into<Constant>> From<Vec<T>> for Constant {
     fn from(v: Vec<T>) -> Self {
         Constant {
             tpe: Vec::<T>::stype(),
-            v: v.into(),
+            v: Literal::Coll(CollKind::WrappedColl {
+                elem_tpe: T::stype(),
+                items: v.into_iter().map(|i| i.into().v).collect(),
+            }),
         }
     }
 }
 
-impl<T: LiftIntoSType + Into<Value>> From<Option<T>> for Constant {
+impl<T: LiftIntoSType + Into<Constant>> From<Option<T>> for Constant {
     fn from(opt: Option<T>) -> Self {
         Constant {
             tpe: SType::SOption(Box::new(T::stype())),
-            v: opt.into(),
+            v: Literal::Opt(Box::new(opt.map(|e| e.into().v))),
         }
     }
 }
@@ -167,7 +279,7 @@ impl From<BigInt256> for Constant {
     fn from(b: BigInt256) -> Self {
         Constant {
             tpe: SType::SBigInt,
-            v: b.into(),
+            v: Literal::BigInt(b),
         }
     }
 }
@@ -178,11 +290,11 @@ impl From<BigInt256> for Constant {
 impl Into<Constant> for Tuple {
     fn into(self) -> Constant {
         let constants: Vec<Constant> = [for_tuples!(  #( Tuple.into() ),* )].to_vec();
-        let (types, values): (Vec<SType>, Vec<Value>) =
+        let (types, values): (Vec<SType>, Vec<Literal>) =
             constants.into_iter().map(|c| (c.tpe, c.v)).unzip();
         Constant {
             tpe: SType::STuple(types.try_into().unwrap()),
-            v: Value::Tup(values.try_into().unwrap()),
+            v: Literal::Tup(values.try_into().unwrap()),
         }
     }
 }
@@ -211,9 +323,218 @@ pub trait TryExtractFrom<T>: Sized {
     fn try_extract_from(v: T) -> Result<Self, TryExtractFromError>;
 }
 
-impl<T: TryExtractFrom<Value>> TryExtractFrom<Constant> for T {
+impl<T: TryExtractFrom<Literal>> TryExtractFrom<Constant> for T {
     fn try_extract_from(cv: Constant) -> Result<Self, TryExtractFromError> {
         T::try_extract_from(cv.v)
+    }
+}
+
+impl TryExtractFrom<Literal> for bool {
+    fn try_extract_from(cv: Literal) -> Result<bool, TryExtractFromError> {
+        match cv {
+            Literal::Boolean(v) => Ok(v),
+            _ => Err(TryExtractFromError(format!(
+                "expected bool, found {:?}",
+                cv
+            ))),
+        }
+    }
+}
+
+impl TryExtractFrom<Literal> for i8 {
+    fn try_extract_from(cv: Literal) -> Result<i8, TryExtractFromError> {
+        match cv {
+            Literal::Byte(v) => Ok(v),
+            _ => Err(TryExtractFromError(format!("expected i8, found {:?}", cv))),
+        }
+    }
+}
+
+impl TryExtractFrom<Literal> for i16 {
+    fn try_extract_from(cv: Literal) -> Result<i16, TryExtractFromError> {
+        match cv {
+            Literal::Short(v) => Ok(v),
+            _ => Err(TryExtractFromError(format!("expected i16, found {:?}", cv))),
+        }
+    }
+}
+
+impl TryExtractFrom<Literal> for i32 {
+    fn try_extract_from(cv: Literal) -> Result<i32, TryExtractFromError> {
+        match cv {
+            Literal::Int(v) => Ok(v),
+            _ => Err(TryExtractFromError(format!("expected i32, found {:?}", cv))),
+        }
+    }
+}
+
+impl TryExtractFrom<Literal> for i64 {
+    fn try_extract_from(cv: Literal) -> Result<i64, TryExtractFromError> {
+        match cv {
+            Literal::Long(v) => Ok(v),
+            _ => Err(TryExtractFromError(format!("expected i64, found {:?}", cv))),
+        }
+    }
+}
+
+impl TryExtractFrom<Literal> for EcPoint {
+    fn try_extract_from(cv: Literal) -> Result<EcPoint, TryExtractFromError> {
+        match cv {
+            Literal::GroupElement(v) => Ok(*v),
+            _ => Err(TryExtractFromError(format!(
+                "expected EcPoint, found {:?}",
+                cv
+            ))),
+        }
+    }
+}
+
+impl TryExtractFrom<Literal> for SigmaProp {
+    fn try_extract_from(cv: Literal) -> Result<SigmaProp, TryExtractFromError> {
+        match cv {
+            Literal::SigmaProp(v) => Ok(*v),
+            _ => Err(TryExtractFromError(format!(
+                "expected SigmaProp, found {:?}",
+                cv
+            ))),
+        }
+    }
+}
+
+impl TryExtractFrom<Literal> for IrBoxId {
+    fn try_extract_from(c: Literal) -> Result<Self, TryExtractFromError> {
+        match c {
+            Literal::CBox(b) => Ok(b),
+            _ => Err(TryExtractFromError(format!(
+                "expected IrErgoBox, found {:?}",
+                c
+            ))),
+        }
+    }
+}
+
+impl<T: TryExtractFrom<Literal> + StoreWrapped> TryExtractFrom<Literal> for Vec<T> {
+    fn try_extract_from(c: Literal) -> Result<Self, TryExtractFromError> {
+        match c {
+            Literal::Coll(coll) => match coll {
+                CollKind::WrappedColl {
+                    elem_tpe: _,
+                    items: v,
+                } => v.into_iter().map(T::try_extract_from).collect(),
+                _ => Err(TryExtractFromError(format!(
+                    "expected {:?}, found {:?}",
+                    std::any::type_name::<Self>(),
+                    coll
+                ))),
+            },
+            _ => Err(TryExtractFromError(format!(
+                "expected {:?}, found {:?}",
+                std::any::type_name::<Self>(),
+                c
+            ))),
+        }
+    }
+}
+
+impl TryExtractFrom<Literal> for Vec<i8> {
+    fn try_extract_from(v: Literal) -> Result<Self, TryExtractFromError> {
+        match v {
+            Literal::Coll(v) => match v {
+                CollKind::NativeColl(NativeColl::CollByte(bs)) => Ok(bs),
+                _ => Err(TryExtractFromError(format!(
+                    "expected {:?}, found {:?}",
+                    std::any::type_name::<Self>(),
+                    v
+                ))),
+            },
+            _ => Err(TryExtractFromError(format!(
+                "expected {:?}, found {:?}",
+                std::any::type_name::<Self>(),
+                v
+            ))),
+        }
+    }
+}
+
+impl TryExtractFrom<Literal> for Vec<u8> {
+    fn try_extract_from(v: Literal) -> Result<Self, TryExtractFromError> {
+        use crate::util::FromVecI8;
+        Vec::<i8>::try_extract_from(v).map(Vec::<u8>::from_vec_i8)
+    }
+}
+
+impl TryExtractFrom<Literal> for Literal {
+    fn try_extract_from(v: Literal) -> Result<Self, TryExtractFromError> {
+        Ok(v)
+    }
+}
+
+impl TryExtractFrom<Literal> for BigInt256 {
+    fn try_extract_from(v: Literal) -> Result<Self, TryExtractFromError> {
+        match v {
+            Literal::BigInt(bi) => Ok(bi),
+            _ => Err(TryExtractFromError(format!(
+                "expected {:?}, found {:?}",
+                std::any::type_name::<Self>(),
+                v
+            ))),
+        }
+    }
+}
+
+impl<T: TryExtractFrom<Literal>> TryExtractFrom<Literal> for Option<T> {
+    fn try_extract_from(v: Literal) -> Result<Self, TryExtractFromError> {
+        match v {
+            Literal::Opt(opt) => opt.map(T::try_extract_from).transpose(),
+            _ => Err(TryExtractFromError(format!(
+                "expected Option, found {:?}",
+                v
+            ))),
+        }
+    }
+}
+
+#[impl_for_tuples(2, 4)]
+impl TryExtractFrom<Literal> for Tuple {
+    fn try_extract_from(v: Literal) -> Result<Self, TryExtractFromError> {
+        match v {
+            Literal::Tup(items) => {
+                let mut iter = items.iter();
+                Ok(for_tuples!( ( #(
+                                Tuple::try_extract_from(
+                                    iter
+                                        .next()
+                                        .cloned()
+                                        .ok_or_else(|| TryExtractFromError("not enough items in STuple".to_string()))?
+                                )?
+                                ),* ) ))
+            }
+            _ => Err(TryExtractFromError(format!(
+                "expected Context, found {:?}",
+                v
+            ))),
+        }
+    }
+}
+
+impl TryFrom<Literal> for ProveDlog {
+    type Error = TryExtractFromError;
+    fn try_from(cv: Literal) -> Result<Self, Self::Error> {
+        match cv {
+            Literal::SigmaProp(sp) => match sp.value() {
+                SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(
+                    prove_dlog,
+                )) => Ok(prove_dlog.clone()),
+                _ => Err(TryExtractFromError(format!(
+                    "expected ProveDlog, found {:?}",
+                    sp
+                ))),
+            },
+            _ => Err(TryExtractFromError(format!(
+                "expected SigmaProp, found {:?}",
+                cv
+            ))),
+        }
     }
 }
 
@@ -225,6 +546,7 @@ pub(crate) mod arbitrary {
     use std::convert::TryFrom;
 
     use super::*;
+    use crate::mir::value::CollKind;
     use crate::types::stuple::STuple;
     use proptest::collection::vec;
     use proptest::prelude::*;
@@ -252,7 +574,7 @@ pub(crate) mod arbitrary {
     fn coll_from_constant(c: Constant, length: usize) -> Constant {
         Constant {
             tpe: SType::SColl(Box::new(c.tpe.clone())),
-            v: Value::Coll(if c.tpe == SType::SByte {
+            v: Literal::Coll(if c.tpe == SType::SByte {
                 let mut values: Vec<i8> = Vec::with_capacity(length);
                 let byte: i8 = c.v.try_extract_into().unwrap();
                 for _ in 0..length {
@@ -260,7 +582,7 @@ pub(crate) mod arbitrary {
                 }
                 CollKind::NativeColl(NativeColl::CollByte(values))
             } else {
-                let mut values: Vec<Value> = Vec::with_capacity(length);
+                let mut values: Vec<Literal> = Vec::with_capacity(length);
                 for _ in 0..length {
                     values.push(c.v.clone());
                 }
@@ -356,11 +678,11 @@ pub(crate) mod arbitrary {
                                         )
                                         .unwrap()
                                     ),
-                                    v: Value::Tup(
+                                    v: Literal::Tup(
                                         constants
                                             .into_iter()
                                             .map(|c| c.v)
-                                            .collect::<Vec<Value>>()
+                                            .collect::<Vec<Literal>>()
                                             .try_into()
                                             .unwrap()
                                     )
@@ -386,7 +708,7 @@ pub mod tests {
 
     fn test_constant_roundtrip<T>(v: T)
     where
-        T: TryExtractInto<T> + TryExtractFrom<Value> + Into<Constant> + fmt::Debug + Eq + Clone,
+        T: TryExtractInto<T> + TryExtractFrom<Literal> + Into<Constant> + fmt::Debug + Eq + Clone,
     {
         let constant: Constant = v.clone().into();
         let v_extracted: T = constant.try_extract_into::<T>().unwrap();

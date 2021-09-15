@@ -43,7 +43,7 @@ impl ConstantStore {
 #[cfg(feature = "arbitrary")]
 mod tests {
     use super::*;
-    use crate::mir::value::Value;
+    use crate::mir::constant::Literal;
     use crate::types::stype::SType;
 
     #[test]
@@ -57,7 +57,7 @@ mod tests {
     fn test_non_empty() {
         let c = Constant {
             tpe: SType::SBoolean,
-            v: Value::Boolean(true),
+            v: Literal::Boolean(true),
         };
         let s = ConstantStore::new(vec![c.clone()]);
         assert!(s.get(0).is_some());
@@ -70,7 +70,7 @@ mod tests {
     fn test_put() {
         let c = Constant {
             tpe: SType::SBoolean,
-            v: Value::Boolean(true),
+            v: Literal::Boolean(true),
         };
         let mut s = ConstantStore::empty();
         s.put(c.clone());

@@ -915,10 +915,10 @@ mod tests {
     use crate::sigma_protocol::private_input::DhTupleProverInput;
     use crate::sigma_protocol::private_input::DlogProverInput;
     use ergotree_ir::mir::constant::Constant;
+    use ergotree_ir::mir::constant::Literal;
     use ergotree_ir::mir::expr::Expr;
     use ergotree_ir::mir::sigma_and::SigmaAnd;
     use ergotree_ir::mir::sigma_or::SigmaOr;
-    use ergotree_ir::mir::value::Value;
     use ergotree_ir::types::stype::SType;
     use sigma_test_util::force_any_val;
     use std::convert::TryFrom;
@@ -928,7 +928,7 @@ mod tests {
     fn test_prove_true_prop() {
         let bool_true_tree = ErgoTree::try_from(Expr::Const(Constant {
             tpe: SType::SBoolean,
-            v: Value::Boolean(true),
+            v: Literal::Boolean(true),
         }))
         .unwrap();
         let message = vec![0u8; 100];
@@ -949,7 +949,7 @@ mod tests {
     fn test_prove_false_prop() {
         let bool_false_tree = ErgoTree::try_from(Expr::Const(Constant {
             tpe: SType::SBoolean,
-            v: Value::Boolean(false),
+            v: Literal::Boolean(false),
         }))
         .unwrap();
         let message = vec![0u8; 100];

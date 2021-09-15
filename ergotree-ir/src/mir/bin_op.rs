@@ -267,8 +267,8 @@ mod tests {
 
     use super::*;
     use crate::mir::constant::Constant;
+    use crate::mir::constant::Literal::Boolean;
     use crate::mir::expr::Expr;
-    use crate::mir::value::Value::Boolean;
     use crate::serialization::sigma_serialize_roundtrip;
     use crate::serialization::SigmaSerializable;
     use proptest::prelude::*;
