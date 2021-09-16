@@ -5,7 +5,7 @@ use std::rc::Rc;
 use crate::sigma_protocol::prover::ContextExtension;
 use ergotree_ir::ir_ergo_box::IrBoxId;
 use ergotree_ir::ir_ergo_box::IrErgoBoxArena;
-use ergotree_ir::mir::header::{PreHeader, Header};
+use ergotree_ir::mir::header::{Header, PreHeader};
 
 /// Interpreter's context (blockchain state)
 #[derive(Debug)]
@@ -65,7 +65,16 @@ mod arbitrary {
                 vec(any::<Header>(), 0..5),
             )
                 .prop_map(
-                    |(height, self_box, outputs, inputs, data_inputs, pre_header, extension, headers)| {
+                    |(
+                        height,
+                        self_box,
+                        outputs,
+                        inputs,
+                        data_inputs,
+                        pre_header,
+                        extension,
+                        headers,
+                    )| {
                         let self_box_id = self_box.id();
                         let outputs_ids = outputs.iter().map(|b| b.id()).collect();
                         let inputs_ids = inputs.iter().map(|b| b.id()).collect();
@@ -91,7 +100,7 @@ mod arbitrary {
                             inputs: inputs_ids,
                             pre_header,
                             extension,
-                            headers
+                            headers,
                         }
                     },
                 )

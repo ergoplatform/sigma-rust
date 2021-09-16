@@ -96,7 +96,7 @@ impl Header {
             pow_onetime_pk: dlog_group::generator().into(),
             nonce: Vec::new(),
             pow_distance: BigInt::default(),
-            votes: Vec::new()
+            votes: Vec::new(),
         }
     }
 }
@@ -142,41 +142,47 @@ mod arbitrary {
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             (
-                vec(vec(any::<u8>(), 32), 5),
+                vec(any::<u8>(), 32),
+                vec(any::<u8>(), 32),
+                vec(any::<u8>(), 32),
+                vec(any::<u8>(), 32),
+                vec(any::<u8>(), 32),
                 // Timestamps between 2000-2050
                 946_674_000_000..2_500_400_300_000u64,
                 any::<u64>(),
                 0..1_000_000u32,
-                vec(any::<Box<EcPoint>>(), 2),
+                any::<Box<EcPoint>>(),
+                any::<Box<EcPoint>>(),
             )
                 .prop_map(
-                    |(mut arbitrary_byte_data, timestamp, n_bits, height, mut pks)| Self {
-                        version: 1,
-                        id: arbitrary_byte_data
-                            .pop()
-                            .expect("internal error: empty vec with arbitrary data"),
-                        parent_id: arbitrary_byte_data
-                            .pop()
-                            .expect("internal error: empty vec with arbitrary data"),
-                        ad_proofs_root: arbitrary_byte_data
-                            .pop()
-                            .expect("internal error: empty vec with arbitrary data"),
-                        state_root: AvlTree,
-                        transaction_root: arbitrary_byte_data
-                            .pop()
-                            .expect("internal error: empty vec with arbitrary data"),
+                    |(
+                        id,
+                        parent_id,
+                        ad_proofs_root,
+                        transaction_root,
+                        extension_root,
                         timestamp,
                         n_bits,
                         height,
-                        extension_root: arbitrary_byte_data
-                            .pop()
-                            .expect("internal error: empty vec with arbitrary data"),
-                        miner_pk: pks.pop().expect("internal error: empty vec with pk data"),
-                        pow_onetime_pk: pks.pop().expect("internal error: empty vec with pk data"),
+                        miner_pk,
+                        pow_onetime_pk,
+                    )| Self {
+                        version: 1,
+                        id,
+                        parent_id,
+                        ad_proofs_root,
+                        state_root: AvlTree,
+                        transaction_root,
+                        timestamp,
+                        n_bits,
+                        height,
+                        extension_root,
+                        miner_pk,
+                        pow_onetime_pk,
                         nonce: Vec::new(),
                         pow_distance: BigInt::default(),
                         votes: Vec::new(),
-                    }
+                    },
                 )
                 .boxed()
         }
