@@ -72,7 +72,7 @@ impl<T: ErgoBoxId> From<T> for UnsignedInput {
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Input {
     /// id of the box to spent
-    #[cfg_attr(feature = "json", serde(rename = "boxId"))]
+    #[cfg_attr(feature = "json", serde(rename = "boxId", alias = "id"))]
     pub box_id: BoxId,
     /// proof of spending correctness
     #[cfg_attr(feature = "json", serde(rename = "spendingProof",))]
