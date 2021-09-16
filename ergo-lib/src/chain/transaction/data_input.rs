@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct DataInput {
     /// id of the box to add into context (should be in UTXO)
-    #[cfg_attr(feature = "json", serde(rename = "boxId"))]
+    #[cfg_attr(feature = "json", serde(rename = "boxId", alias = "id"))]
     pub box_id: BoxId,
 }
 
