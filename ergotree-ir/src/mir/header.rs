@@ -78,6 +78,29 @@ impl PreHeader {
     }
 }
 
+impl Header {
+    /// Dummy instance intended for tests where actual values are not used
+    pub fn dummy() -> Self {
+        Header {
+            version: 1,
+            id: vec![0; 32],
+            parent_id: vec![0; 32],
+            ad_proofs_root: vec![0; 32],
+            state_root: AvlTree,
+            transaction_root: vec![0; 32],
+            timestamp: 0,
+            n_bits: 0,
+            height: 0,
+            extension_root: vec![0; 32],
+            miner_pk: dlog_group::generator().into(),
+            pow_onetime_pk: dlog_group::generator().into(),
+            nonce: Vec::new(),
+            pow_distance: BigInt::default(),
+            votes: Vec::new()
+        }
+    }
+}
+
 #[cfg(feature = "arbitrary")]
 mod arbitrary {
     use num_bigint::BigInt;
