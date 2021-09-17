@@ -20,21 +20,20 @@ pub const GET_REG_METHOD_ID: MethodId = MethodId(7);
 /// Box.tokens property
 pub const TOKENS_METHOD_ID: MethodId = MethodId(8);
 
-static S_BOX_TYPE_COMPANION_HEAD: STypeCompanionHead = STypeCompanionHead {
+pub(crate) static TYPE_COMPANION_HEAD: STypeCompanionHead = STypeCompanionHead {
     type_id: TYPE_ID,
     type_name: "Box",
 };
 
 lazy_static! {
-    /// Box object type companion
-    pub static ref S_BOX_TYPE_COMPANION: STypeCompanion = STypeCompanion::new(
-        &S_BOX_TYPE_COMPANION_HEAD,
+    /// Box method descriptors
+    pub(crate) static ref METHOD_DESC: Vec<&'static SMethodDesc> =
         vec![
             &GET_REG_METHOD_DESC,
             &VALUE_METHOD_DESC,
             &TOKENS_METHOD_DESC
         ]
-    );
+    ;
 }
 
 lazy_static! {
@@ -48,7 +47,7 @@ lazy_static! {
         },
     };
     /// Box.value
-    pub static ref VALUE_METHOD: SMethod = SMethod::new(&S_BOX_TYPE_COMPANION, VALUE_METHOD_DESC.clone(),);
+    pub static ref VALUE_METHOD: SMethod = SMethod::new(STypeCompanion::Box, VALUE_METHOD_DESC.clone(),);
 }
 
 lazy_static! {
@@ -63,7 +62,7 @@ lazy_static! {
     };
     /// Box.getReg
     pub static ref GET_REG_METHOD: SMethod =
-        SMethod::new(&S_BOX_TYPE_COMPANION, GET_REG_METHOD_DESC.clone(),);
+        SMethod::new(STypeCompanion::Box, GET_REG_METHOD_DESC.clone(),);
 }
 
 lazy_static! {
@@ -82,7 +81,7 @@ lazy_static! {
     };
     /// Box.tokens
     pub static ref TOKENS_METHOD: SMethod =
-        SMethod::new(&S_BOX_TYPE_COMPANION, TOKENS_METHOD_DESC.clone(),);
+        SMethod::new( STypeCompanion::Box,TOKENS_METHOD_DESC.clone(),);
 }
 
 #[cfg(test)]
