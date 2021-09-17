@@ -1,39 +1,37 @@
 #![allow(missing_docs)]
 
 use crate::serialization::types::TypeCode;
+use crate::types::stype_companion::STypeCompanion;
 
 use super::smethod::MethodId;
 use super::smethod::SMethod;
 use super::smethod::SMethodDesc;
 use super::stype::SType;
 use super::stype::SType::{SAvlTree, SBox, SByte, SColl, SHeader, SInt, SPreHeader};
-use super::stype_companion::STypeCompanion;
 use super::stype_companion::STypeCompanionHead;
 use lazy_static::lazy_static;
 
 pub const TYPE_ID: TypeCode = TypeCode::SCONTEXT;
 
-static S_CONTEXT_TYPE_COMPANION_HEAD: STypeCompanionHead = STypeCompanionHead {
+pub(crate) static TYPE_COMPANION_HEAD: STypeCompanionHead = STypeCompanionHead {
     type_id: TYPE_ID,
     type_name: "Context",
 };
 
 lazy_static! {
-    pub static ref S_CONTEXT_TYPE_COMPANION: STypeCompanion = STypeCompanion::new(
-        &S_CONTEXT_TYPE_COMPANION_HEAD,
-        vec![
-            &DATA_INPUTS_PROPERTY_METHOD_DESC,
-            &HEADERS_PROPERTY_METHOD_DESC,
-            &PRE_HEADERS_PROPERTY_METHOD_DESC,
-            &INPUTS_PROPERTY_METHOD_DESC,
-            &OUTPUTS_PROPERTY_METHOD_DESC,
-            &HEIGHT_PROPERTY_METHOD_DESC,
-            &SELF_PROPERTY_METHOD_DESC,
-            &SELF_BOX_INDEX_PROPERTY_METHOD_DESC,
-            &LAST_BLOCK_UTXO_ROOT_HASH_PROPERTY_METHOD_DESC,
-            &MINER_PUBKEY_PROPERTY_METHOD_DESC,
-        ]
-    );
+    /// Context method descriptors
+    pub(crate) static ref METHOD_DESC: Vec<&'static SMethodDesc> = vec![
+        &DATA_INPUTS_PROPERTY_METHOD_DESC,
+        &HEADERS_PROPERTY_METHOD_DESC,
+        &PRE_HEADERS_PROPERTY_METHOD_DESC,
+        &INPUTS_PROPERTY_METHOD_DESC,
+        &OUTPUTS_PROPERTY_METHOD_DESC,
+        &HEIGHT_PROPERTY_METHOD_DESC,
+        &SELF_PROPERTY_METHOD_DESC,
+        &SELF_BOX_INDEX_PROPERTY_METHOD_DESC,
+        &LAST_BLOCK_UTXO_ROOT_HASH_PROPERTY_METHOD_DESC,
+        &MINER_PUBKEY_PROPERTY_METHOD_DESC,
+    ];
 }
 
 // ---- Methods ----
@@ -48,7 +46,7 @@ lazy_static! {
 }
 lazy_static! {
     pub static ref DATA_INPUTS_PROPERTY: SMethod = SMethod::new(
-        &S_CONTEXT_TYPE_COMPANION,
+        STypeCompanion::Context,
         DATA_INPUTS_PROPERTY_METHOD_DESC.clone(),
     );
 }
@@ -60,7 +58,7 @@ lazy_static! {
 }
 lazy_static! {
     pub static ref HEADERS_PROPERTY: SMethod = SMethod::new(
-        &S_CONTEXT_TYPE_COMPANION,
+        STypeCompanion::Context,
         HEADERS_PROPERTY_METHOD_DESC.clone()
     );
 }
@@ -72,7 +70,7 @@ lazy_static! {
 }
 lazy_static! {
     pub static ref PRE_HEADERS_PROPERTY: SMethod = SMethod::new(
-        &S_CONTEXT_TYPE_COMPANION,
+        STypeCompanion::Context,
         PRE_HEADERS_PROPERTY_METHOD_DESC.clone()
     );
 }
@@ -83,10 +81,8 @@ lazy_static! {
         property("INPUTS", SColl(SBox.into()), INPUTS_PROPERTY_METHOD_ID);
 }
 lazy_static! {
-    static ref INPUTS_PROPERTY: SMethod = SMethod::new(
-        &S_CONTEXT_TYPE_COMPANION,
-        INPUTS_PROPERTY_METHOD_DESC.clone()
-    );
+    static ref INPUTS_PROPERTY: SMethod =
+        SMethod::new(STypeCompanion::Context, INPUTS_PROPERTY_METHOD_DESC.clone());
 }
 
 pub const OUTPUTS_PROPERTY_METHOD_ID: MethodId = MethodId(5);
@@ -96,7 +92,7 @@ lazy_static! {
 }
 lazy_static! {
     static ref OUTPUTS_PROPERTY: SMethod = SMethod::new(
-        &S_CONTEXT_TYPE_COMPANION,
+        STypeCompanion::Context,
         OUTPUTS_PROPERTY_METHOD_DESC.clone()
     );
 }
@@ -107,10 +103,8 @@ lazy_static! {
         property("HEIGHT", SInt, HEIGHT_PROPERTY_METHOD_ID);
 }
 lazy_static! {
-    static ref HEIGHT_PROPERTY: SMethod = SMethod::new(
-        &S_CONTEXT_TYPE_COMPANION,
-        HEIGHT_PROPERTY_METHOD_DESC.clone()
-    );
+    static ref HEIGHT_PROPERTY: SMethod =
+        SMethod::new(STypeCompanion::Context, HEIGHT_PROPERTY_METHOD_DESC.clone());
 }
 
 pub const SELF_PROPERTY_METHOD_ID: MethodId = MethodId(7);
@@ -120,7 +114,7 @@ lazy_static! {
 }
 lazy_static! {
     static ref SELF_PROPERTY: SMethod =
-        SMethod::new(&S_CONTEXT_TYPE_COMPANION, SELF_PROPERTY_METHOD_DESC.clone());
+        SMethod::new(STypeCompanion::Context, SELF_PROPERTY_METHOD_DESC.clone());
 }
 
 pub const SELF_BOX_INDEX_PROPERTY_METHOD_ID: MethodId = MethodId(8);
@@ -130,7 +124,7 @@ lazy_static! {
 }
 lazy_static! {
     static ref SELF_BOX_INDEX_PROPERTY: SMethod = SMethod::new(
-        &S_CONTEXT_TYPE_COMPANION,
+        STypeCompanion::Context,
         SELF_BOX_INDEX_PROPERTY_METHOD_DESC.clone()
     );
 }
@@ -145,7 +139,7 @@ lazy_static! {
 }
 lazy_static! {
     static ref LAST_BLOCK_UTXO_ROOT_HASH_PROPERTY: SMethod = SMethod::new(
-        &S_CONTEXT_TYPE_COMPANION,
+        STypeCompanion::Context,
         LAST_BLOCK_UTXO_ROOT_HASH_PROPERTY_METHOD_DESC.clone()
     );
 }
@@ -160,7 +154,7 @@ lazy_static! {
 }
 lazy_static! {
     static ref MINER_PUBKEY_PROPERTY: SMethod = SMethod::new(
-        &S_CONTEXT_TYPE_COMPANION,
+        STypeCompanion::Context,
         MINER_PUBKEY_PROPERTY_METHOD_DESC.clone()
     );
 }

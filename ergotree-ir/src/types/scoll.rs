@@ -1,12 +1,12 @@
 use crate::serialization::types::TypeCode;
 use crate::types::stuple::STuple;
+use crate::types::stype_companion::STypeCompanion;
 
 use super::sfunc::SFunc;
 use super::smethod::MethodId;
 use super::smethod::SMethod;
 use super::smethod::SMethodDesc;
 use super::stype::SType;
-use super::stype_companion::STypeCompanion;
 use super::stype_companion::STypeCompanionHead;
 use super::stype_param::STypeVar;
 use lazy_static::lazy_static;
@@ -28,15 +28,14 @@ pub const UPDATED_METHOD_ID: MethodId = MethodId(20);
 /// Coll.updateMany
 pub const UPDATE_MANY_METHOD_ID: MethodId = MethodId(21);
 
-static S_COLL_TYPE_COMPANION_HEAD: STypeCompanionHead = STypeCompanionHead {
+pub(crate) static TYPE_COMPANION_HEAD: STypeCompanionHead = STypeCompanionHead {
     type_id: TYPE_ID,
     type_name: "Coll",
 };
 
 lazy_static! {
-    /// Coll object type companion
-    pub static ref S_COLL_TYPE_COMPANION: STypeCompanion = STypeCompanion::new(
-        &S_COLL_TYPE_COMPANION_HEAD,
+    /// Coll method descriptors
+    pub(crate) static ref METHOD_DESC: Vec<&'static SMethodDesc> =
         vec![
             &INDEX_OF_METHOD_DESC,
             &FLATMAP_METHOD_DESC,
@@ -46,7 +45,7 @@ lazy_static! {
             &UPDATE_MANY_METHOD_DESC,
             &PATCH_METHOD_DESC,
         ]
-    );
+    ;
 }
 
 lazy_static! {
@@ -63,7 +62,7 @@ lazy_static! {
         },
     };
     /// Coll.indexOf
-    pub static ref INDEX_OF_METHOD: SMethod = SMethod::new(&S_COLL_TYPE_COMPANION, INDEX_OF_METHOD_DESC.clone());
+    pub static ref INDEX_OF_METHOD: SMethod = SMethod::new(STypeCompanion::Coll, INDEX_OF_METHOD_DESC.clone());
 }
 
 lazy_static! {
@@ -82,7 +81,7 @@ lazy_static! {
         ),
     };
     /// Coll.flatMap
-    pub static ref FLATMAP_METHOD: SMethod = SMethod::new(&S_COLL_TYPE_COMPANION, FLATMAP_METHOD_DESC.clone());
+    pub static ref FLATMAP_METHOD: SMethod = SMethod::new(STypeCompanion::Coll, FLATMAP_METHOD_DESC.clone());
 }
 
 lazy_static! {
@@ -100,7 +99,7 @@ lazy_static! {
         )
     };
     /// Coll.zip
-    pub static ref ZIP_METHOD: SMethod = SMethod::new(&S_COLL_TYPE_COMPANION, ZIP_METHOD_DESC.clone());
+    pub static ref ZIP_METHOD: SMethod = SMethod::new(STypeCompanion::Coll, ZIP_METHOD_DESC.clone());
 }
 
 lazy_static! {
@@ -115,7 +114,7 @@ lazy_static! {
         )
     };
     /// Coll.indices
-    pub static ref INDICES_METHOD: SMethod = SMethod::new(&S_COLL_TYPE_COMPANION, INDICES_METHOD_DESC.clone());
+    pub static ref INDICES_METHOD: SMethod = SMethod::new(STypeCompanion::Coll, INDICES_METHOD_DESC.clone());
 }
 
 lazy_static! {
@@ -133,7 +132,7 @@ lazy_static! {
         )
     };
     /// Coll.patch
-    pub static ref PATCH_METHOD: SMethod = SMethod::new(&S_COLL_TYPE_COMPANION, PATCH_METHOD_DESC.clone());
+    pub static ref PATCH_METHOD: SMethod = SMethod::new(STypeCompanion::Coll, PATCH_METHOD_DESC.clone());
 }
 
 lazy_static! {
@@ -151,7 +150,7 @@ lazy_static! {
         )
     };
     /// Coll.updated
-    pub static ref UPDATED_METHOD: SMethod = SMethod::new(&S_COLL_TYPE_COMPANION, UPDATED_METHOD_DESC.clone());
+    pub static ref UPDATED_METHOD: SMethod = SMethod::new(STypeCompanion::Coll, UPDATED_METHOD_DESC.clone());
 }
 
 lazy_static! {
@@ -169,7 +168,7 @@ lazy_static! {
         )
     };
     /// Coll.updateMany
-    pub static ref UPDATE_MANY_METHOD: SMethod = SMethod::new(&S_COLL_TYPE_COMPANION, UPDATE_MANY_METHOD_DESC.clone());
+    pub static ref UPDATE_MANY_METHOD: SMethod = SMethod::new(STypeCompanion::Coll, UPDATE_MANY_METHOD_DESC.clone());
 }
 
 #[cfg(test)]

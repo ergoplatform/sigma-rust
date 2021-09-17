@@ -3,6 +3,7 @@ use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::types::TypeCode;
 use crate::serialization::SigmaParsingError;
 use std::collections::HashMap;
+use std::convert::TryFrom;
 
 use super::sfunc::SFunc;
 use super::stype::SType;
@@ -30,13 +31,13 @@ impl MethodId {
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct SMethod {
     /// Object type companion
-    pub obj_type: &'static STypeCompanion,
+    pub obj_type: STypeCompanion,
     method_raw: SMethodDesc,
 }
 
 impl SMethod {
     /// Create new SMethod
-    pub(crate) const fn new(obj_type: &'static STypeCompanion, method_raw: SMethodDesc) -> SMethod {
+    pub(crate) const fn new(obj_type: STypeCompanion, method_raw: SMethodDesc) -> SMethod {
         SMethod {
             obj_type,
             method_raw,
@@ -48,7 +49,7 @@ impl SMethod {
         type_id: TypeCode,
         method_id: MethodId,
     ) -> Result<Self, SigmaParsingError> {
-        let obj_type = STypeCompanion::type_by_id(type_id)?;
+        let obj_type = STypeCompanion::try_from(type_id)?;
         match obj_type.method_by_id(&method_id) {
             Some(m) => Ok(m),
             None => Err(UnknownMethodId(method_id, type_id.value())),
@@ -117,7 +118,7 @@ impl SMethodDesc {
             },
         }
     }
-    pub(crate) fn as_method(&self, obj_type: &'static STypeCompanion) -> SMethod {
+    pub(crate) fn as_method(&self, obj_type: STypeCompanion) -> SMethod {
         SMethod {
             obj_type,
             method_raw: self.clone(),

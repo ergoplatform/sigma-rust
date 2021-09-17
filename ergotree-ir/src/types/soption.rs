@@ -17,20 +17,19 @@ pub const MAP_METHOD_ID: MethodId = MethodId(7);
 /// Option.filter
 pub const FILTER_METHOD_ID: MethodId = MethodId(8);
 
-static S_OPTION_TYPE_COMPANION_HEAD: STypeCompanionHead = STypeCompanionHead {
+pub(crate) static TYPE_COMPANION_HEAD: STypeCompanionHead = STypeCompanionHead {
     type_id: TYPE_ID,
     type_name: "Option",
 };
 
 lazy_static! {
-    /// Option object type companion
-    pub static ref S_OPTION_TYPE_COMPANION: STypeCompanion = STypeCompanion::new(
-        &S_OPTION_TYPE_COMPANION_HEAD,
+    /// Option method descriptors
+    pub(crate) static ref METHOD_DESC: Vec<&'static SMethodDesc> =
         vec![
             &MAP_METHOD_DESC,
             &FILTER_METHOD_DESC,
         ]
-    );
+    ;
 }
 
 lazy_static! {
@@ -49,7 +48,9 @@ lazy_static! {
         ),
     };
     /// Option.map
-    pub static ref MAP_METHOD: SMethod = SMethod::new(&S_OPTION_TYPE_COMPANION, MAP_METHOD_DESC.clone());
+    pub static ref MAP_METHOD: SMethod = SMethod::new(
+         STypeCompanion::Option,
+         MAP_METHOD_DESC.clone());
 }
 
 lazy_static! {
@@ -68,7 +69,9 @@ lazy_static! {
         ),
     };
     /// Option.map
-    pub static ref FILTER_METHOD: SMethod = SMethod::new(&S_OPTION_TYPE_COMPANION, FILTER_METHOD_DESC.clone());
+    pub static ref FILTER_METHOD: SMethod = SMethod::new(
+         STypeCompanion::Option,
+         FILTER_METHOD_DESC.clone());
 }
 
 #[cfg(test)]
