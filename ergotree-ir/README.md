@@ -13,9 +13,6 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 
 # Not yet implemented operations:
 
-### Operations
-- unary `~` (bit inversion);
-
 ### Predefined functions
 
 - substConstants
@@ -116,6 +113,7 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 - unary `!`;
 - unary `-`;
 - ^ (logical XOR);
+- unary `~` (bit inversion);
 
 ### Predefined functions
 
