@@ -61,7 +61,7 @@ use std::convert::TryInto;
 #[cfg_attr(feature = "json", serde(try_from = "json::ergo_box::ErgoBoxFromJson"))]
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ErgoBox {
-    #[cfg_attr(feature = "json", serde(rename = "boxId"))]
+    #[cfg_attr(feature = "json", serde(rename = "boxId", alias = "id"))]
     box_id: BoxId,
     /// amount of money associated with the box
     #[cfg_attr(feature = "json", serde(rename = "value"))]
@@ -81,7 +81,7 @@ pub struct ErgoBox {
     #[cfg_attr(feature = "json", serde(rename = "creationHeight"))]
     pub creation_height: u32,
     /// id of transaction which created the box
-    #[cfg_attr(feature = "json", serde(rename = "transactionId"))]
+    #[cfg_attr(feature = "json", serde(rename = "transactionId", alias = "txId"))]
     pub transaction_id: TxId,
     /// number of box (from 0 to total number of boxes the transaction with transactionId created - 1)
     #[cfg_attr(feature = "json", serde(rename = "index"))]
