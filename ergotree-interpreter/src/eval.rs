@@ -194,9 +194,16 @@ type EvalFn = fn(env: &Env, ctx: &mut EvalContext, Value, Vec<Value>) -> Result<
 fn smethod_eval_fn(method: &SMethod) -> Result<EvalFn, EvalError> {
     use ergotree_ir::types::*;
     Ok(match method.obj_type.type_code() {
-        scontext::TYPE_CODE if method.method_id() == scontext::DATA_INPUTS_PROPERTY_METHOD_ID => {
-            self::scontext::DATA_INPUTS_EVAL_FN
-        }
+        scontext::TYPE_CODE => match method.method_id() {
+            scontext::DATA_INPUTS_PROPERTY_METHOD_ID => self::scontext::DATA_INPUTS_EVAL_FN,
+            scontext::SELF_BOX_INDEX_PROPERTY_METHOD_ID => self::scontext::SELF_BOX_INDEX_EVAL_FN,
+            method_id => {
+                return Err(EvalError::NotFound(format!(
+                    "Eval fn: unknown method id in SContext: {:?}",
+                    method_id
+                )))
+            }
+        },
         sbox::TYPE_CODE => match method.method_id() {
             sbox::VALUE_METHOD_ID => self::sbox::VALUE_EVAL_FN,
             sbox::GET_REG_METHOD_ID => self::sbox::GET_REG_EVAL_FN,
