@@ -52,12 +52,18 @@ impl SigmaSerializable for SubstConstants {
         positions
             .check_post_eval_tpe(&SType::SColl(SType::SInt.into()))
             .map_err(InvalidArgumentError::from)?;
-        let new_values = Expr::sigma_parse(r)?.into();
-        Ok(Self {
-            script_bytes,
-            positions,
-            new_values,
-        })
+        let new_values = Box::new(Expr::sigma_parse(r)?);
+        match new_values.post_eval_tpe() {
+            SType::SColl(_) => Ok(SubstConstants {
+                script_bytes,
+                positions,
+                new_values,
+            }),
+            e => Err(SigmaParsingError::from(InvalidArgumentError(format!(
+                "SubstConstants: expected new_values type to be SColl[T], got {:?}",
+                e
+            )))),
+        }
     }
 }
 
@@ -85,12 +91,24 @@ mod tests {
                     tpe: SType::SColl(SType::SInt.into()),
                     depth: 0,
                 }),
-                any::<Box<Expr>>(),
+                prop_oneof![
+                    Just(SType::SByte),
+                    Just(SType::SBoolean),
+                    Just(SType::SShort),
+                    Just(SType::SInt),
+                    Just(SType::SLong),
+                ]
+                .prop_flat_map(|ty| {
+                    any_with::<Expr>(ArbExprParams {
+                        tpe: SType::SColl(ty.into()),
+                        depth: 0,
+                    })
+                }),
             )
                 .prop_map(|(script_bytes, positions, new_values)| Self {
                     script_bytes: script_bytes.into(),
                     positions: positions.into(),
-                    new_values,
+                    new_values: new_values.into(),
                 })
                 .boxed()
         }
