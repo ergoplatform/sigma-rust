@@ -23,3 +23,23 @@ pub(crate) static DATA_INPUTS_EVAL_FN: EvalFn = |_env, ctx, obj, _args| {
         elem_tpe: SType::SBox,
     }))
 };
+
+pub(crate) static SELF_BOX_INDEX_EVAL_FN: EvalFn = |_env, ctx, obj, _args| {
+    if obj != Value::Context {
+        return Err(EvalError::UnexpectedValue(format!(
+            "Context.selfBoxIndex: expected object of Value::Context, got {:?}",
+            obj
+        )));
+    }
+    let box_index = ctx
+        .ctx
+        .inputs
+        .clone()
+        .into_iter()
+        .position(|it| it == ctx.ctx.self_box)
+        .ok_or_else(|| EvalError::NotFound("Context.selfBoxIndex: box not found".to_string()));
+    match box_index {
+        Ok(index) => Ok(Value::Int(index as i32)),
+        Err(e) => Err(e),
+    }
+};
