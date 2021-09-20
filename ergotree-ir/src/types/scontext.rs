@@ -8,15 +8,12 @@ use super::smethod::SMethod;
 use super::smethod::SMethodDesc;
 use super::stype::SType;
 use super::stype::SType::{SAvlTree, SBox, SByte, SColl, SHeader, SInt, SPreHeader};
-use super::stype_companion::STypeCompanionHead;
 use lazy_static::lazy_static;
 
-pub const TYPE_ID: TypeCode = TypeCode::SCONTEXT;
-
-pub(crate) static TYPE_COMPANION_HEAD: STypeCompanionHead = STypeCompanionHead {
-    type_id: TYPE_ID,
-    type_name: "Context",
-};
+/// SContext type code
+pub const TYPE_CODE: TypeCode = TypeCode::SCONTEXT;
+/// SContext type name
+pub static TYPE_NAME: &str = "Context";
 
 lazy_static! {
     /// Context method descriptors
@@ -170,7 +167,7 @@ mod tests {
     #[test]
     fn test_from_ids() {
         assert!(
-            SMethod::from_ids(TYPE_ID, DATA_INPUTS_PROPERTY_METHOD_ID).map(|e| e.name())
+            SMethod::from_ids(TYPE_CODE, DATA_INPUTS_PROPERTY_METHOD_ID).map(|e| e.name())
                 == Ok("dataInputs")
         );
     }

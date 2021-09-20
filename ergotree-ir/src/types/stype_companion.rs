@@ -18,12 +18,6 @@ use super::spreheader;
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
-#[derive(PartialEq, Eq, Debug, Clone)]
-pub(crate) struct STypeCompanionHead {
-    pub type_id: TypeCode,
-    pub type_name: &'static str,
-}
-
 /// Object's type companion
 #[derive(PartialEq, Eq, Debug, Clone, Copy, EnumIter)]
 pub enum STypeCompanion {
@@ -46,19 +40,6 @@ pub enum STypeCompanion {
 }
 
 impl STypeCompanion {
-    fn s_type_companion_head(&self) -> &STypeCompanionHead {
-        match self {
-            STypeCompanion::Context => &scontext::TYPE_COMPANION_HEAD,
-            STypeCompanion::Box => &sbox::TYPE_COMPANION_HEAD,
-            STypeCompanion::Coll => &scoll::TYPE_COMPANION_HEAD,
-            STypeCompanion::GroupElem => &sgroup_elem::TYPE_COMPANION_HEAD,
-            STypeCompanion::Global => &sglobal::TYPE_COMPANION_HEAD,
-            STypeCompanion::Header => &sheader::TYPE_COMPANION_HEAD,
-            STypeCompanion::PreHeader => &spreheader::TYPE_COMPANION_HEAD,
-            STypeCompanion::Option => &soption::TYPE_COMPANION_HEAD,
-        }
-    }
-
     fn method_desc<'a>(&'a self) -> &'a Vec<&'static SMethodDesc> {
         match self {
             STypeCompanion::Context => &*scontext::METHOD_DESC,
@@ -88,21 +69,39 @@ impl STypeCompanion {
             .collect()
     }
 
-    /// Get object type id for this type companion
-    pub fn type_id(&self) -> TypeCode {
-        self.s_type_companion_head().type_id
+    /// Get object's type code
+    pub fn type_code(&self) -> TypeCode {
+        match self {
+            STypeCompanion::Context => scontext::TYPE_CODE,
+            STypeCompanion::Box => sbox::TYPE_CODE,
+            STypeCompanion::Coll => scoll::TYPE_CODE,
+            STypeCompanion::GroupElem => sgroup_elem::TYPE_CODE,
+            STypeCompanion::Global => sglobal::TYPE_CODE,
+            STypeCompanion::Header => sheader::TYPE_CODE,
+            STypeCompanion::PreHeader => spreheader::TYPE_CODE,
+            STypeCompanion::Option => soption::TYPE_CODE,
+        }
     }
 
     /// Get object's type name
     pub fn type_name(&self) -> &'static str {
-        self.s_type_companion_head().type_name
+        match self {
+            STypeCompanion::Context => scontext::TYPE_NAME,
+            STypeCompanion::Box => sbox::TYPE_NAME,
+            STypeCompanion::Coll => scoll::TYPE_NAME,
+            STypeCompanion::GroupElem => sgroup_elem::TYPE_NAME,
+            STypeCompanion::Global => sglobal::TYPE_NAME,
+            STypeCompanion::Header => sheader::TYPE_NAME,
+            STypeCompanion::PreHeader => spreheader::TYPE_NAME,
+            STypeCompanion::Option => soption::TYPE_NAME,
+        }
     }
 }
 
 impl TryFrom<TypeCode> for STypeCompanion {
     type Error = SigmaParsingError;
     fn try_from(value: TypeCode) -> Result<Self, Self::Error> {
-        for (type_code, type_companion) in STypeCompanion::iter().map(|v| (v.type_id(), v)) {
+        for (type_code, type_companion) in STypeCompanion::iter().map(|v| (v.type_code(), v)) {
             if type_code == value {
                 return Ok(type_companion);
             }

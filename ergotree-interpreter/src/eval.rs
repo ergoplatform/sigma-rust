@@ -193,11 +193,11 @@ type EvalFn = fn(env: &Env, ctx: &mut EvalContext, Value, Vec<Value>) -> Result<
 
 fn smethod_eval_fn(method: &SMethod) -> Result<EvalFn, EvalError> {
     use ergotree_ir::types::*;
-    Ok(match method.obj_type.type_id() {
-        scontext::TYPE_ID if method.method_id() == scontext::DATA_INPUTS_PROPERTY_METHOD_ID => {
+    Ok(match method.obj_type.type_code() {
+        scontext::TYPE_CODE if method.method_id() == scontext::DATA_INPUTS_PROPERTY_METHOD_ID => {
             self::scontext::DATA_INPUTS_EVAL_FN
         }
-        sbox::TYPE_ID => match method.method_id() {
+        sbox::TYPE_CODE => match method.method_id() {
             sbox::VALUE_METHOD_ID => self::sbox::VALUE_EVAL_FN,
             sbox::GET_REG_METHOD_ID => self::sbox::GET_REG_EVAL_FN,
             sbox::TOKENS_METHOD_ID => self::sbox::TOKENS_EVAL_FN,
@@ -208,7 +208,7 @@ fn smethod_eval_fn(method: &SMethod) -> Result<EvalFn, EvalError> {
                 )))
             }
         },
-        scoll::TYPE_ID => match method.method_id() {
+        scoll::TYPE_CODE => match method.method_id() {
             scoll::INDEX_OF_METHOD_ID => self::scoll::INDEX_OF_EVAL_FN,
             scoll::FLATMAP_METHOD_ID => self::scoll::FLATMAP_EVAL_FN,
             scoll::ZIP_METHOD_ID => self::scoll::ZIP_EVAL_FN,
@@ -223,7 +223,7 @@ fn smethod_eval_fn(method: &SMethod) -> Result<EvalFn, EvalError> {
                 )))
             }
         },
-        sgroup_elem::TYPE_ID => match method.method_id() {
+        sgroup_elem::TYPE_CODE => match method.method_id() {
             sgroup_elem::GET_ENCODED_METHOD_ID => self::sgroup_elem::GET_ENCODED_EVAL_FN,
             sgroup_elem::NEGATE_METHOD_ID => self::sgroup_elem::NEGATE_EVAL_FN,
             method_id => {
@@ -233,7 +233,7 @@ fn smethod_eval_fn(method: &SMethod) -> Result<EvalFn, EvalError> {
                 )))
             }
         },
-        soption::TYPE_ID => match method.method_id() {
+        soption::TYPE_CODE => match method.method_id() {
             soption::MAP_METHOD_ID => self::soption::MAP_EVAL_FN,
             soption::FILTER_METHOD_ID => self::soption::FILTER_EVAL_FN,
             method_id => {

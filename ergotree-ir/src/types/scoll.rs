@@ -7,12 +7,13 @@ use super::smethod::MethodId;
 use super::smethod::SMethod;
 use super::smethod::SMethodDesc;
 use super::stype::SType;
-use super::stype_companion::STypeCompanionHead;
 use super::stype_param::STypeVar;
 use lazy_static::lazy_static;
 
-/// type id
-pub const TYPE_ID: TypeCode = TypeCode::COLL;
+/// SColl type code
+pub const TYPE_CODE: TypeCode = TypeCode::COLL;
+/// SColl type name
+pub static TYPE_NAME: &str = "Coll";
 /// Coll.indexOf
 pub const INDEX_OF_METHOD_ID: MethodId = MethodId(26);
 /// Coll.flatmap
@@ -27,11 +28,6 @@ pub const PATCH_METHOD_ID: MethodId = MethodId(19);
 pub const UPDATED_METHOD_ID: MethodId = MethodId(20);
 /// Coll.updateMany
 pub const UPDATE_MANY_METHOD_ID: MethodId = MethodId(21);
-
-pub(crate) static TYPE_COMPANION_HEAD: STypeCompanionHead = STypeCompanionHead {
-    type_id: TYPE_ID,
-    type_name: "Coll",
-};
 
 lazy_static! {
     /// Coll method descriptors
@@ -177,14 +173,17 @@ mod tests {
 
     #[test]
     fn test_from_ids() {
-        assert!(SMethod::from_ids(TYPE_ID, INDEX_OF_METHOD_ID).map(|e| e.name()) == Ok("indexOf"));
-        assert!(SMethod::from_ids(TYPE_ID, FLATMAP_METHOD_ID).map(|e| e.name()) == Ok("flatMap"));
-        assert!(SMethod::from_ids(TYPE_ID, ZIP_METHOD_ID).map(|e| e.name()) == Ok("zip"));
-        assert!(SMethod::from_ids(TYPE_ID, INDICES_METHOD_ID).map(|e| e.name()) == Ok("indices"));
-        assert!(SMethod::from_ids(TYPE_ID, PATCH_METHOD_ID).map(|e| e.name()) == Ok("patch"));
-        assert!(SMethod::from_ids(TYPE_ID, UPDATED_METHOD_ID).map(|e| e.name()) == Ok("updated"));
         assert!(
-            SMethod::from_ids(TYPE_ID, UPDATE_MANY_METHOD_ID).map(|e| e.name()) == Ok("updateMany")
+            SMethod::from_ids(TYPE_CODE, INDEX_OF_METHOD_ID).map(|e| e.name()) == Ok("indexOf")
+        );
+        assert!(SMethod::from_ids(TYPE_CODE, FLATMAP_METHOD_ID).map(|e| e.name()) == Ok("flatMap"));
+        assert!(SMethod::from_ids(TYPE_CODE, ZIP_METHOD_ID).map(|e| e.name()) == Ok("zip"));
+        assert!(SMethod::from_ids(TYPE_CODE, INDICES_METHOD_ID).map(|e| e.name()) == Ok("indices"));
+        assert!(SMethod::from_ids(TYPE_CODE, PATCH_METHOD_ID).map(|e| e.name()) == Ok("patch"));
+        assert!(SMethod::from_ids(TYPE_CODE, UPDATED_METHOD_ID).map(|e| e.name()) == Ok("updated"));
+        assert!(
+            SMethod::from_ids(TYPE_CODE, UPDATE_MANY_METHOD_ID).map(|e| e.name())
+                == Ok("updateMany")
         );
     }
 }

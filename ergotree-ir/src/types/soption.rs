@@ -7,20 +7,16 @@ use super::stype::SType;
 use super::stype_companion::STypeCompanion;
 use super::stype_param::STypeVar;
 use crate::types::smethod::MethodId;
-use crate::types::stype_companion::STypeCompanionHead;
 use lazy_static::lazy_static;
 
-/// type id
-pub const TYPE_ID: TypeCode = TypeCode::OPTION;
+/// SOption type code
+pub const TYPE_CODE: TypeCode = TypeCode::OPTION;
+/// SOption type name
+pub static TYPE_NAME: &str = "Option";
 /// Option.map
 pub const MAP_METHOD_ID: MethodId = MethodId(7);
 /// Option.filter
 pub const FILTER_METHOD_ID: MethodId = MethodId(8);
-
-pub(crate) static TYPE_COMPANION_HEAD: STypeCompanionHead = STypeCompanionHead {
-    type_id: TYPE_ID,
-    type_name: "Option",
-};
 
 lazy_static! {
     /// Option method descriptors
@@ -80,7 +76,7 @@ mod tests {
 
     #[test]
     fn test_from_ids() {
-        assert!(SMethod::from_ids(TYPE_ID, MAP_METHOD_ID).map(|e| e.name()) == Ok("map"));
-        assert!(SMethod::from_ids(TYPE_ID, FILTER_METHOD_ID).map(|e| e.name()) == Ok("filter"));
+        assert!(SMethod::from_ids(TYPE_CODE, MAP_METHOD_ID).map(|e| e.name()) == Ok("map"));
+        assert!(SMethod::from_ids(TYPE_CODE, FILTER_METHOD_ID).map(|e| e.name()) == Ok("filter"));
     }
 }
