@@ -3,17 +3,13 @@ use crate::serialization::types::TypeCode;
 use super::smethod::MethodId;
 use super::smethod::SMethodDesc;
 use super::stype::SType;
-use super::stype_companion::STypeCompanionHead;
 use crate::types::stype::SType::{SByte, SColl};
 use lazy_static::lazy_static;
 
-/// SBox type id
-pub const TYPE_ID: TypeCode = TypeCode::SHEADER;
-
-pub(crate) static TYPE_COMPANION_HEAD: STypeCompanionHead = STypeCompanionHead {
-    type_id: TYPE_ID,
-    type_name: "Header",
-};
+/// SHeader type code
+pub const TYPE_CODE: TypeCode = TypeCode::SHEADER;
+/// SHeader type name
+pub static TYPE_NAME: &str = "Header";
 
 lazy_static! {
     /// Header method descriptors

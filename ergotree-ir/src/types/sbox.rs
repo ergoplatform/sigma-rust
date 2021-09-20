@@ -7,23 +7,19 @@ use super::smethod::SMethodDesc;
 use super::stuple::STuple;
 use super::stype::SType;
 use super::stype_companion::STypeCompanion;
-use super::stype_companion::STypeCompanionHead;
 use super::stype_param::STypeVar;
 use lazy_static::lazy_static;
 
-/// SBox type id
-pub const TYPE_ID: TypeCode = TypeCode::SBOX;
+/// SBox type code
+pub const TYPE_CODE: TypeCode = TypeCode::SBOX;
+/// SBox type name
+pub static TYPE_NAME: &str = "Box";
 /// Box.value property
 pub const VALUE_METHOD_ID: MethodId = MethodId(1);
 /// Box.Rx property
 pub const GET_REG_METHOD_ID: MethodId = MethodId(7);
 /// Box.tokens property
 pub const TOKENS_METHOD_ID: MethodId = MethodId(8);
-
-pub(crate) static TYPE_COMPANION_HEAD: STypeCompanionHead = STypeCompanionHead {
-    type_id: TYPE_ID,
-    type_name: "Box",
-};
 
 lazy_static! {
     /// Box method descriptors
@@ -90,8 +86,8 @@ mod tests {
 
     #[test]
     fn test_from_ids() {
-        assert!(SMethod::from_ids(TYPE_ID, VALUE_METHOD_ID).map(|e| e.name()) == Ok("value"));
-        assert!(SMethod::from_ids(TYPE_ID, GET_REG_METHOD_ID).map(|e| e.name()) == Ok("getReg"));
-        assert!(SMethod::from_ids(TYPE_ID, TOKENS_METHOD_ID).map(|e| e.name()) == Ok("tokens"));
+        assert!(SMethod::from_ids(TYPE_CODE, VALUE_METHOD_ID).map(|e| e.name()) == Ok("value"));
+        assert!(SMethod::from_ids(TYPE_CODE, GET_REG_METHOD_ID).map(|e| e.name()) == Ok("getReg"));
+        assert!(SMethod::from_ids(TYPE_CODE, TOKENS_METHOD_ID).map(|e| e.name()) == Ok("tokens"));
     }
 }

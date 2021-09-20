@@ -4,21 +4,17 @@ use super::sfunc::SFunc;
 use super::smethod::MethodId;
 use super::smethod::SMethodDesc;
 use super::stype::SType;
-use super::stype_companion::STypeCompanionHead;
 use lazy_static::lazy_static;
 
-/// SGlobal type id
-pub const TYPE_ID: TypeCode = TypeCode::SGLOBAL;
+/// SGlobal type code
+pub const TYPE_CODE: TypeCode = TypeCode::SGLOBAL;
+/// SGlobal type name
+pub static TYPE_NAME: &str = "Global";
 
 /// groupGenerator property
 pub const GROUP_GENERATOR_METHOD_ID: MethodId = MethodId(1);
 /// "xor" predefined function
 pub const XOR_METHOD_ID: MethodId = MethodId(2);
-
-pub(crate) static TYPE_COMPANION_HEAD: STypeCompanionHead = STypeCompanionHead {
-    type_id: TYPE_ID,
-    type_name: "Global",
-};
 
 lazy_static! {
     /// Global method descriptors

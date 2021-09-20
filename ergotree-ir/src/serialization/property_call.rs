@@ -12,7 +12,7 @@ use super::SigmaSerializeResult;
 
 impl SigmaSerializable for PropertyCall {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
-        self.method.obj_type.type_id().sigma_serialize(w)?;
+        self.method.obj_type.type_code().sigma_serialize(w)?;
         self.method.method_id().sigma_serialize(w)?;
         self.obj.sigma_serialize(w)?;
         Ok(())
