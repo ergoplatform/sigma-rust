@@ -120,7 +120,7 @@ lazy_static! {
         property("selfBoxIndex", SInt, SELF_BOX_INDEX_PROPERTY_METHOD_ID);
 }
 lazy_static! {
-    static ref SELF_BOX_INDEX_PROPERTY: SMethod = SMethod::new(
+    pub static ref SELF_BOX_INDEX_PROPERTY: SMethod = SMethod::new(
         STypeCompanion::Context,
         SELF_BOX_INDEX_PROPERTY_METHOD_DESC.clone()
     );
