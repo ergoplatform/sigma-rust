@@ -3,23 +3,17 @@ use crate::serialization::types::TypeCode;
 use super::smethod::MethodId;
 use super::smethod::SMethodDesc;
 use super::stype::SType;
-use super::stype_companion::STypeCompanion;
-use super::stype_companion::STypeCompanionHead;
 use crate::types::stype::SType::{SByte, SColl};
 use lazy_static::lazy_static;
 
-/// SBox type id
-pub const TYPE_ID: TypeCode = TypeCode::SPRE_HEADER;
-
-static S_PRE_HEADER_TYPE_COMPANION_HEAD: STypeCompanionHead = STypeCompanionHead {
-    type_id: TYPE_ID,
-    type_name: "PreHeader",
-};
+/// SPreHeader type code
+pub const TYPE_CODE: TypeCode = TypeCode::SPRE_HEADER;
+/// SPreHeader type name
+pub static TYPE_NAME: &str = "PreHeader";
 
 lazy_static! {
-    /// Box object type companion
-    pub static ref S_PRE_HEADER_TYPE_COMPANION: STypeCompanion = STypeCompanion::new(
-        &S_PRE_HEADER_TYPE_COMPANION_HEAD,
+    /// Pre-header method descriptors
+    pub(crate) static ref METHOD_DESC: Vec<&'static SMethodDesc> =
         vec![
             &VERSION_METHOD,
             &PARENT_ID_METHOD,
@@ -29,7 +23,7 @@ lazy_static! {
             &MINER_PK_METHOD,
             &VOTES_METHOD,
         ]
-    );
+    ;
 }
 
 lazy_static! {

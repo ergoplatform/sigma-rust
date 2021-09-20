@@ -7,12 +7,13 @@ use super::smethod::SMethodDesc;
 use super::stuple::STuple;
 use super::stype::SType;
 use super::stype_companion::STypeCompanion;
-use super::stype_companion::STypeCompanionHead;
 use super::stype_param::STypeVar;
 use lazy_static::lazy_static;
 
-/// SBox type id
-pub const TYPE_ID: TypeCode = TypeCode::SBOX;
+/// SBox type code
+pub const TYPE_CODE: TypeCode = TypeCode::SBOX;
+/// SBox type name
+pub static TYPE_NAME: &str = "Box";
 /// Box.value property
 pub const VALUE_METHOD_ID: MethodId = MethodId(1);
 /// Box.Rx property
@@ -20,21 +21,15 @@ pub const GET_REG_METHOD_ID: MethodId = MethodId(7);
 /// Box.tokens property
 pub const TOKENS_METHOD_ID: MethodId = MethodId(8);
 
-static S_BOX_TYPE_COMPANION_HEAD: STypeCompanionHead = STypeCompanionHead {
-    type_id: TYPE_ID,
-    type_name: "Box",
-};
-
 lazy_static! {
-    /// Box object type companion
-    pub static ref S_BOX_TYPE_COMPANION: STypeCompanion = STypeCompanion::new(
-        &S_BOX_TYPE_COMPANION_HEAD,
+    /// Box method descriptors
+    pub(crate) static ref METHOD_DESC: Vec<&'static SMethodDesc> =
         vec![
             &GET_REG_METHOD_DESC,
             &VALUE_METHOD_DESC,
             &TOKENS_METHOD_DESC
         ]
-    );
+    ;
 }
 
 lazy_static! {
@@ -48,7 +43,7 @@ lazy_static! {
         },
     };
     /// Box.value
-    pub static ref VALUE_METHOD: SMethod = SMethod::new(&S_BOX_TYPE_COMPANION, VALUE_METHOD_DESC.clone(),);
+    pub static ref VALUE_METHOD: SMethod = SMethod::new(STypeCompanion::Box, VALUE_METHOD_DESC.clone(),);
 }
 
 lazy_static! {
@@ -63,7 +58,7 @@ lazy_static! {
     };
     /// Box.getReg
     pub static ref GET_REG_METHOD: SMethod =
-        SMethod::new(&S_BOX_TYPE_COMPANION, GET_REG_METHOD_DESC.clone(),);
+        SMethod::new(STypeCompanion::Box, GET_REG_METHOD_DESC.clone(),);
 }
 
 lazy_static! {
@@ -82,7 +77,7 @@ lazy_static! {
     };
     /// Box.tokens
     pub static ref TOKENS_METHOD: SMethod =
-        SMethod::new(&S_BOX_TYPE_COMPANION, TOKENS_METHOD_DESC.clone(),);
+        SMethod::new( STypeCompanion::Box,TOKENS_METHOD_DESC.clone(),);
 }
 
 #[cfg(test)]
@@ -91,8 +86,8 @@ mod tests {
 
     #[test]
     fn test_from_ids() {
-        assert!(SMethod::from_ids(TYPE_ID, VALUE_METHOD_ID).map(|e| e.name()) == Ok("value"));
-        assert!(SMethod::from_ids(TYPE_ID, GET_REG_METHOD_ID).map(|e| e.name()) == Ok("getReg"));
-        assert!(SMethod::from_ids(TYPE_ID, TOKENS_METHOD_ID).map(|e| e.name()) == Ok("tokens"));
+        assert!(SMethod::from_ids(TYPE_CODE, VALUE_METHOD_ID).map(|e| e.name()) == Ok("value"));
+        assert!(SMethod::from_ids(TYPE_CODE, GET_REG_METHOD_ID).map(|e| e.name()) == Ok("getReg"));
+        assert!(SMethod::from_ids(TYPE_CODE, TOKENS_METHOD_ID).map(|e| e.name()) == Ok("tokens"));
     }
 }
