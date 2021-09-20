@@ -15,6 +15,8 @@ use super::smethod::SMethod;
 use super::smethod::SMethodDesc;
 use super::soption;
 use super::spreheader;
+use strum::IntoEnumIterator;
+use strum_macros::EnumIter;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub(crate) struct STypeCompanionHead {
@@ -23,7 +25,7 @@ pub(crate) struct STypeCompanionHead {
 }
 
 /// Object's type companion
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy, EnumIter)]
 pub enum STypeCompanion {
     /// Context
     Context,
@@ -100,19 +102,7 @@ impl STypeCompanion {
 impl TryFrom<TypeCode> for STypeCompanion {
     type Error = SigmaParsingError;
     fn try_from(value: TypeCode) -> Result<Self, Self::Error> {
-        for (type_code, type_companion) in [
-            STypeCompanion::Context,
-            STypeCompanion::Box,
-            STypeCompanion::Coll,
-            STypeCompanion::GroupElem,
-            STypeCompanion::Global,
-            STypeCompanion::Header,
-            STypeCompanion::PreHeader,
-            STypeCompanion::Option,
-        ]
-        .iter()
-        .map(|v| (v.type_id(), *v))
-        {
+        for (type_code, type_companion) in STypeCompanion::iter().map(|v| (v.type_id(), v)) {
             if type_code == value {
                 return Ok(type_companion);
             }
