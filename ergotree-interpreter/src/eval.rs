@@ -50,6 +50,7 @@ pub(crate) mod create_provedlog;
 pub(crate) mod decode_point;
 mod deserialize_context;
 mod deserialize_register;
+pub(crate) mod downcast;
 pub(crate) mod exponentiate;
 pub(crate) mod expr;
 pub(crate) mod extract_amount;
