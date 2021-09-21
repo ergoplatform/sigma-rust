@@ -10,7 +10,7 @@ impl Evaluable for ExtractBytesWithNoRef {
     fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
         let input_v = self.input.eval(env, ctx)?;
         match input_v {
-            Value::CBox(b) => Ok(ctx.ctx.box_arena.get(&b)?.bytesWithoutRef()?.into()),
+            Value::CBox(b) => Ok(ctx.ctx.box_arena.get(&b)?.bytes_without_ref()?.into()),
             _ => Err(EvalError::UnexpectedValue(format!(
                 "Expected ExtractBytesWithNoRef input to be Value::CBox, got {0:?}",
                 input_v
@@ -42,7 +42,7 @@ mod tests {
             ctx.self_box
                 .get_box(&ctx.box_arena)
                 .unwrap()
-                .bytesWithoutRef()
+                .bytes_without_ref()
                 .unwrap()
         );
     }
