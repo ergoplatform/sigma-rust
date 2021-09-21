@@ -279,6 +279,7 @@ impl SigmaSerializable for Expr {
             Expr::Exponentiate(op) => op.sigma_serialize_w_opcode(w),
             Expr::XorOf(op) => op.sigma_serialize_w_opcode(w),
             Expr::ExtractBytes(op) => op.sigma_serialize_w_opcode(w),
+            Expr::ExtractBytesWithNoRef(op) => op.sigma_serialize_w_opcode(w),
         }
     }
 

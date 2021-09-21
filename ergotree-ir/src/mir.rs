@@ -49,6 +49,8 @@ pub mod expr;
 pub mod extract_amount;
 /// Box.bytes (serialized box bytes)
 pub mod extract_bytes;
+/// Box.bytesWithoutRef
+pub mod extract_bytes_with_no_ref;
 /// Box.creationInfo (height, tx id + box index)
 pub mod extract_creation_info;
 /// Box id, Blake2b256 hash of this box's content, basically equals to `blake2b256(bytes)`

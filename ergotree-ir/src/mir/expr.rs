@@ -35,6 +35,7 @@ use super::decode_point::DecodePoint;
 use super::exponentiate::Exponentiate;
 use super::extract_amount::ExtractAmount;
 use super::extract_bytes::ExtractBytes;
+use super::extract_bytes_with_no_ref::ExtractBytesWithNoRef;
 use super::extract_creation_info::ExtractCreationInfo;
 use super::extract_id::ExtractId;
 use super::extract_reg_as::ExtractRegisterAs;
@@ -152,6 +153,8 @@ pub enum Expr {
     ExtractRegisterAs(ExtractRegisterAs),
     /// Extract serialized box bytes
     ExtractBytes(ExtractBytes),
+    /// Extract serialized box bytes excluding transaction_id & index
+    ExtractBytesWithNoRef(ExtractBytesWithNoRef),
     /// Extract box's guarding script serialized to bytes
     ExtractScriptBytes(ExtractScriptBytes),
     /// Tuple of height when block got included into the blockchain and transaction identifier with
@@ -277,6 +280,7 @@ impl Expr {
             Expr::Exponentiate(v) => v.tpe(),
             Expr::XorOf(v) => v.tpe(),
             Expr::ExtractBytes(v) => v.tpe(),
+            Expr::ExtractBytesWithNoRef(v) => v.tpe(),
         }
     }
 
