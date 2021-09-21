@@ -42,6 +42,8 @@ pub mod create_provedlog;
 pub mod decode_point;
 pub mod deserialize_context;
 pub mod deserialize_register;
+/// Numerical downcast
+pub mod downcast;
 /// Exponentiate op for GroupElement
 pub mod exponentiate;
 pub mod expr;
@@ -94,6 +96,7 @@ pub mod subst_const;
 /// Tuple of elements
 pub mod tuple;
 pub mod unary_op;
+/// Numerical upcast
 pub mod upcast;
 /// Variable definition
 pub mod val_def;

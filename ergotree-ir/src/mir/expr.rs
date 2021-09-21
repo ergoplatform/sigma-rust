@@ -69,6 +69,7 @@ use crate::mir::byte_array_to_bigint::ByteArrayToBigInt;
 use crate::mir::create_prove_dh_tuple::CreateProveDhTuple;
 use crate::mir::deserialize_context::DeserializeContext;
 use crate::mir::deserialize_register::DeserializeRegister;
+use crate::mir::downcast::Downcast;
 use crate::mir::get_var::GetVar;
 use crate::mir::xor_of::XorOf;
 use bounded_vec::BoundedVecOutOfBounds;
@@ -181,6 +182,8 @@ pub enum Expr {
     BoolToSigmaProp(BoolToSigmaProp),
     /// Upcast numeric value
     Upcast(Upcast),
+    /// Downcast numeric value
+    Downcast(Downcast),
     /// Create proveDlog from GroupElement(PK)
     CreateProveDlog(CreateProveDlog),
     /// Create proveDlog from GroupElement(PK)
@@ -250,6 +253,7 @@ impl Expr {
             Expr::Filter(v) => v.tpe(),
             Expr::BoolToSigmaProp(v) => v.tpe(),
             Expr::Upcast(v) => v.tpe(),
+            Expr::Downcast(v) => v.tpe(),
             Expr::If(v) => v.tpe(),
             Expr::ByIndex(v) => v.tpe(),
             Expr::ExtractScriptBytes(v) => v.tpe(),
