@@ -106,47 +106,6 @@ impl Address {
                     Ok(p2pk) => p2pk,
                     Err(_) => Address::P2S(tree.sigma_serialize_bytes()?),
                 },
-
-                // MATCH STATEMENTS
-                // Expr::SigmaAnd(SigmaAnd { items }) => match items.as_slice() {
-                //     [Expr::BoolToSigmaProp(BoolToSigmaProp { input }), Expr::DeserializeContext(DeserializeContext { tpe, id })] => {
-                //         match *input.clone() {
-                //             Expr::BinOp(BinOp { kind, left, right }) => match (kind, *left, *right)
-                //             {
-                //                 (
-                //                     Relation(RelationOp::Eq),
-                //                     Expr::Slice(Slice { input, from, until }),
-                //                     Expr::Const(Constant { tpe, v }),
-                //                 ) => match v {
-                //                     Literal::Coll(CollKind::NativeColl(x)) => match x {
-                //                         CollByte(v) => {
-                //                             let v_u8 = v.as_vec_u8();
-                //                             match <[u8; 24]>::try_from(v_u8)
-                //                                 .map(Address::P2SH)
-                //                                 .map_err(|_| {
-                //                                     AddressError::UnexpectedErgoTree(
-                //                                         tree.clone(),
-                //                                         String::from("Failed to create P2SH address, invalid script hash.")
-                //                                     )
-                //                                 })
-                //                             {
-                //                                 Ok(p2sh) => p2sh,
-                //                                 Err(_) => Address::P2S(tree.sigma_serialize_bytes()?)
-                //                             }
-                //                         }
-                //                         _ => Address::P2S(tree.sigma_serialize_bytes()?),
-                //                     },
-                //                     _ => Address::P2S(tree.sigma_serialize_bytes()?),
-                //                 },
-                //                 _ => Address::P2S(tree.sigma_serialize_bytes()?),
-                //             },
-                //             _ => Address::P2S(tree.sigma_serialize_bytes()?),
-                //         }
-                //     }
-                //     _ => Address::P2S(tree.sigma_serialize_bytes()?),
-                // },
-
-                // IF LET STATEMENTS
                 Expr::SigmaAnd(SigmaAnd { items }) => {
                     if let [Expr::BoolToSigmaProp(BoolToSigmaProp { input }), Expr::DeserializeContext(DeserializeContext { tpe, id })] =
                         items.as_slice()
@@ -250,14 +209,8 @@ impl Address {
                 });
                 let slice_expr = Expr::Slice(Slice {
                     input: Box::new(hash_expr),
-                    from: Box::new(Expr::Const(Constant {
-                        tpe: SType::SInt,
-                        v: 0.into(),
-                    })),
-                    until: Box::new(Expr::Const(Constant {
-                        tpe: SType::SInt,
-                        v: 24.into(),
-                    })),
+                    from: Box::new(0i32.into()),
+                    until: Box::new(24i32.into()),
                 });
                 let hash_equals = Expr::BinOp(BinOp {
                     kind: Relation(RelationOp::Eq),
