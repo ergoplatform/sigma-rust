@@ -119,10 +119,12 @@ pub enum SetConstantError {
 pub struct ErgoTreeHeader(u8);
 
 impl ErgoTreeHeader {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
+    /// Sigma-serialize
+    pub fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
         w.put_u8(self.0)
     }
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, std::io::Error> {
+    /// Sigma-parse
+    pub fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, std::io::Error> {
         let header = r.get_u8()?;
         Ok(ErgoTreeHeader(header))
     }
