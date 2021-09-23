@@ -7,9 +7,11 @@ use crate::sigma_protocol::sigma_boolean::SigmaBoolean;
 use crate::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
 use crate::sigma_protocol::sigma_boolean::{ProveDhTuple, ProveDlog};
 use crate::sigma_protocol::{dlog_group::EcPoint, sigma_boolean::SigmaProp};
+use crate::types::stuple::STuple;
 use crate::types::stuple::TupleItems;
 use crate::types::stype::LiftIntoSType;
 use crate::types::stype::SType;
+use bounded_vec::BoundedVec;
 use impl_trait_for_tuples::impl_for_tuples;
 use std::convert::TryFrom;
 use std::convert::TryInto;
@@ -20,6 +22,7 @@ pub use constant_placeholder::*;
 
 use super::value::NativeColl;
 use super::value::StoreWrapped;
+use super::value::Value;
 
 use thiserror::Error;
 
@@ -142,6 +145,86 @@ impl<T: LiftIntoSType + Into<Literal>> From<Option<T>> for Literal {
         Literal::Opt(Box::new(opt.map(|e| e.into())))
     }
 }
+
+impl TryFrom<Value> for Constant {
+    type Error = String;
+    #[allow(clippy::unwrap_used)]
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
+        match value {
+            Value::Boolean(b) => Ok(Constant::from(b)),
+            Value::Byte(b) => Ok(Constant::from(b)),
+            Value::Short(s) => Ok(Constant::from(s)),
+            Value::Int(i) => Ok(Constant::from(i)),
+            Value::Long(l) => Ok(Constant::from(l)),
+            Value::BigInt(b) => Ok(Constant::from(b)),
+            Value::SigmaProp(s) => Ok(Constant::from(*s)),
+            Value::GroupElement(e) => Ok(Constant::from(*e)),
+            Value::CBox(i) => Ok(Constant::from(i)),
+            Value::Coll(coll) => {
+                let (v, tpe) = match coll {
+                    CollKind::NativeColl(n) => (
+                        Literal::Coll(CollKind::NativeColl(n)),
+                        SType::SColl(Box::new(SType::SByte)),
+                    ),
+                    CollKind::WrappedColl { elem_tpe, items } => {
+                        let mut new_items = Vec::with_capacity(items.len());
+                        for v in items {
+                            let c = Constant::try_from(v)?;
+                            new_items.push(c.v);
+                        }
+                        (
+                            Literal::Coll(CollKind::WrappedColl {
+                                elem_tpe: elem_tpe.clone(),
+                                items: new_items,
+                            }),
+                            SType::SColl(Box::new(elem_tpe)),
+                        )
+                    }
+                };
+                Ok(Constant { v, tpe })
+            }
+            Value::Opt(lit) => match *lit {
+                Some(v) => {
+                    let c = Constant::try_from(v)?;
+                    Ok(Constant {
+                        v: Literal::Opt(Box::new(Some(c.v))),
+                        tpe: c.tpe,
+                    })
+                }
+                None => Err(String::from(
+                    "Can't convert from Value::Opt(None) to Constant",
+                )),
+            },
+            Value::Tup(t) => {
+                if let Ok(t) = t.try_mapped::<_, _, String>(|v| {
+                    let c = Constant::try_from(v)?;
+                    Ok((c.v, c.tpe))
+                }) {
+                    let mut tuple_items = vec![];
+                    let mut tuple_item_types = vec![];
+                    for (v, tpe) in t {
+                        tuple_items.push(v);
+                        tuple_item_types.push(tpe);
+                    }
+                    // Following unwraps are safe since the above vecs are derived from an existing
+                    // BoundedVec.
+                    let tuple_items = BoundedVec::from_vec(tuple_items).unwrap();
+                    let tuple_item_types = SType::STuple(STuple {
+                        items: BoundedVec::from_vec(tuple_item_types).unwrap(),
+                    });
+                    Ok(Constant {
+                        v: Literal::Tup(tuple_items),
+                        tpe: tuple_item_types,
+                    })
+                } else {
+                    Err(String::from("Can't convert Value:Tup element"))
+                }
+            }
+            v => Err(format!("Cannot convert {:?} into Literal", v)),
+        }
+    }
+}
+
 impl From<bool> for Constant {
     fn from(v: bool) -> Constant {
         Constant {

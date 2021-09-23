@@ -10,7 +10,6 @@ use ergotree_ir::mir::value::CollKind;
 use ergotree_ir::mir::value::NativeColl;
 use ergotree_ir::mir::value::Value;
 use ergotree_ir::serialization::constant_store::ConstantStore;
-use ergotree_ir::serialization::data::DataSerializer;
 use ergotree_ir::serialization::sigma_byte_reader::SigmaByteReader;
 use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWriter;
 use ergotree_ir::serialization::SigmaParsingError;
@@ -21,6 +20,7 @@ use ergotree_ir::util::AsVecI8;
 use ergotree_ir::util::AsVecU8;
 use sigma_ser::vlq_encode::ReadSigmaVlqExt;
 use sigma_ser::vlq_encode::WriteSigmaVlqExt;
+use std::convert::TryFrom;
 use std::io::Cursor;
 use std::io::Read;
 
@@ -57,9 +57,14 @@ impl Evaluable for SubstConstants {
                 )));
             };
 
-        let (new_values_type, new_values) =
+        let (new_constants_type, new_constants) =
             if let Value::Coll(CollKind::WrappedColl { elem_tpe, items }) = new_values_v {
-                (elem_tpe, items)
+                let mut items_const = vec![];
+                for v in items {
+                    let c = Constant::try_from(v).map_err(EvalError::Misc)?;
+                    items_const.push(c);
+                }
+                (elem_tpe, items_const)
             } else {
                 return Err(EvalError::Misc(String::from(
                     "SubstConstants: expected evaluation of `new_values` be of type `Coll[_]`, got \
@@ -125,9 +130,8 @@ impl Evaluable for SubstConstants {
             if let Some(constants) = constants {
                 for (i, c) in constants.iter().enumerate() {
                     if let Some(ix) = positions.iter().position(|j| *j == i) {
-                        if c.tpe == new_values[ix].tpe() && c.tpe == new_values_type {
-                            c.tpe.sigma_serialize(&mut w)?;
-                            DataSerializer::sigma_serialize_value(&new_values[ix], &mut w)?;
+                        if c.tpe == new_constants[ix].tpe && c.tpe == new_constants_type {
+                            new_constants[ix].sigma_serialize(&mut w)?;
                         }
                     } else {
                         // No substitution

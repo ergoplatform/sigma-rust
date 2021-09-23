@@ -8,8 +8,6 @@ use crate::bigint256::BigInt256;
 use crate::ir_ergo_box::IrBoxId;
 use crate::sigma_protocol::dlog_group::EcPoint;
 use crate::sigma_protocol::sigma_boolean::SigmaProp;
-use crate::types::sfunc::SFunc;
-use crate::types::stuple::STuple;
 use crate::types::stuple::TupleItems;
 use crate::types::stype::LiftIntoSType;
 use crate::types::stype::SType;
@@ -171,54 +169,6 @@ impl Value {
     /// Create Sigma property constant
     pub fn sigma_prop(prop: SigmaProp) -> Value {
         Value::SigmaProp(Box::new(prop))
-    }
-
-    /// get SType
-    pub fn tpe(&self) -> SType {
-        match self {
-            Value::Boolean(_) => SType::SBoolean,
-            Value::Byte(_) => SType::SByte,
-            Value::Short(_) => SType::SShort,
-            Value::Int(_) => SType::SInt,
-            Value::Long(_) => SType::SLong,
-            Value::BigInt(_) => SType::SBigInt,
-            Value::GroupElement(_) => SType::SGroupElement,
-            Value::SigmaProp(_) => SType::SSigmaProp,
-            Value::CBox(_) => SType::SBox,
-            Value::AvlTree => SType::SAvlTree,
-            Value::Coll(CollKind::NativeColl(_)) => SType::SColl(Box::new(SType::SByte)),
-            Value::Coll(CollKind::WrappedColl { elem_tpe, .. }) => {
-                SType::SColl(Box::new(elem_tpe.clone()))
-            }
-            Value::Tup(tup) => SType::STuple(STuple {
-                items: tup.clone().mapped(|v| v.tpe()),
-            }),
-            Value::Context => SType::SContext,
-            Value::Global => SType::SGlobal,
-            Value::Opt(o) => match **o {
-                Some(ref v) => SType::SOption(Box::new(v.tpe())),
-                None => SType::SOption(Box::new(SType::SAny)),
-            },
-            Value::Lambda(Lambda { args, body }) => {
-                let mut t_dom = Vec::with_capacity(args.len());
-                for arg in args {
-                    match arg.tpe.clone() {
-                        SType::STypeVar(tvar) => {
-                            t_dom.push(SType::STypeVar(tvar));
-                        }
-                        s => {
-                            t_dom.push(s);
-                        }
-                    }
-                }
-                let t_range = Box::new(body.post_eval_tpe());
-                SType::SFunc(SFunc {
-                    t_dom,
-                    t_range,
-                    tpe_params: vec![],
-                })
-            }
-        }
     }
 }
 
