@@ -17,7 +17,6 @@
 #![deny(clippy::todo)]
 #![deny(clippy::unimplemented)]
 #![deny(clippy::panic)]
-
 mod contracts;
 mod util;
 

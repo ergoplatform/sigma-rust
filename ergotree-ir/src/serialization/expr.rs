@@ -36,6 +36,7 @@ use crate::mir::create_provedlog::CreateProveDlog;
 use crate::mir::decode_point::DecodePoint;
 use crate::mir::deserialize_context::DeserializeContext;
 use crate::mir::deserialize_register::DeserializeRegister;
+use crate::mir::downcast::Downcast;
 use crate::mir::exponentiate::Exponentiate;
 use crate::mir::expr::Expr;
 use crate::mir::extract_amount::ExtractAmount;
@@ -160,6 +161,7 @@ impl Expr {
                 ForAll::OP_CODE => Ok(ForAll::sigma_parse(r)?.into()),
                 BoolToSigmaProp::OP_CODE => Ok(BoolToSigmaProp::sigma_parse(r)?.into()),
                 Upcast::OP_CODE => Ok(Upcast::sigma_parse(r)?.into()),
+                Downcast::OP_CODE => Ok(Downcast::sigma_parse(r)?.into()),
                 If::OP_CODE => Ok(If::sigma_parse(r)?.into()),
                 ByIndex::OP_CODE => Ok(ByIndex::sigma_parse(r)?.into()),
                 SizeOf::OP_CODE => Ok(SizeOf::sigma_parse(r)?.into()),
@@ -252,6 +254,7 @@ impl SigmaSerializable for Expr {
             Expr::Filter(op) => op.sigma_serialize_w_opcode(w),
             Expr::BoolToSigmaProp(op) => op.sigma_serialize_w_opcode(w),
             Expr::Upcast(op) => op.sigma_serialize_w_opcode(w),
+            Expr::Downcast(op) => op.sigma_serialize_w_opcode(w),
             Expr::If(op) => op.sigma_serialize_w_opcode(w),
             Expr::ByIndex(op) => op.sigma_serialize_w_opcode(w),
             Expr::ExtractScriptBytes(op) => op.sigma_serialize_w_opcode(w),
