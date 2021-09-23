@@ -35,7 +35,7 @@ mod tests {
         let e: Expr = ExtractBytesWithNoRef {
             input: Box::new(GlobalVars::SelfBox.into()),
         }
-            .into();
+        .into();
         let ctx = Rc::new(force_any_val::<Context>());
         assert_eq!(
             eval_out::<Vec<i8>>(&e, ctx.clone()),

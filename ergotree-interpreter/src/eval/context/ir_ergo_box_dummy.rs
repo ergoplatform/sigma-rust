@@ -75,6 +75,10 @@ impl IrErgoBox for IrErgoBoxDummy {
     fn bytes(&self) -> Result<Vec<i8>, SigmaSerializationError> {
         Ok(self.sigma_serialize_bytes.clone())
     }
+
+    fn bytes_without_ref(&self) -> Result<Vec<i8>, SigmaSerializationError> {
+        self.bytes()
+    }
 }
 
 #[cfg(feature = "arbitrary")]

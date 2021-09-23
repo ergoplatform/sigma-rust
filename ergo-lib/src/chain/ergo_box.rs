@@ -20,6 +20,8 @@ use ergotree_ir::serialization::SigmaSerializeResult;
 use ergotree_ir::util::AsVecI8;
 pub use register::*;
 
+use sigma_util::DIGEST32_SIZE;
+
 #[cfg(feature = "json")]
 use super::json;
 use super::token::TokenAmount;
@@ -216,8 +218,11 @@ impl IrErgoBox for ErgoBox {
     }
 
     fn bytes_without_ref(&self) -> Result<Vec<i8>, SigmaSerializationError> {
-        // TODO: without txid & index
-        Ok(self.sigma_serialize_bytes()?.as_vec_i8())
+        let box_bytes = self.bytes()?;
+        // sizeof(self.transaction_id) + sizeof(self.index)
+        let ref_bytes_size = DIGEST32_SIZE + 2;
+        let bytes_without_ref = &box_bytes[0..(box_bytes.len() - ref_bytes_size)];
+        Ok(bytes_without_ref.to_vec())
     }
 }
 

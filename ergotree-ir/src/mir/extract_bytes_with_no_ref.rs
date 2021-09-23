@@ -55,10 +55,10 @@ mod arbitrary {
                 tpe: SType::SColl(SType::SByte.into()),
                 depth: 0,
             })
-                .prop_map(|input| Self {
-                    input: input.into(),
-                })
-                .boxed()
+            .prop_map(|input| Self {
+                input: input.into(),
+            })
+            .boxed()
         }
     }
 }
@@ -75,7 +75,7 @@ mod tests {
         let e: Expr = ExtractBytesWithNoRef {
             input: Box::new(GlobalVars::SelfBox.into()),
         }
-            .into();
+        .into();
         assert_eq![sigma_serialize_roundtrip(&e), e];
     }
 }
