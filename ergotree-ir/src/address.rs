@@ -1,9 +1,20 @@
 //! Address types
 
-use crate::ergo_tree::ErgoTree;
 use crate::ergo_tree::ErgoTreeError;
-use crate::mir::constant::Constant;
+use crate::ergo_tree::{ErgoTree, ErgoTreeHeader};
+use crate::mir::bin_op::BinOpKind::Relation;
+use crate::mir::bin_op::{BinOp, RelationOp};
+use crate::mir::bool_to_sigma::BoolToSigmaProp;
+use crate::mir::calc_blake2b256::CalcBlake2b256;
+use crate::mir::coll_slice::Slice;
+use crate::mir::constant::Literal::Int;
+use crate::mir::constant::{Constant, Literal};
+use crate::mir::deserialize_context::DeserializeContext;
 use crate::mir::expr::Expr;
+use crate::mir::get_var::GetVar;
+use crate::mir::sigma_and::SigmaAnd;
+use crate::mir::value::CollKind;
+use crate::mir::value::NativeColl::CollByte;
 use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
 use crate::serialization::SigmaSerializationError;
@@ -13,6 +24,8 @@ use crate::sigma_protocol::sigma_boolean::SigmaBoolean;
 use crate::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
 use crate::sigma_protocol::sigma_boolean::SigmaProp;
 use crate::types::stype::SType;
+
+use crate::util::AsVecU8;
 use sigma_util::hash::blake2b256_hash;
 use std::convert::{TryFrom, TryInto};
 use thiserror::Error;
@@ -66,7 +79,8 @@ pub enum Address {
     P2Pk(ProveDlog),
     /// serialized script
     P2S(Vec<u8>),
-    // P2SH([u8; 24]),
+    /// hash of serialized script (192 bit)
+    P2SH([u8; 24]),
 }
 
 impl Address {
@@ -92,6 +106,56 @@ impl Address {
                     Ok(p2pk) => p2pk,
                     Err(_) => Address::P2S(tree.sigma_serialize_bytes()?),
                 },
+                Expr::SigmaAnd(SigmaAnd { items }) => {
+                    if let [Expr::BoolToSigmaProp(BoolToSigmaProp { input }), Expr::DeserializeContext(DeserializeContext { tpe, id })] =
+                        items.as_slice()
+                    {
+                        if let (Expr::BinOp(BinOp { kind, left, right }), SType::SSigmaProp, 1) =
+                            (*input.clone(), tpe.clone(), id)
+                        {
+                            if let (
+                                Relation(RelationOp::Eq),
+                                Expr::Slice(Slice { input, from, until }),
+                                Expr::Const(Constant { v, .. }),
+                            ) = (kind, *left, *right)
+                            {
+                                if let (
+                                    Expr::CalcBlake2b256(..),
+                                    Expr::Const(Constant {
+                                        tpe: from_tpe,
+                                        v: from_v,
+                                    }),
+                                    Expr::Const(Constant {
+                                        tpe: until_tpe,
+                                        v: until_v,
+                                    }),
+                                    Literal::Coll(CollKind::NativeColl(bytes)),
+                                ) = (*input, *from, *until, v)
+                                {
+                                    if let (
+                                        SType::SInt,
+                                        Int(0),
+                                        SType::SInt,
+                                        Int(24),
+                                        CollByte(v),
+                                    ) = (from_tpe, from_v, until_tpe, until_v, bytes)
+                                    {
+                                        let script_hash = v.as_vec_u8();
+                                        return <[u8; 24]>::try_from(script_hash)
+                                                .map(Address::P2SH)
+                                                .map_err(|_| {
+                                                    AddressError::UnexpectedErgoTree(
+                                                        tree.clone(),
+                                                        String::from("Failed to create P2SH address, invalid script hash."),
+                                                    )
+                                                });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Address::P2S(tree.sigma_serialize_bytes()?)
+                }
                 _ => Address::P2S(tree.sigma_serialize_bytes()?),
             }),
             Err(_) => Ok(Address::P2S(tree.sigma_serialize_bytes()?)),
@@ -103,7 +167,7 @@ impl Address {
         match self {
             Address::P2Pk(_) => AddressTypePrefix::P2Pk,
             Address::P2S(_) => AddressTypePrefix::Pay2S,
-            //Address::P2SH(_) => AddressTypePrefix::P2SH,
+            Address::P2SH(_) => AddressTypePrefix::Pay2Sh,
         }
     }
 
@@ -116,6 +180,7 @@ impl Address {
                 prove_dlog.h.sigma_serialize_bytes().unwrap()
             }
             Address::P2S(bytes) => bytes.clone(),
+            Address::P2SH(bytes) => (*bytes).into(),
         }
     }
 
@@ -134,6 +199,40 @@ impl Address {
                 .unwrap())
             }
             Address::P2S(bytes) => ErgoTree::sigma_parse_bytes(bytes),
+            Address::P2SH(script_hash) => {
+                let get_var_expr = Expr::GetVar(GetVar {
+                    var_id: 1,
+                    var_tpe: SType::SColl(Box::new(SType::SByte)),
+                });
+                let hash_expr = Expr::CalcBlake2b256(CalcBlake2b256 {
+                    input: Box::new(get_var_expr),
+                });
+                let slice_expr = Expr::Slice(Slice {
+                    input: Box::new(hash_expr),
+                    from: Box::new(0i32.into()),
+                    until: Box::new(24i32.into()),
+                });
+                let hash_equals = Expr::BinOp(BinOp {
+                    kind: Relation(RelationOp::Eq),
+                    left: Box::new(slice_expr),
+                    right: Box::new(Expr::Const(Constant::from(script_hash.to_vec()))),
+                });
+                let script_is_correct = Expr::DeserializeContext(DeserializeContext {
+                    tpe: SType::SSigmaProp,
+                    id: 1,
+                });
+                let sigma_prop = Expr::BoolToSigmaProp(BoolToSigmaProp {
+                    input: Box::from(hash_equals),
+                });
+                let and_expr = Expr::SigmaAnd(SigmaAnd::new(vec![sigma_prop, script_is_correct])?);
+
+                match ErgoTree::new(ErgoTreeHeader::v0(false), &and_expr) {
+                    Ok(x) => Ok(x),
+                    Err(_) => Err(SigmaParsingError::Misc(String::from(
+                        "P2SH ErgoTree creation failed.",
+                    ))),
+                }
+            }
         }
     }
 }
@@ -193,7 +292,7 @@ pub enum AddressTypePrefix {
     /// 0x01 - Pay-to-PublicKey(P2PK) address
     P2Pk = 1,
     /// 0x02 - Pay-to-Script-Hash(P2SH)
-    // Pay2Sh = 2,
+    Pay2Sh = 2,
     /// 0x03 - Pay-to-Script(P2S)
     Pay2S = 3,
 }
@@ -203,7 +302,7 @@ impl TryFrom<u8> for AddressTypePrefix {
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             v if v == AddressTypePrefix::P2Pk as u8 => Ok(AddressTypePrefix::P2Pk),
-            // v if v == AddressTypePrefix::Pay2Sh as u8 => Ok(AddressTypePrefix::Pay2Sh),
+            v if v == AddressTypePrefix::Pay2Sh as u8 => Ok(AddressTypePrefix::Pay2Sh),
             v if v == AddressTypePrefix::Pay2S as u8 => Ok(AddressTypePrefix::Pay2S),
             v => Err(AddressEncoderError::InvalidAddressType(v)),
         }
@@ -377,13 +476,16 @@ impl AddressEncoder {
 
         let content_bytes: Vec<u8> = without_checksum[1..].to_vec(); // without head_byte
         let address_type = AddressTypePrefix::try_from(bytes[0] & 0xF_u8)?;
-        Ok(match address_type {
-            AddressTypePrefix::P2Pk => {
-                Address::P2Pk(ProveDlog::new(EcPoint::sigma_parse_bytes(&content_bytes)?))
-            }
-            AddressTypePrefix::Pay2S => Address::P2S(content_bytes),
-            // AddressTypePrefix::Pay2Sh => todo!(""),
-        })
+        match address_type {
+            AddressTypePrefix::P2Pk => Ok(Address::P2Pk(ProveDlog::new(
+                EcPoint::sigma_parse_bytes(&content_bytes)?,
+            ))),
+            AddressTypePrefix::Pay2S => Ok(Address::P2S(content_bytes)),
+            AddressTypePrefix::Pay2Sh => match <[u8; 24]>::try_from(content_bytes) {
+                Ok(p2sh) => Ok(Address::P2SH(p2sh)),
+                _ => Err(AddressEncoderError::InvalidSize),
+            },
+        }
     }
 
     /// encode address as Base58 encoded string
@@ -428,6 +530,11 @@ pub(crate) mod arbitrary {
                 any::<ErgoTree>().prop_map(|t| match ProveDlog::try_from(t.clone()) {
                     Ok(dlog) => Address::P2Pk(dlog),
                     Err(_) => Address::P2S(t.sigma_serialize_bytes().unwrap()),
+                }),
+                any::<ErgoTree>().prop_map(|t| {
+                    let bytes = t.sigma_serialize_bytes().unwrap();
+                    let address: [u8; 24] = blake2b256_hash(&bytes)[0..24].try_into().unwrap();
+                    Address::P2SH(address)
                 }),
                 Just(Address::P2S(base16::decode(non_parseable_tree).unwrap()))
             ]
