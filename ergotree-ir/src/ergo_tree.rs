@@ -539,6 +539,8 @@ pub enum SubstConstantErr {
     SigmaSerializationError(SigmaSerializationError),
     /// Invalid ErgoTree header
     InvalidErgoTreeHeader(String),
+    /// Element of `positions` is out of bounds with respect to `new_values`
+    PositionsIndexOutOfBounds,
 }
 
 /// Performs the work necessary for evaluation of the `SubstConstants` IR node.
@@ -604,10 +606,14 @@ pub fn substitute_constants(
     if let Some(constants) = constants {
         for (i, c) in constants.iter().enumerate() {
             if let Some(ix) = positions.iter().position(|j| *j == i) {
-                if c.tpe == new_constants[ix].tpe && c.tpe == new_constants_type {
-                    new_constants[ix]
-                        .sigma_serialize(&mut w)
-                        .map_err(SubstConstantErr::SigmaSerializationError)?;
+                if let Some(new_c) = new_constants.get(ix) {
+                    if c.tpe == new_c.tpe && c.tpe == new_constants_type {
+                        new_c
+                            .sigma_serialize(&mut w)
+                            .map_err(SubstConstantErr::SigmaSerializationError)?;
+                    }
+                } else {
+                    return Err(SubstConstantErr::PositionsIndexOutOfBounds);
                 }
             } else {
                 // No substitution
