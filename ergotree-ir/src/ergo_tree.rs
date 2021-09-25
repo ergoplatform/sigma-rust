@@ -539,8 +539,8 @@ pub enum SubstConstantErr {
     SigmaSerializationError(SigmaSerializationError),
     /// Invalid ErgoTree header
     InvalidErgoTreeHeader(String),
-    /// Element of `positions` is out of bounds with respect to `new_values`
-    PositionsIndexOutOfBounds,
+    /// Length of `positions` and `new_values` differ.
+    LengthOfPositionsAndNewValuesDiffer,
 }
 
 /// Performs the work necessary for evaluation of the `SubstConstants` IR node.
@@ -550,6 +550,12 @@ pub fn substitute_constants(
     new_constants: Vec<Constant>,
     new_constants_type: SType,
 ) -> Result<Vec<u8>, SubstConstantErr> {
+    if positions.len() != new_constants.len() {
+        return Err(SubstConstantErr::LengthOfPositionsAndNewValuesDiffer);
+    }
+    if positions.is_empty() {
+        return Ok(script_bytes);
+    }
     let num_bytes = script_bytes.len();
     let mut data = Vec::with_capacity(num_bytes);
     let mut w = SigmaByteWriter::new(&mut data, None);
@@ -606,14 +612,12 @@ pub fn substitute_constants(
     if let Some(constants) = constants {
         for (i, c) in constants.iter().enumerate() {
             if let Some(ix) = positions.iter().position(|j| *j == i) {
-                if let Some(new_c) = new_constants.get(ix) {
-                    if c.tpe == new_c.tpe && c.tpe == new_constants_type {
-                        new_c
-                            .sigma_serialize(&mut w)
-                            .map_err(SubstConstantErr::SigmaSerializationError)?;
-                    }
-                } else {
-                    return Err(SubstConstantErr::PositionsIndexOutOfBounds);
+                // Indexing into `new_constants` won't panic, because we've ensured that its length
+                // is the same as `positions`.
+                if c.tpe == new_constants[ix].tpe && c.tpe == new_constants_type {
+                    new_constants[ix]
+                        .sigma_serialize(&mut w)
+                        .map_err(SubstConstantErr::SigmaSerializationError)?;
                 }
             } else {
                 // No substitution

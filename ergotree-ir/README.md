@@ -15,7 +15,6 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 
 ### Predefined functions
 
-- substConstants
 - downcast
 - atLeast
 - avlTree
@@ -130,6 +129,7 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 - proveDlog
 - proveDHTuple
 - sigmaProp
+- substConstants
 - executeFromVar
 - executeFromSelfReg
 - getVar
