@@ -5,7 +5,7 @@ use std::rc::Rc;
 use crate::sigma_protocol::prover::ContextExtension;
 use ergotree_ir::ir_ergo_box::IrBoxId;
 use ergotree_ir::ir_ergo_box::IrErgoBoxArena;
-use ergotree_ir::mir::header::{Header, PreHeader};
+use ergotree_ir::mir::header::PreHeader;
 
 /// Interpreter's context (blockchain state)
 #[derive(Debug)]
@@ -26,8 +26,6 @@ pub struct Context {
     pub pre_header: PreHeader,
     /// prover-defined key-value pairs, that may be used inside a script
     pub extension: ContextExtension,
-    /// Fixed number of last block headers in descending order (first header is the newest one)
-    pub headers: Vec<Header>,
 }
 
 impl Context {
@@ -62,19 +60,9 @@ mod arbitrary {
                 vec(any::<IrErgoBoxDummy>(), 0..3),
                 any::<PreHeader>(),
                 any::<ContextExtension>(),
-                vec(any::<Header>(), 0..5),
             )
                 .prop_map(
-                    |(
-                        height,
-                        self_box,
-                        outputs,
-                        inputs,
-                        data_inputs,
-                        pre_header,
-                        extension,
-                        headers,
-                    )| {
+                    |(height, self_box, outputs, inputs, data_inputs, pre_header, extension)| {
                         let self_box_id = self_box.id();
                         let outputs_ids = outputs.iter().map(|b| b.id()).collect();
                         let inputs_ids = inputs.iter().map(|b| b.id()).collect();
@@ -100,7 +88,6 @@ mod arbitrary {
                             inputs: inputs_ids,
                             pre_header,
                             extension,
-                            headers,
                         }
                     },
                 )

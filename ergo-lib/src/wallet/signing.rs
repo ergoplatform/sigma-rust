@@ -131,7 +131,6 @@ pub fn make_context(
         inputs: inputs_ir,
         pre_header: state_ctx.pre_header.clone(),
         extension: ContextExtension::empty(),
-        headers: Vec::new(),
     })
 }
 
