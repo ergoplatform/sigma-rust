@@ -157,6 +157,7 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 - tokens
 - R0 .. R9
 - bytes
+- bytesWithoutRef
 
 #### Context
 
@@ -167,6 +168,7 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 - SELF
 - minerPubKey
 - getVar
+- selfBoxIndex
 
 #### Collection
 

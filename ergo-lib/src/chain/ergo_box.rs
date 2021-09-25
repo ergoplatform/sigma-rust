@@ -218,11 +218,9 @@ impl IrErgoBox for ErgoBox {
     }
 
     fn bytes_without_ref(&self) -> Result<Vec<i8>, SigmaSerializationError> {
-        let box_bytes = self.bytes()?;
-        // sizeof(self.transaction_id) + sizeof(self.index)
-        let ref_bytes_size = DIGEST32_SIZE + 2;
-        let bytes_without_ref = &box_bytes[0..(box_bytes.len() - ref_bytes_size)];
-        Ok(bytes_without_ref.to_vec())
+        ErgoBoxCandidate::from(self.clone())
+            .sigma_serialize_bytes()
+            .as_vec_i8()
     }
 }
 
