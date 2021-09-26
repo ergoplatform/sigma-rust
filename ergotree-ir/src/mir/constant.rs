@@ -19,6 +19,7 @@ mod constant_placeholder;
 
 pub use constant_placeholder::*;
 
+use super::avl_tree_data::AvlTreeData;
 use super::value::NativeColl;
 use super::value::StoreWrapped;
 use super::value::Value;
@@ -55,6 +56,8 @@ pub enum Literal {
     GroupElement(Box<EcPoint>),
     /// Ergo box ID
     CBox(IrBoxId),
+    /// AVL tree
+    AvlTree(AvlTreeData),
     /// Collection
     Coll(CollKind<Literal>),
     /// Option type

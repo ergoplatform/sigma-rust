@@ -38,6 +38,7 @@ impl DataSerializer {
             Literal::GroupElement(ecp) => ecp.sigma_serialize(w)?,
             Literal::SigmaProp(s) => s.value().sigma_serialize(w)?,
             Literal::CBox(_) => return Err(SigmaSerializationError::NotImplementedYet("Box")),
+            Literal::AvlTree(a) => a.sigma_serialize(w)?,
             Literal::Coll(ct) => match ct {
                 CollKind::NativeColl(NativeColl::CollByte(b)) => {
                     w.put_usize_as_u16_unwrapped(b.len())?;

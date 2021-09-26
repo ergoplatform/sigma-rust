@@ -13,6 +13,7 @@ use crate::types::stype::LiftIntoSType;
 use crate::types::stype::SType;
 use crate::util::AsVecI8;
 
+use super::avl_tree_data::AvlTreeData;
 use super::constant::Literal;
 use super::constant::TryExtractFrom;
 use super::constant::TryExtractFromError;
@@ -150,7 +151,7 @@ pub enum Value {
     /// Box
     CBox(IrBoxId),
     /// AVL tree
-    AvlTree,
+    AvlTree(AvlTreeData),
     /// Collection of values of the same type
     Coll(CollKind<Value>),
     /// Tuple (arbitrary type values)
@@ -224,6 +225,7 @@ impl From<Literal> for Value {
                 };
                 Value::Coll(converted_coll)
             }
+            Literal::AvlTree(a) => Value::AvlTree(a),
             Literal::Opt(lit) => Value::Opt(Box::new(lit.into_iter().next().map(Value::from))),
             Literal::Tup(t) => Value::Tup(t.mapped(Value::from)),
         }
