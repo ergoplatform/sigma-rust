@@ -62,4 +62,6 @@ pub trait IrErgoBox: Debug {
     fn creation_info(&self) -> (i32, Vec<i8>);
     /// Box serialized bytes
     fn bytes(&self) -> Result<Vec<i8>, SigmaSerializationError>;
+    /// Box serialized bytes excluding txId & index
+    fn bytes_without_ref(&self) -> Result<Vec<i8>, SigmaSerializationError>;
 }

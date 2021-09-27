@@ -214,6 +214,11 @@ impl IrErgoBox for ErgoBox {
     fn bytes(&self) -> Result<Vec<i8>, SigmaSerializationError> {
         Ok(self.sigma_serialize_bytes()?.as_vec_i8())
     }
+
+    fn bytes_without_ref(&self) -> Result<Vec<i8>, SigmaSerializationError> {
+        let candidate: ErgoBoxCandidate = self.clone().into();
+        Ok(candidate.sigma_serialize_bytes()?.as_vec_i8())
+    }
 }
 
 /// Assets that ErgoBox holds

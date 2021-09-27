@@ -27,10 +27,6 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 
 - isProven
 
-#### Box
-
-- bytesWithoutRef
-
 #### AvlTree 
 
 - digest
@@ -83,7 +79,6 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 
 - headers
 - preHeader
-- selfBoxIndex
 - LastBlockUtxoRootHash
 
 
@@ -162,6 +157,7 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 - tokens
 - R0 .. R9
 - bytes
+- bytesWithoutRef
 
 #### Context
 
@@ -172,6 +168,7 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 - SELF
 - minerPubKey
 - getVar
+- selfBoxIndex
 
 #### Collection
 

@@ -77,6 +77,7 @@ impl Evaluable for Expr {
             Expr::Exponentiate(op) => op.eval(env, ctx),
             Expr::XorOf(op) => op.eval(env, ctx),
             Expr::ExtractBytes(op) => op.eval(env, ctx),
+            Expr::ExtractBytesWithNoRef(op) => op.eval(env, ctx),
         }
     }
 }
