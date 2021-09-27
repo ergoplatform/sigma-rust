@@ -2,13 +2,14 @@ use crate::eval::env::Env;
 use crate::eval::EvalContext;
 use crate::eval::EvalError;
 use crate::eval::Evaluable;
-use ergotree_ir::ergo_tree::substitute_constants;
+use ergotree_ir::ergo_tree::ErgoTree;
 use ergotree_ir::mir::constant::Constant;
+use ergotree_ir::mir::constant::TryExtractInto;
 use ergotree_ir::mir::subst_const::SubstConstants;
 use ergotree_ir::mir::value::CollKind;
 use ergotree_ir::mir::value::NativeColl;
 use ergotree_ir::mir::value::Value;
-use ergotree_ir::types::stype::SType;
+use ergotree_ir::serialization::SigmaSerializable;
 use ergotree_ir::util::AsVecI8;
 use ergotree_ir::util::AsVecU8;
 use std::convert::TryFrom;
@@ -19,33 +20,11 @@ impl Evaluable for SubstConstants {
         let positions_v = self.positions.eval(env, ctx)?;
         let new_values_v = self.new_values.eval(env, ctx)?;
 
-        let positions: Vec<usize> =
-            if let Value::Coll(CollKind::WrappedColl { elem_tpe, items }) = positions_v {
-                if elem_tpe != SType::SInt {
-                    return Err(EvalError::Misc(String::from(
-                        "SubstConstants: expected evaluation of `positions` be of type `Coll[SInt]`\
-                        , got Coll[_] instead",
-                    )));
-                } else {
-                    items
-                        .into_iter()
-                        .map(|v| {
-                            if let Value::Int(i) = v {
-                                i as usize
-                            } else {
-                                // Can't reach here since sigma-parsing ensures each item is of the
-                                // same type.
-                                unreachable!();
-                            }
-                        })
-                        .collect()
-                }
-            } else {
-                return Err(EvalError::Misc(String::from(
-                    "SubstConstants: expected evaluation of `positions` be of type `Coll[SInt]`\
-                 , got _ instead",
-                )));
-            };
+        let positions: Vec<usize> = positions_v
+            .try_extract_into::<Vec<i32>>()?
+            .into_iter()
+            .map(|i| i as usize)
+            .collect();
 
         let (new_constants_type, new_constants) =
             if let Value::Coll(CollKind::WrappedColl { elem_tpe, items }) = new_values_v {
@@ -56,30 +35,57 @@ impl Evaluable for SubstConstants {
                 }
                 (elem_tpe, items_const)
             } else {
-                return Err(EvalError::Misc(String::from(
+                return Err(EvalError::Misc(
                     "SubstConstants: expected evaluation of `new_values` be of type `Coll[_]`, got \
-                    _ instead",
-                )));
+                    _ instead".into()
+                ));
             };
 
+        if new_constants.len() != positions.len() {
+            return Err(EvalError::Misc(
+                "SubstConstants: lengths of `positions` and `new_values` differ".into(),
+            ));
+        }
+
         if let Value::Coll(CollKind::NativeColl(NativeColl::CollByte(b))) = script_bytes_v {
-            let data =
-                substitute_constants(b.as_vec_u8(), positions, new_constants, new_constants_type)
-                    .map_err(|e| EvalError::Misc(format!("{:?}", e)))?;
+            // Substitue constants with repeated calls to `ErgoTree::with_constant`.
+            let mut ergo_tree = ErgoTree::sigma_parse_bytes(&b.as_vec_u8())?;
+            let num_constants = ergo_tree.constants_len().map_err(to_misc_err)?;
+            for i in 0..num_constants {
+                if let Some(c) = ergo_tree.get_constant(i).map_err(to_misc_err)? {
+                    if let Some(ix) = positions.iter().position(|j| *j == i) {
+                        if c.tpe == new_constants_type {
+                            ergo_tree = ergo_tree
+                                .with_constant(i, new_constants[ix].clone())
+                                .map_err(to_misc_err)?;
+                        } else {
+                            return Err(EvalError::Misc(format!(
+                                "SubstConstants: Constant {} in ErgoTree is expected to\
+                                    be of type {:?}",
+                                i, c.tpe
+                            )));
+                        }
+                    }
+                }
+            }
             Ok(Value::Coll(CollKind::NativeColl(NativeColl::CollByte(
-                data.as_vec_i8(),
+                ergo_tree.sigma_serialize_bytes()?.as_vec_i8(),
             ))))
         } else {
-            Err(EvalError::Misc(String::from(
+            Err(EvalError::Misc(
                 "SubstConstants: expected evaluation of \
-                 `script_bytes` be of type `Coll[SBytes]`, got _ instead",
-            )))
+                 `script_bytes` be of type `Coll[SBytes]`, got _ instead"
+                    .into(),
+            ))
         }
     }
 }
 
+fn to_misc_err<T: std::fmt::Debug>(e: T) -> EvalError {
+    EvalError::Misc(format!("{:?}", e))
+}
+
 #[cfg(test)]
-//#[cfg(feature = "arbitrary")]
 #[allow(clippy::unwrap_used)]
 #[allow(clippy::panic)]
 #[allow(clippy::expect_used)]

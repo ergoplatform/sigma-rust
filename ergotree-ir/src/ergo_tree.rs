@@ -13,7 +13,6 @@ use crate::sigma_protocol::sigma_boolean::ProveDlog;
 use crate::types::stype::SType;
 use io::Cursor;
 use sigma_ser::vlq_encode::ReadSigmaVlqExt;
-use sigma_ser::vlq_encode::VlqEncodingError;
 use sigma_ser::vlq_encode::WriteSigmaVlqExt;
 
 use crate::serialization::constant_store::ConstantStore;
@@ -524,112 +523,6 @@ impl SigmaSerializable for ErgoTree {
         };
         ErgoTree::sigma_parse_sized(&mut r, header, rest_of_the_bytes_len)
     }
-}
-
-#[derive(Debug)]
-/// Errors associated with constant substitution in ErgoTree.
-pub enum SubstConstantErr {
-    /// Wraps IO error
-    IO(std::io::Error),
-    /// VLQ error
-    VLQEncoding(VlqEncodingError),
-    /// Sigma-parsing error
-    SigmaParsingError(SigmaParsingError),
-    /// Sigma-serialization error
-    SigmaSerializationError(SigmaSerializationError),
-    /// Invalid ErgoTree header
-    InvalidErgoTreeHeader(String),
-    /// Length of `positions` and `new_values` differ.
-    LengthOfPositionsAndNewValuesDiffer,
-}
-
-/// Performs the work necessary for evaluation of the `SubstConstants` IR node.
-pub fn substitute_constants(
-    script_bytes: Vec<u8>,
-    positions: Vec<usize>,
-    new_constants: Vec<Constant>,
-    new_constants_type: SType,
-) -> Result<Vec<u8>, SubstConstantErr> {
-    if positions.len() != new_constants.len() {
-        return Err(SubstConstantErr::LengthOfPositionsAndNewValuesDiffer);
-    }
-    if positions.is_empty() {
-        return Ok(script_bytes);
-    }
-    let num_bytes = script_bytes.len();
-    let mut data = Vec::with_capacity(num_bytes);
-    let mut w = SigmaByteWriter::new(&mut data, None);
-    let cursor = Cursor::new(script_bytes);
-    let mut r = SigmaByteReader::new(cursor, ConstantStore::empty());
-
-    // Check the header
-    let header = ErgoTreeHeader::sigma_parse(&mut r).map_err(SubstConstantErr::IO)?;
-    if header.version() != ErgoTreeVersion::V0 && !header.has_size() {
-        return Err(SubstConstantErr::InvalidErgoTreeHeader(format!(
-            "Invalid ErgoTreeHeader, size bit is expected for version {:?}",
-            header.version()
-        )));
-    }
-    if header.has_size() {
-        r.get_u32().map_err(SubstConstantErr::VLQEncoding)?;
-    }
-
-    // Deserialize the constants within the script
-    let constants = if header.is_constant_segregation() {
-        let num_consts = r.get_u32().map_err(SubstConstantErr::VLQEncoding)?;
-
-        if num_consts > 0 {
-            let mut res = Vec::with_capacity(num_consts as usize);
-            for _ in 0..num_consts {
-                res.push(
-                    Constant::sigma_parse(&mut r).map_err(SubstConstantErr::SigmaParsingError)?,
-                );
-            }
-            Some(res)
-        } else {
-            None
-        }
-    } else {
-        None
-    };
-
-    // Now capture the remaining tree bytes
-    let mut buf = vec![0_u8; num_bytes];
-    let num_tree_bytes = r.read_to_end(&mut buf).map_err(SubstConstantErr::IO)?;
-    let constants_len = if let Some(c) = constants.as_ref() {
-        c.len() as u32
-    } else {
-        0
-    };
-    header
-        .sigma_serialize(&mut w)
-        .map_err(SubstConstantErr::IO)?;
-
-    // TODO from sigmastate: don't serialize the following when segregation is off
-    w.put_u32(constants_len).map_err(SubstConstantErr::IO)?;
-
-    // Substitute constants
-    if let Some(constants) = constants {
-        for (i, c) in constants.iter().enumerate() {
-            if let Some(ix) = positions.iter().position(|j| *j == i) {
-                // Indexing into `new_constants` won't panic, because we've ensured that its length
-                // is the same as `positions`.
-                if c.tpe == new_constants[ix].tpe && c.tpe == new_constants_type {
-                    new_constants[ix]
-                        .sigma_serialize(&mut w)
-                        .map_err(SubstConstantErr::SigmaSerializationError)?;
-                }
-            } else {
-                // No substitution
-                c.sigma_serialize(&mut w)
-                    .map_err(SubstConstantErr::SigmaSerializationError)?;
-            }
-        }
-    }
-
-    // Extend with unmodified tree bytes.
-    data.extend_from_slice(&buf[0..num_tree_bytes]);
-    Ok(data)
 }
 
 impl TryFrom<ErgoTree> for ProveDlog {

@@ -11,7 +11,6 @@ use crate::types::stuple::STuple;
 use crate::types::stuple::TupleItems;
 use crate::types::stype::LiftIntoSType;
 use crate::types::stype::SType;
-use bounded_vec::BoundedVec;
 use impl_trait_for_tuples::impl_for_tuples;
 use std::convert::TryFrom;
 use std::convert::TryInto;
@@ -191,36 +190,26 @@ impl TryFrom<Value> for Constant {
                         tpe: c.tpe,
                     })
                 }
-                None => Err(String::from(
-                    "Can't convert from Value::Opt(None) to Constant",
-                )),
+                None => Err("Can't convert from Value::Opt(None) to Constant".into()),
             },
             Value::Tup(t) => {
                 if let Ok(t) = t.try_mapped::<_, _, String>(|v| {
                     let c = Constant::try_from(v)?;
                     Ok((c.v, c.tpe))
                 }) {
-                    let mut tuple_items = vec![];
-                    let mut tuple_item_types = vec![];
-                    for (v, tpe) in t {
-                        tuple_items.push(v);
-                        tuple_item_types.push(tpe);
-                    }
-                    // Following unwraps are safe since the above vecs are derived from an existing
-                    // BoundedVec.
-                    let tuple_items = BoundedVec::from_vec(tuple_items).unwrap();
+                    let tuple_items = t.mapped_ref(|(l, _)| l.clone());
                     let tuple_item_types = SType::STuple(STuple {
-                        items: BoundedVec::from_vec(tuple_item_types).unwrap(),
+                        items: t.mapped(|(_, tpe)| tpe),
                     });
                     Ok(Constant {
                         v: Literal::Tup(tuple_items),
                         tpe: tuple_item_types,
                     })
                 } else {
-                    Err(String::from("Can't convert Value:Tup element"))
+                    Err("Can't convert Value:Tup element".into())
                 }
             }
-            v => Err(format!("Cannot convert {:?} into Literal", v)),
+            v => Err(format!("Cannot convert {:?} into Constant", v)),
         }
     }
 }

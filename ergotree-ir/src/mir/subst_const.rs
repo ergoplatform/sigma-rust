@@ -26,6 +26,26 @@ pub struct SubstConstants {
 }
 
 impl SubstConstants {
+    /// Create new object, returning error if requirements failed
+    pub fn new(
+        script_bytes: Expr,
+        positions: Expr,
+        new_values: Expr,
+    ) -> Result<Self, InvalidArgumentError> {
+        script_bytes.check_post_eval_tpe(&SType::SColl(SType::SByte.into()))?;
+        positions.check_post_eval_tpe(&SType::SColl(SType::SInt.into()))?;
+        match new_values.post_eval_tpe() {
+            SType::SColl(_) => Ok(SubstConstants {
+                script_bytes: script_bytes.into(),
+                positions: positions.into(),
+                new_values: new_values.into(),
+            }),
+            e => Err(InvalidArgumentError(format!(
+                "SubstConstants: expected new_values type to be SColl[T], got {:?}",
+                e
+            ))),
+        }
+    }
     /// Type of returned value
     pub fn tpe(&self) -> SType {
         SType::SColl(SType::SByte.into())
@@ -44,26 +64,10 @@ impl SigmaSerializable for SubstConstants {
     }
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
-        let script_bytes = Box::new(Expr::sigma_parse(r)?);
-        script_bytes
-            .check_post_eval_tpe(&SType::SColl(SType::SByte.into()))
-            .map_err(InvalidArgumentError::from)?;
-        let positions = Box::new(Expr::sigma_parse(r)?);
-        positions
-            .check_post_eval_tpe(&SType::SColl(SType::SInt.into()))
-            .map_err(InvalidArgumentError::from)?;
-        let new_values = Box::new(Expr::sigma_parse(r)?);
-        match new_values.post_eval_tpe() {
-            SType::SColl(_) => Ok(SubstConstants {
-                script_bytes,
-                positions,
-                new_values,
-            }),
-            e => Err(SigmaParsingError::from(InvalidArgumentError(format!(
-                "SubstConstants: expected new_values type to be SColl[T], got {:?}",
-                e
-            )))),
-        }
+        let script_bytes = Expr::sigma_parse(r)?;
+        let positions = Expr::sigma_parse(r)?;
+        let new_values = Expr::sigma_parse(r)?;
+        Ok(SubstConstants::new(script_bytes, positions, new_values)?)
     }
 }
 
