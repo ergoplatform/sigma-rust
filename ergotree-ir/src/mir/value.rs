@@ -5,6 +5,7 @@ use std::convert::TryInto;
 use impl_trait_for_tuples::impl_for_tuples;
 
 use crate::bigint256::BigInt256;
+use crate::chain::header::Header;
 use crate::ir_ergo_box::IrBoxId;
 use crate::sigma_protocol::dlog_group::EcPoint;
 use crate::sigma_protocol::sigma_boolean::SigmaProp;
@@ -158,6 +159,8 @@ pub enum Value {
     Tup(TupleItems<Value>),
     /// Transaction(and blockchain) context info
     Context,
+    /// Block header
+    Header(Header),
     /// Global which is used to define global methods
     Global,
     /// Optional value

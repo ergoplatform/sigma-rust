@@ -21,7 +21,9 @@
 mod has_opcode;
 
 pub mod address;
+pub mod avltree;
 pub mod bigint256;
+pub mod chain;
 pub mod ergo_tree;
 pub mod ir_ergo_box;
 pub mod mir;

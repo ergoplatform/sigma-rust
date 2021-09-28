@@ -1,4 +1,5 @@
 //! Block header
+// todo ergotree-ir::chain::Header types is the same as BlockHeader - remove duplicate
 
 use std::convert::TryFrom;
 use std::convert::TryInto;

@@ -41,6 +41,19 @@ pub(crate) static SELF_BOX_INDEX_EVAL_FN: EvalFn = |_env, ctx, obj, _args| {
     Ok(Value::Int(box_index as i32))
 };
 
+pub(crate) static HEADERS_EVAL_FN: EvalFn = |_env, ctx, obj, _args| {
+    if obj != Value::Context {
+        return Err(EvalError::UnexpectedValue(format!(
+            "Context.headers: expected object of Value::Context, got {:?}",
+            obj
+        )));
+    }
+    Ok(Value::Coll(CollKind::WrappedColl {
+        items: ctx.ctx.headers.clone().map(Value::Header).to_vec(),
+        elem_tpe: SType::SHeader,
+    }))
+};
+
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
 #[allow(clippy::unwrap_used)]

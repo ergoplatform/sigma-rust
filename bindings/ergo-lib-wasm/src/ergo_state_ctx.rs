@@ -17,10 +17,9 @@ impl ErgoStateContext {
     /// Create new context from pre-header
     #[wasm_bindgen(constructor)]
     pub fn new(pre_header: PreHeader) -> Self {
-        chain::ergo_state_context::ErgoStateContext {
-            pre_header: pre_header.into(),
-        }
-        .into()
+        let mut ergo_state_context = chain::ergo_state_context::ErgoStateContext::dummy();
+        ergo_state_context.pre_header = pre_header.into();
+        ergo_state_context.into()
     }
 
     /// empty (dummy) context (for signing P2PK tx only)
