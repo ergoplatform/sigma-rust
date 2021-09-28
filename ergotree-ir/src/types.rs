@@ -2,6 +2,8 @@
 
 pub mod stype;
 
+/// AVL tree methods
+pub mod savltree;
 /// Box object type companion
 pub mod sbox;
 /// Collection object type companion

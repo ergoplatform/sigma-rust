@@ -362,6 +362,15 @@ impl From<BigInt256> for Constant {
     }
 }
 
+impl From<AvlTreeData> for Constant {
+    fn from(a: AvlTreeData) -> Self {
+        Constant {
+            tpe: SType::SAvlTree,
+            v: Literal::AvlTree(a),
+        }
+    }
+}
+
 #[allow(clippy::unwrap_used)]
 #[allow(clippy::from_over_into)]
 #[impl_for_tuples(2, 4)]

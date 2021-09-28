@@ -28,7 +28,9 @@ num-traits = "0.2.14"
 proptest = {version = "1.0.0", optional = true }
 proptest-derive = {version = "0.3.0", optional = true }
 base16 = "0.2.1"
+bytes = "1.1"
 num-bigint = "0.4.0"
+scorex_crypto_avltree = "0.1.0"
 
 [features]
 default = []

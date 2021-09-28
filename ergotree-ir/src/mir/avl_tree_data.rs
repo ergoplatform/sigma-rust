@@ -6,10 +6,12 @@ use crate::serialization::{
 use super::constant::TryExtractFromError;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
-struct AvlTreeFlags(u8);
+/// AVL tree flags
+pub struct AvlTreeFlags(u8);
 
 impl AvlTreeFlags {
-    fn new(insert_allowed: bool, update_allowed: bool, remove_allowed: bool) -> Self {
+    /// Create tree-flags
+    pub fn new(insert_allowed: bool, update_allowed: bool, remove_allowed: bool) -> Self {
         let read_only = 0;
         let i = if insert_allowed {
             read_only | 0x01
@@ -19,11 +21,28 @@ impl AvlTreeFlags {
         let u = if update_allowed { i | 0x02 } else { i };
         AvlTreeFlags(if remove_allowed { u | 0x04 } else { u })
     }
-    fn apply(serialized_flags: u8) -> Self {
+
+    /// Parse tree-flags from byte
+    fn parse(serialized_flags: u8) -> Self {
         let insert_allowed = serialized_flags & 0x01 != 0;
         let update_allowed = serialized_flags & 0x02 != 0;
         let remove_allowed = serialized_flags & 0x04 != 0;
         Self::new(insert_allowed, update_allowed, remove_allowed)
+    }
+
+    /// Returns true if inserting is allowed
+    pub fn insert_allowed(&self) -> bool {
+        self.0 & 0x01 != 0
+    }
+
+    /// Returns true if updating is allowed
+    pub fn update_allowed(&self) -> bool {
+        self.0 & 0x02 != 0
+    }
+
+    /// Returns true if removal is allowed
+    pub fn remove_allowed(&self) -> bool {
+        self.0 & 0x04 != 0
     }
 }
 
@@ -33,13 +52,13 @@ impl AvlTreeFlags {
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct AvlTreeData {
     /// Authenticated tree digest: root hash along with tree height
-    digest: ADDigest,
+    pub digest: ADDigest,
     /// Allowed modifications
-    tree_flags: AvlTreeFlags,
+    pub tree_flags: AvlTreeFlags,
     /// All the elements under the tree have the same length
-    key_length: u32,
+    pub key_length: u32,
     /// If non-empty, all the values under the tree are of the same length
-    value_length_opt: Option<u32>,
+    pub value_length_opt: Option<u32>,
 }
 
 impl SigmaSerializable for AvlTreeData {
@@ -57,7 +76,7 @@ impl SigmaSerializable for AvlTreeData {
     }
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let digest = ADDigest::sigma_parse(r)?;
-        let tree_flags = AvlTreeFlags::apply(r.get_u8()?);
+        let tree_flags = AvlTreeFlags::parse(r.get_u8()?);
         let key_length = r.get_u32()?;
         let is_some = {
             let s = r.get_u8()?;
@@ -88,6 +107,9 @@ impl SigmaSerializable for AvlTreeData {
         })
     }
 }
+
+// The following types were copied from `ergo-lib::chain::digest32` as a workaround until some
+// types are reorganized in the future.
 
 /// Digest
 #[derive(PartialEq, Eq, Debug, Clone)]
