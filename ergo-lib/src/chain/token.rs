@@ -1,5 +1,6 @@
 //! Token related types
 
+use ergotree_ir::chain::digest::Digest32;
 use ergotree_ir::serialization::SigmaSerializeResult;
 use ergotree_ir::serialization::{
     sigma_byte_reader::SigmaByteRead, sigma_byte_writer::SigmaByteWrite, SigmaParsingError,
@@ -7,8 +8,8 @@ use ergotree_ir::serialization::{
 };
 use std::convert::TryFrom;
 
-use super::digest32::Digest32;
 use super::ergo_box::BoxId;
+use super::{digest32::DigestDef, Base16EncodedBytes};
 use derive_more::From;
 use derive_more::Into;
 #[cfg(test)]
@@ -20,7 +21,7 @@ use thiserror::Error;
 /// newtype for token id
 #[derive(PartialEq, Eq, Hash, Debug, Clone, From, Into)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
-pub struct TokenId(Digest32);
+pub struct TokenId(#[serde(with = "DigestDef")] Digest32);
 
 impl TokenId {
     /// token id size in bytes
@@ -51,9 +52,11 @@ impl AsRef<[u8]> for TokenId {
     }
 }
 
+// todo-sab Don't forget to clean-up after moving chain types to IR crate
 impl From<TokenId> for String {
     fn from(v: TokenId) -> Self {
-        v.0.into()
+        let bytes: Base16EncodedBytes = v.0.into();
+        bytes.into()
     }
 }
 
@@ -191,7 +194,7 @@ pub mod tests {
             match args {
                 ArbTokenIdParam::Predef => prop_oneof![
                     Just(TokenId::from(
-                        Digest32::try_from(
+                        Digest32Ref::try_from(
                             Base16DecodedBytes::try_from(
                                 "3130a82e45842aebb888742868e055e2f554ab7d92f233f2c828ed4a43793710"
                                     .to_string()
@@ -201,7 +204,7 @@ pub mod tests {
                         .unwrap()
                     )),
                     Just(TokenId::from(
-                        Digest32::try_from(
+                        Digest32Ref::try_from(
                             Base16DecodedBytes::try_from(
                                 "e7321ffb4ec5d71deb3110eb1ac09612b9cf57445acab1e0e3b1222d5b5a6c60"
                                     .to_string()
@@ -211,7 +214,7 @@ pub mod tests {
                         .unwrap()
                     )),
                     Just(TokenId::from(
-                        Digest32::try_from(
+                        Digest32Ref::try_from(
                             Base16DecodedBytes::try_from(
                                 "ad62f6dd92e7dc850bc406770dfac9a943dd221a7fb440b7b2bcc7d3149c1792"
                                     .to_string()
@@ -222,7 +225,7 @@ pub mod tests {
                     ))
                 ]
                 .boxed(),
-                ArbTokenIdParam::Arbitrary => (any::<Digest32>()).prop_map_into().boxed(),
+                ArbTokenIdParam::Arbitrary => (any::<Digest32Ref>()).prop_map_into().boxed(),
             }
         }
 

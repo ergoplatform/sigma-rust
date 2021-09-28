@@ -44,7 +44,7 @@ impl TxId {
             .map_err(|_e| {
                 JsValue::from_str(&format!(
                     "Expected a Vec of length {} but it was {}",
-                    chain::Digest32::SIZE,
+                    chain::Digest32Ref::SIZE,
                     s.len()
                 ))
             })

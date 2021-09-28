@@ -3,8 +3,6 @@
 use std::convert::TryFrom;
 
 use ergo_lib::chain;
-use ergo_lib::chain::Base16DecodedBytes;
-use ergo_lib::chain::Digest32;
 use js_sys::Uint8Array;
 use wasm_bindgen::prelude::*;
 
@@ -28,10 +26,9 @@ impl TokenId {
     /// Parse token id (32 byte digest) from base16-encoded string
     #[allow(clippy::should_implement_trait)]
     pub fn from_str(str: &str) -> Result<TokenId, JsValue> {
-        Base16DecodedBytes::try_from(str.to_string())
+        chain::ergo_box::BoxId::try_from(str.to_string())
             .map_err(to_js)
-            .and_then(|bytes| Digest32::try_from(bytes).map_err(to_js))
-            .map(|dig| dig.into())
+            .map(chain::token::TokenId::from)
             .map(TokenId)
     }
 

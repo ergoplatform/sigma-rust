@@ -4,6 +4,10 @@
 use std::convert::TryFrom;
 use std::convert::TryInto;
 
+use ergotree_ir::chain::block_id::BlockId;
+use ergotree_ir::chain::digest::Digest32;
+use ergotree_ir::chain::votes::Votes;
+use ergotree_ir::chain::votes::VotesError;
 use ergotree_ir::mir::header::PreHeader;
 use ergotree_ir::sigma_protocol::dlog_group;
 #[cfg(feature = "json")]
@@ -11,13 +15,13 @@ use serde::{Deserialize, Serialize};
 
 use super::Base16DecodedBytes;
 use super::Base16EncodedBytes;
-use super::Digest32;
-use thiserror::Error;
+use super::DigestDef;
 
 /// Block id
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", serde(remote = "BlockId"))]
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct BlockId(Digest32);
+pub struct BlockIdRef(#[serde(with = "DigestDef")] Digest32);
 
 /// Votes for changing system parameters
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
@@ -29,15 +33,8 @@ pub struct BlockId(Digest32);
     )
 )]
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct Votes(pub [u8; 3]);
-
-/// Votes errors
-#[derive(Error, Debug)]
-pub enum VotesError {
-    /// Invalid byte array size
-    #[error("Votes: Invalid byte array size ({0})")]
-    InvalidSize(#[from] std::array::TryFromSliceError),
-}
+#[cfg_attr(feature = "json", serde(remote = "Votes"))]
+pub struct VotesRef(pub [u8; 3]);
 
 impl TryFrom<Base16DecodedBytes> for Votes {
     type Error = VotesError;
@@ -47,24 +44,9 @@ impl TryFrom<Base16DecodedBytes> for Votes {
     }
 }
 
-impl TryFrom<Vec<u8>> for Votes {
-    type Error = VotesError;
-
-    fn try_from(bytes: Vec<u8>) -> Result<Self, Self::Error> {
-        let arr: [u8; 3] = bytes.as_slice().try_into()?;
-        Ok(Self(arr))
-    }
-}
-
 impl From<Votes> for Base16EncodedBytes {
     fn from(v: Votes) -> Self {
         Base16EncodedBytes::new(v.0.as_ref())
-    }
-}
-
-impl From<Votes> for Vec<u8> {
-    fn from(v: Votes) -> Self {
-        v.0.to_vec()
     }
 }
 
@@ -75,7 +57,7 @@ pub struct BlockHeader {
     /// Block version, to be increased on every soft and hardfork
     pub version: u8,
     /// Id of a parent block
-    #[cfg_attr(feature = "json", serde(rename = "parentId"))]
+    #[cfg_attr(feature = "json", serde(rename = "parentId", with = "BlockIdRef"))]
     pub parent_id: BlockId,
     /// Timestamp of a block in ms from UNIX epoch
     pub timestamp: u64,
@@ -85,6 +67,7 @@ pub struct BlockHeader {
     /// Block height
     pub height: u32,
     /// Votes
+    #[cfg_attr(feature = "json", serde(with = "VotesRef"))]
     pub votes: Votes,
 }
 

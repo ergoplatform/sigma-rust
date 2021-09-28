@@ -1,24 +1,12 @@
 //! Block header
 use num_bigint::BigInt;
 
-use crate::avltree::AvlTree;
 use crate::sigma_protocol::dlog_group;
 
-use super::digest::Digest;
-
-type Digest32 = Digest<32>;
-
-/// Block id
-#[derive(PartialEq, Eq, Debug, Clone)]
-pub struct BlockId(Digest32);
-
-/// Modifier id
-#[derive(PartialEq, Eq, Debug, Clone)]
-pub struct ModifierId(Digest32);
-
-/// Votes for changing system parameters
-#[derive(PartialEq, Eq, Debug, Clone)]
-pub struct Votes(pub [u8; 3]);
+use super::block_id::BlockId;
+use super::digest::{ADDigest, Digest32};
+use super::modifier_id::ModifierId;
+use super::votes::Votes;
 
 /// Represents data of the block header available in Sigma propositions.
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -32,7 +20,7 @@ pub struct Header {
     /// Hash of ADProofs for transactions in a block
     pub ad_proofs_root: Digest32,
     /// AvlTree of a state after block application
-    pub state_root: AvlTree,
+    pub state_root: ADDigest,
     /// Root hash (for a Merkle tree) of transactions in a block.
     pub transaction_root: Digest32,
     /// Timestamp of a block in ms from UNIX epoch
@@ -60,13 +48,13 @@ pub struct Header {
 impl Header {
     /// Dummy instance intended for tests where actual values are not used
     pub fn dummy() -> Self {
-        let empty_digest = Digest([0u8; 32].into());
+        let empty_digest = Digest32::zero();
         Header {
             version: 1,
             id: BlockId(empty_digest.clone()),
             parent_id: ModifierId(empty_digest.clone()),
             ad_proofs_root: empty_digest.clone(),
-            state_root: AvlTree,
+            state_root: ADDigest::zero(),
             transaction_root: empty_digest.clone(),
             timestamp: 0,
             n_bits: 0,
@@ -87,8 +75,7 @@ mod arbitrary {
     use proptest::array::{uniform3, uniform32};
     use proptest::prelude::*;
 
-    use crate::avltree::AvlTree;
-    use crate::chain::digest::Digest;
+    use crate::chain::digest::{ADDigest, Digest};
     use crate::sigma_protocol::dlog_group::EcPoint;
 
     use super::{BlockId, Header, ModifierId, Votes};
@@ -135,7 +122,7 @@ mod arbitrary {
                             id,
                             parent_id,
                             ad_proofs_root,
-                            state_root: AvlTree,
+                            state_root: ADDigest::zero(),
                             transaction_root,
                             timestamp,
                             n_bits,

@@ -2,15 +2,15 @@
 use std::convert::TryFrom;
 use std::convert::TryInto;
 
+use ergotree_ir::chain::digest::Digest32;
 use ergotree_ir::ir_ergo_box::IrBoxId;
 
 use ergotree_ir::serialization::SigmaSerializeResult;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 
-use crate::chain::Digest32Error;
+use crate::chain::{Base16DecodedBytes, Base16EncodedBytes, Digest32Error, DigestDef};
 
-use super::super::digest32::Digest32;
 use derive_more::From;
 use derive_more::Into;
 use ergotree_ir::serialization::{
@@ -24,7 +24,7 @@ use proptest_derive::Arbitrary;
 #[derive(PartialEq, Eq, Hash, Debug, Clone, From, Into)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 #[cfg_attr(test, derive(Arbitrary))]
-pub struct BoxId(Digest32);
+pub struct BoxId(#[serde(with = "DigestDef")] Digest32);
 
 impl BoxId {
     /// Size in bytes
@@ -42,10 +42,12 @@ impl AsRef<[u8]> for BoxId {
     }
 }
 
+// todo-sab Don't forget to clean-up after moving chain types to IR crate
 #[cfg(feature = "json")]
 impl From<BoxId> for String {
     fn from(v: BoxId) -> Self {
-        v.0.into()
+        let bytes: Base16EncodedBytes = v.0.into();
+        bytes.into()
     }
 }
 
@@ -64,11 +66,13 @@ impl From<BoxId> for IrBoxId {
     }
 }
 
+// todo-sab Don't forget to clean-up after moving chain types to IR crate
 impl TryFrom<String> for BoxId {
     type Error = Digest32Error;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
-        Ok(Digest32::try_from(value)?.into())
+        let bytes = Base16DecodedBytes::try_from(value)?;
+        Ok(Digest32::try_from(bytes)?.into())
     }
 }
 
