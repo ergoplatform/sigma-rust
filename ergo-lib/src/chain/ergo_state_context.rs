@@ -1,8 +1,8 @@
 //! Blockchain state
 use std::convert::TryInto;
 
-use ergotree_ir::mir::header::PreHeader;
 use ergotree_ir::chain::header::Header;
+use ergotree_ir::mir::header::PreHeader;
 
 /// Blockchain state (last headers, etc.)
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -17,7 +17,9 @@ pub struct ErgoStateContext {
 impl ErgoStateContext {
     /// Dummy instance intended for tests where actual values are not used
     pub fn dummy() -> ErgoStateContext {
-        let headers = vec![Header::dummy(); 10].try_into().expect("internal error: Headers array length isn't eq to 10");
+        let headers = vec![Header::dummy(); 10]
+            .try_into()
+            .expect("internal error: Headers array length isn't eq to 10");
         ErgoStateContext {
             pre_header: PreHeader::dummy(),
             headers,

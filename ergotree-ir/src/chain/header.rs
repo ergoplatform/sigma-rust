@@ -88,10 +88,10 @@ mod arbitrary {
     use proptest::prelude::*;
 
     use crate::avltree::AvlTree;
-    use crate::sigma_protocol::dlog_group::EcPoint;
     use crate::chain::digest::Digest;
+    use crate::sigma_protocol::dlog_group::EcPoint;
 
-    use super::{Header, BlockId, ModifierId, Votes};
+    use super::{BlockId, Header, ModifierId, Votes};
 
     impl Arbitrary for Header {
         type Parameters = ();
