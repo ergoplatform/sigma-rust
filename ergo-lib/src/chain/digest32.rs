@@ -71,5 +71,5 @@ pub enum Digest32Error {
     Base16DecodingError(#[from] base16::DecodeError),
     /// Invalid byte array size
     #[error("Invalid byte array size ({0})")]
-    InvalidSize(#[from] std::array::TryFromSliceError), // todo-sab do we need that?
+    InvalidSize(#[from] std::array::TryFromSliceError),
 }
