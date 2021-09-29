@@ -18,6 +18,7 @@ use crate::util::AsVecU8;
 use super::sigma_byte_writer::SigmaByteWrite;
 use std::convert::TryInto;
 
+/// Used to serialize and parse `Literal` and `Value`.
 pub struct DataSerializer {}
 
 impl DataSerializer {
@@ -73,6 +74,7 @@ impl DataSerializer {
             }
         })
     }
+
     pub fn sigma_parse<R: SigmaByteRead>(
         tpe: &SType,
         r: &mut R,

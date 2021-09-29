@@ -83,6 +83,7 @@ pub(crate) mod sigma_and;
 pub(crate) mod sigma_or;
 pub(crate) mod sigma_prop_bytes;
 pub(crate) mod soption;
+pub(crate) mod subst_const;
 pub(crate) mod tuple;
 pub(crate) mod upcast;
 pub(crate) mod val_use;
