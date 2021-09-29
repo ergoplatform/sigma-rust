@@ -16,10 +16,10 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 sigma-ser = { version = "^0.2.0", path = "../sigma-ser" }
 sigma-util = { version = "^0.2.0", path = "../sigma-util" }
-k256 = { version = "0.7.2", features = ["zeroize", "arithmetic", "ecdsa"] }
-elliptic-curve = {version = "0.9.12", features = ["zeroize"]}
+k256 = { version = "0.9.6", features = ["zeroize", "arithmetic", "ecdsa"] }
+elliptic-curve = {version = "0.10.6", features = ["zeroize", "ff"]}
 thiserror = "1"
-rand = "0.7"
+rand = "0.8.4"
 lazy_static = "1.4"
 derive_more = "0.99"
 impl-trait-for-tuples = "0.2.0"
