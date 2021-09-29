@@ -4,7 +4,6 @@ use ergotree_ir::chain::digest::Digest;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use std::convert::TryInto;
-use std::fmt::Formatter;
 use thiserror::Error;
 
 /// Reference to remote Digest type. Remote Digest wasn't used, because in ergo-lib
@@ -61,12 +60,6 @@ impl<const N: usize> From<DigestRef<N>> for Digest<N> {
 impl<const N: usize> From<Digest<N>> for DigestRef<N> {
     fn from(value: Digest<N>) -> Self {
         DigestRef(value.0)
-    }
-}
-
-impl<const N: usize> std::fmt::Debug for DigestRef<N> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        base16::encode_lower(&(*self.0)).fmt(f)
     }
 }
 
