@@ -24,7 +24,7 @@ use proptest_derive::Arbitrary;
 #[derive(PartialEq, Eq, Hash, Debug, Clone, From, Into)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 #[cfg_attr(test, derive(Arbitrary))]
-pub struct BoxId(#[serde(with = "DigestDef")] Digest32);
+pub struct BoxId(#[serde(with = "DigestRef")] Digest32);
 
 impl BoxId {
     /// Size in bytes

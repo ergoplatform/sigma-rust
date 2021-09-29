@@ -40,7 +40,7 @@ use std::iter::FromIterator;
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
 #[cfg_attr(test, derive(Arbitrary))]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
-pub struct TxId(#[serde(with = "DigestDef")] pub Digest32);
+pub struct TxId(#[serde(with = "DigestRef")] pub Digest32);
 
 impl TxId {
     /// All zeros

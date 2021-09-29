@@ -21,7 +21,7 @@ use super::DigestRef;
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "json", serde(remote = "BlockId"))]
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct BlockIdRef(#[serde(with = "DigestDef")] Digest32);
+pub struct BlockIdRef(#[serde(with = "DigestRef")] Digest32);
 
 /// Votes for changing system parameters
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]

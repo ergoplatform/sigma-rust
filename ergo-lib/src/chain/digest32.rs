@@ -23,16 +23,6 @@ pub struct DigestRef<const N: usize>(pub Box<[u8; N]>);
 /// 32 byte Digest type
 pub type Digest32Ref = DigestRef<32>;
 
-impl<const N: usize> DigestRef<N> {
-    /// Digest size 32 bytes
-    pub const SIZE: usize = N;
-
-    /// All zeros
-    pub fn zero() -> DigestRef<N> {
-        DigestRef(Box::new([0u8; N]))
-    }
-}
-
 impl<const N: usize> std::fmt::Debug for DigestRef<N> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         base16::encode_lower(&(*self.0)).fmt(f)
