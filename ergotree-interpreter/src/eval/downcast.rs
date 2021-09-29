@@ -144,15 +144,13 @@ mod tests {
 
         assert_eq!(
             eval_out_wo_ctx::<BigInt256>(
-                &Downcast::new(c_byte.clone().into(), SType::SBigInt)
-                    .unwrap()
-                    .into()
+                &Downcast::new(c_byte.into(), SType::SBigInt).unwrap().into()
             ),
             (v_byte as i64).into()
         );
         assert_eq!(
             eval_out_wo_ctx::<BigInt256>(
-                &Downcast::new(c_short.clone().into(), SType::SBigInt)
+                &Downcast::new(c_short.into(), SType::SBigInt)
                     .unwrap()
                     .into()
             ),
@@ -160,17 +158,13 @@ mod tests {
         );
         assert_eq!(
             eval_out_wo_ctx::<BigInt256>(
-                &Downcast::new(c_int.clone().into(), SType::SBigInt)
-                    .unwrap()
-                    .into()
+                &Downcast::new(c_int.into(), SType::SBigInt).unwrap().into()
             ),
             (v_int as i64).into()
         );
         assert_eq!(
             eval_out_wo_ctx::<BigInt256>(
-                &Downcast::new(c_long.clone().into(), SType::SBigInt)
-                    .unwrap()
-                    .into()
+                &Downcast::new(c_long.into(), SType::SBigInt).unwrap().into()
             ),
             (v_long as i64).into()
         );
@@ -189,35 +183,19 @@ mod tests {
         let c_long: Constant = v_long.into();
 
         assert_eq!(
-            eval_out_wo_ctx::<i64>(
-                &Downcast::new(c_byte.clone().into(), SType::SLong)
-                    .unwrap()
-                    .into()
-            ),
+            eval_out_wo_ctx::<i64>(&Downcast::new(c_byte.into(), SType::SLong).unwrap().into()),
             v_byte as i64
         );
         assert_eq!(
-            eval_out_wo_ctx::<i64>(
-                &Downcast::new(c_short.clone().into(), SType::SLong)
-                    .unwrap()
-                    .into()
-            ),
+            eval_out_wo_ctx::<i64>(&Downcast::new(c_short.into(), SType::SLong).unwrap().into()),
             v_short as i64
         );
         assert_eq!(
-            eval_out_wo_ctx::<i64>(
-                &Downcast::new(c_int.clone().into(), SType::SLong)
-                    .unwrap()
-                    .into()
-            ),
+            eval_out_wo_ctx::<i64>(&Downcast::new(c_int.into(), SType::SLong).unwrap().into()),
             v_int as i64
         );
         assert_eq!(
-            eval_out_wo_ctx::<i64>(
-                &Downcast::new(c_long.clone().into(), SType::SLong)
-                    .unwrap()
-                    .into()
-            ),
+            eval_out_wo_ctx::<i64>(&Downcast::new(c_long.into(), SType::SLong).unwrap().into()),
             v_long as i64
         );
     }
@@ -241,39 +219,23 @@ mod tests {
         let c_long_oob: Constant = v_long_oob.into();
 
         assert_eq!(
-            eval_out_wo_ctx::<i32>(
-                &Downcast::new(c_byte.clone().into(), SType::SInt)
-                    .unwrap()
-                    .into()
-            ),
+            eval_out_wo_ctx::<i32>(&Downcast::new(c_byte.into(), SType::SInt).unwrap().into()),
             v_byte as i32
         );
         assert_eq!(
-            eval_out_wo_ctx::<i32>(
-                &Downcast::new(c_short.clone().into(), SType::SInt)
-                    .unwrap()
-                    .into()
-            ),
+            eval_out_wo_ctx::<i32>(&Downcast::new(c_short.into(), SType::SInt).unwrap().into()),
             v_short as i32
         );
         assert_eq!(
-            eval_out_wo_ctx::<i32>(
-                &Downcast::new(c_int.clone().into(), SType::SInt)
-                    .unwrap()
-                    .into()
-            ),
+            eval_out_wo_ctx::<i32>(&Downcast::new(c_int.into(), SType::SInt).unwrap().into()),
             v_int as i32
         );
         assert_eq!(
-            eval_out_wo_ctx::<i32>(
-                &Downcast::new(c_long.clone().into(), SType::SInt)
-                    .unwrap()
-                    .into()
-            ),
+            eval_out_wo_ctx::<i32>(&Downcast::new(c_long.into(), SType::SInt).unwrap().into()),
             v_long as i32
         );
         assert!(try_eval_out_wo_ctx::<i32>(
-            &Downcast::new(c_long_oob.clone().into(), SType::SInt)
+            &Downcast::new(c_long_oob.into(), SType::SInt)
                 .unwrap()
                 .into()
         )
@@ -303,38 +265,26 @@ mod tests {
         let c_long_oob: Constant = v_long_oob.into();
 
         assert_eq!(
-            eval_out_wo_ctx::<i16>(
-                &Downcast::new(c_short.clone().into(), SType::SShort)
-                    .unwrap()
-                    .into()
-            ),
+            eval_out_wo_ctx::<i16>(&Downcast::new(c_short.into(), SType::SShort).unwrap().into()),
             v_short as i16
         );
         assert_eq!(
-            eval_out_wo_ctx::<i16>(
-                &Downcast::new(c_int.clone().into(), SType::SShort)
-                    .unwrap()
-                    .into()
-            ),
+            eval_out_wo_ctx::<i16>(&Downcast::new(c_int.into(), SType::SShort).unwrap().into()),
             v_int as i16
         );
         assert!(try_eval_out_wo_ctx::<i16>(
-            &Downcast::new(c_int_oob.clone().into(), SType::SShort)
+            &Downcast::new(c_int_oob.into(), SType::SShort)
                 .unwrap()
                 .into()
         )
         .is_err());
 
         assert_eq!(
-            eval_out_wo_ctx::<i16>(
-                &Downcast::new(c_long.clone().into(), SType::SShort)
-                    .unwrap()
-                    .into()
-            ),
+            eval_out_wo_ctx::<i16>(&Downcast::new(c_long.into(), SType::SShort).unwrap().into()),
             v_long as i16
         );
         assert!(try_eval_out_wo_ctx::<i16>(
-            &Downcast::new(c_long_oob.clone().into(), SType::SShort)
+            &Downcast::new(c_long_oob.into(), SType::SShort)
                 .unwrap()
                 .into()
         )
@@ -372,51 +322,35 @@ mod tests {
         let c_long_oob: Constant = v_long_oob.into();
 
         assert_eq!(
-            eval_out_wo_ctx::<i8>(
-                &Downcast::new(c_byte.clone().into(), SType::SByte)
-                    .unwrap()
-                    .into()
-            ),
+            eval_out_wo_ctx::<i8>(&Downcast::new(c_byte.into(), SType::SByte).unwrap().into()),
             v_byte
         );
         assert_eq!(
-            eval_out_wo_ctx::<i8>(
-                &Downcast::new(c_short.clone().into(), SType::SByte)
-                    .unwrap()
-                    .into()
-            ),
+            eval_out_wo_ctx::<i8>(&Downcast::new(c_short.into(), SType::SByte).unwrap().into()),
             v_short as i8
         );
         assert!(try_eval_out_wo_ctx::<i8>(
-            &Downcast::new(c_short_oob.clone().into(), SType::SByte)
+            &Downcast::new(c_short_oob.into(), SType::SByte)
                 .unwrap()
                 .into()
         )
         .is_err());
         assert_eq!(
-            eval_out_wo_ctx::<i8>(
-                &Downcast::new(c_int.clone().into(), SType::SByte)
-                    .unwrap()
-                    .into()
-            ),
+            eval_out_wo_ctx::<i8>(&Downcast::new(c_int.into(), SType::SByte).unwrap().into()),
             v_int as i8
         );
         assert!(try_eval_out_wo_ctx::<i8>(
-            &Downcast::new(c_int_oob.clone().into(), SType::SByte)
+            &Downcast::new(c_int_oob.into(), SType::SByte)
                 .unwrap()
                 .into()
         )
         .is_err());
         assert_eq!(
-            eval_out_wo_ctx::<i8>(
-                &Downcast::new(c_long.clone().into(), SType::SByte)
-                    .unwrap()
-                    .into()
-            ),
+            eval_out_wo_ctx::<i8>(&Downcast::new(c_long.into(), SType::SByte).unwrap().into()),
             v_long as i8
         );
         assert!(try_eval_out_wo_ctx::<i8>(
-            &Downcast::new(c_long_oob.clone().into(), SType::SByte)
+            &Downcast::new(c_long_oob.into(), SType::SByte)
                 .unwrap()
                 .into()
         )
