@@ -43,6 +43,7 @@ pub(crate) static SELF_BOX_INDEX_EVAL_FN: EvalFn = |_env, ctx, obj, _args| {
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use crate::eval::context::ir_ergo_box_dummy::IrErgoBoxDummy;
     use crate::eval::context::Context;
@@ -56,13 +57,10 @@ mod tests {
     fn make_ctx_inputs_includes_self_box() -> Context {
         let ctx = force_any_val::<Context>();
         let self_box = force_any_val::<IrErgoBoxDummy>();
-        let inputs = vec![
-            force_any_val::<IrErgoBoxDummy>().id.clone(),
-            self_box.id.clone(),
-        ];
+        let inputs = vec![force_any_val::<IrErgoBoxDummy>().id, self_box.id.clone()];
         Context {
             height: 0u32,
-            self_box: self_box.id.clone(),
+            self_box: self_box.id,
             inputs,
             ..ctx
         }
@@ -75,6 +73,6 @@ mod tests {
                 .unwrap()
                 .into();
         let rc = Rc::new(make_ctx_inputs_includes_self_box());
-        assert_eq!(eval_out::<i32>(&expr, rc.clone()), 1);
+        assert_eq!(eval_out::<i32>(&expr, rc), 1);
     }
 }
