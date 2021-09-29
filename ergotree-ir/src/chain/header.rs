@@ -5,7 +5,6 @@ use crate::sigma_protocol::dlog_group;
 
 use super::block_id::BlockId;
 use super::digest::{ADDigest, Digest32};
-use super::modifier_id::ModifierId;
 use super::votes::Votes;
 
 /// Represents data of the block header available in Sigma propositions.
@@ -16,7 +15,7 @@ pub struct Header {
     /// Bytes representation of ModifierId of this Header
     pub id: BlockId,
     /// Bytes representation of ModifierId of the parent block
-    pub parent_id: ModifierId,
+    pub parent_id: BlockId,
     /// Hash of ADProofs for transactions in a block
     pub ad_proofs_root: Digest32,
     /// AvlTree of a state after block application
@@ -52,7 +51,7 @@ impl Header {
         Header {
             version: 1,
             id: BlockId(empty_digest.clone()),
-            parent_id: ModifierId(empty_digest.clone()),
+            parent_id: BlockId(empty_digest.clone()),
             ad_proofs_root: empty_digest.clone(),
             state_root: ADDigest::zero(),
             transaction_root: empty_digest.clone(),
@@ -78,7 +77,7 @@ mod arbitrary {
     use crate::chain::digest::{ADDigest, Digest};
     use crate::sigma_protocol::dlog_group::EcPoint;
 
-    use super::{BlockId, Header, ModifierId, Votes};
+    use super::{BlockId, Header, Votes};
 
     impl Arbitrary for Header {
         type Parameters = ();
@@ -112,7 +111,7 @@ mod arbitrary {
                         votes,
                     )| {
                         let id = BlockId(Digest(id.into()));
-                        let parent_id = ModifierId(Digest(parent_id.into()));
+                        let parent_id = BlockId(Digest(parent_id.into()));
                         let ad_proofs_root = Digest(ad_proofs_root.into());
                         let transaction_root = Digest(transaction_root.into());
                         let extension_root = Digest(extension_root.into());
