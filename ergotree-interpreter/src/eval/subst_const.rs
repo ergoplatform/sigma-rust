@@ -26,57 +26,55 @@ impl Evaluable for SubstConstants {
             .map(|i| i as usize)
             .collect();
 
-        let (new_constants_type, new_constants) =
-            if let Value::Coll(CollKind::WrappedColl { elem_tpe, items }) = new_values_v {
-                let mut items_const = vec![];
-                for v in items {
-                    let c = Constant::try_from(v).map_err(EvalError::Misc)?;
-                    items_const.push(c);
-                }
-                (elem_tpe, items_const)
-            } else {
-                return Err(EvalError::Misc(
-                    "SubstConstants: expected evaluation of `new_values` be of type `Coll[_]`, got \
-                    _ instead".into()
-                ));
-            };
+        let new_constants = if let Value::Coll(CollKind::WrappedColl { items, .. }) = new_values_v {
+            let mut items_const = vec![];
+            for v in items {
+                let c = Constant::try_from(v).map_err(EvalError::Misc)?;
+                items_const.push(c);
+            }
+            items_const
+        } else {
+            return Err(EvalError::Misc(format!(
+                "SubstConstants: expected evaluation of `new_values` be of type `Coll[_]`, got \
+                    {:?} instead",
+                new_values_v
+            )));
+        };
 
         if new_constants.len() != positions.len() {
-            return Err(EvalError::Misc(
-                "SubstConstants: lengths of `positions` and `new_values` differ".into(),
-            ));
+            return Err(EvalError::Misc(format!(
+                "SubstConstants: `positions.len()` (== {}) and `new_values.len()` (== {}) differ",
+                positions.len(),
+                new_constants.len()
+            )));
         }
 
         if let Value::Coll(CollKind::NativeColl(NativeColl::CollByte(b))) = script_bytes_v {
             // Substitue constants with repeated calls to `ErgoTree::with_constant`.
             let mut ergo_tree = ErgoTree::sigma_parse_bytes(&b.as_vec_u8())?;
             let num_constants = ergo_tree.constants_len().map_err(to_misc_err)?;
-            for i in 0..num_constants {
-                if let Some(c) = ergo_tree.get_constant(i).map_err(to_misc_err)? {
-                    if let Some(ix) = positions.iter().position(|j| *j == i) {
-                        if c.tpe == new_constants_type {
-                            ergo_tree = ergo_tree
-                                .with_constant(i, new_constants[ix].clone())
-                                .map_err(to_misc_err)?;
-                        } else {
-                            return Err(EvalError::Misc(format!(
-                                "SubstConstants: Constant {} in ErgoTree is expected to\
-                                    be of type {:?}",
-                                i, c.tpe
-                            )));
-                        }
-                    }
+            for (ix, i) in positions.iter().enumerate() {
+                if *i < num_constants {
+                    ergo_tree = ergo_tree
+                        .with_constant(*i, new_constants[ix].clone())
+                        .map_err(to_misc_err)?;
+                } else {
+                    return Err(EvalError::Misc(format!(
+                        "SubstConstants: positions[{}] == {} is an out of bound index with \
+                       respect to the serialized ErgoTree's constant list",
+                        ix, *i
+                    )));
                 }
             }
             Ok(Value::Coll(CollKind::NativeColl(NativeColl::CollByte(
                 ergo_tree.sigma_serialize_bytes()?.as_vec_i8(),
             ))))
         } else {
-            Err(EvalError::Misc(
-                "SubstConstants: expected evaluation of \
-                 `script_bytes` be of type `Coll[SBytes]`, got _ instead"
-                    .into(),
-            ))
+            Err(EvalError::Misc(format!(
+                "SubstConstants: expected evaluation of `script_bytes` to be of type `Coll[SBytes]`, \
+                 got {:?} instead",
+                script_bytes_v
+            )))
         }
     }
 }

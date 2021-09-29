@@ -425,8 +425,9 @@ impl ErgoTree {
             .map_err(|e| e.clone())
     }
 
-    /// Returns new ErgoTree with a new constant value for a given index in constants list (as stored in serialized ErgoTree),
-    /// or an error
+    /// Returns new ErgoTree with a new constant value for a given index in constants list (as
+    /// stored in serialized ErgoTree), or an error. Note that the type of the new constant must
+    /// coincide with that of the constant being replaced, or an error is returned too.
     pub fn with_constant(
         self,
         index: usize,
