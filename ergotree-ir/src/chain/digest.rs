@@ -77,6 +77,8 @@ impl<const N: usize> SigmaSerializable for Digest<N> {
 
 #[cfg(feature = "arbitrary")]
 mod arbitrary {
+    #![allow(clippy::expect_used)]
+
     use std::convert::TryInto;
 
     use proptest::prelude::{Arbitrary, BoxedStrategy};
@@ -88,7 +90,12 @@ mod arbitrary {
         type Parameters = ();
         fn arbitrary_with(_: Self::Parameters) -> Self::Strategy {
             vec(any::<u8>(), Self::SIZE)
-                .prop_map(|v| Digest(Box::new(v.try_into().unwrap())))
+                .prop_map(|v| {
+                    Digest(Box::new(
+                        v.try_into()
+                            .expect("internal error: vec has length != Digest::SIZE"),
+                    ))
+                })
                 .boxed()
         }
 

@@ -36,6 +36,34 @@ impl<const N: usize> From<Digest<N>> for Base16EncodedBytes {
     }
 }
 
+impl<const N: usize> TryFrom<String> for DigestRef<N> {
+    type Error = Digest32Error;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        let bytes = Base16DecodedBytes::try_from(value)?;
+        Digest::try_from(bytes).map(|dig| DigestRef(dig.0))
+    }
+}
+
+impl<const N: usize> From<DigestRef<N>> for String {
+    fn from(v: DigestRef<N>) -> Self {
+        let bytes = Base16EncodedBytes::from(Into::<Digest<N>>::into(v));
+        bytes.into()
+    }
+}
+
+impl<const N: usize> From<DigestRef<N>> for Digest<N> {
+    fn from(value: DigestRef<N>) -> Self {
+        Digest(value.0)
+    }
+}
+
+impl<const N: usize> From<Digest<N>> for DigestRef<N> {
+    fn from(value: Digest<N>) -> Self {
+        DigestRef(value.0)
+    }
+}
+
 impl<const N: usize> std::fmt::Debug for DigestRef<N> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         base16::encode_lower(&(*self.0)).fmt(f)
