@@ -74,3 +74,25 @@ impl<const N: usize> SigmaSerializable for Digest<N> {
         Ok(Self(bytes.into()))
     }
 }
+
+#[cfg(feature = "arbitrary")]
+mod arbitrary {
+    use std::convert::TryInto;
+
+    use proptest::prelude::{Arbitrary, BoxedStrategy};
+    use proptest::{collection::vec, prelude::*};
+
+    use super::Digest;
+
+    impl<const N: usize> Arbitrary for Digest<N> {
+        type Parameters = ();
+        fn arbitrary_with(_: Self::Parameters) -> Self::Strategy {
+            vec(any::<u8>(), Self::SIZE)
+                .prop_map(|v| Digest(Box::new(v.try_into().unwrap())))
+                .boxed()
+        }
+
+        type Strategy = BoxedStrategy<Self>;
+    }
+}
+

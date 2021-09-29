@@ -194,7 +194,7 @@ pub mod tests {
             match args {
                 ArbTokenIdParam::Predef => prop_oneof![
                     Just(TokenId::from(
-                        Digest32Ref::try_from(
+                        Digest32::try_from(
                             Base16DecodedBytes::try_from(
                                 "3130a82e45842aebb888742868e055e2f554ab7d92f233f2c828ed4a43793710"
                                     .to_string()
@@ -204,7 +204,7 @@ pub mod tests {
                         .unwrap()
                     )),
                     Just(TokenId::from(
-                        Digest32Ref::try_from(
+                        Digest32::try_from(
                             Base16DecodedBytes::try_from(
                                 "e7321ffb4ec5d71deb3110eb1ac09612b9cf57445acab1e0e3b1222d5b5a6c60"
                                     .to_string()
@@ -214,7 +214,7 @@ pub mod tests {
                         .unwrap()
                     )),
                     Just(TokenId::from(
-                        Digest32Ref::try_from(
+                        Digest32::try_from(
                             Base16DecodedBytes::try_from(
                                 "ad62f6dd92e7dc850bc406770dfac9a943dd221a7fb440b7b2bcc7d3149c1792"
                                     .to_string()
@@ -225,7 +225,7 @@ pub mod tests {
                     ))
                 ]
                 .boxed(),
-                ArbTokenIdParam::Arbitrary => (any::<Digest32Ref>()).prop_map_into().boxed(),
+                ArbTokenIdParam::Arbitrary => (any::<Digest32>()).prop_map_into().boxed(),
             }
         }
 
