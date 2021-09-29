@@ -6,6 +6,7 @@ use crate::data_input::DataInputs;
 use crate::error_conversion::to_js;
 use crate::input::{Inputs, UnsignedInputs};
 use ergo_lib::chain;
+use ergo_lib::ergotree_ir::chain::digest::Digest32;
 use ergo_lib::chain::transaction::distinct_token_ids;
 use js_sys::Uint8Array;
 use std::convert::TryFrom;
@@ -44,7 +45,7 @@ impl TxId {
             .map_err(|_e| {
                 JsValue::from_str(&format!(
                     "Expected a Vec of length {} but it was {}",
-                    chain::Digest32Ref::SIZE,
+                    Digest32::SIZE,
                     s.len()
                 ))
             })

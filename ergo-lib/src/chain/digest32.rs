@@ -18,10 +18,7 @@ use thiserror::Error;
     )
 )]
 #[derive(PartialEq, Eq, Hash, Clone)]
-pub struct DigestRef<const N: usize>(pub Box<[u8; N]>);
-
-/// 32 byte Digest type
-pub type Digest32Ref = DigestRef<32>;
+pub(crate) struct DigestRef<const N: usize>(pub Box<[u8; N]>);
 
 impl<const N: usize> std::fmt::Debug for DigestRef<N> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
