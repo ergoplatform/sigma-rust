@@ -95,4 +95,3 @@ mod arbitrary {
         type Strategy = BoxedStrategy<Self>;
     }
 }
-
