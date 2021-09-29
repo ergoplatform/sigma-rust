@@ -32,6 +32,12 @@ impl<const N: usize> Digest<N> {
     }
 }
 
+impl<const N: usize> Default for Digest<N> {
+    fn default() -> Self {
+        Digest::zero()
+    }
+}
+
 impl<const N: usize> From<[u8; N]> for Digest<N> {
     fn from(bytes: [u8; N]) -> Self {
         Digest(Box::new(bytes))

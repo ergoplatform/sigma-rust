@@ -33,7 +33,7 @@ use std::convert::TryFrom;
 use std::ops::{Add, Mul, Neg};
 
 /// Elliptic curve point
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Default)]
 pub struct EcPoint(ProjectivePoint);
 
 #[allow(clippy::unwrap_used)]

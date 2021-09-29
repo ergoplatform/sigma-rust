@@ -1,6 +1,7 @@
 //! Block header
 use num_bigint::BigInt;
 
+use crate::mir::header::PreHeader;
 use crate::sigma_protocol::dlog_group;
 
 use super::block_id::BlockId;
@@ -64,6 +65,21 @@ impl Header {
             nonce: Vec::new(),
             pow_distance: BigInt::default(),
             votes: Votes([0u8; 3]),
+        }
+    }
+}
+
+// todo-sab refactor when implementing this https://github.com/ergoplatform/sigma-rust/issues/373
+impl From<Header> for PreHeader {
+    fn from(bh: Header) -> Self {
+        PreHeader {
+            version: bh.version,
+            parent_id: bh.parent_id.0.into(),
+            timestamp: bh.timestamp,
+            n_bits: bh.n_bits,
+            height: bh.height,
+            miner_pk: dlog_group::identity().into(), // TODO: get from bh.powSolution when its implemented
+            votes: bh.votes.into(),
         }
     }
 }

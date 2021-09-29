@@ -1,49 +1,75 @@
 //! Block header
-// todo-sab ergotree-ir::chain::Header types is the same as BlockHeader - remove duplicate
+use num_bigint::BigInt;
 
-use ergotree_ir::chain::{block_id::BlockId, votes::Votes};
-use ergotree_ir::mir::header::PreHeader;
+use ergotree_ir::chain::{
+    block_id::BlockId,
+    digest::{ADDigest, Digest32},
+    header::Header,
+    votes::Votes,
+};
 use ergotree_ir::sigma_protocol::dlog_group;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 
-// todo-sab remote Header? not pub?
-/// Block header
+/// New-type wrapper for deserializing the remote `Header` type.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HeaderJsonHelper(#[serde(with = "BlockHeaderRef")] pub Header);
+
+/// Block header reference to `Header` type in ergotree-ir.
+///
+/// We do not implement serde traits in ergotree-ir, but they are requested
+/// by crate users. So we split definition into the main one in ergotree-ir and
+/// the one which implements `Serialize` and `Deserialize` (which is here).
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", serde(remote = "Header"))]
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct BlockHeader {
+pub(in crate::chain) struct BlockHeaderRef {
     /// Block version, to be increased on every soft and hardfork
-    pub version: u8,
+    version: u8,
+    /// Bytes representation of ModifierId of this Header
+    #[cfg_attr(feature = "json", serde(skip_serializing, skip_deserializing))]
+    id: BlockId,
     /// Id of a parent block
     #[cfg_attr(
         feature = "json",
         serde(rename = "parentId", with = "block_id::BlockIdRef")
     )]
-    pub parent_id: BlockId,
+    parent_id: BlockId,
+    /// Hash of ADProofs for transactions in a block
+    #[cfg_attr(feature = "json", serde(skip_serializing, skip_deserializing))]
+    ad_proofs_root: Digest32,
+    /// AvlTree of a state after block application
+    #[cfg_attr(feature = "json", serde(skip_serializing, skip_deserializing))]
+    state_root: ADDigest,
+    /// Root hash (for a Merkle tree) of transactions in a block.
+    #[cfg_attr(feature = "json", serde(skip_serializing, skip_deserializing))]
+    transaction_root: Digest32,
     /// Timestamp of a block in ms from UNIX epoch
-    pub timestamp: u64,
+    timestamp: u64,
     /// Current difficulty in a compressed view.
     #[cfg_attr(feature = "json", serde(rename = "nBits"))]
-    pub n_bits: u64,
+    n_bits: u64,
     /// Block height
-    pub height: u32,
+    height: u32,
+    /// Root hash of extension section
+    #[cfg_attr(feature = "json", serde(skip_serializing, skip_deserializing))]
+    extension_root: Digest32,
+    /// Public key of miner. Part of Autolykos solution.
+    #[cfg_attr(feature = "json", serde(skip_serializing, skip_deserializing))]
+    miner_pk: Box<dlog_group::EcPoint>,
+    /// One-time public key. Prevents revealing of miners secret.
+    #[cfg_attr(feature = "json", serde(skip_serializing, skip_deserializing))]
+    pow_onetime_pk: Box<dlog_group::EcPoint>,
+    /// nonce
+    #[cfg_attr(feature = "json", serde(skip_serializing, skip_deserializing))]
+    nonce: Vec<u8>,
+    /// Distance between pseudo-random number, corresponding to nonce `nonce` and a secret,
+    /// corresponding to `miner_pk`. The lower `pow_distance` is, the harder it was to find this solution.
+    #[cfg_attr(feature = "json", serde(skip_serializing, skip_deserializing))]
+    pow_distance: BigInt,
     /// Votes
     #[cfg_attr(feature = "json", serde(with = "votes::VotesRef"))]
-    pub votes: Votes,
-}
-
-impl From<BlockHeader> for PreHeader {
-    fn from(bh: BlockHeader) -> Self {
-        PreHeader {
-            version: bh.version,
-            parent_id: bh.parent_id.0.into(),
-            timestamp: bh.timestamp,
-            n_bits: bh.n_bits,
-            height: bh.height,
-            miner_pk: dlog_group::identity().into(), // TODO: get from bh.powSolution when its implemented
-            votes: bh.votes.into(),
-        }
-    }
+    votes: Votes,
 }
 
 mod votes {

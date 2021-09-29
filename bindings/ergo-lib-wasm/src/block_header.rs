@@ -1,5 +1,7 @@
 //! Block header
-use ergo_lib::chain;
+
+use ergo_lib::chain::HeaderJsonHelper;
+use ergo_lib::ergotree_ir::chain::header::Header;
 use wasm_bindgen::prelude::*;
 
 extern crate derive_more;
@@ -10,13 +12,16 @@ use crate::error_conversion::to_js;
 /// Block header
 #[wasm_bindgen]
 #[derive(PartialEq, Eq, Debug, Clone, From, Into)]
-pub struct BlockHeader(ergo_lib::chain::block_header::BlockHeader);
+pub struct BlockHeader(Header);
 
 #[wasm_bindgen]
 impl BlockHeader {
     /// Parse from JSON (Node API)
     pub fn from_json(json: &str) -> Result<BlockHeader, JsValue> {
-        serde_json::from_str(json).map(Self).map_err(to_js)
+        serde_json::from_str(json)
+            .map(|HeaderJsonHelper(header)| header)
+            .map(Self)
+            .map_err(to_js)
     }
 }
 
@@ -33,13 +38,14 @@ impl BlockHeaders {
         json_vals
             .iter()
             .try_fold(vec![], |mut acc, jb| {
-                let b: chain::block_header::BlockHeader = if jb.is_string() {
+                let b: Header = if jb.is_string() {
                     let jb_str = jb
                         .as_string()
                         .ok_or(JsValue::from_str("Expected BlockHeader JSON as string"))?;
-                    serde_json::from_str(jb_str.as_str())
+                    serde_json::from_str(jb_str.as_str()).map(|HeaderJsonHelper(header)| header)
                 } else {
-                    jb.into_serde::<chain::block_header::BlockHeader>()
+                    jb.into_serde::<HeaderJsonHelper>()
+                        .map(|HeaderJsonHelper(header)| header)
                 }
                 .map_err(|e| {
                     JsValue::from_str(&format!(
@@ -75,16 +81,14 @@ impl BlockHeaders {
     }
 }
 
-impl From<Vec<chain::block_header::BlockHeader>> for BlockHeaders {
-    fn from(bs: Vec<chain::block_header::BlockHeader>) -> Self {
+impl From<Vec<Header>> for BlockHeaders {
+    fn from(bs: Vec<Header>) -> Self {
         BlockHeaders(bs.into_iter().map(BlockHeader::from).collect())
     }
 }
 
-impl From<BlockHeaders> for Vec<chain::block_header::BlockHeader> {
+impl From<BlockHeaders> for Vec<Header> {
     fn from(bs: BlockHeaders) -> Self {
-        bs.0.into_iter()
-            .map(chain::block_header::BlockHeader::from)
-            .collect()
+        bs.0.into_iter().map(Header::from).collect()
     }
 }
