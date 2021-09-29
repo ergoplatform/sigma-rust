@@ -9,7 +9,7 @@ use ergotree_ir::serialization::SigmaSerializeResult;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 
-use crate::chain::{Base16DecodedBytes, Base16EncodedBytes, Digest32Error, DigestDef};
+use crate::chain::{Base16DecodedBytes, Base16EncodedBytes, Digest32Error, DigestRef};
 
 use derive_more::From;
 use derive_more::Into;

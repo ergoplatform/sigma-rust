@@ -9,7 +9,7 @@ use ergotree_ir::serialization::{
 use std::convert::TryFrom;
 
 use super::ergo_box::BoxId;
-use super::{digest32::DigestDef, Base16EncodedBytes};
+use super::{digest32::DigestRef, Base16EncodedBytes};
 use derive_more::From;
 use derive_more::Into;
 #[cfg(test)]

@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 
 use super::Base16DecodedBytes;
 use super::Base16EncodedBytes;
-use super::DigestDef;
+use super::DigestRef;
 
 /// Block id
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]

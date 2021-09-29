@@ -23,7 +23,7 @@ use self::unsigned::UnsignedTransaction;
 #[cfg(feature = "json")]
 use super::json;
 use super::{
-    digest32::DigestDef, ergo_box::ErgoBox, ergo_box::ErgoBoxCandidate, token::TokenId,
+    digest32::DigestRef, ergo_box::ErgoBox, ergo_box::ErgoBoxCandidate, token::TokenId,
     Base16EncodedBytes,
 };
 use indexmap::IndexSet;

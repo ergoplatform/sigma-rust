@@ -1,11 +1,3 @@
-//! Digest types used in ergo-lib and binding crates
-//!
-//! There is quite same implementation in [ergotree-ir]() crate, but the one here one was introduced
-//! before the latter one. The idea was to move all th types there, but for the middle decision,
-//! in order not to break compatibility with crates, that use this implementation
-//! currently, we decided to create a "remote" implementation for [ergotree-ir]() and use serde "remote" attribute.
-//! So the "remote" is actually defined here now.
-
 use crate::chain::{Base16DecodedBytes, Base16EncodedBytes};
 use ergotree_ir::chain::digest::Digest;
 #[cfg(feature = "json")]
@@ -26,29 +18,29 @@ use thiserror::Error;
     )
 )]
 #[derive(PartialEq, Eq, Hash, Clone)]
-pub struct DigestDef<const N: usize>(pub Box<[u8; N]>);
+pub struct DigestRef<const N: usize>(pub Box<[u8; N]>);
 
 /// 32 byte Digest type
-pub type Digest32Ref = DigestDef<32>;
+pub type Digest32Ref = DigestRef<32>;
 
-impl<const N: usize> DigestDef<N> {
+impl<const N: usize> DigestRef<N> {
     /// Digest size 32 bytes
     pub const SIZE: usize = N;
 
     /// All zeros
-    pub fn zero() -> DigestDef<N> {
-        DigestDef(Box::new([0u8; N]))
+    pub fn zero() -> DigestRef<N> {
+        DigestRef(Box::new([0u8; N]))
     }
 }
 
-impl<const N: usize> std::fmt::Debug for DigestDef<N> {
+impl<const N: usize> std::fmt::Debug for DigestRef<N> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         base16::encode_lower(&(*self.0)).fmt(f)
     }
 }
 
-impl<const N: usize> From<DigestDef<N>> for Base16EncodedBytes {
-    fn from(v: DigestDef<N>) -> Self {
+impl<const N: usize> From<DigestRef<N>> for Base16EncodedBytes {
+    fn from(v: DigestRef<N>) -> Self {
         Base16EncodedBytes::new(v.0.as_ref())
     }
 }
@@ -59,18 +51,18 @@ impl<const N: usize> From<Digest<N>> for Base16EncodedBytes {
     }
 }
 
-impl<const N: usize> From<DigestDef<N>> for String {
-    fn from(v: DigestDef<N>) -> Self {
+impl<const N: usize> From<DigestRef<N>> for String {
+    fn from(v: DigestRef<N>) -> Self {
         let bytes: Base16EncodedBytes = v.into();
         bytes.into()
     }
 }
 
-impl<const N: usize> TryFrom<Base16DecodedBytes> for DigestDef<N> {
+impl<const N: usize> TryFrom<Base16DecodedBytes> for DigestRef<N> {
     type Error = Digest32Error;
     fn try_from(bytes: Base16DecodedBytes) -> Result<Self, Self::Error> {
         let arr: [u8; N] = bytes.0.as_slice().try_into()?;
-        Ok(DigestDef(Box::new(arr)))
+        Ok(DigestRef(Box::new(arr)))
     }
 }
 
@@ -82,12 +74,12 @@ impl<const N: usize> TryFrom<Base16DecodedBytes> for Digest<N> {
     }
 }
 
-impl<const N: usize> TryFrom<String> for DigestDef<N> {
+impl<const N: usize> TryFrom<String> for DigestRef<N> {
     type Error = Digest32Error;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         let bytes = Base16DecodedBytes::try_from(value)?;
-        DigestDef::<N>::try_from(bytes)
+        DigestRef::<N>::try_from(bytes)
     }
 }
 
@@ -104,18 +96,18 @@ pub enum Digest32Error {
 
 #[cfg(test)]
 mod tests {
-    use super::DigestDef;
+    use super::DigestRef;
     use proptest::prelude::{Arbitrary, BoxedStrategy};
     use proptest::{collection::vec, prelude::*};
     use std::convert::TryInto;
 
-    impl<const N: usize> Arbitrary for DigestDef<N> {
+    impl<const N: usize> Arbitrary for DigestRef<N> {
         type Parameters = ();
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(_: Self::Parameters) -> Self::Strategy {
             vec(any::<u8>(), Self::SIZE)
-                .prop_map(|v| DigestDef(Box::new(v.try_into().unwrap())))
+                .prop_map(|v| DigestRef(Box::new(v.try_into().unwrap())))
                 .boxed()
         }
     }
