@@ -7,7 +7,7 @@ use std::convert::TryInto;
 use std::fmt::Formatter;
 use thiserror::Error;
 
-/// Definition for remote Digest type. Remote Digest wasn't used, because in ergo-lib
+/// Reference to remote Digest type. Remote Digest wasn't used, because in ergo-lib
 /// this type is mostly needed for json serialization and deserialization. Such traits
 /// of Digest aren't needed in ergotree-ir.
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
