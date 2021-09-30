@@ -7,4 +7,3 @@ pub trait Base16Str {
     /// Returns serialized bytes encoded as Base16
     fn base16_str(&self) -> Result<String, SigmaSerializationError>;
 }
-
