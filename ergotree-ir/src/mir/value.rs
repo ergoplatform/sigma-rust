@@ -7,7 +7,6 @@ use impl_trait_for_tuples::impl_for_tuples;
 
 use crate::bigint256::BigInt256;
 use crate::chain::header::Header;
-use crate::ir_ergo_box::IrBoxId;
 use crate::ir_ergo_box::IrErgoBox;
 use crate::sigma_protocol::dlog_group::EcPoint;
 use crate::sigma_protocol::sigma_boolean::SigmaProp;
@@ -272,7 +271,6 @@ impl StoreWrapped for i16 {}
 impl StoreWrapped for i32 {}
 impl StoreWrapped for i64 {}
 impl StoreWrapped for BigInt256 {}
-impl StoreWrapped for IrBoxId {}
 impl StoreWrapped for Rc<dyn IrErgoBox> {}
 impl StoreWrapped for Header {}
 impl StoreWrapped for EcPoint {}
