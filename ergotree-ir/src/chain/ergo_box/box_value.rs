@@ -11,6 +11,7 @@ use std::convert::TryFrom;
 use thiserror::Error;
 
 /// Box value in nanoERGs with bound checks
+#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 #[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
 pub struct BoxValue(pub(crate) u64);
 
@@ -204,7 +205,7 @@ pub mod arbitrary {
 
     use super::*;
 
-    /// Box value parameters for Arbitrary impl
+    /// Range for arbitrary BoxValue values
     #[derive(Debug, From, Into)]
     pub struct ArbBoxValueRange(Range<u64>);
 

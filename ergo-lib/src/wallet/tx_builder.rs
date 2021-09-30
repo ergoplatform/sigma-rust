@@ -1,5 +1,6 @@
 //! Builder for an UnsignedTransaction
 
+use ergotree_ir::chain::ergo_box::box_value::BoxValueError;
 use std::collections::HashSet;
 use std::convert::TryInto;
 
@@ -9,9 +10,8 @@ use ergotree_interpreter::sigma_protocol::prover::ProofBytes;
 use ergotree_ir::chain::address::Address;
 use ergotree_ir::chain::address::AddressEncoder;
 use ergotree_ir::chain::address::NetworkPrefix;
+use ergotree_ir::chain::ergo_box::box_value::BoxValue;
 use ergotree_ir::chain::ergo_box::BoxId;
-use ergotree_ir::chain::ergo_box::BoxValue;
-use ergotree_ir::chain::ergo_box::BoxValueError;
 use ergotree_ir::chain::ergo_box::ErgoBoxCandidate;
 use ergotree_ir::chain::token::Token;
 use ergotree_ir::chain::token::TokenId;
@@ -30,9 +30,6 @@ use super::box_selector::ErgoBoxAssets;
 use super::box_selector::ErgoBoxId;
 use super::box_selector::{BoxSelection, BoxSelectorError};
 
-/// Suggested transaction fee (1100000 nanoERGs, semi-default value used across wallets and dApps as of Oct 2020)
-pub const SUGGESTED_TX_FEE: BoxValue = BoxValue::new(1100000u64).unwrap();
-
 /// Unsigned transaction builder
 #[derive(Clone)]
 pub struct TxBuilder<S: ErgoBoxAssets> {
@@ -46,6 +43,12 @@ pub struct TxBuilder<S: ErgoBoxAssets> {
 }
 
 impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
+    /// Suggested transaction fee (1100000 nanoERGs, semi-default value used across wallets and dApps as of Oct 2020)
+    #[allow(non_snake_case)]
+    pub fn SUGGESTED_TX_FEE() -> BoxValue {
+        BoxValue::new(1100000u64).unwrap()
+    }
+
     /// Creates new TxBuilder
     /// `box_selection` - selected input boxes  (via [`super::box_selector::BoxSelector`])
     /// `output_candidates` - output boxes to be "created" in this transaction,
@@ -294,7 +297,7 @@ mod tests {
 
     use std::convert::TryInto;
 
-    use ergotree_ir::chain::ergo_box::checked_sum;
+    use ergotree_ir::chain::ergo_box::box_value::checked_sum;
     use ergotree_ir::chain::ergo_box::ErgoBox;
     use ergotree_ir::chain::ergo_box::NonMandatoryRegisters;
     use ergotree_ir::chain::token::arbitrary::ArbTokenIdParam;

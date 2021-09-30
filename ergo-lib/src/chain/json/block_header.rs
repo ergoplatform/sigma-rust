@@ -1,3 +1,4 @@
+use ergotree_ir::chain::base16_bytes::Base16DecodedBytes;
 use serde::Deserialize;
 use std::convert::TryFrom;
 use std::convert::TryInto;

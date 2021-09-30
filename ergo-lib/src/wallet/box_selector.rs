@@ -3,9 +3,9 @@
 mod simple;
 use std::collections::HashMap;
 
+use ergotree_ir::chain::ergo_box::box_value::BoxValue;
+use ergotree_ir::chain::ergo_box::box_value::BoxValueError;
 use ergotree_ir::chain::ergo_box::BoxId;
-use ergotree_ir::chain::ergo_box::BoxValue;
-use ergotree_ir::chain::ergo_box::BoxValueError;
 use ergotree_ir::chain::ergo_box::ErgoBox;
 use ergotree_ir::chain::ergo_box::ErgoBoxCandidate;
 use ergotree_ir::chain::token::Token;
@@ -115,7 +115,7 @@ pub trait ErgoBoxId {
 
 impl ErgoBoxId for ErgoBox {
     fn box_id(&self) -> BoxId {
-        self.box_id.clone()
+        self.box_id().clone()
     }
 }
 
@@ -151,8 +151,8 @@ pub fn sum_tokens_from_boxes<T: ErgoBoxAssets>(bs: &[T]) -> HashMap<TokenId, Tok
 #[cfg(test)]
 mod tests {
 
-    use ergotree_ir::chain::ergo_box::arbitrary::ArbBoxValueRange;
-    use ergotree_ir::chain::ergo_box::BoxValue;
+    use ergotree_ir::chain::ergo_box::box_value::arbitrary::ArbBoxValueRange;
+    use ergotree_ir::chain::ergo_box::box_value::BoxValue;
     use ergotree_ir::chain::token::Token;
     use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
     use sigma_test_util::force_any_val;
@@ -199,7 +199,7 @@ mod tests {
 
         #[test]
         fn sum_tokens_eq(b in any::<ErgoBoxAssetsData>()) {
-            prop_assert_eq!(sum_tokens(b.tokens().as_slice()), sum_tokens_from_boxes(vec![b].as_slice()))
+            prop_assert_eq!(sum_tokens(b.tokens.as_slice()), sum_tokens_from_boxes(vec![b].as_slice()))
         }
     }
 }

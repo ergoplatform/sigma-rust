@@ -1,10 +1,10 @@
 //! Transitioning type for Base16 encoded bytes in JSON serialization
 
-use ergotree_ir::chain::digest32::Digest;
-use ergotree_ir::chain::digest32::Digest32Error;
-use ergotree_ir::mir::constant::Constant;
-use ergotree_ir::serialization::SigmaParsingError;
-use ergotree_ir::serialization::SigmaSerializable;
+use crate::chain::digest32::Digest;
+use crate::chain::digest32::Digest32Error;
+use crate::mir::constant::Constant;
+use crate::serialization::SigmaParsingError;
+use crate::serialization::SigmaSerializable;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;

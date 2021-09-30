@@ -15,7 +15,6 @@ use ergotree_interpreter::eval::context::Context;
 use ergotree_interpreter::eval::env::Env;
 use ergotree_interpreter::sigma_protocol::prover::ProverError;
 use ergotree_interpreter::sigma_protocol::prover::{ContextExtension, Prover};
-use ergotree_ir::ir_ergo_box::IrErgoBox;
 use thiserror::Error;
 
 /// Errors on transaction signing
@@ -66,21 +65,15 @@ pub fn make_context(
         .map(|(idx, b)| ErgoBox::from_box_candidate(b, tx_ctx.spending_tx.id(), idx as u16))
         .collect::<Result<Vec<ErgoBox>, SigmaSerializationError>>()?;
     let data_inputs: Vec<ErgoBox> = tx_ctx.data_boxes.clone();
-    let self_box_ir = Rc::new(self_box) as Rc<dyn IrErgoBox>;
-    let outputs_ir = outputs
-        .into_iter()
-        .map(|b| Rc::new(b) as Rc<dyn IrErgoBox>)
-        .collect();
+    let self_box_ir = Rc::new(self_box);
+    let outputs_ir = outputs.into_iter().map(|b| Rc::new(b)).collect();
     let inputs_ir = tx_ctx
         .boxes_to_spend
         .clone()
         .into_iter()
-        .map(|b| Rc::new(b) as Rc<dyn IrErgoBox>)
+        .map(|b| Rc::new(b))
         .collect();
-    let data_inputs_ir = data_inputs
-        .into_iter()
-        .map(|b| Rc::new(b) as Rc<dyn IrErgoBox>)
-        .collect();
+    let data_inputs_ir = data_inputs.into_iter().map(|b| Rc::new(b)).collect();
     Ok(Context {
         height,
         self_box: self_box_ir,
@@ -140,7 +133,7 @@ mod tests {
     use ergotree_interpreter::sigma_protocol::verifier::VerifierError;
     use ergotree_ir::chain::address::AddressEncoder;
     use ergotree_ir::chain::address::NetworkPrefix;
-    use ergotree_ir::chain::ergo_box::BoxValue;
+    use ergotree_ir::chain::ergo_box::box_value::BoxValue;
     use ergotree_ir::chain::ergo_box::NonMandatoryRegisters;
     use ergotree_ir::chain::tx_id::TxId;
     use proptest::collection::vec;

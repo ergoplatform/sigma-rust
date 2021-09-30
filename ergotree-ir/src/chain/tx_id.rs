@@ -11,7 +11,7 @@ use super::digest32::Digest32;
 /// Transaction id (ModifierId in sigmastate)
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
 #[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 pub struct TxId(pub Digest32);
 
 impl TxId {

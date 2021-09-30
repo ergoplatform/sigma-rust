@@ -4,7 +4,7 @@ use std::cmp::min;
 use std::collections::HashMap;
 use std::convert::TryInto;
 
-use ergotree_ir::chain::ergo_box::BoxValue;
+use ergotree_ir::chain::ergo_box::box_value::BoxValue;
 use ergotree_ir::chain::token::Token;
 use ergotree_ir::chain::token::TokenAmount;
 use ergotree_ir::chain::token::TokenId;
@@ -166,7 +166,7 @@ impl Default for SimpleBoxSelector {
 mod tests {
     use std::convert::TryFrom;
 
-    use ergotree_ir::chain::ergo_box::checked_sum;
+    use ergotree_ir::chain::ergo_box::box_value::checked_sum;
     use ergotree_ir::chain::ergo_box::ErgoBox;
     use proptest::{collection::vec, prelude::*};
 
@@ -311,7 +311,7 @@ mod tests {
                             "all tokens from selected boxes should equal all tokens from the change boxes + target tokens");
             prop_assert!(
                 selection.boxes.iter()
-                    .all(|b| b.tokens.iter().any(|t| t.token_id == *target_token_id)),
+                    .all(|b| b.tokens().iter().any(|t| t.token_id == *target_token_id)),
                 "only boxes that have target token should be selected, got: {0:?}", selection.boxes
             );
         }
@@ -341,7 +341,7 @@ mod tests {
                             "all tokens from selected boxes should equal all tokens from the change boxes + target tokens");
             prop_assert!(
                 selection.boxes.iter()
-                    .all(|b| b.tokens.iter().any(|t| t.token_id == *target_token_id)),
+                    .all(|b| b.tokens().iter().any(|t| t.token_id == *target_token_id)),
                 "only boxes that have target token should be selected, got: {0:?}", selection.boxes
             );
         }
@@ -386,7 +386,7 @@ mod tests {
                             "all tokens from selected boxes should equal all tokens from the change boxes + target tokens");
             prop_assert!(
                 selection.boxes.iter()
-                    .all(|b| b.tokens.iter().any(|t| t.token_id == *target_token1_id || t.token_id == *target_token2_id)),
+                    .all(|b| b.tokens().iter().any(|t| t.token_id == *target_token1_id || t.token_id == *target_token2_id)),
                 "only boxes that have target tokens should be selected, got: {0:?}", selection.boxes
             );
         }

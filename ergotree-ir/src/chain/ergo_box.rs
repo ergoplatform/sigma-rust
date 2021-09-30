@@ -1,7 +1,7 @@
 //! Ergo box
 
 mod box_id;
-mod box_value;
+pub mod box_value;
 mod register;
 
 use crate::ergo_tree::ErgoTree;
@@ -15,7 +15,6 @@ use crate::serialization::SigmaSerializeResult;
 use crate::util::AsVecI8;
 
 pub use box_id::*;
-pub use box_value::*;
 pub use register::*;
 
 use indexmap::IndexSet;
@@ -23,6 +22,8 @@ use sigma_util::hash::blake2b256_hash;
 use std::convert::TryFrom;
 
 use std::convert::TryInto;
+
+use self::box_value::BoxValue;
 
 use super::digest32::Digest32;
 use super::token::Token;
@@ -46,8 +47,11 @@ use super::tx_id::TxId;
 ///
 /// A transaction is unsealing a box. As a box can not be open twice, any further valid transaction
 /// can not be linked to the same box.
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "json", serde(try_from = "json::ergo_box::ErgoBoxFromJson"))]
+#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "json",
+    serde(try_from = "crate::chain::json::ergo_box::ErgoBoxFromJson")
+)]
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ErgoBox {
     #[cfg_attr(feature = "json", serde(rename = "boxId", alias = "id"))]
@@ -56,7 +60,10 @@ pub struct ErgoBox {
     #[cfg_attr(feature = "json", serde(rename = "value"))]
     pub value: BoxValue,
     /// guarding script, which should be evaluated to true in order to open this box
-    #[cfg_attr(feature = "json", serde(rename = "ergoTree", with = "json::ergo_tree"))]
+    #[cfg_attr(
+        feature = "json",
+        serde(rename = "ergoTree", with = "crate::chain::json::ergo_tree")
+    )]
     pub ergo_tree: ErgoTree,
     /// secondary tokens the box contains
     #[cfg_attr(feature = "json", serde(rename = "assets"))]
@@ -137,7 +144,7 @@ impl ErgoBox {
         })
     }
 
-    fn calc_box_id(&self) -> Result<BoxId, SigmaSerializationError> {
+    pub(crate) fn calc_box_id(&self) -> Result<BoxId, SigmaSerializationError> {
         let bytes = self.sigma_serialize_bytes()?;
         let hash = blake2b256_hash(&bytes);
         Ok(Digest32::from(*hash).into())
@@ -205,17 +212,52 @@ impl SigmaSerializable for ErgoBox {
     }
 }
 
+#[cfg(feature = "json")]
+impl TryFrom<super::json::ergo_box::ErgoBoxFromJson> for ErgoBox {
+    type Error = super::json::ergo_box::ErgoBoxFromJsonError;
+    fn try_from(box_json: super::json::ergo_box::ErgoBoxFromJson) -> Result<Self, Self::Error> {
+        let box_with_zero_id = ErgoBox {
+            box_id: BoxId::zero(),
+            value: box_json.value,
+            ergo_tree: box_json.ergo_tree,
+            tokens: box_json.tokens,
+            additional_registers: box_json.additional_registers,
+            creation_height: box_json.creation_height,
+            transaction_id: box_json.transaction_id,
+            index: box_json.index,
+        };
+        let box_id = box_with_zero_id.calc_box_id()?;
+        let ergo_box = ErgoBox {
+            box_id,
+            ..box_with_zero_id
+        };
+        match box_json.box_id {
+            Some(box_id) => {
+                if ergo_box.box_id() == box_id {
+                    Ok(ergo_box)
+                } else {
+                    Err(super::json::ergo_box::ErgoBoxFromJsonError::InvalidBoxId)
+                }
+            }
+            None => Ok(ergo_box),
+        }
+    }
+}
+
 /// Contains the same fields as `ErgoBox`, except if transaction id and index,
 /// that will be calculated after full transaction formation.
 /// Use [`box_builder::ErgoBoxCandidateBuilder`] to create an instance.
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct ErgoBoxCandidate {
     /// amount of money associated with the box
     #[cfg_attr(feature = "json", serde(rename = "value"))]
     pub value: BoxValue,
     /// guarding script, which should be evaluated to true in order to open this box
-    #[cfg_attr(feature = "json", serde(rename = "ergoTree", with = "json::ergo_tree"))]
+    #[cfg_attr(
+        feature = "json",
+        serde(rename = "ergoTree", with = "crate::chain::json::ergo_tree")
+    )]
     pub ergo_tree: ErgoTree,
     /// secondary tokens the box contains
     #[cfg_attr(feature = "json", serde(rename = "assets"))]

@@ -15,7 +15,7 @@ use thiserror::Error;
 
 /// newtype for token id
 #[derive(PartialEq, Eq, Hash, Debug, Clone, From, Into)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 pub struct TokenId(Digest32);
 
 impl TokenId {
@@ -64,7 +64,7 @@ impl SigmaSerializable for TokenId {
 
 /// Token amount with bound checks
 #[derive(PartialEq, Eq, Hash, Debug, Clone, Copy, PartialOrd, Ord)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 pub struct TokenAmount(u64);
 
 impl TokenAmount {
@@ -149,7 +149,7 @@ impl From<Token> for (Vec<i8>, i64) {
 /// Token represented with token id paired with it's amount
 #[derive(PartialEq, Eq, Debug, Clone)]
 #[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 pub struct Token {
     /// token id
     #[cfg_attr(feature = "json", serde(rename = "tokenId"))]

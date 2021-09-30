@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 
-use ergotree_ir::chain::ergo_box::BoxValue;
+use ergotree_ir::chain::ergo_box::box_value::BoxValue;
 use ergotree_ir::chain::ergo_box::ErgoBoxCandidate;
 use ergotree_ir::chain::ergo_box::NonMandatoryRegisterId;
 use ergotree_ir::chain::ergo_box::NonMandatoryRegisters;

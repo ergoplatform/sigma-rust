@@ -1,5 +1,7 @@
 //! Digest types for various sizes
 
+use crate::chain::base16_bytes::Base16DecodedBytes;
+use crate::chain::base16_bytes::Base16EncodedBytes;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::SigmaParsingError;
@@ -12,7 +14,7 @@ use std::fmt::Formatter;
 use thiserror::Error;
 
 /// N-bytes array in a box. `Digest32` is most type synonym.
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "json",
     serde(into = "Base16EncodedBytes", try_from = "Base16DecodedBytes")

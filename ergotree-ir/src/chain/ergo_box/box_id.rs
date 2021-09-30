@@ -15,7 +15,7 @@ use derive_more::Into;
 
 /// newtype for box ids
 #[derive(PartialEq, Eq, Hash, Debug, Clone, From, Into)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
 pub struct BoxId(Digest32);
 
