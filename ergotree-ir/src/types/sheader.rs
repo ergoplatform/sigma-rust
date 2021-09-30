@@ -181,5 +181,3 @@ lazy_static! {
 fn property(name: &'static str, res_tpe: SType, id: MethodId) -> SMethodDesc {
     SMethodDesc::property(SType::SHeader, name, res_tpe, id)
 }
-
-// todo test
