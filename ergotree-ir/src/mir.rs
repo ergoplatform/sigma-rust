@@ -3,6 +3,8 @@
 pub mod and;
 pub mod apply;
 pub mod atleast;
+/// Avl tree data
+pub mod avl_tree_data;
 pub mod bin_op;
 /// Bit inversion operation on numeric type.
 pub mod bit_inversion;

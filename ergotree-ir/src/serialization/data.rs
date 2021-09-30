@@ -1,3 +1,4 @@
+use crate::mir::avl_tree_data::AvlTreeData;
 use crate::mir::constant::Literal;
 use crate::mir::constant::TryExtractFromError;
 use crate::mir::constant::TryExtractInto;
@@ -38,6 +39,7 @@ impl DataSerializer {
             Literal::GroupElement(ecp) => ecp.sigma_serialize(w)?,
             Literal::SigmaProp(s) => s.value().sigma_serialize(w)?,
             Literal::CBox(_) => return Err(SigmaSerializationError::NotImplementedYet("Box")),
+            Literal::AvlTree(a) => a.sigma_serialize(w)?,
             Literal::Coll(ct) => match ct {
                 CollKind::NativeColl(NativeColl::CollByte(b)) => {
                     w.put_usize_as_u16_unwrapped(b.len())?;
@@ -148,11 +150,7 @@ impl DataSerializer {
                     "SBox data".to_string(),
                 ))
             }
-            SAvlTree => {
-                return Err(SigmaParsingError::NotImplementedYet(
-                    "SAvlTree data".to_string(),
-                ))
-            }
+            SAvlTree => Literal::AvlTree(Box::new(AvlTreeData::sigma_parse(r)?)),
             STypeVar(_) => return Err(SigmaParsingError::NotSupported("TypeVar data")),
             SAny => return Err(SigmaParsingError::NotSupported("SAny data")),
             SOption(_) => return Err(SigmaParsingError::NotSupported("SOption data")),

@@ -19,6 +19,7 @@ mod constant_placeholder;
 
 pub use constant_placeholder::*;
 
+use super::avl_tree_data::AvlTreeData;
 use super::value::NativeColl;
 use super::value::StoreWrapped;
 use super::value::Value;
@@ -55,6 +56,8 @@ pub enum Literal {
     GroupElement(Box<EcPoint>),
     /// Ergo box ID
     CBox(IrBoxId),
+    /// AVL tree
+    AvlTree(Box<AvlTreeData>),
     /// Collection
     Coll(CollKind<Literal>),
     /// Option type
@@ -209,7 +212,7 @@ impl TryFrom<Value> for Constant {
                     Err("Can't convert Value:Tup element".into())
                 }
             }
-            Value::AvlTree => Err("Cannot convert Value::AvlTree into Constant".into()),
+            Value::AvlTree(a) => Ok(Constant::from(*a)),
             Value::Context => Err("Cannot convert Value::Context into Constant".into()),
             Value::Global => Err("Cannot convert Value::Global into Constant".into()),
             Value::Lambda(_) => Err("Cannot convert Value::Lambda(_) into Constant".into()),
@@ -355,6 +358,15 @@ impl From<BigInt256> for Constant {
         Constant {
             tpe: SType::SBigInt,
             v: Literal::BigInt(b),
+        }
+    }
+}
+
+impl From<AvlTreeData> for Constant {
+    fn from(a: AvlTreeData) -> Self {
+        Constant {
+            tpe: SType::SAvlTree,
+            v: Literal::AvlTree(Box::new(a)),
         }
     }
 }
@@ -548,6 +560,19 @@ impl TryExtractFrom<Literal> for BigInt256 {
     fn try_extract_from(v: Literal) -> Result<Self, TryExtractFromError> {
         match v {
             Literal::BigInt(bi) => Ok(bi),
+            _ => Err(TryExtractFromError(format!(
+                "expected {:?}, found {:?}",
+                std::any::type_name::<Self>(),
+                v
+            ))),
+        }
+    }
+}
+
+impl TryExtractFrom<Literal> for AvlTreeData {
+    fn try_extract_from(v: Literal) -> Result<Self, TryExtractFromError> {
+        match v {
+            Literal::AvlTree(a) => Ok(*a),
             _ => Err(TryExtractFromError(format!(
                 "expected {:?}, found {:?}",
                 std::any::type_name::<Self>(),

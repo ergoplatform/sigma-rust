@@ -4,6 +4,7 @@ use std::fmt::Debug;
 use crate::serialization::types::TypeCode;
 use crate::serialization::SigmaParsingError;
 
+use super::savltree;
 use super::sbox;
 use super::scoll;
 use super::scontext;
@@ -37,6 +38,8 @@ pub enum STypeCompanion {
     PreHeader,
     /// Option
     Option,
+    /// AVL tree
+    AvlTree,
 }
 
 impl STypeCompanion {
@@ -50,6 +53,7 @@ impl STypeCompanion {
             STypeCompanion::Header => &*sheader::METHOD_DESC,
             STypeCompanion::PreHeader => &*spreheader::METHOD_DESC,
             STypeCompanion::Option => &*soption::METHOD_DESC,
+            STypeCompanion::AvlTree => &*savltree::METHOD_DESC,
         }
     }
 
@@ -80,6 +84,7 @@ impl STypeCompanion {
             STypeCompanion::Header => sheader::TYPE_CODE,
             STypeCompanion::PreHeader => spreheader::TYPE_CODE,
             STypeCompanion::Option => soption::TYPE_CODE,
+            STypeCompanion::AvlTree => savltree::TYPE_CODE,
         }
     }
 
@@ -94,6 +99,7 @@ impl STypeCompanion {
             STypeCompanion::Header => sheader::TYPE_NAME,
             STypeCompanion::PreHeader => spreheader::TYPE_NAME,
             STypeCompanion::Option => soption::TYPE_NAME,
+            STypeCompanion::AvlTree => savltree::TYPE_NAME,
         }
     }
 }

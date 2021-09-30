@@ -21,7 +21,7 @@ use crate::serialization::SigmaSerializeResult;
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SigmaParsingError, SigmaSerializable,
 };
-use k256::elliptic_curve::ff::PrimeField;
+use elliptic_curve::group::{ff::PrimeField, prime::PrimeCurveAffine};
 use k256::elliptic_curve::sec1::ToEncodedPoint;
 use k256::{ProjectivePoint, PublicKey, Scalar};
 use num_bigint::BigUint;

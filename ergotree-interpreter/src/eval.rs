@@ -74,6 +74,7 @@ pub(crate) mod option_get_or_else;
 pub(crate) mod option_is_defined;
 pub(crate) mod or;
 pub(crate) mod property_call;
+pub(crate) mod savltree;
 pub(crate) mod sbox;
 pub(crate) mod scoll;
 pub(crate) mod scontext;
@@ -93,6 +94,9 @@ pub(crate) mod xor_of;
 /// Interpreter errors
 #[derive(Error, PartialEq, Eq, Debug, Clone)]
 pub enum EvalError {
+    /// AVL tree errors
+    #[error("AvlTree: {0}")]
+    AvlTree(String),
     /// Only boolean or SigmaBoolean is a valid result expr type
     #[error("Only boolean or SigmaBoolean is a valid result expr type")]
     InvalidResultType,
@@ -197,6 +201,15 @@ type EvalFn = fn(env: &Env, ctx: &mut EvalContext, Value, Vec<Value>) -> Result<
 fn smethod_eval_fn(method: &SMethod) -> Result<EvalFn, EvalError> {
     use ergotree_ir::types::*;
     Ok(match method.obj_type.type_code() {
+        savltree::TYPE_CODE => match method.method_id() {
+            savltree::INSERT_METHOD_ID => self::savltree::INSERT_EVAL_FN,
+            method_id => {
+                return Err(EvalError::NotFound(format!(
+                    "Eval fn: unknown method id in SAvlTree: {:?}",
+                    method_id
+                )))
+            }
+        },
         scontext::TYPE_CODE => match method.method_id() {
             scontext::DATA_INPUTS_PROPERTY_METHOD_ID => self::scontext::DATA_INPUTS_EVAL_FN,
             scontext::SELF_BOX_INDEX_PROPERTY_METHOD_ID => self::scontext::SELF_BOX_INDEX_EVAL_FN,
