@@ -124,6 +124,12 @@ impl From<Rc<ErgoBox>> for Literal {
     }
 }
 
+impl From<ErgoBox> for Literal {
+    fn from(b: ErgoBox) -> Self {
+        Literal::CBox(Rc::new(b))
+    }
+}
+
 impl From<Vec<u8>> for Literal {
     fn from(v: Vec<u8>) -> Self {
         Literal::Coll(CollKind::NativeColl(NativeColl::CollByte(
@@ -291,6 +297,15 @@ impl From<EcPoint> for Constant {
 
 impl From<Rc<ErgoBox>> for Constant {
     fn from(b: Rc<ErgoBox>) -> Self {
+        Constant {
+            tpe: SType::SBox,
+            v: b.into(),
+        }
+    }
+}
+
+impl From<ErgoBox> for Constant {
+    fn from(b: ErgoBox) -> Self {
         Constant {
             tpe: SType::SBox,
             v: b.into(),
@@ -725,7 +740,7 @@ pub(crate) mod arbitrary {
             SType::SBigInt => any::<i64>().prop_map(|v| BigInt256::from(v).into()).boxed(),
             SType::SGroupElement => any::<EcPoint>().prop_map_into().boxed(),
             SType::SSigmaProp => any::<SigmaProp>().prop_map_into().boxed(),
-            // SType::SBox => {}
+            SType::SBox => any::<ErgoBox>().prop_map_into().boxed(),
             // SType::SAvlTree => {}
             // SType::SOption(tpe) =>
             SType::SColl(elem_tpe) => match *elem_tpe {
