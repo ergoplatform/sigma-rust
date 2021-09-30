@@ -8,8 +8,8 @@ use ergotree_ir::serialization::{
 };
 use std::convert::TryFrom;
 
+use super::digest32::DigestRef;
 use super::ergo_box::BoxId;
-use super::{digest32::DigestRef, Base16EncodedBytes};
 use derive_more::From;
 use derive_more::Into;
 #[cfg(test)]
@@ -52,11 +52,9 @@ impl AsRef<[u8]> for TokenId {
     }
 }
 
-// todo-sab Don't forget to clean-up after moving chain types to IR crate
 impl From<TokenId> for String {
     fn from(v: TokenId) -> Self {
-        let bytes: Base16EncodedBytes = v.0.into();
-        bytes.into()
+        String::from(Into::<DigestRef<32>>::into(v.0))
     }
 }
 

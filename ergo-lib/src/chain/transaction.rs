@@ -22,10 +22,7 @@ use self::unsigned::UnsignedTransaction;
 
 #[cfg(feature = "json")]
 use super::json;
-use super::{
-    digest32::DigestRef, ergo_box::ErgoBox, ergo_box::ErgoBoxCandidate, token::TokenId,
-    Base16EncodedBytes,
-};
+use super::{digest32::DigestRef, ergo_box::ErgoBox, ergo_box::ErgoBoxCandidate, token::TokenId};
 use indexmap::IndexSet;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
@@ -59,12 +56,10 @@ impl SigmaSerializable for TxId {
     }
 }
 
-// todo-sab Don't forget to clean-up after moving chain types to IR crate
 #[cfg(feature = "json")]
 impl From<TxId> for String {
     fn from(v: TxId) -> Self {
-        let bytes: Base16EncodedBytes = v.0.into();
-        bytes.into()
+        String::from(Into::<DigestRef<32>>::into(v.0))
     }
 }
 
