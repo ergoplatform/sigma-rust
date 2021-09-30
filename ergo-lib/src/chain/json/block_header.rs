@@ -2,8 +2,8 @@ use serde::Deserialize;
 use std::convert::TryFrom;
 use std::convert::TryInto;
 
-use crate::chain::block_header::Votes;
-use crate::chain::block_header::VotesError;
+use ergotree_ir::chain::votes::{Votes, VotesError};
+
 use crate::chain::Base16DecodedBytes;
 
 #[derive(Deserialize, Debug, Clone)]
@@ -26,7 +26,16 @@ impl TryFrom<VotesEncodingVariants> for Votes {
 
 #[cfg(test)]
 mod tests {
-    use crate::chain::block_header::BlockHeader;
+    use ergotree_ir::chain::header::Header;
+
+    use crate::chain::block_header::BlockHeaderRef;
+
+    // Tries to convert json string to `Header`.
+    fn header_try_from_json(json: &str) -> Result<Header, serde_json::Error> {
+        let mut de = serde_json::Deserializer::from_str(json);
+        // actually, returns `Header`: https://serde.rs/remote-derive.html
+        BlockHeaderRef::deserialize(&mut de)
+    }
 
     #[test]
     fn parse_block_header() {
@@ -54,8 +63,8 @@ mod tests {
             "transactionsId": "ac80245714f25aa2fafe5494ad02a26d46e7955b8f5709f3659f1b9440797b3e",
             "parentId": "6481752bace5fa5acba5d5ef7124d48826664742d46c974c98a2d60ace229a34"
         }"#;
-        let b: BlockHeader = serde_json::from_str(json).unwrap();
-        assert_eq!(b.height, 471746);
+        let header: Header = header_try_from_json(json).unwrap();
+        assert_eq!(header.height, 471746);
     }
 
     #[test]
@@ -85,7 +94,7 @@ mod tests {
             "transactionsId": "ac80245714f25aa2fafe5494ad02a26d46e7955b8f5709f3659f1b9440797b3e",
             "parentId": "6481752bace5fa5acba5d5ef7124d48826664742d46c974c98a2d60ace229a34"
         }"#;
-        let b: BlockHeader = serde_json::from_str(json).unwrap();
-        assert_eq!(b.height, 471746);
+        let header: Header = header_try_from_json(json).unwrap();
+        assert_eq!(header.height, 471746);
     }
 }

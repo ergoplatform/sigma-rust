@@ -1,16 +1,15 @@
 //! Box id type
-use std::convert::TryFrom;
-use std::convert::TryInto;
+use std::convert::{TryFrom, TryInto};
 
+use ergotree_ir::chain::digest::Digest32;
 use ergotree_ir::ir_ergo_box::IrBoxId;
 
 use ergotree_ir::serialization::SigmaSerializeResult;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 
-use crate::chain::Digest32Error;
+use crate::chain::{Digest32Error, DigestRef};
 
-use super::super::digest32::Digest32;
 use derive_more::From;
 use derive_more::Into;
 use ergotree_ir::serialization::{
@@ -24,7 +23,7 @@ use proptest_derive::Arbitrary;
 #[derive(PartialEq, Eq, Hash, Debug, Clone, From, Into)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 #[cfg_attr(test, derive(Arbitrary))]
-pub struct BoxId(Digest32);
+pub struct BoxId(#[cfg_attr(feature = "json", serde(with = "DigestRef"))] Digest32);
 
 impl BoxId {
     /// Size in bytes
@@ -45,7 +44,7 @@ impl AsRef<[u8]> for BoxId {
 #[cfg(feature = "json")]
 impl From<BoxId> for String {
     fn from(v: BoxId) -> Self {
-        v.0.into()
+        String::from(Into::<DigestRef<32>>::into(v.0))
     }
 }
 
@@ -68,7 +67,9 @@ impl TryFrom<String> for BoxId {
     type Error = Digest32Error;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
-        Ok(Digest32::try_from(value)?.into())
+        DigestRef::try_from(value)
+            .map(Into::<Digest32>::into)
+            .map(BoxId)
     }
 }
 

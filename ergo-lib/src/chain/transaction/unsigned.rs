@@ -9,11 +9,9 @@ use super::json;
 use super::prover_result::ProverResult;
 use super::DataInput;
 use super::TxIoVec;
-use super::{
-    super::{digest32::blake2b256_hash, ergo_box::ErgoBoxCandidate},
-    Transaction, TxId,
-};
+use super::{super::ergo_box::ErgoBoxCandidate, Transaction, TxId};
 use ergotree_interpreter::sigma_protocol::prover::ProofBytes;
+use ergotree_ir::chain::digest::blake2b256_hash;
 use ergotree_ir::serialization::SigmaSerializationError;
 use indexmap::IndexSet;
 #[cfg(feature = "json")]

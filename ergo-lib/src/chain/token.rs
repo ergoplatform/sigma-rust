@@ -1,5 +1,6 @@
 //! Token related types
 
+use ergotree_ir::chain::digest::Digest32;
 use ergotree_ir::serialization::SigmaSerializeResult;
 use ergotree_ir::serialization::{
     sigma_byte_reader::SigmaByteRead, sigma_byte_writer::SigmaByteWrite, SigmaParsingError,
@@ -7,7 +8,7 @@ use ergotree_ir::serialization::{
 };
 use std::convert::TryFrom;
 
-use super::digest32::Digest32;
+use super::digest32::DigestRef;
 use super::ergo_box::BoxId;
 use derive_more::From;
 use derive_more::Into;
@@ -20,7 +21,7 @@ use thiserror::Error;
 /// newtype for token id
 #[derive(PartialEq, Eq, Hash, Debug, Clone, From, Into)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
-pub struct TokenId(Digest32);
+pub struct TokenId(#[cfg_attr(feature = "json", serde(with = "DigestRef"))] Digest32);
 
 impl TokenId {
     /// token id size in bytes
@@ -53,7 +54,7 @@ impl AsRef<[u8]> for TokenId {
 
 impl From<TokenId> for String {
     fn from(v: TokenId) -> Self {
-        v.0.into()
+        String::from(Into::<DigestRef<32>>::into(v.0))
     }
 }
 

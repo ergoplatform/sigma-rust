@@ -7,6 +7,7 @@ mod register;
 
 pub use box_id::*;
 pub use box_value::*;
+use ergotree_ir::chain::digest::{blake2b256_hash, Digest32};
 use ergotree_ir::ergo_tree::ErgoTree;
 use ergotree_ir::ir_ergo_box::IrBoxId;
 use ergotree_ir::ir_ergo_box::IrErgoBox;
@@ -23,9 +24,7 @@ pub use register::*;
 #[cfg(feature = "json")]
 use super::json;
 use super::token::TokenAmount;
-use super::Digest32;
 use super::{
-    digest32::blake2b256_hash,
     token::{Token, TokenId},
     transaction::TxId,
 };

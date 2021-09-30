@@ -9,6 +9,7 @@ use thiserror::Error;
 
 pub use data_input::*;
 use ergotree_interpreter::sigma_protocol::prover::ProofBytes;
+use ergotree_ir::chain::digest::{blake2b256_hash, Digest32};
 use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
 use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
 use ergotree_ir::serialization::SigmaParsingError;
@@ -20,13 +21,10 @@ pub use input::*;
 use self::unsigned::UnsignedTransaction;
 
 #[cfg(feature = "json")]
+use super::digest32::DigestRef;
+#[cfg(feature = "json")]
 use super::json;
-use super::{
-    digest32::{blake2b256_hash, Digest32},
-    ergo_box::ErgoBox,
-    ergo_box::ErgoBoxCandidate,
-    token::TokenId,
-};
+use super::{ergo_box::ErgoBox, ergo_box::ErgoBoxCandidate, token::TokenId};
 use indexmap::IndexSet;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
@@ -41,7 +39,7 @@ use std::iter::FromIterator;
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
 #[cfg_attr(test, derive(Arbitrary))]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
-pub struct TxId(pub Digest32);
+pub struct TxId(#[cfg_attr(feature = "json", serde(with = "DigestRef"))] pub Digest32);
 
 impl TxId {
     /// All zeros
@@ -63,7 +61,7 @@ impl SigmaSerializable for TxId {
 #[cfg(feature = "json")]
 impl From<TxId> for String {
     fn from(v: TxId) -> Self {
-        v.0.into()
+        String::from(Into::<DigestRef<32>>::into(v.0))
     }
 }
 
