@@ -1,3 +1,4 @@
+use crate::mir::avl_tree_data::AvlTreeData;
 use crate::mir::constant::Literal;
 use crate::mir::constant::TryExtractFromError;
 use crate::mir::constant::TryExtractInto;
@@ -149,11 +150,7 @@ impl DataSerializer {
                     "SBox data".to_string(),
                 ))
             }
-            SAvlTree => {
-                return Err(SigmaParsingError::NotImplementedYet(
-                    "SAvlTree data".to_string(),
-                ))
-            }
+            SAvlTree => Literal::AvlTree(Box::new(AvlTreeData::sigma_parse(r)?)),
             STypeVar(_) => return Err(SigmaParsingError::NotSupported("TypeVar data")),
             SAny => return Err(SigmaParsingError::NotSupported("SAny data")),
             SOption(_) => return Err(SigmaParsingError::NotSupported("SOption data")),

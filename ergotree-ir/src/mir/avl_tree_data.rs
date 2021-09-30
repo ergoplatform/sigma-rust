@@ -95,6 +95,11 @@ pub type Digest32 = Digest<32>;
 /// AVL tree digest: root hash along with tree height (33 bytes)
 pub type ADDigest = Digest<33>;
 
+impl<const N: usize> Digest<N> {
+    /// Digest size 32 bytes
+    pub const SIZE: usize = N;
+}
+
 impl<const N: usize> SigmaSerializable for Digest<N> {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         w.write_all(self.0.as_ref())?;
@@ -104,5 +109,82 @@ impl<const N: usize> SigmaSerializable for Digest<N> {
         let mut bytes = [0; N];
         r.read_exact(&mut bytes)?;
         Ok(Self(bytes.into()))
+    }
+}
+
+#[cfg(feature = "arbitrary")]
+#[allow(clippy::unwrap_used)]
+mod arbitrary {
+
+    use super::*;
+    use proptest::{collection::vec, prelude::*};
+    use std::convert::TryInto;
+
+    type OptBox = Option<Box<u32>>;
+    impl Arbitrary for AvlTreeData {
+        type Strategy = BoxedStrategy<Self>;
+        type Parameters = ();
+
+        fn arbitrary_with(_: Self::Parameters) -> Self::Strategy {
+            (
+                any::<ADDigest>(),
+                any::<bool>(),
+                any::<bool>(),
+                any::<bool>(),
+                any::<u32>(),
+                any::<OptBox>(),
+            )
+                .prop_map(
+                    |(
+                        digest,
+                        insert_allowed,
+                        update_allowed,
+                        remove_allowed,
+                        key_length,
+                        value_length_opt,
+                    )| AvlTreeData {
+                        digest,
+                        tree_flags: AvlTreeFlags::new(
+                            insert_allowed,
+                            update_allowed,
+                            remove_allowed,
+                        ),
+                        key_length,
+                        value_length_opt,
+                    },
+                )
+                .boxed()
+        }
+    }
+
+    impl<const N: usize> Arbitrary for Digest<N> {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_: Self::Parameters) -> Self::Strategy {
+            vec(any::<u8>(), Self::SIZE)
+                .prop_map(|v| Digest(Box::new(v.try_into().unwrap())))
+                .boxed()
+        }
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+#[allow(clippy::panic)]
+mod tests {
+    use super::*;
+    use crate::mir::expr::Expr;
+    use crate::serialization::sigma_serialize_roundtrip;
+    use proptest::prelude::*;
+
+    proptest! {
+
+        #[test]
+        fn ser_roundtrip(v in any::<AvlTreeData>()) {
+            let expr = Expr::Const(v.into());
+            prop_assert_eq![sigma_serialize_roundtrip(&expr), expr];
+        }
+
     }
 }
