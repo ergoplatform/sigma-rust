@@ -21,7 +21,7 @@ use thiserror::Error;
 /// newtype for token id
 #[derive(PartialEq, Eq, Hash, Debug, Clone, From, Into)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
-pub struct TokenId(#[serde(with = "DigestRef")] Digest32);
+pub struct TokenId(#[cfg_attr(feature = "json", serde(with = "DigestRef"))] Digest32);
 
 impl TokenId {
     /// token id size in bytes

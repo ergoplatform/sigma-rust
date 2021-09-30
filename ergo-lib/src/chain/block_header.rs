@@ -12,8 +12,11 @@ use ergotree_ir::sigma_protocol::dlog_group;
 use serde::{Deserialize, Serialize};
 
 /// New-type wrapper for deserializing the remote `Header` type.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct HeaderJsonHelper(#[serde(with = "BlockHeaderRef")] pub Header);
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[derive(Debug, Clone)]
+pub struct HeaderJsonHelper(
+    #[cfg_attr(feature = "json", serde(with = "BlockHeaderRef"))] pub Header,
+);
 
 /// Block header reference to `Header` type in ergotree-ir.
 ///
@@ -112,11 +115,9 @@ mod votes {
 }
 
 mod block_id {
-    use ergotree_ir::chain::{block_id::BlockId, digest::Digest32};
+    use ergotree_ir::chain::digest::Digest32;
     #[cfg(feature = "json")]
-    use serde::{Deserialize, Serialize};
-
-    use crate::chain::DigestRef;
+    use reexport_for_json::*;
 
     /// Reference for BlockId type. Remote BlockId wasn't used, because in ergo-lib
     /// this type is mostly needed for json serialization and deserialization. Such traits
@@ -124,5 +125,12 @@ mod block_id {
     #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
     #[cfg_attr(feature = "json", serde(remote = "BlockId"))]
     #[derive(PartialEq, Eq, Debug, Clone)]
-    pub(super) struct BlockIdRef(#[serde(with = "DigestRef")] Digest32);
+    pub(super) struct BlockIdRef(#[cfg_attr(feature = "json", serde(with = "DigestRef"))] Digest32);
+
+    #[cfg(feature = "json")]
+    mod reexport_for_json {
+        pub(super) use crate::chain::DigestRef;
+        pub(super) use ergotree_ir::chain::block_id::BlockId;
+        pub(super) use serde::{Deserialize, Serialize};
+    }
 }
