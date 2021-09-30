@@ -569,6 +569,19 @@ impl TryExtractFrom<Literal> for BigInt256 {
     }
 }
 
+impl TryExtractFrom<Literal> for AvlTreeData {
+    fn try_extract_from(v: Literal) -> Result<Self, TryExtractFromError> {
+        match v {
+            Literal::AvlTree(a) => Ok(*a),
+            _ => Err(TryExtractFromError(format!(
+                "expected {:?}, found {:?}",
+                std::any::type_name::<Self>(),
+                v
+            ))),
+        }
+    }
+}
+
 impl<T: TryExtractFrom<Literal>> TryExtractFrom<Literal> for Option<T> {
     fn try_extract_from(v: Literal) -> Result<Self, TryExtractFromError> {
         match v {

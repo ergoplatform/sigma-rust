@@ -422,6 +422,19 @@ impl TryExtractFrom<Value> for BigInt256 {
     }
 }
 
+impl TryExtractFrom<Value> for AvlTreeData {
+    fn try_extract_from(v: Value) -> Result<Self, TryExtractFromError> {
+        match v {
+            Value::AvlTree(a) => Ok(*a),
+            _ => Err(TryExtractFromError(format!(
+                "expected {:?}, found {:?}",
+                std::any::type_name::<Self>(),
+                v
+            ))),
+        }
+    }
+}
+
 impl<T: TryExtractFrom<Value> + StoreWrapped> TryExtractFrom<Vec<Value>> for Vec<T> {
     fn try_extract_from(v: Vec<Value>) -> Result<Self, TryExtractFromError> {
         v.into_iter().map(|it| it.try_extract_into::<T>()).collect()

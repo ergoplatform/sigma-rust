@@ -1,5 +1,6 @@
 use bytes::Bytes;
 use ergotree_ir::mir::avl_tree_data::ADDigest;
+use ergotree_ir::mir::avl_tree_data::AvlTreeData;
 use ergotree_ir::mir::constant::TryExtractInto;
 use ergotree_ir::mir::value::CollKind;
 use ergotree_ir::mir::value::Value;
@@ -18,13 +19,7 @@ use super::EvalError;
 use super::EvalFn;
 
 pub(crate) static INSERT_EVAL_FN: EvalFn = |_env, _ctx, obj, args| {
-    let mut avl_tree_data = match obj {
-        Value::AvlTree(a) => Ok(a),
-        v => Err(EvalError::UnexpectedValue(format!(
-            "AvlTree.insert: expected object of Value::AvlTree got: {0:?}",
-            v
-        ))),
-    }?;
+    let mut avl_tree_data = obj.try_extract_into::<AvlTreeData>()?;
 
     if !avl_tree_data.tree_flags.insert_allowed() {
         return Err(EvalError::Misc("AvlTree: Insertions not allowed".into()));
@@ -85,7 +80,10 @@ pub(crate) static INSERT_EVAL_FN: EvalFn = |_env, _ctx, obj, args| {
         AVLTree::new(
             |digest| Node::LabelOnly(NodeHeader::new(Some(*digest), None)),
             avl_tree_data.key_length as usize,
-            avl_tree_data.value_length_opt.map(|v| v as usize),
+            avl_tree_data
+                .value_length_opt
+                .as_ref()
+                .map(|v| **v as usize),
         ),
         None,
         None,
@@ -105,7 +103,9 @@ pub(crate) static INSERT_EVAL_FN: EvalFn = |_env, _ctx, obj, args| {
     if let Some(new_digest) = bv.digest() {
         let digest = ADDigest::sigma_parse_bytes(&new_digest)?;
         avl_tree_data.digest = digest;
-        Ok(Value::Opt(Box::new(Some(Value::AvlTree(avl_tree_data)))))
+        Ok(Value::Opt(Box::new(Some(Value::AvlTree(
+            avl_tree_data.into(),
+        )))))
     } else {
         Err(EvalError::Misc("AvlTree: Cannot update digest".into()))
     }

@@ -1,9 +1,7 @@
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, sigma_byte_writer::SigmaByteWrite, SigmaParsingError,
-    SigmaSerializable, SigmaSerializationError, SigmaSerializeResult,
+    SigmaSerializable, SigmaSerializeResult,
 };
-
-use super::constant::TryExtractFromError;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 /// AVL tree flags
@@ -58,7 +56,7 @@ pub struct AvlTreeData {
     /// All the elements under the tree have the same length
     pub key_length: u32,
     /// If non-empty, all the values under the tree are of the same length
-    pub value_length_opt: Option<u32>,
+    pub value_length_opt: Option<Box<u32>>,
 }
 
 impl SigmaSerializable for AvlTreeData {
@@ -66,39 +64,14 @@ impl SigmaSerializable for AvlTreeData {
         self.digest.sigma_serialize(w)?;
         w.put_u8(self.tree_flags.0)?;
         w.put_u32(self.key_length)?;
-        if let Some(l) = self.value_length_opt {
-            w.put_u8(1)?;
-            w.put_u32(l)?;
-        } else {
-            w.put_u8(0)?;
-        }
+        self.value_length_opt.sigma_serialize(w)?;
         Ok(())
     }
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let digest = ADDigest::sigma_parse(r)?;
         let tree_flags = AvlTreeFlags::parse(r.get_u8()?);
         let key_length = r.get_u32()?;
-        let is_some = {
-            let s = r.get_u8()?;
-            if s == 1 {
-                true
-            } else if s == 0 {
-                false
-            } else {
-                return Err(SigmaParsingError::SerializationError(
-                    SigmaSerializationError::UnexpectedValue(TryExtractFromError(format!(
-                        "AvlTreeData: Expected valueLength tag to be 0 or 1, got {}",
-                        s
-                    ))),
-                ));
-            }
-        };
-        let value_length_opt = if is_some {
-            let len = r.get_u32()?;
-            Some(len)
-        } else {
-            None
-        };
+        let value_length_opt = <Option<Box<u32>> as SigmaSerializable>::sigma_parse(r)?;
         Ok(AvlTreeData {
             digest,
             tree_flags,

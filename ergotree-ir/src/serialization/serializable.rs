@@ -177,6 +177,18 @@ impl<T: SigmaSerializable, const L: usize, const U: usize> SigmaSerializable
     }
 }
 
+/// Corresponds to `VLQ(UInt)` format from `ErgoTree` spec.
+impl SigmaSerializable for u32 {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
+        w.put_u32(*self)?;
+        Ok(())
+    }
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
+        let v = r.get_u32()?;
+        Ok(v)
+    }
+}
+
 impl<T: SigmaSerializable> SigmaSerializable for Option<Box<T>> {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         match self {
