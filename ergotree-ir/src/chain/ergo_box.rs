@@ -184,7 +184,8 @@ impl ErgoBox {
         (self.creation_height as i32, bytes.as_vec_i8())
     }
 
-    fn bytes_without_ref(&self) -> Result<Vec<i8>, SigmaSerializationError> {
+    /// Returns serialized ErgoBox without tx_id and index
+    pub fn bytes_without_ref(&self) -> Result<Vec<i8>, SigmaSerializationError> {
         let candidate: ErgoBoxCandidate = self.clone().into();
         Ok(candidate.sigma_serialize_bytes()?.as_vec_i8())
     }

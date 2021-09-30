@@ -68,9 +68,9 @@ impl From<ergo_lib::ergotree_ir::chain::address::AddressTypePrefix> for AddressT
     fn from(v: ergo_lib::ergotree_ir::chain::address::AddressTypePrefix) -> Self {
         use AddressTypePrefix::*;
         match v {
-            ergo_lib::ergotree_ir::address::AddressTypePrefix::P2Pk => P2Pk,
-            ergo_lib::ergotree_ir::address::AddressTypePrefix::Pay2Sh => Pay2Sh,
-            ergo_lib::ergotree_ir::address::AddressTypePrefix::Pay2S => Pay2S,
+            ergo_lib::ergotree_ir::chain::address::AddressTypePrefix::P2Pk => P2Pk,
+            ergo_lib::ergotree_ir::chain::address::AddressTypePrefix::Pay2Sh => Pay2Sh,
+            ergo_lib::ergotree_ir::chain::address::AddressTypePrefix::Pay2S => Pay2S,
         }
     }
 }
@@ -130,9 +130,11 @@ impl Address {
     /// Re-create the address from this ErgoTree.
     /// `tree` - ErgoTree that was created from an Address
     pub fn recreate_from_ergo_tree(ergo_tree: &ErgoTree) -> Result<Address, JsValue> {
-        ergo_lib::ergotree_ir::address::Address::recreate_from_ergo_tree(&ergo_tree.clone().into())
-            .map(Address)
-            .map_err(to_js)
+        ergo_lib::ergotree_ir::chain::address::Address::recreate_from_ergo_tree(
+            &ergo_tree.clone().into(),
+        )
+        .map(Address)
+        .map_err(to_js)
     }
 
     /// Create a P2PK address from serialized PK bytes(EcPoint/GroupElement)
