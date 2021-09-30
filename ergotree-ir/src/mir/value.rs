@@ -364,7 +364,7 @@ impl TryExtractFrom<Value> for Rc<ErgoBox> {
         match c {
             Value::CBox(b) => Ok(b),
             _ => Err(TryExtractFromError(format!(
-                "expected IrErgoBox, found {:?}",
+                "expected ErgoBox, found {:?}",
                 c
             ))),
         }

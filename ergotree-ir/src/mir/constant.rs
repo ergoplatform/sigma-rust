@@ -514,7 +514,19 @@ impl TryExtractFrom<Literal> for Rc<ErgoBox> {
         match c {
             Literal::CBox(b) => Ok(b),
             _ => Err(TryExtractFromError(format!(
-                "expected IrErgoBox, found {:?}",
+                "expected ErgoBox, found {:?}",
+                c
+            ))),
+        }
+    }
+}
+
+impl TryExtractFrom<Literal> for ErgoBox {
+    fn try_extract_from(c: Literal) -> Result<Self, TryExtractFromError> {
+        match c {
+            Literal::CBox(b) => Ok((*b).clone()),
+            _ => Err(TryExtractFromError(format!(
+                "expected ErgoBox, found {:?}",
                 c
             ))),
         }
