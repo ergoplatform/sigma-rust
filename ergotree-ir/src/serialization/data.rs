@@ -1,4 +1,4 @@
-use crate::ir_ergo_box::IrErgoBox;
+use crate::chain::ergo_box::ErgoBox;
 use crate::mir::avl_tree_data::AvlTreeData;
 use crate::mir::constant::Literal;
 use crate::mir::constant::TryExtractFromError;
@@ -19,6 +19,7 @@ use crate::util::AsVecU8;
 
 use super::sigma_byte_writer::SigmaByteWrite;
 use std::convert::TryInto;
+use std::rc::Rc;
 
 /// Used to serialize and parse `Literal` and `Value`.
 pub struct DataSerializer {}
@@ -40,7 +41,7 @@ impl DataSerializer {
             Literal::GroupElement(ecp) => ecp.sigma_serialize(w)?,
             Literal::SigmaProp(s) => s.value().sigma_serialize(w)?,
             Literal::AvlTree(a) => a.sigma_serialize(w)?,
-            Literal::CBox(b) => w.write_all(b.bytes()?.as_vec_u8().as_slice())?,
+            Literal::CBox(b) => b.sigma_serialize(w)?,
             Literal::Coll(ct) => match ct {
                 CollKind::NativeColl(NativeColl::CollByte(b)) => {
                     w.put_usize_as_u16_unwrapped(b.len())?;
@@ -146,11 +147,7 @@ impl DataSerializer {
                 // is correct
                 Literal::Tup(items.try_into()?)
             }
-            SBox => {
-                todo!()
-                // let b: Rc<dyn IrErgoBox> = ErgoBoxParser::parse(r)?;
-                // Literal::CBox(b)
-            }
+            SBox => Literal::CBox(Rc::new(ErgoBox::sigma_parse(r)?)),
             SAvlTree => {
                 return Err(SigmaParsingError::NotImplementedYet(
                     "SAvlTree data".to_string(),

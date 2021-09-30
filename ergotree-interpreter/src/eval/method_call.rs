@@ -48,7 +48,7 @@ mod tests {
         let ctx = Rc::new(force_any_val::<Context>());
         assert_eq!(
             eval_out::<i64>(&option_get_expr, ctx.clone()),
-            ctx.self_box.value()
+            ctx.self_box.value.as_i64()
         );
     }
 }

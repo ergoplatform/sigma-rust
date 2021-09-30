@@ -24,7 +24,6 @@ pub mod base16_str;
 pub mod bigint256;
 pub mod chain;
 pub mod ergo_tree;
-pub mod ir_ergo_box;
 pub mod mir;
 pub mod serialization;
 pub mod sigma_protocol;

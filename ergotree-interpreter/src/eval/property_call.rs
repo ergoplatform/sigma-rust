@@ -20,7 +20,7 @@ mod tests {
     use super::*;
     use crate::eval::context::Context;
     use crate::eval::tests::eval_out;
-    use ergotree_ir::ir_ergo_box::IrErgoBox;
+    use ergotree_ir::chain::ergo_box::ErgoBox;
     use ergotree_ir::mir::expr::Expr;
     use ergotree_ir::types::scontext;
     use sigma_test_util::force_any_val;
@@ -33,7 +33,7 @@ mod tests {
             .into();
         let ctx = Rc::new(force_any_val::<Context>());
         assert_eq!(
-            eval_out::<Vec<Rc<dyn IrErgoBox>>>(&pc, ctx.clone()),
+            eval_out::<Vec<Rc<ErgoBox>>>(&pc, ctx.clone()),
             ctx.data_inputs
         );
     }

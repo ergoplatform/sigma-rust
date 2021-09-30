@@ -9,15 +9,14 @@ use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, sigma_byte_writer::SigmaByteWrite, SigmaParsingError,
     SigmaSerializable,
 };
+use crate::util::AsVecI8;
 use derive_more::From;
 use derive_more::Into;
-#[cfg(test)]
-use proptest_derive::Arbitrary;
 
 /// newtype for box ids
 #[derive(PartialEq, Eq, Hash, Debug, Clone, From, Into)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
-#[cfg_attr(test, derive(Arbitrary))]
+#[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
 pub struct BoxId(Digest32);
 
 impl BoxId {
@@ -47,6 +46,13 @@ impl TryFrom<String> for BoxId {
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         Ok(Digest32::try_from(value)?.into())
+    }
+}
+
+impl From<BoxId> for Vec<i8> {
+    fn from(b: BoxId) -> Self {
+        let bytes: Vec<u8> = b.0.into();
+        bytes.as_vec_i8()
     }
 }
 

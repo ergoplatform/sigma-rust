@@ -128,7 +128,7 @@ mod tests {
                 eval_out::<i64>(&expr, ctx.clone()),
                 ctx.data_inputs
                     .iter()
-                    .fold(0i64, |acc, b| acc + b.value())
+                    .fold(0i64, |acc, b| acc + b.value.as_i64())
             );
         }
 

@@ -245,6 +245,7 @@ impl ErgoBoxCandidateBuilder {
 #[cfg(test)]
 mod tests {
 
+    use ergotree_ir::base16_str::Base16Str;
     use ergotree_ir::chain::token::TokenId;
     use sigma_test_util::force_any_val;
     use NonMandatoryRegisterId::*;
@@ -351,7 +352,8 @@ mod tests {
                 .additional_registers
                 .get(NonMandatoryRegisterId::R4)
                 .unwrap()
-                .base16_str(),
+                .base16_str()
+                .unwrap(),
             "0e03555344",
             "invalid encoding of token name in R4"
         );
@@ -360,7 +362,8 @@ mod tests {
                 .additional_registers
                 .get(NonMandatoryRegisterId::R5)
                 .unwrap()
-                .base16_str(),
+                .base16_str()
+                .unwrap(),
             "0e184e6f7468696e67206261636b65642055534420746f6b656e",
             "invalid encoding of token description in R5"
         );
@@ -369,7 +372,8 @@ mod tests {
                 .additional_registers
                 .get(NonMandatoryRegisterId::R6)
                 .unwrap()
-                .base16_str(),
+                .base16_str()
+                .unwrap(),
             "0e0132",
             "invalid encoding of token number of decimals in R6"
         );

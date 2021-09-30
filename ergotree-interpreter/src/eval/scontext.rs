@@ -58,9 +58,9 @@ pub(crate) static HEADERS_EVAL_FN: EvalFn = |_env, ctx, obj, _args| {
 #[cfg(feature = "arbitrary")]
 #[allow(clippy::unwrap_used)]
 mod tests {
-    use crate::eval::context::ir_ergo_box_dummy::IrErgoBoxDummy;
     use crate::eval::context::Context;
     use crate::eval::tests::eval_out;
+    use ergotree_ir::chain::ergo_box::ErgoBox;
     use ergotree_ir::chain::header::Header;
     use ergotree_ir::mir::expr::Expr;
     use ergotree_ir::mir::property_call::PropertyCall;
@@ -70,11 +70,11 @@ mod tests {
 
     fn make_ctx_inputs_includes_self_box() -> Context {
         let ctx = force_any_val::<Context>();
-        let self_box = force_any_val::<IrErgoBoxDummy>();
-        let inputs = vec![force_any_val::<IrErgoBoxDummy>().id, self_box.id.clone()];
+        let self_box = force_any_val::<ErgoBox>();
+        let inputs = vec![force_any_val::<ErgoBox>().into(), self_box.into()];
         Context {
             height: 0u32,
-            self_box: self_box.id,
+            self_box: self_box.into(),
             inputs,
             ..ctx
         }

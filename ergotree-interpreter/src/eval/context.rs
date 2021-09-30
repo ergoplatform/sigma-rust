@@ -1,10 +1,8 @@
-pub(crate) mod ir_ergo_box_dummy;
-
 use std::rc::Rc;
 
 use crate::sigma_protocol::prover::ContextExtension;
+use ergotree_ir::chain::ergo_box::ErgoBox;
 use ergotree_ir::chain::header::Header;
-use ergotree_ir::ir_ergo_box::IrErgoBox;
 use ergotree_ir::mir::header::PreHeader;
 
 /// Interpreter's context (blockchain state)
@@ -13,13 +11,13 @@ pub struct Context {
     /// Current height
     pub height: u32,
     /// Box that contains the script we're evaluating (from spending transaction inputs)
-    pub self_box: Rc<dyn IrErgoBox>,
+    pub self_box: Rc<ErgoBox>,
     /// Spending transaction outputs
-    pub outputs: Vec<Rc<dyn IrErgoBox>>,
+    pub outputs: Vec<Rc<ErgoBox>>,
     /// Spending transaction data inputs
-    pub data_inputs: Vec<Rc<dyn IrErgoBox>>,
+    pub data_inputs: Vec<Rc<ErgoBox>>,
     /// Spending transaction inputs
-    pub inputs: Vec<Rc<dyn IrErgoBox>>,
+    pub inputs: Vec<Rc<ErgoBox>>,
     /// Pre header of current block
     pub pre_header: PreHeader,
     /// Fixed number of last block headers in descending order (first header is the newest one)
@@ -41,9 +39,7 @@ impl Context {
 #[cfg(feature = "arbitrary")]
 mod arbitrary {
 
-    use super::ir_ergo_box_dummy::*;
     use super::*;
-    use ergotree_ir::ir_ergo_box::IrErgoBox;
     use proptest::collection::vec;
     use proptest::prelude::*;
 
@@ -53,10 +49,10 @@ mod arbitrary {
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             (
                 0..i32::MAX as u32,
-                any::<IrErgoBoxDummy>(),
-                vec(any::<IrErgoBoxDummy>(), 1..3),
-                vec(any::<IrErgoBoxDummy>(), 1..3),
-                vec(any::<IrErgoBoxDummy>(), 0..3),
+                any::<ErgoBox>(),
+                vec(any::<ErgoBox>(), 1..3),
+                vec(any::<ErgoBox>(), 1..3),
+                vec(any::<ErgoBox>(), 0..3),
                 any::<PreHeader>(),
                 any::<ContextExtension>(),
                 any::<[Header; 10]>(),
@@ -91,18 +87,9 @@ mod arbitrary {
                         Self {
                             height,
                             self_box: Rc::new(self_box),
-                            outputs: outputs
-                                .into_iter()
-                                .map(|b| Rc::new(b) as Rc<dyn IrErgoBox>)
-                                .collect(),
-                            data_inputs: data_inputs
-                                .into_iter()
-                                .map(|b| Rc::new(b) as Rc<dyn IrErgoBox>)
-                                .collect(),
-                            inputs: inputs
-                                .into_iter()
-                                .map(|b| Rc::new(b) as Rc<dyn IrErgoBox>)
-                                .collect(),
+                            outputs: outputs.into_iter().map(Rc::new).collect(),
+                            data_inputs: data_inputs.into_iter().map(Rc::new).collect(),
+                            inputs: inputs.into_iter().map(Rc::new).collect(),
                             pre_header,
                             extension,
                             headers,

@@ -6,16 +6,12 @@ use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
 use ergotree_ir::serialization::SigmaParsingError;
 use ergotree_ir::serialization::SigmaSerializable;
 use ergotree_ir::serialization::SigmaSerializeResult;
-#[cfg(test)]
-use proptest::prelude::*;
-#[cfg(test)]
-use proptest_derive::Arbitrary;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 
 /// Inputs, that are used to enrich script context, but won't be spent by the transaction
 #[derive(PartialEq, Eq, Debug, Clone)]
-#[cfg_attr(test, derive(Arbitrary))]
+#[cfg_attr(test, derive(proptest_derive::Arbitrary))]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct DataInput {
     /// id of the box to add into context (should be in UTXO)
@@ -45,6 +41,7 @@ mod tests {
     use ergotree_ir::serialization::sigma_serialize_roundtrip;
 
     use super::*;
+    use proptest::prelude::*;
 
     proptest! {
 

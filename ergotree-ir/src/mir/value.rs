@@ -7,7 +7,7 @@ use impl_trait_for_tuples::impl_for_tuples;
 
 use crate::bigint256::BigInt256;
 use crate::chain::header::Header;
-use crate::ir_ergo_box::IrErgoBox;
+use crate::chain::ergo_box::ErgoBox;
 use crate::sigma_protocol::dlog_group::EcPoint;
 use crate::sigma_protocol::sigma_boolean::SigmaProp;
 use crate::types::stuple::TupleItems;
@@ -132,7 +132,7 @@ pub struct Lambda {
 }
 
 /// Runtime value
-#[derive(Debug, Clone, From)]
+#[derive(PartialEq, Eq, Debug, Clone, From)]
 pub enum Value {
     /// Boolean
     Boolean(bool),
@@ -151,7 +151,7 @@ pub enum Value {
     /// Sigma property
     SigmaProp(Box<SigmaProp>),
     /// Ergo box
-    CBox(Rc<dyn IrErgoBox>),
+    CBox(Rc<ErgoBox>),
     /// AVL tree
     AvlTree(Box<AvlTreeData>),
     /// Collection of values of the same type
@@ -169,33 +169,6 @@ pub enum Value {
     /// lambda
     Lambda(Lambda),
 }
-
-impl std::cmp::PartialEq for Value {
-    fn eq(&self, other: &Self) -> bool {
-        use Value::*;
-        match (self, other) {
-            (Boolean(v1), Boolean(v2)) => v1 == v2,
-            (Byte(v1), Byte(v2)) => v1 == v2,
-            (Short(v1), Short(v2)) => v1 == v2,
-            (Int(v1), Int(v2)) => v1 == v2,
-            (Long(v1), Long(v2)) => v1 == v2,
-            (BigInt(v1), BigInt(v2)) => v1 == v2,
-            (GroupElement(v1), GroupElement(v2)) => v1 == v2,
-            (SigmaProp(v1), SigmaProp(v2)) => v1 == v2,
-            (CBox(v1), CBox(v2)) => v1.id() == v2.id(),
-            (AvlTree, AvlTree) => true,
-            (Coll(v1), Coll(v2)) => v1 == v2,
-            (Tup(v1), Tup(v2)) => v1 == v2,
-            (Context, Context) => true,
-            (Global, Global) => true,
-            (Opt(v1), Opt(v2)) => v1 == v2,
-            (Lambda(v1), Lambda(v2)) => v1 == v2,
-            (_, _) => false,
-        }
-    }
-}
-
-impl std::cmp::Eq for Value {}
 
 impl Value {
     /// Create Sigma property constant
@@ -271,8 +244,12 @@ impl StoreWrapped for i16 {}
 impl StoreWrapped for i32 {}
 impl StoreWrapped for i64 {}
 impl StoreWrapped for BigInt256 {}
+<<<<<<< HEAD
 impl StoreWrapped for Rc<dyn IrErgoBox> {}
 impl StoreWrapped for Header {}
+=======
+impl StoreWrapped for Rc<ErgoBox> {}
+>>>>>>> 73bde18 (remove IrErgoBox and use ErgoBox;)
 impl StoreWrapped for EcPoint {}
 impl StoreWrapped for SigmaProp {}
 impl<T: StoreWrapped> StoreWrapped for Option<T> {}
@@ -301,8 +278,8 @@ impl Into<Value> for Tuple {
     }
 }
 
-impl From<Vec<Rc<dyn IrErgoBox>>> for Value {
-    fn from(v: Vec<Rc<dyn IrErgoBox>>) -> Self {
+impl From<Vec<Rc<ErgoBox>>> for Value {
+    fn from(v: Vec<Rc<ErgoBox>>) -> Self {
         Value::Coll(CollKind::WrappedColl {
             elem_tpe: SType::SBox,
             items: v.into_iter().map(|i| i.into()).collect(),
@@ -382,7 +359,7 @@ impl TryExtractFrom<Value> for SigmaProp {
     }
 }
 
-impl TryExtractFrom<Value> for Rc<dyn IrErgoBox> {
+impl TryExtractFrom<Value> for Rc<ErgoBox> {
     fn try_extract_from(c: Value) -> Result<Self, TryExtractFromError> {
         match c {
             Value::CBox(b) => Ok(b),

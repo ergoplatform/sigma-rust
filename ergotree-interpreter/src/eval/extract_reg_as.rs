@@ -1,6 +1,7 @@
+use std::convert::TryInto;
 use std::rc::Rc;
 
-use ergotree_ir::ir_ergo_box::IrErgoBox;
+use ergotree_ir::chain::ergo_box::ErgoBox;
 use ergotree_ir::mir::constant::TryExtractInto;
 use ergotree_ir::mir::extract_reg_as::ExtractRegisterAs;
 use ergotree_ir::mir::value::Value;
@@ -15,10 +16,10 @@ impl Evaluable for ExtractRegisterAs {
         let ir_box = self
             .input
             .eval(env, ctx)?
-            .try_extract_into::<Rc<dyn IrErgoBox>>()?;
+            .try_extract_into::<Rc<ErgoBox>>()?;
         Ok(Value::Opt(Box::new(
             ir_box
-                .get_register(self.register_id)
+                .get_register(self.register_id.try_into().unwrap())
                 .map(|c| Value::from(c.v)),
         )))
     }
@@ -50,6 +51,6 @@ mod tests {
         let option_get_expr: Expr = OptionGet::try_build(get_reg_expr).unwrap().into();
         let ctx = Rc::new(force_any_val::<Context>());
         let v = eval_out::<i64>(&option_get_expr, ctx.clone());
-        assert_eq!(v, ctx.self_box.value());
+        assert_eq!(v, ctx.self_box.value.as_i64());
     }
 }

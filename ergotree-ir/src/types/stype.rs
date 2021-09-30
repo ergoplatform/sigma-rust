@@ -6,7 +6,7 @@ use std::convert::TryInto;
 use impl_trait_for_tuples::impl_for_tuples;
 
 use crate::bigint256::BigInt256;
-use crate::ir_ergo_box::IrBoxId;
+use crate::chain::ergo_box::ErgoBox;
 use crate::sigma_protocol::dlog_group::EcPoint;
 use crate::sigma_protocol::sigma_boolean::SigmaBoolean;
 use crate::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
@@ -165,7 +165,7 @@ impl LiftIntoSType for i64 {
     }
 }
 
-impl LiftIntoSType for IrBoxId {
+impl LiftIntoSType for ErgoBox {
     fn stype() -> SType {
         SType::SBox
     }

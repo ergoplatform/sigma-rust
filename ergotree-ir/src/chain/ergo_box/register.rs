@@ -54,6 +54,14 @@ impl TryFrom<i8> for RegisterId {
     }
 }
 
+impl TryFrom<u8> for RegisterId {
+    type Error = RegisterIdOutOfBounds;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        RegisterId::try_from(value as i8)
+    }
+}
+
 /// newtype for additional registers R4 - R9
 #[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
@@ -332,12 +340,9 @@ impl TryFrom<i8> for MandatoryRegisterId {
     }
 }
 
-#[allow(clippy::unwrap_used)]
-#[allow(clippy::expect_used)]
-#[cfg(test)]
-mod tests {
+#[cfg(feature = "arbitrary")]
+pub mod arbitrary {
     use super::*;
-    use crate::serialization::sigma_serialize_roundtrip;
     use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
 
     impl Arbitrary for NonMandatoryRegisters {
@@ -353,6 +358,15 @@ mod tests {
                 .boxed()
         }
     }
+}
+
+#[allow(clippy::unwrap_used)]
+#[allow(clippy::expect_used)]
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::serialization::sigma_serialize_roundtrip;
+    use proptest::prelude::*;
 
     proptest! {
 

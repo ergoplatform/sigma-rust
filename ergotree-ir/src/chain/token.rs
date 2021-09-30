@@ -140,6 +140,12 @@ impl From<TokenAmount> for i64 {
     }
 }
 
+impl From<Token> for (Vec<i8>, i64) {
+    fn from(t: Token) -> Self {
+        (t.token_id.into(), t.amount.into())
+    }
+}
+
 /// Token represented with token id paired with it's amount
 #[derive(PartialEq, Eq, Debug, Clone)]
 #[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]

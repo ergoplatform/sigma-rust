@@ -1,3 +1,5 @@
+use std::convert::TryInto;
+
 use ergotree_ir::mir::constant::TryExtractInto;
 use ergotree_ir::mir::deserialize_register::DeserializeRegister;
 use ergotree_ir::mir::expr::Expr;
@@ -12,7 +14,7 @@ use crate::eval::Evaluable;
 
 impl Evaluable for DeserializeRegister {
     fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
-        match ctx.ctx.self_box.get_register(self.reg as i8) {
+        match ctx.ctx.self_box.get_register(self.reg.try_into().unwrap()) {
             Some(c) => {
                 if c.tpe != SType::SColl(SType::SByte.into()) {
                     Err(EvalError::UnexpectedExpr(format!(
@@ -53,7 +55,7 @@ mod tests {
 
     use std::rc::Rc;
 
-    use ergotree_ir::ir_ergo_box::IrErgoBox;
+    use ergotree_ir::chain::ergo_box::ErgoBox;
     use ergotree_ir::mir::bin_op::BinOp;
     use ergotree_ir::mir::bin_op::RelationOp;
     use ergotree_ir::mir::constant::Constant;
@@ -63,17 +65,16 @@ mod tests {
     use ergotree_ir::types::stype::SType;
     use sigma_test_util::force_any_val;
 
-    use crate::eval::context::ir_ergo_box_dummy::IrErgoBoxDummy;
     use crate::eval::context::Context;
     use crate::eval::tests::try_eval_out;
 
     use super::*;
 
-    fn make_ctx_with_self_box(self_box: IrErgoBoxDummy) -> Context {
+    fn make_ctx_with_self_box(self_box: ErgoBox) -> Context {
         let ctx = force_any_val::<Context>();
         Context {
             height: 0u32,
-            self_box: Rc::new(self_box) as Rc<dyn IrErgoBox>,
+            self_box: Rc::new(self_box),
             ..ctx
         }
     }
@@ -88,9 +89,9 @@ mod tests {
         }
         .into();
         let reg_value: Constant = inner_expr.sigma_serialize_bytes().unwrap().into();
-        let b = IrErgoBoxDummy {
+        let b = ErgoBox {
             additional_registers: vec![reg_value],
-            ..force_any_val::<IrErgoBoxDummy>()
+            ..force_any_val::<ErgoBox>()
         };
         // expected SBoolean
         let expr: Expr = DeserializeRegister {
@@ -105,9 +106,9 @@ mod tests {
 
     #[test]
     fn eval_reg_is_empty() {
-        let b = IrErgoBoxDummy {
+        let b = ErgoBox {
             additional_registers: vec![],
-            ..force_any_val::<IrErgoBoxDummy>()
+            ..force_any_val::<ErgoBox>()
         };
         // no default provided
         let expr: Expr = DeserializeRegister {
@@ -144,9 +145,9 @@ mod tests {
     fn eval_reg_wrong_type() {
         // SInt, expected SColl(SByte)
         let reg_value: Constant = 1i32.into();
-        let b = IrErgoBoxDummy {
+        let b = ErgoBox {
             additional_registers: vec![reg_value],
-            ..force_any_val::<IrErgoBoxDummy>()
+            ..force_any_val::<ErgoBox>()
         };
         let expr: Expr = DeserializeRegister {
             reg: 4,
@@ -163,9 +164,9 @@ mod tests {
         // SInt
         let inner_expr: Expr = 1i32.into();
         let reg_value: Constant = inner_expr.sigma_serialize_bytes().unwrap().into();
-        let b = IrErgoBoxDummy {
+        let b = ErgoBox {
             additional_registers: vec![reg_value],
-            ..force_any_val::<IrErgoBoxDummy>()
+            ..force_any_val::<ErgoBox>()
         };
         // expected SBoolean
         let expr: Expr = DeserializeRegister {

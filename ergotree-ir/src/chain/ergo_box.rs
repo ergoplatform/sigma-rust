@@ -156,21 +156,19 @@ impl ErgoBox {
         }
     }
 
-    fn tokens_raw(&self) -> Vec<(Vec<i8>, i64)> {
-        self.tokens
-            .clone()
-            .into_iter()
-            .map(|t| (t.token_id.into(), t.amount.into()))
-            .collect()
+    /// Returns tokens as tuple of byte array and amount as primitive types
+    pub fn tokens_raw(&self) -> Vec<(Vec<i8>, i64)> {
+        self.tokens.clone().into_iter().map(Into::into).collect()
     }
 
-    fn script_bytes(&self) -> Result<Vec<i8>, SigmaSerializationError> {
+    /// Returns serialized ergo_tree guarding this box
+    pub fn script_bytes(&self) -> Result<Vec<i8>, SigmaSerializationError> {
         Ok(self.ergo_tree.sigma_serialize_bytes()?.as_vec_i8())
     }
 
     /// Tuple of height when block got included into the blockchain and transaction identifier with
     /// box index in the transaction outputs serialized to the byte array.
-    fn creation_info(&self) -> (i32, Vec<i8>) {
+    pub fn creation_info(&self) -> (i32, Vec<i8>) {
         let mut bytes = Vec::with_capacity(Digest32::SIZE + 2);
         bytes.extend_from_slice(self.transaction_id.0 .0.as_ref());
         bytes.extend_from_slice(&self.index.to_be_bytes());
@@ -365,15 +363,12 @@ pub fn parse_box_with_indexed_digests<R: SigmaByteRead>(
     })
 }
 
-#[allow(clippy::unwrap_used)]
-#[cfg(test)]
-mod tests {
-
-    use super::arbitrary::ArbBoxValueRange;
+/// Arbitrary
+#[cfg(feature = "arbitrary")]
+pub mod arbitrary {
+    use super::box_value::arbitrary::ArbBoxValueRange;
     use super::*;
-    use crate::serialization::sigma_serialize_roundtrip;
     use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
-    use sigma_test_util::force_any_val;
 
     impl Arbitrary for ErgoBoxCandidate {
         type Parameters = ArbBoxValueRange;
@@ -416,6 +411,15 @@ mod tests {
         }
         type Strategy = BoxedStrategy<Self>;
     }
+}
+
+#[allow(clippy::unwrap_used)]
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::serialization::sigma_serialize_roundtrip;
+    use proptest::prelude::*;
+    use sigma_test_util::force_any_val;
 
     #[test]
     fn get_register_mandatory() {
