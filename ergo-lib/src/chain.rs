@@ -1,8 +1,5 @@
 //! Ergo chain types
 
-pub use block_header::HeaderJsonHelper;
-
-mod block_header;
 #[cfg(feature = "json")]
 mod json;
 

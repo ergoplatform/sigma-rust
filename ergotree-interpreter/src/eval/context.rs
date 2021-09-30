@@ -68,22 +68,6 @@ mod arbitrary {
                         extension,
                         headers,
                     )| {
-                        let self_box_id = self_box.id();
-                        let outputs_ids = outputs.iter().map(|b| b.id()).collect();
-                        let inputs_ids = inputs.iter().map(|b| b.id()).collect();
-                        let data_inputs_ids = data_inputs.iter().map(|b| b.id()).collect();
-                        let mut m = HashMap::new();
-                        m.insert(self_box_id.clone(), self_box);
-                        outputs.into_iter().for_each(|b| {
-                            m.insert(b.id(), b);
-                        });
-                        inputs.into_iter().for_each(|b| {
-                            m.insert(b.id(), b);
-                        });
-                        data_inputs.into_iter().for_each(|b| {
-                            m.insert(b.id(), b);
-                        });
-                        let box_arena = IrErgoBoxDummyArena(m);
                         Self {
                             height,
                             self_box: Rc::new(self_box),

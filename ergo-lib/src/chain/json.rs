@@ -1,6 +1,5 @@
 //! JSON serialization
 
-pub(crate) mod block_header;
 pub(crate) mod context_extension;
 pub(crate) mod transaction;
 

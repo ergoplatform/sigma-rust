@@ -1,6 +1,5 @@
 //! Block header
 
-use ergo_lib::chain::HeaderJsonHelper;
 use ergo_lib::ergotree_ir::chain::header::Header;
 use wasm_bindgen::prelude::*;
 
@@ -18,10 +17,7 @@ pub struct BlockHeader(Header);
 impl BlockHeader {
     /// Parse from JSON (Node API)
     pub fn from_json(json: &str) -> Result<BlockHeader, JsValue> {
-        serde_json::from_str(json)
-            .map(|HeaderJsonHelper(header)| header)
-            .map(Self)
-            .map_err(to_js)
+        serde_json::from_str(json).map(Self).map_err(to_js)
     }
 }
 
@@ -42,10 +38,9 @@ impl BlockHeaders {
                     let jb_str = jb
                         .as_string()
                         .ok_or(JsValue::from_str("Expected BlockHeader JSON as string"))?;
-                    serde_json::from_str(jb_str.as_str()).map(|HeaderJsonHelper(header)| header)
+                    serde_json::from_str(jb_str.as_str())
                 } else {
-                    jb.into_serde::<HeaderJsonHelper>()
-                        .map(|HeaderJsonHelper(header)| header)
+                    jb.into_serde::<ergo_lib::ergotree_ir::chain::header::Header>()
                 }
                 .map_err(|e| {
                     JsValue::from_str(&format!(
