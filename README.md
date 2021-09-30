@@ -44,9 +44,9 @@ To get better understanding on how to use it in your project check out how its b
 - [Ergo Node Interface Library](https://github.com/Emurgo/ergo-node-interface);
 - [Oracle Core](https://github.com/ergoplatform/oracle-core);
 - [AgeUSD Stablecoin Protocol](https://github.com/Emurgo/age-usd);
-- [Ergo SDK](https://github.com/ergolabs/ergo-sdk-js) (WASM bindings);
-- [Yoroi wallet](https://github.com/Emurgo/yoroi-frontend) (WASM bindings);
-- [Ergo Desktop Wallet](https://github.com/ErgoWallet/ergowallet-desktop) (WASM bindings);
+- [Ergo SDK](https://github.com/ergolabs/ergo-sdk-js) (Wasm bindings);
+- [Yoroi wallet](https://github.com/Emurgo/yoroi-frontend) (Wasm bindings);
+- [Ergo Desktop Wallet](https://github.com/ErgoWallet/ergowallet-desktop) (Wasm bindings);
 
 Also take a look at tests where various usage scenarios were implemented.
 
