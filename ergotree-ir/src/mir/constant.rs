@@ -212,7 +212,7 @@ impl TryFrom<Value> for Constant {
                     Err("Can't convert Value:Tup element".into())
                 }
             }
-            Value::AvlTree => Err("Cannot convert Value::AvlTree into Constant".into()),
+            Value::AvlTree(a) => Ok(a.into()),
             Value::Context => Err("Cannot convert Value::Context into Constant".into()),
             Value::Global => Err("Cannot convert Value::Global into Constant".into()),
             Value::Lambda(_) => Err("Cannot convert Value::Lambda(_) into Constant".into()),
