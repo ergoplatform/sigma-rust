@@ -49,14 +49,20 @@ pub(crate) static HEADERS_EVAL_FN: EvalFn = |_env, ctx, obj, _args| {
         )));
     }
     Ok(Value::Coll(CollKind::WrappedColl {
-        items: ctx.ctx.headers.clone().map(Value::Header).to_vec(),
+        items: ctx
+            .ctx
+            .headers
+            .clone()
+            .map(Box::new)
+            .map(Value::Header)
+            .to_vec(),
         elem_tpe: SType::SHeader,
     }))
 };
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
-#[allow(clippy::unwrap_used)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use crate::eval::context::Context;
     use crate::eval::tests::eval_out;

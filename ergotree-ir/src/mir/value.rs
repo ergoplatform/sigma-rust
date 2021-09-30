@@ -161,7 +161,7 @@ pub enum Value {
     /// Transaction(and blockchain) context info
     Context,
     /// Block header
-    Header(Header),
+    Header(Box<Header>),
     /// Global which is used to define global methods
     Global,
     /// Optional value
@@ -370,7 +370,7 @@ impl TryExtractFrom<Value> for Rc<ErgoBox> {
 impl TryExtractFrom<Value> for Header {
     fn try_extract_from(c: Value) -> Result<Self, TryExtractFromError> {
         match c {
-            Value::Header(h) => Ok(h),
+            Value::Header(h) => Ok(*h),
             _ => Err(TryExtractFromError(format!(
                 "expected Header, found {:?}",
                 c
