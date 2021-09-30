@@ -61,6 +61,7 @@ mod tests {
     use crate::eval::context::ir_ergo_box_dummy::IrErgoBoxDummy;
     use crate::eval::context::Context;
     use crate::eval::tests::eval_out;
+    use ergotree_ir::chain::header::Header;
     use ergotree_ir::mir::expr::Expr;
     use ergotree_ir::mir::property_call::PropertyCall;
     use ergotree_ir::types::scontext;
@@ -87,5 +88,14 @@ mod tests {
                 .into();
         let rc = Rc::new(make_ctx_inputs_includes_self_box());
         assert_eq!(eval_out::<i32>(&expr, rc), 1);
+    }
+
+    #[test]
+    fn eval_headers() {
+        let expr: Expr = PropertyCall::new(Expr::Context, scontext::HEADERS_PROPERTY.clone())
+            .expect("internal error: `headers` method has parameters length != 1")
+            .into();
+        let ctx = Rc::new(force_any_val::<Context>());
+        assert_eq!(eval_out::<[Header; 10]>(&expr, ctx.clone()), ctx.headers);
     }
 }

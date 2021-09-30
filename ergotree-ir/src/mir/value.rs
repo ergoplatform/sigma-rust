@@ -244,6 +244,7 @@ impl StoreWrapped for i32 {}
 impl StoreWrapped for i64 {}
 impl StoreWrapped for BigInt256 {}
 impl StoreWrapped for IrBoxId {}
+impl StoreWrapped for Header {}
 impl StoreWrapped for EcPoint {}
 impl StoreWrapped for SigmaProp {}
 impl<T: StoreWrapped> StoreWrapped for Option<T> {}
@@ -356,6 +357,18 @@ impl TryExtractFrom<Value> for IrBoxId {
     }
 }
 
+impl TryExtractFrom<Value> for Header {
+    fn try_extract_from(c: Value) -> Result<Self, TryExtractFromError> {
+        match c {
+            Value::Header(h) => Ok(h),
+            _ => Err(TryExtractFromError(format!(
+                "expected Header, found {:?}",
+                c
+            ))),
+        }
+    }
+}
+
 impl<T: TryExtractFrom<Value> + StoreWrapped> TryExtractFrom<Value> for Vec<T> {
     fn try_extract_from(c: Value) -> Result<Self, TryExtractFromError> {
         match c {
@@ -364,6 +377,36 @@ impl<T: TryExtractFrom<Value> + StoreWrapped> TryExtractFrom<Value> for Vec<T> {
                     elem_tpe: _,
                     items: v,
                 } => v.into_iter().map(T::try_extract_from).collect(),
+                _ => Err(TryExtractFromError(format!(
+                    "expected {:?}, found {:?}",
+                    std::any::type_name::<Self>(),
+                    coll
+                ))),
+            },
+            _ => Err(TryExtractFromError(format!(
+                "expected {:?}, found {:?}",
+                std::any::type_name::<Self>(),
+                c
+            ))),
+        }
+    }
+}
+
+impl<T: TryExtractFrom<Value> + StoreWrapped, const N: usize> TryExtractFrom<Value> for [T; N] {
+    fn try_extract_from(c: Value) -> Result<Self, TryExtractFromError> {
+        match c {
+            Value::Coll(coll) => match coll {
+                CollKind::WrappedColl {
+                    elem_tpe: _,
+                    items: v,
+                } => {
+                    let v = v
+                        .into_iter()
+                        .map(T::try_extract_from)
+                        .collect::<Result<Vec<_>, _>>()?;
+                    let len = v.len();
+                    v.try_into().map_err(|_| TryExtractFromError(format!("can't convert vec of {:?} with length of {:?} to array with length of {:?}", std::any::type_name::<T>(), len, N)))
+                }
                 _ => Err(TryExtractFromError(format!(
                     "expected {:?}, found {:?}",
                     std::any::type_name::<Self>(),
