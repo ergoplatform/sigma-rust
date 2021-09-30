@@ -94,6 +94,9 @@ pub(crate) mod xor_of;
 /// Interpreter errors
 #[derive(Error, PartialEq, Eq, Debug, Clone)]
 pub enum EvalError {
+    /// AVL tree errors
+    #[error("AvlTree: {0}")]
+    AvlTree(String),
     /// Only boolean or SigmaBoolean is a valid result expr type
     #[error("Only boolean or SigmaBoolean is a valid result expr type")]
     InvalidResultType,

@@ -18,101 +18,101 @@ use scorex_crypto_avltree::operation::Operation;
 use super::EvalError;
 use super::EvalFn;
 
-pub(crate) static INSERT_EVAL_FN: EvalFn = |_env, _ctx, obj, args| {
-    let mut avl_tree_data = obj.try_extract_into::<AvlTreeData>()?;
+pub(crate) static INSERT_EVAL_FN: EvalFn =
+    |_env, _ctx, obj, args| {
+        let mut avl_tree_data = obj.try_extract_into::<AvlTreeData>()?;
 
-    if !avl_tree_data.tree_flags.insert_allowed() {
-        return Err(EvalError::Misc("AvlTree: Insertions not allowed".into()));
-    }
+        if !avl_tree_data.tree_flags.insert_allowed() {
+            return Err(EvalError::AvlTree("Insertions not allowed".into()));
+        }
 
-    let entries = {
-        let v = args
-            .get(0)
-            .cloned()
-            .ok_or_else(|| EvalError::NotFound("AvlTree: eval is missing first arg".to_string()))?;
-        match v {
-            Value::Coll(CollKind::WrappedColl { elem_tpe, items }) => {
-                if elem_tpe
-                    == SType::STuple(STuple::pair(
-                        SType::SColl(Box::new(SType::SByte)),
-                        SType::SColl(Box::new(SType::SByte)),
-                    ))
-                {
-                    let mut tup_items = Vec::with_capacity(items.len());
-                    for i in items {
-                        match i {
-                            Value::Tup(tup) => {
-                                if tup.len() == 2 {
-                                    let first = Bytes::from(
-                                        tup.first().clone().try_extract_into::<Vec<u8>>()?,
-                                    );
-                                    let second = Bytes::from(
-                                        tup.last().clone().try_extract_into::<Vec<u8>>()?,
-                                    );
-                                    tup_items.push((first, second));
-                                } else {
-                                    return Err(EvalError::InvalidResultType);
+        let entries = {
+            let v = args.get(0).cloned().ok_or_else(|| {
+                EvalError::AvlTree("eval is missing first arg (entries)".to_string())
+            })?;
+            match v {
+                Value::Coll(CollKind::WrappedColl { elem_tpe, items }) => {
+                    if elem_tpe
+                        == SType::STuple(STuple::pair(
+                            SType::SColl(Box::new(SType::SByte)),
+                            SType::SColl(Box::new(SType::SByte)),
+                        ))
+                    {
+                        let mut tup_items = Vec::with_capacity(items.len());
+                        for i in items {
+                            match i {
+                                Value::Tup(tup) => {
+                                    if tup.len() == 2 {
+                                        let first = Bytes::from(
+                                            tup.first().clone().try_extract_into::<Vec<u8>>()?,
+                                        );
+                                        let second = Bytes::from(
+                                            tup.last().clone().try_extract_into::<Vec<u8>>()?,
+                                        );
+                                        tup_items.push((first, second));
+                                    } else {
+                                        return Err(EvalError::InvalidResultType);
+                                    }
                                 }
+                                _ => unreachable!(),
                             }
-                            _ => unreachable!(),
                         }
+                        tup_items
+                    } else {
+                        return Err(EvalError::InvalidResultType);
                     }
-                    tup_items
-                } else {
-                    return Err(EvalError::InvalidResultType);
                 }
+                _ => return Err(EvalError::InvalidResultType),
             }
-            _ => return Err(EvalError::InvalidResultType),
-        }
-    };
+        };
 
-    let proof = {
-        let v = args.get(1).cloned().ok_or_else(|| {
-            EvalError::NotFound("AvlTree: eval is missing second arg".to_string())
-        })?;
-        Bytes::from(v.try_extract_into::<Vec<u8>>()?)
-    };
+        let proof = {
+            let v = args.get(1).cloned().ok_or_else(|| {
+                EvalError::AvlTree("eval is missing second arg (proof)".to_string())
+            })?;
+            Bytes::from(v.try_extract_into::<Vec<u8>>()?)
+        };
 
-    let starting_digest = Bytes::from(avl_tree_data.digest.0.to_vec());
-    let mut bv = BatchAVLVerifier::new(
-        &starting_digest,
-        &proof,
-        AVLTree::new(
-            |digest| Node::LabelOnly(NodeHeader::new(Some(*digest), None)),
-            avl_tree_data.key_length as usize,
-            avl_tree_data
-                .value_length_opt
-                .as_ref()
-                .map(|v| **v as usize),
-        ),
-        None,
-        None,
-    )
-    .map_err(map_eval_err)?;
-    for (key, value) in entries {
-        if bv
-            .perform_one_operation(&Operation::Insert(KeyValue { key, value }))
-            .is_err()
-        {
-            return Err(EvalError::Misc(format!(
-                "AvlTree: Incorrect insert for {:?}",
+        let starting_digest = Bytes::from(avl_tree_data.digest.0.to_vec());
+        let mut bv = BatchAVLVerifier::new(
+            &starting_digest,
+            &proof,
+            AVLTree::new(
+                |digest| Node::LabelOnly(NodeHeader::new(Some(*digest), None)),
+                avl_tree_data.key_length as usize,
                 avl_tree_data
-            )));
+                    .value_length_opt
+                    .as_ref()
+                    .map(|v| **v as usize),
+            ),
+            None,
+            None,
+        )
+        .map_err(map_eval_err)?;
+        for (key, value) in entries {
+            if bv
+                .perform_one_operation(&Operation::Insert(KeyValue { key, value }))
+                .is_err()
+            {
+                return Err(EvalError::AvlTree(format!(
+                    "Incorrect insert for {:?}",
+                    avl_tree_data
+                )));
+            }
         }
-    }
-    if let Some(new_digest) = bv.digest() {
-        let digest = ADDigest::sigma_parse_bytes(&new_digest)?;
-        avl_tree_data.digest = digest;
-        Ok(Value::Opt(Box::new(Some(Value::AvlTree(
-            avl_tree_data.into(),
-        )))))
-    } else {
-        Err(EvalError::Misc("AvlTree: Cannot update digest".into()))
-    }
-};
+        if let Some(new_digest) = bv.digest() {
+            let digest = ADDigest::sigma_parse_bytes(&new_digest)?;
+            avl_tree_data.digest = digest;
+            Ok(Value::Opt(Box::new(Some(Value::AvlTree(
+                avl_tree_data.into(),
+            )))))
+        } else {
+            Err(EvalError::AvlTree("Cannot update digest".into()))
+        }
+    };
 
 fn map_eval_err<T: std::fmt::Debug>(e: T) -> EvalError {
-    EvalError::Misc(format!("{:?}", e))
+    EvalError::AvlTree(format!("{:?}", e))
 }
 
 #[allow(clippy::unwrap_used)]
