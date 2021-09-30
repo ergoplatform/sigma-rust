@@ -29,8 +29,8 @@ impl From<io::Error> for VlqEncodingError {
 }
 
 /// Write encoded unsigned values using VLQ and signed values first with ZigZag, then using VLQ
-/// for VLQ see https://en.wikipedia.org/wiki/Variable-length_quantity (GLE)
-/// for ZigZag see https://developers.google.com/protocol-buffers/docs/encoding#types
+/// for VLQ see <https://en.wikipedia.org/wiki/Variable-length_quantity> (GLE)
+/// for ZigZag see <https://developers.google.com/protocol-buffers/docs/encoding#types>
 pub trait WriteSigmaVlqExt: io::Write {
     /// Write i8 without encoding
     fn put_i8(&mut self, v: i8) -> io::Result<()> {
@@ -122,8 +122,8 @@ pub trait WriteSigmaVlqExt: io::Write {
 impl<W: io::Write + ?Sized> WriteSigmaVlqExt for W {}
 
 /// Read and decode values using VLQ (+ ZigZag for signed values) encoded and written with [`WriteSigmaVlqExt`]
-/// for VLQ see https://en.wikipedia.org/wiki/Variable-length_quantity (GLE)
-/// for ZigZag see https://developers.google.com/protocol-buffers/docs/encoding#types
+/// for VLQ see <https://en.wikipedia.org/wiki/Variable-length_quantity> (GLE)
+/// for ZigZag see <https://developers.google.com/protocol-buffers/docs/encoding#types>
 pub trait ReadSigmaVlqExt: io::Read {
     /// Read i8 without decoding
     fn get_i8(&mut self) -> Result<i8, io::Error> {

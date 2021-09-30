@@ -249,7 +249,7 @@ impl TryFrom<super::json::ergo_box::ErgoBoxFromJson> for ErgoBox {
 
 /// Contains the same fields as `ErgoBox`, except if transaction id and index,
 /// that will be calculated after full transaction formation.
-/// Use [`box_builder::ErgoBoxCandidateBuilder`] to create an instance.
+/// Use `ErgoBoxCandidateBuilder` from ergo-lib crate to create an instance.
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct ErgoBoxCandidate {
