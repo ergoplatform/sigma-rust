@@ -2,11 +2,8 @@ use bytes::Bytes;
 use ergotree_ir::mir::avl_tree_data::ADDigest;
 use ergotree_ir::mir::avl_tree_data::AvlTreeData;
 use ergotree_ir::mir::constant::TryExtractInto;
-use ergotree_ir::mir::value::CollKind;
 use ergotree_ir::mir::value::Value;
 use ergotree_ir::serialization::SigmaSerializable;
-use ergotree_ir::types::stuple::STuple;
-use ergotree_ir::types::stype::SType;
 use scorex_crypto_avltree::authenticated_tree_ops::AuthenticatedTreeOps;
 use scorex_crypto_avltree::batch_avl_verifier::BatchAVLVerifier;
 use scorex_crypto_avltree::batch_node::AVLTree;
@@ -30,40 +27,7 @@ pub(crate) static INSERT_EVAL_FN: EvalFn =
             let v = args.get(0).cloned().ok_or_else(|| {
                 EvalError::AvlTree("eval is missing first arg (entries)".to_string())
             })?;
-            match v {
-                Value::Coll(CollKind::WrappedColl { elem_tpe, items }) => {
-                    if elem_tpe
-                        == SType::STuple(STuple::pair(
-                            SType::SColl(Box::new(SType::SByte)),
-                            SType::SColl(Box::new(SType::SByte)),
-                        ))
-                    {
-                        let mut tup_items = Vec::with_capacity(items.len());
-                        for i in items {
-                            match i {
-                                Value::Tup(tup) => {
-                                    if tup.len() == 2 {
-                                        let first = Bytes::from(
-                                            tup.first().clone().try_extract_into::<Vec<u8>>()?,
-                                        );
-                                        let second = Bytes::from(
-                                            tup.last().clone().try_extract_into::<Vec<u8>>()?,
-                                        );
-                                        tup_items.push((first, second));
-                                    } else {
-                                        return Err(EvalError::InvalidResultType);
-                                    }
-                                }
-                                _ => unreachable!(),
-                            }
-                        }
-                        tup_items
-                    } else {
-                        return Err(EvalError::InvalidResultType);
-                    }
-                }
-                _ => return Err(EvalError::InvalidResultType),
-            }
+            v.try_extract_into::<Vec<(Vec<u8>, Vec<u8>)>>()?
         };
 
         let proof = {
@@ -91,7 +55,10 @@ pub(crate) static INSERT_EVAL_FN: EvalFn =
         .map_err(map_eval_err)?;
         for (key, value) in entries {
             if bv
-                .perform_one_operation(&Operation::Insert(KeyValue { key, value }))
+                .perform_one_operation(&Operation::Insert(KeyValue {
+                    key: key.into(),
+                    value: value.into(),
+                }))
                 .is_err()
             {
                 return Err(EvalError::AvlTree(format!(
@@ -127,8 +94,9 @@ mod tests {
             constant::{Constant, Literal},
             expr::Expr,
             method_call::MethodCall,
+            value::CollKind,
         },
-        types::savltree,
+        types::{savltree, stuple::STuple, stype::SType},
     };
     use scorex_crypto_avltree::batch_avl_prover::BatchAVLProver;
 
