@@ -3,8 +3,6 @@ use crate::mir::constant::Constant;
 use crate::serialization::SigmaSerializationError;
 use sigma_util::DIGEST32_SIZE;
 use std::fmt::Debug;
-use std::rc::Rc;
-use thiserror::Error;
 
 /// Ergo box id
 #[derive(PartialEq, Eq, Debug, Clone, Hash)]
@@ -16,30 +14,11 @@ impl IrBoxId {
         IrBoxId(id)
     }
 
-    /// Gets box with this id from box arena
-    pub fn get_box(
-        &self,
-        arena: &Rc<dyn IrErgoBoxArena>,
-    ) -> Result<Rc<dyn IrErgoBox>, IrErgoBoxArenaError> {
-        arena.get(self)
-    }
-
     /// Returns id as byte array
     pub fn to_bytes(&self) -> Vec<i8> {
         self.0.to_vec()
     }
 }
-
-/// Arena (store) for boxes
-pub trait IrErgoBoxArena: Debug {
-    /// Returns a box with the given id
-    fn get(&self, id: &IrBoxId) -> Result<Rc<dyn IrErgoBox>, IrErgoBoxArenaError>;
-}
-
-/// Box arena error
-#[derive(Error, PartialEq, Eq, Debug, Clone)]
-#[error("IrErgoBoxArenaError: {0}")]
-pub struct IrErgoBoxArenaError(pub String);
 
 /// Ergo box properties
 pub trait IrErgoBox: Debug {
@@ -65,3 +44,10 @@ pub trait IrErgoBox: Debug {
     /// Box serialized bytes excluding txId & index
     fn bytes_without_ref(&self) -> Result<Vec<i8>, SigmaSerializationError>;
 }
+
+impl PartialEq for dyn IrErgoBox + '_ {
+    fn eq(&self, other: &Self) -> bool {
+        self.id() == other.id()
+    }
+}
+

@@ -10,7 +10,7 @@ impl Evaluable for ExtractAmount {
     fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
         let input_v = self.input.eval(env, ctx)?;
         match input_v {
-            Value::CBox(b) => Ok(Value::Long(ctx.ctx.box_arena.get(&b)?.value())),
+            Value::CBox(b) => Ok(Value::Long(b.value())),
             _ => Err(EvalError::UnexpectedValue(format!(
                 "Expected ExtractAmount input to be Value::CBox, got {0:?}",
                 input_v
@@ -37,9 +37,6 @@ mod tests {
         }
         .into();
         let ctx = Rc::new(force_any_val::<Context>());
-        assert_eq!(
-            eval_out::<i64>(&e, ctx.clone()),
-            ctx.self_box.get_box(&ctx.box_arena).unwrap().value()
-        );
+        assert_eq!(eval_out::<i64>(&e, ctx.clone()), ctx.self_box.value());
     }
 }

@@ -79,7 +79,7 @@ mod tests {
 
     use super::*;
 
-    use ergotree_ir::ir_ergo_box::IrBoxId;
+    use ergotree_ir::ir_ergo_box::IrErgoBox;
     use ergotree_ir::mir::bin_op::BinOp;
     use ergotree_ir::mir::bin_op::RelationOp;
     use ergotree_ir::mir::expr::Expr;
@@ -130,10 +130,10 @@ mod tests {
             .into();
             let ctx = Rc::new(ctx);
             assert_eq!(
-                eval_out::<Vec<IrBoxId>>(&expr, ctx.clone()),
+                eval_out::<Vec<Rc<dyn IrErgoBox>>>(&expr, ctx.clone()),
                 ctx.data_inputs.clone()
                     .into_iter()
-                    .filter(| b| 1 <= b.get_box(&ctx.box_arena).unwrap().value()).collect::<Vec<IrBoxId>>()
+                    .filter(| b| 1 <= b.value()).collect::<Vec<Rc<dyn IrErgoBox>>>()
             );
         }
     }

@@ -1,25 +1,7 @@
-use std::collections::HashMap;
-use std::rc::Rc;
-
 use ergotree_ir::ir_ergo_box::IrBoxId;
 use ergotree_ir::ir_ergo_box::IrErgoBox;
-use ergotree_ir::ir_ergo_box::IrErgoBoxArena;
-use ergotree_ir::ir_ergo_box::IrErgoBoxArenaError;
 use ergotree_ir::mir::constant::Constant;
 use ergotree_ir::serialization::SigmaSerializationError;
-
-#[derive(PartialEq, Eq, Debug, Clone)]
-pub(crate) struct IrErgoBoxDummyArena(pub HashMap<IrBoxId, IrErgoBoxDummy>);
-
-impl IrErgoBoxArena for IrErgoBoxDummyArena {
-    fn get(&self, id: &IrBoxId) -> Result<Rc<dyn IrErgoBox>, IrErgoBoxArenaError> {
-        self.0
-            .get(id)
-            .cloned()
-            .ok_or_else(|| IrErgoBoxArenaError(format!("IrErgoBox with id {0:?} not found", id)))
-            .map(|b| Rc::new(b) as Rc<dyn IrErgoBox>)
-    }
-}
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub(crate) struct IrErgoBoxDummy {

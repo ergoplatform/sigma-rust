@@ -129,7 +129,7 @@ mod tests {
                 eval_out::<Vec<i64>>(&expr, ctx.clone()),
                 ctx.data_inputs
                     .iter()
-                    .map(| b| b.get_box(&ctx.box_arena).unwrap().value() + 1).collect::<Vec<i64>>()
+                    .map(| b| b.value() + 1).collect::<Vec<i64>>()
             );
         }
 

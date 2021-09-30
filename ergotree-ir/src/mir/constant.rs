@@ -1,7 +1,7 @@
 //! Constant(Literal) IR node
 
 use crate::bigint256::BigInt256;
-use crate::ir_ergo_box::IrBoxId;
+use crate::ir_ergo_box::IrErgoBox;
 use crate::mir::value::CollKind;
 use crate::sigma_protocol::sigma_boolean::SigmaBoolean;
 use crate::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
@@ -14,6 +14,7 @@ use crate::types::stype::SType;
 use impl_trait_for_tuples::impl_for_tuples;
 use std::convert::TryFrom;
 use std::convert::TryInto;
+use std::rc::Rc;
 
 mod constant_placeholder;
 
@@ -35,7 +36,7 @@ pub struct Constant {
     pub v: Literal,
 }
 
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(Debug, Clone)]
 /// Possible values for `Constant`
 pub enum Literal {
     /// Boolean
@@ -54,10 +55,15 @@ pub enum Literal {
     SigmaProp(Box<SigmaProp>),
     /// GroupElement
     GroupElement(Box<EcPoint>),
+<<<<<<< HEAD
     /// Ergo box ID
     CBox(IrBoxId),
     /// AVL tree
     AvlTree(Box<AvlTreeData>),
+=======
+    /// Ergo box
+    CBox(Rc<dyn IrErgoBox>),
+>>>>>>> efde9e7 (switch from `CBox(IrBoxId)` in `Literal` and `Value`)
     /// Collection
     Coll(CollKind<Literal>),
     /// Option type
@@ -65,6 +71,29 @@ pub enum Literal {
     /// Tuple (arbitrary type values)
     Tup(TupleItems<Literal>),
 }
+
+impl std::cmp::PartialEq for Literal {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Literal::Boolean(v1), Literal::Boolean(v2)) => v1 == v2,
+            (Literal::Byte(v1), Literal::Byte(v2)) => v1 == v2,
+            (Literal::Short(v1), Literal::Short(v2)) => v1 == v2,
+            (Literal::Int(v1), Literal::Int(v2)) => v1 == v2,
+            (Literal::Long(v1), Literal::Long(v2)) => v1 == v2,
+            (Literal::BigInt(v1), Literal::BigInt(v2)) => v1 == v2,
+            (Literal::SigmaProp(v1), Literal::SigmaProp(v2)) => v1 == v2,
+            (Literal::GroupElement(v1), Literal::GroupElement(v2)) => v1 == v2,
+            (Literal::CBox(v1), Literal::CBox(v2)) => v1.id() == v2.id(),
+            (Literal::Coll(v1), Literal::Coll(v2)) => v1 == v2,
+            (Literal::Opt(v1), Literal::Opt(v2)) => v1 == v2,
+            (Literal::Tup(v1), Literal::Tup(v2)) => v1 == v2,
+            (_, _) => false,
+        }
+    }
+}
+
+impl std::cmp::Eq for Literal {}
+
 impl From<bool> for Literal {
     fn from(v: bool) -> Literal {
         Literal::Boolean(v)
@@ -113,8 +142,8 @@ impl From<EcPoint> for Literal {
     }
 }
 
-impl From<IrBoxId> for Literal {
-    fn from(b: IrBoxId) -> Self {
+impl From<Rc<dyn IrErgoBox>> for Literal {
+    fn from(b: Rc<dyn IrErgoBox>) -> Self {
         Literal::CBox(b)
     }
 }
@@ -284,8 +313,8 @@ impl From<EcPoint> for Constant {
     }
 }
 
-impl From<IrBoxId> for Constant {
-    fn from(b: IrBoxId) -> Self {
+impl From<Rc<dyn IrErgoBox>> for Constant {
+    fn from(b: Rc<dyn IrErgoBox>) -> Self {
         Constant {
             tpe: SType::SBox,
             v: b.into(),
@@ -489,7 +518,7 @@ impl TryExtractFrom<Literal> for SigmaProp {
     }
 }
 
-impl TryExtractFrom<Literal> for IrBoxId {
+impl TryExtractFrom<Literal> for Rc<dyn IrErgoBox> {
     fn try_extract_from(c: Literal) -> Result<Self, TryExtractFromError> {
         match c {
             Literal::CBox(b) => Ok(b),

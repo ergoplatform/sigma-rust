@@ -32,7 +32,7 @@ mod tests {
     use crate::eval::tests::eval_out;
     use ergoscript_compiler::compiler::compile_expr;
     use ergoscript_compiler::script_env::ScriptEnv;
-    use ergotree_ir::ir_ergo_box::IrBoxId;
+    use ergotree_ir::ir_ergo_box::IrErgoBox;
     use ergotree_ir::sigma_protocol::dlog_group::EcPoint;
     use sigma_test_util::force_any_val;
 
@@ -49,8 +49,8 @@ mod tests {
     fn eval_self_box() {
         let ctx = Rc::new(force_any_val::<Context>());
         assert_eq!(
-            eval_out::<IrBoxId>(&GlobalVars::SelfBox.into(), ctx.clone()),
-            ctx.self_box
+            eval_out::<Rc<dyn IrErgoBox>>(&GlobalVars::SelfBox.into(), ctx.clone()).as_ref(),
+            ctx.self_box.as_ref()
         );
     }
 
@@ -58,7 +58,7 @@ mod tests {
     fn eval_outputs() {
         let ctx = Rc::new(force_any_val::<Context>());
         assert_eq!(
-            eval_out::<Vec<IrBoxId>>(&GlobalVars::Outputs.into(), ctx.clone()),
+            eval_out::<Vec<Rc<dyn IrErgoBox>>>(&GlobalVars::Outputs.into(), ctx.clone()),
             ctx.outputs
         );
     }
@@ -67,7 +67,7 @@ mod tests {
     fn eval_inputs() {
         let ctx = Rc::new(force_any_val::<Context>());
         assert_eq!(
-            eval_out::<Vec<IrBoxId>>(&GlobalVars::Inputs.into(), ctx.clone()),
+            eval_out::<Vec<Rc<dyn IrErgoBox>>>(&GlobalVars::Inputs.into(), ctx.clone()),
             ctx.inputs
         );
     }

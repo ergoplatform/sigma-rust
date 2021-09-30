@@ -1,23 +1,22 @@
+use std::rc::Rc;
+
 use crate::eval::EvalError;
 
-use ergotree_ir::ir_ergo_box::IrBoxId;
+use ergotree_ir::ir_ergo_box::IrErgoBox;
 use ergotree_ir::mir::constant::TryExtractInto;
 use ergotree_ir::mir::value::Value;
 
 use super::EvalFn;
 
-pub(crate) static VALUE_EVAL_FN: EvalFn = |_env, ctx, obj, _args| {
+pub(crate) static VALUE_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
     Ok(Value::Long(
-        obj.try_extract_into::<IrBoxId>()?
-            .get_box(&ctx.ctx.box_arena)?
-            .value(),
+        obj.try_extract_into::<Rc<dyn IrErgoBox>>()?.value(),
     ))
 };
 
-pub(crate) static GET_REG_EVAL_FN: EvalFn = |_env, ctx, obj, args| {
+pub(crate) static GET_REG_EVAL_FN: EvalFn = |_env, _ctx, obj, args| {
     Ok(Value::Opt(Box::new(
-        obj.try_extract_into::<IrBoxId>()?
-            .get_box(&ctx.ctx.box_arena)?
+        obj.try_extract_into::<Rc<dyn IrErgoBox>>()?
             .get_register(
                 args.get(0)
                     .cloned()
@@ -28,10 +27,9 @@ pub(crate) static GET_REG_EVAL_FN: EvalFn = |_env, ctx, obj, args| {
     )))
 };
 
-pub(crate) static TOKENS_EVAL_FN: EvalFn = |_env, ctx, obj, _args| {
+pub(crate) static TOKENS_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
     let res: Value = obj
-        .try_extract_into::<IrBoxId>()?
-        .get_box(&ctx.ctx.box_arena)?
+        .try_extract_into::<Rc<dyn IrErgoBox>>()?
         .tokens_raw()
         .into();
     Ok(res)
@@ -57,10 +55,7 @@ mod tests {
             .unwrap()
             .into();
         let ctx = Rc::new(force_any_val::<Context>());
-        assert_eq!(
-            eval_out::<i64>(&expr, ctx.clone()),
-            ctx.self_box.get_box(&ctx.box_arena).unwrap().value()
-        );
+        assert_eq!(eval_out::<i64>(&expr, ctx.clone()), ctx.self_box.value());
     }
 
     #[test]
@@ -71,7 +66,7 @@ mod tests {
         let ctx = Rc::new(force_any_val::<Context>());
         assert_eq!(
             eval_out::<Vec<(Vec<i8>, i64)>>(&expr, ctx.clone()),
-            ctx.self_box.get_box(&ctx.box_arena).unwrap().tokens_raw()
+            ctx.self_box.tokens_raw()
         );
     }
 }

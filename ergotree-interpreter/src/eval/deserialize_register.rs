@@ -12,12 +12,7 @@ use crate::eval::Evaluable;
 
 impl Evaluable for DeserializeRegister {
     fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
-        match ctx
-            .ctx
-            .box_arena
-            .get(&ctx.ctx.self_box)?
-            .get_register(self.reg as i8)
-        {
+        match ctx.ctx.self_box.get_register(self.reg as i8) {
             Some(c) => {
                 if c.tpe != SType::SColl(SType::SByte.into()) {
                     Err(EvalError::UnexpectedExpr(format!(
@@ -58,6 +53,7 @@ mod tests {
 
     use std::rc::Rc;
 
+    use ergotree_ir::ir_ergo_box::IrErgoBox;
     use ergotree_ir::mir::bin_op::BinOp;
     use ergotree_ir::mir::bin_op::RelationOp;
     use ergotree_ir::mir::constant::Constant;
@@ -68,7 +64,6 @@ mod tests {
     use sigma_test_util::force_any_val;
 
     use crate::eval::context::ir_ergo_box_dummy::IrErgoBoxDummy;
-    use crate::eval::context::ir_ergo_box_dummy::IrErgoBoxDummyArena;
     use crate::eval::context::Context;
     use crate::eval::tests::try_eval_out;
 
@@ -76,13 +71,9 @@ mod tests {
 
     fn make_ctx_with_self_box(self_box: IrErgoBoxDummy) -> Context {
         let ctx = force_any_val::<Context>();
-        let mut m = std::collections::HashMap::new();
-        let self_box_id = self_box.id.clone();
-        m.insert(self_box_id.clone(), self_box);
         Context {
             height: 0u32,
-            self_box: self_box_id,
-            box_arena: Rc::new(IrErgoBoxDummyArena(m)),
+            self_box: Rc::new(self_box) as Rc<dyn IrErgoBox>,
             ..ctx
         }
     }
