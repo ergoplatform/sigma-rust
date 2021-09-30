@@ -148,11 +148,6 @@ impl DataSerializer {
                 Literal::Tup(items.try_into()?)
             }
             SBox => Literal::CBox(Rc::new(ErgoBox::sigma_parse(r)?)),
-            SAvlTree => {
-                return Err(SigmaParsingError::NotImplementedYet(
-                    "SAvlTree data".to_string(),
-                ))
-            }
             SAvlTree => Literal::AvlTree(Box::new(AvlTreeData::sigma_parse(r)?)),
             STypeVar(_) => return Err(SigmaParsingError::NotSupported("TypeVar data")),
             SAny => return Err(SigmaParsingError::NotSupported("SAny data")),
