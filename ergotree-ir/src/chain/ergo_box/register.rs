@@ -187,17 +187,6 @@ impl NonMandatoryRegisters {
         NonMandatoryRegisters::try_from(regs)
     }
 
-    /// Create new from ordered values (first element will be R4, and so on)
-    pub fn from_ordered_values(
-        values: Vec<Constant>,
-    ) -> Result<NonMandatoryRegisters, NonMandatoryRegistersError> {
-        if values.len() > NonMandatoryRegisters::MAX_SIZE {
-            Err(NonMandatoryRegistersError::InvalidSize(values.len()))
-        } else {
-            Ok(NonMandatoryRegisters(values))
-        }
-    }
-
     /// Size of non-mandatory registers set
     pub fn len(&self) -> usize {
         self.0.len()
@@ -220,6 +209,19 @@ impl NonMandatoryRegisters {
     }
 }
 
+/// Create new from ordered values (first element will be R4, and so on)
+impl TryFrom<Vec<Constant>> for NonMandatoryRegisters {
+    type Error = NonMandatoryRegistersError;
+
+    fn try_from(values: Vec<Constant>) -> Result<Self, Self::Error> {
+        if values.len() > NonMandatoryRegisters::MAX_SIZE {
+            Err(NonMandatoryRegistersError::InvalidSize(values.len()))
+        } else {
+            Ok(NonMandatoryRegisters(values))
+        }
+    }
+}
+
 impl SigmaSerializable for NonMandatoryRegisters {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         let regs_num = self.len();
@@ -237,7 +239,7 @@ impl SigmaSerializable for NonMandatoryRegisters {
             let v = Constant::sigma_parse(r)?;
             additional_regs.push(v);
         }
-        Ok(NonMandatoryRegisters::from_ordered_values(additional_regs)?)
+        Ok(additional_regs.try_into()?)
     }
 }
 
@@ -349,8 +351,7 @@ pub mod arbitrary {
         fn arbitrary_with(_: Self::Parameters) -> Self::Strategy {
             vec(any::<Constant>(), 0..=NonMandatoryRegisterId::NUM_REGS)
                 .prop_map(|constants| {
-                    NonMandatoryRegisters::from_ordered_values(constants)
-                        .expect("error building registers")
+                    NonMandatoryRegisters::try_from(constants).expect("error building registers")
                 })
                 .boxed()
         }

@@ -56,6 +56,7 @@ mod tests {
     use std::rc::Rc;
 
     use ergotree_ir::chain::ergo_box::ErgoBox;
+    use ergotree_ir::chain::ergo_box::NonMandatoryRegisters;
     use ergotree_ir::mir::bin_op::BinOp;
     use ergotree_ir::mir::bin_op::RelationOp;
     use ergotree_ir::mir::constant::Constant;
@@ -89,10 +90,8 @@ mod tests {
         }
         .into();
         let reg_value: Constant = inner_expr.sigma_serialize_bytes().unwrap().into();
-        let b = ErgoBox {
-            additional_registers: vec![reg_value],
-            ..force_any_val::<ErgoBox>()
-        };
+        let b = force_any_val::<ErgoBox>()
+            .with_additional_registers(vec![reg_value].try_into().unwrap());
         // expected SBoolean
         let expr: Expr = DeserializeRegister {
             reg: 4,
@@ -106,10 +105,8 @@ mod tests {
 
     #[test]
     fn eval_reg_is_empty() {
-        let b = ErgoBox {
-            additional_registers: vec![],
-            ..force_any_val::<ErgoBox>()
-        };
+        let b =
+            force_any_val::<ErgoBox>().with_additional_registers(NonMandatoryRegisters::empty());
         // no default provided
         let expr: Expr = DeserializeRegister {
             reg: 5,
@@ -145,10 +142,8 @@ mod tests {
     fn eval_reg_wrong_type() {
         // SInt, expected SColl(SByte)
         let reg_value: Constant = 1i32.into();
-        let b = ErgoBox {
-            additional_registers: vec![reg_value],
-            ..force_any_val::<ErgoBox>()
-        };
+        let b = force_any_val::<ErgoBox>()
+            .with_additional_registers(vec![reg_value].try_into().unwrap());
         let expr: Expr = DeserializeRegister {
             reg: 4,
             tpe: SType::SBoolean,
@@ -164,10 +159,8 @@ mod tests {
         // SInt
         let inner_expr: Expr = 1i32.into();
         let reg_value: Constant = inner_expr.sigma_serialize_bytes().unwrap().into();
-        let b = ErgoBox {
-            additional_registers: vec![reg_value],
-            ..force_any_val::<ErgoBox>()
-        };
+        let b = force_any_val::<ErgoBox>()
+            .with_additional_registers(vec![reg_value].try_into().unwrap());
         // expected SBoolean
         let expr: Expr = DeserializeRegister {
             reg: 4,

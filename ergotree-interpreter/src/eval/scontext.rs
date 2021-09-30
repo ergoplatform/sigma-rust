@@ -71,7 +71,7 @@ mod tests {
     fn make_ctx_inputs_includes_self_box() -> Context {
         let ctx = force_any_val::<Context>();
         let self_box = force_any_val::<ErgoBox>();
-        let inputs = vec![force_any_val::<ErgoBox>().into(), self_box.into()];
+        let inputs = vec![force_any_val::<ErgoBox>().into(), self_box.clone().into()];
         Context {
             height: 0u32,
             self_box: self_box.into(),

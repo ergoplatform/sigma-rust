@@ -10,7 +10,7 @@
 // #![deny(missing_docs)]
 #![allow(clippy::missing_safety_doc)]
 
-use ergo_lib::chain;
+use ergo_lib::ergotree_ir::chain;
 
 use ergo_lib_c_core::{address_delete, address_from_testnet};
 pub use ergo_lib_c_core::{Address, Error};
@@ -22,7 +22,7 @@ use std::{
 pub type ErrorPtr = *mut Error;
 pub type AddressPtr = *mut Address;
 
-pub struct ErgoStateContext(chain::ergo_state_context::ErgoStateContext);
+pub struct ErgoStateContext(ergo_lib::chain::ergo_state_context::ErgoStateContext);
 pub type ErgoStateContextPtr = *mut ErgoStateContext;
 
 #[no_mangle]
@@ -143,7 +143,7 @@ pub extern "C" fn ergo_wallet_wallet_new_signed_tx(
     todo!()
 }
 
-pub struct Transaction(chain::transaction::Transaction);
+pub struct Transaction(ergo_lib::chain::transaction::Transaction);
 pub type TransactionPtr = *mut Transaction;
 
 #[no_mangle]

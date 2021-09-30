@@ -43,12 +43,6 @@ pub struct TxBuilder<S: ErgoBoxAssets> {
 }
 
 impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
-    /// Suggested transaction fee (1100000 nanoERGs, semi-default value used across wallets and dApps as of Oct 2020)
-    #[allow(non_snake_case)]
-    pub fn SUGGESTED_TX_FEE() -> BoxValue {
-        BoxValue::new(1100000u64).unwrap()
-    }
-
     /// Creates new TxBuilder
     /// `box_selection` - selected input boxes  (via [`super::box_selector::BoxSelector`])
     /// `output_candidates` - output boxes to be "created" in this transaction,
@@ -245,6 +239,12 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
     pub fn build(self) -> Result<UnsignedTransaction, TxBuilderError> {
         self.build_tx()
     }
+}
+
+/// Suggested transaction fee (1100000 nanoERGs, semi-default value used across wallets and dApps as of Oct 2020)
+#[allow(non_snake_case)]
+pub fn SUGGESTED_TX_FEE() -> BoxValue {
+    BoxValue::new(1100000u64).unwrap()
 }
 
 /// Create a box with miner's contract and a given value
@@ -545,7 +545,7 @@ mod tests {
             0,
         )
         .unwrap();
-        let tx_fee = super::SUGGESTED_TX_FEE;
+        let tx_fee = super::SUGGESTED_TX_FEE();
         let out_box_value = input.value.checked_sub(&tx_fee).unwrap();
         let box_builder =
             ErgoBoxCandidateBuilder::new(out_box_value, force_any_val::<ErgoTree>(), 0);

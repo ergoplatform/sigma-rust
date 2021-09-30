@@ -18,7 +18,8 @@
 
 use std::convert::TryFrom;
 
-use ergo_lib::chain;
+use ergo_lib::ergotree_ir::chain;
+use ergo_lib::ergotree_ir::chain::ergo_box::NonMandatoryRegisters;
 use ergo_lib::ergotree_ir::serialization::SigmaSerializable;
 use js_sys::Uint8Array;
 use wasm_bindgen::prelude::*;
@@ -122,7 +123,7 @@ impl ErgoBox {
         index: u16,
         tokens: &Tokens,
     ) -> Result<ErgoBox, JsValue> {
-        let chain_contract: chain::contract::Contract = contract.clone().into();
+        let chain_contract: ergo_lib::chain::contract::Contract = contract.clone().into();
         let b = chain::ergo_box::ErgoBox::new(
             value.0,
             chain_contract.ergo_tree(),
@@ -205,7 +206,7 @@ impl From<chain::ergo_box::ErgoBox> for ErgoBox {
 /// Box value in nanoERGs with bound checks
 #[wasm_bindgen]
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct BoxValue(pub(crate) chain::ergo_box::BoxValue);
+pub struct BoxValue(pub(crate) chain::ergo_box::box_value::BoxValue);
 
 #[wasm_bindgen]
 impl BoxValue {
@@ -213,19 +214,20 @@ impl BoxValue {
     /// Allows box size upto 2777 bytes with current min box value per byte of 360 nanoERGs
     #[allow(non_snake_case)]
     pub fn SAFE_USER_MIN() -> BoxValue {
-        BoxValue(chain::ergo_box::BoxValue::SAFE_USER_MIN)
+        BoxValue(chain::ergo_box::box_value::BoxValue::SAFE_USER_MIN)
     }
 
     /// Number of units inside one ERGO (i.e. one ERG using nano ERG representation)
     #[allow(non_snake_case)]
     pub fn UNITS_PER_ERGO() -> I64 {
-        (chain::ergo_box::BoxValue::UNITS_PER_ERGO as i64).into()
+        (chain::ergo_box::box_value::BoxValue::UNITS_PER_ERGO as i64).into()
     }
 
     /// Create from i64 with bounds check
     pub fn from_i64(v: &I64) -> Result<BoxValue, JsValue> {
         Ok(BoxValue(
-            chain::ergo_box::BoxValue::try_from(i64::from(v.clone()) as u64).map_err(to_js)?,
+            chain::ergo_box::box_value::BoxValue::try_from(i64::from(v.clone()) as u64)
+                .map_err(to_js)?,
         ))
     }
 
@@ -240,14 +242,14 @@ impl BoxValue {
     }
 }
 
-impl From<BoxValue> for chain::ergo_box::BoxValue {
+impl From<BoxValue> for chain::ergo_box::box_value::BoxValue {
     fn from(v: BoxValue) -> Self {
         v.0
     }
 }
 
-impl From<chain::ergo_box::BoxValue> for BoxValue {
-    fn from(v: chain::ergo_box::BoxValue) -> Self {
+impl From<chain::ergo_box::box_value::BoxValue> for BoxValue {
+    fn from(v: chain::ergo_box::box_value::BoxValue) -> Self {
         BoxValue(v)
     }
 }
@@ -255,14 +257,14 @@ impl From<chain::ergo_box::BoxValue> for BoxValue {
 /// Pair of <value, tokens> for an box
 #[wasm_bindgen]
 #[derive(PartialEq, Eq, Debug, Clone, From, Into)]
-pub struct ErgoBoxAssetsData(chain::ergo_box::ErgoBoxAssetsData);
+pub struct ErgoBoxAssetsData(ergo_lib::wallet::box_selector::ErgoBoxAssetsData);
 
 #[wasm_bindgen]
 impl ErgoBoxAssetsData {
     /// Create empty SimpleBoxSelector
     #[wasm_bindgen(constructor)]
     pub fn new(value: &BoxValue, tokens: &Tokens) -> Self {
-        ErgoBoxAssetsData(chain::ergo_box::ErgoBoxAssetsData {
+        ErgoBoxAssetsData(ergo_lib::wallet::box_selector::ErgoBoxAssetsData {
             value: value.clone().into(),
             tokens: tokens.clone().into(),
         })
@@ -308,13 +310,13 @@ impl ErgoBoxAssetsDataList {
     }
 }
 
-impl From<ErgoBoxAssetsDataList> for Vec<chain::ergo_box::ErgoBoxAssetsData> {
+impl From<ErgoBoxAssetsDataList> for Vec<ergo_lib::wallet::box_selector::ErgoBoxAssetsData> {
     fn from(v: ErgoBoxAssetsDataList) -> Self {
         v.0.iter().map(|i| i.0.clone()).collect()
     }
 }
-impl From<Vec<chain::ergo_box::ErgoBoxAssetsData>> for ErgoBoxAssetsDataList {
-    fn from(v: Vec<chain::ergo_box::ErgoBoxAssetsData>) -> Self {
+impl From<Vec<ergo_lib::wallet::box_selector::ErgoBoxAssetsData>> for ErgoBoxAssetsDataList {
+    fn from(v: Vec<ergo_lib::wallet::box_selector::ErgoBoxAssetsData>) -> Self {
         let mut assets = ErgoBoxAssetsDataList::new();
         for asset in &v {
             assets.add(&ErgoBoxAssetsData(asset.clone()))

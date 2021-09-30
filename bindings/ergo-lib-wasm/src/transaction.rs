@@ -7,7 +7,9 @@ use crate::error_conversion::to_js;
 use crate::input::{Inputs, UnsignedInputs};
 use ergo_lib::chain;
 use ergo_lib::chain::transaction::distinct_token_ids;
-use ergo_lib::ergotree_ir::chain::digest::Digest32;
+use ergo_lib::ergotree_ir::chain::base16_bytes::Base16DecodedBytes;
+use ergo_lib::ergotree_ir::chain::base16_bytes::Base16EncodedBytes;
+use ergo_lib::ergotree_ir::chain::digest32::Digest32;
 use js_sys::Uint8Array;
 use std::convert::TryFrom;
 use std::convert::TryInto;
@@ -30,14 +32,14 @@ impl TxId {
 
     /// get the tx id as bytes
     pub fn to_str(&self) -> String {
-        let base16_bytes = ergo_lib::chain::Base16EncodedBytes::new(self.0 .0 .0.as_ref());
+        let base16_bytes = Base16EncodedBytes::new(self.0 .0 .0.as_ref());
         base16_bytes.into()
     }
 
     /// convert a hex string into a TxId
     #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Result<TxId, JsValue> {
-        let bytes = ergo_lib::chain::Base16DecodedBytes::try_from(s.to_string()).map_err(to_js)?;
+        let bytes = Base16DecodedBytes::try_from(s.to_string()).map_err(to_js)?;
 
         bytes
             .try_into()

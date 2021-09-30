@@ -9,7 +9,7 @@ use ergotree_ir::chain::digest32::blake2b256_hash;
 use ergotree_ir::chain::ergo_box::ErgoBox;
 use ergotree_ir::chain::ergo_box::ErgoBoxCandidate;
 use ergotree_ir::chain::token::TokenId;
-use ergotree_ir::chain::tx_id::TxId;
+pub use ergotree_ir::chain::tx_id::TxId;
 use thiserror::Error;
 
 pub use data_input::*;

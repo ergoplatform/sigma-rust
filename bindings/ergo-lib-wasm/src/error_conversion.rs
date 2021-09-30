@@ -3,14 +3,14 @@
 use std::num::ParseIntError;
 
 use base16::DecodeError;
+use ergo_lib::ergotree_ir::chain::address::AddressEncoderError;
+use ergo_lib::ergotree_ir::chain::address::AddressError;
+use ergo_lib::ergotree_ir::chain::digest32::Digest32Error;
+use ergo_lib::ergotree_ir::chain::ergo_box::box_value::BoxValueError;
+use ergo_lib::ergotree_ir::chain::token::TokenAmountError;
 use ergo_lib::{
-    chain::{
-        ergo_box::{box_builder::ErgoBoxCandidateBuilderError, BoxValueError},
-        token::TokenAmountError,
-        Digest32Error,
-    },
+    chain::ergo_box::box_builder::ErgoBoxCandidateBuilderError,
     ergotree_ir::{
-        address::{AddressEncoderError, AddressError},
         ergo_tree::{ErgoTreeConstantError, ErgoTreeConstantsParsingError, ErgoTreeError},
         mir::constant::TryExtractFromError,
         serialization::{SigmaParsingError, SigmaSerializationError},

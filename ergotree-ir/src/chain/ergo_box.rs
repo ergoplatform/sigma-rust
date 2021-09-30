@@ -453,6 +453,16 @@ pub mod arbitrary {
         }
         type Strategy = BoxedStrategy<Self>;
     }
+
+    impl ErgoBox {
+        /// Returns copy of the current ErgoBox with given additional registers set
+        pub fn with_additional_registers(self, registers: NonMandatoryRegisters) -> ErgoBox {
+            ErgoBox {
+                additional_registers: registers,
+                ..self
+            }
+        }
+    }
 }
 
 #[allow(clippy::unwrap_used)]

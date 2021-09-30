@@ -42,7 +42,7 @@ serde_json = { version = "1.0", optional = true }
 [features]
 default = []
 arbitrary = ["proptest", "proptest-derive"]
-json = ["serde"]
+json = ["serde", "serde_json"]
 
 [dev-dependencies]
 proptest = "1.0.0"

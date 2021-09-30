@@ -2,9 +2,9 @@
 
 use std::convert::TryFrom;
 
-use ergo_lib::chain;
-use ergo_lib::chain::Base16DecodedBytes;
-use ergo_lib::ergotree_ir::chain::digest::Digest32;
+use ergo_lib::ergotree_ir::chain;
+use ergo_lib::ergotree_ir::chain::base16_bytes::Base16DecodedBytes;
+use ergo_lib::ergotree_ir::chain::digest32::Digest32;
 use js_sys::Uint8Array;
 use wasm_bindgen::prelude::*;
 
