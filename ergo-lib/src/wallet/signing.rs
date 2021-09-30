@@ -66,14 +66,14 @@ pub fn make_context(
         .collect::<Result<Vec<ErgoBox>, SigmaSerializationError>>()?;
     let data_inputs: Vec<ErgoBox> = tx_ctx.data_boxes.clone();
     let self_box_ir = Rc::new(self_box);
-    let outputs_ir = outputs.into_iter().map(|b| Rc::new(b)).collect();
+    let outputs_ir = outputs.into_iter().map(Rc::new).collect();
     let inputs_ir = tx_ctx
         .boxes_to_spend
         .clone()
         .into_iter()
-        .map(|b| Rc::new(b))
+        .map(Rc::new)
         .collect();
-    let data_inputs_ir = data_inputs.into_iter().map(|b| Rc::new(b)).collect();
+    let data_inputs_ir = data_inputs.into_iter().map(Rc::new).collect();
     Ok(Context {
         height,
         self_box: self_box_ir,

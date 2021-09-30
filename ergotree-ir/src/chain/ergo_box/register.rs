@@ -258,7 +258,14 @@ impl From<NonMandatoryRegisters> for HashMap<NonMandatoryRegisterId, Base16Encod
     fn from(v: NonMandatoryRegisters) -> Self {
         v.0.into_iter()
             .enumerate()
-            .map(|(i, c)| (NonMandatoryRegisterId::get_by_zero_index(i), c.into()))
+            .map(|(i, c)| {
+                (
+                    NonMandatoryRegisterId::get_by_zero_index(i),
+                    // no way of returning an error without writing custom JSON serializer
+                    #[allow(clippy::unwrap_used)]
+                    Base16EncodedBytes::new(&c.sigma_serialize_bytes().unwrap()),
+                )
+            })
             .collect()
     }
 }
@@ -339,6 +346,7 @@ impl TryFrom<i8> for MandatoryRegisterId {
     }
 }
 
+#[allow(clippy::unwrap_used)]
 #[cfg(feature = "arbitrary")]
 pub mod arbitrary {
     use super::*;
@@ -350,9 +358,7 @@ pub mod arbitrary {
 
         fn arbitrary_with(_: Self::Parameters) -> Self::Strategy {
             vec(any::<Constant>(), 0..=NonMandatoryRegisterId::NUM_REGS)
-                .prop_map(|constants| {
-                    NonMandatoryRegisters::try_from(constants).expect("error building registers")
-                })
+                .prop_map(|constants| NonMandatoryRegisters::try_from(constants).unwrap())
                 .boxed()
         }
     }

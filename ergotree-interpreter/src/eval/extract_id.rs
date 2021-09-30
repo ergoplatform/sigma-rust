@@ -41,6 +41,6 @@ mod tests {
         .into();
         let ctx = Rc::new(force_any_val::<Context>());
         let bytes: Vec<i8> = ctx.self_box.box_id().into();
-        assert_eq!(eval_out::<Vec<i8>>(&e, ctx.clone()), bytes);
+        assert_eq!(eval_out::<Vec<i8>>(&e, ctx), bytes);
     }
 }

@@ -14,7 +14,15 @@ use crate::eval::Evaluable;
 
 impl Evaluable for DeserializeRegister {
     fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
-        match ctx.ctx.self_box.get_register(self.reg.try_into().unwrap()) {
+        match ctx
+            .ctx
+            .self_box
+            .get_register(self.reg.try_into().map_err(|e| {
+                EvalError::RegisterIdOutOfBounds(format!(
+                    "register index is out of bounds: {:?} ",
+                    e
+                ))
+            })?) {
             Some(c) => {
                 if c.tpe != SType::SColl(SType::SByte.into()) {
                     Err(EvalError::UnexpectedExpr(format!(

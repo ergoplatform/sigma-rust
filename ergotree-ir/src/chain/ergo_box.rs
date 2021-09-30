@@ -155,6 +155,8 @@ impl ErgoBox {
         match id {
             RegisterId::MandatoryRegisterId(id) => match id {
                 MandatoryRegisterId::R0 => Some(self.value.into()),
+                // chance of box script is not serializable are tiny comparing to returning Result
+                #[allow(clippy::unwrap_used)]
                 MandatoryRegisterId::R1 => Some(self.script_bytes().unwrap().into()),
                 MandatoryRegisterId::R2 => Some(self.tokens_raw().into()),
                 MandatoryRegisterId::R3 => Some(self.creation_info().into()),
@@ -338,6 +340,8 @@ pub fn serialize_box_with_indexed_digests<W: SigmaByteWrite>(
     box_value.sigma_serialize(w)?;
     w.write_all(&ergo_tree_bytes[..])?;
     w.put_u32(creation_height)?;
+    // until https://github.com/ergoplatform/sigma-rust/issues/416 is done
+    #[allow(clippy::unwrap_used)]
     w.put_u8(u8::try_from(tokens.len()).unwrap())?;
 
     tokens.iter().try_for_each(|t| {
@@ -406,6 +410,7 @@ pub fn parse_box_with_indexed_digests<R: SigmaByteRead>(
 }
 
 /// Arbitrary
+#[allow(clippy::unwrap_used)]
 #[cfg(feature = "arbitrary")]
 pub mod arbitrary {
     use super::box_value::arbitrary::ArbBoxValueRange;

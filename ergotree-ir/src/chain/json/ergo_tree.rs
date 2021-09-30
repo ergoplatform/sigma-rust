@@ -27,6 +27,7 @@ where
         })
 }
 
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
     use crate::chain::json::ergo_box::ErgoBoxFromJson;

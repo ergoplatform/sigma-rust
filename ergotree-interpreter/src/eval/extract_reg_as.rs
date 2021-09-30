@@ -19,7 +19,13 @@ impl Evaluable for ExtractRegisterAs {
             .try_extract_into::<Rc<ErgoBox>>()?;
         Ok(Value::Opt(Box::new(
             ir_box
-                .get_register(self.register_id.try_into().unwrap())
+                .get_register(self.register_id.try_into()
+                    .map_err(|e| {
+                        EvalError::RegisterIdOutOfBounds(format!(
+                            "register index is out of bounds: {:?} ",
+                            e
+                        ))
+                    })?)
                 .map(|c| Value::from(c.v)),
         )))
     }

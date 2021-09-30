@@ -57,12 +57,6 @@ impl From<Base16DecodedBytes> for Vec<u8> {
     }
 }
 
-impl From<Constant> for Base16EncodedBytes {
-    fn from(v: Constant) -> Base16EncodedBytes {
-        Base16EncodedBytes::new(&v.sigma_serialize_bytes().unwrap())
-    }
-}
-
 impl TryFrom<Base16DecodedBytes> for Constant {
     type Error = SigmaParsingError;
 

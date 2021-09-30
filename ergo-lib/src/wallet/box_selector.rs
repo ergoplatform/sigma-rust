@@ -115,7 +115,7 @@ pub trait ErgoBoxId {
 
 impl ErgoBoxId for ErgoBox {
     fn box_id(&self) -> BoxId {
-        self.box_id().clone()
+        self.box_id()
     }
 }
 

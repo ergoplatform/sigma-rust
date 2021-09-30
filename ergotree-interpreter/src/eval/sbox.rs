@@ -24,7 +24,12 @@ pub(crate) static GET_REG_EVAL_FN: EvalFn = |_env, _ctx, obj, args| {
                     .ok_or_else(|| EvalError::NotFound("register index is missing".to_string()))?
                     .try_extract_into::<i8>()?
                     .try_into()
-                    .unwrap(),
+                    .map_err(|e| {
+                        EvalError::RegisterIdOutOfBounds(format!(
+                            "register index is out of bounds: {:?} ",
+                            e
+                        ))
+                    })?,
             )
             .map(|c| Value::from(c.v)),
     )))
