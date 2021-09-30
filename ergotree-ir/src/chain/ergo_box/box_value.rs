@@ -1,20 +1,17 @@
 //! Box value newtype
 
 use crate::chain::token::TokenAmountError;
-use ergotree_ir::mir::constant::Constant;
-use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
-use ergotree_ir::serialization::SigmaSerializeResult;
-use ergotree_ir::serialization::{
+use crate::mir::constant::Constant;
+use crate::serialization::sigma_byte_writer::SigmaByteWrite;
+use crate::serialization::SigmaSerializeResult;
+use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SigmaParsingError, SigmaSerializable,
 };
-#[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use thiserror::Error;
 
 /// Box value in nanoERGs with bound checks
 #[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct BoxValue(pub(crate) u64);
 
 impl BoxValue {
@@ -198,17 +195,16 @@ pub fn checked_sum<I: Iterator<Item = BoxValue>>(mut iter: I) -> Result<BoxValue
         })
 }
 
-#[cfg(test)]
-pub mod tests {
-    use std::convert::TryInto;
+/// Arbitrary
+#[cfg(feature = "arbitrary")]
+pub mod arbitrary {
+    use derive_more::{From, Into};
+    use proptest::{arbitrary::Arbitrary, prelude::*};
     use std::ops::Range;
 
     use super::*;
-    use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
 
-    extern crate derive_more;
-    use derive_more::{From, Into};
-
+    /// Box value parameters for Arbitrary impl
     #[derive(Debug, From, Into)]
     pub struct ArbBoxValueRange(Range<u64>);
 
@@ -225,6 +221,17 @@ pub mod tests {
             (args.0).prop_map(BoxValue).boxed()
         }
     }
+}
+
+#[allow(clippy::unwrap_used)]
+#[cfg(test)]
+pub mod tests {
+    use std::convert::TryInto;
+
+    use super::*;
+    use proptest::{collection::vec, prelude::*};
+
+    extern crate derive_more;
 
     #[test]
     fn test_checked_add() {

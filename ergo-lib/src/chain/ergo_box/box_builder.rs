@@ -3,11 +3,12 @@
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 
-use crate::chain::token::Token;
-
-use super::box_value::BoxValue;
-use super::register::{NonMandatoryRegisterId, NonMandatoryRegisters, NonMandatoryRegistersError};
-use super::ErgoBoxCandidate;
+use ergotree_ir::chain::ergo_box::BoxValue;
+use ergotree_ir::chain::ergo_box::ErgoBoxCandidate;
+use ergotree_ir::chain::ergo_box::NonMandatoryRegisterId;
+use ergotree_ir::chain::ergo_box::NonMandatoryRegisters;
+use ergotree_ir::chain::ergo_box::NonMandatoryRegistersError;
+use ergotree_ir::chain::token::Token;
 use ergotree_ir::ergo_tree::ErgoTree;
 use ergotree_ir::mir::constant::Constant;
 use ergotree_ir::serialization::{SigmaSerializable, SigmaSerializationError};
@@ -244,11 +245,9 @@ impl ErgoBoxCandidateBuilder {
 #[cfg(test)]
 mod tests {
 
+    use ergotree_ir::chain::token::TokenId;
     use sigma_test_util::force_any_val;
     use NonMandatoryRegisterId::*;
-
-    use crate::chain::token::TokenId;
-    use crate::chain::Base16Str;
 
     use super::*;
 

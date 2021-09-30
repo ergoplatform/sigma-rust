@@ -5,11 +5,15 @@ pub mod input;
 pub mod unsigned;
 
 use bounded_vec::BoundedVec;
+use ergotree_ir::chain::digest32::blake2b256_hash;
+use ergotree_ir::chain::ergo_box::ErgoBox;
+use ergotree_ir::chain::ergo_box::ErgoBoxCandidate;
+use ergotree_ir::chain::token::TokenId;
+use ergotree_ir::chain::tx_id::TxId;
 use thiserror::Error;
 
 pub use data_input::*;
 use ergotree_interpreter::sigma_protocol::prover::ProofBytes;
-use ergotree_ir::chain::digest::{blake2b256_hash, Digest32};
 use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
 use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
 use ergotree_ir::serialization::SigmaParsingError;
@@ -21,55 +25,14 @@ pub use input::*;
 use self::unsigned::UnsignedTransaction;
 
 #[cfg(feature = "json")]
-use super::digest32::DigestRef;
-#[cfg(feature = "json")]
 use super::json;
-use super::{ergo_box::ErgoBox, ergo_box::ErgoBoxCandidate, token::TokenId};
 use indexmap::IndexSet;
-#[cfg(test)]
-use proptest_derive::Arbitrary;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 
 use std::convert::TryFrom;
 use std::convert::TryInto;
 use std::iter::FromIterator;
-
-/// Transaction id (ModifierId in sigmastate)
-#[derive(PartialEq, Eq, Hash, Debug, Clone)]
-#[cfg_attr(test, derive(Arbitrary))]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
-pub struct TxId(#[cfg_attr(feature = "json", serde(with = "DigestRef"))] pub Digest32);
-
-impl TxId {
-    /// All zeros
-    pub fn zero() -> TxId {
-        TxId(Digest32::zero())
-    }
-}
-
-impl SigmaSerializable for TxId {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
-        self.0.sigma_serialize(w)?;
-        Ok(())
-    }
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
-        Ok(Self(Digest32::sigma_parse(r)?))
-    }
-}
-
-#[cfg(feature = "json")]
-impl From<TxId> for String {
-    fn from(v: TxId) -> Self {
-        String::from(Into::<DigestRef<32>>::into(v.0))
-    }
-}
-
-impl AsRef<[u8]> for TxId {
-    fn as_ref(&self) -> &[u8] {
-        self.0.as_ref()
-    }
-}
 
 /// BouncedVec type for Tx inputs and output_candidates
 pub type TxIoVec<T> = BoundedVec<T, 1, { u16::MAX as usize }>;

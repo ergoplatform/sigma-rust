@@ -18,7 +18,6 @@
 
 use std::convert::TryFrom;
 
-use chain::ergo_box::NonMandatoryRegisters;
 use ergo_lib::chain;
 use ergo_lib::ergotree_ir::serialization::SigmaSerializable;
 use js_sys::Uint8Array;

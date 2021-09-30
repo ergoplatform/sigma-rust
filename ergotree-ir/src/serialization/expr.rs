@@ -299,8 +299,8 @@ impl SigmaSerializable for Expr {
 #[allow(clippy::unwrap_used)]
 #[allow(clippy::panic)]
 mod tests {
-    use crate::address::AddressEncoder;
-    use crate::address::NetworkPrefix;
+    use crate::chain::address::AddressEncoder;
+    use crate::chain::address::NetworkPrefix;
 
     use super::*;
     use crate::serialization::sigma_serialize_roundtrip;

@@ -1,8 +1,11 @@
 use core::fmt;
+use ergotree_ir::chain::ergo_box::ErgoBox;
+use ergotree_ir::chain::tx_id::TxId;
 use ergotree_ir::ergo_tree::ErgoTree;
 use ergotree_ir::mir::constant::Constant;
 use ergotree_ir::serialization::SigmaParsingError;
 use ergotree_ir::serialization::SigmaSerializable;
+use ergotree_ir::serialization::SigmaSerializationError;
 use serde::de::{self, MapAccess, Visitor};
 use serde::Deserializer;
 use std::convert::TryFrom;
@@ -13,10 +16,9 @@ extern crate derive_more;
 use derive_more::From;
 
 use crate::chain::Base16DecodedBytes;
-use crate::chain::{
+use ergotree_ir::chain::{
     ergo_box::{BoxId, BoxValue, NonMandatoryRegisters},
     token::Token,
-    transaction::TxId,
 };
 use serde::Deserialize;
 use thiserror::Error;
@@ -48,6 +50,48 @@ pub struct ErgoBoxFromJson {
     /// number of box (from 0 to total number of boxes the transaction with transactionId created - 1)
     #[serde(rename = "index")]
     pub index: u16,
+}
+
+/// Errors on parsing ErgoBox from JSON
+#[derive(Error, PartialEq, Eq, Debug, Clone)]
+pub enum ErgoBoxFromJsonError {
+    /// Box id parsed from JSON differs from calculated from box serialized bytes
+    #[error("Box id parsed from JSON differs from calculated from box serialized bytes")]
+    InvalidBoxId,
+    /// Box serialization failed (id calculation)
+    #[error("Box serialization failed (id calculation): {0}")]
+    SerializationError(#[from] SigmaSerializationError),
+}
+
+impl TryFrom<ErgoBoxFromJson> for ErgoBox {
+    type Error = ErgoBoxFromJsonError;
+    fn try_from(box_json: ErgoBoxFromJson) -> Result<Self, Self::Error> {
+        let box_with_zero_id = ErgoBox {
+            box_id: BoxId::zero(),
+            value: box_json.value,
+            ergo_tree: box_json.ergo_tree,
+            tokens: box_json.tokens,
+            additional_registers: box_json.additional_registers,
+            creation_height: box_json.creation_height,
+            transaction_id: box_json.transaction_id,
+            index: box_json.index,
+        };
+        let box_id = box_with_zero_id.calc_box_id()?;
+        let ergo_box = ErgoBox {
+            box_id,
+            ..box_with_zero_id
+        };
+        match box_json.box_id {
+            Some(box_id) => {
+                if ergo_box.box_id() == box_id {
+                    Ok(ergo_box)
+                } else {
+                    Err(ErgoBoxFromJsonError::InvalidBoxId)
+                }
+            }
+            None => Ok(ergo_box),
+        }
+    }
 }
 
 #[derive(Deserialize, PartialEq, Eq, Debug, Clone)]
@@ -147,9 +191,9 @@ where
 mod tests {
     use std::convert::TryInto;
 
-    use crate::chain::ergo_box::ErgoBox;
-    use crate::chain::ergo_box::NonMandatoryRegisterId;
-    use crate::chain::ergo_box::NonMandatoryRegisters;
+    use ergotree_ir::chain::ergo_box::ErgoBox;
+    use ergotree_ir::chain::ergo_box::NonMandatoryRegisterId;
+    use ergotree_ir::chain::ergo_box::NonMandatoryRegisters;
     use proptest::prelude::*;
 
     proptest! {

@@ -1,8 +1,11 @@
 //! Constant(Literal) IR node
 
+use crate::base16_str::Base16Str;
 use crate::bigint256::BigInt256;
 use crate::ir_ergo_box::IrErgoBox;
 use crate::mir::value::CollKind;
+use crate::serialization::SigmaSerializable;
+use crate::serialization::SigmaSerializationError;
 use crate::sigma_protocol::sigma_boolean::SigmaBoolean;
 use crate::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
 use crate::sigma_protocol::sigma_boolean::{ProveDhTuple, ProveDlog};
@@ -665,6 +668,20 @@ impl TryFrom<Literal> for ProveDlog {
                 cv
             ))),
         }
+    }
+}
+
+impl Base16Str for &Constant {
+    fn base16_str(&self) -> Result<String, SigmaSerializationError> {
+        self.sigma_serialize_bytes()
+            .map(|bytes| base16::encode_lower(&bytes))
+    }
+}
+
+impl Base16Str for Constant {
+    fn base16_str(&self) -> Result<String, SigmaSerializationError> {
+        self.sigma_serialize_bytes()
+            .map(|bytes| base16::encode_lower(&bytes))
     }
 }
 

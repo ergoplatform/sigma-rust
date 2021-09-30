@@ -2,9 +2,9 @@
 
 pub mod prover_result;
 
-use crate::chain::ergo_box::{BoxId, ErgoBoxId};
 use ergotree_interpreter::sigma_protocol::prover::ContextExtension;
 use ergotree_interpreter::sigma_protocol::prover::ProofBytes;
+use ergotree_ir::chain::ergo_box::BoxId;
 use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
 use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
 use ergotree_ir::serialization::SigmaParsingError;
@@ -13,6 +13,7 @@ use ergotree_ir::serialization::SigmaSerializeResult;
 
 #[cfg(feature = "json")]
 use crate::chain::json::context_extension::ContextExtensionSerde;
+use crate::wallet::box_selector::ErgoBoxId;
 #[cfg(feature = "json")]
 use serde::ser::SerializeStruct;
 #[cfg(feature = "json")]

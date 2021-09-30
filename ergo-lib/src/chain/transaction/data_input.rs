@@ -1,6 +1,6 @@
 //! DataInput type
 
-use crate::chain::ergo_box::BoxId;
+use ergotree_ir::chain::ergo_box::BoxId;
 use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
 use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
 use ergotree_ir::serialization::SigmaParsingError;

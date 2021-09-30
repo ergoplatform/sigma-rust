@@ -1,12 +1,12 @@
 //! Transaction signing
 
 use ergotree_interpreter::sigma_protocol::prover::hint::HintsBag;
+use ergotree_ir::chain::ergo_box::ErgoBox;
 use ergotree_ir::serialization::SigmaSerializationError;
 use std::rc::Rc;
 
 use crate::chain::transaction::Input;
 use crate::chain::{
-    ergo_box::ErgoBox,
     ergo_state_context::ErgoStateContext,
     transaction::{unsigned::UnsignedTransaction, Transaction},
 };
@@ -138,8 +138,11 @@ mod tests {
     use ergotree_interpreter::sigma_protocol::verifier::TestVerifier;
     use ergotree_interpreter::sigma_protocol::verifier::Verifier;
     use ergotree_interpreter::sigma_protocol::verifier::VerifierError;
-    use ergotree_ir::address::AddressEncoder;
-    use ergotree_ir::address::NetworkPrefix;
+    use ergotree_ir::chain::address::AddressEncoder;
+    use ergotree_ir::chain::address::NetworkPrefix;
+    use ergotree_ir::chain::ergo_box::BoxValue;
+    use ergotree_ir::chain::ergo_box::NonMandatoryRegisters;
+    use ergotree_ir::chain::tx_id::TxId;
     use proptest::collection::vec;
     use proptest::prelude::*;
     use rand::prelude::SliceRandom;
@@ -147,8 +150,7 @@ mod tests {
     use sigma_test_util::force_any_val;
 
     use crate::chain::{
-        ergo_box::{box_builder::ErgoBoxCandidateBuilder, BoxValue, NonMandatoryRegisters},
-        transaction::{TxId, UnsignedInput},
+        ergo_box::box_builder::ErgoBoxCandidateBuilder, transaction::UnsignedInput,
     };
     use ergotree_ir::ergo_tree::ErgoTree;
     use ergotree_ir::mir::expr::Expr;

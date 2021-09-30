@@ -5,8 +5,8 @@ mod tests {
     use std::rc::Rc;
 
     use crate::eval::tests::eval_out_wo_ctx;
-    use ergotree_ir::address::AddressEncoder;
-    use ergotree_ir::address::NetworkPrefix;
+    use ergotree_ir::chain::address::AddressEncoder;
+    use ergotree_ir::chain::address::NetworkPrefix;
     use ergotree_ir::mir::expr::Expr;
     use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProp;
 

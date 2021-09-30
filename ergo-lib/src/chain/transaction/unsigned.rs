@@ -1,17 +1,18 @@
 //! Unsigned (without proofs) transaction
 
-use crate::chain::token::TokenId;
-
 use super::distinct_token_ids;
 use super::input::{Input, UnsignedInput};
 #[cfg(feature = "json")]
 use super::json;
 use super::prover_result::ProverResult;
 use super::DataInput;
+use super::Transaction;
 use super::TxIoVec;
-use super::{super::ergo_box::ErgoBoxCandidate, Transaction, TxId};
 use ergotree_interpreter::sigma_protocol::prover::ProofBytes;
-use ergotree_ir::chain::digest::blake2b256_hash;
+use ergotree_ir::chain::digest32::blake2b256_hash;
+use ergotree_ir::chain::ergo_box::ErgoBoxCandidate;
+use ergotree_ir::chain::token::TokenId;
+use ergotree_ir::chain::tx_id::TxId;
 use ergotree_ir::serialization::SigmaSerializationError;
 use indexmap::IndexSet;
 #[cfg(feature = "json")]

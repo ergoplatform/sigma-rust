@@ -1,6 +1,6 @@
 //! Ergo contract
 
-use ergotree_ir::address::Address;
+use ergotree_ir::chain::address::Address;
 use ergotree_ir::ergo_tree::ErgoTree;
 use ergotree_ir::serialization::SigmaParsingError;
 

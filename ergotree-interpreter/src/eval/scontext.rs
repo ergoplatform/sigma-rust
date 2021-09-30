@@ -35,8 +35,8 @@ pub(crate) static SELF_BOX_INDEX_EVAL_FN: EvalFn = |_env, ctx, obj, _args| {
         .ctx
         .inputs
         .clone()
-        .into_iter()
-        .position(|it| it == ctx.ctx.self_box)
+        .iter()
+        .position(|it| it == &ctx.ctx.self_box)
         .ok_or_else(|| EvalError::NotFound("Context.selfBoxIndex: box not found".to_string()))?;
     Ok(Value::Int(box_index as i32))
 };

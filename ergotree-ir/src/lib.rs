@@ -20,7 +20,7 @@
 
 mod has_opcode;
 
-pub mod address;
+pub mod base16_str;
 pub mod bigint256;
 pub mod chain;
 pub mod ergo_tree;

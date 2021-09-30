@@ -4,16 +4,17 @@ use std::cmp::min;
 use std::collections::HashMap;
 use std::convert::TryInto;
 
-use crate::chain::ergo_box::sum_tokens;
-use crate::chain::ergo_box::sum_tokens_from_boxes;
-use crate::chain::ergo_box::BoxValue;
-use crate::chain::ergo_box::ErgoBoxAssets;
-use crate::chain::ergo_box::ErgoBoxAssetsData;
-use crate::chain::token::Token;
-use crate::chain::token::TokenAmount;
-use crate::chain::token::TokenId;
+use ergotree_ir::chain::ergo_box::BoxValue;
+use ergotree_ir::chain::token::Token;
+use ergotree_ir::chain::token::TokenAmount;
+use ergotree_ir::chain::token::TokenId;
+
+use crate::wallet::box_selector::sum_tokens;
+use crate::wallet::box_selector::sum_tokens_from_boxes;
+use crate::wallet::box_selector::ErgoBoxAssetsData;
 
 use super::BoxSelectorError;
+use super::ErgoBoxAssets;
 use super::{BoxSelection, BoxSelector};
 
 /// Simple box selector, collects inputs(sorted by targeted assets) until target balance is reached
@@ -165,11 +166,11 @@ impl Default for SimpleBoxSelector {
 mod tests {
     use std::convert::TryFrom;
 
-    use crate::chain::ergo_box::checked_sum;
-    use crate::chain::ergo_box::sum_value;
-    use crate::chain::ergo_box::ErgoBox;
-    use crate::chain::ergo_box::ErgoBoxAssetsData;
+    use ergotree_ir::chain::ergo_box::checked_sum;
+    use ergotree_ir::chain::ergo_box::ErgoBox;
     use proptest::{collection::vec, prelude::*};
+
+    use crate::wallet::box_selector::sum_value;
 
     use super::*;
 

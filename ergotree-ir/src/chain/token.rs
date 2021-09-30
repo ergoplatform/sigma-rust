@@ -1,27 +1,22 @@
 //! Token related types
 
-use ergotree_ir::chain::digest::Digest32;
-use ergotree_ir::serialization::SigmaSerializeResult;
-use ergotree_ir::serialization::{
+use crate::serialization::SigmaSerializeResult;
+use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, sigma_byte_writer::SigmaByteWrite, SigmaParsingError,
     SigmaSerializable,
 };
 use std::convert::TryFrom;
 
-use super::digest32::DigestRef;
+use super::digest32::Digest32;
 use super::ergo_box::BoxId;
 use derive_more::From;
 use derive_more::Into;
-#[cfg(test)]
-use proptest_derive::Arbitrary;
-#[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 /// newtype for token id
 #[derive(PartialEq, Eq, Hash, Debug, Clone, From, Into)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
-pub struct TokenId(#[cfg_attr(feature = "json", serde(with = "DigestRef"))] Digest32);
+pub struct TokenId(Digest32);
 
 impl TokenId {
     /// token id size in bytes
@@ -54,7 +49,7 @@ impl AsRef<[u8]> for TokenId {
 
 impl From<TokenId> for String {
     fn from(v: TokenId) -> Self {
-        String::from(Into::<DigestRef<32>>::into(v.0))
+        v.0.into()
     }
 }
 
@@ -147,7 +142,7 @@ impl From<TokenAmount> for i64 {
 
 /// Token represented with token id paired with it's amount
 #[derive(PartialEq, Eq, Debug, Clone)]
-#[cfg_attr(test, derive(Arbitrary))]
+#[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Token {
     /// token id
@@ -167,15 +162,24 @@ impl From<(TokenId, TokenAmount)> for Token {
     }
 }
 
-#[cfg(test)]
-pub mod tests {
-    use super::*;
-    use crate::chain::Base16DecodedBytes;
-    use ergotree_ir::serialization::sigma_serialize_roundtrip;
+/// Arbitrary
+#[allow(clippy::unwrap_used)]
+#[cfg(feature = "arbitrary")]
+pub mod arbitrary {
     use proptest::prelude::*;
 
+    use crate::chain::digest32::Digest32;
+
+    use super::TokenAmount;
+    use super::TokenId;
+
+    use std::convert::TryFrom;
+
+    /// How to generate a token id
     pub enum ArbTokenIdParam {
+        /// From a list of predefined token ids
         Predef,
+        /// Arbitrary token id
         Arbitrary,
     }
 
@@ -193,31 +197,22 @@ pub mod tests {
                 ArbTokenIdParam::Predef => prop_oneof![
                     Just(TokenId::from(
                         Digest32::try_from(
-                            Base16DecodedBytes::try_from(
-                                "3130a82e45842aebb888742868e055e2f554ab7d92f233f2c828ed4a43793710"
-                                    .to_string()
-                            )
-                            .unwrap()
+                            "3130a82e45842aebb888742868e055e2f554ab7d92f233f2c828ed4a43793710"
+                                .to_string()
                         )
                         .unwrap()
                     )),
                     Just(TokenId::from(
                         Digest32::try_from(
-                            Base16DecodedBytes::try_from(
-                                "e7321ffb4ec5d71deb3110eb1ac09612b9cf57445acab1e0e3b1222d5b5a6c60"
-                                    .to_string()
-                            )
-                            .unwrap()
+                            "e7321ffb4ec5d71deb3110eb1ac09612b9cf57445acab1e0e3b1222d5b5a6c60"
+                                .to_string()
                         )
                         .unwrap()
                     )),
                     Just(TokenId::from(
                         Digest32::try_from(
-                            Base16DecodedBytes::try_from(
-                                "ad62f6dd92e7dc850bc406770dfac9a943dd221a7fb440b7b2bcc7d3149c1792"
-                                    .to_string()
-                            )
-                            .unwrap()
+                            "ad62f6dd92e7dc850bc406770dfac9a943dd221a7fb440b7b2bcc7d3149c1792"
+                                .to_string()
                         )
                         .unwrap()
                     ))
@@ -240,6 +235,14 @@ pub mod tests {
         }
         type Strategy = BoxedStrategy<Self>;
     }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use crate::chain::token::TokenId;
+    use crate::serialization::sigma_serialize_roundtrip;
+    use proptest::prelude::*;
 
     proptest! {
 

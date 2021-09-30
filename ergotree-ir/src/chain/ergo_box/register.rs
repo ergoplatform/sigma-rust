@@ -1,16 +1,12 @@
 //! Box registers
 
-#[cfg(feature = "json")]
-use crate::chain::json::ergo_box::ConstantHolder;
-use crate::chain::Base16EncodedBytes;
-use ergotree_ir::mir::constant::Constant;
-use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
-use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
-use ergotree_ir::serialization::SigmaParsingError;
-use ergotree_ir::serialization::SigmaSerializable;
-use ergotree_ir::serialization::SigmaSerializeResult;
-#[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use crate::base16_str::Base16Str;
+use crate::mir::constant::Constant;
+use crate::serialization::sigma_byte_reader::SigmaByteRead;
+use crate::serialization::sigma_byte_writer::SigmaByteWrite;
+use crate::serialization::SigmaParsingError;
+use crate::serialization::SigmaSerializable;
+use crate::serialization::SigmaSerializeResult;
 use std::convert::TryInto;
 use std::{collections::HashMap, convert::TryFrom};
 use thiserror::Error;
@@ -248,11 +244,16 @@ pub enum NonMandatoryRegistersError {
     NonDenselyPacked(u8),
 }
 
-impl From<NonMandatoryRegisters> for HashMap<NonMandatoryRegisterId, Base16EncodedBytes> {
+impl From<NonMandatoryRegisters> for HashMap<NonMandatoryRegisterId, String> {
     fn from(v: NonMandatoryRegisters) -> Self {
         v.0.into_iter()
             .enumerate()
-            .map(|(i, c)| (NonMandatoryRegisterId::get_by_zero_index(i), c.into()))
+            .map(|(i, c)| {
+                (
+                    NonMandatoryRegisterId::get_by_zero_index(i),
+                    c.base16_str().unwrap(),
+                )
+            })
             .collect()
     }
 }
@@ -286,17 +287,17 @@ impl TryFrom<HashMap<NonMandatoryRegisterId, Constant>> for NonMandatoryRegister
     }
 }
 
-#[cfg(feature = "json")]
-impl TryFrom<HashMap<NonMandatoryRegisterId, ConstantHolder>> for NonMandatoryRegisters {
-    type Error = NonMandatoryRegistersError;
-    fn try_from(
-        value: HashMap<NonMandatoryRegisterId, ConstantHolder>,
-    ) -> Result<Self, Self::Error> {
-        let cm: HashMap<NonMandatoryRegisterId, Constant> =
-            value.into_iter().map(|(k, v)| (k, v.into())).collect();
-        NonMandatoryRegisters::try_from(cm)
-    }
-}
+// #[cfg(feature = "json")]
+// impl TryFrom<HashMap<NonMandatoryRegisterId, ConstantHolder>> for NonMandatoryRegisters {
+//     type Error = NonMandatoryRegistersError;
+//     fn try_from(
+//         value: HashMap<NonMandatoryRegisterId, ConstantHolder>,
+//     ) -> Result<Self, Self::Error> {
+//         let cm: HashMap<NonMandatoryRegisterId, Constant> =
+//             value.into_iter().map(|(k, v)| (k, v.into())).collect();
+//         NonMandatoryRegisters::try_from(cm)
+//     }
+// }
 
 impl From<NonMandatoryRegistersError> for SigmaParsingError {
     fn from(error: NonMandatoryRegistersError) -> Self {
@@ -331,10 +332,12 @@ impl TryFrom<i8> for MandatoryRegisterId {
     }
 }
 
+#[allow(clippy::unwrap_used)]
+#[allow(clippy::expect_used)]
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ergotree_ir::serialization::sigma_serialize_roundtrip;
+    use crate::serialization::sigma_serialize_roundtrip;
     use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
 
     impl Arbitrary for NonMandatoryRegisters {

@@ -1,21 +1,16 @@
 //! Box id type
-use std::convert::{TryFrom, TryInto};
+use std::convert::TryFrom;
 
-use ergotree_ir::chain::digest::Digest32;
-use ergotree_ir::ir_ergo_box::IrBoxId;
+use crate::chain::digest32::Digest32;
+use crate::chain::digest32::Digest32Error;
+use crate::serialization::SigmaSerializeResult;
 
-use ergotree_ir::serialization::SigmaSerializeResult;
-#[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
-
-use crate::chain::{Digest32Error, DigestRef};
-
-use derive_more::From;
-use derive_more::Into;
-use ergotree_ir::serialization::{
+use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, sigma_byte_writer::SigmaByteWrite, SigmaParsingError,
     SigmaSerializable,
 };
+use derive_more::From;
+use derive_more::Into;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 
@@ -23,7 +18,7 @@ use proptest_derive::Arbitrary;
 #[derive(PartialEq, Eq, Hash, Debug, Clone, From, Into)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 #[cfg_attr(test, derive(Arbitrary))]
-pub struct BoxId(#[cfg_attr(feature = "json", serde(with = "DigestRef"))] Digest32);
+pub struct BoxId(Digest32);
 
 impl BoxId {
     /// Size in bytes
@@ -41,25 +36,9 @@ impl AsRef<[u8]> for BoxId {
     }
 }
 
-#[cfg(feature = "json")]
 impl From<BoxId> for String {
     fn from(v: BoxId) -> Self {
-        String::from(Into::<DigestRef<32>>::into(v.0))
-    }
-}
-
-impl From<&IrBoxId> for BoxId {
-    fn from(irb: &IrBoxId) -> Self {
-        let u8bytes: Vec<u8> = irb.0.iter().map(|b| *b as u8).collect();
-        let arr: [u8; Digest32::SIZE] = u8bytes.as_slice().try_into().unwrap();
-        BoxId(arr.into())
-    }
-}
-
-impl From<BoxId> for IrBoxId {
-    fn from(id: BoxId) -> Self {
-        let i8bytes: Vec<i8> = id.0 .0.iter().map(|b| *b as i8).collect();
-        IrBoxId::new(i8bytes.try_into().unwrap())
+        v.0.into()
     }
 }
 
@@ -67,9 +46,7 @@ impl TryFrom<String> for BoxId {
     type Error = Digest32Error;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
-        DigestRef::try_from(value)
-            .map(Into::<Digest32>::into)
-            .map(BoxId)
+        Ok(Digest32::try_from(value)?.into())
     }
 }
 
@@ -83,10 +60,11 @@ impl SigmaSerializable for BoxId {
     }
 }
 
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ergotree_ir::serialization::sigma_serialize_roundtrip;
+    use crate::serialization::sigma_serialize_roundtrip;
     use proptest::prelude::*;
 
     proptest! {
