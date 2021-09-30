@@ -3,11 +3,12 @@
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 
-use crate::chain::token::Token;
-
-use super::box_value::BoxValue;
-use super::register::{NonMandatoryRegisterId, NonMandatoryRegisters, NonMandatoryRegistersError};
-use super::ErgoBoxCandidate;
+use ergotree_ir::chain::ergo_box::box_value::BoxValue;
+use ergotree_ir::chain::ergo_box::ErgoBoxCandidate;
+use ergotree_ir::chain::ergo_box::NonMandatoryRegisterId;
+use ergotree_ir::chain::ergo_box::NonMandatoryRegisters;
+use ergotree_ir::chain::ergo_box::NonMandatoryRegistersError;
+use ergotree_ir::chain::token::Token;
 use ergotree_ir::ergo_tree::ErgoTree;
 use ergotree_ir::mir::constant::Constant;
 use ergotree_ir::serialization::{SigmaSerializable, SigmaSerializationError};
@@ -244,11 +245,10 @@ impl ErgoBoxCandidateBuilder {
 #[cfg(test)]
 mod tests {
 
+    use ergotree_ir::base16_str::Base16Str;
+    use ergotree_ir::chain::token::TokenId;
     use sigma_test_util::force_any_val;
     use NonMandatoryRegisterId::*;
-
-    use crate::chain::token::TokenId;
-    use crate::chain::Base16Str;
 
     use super::*;
 
@@ -352,7 +352,8 @@ mod tests {
                 .additional_registers
                 .get(NonMandatoryRegisterId::R4)
                 .unwrap()
-                .base16_str(),
+                .base16_str()
+                .unwrap(),
             "0e03555344",
             "invalid encoding of token name in R4"
         );
@@ -361,7 +362,8 @@ mod tests {
                 .additional_registers
                 .get(NonMandatoryRegisterId::R5)
                 .unwrap()
-                .base16_str(),
+                .base16_str()
+                .unwrap(),
             "0e184e6f7468696e67206261636b65642055534420746f6b656e",
             "invalid encoding of token description in R5"
         );
@@ -370,7 +372,8 @@ mod tests {
                 .additional_registers
                 .get(NonMandatoryRegisterId::R6)
                 .unwrap()
-                .base16_str(),
+                .base16_str()
+                .unwrap(),
             "0e0132",
             "invalid encoding of token number of decimals in R6"
         );

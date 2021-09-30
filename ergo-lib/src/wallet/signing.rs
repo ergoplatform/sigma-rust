@@ -1,14 +1,12 @@
 //! Transaction signing
 
 use ergotree_interpreter::sigma_protocol::prover::hint::HintsBag;
+use ergotree_ir::chain::ergo_box::ErgoBox;
 use ergotree_ir::serialization::SigmaSerializationError;
-use std::collections::HashMap;
 use std::rc::Rc;
 
-use crate::chain::ergo_box::BoxId;
 use crate::chain::transaction::Input;
 use crate::chain::{
-    ergo_box::ErgoBox,
     ergo_state_context::ErgoStateContext,
     transaction::{unsigned::UnsignedTransaction, Transaction},
 };
@@ -17,10 +15,6 @@ use ergotree_interpreter::eval::context::Context;
 use ergotree_interpreter::eval::env::Env;
 use ergotree_interpreter::sigma_protocol::prover::ProverError;
 use ergotree_interpreter::sigma_protocol::prover::{ContextExtension, Prover};
-use ergotree_ir::ir_ergo_box::IrBoxId;
-use ergotree_ir::ir_ergo_box::IrErgoBox;
-use ergotree_ir::ir_ergo_box::IrErgoBoxArena;
-use ergotree_ir::ir_ergo_box::IrErgoBoxArenaError;
 use thiserror::Error;
 
 /// Errors on transaction signing
@@ -51,43 +45,6 @@ pub struct TransactionContext {
     pub data_boxes: Vec<ErgoBox>,
 }
 
-/// Holding all ErgoBox needed for interpreter [`ergotree_interpreter::eval::context::Context`]
-#[derive(Debug)]
-pub struct ErgoBoxArena(HashMap<BoxId, ErgoBox>);
-
-impl ErgoBoxArena {
-    /// Create new arena and store given boxes
-    pub fn new(
-        self_box: ErgoBox,
-        outputs: Vec<ErgoBox>,
-        data_inputs: Vec<ErgoBox>,
-        inputs: Vec<ErgoBox>,
-    ) -> Self {
-        let mut m = HashMap::new();
-        m.insert(self_box.box_id(), self_box);
-        outputs.into_iter().for_each(|b| {
-            m.insert(b.box_id(), b);
-        });
-        inputs.into_iter().for_each(|b| {
-            m.insert(b.box_id(), b);
-        });
-        data_inputs.into_iter().for_each(|b| {
-            m.insert(b.box_id(), b);
-        });
-        ErgoBoxArena(m)
-    }
-}
-
-impl IrErgoBoxArena for ErgoBoxArena {
-    fn get(&self, id: &IrBoxId) -> Result<Rc<dyn IrErgoBox>, IrErgoBoxArenaError> {
-        self.0
-            .get(&id.into())
-            .cloned()
-            .ok_or_else(|| IrErgoBoxArenaError(format!("ErgoBox with id {0:?} not found", id)))
-            .map(|b| Rc::new(b) as Rc<dyn IrErgoBox>)
-    }
-}
-
 /// `self_index` - index of the SELF box in the tx_ctx.boxes_to_spend
 pub fn make_context(
     state_ctx: &ErgoStateContext,
@@ -108,22 +65,16 @@ pub fn make_context(
         .map(|(idx, b)| ErgoBox::from_box_candidate(b, tx_ctx.spending_tx.id(), idx as u16))
         .collect::<Result<Vec<ErgoBox>, SigmaSerializationError>>()?;
     let data_inputs: Vec<ErgoBox> = tx_ctx.data_boxes.clone();
-    let self_box_ir = self_box.box_id().into();
-    let outputs_ir = outputs.iter().map(|b| b.box_id().into()).collect();
+    let self_box_ir = Rc::new(self_box);
+    let outputs_ir = outputs.into_iter().map(Rc::new).collect();
     let inputs_ir = tx_ctx
         .boxes_to_spend
-        .iter()
-        .map(|b| b.box_id().into())
+        .clone()
+        .into_iter()
+        .map(Rc::new)
         .collect();
-    let data_inputs_ir = data_inputs.iter().map(|b| b.box_id().into()).collect();
-    let box_arena = Rc::new(ErgoBoxArena::new(
-        self_box,
-        outputs,
-        data_inputs,
-        tx_ctx.boxes_to_spend.clone(),
-    ));
+    let data_inputs_ir = data_inputs.into_iter().map(Rc::new).collect();
     Ok(Context {
-        box_arena,
         height,
         self_box: self_box_ir,
         outputs: outputs_ir,
@@ -180,8 +131,11 @@ mod tests {
     use ergotree_interpreter::sigma_protocol::verifier::TestVerifier;
     use ergotree_interpreter::sigma_protocol::verifier::Verifier;
     use ergotree_interpreter::sigma_protocol::verifier::VerifierError;
-    use ergotree_ir::address::AddressEncoder;
-    use ergotree_ir::address::NetworkPrefix;
+    use ergotree_ir::chain::address::AddressEncoder;
+    use ergotree_ir::chain::address::NetworkPrefix;
+    use ergotree_ir::chain::ergo_box::box_value::BoxValue;
+    use ergotree_ir::chain::ergo_box::NonMandatoryRegisters;
+    use ergotree_ir::chain::tx_id::TxId;
     use proptest::collection::vec;
     use proptest::prelude::*;
     use rand::prelude::SliceRandom;
@@ -189,8 +143,7 @@ mod tests {
     use sigma_test_util::force_any_val;
 
     use crate::chain::{
-        ergo_box::{box_builder::ErgoBoxCandidateBuilder, BoxValue, NonMandatoryRegisters},
-        transaction::{TxId, UnsignedInput},
+        ergo_box::box_builder::ErgoBoxCandidateBuilder, transaction::UnsignedInput,
     };
     use ergotree_ir::ergo_tree::ErgoTree;
     use ergotree_ir::mir::expr::Expr;

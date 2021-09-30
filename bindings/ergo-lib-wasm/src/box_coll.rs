@@ -1,5 +1,5 @@
 //! Box collection types
-use ergo_lib::chain;
+use ergo_lib::ergotree_ir::chain;
 use wasm_bindgen::prelude::*;
 
 use crate::ergo_box::{ErgoBox, ErgoBoxCandidate};

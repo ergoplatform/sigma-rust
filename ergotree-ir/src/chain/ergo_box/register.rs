@@ -1,16 +1,12 @@
 //! Box registers
 
-#[cfg(feature = "json")]
-use crate::chain::json::ergo_box::ConstantHolder;
-use crate::chain::Base16EncodedBytes;
-use ergotree_ir::mir::constant::Constant;
-use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
-use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
-use ergotree_ir::serialization::SigmaParsingError;
-use ergotree_ir::serialization::SigmaSerializable;
-use ergotree_ir::serialization::SigmaSerializeResult;
-#[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use crate::chain::base16_bytes::Base16EncodedBytes;
+use crate::mir::constant::Constant;
+use crate::serialization::sigma_byte_reader::SigmaByteRead;
+use crate::serialization::sigma_byte_writer::SigmaByteWrite;
+use crate::serialization::SigmaParsingError;
+use crate::serialization::SigmaSerializable;
+use crate::serialization::SigmaSerializeResult;
 use std::convert::TryInto;
 use std::{collections::HashMap, convert::TryFrom};
 use thiserror::Error;
@@ -58,9 +54,17 @@ impl TryFrom<i8> for RegisterId {
     }
 }
 
+impl TryFrom<u8> for RegisterId {
+    type Error = RegisterIdOutOfBounds;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        RegisterId::try_from(value as i8)
+    }
+}
+
 /// newtype for additional registers R4 - R9
 #[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "json", serde(into = "String", try_from = "String"))]
 #[repr(u8)]
 pub enum NonMandatoryRegisterId {
@@ -157,7 +161,7 @@ pub struct NonMandatoryRegisterIdParsingError();
 
 /// Stores non-mandatory registers for the box
 #[derive(PartialEq, Eq, Debug, Clone)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "json",
     serde(
@@ -183,17 +187,6 @@ impl NonMandatoryRegisters {
         NonMandatoryRegisters::try_from(regs)
     }
 
-    /// Create new from ordered values (first element will be R4, and so on)
-    pub fn from_ordered_values(
-        values: Vec<Constant>,
-    ) -> Result<NonMandatoryRegisters, NonMandatoryRegistersError> {
-        if values.len() > NonMandatoryRegisters::MAX_SIZE {
-            Err(NonMandatoryRegistersError::InvalidSize(values.len()))
-        } else {
-            Ok(NonMandatoryRegisters(values))
-        }
-    }
-
     /// Size of non-mandatory registers set
     pub fn len(&self) -> usize {
         self.0.len()
@@ -216,6 +209,19 @@ impl NonMandatoryRegisters {
     }
 }
 
+/// Create new from ordered values (first element will be R4, and so on)
+impl TryFrom<Vec<Constant>> for NonMandatoryRegisters {
+    type Error = NonMandatoryRegistersError;
+
+    fn try_from(values: Vec<Constant>) -> Result<Self, Self::Error> {
+        if values.len() > NonMandatoryRegisters::MAX_SIZE {
+            Err(NonMandatoryRegistersError::InvalidSize(values.len()))
+        } else {
+            Ok(NonMandatoryRegisters(values))
+        }
+    }
+}
+
 impl SigmaSerializable for NonMandatoryRegisters {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         let regs_num = self.len();
@@ -233,7 +239,7 @@ impl SigmaSerializable for NonMandatoryRegisters {
             let v = Constant::sigma_parse(r)?;
             additional_regs.push(v);
         }
-        Ok(NonMandatoryRegisters::from_ordered_values(additional_regs)?)
+        Ok(additional_regs.try_into()?)
     }
 }
 
@@ -252,7 +258,14 @@ impl From<NonMandatoryRegisters> for HashMap<NonMandatoryRegisterId, Base16Encod
     fn from(v: NonMandatoryRegisters) -> Self {
         v.0.into_iter()
             .enumerate()
-            .map(|(i, c)| (NonMandatoryRegisterId::get_by_zero_index(i), c.into()))
+            .map(|(i, c)| {
+                (
+                    NonMandatoryRegisterId::get_by_zero_index(i),
+                    // no way of returning an error without writing custom JSON serializer
+                    #[allow(clippy::unwrap_used)]
+                    Base16EncodedBytes::new(&c.sigma_serialize_bytes().unwrap()),
+                )
+            })
             .collect()
     }
 }
@@ -287,10 +300,12 @@ impl TryFrom<HashMap<NonMandatoryRegisterId, Constant>> for NonMandatoryRegister
 }
 
 #[cfg(feature = "json")]
-impl TryFrom<HashMap<NonMandatoryRegisterId, ConstantHolder>> for NonMandatoryRegisters {
+impl TryFrom<HashMap<NonMandatoryRegisterId, crate::chain::json::ergo_box::ConstantHolder>>
+    for NonMandatoryRegisters
+{
     type Error = NonMandatoryRegistersError;
     fn try_from(
-        value: HashMap<NonMandatoryRegisterId, ConstantHolder>,
+        value: HashMap<NonMandatoryRegisterId, crate::chain::json::ergo_box::ConstantHolder>,
     ) -> Result<Self, Self::Error> {
         let cm: HashMap<NonMandatoryRegisterId, Constant> =
             value.into_iter().map(|(k, v)| (k, v.into())).collect();
@@ -331,10 +346,10 @@ impl TryFrom<i8> for MandatoryRegisterId {
     }
 }
 
-#[cfg(test)]
-mod tests {
+#[allow(clippy::unwrap_used)]
+#[cfg(feature = "arbitrary")]
+pub mod arbitrary {
     use super::*;
-    use ergotree_ir::serialization::sigma_serialize_roundtrip;
     use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
 
     impl Arbitrary for NonMandatoryRegisters {
@@ -343,13 +358,19 @@ mod tests {
 
         fn arbitrary_with(_: Self::Parameters) -> Self::Strategy {
             vec(any::<Constant>(), 0..=NonMandatoryRegisterId::NUM_REGS)
-                .prop_map(|constants| {
-                    NonMandatoryRegisters::from_ordered_values(constants)
-                        .expect("error building registers")
-                })
+                .prop_map(|constants| NonMandatoryRegisters::try_from(constants).unwrap())
                 .boxed()
         }
     }
+}
+
+#[allow(clippy::unwrap_used)]
+#[allow(clippy::expect_used)]
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::serialization::sigma_serialize_roundtrip;
+    use proptest::prelude::*;
 
     proptest! {
 

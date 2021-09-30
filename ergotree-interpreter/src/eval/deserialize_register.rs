@@ -1,3 +1,5 @@
+use std::convert::TryInto;
+
 use ergotree_ir::mir::constant::TryExtractInto;
 use ergotree_ir::mir::deserialize_register::DeserializeRegister;
 use ergotree_ir::mir::expr::Expr;
@@ -14,10 +16,13 @@ impl Evaluable for DeserializeRegister {
     fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
         match ctx
             .ctx
-            .box_arena
-            .get(&ctx.ctx.self_box)?
-            .get_register(self.reg as i8)
-        {
+            .self_box
+            .get_register(self.reg.try_into().map_err(|e| {
+                EvalError::RegisterIdOutOfBounds(format!(
+                    "register index is out of bounds: {:?} ",
+                    e
+                ))
+            })?) {
             Some(c) => {
                 if c.tpe != SType::SColl(SType::SByte.into()) {
                     Err(EvalError::UnexpectedExpr(format!(
@@ -58,6 +63,8 @@ mod tests {
 
     use std::rc::Rc;
 
+    use ergotree_ir::chain::ergo_box::ErgoBox;
+    use ergotree_ir::chain::ergo_box::NonMandatoryRegisters;
     use ergotree_ir::mir::bin_op::BinOp;
     use ergotree_ir::mir::bin_op::RelationOp;
     use ergotree_ir::mir::constant::Constant;
@@ -67,22 +74,16 @@ mod tests {
     use ergotree_ir::types::stype::SType;
     use sigma_test_util::force_any_val;
 
-    use crate::eval::context::ir_ergo_box_dummy::IrErgoBoxDummy;
-    use crate::eval::context::ir_ergo_box_dummy::IrErgoBoxDummyArena;
     use crate::eval::context::Context;
     use crate::eval::tests::try_eval_out;
 
     use super::*;
 
-    fn make_ctx_with_self_box(self_box: IrErgoBoxDummy) -> Context {
+    fn make_ctx_with_self_box(self_box: ErgoBox) -> Context {
         let ctx = force_any_val::<Context>();
-        let mut m = std::collections::HashMap::new();
-        let self_box_id = self_box.id.clone();
-        m.insert(self_box_id.clone(), self_box);
         Context {
             height: 0u32,
-            self_box: self_box_id,
-            box_arena: Rc::new(IrErgoBoxDummyArena(m)),
+            self_box: Rc::new(self_box),
             ..ctx
         }
     }
@@ -97,10 +98,8 @@ mod tests {
         }
         .into();
         let reg_value: Constant = inner_expr.sigma_serialize_bytes().unwrap().into();
-        let b = IrErgoBoxDummy {
-            additional_registers: vec![reg_value],
-            ..force_any_val::<IrErgoBoxDummy>()
-        };
+        let b = force_any_val::<ErgoBox>()
+            .with_additional_registers(vec![reg_value].try_into().unwrap());
         // expected SBoolean
         let expr: Expr = DeserializeRegister {
             reg: 4,
@@ -114,10 +113,8 @@ mod tests {
 
     #[test]
     fn eval_reg_is_empty() {
-        let b = IrErgoBoxDummy {
-            additional_registers: vec![],
-            ..force_any_val::<IrErgoBoxDummy>()
-        };
+        let b =
+            force_any_val::<ErgoBox>().with_additional_registers(NonMandatoryRegisters::empty());
         // no default provided
         let expr: Expr = DeserializeRegister {
             reg: 5,
@@ -153,10 +150,8 @@ mod tests {
     fn eval_reg_wrong_type() {
         // SInt, expected SColl(SByte)
         let reg_value: Constant = 1i32.into();
-        let b = IrErgoBoxDummy {
-            additional_registers: vec![reg_value],
-            ..force_any_val::<IrErgoBoxDummy>()
-        };
+        let b = force_any_val::<ErgoBox>()
+            .with_additional_registers(vec![reg_value].try_into().unwrap());
         let expr: Expr = DeserializeRegister {
             reg: 4,
             tpe: SType::SBoolean,
@@ -172,10 +167,8 @@ mod tests {
         // SInt
         let inner_expr: Expr = 1i32.into();
         let reg_value: Constant = inner_expr.sigma_serialize_bytes().unwrap().into();
-        let b = IrErgoBoxDummy {
-            additional_registers: vec![reg_value],
-            ..force_any_val::<IrErgoBoxDummy>()
-        };
+        let b = force_any_val::<ErgoBox>()
+            .with_additional_registers(vec![reg_value].try_into().unwrap());
         // expected SBoolean
         let expr: Expr = DeserializeRegister {
             reg: 4,

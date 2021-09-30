@@ -1,8 +1,15 @@
+use crate::chain::base16_bytes::Base16DecodedBytes;
+use crate::chain::ergo_box::box_value::BoxValue;
+use crate::chain::ergo_box::BoxId;
+use crate::chain::ergo_box::NonMandatoryRegisters;
+use crate::chain::token::Token;
+use crate::chain::tx_id::TxId;
+use crate::ergo_tree::ErgoTree;
+use crate::mir::constant::Constant;
+use crate::serialization::SigmaParsingError;
+use crate::serialization::SigmaSerializable;
+use crate::serialization::SigmaSerializationError;
 use core::fmt;
-use ergotree_ir::ergo_tree::ErgoTree;
-use ergotree_ir::mir::constant::Constant;
-use ergotree_ir::serialization::SigmaParsingError;
-use ergotree_ir::serialization::SigmaSerializable;
 use serde::de::{self, MapAccess, Visitor};
 use serde::Deserializer;
 use std::convert::TryFrom;
@@ -12,12 +19,6 @@ use std::str::FromStr;
 extern crate derive_more;
 use derive_more::From;
 
-use crate::chain::Base16DecodedBytes;
-use crate::chain::{
-    ergo_box::{BoxId, BoxValue, NonMandatoryRegisters},
-    token::Token,
-    transaction::TxId,
-};
 use serde::Deserialize;
 use thiserror::Error;
 
@@ -48,6 +49,17 @@ pub struct ErgoBoxFromJson {
     /// number of box (from 0 to total number of boxes the transaction with transactionId created - 1)
     #[serde(rename = "index")]
     pub index: u16,
+}
+
+/// Errors on parsing ErgoBox from JSON
+#[derive(Error, PartialEq, Eq, Debug, Clone)]
+pub enum ErgoBoxFromJsonError {
+    /// Box id parsed from JSON differs from calculated from box serialized bytes
+    #[error("Box id parsed from JSON differs from calculated from box serialized bytes")]
+    InvalidBoxId,
+    /// Box serialization failed (id calculation)
+    #[error("Box serialization failed (id calculation): {0}")]
+    SerializationError(#[from] SigmaSerializationError),
 }
 
 #[derive(Deserialize, PartialEq, Eq, Debug, Clone)]
@@ -143,6 +155,7 @@ where
     deserializer.deserialize_any(StringOrStruct(PhantomData))
 }
 
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
     use std::convert::TryInto;

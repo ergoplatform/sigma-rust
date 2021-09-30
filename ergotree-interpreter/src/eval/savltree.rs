@@ -1,5 +1,5 @@
 use bytes::Bytes;
-use ergotree_ir::mir::avl_tree_data::ADDigest;
+use ergotree_ir::chain::digest32::ADDigest;
 use ergotree_ir::mir::avl_tree_data::AvlTreeData;
 use ergotree_ir::mir::constant::TryExtractInto;
 use ergotree_ir::mir::value::Value;

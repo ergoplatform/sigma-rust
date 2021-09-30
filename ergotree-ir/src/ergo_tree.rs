@@ -595,8 +595,8 @@ pub(crate) mod arbitrary {
 #[allow(clippy::expect_used)]
 mod tests {
     use super::*;
-    use crate::address::AddressEncoder;
-    use crate::address::NetworkPrefix;
+    use crate::chain::address::AddressEncoder;
+    use crate::chain::address::NetworkPrefix;
     use crate::mir::constant::Literal;
     use proptest::prelude::*;
 

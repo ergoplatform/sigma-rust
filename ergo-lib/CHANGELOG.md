@@ -24,10 +24,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - `SubstConst` IR node and serialization [#318] (https://github.com/ergoplatform/sigma-rust/pull/318);
 - Better Debug print for EC point [#319](https://github.com/ergoplatform/sigma-rust/pull/319);
 - `Constant::from_ecpoint_bytes` to Wasm API [#324](https://github.com/ergoplatform/sigma-rust/pull/324);
-
+- `Constant::to/from_ergo_box`to Wasm API [#397](https://github.com/ergoplatform/sigma-rust/pull/397);
 
 ### Changed(BREAKING!):
 - `ErgoTree::to_bytes()` renamed to  `ErgoTree::sigma_serialize_bytes()` in Wasm [#387](https://github.com/ergoplatform/sigma-rust/pull/387);
+- `ErgoBox` and other types that it uses moved to `ergotree_ir` crate and re-exported in `ergo_lib::ergotree_ir` [#397](https://github.com/ergoplatform/sigma-rust/pull/397);
 
 ### Changed
 - `SigmaSerializable:sigma_serialize` errors are extended beyond `io::Error` [#328](https://github.com/ergoplatform/sigma-rust/pull/328);

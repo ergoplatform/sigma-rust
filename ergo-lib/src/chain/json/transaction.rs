@@ -1,8 +1,7 @@
 use crate::chain::transaction::{DataInput, Input, UnsignedInput};
-use crate::chain::{
-    ergo_box::{ErgoBox, ErgoBoxCandidate},
-    transaction::TxId,
-};
+use ergotree_ir::chain::ergo_box::ErgoBox;
+use ergotree_ir::chain::ergo_box::ErgoBoxCandidate;
+use ergotree_ir::chain::tx_id::TxId;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]

@@ -104,10 +104,11 @@ impl ErgoBoxCandidateBuilder {
 
     /// Add given token id and token amount
     pub fn add_token(&mut self, token_id: &TokenId, amount: &TokenAmount) {
-        self.0.add_token(chain::token::Token {
-            token_id: token_id.clone().into(),
-            amount: amount.clone().into(),
-        });
+        self.0
+            .add_token(ergo_lib::ergotree_ir::chain::token::Token {
+                token_id: token_id.clone().into(),
+                amount: amount.clone().into(),
+            });
     }
 
     /// Build the box candidate

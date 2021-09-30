@@ -43,7 +43,7 @@ impl Evaluable for ByIndex {
 #[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
-    use ergotree_ir::ir_ergo_box::IrBoxId;
+    use ergotree_ir::chain::ergo_box::ErgoBox;
     use ergotree_ir::mir::expr::Expr;
     use ergotree_ir::mir::global_vars::GlobalVars;
     use sigma_test_util::force_any_val;
@@ -61,8 +61,8 @@ mod tests {
             .into();
         let ctx = Rc::new(force_any_val::<Context>());
         assert_eq!(
-            eval_out::<IrBoxId>(&expr, ctx.clone()),
-            ctx.outputs.get(0).unwrap().clone()
+            eval_out::<Rc<ErgoBox>>(&expr, ctx.clone()).box_id(),
+            ctx.outputs.get(0).unwrap().box_id()
         );
     }
 

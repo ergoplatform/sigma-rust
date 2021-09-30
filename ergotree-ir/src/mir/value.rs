@@ -1,12 +1,13 @@
 //! Ergo data type
 
 use std::convert::TryInto;
+use std::rc::Rc;
 
 use impl_trait_for_tuples::impl_for_tuples;
 
 use crate::bigint256::BigInt256;
+use crate::chain::ergo_box::ErgoBox;
 use crate::chain::header::Header;
-use crate::ir_ergo_box::IrBoxId;
 use crate::sigma_protocol::dlog_group::EcPoint;
 use crate::sigma_protocol::sigma_boolean::SigmaProp;
 use crate::types::stuple::TupleItems;
@@ -149,8 +150,8 @@ pub enum Value {
     GroupElement(Box<EcPoint>),
     /// Sigma property
     SigmaProp(Box<SigmaProp>),
-    /// Box
-    CBox(IrBoxId),
+    /// Ergo box
+    CBox(Rc<ErgoBox>),
     /// AVL tree
     AvlTree(Box<AvlTreeData>),
     /// Collection of values of the same type
@@ -160,7 +161,7 @@ pub enum Value {
     /// Transaction(and blockchain) context info
     Context,
     /// Block header
-    Header(Header),
+    Header(Box<Header>),
     /// Global which is used to define global methods
     Global,
     /// Optional value
@@ -217,7 +218,7 @@ impl From<Literal> for Value {
             Literal::BigInt(b) => Value::BigInt(b),
             Literal::SigmaProp(s) => Value::SigmaProp(s),
             Literal::GroupElement(e) => Value::GroupElement(e),
-            Literal::CBox(i) => Value::CBox(i),
+            Literal::CBox(b) => Value::CBox(b),
             Literal::Coll(coll) => {
                 let converted_coll = match coll {
                     CollKind::NativeColl(n) => CollKind::NativeColl(n),
@@ -243,8 +244,8 @@ impl StoreWrapped for i16 {}
 impl StoreWrapped for i32 {}
 impl StoreWrapped for i64 {}
 impl StoreWrapped for BigInt256 {}
-impl StoreWrapped for IrBoxId {}
 impl StoreWrapped for Header {}
+impl StoreWrapped for Rc<ErgoBox> {}
 impl StoreWrapped for EcPoint {}
 impl StoreWrapped for SigmaProp {}
 impl<T: StoreWrapped> StoreWrapped for Option<T> {}
@@ -270,6 +271,15 @@ impl Into<Value> for Tuple {
     fn into(self) -> Value {
         let v: Vec<Value> = [for_tuples!(  #( Tuple.into() ),* )].to_vec();
         Value::Tup(v.try_into().unwrap())
+    }
+}
+
+impl From<Vec<Rc<ErgoBox>>> for Value {
+    fn from(v: Vec<Rc<ErgoBox>>) -> Self {
+        Value::Coll(CollKind::WrappedColl {
+            elem_tpe: SType::SBox,
+            items: v.into_iter().map(|i| i.into()).collect(),
+        })
     }
 }
 
@@ -345,12 +355,12 @@ impl TryExtractFrom<Value> for SigmaProp {
     }
 }
 
-impl TryExtractFrom<Value> for IrBoxId {
+impl TryExtractFrom<Value> for Rc<ErgoBox> {
     fn try_extract_from(c: Value) -> Result<Self, TryExtractFromError> {
         match c {
             Value::CBox(b) => Ok(b),
             _ => Err(TryExtractFromError(format!(
-                "expected IrErgoBox, found {:?}",
+                "expected ErgoBox, found {:?}",
                 c
             ))),
         }
@@ -360,7 +370,7 @@ impl TryExtractFrom<Value> for IrBoxId {
 impl TryExtractFrom<Value> for Header {
     fn try_extract_from(c: Value) -> Result<Self, TryExtractFromError> {
         match c {
-            Value::Header(h) => Ok(h),
+            Value::Header(h) => Ok(*h),
             _ => Err(TryExtractFromError(format!(
                 "expected Header, found {:?}",
                 c

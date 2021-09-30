@@ -1,3 +1,4 @@
+use crate::chain::digest32::ADDigest;
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, sigma_byte_writer::SigmaByteWrite, SigmaParsingError,
     SigmaSerializable, SigmaSerializeResult,
@@ -81,44 +82,14 @@ impl SigmaSerializable for AvlTreeData {
     }
 }
 
-// The following types were copied from `ergo-lib::chain::digest32` as a workaround until some
-// types are reorganized in the future.
-
-/// Digest
-#[derive(PartialEq, Eq, Debug, Clone)]
-pub struct Digest<const N: usize>(pub Box<[u8; N]>);
-
-/// 32 byte array used as ID of some value: block, transaction, etc.
-/// Usually this is as blake2b hash of serialized form
-pub type Digest32 = Digest<32>;
-
-/// AVL tree digest: root hash along with tree height (33 bytes)
-pub type ADDigest = Digest<33>;
-
-impl<const N: usize> Digest<N> {
-    /// Digest size 32 bytes
-    pub const SIZE: usize = N;
-}
-
-impl<const N: usize> SigmaSerializable for Digest<N> {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
-        w.write_all(self.0.as_ref())?;
-        Ok(())
-    }
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
-        let mut bytes = [0; N];
-        r.read_exact(&mut bytes)?;
-        Ok(Self(bytes.into()))
-    }
-}
-
 #[cfg(feature = "arbitrary")]
 #[allow(clippy::unwrap_used)]
 mod arbitrary {
 
+    use crate::chain::digest32::ADDigest;
+
     use super::*;
-    use proptest::{collection::vec, prelude::*};
-    use std::convert::TryInto;
+    use proptest::prelude::*;
 
     type OptBox = Option<Box<u32>>;
     impl Arbitrary for AvlTreeData {
@@ -153,17 +124,6 @@ mod arbitrary {
                         value_length_opt,
                     },
                 )
-                .boxed()
-        }
-    }
-
-    impl<const N: usize> Arbitrary for Digest<N> {
-        type Parameters = ();
-        type Strategy = BoxedStrategy<Self>;
-
-        fn arbitrary_with(_: Self::Parameters) -> Self::Strategy {
-            vec(any::<u8>(), Self::SIZE)
-                .prop_map(|v| Digest(Box::new(v.try_into().unwrap())))
                 .boxed()
         }
     }

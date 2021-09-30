@@ -10,7 +10,10 @@ impl Evaluable for ExtractId {
     fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
         let input_v = self.input.eval(env, ctx)?;
         match input_v {
-            Value::CBox(b) => Ok(ctx.ctx.box_arena.get(&b)?.id().to_bytes().into()),
+            Value::CBox(b) => {
+                let bytes: Vec<i8> = b.box_id().into();
+                Ok(bytes.into())
+            }
             _ => Err(EvalError::UnexpectedValue(format!(
                 "Expected ExtractId input to be Value::CBox, got {0:?}",
                 input_v
@@ -37,13 +40,7 @@ mod tests {
         }
         .into();
         let ctx = Rc::new(force_any_val::<Context>());
-        assert_eq!(
-            eval_out::<Vec<i8>>(&e, ctx.clone()),
-            ctx.self_box
-                .get_box(&ctx.box_arena)
-                .unwrap()
-                .id()
-                .to_bytes()
-        );
+        let bytes: Vec<i8> = ctx.self_box.box_id().into();
+        assert_eq!(eval_out::<Vec<i8>>(&e, ctx), bytes);
     }
 }

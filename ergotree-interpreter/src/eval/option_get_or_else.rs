@@ -29,6 +29,7 @@ mod tests {
     use ergotree_ir::mir::constant::Constant;
     use ergotree_ir::mir::expr::Expr;
     use ergotree_ir::mir::extract_reg_as::ExtractRegisterAs;
+    use ergotree_ir::mir::get_var::GetVar;
     use ergotree_ir::mir::global_vars::GlobalVars;
     use ergotree_ir::types::stype::SType;
     use sigma_test_util::force_any_val;
@@ -49,20 +50,18 @@ mod tests {
             .into();
         let ctx = Rc::new(force_any_val::<Context>());
         let v = eval_out::<i64>(&option_get_expr, ctx.clone());
-        assert_eq!(v, ctx.self_box.get_box(&ctx.box_arena).unwrap().value());
+        assert_eq!(v, ctx.self_box.value.as_i64());
     }
 
     #[test]
     fn eval_empty() {
-        let get_reg_expr: Expr = ExtractRegisterAs::new(
-            GlobalVars::SelfBox.into(),
-            9,
-            SType::SOption(SType::SLong.into()),
-        )
-        .unwrap()
+        let get_var_expr: Expr = GetVar {
+            var_id: 99,
+            var_tpe: SType::SLong,
+        }
         .into();
         let default_expr: Constant = 1i64.into();
-        let option_get_expr: Expr = OptionGetOrElse::new(get_reg_expr, default_expr.into())
+        let option_get_expr: Expr = OptionGetOrElse::new(get_var_expr, default_expr.into())
             .unwrap()
             .into();
         let ctx = Rc::new(force_any_val::<Context>());

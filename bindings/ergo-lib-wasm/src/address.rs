@@ -21,9 +21,9 @@ pub enum NetworkPrefix {
     Testnet = 16,
 }
 
-impl From<NetworkPrefix> for ergo_lib::ergotree_ir::address::NetworkPrefix {
+impl From<NetworkPrefix> for ergo_lib::ergotree_ir::chain::address::NetworkPrefix {
     fn from(v: NetworkPrefix) -> Self {
-        use ergo_lib::ergotree_ir::address::NetworkPrefix::*;
+        use ergo_lib::ergotree_ir::chain::address::NetworkPrefix::*;
         match v {
             NetworkPrefix::Mainnet => Mainnet,
             NetworkPrefix::Testnet => Testnet,
@@ -31,12 +31,12 @@ impl From<NetworkPrefix> for ergo_lib::ergotree_ir::address::NetworkPrefix {
     }
 }
 
-impl From<ergo_lib::ergotree_ir::address::NetworkPrefix> for NetworkPrefix {
-    fn from(v: ergo_lib::ergotree_ir::address::NetworkPrefix) -> Self {
+impl From<ergo_lib::ergotree_ir::chain::address::NetworkPrefix> for NetworkPrefix {
+    fn from(v: ergo_lib::ergotree_ir::chain::address::NetworkPrefix) -> Self {
         use NetworkPrefix::*;
         match v {
-            ergo_lib::ergotree_ir::address::NetworkPrefix::Mainnet => Mainnet,
-            ergo_lib::ergotree_ir::address::NetworkPrefix::Testnet => Testnet,
+            ergo_lib::ergotree_ir::chain::address::NetworkPrefix::Mainnet => Mainnet,
+            ergo_lib::ergotree_ir::chain::address::NetworkPrefix::Testnet => Testnet,
         }
     }
 }
@@ -53,9 +53,9 @@ pub enum AddressTypePrefix {
     Pay2S = 3,
 }
 
-impl From<AddressTypePrefix> for ergo_lib::ergotree_ir::address::AddressTypePrefix {
+impl From<AddressTypePrefix> for ergo_lib::ergotree_ir::chain::address::AddressTypePrefix {
     fn from(v: AddressTypePrefix) -> Self {
-        use ergo_lib::ergotree_ir::address::AddressTypePrefix::*;
+        use ergo_lib::ergotree_ir::chain::address::AddressTypePrefix::*;
         match v {
             AddressTypePrefix::P2Pk => P2Pk,
             AddressTypePrefix::Pay2Sh => Pay2Sh,
@@ -64,13 +64,13 @@ impl From<AddressTypePrefix> for ergo_lib::ergotree_ir::address::AddressTypePref
     }
 }
 
-impl From<ergo_lib::ergotree_ir::address::AddressTypePrefix> for AddressTypePrefix {
-    fn from(v: ergo_lib::ergotree_ir::address::AddressTypePrefix) -> Self {
+impl From<ergo_lib::ergotree_ir::chain::address::AddressTypePrefix> for AddressTypePrefix {
+    fn from(v: ergo_lib::ergotree_ir::chain::address::AddressTypePrefix) -> Self {
         use AddressTypePrefix::*;
         match v {
-            ergo_lib::ergotree_ir::address::AddressTypePrefix::P2Pk => P2Pk,
-            ergo_lib::ergotree_ir::address::AddressTypePrefix::Pay2Sh => Pay2Sh,
-            ergo_lib::ergotree_ir::address::AddressTypePrefix::Pay2S => Pay2S,
+            ergo_lib::ergotree_ir::chain::address::AddressTypePrefix::P2Pk => P2Pk,
+            ergo_lib::ergotree_ir::chain::address::AddressTypePrefix::Pay2Sh => Pay2Sh,
+            ergo_lib::ergotree_ir::chain::address::AddressTypePrefix::Pay2S => Pay2S,
         }
     }
 }
@@ -120,7 +120,7 @@ impl From<ergo_lib::ergotree_ir::address::AddressTypePrefix> for AddressTypePref
  */
 #[wasm_bindgen]
 #[derive(PartialEq, Eq, Debug, Clone, From, Into)]
-pub struct Address(ergo_lib::ergotree_ir::address::Address);
+pub struct Address(ergo_lib::ergotree_ir::chain::address::Address);
 
 #[wasm_bindgen]
 impl Address {
@@ -130,22 +130,24 @@ impl Address {
     /// Re-create the address from this ErgoTree.
     /// `tree` - ErgoTree that was created from an Address
     pub fn recreate_from_ergo_tree(ergo_tree: &ErgoTree) -> Result<Address, JsValue> {
-        ergo_lib::ergotree_ir::address::Address::recreate_from_ergo_tree(&ergo_tree.clone().into())
-            .map(Address)
-            .map_err(to_js)
+        ergo_lib::ergotree_ir::chain::address::Address::recreate_from_ergo_tree(
+            &ergo_tree.clone().into(),
+        )
+        .map(Address)
+        .map_err(to_js)
     }
 
     /// Create a P2PK address from serialized PK bytes(EcPoint/GroupElement)
     pub fn p2pk_from_pk_bytes(bytes: &[u8]) -> Result<Address, JsValue> {
-        ergo_lib::ergotree_ir::address::Address::p2pk_from_pk_bytes(bytes)
+        ergo_lib::ergotree_ir::chain::address::Address::p2pk_from_pk_bytes(bytes)
             .map(Address)
             .map_err(to_js)
     }
 
     /// Decode (base58) testnet address from string, checking that address is from the testnet
     pub fn from_testnet_str(s: &str) -> Result<Address, JsValue> {
-        ergo_lib::ergotree_ir::address::AddressEncoder::new(
-            ergo_lib::ergotree_ir::address::NetworkPrefix::Testnet,
+        ergo_lib::ergotree_ir::chain::address::AddressEncoder::new(
+            ergo_lib::ergotree_ir::chain::address::NetworkPrefix::Testnet,
         )
         .parse_address_from_str(s)
         .map(Address)
@@ -154,8 +156,8 @@ impl Address {
 
     /// Decode (base58) mainnet address from string, checking that address is from the mainnet
     pub fn from_mainnet_str(s: &str) -> Result<Address, JsValue> {
-        ergo_lib::ergotree_ir::address::AddressEncoder::new(
-            ergo_lib::ergotree_ir::address::NetworkPrefix::Mainnet,
+        ergo_lib::ergotree_ir::chain::address::AddressEncoder::new(
+            ergo_lib::ergotree_ir::chain::address::NetworkPrefix::Mainnet,
         )
         .parse_address_from_str(s)
         .map(Address)
@@ -165,14 +167,14 @@ impl Address {
     /// Decode (base58) address from string without checking the network prefix
     #[allow(clippy::should_implement_trait)]
     pub fn from_base58(s: &str) -> Result<Address, JsValue> {
-        ergo_lib::ergotree_ir::address::AddressEncoder::unchecked_parse_address_from_str(s)
+        ergo_lib::ergotree_ir::chain::address::AddressEncoder::unchecked_parse_address_from_str(s)
             .map(Address)
             .map_err(to_js)
     }
 
     /// Encode (base58) address
     pub fn to_base58(&self, network_prefix: NetworkPrefix) -> String {
-        ergo_lib::ergotree_ir::address::AddressEncoder::encode_address_as_string(
+        ergo_lib::ergotree_ir::chain::address::AddressEncoder::encode_address_as_string(
             network_prefix.into(),
             &self.0,
         )
@@ -180,14 +182,16 @@ impl Address {
 
     /// Decode from a serialized address (that includes the network prefix)
     pub fn from_bytes(data: Vec<u8>) -> Result<Address, JsValue> {
-        ergo_lib::ergotree_ir::address::AddressEncoder::unchecked_parse_address_from_bytes(&data)
-            .map(Address)
-            .map_err(to_js)
+        ergo_lib::ergotree_ir::chain::address::AddressEncoder::unchecked_parse_address_from_bytes(
+            &data,
+        )
+        .map(Address)
+        .map_err(to_js)
     }
 
     /// Encode address as serialized bytes (that includes the network prefix)
     pub fn to_bytes(&self, network_prefix: NetworkPrefix) -> Vec<u8> {
-        ergo_lib::ergotree_ir::address::AddressEncoder::encode_address_as_bytes(
+        ergo_lib::ergotree_ir::chain::address::AddressEncoder::encode_address_as_bytes(
             network_prefix.into(),
             &self.0,
         )
@@ -201,7 +205,9 @@ impl Address {
     /// Create an address from a public key
     pub fn from_public_key(bytes: &[u8]) -> Result<Address, JsValue> {
         EcPoint::sigma_parse_bytes(bytes)
-            .map(|point| ergo_lib::ergotree_ir::address::Address::P2Pk(ProveDlog::new(point)))
+            .map(|point| {
+                ergo_lib::ergotree_ir::chain::address::Address::P2Pk(ProveDlog::new(point))
+            })
             .map(Address)
             .map_err(to_js)
     }
@@ -216,13 +222,13 @@ impl Address {
 /// These two combined together form a base58 encoding
 #[wasm_bindgen]
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct NetworkAddress(ergo_lib::ergotree_ir::address::NetworkAddress);
+pub struct NetworkAddress(ergo_lib::ergotree_ir::chain::address::NetworkAddress);
 
 #[wasm_bindgen]
 impl NetworkAddress {
     /// create a new NetworkAddress(address + network prefix) for a given network type
     pub fn new(network: NetworkPrefix, address: &Address) -> NetworkAddress {
-        NetworkAddress(ergo_lib::ergotree_ir::address::NetworkAddress::new(
+        NetworkAddress(ergo_lib::ergotree_ir::chain::address::NetworkAddress::new(
             network.into(),
             &address.clone().into(),
         ))
@@ -230,7 +236,7 @@ impl NetworkAddress {
 
     /// Decode (base58) a NetworkAddress (address + network prefix) from string
     pub fn from_base58(s: &str) -> Result<NetworkAddress, JsValue> {
-        ergo_lib::ergotree_ir::address::AddressEncoder::unchecked_parse_network_address_from_str(s)
+        ergo_lib::ergotree_ir::chain::address::AddressEncoder::unchecked_parse_network_address_from_str(s)
             .map(NetworkAddress)
             .map_err(to_js)
     }
@@ -242,7 +248,7 @@ impl NetworkAddress {
 
     /// Decode from a serialized address
     pub fn from_bytes(data: Vec<u8>) -> Result<NetworkAddress, JsValue> {
-        ergo_lib::ergotree_ir::address::AddressEncoder::unchecked_parse_network_address_from_bytes(
+        ergo_lib::ergotree_ir::chain::address::AddressEncoder::unchecked_parse_network_address_from_bytes(
             &data,
         )
         .map(NetworkAddress)
@@ -251,7 +257,7 @@ impl NetworkAddress {
 
     /// Encode address as serialized bytes
     pub fn to_bytes(&self) -> Vec<u8> {
-        ergo_lib::ergotree_ir::address::AddressEncoder::encode_address_as_bytes(
+        ergo_lib::ergotree_ir::chain::address::AddressEncoder::encode_address_as_bytes(
             self.network().into(),
             &self.address().into(),
         )

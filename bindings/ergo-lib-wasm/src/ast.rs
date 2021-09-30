@@ -1,8 +1,10 @@
 //! Ergo constant values
 
+use crate::ergo_box::ErgoBox;
 use crate::error_conversion::to_js;
 use crate::utils::I64;
-use ergo_lib::chain::Base16Str;
+use ergo_lib::ergotree_ir::base16_str::Base16Str;
+use ergo_lib::ergotree_ir::chain::base16_bytes::Base16DecodedBytes;
 use ergo_lib::ergotree_ir::mir::constant::{TryExtractFrom, TryExtractInto};
 use ergo_lib::ergotree_ir::serialization::SigmaSerializable;
 use ergo_lib::ergotree_ir::sigma_protocol::dlog_group::EcPoint;
@@ -23,21 +25,21 @@ pub struct Constant(ergo_lib::ergotree_ir::mir::constant::Constant);
 impl Constant {
     /// Decode from Base16-encoded ErgoTree serialized value
     pub fn decode_from_base16(base16_bytes_str: String) -> Result<Constant, JsValue> {
-        let bytes = ergo_lib::chain::Base16DecodedBytes::try_from(base16_bytes_str.clone())
-            .map_err(|_| {
-                JsValue::from_str(&format!(
-                    "failed to decode base16 from: {}",
-                    base16_bytes_str.clone()
-                ))
-            })?;
+        let bytes = Base16DecodedBytes::try_from(base16_bytes_str.clone()).map_err(|_| {
+            JsValue::from_str(&format!(
+                "failed to decode base16 from: {}",
+                base16_bytes_str.clone()
+            ))
+        })?;
         ergo_lib::ergotree_ir::mir::constant::Constant::try_from(bytes)
             .map_err(to_js)
             .map(Constant)
     }
 
-    /// Encode as Base16-encoded ErgoTree serialized value
-    pub fn encode_to_base16(&self) -> String {
-        self.0.base16_str()
+    /// Encode as Base16-encoded ErgoTree serialized value or return an error if serialization
+    /// failed
+    pub fn encode_to_base16(&self) -> Result<String, JsValue> {
+        self.0.base16_str().map_err(to_js)
     }
 
     /// Returns serialized bytes or fails with error if Constant cannot be serialized
@@ -166,5 +168,21 @@ impl Constant {
             JsValue::from_str(&l1.to_string()),
             JsValue::from_str(&l2.to_string()),
         ])
+    }
+
+    /// Create from ErgoBox value
+    pub fn from_ergo_box(v: &ErgoBox) -> Constant {
+        let b: ergo_lib::ergotree_ir::chain::ergo_box::ErgoBox = v.clone().into();
+        let c: ergo_lib::ergotree_ir::mir::constant::Constant = b.into();
+        Constant(c)
+    }
+
+    /// Extract ErgoBox value, returning error if wrong type
+    pub fn to_ergo_box(&self) -> Result<ErgoBox, JsValue> {
+        self.0
+            .clone()
+            .try_extract_into::<ergo_lib::ergotree_ir::chain::ergo_box::ErgoBox>()
+            .map(Into::into)
+            .map_err(to_js)
     }
 }

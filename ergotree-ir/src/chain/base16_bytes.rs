@@ -1,11 +1,14 @@
 //! Transitioning type for Base16 encoded bytes in JSON serialization
 
-use ergotree_ir::mir::constant::Constant;
-use ergotree_ir::serialization::SigmaParsingError;
-use ergotree_ir::serialization::SigmaSerializable;
+use crate::chain::digest32::Digest;
+use crate::chain::digest32::Digest32Error;
+use crate::mir::constant::Constant;
+use crate::serialization::SigmaParsingError;
+use crate::serialization::SigmaSerializable;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
+use std::convert::TryInto;
 extern crate derive_more;
 use derive_more::{From, Into};
 
@@ -54,12 +57,6 @@ impl From<Base16DecodedBytes> for Vec<u8> {
     }
 }
 
-impl From<Constant> for Base16EncodedBytes {
-    fn from(v: Constant) -> Base16EncodedBytes {
-        Base16EncodedBytes::new(&v.sigma_serialize_bytes().unwrap())
-    }
-}
-
 impl TryFrom<Base16DecodedBytes> for Constant {
     type Error = SigmaParsingError;
 
@@ -68,20 +65,16 @@ impl TryFrom<Base16DecodedBytes> for Constant {
     }
 }
 
-/// Encodes serialized bytes as Base16
-pub trait Base16Str {
-    /// Returns serialized bytes encoded as Base16
-    fn base16_str(&self) -> String;
-}
-
-impl Base16Str for &Constant {
-    fn base16_str(&self) -> String {
-        base16::encode_lower(&self.sigma_serialize_bytes().unwrap())
+impl<const N: usize> From<Digest<N>> for Base16EncodedBytes {
+    fn from(v: Digest<N>) -> Self {
+        Base16EncodedBytes::new(v.0.as_ref())
     }
 }
 
-impl Base16Str for Constant {
-    fn base16_str(&self) -> String {
-        base16::encode_lower(&self.sigma_serialize_bytes().unwrap())
+impl<const N: usize> TryFrom<Base16DecodedBytes> for Digest<N> {
+    type Error = Digest32Error;
+    fn try_from(bytes: Base16DecodedBytes) -> Result<Self, Self::Error> {
+        let arr: [u8; N] = bytes.0.as_slice().try_into()?;
+        Ok(Digest(Box::new(arr)))
     }
 }

@@ -11,7 +11,7 @@
 #![deny(missing_docs)]
 // Clippy exclusions
 #![allow(clippy::unit_arg)]
-#![deny(broken_intra_doc_links)]
+#![deny(rustdoc::broken_intra_doc_links)]
 #![deny(clippy::unwrap_used)]
 #![deny(clippy::expect_used)]
 #![deny(clippy::todo)]
@@ -20,11 +20,10 @@
 
 mod has_opcode;
 
-pub mod address;
+pub mod base16_str;
 pub mod bigint256;
 pub mod chain;
 pub mod ergo_tree;
-pub mod ir_ergo_box;
 pub mod mir;
 pub mod serialization;
 pub mod sigma_protocol;

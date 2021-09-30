@@ -1,8 +1,11 @@
 //! Constant(Literal) IR node
 
+use crate::base16_str::Base16Str;
 use crate::bigint256::BigInt256;
-use crate::ir_ergo_box::IrBoxId;
+use crate::chain::ergo_box::ErgoBox;
 use crate::mir::value::CollKind;
+use crate::serialization::SigmaSerializable;
+use crate::serialization::SigmaSerializationError;
 use crate::sigma_protocol::sigma_boolean::SigmaBoolean;
 use crate::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
 use crate::sigma_protocol::sigma_boolean::{ProveDhTuple, ProveDlog};
@@ -14,6 +17,7 @@ use crate::types::stype::SType;
 use impl_trait_for_tuples::impl_for_tuples;
 use std::convert::TryFrom;
 use std::convert::TryInto;
+use std::rc::Rc;
 
 mod constant_placeholder;
 
@@ -54,10 +58,10 @@ pub enum Literal {
     SigmaProp(Box<SigmaProp>),
     /// GroupElement
     GroupElement(Box<EcPoint>),
-    /// Ergo box ID
-    CBox(IrBoxId),
     /// AVL tree
     AvlTree(Box<AvlTreeData>),
+    /// Ergo box
+    CBox(Rc<ErgoBox>),
     /// Collection
     Coll(CollKind<Literal>),
     /// Option type
@@ -65,6 +69,7 @@ pub enum Literal {
     /// Tuple (arbitrary type values)
     Tup(TupleItems<Literal>),
 }
+
 impl From<bool> for Literal {
     fn from(v: bool) -> Literal {
         Literal::Boolean(v)
@@ -113,9 +118,15 @@ impl From<EcPoint> for Literal {
     }
 }
 
-impl From<IrBoxId> for Literal {
-    fn from(b: IrBoxId) -> Self {
+impl From<Rc<ErgoBox>> for Literal {
+    fn from(b: Rc<ErgoBox>) -> Self {
         Literal::CBox(b)
+    }
+}
+
+impl From<ErgoBox> for Literal {
+    fn from(b: ErgoBox) -> Self {
+        Literal::CBox(Rc::new(b))
     }
 }
 
@@ -284,8 +295,17 @@ impl From<EcPoint> for Constant {
     }
 }
 
-impl From<IrBoxId> for Constant {
-    fn from(b: IrBoxId) -> Self {
+impl From<Rc<ErgoBox>> for Constant {
+    fn from(b: Rc<ErgoBox>) -> Self {
+        Constant {
+            tpe: SType::SBox,
+            v: b.into(),
+        }
+    }
+}
+
+impl From<ErgoBox> for Constant {
+    fn from(b: ErgoBox) -> Self {
         Constant {
             tpe: SType::SBox,
             v: b.into(),
@@ -489,12 +509,24 @@ impl TryExtractFrom<Literal> for SigmaProp {
     }
 }
 
-impl TryExtractFrom<Literal> for IrBoxId {
+impl TryExtractFrom<Literal> for Rc<ErgoBox> {
     fn try_extract_from(c: Literal) -> Result<Self, TryExtractFromError> {
         match c {
             Literal::CBox(b) => Ok(b),
             _ => Err(TryExtractFromError(format!(
-                "expected IrErgoBox, found {:?}",
+                "expected ErgoBox, found {:?}",
+                c
+            ))),
+        }
+    }
+}
+
+impl TryExtractFrom<Literal> for ErgoBox {
+    fn try_extract_from(c: Literal) -> Result<Self, TryExtractFromError> {
+        match c {
+            Literal::CBox(b) => Ok((*b).clone()),
+            _ => Err(TryExtractFromError(format!(
+                "expected ErgoBox, found {:?}",
                 c
             ))),
         }
@@ -639,6 +671,20 @@ impl TryFrom<Literal> for ProveDlog {
     }
 }
 
+impl Base16Str for &Constant {
+    fn base16_str(&self) -> Result<String, SigmaSerializationError> {
+        self.sigma_serialize_bytes()
+            .map(|bytes| base16::encode_lower(&bytes))
+    }
+}
+
+impl Base16Str for Constant {
+    fn base16_str(&self) -> Result<String, SigmaSerializationError> {
+        self.sigma_serialize_bytes()
+            .map(|bytes| base16::encode_lower(&bytes))
+    }
+}
+
 #[cfg(feature = "arbitrary")]
 #[allow(clippy::unwrap_used)]
 #[allow(clippy::todo)]
@@ -706,7 +752,7 @@ pub(crate) mod arbitrary {
             SType::SBigInt => any::<i64>().prop_map(|v| BigInt256::from(v).into()).boxed(),
             SType::SGroupElement => any::<EcPoint>().prop_map_into().boxed(),
             SType::SSigmaProp => any::<SigmaProp>().prop_map_into().boxed(),
-            // SType::SBox => {}
+            SType::SBox => any::<ErgoBox>().prop_map_into().boxed(),
             // SType::SAvlTree => {}
             // SType::SOption(tpe) =>
             SType::SColl(elem_tpe) => match *elem_tpe {

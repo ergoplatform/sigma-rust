@@ -2,7 +2,6 @@
 use std::rc::Rc;
 
 use ergotree_ir::ergo_tree::ErgoTreeError;
-use ergotree_ir::ir_ergo_box::IrErgoBoxArenaError;
 use ergotree_ir::mir::constant::TryExtractFromError;
 use ergotree_ir::mir::expr::Expr;
 use ergotree_ir::mir::value::Value;
@@ -121,9 +120,6 @@ pub enum EvalError {
     /// Arithmetic exception error
     #[error("Arithmetic exception: {0}")]
     ArithmeticException(String),
-    /// Cannot find ErgoBox in Context
-    #[error("Cannot find ErgoBox in Context: {0:?}")]
-    ErgoBoxNotFound(#[from] IrErgoBoxArenaError),
     /// Misc error
     #[error("error: {0}")]
     Misc(String),

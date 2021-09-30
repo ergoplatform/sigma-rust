@@ -1,30 +1,34 @@
 //! Builder for an UnsignedTransaction
 
+use ergotree_ir::chain::ergo_box::box_value::BoxValueError;
 use std::collections::HashSet;
 use std::convert::TryInto;
 
 use bounded_vec::BoundedVecOutOfBounds;
 use ergotree_interpreter::sigma_protocol;
 use ergotree_interpreter::sigma_protocol::prover::ProofBytes;
-use ergotree_ir::address::{Address, AddressEncoder, NetworkPrefix};
+use ergotree_ir::chain::address::Address;
+use ergotree_ir::chain::address::AddressEncoder;
+use ergotree_ir::chain::address::NetworkPrefix;
+use ergotree_ir::chain::ergo_box::box_value::BoxValue;
+use ergotree_ir::chain::ergo_box::BoxId;
+use ergotree_ir::chain::ergo_box::ErgoBoxCandidate;
+use ergotree_ir::chain::token::Token;
+use ergotree_ir::chain::token::TokenId;
 use ergotree_ir::serialization::{SigmaParsingError, SigmaSerializable, SigmaSerializationError};
 use thiserror::Error;
 
 use crate::chain::contract::Contract;
 use crate::chain::ergo_box::box_builder::{ErgoBoxCandidateBuilder, ErgoBoxCandidateBuilderError};
-use crate::chain::ergo_box::{sum_tokens_from_boxes, sum_value, BoxId, BoxValue, BoxValueError};
-use crate::chain::token::{Token, TokenId};
+use crate::chain::transaction::unsigned::UnsignedTransaction;
 use crate::chain::transaction::{DataInput, Input, Transaction, UnsignedInput};
-use crate::chain::{
-    ergo_box::ErgoBoxAssets, ergo_box::ErgoBoxCandidate, ergo_box::ErgoBoxId,
-    transaction::unsigned::UnsignedTransaction,
-};
 use crate::constants::MINERS_FEE_MAINNET_ADDRESS;
 
+use super::box_selector::sum_tokens_from_boxes;
+use super::box_selector::sum_value;
+use super::box_selector::ErgoBoxAssets;
+use super::box_selector::ErgoBoxId;
 use super::box_selector::{BoxSelection, BoxSelectorError};
-
-/// Suggested transaction fee (1100000 nanoERGs, semi-default value used across wallets and dApps as of Oct 2020)
-pub const SUGGESTED_TX_FEE: BoxValue = BoxValue(1100000u64);
 
 /// Unsigned transaction builder
 #[derive(Clone)]
@@ -237,6 +241,12 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
     }
 }
 
+/// Suggested transaction fee (1100000 nanoERGs, semi-default value used across wallets and dApps as of Oct 2020)
+#[allow(non_snake_case)]
+pub fn SUGGESTED_TX_FEE() -> BoxValue {
+    BoxValue::new(1100000u64).unwrap()
+}
+
 /// Create a box with miner's contract and a given value
 pub fn new_miner_fee_box(
     fee_amount: BoxValue,
@@ -287,16 +297,17 @@ mod tests {
 
     use std::convert::TryInto;
 
+    use ergotree_ir::chain::ergo_box::box_value::checked_sum;
+    use ergotree_ir::chain::ergo_box::ErgoBox;
+    use ergotree_ir::chain::ergo_box::NonMandatoryRegisters;
+    use ergotree_ir::chain::token::arbitrary::ArbTokenIdParam;
+    use ergotree_ir::chain::token::TokenAmount;
+    use ergotree_ir::chain::tx_id::TxId;
     use ergotree_ir::ergo_tree::ErgoTree;
     use proptest::{collection::vec, prelude::*};
     use sigma_test_util::force_any_val;
     use sigma_test_util::force_any_val_with;
 
-    use crate::chain::{
-        ergo_box::{checked_sum, ErgoBox, NonMandatoryRegisters},
-        token::{tests::ArbTokenIdParam, Token, TokenAmount, TokenId},
-        transaction::TxId,
-    };
     use crate::wallet::box_selector::{BoxSelector, SimpleBoxSelector};
 
     use super::*;
@@ -534,7 +545,7 @@ mod tests {
             0,
         )
         .unwrap();
-        let tx_fee = super::SUGGESTED_TX_FEE;
+        let tx_fee = super::SUGGESTED_TX_FEE();
         let out_box_value = input.value.checked_sub(&tx_fee).unwrap();
         let box_builder =
             ErgoBoxCandidateBuilder::new(out_box_value, force_any_val::<ErgoTree>(), 0);

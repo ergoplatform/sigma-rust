@@ -1,5 +1,5 @@
-use ergotree_ir::ergo_tree::ErgoTree;
-use ergotree_ir::serialization::SigmaSerializable;
+use crate::ergo_tree::ErgoTree;
+use crate::serialization::SigmaSerializable;
 use serde::{Deserialize, Deserializer, Serializer};
 
 use super::serialize_bytes;
@@ -27,6 +27,7 @@ where
         })
 }
 
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
     use crate::chain::json::ergo_box::ErgoBoxFromJson;

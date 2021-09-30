@@ -1,5 +1,5 @@
 //! Unsigned transaction builder
-use ergo_lib::{chain, wallet};
+use ergo_lib::wallet;
 use wasm_bindgen::prelude::*;
 
 use crate::box_selector::BoxSelection;
@@ -12,14 +12,16 @@ use crate::{
 
 /// Unsigned transaction builder
 #[wasm_bindgen]
-pub struct TxBuilder(wallet::tx_builder::TxBuilder<chain::ergo_box::ErgoBox>);
+pub struct TxBuilder(
+    wallet::tx_builder::TxBuilder<ergo_lib::ergotree_ir::chain::ergo_box::ErgoBox>,
+);
 
 #[wasm_bindgen]
 impl TxBuilder {
     /// Suggested transaction fee (semi-default value used across wallets and dApps as of Oct 2020)
     #[allow(non_snake_case)]
     pub fn SUGGESTED_TX_FEE() -> BoxValue {
-        BoxValue(wallet::tx_builder::SUGGESTED_TX_FEE)
+        BoxValue(wallet::tx_builder::SUGGESTED_TX_FEE())
     }
 
     /// Creates new TxBuilder

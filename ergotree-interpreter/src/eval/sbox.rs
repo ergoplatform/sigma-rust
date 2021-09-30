@@ -1,39 +1,42 @@
+use std::convert::TryInto;
+use std::rc::Rc;
+
 use crate::eval::EvalError;
 
-use ergotree_ir::ir_ergo_box::IrBoxId;
+use ergotree_ir::chain::ergo_box::ErgoBox;
 use ergotree_ir::mir::constant::TryExtractInto;
 use ergotree_ir::mir::value::Value;
 
 use super::EvalFn;
 
-pub(crate) static VALUE_EVAL_FN: EvalFn = |_env, ctx, obj, _args| {
+pub(crate) static VALUE_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
     Ok(Value::Long(
-        obj.try_extract_into::<IrBoxId>()?
-            .get_box(&ctx.ctx.box_arena)?
-            .value(),
+        obj.try_extract_into::<Rc<ErgoBox>>()?.value.as_i64(),
     ))
 };
 
-pub(crate) static GET_REG_EVAL_FN: EvalFn = |_env, ctx, obj, args| {
+pub(crate) static GET_REG_EVAL_FN: EvalFn = |_env, _ctx, obj, args| {
     Ok(Value::Opt(Box::new(
-        obj.try_extract_into::<IrBoxId>()?
-            .get_box(&ctx.ctx.box_arena)?
+        obj.try_extract_into::<Rc<ErgoBox>>()?
             .get_register(
                 args.get(0)
                     .cloned()
                     .ok_or_else(|| EvalError::NotFound("register index is missing".to_string()))?
-                    .try_extract_into::<i8>()?,
+                    .try_extract_into::<i8>()?
+                    .try_into()
+                    .map_err(|e| {
+                        EvalError::RegisterIdOutOfBounds(format!(
+                            "register index is out of bounds: {:?} ",
+                            e
+                        ))
+                    })?,
             )
             .map(|c| Value::from(c.v)),
     )))
 };
 
-pub(crate) static TOKENS_EVAL_FN: EvalFn = |_env, ctx, obj, _args| {
-    let res: Value = obj
-        .try_extract_into::<IrBoxId>()?
-        .get_box(&ctx.ctx.box_arena)?
-        .tokens_raw()
-        .into();
+pub(crate) static TOKENS_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
+    let res: Value = obj.try_extract_into::<Rc<ErgoBox>>()?.tokens_raw().into();
     Ok(res)
 };
 
@@ -59,7 +62,7 @@ mod tests {
         let ctx = Rc::new(force_any_val::<Context>());
         assert_eq!(
             eval_out::<i64>(&expr, ctx.clone()),
-            ctx.self_box.get_box(&ctx.box_arena).unwrap().value()
+            ctx.self_box.value.as_i64()
         );
     }
 
@@ -71,7 +74,7 @@ mod tests {
         let ctx = Rc::new(force_any_val::<Context>());
         assert_eq!(
             eval_out::<Vec<(Vec<i8>, i64)>>(&expr, ctx.clone()),
-            ctx.self_box.get_box(&ctx.box_arena).unwrap().tokens_raw()
+            ctx.self_box.tokens_raw()
         );
     }
 }

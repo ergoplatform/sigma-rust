@@ -1,7 +1,7 @@
 //! Secret types
 use ergotree_interpreter::sigma_protocol::private_input::DlogProverInput;
 use ergotree_interpreter::sigma_protocol::private_input::PrivateInput;
-use ergotree_ir::address::Address;
+use ergotree_ir::chain::address::Address;
 
 /// Types of secrets
 #[derive(PartialEq, Debug, Clone)]

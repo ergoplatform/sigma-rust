@@ -1,7 +1,7 @@
 import { expect, assert } from 'chai';
 
 import {
-  Constant, I64
+  Constant, I64, ErgoBoxes,
 } from '../pkg/ergo_lib_wasm';
 
 it('decode Constant i32', async () => {
@@ -72,5 +72,27 @@ it('roundtrip tuple of i64', async () => {
   let decoded_c = Constant.decode_from_base16(encoded);
   let decoded_c_value = decoded_c.to_tuple_i64();
   expect(decoded_c_value.toString()).equal([value_str1, value_str2].toString());
+});
+
+it('roundtrip ErgoBox', async () => {
+  const boxes = ErgoBoxes.from_boxes_json([
+    {
+      "boxId": "e56847ed19b3dc6b72828fcfb992fdf7310828cf291221269b7ffc72fd66706e",
+      "value": 67500000000,
+      "ergoTree": "100204a00b08cd021dde34603426402615658f1d970cfa7c7bd92ac81a8b16eeebff264d59ce4604ea02d192a39a8cc7a70173007301",
+      "assets": [],
+      "creationHeight": 284761,
+      "additionalRegisters": {},
+      "transactionId": "9148408c04c2e38a6402a7950d6157730fa7d49e9ab3b9cadec481d7769918e9",
+      "index": 1
+    }
+  ]);
+  let box = boxes.get(0);
+  let c = Constant.from_ergo_box(box);
+  let encoded = c.encode_to_base16();
+  let decoded_c = Constant.decode_from_base16(encoded);
+  let decoded_c_value = decoded_c.to_ergo_box();
+  assert(decoded_c_value != null);
+  expect(decoded_c_value.to_json().toString()).equal(box.to_json().toString());
 });
 

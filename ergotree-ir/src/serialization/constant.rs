@@ -47,5 +47,10 @@ mod tests {
         fn ser_roundtrip(v in any_with::<Constant>(ArbConstantParams::AnyWithDepth(4))) {
             prop_assert_eq![sigma_serialize_roundtrip(&v), v];
         }
+
+        #[test]
+        fn ser_roundtrip_sbox(v in any_with::<Constant>(ArbConstantParams::Exact(SType::SBox))) {
+            prop_assert_eq![sigma_serialize_roundtrip(&v), v];
+        }
     }
 }
