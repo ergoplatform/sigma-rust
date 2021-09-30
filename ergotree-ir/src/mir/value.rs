@@ -151,7 +151,7 @@ pub enum Value {
     /// Box
     CBox(IrBoxId),
     /// AVL tree
-    AvlTree(AvlTreeData),
+    AvlTree(Box<AvlTreeData>),
     /// Collection of values of the same type
     Coll(CollKind<Value>),
     /// Tuple (arbitrary type values)

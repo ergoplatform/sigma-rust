@@ -57,7 +57,7 @@ pub enum Literal {
     /// Ergo box ID
     CBox(IrBoxId),
     /// AVL tree
-    AvlTree(AvlTreeData),
+    AvlTree(Box<AvlTreeData>),
     /// Collection
     Coll(CollKind<Literal>),
     /// Option type
@@ -212,7 +212,7 @@ impl TryFrom<Value> for Constant {
                     Err("Can't convert Value:Tup element".into())
                 }
             }
-            Value::AvlTree(a) => Ok(a.into()),
+            Value::AvlTree(a) => Ok(Constant::from(*a)),
             Value::Context => Err("Cannot convert Value::Context into Constant".into()),
             Value::Global => Err("Cannot convert Value::Global into Constant".into()),
             Value::Lambda(_) => Err("Cannot convert Value::Lambda(_) into Constant".into()),
@@ -366,7 +366,7 @@ impl From<AvlTreeData> for Constant {
     fn from(a: AvlTreeData) -> Self {
         Constant {
             tpe: SType::SAvlTree,
-            v: Literal::AvlTree(a),
+            v: Literal::AvlTree(Box::new(a)),
         }
     }
 }
