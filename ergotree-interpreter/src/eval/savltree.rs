@@ -2,6 +2,8 @@ use bytes::Bytes;
 use ergotree_ir::chain::digest32::ADDigest;
 use ergotree_ir::mir::avl_tree_data::AvlTreeData;
 use ergotree_ir::mir::constant::TryExtractInto;
+use ergotree_ir::mir::value::CollKind;
+use ergotree_ir::mir::value::NativeColl;
 use ergotree_ir::mir::value::Value;
 use ergotree_ir::serialization::SigmaSerializable;
 use scorex_crypto_avltree::authenticated_tree_ops::AuthenticatedTreeOps;
@@ -14,6 +16,13 @@ use scorex_crypto_avltree::operation::Operation;
 
 use super::EvalError;
 use super::EvalFn;
+
+pub(crate) static DIGEST_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
+    let avl_tree_data = obj.try_extract_into::<AvlTreeData>()?;
+    Ok(Value::Coll(CollKind::NativeColl(NativeColl::CollByte(
+        avl_tree_data.digest.into(),
+    ))))
+};
 
 pub(crate) static INSERT_EVAL_FN: EvalFn =
     |_env, _ctx, obj, args| {
@@ -82,7 +91,7 @@ fn map_eval_err<T: std::fmt::Debug>(e: T) -> EvalError {
     EvalError::AvlTree(format!("{:?}", e))
 }
 
-#[allow(clippy::unwrap_used)]
+#[allow(clippy::unwrap_used, clippy::panic)]
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
 mod tests {
@@ -98,13 +107,14 @@ mod tests {
         },
         types::{savltree, stuple::STuple, stype::SType},
     };
+    use proptest::prelude::*;
     use scorex_crypto_avltree::batch_avl_prover::BatchAVLProver;
 
     use crate::eval::tests::eval_out_wo_ctx;
 
     use super::*;
     #[test]
-    fn eval_avl_tree() {
+    fn eval_avl_insert() {
         // This example taken from `scorex_crypto_avltree` README
         let mut prover = BatchAVLProver::new(
             AVLTree::new(
@@ -187,6 +197,27 @@ mod tests {
             }
         } else {
             unreachable!();
+        }
+    }
+    proptest! {
+        #[test]
+        fn eval_avl_digest(v in any::<AvlTreeData>()) {
+            let digest: Vec<i8> = v.digest.clone().into();
+            let obj = Expr::Const(v.into());
+            let expr: Expr = MethodCall::new(
+                obj,
+                savltree::DIGEST_METHOD.clone(),
+                vec![],
+            )
+            .unwrap()
+            .into();
+
+            let res = eval_out_wo_ctx::<Value>(&expr);
+            if let Value::Coll(CollKind::NativeColl(NativeColl::CollByte(b))) = res {
+                assert_eq!(b, digest);
+            } else {
+                unreachable!();
+            }
         }
     }
 

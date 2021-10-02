@@ -198,6 +198,7 @@ fn smethod_eval_fn(method: &SMethod) -> Result<EvalFn, EvalError> {
     use ergotree_ir::types::*;
     Ok(match method.obj_type.type_code() {
         savltree::TYPE_CODE => match method.method_id() {
+            savltree::DIGEST_METHOD_ID => self::savltree::DIGEST_EVAL_FN,
             savltree::INSERT_METHOD_ID => self::savltree::INSERT_EVAL_FN,
             method_id => {
                 return Err(EvalError::NotFound(format!(

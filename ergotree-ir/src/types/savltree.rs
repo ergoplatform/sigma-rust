@@ -13,6 +13,8 @@ use lazy_static::lazy_static;
 pub const TYPE_CODE: TypeCode = TypeCode::SAVL_TREE;
 /// SAvlTree type name
 pub static TYPE_NAME: &str = "AvlTree";
+/// AvlTree.digest property
+pub const DIGEST_METHOD_ID: MethodId = MethodId(1);
 /// AvlTree.insert property
 pub const INSERT_METHOD_ID: MethodId = MethodId(12);
 
@@ -20,9 +22,25 @@ lazy_static! {
     /// AvlTree method descriptors
     pub(crate) static ref METHOD_DESC: Vec<&'static SMethodDesc> =
         vec![
+            &DIGEST_METHOD_DESC,
             &INSERT_METHOD_DESC,
         ]
     ;
+}
+
+lazy_static! {
+    static ref DIGEST_METHOD_DESC: SMethodDesc = SMethodDesc {
+        method_id: DIGEST_METHOD_ID,
+        name: "digest",
+        tpe: SFunc {
+            t_dom: vec![ SType::SAvlTree],
+            t_range: SType::SColl(Box::new(SType::SByte)).into(),
+            tpe_params: vec![],
+        },
+    };
+    /// AvlTree.digest
+    pub static ref DIGEST_METHOD: SMethod =
+        SMethod::new(STypeCompanion::AvlTree, DIGEST_METHOD_DESC.clone(),);
 }
 
 lazy_static! {
