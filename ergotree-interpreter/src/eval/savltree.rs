@@ -1,6 +1,7 @@
 use bytes::Bytes;
 use ergotree_ir::chain::digest32::ADDigest;
 use ergotree_ir::mir::avl_tree_data::AvlTreeData;
+use ergotree_ir::mir::avl_tree_data::AvlTreeFlags;
 use ergotree_ir::mir::constant::TryExtractInto;
 use ergotree_ir::mir::value::CollKind;
 use ergotree_ir::mir::value::NativeColl;
@@ -56,6 +57,18 @@ pub(crate) static IS_UPDATE_ALLOWED_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
 pub(crate) static IS_REMOVE_ALLOWED_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
     let avl_tree_data = obj.try_extract_into::<AvlTreeData>()?;
     Ok(Value::Boolean(avl_tree_data.tree_flags.remove_allowed()))
+};
+
+pub(crate) static UPDATE_OPERATIONS_EVAL_FN: EvalFn = |_env, _ctx, obj, args| {
+    let mut avl_tree_data = obj.try_extract_into::<AvlTreeData>()?;
+    let new_operations = {
+        let v = args.get(0).cloned().ok_or_else(|| {
+            EvalError::AvlTree("eval is missing first arg (new_operations)".to_string())
+        })?;
+        v.try_extract_into::<i8>()? as u8
+    };
+    avl_tree_data.tree_flags = AvlTreeFlags::parse(new_operations);
+    Ok(Value::AvlTree(Box::new(avl_tree_data)))
 };
 
 pub(crate) static INSERT_EVAL_FN: EvalFn =
@@ -235,7 +248,7 @@ mod tests {
     }
     proptest! {
         #[test]
-        fn eval_avl_properties(v in any::<AvlTreeData>()) {
+        fn eval_avl_properties(v in any::<AvlTreeData>(), new_ops in any::<AvlTreeFlags>()) {
             let digest: Vec<i8> = v.digest.clone().into();
             let enabled_ops = v.tree_flags.serialize() as i8;
             let key_length = v.key_length as i32;
@@ -244,7 +257,7 @@ mod tests {
             let update_allowed = v.tree_flags.update_allowed();
             let remove_allowed = v.tree_flags.remove_allowed();
 
-            let obj = Expr::Const(v.into());
+            let obj = Expr::Const(v.clone().into());
 
             // Test digest method
             let expr: Expr = MethodCall::new(
@@ -354,6 +367,23 @@ mod tests {
             } else {
                 unreachable!();
             }
+
+            // Test updateOperations method
+            let obj = Expr::Const(v.clone().into());
+            let expr: Expr = MethodCall::new(
+                obj.clone(),
+                savltree::UPDATE_OPERATIONS_METHOD.clone(),
+                vec![Constant::from(new_ops.serialize() as i8).into()],
+            )
+            .unwrap()
+            .into();
+            let res = eval_out_wo_ctx::<Value>(&expr);
+            if let Value::AvlTree(a) = res {
+                assert_eq!(a.tree_flags, new_ops);
+            } else {
+                unreachable!();
+            }
+
         }
     }
 

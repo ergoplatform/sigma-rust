@@ -27,6 +27,8 @@ pub const IS_INSERT_ALLOWED_METHOD_ID: MethodId = MethodId(5);
 pub const IS_UPDATE_ALLOWED_METHOD_ID: MethodId = MethodId(6);
 /// AvlTree.isRemoveAllowed property
 pub const IS_REMOVE_ALLOWED_METHOD_ID: MethodId = MethodId(7);
+/// AvlTree.updateOperations property
+pub const UPDATE_OPERATIONS_METHOD_ID: MethodId = MethodId(8);
 /// AvlTree.insert property
 pub const INSERT_METHOD_ID: MethodId = MethodId(12);
 
@@ -149,6 +151,21 @@ lazy_static! {
     /// AvlTree.isRemoveAllowed
     pub static ref IS_REMOVE_ALLOWED_METHOD: SMethod =
         SMethod::new(STypeCompanion::AvlTree, IS_REMOVE_ALLOWED_METHOD_DESC.clone(),);
+}
+
+lazy_static! {
+    static ref UPDATE_OPERATIONS_METHOD_DESC: SMethodDesc = SMethodDesc {
+        method_id: UPDATE_OPERATIONS_METHOD_ID,
+        name: "updateOperations",
+        tpe: SFunc {
+            t_dom: vec![ SType::SAvlTree, SType::SByte],
+            t_range: SType::SAvlTree.into(),
+            tpe_params: vec![],
+        },
+    };
+    /// AvlTree.updateOperations
+    pub static ref UPDATE_OPERATIONS_METHOD: SMethod =
+        SMethod::new(STypeCompanion::AvlTree, UPDATE_OPERATIONS_METHOD_DESC.clone(),);
 }
 
 lazy_static! {
