@@ -86,7 +86,7 @@ impl Header {
     }
 }
 
-// todo-sab refactor when implementing this https://github.com/ergoplatform/sigma-rust/issues/373
+// TODO: [sab] refactor when implementing this https://github.com/ergoplatform/sigma-rust/issues/373
 impl From<Header> for PreHeader {
     fn from(bh: Header) -> Self {
         PreHeader {
