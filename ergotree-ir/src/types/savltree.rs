@@ -21,6 +21,8 @@ pub const ENABLED_OPERATIONS_METHOD_ID: MethodId = MethodId(2);
 pub const KEY_LENGTH_METHOD_ID: MethodId = MethodId(3);
 /// AvlTree.valueLengthOpt property
 pub const VALUE_LENGTH_OPT_METHOD_ID: MethodId = MethodId(4);
+/// AvlTree.isInsertAllowed property
+pub const IS_INSERT_ALLOWED_METHOD_ID: MethodId = MethodId(5);
 /// AvlTree.insert property
 pub const INSERT_METHOD_ID: MethodId = MethodId(12);
 
@@ -33,6 +35,7 @@ lazy_static! {
             &ENABLED_OPERATIONS_METHOD_DESC,
             &KEY_LENGTH_METHOD_DESC,
             &VALUE_LENGTH_OPT_METHOD_DESC,
+            &IS_INSERT_ALLOWED_METHOD_DESC,
         ]
     ;
 }
@@ -85,16 +88,31 @@ lazy_static! {
 lazy_static! {
     static ref VALUE_LENGTH_OPT_METHOD_DESC: SMethodDesc = SMethodDesc {
         method_id: VALUE_LENGTH_OPT_METHOD_ID,
-        name: "keyLength",
+        name: "valueLengthOpt",
         tpe: SFunc {
             t_dom: vec![ SType::SAvlTree],
             t_range: SType::SOption(Box::new(SType::SInt)).into(),
             tpe_params: vec![],
         },
     };
-    /// AvlTree.keyLength
+    /// AvlTree.valueLengthOpt
     pub static ref VALUE_LENGTH_OPT_METHOD: SMethod =
         SMethod::new(STypeCompanion::AvlTree, VALUE_LENGTH_OPT_METHOD_DESC.clone(),);
+}
+
+lazy_static! {
+    static ref IS_INSERT_ALLOWED_METHOD_DESC: SMethodDesc = SMethodDesc {
+        method_id: IS_INSERT_ALLOWED_METHOD_ID,
+        name: "isInsertAllowed",
+        tpe: SFunc {
+            t_dom: vec![ SType::SAvlTree],
+            t_range: SType::SOption(Box::new(SType::SInt)).into(),
+            tpe_params: vec![],
+        },
+    };
+    /// AvlTree.isInsertAllowed
+    pub static ref IS_INSERT_ALLOWED_METHOD: SMethod =
+        SMethod::new(STypeCompanion::AvlTree, IS_INSERT_ALLOWED_METHOD_DESC.clone(),);
 }
 
 lazy_static! {
