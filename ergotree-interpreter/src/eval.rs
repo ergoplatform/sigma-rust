@@ -204,6 +204,7 @@ fn smethod_eval_fn(method: &SMethod) -> Result<EvalFn, EvalError> {
             savltree::VALUE_LENGTH_OPT_METHOD_ID => self::savltree::VALUE_LENGTH_OPT_EVAL_FN,
             savltree::IS_INSERT_ALLOWED_METHOD_ID => self::savltree::IS_INSERT_ALLOWED_EVAL_FN,
             savltree::IS_UPDATE_ALLOWED_METHOD_ID => self::savltree::IS_UPDATE_ALLOWED_EVAL_FN,
+            savltree::IS_REMOVE_ALLOWED_METHOD_ID => self::savltree::IS_REMOVE_ALLOWED_EVAL_FN,
             savltree::INSERT_METHOD_ID => self::savltree::INSERT_EVAL_FN,
             method_id => {
                 return Err(EvalError::NotFound(format!(
