@@ -106,7 +106,7 @@ lazy_static! {
         name: "isInsertAllowed",
         tpe: SFunc {
             t_dom: vec![ SType::SAvlTree],
-            t_range: SType::SOption(Box::new(SType::SInt)).into(),
+            t_range: SType::SBoolean.into(),
             tpe_params: vec![],
         },
     };
