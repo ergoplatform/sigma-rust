@@ -29,6 +29,11 @@ pub(crate) static ENABLED_OPERATIONS_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| 
     Ok(Value::Byte(avl_tree_data.tree_flags.serialize() as i8))
 };
 
+pub(crate) static KEY_LENGTH_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
+    let avl_tree_data = obj.try_extract_into::<AvlTreeData>()?;
+    Ok(Value::Int(avl_tree_data.key_length as i32))
+};
+
 pub(crate) static INSERT_EVAL_FN: EvalFn =
     |_env, _ctx, obj, args| {
         let mut avl_tree_data = obj.try_extract_into::<AvlTreeData>()?;
@@ -209,6 +214,7 @@ mod tests {
         fn eval_avl_properties(v in any::<AvlTreeData>()) {
             let digest: Vec<i8> = v.digest.clone().into();
             let enabled_ops = v.tree_flags.serialize() as i8;
+            let key_length = v.key_length as i32;
 
             let obj = Expr::Const(v.into());
 
@@ -230,7 +236,7 @@ mod tests {
 
             // Test enabledOperations method
             let expr: Expr = MethodCall::new(
-                obj,
+                obj.clone(),
                 savltree::ENABLED_OPERATIONS_METHOD.clone(),
                 vec![],
             )
@@ -240,6 +246,22 @@ mod tests {
             let res = eval_out_wo_ctx::<Value>(&expr);
             if let Value::Byte(b) = res {
                 assert_eq!(b, enabled_ops);
+            } else {
+                unreachable!();
+            }
+
+            // Test keyLength method
+            let expr: Expr = MethodCall::new(
+                obj,
+                savltree::KEY_LENGTH_METHOD.clone(),
+                vec![],
+            )
+            .unwrap()
+            .into();
+
+            let res = eval_out_wo_ctx::<Value>(&expr);
+            if let Value::Int(i) = res {
+                assert_eq!(key_length, i);
             } else {
                 unreachable!();
             }
