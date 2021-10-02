@@ -34,6 +34,15 @@ pub(crate) static KEY_LENGTH_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
     Ok(Value::Int(avl_tree_data.key_length as i32))
 };
 
+pub(crate) static VALUE_LENGTH_OPT_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
+    let avl_tree_data = obj.try_extract_into::<AvlTreeData>()?;
+    Ok(Value::Opt(Box::new(
+        avl_tree_data
+            .value_length_opt
+            .map(|v| Value::Int(*v as i32)),
+    )))
+};
+
 pub(crate) static INSERT_EVAL_FN: EvalFn =
     |_env, _ctx, obj, args| {
         let mut avl_tree_data = obj.try_extract_into::<AvlTreeData>()?;
@@ -215,6 +224,7 @@ mod tests {
             let digest: Vec<i8> = v.digest.clone().into();
             let enabled_ops = v.tree_flags.serialize() as i8;
             let key_length = v.key_length as i32;
+            let value_length_opt = v.value_length_opt.clone().map(|v| Value::Int(*v as i32));
 
             let obj = Expr::Const(v.into());
 
@@ -252,7 +262,7 @@ mod tests {
 
             // Test keyLength method
             let expr: Expr = MethodCall::new(
-                obj,
+                obj.clone(),
                 savltree::KEY_LENGTH_METHOD.clone(),
                 vec![],
             )
@@ -262,6 +272,22 @@ mod tests {
             let res = eval_out_wo_ctx::<Value>(&expr);
             if let Value::Int(i) = res {
                 assert_eq!(key_length, i);
+            } else {
+                unreachable!();
+            }
+
+            // Test valueLengthOpt method
+            let expr: Expr = MethodCall::new(
+                obj,
+                savltree::VALUE_LENGTH_OPT_METHOD.clone(),
+                vec![],
+            )
+            .unwrap()
+            .into();
+
+            let res = eval_out_wo_ctx::<Value>(&expr);
+            if let Value::Opt(opt) = res {
+                assert_eq!(*opt, value_length_opt);
             } else {
                 unreachable!();
             }

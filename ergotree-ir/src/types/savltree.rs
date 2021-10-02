@@ -19,6 +19,8 @@ pub const DIGEST_METHOD_ID: MethodId = MethodId(1);
 pub const ENABLED_OPERATIONS_METHOD_ID: MethodId = MethodId(2);
 /// AvlTree.keyLength property
 pub const KEY_LENGTH_METHOD_ID: MethodId = MethodId(3);
+/// AvlTree.valueLengthOpt property
+pub const VALUE_LENGTH_OPT_METHOD_ID: MethodId = MethodId(4);
 /// AvlTree.insert property
 pub const INSERT_METHOD_ID: MethodId = MethodId(12);
 
@@ -30,6 +32,7 @@ lazy_static! {
             &INSERT_METHOD_DESC,
             &ENABLED_OPERATIONS_METHOD_DESC,
             &KEY_LENGTH_METHOD_DESC,
+            &VALUE_LENGTH_OPT_METHOD_DESC,
         ]
     ;
 }
@@ -77,6 +80,21 @@ lazy_static! {
     /// AvlTree.keyLength
     pub static ref KEY_LENGTH_METHOD: SMethod =
         SMethod::new(STypeCompanion::AvlTree, KEY_LENGTH_METHOD_DESC.clone(),);
+}
+
+lazy_static! {
+    static ref VALUE_LENGTH_OPT_METHOD_DESC: SMethodDesc = SMethodDesc {
+        method_id: VALUE_LENGTH_OPT_METHOD_ID,
+        name: "keyLength",
+        tpe: SFunc {
+            t_dom: vec![ SType::SAvlTree],
+            t_range: SType::SOption(Box::new(SType::SInt)).into(),
+            tpe_params: vec![],
+        },
+    };
+    /// AvlTree.keyLength
+    pub static ref VALUE_LENGTH_OPT_METHOD: SMethod =
+        SMethod::new(STypeCompanion::AvlTree, VALUE_LENGTH_OPT_METHOD_DESC.clone(),);
 }
 
 lazy_static! {

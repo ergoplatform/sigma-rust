@@ -201,6 +201,7 @@ fn smethod_eval_fn(method: &SMethod) -> Result<EvalFn, EvalError> {
             savltree::DIGEST_METHOD_ID => self::savltree::DIGEST_EVAL_FN,
             savltree::ENABLED_OPERATIONS_METHOD_ID => self::savltree::ENABLED_OPERATIONS_EVAL_FN,
             savltree::KEY_LENGTH_METHOD_ID => self::savltree::KEY_LENGTH_EVAL_FN,
+            savltree::VALUE_LENGTH_OPT_METHOD_ID => self::savltree::VALUE_LENGTH_OPT_EVAL_FN,
             savltree::INSERT_METHOD_ID => self::savltree::INSERT_EVAL_FN,
             method_id => {
                 return Err(EvalError::NotFound(format!(
