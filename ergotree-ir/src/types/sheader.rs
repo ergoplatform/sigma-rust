@@ -53,6 +53,8 @@ lazy_static! {
 }
 
 lazy_static! {
+    // Declaring public `SHeader` properties method signatures type
+
     pub static ref ID_PROPERTY: SMethod = SMethod::new(Header, ID_PROPERTY_METHOD_DESC.clone(),);
     pub static ref VERSION_PROPERTY: SMethod =
         SMethod::new(Header, VERSION_PROPERTY_METHOD_DESC.clone(),);
@@ -82,6 +84,9 @@ lazy_static! {
         SMethod::new(Header, POW_DISTANCE_PROPERTY_METHOD_DESC.clone(),);
     pub static ref VOTES_PROPERTY: SMethod =
         SMethod::new(Header, VOTES_PROPERTY_METHOD_DESC.clone(),);
+
+    // Declaring private `SHeader` properties methods descriptors
+
     static ref ID_PROPERTY_METHOD_DESC: SMethodDesc =
         property("id", SColl(SByte.into()), ID_PROPERTY_METHOD_ID);
     static ref VERSION_PROPERTY_METHOD_DESC: SMethodDesc =
