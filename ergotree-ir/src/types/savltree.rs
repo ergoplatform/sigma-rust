@@ -23,6 +23,8 @@ pub const KEY_LENGTH_METHOD_ID: MethodId = MethodId(3);
 pub const VALUE_LENGTH_OPT_METHOD_ID: MethodId = MethodId(4);
 /// AvlTree.isInsertAllowed property
 pub const IS_INSERT_ALLOWED_METHOD_ID: MethodId = MethodId(5);
+/// AvlTree.isUpdateAllowed property
+pub const IS_UPDATE_ALLOWED_METHOD_ID: MethodId = MethodId(6);
 /// AvlTree.insert property
 pub const INSERT_METHOD_ID: MethodId = MethodId(12);
 
@@ -113,6 +115,21 @@ lazy_static! {
     /// AvlTree.isInsertAllowed
     pub static ref IS_INSERT_ALLOWED_METHOD: SMethod =
         SMethod::new(STypeCompanion::AvlTree, IS_INSERT_ALLOWED_METHOD_DESC.clone(),);
+}
+
+lazy_static! {
+    static ref IS_UPDATE_ALLOWED_METHOD_DESC: SMethodDesc = SMethodDesc {
+        method_id: IS_UPDATE_ALLOWED_METHOD_ID,
+        name: "isUpdateAllowed",
+        tpe: SFunc {
+            t_dom: vec![ SType::SAvlTree],
+            t_range: SType::SBoolean.into(),
+            tpe_params: vec![],
+        },
+    };
+    /// AvlTree.isUpdateAllowed
+    pub static ref IS_UPDATE_ALLOWED_METHOD: SMethod =
+        SMethod::new(STypeCompanion::AvlTree, IS_UPDATE_ALLOWED_METHOD_DESC.clone(),);
 }
 
 lazy_static! {

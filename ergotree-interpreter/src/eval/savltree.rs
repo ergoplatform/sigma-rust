@@ -48,6 +48,11 @@ pub(crate) static IS_INSERT_ALLOWED_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
     Ok(Value::Boolean(avl_tree_data.tree_flags.insert_allowed()))
 };
 
+pub(crate) static IS_UPDATE_ALLOWED_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
+    let avl_tree_data = obj.try_extract_into::<AvlTreeData>()?;
+    Ok(Value::Boolean(avl_tree_data.tree_flags.update_allowed()))
+};
+
 pub(crate) static INSERT_EVAL_FN: EvalFn =
     |_env, _ctx, obj, args| {
         let mut avl_tree_data = obj.try_extract_into::<AvlTreeData>()?;
@@ -231,6 +236,7 @@ mod tests {
             let key_length = v.key_length as i32;
             let value_length_opt = v.value_length_opt.clone().map(|v| Value::Int(*v as i32));
             let insert_allowed = v.tree_flags.insert_allowed();
+            let update_allowed = v.tree_flags.update_allowed();
 
             let obj = Expr::Const(v.into());
 
@@ -309,6 +315,21 @@ mod tests {
             let res = eval_out_wo_ctx::<Value>(&expr);
             if let Value::Boolean(i) = res {
                 assert_eq!(insert_allowed, i);
+            } else {
+                unreachable!();
+            }
+
+            // Test isUpdateAllowed method
+            let expr: Expr = MethodCall::new(
+                obj.clone(),
+                savltree::IS_UPDATE_ALLOWED_METHOD.clone(),
+                vec![],
+            )
+            .unwrap()
+            .into();
+            let res = eval_out_wo_ctx::<Value>(&expr);
+            if let Value::Boolean(i) = res {
+                assert_eq!(update_allowed, i);
             } else {
                 unreachable!();
             }
