@@ -21,6 +21,11 @@ impl AvlTreeFlags {
         AvlTreeFlags(if remove_allowed { u | 0x04 } else { u })
     }
 
+    /// Get byte-representation of the tree-flags
+    pub fn serialize(&self) -> u8 {
+        self.0
+    }
+
     /// Parse tree-flags from byte
     fn parse(serialized_flags: u8) -> Self {
         let insert_allowed = serialized_flags & 0x01 != 0;

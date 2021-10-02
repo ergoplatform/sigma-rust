@@ -15,6 +15,8 @@ pub const TYPE_CODE: TypeCode = TypeCode::SAVL_TREE;
 pub static TYPE_NAME: &str = "AvlTree";
 /// AvlTree.digest property
 pub const DIGEST_METHOD_ID: MethodId = MethodId(1);
+/// AvlTree.enabledOperations property
+pub const ENABLED_OPERATIONS_METHOD_ID: MethodId = MethodId(2);
 /// AvlTree.insert property
 pub const INSERT_METHOD_ID: MethodId = MethodId(12);
 
@@ -24,6 +26,7 @@ lazy_static! {
         vec![
             &DIGEST_METHOD_DESC,
             &INSERT_METHOD_DESC,
+            &ENABLED_OPERATIONS_METHOD_DESC,
         ]
     ;
 }
@@ -41,6 +44,21 @@ lazy_static! {
     /// AvlTree.digest
     pub static ref DIGEST_METHOD: SMethod =
         SMethod::new(STypeCompanion::AvlTree, DIGEST_METHOD_DESC.clone(),);
+}
+
+lazy_static! {
+    static ref ENABLED_OPERATIONS_METHOD_DESC: SMethodDesc = SMethodDesc {
+        method_id: ENABLED_OPERATIONS_METHOD_ID,
+        name: "enabledOperations",
+        tpe: SFunc {
+            t_dom: vec![ SType::SAvlTree],
+            t_range: SType::SByte.into(),
+            tpe_params: vec![],
+        },
+    };
+    /// AvlTree.enabledOperations
+    pub static ref ENABLED_OPERATIONS_METHOD: SMethod =
+        SMethod::new(STypeCompanion::AvlTree, ENABLED_OPERATIONS_METHOD_DESC.clone(),);
 }
 
 lazy_static! {
