@@ -12,21 +12,35 @@ use super::stype_companion::STypeCompanion::Header;
 pub const TYPE_CODE: TypeCode = TypeCode::SHEADER;
 /// SHeader type name
 pub static TYPE_NAME: &str = "Header";
-
+/// `Header.id`
 pub const ID_PROPERTY_METHOD_ID: MethodId = MethodId(1);
+/// `Header.version`
 pub const VERSION_PROPERTY_METHOD_ID: MethodId = MethodId(2);
+/// `Header.parentId`
 pub const PARENT_ID_PROPERTY_METHOD_ID: MethodId = MethodId(3);
-pub const AD_PROOF_ROOT_PROPERTY_METHOD_ID: MethodId = MethodId(4);
+/// `Header.AdProofsRoot`
+pub const AD_PROOFS_ROOT_PROPERTY_METHOD_ID: MethodId = MethodId(4);
+/// `Header.stateRoot`
 pub const STATE_ROOT_PROPERTY_METHOD_ID: MethodId = MethodId(5);
+/// `Header.transactionsRoot`
 pub const TRANSACTIONS_ROOT_PROPERTY_METHOD_ID: MethodId = MethodId(6);
+/// `Header.timestamp`
 pub const TIMESTAMP_PROPERTY_METHOD_ID: MethodId = MethodId(7);
+/// `Header.nBits`
 pub const N_BITS_PROPERTY_METHOD_ID: MethodId = MethodId(8);
+/// `Header.height`
 pub const HEIGHT_PROPERTY_METHOD_ID: MethodId = MethodId(9);
+/// `Header.extensionRoot`
 pub const EXTENSION_ROOT_PROPERTY_METHOD_ID: MethodId = MethodId(10);
+/// `Header.minerPk`
 pub const MINER_PK_PROPERTY_METHOD_ID: MethodId = MethodId(11);
+/// `Header.powOnetimePk`
 pub const POW_ONETIME_PK_PROPERTY_METHOD_ID: MethodId = MethodId(12);
+/// `Header.powNonce`
 pub const POW_NONCE_PROPERTY_METHOD_ID: MethodId = MethodId(13);
+/// `Header.powDistance`
 pub const POW_DISTANCE_PROPERTY_METHOD_ID: MethodId = MethodId(14);
+/// `Header.votes`
 pub const VOTES_PROPERTY_METHOD_ID: MethodId = MethodId(15);
 
 lazy_static! {
@@ -36,7 +50,7 @@ lazy_static! {
             &ID_PROPERTY_METHOD_DESC,
             &VERSION_PROPERTY_METHOD_DESC,
             &PARENT_ID_PROPERTY_METHOD_DESC,
-            &AD_PROOF_ROOT_PROPERTY_METHOD_DESC,
+            &AD_PROOFS_ROOT_PROPERTY_METHOD_DESC,
             &STATE_ROOT_PROPERTY_METHOD_DESC,
             &TRANSACTIONS_ROOT_PROPERTY_METHOD_DESC,
             &TIMESTAMP_PROPERTY_METHOD_DESC,
@@ -60,8 +74,8 @@ lazy_static! {
         SMethod::new(Header, VERSION_PROPERTY_METHOD_DESC.clone(),);
     pub static ref PARENT_ID_PROPERTY: SMethod =
         SMethod::new(Header, PARENT_ID_PROPERTY_METHOD_DESC.clone(),);
-    pub static ref AD_PROOF_ROOT_PROPERTY: SMethod =
-        SMethod::new(Header, AD_PROOF_ROOT_PROPERTY_METHOD_DESC.clone(),);
+    pub static ref AD_PROOFS_ROOT_PROPERTY: SMethod =
+        SMethod::new(Header, AD_PROOFS_ROOT_PROPERTY_METHOD_DESC.clone(),);
     pub static ref STATE_ROOT_PROPERTY: SMethod =
         SMethod::new(Header, STATE_ROOT_PROPERTY_METHOD_DESC.clone(),);
     pub static ref TRANSACTIONS_ROOT_PROPERTY: SMethod =
@@ -96,10 +110,10 @@ lazy_static! {
         SColl(SByte.into()),
         PARENT_ID_PROPERTY_METHOD_ID
     );
-    static ref AD_PROOF_ROOT_PROPERTY_METHOD_DESC: SMethodDesc = property(
+    static ref AD_PROOFS_ROOT_PROPERTY_METHOD_DESC: SMethodDesc = property(
         "ADProofsRoot",
         SColl(SByte.into()),
-        AD_PROOF_ROOT_PROPERTY_METHOD_ID
+        AD_PROOFS_ROOT_PROPERTY_METHOD_ID
     );
     static ref STATE_ROOT_PROPERTY_METHOD_DESC: SMethodDesc =
         property("stateRoot", SType::SAvlTree, STATE_ROOT_PROPERTY_METHOD_ID);
