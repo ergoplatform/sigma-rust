@@ -31,6 +31,8 @@ pub const IS_REMOVE_ALLOWED_METHOD_ID: MethodId = MethodId(7);
 pub const UPDATE_OPERATIONS_METHOD_ID: MethodId = MethodId(8);
 /// AvlTree.insert property
 pub const INSERT_METHOD_ID: MethodId = MethodId(12);
+/// AvlTree.updateDigest property
+pub const UPDATE_DIGEST_METHOD_ID: MethodId = MethodId(15);
 
 lazy_static! {
     /// AvlTree method descriptors
@@ -44,6 +46,8 @@ lazy_static! {
             &IS_INSERT_ALLOWED_METHOD_DESC,
             &IS_UPDATE_ALLOWED_METHOD_DESC,
             &IS_REMOVE_ALLOWED_METHOD_DESC,
+            &UPDATE_OPERATIONS_METHOD_DESC,
+            &UPDATE_DIGEST_METHOD_DESC,
         ]
     ;
 }
@@ -61,6 +65,21 @@ lazy_static! {
     /// AvlTree.digest
     pub static ref DIGEST_METHOD: SMethod =
         SMethod::new(STypeCompanion::AvlTree, DIGEST_METHOD_DESC.clone(),);
+}
+
+lazy_static! {
+    static ref UPDATE_DIGEST_METHOD_DESC: SMethodDesc = SMethodDesc {
+        method_id: UPDATE_DIGEST_METHOD_ID,
+        name: "updateDigest",
+        tpe: SFunc {
+            t_dom: vec![ SType::SAvlTree, SType::SColl(Box::new(SType::SByte))],
+            t_range: SType::SAvlTree.into(),
+            tpe_params: vec![],
+        },
+    };
+    /// AvlTree.updateDigest
+    pub static ref UPDATE_DIGEST_METHOD: SMethod =
+        SMethod::new(STypeCompanion::AvlTree, UPDATE_DIGEST_METHOD_DESC.clone(),);
 }
 
 lazy_static! {

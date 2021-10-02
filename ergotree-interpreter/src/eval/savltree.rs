@@ -1,3 +1,5 @@
+use std::convert::TryInto;
+
 use bytes::Bytes;
 use ergotree_ir::chain::digest32::ADDigest;
 use ergotree_ir::mir::avl_tree_data::AvlTreeData;
@@ -68,6 +70,23 @@ pub(crate) static UPDATE_OPERATIONS_EVAL_FN: EvalFn = |_env, _ctx, obj, args| {
         v.try_extract_into::<i8>()? as u8
     };
     avl_tree_data.tree_flags = AvlTreeFlags::parse(new_operations);
+    Ok(Value::AvlTree(Box::new(avl_tree_data)))
+};
+
+pub(crate) static UPDATE_DIGEST_EVAL_FN: EvalFn = |_env, _ctx, obj, args| {
+    let mut avl_tree_data = obj.try_extract_into::<AvlTreeData>()?;
+    let new_digest = {
+        let v = args.get(0).cloned().ok_or_else(|| {
+            EvalError::AvlTree("eval is missing first arg (new_digest)".to_string())
+        })?;
+        let bytes: [u8; 33] = v
+            .try_extract_into::<Vec<u8>>()?
+            .as_slice()
+            .try_into()
+            .map_err(map_eval_err)?;
+        ADDigest::from(bytes)
+    };
+    avl_tree_data.digest = new_digest;
     Ok(Value::AvlTree(Box::new(avl_tree_data)))
 };
 
@@ -248,7 +267,7 @@ mod tests {
     }
     proptest! {
         #[test]
-        fn eval_avl_properties(v in any::<AvlTreeData>(), new_ops in any::<AvlTreeFlags>()) {
+        fn eval_avl_properties(v in any::<AvlTreeData>(), new_ops in any::<AvlTreeFlags>(), new_digest in any::<ADDigest>()) {
             let digest: Vec<i8> = v.digest.clone().into();
             let enabled_ops = v.tree_flags.serialize() as i8;
             let key_length = v.key_length as i32;
@@ -371,7 +390,7 @@ mod tests {
             // Test updateOperations method
             let obj = Expr::Const(v.clone().into());
             let expr: Expr = MethodCall::new(
-                obj.clone(),
+                obj,
                 savltree::UPDATE_OPERATIONS_METHOD.clone(),
                 vec![Constant::from(new_ops.serialize() as i8).into()],
             )
@@ -384,6 +403,21 @@ mod tests {
                 unreachable!();
             }
 
+            // Test updateDigest method
+            let obj = Expr::Const(v.into());
+            let expr: Expr = MethodCall::new(
+                obj,
+                savltree::UPDATE_DIGEST_METHOD.clone(),
+                vec![Constant::from(new_digest.sigma_serialize_bytes()?).into()],
+            )
+            .unwrap()
+            .into();
+            let res = eval_out_wo_ctx::<Value>(&expr);
+            if let Value::AvlTree(a) = res {
+                assert_eq!(a.digest, new_digest);
+            } else {
+                unreachable!();
+            }
         }
     }
 
