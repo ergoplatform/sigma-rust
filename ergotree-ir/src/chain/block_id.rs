@@ -6,3 +6,10 @@ use super::digest32::Digest32;
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct BlockId(pub Digest32);
+
+impl BlockId {
+    /// Returns bytes buffer of `BlockId`
+    pub fn into_bytes_signed(self) -> Vec<i8> {
+        self.0.into()
+    }
+}
