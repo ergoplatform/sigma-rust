@@ -78,3 +78,4 @@ impl<const N: usize> TryFrom<Base16DecodedBytes> for Digest<N> {
         Ok(Digest(Box::new(arr)))
     }
 }
+

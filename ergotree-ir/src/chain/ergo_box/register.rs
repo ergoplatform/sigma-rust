@@ -348,7 +348,7 @@ impl TryFrom<i8> for MandatoryRegisterId {
 
 #[allow(clippy::unwrap_used)]
 #[cfg(feature = "arbitrary")]
-pub mod arbitrary {
+pub(crate) mod arbitrary {
     use super::*;
     use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
 

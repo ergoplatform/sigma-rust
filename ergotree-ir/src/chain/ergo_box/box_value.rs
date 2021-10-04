@@ -23,7 +23,9 @@ pub struct BoxValue(pub(crate) u64);
 )]
 /// Box value in nanoERGs with bound checks
 pub struct BoxValue(
-    #[serde_as(as = "serde_with::PickFirst<(serde_with::DisplayFromStr, _)>")] pub(crate) u64,
+    // Tries to decode as u64 first, then fallback to string. Encodes as u64 always
+    // see details - https://docs.rs/serde_with/1.9.4/serde_with/struct.PickFirst.html
+    #[serde_as(as = "serde_with::PickFirst<(_, serde_with::DisplayFromStr)>")] pub(crate) u64,
 );
 
 impl BoxValue {
@@ -209,7 +211,7 @@ pub fn checked_sum<I: Iterator<Item = BoxValue>>(mut iter: I) -> Result<BoxValue
 
 /// Arbitrary
 #[cfg(feature = "arbitrary")]
-pub mod arbitrary {
+pub(crate) mod arbitrary {
     use derive_more::{From, Into};
     use proptest::{arbitrary::Arbitrary, prelude::*};
     use std::ops::Range;

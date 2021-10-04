@@ -45,5 +45,4 @@ arbitrary = ["proptest", "proptest-derive"]
 json = ["serde", "serde_json"]
 
 [dev-dependencies]
-proptest = "1.0.0"
 sigma-test-util = { version = "0.2.0", path = "../sigma-test-util" }

@@ -36,3 +36,4 @@ pub mod utils;
 pub mod wallet;
 
 mod error_conversion;
+pub(crate) mod json;

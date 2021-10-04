@@ -30,8 +30,6 @@ pub struct ErgoBoxFromJson {
     pub box_id: Option<BoxId>,
     /// amount of money associated with the box
     #[serde(rename = "value")]
-    // Tries to decode as u64 first, then fallback to string. Encodes as u64 always
-    // see details - https://docs.rs/serde_with/1.9.4/serde_with/struct.PickFirst.html
     pub value: BoxValue,
     /// guarding script, which should be evaluated to true in order to open this box
     #[serde(rename = "ergoTree", with = "super::ergo_tree")]

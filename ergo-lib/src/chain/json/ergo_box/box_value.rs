@@ -17,6 +17,7 @@ mod tests {
         assert_eq!(v, 67500000000u64.try_into().unwrap());
     }
 
+    #[ignore = "moved to wasm"]
     #[test]
     fn encode_value_as_str() {
         let json = "\"67500000000\"";
