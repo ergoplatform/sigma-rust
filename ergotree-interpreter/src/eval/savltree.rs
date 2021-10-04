@@ -263,20 +263,12 @@ mod tests {
     }
     proptest! {
         #[test]
-        fn eval_avl_properties(v in any::<AvlTreeData>(), new_ops in any::<AvlTreeFlags>(), new_digest in any::<ADDigest>()) {
+        fn eval_avl_digest(v in any::<AvlTreeData>()) {
             let digest: Vec<i8> = v.digest.clone().into();
-            let enabled_ops = v.tree_flags.serialize() as i8;
-            let key_length = v.key_length as i32;
-            let value_length_opt = v.value_length_opt.clone().map(|v| Value::Int(*v as i32));
-            let insert_allowed = v.tree_flags.insert_allowed();
-            let update_allowed = v.tree_flags.update_allowed();
-            let remove_allowed = v.tree_flags.remove_allowed();
+            let obj = Expr::Const(v.into());
 
-            let obj = Expr::Const(v.clone().into());
-
-            // Test digest method
             let expr: Expr = MethodCall::new(
-                obj.clone(),
+                obj,
                 savltree::DIGEST_METHOD.clone(),
                 vec![],
             )
@@ -289,10 +281,15 @@ mod tests {
             } else {
                 unreachable!();
             }
+        }
 
-            // Test enabledOperations method
+        #[test]
+        fn eval_avl_enabled_operations(v in any::<AvlTreeData>()) {
+            let enabled_ops = v.tree_flags.serialize() as i8;
+            let obj = Expr::Const(v.into());
+
             let expr: Expr = MethodCall::new(
-                obj.clone(),
+                obj,
                 savltree::ENABLED_OPERATIONS_METHOD.clone(),
                 vec![],
             )
@@ -305,10 +302,15 @@ mod tests {
             } else {
                 unreachable!();
             }
+        }
 
-            // Test keyLength method
+        #[test]
+        fn eval_avl_key_length(v in any::<AvlTreeData>()) {
+            let key_length = v.key_length as i32;
+            let obj = Expr::Const(v.into());
+
             let expr: Expr = MethodCall::new(
-                obj.clone(),
+                obj,
                 savltree::KEY_LENGTH_METHOD.clone(),
                 vec![],
             )
@@ -321,10 +323,15 @@ mod tests {
             } else {
                 unreachable!();
             }
+        }
 
-            // Test valueLengthOpt method
+        #[test]
+        fn eval_avl_value_length_opt(v in any::<AvlTreeData>()) {
+            let value_length_opt = v.value_length_opt.clone().map(|v| Value::Int(*v as i32));
+            let obj = Expr::Const(v.into());
+
             let expr: Expr = MethodCall::new(
-                obj.clone(),
+                obj,
                 savltree::VALUE_LENGTH_OPT_METHOD.clone(),
                 vec![],
             )
@@ -337,10 +344,15 @@ mod tests {
             } else {
                 unreachable!();
             }
+        }
 
-            // Test isInsertAllowed method
+        #[test]
+        fn eval_avl_insert_allowed(v in any::<AvlTreeData>()) {
+            let insert_allowed = v.tree_flags.insert_allowed();
+            let obj = Expr::Const(v.into());
+
             let expr: Expr = MethodCall::new(
-                obj.clone(),
+                obj,
                 savltree::IS_INSERT_ALLOWED_METHOD.clone(),
                 vec![],
             )
@@ -352,10 +364,15 @@ mod tests {
             } else {
                 unreachable!();
             }
+        }
 
-            // Test isUpdateAllowed method
+        #[test]
+        fn eval_avl_update_allowed(v in any::<AvlTreeData>()) {
+            let update_allowed = v.tree_flags.update_allowed();
+            let obj = Expr::Const(v.into());
+
             let expr: Expr = MethodCall::new(
-                obj.clone(),
+                obj,
                 savltree::IS_UPDATE_ALLOWED_METHOD.clone(),
                 vec![],
             )
@@ -367,10 +384,15 @@ mod tests {
             } else {
                 unreachable!();
             }
+        }
 
-            // Test isRemoveAllowed method
+        #[test]
+        fn eval_avl_remove_allowed(v in any::<AvlTreeData>()) {
+            let remove_allowed = v.tree_flags.remove_allowed();
+            let obj = Expr::Const(v.into());
+
             let expr: Expr = MethodCall::new(
-                obj.clone(),
+                obj,
                 savltree::IS_REMOVE_ALLOWED_METHOD.clone(),
                 vec![],
             )
@@ -382,9 +404,12 @@ mod tests {
             } else {
                 unreachable!();
             }
+        }
 
+        #[test]
+        fn eval_avl_update_operations(v in any::<AvlTreeData>(), new_ops in any::<AvlTreeFlags>()) {
             // Test updateOperations method
-            let obj = Expr::Const(v.clone().into());
+            let obj = Expr::Const(v.into());
             let expr: Expr = MethodCall::new(
                 obj,
                 savltree::UPDATE_OPERATIONS_METHOD.clone(),
@@ -398,8 +423,10 @@ mod tests {
             } else {
                 unreachable!();
             }
+        }
 
-            // Test updateDigest method
+        #[test]
+        fn eval_avl_update_digest(v in any::<AvlTreeData>(), new_digest in any::<ADDigest>()) {
             let obj = Expr::Const(v.into());
             let expr: Expr = MethodCall::new(
                 obj,
