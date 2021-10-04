@@ -37,7 +37,7 @@ it('ErgoBox.to_json_dapp() test', async () => {
         "spentTransactionId": null,
         "mainChain": true
     }]).get(0);
-    const j_obj = box.to_json_dapp();
+    const j_obj = box.to_js_eip12();
     assert(j_obj instanceof Object);
     assert(j_obj.value == "2875858910", "should be a string of '2875858910'");
     assert(j_obj.assets[0].amount == "99999999998", "should be a string of '99999999998'");

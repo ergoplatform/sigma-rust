@@ -183,9 +183,9 @@ impl ErgoBox {
             .map_err(|e| JsValue::from_str(&format!("{}", e)))
     }
 
-    /// JSON representation (same as [`Self::to_json`],
-    /// but with box value encoding as string)
-    pub fn to_json_dapp(&self) -> Result<JsValue, JsValue> {
+    /// JSON representation according to EIP-12 https://github.com/ergoplatform/eips/pull/23
+    /// (similar to [`Self::to_json`], but with box value and token amount encoding as strings)
+    pub fn to_js_eip12(&self) -> Result<JsValue, JsValue> {
         let box_dapp: ErgoBoxJsonDapp = self.0.clone().into();
         JsValue::from_serde(&box_dapp).map_err(|e| JsValue::from_str(&format!("{}", e)))
 >>>>>>> d4d1903 (make `to_json()` return string instead of JsValue;)

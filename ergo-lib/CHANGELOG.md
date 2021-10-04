@@ -16,7 +16,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - add `to_bytes()` for `BoxValue` and `TokenAmount` in Wasm [#387](https://github.com/ergoplatform/sigma-rust/pull/387);
 - `Constant::sigma_serialize_bytes()`, `ContextExtension::sigma_serialize_bytes()` in Wasm [#387](https://github.com/ergoplatform/sigma-rust/pull/387);
 - `TokenId::as_bytes()` and `BoxId::as_bytes()` in Wasm [#387](https://github.com/ergoplatform/sigma-rust/pull/387);
-- WASM `to_json_dapp()` (along `to_json_dapp()`) that encodes the same JSON as `to_json()` but box value and token amount encodes as strings to avoid accuracy loss in JS [#346](https://github.com/ergoplatform/sigma-rust/pull/346);
+- add (Coll[Byte], Coll[Byte]) and (Long, Long) support for Constant conversion in JS [#386](https://github.com/ergoplatform/sigma-rust/pull/386);
+- WASM `to_js_eip12()` (along `to_json()`) that encodes JSON according to [EIP-12](https://github.com/ergoplatform/eips/pull/23) (similar to JSON by `to_json()`, but box value and token amount encodes as strings to avoid accuracy loss in JS) [#346](https://github.com/ergoplatform/sigma-rust/pull/346);
 - `Coll.slice` [#309](https://github.com/ergoplatform/sigma-rust/pull/309);
 - Byte-wise XOR for byte arrays [#310](https://github.com/ergoplatform/sigma-rust/pull/310);
 - `Constant::from_i64_str_array` and `to_i64_str_array` for `Coll[Long]` encoding [#311](https://github.com/ergoplatform/sigma-rust/pull/311);
