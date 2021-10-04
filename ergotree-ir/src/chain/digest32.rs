@@ -90,6 +90,15 @@ impl<const N: usize> TryFrom<String> for Digest<N> {
     }
 }
 
+impl<const N: usize> TryFrom<Vec<u8>> for Digest<N> {
+    type Error = Digest32Error;
+
+    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
+        let bytes: [u8; N] = value.as_slice().try_into()?;
+        Ok(Digest::from(bytes))
+    }
+}
+
 impl<const N: usize> SigmaSerializable for Digest<N> {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         w.write_all(self.0.as_ref())?;

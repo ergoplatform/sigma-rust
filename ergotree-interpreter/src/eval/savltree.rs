@@ -1,4 +1,4 @@
-use std::convert::TryInto;
+use std::convert::TryFrom;
 
 use bytes::Bytes;
 use ergotree_ir::chain::digest32::ADDigest;
@@ -79,12 +79,8 @@ pub(crate) static UPDATE_DIGEST_EVAL_FN: EvalFn = |_env, _ctx, obj, args| {
         let v = args.get(0).cloned().ok_or_else(|| {
             EvalError::AvlTree("eval is missing first arg (new_digest)".to_string())
         })?;
-        let bytes: [u8; 33] = v
-            .try_extract_into::<Vec<u8>>()?
-            .as_slice()
-            .try_into()
-            .map_err(map_eval_err)?;
-        ADDigest::from(bytes)
+        let bytes_vec = v.try_extract_into::<Vec<u8>>()?;
+        ADDigest::try_from(bytes_vec).map_err(map_eval_err)?
     };
     avl_tree_data.digest = new_digest;
     Ok(Value::AvlTree(Box::new(avl_tree_data)))
