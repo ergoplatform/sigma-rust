@@ -171,6 +171,7 @@ mod tests {
     use crate::chain::ergo_box::ErgoBox;
     use crate::chain::ergo_box::NonMandatoryRegisterId;
     use crate::chain::ergo_box::NonMandatoryRegisters;
+    use crate::chain::token::Token;
     use proptest::prelude::*;
 
     proptest! {
@@ -336,5 +337,27 @@ mod tests {
         "#;
         let b: ErgoBox = serde_json::from_str(box_json).unwrap();
         assert_eq!(b.value, 2875858910u64.try_into().unwrap());
+    }
+
+    #[test]
+    fn parse_token_amount_as_num() {
+        let token_json = r#"
+        {
+            "tokenId": "2d554219a80c011cc51509e34fa4950965bb8e01de4d012536e766c9ca08bc2c",
+            "amount": 99999999998
+        }"#;
+        let t: Token = serde_json::from_str(token_json).unwrap();
+        assert_eq!(t.amount, 99999999998u64.try_into().unwrap());
+    }
+
+    #[test]
+    fn parse_token_amount_as_str() {
+        let token_json = r#"               
+        {
+            "tokenId": "2d554219a80c011cc51509e34fa4950965bb8e01de4d012536e766c9ca08bc2c",
+            "amount": "99999999998"
+        }"#;
+        let t: Token = serde_json::from_str(token_json).unwrap();
+        assert_eq!(t.amount, 99999999998u64.try_into().unwrap());
     }
 }

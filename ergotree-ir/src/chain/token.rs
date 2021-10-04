@@ -63,9 +63,17 @@ impl SigmaSerializable for TokenId {
 }
 
 /// Token amount with bound checks
+#[cfg(not(feature = "json"))]
 #[derive(PartialEq, Eq, Hash, Debug, Clone, Copy, PartialOrd, Ord)]
-#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 pub struct TokenAmount(u64);
+
+/// Token amount with bound checks
+#[cfg(feature = "json")]
+#[serde_with::serde_as]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Debug, Clone, Copy, PartialOrd, Ord)]
+pub struct TokenAmount(
+    #[serde_as(as = "serde_with::PickFirst<(_, serde_with::DisplayFromStr)>")] u64,
+);
 
 impl TokenAmount {
     /// minimal allowed value
@@ -147,9 +155,9 @@ impl From<Token> for (Vec<i8>, i64) {
 }
 
 /// Token represented with token id paired with it's amount
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 #[derive(PartialEq, Eq, Debug, Clone)]
-#[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
-#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(test, derive(Arbitrary))]
 pub struct Token {
     /// token id
     #[cfg_attr(feature = "json", serde(rename = "tokenId"))]
