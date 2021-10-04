@@ -12,6 +12,7 @@ use crate::serialization::SigmaSerializationError;
 use core::fmt;
 use serde::de::{self, MapAccess, Visitor};
 use serde::Deserializer;
+use serde_with::serde_as;
 use std::convert::TryFrom;
 use std::marker::PhantomData;
 use std::str::FromStr;
@@ -24,12 +25,16 @@ use thiserror::Error;
 
 mod box_value;
 
+#[serde_as]
 #[derive(Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct ErgoBoxFromJson {
     #[serde(rename = "boxId", alias = "id")]
     pub box_id: Option<BoxId>,
     /// amount of money associated with the box
+    #[serde_as(as = "serde_with::PickFirst<(_, serde_with::DisplayFromStr)>")]
     #[serde(rename = "value")]
+    // Tries to decode as u64 first, then fallback to string. Encodes as u64 always
+    // see details - https://docs.rs/serde_with/1.9.4/serde_with/struct.PickFirst.html
     pub value: BoxValue,
     /// guarding script, which should be evaluated to true in order to open this box
     #[serde(rename = "ergoTree", with = "super::ergo_tree")]

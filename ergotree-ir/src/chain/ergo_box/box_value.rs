@@ -1,27 +1,20 @@
 //! Box value newtype
 
 use crate::chain::token::TokenAmountError;
-use crate::mir::constant::Constant;
-use crate::serialization::sigma_byte_writer::SigmaByteWrite;
-use crate::serialization::SigmaSerializeResult;
-use crate::serialization::{
+use derive_more::FromStr;
+use ergotree_ir::mir::constant::Constant;
+use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
+use ergotree_ir::serialization::SigmaSerializeResult;
+use ergotree_ir::serialization::{
     sigma_byte_reader::SigmaByteRead, SigmaParsingError, SigmaSerializable,
 };
 use std::convert::TryFrom;
 use thiserror::Error;
 
-#[cfg_attr(
-    feature = "json",
-    serde_with::serde_as,
-    derive(serde::Serialize, serde::Deserialize)
-)]
-#[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
+#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+#[derive(PartialEq, Eq, Hash, Debug, Clone, Copy, FromStr)]
 /// Box value in nanoERGs with bound checks
-pub struct BoxValue(
-    // Tries to decode as u64 first, then fallback to string. Encodes as u64 always
-    // see details - https://docs.rs/serde_with/1.9.4/serde_with/struct.PickFirst.html
-    #[serde_as(as = "serde_with::PickFirst<(_, serde_with::DisplayFromStr)>")] pub(crate) u64,
-);
+pub struct BoxValue(pub(crate) u64);
 
 impl BoxValue {
     /// Minimal box value per byte of the serialized box that was set on on launch
