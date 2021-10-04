@@ -29,9 +29,14 @@ derive_more = "0.99"
 bounded-vec = { version = "^0.4.0" }
 num-bigint = "0.4.0"
 
+[dependencies.serde_with]
+version = "1.9.1"
+features = [ "json" ]
+optional = true
+
 [features]
 default = ["json", "compiler"]
-json = ["serde", "serde_json"]
+json = ["serde", "serde_json", "serde_with"]
 compiler = ["ergoscript-compiler"]
 
 [dev-dependencies]
