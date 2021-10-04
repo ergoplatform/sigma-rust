@@ -1,4 +1,4 @@
-//! JSON serialization using string for BoxValue and TokenAmount
+//! JSON serialization using strings for BoxValue and TokenAmount
 
 use derive_more::FromStr;
 use ergo_lib::chain::ergo_box::BoxId;
@@ -6,6 +6,7 @@ use ergo_lib::chain::ergo_box::BoxValue;
 use ergo_lib::chain::ergo_box::ErgoBox;
 use ergo_lib::chain::ergo_box::NonMandatoryRegisters;
 use ergo_lib::chain::token::Token;
+use ergo_lib::chain::token::TokenId;
 use ergo_lib::chain::transaction::DataInput;
 use ergo_lib::chain::transaction::Input;
 use ergo_lib::chain::transaction::Transaction;
@@ -52,8 +53,7 @@ pub(crate) struct ErgoBoxJsonDapp {
     pub ergo_tree: ErgoTree,
     /// secondary tokens the box contains
     #[serde(rename = "assets")]
-    // TODO: JsonDapp equivalent
-    pub tokens: Vec<Token>,
+    pub tokens: Vec<TokenJsonDapp>,
     ///  additional registers the box can carry over
     #[serde(rename = "additionalRegisters")]
     pub additional_registers: NonMandatoryRegisters,
@@ -76,7 +76,7 @@ impl From<ErgoBox> for ErgoBoxJsonDapp {
             box_id: b.box_id().into(),
             value: b.value.into(),
             ergo_tree: b.ergo_tree,
-            tokens: b.tokens,
+            tokens: b.tokens.into_iter().map(|t| t.into()).collect(),
             additional_registers: b.additional_registers,
             creation_height: b.creation_height,
             transaction_id: b.transaction_id,
@@ -89,12 +89,8 @@ impl From<ErgoBox> for ErgoBoxJsonDapp {
 #[derive(
     serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash, Debug, Clone, Copy, FromStr,
 )]
-// Tries to decode as string first, then fallback to u64. Encodes as string always
-// see details - https://docs.rs/serde_with/1.9.4/serde_with/struct.PickFirst.html
 /// Box value in nanoERGs with bound checks
-pub(crate) struct BoxValueJsonDapp(
-    #[serde_as(as = "serde_with::PickFirst<(serde_with::DisplayFromStr, _)>")] pub(crate) u64,
-);
+pub(crate) struct BoxValueJsonDapp(#[serde_as(as = "serde_with::DisplayFromStr")] u64);
 
 impl From<BoxValue> for BoxValueJsonDapp {
     fn from(bv: BoxValue) -> Self {
@@ -102,6 +98,33 @@ impl From<BoxValue> for BoxValueJsonDapp {
     }
 }
 
+/// Token represented with token id paired with it's amount
+#[derive(Serialize, PartialEq, Eq, Debug, Clone)]
+pub struct TokenJsonDapp {
+    /// token id
+    #[serde(rename = "tokenId")]
+    pub token_id: TokenId,
+    /// token amount
+    #[serde(rename = "amount")]
+    pub amount: TokenAmountJsonDapp,
+}
+
+impl From<Token> for TokenJsonDapp {
+    fn from(t: Token) -> Self {
+        TokenJsonDapp {
+            token_id: t.token_id,
+            amount: TokenAmountJsonDapp(t.amount.as_u64()),
+        }
+    }
+}
+
+/// Token amount with bound checks
+#[serde_with::serde_as]
+#[derive(Serialize, PartialEq, Eq, Hash, Debug, Clone, Copy, PartialOrd, Ord)]
+pub struct TokenAmountJsonDapp(
+    // Encodes as string always
+    #[serde_as(as = "serde_with::DisplayFromStr")] u64,
+);
 #[cfg(test)]
 mod tests {
     use super::*;
