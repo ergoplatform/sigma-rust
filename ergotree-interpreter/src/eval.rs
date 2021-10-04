@@ -268,6 +268,12 @@ fn smethod_eval_fn(method: &SMethod) -> Result<EvalFn, EvalError> {
             sheader::VERSION_PROPERTY_METHOD_ID => self::sheader::VERSION_EVAL_FN,
             sheader::ID_PROPERTY_METHOD_ID => self::sheader::ID_EVAL_FN,
             sheader::PARENT_ID_PROPERTY_METHOD_ID => self::sheader::PARENT_ID_EVAL_FN,
+            sheader::AD_PROOFS_ROOT_PROPERTY_METHOD_ID => self::sheader::AD_PROOFS_ROOT_EVAL_FN,
+            sheader::STATE_ROOT_PROPERTY_METHOD_ID => self::sheader::STATE_ROOT_EVAL_FN,
+            sheader::TRANSACTIONS_ROOT_PROPERTY_METHOD_ID => {
+                self::sheader::TRANSACTION_ROOT_EVAL_FN
+            }
+            sheader::EXTENSION_ROOT_PROPERTY_METHOD_ID => self::sheader::EXTENSION_ROOT_EVAL_FN,
             method_id => {
                 return Err(EvalError::NotFound(format!(
                     "Eval fn: unknown method id in SHeader: {:?}",
