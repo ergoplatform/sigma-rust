@@ -264,6 +264,15 @@ fn smethod_eval_fn(method: &SMethod) -> Result<EvalFn, EvalError> {
                 )))
             }
         },
+        sheader::TYPE_CODE => match method.method_id() {
+            sheader::VERSION_PROPERTY_METHOD_ID => self::sheader::VERSION_EVAL_FN,
+            method_id => {
+                return Err(EvalError::NotFound(format!(
+                    "Eval fn: unknown method id in SHeader: {:?}",
+                    method_id
+                )))
+            }
+        },
         type_id => {
             return Err(EvalError::NotFound(format!(
                 "Eval fn: unknown type id {:?}",
