@@ -27,10 +27,10 @@ mod tests {
     use std::convert::TryInto;
     use std::rc::Rc;
 
+    use ergotree_ir::chain::block_id::BlockId;
     use ergotree_ir::mir::{coll_by_index::ByIndex, expr::Expr, property_call::PropertyCall};
     use ergotree_ir::types::{scontext, sheader, smethod::SMethod};
     use ergotree_ir::util::AsVecU8;
-    use ergotree_ir::chain::block_id::BlockId;
     use sigma_test_util::force_any_val;
 
     use crate::eval::{context::Context, tests::eval_out};
@@ -38,16 +38,25 @@ mod tests {
     // Evaluates `Header.id` and `Header.parentId`
     fn eval_header_ids(index: i32, ctx: Rc<Context>) -> [BlockId; 2] {
         let get_headers_expr = get_header_by_index_expr(index);
-        let id = eval_out::<Vec<i8>>(&create_header_property_call_expr(get_headers_expr.clone(), sheader::ID_PROPERTY.clone()), ctx.clone());
-        let parent_id = eval_out::<Vec<i8>>(&create_header_property_call_expr(get_headers_expr, sheader::PARENT_ID_PROPERTY.clone()), ctx.clone());
+        let id = eval_out::<Vec<i8>>(
+            &create_header_property_call_expr(
+                get_headers_expr.clone(),
+                sheader::ID_PROPERTY.clone(),
+            ),
+            ctx.clone(),
+        );
+        let parent_id = eval_out::<Vec<i8>>(
+            &create_header_property_call_expr(
+                get_headers_expr,
+                sheader::PARENT_ID_PROPERTY.clone(),
+            ),
+            ctx.clone(),
+        );
         [id, parent_id].map(bytes_signed_to_block_id)
     }
 
     fn create_header_property_call_expr(headers_expr: Expr, method: SMethod) -> Expr {
-        PropertyCall::new(
-            headers_expr,
-            method,
-        )
+        PropertyCall::new(headers_expr, method)
             .expect("internal error: invalid header id property call")
             .into()
     }
@@ -73,7 +82,10 @@ mod tests {
     #[test]
     fn test_eval_header_version() {
         let header_index = 0;
-        let expr = create_header_property_call_expr(get_header_by_index_expr(header_index), sheader::VERSION_PROPERTY.clone());
+        let expr = create_header_property_call_expr(
+            get_header_by_index_expr(header_index),
+            sheader::VERSION_PROPERTY.clone(),
+        );
         let ctx = Rc::new(force_any_val::<Context>());
         let version = &ctx.headers[header_index as usize].version;
         assert_eq!(eval_out::<i8>(&expr, ctx.clone()), *version as i8);
