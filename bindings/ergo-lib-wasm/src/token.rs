@@ -10,6 +10,7 @@ use wasm_bindgen::prelude::*;
 
 use crate::ergo_box::BoxId;
 use crate::error_conversion::to_js;
+use crate::json::TokenJsonDapp;
 use crate::utils::I64;
 
 /// Token id (32 byte digest)
@@ -109,9 +110,17 @@ impl Token {
         TokenAmount(self.0.amount)
     }
 
-    /// JSON representation
-    pub fn to_json(&self) -> Result<JsValue, JsValue> {
-        JsValue::from_serde(&self.0.clone()).map_err(to_js)
+    /// JSON representation as text (compatible with Ergo Node/Explorer API, numbers are encoded as numbers)
+    pub fn to_json(&self) -> Result<String, JsValue> {
+        serde_json::to_string_pretty(&self.0.clone())
+            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+    }
+
+    /// JSON representation (same as [`Self::to_json`],
+    /// but with box value and token amount encoding as strings)
+    pub fn to_json_dapp(&self) -> Result<JsValue, JsValue> {
+        let t_dapp: TokenJsonDapp = self.0.clone().into();
+        JsValue::from_serde(&t_dapp).map_err(|e| JsValue::from_str(&format!("{}", e)))
     }
 }
 

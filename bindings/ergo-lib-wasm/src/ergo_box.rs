@@ -27,6 +27,7 @@ use wasm_bindgen::prelude::*;
 use crate::ast::Constant;
 use crate::ergo_tree::ErgoTree;
 use crate::error_conversion::to_js;
+use crate::json::ErgoBoxJsonDapp;
 use crate::token::Tokens;
 use crate::utils::I64;
 use crate::{contract::Contract, transaction::TxId};
@@ -171,12 +172,27 @@ impl ErgoBox {
             .map(Constant::from)
     }
 
+<<<<<<< HEAD
     /// JSON representation
     pub fn to_json(&self) -> Result<JsValue, JsValue> {
         JsValue::from_serde(&self.0.clone()).map_err(to_js)
+=======
+    /// JSON representation as text (compatible with Ergo Node/Explorer API, numbers are encoded as numbers)
+    pub fn to_json(&self) -> Result<String, JsValue> {
+        serde_json::to_string_pretty(&self.0.clone())
+            .map_err(|e| JsValue::from_str(&format!("{}", e)))
     }
 
-    /// JSON representation
+    /// JSON representation (same as [`Self::to_json`],
+    /// but with box value encoding as string)
+    pub fn to_json_dapp(&self) -> Result<JsValue, JsValue> {
+        let box_dapp: ErgoBoxJsonDapp = self.0.clone().into();
+        JsValue::from_serde(&box_dapp).map_err(|e| JsValue::from_str(&format!("{}", e)))
+>>>>>>> d4d1903 (make `to_json()` return string instead of JsValue;)
+    }
+
+    /// parse from JSON
+    /// supports Ergo Node/Explorer API and box values and token amount encoded as strings
     pub fn from_json(json: &str) -> Result<ErgoBox, JsValue> {
         serde_json::from_str(json).map(Self).map_err(to_js)
     }
