@@ -56,3 +56,4 @@ json = ["serde", "serde_json"]
 
 [dev-dependencies]
 sigma-test-util = { version = "0.2.0", path = "../sigma-test-util" }
+rand = "0.8.3"

@@ -23,6 +23,7 @@ use crate::serialization::{
 };
 use elliptic_curve::group::ff::PrimeField;
 use elliptic_curve::group::prime::PrimeCurveAffine;
+use elliptic_curve::rand_core::RngCore;
 use k256::elliptic_curve::sec1::ToEncodedPoint;
 use k256::{ProjectivePoint, PublicKey, Scalar};
 use num_bigint::BigUint;
@@ -116,9 +117,8 @@ pub fn exponentiate(base: &EcPoint, exponent: &Scalar) -> EcPoint {
 
 /// Creates a random scalar, a big-endian integer in the range [0, n), where n is group order
 /// Use cryptographically secure PRNG (like rand::thread_rng())
-pub fn random_scalar_in_group_range() -> Scalar {
-    use k256::elliptic_curve::rand_core::OsRng;
-    Scalar::generate_vartime(&mut OsRng)
+pub fn random_scalar_in_group_range(rng: impl RngCore) -> Scalar {
+    Scalar::generate_vartime(rng)
 }
 
 /// Attempts to create BigInt256 from Scalar

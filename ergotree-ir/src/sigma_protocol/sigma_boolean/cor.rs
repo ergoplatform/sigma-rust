@@ -83,6 +83,7 @@ mod arbitrary {
 
 #[allow(clippy::panic)]
 #[allow(clippy::unwrap_used)]
+#[allow(clippy::panic)]
 #[cfg(test)]
 mod tests {
     use super::*;
