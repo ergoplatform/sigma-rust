@@ -15,6 +15,11 @@ pub(crate) static ID_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
     Ok(header.id.into_bytes_signed().into())
 };
 
+pub(crate) static PARENT_ID_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
+    let header = obj.try_extract_into::<Header>()?;
+    Ok(header.parent_id.into_bytes_signed().into())
+};
+
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
 #[allow(clippy::unwrap_used, clippy::expect_used)]
@@ -23,12 +28,29 @@ mod tests {
     use std::rc::Rc;
 
     use ergotree_ir::mir::{coll_by_index::ByIndex, expr::Expr, property_call::PropertyCall};
-    use ergotree_ir::types::{scontext, sheader};
+    use ergotree_ir::types::{scontext, sheader, smethod::SMethod};
     use ergotree_ir::util::AsVecU8;
+    use ergotree_ir::chain::block_id::BlockId;
     use sigma_test_util::force_any_val;
 
     use crate::eval::{context::Context, tests::eval_out};
-    use ergotree_ir::chain::block_id::BlockId;
+
+    // Evaluates `Header.id` and `Header.parentId`
+    fn eval_header_ids(index: i32, ctx: Rc<Context>) -> [BlockId; 2] {
+        let get_headers_expr = get_header_by_index_expr(index);
+        let id = eval_out::<Vec<i8>>(&create_header_property_call_expr(get_headers_expr.clone(), sheader::ID_PROPERTY.clone()), ctx.clone());
+        let parent_id = eval_out::<Vec<i8>>(&create_header_property_call_expr(get_headers_expr, sheader::PARENT_ID_PROPERTY.clone()), ctx.clone());
+        [id, parent_id].map(bytes_signed_to_block_id)
+    }
+
+    fn create_header_property_call_expr(headers_expr: Expr, method: SMethod) -> Expr {
+        PropertyCall::new(
+            headers_expr,
+            method,
+        )
+            .expect("internal error: invalid header id property call")
+            .into()
+    }
 
     // An `Expr` for such code in ErgoScript `CONTEXT.headers(0)`
     fn get_header_by_index_expr(index: i32) -> Expr {
@@ -40,39 +62,32 @@ mod tests {
             .into()
     }
 
+    fn bytes_signed_to_block_id(bytes: Vec<i8>) -> BlockId {
+        let arr32: [u8; 32] = bytes
+            .as_vec_u8()
+            .try_into()
+            .expect("internal error: bytes buffer length is not 32");
+        BlockId(arr32.into())
+    }
+
     #[test]
     fn test_eval_header_version() {
         let header_index = 0;
-        let expr: Expr = PropertyCall::new(
-            get_header_by_index_expr(header_index),
-            sheader::VERSION_PROPERTY.clone(),
-        )
-        .expect("internal error: invalid header version property call")
-        .into();
+        let expr = create_header_property_call_expr(get_header_by_index_expr(header_index), sheader::VERSION_PROPERTY.clone());
         let ctx = Rc::new(force_any_val::<Context>());
         let version = &ctx.headers[header_index as usize].version;
-        // TODO: [sab] this is actually not accurate, fix it!
         assert_eq!(eval_out::<i8>(&expr, ctx.clone()), *version as i8);
     }
 
     #[test]
-    fn test_eval_header_id() {
+    fn test_eval_header_ids() {
         let header_index = 0;
-        let expr: Expr = PropertyCall::new(
-            get_header_by_index_expr(header_index),
-            sheader::ID_PROPERTY.clone(),
-        )
-        .expect("internal error: invalid header id property call")
-        .into();
         let ctx = Rc::new(force_any_val::<Context>());
-        let expected = ctx.headers[header_index as usize].clone().id;
-        let actual = {
-            let id_arr32: [u8; 32] = eval_out::<Vec<i8>>(&expr, ctx.clone())
-                .as_vec_u8()
-                .try_into()
-                .expect("internal error: id bytes buffer length is not 32");
-            BlockId(id_arr32.into())
+        let expected = {
+            let h = ctx.headers[header_index as usize].clone();
+            [h.id, h.parent_id]
         };
+        let actual = eval_header_ids(header_index, ctx.clone());
         assert_eq!(expected, actual);
     }
 }
