@@ -28,7 +28,6 @@ derive_more = "0.99"
 # bounded-vec = { git = "https://github.com/ergoplatform/bounded-vec", rev="f684d78" }
 bounded-vec = { version = "^0.4.0" }
 num-bigint = "0.4.0"
-proptest = {version = "1.0.0", optional = true }
 proptest-derive = {version = "0.3.0", optional = true }
 
 [dependencies.proptest]
