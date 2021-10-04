@@ -243,6 +243,7 @@ pub mod arbitrary {
     }
 }
 
+#[allow(clippy::panic)]
 #[cfg(test)]
 mod tests {
 
