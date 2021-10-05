@@ -40,19 +40,29 @@ pub(crate) static EXTENSION_ROOT_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
     Ok(Into::<Vec<i8>>::into(header.extension_root).into())
 };
 
-pub(crate) static TIMESTAMP_EVAL_FN: EvalFn =  |_env, _ctx, obj, _args| {
+pub(crate) static TIMESTAMP_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
     let header = obj.try_extract_into::<Header>()?;
-    Ok(Value::Long(header.timestamp as i64))
+    Ok((header.timestamp as i64).into())
 };
 
-pub(crate) static N_BITS_EVAL_FN: EvalFn =  |_env, _ctx, obj, _args| {
+pub(crate) static N_BITS_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
     let header = obj.try_extract_into::<Header>()?;
-    Ok(Value::Long(header.n_bits as i64))
+    Ok((header.n_bits as i64).into())
 };
 
-pub(crate) static HEIGHT_EVAL_FN: EvalFn =  |_env, _ctx, obj, _args| {
+pub(crate) static HEIGHT_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
     let header = obj.try_extract_into::<Header>()?;
-    Ok(Value::Int(header.height as i32))
+    Ok((header.height as i32).into())
+};
+
+pub(crate) static MINER_PK_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
+    let header = obj.try_extract_into::<Header>()?;
+    Ok(header.miner_pk.into())
+};
+
+pub(crate) static POW_ONETIME_PK_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
+    let header = obj.try_extract_into::<Header>()?;
+    Ok(header.pow_onetime_pk.into())
 };
 
 #[cfg(test)]
@@ -67,11 +77,31 @@ mod tests {
         digest32::{Digest, Digest32},
     };
     use ergotree_ir::mir::{coll_by_index::ByIndex, expr::Expr, property_call::PropertyCall};
+    use ergotree_ir::sigma_protocol::dlog_group::EcPoint;
     use ergotree_ir::types::{scontext, sheader, smethod::SMethod};
     use ergotree_ir::util::AsVecU8;
     use sigma_test_util::force_any_val;
 
     use crate::eval::{context::Context, tests::eval_out};
+
+    fn eval_header_pks(index: i32, ctx: Rc<Context>) -> [Box<EcPoint>; 2] {
+        let get_headers_expr = create_get_header_by_index_expr(index);
+        let miner_pk = eval_out::<EcPoint>(
+            &create_header_property_call_expr(
+                get_headers_expr.clone(),
+                sheader::MINER_PK_PROPERTY.clone(),
+            ),
+            ctx.clone(),
+        );
+        let pow_onetime_pk = eval_out::<EcPoint>(
+            &create_header_property_call_expr(
+                get_headers_expr.clone(),
+                sheader::POW_ONETIME_PK_PROPERTY.clone(),
+            ),
+            ctx.clone(),
+        );
+        [miner_pk, pow_onetime_pk].map(Box::new)
+    }
 
     fn eval_header_roots(index: i32, ctx: Rc<Context>) -> [Digest32; 3] {
         let get_headers_expr = create_get_header_by_index_expr(index);
@@ -203,7 +233,11 @@ mod tests {
             sheader::TIMESTAMP_PROPERTY.clone(),
         );
         let ctx = Rc::new(force_any_val::<Context>());
-        let expected = ctx.headers.get(0).map(|h| h.timestamp as i64).expect("internal error: empty headers array");
+        let expected = ctx
+            .headers
+            .get(0)
+            .map(|h| h.timestamp as i64)
+            .expect("internal error: empty headers array");
         let actual = eval_out::<i64>(&expr, ctx.clone());
         assert_eq!(expected, actual);
     }
@@ -216,7 +250,11 @@ mod tests {
             sheader::N_BITS_PROPERTY.clone(),
         );
         let ctx = Rc::new(force_any_val::<Context>());
-        let expected = ctx.headers.get(0).map(|h| h.n_bits as i64).expect("internal error: empty headers array");
+        let expected = ctx
+            .headers
+            .get(0)
+            .map(|h| h.n_bits as i64)
+            .expect("internal error: empty headers array");
         let actual = eval_out::<i64>(&expr, ctx.clone());
         assert_eq!(expected, actual);
     }
@@ -229,8 +267,25 @@ mod tests {
             sheader::HEIGHT_PROPERTY.clone(),
         );
         let ctx = Rc::new(force_any_val::<Context>());
-        let expected = ctx.headers.get(0).map(|h| h.height as i32).expect("internal error: empty headers array");
+        let expected = ctx
+            .headers
+            .get(0)
+            .map(|h| h.height as i32)
+            .expect("internal error: empty headers array");
         let actual = eval_out::<i32>(&expr, ctx.clone());
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn test_eval_pks() {
+        let header_index = 0;
+        let ctx = Rc::new(force_any_val::<Context>());
+        let expected = ctx
+            .headers
+            .get(0)
+            .map(|h| [h.miner_pk.clone(), h.pow_onetime_pk.clone()])
+            .expect("internal error: empty headers array");
+        let actual = eval_header_pks(header_index, ctx.clone());
         assert_eq!(expected, actual);
     }
 }

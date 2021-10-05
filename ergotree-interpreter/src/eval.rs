@@ -275,6 +275,8 @@ fn smethod_eval_fn(method: &SMethod) -> Result<EvalFn, EvalError> {
             sheader::TIMESTAMP_METHOD_ID => self::sheader::TIMESTAMP_EVAL_FN,
             sheader::N_BITS_METHOD_ID => self::sheader::N_BITS_EVAL_FN,
             sheader::HEIGHT_METHOD_ID => self::sheader::HEIGHT_EVAL_FN,
+            sheader::MINER_PK_METHOD_ID => self::sheader::MINER_PK_EVAL_FN,
+            sheader::POW_ONETIME_PK_METHOD_ID => self::sheader::POW_ONETIME_PK_EVAL_FN,
             method_id => {
                 return Err(EvalError::NotFound(format!(
                     "Eval fn: unknown method id in SHeader: {:?}",
