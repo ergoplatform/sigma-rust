@@ -40,6 +40,21 @@ pub(crate) static EXTENSION_ROOT_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
     Ok(Into::<Vec<i8>>::into(header.extension_root).into())
 };
 
+pub(crate) static TIMESTAMP_EVAL_FN: EvalFn =  |_env, _ctx, obj, _args| {
+    let header = obj.try_extract_into::<Header>()?;
+    Ok(Value::Long(header.timestamp as i64))
+};
+
+pub(crate) static N_BITS_EVAL_FN: EvalFn =  |_env, _ctx, obj, _args| {
+    let header = obj.try_extract_into::<Header>()?;
+    Ok(Value::Long(header.n_bits as i64))
+};
+
+pub(crate) static HEIGHT_EVAL_FN: EvalFn =  |_env, _ctx, obj, _args| {
+    let header = obj.try_extract_into::<Header>()?;
+    Ok(Value::Int(header.height as i32))
+};
+
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
 #[allow(clippy::unwrap_used, clippy::expect_used)]
@@ -177,6 +192,45 @@ mod tests {
         let ctx = Rc::new(force_any_val::<Context>());
         let expected = ctx.headers[header_index as usize].state_root.clone();
         let actual = digest_from_bytes_signed::<33>(eval_out::<Vec<i8>>(&expr, ctx.clone()));
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn test_eval_timestamp() {
+        let header_index = 0;
+        let expr = create_header_property_call_expr(
+            create_get_header_by_index_expr(header_index),
+            sheader::TIMESTAMP_PROPERTY.clone(),
+        );
+        let ctx = Rc::new(force_any_val::<Context>());
+        let expected = ctx.headers.get(0).map(|h| h.timestamp as i64).expect("internal error: empty headers array");
+        let actual = eval_out::<i64>(&expr, ctx.clone());
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn test_eval_n_bits() {
+        let header_index = 0;
+        let expr = create_header_property_call_expr(
+            create_get_header_by_index_expr(header_index),
+            sheader::N_BITS_PROPERTY.clone(),
+        );
+        let ctx = Rc::new(force_any_val::<Context>());
+        let expected = ctx.headers.get(0).map(|h| h.n_bits as i64).expect("internal error: empty headers array");
+        let actual = eval_out::<i64>(&expr, ctx.clone());
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn test_eval_height() {
+        let header_index = 0;
+        let expr = create_header_property_call_expr(
+            create_get_header_by_index_expr(header_index),
+            sheader::HEIGHT_PROPERTY.clone(),
+        );
+        let ctx = Rc::new(force_any_val::<Context>());
+        let expected = ctx.headers.get(0).map(|h| h.height as i32).expect("internal error: empty headers array");
+        let actual = eval_out::<i32>(&expr, ctx.clone());
         assert_eq!(expected, actual);
     }
 }

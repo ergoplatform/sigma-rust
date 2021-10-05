@@ -272,6 +272,9 @@ fn smethod_eval_fn(method: &SMethod) -> Result<EvalFn, EvalError> {
             sheader::STATE_ROOT_METHOD_ID => self::sheader::STATE_ROOT_EVAL_FN,
             sheader::TRANSACTIONS_ROOT_METHOD_ID => self::sheader::TRANSACTION_ROOT_EVAL_FN,
             sheader::EXTENSION_ROOT_METHOD_ID => self::sheader::EXTENSION_ROOT_EVAL_FN,
+            sheader::TIMESTAMP_METHOD_ID => self::sheader::TIMESTAMP_EVAL_FN,
+            sheader::N_BITS_METHOD_ID => self::sheader::N_BITS_EVAL_FN,
+            sheader::HEIGHT_METHOD_ID => self::sheader::HEIGHT_EVAL_FN,
             method_id => {
                 return Err(EvalError::NotFound(format!(
                     "Eval fn: unknown method id in SHeader: {:?}",
