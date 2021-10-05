@@ -154,7 +154,7 @@ lazy_static! {
         property("votes", SColl(SByte.into()), VOTES_METHOD_ID);
 }
 
-lazy_static!{
+lazy_static! {
     /// Property used only for tests!!!
     pub static ref UNKNOWN_PROPERTY: SMethod = SMethod::new(Header, property("unknown", SType::SByte, MethodId(100)),);
 }
