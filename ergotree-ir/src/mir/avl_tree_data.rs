@@ -21,8 +21,13 @@ impl AvlTreeFlags {
         AvlTreeFlags(if remove_allowed { u | 0x04 } else { u })
     }
 
+    /// Get byte-representation of the tree-flags
+    pub fn serialize(&self) -> u8 {
+        self.0
+    }
+
     /// Parse tree-flags from byte
-    fn parse(serialized_flags: u8) -> Self {
+    pub fn parse(serialized_flags: u8) -> Self {
         let insert_allowed = serialized_flags & 0x01 != 0;
         let update_allowed = serialized_flags & 0x02 != 0;
         let remove_allowed = serialized_flags & 0x04 != 0;
@@ -99,31 +104,30 @@ mod arbitrary {
         fn arbitrary_with(_: Self::Parameters) -> Self::Strategy {
             (
                 any::<ADDigest>(),
-                any::<bool>(),
-                any::<bool>(),
-                any::<bool>(),
+                any::<AvlTreeFlags>(),
                 any::<u32>(),
                 any::<OptBox>(),
             )
                 .prop_map(
-                    |(
+                    |(digest, tree_flags, key_length, value_length_opt)| AvlTreeData {
                         digest,
-                        insert_allowed,
-                        update_allowed,
-                        remove_allowed,
-                        key_length,
-                        value_length_opt,
-                    )| AvlTreeData {
-                        digest,
-                        tree_flags: AvlTreeFlags::new(
-                            insert_allowed,
-                            update_allowed,
-                            remove_allowed,
-                        ),
+                        tree_flags,
                         key_length,
                         value_length_opt,
                     },
                 )
+                .boxed()
+        }
+    }
+    impl Arbitrary for AvlTreeFlags {
+        type Strategy = BoxedStrategy<Self>;
+        type Parameters = ();
+
+        fn arbitrary_with(_: Self::Parameters) -> Self::Strategy {
+            (any::<bool>(), any::<bool>(), any::<bool>())
+                .prop_map(|(insert_allowed, update_allowed, remove_allowed)| {
+                    AvlTreeFlags::new(insert_allowed, update_allowed, remove_allowed)
+                })
                 .boxed()
         }
     }

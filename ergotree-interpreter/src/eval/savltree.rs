@@ -1,7 +1,12 @@
+use std::convert::TryFrom;
+
 use bytes::Bytes;
 use ergotree_ir::chain::digest32::ADDigest;
 use ergotree_ir::mir::avl_tree_data::AvlTreeData;
+use ergotree_ir::mir::avl_tree_data::AvlTreeFlags;
 use ergotree_ir::mir::constant::TryExtractInto;
+use ergotree_ir::mir::value::CollKind;
+use ergotree_ir::mir::value::NativeColl;
 use ergotree_ir::mir::value::Value;
 use ergotree_ir::serialization::SigmaSerializable;
 use scorex_crypto_avltree::authenticated_tree_ops::AuthenticatedTreeOps;
@@ -14,6 +19,72 @@ use scorex_crypto_avltree::operation::Operation;
 
 use super::EvalError;
 use super::EvalFn;
+
+pub(crate) static DIGEST_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
+    let avl_tree_data = obj.try_extract_into::<AvlTreeData>()?;
+    Ok(Value::Coll(CollKind::NativeColl(NativeColl::CollByte(
+        avl_tree_data.digest.into(),
+    ))))
+};
+
+pub(crate) static ENABLED_OPERATIONS_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
+    let avl_tree_data = obj.try_extract_into::<AvlTreeData>()?;
+    Ok(Value::Byte(avl_tree_data.tree_flags.serialize() as i8))
+};
+
+pub(crate) static KEY_LENGTH_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
+    let avl_tree_data = obj.try_extract_into::<AvlTreeData>()?;
+    Ok(Value::Int(avl_tree_data.key_length as i32))
+};
+
+pub(crate) static VALUE_LENGTH_OPT_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
+    let avl_tree_data = obj.try_extract_into::<AvlTreeData>()?;
+    Ok(Value::Opt(Box::new(
+        avl_tree_data
+            .value_length_opt
+            .map(|v| Value::Int(*v as i32)),
+    )))
+};
+
+pub(crate) static IS_INSERT_ALLOWED_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
+    let avl_tree_data = obj.try_extract_into::<AvlTreeData>()?;
+    Ok(Value::Boolean(avl_tree_data.tree_flags.insert_allowed()))
+};
+
+pub(crate) static IS_UPDATE_ALLOWED_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
+    let avl_tree_data = obj.try_extract_into::<AvlTreeData>()?;
+    Ok(Value::Boolean(avl_tree_data.tree_flags.update_allowed()))
+};
+
+pub(crate) static IS_REMOVE_ALLOWED_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
+    let avl_tree_data = obj.try_extract_into::<AvlTreeData>()?;
+    Ok(Value::Boolean(avl_tree_data.tree_flags.remove_allowed()))
+};
+
+pub(crate) static UPDATE_OPERATIONS_EVAL_FN: EvalFn = |_env, _ctx, obj, args| {
+    let mut avl_tree_data = obj.try_extract_into::<AvlTreeData>()?;
+    let new_operations = {
+        let v = args.get(0).cloned().ok_or_else(|| {
+            EvalError::AvlTree("eval is missing first arg (new_operations)".to_string())
+        })?;
+        v.try_extract_into::<i8>()? as u8
+    };
+    avl_tree_data.tree_flags = AvlTreeFlags::parse(new_operations);
+    Ok(Value::AvlTree(Box::new(avl_tree_data)))
+};
+
+pub(crate) static UPDATE_DIGEST_EVAL_FN: EvalFn = |_env, _ctx, obj, args| {
+    let mut avl_tree_data = obj.try_extract_into::<AvlTreeData>()?;
+    let new_digest = {
+        let v = args.get(0).cloned().ok_or_else(|| {
+            EvalError::AvlTree("eval is missing first arg (new_digest)".to_string())
+        })?;
+        let bytes_vec = v.try_extract_into::<Vec<u8>>()?;
+        ADDigest::try_from(bytes_vec).map_err(map_eval_err)?
+    };
+    avl_tree_data.digest = new_digest;
+    Ok(Value::AvlTree(Box::new(avl_tree_data)))
+};
 
 pub(crate) static INSERT_EVAL_FN: EvalFn =
     |_env, _ctx, obj, args| {
@@ -82,7 +153,7 @@ fn map_eval_err<T: std::fmt::Debug>(e: T) -> EvalError {
     EvalError::AvlTree(format!("{:?}", e))
 }
 
-#[allow(clippy::unwrap_used)]
+#[allow(clippy::unwrap_used, clippy::panic)]
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
 mod tests {
@@ -98,13 +169,14 @@ mod tests {
         },
         types::{savltree, stuple::STuple, stype::SType},
     };
+    use proptest::prelude::*;
     use scorex_crypto_avltree::batch_avl_prover::BatchAVLProver;
 
     use crate::eval::tests::eval_out_wo_ctx;
 
     use super::*;
     #[test]
-    fn eval_avl_tree() {
+    fn eval_avl_insert() {
         // This example taken from `scorex_crypto_avltree` README
         let mut prover = BatchAVLProver::new(
             AVLTree::new(
@@ -187,6 +259,188 @@ mod tests {
             }
         } else {
             unreachable!();
+        }
+    }
+    proptest! {
+        #[test]
+        fn eval_avl_digest(v in any::<AvlTreeData>()) {
+            let digest: Vec<i8> = v.digest.clone().into();
+            let obj = Expr::Const(v.into());
+
+            let expr: Expr = MethodCall::new(
+                obj,
+                savltree::DIGEST_METHOD.clone(),
+                vec![],
+            )
+            .unwrap()
+            .into();
+
+            let res = eval_out_wo_ctx::<Value>(&expr);
+            if let Value::Coll(CollKind::NativeColl(NativeColl::CollByte(b))) = res {
+                assert_eq!(b, digest);
+            } else {
+                unreachable!();
+            }
+        }
+
+        #[test]
+        fn eval_avl_enabled_operations(v in any::<AvlTreeData>()) {
+            let enabled_ops = v.tree_flags.serialize() as i8;
+            let obj = Expr::Const(v.into());
+
+            let expr: Expr = MethodCall::new(
+                obj,
+                savltree::ENABLED_OPERATIONS_METHOD.clone(),
+                vec![],
+            )
+            .unwrap()
+            .into();
+
+            let res = eval_out_wo_ctx::<Value>(&expr);
+            if let Value::Byte(b) = res {
+                assert_eq!(b, enabled_ops);
+            } else {
+                unreachable!();
+            }
+        }
+
+        #[test]
+        fn eval_avl_key_length(v in any::<AvlTreeData>()) {
+            let key_length = v.key_length as i32;
+            let obj = Expr::Const(v.into());
+
+            let expr: Expr = MethodCall::new(
+                obj,
+                savltree::KEY_LENGTH_METHOD.clone(),
+                vec![],
+            )
+            .unwrap()
+            .into();
+
+            let res = eval_out_wo_ctx::<Value>(&expr);
+            if let Value::Int(i) = res {
+                assert_eq!(key_length, i);
+            } else {
+                unreachable!();
+            }
+        }
+
+        #[test]
+        fn eval_avl_value_length_opt(v in any::<AvlTreeData>()) {
+            let value_length_opt = v.value_length_opt.clone().map(|v| Value::Int(*v as i32));
+            let obj = Expr::Const(v.into());
+
+            let expr: Expr = MethodCall::new(
+                obj,
+                savltree::VALUE_LENGTH_OPT_METHOD.clone(),
+                vec![],
+            )
+            .unwrap()
+            .into();
+
+            let res = eval_out_wo_ctx::<Value>(&expr);
+            if let Value::Opt(opt) = res {
+                assert_eq!(*opt, value_length_opt);
+            } else {
+                unreachable!();
+            }
+        }
+
+        #[test]
+        fn eval_avl_insert_allowed(v in any::<AvlTreeData>()) {
+            let insert_allowed = v.tree_flags.insert_allowed();
+            let obj = Expr::Const(v.into());
+
+            let expr: Expr = MethodCall::new(
+                obj,
+                savltree::IS_INSERT_ALLOWED_METHOD.clone(),
+                vec![],
+            )
+            .unwrap()
+            .into();
+            let res = eval_out_wo_ctx::<Value>(&expr);
+            if let Value::Boolean(i) = res {
+                assert_eq!(insert_allowed, i);
+            } else {
+                unreachable!();
+            }
+        }
+
+        #[test]
+        fn eval_avl_update_allowed(v in any::<AvlTreeData>()) {
+            let update_allowed = v.tree_flags.update_allowed();
+            let obj = Expr::Const(v.into());
+
+            let expr: Expr = MethodCall::new(
+                obj,
+                savltree::IS_UPDATE_ALLOWED_METHOD.clone(),
+                vec![],
+            )
+            .unwrap()
+            .into();
+            let res = eval_out_wo_ctx::<Value>(&expr);
+            if let Value::Boolean(i) = res {
+                assert_eq!(update_allowed, i);
+            } else {
+                unreachable!();
+            }
+        }
+
+        #[test]
+        fn eval_avl_remove_allowed(v in any::<AvlTreeData>()) {
+            let remove_allowed = v.tree_flags.remove_allowed();
+            let obj = Expr::Const(v.into());
+
+            let expr: Expr = MethodCall::new(
+                obj,
+                savltree::IS_REMOVE_ALLOWED_METHOD.clone(),
+                vec![],
+            )
+            .unwrap()
+            .into();
+            let res = eval_out_wo_ctx::<Value>(&expr);
+            if let Value::Boolean(i) = res {
+                assert_eq!(remove_allowed, i);
+            } else {
+                unreachable!();
+            }
+        }
+
+        #[test]
+        fn eval_avl_update_operations(v in any::<AvlTreeData>(), new_ops in any::<AvlTreeFlags>()) {
+            // Test updateOperations method
+            let obj = Expr::Const(v.into());
+            let expr: Expr = MethodCall::new(
+                obj,
+                savltree::UPDATE_OPERATIONS_METHOD.clone(),
+                vec![Constant::from(new_ops.serialize() as i8).into()],
+            )
+            .unwrap()
+            .into();
+            let res = eval_out_wo_ctx::<Value>(&expr);
+            if let Value::AvlTree(a) = res {
+                assert_eq!(a.tree_flags, new_ops);
+            } else {
+                unreachable!();
+            }
+        }
+
+        #[test]
+        fn eval_avl_update_digest(v in any::<AvlTreeData>(), new_digest in any::<ADDigest>()) {
+            let obj = Expr::Const(v.into());
+            let expr: Expr = MethodCall::new(
+                obj,
+                savltree::UPDATE_DIGEST_METHOD.clone(),
+                vec![Constant::from(new_digest.sigma_serialize_bytes()?).into()],
+            )
+            .unwrap()
+            .into();
+            let res = eval_out_wo_ctx::<Value>(&expr);
+            if let Value::AvlTree(a) = res {
+                assert_eq!(a.digest, new_digest);
+            } else {
+                unreachable!();
+            }
         }
     }
 
