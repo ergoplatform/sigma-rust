@@ -81,9 +81,9 @@ impl From<i64> for BigInt256 {
     }
 }
 
-impl Into<BigInt> for BigInt256 {
-    fn into(self) -> BigInt {
-        let Int256(bi) = self.0;
+impl From<BigInt256> for BigInt {
+    fn from(value: BigInt256) -> Self {
+        let Int256(bi) = value.0;
         bi
     }
 }
