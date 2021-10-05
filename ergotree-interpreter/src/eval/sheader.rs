@@ -2,27 +2,26 @@
 
 use std::convert::TryInto;
 
-use ergotree_ir::{
-    bigint256::BigInt256,
-    chain::header::Header,
-    mir::{constant::TryExtractInto, value::Value},
-};
+use ergotree_ir::{bigint256::BigInt256, chain::header::Header, mir::constant::TryExtractInto};
 
 use super::{EvalError, EvalFn};
+use ergotree_ir::chain::block_id::BlockId;
 
 pub(crate) static VERSION_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
     let header = obj.try_extract_into::<Header>()?;
-    Ok(Value::Byte(header.version as i8))
+    Ok((header.version as i8).into())
 };
 
 pub(crate) static ID_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
     let header = obj.try_extract_into::<Header>()?;
-    Ok(header.id.into_bytes().into())
+    let BlockId(digest32) = header.id;
+    Ok(Into::<Vec<i8>>::into(digest32).into())
 };
 
 pub(crate) static PARENT_ID_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
     let header = obj.try_extract_into::<Header>()?;
-    Ok(header.parent_id.into_bytes().into())
+    let BlockId(digest32) = header.parent_id;
+    Ok(Into::<Vec<i8>>::into(digest32).into())
 };
 
 pub(crate) static AD_PROOFS_ROOT_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
