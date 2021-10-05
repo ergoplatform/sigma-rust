@@ -1,9 +1,14 @@
 //! Evaluating predefined `Header` (or SHeader) type properties
 
-use ergotree_ir::chain::header::Header;
-use ergotree_ir::mir::{constant::TryExtractInto, value::Value};
+use std::convert::TryInto;
 
-use super::EvalFn;
+use ergotree_ir::{
+    bigint256::BigInt256,
+    chain::header::Header,
+    mir::{constant::TryExtractInto, value::Value},
+};
+
+use super::{EvalError, EvalFn};
 
 pub(crate) static VERSION_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
     let header = obj.try_extract_into::<Header>()?;
@@ -65,6 +70,12 @@ pub(crate) static POW_ONETIME_PK_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
     Ok(header.pow_onetime_pk.into())
 };
 
+pub(crate) static POW_DISTANCE_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
+    let header = obj.try_extract_into::<Header>()?;
+    let pow_distance: BigInt256 = header.pow_distance.try_into().map_err(EvalError::Misc)?;
+    Ok(pow_distance.into())
+};
+
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
 #[allow(clippy::unwrap_used, clippy::expect_used)]
@@ -72,14 +83,17 @@ mod tests {
     use std::convert::TryInto;
     use std::rc::Rc;
 
-    use ergotree_ir::chain::{
-        block_id::BlockId,
-        digest32::{Digest, Digest32},
+    use ergotree_ir::{
+        bigint256::BigInt256,
+        chain::{
+            block_id::BlockId,
+            digest32::{Digest, Digest32},
+        },
+        mir::{coll_by_index::ByIndex, expr::Expr, property_call::PropertyCall},
+        sigma_protocol::dlog_group::EcPoint,
+        types::{scontext, sheader, smethod::SMethod},
+        util::AsVecU8,
     };
-    use ergotree_ir::mir::{coll_by_index::ByIndex, expr::Expr, property_call::PropertyCall};
-    use ergotree_ir::sigma_protocol::dlog_group::EcPoint;
-    use ergotree_ir::types::{scontext, sheader, smethod::SMethod};
-    use ergotree_ir::util::AsVecU8;
     use sigma_test_util::force_any_val;
 
     use crate::eval::{context::Context, tests::eval_out};
@@ -286,6 +300,22 @@ mod tests {
             .map(|h| [h.miner_pk.clone(), h.pow_onetime_pk.clone()])
             .expect("internal error: empty headers array");
         let actual = eval_header_pks(header_index, ctx.clone());
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn test_eval_pow_distance() {
+        let header_index = 0;
+        let expr = create_header_property_call_expr(
+            create_get_header_by_index_expr(header_index),
+            sheader::POW_DISTANCE_PROPERTY.clone(),
+        );
+        let ctx = Rc::new(force_any_val::<Context>());
+        let expected = ctx.headers[header_index as usize].pow_distance.clone();
+        let actual = {
+            let bi = eval_out::<BigInt256>(&expr, ctx.clone());
+            bi.into()
+        };
         assert_eq!(expected, actual);
     }
 }
