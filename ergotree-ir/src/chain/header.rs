@@ -4,8 +4,7 @@ use num_bigint::BigInt;
 use crate::sigma_protocol::dlog_group;
 
 use super::block_id::BlockId;
-use super::digest32::ADDigest;
-use super::digest32::Digest32;
+use super::digest32::{Digest32, ADDigest};
 use super::votes::Votes;
 use super::preheader::PreHeader;
 
@@ -91,11 +90,11 @@ impl From<Header> for PreHeader {
     fn from(bh: Header) -> Self {
         PreHeader {
             version: bh.version,
-            parent_id: bh.parent_id.0.into(),
+            parent_id: bh.parent_id,
             timestamp: bh.timestamp,
             n_bits: bh.n_bits,
             height: bh.height,
-            miner_pk: dlog_group::identity().into(), // TODO: get from bh.powSolution when its implemented
+            miner_pk: bh.miner_pk,
             votes: bh.votes.into(),
         }
     }

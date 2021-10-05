@@ -298,6 +298,13 @@ fn smethod_eval_fn(method: &SMethod) -> Result<EvalFn, EvalError> {
                 )))
             }
         },
+        spreheader::TYPE_CODE => match method.method_id() {
+            method_id => return Err(EvalError::NotFound(format!(
+                "Eval fn: method {:?} with method id {:?} not found in SPreHeader",
+                method.name(),
+                method_id,
+            )))
+        }
         type_id => {
             return Err(EvalError::NotFound(format!(
                 "Eval fn: unknown type id {:?}",
