@@ -2,10 +2,13 @@
 
 use std::convert::TryInto;
 
-use ergotree_ir::{bigint256::BigInt256, chain::header::Header, mir::constant::TryExtractInto};
+use ergotree_ir::{
+    bigint256::BigInt256,
+    chain::{block_id::BlockId, header::Header},
+    mir::constant::TryExtractInto,
+};
 
 use super::{EvalError, EvalFn};
-use ergotree_ir::chain::block_id::BlockId;
 
 pub(crate) static VERSION_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
     let header = obj.try_extract_into::<Header>()?;
