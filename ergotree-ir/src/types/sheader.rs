@@ -13,35 +13,35 @@ pub const TYPE_CODE: TypeCode = TypeCode::SHEADER;
 /// SHeader type name
 pub static TYPE_NAME: &str = "Header";
 /// `Header.id`
-pub const ID_PROPERTY_METHOD_ID: MethodId = MethodId(1);
+pub const ID_METHOD_ID: MethodId = MethodId(1);
 /// `Header.version`
-pub const VERSION_PROPERTY_METHOD_ID: MethodId = MethodId(2);
+pub const VERSION_METHOD_ID: MethodId = MethodId(2);
 /// `Header.parentId`
-pub const PARENT_ID_PROPERTY_METHOD_ID: MethodId = MethodId(3);
+pub const PARENT_ID_METHOD_ID: MethodId = MethodId(3);
 /// `Header.AdProofsRoot`
-pub const AD_PROOFS_ROOT_PROPERTY_METHOD_ID: MethodId = MethodId(4);
+pub const AD_PROOFS_ROOT_METHOD_ID: MethodId = MethodId(4);
 /// `Header.stateRoot`
-pub const STATE_ROOT_PROPERTY_METHOD_ID: MethodId = MethodId(5);
+pub const STATE_ROOT_METHOD_ID: MethodId = MethodId(5);
 /// `Header.transactionsRoot`
-pub const TRANSACTIONS_ROOT_PROPERTY_METHOD_ID: MethodId = MethodId(6);
+pub const TRANSACTIONS_ROOT_METHOD_ID: MethodId = MethodId(6);
 /// `Header.timestamp`
-pub const TIMESTAMP_PROPERTY_METHOD_ID: MethodId = MethodId(7);
+pub const TIMESTAMP_METHOD_ID: MethodId = MethodId(7);
 /// `Header.nBits`
-pub const N_BITS_PROPERTY_METHOD_ID: MethodId = MethodId(8);
+pub const N_BITS_METHOD_ID: MethodId = MethodId(8);
 /// `Header.height`
-pub const HEIGHT_PROPERTY_METHOD_ID: MethodId = MethodId(9);
+pub const HEIGHT_METHOD_ID: MethodId = MethodId(9);
 /// `Header.extensionRoot`
-pub const EXTENSION_ROOT_PROPERTY_METHOD_ID: MethodId = MethodId(10);
+pub const EXTENSION_ROOT_METHOD_ID: MethodId = MethodId(10);
 /// `Header.minerPk`
-pub const MINER_PK_PROPERTY_METHOD_ID: MethodId = MethodId(11);
+pub const MINER_PK_METHOD_ID: MethodId = MethodId(11);
 /// `Header.powOnetimePk`
-pub const POW_ONETIME_PK_PROPERTY_METHOD_ID: MethodId = MethodId(12);
+pub const POW_ONETIME_PK_METHOD_ID: MethodId = MethodId(12);
 /// `Header.powNonce`
-pub const POW_NONCE_PROPERTY_METHOD_ID: MethodId = MethodId(13);
+pub const POW_NONCE_METHOD_ID: MethodId = MethodId(13);
 /// `Header.powDistance`
-pub const POW_DISTANCE_PROPERTY_METHOD_ID: MethodId = MethodId(14);
+pub const POW_DISTANCE_METHOD_ID: MethodId = MethodId(14);
 /// `Header.votes`
-pub const VOTES_PROPERTY_METHOD_ID: MethodId = MethodId(15);
+pub const VOTES_METHOD_ID: MethodId = MethodId(15);
 
 lazy_static! {
     /// Header method descriptors
@@ -102,56 +102,56 @@ lazy_static! {
     // Declaring private `SHeader` properties methods descriptors
 
     static ref ID_PROPERTY_METHOD_DESC: SMethodDesc =
-        property("id", SColl(SByte.into()), ID_PROPERTY_METHOD_ID);
+        property("id", SColl(SByte.into()), ID_METHOD_ID);
     static ref VERSION_PROPERTY_METHOD_DESC: SMethodDesc =
-        property("version", SByte, VERSION_PROPERTY_METHOD_ID);
+        property("version", SByte, VERSION_METHOD_ID);
     static ref PARENT_ID_PROPERTY_METHOD_DESC: SMethodDesc = property(
         "parentId",
         SColl(SByte.into()),
-        PARENT_ID_PROPERTY_METHOD_ID
+        PARENT_ID_METHOD_ID
     );
     static ref AD_PROOFS_ROOT_PROPERTY_METHOD_DESC: SMethodDesc = property(
         "ADProofsRoot",
         SColl(SByte.into()),
-        AD_PROOFS_ROOT_PROPERTY_METHOD_ID
+        AD_PROOFS_ROOT_METHOD_ID
     );
     static ref STATE_ROOT_PROPERTY_METHOD_DESC: SMethodDesc =
-        property("stateRoot", SType::SAvlTree, STATE_ROOT_PROPERTY_METHOD_ID);
+        property("stateRoot", SType::SAvlTree, STATE_ROOT_METHOD_ID);
     static ref TRANSACTIONS_ROOT_PROPERTY_METHOD_DESC: SMethodDesc = property(
         "transactionsRoot",
         SColl(SByte.into()),
-        TRANSACTIONS_ROOT_PROPERTY_METHOD_ID
+        TRANSACTIONS_ROOT_METHOD_ID
     );
     static ref TIMESTAMP_PROPERTY_METHOD_DESC: SMethodDesc =
-        property("timestamp", SType::SLong, TIMESTAMP_PROPERTY_METHOD_ID);
+        property("timestamp", SType::SLong, TIMESTAMP_METHOD_ID);
     static ref N_BITS_PROPERTY_METHOD_DESC: SMethodDesc =
-        property("nBits", SType::SLong, N_BITS_PROPERTY_METHOD_ID);
+        property("nBits", SType::SLong, N_BITS_METHOD_ID);
     static ref HEIGHT_PROPERTY_METHOD_DESC: SMethodDesc =
-        property("height", SType::SInt, HEIGHT_PROPERTY_METHOD_ID);
+        property("height", SType::SInt, HEIGHT_METHOD_ID);
     static ref EXTENSION_ROOT_PROPERTY_METHOD_DESC: SMethodDesc = property(
         "extensionRoot",
         SColl(SByte.into()),
-        EXTENSION_ROOT_PROPERTY_METHOD_ID
+        EXTENSION_ROOT_METHOD_ID
     );
     static ref MINER_PK_PROPERTY_METHOD_DESC: SMethodDesc =
-        property("minerPk", SType::SGroupElement, MINER_PK_PROPERTY_METHOD_ID);
+        property("minerPk", SType::SGroupElement, MINER_PK_METHOD_ID);
     static ref POW_ONETIME_PK_PROPERTY_METHOD_DESC: SMethodDesc = property(
         "powOnetimePk",
         SType::SGroupElement,
-        POW_ONETIME_PK_PROPERTY_METHOD_ID
+        POW_ONETIME_PK_METHOD_ID
     );
     static ref POW_NONCE_PROPERTY_METHOD_DESC: SMethodDesc = property(
         "powNonce",
         SColl(SByte.into()),
-        POW_NONCE_PROPERTY_METHOD_ID
+        POW_NONCE_METHOD_ID
     );
     static ref POW_DISTANCE_PROPERTY_METHOD_DESC: SMethodDesc = property(
         "powDistance",
         SType::SBigInt,
-        POW_DISTANCE_PROPERTY_METHOD_ID
+        POW_DISTANCE_METHOD_ID
     );
     static ref VOTES_PROPERTY_METHOD_DESC: SMethodDesc =
-        property("votes", SColl(SByte.into()), VOTES_PROPERTY_METHOD_ID);
+        property("votes", SColl(SByte.into()), VOTES_METHOD_ID);
 }
 
 fn property(name: &'static str, res_tpe: SType, id: MethodId) -> SMethodDesc {

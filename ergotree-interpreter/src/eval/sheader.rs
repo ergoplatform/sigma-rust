@@ -120,8 +120,8 @@ mod tests {
     }
 
     fn block_id_from_bytes_signed(bytes: Vec<i8>) -> BlockId {
-        let arr32 = arr_from_bytes_signed::<32>(bytes);
-        BlockId(arr32.into())
+        let arr32 = digest_from_bytes_signed::<32>(bytes);
+        BlockId(arr32)
     }
 
     fn arr_from_bytes_signed<const N: usize>(bytes: Vec<i8>) -> [u8; N] {
