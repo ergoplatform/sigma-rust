@@ -9,7 +9,7 @@ pub struct BlockId(pub Digest32);
 
 impl BlockId {
     /// Returns bytes buffer of `BlockId`
-    pub fn into_bytes_signed(self) -> Vec<i8> {
+    pub fn into_bytes(self) -> Vec<u8> {
         self.0.into()
     }
 }

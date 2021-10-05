@@ -17,12 +17,12 @@ pub(crate) static VERSION_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
 
 pub(crate) static ID_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
     let header = obj.try_extract_into::<Header>()?;
-    Ok(header.id.into_bytes_signed().into())
+    Ok(header.id.into_bytes().into())
 };
 
 pub(crate) static PARENT_ID_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
     let header = obj.try_extract_into::<Header>()?;
-    Ok(header.parent_id.into_bytes_signed().into())
+    Ok(header.parent_id.into_bytes().into())
 };
 
 pub(crate) static AD_PROOFS_ROOT_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
@@ -70,17 +70,27 @@ pub(crate) static POW_ONETIME_PK_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
     Ok(header.pow_onetime_pk.into())
 };
 
+pub(crate) static POW_NONCE_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
+    let header = obj.try_extract_into::<Header>()?;
+    Ok(header.nonce.into())
+};
+
 pub(crate) static POW_DISTANCE_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
     let header = obj.try_extract_into::<Header>()?;
     let pow_distance: BigInt256 = header.pow_distance.try_into().map_err(EvalError::Misc)?;
     Ok(pow_distance.into())
 };
 
+pub(crate) static VOTES_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
+    let header = obj.try_extract_into::<Header>()?;
+    Ok(Into::<Vec<u8>>::into(header.votes).into())
+};
+
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
-    use std::convert::TryInto;
+    use std::convert::{TryInto, TryFrom};
     use std::rc::Rc;
 
     use ergotree_ir::{
@@ -97,6 +107,7 @@ mod tests {
     use sigma_test_util::force_any_val;
 
     use crate::eval::{context::Context, tests::eval_out};
+    use ergotree_ir::chain::votes::Votes;
 
     fn eval_header_pks(index: i32, ctx: Rc<Context>) -> [Box<EcPoint>; 2] {
         let get_headers_expr = create_get_header_by_index_expr(index);
@@ -315,6 +326,35 @@ mod tests {
         let actual = {
             let bi = eval_out::<BigInt256>(&expr, ctx.clone());
             bi.into()
+        };
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn test_eval_pow_nonce() {
+        let header_index = 0;
+        let expr = create_header_property_call_expr(
+            create_get_header_by_index_expr(header_index),
+            sheader::POW_NONCE_PROPERTY.clone(),
+        );
+        let ctx = Rc::new(force_any_val::<Context>());
+        let expected = ctx.headers[header_index as usize].nonce.clone();
+        let actual = eval_out::<Vec<i8>>(&expr, ctx.clone()).as_vec_u8();
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn test_eval_votes() {
+        let header_index = 0;
+        let expr = create_header_property_call_expr(
+            create_get_header_by_index_expr(header_index),
+            sheader::VOTES_PROPERTY.clone(),
+        );
+        let ctx = Rc::new(force_any_val::<Context>());
+        let expected = ctx.headers[header_index as usize].votes.clone();
+        let actual = {
+            let votes_bytes = eval_out::<Vec<i8>>(&expr, ctx.clone()).as_vec_u8();
+            Votes::try_from(votes_bytes).expect("internal error: votes bytes buffer length isn't equal to 3")
         };
         assert_eq!(expected, actual);
     }
