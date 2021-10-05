@@ -115,39 +115,31 @@ mod tests {
         EvalError,
     };
 
-    fn eval_header_pks(index: i32, ctx: Rc<Context>) -> [Box<EcPoint>; 2] {
-        let get_headers_expr = create_get_header_by_index_expr(index);
+    // Index in Context.headers array
+    const HEADER_INDEX: usize = 0;
+
+    // Evaluates `Header.minerPk`, `Header.powOnetimePk`
+    fn eval_header_pks(ctx: Rc<Context>) -> [Box<EcPoint>; 2] {
         let miner_pk = eval_out::<EcPoint>(
-            &create_header_property_call_expr(
-                get_headers_expr.clone(),
-                sheader::MINER_PK_PROPERTY.clone(),
-            ),
+            &create_get_header_property_expr(sheader::MINER_PK_PROPERTY.clone()),
             ctx.clone(),
         );
         let pow_onetime_pk = eval_out::<EcPoint>(
-            &create_header_property_call_expr(
-                get_headers_expr.clone(),
-                sheader::POW_ONETIME_PK_PROPERTY.clone(),
-            ),
+            &create_get_header_property_expr(sheader::POW_ONETIME_PK_PROPERTY.clone()),
             ctx.clone(),
         );
         [miner_pk, pow_onetime_pk].map(Box::new)
     }
 
-    fn eval_header_roots(index: i32, ctx: Rc<Context>) -> [Digest32; 3] {
-        let get_headers_expr = create_get_header_by_index_expr(index);
+    // Evaluates `Header.AdProofsRoot`, `Header.transactionRoot`, `Header.extensionRoot`
+    fn eval_header_roots(ctx: Rc<Context>) -> [Digest32; 3] {
         vec![
             sheader::AD_PROOFS_ROOT_PROPERTY.clone(),
             sheader::TRANSACTIONS_ROOT_PROPERTY.clone(),
             sheader::EXTENSION_ROOT_PROPERTY.clone(),
         ]
         .into_iter()
-        .map(|smethod| {
-            eval_out::<Vec<i8>>(
-                &create_header_property_call_expr(get_headers_expr.clone(), smethod),
-                ctx.clone(),
-            )
-        })
+        .map(|smethod| eval_out::<Vec<i8>>(&create_get_header_property_expr(smethod), ctx.clone()))
         .map(digest_from_bytes_signed::<32>)
         .collect::<Vec<_>>()
         .try_into()
@@ -155,38 +147,36 @@ mod tests {
     }
 
     // Evaluates `Header.id` and `Header.parentId`
-    fn eval_header_ids(index: i32, ctx: Rc<Context>) -> [BlockId; 2] {
-        let get_headers_expr = create_get_header_by_index_expr(index);
+    fn eval_header_ids(ctx: Rc<Context>) -> [BlockId; 2] {
         let id = eval_out::<Vec<i8>>(
-            &create_header_property_call_expr(
-                get_headers_expr.clone(),
-                sheader::ID_PROPERTY.clone(),
-            ),
+            &create_get_header_property_expr(sheader::ID_PROPERTY.clone()),
             ctx.clone(),
         );
         let parent_id = eval_out::<Vec<i8>>(
-            &create_header_property_call_expr(
-                get_headers_expr,
-                sheader::PARENT_ID_PROPERTY.clone(),
-            ),
+            &create_get_header_property_expr(sheader::PARENT_ID_PROPERTY.clone()),
             ctx.clone(),
         );
         [id, parent_id].map(block_id_from_bytes_signed)
     }
 
-    fn create_header_property_call_expr(headers_expr: Expr, method: SMethod) -> Expr {
-        PropertyCall::new(headers_expr, method)
-            .expect("internal error: invalid header property call")
-            .into()
+    fn create_get_header_property_expr(method: SMethod) -> Expr {
+        let get_headers_expr = create_get_header_by_index_expr();
+        create_header_property_call_expr(get_headers_expr.clone(), method)
     }
 
     // An `Expr` for such code in ErgoScript `CONTEXT.headers(0)`
-    fn create_get_header_by_index_expr(index: i32) -> Expr {
+    fn create_get_header_by_index_expr() -> Expr {
         let prop_call = PropertyCall::new(Expr::Context, scontext::HEADERS_PROPERTY.clone())
             .expect("internal error: invalid headers property call of Context")
             .into();
-        ByIndex::new(prop_call, Expr::Const(index.into()), None)
+        ByIndex::new(prop_call, Expr::Const((HEADER_INDEX as i32).into()), None)
             .expect("internal error: invalid types of ByIndex expression")
+            .into()
+    }
+
+    fn create_header_property_call_expr(headers_expr: Expr, method: SMethod) -> Expr {
+        PropertyCall::new(headers_expr, method)
+            .expect("internal error: invalid header property call")
             .into()
     }
 
@@ -209,126 +199,94 @@ mod tests {
 
     #[test]
     fn test_eval_header_version() {
-        let header_index = 0;
-        let expr = create_header_property_call_expr(
-            create_get_header_by_index_expr(header_index),
-            sheader::VERSION_PROPERTY.clone(),
-        );
+        let expr = create_get_header_property_expr(sheader::VERSION_PROPERTY.clone());
         let ctx = Rc::new(force_any_val::<Context>());
-        let version = &ctx.headers[header_index as usize].version;
-        assert_eq!(eval_out::<i8>(&expr, ctx.clone()), *version as i8);
+        let version = ctx.headers[HEADER_INDEX].version;
+        assert_eq!(version as i8, eval_out::<i8>(&expr, ctx.clone()));
     }
 
     #[test]
     fn test_eval_header_ids() {
-        let header_index = 0;
         let ctx = Rc::new(force_any_val::<Context>());
         let expected = {
-            let h = ctx.headers[header_index as usize].clone();
+            let h = ctx.headers[HEADER_INDEX].clone();
             [h.id, h.parent_id]
         };
-        let actual = eval_header_ids(header_index, ctx.clone());
+        let actual = eval_header_ids(ctx.clone());
         assert_eq!(expected, actual);
     }
 
     #[test]
     fn test_eval_roots() {
-        let header_index = 0;
         let ctx = Rc::new(force_any_val::<Context>());
-        let expected = {
-            let h = ctx.headers[header_index as usize].clone();
-            [h.ad_proofs_root, h.transaction_root, h.extension_root]
-        };
-        let actual = eval_header_roots(header_index, ctx.clone());
+        let expected = ctx
+            .headers
+            .get(HEADER_INDEX)
+            .map(|h| {
+                [
+                    h.ad_proofs_root.clone(),
+                    h.transaction_root.clone(),
+                    h.extension_root.clone(),
+                ]
+            })
+            .expect("internal error: empty headers array");
+        let actual = eval_header_roots(ctx.clone());
         assert_eq!(expected, actual);
     }
 
     #[test]
     fn test_eval_state_root() {
-        let header_index = 0;
-        let expr = create_header_property_call_expr(
-            create_get_header_by_index_expr(header_index),
-            sheader::STATE_ROOT_PROPERTY.clone(),
-        );
+        let expr = create_get_header_property_expr(sheader::STATE_ROOT_PROPERTY.clone());
         let ctx = Rc::new(force_any_val::<Context>());
-        let expected = ctx.headers[header_index as usize].state_root.clone();
+        let expected = ctx.headers[HEADER_INDEX].state_root.clone();
         let actual = digest_from_bytes_signed::<33>(eval_out::<Vec<i8>>(&expr, ctx.clone()));
         assert_eq!(expected, actual);
     }
 
     #[test]
     fn test_eval_timestamp() {
-        let header_index = 0;
-        let expr = create_header_property_call_expr(
-            create_get_header_by_index_expr(header_index),
-            sheader::TIMESTAMP_PROPERTY.clone(),
-        );
+        let expr = create_get_header_property_expr(sheader::TIMESTAMP_PROPERTY.clone());
         let ctx = Rc::new(force_any_val::<Context>());
-        let expected = ctx
-            .headers
-            .get(0)
-            .map(|h| h.timestamp as i64)
-            .expect("internal error: empty headers array");
+        let expected = ctx.headers[HEADER_INDEX].timestamp;
         let actual = eval_out::<i64>(&expr, ctx.clone());
-        assert_eq!(expected, actual);
+        assert_eq!(expected as i64, actual);
     }
 
     #[test]
     fn test_eval_n_bits() {
-        let header_index = 0;
-        let expr = create_header_property_call_expr(
-            create_get_header_by_index_expr(header_index),
-            sheader::N_BITS_PROPERTY.clone(),
-        );
+        let expr = create_get_header_property_expr(sheader::N_BITS_PROPERTY.clone());
         let ctx = Rc::new(force_any_val::<Context>());
-        let expected = ctx
-            .headers
-            .get(0)
-            .map(|h| h.n_bits as i64)
-            .expect("internal error: empty headers array");
+        let expected = ctx.headers[HEADER_INDEX].n_bits;
         let actual = eval_out::<i64>(&expr, ctx.clone());
-        assert_eq!(expected, actual);
+        assert_eq!(expected as i64, actual);
     }
 
     #[test]
     fn test_eval_height() {
-        let header_index = 0;
-        let expr = create_header_property_call_expr(
-            create_get_header_by_index_expr(header_index),
-            sheader::HEIGHT_PROPERTY.clone(),
-        );
+        let expr = create_get_header_property_expr(sheader::HEIGHT_PROPERTY.clone());
         let ctx = Rc::new(force_any_val::<Context>());
-        let expected = ctx
-            .headers
-            .get(0)
-            .map(|h| h.height as i32)
-            .expect("internal error: empty headers array");
+        let expected = ctx.headers[HEADER_INDEX].height;
         let actual = eval_out::<i32>(&expr, ctx.clone());
-        assert_eq!(expected, actual);
+        assert_eq!(expected as i32, actual);
     }
 
     #[test]
     fn test_eval_pks() {
-        let header_index = 0;
         let ctx = Rc::new(force_any_val::<Context>());
         let expected = ctx
             .headers
-            .get(0)
+            .get(HEADER_INDEX)
             .map(|h| [h.miner_pk.clone(), h.pow_onetime_pk.clone()])
             .expect("internal error: empty headers array");
-        let actual = eval_header_pks(header_index, ctx.clone());
+        let actual = eval_header_pks(ctx.clone());
         assert_eq!(expected, actual);
     }
 
     #[test]
     fn test_eval_pow_distance() {
-        let header_index = 0;
-        let expr = create_header_property_call_expr(
-            create_get_header_by_index_expr(header_index),
-            sheader::POW_DISTANCE_PROPERTY.clone(),
-        );
+        let expr = create_get_header_property_expr(sheader::POW_DISTANCE_PROPERTY.clone());
         let ctx = Rc::new(force_any_val::<Context>());
-        let expected = ctx.headers[header_index as usize].pow_distance.clone();
+        let expected = ctx.headers[HEADER_INDEX].pow_distance.clone();
         let actual = {
             let bi = eval_out::<BigInt256>(&expr, ctx.clone());
             bi.into()
@@ -338,26 +296,18 @@ mod tests {
 
     #[test]
     fn test_eval_pow_nonce() {
-        let header_index = 0;
-        let expr = create_header_property_call_expr(
-            create_get_header_by_index_expr(header_index),
-            sheader::POW_NONCE_PROPERTY.clone(),
-        );
+        let expr = create_get_header_property_expr(sheader::POW_NONCE_PROPERTY.clone());
         let ctx = Rc::new(force_any_val::<Context>());
-        let expected = ctx.headers[header_index as usize].nonce.clone();
+        let expected = ctx.headers[HEADER_INDEX].nonce.clone();
         let actual = eval_out::<Vec<i8>>(&expr, ctx.clone()).as_vec_u8();
         assert_eq!(expected, actual);
     }
 
     #[test]
     fn test_eval_votes() {
-        let header_index = 0;
-        let expr = create_header_property_call_expr(
-            create_get_header_by_index_expr(header_index),
-            sheader::VOTES_PROPERTY.clone(),
-        );
+        let expr = create_get_header_property_expr(sheader::VOTES_PROPERTY.clone());
         let ctx = Rc::new(force_any_val::<Context>());
-        let expected = ctx.headers[header_index as usize].votes.clone();
+        let expected = ctx.headers[HEADER_INDEX].votes.clone();
         let actual = {
             let votes_bytes = eval_out::<Vec<i8>>(&expr, ctx.clone()).as_vec_u8();
             Votes::try_from(votes_bytes)
@@ -384,11 +334,7 @@ mod tests {
 
     #[test]
     fn test_eval_failed_unknown_property() {
-        let header_index = 0;
-        let expr = create_header_property_call_expr(
-            create_get_header_by_index_expr(header_index),
-            sheader::UNKNOWN_PROPERTY.clone(),
-        );
+        let expr = create_get_header_property_expr(sheader::UNKNOWN_PROPERTY.clone());
         assert_eq!(
             try_eval_out_wo_ctx::<i8>(&expr),
             Err(EvalError::NotFound(format!(
