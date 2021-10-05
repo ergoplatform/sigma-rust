@@ -37,15 +37,14 @@ impl PreHeader {
 
 #[cfg(feature = "arbitrary")]
 mod arbitrary {
-    use crate::mir::header::PreHeader;
-    use crate::sigma_protocol::dlog_group::EcPoint;
     use proptest::collection::vec;
     use proptest::prelude::*;
 
+    use crate::sigma_protocol::dlog_group::EcPoint;
+    use super::PreHeader;
+
     impl Arbitrary for PreHeader {
         type Parameters = ();
-        type Strategy = BoxedStrategy<PreHeader>;
-
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             (
                 vec(any::<u8>(), 32),
@@ -66,5 +65,7 @@ mod arbitrary {
                 })
                 .boxed()
         }
+
+        type Strategy = BoxedStrategy<PreHeader>;
     }
 }

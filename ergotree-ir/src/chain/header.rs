@@ -1,13 +1,13 @@
 //! Block header
 use num_bigint::BigInt;
 
-use crate::mir::header::PreHeader;
 use crate::sigma_protocol::dlog_group;
 
 use super::block_id::BlockId;
 use super::digest32::ADDigest;
 use super::digest32::Digest32;
 use super::votes::Votes;
+use super::preheader::PreHeader;
 
 /// Represents data of the block header available in Sigma propositions.
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]

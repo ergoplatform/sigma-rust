@@ -77,6 +77,7 @@ pub(crate) mod savltree;
 pub(crate) mod sbox;
 pub(crate) mod scoll;
 pub(crate) mod scontext;
+pub(crate) mod spreheader;
 pub(crate) mod select_field;
 pub(crate) mod sgroup_elem;
 pub(crate) mod sheader;

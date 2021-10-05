@@ -8,6 +8,7 @@ use impl_trait_for_tuples::impl_for_tuples;
 use crate::bigint256::BigInt256;
 use crate::chain::ergo_box::ErgoBox;
 use crate::chain::header::Header;
+use crate::chain::preheader::PreHeader;
 use crate::sigma_protocol::dlog_group::EcPoint;
 use crate::sigma_protocol::sigma_boolean::SigmaProp;
 use crate::types::stuple::TupleItems;
@@ -162,6 +163,8 @@ pub enum Value {
     Context,
     /// Block header
     Header(Box<Header>),
+    /// Header with predictable `spendingTransaction`
+    PreHeader(Box<PreHeader>),
     /// Global which is used to define global methods
     Global,
     /// Optional value
@@ -373,6 +376,18 @@ impl TryExtractFrom<Value> for Header {
             Value::Header(h) => Ok(*h),
             _ => Err(TryExtractFromError(format!(
                 "expected Header, found {:?}",
+                c
+            ))),
+        }
+    }
+}
+
+impl TryExtractFrom<Value> for PreHeader {
+    fn try_extract_from(c: Value) -> Result<Self, TryExtractFromError> {
+        match c {
+            Value::PreHeader(ph) => Ok(*ph),
+            _ => Err(TryExtractFromError(format!(
+                "expected PreHeader, found {:?}",
                 c
             ))),
         }
