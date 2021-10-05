@@ -282,8 +282,9 @@ fn smethod_eval_fn(method: &SMethod) -> Result<EvalFn, EvalError> {
             sheader::VOTES_METHOD_ID => self::sheader::VOTES_EVAL_FN,
             method_id => {
                 return Err(EvalError::NotFound(format!(
-                    "Eval fn: unknown method id in SHeader: {:?}",
-                    method_id
+                    "Eval fn: method {:?} with method id {:?} not found in SHeader",
+                    method.name(),
+                    method_id,
                 )))
             }
         },

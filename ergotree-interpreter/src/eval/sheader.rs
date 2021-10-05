@@ -2,11 +2,7 @@
 
 use std::convert::TryInto;
 
-use ergotree_ir::{
-    bigint256::BigInt256,
-    chain::{block_id::BlockId, header::Header},
-    mir::constant::TryExtractInto,
-};
+use ergotree_ir::{bigint256::BigInt256, chain::header::Header, mir::constant::TryExtractInto};
 
 use super::{EvalError, EvalFn};
 
@@ -17,14 +13,12 @@ pub(crate) static VERSION_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
 
 pub(crate) static ID_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
     let header = obj.try_extract_into::<Header>()?;
-    let BlockId(digest32) = header.id;
-    Ok(Into::<Vec<i8>>::into(digest32).into())
+    Ok(Into::<Vec<i8>>::into(header.id).into())
 };
 
 pub(crate) static PARENT_ID_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
     let header = obj.try_extract_into::<Header>()?;
-    let BlockId(digest32) = header.parent_id;
-    Ok(Into::<Vec<i8>>::into(digest32).into())
+    Ok(Into::<Vec<i8>>::into(header.parent_id).into())
 };
 
 pub(crate) static AD_PROOFS_ROOT_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
@@ -102,10 +96,7 @@ mod tests {
             digest32::{Digest, Digest32},
             votes::Votes,
         },
-        mir::{
-            coll_by_index::ByIndex, constant::TryExtractFromError, expr::Expr,
-            property_call::PropertyCall,
-        },
+        mir::{coll_by_index::ByIndex, expr::Expr, property_call::PropertyCall},
         sigma_protocol::dlog_group::EcPoint,
         types::{scontext, sheader, smethod::SMethod},
         util::AsVecU8,
@@ -115,7 +106,6 @@ mod tests {
     use crate::eval::{
         context::Context,
         tests::{eval_out, try_eval_out_wo_ctx},
-        EvalError,
     };
 
     // Index in Context.headers array
@@ -328,23 +318,22 @@ mod tests {
             method: sheader::VERSION_PROPERTY.clone(),
         }
         .into();
-        assert_eq!(
-            try_eval_out_wo_ctx::<i8>(&expr),
-            Err(EvalError::TryExtractFrom(TryExtractFromError(
-                "expected Header, found Context".to_string()
-            )))
-        )
+        assert!(try_eval_out_wo_ctx::<i8>(&expr).is_err());
     }
 
     #[test]
     fn test_eval_failed_unknown_property() {
-        let expr = create_get_header_property_expr(sheader::UNKNOWN_PROPERTY.clone());
-        assert_eq!(
-            try_eval_out_wo_ctx::<i8>(&expr),
-            Err(EvalError::NotFound(format!(
-                "Eval fn: unknown method id in SHeader: {:?}",
-                sheader::UNKNOWN_PROPERTY.method_id()
-            )))
-        )
+        let unknown_property = {
+            use ergotree_ir::types::{
+                smethod::{MethodId, SMethod, SMethodDesc},
+                stype::SType,
+                stype_companion::STypeCompanion,
+            };
+            let method_desc =
+                SMethodDesc::property(SType::SHeader, "unknown", SType::SByte, MethodId(100));
+            SMethod::new(STypeCompanion::Header, method_desc)
+        };
+        let expr = create_get_header_property_expr(unknown_property);
+        assert!(try_eval_out_wo_ctx::<i8>(&expr).is_err());
     }
 }
