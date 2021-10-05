@@ -211,10 +211,11 @@ mod tests {
     #[test]
     fn test_eval_header_ids() {
         let ctx = Rc::new(force_any_val::<Context>());
-        let expected = {
-            let h = ctx.headers[HEADER_INDEX].clone();
-            [h.id, h.parent_id]
-        };
+        let expected = ctx
+            .headers
+            .get(HEADER_INDEX)
+            .map(|h| [h.id.clone(), h.parent_id.clone()])
+            .expect("internal error: empty headers array");
         let actual = eval_header_ids(ctx.clone());
         assert_eq!(expected, actual);
     }
