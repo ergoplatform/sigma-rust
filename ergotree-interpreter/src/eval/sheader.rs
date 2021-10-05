@@ -88,9 +88,9 @@ pub(crate) static VOTES_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
-#[allow(clippy::unwrap_used, clippy::expect_used)]
+#[allow(clippy::expect_used)]
 mod tests {
-    use std::convert::{TryInto, TryFrom};
+    use std::convert::{TryFrom, TryInto};
     use std::rc::Rc;
 
     use ergotree_ir::{
@@ -98,16 +98,23 @@ mod tests {
         chain::{
             block_id::BlockId,
             digest32::{Digest, Digest32},
+            votes::Votes,
         },
-        mir::{coll_by_index::ByIndex, expr::Expr, property_call::PropertyCall},
+        mir::{
+            coll_by_index::ByIndex, constant::TryExtractFromError, expr::Expr,
+            property_call::PropertyCall,
+        },
         sigma_protocol::dlog_group::EcPoint,
         types::{scontext, sheader, smethod::SMethod},
         util::AsVecU8,
     };
     use sigma_test_util::force_any_val;
 
-    use crate::eval::{context::Context, tests::eval_out};
-    use ergotree_ir::chain::votes::Votes;
+    use crate::eval::{
+        context::Context,
+        tests::{eval_out, try_eval_out_wo_ctx},
+        EvalError,
+    };
 
     fn eval_header_pks(index: i32, ctx: Rc<Context>) -> [Box<EcPoint>; 2] {
         let get_headers_expr = create_get_header_by_index_expr(index);
@@ -354,8 +361,41 @@ mod tests {
         let expected = ctx.headers[header_index as usize].votes.clone();
         let actual = {
             let votes_bytes = eval_out::<Vec<i8>>(&expr, ctx.clone()).as_vec_u8();
-            Votes::try_from(votes_bytes).expect("internal error: votes bytes buffer length isn't equal to 3")
+            Votes::try_from(votes_bytes)
+                .expect("internal error: votes bytes buffer length isn't equal to 3")
         };
         assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn test_eval_failed_invalid_obj() {
+        // calling for Header property on Context obj
+        let expr: Expr = PropertyCall {
+            obj: Box::new(Expr::Context),
+            method: sheader::VERSION_PROPERTY.clone(),
+        }
+        .into();
+        assert_eq!(
+            try_eval_out_wo_ctx::<i8>(&expr),
+            Err(EvalError::TryExtractFrom(TryExtractFromError(
+                "expected Header, found Context".to_string()
+            )))
+        )
+    }
+
+    #[test]
+    fn test_eval_failed_unknown_property() {
+        let header_index = 0;
+        let expr = create_header_property_call_expr(
+            create_get_header_by_index_expr(header_index),
+            sheader::UNKNOWN_PROPERTY.clone(),
+        );
+        assert_eq!(
+            try_eval_out_wo_ctx::<i8>(&expr),
+            Err(EvalError::NotFound(format!(
+                "Eval fn: unknown method id in SHeader: {:?}",
+                sheader::UNKNOWN_PROPERTY.method_id()
+            )))
+        )
     }
 }
