@@ -1,4 +1,5 @@
 //! Block header with fields that can be predicted by miner
+
 use crate::sigma_protocol::dlog_group;
 
 use super::{block_id::BlockId, digest32::Digest32, votes::Votes};

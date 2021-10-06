@@ -221,6 +221,7 @@ fn smethod_eval_fn(method: &SMethod) -> Result<EvalFn, EvalError> {
             scontext::DATA_INPUTS_PROPERTY_METHOD_ID => self::scontext::DATA_INPUTS_EVAL_FN,
             scontext::SELF_BOX_INDEX_PROPERTY_METHOD_ID => self::scontext::SELF_BOX_INDEX_EVAL_FN,
             scontext::HEADERS_PROPERTY_METHOD_ID => self::scontext::HEADERS_EVAL_FN,
+            scontext::PRE_HEADER_PROPERTY_METHOD_ID => self::scontext::PRE_HEADER_EVAL_FN,
             method_id => {
                 return Err(EvalError::NotFound(format!(
                     "Eval fn: unknown method id in SContext: {:?}",
