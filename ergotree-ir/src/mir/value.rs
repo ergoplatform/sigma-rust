@@ -163,7 +163,7 @@ pub enum Value {
     Context,
     /// Block header
     Header(Box<Header>),
-    /// Header with predictable `spendingTransaction`
+    /// Header with predictable data
     PreHeader(Box<PreHeader>),
     /// Global which is used to define global methods
     Global,
