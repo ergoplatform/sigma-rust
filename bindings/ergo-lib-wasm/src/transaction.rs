@@ -5,6 +5,8 @@ use crate::box_coll::ErgoBoxes;
 use crate::data_input::DataInputs;
 use crate::error_conversion::to_js;
 use crate::input::{Inputs, UnsignedInputs};
+use crate::json::TransactionJsonEip12;
+use crate::json::UnsignedTransactionJsonEip12;
 use ergo_lib::chain;
 use ergo_lib::chain::transaction::distinct_token_ids;
 use ergo_lib::ergotree_ir::chain::base16_bytes::Base16DecodedBytes;
@@ -91,12 +93,21 @@ impl Transaction {
         self.0.id().into()
     }
 
-    /// JSON representation
-    pub fn to_json(&self) -> Result<JsValue, JsValue> {
-        JsValue::from_serde(&self.0.clone()).map_err(to_js)
+    /// JSON representation as text (compatible with Ergo Node/Explorer API, numbers are encoded as numbers)
+    pub fn to_json(&self) -> Result<String, JsValue> {
+        serde_json::to_string_pretty(&self.0.clone())
+            .map_err(|e| JsValue::from_str(&format!("{}", e)))
     }
 
-    /// JSON representation
+    /// JSON representation according to EIP-12 https://github.com/ergoplatform/eips/pull/23
+    /// (similar to [`Self::to_json`], but as JS object with box value and token amount encoding as strings)
+    pub fn to_js_eip12(&self) -> Result<JsValue, JsValue> {
+        let tx_dapp: TransactionJsonEip12 = self.0.clone().into();
+        JsValue::from_serde(&tx_dapp).map_err(|e| JsValue::from_str(&format!("{}", e)))
+    }
+
+    /// parse from JSON
+    /// supports Ergo Node/Explorer API and box values and token amount encoded as strings
     pub fn from_json(json: &str) -> Result<Transaction, JsValue> {
         serde_json::from_str(json).map(Self).map_err(to_js)
     }
@@ -165,12 +176,21 @@ impl UnsignedTransaction {
         self.0.output_candidates.as_vec().clone().into()
     }
 
-    /// JSON representation
-    pub fn to_json(&self) -> Result<JsValue, JsValue> {
-        JsValue::from_serde(&self.0.clone()).map_err(to_js)
+    /// JSON representation as text (compatible with Ergo Node/Explorer API, numbers are encoded as numbers)
+    pub fn to_json(&self) -> Result<String, JsValue> {
+        serde_json::to_string_pretty(&self.0.clone())
+            .map_err(|e| JsValue::from_str(&format!("{}", e)))
     }
 
-    /// JSON representation
+    /// JSON representation according to EIP-12 https://github.com/ergoplatform/eips/pull/23
+    /// (similar to [`Self::to_json`], but as JS object with box value and token amount encoding as strings)
+    pub fn to_js_eip12(&self) -> Result<JsValue, JsValue> {
+        let tx_dapp: UnsignedTransactionJsonEip12 = self.0.clone().into();
+        JsValue::from_serde(&tx_dapp).map_err(|e| JsValue::from_str(&format!("{}", e)))
+    }
+
+    /// parse from JSON
+    /// supports Ergo Node/Explorer API and box values and token amount encoded as strings
     pub fn from_json(json: &str) -> Result<UnsignedTransaction, JsValue> {
         serde_json::from_str(json).map(Self).map_err(to_js)
     }

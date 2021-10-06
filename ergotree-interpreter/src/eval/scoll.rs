@@ -561,7 +561,7 @@ mod tests {
         .unwrap()
         .into();
         let res = eval_out_wo_ctx::<Vec<i32>>(&expr);
-        assert_eq!(res, vec![]);
+        assert_eq!(res, Vec::<i32>::new());
     }
 
     #[test]

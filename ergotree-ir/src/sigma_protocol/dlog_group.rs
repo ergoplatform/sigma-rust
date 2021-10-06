@@ -21,14 +21,15 @@ use crate::serialization::SigmaSerializeResult;
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SigmaParsingError, SigmaSerializable,
 };
-use elliptic_curve::group::{ff::PrimeField, prime::PrimeCurveAffine};
+use elliptic_curve::group::ff::PrimeField;
+use elliptic_curve::group::prime::PrimeCurveAffine;
+use elliptic_curve::rand_core::RngCore;
 use k256::elliptic_curve::sec1::ToEncodedPoint;
 use k256::{ProjectivePoint, PublicKey, Scalar};
 use num_bigint::BigUint;
 use num_bigint::Sign;
 use num_bigint::ToBigUint;
 use num_traits::ToPrimitive;
-use rand::RngCore;
 use std::convert::TryFrom;
 use std::ops::{Add, Mul, Neg};
 

@@ -87,7 +87,7 @@ mod tests {
         )
         .unwrap()
         .into();
-        assert_eq!(eval_out_wo_ctx::<Vec<i64>>(&expr), vec![]);
+        assert_eq!(eval_out_wo_ctx::<Vec<i64>>(&expr), Vec::<i64>::new());
     }
 
     #[test]

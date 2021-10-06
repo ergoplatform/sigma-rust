@@ -1,21 +1,25 @@
+//! ErgoTree JSON encoding
+
 use crate::ergo_tree::ErgoTree;
 use crate::serialization::SigmaSerializable;
 use serde::{Deserialize, Deserializer, Serializer};
 
 use super::serialize_bytes;
 
+/// Serializer (used in Wasm bindings)
 pub fn serialize<S>(ergo_tree: &ErgoTree, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
     use serde::ser::Error;
+
     let bytes = ergo_tree
         .sigma_serialize_bytes()
         .map_err(|err| Error::custom(err.to_string()))?;
     serialize_bytes(&bytes[..], serializer)
 }
 
-pub fn deserialize<'de, D>(deserializer: D) -> Result<ErgoTree, D::Error>
+pub(crate) fn deserialize<'de, D>(deserializer: D) -> Result<ErgoTree, D::Error>
 where
     D: Deserializer<'de>,
 {

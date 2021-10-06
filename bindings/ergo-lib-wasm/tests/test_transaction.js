@@ -83,6 +83,8 @@ it('sign transaction', async () => {
   const box_selection = box_selector.select(unspent_boxes, target_balance, new Tokens());
   const tx_builder = TxBuilder.new(box_selection, tx_outputs, 0, fee, change_address, min_change_value);
   const tx = tx_builder.build();
+  // smoke test for to_js_eip12
+  assert(tx.to_js_eip12() != null);
   const tx_data_inputs = ErgoBoxes.from_boxes_json([]);
   const pre_header = PreHeader.from_block_header(block_headers.get(0));
   const ctx = new ErgoStateContext(pre_header);
@@ -91,6 +93,8 @@ it('sign transaction', async () => {
   const wallet = Wallet.from_secrets(sks);
   const signed_tx = wallet.sign_transaction(ctx, tx, unspent_boxes, tx_data_inputs);
   assert(signed_tx != null);
+  // smoke test for to_js_eip12
+  assert(signed_tx.to_js_eip12() != null);
 });
 
 it('TxBuilder mint token test', async () => {

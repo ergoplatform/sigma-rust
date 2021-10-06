@@ -16,6 +16,17 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - add `to_bytes()` for `BoxValue` and `TokenAmount` in Wasm [#387](https://github.com/ergoplatform/sigma-rust/pull/387);
 - `Constant::sigma_serialize_bytes()`, `ContextExtension::sigma_serialize_bytes()` in Wasm [#387](https://github.com/ergoplatform/sigma-rust/pull/387);
 - `TokenId::as_bytes()` and `BoxId::as_bytes()` in Wasm [#387](https://github.com/ergoplatform/sigma-rust/pull/387);
+- add (Coll[Byte], Coll[Byte]) and (Long, Long) support for Constant conversion in JS [#386](https://github.com/ergoplatform/sigma-rust/pull/386);
+- Serialization for `SigmaBoolean` types [#341](https://github.com/ergoplatform/sigma-rust/pull/351);
+- Diffie-Hellman tuples support in sigma protocol [#315](https://github.com/ergoplatform/sigma-rust/pull/315);
+- `Coll.zip` [#350](https://github.com/ergoplatform/sigma-rust/pull/350);
+- `BigInt256` 256-bit BigInt [#325](https://github.com/ergoplatform/sigma-rust/pull/325);
+- Logical XOR [#349](https://github.com/ergoplatform/sigma-rust/pull/349);
+- `groupGenerator` global variable [#340](https://github.com/ergoplatform/sigma-rust/pull/340);
+- `GroupElement.getEncoded` method for GroupElement [#335](https://github.com/ergoplatform/sigma-rust/pull/335);
+- `Negate` IR node for GroupElement [#334](https://github.com/ergoplatform/sigma-rust/pull/334);
+- `Exponentiate` IR node for GroupElement [#321](https://github.com/ergoplatform/sigma-rust/pull/321);
+- WASM `to_js_eip12()` (along `to_json()`) that encodes JSON according to [EIP-12](https://github.com/ergoplatform/eips/pull/23) (similar to JSON by `to_json()`, but box value and token amount encodes as strings to avoid accuracy loss in JS) [#346](https://github.com/ergoplatform/sigma-rust/pull/346);
 - `Coll.slice` [#309](https://github.com/ergoplatform/sigma-rust/pull/309);
 - Byte-wise XOR for byte arrays [#310](https://github.com/ergoplatform/sigma-rust/pull/310);
 - `Constant::from_i64_str_array` and `to_i64_str_array` for `Coll[Long]` encoding [#311](https://github.com/ergoplatform/sigma-rust/pull/311);
@@ -27,19 +38,22 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - `Constant::to/from_ergo_box`to Wasm API [#397](https://github.com/ergoplatform/sigma-rust/pull/397);
 
 ### Changed(BREAKING!):
-- `ErgoTree::to_bytes()` renamed to  `ErgoTree::sigma_serialize_bytes()` in Wasm [#387](https://github.com/ergoplatform/sigma-rust/pull/387);
-- `ErgoBox` and other types that it uses moved to `ergotree_ir` crate and re-exported in `ergo_lib::ergotree_ir` [#397](https://github.com/ergoplatform/sigma-rust/pull/397);
-
-### Changed
-- `SigmaSerializable:sigma_serialize` errors are extended beyond `io::Error` [#328](https://github.com/ergoplatform/sigma-rust/pull/328);
+- **WASM `to_json()` returns string (instead of `JsValue`) to avoid silent accuracy loss on JS object -> text conversion on JS side [#346](https://github.com/ergoplatform/sigma-rust/pull/346);**
 - `SigmaSerializable:sigma_serialize_bytes` made failible (returns `Result`) [#328](https://github.com/ergoplatform/sigma-rust/pull/328);
 - `ErgoBox::new`, `from_box_candidate` made failible (returns `Result`) [#328](https://github.com/ergoplatform/sigma-rust/pull/328);
 - `ErgoTree::new`, `template_bytes`, `to_base16_bytes` made failible (returns `Result`) [#328](https://github.com/ergoplatform/sigma-rust/pull/328);
 - `Transaction::new`  made failible (returns `Result`) [#328](https://github.com/ergoplatform/sigma-rust/pull/328);
 - WASM `ErgoBox::new`, `byte_to_sign` made failible (returns `Result`) [#328](https://github.com/ergoplatform/sigma-rust/pull/328);
 - WASM `ErgoTree::to_bytes`, `to_base16_bytes` made failible (returns `Result`) [#328](https://github.com/ergoplatform/sigma-rust/pull/328);
+- `ErgoTree::to_bytes()` renamed to  `ErgoTree::sigma_serialize_bytes()` in Wasm [#387](https://github.com/ergoplatform/sigma-rust/pull/387);
+- `ErgoBox` and other types that it uses moved to `ergotree_ir` crate and re-exported in `ergo_lib::ergotree_ir` [#397](https://github.com/ergoplatform/sigma-rust/pull/397);
+
+### Changed
+- Switched to `ThreadRng` CSPRNG for source of randomness in sigma protocol [#315](https://github.com/ergoplatform/sigma-rust/pull/315);
+- `SigmaSerializable:sigma_serialize` errors are extended beyond `io::Error` [#328](https://github.com/ergoplatform/sigma-rust/pull/328);
 - `ergotree-ir::mir::constant::constant_placeholder` module is public;
 - `ErgoTree::set_constant` is removed in favor of `ErgoTree::with_constant` with an added check for matching constant type[#323](https://github.com/ergoplatform/sigma-rust/pull/323);
+- Eliminate and ban panics (unwrap, panic!, todo!, etc) in `sigma-ser`, `ergotree-ir` and `ergotree-interpreter` crates [#328](https://github.com/ergoplatform/sigma-rust/pull/328), [#344](https://github.com/ergoplatform/sigma-rust/pull/344);
 
 ## [0.13.3] - 2021-06-11
 

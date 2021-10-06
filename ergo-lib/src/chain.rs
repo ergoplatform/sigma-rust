@@ -1,7 +1,7 @@
 //! Ergo chain types
 
 #[cfg(feature = "json")]
-mod json;
+pub mod json;
 
 pub mod contract;
 pub mod ergo_box;

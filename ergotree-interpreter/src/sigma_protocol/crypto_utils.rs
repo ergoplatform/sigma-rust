@@ -1,4 +1,4 @@
-use rand::RngCore;
+use elliptic_curve::rand_core::RngCore;
 
 /// Generate cryptographically secure random bytes
 pub fn secure_random_bytes(how_many: usize) -> Vec<u8> {

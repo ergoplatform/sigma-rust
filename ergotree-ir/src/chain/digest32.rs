@@ -131,7 +131,7 @@ pub enum Digest32Error {
 /// Arbitrary
 #[allow(clippy::unwrap_used)]
 #[cfg(feature = "arbitrary")]
-pub mod arbitrary {
+pub(crate) mod arbitrary {
 
     use super::Digest;
     use proptest::prelude::{Arbitrary, BoxedStrategy};
@@ -149,3 +149,6 @@ pub mod arbitrary {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {}

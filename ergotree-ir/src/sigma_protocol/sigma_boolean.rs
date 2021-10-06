@@ -361,6 +361,7 @@ mod arbitrary {
     }
 }
 
+#[allow(clippy::panic)]
 #[cfg(test)]
 #[allow(clippy::panic)]
 mod tests {
