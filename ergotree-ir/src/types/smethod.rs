@@ -37,7 +37,7 @@ pub struct SMethod {
 
 impl SMethod {
     /// Create new SMethod
-    pub(crate) const fn new(obj_type: STypeCompanion, method_raw: SMethodDesc) -> SMethod {
+    pub const fn new(obj_type: STypeCompanion, method_raw: SMethodDesc) -> SMethod {
         SMethod {
             obj_type,
             method_raw,
@@ -94,15 +94,17 @@ impl SMethod {
     }
 }
 
+/// Object method description
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub(crate) struct SMethodDesc {
+pub struct SMethodDesc {
     pub(crate) name: &'static str,
     pub(crate) method_id: MethodId,
     pub(crate) tpe: SFunc,
 }
 
 impl SMethodDesc {
-    pub(crate) fn property(
+    /// Initialize property method description
+    pub fn property(
         obj_tpe: SType,
         name: &'static str,
         res_tpe: SType,

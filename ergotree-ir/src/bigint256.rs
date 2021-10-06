@@ -81,6 +81,13 @@ impl From<i64> for BigInt256 {
     }
 }
 
+impl From<BigInt256> for BigInt {
+    fn from(value: BigInt256) -> Self {
+        let Int256(bi) = value.0;
+        bi
+    }
+}
+
 impl Deref for BigInt256 {
     type Target = Int256;
 

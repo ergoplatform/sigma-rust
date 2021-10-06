@@ -12,6 +12,36 @@ use super::stype_companion::STypeCompanion::Header;
 pub const TYPE_CODE: TypeCode = TypeCode::SHEADER;
 /// SHeader type name
 pub static TYPE_NAME: &str = "Header";
+/// `Header.id`
+pub const ID_METHOD_ID: MethodId = MethodId(1);
+/// `Header.version`
+pub const VERSION_METHOD_ID: MethodId = MethodId(2);
+/// `Header.parentId`
+pub const PARENT_ID_METHOD_ID: MethodId = MethodId(3);
+/// `Header.AdProofsRoot`
+pub const AD_PROOFS_ROOT_METHOD_ID: MethodId = MethodId(4);
+/// `Header.stateRoot`
+pub const STATE_ROOT_METHOD_ID: MethodId = MethodId(5);
+/// `Header.transactionsRoot`
+pub const TRANSACTIONS_ROOT_METHOD_ID: MethodId = MethodId(6);
+/// `Header.timestamp`
+pub const TIMESTAMP_METHOD_ID: MethodId = MethodId(7);
+/// `Header.nBits`
+pub const N_BITS_METHOD_ID: MethodId = MethodId(8);
+/// `Header.height`
+pub const HEIGHT_METHOD_ID: MethodId = MethodId(9);
+/// `Header.extensionRoot`
+pub const EXTENSION_ROOT_METHOD_ID: MethodId = MethodId(10);
+/// `Header.minerPk`
+pub const MINER_PK_METHOD_ID: MethodId = MethodId(11);
+/// `Header.powOnetimePk`
+pub const POW_ONETIME_PK_METHOD_ID: MethodId = MethodId(12);
+/// `Header.powNonce`
+pub const POW_NONCE_METHOD_ID: MethodId = MethodId(13);
+/// `Header.powDistance`
+pub const POW_DISTANCE_METHOD_ID: MethodId = MethodId(14);
+/// `Header.votes`
+pub const VOTES_METHOD_ID: MethodId = MethodId(15);
 
 lazy_static! {
     /// Header method descriptors
@@ -20,7 +50,7 @@ lazy_static! {
             &ID_PROPERTY_METHOD_DESC,
             &VERSION_PROPERTY_METHOD_DESC,
             &PARENT_ID_PROPERTY_METHOD_DESC,
-            &AD_PROOF_ROOT_PROPERTY_METHOD_DESC,
+            &AD_PROOFS_ROOT_PROPERTY_METHOD_DESC,
             &STATE_ROOT_PROPERTY_METHOD_DESC,
             &TRANSACTIONS_ROOT_PROPERTY_METHOD_DESC,
             &TIMESTAMP_PROPERTY_METHOD_DESC,
@@ -36,146 +66,92 @@ lazy_static! {
     ;
 }
 
-// todo all to one lazy_static
-
-pub const ID_PROPERTY_METHOD_ID: MethodId = MethodId(1);
 lazy_static! {
+    // Declaring public `SHeader` properties method signatures type
+
     pub static ref ID_PROPERTY: SMethod = SMethod::new(Header, ID_PROPERTY_METHOD_DESC.clone(),);
-    static ref ID_PROPERTY_METHOD_DESC: SMethodDesc =
-        property("id", SColl(SByte.into()), ID_PROPERTY_METHOD_ID);
-}
-
-pub const VERSION_PROPERTY_METHOD_ID: MethodId = MethodId(2);
-lazy_static! {
     pub static ref VERSION_PROPERTY: SMethod =
         SMethod::new(Header, VERSION_PROPERTY_METHOD_DESC.clone(),);
-    static ref VERSION_PROPERTY_METHOD_DESC: SMethodDesc =
-        property("version", SByte, VERSION_PROPERTY_METHOD_ID);
-}
-
-pub const PARENT_ID_PROPERTY_METHOD_ID: MethodId = MethodId(3);
-lazy_static! {
     pub static ref PARENT_ID_PROPERTY: SMethod =
         SMethod::new(Header, PARENT_ID_PROPERTY_METHOD_DESC.clone(),);
+    pub static ref AD_PROOFS_ROOT_PROPERTY: SMethod =
+        SMethod::new(Header, AD_PROOFS_ROOT_PROPERTY_METHOD_DESC.clone(),);
+    pub static ref STATE_ROOT_PROPERTY: SMethod =
+        SMethod::new(Header, STATE_ROOT_PROPERTY_METHOD_DESC.clone(),);
+    pub static ref TRANSACTIONS_ROOT_PROPERTY: SMethod =
+        SMethod::new(Header, TRANSACTIONS_ROOT_PROPERTY_METHOD_DESC.clone(),);
+    pub static ref TIMESTAMP_PROPERTY: SMethod =
+        SMethod::new(Header, TIMESTAMP_PROPERTY_METHOD_DESC.clone(),);
+    pub static ref N_BITS_PROPERTY: SMethod =
+        SMethod::new(Header, N_BITS_PROPERTY_METHOD_DESC.clone(),);
+    pub static ref HEIGHT_PROPERTY: SMethod =
+        SMethod::new(Header, HEIGHT_PROPERTY_METHOD_DESC.clone(),);
+    pub static ref EXTENSION_ROOT_PROPERTY: SMethod =
+        SMethod::new(Header, EXTENSION_ROOT_PROPERTY_METHOD_DESC.clone(),);
+    pub static ref MINER_PK_PROPERTY: SMethod =
+        SMethod::new(Header, MINER_PK_PROPERTY_METHOD_DESC.clone(),);
+    pub static ref POW_ONETIME_PK_PROPERTY: SMethod =
+        SMethod::new(Header, POW_ONETIME_PK_PROPERTY_METHOD_DESC.clone(),);
+    pub static ref POW_NONCE_PROPERTY: SMethod =
+        SMethod::new(Header, POW_NONCE_PROPERTY_METHOD_DESC.clone(),);
+    pub static ref POW_DISTANCE_PROPERTY: SMethod =
+        SMethod::new(Header, POW_DISTANCE_PROPERTY_METHOD_DESC.clone(),);
+    pub static ref VOTES_PROPERTY: SMethod =
+        SMethod::new(Header, VOTES_PROPERTY_METHOD_DESC.clone(),);
+
+    // Declaring private `SHeader` properties methods descriptors
+
+    static ref ID_PROPERTY_METHOD_DESC: SMethodDesc =
+        property("id", SColl(SByte.into()), ID_METHOD_ID);
+    static ref VERSION_PROPERTY_METHOD_DESC: SMethodDesc =
+        property("version", SByte, VERSION_METHOD_ID);
     static ref PARENT_ID_PROPERTY_METHOD_DESC: SMethodDesc = property(
         "parentId",
         SColl(SByte.into()),
-        PARENT_ID_PROPERTY_METHOD_ID
+        PARENT_ID_METHOD_ID
     );
-}
-
-pub const AD_PROOF_ROOT_PROPERTY_METHOD_ID: MethodId = MethodId(4);
-lazy_static! {
-    pub static ref AD_PROOF_ROOT_PROPERTY: SMethod =
-        SMethod::new(Header, AD_PROOF_ROOT_PROPERTY_METHOD_DESC.clone(),);
-    static ref AD_PROOF_ROOT_PROPERTY_METHOD_DESC: SMethodDesc = property(
+    static ref AD_PROOFS_ROOT_PROPERTY_METHOD_DESC: SMethodDesc = property(
         "ADProofsRoot",
         SColl(SByte.into()),
-        AD_PROOF_ROOT_PROPERTY_METHOD_ID
+        AD_PROOFS_ROOT_METHOD_ID
     );
-}
-
-pub const STATE_ROOT_PROPERTY_METHOD_ID: MethodId = MethodId(5);
-lazy_static! {
-    pub static ref STATE_ROOT_PROPERTY: SMethod =
-        SMethod::new(Header, STATE_ROOT_PROPERTY_METHOD_DESC.clone(),);
     static ref STATE_ROOT_PROPERTY_METHOD_DESC: SMethodDesc =
-        property("stateRoot", SType::SAvlTree, STATE_ROOT_PROPERTY_METHOD_ID);
-}
-
-pub const TRANSACTIONS_ROOT_PROPERTY_METHOD_ID: MethodId = MethodId(6);
-lazy_static! {
-    pub static ref TRANSACTIONS_ROOT_PROPERTY: SMethod =
-        SMethod::new(Header, TRANSACTIONS_ROOT_PROPERTY_METHOD_DESC.clone(),);
+        property("stateRoot", SType::SAvlTree, STATE_ROOT_METHOD_ID);
     static ref TRANSACTIONS_ROOT_PROPERTY_METHOD_DESC: SMethodDesc = property(
         "transactionsRoot",
         SColl(SByte.into()),
-        TRANSACTIONS_ROOT_PROPERTY_METHOD_ID
+        TRANSACTIONS_ROOT_METHOD_ID
     );
-}
-
-pub const TIMESTAMP_PROPERTY_METHOD_ID: MethodId = MethodId(7);
-lazy_static! {
-    pub static ref TIMESTAMP_PROPERTY: SMethod =
-        SMethod::new(Header, TIMESTAMP_PROPERTY_METHOD_DESC.clone(),);
     static ref TIMESTAMP_PROPERTY_METHOD_DESC: SMethodDesc =
-        property("timestamp", SType::SLong, TIMESTAMP_PROPERTY_METHOD_ID);
-}
-
-pub const N_BITS_PROPERTY_METHOD_ID: MethodId = MethodId(8);
-lazy_static! {
-    pub static ref N_BITS_PROPERTY: SMethod =
-        SMethod::new(Header, N_BITS_PROPERTY_METHOD_DESC.clone(),);
+        property("timestamp", SType::SLong, TIMESTAMP_METHOD_ID);
     static ref N_BITS_PROPERTY_METHOD_DESC: SMethodDesc =
-        property("nBits", SType::SLong, N_BITS_PROPERTY_METHOD_ID);
-}
-
-pub const HEIGHT_PROPERTY_METHOD_ID: MethodId = MethodId(9);
-lazy_static! {
-    pub static ref HEIGHT_PROPERTY: SMethod =
-        SMethod::new(Header, HEIGHT_PROPERTY_METHOD_DESC.clone(),);
+        property("nBits", SType::SLong, N_BITS_METHOD_ID);
     static ref HEIGHT_PROPERTY_METHOD_DESC: SMethodDesc =
-        property("height", SType::SInt, HEIGHT_PROPERTY_METHOD_ID);
-}
-
-pub const EXTENSION_ROOT_PROPERTY_METHOD_ID: MethodId = MethodId(10);
-lazy_static! {
-    pub static ref EXTENSION_ROOT_PROPERTY: SMethod =
-        SMethod::new(Header, EXTENSION_ROOT_PROPERTY_METHOD_DESC.clone(),);
+        property("height", SType::SInt, HEIGHT_METHOD_ID);
     static ref EXTENSION_ROOT_PROPERTY_METHOD_DESC: SMethodDesc = property(
         "extensionRoot",
         SColl(SByte.into()),
-        EXTENSION_ROOT_PROPERTY_METHOD_ID
+        EXTENSION_ROOT_METHOD_ID
     );
-}
-
-pub const MINER_PK_PROPERTY_METHOD_ID: MethodId = MethodId(11);
-lazy_static! {
-    pub static ref MINER_PK_PROPERTY: SMethod =
-        SMethod::new(Header, MINER_PK_PROPERTY_METHOD_DESC.clone(),);
     static ref MINER_PK_PROPERTY_METHOD_DESC: SMethodDesc =
-        property("minerPk", SType::SGroupElement, MINER_PK_PROPERTY_METHOD_ID);
-}
-
-pub const POW_ONETIME_PK_PROPERTY_METHOD_ID: MethodId = MethodId(12);
-lazy_static! {
-    pub static ref POW_ONETIME_PK_PROPERTY: SMethod =
-        SMethod::new(Header, POW_ONETIME_PK_PROPERTY_METHOD_DESC.clone(),);
+        property("minerPk", SType::SGroupElement, MINER_PK_METHOD_ID);
     static ref POW_ONETIME_PK_PROPERTY_METHOD_DESC: SMethodDesc = property(
         "powOnetimePk",
         SType::SGroupElement,
-        POW_ONETIME_PK_PROPERTY_METHOD_ID
+        POW_ONETIME_PK_METHOD_ID
     );
-}
-
-pub const POW_NONCE_PROPERTY_METHOD_ID: MethodId = MethodId(13);
-lazy_static! {
-    pub static ref POW_NONCE_PROPERTY: SMethod =
-        SMethod::new(Header, POW_NONCE_PROPERTY_METHOD_DESC.clone(),);
     static ref POW_NONCE_PROPERTY_METHOD_DESC: SMethodDesc = property(
         "powNonce",
         SColl(SByte.into()),
-        POW_NONCE_PROPERTY_METHOD_ID
+        POW_NONCE_METHOD_ID
     );
-}
-
-pub const POW_DISTANCE_PROPERTY_METHOD_ID: MethodId = MethodId(14);
-lazy_static! {
-    pub static ref POW_DISTANCE_PROPERTY: SMethod =
-        SMethod::new(Header, POW_DISTANCE_PROPERTY_METHOD_DESC.clone(),);
     static ref POW_DISTANCE_PROPERTY_METHOD_DESC: SMethodDesc = property(
         "powDistance",
         SType::SBigInt,
-        POW_DISTANCE_PROPERTY_METHOD_ID
+        POW_DISTANCE_METHOD_ID
     );
-}
-
-pub const VOTES_PROPERTY_METHOD_ID: MethodId = MethodId(15);
-lazy_static! {
-    pub static ref VOTES_PROPERTY: SMethod =
-        SMethod::new(Header, VOTES_PROPERTY_METHOD_DESC.clone(),);
     static ref VOTES_PROPERTY_METHOD_DESC: SMethodDesc =
-        property("votes", SColl(SByte.into()), VOTES_PROPERTY_METHOD_ID);
+        property("votes", SColl(SByte.into()), VOTES_METHOD_ID);
 }
 
 fn property(name: &'static str, res_tpe: SType, id: MethodId) -> SMethodDesc {

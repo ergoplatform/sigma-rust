@@ -79,6 +79,7 @@ pub(crate) mod scoll;
 pub(crate) mod scontext;
 pub(crate) mod select_field;
 pub(crate) mod sgroup_elem;
+pub(crate) mod sheader;
 pub(crate) mod sigma_and;
 pub(crate) mod sigma_or;
 pub(crate) mod sigma_prop_bytes;
@@ -269,6 +270,30 @@ fn smethod_eval_fn(method: &SMethod) -> Result<EvalFn, EvalError> {
                 return Err(EvalError::NotFound(format!(
                     "Eval fn: unknown method id in SOption: {:?}",
                     method_id
+                )))
+            }
+        },
+        sheader::TYPE_CODE => match method.method_id() {
+            sheader::VERSION_METHOD_ID => self::sheader::VERSION_EVAL_FN,
+            sheader::ID_METHOD_ID => self::sheader::ID_EVAL_FN,
+            sheader::PARENT_ID_METHOD_ID => self::sheader::PARENT_ID_EVAL_FN,
+            sheader::AD_PROOFS_ROOT_METHOD_ID => self::sheader::AD_PROOFS_ROOT_EVAL_FN,
+            sheader::STATE_ROOT_METHOD_ID => self::sheader::STATE_ROOT_EVAL_FN,
+            sheader::TRANSACTIONS_ROOT_METHOD_ID => self::sheader::TRANSACTION_ROOT_EVAL_FN,
+            sheader::EXTENSION_ROOT_METHOD_ID => self::sheader::EXTENSION_ROOT_EVAL_FN,
+            sheader::TIMESTAMP_METHOD_ID => self::sheader::TIMESTAMP_EVAL_FN,
+            sheader::N_BITS_METHOD_ID => self::sheader::N_BITS_EVAL_FN,
+            sheader::HEIGHT_METHOD_ID => self::sheader::HEIGHT_EVAL_FN,
+            sheader::MINER_PK_METHOD_ID => self::sheader::MINER_PK_EVAL_FN,
+            sheader::POW_ONETIME_PK_METHOD_ID => self::sheader::POW_ONETIME_PK_EVAL_FN,
+            sheader::POW_DISTANCE_METHOD_ID => self::sheader::POW_DISTANCE_EVAL_FN,
+            sheader::POW_NONCE_METHOD_ID => self::sheader::POW_NONCE_EVAL_FN,
+            sheader::VOTES_METHOD_ID => self::sheader::VOTES_EVAL_FN,
+            method_id => {
+                return Err(EvalError::NotFound(format!(
+                    "Eval fn: method {:?} with method id {:?} not found in SHeader",
+                    method.name(),
+                    method_id,
                 )))
             }
         },
