@@ -20,7 +20,7 @@ lazy_static! {
     pub(crate) static ref METHOD_DESC: Vec<&'static SMethodDesc> = vec![
         &DATA_INPUTS_PROPERTY_METHOD_DESC,
         &HEADERS_PROPERTY_METHOD_DESC,
-        &PRE_HEADERS_PROPERTY_METHOD_DESC,
+        &PRE_HEADER_PROPERTY_METHOD_DESC,
         &INPUTS_PROPERTY_METHOD_DESC,
         &OUTPUTS_PROPERTY_METHOD_DESC,
         &HEIGHT_PROPERTY_METHOD_DESC,
@@ -60,15 +60,15 @@ lazy_static! {
     );
 }
 
-pub const PRE_HEADERS_PROPERTY_METHOD_ID: MethodId = MethodId(3);
+pub const PRE_HEADER_PROPERTY_METHOD_ID: MethodId = MethodId(3);
 lazy_static! {
-    static ref PRE_HEADERS_PROPERTY_METHOD_DESC: SMethodDesc =
-        property("preHeader", SPreHeader, PRE_HEADERS_PROPERTY_METHOD_ID);
+    static ref PRE_HEADER_PROPERTY_METHOD_DESC: SMethodDesc =
+        property("preHeader", SPreHeader, PRE_HEADER_PROPERTY_METHOD_ID);
 }
 lazy_static! {
-    pub static ref PRE_HEADERS_PROPERTY: SMethod = SMethod::new(
+    pub static ref PRE_HEADER_PROPERTY: SMethod = SMethod::new(
         STypeCompanion::Context,
-        PRE_HEADERS_PROPERTY_METHOD_DESC.clone()
+        PRE_HEADER_PROPERTY_METHOD_DESC.clone()
     );
 }
 

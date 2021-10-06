@@ -1,12 +1,11 @@
 //! Block header
 use num_bigint::BigInt;
 
-use crate::mir::header::PreHeader;
 use crate::sigma_protocol::dlog_group;
 
 use super::block_id::BlockId;
-use super::digest32::ADDigest;
-use super::digest32::Digest32;
+use super::digest32::{ADDigest, Digest32};
+use super::preheader::PreHeader;
 use super::votes::Votes;
 
 /// Represents data of the block header available in Sigma propositions.
@@ -86,17 +85,16 @@ impl Header {
     }
 }
 
-// TODO: [sab] refactor when implementing this https://github.com/ergoplatform/sigma-rust/issues/373
 impl From<Header> for PreHeader {
     fn from(bh: Header) -> Self {
         PreHeader {
             version: bh.version,
-            parent_id: bh.parent_id.0.into(),
+            parent_id: bh.parent_id,
             timestamp: bh.timestamp,
             n_bits: bh.n_bits,
             height: bh.height,
-            miner_pk: dlog_group::identity().into(), // TODO: get from bh.powSolution when its implemented
-            votes: bh.votes.into(),
+            miner_pk: bh.miner_pk,
+            votes: bh.votes,
         }
     }
 }

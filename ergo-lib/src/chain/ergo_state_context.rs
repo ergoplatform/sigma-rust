@@ -2,7 +2,7 @@
 use std::convert::TryInto;
 
 use ergotree_ir::chain::header::Header;
-use ergotree_ir::mir::header::PreHeader;
+use ergotree_ir::chain::preheader::PreHeader;
 
 /// Blockchain state (last headers, etc.)
 #[derive(PartialEq, Eq, Debug, Clone)]

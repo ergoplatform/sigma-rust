@@ -60,6 +60,16 @@ pub(crate) static HEADERS_EVAL_FN: EvalFn = |_env, ctx, obj, _args| {
     }))
 };
 
+pub(crate) static PRE_HEADER_EVAL_FN: EvalFn = |_env, ctx, obj, _args| {
+    if obj != Value::Context {
+        return Err(EvalError::UnexpectedValue(format!(
+            "Context.preHeader: expected object of Value::Context, got {:?}",
+            obj
+        )));
+    }
+    Ok(Box::from(ctx.ctx.pre_header.clone()).into())
+};
+
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
 #[allow(clippy::unwrap_used, clippy::expect_used)]
@@ -68,6 +78,7 @@ mod tests {
     use crate::eval::tests::eval_out;
     use ergotree_ir::chain::ergo_box::ErgoBox;
     use ergotree_ir::chain::header::Header;
+    use ergotree_ir::chain::preheader::PreHeader;
     use ergotree_ir::mir::expr::Expr;
     use ergotree_ir::mir::property_call::PropertyCall;
     use ergotree_ir::types::scontext;
@@ -103,5 +114,14 @@ mod tests {
             .into();
         let ctx = Rc::new(force_any_val::<Context>());
         assert_eq!(eval_out::<[Header; 10]>(&expr, ctx.clone()), ctx.headers);
+    }
+
+    #[test]
+    fn eval_preheader() {
+        let expr: Expr = PropertyCall::new(Expr::Context, scontext::PRE_HEADER_PROPERTY.clone())
+            .unwrap()
+            .into();
+        let ctx = Rc::new(force_any_val::<Context>());
+        assert_eq!(eval_out::<PreHeader>(&expr, ctx.clone()), ctx.pre_header);
     }
 }

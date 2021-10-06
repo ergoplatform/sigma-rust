@@ -3,7 +3,7 @@ use std::rc::Rc;
 use crate::sigma_protocol::prover::ContextExtension;
 use ergotree_ir::chain::ergo_box::ErgoBox;
 use ergotree_ir::chain::header::Header;
-use ergotree_ir::mir::header::PreHeader;
+use ergotree_ir::chain::preheader::PreHeader;
 
 /// Interpreter's context (blockchain state)
 #[derive(Debug)]
