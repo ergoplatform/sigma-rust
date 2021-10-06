@@ -173,14 +173,14 @@ mod tests {
             .into()
     }
 
-    fn digest_from_bytes_signed<const N: usize>(bytes: Vec<i8>) -> Digest<N> {
-        let arr = arr_from_bytes_signed::<N>(bytes);
-        arr.into()
-    }
-
     fn block_id_from_bytes_signed(bytes: Vec<i8>) -> BlockId {
         let arr32 = digest_from_bytes_signed::<32>(bytes);
         BlockId(arr32)
+    }
+
+    fn digest_from_bytes_signed<const N: usize>(bytes: Vec<i8>) -> Digest<N> {
+        let arr = arr_from_bytes_signed::<N>(bytes);
+        arr.into()
     }
 
     fn arr_from_bytes_signed<const N: usize>(bytes: Vec<i8>) -> [u8; N] {
@@ -191,15 +191,15 @@ mod tests {
     }
 
     #[test]
-    fn test_eval_header_version() {
+    fn test_eval_version() {
         let expr = create_get_header_property_expr(sheader::VERSION_PROPERTY.clone());
         let ctx = Rc::new(force_any_val::<Context>());
-        let version = ctx.headers[HEADER_INDEX].version;
-        assert_eq!(version as i8, eval_out::<i8>(&expr, ctx.clone()));
+        let version = ctx.headers[HEADER_INDEX].version as i8;
+        assert_eq!(version, eval_out::<i8>(&expr, ctx.clone()));
     }
 
     #[test]
-    fn test_eval_header_ids() {
+    fn test_eval_ids() {
         let ctx = Rc::new(force_any_val::<Context>());
         let expected = ctx
             .headers
@@ -241,27 +241,27 @@ mod tests {
     fn test_eval_timestamp() {
         let expr = create_get_header_property_expr(sheader::TIMESTAMP_PROPERTY.clone());
         let ctx = Rc::new(force_any_val::<Context>());
-        let expected = ctx.headers[HEADER_INDEX].timestamp;
+        let expected = ctx.headers[HEADER_INDEX].timestamp as i64;
         let actual = eval_out::<i64>(&expr, ctx.clone());
-        assert_eq!(expected as i64, actual);
+        assert_eq!(expected, actual);
     }
 
     #[test]
     fn test_eval_n_bits() {
         let expr = create_get_header_property_expr(sheader::N_BITS_PROPERTY.clone());
         let ctx = Rc::new(force_any_val::<Context>());
-        let expected = ctx.headers[HEADER_INDEX].n_bits;
+        let expected = ctx.headers[HEADER_INDEX].n_bits as i64;
         let actual = eval_out::<i64>(&expr, ctx.clone());
-        assert_eq!(expected as i64, actual);
+        assert_eq!(expected, actual);
     }
 
     #[test]
     fn test_eval_height() {
         let expr = create_get_header_property_expr(sheader::HEIGHT_PROPERTY.clone());
         let ctx = Rc::new(force_any_val::<Context>());
-        let expected = ctx.headers[HEADER_INDEX].height;
+        let expected = ctx.headers[HEADER_INDEX].height as i32;
         let actual = eval_out::<i32>(&expr, ctx.clone());
-        assert_eq!(expected as i32, actual);
+        assert_eq!(expected, actual);
     }
 
     #[test]
