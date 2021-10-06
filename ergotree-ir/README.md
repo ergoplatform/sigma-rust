@@ -15,7 +15,6 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 
 ### Predefined functions
 
-- downcast
 - atLeast
 - avlTree
 - treeLookup
@@ -28,60 +27,15 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 
 #### AvlTree 
 
-- digest
-- enabledOperations
-- keyLength
-- valueLengthOpt
-- isInsertAllowed
-- isUpdateAllowed
-- isRemoveAllowed
-- updateOperations
 - contains
 - get
 - getMany
-- insert
 - update
 - remove
-- updateDigest
-
-#### Header
-
-- id
-- version
-- parentId
-- ADProofsRoot
-- stateRoot
-- transactionsRoot
-- timestamp
-- nBits
-- height
-- extensionRoot
-- minerPk
-- powOnetimePk
-- powNonce
-- powDistance
-- votes
-
-
-#### PreHeader
-
-- version
-- parentId
-- timestamp
-- nBits
-- height
-- minerPk
-- votes
-
 
 #### Context
 
-- headers
-- preHeader
 - LastBlockUtxoRootHash
-
-
-
 
 
 ## Implemented operations (IR nodes): 
@@ -133,6 +87,7 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 - decodePoint
 - groupGenerator [#332](https://github.com/ergoplatform/sigma-rust/issues/332)
 - xorOf [#356](https://github.com/ergoplatform/sigma-rust/issues/356)
+- downcast
 
 ### Object properties and methods
 
@@ -159,6 +114,34 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 - bytes
 - bytesWithoutRef
 
+#### Header
+
+- id
+- version
+- parentId
+- ADProofsRoot
+- stateRoot
+- transactionsRoot
+- timestamp
+- nBits
+- height
+- extensionRoot
+- minerPk
+- powOnetimePk
+- powNonce
+- powDistance
+- votes
+
+#### PreHeader
+
+- version
+- parentId
+- timestamp
+- nBits
+- height
+- minerPk
+- votes
+
 #### Context
 
 - dataInputs
@@ -169,6 +152,21 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 - minerPubKey
 - getVar
 - selfBoxIndex
+- headers
+- preHeader
+
+#### AvlTree 
+
+- digest
+- enabledOperations
+- keyLength
+- valueLengthOpt
+- isInsertAllowed
+- isUpdateAllowed
+- isRemoveAllowed
+- updateOperations
+- insert
+- updateDigest
 
 #### Collection
 

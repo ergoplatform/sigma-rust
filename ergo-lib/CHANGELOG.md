@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [Unreleased] - ReleaseDate
 
 ### Added 
+- `Header` properties [#433](https://github.com/ergoplatform/sigma-rust/pull/433); 
+- `PreHeader` properties [#435](https://github.com/ergoplatform/sigma-rust/pull/435);
+- `AvlTree` properties [#432](https://github.com/ergoplatform/sigma-rust/pull/432);
+- `AvlTree.insert` [#413](https://github.com/ergoplatform/sigma-rust/pull/413);
+- `SubstConstants` [#410](https://github.com/ergoplatform/sigma-rust/pull/410);
+- `Box.bytesWithoutRef` [#409](https://github.com/ergoplatform/sigma-rust/pull/409);
+- `Downcast` [#408](https://github.com/ergoplatform/sigma-rust/pull/408);
+- `Address::P2SH` support [#407](https://github.com/ergoplatform/sigma-rust/pull/407);
+- `Context.selfBoxIndex` [#405](https://github.com/ergoplatform/sigma-rust/pull/405);
+- Ensure JSON parsing for explorer API [#398](https://github.com/ergoplatform/sigma-rust/pull/398);
 - `Box.bytes` [#390](https://github.com/ergoplatform/sigma-rust/pull/390);
 - add (Coll[Byte], Coll[Byte]) and (Long, Long) support for Constant conversion in JS [#386](https://github.com/ergoplatform/sigma-rust/pull/386);
 - add `ErgoBox::serialized_additional_registers()` in Wasm [#387](https://github.com/ergoplatform/sigma-rust/pull/387);
