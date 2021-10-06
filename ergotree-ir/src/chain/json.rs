@@ -3,7 +3,7 @@
 use serde::Serializer;
 
 pub(crate) mod ergo_box;
-pub(crate) mod ergo_tree;
+pub mod ergo_tree;
 
 /// Serialize bytes ([u8]) as base16 encoded string
 pub fn serialize_bytes<S, T>(bytes: T, serializer: S) -> Result<S::Ok, S::Error>

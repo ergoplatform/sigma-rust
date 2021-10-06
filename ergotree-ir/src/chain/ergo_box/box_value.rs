@@ -1,13 +1,13 @@
 //! Box value newtype
 
 use crate::chain::token::TokenAmountError;
-use derive_more::FromStr;
-use ergotree_ir::mir::constant::Constant;
-use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
-use ergotree_ir::serialization::SigmaSerializeResult;
-use ergotree_ir::serialization::{
+use crate::mir::constant::Constant;
+use crate::serialization::sigma_byte_writer::SigmaByteWrite;
+use crate::serialization::SigmaSerializeResult;
+use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SigmaParsingError, SigmaSerializable,
 };
+use derive_more::FromStr;
 use std::convert::TryFrom;
 use thiserror::Error;
 
@@ -211,7 +211,7 @@ pub fn checked_sum<I: Iterator<Item = BoxValue>>(mut iter: I) -> Result<BoxValue
 
 /// Arbitrary
 #[cfg(feature = "arbitrary")]
-pub(crate) mod arbitrary {
+pub mod arbitrary {
     use derive_more::{From, Into};
     use proptest::{arbitrary::Arbitrary, prelude::*};
     use std::ops::Range;

@@ -3,19 +3,19 @@
 use std::convert::TryInto;
 
 use derive_more::FromStr;
-use ergo_lib::chain::ergo_box::BoxId;
-use ergo_lib::chain::ergo_box::BoxValue;
-use ergo_lib::chain::ergo_box::ErgoBox;
-use ergo_lib::chain::ergo_box::ErgoBoxCandidate;
-use ergo_lib::chain::ergo_box::NonMandatoryRegisters;
-use ergo_lib::chain::token::Token;
-use ergo_lib::chain::token::TokenId;
 use ergo_lib::chain::transaction::unsigned::UnsignedTransaction;
 use ergo_lib::chain::transaction::DataInput;
 use ergo_lib::chain::transaction::Input;
 use ergo_lib::chain::transaction::Transaction;
 use ergo_lib::chain::transaction::TxId;
 use ergo_lib::chain::transaction::UnsignedInput;
+use ergo_lib::ergotree_ir::chain::ergo_box::box_value::BoxValue;
+use ergo_lib::ergotree_ir::chain::ergo_box::BoxId;
+use ergo_lib::ergotree_ir::chain::ergo_box::ErgoBox;
+use ergo_lib::ergotree_ir::chain::ergo_box::ErgoBoxCandidate;
+use ergo_lib::ergotree_ir::chain::ergo_box::NonMandatoryRegisters;
+use ergo_lib::ergotree_ir::chain::token::Token;
+use ergo_lib::ergotree_ir::chain::token::TokenId;
 use ergo_lib::ergotree_ir::ergo_tree::ErgoTree;
 use serde::Serialize;
 
@@ -85,7 +85,10 @@ pub(crate) struct ErgoBoxJsonEip12 {
     #[serde(rename = "value")]
     pub value: BoxValueJsonEip12,
     /// guarding script, which should be evaluated to true in order to open this box
-    #[serde(rename = "ergoTree", with = "ergo_lib::chain::json::ergo_tree")]
+    #[serde(
+        rename = "ergoTree",
+        with = "ergo_lib::ergotree_ir::chain::json::ergo_tree"
+    )]
     pub ergo_tree: ErgoTree,
     /// secondary tokens the box contains
     #[serde(rename = "assets")]
@@ -130,7 +133,10 @@ pub(crate) struct ErgoBoxCandidateJsonEip12 {
     #[serde(rename = "value")]
     pub value: BoxValueJsonEip12,
     /// guarding script, which should be evaluated to true in order to open this box
-    #[serde(rename = "ergoTree", with = "ergo_lib::chain::json::ergo_tree")]
+    #[serde(
+        rename = "ergoTree",
+        with = "ergo_lib::ergotree_ir::chain::json::ergo_tree"
+    )]
     pub ergo_tree: ErgoTree,
     #[serde(rename = "assets")]
     pub tokens: Vec<TokenJsonEip12>,
@@ -184,7 +190,7 @@ impl From<Token> for TokenJsonEip12 {
     fn from(t: Token) -> Self {
         TokenJsonEip12 {
             token_id: t.token_id,
-            amount: TokenAmountJsonEip12(t.amount.as_u64()),
+            amount: TokenAmountJsonEip12(*t.amount.as_u64()),
         }
     }
 }
@@ -196,6 +202,7 @@ pub struct TokenAmountJsonEip12(
     // Encodes as string always
     #[serde_as(as = "serde_with::DisplayFromStr")] u64,
 );
+
 #[cfg(test)]
 mod tests {
     use super::*;

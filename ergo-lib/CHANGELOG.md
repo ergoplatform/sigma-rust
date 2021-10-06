@@ -38,10 +38,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - `Constant::to/from_ergo_box`to Wasm API [#397](https://github.com/ergoplatform/sigma-rust/pull/397);
 
 ### Changed(BREAKING!):
-- `ErgoTree::to_bytes()` renamed to  `ErgoTree::sigma_serialize_bytes()` in Wasm [#387](https://github.com/ergoplatform/sigma-rust/pull/387);
-- `ErgoBox` and other types that it uses moved to `ergotree_ir` crate and re-exported in `ergo_lib::ergotree_ir` [#397](https://github.com/ergoplatform/sigma-rust/pull/397);
-
-### Changed(BREAKING)
 - **WASM `to_json()` returns string (instead of `JsValue`) to avoid silent accuracy loss on JS object -> text conversion on JS side [#346](https://github.com/ergoplatform/sigma-rust/pull/346);**
 - `SigmaSerializable:sigma_serialize_bytes` made failible (returns `Result`) [#328](https://github.com/ergoplatform/sigma-rust/pull/328);
 - `ErgoBox::new`, `from_box_candidate` made failible (returns `Result`) [#328](https://github.com/ergoplatform/sigma-rust/pull/328);
@@ -49,6 +45,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - `Transaction::new`  made failible (returns `Result`) [#328](https://github.com/ergoplatform/sigma-rust/pull/328);
 - WASM `ErgoBox::new`, `byte_to_sign` made failible (returns `Result`) [#328](https://github.com/ergoplatform/sigma-rust/pull/328);
 - WASM `ErgoTree::to_bytes`, `to_base16_bytes` made failible (returns `Result`) [#328](https://github.com/ergoplatform/sigma-rust/pull/328);
+- `ErgoTree::to_bytes()` renamed to  `ErgoTree::sigma_serialize_bytes()` in Wasm [#387](https://github.com/ergoplatform/sigma-rust/pull/387);
+- `ErgoBox` and other types that it uses moved to `ergotree_ir` crate and re-exported in `ergo_lib::ergotree_ir` [#397](https://github.com/ergoplatform/sigma-rust/pull/397);
 
 ### Changed
 - Switched to `ThreadRng` CSPRNG for source of randomness in sigma protocol [#315](https://github.com/ergoplatform/sigma-rust/pull/315);

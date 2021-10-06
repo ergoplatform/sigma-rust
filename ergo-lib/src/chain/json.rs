@@ -6,6 +6,7 @@ pub(crate) mod transaction;
 use ergotree_interpreter::sigma_protocol::prover::ProofBytes;
 use serde::{Deserialize, Serialize};
 
+/// Serde remote type
 #[cfg_attr(
     feature = "json",
     derive(Serialize, Deserialize),

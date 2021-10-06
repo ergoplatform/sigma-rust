@@ -6,7 +6,6 @@ use ergotree_ir::sigma_protocol::dlog_group;
 use ergotree_ir::sigma_protocol::sigma_boolean::ProveDhTuple;
 use ergotree_ir::sigma_protocol::sigma_boolean::ProveDlog;
 
-use elliptic_curve::group::ff::PrimeField;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 use k256::Scalar;
 

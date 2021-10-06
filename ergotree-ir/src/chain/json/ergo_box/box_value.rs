@@ -1,6 +1,7 @@
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
-    use crate::chain::ergo_box::BoxValue;
+    use crate::chain::ergo_box::box_value::BoxValue;
     use std::convert::TryInto;
 
     #[test]

@@ -1,3 +1,5 @@
+//! ErgoTree JSON encoding
+
 use crate::ergo_tree::ErgoTree;
 use crate::serialization::SigmaSerializable;
 use serde::{Deserialize, Deserializer, Serializer};
