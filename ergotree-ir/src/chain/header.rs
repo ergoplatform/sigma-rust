@@ -4,9 +4,9 @@ use num_bigint::BigInt;
 use crate::sigma_protocol::dlog_group;
 
 use super::block_id::BlockId;
-use super::digest32::{Digest32, ADDigest};
-use super::votes::Votes;
+use super::digest32::{ADDigest, Digest32};
 use super::preheader::PreHeader;
+use super::votes::Votes;
 
 /// Represents data of the block header available in Sigma propositions.
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
@@ -95,7 +95,7 @@ impl From<Header> for PreHeader {
             n_bits: bh.n_bits,
             height: bh.height,
             miner_pk: bh.miner_pk,
-            votes: bh.votes.into(),
+            votes: bh.votes,
         }
     }
 }

@@ -1,6 +1,6 @@
-use super::EvalFn;
-
 use ergotree_ir::{chain::preheader::PreHeader, mir::constant::TryExtractInto};
+
+use super::EvalFn;
 
 pub(crate) static VERSION_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
     let preheader = obj.try_extract_into::<PreHeader>()?;

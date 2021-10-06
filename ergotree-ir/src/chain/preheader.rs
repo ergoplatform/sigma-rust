@@ -1,6 +1,7 @@
+//! Block header with fields that can be predicted by miner
 use crate::sigma_protocol::dlog_group;
 
-use super::{votes::Votes, block_id::BlockId, digest32::Digest32};
+use super::{block_id::BlockId, digest32::Digest32, votes::Votes};
 
 /// Block header with the current `spendingTransaction`, that can be predicted
 /// by a miner before it's formation
@@ -40,7 +41,6 @@ impl PreHeader {
 #[cfg(feature = "arbitrary")]
 mod arbitrary {
     use proptest::array::{uniform3, uniform32};
-    use proptest::collection::vec;
     use proptest::prelude::*;
 
     use crate::sigma_protocol::dlog_group::EcPoint;

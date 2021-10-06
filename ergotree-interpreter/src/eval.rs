@@ -77,7 +77,6 @@ pub(crate) mod savltree;
 pub(crate) mod sbox;
 pub(crate) mod scoll;
 pub(crate) mod scontext;
-pub(crate) mod spreheader;
 pub(crate) mod select_field;
 pub(crate) mod sgroup_elem;
 pub(crate) mod sheader;
@@ -85,6 +84,7 @@ pub(crate) mod sigma_and;
 pub(crate) mod sigma_or;
 pub(crate) mod sigma_prop_bytes;
 pub(crate) mod soption;
+pub(crate) mod spreheader;
 pub(crate) mod subst_const;
 pub(crate) mod tuple;
 pub(crate) mod upcast;
@@ -299,12 +299,21 @@ fn smethod_eval_fn(method: &SMethod) -> Result<EvalFn, EvalError> {
             }
         },
         spreheader::TYPE_CODE => match method.method_id() {
-            method_id => return Err(EvalError::NotFound(format!(
-                "Eval fn: method {:?} with method id {:?} not found in SPreHeader",
-                method.name(),
-                method_id,
-            )))
-        }
+            spreheader::VERSION_METHOD_ID => self::spreheader::VERSION_EVAL_FN,
+            spreheader::PARENT_ID_METHOD_ID => self::spreheader::PARENT_ID_EVAL_FN,
+            spreheader::TIMESTAMP_METHOD_ID => self::spreheader::TIMESTAMP_EVAL_FN,
+            spreheader::N_BITS_METHOD_ID => self::spreheader::N_BITS_EVAL_FN,
+            spreheader::HEIGHT_METHOD_ID => self::spreheader::HEIGHT_EVAL_FN,
+            spreheader::MINER_PK_METHOD_ID => self::spreheader::MINER_PK_EVAL_FN,
+            spreheader::VOTES_METHOD_ID => self::spreheader::VOTES_EVAL_FN,
+            method_id => {
+                return Err(EvalError::NotFound(format!(
+                    "Eval fn: method {:?} with method id {:?} not found in SPreHeader",
+                    method.name(),
+                    method_id,
+                )))
+            }
+        },
         type_id => {
             return Err(EvalError::NotFound(format!(
                 "Eval fn: unknown type id {:?}",
