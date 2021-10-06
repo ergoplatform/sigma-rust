@@ -167,20 +167,19 @@ mod tests {
         assert!(try_eval_out_wo_ctx::<i8>(&expr).is_err());
     }
 
-    // TODO: [sab] implement after merging https://github.com/ergoplatform/sigma-rust/pull/433
-    // #[test]
-    // fn test_eval_failed_unknown_property() {
-    //     let unknown_property = {
-    //         use ergotree_ir::types::{
-    //             smethod::{MethodId, SMethod, SMethodDesc},
-    //             stype::SType,
-    //             stype_companion::STypeCompanion,
-    //         };
-    //         let method_desc =
-    //             SMethodDesc::property(SType::SPreHeader, "unknown", SType::SByte, MethodId(100));
-    //         SMethod::new(STypeCompanion::PreHeader, method_desc)
-    //     };
-    //     let expr = create_get_preheader_property_expr(unknown_property);
-    //     assert!(try_eval_out_wo_ctx::<i8>(&expr).is_err());
-    // }
+    #[test]
+    fn test_eval_failed_unknown_property() {
+        let unknown_property = {
+            use ergotree_ir::types::{
+                smethod::{MethodId, SMethodDesc},
+                stype::SType,
+                stype_companion::STypeCompanion,
+            };
+            let method_desc =
+                SMethodDesc::property(SType::SPreHeader, "unknown", SType::SByte, MethodId(100));
+            SMethod::new(STypeCompanion::PreHeader, method_desc)
+        };
+        let expr = create_get_preheader_property_expr(unknown_property);
+        assert!(try_eval_out_wo_ctx::<i8>(&expr).is_err());
+    }
 }
