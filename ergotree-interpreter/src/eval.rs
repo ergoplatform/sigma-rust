@@ -212,6 +212,7 @@ fn smethod_eval_fn(method: &SMethod) -> Result<EvalFn, EvalError> {
             savltree::GET_METHOD_ID => self::savltree::GET_EVAL_FN,
             savltree::GET_MANY_METHOD_ID => self::savltree::GET_MANY_EVAL_FN,
             savltree::INSERT_METHOD_ID => self::savltree::INSERT_EVAL_FN,
+            savltree::CONTAINS_METHOD_ID => self::savltree::CONTAINS_EVAL_FN,
             savltree::REMOVE_METHOD_ID => self::savltree::REMOVE_EVAL_FN,
             savltree::UPDATE_METHOD_ID => self::savltree::UPDATE_EVAL_FN,
             method_id => {

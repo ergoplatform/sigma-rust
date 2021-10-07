@@ -315,6 +315,53 @@ pub(crate) static REMOVE_EVAL_FN: EvalFn =
         }
     };
 
+pub(crate) static CONTAINS_EVAL_FN: EvalFn = |_env, _ctx, obj, args| {
+    let avl_tree_data = obj.try_extract_into::<AvlTreeData>()?;
+    let key = {
+        let v = args
+            .get(0)
+            .cloned()
+            .ok_or_else(|| EvalError::AvlTree("eval is missing first arg (key)".to_string()))?;
+        Bytes::from(v.try_extract_into::<Vec<u8>>()?)
+    };
+
+    let proof = {
+        let v = args
+            .get(1)
+            .cloned()
+            .ok_or_else(|| EvalError::AvlTree("eval is missing second arg (proof)".to_string()))?;
+        Bytes::from(v.try_extract_into::<Vec<u8>>()?)
+    };
+
+    let starting_digest = Bytes::from(avl_tree_data.digest.0.to_vec());
+    let mut bv = BatchAVLVerifier::new(
+        &starting_digest,
+        &proof,
+        AVLTree::new(
+            |digest| Node::LabelOnly(NodeHeader::new(Some(*digest), None)),
+            avl_tree_data.key_length as usize,
+            avl_tree_data
+                .value_length_opt
+                .as_ref()
+                .map(|v| **v as usize),
+        ),
+        None,
+        None,
+    )
+    .map_err(map_eval_err)?;
+
+    match bv.perform_one_operation(&Operation::Lookup(key)) {
+        Ok(s) => match s {
+            Some(_e) => Ok(Value::Boolean(true)),
+            _ => Ok(Value::Boolean(false)),
+        },
+        Err(_) => Err(EvalError::AvlTree(format!(
+            "Incorrect contains call for {:?}",
+            avl_tree_data
+        ))),
+    }
+};
+
 pub(crate) static UPDATE_EVAL_FN: EvalFn =
     |_env, _ctx, obj, args| {
         let mut avl_tree_data = obj.try_extract_into::<AvlTreeData>()?;
@@ -820,6 +867,11 @@ mod tests {
             } else {
                 unreachable!();
             }
+        }
+
+        #[test]
+        fn eval_avl_contains(v in any::<AvlTreeData>(), new_digest in any::<ADDigest>()) {
+            todo!();
         }
     }
 
