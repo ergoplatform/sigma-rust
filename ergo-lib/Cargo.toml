@@ -15,7 +15,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 
-sigma-ser = { version = "0.2.3", path = "../sigma-ser" }
+sigma-ser = { version = "^0.3.0", path = "../sigma-ser" }
 sigma-util = { version = "0.2.1", path = "../sigma-util" }
 ergotree-ir = { version = "0.13.3", path = "../ergotree-ir", features = ["json"] }
 ergotree-interpreter = { version = "0.13.3", path = "../ergotree-interpreter" }
