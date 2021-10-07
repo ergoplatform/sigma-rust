@@ -49,5 +49,5 @@ arbitrary = ["proptest", "proptest-derive"]
 ergotree-ir = { version = "^0.13.0", path = "../ergotree-ir", features = ["arbitrary"] }
 ergoscript-compiler = { version = "^0.9.0", path = "../ergoscript-compiler" }
 proptest = "1.0.0"
-sigma-test-util = { version = "0.2.0", path = "../sigma-test-util" }
+sigma-test-util = { version = "^0.3.0", path = "../sigma-test-util" }
 
