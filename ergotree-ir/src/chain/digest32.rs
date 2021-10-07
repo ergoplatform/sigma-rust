@@ -1,7 +1,5 @@
 //! Digest types for various sizes
 
-use crate::chain::base16_bytes::Base16DecodedBytes;
-use crate::chain::base16_bytes::Base16EncodedBytes;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::SigmaParsingError;
@@ -17,7 +15,10 @@ use thiserror::Error;
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "json",
-    serde(into = "Base16EncodedBytes", try_from = "Base16DecodedBytes")
+    serde(
+        into = "crate::chain::base16_bytes::Base16EncodedBytes",
+        try_from = "crate::chain::base16_bytes::Base16DecodedBytes"
+    )
 )]
 #[derive(PartialEq, Eq, Hash, Clone)]
 pub struct Digest<const N: usize>(pub Box<[u8; N]>);

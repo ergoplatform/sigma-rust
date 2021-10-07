@@ -17,7 +17,8 @@ pub struct Votes(pub [u8; 3]);
 
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone)]
-#[serde(untagged)]
+#[cfg_attr(feature = "json", serde(untagged))]
+#[allow(dead_code)]
 enum VotesEncodingVariants {
     AsStr(Base16DecodedBytes),
     AsByteArray(Vec<u8>), // explorer v1

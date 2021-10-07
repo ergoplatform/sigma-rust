@@ -14,8 +14,8 @@ exclude = [
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-sigma-ser = { version = "^0.2.0", path = "../sigma-ser" }
-sigma-util = { version = "^0.2.0", path = "../sigma-util" }
+sigma-ser = { version = "0.2.3", path = "../sigma-ser" }
+sigma-util = { version = "0.2.1", path = "../sigma-util" }
 k256 = { version = "0.9.6", features = ["zeroize", "arithmetic", "ecdsa"] }
 elliptic-curve = {version = "0.10.6", features = ["zeroize", "ff"]}
 thiserror = "1"
@@ -55,7 +55,7 @@ features = [ "json" ]
 optional = true
 
 [features]
-default = []
+default = ["json"]
 arbitrary = ["proptest", "proptest-derive"]
 json = ["serde", "serde_json", "serde_with"]
 
