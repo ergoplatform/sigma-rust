@@ -29,6 +29,8 @@ pub const IS_UPDATE_ALLOWED_METHOD_ID: MethodId = MethodId(6);
 pub const IS_REMOVE_ALLOWED_METHOD_ID: MethodId = MethodId(7);
 /// AvlTree.updateOperations property
 pub const UPDATE_OPERATIONS_METHOD_ID: MethodId = MethodId(8);
+/// AvlTree.contains property
+pub const CONTAINS_METHOD_ID: MethodId = MethodId(9);
 /// AvlTree.get property
 pub const GET_METHOD_ID: MethodId = MethodId(10);
 /// AvlTree.getMany property
@@ -54,6 +56,7 @@ lazy_static! {
             &IS_UPDATE_ALLOWED_METHOD_DESC,
             &IS_REMOVE_ALLOWED_METHOD_DESC,
             &UPDATE_OPERATIONS_METHOD_DESC,
+            &CONTAINS_METHOD_DESC,
             &GET_METHOD_DESC,
             &GET_MANY_METHOD_DESC,
             &INSERT_METHOD_DESC,
@@ -269,6 +272,25 @@ lazy_static! {
     /// AvlTree.remove
     pub static ref REMOVE_METHOD: SMethod =
         SMethod::new(STypeCompanion::AvlTree, REMOVE_METHOD_DESC.clone(),);
+}
+
+lazy_static! {
+    static ref CONTAINS_METHOD_DESC: SMethodDesc = SMethodDesc {
+        method_id: CONTAINS_METHOD_ID,
+        name: "contains",
+        tpe: SFunc {
+            t_dom: vec![
+                SType::SAvlTree,
+                SType::SColl(Box::new(SType::SByte)),
+                SType::SColl(Box::new(SType::SByte)),
+            ],
+            t_range: SType::SBoolean.into(),
+            tpe_params: vec![],
+        },
+    };
+    /// AvlTree.contains
+    pub static ref CONTAINS_METHOD: SMethod =
+        SMethod::new(STypeCompanion::AvlTree, CONTAINS_METHOD_DESC.clone(),);
 }
 
 lazy_static! {
