@@ -21,7 +21,12 @@ jobs:
         with:
           toolchain: stable
           override: true
-      - name: Build
+      - name: Build ergotree-ir
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --no-default-features --manifest-path ergotree-ir/Cargo.toml
+      - name: Build ergo-lib 
         uses: actions-rs/cargo@v1
         with:
           command: build
