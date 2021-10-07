@@ -533,14 +533,10 @@ mod tests {
             }
             .into(),
         );
-        
+
         let key1 = Literal::try_from(vec![1u8]).unwrap();
         let keys = Constant {
-            tpe: SType::SColl(
-                Box::new(
-                    SType::SColl(Box::new(SType::SByte))
-                )
-            ),
+            tpe: SType::SColl(Box::new(SType::SColl(Box::new(SType::SByte)))),
             v: Literal::Coll(CollKind::WrappedColl {
                 items: vec![key1],
                 elem_tpe: SType::SColl(Box::new(SType::SByte)),
@@ -583,11 +579,10 @@ mod tests {
             });
             prover.perform_one_operation(&op).unwrap();
         }
-        
+
         prover.generate_proof();
         prover
     }
-
 
     fn mk_pair(x: u8, y: u64) -> [Literal; 2] {
         [
