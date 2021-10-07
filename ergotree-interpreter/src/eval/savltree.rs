@@ -149,6 +149,66 @@ pub(crate) static INSERT_EVAL_FN: EvalFn =
         }
     };
 
+pub(crate) static REMOVE_EVAL_FN: EvalFn =
+    |_env, _ctx, obj, args| {
+        let mut avl_tree_data = obj.try_extract_into::<AvlTreeData>()?;
+
+        if !avl_tree_data.tree_flags.remove_allowed() {
+            return Err(EvalError::AvlTree("Removals not allowed".into()));
+        }
+
+        let keys = {
+            let v = args.get(0).cloned().ok_or_else(|| {
+                EvalError::AvlTree("eval is missing first arg (keys)".to_string())
+            })?;
+            v.try_extract_into::<Vec<Vec<u8>>>()?
+        };
+
+        let proof = {
+            let v = args.get(1).cloned().ok_or_else(|| {
+                EvalError::AvlTree("eval is missing second arg (proof)".to_string())
+            })?;
+            Bytes::from(v.try_extract_into::<Vec<u8>>()?)
+        };
+
+        let starting_digest = Bytes::from(avl_tree_data.digest.0.to_vec());
+        let mut bv = BatchAVLVerifier::new(
+            &starting_digest,
+            &proof,
+            AVLTree::new(
+                |digest| Node::LabelOnly(NodeHeader::new(Some(*digest), None)),
+                avl_tree_data.key_length as usize,
+                avl_tree_data
+                    .value_length_opt
+                    .as_ref()
+                    .map(|v| **v as usize),
+            ),
+            None,
+            None,
+        )
+        .map_err(map_eval_err)?;
+        for key in keys {
+            if bv
+                .perform_one_operation(&Operation::Remove(Bytes::from(key)))
+                .is_err()
+            {
+                return Err(EvalError::AvlTree(format!(
+                    "Incorrect remove for {:?}",
+                    avl_tree_data
+                )));
+            }
+        }
+        if let Some(new_digest) = bv.digest() {
+            let digest = ADDigest::sigma_parse_bytes(&new_digest)?;
+            avl_tree_data.digest = digest;
+            Ok(Value::Opt(Box::new(Some(Value::AvlTree(
+                avl_tree_data.into(),
+            )))))
+        } else {
+            Err(EvalError::AvlTree("Cannot update digest".into()))
+        }
+    };
+
 fn map_eval_err<T: std::fmt::Debug>(e: T) -> EvalError {
     EvalError::AvlTree(format!("{:?}", e))
 }
@@ -442,6 +502,86 @@ mod tests {
                 unreachable!();
             }
         }
+    }
+
+    #[test]
+    fn eval_avl_remove() {
+        let mut prover = populate_tree(vec![(vec![1u8], 10u64.to_be_bytes().to_vec())]);
+        let initial_digest =
+            ADDigest::sigma_parse_bytes(&prover.digest().unwrap().into_iter().collect::<Vec<_>>())
+                .unwrap();
+
+        let key1 = Bytes::from(vec![1u8]);
+        let op1 = Operation::Remove(key1);
+        prover.perform_one_operation(&op1).unwrap();
+        let final_digest =
+            ADDigest::sigma_parse_bytes(&prover.digest().unwrap().into_iter().collect::<Vec<_>>())
+                .unwrap();
+        let proof: Constant = prover
+            .generate_proof()
+            .into_iter()
+            .collect::<Vec<_>>()
+            .into();
+
+        let tree_flags = AvlTreeFlags::new(false, false, true);
+        let obj = Expr::Const(
+            AvlTreeData {
+                digest: initial_digest,
+                tree_flags,
+                key_length: 1,
+                value_length_opt: None,
+            }
+            .into(),
+        );
+
+        let key1 = Literal::try_from(vec![1u8]).unwrap();
+        let keys = Constant {
+            tpe: SType::SColl(Box::new(SType::SColl(Box::new(SType::SByte)))),
+            v: Literal::Coll(CollKind::WrappedColl {
+                items: vec![key1],
+                elem_tpe: SType::SColl(Box::new(SType::SByte)),
+            }),
+        };
+        let expr: Expr = MethodCall::new(
+            obj,
+            savltree::REMOVE_METHOD.clone(),
+            vec![keys.into(), proof.into()],
+        )
+        .unwrap()
+        .into();
+
+        let res = eval_out_wo_ctx::<Value>(&expr);
+        if let Value::Opt(opt) = res {
+            if let Some(Value::AvlTree(avl)) = *opt {
+                assert_eq!(avl.digest, final_digest);
+            } else {
+                unreachable!();
+            }
+        } else {
+            unreachable!();
+        }
+    }
+
+    fn populate_tree(entries: Vec<(Vec<u8>, Vec<u8>)>) -> BatchAVLProver {
+        let mut prover = BatchAVLProver::new(
+            AVLTree::new(
+                |digest| Node::LabelOnly(NodeHeader::new(Some(*digest), None)),
+                1,
+                None,
+            ),
+            true,
+        );
+
+        for (key, value) in entries {
+            let op = Operation::Insert(KeyValue {
+                key: Bytes::from(key),
+                value: Bytes::from(value),
+            });
+            prover.perform_one_operation(&op).unwrap();
+        }
+
+        prover.generate_proof();
+        prover
     }
 
     fn mk_pair(x: u8, y: u64) -> [Literal; 2] {
