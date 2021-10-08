@@ -29,6 +29,10 @@ pub const IS_UPDATE_ALLOWED_METHOD_ID: MethodId = MethodId(6);
 pub const IS_REMOVE_ALLOWED_METHOD_ID: MethodId = MethodId(7);
 /// AvlTree.updateOperations property
 pub const UPDATE_OPERATIONS_METHOD_ID: MethodId = MethodId(8);
+/// AvlTree.get property
+pub const GET_METHOD_ID: MethodId = MethodId(10);
+/// AvlTree.getMany property
+pub const GET_MANY_METHOD_ID: MethodId = MethodId(11);
 /// AvlTree.insert property
 pub const INSERT_METHOD_ID: MethodId = MethodId(12);
 /// AvlTree.updateDigest property
@@ -43,6 +47,8 @@ lazy_static! {
     pub(crate) static ref METHOD_DESC: Vec<&'static SMethodDesc> =
         vec![
             &DIGEST_METHOD_DESC,
+            &GET_METHOD_DESC,
+            &GET_MANY_METHOD_DESC,
             &INSERT_METHOD_DESC,
             &ENABLED_OPERATIONS_METHOD_DESC,
             &KEY_LENGTH_METHOD_DESC,
@@ -191,6 +197,44 @@ lazy_static! {
     /// AvlTree.updateOperations
     pub static ref UPDATE_OPERATIONS_METHOD: SMethod =
         SMethod::new(STypeCompanion::AvlTree, UPDATE_OPERATIONS_METHOD_DESC.clone(),);
+}
+
+lazy_static! {
+    static ref GET_METHOD_DESC: SMethodDesc = SMethodDesc {
+        method_id: GET_METHOD_ID,
+        name: "get",
+        tpe: SFunc {
+            t_dom: vec![ SType::SAvlTree,
+                         SType::SColl(SType::SByte.into()),
+                         SType::SColl(SType::SByte.into()),
+                       ],
+            t_range: SType::SOption(SType::SColl(SType::SByte.into()).into()).into(),
+            tpe_params: vec![],
+        },
+    };
+
+    /// AvlTree.get
+    pub static ref GET_METHOD: SMethod =
+        SMethod::new(STypeCompanion::AvlTree, GET_METHOD_DESC.clone(),);
+}
+
+lazy_static! {
+    static ref GET_MANY_METHOD_DESC: SMethodDesc = SMethodDesc {
+        method_id: GET_MANY_METHOD_ID,
+        name: "getMany",
+        tpe: SFunc {
+            t_dom: vec![ SType::SAvlTree,
+                         SType::SColl(SType::SColl(SType::SByte.into()).into()),
+                         SType::SColl(SType::SByte.into()),
+                       ],
+            t_range: SType::SColl(SType::SOption(SType::SColl(SType::SByte.into()).into()).into()).into(),
+            tpe_params: vec![],
+        },
+    };
+
+    /// AvlTree.getMany
+    pub static ref GET_MANY_METHOD: SMethod =
+        SMethod::new(STypeCompanion::AvlTree, GET_MANY_METHOD_DESC.clone(),);
 }
 
 lazy_static! {
