@@ -14,6 +14,11 @@ pub struct Contract(chain::contract::Contract);
 
 #[wasm_bindgen]
 impl Contract {
+    /// Create new contract from ErgoTree
+    pub fn new(ergo_tree: ErgoTree) -> Contract {
+        Contract(chain::contract::Contract::new(ergo_tree.into()))
+    }
+
     /// create new contract that allow spending of the guarded box by a given recipient ([`Address`])
     pub fn pay_to_address(recipient: &Address) -> Result<Contract, JsValue> {
         chain::contract::Contract::pay_to_address(&recipient.clone().into())
