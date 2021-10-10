@@ -49,4 +49,28 @@ impl Wallet {
             .map_err(to_js)
             .map(Transaction::from)
     }
+
+    /// Reduce a transaction
+    /// `tx` - transaction to reduce
+    /// `boxes_to_spend` - boxes to spend
+    /// `data_boxes` - data inputs
+    #[wasm_bindgen]
+    pub fn reduce_transaction(
+        &self,
+        _state_context: &ErgoStateContext,
+        tx: &UnsignedTransaction,
+        boxes_to_spend: &ErgoBoxes,
+        data_boxes: &ErgoBoxes,
+    ) -> Result<Vec<u8>, JsValue> {
+        let boxes_to_spend: Vec<chain::ergo_box::ErgoBox> = boxes_to_spend.clone().into();
+        let data_boxes: Vec<chain::ergo_box::ErgoBox> = data_boxes.clone().into();
+        let tx_context = ergo_lib::wallet::signing::TransactionContext {
+            spending_tx: tx.clone().into(),
+            boxes_to_spend,
+            data_boxes,
+        };
+        self.0
+            .reduce_transaction(tx_context, &_state_context.clone().into())
+            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+    }
 }
