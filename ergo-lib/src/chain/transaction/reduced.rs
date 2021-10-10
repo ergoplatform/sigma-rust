@@ -29,7 +29,6 @@ use super::TxIoVec;
 /// see EIP-19 for more details - https://github.com/ergoplatform/eips/blob/f280890a4163f2f2e988a0091c078e36912fc531/eip-0019.md
 #[derive(PartialEq, Debug, Clone)]
 pub struct ReducedInput {
-    // TODO: add box_id?
     /// Input box script reduced to SigmaBoolean
     pub reduction_result: ReductionResult,
     /// ContextExtension for the input

@@ -20,6 +20,8 @@ use wasm_bindgen::prelude::*;
 extern crate derive_more;
 use derive_more::{From, Into};
 
+pub mod reduced;
+
 /// Transaction id
 #[wasm_bindgen]
 #[derive(PartialEq, Eq, Debug, Clone, From, Into)]
