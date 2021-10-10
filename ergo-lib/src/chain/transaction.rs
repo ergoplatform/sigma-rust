@@ -2,6 +2,7 @@
 
 mod data_input;
 pub mod input;
+pub mod reduced;
 pub mod unsigned;
 
 use bounded_vec::BoundedVec;
