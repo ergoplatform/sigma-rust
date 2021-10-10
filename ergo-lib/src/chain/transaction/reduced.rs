@@ -8,8 +8,16 @@ use ergotree_interpreter::eval::reduce_to_crypto;
 use ergotree_interpreter::eval::ReductionResult;
 use ergotree_interpreter::sigma_protocol::prover::ContextExtension;
 use ergotree_interpreter::sigma_protocol::prover::ProverError;
+use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
+use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
+use ergotree_ir::serialization::SigmaParsingError;
+use ergotree_ir::serialization::SigmaSerializable;
+use ergotree_ir::serialization::SigmaSerializeResult;
+use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 
 use crate::chain::ergo_state_context::ErgoStateContext;
+use crate::chain::transaction::Transaction;
+use crate::chain::transaction::UnsignedInput;
 use crate::wallet::signing::make_context;
 use crate::wallet::signing::TransactionContext;
 use crate::wallet::signing::TxSigningError;
@@ -19,6 +27,7 @@ use super::TxIoVec;
 
 /// Input box script reduced to SigmaBoolean
 /// see EIP-19 for more details - https://github.com/ergoplatform/eips/blob/f280890a4163f2f2e988a0091c078e36912fc531/eip-0019.md
+#[derive(PartialEq, Debug, Clone)]
 pub struct ReducedInput {
     // TODO: add box_id?
     /// Input box script reduced to SigmaBoolean
@@ -34,6 +43,7 @@ pub struct ReducedInput {
 /// in an environment where secrets are known.
 /// see EIP-19 for more details - https://github.com/ergoplatform/eips/blob/f280890a4163f2f2e988a0091c078e36912fc531/eip-0019.md
 /// Reference Scala implementation - https://github.com/ergoplatform/ergo-appkit/blob/1b7347caa863ecb0b9ba49ae57b090d1f386c906/common/src/main/java/org/ergoplatform/appkit/AppkitProvingInterpreter.scala#L261-L266
+#[derive(PartialEq, Debug)]
 pub struct ReducedTransaction {
     /// Unsigned transation
     pub unsigned_tx: UnsignedTransaction,
@@ -41,7 +51,6 @@ pub struct ReducedTransaction {
     pub reduced_inputs: TxIoVec<ReducedInput>,
 }
 
-// TODO: move to signing?
 /// Reduce each input of unsigned transaction to sigma proposition
 pub fn reduce_tx(
     tx_context: TransactionContext,
@@ -75,4 +84,45 @@ pub fn reduce_tx(
         unsigned_tx: tx.clone(),
         reduced_inputs,
     })
+}
+
+impl SigmaSerializable for ReducedTransaction {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
+        let msg = self.unsigned_tx.bytes_to_sign()?;
+        w.put_usize_as_u32_unwrapped(msg.len())?;
+        self.reduced_inputs.as_vec().iter().try_for_each(|red_in| {
+            red_in.reduction_result.sigma_prop.sigma_serialize(w)?;
+            Ok(w.put_u64(red_in.reduction_result.cost)?)
+        })
+    }
+
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
+        let bytes_len = r.get_u32()?;
+        let mut buf = vec![0u8; bytes_len as usize];
+        r.read_exact(buf.as_mut_slice())?;
+        let tx = Transaction::sigma_parse_bytes(&buf)?;
+        let input_pairs: TxIoVec<(ReducedInput, UnsignedInput)> =
+            tx.inputs.try_mapped::<_, _, SigmaParsingError>(|input| {
+                let sigma_prop = SigmaBoolean::sigma_parse(r)?;
+                let cost = r.get_u64()?;
+                let extension = input.spending_proof.extension;
+                let reduced_input = ReducedInput {
+                    reduction_result: ReductionResult { sigma_prop, cost },
+                    extension: extension.clone(),
+                };
+                let unsigned_input = UnsignedInput {
+                    box_id: input.box_id,
+                    extension,
+                };
+                Ok((reduced_input, unsigned_input))
+            })?;
+        let reduced_inputs = input_pairs.clone().mapped(|p| p.0);
+        let unsigned_inputs = input_pairs.mapped(|p| p.1);
+        let unsigned_tx =
+            UnsignedTransaction::new(unsigned_inputs, tx.data_inputs, tx.output_candidates)?;
+        Ok(ReducedTransaction {
+            unsigned_tx,
+            reduced_inputs,
+        })
+    }
 }
