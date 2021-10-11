@@ -119,7 +119,7 @@ mod tests {
         );
         let pow_onetime_pk = eval_out::<EcPoint>(
             &create_get_header_property_expr(sheader::POW_ONETIME_PK_PROPERTY.clone()),
-            ctx.clone(),
+            ctx,
         );
         [miner_pk, pow_onetime_pk].map(Box::new)
     }
@@ -147,14 +147,14 @@ mod tests {
         );
         let parent_id = eval_out::<Vec<i8>>(
             &create_get_header_property_expr(sheader::PARENT_ID_PROPERTY.clone()),
-            ctx.clone(),
+            ctx,
         );
         [id, parent_id].map(block_id_from_bytes_signed)
     }
 
     fn create_get_header_property_expr(method: SMethod) -> Expr {
         let get_headers_expr = create_get_header_by_index_expr();
-        create_header_property_call_expr(get_headers_expr.clone(), method)
+        create_header_property_call_expr(get_headers_expr, method)
     }
 
     // An `Expr` for such code in ErgoScript `CONTEXT.headers(0)`
@@ -184,10 +184,10 @@ mod tests {
     }
 
     fn arr_from_bytes_signed<const N: usize>(bytes: Vec<i8>) -> [u8; N] {
-        bytes.as_vec_u8().try_into().expect(&format!(
-            "internal error: bytes buffer length is not equal to {}",
-            N
-        ))
+        bytes
+            .as_vec_u8()
+            .try_into()
+            .unwrap_or_else(|_| panic!("internal error: bytes buffer length is not equal to {}", N))
     }
 
     #[test]
@@ -195,7 +195,7 @@ mod tests {
         let expr = create_get_header_property_expr(sheader::VERSION_PROPERTY.clone());
         let ctx = Rc::new(force_any_val::<Context>());
         let version = ctx.headers[HEADER_INDEX].version as i8;
-        assert_eq!(version, eval_out::<i8>(&expr, ctx.clone()));
+        assert_eq!(version, eval_out::<i8>(&expr, ctx));
     }
 
     #[test]
@@ -206,7 +206,7 @@ mod tests {
             .get(HEADER_INDEX)
             .map(|h| [h.id.clone(), h.parent_id.clone()])
             .expect("internal error: empty headers array");
-        let actual = eval_header_ids(ctx.clone());
+        let actual = eval_header_ids(ctx);
         assert_eq!(expected, actual);
     }
 
@@ -224,7 +224,7 @@ mod tests {
                 ]
             })
             .expect("internal error: empty headers array");
-        let actual = eval_header_roots(ctx.clone());
+        let actual = eval_header_roots(ctx);
         assert_eq!(expected, actual);
     }
 
@@ -233,7 +233,7 @@ mod tests {
         let expr = create_get_header_property_expr(sheader::STATE_ROOT_PROPERTY.clone());
         let ctx = Rc::new(force_any_val::<Context>());
         let expected = ctx.headers[HEADER_INDEX].state_root.clone();
-        let actual = digest_from_bytes_signed::<33>(eval_out::<Vec<i8>>(&expr, ctx.clone()));
+        let actual = digest_from_bytes_signed::<33>(eval_out::<Vec<i8>>(&expr, ctx));
         assert_eq!(expected, actual);
     }
 
@@ -242,7 +242,7 @@ mod tests {
         let expr = create_get_header_property_expr(sheader::TIMESTAMP_PROPERTY.clone());
         let ctx = Rc::new(force_any_val::<Context>());
         let expected = ctx.headers[HEADER_INDEX].timestamp as i64;
-        let actual = eval_out::<i64>(&expr, ctx.clone());
+        let actual = eval_out::<i64>(&expr, ctx);
         assert_eq!(expected, actual);
     }
 
@@ -251,7 +251,7 @@ mod tests {
         let expr = create_get_header_property_expr(sheader::N_BITS_PROPERTY.clone());
         let ctx = Rc::new(force_any_val::<Context>());
         let expected = ctx.headers[HEADER_INDEX].n_bits as i64;
-        let actual = eval_out::<i64>(&expr, ctx.clone());
+        let actual = eval_out::<i64>(&expr, ctx);
         assert_eq!(expected, actual);
     }
 
@@ -260,7 +260,7 @@ mod tests {
         let expr = create_get_header_property_expr(sheader::HEIGHT_PROPERTY.clone());
         let ctx = Rc::new(force_any_val::<Context>());
         let expected = ctx.headers[HEADER_INDEX].height as i32;
-        let actual = eval_out::<i32>(&expr, ctx.clone());
+        let actual = eval_out::<i32>(&expr, ctx);
         assert_eq!(expected, actual);
     }
 
@@ -272,7 +272,7 @@ mod tests {
             .get(HEADER_INDEX)
             .map(|h| [h.miner_pk.clone(), h.pow_onetime_pk.clone()])
             .expect("internal error: empty headers array");
-        let actual = eval_header_pks(ctx.clone());
+        let actual = eval_header_pks(ctx);
         assert_eq!(expected, actual);
     }
 
