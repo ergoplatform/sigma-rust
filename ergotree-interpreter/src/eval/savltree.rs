@@ -5,9 +5,7 @@ use ergotree_ir::chain::digest32::ADDigest;
 use ergotree_ir::mir::avl_tree_data::AvlTreeData;
 use ergotree_ir::mir::avl_tree_data::AvlTreeFlags;
 use ergotree_ir::mir::constant::TryExtractInto;
-use ergotree_ir::mir::value::CollKind;
-use ergotree_ir::mir::value::NativeColl;
-use ergotree_ir::mir::value::Value;
+use ergotree_ir::mir::value::{CollKind, NativeColl, Value};
 use ergotree_ir::serialization::SigmaSerializable;
 use scorex_crypto_avltree::authenticated_tree_ops::AuthenticatedTreeOps;
 use scorex_crypto_avltree::batch_avl_verifier::BatchAVLVerifier;
@@ -19,6 +17,8 @@ use scorex_crypto_avltree::operation::Operation;
 
 use super::EvalError;
 use super::EvalFn;
+use ergotree_ir::types::stype::SType;
+use ergotree_ir::util::AsVecI8;
 
 pub(crate) static DIGEST_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
     let avl_tree_data = obj.try_extract_into::<AvlTreeData>()?;
@@ -85,6 +85,112 @@ pub(crate) static UPDATE_DIGEST_EVAL_FN: EvalFn = |_env, _ctx, obj, args| {
     avl_tree_data.digest = new_digest;
     Ok(Value::AvlTree(Box::new(avl_tree_data)))
 };
+
+pub(crate) static GET_EVAL_FN: EvalFn =
+    |_env, _ctx, obj, args| {
+        let avl_tree_data = obj.try_extract_into::<AvlTreeData>()?;
+
+        let key = {
+            let v = args.get(0).cloned().ok_or_else(|| {
+                EvalError::AvlTree("eval is missing first arg (entries)".to_string())
+            })?;
+            v.try_extract_into::<Vec<u8>>()?
+        };
+        let proof = {
+            let v = args.get(1).cloned().ok_or_else(|| {
+                EvalError::AvlTree("eval is missing second arg (proof)".to_string())
+            })?;
+            Bytes::from(v.try_extract_into::<Vec<u8>>()?)
+        };
+
+        let starting_digest = Bytes::from(avl_tree_data.digest.0.to_vec());
+        let mut bv = BatchAVLVerifier::new(
+            &starting_digest,
+            &proof,
+            AVLTree::new(
+                |digest| Node::LabelOnly(NodeHeader::new(Some(*digest), None)),
+                avl_tree_data.key_length as usize,
+                avl_tree_data
+                    .value_length_opt
+                    .as_ref()
+                    .map(|v| **v as usize),
+            ),
+            None,
+            None,
+        )
+        .map_err(map_eval_err)?;
+
+        match bv.perform_one_operation(&Operation::Lookup(Bytes::from(key))) {
+            Ok(opt) => match opt {
+                Some(v) => Ok(Value::Opt(Box::new(Some(Value::Coll(
+                    CollKind::NativeColl(NativeColl::CollByte(v.to_vec().as_vec_i8())),
+                ))))),
+                _ => Ok(Value::Opt(Box::new(None))),
+            },
+            Err(_) => Err(EvalError::AvlTree(format!(
+                "Tree proof is incorrect {:?}",
+                avl_tree_data
+            ))),
+        }
+    };
+
+pub(crate) static GET_MANY_EVAL_FN: EvalFn =
+    |_env, _ctx, obj, args| {
+        let avl_tree_data = obj.try_extract_into::<AvlTreeData>()?;
+
+        let keys = {
+            let v = args.get(0).cloned().ok_or_else(|| {
+                EvalError::AvlTree("eval is missing first arg (entries)".to_string())
+            })?;
+            v.try_extract_into::<Vec<Vec<u8>>>()?
+        };
+        let proof = {
+            let v = args.get(1).cloned().ok_or_else(|| {
+                EvalError::AvlTree("eval is missing second arg (proof)".to_string())
+            })?;
+            Bytes::from(v.try_extract_into::<Vec<u8>>()?)
+        };
+
+        let starting_digest = Bytes::from(avl_tree_data.digest.0.to_vec());
+        let mut bv = BatchAVLVerifier::new(
+            &starting_digest,
+            &proof,
+            AVLTree::new(
+                |digest| Node::LabelOnly(NodeHeader::new(Some(*digest), None)),
+                avl_tree_data.key_length as usize,
+                avl_tree_data
+                    .value_length_opt
+                    .as_ref()
+                    .map(|v| **v as usize),
+            ),
+            None,
+            None,
+        )
+        .map_err(map_eval_err)?;
+
+        let mut res = vec![];
+        for key in keys {
+            if let Ok(r) = bv.perform_one_operation(&Operation::Lookup(Bytes::from(key))) {
+                if let Some(v) = r {
+                    res.push(Value::Opt(Box::new(Some(Value::Coll(
+                        CollKind::NativeColl(NativeColl::CollByte(v.to_vec().as_vec_i8())),
+                    )))))
+                } else {
+                    res.push(Value::Opt(Box::new(None)))
+                }
+            } else {
+                return Err(EvalError::AvlTree(format!(
+                    "Tree proof is incorrect {:?}",
+                    avl_tree_data
+                )));
+            }
+        }
+
+        Ok(Value::Coll(CollKind::WrappedColl {
+            elem_tpe: SType::SOption(Box::new(SType::SColl(Box::new(SType::SByte)))),
+            items: res,
+        }))
+    };
 
 pub(crate) static INSERT_EVAL_FN: EvalFn =
     |_env, _ctx, obj, args| {
@@ -298,6 +404,156 @@ mod tests {
     use crate::eval::tests::eval_out_wo_ctx;
 
     use super::*;
+    use ergotree_ir::util::AsVecU8;
+
+    #[test]
+    fn eval_avl_get() {
+        let mut prover = populate_tree(vec![(vec![1u8], 10u64.to_be_bytes().to_vec())]);
+        let initial_digest =
+            ADDigest::sigma_parse_bytes(&prover.digest().unwrap().into_iter().collect::<Vec<_>>())
+                .unwrap();
+
+        let key1 = Bytes::from(vec![1u8]);
+        let key2 = Bytes::from(vec![2u8]);
+        let op1 = Operation::Lookup(key1);
+        let op2 = Operation::Lookup(key2);
+        let lookup_found = prover.perform_one_operation(&op1).unwrap();
+        let lookup_not_found = prover.perform_one_operation(&op2).unwrap();
+        let proof: Constant = prover
+            .generate_proof()
+            .into_iter()
+            .collect::<Vec<_>>()
+            .into();
+
+        let tree_flags = AvlTreeFlags::new(false, false, false);
+        let obj = Expr::Const(
+            AvlTreeData {
+                digest: initial_digest,
+                tree_flags,
+                key_length: 1,
+                value_length_opt: None,
+            }
+            .into(),
+        );
+
+        let search_key_found = vec![1i8];
+        let search_key_not_found = vec![2i8];
+        let expr_found: Expr = MethodCall::new(
+            obj.clone(),
+            savltree::GET_METHOD.clone(),
+            vec![search_key_found.into(), proof.clone().into()],
+        )
+        .unwrap()
+        .into();
+        let expr_not_found: Expr = MethodCall::new(
+            obj,
+            savltree::GET_METHOD.clone(),
+            vec![search_key_not_found.into(), proof.into()],
+        )
+        .unwrap()
+        .into();
+
+        let res_found = eval_out_wo_ctx::<Value>(&expr_found);
+        let res_not_found = eval_out_wo_ctx::<Value>(&expr_not_found);
+
+        if let Value::Opt(opt) = res_found {
+            if let Some(Value::Coll(CollKind::NativeColl(NativeColl::CollByte(b)))) = *opt {
+                assert!(lookup_found.unwrap().eq(&b.as_vec_u8()));
+            } else {
+                unreachable!();
+            }
+        } else {
+            unreachable!();
+        }
+
+        if let Value::Opt(opt) = res_not_found {
+            assert!(lookup_not_found.is_none() && opt.is_none())
+        } else {
+            unreachable!();
+        }
+    }
+
+    #[test]
+    fn eval_avl_get_many() {
+        let mut prover = populate_tree(vec![
+            (vec![1u8], 10u64.to_be_bytes().to_vec()),
+            (vec![2u8], 20u64.to_be_bytes().to_vec()),
+        ]);
+
+        let initial_digest =
+            ADDigest::sigma_parse_bytes(&prover.digest().unwrap().into_iter().collect::<Vec<_>>())
+                .unwrap();
+
+        let key1 = Bytes::from(vec![1u8]);
+        let key2 = Bytes::from(vec![2u8]);
+        let key3 = Bytes::from(vec![3u8]);
+        let op1 = Operation::Lookup(key1);
+        let op2 = Operation::Lookup(key2);
+        let op3 = Operation::Lookup(key3);
+        let lookups = vec![
+            prover.perform_one_operation(&op1).unwrap(),
+            prover.perform_one_operation(&op2).unwrap(),
+            prover.perform_one_operation(&op3).unwrap(),
+        ];
+
+        let proof: Constant = prover
+            .generate_proof()
+            .into_iter()
+            .collect::<Vec<_>>()
+            .into();
+
+        let tree_flags = AvlTreeFlags::new(false, false, false);
+        let obj = Expr::Const(
+            AvlTreeData {
+                digest: initial_digest,
+                tree_flags,
+                key_length: 1,
+                value_length_opt: None,
+            }
+            .into(),
+        );
+
+        let search_key_1 = Literal::try_from(vec![1u8]).unwrap();
+        let search_key_2 = Literal::try_from(vec![2u8]).unwrap();
+        let search_key_3 = Literal::try_from(vec![3u8]).unwrap();
+
+        let keys = Constant {
+            tpe: SType::SColl(Box::new(SType::SColl(Box::new(SType::SByte)))),
+            v: Literal::Coll(CollKind::WrappedColl {
+                items: vec![search_key_1, search_key_2, search_key_3],
+                elem_tpe: SType::SColl(Box::new(SType::SByte)),
+            }),
+        };
+
+        let expr: Expr = MethodCall::new(
+            obj,
+            savltree::GET_MANY_METHOD.clone(),
+            vec![keys.into(), proof.into()],
+        )
+        .unwrap()
+        .into();
+
+        let res = eval_out_wo_ctx::<Value>(&expr);
+
+        if let Value::Coll(CollKind::WrappedColl { items, .. }) = res {
+            for (item, expected) in items.iter().zip(lookups) {
+                if let Value::Opt(opt) = item.clone() {
+                    match *opt {
+                        None => assert!(expected.is_none()),
+                        Some(Value::Coll(CollKind::NativeColl(NativeColl::CollByte(b)))) => {
+                            assert_eq!(b, expected.unwrap().to_vec().as_vec_i8());
+                        }
+                        Some(_) => unreachable!(),
+                    }
+                } else {
+                    unreachable!();
+                }
+            }
+        } else {
+            unreachable!();
+        }
+    }
+
     #[test]
     fn eval_avl_insert() {
         // This example taken from `scorex_crypto_avltree` README
