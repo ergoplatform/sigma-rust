@@ -5,6 +5,7 @@ use ergotree_ir::chain::ergo_box::ErgoBox;
 use ergotree_ir::serialization::SigmaSerializationError;
 use std::rc::Rc;
 
+use crate::chain::transaction::reduced::ReducedTransaction;
 use crate::chain::transaction::Input;
 use crate::chain::{
     ergo_state_context::ErgoStateContext,
@@ -122,6 +123,36 @@ pub fn sign_transaction(
     )?)
 }
 
+/// Signs a reduced transaction (generating proofs for inputs)
+pub fn sign_reduced_transaction(
+    prover: &dyn Prover,
+    reduced_tx: ReducedTransaction,
+) -> Result<Transaction, TxSigningError> {
+    let tx = reduced_tx.unsigned_tx.clone();
+    let message_to_sign = tx.bytes_to_sign()?;
+    let signed_inputs = tx.inputs.enumerated().try_mapped(|(idx, input)| {
+        prover
+            .generate_proof(
+                reduced_tx
+                    .reduced_inputs()
+                    .get(idx)
+                    .unwrap()
+                    .reduction_result
+                    .sigma_prop
+                    .clone(),
+                message_to_sign.as_slice(),
+                &HintsBag::empty(),
+            )
+            .map(|proof| Input::new(input.box_id.clone(), proof.into()))
+            .map_err(|e| TxSigningError::ProverError(e, idx))
+    })?;
+    Ok(Transaction::new(
+        signed_inputs,
+        tx.data_inputs,
+        tx.output_candidates,
+    )?)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -142,6 +173,7 @@ mod tests {
     use rand::thread_rng;
     use sigma_test_util::force_any_val;
 
+    use crate::chain::transaction::reduced::reduce_tx;
     use crate::chain::{
         ergo_box::box_builder::ErgoBoxCandidateBuilder, transaction::UnsignedInput,
     };
@@ -190,9 +222,9 @@ mod tests {
                              TxId::zero(),
                              0).unwrap()
             }).collect();
-            let prover = TestProver {
+            let prover = Rc::new(TestProver {
                 secrets: secrets.clone().into_iter().map(PrivateInput::DlogProverInput).collect(),
-            };
+            });
             let inputs: Vec<UnsignedInput> = boxes_to_spend.clone().into_iter().map(UnsignedInput::from).collect();
             // boxes_to_spend are in the different order to test inputs <-> boxes_to_spend association in the
             // prover (it should not depend on both of them to be in the same order)
@@ -205,9 +237,12 @@ mod tests {
                 None, output_candidates.try_into().unwrap()).unwrap();
             let tx_context = TransactionContext { spending_tx: tx,
                                                   boxes_to_spend: boxes_to_spend.clone(), data_boxes: vec![] };
-            let res = sign_transaction(Box::new(prover).as_ref(), tx_context, &ErgoStateContext::dummy());
+            let res = sign_transaction(prover.as_ref(), tx_context.clone(), &ErgoStateContext::dummy());
             let signed_tx = res.unwrap();
             prop_assert!(verify_tx_proofs(&signed_tx, &boxes_to_spend).unwrap());
+            let reduced_tx = reduce_tx(tx_context, &ErgoStateContext::dummy()).unwrap();
+            let signed_reduced_tx = sign_reduced_transaction(prover.as_ref(), reduced_tx).unwrap();
+            prop_assert!(verify_tx_proofs(&signed_reduced_tx, &boxes_to_spend).unwrap());
         }
     }
 

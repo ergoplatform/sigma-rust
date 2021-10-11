@@ -45,9 +45,16 @@ pub struct ReducedInput {
 #[derive(PartialEq, Debug)]
 pub struct ReducedTransaction {
     /// Unsigned transation
-    unsigned_tx: UnsignedTransaction,
+    pub unsigned_tx: UnsignedTransaction,
     /// Reduction result for each unsigned tx input
     reduced_inputs: TxIoVec<ReducedInput>,
+}
+
+impl ReducedTransaction {
+    /// Returns reduction results for each unsigned tx input
+    pub fn reduced_inputs(&self) -> TxIoVec<ReducedInput> {
+        self.reduced_inputs.clone()
+    }
 }
 
 /// Reduce each input of unsigned transaction to sigma proposition

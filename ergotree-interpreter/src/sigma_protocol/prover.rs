@@ -118,17 +118,27 @@ pub trait Prover {
         hints_bag: &HintsBag,
     ) -> Result<ProverResult, ProverError> {
         let expr = tree.proposition()?;
-        let unchecked_tree_opt = reduce_to_crypto(expr.as_ref(), env, ctx)
-            .map_err(ProverError::EvalError)
-            .and_then(|v| match v.sigma_prop {
-                SigmaBoolean::TrivialProp(true) => Ok(None),
-                SigmaBoolean::TrivialProp(false) => Err(ProverError::ReducedToFalse),
-                sb => {
-                    let tree = convert_to_unproven(sb)?;
-                    let unchecked_tree = prove_to_unchecked(self, tree, message, hints_bag)?;
-                    Ok(Some(unchecked_tree))
-                }
-            })?;
+        let reduction_result =
+            reduce_to_crypto(expr.as_ref(), env, ctx).map_err(ProverError::EvalError)?;
+        self.generate_proof(reduction_result.sigma_prop, message, hints_bag)
+    }
+
+    /// Generate proofs for the given message for the given Sigma boolean expression
+    fn generate_proof(
+        &self,
+        sigmabool: SigmaBoolean,
+        message: &[u8],
+        hints_bag: &HintsBag,
+    ) -> Result<ProverResult, ProverError> {
+        let unchecked_tree_opt = match sigmabool {
+            SigmaBoolean::TrivialProp(true) => Ok(None),
+            SigmaBoolean::TrivialProp(false) => Err(ProverError::ReducedToFalse),
+            sb => {
+                let tree = convert_to_unproven(sb)?;
+                let unchecked_tree = prove_to_unchecked(self, tree, message, hints_bag)?;
+                Ok(Some(unchecked_tree))
+            }
+        }?;
         let proof = match unchecked_tree_opt {
             Some(tree) => serialize_sig(tree),
             None => ProofBytes::Empty,
