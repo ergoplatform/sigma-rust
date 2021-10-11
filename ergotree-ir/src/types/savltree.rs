@@ -264,7 +264,7 @@ lazy_static! {
             tpe_params: vec![],
         },
     };
-    /// AvlTree.remove
+    /// AvlTree.update
     pub static ref UPDATE_METHOD: SMethod =
         SMethod::new(STypeCompanion::AvlTree, UPDATE_METHOD_DESC.clone(),);
 }
