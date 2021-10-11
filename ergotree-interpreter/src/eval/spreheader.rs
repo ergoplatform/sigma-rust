@@ -60,7 +60,7 @@ mod tests {
 
     fn create_get_preheader_property_expr(method: SMethod) -> Expr {
         let get_preheader_expr = create_get_preheader_expr();
-        create_get_preheader_property_expr_impl(get_preheader_expr.clone(), method)
+        create_get_preheader_property_expr_impl(get_preheader_expr, method)
     }
 
     // An `Expr` for such code in ErgoScript: `CONTEXT.preHeader`
@@ -89,7 +89,7 @@ mod tests {
         let expr = create_get_preheader_property_expr(spreheader::VERSION_PROPERTY.clone());
         let ctx = Rc::new(force_any_val::<Context>());
         let expected = ctx.pre_header.version as i8;
-        assert_eq!(expected, eval_out::<i8>(&expr, ctx.clone()));
+        assert_eq!(expected, eval_out::<i8>(&expr, ctx));
     }
 
     #[test]
@@ -98,7 +98,7 @@ mod tests {
         let ctx = Rc::new(force_any_val::<Context>());
         let expected = ctx.pre_header.parent_id.clone();
         let actual = {
-            let bs = eval_out::<Vec<i8>>(&expr, ctx.clone());
+            let bs = eval_out::<Vec<i8>>(&expr, ctx);
             block_id_from_bytes_signed(bs)
         };
         assert_eq!(expected, actual);
@@ -109,7 +109,7 @@ mod tests {
         let expr = create_get_preheader_property_expr(spreheader::TIMESTAMP_PROPERTY.clone());
         let ctx = Rc::new(force_any_val::<Context>());
         let expected = ctx.pre_header.timestamp as i64;
-        let actual = eval_out::<i64>(&expr, ctx.clone());
+        let actual = eval_out::<i64>(&expr, ctx);
         assert_eq!(expected, actual);
     }
 
@@ -118,7 +118,7 @@ mod tests {
         let expr = create_get_preheader_property_expr(spreheader::N_BITS_PROPERTY.clone());
         let ctx = Rc::new(force_any_val::<Context>());
         let expected = ctx.pre_header.n_bits as i64;
-        let actual = eval_out::<i64>(&expr, ctx.clone());
+        let actual = eval_out::<i64>(&expr, ctx);
         assert_eq!(expected as i64, actual);
     }
 
@@ -127,7 +127,7 @@ mod tests {
         let expr = create_get_preheader_property_expr(spreheader::HEIGHT_PROPERTY.clone());
         let ctx = Rc::new(force_any_val::<Context>());
         let expected = ctx.pre_header.height as i32;
-        let actual = eval_out::<i32>(&expr, ctx.clone());
+        let actual = eval_out::<i32>(&expr, ctx);
         assert_eq!(expected, actual);
     }
 
@@ -137,7 +137,7 @@ mod tests {
         let ctx = Rc::new(force_any_val::<Context>());
         let expected = ctx.pre_header.miner_pk.clone();
         let actual = {
-            let pk = eval_out::<EcPoint>(&expr, ctx.clone());
+            let pk = eval_out::<EcPoint>(&expr, ctx);
             Box::new(pk)
         };
         assert_eq!(expected, actual);
@@ -149,7 +149,7 @@ mod tests {
         let ctx = Rc::new(force_any_val::<Context>());
         let expected = ctx.pre_header.votes.clone();
         let actual = {
-            let votes_bytes = eval_out::<Vec<i8>>(&expr, ctx.clone()).as_vec_u8();
+            let votes_bytes = eval_out::<Vec<i8>>(&expr, ctx).as_vec_u8();
             Votes::try_from(votes_bytes)
                 .expect("internal error: votes bytes buffer length isn't equal to 3")
         };
