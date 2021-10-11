@@ -89,6 +89,7 @@ impl SigmaSerializable for ReducedTransaction {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         let msg = self.unsigned_tx.bytes_to_sign()?;
         w.put_usize_as_u32_unwrapped(msg.len())?;
+        w.write_all(&msg)?;
         self.reduced_inputs.as_vec().iter().try_for_each(|red_in| {
             red_in.reduction_result.sigma_prop.sigma_serialize(w)?;
             Ok(w.put_u64(red_in.reduction_result.cost)?)
