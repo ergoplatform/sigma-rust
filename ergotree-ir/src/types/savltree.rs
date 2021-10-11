@@ -35,21 +35,18 @@ pub const GET_METHOD_ID: MethodId = MethodId(10);
 pub const GET_MANY_METHOD_ID: MethodId = MethodId(11);
 /// AvlTree.insert property
 pub const INSERT_METHOD_ID: MethodId = MethodId(12);
-/// AvlTree.updateDigest property
-pub const UPDATE_DIGEST_METHOD_ID: MethodId = MethodId(15);
 /// AvlTree.remove property
 pub const REMOVE_METHOD_ID: MethodId = MethodId(13);
 /// AvlTree.update property
 pub const UPDATE_METHOD_ID: MethodId = MethodId(14);
+/// AvlTree.updateDigest property
+pub const UPDATE_DIGEST_METHOD_ID: MethodId = MethodId(15);
 
 lazy_static! {
     /// AvlTree method descriptors
     pub(crate) static ref METHOD_DESC: Vec<&'static SMethodDesc> =
         vec![
             &DIGEST_METHOD_DESC,
-            &GET_METHOD_DESC,
-            &GET_MANY_METHOD_DESC,
-            &INSERT_METHOD_DESC,
             &ENABLED_OPERATIONS_METHOD_DESC,
             &KEY_LENGTH_METHOD_DESC,
             &VALUE_LENGTH_OPT_METHOD_DESC,
@@ -57,9 +54,12 @@ lazy_static! {
             &IS_UPDATE_ALLOWED_METHOD_DESC,
             &IS_REMOVE_ALLOWED_METHOD_DESC,
             &UPDATE_OPERATIONS_METHOD_DESC,
-            &UPDATE_DIGEST_METHOD_DESC,
+            &GET_METHOD_DESC,
+            &GET_MANY_METHOD_DESC,
+            &INSERT_METHOD_DESC,
             &REMOVE_METHOD_DESC,
             &UPDATE_METHOD_DESC,
+            &UPDATE_DIGEST_METHOD_DESC,
         ]
     ;
 }
@@ -77,21 +77,6 @@ lazy_static! {
     /// AvlTree.digest
     pub static ref DIGEST_METHOD: SMethod =
         SMethod::new(STypeCompanion::AvlTree, DIGEST_METHOD_DESC.clone(),);
-}
-
-lazy_static! {
-    static ref UPDATE_DIGEST_METHOD_DESC: SMethodDesc = SMethodDesc {
-        method_id: UPDATE_DIGEST_METHOD_ID,
-        name: "updateDigest",
-        tpe: SFunc {
-            t_dom: vec![ SType::SAvlTree, SType::SColl(Box::new(SType::SByte))],
-            t_range: SType::SAvlTree.into(),
-            tpe_params: vec![],
-        },
-    };
-    /// AvlTree.updateDigest
-    pub static ref UPDATE_DIGEST_METHOD: SMethod =
-        SMethod::new(STypeCompanion::AvlTree, UPDATE_DIGEST_METHOD_DESC.clone(),);
 }
 
 lazy_static! {
@@ -311,4 +296,67 @@ lazy_static! {
     /// AvlTree.update
     pub static ref UPDATE_METHOD: SMethod =
         SMethod::new(STypeCompanion::AvlTree, UPDATE_METHOD_DESC.clone(),);
+}
+
+lazy_static! {
+    static ref UPDATE_DIGEST_METHOD_DESC: SMethodDesc = SMethodDesc {
+        method_id: UPDATE_DIGEST_METHOD_ID,
+        name: "updateDigest",
+        tpe: SFunc {
+            t_dom: vec![ SType::SAvlTree, SType::SColl(Box::new(SType::SByte))],
+            t_range: SType::SAvlTree.into(),
+            tpe_params: vec![],
+        },
+    };
+    /// AvlTree.updateDigest
+    pub static ref UPDATE_DIGEST_METHOD: SMethod =
+        SMethod::new(STypeCompanion::AvlTree, UPDATE_DIGEST_METHOD_DESC.clone(),);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_from_ids() {
+        assert!(SMethod::from_ids(TYPE_CODE, DIGEST_METHOD_ID).map(|e| e.name()) == Ok("digest"));
+        assert!(
+            SMethod::from_ids(TYPE_CODE, ENABLED_OPERATIONS_METHOD_ID).map(|e| e.name())
+                == Ok("enabledOperations")
+        );
+        assert!(
+            SMethod::from_ids(TYPE_CODE, KEY_LENGTH_METHOD_ID).map(|e| e.name()) == Ok("keyLength")
+        );
+        assert!(
+            SMethod::from_ids(TYPE_CODE, VALUE_LENGTH_OPT_METHOD_ID).map(|e| e.name())
+                == Ok("valueLengthOpt")
+        );
+        assert!(
+            SMethod::from_ids(TYPE_CODE, IS_INSERT_ALLOWED_METHOD_ID).map(|e| e.name())
+                == Ok("isInsertAllowed")
+        );
+        assert!(
+            SMethod::from_ids(TYPE_CODE, IS_UPDATE_ALLOWED_METHOD_ID).map(|e| e.name())
+                == Ok("isUpdateAllowed")
+        );
+        assert!(
+            SMethod::from_ids(TYPE_CODE, IS_REMOVE_ALLOWED_METHOD_ID).map(|e| e.name())
+                == Ok("isRemoveAllowed")
+        );
+        assert!(
+            SMethod::from_ids(TYPE_CODE, UPDATE_OPERATIONS_METHOD_ID).map(|e| e.name())
+                == Ok("updateOperations")
+        );
+        assert!(SMethod::from_ids(TYPE_CODE, GET_METHOD_ID).map(|e| e.name()) == Ok("get"));
+        assert!(
+            SMethod::from_ids(TYPE_CODE, GET_MANY_METHOD_ID).map(|e| e.name()) == Ok("getMany")
+        );
+        assert!(SMethod::from_ids(TYPE_CODE, INSERT_METHOD_ID).map(|e| e.name()) == Ok("insert"));
+        assert!(SMethod::from_ids(TYPE_CODE, REMOVE_METHOD_ID).map(|e| e.name()) == Ok("remove"));
+        assert!(SMethod::from_ids(TYPE_CODE, UPDATE_METHOD_ID).map(|e| e.name()) == Ok("update"));
+        assert!(
+            SMethod::from_ids(TYPE_CODE, UPDATE_DIGEST_METHOD_ID).map(|e| e.name())
+                == Ok("updateDigest")
+        );
+    }
 }
