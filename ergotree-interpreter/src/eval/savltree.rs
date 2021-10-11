@@ -868,10 +868,51 @@ mod tests {
                 unreachable!();
             }
         }
+    }
 
-        #[test]
-        fn eval_avl_contains(v in any::<AvlTreeData>(), new_digest in any::<ADDigest>()) {
-            todo!();
+    #[test]
+    fn eval_avl_contains() {
+        let mut prover = populate_tree(vec![
+            (vec![1u8], 10u64.to_be_bytes().to_vec()),
+            (vec![2u8], 20u64.to_be_bytes().to_vec()),
+            (vec![3u8], 30u64.to_be_bytes().to_vec()),
+        ]);
+        let digest =
+            ADDigest::sigma_parse_bytes(&prover.digest().unwrap().into_iter().collect::<Vec<_>>())
+                .unwrap();
+
+        let op = Operation::Lookup(Bytes::from(vec![2u8]));
+        prover.perform_one_operation(&op).unwrap();
+
+        let key = Constant::from(vec![2u8]);
+        let proof: Constant = prover
+            .generate_proof()
+            .into_iter()
+            .collect::<Vec<_>>()
+            .into();
+        let tree_flags = AvlTreeFlags::new(false, false, false);
+        let obj = Expr::Const(
+            AvlTreeData {
+                digest,
+                tree_flags,
+                key_length: 1,
+                value_length_opt: None,
+            }
+            .into(),
+        );
+        let expr: Expr = MethodCall::new(
+            obj,
+            savltree::CONTAINS_METHOD.clone(),
+            vec![key.into(), proof.into()],
+        )
+        .unwrap()
+        .into();
+        let res = eval_out_wo_ctx::<Value>(&expr);
+
+        if let Value::Boolean(b) = res {
+            assert_eq!(true, b);
+        } else {
+            unreachable!();
         }
     }
 
