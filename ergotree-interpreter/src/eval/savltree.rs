@@ -910,7 +910,7 @@ mod tests {
         let res = eval_out_wo_ctx::<Value>(&expr);
 
         if let Value::Boolean(b) = res {
-            assert_eq!(true, b);
+            assert!(b);
         } else {
             unreachable!();
         }
