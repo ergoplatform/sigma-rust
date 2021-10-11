@@ -84,7 +84,7 @@ pub(crate) static VOTES_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
-#[allow(clippy::expect_used)]
+#[allow(clippy::expect_used, clippy::panic)]
 mod tests {
     use std::convert::{TryFrom, TryInto};
     use std::rc::Rc;
@@ -282,7 +282,7 @@ mod tests {
         let ctx = Rc::new(force_any_val::<Context>());
         let expected = ctx.headers[HEADER_INDEX].pow_distance.clone();
         let actual = {
-            let bi = eval_out::<BigInt256>(&expr, ctx.clone());
+            let bi = eval_out::<BigInt256>(&expr, ctx);
             bi.into()
         };
         assert_eq!(expected, actual);
@@ -293,7 +293,7 @@ mod tests {
         let expr = create_get_header_property_expr(sheader::POW_NONCE_PROPERTY.clone());
         let ctx = Rc::new(force_any_val::<Context>());
         let expected = ctx.headers[HEADER_INDEX].nonce.clone();
-        let actual = eval_out::<Vec<i8>>(&expr, ctx.clone()).as_vec_u8();
+        let actual = eval_out::<Vec<i8>>(&expr, ctx).as_vec_u8();
         assert_eq!(expected, actual);
     }
 
@@ -303,7 +303,7 @@ mod tests {
         let ctx = Rc::new(force_any_val::<Context>());
         let expected = ctx.headers[HEADER_INDEX].votes.clone();
         let actual = {
-            let votes_bytes = eval_out::<Vec<i8>>(&expr, ctx.clone()).as_vec_u8();
+            let votes_bytes = eval_out::<Vec<i8>>(&expr, ctx).as_vec_u8();
             Votes::try_from(votes_bytes)
                 .expect("internal error: votes bytes buffer length isn't equal to 3")
         };
