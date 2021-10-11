@@ -126,7 +126,6 @@ impl From<ErgoBox> for ErgoBoxJsonEip12 {
 
 /// Contains the same fields as `ErgoBox`, except if transaction id and index,
 /// that will be calculated after full transaction formation.
-/// Use [`box_builder::ErgoBoxCandidateBuilder`] to create an instance.
 #[derive(Serialize, PartialEq, Eq, Clone, Debug)]
 pub(crate) struct ErgoBoxCandidateJsonEip12 {
     /// amount of money associated with the box
