@@ -45,9 +45,9 @@ pub struct ReducedInput {
 #[derive(PartialEq, Debug)]
 pub struct ReducedTransaction {
     /// Unsigned transation
-    pub unsigned_tx: UnsignedTransaction,
+    unsigned_tx: UnsignedTransaction,
     /// Reduction result for each unsigned tx input
-    pub reduced_inputs: TxIoVec<ReducedInput>,
+    reduced_inputs: TxIoVec<ReducedInput>,
 }
 
 /// Reduce each input of unsigned transaction to sigma proposition
@@ -123,5 +123,43 @@ impl SigmaSerializable for ReducedTransaction {
             unsigned_tx,
             reduced_inputs,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use ergotree_ir::serialization::sigma_serialize_roundtrip;
+    use proptest::prelude::*;
+
+    impl Arbitrary for ReducedTransaction {
+        type Parameters = ();
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            (any::<UnsignedTransaction>(), any::<SigmaBoolean>())
+                .prop_map(|(unsigned_tx, sb)| Self {
+                    unsigned_tx: unsigned_tx.clone(),
+                    reduced_inputs: unsigned_tx.inputs.mapped(|unsigned_input| ReducedInput {
+                        reduction_result: ReductionResult {
+                            sigma_prop: sb.clone(),
+                            cost: 0,
+                        },
+                        extension: unsigned_input.extension,
+                    }),
+                })
+                .boxed()
+        }
+        type Strategy = BoxedStrategy<Self>;
+    }
+
+    proptest! {
+
+        #![proptest_config(ProptestConfig::with_cases(64))]
+
+        #[test]
+        fn ser_roundtrip(v in any::<ReducedTransaction>()) {
+            prop_assert_eq![sigma_serialize_roundtrip(&v), v];
+        }
     }
 }
