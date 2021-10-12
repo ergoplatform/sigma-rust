@@ -907,7 +907,7 @@ mod tests {
         )
         .unwrap()
         .into();
-        let res = eval_out_wo_ctx::<Value>(&expr);
+        assert!(eval_out_wo_ctx::<bool>(&expr));
 
         if let Value::Boolean(b) = res {
             assert!(b);
