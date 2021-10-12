@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
+
+### Added 
+- `AvlTree.remove` [#436](https://github.com/ergoplatform/sigma-rust/pull/436);
+- `AvlTree.update` [#443](https://github.com/ergoplatform/sigma-rust/pull/443);
+- `ReducedTransaction` implementation according to EIP-19 [#442](https://github.com/ergoplatform/sigma-rust/pull/442)
+- `AvlTree.get` and `AvlTree.getMany` [#445](https://github.com/ergoplatform/sigma-rust/pull/445);
+
 ## [0.14.0] - 2021-10-07
 
 ### Added 
