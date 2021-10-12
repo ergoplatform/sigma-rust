@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use ergotree_ir::chain::ergo_box::box_value::BoxValue;
 use ergotree_ir::chain::ergo_box::box_value::BoxValueError;
 use ergotree_ir::chain::ergo_box::BoxId;
+use ergotree_ir::chain::ergo_box::BoxTokens;
 use ergotree_ir::chain::ergo_box::ErgoBox;
 use ergotree_ir::chain::ergo_box::ErgoBoxCandidate;
 use ergotree_ir::chain::token::Token;
@@ -65,7 +66,7 @@ pub trait ErgoBoxAssets {
     /// Box value
     fn value(&self) -> BoxValue;
     /// Tokens (ids and amounts)
-    fn tokens(&self) -> Vec<Token>;
+    fn tokens(&self) -> Option<BoxTokens>;
 }
 
 /// Simple struct to hold ErgoBoxAssets values
@@ -74,7 +75,7 @@ pub struct ErgoBoxAssetsData {
     /// Box value
     pub value: BoxValue,
     /// Tokens
-    pub tokens: Vec<Token>,
+    pub tokens: Option<BoxTokens>,
 }
 
 impl ErgoBoxAssets for ErgoBoxAssetsData {
@@ -82,7 +83,7 @@ impl ErgoBoxAssets for ErgoBoxAssetsData {
         self.value
     }
 
-    fn tokens(&self) -> Vec<Token> {
+    fn tokens(&self) -> Option<BoxTokens> {
         self.tokens.clone()
     }
 }
@@ -92,7 +93,7 @@ impl ErgoBoxAssets for ErgoBoxCandidate {
         self.value
     }
 
-    fn tokens(&self) -> Vec<Token> {
+    fn tokens(&self) -> Option<BoxTokens> {
         self.tokens.clone()
     }
 }
@@ -102,7 +103,7 @@ impl ErgoBoxAssets for ErgoBox {
         self.value
     }
 
-    fn tokens(&self) -> Vec<Token> {
+    fn tokens(&self) -> Option<BoxTokens> {
         self.tokens.clone()
     }
 }
@@ -125,9 +126,9 @@ pub fn sum_value<T: ErgoBoxAssets>(bs: &[T]) -> u64 {
 }
 
 /// Returns the total token amounts (all tokens combined)
-pub fn sum_tokens(ts: &[Token]) -> HashMap<TokenId, TokenAmount> {
+pub fn sum_tokens(ts: Option<&[Token]>) -> HashMap<TokenId, TokenAmount> {
     let mut res: HashMap<TokenId, TokenAmount> = HashMap::new();
-    ts.iter().for_each(|t| {
+    ts.into_iter().flatten().for_each(|t| {
         res.entry(t.token_id.clone())
             .and_modify(|amt| *amt = amt.checked_add(&t.amount).unwrap())
             .or_insert(t.amount);
@@ -139,7 +140,7 @@ pub fn sum_tokens(ts: &[Token]) -> HashMap<TokenId, TokenAmount> {
 pub fn sum_tokens_from_boxes<T: ErgoBoxAssets>(bs: &[T]) -> HashMap<TokenId, TokenAmount> {
     let mut res: HashMap<TokenId, TokenAmount> = HashMap::new();
     bs.iter().for_each(|b| {
-        b.tokens().iter().for_each(|t| {
+        b.tokens().into_iter().flatten().for_each(|t| {
             res.entry(t.token_id.clone())
                 .and_modify(|amt| *amt = amt.checked_add(&t.amount).unwrap())
                 .or_insert(t.amount);
@@ -153,8 +154,9 @@ mod tests {
 
     use ergotree_ir::chain::ergo_box::box_value::arbitrary::ArbBoxValueRange;
     use ergotree_ir::chain::ergo_box::box_value::BoxValue;
+    use ergotree_ir::chain::ergo_box::BoxTokens;
     use ergotree_ir::chain::token::Token;
-    use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
+    use proptest::{arbitrary::Arbitrary, collection::vec, option::of, prelude::*};
     use sigma_test_util::force_any_val;
 
     use crate::wallet::box_selector::sum_tokens;
@@ -166,8 +168,11 @@ mod tests {
         type Parameters = ArbBoxValueRange;
 
         fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
-            (any_with::<BoxValue>(args), vec(any::<Token>(), 0..3))
-                .prop_map(|(value, tokens)| Self { value, tokens })
+            (any_with::<BoxValue>(args), of(vec(any::<Token>(), 0..3)))
+                .prop_map(|(value, tokens)| Self {
+                    value,
+                    tokens: tokens.map(BoxTokens::from_vec).map(Result::ok).flatten(),
+                })
                 .boxed()
         }
 
@@ -183,7 +188,7 @@ mod tests {
         let token = force_any_val::<Token>();
         let b = ErgoBoxAssetsData {
             value: BoxValue::SAFE_USER_MIN,
-            tokens: vec![token.clone(), token.clone()],
+            tokens: BoxTokens::from_vec(vec![token.clone(), token.clone()]).ok(),
         };
         assert_eq!(
             u64::from(
@@ -199,7 +204,7 @@ mod tests {
 
         #[test]
         fn sum_tokens_eq(b in any::<ErgoBoxAssetsData>()) {
-            prop_assert_eq!(sum_tokens(b.tokens.as_slice()), sum_tokens_from_boxes(vec![b].as_slice()))
+            prop_assert_eq!(sum_tokens(b.tokens.as_ref().map(BoxTokens::as_ref)), sum_tokens_from_boxes(vec![b].as_slice()))
         }
     }
 }

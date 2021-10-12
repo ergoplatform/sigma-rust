@@ -17,6 +17,7 @@ use crate::util::AsVecI8;
 pub use box_id::*;
 pub use register::*;
 
+use bounded_vec::BoundedVec;
 use indexmap::IndexSet;
 use sigma_util::hash::blake2b256_hash;
 use std::convert::TryFrom;
@@ -30,6 +31,8 @@ use super::token::Token;
 use super::token::TokenId;
 use super::tx_id::TxId;
 
+/// A BoxToken, a bounded collection of Tokens used in Box
+pub type BoxTokens = BoundedVec<Token, 1, 255>;
 /// Box (aka coin, or an unspent output) is a basic concept of a UTXO-based cryptocurrency.
 /// In Bitcoin, such an object is associated with some monetary value (arbitrary,
 /// but with predefined precision, so we use integer arithmetic to work with the value),
@@ -67,7 +70,7 @@ pub struct ErgoBox {
     pub ergo_tree: ErgoTree,
     /// secondary tokens the box contains
     #[cfg_attr(feature = "json", serde(rename = "assets"))]
-    pub tokens: Vec<Token>,
+    pub tokens: Option<BoxTokens>,
     ///  additional registers the box can carry over
     #[cfg_attr(feature = "json", serde(rename = "additionalRegisters"))]
     pub additional_registers: NonMandatoryRegisters,
@@ -92,7 +95,7 @@ impl ErgoBox {
     pub fn new(
         value: BoxValue,
         ergo_tree: ErgoTree,
-        tokens: Vec<Token>,
+        tokens: Option<BoxTokens>,
         additional_registers: NonMandatoryRegisters,
         creation_height: u32,
         transaction_id: TxId,
@@ -167,7 +170,12 @@ impl ErgoBox {
 
     /// Returns tokens as tuple of byte array and amount as primitive types
     pub fn tokens_raw(&self) -> Vec<(Vec<i8>, i64)> {
-        self.tokens.clone().into_iter().map(Into::into).collect()
+        self.tokens
+            .clone()
+            .into_iter()
+            .flatten()
+            .map(Into::into)
+            .collect()
     }
 
     /// Returns serialized ergo_tree guarding this box
@@ -197,7 +205,7 @@ impl SigmaSerializable for ErgoBox {
         serialize_box_with_indexed_digests(
             &self.value,
             ergo_tree_bytes,
-            &self.tokens,
+            self.tokens.as_ref().map(BoxTokens::as_ref).unwrap_or(&[]),
             &self.additional_registers,
             self.creation_height,
             None,
@@ -264,7 +272,7 @@ pub struct ErgoBoxCandidate {
     pub ergo_tree: ErgoTree,
     /// secondary tokens the box contains
     #[cfg_attr(feature = "json", serde(rename = "assets"))]
-    pub tokens: Vec<Token>,
+    pub tokens: Option<BoxTokens>,
     ///  additional registers the box can carry over
     #[cfg_attr(feature = "json", serde(rename = "additionalRegisters"))]
     pub additional_registers: NonMandatoryRegisters,
@@ -283,10 +291,11 @@ impl ErgoBoxCandidate {
         token_ids_in_tx: Option<&IndexSet<TokenId>>,
         w: &mut W,
     ) -> SigmaSerializeResult {
+        let tokens: &[Token] = self.tokens.as_ref().map(BoundedVec::as_ref).unwrap_or(&[]);
         serialize_box_with_indexed_digests(
             &self.value,
             self.ergo_tree.sigma_serialize_bytes()?,
-            &self.tokens,
+            tokens,
             &self.additional_registers,
             self.creation_height,
             token_ids_in_tx,
@@ -398,6 +407,7 @@ pub fn parse_box_with_indexed_digests<R: SigmaByteRead>(
             amount: amount.try_into()?,
         })
     }
+    let tokens = BoxTokens::from_vec(tokens).ok();
 
     let additional_registers = NonMandatoryRegisters::sigma_parse(r)?;
 
@@ -416,7 +426,7 @@ pub fn parse_box_with_indexed_digests<R: SigmaByteRead>(
 pub mod arbitrary {
     use super::box_value::arbitrary::ArbBoxValueRange;
     use super::*;
-    use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
+    use proptest::{arbitrary::Arbitrary, collection::vec, option::of, prelude::*};
 
     impl Arbitrary for ErgoBoxCandidate {
         type Parameters = ArbBoxValueRange;
@@ -425,7 +435,7 @@ pub mod arbitrary {
             (
                 any_with::<BoxValue>(args),
                 any::<ErgoTree>(),
-                vec(any::<Token>(), 0..3),
+                of(vec(any::<Token>(), 1..3)),
                 any::<u32>(),
                 any::<NonMandatoryRegisters>(),
             )
@@ -433,7 +443,7 @@ pub mod arbitrary {
                     |(value, ergo_tree, tokens, creation_height, additional_registers)| Self {
                         value,
                         ergo_tree,
-                        tokens,
+                        tokens: tokens.map(BoundedVec::from_vec).map(Result::unwrap),
                         additional_registers,
                         creation_height,
                     },

@@ -27,7 +27,7 @@ serde_json = { version = "1.0", optional = true }
 thiserror = "1"
 derive_more = "0.99"
 # bounded-vec = { git = "https://github.com/ergoplatform/bounded-vec", rev="f684d78" }
-bounded-vec = { version = "^0.4.0" }
+bounded-vec = { version = "^0.4.0", git = "https://github.com/ergoplatform/bounded-vec" }
 num-bigint = "0.4.0"
 proptest-derive = {version = "0.3.0", optional = true }
 
@@ -48,7 +48,7 @@ optional = true
 
 [features]
 default = ["json", "compiler"]
-json = ["serde", "serde_json", "serde_with"]
+json = ["serde", "serde_json", "serde_with", "bounded-vec/serde"]
 compiler = ["ergoscript-compiler"]
 arbitrary = ["proptest", "proptest-derive"]
 
@@ -59,4 +59,3 @@ ergotree-ir = { version = "^0.14.0", path = "../ergotree-ir", features = ["arbit
 ergotree-interpreter = { version = "^0.14.0", path = "../ergotree-interpreter", features = ["arbitrary"] }
 sigma-test-util = { version = "^0.3.0", path = "../sigma-test-util" }
 pretty_assertions = "0.7.2"
-

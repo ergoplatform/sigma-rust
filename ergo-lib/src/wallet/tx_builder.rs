@@ -169,7 +169,7 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
                     change_address_ergo_tree.clone(),
                     self.current_height,
                 );
-                for token in &b.tokens() {
+                for token in b.tokens().into_iter().flatten() {
                     candidate.add_token(token.clone());
                 }
                 candidate.build()
@@ -373,7 +373,7 @@ mod tests {
         let input_box = ErgoBox::new(
             10000000i64.try_into().unwrap(),
             force_any_val::<ErgoTree>(),
-            vec![token_pair.clone()],
+            vec![token_pair.clone()].try_into().ok(),
             NonMandatoryRegisters::empty(),
             1,
             force_any_val::<TxId>(),
@@ -405,7 +405,7 @@ mod tests {
         );
         let tx = tx_builder.build().unwrap();
         assert!(
-            tx.output_candidates.get(0).unwrap().tokens().is_empty(),
+            tx.output_candidates.get(0).unwrap().tokens().is_none(),
             "expected empty tokens in the first output box"
         );
     }
@@ -415,7 +415,7 @@ mod tests {
         let input_box = ErgoBox::new(
             100000000i64.try_into().unwrap(),
             force_any_val::<ErgoTree>(),
-            vec![],
+            None,
             NonMandatoryRegisters::empty(),
             1,
             force_any_val::<TxId>(),
@@ -456,8 +456,8 @@ mod tests {
                 .get(0)
                 .unwrap()
                 .tokens()
-                .first()
                 .unwrap()
+                .first()
                 .token_id,
             token_pair.token_id,
             "expected minted token in the first output box"
@@ -538,7 +538,7 @@ mod tests {
         let input = ErgoBox::new(
             10000000i64.try_into().unwrap(),
             force_any_val::<ErgoTree>(),
-            vec![],
+            None,
             NonMandatoryRegisters::empty(),
             1,
             force_any_val::<TxId>(),

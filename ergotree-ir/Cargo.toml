@@ -29,7 +29,7 @@ bs58 = "0.4.0"
 base16 = "0.2.1"
 num-bigint = "0.4.0"
 #bounded-vec = { git = "https://github.com/ergoplatform/bounded-vec", rev="f684d78" }
-bounded-vec = { version = "^0.4.0" } 
+bounded-vec = { version = "^0.4.0", git = "https://github.com/ergoplatform/bounded-vec", features=["serde"]}
 num256 = "0.3.1"
 num-traits = "0.2.14"
 num-derive = "0.3.3"
@@ -57,7 +57,7 @@ optional = true
 [features]
 default = ["json"]
 arbitrary = ["proptest", "proptest-derive"]
-json = ["serde", "serde_json", "serde_with"]
+json = ["serde", "serde_json", "serde_with", "bounded-vec/serde"]
 
 [dev-dependencies]
 sigma-test-util = { version = "^0.3.0", path = "../sigma-test-util" }

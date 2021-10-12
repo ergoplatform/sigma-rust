@@ -115,7 +115,7 @@ impl From<ErgoBox> for ErgoBoxJsonEip12 {
             box_id: b.box_id().into(),
             value: b.value.into(),
             ergo_tree: b.ergo_tree,
-            tokens: b.tokens.into_iter().map(|t| t.into()).collect(),
+            tokens: b.tokens.into_iter().flatten().map(|t| t.into()).collect(),
             additional_registers: b.additional_registers,
             creation_height: b.creation_height,
             transaction_id: b.transaction_id,
@@ -154,7 +154,7 @@ impl From<ErgoBoxCandidate> for ErgoBoxCandidateJsonEip12 {
         ErgoBoxCandidateJsonEip12 {
             value: b.value.into(),
             ergo_tree: b.ergo_tree,
-            tokens: b.tokens.into_iter().map(|t| t.into()).collect(),
+            tokens: b.tokens.into_iter().flatten().map(|t| t.into()).collect(),
             additional_registers: b.additional_registers,
             creation_height: b.creation_height,
         }

@@ -1,8 +1,8 @@
 use crate::chain::base16_bytes::Base16DecodedBytes;
 use crate::chain::ergo_box::box_value::BoxValue;
 use crate::chain::ergo_box::BoxId;
+use crate::chain::ergo_box::BoxTokens;
 use crate::chain::ergo_box::NonMandatoryRegisters;
-use crate::chain::token::Token;
 use crate::chain::tx_id::TxId;
 use crate::ergo_tree::ErgoTree;
 use crate::mir::constant::Constant;
@@ -36,7 +36,7 @@ pub struct ErgoBoxFromJson {
     pub ergo_tree: ErgoTree,
     /// secondary tokens the box contains
     #[serde(rename = "assets")]
-    pub tokens: Vec<Token>,
+    pub tokens: Option<BoxTokens>,
     ///  additional registers the box can carry over
     #[serde(rename = "additionalRegisters")]
     pub additional_registers: NonMandatoryRegisters,
