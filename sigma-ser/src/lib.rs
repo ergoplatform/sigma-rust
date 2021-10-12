@@ -15,6 +15,7 @@
 #![deny(clippy::todo)]
 #![deny(clippy::unimplemented)]
 #![deny(clippy::panic)]
+#![deny(clippy::wildcard_enum_match_arm)]
 
 /// VLQ encoder
 pub mod vlq_encode;
