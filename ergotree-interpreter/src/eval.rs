@@ -140,6 +140,7 @@ pub enum EvalError {
 }
 
 /// Result of expression reduction procedure (see `reduce_to_crypto`).
+#[derive(PartialEq, Debug, Clone)]
 pub struct ReductionResult {
     /// value of SigmaProp type which represents a statement verifiable via sigma protocol.
     pub sigma_prop: SigmaBoolean,
@@ -147,32 +148,28 @@ pub struct ReductionResult {
     pub cost: u64,
 }
 
-/// Interpreter
-pub trait Evaluator {
-    /// Evaluate the given expression by reducing it to SigmaBoolean value.
-    fn reduce_to_crypto(
-        &self,
-        expr: &Expr,
-        env: &Env,
-        ctx: Rc<Context>,
-    ) -> Result<ReductionResult, EvalError> {
-        let cost_accum = CostAccumulator::new(0, None);
-        let mut ectx = EvalContext::new(ctx, cost_accum);
-        expr.eval(env, &mut ectx)
-            .and_then(|v| -> Result<ReductionResult, EvalError> {
-                match v {
-                    Value::Boolean(b) => Ok(ReductionResult {
-                        sigma_prop: SigmaBoolean::TrivialProp(b),
-                        cost: 0,
-                    }),
-                    Value::SigmaProp(sp) => Ok(ReductionResult {
-                        sigma_prop: sp.value().clone(),
-                        cost: 0,
-                    }),
-                    _ => Err(EvalError::InvalidResultType),
-                }
-            })
-    }
+/// Evaluate the given expression by reducing it to SigmaBoolean value.
+pub fn reduce_to_crypto(
+    expr: &Expr,
+    env: &Env,
+    ctx: Rc<Context>,
+) -> Result<ReductionResult, EvalError> {
+    let cost_accum = CostAccumulator::new(0, None);
+    let mut ectx = EvalContext::new(ctx, cost_accum);
+    expr.eval(env, &mut ectx)
+        .and_then(|v| -> Result<ReductionResult, EvalError> {
+            match v {
+                Value::Boolean(b) => Ok(ReductionResult {
+                    sigma_prop: SigmaBoolean::TrivialProp(b),
+                    cost: 0,
+                }),
+                Value::SigmaProp(sp) => Ok(ReductionResult {
+                    sigma_prop: sp.value().clone(),
+                    cost: 0,
+                }),
+                _ => Err(EvalError::InvalidResultType),
+            }
+        })
 }
 
 #[derive(Debug)]

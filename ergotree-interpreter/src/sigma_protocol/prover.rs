@@ -5,6 +5,7 @@ mod prover_result;
 
 pub mod hint;
 
+use crate::eval::reduce_to_crypto;
 use crate::sigma_protocol::dht_protocol;
 use crate::sigma_protocol::fiat_shamir::fiat_shamir_hash_fn;
 use crate::sigma_protocol::fiat_shamir::fiat_shamir_tree_to_bytes;
@@ -47,7 +48,7 @@ use super::FirstProverMessage::FirstDlogProverMessage;
 
 use crate::eval::context::Context;
 use crate::eval::env::Env;
-use crate::eval::{EvalError, Evaluator};
+use crate::eval::EvalError;
 
 use thiserror::Error;
 
@@ -99,7 +100,7 @@ impl From<FiatShamirTreeSerializationError> for ProverError {
 }
 
 /// Prover
-pub trait Prover: Evaluator {
+pub trait Prover {
     /// Secrets of the prover
     fn secrets(&self) -> &[PrivateInput];
 
@@ -117,18 +118,27 @@ pub trait Prover: Evaluator {
         hints_bag: &HintsBag,
     ) -> Result<ProverResult, ProverError> {
         let expr = tree.proposition()?;
-        let unchecked_tree_opt = self
-            .reduce_to_crypto(expr.as_ref(), env, ctx)
-            .map_err(ProverError::EvalError)
-            .and_then(|v| match v.sigma_prop {
-                SigmaBoolean::TrivialProp(true) => Ok(None),
-                SigmaBoolean::TrivialProp(false) => Err(ProverError::ReducedToFalse),
-                sb => {
-                    let tree = convert_to_unproven(sb)?;
-                    let unchecked_tree = prove_to_unchecked(self, tree, message, hints_bag)?;
-                    Ok(Some(unchecked_tree))
-                }
-            })?;
+        let reduction_result =
+            reduce_to_crypto(expr.as_ref(), env, ctx).map_err(ProverError::EvalError)?;
+        self.generate_proof(reduction_result.sigma_prop, message, hints_bag)
+    }
+
+    /// Generate proofs for the given message for the given Sigma boolean expression
+    fn generate_proof(
+        &self,
+        sigmabool: SigmaBoolean,
+        message: &[u8],
+        hints_bag: &HintsBag,
+    ) -> Result<ProverResult, ProverError> {
+        let unchecked_tree_opt = match sigmabool {
+            SigmaBoolean::TrivialProp(true) => Ok(None),
+            SigmaBoolean::TrivialProp(false) => Err(ProverError::ReducedToFalse),
+            sb => {
+                let tree = convert_to_unproven(sb)?;
+                let unchecked_tree = prove_to_unchecked(self, tree, message, hints_bag)?;
+                Ok(Some(unchecked_tree))
+            }
+        }?;
         let proof = match unchecked_tree_opt {
             Some(tree) => serialize_sig(tree),
             None => ProofBytes::Empty,
@@ -901,7 +911,6 @@ pub struct TestProver {
     pub secrets: Vec<PrivateInput>,
 }
 
-impl Evaluator for TestProver {}
 impl Prover for TestProver {
     fn secrets(&self) -> &[PrivateInput] {
         self.secrets.as_ref()

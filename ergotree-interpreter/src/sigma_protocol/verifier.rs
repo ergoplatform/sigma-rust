@@ -17,7 +17,8 @@ use super::{
 };
 use crate::eval::context::Context;
 use crate::eval::env::Env;
-use crate::eval::{EvalError, Evaluator};
+use crate::eval::reduce_to_crypto;
+use crate::eval::EvalError;
 use dlog_protocol::FirstDlogProverMessage;
 use ergotree_ir::ergo_tree::ErgoTree;
 use ergotree_ir::ergo_tree::ErgoTreeError;
@@ -54,7 +55,7 @@ pub struct VerificationResult {
 }
 
 /// Verifier for the proofs generater by [`super::prover::Prover`]
-pub trait Verifier: Evaluator {
+pub trait Verifier {
     /// Executes the script in a given context.
     /// Step 1: Deserialize context variables
     /// Step 2: Evaluate expression and produce SigmaProp value, which is zero-knowledge statement (see also `SigmaBoolean`).
@@ -68,7 +69,7 @@ pub trait Verifier: Evaluator {
         message: &[u8],
     ) -> Result<VerificationResult, VerifierError> {
         let expr = tree.proposition()?;
-        let cprop = self.reduce_to_crypto(expr.as_ref(), env, ctx)?.sigma_prop;
+        let cprop = reduce_to_crypto(expr.as_ref(), env, ctx)?.sigma_prop;
         let res: bool = match cprop {
             SigmaBoolean::TrivialProp(b) => b,
             sb => {
@@ -145,7 +146,6 @@ fn compute_commitments(sp: UncheckedTree) -> UncheckedTree {
 /// Test Verifier implementation
 pub struct TestVerifier;
 
-impl Evaluator for TestVerifier {}
 impl Verifier for TestVerifier {}
 
 #[allow(clippy::unwrap_used)]
