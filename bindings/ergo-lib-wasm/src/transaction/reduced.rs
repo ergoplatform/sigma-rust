@@ -15,7 +15,8 @@ use wasm_bindgen::prelude::*;
 /// After an unsigned transaction is reduced it can be signed without context.
 /// Thus, it can be serialized and transferred for example to Cold Wallet and signed
 /// in an environment where secrets are known.
-/// see EIP-19 for more details - https://github.com/ergoplatform/eips/blob/f280890a4163f2f2e988a0091c078e36912fc531/eip-0019.md
+/// see EIP-19 for more details -
+/// <https://github.com/ergoplatform/eips/blob/f280890a4163f2f2e988a0091c078e36912fc531/eip-0019.md>
 #[wasm_bindgen]
 #[derive(PartialEq, Debug, Clone)]
 pub struct ReducedTransaction(ergo_lib::chain::transaction::reduced::ReducedTransaction);
