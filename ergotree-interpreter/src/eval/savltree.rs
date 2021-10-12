@@ -907,13 +907,8 @@ mod tests {
         )
         .unwrap()
         .into();
-        assert!(eval_out_wo_ctx::<bool>(&expr));
 
-        if let Value::Boolean(b) = res {
-            assert!(b);
-        } else {
-            unreachable!();
-        }
+        assert!(eval_out_wo_ctx::<bool>(&expr));
     }
 
     #[test]
