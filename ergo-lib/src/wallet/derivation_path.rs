@@ -2,12 +2,17 @@
 //! BIP-44 <https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki>
 //! and EIP-3 <https://github.com/ergoplatform/eips/blob/master/eip-0003.md>
 
+use core::slice::SlicePattern;
+
 /// Index for hardened derivation
+#[derive(PartialEq, Eq, Clone)]
 pub struct ChildIndexHardened(u32);
 /// Index for normal(non-hardened) derivation
+#[derive(PartialEq, Eq, Clone)]
 pub struct ChildIndexNormal(u32);
 
 /// Child index for derivation
+#[derive(PartialEq, Eq, Clone)]
 pub enum ChildIndex {
     /// Index for hardened derivation
     Hardened(ChildIndexHardened),
@@ -61,19 +66,20 @@ impl ChildIndex {
 pub struct DerivationPath(Box<[ChildIndex]>);
 
 impl DerivationPath {
-    /// Create derivation path for a given account index (hardened) and address index
-    /// m / 44' / 429' / acc' / 0 / address
-    pub fn new(acc: ChildIndexHardened, address: ChildIndexNormal) -> Self {
-        Self(
-            [
-                PURPOSE,
-                ERG,
-                ChildIndex::Hardened(acc),
-                CHANGE,
-                ChildIndex::Normal(address),
-            ]
-            .into(),
-        )
+    /// Create derivation path for a given account index (hardened) and address indices
+    /// m / 44' / 429' / acc' / 0 / address[0] / address[1] / ...
+    /// or m / 44' / 429' / acc' / 0 if address indices are empty
+    /// change is always zero according to EIP-3
+    pub fn new(acc: ChildIndexHardened, address_indices: Vec<ChildIndexNormal>) -> Self {
+        let mut res = vec![PURPOSE, ERG, ChildIndex::Hardened(acc), CHANGE];
+        res.append(
+            address_indices
+                .into_iter()
+                .map(ChildIndex::Normal)
+                .collect::<Vec<ChildIndex>>()
+                .as_mut(),
+        );
+        Self(res.into_boxed_slice())
     }
 
     /// For 0x21 Sign Transaction command of Ergo Ledger App Protocol
