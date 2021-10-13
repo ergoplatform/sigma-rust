@@ -2,8 +2,6 @@
 //! BIP-44 <https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki>
 //! and EIP-3 <https://github.com/ergoplatform/eips/blob/master/eip-0003.md>
 
-use core::slice::SlicePattern;
-
 /// Index for hardened derivation
 #[derive(PartialEq, Eq, Clone)]
 pub struct ChildIndexHardened(u32);
@@ -52,7 +50,7 @@ impl ChildIndex {
 
     /// Return 32-bit representation with highest bit set for hard derivation and clear for normal
     /// derivation
-    fn to_bits(&self) -> u32 {
+    pub fn to_bits(&self) -> u32 {
         match self {
             ChildIndex::Hardened(index) => (1 << 31) | index.0,
             ChildIndex::Normal(index) => index.0,
@@ -117,5 +115,19 @@ impl DerivationPath {
             .iter()
             .for_each(|i| res.append(&mut i.to_bits().to_be_bytes().to_vec()));
         res
+    }
+
+    /// Extend the path with the given index
+    pub fn extend(&self, index: ChildIndexNormal) -> DerivationPath {
+        let mut res = self.0.to_vec();
+        res.push(ChildIndex::Normal(index));
+        DerivationPath(res.into_boxed_slice())
+    }
+}
+
+impl ChildIndexNormal {
+    /// Return next index value (incremented)
+    pub fn next(&self) -> ChildIndexNormal {
+        ChildIndexNormal(self.0 + 1)
     }
 }
