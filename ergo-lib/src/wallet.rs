@@ -1,6 +1,8 @@
 //! Wallet-related features for Ergo
 
 pub mod box_selector;
+pub mod derivation_path;
+pub mod ext_pub_key;
 pub mod secret_key;
 pub mod signing;
 pub mod tx_builder;
