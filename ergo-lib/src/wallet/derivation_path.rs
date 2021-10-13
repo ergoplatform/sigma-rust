@@ -19,7 +19,6 @@ const PURPOSE: ChildIndex = ChildIndex::Hardened(ChildIndexHardened(44));
 const ERG: ChildIndex = ChildIndex::Hardened(ChildIndexHardened(429));
 /// According to EIP-3 change is always 0 (external address)
 const CHANGE: ChildIndex = ChildIndex::Normal(ChildIndexNormal(0));
-const ZERO: ChildIndex = ChildIndex::Normal(ChildIndexNormal(0));
 
 /// Child index related errors
 pub enum ChildIndexError {
@@ -45,6 +44,15 @@ impl ChildIndex {
             Err(ChildIndexError::NumberTooLarge(i))
         }
     }
+
+    /// Return 32-bit representation with highest bit set for hard derivation and clear for normal
+    /// derivation
+    fn to_bits(&self) -> u32 {
+        match self {
+            ChildIndex::Hardened(index) => (1 << 31) | index.0,
+            ChildIndex::Normal(index) => index.0,
+        }
+    }
 }
 
 /// According to
@@ -53,12 +61,6 @@ impl ChildIndex {
 pub struct DerivationPath(Box<[ChildIndex]>);
 
 impl DerivationPath {
-    /// Create derivation path for a given account index (hardened)
-    /// m / 44' / 429' / acc' / 0 / 0
-    pub fn from_acc_num(acc: ChildIndexHardened) -> Self {
-        Self([PURPOSE, ERG, ChildIndex::Hardened(acc), CHANGE, ZERO].into())
-    }
-
     /// Create derivation path for a given account index (hardened) and address index
     /// m / 44' / 429' / acc' / 0 / address
     pub fn new(acc: ChildIndexHardened, address: ChildIndexNormal) -> Self {
@@ -104,6 +106,10 @@ impl DerivationPath {
     /// Big-endian. Any valid bip44 value.
     ///
     pub fn ledger_bytes(&self) -> Vec<u8> {
-        todo!()
+        let mut res = vec![self.0.len() as u8];
+        self.0
+            .iter()
+            .for_each(|i| res.append(&mut i.to_bits().to_be_bytes().to_vec()));
+        res
     }
 }
