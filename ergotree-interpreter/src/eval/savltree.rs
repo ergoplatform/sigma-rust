@@ -315,6 +315,53 @@ pub(crate) static REMOVE_EVAL_FN: EvalFn =
         }
     };
 
+pub(crate) static CONTAINS_EVAL_FN: EvalFn = |_env, _ctx, obj, args| {
+    let avl_tree_data = obj.try_extract_into::<AvlTreeData>()?;
+    let key = {
+        let v = args
+            .get(0)
+            .cloned()
+            .ok_or_else(|| EvalError::AvlTree("eval is missing first arg (key)".to_string()))?;
+        Bytes::from(v.try_extract_into::<Vec<u8>>()?)
+    };
+
+    let proof = {
+        let v = args
+            .get(1)
+            .cloned()
+            .ok_or_else(|| EvalError::AvlTree("eval is missing second arg (proof)".to_string()))?;
+        Bytes::from(v.try_extract_into::<Vec<u8>>()?)
+    };
+
+    let starting_digest = Bytes::from(avl_tree_data.digest.0.to_vec());
+    let mut bv = BatchAVLVerifier::new(
+        &starting_digest,
+        &proof,
+        AVLTree::new(
+            |digest| Node::LabelOnly(NodeHeader::new(Some(*digest), None)),
+            avl_tree_data.key_length as usize,
+            avl_tree_data
+                .value_length_opt
+                .as_ref()
+                .map(|v| **v as usize),
+        ),
+        None,
+        None,
+    )
+    .map_err(map_eval_err)?;
+
+    match bv.perform_one_operation(&Operation::Lookup(key)) {
+        Ok(s) => match s {
+            Some(_e) => Ok(Value::Boolean(true)),
+            _ => Ok(Value::Boolean(false)),
+        },
+        Err(_) => Err(EvalError::AvlTree(format!(
+            "Incorrect contains call for {:?}",
+            avl_tree_data
+        ))),
+    }
+};
+
 pub(crate) static UPDATE_EVAL_FN: EvalFn =
     |_env, _ctx, obj, args| {
         let mut avl_tree_data = obj.try_extract_into::<AvlTreeData>()?;
@@ -821,6 +868,47 @@ mod tests {
                 unreachable!();
             }
         }
+    }
+
+    #[test]
+    fn eval_avl_contains() {
+        let mut prover = populate_tree(vec![
+            (vec![1u8], 10u64.to_be_bytes().to_vec()),
+            (vec![2u8], 20u64.to_be_bytes().to_vec()),
+            (vec![3u8], 30u64.to_be_bytes().to_vec()),
+        ]);
+        let digest =
+            ADDigest::sigma_parse_bytes(&prover.digest().unwrap().into_iter().collect::<Vec<_>>())
+                .unwrap();
+
+        let op = Operation::Lookup(Bytes::from(vec![2u8]));
+        prover.perform_one_operation(&op).unwrap();
+
+        let key = Constant::from(vec![2u8]);
+        let proof: Constant = prover
+            .generate_proof()
+            .into_iter()
+            .collect::<Vec<_>>()
+            .into();
+        let tree_flags = AvlTreeFlags::new(false, false, false);
+        let obj = Expr::Const(
+            AvlTreeData {
+                digest,
+                tree_flags,
+                key_length: 1,
+                value_length_opt: None,
+            }
+            .into(),
+        );
+        let expr: Expr = MethodCall::new(
+            obj,
+            savltree::CONTAINS_METHOD.clone(),
+            vec![key.into(), proof.into()],
+        )
+        .unwrap()
+        .into();
+
+        assert!(eval_out_wo_ctx::<bool>(&expr));
     }
 
     #[test]
