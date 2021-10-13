@@ -53,7 +53,8 @@ pub type BoxTokens = BoundedVec<Token, 1, 255>;
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "json",
-    serde(try_from = "crate::chain::json::ergo_box::ErgoBoxFromJson")
+    serde(try_from = "crate::chain::json::ergo_box::ErgoBoxJson"),
+    serde(into = "crate::chain::json::ergo_box::ErgoBoxJson")
 )]
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ErgoBox {
@@ -224,14 +225,23 @@ impl SigmaSerializable for ErgoBox {
 }
 
 #[cfg(feature = "json")]
-impl TryFrom<super::json::ergo_box::ErgoBoxFromJson> for ErgoBox {
+impl TryFrom<super::json::ergo_box::ErgoBoxJson> for ErgoBox {
     type Error = super::json::ergo_box::ErgoBoxFromJsonError;
-    fn try_from(box_json: super::json::ergo_box::ErgoBoxFromJson) -> Result<Self, Self::Error> {
+    fn try_from(box_json: super::json::ergo_box::ErgoBoxJson) -> Result<Self, Self::Error> {
+        let tokens = if box_json.tokens.is_empty() {
+            None
+        } else {
+            Some(box_json.tokens.try_into().map_err(|_| {
+                SigmaSerializationError::NotSupported(
+                    "More than 255 tokens are not allowed in a box",
+                )
+            })?)
+        };
         let box_with_zero_id = ErgoBox {
             box_id: BoxId::zero(),
             value: box_json.value,
             ergo_tree: box_json.ergo_tree,
-            tokens: box_json.tokens,
+            tokens,
             additional_registers: box_json.additional_registers,
             creation_height: box_json.creation_height,
             transaction_id: box_json.transaction_id,
@@ -255,6 +265,27 @@ impl TryFrom<super::json::ergo_box::ErgoBoxFromJson> for ErgoBox {
     }
 }
 
+#[cfg(feature = "json")]
+impl From<ErgoBox> for super::json::ergo_box::ErgoBoxJson {
+    fn from(ergo_box: ErgoBox) -> super::json::ergo_box::ErgoBoxJson {
+        let tokens = ergo_box
+            .tokens
+            .as_ref()
+            .map(BoxTokens::as_vec)
+            .cloned()
+            .unwrap_or_else(Vec::new); // JSON serialization for ErgoBox requires that tokens be [] instead of null
+        super::json::ergo_box::ErgoBoxJson {
+            box_id: Some(ergo_box.box_id),
+            value: ergo_box.value,
+            ergo_tree: ergo_box.ergo_tree,
+            tokens,
+            additional_registers: ergo_box.additional_registers,
+            creation_height: ergo_box.creation_height,
+            transaction_id: ergo_box.transaction_id,
+            index: ergo_box.index,
+        }
+    }
+}
 /// Contains the same fields as `ErgoBox`, except if transaction id and index,
 /// that will be calculated after full transaction formation.
 /// Use `ErgoBoxCandidateBuilder` from ergo-lib crate to create an instance.
@@ -407,7 +438,11 @@ pub fn parse_box_with_indexed_digests<R: SigmaByteRead>(
             amount: amount.try_into()?,
         })
     }
-    let tokens = BoxTokens::from_vec(tokens).ok();
+    let tokens = if tokens.is_empty() {
+        None
+    } else {
+        Some(BoxTokens::from_vec(tokens)?)
+    };
 
     let additional_registers = NonMandatoryRegisters::sigma_parse(r)?;
 

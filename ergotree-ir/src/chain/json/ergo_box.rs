@@ -1,8 +1,8 @@
 use crate::chain::base16_bytes::Base16DecodedBytes;
 use crate::chain::ergo_box::box_value::BoxValue;
 use crate::chain::ergo_box::BoxId;
-use crate::chain::ergo_box::BoxTokens;
 use crate::chain::ergo_box::NonMandatoryRegisters;
+use crate::chain::token::Token;
 use crate::chain::tx_id::TxId;
 use crate::ergo_tree::ErgoTree;
 use crate::mir::constant::Constant;
@@ -19,13 +19,13 @@ use std::str::FromStr;
 extern crate derive_more;
 use derive_more::From;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 mod box_value;
 
-#[derive(Deserialize, PartialEq, Eq, Debug, Clone)]
-pub struct ErgoBoxFromJson {
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+pub struct ErgoBoxJson {
     #[serde(rename = "boxId", alias = "id")]
     pub box_id: Option<BoxId>,
     /// amount of money associated with the box
@@ -36,7 +36,7 @@ pub struct ErgoBoxFromJson {
     pub ergo_tree: ErgoTree,
     /// secondary tokens the box contains
     #[serde(rename = "assets")]
-    pub tokens: Option<BoxTokens>,
+    pub tokens: Vec<Token>,
     ///  additional registers the box can carry over
     #[serde(rename = "additionalRegisters")]
     pub additional_registers: NonMandatoryRegisters,
