@@ -61,8 +61,17 @@ jobs:
         with:
           command: test
           args: --verbose --release
+        
+  test_coverage:
+    name: Code coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
       - name: rust-tarpaulin code coverage check
-        if: matrix.os == 'ubuntu-latest'
         uses: actions-rs/tarpaulin@master
         with:
           args: '--avoid-cfg-tarpaulin --timeout=360 -v --out Lcov --exclude-files bindings/*'
@@ -72,9 +81,7 @@ jobs:
       #   with:
       #     fail_ci_if_error: true
       - name: Push code coverage results to coveralls.io
-        if: matrix.os == 'ubuntu-latest' 
         uses: coverallsapp/github-action@master
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path-to-lcov: ./lcov.info
-        
