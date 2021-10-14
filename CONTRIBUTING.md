@@ -20,7 +20,7 @@ When we're ready to release, a project owner should do the following:
 - `cargo release minor --no-dev-version -vv` if you intend to bump a minor version 
   or change `minor` to `major` to bump a major version, `patch` to bump a patch/hotfix version 
   (you might want to add any crates  without changes to `--exclude` option list, e.g. `sigma-ser`, `sigma-util`, etc.)
-- check the output and run it with `--execite` to actually execute it(make sure that you have api token from `crates.io`, otherwise run `cargo login` first);
+- check the output and run it with `--execute` to actually execute it(make sure that you have api token from `crates.io`, otherwise run `cargo login` first);
 - Build and publish npm package (`cd bindings/ergo-lib-wasm && npm run publish-nodejs && npm run publish-browser`);
 - Merge release branch into develop
 - Merge release branch into master
