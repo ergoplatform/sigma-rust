@@ -65,8 +65,8 @@ pub struct DerivationPath(Box<[ChildIndex]>);
 
 impl DerivationPath {
     /// Create derivation path for a given account index (hardened) and address indices
-    /// m / 44' / 429' / acc' / 0 / address[0] / address[1] / ...
-    /// or m / 44' / 429' / acc' / 0 if address indices are empty
+    /// `m / 44' / 429' / acc' / 0 / address[0] / address[1] / ...`
+    /// or `m / 44' / 429' / acc' / 0` if address indices are empty
     /// change is always zero according to EIP-3
     pub fn new(acc: ChildIndexHardened, address_indices: Vec<ChildIndexNormal>) -> Self {
         let mut res = vec![PURPOSE, ERG, ChildIndex::Hardened(acc), CHANGE];
@@ -101,11 +101,11 @@ impl DerivationPath {
     /// 4
     /// Big-endian. Value: 429’ (Ergo coin id)
     ///
-    /// [Optional] Third index
+    /// Optional Third index
     /// 4
     /// Big-endian. Any valid bip44 hardened value.
     /// ...
-    /// [Optional] Last index
+    /// Optional Last index
     /// 4
     /// Big-endian. Any valid bip44 value.
     ///
