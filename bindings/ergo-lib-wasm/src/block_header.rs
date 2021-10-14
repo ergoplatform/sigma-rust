@@ -7,6 +7,8 @@ extern crate derive_more;
 use derive_more::{From, Into};
 
 use crate::error_conversion::to_js;
+use ergo_lib::chain::ergo_state_context::Headers;
+use std::convert::TryInto;
 
 /// Block header
 #[wasm_bindgen]
@@ -85,5 +87,11 @@ impl From<Vec<Header>> for BlockHeaders {
 impl From<BlockHeaders> for Vec<Header> {
     fn from(bs: BlockHeaders) -> Self {
         bs.0.into_iter().map(Header::from).collect()
+    }
+}
+
+impl From<BlockHeaders> for Headers {
+    fn from(bs: BlockHeaders) -> Self {
+        bs.try_into().unwrap()
     }
 }

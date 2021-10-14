@@ -87,7 +87,7 @@ it('sign transaction', async () => {
   assert(tx.to_js_eip12() != null);
   const tx_data_inputs = ErgoBoxes.from_boxes_json([]);
   const pre_header = PreHeader.from_block_header(block_headers.get(0));
-  const ctx = new ErgoStateContext(pre_header);
+  const ctx = new ErgoStateContext(pre_header, block_headers);
   const sks = new SecretKeys();
   sks.add(sk);
   const wallet = Wallet.from_secrets(sks);
@@ -201,7 +201,7 @@ it('use signed tx outputs as inputs in a new tx', async () => {
   const tx = tx_builder.build();
   const tx_data_inputs = ErgoBoxes.from_boxes_json([]);
   const pre_header = PreHeader.from_block_header(block_headers.get(0));
-  const ctx = new ErgoStateContext(pre_header);
+  const ctx = new ErgoStateContext(pre_header, block_headers);
   const sks = new SecretKeys();
   sks.add(sk);
   const wallet = Wallet.from_secrets(sks);

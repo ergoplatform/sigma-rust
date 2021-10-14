@@ -35,7 +35,7 @@ mod arbitrary {
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            (any::<PreHeader>(), any::<ErgoStateContextHeaders>())
+            (any::<PreHeader>(), any::<Headers>())
                 .prop_map(|(pre_header, headers)| Self::new(pre_header, headers))
                 .boxed()
         }

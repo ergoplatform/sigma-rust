@@ -5,8 +5,8 @@ use wasm_bindgen::prelude::*;
 extern crate derive_more;
 use derive_more::{From, Into};
 
-use crate::header::PreHeader;
 use crate::block_header::BlockHeaders;
+use crate::header::PreHeader;
 
 /// Blockchain state (last headers, etc.)
 #[wasm_bindgen]
