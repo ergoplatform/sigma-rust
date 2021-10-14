@@ -1,8 +1,9 @@
 //! Blockchain state
-use std::convert::TryInto;
-
 use ergotree_ir::chain::header::Header;
 use ergotree_ir::chain::preheader::PreHeader;
+
+/// Fixed number of last block headers in descending order (first header is the newest one)
+pub type ErgoStateContextHeaders = [Header; 10];
 
 /// Blockchain state (last headers, etc.)
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -11,18 +12,32 @@ pub struct ErgoStateContext {
     /// by a miner before it's formation
     pub pre_header: PreHeader,
     /// Fixed number of last block headers in descending order (first header is the newest one)
-    pub headers: [Header; 10],
+    pub headers: ErgoStateContextHeaders,
 }
 
 impl ErgoStateContext {
-    /// Dummy instance intended for tests where actual values are not used
-    pub fn dummy() -> ErgoStateContext {
-        let headers = vec![Header::dummy(); 10]
-            .try_into()
-            .expect("internal error: Headers array length isn't eq to 10");
+    /// Create an ErgoStateContext instance
+    pub fn new(pre_header: PreHeader, headers: ErgoStateContextHeaders) -> ErgoStateContext {
         ErgoStateContext {
-            pre_header: PreHeader::dummy(),
+            pre_header,
             headers,
+        }
+    }
+}
+
+#[cfg(feature = "arbitrary")]
+mod arbitrary {
+    use super::*;
+    use proptest::prelude::*;
+
+    impl Arbitrary for ErgoStateContext {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            (any::<PreHeader>(), any::<ErgoStateContextHeaders>())
+                .prop_map(|(pre_header, headers)| Self::new(pre_header, headers))
+                .boxed()
         }
     }
 }

@@ -237,10 +237,10 @@ mod tests {
                 None, output_candidates.try_into().unwrap()).unwrap();
             let tx_context = TransactionContext { spending_tx: tx,
                                                   boxes_to_spend: boxes_to_spend.clone(), data_boxes: vec![] };
-            let res = sign_transaction(prover.as_ref(), tx_context.clone(), &ErgoStateContext::dummy());
+            let res = sign_transaction(prover.as_ref(), tx_context.clone(), &force_any_val::<ErgoStateContext>());
             let signed_tx = res.unwrap();
             prop_assert!(verify_tx_proofs(&signed_tx, &boxes_to_spend).unwrap());
-            let reduced_tx = reduce_tx(tx_context, &ErgoStateContext::dummy()).unwrap();
+            let reduced_tx = reduce_tx(tx_context, &force_any_val::<ErgoStateContext>()).unwrap();
             let signed_reduced_tx = sign_reduced_transaction(prover.as_ref(), reduced_tx).unwrap();
             prop_assert!(verify_tx_proofs(&signed_reduced_tx, &boxes_to_spend).unwrap());
         }
