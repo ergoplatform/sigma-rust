@@ -38,6 +38,11 @@ features = [ "json" ]
 version = "0.2.74"
 features = ["serde-serialize"]
 
+[dependencies.bounded-vec]
+version = "^0.4.0"
+git = "https://github.com/ergoplatform/bounded-vec"
+features = ["serde"]
+
 [dev-dependencies]
 wasm-bindgen-test = "0.3.22"
 ergotree-ir = { version = "^0.14.0", path = "../../ergotree-ir", features = ["arbitrary"] }

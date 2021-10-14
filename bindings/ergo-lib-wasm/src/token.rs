@@ -2,6 +2,7 @@
 
 use std::convert::TryFrom;
 
+use bounded_vec::BoundedVec;
 use ergo_lib::ergotree_ir::chain;
 use ergo_lib::ergotree_ir::chain::base16_bytes::Base16DecodedBytes;
 use ergo_lib::ergotree_ir::chain::digest32::Digest32;
@@ -13,6 +14,8 @@ use crate::error_conversion::to_js;
 use crate::json::TokenJsonEip12;
 use crate::utils::I64;
 
+/// A Bounded Vector for Tokens. A Box can have between 1 and 255 tokens
+pub type BoxTokens = BoundedVec<Token, 1, 255>;
 /// Token id (32 byte digest)
 #[wasm_bindgen]
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -133,41 +136,50 @@ impl From<Token> for chain::token::Token {
 /// Array of tokens
 #[wasm_bindgen]
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct Tokens(Vec<Token>);
+pub struct Tokens(Option<BoxTokens>);
 
 #[wasm_bindgen]
 impl Tokens {
     /// Create empty Tokens
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
-        Tokens(vec![])
+        Tokens(None)
     }
 
     /// Returns the number of elements in the collection
     pub fn len(&self) -> usize {
-        self.0.len()
+        self.0.as_ref().map(BoxTokens::len).unwrap_or(0)
     }
 
     /// Returns the element of the collection with a given index
     pub fn get(&self, index: usize) -> Token {
-        self.0[index].clone()
+        self.0.as_ref().unwrap().get(index).unwrap().clone()
     }
 
     /// Adds an elements to the collection
     pub fn add(&mut self, elem: &Token) {
-        self.0.push(elem.clone());
+        if self.0.is_some() {
+            let mut new_vec = self.0.as_ref().unwrap().as_vec().clone();
+            new_vec.push(elem.clone());
+            self.0 = Some(BoxTokens::from_vec(new_vec).unwrap()); // TODO: BoundedVec does not have any way to try to push elements. Right now the best way seems to be to just panic if someone tries to add > 255 tokens
+        } else {
+            self.0 = Some(BoxTokens::from([elem.clone()]));
+        }
     }
 }
 
-impl From<Tokens> for Vec<chain::token::Token> {
+impl From<Tokens> for Option<chain::ergo_box::BoxTokens> {
     fn from(v: Tokens) -> Self {
-        v.0.iter().map(|i| i.0.clone()).collect()
+        chain::ergo_box::BoxTokens::from_vec(
+            v.0.iter().cloned().flatten().map(Into::into).collect(),
+        )
+        .ok()
     }
 }
-impl From<Vec<chain::token::Token>> for Tokens {
-    fn from(v: Vec<chain::token::Token>) -> Self {
+impl From<Option<chain::ergo_box::BoxTokens>> for Tokens {
+    fn from(v: Option<chain::ergo_box::BoxTokens>) -> Self {
         let mut tokens = Tokens::new();
-        for token in &v {
+        for token in v.iter().flatten() {
             tokens.add(&Token(token.clone()))
         }
         tokens

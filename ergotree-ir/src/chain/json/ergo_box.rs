@@ -19,13 +19,13 @@ use std::str::FromStr;
 extern crate derive_more;
 use derive_more::From;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 mod box_value;
 
-#[derive(Deserialize, PartialEq, Eq, Debug, Clone)]
-pub struct ErgoBoxFromJson {
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+pub struct ErgoBoxJson {
     #[serde(rename = "boxId", alias = "id")]
     pub box_id: Option<BoxId>,
     /// amount of money associated with the box

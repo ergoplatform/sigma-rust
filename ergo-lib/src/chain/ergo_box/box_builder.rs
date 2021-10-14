@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 
 use ergotree_ir::chain::ergo_box::box_value::BoxValue;
+use ergotree_ir::chain::ergo_box::BoxTokens;
 use ergotree_ir::chain::ergo_box::ErgoBoxCandidate;
 use ergotree_ir::chain::ergo_box::NonMandatoryRegisterId;
 use ergotree_ir::chain::ergo_box::NonMandatoryRegisters;
@@ -41,6 +42,9 @@ pub enum ErgoBoxCandidateBuilderError {
     /// Serialization error
     #[error("serialization error: {0}")]
     SerializationError(#[from] SigmaSerializationError),
+    /// When creating a Box, it can either have no tokens, or 1-255 tokens
+    #[error("Too many Tokens. The maximum number of Tokens in an Ergo Box is 255")]
+    TooManyTokensError,
 }
 
 /// Minted token info (id, amount, name, desc)
@@ -215,6 +219,14 @@ impl ErgoBoxCandidateBuilder {
             );
         }
         let regs = NonMandatoryRegisters::new(additional_registers)?;
+        let tokens = if tokens.is_empty() {
+            None
+        } else {
+            Some(
+                BoxTokens::from_vec(tokens)
+                    .map_err(|_| ErgoBoxCandidateBuilderError::TooManyTokensError)?,
+            )
+        };
         let b = ErgoBoxCandidate {
             value: self.value,
             ergo_tree: self.ergo_tree.clone(),
@@ -345,7 +357,7 @@ mod tests {
             ErgoBoxCandidateBuilder::new(out_box_value, force_any_val::<ErgoTree>(), 0);
         box_builder.mint_token(token_pair.clone(), token_name, token_desc, token_num_dec);
         let out_box = box_builder.build().unwrap();
-        assert_eq!(out_box.tokens.get(0).unwrap(), &token_pair);
+        assert_eq!(out_box.tokens.unwrap().get(0).unwrap(), &token_pair);
         // test registers are encoded according to https://github.com/ergoplatform/eips/blob/master/eip-0004.md
         assert_eq!(
             out_box
@@ -434,6 +446,6 @@ mod tests {
             ErgoBoxCandidateBuilder::new(out_box_value, force_any_val::<ErgoTree>(), 0);
         box_builder.add_token(token.clone());
         let out_box = box_builder.build().unwrap();
-        assert_eq!(out_box.tokens.first().unwrap(), &token);
+        assert_eq!(out_box.tokens.unwrap().first(), &token);
     }
 }

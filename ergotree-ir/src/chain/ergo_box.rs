@@ -17,6 +17,7 @@ use crate::util::AsVecI8;
 pub use box_id::*;
 pub use register::*;
 
+use bounded_vec::BoundedVec;
 use indexmap::IndexSet;
 use sigma_util::hash::blake2b256_hash;
 use std::convert::TryFrom;
@@ -30,6 +31,8 @@ use super::token::Token;
 use super::token::TokenId;
 use super::tx_id::TxId;
 
+/// A BoxToken, a bounded collection of Tokens used in Box
+pub type BoxTokens = BoundedVec<Token, 1, 255>;
 /// Box (aka coin, or an unspent output) is a basic concept of a UTXO-based cryptocurrency.
 /// In Bitcoin, such an object is associated with some monetary value (arbitrary,
 /// but with predefined precision, so we use integer arithmetic to work with the value),
@@ -50,7 +53,8 @@ use super::tx_id::TxId;
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "json",
-    serde(try_from = "crate::chain::json::ergo_box::ErgoBoxFromJson")
+    serde(try_from = "crate::chain::json::ergo_box::ErgoBoxJson"),
+    serde(into = "crate::chain::json::ergo_box::ErgoBoxJson")
 )]
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ErgoBox {
@@ -67,7 +71,7 @@ pub struct ErgoBox {
     pub ergo_tree: ErgoTree,
     /// secondary tokens the box contains
     #[cfg_attr(feature = "json", serde(rename = "assets"))]
-    pub tokens: Vec<Token>,
+    pub tokens: Option<BoxTokens>,
     ///  additional registers the box can carry over
     #[cfg_attr(feature = "json", serde(rename = "additionalRegisters"))]
     pub additional_registers: NonMandatoryRegisters,
@@ -92,7 +96,7 @@ impl ErgoBox {
     pub fn new(
         value: BoxValue,
         ergo_tree: ErgoTree,
-        tokens: Vec<Token>,
+        tokens: Option<BoxTokens>,
         additional_registers: NonMandatoryRegisters,
         creation_height: u32,
         transaction_id: TxId,
@@ -167,7 +171,12 @@ impl ErgoBox {
 
     /// Returns tokens as tuple of byte array and amount as primitive types
     pub fn tokens_raw(&self) -> Vec<(Vec<i8>, i64)> {
-        self.tokens.clone().into_iter().map(Into::into).collect()
+        self.tokens
+            .clone()
+            .into_iter()
+            .flatten()
+            .map(Into::into)
+            .collect()
     }
 
     /// Returns serialized ergo_tree guarding this box
@@ -197,7 +206,7 @@ impl SigmaSerializable for ErgoBox {
         serialize_box_with_indexed_digests(
             &self.value,
             ergo_tree_bytes,
-            &self.tokens,
+            self.tokens.as_ref().map(BoxTokens::as_ref).unwrap_or(&[]),
             &self.additional_registers,
             self.creation_height,
             None,
@@ -216,14 +225,23 @@ impl SigmaSerializable for ErgoBox {
 }
 
 #[cfg(feature = "json")]
-impl TryFrom<super::json::ergo_box::ErgoBoxFromJson> for ErgoBox {
+impl TryFrom<super::json::ergo_box::ErgoBoxJson> for ErgoBox {
     type Error = super::json::ergo_box::ErgoBoxFromJsonError;
-    fn try_from(box_json: super::json::ergo_box::ErgoBoxFromJson) -> Result<Self, Self::Error> {
+    fn try_from(box_json: super::json::ergo_box::ErgoBoxJson) -> Result<Self, Self::Error> {
+        let tokens = if box_json.tokens.is_empty() {
+            None
+        } else {
+            Some(box_json.tokens.try_into().map_err(|_| {
+                SigmaSerializationError::NotSupported(
+                    "More than 255 tokens are not allowed in a box",
+                )
+            })?)
+        };
         let box_with_zero_id = ErgoBox {
             box_id: BoxId::zero(),
             value: box_json.value,
             ergo_tree: box_json.ergo_tree,
-            tokens: box_json.tokens,
+            tokens,
             additional_registers: box_json.additional_registers,
             creation_height: box_json.creation_height,
             transaction_id: box_json.transaction_id,
@@ -247,6 +265,27 @@ impl TryFrom<super::json::ergo_box::ErgoBoxFromJson> for ErgoBox {
     }
 }
 
+#[cfg(feature = "json")]
+impl From<ErgoBox> for super::json::ergo_box::ErgoBoxJson {
+    fn from(ergo_box: ErgoBox) -> super::json::ergo_box::ErgoBoxJson {
+        let tokens = ergo_box
+            .tokens
+            .as_ref()
+            .map(BoxTokens::as_vec)
+            .cloned()
+            .unwrap_or_else(Vec::new); // JSON serialization for ErgoBox requires that tokens be [] instead of null
+        super::json::ergo_box::ErgoBoxJson {
+            box_id: Some(ergo_box.box_id),
+            value: ergo_box.value,
+            ergo_tree: ergo_box.ergo_tree,
+            tokens,
+            additional_registers: ergo_box.additional_registers,
+            creation_height: ergo_box.creation_height,
+            transaction_id: ergo_box.transaction_id,
+            index: ergo_box.index,
+        }
+    }
+}
 /// Contains the same fields as `ErgoBox`, except if transaction id and index,
 /// that will be calculated after full transaction formation.
 /// Use `ErgoBoxCandidateBuilder` from ergo-lib crate to create an instance.
@@ -264,7 +303,7 @@ pub struct ErgoBoxCandidate {
     pub ergo_tree: ErgoTree,
     /// secondary tokens the box contains
     #[cfg_attr(feature = "json", serde(rename = "assets"))]
-    pub tokens: Vec<Token>,
+    pub tokens: Option<BoxTokens>,
     ///  additional registers the box can carry over
     #[cfg_attr(feature = "json", serde(rename = "additionalRegisters"))]
     pub additional_registers: NonMandatoryRegisters,
@@ -283,10 +322,11 @@ impl ErgoBoxCandidate {
         token_ids_in_tx: Option<&IndexSet<TokenId>>,
         w: &mut W,
     ) -> SigmaSerializeResult {
+        let tokens: &[Token] = self.tokens.as_ref().map(BoundedVec::as_ref).unwrap_or(&[]);
         serialize_box_with_indexed_digests(
             &self.value,
             self.ergo_tree.sigma_serialize_bytes()?,
-            &self.tokens,
+            tokens,
             &self.additional_registers,
             self.creation_height,
             token_ids_in_tx,
@@ -398,6 +438,11 @@ pub fn parse_box_with_indexed_digests<R: SigmaByteRead>(
             amount: amount.try_into()?,
         })
     }
+    let tokens = if tokens.is_empty() {
+        None
+    } else {
+        Some(BoxTokens::from_vec(tokens)?)
+    };
 
     let additional_registers = NonMandatoryRegisters::sigma_parse(r)?;
 
@@ -416,7 +461,7 @@ pub fn parse_box_with_indexed_digests<R: SigmaByteRead>(
 pub mod arbitrary {
     use super::box_value::arbitrary::ArbBoxValueRange;
     use super::*;
-    use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
+    use proptest::{arbitrary::Arbitrary, collection::vec, option::of, prelude::*};
 
     impl Arbitrary for ErgoBoxCandidate {
         type Parameters = ArbBoxValueRange;
@@ -425,7 +470,7 @@ pub mod arbitrary {
             (
                 any_with::<BoxValue>(args),
                 any::<ErgoTree>(),
-                vec(any::<Token>(), 0..3),
+                of(vec(any::<Token>(), 1..3)),
                 any::<u32>(),
                 any::<NonMandatoryRegisters>(),
             )
@@ -433,7 +478,7 @@ pub mod arbitrary {
                     |(value, ergo_tree, tokens, creation_height, additional_registers)| Self {
                         value,
                         ergo_tree,
-                        tokens,
+                        tokens: tokens.map(BoundedVec::from_vec).map(Result::unwrap),
                         additional_registers,
                         creation_height,
                     },
