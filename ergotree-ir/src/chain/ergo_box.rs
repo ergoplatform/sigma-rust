@@ -206,7 +206,7 @@ impl SigmaSerializable for ErgoBox {
         serialize_box_with_indexed_digests(
             &self.value,
             ergo_tree_bytes,
-            self.tokens.as_ref().map(BoxTokens::as_ref).unwrap_or(&[]),
+            &self.tokens,
             &self.additional_registers,
             self.creation_height,
             None,
@@ -322,11 +322,10 @@ impl ErgoBoxCandidate {
         token_ids_in_tx: Option<&IndexSet<TokenId>>,
         w: &mut W,
     ) -> SigmaSerializeResult {
-        let tokens: &[Token] = self.tokens.as_ref().map(BoundedVec::as_ref).unwrap_or(&[]);
         serialize_box_with_indexed_digests(
             &self.value,
             self.ergo_tree.sigma_serialize_bytes()?,
-            tokens,
+            &self.tokens,
             &self.additional_registers,
             self.creation_height,
             token_ids_in_tx,
@@ -371,7 +370,7 @@ impl From<ErgoBox> for ErgoBoxCandidate {
 pub fn serialize_box_with_indexed_digests<W: SigmaByteWrite>(
     box_value: &BoxValue,
     ergo_tree_bytes: Vec<u8>,
-    tokens: &[Token],
+    tokens: &Option<BoxTokens>,
     additional_registers: &NonMandatoryRegisters,
     creation_height: u32,
     token_ids_in_tx: Option<&IndexSet<TokenId>>,
@@ -381,7 +380,8 @@ pub fn serialize_box_with_indexed_digests<W: SigmaByteWrite>(
     box_value.sigma_serialize(w)?;
     w.write_all(&ergo_tree_bytes[..])?;
     w.put_u32(creation_height)?;
-    // until https://github.com/ergoplatform/sigma-rust/issues/416 is done
+    let tokens: &[Token] = tokens.as_ref().map(BoundedVec::as_ref).unwrap_or(&[]);
+    // Unwrap is safe since BoxTokens size is bounded to 255
     #[allow(clippy::unwrap_used)]
     w.put_u8(u8::try_from(tokens.len()).unwrap())?;
 
