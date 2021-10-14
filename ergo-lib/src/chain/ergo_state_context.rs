@@ -3,7 +3,7 @@ use ergotree_ir::chain::header::Header;
 use ergotree_ir::chain::preheader::PreHeader;
 
 /// Fixed number of last block headers in descending order (first header is the newest one)
-pub type ErgoStateContextHeaders = [Header; 10];
+pub type Headers = [Header; 10];
 
 /// Blockchain state (last headers, etc.)
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -12,12 +12,12 @@ pub struct ErgoStateContext {
     /// by a miner before it's formation
     pub pre_header: PreHeader,
     /// Fixed number of last block headers in descending order (first header is the newest one)
-    pub headers: ErgoStateContextHeaders,
+    pub headers: Headers,
 }
 
 impl ErgoStateContext {
     /// Create an ErgoStateContext instance
-    pub fn new(pre_header: PreHeader, headers: ErgoStateContextHeaders) -> ErgoStateContext {
+    pub fn new(pre_header: PreHeader, headers: Headers) -> ErgoStateContext {
         ErgoStateContext {
             pre_header,
             headers,

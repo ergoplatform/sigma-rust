@@ -6,11 +6,7 @@ extern crate derive_more;
 use derive_more::{From, Into};
 
 use crate::header::PreHeader;
-
-/// Fixed number of last block headers in descending order (first header is the newest one)
-#[wasm_bindgen]
-#[derive(From, Into)]
-pub struct ErgoStateContextHeaders(chain::ergo_state_context::ErgoStateContextHeaders);
+use crate::block_header::BlockHeaders;
 
 /// Blockchain state (last headers, etc.)
 #[wasm_bindgen]
@@ -21,7 +17,7 @@ pub struct ErgoStateContext(chain::ergo_state_context::ErgoStateContext);
 impl ErgoStateContext {
     /// Create new context from pre-header
     #[wasm_bindgen(constructor)]
-    pub fn new(pre_header: PreHeader, headers: ErgoStateContextHeaders) -> Self {
+    pub fn new(pre_header: PreHeader, headers: BlockHeaders) -> Self {
         let ergo_state_context =
             chain::ergo_state_context::ErgoStateContext::new(pre_header.into(), headers.into());
         ergo_state_context.into()
