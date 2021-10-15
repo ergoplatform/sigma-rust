@@ -25,14 +25,6 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 
 - isProven
 
-#### AvlTree 
-
-- contains
-- get
-- getMany
-- update
-- remove
-
 #### Context
 
 - LastBlockUtxoRootHash
@@ -167,6 +159,11 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 - updateOperations
 - insert
 - updateDigest
+- contains
+- get
+- getMany
+- update
+- remove
 
 #### Collection
 
