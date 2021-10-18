@@ -62,6 +62,8 @@ impl Evaluable for Append {
 mod tests {
     use super::*;
     use crate::eval::tests::eval_out_wo_ctx;
+    use ergotree_ir::mir::collection::Collection;
+    use ergotree_ir::mir::constant::Constant;
     use ergotree_ir::mir::expr::Expr;
     use ergotree_ir::types::stype::SType;
 
@@ -103,5 +105,13 @@ mod tests {
                 _ => panic!("fail"),
             }
         }
+    }
+
+    #[test]
+    fn append_byte_array_and_byte() {
+        let byte_coll: Constant = vec![1i8, 2i8].into();
+        let byte: Expr = Expr::Collection(Collection::new(SType::SByte, vec![3i8.into()]).unwrap());
+        let expr: Expr = Expr::Append(Append::new(byte_coll.into(), byte).unwrap());
+        assert_eq!(eval_out_wo_ctx::<Vec<i8>>(&expr), vec![1i8, 2, 3]);
     }
 }

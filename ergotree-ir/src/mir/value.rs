@@ -102,7 +102,9 @@ where
     /// Collection element type
     pub fn elem_tpe(&self) -> &SType {
         match self {
-            cp @ CollKind::NativeColl(_) => cp.elem_tpe(),
+            CollKind::NativeColl(ncoll) => match ncoll {
+                NativeColl::CollByte(_) => &SType::SByte,
+            },
             CollKind::WrappedColl { elem_tpe, .. } => elem_tpe,
         }
     }
