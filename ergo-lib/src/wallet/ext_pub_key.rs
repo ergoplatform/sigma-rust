@@ -96,3 +96,81 @@ impl From<ExtPubKey> for Address {
         Address::P2Pk(epk.public_key.into())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::wallet::derivation_path::ChildIndexHardened;
+
+    use super::*;
+
+    #[test]
+    fn bip32_test_vector1() {
+        // from https://en.bitcoin.it/wiki/BIP_0032_TestVectors
+        // Chain m/0'/1/2' from Test vector 1
+        // The difference between path "m/0'/1/2'" and our "m/44'/429'/0" does not matter
+        // since we only testing soft derivation for children
+        let derivation_path =
+            DerivationPath::new(ChildIndexHardened::from_31_bit(0).unwrap(), vec![]);
+        let pub_key_bytes =
+            base16::decode(b"0357bfe1e341d01c69fe5654309956cbea516822fba8a601743a012a7896ee8dc2")
+                .unwrap();
+        let chain_code =
+            base16::decode(b"04466b9cc8e161e966409ca52986c584f07e9dc81f735db683c3ff6ec7b1503f")
+                .unwrap();
+        let ext_pub_key = ExtPubKey::new(
+            pub_key_bytes.try_into().unwrap(),
+            chain_code.try_into().unwrap(),
+            derivation_path,
+        )
+        .unwrap();
+
+        // Chain m/0'/1/2'/2
+        let child = ext_pub_key.derive(ChildIndexNormal::normal(2).unwrap());
+        let expected_child_pub_key_bytes: PubKeyBytes =
+            base16::decode(b"02e8445082a72f29b75ca48748a914df60622a609cacfce8ed0e35804560741d29")
+                .unwrap()
+                .try_into()
+                .unwrap();
+        assert_eq!(child.pub_key_bytes(), expected_child_pub_key_bytes);
+
+        // Chain m/0'/1/2'/2/1000000000
+        let child2 = child.derive(ChildIndexNormal::normal(1000000000).unwrap());
+        let expected_child2_pub_key_bytes: PubKeyBytes =
+            base16::decode(b"022a471424da5e657499d1ff51cb43c47481a03b1e77f951fe64cec9f5a48f7011")
+                .unwrap()
+                .try_into()
+                .unwrap();
+        assert_eq!(child2.pub_key_bytes(), expected_child2_pub_key_bytes);
+    }
+
+    #[test]
+    fn bip32_test_vector2() {
+        // from https://en.bitcoin.it/wiki/BIP_0032_TestVectors
+        // Chain m from Test vector 2
+        // The difference between path "m" and our "m/44'/429'/0" does not matter
+        // since we only testing soft derivation for children
+        let derivation_path =
+            DerivationPath::new(ChildIndexHardened::from_31_bit(0).unwrap(), vec![]);
+        let pub_key_bytes =
+            base16::decode(b"03cbcaa9c98c877a26977d00825c956a238e8dddfbd322cce4f74b0b5bd6ace4a7")
+                .unwrap();
+        let chain_code =
+            base16::decode(b"60499f801b896d83179a4374aeb7822aaeaceaa0db1f85ee3e904c4defbd9689")
+                .unwrap();
+        let ext_pub_key = ExtPubKey::new(
+            pub_key_bytes.try_into().unwrap(),
+            chain_code.try_into().unwrap(),
+            derivation_path,
+        )
+        .unwrap();
+
+        // Chain m/0
+        let child = ext_pub_key.derive(ChildIndexNormal::normal(0).unwrap());
+        let expected_child_pub_key_bytes: PubKeyBytes =
+            base16::decode(b"02fc9e5af0ac8d9b3cecfe2a888e2117ba3d089d8585886c9c826b6b22a98d12ea")
+                .unwrap()
+                .try_into()
+                .unwrap();
+        assert_eq!(child.pub_key_bytes(), expected_child_pub_key_bytes);
+    }
+}
