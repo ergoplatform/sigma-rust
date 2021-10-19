@@ -1,5 +1,6 @@
 //! Trait implementations to simplify conversion of `ergo_lib` errors into `JsValue`s
 
+use std::array::TryFromSliceError;
 use std::num::ParseIntError;
 
 use base16::DecodeError;
@@ -8,6 +9,7 @@ use ergo_lib::ergotree_ir::chain::address::AddressError;
 use ergo_lib::ergotree_ir::chain::digest32::Digest32Error;
 use ergo_lib::ergotree_ir::chain::ergo_box::box_value::BoxValueError;
 use ergo_lib::ergotree_ir::chain::token::TokenAmountError;
+use ergo_lib::wallet::derivation_path::ChildIndexError;
 use ergo_lib::wallet::signing::TxSigningError;
 use ergo_lib::{
     chain::ergo_box::box_builder::ErgoBoxCandidateBuilderError,
@@ -56,6 +58,7 @@ from_error_to_wrap!(TxBuilderError);
 from_error_to_wrap!(TxSigningError);
 from_error_to_wrap!(WalletError);
 from_error_to_wrap!(DecodeError);
+from_error_to_wrap!(TryFromSliceError);
 
 macro_rules! from_error_to_wrap_via_debug {
     ($t:ident) => {
@@ -71,3 +74,4 @@ from_error_to_wrap_via_debug!(ErgoTreeError);
 from_error_to_wrap_via_debug!(ErgoTreeConstantError);
 from_error_to_wrap_via_debug!(ErgoTreeConstantsParsingError);
 from_error_to_wrap_via_debug!(ParseIntError);
+from_error_to_wrap_via_debug!(ChildIndexError);

@@ -3,14 +3,37 @@
 //! and EIP-3 <https://github.com/ergoplatform/eips/blob/master/eip-0003.md>
 
 /// Index for hardened derivation
-#[derive(PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq, Clone, Debug)]
 pub struct ChildIndexHardened(u32);
+
+impl ChildIndexHardened {
+    /// Create new from a 31-bit value (32th bit should not be set)
+    pub fn from_31_bit(i: u32) -> Result<Self, ChildIndexError> {
+        if i & (1 << 31) == 0 {
+            Ok(ChildIndexHardened(i))
+        } else {
+            Err(ChildIndexError::NumberTooLarge(i))
+        }
+    }
+}
+
 /// Index for normal(non-hardened) derivation
-#[derive(PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq, Clone, Debug)]
 pub struct ChildIndexNormal(u32);
 
+impl ChildIndexNormal {
+    /// Create an index for normal (non-hardened) derivation from 31-bit value(32th bit should not be set)
+    pub fn normal(i: u32) -> Result<Self, ChildIndexError> {
+        if i & (1 << 31) == 0 {
+            Ok(ChildIndexNormal(i))
+        } else {
+            Err(ChildIndexError::NumberTooLarge(i))
+        }
+    }
+}
+
 /// Child index for derivation
-#[derive(PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq, Clone, Debug)]
 pub enum ChildIndex {
     /// Index for hardened derivation
     Hardened(ChildIndexHardened),
@@ -24,28 +47,21 @@ const ERG: ChildIndex = ChildIndex::Hardened(ChildIndexHardened(429));
 const CHANGE: ChildIndex = ChildIndex::Normal(ChildIndexNormal(0));
 
 /// Child index related errors
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ChildIndexError {
     /// Nomber is too large
     NumberTooLarge(u32),
 }
 
 impl ChildIndex {
-    /// Create an index for normal (non-hardened) derivation
+    /// Create an index for normal (non-hardened) derivation from 31-bit value(32th bit should not be set)
     pub fn normal(i: u32) -> Result<Self, ChildIndexError> {
-        if i & (1 << 31) == 0 {
-            Ok(ChildIndex::Normal(ChildIndexNormal(i)))
-        } else {
-            Err(ChildIndexError::NumberTooLarge(i))
-        }
+        Ok(ChildIndex::Normal(ChildIndexNormal::normal(i)?))
     }
 
-    /// Create an index for hardened derivation
+    /// Create an index for hardened derivation from 31-bit value(32th bit should not be set)
     pub fn hardened(i: u32) -> Result<Self, ChildIndexError> {
-        if i & (1 << 31) == 0 {
-            Ok(ChildIndex::Hardened(ChildIndexHardened(i)))
-        } else {
-            Err(ChildIndexError::NumberTooLarge(i))
-        }
+        Ok(ChildIndex::Hardened(ChildIndexHardened::from_31_bit(i)?))
     }
 
     /// Return 32-bit representation with highest bit set for hard derivation and clear for normal
@@ -61,6 +77,7 @@ impl ChildIndex {
 /// According to
 /// BIP-44 <https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki>
 /// and EIP-3 <https://github.com/ergoplatform/eips/blob/master/eip-0003.md>
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct DerivationPath(Box<[ChildIndex]>);
 
 impl DerivationPath {
@@ -117,7 +134,8 @@ impl DerivationPath {
         res
     }
 
-    /// Extend the path with the given index
+    /// Extend the path with the given index.
+    /// Returns this derivation path with added index.
     pub fn extend(&self, index: ChildIndexNormal) -> DerivationPath {
         let mut res = self.0.to_vec();
         res.push(ChildIndex::Normal(index));

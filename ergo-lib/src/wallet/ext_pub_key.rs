@@ -23,6 +23,7 @@ type HmacSha512 = Hmac<Sha512>;
 
 /// Extented public key
 /// implemented according to BIP-32
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ExtPubKey {
     /// Parsed public key (EcPoint)
     pub public_key: EcPoint,
