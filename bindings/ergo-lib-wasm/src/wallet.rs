@@ -2,6 +2,9 @@
 use ergo_lib::ergotree_ir::chain;
 use wasm_bindgen::prelude::*;
 
+pub mod derivation_path;
+pub mod ext_pub_key;
+
 use crate::{
     box_coll::ErgoBoxes, ergo_state_ctx::ErgoStateContext, error_conversion::to_js,
     secret_key::SecretKeys, transaction::reduced::ReducedTransaction, transaction::Transaction,
