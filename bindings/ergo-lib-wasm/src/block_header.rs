@@ -92,6 +92,8 @@ impl From<BlockHeaders> for Vec<Header> {
 
 impl From<BlockHeaders> for Headers {
     fn from(bs: BlockHeaders) -> Self {
-        bs.try_into().unwrap()
+        let headers: Vec<Header> = bs.0.into_iter().map(Header::from).collect();
+
+        headers.try_into().unwrap()
     }
 }

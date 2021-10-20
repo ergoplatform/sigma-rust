@@ -1,6 +1,6 @@
 import { expect, assert } from 'chai';
 
-import { generate_block_headers } from "./utils";
+import { generate_block_headers } from './utils';
 
 import {
   Address, Wallet, ErgoBox, ErgoBoxCandidateBuilder, Contract,
