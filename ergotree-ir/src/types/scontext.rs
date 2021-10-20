@@ -135,7 +135,7 @@ lazy_static! {
     );
 }
 lazy_static! {
-    static ref LAST_BLOCK_UTXO_ROOT_HASH_PROPERTY: SMethod = SMethod::new(
+    pub static ref LAST_BLOCK_UTXO_ROOT_HASH_PROPERTY: SMethod = SMethod::new(
         STypeCompanion::Context,
         LAST_BLOCK_UTXO_ROOT_HASH_PROPERTY_METHOD_DESC.clone()
     );

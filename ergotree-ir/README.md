@@ -25,11 +25,6 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 
 - isProven
 
-#### Context
-
-- LastBlockUtxoRootHash
-
-
 ## Implemented operations (IR nodes): 
 
 ### General
@@ -146,6 +141,7 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 - selfBoxIndex
 - headers
 - preHeader
+- LastBlockUtxoRootHash
 
 #### AvlTree 
 
