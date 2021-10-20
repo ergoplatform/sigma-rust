@@ -25,7 +25,7 @@ impl ErgoStateContext {
             )
             .into()),
             h => Err(js_sys::Error::new(&format!(
-                "Wrong header length, expected 10 but got {}",
+                "Not enough block headers, expected 10 but got {}",
                 h
             ))
             .into()),
