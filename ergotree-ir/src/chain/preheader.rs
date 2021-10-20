@@ -2,7 +2,7 @@
 
 use crate::sigma_protocol::dlog_group;
 
-use super::{block_id::BlockId, digest32::Digest32, votes::Votes};
+use super::{block_id::BlockId, votes::Votes};
 
 /// Block header with the current `spendingTransaction`, that can be predicted
 /// by a miner before it's formation
@@ -22,21 +22,6 @@ pub struct PreHeader {
     pub miner_pk: Box<dlog_group::EcPoint>,
     /// Votes
     pub votes: Votes,
-}
-
-impl PreHeader {
-    /// Dummy instance intended for tests where actual values are not used
-    pub fn dummy() -> Self {
-        PreHeader {
-            version: 1,
-            parent_id: BlockId(Digest32::zero()),
-            timestamp: 0,
-            n_bits: 0,
-            height: 0,
-            miner_pk: dlog_group::generator().into(),
-            votes: Votes([0u8; 3]),
-        }
-    }
 }
 
 #[cfg(feature = "arbitrary")]
