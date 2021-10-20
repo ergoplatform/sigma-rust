@@ -7,11 +7,21 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Changed
+- Construct ErgoStateContext using last block headers [#450](https://github.com/ergoplatform/sigma-rust/pull/450);
+
 ### Added 
 - `AvlTree.remove` [#436](https://github.com/ergoplatform/sigma-rust/pull/436);
 - `AvlTree.update` [#443](https://github.com/ergoplatform/sigma-rust/pull/443);
 - `ReducedTransaction` implementation according to EIP-19 [#442](https://github.com/ergoplatform/sigma-rust/pull/442)
 - `AvlTree.get` and `AvlTree.getMany` [#445](https://github.com/ergoplatform/sigma-rust/pull/445);
+- `AvlTree.contains` [#437] (https://github.com/ergoplatform/sigma-rust/pull/437);
+- `LastBlockUtxoRootHash` [#452](https://github.com/ergoplatform/sigma-rust/pull/452);
+- `ExtPubKey` and `DerivationPath` with BIP-32,44 and soft derivation support for Ledger [#448](https://github.com/ergoplatform/sigma-rust/pull/448);
+
+### Fixed
+- fix `elem_tpe` in `Append` and `Slice` evaluation [#455](https://github.com/ergoplatform/sigma-rust/pull/455)
+- fix `CollKind::elem_tpe` [#457](https://github.com/ergoplatform/sigma-rust/pull/457)
 
 ## [0.14.0] - 2021-10-07
 
