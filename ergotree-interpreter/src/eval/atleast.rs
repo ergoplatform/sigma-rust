@@ -38,6 +38,13 @@ impl Evaluable for Atleast {
         let bound_u8: u8 = bound.try_into().map_err(|_| {
             EvalError::Misc(format!("Atleast: bound is ({}) greater than 255", bound))
         })?;
+        if bound > input.len() as i32 {
+            return Err(EvalError::Misc(format!(
+                "Atleast: bound {} > input size {}",
+                bound,
+                input.len()
+            )));
+        }
         Ok(Value::SigmaProp(Box::new(SigmaProp::new(
             Cthreshold::reduce(bound_u8, input.try_into()?).into(),
         ))))
@@ -48,6 +55,7 @@ impl Evaluable for Atleast {
 #[allow(clippy::panic)]
 #[cfg(test)]
 mod tests {
+    use crate::eval::tests::try_eval_out_wo_ctx;
     use ergotree_ir::mir::constant::Constant;
     use ergotree_ir::mir::constant::Literal;
     use ergotree_ir::mir::value::CollKind;
@@ -74,12 +82,44 @@ mod tests {
         fn eval(sigmaprops in collection::vec(any::<SigmaProp>(), 2..4)) {
             let items = Literal::Coll(CollKind::from_vec(SType::SSigmaProp,
                 sigmaprops.into_iter().map(|s| s.into()).collect::<Vec<Literal>>()).unwrap());
-            let expr: Expr = Atleast::new(1i32.into(),
+            let expr: Expr = Atleast::new(2i32.into(),
                 Constant {tpe: SType::SColl(SType::SSigmaProp.into()), v: items}.into()).unwrap().into();
             let ctx = Rc::new(force_any_val::<Context>());
             let res = eval_out::<SigmaProp>(&expr, ctx);
             prop_assert!(matches!(res.into(),
                 SigmaBoolean::SigmaConjecture(SigmaConjecture::Cthreshold(_))));
         }
+    }
+
+    #[test]
+    fn bound_error() {
+        let sigmaprops = vec![force_any_val::<SigmaProp>(), force_any_val::<SigmaProp>()];
+        let items = Literal::Coll(
+            CollKind::from_vec(
+                SType::SSigmaProp,
+                sigmaprops
+                    .into_iter()
+                    .map(|s| s.into())
+                    .collect::<Vec<Literal>>(),
+            )
+            .unwrap(),
+        );
+
+        let make_atleast = |bound: i32| {
+            Atleast::new(
+                bound.into(),
+                Constant {
+                    tpe: SType::SColl(SType::SSigmaProp.into()),
+                    v: items.clone(),
+                }
+                .into(),
+            )
+            .unwrap()
+            .into()
+        };
+        // more than input size
+        assert!(try_eval_out_wo_ctx::<SigmaProp>(&make_atleast(3)).is_err());
+        // more than u8 (see [`Cthreshold`])
+        assert!(try_eval_out_wo_ctx::<SigmaProp>(&make_atleast(256)).is_err());
     }
 }

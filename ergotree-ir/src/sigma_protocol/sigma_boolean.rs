@@ -24,8 +24,8 @@ pub mod cand;
 pub mod cor;
 pub mod cthreshold;
 
-/// Sigma conjecture items type with bounds check (2..=1000)
-pub type SigmaConjectureItems<T> = BoundedVec<T, 2, 1000>;
+/// Sigma conjecture items type with bounds check (2..=255)
+pub type SigmaConjectureItems<T> = BoundedVec<T, 2, 255>;
 
 /// Construct a new SigmaBoolean value representing public key of discrete logarithm signature protocol.
 #[derive(PartialEq, Eq, Debug, Clone)]
