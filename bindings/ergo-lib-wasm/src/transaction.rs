@@ -2,7 +2,9 @@
 
 use crate::box_coll::ErgoBoxCandidates;
 use crate::box_coll::ErgoBoxes;
+use crate::context_extension::ContextExtension;
 use crate::data_input::DataInputs;
+use crate::ergo_box::BoxId;
 use crate::error_conversion::to_js;
 use crate::input::{Inputs, UnsignedInputs};
 use crate::json::TransactionJsonEip12;
@@ -153,6 +155,25 @@ pub struct UnsignedTransaction(chain::transaction::unsigned::UnsignedTransaction
 
 #[wasm_bindgen]
 impl UnsignedTransaction {
+    /// Create an UnsignedTransaction instance containing the given ContextExtension
+    pub fn with_context_ext(
+        input_id: &BoxId,
+        ext: &ContextExtension,
+    ) -> Result<UnsignedTransaction, JsValue> {
+        let unsigned_input =
+            chain::transaction::UnsignedInput::new(input_id.clone().into(), ext.clone().into());
+        let inputs = vec![unsigned_input];
+        let output_candidates = vec![];
+        let unsigned_tx = chain::transaction::unsigned::UnsignedTransaction::new(
+            inputs.try_into().unwrap(),
+            None,
+            output_candidates.try_into().unwrap(),
+        )
+        .map_err(to_js)?;
+
+        Ok(unsigned_tx.into())
+    }
+
     /// Get id for transaction
     pub fn id(&self) -> TxId {
         self.0.id().into()
