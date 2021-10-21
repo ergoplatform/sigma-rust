@@ -16,6 +16,7 @@ use crate::sigma_protocol::sigma_boolean::{ProveDhTuple, ProveDlog};
 use super::sfunc::SFunc;
 use super::stuple::STuple;
 use super::stype_param::STypeVar;
+use crate::mir::avl_tree_data::AvlTreeData;
 
 /// Every type descriptor is a tree represented by nodes in SType hierarchy.
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -210,6 +211,12 @@ impl LiftIntoSType for BigInt256 {
 impl LiftIntoSType for ProveDhTuple {
     fn stype() -> SType {
         SType::SSigmaProp
+    }
+}
+
+impl LiftIntoSType for AvlTreeData {
+    fn stype() -> SType {
+        SType::SAvlTree
     }
 }
 

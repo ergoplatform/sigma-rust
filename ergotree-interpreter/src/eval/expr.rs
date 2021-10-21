@@ -78,6 +78,7 @@ impl Evaluable for Expr {
             Expr::XorOf(op) => op.eval(env, ctx),
             Expr::ExtractBytes(op) => op.eval(env, ctx),
             Expr::ExtractBytesWithNoRef(op) => op.eval(env, ctx),
+            Expr::TreeLookup(op) => op.eval(env, ctx),
         }
     }
 }

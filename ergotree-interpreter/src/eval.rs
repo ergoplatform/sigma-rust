@@ -86,6 +86,7 @@ pub(crate) mod sigma_prop_bytes;
 pub(crate) mod soption;
 pub(crate) mod spreheader;
 pub(crate) mod subst_const;
+pub(crate) mod tree_lookup;
 pub(crate) mod tuple;
 pub(crate) mod upcast;
 pub(crate) mod val_use;

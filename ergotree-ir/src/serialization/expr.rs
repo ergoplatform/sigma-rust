@@ -65,6 +65,7 @@ use crate::mir::sigma_and::SigmaAnd;
 use crate::mir::sigma_or::SigmaOr;
 use crate::mir::sigma_prop_bytes::SigmaPropBytes;
 use crate::mir::subst_const::SubstConstants;
+use crate::mir::tree_lookup::TreeLookup;
 use crate::mir::tuple::Tuple;
 use crate::mir::upcast::Upcast;
 use crate::mir::val_def::ValDef;
@@ -185,6 +186,7 @@ impl Expr {
                 MultiplyGroup::OP_CODE => Ok(MultiplyGroup::sigma_parse(r)?.into()),
                 Exponentiate::OP_CODE => Ok(Exponentiate::sigma_parse(r)?.into()),
                 XorOf::OP_CODE => Ok(XorOf::sigma_parse(r)?.into()),
+                TreeLookup::OP_CODE => Ok(TreeLookup::sigma_parse(r)?.into()),
                 o => Err(SigmaParsingError::NotImplementedOpCode(format!(
                     "{0}(shift {1})",
                     o.value(),
@@ -285,6 +287,7 @@ impl SigmaSerializable for Expr {
             Expr::XorOf(op) => op.sigma_serialize_w_opcode(w),
             Expr::ExtractBytes(op) => op.sigma_serialize_w_opcode(w),
             Expr::ExtractBytesWithNoRef(op) => op.sigma_serialize_w_opcode(w),
+            Expr::TreeLookup(op) => op.sigma_serialize_w_opcode(w),
         }
     }
 
