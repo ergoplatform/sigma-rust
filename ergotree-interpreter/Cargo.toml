@@ -31,6 +31,8 @@ bounded-vec = { version = "^0.5.0", features=["serde"] }
 bytes = "1.1"
 num-bigint = "0.4.0"
 scorex_crypto_avltree = "0.1.0"
+#bounded-vec = { git = "https://github.com/ergoplatform/bounded-vec", rev="f684d78" }
+bounded-vec = { version = "^0.5.0", features=["serde"] }
 
 [dependencies.proptest]
 # wasm support, via https://altsysrq.github.io/proptest-book/proptest/wasm.html

@@ -46,6 +46,7 @@ impl Evaluable for Atleast {
 #[cfg(test)]
 mod tests {
     use ergotree_ir::mir::constant::Constant;
+    use ergotree_ir::mir::constant::Literal;
     use ergotree_ir::mir::value::CollKind;
     use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
     use ergotree_ir::sigma_protocol::sigma_boolean::SigmaConjecture;
@@ -68,8 +69,8 @@ mod tests {
 
         #[test]
         fn eval(sigmaprops in collection::vec(any::<SigmaProp>(), 2..4)) {
-            let items: Value = CollKind::from_vec(SType::SSigmaProp,
-                sigmaprops.into_iter().map(|s| s.into()).collect::<Vec<Value>>()).unwrap().into();
+            let items = Literal::Coll(CollKind::from_vec(SType::SSigmaProp,
+                sigmaprops.into_iter().map(|s| s.into()).collect::<Vec<Literal>>()).unwrap());
             let expr: Expr = Atleast::new(1i32.into(),
                 Constant {tpe: SType::SColl(SType::SSigmaProp.into()), v: items}.into()).unwrap().into();
             let ctx = Rc::new(force_any_val::<Context>());
