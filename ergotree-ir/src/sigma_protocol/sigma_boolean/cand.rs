@@ -50,12 +50,19 @@ impl Cand {
 
 impl SigmaSerializable for Cand {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
-        self.items.sigma_serialize(w)
+        w.put_u16(self.items.len() as u16)?;
+        self.items.iter().try_for_each(|i| i.sigma_serialize(w))
     }
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
-        let items = SigmaConjectureItems::<_>::sigma_parse(r)?;
-        Ok(Cand { items })
+        let items_count = r.get_u16()?;
+        let mut items = Vec::with_capacity(items_count as usize);
+        for _ in 0..items_count {
+            items.push(SigmaBoolean::sigma_parse(r)?);
+        }
+        Ok(Cand {
+            items: items.try_into()?,
+        })
     }
 }
 

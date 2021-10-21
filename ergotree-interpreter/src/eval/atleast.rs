@@ -35,8 +35,11 @@ impl Evaluable for Atleast {
             })
             .collect::<Result<Vec<SigmaBoolean>, TryExtractFromError>>()?;
 
+        let bound_u8: u8 = bound.try_into().map_err(|_| {
+            EvalError::Misc(format!("Atleast: bound is ({}) greater than 255", bound))
+        })?;
         Ok(Value::SigmaProp(Box::new(SigmaProp::new(
-            Cthreshold::reduce(bound, input.try_into()?).into(),
+            Cthreshold::reduce(bound_u8, input.try_into()?).into(),
         ))))
     }
 }
