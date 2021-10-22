@@ -1,45 +1,26 @@
 use bytes::Bytes;
 use ergotree_ir::mir::tree_lookup::TreeLookup;
-use ergotree_ir::mir::value::{CollKind, NativeColl, Value};
+use ergotree_ir::mir::value::Value;
 
 use crate::eval::env::Env;
 use crate::eval::EvalContext;
 use crate::eval::EvalError;
 use crate::eval::Evaluable;
-use ergotree_ir::util::{AsVecI8, AsVecU8};
+use ergotree_ir::mir::avl_tree_data::AvlTreeData;
+use ergotree_ir::mir::constant::TryExtractInto;
+use ergotree_ir::util::AsVecU8;
 use scorex_crypto_avltree::batch_avl_verifier::BatchAVLVerifier;
 use scorex_crypto_avltree::batch_node::{AVLTree, Node, NodeHeader};
 use scorex_crypto_avltree::operation::Operation;
 
 impl Evaluable for TreeLookup {
     fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
-        let tree_v = self.tree.eval(env, ctx)?;
-        let key_v = self.key.eval(env, ctx)?;
-        let proof_v = self.proof.eval(env, ctx)?;
-
-        let normalized_tree_val = match tree_v {
-            Value::AvlTree(t) => Ok(*t),
-            _ => Err(EvalError::UnexpectedValue(format!(
-                "TreeLookup: expected input to be Value::AvlTree, got: {0:?}",
-                tree_v
-            ))),
-        }?;
-
-        let normalized_key_val = match key_v {
-            Value::Coll(CollKind::NativeColl(NativeColl::CollByte(v))) => Ok(v),
-            _ => Err(EvalError::UnexpectedValue(format!(
-                "TreeLookup: expected key to be Value::Coll, got: {0:?}",
-                key_v
-            ))),
-        }?;
-
-        let normalized_proof_val = match proof_v {
-            Value::Coll(CollKind::NativeColl(NativeColl::CollByte(v))) => Ok(v),
-            _ => Err(EvalError::UnexpectedValue(format!(
-                "TreeLookup: expected proof to be Value::Coll, got: {0:?}",
-                proof_v
-            ))),
-        }?;
+        let normalized_tree_val = self
+            .tree
+            .eval(env, ctx)?
+            .try_extract_into::<AvlTreeData>()?;
+        let normalized_key_val = self.key.eval(env, ctx)?.try_extract_into::<Vec<i8>>()?;
+        let normalized_proof_val = self.proof.eval(env, ctx)?.try_extract_into::<Vec<i8>>()?;
 
         let starting_digest = Bytes::from(normalized_tree_val.digest.0.to_vec());
         let proof = Bytes::from(normalized_proof_val.as_vec_u8());
@@ -64,9 +45,7 @@ impl Evaluable for TreeLookup {
             normalized_key_val.as_vec_u8(),
         ))) {
             Ok(opt) => match opt {
-                Some(v) => Ok(Value::Opt(Box::new(Some(Value::Coll(
-                    CollKind::NativeColl(NativeColl::CollByte(v.to_vec().as_vec_i8())),
-                ))))),
+                Some(v) => Ok(Value::Opt(Box::new(Some(v.to_vec().into())))),
                 _ => Ok(Value::Opt(Box::new(None))),
             },
             Err(_) => Err(EvalError::AvlTree(format!(
@@ -85,18 +64,19 @@ fn map_eval_err<T: std::fmt::Debug>(e: T) -> EvalError {
 #[cfg(test)]
 mod tests {
 
+    use super::*;
+    use crate::eval::tests::eval_out_wo_ctx;
+
     use ergotree_ir::chain::digest32::ADDigest;
     use ergotree_ir::mir::{
         avl_tree_data::{AvlTreeData, AvlTreeFlags},
         expr::Expr,
+        value::{CollKind, NativeColl},
     };
-    use scorex_crypto_avltree::batch_avl_prover::BatchAVLProver;
-
-    use crate::eval::tests::eval_out_wo_ctx;
-
-    use super::*;
     use ergotree_ir::serialization::SigmaSerializable;
+    use ergotree_ir::util::AsVecI8;
     use scorex_crypto_avltree::authenticated_tree_ops::AuthenticatedTreeOps;
+    use scorex_crypto_avltree::batch_avl_prover::BatchAVLProver;
     use scorex_crypto_avltree::operation::KeyValue;
 
     #[test]

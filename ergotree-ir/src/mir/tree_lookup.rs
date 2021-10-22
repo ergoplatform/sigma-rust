@@ -1,14 +1,15 @@
-//! Convert SLong to byte array
+//! Lookup in AVL tree
 use crate::serialization::op_code::OpCode;
 use crate::types::stype::SType;
 
 use super::expr::Expr;
 use crate::has_opcode::HasStaticOpCode;
+use crate::mir::expr::InvalidArgumentError;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::{SigmaParsingError, SigmaSerializable, SigmaSerializeResult};
 
-/// Tree lookup by key
+/// Lookup in AVL tree
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct TreeLookup {
     /// Value of type SAvlTree
@@ -20,6 +21,18 @@ pub struct TreeLookup {
 }
 
 impl TreeLookup {
+    /// Create new object, returns an error if any of the requirements failed
+    pub fn new(tree: Expr, key: Expr, proof: Expr) -> Result<Self, InvalidArgumentError> {
+        tree.check_post_eval_tpe(&SType::SAvlTree)?;
+        key.check_post_eval_tpe(&SType::SColl(SType::SByte.into()))?;
+        proof.check_post_eval_tpe(&SType::SColl(SType::SByte.into()))?;
+        Ok(TreeLookup {
+            tree: tree.into(),
+            key: key.into(),
+            proof: proof.into(),
+        })
+    }
+
     /// Type
     pub fn tpe(&self) -> SType {
         SType::SOption(SType::SColl(SType::SByte.into()).into())
@@ -45,6 +58,7 @@ impl SigmaSerializable for TreeLookup {
     }
 }
 
+#[allow(clippy::unwrap_used)]
 #[cfg(feature = "arbitrary")]
 /// Arbitrary impl
 mod arbitrary {
@@ -72,11 +86,7 @@ mod arbitrary {
                     depth: 0,
                 }),
             )
-                .prop_map(|(tree, key, proof)| TreeLookup {
-                    tree: tree.into(),
-                    key: key.into(),
-                    proof: proof.into(),
-                })
+                .prop_map(|(tree, key, proof)| TreeLookup::new(tree, key, proof).unwrap())
                 .boxed()
         }
     }
