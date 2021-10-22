@@ -201,7 +201,13 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
         // check that inputs have enough tokens
         let input_tokens = sum_tokens_from_boxes(self.box_selection.boxes.as_slice());
         let output_tokens = sum_tokens_from_boxes(output_candidates.as_slice());
-        let first_input_box_id: TokenId = self.box_selection.boxes.first().unwrap().box_id().into();
+        let first_input_box_id: TokenId = self
+            .box_selection
+            .boxes
+            .first()
+            .ok_or(TxBuilderError::BoxDoesNotExistError)?
+            .box_id()
+            .into();
         let output_tokens_len = output_tokens.len();
         let output_tokens_without_minted: Vec<Token> = output_tokens
             .into_iter()
@@ -243,8 +249,8 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
 
 /// Suggested transaction fee (1100000 nanoERGs, semi-default value used across wallets and dApps as of Oct 2020)
 #[allow(non_snake_case)]
-pub fn SUGGESTED_TX_FEE() -> BoxValue {
-    BoxValue::new(1100000u64).unwrap()
+pub fn SUGGESTED_TX_FEE() -> Result<BoxValue, BoxValueError> {
+    BoxValue::new(1100000u64)
 }
 
 /// Create a box with miner's contract and a given value
@@ -255,8 +261,10 @@ pub fn new_miner_fee_box(
     let address_encoder = AddressEncoder::new(NetworkPrefix::Mainnet);
     let miner_fee_address = address_encoder
         .parse_address_from_str(MINERS_FEE_MAINNET_ADDRESS)
-        .unwrap();
-    let ergo_tree = miner_fee_address.script().unwrap();
+        .map_err(ErgoBoxCandidateBuilderError::AddressEncoderError)?;
+    let ergo_tree = miner_fee_address
+        .script()
+        .map_err(ErgoBoxCandidateBuilderError::ParsingError)?;
     ErgoBoxCandidateBuilder::new(fee_amount, ergo_tree, creation_height).build()
 }
 
@@ -290,6 +298,9 @@ pub enum TxBuilderError {
     /// Invalid Tx input count
     #[error("Invalid tx inputs count: {0}")]
     InvalidInputsCount(#[from] BoundedVecOutOfBounds),
+    /// Input box was unable to be retrieved
+    #[error("Box does not exist")]
+    BoxDoesNotExistError,
 }
 
 #[cfg(test)]
