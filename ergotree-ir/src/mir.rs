@@ -95,6 +95,8 @@ pub mod sigma_or;
 /// Extract serialized bytes of a SigmaProp value
 pub mod sigma_prop_bytes;
 pub mod subst_const;
+/// Perform a lookup of key in a tree
+pub mod tree_lookup;
 /// Tuple of elements
 pub mod tuple;
 pub mod unary_op;

@@ -58,6 +58,7 @@ use super::sigma_and::SigmaAnd;
 use super::sigma_or::SigmaOr;
 use super::sigma_prop_bytes::SigmaPropBytes;
 use super::subst_const::SubstConstants;
+use super::tree_lookup::TreeLookup;
 use super::tuple::Tuple;
 use super::upcast::Upcast;
 use super::val_def::ValDef;
@@ -215,6 +216,8 @@ pub enum Expr {
     Exponentiate(Exponentiate),
     /// XOR for collection of booleans
     XorOf(XorOf),
+    /// Perform a lookup by key in an AVL tree
+    TreeLookup(TreeLookup),
 }
 
 impl Expr {
@@ -285,6 +288,7 @@ impl Expr {
             Expr::XorOf(v) => v.tpe(),
             Expr::ExtractBytes(v) => v.tpe(),
             Expr::ExtractBytesWithNoRef(v) => v.tpe(),
+            Expr::TreeLookup(v) => v.tpe(),
         }
     }
 

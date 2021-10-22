@@ -754,7 +754,7 @@ pub(crate) mod arbitrary {
             SType::SGroupElement => any::<EcPoint>().prop_map_into().boxed(),
             SType::SSigmaProp => any::<SigmaProp>().prop_map_into().boxed(),
             SType::SBox => any::<ErgoBox>().prop_map_into().boxed(),
-            // SType::SAvlTree => {}
+            SType::SAvlTree => any::<AvlTreeData>().prop_map_into().boxed(),
             // SType::SOption(tpe) =>
             SType::SColl(elem_tpe) => match *elem_tpe {
                 SType::SBoolean => vec(any::<bool>(), 0..400).prop_map_into().boxed(),
