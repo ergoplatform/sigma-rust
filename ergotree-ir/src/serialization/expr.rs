@@ -139,6 +139,7 @@ impl Expr {
                 OpCode::DIVISION => Ok(bin_op_sigma_parse(ArithOp::Divide.into(), r)?),
                 OpCode::MAX => Ok(bin_op_sigma_parse(ArithOp::Max.into(), r)?),
                 OpCode::MIN => Ok(bin_op_sigma_parse(ArithOp::Min.into(), r)?),
+                OpCode::MODULO => Ok(bin_op_sigma_parse(ArithOp::Modulo.into(), r)?),
                 OpCode::BIT_OR => Ok(bin_op_sigma_parse(BitOp::BitOr.into(), r)?),
                 OpCode::BIT_AND => Ok(bin_op_sigma_parse(BitOp::BitAnd.into(), r)?),
                 OpCode::BIT_XOR => Ok(bin_op_sigma_parse(BitOp::BitXor.into(), r)?),

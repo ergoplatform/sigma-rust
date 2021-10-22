@@ -9,7 +9,10 @@ use num_bigint::BigInt;
 use num_bigint::BigUint;
 use num_bigint::ToBigInt;
 use num_derive::{One, Zero};
-use num_traits::{Bounded, CheckedAdd, CheckedDiv, CheckedMul, CheckedNeg, CheckedSub, Num};
+use num_integer::Integer;
+use num_traits::{
+    Bounded, CheckedAdd, CheckedDiv, CheckedMul, CheckedNeg, CheckedRem, CheckedSub, Num, Zero,
+};
 
 /// 256-bit signed integer type
 #[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Clone, Zero, One)]
@@ -197,6 +200,15 @@ impl CheckedMul for BigInt256 {
 impl CheckedDiv for BigInt256 {
     fn checked_div(&self, v: &Self) -> Option<Self> {
         Some(BigInt256(self.0.checked_div(&v.0)?))
+    }
+}
+
+impl CheckedRem for BigInt256 {
+    fn checked_rem(&self, v: &Self) -> Option<Self> {
+        if v.0 .0 <= BigInt::zero() {
+            return None;
+        }
+        Some(BigInt256(Int256(self.0 .0.mod_floor(&v.0 .0))))
     }
 }
 

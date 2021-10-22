@@ -27,6 +27,8 @@ pub enum ArithOp {
     Max,
     /// Min of two values
     Min,
+    /// Modulo
+    Modulo,
 }
 
 impl From<ArithOp> for OpCode {
@@ -38,6 +40,7 @@ impl From<ArithOp> for OpCode {
             ArithOp::Divide => OpCode::DIVISION,
             ArithOp::Max => OpCode::MAX,
             ArithOp::Min => OpCode::MIN,
+            ArithOp::Modulo => OpCode::MODULO,
         }
     }
 }
