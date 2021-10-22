@@ -556,7 +556,7 @@ mod tests {
             0,
         )
         .unwrap();
-        let tx_fee = super::SUGGESTED_TX_FEE();
+        let tx_fee = super::SUGGESTED_TX_FEE().unwrap();
         let out_box_value = input.value.checked_sub(&tx_fee).unwrap();
         let box_builder =
             ErgoBoxCandidateBuilder::new(out_box_value, force_any_val::<ErgoTree>(), 0);
