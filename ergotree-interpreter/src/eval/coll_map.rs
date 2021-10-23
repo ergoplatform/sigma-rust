@@ -72,6 +72,7 @@ mod tests {
     use std::rc::Rc;
 
     use crate::eval::context::Context;
+    use crate::eval::context::TxIoVec;
     use crate::eval::tests::eval_out;
     use ergotree_ir::mir::bin_op::ArithOp;
     use ergotree_ir::mir::bin_op::BinOp;
@@ -125,11 +126,18 @@ mod tests {
             .unwrap()
             .into();
             let ctx = Rc::new(ctx);
+            let output = {
+                let e = eval_out::<Vec<i64>>(&expr, ctx.clone());
+                if e.is_empty() {
+                  None
+                } else {
+                  Some(TxIoVec::from_vec(e).unwrap())
+                }
+            };
+
             assert_eq!(
-                eval_out::<Vec<i64>>(&expr, ctx.clone()),
-                ctx.data_inputs
-                    .iter()
-                    .map(| b| b.value.as_i64() + 1).collect::<Vec<i64>>()
+                output,
+                ctx.data_inputs.clone().map(|d| d.mapped(| b| b.value.as_i64() + 1))
             );
         }
 

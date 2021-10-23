@@ -5,7 +5,7 @@ pub mod input;
 pub mod reduced;
 pub mod unsigned;
 
-use bounded_vec::BoundedVec;
+pub use ergotree_interpreter::eval::context::TxIoVec;
 use ergotree_ir::chain::digest32::blake2b256_hash;
 use ergotree_ir::chain::ergo_box::ErgoBox;
 use ergotree_ir::chain::ergo_box::ErgoBoxCandidate;
@@ -34,9 +34,6 @@ use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use std::convert::TryInto;
 use std::iter::FromIterator;
-
-/// BouncedVec type for Tx inputs and output_candidates
-pub type TxIoVec<T> = BoundedVec<T, 1, { u16::MAX as usize }>;
 
 /**
  * ErgoTransaction is an atomic state transition operation. It destroys Boxes from the state

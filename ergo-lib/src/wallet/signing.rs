@@ -12,7 +12,7 @@ use crate::chain::{
     transaction::{unsigned::UnsignedTransaction, Transaction},
 };
 
-use ergotree_interpreter::eval::context::Context;
+use ergotree_interpreter::eval::context::{Context, TxIoVec};
 use ergotree_interpreter::eval::env::Env;
 use ergotree_interpreter::sigma_protocol::prover::ProverError;
 use ergotree_interpreter::sigma_protocol::prover::{ContextExtension, Prover};
@@ -21,12 +21,15 @@ use thiserror::Error;
 /// Errors on transaction signing
 #[derive(Error, PartialEq, Eq, Debug, Clone)]
 pub enum TxSigningError {
-    /// error on proving an input
+    /// Error on proving an input
     #[error("Prover error (tx input index {1}): {0}")]
     ProverError(ProverError, usize),
-    /// failed to find an input in boxes_to_spend
+    /// Failed to find an input in `boxes_to_spend`
     #[error("Input box not found (index {0})")]
     InputBoxNotFound(usize),
+    /// Failed to find a data input in `data_boxes`
+    #[error("Data input box not found (index {0})")]
+    DataInputBoxNotFound(usize),
     /// Context creation error
     #[error("Context error: {0}")]
     ContextError(String),
@@ -41,23 +44,69 @@ pub struct TransactionContext {
     /// Unsigned transaction to sign
     pub spending_tx: UnsignedTransaction,
     /// Boxes corresponding to [`UnsignedTransaction::inputs`]
-    pub boxes_to_spend: Vec<ErgoBox>,
+    boxes_to_spend: TxIoVec<ErgoBox>,
     /// Boxes corresponding to [`UnsignedTransaction::data_inputs`]
-    pub data_boxes: Vec<ErgoBox>,
+    data_boxes: Option<TxIoVec<ErgoBox>>,
 }
 
-/// `self_index` - index of the SELF box in the tx_ctx.boxes_to_spend
+impl TransactionContext {
+    /// Return a `TransactionContext` instance if and only if every unsigned transaction input has
+    /// an associated box within `boxes_to_spend` and every data input has an associated box within
+    /// `data_boxes`.
+    pub fn new(
+        spending_tx: UnsignedTransaction,
+        boxes_to_spend: TxIoVec<ErgoBox>,
+        data_boxes: Option<TxIoVec<ErgoBox>>,
+    ) -> Result<Self, TxSigningError> {
+        for (i, unsigned_input) in spending_tx.inputs.iter().enumerate() {
+            if !boxes_to_spend
+                .iter()
+                .any(|b| unsigned_input.box_id == b.box_id())
+            {
+                return Err(TxSigningError::InputBoxNotFound(i));
+            }
+        }
+        if let Some(data_inputs) = spending_tx.data_inputs.as_ref() {
+            if let Some(data_boxes) = data_boxes.as_ref() {
+                for (i, data_input) in data_inputs.iter().enumerate() {
+                    if !data_boxes.iter().any(|b| data_input.box_id == b.box_id()) {
+                        return Err(TxSigningError::DataInputBoxNotFound(i));
+                    }
+                }
+            } else {
+                return Err(TxSigningError::DataInputBoxNotFound(0));
+            }
+        }
+        Ok(TransactionContext {
+            spending_tx,
+            boxes_to_spend,
+            data_boxes,
+        })
+    }
+
+    /// Get boxes corresponding to [`UnsignedTransaction::inputs`]
+    pub fn get_boxes_to_spend(&self) -> impl Iterator<Item = &ErgoBox> {
+        self.boxes_to_spend.iter()
+    }
+}
+
+/// `self_index` - index of the SELF box in the tx_ctx.spending_tx.inputs
+#[allow(clippy::unwrap_used)]
 pub fn make_context(
     state_ctx: &ErgoStateContext,
     tx_ctx: &TransactionContext,
     self_index: usize,
 ) -> Result<Context, TxSigningError> {
     let height = state_ctx.pre_header.height;
+
+    // Find self_box by matching BoxIDs
     let self_box = tx_ctx
         .boxes_to_spend
-        .get(self_index)
+        .iter()
+        .find(|b| b.box_id() == tx_ctx.spending_tx.inputs.as_vec()[self_index].box_id)
         .cloned()
         .ok_or_else(|| TxSigningError::ContextError("self_index is out of bounds".to_string()))?;
+
     let outputs = tx_ctx
         .spending_tx
         .output_candidates
@@ -65,16 +114,33 @@ pub fn make_context(
         .enumerate()
         .map(|(idx, b)| ErgoBox::from_box_candidate(b, tx_ctx.spending_tx.id(), idx as u16))
         .collect::<Result<Vec<ErgoBox>, SigmaSerializationError>>()?;
-    let data_inputs: Vec<ErgoBox> = tx_ctx.data_boxes.clone();
+    let data_inputs_ir = tx_ctx.spending_tx.data_inputs.as_ref().map(|data_inputs| {
+        data_inputs.clone().mapped(|di| {
+            // Note that the following unwraps never panic due to an invariant imposed by
+            // `TransactionContext`s constructor that every element within `spending_tx.data_inputs`
+            // has an associated box in `data_boxes`.
+            tx_ctx
+                .data_boxes
+                .as_ref()
+                .unwrap()
+                .iter()
+                .find(|b| di.box_id == b.box_id())
+                .map(|b| Rc::new(b.clone()))
+                .unwrap()
+        })
+    });
     let self_box_ir = Rc::new(self_box);
     let outputs_ir = outputs.into_iter().map(Rc::new).collect();
-    let inputs_ir = tx_ctx
-        .boxes_to_spend
-        .clone()
-        .into_iter()
-        .map(Rc::new)
-        .collect();
-    let data_inputs_ir = data_inputs.into_iter().map(Rc::new).collect();
+    let inputs_ir = tx_ctx.spending_tx.inputs.clone().mapped(|u| {
+        // Similarly to `data_inputs_ir` above, the following unwrap never panics.
+        tx_ctx
+            .boxes_to_spend
+            .iter()
+            .find(|b| u.box_id == b.box_id())
+            .map(|b| Rc::new(b.clone()))
+            .unwrap()
+    });
+
     Ok(Context {
         height,
         self_box: self_box_ir,
@@ -88,6 +154,7 @@ pub fn make_context(
 }
 
 /// Signs a transaction (generating proofs for inputs)
+#[allow(clippy::expect_used)]
 pub fn sign_transaction(
     prover: &dyn Prover,
     tx_context: TransactionContext,
@@ -96,25 +163,24 @@ pub fn sign_transaction(
     let tx = tx_context.spending_tx.clone();
     let message_to_sign = tx.bytes_to_sign()?;
     let signed_inputs = tx.inputs.enumerated().try_mapped(|(idx, input)| {
-        if let Some(input_box) = tx_context
+        let input_box = tx_context
             .boxes_to_spend
             .iter()
             .find(|b| b.box_id() == input.box_id)
-        {
-            let ctx = Rc::new(make_context(state_context, &tx_context, idx)?);
-            prover
-                .prove(
-                    &input_box.ergo_tree,
-                    &Env::empty(),
-                    ctx,
-                    message_to_sign.as_slice(),
-                    &HintsBag::empty(),
-                )
-                .map(|proof| Input::new(input.box_id.clone(), proof.into()))
-                .map_err(|e| TxSigningError::ProverError(e, idx))
-        } else {
-            Err(TxSigningError::InputBoxNotFound(idx))
-        }
+            .expect(
+                "Spending box always exists due to `TransactionContext` constructor invariants",
+            );
+        let ctx = Rc::new(make_context(state_context, &tx_context, idx)?);
+        prover
+            .prove(
+                &input_box.ergo_tree,
+                &Env::empty(),
+                ctx,
+                message_to_sign.as_slice(),
+                &HintsBag::empty(),
+            )
+            .map(|proof| Input::new(input.box_id.clone(), proof.into()))
+            .map_err(|e| TxSigningError::ProverError(e, idx))
     })?;
     Ok(Transaction::new(
         signed_inputs,
@@ -174,9 +240,11 @@ mod tests {
     use sigma_test_util::force_any_val;
 
     use crate::chain::transaction::reduced::reduce_tx;
+    use crate::chain::transaction::DataInput;
     use crate::chain::{
         ergo_box::box_builder::ErgoBoxCandidateBuilder, transaction::UnsignedInput,
     };
+    use ergotree_ir::chain::ergo_box::ErgoBoxCandidate;
     use ergotree_ir::ergo_tree::ErgoTree;
     use ergotree_ir::mir::expr::Expr;
     use std::convert::TryFrom;
@@ -236,13 +304,74 @@ mod tests {
             let tx = UnsignedTransaction::new(inputs.try_into().unwrap(),
                 None, output_candidates.try_into().unwrap()).unwrap();
             let tx_context = TransactionContext { spending_tx: tx,
-                                                  boxes_to_spend: boxes_to_spend.clone(), data_boxes: vec![] };
+                                                  boxes_to_spend: TxIoVec::from_vec(boxes_to_spend.clone()).unwrap(), data_boxes: None };
             let res = sign_transaction(prover.as_ref(), tx_context.clone(), &force_any_val::<ErgoStateContext>());
             let signed_tx = res.unwrap();
             prop_assert!(verify_tx_proofs(&signed_tx, &boxes_to_spend).unwrap());
             let reduced_tx = reduce_tx(tx_context, &force_any_val::<ErgoStateContext>()).unwrap();
             let signed_reduced_tx = sign_reduced_transaction(prover.as_ref(), reduced_tx).unwrap();
             prop_assert!(verify_tx_proofs(&signed_reduced_tx, &boxes_to_spend).unwrap());
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(16))]
+
+        #[test]
+        fn test_tx_context_input_reorderings(
+            inputs in vec((any::<ErgoBox>(), any::<ContextExtension>()), 1..10),
+            mut data_boxes in vec(any::<ErgoBox>(), 1..10),
+            candidate in any::<ErgoBoxCandidate>(),
+        ) {
+          let num_inputs = inputs.len();
+          let ut_inputs: Vec<_> = inputs
+              .iter()
+              .map(|(b, extension)|
+                  UnsignedInput {
+                    box_id: b.box_id(),
+                    extension: extension.clone(),
+                  }
+              )
+              .collect();
+          let ut_inputs = TxIoVec::from_vec(ut_inputs).unwrap();
+
+          let mut boxes_to_spend: Vec<_> = inputs.into_iter().map(|(b,_)| b).collect();
+
+          let data_inputs = Some(
+              TxIoVec::from_vec(data_boxes
+                  .clone())
+                  .unwrap()
+                  .mapped(|b| DataInput{box_id: b.box_id()})
+          );
+
+          // Reverse boxes for `UnsignedTransaction`
+          boxes_to_spend.reverse();
+          data_boxes.reverse();
+          let data_boxes_bounded_vec = Some(TxIoVec::from_vec(data_boxes.clone()).unwrap());
+          let boxes_to_spend_bounded_vec = TxIoVec::from_vec(boxes_to_spend.clone()).unwrap();
+          let spending_tx = UnsignedTransaction::new(
+              ut_inputs,
+              data_inputs,
+              TxIoVec::from_vec(vec![candidate]).unwrap(),
+          ).unwrap();
+          let tx_context = TransactionContext::new(
+              spending_tx,
+              boxes_to_spend_bounded_vec,
+              data_boxes_bounded_vec
+          )
+          .unwrap();
+
+          // Now reverse boxes back to compare with `Context`
+          boxes_to_spend.reverse();
+          data_boxes.reverse();
+          let data_boxes = Some(TxIoVec::from_vec(data_boxes).unwrap().mapped(Rc::new));
+          let boxes_to_spend = TxIoVec::from_vec(boxes_to_spend).unwrap().mapped(Rc::new);
+          for i in 0..num_inputs {
+              let context = make_context(&force_any_val::<ErgoStateContext>(), &tx_context,i).unwrap();
+              assert_eq!(data_boxes, context.data_inputs);
+              assert_eq!(boxes_to_spend, context.inputs);
+              assert_eq!(boxes_to_spend.as_vec()[i], context.self_box);
+          }
         }
     }
 
