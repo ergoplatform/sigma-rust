@@ -385,6 +385,47 @@ fn polish_simulated<P: Prover + ?Sized>(
                     };
                     Ok(Some(set_positions(o.into())?.into()))
                 }
+                UnprovenConjecture::CthresholdUnproven(ct) => {
+                    // If the node is marked "simulated", mark all of its children "simulated"
+                    let t: CthresholdUnproven = if ct.simulated {
+                        CthresholdUnproven {
+                            children: cast_to_unp(ct.children.clone())?
+                                .mapped(|c| c.with_simulated(true).into()),
+                            ..ct.clone()
+                        }
+                    } else {
+                        // If the node is THRESHOLD(k) marked "real", mark all but k of its children "simulated"
+                        // (the node is guaranteed, by the previous step, to have at least k "real" children).
+                        // Which particular ones are left "real" is not important for security;
+                        // the choice can be guided by efficiency or convenience considerations.
+                        //
+                        // We'll mark the first k real ones real
+                        let mut count_of_real = 0;
+                        let mut marked_simulated = Vec::new();
+                        let unproven_children = cast_to_unp(ct.children.clone())?;
+                        for kid in unproven_children {
+                            if kid.is_real() {
+                                count_of_real += 1;
+                                if count_of_real >= ct.k {
+                                    let k = kid.with_simulated(true);
+                                    marked_simulated.push(k);
+                                };
+                            };
+                        }
+                        CthresholdUnproven {
+                            children: unproven_children.mapped(|c| {
+                                if marked_simulated.contains(&c) {
+                                    c.with_simulated(true)
+                                } else {
+                                    c
+                                }
+                                .into()
+                            }),
+                            ..ct.clone()
+                        }
+                    };
+                    Ok(Some(set_positions(t.into())?.into()))
+                }
             },
         },
         ProofTree::UncheckedTree(_) => Ok(None),

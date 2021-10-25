@@ -459,6 +459,10 @@ pub(crate) struct CthresholdUnproven {
 }
 
 impl CthresholdUnproven {
+    pub(crate) fn is_real(&self) -> bool {
+        !self.simulated
+    }
+
     pub(crate) fn with_children(self, children: SigmaConjectureItems<ProofTree>) -> Self {
         Self { children, ..self }
     }
