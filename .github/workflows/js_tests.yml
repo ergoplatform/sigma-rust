@@ -9,7 +9,6 @@ on:
       - opened
       - synchronize
 
-
 jobs:
   js_tests:
     name: run JS tests and publish alpha versions
@@ -17,11 +16,16 @@ jobs:
     env:
       HAS_NPM_TOKEN: ${{ secrets.NPM_TOKEN != '' }}
     defaults:
-      run: 
+      run:
         working-directory: bindings/ergo-lib-wasm
     steps:
       - name: checkout
         uses: actions/checkout@v2
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
 
       - name: install deps
         run: |
@@ -33,8 +37,8 @@ jobs:
         run: |
           wasm-pack build
           npm install
-          npm run test 
-          
+          npm run test
+
       - name: build alpha versions
         run: |
           npm run build-nodejs-alpha
@@ -46,7 +50,7 @@ jobs:
         with:
           token: ${{ secrets.NPM_TOKEN }}
           package: ./bindings/ergo-lib-wasm/pkg-nodejs/package.json
-          tag: "alpha"
+          tag: 'alpha'
 
       - name: publish browser alpha version to npm
         if: env.HAS_NPM_TOKEN == 'true'
@@ -54,4 +58,4 @@ jobs:
         with:
           token: ${{ secrets.NPM_TOKEN }}
           package: ./bindings/ergo-lib-wasm/pkg-browser/package.json
-          tag: "alpha"
+          tag: 'alpha'
