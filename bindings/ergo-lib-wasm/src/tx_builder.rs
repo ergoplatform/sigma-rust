@@ -20,10 +20,8 @@ pub struct TxBuilder(
 impl TxBuilder {
     /// Suggested transaction fee (semi-default value used across wallets and dApps as of Oct 2020)
     #[allow(non_snake_case)]
-    pub fn SUGGESTED_TX_FEE() -> Result<BoxValue, JsValue> {
-        Ok(BoxValue(
-            wallet::tx_builder::SUGGESTED_TX_FEE().map_err(to_js)?,
-        ))
+    pub fn SUGGESTED_TX_FEE() -> BoxValue {
+        BoxValue(wallet::tx_builder::SUGGESTED_TX_FEE())
     }
 
     /// Creates new TxBuilder

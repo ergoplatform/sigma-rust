@@ -205,7 +205,7 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
             .box_selection
             .boxes
             .first()
-            .ok_or(TxBuilderError::BoxDoesNotExistError)?
+            .ok_or(TxBuilderError::EmptyInputBoxSelection)?
             .box_id()
             .into();
         let output_tokens_len = output_tokens.len();
@@ -249,8 +249,8 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
 
 /// Suggested transaction fee (1100000 nanoERGs, semi-default value used across wallets and dApps as of Oct 2020)
 #[allow(non_snake_case)]
-pub fn SUGGESTED_TX_FEE() -> Result<BoxValue, BoxValueError> {
-    BoxValue::new(1100000u64)
+pub fn SUGGESTED_TX_FEE() -> BoxValue {
+    BoxValue::new(1100000u64).unwrap()
 }
 
 /// Create a box with miner's contract and a given value
@@ -261,7 +261,7 @@ pub fn new_miner_fee_box(
     let address_encoder = AddressEncoder::new(NetworkPrefix::Mainnet);
     let miner_fee_address = address_encoder
         .parse_address_from_str(MINERS_FEE_MAINNET_ADDRESS)
-        .map_err(ErgoBoxCandidateBuilderError::AddressEncoderError)?;
+        .unwrap();
     let ergo_tree = miner_fee_address
         .script()
         .map_err(ErgoBoxCandidateBuilderError::ParsingError)?;
@@ -299,8 +299,8 @@ pub enum TxBuilderError {
     #[error("Invalid tx inputs count: {0}")]
     InvalidInputsCount(#[from] BoundedVecOutOfBounds),
     /// Input box was unable to be retrieved
-    #[error("Box does not exist")]
-    BoxDoesNotExistError,
+    #[error("Empty input box")]
+    EmptyInputBoxSelection,
 }
 
 #[cfg(test)]
@@ -556,7 +556,7 @@ mod tests {
             0,
         )
         .unwrap();
-        let tx_fee = super::SUGGESTED_TX_FEE().unwrap();
+        let tx_fee = super::SUGGESTED_TX_FEE();
         let out_box_value = input.value.checked_sub(&tx_fee).unwrap();
         let box_builder =
             ErgoBoxCandidateBuilder::new(out_box_value, force_any_val::<ErgoTree>(), 0);
