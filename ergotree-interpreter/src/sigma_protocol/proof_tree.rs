@@ -18,6 +18,7 @@ use super::unchecked_tree::UncheckedConjecture;
 use super::unchecked_tree::UncheckedDhTuple;
 use super::unchecked_tree::UncheckedTree;
 use super::unproven_tree::CorUnproven;
+use super::unproven_tree::CthresholdUnproven;
 use super::unproven_tree::UnprovenDhTuple;
 use super::unproven_tree::UnprovenLeaf;
 use super::unproven_tree::UnprovenTree;
@@ -110,6 +111,12 @@ impl From<UncheckedConjecture> for ProofTree {
     }
 }
 
+impl From<CthresholdUnproven> for ProofTree {
+    fn from(v: CthresholdUnproven) -> Self {
+        UnprovenTree::UnprovenConjecture(v.into()).into()
+    }
+}
+
 /// Proof tree leaf
 pub(crate) trait ProofTreeLeaf: Debug {
     /// Get proposition
@@ -173,6 +180,13 @@ where
                     }))
                     .into()
                 }
+                UnprovenConjecture::CthresholdUnproven(ct) => UnprovenTree::UnprovenConjecture(
+                    UnprovenConjecture::CthresholdUnproven(CthresholdUnproven {
+                        children: ct.children.clone().try_mapped(|c| rewrite(c, f))?,
+                        ..ct.clone()
+                    }),
+                )
+                .into(),
             },
         },
         ProofTree::UncheckedTree(unch_tree) => match unch_tree {

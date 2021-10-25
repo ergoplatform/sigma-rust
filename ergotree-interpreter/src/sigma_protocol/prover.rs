@@ -301,6 +301,7 @@ fn set_positions(uc: UnprovenConjecture) -> Result<UnprovenConjecture, ProverErr
     Ok(match uc {
         UnprovenConjecture::CandUnproven(cand) => cand.with_children(upd_children).into(),
         UnprovenConjecture::CorUnproven(cor) => cor.with_children(upd_children).into(),
+        UnprovenConjecture::CthresholdUnproven(ct) => ct.with_children(upd_children).into(),
     })
 }
 

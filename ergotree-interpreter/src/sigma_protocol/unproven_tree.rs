@@ -458,6 +458,12 @@ pub(crate) struct CthresholdUnproven {
     pub(crate) position: NodePosition,
 }
 
+impl CthresholdUnproven {
+    pub(crate) fn with_children(self, children: SigmaConjectureItems<ProofTree>) -> Self {
+        Self { children, ..self }
+    }
+}
+
 // TODO: extract
 #[derive(PartialEq, Debug, Clone)]
 pub(crate) struct Gf2_192Poly {}
