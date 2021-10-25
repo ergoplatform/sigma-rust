@@ -9,6 +9,7 @@ use super::{dlog_protocol::FirstDlogProverMessage, Challenge, FirstProverMessage
 use crate::sigma_protocol::proof_tree::ProofTreeLeaf;
 use ergotree_ir::sigma_protocol::sigma_boolean::cand::Cand;
 use ergotree_ir::sigma_protocol::sigma_boolean::cor::Cor;
+use ergotree_ir::sigma_protocol::sigma_boolean::cthreshold::Cthreshold;
 use ergotree_ir::sigma_protocol::sigma_boolean::ProveDhTuple;
 use ergotree_ir::sigma_protocol::sigma_boolean::ProveDlog;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
@@ -189,6 +190,7 @@ impl ProofTreeLeaf for UnprovenLeaf {
 pub(crate) enum UnprovenConjecture {
     CandUnproven(CandUnproven),
     CorUnproven(CorUnproven),
+    CthresholdUnproven(CthresholdUnproven),
 }
 
 impl UnprovenConjecture {
@@ -444,3 +446,18 @@ impl CorUnproven {
         Self { children, ..self }
     }
 }
+
+#[derive(PartialEq, Debug, Clone)]
+pub(crate) struct CthresholdUnproven {
+    pub(crate) proposition: Cthreshold,
+    pub(crate) k: u8,
+    pub(crate) children: SigmaConjectureItems<ProofTree>,
+    pub(crate) polinomial_opt: Option<Gf2_192Poly>,
+    pub(crate) challenge_opt: Option<Challenge>,
+    pub(crate) simulated: bool,
+    pub(crate) position: NodePosition,
+}
+
+// TODO: extract
+#[derive(PartialEq, Debug, Clone)]
+pub(crate) struct Gf2_192Poly {}

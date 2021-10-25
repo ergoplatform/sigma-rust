@@ -10,6 +10,7 @@ use crate::sigma_protocol::dht_protocol;
 use crate::sigma_protocol::fiat_shamir::fiat_shamir_hash_fn;
 use crate::sigma_protocol::fiat_shamir::fiat_shamir_tree_to_bytes;
 use crate::sigma_protocol::proof_tree::ProofTree;
+use crate::sigma_protocol::proof_tree::ProofTreeConjecture;
 use crate::sigma_protocol::unchecked_tree::UncheckedDhTuple;
 use crate::sigma_protocol::unproven_tree::CandUnproven;
 use crate::sigma_protocol::unproven_tree::CorUnproven;
@@ -40,6 +41,7 @@ use super::sig_serializer::serialize_sig;
 use super::unchecked_tree::UncheckedConjecture;
 use super::unchecked_tree::UncheckedSchnorr;
 use super::unchecked_tree::UncheckedTree;
+use super::unproven_tree::CthresholdUnproven;
 use super::unproven_tree::UnprovenConjecture;
 use super::unproven_tree::UnprovenSchnorr;
 use super::unproven_tree::UnprovenTree;
@@ -255,6 +257,21 @@ fn mark_real<P: Prover + ?Sized>(
                             CorUnproven {
                                 simulated,
                                 ..cor.clone()
+                            }
+                            .into(),
+                        )
+                    }
+                    UnprovenConjecture::CthresholdUnproven(ct) => {
+                        // If the node is THRESHOLD(k), mark it "real" if at least k of its children are marked real; else mark it "simulated"
+                        let simulated = cast_to_unp(ct.children.clone())?
+                            .iter()
+                            .filter(|c| c.simulated())
+                            .count()
+                            >= ct.k as usize;
+                        Some(
+                            CthresholdUnproven {
+                                simulated,
+                                ..ct.clone()
                             }
                             .into(),
                         )
@@ -857,11 +874,18 @@ fn convert_to_unproven(sb: SigmaBoolean) -> Result<UnprovenTree, ProverError> {
                 position: NodePosition::crypto_tree_prefix(),
             }
             .into(),
-            SigmaConjecture::Cthreshold(_) => {
-                return Err(ProverError::NotYetImplemented(
-                    "Cthreshold is not yet implemented".to_string(),
-                ))
+            SigmaConjecture::Cthreshold(ct) => CthresholdUnproven {
+                proposition: ct,
+                k: ct.k,
+                children: ct
+                    .children
+                    .try_mapped(|it| convert_to_unproven(it).map(Into::into))?,
+                polinomial_opt: None,
+                challenge_opt: None,
+                simulated: false,
+                position: NodePosition::crypto_tree_prefix(),
             }
+            .into(),
         },
         SigmaBoolean::TrivialProp(_) => {
             return Err(ProverError::Unexpected(
