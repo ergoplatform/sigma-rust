@@ -401,20 +401,19 @@ fn polish_simulated<P: Prover + ?Sized>(
                         //
                         // We'll mark the first k real ones real
                         let mut count_of_real = 0;
-                        let mut marked_simulated = Vec::new();
+                        let mut children_indices_to_be_marked_simulated = Vec::new();
                         let unproven_children = cast_to_unp(ct.children.clone())?;
-                        for kid in unproven_children {
+                        for (idx, kid) in unproven_children.enumerated() {
                             if kid.is_real() {
                                 count_of_real += 1;
                                 if count_of_real >= ct.k {
-                                    let k = kid.with_simulated(true);
-                                    marked_simulated.push(k);
+                                    children_indices_to_be_marked_simulated.push(idx);
                                 };
                             };
                         }
                         CthresholdUnproven {
-                            children: unproven_children.mapped(|c| {
-                                if marked_simulated.contains(&c) {
+                            children: unproven_children.enumerated().mapped(|(idx, c)| {
+                                if children_indices_to_be_marked_simulated.contains(&idx) {
                                     c.with_simulated(true)
                                 } else {
                                     c
