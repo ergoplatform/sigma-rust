@@ -36,4 +36,4 @@ jobs:
           cargo lipo --release --targets=aarch64-apple-ios,x86_64-apple-ios
           swift package generate-xcodeproj
           xcodebuild -project ./ErgoLib.xcodeproj -xcconfig ./Config/Release.xcconfig -sdk iphoneos
-          xcodebuild -project ./ErgoLib.xcodeproj -xcconfig ./Config/Release.xcconfig -sdk iphonesimulator
+          # xcodebuild -project ./ErgoLib.xcodeproj -xcconfig ./Config/Release.xcconfig -sdk iphonesimulator
