@@ -9,7 +9,6 @@ on:
       - opened
       - synchronize
 
-
 jobs:
   build:
     name: build (iOS)
@@ -17,6 +16,11 @@ jobs:
     steps:
       - name: checkout
         uses: actions/checkout@v2
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
 
       - name: install deps
         run: |
@@ -33,4 +37,3 @@ jobs:
           swift package generate-xcodeproj
           xcodebuild -project ./ErgoLib.xcodeproj -xcconfig ./Config/Release.xcconfig -sdk iphoneos
           xcodebuild -project ./ErgoLib.xcodeproj -xcconfig ./Config/Release.xcconfig -sdk iphonesimulator
-

@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 
+use ergotree_ir::chain::address::AddressEncoderError;
 use ergotree_ir::chain::ergo_box::box_value::BoxValue;
 use ergotree_ir::chain::ergo_box::BoxTokens;
 use ergotree_ir::chain::ergo_box::ErgoBoxCandidate;
@@ -12,7 +13,7 @@ use ergotree_ir::chain::ergo_box::NonMandatoryRegistersError;
 use ergotree_ir::chain::token::Token;
 use ergotree_ir::ergo_tree::ErgoTree;
 use ergotree_ir::mir::constant::Constant;
-use ergotree_ir::serialization::{SigmaSerializable, SigmaSerializationError};
+use ergotree_ir::serialization::{SigmaParsingError, SigmaSerializable, SigmaSerializationError};
 use thiserror::Error;
 
 /// ErgoBoxCandidate builder errors
@@ -42,9 +43,16 @@ pub enum ErgoBoxCandidateBuilderError {
     /// Serialization error
     #[error("serialization error: {0}")]
     SerializationError(#[from] SigmaSerializationError),
+    /// Parsing error
+    #[error("parsing error: {0}")]
+    ParsingError(#[from] SigmaParsingError),
     /// When creating a Box, it can either have no tokens, or 1-255 tokens
     #[error("Too many Tokens. The maximum number of Tokens in an Ergo Box is 255")]
     TooManyTokensError,
+
+    /// AddressEncoder error
+    #[error("address encoder error: {0}")]
+    AddressEncoderError(#[from] AddressEncoderError),
 }
 
 /// Minted token info (id, amount, name, desc)

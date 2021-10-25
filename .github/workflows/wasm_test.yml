@@ -9,17 +9,21 @@ on:
       - opened
       - synchronize
 
-
 jobs:
   wasm_tests:
     name: WASM tests
     runs-on: ubuntu-latest
     defaults:
-      run: 
+      run:
         working-directory: bindings/ergo-lib-wasm
     steps:
       - name: checkout
         uses: actions/checkout@v2
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
 
       - name: install deps
         run: |
@@ -32,4 +36,3 @@ jobs:
           # wasm-pack test  --firefox --headless --release
           wasm-pack test  --chrome  --headless
           wasm-pack test  --chrome  --headless --release
-
