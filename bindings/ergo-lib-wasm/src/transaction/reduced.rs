@@ -38,7 +38,7 @@ impl ReducedTransaction {
             if d.is_empty() {
                 None
             } else {
-                Some(TxIoVec::from_vec(d).unwrap())
+                Some(TxIoVec::from_vec(d).map_err(to_js)?)
             }
         };
         let tx_context = ergo_lib::wallet::signing::TransactionContext::new(

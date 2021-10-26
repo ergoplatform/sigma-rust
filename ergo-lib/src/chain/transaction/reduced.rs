@@ -75,9 +75,7 @@ pub fn reduce_tx(
             let input_box = tx_context
                 .get_boxes_to_spend()
                 .find(|b| b.box_id() == input.box_id)
-                .expect(
-                    "Spending box always exists due to `TransactionContext` constructor invariants",
-                );
+                .ok_or(TxSigningError::InputBoxNotFound(idx))?;
             let ctx = Rc::new(make_context(state_context, &tx_context, idx)?);
             let expr = input_box
                 .ergo_tree
