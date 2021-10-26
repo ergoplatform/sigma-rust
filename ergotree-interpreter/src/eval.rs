@@ -24,7 +24,6 @@ pub mod env;
 
 pub(crate) mod and;
 pub(crate) mod apply;
-pub(crate) mod avl_tree;
 pub(crate) mod bin_op;
 pub(crate) mod bit_inversion;
 pub(crate) mod block;
@@ -45,6 +44,7 @@ pub(crate) mod coll_slice;
 pub(crate) mod collection;
 pub(crate) mod cost_accum;
 pub(crate) mod costs;
+pub(crate) mod create_avl_tree;
 pub(crate) mod create_prove_dh_tuple;
 pub(crate) mod create_provedlog;
 pub(crate) mod decode_point;

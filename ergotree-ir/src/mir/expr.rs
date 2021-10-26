@@ -8,7 +8,6 @@ use crate::types::stype::SType;
 
 use super::and::And;
 use super::apply::Apply;
-use super::avl_tree::CreateAvlTree;
 use super::bin_op::BinOp;
 use super::bit_inversion::BitInversion;
 use super::block::BlockValue;
@@ -31,6 +30,7 @@ use super::constant::ConstantPlaceholder;
 use super::constant::Literal;
 use super::constant::TryExtractFrom;
 use super::constant::TryExtractFromError;
+use super::create_avl_tree::CreateAvlTree;
 use super::create_provedlog::CreateProveDlog;
 use super::decode_point::DecodePoint;
 use super::exponentiate::Exponentiate;

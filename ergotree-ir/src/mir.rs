@@ -3,8 +3,6 @@
 pub mod and;
 pub mod apply;
 pub mod atleast;
-/// Creation of AVL tree
-pub mod avl_tree;
 /// Avl tree data
 pub mod avl_tree_data;
 pub mod bin_op;
@@ -39,6 +37,8 @@ pub mod coll_slice;
 /// Collection of elements
 pub mod collection;
 pub mod constant;
+/// Creation of AVL tree
+pub mod create_avl_tree;
 /// Create proveDHTuple
 pub mod create_prove_dh_tuple;
 /// Create proveDlog from GroupElement(PK)

@@ -39,7 +39,7 @@ impl CreateAvlTree {
             .unwrap_or(true)
         {
             return Err(InvalidArgumentError(format!(
-                "CreateAvlTree: expected value_length type to be SInt, got {0:?}",
+                "CreateAvlTree: expected value_length type to be Option[Int], got {0:?}",
                 value_length
             )));
         }
