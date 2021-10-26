@@ -91,7 +91,6 @@ impl TransactionContext {
 }
 
 /// `self_index` - index of the SELF box in the tx_ctx.spending_tx.inputs
-#[allow(clippy::unwrap_used)]
 pub fn make_context(
     state_ctx: &ErgoStateContext,
     tx_ctx: &TransactionContext,
@@ -157,7 +156,6 @@ pub fn make_context(
 }
 
 /// Signs a transaction (generating proofs for inputs)
-#[allow(clippy::expect_used)]
 pub fn sign_transaction(
     prover: &dyn Prover,
     tx_context: TransactionContext,

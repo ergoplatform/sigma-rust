@@ -61,7 +61,6 @@ impl ReducedTransaction {
 }
 
 /// Reduce each input of unsigned transaction to sigma proposition
-#[allow(clippy::expect_used)]
 pub fn reduce_tx(
     tx_context: TransactionContext,
     state_context: &ErgoStateContext,
