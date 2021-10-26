@@ -7,6 +7,7 @@ use crate::ergo_state_ctx::ErgoStateContext;
 use crate::error_conversion::to_js;
 
 use ergo_lib::chain::transaction::reduced::reduce_tx;
+use ergo_lib::chain::transaction::TxIoVec;
 use ergo_lib::ergotree_ir::serialization::SigmaSerializable;
 use wasm_bindgen::prelude::*;
 
@@ -31,15 +32,21 @@ impl ReducedTransaction {
         data_boxes: &ErgoBoxes,
         state_context: &ErgoStateContext,
     ) -> Result<ReducedTransaction, JsValue> {
-        let boxes_to_spend: Vec<ergo_lib::ergotree_ir::chain::ergo_box::ErgoBox> =
-            boxes_to_spend.clone().into();
-        let data_boxes: Vec<ergo_lib::ergotree_ir::chain::ergo_box::ErgoBox> =
-            data_boxes.clone().into();
-        let tx_context = ergo_lib::wallet::signing::TransactionContext {
-            spending_tx: unsigned_tx.clone().into(),
+        let boxes_to_spend = TxIoVec::from_vec(boxes_to_spend.clone().into()).map_err(to_js)?;
+        let data_boxes = {
+            let d: Vec<_> = data_boxes.clone().into();
+            if d.is_empty() {
+                None
+            } else {
+                Some(TxIoVec::from_vec(d).map_err(to_js)?)
+            }
+        };
+        let tx_context = ergo_lib::wallet::signing::TransactionContext::new(
+            unsigned_tx.clone().into(),
             boxes_to_spend,
             data_boxes,
-        };
+        )
+        .map_err(to_js)?;
         reduce_tx(tx_context, &state_context.clone().into())
             .map_err(to_js)
             .map(ReducedTransaction::from)

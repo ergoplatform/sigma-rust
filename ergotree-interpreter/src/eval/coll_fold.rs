@@ -126,9 +126,8 @@ mod tests {
             let ctx = Rc::new(ctx);
             assert_eq!(
                 eval_out::<i64>(&expr, ctx.clone()),
-                ctx.data_inputs
-                    .iter()
-                    .fold(0i64, |acc, b| acc + b.value.as_i64())
+                ctx.data_inputs.clone()
+                    .map_or(0i64, |d| d.iter().fold(0i64, |acc, b| acc + b.value.as_i64()))
             );
         }
 

@@ -1,9 +1,13 @@
 use std::rc::Rc;
 
 use crate::sigma_protocol::prover::ContextExtension;
+use bounded_vec::BoundedVec;
 use ergotree_ir::chain::ergo_box::ErgoBox;
 use ergotree_ir::chain::header::Header;
 use ergotree_ir::chain::preheader::PreHeader;
+
+/// BoundedVec type for Tx inputs, output_candidates and outputs
+pub type TxIoVec<T> = BoundedVec<T, 1, { u16::MAX as usize }>;
 
 /// Interpreter's context (blockchain state)
 #[derive(Debug)]
@@ -15,9 +19,9 @@ pub struct Context {
     /// Spending transaction outputs
     pub outputs: Vec<Rc<ErgoBox>>,
     /// Spending transaction data inputs
-    pub data_inputs: Vec<Rc<ErgoBox>>,
+    pub data_inputs: Option<TxIoVec<Rc<ErgoBox>>>,
     /// Spending transaction inputs
-    pub inputs: Vec<Rc<ErgoBox>>,
+    pub inputs: TxIoVec<Rc<ErgoBox>>,
     /// Pre header of current block
     pub pre_header: PreHeader,
     /// Fixed number of last block headers in descending order (first header is the newest one)
@@ -37,11 +41,11 @@ impl Context {
 }
 
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::unwrap_used)]
 mod arbitrary {
 
     use super::*;
-    use proptest::collection::vec;
-    use proptest::prelude::*;
+    use proptest::{collection::vec, option::of, prelude::*};
 
     impl Arbitrary for Context {
         type Parameters = ();
@@ -52,7 +56,7 @@ mod arbitrary {
                 any::<ErgoBox>(),
                 vec(any::<ErgoBox>(), 1..3),
                 vec(any::<ErgoBox>(), 1..3),
-                vec(any::<ErgoBox>(), 0..3),
+                of(vec(any::<ErgoBox>(), 1..3)),
                 any::<PreHeader>(),
                 any::<ContextExtension>(),
                 any::<[Header; 10]>(),
@@ -72,8 +76,11 @@ mod arbitrary {
                             height,
                             self_box: Rc::new(self_box),
                             outputs: outputs.into_iter().map(Rc::new).collect(),
-                            data_inputs: data_inputs.into_iter().map(Rc::new).collect(),
-                            inputs: inputs.into_iter().map(Rc::new).collect(),
+                            data_inputs: data_inputs.map(|v| {
+                                TxIoVec::from_vec(v.into_iter().map(Rc::new).collect()).unwrap()
+                            }),
+                            inputs: TxIoVec::from_vec(inputs.into_iter().map(Rc::new).collect())
+                                .unwrap(),
                             pre_header,
                             extension,
                             headers,

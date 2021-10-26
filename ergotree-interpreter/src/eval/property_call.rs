@@ -32,9 +32,10 @@ mod tests {
             .unwrap()
             .into();
         let ctx = Rc::new(force_any_val::<Context>());
-        assert_eq!(
-            eval_out::<Vec<Rc<ErgoBox>>>(&pc, ctx.clone()),
-            ctx.data_inputs
-        );
+        let expected = ctx
+            .data_inputs
+            .clone()
+            .map_or(vec![], |d| d.as_vec().clone());
+        assert_eq!(eval_out::<Vec<Rc<ErgoBox>>>(&pc, ctx), expected,);
     }
 }

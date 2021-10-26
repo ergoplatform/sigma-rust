@@ -66,12 +66,15 @@ pub fn reduce_tx(
     state_context: &ErgoStateContext,
 ) -> Result<ReducedTransaction, TxSigningError> {
     let tx = &tx_context.spending_tx;
-    let reduced_inputs = tx.inputs.clone().enumerated().try_mapped(|(idx, input)| {
-        if let Some(input_box) = tx_context
-            .boxes_to_spend
-            .iter()
-            .find(|b| b.box_id() == input.box_id)
-        {
+    let reduced_inputs = tx
+        .inputs
+        .clone()
+        .enumerated()
+        .try_mapped::<_, _, TxSigningError>(|(idx, input)| {
+            let input_box = tx_context
+                .get_boxes_to_spend()
+                .find(|b| b.box_id() == input.box_id)
+                .ok_or(TxSigningError::InputBoxNotFound(idx))?;
             let ctx = Rc::new(make_context(state_context, &tx_context, idx)?);
             let expr = input_box
                 .ergo_tree
@@ -85,10 +88,7 @@ pub fn reduce_tx(
                 reduction_result,
                 extension: input.extension,
             })
-        } else {
-            Err(TxSigningError::InputBoxNotFound(idx))
-        }
-    })?;
+        })?;
     Ok(ReducedTransaction {
         unsigned_tx: tx.clone(),
         reduced_inputs,

@@ -4,6 +4,7 @@ use std::array::TryFromSliceError;
 use std::num::ParseIntError;
 
 use base16::DecodeError;
+use bounded_vec::BoundedVecOutOfBounds;
 use ergo_lib::ergotree_ir::chain::address::AddressEncoderError;
 use ergo_lib::ergotree_ir::chain::address::AddressError;
 use ergo_lib::ergotree_ir::chain::digest32::Digest32Error;
@@ -75,3 +76,4 @@ from_error_to_wrap_via_debug!(ErgoTreeConstantError);
 from_error_to_wrap_via_debug!(ErgoTreeConstantsParsingError);
 from_error_to_wrap_via_debug!(ParseIntError);
 from_error_to_wrap_via_debug!(ChildIndexError);
+from_error_to_wrap_via_debug!(BoundedVecOutOfBounds);

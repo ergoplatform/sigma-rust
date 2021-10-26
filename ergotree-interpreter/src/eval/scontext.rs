@@ -19,9 +19,7 @@ pub(crate) static DATA_INPUTS_EVAL_FN: EvalFn = |_env, ctx, obj, _args| {
             .ctx
             .data_inputs
             .clone()
-            .into_iter()
-            .map(Value::CBox)
-            .collect(),
+            .map_or(vec![], |d| d.mapped(Value::CBox).as_vec().clone()),
         elem_tpe: SType::SBox,
     }))
 };
@@ -93,7 +91,7 @@ pub(crate) static LAST_BLOCK_UTXO_ROOT_HASH_EVAL_FN: EvalFn = |_env, ctx, obj, _
 #[cfg(feature = "arbitrary")]
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
-    use crate::eval::context::Context;
+    use crate::eval::context::{Context, TxIoVec};
     use crate::eval::tests::eval_out;
     use ergotree_ir::chain::ergo_box::ErgoBox;
     use ergotree_ir::chain::header::Header;
@@ -108,7 +106,11 @@ mod tests {
     fn make_ctx_inputs_includes_self_box() -> Context {
         let ctx = force_any_val::<Context>();
         let self_box = force_any_val::<ErgoBox>();
-        let inputs = vec![force_any_val::<ErgoBox>().into(), self_box.clone().into()];
+        let inputs = TxIoVec::from_vec(vec![
+            force_any_val::<ErgoBox>().into(),
+            self_box.clone().into(),
+        ])
+        .unwrap();
         Context {
             height: 0u32,
             self_box: self_box.into(),

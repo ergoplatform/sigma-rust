@@ -129,11 +129,21 @@ mod tests {
             .unwrap()
             .into();
             let ctx = Rc::new(ctx);
+            let expected: Vec<_> = ctx
+                .data_inputs
+                .clone()
+                .map_or(
+                     vec![],
+                     |d| d
+                         .as_vec()
+                         .iter()
+                         .cloned()
+                         .filter(| b| 1 <= b.value.as_i64())
+                         .collect()
+                );
             assert_eq!(
-                eval_out::<Vec<Rc<ErgoBox>>>(&expr, ctx.clone()),
-                ctx.data_inputs.clone()
-                    .into_iter()
-                    .filter(| b| 1 <= b.value.as_i64()).collect::<Vec<Rc<ErgoBox>>>()
+                eval_out::<Vec<Rc<ErgoBox>>>(&expr, ctx),
+                expected,
             );
         }
     }

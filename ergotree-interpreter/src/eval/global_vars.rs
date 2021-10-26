@@ -14,7 +14,7 @@ impl Evaluable for GlobalVars {
             GlobalVars::Height => Ok((ectx.ctx.height as i32).into()),
             GlobalVars::SelfBox => Ok(ectx.ctx.self_box.clone().into()),
             GlobalVars::Outputs => Ok(ectx.ctx.outputs.clone().into()),
-            GlobalVars::Inputs => Ok(ectx.ctx.inputs.clone().into()),
+            GlobalVars::Inputs => Ok(ectx.ctx.inputs.as_vec().clone().into()),
             GlobalVars::MinerPubKey => {
                 Ok(ectx.ctx.pre_header.miner_pk.sigma_serialize_bytes()?.into())
             }
@@ -68,7 +68,7 @@ mod tests {
         let ctx = Rc::new(force_any_val::<Context>());
         assert_eq!(
             eval_out::<Vec<Rc<ErgoBox>>>(&GlobalVars::Inputs.into(), ctx.clone()),
-            ctx.inputs
+            *ctx.inputs.as_vec()
         );
     }
 
