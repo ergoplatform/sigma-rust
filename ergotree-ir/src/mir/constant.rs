@@ -2,6 +2,7 @@
 
 use crate::base16_str::Base16Str;
 use crate::bigint256::BigInt256;
+use crate::chain::digest32::ADDigest;
 use crate::chain::ergo_box::ErgoBox;
 use crate::mir::value::CollKind;
 use crate::serialization::SigmaSerializable;
@@ -24,6 +25,7 @@ mod constant_placeholder;
 pub use constant_placeholder::*;
 
 use super::avl_tree_data::AvlTreeData;
+use super::avl_tree_data::AvlTreeFlags;
 use super::value::NativeColl;
 use super::value::StoreWrapped;
 use super::value::Value;
@@ -393,6 +395,24 @@ impl From<AvlTreeData> for Constant {
     }
 }
 
+impl From<AvlTreeFlags> for Constant {
+    fn from(a: AvlTreeFlags) -> Self {
+        Constant {
+            tpe: SType::SByte,
+            v: Literal::Byte(a.serialize() as i8),
+        }
+    }
+}
+
+impl From<ADDigest> for Constant {
+    fn from(a: ADDigest) -> Self {
+        Constant {
+            tpe: SType::SColl(Box::new(SType::SByte)),
+            v: Literal::Coll(CollKind::NativeColl(NativeColl::CollByte(a.into()))),
+        }
+    }
+}
+
 #[allow(clippy::unwrap_used)]
 #[allow(clippy::from_over_into)]
 #[impl_for_tuples(2, 4)]
@@ -756,6 +776,14 @@ pub(crate) mod arbitrary {
             SType::SBox => any::<ErgoBox>().prop_map_into().boxed(),
             SType::SAvlTree => any::<AvlTreeData>().prop_map_into().boxed(),
             // SType::SOption(tpe) =>
+            SType::SOption(tpe) => match *tpe {
+                SType::SBoolean => any::<Option<bool>>().prop_map_into().boxed(),
+                SType::SByte => any::<Option<i8>>().prop_map_into().boxed(),
+                SType::SShort => any::<Option<i16>>().prop_map_into().boxed(),
+                SType::SInt => any::<Option<i32>>().prop_map_into().boxed(),
+                SType::SLong => any::<Option<i64>>().prop_map_into().boxed(),
+                _ => todo!(),
+            },
             SType::SColl(elem_tpe) => match *elem_tpe {
                 SType::SBoolean => vec(any::<bool>(), 0..400).prop_map_into().boxed(),
                 SType::SByte => vec(any::<u8>(), 0..400).prop_map_into().boxed(),

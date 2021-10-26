@@ -3,6 +3,8 @@
 pub mod and;
 pub mod apply;
 pub mod atleast;
+/// Creation of AVL tree
+pub mod avl_tree;
 /// Avl tree data
 pub mod avl_tree_data;
 pub mod bin_op;

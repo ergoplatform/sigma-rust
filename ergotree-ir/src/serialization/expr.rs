@@ -6,6 +6,7 @@ use crate::has_opcode::HasStaticOpCode;
 use crate::mir::and::And;
 use crate::mir::apply::Apply;
 use crate::mir::atleast::Atleast;
+use crate::mir::avl_tree::CreateAvlTree;
 use crate::mir::bin_op::ArithOp;
 use crate::mir::bin_op::BitOp;
 use crate::mir::bin_op::LogicalOp;
@@ -188,6 +189,7 @@ impl Expr {
                 Exponentiate::OP_CODE => Ok(Exponentiate::sigma_parse(r)?.into()),
                 XorOf::OP_CODE => Ok(XorOf::sigma_parse(r)?.into()),
                 TreeLookup::OP_CODE => Ok(TreeLookup::sigma_parse(r)?.into()),
+                CreateAvlTree::OP_CODE => Ok(CreateAvlTree::sigma_parse(r)?.into()),
                 o => Err(SigmaParsingError::NotImplementedOpCode(format!(
                     "{0}(shift {1})",
                     o.value(),
@@ -289,6 +291,7 @@ impl SigmaSerializable for Expr {
             Expr::ExtractBytes(op) => op.sigma_serialize_w_opcode(w),
             Expr::ExtractBytesWithNoRef(op) => op.sigma_serialize_w_opcode(w),
             Expr::TreeLookup(op) => op.sigma_serialize_w_opcode(w),
+            Expr::CreateAvlTree(op) => op.sigma_serialize_w_opcode(w),
         }
     }
 

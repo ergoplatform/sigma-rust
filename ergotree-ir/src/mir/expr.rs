@@ -8,6 +8,7 @@ use crate::types::stype::SType;
 
 use super::and::And;
 use super::apply::Apply;
+use super::avl_tree::CreateAvlTree;
 use super::bin_op::BinOp;
 use super::bit_inversion::BitInversion;
 use super::block::BlockValue;
@@ -218,6 +219,8 @@ pub enum Expr {
     XorOf(XorOf),
     /// Perform a lookup by key in an AVL tree
     TreeLookup(TreeLookup),
+    /// Create an AVL tree
+    CreateAvlTree(CreateAvlTree),
 }
 
 impl Expr {
@@ -289,6 +292,7 @@ impl Expr {
             Expr::ExtractBytes(v) => v.tpe(),
             Expr::ExtractBytesWithNoRef(v) => v.tpe(),
             Expr::TreeLookup(v) => v.tpe(),
+            Expr::CreateAvlTree(v) => v.tpe(),
         }
     }
 
