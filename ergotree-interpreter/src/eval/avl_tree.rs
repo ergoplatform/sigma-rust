@@ -38,6 +38,7 @@ fn map_eval_err<T: std::fmt::Debug>(e: T) -> EvalError {
     EvalError::AvlTree(format!("{:?}", e))
 }
 
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -71,7 +72,7 @@ mod tests {
             Expr::Const(flags.clone().into()),
             Expr::Const(initial_digest.clone().into()),
             1.into(),
-            None.into(),
+            None,
         )
         .unwrap()
         .into();
