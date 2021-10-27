@@ -37,6 +37,8 @@ pub mod coll_slice;
 /// Collection of elements
 pub mod collection;
 pub mod constant;
+/// Creation of AVL tree
+pub mod create_avl_tree;
 /// Create proveDHTuple
 pub mod create_prove_dh_tuple;
 /// Create proveDlog from GroupElement(PK)

@@ -31,6 +31,7 @@ use crate::mir::collection::coll_sigma_parse;
 use crate::mir::collection::coll_sigma_serialize;
 use crate::mir::constant::Constant;
 use crate::mir::constant::ConstantPlaceholder;
+use crate::mir::create_avl_tree::CreateAvlTree;
 use crate::mir::create_prove_dh_tuple::CreateProveDhTuple;
 use crate::mir::create_provedlog::CreateProveDlog;
 use crate::mir::decode_point::DecodePoint;
@@ -188,6 +189,7 @@ impl Expr {
                 Exponentiate::OP_CODE => Ok(Exponentiate::sigma_parse(r)?.into()),
                 XorOf::OP_CODE => Ok(XorOf::sigma_parse(r)?.into()),
                 TreeLookup::OP_CODE => Ok(TreeLookup::sigma_parse(r)?.into()),
+                CreateAvlTree::OP_CODE => Ok(CreateAvlTree::sigma_parse(r)?.into()),
                 o => Err(SigmaParsingError::NotImplementedOpCode(format!(
                     "{0}(shift {1})",
                     o.value(),
@@ -289,6 +291,7 @@ impl SigmaSerializable for Expr {
             Expr::ExtractBytes(op) => op.sigma_serialize_w_opcode(w),
             Expr::ExtractBytesWithNoRef(op) => op.sigma_serialize_w_opcode(w),
             Expr::TreeLookup(op) => op.sigma_serialize_w_opcode(w),
+            Expr::CreateAvlTree(op) => op.sigma_serialize_w_opcode(w),
         }
     }
 
