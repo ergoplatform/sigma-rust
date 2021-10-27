@@ -142,11 +142,6 @@ pub fn make_context(
                 .map(|b| Rc::new(b.clone()))
                 .ok_or(TxSigningError::InputBoxNotFound(idx))
         })?;
-
-        .into_iter()
-        .map(Rc::new)
-        .collect();
-    let data_inputs_ir = data_inputs.into_iter().map(Rc::new).collect();
     let extension = tx_ctx
         .spending_tx
         .inputs
@@ -236,6 +231,7 @@ mod tests {
     use super::*;
     use ergotree_interpreter::sigma_protocol::private_input::DlogProverInput;
     use ergotree_interpreter::sigma_protocol::private_input::PrivateInput;
+    use ergotree_interpreter::sigma_protocol::prover::ContextExtension;
     use ergotree_interpreter::sigma_protocol::prover::TestProver;
     use ergotree_interpreter::sigma_protocol::verifier::TestVerifier;
     use ergotree_interpreter::sigma_protocol::verifier::Verifier;
