@@ -219,6 +219,7 @@ pub fn sign_reduced_transaction(
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::panic)]
 mod tests {
     use super::*;
     use ergotree_interpreter::sigma_protocol::private_input::DlogProverInput;

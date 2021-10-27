@@ -251,12 +251,13 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
 }
 
 /// Suggested transaction fee (1100000 nanoERGs, semi-default value used across wallets and dApps as of Oct 2020)
-#[allow(non_snake_case)]
+#[allow(non_snake_case, clippy::unwrap_used)]
 pub fn SUGGESTED_TX_FEE() -> BoxValue {
     BoxValue::new(1100000u64).unwrap()
 }
 
 /// Create a box with miner's contract and a given value
+#[allow(clippy::unwrap_used)]
 pub fn new_miner_fee_box(
     fee_amount: BoxValue,
     creation_height: u32,

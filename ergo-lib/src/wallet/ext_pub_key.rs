@@ -48,7 +48,10 @@ impl ExtPubKey {
         })
     }
 
+    #[allow(clippy::unwrap_used)]
     fn pub_key_bytes(&self) -> PubKeyBytes {
+        // Unwraps are fine here since `self.public_key` is valid through the checking constructor
+        // above.
         self.public_key
             .sigma_serialize_bytes()
             .unwrap()
@@ -58,7 +61,9 @@ impl ExtPubKey {
     }
 
     /// Soft derivation of the child public key with a given index
+    #[allow(clippy::unwrap_used)]
     pub fn derive(&self, index: ChildIndexNormal) -> Self {
+        // Unwrap is fine due to `ChainCode` type having fixed length of 32.
         let mut mac = HmacSha512::new_from_slice(&self.chain_code).unwrap();
         mac.update(&self.pub_key_bytes());
         mac.update(
@@ -98,6 +103,7 @@ impl From<ExtPubKey> for Address {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use crate::wallet::derivation_path::ChildIndexHardened;
 

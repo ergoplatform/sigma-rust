@@ -173,7 +173,7 @@ impl Default for SimpleBoxSelector {
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
+#[allow(clippy::unwrap_used, clippy::panic)]
 mod tests {
     use std::convert::TryFrom;
 
