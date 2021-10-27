@@ -45,7 +45,8 @@ impl<T: ErgoBoxAssets> BoxSelector<T> for SimpleBoxSelector {
         let mut selected_boxes_value: u64 = 0;
         let target_balance: u64 = target_balance.into();
         // sum all target tokens into hash map (think repeating token ids)
-        let mut target_tokens_left: HashMap<TokenId, TokenAmount> = sum_tokens(Some(target_tokens));
+        let mut target_tokens_left: HashMap<TokenId, TokenAmount> =
+            sum_tokens(Some(target_tokens)).map_err(BoxSelectorError::TokenAmountError)?;
         let mut has_value_change = false;
         let mut has_token_change = false;
         let mut sorted_inputs = inputs;
@@ -66,7 +67,7 @@ impl<T: ErgoBoxAssets> BoxSelector<T> for SimpleBoxSelector {
         });
         // reverse, so they'll be sorted by descending order (boxes with target tokens will be first)
         sorted_inputs.reverse();
-        sorted_inputs.into_iter().for_each(|b| {
+        for b in sorted_inputs {
             let value_change_amt: u64 = if target_balance > selected_boxes_value {
                 0
             } else {
@@ -112,13 +113,14 @@ impl<T: ErgoBoxAssets> BoxSelector<T> for SimpleBoxSelector {
                     }
                 });
                 if sum_tokens(b.tokens().as_ref().map(BoxTokens::as_ref))
+                    .map_err(BoxSelectorError::TokenAmountError)?
                     != selected_tokens_from_this_box
                 {
                     has_token_change = true;
                 };
                 selected_inputs.push(b);
             };
-        });
+        }
         if selected_boxes_value < target_balance {
             return Err(BoxSelectorError::NotEnoughCoins(
                 target_balance - selected_boxes_value,
@@ -133,7 +135,8 @@ impl<T: ErgoBoxAssets> BoxSelector<T> for SimpleBoxSelector {
             vec![]
         } else {
             let change_value: BoxValue = (selected_boxes_value - target_balance).try_into()?;
-            let mut change_tokens = sum_tokens_from_boxes(selected_inputs.as_slice());
+            let mut change_tokens = sum_tokens_from_boxes(selected_inputs.as_slice())
+                .map_err(BoxSelectorError::TokenAmountError)?;
             target_tokens.iter().try_for_each(|t| {
                 match change_tokens.get(&t.token_id).cloned() {
                     Some(selected_boxes_t_amt) if selected_boxes_t_amt == t.amount => {
@@ -170,6 +173,7 @@ impl Default for SimpleBoxSelector {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use std::convert::TryFrom;
 
@@ -298,7 +302,7 @@ mod tests {
                                     any_with::<BoxValue>((BoxValue::MIN_RAW * 100 .. BoxValue::MIN_RAW * 800).into()),
                                     target_token_amount in 1..100u64) {
             let s = SimpleBoxSelector::new();
-            let all_input_tokens = sum_tokens_from_boxes(inputs.as_slice());
+            let all_input_tokens = sum_tokens_from_boxes(inputs.as_slice()).unwrap();
             prop_assume!(!all_input_tokens.is_empty());
             let target_token_id = all_input_tokens.keys().collect::<Vec<&TokenId>>().get((all_input_tokens.len() - 1) / 2)
                                                                                     .cloned().unwrap();
@@ -330,7 +334,7 @@ mod tests {
                                                target_balance in
                                                any_with::<BoxValue>((BoxValue::MIN_RAW * 100 .. BoxValue::MIN_RAW * 500).into())) {
             let s = SimpleBoxSelector::new();
-            let all_input_tokens = sum_tokens_from_boxes(inputs.as_slice());
+            let all_input_tokens = sum_tokens_from_boxes(inputs.as_slice()).unwrap();
             prop_assume!(!all_input_tokens.is_empty());
             let target_token_id = all_input_tokens.keys().collect::<Vec<&TokenId>>().get((all_input_tokens.len() - 1) / 2)
                                                                                     .cloned().unwrap();
@@ -362,7 +366,7 @@ mod tests {
                                        target_token1_amount in 1..100u64,
                                        target_token2_amount in 2..100u64) {
             let s = SimpleBoxSelector::new();
-            let all_input_tokens = sum_tokens_from_boxes(inputs.as_slice());
+            let all_input_tokens = sum_tokens_from_boxes(inputs.as_slice()).unwrap();
             prop_assume!(all_input_tokens.len() >= 2);
             let all_input_tokens_keys = all_input_tokens.keys().collect::<Vec<&TokenId>>();
             let target_token1_id = all_input_tokens_keys.first().cloned().unwrap();
@@ -405,7 +409,7 @@ mod tests {
                                          target_balance in
                                          any_with::<BoxValue>((BoxValue::MIN_RAW * 100 .. BoxValue::MIN_RAW * 1000).into())) {
             let s = SimpleBoxSelector::new();
-            let all_input_tokens = sum_tokens_from_boxes(inputs.as_slice());
+            let all_input_tokens = sum_tokens_from_boxes(inputs.as_slice()).unwrap();
             prop_assume!(!all_input_tokens.is_empty());
             let target_token_id = all_input_tokens.keys().collect::<Vec<&TokenId>>().get(0).cloned().unwrap();
             let input_token_amount = u64::from(*all_input_tokens.get(target_token_id).unwrap()) / 2;

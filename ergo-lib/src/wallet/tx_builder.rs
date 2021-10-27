@@ -1,6 +1,7 @@
 //! Builder for an UnsignedTransaction
 
 use ergotree_ir::chain::ergo_box::box_value::BoxValueError;
+use ergotree_ir::chain::token::TokenAmountError;
 use std::collections::HashSet;
 use std::convert::TryInto;
 
@@ -199,8 +200,10 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
             ));
         }
         // check that inputs have enough tokens
-        let input_tokens = sum_tokens_from_boxes(self.box_selection.boxes.as_slice());
-        let output_tokens = sum_tokens_from_boxes(output_candidates.as_slice());
+        let input_tokens = sum_tokens_from_boxes(self.box_selection.boxes.as_slice())
+            .map_err(TxBuilderError::TokenAmountError)?;
+        let output_tokens = sum_tokens_from_boxes(output_candidates.as_slice())
+            .map_err(TxBuilderError::TokenAmountError)?;
         let first_input_box_id: TokenId = self
             .box_selection
             .boxes
@@ -301,9 +304,13 @@ pub enum TxBuilderError {
     /// Input box was unable to be retrieved
     #[error("Empty input box")]
     EmptyInputBoxSelection,
+    /// Token amount err
+    #[error("TokenAmountError: {0:?}")]
+    TokenAmountError(TokenAmountError),
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::panic)]
 mod tests {
 
     use std::convert::TryInto;
@@ -586,7 +593,7 @@ mod tests {
                          change_address in any::<Address>(),
                          miners_fee in any_with::<BoxValue>((BoxValue::MIN_RAW * 100..BoxValue::MIN_RAW * 200).into()),
                          data_inputs in vec(any::<DataInput>(), 0..2)) {
-            prop_assume!(sum_tokens_from_boxes(outputs.as_slice()).is_empty());
+            prop_assume!(sum_tokens_from_boxes(outputs.as_slice()).unwrap().is_empty());
             let min_change_value = BoxValue::SAFE_USER_MIN;
             let all_outputs = checked_sum(outputs.iter().map(|b| b.value)).unwrap()
                                                                              .checked_add(&miners_fee)
