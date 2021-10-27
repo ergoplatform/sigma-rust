@@ -150,6 +150,7 @@ pub fn sum_tokens_from_boxes<T: ErgoBoxAssets>(bs: &[T]) -> HashMap<TokenId, Tok
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::panic)]
 mod tests {
 
     use ergotree_ir::chain::ergo_box::box_value::arbitrary::ArbBoxValueRange;
