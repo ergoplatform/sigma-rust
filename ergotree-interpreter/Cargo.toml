@@ -27,7 +27,6 @@ derive_more = "0.99"
 num-traits = "0.2.14"
 proptest-derive = {version = "0.3.0", optional = true }
 base16 = "0.2.1"
-bounded-vec = { version = "^0.5.0", features=["serde"] }
 bytes = "1.1"
 num-bigint = "0.4.0"
 scorex_crypto_avltree = "0.1.0"
