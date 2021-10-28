@@ -201,6 +201,10 @@ impl UnprovenConjecture {
         }
     }
 
+    pub(crate) fn with_children(&self, children: SigmaConjectureItems<ProofTree>) -> Self {
+        todo!()
+    }
+
     pub(crate) fn position(&self) -> &NodePosition {
         match self {
             UnprovenConjecture::CandUnproven(cand) => &cand.position,
@@ -241,6 +245,10 @@ impl UnprovenConjecture {
             UnprovenConjecture::CandUnproven(au) => au.simulated,
             UnprovenConjecture::CorUnproven(ou) => ou.simulated,
         }
+    }
+
+    pub(crate) fn is_real(&self) -> bool {
+        !self.simulated()
     }
 }
 
