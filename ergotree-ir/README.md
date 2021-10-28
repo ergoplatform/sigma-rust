@@ -16,8 +16,6 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 ### Predefined functions
 
 - atLeast
-- avlTree
-- treeLookup
 
 ### Object properties and methods
 
@@ -75,6 +73,8 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 - groupGenerator [#332](https://github.com/ergoplatform/sigma-rust/issues/332)
 - xorOf [#356](https://github.com/ergoplatform/sigma-rust/issues/356)
 - downcast
+- avlTree
+- treeLookup
 
 ### Object properties and methods
 

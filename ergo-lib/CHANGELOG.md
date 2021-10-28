@@ -18,10 +18,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - `AvlTree.contains` [#437] (https://github.com/ergoplatform/sigma-rust/pull/437);
 - `LastBlockUtxoRootHash` [#452](https://github.com/ergoplatform/sigma-rust/pull/452);
 - `ExtPubKey` and `DerivationPath` with BIP-32,44 and soft derivation support for Ledger [#448](https://github.com/ergoplatform/sigma-rust/pull/448);
+- Modulo binary op [#460](https://github.com/ergoplatform/sigma-rust/pull/460);
+- `treeLookup` predefined function [#459](https://github.com/ergoplatform/sigma-rust/pull/459);
+- `createAvlTree` predefined function [#466](https://github.com/ergoplatform/sigma-rust/pull/466);
 
 ### Fixed
 - fix `elem_tpe` in `Append` and `Slice` evaluation [#455](https://github.com/ergoplatform/sigma-rust/pull/455)
-- fix `CollKind::elem_tpe` [#457](https://github.com/ergoplatform/sigma-rust/pull/457)
+- fix `CollKind::elem_tpe` [#457](https://github.com/ergoplatform/sigma-rust/pull/457);
+- fix a bug with self box lookup in TransactionContext and added checks for box resolution in tx inputs and data_inputs [#462](https://github.com/ergoplatform/sigma-rust/pull/462);
 
 ## [0.14.0] - 2021-10-07
 
