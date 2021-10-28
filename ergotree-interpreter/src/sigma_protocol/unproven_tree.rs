@@ -474,8 +474,26 @@ impl CthresholdUnproven {
     pub(crate) fn with_children(self, children: SigmaConjectureItems<ProofTree>) -> Self {
         Self { children, ..self }
     }
+
+    pub(crate) fn with_polynomial(&self, q: Gf2_192Poly) -> Self {
+        todo!()
+    }
 }
 
 // TODO: extract
 #[derive(PartialEq, Debug, Clone)]
 pub(crate) struct Gf2_192Poly {}
+
+impl Gf2_192Poly {
+    pub(crate) fn from_byte_array(challenge: Challenge, usize: Vec<u8>) -> Self {
+        todo!()
+    }
+
+    pub(crate) fn evaluate(&self, one_based_idx: usize) -> Gf2_192 {
+        todo!()
+    }
+}
+
+// TODO: extract
+#[derive(PartialEq, Debug, Clone)]
+pub(crate) struct Gf2_192 {}

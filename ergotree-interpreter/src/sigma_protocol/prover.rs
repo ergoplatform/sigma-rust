@@ -6,6 +6,7 @@ mod prover_result;
 pub mod hint;
 
 use crate::eval::reduce_to_crypto;
+use crate::sigma_protocol::crypto_utils::secure_random_bytes;
 use crate::sigma_protocol::dht_protocol;
 use crate::sigma_protocol::fiat_shamir::fiat_shamir_hash_fn;
 use crate::sigma_protocol::fiat_shamir::fiat_shamir_tree_to_bytes;
@@ -14,10 +15,12 @@ use crate::sigma_protocol::proof_tree::ProofTreeConjecture;
 use crate::sigma_protocol::unchecked_tree::UncheckedDhTuple;
 use crate::sigma_protocol::unproven_tree::CandUnproven;
 use crate::sigma_protocol::unproven_tree::CorUnproven;
+use crate::sigma_protocol::unproven_tree::Gf2_192Poly;
 use crate::sigma_protocol::unproven_tree::NodePosition;
 use crate::sigma_protocol::unproven_tree::UnprovenDhTuple;
 use crate::sigma_protocol::Challenge;
 use crate::sigma_protocol::UnprovenLeaf;
+use crate::sigma_protocol::SOUNDNESS_BYTES;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaConjectureItems;
 use std::convert::TryInto;
@@ -549,7 +552,29 @@ fn step4_simulated_threshold_conj(
     // evaluate the polynomial Q(x) = sum {q_i x^i} over GF(2^t) at points 1, 2, ..., n
     // to get challenges for child 1, 2, ..., n, respectively.
     assert!(ct.simulated);
-    todo!()
+    if let Some(challenge) = ct.challenge_opt.clone() {
+        let unproven_children = cast_to_unp(ct.children.clone())?;
+        let n = ct.children.len();
+        let q = Gf2_192Poly::from_byte_array(
+            challenge,
+            secure_random_bytes(SOUNDNESS_BYTES * (n - ct.k as usize)),
+        );
+        let new_children = unproven_children
+            .enumerated()
+            .mapped(|(idx, c)| {
+                let one_based_idx = idx + 1;
+                let new_challenge = q.evaluate(one_based_idx).into();
+                c.with_challenge(new_challenge)
+            })
+            .mapped(|c| c.into());
+        Ok(Some(
+            ct.with_polynomial(q).with_children(new_children).into(),
+        ))
+    } else {
+        Err(ProverError::Unexpected(
+            "simulate_and_commit: missing CthresholdUnproven(simulated).challenge".to_string(),
+        ))
+    }
 }
 
 fn step5_schnorr(
