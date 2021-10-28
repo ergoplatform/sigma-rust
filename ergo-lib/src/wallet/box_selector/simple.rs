@@ -88,30 +88,35 @@ impl<T: ErgoBoxAssets> BoxSelector<T> for SimpleBoxSelector {
                 }
                 let mut selected_tokens_from_this_box: HashMap<TokenId, TokenAmount> =
                     HashMap::new();
-                b.tokens().into_iter().flatten().for_each(|t| {
-                    if let Some(token_amount_left_to_select) =
-                        target_tokens_left.get(&t.token_id).cloned()
-                    {
-                        let token_amount_in_box = t.amount;
-                        if token_amount_left_to_select <= token_amount_in_box {
-                            target_tokens_left.remove(&t.token_id);
-                        } else {
-                            target_tokens_left
-                                .entry(t.token_id.clone())
-                                .and_modify(|amt| {
-                                    *amt = amt.checked_sub(&token_amount_in_box).unwrap()
-                                });
+                b.tokens()
+                    .into_iter()
+                    .flatten()
+                    .try_for_each::<_, Result<(), BoxSelectorError>>(|t| {
+                        if let Some(token_amount_left_to_select) =
+                            target_tokens_left.get(&t.token_id).cloned()
+                        {
+                            let token_amount_in_box = t.amount;
+                            if token_amount_left_to_select <= token_amount_in_box {
+                                target_tokens_left.remove(&t.token_id);
+                            } else if let Some(amt) = target_tokens_left.get_mut(&t.token_id) {
+                                *amt = amt
+                                    .checked_sub(&token_amount_in_box)
+                                    .map_err(BoxSelectorError::TokenAmountError)?;
+                            }
+
+                            let selected_token_amt =
+                                min(token_amount_in_box, token_amount_left_to_select);
+                            if let Some(amt) = selected_tokens_from_this_box.get_mut(&t.token_id) {
+                                *amt = amt
+                                    .checked_add(&selected_token_amt)
+                                    .map_err(BoxSelectorError::TokenAmountError)?;
+                            } else {
+                                selected_tokens_from_this_box
+                                    .insert(t.token_id.clone(), selected_token_amt);
+                            }
                         }
-                        let selected_token_amt =
-                            min(token_amount_in_box, token_amount_left_to_select);
-                        selected_tokens_from_this_box
-                            .entry(t.token_id.clone())
-                            .and_modify(|amt| {
-                                *amt = amt.checked_add(&selected_token_amt).unwrap();
-                            })
-                            .or_insert(selected_token_amt);
-                    }
-                });
+                        Ok(())
+                    })?;
                 if sum_tokens(b.tokens().as_ref().map(BoxTokens::as_ref))
                     .map_err(BoxSelectorError::TokenAmountError)?
                     != selected_tokens_from_this_box
@@ -146,7 +151,9 @@ impl<T: ErgoBoxAssets> BoxSelector<T> for SimpleBoxSelector {
                     Some(selected_boxes_t_amt) if selected_boxes_t_amt > t.amount => {
                         change_tokens.insert(
                             t.token_id.clone(),
-                            selected_boxes_t_amt.checked_sub(&t.amount).unwrap(),
+                            selected_boxes_t_amt
+                                .checked_sub(&t.amount)
+                                .map_err(BoxSelectorError::TokenAmountError)?,
                         );
                         Ok(())
                     }
@@ -221,8 +228,8 @@ mod tests {
             prop_assert_eq!(sum_value(selection.boxes.as_slice()),
                             sum_value(change_boxes_plus_out.as_slice()),
                             "total value of the selected boxes should equal target balance + total value in change boxes");
-            prop_assert_eq!(sum_tokens_from_boxes(selection.boxes.as_slice()),
-                            sum_tokens_from_boxes(change_boxes_plus_out.as_slice()),
+            prop_assert_eq!(sum_tokens_from_boxes(selection.boxes.as_slice()).unwrap(),
+                            sum_tokens_from_boxes(change_boxes_plus_out.as_slice()).unwrap(),
                             "all tokens from selected boxes should equal all tokens from the change boxes + target tokens")
         }
 
@@ -241,8 +248,8 @@ mod tests {
             prop_assert_eq!(sum_value(selection.boxes.as_slice()),
                             sum_value(change_boxes_plus_out.as_slice()),
                             "total value of the selected boxes should equal target balance + total value in change boxes");
-            prop_assert_eq!(sum_tokens_from_boxes(selection.boxes.as_slice()),
-                            sum_tokens_from_boxes(change_boxes_plus_out.as_slice()),
+            prop_assert_eq!(sum_tokens_from_boxes(selection.boxes.as_slice()).unwrap(),
+                            sum_tokens_from_boxes(change_boxes_plus_out.as_slice()).unwrap(),
                             "all tokens from selected boxes should equal all tokens from the change boxes + target tokens")
         }
 
@@ -270,8 +277,8 @@ mod tests {
             prop_assert_eq!(sum_value(selection.boxes.as_slice()),
                             sum_value(change_boxes_plus_out.as_slice()),
                             "total value of the selected boxes should equal target balance + total value in change boxes");
-            prop_assert_eq!(sum_tokens_from_boxes(selection.boxes.as_slice()),
-                            sum_tokens_from_boxes(change_boxes_plus_out.as_slice()),
+            prop_assert_eq!(sum_tokens_from_boxes(selection.boxes.as_slice()).unwrap(),
+                            sum_tokens_from_boxes(change_boxes_plus_out.as_slice()).unwrap(),
                             "all tokens from selected boxes should equal all tokens from the change boxes + target tokens");
         }
 
@@ -289,8 +296,8 @@ mod tests {
             prop_assert_eq!(sum_value(selection.boxes.as_slice()),
                 sum_value(change_boxes_plus_out.as_slice()),
                 "total value of the selected boxes should equal target balance + total value in change boxes");
-            prop_assert_eq!(sum_tokens_from_boxes(selection.boxes.as_slice()),
-                sum_tokens_from_boxes(change_boxes_plus_out.as_slice()),
+            prop_assert_eq!(sum_tokens_from_boxes(selection.boxes.as_slice()).unwrap(),
+                sum_tokens_from_boxes(change_boxes_plus_out.as_slice()).unwrap(),
                 "all tokens from selected boxes should equal all tokens from the change boxes + target tokens")
         }
 
@@ -317,8 +324,8 @@ mod tests {
             prop_assert_eq!(sum_value(selection.boxes.as_slice()),
                             sum_value(change_boxes_plus_out.as_slice()),
                             "total value of the selected boxes should equal target balance + total value in change boxes");
-            prop_assert_eq!(sum_tokens_from_boxes(selection.boxes.as_slice()),
-                            sum_tokens_from_boxes(change_boxes_plus_out.as_slice()),
+            prop_assert_eq!(sum_tokens_from_boxes(selection.boxes.as_slice()).unwrap(),
+                            sum_tokens_from_boxes(change_boxes_plus_out.as_slice()).unwrap(),
                             "all tokens from selected boxes should equal all tokens from the change boxes + target tokens");
             prop_assert!(
                 selection.boxes.iter()
@@ -347,8 +354,8 @@ mod tests {
             prop_assert_eq!(sum_value(selection.boxes.as_slice()),
                             sum_value(change_boxes_plus_out.as_slice()),
                             "total value of the selected boxes should equal target balance + total value in change boxes");
-            prop_assert_eq!(sum_tokens_from_boxes(selection.boxes.as_slice()),
-                            sum_tokens_from_boxes(change_boxes_plus_out.as_slice()),
+            prop_assert_eq!(sum_tokens_from_boxes(selection.boxes.as_slice()).unwrap(),
+                            sum_tokens_from_boxes(change_boxes_plus_out.as_slice()).unwrap(),
                             "all tokens from selected boxes should equal all tokens from the change boxes + target tokens");
             prop_assert!(
                 selection.boxes.iter()
@@ -392,8 +399,8 @@ mod tests {
             prop_assert_eq!(sum_value(selection.boxes.as_slice()),
                             sum_value(change_boxes_plus_out.as_slice()),
                             "total value of the selected boxes should equal target balance + total value in change boxes");
-            prop_assert_eq!(sum_tokens_from_boxes(selection.boxes.as_slice()),
-                            sum_tokens_from_boxes(change_boxes_plus_out.as_slice()),
+            prop_assert_eq!(sum_tokens_from_boxes(selection.boxes.as_slice()).unwrap(),
+                            sum_tokens_from_boxes(change_boxes_plus_out.as_slice()).unwrap(),
                             "all tokens from selected boxes should equal all tokens from the change boxes + target tokens");
             prop_assert!(
                 selection.boxes.iter()

@@ -133,12 +133,14 @@ pub fn sum_value<T: ErgoBoxAssets>(bs: &[T]) -> u64 {
 /// Returns the total token amounts (all tokens combined)
 pub fn sum_tokens(ts: Option<&[Token]>) -> Result<HashMap<TokenId, TokenAmount>, TokenAmountError> {
     let mut res: HashMap<TokenId, TokenAmount> = HashMap::new();
-    if let Some(tokens) = ts {
-        for t in tokens {
-            let e = res.entry(t.token_id.clone()).or_insert(t.amount);
-            e.checked_add(&t.amount)?;
+    ts.into_iter().flatten().try_for_each(|t| {
+        if let Some(amt) = res.get_mut(&t.token_id) {
+            *amt = amt.checked_add(&t.amount)?;
+        } else {
+            res.insert(t.token_id.clone(), t.amount);
         }
-    }
+        Ok(())
+    })?;
     Ok(res)
 }
 
@@ -147,14 +149,17 @@ pub fn sum_tokens_from_boxes<T: ErgoBoxAssets>(
     bs: &[T],
 ) -> Result<HashMap<TokenId, TokenAmount>, TokenAmountError> {
     let mut res: HashMap<TokenId, TokenAmount> = HashMap::new();
-    for b in bs {
-        if let Some(tokens) = &b.tokens() {
-            for t in tokens {
-                let e = res.entry(t.token_id.clone()).or_insert(t.amount);
-                e.checked_add(&t.amount)?;
+    bs.iter().try_for_each(|b| {
+        b.tokens().into_iter().flatten().try_for_each(|t| {
+            if let Some(amt) = res.get_mut(&t.token_id) {
+                *amt = amt.checked_add(&t.amount)?;
+            } else {
+                res.insert(t.token_id.clone(), t.amount);
             }
-        }
-    }
+
+            Ok(())
+        })
+    })?;
     Ok(res)
 }
 
