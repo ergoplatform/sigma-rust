@@ -1,5 +1,8 @@
 //! Interpreter with enhanced functionality to prove statements.
 
+// TODO: remove after all todo! are implemented
+#![allow(clippy::todo)]
+
 mod context_extension;
 mod prover_result;
 
@@ -11,7 +14,6 @@ use crate::sigma_protocol::dht_protocol;
 use crate::sigma_protocol::fiat_shamir::fiat_shamir_hash_fn;
 use crate::sigma_protocol::fiat_shamir::fiat_shamir_tree_to_bytes;
 use crate::sigma_protocol::proof_tree::ProofTree;
-use crate::sigma_protocol::proof_tree::ProofTreeConjecture;
 use crate::sigma_protocol::unchecked_tree::UncheckedDhTuple;
 use crate::sigma_protocol::unproven_tree::CandUnproven;
 use crate::sigma_protocol::unproven_tree::CorUnproven;
@@ -406,7 +408,7 @@ fn polish_simulated<P: Prover + ?Sized>(
                         let mut count_of_real = 0;
                         let mut children_indices_to_be_marked_simulated = Vec::new();
                         let unproven_children = cast_to_unp(ct.children.clone())?;
-                        for (idx, kid) in unproven_children.enumerated() {
+                        for (idx, kid) in unproven_children.clone().enumerated() {
                             if kid.is_real() {
                                 count_of_real += 1;
                                 if count_of_real >= ct.k {
@@ -443,10 +445,10 @@ fn step4_real_conj(
     assert!(uc.is_real());
     match uc {
         // A real AND node has no simulated children
-        UnprovenConjecture::CandUnproven(cand) => Ok(None),
+        UnprovenConjecture::CandUnproven(_) => Ok(None),
         //real OR Threshold case
         UnprovenConjecture::CorUnproven(_) | UnprovenConjecture::CthresholdUnproven(_) => {
-            let new_children = cast_to_unp(uc.children().clone())?
+            let new_children = cast_to_unp(uc.children())?
                 .mapped(|c| {
                     if c.is_real() {
                         c
@@ -486,7 +488,7 @@ fn step4_simulated_and_conj(cand: CandUnproven) -> Result<Option<ProofTree>, Pro
         Ok(Some(
             CandUnproven {
                 children: new_children,
-                ..cand.clone()
+                ..cand
             }
             .into(),
         ))
@@ -532,7 +534,7 @@ fn step4_simulated_or_conj(cor: CorUnproven) -> Result<Option<ProofTree>, Prover
                     .collect::<Vec<ProofTree>>()
                     .try_into()
                     .unwrap(),
-                ..cor.clone()
+                ..cor
             }
             .into(),
         ))
@@ -820,6 +822,7 @@ fn proving<P: Prover + ?Sized>(
                             Ok(None)
                         }
                     }
+                    UnprovenConjecture::CthresholdUnproven(_) => todo!(),
                 },
 
                 // If the node is a leaf marked "real", compute its response according to the second prover step
@@ -980,7 +983,7 @@ fn convert_to_unproven(sb: SigmaBoolean) -> Result<UnprovenTree, ProverError> {
             }
             .into(),
             SigmaConjecture::Cthreshold(ct) => CthresholdUnproven {
-                proposition: ct,
+                proposition: ct.clone(),
                 k: ct.k,
                 children: ct
                     .children
@@ -1029,6 +1032,7 @@ fn convert_to_unchecked(tree: ProofTree) -> Result<UncheckedTree, ProverError> {
                     children: cor.children.clone().try_mapped(convert_to_unchecked)?,
                 }
                 .into()),
+                UnprovenConjecture::CthresholdUnproven(_) => todo!(),
             },
         },
     }

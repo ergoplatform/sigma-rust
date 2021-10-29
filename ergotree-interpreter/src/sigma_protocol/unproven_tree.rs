@@ -1,5 +1,8 @@
 //! Unproven tree types
 
+// TODO: remove after all todo! are implemented
+#![allow(clippy::todo)]
+
 use super::dht_protocol::FirstDhTupleProverMessage;
 use super::proof_tree::ConjectureType;
 use super::proof_tree::ProofTree;
@@ -107,6 +110,12 @@ impl From<UnprovenDhTuple> for UnprovenTree {
     }
 }
 
+impl From<CthresholdUnproven> for UnprovenTree {
+    fn from(v: CthresholdUnproven) -> Self {
+        UnprovenTree::UnprovenConjecture(v.into())
+    }
+}
+
 /// Unproven leaf types
 #[derive(PartialEq, Debug, Clone, From)]
 pub(crate) enum UnprovenLeaf {
@@ -187,6 +196,7 @@ impl ProofTreeLeaf for UnprovenLeaf {
 }
 
 #[derive(PartialEq, Debug, Clone, From)]
+#[allow(clippy::enum_variant_names)]
 pub(crate) enum UnprovenConjecture {
     CandUnproven(CandUnproven),
     CorUnproven(CorUnproven),
@@ -198,17 +208,23 @@ impl UnprovenConjecture {
         match self {
             UnprovenConjecture::CandUnproven(cand) => cand.children.clone(),
             UnprovenConjecture::CorUnproven(cor) => cor.children.clone(),
+            UnprovenConjecture::CthresholdUnproven(ct) => ct.children.clone(),
         }
     }
 
-    pub(crate) fn with_children(&self, children: SigmaConjectureItems<ProofTree>) -> Self {
-        todo!()
+    pub(crate) fn with_children(self, children: SigmaConjectureItems<ProofTree>) -> Self {
+        match self {
+            UnprovenConjecture::CandUnproven(cand) => cand.with_children(children).into(),
+            UnprovenConjecture::CorUnproven(cor) => cor.with_children(children).into(),
+            UnprovenConjecture::CthresholdUnproven(ct) => ct.with_children(children).into(),
+        }
     }
 
     pub(crate) fn position(&self) -> &NodePosition {
         match self {
             UnprovenConjecture::CandUnproven(cand) => &cand.position,
             UnprovenConjecture::CorUnproven(cor) => &cor.position,
+            UnprovenConjecture::CthresholdUnproven(ct) => &ct.position,
         }
     }
 
@@ -216,6 +232,7 @@ impl UnprovenConjecture {
         match self {
             UnprovenConjecture::CandUnproven(cand) => cand.challenge_opt.clone(),
             UnprovenConjecture::CorUnproven(cor) => cor.challenge_opt.clone(),
+            UnprovenConjecture::CthresholdUnproven(ct) => ct.challenge_opt.clone(),
         }
     }
 
@@ -223,6 +240,7 @@ impl UnprovenConjecture {
         match self {
             UnprovenConjecture::CandUnproven(cand) => cand.with_position(updated).into(),
             UnprovenConjecture::CorUnproven(cor) => cor.with_position(updated).into(),
+            UnprovenConjecture::CthresholdUnproven(ct) => ct.with_position(updated).into(),
         }
     }
 
@@ -230,6 +248,7 @@ impl UnprovenConjecture {
         match self {
             UnprovenConjecture::CandUnproven(cand) => cand.with_challenge(challenge).into(),
             UnprovenConjecture::CorUnproven(cor) => cor.with_challenge(challenge).into(),
+            UnprovenConjecture::CthresholdUnproven(ct) => ct.with_challenge(challenge).into(),
         }
     }
 
@@ -237,6 +256,7 @@ impl UnprovenConjecture {
         match self {
             UnprovenConjecture::CandUnproven(cand) => cand.with_simulated(simulated).into(),
             UnprovenConjecture::CorUnproven(cor) => cor.with_simulated(simulated).into(),
+            UnprovenConjecture::CthresholdUnproven(ct) => ct.with_simulated(simulated).into(),
         }
     }
 
@@ -244,6 +264,7 @@ impl UnprovenConjecture {
         match self {
             UnprovenConjecture::CandUnproven(au) => au.simulated,
             UnprovenConjecture::CorUnproven(ou) => ou.simulated,
+            UnprovenConjecture::CthresholdUnproven(ct) => ct.simulated,
         }
     }
 
@@ -257,6 +278,7 @@ impl ProofTreeConjecture for UnprovenConjecture {
         match self {
             UnprovenConjecture::CandUnproven(_) => ConjectureType::And,
             UnprovenConjecture::CorUnproven(_) => ConjectureType::Or,
+            UnprovenConjecture::CthresholdUnproven(_) => ConjectureType::Threshold,
         }
     }
 
@@ -264,6 +286,7 @@ impl ProofTreeConjecture for UnprovenConjecture {
         match self {
             UnprovenConjecture::CandUnproven(cand) => cand.children.clone(),
             UnprovenConjecture::CorUnproven(cor) => cor.children.clone(),
+            UnprovenConjecture::CthresholdUnproven(ct) => ct.children.clone(),
         }
     }
 }
@@ -467,16 +490,30 @@ pub(crate) struct CthresholdUnproven {
 }
 
 impl CthresholdUnproven {
-    pub(crate) fn is_real(&self) -> bool {
-        !self.simulated
-    }
-
     pub(crate) fn with_children(self, children: SigmaConjectureItems<ProofTree>) -> Self {
         Self { children, ..self }
     }
 
-    pub(crate) fn with_polynomial(&self, q: Gf2_192Poly) -> Self {
+    pub(crate) fn with_polynomial(&self, _q: Gf2_192Poly) -> Self {
         todo!()
+    }
+
+    fn with_position(self, updated: NodePosition) -> Self {
+        Self {
+            position: updated,
+            ..self
+        }
+    }
+
+    fn with_challenge(self, challenge: Challenge) -> Self {
+        Self {
+            challenge_opt: Some(challenge),
+            ..self
+        }
+    }
+
+    fn with_simulated(self, simulated: bool) -> Self {
+        Self { simulated, ..self }
     }
 }
 
@@ -485,11 +522,11 @@ impl CthresholdUnproven {
 pub(crate) struct Gf2_192Poly {}
 
 impl Gf2_192Poly {
-    pub(crate) fn from_byte_array(challenge: Challenge, usize: Vec<u8>) -> Self {
+    pub(crate) fn from_byte_array(_challenge: Challenge, _: Vec<u8>) -> Self {
         todo!()
     }
 
-    pub(crate) fn evaluate(&self, one_based_idx: usize) -> Gf2_192 {
+    pub(crate) fn evaluate(&self, _idx: usize) -> Gf2_192 {
         todo!()
     }
 }
@@ -497,3 +534,9 @@ impl Gf2_192Poly {
 // TODO: extract
 #[derive(PartialEq, Debug, Clone)]
 pub(crate) struct Gf2_192 {}
+
+impl From<Gf2_192> for Challenge {
+    fn from(_: Gf2_192) -> Self {
+        todo!()
+    }
+}

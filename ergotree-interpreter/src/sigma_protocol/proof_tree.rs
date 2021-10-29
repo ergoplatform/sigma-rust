@@ -129,7 +129,7 @@ pub(crate) trait ProofTreeLeaf: Debug {
 pub(crate) enum ConjectureType {
     And = 0,
     Or = 1,
-    // Threshold = 2,
+    Threshold = 2,
 }
 
 pub(crate) trait ProofTreeConjecture {
