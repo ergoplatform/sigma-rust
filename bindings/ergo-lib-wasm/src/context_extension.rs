@@ -22,12 +22,10 @@ impl ContextExtension {
         Self(ergo_lib::ergotree_interpreter::sigma_protocol::prover::ContextExtension::empty())
     }
 
-    /// Create new ContextExtension instance containing the supplied pair
-    pub fn with_pair(id: u8, value: &Constant) -> Self {
-        let mut ctx =
-            ergo_lib::ergotree_interpreter::sigma_protocol::prover::ContextExtension::empty();
-        ctx.values.insert(id, value.clone().into());
-        Self(ctx)
+    /// Insert the supplied pair into the ContextExtension
+    pub fn with_pair(&mut self, id: u8, value: &Constant) -> ContextExtension {
+        self.0.values.insert(id, value.clone().into());
+        self.0.clone().into()
     }
 
     /// Returns the number of elements in the collection

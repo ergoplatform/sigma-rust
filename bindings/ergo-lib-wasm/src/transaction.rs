@@ -155,23 +155,21 @@ pub struct UnsignedTransaction(chain::transaction::unsigned::UnsignedTransaction
 
 #[wasm_bindgen]
 impl UnsignedTransaction {
-    /// Create an UnsignedTransaction instance containing the given ContextExtension
+    /// Add the given `ContextExtension` to the box with the `input_id` id.
     pub fn with_context_ext(
+        &mut self,
         input_id: &BoxId,
         ext: &ContextExtension,
     ) -> Result<UnsignedTransaction, JsValue> {
-        let unsigned_input =
-            chain::transaction::UnsignedInput::new(input_id.clone().into(), ext.clone().into());
-        let inputs = vec![unsigned_input];
-        let output_candidates = vec![];
-        let unsigned_tx = chain::transaction::unsigned::UnsignedTransaction::new(
-            inputs.try_into().unwrap(),
-            None,
-            output_candidates.try_into().unwrap(),
-        )
-        .map_err(to_js)?;
+        let mut input = self
+            .0
+            .inputs
+            .iter_mut()
+            .find(|input| input.box_id == input_id.clone().into())
+            .ok_or_else(|| JsValue::from_str("Box input id not found"))?;
+        input.extension = ext.clone().into();
 
-        Ok(unsigned_tx.into())
+        Ok(self.clone())
     }
 
     /// Get id for transaction
