@@ -15,7 +15,7 @@ extern crate log;
 
 mod exception;
 
-use ergo_lib_c_core::{address_delete, address_from_testnet, AddressPtr};
+use ergo_lib_c_core::address::{address_delete, address_from_testnet, AddressPtr};
 use exception::unwrap_exc_or;
 use jni::{
     objects::{JClass, JString},
