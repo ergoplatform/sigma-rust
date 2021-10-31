@@ -149,13 +149,18 @@ impl CommitmentHint {
 /// Collection of hints to be used by a prover
 pub struct HintsBag {
     /// Hints stored in a bag
-    hints: Vec<Hint>,
+    pub hints: Vec<Hint>,
 }
 
 impl HintsBag {
     /// Bag without hints
     pub fn empty() -> Self {
         HintsBag { hints: vec![] }
+    }
+
+    /// Adding new hint to hints
+    pub fn add_hint(&mut self, hint:Hint){
+        self.hints.push(hint);
     }
 
     /// Commitments from all CommitmentHints in the bag
