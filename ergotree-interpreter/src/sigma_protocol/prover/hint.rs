@@ -159,7 +159,7 @@ impl HintsBag {
     }
 
     /// Adding new hint to hints
-    pub fn add_hint(&mut self, hint:Hint){
+    pub fn add_hint(&mut self, hint: Hint) {
         self.hints.push(hint);
     }
 
