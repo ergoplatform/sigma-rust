@@ -1,6 +1,7 @@
 //! Box selection for transaction inputs
 
 mod simple;
+
 use std::collections::HashMap;
 
 use ergotree_ir::chain::ergo_box::box_value::BoxValue;

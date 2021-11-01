@@ -6,6 +6,7 @@ pub mod ext_pub_key;
 pub mod secret_key;
 pub mod signing;
 pub mod tx_builder;
+mod multi_sig;
 
 use ergotree_interpreter::sigma_protocol::private_input::PrivateInput;
 use ergotree_interpreter::sigma_protocol::prover::Prover;

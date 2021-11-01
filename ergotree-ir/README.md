@@ -62,7 +62,7 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 - sha256
 - proveDlog
 - proveDHTuple
-- sigmaProp
+- sigma_prop
 - substConstants
 - executeFromVar
 - executeFromSelfReg
