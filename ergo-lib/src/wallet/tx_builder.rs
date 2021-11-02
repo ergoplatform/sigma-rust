@@ -202,13 +202,7 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
         // check that inputs have enough tokens
         let input_tokens = sum_tokens_from_boxes(self.box_selection.boxes.as_slice())?;
         let output_tokens = sum_tokens_from_boxes(output_candidates.as_slice())?;
-        let first_input_box_id: TokenId = self
-            .box_selection
-            .boxes
-            .first()
-            .ok_or(TxBuilderError::EmptyInputBoxSelection)?
-            .box_id()
-            .into();
+        let first_input_box_id: TokenId = self.box_selection.boxes.first().box_id().into();
         let output_tokens_len = output_tokens.len();
         let output_tokens_without_minted: Vec<Token> = output_tokens
             .into_iter()
@@ -332,7 +326,7 @@ mod tests {
     #[test]
     fn test_empty_inputs() {
         let box_selection: BoxSelection<ErgoBox> = BoxSelection {
-            boxes: vec![],
+            boxes: vec![].try_into().unwrap(),
             change_boxes: vec![],
         };
         let r = TxBuilder::new(
@@ -350,7 +344,7 @@ mod tests {
     fn test_duplicate_inputs() {
         let input_box = force_any_val::<ErgoBox>();
         let box_selection: BoxSelection<ErgoBox> = BoxSelection {
-            boxes: vec![input_box.clone(), input_box],
+            boxes: vec![input_box.clone(), input_box].try_into().unwrap(),
             change_boxes: vec![],
         };
         let r = TxBuilder::new(
@@ -532,7 +526,7 @@ mod tests {
         let inputs: Vec<ErgoBox> = vec![input_box];
         let tx_fee = BoxValue::SAFE_USER_MIN;
         let box_selection = BoxSelection {
-            boxes: inputs,
+            boxes: inputs.try_into().unwrap(),
             change_boxes: vec![],
         };
         let outputs = vec![out_box];
@@ -570,7 +564,7 @@ mod tests {
         let outputs = vec![out_box];
         let tx_builder = TxBuilder::new(
             BoxSelection {
-                boxes: vec![input],
+                boxes: vec![input].try_into().unwrap(),
                 change_boxes: vec![],
             },
             outputs,

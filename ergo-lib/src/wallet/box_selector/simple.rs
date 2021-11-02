@@ -159,7 +159,7 @@ impl<T: ErgoBoxAssets> BoxSelector<T> for SimpleBoxSelector {
             }]
         };
         Ok(BoxSelection {
-            boxes: selected_inputs,
+            boxes: selected_inputs.try_into()?,
             change_boxes,
         })
     }

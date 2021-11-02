@@ -3,6 +3,7 @@
 mod simple;
 use std::collections::HashMap;
 
+use bounded_vec::{BoundedVec, BoundedVecOutOfBounds};
 use ergotree_ir::chain::ergo_box::box_value::BoxValue;
 use ergotree_ir::chain::ergo_box::box_value::BoxValueError;
 use ergotree_ir::chain::ergo_box::BoxId;
@@ -17,11 +18,14 @@ pub use simple::*;
 
 use thiserror::Error;
 
+/// Bounded vec with minimum 1 element and max u16::MAX elements
+pub type SelectedBoxes<T> = BoundedVec<T, 1, { u16::MAX as usize }>;
+
 /// Selected boxes (by [`BoxSelector`])
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct BoxSelection<T: ErgoBoxAssets> {
     /// Selected boxes to spend as transaction inputs
-    pub boxes: Vec<T>,
+    pub boxes: SelectedBoxes<T>,
     /// box assets with returning change amounts (to be put in tx outputs)
     pub change_boxes: Vec<ErgoBoxAssetsData>,
 }
@@ -58,11 +62,21 @@ pub enum BoxSelectorError {
     /// Token amount err
     #[error("TokenAmountError: {0:?}")]
     TokenAmountError(#[from] TokenAmountError),
+
+    /// Boxes out of bounds
+    #[error("Boxes is out of bounds")]
+    OutOfBounds(BoundedVecOutOfBounds),
 }
 
 impl From<BoxValueError> for BoxSelectorError {
     fn from(e: BoxValueError) -> Self {
         BoxSelectorError::BoxValueError(e)
+    }
+}
+
+impl From<BoundedVecOutOfBounds> for BoxSelectorError {
+    fn from(e: BoundedVecOutOfBounds) -> Self {
+        BoxSelectorError::OutOfBounds(e)
     }
 }
 
