@@ -138,6 +138,7 @@ impl TryFrom<json::transaction::UnsignedTransactionJson> for UnsignedTransaction
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::panic)]
 pub mod tests {
     use super::*;
 

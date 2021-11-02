@@ -13,6 +13,11 @@
 #![allow(clippy::unit_arg)]
 #![deny(rustdoc::broken_intra_doc_links)]
 #![deny(clippy::wildcard_enum_match_arm)]
+#![deny(clippy::unwrap_used)]
+#![deny(clippy::expect_used)]
+#![deny(clippy::todo)]
+#![deny(clippy::unimplemented)]
+#![deny(clippy::panic)]
 
 pub mod chain;
 pub mod constants;

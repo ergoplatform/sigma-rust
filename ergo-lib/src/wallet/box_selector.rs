@@ -11,6 +11,7 @@ use ergotree_ir::chain::ergo_box::ErgoBox;
 use ergotree_ir::chain::ergo_box::ErgoBoxCandidate;
 use ergotree_ir::chain::token::Token;
 use ergotree_ir::chain::token::TokenAmount;
+use ergotree_ir::chain::token::TokenAmountError;
 use ergotree_ir::chain::token::TokenId;
 pub use simple::*;
 
@@ -53,6 +54,10 @@ pub enum BoxSelectorError {
     /// BoxValue out of bounds
     #[error("BoxValue out of bounds")]
     BoxValueError(BoxValueError),
+
+    /// Token amount err
+    #[error("TokenAmountError: {0:?}")]
+    TokenAmountError(#[from] TokenAmountError),
 }
 
 impl From<BoxValueError> for BoxSelectorError {
@@ -126,30 +131,40 @@ pub fn sum_value<T: ErgoBoxAssets>(bs: &[T]) -> u64 {
 }
 
 /// Returns the total token amounts (all tokens combined)
-pub fn sum_tokens(ts: Option<&[Token]>) -> HashMap<TokenId, TokenAmount> {
+pub fn sum_tokens(ts: Option<&[Token]>) -> Result<HashMap<TokenId, TokenAmount>, TokenAmountError> {
     let mut res: HashMap<TokenId, TokenAmount> = HashMap::new();
-    ts.into_iter().flatten().for_each(|t| {
-        res.entry(t.token_id.clone())
-            .and_modify(|amt| *amt = amt.checked_add(&t.amount).unwrap())
-            .or_insert(t.amount);
-    });
-    res
+    ts.into_iter().flatten().try_for_each(|t| {
+        if let Some(amt) = res.get_mut(&t.token_id) {
+            *amt = amt.checked_add(&t.amount)?;
+        } else {
+            res.insert(t.token_id.clone(), t.amount);
+        }
+        Ok(())
+    })?;
+    Ok(res)
 }
 
 /// Returns the total token amounts (all tokens combined) of the given boxes
-pub fn sum_tokens_from_boxes<T: ErgoBoxAssets>(bs: &[T]) -> HashMap<TokenId, TokenAmount> {
+pub fn sum_tokens_from_boxes<T: ErgoBoxAssets>(
+    bs: &[T],
+) -> Result<HashMap<TokenId, TokenAmount>, TokenAmountError> {
     let mut res: HashMap<TokenId, TokenAmount> = HashMap::new();
-    bs.iter().for_each(|b| {
-        b.tokens().into_iter().flatten().for_each(|t| {
-            res.entry(t.token_id.clone())
-                .and_modify(|amt| *amt = amt.checked_add(&t.amount).unwrap())
-                .or_insert(t.amount);
-        });
-    });
-    res
+    bs.iter().try_for_each(|b| {
+        b.tokens().into_iter().flatten().try_for_each(|t| {
+            if let Some(amt) = res.get_mut(&t.token_id) {
+                *amt = amt.checked_add(&t.amount)?;
+            } else {
+                res.insert(t.token_id.clone(), t.amount);
+            }
+
+            Ok(())
+        })
+    })?;
+    Ok(res)
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::panic)]
 mod tests {
 
     use ergotree_ir::chain::ergo_box::box_value::arbitrary::ArbBoxValueRange;
@@ -193,6 +208,7 @@ mod tests {
         assert_eq!(
             u64::from(
                 *sum_tokens_from_boxes(vec![b.clone(), b].as_slice())
+                    .unwrap()
                     .get(&token.token_id)
                     .unwrap()
             ),
