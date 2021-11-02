@@ -749,7 +749,7 @@ fn simulate_and_commit(
     .map_err(|e: &str| ProverError::Unexpected(e.to_string()))
 }
 
-fn step9_real_and_conj(cand: CandUnproven) -> Result<Option<ProofTree>, ProverError> {
+fn step9_real_and(cand: CandUnproven) -> Result<Option<ProofTree>, ProverError> {
     assert!(cand.is_real());
     // If the node is AND, let each of its children have the challenge e_0
     if let Some(challenge) = cand.challenge_opt.clone() {
@@ -765,7 +765,7 @@ fn step9_real_and_conj(cand: CandUnproven) -> Result<Option<ProofTree>, ProverEr
     }
 }
 
-fn step9_real_or_conj(cor: CorUnproven) -> Result<Option<ProofTree>, ProverError> {
+fn step9_real_or(cor: CorUnproven) -> Result<Option<ProofTree>, ProverError> {
     assert!(cor.is_real());
     // If the node is OR, it has only one child marked "real".
     // Let this child have the challenge equal to the XOR of the challenges of all
@@ -795,7 +795,7 @@ fn step9_real_or_conj(cor: CorUnproven) -> Result<Option<ProofTree>, ProverError
     }
 }
 
-fn step9_real_threshold_conj(ct: CthresholdUnproven) -> Result<Option<ProofTree>, ProverError> {
+fn step9_real_threshold(ct: CthresholdUnproven) -> Result<Option<ProofTree>, ProverError> {
     assert!(ct.is_real());
     // If the node is THRESHOLD(k), number its children from 1 to no. Let i_1,..., i_{n-k}
     // be the indices of thechildren marked `"simulated" and e_1, ...,  e_{n-k} be
@@ -932,46 +932,42 @@ fn proving<P: Prover + ?Sized>(
                     tree
                 ))),
             },
-            ProofTree::UnprovenTree(unproven_tree) => match unproven_tree {
-                UnprovenTree::UnprovenConjecture(conj) => match conj {
-                    UnprovenConjecture::CandUnproven(cand) => {
-                        if cand.is_real() {
-                            step9_real_and_conj(cand.clone())
-                        } else {
-                            Ok(None)
-                        }
-                    }
-                    UnprovenConjecture::CorUnproven(cor) => {
-                        if cor.is_real() {
-                            step9_real_or_conj(cor.clone())
-                        } else {
-                            Ok(None)
-                        }
-                    }
-                    UnprovenConjecture::CthresholdUnproven(ct) => {
-                        if ct.is_real() {
-                            step9_real_threshold_conj(ct.clone())
-                        } else {
-                            Ok(None)
-                        }
-                    }
-                },
 
-                UnprovenTree::UnprovenLeaf(unp_leaf) if unp_leaf.is_real() => match unp_leaf {
-                    UnprovenLeaf::UnprovenSchnorr(us) => step9_real_schnorr(us.clone(), prover),
-                    UnprovenLeaf::UnprovenDhTuple(dhu) => {
-                        step9_real_dh_tuple(dhu.clone(), prover, hints_bag)
+            ProofTree::UnprovenTree(unproven_tree) => match unproven_tree {
+                UnprovenTree::UnprovenConjecture(conj) => {
+                    if conj.is_real() {
+                        match conj {
+                            UnprovenConjecture::CandUnproven(cand) => step9_real_and(cand.clone()),
+                            UnprovenConjecture::CorUnproven(cor) => step9_real_or(cor.clone()),
+                            UnprovenConjecture::CthresholdUnproven(ct) => {
+                                step9_real_threshold(ct.clone())
+                            }
+                        }
+                    } else {
+                        Ok(None)
                     }
-                },
+                }
+
                 UnprovenTree::UnprovenLeaf(unp_leaf) => {
-                    // if the simulated node is proven by someone else, take it from hints bag
-                    let res: ProofTree = hints_bag
-                        .simulated_proofs()
-                        .into_iter()
-                        .find(|proof| proof.image == unp_leaf.proposition())
-                        .map(|proof| proof.unchecked_tree.into())
-                        .unwrap_or_else(|| unp_leaf.clone().into());
-                    Ok(Some(res))
+                    if unp_leaf.is_real() {
+                        match unp_leaf {
+                            UnprovenLeaf::UnprovenSchnorr(us) => {
+                                step9_real_schnorr(us.clone(), prover)
+                            }
+                            UnprovenLeaf::UnprovenDhTuple(dhu) => {
+                                step9_real_dh_tuple(dhu.clone(), prover, hints_bag)
+                            }
+                        }
+                    } else {
+                        // if the simulated node is proven by someone else, take it from hints bag
+                        let res: ProofTree = hints_bag
+                            .simulated_proofs()
+                            .into_iter()
+                            .find(|proof| proof.image == unp_leaf.proposition())
+                            .map(|proof| proof.unchecked_tree.into())
+                            .unwrap_or_else(|| unp_leaf.clone().into());
+                        Ok(Some(res))
+                    }
                 }
             },
         }
