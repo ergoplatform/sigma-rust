@@ -46,7 +46,7 @@ impl<T: ErgoBoxAssets> BoxSelector<T> for SimpleBoxSelector {
         let target_balance: u64 = target_balance.into();
         // sum all target tokens into hash map (think repeating token ids)
         let mut target_tokens_left: HashMap<TokenId, TokenAmount> =
-            sum_tokens(Some(target_tokens)).map_err(BoxSelectorError::TokenAmountError)?;
+            sum_tokens(Some(target_tokens))?;
         let mut has_value_change = false;
         let mut has_token_change = false;
         let mut sorted_inputs = inputs;
@@ -99,17 +99,13 @@ impl<T: ErgoBoxAssets> BoxSelector<T> for SimpleBoxSelector {
                             if token_amount_left_to_select <= token_amount_in_box {
                                 target_tokens_left.remove(&t.token_id);
                             } else if let Some(amt) = target_tokens_left.get_mut(&t.token_id) {
-                                *amt = amt
-                                    .checked_sub(&token_amount_in_box)
-                                    .map_err(BoxSelectorError::TokenAmountError)?;
+                                *amt = amt.checked_sub(&token_amount_in_box)?;
                             }
 
                             let selected_token_amt =
                                 min(token_amount_in_box, token_amount_left_to_select);
                             if let Some(amt) = selected_tokens_from_this_box.get_mut(&t.token_id) {
-                                *amt = amt
-                                    .checked_add(&selected_token_amt)
-                                    .map_err(BoxSelectorError::TokenAmountError)?;
+                                *amt = amt.checked_add(&selected_token_amt)?;
                             } else {
                                 selected_tokens_from_this_box
                                     .insert(t.token_id.clone(), selected_token_amt);
@@ -117,8 +113,7 @@ impl<T: ErgoBoxAssets> BoxSelector<T> for SimpleBoxSelector {
                         }
                         Ok(())
                     })?;
-                if sum_tokens(b.tokens().as_ref().map(BoxTokens::as_ref))
-                    .map_err(BoxSelectorError::TokenAmountError)?
+                if sum_tokens(b.tokens().as_ref().map(BoxTokens::as_ref))?
                     != selected_tokens_from_this_box
                 {
                     has_token_change = true;
@@ -140,8 +135,7 @@ impl<T: ErgoBoxAssets> BoxSelector<T> for SimpleBoxSelector {
             vec![]
         } else {
             let change_value: BoxValue = (selected_boxes_value - target_balance).try_into()?;
-            let mut change_tokens = sum_tokens_from_boxes(selected_inputs.as_slice())
-                .map_err(BoxSelectorError::TokenAmountError)?;
+            let mut change_tokens = sum_tokens_from_boxes(selected_inputs.as_slice())?;
             target_tokens.iter().try_for_each(|t| {
                 match change_tokens.get(&t.token_id).cloned() {
                     Some(selected_boxes_t_amt) if selected_boxes_t_amt == t.amount => {
@@ -151,9 +145,7 @@ impl<T: ErgoBoxAssets> BoxSelector<T> for SimpleBoxSelector {
                     Some(selected_boxes_t_amt) if selected_boxes_t_amt > t.amount => {
                         change_tokens.insert(
                             t.token_id.clone(),
-                            selected_boxes_t_amt
-                                .checked_sub(&t.amount)
-                                .map_err(BoxSelectorError::TokenAmountError)?,
+                            selected_boxes_t_amt.checked_sub(&t.amount)?,
                         );
                         Ok(())
                     }

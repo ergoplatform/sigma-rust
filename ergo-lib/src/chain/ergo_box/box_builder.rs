@@ -120,11 +120,11 @@ impl ErgoBoxCandidateBuilder {
     }
 
     /// Calculate minimal box value for the current box serialized size(in bytes)
-    #[allow(clippy::unwrap_used)]
     pub fn calc_min_box_value(&self) -> Result<BoxValue, ErgoBoxCandidateBuilderError> {
         let box_size_bytes = self.calc_box_size_bytes()?;
 
         // Won't be overflowing an i64, so unwrap is safe.
+        #[allow(clippy::unwrap_used)]
         Ok(
             BoxValue::try_from(box_size_bytes as i64 * BoxValue::MIN_VALUE_PER_BOX_BYTE as i64)
                 .unwrap(),
@@ -171,7 +171,6 @@ impl ErgoBoxCandidateBuilder {
         self.tokens.push(token);
     }
 
-    #[allow(clippy::unwrap_used)]
     fn build_box(&self) -> Result<ErgoBoxCandidate, ErgoBoxCandidateBuilderError> {
         let mut tokens = self.tokens.clone();
         let mut additional_registers = self.additional_registers.clone();
@@ -249,6 +248,7 @@ impl ErgoBoxCandidateBuilder {
         let box_size_bytes = b.sigma_serialize_bytes()?.len();
 
         // Won't be overflowing an i64, so unwrap is safe.
+        #[allow(clippy::unwrap_used)]
         let min_box_value: BoxValue = (box_size_bytes as i64 * self.min_value_per_byte as i64)
             .try_into()
             .unwrap();

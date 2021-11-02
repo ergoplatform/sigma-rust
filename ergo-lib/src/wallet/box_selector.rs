@@ -57,7 +57,7 @@ pub enum BoxSelectorError {
 
     /// Token amount err
     #[error("TokenAmountError: {0:?}")]
-    TokenAmountError(TokenAmountError),
+    TokenAmountError(#[from] TokenAmountError),
 }
 
 impl From<BoxValueError> for BoxSelectorError {
