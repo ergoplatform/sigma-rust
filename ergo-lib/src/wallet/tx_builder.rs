@@ -200,10 +200,8 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
             ));
         }
         // check that inputs have enough tokens
-        let input_tokens = sum_tokens_from_boxes(self.box_selection.boxes.as_slice())
-            .map_err(TxBuilderError::TokenAmountError)?;
-        let output_tokens = sum_tokens_from_boxes(output_candidates.as_slice())
-            .map_err(TxBuilderError::TokenAmountError)?;
+        let input_tokens = sum_tokens_from_boxes(self.box_selection.boxes.as_slice())?;
+        let output_tokens = sum_tokens_from_boxes(output_candidates.as_slice())?;
         let first_input_box_id: TokenId = self
             .box_selection
             .boxes
@@ -307,7 +305,7 @@ pub enum TxBuilderError {
     EmptyInputBoxSelection,
     /// Token amount err
     #[error("TokenAmountError: {0:?}")]
-    TokenAmountError(TokenAmountError),
+    TokenAmountError(#[from] TokenAmountError),
 }
 
 #[cfg(test)]
