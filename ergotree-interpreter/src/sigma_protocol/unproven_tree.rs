@@ -515,6 +515,10 @@ impl CthresholdUnproven {
     fn with_simulated(self, simulated: bool) -> Self {
         Self { simulated, ..self }
     }
+
+    pub(crate) fn is_real(&self) -> bool {
+        !self.simulated
+    }
 }
 
 // TODO: extract

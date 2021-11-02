@@ -749,6 +749,170 @@ fn simulate_and_commit(
     .map_err(|e: &str| ProverError::Unexpected(e.to_string()))
 }
 
+fn step9_real_and_conj(cand: CandUnproven) -> Result<Option<ProofTree>, ProverError> {
+    assert!(cand.is_real());
+    // If the node is AND, let each of its children have the challenge e_0
+    if let Some(challenge) = cand.challenge_opt.clone() {
+        let updated = cand
+            .clone()
+            .children
+            .mapped(|child| child.with_challenge(challenge.clone()));
+        Ok(Some(cand.with_children(updated).into()))
+    } else {
+        Err(ProverError::Unexpected(
+            "proving: CandUnproven.challenge_opt is empty".to_string(),
+        ))
+    }
+}
+
+fn step9_real_or_conj(cor: CorUnproven) -> Result<Option<ProofTree>, ProverError> {
+    assert!(cor.is_real());
+    // If the node is OR, it has only one child marked "real".
+    // Let this child have the challenge equal to the XOR of the challenges of all
+    // the other children and e_0
+    if let Some(root_challenge) = &cor.challenge_opt {
+        let challenge: Challenge = cor
+            .children
+            .clone()
+            .iter()
+            .flat_map(|c| c.challenge())
+            .fold(root_challenge.clone(), |acc, c| acc.xor(c));
+        let children = cor.children.clone().mapped(|c| match c {
+            ProofTree::UnprovenTree(ref ut) if ut.is_real() => c.with_challenge(challenge.clone()),
+            _ => c,
+        });
+        Ok(Some(
+            CorUnproven {
+                children,
+                ..cor.clone()
+            }
+            .into(),
+        ))
+    } else {
+        Err(ProverError::Unexpected(
+            "proving: CorUnproven.challenge_opt is empty".to_string(),
+        ))
+    }
+}
+
+fn step9_real_threshold_conj(ct: CthresholdUnproven) -> Result<Option<ProofTree>, ProverError> {
+    assert!(ct.is_real());
+    // If the node is THRESHOLD(k), number its children from 1 to no. Let i_1,..., i_{n-k}
+    // be the indices of thechildren marked `"simulated" and e_1, ...,  e_{n-k} be
+    // their corresponding challenges.
+    // Let i_0 = 0. Viewing 0, 1, 2, ..., n and e_0, ..., e_{n-k} as elements of GF(2^t),
+    // find (via polynomial interpolation) the lowest-degree polynomial
+    // Q(x)=sum_{i=0}^{n-k} a_i x^i  over GF(2^t) that is equal to e_j at i_j
+    // for each f from 0 to n-k
+    // (this polynomial will have n-k+1 coefficients, and the lowest coefficient
+    // will be e_0). For child number i of the node, if the child is marked "real",
+    // compute its challenge as Q(i) (if the child is marked
+    // "simulated", its challenge is already Q(i), by construction of Q).
+    todo!()
+}
+
+fn step9_real_schnorr<P: Prover + ?Sized>(
+    us: UnprovenSchnorr,
+    prover: &P,
+) -> Result<Option<ProofTree>, ProverError> {
+    assert!(us.is_real());
+    // If the node is a leaf marked "real", compute its response according to the second prover step
+    // of the Sigma-protocol given the commitment, challenge, and witness, or pull response from the hints bag
+    if let Some(challenge) = us.challenge_opt.clone() {
+        if let Some(priv_key) = prover
+            .secrets()
+            .iter()
+            .flat_map(|s| match s {
+                PrivateInput::DlogProverInput(dl) => vec![dl],
+                _ => vec![],
+            })
+            .find(|prover_input| prover_input.public_image() == us.proposition)
+        {
+            let z = dlog_protocol::interactive_prover::second_message(
+                priv_key,
+                us.randomness_opt.ok_or_else(|| {
+                    ProverError::Unexpected(format!("empty randomness in {:?}", us))
+                })?,
+                &challenge,
+            );
+            Ok(Some(
+                UncheckedSchnorr {
+                    proposition: us.proposition.clone(),
+                    commitment_opt: None,
+                    challenge,
+                    second_message: z,
+                }
+                .into(),
+            ))
+        } else {
+            Err(ProverError::SecretNotFound)
+        }
+    } else {
+        Err(ProverError::RealUnprovenTreeWithoutChallenge)
+    }
+}
+
+fn step9_real_dh_tuple<P: Prover + ?Sized>(
+    dhu: UnprovenDhTuple,
+    prover: &P,
+    hints_bag: &HintsBag,
+) -> Result<Option<ProofTree>, ProverError> {
+    assert!(dhu.is_real());
+    // If the node is a leaf marked "real", compute its response according to the second prover step
+    // of the Sigma-protocol given the commitment, challenge, and witness, or pull response from
+    // the hints bag
+    if let Some(dhu_challenge) = dhu.challenge_opt.clone() {
+        let priv_key_opt = prover
+            .secrets()
+            .iter()
+            .find(|s| s.public_image() == dhu.proposition.clone().into());
+        let z = match priv_key_opt {
+            Some(PrivateInput::DhTupleProverInput(priv_key)) => match hints_bag
+                .own_commitments()
+                .iter()
+                .find(|c| c.position == dhu.position)
+            {
+                Some(commitment_from_hints_bag) => {
+                    dht_protocol::interactive_prover::second_message(
+                        priv_key,
+                        &commitment_from_hints_bag.secret_randomness,
+                        &dhu_challenge,
+                    )
+                }
+                None => dht_protocol::interactive_prover::second_message(
+                    priv_key,
+                    &dhu.randomness_opt.ok_or_else(|| {
+                        ProverError::Unexpected(format!("empty randomness in {:?}", dhu))
+                    })?,
+                    &dhu_challenge,
+                ),
+            },
+            Some(pi) => {
+                return Err(ProverError::Unexpected(format!(
+                    "Expected DH prover input in prover secrets, got {:?}",
+                    pi
+                )))
+            }
+            None => {
+                return Err(ProverError::NotYetImplemented(
+                    "when secret not found".to_string(),
+                ))
+            }
+        };
+        Ok(Some(
+            UncheckedDhTuple {
+                proposition: dhu.proposition.clone(),
+                commitment_opt: None,
+                challenge: dhu_challenge,
+                second_message: z,
+            }
+            .into(),
+        ))
+    } else {
+        Err(ProverError::RealUnprovenTreeWithoutChallenge)
+    }
+}
+
 /**
  Prover Step 9: Perform a top-down traversal of only the portion of the tree marked "real" in order to compute
  the challenge e for every node marked "real" below the root and, additionally, the response z for every leaf
@@ -772,156 +936,31 @@ fn proving<P: Prover + ?Sized>(
                 UnprovenTree::UnprovenConjecture(conj) => match conj {
                     UnprovenConjecture::CandUnproven(cand) => {
                         if cand.is_real() {
-                            // If the node is AND, let each of its children have the challenge e_0
-                            if let Some(challenge) = cand.challenge_opt.clone() {
-                                let updated = cand
-                                    .clone()
-                                    .children
-                                    .mapped(|child| child.with_challenge(challenge.clone()));
-                                Ok(Some(cand.clone().with_children(updated).into()))
-                            } else {
-                                Err(ProverError::Unexpected(
-                                    "proving: CandUnproven.challenge_opt is empty".to_string(),
-                                ))
-                            }
+                            step9_real_and_conj(cand.clone())
                         } else {
                             Ok(None)
                         }
                     }
                     UnprovenConjecture::CorUnproven(cor) => {
-                        // If the node is OR, it has only one child marked "real".
-                        // Let this child have the challenge equal to the XOR of the challenges of all
-                        // the other children and e_0
                         if cor.is_real() {
-                            if let Some(root_challenge) = &cor.challenge_opt {
-                                let challenge: Challenge = cor
-                                    .children
-                                    .clone()
-                                    .iter()
-                                    .flat_map(|c| c.challenge())
-                                    .fold(root_challenge.clone(), |acc, c| acc.xor(c));
-                                let children = cor.children.clone().mapped(|c| match c {
-                                    ProofTree::UnprovenTree(ref ut) if ut.is_real() => {
-                                        c.with_challenge(challenge.clone())
-                                    }
-                                    _ => c,
-                                });
-                                Ok(Some(
-                                    CorUnproven {
-                                        children,
-                                        ..cor.clone()
-                                    }
-                                    .into(),
-                                ))
-                            } else {
-                                Err(ProverError::Unexpected(
-                                    "proving: CorUnproven.challenge_opt is empty".to_string(),
-                                ))
-                            }
+                            step9_real_or_conj(cor.clone())
                         } else {
                             Ok(None)
                         }
                     }
-                    UnprovenConjecture::CthresholdUnproven(_) => todo!(),
-                },
-
-                // If the node is a leaf marked "real", compute its response according to the second prover step
-                // of the Sigma-protocol given the commitment, challenge, and witness, or pull response from the hints bag
-                UnprovenTree::UnprovenLeaf(unp_leaf) if unp_leaf.is_real() => match unp_leaf {
-                    UnprovenLeaf::UnprovenSchnorr(us) => {
-                        if let Some(challenge) = us.challenge_opt.clone() {
-                            if let Some(priv_key) = prover
-                                .secrets()
-                                .iter()
-                                .flat_map(|s| match s {
-                                    PrivateInput::DlogProverInput(dl) => vec![dl],
-                                    _ => vec![],
-                                })
-                                .find(|prover_input| prover_input.public_image() == us.proposition)
-                            {
-                                let z = dlog_protocol::interactive_prover::second_message(
-                                    priv_key,
-                                    us.randomness_opt.ok_or_else(|| {
-                                        ProverError::Unexpected(format!(
-                                            "empty randomness in {:?}",
-                                            us
-                                        ))
-                                    })?,
-                                    &challenge,
-                                );
-                                Ok(Some(
-                                    UncheckedSchnorr {
-                                        proposition: us.proposition.clone(),
-                                        commitment_opt: None,
-                                        challenge,
-                                        second_message: z,
-                                    }
-                                    .into(),
-                                ))
-                            } else {
-                                Err(ProverError::SecretNotFound)
-                            }
+                    UnprovenConjecture::CthresholdUnproven(ct) => {
+                        if ct.is_real() {
+                            step9_real_threshold_conj(ct.clone())
                         } else {
-                            Err(ProverError::RealUnprovenTreeWithoutChallenge)
+                            Ok(None)
                         }
                     }
+                },
+
+                UnprovenTree::UnprovenLeaf(unp_leaf) if unp_leaf.is_real() => match unp_leaf {
+                    UnprovenLeaf::UnprovenSchnorr(us) => step9_real_schnorr(us.clone(), prover),
                     UnprovenLeaf::UnprovenDhTuple(dhu) => {
-                        // If the node is a leaf marked "real", compute its response according to the second prover step
-                        // of the Sigma-protocol given the commitment, challenge, and witness, or pull response from
-                        // the hints bag
-                        if let Some(dhu_challenge) = dhu.challenge_opt.clone() {
-                            let priv_key_opt = prover
-                                .secrets()
-                                .iter()
-                                .find(|s| s.public_image() == dhu.proposition.clone().into());
-                            let z = match priv_key_opt {
-                                Some(PrivateInput::DhTupleProverInput(priv_key)) => match hints_bag
-                                    .own_commitments()
-                                    .iter()
-                                    .find(|c| c.position == dhu.position)
-                                {
-                                    Some(commitment_from_hints_bag) => {
-                                        dht_protocol::interactive_prover::second_message(
-                                            priv_key,
-                                            &commitment_from_hints_bag.secret_randomness,
-                                            &dhu_challenge,
-                                        )
-                                    }
-                                    None => dht_protocol::interactive_prover::second_message(
-                                        priv_key,
-                                        &dhu.randomness_opt.ok_or_else(|| {
-                                            ProverError::Unexpected(format!(
-                                                "empty randomness in {:?}",
-                                                dhu
-                                            ))
-                                        })?,
-                                        &dhu_challenge,
-                                    ),
-                                },
-                                Some(pi) => {
-                                    return Err(ProverError::Unexpected(format!(
-                                        "Expected DH prover input in prover secrets, got {:?}",
-                                        pi
-                                    )))
-                                }
-                                None => {
-                                    return Err(ProverError::NotYetImplemented(
-                                        "when secret not found".to_string(),
-                                    ))
-                                }
-                            };
-                            Ok(Some(
-                                UncheckedDhTuple {
-                                    proposition: dhu.proposition.clone(),
-                                    commitment_opt: None,
-                                    challenge: dhu_challenge,
-                                    second_message: z,
-                                }
-                                .into(),
-                            ))
-                        } else {
-                            Err(ProverError::RealUnprovenTreeWithoutChallenge)
-                        }
+                        step9_real_dh_tuple(dhu.clone(), prover, hints_bag)
                     }
                 },
                 UnprovenTree::UnprovenLeaf(unp_leaf) => {
