@@ -16,6 +16,17 @@ pub struct ContextExtension(
 
 #[wasm_bindgen]
 impl ContextExtension {
+    /// Create new ContextExtension instance
+    #[wasm_bindgen(constructor)]
+    pub fn new() -> Self {
+        Self(ergo_lib::ergotree_interpreter::sigma_protocol::prover::ContextExtension::empty())
+    }
+
+    /// Set the supplied pair in the ContextExtension
+    pub fn set_pair(&mut self, id: u8, value: &Constant) {
+        self.0.values.insert(id, value.clone().into());
+    }
+
     /// Returns the number of elements in the collection
     pub fn len(&self) -> usize {
         let wrapped: ergo_lib::ergotree_interpreter::sigma_protocol::prover::ContextExtension =
