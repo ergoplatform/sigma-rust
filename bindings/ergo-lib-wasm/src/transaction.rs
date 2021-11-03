@@ -155,9 +155,11 @@ pub struct UnsignedTransaction(chain::transaction::unsigned::UnsignedTransaction
 
 #[wasm_bindgen]
 impl UnsignedTransaction {
-    /// Add the given `ContextExtension` to the box with the `input_id` id.
-    pub fn with_context_ext(
-        &mut self,
+    /// Consumes the calling UnsignedTransaction and returns a new UnsignedTransaction containing
+    /// the ContextExtension in the provided input box id or returns an error if the input box cannot be found.
+    /// After the call the calling UnsignedTransaction will be null.
+    pub fn with_input_context_ext(
+        mut self,
         input_id: &BoxId,
         ext: &ContextExtension,
     ) -> Result<UnsignedTransaction, JsValue> {
