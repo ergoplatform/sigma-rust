@@ -808,7 +808,44 @@ fn step9_real_threshold(ct: CthresholdUnproven) -> Result<Option<ProofTree>, Pro
     // will be e_0). For child number i of the node, if the child is marked "real",
     // compute its challenge as Q(i) (if the child is marked
     // "simulated", its challenge is already Q(i), by construction of Q).
-    todo!()
+    if let Some(challenge) = ct.challenge_opt.clone() {
+        let mut points = Vec::new();
+        let mut values = Vec::new();
+        for (idx, child) in ct.children.clone().enumerated() {
+            let one_based_idx = idx + 1;
+            let challenge_opt = match child {
+                ProofTree::UncheckedTree(ut) => match ut {
+                    UncheckedTree::UncheckedLeaf(ul) => Some(ul.challenge()),
+                    UncheckedTree::UncheckedConjecture(_) => None,
+                },
+                ProofTree::UnprovenTree(unpt) => unpt.challenge(),
+            };
+            if let Some(challenge) = challenge_opt {
+                points.append(&mut one_based_idx.to_be_bytes().to_vec());
+                values.push(challenge.into());
+            };
+        }
+
+        let value_at_zero = challenge.into();
+        let q = Gf2_192Poly::interpolate(points, values, value_at_zero);
+
+        let new_children = ct.children.clone().enumerated().mapped(|(idx, child)| {
+            let one_based_idx = idx + 1;
+            match &child {
+                ProofTree::UnprovenTree(ut) if ut.is_real() => {
+                    child.with_challenge(q.evaluate(one_based_idx).into())
+                }
+                _ => child,
+            }
+        });
+        Ok(Some(
+            ct.with_polynomial(q).with_children(new_children).into(),
+        ))
+    } else {
+        Err(ProverError::Unexpected(
+            "proving: CthresholdUnproven.challenge_opt is empty".to_string(),
+        ))
+    }
 }
 
 fn step9_real_schnorr<P: Prover + ?Sized>(
