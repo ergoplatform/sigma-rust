@@ -8,7 +8,6 @@
 language = "C"
 
 
-
 ############## Options for Wrapping the Contents of the Header #################
 
 # header = "/* Text to put at the beginning of the generated file. Probably a license. */"

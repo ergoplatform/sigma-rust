@@ -12,7 +12,7 @@
 
 use ergo_lib::ergotree_ir::chain;
 
-use ergo_lib_c_core::address::{address_delete, address_from_testnet};
+use ergo_lib_c_core::address::{address_delete, address_from_mainnet, address_from_testnet};
 pub use ergo_lib_c_core::{address::Address, Error};
 use std::{
     ffi::{CStr, CString},
@@ -67,6 +67,16 @@ pub unsafe extern "C" fn ergo_wallet_address_from_testnet(
 ) -> ErrorPtr {
     let address = CStr::from_ptr(address_str).to_string_lossy();
     let res = address_from_testnet(&address, address_out);
+    Error::c_api_from(res)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ergo_wallet_address_from_mainnet(
+    address_str: *const c_char,
+    address_out: *mut AddressPtr,
+) -> ErrorPtr {
+    let address = CStr::from_ptr(address_str).to_string_lossy();
+    let res = address_from_mainnet(&address, address_out);
     Error::c_api_from(res)
 }
 

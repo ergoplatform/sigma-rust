@@ -87,10 +87,23 @@ class Address {
         self.pointer = try Address.fromTestnetAddress(addressStr: addressStr)
     }
 
+    init(withMainnetAddress addressStr: String) throws {
+        self.pointer = try Address.fromMainnetAddress(addressStr: addressStr)
+    }
+    
     private static func fromTestnetAddress(addressStr: String) throws -> AddressPtr {
         var ptr: AddressPtr?
         let error = addressStr.withCString { cs in
             ergo_wallet_address_from_testnet(cs, &ptr)
+        }
+        try checkError(error)
+        return ptr!
+    }
+    
+    private static func fromMainnetAddress(addressStr: String) throws -> AddressPtr {
+        var ptr: AddressPtr?
+        let error = addressStr.withCString { cs in
+            ergo_wallet_address_from_mainnet(cs, &ptr)
         }
         try checkError(error)
         return ptr!
