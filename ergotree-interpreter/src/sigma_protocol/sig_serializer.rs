@@ -85,6 +85,19 @@ fn sig_write_bytes<W: SigmaByteWrite>(
                 sig_write_bytes(last, w, false)?;
                 Ok(())
             }
+            UncheckedConjecture::CthresholdUnchecked {
+                challenge: _,
+                children,
+                k: _,
+                polynomial,
+            } => {
+                // write the polynomial, except the zero coefficient
+                w.write_all(polynomial.to_bytes().as_mut_slice())?;
+                for child in children {
+                    sig_write_bytes(child, w, false)?;
+                }
+                Ok(())
+            }
         },
     }
 }

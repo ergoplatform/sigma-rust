@@ -218,6 +218,23 @@ where
                     }
                     .into()
                 }
+                UncheckedConjecture::CthresholdUnchecked {
+                    challenge,
+                    children,
+                    k,
+                    polynomial: polynomial_opt,
+                } => {
+                    let rewritten_children =
+                        children.clone().try_mapped(|c| rewrite(c.into(), f))?;
+                    let casted_children = cast_to_ust(rewritten_children)?;
+                    UncheckedConjecture::CthresholdUnchecked {
+                        children: casted_children,
+                        challenge: challenge.clone(),
+                        k: *k,
+                        polynomial: polynomial_opt.clone(),
+                    }
+                    .into()
+                }
             },
         },
     })

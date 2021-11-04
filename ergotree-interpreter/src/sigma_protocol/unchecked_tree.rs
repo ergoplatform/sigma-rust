@@ -13,6 +13,7 @@ use super::proof_tree::ProofTree;
 use super::proof_tree::ProofTreeConjecture;
 use super::proof_tree::ProofTreeKind;
 use super::proof_tree::ProofTreeLeaf;
+use super::unproven_tree::Gf2_192Poly;
 use super::{
     dlog_protocol::{FirstDlogProverMessage, SecondDlogProverMessage},
     Challenge, FirstProverMessage,
@@ -137,6 +138,7 @@ impl UncheckedDhTuple {
 }
 
 #[derive(PartialEq, Debug, Clone)]
+#[allow(clippy::enum_variant_names)]
 pub enum UncheckedConjecture {
     CandUnchecked {
         challenge: Challenge,
@@ -145,6 +147,12 @@ pub enum UncheckedConjecture {
     CorUnchecked {
         challenge: Challenge,
         children: SigmaConjectureItems<UncheckedTree>,
+    },
+    CthresholdUnchecked {
+        challenge: Challenge,
+        children: SigmaConjectureItems<UncheckedTree>,
+        k: u8,
+        polynomial: Gf2_192Poly,
     },
 }
 
@@ -165,6 +173,17 @@ impl UncheckedConjecture {
                 challenge,
                 children: new_children,
             },
+            UncheckedConjecture::CthresholdUnchecked {
+                challenge,
+                children: _,
+                k,
+                polynomial: polynomial_opt,
+            } => UncheckedConjecture::CthresholdUnchecked {
+                challenge,
+                children: new_children,
+                k,
+                polynomial: polynomial_opt,
+            },
         }
     }
 
@@ -178,6 +197,12 @@ impl UncheckedConjecture {
                 challenge: _,
                 children,
             } => children,
+            UncheckedConjecture::CthresholdUnchecked {
+                challenge: _,
+                children,
+                k: _,
+                polynomial: _,
+            } => children,
         }
     }
 
@@ -190,6 +215,12 @@ impl UncheckedConjecture {
             UncheckedConjecture::CorUnchecked {
                 challenge,
                 children: _,
+            } => challenge.clone(),
+            UncheckedConjecture::CthresholdUnchecked {
+                challenge,
+                children: _,
+                k: _,
+                polynomial: _,
             } => challenge.clone(),
         }
     }
@@ -210,6 +241,17 @@ impl UncheckedConjecture {
                 challenge,
                 children,
             },
+            UncheckedConjecture::CthresholdUnchecked {
+                challenge: _,
+                children,
+                k,
+                polynomial: polynomial_opt,
+            } => UncheckedConjecture::CthresholdUnchecked {
+                challenge,
+                children,
+                k,
+                polynomial: polynomial_opt,
+            },
         }
     }
 }
@@ -219,6 +261,7 @@ impl ProofTreeConjecture for UncheckedConjecture {
         match self {
             UncheckedConjecture::CandUnchecked { .. } => ConjectureType::And,
             UncheckedConjecture::CorUnchecked { .. } => ConjectureType::Or,
+            UncheckedConjecture::CthresholdUnchecked { .. } => ConjectureType::Threshold,
         }
     }
 
@@ -231,6 +274,12 @@ impl ProofTreeConjecture for UncheckedConjecture {
             UncheckedConjecture::CorUnchecked {
                 challenge: _,
                 children,
+            } => children.mapped_ref(|ust| ust.clone().into()),
+            UncheckedConjecture::CthresholdUnchecked {
+                challenge: _,
+                children,
+                k: _,
+                polynomial: _,
             } => children.mapped_ref(|ust| ust.clone().into()),
         }
     }

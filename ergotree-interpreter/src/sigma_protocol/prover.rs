@@ -1,8 +1,5 @@
 //! Interpreter with enhanced functionality to prove statements.
 
-// TODO: remove after all todo! are implemented
-#![allow(clippy::todo)]
-
 mod context_extension;
 mod prover_result;
 
@@ -1104,7 +1101,19 @@ fn convert_to_unchecked(tree: ProofTree) -> Result<UncheckedTree, ProverError> {
                     children: cor.children.clone().try_mapped(convert_to_unchecked)?,
                 }
                 .into()),
-                UnprovenConjecture::CthresholdUnproven(_) => todo!(),
+                UnprovenConjecture::CthresholdUnproven(ct) => {
+                    Ok(UncheckedConjecture::CthresholdUnchecked {
+                        challenge: ct.challenge_opt.clone().ok_or_else(|| {
+                            ProverError::Unexpected(format!("no challenge in {:?}", ct))
+                        })?,
+                        children: ct.children.clone().try_mapped(convert_to_unchecked)?,
+                        k: ct.k,
+                        polynomial: ct.polinomial_opt.clone().ok_or_else(|| {
+                            ProverError::Unexpected(format!("no polynomial in {:?}", ct))
+                        })?,
+                    }
+                    .into())
+                }
             },
         },
     }
