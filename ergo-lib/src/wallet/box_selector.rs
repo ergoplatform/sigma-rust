@@ -65,18 +65,12 @@ pub enum BoxSelectorError {
 
     /// Boxes out of bounds
     #[error("Boxes is out of bounds")]
-    OutOfBounds(BoundedVecOutOfBounds),
+    OutOfBounds(#[from] BoundedVecOutOfBounds),
 }
 
 impl From<BoxValueError> for BoxSelectorError {
     fn from(e: BoxValueError) -> Self {
         BoxSelectorError::BoxValueError(e)
-    }
-}
-
-impl From<BoundedVecOutOfBounds> for BoxSelectorError {
-    fn from(e: BoundedVecOutOfBounds) -> Self {
-        BoxSelectorError::OutOfBounds(e)
     }
 }
 

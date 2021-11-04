@@ -324,23 +324,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_empty_inputs() {
-        let box_selection: BoxSelection<ErgoBox> = BoxSelection {
-            boxes: vec![].try_into().unwrap(),
-            change_boxes: vec![],
-        };
-        let r = TxBuilder::new(
-            box_selection,
-            vec![force_any_val::<ErgoBoxCandidate>()],
-            1,
-            force_any_val::<BoxValue>(),
-            force_any_val::<Address>(),
-            BoxValue::SAFE_USER_MIN,
-        );
-        assert!(r.build().is_err());
-    }
-
-    #[test]
     fn test_duplicate_inputs() {
         let input_box = force_any_val::<ErgoBox>();
         let box_selection: BoxSelection<ErgoBox> = BoxSelection {
