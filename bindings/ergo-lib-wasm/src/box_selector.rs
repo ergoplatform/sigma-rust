@@ -9,6 +9,7 @@ use crate::ergo_box::BoxValue;
 use crate::ergo_box::ErgoBoxAssetsDataList;
 use crate::error_conversion::to_js;
 use crate::token::Tokens;
+use bounded_vec::BoundedVec;
 
 extern crate derive_more;
 use derive_more::{From, Into};
@@ -24,18 +25,18 @@ pub struct BoxSelection(
 impl BoxSelection {
     /// Create a selection to easily inject custom selection algorithms
     #[wasm_bindgen(constructor)]
-    pub fn new(boxes: &ErgoBoxes, change: &ErgoBoxAssetsDataList) -> Self {
-        BoxSelection(wallet::box_selector::BoxSelection::<
+    pub fn new(boxes: &ErgoBoxes, change: &ErgoBoxAssetsDataList) -> Result<BoxSelection, JsValue> {
+        Ok(BoxSelection(wallet::box_selector::BoxSelection::<
             ergo_lib::ergotree_ir::chain::ergo_box::ErgoBox,
         > {
-            boxes: boxes.clone().into(),
+            boxes: BoundedVec::from_vec(boxes.clone().into()).map_err(to_js)?,
             change_boxes: change.clone().into(),
-        })
+        }))
     }
 
     /// Selected boxes to spend as transaction inputs
     pub fn boxes(&self) -> ErgoBoxes {
-        self.0.boxes.clone().into()
+        self.0.boxes.as_vec().clone().into()
     }
 
     /// Selected boxes to use as change
