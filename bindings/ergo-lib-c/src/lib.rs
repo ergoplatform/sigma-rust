@@ -27,6 +27,8 @@ use std::{
 
 pub type ErrorPtr = *mut Error;
 pub type AddressPtr = *mut Address;
+/// Pointer to const `Address` (`Address` that is pointed-to is immutable)
+pub type ConstAddressPtr = *const Address;
 
 pub struct ErgoStateContext(ergo_lib::chain::ergo_state_context::ErgoStateContext);
 pub type ErgoStateContextPtr = *mut ErgoStateContext;
@@ -98,7 +100,7 @@ pub unsafe extern "C" fn ergo_wallet_address_from_base58(
 
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_address_to_base58(
-    address: AddressPtr,
+    address: ConstAddressPtr,
     network_prefix: NetworkPrefix,
     _address_str: *mut *const c_char,
 ) -> ErrorPtr {

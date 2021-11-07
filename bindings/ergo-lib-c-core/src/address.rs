@@ -3,6 +3,8 @@ use ergo_lib::ergotree_ir::chain::address as addr;
 
 pub struct Address(ergo_lib::ergotree_ir::chain::address::Address);
 pub type AddressPtr = *mut Address;
+/// Pointer to const Address (Address that is pointed-to is immutable)
+pub type ConstAddressPtr = *const Address;
 
 /// Decode (base58) testnet address from string, checking that address is from the testnet
 pub unsafe fn address_from_testnet(
@@ -60,7 +62,7 @@ pub unsafe fn address_from_base58(
 
 /// Encode address as base58 string
 pub unsafe fn address_to_base58(
-    address: AddressPtr,
+    address: ConstAddressPtr,
     network_prefix: NetworkPrefix,
 ) -> Result<String, Error> {
     let address = address_as_ref(address, "address")?;
@@ -71,7 +73,7 @@ pub unsafe fn address_to_base58(
 }
 
 unsafe fn address_as_ref<'a>(
-    address: AddressPtr,
+    address: ConstAddressPtr,
     ptr_name: &'static str,
 ) -> Result<&'a Address, Error> {
     if let Some(address) = address.as_ref() {
