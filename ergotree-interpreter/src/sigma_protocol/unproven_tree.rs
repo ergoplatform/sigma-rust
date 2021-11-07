@@ -356,7 +356,7 @@ impl UnprovenDhTuple {
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct NodePosition {
     /// positions from root (inclusive) in top-down order
-    positions: Vec<usize>,
+    pub positions: Vec<usize>,
 }
 
 impl NodePosition {
