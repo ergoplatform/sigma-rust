@@ -25,6 +25,15 @@ class Address {
         return str
     }
     
+    func typePrefix() throws -> AddressTypePrefix {
+        let res = ergo_wallet_address_type_prefix(self.pointer)
+        try checkError(res.error)
+        guard let prefix = AddressTypePrefix(rawValue: res.value) else {
+            throw WalletError.walletCError(reason: "Invalid AddressTypePrefix")
+        }
+        return prefix
+    }
+    
     private static func fromTestnetAddress(addressStr: String) throws -> AddressPtr {
         var ptr: AddressPtr?
         let error = addressStr.withCString { cs in
@@ -59,4 +68,13 @@ class Address {
 enum NetworkPrefix: UInt8 {
     case Mainnet = 0
     case Testnet = 16
+}
+
+enum AddressTypePrefix: UInt8 {
+    /// 0x01 - Pay-to-PublicKey(P2PK) address
+    case P2Pk = 1
+    /// 0x02 - Pay-to-Script-Hash(P2SH)
+    case Pay2Sh = 2
+    /// 0x03 - Pay-to-Script(P2S)
+    case Pay2S = 3
 }

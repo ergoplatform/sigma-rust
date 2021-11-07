@@ -4,15 +4,28 @@ import XCTest
 
 final class AddressTests: XCTestCase {
     func testTestnetAddress() throws {
-        let validTestnetAddrStr = "3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN"
-        let testnetAddr = try ErgoLib.Address(withTestnetAddress: validTestnetAddrStr)
-        XCTAssertEqual(try testnetAddr.toBase58(networkPrefix: NetworkPrefix.Testnet), validTestnetAddrStr)
+        let p2pkAddrStr = "3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN"
+        let p2pkAddr = try ErgoLib.Address(withTestnetAddress: p2pkAddrStr)
+        XCTAssertEqual(try p2pkAddr.toBase58(networkPrefix: NetworkPrefix.Testnet), p2pkAddrStr)
+        XCTAssertEqual(try p2pkAddr.typePrefix(), AddressTypePrefix.P2Pk)
+        
+        let p2shAddrStr = "rbcrmKEYduUvADj9Ts3dSVSG27h54pgrq5fPuwB"
+        let p2shAddr = try ErgoLib.Address(withTestnetAddress: p2shAddrStr)
+        XCTAssertEqual(try p2shAddr.toBase58(networkPrefix: NetworkPrefix.Testnet), p2shAddrStr)
+        XCTAssertEqual(try p2shAddr.typePrefix(), AddressTypePrefix.Pay2Sh)
+        
     }
     
     func testMainnetAddress() throws {
-        let validMainnetAddrStr = "9fRAWhdxEsTcdb8PhGNrZfwqa65zfkuYHAMmkQLcic1gdLSV5vA"
-        let mainnetAddr = try ErgoLib.Address(withMainnetAddress: validMainnetAddrStr)
-        XCTAssertEqual(try mainnetAddr.toBase58(networkPrefix: NetworkPrefix.Mainnet), validMainnetAddrStr)
+        let p2pkAddrStr = "9fRAWhdxEsTcdb8PhGNrZfwqa65zfkuYHAMmkQLcic1gdLSV5vA"
+        let p2pkAddr = try ErgoLib.Address(withMainnetAddress: p2pkAddrStr)
+        XCTAssertEqual(try p2pkAddr.toBase58(networkPrefix: NetworkPrefix.Mainnet), p2pkAddrStr)
+        XCTAssertEqual(try p2pkAddr.typePrefix(), AddressTypePrefix.P2Pk)
+        
+        let p2shAddrStr = "8UApt8czfFVuTgQmMwtsRBZ4nfWquNiSwCWUjMg"
+        let p2shAddr = try ErgoLib.Address(withMainnetAddress: p2shAddrStr)
+        XCTAssertEqual(try p2shAddr.toBase58(networkPrefix: NetworkPrefix.Mainnet), p2shAddrStr)
+        XCTAssertEqual(try p2shAddr.typePrefix(), AddressTypePrefix.Pay2Sh)
     }
     
     func testBase58Address() throws {

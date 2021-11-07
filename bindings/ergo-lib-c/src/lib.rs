@@ -14,10 +14,10 @@ use ergo_lib::ergotree_ir::chain;
 
 use ergo_lib_c_core::address::{
     address_delete, address_from_base58, address_from_mainnet, address_from_testnet,
-    address_to_base58,
+    address_to_base58, address_type_prefix,
 };
 pub use ergo_lib_c_core::{
-    address::{Address, NetworkPrefix},
+    address::{Address, AddressTypePrefix, NetworkPrefix},
     Error,
 };
 use std::{
@@ -112,6 +112,29 @@ pub unsafe extern "C" fn ergo_wallet_address_to_base58(
         Err(e) => Err(e),
     };
     Error::c_api_from(res)
+}
+
+/// Convenience type to allow us to pass Rust enums with `u8` representation through FFI to the C
+/// side.
+#[repr(C)]
+pub struct ReturnU8 {
+    /// Returned value. Note that it's only valid if the error field is null!
+    value: u8,
+    error: ErrorPtr,
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ergo_wallet_address_type_prefix(address: ConstAddressPtr) -> ReturnU8 {
+    match address_type_prefix(address) {
+        Ok(value) => ReturnU8 {
+            value: value as u8,
+            error: std::ptr::null_mut(),
+        },
+        Err(e) => ReturnU8 {
+            value: 0, // Just a dummy value
+            error: Error::c_api_from(Err(e)),
+        },
+    }
 }
 
 #[no_mangle]

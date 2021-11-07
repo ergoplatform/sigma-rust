@@ -72,6 +72,11 @@ pub unsafe fn address_to_base58(
     ))
 }
 
+pub unsafe fn address_type_prefix(address: ConstAddressPtr) -> Result<AddressTypePrefix, Error> {
+    let address = address_as_ref(address, "address")?;
+    Ok(address.0.address_type_prefix().into())
+}
+
 unsafe fn address_as_ref<'a>(
     address: ConstAddressPtr,
     ptr_name: &'static str,
@@ -127,6 +132,38 @@ impl From<addr::NetworkPrefix> for NetworkPrefix {
         match v {
             addr::NetworkPrefix::Mainnet => Mainnet,
             addr::NetworkPrefix::Testnet => Testnet,
+        }
+    }
+}
+
+#[repr(u8)]
+pub enum AddressTypePrefix {
+    /// 0x01 - Pay-to-PublicKey(P2PK) address
+    P2Pk = 1,
+    /// 0x02 - Pay-to-Script-Hash(P2SH)
+    Pay2Sh = 2,
+    /// 0x03 - Pay-to-Script(P2S)
+    Pay2S = 3,
+}
+
+impl From<AddressTypePrefix> for addr::AddressTypePrefix {
+    fn from(v: AddressTypePrefix) -> Self {
+        use addr::AddressTypePrefix::*;
+        match v {
+            AddressTypePrefix::P2Pk => P2Pk,
+            AddressTypePrefix::Pay2Sh => Pay2Sh,
+            AddressTypePrefix::Pay2S => Pay2S,
+        }
+    }
+}
+
+impl From<addr::AddressTypePrefix> for AddressTypePrefix {
+    fn from(v: addr::AddressTypePrefix) -> Self {
+        use AddressTypePrefix::*;
+        match v {
+            addr::AddressTypePrefix::P2Pk => P2Pk,
+            addr::AddressTypePrefix::Pay2Sh => Pay2Sh,
+            addr::AddressTypePrefix::Pay2S => Pay2S,
         }
     }
 }
