@@ -2,6 +2,7 @@ use crate::eval::EvalError;
 use crate::eval::Evaluable;
 
 use ergotree_ir::mir::constant::TryExtractInto;
+use ergotree_ir::mir::expr::Expr;
 use ergotree_ir::mir::value::CollKind;
 use ergotree_ir::mir::value::Value;
 use ergotree_ir::types::stuple::STuple;
@@ -49,6 +50,27 @@ pub(crate) static FLATMAP_EVAL_FN: EvalFn = |env, ctx, obj, args| {
             input_v_clone
         ))),
     }?;
+    if lambda.args.len() > 1 {
+        return Err(EvalError::UnexpectedValue(format!(
+            "flatmap: expected lambda taking 1 arg but got {} args",
+            lambda.args.len()
+        )));
+    }
+    let unsupported_msg =
+        "unsupported lambda in flatMap: allowed usage `xs.flatMap(x => x.property)".to_string();
+    match &*lambda.body {
+        Expr::MethodCall(mc) => {
+            if !mc.args.is_empty() {
+                return Err(EvalError::UnexpectedValue(unsupported_msg));
+            }
+        }
+        Expr::ExtractScriptBytes(_) => (),
+        Expr::ExtractId(_) => (),
+        Expr::SigmaPropBytes(_) => (),
+        Expr::ExtractBytes(_) => (),
+        Expr::ExtractBytesWithNoRef(_) => (),
+        _ => return Err(EvalError::UnexpectedValue(unsupported_msg)),
+    }
     let mut lambda_call = |arg: Value| {
         let func_arg = lambda.args.first().ok_or_else(|| {
             EvalError::NotFound("flatmap: lambda has empty arguments list".to_string())
@@ -305,21 +327,19 @@ pub(crate) static UPDATE_MANY_EVAL_FN: EvalFn =
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
 mod tests {
-    use ergotree_ir::mir::bin_op::BinOp;
-    use ergotree_ir::mir::bin_op::RelationOp;
-    use ergotree_ir::mir::collection::Collection;
     use ergotree_ir::mir::constant::Constant;
+    use ergotree_ir::mir::constant::Literal;
     use ergotree_ir::mir::expr::Expr;
     use ergotree_ir::mir::func_value::FuncArg;
     use ergotree_ir::mir::func_value::FuncValue;
     use ergotree_ir::mir::method_call::MethodCall;
     use ergotree_ir::mir::val_use::ValUse;
+    use ergotree_ir::mir::value::CollKind;
     use ergotree_ir::types::scoll;
     use ergotree_ir::types::stype::SType;
     use ergotree_ir::types::stype_param::STypeVar;
 
     use crate::eval::tests::{eval_out_wo_ctx, try_eval_out_wo_ctx};
-    use ergotree_ir::types::stype::SType::SBoolean;
 
     #[test]
     fn eval_index_of() {
@@ -355,29 +375,32 @@ mod tests {
 
     #[test]
     fn eval_flatmap() {
-        let coll_const: Constant = vec![1i64, 2i64].into();
-        let body: Expr = Collection::Exprs {
-            elem_tpe: SBoolean,
-            items: vec![BinOp {
-                kind: RelationOp::Ge.into(),
-                left: Box::new(Expr::Const(1i64.into())),
-                right: Box::new(
-                    ValUse {
-                        val_id: 1.into(),
-                        tpe: SType::SBox,
-                    }
-                    .into(),
-                ),
+        let coll_const = Constant {
+            tpe: SType::SColl(Box::new(SType::SColl(Box::new(SType::SLong)))),
+            v: Literal::Coll(CollKind::WrappedColl {
+                items: vec![vec![4i64, 5i64].into(), vec![3i64].into()].into(),
+                elem_tpe: SType::SColl(Box::new(SType::SLong)),
+            }),
+        };
+        let body: Expr = MethodCall::new(
+            ValUse {
+                val_id: 1.into(),
+                tpe: SType::SColl(Box::new(SType::SLong)),
             }
-            .into()],
-        }
+            .into(),
+            scoll::INDICES_METHOD
+                .clone()
+                .with_concrete_types(&[(STypeVar::t(), SType::SLong)].iter().cloned().collect()),
+            vec![],
+        )
+        .unwrap()
         .into();
         let expr: Expr = MethodCall::new(
             coll_const.into(),
             scoll::FLATMAP_METHOD.clone().with_concrete_types(
                 &[
-                    (STypeVar::iv(), SType::SLong),
-                    (STypeVar::ov(), SType::SBoolean),
+                    (STypeVar::iv(), SType::SColl(Box::new(SType::SLong))),
+                    (STypeVar::ov(), SType::SInt),
                 ]
                 .iter()
                 .cloned()
@@ -386,7 +409,7 @@ mod tests {
             vec![FuncValue::new(
                 vec![FuncArg {
                     idx: 1.into(),
-                    tpe: SType::SLong,
+                    tpe: SType::SColl(Box::new(SType::SLong)),
                 }],
                 body,
             )
@@ -394,8 +417,8 @@ mod tests {
         )
         .unwrap()
         .into();
-        let res = eval_out_wo_ctx::<Vec<bool>>(&expr);
-        assert_eq!(res, vec![true, false]);
+        let res = eval_out_wo_ctx::<Vec<i32>>(&expr);
+        assert_eq!(res, vec![0, 1, 0]);
     }
 
     #[test]
