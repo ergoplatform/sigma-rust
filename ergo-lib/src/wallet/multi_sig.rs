@@ -56,6 +56,7 @@ pub fn traverse_node(
     position:NodePosition,
     bag: &mut HintsBag
 ){
+    println!("in traverse");
     match tree{
         UncheckedTree::UncheckedConjecture(unchecked_conjecture) => {
             let items: SigmaConjectureItems<UncheckedTree> = unchecked_conjecture.children_ust();
@@ -72,9 +73,12 @@ pub fn traverse_node(
         UncheckedTree::UncheckedLeaf(leaf) => {
             let real_found= real_propositions.contains(&leaf.proposition());
             let simulated_found= simulated_propositions.contains(&leaf.proposition());
-            if real_found||simulated_found {
+            println!("{}{}",real_found,simulated_found);
+            if real_found || simulated_found {
+                println!("foundeeeeed");
                 let a=compute_commitments(leaf.clone()).unwrap();
                 if real_found{
+                    println!("foooond");
                     let real_commitment: Hint = Hint::CommitmentHint(
                         CommitmentHint::RealCommitment(
                             RealCommitment {
@@ -252,12 +256,12 @@ mod tests{
     #[test]
     fn extract_hint(){
         let signed_tx = r#"{
-          "id": "bb1a12f931d658324719000d6f87036f366d7279dbb43988c7857bbce8d4925b",
+          "id": "6e32d1710816be34fd9710148b73f017bf8e71115cd2d3cf5758f80c2e3010ca",
           "inputs": [
             {
-              "boxId": "b43d88a35110167465a3653934c8aefd06bfb6dff5b6a9bf8d278fbd2780c28a",
+              "boxId": "4c1155fca9bf7785f82eb43f74ef6a24164bac18f6cc35137e0ebf5a08abb8f7",
               "spendingProof": {
-                "proofBytes": "2de70a8706cd032fa26db226eb57cb099c53f7ce945590d31f1f341bb52b743ab19429c896c68a1d2944d67462ca917f4c65760740fff229563c8a49825c94222eaaeebacaa9627682364406f06bf13d4a2f325792830b70",
+                "proofBytes": "77d85667cbb360c7ddad4d94c5e50930f3e72f6bdbd576bcce0098ab6547221d6943a49d4f6daaf06b37efc29884337701c16f4a0b9797db3061332b09849274beaa0609f146a468937338792bfe422425dd604b399df221",
                 "extension": {}
               }
             }
@@ -265,40 +269,39 @@ mod tests{
           "dataInputs": [],
           "outputs": [
             {
-              "boxId": "a5ab41b243eb9a20236cc0135b0bef05c3e9f3917c4ed707b4343dd0043cd85b",
+              "boxId": "ad3e07a89bd0ec1161c1da54316ceb8efc6734ed08d3f005ade1184bf26d088d",
               "value": 1000000,
               "ergoTree": "0008cd039c8404d33f85dd4012e4f3d0719951eeea0015b13b940d67d4990e13de28b154",
               "assets": [],
               "additionalRegisters": {},
               "creationHeight": 0,
-              "transactionId": "bb1a12f931d658324719000d6f87036f366d7279dbb43988c7857bbce8d4925b",
+              "transactionId": "6e32d1710816be34fd9710148b73f017bf8e71115cd2d3cf5758f80c2e3010ca",
               "index": 0
             },
             {
-              "boxId": "206bcbee98db66b75d0ad83c522e8f2ea1809f13955d195ba1fb77feacd9aaf6",
+              "boxId": "bcf15dbfd2b7d5e4688cb28d1393356bd1c96d6ef94c2942a2958545a51d2501",
               "value": 2300000,
               "ergoTree": "0008cd039c8404d33f85dd4012e4f3d0719951eeea0015b13b940d67d4990e13de28b154",
               "assets": [],
               "additionalRegisters": {},
               "creationHeight": 0,
-              "transactionId": "bb1a12f931d658324719000d6f87036f366d7279dbb43988c7857bbce8d4925b",
+              "transactionId": "6e32d1710816be34fd9710148b73f017bf8e71115cd2d3cf5758f80c2e3010ca",
               "index": 1
             },
             {
-              "boxId": "43c86e260abfa05f2f4a9daea9dccebd0e73b64a7dd067401feb134cca0a535e",
+              "boxId": "6e473151a782e68cff7fd4f0127eeb43cf71e7a6d7fddf1b25ad4814fb451292",
               "value": 1100000,
               "ergoTree": "1005040004000e36100204a00b08cd0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798ea02d192a39a8cc7a701730073011001020402d19683030193a38cc7b2a57300000193c2b2a57301007473027303830108cdeeac93b1a57304",
               "assets": [],
               "additionalRegisters": {},
               "creationHeight": 0,
-              "transactionId": "bb1a12f931d658324719000d6f87036f366d7279dbb43988c7857bbce8d4925b",
+              "transactionId": "6e32d1710816be34fd9710148b73f017bf8e71115cd2d3cf5758f80c2e3010ca",
               "index": 2
             }
           ]
         }"#;
         let value_m: BoxValue = BoxValue::new(4400000).unwrap();
-        let bytes_m = Base16DecodedBytes::try_from("100208cd021041ea459227841f3cc0886989f485e7fca5254421040ec91ab3494\
-        c498eacf808cd0366d190a37d849d76735f860a2eabb3ba02202aa2a211566d869e848ab0d01154ea0273007301").unwrap();
+        let bytes_m = Base16DecodedBytes::try_from( "100208cd03c847c306a2f9a8087b4ae63261cc5acea9034000ba8d033b0fb033247e8aade908cd02f4b05f44eb9703db7fcf9c94b89566787a7188c7e48964821d485d9ef2f9e4c4ea0273007301").unwrap();
         let tree_m: ErgoTree = ErgoTree::sigma_parse_bytes(&bytes_m.0).unwrap();
         let txid_m: TxId = TxId::zero();
         let input_m: ErgoBox = ErgoBox::new(value_m, tree_m.clone(), None, NonMandatoryRegisters::empty(), 0, txid_m, 0).unwrap();
@@ -311,10 +314,34 @@ mod tests{
         let stx:Transaction=serde_json::from_str(signed_tx).unwrap();
         let test:ProofBytes=stx.inputs.first().clone().spending_proof.proof;
         let proof:Vec<u8>=Vec::from(test);
-        let real_proposition:Vec<SigmaBoolean>=Vec::new();
-        let simulated_proposition:Vec<SigmaBoolean>=Vec::new();
-        let ans:HintsBag=bag_for_multi_sig(sigma_tree,&real_proposition,&simulated_proposition,&proof);
-        assert_eq!(ans.hints.is_empty(),true);
+        let mut real_proposition:Vec<SigmaBoolean>=Vec::new();
+        let mut simulated_proposition:Vec<SigmaBoolean>=Vec::new();
+        let mut bag:HintsBag=bag_for_multi_sig(sigma_tree.clone(),&real_proposition,&simulated_proposition,&proof);
+        assert_eq!(bag.hints.is_empty(),true);
+
+        let address_encoder = AddressEncoder::new(NetworkPrefix::Mainnet);
+        let firstaddress: Address = address_encoder.parse_address_from_str("9hz1anoLGZGf88hjjrQ3y3oSpSE2Kkk15CcfFqCNYXDPWKV6F4i").unwrap();
+        let secondaddress = address_encoder.parse_address_from_str("9gNpmNsivNnAKb7EtGVLGF24wRUJWnEqycCnWCeYxwSFZxkKyTZ").unwrap();
+
+        match firstaddress {
+            Address::P2Pk(pk) => {
+                real_proposition.push(SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(pk)));
+            }
+            _ => {
+                println!("nonde of");
+            }
+        }
+        match secondaddress {
+            Address::P2Pk(pk) => {
+                simulated_proposition.push(SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(pk)));
+            }
+            _ => {
+                println!("nonde of");
+            }
+        }
+        bag=bag_for_multi_sig(sigma_tree,&real_proposition,&simulated_proposition,&proof);
+        assert_eq!(bag.hints.is_empty(),false);
+
     }
 
     #[test]
