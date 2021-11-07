@@ -378,7 +378,7 @@ mod tests {
         let coll_const = Constant {
             tpe: SType::SColl(Box::new(SType::SColl(Box::new(SType::SLong)))),
             v: Literal::Coll(CollKind::WrappedColl {
-                items: vec![vec![4i64, 5i64].into(), vec![3i64].into()].into(),
+                items: vec![vec![4i64, 5i64].into(), vec![3i64].into()],
                 elem_tpe: SType::SColl(Box::new(SType::SLong)),
             }),
         };
