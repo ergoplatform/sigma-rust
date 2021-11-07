@@ -12,8 +12,14 @@
 
 use ergo_lib::ergotree_ir::chain;
 
-use ergo_lib_c_core::address::{address_delete, address_from_mainnet, address_from_testnet};
-pub use ergo_lib_c_core::{address::Address, Error};
+use ergo_lib_c_core::address::{
+    address_delete, address_from_base58, address_from_mainnet, address_from_testnet,
+    address_to_base58,
+};
+pub use ergo_lib_c_core::{
+    address::{Address, NetworkPrefix},
+    Error,
+};
 use std::{
     ffi::{CStr, CString},
     os::raw::c_char,
@@ -77,6 +83,32 @@ pub unsafe extern "C" fn ergo_wallet_address_from_mainnet(
 ) -> ErrorPtr {
     let address = CStr::from_ptr(address_str).to_string_lossy();
     let res = address_from_mainnet(&address, address_out);
+    Error::c_api_from(res)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ergo_wallet_address_from_base58(
+    address_str: *const c_char,
+    address_out: *mut AddressPtr,
+) -> ErrorPtr {
+    let address = CStr::from_ptr(address_str).to_string_lossy();
+    let res = address_from_base58(&address, address_out);
+    Error::c_api_from(res)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ergo_wallet_address_to_base58(
+    address: AddressPtr,
+    network_prefix: NetworkPrefix,
+    _address_str: *mut *const c_char,
+) -> ErrorPtr {
+    let res = match address_to_base58(address, network_prefix) {
+        Ok(s) => {
+            *_address_str = CString::new(s).unwrap().into_raw();
+            Ok(())
+        }
+        Err(e) => Err(e),
+    };
     Error::c_api_from(res)
 }
 
