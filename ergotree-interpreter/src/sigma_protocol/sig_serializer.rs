@@ -94,7 +94,7 @@ fn sig_write_bytes<W: SigmaByteWrite>(
 /// Verifier Step 3: For every leaf node, read the response z provided in the proof.
 /// * `exp` - sigma proposition which defines the structure of bytes from the reader
 /// * `proof` - proof to extract challenges from
-pub(crate) fn parse_sig_compute_challenges(
+pub fn parse_sig_compute_challenges(
     exp: &SigmaBoolean,
     mut proof_bytes: Vec<u8>,
 ) -> Result<UncheckedTree, SigParsingError> {

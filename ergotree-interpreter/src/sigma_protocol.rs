@@ -11,9 +11,9 @@ mod crypto_utils;
 mod dht_protocol;
 pub mod dlog_protocol;
 mod fiat_shamir;
-mod proof_tree;
-mod sig_serializer;
-mod unchecked_tree;
+pub mod proof_tree;
+pub mod sig_serializer;
+pub mod unchecked_tree;
 pub mod unproven_tree;
 
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;

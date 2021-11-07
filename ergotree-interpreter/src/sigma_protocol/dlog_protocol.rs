@@ -103,7 +103,7 @@ pub mod interactive_prover {
     /// and prover's response ("z")
     ///  
     /// g^z = a*h^e => a = g^z/h^e
-    pub(crate) fn compute_commitment(
+    pub fn compute_commitment(
         proposition: &ProveDlog,
         challenge: &Challenge,
         second_message: &SecondDlogProverMessage,

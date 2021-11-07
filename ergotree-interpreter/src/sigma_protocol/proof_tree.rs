@@ -111,7 +111,7 @@ impl From<UncheckedConjecture> for ProofTree {
 }
 
 /// Proof tree leaf
-pub(crate) trait ProofTreeLeaf: Debug {
+pub trait ProofTreeLeaf: Debug {
     /// Get proposition
     fn proposition(&self) -> SigmaBoolean;
 
