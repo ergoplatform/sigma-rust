@@ -91,7 +91,7 @@ impl TransactionHintsBag {
         for hint in public {
             hints.push(hint.clone());
         }
-        let mut hints_bag: HintsBag = HintsBag { hints };
+        let hints_bag: HintsBag = HintsBag { hints };
         return hints_bag;
     }
 }
@@ -133,16 +133,17 @@ pub fn extract_hints(
     simulated_secrets_to_extract: Vec<SigmaBoolean>)
 ->TransactionHintsBag{
     let mut hints_bag: TransactionHintsBag = TransactionHintsBag { secret_hints: HashMap::new(), public_hints: HashMap::new() };
-    let ctx = Rc::new(make_context(state_context, &tx_context, idx)?);
+
     tx_context
         .get_boxes_to_spend().enumerate().for_each(|(i, input)|{
+        let ctx = Rc::new(make_context(state_context, &tx_context, i).unwrap());
         let tree=input.ergo_tree.clone();
         let test:ProofBytes=signed_tx.inputs.get(i).unwrap().clone().spending_proof.proof;
         let proof:Vec<u8>=Vec::from(test);
         let exp=tree.proposition().unwrap();
         let reduction_result=reduce_to_crypto(&exp,&Env::empty(),ctx.clone()).unwrap();
         let sigma_tree=reduction_result.sigma_prop;
-        hintsBag.addHintsForInput(
+        hints_bag.add_hints_for_input(
             i,
             bag_for_multi_sig(
                 sigma_tree.clone(),

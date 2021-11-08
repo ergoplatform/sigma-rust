@@ -17,6 +17,7 @@ use ergotree_interpreter::eval::env::Env;
 use ergotree_interpreter::sigma_protocol::prover::ProverError;
 use ergotree_interpreter::sigma_protocol::prover::{ContextExtension, Prover};
 use thiserror::Error;
+use crate::wallet::multi_sig::TransactionHintsBag;
 
 /// Errors on transaction signing
 #[derive(Error, PartialEq, Eq, Debug, Clone)]
@@ -177,6 +178,42 @@ pub fn sign_transaction(
                 ctx,
                 message_to_sign.as_slice(),
                 &HintsBag::empty(),
+            )
+            .map(|proof| Input::new(input.box_id.clone(), proof.into()))
+            .map_err(|e| TxSigningError::ProverError(e, idx))
+    })?;
+    Ok(Transaction::new(
+        signed_inputs,
+        tx.data_inputs,
+        tx.output_candidates,
+    )?)
+}
+
+/// Signs a multi sig transaction (generating proofs for inputs)
+pub fn sign_transaction_multi(
+    prover: &dyn Prover,
+    tx_hints: TransactionHintsBag,
+    tx_context: TransactionContext,
+    state_context: &ErgoStateContext,
+) -> Result<Transaction, TxSigningError> {
+    let tx = tx_context.spending_tx.clone();
+
+    let message_to_sign = tx.bytes_to_sign()?;
+    let signed_inputs = tx.inputs.enumerated().try_mapped(|(idx, input)| {
+        let input_box = tx_context
+            .boxes_to_spend
+            .iter()
+            .find(|b| b.box_id() == input.box_id)
+            .ok_or(TxSigningError::InputBoxNotFound(idx))?;
+        let ctx = Rc::new(make_context(state_context, &tx_context, idx)?);
+        let hints_bag=tx_hints.all_hints_for_input(idx);
+        prover
+            .prove(
+                &input_box.ergo_tree,
+                &Env::empty(),
+                ctx,
+                message_to_sign.as_slice(),
+                &hints_bag,
             )
             .map(|proof| Input::new(input.box_id.clone(), proof.into()))
             .map_err(|e| TxSigningError::ProverError(e, idx))
