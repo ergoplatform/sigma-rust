@@ -53,7 +53,7 @@ pub enum RelationOp {
     Eq,
     /// Non-equality
     NEq,
-    /// Greater of equal
+    /// Greater or equal
     Ge,
     /// Greater than..
     Gt,

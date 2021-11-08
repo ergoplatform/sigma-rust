@@ -67,7 +67,7 @@ impl STypeVar {
         #[allow(clippy::unwrap_used)]
         STypeVar::new_from_str("IV").unwrap()
     }
-    /// "OV"(Input Value) type variable
+    /// "OV"(Output Value) type variable
     pub fn ov() -> STypeVar {
         #[allow(clippy::unwrap_used)]
         STypeVar::new_from_str("OV").unwrap()
