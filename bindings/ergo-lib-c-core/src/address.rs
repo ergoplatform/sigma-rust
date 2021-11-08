@@ -1,4 +1,7 @@
-use crate::error::*;
+use crate::{
+    error::*,
+    util::{const_ptr_as_ref, mut_ptr_as_mut},
+};
 use ergo_lib::ergotree_ir::chain::address as addr;
 
 pub struct Address(ergo_lib::ergotree_ir::chain::address::Address);
@@ -11,7 +14,7 @@ pub unsafe fn address_from_testnet(
     address_str: &str,
     address_out: *mut AddressPtr,
 ) -> Result<(), Error> {
-    let address_out = address_as_mut(address_out, "address_out")?;
+    let address_out = mut_ptr_as_mut(address_out, "address_out")?;
 
     let encoder = addr::AddressEncoder::new(addr::NetworkPrefix::Testnet);
     let result = encoder.parse_address_from_str(address_str);
@@ -30,7 +33,7 @@ pub unsafe fn address_from_mainnet(
     address_str: &str,
     address_out: *mut AddressPtr,
 ) -> Result<(), Error> {
-    let address_out = address_as_mut(address_out, "address_out")?;
+    let address_out = mut_ptr_as_mut(address_out, "address_out")?;
 
     let encoder = addr::AddressEncoder::new(addr::NetworkPrefix::Mainnet);
     let result = encoder.parse_address_from_str(address_str);
@@ -49,7 +52,7 @@ pub unsafe fn address_from_base58(
     address_str: &str,
     address_out: *mut AddressPtr,
 ) -> Result<(), Error> {
-    let address_out = address_as_mut(address_out, "address_out")?;
+    let address_out = mut_ptr_as_mut(address_out, "address_out")?;
     let result = addr::AddressEncoder::unchecked_parse_address_from_str(address_str);
     match result {
         Ok(address) => {
@@ -65,7 +68,7 @@ pub unsafe fn address_to_base58(
     address: ConstAddressPtr,
     network_prefix: NetworkPrefix,
 ) -> Result<String, Error> {
-    let address = address_as_ref(address, "address")?;
+    let address = const_ptr_as_ref(address, "address")?;
     Ok(addr::AddressEncoder::encode_address_as_string(
         addr::NetworkPrefix::from(network_prefix),
         &address.0,
@@ -73,30 +76,8 @@ pub unsafe fn address_to_base58(
 }
 
 pub unsafe fn address_type_prefix(address: ConstAddressPtr) -> Result<AddressTypePrefix, Error> {
-    let address = address_as_ref(address, "address")?;
+    let address = const_ptr_as_ref(address, "address")?;
     Ok(address.0.address_type_prefix().into())
-}
-
-unsafe fn address_as_ref<'a>(
-    address: ConstAddressPtr,
-    ptr_name: &'static str,
-) -> Result<&'a Address, Error> {
-    if let Some(address) = address.as_ref() {
-        Ok(address)
-    } else {
-        Err(Error::InvalidArgument(ptr_name))
-    }
-}
-
-unsafe fn address_as_mut<'a>(
-    address: *mut AddressPtr,
-    ptr_name: &'static str,
-) -> Result<&'a mut AddressPtr, Error> {
-    if let Some(address) = address.as_mut() {
-        Ok(address)
-    } else {
-        Err(Error::InvalidArgument(ptr_name))
-    }
 }
 
 pub fn address_delete(address: AddressPtr) {

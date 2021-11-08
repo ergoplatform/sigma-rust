@@ -12,9 +12,12 @@
 
 use ergo_lib::ergotree_ir::chain;
 
-use ergo_lib_c_core::address::{
-    address_delete, address_from_base58, address_from_mainnet, address_from_testnet,
-    address_to_base58, address_type_prefix,
+use ergo_lib_c_core::{
+    address::{
+        address_delete, address_from_base58, address_from_mainnet, address_from_testnet,
+        address_to_base58, address_type_prefix, AddressPtr, ConstAddressPtr,
+    },
+    block_header::{block_header_delete, block_header_from_json, BlockHeaderPtr},
 };
 pub use ergo_lib_c_core::{
     address::{Address, AddressTypePrefix, NetworkPrefix},
@@ -26,9 +29,6 @@ use std::{
 };
 
 pub type ErrorPtr = *mut Error;
-pub type AddressPtr = *mut Address;
-/// Pointer to const `Address` (`Address` that is pointed-to is immutable)
-pub type ConstAddressPtr = *const Address;
 
 pub struct ErgoStateContext(ergo_lib::chain::ergo_state_context::ErgoStateContext);
 pub type ErgoStateContextPtr = *mut ErgoStateContext;
@@ -67,6 +67,10 @@ pub extern "C" fn ergo_wallet_ergo_box_candidate_delete(
 ) -> ErrorPtr {
     todo!()
 }
+
+// -------------------------------------------------------------------------------------------------
+// Address functions -------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------------------
 
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_address_from_testnet(
@@ -114,15 +118,6 @@ pub unsafe extern "C" fn ergo_wallet_address_to_base58(
     Error::c_api_from(res)
 }
 
-/// Convenience type to allow us to pass Rust enums with `u8` representation through FFI to the C
-/// side.
-#[repr(C)]
-pub struct ReturnU8 {
-    /// Returned value. Note that it's only valid if the error field is null!
-    value: u8,
-    error: ErrorPtr,
-}
-
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_address_type_prefix(address: ConstAddressPtr) -> ReturnU8 {
     match address_type_prefix(address) {
@@ -140,6 +135,25 @@ pub unsafe extern "C" fn ergo_wallet_address_type_prefix(address: ConstAddressPt
 #[no_mangle]
 pub extern "C" fn ergo_wallet_address_delete(address: AddressPtr) {
     address_delete(address)
+}
+
+// -------------------------------------------------------------------------------------------------
+// BlockHeader functions -------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------------------
+
+#[no_mangle]
+pub unsafe extern "C" fn ergo_wallet_block_header_from_json(
+    json_str: *const c_char,
+    block_header_out: *mut BlockHeaderPtr,
+) -> ErrorPtr {
+    let json = CStr::from_ptr(json_str).to_string_lossy();
+    let res = block_header_from_json(&json, block_header_out);
+    Error::c_api_from(res)
+}
+
+#[no_mangle]
+pub extern "C" fn ergo_wallet_block_header_delete(header: BlockHeaderPtr) {
+    block_header_delete(header)
 }
 
 pub struct UnspentBoxes(Vec<chain::ergo_box::ErgoBoxCandidate>);
@@ -249,4 +263,13 @@ pub unsafe extern "C" fn ergo_wallet_error_to_string(error: ErrorPtr) -> *mut c_
     } else {
         CString::new(b"success".to_vec()).unwrap().into_raw()
     }
+}
+
+/// Convenience type to allow us to pass Rust enums with `u8` representation through FFI to the C
+/// side.
+#[repr(C)]
+pub struct ReturnU8 {
+    /// Returned value. Note that it's only valid if the error field is null!
+    value: u8,
+    error: ErrorPtr,
 }
