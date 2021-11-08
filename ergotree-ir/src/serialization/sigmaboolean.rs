@@ -15,7 +15,6 @@ use crate::sigma_protocol::sigma_boolean::cand::Cand;
 use crate::sigma_protocol::sigma_boolean::cor::Cor;
 use crate::sigma_protocol::sigma_boolean::cthreshold::Cthreshold;
 
-#[allow(clippy::todo)] // until https://github.com/ergoplatform/sigma-rust/issues/338 is implemented
 impl SigmaSerializable for SigmaBoolean {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         self.op_code().sigma_serialize(w)?;
@@ -56,7 +55,12 @@ impl SigmaSerializable for SigmaBoolean {
                     c,
                 )))
             }
-            _ => todo!(),
+            OpCode::TRIVIAL_PROP_TRUE => Ok(SigmaBoolean::TrivialProp(true)),
+            OpCode::TRIVIAL_PROP_FALSE => Ok(SigmaBoolean::TrivialProp(false)),
+            _ => Err(SigmaParsingError::Misc(format!(
+                "unexpected op code in SigmaBoolean parsing: {:?}",
+                op_code
+            ))),
         }
     }
 }

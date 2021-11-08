@@ -323,6 +323,7 @@ mod arbitrary {
         prop_oneof![
             any::<ProveDlog>().prop_map_into(),
             any::<ProveDhTuple>().prop_map_into(),
+            any::<bool>().prop_map_into(),
         ]
         .boxed()
     }
@@ -340,9 +341,15 @@ mod arbitrary {
                                 items: elems.try_into().unwrap()
                             })
                             .prop_map_into(),
-                        vec(elem, 2..=4)
+                        vec(elem.clone(), 2..=4)
                             .prop_map(|elems| Cor {
                                 items: elems.try_into().unwrap()
+                            })
+                            .prop_map_into(),
+                        vec(elem, 2..=5)
+                            .prop_map(|elems| Cthreshold {
+                                k: (elems.len() - 1) as u8,
+                                children: elems.try_into().unwrap()
                             })
                             .prop_map_into(),
                     ]
