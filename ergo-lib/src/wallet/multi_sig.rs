@@ -12,13 +12,89 @@ use crate::ergotree_interpreter::sigma_protocol::FirstProverMessage;
 use crate::ergotree_ir::chain::address::{AddressEncoder, Address};
 use crate::ergotree_ir::chain::address::NetworkPrefix;
 use std::collections::HashMap;
-use crate::chain::transaction::TxIoVec;
-use crate::wallet::signing::TransactionContext;
+use std::rc::Rc;
+use crate::chain::transaction::{Transaction, TxIoVec};
+use crate::wallet::signing::{make_context, TransactionContext};
 use crate::chain::ergo_state_context::ErgoStateContext;
 use ergotree_interpreter::sigma_protocol::unchecked_tree::{UncheckedConjecture, UncheckedLeaf, UncheckedTree};
 use ergotree_interpreter::sigma_protocol::dlog_protocol::{interactive_prover::compute_commitment};
 use crate::ergotree_interpreter::sigma_protocol::proof_tree::ProofTreeLeaf;
 use ergotree_interpreter::sigma_protocol::sig_serializer::parse_sig_compute_challenges;
+use crate::ergotree_interpreter::eval::env::Env;
+use crate::ergotree_interpreter::eval::reduce_to_crypto;
+use crate::ergotree_interpreter::sigma_protocol::prover::ProofBytes;
+
+pub struct TransactionHintsBag {
+    secret_hints: HashMap<usize, HintsBag>,
+    public_hints: HashMap<usize, HintsBag>,
+}
+
+impl TransactionHintsBag {
+    pub fn replace_hints_for_input(&mut self, index: usize, hints_bag: HintsBag) {
+        let public: Vec<Hint> = hints_bag.hints.clone().into_iter().filter(|hint| {
+            if let Hint::CommitmentHint(CommitmentHint::RealCommitment(comm)) = hint {
+                true
+            } else {
+                false
+            }
+        }).collect();
+        let secret: Vec<Hint> = hints_bag.hints.clone().into_iter().filter(|hint| {
+            if let Hint::CommitmentHint(CommitmentHint::OwnCommitment(comm)) = hint {
+                true
+            } else {
+                false
+            }
+        }).collect();
+        self.secret_hints.insert(index, HintsBag { hints: secret });
+        self.public_hints.insert(index, HintsBag { hints: public });
+    }
+    pub fn add_hints_for_input(&mut self, index: usize, hints_bag: HintsBag) {
+        let mut public: Vec<Hint> = hints_bag.hints.clone().into_iter().filter(|hint| {
+            if let Hint::CommitmentHint(CommitmentHint::RealCommitment(comm)) = hint {
+                true
+            } else {
+                false
+            }
+        }).collect();
+        let mut secret: Vec<Hint> = hints_bag.hints.clone().into_iter().filter(|hint| {
+            if let Hint::CommitmentHint(CommitmentHint::OwnCommitment(comm)) = hint {
+                true
+            } else {
+                false
+            }
+        }).collect();
+        let mut secret_bag = HintsBag::empty();
+        let mut public_bag = HintsBag::empty();
+        let mut old_secret: &Vec<Hint> = &self.secret_hints.get(&index).unwrap_or(&secret_bag).hints;
+        for hint in old_secret {
+            secret.push(hint.clone());
+        }
+
+
+        let mut old_public: &Vec<Hint> = &self.public_hints.get(&index).unwrap_or(&public_bag).hints;
+        for hint in old_public {
+            public.push(hint.clone());
+        }
+        self.secret_hints.insert(index, HintsBag { hints: secret });
+        self.public_hints.insert(index, HintsBag { hints: public });
+
+    }
+    pub fn all_hints_for_input(&self, index: usize) -> HintsBag {
+        let mut hints: Vec<Hint> = Vec::new();
+        let mut secret_bag = HintsBag::empty();
+        let mut public_bag = HintsBag::empty();
+        let mut secrets: &Vec<Hint> = &self.secret_hints.get(&index).unwrap_or(&secret_bag).hints;
+        for hint in secrets {
+            hints.push(hint.clone());
+        }
+        let mut public: &Vec<Hint> = &self.public_hints.get(&index).unwrap_or(&public_bag).hints;
+        for hint in public {
+            hints.push(hint.clone());
+        }
+        let mut hints_bag: HintsBag = HintsBag { hints };
+        return hints_bag;
+    }
+}
 
 pub fn compute_commitments(leaf:UncheckedLeaf)->Option<FirstDlogProverMessage>{
     let mut ret:Option<FirstDlogProverMessage>=None;
@@ -46,6 +122,38 @@ pub fn bag_for_multi_sig(
     let mut bag:HintsBag = HintsBag::empty();
     traverse_node(ut, real_propositions, simulated_propositions, NodePosition::crypto_tree_prefix().clone(), &mut bag);
     return bag;
+
+}
+
+pub fn extract_hints(
+    signed_tx:Transaction,
+    tx_context: TransactionContext,
+    state_context: &ErgoStateContext,
+    real_secrets_to_extract: Vec<SigmaBoolean>,
+    simulated_secrets_to_extract: Vec<SigmaBoolean>)
+->TransactionHintsBag{
+    let mut hints_bag: TransactionHintsBag = TransactionHintsBag { secret_hints: HashMap::new(), public_hints: HashMap::new() };
+    let ctx = Rc::new(make_context(state_context, &tx_context, idx)?);
+    tx_context
+        .get_boxes_to_spend().enumerate().for_each(|(i, input)|{
+        let tree=input.ergo_tree.clone();
+        let test:ProofBytes=signed_tx.inputs.get(i).unwrap().clone().spending_proof.proof;
+        let proof:Vec<u8>=Vec::from(test);
+        let exp=tree.proposition().unwrap();
+        let reduction_result=reduce_to_crypto(&exp,&Env::empty(),ctx.clone()).unwrap();
+        let sigma_tree=reduction_result.sigma_prop;
+        hintsBag.addHintsForInput(
+            i,
+            bag_for_multi_sig(
+                sigma_tree.clone(),
+                &real_secrets_to_extract,
+                &simulated_secrets_to_extract,
+                &proof
+            )
+        );
+
+    });
+    return hints_bag;
 
 }
 
