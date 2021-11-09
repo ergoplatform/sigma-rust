@@ -24,7 +24,7 @@ pub struct Cthreshold {
 }
 
 impl Cthreshold {
-    /// TBD
+    /// Reduce all possible TrivialProps in the tree
     pub fn reduce(k: u8, children: SigmaConjectureItems<SigmaBoolean>) -> Self {
         // TODO: implement
         Self { k, children }
