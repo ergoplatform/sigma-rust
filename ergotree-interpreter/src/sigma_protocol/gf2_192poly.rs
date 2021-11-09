@@ -28,4 +28,3 @@ impl Gf2_192Poly {
         todo!()
     }
 }
-
