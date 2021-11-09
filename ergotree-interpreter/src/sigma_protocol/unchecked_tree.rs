@@ -8,12 +8,12 @@ use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
 
 use super::dht_protocol::FirstDhTupleProverMessage;
 use super::dht_protocol::SecondDhTupleProverMessage;
+use super::gf2_192poly::Gf2_192Poly;
 use super::proof_tree::ConjectureType;
 use super::proof_tree::ProofTree;
 use super::proof_tree::ProofTreeConjecture;
 use super::proof_tree::ProofTreeKind;
 use super::proof_tree::ProofTreeLeaf;
-use super::unproven_tree::Gf2_192Poly;
 use super::{
     dlog_protocol::{FirstDlogProverMessage, SecondDlogProverMessage},
     Challenge, FirstProverMessage,
