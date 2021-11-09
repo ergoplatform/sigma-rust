@@ -2,8 +2,8 @@ import XCTest
 @testable import ErgoLib
 @testable import ErgoLibC
 
-final class BlockHeaderTests: XCTestCase {
-    func testBlockerHeader() throws {
+final class HeaderTests: XCTestCase {
+    func testHeaders() throws {
         let json = """
         {
         "extensionId": "d16f25b14457186df4c5f6355579cc769261ce1aebc8209949ca6feadbac5a3f",
@@ -30,7 +30,8 @@ final class BlockHeaderTests: XCTestCase {
         "parentId": "6481752bace5fa5acba5d5ef7124d48826664742d46c974c98a2d60ace229a34"
         }
         """
-        XCTAssertNoThrow(try BlockHeader(withJson: json))
+        let blockHeader = try BlockHeader(withJson: json)
+        XCTAssertNoThrow(try PreHeader(withBlockHeader: blockHeader))
         XCTAssertThrowsError(try BlockHeader(withJson: ""))
     }
 }

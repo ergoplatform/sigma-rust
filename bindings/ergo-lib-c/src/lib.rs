@@ -17,7 +17,10 @@ use ergo_lib_c_core::{
         address_delete, address_from_base58, address_from_mainnet, address_from_testnet,
         address_to_base58, address_type_prefix, AddressPtr, ConstAddressPtr,
     },
-    block_header::{block_header_delete, block_header_from_json, BlockHeaderPtr},
+    block_header::{
+        block_header_delete, block_header_from_json, BlockHeaderPtr, ConstBlockHeaderPtr,
+    },
+    header::{preheader_delete, preheader_from_block_header, PreHeaderPtr},
 };
 pub use ergo_lib_c_core::{
     address::{Address, AddressTypePrefix, NetworkPrefix},
@@ -119,13 +122,15 @@ pub unsafe extern "C" fn ergo_wallet_address_to_base58(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_address_type_prefix(address: ConstAddressPtr) -> ReturnU8 {
+pub unsafe extern "C" fn ergo_wallet_address_type_prefix(
+    address: ConstAddressPtr,
+) -> ReturnNum<u8> {
     match address_type_prefix(address) {
-        Ok(value) => ReturnU8 {
+        Ok(value) => ReturnNum {
             value: value as u8,
             error: std::ptr::null_mut(),
         },
-        Err(e) => ReturnU8 {
+        Err(e) => ReturnNum {
             value: 0, // Just a dummy value
             error: Error::c_api_from(Err(e)),
         },
@@ -138,7 +143,7 @@ pub extern "C" fn ergo_wallet_address_delete(address: AddressPtr) {
 }
 
 // -------------------------------------------------------------------------------------------------
-// BlockHeader functions -------------------------------------------------------------------------------
+// BlockHeader functions ---------------------------------------------------------------------------
 // -------------------------------------------------------------------------------------------------
 
 #[no_mangle]
@@ -154,6 +159,24 @@ pub unsafe extern "C" fn ergo_wallet_block_header_from_json(
 #[no_mangle]
 pub extern "C" fn ergo_wallet_block_header_delete(header: BlockHeaderPtr) {
     block_header_delete(header)
+}
+
+// -------------------------------------------------------------------------------------------------
+// PreHeader functions -----------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------------------
+
+#[no_mangle]
+pub unsafe extern "C" fn ergo_wallet_preheader_from_block_header(
+    block_header: ConstBlockHeaderPtr,
+    preheader_out: *mut PreHeaderPtr,
+) -> ErrorPtr {
+    let res = preheader_from_block_header(block_header, preheader_out);
+    Error::c_api_from(res)
+}
+
+#[no_mangle]
+pub extern "C" fn ergo_wallet_preheader_delete(header: PreHeaderPtr) {
+    preheader_delete(header)
 }
 
 pub struct UnspentBoxes(Vec<chain::ergo_box::ErgoBoxCandidate>);
@@ -268,8 +291,12 @@ pub unsafe extern "C" fn ergo_wallet_error_to_string(error: ErrorPtr) -> *mut c_
 /// Convenience type to allow us to pass Rust enums with `u8` representation through FFI to the C
 /// side.
 #[repr(C)]
-pub struct ReturnU8 {
+pub struct ReturnNum<T: IntegerType> {
     /// Returned value. Note that it's only valid if the error field is null!
-    value: u8,
+    value: T,
     error: ErrorPtr,
 }
+
+pub trait IntegerType {}
+
+impl IntegerType for u8 {}

@@ -4,8 +4,9 @@ use crate::{error::*, util::mut_ptr_as_mut};
 use ergo_lib::ergotree_ir::chain::header::Header;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct BlockHeader(Header);
+pub struct BlockHeader(pub Header);
 pub type BlockHeaderPtr = *mut BlockHeader;
+pub type ConstBlockHeaderPtr = *const BlockHeader;
 
 pub unsafe fn block_header_from_json(
     json: &str,

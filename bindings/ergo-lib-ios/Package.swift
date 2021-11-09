@@ -16,6 +16,6 @@ let package = Package(
             name: "ErgoLib",
             dependencies: ["ErgoLibC"]
         ),
-        .testTarget(name: "AddressTests", dependencies: ["ErgoLib"])
+        .testTarget(name: "ErgoLibTests", dependencies: ["ErgoLib"])
     ]
 )
