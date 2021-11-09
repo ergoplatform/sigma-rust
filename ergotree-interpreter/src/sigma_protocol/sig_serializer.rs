@@ -9,6 +9,7 @@ use super::unchecked_tree::UncheckedTree;
 use super::GROUP_SIZE;
 use super::SOUNDNESS_BYTES;
 use crate::sigma_protocol::dht_protocol::SecondDhTupleProverMessage;
+use crate::sigma_protocol::gf2_192poly::Gf2_192Poly;
 use crate::sigma_protocol::unchecked_tree::UncheckedDhTuple;
 use crate::sigma_protocol::Challenge;
 use crate::sigma_protocol::GroupSizedBytes;
@@ -85,6 +86,19 @@ fn sig_write_bytes<W: SigmaByteWrite>(
                 sig_write_bytes(last, w, false)?;
                 Ok(())
             }
+            UncheckedConjecture::CthresholdUnchecked {
+                challenge: _,
+                children,
+                k: _,
+                polynomial,
+            } => {
+                // write the polynomial, except the zero coefficient
+                w.write_all(polynomial.to_bytes().as_mut_slice())?;
+                for child in children {
+                    sig_write_bytes(child, w, false)?;
+                }
+                Ok(())
+            }
         },
     }
 }
@@ -99,14 +113,14 @@ pub(crate) fn parse_sig_compute_challenges(
     mut proof_bytes: Vec<u8>,
 ) -> Result<UncheckedTree, SigParsingError> {
     let mut r = sigma_byte_reader::from_bytes(proof_bytes.as_mut_slice());
-    parse_sig_compute_challnges_reader(exp, &mut r, None)
+    parse_sig_compute_challenges_reader(exp, &mut r, None)
 }
 
 /// Verifier Step 2: In a top-down traversal of the tree, obtain the challenges for the children of every
 /// non-leaf node by reading them from the proof or computing them.
 /// Verifier Step 3: For every leaf node, read the response z provided in the proof.
 /// * `exp` - sigma proposition which defines the structure of bytes from the reader
-fn parse_sig_compute_challnges_reader<R: SigmaByteRead>(
+fn parse_sig_compute_challenges_reader<R: SigmaByteRead>(
     exp: &SigmaBoolean,
     r: &mut R,
     challenge_opt: Option<Challenge>,
@@ -155,7 +169,7 @@ fn parse_sig_compute_challnges_reader<R: SigmaByteRead>(
                 // Verifier Step 2: If the node is AND, then all of its children get e_0 as
                 // the challenge
                 let children = cand.items.try_mapped_ref(|it| {
-                    parse_sig_compute_challnges_reader(it, r, Some(challenge.clone()))
+                    parse_sig_compute_challenges_reader(it, r, Some(challenge.clone()))
                 })?;
                 Ok(UncheckedConjecture::CandUnchecked {
                     challenge,
@@ -169,11 +183,11 @@ fn parse_sig_compute_challnges_reader<R: SigmaByteRead>(
                 // The rightmost child gets a challenge computed as an XOR of the challenges of all the other children and e_0.
 
                 // Read all the children but the last and compute the XOR of all the challenges including e_0
-                let mut children: Vec<UncheckedTree> = Vec::new();
+                let mut children: Vec<UncheckedTree> = Vec::with_capacity(cor.items.len());
 
                 let (last, rest) = cor.items.split_last();
                 for it in rest {
-                    children.push(parse_sig_compute_challnges_reader(it, r, None)?);
+                    children.push(parse_sig_compute_challenges_reader(it, r, None)?);
                 }
                 let xored_challenge = children
                     .clone()
@@ -181,7 +195,7 @@ fn parse_sig_compute_challnges_reader<R: SigmaByteRead>(
                     .map(|c| c.challenge())
                     .fold(challenge.clone(), |acc, c| acc.xor(c));
                 let last_child =
-                    parse_sig_compute_challnges_reader(last, r, Some(xored_challenge))?;
+                    parse_sig_compute_challenges_reader(last, r, Some(xored_challenge))?;
                 children.push(last_child);
 
                 #[allow(clippy::unwrap_used)] // since quantity is preserved unwrap is safe here
@@ -191,9 +205,34 @@ fn parse_sig_compute_challnges_reader<R: SigmaByteRead>(
                 }
                 .into())
             }
-            SigmaConjecture::Cthreshold(_) => Err(SigParsingError::Unexpected(
-                "parse_sig_compute_challenges: CTHRESHOLD is not yet implemented",
-            )),
+            SigmaConjecture::Cthreshold(ct) => {
+                // Verifier Step 2: If the node is THRESHOLD,
+                // evaluate the polynomial Q(x) at points 1, 2, ..., n to get challenges for child 1, 2, ..., n, respectively.
+                // Read the polynomial -- it has n-k coefficients
+                let n_children = ct.children.len();
+                let n_coeff = n_children - ct.k as usize;
+                let buf_size = n_coeff * SOUNDNESS_BYTES;
+                let mut coeff_bytes = vec![0u8; buf_size];
+                r.read_exact(&mut coeff_bytes)?;
+                let polynomial = Gf2_192Poly::from_byte_array(challenge.clone(), coeff_bytes);
+
+                let children =
+                    ct.children
+                        .clone()
+                        .enumerated()
+                        .try_mapped_ref(|(idx, child)| {
+                            let one_based_index = idx + 1;
+                            let ch = polynomial.evaluate(one_based_index).into();
+                            parse_sig_compute_challenges_reader(child, r, Some(ch))
+                        })?;
+                Ok(UncheckedConjecture::CthresholdUnchecked {
+                    challenge,
+                    children,
+                    k: ct.k,
+                    polynomial,
+                }
+                .into())
+            }
         },
     }
 }

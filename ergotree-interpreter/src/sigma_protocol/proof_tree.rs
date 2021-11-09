@@ -18,6 +18,7 @@ use super::unchecked_tree::UncheckedConjecture;
 use super::unchecked_tree::UncheckedDhTuple;
 use super::unchecked_tree::UncheckedTree;
 use super::unproven_tree::CorUnproven;
+use super::unproven_tree::CthresholdUnproven;
 use super::unproven_tree::UnprovenDhTuple;
 use super::unproven_tree::UnprovenLeaf;
 use super::unproven_tree::UnprovenTree;
@@ -110,6 +111,12 @@ impl From<UncheckedConjecture> for ProofTree {
     }
 }
 
+impl From<CthresholdUnproven> for ProofTree {
+    fn from(v: CthresholdUnproven) -> Self {
+        UnprovenTree::UnprovenConjecture(v.into()).into()
+    }
+}
+
 /// Proof tree leaf
 pub(crate) trait ProofTreeLeaf: Debug {
     /// Get proposition
@@ -122,7 +129,7 @@ pub(crate) trait ProofTreeLeaf: Debug {
 pub(crate) enum ConjectureType {
     And = 0,
     Or = 1,
-    // Threshold = 2,
+    Threshold = 2,
 }
 
 pub(crate) trait ProofTreeConjecture {
@@ -173,6 +180,13 @@ where
                     }))
                     .into()
                 }
+                UnprovenConjecture::CthresholdUnproven(ct) => UnprovenTree::UnprovenConjecture(
+                    UnprovenConjecture::CthresholdUnproven(CthresholdUnproven {
+                        children: ct.children.clone().try_mapped(|c| rewrite(c, f))?,
+                        ..ct.clone()
+                    }),
+                )
+                .into(),
             },
         },
         ProofTree::UncheckedTree(unch_tree) => match unch_tree {
@@ -201,6 +215,23 @@ where
                     UncheckedConjecture::CorUnchecked {
                         children: casted_children,
                         challenge: challenge.clone(),
+                    }
+                    .into()
+                }
+                UncheckedConjecture::CthresholdUnchecked {
+                    challenge,
+                    children,
+                    k,
+                    polynomial: polynomial_opt,
+                } => {
+                    let rewritten_children =
+                        children.clone().try_mapped(|c| rewrite(c.into(), f))?;
+                    let casted_children = cast_to_ust(rewritten_children)?;
+                    UncheckedConjecture::CthresholdUnchecked {
+                        children: casted_children,
+                        challenge: challenge.clone(),
+                        k: *k,
+                        polynomial: polynomial_opt.clone(),
                     }
                     .into()
                 }

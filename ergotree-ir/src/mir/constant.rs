@@ -790,6 +790,7 @@ pub(crate) mod arbitrary {
                 SType::SShort => vec(any::<i16>(), 0..400).prop_map_into().boxed(),
                 SType::SInt => vec(any::<i32>(), 0..400).prop_map_into().boxed(),
                 SType::SLong => vec(any::<i64>(), 0..400).prop_map_into().boxed(),
+                SType::SSigmaProp => vec(any::<SigmaProp>(), 0..3).prop_map_into().boxed(),
                 _ => todo!(),
             },
             // SType::STuple(_) => {}

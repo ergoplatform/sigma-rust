@@ -8,18 +8,40 @@ use crate::serialization::SigmaSerializeResult;
 use crate::types::stype::SType;
 
 use super::expr::Expr;
+use super::expr::InvalidArgumentError;
 use crate::has_opcode::HasStaticOpCode;
 
 /// THRESHOLD composition for sigma expressions
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Atleast {
     /// Number of Sigma-expression that should be proved
-    pub n_required: Box<Expr>,
+    pub bound: Box<Expr>,
     /// Collection of Sigma-expressions
-    pub expressions: Box<Expr>,
+    pub input: Box<Expr>,
 }
 
 impl Atleast {
+    /// Create new object, returns an error if any of the requirements failed
+    pub fn new(bound: Expr, input: Expr) -> Result<Self, InvalidArgumentError> {
+        if input.post_eval_tpe() != SType::SColl(SType::SSigmaProp.into()) {
+            return Err(InvalidArgumentError(format!(
+                "Expected Atleast input to be SColl, got {0:?}",
+                input.tpe()
+            )));
+        }
+        if bound.post_eval_tpe() != SType::SInt {
+            return Err(InvalidArgumentError(format!(
+                "Atleast: expected bound type to be SInt, got {0:?}",
+                bound
+            )));
+        }
+
+        Ok(Self {
+            bound: bound.into(),
+            input: input.into(),
+        })
+    }
+
     /// Type
     pub fn tpe(&self) -> SType {
         SType::SSigmaProp
@@ -32,17 +54,14 @@ impl HasStaticOpCode for Atleast {
 
 impl SigmaSerializable for Atleast {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
-        self.n_required.sigma_serialize(w)?;
-        self.expressions.sigma_serialize(w)
+        self.bound.sigma_serialize(w)?;
+        self.input.sigma_serialize(w)
     }
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
-        let n_required = Expr::sigma_parse(r)?.into();
-        let expressions = Expr::sigma_parse(r)?.into();
-        Ok(Self {
-            n_required,
-            expressions,
-        })
+        let bound = Expr::sigma_parse(r)?;
+        let input = Expr::sigma_parse(r)?;
+        Ok(Self::new(bound, input)?)
     }
 }
 
@@ -69,8 +88,8 @@ mod arbitrary {
                 }),
             )
                 .prop_map(|(n, expr)| Self {
-                    n_required: n.into(),
-                    expressions: expr.into(),
+                    bound: n.into(),
+                    input: expr.into(),
                 })
                 .boxed()
         }

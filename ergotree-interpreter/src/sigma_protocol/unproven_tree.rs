@@ -1,6 +1,7 @@
 //! Unproven tree types
 
 use super::dht_protocol::FirstDhTupleProverMessage;
+use super::gf2_192poly::Gf2_192Poly;
 use super::proof_tree::ConjectureType;
 use super::proof_tree::ProofTree;
 use super::proof_tree::ProofTreeConjecture;
@@ -9,6 +10,7 @@ use super::{dlog_protocol::FirstDlogProverMessage, Challenge, FirstProverMessage
 use crate::sigma_protocol::proof_tree::ProofTreeLeaf;
 use ergotree_ir::sigma_protocol::sigma_boolean::cand::Cand;
 use ergotree_ir::sigma_protocol::sigma_boolean::cor::Cor;
+use ergotree_ir::sigma_protocol::sigma_boolean::cthreshold::Cthreshold;
 use ergotree_ir::sigma_protocol::sigma_boolean::ProveDhTuple;
 use ergotree_ir::sigma_protocol::sigma_boolean::ProveDlog;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
@@ -106,6 +108,12 @@ impl From<UnprovenDhTuple> for UnprovenTree {
     }
 }
 
+impl From<CthresholdUnproven> for UnprovenTree {
+    fn from(v: CthresholdUnproven) -> Self {
+        UnprovenTree::UnprovenConjecture(v.into())
+    }
+}
+
 /// Unproven leaf types
 #[derive(PartialEq, Debug, Clone, From)]
 pub(crate) enum UnprovenLeaf {
@@ -186,9 +194,11 @@ impl ProofTreeLeaf for UnprovenLeaf {
 }
 
 #[derive(PartialEq, Debug, Clone, From)]
+#[allow(clippy::enum_variant_names)]
 pub(crate) enum UnprovenConjecture {
     CandUnproven(CandUnproven),
     CorUnproven(CorUnproven),
+    CthresholdUnproven(CthresholdUnproven),
 }
 
 impl UnprovenConjecture {
@@ -196,6 +206,15 @@ impl UnprovenConjecture {
         match self {
             UnprovenConjecture::CandUnproven(cand) => cand.children.clone(),
             UnprovenConjecture::CorUnproven(cor) => cor.children.clone(),
+            UnprovenConjecture::CthresholdUnproven(ct) => ct.children.clone(),
+        }
+    }
+
+    pub(crate) fn with_children(self, children: SigmaConjectureItems<ProofTree>) -> Self {
+        match self {
+            UnprovenConjecture::CandUnproven(cand) => cand.with_children(children).into(),
+            UnprovenConjecture::CorUnproven(cor) => cor.with_children(children).into(),
+            UnprovenConjecture::CthresholdUnproven(ct) => ct.with_children(children).into(),
         }
     }
 
@@ -203,6 +222,7 @@ impl UnprovenConjecture {
         match self {
             UnprovenConjecture::CandUnproven(cand) => &cand.position,
             UnprovenConjecture::CorUnproven(cor) => &cor.position,
+            UnprovenConjecture::CthresholdUnproven(ct) => &ct.position,
         }
     }
 
@@ -210,6 +230,7 @@ impl UnprovenConjecture {
         match self {
             UnprovenConjecture::CandUnproven(cand) => cand.challenge_opt.clone(),
             UnprovenConjecture::CorUnproven(cor) => cor.challenge_opt.clone(),
+            UnprovenConjecture::CthresholdUnproven(ct) => ct.challenge_opt.clone(),
         }
     }
 
@@ -217,6 +238,7 @@ impl UnprovenConjecture {
         match self {
             UnprovenConjecture::CandUnproven(cand) => cand.with_position(updated).into(),
             UnprovenConjecture::CorUnproven(cor) => cor.with_position(updated).into(),
+            UnprovenConjecture::CthresholdUnproven(ct) => ct.with_position(updated).into(),
         }
     }
 
@@ -224,6 +246,7 @@ impl UnprovenConjecture {
         match self {
             UnprovenConjecture::CandUnproven(cand) => cand.with_challenge(challenge).into(),
             UnprovenConjecture::CorUnproven(cor) => cor.with_challenge(challenge).into(),
+            UnprovenConjecture::CthresholdUnproven(ct) => ct.with_challenge(challenge).into(),
         }
     }
 
@@ -231,6 +254,7 @@ impl UnprovenConjecture {
         match self {
             UnprovenConjecture::CandUnproven(cand) => cand.with_simulated(simulated).into(),
             UnprovenConjecture::CorUnproven(cor) => cor.with_simulated(simulated).into(),
+            UnprovenConjecture::CthresholdUnproven(ct) => ct.with_simulated(simulated).into(),
         }
     }
 
@@ -238,7 +262,12 @@ impl UnprovenConjecture {
         match self {
             UnprovenConjecture::CandUnproven(au) => au.simulated,
             UnprovenConjecture::CorUnproven(ou) => ou.simulated,
+            UnprovenConjecture::CthresholdUnproven(ct) => ct.simulated,
         }
+    }
+
+    pub(crate) fn is_real(&self) -> bool {
+        !self.simulated()
     }
 }
 
@@ -247,6 +276,7 @@ impl ProofTreeConjecture for UnprovenConjecture {
         match self {
             UnprovenConjecture::CandUnproven(_) => ConjectureType::And,
             UnprovenConjecture::CorUnproven(_) => ConjectureType::Or,
+            UnprovenConjecture::CthresholdUnproven(_) => ConjectureType::Threshold,
         }
     }
 
@@ -254,6 +284,7 @@ impl ProofTreeConjecture for UnprovenConjecture {
         match self {
             UnprovenConjecture::CandUnproven(cand) => cand.children.clone(),
             UnprovenConjecture::CorUnproven(cor) => cor.children.clone(),
+            UnprovenConjecture::CthresholdUnproven(ct) => ct.children.clone(),
         }
     }
 }
@@ -442,5 +473,51 @@ impl CorUnproven {
 
     pub(crate) fn with_children(self, children: SigmaConjectureItems<ProofTree>) -> Self {
         Self { children, ..self }
+    }
+}
+
+#[derive(PartialEq, Debug, Clone)]
+pub(crate) struct CthresholdUnproven {
+    pub(crate) proposition: Cthreshold,
+    pub(crate) k: u8,
+    pub(crate) children: SigmaConjectureItems<ProofTree>,
+    pub(crate) polinomial_opt: Option<Gf2_192Poly>,
+    pub(crate) challenge_opt: Option<Challenge>,
+    pub(crate) simulated: bool,
+    pub(crate) position: NodePosition,
+}
+
+impl CthresholdUnproven {
+    pub(crate) fn with_children(self, children: SigmaConjectureItems<ProofTree>) -> Self {
+        Self { children, ..self }
+    }
+
+    pub(crate) fn with_polynomial(self, q: Gf2_192Poly) -> Self {
+        Self {
+            polinomial_opt: Some(q),
+            ..self
+        }
+    }
+
+    fn with_position(self, updated: NodePosition) -> Self {
+        Self {
+            position: updated,
+            ..self
+        }
+    }
+
+    fn with_challenge(self, challenge: Challenge) -> Self {
+        Self {
+            challenge_opt: Some(challenge),
+            ..self
+        }
+    }
+
+    fn with_simulated(self, simulated: bool) -> Self {
+        Self { simulated, ..self }
+    }
+
+    pub(crate) fn is_real(&self) -> bool {
+        !self.simulated
     }
 }

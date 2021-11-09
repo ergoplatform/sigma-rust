@@ -42,7 +42,7 @@ impl Evaluable for Expr {
             Expr::And(op) => op.eval(env, ctx),
             Expr::Or(op) => op.eval(env, ctx),
             Expr::Xor(op) => op.eval(env, ctx),
-            Expr::Atleast(_) => Err(EvalError::NotImplementedYet("Expr:Atleast")),
+            Expr::Atleast(op) => op.eval(env, ctx),
             Expr::LogicalNot(op) => op.eval(env, ctx),
             Expr::Map(op) => op.eval(env, ctx),
             Expr::Filter(op) => op.eval(env, ctx),
