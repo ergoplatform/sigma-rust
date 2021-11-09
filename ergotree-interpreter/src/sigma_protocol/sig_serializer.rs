@@ -113,14 +113,14 @@ pub(crate) fn parse_sig_compute_challenges(
     mut proof_bytes: Vec<u8>,
 ) -> Result<UncheckedTree, SigParsingError> {
     let mut r = sigma_byte_reader::from_bytes(proof_bytes.as_mut_slice());
-    parse_sig_compute_challnges_reader(exp, &mut r, None)
+    parse_sig_compute_challenges_reader(exp, &mut r, None)
 }
 
 /// Verifier Step 2: In a top-down traversal of the tree, obtain the challenges for the children of every
 /// non-leaf node by reading them from the proof or computing them.
 /// Verifier Step 3: For every leaf node, read the response z provided in the proof.
 /// * `exp` - sigma proposition which defines the structure of bytes from the reader
-fn parse_sig_compute_challnges_reader<R: SigmaByteRead>(
+fn parse_sig_compute_challenges_reader<R: SigmaByteRead>(
     exp: &SigmaBoolean,
     r: &mut R,
     challenge_opt: Option<Challenge>,
@@ -169,7 +169,7 @@ fn parse_sig_compute_challnges_reader<R: SigmaByteRead>(
                 // Verifier Step 2: If the node is AND, then all of its children get e_0 as
                 // the challenge
                 let children = cand.items.try_mapped_ref(|it| {
-                    parse_sig_compute_challnges_reader(it, r, Some(challenge.clone()))
+                    parse_sig_compute_challenges_reader(it, r, Some(challenge.clone()))
                 })?;
                 Ok(UncheckedConjecture::CandUnchecked {
                     challenge,
@@ -187,7 +187,7 @@ fn parse_sig_compute_challnges_reader<R: SigmaByteRead>(
 
                 let (last, rest) = cor.items.split_last();
                 for it in rest {
-                    children.push(parse_sig_compute_challnges_reader(it, r, None)?);
+                    children.push(parse_sig_compute_challenges_reader(it, r, None)?);
                 }
                 let xored_challenge = children
                     .clone()
@@ -195,7 +195,7 @@ fn parse_sig_compute_challnges_reader<R: SigmaByteRead>(
                     .map(|c| c.challenge())
                     .fold(challenge.clone(), |acc, c| acc.xor(c));
                 let last_child =
-                    parse_sig_compute_challnges_reader(last, r, Some(xored_challenge))?;
+                    parse_sig_compute_challenges_reader(last, r, Some(xored_challenge))?;
                 children.push(last_child);
 
                 #[allow(clippy::unwrap_used)] // since quantity is preserved unwrap is safe here
@@ -223,7 +223,7 @@ fn parse_sig_compute_challnges_reader<R: SigmaByteRead>(
                         .try_mapped_ref(|(idx, child)| {
                             let one_based_index = idx + 1;
                             let ch = polynomial.evaluate(one_based_index).into();
-                            parse_sig_compute_challnges_reader(child, r, Some(ch))
+                            parse_sig_compute_challenges_reader(child, r, Some(ch))
                         })?;
                 Ok(UncheckedConjecture::CthresholdUnchecked {
                     challenge,
