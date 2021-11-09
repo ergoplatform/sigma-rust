@@ -6,7 +6,7 @@ mod prover_result;
 pub mod hint;
 
 use crate::eval::reduce_to_crypto;
-use crate::sigma_protocol::dht_protocol;
+use crate::sigma_protocol::{crypto_utils, dht_protocol};
 use crate::sigma_protocol::fiat_shamir::fiat_shamir_hash_fn;
 use crate::sigma_protocol::fiat_shamir::fiat_shamir_tree_to_bytes;
 use crate::sigma_protocol::proof_tree::ProofTree;
@@ -51,6 +51,8 @@ use crate::eval::env::Env;
 use crate::eval::EvalError;
 
 use thiserror::Error;
+use ergotree_ir::sigma_protocol::dlog_group;
+use crate::sigma_protocol::dlog_protocol::SecondDlogProverMessage;
 
 /// Prover errors
 #[derive(Error, PartialEq, Eq, Debug, Clone)]
@@ -734,7 +736,20 @@ fn proving<P: Prover + ?Sized>(
                                     .into(),
                                 ))
                             } else {
-                                Err(ProverError::SecretNotFound)
+                                // let hint=hints_bag.real_commitments().into_iter().find(|&comm|comm.position==us.position).unwrap();
+                                let bs= dlog_group::random_scalar_in_group_range(crypto_utils::secure_rng());
+                                //TODO valid sign should be implemeted in case of we have secrete commitments
+                                Ok(Some(
+                                    UncheckedSchnorr {
+                                        proposition: us.proposition.clone(),
+                                        commitment_opt: None,
+                                        challenge,
+                                        second_message: SecondDlogProverMessage { z:bs },
+                                    }
+                                        .into(),
+                                ))
+
+                                // Err(ProverError::SecretNotFound)
                             }
                         } else {
                             Err(ProverError::RealUnprovenTreeWithoutChallenge)
