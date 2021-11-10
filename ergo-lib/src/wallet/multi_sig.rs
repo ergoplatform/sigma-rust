@@ -182,12 +182,10 @@ pub fn traverse_node(
         UncheckedTree::UncheckedLeaf(leaf) => {
             let real_found= real_propositions.contains(&leaf.proposition());
             let simulated_found= simulated_propositions.contains(&leaf.proposition());
-            println!("{}{}",real_found,simulated_found);
+            // println!("{}{}",real_found,simulated_found);
             if real_found || simulated_found {
-                println!("foundeeeeed");
                 let a=compute_commitments(leaf.clone()).unwrap();
                 if real_found{
-                    println!("foooond");
                     let real_commitment: Hint = Hint::CommitmentHint(
                         CommitmentHint::RealCommitment(
                             RealCommitment {
@@ -361,6 +359,9 @@ mod tests{
     use crate::ergotree_ir::sigma_protocol::dlog_group;
     use crate::ergotree_ir::sigma_protocol::sigma_boolean::cand::Cand;
     use k256::Scalar;
+    use crate::ergotree_interpreter::sigma_protocol::verifier::{TestVerifier, Verifier};
+    use crate::ergotree_ir::mir::expr::Expr;
+    use crate::ergotree_ir::mir::sigma_and::SigmaAnd;
 
     #[test]
     fn extract_hint(){
@@ -509,6 +510,7 @@ mod tests{
     #[test]
     fn multi(){
         let ctx = Rc::new(force_any_val::<Context>());
+
         let secret1 = DlogProverInput::random();
         let secret2 = DlogProverInput::random();
         let pk1 = secret1.public_image();
@@ -519,25 +521,52 @@ mod tests{
         let prover2= TestProver {
             secrets: vec![PrivateInput::DlogProverInput(secret2)],
         };
+        let expr: Expr = SigmaAnd::new(vec![Expr::Const(pk1.clone().into()), Expr::Const(pk2.clone().into())])
+            .unwrap()
+            .into();
+        let tree_and=ErgoTree::try_from(expr.clone()).unwrap();
+
+        let reduced_and=tree_and.proposition().unwrap();
+        let cand=reduce_to_crypto(&expr,&Env::empty(),ctx.clone()).unwrap().sigma_prop;
         let mut generate_for: Vec<SigmaBoolean> = Vec::new();
         generate_for.push(SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(pk2.clone())));
-        let cand = Cand::normalized(vec![pk1.clone().into(), pk2.clone().into()].try_into().unwrap());
+        // let cand = Cand::normalized(vec![pk1.clone().into(), pk2.clone().into()].try_into().unwrap());
         let hints_from_bob:HintsBag=generate_commitments_for(cand.clone(),&generate_for);
         let bag1=hints_from_bob.real_commitments().clone();
         let own=hints_from_bob.own_commitments();
+        let test:OwnCommitment=own.get(0).unwrap().clone();
+        println!("own commitment randomnesss is {}",test.secret_randomness.truncate_to_u32());
         let message = vec![0u8; 100];
         let mut bag_a =HintsBag{hints:vec![]};
-        bag_a.add_hint(Hint::CommitmentHint(CommitmentHint::RealCommitment(bag1.get(0).unwrap().clone().into())));
+        bag_a.add_hint(Hint::CommitmentHint(CommitmentHint::RealCommitment(bag1.get(0).unwrap().clone())));
         println!("{}",bag_a.hints.len());
-        let proof1=prover1.generate_proof(cand.clone(),message.as_slice(),&bag_a).unwrap();
+
+        let proof1=prover1.prove(&tree_and,&Env::empty(),ctx.clone(),message.as_slice(),&bag_a).unwrap();
         let proof:Vec<u8>=Vec::from(proof1.proof.clone());
         let mut real_proposition:Vec<SigmaBoolean>=Vec::new();
         let mut simulated_proposition:Vec<SigmaBoolean>=Vec::new();
         real_proposition.push(SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(pk1.clone())));
+        // real_proposition.push(SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(pk2.clone())));
         let mut bag_b=bag_for_multi_sig(cand.clone(),&real_proposition,&simulated_proposition,&proof);
-        bag_b.add_hint(Hint::CommitmentHint(CommitmentHint::OwnCommitment(own.get(0).unwrap().clone().into())));
-        let proof2=prover2.generate_proof(cand.clone(),message.as_slice(),&bag_b).unwrap();
+        bag_b.add_hint(Hint::CommitmentHint(CommitmentHint::OwnCommitment(own.get(0).unwrap().clone())));
+        println!("prover 2");
+        // let proof2=prover2.generate_proof(cand.clone(),message.as_slice(),&bag_b).unwrap();
+        let proof2=prover2.prove(&tree_and,&Env::empty(),ctx.clone(),message.as_slice(),&bag_b).unwrap();
+        let proof_byte:ProofBytes=(proof2.proof.clone());
+        let verifier = TestVerifier;
+        let test:Vec<u8>=Vec::from(proof2.proof.clone());
+        // println!("{}",test[0]);
+
+        assert_eq!(verifier.verify(&tree_and,
+                        &Env::empty(),
+                        ctx,
+                        proof_byte.clone(),
+                        message.as_slice())
+            .unwrap().result,
+        true);
+
         assert_eq!(1,1);
+
 
 
     }

@@ -10,7 +10,7 @@ use crate::sigma_protocol::{crypto_utils, dht_protocol};
 use crate::sigma_protocol::fiat_shamir::fiat_shamir_hash_fn;
 use crate::sigma_protocol::fiat_shamir::fiat_shamir_tree_to_bytes;
 use crate::sigma_protocol::proof_tree::ProofTree;
-use crate::sigma_protocol::unchecked_tree::UncheckedDhTuple;
+use crate::sigma_protocol::unchecked_tree::{UncheckedDhTuple, UncheckedLeaf};
 use crate::sigma_protocol::unproven_tree::CandUnproven;
 use crate::sigma_protocol::unproven_tree::CorUnproven;
 use crate::sigma_protocol::unproven_tree::NodePosition;
@@ -179,7 +179,6 @@ fn prove_to_unchecked<P: Prover + ?Sized>(
 
     // Prover Step 3: Change some "real" nodes to "simulated" to make sure each node
     // has the right number of simulated children.
-
     let step3 = polish_simulated(prover, step1)?;
     // dbg!(&step3);
 
@@ -514,7 +513,10 @@ fn simulate_and_commit(
                     .into_iter()
                     .find(|c| c.position() == &us.position)
                 {
+
                     Some(cmt_hint) => {
+                        println!("mached hints bag");
+                        // println!("own commitment randomnesss is {}",us.randomness_opt.unwrap().clone().truncate_to_u32());
                         let pt: ProofTree =
                             UnprovenSchnorr {
                                 commitment_opt: Some(
@@ -549,6 +551,7 @@ fn simulate_and_commit(
                             }
                         } else {
                             // Step 6 (real leaf -- compute the commitment a)
+                            println!("generate commitment");
                             let (r, commitment) =
                                 dlog_protocol::interactive_prover::first_message();
                             Ok(ProofTree::UnprovenTree(
@@ -716,40 +719,68 @@ fn proving<P: Prover + ?Sized>(
                                 })
                                 .find(|prover_input| prover_input.public_image() == us.proposition)
                             {
-                                let z = dlog_protocol::interactive_prover::second_message(
-                                    priv_key,
-                                    us.randomness_opt.ok_or_else(|| {
-                                        ProverError::Unexpected(format!(
-                                            "empty randomness in {:?}",
-                                            us
-                                        ))
-                                    })?,
-                                    &challenge,
-                                );
+                                let oc=hints_bag.own_commitments().into_iter().find(|comm| comm.position == us.position);
+                                let mut z:Option<SecondDlogProverMessage>=None;
+                                if oc!=None {
+                                    z = Some(dlog_protocol::interactive_prover::second_message(
+                                        priv_key,
+                                        oc.unwrap().secret_randomness.clone(),
+                                        &challenge,
+                                    ));
+                                }else{
+                                    z = Some(dlog_protocol::interactive_prover::second_message(
+                                        priv_key,
+                                        us.randomness_opt.ok_or_else(|| {
+
+                                            ProverError::Unexpected(format!(
+                                                "empty randomness in {:?}",
+                                                us
+                                            ))
+                                        })?,
+                                        &challenge,
+                                    ));
+                                }
                                 Ok(Some(
                                     UncheckedSchnorr {
                                         proposition: us.proposition.clone(),
                                         commitment_opt: None,
                                         challenge,
-                                        second_message: z,
+                                        second_message: z.unwrap(),
                                     }
                                     .into(),
                                 ))
                             } else {
-                                // let hint=hints_bag.real_commitments().into_iter().find(|&comm|comm.position==us.position).unwrap();
-                                let bs= dlog_group::random_scalar_in_group_range(crypto_utils::secure_rng());
-                                //TODO valid sign should be implemeted in case of we have secrete commitments
-                                Ok(Some(
-                                    UncheckedSchnorr {
-                                        proposition: us.proposition.clone(),
-                                        commitment_opt: None,
-                                        challenge,
-                                        second_message: SecondDlogProverMessage { z:bs },
+                                let hint = hints_bag.real_proofs().into_iter().find(|comm| comm.position == us.position);
+                                if hint!=None {
+                                    let unchecked_tree = hint.unwrap().unchecked_tree;
+                                    // should be replace with match case
+                                    if let UncheckedTree::UncheckedLeaf(UncheckedLeaf::UncheckedSchnorr(unchecked_schnorr)) = unchecked_tree {
+                                        Ok(Some(
+                                            UncheckedSchnorr {
+                                                proposition: us.proposition.clone(),
+                                                commitment_opt: None,
+                                                challenge,
+                                                second_message: unchecked_schnorr.second_message.clone(),
+                                            }
+                                                .into(),
+                                        ))
+                                    }else{
+                                        Err(ProverError::SecretNotFound)
                                     }
-                                        .into(),
-                                ))
+                                } else {
+                                    let bs = dlog_group::random_scalar_in_group_range(crypto_utils::secure_rng());
+                                    Ok(Some(
+                                        UncheckedSchnorr {
+                                            proposition: us.proposition.clone(),
+                                            commitment_opt: None,
+                                            challenge,
+                                            second_message: SecondDlogProverMessage { z: bs },
+                                        }
+                                            .into(),
+                                    ))
 
-                                // Err(ProverError::SecretNotFound)
+                                    // Err(ProverError::SecretNotFound)
+                                }
                             }
                         } else {
                             Err(ProverError::RealUnprovenTreeWithoutChallenge)
