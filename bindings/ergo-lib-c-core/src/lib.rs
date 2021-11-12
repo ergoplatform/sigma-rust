@@ -12,6 +12,7 @@
 
 pub mod address;
 pub mod block_header;
+pub mod collections;
 pub mod header;
 mod util;
 pub use crate::error::*;

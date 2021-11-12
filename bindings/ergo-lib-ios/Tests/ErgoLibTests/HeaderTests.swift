@@ -33,5 +33,10 @@ final class HeaderTests: XCTestCase {
         let blockHeader = try BlockHeader(withJson: json)
         XCTAssertNoThrow(try PreHeader(withBlockHeader: blockHeader))
         XCTAssertThrowsError(try BlockHeader(withJson: ""))
+        let headers = try BlockHeaders()
+        for _ in 1...10 {
+            XCTAssertNoThrow(try headers.add(blockHeader: blockHeader ))
+        }
+        XCTAssertEqual(try headers.len(), 10)
     }
 }

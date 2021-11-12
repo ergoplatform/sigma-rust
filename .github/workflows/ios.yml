@@ -19,6 +19,20 @@ jobs:
 
       - uses: actions-rs/toolchain@v1
         with:
+          toolchain: nightly-2021-11-10
+          override: true
+
+      - name: install deps
+        run:
+          cargo install cbindgen
+      
+      - name: generate C-bindings header file
+        run: |
+          cd bindings/ergo-lib-c
+          cbindgen --config cbindgen.toml --crate ergo-lib-c --output h/ergo_wallet.h
+
+      - uses: actions-rs/toolchain@v1
+        with:
           toolchain: stable
           override: true
 

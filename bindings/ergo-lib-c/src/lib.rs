@@ -10,7 +10,10 @@
 // #![deny(missing_docs)]
 #![allow(clippy::missing_safety_doc)]
 
+#[macro_use]
+mod macros;
 use ergo_lib::ergotree_ir::chain;
+use paste::paste;
 
 use ergo_lib_c_core::{
     address::{
@@ -18,7 +21,12 @@ use ergo_lib_c_core::{
         address_to_base58, address_type_prefix, AddressPtr, ConstAddressPtr,
     },
     block_header::{
-        block_header_delete, block_header_from_json, BlockHeaderPtr, ConstBlockHeaderPtr,
+        block_header_delete, block_header_from_json, BlockHeader, BlockHeaderPtr,
+        ConstBlockHeaderPtr,
+    },
+    collections::{
+        collection_add, collection_delete, collection_get, collection_len, collection_new,
+        CollectionPtr, ConstCollectionPtr,
     },
     header::{preheader_delete, preheader_from_block_header, PreHeaderPtr},
 };
@@ -162,6 +170,12 @@ pub extern "C" fn ergo_wallet_block_header_delete(header: BlockHeaderPtr) {
 }
 
 // -------------------------------------------------------------------------------------------------
+// BlockHeaders functions --------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------------------
+
+make_collection!(BlockHeaders, BlockHeader);
+
+// -------------------------------------------------------------------------------------------------
 // PreHeader functions -----------------------------------------------------------------------------
 // -------------------------------------------------------------------------------------------------
 
@@ -300,3 +314,4 @@ pub struct ReturnNum<T: IntegerType> {
 pub trait IntegerType {}
 
 impl IntegerType for u8 {}
+impl IntegerType for usize {}
