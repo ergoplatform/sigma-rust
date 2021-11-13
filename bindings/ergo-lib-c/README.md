@@ -16,6 +16,7 @@ command:
 ```
 cbindgen --config cbindgen.toml --crate ergo-lib-c --output h/ergo_wallet.h
 ```
-**Note that we require a nightly version of rustc.** This is because we use macros to generate some
-C-types and `cbindgen` cannot directly generate types through them. However `cbindgen` gives us the
-option to expand macros, which can only be done through a nightly version of `rustc`.
+**Note that we require a nightly version of rustc just for this command.** This is because we use
+macros to generate some C-types and `cbindgen` cannot directly generate types through them. However
+`cbindgen` gives us the option to expand macros, which can only be done through a nightly version of
+`rustc`. **The crate itself can always be compiled by a stable version of `rustc`.**
