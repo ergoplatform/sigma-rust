@@ -3,7 +3,7 @@
 use crate::error::*;
 use crate::util::{const_ptr_as_ref, mut_ptr_as_mut};
 
-pub struct Collection<T>(Vec<T>);
+pub struct Collection<T>(pub Vec<T>);
 pub type CollectionPtr<T> = *mut Collection<T>;
 pub type ConstCollectionPtr<T> = *const Collection<T>;
 

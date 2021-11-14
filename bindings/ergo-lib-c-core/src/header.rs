@@ -3,8 +3,9 @@
 use crate::{block_header::ConstBlockHeaderPtr, error::Error, util::const_ptr_as_ref};
 
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct PreHeader(ergo_lib::ergotree_ir::chain::preheader::PreHeader);
+pub struct PreHeader(pub ergo_lib::ergotree_ir::chain::preheader::PreHeader);
 pub type PreHeaderPtr = *mut PreHeader;
+pub type ConstPreHeaderPtr = *const PreHeader;
 
 pub unsafe fn preheader_from_block_header(
     block_header: ConstBlockHeaderPtr,

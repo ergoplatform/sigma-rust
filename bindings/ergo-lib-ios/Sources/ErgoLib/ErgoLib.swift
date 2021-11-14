@@ -59,28 +59,6 @@ class Transaction {
     }
 }
 
-class ErgoStateContext {
-    internal var pointer: ErgoStateContextPtr
-
-    init(withJson json: String) throws {
-        self.pointer = try ErgoStateContext.fromJson(json: json)
-    }
-
-    private static func fromJson(json: String) throws -> ErgoStateContextPtr {
-        var ergoStateContextPtr: ErgoStateContextPtr?
-        let error = json.withCString { cs in
-            ergo_wallet_ergo_state_context_from_json(cs, &ergoStateContextPtr)
-        }
-        try checkError(error)
-        return ergoStateContextPtr!
-    }
-
-    deinit {
-        ergo_wallet_ergo_state_context_delete(self.pointer)
-    }
-}
-
-
 class ErgoBoxCandidate {
     internal var pointer: ErgoBoxCandidatePtr
 

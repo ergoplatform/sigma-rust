@@ -28,7 +28,8 @@ use ergo_lib_c_core::{
         collection_add, collection_delete, collection_get, collection_len, collection_new,
         CollectionPtr, ConstCollectionPtr,
     },
-    header::{preheader_delete, preheader_from_block_header, PreHeaderPtr},
+    ergo_state_ctx::{ergo_state_context_delete, ergo_state_context_new, ErgoStateContextPtr},
+    header::{preheader_delete, preheader_from_block_header, ConstPreHeaderPtr, PreHeaderPtr},
 };
 pub use ergo_lib_c_core::{
     address::{Address, AddressTypePrefix, NetworkPrefix},
@@ -40,24 +41,6 @@ use std::{
 };
 
 pub type ErrorPtr = *mut Error;
-
-pub struct ErgoStateContext(ergo_lib::chain::ergo_state_context::ErgoStateContext);
-pub type ErgoStateContextPtr = *mut ErgoStateContext;
-
-#[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_ergo_state_context_from_json(
-    _json_str: *const c_char,
-    _ergo_state_context_out: *mut ErgoStateContextPtr,
-) -> ErrorPtr {
-    todo!()
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_ergo_state_context_delete(
-    _ergo_state_context: ErgoStateContextPtr,
-) -> ErrorPtr {
-    todo!()
-}
 
 pub struct ErgoBoxCandidate(chain::ergo_box::ErgoBoxCandidate);
 pub type ErgoBoxCandidatePtr = *mut ErgoBoxCandidate;
@@ -191,6 +174,27 @@ pub unsafe extern "C" fn ergo_wallet_preheader_from_block_header(
 #[no_mangle]
 pub extern "C" fn ergo_wallet_preheader_delete(header: PreHeaderPtr) {
     preheader_delete(header)
+}
+
+// -------------------------------------------------------------------------------------------------
+// ErgoStateContext functions ----------------------------------------------------------------------
+// -------------------------------------------------------------------------------------------------
+
+#[no_mangle]
+pub unsafe extern "C" fn ergo_wallet_ergo_state_context_new(
+    pre_header_ptr: ConstPreHeaderPtr,
+    headers: ConstBlockHeadersPtr,
+    ergo_state_context_out: *mut ErgoStateContextPtr,
+) -> ErrorPtr {
+    let res = ergo_state_context_new(pre_header_ptr, headers, ergo_state_context_out);
+    Error::c_api_from(res)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ergo_wallet_ergo_state_context_delete(
+    ergo_state_context: ErgoStateContextPtr,
+) {
+    ergo_state_context_delete(ergo_state_context)
 }
 
 pub struct UnspentBoxes(Vec<chain::ergo_box::ErgoBoxCandidate>);
