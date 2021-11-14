@@ -17,7 +17,7 @@ let package = Package(
         .systemLibrary(name: "ErgoLibC"),
         .target(
             name: "ErgoLib",
-            dependencies: ["ErgoLibC"]
+            dependencies: ["ErgoLibC", "SwiftyJSON"]
         ),
         .testTarget(name: "ErgoLibTests", dependencies: ["ErgoLib"])
     ]

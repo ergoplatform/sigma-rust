@@ -3,8 +3,8 @@ import XCTest
 @testable import ErgoLibC
 
 final class HeaderTests: XCTestCase {
-    func testHeaders() throws {
-        let json = """
+    func jsonHeaderExample() -> String {
+        return """
         {
         "extensionId": "d16f25b14457186df4c5f6355579cc769261ce1aebc8209949ca6feadbac5a3f",
         "difficulty": "626412390187008",
@@ -30,6 +30,10 @@ final class HeaderTests: XCTestCase {
         "parentId": "6481752bace5fa5acba5d5ef7124d48826664742d46c974c98a2d60ace229a34"
         }
         """
+    }
+    
+    func testBlockHeaders() throws {
+        let json = jsonHeaderExample()
         let blockHeader = try BlockHeader(withJson: json)
         XCTAssertNoThrow(try PreHeader(withBlockHeader: blockHeader))
         XCTAssertThrowsError(try BlockHeader(withJson: ""))
@@ -38,5 +42,12 @@ final class HeaderTests: XCTestCase {
             XCTAssertNoThrow(try headers.add(blockHeader: blockHeader ))
         }
         XCTAssertEqual(try headers.len(), 10)
+    }
+    
+    func testBlockHeadersFromJSON() throws {
+        let count = 20
+        let json = Array(repeating: jsonHeaderExample(), count: count)
+        let headers = try BlockHeaders(fromJSON: json)
+        XCTAssertEqual(try headers.len(), UInt(count))
     }
 }

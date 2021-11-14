@@ -1,5 +1,6 @@
 import Foundation
 import ErgoLibC
+import SwiftyJSON
 
 class BlockHeader {
     internal var pointer: BlockHeaderPtr
@@ -30,10 +31,27 @@ class BlockHeaders {
     internal var pointer: BlockHeadersPtr
     
     init() throws {
+        self.pointer = try BlockHeaders.initEmpty()
+    }
+    
+    init(fromJSON: Any) throws {
+        let json = JSON(fromJSON)
+        if let arr = json.array {
+            let headers = try arr.map{try BlockHeader(withJson: $0.stringValue)}
+            self.pointer = try BlockHeaders.initEmpty()
+            for header in headers {
+                try self.add(blockHeader: header)
+            }
+        } else {
+            throw WalletError.walletCError(reason: "BlockHeaders.init(fromJSON): expected [JSON]")
+        }
+    }
+    
+    private static func initEmpty() throws -> BlockHeaderPtr {
         var headersPtr: BlockHeadersPtr?
         let error = ergo_wallet_block_headers_new(&headersPtr)
         try checkError(error)
-        self.pointer = headersPtr!
+        return headersPtr!
     }
     
     func len() throws -> UInt {
