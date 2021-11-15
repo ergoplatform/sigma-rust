@@ -61,6 +61,30 @@ pub struct Header {
     pub votes: Votes,
 }
 
+impl Header {
+    /// Dummy instance intended for tests where actual values are not used
+    pub fn dummy() -> Self {
+        let empty_digest = Digest32::zero();
+        Header {
+            version: 1,
+            id: BlockId(empty_digest.clone()),
+            parent_id: BlockId(empty_digest.clone()),
+            ad_proofs_root: empty_digest.clone(),
+            state_root: ADDigest::zero(),
+            transaction_root: empty_digest.clone(),
+            timestamp: 0,
+            n_bits: 0,
+            height: 0,
+            extension_root: empty_digest,
+            miner_pk: dlog_group::generator().into(),
+            pow_onetime_pk: dlog_group::generator().into(),
+            nonce: Vec::new(),
+            pow_distance: BigInt::default(),
+            votes: Votes([0u8; 3]),
+        }
+    }
+}
+
 impl From<Header> for PreHeader {
     fn from(bh: Header) -> Self {
         PreHeader {

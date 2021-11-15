@@ -11,6 +11,10 @@ use crate::{
     transaction::UnsignedTransaction,
 };
 
+/// TransactionHintsBag
+#[wasm_bindgen]
+pub struct TransactionHintsBag(ergo_lib::wallet::multi_sig::TransactionHintsBag);
+
 /// A collection of secret keys. This simplified signing by matching the secret keys to the correct inputs automatically.
 #[wasm_bindgen]
 pub struct Wallet(ergo_lib::wallet::Wallet);
@@ -40,6 +44,7 @@ impl Wallet {
         tx: &UnsignedTransaction,
         boxes_to_spend: &ErgoBoxes,
         data_boxes: &ErgoBoxes,
+        tx_hints: &TransactionHintsBag,
     ) -> Result<Transaction, JsValue> {
         let boxes_to_spend = TxIoVec::from_vec(boxes_to_spend.clone().into()).map_err(to_js)?;
         let data_boxes = {

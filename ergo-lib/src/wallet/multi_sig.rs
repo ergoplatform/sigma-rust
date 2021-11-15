@@ -30,38 +30,57 @@ pub struct TransactionHintsBag {
 }
 
 impl TransactionHintsBag {
+
+    pub fn empty() -> Self {
+        TransactionHintsBag { secret_hints: HashMap::new(), public_hints: HashMap::new() }
+    }
+
     pub fn replace_hints_for_input(&mut self, index: usize, hints_bag: HintsBag) {
         let public: Vec<Hint> = hints_bag.hints.clone().into_iter().filter(|hint| {
-            if let Hint::CommitmentHint(CommitmentHint::RealCommitment(comm)) = hint {
+            if let Hint::CommitmentHint(_) = hint {
                 true
             } else {
                 false
             }
         }).collect();
         let secret: Vec<Hint> = hints_bag.hints.clone().into_iter().filter(|hint| {
-            if let Hint::CommitmentHint(CommitmentHint::OwnCommitment(comm)) = hint {
+            if let Hint::SecretProven(_) = hint {
                 true
             } else {
                 false
             }
         }).collect();
+
         self.secret_hints.insert(index, HintsBag { hints: secret });
         self.public_hints.insert(index, HintsBag { hints: public });
     }
     pub fn add_hints_for_input(&mut self, index: usize, hints_bag: HintsBag) {
         let mut public: Vec<Hint> = hints_bag.hints.clone().into_iter().filter(|hint| {
-            if let Hint::CommitmentHint(CommitmentHint::RealCommitment(comm)) = hint {
+            if let Hint::CommitmentHint(_) = hint {
                 true
             } else {
                 false
             }
+            // if let Hint::CommitmentHint(CommitmentHint::RealCommitment(comm)) = hint {
+            //     true
+            // }
+            // else if let Hint::CommitmentHint(CommitmentHint::SimulatedCommitment(comm)) = hint{
+            //     true
+            // } else {
+            //     false
+            // }
         }).collect();
         let mut secret: Vec<Hint> = hints_bag.hints.clone().into_iter().filter(|hint| {
-            if let Hint::CommitmentHint(CommitmentHint::OwnCommitment(comm)) = hint {
+            if let Hint::SecretProven(_) = hint {
                 true
             } else {
                 false
             }
+            // if let Hint::CommitmentHint(CommitmentHint::OwnCommitment(comm)) = hint {
+            //     true
+            // } else {
+            //     false
+            // }
         }).collect();
         let mut secret_bag = HintsBag::empty();
         let mut public_bag = HintsBag::empty();
@@ -347,7 +366,7 @@ mod tests{
     use crate::chain::transaction::{Transaction, TxId};
     use crate::ergotree_interpreter::eval::context::Context;
     use crate::ergotree_interpreter::eval::env::Env;
-    use crate::ergotree_interpreter::eval::reduce_to_crypto;
+    use crate::ergotree_interpreter::eval::{reduce_to_crypto, ReductionResult};
     use crate::ergotree_interpreter::sigma_protocol::prover::{ProofBytes, Prover, TestProver};
     use crate::ergotree_ir::chain::ergo_box::box_value::BoxValue;
     use crate::ergotree_ir::chain::ergo_box::{ErgoBox, NonMandatoryRegisters};
@@ -359,9 +378,20 @@ mod tests{
     use crate::ergotree_ir::sigma_protocol::dlog_group;
     use crate::ergotree_ir::sigma_protocol::sigma_boolean::cand::Cand;
     use k256::Scalar;
+    use ergotree_ir::chain::block_id::BlockId;
+    use ergotree_ir::sigma_protocol::dlog_group::EcPoint;
+    use crate::chain::json::hints::OwnCommitmentJson;
+    use crate::chain::json::transaction::TransactionJson;
+    use crate::chain::transaction::prover_result::ProverResult;
+    use crate::chain::transaction::unsigned::UnsignedTransaction;
     use crate::ergotree_interpreter::sigma_protocol::verifier::{TestVerifier, Verifier};
+    use crate::ergotree_ir::chain::digest32::Digest32;
+    use crate::ergotree_ir::chain::header::Header;
+    use crate::ergotree_ir::chain::preheader::PreHeader;
+    use crate::ergotree_ir::chain::votes::Votes;
     use crate::ergotree_ir::mir::expr::Expr;
     use crate::ergotree_ir::mir::sigma_and::SigmaAnd;
+    use crate::wallet::signing::sign_transaction_multi;
 
     #[test]
     fn extract_hint(){
@@ -530,32 +560,29 @@ mod tests{
         let cand=reduce_to_crypto(&expr,&Env::empty(),ctx.clone()).unwrap().sigma_prop;
         let mut generate_for: Vec<SigmaBoolean> = Vec::new();
         generate_for.push(SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(pk2.clone())));
-        // let cand = Cand::normalized(vec![pk1.clone().into(), pk2.clone().into()].try_into().unwrap());
         let hints_from_bob:HintsBag=generate_commitments_for(cand.clone(),&generate_for);
         let bag1=hints_from_bob.real_commitments().clone();
         let own=hints_from_bob.own_commitments();
         let test:OwnCommitment=own.get(0).unwrap().clone();
-        println!("own commitment randomnesss is {}",test.secret_randomness.truncate_to_u32());
         let message = vec![0u8; 100];
+
+
         let mut bag_a =HintsBag{hints:vec![]};
         bag_a.add_hint(Hint::CommitmentHint(CommitmentHint::RealCommitment(bag1.get(0).unwrap().clone())));
-        println!("{}",bag_a.hints.len());
+
 
         let proof1=prover1.prove(&tree_and,&Env::empty(),ctx.clone(),message.as_slice(),&bag_a).unwrap();
         let proof:Vec<u8>=Vec::from(proof1.proof.clone());
         let mut real_proposition:Vec<SigmaBoolean>=Vec::new();
         let mut simulated_proposition:Vec<SigmaBoolean>=Vec::new();
         real_proposition.push(SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(pk1.clone())));
-        // real_proposition.push(SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(pk2.clone())));
         let mut bag_b=bag_for_multi_sig(cand.clone(),&real_proposition,&simulated_proposition,&proof);
         bag_b.add_hint(Hint::CommitmentHint(CommitmentHint::OwnCommitment(own.get(0).unwrap().clone())));
-        println!("prover 2");
-        // let proof2=prover2.generate_proof(cand.clone(),message.as_slice(),&bag_b).unwrap();
         let proof2=prover2.prove(&tree_and,&Env::empty(),ctx.clone(),message.as_slice(),&bag_b).unwrap();
         let proof_byte:ProofBytes=(proof2.proof.clone());
         let verifier = TestVerifier;
         let test:Vec<u8>=Vec::from(proof2.proof.clone());
-        // println!("{}",test[0]);
+
 
         assert_eq!(verifier.verify(&tree_and,
                         &Env::empty(),
@@ -570,4 +597,171 @@ mod tests{
 
 
     }
+
+    #[test]
+    fn multi_sig(){
+        let unsigend=r#"
+           {
+          "inputs": [
+            {
+              "boxId": "bd85fe13b44d9e928a784f850c911d8b754196b9b8331255e79caf51040428d3",
+              "extension": {}
+            }
+          ],
+          "dataInputs": [],
+          "outputs": [
+            {
+              "value": 42900000,
+              "ergoTree": "100208cd02a65551523e09530bc8de55d426ff60aace7388cef08f5477c8726713f68c0e7808cd039c8404d33f85dd4012e4f3d0719951eeea0015b13b940d67d4990e13de28b154ea0273007301",
+              "assets": null,
+              "additionalRegisters": {},
+              "creationHeight": 0
+            },
+            {
+              "value": 1100000,
+              "ergoTree": "1005040004000e36100204a00b08cd0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798ea02d192a39a8cc7a701730073011001020402d19683030193a38cc7b2a57300000193c2b2a57301007473027303830108cdeeac93b1a57304",
+              "assets": null,
+              "additionalRegisters": {},
+              "creationHeight": 0
+            }
+          ]
+        }
+    "#;
+        let tx: UnsignedTransaction = serde_json::from_str(unsigend).unwrap();
+        let value: BoxValue = BoxValue::new(44000000).unwrap();
+        let bytes = Base16DecodedBytes::try_from("100208cd02a65551523e09530bc8de55d426ff60aace7388cef08f5477c8726713f68c0e7808cd039c8404d33f85dd4012e4f3d0719951eeea0015b13b940d67d4990e13de28b154ea0273007301").unwrap();
+        let tree: ErgoTree = ErgoTree::sigma_parse_bytes(&bytes.0).unwrap();
+        let decoded = hex::decode("7c340026267640f32d58c64c92c949428505ddce3f89c120614fbe4bd007fca9").expect("Decoding failed");
+        let txiddigest:Digest32=Digest32::from(<[u8; 32]>::try_from(decoded.as_slice()).unwrap());
+        let txid:TxId=TxId(txiddigest);
+        let input: ErgoBox = ErgoBox::new(value, tree.clone(), None, NonMandatoryRegisters::empty(), 79766, txid, 0).unwrap();
+        let mut inputvec = Vec::new();
+        inputvec.push(input);
+        let input_boxes: TxIoVec<ErgoBox> = TxIoVec::from_vec(inputvec).unwrap();
+        let transactionctx: TransactionContext = TransactionContext::new(tx, input_boxes, None).unwrap();
+        let propo = tree.proposition().unwrap();
+
+        let parent_decoded = hex::decode("c77bdf0705ab118d77cebcdc98a3e8f673b3f4d08fd017e14f194fe85f91bb3b").expect("Decoding failed");
+        let parentid:Digest32=Digest32::from(<[u8; 32]>::try_from(parent_decoded.as_slice()).unwrap());
+
+        let minerpk=EcPoint::from_base16_str("02c968d8d8c6eafb8f4682c6959a7b2073ae2dfae02eb20a3be82e4b497d5e6c53".to_string()).unwrap();
+        let pre_header:PreHeader=PreHeader{
+            version:2,
+            parent_id:BlockId(parentid),
+            timestamp:1636835521142,
+            n_bits:83973853,
+            height:80084,
+            miner_pk:minerpk.into(),
+            votes:Votes([0u8; 3]),
+        };
+
+
+
+        let ctx:ErgoStateContext=ErgoStateContext{pre_header,headers:vec![Header::dummy(); 10].try_into().expect("error")};
+
+
+        // let ctx: ErgoStateContext = ErgoStateContext::dummy();
+        let reduced_tx: ReducedTransaction = reduce_tx(transactionctx.clone(), &ctx).unwrap();
+        let secret1:DlogProverInput=DlogProverInput::from_base16_str("49cca0bf75664a8cd35ade351486d4e926744552aafff4bc797ccce968f4d78a".to_string()).unwrap();
+        let secret2:DlogProverInput=DlogProverInput::from_base16_str("77d670184af0b5f0f257f98afc8067f572283f28976d1413bfe781fe7b95e949".to_string()).unwrap();
+        let addressencoder = AddressEncoder::new(NetworkPrefix::Mainnet);
+        let address1: Address = addressencoder.parse_address_from_str("9fnKGv65AXT2AKahaRjczQ4eQvJbiiyNumPye3SXxxs2MZS7iRE").unwrap();
+        let address2:Address = addressencoder.parse_address_from_str("9hejg6bAkWWDVThFCdr47ATUXkiwhttDdZpSGHn6Zkn8BUoEP1t").unwrap();
+        let pk1=secret1.public_image();
+        let pk2=secret2.public_image();
+        let prover1= TestProver {
+            secrets: vec![PrivateInput::DlogProverInput(secret1)],
+        };
+        let prover2= TestProver {
+            secrets: vec![PrivateInput::DlogProverInput(secret2)],
+        };
+        let vecreduced_input: TxIoVec<ReducedInput> = reduced_tx.reduced_inputs();
+        let reducedinput: ReducedInput = (vecreduced_input.first()).clone();
+        let reductionresult: ReductionResult = reducedinput.reduction_result;
+        let sigmaprop: SigmaBoolean = reductionresult.sigma_prop;
+
+        let mut generate_for: Vec<SigmaBoolean> = Vec::new();
+        let bag = generate_commitments_for(sigmaprop.clone(), &generate_for);
+        generate_for.push(SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(pk2.clone())));
+        let hints_from_bob:HintsBag=generate_commitments_for(sigmaprop.clone(),&generate_for);
+        let decoded = hex::decode("7c340026267640f32d58c64c92c949428505ddce3f89c120614fbe4bd007fca9").expect("Decoding failed");
+        let txiddigest:Digest32=Digest32::from(<[u8; 32]>::try_from(decoded.as_slice()).unwrap());
+
+        let bag1=hints_from_bob.real_commitments().clone();
+        let own=hints_from_bob.own_commitments();
+
+        // let message = vec![0u8; 100];
+        let tx1 = transactionctx.spending_tx.clone();
+        let message= tx1.bytes_to_sign().unwrap();
+        let mut bag_a =HintsBag{hints:vec![]};
+        bag_a.add_hint(Hint::CommitmentHint(CommitmentHint::RealCommitment(bag1.get(0).unwrap().clone())));
+
+        // let res = sign_transaction_multi(prover1.as_ref(), tx_context.clone(), &force_any_val::<ErgoStateContext>());
+        // let signed_tx = res.unwrap();
+        let ctx1 = Rc::new(force_any_val::<Context>());
+        let mut transaction_bag1:TransactionHintsBag=TransactionHintsBag::empty();
+        transaction_bag1.add_hints_for_input(0,bag_a);
+        let test=sign_transaction_multi(&prover1,transaction_bag1,transactionctx.clone(),&ctx).unwrap();
+        let proof1=test.inputs.get(0).unwrap().spending_proof.clone();
+
+        // let proof1=prover1.prove(&tree,&Env::empty(),ctx1.clone(),message.as_slice(),&bag_a).unwrap();
+        let proof:Vec<u8>=Vec::from(proof1.proof.clone());
+
+        let mut real_proposition:Vec<SigmaBoolean>=Vec::new();
+        let mut simulated_proposition:Vec<SigmaBoolean>=Vec::new();
+        real_proposition.push(SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(pk1.clone())));
+        let mut bag_b=bag_for_multi_sig(sigmaprop.clone(),&real_proposition,&simulated_proposition,&proof);
+
+        bag_b.add_hint(Hint::CommitmentHint(CommitmentHint::OwnCommitment(own.get(0).unwrap().clone())));
+        println!("bag size is {}", bag_b.hints.len());
+        let mut transaction_bag:TransactionHintsBag=TransactionHintsBag::empty();
+        transaction_bag.add_hints_for_input(0,bag_b);
+        let test=sign_transaction_multi(&prover2,transaction_bag,transactionctx.clone(),&ctx).unwrap();
+
+        // let proof2=prover2.prove(&tree,&Env::empty(),ctx1.clone(),message.as_slice(),&bag_b).unwrap();
+        // let proof_byte:ProofBytes=(proof2.proof.clone());
+        // println!("{}",String::from(proof2.proof.clone()));
+        // let teesst:TransactionJson=TransactionJson::from(test.clone());
+        // println!("{}",serde_json::to_string(&test).unwrap());
+
+        let verifier = TestVerifier;
+        let proof_byte:ProofBytes=(test.inputs.get(0).unwrap().spending_proof.clone().proof.clone());
+
+
+        assert_eq!(verifier.verify(&tree,
+                                   &Env::empty(),
+                                   ctx1,
+                                   proof_byte.clone(),
+                                   message.as_slice())
+                       .unwrap().result,
+                   true);
+
+
+        // pub fn sign_transaction_multi(
+        //     prover: &dyn Prover,
+        //     tx_hints: TransactionHintsBag,
+        //     tx_context: TransactionContext,
+        //     state_context: &ErgoStateContext,
+        // )
+
+
+            let (r, a) = interactive_prover::first_message();
+            let owncmt=
+
+                    OwnCommitment {
+                        image: SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(pk1.clone())),
+                        secret_randomness: r,
+                        commitment: FirstProverMessage::FirstDlogProverMessage(
+                            a.clone()
+                        ),
+                        position: NodePosition::crypto_tree_prefix().clone(),
+                    }
+                ;
+        let json:OwnCommitmentJson=OwnCommitmentJson::from(owncmt);
+        println!("{}",serde_json::to_string(&json).unwrap());
+
+
+
+    }
+
 }

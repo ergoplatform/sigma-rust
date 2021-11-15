@@ -721,7 +721,7 @@ fn proving<P: Prover + ?Sized>(
                             {
                                 let oc=hints_bag.own_commitments().into_iter().find(|comm| comm.position == us.position);
                                 let mut z:Option<SecondDlogProverMessage>=None;
-                                if oc!=None {
+                                if oc.is_some() {
                                     z = Some(dlog_protocol::interactive_prover::second_message(
                                         priv_key,
                                         oc.unwrap().secret_randomness.clone(),

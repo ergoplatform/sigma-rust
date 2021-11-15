@@ -19,8 +19,25 @@ use wasm_bindgen::prelude::*;
 
 extern crate derive_more;
 use derive_more::{From, Into};
+// use ergo_lib::ergotree_interpreter::sigma_protocol::prover::hint::Hint;
 
 pub mod reduced;
+
+// #[wasm_bindgen]
+// pub struct Hint()
+
+// #[wasm_bindgen]
+// pub struct TransactionHintsBag(ergo_lib::wallet::multi_sig::TransactionHintsBag);
+//
+// impl TransactionHintsBag {
+//     /// empty TransactionHintsBag
+//     pub fn empty()->TransactionHintsBag{TransactionHintsBag(ergo_lib::wallet::multi_sig::TransactionHintsBag::empty())}
+//     //
+//     // pub fn add_hints_for_input(&mut self, index:usize, hints_bag:HintsBag){
+//     //
+//     // }
+// }
+
 
 /// Transaction id
 #[wasm_bindgen]

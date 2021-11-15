@@ -2,6 +2,7 @@
 
 pub(crate) mod context_extension;
 pub(crate) mod transaction;
+pub(crate) mod hints;
 
 use ergotree_interpreter::sigma_protocol::prover::ProofBytes;
 use serde::{Deserialize, Serialize};

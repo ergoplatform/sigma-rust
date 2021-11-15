@@ -161,6 +161,7 @@ pub fn sign_transaction(
     prover: &dyn Prover,
     tx_context: TransactionContext,
     state_context: &ErgoStateContext,
+    // tx_hints: &TransactionHintsBag,
 ) -> Result<Transaction, TxSigningError> {
     let tx = tx_context.spending_tx.clone();
     let message_to_sign = tx.bytes_to_sign()?;
@@ -171,13 +172,14 @@ pub fn sign_transaction(
             .find(|b| b.box_id() == input.box_id)
             .ok_or(TxSigningError::InputBoxNotFound(idx))?;
         let ctx = Rc::new(make_context(state_context, &tx_context, idx)?);
+        // let hints_bag:HintsBag=tx_hints.all_hints_for_input(idx);
         prover
             .prove(
                 &input_box.ergo_tree,
                 &Env::empty(),
                 ctx,
                 message_to_sign.as_slice(),
-                &HintsBag::empty(),
+                &HintsBag::empty(),// &hints_bag,
             )
             .map(|proof| Input::new(input.box_id.clone(), proof.into()))
             .map_err(|e| TxSigningError::ProverError(e, idx))
@@ -207,6 +209,7 @@ pub fn sign_transaction_multi(
             .ok_or(TxSigningError::InputBoxNotFound(idx))?;
         let ctx = Rc::new(make_context(state_context, &tx_context, idx)?);
         let hints_bag=tx_hints.all_hints_for_input(idx);
+        println!("-------------{}",hints_bag.hints.len());
         prover
             .prove(
                 &input_box.ergo_tree,
