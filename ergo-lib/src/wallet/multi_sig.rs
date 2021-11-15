@@ -379,6 +379,7 @@ mod tests{
     use crate::ergotree_ir::sigma_protocol::sigma_boolean::cand::Cand;
     use k256::Scalar;
     use ergotree_ir::chain::block_id::BlockId;
+    use ergotree_ir::chain::json::ergo_tree::serialize;
     use ergotree_ir::sigma_protocol::dlog_group::EcPoint;
     use crate::chain::json::hints::OwnCommitmentJson;
     use crate::chain::json::transaction::TransactionJson;
@@ -760,6 +761,11 @@ mod tests{
         let json:OwnCommitmentJson=OwnCommitmentJson::from(owncmt);
         println!("{}",serde_json::to_string(&json).unwrap());
 
+        // let reverse=r#"{"secret":"fe9f7dd9f194a7ff258b3be53fb73531a238f7a4aa45975b415647b0e4333f40","position":"0","a":"02e5361c9ff16077285322b231503401386212f28c19d09c6975ec6ab991035c77","image":"02a65551523e09530bc8de55d426ff60aace7388cef08f5477c8726713f68c0e78"}"#;
+        let reverse=serde_json::to_string(&json).unwrap();
+        let own_com_json:OwnCommitmentJson=serde_json::from_str(&reverse).unwrap();
+        let own_com:OwnCommitment=OwnCommitment::from(own_com_json);
+        println!("{}",hex::encode(own_com.secret_randomness.clone().to_bytes().as_slice()));
 
 
     }
