@@ -12,9 +12,11 @@
 
 #[macro_use]
 mod macros;
+mod secret_key;
 use ergo_lib::ergotree_ir::chain;
 use paste::paste;
 
+pub use crate::secret_key::*;
 use ergo_lib_c_core::{
     address::{
         address_delete, address_from_base58, address_from_mainnet, address_from_testnet,

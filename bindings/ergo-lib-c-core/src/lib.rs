@@ -15,6 +15,7 @@ pub mod block_header;
 pub mod collections;
 pub mod ergo_state_ctx;
 pub mod header;
+pub mod secret_key;
 mod util;
 pub use crate::error::*;
 mod error;
