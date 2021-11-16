@@ -12,35 +12,24 @@
 
 #[macro_use]
 mod macros;
+mod address;
+mod block_header;
+mod ergo_state_ctx;
+mod header;
 mod secret_key;
 use ergo_lib::ergotree_ir::chain;
-use paste::paste;
 
+pub use crate::address::*;
+pub use crate::block_header::*;
+pub use crate::ergo_state_ctx::*;
+pub use crate::header::*;
 pub use crate::secret_key::*;
-use ergo_lib_c_core::{
-    address::{
-        address_delete, address_from_base58, address_from_mainnet, address_from_testnet,
-        address_to_base58, address_type_prefix, AddressPtr, ConstAddressPtr,
-    },
-    block_header::{
-        block_header_delete, block_header_from_json, BlockHeader, BlockHeaderPtr,
-        ConstBlockHeaderPtr,
-    },
-    collections::{
-        collection_add, collection_delete, collection_get, collection_len, collection_new,
-        CollectionPtr, ConstCollectionPtr,
-    },
-    ergo_state_ctx::{ergo_state_context_delete, ergo_state_context_new, ErgoStateContextPtr},
-    header::{preheader_delete, preheader_from_block_header, ConstPreHeaderPtr, PreHeaderPtr},
-};
+use ergo_lib_c_core::{address::AddressPtr, ergo_state_ctx::ErgoStateContextPtr};
 pub use ergo_lib_c_core::{
     address::{Address, AddressTypePrefix, NetworkPrefix},
     Error,
 };
-use std::{
-    ffi::{CStr, CString},
-    os::raw::c_char,
-};
+use std::{ffi::CString, os::raw::c_char};
 
 pub type ErrorPtr = *mut Error;
 
@@ -62,141 +51,6 @@ pub extern "C" fn ergo_wallet_ergo_box_candidate_delete(
     _ergo_box_candidate: ErgoBoxCandidatePtr,
 ) -> ErrorPtr {
     todo!()
-}
-
-// -------------------------------------------------------------------------------------------------
-// Address functions -------------------------------------------------------------------------------
-// -------------------------------------------------------------------------------------------------
-
-#[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_address_from_testnet(
-    address_str: *const c_char,
-    address_out: *mut AddressPtr,
-) -> ErrorPtr {
-    let address = CStr::from_ptr(address_str).to_string_lossy();
-    let res = address_from_testnet(&address, address_out);
-    Error::c_api_from(res)
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_address_from_mainnet(
-    address_str: *const c_char,
-    address_out: *mut AddressPtr,
-) -> ErrorPtr {
-    let address = CStr::from_ptr(address_str).to_string_lossy();
-    let res = address_from_mainnet(&address, address_out);
-    Error::c_api_from(res)
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_address_from_base58(
-    address_str: *const c_char,
-    address_out: *mut AddressPtr,
-) -> ErrorPtr {
-    let address = CStr::from_ptr(address_str).to_string_lossy();
-    let res = address_from_base58(&address, address_out);
-    Error::c_api_from(res)
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_address_to_base58(
-    address: ConstAddressPtr,
-    network_prefix: NetworkPrefix,
-    _address_str: *mut *const c_char,
-) -> ErrorPtr {
-    let res = match address_to_base58(address, network_prefix) {
-        Ok(s) => {
-            *_address_str = CString::new(s).unwrap().into_raw();
-            Ok(())
-        }
-        Err(e) => Err(e),
-    };
-    Error::c_api_from(res)
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_address_type_prefix(
-    address: ConstAddressPtr,
-) -> ReturnNum<u8> {
-    match address_type_prefix(address) {
-        Ok(value) => ReturnNum {
-            value: value as u8,
-            error: std::ptr::null_mut(),
-        },
-        Err(e) => ReturnNum {
-            value: 0, // Just a dummy value
-            error: Error::c_api_from(Err(e)),
-        },
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn ergo_wallet_address_delete(address: AddressPtr) {
-    address_delete(address)
-}
-
-// -------------------------------------------------------------------------------------------------
-// BlockHeader functions ---------------------------------------------------------------------------
-// -------------------------------------------------------------------------------------------------
-
-#[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_block_header_from_json(
-    json_str: *const c_char,
-    block_header_out: *mut BlockHeaderPtr,
-) -> ErrorPtr {
-    let json = CStr::from_ptr(json_str).to_string_lossy();
-    let res = block_header_from_json(&json, block_header_out);
-    Error::c_api_from(res)
-}
-
-#[no_mangle]
-pub extern "C" fn ergo_wallet_block_header_delete(header: BlockHeaderPtr) {
-    block_header_delete(header)
-}
-
-// -------------------------------------------------------------------------------------------------
-// BlockHeaders functions --------------------------------------------------------------------------
-// -------------------------------------------------------------------------------------------------
-
-make_collection!(BlockHeaders, BlockHeader);
-
-// -------------------------------------------------------------------------------------------------
-// PreHeader functions -----------------------------------------------------------------------------
-// -------------------------------------------------------------------------------------------------
-
-#[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_preheader_from_block_header(
-    block_header: ConstBlockHeaderPtr,
-    preheader_out: *mut PreHeaderPtr,
-) -> ErrorPtr {
-    let res = preheader_from_block_header(block_header, preheader_out);
-    Error::c_api_from(res)
-}
-
-#[no_mangle]
-pub extern "C" fn ergo_wallet_preheader_delete(header: PreHeaderPtr) {
-    preheader_delete(header)
-}
-
-// -------------------------------------------------------------------------------------------------
-// ErgoStateContext functions ----------------------------------------------------------------------
-// -------------------------------------------------------------------------------------------------
-
-#[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_ergo_state_context_new(
-    pre_header_ptr: ConstPreHeaderPtr,
-    headers: ConstBlockHeadersPtr,
-    ergo_state_context_out: *mut ErgoStateContextPtr,
-) -> ErrorPtr {
-    let res = ergo_state_context_new(pre_header_ptr, headers, ergo_state_context_out);
-    Error::c_api_from(res)
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_ergo_state_context_delete(
-    ergo_state_context: ErgoStateContextPtr,
-) {
-    ergo_state_context_delete(ergo_state_context)
 }
 
 pub struct UnspentBoxes(Vec<chain::ergo_box::ErgoBoxCandidate>);
