@@ -7,10 +7,6 @@ use ergo_lib_c_core::{
         block_header_delete, block_header_from_json, BlockHeader, BlockHeaderPtr,
         ConstBlockHeaderPtr,
     },
-    collections::{
-        collection_add, collection_delete, collection_get, collection_len, collection_new,
-        CollectionPtr, ConstCollectionPtr,
-    },
     Error,
 };
 use std::{ffi::CStr, os::raw::c_char};

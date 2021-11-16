@@ -67,22 +67,22 @@ use paste::paste;
 macro_rules! make_collection {
     ($collection_type_name:ident, $item_type_name:ident) => {
         paste! {
-            pub type [<$collection_type_name Ptr>] = CollectionPtr<$item_type_name>;
-            pub type [<Const $collection_type_name Ptr>] = ConstCollectionPtr<$item_type_name>;
+            pub type [<$collection_type_name Ptr>] = ergo_lib_c_core::collections::CollectionPtr<$item_type_name>;
+            pub type [<Const $collection_type_name Ptr>] = ergo_lib_c_core::collections::ConstCollectionPtr<$item_type_name>;
 
             /// Create a new empty collection
             #[no_mangle]
             pub unsafe extern "C" fn [<ergo_wallet_ $collection_type_name:snake _new>](
                 collection_ptr_out: *mut [<$collection_type_name Ptr>],
             ) -> ErrorPtr {
-                let res = collection_new(collection_ptr_out);
+                let res = ergo_lib_c_core::collections::collection_new(collection_ptr_out);
                 Error::c_api_from(res)
             }
 
             /// Delete an existing collection
             #[no_mangle]
             pub unsafe extern "C" fn [<ergo_wallet_ $collection_type_name:snake _delete>](ptr_out: [<$collection_type_name Ptr>]) {
-                collection_delete(ptr_out)
+                ergo_lib_c_core::collections::collection_delete(ptr_out)
             }
 
             /// Returns length of an existing collection
@@ -90,7 +90,7 @@ macro_rules! make_collection {
             pub unsafe extern "C" fn [<ergo_wallet_ $collection_type_name:snake _len>](
                 collection_ptr: [<Const $collection_type_name Ptr>],
             ) -> ReturnNum<usize> {
-                match collection_len(collection_ptr) {
+                match ergo_lib_c_core::collections::collection_len(collection_ptr) {
                     Ok(value) => ReturnNum {
                         value: value as usize,
                         error: std::ptr::null_mut(),
@@ -109,7 +109,7 @@ macro_rules! make_collection {
                 index: usize,
                 element_ptr_out: *mut [<$item_type_name Ptr>],
             ) -> ErrorPtr {
-                match collection_get(collection_ptr, index) {
+                match ergo_lib_c_core::collections::collection_get(collection_ptr, index) {
                     Ok(Some(bh)) => {
                         *element_ptr_out = Box::into_raw(Box::new(bh));
                         Error::c_api_from(Ok(()))
@@ -125,7 +125,7 @@ macro_rules! make_collection {
                 element_ptr: [<Const $item_type_name Ptr>],
                 collection_ptr_out: [<$collection_type_name Ptr>],
             ) -> ErrorPtr {
-                Error::c_api_from(collection_add(collection_ptr_out, element_ptr))
+                Error::c_api_from(ergo_lib_c_core::collections::collection_add(collection_ptr_out, element_ptr))
             }
 
         }
