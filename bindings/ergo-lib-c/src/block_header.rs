@@ -1,5 +1,4 @@
 //! Block header
-use crate::ReturnNum;
 use paste::paste;
 
 use ergo_lib_c_core::{

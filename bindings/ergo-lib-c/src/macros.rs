@@ -89,13 +89,13 @@ macro_rules! make_collection {
             #[no_mangle]
             pub unsafe extern "C" fn [<ergo_wallet_ $collection_type_name:snake _len>](
                 collection_ptr: [<Const $collection_type_name Ptr>],
-            ) -> ReturnNum<usize> {
+            ) -> crate::ReturnNum<usize> {
                 match ergo_lib_c_core::collections::collection_len(collection_ptr) {
-                    Ok(value) => ReturnNum {
+                    Ok(value) => crate::ReturnNum {
                         value: value as usize,
                         error: std::ptr::null_mut(),
                     },
-                    Err(e) => ReturnNum {
+                    Err(e) => crate::ReturnNum {
                         value: 0, // Just a dummy value
                         error: Error::c_api_from(Err(e)),
                     },

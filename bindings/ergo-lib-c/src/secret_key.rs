@@ -1,4 +1,5 @@
 use ergo_lib_c_core::{secret_key::*, Error};
+use paste::paste;
 
 use crate::ErrorPtr;
 
@@ -33,3 +34,5 @@ pub unsafe extern "C" fn ergo_wallet_secret_key_to_bytes(
 pub extern "C" fn ergo_wallet_secret_key_delete(secret_key_ptr: SecretKeyPtr) {
     secret_key_delete(secret_key_ptr)
 }
+
+make_collection!(SecretKeys, SecretKey);
