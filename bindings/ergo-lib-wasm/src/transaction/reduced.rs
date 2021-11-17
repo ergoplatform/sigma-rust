@@ -63,6 +63,11 @@ impl ReducedTransaction {
             .map(ReducedTransaction)
             .map_err(to_js)
     }
+
+    /// Returns the unsigned transation
+    pub fn unsigned_tx(&self) -> UnsignedTransaction {
+        self.0.unsigned_tx.clone().into()
+    }
 }
 
 impl From<ergo_lib::chain::transaction::reduced::ReducedTransaction> for ReducedTransaction {
