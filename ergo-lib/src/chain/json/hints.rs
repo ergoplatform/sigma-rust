@@ -1,3 +1,5 @@
+use std::convert::TryFrom;
+use std::fmt::Error;
 use k256::{FieldBytes, Scalar};
 use serde::{Deserialize, Serialize};
 use crate::ergotree_interpreter::sigma_protocol::prover::hint::{CommitmentHint, OwnCommitment, SimulatedCommitment};
@@ -55,6 +57,21 @@ pub struct CommitmentHintJson{
     pub secret:Option<String>,
 }
 
+impl CommitmentHintJson{
+    pub fn image(&self)->SigmaBoolean{
+        SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(OtherProveDlog::from(EcPoint::from_base16_str(self.pubkey.h.clone()).unwrap())))
+    }
+
+    pub fn position(&self)->NodePosition{
+        let position=str::replace(self.position.clone().as_ref(),"-","");
+        NodePosition{positions:position.chars().map(|chr| chr.to_digit(10).unwrap() as usize).collect()}
+    }
+
+    pub fn commitment(&self)->FirstProverMessage{
+        FirstProverMessage::FirstDlogProverMessage(FirstDlogProverMessage::from(EcPoint::from_base16_str(self.a.clone()).unwrap()))
+    }
+}
+
 // todo trait should be implemented to avoid from duplicated code
 impl From<CommitmentHint> for CommitmentHintJson{
     fn from(v:CommitmentHint) -> Self{
@@ -100,6 +117,45 @@ impl From<CommitmentHint> for CommitmentHintJson{
             proof_type,
             a:a.unwrap(),
             secret,
+        }
+    }
+}
+
+impl TryFrom<CommitmentHintJson> for CommitmentHint{
+    type Error = &'static str;
+
+    fn try_from(v:CommitmentHintJson)->Result<CommitmentHint,&'static str>{
+        match v.hint.clone().as_ref(){
+            "cmtWithSecret"=>{Ok(
+                CommitmentHint::OwnCommitment(OwnCommitment{
+                    secret_randomness:Scalar::from_bytes_reduced(hex::decode(v.secret.clone().unwrap()).unwrap().as_slice().into()),
+                    image:v.image(),
+                    position:v.position(),
+                    commitment:v.commitment(),
+
+                })
+            )}
+            "cmtReal"=>{Ok(
+                CommitmentHint::RealCommitment(
+                    RealCommitment{
+                        image:v.image(),
+                        position:v.position(),
+                        commitment:v.commitment(),
+                    }
+                )
+            )}
+            "cmtSimulated"=>{Ok(
+                CommitmentHint::SimulatedCommitment(
+                    SimulatedCommitment{
+                        image:v.image(),
+                        position:v.position(),
+                        commitment:v.commitment(),
+                    }
+                )
+            )}
+            _ => {
+                Err("invalid header length")
+            }
         }
     }
 }
@@ -175,6 +231,8 @@ impl From<SimulatedCommitmentJson> for SimulatedCommitment{
 }
 #[cfg(test)]
 mod tests{
+    use std::convert::TryFrom;
+    use std::fmt::Error;
     use ergotree_interpreter::sigma_protocol::prover::hint::CommitmentHint;
     use crate::chain::json::hints::{CommitmentHintJson, OwnCommitmentJson};
     use crate::ergotree_interpreter::sigma_protocol::dlog_protocol::interactive_prover;
@@ -225,6 +283,10 @@ mod tests{
 
         let json:CommitmentHintJson=CommitmentHintJson::from(CommitmentHint::OwnCommitment(own_commitment.clone()));
         println!("{}",serde_json::to_string(&json).unwrap());
+        let reverse=serde_json::to_string(&json).unwrap();
+        let own_com_json:CommitmentHintJson=serde_json::from_str(&reverse).unwrap();
+        let own_com=CommitmentHint::try_from(own_com_json);
+        assert_eq!(own_com.secret_randomness.clone(),own_commitment.secret_randomness.clone());
 
     }
 }
