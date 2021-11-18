@@ -124,7 +124,6 @@ impl Evaluable for Downcast {
 #[cfg(test)]
 mod tests {
     use ergotree_ir::mir::constant::Constant;
-    use sigma_test_util::force_any_val;
 
     use crate::eval::tests::{eval_out_wo_ctx, try_eval_out_wo_ctx};
 
