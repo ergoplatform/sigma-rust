@@ -37,7 +37,85 @@ pub mod reduced;
 //     //
 //     // }
 // }
+/// CommitmentHint JSON
+#[wasm_bindgen]
+pub struct CommitmentHint(ergo_lib::ergotree_interpreter::sigma_protocol::prover::hint::CommitmentHint);
 
+// #[wasm_bindgen]
+// impl From<CommitmentHint> for CommitmentHintJson{
+//     // From commitmentHint to CommitmentHintJson
+//     fn from(v: CommitmentHint) -> Self {
+//         CommitmentHintJson{ 0: {ergo_lib::chain::json::hints::CommitmentHintJson::from(v.0)} }
+//     }
+//
+// }
+//
+// #[wasm_bindgen]
+// impl From<CommitmentHintJson> for CommitmentHint{
+//     // From commitmentHint to CommitmentHintJson
+//     fn from(v: CommitmentHintJson) -> Self {
+//         CommitmentHint{ 0: {ergo_lib::ergotree_interpreter::sigma_protocol::prover::hint::CommitmentHint::try_from(v.0).unwrap()} }
+//     }
+//
+// }
+
+/// CommitmentHint JSON
+#[wasm_bindgen]
+pub struct CommitmentHintJson(ergo_lib::chain::json::hints::CommitmentHintJson);
+
+#[wasm_bindgen]
+impl CommitmentHintJson{
+    /// JSON representation as text (compatible with Ergo Node/Explorer API, numbers are encoded as numbers)
+    pub fn to_json(&self)->Result<String, JsValue>{
+        serde_json::to_string_pretty(&self.0.clone())
+                .map_err(|e| JsValue::from_str(&format!("{}", e)))
+    }
+
+    /// parse from JSON
+    pub fn from_json(json: &str) -> CommitmentHint {
+        let commitment_hint_json=serde_json::from_str(json).map(Self).map_err(to_js).unwrap();
+        CommitmentHint{
+            0: {ergo_lib::ergotree_interpreter::sigma_protocol::prover::hint::CommitmentHint::try_from(
+                commitment_hint_json.0
+            )
+                .unwrap()
+            }
+        }
+    }
+
+}
+/// HintsBag
+#[wasm_bindgen]
+pub struct HintsBag(ergo_lib::ergotree_interpreter::sigma_protocol::prover::hint::HintsBag);
+
+impl HintsBag{
+    /// Empty HintsBag
+    pub fn empty() -> HintsBag{
+        HintsBag{0:ergo_lib::ergotree_interpreter::sigma_protocol::prover::hint::HintsBag::empty()}
+    }
+
+    /// Add commitment hint to the bag
+    pub fn add_commitment(&mut self, hint:CommitmentHint){
+        self.0.add_hint(ergo_lib::ergotree_interpreter::sigma_protocol::prover::hint::Hint::CommitmentHint(hint.0.clone()));
+    }
+}
+
+/// TransactionHintsBag
+#[wasm_bindgen]
+pub struct TransactionHintsBag(ergo_lib::wallet::multi_sig::TransactionHintsBag);
+
+impl TransactionHintsBag{
+    /// Empty TransactionHintsBag
+    pub fn empty()->TransactionHintsBag{
+        TransactionHintsBag{0:ergo_lib::wallet::multi_sig::TransactionHintsBag::empty()}
+    }
+
+    /// Adding hints for input
+    pub fn add_hints_for_input(&mut self, index:usize, hints_bag:HintsBag){
+        self.0.add_hints_for_input(index,hints_bag.0);
+    }
+
+}
 
 /// Transaction id
 #[wasm_bindgen]

@@ -40,13 +40,13 @@ pub struct SimulatedCommitmentJson{
     pub a:String,
 }
 
-#[derive(Serialize,Deserialize)]
+#[derive(Serialize,Deserialize, Clone)]
 pub struct PublicKeyJson{
     pub op:i32,
     pub h:String,
 }
 
-#[derive(Serialize,Deserialize)]
+#[derive(Serialize,Deserialize, Clone)]
 pub struct CommitmentHintJson{
     pub hint:String,
     pub pubkey:PublicKeyJson,
@@ -194,7 +194,6 @@ impl From<SimulatedCommitment> for SimulatedCommitmentJson{
         }
     }
 }
-
 
 impl From<OwnCommitmentJson> for OwnCommitment{
     fn from(v:OwnCommitmentJson)->Self{
