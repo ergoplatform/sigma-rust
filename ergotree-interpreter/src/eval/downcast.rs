@@ -129,231 +129,258 @@ mod tests {
     use crate::eval::tests::{eval_out_wo_ctx, try_eval_out_wo_ctx};
 
     use super::*;
+    use proptest::prelude::*;
 
-    #[test]
-    fn to_bigint() {
-        let v_byte = force_any_val::<i8>();
-        let v_short = force_any_val::<i16>();
-        let v_int = force_any_val::<i32>();
-        let v_long = force_any_val::<i64>();
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(64))]
 
-        let c_byte: Constant = v_byte.into();
-        let c_short: Constant = v_short.into();
-        let c_int: Constant = v_int.into();
-        let c_long: Constant = v_long.into();
+        #[test]
+        fn to_bigint(v_byte in any::<i8>(), v_short in any::<i16>(), v_int in any::<i32>(), v_long in any::<i64>()) {
+            assert_eq!(
+                eval_out_wo_ctx::<BigInt256>(
+                    &Downcast::new(v_byte.into(), SType::SBigInt).unwrap().into()
+                ),
+                (v_byte as i64).into()
+            );
+            assert_eq!(
+                eval_out_wo_ctx::<BigInt256>(
+                    &Downcast::new(v_short.into(), SType::SBigInt)
+                        .unwrap()
+                        .into()
+                ),
+                (v_short as i64).into()
+            );
+            assert_eq!(
+                eval_out_wo_ctx::<BigInt256>(
+                    &Downcast::new(v_int.into(), SType::SBigInt).unwrap().into()
+                ),
+                (v_int as i64).into()
+            );
+            assert_eq!(
+                eval_out_wo_ctx::<BigInt256>(
+                    &Downcast::new(v_long.into(), SType::SBigInt).unwrap().into()
+                ),
+                (v_long as i64).into()
+            );
+        }
+        #[test]
+        fn to_long(v_byte in any::<i8>(), v_short in any::<i16>(), v_int in any::<i32>(), v_long in any::<i64>()) {
+            let c_byte: Constant = v_byte.into();
+            let c_short: Constant = v_short.into();
+            let c_int: Constant = v_int.into();
+            let c_long: Constant = v_long.into();
 
-        assert_eq!(
-            eval_out_wo_ctx::<BigInt256>(
-                &Downcast::new(c_byte.into(), SType::SBigInt).unwrap().into()
-            ),
-            (v_byte as i64).into()
-        );
-        assert_eq!(
-            eval_out_wo_ctx::<BigInt256>(
-                &Downcast::new(c_short.into(), SType::SBigInt)
+            assert_eq!(
+                eval_out_wo_ctx::<i64>(&Downcast::new(c_byte.into(), SType::SLong).unwrap().into()),
+                v_byte as i64
+            );
+            assert_eq!(
+                eval_out_wo_ctx::<i64>(&Downcast::new(c_short.into(), SType::SLong).unwrap().into()),
+                v_short as i64
+            );
+            assert_eq!(
+                eval_out_wo_ctx::<i64>(&Downcast::new(c_int.into(), SType::SLong).unwrap().into()),
+                v_int as i64
+            );
+            assert_eq!(
+                eval_out_wo_ctx::<i64>(&Downcast::new(c_long.into(), SType::SLong).unwrap().into()),
+                v_long as i64
+            );
+        }
+        #[test]
+        fn to_int(v_byte in any::<i8>(), v_short in any::<i16>(), v_int in any::<i32>()) {
+            let v_long = v_int as i64;
+            let v_long_oob = if v_long.is_positive() {
+                v_long + i32::MAX as i64 + 1
+            } else {
+                v_long + i32::MIN as i64 - 1
+            };
+
+            let c_byte: Constant = v_byte.into();
+            let c_short: Constant = v_short.into();
+            let c_int: Constant = v_int.into();
+            let c_long: Constant = v_long.into();
+            let c_long_oob: Constant = v_long_oob.into();
+
+            assert_eq!(
+                eval_out_wo_ctx::<i32>(&Downcast::new(c_byte.into(), SType::SInt).unwrap().into()),
+                v_byte as i32
+            );
+            assert_eq!(
+                eval_out_wo_ctx::<i32>(&Downcast::new(c_short.into(), SType::SInt).unwrap().into()),
+                v_short as i32
+            );
+            assert_eq!(
+                eval_out_wo_ctx::<i32>(&Downcast::new(c_int.into(), SType::SInt).unwrap().into()),
+                v_int as i32
+            );
+            assert_eq!(
+                eval_out_wo_ctx::<i32>(&Downcast::new(c_long.into(), SType::SInt).unwrap().into()),
+                v_long as i32
+            );
+            assert!(try_eval_out_wo_ctx::<i32>(
+                &Downcast::new(c_long_oob.into(), SType::SInt)
                     .unwrap()
                     .into()
-            ),
-            (v_short as i64).into()
-        );
-        assert_eq!(
-            eval_out_wo_ctx::<BigInt256>(
-                &Downcast::new(c_int.into(), SType::SBigInt).unwrap().into()
-            ),
-            (v_int as i64).into()
-        );
-        assert_eq!(
-            eval_out_wo_ctx::<BigInt256>(
-                &Downcast::new(c_long.into(), SType::SBigInt).unwrap().into()
-            ),
-            (v_long as i64).into()
-        );
-    }
+            )
+            .is_err())
+        }
 
-    #[test]
-    fn to_long() {
-        let v_byte = force_any_val::<i8>();
-        let v_short = force_any_val::<i16>();
-        let v_int = force_any_val::<i32>();
-        let v_long = force_any_val::<i64>();
+        #[test]
+        fn to_short(v_short in any::<i16>()) {
+            let v_int = v_short as i32;
+            let v_int_oob = if v_int.is_positive() {
+                v_int + i16::MAX as i32 + 1
+            } else {
+                v_int + i16::MIN as i32 - 1
+            };
+            let v_long = v_short as i64;
+            let v_long_oob = if v_long.is_positive() {
+                v_long + i16::MAX as i64
+            } else {
+                v_long + i16::MIN as i64 - 1
+            };
 
-        let c_byte: Constant = v_byte.into();
-        let c_short: Constant = v_short.into();
-        let c_int: Constant = v_int.into();
-        let c_long: Constant = v_long.into();
+            let c_short: Constant = v_short.into();
+            let c_int: Constant = v_int.into();
+            let c_int_oob: Constant = v_int_oob.into();
+            let c_long: Constant = v_long.into();
+            let c_long_oob: Constant = v_long_oob.into();
 
-        assert_eq!(
-            eval_out_wo_ctx::<i64>(&Downcast::new(c_byte.into(), SType::SLong).unwrap().into()),
-            v_byte as i64
-        );
-        assert_eq!(
-            eval_out_wo_ctx::<i64>(&Downcast::new(c_short.into(), SType::SLong).unwrap().into()),
-            v_short as i64
-        );
-        assert_eq!(
-            eval_out_wo_ctx::<i64>(&Downcast::new(c_int.into(), SType::SLong).unwrap().into()),
-            v_int as i64
-        );
-        assert_eq!(
-            eval_out_wo_ctx::<i64>(&Downcast::new(c_long.into(), SType::SLong).unwrap().into()),
-            v_long as i64
-        );
-    }
+            assert_eq!(
+                eval_out_wo_ctx::<i16>(&Downcast::new(c_short.into(), SType::SShort).unwrap().into()),
+                v_short as i16
+            );
+            assert_eq!(
+                eval_out_wo_ctx::<i16>(&Downcast::new(c_int.into(), SType::SShort).unwrap().into()),
+                v_int as i16
+            );
+            assert!(try_eval_out_wo_ctx::<i16>(
+                &Downcast::new(c_int_oob.into(), SType::SShort)
+                    .unwrap()
+                    .into()
+            )
+            .is_err());
 
-    #[test]
-    fn to_int() {
-        let v_byte = force_any_val::<i8>();
-        let v_short = force_any_val::<i16>();
-        let v_int = force_any_val::<i32>();
-        let v_long = v_int as i64;
-        let v_long_oob = if v_long.is_positive() {
-            v_long + i32::MAX as i64
-        } else {
-            v_long - i32::MAX as i64
-        };
+            assert_eq!(
+                eval_out_wo_ctx::<i16>(&Downcast::new(c_long.into(), SType::SShort).unwrap().into()),
+                v_long as i16
+            );
+            assert!(try_eval_out_wo_ctx::<i16>(
+                &Downcast::new(c_long_oob.into(), SType::SShort)
+                    .unwrap()
+                    .into()
+            )
+            .is_err());
+        }
+        #[test]
+        fn to_byte(v_byte in any::<i8>()) {
+            let v_short = v_byte as i16;
+            let v_short_oob = if v_short.is_positive() {
+                v_short + i8::MAX as i16 + 1
+            } else {
+                v_short + i8::MIN as i16 - 1
+            };
+            let v_int = v_byte as i32;
+            let v_int_oob = if v_int.is_positive() {
+                v_int + i8::MAX as i32
+            } else {
+                v_int + i8::MIN as i32 - 1
+            };
+            let v_long = v_byte as i64;
+            let v_long_oob = if v_long.is_positive() {
+                v_long + i8::MAX as i64
+            } else {
+                v_long + i8::MIN as i64 - 1
+            };
 
-        let c_byte: Constant = v_byte.into();
-        let c_short: Constant = v_short.into();
-        let c_int: Constant = v_int.into();
-        let c_long: Constant = v_long.into();
-        let c_long_oob: Constant = v_long_oob.into();
+            let c_byte: Constant = v_byte.into();
+            let c_short: Constant = v_short.into();
+            let c_short_oob: Constant = v_short_oob.into();
+            let c_int: Constant = v_int.into();
+            let c_int_oob: Constant = v_int_oob.into();
+            let c_long: Constant = v_long.into();
+            let c_long_oob: Constant = v_long_oob.into();
 
-        assert_eq!(
-            eval_out_wo_ctx::<i32>(&Downcast::new(c_byte.into(), SType::SInt).unwrap().into()),
-            v_byte as i32
-        );
-        assert_eq!(
-            eval_out_wo_ctx::<i32>(&Downcast::new(c_short.into(), SType::SInt).unwrap().into()),
-            v_short as i32
-        );
-        assert_eq!(
-            eval_out_wo_ctx::<i32>(&Downcast::new(c_int.into(), SType::SInt).unwrap().into()),
-            v_int as i32
-        );
-        assert_eq!(
-            eval_out_wo_ctx::<i32>(&Downcast::new(c_long.into(), SType::SInt).unwrap().into()),
-            v_long as i32
-        );
-        assert!(try_eval_out_wo_ctx::<i32>(
-            &Downcast::new(c_long_oob.into(), SType::SInt)
+            assert_eq!(
+                eval_out_wo_ctx::<i8>(&Downcast::new(c_byte.into(), SType::SByte).unwrap().into()),
+                v_byte
+            );
+            assert_eq!(
+                eval_out_wo_ctx::<i8>(&Downcast::new(c_short.into(), SType::SByte).unwrap().into()),
+                v_short as i8
+            );
+            assert!(try_eval_out_wo_ctx::<i8>(
+                &Downcast::new(c_short_oob.into(), SType::SByte)
                 .unwrap()
                 .into()
-        )
-        .is_err())
-    }
-
-    #[test]
-    fn to_short() {
-        let v_short = force_any_val::<i16>();
-        let v_int = v_short as i32;
-        let v_int_oob = if v_int.is_positive() {
-            v_int + i16::MAX as i32
-        } else {
-            v_int - i16::MAX as i32
-        };
-        let v_long = v_short as i64;
-        let v_long_oob = if v_long.is_positive() {
-            v_long + i16::MAX as i64
-        } else {
-            v_long - i16::MAX as i64
-        };
-
-        let c_short: Constant = v_short.into();
-        let c_int: Constant = v_int.into();
-        let c_int_oob: Constant = v_int_oob.into();
-        let c_long: Constant = v_long.into();
-        let c_long_oob: Constant = v_long_oob.into();
-
-        assert_eq!(
-            eval_out_wo_ctx::<i16>(&Downcast::new(c_short.into(), SType::SShort).unwrap().into()),
-            v_short as i16
-        );
-        assert_eq!(
-            eval_out_wo_ctx::<i16>(&Downcast::new(c_int.into(), SType::SShort).unwrap().into()),
-            v_int as i16
-        );
-        assert!(try_eval_out_wo_ctx::<i16>(
-            &Downcast::new(c_int_oob.into(), SType::SShort)
+            )
+            .is_err());
+            assert_eq!(
+                eval_out_wo_ctx::<i8>(&Downcast::new(c_int.into(), SType::SByte).unwrap().into()),
+                v_int as i8
+            );
+            assert!(try_eval_out_wo_ctx::<i8>(
+                &Downcast::new(c_int_oob.into(), SType::SByte)
+                    .unwrap()
+                    .into()
+            )
+            .is_err());
+            assert_eq!(
+                eval_out_wo_ctx::<i8>(&Downcast::new(c_long.into(), SType::SByte).unwrap().into()),
+                v_long as i8
+            );
+            assert!(try_eval_out_wo_ctx::<i8>(
+                &Downcast::new(c_long_oob.into(), SType::SByte)
+                    .unwrap()
+                    .into()
+            )
+            .is_err());
+        }
+        #[test]
+        fn test_overflow(v_short_oob in (i8::MAX as i16 + 1..i16::MAX).prop_union(i16::MIN..i8::MIN as i16),
+                         v_int_oob in (i16::MAX as i32 + 1..i32::MAX).prop_union(i32::MIN..i16::MIN as i32),
+                         v_long_oob in (i32::MAX as i64 + 1..i64::MAX).prop_union(i64::MIN..i32::MIN as i64)) {
+            let c_short_oob: Constant = v_short_oob.into();
+            let c_int_oob: Constant = v_int_oob.into();
+            let c_long_oob: Constant = v_long_oob.into();
+            assert!(try_eval_out_wo_ctx::<i8>(
+                &Downcast::new(c_short_oob.into(), SType::SByte)
                 .unwrap()
                 .into()
-        )
-        .is_err());
-
-        assert_eq!(
-            eval_out_wo_ctx::<i16>(&Downcast::new(c_long.into(), SType::SShort).unwrap().into()),
-            v_long as i16
-        );
-        assert!(try_eval_out_wo_ctx::<i16>(
-            &Downcast::new(c_long_oob.into(), SType::SShort)
+            )
+            .is_err());
+            assert!(try_eval_out_wo_ctx::<i8>(
+                &Downcast::new(c_int_oob.clone().into(), SType::SByte)
                 .unwrap()
                 .into()
-        )
-        .is_err());
-    }
-
-    #[test]
-    fn to_byte() {
-        let v_byte = force_any_val::<i8>();
-        let v_short = v_byte as i16;
-        let v_short_oob = if v_short.is_positive() {
-            v_short + i8::MAX as i16
-        } else {
-            v_short - i8::MAX as i16
-        };
-        let v_int = v_byte as i32;
-        let v_int_oob = if v_int.is_positive() {
-            v_int + i8::MAX as i32
-        } else {
-            v_int - i8::MAX as i32
-        };
-        let v_long = v_byte as i64;
-        let v_long_oob = if v_long.is_positive() {
-            v_long + i8::MAX as i64
-        } else {
-            v_long - i8::MAX as i64
-        };
-
-        let c_byte: Constant = v_byte.into();
-        let c_short: Constant = v_short.into();
-        let c_short_oob: Constant = v_short_oob.into();
-        let c_int: Constant = v_int.into();
-        let c_int_oob: Constant = v_int_oob.into();
-        let c_long: Constant = v_long.into();
-        let c_long_oob: Constant = v_long_oob.into();
-
-        assert_eq!(
-            eval_out_wo_ctx::<i8>(&Downcast::new(c_byte.into(), SType::SByte).unwrap().into()),
-            v_byte
-        );
-        assert_eq!(
-            eval_out_wo_ctx::<i8>(&Downcast::new(c_short.into(), SType::SByte).unwrap().into()),
-            v_short as i8
-        );
-        assert!(try_eval_out_wo_ctx::<i8>(
-            &Downcast::new(c_short_oob.into(), SType::SByte)
+            )
+            .is_err());
+            assert!(try_eval_out_wo_ctx::<i8>(
+                &Downcast::new(c_long_oob.clone().into(), SType::SByte)
                 .unwrap()
                 .into()
-        )
-        .is_err());
-        assert_eq!(
-            eval_out_wo_ctx::<i8>(&Downcast::new(c_int.into(), SType::SByte).unwrap().into()),
-            v_int as i8
-        );
-        assert!(try_eval_out_wo_ctx::<i8>(
-            &Downcast::new(c_int_oob.into(), SType::SByte)
+            )
+            .is_err());
+
+            assert!(try_eval_out_wo_ctx::<i16>(
+                &Downcast::new(c_int_oob.into(), SType::SByte)
                 .unwrap()
                 .into()
-        )
-        .is_err());
-        assert_eq!(
-            eval_out_wo_ctx::<i8>(&Downcast::new(c_long.into(), SType::SByte).unwrap().into()),
-            v_long as i8
-        );
-        assert!(try_eval_out_wo_ctx::<i8>(
-            &Downcast::new(c_long_oob.into(), SType::SByte)
+            )
+            .is_err());
+            assert!(try_eval_out_wo_ctx::<i16>(
+                &Downcast::new(c_long_oob.clone().into(), SType::SByte)
                 .unwrap()
                 .into()
-        )
-        .is_err());
+            )
+            .is_err());
+            assert!(try_eval_out_wo_ctx::<i32>(
+                &Downcast::new(c_long_oob.into(), SType::SByte)
+                .unwrap()
+                .into()
+            )
+            .is_err());
+        }
     }
 }
