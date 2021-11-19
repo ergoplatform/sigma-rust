@@ -1,6 +1,8 @@
 //! Ergo transaction
 
-use ergo_lib_c_core::{transaction::*, Error, ErrorPtr};
+use ergo_lib_c_core::{
+    collections::CollectionPtr, input::UnsignedInput, transaction::*, Error, ErrorPtr,
+};
 
 use std::{
     ffi::{CStr, CString},
@@ -21,6 +23,19 @@ pub unsafe extern "C" fn ergo_wallet_unsigned_tx_id(
         }
         Err(e) => Err(e),
     };
+    Error::c_api_from(res)
+}
+
+// Need to define this here because the generated code from the `make_collection!` macro invocation
+// doesn't yet exist.
+type UnsignedInputsPtr = CollectionPtr<UnsignedInput>;
+
+#[no_mangle]
+pub unsafe extern "C" fn ergo_wallet_unsigned_tx_inputs(
+    unsigned_tx_ptr: ConstUnsignedTransactionPtr,
+    unsigned_inputs_out: *mut UnsignedInputsPtr,
+) -> ErrorPtr {
+    let res = unsigned_tx_inputs(unsigned_tx_ptr, unsigned_inputs_out);
     Error::c_api_from(res)
 }
 

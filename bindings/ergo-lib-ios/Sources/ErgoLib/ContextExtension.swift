@@ -10,6 +10,10 @@ class ContextExtension {
         self.pointer = try ContextExtension.fromEmpty()
     }
     
+    init(withPtr ptr: ContextExtensionPtr) {
+        self.pointer = ptr
+    }
+    
     private static func fromEmpty() throws -> ContextExtensionPtr {
         var ptr: ContextExtensionPtr?
         let error = ergo_wallet_context_extension_empty(&ptr)

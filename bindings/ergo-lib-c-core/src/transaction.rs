@@ -3,6 +3,8 @@
 use ergo_lib::{chain, ergotree_ir::chain::base16_bytes::Base16EncodedBytes};
 
 use crate::{
+    collections::{Collection, CollectionPtr},
+    input::UnsignedInput,
     util::{const_ptr_as_ref, mut_ptr_as_mut},
     Error,
 };
@@ -18,6 +20,25 @@ pub unsafe fn unsigned_tx_id(
 ) -> Result<String, Error> {
     let unsigned_tx = const_ptr_as_ref(unsigned_tx_ptr, "unsigned_tx_ptr")?;
     Ok(Base16EncodedBytes::new(unsigned_tx.0.id().0 .0.as_ref()).into())
+}
+
+pub unsafe fn unsigned_tx_inputs(
+    unsigned_tx_ptr: ConstUnsignedTransactionPtr,
+    unsigned_inputs_out: *mut CollectionPtr<UnsignedInput>,
+) -> Result<(), Error> {
+    let unsigned_tx = const_ptr_as_ref(unsigned_tx_ptr, "unsigned_tx_ptr")?;
+    let unsigned_inputs_out = mut_ptr_as_mut(unsigned_inputs_out, "unsigned_inputs_out")?;
+    *unsigned_inputs_out = Box::into_raw(Box::new(Collection(
+        unsigned_tx
+            .0
+            .inputs
+            .as_vec()
+            .clone()
+            .into_iter()
+            .map(UnsignedInput)
+            .collect(),
+    )));
+    Ok(())
 }
 
 pub unsafe fn unsigned_tx_from_json(

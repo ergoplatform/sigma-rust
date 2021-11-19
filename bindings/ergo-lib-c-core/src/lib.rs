@@ -17,6 +17,7 @@ pub mod context_extension;
 pub mod ergo_box;
 pub mod ergo_state_ctx;
 pub mod header;
+pub mod input;
 pub mod secret_key;
 pub mod transaction;
 mod util;

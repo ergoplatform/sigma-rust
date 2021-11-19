@@ -5,7 +5,7 @@ use crate::{
 use ergo_lib::ergotree_interpreter::sigma_protocol::prover;
 
 #[derive(PartialEq, Debug, Clone)]
-pub struct ContextExtension(prover::ContextExtension);
+pub struct ContextExtension(pub prover::ContextExtension);
 pub type ContextExtensionPtr = *mut ContextExtension;
 pub type ConstContextExtensionPtr = *const ContextExtension;
 

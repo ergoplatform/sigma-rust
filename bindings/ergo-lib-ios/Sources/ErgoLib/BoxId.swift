@@ -10,6 +10,10 @@ class BoxId {
         self.pointer = try BoxId.fromString(str: str)
     }
     
+    init(withPtr ptr: BoxIdPtr) {
+        self.pointer = ptr
+    }
+    
     func toBytes() throws -> [UInt8] {
         var bytes = Array.init(repeating: UInt8(0), count: 32)
         let error = ergo_wallet_box_id_to_bytes(self.pointer, &bytes)

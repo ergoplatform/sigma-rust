@@ -27,7 +27,7 @@ use crate::{
 
 /// Box id (32-byte digest)
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct BoxId(chain::ergo_box::BoxId);
+pub struct BoxId(pub chain::ergo_box::BoxId);
 pub type BoxIdPtr = *mut BoxId;
 pub type ConstBoxIdPtr = *const BoxId;
 
