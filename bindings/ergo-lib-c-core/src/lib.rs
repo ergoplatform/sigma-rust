@@ -13,9 +13,12 @@
 pub mod address;
 pub mod block_header;
 pub mod collections;
+pub mod context_extension;
+pub mod ergo_box;
 pub mod ergo_state_ctx;
 pub mod header;
 pub mod secret_key;
+pub mod transaction;
 mod util;
 pub use crate::error::*;
 mod error;

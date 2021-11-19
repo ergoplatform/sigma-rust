@@ -14,16 +14,22 @@
 mod macros;
 mod address;
 mod block_header;
+mod context_extension;
+mod ergo_box;
 mod ergo_state_ctx;
 mod header;
 mod secret_key;
+mod transaction;
 use ergo_lib::ergotree_ir::chain;
 
 pub use crate::address::*;
 pub use crate::block_header::*;
+pub use crate::context_extension::*;
+pub use crate::ergo_box::*;
 pub use crate::ergo_state_ctx::*;
 pub use crate::header::*;
 pub use crate::secret_key::*;
+pub use crate::transaction::*;
 use ergo_lib_c_core::{address::AddressPtr, ergo_state_ctx::ErgoStateContextPtr};
 pub use ergo_lib_c_core::{
     address::{Address, AddressTypePrefix, NetworkPrefix},
@@ -171,6 +177,12 @@ pub struct ReturnNum<T: IntegerType> {
     error: ErrorPtr,
 }
 
+pub unsafe fn delete_ptr<T>(ptr: *mut T) {
+    if !ptr.is_null() {
+        let boxed = Box::from_raw(ptr);
+        std::mem::drop(boxed);
+    }
+}
 pub trait IntegerType {}
 
 impl IntegerType for u8 {}
