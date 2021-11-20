@@ -19,6 +19,7 @@ use wasm_bindgen::prelude::*;
 
 extern crate derive_more;
 use derive_more::{From, Into};
+// use crate::transaction::reduced::ReducedTransaction;
 // use ergo_lib::ergotree_interpreter::sigma_protocol::prover::hint::Hint;
 
 pub mod reduced;
@@ -84,10 +85,15 @@ impl CommitmentHintJson{
     }
 
 }
+// pub fn generate_commitment_from_reduced_transaction(reduced_transaction: ReducedTransaction, address:&str)->HintsBag{
+//     let sigma_prop=reduced_transaction.0.reduced_inputs().
+// }
+
 /// HintsBag
 #[wasm_bindgen]
-pub struct HintsBag(ergo_lib::ergotree_interpreter::sigma_protocol::prover::hint::HintsBag);
+pub struct HintsBag(pub(crate)ergo_lib::ergotree_interpreter::sigma_protocol::prover::hint::HintsBag);
 
+#[wasm_bindgen]
 impl HintsBag{
     /// Empty HintsBag
     pub fn empty() -> HintsBag{
@@ -102,8 +108,9 @@ impl HintsBag{
 
 /// TransactionHintsBag
 #[wasm_bindgen]
-pub struct TransactionHintsBag(ergo_lib::wallet::multi_sig::TransactionHintsBag);
+pub struct TransactionHintsBag(pub(crate) ergo_lib::wallet::multi_sig::TransactionHintsBag);
 
+#[wasm_bindgen]
 impl TransactionHintsBag{
     /// Empty TransactionHintsBag
     pub fn empty()->TransactionHintsBag{
@@ -111,8 +118,8 @@ impl TransactionHintsBag{
     }
 
     /// Adding hints for input
-    pub fn add_hints_for_input(&mut self, index:usize, hints_bag:HintsBag){
-        self.0.add_hints_for_input(index,hints_bag.0);
+    pub fn add_hints_for_input(&mut self, index:usize, hints_bag:&HintsBag){
+        self.0.add_hints_for_input(index,hints_bag.0.clone());
     }
 
 }

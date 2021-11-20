@@ -57,6 +57,9 @@ impl ErgoBoxes {
     pub fn get(&self, index: usize) -> ErgoBox {
         self.0[index].clone()
     }
+
+    /// Empty ErgoBoxes
+    pub fn empty() -> ErgoBoxes { ErgoBoxes(vec![]) }
 }
 
 impl From<Vec<chain::ergo_box::ErgoBox>> for ErgoBoxes {

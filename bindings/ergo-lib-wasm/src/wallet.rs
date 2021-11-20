@@ -10,10 +10,11 @@ use crate::{
     secret_key::SecretKeys, transaction::reduced::ReducedTransaction, transaction::Transaction,
     transaction::UnsignedTransaction,
 };
+use crate::transaction::{HintsBag, TransactionHintsBag};
 
-/// TransactionHintsBag
-#[wasm_bindgen]
-pub struct TransactionHintsBag(ergo_lib::wallet::multi_sig::TransactionHintsBag);
+// /// TransactionHintsBag
+// #[wasm_bindgen]
+// pub struct TransactionHintsBag(ergo_lib::wallet::multi_sig::TransactionHintsBag);
 
 /// A collection of secret keys. This simplified signing by matching the secret keys to the correct inputs automatically.
 #[wasm_bindgen]
@@ -44,7 +45,7 @@ impl Wallet {
         tx: &UnsignedTransaction,
         boxes_to_spend: &ErgoBoxes,
         data_boxes: &ErgoBoxes,
-        tx_hints: &TransactionHintsBag,
+        // tx_hints: &TransactionHintsBag,
     ) -> Result<Transaction, JsValue> {
         let boxes_to_spend = TxIoVec::from_vec(boxes_to_spend.clone().into()).map_err(to_js)?;
         let data_boxes = {
@@ -63,6 +64,42 @@ impl Wallet {
         .map_err(to_js)?;
         self.0
             .sign_transaction(tx_context, &_state_context.clone().into())
+            .map_err(to_js)
+            .map(Transaction::from)
+    }
+
+    /// Sign a transaction:
+    /// `tx` - transaction to sign
+    /// `boxes_to_spend` - boxes corresponding to [`UnsignedTransaction::inputs`]
+    /// `data_boxes` - boxes corresponding to [`UnsignedTransaction::data_inputs`]
+    #[wasm_bindgen]
+    pub fn sign_transaction_multi(
+        &self,
+        _state_context: &ErgoStateContext,
+        tx: &UnsignedTransaction,
+        boxes_to_spend: &ErgoBoxes,
+        data_boxes: &ErgoBoxes,
+        hints: &HintsBag,
+    ) -> Result<Transaction, JsValue> {
+        let boxes_to_spend = TxIoVec::from_vec(boxes_to_spend.clone().into()).map_err(to_js)?;
+        let mut tx_hints =TransactionHintsBag::empty();
+        tx_hints.add_hints_for_input(0, hints.clone());
+        let data_boxes = {
+            let d: Vec<_> = data_boxes.clone().into();
+            if d.is_empty() {
+                None
+            } else {
+                Some(TxIoVec::from_vec(d).map_err(to_js)?)
+            }
+        };
+        let tx_context = ergo_lib::wallet::signing::TransactionContext::new(
+            tx.clone().into(),
+            boxes_to_spend,
+            data_boxes,
+        )
+            .map_err(to_js)?;
+        self.0
+            .sign_transaction_multi(tx_context, &_state_context.clone().into(),tx_hints.0)
             .map_err(to_js)
             .map(Transaction::from)
     }
