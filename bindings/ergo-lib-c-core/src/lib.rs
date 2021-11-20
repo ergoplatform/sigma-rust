@@ -14,6 +14,7 @@ pub mod address;
 pub mod block_header;
 pub mod collections;
 pub mod context_extension;
+pub mod data_input;
 pub mod ergo_box;
 pub mod ergo_state_ctx;
 pub mod header;

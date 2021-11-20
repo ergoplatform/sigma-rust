@@ -17,6 +17,13 @@ class UnsignedTransaction {
         return UnsignedInputs(withPtr: unsignedInputsPtr!)
     }
     
+    func getDataInputs() throws -> DataInputs {
+        var dataInputsPtr: DataInputsPtr?
+        let error = ergo_wallet_unsigned_tx_data_inputs(self.pointer, &dataInputsPtr)
+        try checkError(error)
+        return DataInputs(withPtr: dataInputsPtr!)
+    }
+    
     func toJSON() throws -> JSON? {
         var cStr: UnsafePointer<CChar>?
         let error = ergo_wallet_unsigned_tx_to_json(self.pointer, &cStr)

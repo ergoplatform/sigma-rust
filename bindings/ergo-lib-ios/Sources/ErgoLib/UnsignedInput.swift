@@ -1,4 +1,3 @@
-
 import Foundation
 import ErgoLibC
 
@@ -65,6 +64,6 @@ class UnsignedInputs {
     }
         
     deinit {
-        ergo_wallet_block_headers_delete(self.pointer)
+        ergo_wallet_unsigned_inputs_delete(self.pointer)
     }
 }

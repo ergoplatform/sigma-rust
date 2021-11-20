@@ -4,6 +4,7 @@ use ergo_lib::{chain, ergotree_ir::chain::base16_bytes::Base16EncodedBytes};
 
 use crate::{
     collections::{Collection, CollectionPtr},
+    data_input::DataInput,
     input::UnsignedInput,
     util::{const_ptr_as_ref, mut_ptr_as_mut},
     Error,
@@ -36,6 +37,26 @@ pub unsafe fn unsigned_tx_inputs(
             .clone()
             .into_iter()
             .map(UnsignedInput)
+            .collect(),
+    )));
+    Ok(())
+}
+
+pub unsafe fn unsigned_tx_data_inputs(
+    unsigned_tx_ptr: ConstUnsignedTransactionPtr,
+    data_inputs_out: *mut CollectionPtr<DataInput>,
+) -> Result<(), Error> {
+    let unsigned_tx = const_ptr_as_ref(unsigned_tx_ptr, "unsigned_tx_ptr")?;
+    let data_inputs_out = mut_ptr_as_mut(data_inputs_out, "data_inputs_out")?;
+    *data_inputs_out = Box::into_raw(Box::new(Collection(
+        unsigned_tx
+            .0
+            .data_inputs
+            .as_ref()
+            .map(|v| v.as_vec().clone())
+            .unwrap_or_else(Vec::new)
+            .into_iter()
+            .map(DataInput)
             .collect(),
     )));
     Ok(())
