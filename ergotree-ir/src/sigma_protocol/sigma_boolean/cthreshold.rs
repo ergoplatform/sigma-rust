@@ -70,15 +70,13 @@ impl Cthreshold {
         // should be 2 or more so unwrap is safe here
         #[allow(clippy::unwrap_used)]
         let sigmas: SigmaConjectureItems<SigmaBoolean> = res.try_into().unwrap();
-        if curr_k == 1 {
-            Cor::normalized(sigmas)
-        } else if curr_k as usize == children_left {
-            Cand::normalized(sigmas)
-        } else {
-            SigmaBoolean::SigmaConjecture(SigmaConjecture::Cthreshold(Cthreshold {
+        match curr_k as usize {
+            1 => Cor::normalized(sigmas),
+            ch if ch == children_left => Cand::normalized(sigmas),
+            _ => SigmaBoolean::SigmaConjecture(SigmaConjecture::Cthreshold(Cthreshold {
                 k: curr_k,
                 children: sigmas,
-            }))
+            })),
         }
     }
 }
