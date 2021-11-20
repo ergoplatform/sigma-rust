@@ -14,10 +14,12 @@
 mod macros;
 mod address;
 mod block_header;
+mod constant;
 mod context_extension;
 mod data_input;
 mod ergo_box;
 mod ergo_state_ctx;
+mod ergo_tree;
 mod header;
 mod input;
 mod secret_key;
@@ -30,6 +32,7 @@ pub use crate::context_extension::*;
 pub use crate::data_input::*;
 pub use crate::ergo_box::*;
 pub use crate::ergo_state_ctx::*;
+pub use crate::ergo_tree::*;
 pub use crate::header::*;
 pub use crate::input::*;
 pub use crate::secret_key::*;
@@ -178,6 +181,14 @@ pub unsafe extern "C" fn ergo_wallet_error_to_string(error: ErrorPtr) -> *mut c_
 pub struct ReturnNum<T: IntegerType> {
     /// Returned value. Note that it's only valid if the error field is null!
     value: T,
+    error: ErrorPtr,
+}
+
+/// Convenience type to allow us to pass Rust `Option<T>` through FFI to C side.
+#[repr(C)]
+pub struct ReturnOption<T> {
+    is_some: bool,
+    value_ptr: *mut *mut T,
     error: ErrorPtr,
 }
 

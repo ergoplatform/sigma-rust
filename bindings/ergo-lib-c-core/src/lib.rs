@@ -13,10 +13,12 @@
 pub mod address;
 pub mod block_header;
 pub mod collections;
+pub mod constant;
 pub mod context_extension;
 pub mod data_input;
 pub mod ergo_box;
 pub mod ergo_state_ctx;
+pub mod ergo_tree;
 pub mod header;
 pub mod input;
 pub mod secret_key;
