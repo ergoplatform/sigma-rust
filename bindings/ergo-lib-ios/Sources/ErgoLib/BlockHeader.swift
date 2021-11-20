@@ -9,7 +9,7 @@ class BlockHeader {
         self.pointer = try BlockHeader.fromJSON(json: json)
     }
     
-    init(withPtr ptr: BlockHeaderPtr) {
+    internal init(withPtr ptr: BlockHeaderPtr) {
         self.pointer = ptr
     }
     

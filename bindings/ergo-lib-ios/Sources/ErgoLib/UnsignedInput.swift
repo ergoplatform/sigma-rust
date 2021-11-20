@@ -5,7 +5,7 @@ import ErgoLibC
 class UnsignedInput {
     internal var pointer: UnsignedInputPtr
     
-    init(withPtr ptr: UnsignedInputPtr) {
+    internal init(withPtr ptr: UnsignedInputPtr) {
         self.pointer = ptr
     }
     

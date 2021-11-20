@@ -10,7 +10,7 @@ class BoxId {
         self.pointer = try BoxId.fromString(str: str)
     }
     
-    init(withPtr ptr: BoxIdPtr) {
+    internal init(withPtr ptr: BoxIdPtr) {
         self.pointer = ptr
     }
     

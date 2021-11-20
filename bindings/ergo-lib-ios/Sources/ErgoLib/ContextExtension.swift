@@ -10,7 +10,7 @@ class ContextExtension {
         self.pointer = try ContextExtension.fromEmpty()
     }
     
-    init(withPtr ptr: ContextExtensionPtr) {
+    internal init(withPtr ptr: ContextExtensionPtr) {
         self.pointer = ptr
     }
     
