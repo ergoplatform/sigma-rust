@@ -2,7 +2,10 @@
 
 use std::convert::TryInto;
 
+use super::cand::Cand;
+use super::cor::Cor;
 use super::SigmaBoolean;
+use super::SigmaConjecture;
 use super::SigmaConjectureItems;
 use crate::has_opcode::HasStaticOpCode;
 use crate::serialization::op_code::OpCode;
@@ -25,9 +28,58 @@ pub struct Cthreshold {
 
 impl Cthreshold {
     /// Reduce all possible TrivialProps in the tree
-    pub fn reduce(k: u8, children: SigmaConjectureItems<SigmaBoolean>) -> Self {
-        // TODO: implement
-        Self { k, children }
+    pub fn reduce(k: u8, children: SigmaConjectureItems<SigmaBoolean>) -> SigmaBoolean {
+        if k == 0 {
+            return true.into();
+        }
+        if k as usize > children.len() {
+            return false.into();
+        }
+
+        let mut curr_k = k;
+        let mut children_left = children.len();
+        let mut res: Vec<SigmaBoolean> = Vec::new();
+
+        for (i, ch) in children.iter().enumerate() {
+            if curr_k == 1 {
+                res.append(&mut children.as_vec()[i..children.len()].to_vec());
+                // should be 2 or more so unwrap is safe here
+                #[allow(clippy::unwrap_used)]
+                return Cor::normalized(res.try_into().unwrap());
+            }
+            if curr_k as usize == children_left {
+                res.append(&mut children.as_vec()[i..children.len()].to_vec());
+                // should be 2 or more so unwrap is safe here
+                #[allow(clippy::unwrap_used)]
+                return Cand::normalized(res.try_into().unwrap());
+            }
+            match ch {
+                &SigmaBoolean::TrivialProp(true) => {
+                    children_left -= 1;
+                    curr_k -= 1;
+                }
+                &SigmaBoolean::TrivialProp(false) => {
+                    children_left -= 1;
+                }
+                sigma => {
+                    res.push(sigma.clone());
+                }
+            }
+        }
+
+        // should be 2 or more so unwrap is safe here
+        #[allow(clippy::unwrap_used)]
+        let sigmas: SigmaConjectureItems<SigmaBoolean> = res.try_into().unwrap();
+        if curr_k == 1 {
+            Cor::normalized(sigmas)
+        } else if curr_k as usize == children_left {
+            Cand::normalized(sigmas)
+        } else {
+            SigmaBoolean::SigmaConjecture(SigmaConjecture::Cthreshold(Cthreshold {
+                k: curr_k,
+                children: sigmas,
+            }))
+        }
     }
 }
 
