@@ -2,6 +2,7 @@
 
 use std::convert::TryFrom;
 
+use bounded_vec::BoundedVec;
 use ergo_lib::ergotree_ir::chain::{self, base16_bytes::Base16DecodedBytes, digest32::Digest32};
 
 use crate::{
@@ -113,5 +114,63 @@ pub unsafe fn token_get_amount(
     let token = const_ptr_as_ref(token_ptr, "token_ptr")?;
     let token_amount_out = mut_ptr_as_mut(token_amount_out, "token_amount_out")?;
     *token_amount_out = Box::into_raw(Box::new(TokenAmount(token.0.amount)));
+    Ok(())
+}
+
+/// A Bounded Vector for Tokens. A Box can have between 1 and 255 tokens
+pub type BoxTokens = BoundedVec<Token, 1, 255>;
+
+/// Array of tokens. Note that we're not using `crate::collections::Collection` here due to the
+/// use of the `BoundedVec`.
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct Tokens(Option<BoxTokens>);
+pub type TokensPtr = *mut Tokens;
+pub type ConstTokensPtr = *const Tokens;
+
+pub unsafe fn tokens_new(tokens_out: *mut TokensPtr) -> Result<(), Error> {
+    let tokens_out = mut_ptr_as_mut(tokens_out, "tokens_out")?;
+    *tokens_out = Box::into_raw(Box::new(Tokens(None)));
+    Ok(())
+}
+
+pub unsafe fn tokens_len(tokens_ptr: ConstTokensPtr) -> Result<usize, Error> {
+    let tokens = const_ptr_as_ref(tokens_ptr, "tokens_ptr")?;
+    Ok(tokens.0.as_ref().map(BoxTokens::len).unwrap_or(0))
+}
+
+/// If token at given index exists, allocate a copy and store in `token_out` and return `Ok(true)`.
+/// If token doesn't exist at the given index return Ok(false).
+pub unsafe fn tokens_get(
+    tokens_ptr: ConstTokensPtr,
+    index: usize,
+    token_out: *mut TokenPtr,
+) -> Result<bool, Error> {
+    let tokens = const_ptr_as_ref(tokens_ptr, "tokens_ptr")?;
+    let token_out = mut_ptr_as_mut(token_out, "token_out")?;
+    if let Some(tokens) = tokens.0.as_ref() {
+        if let Some(token) = tokens.get(index) {
+            *token_out = Box::into_raw(Box::new(token.clone()));
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
+pub unsafe fn tokens_add(tokens_ptr: TokensPtr, token_ptr: ConstTokenPtr) -> Result<(), Error> {
+    let tokens = mut_ptr_as_mut(tokens_ptr, "tokens_ptr")?;
+    let token = const_ptr_as_ref(token_ptr, "token_ptr")?;
+    if tokens.0.is_some() {
+        let mut new_vec = tokens.0.as_ref().unwrap().as_vec().clone();
+        if new_vec.len() == 255 {
+            return Err(Error::Misc(
+                "Tokens.add: cannot have more than 255 tokens".into(),
+            ));
+        } else {
+            new_vec.push(token.clone());
+            tokens.0 = Some(BoxTokens::from_vec(new_vec).unwrap());
+        }
+    } else {
+        tokens.0 = Some(BoxTokens::from([token.clone()]));
+    }
     Ok(())
 }

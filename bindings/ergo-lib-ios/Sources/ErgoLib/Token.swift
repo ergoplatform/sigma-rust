@@ -77,6 +77,10 @@ class Token {
         self.pointer = ptr!
     }
     
+    init(withPtr ptr: TokenPtr) {
+        self.pointer = ptr
+    }
+    
     func getId() throws -> TokenId {
         var tokenIdPtr: TokenIdPtr?
         let error = ergo_wallet_token_get_id(self.pointer, &tokenIdPtr)
@@ -93,5 +97,46 @@ class Token {
     
     deinit {
         ergo_wallet_token_delete(self.pointer)
+    }
+}
+
+class Tokens {
+    internal var pointer: TokensPtr
+    
+    init() throws {
+        var tokensPtr: TokensPtr?
+        let error = ergo_wallet_tokens_new(&tokensPtr)
+        try checkError(error)
+        self.pointer = tokensPtr!
+    }
+    
+    init(withPtr ptr: TokensPtr) {
+        self.pointer = ptr
+    }
+    
+    func len() throws -> UInt {
+        let res = ergo_wallet_tokens_len(self.pointer)
+        try checkError(res.error)
+        return res.value
+    }
+    
+    func get(index: UInt) throws -> Token? {
+        var tokenPtr: TokenPtr?
+        let res = ergo_wallet_tokens_get(self.pointer, index, &tokenPtr)
+        try checkError(res.error)
+        if res.is_some {
+            return Token(withPtr: tokenPtr!)
+        } else {
+            return nil
+        }
+    }
+    
+    func add(token: Token) throws {
+        let error = ergo_wallet_tokens_add(token.pointer, self.pointer)
+        try checkError(error)
+    }
+        
+    deinit {
+        ergo_wallet_tokens_delete(self.pointer)
     }
 }

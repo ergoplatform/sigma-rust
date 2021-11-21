@@ -34,4 +34,24 @@ final class TokenIdTests: XCTestCase {
         XCTAssertEqual(try newTokenId.toBase16EncodedString(), str)
         XCTAssertEqual(try tokenAmount.toInt64(), try newTokenAmount.toInt64())
     }
+    
+    func testTokens() throws {
+        let tokens = try Tokens()
+        XCTAssertEqual(try tokens.len(), UInt(0))
+        XCTAssertNil(try tokens.get(index: 3))
+        let str = "19475d9a78377ff0f36e9826cec439727bea522f6ffa3bda32e20d2f8b3103ac"
+        let tokenId = try TokenId(fromBase16EncodedString: str )
+        let amount = Int64(12345678)
+        let tokenAmount = try TokenAmount(fromInt64: amount)
+        let token = try Token(tokenId: tokenId, tokenAmount: tokenAmount)
+        
+        for _ in 1...255 {
+            try tokens.add(token: token)
+        }
+        XCTAssertEqual(try tokens.len(), UInt(255))
+        XCTAssertNotNil(try tokens.get(index: 254))
+        
+        // Add 256th token, expecting error
+        XCTAssertThrowsError(try tokens.add(token: token))
+    }
 }
