@@ -19,46 +19,12 @@ use wasm_bindgen::prelude::*;
 
 extern crate derive_more;
 use derive_more::{From, Into};
-// use crate::transaction::reduced::ReducedTransaction;
-// use ergo_lib::ergotree_interpreter::sigma_protocol::prover::hint::Hint;
 
 pub mod reduced;
 
-// #[wasm_bindgen]
-// pub struct Hint()
-
-// #[wasm_bindgen]
-// pub struct TransactionHintsBag(ergo_lib::wallet::multi_sig::TransactionHintsBag);
-//
-// impl TransactionHintsBag {
-//     /// empty TransactionHintsBag
-//     pub fn empty()->TransactionHintsBag{TransactionHintsBag(ergo_lib::wallet::multi_sig::TransactionHintsBag::empty())}
-//     //
-//     // pub fn add_hints_for_input(&mut self, index:usize, hints_bag:HintsBag){
-//     //
-//     // }
-// }
 /// CommitmentHint JSON
 #[wasm_bindgen]
 pub struct CommitmentHint(ergo_lib::ergotree_interpreter::sigma_protocol::prover::hint::CommitmentHint);
-
-// #[wasm_bindgen]
-// impl From<CommitmentHint> for CommitmentHintJson{
-//     // From commitmentHint to CommitmentHintJson
-//     fn from(v: CommitmentHint) -> Self {
-//         CommitmentHintJson{ 0: {ergo_lib::chain::json::hints::CommitmentHintJson::from(v.0)} }
-//     }
-//
-// }
-//
-// #[wasm_bindgen]
-// impl From<CommitmentHintJson> for CommitmentHint{
-//     // From commitmentHint to CommitmentHintJson
-//     fn from(v: CommitmentHintJson) -> Self {
-//         CommitmentHint{ 0: {ergo_lib::ergotree_interpreter::sigma_protocol::prover::hint::CommitmentHint::try_from(v.0).unwrap()} }
-//     }
-//
-// }
 
 /// CommitmentHint JSON
 #[wasm_bindgen]
@@ -85,9 +51,6 @@ impl CommitmentHintJson{
     }
 
 }
-// pub fn generate_commitment_from_reduced_transaction(reduced_transaction: ReducedTransaction, address:&str)->HintsBag{
-//     let sigma_prop=reduced_transaction.0.reduced_inputs().
-// }
 
 /// HintsBag
 #[wasm_bindgen]
