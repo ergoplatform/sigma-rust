@@ -22,6 +22,7 @@ pub mod ergo_tree;
 pub mod header;
 pub mod input;
 pub mod secret_key;
+pub mod token;
 pub mod transaction;
 mod util;
 pub use crate::error::*;

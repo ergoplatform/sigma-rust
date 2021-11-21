@@ -23,6 +23,7 @@ mod ergo_tree;
 mod header;
 mod input;
 mod secret_key;
+mod token;
 mod transaction;
 use ergo_lib::ergotree_ir::chain;
 
@@ -36,6 +37,7 @@ pub use crate::ergo_tree::*;
 pub use crate::header::*;
 pub use crate::input::*;
 pub use crate::secret_key::*;
+pub use crate::token::*;
 pub use crate::transaction::*;
 use ergo_lib_c_core::{address::AddressPtr, ergo_state_ctx::ErgoStateContextPtr};
 pub use ergo_lib_c_core::{
