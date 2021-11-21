@@ -12,6 +12,7 @@ use crate::chain::ergo_state_context::ErgoStateContext;
 use crate::chain::transaction::reduced::ReducedTransaction;
 use crate::chain::transaction::Transaction;
 use crate::wallet::multi_sig::TransactionHintsBag;
+use crate::wallet::signing::sign_transaction_multi;
 
 use self::signing::sign_reduced_transaction;
 use self::signing::TransactionContext;
@@ -63,6 +64,17 @@ impl Wallet {
     ) -> Result<Transaction, WalletError> {
         // let temp=TransactionHintsBag::empty();
         sign_transaction(self.prover.as_ref(), tx_context, state_context).map_err(WalletError::from)
+    }
+
+    /// Signs a multisig transaction
+    pub fn sign_transaction_multi(
+        &self,
+        tx_context: TransactionContext,
+        state_context: &ErgoStateContext,
+        tx_hints: TransactionHintsBag,
+    ) -> Result<Transaction, WalletError> {
+        // let temp=TransactionHintsBag::empty();
+        sign_transaction_multi(self.prover.as_ref(), tx_hints, tx_context,state_context).map_err(WalletError::from)
     }
 
     /// Signs a reduced transaction (generating proofs for inputs)

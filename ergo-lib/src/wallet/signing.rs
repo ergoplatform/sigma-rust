@@ -209,7 +209,7 @@ pub fn sign_transaction_multi(
             .ok_or(TxSigningError::InputBoxNotFound(idx))?;
         let ctx = Rc::new(make_context(state_context, &tx_context, idx)?);
         let hints_bag=tx_hints.all_hints_for_input(idx);
-        println!("-------------{}",hints_bag.hints.len());
+        // println!("-------------{}",hints_bag.hints.len());
         prover
             .prove(
                 &input_box.ergo_tree,

@@ -104,6 +104,11 @@ impl HintsBag{
     pub fn add_commitment(&mut self, hint:CommitmentHint){
         self.0.add_hint(ergo_lib::ergotree_interpreter::sigma_protocol::prover::hint::Hint::CommitmentHint(hint.0.clone()));
     }
+
+    /// Length of HintsBag
+    pub fn len(&self)->usize{
+        self.0.hints.len()
+    }
 }
 
 /// TransactionHintsBag

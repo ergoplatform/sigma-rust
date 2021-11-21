@@ -147,6 +147,7 @@ impl CommitmentHint {
 }
 
 /// Collection of hints to be used by a prover
+#[derive(Clone)]
 pub struct HintsBag {
     /// Hints stored in a bag
     pub hints: Vec<Hint>,

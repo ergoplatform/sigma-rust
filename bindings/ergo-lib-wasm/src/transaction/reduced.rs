@@ -105,6 +105,7 @@ impl ReducedTransaction {
         serde_json::to_string_pretty(&commitments)
             .map_err(|e| JsValue::from_str(&format!("{}", e)))
     }
+
     /// bag for multi sig
     pub fn bag_for_multi_sig(&self,pk_base16:&str,own_cmt:&str, signed_transaction:Transaction)->HintsBag{
         let sigma_prop=self.0.reduced_inputs().first().clone().reduction_result.sigma_prop;
@@ -117,7 +118,7 @@ impl ReducedTransaction {
         let proof=Vec::from(signed_transaction.0.inputs.get(0).unwrap().spending_proof.clone().proof);
         let mut bag:OtherHintsBag=bag_for_multi_sig(sigma_prop,&real_proposition,&simulated_proposition,&proof);
         let own=CommitmentHintJsonWasm::from_json(own_cmt);
-        bag.hints.push(Hint::CommitmentHint(own.0));
+        bag.add_hint(Hint::CommitmentHint(own.0));
         crate::transaction::HintsBag{0:bag}
 
     }
