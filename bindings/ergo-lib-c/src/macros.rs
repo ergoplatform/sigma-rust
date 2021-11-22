@@ -44,14 +44,18 @@ use paste::paste;
 ///    collection_ptr: ConstBlockHeadersPtr,
 ///    index: usize,
 ///    element_ptr_out: *mut BlockHeaderPtr,
-///) -> ErrorPtr {
-///    match collection_get(collection_ptr, index) {
-///        Ok(Some(bh)) => {
-///            *element_ptr_out = Box::into_raw(Box::new(bh));
-///            Error::c_api_from(Ok(()))
-///        }
-///        Ok(None) => Error::c_api_from(Err(Error::Misc("BlockHeaders: index out of bounds".into()))),
-///        Err(e) => Error::c_api_from(Err(e)),
+///) -> ReturnOption<BlockHeader> {
+///    match collection_get(collection_ptr, index, element_ptr_out) {
+///       Ok(is_some) => crate::ReturnOption {
+///           is_some,
+///           value_ptr: element_ptr_out,
+///           error: std::ptr::null_mut(),
+///       },
+///       Err(e) => crate::ReturnOption {
+///           is_some: false, // Just a dummy value
+///           value_ptr: element_ptr_out,
+///           error: Error::c_api_from(Err(e)),
+///       },
 ///    }
 ///}
 ///
