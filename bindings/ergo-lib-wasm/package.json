@@ -23,11 +23,10 @@
         "mocha": "^6.2.3",
         "mocha-loader": "^2.0.1",
         "text-encoder": "0.0.4",
+        "wasm-pack": "^0.10.1",
         "webpack": "^4.11.1",
         "webpack-cli": "^3.1.1",
         "webpack-dev-server": "^3.1.0"
     },
-    "dependencies": {
-        "wasm-pack": "^0.10.1"
-    }
+    "dependencies": {}
 }
