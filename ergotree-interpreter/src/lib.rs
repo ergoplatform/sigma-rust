@@ -8,7 +8,7 @@
 #![deny(unused_mut)]
 #![deny(dead_code)]
 #![deny(unused_imports)]
-// #![deny(missing_docs)]
+#![deny(missing_docs)]
 // Clippy exclusions
 #![allow(clippy::unit_arg)]
 #![deny(rustdoc::broken_intra_doc_links)]

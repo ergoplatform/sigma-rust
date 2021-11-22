@@ -1,4 +1,4 @@
-//! Sigma protocols
+//! Sigma protocols(First ProverMessage & Second ProverMessage)
 
 #![deny(clippy::unwrap_used)]
 

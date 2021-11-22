@@ -1,3 +1,5 @@
+//! ProofTree
+
 extern crate derive_more;
 
 use std::fmt::Debug;

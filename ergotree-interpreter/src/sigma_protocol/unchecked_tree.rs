@@ -59,17 +59,19 @@ impl UncheckedTree {
 pub enum UncheckedLeaf {
     /// Unchecked Schnorr
     UncheckedSchnorr(UncheckedSchnorr),
+    /// Unchecked DhTuple
     UncheckedDhTuple(UncheckedDhTuple),
 }
 
 impl UncheckedLeaf {
+    /// Challenge of FiatShamir
     pub fn challenge(&self) -> Challenge {
         match self {
             UncheckedLeaf::UncheckedSchnorr(us) => us.challenge.clone(),
             UncheckedLeaf::UncheckedDhTuple(udht) => udht.challenge.clone(),
         }
     }
-
+    /// Set Challenge
     pub fn with_challenge(self, challenge: Challenge) -> Self {
         match self {
             UncheckedLeaf::UncheckedSchnorr(us) => us.with_challenge(challenge).into(),
@@ -96,16 +98,21 @@ impl ProofTreeLeaf for UncheckedLeaf {
         }
     }
 }
-
+/// Unchecked Schnorr
 #[derive(PartialEq, Debug, Clone)]
 pub struct UncheckedSchnorr {
+    /// Proposition
     pub proposition: ProveDlog,
+    /// Commitment FirstDlogProverMessage
     pub commitment_opt: Option<FirstDlogProverMessage>,
+    /// Challenge
     pub challenge: Challenge,
+    /// SecondMessage
     pub second_message: SecondDlogProverMessage,
 }
 
 impl UncheckedSchnorr {
+    /// Set New Challenge
     pub fn with_challenge(self, challenge: Challenge) -> Self {
         UncheckedSchnorr { challenge, ..self }
     }
@@ -123,40 +130,59 @@ impl From<UncheckedDhTuple> for UncheckedTree {
     }
 }
 
+/// UncheckedDhTuple
 #[derive(PartialEq, Debug, Clone)]
 pub struct UncheckedDhTuple {
+    /// Proposition
     pub proposition: ProveDhTuple,
+    /// Commitment  FirstDhTupleProverMessage
     pub commitment_opt: Option<FirstDhTupleProverMessage>,
+    /// Challenge
     pub challenge: Challenge,
+    /// SecondMessage
     pub second_message: SecondDhTupleProverMessage,
 }
 
 impl UncheckedDhTuple {
+    /// Set Challenge
     pub fn with_challenge(self, challenge: Challenge) -> Self {
         UncheckedDhTuple { challenge, ..self }
     }
 }
 
+/// UncheckedConjecture
 #[derive(PartialEq, Debug, Clone)]
 #[allow(clippy::enum_variant_names)]
 pub enum UncheckedConjecture {
+    /// Unchecked And Conjecture
     CandUnchecked {
+        /// Challenge
         challenge: Challenge,
+        /// Children
         children: SigmaConjectureItems<UncheckedTree>,
     },
+    /// Unchecked Or Conjecture
     CorUnchecked {
+        /// Challenge
         challenge: Challenge,
+        /// Children
         children: SigmaConjectureItems<UncheckedTree>,
     },
+    /// Unchecked Cthreshold Conjecture
     CthresholdUnchecked {
+        /// Challenge
         challenge: Challenge,
+        /// Children
         children: SigmaConjectureItems<UncheckedTree>,
+        /// K
         k: u8,
+        /// Polynomial
         polynomial: Gf2_192Poly,
     },
 }
 
 impl UncheckedConjecture {
+    /// Set New Children
     pub fn with_children(self, new_children: SigmaConjectureItems<UncheckedTree>) -> Self {
         match self {
             UncheckedConjecture::CandUnchecked {
@@ -186,7 +212,7 @@ impl UncheckedConjecture {
             },
         }
     }
-
+    /// Get Children
     pub fn children_ust(self) -> SigmaConjectureItems<UncheckedTree> {
         match self {
             UncheckedConjecture::CandUnchecked {
@@ -205,7 +231,7 @@ impl UncheckedConjecture {
             } => children,
         }
     }
-
+    /// Get Children
     pub fn challenge(&self) -> Challenge {
         match self {
             UncheckedConjecture::CandUnchecked {
@@ -224,7 +250,7 @@ impl UncheckedConjecture {
             } => challenge.clone(),
         }
     }
-
+    /// Set Challenge
     pub fn with_challenge(self, challenge: Challenge) -> Self {
         match self {
             UncheckedConjecture::CandUnchecked {
@@ -257,6 +283,7 @@ impl UncheckedConjecture {
 }
 
 impl ProofTreeConjecture for UncheckedConjecture {
+    /// Get Conjecture Type
     fn conjecture_type(&self) -> ConjectureType {
         match self {
             UncheckedConjecture::CandUnchecked { .. } => ConjectureType::And,
@@ -265,6 +292,7 @@ impl ProofTreeConjecture for UncheckedConjecture {
         }
     }
 
+    /// Get Children
     fn children(&self) -> SigmaConjectureItems<ProofTree> {
         match self {
             UncheckedConjecture::CandUnchecked {
