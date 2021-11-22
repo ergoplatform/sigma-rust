@@ -1,6 +1,11 @@
 //! Ergo transaction
 
-use ergo_lib::{chain, ergotree_ir::chain::base16_bytes::Base16EncodedBytes};
+use std::convert::{TryFrom, TryInto};
+
+use ergo_lib::{
+    chain,
+    ergotree_ir::chain::base16_bytes::{Base16DecodedBytes, Base16EncodedBytes},
+};
 
 use crate::{
     collections::{Collection, CollectionPtr},
@@ -19,9 +24,12 @@ pub type ConstUnsignedTransactionPtr = *const UnsignedTransaction;
 
 pub unsafe fn unsigned_tx_id(
     unsigned_tx_ptr: ConstUnsignedTransactionPtr,
-) -> Result<String, Error> {
+    tx_id_out: *mut TxIdPtr,
+) -> Result<(), Error> {
     let unsigned_tx = const_ptr_as_ref(unsigned_tx_ptr, "unsigned_tx_ptr")?;
-    Ok(Base16EncodedBytes::new(unsigned_tx.0.id().0 .0.as_ref()).into())
+    let tx_id_out = mut_ptr_as_mut(tx_id_out, "tx_id_out")?;
+    *tx_id_out = Box::into_raw(Box::new(TxId(unsigned_tx.0.id())));
+    Ok(())
 }
 
 pub unsafe fn unsigned_tx_inputs(
@@ -99,4 +107,28 @@ pub unsafe fn unsigned_tx_to_json(
     let unsigned_tx = const_ptr_as_ref(unsigned_tx_ptr, "unsigned_tx_ptr")?;
     serde_json::to_string(&unsigned_tx.0)
         .map_err(|_| Error::Misc("UnsignedTransaction: can't serialize into JSON".into()))
+}
+
+/// Transaction id
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct TxId(chain::transaction::TxId);
+pub type TxIdPtr = *mut TxId;
+pub type ConstTxIdPtr = *const TxId;
+
+pub unsafe fn tx_id_from_str(str: &str, tx_id_out: *mut TxIdPtr) -> Result<(), Error> {
+    let tx_id_out = mut_ptr_as_mut(tx_id_out, "tx_id_out")?;
+    let bytes = Base16DecodedBytes::try_from(str.to_string())
+        .map_err(|_| Error::Misc("TxId: can't decode str into base16DecodedBytes".into()))?;
+    let tx_id = bytes
+        .try_into()
+        .map(|digest| TxId(chain::transaction::TxId(digest)))
+        .map_err(|_| Error::Misc("TxId: can't deserialize from str".into()))?;
+    *tx_id_out = Box::into_raw(Box::new(tx_id));
+    Ok(())
+}
+
+pub unsafe fn tx_id_to_str(tx_id_ptr: ConstTxIdPtr) -> Result<String, Error> {
+    let tx_id = const_ptr_as_ref(tx_id_ptr, "tx_id_ptr")?;
+    let base16_bytes = Base16EncodedBytes::new(tx_id.0 .0 .0.as_ref());
+    Ok(base16_bytes.into())
 }

@@ -10,6 +10,13 @@ class UnsignedTransaction {
         self.pointer = try UnsignedTransaction.fromJSON(json: json)
     }
     
+    func getTxId() throws -> TxId {
+        var ptr: TxIdPtr?
+        let error = ergo_wallet_unsigned_tx_id(self.pointer, &ptr)
+        try checkError(error)
+        return TxId(withRawPointer: ptr!)
+    }
+    
     func getUnsignedInputs() throws -> UnsignedInputs {
         var unsignedInputsPtr: UnsignedInputsPtr?
         let error = ergo_wallet_unsigned_tx_inputs(self.pointer, &unsignedInputsPtr)
@@ -53,5 +60,39 @@ class UnsignedTransaction {
     
     deinit {
         ergo_wallet_unsigned_tx_delete(self.pointer)
+    }
+}
+
+class TxId {
+    internal var pointer: TxIdPtr
+    
+    init(withString str: String) throws {
+        self.pointer = try TxId.fromString(str: str)
+    }
+    
+    internal init(withRawPointer ptr: TxIdPtr) {
+        self.pointer = ptr
+    }
+    
+    func toString() throws -> String {
+        var cStr: UnsafePointer<CChar>?
+        let error = ergo_wallet_tx_id_to_str(self.pointer, &cStr)
+        try checkError(error)
+        let str = String(cString: cStr!)
+        ergo_wallet_delete_string(UnsafeMutablePointer(mutating: cStr))
+        return str
+    }
+    
+    private static func fromString(str: String) throws -> BoxIdPtr {
+        var ptr: TxIdPtr?
+        let error = str.withCString { cs in
+            ergo_wallet_tx_id_from_str(cs, &ptr)
+        }
+        try checkError(error)
+        return ptr!
+    }
+    
+    deinit {
+        ergo_wallet_tx_id_delete(self.pointer)
     }
 }

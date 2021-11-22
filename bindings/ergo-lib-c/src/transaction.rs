@@ -12,18 +12,14 @@ use std::{
 
 use crate::delete_ptr;
 
+// `UnsignedTransaction` bindings ------------------------------------------------------------------
+
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_unsigned_tx_id(
     unsigned_tx_ptr: ConstUnsignedTransactionPtr,
-    tx_id_ptr: *mut *const c_char,
+    tx_id_out: *mut TxIdPtr,
 ) -> ErrorPtr {
-    let res = match unsigned_tx_id(unsigned_tx_ptr) {
-        Ok(s) => {
-            *tx_id_ptr = CString::new(s).unwrap().into_raw();
-            Ok(())
-        }
-        Err(e) => Err(e),
-    };
+    let res = unsigned_tx_id(unsigned_tx_ptr, tx_id_out);
     Error::c_api_from(res)
 }
 
@@ -87,5 +83,37 @@ pub unsafe extern "C" fn ergo_wallet_unsigned_tx_to_json(
 
 #[no_mangle]
 pub extern "C" fn ergo_wallet_unsigned_tx_delete(ptr: UnsignedTransactionPtr) {
+    unsafe { delete_ptr(ptr) }
+}
+
+// `TxId` bindings ----------------------------------------------------------------------
+
+#[no_mangle]
+pub unsafe extern "C" fn ergo_wallet_tx_id_from_str(
+    str: *const c_char,
+    tx_id_out: *mut TxIdPtr,
+) -> ErrorPtr {
+    let str = CStr::from_ptr(str).to_string_lossy();
+    let res = tx_id_from_str(&str, tx_id_out);
+    Error::c_api_from(res)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ergo_wallet_tx_id_to_str(
+    tx_id_ptr: ConstTxIdPtr,
+    _str: *mut *const c_char,
+) -> ErrorPtr {
+    let res = match tx_id_to_str(tx_id_ptr) {
+        Ok(s) => {
+            *_str = CString::new(s).unwrap().into_raw();
+            Ok(())
+        }
+        Err(e) => Err(e),
+    };
+    Error::c_api_from(res)
+}
+
+#[no_mangle]
+pub extern "C" fn ergo_wallet_tx_id_delete(ptr: TxIdPtr) {
     unsafe { delete_ptr(ptr) }
 }
