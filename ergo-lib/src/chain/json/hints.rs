@@ -98,44 +98,45 @@ impl CommitmentHintJson {
 // todo trait should be implemented to avoid from duplicated code
 impl From<CommitmentHint> for CommitmentHintJson {
     fn from(v: CommitmentHint) -> Self {
-        let mut hint: Option<String> = None;
+        let mut _hint: Option<String> = None;
         let mut secret: Option<String> = None;
-        let mut a: Option<String> = None;
+        let mut _a: Option<String> = None;
         let proof_type = "dlog".to_string();
-        let mut position: Option<String> = None;
-        let mut ec_point: Option<String> = None;
+        let mut _position: Option<String> = None;
+        let mut _ec_point: Option<String> = None;
         match v {
             CommitmentHint::OwnCommitment(cmt) => {
-                hint = Some("cmtWithSecret".to_string());
+                _hint = Some("cmtWithSecret".to_string());
                 secret = Some(hex::encode(cmt.secret_randomness.clone().to_bytes().as_slice()));
-                a = Some(hex::encode(cmt.commitment.clone().bytes().as_slice()));
-                position = Some(cmt.position.positions.clone().into_iter().map(|d| std::char::from_digit(d as u32, 10).unwrap().to_string()).collect::<Vec<_>>().join("-"));
-                ec_point = Some(hex::encode(cmt.image.clone().sigma_serialize_bytes().unwrap().as_slice())[2..].to_string());
+                _a = Some(hex::encode(cmt.commitment.clone().bytes().as_slice()));
+                _position = Some(cmt.position.positions.clone().into_iter().map(|d| std::char::from_digit(d as u32, 10).unwrap().to_string()).collect::<Vec<_>>().join("-"));
+                _ec_point = Some(hex::encode(cmt.image.clone().sigma_serialize_bytes().unwrap().as_slice())[2..].to_string());
             }
             CommitmentHint::RealCommitment(cmt) => {
-                hint = Some("cmtReal".to_string());
-                a = Some(hex::encode(cmt.commitment.clone().bytes().as_slice()));
-                position = Some(cmt.position.positions.clone().into_iter().map(|d| std::char::from_digit(d as u32, 10).unwrap().to_string()).collect::<Vec<_>>().join("-"));
-                ec_point = Some(hex::encode(cmt.image.clone().sigma_serialize_bytes().unwrap().as_slice())[2..].to_string());
+                _hint = Some("cmtReal".to_string());
+                _a = Some(hex::encode(cmt.commitment.clone().bytes().as_slice()));
+                _position = Some(cmt.position.positions.clone().into_iter().map(|d| std::char::from_digit(d as u32, 10).unwrap().to_string()).collect::<Vec<_>>().join("-"));
+                _ec_point = Some(hex::encode(cmt.image.clone().sigma_serialize_bytes().unwrap().as_slice())[2..].to_string());
             }
             CommitmentHint::SimulatedCommitment(cmt) => {
-                hint = Some("cmtSimulated".to_string());
-                a = Some(hex::encode(cmt.commitment.clone().bytes().as_slice()));
-                position = Some(cmt.position.positions.clone().into_iter().map(|d| std::char::from_digit(d as u32, 10).unwrap().to_string()).collect::<Vec<_>>().join("-"));
-                ec_point = Some(hex::encode(cmt.image.clone().sigma_serialize_bytes().unwrap().as_slice())[2..].to_string());
+                _hint = Some("cmtSimulated".to_string());
+                _a = Some(hex::encode(cmt.commitment.clone().bytes().as_slice()));
+                _position = Some(cmt.position.positions.clone().into_iter().map(|d| std::char::from_digit(d as u32, 10).unwrap().to_string()).collect::<Vec<_>>().join("-"));
+                _ec_point = Some(hex::encode(cmt.image.clone().sigma_serialize_bytes().unwrap().as_slice())[2..].to_string());
             }
         }
+
         let public_key = PublicKeyJson {
             op: -51,
-            h: ec_point.unwrap(),
+            h: _ec_point.unwrap(),
         };
 
         CommitmentHintJson {
-            hint: hint.unwrap(),
+            hint: _hint.unwrap(),
             pubkey: public_key,
-            position: position.unwrap(),
+            position: _position.unwrap(),
             proof_type,
-            a: a.unwrap(),
+            a: _a.unwrap(),
             secret,
         }
     }

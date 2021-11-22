@@ -326,7 +326,6 @@ pub fn generate_commitments_for(
                             bag.add_hint(real_commitment);
                             bag.add_hint(own_commitment);
                         }
-                        /// prove dhtuple should be implemented
                         _ => (),
                     }
                 }
