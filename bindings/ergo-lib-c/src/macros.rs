@@ -108,14 +108,18 @@ macro_rules! make_collection {
                 collection_ptr: [<Const $collection_type_name Ptr>],
                 index: usize,
                 element_ptr_out: *mut [<$item_type_name Ptr>],
-            ) -> ErrorPtr {
-                match ergo_lib_c_core::collections::collection_get(collection_ptr, index) {
-                    Ok(Some(bh)) => {
-                        *element_ptr_out = Box::into_raw(Box::new(bh));
-                        Error::c_api_from(Ok(()))
-                    }
-                    Ok(None) => Error::c_api_from(Err(Error::Misc("$collection_type_name: index out of bounds".into()))),
-                    Err(e) => Error::c_api_from(Err(e)),
+            ) -> crate::ReturnOption<$item_type_name> {
+                match ergo_lib_c_core::collections::collection_get(collection_ptr, index, element_ptr_out) {
+                    Ok(is_some) => crate::ReturnOption {
+                        is_some,
+                        value_ptr: element_ptr_out,
+                        error: std::ptr::null_mut(),
+                    },
+                    Err(e) => crate::ReturnOption {
+                        is_some: false, // Just a dummy value
+                        value_ptr: element_ptr_out,
+                        error: Error::c_api_from(Err(e)),
+                    },
                 }
             }
 

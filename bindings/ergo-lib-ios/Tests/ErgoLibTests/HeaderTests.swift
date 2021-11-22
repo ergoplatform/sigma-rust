@@ -42,6 +42,8 @@ final class HeaderTests: XCTestCase {
             XCTAssertNoThrow(try headers.add(blockHeader: blockHeader ))
         }
         XCTAssertEqual(try headers.len(), 10)
+        XCTAssertNotNil(try headers.get(index: 9))
+        XCTAssertNil(try headers.get(index: 10))
     }
     
     func testBlockHeadersFromJSON() throws {

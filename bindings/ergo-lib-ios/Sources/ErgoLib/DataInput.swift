@@ -55,11 +55,15 @@ class DataInputs {
         return res.value
     }
     
-    func get(index: UInt) throws -> DataInput {
+    func get(index: UInt) throws -> DataInput? {
         var dataInputPtr: DataInputPtr?
-        let error = ergo_wallet_data_inputs_get(self.pointer, index, &dataInputPtr)
-        try checkError(error)
-        return DataInput(withPtr: dataInputPtr!)
+        let res = ergo_wallet_data_inputs_get(self.pointer, index, &dataInputPtr)
+        try checkError(res.error)
+        if res.is_some {
+            return DataInput(withPtr: dataInputPtr!)
+        } else {
+            return nil
+        }
     }
     
     func add(dataInput: DataInput) throws {

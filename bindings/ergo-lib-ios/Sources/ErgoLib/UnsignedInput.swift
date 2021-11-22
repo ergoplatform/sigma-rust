@@ -51,11 +51,15 @@ class UnsignedInputs {
         return res.value
     }
     
-    func get(index: UInt) throws -> UnsignedInput {
+    func get(index: UInt) throws -> UnsignedInput? {
         var unsignedInputPtr: UnsignedInputPtr?
-        let error = ergo_wallet_unsigned_inputs_get(self.pointer, index, &unsignedInputPtr)
-        try checkError(error)
-        return UnsignedInput(withPtr: unsignedInputPtr!)
+        let res = ergo_wallet_unsigned_inputs_get(self.pointer, index, &unsignedInputPtr)
+        try checkError(res.error)
+        if res.is_some {
+            return UnsignedInput(withPtr: unsignedInputPtr!)
+        } else {
+            return nil
+        }
     }
     
     func add(unsignedInput: UnsignedInput) throws {

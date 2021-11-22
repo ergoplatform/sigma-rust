@@ -28,9 +28,15 @@ pub unsafe fn collection_len<T>(collection: ConstCollectionPtr<T>) -> Result<usi
 pub unsafe fn collection_get<T: Clone>(
     collection: ConstCollectionPtr<T>,
     index: usize,
-) -> Result<Option<T>, Error> {
+    elem_out: *mut *mut T,
+) -> Result<bool, Error> {
     let collection = const_ptr_as_ref(collection, "collection")?;
-    Ok(collection.0.get(index).cloned())
+    let elem_out = mut_ptr_as_mut(elem_out, "elem_out")?;
+    if let Some(elem) = collection.0.get(index) {
+        *elem_out = Box::into_raw(Box::new(elem.clone()));
+        return Ok(true);
+    }
+    Ok(false)
 }
 
 pub unsafe fn collection_add<T: Clone>(

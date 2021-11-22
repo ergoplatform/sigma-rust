@@ -60,11 +60,15 @@ class BlockHeaders {
         return res.value
     }
     
-    func get(index: UInt) throws -> BlockHeader {
+    func get(index: UInt) throws -> BlockHeader? {
         var blockHeaderPtr: BlockHeaderPtr?
-        let error = ergo_wallet_block_headers_get(self.pointer, index, &blockHeaderPtr)
-        try checkError(error)
-        return BlockHeader(withPtr: blockHeaderPtr!)
+        let res = ergo_wallet_block_headers_get(self.pointer, index, &blockHeaderPtr)
+        try checkError(res.error)
+        if res.is_some {
+            return BlockHeader(withPtr: blockHeaderPtr!)
+        } else {
+            return nil
+        }
     }
     
     func add(blockHeader: BlockHeader) throws {
