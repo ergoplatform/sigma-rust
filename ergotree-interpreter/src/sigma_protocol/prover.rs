@@ -867,15 +867,19 @@ fn step9_real_schnorr<P: Prover + ?Sized>(
             })
             .find(|prover_input| prover_input.public_image() == us.proposition)
         {
+            let mut found_or_not = false;
             let oc = hints_bag
                 .own_commitments()
                 .into_iter()
                 .find(|comm| comm.position == us.position);
-            let mut _z: Option<SecondDlogProverMessage> = None;
             if oc.is_some() {
+                found_or_not = true;
+            }
+            let mut _z: Option<SecondDlogProverMessage> = None;
+            if found_or_not {
                 _z = Some(dlog_protocol::interactive_prover::second_message(
                     priv_key,
-                    oc.unwrap().secret_randomness.clone(),
+                    oc.unwrap().secret_randomness,
                     &challenge,
                 ));
             } else {
@@ -902,7 +906,8 @@ fn step9_real_schnorr<P: Prover + ?Sized>(
                 .real_proofs()
                 .into_iter()
                 .find(|comm| comm.position == us.position);
-            if hint != None {
+            let found_hint = hint.is_some();
+            if found_hint {
                 let unchecked_tree = hint.unwrap().unchecked_tree;
                 // should be replace with match case
                 if let UncheckedTree::UncheckedLeaf(UncheckedLeaf::UncheckedSchnorr(
@@ -914,7 +919,7 @@ fn step9_real_schnorr<P: Prover + ?Sized>(
                             proposition: us.proposition.clone(),
                             commitment_opt: None,
                             challenge,
-                            second_message: unchecked_schnorr.second_message.clone(),
+                            second_message: unchecked_schnorr.second_message,
                         }
                         .into(),
                     ))
