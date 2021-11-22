@@ -24,8 +24,8 @@ pub mod cand;
 pub mod cor;
 pub mod cthreshold;
 
-/// Sigma conjecture items type with bounds check (2..=1000)
-pub type SigmaConjectureItems<T> = BoundedVec<T, 2, 1000>;
+/// Sigma conjecture items type with bounds check (2..=255)
+pub type SigmaConjectureItems<T> = BoundedVec<T, 2, 255>;
 
 /// Construct a new SigmaBoolean value representing public key of discrete logarithm signature protocol.
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -323,6 +323,8 @@ mod arbitrary {
         prop_oneof![
             any::<ProveDlog>().prop_map_into(),
             any::<ProveDhTuple>().prop_map_into(),
+            // TODO: enable and fix sigma_conj eval tests
+            // any::<bool>().prop_map_into(),
         ]
         .boxed()
     }
@@ -340,9 +342,15 @@ mod arbitrary {
                                 items: elems.try_into().unwrap()
                             })
                             .prop_map_into(),
-                        vec(elem, 2..=4)
+                        vec(elem.clone(), 2..=4)
                             .prop_map(|elems| Cor {
                                 items: elems.try_into().unwrap()
+                            })
+                            .prop_map_into(),
+                        vec(elem, 2..=5)
+                            .prop_map(|elems| Cthreshold {
+                                k: (elems.len() - 1) as u8,
+                                children: elems.try_into().unwrap()
                             })
                             .prop_map_into(),
                     ]

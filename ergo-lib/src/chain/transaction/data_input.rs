@@ -37,6 +37,7 @@ impl SigmaSerializable for DataInput {
 }
 
 #[cfg(test)]
+#[allow(clippy::panic)]
 mod tests {
     use ergotree_ir::serialization::sigma_serialize_roundtrip;
 

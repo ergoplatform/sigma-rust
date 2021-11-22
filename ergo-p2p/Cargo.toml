@@ -1,0 +1,34 @@
+[package]
+name = "ergo-p2p"
+version = "0.1.0"
+license = "CC0-1.0"
+authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
+edition = "2018"
+description = "Ergo peer-to-peer networking library"
+repository = "https://github.com/ergoplatform/sigma-rust"
+exclude = [
+    "proptest-regressions/*"
+]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+
+sigma-ser = { version = "^0.3.0", path = "../sigma-ser" }
+sigma-util = { version = "^0.3.0", path = "../sigma-util" }
+thiserror = "1"
+derive_more = "0.99"
+
+[dependencies.proptest]
+# wasm support, via https://altsysrq.github.io/proptest-book/proptest/wasm.html
+version = "1.0.0"
+# The default feature set includes things like process forking which are not
+# supported in Web Assembly.
+default-features = false
+# Enable using the `std` crate.
+features = ["std"]
+optional = true
+
+
+[dev-dependencies]

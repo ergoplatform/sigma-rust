@@ -286,7 +286,7 @@ impl From<ErgoBox> for super::json::ergo_box::ErgoBoxJson {
         }
     }
 }
-/// Contains the same fields as `ErgoBox`, except if transaction id and index,
+/// Contains the same fields as `ErgoBox`, except for transaction id and index,
 /// that will be calculated after full transaction formation.
 /// Use `ErgoBoxCandidateBuilder` from ergo-lib crate to create an instance.
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]

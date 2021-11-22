@@ -40,6 +40,7 @@ impl From<ContextExtension> for ContextExtensionSerde {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 

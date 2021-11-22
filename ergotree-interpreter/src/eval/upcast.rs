@@ -85,103 +85,101 @@ impl Evaluable for Upcast {
     }
 }
 
+#[allow(clippy::panic)]
 #[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
     use ergotree_ir::mir::constant::Constant;
-    use sigma_test_util::force_any_val;
 
     use crate::eval::tests::eval_out_wo_ctx;
 
     use super::*;
+    use proptest::prelude::*;
+    proptest! {
+        #[test]
+        fn from_byte(v in any::<i8>()) {
+            let c: Constant = v.into();
+            assert_eq!(
+                eval_out_wo_ctx::<i8>(&Upcast::new(c.clone().into(), SType::SByte).unwrap().into()),
+                v
+            );
+            assert_eq!(
+                eval_out_wo_ctx::<i16>(&Upcast::new(c.clone().into(), SType::SShort).unwrap().into()),
+                v as i16
+            );
+            assert_eq!(
+                eval_out_wo_ctx::<i32>(&Upcast::new(c.clone().into(), SType::SInt).unwrap().into()),
+                v as i32
+            );
+            assert_eq!(
+                eval_out_wo_ctx::<i64>(&Upcast::new(c.clone().into(), SType::SLong).unwrap().into()),
+                v as i64
+            );
+            assert_eq!(
+                eval_out_wo_ctx::<BigInt256>(&Upcast::new(c.into(), SType::SBigInt).unwrap().into()),
+                v.into()
+            );
+        }
 
-    #[test]
-    fn from_byte() {
-        let v = force_any_val::<i8>();
-        let c: Constant = v.into();
-        assert_eq!(
-            eval_out_wo_ctx::<i8>(&Upcast::new(c.clone().into(), SType::SByte).unwrap().into()),
-            v
-        );
-        assert_eq!(
-            eval_out_wo_ctx::<i16>(&Upcast::new(c.clone().into(), SType::SShort).unwrap().into()),
-            v as i16
-        );
-        assert_eq!(
-            eval_out_wo_ctx::<i32>(&Upcast::new(c.clone().into(), SType::SInt).unwrap().into()),
-            v as i32
-        );
-        assert_eq!(
-            eval_out_wo_ctx::<i64>(&Upcast::new(c.clone().into(), SType::SLong).unwrap().into()),
-            v as i64
-        );
-        assert_eq!(
-            eval_out_wo_ctx::<BigInt256>(&Upcast::new(c.into(), SType::SBigInt).unwrap().into()),
-            v.into()
-        );
-    }
+        #[test]
+        fn from_short(v in any::<i16>()) {
+            let c: Constant = v.into();
+            assert_eq!(
+                eval_out_wo_ctx::<i16>(&Upcast::new(c.clone().into(), SType::SShort).unwrap().into()),
+                v as i16
+            );
+            assert_eq!(
+                eval_out_wo_ctx::<i32>(&Upcast::new(c.clone().into(), SType::SInt).unwrap().into()),
+                v as i32
+            );
+            assert_eq!(
+                eval_out_wo_ctx::<i64>(&Upcast::new(c.clone().into(), SType::SLong).unwrap().into()),
+                v as i64
+            );
+            assert_eq!(
+                eval_out_wo_ctx::<BigInt256>(&Upcast::new(c.into(), SType::SBigInt).unwrap().into()),
+                v.into()
+            );
+        }
 
-    #[test]
-    fn from_short() {
-        let v = force_any_val::<i16>();
-        let c: Constant = v.into();
-        assert_eq!(
-            eval_out_wo_ctx::<i16>(&Upcast::new(c.clone().into(), SType::SShort).unwrap().into()),
-            v as i16
-        );
-        assert_eq!(
-            eval_out_wo_ctx::<i32>(&Upcast::new(c.clone().into(), SType::SInt).unwrap().into()),
-            v as i32
-        );
-        assert_eq!(
-            eval_out_wo_ctx::<i64>(&Upcast::new(c.clone().into(), SType::SLong).unwrap().into()),
-            v as i64
-        );
-        assert_eq!(
-            eval_out_wo_ctx::<BigInt256>(&Upcast::new(c.into(), SType::SBigInt).unwrap().into()),
-            v.into()
-        );
-    }
+        #[test]
+        fn from_int(v in any::<i32>()) {
+            let c: Constant = v.into();
+            assert_eq!(
+                eval_out_wo_ctx::<i32>(&Upcast::new(c.clone().into(), SType::SInt).unwrap().into()),
+                v as i32
+            );
+            assert_eq!(
+                eval_out_wo_ctx::<i64>(&Upcast::new(c.clone().into(), SType::SLong).unwrap().into()),
+                v as i64
+            );
+            assert_eq!(
+                eval_out_wo_ctx::<BigInt256>(&Upcast::new(c.into(), SType::SBigInt).unwrap().into()),
+                v.into()
+            );
+        }
 
-    #[test]
-    fn from_int() {
-        let v = force_any_val::<i32>();
-        let c: Constant = v.into();
-        assert_eq!(
-            eval_out_wo_ctx::<i32>(&Upcast::new(c.clone().into(), SType::SInt).unwrap().into()),
-            v as i32
-        );
-        assert_eq!(
-            eval_out_wo_ctx::<i64>(&Upcast::new(c.clone().into(), SType::SLong).unwrap().into()),
-            v as i64
-        );
-        assert_eq!(
-            eval_out_wo_ctx::<BigInt256>(&Upcast::new(c.into(), SType::SBigInt).unwrap().into()),
-            v.into()
-        );
-    }
+        #[test]
+        fn from_long(v in any::<i64>()) {
+            let c: Constant = v.into();
+            assert_eq!(
+                eval_out_wo_ctx::<i64>(&Upcast::new(c.clone().into(), SType::SLong).unwrap().into()),
+                v as i64
+            );
+            assert_eq!(
+                eval_out_wo_ctx::<BigInt256>(&Upcast::new(c.into(), SType::SBigInt).unwrap().into()),
+                v.into()
+            );
+        }
 
-    #[test]
-    fn from_long() {
-        let v = force_any_val::<i64>();
-        let c: Constant = v.into();
-        assert_eq!(
-            eval_out_wo_ctx::<i64>(&Upcast::new(c.clone().into(), SType::SLong).unwrap().into()),
-            v as i64
-        );
-        assert_eq!(
-            eval_out_wo_ctx::<BigInt256>(&Upcast::new(c.into(), SType::SBigInt).unwrap().into()),
-            v.into()
-        );
-    }
-
-    #[test]
-    fn from_bigint() {
-        let v: BigInt256 = force_any_val::<i64>().into();
-        let c: Constant = v.clone().into();
-        assert_eq!(
-            eval_out_wo_ctx::<BigInt256>(&Upcast::new(c.into(), SType::SBigInt).unwrap().into()),
-            v
-        );
+        #[test]
+        fn from_bigint(v in any::<i64>()) {
+            let v: BigInt256 = v.into();
+            let c: Constant = v.clone().into();
+            assert_eq!(
+                eval_out_wo_ctx::<BigInt256>(&Upcast::new(c.into(), SType::SBigInt).unwrap().into()),
+                v
+            );
+        }
     }
 }

@@ -94,8 +94,8 @@ pub enum SigmaParsingError {
     /// Serialization error
     #[error("serialization error: {0}")]
     SerializationError(#[from] SigmaSerializationError),
-    /// Invalid item quantity in BoundedVec
-    #[error("Invalid item quantity in BoundedVec: {0}")]
+    /// Invalid item quantity for BoundedVec
+    #[error("Invalid item quantity for BoundedVec: {0}")]
     BoundedVecOutOfBounds(#[from] BoundedVecOutOfBounds),
 }
 

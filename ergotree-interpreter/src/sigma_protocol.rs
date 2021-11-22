@@ -11,6 +11,8 @@ mod crypto_utils;
 mod dht_protocol;
 pub mod dlog_protocol;
 mod fiat_shamir;
+mod gf2_192;
+mod gf2_192poly;
 pub mod proof_tree;
 pub mod sig_serializer;
 pub mod unchecked_tree;

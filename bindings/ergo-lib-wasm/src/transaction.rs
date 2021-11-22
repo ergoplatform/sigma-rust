@@ -2,7 +2,9 @@
 
 use crate::box_coll::ErgoBoxCandidates;
 use crate::box_coll::ErgoBoxes;
+use crate::context_extension::ContextExtension;
 use crate::data_input::DataInputs;
+use crate::ergo_box::BoxId;
 use crate::error_conversion::to_js;
 use crate::input::{Inputs, UnsignedInputs};
 use crate::json::TransactionJsonEip12;
@@ -223,6 +225,25 @@ pub struct UnsignedTransaction(chain::transaction::unsigned::UnsignedTransaction
 
 #[wasm_bindgen]
 impl UnsignedTransaction {
+    /// Consumes the calling UnsignedTransaction and returns a new UnsignedTransaction containing
+    /// the ContextExtension in the provided input box id or returns an error if the input box cannot be found.
+    /// After the call the calling UnsignedTransaction will be null.
+    pub fn with_input_context_ext(
+        mut self,
+        input_id: &BoxId,
+        ext: &ContextExtension,
+    ) -> Result<UnsignedTransaction, JsValue> {
+        let mut input = self
+            .0
+            .inputs
+            .iter_mut()
+            .find(|input| input.box_id == input_id.clone().into())
+            .ok_or_else(|| JsValue::from_str("Box input id not found"))?;
+        input.extension = ext.clone().into();
+
+        Ok(self.clone())
+    }
+
     /// Get id for transaction
     pub fn id(&self) -> TxId {
         self.0.id().into()

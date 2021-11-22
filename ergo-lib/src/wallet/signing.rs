@@ -14,8 +14,8 @@ use crate::chain::{
 
 use ergotree_interpreter::eval::context::{Context, TxIoVec};
 use ergotree_interpreter::eval::env::Env;
+use ergotree_interpreter::sigma_protocol::prover::Prover;
 use ergotree_interpreter::sigma_protocol::prover::ProverError;
-use ergotree_interpreter::sigma_protocol::prover::{ContextExtension, Prover};
 use thiserror::Error;
 use crate::wallet::multi_sig::TransactionHintsBag;
 
@@ -143,7 +143,17 @@ pub fn make_context(
                 .map(|b| Rc::new(b.clone()))
                 .ok_or(TxSigningError::InputBoxNotFound(idx))
         })?;
-
+    let extension = tx_ctx
+        .spending_tx
+        .inputs
+        .get(self_index)
+        .ok_or_else(|| {
+            TxSigningError::ContextError(
+                "self_index not found in spending transaction inputs".to_string(),
+            )
+        })?
+        .extension
+        .clone();
     Ok(Context {
         height,
         self_box: self_box_ir,
@@ -151,7 +161,7 @@ pub fn make_context(
         data_inputs: data_inputs_ir,
         inputs: inputs_ir,
         pre_header: state_ctx.pre_header.clone(),
-        extension: ContextExtension::empty(),
+        extension,
         headers: state_ctx.headers.clone(),
     })
 }
@@ -236,17 +246,14 @@ pub fn sign_reduced_transaction(
     let tx = reduced_tx.unsigned_tx.clone();
     let message_to_sign = tx.bytes_to_sign()?;
     let signed_inputs = tx.inputs.enumerated().try_mapped(|(idx, input)| {
+        let inputs = reduced_tx.reduced_inputs();
+        let reduced_input = inputs.get(idx).unwrap();
         prover
             .generate_proof(
-                reduced_tx
-                    .reduced_inputs()
-                    .get(idx)
-                    .unwrap()
-                    .reduction_result
-                    .sigma_prop
-                    .clone(),
+                reduced_input.reduction_result.sigma_prop.clone(),
                 message_to_sign.as_slice(),
                 &HintsBag::empty(),
+                reduced_input.extension.clone(),
             )
             .map(|proof| Input::new(input.box_id.clone(), proof.into()))
             .map_err(|e| TxSigningError::ProverError(e, idx))
@@ -259,10 +266,12 @@ pub fn sign_reduced_transaction(
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::panic)]
 mod tests {
     use super::*;
     use ergotree_interpreter::sigma_protocol::private_input::DlogProverInput;
     use ergotree_interpreter::sigma_protocol::private_input::PrivateInput;
+    use ergotree_interpreter::sigma_protocol::prover::ContextExtension;
     use ergotree_interpreter::sigma_protocol::prover::TestProver;
     use ergotree_interpreter::sigma_protocol::verifier::TestVerifier;
     use ergotree_interpreter::sigma_protocol::verifier::Verifier;

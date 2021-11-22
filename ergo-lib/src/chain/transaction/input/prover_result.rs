@@ -74,6 +74,7 @@ impl SigmaSerializable for ProverResult {
 }
 
 #[cfg(test)]
+#[allow(clippy::panic)]
 mod tests {
     use super::*;
     use ergotree_ir::serialization::sigma_serialize_roundtrip;

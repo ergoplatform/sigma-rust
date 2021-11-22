@@ -36,6 +36,7 @@ pub struct UnsignedTransactionJson {
 }
 
 #[cfg(test)]
+#[allow(clippy::panic)]
 mod tests {
     use crate::chain::transaction::unsigned::UnsignedTransaction;
     use crate::chain::transaction::Transaction;
