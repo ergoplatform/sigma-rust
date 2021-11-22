@@ -1,7 +1,5 @@
-
 import Foundation
 import ErgoLibC
-import SwiftyJSON
 
 class BoxId {
     internal var pointer: BoxIdPtr
@@ -43,3 +41,29 @@ class BoxId {
         ergo_wallet_box_id_delete(self.pointer)
     }
 }
+
+class BoxValue {
+    internal var pointer: BoxValuePtr
+    
+    init(fromInt64 : Int64) throws {
+        var ptr: BoxValuePtr?
+        let error = ergo_wallet_box_value_from_i64(fromInt64, &ptr)
+        try checkError(error)
+        self.pointer = ptr!
+    }
+    
+    init(withPtr ptr: BoxValuePtr) {
+        self.pointer = ptr
+    }
+    
+    func toInt64() throws -> Int64 {
+        let res = ergo_wallet_box_value_as_i64(self.pointer)
+        try checkError(res.error)
+        return res.value
+    }
+    
+    deinit {
+        ergo_wallet_box_value_delete(self.pointer)
+    }
+}
+

@@ -51,3 +51,27 @@ pub unsafe fn box_id_to_bytes(box_id_ptr: ConstBoxIdPtr, output: *mut u8) -> Res
     std::ptr::copy_nonoverlapping(src.as_ptr(), output, 32);
     Ok(())
 }
+
+/// Box value in nanoERGs with bound checks
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct BoxValue(pub chain::ergo_box::box_value::BoxValue);
+pub type BoxValuePtr = *mut BoxValue;
+pub type ConstBoxValuePtr = *const BoxValue;
+
+/// Create from i64 with bounds check
+pub unsafe fn box_value_from_i64(
+    amount: i64,
+    box_value_out: *mut BoxValuePtr,
+) -> Result<(), Error> {
+    let box_value_out = mut_ptr_as_mut(box_value_out, "box_value_out")?;
+    let inner = chain::ergo_box::box_value::BoxValue::try_from(amount as u64)
+        .map_err(|_| Error::Misc("BoxValue: can't parse from i64".into()))?;
+    *box_value_out = Box::into_raw(Box::new(BoxValue(inner)));
+    Ok(())
+}
+
+/// Get value as signed 64-bit long
+pub unsafe fn box_value_as_i64(box_value_ptr: ConstBoxValuePtr) -> Result<i64, Error> {
+    let box_value = const_ptr_as_ref(box_value_ptr, "box_value_ptr")?;
+    Ok(i64::from(box_value.0))
+}
