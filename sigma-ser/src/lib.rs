@@ -17,6 +17,8 @@
 #![deny(clippy::panic)]
 #![deny(clippy::wildcard_enum_match_arm)]
 
+/// ScoreX Serialization
+pub mod scorex_serialize;
 /// VLQ encoder
 pub mod vlq_encode;
 /// ZigZag encoder

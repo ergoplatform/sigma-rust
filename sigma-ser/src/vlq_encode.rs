@@ -116,6 +116,19 @@ pub trait WriteSigmaVlqExt: io::Write {
     fn put_i16_be_bytes(&mut self, v: i16) -> io::Result<()> {
         self.write_all(v.to_be_bytes().as_ref())
     }
+
+    /// Put a short string (< 256 bytes) into the writer. Writes length (as u8) and string bytes to the writer
+    fn put_short_string(&mut self, s: &str) -> io::Result<()> {
+        if s.len() > 255 {
+            return Err(io::Error::new(
+                io::ErrorKind::Unsupported,
+                "Serializing strings with more than 255 bytes is not allowed",
+            ));
+        }
+        self.put_u8(s.len() as u8)?;
+        self.write_all(s.as_bytes())?;
+        Ok(())
+    }
 }
 
 /// Mark all types implementing `Write` as implementing the extension.
@@ -195,6 +208,15 @@ pub trait ReadSigmaVlqExt: io::Read {
         let mut bits = BitVec::<Lsb0, u8>::from_vec(buf);
         bits.truncate(size);
         Ok(bits.iter().map(|x| *x).collect::<Vec<bool>>())
+    }
+
+    /// Reads a string from the reader. Reads a byte (size), and the string
+    fn get_short_string(&mut self) -> Result<String, VlqEncodingError> {
+        let size_bytes = self.get_u8()?;
+        let mut bytes = vec![0u8; size_bytes as usize];
+        self.read_exact(&mut bytes)?;
+        let string = String::from_utf8(bytes).map_err(|_| VlqEncodingError::VlqDecodingFailed)?;
+        Ok(string)
     }
 }
 
@@ -879,6 +901,15 @@ mod tests {
             w.put_bits(&bits).unwrap();
             let mut r = Cursor::new(w.into_inner());
             prop_assert_eq![bits.clone(), r.get_bits(bits.len()).unwrap()];
+        }
+
+        #[test]
+        fn prop_short_string_roundtrip(s in ".{1,255}".prop_filter("Filter strings that are too large", |s| s.len() < 256)) {
+            let mut w = Cursor::new(vec![]);
+            w.put_short_string(&s).unwrap();
+            let inner = w.into_inner();
+            prop_assert_eq!(inner[0] as usize, s.len());
+            prop_assert_eq!(std::str::from_utf8(&inner[1..]), Ok(&*s));
         }
 
         #[test]
