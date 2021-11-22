@@ -7,6 +7,7 @@ members = [
     "ergotree-ir",
     "ergotree-interpreter",
     "ergo-lib",
+    "ergo-p2p",
     "bindings/ergo-lib-wasm",
     "bindings/ergo-lib-c-core",
     "bindings/ergo-lib-c",

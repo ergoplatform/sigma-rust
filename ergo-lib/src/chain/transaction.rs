@@ -169,6 +169,7 @@ where
 }
 
 impl SigmaSerializable for Transaction {
+    #[allow(clippy::unwrap_used)]
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         // reference implementation - https://github.com/ScorexFoundation/sigmastate-interpreter/blob/9b20cb110effd1987ff76699d637174a4b2fb441/sigmastate/src/main/scala/org/ergoplatform/ErgoLikeTransaction.scala#L112-L112
         w.put_usize_as_u16_unwrapped(self.inputs.len())?;
@@ -184,6 +185,9 @@ impl SigmaSerializable for Transaction {
         // This optimization is crucial to allow up to MaxTokens (== 255) in a box.
         // Without it total size of all token ids 255 * 32 = 8160, way beyond MaxBoxSize (== 4K)
         let distinct_token_ids = distinct_token_ids(self.output_candidates.clone());
+
+        // Note that `self.output_candidates` is of type `TxIoVec` which has a max length of
+        // `u16::MAX`. Therefore the following unwrap is safe.
         w.put_u32(u32::try_from(distinct_token_ids.len()).unwrap())?;
         distinct_token_ids
             .iter()
@@ -319,6 +323,7 @@ impl TryFrom<json::transaction::TransactionJson> for Transaction {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::panic)]
 pub mod tests {
     use std::convert::TryInto;
 

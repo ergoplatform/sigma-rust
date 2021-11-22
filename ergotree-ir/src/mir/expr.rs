@@ -464,7 +464,11 @@ pub(crate) mod arbitrary {
             ]
             .prop_map_into()
             .boxed(),
-            SType::SSigmaProp => sigma_prop_nested_expr(depth),
+            SType::SSigmaProp => vec(sigma_prop_nested_expr(depth), 0..10)
+                .prop_map(|items| Collection::new(SType::SSigmaProp, items).unwrap())
+                .prop_map_into()
+                .boxed(),
+
             _ => panic!("Nested expression not implemented for {:?}", &elem_tpe),
         }
     }

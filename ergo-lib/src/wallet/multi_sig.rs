@@ -283,7 +283,7 @@ pub fn generate_commitments_for(
                         })
                     }
                     SigmaConjecture::Cthreshold(c_threshold) => {
-                        let items: SigmaConjectureItems<SigmaBoolean> = c_threshold.items;
+                        let items: SigmaConjectureItems<SigmaBoolean> = c_threshold.children;
                         items.iter().enumerate().for_each(|(i, x)| {
                             traverse_node(
                                 x.clone(),

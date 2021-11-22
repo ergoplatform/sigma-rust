@@ -75,6 +75,11 @@ impl ReducedTransaction {
             .map_err(to_js)
     }
 
+    /// Returns the unsigned transation
+    pub fn unsigned_tx(&self) -> UnsignedTransaction {
+        self.0.unsigned_tx.clone().into()
+    }
+
     /// Getting first input box serialized sigma prop bytes
     pub fn get_first_input_serialized_bytes(&self) -> Result<Vec<u8>, JsValue> {
         self.0.reduced_inputs().first().clone().reduction_result.sigma_prop.sigma_serialize_bytes().map_err(to_js)

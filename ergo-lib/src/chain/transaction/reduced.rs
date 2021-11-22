@@ -138,6 +138,7 @@ impl SigmaSerializable for ReducedTransaction {
 }
 
 #[cfg(test)]
+#[allow(clippy::panic)]
 mod tests {
     use super::*;
 

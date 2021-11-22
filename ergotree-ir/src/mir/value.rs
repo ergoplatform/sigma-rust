@@ -256,6 +256,7 @@ impl StoreWrapped for SigmaProp {}
 impl<T: StoreWrapped> StoreWrapped for Option<T> {}
 impl<T> StoreWrapped for Vec<T> {}
 impl StoreWrapped for Value {}
+impl StoreWrapped for Literal {}
 
 #[impl_for_tuples(2, 4)]
 impl StoreWrapped for Tuple {}
