@@ -5,6 +5,7 @@ use ergo_lib::{chain, ergotree_ir::chain::base16_bytes::Base16EncodedBytes};
 use crate::{
     collections::{Collection, CollectionPtr},
     data_input::DataInput,
+    ergo_box::ErgoBoxCandidate,
     input::UnsignedInput,
     util::{const_ptr_as_ref, mut_ptr_as_mut},
     Error,
@@ -57,6 +58,24 @@ pub unsafe fn unsigned_tx_data_inputs(
             .unwrap_or_else(Vec::new)
             .into_iter()
             .map(DataInput)
+            .collect(),
+    )));
+    Ok(())
+}
+
+pub unsafe fn unsigned_tx_output_candidates(
+    unsigned_tx_ptr: ConstUnsignedTransactionPtr,
+    ergo_box_candidates_out: *mut CollectionPtr<ErgoBoxCandidate>,
+) -> Result<(), Error> {
+    let unsigned_tx = const_ptr_as_ref(unsigned_tx_ptr, "unsigned_tx_ptr")?;
+    let ergo_box_candidates_out =
+        mut_ptr_as_mut(ergo_box_candidates_out, "ergo_box_candidates_out")?;
+    *ergo_box_candidates_out = Box::into_raw(Box::new(Collection(
+        unsigned_tx
+            .0
+            .output_candidates
+            .iter()
+            .map(|ebc| ErgoBoxCandidate(ebc.clone()))
             .collect(),
     )));
     Ok(())

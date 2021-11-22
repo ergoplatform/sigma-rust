@@ -131,3 +131,48 @@ enum NonMandatoryRegisterId: UInt8 {
     /// id for R9 register
     case R9 = 9
 }
+
+class ErgoBoxCandidates {
+    internal var pointer: ErgoBoxCandidatesPtr
+    
+    init() throws {
+        self.pointer = try ErgoBoxCandidates.initEmpty()
+    }
+    
+    init(withRawPointer ptr: ErgoBoxCandidatesPtr) {
+        self.pointer = ptr
+    }
+    
+    private static func initEmpty() throws -> ErgoBoxCandidatesPtr {
+        var ptr: ErgoBoxCandidatesPtr?
+        let error = ergo_wallet_ergo_box_candidates_new(&ptr)
+        try checkError(error)
+        return ptr!
+    }
+    
+    func len() throws -> UInt {
+        let res = ergo_wallet_ergo_box_candidates_len(self.pointer)
+        try checkError(res.error)
+        return res.value
+    }
+    
+    func get(index: UInt) throws -> ErgoBoxCandidate? {
+        var dataInputPtr: DataInputPtr?
+        let res = ergo_wallet_ergo_box_candidates_get(self.pointer, index, &dataInputPtr)
+        try checkError(res.error)
+        if res.is_some {
+            return ErgoBoxCandidate(withRawPointer: dataInputPtr!)
+        } else {
+            return nil
+        }
+    }
+    
+    func add(ergoBoxCandidate: ErgoBoxCandidate) throws {
+        let error = ergo_wallet_ergo_box_candidates_add(ergoBoxCandidate.pointer, self.pointer)
+        try checkError(error)
+    }
+        
+    deinit {
+        ergo_wallet_ergo_box_candidates_delete(self.pointer)
+    }
+}

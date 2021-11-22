@@ -5,6 +5,7 @@ use ergo_lib_c_core::{
     token::TokensPtr,
     Error,
 };
+use paste::paste;
 
 use crate::{ErrorPtr, ReturnNum, ReturnOption};
 use std::{
@@ -156,3 +157,5 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_box_value(
 pub extern "C" fn ergo_wallet_ergo_box_candidate_delete(ptr: ErgoBoxCandidatePtr) {
     unsafe { delete_ptr(ptr) }
 }
+
+make_collection!(ErgoBoxCandidates, ErgoBoxCandidate);

@@ -81,7 +81,7 @@ pub unsafe fn box_value_as_i64(box_value_ptr: ConstBoxValuePtr) -> Result<i64, E
 
 /// ErgoBox candidate not yet included in any transaction on the chain
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct ErgoBoxCandidate(chain::ergo_box::ErgoBoxCandidate);
+pub struct ErgoBoxCandidate(pub(crate) chain::ergo_box::ErgoBoxCandidate);
 pub type ErgoBoxCandidatePtr = *mut ErgoBoxCandidate;
 pub type ConstErgoBoxCandidatePtr = *const ErgoBoxCandidate;
 

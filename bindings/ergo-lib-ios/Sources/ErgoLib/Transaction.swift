@@ -24,6 +24,13 @@ class UnsignedTransaction {
         return DataInputs(withPtr: dataInputsPtr!)
     }
     
+    func getOutputCandidates() throws -> ErgoBoxCandidates {
+        var ptr: ErgoBoxCandidatesPtr?
+        let error = ergo_wallet_unsigned_tx_output_candidates(self.pointer, &ptr)
+        try checkError(error)
+        return ErgoBoxCandidates(withRawPointer: ptr!)
+    }
+    
     func toJSON() throws -> JSON? {
         var cStr: UnsafePointer<CChar>?
         let error = ergo_wallet_unsigned_tx_to_json(self.pointer, &cStr)
