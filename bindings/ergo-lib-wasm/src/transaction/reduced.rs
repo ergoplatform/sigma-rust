@@ -6,18 +6,20 @@ use crate::box_coll::ErgoBoxes;
 use crate::ergo_state_ctx::ErgoStateContext;
 use crate::error_conversion::to_js;
 
+use crate::transaction::{HintsBag, Transaction};
+use ergo_lib::chain::json::hints::CommitmentHintJson;
 use ergo_lib::chain::transaction::reduced::reduce_tx;
 use ergo_lib::chain::transaction::TxIoVec;
-use ergo_lib::ergotree_ir::serialization::SigmaSerializable;
-use wasm_bindgen::prelude::*;
-use ergo_lib::chain::json::hints::CommitmentHintJson;
 use ergo_lib::ergotree_interpreter::sigma_protocol::private_input::DlogProverInput;
-use ergo_lib::ergotree_interpreter::sigma_protocol::prover::hint::{Hint};
+use ergo_lib::ergotree_interpreter::sigma_protocol::prover::hint::Hint;
+use ergo_lib::ergotree_ir::serialization::SigmaSerializable;
 use ergo_lib::ergotree_ir::sigma_protocol::dlog_group::EcPoint;
-use ergo_lib::wallet::multi_sig::{bag_for_multi_sig, generate_commitments_for};
-use ergo_lib::ergotree_ir::sigma_protocol::sigma_boolean::{SigmaBoolean, SigmaProofOfKnowledgeTree};
-use crate::transaction::{HintsBag, Transaction};
 use ergo_lib::ergotree_ir::sigma_protocol::sigma_boolean::ProveDlog as OtherProveDlog;
+use ergo_lib::ergotree_ir::sigma_protocol::sigma_boolean::{
+    SigmaBoolean, SigmaProofOfKnowledgeTree,
+};
+use ergo_lib::wallet::multi_sig::{bag_for_multi_sig, generate_commitments_for};
+use wasm_bindgen::prelude::*;
 // use crate::address::Address;
 use crate::transaction::CommitmentHintJson as CommitmentHintJsonWasm;
 use ergo_lib::ergotree_interpreter::sigma_protocol::prover::hint::HintsBag as OtherHintsBag;
@@ -82,50 +84,95 @@ impl ReducedTransaction {
 
     /// Getting first input box serialized sigma prop bytes
     pub fn get_first_input_serialized_bytes(&self) -> Result<Vec<u8>, JsValue> {
-        self.0.reduced_inputs().first().clone().reduction_result.sigma_prop.sigma_serialize_bytes().map_err(to_js)
+        self.0
+            .reduced_inputs()
+            .first()
+            .clone()
+            .reduction_result
+            .sigma_prop
+            .sigma_serialize_bytes()
+            .map_err(to_js)
     }
 
     /// Generate commitment for first input with input address
-    pub fn generate_commitment_for_first_input(&self, secret_base16:&str)->Result<String, JsValue>{
-        let sigma_prop=self.0.reduced_inputs().first().clone().reduction_result.sigma_prop;
-        let secret=DlogProverInput::from_base16_str(secret_base16.to_string()).unwrap();
-        let pk=secret.public_image();
-        let generate_for:Vec<SigmaBoolean>=vec![SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(pk.clone()))];
-        let hints=generate_commitments_for(sigma_prop,&generate_for);
-        let mut commitments:Vec<CommitmentHintJson>=Vec::new();
-        match hints.hints[0].clone(){
+    pub fn generate_commitment_for_first_input(
+        &self,
+        secret_base16: &str,
+    ) -> Result<String, JsValue> {
+        let sigma_prop = self
+            .0
+            .reduced_inputs()
+            .first()
+            .clone()
+            .reduction_result
+            .sigma_prop;
+        let secret = DlogProverInput::from_base16_str(secret_base16.to_string()).unwrap();
+        let pk = secret.public_image();
+        let generate_for: Vec<SigmaBoolean> = vec![SigmaBoolean::ProofOfKnowledge(
+            SigmaProofOfKnowledgeTree::ProveDlog(pk.clone()),
+        )];
+        let hints = generate_commitments_for(sigma_prop, &generate_for);
+        let mut commitments: Vec<CommitmentHintJson> = Vec::new();
+        match hints.hints[0].clone() {
             Hint::SecretProven(_) => {}
             Hint::CommitmentHint(cmt) => {
-                let cmt_json:CommitmentHintJson=CommitmentHintJson::from(cmt);
+                let cmt_json: CommitmentHintJson = CommitmentHintJson::from(cmt);
                 commitments.push(cmt_json);
             }
         }
-        match hints.hints[1].clone(){
+        match hints.hints[1].clone() {
             Hint::SecretProven(_) => {}
             Hint::CommitmentHint(cmt) => {
-                let cmt_json:CommitmentHintJson=CommitmentHintJson::from(cmt);
+                let cmt_json: CommitmentHintJson = CommitmentHintJson::from(cmt);
                 commitments.push(cmt_json);
             }
         }
-        serde_json::to_string_pretty(&commitments)
-            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+        serde_json::to_string_pretty(&commitments).map_err(|e| JsValue::from_str(&format!("{}", e)))
     }
 
     /// bag for multi sig
-    pub fn bag_for_multi_sig(&self,pk_base16:&str,own_cmt:&str, signed_transaction:Transaction)->HintsBag{
-        let sigma_prop=self.0.reduced_inputs().first().clone().reduction_result.sigma_prop;
-        let mut real_proposition:Vec<SigmaBoolean>=Vec::new();
-        let simulated_proposition:Vec<SigmaBoolean>=Vec::new();
-        let pks:Vec<&str>=pk_base16.split(',').collect();
-        for pk in pks{
-            real_proposition.push(SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(OtherProveDlog::from(EcPoint::from_base16_str(pk.to_string()).unwrap()))))
+    pub fn bag_for_multi_sig(
+        &self,
+        pk_base16: &str,
+        own_cmt: &str,
+        signed_transaction: Transaction,
+    ) -> HintsBag {
+        let sigma_prop = self
+            .0
+            .reduced_inputs()
+            .first()
+            .clone()
+            .reduction_result
+            .sigma_prop;
+        let mut real_proposition: Vec<SigmaBoolean> = Vec::new();
+        let simulated_proposition: Vec<SigmaBoolean> = Vec::new();
+        let pks: Vec<&str> = pk_base16.split(',').collect();
+        for pk in pks {
+            real_proposition.push(SigmaBoolean::ProofOfKnowledge(
+                SigmaProofOfKnowledgeTree::ProveDlog(OtherProveDlog::from(
+                    EcPoint::from_base16_str(pk.to_string()).unwrap(),
+                )),
+            ))
         }
-        let proof=Vec::from(signed_transaction.0.inputs.get(0).unwrap().spending_proof.clone().proof);
-        let mut bag:OtherHintsBag=bag_for_multi_sig(sigma_prop,&real_proposition,&simulated_proposition,&proof);
-        let own=CommitmentHintJsonWasm::from_json(own_cmt);
+        let proof = Vec::from(
+            signed_transaction
+                .0
+                .inputs
+                .get(0)
+                .unwrap()
+                .spending_proof
+                .clone()
+                .proof,
+        );
+        let mut bag: OtherHintsBag = bag_for_multi_sig(
+            sigma_prop,
+            &real_proposition,
+            &simulated_proposition,
+            &proof,
+        );
+        let own = CommitmentHintJsonWasm::from_json(own_cmt);
         bag.add_hint(Hint::CommitmentHint(own.0));
-        crate::transaction::HintsBag{0:bag}
-
+        crate::transaction::HintsBag { 0: bag }
     }
 }
 

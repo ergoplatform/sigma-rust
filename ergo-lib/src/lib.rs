@@ -23,7 +23,6 @@ pub mod chain;
 pub mod constants;
 pub mod wallet;
 
-
 /// Re-exported types from dependencies
 #[cfg(feature = "compiler")]
 pub extern crate ergoscript_compiler;

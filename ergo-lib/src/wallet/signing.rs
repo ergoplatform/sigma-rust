@@ -12,12 +12,12 @@ use crate::chain::{
     transaction::{unsigned::UnsignedTransaction, Transaction},
 };
 
+use crate::wallet::multi_sig::TransactionHintsBag;
 use ergotree_interpreter::eval::context::{Context, TxIoVec};
 use ergotree_interpreter::eval::env::Env;
 use ergotree_interpreter::sigma_protocol::prover::Prover;
 use ergotree_interpreter::sigma_protocol::prover::ProverError;
 use thiserror::Error;
-use crate::wallet::multi_sig::TransactionHintsBag;
 
 /// Errors on transaction signing
 #[derive(Error, PartialEq, Eq, Debug, Clone)]
@@ -189,7 +189,7 @@ pub fn sign_transaction(
                 &Env::empty(),
                 ctx,
                 message_to_sign.as_slice(),
-                &HintsBag::empty(),// &hints_bag,
+                &HintsBag::empty(), // &hints_bag,
             )
             .map(|proof| Input::new(input.box_id.clone(), proof.into()))
             .map_err(|e| TxSigningError::ProverError(e, idx))
@@ -218,7 +218,7 @@ pub fn sign_transaction_multi(
             .find(|b| b.box_id() == input.box_id)
             .ok_or(TxSigningError::InputBoxNotFound(idx))?;
         let ctx = Rc::new(make_context(state_context, &tx_context, idx)?);
-        let hints_bag=tx_hints.all_hints_for_input(idx);
+        let hints_bag = tx_hints.all_hints_for_input(idx);
         // println!("-------------{}",hints_bag.hints.len());
         prover
             .prove(

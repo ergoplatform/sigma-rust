@@ -5,8 +5,8 @@ use serde::{Deserialize, Serialize};
 use ergotree_interpreter::sigma_protocol::prover::ProofBytes;
 
 pub(crate) mod context_extension;
-pub(crate) mod transaction;
 pub mod hints;
+pub(crate) mod transaction;
 
 /// Serde remote type
 #[cfg_attr(

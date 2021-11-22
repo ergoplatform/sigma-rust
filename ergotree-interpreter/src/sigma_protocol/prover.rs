@@ -6,7 +6,6 @@ mod prover_result;
 pub mod hint;
 
 use crate::eval::reduce_to_crypto;
-use crate::sigma_protocol::{crypto_utils, dht_protocol};
 use crate::sigma_protocol::crypto_utils::secure_random_bytes;
 use crate::sigma_protocol::fiat_shamir::fiat_shamir_hash_fn;
 use crate::sigma_protocol::fiat_shamir::fiat_shamir_tree_to_bytes;
@@ -20,6 +19,7 @@ use crate::sigma_protocol::unproven_tree::UnprovenDhTuple;
 use crate::sigma_protocol::Challenge;
 use crate::sigma_protocol::UnprovenLeaf;
 use crate::sigma_protocol::SOUNDNESS_BYTES;
+use crate::sigma_protocol::{crypto_utils, dht_protocol};
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaConjectureItems;
 use std::convert::TryInto;
@@ -54,9 +54,9 @@ use crate::eval::context::Context;
 use crate::eval::env::Env;
 use crate::eval::EvalError;
 
-use thiserror::Error;
-use ergotree_ir::sigma_protocol::dlog_group;
 use crate::sigma_protocol::dlog_protocol::SecondDlogProverMessage;
+use ergotree_ir::sigma_protocol::dlog_group;
+use thiserror::Error;
 
 /// Prover errors
 #[derive(Error, PartialEq, Eq, Debug, Clone)]
@@ -235,9 +235,9 @@ fn mark_real<P: Prover + ?Sized>(
                     // else mark it "simulated"
                     let secret_known = hints_bag.real_images().contains(&unp_leaf.proposition())
                         || prover
-                        .secrets()
-                        .iter()
-                        .any(|s| s.public_image() == unp_leaf.proposition());
+                            .secrets()
+                            .iter()
+                            .any(|s| s.public_image() == unp_leaf.proposition());
                     Some(unp_leaf.clone().with_simulated(!secret_known).into())
                 }
                 UnprovenTree::UnprovenConjecture(unp_conj) => match unp_conj {
@@ -251,7 +251,7 @@ fn mark_real<P: Prover + ?Sized>(
                                 simulated,
                                 ..cand.clone()
                             }
-                                .into(),
+                            .into(),
                         )
                     }
                     UnprovenConjecture::CorUnproven(cor) => {
@@ -264,7 +264,7 @@ fn mark_real<P: Prover + ?Sized>(
                                 simulated,
                                 ..cor.clone()
                             }
-                                .into(),
+                            .into(),
                         )
                     }
                     UnprovenConjecture::CthresholdUnproven(ct) => {
@@ -279,7 +279,7 @@ fn mark_real<P: Prover + ?Sized>(
                                 simulated,
                                 ..ct.clone()
                             }
-                                .into(),
+                            .into(),
                         )
                     }
                 },
@@ -287,8 +287,8 @@ fn mark_real<P: Prover + ?Sized>(
             ProofTree::UncheckedTree(_) => None,
         })
     })?
-        .try_into()
-        .map_err(|e: &str| ProverError::Unexpected(e.to_string()))
+    .try_into()
+    .map_err(|e: &str| ProverError::Unexpected(e.to_string()))
 }
 
 /// Set positions for children of a unproven inner node (conjecture, so AND/OR/THRESHOLD)
@@ -424,7 +424,7 @@ fn polish_simulated<P: Prover + ?Sized>(
                                 } else {
                                     c
                                 }
-                                    .into()
+                                .into()
                             }),
                             ..ct.clone()
                         }
@@ -435,8 +435,8 @@ fn polish_simulated<P: Prover + ?Sized>(
         },
         ProofTree::UncheckedTree(_) => Ok(None),
     })?
-        .try_into()
-        .map_err(|e: &str| ProverError::Unexpected(e.to_string()))
+    .try_into()
+    .map_err(|e: &str| ProverError::Unexpected(e.to_string()))
 }
 
 fn step4_real_conj(
@@ -491,7 +491,7 @@ fn step4_simulated_and_conj(cand: CandUnproven) -> Result<Option<ProofTree>, Pro
                 children: new_children,
                 ..cand
             }
-                .into(),
+            .into(),
         ))
     } else {
         Err(ProverError::Unexpected(
@@ -527,7 +527,7 @@ fn step4_simulated_or_conj(cor: CorUnproven) -> Result<Option<ProofTree>, Prover
         let mut new_children = vec![head];
         new_children.append(&mut tail);
         #[allow(clippy::unwrap_used)] // since quantity is preserved unwrap is safe here
-            Ok(Some(
+        Ok(Some(
             CorUnproven {
                 children: new_children
                     .into_iter()
@@ -537,7 +537,7 @@ fn step4_simulated_or_conj(cor: CorUnproven) -> Result<Option<ProofTree>, Prover
                     .unwrap(),
                 ..cor
             }
-                .into(),
+            .into(),
         ))
     } else {
         Err(ProverError::Unexpected(
@@ -604,7 +604,7 @@ fn step5_schnorr(
                 ),
                 ..us.clone()
             }
-                .into();
+            .into();
             pt
         }
         None => {
@@ -620,7 +620,7 @@ fn step5_schnorr(
                             challenge,
                             second_message: sm,
                         }
-                            .into(),
+                        .into(),
                     ))
                 } else {
                     Err(ProverError::SimulatedLeafWithoutChallenge)
@@ -634,7 +634,7 @@ fn step5_schnorr(
                         randomness_opt: Some(r),
                         ..us.clone()
                     }
-                        .into(),
+                    .into(),
                 ))
             }?
         }
@@ -737,17 +737,17 @@ fn simulate_and_commit(
             }
 
             ProofTree::UnprovenTree(UnprovenTree::UnprovenLeaf(UnprovenLeaf::UnprovenSchnorr(
-                                                                   us,
-                                                               ))) => step5_schnorr(us.clone(), hints_bag),
+                us,
+            ))) => step5_schnorr(us.clone(), hints_bag),
 
             ProofTree::UnprovenTree(UnprovenTree::UnprovenLeaf(UnprovenLeaf::UnprovenDhTuple(
-                                                                   dhu,
-                                                               ))) => step5_diffie_hellman_tuple(dhu.clone(), hints_bag),
+                dhu,
+            ))) => step5_diffie_hellman_tuple(dhu.clone(), hints_bag),
             ProofTree::UncheckedTree(_) => Ok(None),
         }
     })?
-        .try_into()
-        .map_err(|e: &str| ProverError::Unexpected(e.to_string()))
+    .try_into()
+    .map_err(|e: &str| ProverError::Unexpected(e.to_string()))
 }
 
 fn step9_real_and(cand: CandUnproven) -> Result<Option<ProofTree>, ProverError> {
@@ -787,7 +787,7 @@ fn step9_real_or(cor: CorUnproven) -> Result<Option<ProofTree>, ProverError> {
                 children,
                 ..cor.clone()
             }
-                .into(),
+            .into(),
         ))
     } else {
         Err(ProverError::Unexpected(
@@ -867,7 +867,10 @@ fn step9_real_schnorr<P: Prover + ?Sized>(
             })
             .find(|prover_input| prover_input.public_image() == us.proposition)
         {
-            let oc = hints_bag.own_commitments().into_iter().find(|comm| comm.position == us.position);
+            let oc = hints_bag
+                .own_commitments()
+                .into_iter()
+                .find(|comm| comm.position == us.position);
             let mut _z: Option<SecondDlogProverMessage> = None;
             if oc.is_some() {
                 _z = Some(dlog_protocol::interactive_prover::second_message(
@@ -879,10 +882,7 @@ fn step9_real_schnorr<P: Prover + ?Sized>(
                 _z = Some(dlog_protocol::interactive_prover::second_message(
                     priv_key,
                     us.randomness_opt.ok_or_else(|| {
-                        ProverError::Unexpected(format!(
-                            "empty randomness in {:?}",
-                            us
-                        ))
+                        ProverError::Unexpected(format!("empty randomness in {:?}", us))
                     })?,
                     &challenge,
                 ));
@@ -895,14 +895,20 @@ fn step9_real_schnorr<P: Prover + ?Sized>(
                     challenge,
                     second_message: _z.unwrap(),
                 }
-                    .into(),
+                .into(),
             ))
         } else {
-            let hint = hints_bag.real_proofs().into_iter().find(|comm| comm.position == us.position);
+            let hint = hints_bag
+                .real_proofs()
+                .into_iter()
+                .find(|comm| comm.position == us.position);
             if hint != None {
                 let unchecked_tree = hint.unwrap().unchecked_tree;
                 // should be replace with match case
-                if let UncheckedTree::UncheckedLeaf(UncheckedLeaf::UncheckedSchnorr(unchecked_schnorr)) = unchecked_tree {
+                if let UncheckedTree::UncheckedLeaf(UncheckedLeaf::UncheckedSchnorr(
+                    unchecked_schnorr,
+                )) = unchecked_tree
+                {
                     Ok(Some(
                         UncheckedSchnorr {
                             proposition: us.proposition.clone(),
@@ -910,7 +916,7 @@ fn step9_real_schnorr<P: Prover + ?Sized>(
                             challenge,
                             second_message: unchecked_schnorr.second_message.clone(),
                         }
-                            .into(),
+                        .into(),
                     ))
                 } else {
                     Err(ProverError::SecretNotFound)
@@ -924,7 +930,7 @@ fn step9_real_schnorr<P: Prover + ?Sized>(
                         challenge,
                         second_message: SecondDlogProverMessage { z: bs },
                     }
-                        .into(),
+                    .into(),
                 ))
 
                 // Err(ProverError::SecretNotFound)
@@ -989,7 +995,7 @@ fn step9_real_dh_tuple<P: Prover + ?Sized>(
                 challenge: dhu_challenge,
                 second_message: z,
             }
-                .into(),
+            .into(),
         ))
     } else {
         Err(ProverError::RealUnprovenTreeWithoutChallenge)
@@ -1068,7 +1074,7 @@ fn convert_to_unproven(sb: SigmaBoolean) -> Result<UnprovenTree, ProverError> {
                 simulated: false,
                 position: NodePosition::crypto_tree_prefix(),
             }
-                .into(),
+            .into(),
             SigmaProofOfKnowledgeTree::ProveDlog(prove_dlog) => UnprovenSchnorr {
                 proposition: prove_dlog,
                 commitment_opt: None,
@@ -1077,7 +1083,7 @@ fn convert_to_unproven(sb: SigmaBoolean) -> Result<UnprovenTree, ProverError> {
                 simulated: false,
                 position: NodePosition::crypto_tree_prefix(),
             }
-                .into(),
+            .into(),
         },
         SigmaBoolean::SigmaConjecture(conj) => match conj {
             SigmaConjecture::Cand(cand) => CandUnproven {
@@ -1089,7 +1095,7 @@ fn convert_to_unproven(sb: SigmaBoolean) -> Result<UnprovenTree, ProverError> {
                     .try_mapped(|it| convert_to_unproven(it).map(Into::into))?,
                 position: NodePosition::crypto_tree_prefix(),
             }
-                .into(),
+            .into(),
             SigmaConjecture::Cor(cor) => CorUnproven {
                 proposition: cor.clone(),
                 challenge_opt: None,
@@ -1099,7 +1105,7 @@ fn convert_to_unproven(sb: SigmaBoolean) -> Result<UnprovenTree, ProverError> {
                     .try_mapped(|it| convert_to_unproven(it).map(Into::into))?,
                 position: NodePosition::crypto_tree_prefix(),
             }
-                .into(),
+            .into(),
             SigmaConjecture::Cthreshold(ct) => CthresholdUnproven {
                 proposition: ct.clone(),
                 k: ct.k,
@@ -1111,7 +1117,7 @@ fn convert_to_unproven(sb: SigmaBoolean) -> Result<UnprovenTree, ProverError> {
                 simulated: false,
                 position: NodePosition::crypto_tree_prefix(),
             }
-                .into(),
+            .into(),
         },
         SigmaBoolean::TrivialProp(_) => {
             return Err(ProverError::Unexpected(
@@ -1142,14 +1148,14 @@ fn convert_to_unchecked(tree: ProofTree) -> Result<UncheckedTree, ProverError> {
                     })?,
                     children: cand.children.clone().try_mapped(convert_to_unchecked)?,
                 }
-                    .into()),
+                .into()),
                 UnprovenConjecture::CorUnproven(cor) => Ok(UncheckedConjecture::CorUnchecked {
                     challenge: cor.challenge_opt.clone().ok_or_else(|| {
                         ProverError::Unexpected(format!("no challenge in {:?}", cor))
                     })?,
                     children: cor.children.clone().try_mapped(convert_to_unchecked)?,
                 }
-                    .into()),
+                .into()),
                 UnprovenConjecture::CthresholdUnproven(ct) => {
                     Ok(UncheckedConjecture::CthresholdUnchecked {
                         challenge: ct.challenge_opt.clone().ok_or_else(|| {
@@ -1161,7 +1167,7 @@ fn convert_to_unchecked(tree: ProofTree) -> Result<UncheckedTree, ProverError> {
                             ProverError::Unexpected(format!("no polynomial in {:?}", ct))
                         })?,
                     }
-                        .into())
+                    .into())
                 }
             },
         },
@@ -1202,7 +1208,7 @@ mod tests {
             tpe: SType::SBoolean,
             v: Literal::Boolean(true),
         }))
-            .unwrap();
+        .unwrap();
         let message = vec![0u8; 100];
 
         let prover = TestProver { secrets: vec![] };
@@ -1223,7 +1229,7 @@ mod tests {
             tpe: SType::SBoolean,
             v: Literal::Boolean(false),
         }))
-            .unwrap();
+        .unwrap();
         let message = vec![0u8; 100];
 
         let prover = TestProver { secrets: vec![] };
@@ -1298,8 +1304,8 @@ mod tests {
                 .unwrap()
                 .into(),
         ])
-            .unwrap()
-            .into();
+        .unwrap()
+        .into();
         let tree: ErgoTree = expr.try_into().unwrap();
         let message = vec![0u8; 100];
 
@@ -1355,8 +1361,8 @@ mod tests {
                 .unwrap()
                 .into(),
         ])
-            .unwrap()
-            .into();
+        .unwrap()
+        .into();
         let tree: ErgoTree = expr.try_into().unwrap();
         let message = vec![0u8; 100];
 

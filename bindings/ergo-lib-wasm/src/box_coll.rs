@@ -59,7 +59,9 @@ impl ErgoBoxes {
     }
 
     /// Empty ErgoBoxes
-    pub fn empty() -> ErgoBoxes { ErgoBoxes(vec![]) }
+    pub fn empty() -> ErgoBoxes {
+        ErgoBoxes(vec![])
+    }
 }
 
 impl From<Vec<chain::ergo_box::ErgoBox>> for ErgoBoxes {

@@ -1,7 +1,7 @@
 //! Blockchain state
-use std::convert::TryInto;
 use ergotree_ir::chain::header::Header;
 use ergotree_ir::chain::preheader::PreHeader;
+use std::convert::TryInto;
 
 /// Fixed number of last block headers in descending order (first header is the newest one)
 pub type Headers = [Header; 10];

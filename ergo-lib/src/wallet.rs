@@ -20,10 +20,10 @@ use self::signing::TransactionContext;
 pub mod box_selector;
 pub mod derivation_path;
 pub mod ext_pub_key;
+pub mod multi_sig;
 pub mod secret_key;
 pub mod signing;
 pub mod tx_builder;
-pub mod multi_sig;
 
 /// Wallet
 pub struct Wallet {
@@ -74,7 +74,8 @@ impl Wallet {
         tx_hints: TransactionHintsBag,
     ) -> Result<Transaction, WalletError> {
         // let temp=TransactionHintsBag::empty();
-        sign_transaction_multi(self.prover.as_ref(), tx_hints, tx_context,state_context).map_err(WalletError::from)
+        sign_transaction_multi(self.prover.as_ref(), tx_hints, tx_context, state_context)
+            .map_err(WalletError::from)
     }
 
     /// Signs a reduced transaction (generating proofs for inputs)

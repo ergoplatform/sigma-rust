@@ -5,12 +5,12 @@ use wasm_bindgen::prelude::*;
 pub mod derivation_path;
 pub mod ext_pub_key;
 
+use crate::transaction::{HintsBag, TransactionHintsBag};
 use crate::{
     box_coll::ErgoBoxes, ergo_state_ctx::ErgoStateContext, error_conversion::to_js,
     secret_key::SecretKeys, transaction::reduced::ReducedTransaction, transaction::Transaction,
     transaction::UnsignedTransaction,
 };
-use crate::transaction::{HintsBag, TransactionHintsBag};
 
 // /// TransactionHintsBag
 // #[wasm_bindgen]
@@ -82,7 +82,7 @@ impl Wallet {
         hints: &HintsBag,
     ) -> Result<Transaction, JsValue> {
         let boxes_to_spend = TxIoVec::from_vec(boxes_to_spend.clone().into()).map_err(to_js)?;
-        let mut tx_hints =TransactionHintsBag::empty();
+        let mut tx_hints = TransactionHintsBag::empty();
         tx_hints.add_hints_for_input(0, hints.clone());
         let data_boxes = {
             let d: Vec<_> = data_boxes.clone().into();
@@ -97,9 +97,9 @@ impl Wallet {
             boxes_to_spend,
             data_boxes,
         )
-            .map_err(to_js)?;
+        .map_err(to_js)?;
         self.0
-            .sign_transaction_multi(tx_context, &_state_context.clone().into(),tx_hints.0)
+            .sign_transaction_multi(tx_context, &_state_context.clone().into(), tx_hints.0)
             .map_err(to_js)
             .map(Transaction::from)
     }
