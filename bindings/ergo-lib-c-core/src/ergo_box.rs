@@ -21,6 +21,9 @@ use std::convert::TryFrom;
 use ergo_lib::ergotree_ir::chain;
 
 use crate::{
+    constant::{Constant, ConstantPtr},
+    ergo_tree::{ErgoTree, ErgoTreePtr},
+    token::{Token, Tokens, TokensPtr},
     util::{const_ptr_as_ref, mut_ptr_as_mut},
     Error,
 };
@@ -74,4 +77,103 @@ pub unsafe fn box_value_from_i64(
 pub unsafe fn box_value_as_i64(box_value_ptr: ConstBoxValuePtr) -> Result<i64, Error> {
     let box_value = const_ptr_as_ref(box_value_ptr, "box_value_ptr")?;
     Ok(i64::from(box_value.0))
+}
+
+/// ErgoBox candidate not yet included in any transaction on the chain
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct ErgoBoxCandidate(chain::ergo_box::ErgoBoxCandidate);
+pub type ErgoBoxCandidatePtr = *mut ErgoBoxCandidate;
+pub type ConstErgoBoxCandidatePtr = *const ErgoBoxCandidate;
+
+/// Returns value (ErgoTree constant) stored in the register or None if the register is empty
+pub unsafe fn ergo_box_candidate_register_value(
+    ergo_box_candidate_ptr: ConstErgoBoxCandidatePtr,
+    register_id: NonMandatoryRegisterId,
+    constant_out: *mut ConstantPtr,
+) -> Result<bool, Error> {
+    let candidate = const_ptr_as_ref(ergo_box_candidate_ptr, "ergo_box_candidate_ptr")?;
+    let constant_out = mut_ptr_as_mut(constant_out, "constant_out")?;
+    if let Some(c) = candidate.0.additional_registers.get(register_id.into()) {
+        *constant_out = Box::into_raw(Box::new(Constant(c.clone())));
+        Ok(true)
+    } else {
+        Ok(false)
+    }
+}
+
+/// Get box creation height
+pub unsafe fn ergo_box_candidate_creation_height(
+    ergo_box_candidate_ptr: ConstErgoBoxCandidatePtr,
+) -> Result<u32, Error> {
+    let candidate = const_ptr_as_ref(ergo_box_candidate_ptr, "ergo_box_candidate_ptr")?;
+    Ok(candidate.0.creation_height)
+}
+
+/// Get tokens for box
+pub unsafe fn ergo_box_candidate_tokens(
+    ergo_box_candidate_ptr: ConstErgoBoxCandidatePtr,
+    tokens_out: *mut TokensPtr,
+) -> Result<(), Error> {
+    let candidate = const_ptr_as_ref(ergo_box_candidate_ptr, "ergo_box_candidate_ptr")?;
+    let tokens_out = mut_ptr_as_mut(tokens_out, "tokens_out")?;
+    *tokens_out = Box::into_raw(Box::new(Tokens(
+        candidate.0.tokens.clone().map(|bv| bv.mapped(Token)),
+    )));
+    Ok(())
+}
+
+/// Get ergo tree for box
+pub unsafe fn ergo_box_candidate_ergo_tree(
+    ergo_box_candidate_ptr: ConstErgoBoxCandidatePtr,
+    ergo_tree_out: *mut ErgoTreePtr,
+) -> Result<(), Error> {
+    let candidate = const_ptr_as_ref(ergo_box_candidate_ptr, "ergo_box_candidate_ptr")?;
+    let ergo_tree_out = mut_ptr_as_mut(ergo_tree_out, "ergo_tree_out")?;
+    *ergo_tree_out = Box::into_raw(Box::new(ErgoTree(candidate.0.ergo_tree.clone())));
+    Ok(())
+}
+
+/// Get box value in nanoERGs
+pub unsafe fn ergo_box_candidate_box_value(
+    ergo_box_candidate_ptr: ConstErgoBoxCandidatePtr,
+    box_value_out: *mut BoxValuePtr,
+) -> Result<(), Error> {
+    let candidate = const_ptr_as_ref(ergo_box_candidate_ptr, "ergo_box_candidate_ptr")?;
+    let box_value_out = mut_ptr_as_mut(box_value_out, "box_value_out")?;
+    *box_value_out = Box::into_raw(Box::new(BoxValue(candidate.0.value)));
+    Ok(())
+}
+
+/// newtype for box registers R4 - R9
+#[repr(u8)]
+#[derive(PartialEq, Eq, Clone, Debug)]
+pub enum NonMandatoryRegisterId {
+    /// id for R4 register
+    R4 = 4,
+    /// id for R5 register
+    R5 = 5,
+    /// id for R6 register
+    R6 = 6,
+    /// id for R7 register
+    R7 = 7,
+    /// id for R8 register
+    R8 = 8,
+    /// id for R9 register
+    R9 = 9,
+}
+
+impl NonMandatoryRegisterId {}
+
+impl From<NonMandatoryRegisterId> for chain::ergo_box::NonMandatoryRegisterId {
+    fn from(v: NonMandatoryRegisterId) -> Self {
+        use chain::ergo_box::NonMandatoryRegisterId::*;
+        match v {
+            NonMandatoryRegisterId::R4 => R4,
+            NonMandatoryRegisterId::R5 => R5,
+            NonMandatoryRegisterId::R6 => R6,
+            NonMandatoryRegisterId::R7 => R7,
+            NonMandatoryRegisterId::R8 => R8,
+            NonMandatoryRegisterId::R9 => R9,
+        }
+    }
 }

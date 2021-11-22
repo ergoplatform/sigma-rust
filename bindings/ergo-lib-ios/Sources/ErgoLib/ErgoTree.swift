@@ -12,6 +12,10 @@ class ErgoTree {
         self.pointer = try ErgoTree.fromBase16EncodedString(bytesStr: fromBase16EncodedString)
     }
     
+    init(withPtr ptr: ErgoTreePtr) {
+        self.pointer = ptr
+    }
+    
     func toBytes() throws -> [UInt8] {
         let res = ergo_wallet_ergo_tree_bytes_len(self.pointer)
         try checkError(res.error)

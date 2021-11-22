@@ -14,7 +14,7 @@ use crate::{
 
 /// The root of ErgoScript IR. Serialized instances of this class are self sufficient and can be passed around.
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct ErgoTree(ergo_lib::ergotree_ir::ergo_tree::ErgoTree);
+pub struct ErgoTree(pub(crate) ergo_lib::ergotree_ir::ergo_tree::ErgoTree);
 pub type ErgoTreePtr = *mut ErgoTree;
 pub type ConstErgoTreePtr = *const ErgoTree;
 

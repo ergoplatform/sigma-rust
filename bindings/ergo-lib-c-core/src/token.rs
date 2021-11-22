@@ -75,7 +75,7 @@ pub unsafe fn token_amount_as_i64(token_amount_ptr: ConstTokenAmountPtr) -> Resu
 
 /// Token represented with token id paired with its amount
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct Token(chain::token::Token);
+pub struct Token(pub(crate) chain::token::Token);
 pub type TokenPtr = *mut Token;
 pub type ConstTokenPtr = *const Token;
 
@@ -123,7 +123,7 @@ pub type BoxTokens = BoundedVec<Token, 1, 255>;
 /// Array of tokens. Note that we're not using `crate::collections::Collection` here due to the
 /// use of the `BoundedVec`.
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct Tokens(Option<BoxTokens>);
+pub struct Tokens(pub(crate) Option<BoxTokens>);
 pub type TokensPtr = *mut Tokens;
 pub type ConstTokensPtr = *const Tokens;
 

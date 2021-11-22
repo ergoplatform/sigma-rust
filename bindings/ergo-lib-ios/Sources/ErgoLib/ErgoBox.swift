@@ -67,3 +67,67 @@ class BoxValue {
     }
 }
 
+class ErgoBoxCandidate {
+    internal var pointer: ErgoBoxCandidatePtr
+
+    internal init(withRawPointer pointer: ErgoBoxCandidatePtr) {
+        self.pointer = pointer
+    }
+    
+    func getRegisterValue(registerId: NonMandatoryRegisterId) throws -> Constant? {
+        var constantPtr: ConstantPtr?
+        let res = ergo_wallet_ergo_tree_register_value(self.pointer, registerId.rawValue, &constantPtr)
+        try checkError(res.error)
+        if res.is_some {
+            return Constant(withPtr: constantPtr!)
+        } else {
+            return nil
+        }
+    }
+    
+    func getCreationHeight() throws -> UInt32 {
+        let res = ergo_wallet_ergo_box_candidate_creation_height(self.pointer)
+        try checkError(res.error)
+        return res.value
+    }
+
+    func getTokens() throws -> Tokens {
+        var tokensPtr: TokensPtr?
+        let error = ergo_wallet_ergo_box_candidate_tokens(self.pointer, &tokensPtr)
+        try checkError(error)
+        return Tokens(withPtr: tokensPtr!)
+    }
+    
+    func getErgoTree() throws -> ErgoTree {
+        var ergoTreePtr: ErgoTreePtr?
+        let error = ergo_wallet_ergo_box_candidate_ergo_tree(self.pointer, &ergoTreePtr)
+        try checkError(error)
+        return ErgoTree(withPtr: ergoTreePtr!)
+    }
+    
+    func getBoxValue() throws -> BoxValue {
+        var boxValuePtr: BoxValuePtr?
+        let error = ergo_wallet_ergo_box_candidate_box_value(self.pointer, &boxValuePtr)
+        try checkError(error)
+        return BoxValue(withPtr: boxValuePtr!)
+    }
+    
+    deinit {
+        ergo_wallet_ergo_box_candidate_delete(self.pointer)
+    }
+}
+
+enum NonMandatoryRegisterId: UInt8 {
+    /// id for R4 register
+    case R4 = 4
+    /// id for R5 register
+    case R5 = 5
+    /// id for R6 register
+    case R6 = 6
+    /// id for R7 register
+    case R7 = 7
+    /// id for R8 register
+    case R8 = 8
+    /// id for R9 register
+    case R9 = 9
+}
