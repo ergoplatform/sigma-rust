@@ -1,11 +1,12 @@
 //! Ergo transaction
 
 use ergo_lib_c_core::{
-    collections::CollectionPtr,
+    collections::{CollectionPtr, ConstCollectionPtr},
     data_input::DataInput,
     ergo_box::ErgoBoxCandidate,
     input::{Input, UnsignedInput},
     transaction::*,
+    util::ByteArray,
     Error, ErrorPtr,
 };
 
@@ -18,6 +19,7 @@ use crate::delete_ptr;
 
 // Need to define these here because the generated code from the `make_collection!` macro
 // invocations don't yet exist.
+type ConstByteArraysPtr = ConstCollectionPtr<ByteArray>;
 type DataInputsPtr = CollectionPtr<DataInput>;
 type InputsPtr = CollectionPtr<Input>;
 type UnsignedInputsPtr = CollectionPtr<UnsignedInput>;
@@ -92,6 +94,16 @@ pub extern "C" fn ergo_wallet_unsigned_tx_delete(ptr: UnsignedTransactionPtr) {
 }
 
 // `Transaction` bindings --------------------------------------------------------------------------
+#[no_mangle]
+pub unsafe extern "C" fn ergo_wallet_tx_from_unsigned_tx(
+    unsigned_tx_ptr: ConstUnsignedTransactionPtr,
+    proofs_ptr: ConstByteArraysPtr,
+    tx_out: *mut TransactionPtr,
+) -> ErrorPtr {
+    let res = tx_from_unsigned_tx(unsigned_tx_ptr, proofs_ptr, tx_out);
+    Error::c_api_from(res)
+}
+
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_tx_id(
     tx_ptr: ConstTransactionPtr,

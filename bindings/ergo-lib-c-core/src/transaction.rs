@@ -12,7 +12,7 @@ use crate::{
     data_input::DataInput,
     ergo_box::ErgoBoxCandidate,
     input::{Input, UnsignedInput},
-    util::{const_ptr_as_ref, mut_ptr_as_mut, VecU8},
+    util::{const_ptr_as_ref, mut_ptr_as_mut, ByteArray},
     Error,
 };
 
@@ -149,7 +149,7 @@ pub type ConstTransactionPtr = *const Transaction;
 
 pub unsafe fn tx_from_unsigned_tx(
     unsigned_tx_ptr: ConstUnsignedTransactionPtr,
-    proofs_ptr: ConstCollectionPtr<VecU8>,
+    proofs_ptr: ConstCollectionPtr<ByteArray>,
     tx_out: *mut TransactionPtr,
 ) -> Result<(), Error> {
     let proofs = const_ptr_as_ref(proofs_ptr, "proofs_ptr")?;

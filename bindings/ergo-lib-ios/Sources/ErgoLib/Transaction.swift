@@ -66,6 +66,13 @@ class UnsignedTransaction {
 class Transaction {
     internal var pointer: TransactionPtr
     
+    init(unsignedTx: UnsignedTransaction, proofs: ByteArrays) throws {
+        var ptr: TransactionPtr?
+        let error = ergo_wallet_tx_from_unsigned_tx(unsignedTx.pointer, proofs.pointer, &ptr)
+        try checkError(error)
+        self.pointer = ptr!
+    }
+    
     init(withJson json: String) throws {
         self.pointer = try Transaction.fromJSON(json: json)
     }

@@ -25,6 +25,6 @@ pub mod input;
 pub mod secret_key;
 pub mod token;
 pub mod transaction;
-mod util;
+pub mod util;
 pub use crate::error::*;
 mod error;
