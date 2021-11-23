@@ -63,6 +63,66 @@ class UnsignedTransaction {
     }
 }
 
+class Transaction {
+    internal var pointer: TransactionPtr
+    
+    init(withJson json: String) throws {
+        self.pointer = try Transaction.fromJSON(json: json)
+    }
+    
+    func getTxId() throws -> TxId {
+        var ptr: TxIdPtr?
+        let error = ergo_wallet_tx_id(self.pointer, &ptr)
+        try checkError(error)
+        return TxId(withRawPointer: ptr!)
+    }
+    
+    func getInputs() throws -> Inputs {
+        var ptr: UnsignedInputsPtr?
+        let error = ergo_wallet_tx_inputs(self.pointer, &ptr)
+        try checkError(error)
+        return Inputs(withPtr: ptr!)
+    }
+    
+    func getDataInputs() throws -> DataInputs {
+        var ptr: DataInputsPtr?
+        let error = ergo_wallet_tx_data_inputs(self.pointer, &ptr)
+        try checkError(error)
+        return DataInputs(withPtr: ptr!)
+    }
+    
+    func getOutputCandidates() throws -> ErgoBoxCandidates {
+        var ptr: ErgoBoxCandidatesPtr?
+        let error = ergo_wallet_tx_output_candidates(self.pointer, &ptr)
+        try checkError(error)
+        return ErgoBoxCandidates(withRawPointer: ptr!)
+    }
+    
+    func toJSON() throws -> JSON? {
+        var cStr: UnsafePointer<CChar>?
+        let error = ergo_wallet_tx_to_json(self.pointer, &cStr)
+        try checkError(error)
+        let str = String(cString: cStr!)
+        ergo_wallet_delete_string(UnsafeMutablePointer(mutating: cStr))
+        return try str.data(using: .utf8, allowLossyConversion: false).map {
+            try JSON(data: $0)
+        }
+    }
+    
+    private static func fromJSON(json: String) throws -> TransactionPtr {
+        var ptr: TransactionPtr?
+        let error = json.withCString { cs in
+            ergo_wallet_tx_from_json(cs, &ptr)
+        }
+        try checkError(error)
+        return ptr!
+    }
+    
+    deinit {
+        ergo_wallet_tx_delete(self.pointer)
+    }
+}
+
 class TxId {
     internal var pointer: TxIdPtr
     

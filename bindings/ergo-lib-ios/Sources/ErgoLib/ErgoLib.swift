@@ -38,25 +38,3 @@ internal func checkError(_ error: ErrorPtr?) throws {
     throw WalletError.walletCError(reason: reason)
 }
 
-class Transaction {
-    private var pointer: TransactionPtr
-
-    internal init(withRawPointer pointer: TransactionPtr) {
-        self.pointer = pointer
-    }
-
-    func toJson() throws -> String {
-        var cStr: UnsafePointer<CChar>?
-        let error = ergo_wallet_signed_tx_to_json(self.pointer, &cStr)
-        try checkError(error)
-        let str = String(cString: cStr!)
-        ergo_wallet_delete_string(UnsafeMutablePointer(mutating: cStr))
-        return str
-    }
-
-    deinit {
-        ergo_wallet_delete_signed_tx(self.pointer)
-    }
-}
-
-

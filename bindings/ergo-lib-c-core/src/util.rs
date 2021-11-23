@@ -25,3 +25,13 @@ pub unsafe fn mut_ptr_as_mut<'a, T>(
         Err(Error::InvalidArgument(ptr_name))
     }
 }
+
+#[derive(Clone)]
+pub struct VecU8(pub(crate) Vec<u8>);
+
+impl VecU8 {
+    pub unsafe fn from_raw_parts(ptr: *const u8, len: usize) -> Self {
+        let slice = std::slice::from_raw_parts(ptr, len);
+        VecU8(Vec::from(slice))
+    }
+}

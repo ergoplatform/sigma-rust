@@ -1,8 +1,12 @@
 //! Ergo transaction
 
 use ergo_lib_c_core::{
-    collections::CollectionPtr, data_input::DataInput, ergo_box::ErgoBoxCandidate,
-    input::UnsignedInput, transaction::*, Error, ErrorPtr,
+    collections::CollectionPtr,
+    data_input::DataInput,
+    ergo_box::ErgoBoxCandidate,
+    input::{Input, UnsignedInput},
+    transaction::*,
+    Error, ErrorPtr,
 };
 
 use std::{
@@ -11,6 +15,13 @@ use std::{
 };
 
 use crate::delete_ptr;
+
+// Need to define these here because the generated code from the `make_collection!` macro
+// invocations don't yet exist.
+type DataInputsPtr = CollectionPtr<DataInput>;
+type InputsPtr = CollectionPtr<Input>;
+type UnsignedInputsPtr = CollectionPtr<UnsignedInput>;
+type ErgoBoxCandidatesPtr = CollectionPtr<ErgoBoxCandidate>;
 
 // `UnsignedTransaction` bindings ------------------------------------------------------------------
 
@@ -22,12 +33,6 @@ pub unsafe extern "C" fn ergo_wallet_unsigned_tx_id(
     let res = unsigned_tx_id(unsigned_tx_ptr, tx_id_out);
     Error::c_api_from(res)
 }
-
-// Need to define these here because the generated code from the `make_collection!` macro
-// invocations don't yet exist.
-type DataInputsPtr = CollectionPtr<DataInput>;
-type UnsignedInputsPtr = CollectionPtr<UnsignedInput>;
-type ErgoBoxCandidatesPtr = CollectionPtr<ErgoBoxCandidate>;
 
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_unsigned_tx_inputs(
@@ -86,6 +91,72 @@ pub extern "C" fn ergo_wallet_unsigned_tx_delete(ptr: UnsignedTransactionPtr) {
     unsafe { delete_ptr(ptr) }
 }
 
+// `Transaction` bindings --------------------------------------------------------------------------
+#[no_mangle]
+pub unsafe extern "C" fn ergo_wallet_tx_id(
+    tx_ptr: ConstTransactionPtr,
+    tx_id_out: *mut TxIdPtr,
+) -> ErrorPtr {
+    let res = tx_id(tx_ptr, tx_id_out);
+    Error::c_api_from(res)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ergo_wallet_tx_inputs(
+    tx_ptr: ConstTransactionPtr,
+    inputs_out: *mut InputsPtr,
+) -> ErrorPtr {
+    let res = tx_inputs(tx_ptr, inputs_out);
+    Error::c_api_from(res)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ergo_wallet_tx_data_inputs(
+    tx_ptr: ConstTransactionPtr,
+    data_inputs_out: *mut DataInputsPtr,
+) -> ErrorPtr {
+    let res = tx_data_inputs(tx_ptr, data_inputs_out);
+    Error::c_api_from(res)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ergo_wallet_tx_output_candidates(
+    tx_ptr: ConstTransactionPtr,
+    ergo_box_candidates_out: *mut ErgoBoxCandidatesPtr,
+) -> ErrorPtr {
+    let res = tx_output_candidates(tx_ptr, ergo_box_candidates_out);
+    Error::c_api_from(res)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ergo_wallet_tx_from_json(
+    json_str: *const c_char,
+    tx_out: *mut TransactionPtr,
+) -> ErrorPtr {
+    let json = CStr::from_ptr(json_str).to_string_lossy();
+    let res = tx_from_json(&json, tx_out);
+    Error::c_api_from(res)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ergo_wallet_tx_to_json(
+    tx_ptr: ConstTransactionPtr,
+    _json_str: *mut *const c_char,
+) -> ErrorPtr {
+    let res = match tx_to_json(tx_ptr) {
+        Ok(s) => {
+            *_json_str = CString::new(s).unwrap().into_raw();
+            Ok(())
+        }
+        Err(e) => Err(e),
+    };
+    Error::c_api_from(res)
+}
+
+#[no_mangle]
+pub extern "C" fn ergo_wallet_tx_delete(ptr: TransactionPtr) {
+    unsafe { delete_ptr(ptr) }
+}
 // `TxId` bindings ----------------------------------------------------------------------
 
 #[no_mangle]
