@@ -1,7 +1,0 @@
-# Seeds for failure cases proptest has generated in the past. It is
-# automatically read and these particular cases re-run before any
-# novel cases are generated.
-#
-# It is recommended to check this file in to source control so that
-# everyone who runs the test benefits from these saved cases.
-cc e1a2c540ac8d9e77d201c91442af1a31ddb6e0becb8511fb0831820a6b174659 # shrinks to v = CreateAvlTree { flags: Const(Constant { tpe: SByte, v: Byte(0) }), digest: Const(Constant { tpe: SColl(SByte), v: Coll(NativeColl(CollByte([]))) }), key_length: Const(Constant { tpe: SInt, v: Int(0) }), value_length: Const(Constant { tpe: SOption(SInt), v: Opt(None) }) }

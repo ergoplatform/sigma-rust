@@ -1,8 +1,0 @@
-# Seeds for failure cases proptest has generated in the past. It is
-# automatically read and these particular cases re-run before any
-# novel cases are generated.
-#
-# It is recommended to check this file in to source control so that
-# everyone who runs the test benefits from these saved cases.
-cc 244d861f4b65cac1f4a1a69ed6f4026fb5664ff0cbb2dc0de2f4be4949614f7a # shrinks to l = false, r = false
-cc 3b89f1d49ec8740e727880deab728e5cd056d3453c97ec4d4286b9c088135944 # shrinks to v = Constant { tpe: SColl(SLong), v: Coll(WrappedColl { elem_tpe: SLong, items: [Long(-26107023029569770)] }) }
