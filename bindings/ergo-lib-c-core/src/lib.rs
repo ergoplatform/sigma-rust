@@ -15,6 +15,7 @@ pub mod block_header;
 pub mod collections;
 pub mod constant;
 pub mod context_extension;
+pub mod contract;
 pub mod data_input;
 pub mod ergo_box;
 pub mod ergo_state_ctx;

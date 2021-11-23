@@ -4,7 +4,7 @@ use crate::{
 };
 use ergo_lib::ergotree_ir::chain::address as addr;
 
-pub struct Address(ergo_lib::ergotree_ir::chain::address::Address);
+pub struct Address(pub(crate) ergo_lib::ergotree_ir::chain::address::Address);
 pub type AddressPtr = *mut Address;
 /// Pointer to const Address (Address that is pointed-to is immutable)
 pub type ConstAddressPtr = *const Address;
