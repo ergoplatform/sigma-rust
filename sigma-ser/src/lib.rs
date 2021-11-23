@@ -19,7 +19,9 @@
 
 /// ScoreX Serialization
 mod scorex_serialize;
-pub use scorex_serialize::{ScorexParsingError, ScorexSerializable, ScorexSerializationError};
+pub use scorex_serialize::{
+    scorex_serialize_roundtrip, ScorexParsingError, ScorexSerializable, ScorexSerializationError,
+};
 /// VLQ encoder
 pub mod vlq_encode;
 /// ZigZag encoder

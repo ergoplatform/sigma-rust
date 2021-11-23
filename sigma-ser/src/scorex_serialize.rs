@@ -163,6 +163,15 @@ impl<T: ScorexSerializable> ScorexSerializable for Option<Box<T>> {
     }
 }
 
+/// serialization roundtrip
+#[allow(clippy::expect_used)]
+pub fn scorex_serialize_roundtrip<T: ScorexSerializable>(v: &T) -> T {
+    let mut data = Vec::new();
+    v.scorex_serialize(&mut data).expect("serialization failed");
+    let reader = &mut &data[..];
+    T::scorex_parse(reader).expect("parse failed")
+}
+
 #[allow(clippy::unwrap_used)]
 #[cfg(test)]
 #[allow(clippy::panic)]
@@ -170,15 +179,6 @@ mod test {
     use super::*;
     use proptest::collection::vec;
     use proptest::prelude::*;
-
-    /// serialization roundtrip
-    #[allow(clippy::expect_used)]
-    fn scorex_serialize_roundtrip<T: ScorexSerializable>(v: &T) -> T {
-        let mut data = Vec::new();
-        v.scorex_serialize(&mut data).expect("serialization failed");
-        let reader = &mut &data[..];
-        T::scorex_parse(reader).expect("parse failed")
-    }
 
     proptest! {
         #[test]
