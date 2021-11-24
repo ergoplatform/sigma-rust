@@ -3,6 +3,7 @@
 pub mod box_selector;
 pub mod derivation_path;
 pub mod ext_pub_key;
+pub mod mnemonic;
 pub mod secret_key;
 pub mod signing;
 pub mod tx_builder;
@@ -41,6 +42,11 @@ impl From<TxSigningError> for WalletError {
 }
 
 impl Wallet {
+    /// Create wallet instance loading secret key from mnemonic
+    pub fn from_mnemonic(mnemonic_phrase: &str, mnemonic_pass: &str) -> Wallet {
+        todo!();
+    }
+
     /// Create Wallet from secrets
     pub fn from_secrets(secrets: Vec<SecretKey>) -> Wallet {
         let prover = TestProver {
