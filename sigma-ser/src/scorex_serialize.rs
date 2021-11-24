@@ -84,7 +84,6 @@ pub type ScorexSerializeResult = Result<(), ScorexSerializationError>;
 
 /// Scorex Serializable Trait.
 pub trait ScorexSerializable: Sized {
-    // TODO add error types
     /// Write `self` to the `writer`
     fn scorex_serialize<W: WriteSigmaVlqExt>(&self, w: &mut W) -> ScorexSerializeResult;
     /// parse `self` from `reader`
