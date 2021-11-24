@@ -10,7 +10,7 @@ use ergo_lib::{
 use crate::{
     collections::{Collection, CollectionPtr, ConstCollectionPtr},
     data_input::DataInput,
-    ergo_box::ErgoBoxCandidate,
+    ergo_box::{ErgoBox, ErgoBoxCandidate},
     input::{Input, UnsignedInput},
     util::{const_ptr_as_ref, mut_ptr_as_mut, ByteArray},
     Error,
@@ -111,7 +111,7 @@ pub unsafe fn unsigned_tx_to_json(
 
 /// Transaction id
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct TxId(chain::transaction::TxId);
+pub struct TxId(pub(crate) chain::transaction::TxId);
 pub type TxIdPtr = *mut TxId;
 pub type ConstTxIdPtr = *const TxId;
 
@@ -247,5 +247,17 @@ pub unsafe fn tx_output_candidates(
     Ok(())
 }
 
-// TODO
-// pub unsafe fn tx_outputs(
+pub unsafe fn tx_outputs(
+    tx_ptr: ConstTransactionPtr,
+    ergo_box_out: *mut CollectionPtr<ErgoBox>,
+) -> Result<(), Error> {
+    let tx = const_ptr_as_ref(tx_ptr, "tx_ptr")?;
+    let ergo_box_out = mut_ptr_as_mut(ergo_box_out, "ergo_box_candidates_out")?;
+    *ergo_box_out = Box::into_raw(Box::new(Collection(
+        tx.0.outputs
+            .iter()
+            .map(|ebc| ErgoBox(ebc.clone()))
+            .collect(),
+    )));
+    Ok(())
+}

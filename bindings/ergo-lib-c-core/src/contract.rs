@@ -11,7 +11,7 @@ use crate::{
 
 /// Defines the contract(script) that will be guarding box contents
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct Contract(chain::contract::Contract);
+pub struct Contract(pub(crate) chain::contract::Contract);
 pub type ContractPtr = *mut Contract;
 pub type ConstContractPtr = *const Contract;
 

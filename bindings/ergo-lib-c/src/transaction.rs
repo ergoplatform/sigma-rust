@@ -3,7 +3,7 @@
 use ergo_lib_c_core::{
     collections::{CollectionPtr, ConstCollectionPtr},
     data_input::DataInput,
-    ergo_box::ErgoBoxCandidate,
+    ergo_box::{ErgoBox, ErgoBoxCandidate},
     input::{Input, UnsignedInput},
     transaction::*,
     util::ByteArray,
@@ -24,6 +24,7 @@ type DataInputsPtr = CollectionPtr<DataInput>;
 type InputsPtr = CollectionPtr<Input>;
 type UnsignedInputsPtr = CollectionPtr<UnsignedInput>;
 type ErgoBoxCandidatesPtr = CollectionPtr<ErgoBoxCandidate>;
+type ErgoBoxesPtr = CollectionPtr<ErgoBox>;
 
 // `UnsignedTransaction` bindings ------------------------------------------------------------------
 
@@ -137,6 +138,15 @@ pub unsafe extern "C" fn ergo_wallet_tx_output_candidates(
     ergo_box_candidates_out: *mut ErgoBoxCandidatesPtr,
 ) -> ErrorPtr {
     let res = tx_output_candidates(tx_ptr, ergo_box_candidates_out);
+    Error::c_api_from(res)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ergo_wallet_tx_outputs(
+    tx_ptr: ConstTransactionPtr,
+    ergo_box_out: *mut ErgoBoxesPtr,
+) -> ErrorPtr {
+    let res = tx_outputs(tx_ptr, ergo_box_out);
     Error::c_api_from(res)
 }
 

@@ -18,12 +18,14 @@
 
 use std::convert::TryFrom;
 
-use ergo_lib::ergotree_ir::chain;
+use ergo_lib::ergotree_ir::chain::{self, ergo_box::NonMandatoryRegisters};
 
 use crate::{
     constant::{Constant, ConstantPtr},
+    contract::ConstContractPtr,
     ergo_tree::{ErgoTree, ErgoTreePtr},
-    token::{Token, Tokens, TokensPtr},
+    token::{ConstTokensPtr, Token, Tokens, TokensPtr},
+    transaction::ConstTxIdPtr,
     util::{const_ptr_as_ref, mut_ptr_as_mut},
     Error,
 };
@@ -142,6 +144,121 @@ pub unsafe fn ergo_box_candidate_box_value(
     let box_value_out = mut_ptr_as_mut(box_value_out, "box_value_out")?;
     *box_value_out = Box::into_raw(Box::new(BoxValue(candidate.0.value)));
     Ok(())
+}
+
+/// Ergo box, that is taking part in some transaction on the chain
+/// Differs with [`ErgoBoxCandidate`] by added transaction id and an index in the input of that transaction
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct ErgoBox(pub(crate) chain::ergo_box::ErgoBox);
+pub type ErgoBoxPtr = *mut ErgoBox;
+pub type ConstErgoBoxPtr = *const ErgoBox;
+
+pub unsafe fn ergo_box_new(
+    value_ptr: ConstBoxValuePtr,
+    creation_height: u32,
+    contract_ptr: ConstContractPtr,
+    tx_id_ptr: ConstTxIdPtr,
+    index: u16,
+    tokens_ptr: ConstTokensPtr,
+    ergo_box_out: *mut ErgoBoxPtr,
+) -> Result<(), Error> {
+    let value = const_ptr_as_ref(value_ptr, "value_ptr")?;
+    let contract = const_ptr_as_ref(contract_ptr, "contract_ptr")?;
+    let tx_id = const_ptr_as_ref(tx_id_ptr, "tx_id_ptr")?;
+    let tokens = const_ptr_as_ref(tokens_ptr, "tokens_ptr")?;
+    let ergo_box_out = mut_ptr_as_mut(ergo_box_out, "ergo_box_out")?;
+
+    let chain_ergo_tree = contract.0.ergo_tree();
+    let ergo_box = chain::ergo_box::ErgoBox::new(
+        value.0,
+        chain_ergo_tree,
+        tokens.0.clone().map(|tokens| tokens.mapped(|t| t.0)),
+        NonMandatoryRegisters::empty(),
+        creation_height,
+        tx_id.0.clone(),
+        index,
+    )
+    .map(ErgoBox)
+    .map_err(|_| Error::Misc("ErgoBox::new: can't create instance".into()))?;
+    *ergo_box_out = Box::into_raw(Box::new(ergo_box));
+    Ok(())
+}
+
+pub unsafe fn ergo_box_box_id(
+    ergo_box_ptr: ConstErgoBoxPtr,
+    box_id_out: *mut BoxIdPtr,
+) -> Result<(), Error> {
+    let ergo_box = const_ptr_as_ref(ergo_box_ptr, "ergo_box_ptr")?;
+    let box_id_out = mut_ptr_as_mut(box_id_out, "box_id_out")?;
+    *box_id_out = Box::into_raw(Box::new(BoxId(ergo_box.0.box_id())));
+    Ok(())
+}
+
+pub unsafe fn ergo_box_creation_height(ergo_box_ptr: ConstErgoBoxPtr) -> Result<u32, Error> {
+    let ergo_box = const_ptr_as_ref(ergo_box_ptr, "ergo_box_ptr")?;
+    Ok(ergo_box.0.creation_height)
+}
+
+pub unsafe fn ergo_box_tokens(
+    ergo_box_ptr: ConstErgoBoxPtr,
+    tokens_out: *mut TokensPtr,
+) -> Result<(), Error> {
+    let ergo_box = const_ptr_as_ref(ergo_box_ptr, "ergo_box_ptr")?;
+    let tokens_out = mut_ptr_as_mut(tokens_out, "tokens_out")?;
+    *tokens_out = Box::into_raw(Box::new(Tokens(
+        ergo_box.0.tokens.clone().map(|tokens| tokens.mapped(Token)),
+    )));
+    Ok(())
+}
+
+pub unsafe fn ergo_box_ergo_tree(
+    ergo_box_ptr: ConstErgoBoxPtr,
+    ergo_tree_out: *mut ErgoTreePtr,
+) -> Result<(), Error> {
+    let ergo_box = const_ptr_as_ref(ergo_box_ptr, "ergo_box_ptr")?;
+    let ergo_tree_out = mut_ptr_as_mut(ergo_tree_out, "ergo_tree_out")?;
+    *ergo_tree_out = Box::into_raw(Box::new(ErgoTree(ergo_box.0.ergo_tree.clone())));
+    Ok(())
+}
+
+pub unsafe fn ergo_box_value(
+    ergo_box_ptr: ConstErgoBoxPtr,
+    box_value_out: *mut BoxValuePtr,
+) -> Result<(), Error> {
+    let ergo_box = const_ptr_as_ref(ergo_box_ptr, "ergo_box_ptr")?;
+    let box_value_out = mut_ptr_as_mut(box_value_out, "box_value_out")?;
+    *box_value_out = Box::into_raw(Box::new(BoxValue(ergo_box.0.value)));
+    Ok(())
+}
+
+pub unsafe fn ergo_box_register_value(
+    ergo_box_ptr: ConstErgoBoxPtr,
+    register_id: NonMandatoryRegisterId,
+    constant_out: *mut ConstantPtr,
+) -> Result<bool, Error> {
+    let ergo_box = const_ptr_as_ref(ergo_box_ptr, "ergo_box_ptr")?;
+    let constant_out = mut_ptr_as_mut(constant_out, "constant_out")?;
+    if let Some(c) = ergo_box.0.additional_registers.get(register_id.into()) {
+        *constant_out = Box::into_raw(Box::new(Constant(c.clone())));
+        Ok(true)
+    } else {
+        Ok(false)
+    }
+}
+
+pub unsafe fn ergo_box_from_json(json: &str, ergo_box_out: *mut ErgoBoxPtr) -> Result<(), Error> {
+    let ergo_box_out = mut_ptr_as_mut(ergo_box_out, "ergo_box_out")?;
+    let unsigned_tx = serde_json::from_str(json)
+        .map(ErgoBox)
+        .map_err(|_| Error::Misc("ErgoBox: can't deserialize from JSON".into()))?;
+    *ergo_box_out = Box::into_raw(Box::new(unsigned_tx));
+    Ok(())
+}
+
+pub unsafe fn ergo_box_to_json(ergo_box_ptr: ConstErgoBoxPtr) -> Result<String, Error> {
+    let ergo_box = const_ptr_as_ref(ergo_box_ptr, "ergo_box_ptr")?;
+    serde_json::to_string(&ergo_box.0)
+        .map_err(|_| Error::Misc("ErgoBox: can't serialize into JSON".into()))
 }
 
 /// newtype for box registers R4 - R9

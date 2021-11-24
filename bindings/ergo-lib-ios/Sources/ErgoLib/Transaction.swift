@@ -105,6 +105,13 @@ class Transaction {
         return ErgoBoxCandidates(withRawPointer: ptr!)
     }
     
+    func getOutputs() throws -> ErgoBoxes {
+        var ptr: ErgoBoxesPtr?
+        let error = ergo_wallet_tx_outputs(self.pointer, &ptr)
+        try checkError(error)
+        return ErgoBoxes(withRawPointer: ptr!)
+    }
+    
     func toJSON() throws -> JSON? {
         var cStr: UnsafePointer<CChar>?
         let error = ergo_wallet_tx_to_json(self.pointer, &cStr)
