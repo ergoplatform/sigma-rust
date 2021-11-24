@@ -61,6 +61,19 @@ pub extern "C" fn ergo_wallet_box_id_delete(ptr: BoxIdPtr) {
 // `BoxValue` bindings ------------------------------------------------------------------------------
 
 #[no_mangle]
+pub unsafe extern "C" fn ergo_wallet_box_value_safe_user_min(
+    box_value_out: *mut BoxValuePtr,
+) -> ErrorPtr {
+    let res = box_value_safe_user_min(box_value_out);
+    Error::c_api_from(res)
+}
+
+#[no_mangle]
+pub extern "C" fn ergo_wallet_box_value_units_per_ergo() -> i64 {
+    box_value_units_per_ergo()
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_box_value_from_i64(
     amount: i64,
     box_value_out: *mut BoxValuePtr,

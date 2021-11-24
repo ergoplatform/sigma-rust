@@ -15,6 +15,7 @@ final class ErgoBoxTests: XCTestCase {
         let amount = Int64(12345678)
         let boxValue = try BoxValue(fromInt64: amount)
         XCTAssertEqual(try boxValue.toInt64(), amount)
+        XCTAssertNoThrow(try BoxValue.SAFE_USER_MIN())
     }
     
     static func generateErgoBoxComponents() throws -> (BoxId, BoxValue, ErgoTree, Contract) {

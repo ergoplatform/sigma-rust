@@ -57,6 +57,17 @@ class BoxValue {
         self.pointer = ptr
     }
     
+    static func SAFE_USER_MIN() throws -> BoxValue {
+        var ptr: BoxValuePtr?
+        let error = ergo_wallet_box_value_safe_user_min(&ptr)
+        try checkError(error)
+        return BoxValue(withPtr: ptr!)
+    }
+    
+    static func UNITS_PER_ERGO() -> Int64 {
+        return ergo_wallet_box_value_units_per_ergo()
+    }
+    
     func toInt64() throws -> Int64 {
         let res = ergo_wallet_box_value_as_i64(self.pointer)
         try checkError(res.error)

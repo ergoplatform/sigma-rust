@@ -63,6 +63,21 @@ pub struct BoxValue(pub chain::ergo_box::box_value::BoxValue);
 pub type BoxValuePtr = *mut BoxValue;
 pub type ConstBoxValuePtr = *const BoxValue;
 
+/// Recommended (safe) minimal box value to use in case box size estimation is unavailable.
+/// Allows box size upto 2777 bytes with current min box value per byte of 360 nanoERGs
+pub unsafe fn box_value_safe_user_min(box_value_out: *mut BoxValuePtr) -> Result<(), Error> {
+    let box_value_out = mut_ptr_as_mut(box_value_out, "box_value_out")?;
+    *box_value_out = Box::into_raw(Box::new(BoxValue(
+        chain::ergo_box::box_value::BoxValue::SAFE_USER_MIN,
+    )));
+    Ok(())
+}
+
+/// Number of units inside one ERGO (i.e. one ERG using nano ERG representation)
+pub fn box_value_units_per_ergo() -> i64 {
+    chain::ergo_box::box_value::BoxValue::UNITS_PER_ERGO as i64
+}
+
 /// Create from i64 with bounds check
 pub unsafe fn box_value_from_i64(
     amount: i64,
