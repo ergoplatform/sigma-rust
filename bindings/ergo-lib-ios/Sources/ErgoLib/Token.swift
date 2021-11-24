@@ -1,5 +1,6 @@
 import Foundation
 import ErgoLibC
+import SwiftyJSON
 
 class TokenId {
     internal var pointer: TokenIdPtr
@@ -93,6 +94,17 @@ class Token {
         let error = ergo_wallet_token_get_amount(self.pointer, &tokenAmountPtr)
         try checkError(error)
         return TokenAmount(withPtr: tokenAmountPtr!)
+    }
+    
+    func toJsonEIP12() throws -> JSON? {
+        var cStr: UnsafePointer<CChar>?
+        let error = ergo_wallet_token_to_json_eip12(self.pointer, &cStr)
+        try checkError(error)
+        let str = String(cString: cStr!)
+        ergo_wallet_delete_string(UnsafeMutablePointer(mutating: cStr))
+        return try str.data(using: .utf8, allowLossyConversion: false).map {
+            try JSON(data: $0)
+        }
     }
     
     deinit {

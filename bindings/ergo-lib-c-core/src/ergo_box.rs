@@ -24,6 +24,7 @@ use crate::{
     constant::{Constant, ConstantPtr},
     contract::ConstContractPtr,
     ergo_tree::{ErgoTree, ErgoTreePtr},
+    json::ErgoBoxJsonEip12,
     token::{ConstTokensPtr, Token, Tokens, TokensPtr},
     transaction::ConstTxIdPtr,
     util::{const_ptr_as_ref, mut_ptr_as_mut},
@@ -274,6 +275,14 @@ pub unsafe fn ergo_box_to_json(ergo_box_ptr: ConstErgoBoxPtr) -> Result<String, 
     let ergo_box = const_ptr_as_ref(ergo_box_ptr, "ergo_box_ptr")?;
     serde_json::to_string(&ergo_box.0)
         .map_err(|_| Error::Misc("ErgoBox: can't serialize into JSON".into()))
+}
+
+/// JSON representation according to EIP-12 <https://github.com/ergoplatform/eips/pull/23>
+pub unsafe fn ergo_box_to_json_eip12(ergo_box_ptr: ConstErgoBoxPtr) -> Result<String, Error> {
+    let ergo_box = const_ptr_as_ref(ergo_box_ptr, "ergo_box_ptr")?;
+    let box_dapp: ErgoBoxJsonEip12 = ergo_box.0.clone().into();
+    serde_json::to_string(&box_dapp)
+        .map_err(|_| Error::Misc("ErgoBox: can't serialize into JSON EIP-12".into()))
 }
 
 /// newtype for box registers R4 - R9

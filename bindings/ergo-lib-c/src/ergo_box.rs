@@ -297,6 +297,21 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_to_json(
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn ergo_wallet_ergo_box_to_json_eip12(
+    ergo_box_ptr: ConstErgoBoxPtr,
+    _json_str: *mut *const c_char,
+) -> ErrorPtr {
+    let res = match ergo_box_to_json_eip12(ergo_box_ptr) {
+        Ok(s) => {
+            *_json_str = CString::new(s).unwrap().into_raw();
+            Ok(())
+        }
+        Err(e) => Err(e),
+    };
+    Error::c_api_from(res)
+}
+
+#[no_mangle]
 pub extern "C" fn ergo_wallet_ergo_box_delete(ptr: ErgoBoxPtr) {
     unsafe { delete_ptr(ptr) }
 }

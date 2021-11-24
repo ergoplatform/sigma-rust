@@ -111,6 +111,21 @@ pub unsafe extern "C" fn ergo_wallet_token_get_amount(
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn ergo_wallet_token_to_json_eip12(
+    token_ptr: ConstTokenPtr,
+    _json_str: *mut *const c_char,
+) -> ErrorPtr {
+    let res = match token_to_json_eip12(token_ptr) {
+        Ok(s) => {
+            *_json_str = CString::new(s).unwrap().into_raw();
+            Ok(())
+        }
+        Err(e) => Err(e),
+    };
+    Error::c_api_from(res)
+}
+
+#[no_mangle]
 pub extern "C" fn ergo_wallet_token_delete(ptr: TokenPtr) {
     unsafe { delete_ptr(ptr) }
 }

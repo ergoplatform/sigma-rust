@@ -221,6 +221,17 @@ class ErgoBox{
         }
     }
     
+    func toJsonEIP12() throws -> JSON? {
+        var cStr: UnsafePointer<CChar>?
+        let error = ergo_wallet_ergo_box_to_json_eip12(self.pointer, &cStr)
+        try checkError(error)
+        let str = String(cString: cStr!)
+        ergo_wallet_delete_string(UnsafeMutablePointer(mutating: cStr))
+        return try str.data(using: .utf8, allowLossyConversion: false).map {
+            try JSON(data: $0)
+        }
+    }
+    
     deinit {
         ergo_wallet_ergo_box_delete(self.pointer)
     }

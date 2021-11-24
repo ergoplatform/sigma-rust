@@ -7,6 +7,7 @@ use ergo_lib::ergotree_ir::chain::{self, base16_bytes::Base16DecodedBytes, diges
 
 use crate::{
     ergo_box::ConstBoxIdPtr,
+    json::TokenJsonEip12,
     util::{const_ptr_as_ref, mut_ptr_as_mut},
     Error,
 };
@@ -115,6 +116,14 @@ pub unsafe fn token_get_amount(
     let token_amount_out = mut_ptr_as_mut(token_amount_out, "token_amount_out")?;
     *token_amount_out = Box::into_raw(Box::new(TokenAmount(token.0.amount)));
     Ok(())
+}
+
+/// JSON representation according to EIP-12 <https://github.com/ergoplatform/eips/pull/23>
+pub unsafe fn token_to_json_eip12(token_ptr: ConstTokenPtr) -> Result<String, Error> {
+    let token = const_ptr_as_ref(token_ptr, "token_ptr")?;
+    let t_dapp: TokenJsonEip12 = token.0.clone().into();
+    serde_json::to_string(&t_dapp)
+        .map_err(|_| Error::Misc("Token: can't serialize into JSON EIP-12".into()))
 }
 
 /// A Bounded Vector for Tokens. A Box can have between 1 and 255 tokens

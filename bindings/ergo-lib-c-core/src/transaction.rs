@@ -12,6 +12,7 @@ use crate::{
     data_input::DataInput,
     ergo_box::{ErgoBox, ErgoBoxCandidate},
     input::{Input, UnsignedInput},
+    json::{TransactionJsonEip12, UnsignedTransactionJsonEip12},
     util::{const_ptr_as_ref, mut_ptr_as_mut, ByteArray},
     Error,
 };
@@ -109,6 +110,16 @@ pub unsafe fn unsigned_tx_to_json(
         .map_err(|_| Error::Misc("UnsignedTransaction: can't serialize into JSON".into()))
 }
 
+/// JSON representation according to EIP-12 <https://github.com/ergoplatform/eips/pull/23>
+pub unsafe fn unsigned_tx_to_json_eip12(
+    unsigned_tx_ptr: ConstUnsignedTransactionPtr,
+) -> Result<String, Error> {
+    let unsigned_tx = const_ptr_as_ref(unsigned_tx_ptr, "unsigned_tx_ptr")?;
+    let tx_dapp: UnsignedTransactionJsonEip12 = unsigned_tx.0.clone().into();
+    serde_json::to_string(&tx_dapp)
+        .map_err(|_| Error::Misc("UnsignedTransaction: can't serialize into JSON EIP-12".into()))
+}
+
 /// Transaction id
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct TxId(pub(crate) chain::transaction::TxId);
@@ -192,16 +203,22 @@ pub unsafe fn tx_to_json(tx_ptr: ConstTransactionPtr) -> Result<String, Error> {
         .map_err(|_| Error::Misc("Transaction: can't serialize into JSON".into()))
 }
 
+/// JSON representation according to EIP-12 <https://github.com/ergoplatform/eips/pull/23>
+pub unsafe fn tx_to_json_eip12(tx_ptr: ConstTransactionPtr) -> Result<String, Error> {
+    let tx = const_ptr_as_ref(tx_ptr, "tx_ptr")?;
+    let tx_dapp: TransactionJsonEip12 = tx.0.clone().into();
+    serde_json::to_string(&tx_dapp)
+        .map_err(|_| Error::Misc("Transaction: can't serialize into JSON EIP-12".into()))
+}
+
 pub unsafe fn tx_inputs(
     tx_ptr: ConstTransactionPtr,
     inputs_out: *mut CollectionPtr<Input>,
 ) -> Result<(), Error> {
-    let unsigned_tx = const_ptr_as_ref(tx_ptr, "unsigned_tx_ptr")?;
+    let tx = const_ptr_as_ref(tx_ptr, "tx_ptr")?;
     let inputs_out = mut_ptr_as_mut(inputs_out, "inputs_out")?;
     *inputs_out = Box::into_raw(Box::new(Collection(
-        unsigned_tx
-            .0
-            .inputs
+        tx.0.inputs
             .as_vec()
             .clone()
             .into_iter()
@@ -215,12 +232,10 @@ pub unsafe fn tx_data_inputs(
     tx_ptr: ConstTransactionPtr,
     data_inputs_out: *mut CollectionPtr<DataInput>,
 ) -> Result<(), Error> {
-    let unsigned_tx = const_ptr_as_ref(tx_ptr, "tx_ptr")?;
+    let tx = const_ptr_as_ref(tx_ptr, "tx_ptr")?;
     let data_inputs_out = mut_ptr_as_mut(data_inputs_out, "data_inputs_out")?;
     *data_inputs_out = Box::into_raw(Box::new(Collection(
-        unsigned_tx
-            .0
-            .data_inputs
+        tx.0.data_inputs
             .as_ref()
             .map(|v| v.as_vec().clone())
             .unwrap_or_else(Vec::new)

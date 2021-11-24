@@ -90,6 +90,21 @@ pub unsafe extern "C" fn ergo_wallet_unsigned_tx_to_json(
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn ergo_wallet_unsigned_tx_to_json_eip12(
+    unsigned_tx_ptr: ConstUnsignedTransactionPtr,
+    _json_str: *mut *const c_char,
+) -> ErrorPtr {
+    let res = match unsigned_tx_to_json_eip12(unsigned_tx_ptr) {
+        Ok(s) => {
+            *_json_str = CString::new(s).unwrap().into_raw();
+            Ok(())
+        }
+        Err(e) => Err(e),
+    };
+    Error::c_api_from(res)
+}
+
+#[no_mangle]
 pub extern "C" fn ergo_wallet_unsigned_tx_delete(ptr: UnsignedTransactionPtr) {
     unsafe { delete_ptr(ptr) }
 }
@@ -166,6 +181,21 @@ pub unsafe extern "C" fn ergo_wallet_tx_to_json(
     _json_str: *mut *const c_char,
 ) -> ErrorPtr {
     let res = match tx_to_json(tx_ptr) {
+        Ok(s) => {
+            *_json_str = CString::new(s).unwrap().into_raw();
+            Ok(())
+        }
+        Err(e) => Err(e),
+    };
+    Error::c_api_from(res)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ergo_wallet_tx_to_json_eip12(
+    tx_ptr: ConstTransactionPtr,
+    _json_str: *mut *const c_char,
+) -> ErrorPtr {
+    let res = match tx_to_json_eip12(tx_ptr) {
         Ok(s) => {
             *_json_str = CString::new(s).unwrap().into_raw();
             Ok(())

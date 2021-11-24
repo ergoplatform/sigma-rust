@@ -49,6 +49,17 @@ class UnsignedTransaction {
         }
     }
     
+    func toJsonEIP12() throws -> JSON? {
+        var cStr: UnsafePointer<CChar>?
+        let error = ergo_wallet_unsigned_tx_to_json_eip12(self.pointer, &cStr)
+        try checkError(error)
+        let str = String(cString: cStr!)
+        ergo_wallet_delete_string(UnsafeMutablePointer(mutating: cStr))
+        return try str.data(using: .utf8, allowLossyConversion: false).map {
+            try JSON(data: $0)
+        }
+    }
+    
     private static func fromJSON(json: String) throws -> UnsignedTransactionPtr {
         var ptr: UnsignedTransactionPtr?
         let error = json.withCString { cs in
@@ -115,6 +126,17 @@ class Transaction {
     func toJSON() throws -> JSON? {
         var cStr: UnsafePointer<CChar>?
         let error = ergo_wallet_tx_to_json(self.pointer, &cStr)
+        try checkError(error)
+        let str = String(cString: cStr!)
+        ergo_wallet_delete_string(UnsafeMutablePointer(mutating: cStr))
+        return try str.data(using: .utf8, allowLossyConversion: false).map {
+            try JSON(data: $0)
+        }
+    }
+    
+    func toJsonEIP12() throws -> JSON? {
+        var cStr: UnsafePointer<CChar>?
+        let error = ergo_wallet_tx_to_json_eip12(self.pointer, &cStr)
         try checkError(error)
         let str = String(cString: cStr!)
         ergo_wallet_delete_string(UnsafeMutablePointer(mutating: cStr))
