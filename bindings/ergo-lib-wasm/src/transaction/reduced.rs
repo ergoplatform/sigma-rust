@@ -109,9 +109,9 @@ impl ReducedTransaction {
         let secret = DlogProverInput::from_base16_str(secret_base16.to_string()).unwrap();
         let pk = secret.public_image();
         let generate_for: Vec<SigmaBoolean> = vec![SigmaBoolean::ProofOfKnowledge(
-            SigmaProofOfKnowledgeTree::ProveDlog(pk.clone()),
+            SigmaProofOfKnowledgeTree::ProveDlog(pk),
         )];
-        let hints = generate_commitments_for(sigma_prop, &generate_for);
+        let hints = generate_commitments_for(sigma_prop, generate_for.as_slice());
         let mut commitments: Vec<CommitmentHintJson> = Vec::new();
         match hints.hints[0].clone() {
             Hint::SecretProven(_) => {}
@@ -166,9 +166,9 @@ impl ReducedTransaction {
         );
         let mut bag: OtherHintsBag = bag_for_multi_sig(
             sigma_prop,
-            &real_proposition,
-            &simulated_proposition,
-            &proof,
+            real_proposition.as_slice(),
+            simulated_proposition.as_slice(),
+            proof.as_slice(),
         );
         let own = CommitmentHintJsonWasm::from_json(own_cmt);
         bag.add_hint(Hint::CommitmentHint(own.0));

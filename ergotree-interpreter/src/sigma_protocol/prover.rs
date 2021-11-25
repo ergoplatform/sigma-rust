@@ -867,19 +867,15 @@ fn step9_real_schnorr<P: Prover + ?Sized>(
             })
             .find(|prover_input| prover_input.public_image() == us.proposition)
         {
-            let mut found_or_not = false;
             let oc = hints_bag
                 .own_commitments()
                 .into_iter()
                 .find(|comm| comm.position == us.position);
-            if oc.is_some() {
-                found_or_not = true;
-            }
             let mut _z: Option<SecondDlogProverMessage> = None;
-            if found_or_not {
+            if let Some(cmt) = oc {
                 _z = Some(dlog_protocol::interactive_prover::second_message(
                     priv_key,
-                    oc.unwrap().secret_randomness,
+                    cmt.secret_randomness,
                     &challenge,
                 ));
             } else {
@@ -891,24 +887,26 @@ fn step9_real_schnorr<P: Prover + ?Sized>(
                     &challenge,
                 ));
             }
-
-            Ok(Some(
-                UncheckedSchnorr {
-                    proposition: us.proposition.clone(),
-                    commitment_opt: None,
-                    challenge,
-                    second_message: _z.unwrap(),
-                }
-                .into(),
-            ))
+            if let Some(msg) = _z {
+                Ok(Some(
+                    UncheckedSchnorr {
+                        proposition: us.proposition.clone(),
+                        commitment_opt: None,
+                        challenge,
+                        second_message: msg,
+                    }
+                    .into(),
+                ))
+            } else {
+                Ok(None)
+            }
         } else {
             let hint = hints_bag
                 .real_proofs()
                 .into_iter()
                 .find(|comm| comm.position == us.position);
-            let found_hint = hint.is_some();
-            if found_hint {
-                let unchecked_tree = hint.unwrap().unchecked_tree;
+            if let Some(tree) = hint {
+                let unchecked_tree = tree.unchecked_tree;
                 // should be replace with match case
                 if let UncheckedTree::UncheckedLeaf(UncheckedLeaf::UncheckedSchnorr(
                     unchecked_schnorr,

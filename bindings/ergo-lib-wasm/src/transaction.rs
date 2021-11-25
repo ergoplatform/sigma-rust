@@ -20,6 +20,7 @@ use std::convert::TryInto;
 use wasm_bindgen::prelude::*;
 
 extern crate derive_more;
+
 use derive_more::{From, Into};
 
 pub mod reduced;
@@ -48,9 +49,9 @@ impl CommitmentHintJson {
         CommitmentHint {
             0: {
                 ergo_lib::ergotree_interpreter::sigma_protocol::prover::hint::CommitmentHint::try_from(
-                commitment_hint_json.0
-            )
-                .unwrap()
+                    commitment_hint_json.0
+                )
+                    .unwrap()
             },
         }
     }
@@ -75,7 +76,7 @@ impl HintsBag {
     pub fn add_commitment(&mut self, hint: CommitmentHint) {
         self.0.add_hint(
             ergo_lib::ergotree_interpreter::sigma_protocol::prover::hint::Hint::CommitmentHint(
-                hint.0.clone(),
+                hint.0,
             ),
         );
     }

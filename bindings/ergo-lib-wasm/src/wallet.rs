@@ -83,7 +83,7 @@ impl Wallet {
     ) -> Result<Transaction, JsValue> {
         let boxes_to_spend = TxIoVec::from_vec(boxes_to_spend.clone().into()).map_err(to_js)?;
         let mut tx_hints = TransactionHintsBag::empty();
-        tx_hints.add_hints_for_input(0, hints.clone());
+        tx_hints.add_hints_for_input(0, hints);
         let data_boxes = {
             let d: Vec<_> = data_boxes.clone().into();
             if d.is_empty() {

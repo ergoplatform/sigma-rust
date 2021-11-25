@@ -31,10 +31,4 @@ impl ErgoStateContext {
             .into()),
         }
     }
-    /// Dummy state context
-    pub fn dummy() -> ErgoStateContext {
-        ErgoStateContext {
-            0: chain::ergo_state_context::ErgoStateContext::dummy(),
-        }
-    }
 }
