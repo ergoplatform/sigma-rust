@@ -7,7 +7,8 @@ use sha2::Sha512;
 /// Length of mnemonic seed in bytes
 const SHA512_OUTPUT_LEN: usize = 512 / 8;
 
-type MnemonicSeed = [u8; SHA512_OUTPUT_LEN];
+/// Mnemonic seed
+pub type MnemonicSeed = [u8; SHA512_OUTPUT_LEN];
 
 /// Mnemonic type
 pub struct Mnemonic();
