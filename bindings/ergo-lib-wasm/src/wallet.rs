@@ -18,9 +18,10 @@ pub struct Wallet(ergo_lib::wallet::Wallet);
 #[wasm_bindgen]
 impl Wallet {
     /// Create wallet instance loading secret key from mnemonic
+    /// Returns None if a DlogSecretKey cannot be parsed from the provided phrase
     #[wasm_bindgen]
-    pub fn from_mnemonic(_mnemonic_phrase: &str, _mnemonic_pass: &str) -> Wallet {
-        todo!()
+    pub fn from_mnemonic(mnemonic_phrase: &str, mnemonic_pass: &str) -> Option<Wallet> {
+        Some(ergo_lib::wallet::Wallet::from_mnemonic(mnemonic_phrase, mnemonic_pass)?.into())
     }
 
     /// Create wallet using provided secret key
@@ -74,5 +75,11 @@ impl Wallet {
             .sign_reduced_transaction(reduced_tx.clone().into())
             .map_err(to_js)
             .map(Transaction::from)
+    }
+}
+
+impl From<ergo_lib::wallet::Wallet> for Wallet {
+    fn from(t: ergo_lib::wallet::Wallet) -> Self {
+        Wallet(t)
     }
 }

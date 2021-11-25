@@ -44,13 +44,14 @@ impl From<TxSigningError> for WalletError {
 
 impl Wallet {
     /// Create wallet instance loading secret key from mnemonic
-    pub fn from_mnemonic(mnemonic_phrase: &str, mnemonic_pass: &str) -> Wallet {
+    /// Returns None if a DlogSecretKey cannot be parsed from the provided phrase
+    pub fn from_mnemonic(mnemonic_phrase: &str, mnemonic_pass: &str) -> Option<Wallet> {
         let seed = Mnemonic::to_seed(mnemonic_phrase, mnemonic_pass);
         let mut dlog_bytes: [u8; 32] = Default::default();
         dlog_bytes.copy_from_slice(&seed[..32]);
-        let secret = SecretKey::dlog_from_bytes(&dlog_bytes).unwrap();
+        let secret = SecretKey::dlog_from_bytes(&dlog_bytes)?;
 
-        Wallet::from_secrets(vec![secret])
+        Some(Wallet::from_secrets(vec![secret]))
     }
 
     /// Create Wallet from secrets
