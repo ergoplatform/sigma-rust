@@ -14,7 +14,7 @@ use crate::{
 
 /// Token id (32 byte digest)
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct TokenId(chain::token::TokenId);
+pub struct TokenId(pub(crate) chain::token::TokenId);
 pub type TokenIdPtr = *mut TokenId;
 pub type ConstTokenIdPtr = *const TokenId;
 
@@ -53,7 +53,7 @@ pub unsafe fn token_id_to_str(token_id_ptr: ConstTokenIdPtr) -> Result<String, E
 
 /// Token amount with bound checks
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct TokenAmount(chain::token::TokenAmount);
+pub struct TokenAmount(pub(crate) chain::token::TokenAmount);
 pub type TokenAmountPtr = *mut TokenAmount;
 pub type ConstTokenAmountPtr = *const TokenAmount;
 

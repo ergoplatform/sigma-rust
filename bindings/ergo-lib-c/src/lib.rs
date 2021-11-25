@@ -14,6 +14,7 @@
 mod macros;
 mod address;
 mod block_header;
+mod box_builder;
 mod byte_array;
 mod constant;
 mod context_extension;
@@ -31,6 +32,7 @@ use ergo_lib::ergotree_ir::chain;
 
 pub use crate::address::*;
 pub use crate::block_header::*;
+pub use crate::box_builder::*;
 pub use crate::byte_array::*;
 pub use crate::context_extension::*;
 pub use crate::contract::*;

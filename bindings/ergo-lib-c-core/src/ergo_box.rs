@@ -318,3 +318,17 @@ impl From<NonMandatoryRegisterId> for chain::ergo_box::NonMandatoryRegisterId {
         }
     }
 }
+
+impl From<chain::ergo_box::NonMandatoryRegisterId> for NonMandatoryRegisterId {
+    fn from(v: chain::ergo_box::NonMandatoryRegisterId) -> Self {
+        use NonMandatoryRegisterId::*;
+        match v {
+            chain::ergo_box::NonMandatoryRegisterId::R4 => R4,
+            chain::ergo_box::NonMandatoryRegisterId::R5 => R5,
+            chain::ergo_box::NonMandatoryRegisterId::R6 => R6,
+            chain::ergo_box::NonMandatoryRegisterId::R7 => R7,
+            chain::ergo_box::NonMandatoryRegisterId::R8 => R8,
+            chain::ergo_box::NonMandatoryRegisterId::R9 => R9,
+        }
+    }
+}
