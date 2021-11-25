@@ -1,41 +1,29 @@
-//! Docuuemsn
+//! Mnemonic operations according to BIP32/BIP39
 
-use std::num::NonZeroU32;
+use hmac::Hmac;
+use pbkdf2::pbkdf2;
+use sha2::Sha512;
 
-use ring::{digest::SHA512_OUTPUT_LEN, pbkdf2};
+/// Length of mnemonic seed in bytes
+const SHA512_OUTPUT_LEN: usize = 512 / 8;
 
 type MnemonicSeed = [u8; SHA512_OUTPUT_LEN];
 
-/// a
+/// Mnemonic type
 pub struct Mnemonic();
 
 impl Mnemonic {
-    /// Allowed numbers of words in mnemonics
-    pub const ALLOWED_SENTENCE_SIZES: [u32; 5] = [12, 15, 18, 21, 24];
-
-    /// f
-    pub const ALLOWED_STRENGTHS: [u32; 5] = [128, 160, 192, 224, 256];
-
-    /// f
-    pub const ALLOWED_ENTROPHY_LENGTHS: [u32; 0] = [];
-
-    /// x
-    pub const BITS_GROUP_SIZE: u32 = 11;
-
     /// Number of iterations specified in BIP39 standard
     pub const PBKDF2_ITERATIONS: u32 = 2048;
 
-    /// N
-    pub const PBKDF2_KEY_LENGTH: u32 = 512;
-
-    /// x
+    /// Convert a mnemonic phrase into a mnemonic seed
+    /// mnemonic_pass is optional and is used to salt the seed
     pub fn to_seed(mnemonic_phrase: &str, mnemonic_pass: &str) -> MnemonicSeed {
         let mut seed: MnemonicSeed = [0u8; SHA512_OUTPUT_LEN];
-        pbkdf2::derive(
-            pbkdf2::PBKDF2_HMAC_SHA512,
-            NonZeroU32::new(Mnemonic::PBKDF2_ITERATIONS).unwrap(),
-            format!("mnemonic{}", mnemonic_pass).as_bytes(),
+        pbkdf2::<Hmac<Sha512>>(
             mnemonic_phrase.as_bytes(),
+            format!("mnemonic{}", mnemonic_pass).as_bytes(),
+            Mnemonic::PBKDF2_ITERATIONS,
             &mut seed,
         );
 
@@ -59,7 +47,7 @@ mod tests {
             252, 66, 130, 166, 26, 200, 66, 163,
         ];
 
-        assert_eq!(seed, expected);
+        assert_eq!(&seed[..], expected);
     }
 
     #[test]
