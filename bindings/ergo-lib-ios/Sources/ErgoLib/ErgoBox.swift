@@ -304,6 +304,19 @@ class ErgoBoxes {
         self.pointer = try ErgoBoxes.initEmpty()
     }
     
+    init(fromJSON: Any) throws {
+        let json = JSON(fromJSON)
+        if let arr = json.array {
+            let boxes = try arr.map{try ErgoBox(withJson: $0.stringValue)}
+            self.pointer = try ErgoBoxes.initEmpty()
+            for ergoBox in boxes {
+                try self.add(ergoBox: ergoBox)
+            }
+        } else {
+            throw WalletError.walletCError(reason: "Ergoboxes.init(fromJSON): expected [JSON]")
+        }
+    }
+    
     init(withRawPointer ptr: ErgoBoxesPtr) {
         self.pointer = ptr
     }
