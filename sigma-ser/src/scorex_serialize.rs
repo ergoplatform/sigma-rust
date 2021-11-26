@@ -15,6 +15,9 @@ pub enum ScorexSerializationError {
     /// Serialization not yet implemented
     #[error("serialization not yet implemented: {0}")]
     NotImplementedYet(&'static str),
+    /// Unexpected value type
+    #[error("Unexpected value: {0:?}")]
+    UnexpectedValue(&'static str),
     /// Serialization not supported
     #[error("serialization not supported: {0}")]
     NotSupported(&'static str),
@@ -90,7 +93,7 @@ pub trait ScorexSerializable: Sized {
     fn scorex_parse<R: ReadSigmaVlqExt>(r: &mut R) -> Result<Self, ScorexParsingError>;
 
     /// Serialize a ScorexSerializable value into bytes
-    fn scorex_serialize_bytes(&self) -> Result<Vec<u8>, ScorexParsingError> {
+    fn scorex_serialize_bytes(&self) -> Result<Vec<u8>, ScorexSerializationError> {
         let mut w = vec![];
         self.scorex_serialize(&mut w)?;
         Ok(w)
