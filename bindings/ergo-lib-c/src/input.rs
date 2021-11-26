@@ -5,7 +5,7 @@ use ergo_lib_c_core::{
     context_extension::ContextExtensionPtr, ergo_box::BoxIdPtr, input::*, Error,
 };
 
-use crate::{delete_ptr, ErrorPtr, ReturnNum};
+use crate::{delete_ptr, ErrorPtr};
 use paste::paste;
 
 // `UnsignedInput` bindings -------------------------------------------------------------------------
@@ -14,18 +14,16 @@ use paste::paste;
 pub unsafe extern "C" fn ergo_wallet_unsigned_input_box_id(
     unsigned_input_ptr: ConstUnsignedInputPtr,
     box_id_out: *mut BoxIdPtr,
-) -> ErrorPtr {
-    let res = unsigned_input_box_id(unsigned_input_ptr, box_id_out);
-    Error::c_api_from(res)
+) {
+    unsigned_input_box_id(unsigned_input_ptr, box_id_out).unwrap();
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_unsigned_input_context_extension(
     unsigned_input_ptr: ConstUnsignedInputPtr,
     context_extension_out: *mut ContextExtensionPtr,
-) -> ErrorPtr {
-    let res = unsigned_input_context_extension(unsigned_input_ptr, context_extension_out);
-    Error::c_api_from(res)
+) {
+    unsigned_input_context_extension(unsigned_input_ptr, context_extension_out).unwrap();
 }
 
 #[no_mangle]
@@ -41,18 +39,16 @@ make_collection!(UnsignedInputs, UnsignedInput);
 pub unsafe extern "C" fn ergo_wallet_input_box_id(
     input_ptr: ConstInputPtr,
     box_id_out: *mut BoxIdPtr,
-) -> ErrorPtr {
-    let res = input_box_id(input_ptr, box_id_out);
-    Error::c_api_from(res)
+) {
+    input_box_id(input_ptr, box_id_out).unwrap();
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_input_spending_proof(
     input_ptr: ConstInputPtr,
     prover_result_out: *mut ProverResultPtr,
-) -> ErrorPtr {
-    let res = input_spending_proof(input_ptr, prover_result_out);
-    Error::c_api_from(res)
+) {
+    input_spending_proof(input_ptr, prover_result_out).unwrap();
 }
 
 #[no_mangle]
@@ -67,35 +63,24 @@ make_collection!(Inputs, Input);
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_prover_result_proof_len(
     prover_result_ptr: ConstProverResultPtr,
-) -> ReturnNum<usize> {
-    match prover_result_proof_len(prover_result_ptr) {
-        Ok(value) => ReturnNum {
-            value,
-            error: std::ptr::null_mut(),
-        },
-        Err(e) => ReturnNum {
-            value: 0, // Just a dummy value
-            error: Error::c_api_from(Err(e)),
-        },
-    }
+) -> usize {
+    prover_result_proof_len(prover_result_ptr).unwrap()
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_prover_result_proof(
     prover_result_ptr: ConstProverResultPtr,
     output: *mut u8,
-) -> ErrorPtr {
-    let res = prover_result_proof(prover_result_ptr, output);
-    Error::c_api_from(res)
+) {
+    prover_result_proof(prover_result_ptr, output).unwrap();
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_prover_result_context_extension(
     prover_result_ptr: ConstProverResultPtr,
     context_extension_out: *mut ContextExtensionPtr,
-) -> ErrorPtr {
-    let res = prover_result_context_extension(prover_result_ptr, context_extension_out);
-    Error::c_api_from(res)
+) {
+    prover_result_context_extension(prover_result_ptr, context_extension_out).unwrap();
 }
 
 #[no_mangle]

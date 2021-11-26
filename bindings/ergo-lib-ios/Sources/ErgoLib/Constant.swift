@@ -5,10 +5,9 @@ import ErgoLibC
 class Constant {
     internal var pointer: ConstantPtr
     
-    init(withInt32: Int32) throws {
+    init(withInt32: Int32) {
         var ptr: ConstantPtr?
-        let error = ergo_wallet_constant_from_i32(&ptr, withInt32)
-        try checkError(error)
+        ergo_wallet_constant_from_i32(&ptr, withInt32)
         self.pointer = ptr!
     }
     

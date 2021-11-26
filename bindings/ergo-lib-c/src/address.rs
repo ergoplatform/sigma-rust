@@ -10,7 +10,7 @@ use std::{
     os::raw::c_char,
 };
 
-use crate::{ErrorPtr, ReturnNum};
+use crate::ErrorPtr;
 
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_address_from_testnet(
@@ -47,31 +47,14 @@ pub unsafe extern "C" fn ergo_wallet_address_to_base58(
     address: ConstAddressPtr,
     network_prefix: NetworkPrefix,
     _address_str: *mut *const c_char,
-) -> ErrorPtr {
-    let res = match address_to_base58(address, network_prefix) {
-        Ok(s) => {
-            *_address_str = CString::new(s).unwrap().into_raw();
-            Ok(())
-        }
-        Err(e) => Err(e),
-    };
-    Error::c_api_from(res)
+) {
+    let s = address_to_base58(address, network_prefix).unwrap();
+    *_address_str = CString::new(s).unwrap().into_raw();
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_address_type_prefix(
-    address: ConstAddressPtr,
-) -> ReturnNum<u8> {
-    match address_type_prefix(address) {
-        Ok(value) => ReturnNum {
-            value: value as u8,
-            error: std::ptr::null_mut(),
-        },
-        Err(e) => ReturnNum {
-            value: 0, // Just a dummy value
-            error: Error::c_api_from(Err(e)),
-        },
-    }
+pub unsafe extern "C" fn ergo_wallet_address_type_prefix(address: ConstAddressPtr) -> u8 {
+    address_type_prefix(address).unwrap() as u8
 }
 
 #[no_mangle]

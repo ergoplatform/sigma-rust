@@ -8,10 +8,9 @@ class Contract {
         self.pointer = ptr
     }
     
-    init(fromErgoTree: ErgoTree) throws {
+    init(fromErgoTree: ErgoTree) {
         var ptr:  ContractPtr?
-        let error = ergo_wallet_contract_new(fromErgoTree.pointer, &ptr)
-        try checkError(error)
+        ergo_wallet_contract_new(fromErgoTree.pointer, &ptr)
         self.pointer = ptr!
     }
     
@@ -32,10 +31,9 @@ class Contract {
     }
     
     
-    func getErgoTree() throws -> ErgoTree {
+    func getErgoTree() -> ErgoTree {
         var boxIdPtr: ErgoTreePtr?
-        let error = ergo_wallet_contract_ergo_tree(self.pointer, &boxIdPtr)
-        try checkError(error)
+        ergo_wallet_contract_ergo_tree(self.pointer, &boxIdPtr)
         return ErgoTree(withPtr: boxIdPtr!)
     }
         

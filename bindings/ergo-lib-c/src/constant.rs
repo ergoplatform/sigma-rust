@@ -1,4 +1,4 @@
-use ergo_lib_c_core::{constant::*, Error, ErrorPtr};
+use ergo_lib_c_core::constant::*;
 
 use crate::delete_ptr;
 
@@ -8,12 +8,8 @@ pub extern "C" fn ergo_wallet_constant_delete(ptr: ConstantPtr) {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_constant_from_i32(
-    constant_out: *mut ConstantPtr,
-    value: i32,
-) -> ErrorPtr {
-    let res = constant_from_i32(constant_out, value);
-    Error::c_api_from(res)
+pub unsafe extern "C" fn ergo_wallet_constant_from_i32(constant_out: *mut ConstantPtr, value: i32) {
+    constant_from_i32(constant_out, value).unwrap();
 }
 
 #[no_mangle]

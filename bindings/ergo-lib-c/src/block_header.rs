@@ -27,8 +27,6 @@ pub extern "C" fn ergo_wallet_block_header_delete(header: BlockHeaderPtr) {
     block_header_delete(header)
 }
 
-// -------------------------------------------------------------------------------------------------
 // BlockHeaders functions --------------------------------------------------------------------------
-// -------------------------------------------------------------------------------------------------
 
 make_collection!(BlockHeaders, BlockHeader);

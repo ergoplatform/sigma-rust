@@ -14,20 +14,16 @@ pub unsafe extern "C" fn ergo_wallet_secret_key_from_bytes(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_secret_key_generate_random(
-    secret_key_out: *mut SecretKeyPtr,
-) -> ErrorPtr {
-    let res = secret_key_generate_random(secret_key_out);
-    Error::c_api_from(res)
+pub unsafe extern "C" fn ergo_wallet_secret_key_generate_random(secret_key_out: *mut SecretKeyPtr) {
+    secret_key_generate_random(secret_key_out).unwrap();
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_secret_key_to_bytes(
     secret_key_ptr: ConstSecretKeyPtr,
     output: *mut u8,
-) -> ErrorPtr {
-    let res = secret_key_to_bytes(secret_key_ptr, output);
-    Error::c_api_from(res)
+) {
+    secret_key_to_bytes(secret_key_ptr, output).unwrap();
 }
 
 #[no_mangle]

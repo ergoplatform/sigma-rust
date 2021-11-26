@@ -10,31 +10,27 @@ class UnsignedTransaction {
         self.pointer = try UnsignedTransaction.fromJSON(json: json)
     }
     
-    func getTxId() throws -> TxId {
+    func getTxId() -> TxId {
         var ptr: TxIdPtr?
-        let error = ergo_wallet_unsigned_tx_id(self.pointer, &ptr)
-        try checkError(error)
+        ergo_wallet_unsigned_tx_id(self.pointer, &ptr)
         return TxId(withRawPointer: ptr!)
     }
     
-    func getUnsignedInputs() throws -> UnsignedInputs {
+    func getUnsignedInputs() -> UnsignedInputs {
         var unsignedInputsPtr: UnsignedInputsPtr?
-        let error = ergo_wallet_unsigned_tx_inputs(self.pointer, &unsignedInputsPtr)
-        try checkError(error)
+        ergo_wallet_unsigned_tx_inputs(self.pointer, &unsignedInputsPtr)
         return UnsignedInputs(withPtr: unsignedInputsPtr!)
     }
     
-    func getDataInputs() throws -> DataInputs {
+    func getDataInputs() -> DataInputs {
         var dataInputsPtr: DataInputsPtr?
-        let error = ergo_wallet_unsigned_tx_data_inputs(self.pointer, &dataInputsPtr)
-        try checkError(error)
+        ergo_wallet_unsigned_tx_data_inputs(self.pointer, &dataInputsPtr)
         return DataInputs(withPtr: dataInputsPtr!)
     }
     
-    func getOutputCandidates() throws -> ErgoBoxCandidates {
+    func getOutputCandidates() -> ErgoBoxCandidates {
         var ptr: ErgoBoxCandidatesPtr?
-        let error = ergo_wallet_unsigned_tx_output_candidates(self.pointer, &ptr)
-        try checkError(error)
+        ergo_wallet_unsigned_tx_output_candidates(self.pointer, &ptr)
         return ErgoBoxCandidates(withRawPointer: ptr!)
     }
     
@@ -88,38 +84,33 @@ class Transaction {
         self.pointer = try Transaction.fromJSON(json: json)
     }
     
-    func getTxId() throws -> TxId {
+    func getTxId() -> TxId {
         var ptr: TxIdPtr?
-        let error = ergo_wallet_tx_id(self.pointer, &ptr)
-        try checkError(error)
+        ergo_wallet_tx_id(self.pointer, &ptr)
         return TxId(withRawPointer: ptr!)
     }
     
-    func getInputs() throws -> Inputs {
+    func getInputs() -> Inputs {
         var ptr: UnsignedInputsPtr?
-        let error = ergo_wallet_tx_inputs(self.pointer, &ptr)
-        try checkError(error)
+        ergo_wallet_tx_inputs(self.pointer, &ptr)
         return Inputs(withPtr: ptr!)
     }
     
-    func getDataInputs() throws -> DataInputs {
+    func getDataInputs() -> DataInputs {
         var ptr: DataInputsPtr?
-        let error = ergo_wallet_tx_data_inputs(self.pointer, &ptr)
-        try checkError(error)
+        ergo_wallet_tx_data_inputs(self.pointer, &ptr)
         return DataInputs(withPtr: ptr!)
     }
     
-    func getOutputCandidates() throws -> ErgoBoxCandidates {
+    func getOutputCandidates() -> ErgoBoxCandidates {
         var ptr: ErgoBoxCandidatesPtr?
-        let error = ergo_wallet_tx_output_candidates(self.pointer, &ptr)
-        try checkError(error)
+        ergo_wallet_tx_output_candidates(self.pointer, &ptr)
         return ErgoBoxCandidates(withRawPointer: ptr!)
     }
     
-    func getOutputs() throws -> ErgoBoxes {
+    func getOutputs() -> ErgoBoxes {
         var ptr: ErgoBoxesPtr?
-        let error = ergo_wallet_tx_outputs(self.pointer, &ptr)
-        try checkError(error)
+        ergo_wallet_tx_outputs(self.pointer, &ptr)
         return ErgoBoxes(withRawPointer: ptr!)
     }
     

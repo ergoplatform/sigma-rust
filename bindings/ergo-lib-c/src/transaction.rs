@@ -32,36 +32,32 @@ type ErgoBoxesPtr = CollectionPtr<ErgoBox>;
 pub unsafe extern "C" fn ergo_wallet_unsigned_tx_id(
     unsigned_tx_ptr: ConstUnsignedTransactionPtr,
     tx_id_out: *mut TxIdPtr,
-) -> ErrorPtr {
-    let res = unsigned_tx_id(unsigned_tx_ptr, tx_id_out);
-    Error::c_api_from(res)
+) {
+    unsigned_tx_id(unsigned_tx_ptr, tx_id_out).unwrap();
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_unsigned_tx_inputs(
     unsigned_tx_ptr: ConstUnsignedTransactionPtr,
     unsigned_inputs_out: *mut UnsignedInputsPtr,
-) -> ErrorPtr {
-    let res = unsigned_tx_inputs(unsigned_tx_ptr, unsigned_inputs_out);
-    Error::c_api_from(res)
+) {
+    unsigned_tx_inputs(unsigned_tx_ptr, unsigned_inputs_out).unwrap();
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_unsigned_tx_data_inputs(
     unsigned_tx_ptr: ConstUnsignedTransactionPtr,
     data_inputs_out: *mut DataInputsPtr,
-) -> ErrorPtr {
-    let res = unsigned_tx_data_inputs(unsigned_tx_ptr, data_inputs_out);
-    Error::c_api_from(res)
+) {
+    unsigned_tx_data_inputs(unsigned_tx_ptr, data_inputs_out).unwrap();
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_unsigned_tx_output_candidates(
     unsigned_tx_ptr: ConstUnsignedTransactionPtr,
     ergo_box_candidates_out: *mut ErgoBoxCandidatesPtr,
-) -> ErrorPtr {
-    let res = unsigned_tx_output_candidates(unsigned_tx_ptr, ergo_box_candidates_out);
-    Error::c_api_from(res)
+) {
+    unsigned_tx_output_candidates(unsigned_tx_ptr, ergo_box_candidates_out).unwrap();
 }
 
 #[no_mangle]
@@ -121,48 +117,40 @@ pub unsafe extern "C" fn ergo_wallet_tx_from_unsigned_tx(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_tx_id(
-    tx_ptr: ConstTransactionPtr,
-    tx_id_out: *mut TxIdPtr,
-) -> ErrorPtr {
-    let res = tx_id(tx_ptr, tx_id_out);
-    Error::c_api_from(res)
+pub unsafe extern "C" fn ergo_wallet_tx_id(tx_ptr: ConstTransactionPtr, tx_id_out: *mut TxIdPtr) {
+    tx_id(tx_ptr, tx_id_out).unwrap();
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_tx_inputs(
     tx_ptr: ConstTransactionPtr,
     inputs_out: *mut InputsPtr,
-) -> ErrorPtr {
-    let res = tx_inputs(tx_ptr, inputs_out);
-    Error::c_api_from(res)
+) {
+    tx_inputs(tx_ptr, inputs_out).unwrap();
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_tx_data_inputs(
     tx_ptr: ConstTransactionPtr,
     data_inputs_out: *mut DataInputsPtr,
-) -> ErrorPtr {
-    let res = tx_data_inputs(tx_ptr, data_inputs_out);
-    Error::c_api_from(res)
+) {
+    tx_data_inputs(tx_ptr, data_inputs_out).unwrap();
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_tx_output_candidates(
     tx_ptr: ConstTransactionPtr,
     ergo_box_candidates_out: *mut ErgoBoxCandidatesPtr,
-) -> ErrorPtr {
-    let res = tx_output_candidates(tx_ptr, ergo_box_candidates_out);
-    Error::c_api_from(res)
+) {
+    tx_output_candidates(tx_ptr, ergo_box_candidates_out).unwrap();
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_tx_outputs(
     tx_ptr: ConstTransactionPtr,
     ergo_box_out: *mut ErgoBoxesPtr,
-) -> ErrorPtr {
-    let res = tx_outputs(tx_ptr, ergo_box_out);
-    Error::c_api_from(res)
+) {
+    tx_outputs(tx_ptr, ergo_box_out).unwrap();
 }
 
 #[no_mangle]

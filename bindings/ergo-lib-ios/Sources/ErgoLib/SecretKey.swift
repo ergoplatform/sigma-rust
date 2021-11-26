@@ -4,26 +4,20 @@ import ErgoLibC
 class SecretKey {
     internal var pointer: SecretKeyPtr
     
-    init() throws {
-        self.pointer = try SecretKey.generateRandom()
+    init() {
+        var ptr: SecretKeyPtr?
+        ergo_wallet_secret_key_generate_random(&ptr)
+        self.pointer = ptr!
     }
     
     init(fromBytes : [UInt8]) throws {
         self.pointer = try SecretKey.fromBytes(bytes: fromBytes)
     }
     
-    func toBytes() throws -> [UInt8] {
+    func toBytes() -> [UInt8] {
         var bytes = Array.init(repeating: UInt8(0), count: 32)
-        let error = ergo_wallet_secret_key_to_bytes(self.pointer, &bytes)
-        try checkError(error)
+        ergo_wallet_secret_key_to_bytes(self.pointer, &bytes)
         return bytes
-    }
-    
-    private static func generateRandom() throws -> SecretKeyPtr {
-        var ptr: SecretKeyPtr?
-        let error = ergo_wallet_secret_key_generate_random(&ptr)
-        try checkError(error)
-        return ptr!
     }
     
     private static func fromBytes(bytes: [UInt8]) throws -> SecretKeyPtr {

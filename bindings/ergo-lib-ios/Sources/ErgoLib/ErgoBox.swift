@@ -13,17 +13,15 @@ class BoxId {
         self.pointer = ptr
     }
     
-    func toBytes() throws -> [UInt8] {
+    func toBytes() -> [UInt8] {
         var bytes = Array.init(repeating: UInt8(0), count: 32)
-        let error = ergo_wallet_box_id_to_bytes(self.pointer, &bytes)
-        try checkError(error)
+        ergo_wallet_box_id_to_bytes(self.pointer, &bytes)
         return bytes
     }
     
-    func toString() throws -> String {
+    func toString() -> String {
         var cStr: UnsafePointer<CChar>?
-        let error = ergo_wallet_box_id_to_str(self.pointer, &cStr)
-        try checkError(error)
+        ergo_wallet_box_id_to_str(self.pointer, &cStr)
         let str = String(cString: cStr!)
         ergo_wallet_delete_string(UnsafeMutablePointer(mutating: cStr))
         return str
@@ -57,10 +55,9 @@ class BoxValue {
         self.pointer = ptr
     }
     
-    static func SAFE_USER_MIN() throws -> BoxValue {
+    static func SAFE_USER_MIN() -> BoxValue {
         var ptr: BoxValuePtr?
-        let error = ergo_wallet_box_value_safe_user_min(&ptr)
-        try checkError(error)
+        ergo_wallet_box_value_safe_user_min(&ptr)
         return BoxValue(withPtr: ptr!)
     }
     
@@ -68,10 +65,8 @@ class BoxValue {
         return ergo_wallet_box_value_units_per_ergo()
     }
     
-    func toInt64() throws -> Int64 {
-        let res = ergo_wallet_box_value_as_i64(self.pointer)
-        try checkError(res.error)
-        return res.value
+    func toInt64() -> Int64 {
+        return ergo_wallet_box_value_as_i64(self.pointer)
     }
     
     deinit {
@@ -86,10 +81,10 @@ class ErgoBoxCandidate {
         self.pointer = pointer
     }
     
-    func getRegisterValue(registerId: NonMandatoryRegisterId) throws -> Constant? {
+    func getRegisterValue(registerId: NonMandatoryRegisterId) -> Constant? {
         var constantPtr: ConstantPtr?
         let res = ergo_wallet_ergo_box_candidate_register_value(self.pointer, registerId.rawValue, &constantPtr)
-        try checkError(res.error)
+        assert(res.error == nil)
         if res.is_some {
             return Constant(withPtr: constantPtr!)
         } else {
@@ -97,30 +92,25 @@ class ErgoBoxCandidate {
         }
     }
     
-    func getCreationHeight() throws -> UInt32 {
-        let res = ergo_wallet_ergo_box_candidate_creation_height(self.pointer)
-        try checkError(res.error)
-        return res.value
+    func getCreationHeight() -> UInt32 {
+        return ergo_wallet_ergo_box_candidate_creation_height(self.pointer)
     }
 
-    func getTokens() throws -> Tokens {
+    func getTokens() -> Tokens {
         var tokensPtr: TokensPtr?
-        let error = ergo_wallet_ergo_box_candidate_tokens(self.pointer, &tokensPtr)
-        try checkError(error)
+        ergo_wallet_ergo_box_candidate_tokens(self.pointer, &tokensPtr)
         return Tokens(withPtr: tokensPtr!)
     }
     
-    func getErgoTree() throws -> ErgoTree {
+    func getErgoTree() -> ErgoTree {
         var ergoTreePtr: ErgoTreePtr?
-        let error = ergo_wallet_ergo_box_candidate_ergo_tree(self.pointer, &ergoTreePtr)
-        try checkError(error)
+        ergo_wallet_ergo_box_candidate_ergo_tree(self.pointer, &ergoTreePtr)
         return ErgoTree(withPtr: ergoTreePtr!)
     }
     
-    func getBoxValue() throws -> BoxValue {
+    func getBoxValue() -> BoxValue {
         var boxValuePtr: BoxValuePtr?
-        let error = ergo_wallet_ergo_box_candidate_box_value(self.pointer, &boxValuePtr)
-        try checkError(error)
+        ergo_wallet_ergo_box_candidate_box_value(self.pointer, &boxValuePtr)
         return BoxValue(withPtr: boxValuePtr!)
     }
     
@@ -165,44 +155,38 @@ class ErgoBox{
         self.pointer = pointer
     }
     
-    func getBoxId() throws -> BoxId {
+    func getBoxId() -> BoxId {
         var ptr: BoxIdPtr?
-        let error = ergo_wallet_ergo_box_id(self.pointer, &ptr)
-        try checkError(error)
+        ergo_wallet_ergo_box_id(self.pointer, &ptr)
         return BoxId(withPtr: ptr!)
     }
     
-    func getCreationHeight() throws -> UInt32 {
-        let res = ergo_wallet_ergo_box_creation_height(self.pointer)
-        try checkError(res.error)
-        return res.value
+    func getCreationHeight() -> UInt32 {
+        return ergo_wallet_ergo_box_creation_height(self.pointer)
     }
     
-    func getTokens() throws -> Tokens {
+    func getTokens() -> Tokens {
         var tokensPtr: TokensPtr?
-        let error = ergo_wallet_ergo_box_tokens(self.pointer, &tokensPtr)
-        try checkError(error)
+        ergo_wallet_ergo_box_tokens(self.pointer, &tokensPtr)
         return Tokens(withPtr: tokensPtr!)
     }
     
-    func getErgoTree() throws -> ErgoTree {
+    func getErgoTree() -> ErgoTree {
         var ergoTreePtr: ErgoTreePtr?
-        let error = ergo_wallet_ergo_box_ergo_tree(self.pointer, &ergoTreePtr)
-        try checkError(error)
+        ergo_wallet_ergo_box_ergo_tree(self.pointer, &ergoTreePtr)
         return ErgoTree(withPtr: ergoTreePtr!)
     }
     
-    func getBoxValue() throws -> BoxValue {
+    func getBoxValue() -> BoxValue {
         var boxValuePtr: BoxValuePtr?
-        let error = ergo_wallet_ergo_box_value(self.pointer, &boxValuePtr)
-        try checkError(error)
+        ergo_wallet_ergo_box_value(self.pointer, &boxValuePtr)
         return BoxValue(withPtr: boxValuePtr!)
     }
     
-    func getRegisterValue(registerId: NonMandatoryRegisterId) throws -> Constant? {
+    func getRegisterValue(registerId: NonMandatoryRegisterId) -> Constant? {
         var constantPtr: ConstantPtr?
         let res = ergo_wallet_ergo_box_register_value(self.pointer, registerId.rawValue, &constantPtr)
-        try checkError(res.error)
+        assert(res.error == nil)
         if res.is_some {
             return Constant(withPtr: constantPtr!)
         } else {

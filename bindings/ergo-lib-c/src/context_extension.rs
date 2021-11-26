@@ -5,9 +5,8 @@ use crate::{delete_ptr, ErrorPtr, ReturnNum};
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_context_extension_empty(
     context_extension_out: *mut ContextExtensionPtr,
-) -> ErrorPtr {
-    let res = context_extension_empty(context_extension_out);
-    Error::c_api_from(res)
+) {
+    context_extension_empty(context_extension_out).unwrap();
 }
 
 #[no_mangle]

@@ -9,7 +9,7 @@ use ergo_lib_c_core::{
 };
 use paste::paste;
 
-use crate::{ErrorPtr, ReturnNum, ReturnOption};
+use crate::{ErrorPtr, ReturnOption};
 use std::{
     ffi::{CStr, CString},
     os::raw::c_char,
@@ -33,24 +33,15 @@ pub unsafe extern "C" fn ergo_wallet_box_id_from_str(
 pub unsafe extern "C" fn ergo_wallet_box_id_to_str(
     box_id_ptr: ConstBoxIdPtr,
     _box_id_str: *mut *const c_char,
-) -> ErrorPtr {
-    let res = match box_id_to_str(box_id_ptr) {
-        Ok(s) => {
-            *_box_id_str = CString::new(s).unwrap().into_raw();
-            Ok(())
-        }
-        Err(e) => Err(e),
-    };
-    Error::c_api_from(res)
+) {
+    let s = box_id_to_str(box_id_ptr).unwrap();
+    *_box_id_str = CString::new(s).unwrap().into_raw();
 }
 
+/// Note: it's imperative that `output` points to a valid block of memory of 32 bytes.
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_box_id_to_bytes(
-    box_id_ptr: ConstBoxIdPtr,
-    output: *mut u8,
-) -> ErrorPtr {
-    let res = box_id_to_bytes(box_id_ptr, output);
-    Error::c_api_from(res)
+pub unsafe extern "C" fn ergo_wallet_box_id_to_bytes(box_id_ptr: ConstBoxIdPtr, output: *mut u8) {
+    box_id_to_bytes(box_id_ptr, output).unwrap();
 }
 
 #[no_mangle]
@@ -61,11 +52,8 @@ pub extern "C" fn ergo_wallet_box_id_delete(ptr: BoxIdPtr) {
 // `BoxValue` bindings ------------------------------------------------------------------------------
 
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_box_value_safe_user_min(
-    box_value_out: *mut BoxValuePtr,
-) -> ErrorPtr {
-    let res = box_value_safe_user_min(box_value_out);
-    Error::c_api_from(res)
+pub unsafe extern "C" fn ergo_wallet_box_value_safe_user_min(box_value_out: *mut BoxValuePtr) {
+    box_value_safe_user_min(box_value_out).unwrap();
 }
 
 #[no_mangle]
@@ -83,19 +71,8 @@ pub unsafe extern "C" fn ergo_wallet_box_value_from_i64(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_box_value_as_i64(
-    box_value_ptr: ConstBoxValuePtr,
-) -> ReturnNum<i64> {
-    match box_value_as_i64(box_value_ptr) {
-        Ok(value) => ReturnNum {
-            value,
-            error: std::ptr::null_mut(),
-        },
-        Err(e) => ReturnNum {
-            value: 0, // Just a dummy value
-            error: Error::c_api_from(Err(e)),
-        },
-    }
+pub unsafe extern "C" fn ergo_wallet_box_value_as_i64(box_value_ptr: ConstBoxValuePtr) -> i64 {
+    box_value_as_i64(box_value_ptr).unwrap()
 }
 
 #[no_mangle]
@@ -128,44 +105,32 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_register_value(
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_creation_height(
     ergo_box_candidate_ptr: ConstErgoBoxCandidatePtr,
-) -> ReturnNum<u32> {
-    match ergo_box_candidate_creation_height(ergo_box_candidate_ptr) {
-        Ok(value) => ReturnNum {
-            value,
-            error: std::ptr::null_mut(),
-        },
-        Err(e) => ReturnNum {
-            value: 0, // Just a dummy value
-            error: Error::c_api_from(Err(e)),
-        },
-    }
+) -> u32 {
+    ergo_box_candidate_creation_height(ergo_box_candidate_ptr).unwrap()
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_tokens(
     ergo_box_candidate_ptr: ConstErgoBoxCandidatePtr,
     tokens_out: *mut TokensPtr,
-) -> ErrorPtr {
-    let res = ergo_box_candidate_tokens(ergo_box_candidate_ptr, tokens_out);
-    Error::c_api_from(res)
+) {
+    ergo_box_candidate_tokens(ergo_box_candidate_ptr, tokens_out).unwrap();
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_ergo_tree(
     ergo_box_candidate_ptr: ConstErgoBoxCandidatePtr,
     ergo_tree_out: *mut ErgoTreePtr,
-) -> ErrorPtr {
-    let res = ergo_box_candidate_ergo_tree(ergo_box_candidate_ptr, ergo_tree_out);
-    Error::c_api_from(res)
+) {
+    ergo_box_candidate_ergo_tree(ergo_box_candidate_ptr, ergo_tree_out).unwrap();
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_box_value(
     ergo_box_candidate_ptr: ConstErgoBoxCandidatePtr,
     box_value_out: *mut BoxValuePtr,
-) -> ErrorPtr {
-    let res = ergo_box_candidate_box_value(ergo_box_candidate_ptr, box_value_out);
-    Error::c_api_from(res)
+) {
+    ergo_box_candidate_box_value(ergo_box_candidate_ptr, box_value_out).unwrap();
 }
 
 #[no_mangle]
@@ -203,52 +168,39 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_new(
 pub unsafe extern "C" fn ergo_wallet_ergo_box_id(
     ergo_box_ptr: ConstErgoBoxPtr,
     box_id_out: *mut BoxIdPtr,
-) -> ErrorPtr {
-    let res = ergo_box_box_id(ergo_box_ptr, box_id_out);
-    Error::c_api_from(res)
+) {
+    ergo_box_box_id(ergo_box_ptr, box_id_out).unwrap();
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_ergo_box_creation_height(
     ergo_box_ptr: ConstErgoBoxPtr,
-) -> ReturnNum<u32> {
-    match ergo_box_creation_height(ergo_box_ptr) {
-        Ok(value) => ReturnNum {
-            value,
-            error: std::ptr::null_mut(),
-        },
-        Err(e) => ReturnNum {
-            value: 0, // Just a dummy value
-            error: Error::c_api_from(Err(e)),
-        },
-    }
+) -> u32 {
+    ergo_box_creation_height(ergo_box_ptr).unwrap()
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_ergo_box_tokens(
     ergo_box_ptr: ConstErgoBoxPtr,
     tokens_out: *mut TokensPtr,
-) -> ErrorPtr {
-    let res = ergo_box_tokens(ergo_box_ptr, tokens_out);
-    Error::c_api_from(res)
+) {
+    ergo_box_tokens(ergo_box_ptr, tokens_out).unwrap();
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_ergo_box_ergo_tree(
     ergo_box_ptr: ConstErgoBoxPtr,
     ergo_tree_out: *mut ErgoTreePtr,
-) -> ErrorPtr {
-    let res = ergo_box_ergo_tree(ergo_box_ptr, ergo_tree_out);
-    Error::c_api_from(res)
+) {
+    ergo_box_ergo_tree(ergo_box_ptr, ergo_tree_out).unwrap();
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_ergo_box_value(
     ergo_box_ptr: ConstErgoBoxPtr,
     box_value_out: *mut BoxValuePtr,
-) -> ErrorPtr {
-    let res = ergo_box_value(ergo_box_ptr, box_value_out);
-    Error::c_api_from(res)
+) {
+    ergo_box_value(ergo_box_ptr, box_value_out).unwrap();
 }
 
 #[no_mangle]

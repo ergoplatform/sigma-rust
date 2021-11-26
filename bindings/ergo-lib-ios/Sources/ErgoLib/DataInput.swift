@@ -4,28 +4,22 @@ import ErgoLibC
 class DataInput {
     internal var pointer: DataInputPtr
     
-    init(withBoxId: BoxId) throws {
-        self.pointer = try DataInput.fromBoxId(boxId: withBoxId)
+    init(withBoxId: BoxId) {
+        var ptr: DataInputPtr?
+        ergo_wallet_data_input_new(withBoxId.pointer, &ptr)
+        self.pointer = ptr!
     }
     
     internal init(withPtr ptr: DataInputPtr) {
         self.pointer = ptr
     }
     
-    func getBoxId() throws -> BoxId {
+    func getBoxId() -> BoxId {
         var boxIdPtr: BoxIdPtr?
-        let error = ergo_wallet_data_input_box_id(self.pointer, &boxIdPtr)
-        try checkError(error)
+        ergo_wallet_data_input_box_id(self.pointer, &boxIdPtr)
         return BoxId(withPtr: boxIdPtr!)
     }
         
-    private static func fromBoxId(boxId: BoxId) throws -> DataInputPtr {
-        var ptr: DataInputPtr?
-        let error = ergo_wallet_data_input_new(boxId.pointer, &ptr)
-        try checkError(error)
-        return ptr!
-    }
-    
     deinit {
         ergo_wallet_data_input_delete(self.pointer)
     }

@@ -9,17 +9,15 @@ class UnsignedInput {
         self.pointer = ptr
     }
     
-    func getBoxId() throws -> BoxId {
+    func getBoxId() -> BoxId {
         var boxIdPtr: BoxIdPtr?
-        let error = ergo_wallet_unsigned_input_box_id(self.pointer, &boxIdPtr)
-        try checkError(error)
+        ergo_wallet_unsigned_input_box_id(self.pointer, &boxIdPtr)
         return BoxId(withPtr: boxIdPtr!)
     }
         
-    func getContextExtension() throws -> ContextExtension {
+    func getContextExtension() -> ContextExtension {
         var contextExtensionPtr: ContextExtensionPtr?
-        let error = ergo_wallet_unsigned_input_context_extension(self.pointer, &contextExtensionPtr)
-        try checkError(error)
+        ergo_wallet_unsigned_input_context_extension(self.pointer, &contextExtensionPtr)
         return ContextExtension(withPtr: contextExtensionPtr!)
     }
     
@@ -35,17 +33,15 @@ class Input {
         self.pointer = ptr
     }
     
-    func getBoxId() throws -> BoxId {
+    func getBoxId() -> BoxId {
         var boxIdPtr: BoxIdPtr?
-        let error = ergo_wallet_input_box_id(self.pointer, &boxIdPtr)
-        try checkError(error)
+        ergo_wallet_input_box_id(self.pointer, &boxIdPtr)
         return BoxId(withPtr: boxIdPtr!)
     }
         
-    func getSpendingProof() throws -> ProverResult {
+    func getSpendingProof() -> ProverResult {
         var ptr: ProverResultPtr?
-        let error = ergo_wallet_input_spending_proof(self.pointer, &ptr)
-        try checkError(error)
+        ergo_wallet_input_spending_proof(self.pointer, &ptr)
         return ProverResult(withRawPointer: ptr!)
     }
     
@@ -61,19 +57,16 @@ class ProverResult {
         self.pointer = ptr
     }
     
-    func toBytes() throws -> [UInt8] {
-        let res = ergo_wallet_prover_result_proof_len(self.pointer)
-        try checkError(res.error)
-        var bytes = Array.init(repeating: UInt8(0), count: Int(res.value))
-        let error = ergo_wallet_prover_result_proof(self.pointer, &bytes)
-        try checkError(error)
+    func toBytes() -> [UInt8] {
+        let proofLength = ergo_wallet_prover_result_proof_len(self.pointer)
+        var bytes = Array.init(repeating: UInt8(0), count: Int(proofLength))
+        ergo_wallet_prover_result_proof(self.pointer, &bytes)
         return bytes
     }
     
-    func getContextExtension() throws -> ContextExtension {
+    func getContextExtension() -> ContextExtension {
         var ptr: ContextExtensionPtr?
-        let error = ergo_wallet_prover_result_context_extension(self.pointer, &ptr)
-        try checkError(error)
+        ergo_wallet_prover_result_context_extension(self.pointer, &ptr)
         return ContextExtension(withPtr: ptr!)
     }
     

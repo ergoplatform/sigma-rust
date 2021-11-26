@@ -5,10 +5,9 @@ import SwiftyJSON
 class TokenId {
     internal var pointer: TokenIdPtr
     
-    init(fromBoxId : BoxId) throws {
+    init(fromBoxId : BoxId) {
         var ptr: TokenIdPtr?
-        let error = ergo_wallet_token_id_from_box_id(fromBoxId.pointer, &ptr)
-        try checkError(error)
+        ergo_wallet_token_id_from_box_id(fromBoxId.pointer, &ptr)
         self.pointer = ptr!
     }
     
@@ -20,10 +19,9 @@ class TokenId {
         self.pointer = try TokenId.fromBase16EncodedString(bytesStr: fromBase16EncodedString)
     }
     
-    func toBase16EncodedString() throws -> String {
+    func toBase16EncodedString() -> String {
         var cStr: UnsafePointer<CChar>?
-        let error = ergo_wallet_token_id_to_str(self.pointer, &cStr)
-        try checkError(error)
+        ergo_wallet_token_id_to_str(self.pointer, &cStr)
         let str = String(cString: cStr!)
         ergo_wallet_delete_string(UnsafeMutablePointer(mutating: cStr))
         return str
@@ -57,10 +55,8 @@ class TokenAmount {
         self.pointer = ptr
     }
     
-    func toInt64() throws -> Int64 {
-        let res = ergo_wallet_token_amount_as_i64(self.pointer)
-        try checkError(res.error)
-        return res.value
+    func toInt64() -> Int64 {
+        return ergo_wallet_token_amount_as_i64(self.pointer)
     }
     
     deinit {
@@ -71,10 +67,9 @@ class TokenAmount {
 class Token {
     internal var pointer: TokenPtr
     
-    init(tokenId : TokenId, tokenAmount: TokenAmount) throws {
+    init(tokenId : TokenId, tokenAmount: TokenAmount) {
         var ptr: TokenPtr?
-        let error = ergo_wallet_token_new(tokenId.pointer, tokenAmount.pointer, &ptr)
-        try checkError(error)
+        ergo_wallet_token_new(tokenId.pointer, tokenAmount.pointer, &ptr)
         self.pointer = ptr!
     }
     
@@ -82,17 +77,15 @@ class Token {
         self.pointer = ptr
     }
     
-    func getId() throws -> TokenId {
+    func getId() -> TokenId {
         var tokenIdPtr: TokenIdPtr?
-        let error = ergo_wallet_token_get_id(self.pointer, &tokenIdPtr)
-        try checkError(error)
+        ergo_wallet_token_get_id(self.pointer, &tokenIdPtr)
         return TokenId(withPtr: tokenIdPtr!)
     }
     
-    func getAmount() throws -> TokenAmount {
+    func getAmount() -> TokenAmount {
         var tokenAmountPtr: TokenAmountPtr?
-        let error = ergo_wallet_token_get_amount(self.pointer, &tokenAmountPtr)
-        try checkError(error)
+        ergo_wallet_token_get_amount(self.pointer, &tokenAmountPtr)
         return TokenAmount(withPtr: tokenAmountPtr!)
     }
     

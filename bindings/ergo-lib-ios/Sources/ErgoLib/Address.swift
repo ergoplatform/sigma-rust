@@ -16,22 +16,17 @@ class Address {
         self.pointer = try Address.fromBase58(addressStr: addressStr)
     }
     
-    func toBase58(networkPrefix: NetworkPrefix) throws -> String {
+    func toBase58(networkPrefix: NetworkPrefix) -> String {
         var cStr: UnsafePointer<CChar>?
-        let error = ergo_wallet_address_to_base58(self.pointer, networkPrefix.rawValue, &cStr)
-        try checkError(error)
+        ergo_wallet_address_to_base58(self.pointer, networkPrefix.rawValue, &cStr)
         let str = String(cString: cStr!)
         ergo_wallet_delete_string(UnsafeMutablePointer(mutating: cStr))
         return str
     }
     
-    func typePrefix() throws -> AddressTypePrefix {
-        let res = ergo_wallet_address_type_prefix(self.pointer)
-        try checkError(res.error)
-        guard let prefix = AddressTypePrefix(rawValue: res.value) else {
-            throw WalletError.walletCError(reason: "Invalid AddressTypePrefix")
-        }
-        return prefix
+    func typePrefix() -> AddressTypePrefix {
+        let value = ergo_wallet_address_type_prefix(self.pointer)
+        return AddressTypePrefix(rawValue: value)!
     }
     
     private static func fromTestnetAddress(addressStr: String) throws -> AddressPtr {

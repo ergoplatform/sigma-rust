@@ -13,9 +13,8 @@ use crate::{delete_ptr, ErrorPtr, ReturnNum, ReturnOption};
 pub unsafe extern "C" fn ergo_wallet_token_id_from_box_id(
     box_id_ptr: ConstBoxIdPtr,
     token_id_out: *mut TokenIdPtr,
-) -> ErrorPtr {
-    let res = token_id_from_box_id(box_id_ptr, token_id_out);
-    Error::c_api_from(res)
+) {
+    token_id_from_box_id(box_id_ptr, token_id_out).unwrap();
 }
 
 #[no_mangle]
@@ -32,15 +31,9 @@ pub unsafe extern "C" fn ergo_wallet_token_id_from_str(
 pub unsafe extern "C" fn ergo_wallet_token_id_to_str(
     token_id_ptr: ConstTokenIdPtr,
     _str: *mut *const c_char,
-) -> ErrorPtr {
-    let res = match token_id_to_str(token_id_ptr) {
-        Ok(s) => {
-            *_str = CString::new(s).unwrap().into_raw();
-            Ok(())
-        }
-        Err(e) => Err(e),
-    };
-    Error::c_api_from(res)
+) {
+    let s = token_id_to_str(token_id_ptr).unwrap();
+    *_str = CString::new(s).unwrap().into_raw();
 }
 
 #[no_mangle]
@@ -62,17 +55,8 @@ pub unsafe extern "C" fn ergo_wallet_token_amount_from_i64(
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_token_amount_as_i64(
     token_amount_ptr: ConstTokenAmountPtr,
-) -> ReturnNum<i64> {
-    match token_amount_as_i64(token_amount_ptr) {
-        Ok(value) => ReturnNum {
-            value,
-            error: std::ptr::null_mut(),
-        },
-        Err(e) => ReturnNum {
-            value: 0, // Just a dummy value
-            error: Error::c_api_from(Err(e)),
-        },
-    }
+) -> i64 {
+    token_amount_as_i64(token_amount_ptr).unwrap()
 }
 
 #[no_mangle]
@@ -87,27 +71,24 @@ pub unsafe extern "C" fn ergo_wallet_token_new(
     token_id_ptr: ConstTokenIdPtr,
     token_amount_ptr: ConstTokenAmountPtr,
     token_out: *mut TokenPtr,
-) -> ErrorPtr {
-    let res = token_new(token_id_ptr, token_amount_ptr, token_out);
-    Error::c_api_from(res)
+) {
+    token_new(token_id_ptr, token_amount_ptr, token_out).unwrap();
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_token_get_id(
     token_ptr: ConstTokenPtr,
     token_id_out: *mut TokenIdPtr,
-) -> ErrorPtr {
-    let res = token_get_id(token_ptr, token_id_out);
-    Error::c_api_from(res)
+) {
+    token_get_id(token_ptr, token_id_out).unwrap();
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_token_get_amount(
     token_ptr: ConstTokenPtr,
     token_amount_out: *mut TokenAmountPtr,
-) -> ErrorPtr {
-    let res = token_get_amount(token_ptr, token_amount_out);
-    Error::c_api_from(res)
+) {
+    token_get_amount(token_ptr, token_amount_out).unwrap();
 }
 
 #[no_mangle]

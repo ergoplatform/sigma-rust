@@ -5,46 +5,40 @@ import SwiftyJSON
 class ErgoBoxCandidateBuilder {
     internal var pointer: BoxIdPtr
     
-    init(boxValue: BoxValue, contract: Contract, creationHeight: UInt32) throws {
+    init(boxValue: BoxValue, contract: Contract, creationHeight: UInt32) {
         var ptr: ErgoBoxCandidateBuilderPtr?
-        let error = ergo_wallet_ergo_box_candidate_builder_new(
+        ergo_wallet_ergo_box_candidate_builder_new(
             boxValue.pointer,
             contract.pointer,
             creationHeight,
             &ptr
         )
-        try checkError(error)
         self.pointer = ptr!
     }
     
-    func setMinBoxValuePerByte(minBoxValuePerByte: UInt32) throws -> ErgoBoxCandidateBuilder {
-        let error = ergo_wallet_ergo_box_candidate_builder_set_min_box_value_per_byte(
+    func setMinBoxValuePerByte(minBoxValuePerByte: UInt32) -> ErgoBoxCandidateBuilder {
+        ergo_wallet_ergo_box_candidate_builder_set_min_box_value_per_byte(
             self.pointer,
             minBoxValuePerByte
         )
-        try checkError(error)
         return self
     }
     
-    func getMinBoxValuePerByte() throws -> UInt32 {
-        let res = ergo_wallet_ergo_box_candidate_builder_min_box_value_per_byte(self.pointer)
-        try checkError(res.error)
-        return res.value
+    func getMinBoxValuePerByte() -> UInt32 {
+        ergo_wallet_ergo_box_candidate_builder_min_box_value_per_byte(self.pointer)
     }
     
-    func setValue(boxValue: BoxValue) throws -> ErgoBoxCandidateBuilder {
-        let error = ergo_wallet_ergo_box_candidate_builder_set_value(
+    func setValue(boxValue: BoxValue) -> ErgoBoxCandidateBuilder {
+        ergo_wallet_ergo_box_candidate_builder_set_value(
             self.pointer,
             boxValue.pointer
         )
-        try checkError(error)
         return self
     }
     
-    func getValue() throws -> BoxValue {
+    func getValue() -> BoxValue {
         var ptr: BoxValuePtr?
-        let error = ergo_wallet_ergo_box_candidate_builder_value(self.pointer, &ptr)
-        try checkError(error)
+        ergo_wallet_ergo_box_candidate_builder_value(self.pointer, &ptr)
         return BoxValue(withPtr: ptr!)
     }
     
@@ -64,24 +58,23 @@ class ErgoBoxCandidateBuilder {
     func setRegisterValue(
         registerId: NonMandatoryRegisterId,
         constant: Constant
-    ) throws -> ErgoBoxCandidateBuilder {
-        let error = ergo_wallet_ergo_box_candidate_builder_set_register_value(
+    ) -> ErgoBoxCandidateBuilder {
+        ergo_wallet_ergo_box_candidate_builder_set_register_value(
             self.pointer,
             registerId.rawValue,
             constant.pointer
         )
-        try checkError(error)
         return self
     }
     
-    func getRegisterValue(registerId: NonMandatoryRegisterId) throws -> Constant? {
+    func getRegisterValue(registerId: NonMandatoryRegisterId) -> Constant? {
         var ptr: ConstantPtr?
         let res = ergo_wallet_ergo_box_candidate_builder_register_value(
             self.pointer,
             registerId.rawValue,
             &ptr
         )
-        try checkError(res.error)
+        assert(res.error == nil)
         if res.is_some {
             return Constant(withPtr: ptr!)
         } else {
@@ -91,12 +84,11 @@ class ErgoBoxCandidateBuilder {
     
     func deleteRegisterValue(
         registerId: NonMandatoryRegisterId
-    ) throws -> ErgoBoxCandidateBuilder {
-        let error = ergo_wallet_ergo_box_candidate_builder_delete_register_value(
+    ) -> ErgoBoxCandidateBuilder {
+        ergo_wallet_ergo_box_candidate_builder_delete_register_value(
             self.pointer,
             registerId.rawValue
         )
-        try checkError(error)
         return self
     }
     
@@ -105,34 +97,32 @@ class ErgoBoxCandidateBuilder {
         tokenName: String,
         tokenDesc: String,
         numDecimals: UInt
-    ) throws -> ErgoBoxCandidateBuilder {
-        let error = tokenName.withCString{tokenNameCStr -> ErrorPtr? in
-            let error = tokenDesc.withCString{tokenDescCStr in
-                ergo_wallet_ergo_box_candidate_builder_mint_token(
-                    self.pointer,
-                    token.pointer,
-                    tokenNameCStr,
-                    tokenDescCStr,
-                    numDecimals
-                )
+    ) -> ErgoBoxCandidateBuilder {
+        let _ =
+            tokenName.withCString{tokenNameCStr in
+                tokenDesc.withCString{tokenDescCStr in
+                    ergo_wallet_ergo_box_candidate_builder_mint_token(
+                        self.pointer,
+                        token.pointer,
+                        tokenNameCStr,
+                        tokenDescCStr,
+                        numDecimals
+                    )
+                }
             }
-            return error
-        }
         
-        try checkError(error)
         return self
     }
     
     func addToken(
         tokenId: TokenId,
         tokenAmount: TokenAmount
-    ) throws -> ErgoBoxCandidateBuilder {
-        let error = ergo_wallet_ergo_box_candidate_builder_add_token(
+    ) -> ErgoBoxCandidateBuilder {
+        ergo_wallet_ergo_box_candidate_builder_add_token(
             self.pointer,
             tokenId.pointer,
             tokenAmount.pointer
         )
-        try checkError(error)
         return self
     }
     

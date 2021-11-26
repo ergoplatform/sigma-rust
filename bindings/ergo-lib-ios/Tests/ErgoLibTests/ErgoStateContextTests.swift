@@ -6,7 +6,7 @@ final class ErgoStateContextTests: XCTestCase {
     func testErgoStateContext() throws {
         let headerJSON = HeaderTests.jsonHeaderExample()
         let blockHeader = try BlockHeader(withJson: headerJSON)
-        let preHeader = try PreHeader(withBlockHeader: blockHeader)
+        let preHeader = PreHeader(withBlockHeader: blockHeader)
         var blockHeadersJSON = Array(repeating: HeaderTests.jsonHeaderExample(), count: 10)
         var blockHeaders = try BlockHeaders(fromJSON: blockHeadersJSON)
         XCTAssertNoThrow(try ErgoStateContext(preHeader: preHeader, headers: blockHeaders))

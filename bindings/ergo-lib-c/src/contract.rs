@@ -15,9 +15,8 @@ use crate::delete_ptr;
 pub unsafe extern "C" fn ergo_wallet_contract_new(
     ergo_tree_ptr: ConstErgoTreePtr,
     contract_out: *mut ContractPtr,
-) -> ErrorPtr {
-    let res = contract_new(ergo_tree_ptr, contract_out);
-    Error::c_api_from(res)
+) {
+    contract_new(ergo_tree_ptr, contract_out).unwrap();
 }
 
 #[no_mangle]
@@ -43,9 +42,8 @@ pub unsafe extern "C" fn ergo_wallet_contract_compile(
 pub unsafe extern "C" fn ergo_wallet_contract_ergo_tree(
     contract_ptr: ConstContractPtr,
     ergo_tree_out: *mut ErgoTreePtr,
-) -> ErrorPtr {
-    let res = contract_ergo_tree(contract_ptr, ergo_tree_out);
-    Error::c_api_from(res)
+) {
+    contract_ergo_tree(contract_ptr, ergo_tree_out).unwrap();
 }
 
 #[no_mangle]

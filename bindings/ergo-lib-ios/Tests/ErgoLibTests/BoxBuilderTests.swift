@@ -12,31 +12,31 @@ final class BoxBuilderTests: XCTestCase {
     
     func testSimpleBox() throws {
         let (contract, boxValue) = try BoxBuilderTests.genElements()
-        XCTAssertNoThrow(try ErgoBoxCandidateBuilder(boxValue: boxValue, contract: contract, creationHeight: UInt32(0)))
+        XCTAssertNoThrow(ErgoBoxCandidateBuilder(boxValue: boxValue, contract: contract, creationHeight: UInt32(0)))
     }
     
     func testSetRegister() throws {
         let (contract, boxValue) = try BoxBuilderTests.genElements()
-        let constant = try Constant(withInt32: Int32(1))
-        let builder = try ErgoBoxCandidateBuilder(boxValue: boxValue, contract: contract, creationHeight: UInt32(0))
+        let constant = Constant(withInt32: Int32(1))
+        let builder = ErgoBoxCandidateBuilder(boxValue: boxValue, contract: contract, creationHeight: UInt32(0))
             .setRegisterValue(registerId: NonMandatoryRegisterId.R4, constant: constant)
-        XCTAssertEqual(try builder.getRegisterValue(registerId: NonMandatoryRegisterId.R4)!, constant)
+        XCTAssertEqual(builder.getRegisterValue(registerId: NonMandatoryRegisterId.R4)!, constant)
         let box = try builder.build()
-        XCTAssertEqual(try box.getRegisterValue(registerId: NonMandatoryRegisterId.R4)!, constant)
+        XCTAssertEqual(box.getRegisterValue(registerId: NonMandatoryRegisterId.R4)!, constant)
     }
     
     func testDeleteRegister() throws {
         let (contract, boxValue) = try BoxBuilderTests.genElements()
-        let constant = try Constant(withInt32: Int32(1))
-        var builder = try ErgoBoxCandidateBuilder(boxValue: boxValue, contract: contract, creationHeight: UInt32(0))
+        let constant = Constant(withInt32: Int32(1))
+        var builder = ErgoBoxCandidateBuilder(boxValue: boxValue, contract: contract, creationHeight: UInt32(0))
             .setRegisterValue(registerId: NonMandatoryRegisterId.R4, constant: constant)
-        XCTAssertEqual(try builder.getRegisterValue(registerId: NonMandatoryRegisterId.R4)!, constant)
+        XCTAssertEqual(builder.getRegisterValue(registerId: NonMandatoryRegisterId.R4)!, constant)
         
         // Now delete register value
-        builder = try builder.deleteRegisterValue(registerId: NonMandatoryRegisterId.R4)
-        XCTAssertNil(try builder.getRegisterValue(registerId: NonMandatoryRegisterId.R4))
+        builder = builder.deleteRegisterValue(registerId: NonMandatoryRegisterId.R4)
+        XCTAssertNil(builder.getRegisterValue(registerId: NonMandatoryRegisterId.R4))
         let box = try builder.build()
-        XCTAssertNil(try box.getRegisterValue(registerId: NonMandatoryRegisterId.R4))
+        XCTAssertNil(box.getRegisterValue(registerId: NonMandatoryRegisterId.R4))
     }
 }
 
