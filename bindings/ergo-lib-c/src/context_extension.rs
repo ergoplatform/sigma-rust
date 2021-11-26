@@ -1,6 +1,6 @@
-use ergo_lib_c_core::{context_extension::*, Error};
+use ergo_lib_c_core::context_extension::*;
 
-use crate::{delete_ptr, ErrorPtr, ReturnNum};
+use crate::delete_ptr;
 
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_context_extension_empty(
@@ -13,26 +13,18 @@ pub unsafe extern "C" fn ergo_wallet_context_extension_empty(
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_context_extension_len(
     context_extension_ptr: ConstContextExtensionPtr,
-) -> ReturnNum<usize> {
-    match context_extension_len(context_extension_ptr) {
-        Ok(value) => crate::ReturnNum {
-            value: value as usize,
-            error: std::ptr::null_mut(),
-        },
-        Err(e) => crate::ReturnNum {
-            value: 0, // Just a dummy value
-            error: Error::c_api_from(Err(e)),
-        },
-    }
+) -> usize {
+    #[allow(clippy::unwrap_used)]
+    context_extension_len(context_extension_ptr).unwrap()
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_context_extension_keys(
     context_extension_ptr: ConstContextExtensionPtr,
     output: *mut u8,
-) -> ErrorPtr {
-    let res = context_extension_keys(context_extension_ptr, output);
-    Error::c_api_from(res)
+) {
+    #[allow(clippy::unwrap_used)]
+    context_extension_keys(context_extension_ptr, output).unwrap();
 }
 
 #[no_mangle]

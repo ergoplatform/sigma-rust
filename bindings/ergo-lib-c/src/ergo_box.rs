@@ -1,5 +1,5 @@
 use ergo_lib_c_core::{
-    constant::{Constant, ConstantPtr},
+    constant::ConstantPtr,
     contract::ConstContractPtr,
     ergo_box::*,
     ergo_tree::ErgoTreePtr,
@@ -93,16 +93,14 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_register_value(
     ergo_box_candidate_ptr: ConstErgoBoxCandidatePtr,
     register_id: NonMandatoryRegisterId,
     constant_out: *mut ConstantPtr,
-) -> ReturnOption<Constant> {
+) -> ReturnOption {
     match ergo_box_candidate_register_value(ergo_box_candidate_ptr, register_id, constant_out) {
         Ok(is_some) => ReturnOption {
             is_some,
-            value_ptr: constant_out,
             error: std::ptr::null_mut(),
         },
         Err(e) => ReturnOption {
             is_some: false, // Just a dummy value
-            value_ptr: constant_out,
             error: Error::c_api_from(Err(e)),
         },
     }
@@ -223,16 +221,14 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_register_value(
     ergo_box_ptr: ConstErgoBoxPtr,
     register_id: NonMandatoryRegisterId,
     constant_out: *mut ConstantPtr,
-) -> ReturnOption<Constant> {
+) -> ReturnOption {
     match ergo_box_register_value(ergo_box_ptr, register_id, constant_out) {
         Ok(is_some) => ReturnOption {
             is_some,
-            value_ptr: constant_out,
             error: std::ptr::null_mut(),
         },
         Err(e) => ReturnOption {
             is_some: false, // Just a dummy value
-            value_ptr: constant_out,
             error: Error::c_api_from(Err(e)),
         },
     }

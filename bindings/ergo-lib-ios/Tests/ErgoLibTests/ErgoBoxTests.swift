@@ -28,7 +28,7 @@ final class ErgoBoxTests: XCTestCase {
     func testErgoBoxInitializer() throws {
         let (boxId, boxValue, ergoTree, contract) = try ErgoBoxTests.generateErgoBoxComponents()
         let txId = try TxId(withString: "9148408c04c2e38a6402a7950d6157730fa7d49e9ab3b9cadec481d7769918e9")
-        let tokens = try Tokens()
+        let tokens = Tokens()
         let creationHeight = UInt32(284761)
         let ergoBox = try
             ErgoBox(

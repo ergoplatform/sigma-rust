@@ -122,11 +122,10 @@ pub struct ReturnNum<T: IntegerType> {
     error: ErrorPtr,
 }
 
-/// Convenience type to allow us to pass Rust `Option<T>` through FFI to C side.
+/// Convenience type to allow us to pass Rust `Option<_>` types through FFI to C side.
 #[repr(C)]
-pub struct ReturnOption<T> {
+pub struct ReturnOption {
     is_some: bool,
-    value_ptr: *mut *mut T,
     error: ErrorPtr,
 }
 

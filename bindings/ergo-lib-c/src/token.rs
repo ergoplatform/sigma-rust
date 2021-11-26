@@ -5,7 +5,7 @@ use std::{
     os::raw::c_char,
 };
 
-use crate::{delete_ptr, ErrorPtr, ReturnNum, ReturnOption};
+use crate::{delete_ptr, ErrorPtr, ReturnOption};
 
 // `TokenId` bindings ------------------------------------------------------------------------------
 
@@ -123,23 +123,15 @@ pub extern "C" fn ergo_wallet_token_delete(ptr: TokenPtr) {
 // `Tokens` bindings -------------------------------------------------------------------------------
 
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_tokens_new(tokens_out: *mut TokensPtr) -> ErrorPtr {
-    let res = tokens_new(tokens_out);
-    Error::c_api_from(res)
+pub unsafe extern "C" fn ergo_wallet_tokens_new(tokens_out: *mut TokensPtr) {
+    #[allow(clippy::unwrap_used)]
+    tokens_new(tokens_out).unwrap();
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_tokens_len(tokens_ptr: ConstTokensPtr) -> ReturnNum<usize> {
-    match tokens_len(tokens_ptr) {
-        Ok(value) => ReturnNum {
-            value,
-            error: std::ptr::null_mut(),
-        },
-        Err(e) => ReturnNum {
-            value: 0, // Just a dummy value
-            error: Error::c_api_from(Err(e)),
-        },
-    }
+pub unsafe extern "C" fn ergo_wallet_tokens_len(tokens_ptr: ConstTokensPtr) -> usize {
+    #[allow(clippy::unwrap_used)]
+    tokens_len(tokens_ptr).unwrap()
 }
 
 #[no_mangle]
@@ -147,16 +139,14 @@ pub unsafe extern "C" fn ergo_wallet_tokens_get(
     tokens_ptr: ConstTokensPtr,
     index: usize,
     token_out: *mut TokenPtr,
-) -> ReturnOption<Token> {
+) -> ReturnOption {
     match tokens_get(tokens_ptr, index, token_out) {
         Ok(is_some) => ReturnOption {
             is_some,
-            value_ptr: token_out,
             error: std::ptr::null_mut(),
         },
         Err(e) => ReturnOption {
             is_some: false, // Just a dummy value
-            value_ptr: token_out,
             error: Error::c_api_from(Err(e)),
         },
     }

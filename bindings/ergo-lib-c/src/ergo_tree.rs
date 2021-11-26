@@ -1,7 +1,7 @@
 //! ErgoTree
 
 use ergo_lib_c_core::{
-    constant::{ConstConstantPtr, Constant, ConstantPtr},
+    constant::{ConstConstantPtr, ConstantPtr},
     ergo_tree::*,
     Error,
 };
@@ -94,16 +94,14 @@ pub unsafe extern "C" fn ergo_wallet_ergo_tree_get_constant(
     ergo_tree_ptr: ConstErgoTreePtr,
     index: usize,
     constant_out: *mut ConstantPtr,
-) -> ReturnOption<Constant> {
+) -> ReturnOption {
     match ergo_tree_get_constant(ergo_tree_ptr, index, constant_out) {
         Ok(is_some) => ReturnOption {
             is_some,
-            value_ptr: constant_out,
             error: std::ptr::null_mut(),
         },
         Err(e) => ReturnOption {
             is_some: false, // Just a dummy value
-            value_ptr: constant_out,
             error: Error::c_api_from(Err(e)),
         },
     }

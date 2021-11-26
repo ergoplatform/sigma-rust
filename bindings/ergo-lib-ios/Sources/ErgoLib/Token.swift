@@ -108,10 +108,9 @@ class Token {
 class Tokens {
     internal var pointer: TokensPtr
     
-    init() throws {
+    init() {
         var tokensPtr: TokensPtr?
-        let error = ergo_wallet_tokens_new(&tokensPtr)
-        try checkError(error)
+        ergo_wallet_tokens_new(&tokensPtr)
         self.pointer = tokensPtr!
     }
     
@@ -119,16 +118,14 @@ class Tokens {
         self.pointer = ptr
     }
     
-    func len() throws -> UInt {
-        let res = ergo_wallet_tokens_len(self.pointer)
-        try checkError(res.error)
-        return res.value
+    func len() -> UInt {
+        return ergo_wallet_tokens_len(self.pointer)
     }
     
-    func get(index: UInt) throws -> Token? {
+    func get(index: UInt) -> Token? {
         var tokenPtr: TokenPtr?
         let res = ergo_wallet_tokens_get(self.pointer, index, &tokenPtr)
-        try checkError(res.error)
+        assert(res.error == nil)
         if res.is_some {
             return Token(withPtr: tokenPtr!)
         } else {
