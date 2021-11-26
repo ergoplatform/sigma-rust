@@ -1,4 +1,5 @@
 //! Wallet-like features
+use derive_more::{From, Into};
 use ergo_lib::chain::transaction::TxIoVec;
 use wasm_bindgen::prelude::*;
 
@@ -13,6 +14,7 @@ use crate::{
 
 /// A collection of secret keys. This simplified signing by matching the secret keys to the correct inputs automatically.
 #[wasm_bindgen]
+#[derive(From, Into)]
 pub struct Wallet(ergo_lib::wallet::Wallet);
 
 #[wasm_bindgen]
@@ -75,11 +77,5 @@ impl Wallet {
             .sign_reduced_transaction(reduced_tx.clone().into())
             .map_err(to_js)
             .map(Transaction::from)
-    }
-}
-
-impl From<ergo_lib::wallet::Wallet> for Wallet {
-    fn from(t: ergo_lib::wallet::Wallet) -> Self {
-        Wallet(t)
     }
 }
