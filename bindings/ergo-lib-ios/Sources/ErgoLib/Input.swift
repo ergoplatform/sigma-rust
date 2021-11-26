@@ -89,31 +89,28 @@ class ProverResult {
 class UnsignedInputs {
     internal var pointer: UnsignedInputsPtr
     
-    init() throws {
-        self.pointer = try UnsignedInputs.initEmpty()
+    init() {
+        self.pointer = UnsignedInputs.initEmpty()
     }
     
     init(withPtr ptr: UnsignedInputsPtr) {
         self.pointer = ptr
     }
     
-    private static func initEmpty() throws -> UnsignedInputsPtr {
+    private static func initEmpty() -> UnsignedInputsPtr {
         var unsignedInputsPtr: UnsignedInputsPtr?
-        let error = ergo_wallet_unsigned_inputs_new(&unsignedInputsPtr)
-        try checkError(error)
+        ergo_wallet_unsigned_inputs_new(&unsignedInputsPtr)
         return unsignedInputsPtr!
     }
     
-    func len() throws -> UInt {
-        let res = ergo_wallet_unsigned_inputs_len(self.pointer)
-        try checkError(res.error)
-        return res.value
+    func len() -> UInt {
+        return ergo_wallet_unsigned_inputs_len(self.pointer)
     }
     
-    func get(index: UInt) throws -> UnsignedInput? {
+    func get(index: UInt) -> UnsignedInput? {
         var unsignedInputPtr: UnsignedInputPtr?
         let res = ergo_wallet_unsigned_inputs_get(self.pointer, index, &unsignedInputPtr)
-        try checkError(res.error)
+        assert(res.error == nil)
         if res.is_some {
             return UnsignedInput(withPtr: unsignedInputPtr!)
         } else {
@@ -121,9 +118,8 @@ class UnsignedInputs {
         }
     }
     
-    func add(unsignedInput: UnsignedInput) throws {
-        let error = ergo_wallet_unsigned_inputs_add(unsignedInput.pointer, self.pointer)
-        try checkError(error)
+    func add(unsignedInput: UnsignedInput) {
+        ergo_wallet_unsigned_inputs_add(unsignedInput.pointer, self.pointer)
     }
         
     deinit {
@@ -134,31 +130,28 @@ class UnsignedInputs {
 class Inputs {
     internal var pointer: InputsPtr
     
-    init() throws {
-        self.pointer = try Inputs.initEmpty()
+    init() {
+        self.pointer = Inputs.initEmpty()
     }
     
     init(withPtr ptr: InputsPtr) {
         self.pointer = ptr
     }
     
-    private static func initEmpty() throws -> InputsPtr {
+    private static func initEmpty() -> InputsPtr {
         var ptr: InputsPtr?
-        let error = ergo_wallet_inputs_new(&ptr)
-        try checkError(error)
+        ergo_wallet_inputs_new(&ptr)
         return ptr!
     }
     
-    func len() throws -> UInt {
-        let res = ergo_wallet_inputs_len(self.pointer)
-        try checkError(res.error)
-        return res.value
+    func len() -> UInt {
+        return ergo_wallet_inputs_len(self.pointer)
     }
     
-    func get(index: UInt) throws -> Input? {
+    func get(index: UInt) -> Input? {
         var ptr: InputPtr?
         let res = ergo_wallet_inputs_get(self.pointer, index, &ptr)
-        try checkError(res.error)
+        assert(res.error == nil)
         if res.is_some {
             return Input(withPtr: ptr!)
         } else {
@@ -166,9 +159,8 @@ class Inputs {
         }
     }
     
-    func add(input: Input) throws {
-        let error = ergo_wallet_inputs_add(input.pointer, self.pointer)
-        try checkError(error)
+    func add(input: Input) {
+        ergo_wallet_inputs_add(input.pointer, self.pointer)
     }
         
     deinit {

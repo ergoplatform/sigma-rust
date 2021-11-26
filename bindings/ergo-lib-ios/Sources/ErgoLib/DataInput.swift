@@ -28,31 +28,28 @@ class DataInput {
 class DataInputs {
     internal var pointer: DataInputsPtr
     
-    init() throws {
-        self.pointer = try DataInputs.initEmpty()
+    init() {
+        self.pointer = DataInputs.initEmpty()
     }
     
     init(withPtr ptr: DataInputsPtr) {
         self.pointer = ptr
     }
     
-    private static func initEmpty() throws -> DataInputsPtr {
+    private static func initEmpty() -> DataInputsPtr {
         var dataInputsPtr: DataInputsPtr?
-        let error = ergo_wallet_data_inputs_new(&dataInputsPtr)
-        try checkError(error)
+        ergo_wallet_data_inputs_new(&dataInputsPtr)
         return dataInputsPtr!
     }
     
-    func len() throws -> UInt {
-        let res = ergo_wallet_data_inputs_len(self.pointer)
-        try checkError(res.error)
-        return res.value
+    func len() -> UInt {
+        return ergo_wallet_data_inputs_len(self.pointer)
     }
     
-    func get(index: UInt) throws -> DataInput? {
+    func get(index: UInt) -> DataInput? {
         var dataInputPtr: DataInputPtr?
         let res = ergo_wallet_data_inputs_get(self.pointer, index, &dataInputPtr)
-        try checkError(res.error)
+        assert(res.error == nil)
         if res.is_some {
             return DataInput(withPtr: dataInputPtr!)
         } else {
@@ -60,9 +57,8 @@ class DataInputs {
         }
     }
     
-    func add(dataInput: DataInput) throws {
-        let error = ergo_wallet_data_inputs_add(dataInput.pointer, self.pointer)
-        try checkError(error)
+    func add(dataInput: DataInput) {
+        ergo_wallet_data_inputs_add(dataInput.pointer, self.pointer)
     }
         
     deinit {

@@ -19,23 +19,20 @@ class ByteArray {
 class ByteArrays {
     internal var pointer: ByteArraysPtr
     
-    init() throws {
+    init() {
         var ptr: BlockHeadersPtr?
-        let error = ergo_wallet_byte_arrays_new(&ptr)
-        try checkError(error)
+        ergo_wallet_byte_arrays_new(&ptr)
         self.pointer = ptr!
     }
     
-    func len() throws -> UInt {
-        let res = ergo_wallet_byte_arrays_len(self.pointer)
-        try checkError(res.error)
-        return res.value
+    func len() -> UInt {
+        return ergo_wallet_byte_arrays_len(self.pointer)
     }
     
-    func get(index: UInt) throws -> BlockHeader? {
+    func get(index: UInt) -> BlockHeader? {
         var blockHeaderPtr: BlockHeaderPtr?
         let res = ergo_wallet_byte_arrays_get(self.pointer, index, &blockHeaderPtr)
-        try checkError(res.error)
+        assert(res.error == nil)
         if res.is_some {
             return BlockHeader(withPtr: blockHeaderPtr!)
         } else {
@@ -43,9 +40,8 @@ class ByteArrays {
         }
     }
     
-    func add(byteArray: ByteArray) throws {
-        let error = ergo_wallet_byte_arrays_add(byteArray.pointer, self.pointer)
-        try checkError(error)
+    func add(byteArray: ByteArray) {
+        ergo_wallet_byte_arrays_add(byteArray.pointer, self.pointer)
     }
         
     deinit {

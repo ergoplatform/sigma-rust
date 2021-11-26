@@ -239,31 +239,28 @@ enum NonMandatoryRegisterId: UInt8 {
 class ErgoBoxCandidates {
     internal var pointer: ErgoBoxCandidatesPtr
     
-    init() throws {
-        self.pointer = try ErgoBoxCandidates.initEmpty()
+    init() {
+        self.pointer = ErgoBoxCandidates.initEmpty()
     }
     
     init(withRawPointer ptr: ErgoBoxCandidatesPtr) {
         self.pointer = ptr
     }
     
-    private static func initEmpty() throws -> ErgoBoxCandidatesPtr {
+    private static func initEmpty() -> ErgoBoxCandidatesPtr {
         var ptr: ErgoBoxCandidatesPtr?
-        let error = ergo_wallet_ergo_box_candidates_new(&ptr)
-        try checkError(error)
+        ergo_wallet_ergo_box_candidates_new(&ptr)
         return ptr!
     }
     
-    func len() throws -> UInt {
-        let res = ergo_wallet_ergo_box_candidates_len(self.pointer)
-        try checkError(res.error)
-        return res.value
+    func len() -> UInt {
+        return ergo_wallet_ergo_box_candidates_len(self.pointer)
     }
     
-    func get(index: UInt) throws -> ErgoBoxCandidate? {
+    func get(index: UInt) -> ErgoBoxCandidate? {
         var dataInputPtr: DataInputPtr?
         let res = ergo_wallet_ergo_box_candidates_get(self.pointer, index, &dataInputPtr)
-        try checkError(res.error)
+        assert(res.error == nil)
         if res.is_some {
             return ErgoBoxCandidate(withRawPointer: dataInputPtr!)
         } else {
@@ -271,9 +268,8 @@ class ErgoBoxCandidates {
         }
     }
     
-    func add(ergoBoxCandidate: ErgoBoxCandidate) throws {
-        let error = ergo_wallet_ergo_box_candidates_add(ergoBoxCandidate.pointer, self.pointer)
-        try checkError(error)
+    func add(ergoBoxCandidate: ErgoBoxCandidate) {
+        ergo_wallet_ergo_box_candidates_add(ergoBoxCandidate.pointer, self.pointer)
     }
         
     deinit {
@@ -284,17 +280,17 @@ class ErgoBoxCandidates {
 class ErgoBoxes {
     internal var pointer: ErgoBoxesPtr
     
-    init() throws {
-        self.pointer = try ErgoBoxes.initEmpty()
+    init() {
+        self.pointer = ErgoBoxes.initEmpty()
     }
     
     init(fromJSON: Any) throws {
         let json = JSON(fromJSON)
         if let arr = json.array {
             let boxes = try arr.map{try ErgoBox(withJson: $0.stringValue)}
-            self.pointer = try ErgoBoxes.initEmpty()
+            self.pointer = ErgoBoxes.initEmpty()
             for ergoBox in boxes {
-                try self.add(ergoBox: ergoBox)
+                self.add(ergoBox: ergoBox)
             }
         } else {
             throw WalletError.walletCError(reason: "Ergoboxes.init(fromJSON): expected [JSON]")
@@ -305,23 +301,20 @@ class ErgoBoxes {
         self.pointer = ptr
     }
     
-    private static func initEmpty() throws -> ErgoBoxesPtr {
+    private static func initEmpty() -> ErgoBoxesPtr {
         var ptr: ErgoBoxesPtr?
-        let error = ergo_wallet_ergo_boxes_new(&ptr)
-        try checkError(error)
+        ergo_wallet_ergo_boxes_new(&ptr)
         return ptr!
     }
     
-    func len() throws -> UInt {
-        let res = ergo_wallet_ergo_boxes_len(self.pointer)
-        try checkError(res.error)
-        return res.value
+    func len() -> UInt {
+        return ergo_wallet_ergo_boxes_len(self.pointer)
     }
     
-    func get(index: UInt) throws -> ErgoBox? {
+    func get(index: UInt) -> ErgoBox? {
         var dataInputPtr: DataInputPtr?
         let res = ergo_wallet_ergo_boxes_get(self.pointer, index, &dataInputPtr)
-        try checkError(res.error)
+        assert(res.error == nil)
         if res.is_some {
             return ErgoBox(withRawPointer: dataInputPtr!)
         } else {
@@ -329,9 +322,8 @@ class ErgoBoxes {
         }
     }
     
-    func add(ergoBox: ErgoBox) throws {
-        let error = ergo_wallet_ergo_boxes_add(ergoBox.pointer, self.pointer)
-        try checkError(error)
+    func add(ergoBox: ErgoBox) {
+        ergo_wallet_ergo_boxes_add(ergoBox.pointer, self.pointer)
     }
         
     deinit {

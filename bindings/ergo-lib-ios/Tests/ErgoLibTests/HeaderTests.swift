@@ -37,19 +37,19 @@ final class HeaderTests: XCTestCase {
         let blockHeader = try BlockHeader(withJson: json)
         XCTAssertNoThrow(PreHeader(withBlockHeader: blockHeader))
         XCTAssertThrowsError(try BlockHeader(withJson: ""))
-        let headers = try BlockHeaders()
+        let headers = BlockHeaders()
         for _ in 1...10 {
-            XCTAssertNoThrow(try headers.add(blockHeader: blockHeader ))
+            XCTAssertNoThrow(headers.add(blockHeader: blockHeader ))
         }
-        XCTAssertEqual(try headers.len(), 10)
-        XCTAssertNotNil(try headers.get(index: 9))
-        XCTAssertNil(try headers.get(index: 10))
+        XCTAssertEqual(headers.len(), 10)
+        XCTAssertNotNil(headers.get(index: 9))
+        XCTAssertNil(headers.get(index: 10))
     }
     
     func testBlockHeadersFromJSON() throws {
         let count = 20
         let json = Array(repeating: HeaderTests.jsonHeaderExample(), count: count)
         let headers = try BlockHeaders(fromJSON: json)
-        XCTAssertEqual(try headers.len(), UInt(count))
+        XCTAssertEqual(headers.len(), UInt(count))
     }
 }

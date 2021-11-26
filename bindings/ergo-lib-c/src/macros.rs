@@ -13,9 +13,9 @@ use paste::paste;
 ///pub type ConstBlockHeadersPtr = ConstCollectionPtr<BlockHeader>;
 ///
 ///#[no_mangle]
-///pub unsafe extern "C" fn ergo_wallet_block_headers_new(collection_ptr_out: *mut BlockHeadersPtr) -> ErrorPtr {
-///    let res = collection_new(collection_ptr_out);
-///    Error::c_api_from(res)
+///pub unsafe extern "C" fn ergo_wallet_block_headers_new(collection_ptr_out: *mut BlockHeadersPtr) {
+///    #[allow(clippy::unwrap_used)]
+///    collection_new(collection_ptr_out).unwrap();
 ///}
 ///
 ///#[no_mangle]
@@ -26,17 +26,9 @@ use paste::paste;
 ///#[no_mangle]
 ///pub unsafe extern "C" fn ergo_wallet_block_headers_len(
 ///    collection_ptr: ConstBlockHeadersPtr,
-///) -> ReturnNum<usize> {
-///    match collection_len(collection_ptr) {
-///        Ok(value) => ReturnNum {
-///            value: value as usize,
-///            error: std::ptr::null_mut(),
-///        },
-///        Err(e) => ReturnNum {
-///            value: 0, // Just a dummy value
-///            error: Error::c_api_from(Err(e)),
-///        },
-///    }
+///) -> usize {
+///    #[allow(clippy::unwrap_used)]
+///    collection_len(collection_ptr).unwrap()
 ///}
 ///
 ///#[no_mangle]
@@ -61,8 +53,9 @@ use paste::paste;
 ///pub unsafe extern "C" fn ergo_wallet_block_headers_add(
 ///    element_ptr: ConstBlockHeaderPtr,
 ///    collection_ptr_out: BlockHeadersPtr,
-///) -> ErrorPtr {
-///    Error::c_api_from(collection_add(collection_ptr_out, element_ptr))
+///) {
+///    #[allow(clippy::unwrap_used)]
+///    collection_add(collection_ptr_out, element_ptr).unwrap();
 ///}
 ///```
 #[macro_export]
@@ -76,9 +69,9 @@ macro_rules! make_collection {
             #[no_mangle]
             pub unsafe extern "C" fn [<ergo_wallet_ $collection_type_name:snake _new>](
                 collection_ptr_out: *mut [<$collection_type_name Ptr>],
-            ) -> ErrorPtr {
-                let res = ergo_lib_c_core::collections::collection_new(collection_ptr_out);
-                Error::c_api_from(res)
+            ) {
+                #[allow(clippy::unwrap_used)]
+                ergo_lib_c_core::collections::collection_new(collection_ptr_out).unwrap();
             }
 
             /// Delete an existing collection
@@ -91,17 +84,9 @@ macro_rules! make_collection {
             #[no_mangle]
             pub unsafe extern "C" fn [<ergo_wallet_ $collection_type_name:snake _len>](
                 collection_ptr: [<Const $collection_type_name Ptr>],
-            ) -> crate::ReturnNum<usize> {
-                match ergo_lib_c_core::collections::collection_len(collection_ptr) {
-                    Ok(value) => crate::ReturnNum {
-                        value: value as usize,
-                        error: std::ptr::null_mut(),
-                    },
-                    Err(e) => crate::ReturnNum {
-                        value: 0, // Just a dummy value
-                        error: Error::c_api_from(Err(e)),
-                    },
-                }
+            ) -> usize {
+                #[allow(clippy::unwrap_used)]
+                ergo_lib_c_core::collections::collection_len(collection_ptr).unwrap()
             }
 
             /// Returns element at position `index` of an existing collection
@@ -128,8 +113,9 @@ macro_rules! make_collection {
             pub unsafe extern "C" fn [<ergo_wallet_ $collection_type_name:snake _add>](
                 element_ptr: [<Const $item_type_name Ptr>],
                 collection_ptr_out: [<$collection_type_name Ptr>],
-            ) -> ErrorPtr {
-                Error::c_api_from(ergo_lib_c_core::collections::collection_add(collection_ptr_out, element_ptr))
+            ) {
+                #[allow(clippy::unwrap_used)]
+                ergo_lib_c_core::collections::collection_add(collection_ptr_out, element_ptr).unwrap();
             }
 
         }

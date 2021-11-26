@@ -5,7 +5,7 @@ use ergo_lib_c_core::{
     Error,
 };
 
-use crate::{delete_ptr, ErrorPtr};
+use crate::delete_ptr;
 use paste::paste;
 
 #[no_mangle]

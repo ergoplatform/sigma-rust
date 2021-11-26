@@ -30,40 +30,37 @@ class BlockHeader {
 class BlockHeaders {
     internal var pointer: BlockHeadersPtr
     
-    init() throws {
-        self.pointer = try BlockHeaders.initEmpty()
+    init() {
+        self.pointer = BlockHeaders.initEmpty()
     }
     
     init(fromJSON: Any) throws {
         let json = JSON(fromJSON)
         if let arr = json.array {
             let headers = try arr.map{try BlockHeader(withJson: $0.stringValue)}
-            self.pointer = try BlockHeaders.initEmpty()
+            self.pointer = BlockHeaders.initEmpty()
             for header in headers {
-                try self.add(blockHeader: header)
+                self.add(blockHeader: header)
             }
         } else {
             throw WalletError.walletCError(reason: "BlockHeaders.init(fromJSON): expected [JSON]")
         }
     }
     
-    private static func initEmpty() throws -> BlockHeaderPtr {
+    private static func initEmpty() -> BlockHeaderPtr {
         var headersPtr: BlockHeadersPtr?
-        let error = ergo_wallet_block_headers_new(&headersPtr)
-        try checkError(error)
+        ergo_wallet_block_headers_new(&headersPtr)
         return headersPtr!
     }
     
-    func len() throws -> UInt {
-        let res = ergo_wallet_block_headers_len(self.pointer)
-        try checkError(res.error)
-        return res.value
+    func len() -> UInt {
+        return ergo_wallet_block_headers_len(self.pointer)
     }
     
-    func get(index: UInt) throws -> BlockHeader? {
+    func get(index: UInt) -> BlockHeader? {
         var blockHeaderPtr: BlockHeaderPtr?
         let res = ergo_wallet_block_headers_get(self.pointer, index, &blockHeaderPtr)
-        try checkError(res.error)
+        assert(res.error == nil)
         if res.is_some {
             return BlockHeader(withPtr: blockHeaderPtr!)
         } else {
@@ -71,9 +68,8 @@ class BlockHeaders {
         }
     }
     
-    func add(blockHeader: BlockHeader) throws {
-        let error = ergo_wallet_block_headers_add(blockHeader.pointer, self.pointer)
-        try checkError(error)
+    func add(blockHeader: BlockHeader) {
+        ergo_wallet_block_headers_add(blockHeader.pointer, self.pointer)
     }
         
     deinit {
