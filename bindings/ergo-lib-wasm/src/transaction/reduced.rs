@@ -77,57 +77,40 @@ impl ReducedTransaction {
             .map_err(to_js)
     }
 
-    /// Returns the unsigned transation
+    /// Returns the unsigned transaction
     pub fn unsigned_tx(&self) -> UnsignedTransaction {
         self.0.unsigned_tx.clone().into()
     }
 
-    /// Getting first input box serialized sigma prop bytes
-    pub fn get_first_input_serialized_bytes(&self) -> Result<Vec<u8>, JsValue> {
-        self.0
-            .reduced_inputs()
-            .first()
-            .clone()
-            .reduction_result
-            .sigma_prop
-            .sigma_serialize_bytes()
-            .map_err(to_js)
-    }
-
-    /// Generate commitment for first input with input address
-    pub fn generate_commitment_for_first_input(
+    /// Generate commitment for index input with input address
+    pub fn generate_commitment_for_input(
         &self,
         secret_base16: &str,
+        index: usize,
     ) -> Result<String, JsValue> {
-        let sigma_prop = self
-            .0
-            .reduced_inputs()
-            .first()
-            .clone()
-            .reduction_result
-            .sigma_prop;
-        let secret = DlogProverInput::from_base16_str(secret_base16.to_string()).unwrap();
-        let pk = secret.public_image();
-        let generate_for: Vec<SigmaBoolean> = vec![SigmaBoolean::ProofOfKnowledge(
-            SigmaProofOfKnowledgeTree::ProveDlog(pk),
-        )];
-        let hints = generate_commitments_for(sigma_prop, generate_for.as_slice());
-        let mut commitments: Vec<CommitmentHintJson> = Vec::new();
-        match hints.hints[0].clone() {
-            Hint::SecretProven(_) => {}
-            Hint::CommitmentHint(cmt) => {
-                let cmt_json: CommitmentHintJson = CommitmentHintJson::from(cmt);
-                commitments.push(cmt_json);
+        if let Some(result) = self.0.reduced_inputs().get(index) {
+            let sigma_prop = result.clone().reduction_result.sigma_prop;
+            let secret = DlogProverInput::from_base16_str(secret_base16.to_string()).unwrap();
+            let pk = secret.public_image();
+            let generate_for: Vec<SigmaBoolean> = vec![SigmaBoolean::ProofOfKnowledge(
+                SigmaProofOfKnowledgeTree::ProveDlog(pk),
+            )];
+            let hints = generate_commitments_for(sigma_prop, &generate_for);
+            let mut commitments: Vec<CommitmentHintJson> = Vec::new();
+            for hint in hints.hints {
+                match hint {
+                    Hint::SecretProven(_) => {}
+                    Hint::CommitmentHint(cmt) => {
+                        let cmt_json: CommitmentHintJson = CommitmentHintJson::from(cmt);
+                        commitments.push(cmt_json);
+                    }
+                }
             }
+            serde_json::to_string_pretty(&commitments)
+                .map_err(|e| JsValue::from_str(&format!("{}", e)))
+        } else {
+            Err(JsValue::from_str("index is out of bound"))
         }
-        match hints.hints[1].clone() {
-            Hint::SecretProven(_) => {}
-            Hint::CommitmentHint(cmt) => {
-                let cmt_json: CommitmentHintJson = CommitmentHintJson::from(cmt);
-                commitments.push(cmt_json);
-            }
-        }
-        serde_json::to_string_pretty(&commitments).map_err(|e| JsValue::from_str(&format!("{}", e)))
     }
 
     /// bag for multi sig

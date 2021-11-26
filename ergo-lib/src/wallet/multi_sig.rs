@@ -331,12 +331,17 @@ mod tests {
     use crate::ergotree_interpreter::eval::context::Context;
     use crate::ergotree_interpreter::eval::env::Env;
     use crate::ergotree_interpreter::eval::reduce_to_crypto;
-    use crate::ergotree_interpreter::sigma_protocol::private_input::DlogProverInput;
-    use crate::ergotree_interpreter::sigma_protocol::prover::ProofBytes;
+    use crate::ergotree_interpreter::sigma_protocol::private_input::{
+        DlogProverInput, PrivateInput,
+    };
+    use crate::ergotree_interpreter::sigma_protocol::prover::{ProofBytes, Prover, TestProver};
+    use crate::ergotree_interpreter::sigma_protocol::verifier::{TestVerifier, Verifier};
     use crate::ergotree_ir::chain::address::AddressEncoder;
     use crate::ergotree_ir::chain::address::{Address, NetworkPrefix};
     use crate::ergotree_ir::chain::base16_bytes::Base16DecodedBytes;
     use crate::ergotree_ir::ergo_tree::ErgoTree;
+    use crate::ergotree_ir::mir::expr::Expr;
+    use crate::ergotree_ir::mir::sigma_and::SigmaAnd;
     use crate::ergotree_ir::serialization::SigmaSerializable;
     use crate::ergotree_ir::sigma_protocol::dlog_group;
     use crate::ergotree_ir::sigma_protocol::sigma_boolean::cand::Cand;
@@ -444,7 +449,7 @@ mod tests {
     }
 
     #[test]
-    fn generating_commitment() {
+    fn generating_commitment_two_signer() {
         let secret1 = DlogProverInput::random();
         let secret2 = DlogProverInput::random();
         let pk1 = secret1.public_image();
@@ -544,5 +549,244 @@ mod tests {
                 }
             );
         }
+    }
+
+    #[test]
+    fn two_party_scenario() {
+        let ctx = Rc::new(force_any_val::<Context>());
+
+        let secret1 = DlogProverInput::random();
+        let secret2 = DlogProverInput::random();
+        let pk1 = secret1.public_image();
+        let pk2 = secret2.public_image();
+        let prover1 = TestProver {
+            secrets: vec![PrivateInput::DlogProverInput(secret1)],
+        };
+        let prover2 = TestProver {
+            secrets: vec![PrivateInput::DlogProverInput(secret2)],
+        };
+        let expr: Expr = SigmaAnd::new(vec![
+            Expr::Const(pk1.clone().into()),
+            Expr::Const(pk2.clone().into()),
+        ])
+        .unwrap()
+        .into();
+        let tree_and = ErgoTree::try_from(expr.clone()).unwrap();
+
+        let cand = reduce_to_crypto(&expr, &Env::empty(), ctx.clone())
+            .unwrap()
+            .sigma_prop;
+        let generate_for: Vec<SigmaBoolean> = vec![SigmaBoolean::ProofOfKnowledge(
+            SigmaProofOfKnowledgeTree::ProveDlog(pk2),
+        )];
+        let hints_from_bob: HintsBag = generate_commitments_for(cand.clone(), &generate_for);
+        let bag1 = hints_from_bob.real_commitments();
+        let own = hints_from_bob.own_commitments();
+        let message = vec![0u8; 100];
+        let mut bag_a = HintsBag { hints: vec![] };
+        bag_a.add_hint(Hint::CommitmentHint(CommitmentHint::RealCommitment(
+            bag1.first().unwrap().clone(),
+        )));
+
+        let proof1 = prover1
+            .prove(
+                &tree_and,
+                &Env::empty(),
+                ctx.clone(),
+                message.as_slice(),
+                &bag_a,
+            )
+            .unwrap();
+        let proof: Vec<u8> = Vec::from(proof1.proof);
+        let real_proposition: Vec<SigmaBoolean> = vec![SigmaBoolean::ProofOfKnowledge(
+            SigmaProofOfKnowledgeTree::ProveDlog(pk1),
+        )];
+        let simulated_proposition: Vec<SigmaBoolean> = Vec::new();
+        let mut bag_b = bag_for_multi_sig(cand, &real_proposition, &simulated_proposition, &proof);
+        bag_b.add_hint(Hint::CommitmentHint(CommitmentHint::OwnCommitment(
+            own.first().unwrap().clone(),
+        )));
+        let proof2 = prover2
+            .prove(
+                &tree_and,
+                &Env::empty(),
+                ctx.clone(),
+                message.as_slice(),
+                &bag_b,
+            )
+            .unwrap();
+        let proof_byte: ProofBytes = proof2.proof;
+        let verifier = TestVerifier;
+
+        assert!(
+            verifier
+                .verify(
+                    &tree_and,
+                    &Env::empty(),
+                    ctx,
+                    proof_byte,
+                    message.as_slice()
+                )
+                .unwrap()
+                .result,
+            "{}",
+            "{}"
+        );
+    }
+
+    #[test]
+    fn three_party_scenario() {
+        let ctx = Rc::new(force_any_val::<Context>());
+
+        let secret1 = DlogProverInput::random();
+        let secret2 = DlogProverInput::random();
+        let secret3 = DlogProverInput::random();
+        let pk1 = secret1.public_image();
+        let pk2 = secret2.public_image();
+        let pk3 = secret3.public_image();
+        let prover1 = TestProver {
+            secrets: vec![PrivateInput::DlogProverInput(secret1)],
+        };
+        let prover2 = TestProver {
+            secrets: vec![PrivateInput::DlogProverInput(secret2)],
+        };
+        let prover3 = TestProver {
+            secrets: vec![PrivateInput::DlogProverInput(secret3)],
+        };
+
+        let expr: Expr = SigmaAnd::new(vec![
+            Expr::Const(pk1.clone().into()),
+            Expr::Const(pk2.clone().into()),
+            Expr::Const(pk3.clone().into()),
+        ])
+        .unwrap()
+        .into();
+        let tree_and = ErgoTree::try_from(expr.clone()).unwrap();
+
+        let cand = reduce_to_crypto(&expr, &Env::empty(), ctx.clone())
+            .unwrap()
+            .sigma_prop;
+        let mut generate_for: Vec<SigmaBoolean> = vec![SigmaBoolean::ProofOfKnowledge(
+            SigmaProofOfKnowledgeTree::ProveDlog(pk2),
+        )];
+        let hints_from_bob: HintsBag = generate_commitments_for(cand.clone(), &generate_for);
+        let bag2 = hints_from_bob.real_commitments();
+        let bob_secret_commitment = hints_from_bob.own_commitments();
+        generate_for = vec![SigmaBoolean::ProofOfKnowledge(
+            SigmaProofOfKnowledgeTree::ProveDlog(pk3.clone()),
+        )];
+        let hints_from_carol: HintsBag = generate_commitments_for(cand.clone(), &generate_for);
+        let bag3 = hints_from_carol.real_commitments();
+        let carol_secret_commitment = hints_from_carol.own_commitments();
+        let message = vec![0u8; 100];
+        let mut bag_a = HintsBag { hints: vec![] };
+        bag_a.add_hint(Hint::CommitmentHint(CommitmentHint::RealCommitment(
+            bag2.first().unwrap().clone(),
+        )));
+        bag_a.add_hint(Hint::CommitmentHint(CommitmentHint::RealCommitment(
+            bag3.first().unwrap().clone(),
+        )));
+        let proof1 = prover1
+            .prove(
+                &tree_and,
+                &Env::empty(),
+                ctx.clone(),
+                message.as_slice(),
+                &bag_a,
+            )
+            .unwrap();
+        let mut proof: Vec<u8> = Vec::from(proof1.proof.clone());
+        let proof_byte1: ProofBytes = proof1.proof;
+        let mut real_proposition: Vec<SigmaBoolean> = vec![SigmaBoolean::ProofOfKnowledge(
+            SigmaProofOfKnowledgeTree::ProveDlog(pk1.clone()),
+        )];
+        let simulated_proposition: Vec<SigmaBoolean> = Vec::new();
+        let mut bag_c = bag_for_multi_sig(
+            cand.clone(),
+            &real_proposition,
+            &simulated_proposition,
+            &proof,
+        );
+        bag_c.add_hint(Hint::CommitmentHint(CommitmentHint::OwnCommitment(
+            carol_secret_commitment.first().unwrap().clone(),
+        )));
+        bag_c.add_hint(Hint::CommitmentHint(CommitmentHint::RealCommitment(
+            bag2.first().unwrap().clone(),
+        )));
+        let proof3 = prover3
+            .prove(
+                &tree_and,
+                &Env::empty(),
+                ctx.clone(),
+                message.as_slice(),
+                &bag_c,
+            )
+            .unwrap();
+        proof = Vec::from(proof3.proof.clone());
+        let proof_byte3: ProofBytes = proof3.proof;
+        real_proposition = vec![
+            SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(pk1)),
+            SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(pk3)),
+        ];
+        let mut bag_b = bag_for_multi_sig(cand, &real_proposition, &simulated_proposition, &proof);
+        bag_b.add_hint(Hint::CommitmentHint(CommitmentHint::OwnCommitment(
+            bob_secret_commitment.first().unwrap().clone(),
+        )));
+        let proof2 = prover2
+            .prove(
+                &tree_and,
+                &Env::empty(),
+                ctx.clone(),
+                message.as_slice(),
+                &bag_b,
+            )
+            .unwrap();
+        let proof_byte2: ProofBytes = proof2.proof;
+        let verifier = TestVerifier;
+
+        assert!(
+            !verifier
+                .verify(
+                    &tree_and,
+                    &Env::empty(),
+                    ctx.clone(),
+                    proof_byte1,
+                    message.as_slice()
+                )
+                .unwrap()
+                .result,
+            "{}",
+            "{}"
+        );
+
+        assert!(
+            !verifier
+                .verify(
+                    &tree_and,
+                    &Env::empty(),
+                    ctx.clone(),
+                    proof_byte3,
+                    message.as_slice()
+                )
+                .unwrap()
+                .result,
+            "{}",
+            "{}"
+        );
+
+        assert!(
+            verifier
+                .verify(
+                    &tree_and,
+                    &Env::empty(),
+                    ctx,
+                    proof_byte2,
+                    message.as_slice()
+                )
+                .unwrap()
+                .result,
+            "{}",
+            "{}"
+        );
     }
 }
