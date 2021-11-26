@@ -48,13 +48,17 @@ pub unsafe extern "C" fn ergo_wallet_address_to_base58(
     network_prefix: NetworkPrefix,
     _address_str: *mut *const c_char,
 ) {
-    let s = address_to_base58(address, network_prefix).unwrap();
-    *_address_str = CString::new(s).unwrap().into_raw();
+    #[allow(clippy::unwrap_used)]
+    {
+        let s = address_to_base58(address, network_prefix).unwrap();
+        *_address_str = CString::new(s).unwrap().into_raw();
+    }
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_address_type_prefix(address: ConstAddressPtr) -> u8 {
-    address_type_prefix(address).unwrap() as u8
+    #[allow(clippy::unwrap_used)]
+    (address_type_prefix(address).unwrap() as u8)
 }
 
 #[no_mangle]

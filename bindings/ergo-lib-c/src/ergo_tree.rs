@@ -62,6 +62,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_tree_to_base16_bytes(
     ergo_tree_ptr: ConstErgoTreePtr,
     _str: *mut *const c_char,
 ) -> ErrorPtr {
+    #[allow(clippy::unwrap_used)]
     let res = match ergo_tree_to_base16_bytes(ergo_tree_ptr) {
         Ok(s) => {
             *_str = CString::new(s).unwrap().into_raw();

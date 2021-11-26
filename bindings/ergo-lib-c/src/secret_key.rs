@@ -15,6 +15,7 @@ pub unsafe extern "C" fn ergo_wallet_secret_key_from_bytes(
 
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_secret_key_generate_random(secret_key_out: *mut SecretKeyPtr) {
+    #[allow(clippy::unwrap_used)]
     secret_key_generate_random(secret_key_out).unwrap();
 }
 
@@ -23,6 +24,7 @@ pub unsafe extern "C" fn ergo_wallet_secret_key_to_bytes(
     secret_key_ptr: ConstSecretKeyPtr,
     output: *mut u8,
 ) {
+    #[allow(clippy::unwrap_used)]
     secret_key_to_bytes(secret_key_ptr, output).unwrap();
 }
 

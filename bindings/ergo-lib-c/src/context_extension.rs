@@ -6,6 +6,7 @@ use crate::{delete_ptr, ErrorPtr, ReturnNum};
 pub unsafe extern "C" fn ergo_wallet_context_extension_empty(
     context_extension_out: *mut ContextExtensionPtr,
 ) {
+    #[allow(clippy::unwrap_used)]
     context_extension_empty(context_extension_out).unwrap();
 }
 

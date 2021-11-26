@@ -33,6 +33,7 @@ pub unsafe extern "C" fn ergo_wallet_unsigned_tx_id(
     unsigned_tx_ptr: ConstUnsignedTransactionPtr,
     tx_id_out: *mut TxIdPtr,
 ) {
+    #[allow(clippy::unwrap_used)]
     unsigned_tx_id(unsigned_tx_ptr, tx_id_out).unwrap();
 }
 
@@ -41,6 +42,7 @@ pub unsafe extern "C" fn ergo_wallet_unsigned_tx_inputs(
     unsigned_tx_ptr: ConstUnsignedTransactionPtr,
     unsigned_inputs_out: *mut UnsignedInputsPtr,
 ) {
+    #[allow(clippy::unwrap_used)]
     unsigned_tx_inputs(unsigned_tx_ptr, unsigned_inputs_out).unwrap();
 }
 
@@ -49,6 +51,7 @@ pub unsafe extern "C" fn ergo_wallet_unsigned_tx_data_inputs(
     unsigned_tx_ptr: ConstUnsignedTransactionPtr,
     data_inputs_out: *mut DataInputsPtr,
 ) {
+    #[allow(clippy::unwrap_used)]
     unsigned_tx_data_inputs(unsigned_tx_ptr, data_inputs_out).unwrap();
 }
 
@@ -57,6 +60,7 @@ pub unsafe extern "C" fn ergo_wallet_unsigned_tx_output_candidates(
     unsigned_tx_ptr: ConstUnsignedTransactionPtr,
     ergo_box_candidates_out: *mut ErgoBoxCandidatesPtr,
 ) {
+    #[allow(clippy::unwrap_used)]
     unsigned_tx_output_candidates(unsigned_tx_ptr, ergo_box_candidates_out).unwrap();
 }
 
@@ -75,6 +79,7 @@ pub unsafe extern "C" fn ergo_wallet_unsigned_tx_to_json(
     unsigned_tx_ptr: ConstUnsignedTransactionPtr,
     _json_str: *mut *const c_char,
 ) -> ErrorPtr {
+    #[allow(clippy::unwrap_used)]
     let res = match unsigned_tx_to_json(unsigned_tx_ptr) {
         Ok(s) => {
             *_json_str = CString::new(s).unwrap().into_raw();
@@ -90,6 +95,7 @@ pub unsafe extern "C" fn ergo_wallet_unsigned_tx_to_json_eip12(
     unsigned_tx_ptr: ConstUnsignedTransactionPtr,
     _json_str: *mut *const c_char,
 ) -> ErrorPtr {
+    #[allow(clippy::unwrap_used)]
     let res = match unsigned_tx_to_json_eip12(unsigned_tx_ptr) {
         Ok(s) => {
             *_json_str = CString::new(s).unwrap().into_raw();
@@ -118,6 +124,7 @@ pub unsafe extern "C" fn ergo_wallet_tx_from_unsigned_tx(
 
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_tx_id(tx_ptr: ConstTransactionPtr, tx_id_out: *mut TxIdPtr) {
+    #[allow(clippy::unwrap_used)]
     tx_id(tx_ptr, tx_id_out).unwrap();
 }
 
@@ -126,6 +133,7 @@ pub unsafe extern "C" fn ergo_wallet_tx_inputs(
     tx_ptr: ConstTransactionPtr,
     inputs_out: *mut InputsPtr,
 ) {
+    #[allow(clippy::unwrap_used)]
     tx_inputs(tx_ptr, inputs_out).unwrap();
 }
 
@@ -134,6 +142,7 @@ pub unsafe extern "C" fn ergo_wallet_tx_data_inputs(
     tx_ptr: ConstTransactionPtr,
     data_inputs_out: *mut DataInputsPtr,
 ) {
+    #[allow(clippy::unwrap_used)]
     tx_data_inputs(tx_ptr, data_inputs_out).unwrap();
 }
 
@@ -142,6 +151,7 @@ pub unsafe extern "C" fn ergo_wallet_tx_output_candidates(
     tx_ptr: ConstTransactionPtr,
     ergo_box_candidates_out: *mut ErgoBoxCandidatesPtr,
 ) {
+    #[allow(clippy::unwrap_used)]
     tx_output_candidates(tx_ptr, ergo_box_candidates_out).unwrap();
 }
 
@@ -150,6 +160,7 @@ pub unsafe extern "C" fn ergo_wallet_tx_outputs(
     tx_ptr: ConstTransactionPtr,
     ergo_box_out: *mut ErgoBoxesPtr,
 ) {
+    #[allow(clippy::unwrap_used)]
     tx_outputs(tx_ptr, ergo_box_out).unwrap();
 }
 
@@ -168,6 +179,7 @@ pub unsafe extern "C" fn ergo_wallet_tx_to_json(
     tx_ptr: ConstTransactionPtr,
     _json_str: *mut *const c_char,
 ) -> ErrorPtr {
+    #[allow(clippy::unwrap_used)]
     let res = match tx_to_json(tx_ptr) {
         Ok(s) => {
             *_json_str = CString::new(s).unwrap().into_raw();
@@ -183,6 +195,7 @@ pub unsafe extern "C" fn ergo_wallet_tx_to_json_eip12(
     tx_ptr: ConstTransactionPtr,
     _json_str: *mut *const c_char,
 ) -> ErrorPtr {
+    #[allow(clippy::unwrap_used)]
     let res = match tx_to_json_eip12(tx_ptr) {
         Ok(s) => {
             *_json_str = CString::new(s).unwrap().into_raw();
@@ -214,6 +227,7 @@ pub unsafe extern "C" fn ergo_wallet_tx_id_to_str(
     tx_id_ptr: ConstTxIdPtr,
     _str: *mut *const c_char,
 ) -> ErrorPtr {
+    #[allow(clippy::unwrap_used)]
     let res = match tx_id_to_str(tx_id_ptr) {
         Ok(s) => {
             *_str = CString::new(s).unwrap().into_raw();

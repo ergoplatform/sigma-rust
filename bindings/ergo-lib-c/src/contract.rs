@@ -16,6 +16,7 @@ pub unsafe extern "C" fn ergo_wallet_contract_new(
     ergo_tree_ptr: ConstErgoTreePtr,
     contract_out: *mut ContractPtr,
 ) {
+    #[allow(clippy::unwrap_used)]
     contract_new(ergo_tree_ptr, contract_out).unwrap();
 }
 
@@ -43,6 +44,7 @@ pub unsafe extern "C" fn ergo_wallet_contract_ergo_tree(
     contract_ptr: ConstContractPtr,
     ergo_tree_out: *mut ErgoTreePtr,
 ) {
+    #[allow(clippy::unwrap_used)]
     contract_ergo_tree(contract_ptr, ergo_tree_out).unwrap();
 }
 

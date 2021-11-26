@@ -13,6 +13,7 @@ pub unsafe extern "C" fn ergo_wallet_data_input_new(
     box_id_ptr: ConstBoxIdPtr,
     data_input_out: *mut DataInputPtr,
 ) {
+    #[allow(clippy::unwrap_used)]
     data_input_new(box_id_ptr, data_input_out).unwrap();
 }
 
@@ -21,6 +22,7 @@ pub unsafe extern "C" fn ergo_wallet_data_input_box_id(
     data_input_ptr: ConstDataInputPtr,
     box_id_out: *mut BoxIdPtr,
 ) {
+    #[allow(clippy::unwrap_used)]
     data_input_box_id(data_input_ptr, box_id_out).unwrap();
 }
 

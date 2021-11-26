@@ -9,6 +9,7 @@ pub unsafe extern "C" fn ergo_wallet_preheader_from_block_header(
     block_header: ConstBlockHeaderPtr,
     preheader_out: *mut PreHeaderPtr,
 ) {
+    #[allow(clippy::unwrap_used)]
     preheader_from_block_header(block_header, preheader_out).unwrap();
 }
 

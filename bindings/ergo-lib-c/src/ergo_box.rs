@@ -34,13 +34,17 @@ pub unsafe extern "C" fn ergo_wallet_box_id_to_str(
     box_id_ptr: ConstBoxIdPtr,
     _box_id_str: *mut *const c_char,
 ) {
-    let s = box_id_to_str(box_id_ptr).unwrap();
-    *_box_id_str = CString::new(s).unwrap().into_raw();
+    #[allow(clippy::unwrap_used)]
+    {
+        let s = box_id_to_str(box_id_ptr).unwrap();
+        *_box_id_str = CString::new(s).unwrap().into_raw();
+    }
 }
 
 /// Note: it's imperative that `output` points to a valid block of memory of 32 bytes.
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_box_id_to_bytes(box_id_ptr: ConstBoxIdPtr, output: *mut u8) {
+    #[allow(clippy::unwrap_used)]
     box_id_to_bytes(box_id_ptr, output).unwrap();
 }
 
@@ -53,6 +57,7 @@ pub extern "C" fn ergo_wallet_box_id_delete(ptr: BoxIdPtr) {
 
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_box_value_safe_user_min(box_value_out: *mut BoxValuePtr) {
+    #[allow(clippy::unwrap_used)]
     box_value_safe_user_min(box_value_out).unwrap();
 }
 
@@ -72,6 +77,7 @@ pub unsafe extern "C" fn ergo_wallet_box_value_from_i64(
 
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_box_value_as_i64(box_value_ptr: ConstBoxValuePtr) -> i64 {
+    #[allow(clippy::unwrap_used)]
     box_value_as_i64(box_value_ptr).unwrap()
 }
 
@@ -106,6 +112,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_register_value(
 pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_creation_height(
     ergo_box_candidate_ptr: ConstErgoBoxCandidatePtr,
 ) -> u32 {
+    #[allow(clippy::unwrap_used)]
     ergo_box_candidate_creation_height(ergo_box_candidate_ptr).unwrap()
 }
 
@@ -114,6 +121,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_tokens(
     ergo_box_candidate_ptr: ConstErgoBoxCandidatePtr,
     tokens_out: *mut TokensPtr,
 ) {
+    #[allow(clippy::unwrap_used)]
     ergo_box_candidate_tokens(ergo_box_candidate_ptr, tokens_out).unwrap();
 }
 
@@ -122,6 +130,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_ergo_tree(
     ergo_box_candidate_ptr: ConstErgoBoxCandidatePtr,
     ergo_tree_out: *mut ErgoTreePtr,
 ) {
+    #[allow(clippy::unwrap_used)]
     ergo_box_candidate_ergo_tree(ergo_box_candidate_ptr, ergo_tree_out).unwrap();
 }
 
@@ -130,6 +139,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_box_value(
     ergo_box_candidate_ptr: ConstErgoBoxCandidatePtr,
     box_value_out: *mut BoxValuePtr,
 ) {
+    #[allow(clippy::unwrap_used)]
     ergo_box_candidate_box_value(ergo_box_candidate_ptr, box_value_out).unwrap();
 }
 
@@ -169,6 +179,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_id(
     ergo_box_ptr: ConstErgoBoxPtr,
     box_id_out: *mut BoxIdPtr,
 ) {
+    #[allow(clippy::unwrap_used)]
     ergo_box_box_id(ergo_box_ptr, box_id_out).unwrap();
 }
 
@@ -176,6 +187,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_id(
 pub unsafe extern "C" fn ergo_wallet_ergo_box_creation_height(
     ergo_box_ptr: ConstErgoBoxPtr,
 ) -> u32 {
+    #[allow(clippy::unwrap_used)]
     ergo_box_creation_height(ergo_box_ptr).unwrap()
 }
 
@@ -184,6 +196,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_tokens(
     ergo_box_ptr: ConstErgoBoxPtr,
     tokens_out: *mut TokensPtr,
 ) {
+    #[allow(clippy::unwrap_used)]
     ergo_box_tokens(ergo_box_ptr, tokens_out).unwrap();
 }
 
@@ -192,6 +205,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_ergo_tree(
     ergo_box_ptr: ConstErgoBoxPtr,
     ergo_tree_out: *mut ErgoTreePtr,
 ) {
+    #[allow(clippy::unwrap_used)]
     ergo_box_ergo_tree(ergo_box_ptr, ergo_tree_out).unwrap();
 }
 
@@ -200,6 +214,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_value(
     ergo_box_ptr: ConstErgoBoxPtr,
     box_value_out: *mut BoxValuePtr,
 ) {
+    #[allow(clippy::unwrap_used)]
     ergo_box_value(ergo_box_ptr, box_value_out).unwrap();
 }
 
@@ -238,6 +253,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_to_json(
     ergo_box_ptr: ConstErgoBoxPtr,
     _json_str: *mut *const c_char,
 ) -> ErrorPtr {
+    #[allow(clippy::unwrap_used)]
     let res = match ergo_box_to_json(ergo_box_ptr) {
         Ok(s) => {
             *_json_str = CString::new(s).unwrap().into_raw();
@@ -253,6 +269,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_to_json_eip12(
     ergo_box_ptr: ConstErgoBoxPtr,
     _json_str: *mut *const c_char,
 ) -> ErrorPtr {
+    #[allow(clippy::unwrap_used)]
     let res = match ergo_box_to_json_eip12(ergo_box_ptr) {
         Ok(s) => {
             *_json_str = CString::new(s).unwrap().into_raw();

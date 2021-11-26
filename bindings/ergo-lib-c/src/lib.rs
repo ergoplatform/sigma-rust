@@ -7,6 +7,8 @@
 #![deny(unused_mut)]
 #![deny(dead_code)]
 #![deny(unused_imports)]
+#![deny(clippy::unwrap_used)]
+#![deny(clippy::expect_used)]
 // #![deny(missing_docs)]
 #![allow(clippy::missing_safety_doc)]
 
@@ -103,6 +105,7 @@ pub extern "C" fn ergo_wallet_delete_error(error: ErrorPtr) {
 
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_error_to_string(error: ErrorPtr) -> *mut c_char {
+    #[allow(clippy::unwrap_used)]
     if let Some(error) = error.as_ref() {
         CString::new(error.to_string()).unwrap().into_raw()
     } else {

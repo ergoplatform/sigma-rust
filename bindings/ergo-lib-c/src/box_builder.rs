@@ -19,6 +19,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_new(
     creation_height: u32,
     builder_out: *mut ErgoBoxCandidateBuilderPtr,
 ) {
+    #[allow(clippy::unwrap_used)]
     ergo_box_candidate_builder_new(value_ptr, contract_ptr, creation_height, builder_out).unwrap()
 }
 
@@ -27,6 +28,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_set_min_box_valu
     builder_mut: ErgoBoxCandidateBuilderPtr,
     new_min_value_per_byte: u32,
 ) {
+    #[allow(clippy::unwrap_used)]
     ergo_box_candidate_builder_set_min_box_value_per_byte(builder_mut, new_min_value_per_byte)
         .unwrap();
 }
@@ -35,6 +37,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_set_min_box_valu
 pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_min_box_value_per_byte(
     builder_ptr: ConstErgoBoxCandidateBuilderPtr,
 ) -> u32 {
+    #[allow(clippy::unwrap_used)]
     ergo_box_candidate_builder_min_box_value_per_byte(builder_ptr).unwrap()
 }
 
@@ -43,6 +46,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_set_value(
     builder_mut: ErgoBoxCandidateBuilderPtr,
     value_ptr: ConstBoxValuePtr,
 ) {
+    #[allow(clippy::unwrap_used)]
     ergo_box_candidate_builder_set_value(builder_mut, value_ptr).unwrap();
 }
 
@@ -51,6 +55,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_value(
     builder_ptr: ConstErgoBoxCandidateBuilderPtr,
     value_out: *mut BoxValuePtr,
 ) {
+    #[allow(clippy::unwrap_used)]
     ergo_box_candidate_builder_value(builder_ptr, value_out).unwrap();
 }
 
@@ -85,6 +90,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_set_register_val
     register_id: NonMandatoryRegisterId,
     constant_ptr: ConstConstantPtr,
 ) {
+    #[allow(clippy::unwrap_used)]
     ergo_box_candidate_builder_set_register_value(builder_mut, register_id, constant_ptr).unwrap();
 }
 
@@ -113,6 +119,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_delete_register_
     builder_mut: ErgoBoxCandidateBuilderPtr,
     register_id: NonMandatoryRegisterId,
 ) {
+    #[allow(clippy::unwrap_used)]
     ergo_box_candidate_builder_delete_register_value(builder_mut, register_id).unwrap();
 }
 
@@ -126,6 +133,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_mint_token(
 ) {
     let token_name = CStr::from_ptr(token_name).to_string_lossy();
     let token_desc = CStr::from_ptr(token_desc).to_string_lossy();
+    #[allow(clippy::unwrap_used)]
     ergo_box_candidate_builder_mint_token(
         builder_mut,
         token_ptr,
@@ -142,6 +150,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_add_token(
     token_id_ptr: ConstTokenIdPtr,
     token_amount_ptr: ConstTokenAmountPtr,
 ) {
+    #[allow(clippy::unwrap_used)]
     ergo_box_candidate_builder_add_token(builder_mut, token_id_ptr, token_amount_ptr).unwrap();
 }
 

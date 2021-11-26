@@ -14,6 +14,7 @@ pub unsafe extern "C" fn ergo_wallet_token_id_from_box_id(
     box_id_ptr: ConstBoxIdPtr,
     token_id_out: *mut TokenIdPtr,
 ) {
+    #[allow(clippy::unwrap_used)]
     token_id_from_box_id(box_id_ptr, token_id_out).unwrap();
 }
 
@@ -32,8 +33,11 @@ pub unsafe extern "C" fn ergo_wallet_token_id_to_str(
     token_id_ptr: ConstTokenIdPtr,
     _str: *mut *const c_char,
 ) {
-    let s = token_id_to_str(token_id_ptr).unwrap();
-    *_str = CString::new(s).unwrap().into_raw();
+    #[allow(clippy::unwrap_used)]
+    {
+        let s = token_id_to_str(token_id_ptr).unwrap();
+        *_str = CString::new(s).unwrap().into_raw();
+    }
 }
 
 #[no_mangle]
@@ -56,6 +60,7 @@ pub unsafe extern "C" fn ergo_wallet_token_amount_from_i64(
 pub unsafe extern "C" fn ergo_wallet_token_amount_as_i64(
     token_amount_ptr: ConstTokenAmountPtr,
 ) -> i64 {
+    #[allow(clippy::unwrap_used)]
     token_amount_as_i64(token_amount_ptr).unwrap()
 }
 
@@ -72,6 +77,7 @@ pub unsafe extern "C" fn ergo_wallet_token_new(
     token_amount_ptr: ConstTokenAmountPtr,
     token_out: *mut TokenPtr,
 ) {
+    #[allow(clippy::unwrap_used)]
     token_new(token_id_ptr, token_amount_ptr, token_out).unwrap();
 }
 
@@ -80,6 +86,7 @@ pub unsafe extern "C" fn ergo_wallet_token_get_id(
     token_ptr: ConstTokenPtr,
     token_id_out: *mut TokenIdPtr,
 ) {
+    #[allow(clippy::unwrap_used)]
     token_get_id(token_ptr, token_id_out).unwrap();
 }
 
@@ -88,6 +95,7 @@ pub unsafe extern "C" fn ergo_wallet_token_get_amount(
     token_ptr: ConstTokenPtr,
     token_amount_out: *mut TokenAmountPtr,
 ) {
+    #[allow(clippy::unwrap_used)]
     token_get_amount(token_ptr, token_amount_out).unwrap();
 }
 
@@ -96,6 +104,7 @@ pub unsafe extern "C" fn ergo_wallet_token_to_json_eip12(
     token_ptr: ConstTokenPtr,
     _json_str: *mut *const c_char,
 ) -> ErrorPtr {
+    #[allow(clippy::unwrap_used)]
     let res = match token_to_json_eip12(token_ptr) {
         Ok(s) => {
             *_json_str = CString::new(s).unwrap().into_raw();
