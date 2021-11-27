@@ -1,29 +1,30 @@
 //! Wallet-related features for Ergo
 
-use thiserror::Error;
+pub mod box_selector;
+pub mod derivation_path;
+pub mod ext_pub_key;
+pub mod multi_sig;
+pub mod mnemonic;
+pub mod secret_key;
+pub mod signing;
+pub mod tx_builder;
 
 use ergotree_interpreter::sigma_protocol::private_input::PrivateInput;
 use ergotree_interpreter::sigma_protocol::prover::Prover;
 use ergotree_interpreter::sigma_protocol::prover::TestProver;
 use secret_key::SecretKey;
 use signing::{sign_transaction, TxSigningError};
+use thiserror::Error;
 
 use crate::chain::ergo_state_context::ErgoStateContext;
 use crate::chain::transaction::reduced::ReducedTransaction;
 use crate::chain::transaction::Transaction;
 use crate::wallet::multi_sig::TransactionHintsBag;
 use crate::wallet::signing::sign_transaction_multi;
+use crate::wallet::mnemonic::Mnemonic;
 
 use self::signing::sign_reduced_transaction;
 use self::signing::TransactionContext;
-
-pub mod box_selector;
-pub mod derivation_path;
-pub mod ext_pub_key;
-pub mod multi_sig;
-pub mod secret_key;
-pub mod signing;
-pub mod tx_builder;
 
 /// Wallet
 pub struct Wallet {
@@ -45,6 +46,17 @@ impl From<TxSigningError> for WalletError {
 }
 
 impl Wallet {
+    /// Create wallet instance loading secret key from mnemonic
+    /// Returns None if a DlogSecretKey cannot be parsed from the provided phrase
+    pub fn from_mnemonic(mnemonic_phrase: &str, mnemonic_pass: &str) -> Option<Wallet> {
+        let seed = Mnemonic::to_seed(mnemonic_phrase, mnemonic_pass);
+        let mut dlog_bytes: [u8; 32] = Default::default();
+        dlog_bytes.copy_from_slice(&seed[..32]);
+        let secret = SecretKey::dlog_from_bytes(&dlog_bytes)?;
+
+        Some(Wallet::from_secrets(vec![secret]))
+    }
+
     /// Create Wallet from secrets
     pub fn from_secrets(secrets: Vec<SecretKey>) -> Wallet {
         let prover = TestProver {

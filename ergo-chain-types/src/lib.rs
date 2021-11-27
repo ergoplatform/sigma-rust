@@ -1,4 +1,4 @@
-//! Sigma serialization
+//! Ergo blockchain types
 
 // Coding conventions
 #![forbid(unsafe_code)]
@@ -9,20 +9,10 @@
 #![deny(dead_code)]
 #![deny(unused_imports)]
 #![deny(missing_docs)]
-#![forbid(unsafe_code)]
+#![deny(rustdoc::broken_intra_doc_links)]
+#![deny(clippy::wildcard_enum_match_arm)]
 #![deny(clippy::unwrap_used)]
 #![deny(clippy::expect_used)]
 #![deny(clippy::todo)]
 #![deny(clippy::unimplemented)]
 #![deny(clippy::panic)]
-#![deny(clippy::wildcard_enum_match_arm)]
-
-/// ScoreX Serialization
-mod scorex_serialize;
-pub use scorex_serialize::{
-    scorex_serialize_roundtrip, ScorexParsingError, ScorexSerializable, ScorexSerializationError,
-};
-/// VLQ encoder
-pub mod vlq_encode;
-/// ZigZag encoder
-pub mod zig_zag_encode;

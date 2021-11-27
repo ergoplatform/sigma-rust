@@ -199,6 +199,18 @@ impl ErgoBox {
             .sigma_serialize_bytes()
             .map_err(|e| JsValue::from_str(&format!("{}", e)))
     }
+
+    /// Returns serialized bytes or fails with error if cannot be serialized
+    pub fn sigma_serialize_bytes(&self) -> Result<Vec<u8>, JsValue> {
+        self.0.sigma_serialize_bytes().map_err(to_js)
+    }
+
+    /// Parses ErgoBox or fails with error
+    pub fn sigma_parse_bytes(data: Vec<u8>) -> Result<ErgoBox, JsValue> {
+        chain::ergo_box::ErgoBox::sigma_parse_bytes(&data)
+            .map(ErgoBox)
+            .map_err(to_js)
+    }
 }
 
 impl From<ErgoBox> for chain::ergo_box::ErgoBox {

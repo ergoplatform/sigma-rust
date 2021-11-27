@@ -1,0 +1,20 @@
+[package]
+name = "ergo-chain-types"
+version = "0.1.0"
+license = "CC0-1.0"
+authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
+edition = "2018"
+description = "Ergo blockchain types"
+repository = "https://github.com/ergoplatform/sigma-rust"
+exclude = [
+    "proptest-regressions/*"
+]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+thiserror = "1"
+derive_more = "0.99"
+
+[dev-dependencies]

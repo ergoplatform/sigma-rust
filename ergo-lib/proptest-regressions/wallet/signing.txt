@@ -1,8 +1,0 @@
-# Seeds for failure cases proptest has generated in the past. It is
-# automatically read and these particular cases re-run before any
-# novel cases are generated.
-#
-# It is recommended to check this file in to source control so that
-# everyone who runs the test benefits from these saved cases.
-cc 412026e548113b617adbf29b5e6f7f77f06214e70d133c3878c3cd6b7c17e149 # shrinks to secrets = [DlogProverInput { w: Scalar(Scalar4x64([2534451601720644535, 3728917935300645465, 11398511672496504935, 17733221342642325133])) }]
-cc 8ee684c0070e1329c1b57626759b847c6ff607453c40f2741cdac5e23d26e1cd # shrinks to secrets = [DlogProverInput { w: Scalar(Scalar4x64([12796785284189841021, 14909825182994045105, 13731081180851305275, 4935121123420806630])) }]

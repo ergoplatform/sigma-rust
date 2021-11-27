@@ -26,3 +26,5 @@ build/
 
 # ts lsp server logs
 .log/
+
+**/proptest-regressions
