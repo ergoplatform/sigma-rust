@@ -38,6 +38,8 @@ pub unsafe fn secret_key_generate_random(secret_key_out: *mut SecretKeyPtr) -> R
     Ok(())
 }
 
+/// Convert to serialized bytes. Key assumption: 32 bytes have been allocated at the address
+/// pointed-to by `output`.
 pub unsafe fn secret_key_to_bytes(
     secret_key_ptr: ConstSecretKeyPtr,
     output: *mut u8,

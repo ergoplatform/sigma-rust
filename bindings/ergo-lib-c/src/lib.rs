@@ -138,6 +138,7 @@ pub unsafe fn delete_ptr<T>(ptr: *mut T) {
 pub trait IntegerType {}
 
 impl IntegerType for u8 {}
+impl IntegerType for i32 {}
 impl IntegerType for u32 {}
 impl IntegerType for i64 {}
 impl IntegerType for usize {}

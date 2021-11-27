@@ -51,6 +51,8 @@ pub unsafe fn box_id_to_str(box_id_ptr: ConstBoxIdPtr) -> Result<String, Error> 
     Ok(box_id_ptr.0.clone().into())
 }
 
+/// Convert to serialized bytes. Key assumption: 32 bytes have been allocated at the address
+/// pointed-to by `output`.
 pub unsafe fn box_id_to_bytes(box_id_ptr: ConstBoxIdPtr, output: *mut u8) -> Result<(), Error> {
     let box_id = const_ptr_as_ref(box_id_ptr, "box_id_ptr")?;
     let src = box_id.0.as_ref();
