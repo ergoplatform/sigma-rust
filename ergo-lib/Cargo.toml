@@ -34,7 +34,7 @@ sha2 = { version = "0.9.8" }
 hmac = { version = "0.11.0" }
 k256 = { version = "0.9.6", features = ["zeroize", "arithmetic", "ecdsa"] }
 hex = "0.4.3"
-
+pbkdf2 = "0.8"
 
 [dependencies.proptest]
 # wasm support, via https://altsysrq.github.io/proptest-book/proptest/wasm.html
@@ -60,9 +60,7 @@ arbitrary = ["proptest", "proptest-derive"]
 [dev-dependencies]
 wasm-bindgen-test = "0.3.10"
 rand = "0.8.4"
-k256 = { version = "0.9.6", features = ["zeroize", "arithmetic", "ecdsa"] }
 ergotree-ir = { version = "^0.14.0", path = "../ergotree-ir", features = ["arbitrary"] }
 ergotree-interpreter = { version = "^0.14.0", path = "../ergotree-interpreter", features = ["arbitrary"] }
 sigma-test-util = { version = "^0.3.0", path = "../sigma-test-util" }
 pretty_assertions = "0.7.2"
-hex = "0.4.3"

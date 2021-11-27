@@ -1,4 +1,5 @@
 //! Wallet-like features
+use derive_more::{From, Into};
 use ergo_lib::chain::transaction::TxIoVec;
 use wasm_bindgen::prelude::*;
 
@@ -18,14 +19,16 @@ use crate::{
 
 /// A collection of secret keys. This simplified signing by matching the secret keys to the correct inputs automatically.
 #[wasm_bindgen]
+#[derive(From, Into)]
 pub struct Wallet(ergo_lib::wallet::Wallet);
 
 #[wasm_bindgen]
 impl Wallet {
     /// Create wallet instance loading secret key from mnemonic
+    /// Returns None if a DlogSecretKey cannot be parsed from the provided phrase
     #[wasm_bindgen]
-    pub fn from_mnemonic(_mnemonic_phrase: &str, _mnemonic_pass: &str) -> Wallet {
-        todo!()
+    pub fn from_mnemonic(mnemonic_phrase: &str, mnemonic_pass: &str) -> Option<Wallet> {
+        Some(ergo_lib::wallet::Wallet::from_mnemonic(mnemonic_phrase, mnemonic_pass)?.into())
     }
 
     /// Create wallet using provided secret key
