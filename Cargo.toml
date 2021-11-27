@@ -8,6 +8,8 @@ members = [
     "ergotree-interpreter",
     "ergo-lib",
     "ergo-p2p",
+    "ergo-chain-types",
+    "ergo-nipopow",
     "bindings/ergo-lib-wasm",
     "bindings/ergo-lib-c-core",
     "bindings/ergo-lib-c",
