@@ -41,6 +41,12 @@ class BoxId {
     }
 }
 
+extension BoxId: Equatable {
+    static func ==(lhs: BoxId, rhs: BoxId) -> Bool {
+        ergo_wallet_box_id_eq(lhs.pointer, rhs.pointer)
+    }
+}
+
 class BoxValue {
     internal var pointer: BoxValuePtr
     
@@ -71,6 +77,12 @@ class BoxValue {
     
     deinit {
         ergo_wallet_box_value_delete(self.pointer)
+    }
+}
+
+extension BoxValue: Equatable {
+    static func ==(lhs: BoxValue, rhs: BoxValue) -> Bool {
+        ergo_wallet_box_value_eq(lhs.pointer, rhs.pointer)
     }
 }
 
@@ -116,6 +128,12 @@ class ErgoBoxCandidate {
     
     deinit {
         ergo_wallet_ergo_box_candidate_delete(self.pointer)
+    }
+}
+
+extension ErgoBoxCandidate: Equatable {
+    static func ==(lhs: ErgoBoxCandidate, rhs: ErgoBoxCandidate) -> Bool {
+        ergo_wallet_ergo_box_candidate_eq(lhs.pointer, rhs.pointer)
     }
 }
 
@@ -218,6 +236,12 @@ class ErgoBox{
     
     deinit {
         ergo_wallet_ergo_box_delete(self.pointer)
+    }
+}
+
+extension ErgoBox: Equatable {
+    static func ==(lhs: ErgoBox, rhs: ErgoBox) -> Bool {
+        ergo_wallet_ergo_box_eq(lhs.pointer, rhs.pointer)
     }
 }
 

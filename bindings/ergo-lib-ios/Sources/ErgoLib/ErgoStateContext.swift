@@ -20,3 +20,8 @@ class ErgoStateContext {
         ergo_wallet_ergo_state_context_delete(self.pointer)
     }
 }
+extension ErgoStateContext: Equatable {
+    static func ==(lhs: ErgoStateContext, rhs: ErgoStateContext) -> Bool {
+        ergo_wallet_ergo_state_context_eq(lhs.pointer, rhs.pointer)
+    }
+}

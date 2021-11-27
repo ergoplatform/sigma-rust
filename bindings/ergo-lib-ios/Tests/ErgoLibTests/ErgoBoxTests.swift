@@ -40,9 +40,9 @@ final class ErgoBoxTests: XCTestCase {
                 tokens: tokens
             )
         XCTAssertEqual(ergoBox.getCreationHeight(), creationHeight)
-        XCTAssertEqual(ergoBox.getBoxId().toString(), boxId.toString() )
-        XCTAssertEqual(ergoBox.getBoxValue().toInt64(), boxValue.toInt64() )
-        XCTAssertEqual(try ergoBox.getErgoTree().toBase16EncodedString(), try ergoTree.toBase16EncodedString())
+        XCTAssertEqual(ergoBox.getBoxId(), boxId )
+        XCTAssertEqual(ergoBox.getBoxValue(), boxValue )
+        XCTAssertEqual(ergoBox.getErgoTree(), ergoTree)
     }
     
     func testErgoBoxJSON() throws {
@@ -61,9 +61,9 @@ final class ErgoBoxTests: XCTestCase {
         let ergoBox = try ErgoBox(withJson: json)
         let (boxId, boxValue, ergoTree, _) = try ErgoBoxTests.generateErgoBoxComponents()
         XCTAssertEqual(ergoBox.getCreationHeight(), UInt32(284761))
-        XCTAssertEqual(ergoBox.getBoxId().toString(), boxId.toString() )
-        XCTAssertEqual(ergoBox.getBoxValue().toInt64(), boxValue.toInt64() )
-        XCTAssertEqual(try ergoBox.getErgoTree().toBase16EncodedString(), try ergoTree.toBase16EncodedString())
+        XCTAssertEqual(ergoBox.getBoxId(), boxId )
+        XCTAssertEqual(ergoBox.getBoxValue(), boxValue )
+        XCTAssertEqual(ergoBox.getErgoTree(), ergoTree)
     }
 }
 

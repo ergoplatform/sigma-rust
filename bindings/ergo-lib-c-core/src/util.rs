@@ -42,3 +42,10 @@ pub unsafe fn byte_array_from_raw_parts(
     *byte_array_out = Box::into_raw(Box::new(ByteArray(Vec::from(slice))));
     Ok(())
 }
+
+/// Returns true iff the dereferenced pointer values are equal.
+pub unsafe fn deref_eq<T: Eq>(x_ptr: *const T, y_ptr: *const T) -> bool {
+    let x = x_ptr.as_ref().unwrap();
+    let y = y_ptr.as_ref().unwrap();
+    x == y
+}

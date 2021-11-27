@@ -1,10 +1,14 @@
 /// Blockchain state (last headers, etc.)
 use crate::{block_header::ConstBlockHeadersPtr, ErrorPtr};
 use ergo_lib_c_core::{
-    ergo_state_ctx::{ergo_state_context_delete, ergo_state_context_new, ErgoStateContextPtr},
+    ergo_state_ctx::{
+        ergo_state_context_delete, ergo_state_context_new, ConstErgoStateContextPtr,
+        ErgoStateContextPtr,
+    },
     header::ConstPreHeaderPtr,
     Error,
 };
+use paste::paste;
 
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_ergo_state_context_new(
@@ -22,3 +26,5 @@ pub unsafe extern "C" fn ergo_wallet_ergo_state_context_delete(
 ) {
     ergo_state_context_delete(ergo_state_context)
 }
+
+make_ffi_eq!(ErgoStateContext);

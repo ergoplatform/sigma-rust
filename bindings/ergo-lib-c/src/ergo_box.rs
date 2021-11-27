@@ -53,6 +53,8 @@ pub extern "C" fn ergo_wallet_box_id_delete(ptr: BoxIdPtr) {
     unsafe { delete_ptr(ptr) }
 }
 
+make_ffi_eq!(BoxId);
+
 // `BoxValue` bindings ------------------------------------------------------------------------------
 
 #[no_mangle]
@@ -85,6 +87,8 @@ pub unsafe extern "C" fn ergo_wallet_box_value_as_i64(box_value_ptr: ConstBoxVal
 pub extern "C" fn ergo_wallet_box_value_delete(ptr: BoxValuePtr) {
     unsafe { delete_ptr(ptr) }
 }
+
+make_ffi_eq!(BoxValue);
 
 // `ErgoBoxCandidate` bindings ----------------------------------------------------------------------
 
@@ -147,6 +151,7 @@ pub extern "C" fn ergo_wallet_ergo_box_candidate_delete(ptr: ErgoBoxCandidatePtr
 }
 
 make_collection!(ErgoBoxCandidates, ErgoBoxCandidate);
+make_ffi_eq!(ErgoBoxCandidate);
 
 // `ErgoBox` bindings ------------------------------------------------------------------------------
 
@@ -282,3 +287,4 @@ pub extern "C" fn ergo_wallet_ergo_box_delete(ptr: ErgoBoxPtr) {
 }
 
 make_collection!(ErgoBoxes, ErgoBox);
+make_ffi_eq!(ErgoBox);

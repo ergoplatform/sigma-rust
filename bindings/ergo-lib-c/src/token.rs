@@ -1,5 +1,6 @@
 //! Token types
 use ergo_lib_c_core::{ergo_box::ConstBoxIdPtr, token::*, Error};
+use paste::paste;
 use std::{
     ffi::{CStr, CString},
     os::raw::c_char,
@@ -45,6 +46,8 @@ pub extern "C" fn ergo_wallet_token_id_delete(ptr: TokenIdPtr) {
     unsafe { delete_ptr(ptr) }
 }
 
+make_ffi_eq!(TokenId);
+
 // `TokenAmount` bindings --------------------------------------------------------------------------
 
 #[no_mangle]
@@ -68,6 +71,8 @@ pub unsafe extern "C" fn ergo_wallet_token_amount_as_i64(
 pub extern "C" fn ergo_wallet_token_amount_delete(ptr: TokenAmountPtr) {
     unsafe { delete_ptr(ptr) }
 }
+
+make_ffi_eq!(TokenAmount);
 
 // `Token` bindings --------------------------------------------------------------------------------
 
@@ -119,6 +124,8 @@ pub unsafe extern "C" fn ergo_wallet_token_to_json_eip12(
 pub extern "C" fn ergo_wallet_token_delete(ptr: TokenPtr) {
     unsafe { delete_ptr(ptr) }
 }
+
+make_ffi_eq!(Token);
 
 // `Tokens` bindings -------------------------------------------------------------------------------
 

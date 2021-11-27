@@ -14,3 +14,8 @@ class PreHeader {
         ergo_wallet_preheader_delete(self.pointer)
     }
 }
+extension PreHeader: Equatable {
+    static func ==(lhs: PreHeader, rhs: PreHeader) -> Bool {
+        ergo_wallet_pre_header_eq(lhs.pointer, rhs.pointer)
+    }
+}

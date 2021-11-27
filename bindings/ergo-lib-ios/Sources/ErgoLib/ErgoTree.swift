@@ -91,3 +91,8 @@ class ErgoTree {
     }
 }
 
+extension ErgoTree: Equatable {
+    static func ==(lhs: ErgoTree, rhs: ErgoTree) -> Bool {
+        ergo_wallet_ergo_tree_eq(lhs.pointer, rhs.pointer)
+    }
+}

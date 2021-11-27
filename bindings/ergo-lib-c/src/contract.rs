@@ -1,11 +1,11 @@
 //! Contract, for easier ErgoTree generation
-
 use ergo_lib_c_core::{
     address::ConstAddressPtr,
     contract::*,
     ergo_tree::{ConstErgoTreePtr, ErgoTreePtr},
     Error, ErrorPtr,
 };
+use paste::paste;
 
 use std::{ffi::CStr, os::raw::c_char};
 
@@ -52,3 +52,5 @@ pub unsafe extern "C" fn ergo_wallet_contract_ergo_tree(
 pub extern "C" fn ergo_wallet_contract_delete(ptr: ContractPtr) {
     unsafe { delete_ptr(ptr) }
 }
+
+make_ffi_eq!(Contract);

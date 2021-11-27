@@ -121,3 +121,19 @@ macro_rules! make_collection {
         }
     };
 }
+
+/// Generates an equality function for FFI
+#[macro_export]
+macro_rules! make_ffi_eq {
+    ($type_name:ident) => {
+        paste! {
+            #[no_mangle]
+            pub unsafe extern "C" fn [<ergo_wallet_ $type_name:snake _eq>](
+              [< $type_name:snake _ptr_0>]: [< Const $type_name Ptr>],
+              [< $type_name:snake _ptr_1>]: [< Const $type_name Ptr>],
+            ) -> bool {
+              ergo_lib_c_core::util::deref_eq([< $type_name:snake _ptr_0>], [< $type_name:snake _ptr_1>])
+            }
+        }
+    };
+}

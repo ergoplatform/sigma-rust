@@ -30,3 +30,4 @@ pub extern "C" fn ergo_wallet_block_header_delete(header: BlockHeaderPtr) {
 // BlockHeaders functions --------------------------------------------------------------------------
 
 make_collection!(BlockHeaders, BlockHeader);
+make_ffi_eq!(BlockHeader);

@@ -41,6 +41,12 @@ class TokenId {
     }
 }
 
+extension TokenId: Equatable {
+    static func ==(lhs: TokenId, rhs: TokenId) -> Bool {
+        ergo_wallet_token_id_eq(lhs.pointer, rhs.pointer)
+    }
+}
+
 class TokenAmount {
     internal var pointer: TokenAmountPtr
     
@@ -61,6 +67,12 @@ class TokenAmount {
     
     deinit {
         ergo_wallet_token_amount_delete(self.pointer)
+    }
+}
+
+extension TokenAmount: Equatable {
+    static func ==(lhs: TokenAmount, rhs: TokenAmount) -> Bool {
+        ergo_wallet_token_amount_eq(lhs.pointer, rhs.pointer)
     }
 }
 
@@ -102,6 +114,12 @@ class Token {
     
     deinit {
         ergo_wallet_token_delete(self.pointer)
+    }
+}
+
+extension Token: Equatable {
+    static func ==(lhs: Token, rhs: Token) -> Bool {
+        ergo_wallet_token_eq(lhs.pointer, rhs.pointer)
     }
 }
 

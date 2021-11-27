@@ -27,6 +27,12 @@ class BlockHeader {
     }
 }
 
+extension BlockHeader: Equatable {
+    static func ==(lhs: BlockHeader, rhs: BlockHeader) -> Bool {
+        ergo_wallet_block_header_eq(lhs.pointer, rhs.pointer)
+    }
+}
+
 class BlockHeaders {
     internal var pointer: BlockHeadersPtr
     

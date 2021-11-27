@@ -32,7 +32,7 @@ final class TokenIdTests: XCTestCase {
         let newTokenId = token.getId()
         let newTokenAmount = token.getAmount()
         XCTAssertEqual(newTokenId.toBase16EncodedString(), str)
-        XCTAssertEqual(tokenAmount.toInt64(), newTokenAmount.toInt64())
+        XCTAssertEqual(tokenAmount, newTokenAmount)
     }
     
     func testTokens() throws {

@@ -41,3 +41,9 @@ class Contract {
         ergo_wallet_contract_delete(self.pointer)
     }
 }
+
+extension Contract: Equatable {
+    static func ==(lhs: Contract, rhs: Contract) -> Bool {
+        ergo_wallet_contract_eq(lhs.pointer, rhs.pointer)
+    }
+}
