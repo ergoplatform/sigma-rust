@@ -27,7 +27,12 @@ pub unsafe fn box_selection_new(
     let box_selection_out = mut_ptr_as_mut(box_selection_out, "box_selection_out")?;
     *box_selection_out = Box::into_raw(Box::new(BoxSelection(
         wallet::box_selector::BoxSelection::<ergo_lib::ergotree_ir::chain::ergo_box::ErgoBox> {
-            boxes: ergo_boxes.0.clone().into_iter().map(|b| b.0).collect(),
+            boxes: ergo_boxes
+                .0
+                .clone()
+                .into_iter()
+                .map(|b| b.0)
+                .collect::<Vec<_>>(),
             change_boxes: change_ergo_boxes
                 .0
                 .clone()
