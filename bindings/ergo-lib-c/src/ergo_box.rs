@@ -288,3 +288,41 @@ pub extern "C" fn ergo_wallet_ergo_box_delete(ptr: ErgoBoxPtr) {
 
 make_collection!(ErgoBoxes, ErgoBox);
 make_ffi_eq!(ErgoBox);
+
+// `ErgoBoxAssetsData` bindings ---------------------------------------------------------------------
+
+#[no_mangle]
+pub unsafe extern "C" fn ergo_wallet_ergo_box_assets_data_new(
+    value_ptr: ConstBoxValuePtr,
+    tokens_ptr: ConstTokensPtr,
+    ergo_box_assets_data_out: *mut ErgoBoxAssetsDataPtr,
+) {
+    #[allow(clippy::unwrap_used)]
+    ergo_box_assets_data_new(value_ptr, tokens_ptr, ergo_box_assets_data_out).unwrap();
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ergo_wallet_ergo_box_assets_data_value(
+    ergo_box_assets_data_ptr: ConstErgoBoxAssetsDataPtr,
+    value_out: *mut BoxValuePtr,
+) {
+    #[allow(clippy::unwrap_used)]
+    ergo_box_assets_data_value(ergo_box_assets_data_ptr, value_out).unwrap();
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ergo_wallet_ergo_box_assets_data_tokens(
+    ergo_box_assets_data_ptr: ConstErgoBoxAssetsDataPtr,
+    tokens_out: *mut TokensPtr,
+) {
+    #[allow(clippy::unwrap_used)]
+    ergo_box_assets_data_tokens(ergo_box_assets_data_ptr, tokens_out).unwrap();
+}
+
+#[no_mangle]
+pub extern "C" fn ergo_wallet_ergo_box_assets_data_delete(ptr: ErgoBoxAssetsDataPtr) {
+    unsafe { delete_ptr(ptr) }
+}
+
+make_collection!(ErgoBoxAssetsDataList, ErgoBoxAssetsData);
+make_ffi_eq!(ErgoBoxAssetsData);

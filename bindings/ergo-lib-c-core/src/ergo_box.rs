@@ -287,6 +287,61 @@ pub unsafe fn ergo_box_to_json_eip12(ergo_box_ptr: ConstErgoBoxPtr) -> Result<St
         .map_err(|_| Error::Misc("ErgoBox: can't serialize into JSON EIP-12".into()))
 }
 
+/// Pair of <value, tokens> for an box
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct ErgoBoxAssetsData(ergo_lib::wallet::box_selector::ErgoBoxAssetsData);
+pub type ErgoBoxAssetsDataPtr = *mut ErgoBoxAssetsData;
+pub type ConstErgoBoxAssetsDataPtr = *const ErgoBoxAssetsData;
+
+pub unsafe fn ergo_box_assets_data_new(
+    value_ptr: ConstBoxValuePtr,
+    tokens_ptr: ConstTokensPtr,
+    ergo_box_assets_data_out: *mut ErgoBoxAssetsDataPtr,
+) -> Result<(), Error> {
+    let value = const_ptr_as_ref(value_ptr, "value_ptr")?;
+    let tokens = const_ptr_as_ref(tokens_ptr, "tokens_ptr")?;
+    let ergo_box_assets_data_out =
+        mut_ptr_as_mut(ergo_box_assets_data_out, "ergo_box_assets_data_out")?;
+    let tokens = tokens.0.clone().map(|tokens| tokens.mapped(|t| t.0));
+    *ergo_box_assets_data_out = Box::into_raw(Box::new(ErgoBoxAssetsData(
+        ergo_lib::wallet::box_selector::ErgoBoxAssetsData {
+            value: value.0,
+            tokens,
+        },
+    )));
+    Ok(())
+}
+
+pub unsafe fn ergo_box_assets_data_value(
+    ergo_box_assets_data_ptr: ConstErgoBoxAssetsDataPtr,
+    value_out: *mut BoxValuePtr,
+) -> Result<(), Error> {
+    let ergo_box_assets_data =
+        const_ptr_as_ref(ergo_box_assets_data_ptr, "ergo_box_assets_data_ptr")?;
+    let value_out = mut_ptr_as_mut(value_out, "value_out")?;
+
+    *value_out = Box::into_raw(Box::new(BoxValue(ergo_box_assets_data.0.value)));
+    Ok(())
+}
+
+pub unsafe fn ergo_box_assets_data_tokens(
+    ergo_box_assets_data_ptr: ConstErgoBoxAssetsDataPtr,
+    tokens_out: *mut TokensPtr,
+) -> Result<(), Error> {
+    let ergo_box_assets_data =
+        const_ptr_as_ref(ergo_box_assets_data_ptr, "ergo_box_assets_data_ptr")?;
+    let tokens_out = mut_ptr_as_mut(tokens_out, "tokens_out")?;
+
+    *tokens_out = Box::into_raw(Box::new(Tokens(
+        ergo_box_assets_data
+            .0
+            .tokens
+            .clone()
+            .map(|tokens| tokens.mapped(Token)),
+    )));
+    Ok(())
+}
+
 /// newtype for box registers R4 - R9
 #[repr(u8)]
 #[derive(PartialEq, Eq, Clone, Debug)]

@@ -245,6 +245,84 @@ extension ErgoBox: Equatable {
     }
 }
 
+class ErgoBoxAssetsData {
+    internal var pointer: ErgoBoxPtr
+
+    init( boxValue: BoxValue,
+          tokens: Tokens
+    ) {
+        var ptr: ErgoBoxAssetsDataPtr?
+        ergo_wallet_ergo_box_assets_data_new(
+            boxValue.pointer,
+            tokens.pointer,
+            &ptr)
+        self.pointer = ptr!
+    }
+    
+    internal init(withRawPointer pointer: ErgoBoxPtr) {
+        self.pointer = pointer
+    }
+    
+    func getBoxValue() -> BoxValue {
+        var boxValuePtr: BoxValuePtr?
+        ergo_wallet_ergo_box_assets_data_value(self.pointer, &boxValuePtr)
+        return BoxValue(withPtr: boxValuePtr!)
+    }
+    
+    func getTokens() -> Tokens {
+        var tokensPtr: TokensPtr?
+        ergo_wallet_ergo_box_assets_data_tokens(self.pointer, &tokensPtr)
+        return Tokens(withPtr: tokensPtr!)
+    }
+    
+    deinit {
+        ergo_wallet_ergo_box_assets_data_delete(self.pointer)
+    }
+}
+
+extension ErgoBoxAssetsData: Equatable {
+    static func ==(lhs: ErgoBoxAssetsData, rhs: ErgoBoxAssetsData) -> Bool {
+        ergo_wallet_ergo_box_assets_data_eq(lhs.pointer, rhs.pointer)
+    }
+}
+
+class ErgoBoxAssetsDataList {
+    internal var pointer: ErgoBoxAssetsDataListPtr
+    
+    init() {
+        var ptr: ErgoBoxAssetsDataListPtr?
+        ergo_wallet_ergo_box_assets_data_list_new(&ptr)
+        self.pointer = ptr!
+    }
+    
+    init(withRawPointer ptr: ErgoBoxAssetsDataListPtr) {
+        self.pointer = ptr
+    }
+    
+    func len() -> UInt {
+        return ergo_wallet_ergo_box_assets_data_list_len(self.pointer)
+    }
+    
+    func get(index: UInt) -> ErgoBoxAssetsData? {
+        var ptr: ErgoBoxAssetsDataPtr?
+        let res = ergo_wallet_ergo_box_assets_data_list_get(self.pointer, index, &ptr)
+        assert(res.error == nil)
+        if res.is_some {
+            return ErgoBoxAssetsData(withRawPointer: ptr!)
+        } else {
+            return nil
+        }
+    }
+    
+    func add(ergoBoxAssetData: ErgoBoxAssetsData) {
+        ergo_wallet_ergo_box_assets_data_list_add(ergoBoxAssetData.pointer, self.pointer)
+    }
+        
+    deinit {
+        ergo_wallet_ergo_box_assets_data_list_delete(self.pointer)
+    }
+}
+
 enum NonMandatoryRegisterId: UInt8 {
     /// id for R4 register
     case R4 = 4
