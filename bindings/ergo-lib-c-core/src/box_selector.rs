@@ -25,14 +25,13 @@ pub unsafe fn box_selection_new(
     let ergo_boxes = const_ptr_as_ref(ergo_boxes_ptr, "ergo_boxes_ptr")?;
     let change_ergo_boxes = const_ptr_as_ref(change_ergo_boxes_ptr, "change_ergo_boxes_ptr")?;
     let box_selection_out = mut_ptr_as_mut(box_selection_out, "box_selection_out")?;
+    let boxes = wallet::box_selector::SelectedBoxes::from_vec(
+        ergo_boxes.0.clone().into_iter().map(|b| b.0).collect(),
+    )
+    .map_err(|_| Error::Misc("BoxSelection: can't form boxes".into()))?;
     *box_selection_out = Box::into_raw(Box::new(BoxSelection(
         wallet::box_selector::BoxSelection::<ergo_lib::ergotree_ir::chain::ergo_box::ErgoBox> {
-            boxes: ergo_boxes
-                .0
-                .clone()
-                .into_iter()
-                .map(|b| b.0)
-                .collect::<Vec<_>>(),
+            boxes,
             change_boxes: change_ergo_boxes
                 .0
                 .clone()
