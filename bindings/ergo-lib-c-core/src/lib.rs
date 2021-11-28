@@ -13,6 +13,7 @@
 pub mod address;
 pub mod block_header;
 pub mod box_builder;
+pub mod box_selector;
 pub mod collections;
 pub mod constant;
 pub mod context_extension;

@@ -289,7 +289,7 @@ pub unsafe fn ergo_box_to_json_eip12(ergo_box_ptr: ConstErgoBoxPtr) -> Result<St
 
 /// Pair of <value, tokens> for an box
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct ErgoBoxAssetsData(ergo_lib::wallet::box_selector::ErgoBoxAssetsData);
+pub struct ErgoBoxAssetsData(pub(crate) ergo_lib::wallet::box_selector::ErgoBoxAssetsData);
 pub type ErgoBoxAssetsDataPtr = *mut ErgoBoxAssetsData;
 pub type ConstErgoBoxAssetsDataPtr = *const ErgoBoxAssetsData;
 

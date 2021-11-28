@@ -389,7 +389,7 @@ class ErgoBoxes {
     init(fromJSON: Any) throws {
         let json = JSON(fromJSON)
         if let arr = json.array {
-            let boxes = try arr.map{try ErgoBox(withJson: $0.stringValue)}
+            let boxes = try arr.map{try ErgoBox(withJson: $0.rawString()!)}
             self.pointer = ErgoBoxes.initEmpty()
             for ergoBox in boxes {
                 self.add(ergoBox: ergoBox)
