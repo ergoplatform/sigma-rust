@@ -389,7 +389,13 @@ class ErgoBoxes {
     init(fromJSON: Any) throws {
         let json = JSON(fromJSON)
         if let arr = json.array {
-            let boxes = try arr.map{try ErgoBox(withJson: $0.rawString()!)}
+            let boxes = try arr.map{ elem -> ErgoBox in
+                if let jsonStr = elem.rawString() {
+                    return try ErgoBox(withJson: jsonStr);
+                } else {
+                    throw WalletError.walletCError(reason: "Ergoboxes.init(fromJSON): cannot cast array element to raw JSON string")
+                }
+            }
             self.pointer = ErgoBoxes.initEmpty()
             for ergoBox in boxes {
                 self.add(ergoBox: ergoBox)

@@ -43,7 +43,13 @@ class BlockHeaders {
     init(fromJSON: Any) throws {
         let json = JSON(fromJSON)
         if let arr = json.array {
-            let headers = try arr.map{try BlockHeader(withJson: $0.stringValue)}
+            let headers = try arr.map{ elem -> BlockHeader in
+                if let jsonStr = elem.rawString() {
+                    return try BlockHeader(withJson: jsonStr);
+                } else {
+                    throw WalletError.walletCError(reason: "BlockHeaders.init(fromJSON): cannot cast array element to raw JSON string")
+                }
+            }
             self.pointer = BlockHeaders.initEmpty()
             for header in headers {
                 self.add(blockHeader: header)

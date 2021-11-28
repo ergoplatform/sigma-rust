@@ -48,8 +48,18 @@ final class HeaderTests: XCTestCase {
     
     func testBlockHeadersFromJSON() throws {
         let count = 20
+        
+        // First try with array of strings
         let json = Array(repeating: HeaderTests.jsonHeaderExample(), count: count)
-        let headers = try BlockHeaders(fromJSON: json)
+        var headers = try BlockHeaders(fromJSON: json)
+        XCTAssertEqual(headers.len(), UInt(count))
+        
+        // Now try [Data] form
+        let json1 = Array(
+            repeating: HeaderTests.jsonHeaderExample().data(using: .utf8, allowLossyConversion: false)!,
+            count: count
+        )
+        headers = try BlockHeaders(fromJSON: json1)
         XCTAssertEqual(headers.len(), UInt(count))
     }
 }
