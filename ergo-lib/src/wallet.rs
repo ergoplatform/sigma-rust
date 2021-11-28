@@ -3,8 +3,8 @@
 pub mod box_selector;
 pub mod derivation_path;
 pub mod ext_pub_key;
-pub mod multi_sig;
 pub mod mnemonic;
+pub mod multi_sig;
 pub mod secret_key;
 pub mod signing;
 pub mod tx_builder;
@@ -19,9 +19,8 @@ use thiserror::Error;
 use crate::chain::ergo_state_context::ErgoStateContext;
 use crate::chain::transaction::reduced::ReducedTransaction;
 use crate::chain::transaction::Transaction;
-use crate::wallet::multi_sig::TransactionHintsBag;
-use crate::wallet::signing::sign_transaction_multi;
 use crate::wallet::mnemonic::Mnemonic;
+use crate::wallet::multi_sig::TransactionHintsBag;
 
 use self::signing::sign_reduced_transaction;
 use self::signing::TransactionContext;
@@ -72,21 +71,9 @@ impl Wallet {
         &self,
         tx_context: TransactionContext,
         state_context: &ErgoStateContext,
-        // tx_hints: &TransactionHintsBag,
+        tx_hints: &TransactionHintsBag,
     ) -> Result<Transaction, WalletError> {
-        // let temp=TransactionHintsBag::empty();
-        sign_transaction(self.prover.as_ref(), tx_context, state_context).map_err(WalletError::from)
-    }
-
-    /// Signs a multisig transaction
-    pub fn sign_transaction_multi(
-        &self,
-        tx_context: TransactionContext,
-        state_context: &ErgoStateContext,
-        tx_hints: TransactionHintsBag,
-    ) -> Result<Transaction, WalletError> {
-        // let temp=TransactionHintsBag::empty();
-        sign_transaction_multi(self.prover.as_ref(), tx_hints, tx_context, state_context)
+        sign_transaction(self.prover.as_ref(), tx_context, state_context, tx_hints)
             .map_err(WalletError::from)
     }
 
