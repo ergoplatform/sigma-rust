@@ -10,7 +10,7 @@ use std::convert::TryInto;
 
 /// Blockchain state (last headers, etc.)
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct ErgoStateContext(chain::ergo_state_context::ErgoStateContext);
+pub struct ErgoStateContext(pub(crate) chain::ergo_state_context::ErgoStateContext);
 pub type ErgoStateContextPtr = *mut ErgoStateContext;
 pub type ConstErgoStateContextPtr = *const ErgoStateContext;
 

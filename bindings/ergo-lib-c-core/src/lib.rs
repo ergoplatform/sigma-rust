@@ -30,5 +30,6 @@ pub mod token;
 pub mod transaction;
 pub mod tx_builder;
 pub mod util;
+pub mod wallet;
 pub use crate::error::*;
 mod error;

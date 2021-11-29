@@ -10,7 +10,7 @@ class UnsignedTransaction {
         self.pointer = try UnsignedTransaction.fromJSON(json: json)
     }
     
-    internal init(withRawPointer ptr: BlockHeaderPtr) {
+    internal init(withRawPointer ptr: UnsignedTransactionPtr) {
         self.pointer = ptr
     }
     
@@ -86,6 +86,10 @@ class Transaction {
     
     init(withJson json: String) throws {
         self.pointer = try Transaction.fromJSON(json: json)
+    }
+    
+    internal init(withRawPointer ptr: TransactionPtr) {
+        self.pointer = ptr
     }
     
     func getTxId() -> TxId {

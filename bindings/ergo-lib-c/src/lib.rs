@@ -32,7 +32,7 @@ mod secret_key;
 mod token;
 mod transaction;
 mod tx_builder;
-use ergo_lib::ergotree_ir::chain;
+mod wallet;
 
 pub use crate::address::*;
 pub use crate::block_header::*;
@@ -51,6 +51,7 @@ pub use crate::secret_key::*;
 pub use crate::token::*;
 pub use crate::transaction::*;
 pub use crate::tx_builder::*;
+pub use crate::wallet::*;
 pub use ergo_lib_c_core::{
     address::{Address, AddressTypePrefix, NetworkPrefix},
     Error,
@@ -58,38 +59,6 @@ pub use ergo_lib_c_core::{
 use std::{ffi::CString, os::raw::c_char};
 
 pub type ErrorPtr = *mut Error;
-
-pub struct UnspentBoxes(Vec<chain::ergo_box::ErgoBoxCandidate>);
-pub type UnspentBoxesPtr = *mut UnspentBoxes;
-
-#[no_mangle]
-pub extern "C" fn ergo_wallet_unspent_boxes_from_json(
-    _json_str: *const c_char,
-    _unspent_boxes_out: *mut UnspentBoxesPtr,
-) -> ErrorPtr {
-    todo!()
-}
-
-#[no_mangle]
-pub extern "C" fn ergo_wallet_unspent_boxes_delete(_unspent_boxes: UnspentBoxesPtr) -> ErrorPtr {
-    todo!()
-}
-
-pub struct Transaction(ergo_lib::chain::transaction::Transaction);
-pub type TransactionPtr = *mut Transaction;
-
-#[no_mangle]
-pub extern "C" fn ergo_wallet_delete_signed_tx(_transaction: TransactionPtr) -> ErrorPtr {
-    todo!()
-}
-
-#[no_mangle]
-pub extern "C" fn ergo_wallet_signed_tx_to_json(
-    _transaction: TransactionPtr,
-    _json_str_out: *mut *const c_char,
-) -> ErrorPtr {
-    todo!()
-}
 
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_delete_string(ptr: *mut c_char) {

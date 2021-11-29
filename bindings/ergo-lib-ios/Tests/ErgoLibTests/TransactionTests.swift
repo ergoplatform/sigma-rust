@@ -80,5 +80,14 @@ final class TransactionTests: XCTestCase {
         let ctx = try ErgoStateContext(preHeader: preHeader, headers: blockHeaders)
         let secretKeys = SecretKeys()
         secretKeys.add(secretKey: sk)
+        let wallet = Wallet(secrets: secretKeys)
+        let signedTx = try wallet.signTransaction(stateContext: ctx, unsignedTx: tx, boxesToSpend: unspentBoxes, dataBoxes: txDataInputs)
+        XCTAssertNoThrow(try signedTx.toJsonEIP12())
+    }
+    
+    func testWalletMnemonic() throws {
+        let phrase = "change me do not use me change me do not use me"
+        let pass = "password1234"
+        XCTAssertNoThrow(try Wallet(mnemonicPhrase: phrase, mnemonicPass: pass))
     }
 }

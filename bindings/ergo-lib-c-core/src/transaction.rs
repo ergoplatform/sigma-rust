@@ -154,7 +154,7 @@ pub unsafe fn tx_id_to_str(tx_id_ptr: ConstTxIdPtr) -> Result<String, Error> {
  * Transactions are not encrypted, so it is possible to browse and view every transaction ever
  * collected into a block.
  */
-pub struct Transaction(chain::transaction::Transaction);
+pub struct Transaction(pub(crate) chain::transaction::Transaction);
 pub type TransactionPtr = *mut Transaction;
 pub type ConstTransactionPtr = *const Transaction;
 
