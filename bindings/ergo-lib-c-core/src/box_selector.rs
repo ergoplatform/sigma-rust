@@ -12,7 +12,7 @@ use crate::{
 /// Selected boxes with change boxes (by [`BoxSelector`])
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct BoxSelection(
-    wallet::box_selector::BoxSelection<ergo_lib::ergotree_ir::chain::ergo_box::ErgoBox>,
+    pub(crate) wallet::box_selector::BoxSelection<ergo_lib::ergotree_ir::chain::ergo_box::ErgoBox>,
 );
 pub type BoxSelectionPtr = *mut BoxSelection;
 pub type ConstBoxSelectionPtr = *const BoxSelection;

@@ -10,6 +10,10 @@ class UnsignedTransaction {
         self.pointer = try UnsignedTransaction.fromJSON(json: json)
     }
     
+    internal init(withRawPointer ptr: BlockHeaderPtr) {
+        self.pointer = ptr
+    }
+    
     func getTxId() -> TxId {
         var ptr: TxIdPtr?
         ergo_wallet_unsigned_tx_id(self.pointer, &ptr)

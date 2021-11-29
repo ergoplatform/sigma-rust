@@ -57,14 +57,14 @@ class BoxValue {
         self.pointer = ptr!
     }
     
-    init(withPtr ptr: BoxValuePtr) {
+    init(withRawPointer ptr: BoxValuePtr) {
         self.pointer = ptr
     }
     
     static func SAFE_USER_MIN() -> BoxValue {
         var ptr: BoxValuePtr?
         ergo_wallet_box_value_safe_user_min(&ptr)
-        return BoxValue(withPtr: ptr!)
+        return BoxValue(withRawPointer: ptr!)
     }
     
     static func UNITS_PER_ERGO() -> Int64 {
@@ -123,7 +123,7 @@ class ErgoBoxCandidate {
     func getBoxValue() -> BoxValue {
         var boxValuePtr: BoxValuePtr?
         ergo_wallet_ergo_box_candidate_box_value(self.pointer, &boxValuePtr)
-        return BoxValue(withPtr: boxValuePtr!)
+        return BoxValue(withRawPointer: boxValuePtr!)
     }
     
     deinit {
@@ -198,7 +198,7 @@ class ErgoBox{
     func getBoxValue() -> BoxValue {
         var boxValuePtr: BoxValuePtr?
         ergo_wallet_ergo_box_value(self.pointer, &boxValuePtr)
-        return BoxValue(withPtr: boxValuePtr!)
+        return BoxValue(withRawPointer: boxValuePtr!)
     }
     
     func getRegisterValue(registerId: NonMandatoryRegisterId) -> Constant? {
@@ -266,7 +266,7 @@ class ErgoBoxAssetsData {
     func getBoxValue() -> BoxValue {
         var boxValuePtr: BoxValuePtr?
         ergo_wallet_ergo_box_assets_data_value(self.pointer, &boxValuePtr)
-        return BoxValue(withPtr: boxValuePtr!)
+        return BoxValue(withRawPointer: boxValuePtr!)
     }
     
     func getTokens() -> Tokens {

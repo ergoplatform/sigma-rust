@@ -19,7 +19,7 @@ use crate::{
 
 /// Unsigned (inputs without proofs) transaction
 #[derive(PartialEq, Debug, Clone)]
-pub struct UnsignedTransaction(chain::transaction::unsigned::UnsignedTransaction);
+pub struct UnsignedTransaction(pub(crate) chain::transaction::unsigned::UnsignedTransaction);
 pub type UnsignedTransactionPtr = *mut UnsignedTransaction;
 pub type ConstUnsignedTransactionPtr = *const UnsignedTransaction;
 

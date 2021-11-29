@@ -39,7 +39,7 @@ class ErgoBoxCandidateBuilder {
     func getValue() -> BoxValue {
         var ptr: BoxValuePtr?
         ergo_wallet_ergo_box_candidate_builder_value(self.pointer, &ptr)
-        return BoxValue(withPtr: ptr!)
+        return BoxValue(withRawPointer: ptr!)
     }
     
     func calcBoxSizeBytes() throws -> UInt {
@@ -52,7 +52,7 @@ class ErgoBoxCandidateBuilder {
         var ptr: BoxValuePtr?
         let error = ergo_wallet_ergo_box_candidate_calc_min_box_value(self.pointer, &ptr)
         try checkError(error)
-        return BoxValue(withPtr: ptr!)
+        return BoxValue(withRawPointer: ptr!)
     }
     
     func setRegisterValue(

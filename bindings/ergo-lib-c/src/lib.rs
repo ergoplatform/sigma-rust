@@ -31,6 +31,7 @@ mod input;
 mod secret_key;
 mod token;
 mod transaction;
+mod tx_builder;
 use ergo_lib::ergotree_ir::chain;
 
 pub use crate::address::*;
@@ -49,6 +50,7 @@ pub use crate::input::*;
 pub use crate::secret_key::*;
 pub use crate::token::*;
 pub use crate::transaction::*;
+pub use crate::tx_builder::*;
 pub use ergo_lib_c_core::{
     address::{Address, AddressTypePrefix, NetworkPrefix},
     Error,

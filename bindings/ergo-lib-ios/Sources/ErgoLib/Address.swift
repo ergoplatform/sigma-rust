@@ -16,6 +16,10 @@ class Address {
         self.pointer = try Address.fromBase58(addressStr: addressStr)
     }
     
+    init(withRawPointer ptr: AddressPtr) {
+        self.pointer = ptr
+    }
+    
     func toBase58(networkPrefix: NetworkPrefix) -> String {
         var cStr: UnsafePointer<CChar>?
         ergo_wallet_address_to_base58(self.pointer, networkPrefix.rawValue, &cStr)
