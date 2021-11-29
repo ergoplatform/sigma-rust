@@ -1,15 +1,14 @@
-use ergo_lib_c_core::{secret_key::*, Error};
+use ergo_lib_c_core::{address::AddressPtr, secret_key::*, Error};
 use paste::paste;
 
-use crate::ErrorPtr;
+use crate::{delete_ptr, ErrorPtr};
 
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_secret_key_from_bytes(
     bytes_ptr: *const u8,
-    len: usize,
     secret_key_out: *mut SecretKeyPtr,
 ) -> ErrorPtr {
-    let res = secret_key_from_bytes(bytes_ptr, len, secret_key_out);
+    let res = secret_key_from_bytes(bytes_ptr, secret_key_out);
     Error::c_api_from(res)
 }
 
@@ -17,6 +16,15 @@ pub unsafe extern "C" fn ergo_wallet_secret_key_from_bytes(
 pub unsafe extern "C" fn ergo_wallet_secret_key_generate_random(secret_key_out: *mut SecretKeyPtr) {
     #[allow(clippy::unwrap_used)]
     secret_key_generate_random(secret_key_out).unwrap();
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ergo_wallet_secret_key_get_address(
+    secret_key_ptr: ConstSecretKeyPtr,
+    address_out: *mut AddressPtr,
+) {
+    #[allow(clippy::unwrap_used)]
+    secret_key_get_address(secret_key_ptr, address_out).unwrap();
 }
 
 #[no_mangle]
@@ -29,8 +37,8 @@ pub unsafe extern "C" fn ergo_wallet_secret_key_to_bytes(
 }
 
 #[no_mangle]
-pub extern "C" fn ergo_wallet_secret_key_delete(secret_key_ptr: SecretKeyPtr) {
-    secret_key_delete(secret_key_ptr)
+pub extern "C" fn ergo_wallet_secret_key_delete(ptr: SecretKeyPtr) {
+    unsafe { delete_ptr(ptr) }
 }
 
 make_collection!(SecretKeys, SecretKey);

@@ -46,6 +46,15 @@ final class HeaderTests: XCTestCase {
         XCTAssertNil(headers.get(index: 10))
     }
     
+    static func generateBlockHeadersFromJSON() throws -> BlockHeaders {
+        let count = 10
+        let json1 = Array(
+            repeating: HeaderTests.jsonHeaderExample().data(using: .utf8, allowLossyConversion: false)!,
+            count: count
+        )
+        return try BlockHeaders(fromJSON: json1)
+    }
+    
     func testBlockHeadersFromJSON() throws {
         let count = 20
         

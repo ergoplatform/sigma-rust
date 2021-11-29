@@ -3,7 +3,8 @@ use ergo_lib::ergotree_interpreter::sigma_protocol::private_input::DlogProverInp
 use ergo_lib::wallet;
 use std::convert::TryInto;
 
-use crate::util::const_ptr_as_ref;
+use crate::address::{Address, AddressPtr};
+use crate::util::{const_ptr_as_ref, mut_ptr_as_mut};
 use crate::Error;
 
 #[derive(PartialEq, Debug, Clone)]
@@ -13,13 +14,12 @@ pub type ConstSecretKeyPtr = *const SecretKey;
 
 pub unsafe fn secret_key_from_bytes(
     bytes_ptr: *const u8,
-    len: usize,
     secret_key_out: *mut SecretKeyPtr,
 ) -> Result<(), Error> {
     if bytes_ptr.is_null() {
         return Err(Error::Misc("bytes_ptr is null".into()));
     }
-    let bytes = std::slice::from_raw_parts(bytes_ptr, len);
+    let bytes = std::slice::from_raw_parts(bytes_ptr, DlogProverInput::SIZE_BYTES);
     let sized_bytes: &[u8; DlogProverInput::SIZE_BYTES] = bytes
         .try_into()
         .map_err(|_| Error::Misc("bytes_ptr is not 32 bytes".into()))?;
@@ -38,6 +38,18 @@ pub unsafe fn secret_key_generate_random(secret_key_out: *mut SecretKeyPtr) -> R
     Ok(())
 }
 
+pub unsafe fn secret_key_get_address(
+    secret_key_ptr: ConstSecretKeyPtr,
+    address_out: *mut AddressPtr,
+) -> Result<(), Error> {
+    let secret_key = const_ptr_as_ref(secret_key_ptr, "secret_key_ptr")?;
+    let address_out = mut_ptr_as_mut(address_out, "address_out")?;
+    *address_out = Box::into_raw(Box::new(Address(
+        secret_key.0.get_address_from_public_image(),
+    )));
+    Ok(())
+}
+
 /// Convert to serialized bytes. Key assumption: 32 bytes have been allocated at the address
 /// pointed-to by `output`.
 pub unsafe fn secret_key_to_bytes(
@@ -48,11 +60,4 @@ pub unsafe fn secret_key_to_bytes(
     let src = secret_key.0.to_bytes();
     std::ptr::copy_nonoverlapping(src.as_ptr(), output, DlogProverInput::SIZE_BYTES);
     Ok(())
-}
-
-pub fn secret_key_delete(ptr: SecretKeyPtr) {
-    if !ptr.is_null() {
-        let boxed = unsafe { Box::from_raw(ptr) };
-        std::mem::drop(boxed);
-    }
 }
