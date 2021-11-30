@@ -1,4 +1,4 @@
-use std::convert::{Infallible, TryInto};
+use std::convert::TryInto;
 use std::io;
 
 use crate::vlq_encode;
@@ -15,13 +15,10 @@ pub enum ScorexSerializationError {
     /// Serialization not yet implemented
     #[error("serialization not yet implemented: {0}")]
     NotImplementedYet(&'static str),
-    /// Unexpected value type
-    #[error("Unexpected value: {0:?}")]
-    UnexpectedValue(&'static str),
     /// Serialization not supported
     #[error("serialization not supported: {0}")]
     NotSupported(&'static str),
-    ///
+    /// Integer type conversion failed
     #[error("Bounds check error: {0}")]
     TryFrom(#[from] std::num::TryFromIntError),
 }
@@ -29,13 +26,6 @@ pub enum ScorexSerializationError {
 impl From<io::Error> for ScorexSerializationError {
     fn from(error: io::Error) -> Self {
         ScorexSerializationError::Io(error.to_string())
-    }
-}
-
-impl From<Infallible> for ScorexSerializationError {
-    /// This error can occur when upcasting integers, u16 -> u32
-    fn from(_: Infallible) -> Self {
-        ScorexSerializationError::Io("This should not be possible!".into())
     }
 }
 
@@ -84,9 +74,6 @@ pub enum ScorexParsingError {
     /// Invalid item quantity for BoundedVec
     #[error("Invalid item quantity for BoundedVec: {0}")]
     BoundedVecOutOfBounds(#[from] BoundedVecOutOfBounds),
-    ///
-    #[error("Bounds check error: {0}")]
-    TryFrom(#[from] std::num::TryFromIntError),
 }
 
 impl From<io::Error> for ScorexParsingError {
