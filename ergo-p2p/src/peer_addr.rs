@@ -1,17 +1,8 @@
 //! Peer address types
-use std::{
-    io,
-    net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4},
-};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4};
 
 use derive_more::{From, Into};
 use sigma_ser::{ScorexSerializable, ScorexSerializationError};
-
-/// Peer address errors
-pub enum PeerAddrError {
-    /// Ipv6 is not currently supported
-    Ipv6Unsupported,
-}
 
 /// Peer address
 #[derive(PartialEq, Eq, Debug, Copy, Clone, From, Into, Hash)]
@@ -19,22 +10,10 @@ pub struct PeerAddr(pub SocketAddr);
 
 impl PeerAddr {
     /// Size in bytes of the ip address associated with this peer address
-    pub fn ip_size(&self) -> Result<usize, PeerAddrError> {
-        let ip = self.0.ip();
-
-        match ip {
-            IpAddr::V4(ip) => Ok(ip.octets().len()),
-            IpAddr::V6(_) => Err(PeerAddrError::Ipv6Unsupported),
-        }
-    }
-}
-
-impl From<PeerAddrError> for io::Error {
-    fn from(e: PeerAddrError) -> Self {
-        match e {
-            PeerAddrError::Ipv6Unsupported => {
-                io::Error::new(io::ErrorKind::Unsupported, "ipv6 not supported")
-            }
+    pub fn ip_size(&self) -> usize {
+        match self.0.ip() {
+            IpAddr::V4(ip) => ip.octets().len(),
+            IpAddr::V6(ip) => ip.octets().len(),
         }
     }
 }

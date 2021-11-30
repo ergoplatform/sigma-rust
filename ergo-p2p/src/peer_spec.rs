@@ -1,5 +1,4 @@
 //! PeerSpec types
-use std::convert::TryInto;
 use std::io;
 
 use sigma_ser::vlq_encode::VlqEncodingError;
@@ -65,11 +64,7 @@ impl ScorexSerializable for PeerSpec {
         w.put_option(self.declared_addr, &|w: &mut W,
                                            addr: PeerAddr|
          -> io::Result<()> {
-            let addr_size: u8 = addr.ip_size()?.try_into().map_err(|_| {
-                io::Error::new(io::ErrorKind::InvalidInput, "failed to parse ip size")
-            })?;
-
-            w.put_u8(addr_size)?;
+            w.put_u8(addr.ip_size() as u8)?;
             addr.scorex_serialize(w)?;
 
             Ok(())
