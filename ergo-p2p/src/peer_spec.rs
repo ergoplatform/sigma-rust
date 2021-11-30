@@ -75,11 +75,7 @@ impl ScorexSerializable for PeerSpec {
             Ok(())
         })?;
 
-        // Can't use Vec<ScorexSerializable> becuase we need the size as u8
-        w.put_u8(self.features.len().try_into()?)?;
-        self.features
-            .iter()
-            .try_for_each(|i| i.scorex_serialize(w))?;
+        self.features.scorex_serialize(w)?;
 
         Ok(())
     }
@@ -102,12 +98,7 @@ impl ScorexSerializable for PeerSpec {
             Ok(PeerAddr::scorex_parse(r).map_err(|_| VlqEncodingError::VlqDecodingFailed)?)
         });
 
-        // Can't use Vec<ScorexSerializable> becuase we need the size as u8
-        let features_count = r.get_u8()?;
-        let mut features: Vec<PeerFeature> = Vec::with_capacity(features_count as usize);
-        for _ in 0..features_count {
-            features.push(PeerFeature::scorex_parse(r)?);
-        }
+        let features = Vec::<PeerFeature>::scorex_parse(r)?;
 
         Ok(PeerSpec::new(
             &agent_name,
