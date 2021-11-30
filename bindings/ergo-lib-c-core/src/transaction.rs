@@ -95,9 +95,7 @@ pub unsafe fn unsigned_tx_from_json(
     unsigned_tx_out: *mut UnsignedTransactionPtr,
 ) -> Result<(), Error> {
     let unsigned_tx_out = mut_ptr_as_mut(unsigned_tx_out, "unsigned_tx_out")?;
-    let unsigned_tx = serde_json::from_str(json)
-        .map(UnsignedTransaction)
-        .map_err(|_| Error::Misc("UnsignedTransaction: can't deserialize from JSON".into()))?;
+    let unsigned_tx = serde_json::from_str(json).map(UnsignedTransaction)?;
     *unsigned_tx_out = Box::into_raw(Box::new(unsigned_tx));
     Ok(())
 }
@@ -106,8 +104,8 @@ pub unsafe fn unsigned_tx_to_json(
     unsigned_tx_ptr: ConstUnsignedTransactionPtr,
 ) -> Result<String, Error> {
     let unsigned_tx = const_ptr_as_ref(unsigned_tx_ptr, "unsigned_tx_ptr")?;
-    serde_json::to_string(&unsigned_tx.0)
-        .map_err(|_| Error::Misc("UnsignedTransaction: can't serialize into JSON".into()))
+    let s = serde_json::to_string(&unsigned_tx.0)?;
+    Ok(s)
 }
 
 /// JSON representation according to EIP-12 <https://github.com/ergoplatform/eips/pull/23>
@@ -116,8 +114,8 @@ pub unsafe fn unsigned_tx_to_json_eip12(
 ) -> Result<String, Error> {
     let unsigned_tx = const_ptr_as_ref(unsigned_tx_ptr, "unsigned_tx_ptr")?;
     let tx_dapp: UnsignedTransactionJsonEip12 = unsigned_tx.0.clone().into();
-    serde_json::to_string(&tx_dapp)
-        .map_err(|_| Error::Misc("UnsignedTransaction: can't serialize into JSON EIP-12".into()))
+    let s = serde_json::to_string(&tx_dapp)?;
+    Ok(s)
 }
 
 /// Transaction id
@@ -128,12 +126,10 @@ pub type ConstTxIdPtr = *const TxId;
 
 pub unsafe fn tx_id_from_str(str: &str, tx_id_out: *mut TxIdPtr) -> Result<(), Error> {
     let tx_id_out = mut_ptr_as_mut(tx_id_out, "tx_id_out")?;
-    let bytes = Base16DecodedBytes::try_from(str.to_string())
-        .map_err(|_| Error::Misc("TxId: can't decode str into base16DecodedBytes".into()))?;
+    let bytes = Base16DecodedBytes::try_from(str.to_string())?;
     let tx_id = bytes
         .try_into()
-        .map(|digest| TxId(chain::transaction::TxId(digest)))
-        .map_err(|_| Error::Misc("TxId: can't deserialize from str".into()))?;
+        .map(|digest| TxId(chain::transaction::TxId(digest)))?;
     *tx_id_out = Box::into_raw(Box::new(tx_id));
     Ok(())
 }
@@ -175,7 +171,6 @@ pub unsafe fn tx_from_unsigned_tx(
             .map(|bytes| bytes.0.into())
             .collect(),
     )
-    .map_err(|_| Error::Misc("Transaction.from_unsigned_tx: fail".into()))
     .map(Transaction)?;
     *tx_out = Box::into_raw(Box::new(tx));
     Ok(())
@@ -190,25 +185,23 @@ pub unsafe fn tx_id(tx_ptr: ConstTransactionPtr, tx_id_out: *mut TxIdPtr) -> Res
 
 pub unsafe fn tx_from_json(json: &str, tx_out: *mut TransactionPtr) -> Result<(), Error> {
     let tx_out = mut_ptr_as_mut(tx_out, "tx_out")?;
-    let tx = serde_json::from_str(json)
-        .map(Transaction)
-        .map_err(|_| Error::Misc("Transaction: can't deserialize from JSON".into()))?;
+    let tx = serde_json::from_str(json).map(Transaction)?;
     *tx_out = Box::into_raw(Box::new(tx));
     Ok(())
 }
 
 pub unsafe fn tx_to_json(tx_ptr: ConstTransactionPtr) -> Result<String, Error> {
     let tx = const_ptr_as_ref(tx_ptr, "tx_ptr")?;
-    serde_json::to_string(&tx.0)
-        .map_err(|_| Error::Misc("Transaction: can't serialize into JSON".into()))
+    let s = serde_json::to_string(&tx.0)?;
+    Ok(s)
 }
 
 /// JSON representation according to EIP-12 <https://github.com/ergoplatform/eips/pull/23>
 pub unsafe fn tx_to_json_eip12(tx_ptr: ConstTransactionPtr) -> Result<String, Error> {
     let tx = const_ptr_as_ref(tx_ptr, "tx_ptr")?;
     let tx_dapp: TransactionJsonEip12 = tx.0.clone().into();
-    serde_json::to_string(&tx_dapp)
-        .map_err(|_| Error::Misc("Transaction: can't serialize into JSON EIP-12".into()))
+    let s = serde_json::to_string(&tx_dapp)?;
+    Ok(s)
 }
 
 pub unsafe fn tx_inputs(

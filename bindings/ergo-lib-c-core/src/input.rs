@@ -107,6 +107,6 @@ pub unsafe fn prover_result_to_json(
     prover_result_ptr: ConstProverResultPtr,
 ) -> Result<String, Error> {
     let prover_result = const_ptr_as_ref(prover_result_ptr, "prover_result_ptr")?;
-    serde_json::to_string_pretty(&prover_result.0.clone())
-        .map_err(|_| Error::Misc("ProverResult: error converting to JSON".into()))
+    let s = serde_json::to_string_pretty(&prover_result.0.clone())?;
+    Ok(s)
 }

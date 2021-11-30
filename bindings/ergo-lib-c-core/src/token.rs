@@ -34,11 +34,9 @@ pub unsafe fn token_id_from_box_id(
 /// Parse token id (32 byte digest) from base16-encoded string
 pub unsafe fn token_id_from_str(str: &str, token_id_out: *mut TokenIdPtr) -> Result<(), Error> {
     let token_id_out = mut_ptr_as_mut(token_id_out, "token_id_out")?;
-    let base_16_decoded_bytes = Base16DecodedBytes::try_from(str.to_string())
-        .map_err(|_| Error::Misc("TokenId: can't decode from base16 encoded string".into()))?;
+    let base_16_decoded_bytes = Base16DecodedBytes::try_from(str.to_string())?;
 
     let token_id = Digest32::try_from(base_16_decoded_bytes)
-        .map_err(|_| Error::Misc("TokenId: can't convert bytes into Digest32".into()))
         .map(|dig| dig.into())
         .map(TokenId)?;
     *token_id_out = Box::into_raw(Box::new(token_id));
@@ -62,8 +60,7 @@ pub unsafe fn token_amount_from_i64(
     token_amount_out: *mut TokenAmountPtr,
 ) -> Result<(), Error> {
     let token_amount_out = mut_ptr_as_mut(token_amount_out, "token_amount_out")?;
-    let inner = chain::token::TokenAmount::try_from(amount as u64)
-        .map_err(|_| Error::Misc("TokenAmount: can't parse from i64".into()))?;
+    let inner = chain::token::TokenAmount::try_from(amount as u64)?;
     *token_amount_out = Box::into_raw(Box::new(TokenAmount(inner)));
     Ok(())
 }
@@ -122,8 +119,8 @@ pub unsafe fn token_get_amount(
 pub unsafe fn token_to_json_eip12(token_ptr: ConstTokenPtr) -> Result<String, Error> {
     let token = const_ptr_as_ref(token_ptr, "token_ptr")?;
     let t_dapp: TokenJsonEip12 = token.0.clone().into();
-    serde_json::to_string(&t_dapp)
-        .map_err(|_| Error::Misc("Token: can't serialize into JSON EIP-12".into()))
+    let s = serde_json::to_string(&t_dapp)?;
+    Ok(s)
 }
 
 /// A Bounded Vector for Tokens. A Box can have between 1 and 255 tokens

@@ -77,12 +77,7 @@ pub unsafe fn tx_builder_build(
     let tx_builder = const_ptr_as_ref(tx_builder_ptr, "tx_builder_ptr")?;
     let unsigned_transaction_out =
         mut_ptr_as_mut(unsigned_transaction_out, "unsigned_transaction_out")?;
-    let unsigned_tx = tx_builder
-        .0
-        .clone()
-        .build()
-        .map(UnsignedTransaction)
-        .map_err(|_| Error::Misc("TxBuilder.build(): error".into()))?;
+    let unsigned_tx = tx_builder.0.clone().build().map(UnsignedTransaction)?;
     *unsigned_transaction_out = Box::into_raw(Box::new(unsigned_tx));
     Ok(())
 }

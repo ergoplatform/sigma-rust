@@ -78,10 +78,8 @@ pub unsafe fn ergo_box_candidate_builder_calc_box_size_bytes(
     builder_ptr: ConstErgoBoxCandidateBuilderPtr,
 ) -> Result<usize, Error> {
     let builder = const_ptr_as_ref(builder_ptr, "builder_ptr")?;
-    builder
-        .0
-        .calc_box_size_bytes()
-        .map_err(|_| Error::Misc("ErgoBoxCandidateBuilder.calc_box_size_bytes: error".into()))
+    let b = builder.0.calc_box_size_bytes()?;
+    Ok(b)
 }
 
 pub unsafe fn ergo_box_candidate_builder_calc_min_box_value(
@@ -90,11 +88,7 @@ pub unsafe fn ergo_box_candidate_builder_calc_min_box_value(
 ) -> Result<(), Error> {
     let builder = const_ptr_as_ref(builder_ptr, "builder_ptr")?;
     let value_out = mut_ptr_as_mut(value_out, "value_out")?;
-    let value = builder
-        .0
-        .calc_min_box_value()
-        .map(BoxValue)
-        .map_err(|_| Error::Misc("ErgoBoxCandidateBuilder.calc_min_box_value: error".into()))?;
+    let value = builder.0.calc_min_box_value().map(BoxValue)?;
     *value_out = Box::into_raw(Box::new(value));
     Ok(())
 }
@@ -178,12 +172,7 @@ pub unsafe fn ergo_box_candidate_builder_build(
 ) -> Result<(), Error> {
     let ergo_box_candidate_out = mut_ptr_as_mut(ergo_box_candidate_out, "ergo_box_candidate_out")?;
     let builder = const_ptr_as_ref(builder_ptr, "builder_ptr")?;
-    let candidate = builder
-        .0
-        .clone()
-        .build()
-        .map(ErgoBoxCandidate)
-        .map_err(|_| Error::Misc("".into()))?;
+    let candidate = builder.0.clone().build().map(ErgoBoxCandidate)?;
     *ergo_box_candidate_out = Box::into_raw(Box::new(candidate));
     Ok(())
 }

@@ -27,21 +27,16 @@ pub unsafe fn constant_from_base16_bytes(
     constant_out: *mut ConstantPtr,
 ) -> Result<(), Error> {
     let constant_out = mut_ptr_as_mut(constant_out, "constant_out")?;
-    let bytes = Base16DecodedBytes::try_from(bytes_str.to_string())
-        .map_err(|_| Error::Misc("Constant: can't decode from base16 bytes".into()))?;
-    let constant = ergo_lib::ergotree_ir::mir::constant::Constant::try_from(bytes)
-        .map(Constant)
-        .map_err(|_| Error::Misc("Constant: can't parse base16 bytes".into()))?;
+    let bytes = Base16DecodedBytes::try_from(bytes_str.to_string())?;
+    let constant = ergo_lib::ergotree_ir::mir::constant::Constant::try_from(bytes).map(Constant)?;
     *constant_out = Box::into_raw(Box::new(constant));
     Ok(())
 }
 
 pub unsafe fn constant_to_base16_str(constant_ptr: ConstConstantPtr) -> Result<String, Error> {
     let constant = const_ptr_as_ref(constant_ptr, "constant_ptr")?;
-    constant
-        .0
-        .base16_str()
-        .map_err(|_| Error::Misc("Constant: can't encode into base16 string".into()))
+    let s = constant.0.base16_str()?;
+    Ok(s)
 }
 
 pub unsafe fn constant_from_i32(value: i32, constant_out: *mut ConstantPtr) -> Result<(), Error> {
@@ -52,8 +47,8 @@ pub unsafe fn constant_from_i32(value: i32, constant_out: *mut ConstantPtr) -> R
 
 pub unsafe fn constant_to_i32(constant_ptr: ConstConstantPtr) -> Result<i32, Error> {
     let constant = const_ptr_as_ref(constant_ptr, "constant_ptr")?;
-    i32::try_extract_from(constant.0.clone())
-        .map_err(|_| Error::Misc("Constant.to_i32: wrong variant".into()))
+    let i = i32::try_extract_from(constant.0.clone())?;
+    Ok(i)
 }
 
 pub unsafe fn constant_from_i64(value: i64, constant_out: *mut ConstantPtr) -> Result<(), Error> {
@@ -64,8 +59,8 @@ pub unsafe fn constant_from_i64(value: i64, constant_out: *mut ConstantPtr) -> R
 
 pub unsafe fn constant_to_i64(constant_ptr: ConstConstantPtr) -> Result<i64, Error> {
     let constant = const_ptr_as_ref(constant_ptr, "constant_ptr")?;
-    i64::try_extract_from(constant.0.clone())
-        .map_err(|_| Error::Misc("Constant.to_i32: wrong variant".into()))
+    let i = i64::try_extract_from(constant.0.clone())?;
+    Ok(i)
 }
 
 pub unsafe fn constant_from_bytes(
@@ -81,9 +76,8 @@ pub unsafe fn constant_from_bytes(
 
 pub unsafe fn constant_bytes_len(constant_ptr: ConstConstantPtr) -> Result<usize, Error> {
     let constant = const_ptr_as_ref(constant_ptr, "constant_ptr")?;
-    Vec::<u8>::try_extract_from(constant.0.clone())
-        .map(|v| v.len())
-        .map_err(|_| Error::Misc("Constant.bytes_len: error".into()))
+    let len = Vec::<u8>::try_extract_from(constant.0.clone()).map(|v| v.len())?;
+    Ok(len)
 }
 
 /// Convert to serialized bytes. Key assumption: enough memory has been allocated at the address
@@ -93,8 +87,7 @@ pub unsafe fn constant_to_bytes(
     output: *mut u8,
 ) -> Result<(), Error> {
     let constant = const_ptr_as_ref(constant_ptr, "constant_ptr")?;
-    let src = Vec::<u8>::try_extract_from(constant.0.clone())
-        .map_err(|_| Error::Misc("Constant.to_bytes: error".into()))?;
+    let src = Vec::<u8>::try_extract_from(constant.0.clone())?;
     std::ptr::copy_nonoverlapping(src.as_ptr(), output, src.len());
     Ok(())
 }
@@ -106,8 +99,7 @@ pub unsafe fn constant_from_ecpoint_bytes(
 ) -> Result<(), Error> {
     let constant_out = mut_ptr_as_mut(constant_out, "constant_out")?;
     let bytes = std::slice::from_raw_parts(bytes_ptr, len);
-    let ecp = EcPoint::sigma_parse_bytes(bytes)
-        .map_err(|_| Error::Misc("Constant.from_ecpoint_bytes: parsing fail".into()))?;
+    let ecp = EcPoint::sigma_parse_bytes(bytes)?;
     let c: ergo_lib::ergotree_ir::mir::constant::Constant = ProveDlog::new(ecp).into();
     *constant_out = Box::into_raw(Box::new(Constant(c)));
     Ok(())
@@ -134,8 +126,7 @@ pub unsafe fn constant_to_ergo_box(
         .0
         .clone()
         .try_extract_into::<ergo_lib::ergotree_ir::chain::ergo_box::ErgoBox>()
-        .map(Into::into)
-        .map_err(|_| Error::Misc("".into()))?;
+        .map(Into::into)?;
     *ergo_box_out = Box::into_raw(Box::new(ErgoBox(b)));
     Ok(())
 }

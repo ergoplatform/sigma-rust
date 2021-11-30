@@ -32,5 +32,6 @@ pub mod transaction;
 pub mod tx_builder;
 pub mod util;
 pub mod wallet;
+pub mod error_conversion;
 pub use crate::error::*;
 mod error;

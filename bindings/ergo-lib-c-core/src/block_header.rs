@@ -13,9 +13,7 @@ pub unsafe fn block_header_from_json(
     block_header_out: *mut BlockHeaderPtr,
 ) -> Result<(), Error> {
     let block_header_out = mut_ptr_as_mut(block_header_out, "block_header_out")?;
-    let header = serde_json::from_str(json)
-        .map(BlockHeader)
-        .map_err(|_| Error::Misc("BlockHeader: can't deserialize from JSON".into()))?;
+    let header = serde_json::from_str(json).map(BlockHeader)?;
     *block_header_out = Box::into_raw(Box::new(header));
     Ok(())
 }

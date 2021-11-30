@@ -63,26 +63,21 @@ pub unsafe fn wallet_sign_transaction(
     let data_boxes = const_ptr_as_ref(data_boxes_ptr, "data_boxes_ptr")?;
     let transaction_out = mut_ptr_as_mut(transaction_out, "transaction_out")?;
     let boxes_to_spend =
-        TxIoVec::from_vec(boxes_to_spend.0.clone().into_iter().map(|b| b.0).collect())
-            .map_err(|_| Error::Misc("".into()))?;
+        TxIoVec::from_vec(boxes_to_spend.0.clone().into_iter().map(|b| b.0).collect())?;
     let data_boxes = {
         let d: Vec<_> = data_boxes.0.clone().into_iter().map(|b| b.0).collect();
         if d.is_empty() {
             None
         } else {
-            Some(TxIoVec::from_vec(d).map_err(|_| Error::Misc("".into()))?)
+            Some(TxIoVec::from_vec(d)?)
         }
     };
     let tx_context = ergo_lib::wallet::signing::TransactionContext::new(
         unsigned_tx.0.clone(),
         boxes_to_spend,
         data_boxes,
-    )
-    .map_err(|_| Error::Misc("".into()))?;
-    let tx = wallet
-        .0
-        .sign_transaction(tx_context, &state_context.0)
-        .map_err(|_| Error::Misc("".into()))?;
+    )?;
+    let tx = wallet.0.sign_transaction(tx_context, &state_context.0)?;
     *transaction_out = Box::into_raw(Box::new(Transaction(tx)));
     Ok(())
 }
@@ -98,8 +93,7 @@ pub unsafe fn wallet_sign_reduced_transaction(
     let tx = wallet
         .0
         .sign_reduced_transaction(reduced_tx.0.clone())
-        .map(Transaction)
-        .map_err(|_| Error::Misc("".into()))?;
+        .map(Transaction)?;
     *transaction_out = Box::into_raw(Box::new(tx));
     Ok(())
 }

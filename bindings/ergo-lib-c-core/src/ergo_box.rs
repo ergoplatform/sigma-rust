@@ -39,9 +39,7 @@ pub type ConstBoxIdPtr = *const BoxId;
 
 pub unsafe fn box_id_from_str(box_id_str: &str, box_id_out: *mut BoxIdPtr) -> Result<(), Error> {
     let box_id_out = mut_ptr_as_mut(box_id_out, "box_id_out")?;
-    let box_id = chain::ergo_box::BoxId::try_from(String::from(box_id_str))
-        .map(BoxId)
-        .map_err(|_| Error::Misc("BoxId: can't deserialize from string".into()))?;
+    let box_id = chain::ergo_box::BoxId::try_from(String::from(box_id_str)).map(BoxId)?;
     *box_id_out = Box::into_raw(Box::new(box_id));
     Ok(())
 }
@@ -87,8 +85,7 @@ pub unsafe fn box_value_from_i64(
     box_value_out: *mut BoxValuePtr,
 ) -> Result<(), Error> {
     let box_value_out = mut_ptr_as_mut(box_value_out, "box_value_out")?;
-    let inner = chain::ergo_box::box_value::BoxValue::try_from(amount as u64)
-        .map_err(|_| Error::Misc("BoxValue: can't parse from i64".into()))?;
+    let inner = chain::ergo_box::box_value::BoxValue::try_from(amount as u64)?;
     *box_value_out = Box::into_raw(Box::new(BoxValue(inner)));
     Ok(())
 }
@@ -196,8 +193,7 @@ pub unsafe fn ergo_box_new(
         tx_id.0.clone(),
         index,
     )
-    .map(ErgoBox)
-    .map_err(|_| Error::Misc("ErgoBox::new: can't create instance".into()))?;
+    .map(ErgoBox)?;
     *ergo_box_out = Box::into_raw(Box::new(ergo_box));
     Ok(())
 }
@@ -266,25 +262,23 @@ pub unsafe fn ergo_box_register_value(
 
 pub unsafe fn ergo_box_from_json(json: &str, ergo_box_out: *mut ErgoBoxPtr) -> Result<(), Error> {
     let ergo_box_out = mut_ptr_as_mut(ergo_box_out, "ergo_box_out")?;
-    let unsigned_tx = serde_json::from_str(json)
-        .map(ErgoBox)
-        .map_err(|_| Error::Misc("ErgoBox: can't deserialize from JSON".into()))?;
+    let unsigned_tx = serde_json::from_str(json).map(ErgoBox)?;
     *ergo_box_out = Box::into_raw(Box::new(unsigned_tx));
     Ok(())
 }
 
 pub unsafe fn ergo_box_to_json(ergo_box_ptr: ConstErgoBoxPtr) -> Result<String, Error> {
     let ergo_box = const_ptr_as_ref(ergo_box_ptr, "ergo_box_ptr")?;
-    serde_json::to_string(&ergo_box.0)
-        .map_err(|_| Error::Misc("ErgoBox: can't serialize into JSON".into()))
+    let s = serde_json::to_string(&ergo_box.0)?;
+    Ok(s)
 }
 
 /// JSON representation according to EIP-12 <https://github.com/ergoplatform/eips/pull/23>
 pub unsafe fn ergo_box_to_json_eip12(ergo_box_ptr: ConstErgoBoxPtr) -> Result<String, Error> {
     let ergo_box = const_ptr_as_ref(ergo_box_ptr, "ergo_box_ptr")?;
     let box_dapp: ErgoBoxJsonEip12 = ergo_box.0.clone().into();
-    serde_json::to_string(&box_dapp)
-        .map_err(|_| Error::Misc("ErgoBox: can't serialize into JSON EIP-12".into()))
+    let s = serde_json::to_string(&box_dapp)?;
+    Ok(s)
 }
 
 /// Pair of <value, tokens> for an box

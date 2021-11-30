@@ -27,8 +27,7 @@ pub unsafe fn box_selection_new(
     let box_selection_out = mut_ptr_as_mut(box_selection_out, "box_selection_out")?;
     let boxes = wallet::box_selector::SelectedBoxes::from_vec(
         ergo_boxes.0.clone().into_iter().map(|b| b.0).collect(),
-    )
-    .map_err(|_| Error::Misc("BoxSelection: can't form boxes".into()))?;
+    )?;
     *box_selection_out = Box::into_raw(Box::new(BoxSelection(
         wallet::box_selector::BoxSelection::<ergo_lib::ergotree_ir::chain::ergo_box::ErgoBox> {
             boxes,
@@ -107,18 +106,15 @@ pub unsafe fn simple_box_selector_select(
     let target_tokens = const_ptr_as_ref(target_tokens_ptr, "target_tokens_ptr")?;
     let simple_box_selector = const_ptr_as_ref(simple_box_selector_ptr, "simple_box_selector_ptr")?;
     let box_selection_out = mut_ptr_as_mut(box_selection_out, "box_selection_out")?;
-    let box_selection = simple_box_selector
-        .0
-        .select(
-            inputs.0.clone().into_iter().map(|b| b.0).collect(),
-            target_balance.0,
-            &target_tokens
-                .0
-                .clone()
-                .map(|tokens| tokens.mapped(|t| t.0).as_vec().clone())
-                .unwrap_or_else(Vec::new),
-        )
-        .map_err(|_| Error::Misc("SimpleBoxSelection::select(): error".into()))?;
+    let box_selection = simple_box_selector.0.select(
+        inputs.0.clone().into_iter().map(|b| b.0).collect(),
+        target_balance.0,
+        &target_tokens
+            .0
+            .clone()
+            .map(|tokens| tokens.mapped(|t| t.0).as_vec().clone())
+            .unwrap_or_else(Vec::new),
+    )?;
     *box_selection_out = Box::into_raw(Box::new(BoxSelection(box_selection)));
     Ok(())
 }

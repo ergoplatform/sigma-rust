@@ -24,12 +24,9 @@ pub unsafe fn ergo_tree_from_base16_bytes(
     ergo_tree_out: *mut ErgoTreePtr,
 ) -> Result<(), Error> {
     let ergo_tree_out = mut_ptr_as_mut(ergo_tree_out, "ergo_tree_out")?;
-    let bytes = Base16DecodedBytes::try_from(bytes_str.to_string())
-        .map_err(|_| Error::Misc("ErgoTree: can't decode from base16 bytes".into()))?
-        .0;
-    let ergo_tree = ergo_lib::ergotree_ir::ergo_tree::ErgoTree::sigma_parse_bytes(&bytes)
-        .map(ErgoTree)
-        .map_err(|_| Error::Misc("ErgoTree: can't parse base16 bytes".into()))?;
+    let bytes = Base16DecodedBytes::try_from(bytes_str.to_string())?.0;
+    let ergo_tree =
+        ergo_lib::ergotree_ir::ergo_tree::ErgoTree::sigma_parse_bytes(&bytes).map(ErgoTree)?;
     *ergo_tree_out = Box::into_raw(Box::new(ergo_tree));
     Ok(())
 }
@@ -45,9 +42,8 @@ pub unsafe fn ergo_tree_from_bytes(
     }
     let bytes = std::slice::from_raw_parts(bytes_ptr, len);
     let ergo_tree_out = mut_ptr_as_mut(ergo_tree_out, "ergo_tree_out")?;
-    let ergo_tree = ergo_lib::ergotree_ir::ergo_tree::ErgoTree::sigma_parse_bytes(bytes)
-        .map(ErgoTree)
-        .map_err(|_| Error::Misc("ErgoTree: can't parse base16 bytes".into()))?;
+    let ergo_tree =
+        ergo_lib::ergotree_ir::ergo_tree::ErgoTree::sigma_parse_bytes(bytes).map(ErgoTree)?;
     *ergo_tree_out = Box::into_raw(Box::new(ergo_tree));
     Ok(())
 }
@@ -55,11 +51,7 @@ pub unsafe fn ergo_tree_from_bytes(
 /// Return length of the `&[u8]` serialized representation of `ErgoTree`.
 pub unsafe fn ergo_tree_bytes_len(ergo_tree_ptr: ConstErgoTreePtr) -> Result<usize, Error> {
     let ergo_tree = const_ptr_as_ref(ergo_tree_ptr, "ergo_tree_ptr")?;
-    let len = ergo_tree
-        .0
-        .sigma_serialize_bytes()
-        .map(|v| v.len())
-        .map_err(|_| Error::Misc("ErgoTree: can't serialize into bytes".into()))?;
+    let len = ergo_tree.0.sigma_serialize_bytes().map(|v| v.len())?;
     Ok(len)
 }
 
@@ -70,10 +62,7 @@ pub unsafe fn ergo_tree_to_bytes(
     output: *mut u8,
 ) -> Result<(), Error> {
     let ergo_tree = const_ptr_as_ref(ergo_tree_ptr, "ergo_tree_ptr")?;
-    let src = ergo_tree
-        .0
-        .sigma_serialize_bytes()
-        .map_err(|_| Error::Misc("ErgoTree: can't serialize into bytes".into()))?;
+    let src = ergo_tree.0.sigma_serialize_bytes()?;
     std::ptr::copy_nonoverlapping(src.as_ptr(), output, src.len());
     Ok(())
 }
@@ -81,10 +70,7 @@ pub unsafe fn ergo_tree_to_bytes(
 /// Convert to base16-encoded serialized bytes
 pub unsafe fn ergo_tree_to_base16_bytes(ergo_tree_ptr: ConstErgoTreePtr) -> Result<String, Error> {
     let ergo_tree = const_ptr_as_ref(ergo_tree_ptr, "ergo_tree_ptr")?;
-    let s = ergo_tree
-        .0
-        .to_base16_bytes()
-        .map_err(|_| Error::Misc("ErgoTree: can't serialize into bytes".into()))?;
+    let s = ergo_tree.0.to_base16_bytes()?;
     Ok(s)
 }
 
@@ -92,10 +78,8 @@ pub unsafe fn ergo_tree_to_base16_bytes(ergo_tree_ptr: ConstErgoTreePtr) -> Resu
 /// failed
 pub unsafe fn ergo_tree_constants_len(ergo_tree_ptr: ConstErgoTreePtr) -> Result<usize, Error> {
     let ergo_tree = const_ptr_as_ref(ergo_tree_ptr, "ergo_tree_ptr")?;
-    ergo_tree
-        .0
-        .constants_len()
-        .map_err(|_| Error::Misc("ErgoTree_constants_len: parsing of constants failed".into()))
+    let len = ergo_tree.0.constants_len()?;
+    Ok(len)
 }
 
 /// If constant with given index (as stored in serialized ErgoTree) exists, allocate it and store in
@@ -108,11 +92,7 @@ pub unsafe fn ergo_tree_get_constant(
 ) -> Result<bool, Error> {
     let ergo_tree = const_ptr_as_ref(ergo_tree_ptr, "ergo_tree_ptr")?;
     let constant_out = mut_ptr_as_mut(constant_out, "constant_out")?;
-    let constant = ergo_tree
-        .0
-        .get_constant(index)
-        .map(|c| c.map(Constant))
-        .map_err(|_| Error::Misc("ErgoTree_get_constant: parsing of constants failed".into()))?;
+    let constant = ergo_tree.0.get_constant(index).map(|c| c.map(Constant))?;
     if let Some(constant) = constant {
         *constant_out = Box::into_raw(Box::new(constant));
         Ok(true)
@@ -135,8 +115,7 @@ pub unsafe fn ergo_tree_with_constant(
     let ergo_tree_out = mut_ptr_as_mut(ergo_tree_out, "ergo_tree_out")?;
     let new_inner = ergo_tree_cloned
         .0
-        .with_constant(index, constant.0.clone())
-        .map_err(|_| Error::Misc("ErgoTree_with_constant: constant substitution failed".into()))?;
+        .with_constant(index, constant.0.clone())?;
     *ergo_tree_out = Box::into_raw(Box::new(ErgoTree(new_inner)));
     Ok(())
 }
@@ -146,11 +125,7 @@ pub unsafe fn ergo_tree_template_bytes_len(
     ergo_tree_ptr: ConstErgoTreePtr,
 ) -> Result<usize, Error> {
     let ergo_tree = const_ptr_as_ref(ergo_tree_ptr, "ergo_tree_ptr")?;
-    let len = ergo_tree
-        .0
-        .template_bytes()
-        .map(|v| v.len())
-        .map_err(|_| Error::Misc("ErgoTree: can't serialize into bytes".into()))?;
+    let len = ergo_tree.0.template_bytes().map(|v| v.len())?;
     Ok(len)
 }
 
@@ -162,10 +137,7 @@ pub unsafe fn ergo_tree_template_bytes(
     output: *mut u8,
 ) -> Result<(), Error> {
     let ergo_tree = const_ptr_as_ref(ergo_tree_ptr, "ergo_tree_ptr")?;
-    let src = ergo_tree
-        .0
-        .template_bytes()
-        .map_err(|_| Error::Misc("ErgoTree: can't serialize into template bytes".into()))?;
+    let src = ergo_tree.0.template_bytes()?;
     std::ptr::copy_nonoverlapping(src.as_ptr(), output, src.len());
     Ok(())
 }

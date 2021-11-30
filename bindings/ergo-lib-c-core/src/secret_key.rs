@@ -20,9 +20,7 @@ pub unsafe fn secret_key_from_bytes(
         return Err(Error::Misc("bytes_ptr is null".into()));
     }
     let bytes = std::slice::from_raw_parts(bytes_ptr, DlogProverInput::SIZE_BYTES);
-    let sized_bytes: &[u8; DlogProverInput::SIZE_BYTES] = bytes
-        .try_into()
-        .map_err(|_| Error::Misc("bytes_ptr is not 32 bytes".into()))?;
+    let sized_bytes: &[u8; DlogProverInput::SIZE_BYTES] = bytes.try_into()?;
     if let Some(k) = wallet::secret_key::SecretKey::dlog_from_bytes(sized_bytes).map(SecretKey) {
         *secret_key_out = Box::into_raw(Box::new(k));
         Ok(())
