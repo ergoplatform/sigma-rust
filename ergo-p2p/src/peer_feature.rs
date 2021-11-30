@@ -68,7 +68,7 @@ impl ScorexSerializable for PeerFeature {
     fn scorex_parse<R: sigma_ser::vlq_encode::ReadSigmaVlqExt>(
         r: &mut R,
     ) -> Result<Self, sigma_ser::ScorexParsingError> {
-        let feature_id: PeerFeatureId = r.get_u8()?.into();
+        let feature_id = PeerFeatureId::scorex_parse(r)?;
         let feature_size = r.get_u16()?;
         let mut feature_buf: Vec<u8> = Vec::with_capacity(feature_size as usize);
         r.read_exact(&mut feature_buf)?;

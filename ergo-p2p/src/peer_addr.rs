@@ -1,6 +1,5 @@
 //! Peer address types
 use std::{
-    // convert::TryInto,
     io,
     net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4},
 };
