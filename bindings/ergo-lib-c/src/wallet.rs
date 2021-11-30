@@ -6,6 +6,7 @@ use ergo_lib_c_core::{
     collections::ConstCollectionPtr,
     ergo_box::ErgoBox,
     ergo_state_ctx::ConstErgoStateContextPtr,
+    reduced::ConstReducedTransactionPtr,
     secret_key::SecretKey,
     transaction::{ConstUnsignedTransactionPtr, TransactionPtr},
     wallet::*,
@@ -52,6 +53,16 @@ pub unsafe extern "C" fn ergo_wallet_wallet_sign_transaction(
         data_boxes_ptr,
         transaction_out,
     );
+    Error::c_api_from(res)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ergo_wallet_wallet_sign_reduced_transaction(
+    wallet_ptr: ConstWalletPtr,
+    reduced_tx_ptr: ConstReducedTransactionPtr,
+    transaction_out: *mut TransactionPtr,
+) -> ErrorPtr {
+    let res = wallet_sign_reduced_transaction(wallet_ptr, reduced_tx_ptr, transaction_out);
     Error::c_api_from(res)
 }
 

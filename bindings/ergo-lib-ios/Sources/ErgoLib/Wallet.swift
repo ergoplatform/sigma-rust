@@ -34,6 +34,15 @@ class Wallet {
         return Transaction(withRawPointer: ptr!)
     }
     
+    func signReducedTransaction(
+        reducedTx: ReducedTransaction
+    ) throws -> Transaction {
+        var ptr: TransactionPtr?
+        let error = ergo_wallet_wallet_sign_reduced_transaction(self.pointer, reducedTx.pointer, &ptr)
+        try checkError(error)
+        return Transaction(withRawPointer: ptr!)
+    }
+    
     deinit {
         ergo_wallet_wallet_delete(self.pointer)
     }

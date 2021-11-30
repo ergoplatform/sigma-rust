@@ -6,6 +6,7 @@ use crate::{
     collections::ConstCollectionPtr,
     ergo_box::ErgoBox,
     ergo_state_ctx::ConstErgoStateContextPtr,
+    reduced::ConstReducedTransactionPtr,
     secret_key::SecretKey,
     transaction::{ConstUnsignedTransactionPtr, Transaction, TransactionPtr},
     util::{const_ptr_as_ref, mut_ptr_as_mut},
@@ -83,5 +84,22 @@ pub unsafe fn wallet_sign_transaction(
         .sign_transaction(tx_context, &state_context.0)
         .map_err(|_| Error::Misc("".into()))?;
     *transaction_out = Box::into_raw(Box::new(Transaction(tx)));
+    Ok(())
+}
+
+pub unsafe fn wallet_sign_reduced_transaction(
+    wallet_ptr: ConstWalletPtr,
+    reduced_tx_ptr: ConstReducedTransactionPtr,
+    transaction_out: *mut TransactionPtr,
+) -> Result<(), Error> {
+    let wallet = const_ptr_as_ref(wallet_ptr, "wallet_ptr")?;
+    let reduced_tx = const_ptr_as_ref(reduced_tx_ptr, "reduced_tx_ptr")?;
+    let transaction_out = mut_ptr_as_mut(transaction_out, "transaction_out")?;
+    let tx = wallet
+        .0
+        .sign_reduced_transaction(reduced_tx.0.clone())
+        .map(Transaction)
+        .map_err(|_| Error::Misc("".into()))?;
+    *transaction_out = Box::into_raw(Box::new(tx));
     Ok(())
 }

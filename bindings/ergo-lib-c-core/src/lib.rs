@@ -25,6 +25,7 @@ pub mod ergo_tree;
 pub mod header;
 pub mod input;
 mod json;
+pub mod reduced;
 pub mod secret_key;
 pub mod token;
 pub mod transaction;
