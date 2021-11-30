@@ -2,18 +2,21 @@
 use sigma_ser::{ScorexSerializable, ScorexSerializeResult};
 
 /// P2P network protocol version
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone, Hash)]
 pub struct ProtocolVersion(pub u8, pub u8, pub u8);
 
 impl ProtocolVersion {
     /// Create new ProtocolVersion instance
-    pub fn new(first_digit: u8, second_digit: u8, third_digit: u8) -> Self {
+    pub const fn new(first_digit: u8, second_digit: u8, third_digit: u8) -> ProtocolVersion {
         ProtocolVersion {
             0: first_digit,
             1: second_digit,
             2: third_digit,
         }
     }
+
+    /// Initial protocol version
+    pub const INITIAL: Self = ProtocolVersion::new(0, 0, 1);
 }
 
 impl ScorexSerializable for ProtocolVersion {

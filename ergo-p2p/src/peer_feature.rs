@@ -29,7 +29,7 @@ impl ScorexSerializable for PeerFeatureId {
 }
 
 /// Peer features
-#[derive(PartialEq, Eq, Debug, Copy, Clone)]
+#[derive(PartialEq, Eq, Debug, Hash, Clone)]
 pub enum PeerFeature {
     /// Local address peer feature
     LocalAddress(LocalAddressPeerFeature),
@@ -86,7 +86,7 @@ impl ScorexSerializable for PeerFeature {
 }
 
 /// LocalAddressPeerFeature
-#[derive(PartialEq, Eq, Debug, Copy, Clone, From, Into)]
+#[derive(PartialEq, Eq, Debug, Hash, Clone, From, Into)]
 pub struct LocalAddressPeerFeature(pub PeerAddr);
 
 impl LocalAddressPeerFeature {

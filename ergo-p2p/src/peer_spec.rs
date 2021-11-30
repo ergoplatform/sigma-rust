@@ -9,7 +9,7 @@ use crate::peer_addr::PeerAddr;
 use crate::{peer_feature::PeerFeature, protocol_version::ProtocolVersion};
 
 /// PeerSpec
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone, Hash)]
 pub struct PeerSpec {
     agent_name: String,
     protocol_version: ProtocolVersion,
@@ -95,7 +95,10 @@ impl ScorexSerializable for PeerSpec {
             // read the size bytes
             // not used at the moment becuase PeerAddr is currently ipv4/4 bytes
             r.get_u8()?;
-            Ok(PeerAddr::scorex_parse(r).map_err(|_| VlqEncodingError::VlqDecodingFailed)?)
+            let addr =
+                PeerAddr::scorex_parse(r).map_err(|_| VlqEncodingError::VlqDecodingFailed)?;
+
+            Ok(addr)
         });
 
         let features = Vec::<PeerFeature>::scorex_parse(r)?;

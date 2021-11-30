@@ -18,6 +18,8 @@
 #![deny(clippy::panic)]
 
 pub mod peer_addr;
+pub mod peer_database;
 pub mod peer_feature;
+pub mod peer_info;
 pub mod peer_spec;
 pub mod protocol_version;

@@ -14,7 +14,7 @@ pub enum PeerAddrError {
 }
 
 /// Peer address
-#[derive(PartialEq, Eq, Debug, Copy, Clone, From, Into)]
+#[derive(PartialEq, Eq, Debug, Copy, Clone, From, Into, Hash)]
 pub struct PeerAddr(pub SocketAddr);
 
 impl PeerAddr {
