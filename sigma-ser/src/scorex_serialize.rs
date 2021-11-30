@@ -74,7 +74,7 @@ pub enum ScorexParsingError {
     /// Invalid item quantity for BoundedVec
     #[error("Invalid item quantity for BoundedVec: {0}")]
     BoundedVecOutOfBounds(#[from] BoundedVecOutOfBounds),
-    ///
+    /// Failed to convert integer type
     #[error("Bounds check error: {0}")]
     TryFrom(#[from] std::num::TryFromIntError),
 }
