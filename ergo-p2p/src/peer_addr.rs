@@ -76,7 +76,7 @@ mod tests {
 
     #[test]
     fn ser_roundtrip() {
-        let obj: PeerAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080).into();
+        let obj: PeerAddr = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), 8080).into();
         assert_eq![scorex_serialize_roundtrip(&obj), obj]
     }
 }

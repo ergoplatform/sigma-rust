@@ -1,4 +1,4 @@
-//! docuemt
+//! PeerSpec types
 use std::convert::TryInto;
 use std::io;
 
@@ -8,7 +8,8 @@ use sigma_ser::{ScorexParsingError, ScorexSerializable, ScorexSerializeResult};
 use crate::peer_addr::PeerAddr;
 use crate::{peer_feature::PeerFeature, protocol_version::ProtocolVersion};
 
-///
+/// PeerSpec
+#[derive(PartialEq, Eq, Debug)]
 pub struct PeerSpec {
     agent_name: String,
     protocol_version: ProtocolVersion,
@@ -18,7 +19,7 @@ pub struct PeerSpec {
 }
 
 impl PeerSpec {
-    /// Tester
+    /// Create new PeerSpec instance
     pub fn new(
         agent_name: &str,
         protocol_version: ProtocolVersion,
@@ -35,17 +36,18 @@ impl PeerSpec {
         }
     }
 
-    /// local_addr
+    /// Local address of the peer if the peer is using the LocalAddress feature
     pub fn local_addr(&self) -> Option<PeerAddr> {
         Some(self.features.iter().find_map(PeerFeature::as_local_addr)?.0)
     }
 
-    /// reachable
+    /// Returns true if the peer is reachable
     pub fn reachable_peer(&self) -> bool {
         self.addr().is_some()
     }
 
-    /// address
+    /// The address of the peer
+    /// Returns either the declared address or local address if either are valid
     pub fn addr(&self) -> Option<PeerAddr> {
         self.declared_addr.or_else(|| self.local_addr())
     }
@@ -94,6 +96,9 @@ impl ScorexSerializable for PeerSpec {
         let version = ProtocolVersion::scorex_parse(r)?;
         let node_name = r.get_short_string()?;
         let declared_addr: Option<PeerAddr> = r.get_option(&|r: &mut R| {
+            // read the size bytes
+            // not used at the moment becuase PeerAddr is currently ipv4/4 bytes
+            r.get_u8()?;
             Ok(PeerAddr::scorex_parse(r).map_err(|_| VlqEncodingError::VlqDecodingFailed)?)
         });
 
@@ -114,4 +119,48 @@ impl ScorexSerializable for PeerSpec {
     }
 }
 
-// TODO: round trip serialization tests
+#[cfg(test)]
+mod tests {
+    use std::net::{Ipv4Addr, SocketAddr};
+
+    use super::*;
+    use sigma_ser::scorex_serialize_roundtrip;
+
+    #[test]
+    fn peer_spec_basic_ser_roundtrip() {
+        let obj = PeerSpec::new(
+            "/Ergo-Scala-client:2.0.0(iPad; U; CPU OS 3_2_1)/AndroidBuild:0.8/",
+            ProtocolVersion(2, 0, 0),
+            "Tester",
+            None,
+            vec![],
+        );
+        assert_eq![scorex_serialize_roundtrip(&obj), obj]
+    }
+
+    #[test]
+    fn peer_spec_declared_addr_ser_roundtrip() {
+        let obj = PeerSpec::new(
+            "/Ergo-Scala-client:2.0.0(iPad; U; CPU OS 3_2_1)/AndroidBuild:0.8/",
+            ProtocolVersion(2, 0, 0),
+            "Tester",
+            Some(SocketAddr::new(Ipv4Addr::LOCALHOST.into(), 8080).into()),
+            vec![],
+        );
+        assert_eq![scorex_serialize_roundtrip(&obj), obj]
+    }
+
+    #[test]
+    fn peer_spec_features_ser_roundtrip() {
+        let peer_addr: PeerAddr = SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), 8080).into();
+        let local_addr_feature = PeerFeature::LocalAddress(peer_addr.into());
+        let obj = PeerSpec::new(
+            "/Ergo-Scala-client:2.0.0(iPad; U; CPU OS 3_2_1)/AndroidBuild:0.8/",
+            ProtocolVersion(2, 0, 0),
+            "Tester",
+            Some(SocketAddr::new(Ipv4Addr::LOCALHOST.into(), 8080).into()),
+            vec![local_addr_feature],
+        );
+        assert_eq![scorex_serialize_roundtrip(&obj), obj]
+    }
+}

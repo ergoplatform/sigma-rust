@@ -1,4 +1,4 @@
-//! Peer feature types
+//! PeerFeature types
 use std::convert::TryInto;
 
 use derive_more::{From, Into};
@@ -8,7 +8,7 @@ use sigma_ser::{ScorexParsingError, ScorexSerializable, ScorexSerializeResult};
 use crate::peer_addr::PeerAddr;
 
 /// Peer feature identifier
-#[derive(Debug, Copy, Clone, From, Into)]
+#[derive(PartialEq, Eq, Debug, Copy, Clone, From, Into)]
 pub struct PeerFeatureId(pub u8);
 
 impl ScorexSerializable for PeerFeatureId {
@@ -29,6 +29,7 @@ impl ScorexSerializable for PeerFeatureId {
 }
 
 /// Peer features
+#[derive(PartialEq, Eq, Debug, Copy, Clone)]
 pub enum PeerFeature {
     /// Local address peer feature
     LocalAddress(LocalAddressPeerFeature),
@@ -70,7 +71,7 @@ impl ScorexSerializable for PeerFeature {
     ) -> Result<Self, sigma_ser::ScorexParsingError> {
         let feature_id = PeerFeatureId::scorex_parse(r)?;
         let feature_size = r.get_u16()?;
-        let mut feature_buf: Vec<u8> = Vec::with_capacity(feature_size as usize);
+        let mut feature_buf = vec![0u8; feature_size as usize];
         r.read_exact(&mut feature_buf)?;
 
         let feature = match feature_id {
@@ -85,7 +86,7 @@ impl ScorexSerializable for PeerFeature {
 }
 
 /// LocalAddressPeerFeature
-#[derive(Debug, Copy, Clone, From, Into)]
+#[derive(PartialEq, Eq, Debug, Copy, Clone, From, Into)]
 pub struct LocalAddressPeerFeature(pub PeerAddr);
 
 impl LocalAddressPeerFeature {
@@ -112,4 +113,18 @@ impl ScorexSerializable for LocalAddressPeerFeature {
     }
 }
 
-// TODO: round trip serialization tests
+#[cfg(test)]
+mod tests {
+    use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+
+    use super::*;
+    use sigma_ser::scorex_serialize_roundtrip;
+
+    #[test]
+    fn local_address_feature_ser_roundtrip() {
+        let obj = PeerFeature::LocalAddress(LocalAddressPeerFeature(
+            SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080).into(),
+        ));
+        assert_eq![scorex_serialize_roundtrip(&obj), obj]
+    }
+}
