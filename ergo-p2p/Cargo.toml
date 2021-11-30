@@ -19,6 +19,7 @@ sigma-ser = { version = "^0.3.0", path = "../sigma-ser" }
 sigma-util = { version = "^0.3.0", path = "../sigma-util" }
 thiserror = "1"
 derive_more = "0.99"
+bounded-vec = { version = "^0.5.0" }
 
 [dependencies.proptest]
 # wasm support, via https://altsysrq.github.io/proptest-book/proptest/wasm.html

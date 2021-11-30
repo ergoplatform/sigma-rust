@@ -1,5 +1,8 @@
 //! Peer address types
-use std::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4};
+use std::{
+    convert::TryInto,
+    net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4},
+};
 
 use derive_more::{From, Into};
 use sigma_ser::{ScorexSerializable, ScorexSerializationError};
@@ -29,7 +32,7 @@ impl ScorexSerializable for PeerAddr {
         };
 
         w.write_all(&ip.octets())?;
-        w.put_u16(self.0.port())?;
+        w.put_u32(self.0.port() as u32)?;
 
         Ok(())
     }
@@ -41,7 +44,7 @@ impl ScorexSerializable for PeerAddr {
         r.read_exact(&mut fa)?;
 
         let ip = Ipv4Addr::from(fa);
-        let port = r.get_u16()?;
+        let port: u16 = r.get_u32()?.try_into()?;
 
         Ok(SocketAddr::V4(SocketAddrV4::new(ip, port)).into())
     }

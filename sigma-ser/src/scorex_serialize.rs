@@ -74,6 +74,9 @@ pub enum ScorexParsingError {
     /// Invalid item quantity for BoundedVec
     #[error("Invalid item quantity for BoundedVec: {0}")]
     BoundedVecOutOfBounds(#[from] BoundedVecOutOfBounds),
+    ///
+    #[error("Bounds check error: {0}")]
+    TryFrom(#[from] std::num::TryFromIntError),
 }
 
 impl From<io::Error> for ScorexParsingError {

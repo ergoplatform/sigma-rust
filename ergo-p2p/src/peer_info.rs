@@ -44,7 +44,7 @@ impl PeerInfo {
             ProtocolVersion::INITIAL,
             &format!("unknown-{}", addr.0.to_string()),
             Some(addr),
-            vec![],
+            None,
         );
 
         PeerInfo::new(peer_spec, 0, None)
