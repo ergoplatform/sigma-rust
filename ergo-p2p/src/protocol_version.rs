@@ -2,6 +2,7 @@
 use sigma_ser::{ScorexSerializable, ScorexSerializeResult};
 
 /// P2P network protocol version
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ProtocolVersion(pub u8, pub u8, pub u8);
 
 impl ProtocolVersion {
@@ -31,5 +32,18 @@ impl ScorexSerializable for ProtocolVersion {
         r: &mut R,
     ) -> Result<Self, sigma_ser::ScorexParsingError> {
         Ok(ProtocolVersion::new(r.get_u8()?, r.get_u8()?, r.get_u8()?))
+    }
+}
+
+#[allow(clippy::panic)]
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sigma_ser::scorex_serialize_roundtrip;
+
+    #[test]
+    fn ser_roundtrip() {
+        let ver = ProtocolVersion::new(1, 14, 1);
+        assert_eq![scorex_serialize_roundtrip(&ver), ver]
     }
 }

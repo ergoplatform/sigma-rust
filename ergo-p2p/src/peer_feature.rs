@@ -1,11 +1,14 @@
-//! docaAF
-use std::convert::{TryFrom, TryInto};
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+//! Peer feature types
+use std::convert::TryInto;
 
+use derive_more::{From, Into};
 use sigma_ser::vlq_encode::WriteSigmaVlqExt;
-use sigma_ser::{ScorexSerializable, ScorexSerializationError, ScorexSerializeResult};
+use sigma_ser::{ScorexParsingError, ScorexSerializable, ScorexSerializeResult};
+
+use crate::peer_addr::PeerAddr;
 
 /// Peer feature identifier
+#[derive(Debug, Copy, Clone, From, Into)]
 pub struct PeerFeatureId(pub u8);
 
 impl ScorexSerializable for PeerFeatureId {
@@ -25,12 +28,6 @@ impl ScorexSerializable for PeerFeatureId {
     }
 }
 
-impl From<u8> for PeerFeatureId {
-    fn from(u: u8) -> Self {
-        PeerFeatureId(u)
-    }
-}
-
 /// Peer features
 pub enum PeerFeature {
     /// Local address peer feature
@@ -45,30 +42,56 @@ impl PeerFeature {
         }
     }
 
-    /// Write `self` to the `writer`
-    pub fn scorex_serialize<W: WriteSigmaVlqExt>(&self, w: &mut W) -> ScorexSerializeResult {
+    /// Return the feature as a LocalAddressPeerFeature if its of that type
+    /// otherwise returns None
+    pub fn as_local_addr(&self) -> Option<&LocalAddressPeerFeature> {
         match self {
-            PeerFeature::LocalAddress(pf) => pf.scorex_serialize(w),
+            PeerFeature::LocalAddress(pf) => Some(pf),
         }
     }
+}
 
-    /// Serialize a ScorexSerializable value into bytes
-    pub fn scorex_serialize_bytes(&self) -> Result<Vec<u8>, ScorexSerializationError> {
-        let mut w = vec![];
-        self.scorex_serialize(&mut w)?;
-        Ok(w)
+impl ScorexSerializable for PeerFeature {
+    fn scorex_serialize<W: WriteSigmaVlqExt>(&self, w: &mut W) -> ScorexSerializeResult {
+        self.id().scorex_serialize(w)?;
+
+        let bytes = match self {
+            PeerFeature::LocalAddress(pf) => pf.scorex_serialize_bytes(),
+        }?;
+
+        w.put_u16(bytes.len().try_into()?)?;
+        w.write_all(&bytes)?;
+
+        Ok(())
+    }
+
+    fn scorex_parse<R: sigma_ser::vlq_encode::ReadSigmaVlqExt>(
+        r: &mut R,
+    ) -> Result<Self, sigma_ser::ScorexParsingError> {
+        let feature_id: PeerFeatureId = r.get_u8()?.into();
+        let feature_size = r.get_u16()?;
+        let mut feature_buf: Vec<u8> = Vec::with_capacity(feature_size as usize);
+        r.read_exact(&mut feature_buf)?;
+
+        let feature = match feature_id {
+            PeerFeatureId(2) => PeerFeature::LocalAddress(
+                LocalAddressPeerFeature::scorex_parse_bytes(&feature_buf)?,
+            ),
+            _ => return Err(ScorexParsingError::Misc("unknown feature id".into())),
+        };
+
+        Ok(feature)
     }
 }
 
-/// asfd
-pub struct LocalAddressPeerFeature {
-    address: SocketAddr,
-}
+/// LocalAddressPeerFeature
+#[derive(Debug, Copy, Clone, From, Into)]
+pub struct LocalAddressPeerFeature(pub PeerAddr);
 
 impl LocalAddressPeerFeature {
-    /// test
-    pub fn new(address: SocketAddr) -> Self {
-        Self { address }
+    /// Create new LocalAddressPeerFeature
+    pub fn new(addr: PeerAddr) -> Self {
+        Self { 0: addr }
     }
 }
 
@@ -77,25 +100,7 @@ impl ScorexSerializable for LocalAddressPeerFeature {
         &self,
         w: &mut W,
     ) -> ScorexSerializeResult {
-        let ip = match self.address.ip() {
-            IpAddr::V4(ip) => ip,
-            _ => {
-                return Err(ScorexSerializationError::UnexpectedValue(
-                    "ipv6 unsupported",
-                ))
-            }
-        };
-        let port = match u32::try_from(self.address.port()).ok() {
-            Some(p) => p,
-            _ => {
-                return Err(ScorexSerializationError::UnexpectedValue(
-                    "failed to convert port to u32",
-                ))
-            }
-        };
-
-        w.put_u32(ip.into())?;
-        w.put_u32(port)?;
+        self.0.scorex_serialize(w)?;
 
         Ok(())
     }
@@ -103,14 +108,8 @@ impl ScorexSerializable for LocalAddressPeerFeature {
     fn scorex_parse<R: sigma_ser::vlq_encode::ReadSigmaVlqExt>(
         r: &mut R,
     ) -> Result<Self, sigma_ser::ScorexParsingError> {
-        let ip: Ipv4Addr = r.get_u32()?.into();
-        let port = r.get_u32()?;
-
-        Ok(LocalAddressPeerFeature::new(SocketAddr::new(
-            IpAddr::V4(ip),
-            port.try_into().map_err(|_| {
-                ScorexSerializationError::UnexpectedValue("failed to convert port to u16")
-            })?,
-        )))
+        Ok(PeerAddr::scorex_parse(r)?.into())
     }
 }
+
+// TODO: round trip serialization tests
