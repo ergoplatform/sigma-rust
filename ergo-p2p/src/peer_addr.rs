@@ -4,12 +4,12 @@ use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4},
 };
 
-use derive_more::{From, Into};
+use derive_more::{Display, From, Into};
 use sigma_ser::{ScorexSerializable, ScorexSerializationError};
 
 /// Peer address
-#[derive(PartialEq, Eq, Debug, Copy, Clone, From, Into, Hash)]
-pub struct PeerAddr(pub SocketAddr);
+#[derive(PartialEq, Eq, Debug, Copy, Clone, From, Into, Hash, Display)]
+pub struct PeerAddr(SocketAddr);
 
 impl PeerAddr {
     /// Size in bytes of the ip address associated with this peer address
@@ -50,15 +50,39 @@ impl ScorexSerializable for PeerAddr {
     }
 }
 
-#[allow(clippy::panic)]
+/// Arbitrary
+#[cfg(feature = "arbitrary")]
+pub mod arbitrary {
+    use super::*;
+    use proptest::prelude::*;
+    use proptest::prelude::{Arbitrary, BoxedStrategy};
+
+    impl Arbitrary for PeerAddr {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_: Self::Parameters) -> Self::Strategy {
+            (any::<[u8; 4]>(), any::<u16>())
+                .prop_map(|(octets, port)| {
+                    SocketAddr::new(Ipv4Addr::from(octets).into(), port).into()
+                })
+                .boxed()
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use proptest::prelude::*;
     use sigma_ser::scorex_serialize_roundtrip;
 
-    #[test]
-    fn ser_roundtrip() {
-        let obj: PeerAddr = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), 8080).into();
-        assert_eq![scorex_serialize_roundtrip(&obj), obj]
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(64))]
+
+        #[test]
+        fn ser_roundtrip(v in any::<PeerAddr>()) {
+            assert_eq![scorex_serialize_roundtrip(&v), v]
+        }
     }
 }

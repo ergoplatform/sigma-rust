@@ -42,11 +42,37 @@ impl PeerInfo {
         let peer_spec = PeerSpec::new(
             "unknown",
             ProtocolVersion::INITIAL,
-            &format!("unknown-{}", addr.0.to_string()),
+            &format!("unknown-{}", addr.to_string()),
             Some(addr),
             None,
         );
 
         PeerInfo::new(peer_spec, 0, None)
+    }
+}
+
+/// Arbitrary
+#[cfg(feature = "arbitrary")]
+pub mod arbitrary {
+    use super::*;
+    use proptest::prelude::{Arbitrary, BoxedStrategy};
+    use proptest::{option, prelude::*};
+
+    impl Arbitrary for PeerInfo {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_: Self::Parameters) -> Self::Strategy {
+            (
+                any::<PeerSpec>(),
+                any::<u64>(),
+                option::of(prop_oneof![
+                    Just(ConnectionDirection::Incoming),
+                    Just(ConnectionDirection::Outgoing)
+                ]),
+            )
+                .prop_map(|(spec, timestamp, direction)| PeerInfo::new(spec, timestamp, direction))
+                .boxed()
+        }
     }
 }

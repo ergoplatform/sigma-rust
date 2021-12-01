@@ -2,6 +2,7 @@
 use std::convert::TryInto;
 
 use derive_more::{From, Into};
+
 use sigma_ser::vlq_encode::WriteSigmaVlqExt;
 use sigma_ser::{ScorexParsingError, ScorexSerializable, ScorexSerializeResult};
 
@@ -85,16 +86,28 @@ impl ScorexSerializable for PeerFeature {
     }
 }
 
-/// LocalAddressPeerFeature
-#[derive(PartialEq, Eq, Debug, Hash, Clone, From, Into)]
-pub struct LocalAddressPeerFeature(pub PeerAddr);
+/// Arbitrary
+#[cfg(feature = "arbitrary")]
+pub mod arbitrary {
+    use super::*;
+    use proptest::prelude::*;
+    use proptest::prelude::{Arbitrary, BoxedStrategy};
 
-impl LocalAddressPeerFeature {
-    /// Create new LocalAddressPeerFeature
-    pub fn new(addr: PeerAddr) -> Self {
-        Self { 0: addr }
+    impl Arbitrary for PeerFeature {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_: Self::Parameters) -> Self::Strategy {
+            prop_oneof![any::<LocalAddressPeerFeature>().prop_map(PeerFeature::LocalAddress)]
+                .boxed()
+        }
     }
 }
+
+/// LocalAddressPeerFeature
+#[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
+#[derive(PartialEq, Eq, Debug, Hash, Clone, From, Into)]
+pub struct LocalAddressPeerFeature(PeerAddr);
 
 impl ScorexSerializable for LocalAddressPeerFeature {
     fn scorex_serialize<W: sigma_ser::vlq_encode::WriteSigmaVlqExt>(
@@ -115,16 +128,16 @@ impl ScorexSerializable for LocalAddressPeerFeature {
 
 #[cfg(test)]
 mod tests {
-    use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-
     use super::*;
+    use proptest::prelude::*;
     use sigma_ser::scorex_serialize_roundtrip;
 
-    #[test]
-    fn local_address_feature_ser_roundtrip() {
-        let obj = PeerFeature::LocalAddress(LocalAddressPeerFeature(
-            SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080).into(),
-        ));
-        assert_eq![scorex_serialize_roundtrip(&obj), obj]
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(64))]
+
+        #[test]
+        fn local_address_feature_ser_roundtrip(v in any::<LocalAddressPeerFeature>()) {
+            assert_eq![scorex_serialize_roundtrip(&v), v]
+        }
     }
 }

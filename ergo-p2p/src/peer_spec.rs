@@ -40,13 +40,13 @@ impl PeerSpec {
 
     /// Local address of the peer if the peer is using the LocalAddress feature
     pub fn local_addr(&self) -> Option<PeerAddr> {
-        Some(
+        Some(PeerAddr::from(
             self.features
                 .as_ref()?
                 .iter()
                 .find_map(PeerFeature::as_local_addr)?
-                .0,
-        )
+                .to_owned(),
+        ))
     }
 
     /// Returns true if the peer is reachable
@@ -132,50 +132,55 @@ impl ScorexSerializable for PeerSpec {
     }
 }
 
-#[allow(clippy::unwrap_used)]
+/// Arbitrary
+#[cfg(feature = "arbitrary")]
+#[allow(clippy::unwrap_used, clippy::panic)]
+pub mod arbitrary {
+    use super::*;
+    use proptest::prelude::{Arbitrary, BoxedStrategy};
+    use proptest::{collection::vec, option, prelude::*};
+
+    impl Arbitrary for PeerSpec {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_: Self::Parameters) -> Self::Strategy {
+            (
+                any::<ProtocolVersion>(),
+                option::of(any::<PeerAddr>()),
+                option::of(vec(any::<PeerFeature>(), 1..4)),
+            )
+                .prop_map(|(version, declared_addr, features)| {
+                    let feats = match features {
+                        Some(f) => Some(BoundedVec::from_vec(f).unwrap()),
+                        None => None,
+                    };
+
+                    PeerSpec::new(
+                        "/Ergo-Scala-client:2.0.0(iPad; U; CPU OS 3_2_1)/AndroidBuild:0.8/",
+                        version,
+                        "Testing node",
+                        declared_addr,
+                        feats,
+                    )
+                })
+                .boxed()
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use std::net::{Ipv4Addr, SocketAddr};
-
     use super::*;
+    use proptest::prelude::*;
     use sigma_ser::scorex_serialize_roundtrip;
 
-    #[test]
-    fn peer_spec_basic_ser_roundtrip() {
-        let obj = PeerSpec::new(
-            "/Ergo-Scala-client:2.0.0(iPad; U; CPU OS 3_2_1)/AndroidBuild:0.8/",
-            ProtocolVersion(2, 0, 0),
-            "Tester",
-            None,
-            None,
-        );
-        assert_eq![scorex_serialize_roundtrip(&obj), obj]
-    }
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(64))]
 
-    #[test]
-    fn peer_spec_declared_addr_ser_roundtrip() {
-        let obj = PeerSpec::new(
-            "/Ergo-Scala-client:2.0.0(iPad; U; CPU OS 3_2_1)/AndroidBuild:0.8/",
-            ProtocolVersion(2, 0, 0),
-            "Tester",
-            Some(SocketAddr::new(Ipv4Addr::LOCALHOST.into(), 8080).into()),
-            None,
-        );
-        assert_eq![scorex_serialize_roundtrip(&obj), obj]
-    }
-
-    #[test]
-    fn peer_spec_features_ser_roundtrip() {
-        let peer_addr: PeerAddr = SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), 8080).into();
-        let local_addr_feature = PeerFeature::LocalAddress(peer_addr.into());
-        let features = BoundedVec::from_vec(vec![local_addr_feature]).unwrap();
-        let obj = PeerSpec::new(
-            "/Ergo-Scala-client:2.0.0(iPad; U; CPU OS 3_2_1)/AndroidBuild:0.8/",
-            ProtocolVersion(2, 0, 0),
-            "Tester",
-            Some(SocketAddr::new(Ipv4Addr::LOCALHOST.into(), 8080).into()),
-            Some(features),
-        );
-        assert_eq![scorex_serialize_roundtrip(&obj), obj]
+        #[test]
+        fn ser_roundtrip(v in any::<PeerSpec>()) {
+            assert_eq![scorex_serialize_roundtrip(&v), v]
+        }
     }
 }
