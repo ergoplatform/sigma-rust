@@ -15,7 +15,7 @@ pub enum ConnectionDirection {
 #[derive(PartialEq, Eq, Debug, Clone, Hash)]
 pub struct PeerInfo {
     /// general information about the peer
-    pub peer_spec: PeerSpec,
+    peer_spec: PeerSpec,
     /// timestamp when last handshake was done
     last_handshake: u64,
     /// type of connection (Incoming/Outgoing) established to this peer if any
@@ -34,6 +34,11 @@ impl PeerInfo {
             last_handshake,
             conn_type,
         }
+    }
+
+    /// Return the PeerSpec associated with this PeerInfo
+    pub fn spec(&self) -> PeerSpec {
+        self.peer_spec.clone()
     }
 
     /// Create peer info from address only, when we don't know other fields
@@ -73,6 +78,17 @@ pub mod arbitrary {
             )
                 .prop_map(|(spec, timestamp, direction)| PeerInfo::new(spec, timestamp, direction))
                 .boxed()
+        }
+    }
+
+    impl PeerInfo {
+        /// Ensure the PeerSpec has a valid addr
+        /// This can happen if declared_addr is none and there is no LocalAddressPeerFeature in features
+        pub fn with_ensured_addr(mut self) -> Self {
+            if self.peer_spec.addr().is_none() {
+                self.peer_spec = self.peer_spec.with_ensured_addr();
+            }
+            self
         }
     }
 }

@@ -35,6 +35,5 @@ optional = true
 [features]
 arbitrary = ["proptest", "proptest-derive"]
 
-
 [dev-dependencies]
 sigma-test-util = { version = "^0.3.0", path = "../sigma-test-util" }

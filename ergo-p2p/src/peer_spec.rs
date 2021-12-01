@@ -138,6 +138,7 @@ impl ScorexSerializable for PeerSpec {
 pub mod arbitrary {
     use super::*;
     use proptest::prelude::{Arbitrary, BoxedStrategy};
+    use proptest::test_runner::TestRunner;
     use proptest::{collection::vec, option, prelude::*};
 
     impl Arbitrary for PeerSpec {
@@ -165,6 +166,19 @@ pub mod arbitrary {
                     )
                 })
                 .boxed()
+        }
+    }
+
+    impl PeerSpec {
+        /// Ensure the PeerSpec has a valid addr
+        /// This can happen if declared_addr is none and there is no LocalAddressPeerFeature in features
+        pub fn with_ensured_addr(mut self) -> Self {
+            if self.addr().is_none() {
+                let mut runner = TestRunner::default();
+                self.declared_addr =
+                    Some(any::<PeerAddr>().new_tree(&mut runner).unwrap().current());
+            }
+            self
         }
     }
 }
