@@ -6,22 +6,28 @@ use crate::box_coll::ErgoBoxes;
 use crate::ergo_state_ctx::ErgoStateContext;
 use crate::error_conversion::to_js;
 
-use crate::transaction::{HintsBag, Transaction, TransactionHintsBag};
+use crate::transaction::{Transaction, TransactionHintsBag};
 use ergo_lib::chain::transaction::reduced::reduce_tx;
 use ergo_lib::chain::transaction::TxIoVec;
 use ergo_lib::ergotree_ir::serialization::SigmaSerializable;
 use ergo_lib::ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
-use ergo_lib::wallet::multi_sig::{bag_for_multi_sig, generate_commitments_for};
+use ergo_lib::wallet::multi_sig::extract_hints_from_reduced_transaction;
 use wasm_bindgen::prelude::*;
 
 /// Propositions list(public keys)
 #[wasm_bindgen]
-pub struct Propositions(Vec<SigmaBoolean>);
+pub struct Propositions(pub(crate) Vec<SigmaBoolean>);
 
 #[wasm_bindgen]
 impl Propositions {
+    /// Create empty SecretKeys
+    #[wasm_bindgen(constructor)]
+    pub fn new() -> Self {
+        Propositions(vec![])
+    }
+
     /// Adding new proposition
-    pub fn add_proposition(&mut self, proposition: Vec<u8>) {
+    pub fn add_proposition_from_byte(&mut self, proposition: Vec<u8>) {
         self.0.push(
             SigmaBoolean::sigma_parse_bytes(&proposition)
                 .map_err(to_js)
@@ -88,19 +94,6 @@ impl ReducedTransaction {
         self.0.unsigned_tx.clone().into()
     }
 
-    /// Generate commitment for reduced transaction
-    pub fn generate_commitment(&self, public_key: Vec<u8>) -> TransactionHintsBag {
-        let mut tx_hints = TransactionHintsBag::empty();
-        for (index, input) in self.0.reduced_inputs().iter().enumerate() {
-            let sigma_prop = input.clone().reduction_result.sigma_prop;
-            let pk = SigmaBoolean::sigma_parse_bytes(&public_key).map_err(to_js);
-            let generate_for: Vec<SigmaBoolean> = vec![pk.unwrap()];
-            let hints = HintsBag(generate_commitments_for(sigma_prop, &generate_for));
-            tx_hints.add_hints_for_input(index, &hints);
-        }
-        tx_hints
-    }
-
     /// Extracting hints from transaction
     pub fn extract_hints(
         &self,
@@ -108,29 +101,12 @@ impl ReducedTransaction {
         simulated_propositions: Propositions,
         signed_transaction: Transaction,
     ) -> TransactionHintsBag {
-        let mut tx_hints = TransactionHintsBag::empty();
-        for (index, input) in self.0.reduced_inputs().iter().enumerate() {
-            let sigma_prop = input.clone().reduction_result.sigma_prop;
-
-            let proof = Vec::from(
-                signed_transaction
-                    .0
-                    .inputs
-                    .get(index)
-                    .unwrap()
-                    .spending_proof
-                    .clone()
-                    .proof,
-            );
-            let hints = HintsBag(bag_for_multi_sig(
-                sigma_prop,
-                real_propositions.0.as_slice(),
-                simulated_propositions.0.as_slice(),
-                proof.as_slice(),
-            ));
-            tx_hints.add_hints_for_input(index, &hints);
-        }
-        tx_hints
+        TransactionHintsBag::from(extract_hints_from_reduced_transaction(
+            self.0.clone(),
+            signed_transaction.0,
+            real_propositions.0,
+            simulated_propositions.0,
+        ))
     }
 }
 

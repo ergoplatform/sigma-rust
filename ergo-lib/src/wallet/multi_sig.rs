@@ -1,6 +1,7 @@
 //! multi sig prover
 
 use crate::chain::ergo_state_context::ErgoStateContext;
+use crate::chain::transaction::reduced::ReducedTransaction;
 use crate::chain::transaction::Transaction;
 use crate::ergotree_interpreter::eval::env::Env;
 use crate::ergotree_interpreter::eval::reduce_to_crypto;
@@ -12,14 +13,14 @@ use crate::ergotree_interpreter::sigma_protocol::prover::hint::{
     CommitmentHint, Hint, HintsBag, OwnCommitment, RealCommitment, RealSecretProof, SecretProven,
     SimulatedCommitment, SimulatedSecretProof,
 };
-use crate::ergotree_interpreter::sigma_protocol::prover::ProofBytes;
+use crate::ergotree_interpreter::sigma_protocol::prover::{ProofBytes, ProverError};
 use crate::ergotree_interpreter::sigma_protocol::unproven_tree::NodePosition;
 use crate::ergotree_interpreter::sigma_protocol::FirstProverMessage;
 use crate::ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 use crate::ergotree_ir::sigma_protocol::sigma_boolean::SigmaConjecture;
 use crate::ergotree_ir::sigma_protocol::sigma_boolean::SigmaConjectureItems;
 use crate::ergotree_ir::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
-use crate::wallet::signing::{make_context, TransactionContext};
+use crate::wallet::signing::{make_context, TransactionContext, TxSigningError};
 use ergotree_interpreter::sigma_protocol::dlog_protocol::interactive_prover::compute_commitment;
 use ergotree_interpreter::sigma_protocol::sig_serializer::parse_sig_compute_challenges;
 use ergotree_interpreter::sigma_protocol::unchecked_tree::{UncheckedLeaf, UncheckedTree};
@@ -143,6 +144,28 @@ pub fn bag_for_multi_sig(
 }
 
 #[allow(clippy::unwrap_used)]
+/// Generate commitments for transaction
+pub fn generate_commitments(
+    tx_context: TransactionContext,
+    state_context: &ErgoStateContext,
+    public_keys: &[SigmaBoolean],
+) -> Result<TransactionHintsBag, TxSigningError> {
+    let mut hints_bag = TransactionHintsBag::empty();
+    for (i, input) in tx_context.get_boxes_to_spend().enumerate() {
+        let ctx = Rc::new(make_context(state_context, &tx_context, i)?);
+        let tree = input.ergo_tree.clone();
+        let exp = tree.proposition().unwrap();
+        let reduction_result = reduce_to_crypto(&exp, &Env::empty(), ctx)
+            .map_err(ProverError::EvalError)
+            .map_err(|e| TxSigningError::ProverError(e, i))?;
+
+        let sigma_tree = reduction_result.sigma_prop;
+        hints_bag.add_hints_for_input(i, generate_commitments_for(sigma_tree, public_keys));
+    }
+    Ok(hints_bag)
+}
+
+#[allow(clippy::unwrap_used)]
 /// Extracting hints from a transaction and outputs it's corresponding TransactionHintsBag
 pub fn extract_hints(
     signed_tx: Transaction,
@@ -150,43 +173,72 @@ pub fn extract_hints(
     state_context: &ErgoStateContext,
     real_secrets_to_extract: Vec<SigmaBoolean>,
     simulated_secrets_to_extract: Vec<SigmaBoolean>,
-) -> TransactionHintsBag {
-    let mut hints_bag: TransactionHintsBag = TransactionHintsBag {
-        secret_hints: HashMap::new(),
-        public_hints: HashMap::new(),
-    };
+) -> Result<TransactionHintsBag, TxSigningError> {
+    let mut hints_bag = TransactionHintsBag::empty();
 
-    tx_context
-        .get_boxes_to_spend()
-        .enumerate()
-        .for_each(|(i, input)| {
-            let ctx = Rc::new(make_context(state_context, &tx_context, i).unwrap());
-            let tree = input.ergo_tree.clone();
-            let test: ProofBytes = signed_tx
+    for (i, input) in tx_context.get_boxes_to_spend().enumerate() {
+        let ctx = Rc::new(make_context(state_context, &tx_context, i)?);
+
+        let tree = input.ergo_tree.clone();
+        let proof: ProofBytes = signed_tx
+            .inputs
+            .get(i)
+            .unwrap()
+            .clone()
+            .spending_proof
+            .proof;
+        let proof: Vec<u8> = Vec::from(proof);
+        let exp = tree.proposition().unwrap();
+        let reduction_result = reduce_to_crypto(&exp, &Env::empty(), ctx)
+            .map_err(ProverError::EvalError)
+            .map_err(|e| TxSigningError::ProverError(e, i))?;
+        let sigma_tree = reduction_result.sigma_prop;
+        hints_bag.add_hints_for_input(
+            i,
+            bag_for_multi_sig(
+                sigma_tree,
+                real_secrets_to_extract.as_slice(),
+                simulated_secrets_to_extract.as_slice(),
+                proof.as_slice(),
+            ),
+        );
+    }
+
+    Ok(hints_bag)
+}
+
+#[allow(clippy::unwrap_used)]
+/// Extracting hints from reduced transaction
+pub fn extract_hints_from_reduced_transaction(
+    reduced_tx: ReducedTransaction,
+    signed_tx: Transaction,
+    real_propositions: Vec<SigmaBoolean>,
+    simulated_propositions: Vec<SigmaBoolean>,
+) -> TransactionHintsBag {
+    let mut hints_bag = TransactionHintsBag::empty();
+    for (idx, input) in reduced_tx.reduced_inputs().iter().enumerate() {
+        let sigma_prop = input.clone().reduction_result.sigma_prop;
+        let proof = Vec::from(
+            signed_tx
                 .inputs
-                .get(i)
+                .get(idx)
                 .unwrap()
-                .clone()
                 .spending_proof
-                .proof;
-            let proof: Vec<u8> = Vec::from(test);
-            let exp = tree.proposition().unwrap();
-            let reduction_result = reduce_to_crypto(&exp, &Env::empty(), ctx).unwrap();
-            let sigma_tree = reduction_result.sigma_prop;
-            hints_bag.add_hints_for_input(
-                i,
-                bag_for_multi_sig(
-                    sigma_tree,
-                    real_secrets_to_extract.as_slice(),
-                    simulated_secrets_to_extract.as_slice(),
-                    proof.as_slice(),
-                ),
-            );
-        });
+                .clone()
+                .proof,
+        );
+        let hints = bag_for_multi_sig(
+            sigma_prop,
+            real_propositions.as_slice(),
+            simulated_propositions.as_slice(),
+            proof.as_slice(),
+        );
+        hints_bag.add_hints_for_input(idx, hints);
+    }
     hints_bag
 }
 
-// The unwrap use on option causes panic in case of dhtuple signature that is not implemented
+// The unwrap use on option causes panic in case of dhtuple signature, that is not implemented
 #[allow(clippy::unwrap_used)]
 /// Traversing node of sigma tree
 pub fn traverse_node(
