@@ -6,7 +6,7 @@ import {
   Address, Wallet, ErgoBox, ErgoBoxCandidateBuilder, Contract,
   ErgoBoxes, ErgoBoxCandidates,
   ErgoStateContext, TxBuilder, BoxValue, BoxSelector, I64, SecretKey, SecretKeys, TxId, DataInputs,
-  SimpleBoxSelector, Tokens, Token, TokenAmount, TokenId, BlockHeaders, PreHeader, Transaction, TransactionHintsBag,
+  SimpleBoxSelector, Tokens, Token, TokenAmount, TokenId, BlockHeaders, PreHeader, Transaction,
 } from '../pkg/ergo_lib_wasm';
 
 it('TxBuilder test', async () => {
@@ -69,8 +69,7 @@ it('sign transaction', async () => {
   const sks = new SecretKeys();
   sks.add(sk);
   const wallet = Wallet.from_secrets(sks);
-  const tx_hints_bag = TransactionHintsBag.empty();
-  const signed_tx = wallet.sign_transaction(ctx, tx, unspent_boxes, tx_data_inputs, tx_hints_bag);
+  const signed_tx = wallet.sign_transaction(ctx, tx, unspent_boxes, tx_data_inputs);
   assert(signed_tx != null);
   // smoke test for to_js_eip12
   assert(signed_tx.to_js_eip12() != null);
@@ -185,8 +184,7 @@ it('use signed tx outputs as inputs in a new tx', async () => {
   const sks = new SecretKeys();
   sks.add(sk);
   const wallet = Wallet.from_secrets(sks);
-  const tx_hints_bag = TransactionHintsBag.empty();
-  const signed_tx = wallet.sign_transaction(ctx, tx, unspent_boxes, tx_data_inputs, tx_hints_bag);
+  const signed_tx = wallet.sign_transaction(ctx, tx, unspent_boxes, tx_data_inputs);
   assert(signed_tx != null);
   // new tx
   const new_box_selection = box_selector.select(signed_tx.outputs(), BoxValue.SAFE_USER_MIN(), new Tokens());
