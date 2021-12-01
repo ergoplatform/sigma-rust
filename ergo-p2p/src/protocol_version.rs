@@ -64,6 +64,7 @@ pub mod arbitrary {
 
 #[allow(clippy::panic)]
 #[allow(clippy::unwrap_used)]
+#[cfg(feature = "arbitrary")]
 #[cfg(test)]
 mod tests {
     use super::*;

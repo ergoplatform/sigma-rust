@@ -129,6 +129,7 @@ impl ScorexSerializable for LocalAddressPeerFeature {
 #[allow(clippy::panic)]
 #[allow(clippy::unwrap_used)]
 #[cfg(test)]
+#[cfg(feature = "arbitrary")]
 mod tests {
     use super::*;
     use proptest::prelude::*;
