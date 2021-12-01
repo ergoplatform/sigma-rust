@@ -33,7 +33,15 @@ jobs:
           curl -sL https://deb.nodesource.com/setup_12.x | sudo -E bash -
           sudo apt-get -y install nodejs
 
-      - name: run tests
+      - name: run Wasm tests
+        run: |
+          wasm-pack build
+          # wasm-pack test  --firefox --headless
+          # wasm-pack test  --firefox --headless --release
+          wasm-pack test  --chrome  --headless
+          wasm-pack test  --chrome  --headless --release
+
+      - name: run JS tests
         run: |
           wasm-pack build
           npm install
