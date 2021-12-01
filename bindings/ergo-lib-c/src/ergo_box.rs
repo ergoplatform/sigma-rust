@@ -84,6 +84,16 @@ pub unsafe extern "C" fn ergo_wallet_box_value_as_i64(box_value_ptr: ConstBoxVal
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn ergo_wallet_box_value_sum_of(
+    box_value0_ptr: ConstBoxValuePtr,
+    box_value1_ptr: ConstBoxValuePtr,
+    sum_of_out: *mut BoxValuePtr,
+) -> ErrorPtr {
+    let res = box_value_sum_of(box_value0_ptr, box_value1_ptr, sum_of_out);
+    Error::c_api_from(res)
+}
+
+#[no_mangle]
 pub extern "C" fn ergo_wallet_box_value_delete(ptr: BoxValuePtr) {
     unsafe { delete_ptr(ptr) }
 }

@@ -36,8 +36,7 @@ final class TransactionTests: XCTestCase {
         let minChangeValue = BoxValue.SAFE_USER_MIN()
         let dataInputs = DataInputs()
         let boxSelector = SimpleBoxSelector()
-        // Note that swift forbids integer overflow/underflow by default with hard crash
-        let targetBalance = try BoxValue(fromInt64: outboxValue.toInt64() + fee.toInt64())
+        let targetBalance = try BoxValue.sumOf(boxValue0: outboxValue, boxValue1: fee)
         let boxSelection = try boxSelector.select(inputs: unspentBoxes, targetBalance: targetBalance, targetTokens: Tokens())
         let txBuilder = TxBuilder(
             boxSelection: boxSelection,
@@ -74,7 +73,7 @@ final class TransactionTests: XCTestCase {
         let dataInputs = DataInputs()
         let boxSelector = SimpleBoxSelector()
         // Note that swift forbids integer overflow/underflow by default with hard crash
-        let targetBalance = try BoxValue(fromInt64: outboxValue.toInt64() + fee.toInt64())
+        let targetBalance = try BoxValue.sumOf(boxValue0: outboxValue, boxValue1: fee)
         let boxSelection = try boxSelector.select(inputs: unspentBoxes, targetBalance: targetBalance, targetTokens: Tokens())
         let txBuilder = TxBuilder(boxSelection: boxSelection, outputCandidates: txOutputs, currentHeight: 0, feeAmount: fee, changeAddress: changeAddress, minChangeValue: minChangeValue)
         txBuilder.setDataInputs(dataInputs: dataInputs)
@@ -114,7 +113,7 @@ final class TransactionTests: XCTestCase {
         
         let boxSelector = SimpleBoxSelector()
         // Note that swift forbids integer overflow/underflow by default with hard crash
-        let targetBalance = try BoxValue(fromInt64: outboxValue.toInt64() + fee.toInt64())
+        let targetBalance = try BoxValue.sumOf(boxValue0: outboxValue, boxValue1: fee)
         let boxSelection = try boxSelector.select(inputs: unspentBoxes, targetBalance: targetBalance, targetTokens: Tokens())
         
         // Mint token
@@ -177,7 +176,7 @@ final class TransactionTests: XCTestCase {
         let fee = TxBuilder.SUGGESTED_TX_FEE()
         
         // Note that swift forbids integer overflow/underflow by default with hard crash
-        let targetBalance = try BoxValue(fromInt64: outboxValue.toInt64() + fee.toInt64())
+        let targetBalance = try BoxValue.sumOf(boxValue0: outboxValue, boxValue1: fee)
         
         // Select tokens from inputs
         let boxSelection = try boxSelector.select(inputs: unspentBoxes, targetBalance: targetBalance, targetTokens: tokens)
@@ -198,7 +197,6 @@ final class TransactionTests: XCTestCase {
     func testUsingSignedTxAsInputInNewTx() throws {
         let sk = SecretKey()
         let inputContract = try Contract(payToAddress: sk.getAddress())
-        //let str = "93d344aa527e18e5a221db060ea1a868f46b61e4537e6e5f69ecc40334c15e38"
         let str = "0000000000000000000000000000000000000000000000000000000000000000"
         let txId = try TxId(withString: str)
         let inputBox = try ErgoBox(boxValue: BoxValue(fromInt64: Int64(100000000000)), creationHeight: 0, contract: inputContract, txId: txId, index: 0, tokens: Tokens())
@@ -217,8 +215,7 @@ final class TransactionTests: XCTestCase {
         let minChangeValue = BoxValue.SAFE_USER_MIN()
         let dataInputs = DataInputs()
         let boxSelector = SimpleBoxSelector()
-        // Note that swift forbids integer overflow/underflow by default with hard crash
-        let targetBalance = try BoxValue(fromInt64: outboxValue.toInt64() + fee.toInt64())
+        let targetBalance = try BoxValue.sumOf(boxValue0: outboxValue, boxValue1: fee)
         let boxSelection = try boxSelector.select(inputs: unspentBoxes, targetBalance: targetBalance, targetTokens: Tokens())
         let txBuilder = TxBuilder(boxSelection: boxSelection, outputCandidates: txOutputs, currentHeight: 0, feeAmount: fee, changeAddress: changeAddress, minChangeValue: minChangeValue)
         txBuilder.setDataInputs(dataInputs: dataInputs)
@@ -242,7 +239,7 @@ final class TransactionTests: XCTestCase {
         let newTxOutputs = ErgoBoxCandidates()
         newTxOutputs.add(ergoBoxCandidate: newOutbox)
         let newBoxSelector = SimpleBoxSelector()
-        let newTargetBalance = try BoxValue(fromInt64: newOutboxValue.toInt64() + fee.toInt64())
+        let newTargetBalance = try BoxValue.sumOf(boxValue0: newOutboxValue, boxValue1: fee)
         let newBoxSelection = try newBoxSelector.select(
             inputs: signedTx.getOutputs(),
             targetBalance: newTargetBalance,
@@ -286,7 +283,7 @@ final class TransactionTests: XCTestCase {
         let dataInputs = DataInputs()
         let boxSelector = SimpleBoxSelector()
         // Note that swift forbids integer overflow/underflow by default with hard crash
-        let targetBalance = try BoxValue(fromInt64: outboxValue.toInt64() + fee.toInt64())
+        let targetBalance = try BoxValue.sumOf(boxValue0: outboxValue, boxValue1: fee)
         let boxSelection = try boxSelector.select(inputs: unspentBoxes, targetBalance: targetBalance, targetTokens: Tokens())
         let txBuilder = TxBuilder(
             boxSelection: boxSelection,
@@ -310,46 +307,5 @@ final class TransactionTests: XCTestCase {
         let phrase = "change me do not use me change me do not use me"
         let pass = "password1234"
         XCTAssertNoThrow(try Wallet(mnemonicPhrase: phrase, mnemonicPass: pass))
-    }
-    
-    static func signTx() throws -> (Transaction, ErgoBoxCandidates, BoxValue, Address, BoxValue) {
-        let sk = SecretKey()
-        let inputContract = try Contract(payToAddress: sk.getAddress())
-        let str = "93d344aa527e18e5a221db060ea1a868f46b61e4537e6e5f69ecc40334c15e38"
-        let txId = try TxId(withString: str)
-        let inputBox = try ErgoBox(boxValue: BoxValue(fromInt64: Int64(1000000000)), creationHeight: 0, contract: inputContract, txId: txId, index: 0, tokens: Tokens())
-        
-        // Create transaction that spends the 'simulated' box
-        let recipient = try Address(withTestnetAddress: "3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN")
-        let unspentBoxes = ErgoBoxes()
-        unspentBoxes.add(ergoBox: inputBox)
-        let contract = try Contract(payToAddress: recipient)
-        let outboxValue = BoxValue.SAFE_USER_MIN()
-        let outbox = try ErgoBoxCandidateBuilder(boxValue: outboxValue, contract: contract, creationHeight: UInt32(0)).build()
-        let txOutputs = ErgoBoxCandidates()
-        txOutputs.add(ergoBoxCandidate: outbox)
-        let fee = TxBuilder.SUGGESTED_TX_FEE()
-        let changeAddress = try Address(withTestnetAddress: "3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN")
-        let minChangeValue = BoxValue.SAFE_USER_MIN()
-        let dataInputs = DataInputs()
-        let boxSelector = SimpleBoxSelector()
-        // Note that swift forbids integer overflow/underflow by default with hard crash
-        let targetBalance = try BoxValue(fromInt64: outboxValue.toInt64() + fee.toInt64())
-        let boxSelection = try boxSelector.select(inputs: unspentBoxes, targetBalance: targetBalance, targetTokens: Tokens())
-        let txBuilder = TxBuilder(boxSelection: boxSelection, outputCandidates: txOutputs, currentHeight: 0, feeAmount: fee, changeAddress: changeAddress, minChangeValue: minChangeValue)
-        txBuilder.setDataInputs(dataInputs: dataInputs)
-        let tx = try txBuilder.build()
-        XCTAssertNoThrow(try tx.toJsonEIP12())
-        
-        let txDataInputs = try ErgoBoxes(fromJSON: [])
-        let blockHeaders = try HeaderTests.generateBlockHeadersFromJSON()
-        let preHeader = PreHeader(withBlockHeader: blockHeaders.get(index: UInt(0))!)
-        let ctx = try ErgoStateContext(preHeader: preHeader, headers: blockHeaders)
-        let secretKeys = SecretKeys()
-        secretKeys.add(secretKey: sk)
-        let wallet = Wallet(secrets: secretKeys)
-        let signedTx = try wallet.signTransaction(stateContext: ctx, unsignedTx: tx, boxesToSpend: unspentBoxes, dataBoxes: txDataInputs)
-        XCTAssertNoThrow(try signedTx.toJsonEIP12())
-        return (signedTx, txOutputs, fee, changeAddress, minChangeValue)
     }
 }

@@ -96,6 +96,26 @@ pub unsafe fn box_value_as_i64(box_value_ptr: ConstBoxValuePtr) -> Result<i64, E
     Ok(i64::from(box_value.0))
 }
 
+/// Create a new box value which is the sum of the arguments, returning error if value is out of
+/// bounds.
+pub unsafe fn box_value_sum_of(
+    box_value0_ptr: ConstBoxValuePtr,
+    box_value1_ptr: ConstBoxValuePtr,
+    sum_of_out: *mut BoxValuePtr,
+) -> Result<(), Error> {
+    let box_value0 = const_ptr_as_ref(box_value0_ptr, "box_value0_ptr")?;
+    let box_value1 = const_ptr_as_ref(box_value1_ptr, "box_value1_ptr")?;
+    let sum_of_out = mut_ptr_as_mut(sum_of_out, "sum_of_out")?;
+    let sum = box_value0
+        .0
+        .as_i64()
+        .checked_add(box_value1.0.as_i64())
+        .ok_or_else(|| Error::Misc("BoxValue.sum_of: sum of i64 overflowed".into()))?;
+    let inner = chain::ergo_box::box_value::BoxValue::try_from(sum as u64)?;
+    *sum_of_out = Box::into_raw(Box::new(BoxValue(inner)));
+    Ok(())
+}
+
 /// ErgoBox candidate not yet included in any transaction on the chain
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ErgoBoxCandidate(pub(crate) chain::ergo_box::ErgoBoxCandidate);

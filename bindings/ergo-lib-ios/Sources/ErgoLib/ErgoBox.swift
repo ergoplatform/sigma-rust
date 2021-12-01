@@ -71,6 +71,14 @@ class BoxValue {
         return ergo_wallet_box_value_units_per_ergo()
     }
     
+    // Note that swift forbids integer overflow/underflow by default with hard crash.
+    static func sumOf(boxValue0: BoxValue, boxValue1: BoxValue) throws -> BoxValue {
+        var ptr: BoxValuePtr?
+        let error = ergo_wallet_box_value_sum_of(boxValue0.pointer, boxValue1.pointer, &ptr)
+        try checkError(error)
+        return BoxValue(withRawPointer: ptr!)
+    }
+    
     func toInt64() -> Int64 {
         return ergo_wallet_box_value_as_i64(self.pointer)
     }
