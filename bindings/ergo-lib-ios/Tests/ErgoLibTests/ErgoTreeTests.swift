@@ -33,12 +33,28 @@ final class ErgoTreeTests: XCTestCase {
     
     
     func testWithConstant() throws {
+        let treeBytesStr = "100204a00b08cd021dde34603426402615658f1d970cfa7c7bd92ac81a8b16eeebff264d59ce4604ea02d192a39a8cc7a70173007301"
+        let tree = try ErgoTree(fromBase16EncodedString: treeBytesStr)
+        XCTAssertEqual(try tree.constantsLength(), UInt(2))
+        let constant = Constant(withInt32: Int32(99))
+        try tree.withConstant(index: UInt(0), constant: constant)
+        XCTAssertEqual(try tree.getConstant(index: UInt(0))!.toInt32(), Int32(99))
     }
     
     func testWithConstantOutOfBounds() throws {
+        let treeBytesStr = "100204a00b08cd021dde34603426402615658f1d970cfa7c7bd92ac81a8b16eeebff264d59ce4604ea02d192a39a8cc7a70173007301"
+        let tree = try ErgoTree(fromBase16EncodedString: treeBytesStr)
+        XCTAssertEqual(try tree.constantsLength(), UInt(2))
+        let constant = Constant(withInt32: Int32(99))
+        XCTAssertThrowsError(try tree.withConstant(index: UInt(3), constant: constant))
     }
     
     func testWithConstantTypeMismatch() throws {
+        let treeBytesStr = "100204a00b08cd021dde34603426402615658f1d970cfa7c7bd92ac81a8b16eeebff264d59ce4604ea02d192a39a8cc7a70173007301"
+        let tree = try ErgoTree(fromBase16EncodedString: treeBytesStr)
+        XCTAssertEqual(try tree.constantsLength(), UInt(2))
+        let constant = Constant(withInt64: Int64(324234))
+        XCTAssertThrowsError(try tree.withConstant(index: UInt(0), constant: constant))
     }
 }
 

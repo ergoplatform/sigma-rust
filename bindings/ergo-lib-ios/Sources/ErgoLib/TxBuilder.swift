@@ -43,7 +43,8 @@ class TxBuilder {
     
     func build() throws -> UnsignedTransaction {
         var ptr: UnsignedTransactionPtr?
-        ergo_wallet_tx_builder_build(self.pointer, &ptr)
+        let error = ergo_wallet_tx_builder_build(self.pointer, &ptr)
+        try checkError(error)
         return UnsignedTransaction(withRawPointer: ptr!)
     }
     

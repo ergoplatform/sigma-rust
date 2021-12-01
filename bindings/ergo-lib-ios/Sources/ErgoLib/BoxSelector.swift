@@ -54,13 +54,14 @@ class SimpleBoxSelector {
           targetTokens: Tokens
     ) throws -> BoxSelection {
         var ptr: BoxSelectionPtr?
-        ergo_wallet_simple_box_selector_select(
+        let error = ergo_wallet_simple_box_selector_select(
             self.pointer,
             inputs.pointer,
             targetBalance.pointer,
             targetTokens.pointer,
             &ptr
         )
+        try checkError(error)
         return BoxSelection(withPtr: ptr!)
     }
     
