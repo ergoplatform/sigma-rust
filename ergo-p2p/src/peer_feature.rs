@@ -10,7 +10,7 @@ use crate::peer_addr::PeerAddr;
 
 /// Peer feature identifier
 #[derive(PartialEq, Eq, Debug, Copy, Clone, From, Into)]
-pub struct PeerFeatureId(pub u8);
+pub struct PeerFeatureId(u8);
 
 impl ScorexSerializable for PeerFeatureId {
     fn scorex_serialize<W: sigma_ser::vlq_encode::WriteSigmaVlqExt>(
