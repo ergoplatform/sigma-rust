@@ -27,7 +27,7 @@ use derive_more::{From, Into};
 
 pub mod reduced;
 
-/// CommitmentHint JSON
+/// CommitmentHint
 #[wasm_bindgen]
 pub struct CommitmentHint(
     ergo_lib::ergotree_interpreter::sigma_protocol::prover::hint::CommitmentHint,
