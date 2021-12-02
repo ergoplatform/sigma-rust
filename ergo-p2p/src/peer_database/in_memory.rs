@@ -104,7 +104,6 @@ mod tests {
     fn add_or_update_peer_exists() {
         let info = force_any_val::<PeerInfo>().with_ensured_addr();
         let mut db = force_any_val::<InMemoryPeerDatabase>().with_peer(info.clone());
-        // clone info and change the node_name
         let result = db.add_or_update_peer(info.clone()).unwrap().unwrap();
 
         // add or update returned the original peer_info
