@@ -33,31 +33,34 @@ pub struct CommitmentHint(
     ergo_lib::ergotree_interpreter::sigma_protocol::prover::hint::CommitmentHint,
 );
 
-/// CommitmentHint JSON
 #[wasm_bindgen]
-pub struct CommitmentHintJson(ergo_lib::chain::json::hints::CommitmentHintJson);
-
-#[wasm_bindgen]
-impl CommitmentHintJson {
-    /// JSON representation as text (compatible with Ergo Node/Explorer API, numbers are encoded as numbers)
+impl CommitmentHint {
+    /// to json
     pub fn to_json(&self) -> Result<String, JsValue> {
-        serde_json::to_string_pretty(&self.0.clone())
-            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+        let commitment = ergo_lib::chain::json::hints::CommitmentHintJson::from(self.0.clone());
+        serde_json::to_string_pretty(&commitment).map_err(|e| JsValue::from_str(&format!("{}", e)))
     }
 
     /// parse from JSON
-    pub fn from_json(json: &str) -> CommitmentHint {
-        let commitment_hint_json = serde_json::from_str(json).map(Self).map_err(to_js).unwrap();
-        CommitmentHint {
+    pub fn from_json(json: &str) -> Result<CommitmentHint, JsValue> {
+        let commitment_hint_json = serde_json::from_str(json)
+            .map(CommitmentHintJson)
+            .map_err(to_js)
+            .unwrap();
+        Ok(CommitmentHint {
             0: {
                 ergo_lib::ergotree_interpreter::sigma_protocol::prover::hint::CommitmentHint::try_from(
                     commitment_hint_json.0
                 )
                     .unwrap()
             },
-        }
+        })
     }
 }
+
+/// CommitmentHint JSON
+#[wasm_bindgen]
+pub struct CommitmentHintJson(ergo_lib::chain::json::hints::CommitmentHintJson);
 
 /// HintsBag
 #[wasm_bindgen]
@@ -86,6 +89,12 @@ impl HintsBag {
     /// Length of HintsBag
     pub fn len(&self) -> usize {
         self.0.hints.len()
+    }
+
+    /// Get commitment
+    pub fn get(&self, index: usize) -> Result<CommitmentHint, JsValue> {
+        let commitment = self.0.commitments()[index].clone();
+        Ok(CommitmentHint(commitment))
     }
 }
 
