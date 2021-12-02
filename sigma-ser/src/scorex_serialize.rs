@@ -18,11 +18,20 @@ pub enum ScorexSerializationError {
     /// Serialization not supported
     #[error("serialization not supported: {0}")]
     NotSupported(&'static str),
+    /// Integer type conversion failed
+    #[error("Bounds check error: {0}")]
+    TryFrom(#[from] std::num::TryFromIntError),
 }
 
 impl From<io::Error> for ScorexSerializationError {
     fn from(error: io::Error) -> Self {
         ScorexSerializationError::Io(error.to_string())
+    }
+}
+
+impl From<ScorexSerializationError> for io::Error {
+    fn from(e: ScorexSerializationError) -> Self {
+        io::Error::new(io::ErrorKind::InvalidInput, e.to_string())
     }
 }
 
@@ -65,6 +74,9 @@ pub enum ScorexParsingError {
     /// Invalid item quantity for BoundedVec
     #[error("Invalid item quantity for BoundedVec: {0}")]
     BoundedVecOutOfBounds(#[from] BoundedVecOutOfBounds),
+    /// Failed to convert integer type
+    #[error("Bounds check error: {0}")]
+    TryFrom(#[from] std::num::TryFromIntError),
 }
 
 impl From<io::Error> for ScorexParsingError {
@@ -90,7 +102,7 @@ pub trait ScorexSerializable: Sized {
     fn scorex_parse<R: ReadSigmaVlqExt>(r: &mut R) -> Result<Self, ScorexParsingError>;
 
     /// Serialize a ScorexSerializable value into bytes
-    fn scorex_serialize_bytes(&self) -> Result<Vec<u8>, ScorexParsingError> {
+    fn scorex_serialize_bytes(&self) -> Result<Vec<u8>, ScorexSerializationError> {
         let mut w = vec![];
         self.scorex_serialize(&mut w)?;
         Ok(w)

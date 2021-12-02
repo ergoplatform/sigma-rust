@@ -187,9 +187,13 @@ it('use signed tx outputs as inputs in a new tx', async () => {
   const signed_tx = wallet.sign_transaction(ctx, tx, unspent_boxes, tx_data_inputs);
   assert(signed_tx != null);
   // new tx
-  const new_box_selection = box_selector.select(signed_tx.outputs(), BoxValue.SAFE_USER_MIN(), new Tokens());
-  const new_tx_builder = TxBuilder.new(new_box_selection, tx_outputs, 0, fee, change_address, min_change_value);
-  const new_tx = tx_builder.build();
+  const new_outbox_value = BoxValue.from_i64(I64.from_str('1000000000'));
+  const new_target_balance = BoxValue.from_i64(new_outbox_value.as_i64().checked_add(fee.as_i64()));
+  const new_box_selection = box_selector.select(signed_tx.outputs(), new_target_balance, new Tokens());
+  const new_outbox = new ErgoBoxCandidateBuilder(new_outbox_value, contract, 0).build();
+  const new_tx_outputs = new ErgoBoxCandidates(new_outbox);
+  const new_tx_builder = TxBuilder.new(new_box_selection, new_tx_outputs, 0, fee, change_address, min_change_value);
+  const new_tx = new_tx_builder.build();
   assert(new_tx != null);
 });
 
