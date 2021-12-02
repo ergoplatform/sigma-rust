@@ -116,9 +116,6 @@ impl CommitmentHintJson {
                 FirstDlogProverMessage::from(point),
             )),
         }
-        // FirstProverMessage::FirstDlogProverMessage(FirstDlogProverMessage::from(
-        //     EcPoint::from_base16_str(self.a.clone()).unwrap(),
-        // ))
     }
 }
 
@@ -293,7 +290,6 @@ mod tests {
 
         let json: CommitmentHintJson =
             CommitmentHintJson::from(CommitmentHint::OwnCommitment(own_commitment.clone()));
-        println!("{}", serde_json::to_string(&json).unwrap());
         let reverse = serde_json::to_string(&json).unwrap();
         let own_com_json: CommitmentHintJson = serde_json::from_str(&reverse).unwrap();
         let own_com = CommitmentHint::try_from(own_com_json).unwrap();
