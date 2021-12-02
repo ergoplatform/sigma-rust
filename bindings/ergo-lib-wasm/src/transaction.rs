@@ -89,6 +89,12 @@ impl HintsBag {
     }
 }
 
+impl From<ergo_lib::ergotree_interpreter::sigma_protocol::prover::hint::HintsBag> for HintsBag {
+    fn from(t: ergo_lib::ergotree_interpreter::sigma_protocol::prover::hint::HintsBag) -> Self {
+        HintsBag(t)
+    }
+}
+
 /// TransactionHintsBag
 #[wasm_bindgen]
 pub struct TransactionHintsBag(pub(crate) ergo_lib::wallet::multi_sig::TransactionHintsBag);
@@ -105,6 +111,11 @@ impl TransactionHintsBag {
     /// Adding hints for input
     pub fn add_hints_for_input(&mut self, index: usize, hints_bag: &HintsBag) {
         self.0.add_hints_for_input(index, hints_bag.0.clone());
+    }
+
+    /// Outputting HintsBag corresponding for an input index
+    pub fn all_hints_for_input(&self, index: usize) -> HintsBag {
+        HintsBag::from(self.0.all_hints_for_input(index))
     }
 }
 
