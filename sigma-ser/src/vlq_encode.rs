@@ -129,6 +129,22 @@ pub trait WriteSigmaVlqExt: io::Write {
         self.write_all(s.as_bytes())?;
         Ok(())
     }
+
+    /// Encode an optional value
+    fn put_option<T>(
+        &mut self,
+        opt: Option<T>,
+        put_value: &dyn Fn(&mut Self, T) -> io::Result<()>,
+    ) -> io::Result<()> {
+        match opt {
+            Some(s) => {
+                self.put_u8(1)?;
+                put_value(self, s)?;
+            }
+            None => self.put_u8(0)?,
+        }
+        Ok(())
+    }
 }
 
 /// Mark all types implementing `Write` as implementing the extension.
@@ -217,6 +233,19 @@ pub trait ReadSigmaVlqExt: io::Read {
         self.read_exact(&mut bytes)?;
         let string = String::from_utf8(bytes).map_err(|_| VlqEncodingError::VlqDecodingFailed)?;
         Ok(string)
+    }
+
+    /// Read and decode an optional value using supplied function
+    fn get_option<T>(
+        &mut self,
+        get_value: &dyn Fn(&mut Self) -> Result<T, VlqEncodingError>,
+    ) -> Option<T> {
+        let is_opt = self.get_u8().ok()?;
+        match is_opt {
+            1 => Some(get_value(self).ok()?),
+            // Should only ever be 0 or 1
+            _ => None,
+        }
     }
 }
 
