@@ -6,14 +6,12 @@ use crate::box_coll::ErgoBoxes;
 use crate::ergo_state_ctx::ErgoStateContext;
 use crate::error_conversion::to_js;
 
-use crate::transaction::{HintsBag, Transaction, TransactionHintsBag};
+use crate::transaction::{Transaction, TransactionHintsBag};
 use ergo_lib::chain::transaction::reduced::reduce_tx;
 use ergo_lib::chain::transaction::TxIoVec;
 use ergo_lib::ergotree_ir::serialization::SigmaSerializable;
 use ergo_lib::ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
-use ergo_lib::wallet::multi_sig::{
-    extract_hints_from_reduced_transaction, generate_commitments_for,
-};
+use ergo_lib::wallet::multi_sig::extract_hints_from_reduced_transaction;
 use wasm_bindgen::prelude::*;
 
 /// Propositions list(public keys)
@@ -94,19 +92,6 @@ impl ReducedTransaction {
     /// Returns the unsigned transaction
     pub fn unsigned_tx(&self) -> UnsignedTransaction {
         self.0.unsigned_tx.clone().into()
-    }
-
-    /// Generate commitment for reduced transaction for a public key
-    pub fn generate_commitment(&self, public_key: Vec<u8>) -> Result<TransactionHintsBag, JsValue> {
-        let mut tx_hints = TransactionHintsBag::empty();
-        let pk = SigmaBoolean::sigma_parse_bytes(&public_key).map_err(to_js);
-        let generate_for: Vec<SigmaBoolean> = vec![pk.unwrap()];
-        for (index, input) in self.0.reduced_inputs().iter().enumerate() {
-            let sigma_prop = input.clone().reduction_result.sigma_prop;
-            let hints = HintsBag(generate_commitments_for(sigma_prop, &generate_for));
-            tx_hints.add_hints_for_input(index, &hints);
-        }
-        Ok(tx_hints)
     }
 
     /// Extracting hints from transaction

@@ -10,7 +10,7 @@ use crate::input::{Inputs, UnsignedInputs};
 use crate::json::TransactionJsonEip12;
 use crate::json::UnsignedTransactionJsonEip12;
 use ergo_lib::chain;
-use ergo_lib::chain::transaction::{distinct_token_ids, TxIoVec};
+use ergo_lib::chain::transaction::distinct_token_ids;
 use ergo_lib::ergotree_ir::chain::base16_bytes::Base16DecodedBytes;
 use ergo_lib::ergotree_ir::chain::base16_bytes::Base16EncodedBytes;
 use ergo_lib::ergotree_ir::chain::digest32::Digest32;
@@ -21,8 +21,6 @@ use wasm_bindgen::prelude::*;
 
 extern crate derive_more;
 
-use crate::ergo_state_ctx::ErgoStateContext;
-use crate::transaction::reduced::Propositions;
 use derive_more::{From, Into};
 
 pub mod reduced;
@@ -132,40 +130,6 @@ impl From<ergo_lib::wallet::multi_sig::TransactionHintsBag> for TransactionHints
     fn from(t: ergo_lib::wallet::multi_sig::TransactionHintsBag) -> Self {
         TransactionHintsBag(t)
     }
-}
-
-/// Generate commitments for transaction
-#[wasm_bindgen]
-pub fn generate_commitments(
-    _state_context: &ErgoStateContext,
-    tx: &UnsignedTransaction,
-    boxes_to_spend: &ErgoBoxes,
-    data_boxes: &ErgoBoxes,
-    public_keys: Propositions,
-) -> Result<TransactionHintsBag, JsValue> {
-    let boxes_to_spend = TxIoVec::from_vec(boxes_to_spend.clone().into()).map_err(to_js)?;
-    let data_boxes = {
-        let d: Vec<_> = data_boxes.clone().into();
-        if d.is_empty() {
-            None
-        } else {
-            Some(TxIoVec::from_vec(d).map_err(to_js)?)
-        }
-    };
-    let tx_context = ergo_lib::wallet::signing::TransactionContext::new(
-        tx.clone().into(),
-        boxes_to_spend,
-        data_boxes,
-    )
-    .map_err(to_js)?;
-
-    ergo_lib::wallet::multi_sig::generate_commitments(
-        tx_context,
-        &_state_context.clone().into(),
-        public_keys.0.as_slice(),
-    )
-    .map_err(to_js)
-    .map(TransactionHintsBag::from)
 }
 
 /// Transaction id
