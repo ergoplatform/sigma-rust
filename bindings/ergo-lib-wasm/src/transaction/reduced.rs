@@ -99,10 +99,10 @@ impl ReducedTransaction {
     /// Generate commitment for reduced transaction for a public key
     pub fn generate_commitment(&self, public_key: Vec<u8>) -> Result<TransactionHintsBag, JsValue> {
         let mut tx_hints = TransactionHintsBag::empty();
+        let pk = SigmaBoolean::sigma_parse_bytes(&public_key).map_err(to_js);
+        let generate_for: Vec<SigmaBoolean> = vec![pk.unwrap()];
         for (index, input) in self.0.reduced_inputs().iter().enumerate() {
             let sigma_prop = input.clone().reduction_result.sigma_prop;
-            let pk = SigmaBoolean::sigma_parse_bytes(&public_key).map_err(to_js);
-            let generate_for: Vec<SigmaBoolean> = vec![pk.unwrap()];
             let hints = HintsBag(generate_commitments_for(sigma_prop, &generate_for));
             tx_hints.add_hints_for_input(index, &hints);
         }

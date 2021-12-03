@@ -19,8 +19,11 @@ use thiserror::Error;
 use crate::chain::ergo_state_context::ErgoStateContext;
 use crate::chain::transaction::reduced::ReducedTransaction;
 use crate::chain::transaction::Transaction;
+use crate::ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 use crate::wallet::mnemonic::Mnemonic;
-use crate::wallet::multi_sig::TransactionHintsBag;
+use crate::wallet::multi_sig::{
+    generate_commitments, generate_commitments_for, TransactionHintsBag,
+};
 
 use self::signing::sign_reduced_transaction;
 use self::signing::TransactionContext;
@@ -89,5 +92,40 @@ impl Wallet {
         reduced_tx: ReducedTransaction,
     ) -> Result<Transaction, WalletError> {
         sign_reduced_transaction(self.prover.as_ref(), reduced_tx).map_err(WalletError::from)
+    }
+
+    /// Generate commitments for Transaction by wallet secrets
+    pub fn generate_commitments(
+        &self,
+        tx_context: TransactionContext,
+        state_context: &ErgoStateContext,
+    ) -> Result<TransactionHintsBag, TxSigningError> {
+        let public_keys: Vec<SigmaBoolean> = self
+            .prover
+            .secrets()
+            .iter()
+            .map(|secret| secret.public_image())
+            .collect();
+        generate_commitments(tx_context, state_context, public_keys.as_slice())
+    }
+
+    /// Generate Commitments for reduced Transaction
+    pub fn generate_commitments_for_reduced_transaction(
+        &self,
+        reduced_tx: ReducedTransaction,
+    ) -> Result<TransactionHintsBag, TxSigningError> {
+        let mut tx_hints = TransactionHintsBag::empty();
+        let public_keys: Vec<SigmaBoolean> = self
+            .prover
+            .secrets()
+            .iter()
+            .map(|secret| secret.public_image())
+            .collect();
+        for (index, input) in reduced_tx.reduced_inputs().iter().enumerate() {
+            let sigma_prop = input.clone().reduction_result.sigma_prop;
+            let hints = generate_commitments_for(sigma_prop, &public_keys);
+            tx_hints.add_hints_for_input(index, hints);
+        }
+        Ok(tx_hints)
     }
 }
