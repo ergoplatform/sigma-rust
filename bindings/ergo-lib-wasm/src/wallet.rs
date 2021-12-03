@@ -120,6 +120,7 @@ impl Wallet {
     }
 
     /// Generate Commitments for unsigned tx
+    #[wasm_bindgen]
     pub fn generate_commitments(
         &self,
         _state_context: &ErgoStateContext,
@@ -149,6 +150,7 @@ impl Wallet {
     }
 
     /// Generate Commitments for reduced Transaction
+    #[wasm_bindgen]
     pub fn generate_commitments_for_reduced_transaction(
         &self,
         reduced_tx: &ReducedTransaction,
