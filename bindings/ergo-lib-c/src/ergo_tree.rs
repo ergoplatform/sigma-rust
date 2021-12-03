@@ -13,6 +13,7 @@ use std::{
 
 use crate::{delete_ptr, ErrorPtr, ReturnNum, ReturnOption};
 
+/// Decode from base16 encoded serialized ErgoTree
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_ergo_tree_from_base16_bytes(
     bytes_ptr: *const c_char,
@@ -23,6 +24,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_tree_from_base16_bytes(
     Error::c_api_from(res)
 }
 
+/// Decode from encoded serialized ErgoTree
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_ergo_tree_from_bytes(
     bytes_ptr: *const u8,
@@ -33,6 +35,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_tree_from_bytes(
     Error::c_api_from(res)
 }
 
+/// Determine number of bytes of the serialized ErgoTree
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_ergo_tree_bytes_len(
     ergo_tree_ptr: ConstErgoTreePtr,
@@ -49,6 +52,9 @@ pub unsafe extern "C" fn ergo_wallet_ergo_tree_bytes_len(
     }
 }
 
+/// Convert to serialized bytes. **Key assumption:** enough memory has been allocated at the address
+/// pointed-to by `output`. Use `ergo_wallet_ergo_tree_bytes_len` to determine the length of the
+/// byte array.
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_ergo_tree_to_bytes(
     ergo_tree_ptr: ConstErgoTreePtr,
@@ -58,6 +64,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_tree_to_bytes(
     Error::c_api_from(res)
 }
 
+/// Get Base16-encoded serialized bytes
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_ergo_tree_to_base16_bytes(
     ergo_tree_ptr: ConstErgoTreePtr,
@@ -74,6 +81,8 @@ pub unsafe extern "C" fn ergo_wallet_ergo_tree_to_base16_bytes(
     Error::c_api_from(res)
 }
 
+/// Get constants number as stored in serialized ErgoTree or error if the parsing of
+/// constants is failed
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_ergo_tree_constants_len(
     ergo_tree_ptr: ConstErgoTreePtr,
@@ -90,6 +99,9 @@ pub unsafe extern "C" fn ergo_wallet_ergo_tree_constants_len(
     }
 }
 
+/// Returns constant with given index (as stored in serialized ErgoTree)
+/// or None if index is out of bounds
+/// or error if constants parsing were failed
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_ergo_tree_get_constant(
     ergo_tree_ptr: ConstErgoTreePtr,
@@ -108,6 +120,9 @@ pub unsafe extern "C" fn ergo_wallet_ergo_tree_get_constant(
     }
 }
 
+/// Returns new ErgoTree instance with a new constant value for a given index in constants list (as
+/// stored in serialized ErgoTree), or an error. Note that the original ErgoTree instance
+/// pointed-at by `ergo_tree_ptr` is untouched.
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_ergo_tree_with_constant(
     ergo_tree_ptr: ConstErgoTreePtr,
@@ -119,6 +134,8 @@ pub unsafe extern "C" fn ergo_wallet_ergo_tree_with_constant(
     Error::c_api_from(res)
 }
 
+/// Returns the number of bytes of the Serialized proposition expression of SigmaProp type with
+/// ConstantPlaceholder nodes instead of Constant nodes.
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_ergo_tree_template_bytes_len(
     ergo_tree_ptr: ConstErgoTreePtr,
@@ -135,6 +152,10 @@ pub unsafe extern "C" fn ergo_wallet_ergo_tree_template_bytes_len(
     }
 }
 
+/// Serialized proposition expression of SigmaProp type with ConstantPlaceholder nodes instead of
+/// Constant nodes. Key assumption: enough memory has been allocated at the address pointed-to by
+/// `output`. Use `ergo_wallet_ergo_tree_template_bytes_len` to determine the length of the byte
+/// array.
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_ergo_tree_template_bytes(
     ergo_tree_ptr: ConstErgoTreePtr,
@@ -144,6 +165,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_tree_template_bytes(
     Error::c_api_from(res)
 }
 
+/// Drop `ErgoTree`
 #[no_mangle]
 pub extern "C" fn ergo_wallet_ergo_tree_delete(ptr: ErgoTreePtr) {
     unsafe { delete_ptr(ptr) }

@@ -33,36 +33,42 @@ pub unsafe fn constant_from_base16_bytes(
     Ok(())
 }
 
+/// Encode as Base16-encoded ErgoTree serialized value or return an error if serialization failed
 pub unsafe fn constant_to_base16_str(constant_ptr: ConstConstantPtr) -> Result<String, Error> {
     let constant = const_ptr_as_ref(constant_ptr, "constant_ptr")?;
     let s = constant.0.base16_str()?;
     Ok(s)
 }
 
+/// Create from i32 value
 pub unsafe fn constant_from_i32(value: i32, constant_out: *mut ConstantPtr) -> Result<(), Error> {
     let constant_out = mut_ptr_as_mut(constant_out, "constant_out")?;
     *constant_out = Box::into_raw(Box::new(Constant(value.into())));
     Ok(())
 }
 
+/// Extract i32 value, returning error if wrong type
 pub unsafe fn constant_to_i32(constant_ptr: ConstConstantPtr) -> Result<i32, Error> {
     let constant = const_ptr_as_ref(constant_ptr, "constant_ptr")?;
     let i = i32::try_extract_from(constant.0.clone())?;
     Ok(i)
 }
 
+/// Create from i64
 pub unsafe fn constant_from_i64(value: i64, constant_out: *mut ConstantPtr) -> Result<(), Error> {
     let constant_out = mut_ptr_as_mut(constant_out, "constant_out")?;
     *constant_out = Box::into_raw(Box::new(Constant(value.into())));
     Ok(())
 }
 
+/// Extract i64 value, returning error if wrong type
 pub unsafe fn constant_to_i64(constant_ptr: ConstConstantPtr) -> Result<i64, Error> {
     let constant = const_ptr_as_ref(constant_ptr, "constant_ptr")?;
     let i = i64::try_extract_from(constant.0.clone())?;
     Ok(i)
 }
 
+/// Create from byte array
 pub unsafe fn constant_from_bytes(
     bytes_ptr: *const u8,
     len: usize,
@@ -74,6 +80,7 @@ pub unsafe fn constant_from_bytes(
     Ok(())
 }
 
+/// Extract byte array length, returning error if wrong type
 pub unsafe fn constant_bytes_len(constant_ptr: ConstConstantPtr) -> Result<usize, Error> {
     let constant = const_ptr_as_ref(constant_ptr, "constant_ptr")?;
     let len = Vec::<u8>::try_extract_from(constant.0.clone()).map(|v| v.len())?;
@@ -92,6 +99,7 @@ pub unsafe fn constant_to_bytes(
     Ok(())
 }
 
+/// Parse raw [`EcPoint`] value from bytes and make [`ProveDlog`] constant
 pub unsafe fn constant_from_ecpoint_bytes(
     bytes_ptr: *const u8,
     len: usize,
@@ -105,6 +113,7 @@ pub unsafe fn constant_from_ecpoint_bytes(
     Ok(())
 }
 
+/// Create from ErgoBox value
 pub unsafe fn constant_from_ergo_box(
     ergo_box_ptr: ConstErgoBoxPtr,
     constant_out: *mut ConstantPtr,
@@ -116,6 +125,7 @@ pub unsafe fn constant_from_ergo_box(
     Ok(())
 }
 
+/// Extract ErgoBox value, returning error if wrong type
 pub unsafe fn constant_to_ergo_box(
     constant_ptr: ConstConstantPtr,
     ergo_box_out: *mut ErgoBoxPtr,

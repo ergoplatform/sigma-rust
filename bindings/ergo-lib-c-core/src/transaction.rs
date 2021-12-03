@@ -23,6 +23,7 @@ pub struct UnsignedTransaction(pub(crate) chain::transaction::unsigned::Unsigned
 pub type UnsignedTransactionPtr = *mut UnsignedTransaction;
 pub type ConstUnsignedTransactionPtr = *const UnsignedTransaction;
 
+/// Get id for transaction
 pub unsafe fn unsigned_tx_id(
     unsigned_tx_ptr: ConstUnsignedTransactionPtr,
     tx_id_out: *mut TxIdPtr,
@@ -33,6 +34,7 @@ pub unsafe fn unsigned_tx_id(
     Ok(())
 }
 
+/// Inputs for transaction
 pub unsafe fn unsigned_tx_inputs(
     unsigned_tx_ptr: ConstUnsignedTransactionPtr,
     unsigned_inputs_out: *mut CollectionPtr<UnsignedInput>,
@@ -52,6 +54,7 @@ pub unsafe fn unsigned_tx_inputs(
     Ok(())
 }
 
+/// Data inputs for transaction
 pub unsafe fn unsigned_tx_data_inputs(
     unsigned_tx_ptr: ConstUnsignedTransactionPtr,
     data_inputs_out: *mut CollectionPtr<DataInput>,
@@ -72,6 +75,7 @@ pub unsafe fn unsigned_tx_data_inputs(
     Ok(())
 }
 
+/// Output candidates for transaction
 pub unsafe fn unsigned_tx_output_candidates(
     unsigned_tx_ptr: ConstUnsignedTransactionPtr,
     ergo_box_candidates_out: *mut CollectionPtr<ErgoBoxCandidate>,
@@ -90,6 +94,8 @@ pub unsafe fn unsigned_tx_output_candidates(
     Ok(())
 }
 
+/// Parse from JSON. Supports Ergo Node/Explorer API and box values and token amount encoded as
+/// strings
 pub unsafe fn unsigned_tx_from_json(
     json: &str,
     unsigned_tx_out: *mut UnsignedTransactionPtr,
@@ -100,6 +106,7 @@ pub unsafe fn unsigned_tx_from_json(
     Ok(())
 }
 
+/// JSON representation as text (compatible with Ergo Node/Explorer API, numbers are encoded as numbers)
 pub unsafe fn unsigned_tx_to_json(
     unsigned_tx_ptr: ConstUnsignedTransactionPtr,
 ) -> Result<String, Error> {
@@ -124,6 +131,7 @@ pub struct TxId(pub(crate) chain::transaction::TxId);
 pub type TxIdPtr = *mut TxId;
 pub type ConstTxIdPtr = *const TxId;
 
+/// Convert a hex string into a TxId
 pub unsafe fn tx_id_from_str(str: &str, tx_id_out: *mut TxIdPtr) -> Result<(), Error> {
     let tx_id_out = mut_ptr_as_mut(tx_id_out, "tx_id_out")?;
     let bytes = Base16DecodedBytes::try_from(str.to_string())?;
@@ -134,6 +142,7 @@ pub unsafe fn tx_id_from_str(str: &str, tx_id_out: *mut TxIdPtr) -> Result<(), E
     Ok(())
 }
 
+/// Get the tx id as bytes
 pub unsafe fn tx_id_to_str(tx_id_ptr: ConstTxIdPtr) -> Result<String, Error> {
     let tx_id = const_ptr_as_ref(tx_id_ptr, "tx_id_ptr")?;
     let base16_bytes = Base16EncodedBytes::new(tx_id.0 .0 .0.as_ref());
@@ -154,6 +163,8 @@ pub struct Transaction(pub(crate) chain::transaction::Transaction);
 pub type TransactionPtr = *mut Transaction;
 pub type ConstTransactionPtr = *const Transaction;
 
+/// Create Transaction from UnsignedTransaction and an array of proofs in the same order as
+/// UnsignedTransaction.inputs with empty proof indicated with empty byte array
 pub unsafe fn tx_from_unsigned_tx(
     unsigned_tx_ptr: ConstUnsignedTransactionPtr,
     proofs_ptr: ConstCollectionPtr<ByteArray>,
@@ -176,6 +187,7 @@ pub unsafe fn tx_from_unsigned_tx(
     Ok(())
 }
 
+/// Get id for transaction
 pub unsafe fn tx_id(tx_ptr: ConstTransactionPtr, tx_id_out: *mut TxIdPtr) -> Result<(), Error> {
     let tx = const_ptr_as_ref(tx_ptr, "tx_ptr")?;
     let tx_id_out = mut_ptr_as_mut(tx_id_out, "tx_id_out")?;
@@ -183,6 +195,8 @@ pub unsafe fn tx_id(tx_ptr: ConstTransactionPtr, tx_id_out: *mut TxIdPtr) -> Res
     Ok(())
 }
 
+/// Parse from JSON. Supports Ergo Node/Explorer API and box values and token amount encoded as
+/// strings
 pub unsafe fn tx_from_json(json: &str, tx_out: *mut TransactionPtr) -> Result<(), Error> {
     let tx_out = mut_ptr_as_mut(tx_out, "tx_out")?;
     let tx = serde_json::from_str(json).map(Transaction)?;
@@ -190,6 +204,7 @@ pub unsafe fn tx_from_json(json: &str, tx_out: *mut TransactionPtr) -> Result<()
     Ok(())
 }
 
+/// JSON representation as text (compatible with Ergo Node/Explorer API, numbers are encoded as numbers)
 pub unsafe fn tx_to_json(tx_ptr: ConstTransactionPtr) -> Result<String, Error> {
     let tx = const_ptr_as_ref(tx_ptr, "tx_ptr")?;
     let s = serde_json::to_string(&tx.0)?;
@@ -204,6 +219,7 @@ pub unsafe fn tx_to_json_eip12(tx_ptr: ConstTransactionPtr) -> Result<String, Er
     Ok(s)
 }
 
+/// Inputs for transaction
 pub unsafe fn tx_inputs(
     tx_ptr: ConstTransactionPtr,
     inputs_out: *mut CollectionPtr<Input>,
@@ -221,6 +237,7 @@ pub unsafe fn tx_inputs(
     Ok(())
 }
 
+/// Data inputs for transaction
 pub unsafe fn tx_data_inputs(
     tx_ptr: ConstTransactionPtr,
     data_inputs_out: *mut CollectionPtr<DataInput>,
@@ -239,6 +256,7 @@ pub unsafe fn tx_data_inputs(
     Ok(())
 }
 
+/// Output candidates for transaction
 pub unsafe fn tx_output_candidates(
     tx_ptr: ConstTransactionPtr,
     ergo_box_candidates_out: *mut CollectionPtr<ErgoBoxCandidate>,
@@ -255,6 +273,7 @@ pub unsafe fn tx_output_candidates(
     Ok(())
 }
 
+/// Returns ErgoBox's created from ErgoBoxCandidate's with tx id and indices
 pub unsafe fn tx_outputs(
     tx_ptr: ConstTransactionPtr,
     ergo_box_out: *mut CollectionPtr<ErgoBox>,

@@ -19,12 +19,21 @@ pub struct TxBuilder(
 pub type TxBuilderPtr = *mut TxBuilder;
 pub type ConstTxBuilderPtr = *const TxBuilder;
 
+/// Suggested transaction fee (semi-default value used across wallets and dApps as of Oct 2020)
 pub unsafe fn tx_builder_suggested_tx_fee(value_out: *mut BoxValuePtr) -> Result<(), Error> {
     let value_out = mut_ptr_as_mut(value_out, "value_out")?;
     *value_out = Box::into_raw(Box::new(BoxValue(wallet::tx_builder::SUGGESTED_TX_FEE())));
     Ok(())
 }
 
+/// Creates new TxBuilder
+/// `box_selection` - selected input boxes (via [`super::box_selector`])
+/// `output_candidates` - output boxes to be "created" in this transaction,
+/// `current_height` - chain height that will be used in additionally created boxes (change, miner's fee, etc.),
+/// `fee_amount` - miner's fee,
+/// `change_address` - change (inputs - outputs) will be sent to this address,
+/// `min_change_value` - minimal value of the change to be sent to `change_address`, value less than that
+/// will be given to miners,
 pub unsafe fn tx_builder_new(
     box_selection_ptr: ConstBoxSelectionPtr,
     output_candidates_ptr: ConstCollectionPtr<ErgoBoxCandidate>,
@@ -58,6 +67,7 @@ pub unsafe fn tx_builder_new(
     Ok(())
 }
 
+/// Set transaction's data inputs
 pub unsafe fn tx_builder_set_data_inputs(
     tx_builder_mut: TxBuilderPtr,
     data_inputs_ptr: ConstCollectionPtr<DataInput>,
@@ -70,6 +80,7 @@ pub unsafe fn tx_builder_set_data_inputs(
     Ok(())
 }
 
+/// Build the unsigned transaction
 pub unsafe fn tx_builder_build(
     tx_builder_ptr: ConstTxBuilderPtr,
     unsigned_transaction_out: *mut UnsignedTransactionPtr,
@@ -82,6 +93,7 @@ pub unsafe fn tx_builder_build(
     Ok(())
 }
 
+/// Get box selection
 pub unsafe fn tx_builder_box_selection(
     tx_builder_ptr: ConstTxBuilderPtr,
     box_selection_out: *mut BoxSelectionPtr,
@@ -92,6 +104,7 @@ pub unsafe fn tx_builder_box_selection(
     Ok(())
 }
 
+/// Get data inputs
 pub unsafe fn tx_builder_data_inputs(
     tx_builder_ptr: ConstTxBuilderPtr,
     data_inputs_out: *mut CollectionPtr<DataInput>,
@@ -109,6 +122,7 @@ pub unsafe fn tx_builder_data_inputs(
     Ok(())
 }
 
+/// Get outputs EXCLUDING fee and change
 pub unsafe fn tx_builder_output_candidates(
     tx_builder_ptr: ConstTxBuilderPtr,
     output_candidates_out: *mut CollectionPtr<ErgoBoxCandidate>,
@@ -126,11 +140,13 @@ pub unsafe fn tx_builder_output_candidates(
     Ok(())
 }
 
+/// Get current height
 pub unsafe fn tx_builder_current_height(tx_builder_ptr: ConstTxBuilderPtr) -> Result<u32, Error> {
     let tx_builder = const_ptr_as_ref(tx_builder_ptr, "tx_builder_ptr")?;
     Ok(tx_builder.0.current_height())
 }
 
+/// Get fee amount
 pub unsafe fn tx_builder_fee_amount(
     tx_builder_ptr: ConstTxBuilderPtr,
     value_out: *mut BoxValuePtr,
@@ -141,6 +157,7 @@ pub unsafe fn tx_builder_fee_amount(
     Ok(())
 }
 
+/// Get change address
 pub unsafe fn tx_builder_change_address(
     tx_builder_ptr: ConstTxBuilderPtr,
     address_out: *mut AddressPtr,
@@ -151,6 +168,7 @@ pub unsafe fn tx_builder_change_address(
     Ok(())
 }
 
+/// Get min change value
 pub unsafe fn tx_builder_min_change_value(
     tx_builder_ptr: ConstTxBuilderPtr,
     min_change_value_out: *mut BoxValuePtr,

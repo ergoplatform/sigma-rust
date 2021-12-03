@@ -2,18 +2,16 @@
 import Foundation
 import ErgoLibC
 
+/// Blockchain state (last headers, etc.)
 class ErgoStateContext {
     internal var pointer: ErgoStateContextPtr
     
+    /// Create new context
     init(preHeader : PreHeader, headers: BlockHeaders) throws {
-        self.pointer = try ErgoStateContext.fromHeaders(preHeader: preHeader, headers: headers)
-    }
-    
-    private static func fromHeaders(preHeader: PreHeader, headers: BlockHeaders) throws -> ErgoStateContextPtr {
-        var ergoStateContextPtr: ErgoStateContextPtr?
-        let error = ergo_wallet_ergo_state_context_new(preHeader.pointer, headers.pointer, &ergoStateContextPtr)
+        var ptr: ErgoStateContextPtr?
+        let error = ergo_wallet_ergo_state_context_new(preHeader.pointer, headers.pointer, &ptr)
         try checkError(error)
-        return ergoStateContextPtr!
+        self.pointer = ptr!
     }
     
     deinit {

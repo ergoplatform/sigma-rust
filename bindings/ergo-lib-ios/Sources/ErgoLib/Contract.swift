@@ -1,6 +1,7 @@
 import Foundation
 import ErgoLibC
 
+/// Defines the contract(script) that will be guarding box contents
 class Contract {
     internal var pointer: ContractPtr
     
@@ -8,12 +9,14 @@ class Contract {
         self.pointer = ptr
     }
     
+    /// Create new contract from ErgoTree
     init(fromErgoTree: ErgoTree) {
         var ptr:  ContractPtr?
         ergo_wallet_contract_new(fromErgoTree.pointer, &ptr)
         self.pointer = ptr!
     }
     
+    /// Compiles a contract from ErgoScript source code
     init(compileFromString: String) throws {
         var ptr: ContractPtr?
         let error = compileFromString.withCString { cs in
@@ -23,6 +26,7 @@ class Contract {
         self.pointer = ptr!
     }
     
+    /// Create new contract that allow spending of the guarded box by a given recipient ([`Address`])
     init(payToAddress: Address) throws {
         var ptr: ContractPtr?
         let error = ergo_wallet_contract_pay_to_address(payToAddress.pointer, &ptr)
@@ -30,11 +34,11 @@ class Contract {
         self.pointer = ptr!
     }
     
-    
+    /// Get the ErgoTree of the contract
     func getErgoTree() -> ErgoTree {
         var boxIdPtr: ErgoTreePtr?
         ergo_wallet_contract_ergo_tree(self.pointer, &boxIdPtr)
-        return ErgoTree(withPtr: boxIdPtr!)
+        return ErgoTree(withRawPointer: boxIdPtr!)
     }
         
     deinit {

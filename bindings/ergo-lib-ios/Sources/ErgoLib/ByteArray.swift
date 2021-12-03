@@ -11,6 +11,12 @@ class ByteArray {
         self.pointer = ptr!
     }
     
+    /// Takes ownership of an existing ``ByteArrayPtr``. Note: we must ensure that no other instance
+    /// of ``ByteArray`` can hold this pointer.
+    internal init(withRawPointer ptr: ByteArrayPtr) {
+        self.pointer = ptr
+    }
+    
     deinit {
         ergo_wallet_byte_array_delete(self.pointer)
     }
@@ -20,7 +26,7 @@ class ByteArrays {
     internal var pointer: ByteArraysPtr
     
     init() {
-        var ptr: BlockHeadersPtr?
+        var ptr: ByteArraysPtr?
         ergo_wallet_byte_arrays_new(&ptr)
         self.pointer = ptr!
     }
@@ -29,12 +35,12 @@ class ByteArrays {
         return ergo_wallet_byte_arrays_len(self.pointer)
     }
     
-    func get(index: UInt) -> BlockHeader? {
-        var blockHeaderPtr: BlockHeaderPtr?
-        let res = ergo_wallet_byte_arrays_get(self.pointer, index, &blockHeaderPtr)
+    func get(index: UInt) -> ByteArray? {
+        var ptr: ByteArrayPtr?
+        let res = ergo_wallet_byte_arrays_get(self.pointer, index, &ptr)
         assert(res.error == nil)
         if res.is_some {
-            return BlockHeader(withPtr: blockHeaderPtr!)
+            return ByteArray(withRawPointer: ptr!)
         } else {
             return nil
         }

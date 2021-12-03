@@ -11,6 +11,7 @@ use std::{ffi::CStr, os::raw::c_char};
 
 use crate::delete_ptr;
 
+/// Create new contract from ErgoTree
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_contract_new(
     ergo_tree_ptr: ConstErgoTreePtr,
@@ -20,6 +21,7 @@ pub unsafe extern "C" fn ergo_wallet_contract_new(
     contract_new(ergo_tree_ptr, contract_out).unwrap();
 }
 
+/// Create new contract that allow spending of the guarded box by a given recipient ([`Address`])
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_contract_pay_to_address(
     address_ptr: ConstAddressPtr,
@@ -29,6 +31,7 @@ pub unsafe extern "C" fn ergo_wallet_contract_pay_to_address(
     Error::c_api_from(res)
 }
 
+/// Compiles a contract from ErgoScript source code
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_contract_compile(
     source: *const c_char,
@@ -39,6 +42,7 @@ pub unsafe extern "C" fn ergo_wallet_contract_compile(
     Error::c_api_from(res)
 }
 
+/// Get the ErgoTree of the contract
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_contract_ergo_tree(
     contract_ptr: ConstContractPtr,
@@ -48,6 +52,7 @@ pub unsafe extern "C" fn ergo_wallet_contract_ergo_tree(
     contract_ergo_tree(contract_ptr, ergo_tree_out).unwrap();
 }
 
+/// Drop `Contract`
 #[no_mangle]
 pub extern "C" fn ergo_wallet_contract_delete(ptr: ContractPtr) {
     unsafe { delete_ptr(ptr) }

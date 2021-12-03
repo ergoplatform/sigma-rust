@@ -37,6 +37,7 @@ pub struct BoxId(pub chain::ergo_box::BoxId);
 pub type BoxIdPtr = *mut BoxId;
 pub type ConstBoxIdPtr = *const BoxId;
 
+/// Parse box id (32 byte digest) from base16-encoded string
 pub unsafe fn box_id_from_str(box_id_str: &str, box_id_out: *mut BoxIdPtr) -> Result<(), Error> {
     let box_id_out = mut_ptr_as_mut(box_id_out, "box_id_out")?;
     let box_id = chain::ergo_box::BoxId::try_from(String::from(box_id_str)).map(BoxId)?;
@@ -44,6 +45,7 @@ pub unsafe fn box_id_from_str(box_id_str: &str, box_id_out: *mut BoxIdPtr) -> Re
     Ok(())
 }
 
+/// Base16 encoded string
 pub unsafe fn box_id_to_str(box_id_ptr: ConstBoxIdPtr) -> Result<String, Error> {
     let box_id_ptr = const_ptr_as_ref(box_id_ptr, "box_id_ptr")?;
     Ok(box_id_ptr.0.clone().into())
@@ -116,7 +118,9 @@ pub unsafe fn box_value_sum_of(
     Ok(())
 }
 
-/// ErgoBox candidate not yet included in any transaction on the chain
+/// Contains the same fields as `ErgoBox`, except for transaction id and index, that will be
+/// calculated after full transaction formation.  Use `ErgoBoxCandidateBuilder` to create an
+/// instance.
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ErgoBoxCandidate(pub(crate) chain::ergo_box::ErgoBoxCandidate);
 pub type ErgoBoxCandidatePtr = *mut ErgoBoxCandidate;
@@ -181,13 +185,20 @@ pub unsafe fn ergo_box_candidate_box_value(
     Ok(())
 }
 
-/// Ergo box, that is taking part in some transaction on the chain
-/// Differs with [`ErgoBoxCandidate`] by added transaction id and an index in the input of that transaction
+/// Ergo box, that is taking part in some transaction on the chain Differs with [`ErgoBoxCandidate`]
+/// by added transaction id and an index in the input of that transaction
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ErgoBox(pub(crate) chain::ergo_box::ErgoBox);
 pub type ErgoBoxPtr = *mut ErgoBox;
 pub type ConstErgoBoxPtr = *const ErgoBox;
 
+/// Make a new box with:
+/// `value` - amount of money associated with the box
+/// `contract` - guarding contract([`Contract`]), which should be evaluated to true in order
+/// to open(spend) this box
+/// `creation_height` - height when a transaction containing the box is created.
+/// `tx_id` - transaction id in which this box was "created" (participated in outputs)
+/// `index` - index (in outputs) in the transaction
 pub unsafe fn ergo_box_new(
     value_ptr: ConstBoxValuePtr,
     creation_height: u32,
@@ -218,6 +229,7 @@ pub unsafe fn ergo_box_new(
     Ok(())
 }
 
+/// Get box id
 pub unsafe fn ergo_box_box_id(
     ergo_box_ptr: ConstErgoBoxPtr,
     box_id_out: *mut BoxIdPtr,
@@ -228,11 +240,13 @@ pub unsafe fn ergo_box_box_id(
     Ok(())
 }
 
+/// Get box creation height
 pub unsafe fn ergo_box_creation_height(ergo_box_ptr: ConstErgoBoxPtr) -> Result<u32, Error> {
     let ergo_box = const_ptr_as_ref(ergo_box_ptr, "ergo_box_ptr")?;
     Ok(ergo_box.0.creation_height)
 }
 
+/// Get tokens for box
 pub unsafe fn ergo_box_tokens(
     ergo_box_ptr: ConstErgoBoxPtr,
     tokens_out: *mut TokensPtr,
@@ -245,6 +259,7 @@ pub unsafe fn ergo_box_tokens(
     Ok(())
 }
 
+/// Get ergo tree for box
 pub unsafe fn ergo_box_ergo_tree(
     ergo_box_ptr: ConstErgoBoxPtr,
     ergo_tree_out: *mut ErgoTreePtr,
@@ -255,6 +270,7 @@ pub unsafe fn ergo_box_ergo_tree(
     Ok(())
 }
 
+/// Get box value in nanoERGs
 pub unsafe fn ergo_box_value(
     ergo_box_ptr: ConstErgoBoxPtr,
     box_value_out: *mut BoxValuePtr,
@@ -265,6 +281,7 @@ pub unsafe fn ergo_box_value(
     Ok(())
 }
 
+/// Returns value (ErgoTree constant) stored in the register or None if the register is empty
 pub unsafe fn ergo_box_register_value(
     ergo_box_ptr: ConstErgoBoxPtr,
     register_id: NonMandatoryRegisterId,
@@ -280,6 +297,8 @@ pub unsafe fn ergo_box_register_value(
     }
 }
 
+/// Parse from JSON.  Supports Ergo Node/Explorer API and box values and token amount encoded as
+/// strings
 pub unsafe fn ergo_box_from_json(json: &str, ergo_box_out: *mut ErgoBoxPtr) -> Result<(), Error> {
     let ergo_box_out = mut_ptr_as_mut(ergo_box_out, "ergo_box_out")?;
     let unsigned_tx = serde_json::from_str(json).map(ErgoBox)?;
@@ -287,6 +306,7 @@ pub unsafe fn ergo_box_from_json(json: &str, ergo_box_out: *mut ErgoBoxPtr) -> R
     Ok(())
 }
 
+/// JSON representation as text (compatible with Ergo Node/Explorer API, numbers are encoded as numbers)
 pub unsafe fn ergo_box_to_json(ergo_box_ptr: ConstErgoBoxPtr) -> Result<String, Error> {
     let ergo_box = const_ptr_as_ref(ergo_box_ptr, "ergo_box_ptr")?;
     let s = serde_json::to_string(&ergo_box.0)?;
@@ -301,12 +321,13 @@ pub unsafe fn ergo_box_to_json_eip12(ergo_box_ptr: ConstErgoBoxPtr) -> Result<St
     Ok(s)
 }
 
-/// Pair of <value, tokens> for an box
+/// Pair of <value, tokens> for a box
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ErgoBoxAssetsData(pub(crate) ergo_lib::wallet::box_selector::ErgoBoxAssetsData);
 pub type ErgoBoxAssetsDataPtr = *mut ErgoBoxAssetsData;
 pub type ConstErgoBoxAssetsDataPtr = *const ErgoBoxAssetsData;
 
+/// Create new instance
 pub unsafe fn ergo_box_assets_data_new(
     value_ptr: ConstBoxValuePtr,
     tokens_ptr: ConstTokensPtr,
@@ -326,6 +347,7 @@ pub unsafe fn ergo_box_assets_data_new(
     Ok(())
 }
 
+/// Value part of the box
 pub unsafe fn ergo_box_assets_data_value(
     ergo_box_assets_data_ptr: ConstErgoBoxAssetsDataPtr,
     value_out: *mut BoxValuePtr,
@@ -338,6 +360,7 @@ pub unsafe fn ergo_box_assets_data_value(
     Ok(())
 }
 
+/// Tokens part of the box
 pub unsafe fn ergo_box_assets_data_tokens(
     ergo_box_assets_data_ptr: ConstErgoBoxAssetsDataPtr,
     tokens_out: *mut TokensPtr,
@@ -356,7 +379,7 @@ pub unsafe fn ergo_box_assets_data_tokens(
     Ok(())
 }
 
-/// newtype for box registers R4 - R9
+/// Type for representing box registers R4 - R9
 #[repr(u8)]
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub enum NonMandatoryRegisterId {

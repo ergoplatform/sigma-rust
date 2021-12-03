@@ -18,6 +18,8 @@ pub struct Wallet(ergo_lib::wallet::Wallet);
 pub type WalletPtr = *mut Wallet;
 pub type ConstWalletPtr = *const Wallet;
 
+/// Create `Wallet` instance loading secret key from mnemonic Returns Err if a DlogSecretKey cannot be
+/// parsed from the provided phrase
 pub unsafe fn wallet_from_mnemonic(
     mnemonic_phrase: &str,
     mnemonic_pass: &str,
@@ -36,6 +38,7 @@ pub unsafe fn wallet_from_mnemonic(
     }
 }
 
+/// Create `Wallet` from secrets
 pub unsafe fn wallet_from_secrets(
     secret_keys_ptr: ConstCollectionPtr<SecretKey>,
     wallet_out: *mut WalletPtr,
@@ -48,6 +51,7 @@ pub unsafe fn wallet_from_secrets(
     Ok(())
 }
 
+/// Signs a transaction
 pub unsafe fn wallet_sign_transaction(
     wallet_ptr: ConstWalletPtr,
     state_context_ptr: ConstErgoStateContextPtr,
@@ -82,6 +86,7 @@ pub unsafe fn wallet_sign_transaction(
     Ok(())
 }
 
+/// Signs a reduced transaction (generating proofs for inputs)
 pub unsafe fn wallet_sign_reduced_transaction(
     wallet_ptr: ConstWalletPtr,
     reduced_tx_ptr: ConstReducedTransactionPtr,

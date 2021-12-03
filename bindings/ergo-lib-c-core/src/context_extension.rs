@@ -4,11 +4,13 @@ use crate::{
 };
 use ergo_lib::ergotree_interpreter::sigma_protocol::prover;
 
+/// User-defined variables to be put into context
 #[derive(PartialEq, Debug, Clone)]
 pub struct ContextExtension(pub prover::ContextExtension);
 pub type ContextExtensionPtr = *mut ContextExtension;
 pub type ConstContextExtensionPtr = *const ContextExtension;
 
+/// Create new empty ContextExtension instance
 pub unsafe fn context_extension_empty(
     context_extension_out: *mut ContextExtensionPtr,
 ) -> Result<(), Error> {
@@ -19,6 +21,7 @@ pub unsafe fn context_extension_empty(
     Ok(())
 }
 
+/// Returns the number of elements in the collection
 pub unsafe fn context_extension_len(
     context_extension_ptr: ConstContextExtensionPtr,
 ) -> Result<usize, Error> {
@@ -26,6 +29,7 @@ pub unsafe fn context_extension_len(
     Ok(context_extension.0.values.len())
 }
 
+/// Returns all keys (represented as u8 values) in the map
 pub unsafe fn context_extension_keys(
     context_extension_ptr: ConstContextExtensionPtr,
     output: *mut u8,

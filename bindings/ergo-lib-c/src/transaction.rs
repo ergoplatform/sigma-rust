@@ -29,6 +29,7 @@ type ErgoBoxesPtr = CollectionPtr<ErgoBox>;
 
 // `UnsignedTransaction` bindings ------------------------------------------------------------------
 
+/// Get id for transaction
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_unsigned_tx_id(
     unsigned_tx_ptr: ConstUnsignedTransactionPtr,
@@ -38,6 +39,7 @@ pub unsafe extern "C" fn ergo_wallet_unsigned_tx_id(
     unsigned_tx_id(unsigned_tx_ptr, tx_id_out).unwrap();
 }
 
+/// Inputs for transaction
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_unsigned_tx_inputs(
     unsigned_tx_ptr: ConstUnsignedTransactionPtr,
@@ -47,6 +49,7 @@ pub unsafe extern "C" fn ergo_wallet_unsigned_tx_inputs(
     unsigned_tx_inputs(unsigned_tx_ptr, unsigned_inputs_out).unwrap();
 }
 
+/// Data inputs for transaction
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_unsigned_tx_data_inputs(
     unsigned_tx_ptr: ConstUnsignedTransactionPtr,
@@ -56,6 +59,7 @@ pub unsafe extern "C" fn ergo_wallet_unsigned_tx_data_inputs(
     unsigned_tx_data_inputs(unsigned_tx_ptr, data_inputs_out).unwrap();
 }
 
+/// Output candidates for transaction
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_unsigned_tx_output_candidates(
     unsigned_tx_ptr: ConstUnsignedTransactionPtr,
@@ -65,6 +69,8 @@ pub unsafe extern "C" fn ergo_wallet_unsigned_tx_output_candidates(
     unsigned_tx_output_candidates(unsigned_tx_ptr, ergo_box_candidates_out).unwrap();
 }
 
+/// Parse from JSON. Supports Ergo Node/Explorer API and box values and token amount encoded as
+/// strings
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_unsigned_tx_from_json(
     json_str: *const c_char,
@@ -75,6 +81,7 @@ pub unsafe extern "C" fn ergo_wallet_unsigned_tx_from_json(
     Error::c_api_from(res)
 }
 
+/// JSON representation as text (compatible with Ergo Node/Explorer API, numbers are encoded as numbers)
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_unsigned_tx_to_json(
     unsigned_tx_ptr: ConstUnsignedTransactionPtr,
@@ -91,6 +98,7 @@ pub unsafe extern "C" fn ergo_wallet_unsigned_tx_to_json(
     Error::c_api_from(res)
 }
 
+/// JSON representation according to EIP-12 <https://github.com/ergoplatform/eips/pull/23>
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_unsigned_tx_to_json_eip12(
     unsigned_tx_ptr: ConstUnsignedTransactionPtr,
@@ -107,12 +115,16 @@ pub unsafe extern "C" fn ergo_wallet_unsigned_tx_to_json_eip12(
     Error::c_api_from(res)
 }
 
+/// Drop `UnsignedTransaction`
 #[no_mangle]
 pub extern "C" fn ergo_wallet_unsigned_tx_delete(ptr: UnsignedTransactionPtr) {
     unsafe { delete_ptr(ptr) }
 }
 
 // `Transaction` bindings --------------------------------------------------------------------------
+
+/// Create Transaction from UnsignedTransaction and an array of proofs in the same order as
+/// UnsignedTransaction.inputs with empty proof indicated with empty byte array
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_tx_from_unsigned_tx(
     unsigned_tx_ptr: ConstUnsignedTransactionPtr,
@@ -123,6 +135,7 @@ pub unsafe extern "C" fn ergo_wallet_tx_from_unsigned_tx(
     Error::c_api_from(res)
 }
 
+/// Get id for transaction
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_tx_id(tx_ptr: ConstTransactionPtr, tx_id_out: *mut TxIdPtr) {
     #[allow(clippy::unwrap_used)]
@@ -165,6 +178,8 @@ pub unsafe extern "C" fn ergo_wallet_tx_outputs(
     tx_outputs(tx_ptr, ergo_box_out).unwrap();
 }
 
+/// Parse from JSON. Supports Ergo Node/Explorer API and box values and token amount encoded as
+/// strings
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_tx_from_json(
     json_str: *const c_char,
@@ -175,6 +190,7 @@ pub unsafe extern "C" fn ergo_wallet_tx_from_json(
     Error::c_api_from(res)
 }
 
+/// JSON representation as text (compatible with Ergo Node/Explorer API, numbers are encoded as numbers)
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_tx_to_json(
     tx_ptr: ConstTransactionPtr,
@@ -191,6 +207,7 @@ pub unsafe extern "C" fn ergo_wallet_tx_to_json(
     Error::c_api_from(res)
 }
 
+/// JSON representation according to EIP-12 <https://github.com/ergoplatform/eips/pull/23>
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_tx_to_json_eip12(
     tx_ptr: ConstTransactionPtr,
@@ -207,12 +224,14 @@ pub unsafe extern "C" fn ergo_wallet_tx_to_json_eip12(
     Error::c_api_from(res)
 }
 
+/// Drop `Transaction`
 #[no_mangle]
 pub extern "C" fn ergo_wallet_tx_delete(ptr: TransactionPtr) {
     unsafe { delete_ptr(ptr) }
 }
 // `TxId` bindings ----------------------------------------------------------------------
 
+/// Convert a hex string into a TxId
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_tx_id_from_str(
     str: *const c_char,
@@ -223,6 +242,7 @@ pub unsafe extern "C" fn ergo_wallet_tx_id_from_str(
     Error::c_api_from(res)
 }
 
+/// Get the tx id as bytes
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_tx_id_to_str(
     tx_id_ptr: ConstTxIdPtr,
@@ -239,6 +259,7 @@ pub unsafe extern "C" fn ergo_wallet_tx_id_to_str(
     Error::c_api_from(res)
 }
 
+/// Drop `TxId`
 #[no_mangle]
 pub extern "C" fn ergo_wallet_tx_id_delete(ptr: TxIdPtr) {
     unsafe { delete_ptr(ptr) }

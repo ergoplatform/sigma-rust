@@ -10,6 +10,7 @@ use paste::paste;
 
 // `UnsignedInput` bindings -------------------------------------------------------------------------
 
+/// Get box id
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_unsigned_input_box_id(
     unsigned_input_ptr: ConstUnsignedInputPtr,
@@ -19,6 +20,7 @@ pub unsafe extern "C" fn ergo_wallet_unsigned_input_box_id(
     unsigned_input_box_id(unsigned_input_ptr, box_id_out).unwrap();
 }
 
+/// Get extension
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_unsigned_input_context_extension(
     unsigned_input_ptr: ConstUnsignedInputPtr,
@@ -28,6 +30,7 @@ pub unsafe extern "C" fn ergo_wallet_unsigned_input_context_extension(
     unsigned_input_context_extension(unsigned_input_ptr, context_extension_out).unwrap();
 }
 
+/// Drop `UnsignedInput`
 #[no_mangle]
 pub extern "C" fn ergo_wallet_unsigned_input_delete(ptr: UnsignedInputPtr) {
     unsafe { delete_ptr(ptr) }
@@ -37,6 +40,7 @@ make_collection!(UnsignedInputs, UnsignedInput);
 
 // `Input` bindings --------------------------------------------------------------------------------
 
+/// Get box id
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_input_box_id(
     input_ptr: ConstInputPtr,
@@ -46,6 +50,7 @@ pub unsafe extern "C" fn ergo_wallet_input_box_id(
     input_box_id(input_ptr, box_id_out).unwrap();
 }
 
+/// Get spending proof
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_input_spending_proof(
     input_ptr: ConstInputPtr,
@@ -55,6 +60,7 @@ pub unsafe extern "C" fn ergo_wallet_input_spending_proof(
     input_spending_proof(input_ptr, prover_result_out).unwrap();
 }
 
+/// Drop `Input`
 #[no_mangle]
 pub extern "C" fn ergo_wallet_input_delete(ptr: InputPtr) {
     unsafe { delete_ptr(ptr) }
@@ -64,6 +70,7 @@ make_collection!(Inputs, Input);
 
 // `ProverResult` bindings -------------------------------------------------------------------------
 
+/// Return the number of bytes that make up the proof.
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_prover_result_proof_len(
     prover_result_ptr: ConstProverResultPtr,
@@ -72,6 +79,9 @@ pub unsafe extern "C" fn ergo_wallet_prover_result_proof_len(
     prover_result_proof_len(prover_result_ptr).unwrap()
 }
 
+/// Get proof. Key assumption: enough memory has been allocated at the address pointed-to by
+/// `output`. Use `ergo_wallet_prover_result_proof_len` to determine the length of the byte
+/// array.
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_prover_result_proof(
     prover_result_ptr: ConstProverResultPtr,
@@ -81,6 +91,7 @@ pub unsafe extern "C" fn ergo_wallet_prover_result_proof(
     prover_result_proof(prover_result_ptr, output).unwrap();
 }
 
+/// Get extension
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_prover_result_context_extension(
     prover_result_ptr: ConstProverResultPtr,
@@ -90,6 +101,7 @@ pub unsafe extern "C" fn ergo_wallet_prover_result_context_extension(
     prover_result_context_extension(prover_result_ptr, context_extension_out).unwrap();
 }
 
+/// JSON representation as text (compatible with Ergo Node/Explorer API, numbers are encoded as numbers)
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_prover_result_to_json(
     prover_result_ptr: ConstProverResultPtr,
@@ -106,6 +118,7 @@ pub unsafe extern "C" fn ergo_wallet_prover_result_to_json(
     Error::c_api_from(res)
 }
 
+/// Drop `ProverResult`
 #[no_mangle]
 pub extern "C" fn ergo_wallet_prover_result_delete(ptr: ProverResultPtr) {
     unsafe { delete_ptr(ptr) }

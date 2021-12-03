@@ -15,6 +15,7 @@ pub struct Contract(pub(crate) chain::contract::Contract);
 pub type ContractPtr = *mut Contract;
 pub type ConstContractPtr = *const Contract;
 
+/// Create new contract from ErgoTree
 pub unsafe fn contract_new(
     ergo_tree_ptr: ConstErgoTreePtr,
     contract_out: *mut ContractPtr,
@@ -27,6 +28,7 @@ pub unsafe fn contract_new(
     Ok(())
 }
 
+/// Create new contract that allow spending of the guarded box by a given recipient ([`Address`])
 pub unsafe fn contract_pay_to_address(
     address_ptr: ConstAddressPtr,
     contract_out: *mut ContractPtr,
@@ -38,6 +40,7 @@ pub unsafe fn contract_pay_to_address(
     Ok(())
 }
 
+/// Compiles a contract from ErgoScript source code
 pub unsafe fn contract_compile(source: &str, contract_out: *mut ContractPtr) -> Result<(), Error> {
     let contract_out = mut_ptr_as_mut(contract_out, "contract_out")?;
     let inner = chain::contract::Contract::compile(source, ScriptEnv::new())?;
@@ -45,6 +48,7 @@ pub unsafe fn contract_compile(source: &str, contract_out: *mut ContractPtr) -> 
     Ok(())
 }
 
+/// Get the ErgoTree of the contract
 pub unsafe fn contract_ergo_tree(
     contract_ptr: ConstContractPtr,
     ergo_tree_out: *mut ErgoTreePtr,

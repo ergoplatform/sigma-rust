@@ -2,19 +2,24 @@ import Foundation
 import ErgoLibC
 import SwiftyJSON
 
+/// Unsigned inputs used in constructing unsigned transactions
 class UnsignedInput {
     internal var pointer: UnsignedInputPtr
     
-    internal init(withPtr ptr: UnsignedInputPtr) {
+    /// Takes ownership of an existing ``UnsignedInputPtr``. Note: we must ensure that no other instance
+    /// of ``UnsignedInput`` can hold this pointer.
+    internal init(withRawPointer ptr: UnsignedInputPtr) {
         self.pointer = ptr
     }
     
+    /// Get box id
     func getBoxId() -> BoxId {
         var boxIdPtr: BoxIdPtr?
         ergo_wallet_unsigned_input_box_id(self.pointer, &boxIdPtr)
-        return BoxId(withPtr: boxIdPtr!)
+        return BoxId(withRawPointer: boxIdPtr!)
     }
         
+    /// Get context extension
     func getContextExtension() -> ContextExtension {
         var contextExtensionPtr: ContextExtensionPtr?
         ergo_wallet_unsigned_input_context_extension(self.pointer, &contextExtensionPtr)
@@ -26,19 +31,22 @@ class UnsignedInput {
     }
 }
 
+/// Signed inputs used in signed transactions
 class Input {
     internal var pointer: InputPtr
     
-    internal init(withPtr ptr: InputPtr) {
+    internal init(withRawPointer ptr: InputPtr) {
         self.pointer = ptr
     }
     
+    /// Get box id
     func getBoxId() -> BoxId {
         var boxIdPtr: BoxIdPtr?
         ergo_wallet_input_box_id(self.pointer, &boxIdPtr)
-        return BoxId(withPtr: boxIdPtr!)
+        return BoxId(withRawPointer: boxIdPtr!)
     }
         
+    /// Get spending proof
     func getSpendingProof() -> ProverResult {
         var ptr: ProverResultPtr?
         ergo_wallet_input_spending_proof(self.pointer, &ptr)
@@ -50,6 +58,7 @@ class Input {
     }
 }
 
+/// Proof of correctness of tx spending
 class ProverResult {
     internal var pointer: ProverResultPtr
     
@@ -57,6 +66,7 @@ class ProverResult {
         self.pointer = ptr
     }
     
+    /// Get proof bytes
     func toBytes() -> [UInt8] {
         let proofLength = ergo_wallet_prover_result_proof_len(self.pointer)
         var bytes = Array.init(repeating: UInt8(0), count: Int(proofLength))
@@ -64,12 +74,14 @@ class ProverResult {
         return bytes
     }
     
+    /// Get context extension
     func getContextExtension() -> ContextExtension {
         var ptr: ContextExtensionPtr?
         ergo_wallet_prover_result_context_extension(self.pointer, &ptr)
         return ContextExtension(withPtr: ptr!)
     }
     
+    /// JSON representation as text (compatible with Ergo Node/Explorer API, numbers are encoded as numbers)
     func toJSON() throws -> JSON? {
         var cStr: UnsafePointer<CChar>?
         let error = ergo_wallet_prover_result_to_json(self.pointer, &cStr)
@@ -86,38 +98,41 @@ class ProverResult {
     }
 }
 
+/// An ordered collection of ``UnsignedInput``s
 class UnsignedInputs {
     internal var pointer: UnsignedInputsPtr
     
+    /// Create an empty collection
     init() {
-        self.pointer = UnsignedInputs.initEmpty()
+        var ptr: UnsignedInputsPtr?
+        ergo_wallet_unsigned_inputs_new(&ptr)
+        self.pointer = ptr!
     }
     
-    init(withPtr ptr: UnsignedInputsPtr) {
+    /// Takes ownership of an existing ``UnsignedInputsPtr``. Note: we must ensure that no other instance
+    /// of ``UnsignedInputs`` can hold this pointer.
+    internal init(withRawPointer ptr: UnsignedInputsPtr) {
         self.pointer = ptr
     }
     
-    private static func initEmpty() -> UnsignedInputsPtr {
-        var unsignedInputsPtr: UnsignedInputsPtr?
-        ergo_wallet_unsigned_inputs_new(&unsignedInputsPtr)
-        return unsignedInputsPtr!
-    }
-    
+    /// Return the length of the collection
     func len() -> UInt {
         return ergo_wallet_unsigned_inputs_len(self.pointer)
     }
     
+    /// Returns the ``UnsignedInput`` at location `index` if it exists.
     func get(index: UInt) -> UnsignedInput? {
-        var unsignedInputPtr: UnsignedInputPtr?
-        let res = ergo_wallet_unsigned_inputs_get(self.pointer, index, &unsignedInputPtr)
+        var ptr: UnsignedInputPtr?
+        let res = ergo_wallet_unsigned_inputs_get(self.pointer, index, &ptr)
         assert(res.error == nil)
         if res.is_some {
-            return UnsignedInput(withPtr: unsignedInputPtr!)
+            return UnsignedInput(withRawPointer: ptr!)
         } else {
             return nil
         }
     }
     
+    /// Add an ``UnsignedInput`` to the end of the collection.
     func add(unsignedInput: UnsignedInput) {
         ergo_wallet_unsigned_inputs_add(unsignedInput.pointer, self.pointer)
     }
@@ -127,38 +142,41 @@ class UnsignedInputs {
     }
 }
 
+/// An ordered collection of ``Input``s
 class Inputs {
     internal var pointer: InputsPtr
     
+    /// Create an empty collection
     init() {
-        self.pointer = Inputs.initEmpty()
+        var ptr: InputsPtr?
+        ergo_wallet_inputs_new(&ptr)
+        self.pointer = ptr!
     }
     
-    init(withPtr ptr: InputsPtr) {
+    /// Takes ownership of an existing ``InputsPtr``. Note: we must ensure that no other instance
+    /// of ``Inputs`` can hold this pointer.
+    init(withRawPointer ptr: InputsPtr) {
         self.pointer = ptr
     }
     
-    private static func initEmpty() -> InputsPtr {
-        var ptr: InputsPtr?
-        ergo_wallet_inputs_new(&ptr)
-        return ptr!
-    }
-    
+    /// Return the length of the collection
     func len() -> UInt {
         return ergo_wallet_inputs_len(self.pointer)
     }
     
+    /// Returns the ``Input`` at location `index` if it exists.
     func get(index: UInt) -> Input? {
         var ptr: InputPtr?
         let res = ergo_wallet_inputs_get(self.pointer, index, &ptr)
         assert(res.error == nil)
         if res.is_some {
-            return Input(withPtr: ptr!)
+            return Input(withRawPointer: ptr!)
         } else {
             return nil
         }
     }
     
+    /// Add an ``Input`` to the end of the collection.
     func add(input: Input) {
         ergo_wallet_inputs_add(input.pointer, self.pointer)
     }

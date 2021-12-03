@@ -4,9 +4,9 @@ use crate::{
 };
 use ergo_lib::ergotree_ir::chain::address as addr;
 
+/// Address wrapper
 pub struct Address(pub(crate) ergo_lib::ergotree_ir::chain::address::Address);
 pub type AddressPtr = *mut Address;
-/// Pointer to const Address (Address that is pointed-to is immutable)
 pub type ConstAddressPtr = *const Address;
 
 /// Decode (base58) testnet address from string, checking that address is from the testnet
@@ -75,11 +75,13 @@ pub unsafe fn address_to_base58(
     ))
 }
 
+/// Get the type of the address
 pub unsafe fn address_type_prefix(address: ConstAddressPtr) -> Result<AddressTypePrefix, Error> {
     let address = const_ptr_as_ref(address, "address")?;
     Ok(address.0.address_type_prefix().into())
 }
 
+/// Drop the `Address`
 pub fn address_delete(address: AddressPtr) {
     if !address.is_null() {
         let boxed = unsafe { Box::from_raw(address) };

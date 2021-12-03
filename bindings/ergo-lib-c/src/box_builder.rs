@@ -12,6 +12,12 @@ use std::{ffi::CStr, os::raw::c_char};
 
 use crate::{delete_ptr, ErrorPtr, ReturnNum, ReturnOption};
 
+/// Create builder with required box parameters:
+/// `value` - amount of money associated with the box
+/// `contract` - guarding contract([`Contract`]), which should be evaluated to true in order
+/// to open(spend) this box
+/// `creation_height` - height when a transaction containing the box is created.
+/// It should not exceed height of the block, containing the transaction with this box.
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_new(
     value_ptr: ConstBoxValuePtr,
@@ -23,6 +29,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_new(
     ergo_box_candidate_builder_new(value_ptr, contract_ptr, creation_height, builder_out).unwrap()
 }
 
+/// Set minimal value (per byte of the serialized box size)
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_set_min_box_value_per_byte(
     builder_mut: ErgoBoxCandidateBuilderPtr,
@@ -33,6 +40,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_set_min_box_valu
         .unwrap();
 }
 
+/// Get minimal value (per byte of the serialized box size)
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_min_box_value_per_byte(
     builder_ptr: ConstErgoBoxCandidateBuilderPtr,
@@ -41,6 +49,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_min_box_value_pe
     ergo_box_candidate_builder_min_box_value_per_byte(builder_ptr).unwrap()
 }
 
+/// Set new box value
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_set_value(
     builder_mut: ErgoBoxCandidateBuilderPtr,
@@ -50,6 +59,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_set_value(
     ergo_box_candidate_builder_set_value(builder_mut, value_ptr).unwrap();
 }
 
+/// Get box value
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_value(
     builder_ptr: ConstErgoBoxCandidateBuilderPtr,
@@ -59,6 +69,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_value(
     ergo_box_candidate_builder_value(builder_ptr, value_out).unwrap();
 }
 
+/// Calculate serialized box size(in bytes)
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_calc_box_size_bytes(
     builder_ptr: ConstErgoBoxCandidateBuilderPtr,
@@ -75,6 +86,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_calc_box_size_by
     }
 }
 
+/// Calculate minimal box value for the current box serialized size(in bytes)
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_calc_min_box_value(
     builder_ptr: ConstErgoBoxCandidateBuilderPtr,
@@ -84,6 +96,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_calc_min_box_value(
     Error::c_api_from(res)
 }
 
+/// Set register with a given id (R4-R9) to the given value
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_set_register_value(
     builder_mut: ErgoBoxCandidateBuilderPtr,
@@ -94,6 +107,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_set_register_val
     ergo_box_candidate_builder_set_register_value(builder_mut, register_id, constant_ptr).unwrap();
 }
 
+/// Returns register value for the given register id (R4-R9), or None if the register is empty
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_register_value(
     builder_ptr: ConstErgoBoxCandidateBuilderPtr,
@@ -112,6 +126,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_register_value(
     }
 }
 
+/// Delete register value(make register empty) for the given register id (R4-R9)
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_delete_register_value(
     builder_mut: ErgoBoxCandidateBuilderPtr,
@@ -121,6 +136,11 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_delete_register_
     ergo_box_candidate_builder_delete_register_value(builder_mut, register_id).unwrap();
 }
 
+/// Mint token, as defined in <https://github.com/ergoplatform/eips/blob/master/eip-0004.md>
+/// `token` - token id(box id of the first input box in transaction) and token amount,
+/// `token_name` - token name (will be encoded in R4),
+/// `token_desc` - token description (will be encoded in R5),
+/// `num_decimals` - number of decimals (will be encoded in R6)
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_mint_token(
     builder_mut: ErgoBoxCandidateBuilderPtr,
@@ -142,6 +162,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_mint_token(
     .unwrap();
 }
 
+/// Add given token id and token amount
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_add_token(
     builder_mut: ErgoBoxCandidateBuilderPtr,
@@ -152,6 +173,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_add_token(
     ergo_box_candidate_builder_add_token(builder_mut, token_id_ptr, token_amount_ptr).unwrap();
 }
 
+/// Build the box candidate
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_build(
     builder_ptr: ConstErgoBoxCandidateBuilderPtr,
@@ -161,6 +183,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_build(
     Error::c_api_from(res)
 }
 
+/// Drop `ErgoBoxCandidateBuilder`
 #[no_mangle]
 pub extern "C" fn ergo_wallet_ergo_box_candidate_builder_delete(ptr: ErgoBoxCandidateBuilderPtr) {
     unsafe { delete_ptr(ptr) }

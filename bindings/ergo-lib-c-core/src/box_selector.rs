@@ -17,6 +17,7 @@ pub struct BoxSelection(
 pub type BoxSelectionPtr = *mut BoxSelection;
 pub type ConstBoxSelectionPtr = *const BoxSelection;
 
+/// Create a selection to easily inject custom selection algorithms
 pub unsafe fn box_selection_new(
     ergo_boxes_ptr: ConstCollectionPtr<ErgoBox>,
     change_ergo_boxes_ptr: ConstCollectionPtr<ErgoBoxAssetsData>,
@@ -42,6 +43,7 @@ pub unsafe fn box_selection_new(
     Ok(())
 }
 
+/// Selected boxes to spend as transaction inputs
 pub unsafe fn box_selection_boxes(
     box_selection_ptr: ConstBoxSelectionPtr,
     ergo_boxes_out: *mut CollectionPtr<ErgoBox>,
@@ -60,6 +62,7 @@ pub unsafe fn box_selection_boxes(
     Ok(())
 }
 
+/// Selected boxes to use as change
 pub unsafe fn box_selection_change(
     box_selection_ptr: ConstBoxSelectionPtr,
     change_ergo_boxes_out: *mut CollectionPtr<ErgoBoxAssetsData>,
@@ -94,6 +97,11 @@ pub unsafe fn simple_box_selector_new(
     Ok(())
 }
 
+/// Selects inputs to satisfy target balance and tokens.
+/// `inputs` - available inputs (returns an error, if empty),
+/// `target_balance` - coins (in nanoERGs) needed,
+/// `target_tokens` - amount of tokens needed.
+/// Returns selected inputs and box assets(value+tokens) with change.
 pub unsafe fn simple_box_selector_select(
     simple_box_selector_ptr: ConstSimpleBoxSelectorPtr,
     inputs_ptr: ConstCollectionPtr<ErgoBox>,

@@ -1,21 +1,39 @@
 import Foundation
 import ErgoLibC
 
+/// The root of ErgoScript IR. Serialized instances of this class are self sufficient and can be passed around.
 class ErgoTree {
     internal var pointer: ErgoTreePtr
     
+    /// Decode from encoded serialized ``ErgoTree``
     init(fromBytes : [UInt8]) throws {
-        self.pointer = try ErgoTree.fromBytes(bytes: fromBytes)
+        var ptr: ErgoTreePtr?
+        let error = ergo_wallet_ergo_tree_from_bytes(
+            fromBytes,
+            UInt(fromBytes.count),
+            &ptr
+        )
+        try checkError(error)
+        self.pointer = ptr!
     }
     
+    /// Decode from base16 encoded serialized ``ErgoTree``
     init(fromBase16EncodedString : String) throws {
-        self.pointer = try ErgoTree.fromBase16EncodedString(bytesStr: fromBase16EncodedString)
+        var ptr: ErgoTreePtr?
+        let error = fromBase16EncodedString.withCString { cs in
+            ergo_wallet_ergo_tree_from_base16_bytes(cs, &ptr)
+        }
+        try checkError(error)
+        self.pointer = ptr!
     }
     
-    init(withPtr ptr: ErgoTreePtr) {
+    /// Takes ownership of an existing ``ErgoTreePtr``. Note: we must ensure that no other instance
+    /// of ``ErgoTree`` can hold this pointer.
+    init(withRawPointer ptr: ErgoTreePtr) {
         self.pointer = ptr
     }
     
+    /// Convert to serialized bytes.
     func toBytes() throws -> [UInt8] {
         let res = ergo_wallet_ergo_tree_bytes_len(self.pointer)
         try checkError(res.error)
@@ -25,6 +43,7 @@ class ErgoTree {
         return bytes
     }
     
+    /// Convert to base16-encoded serialized bytes
     func toBase16EncodedString() throws -> String {
         var cStr: UnsafePointer<CChar>?
         let error = ergo_wallet_ergo_tree_to_base16_bytes(self.pointer, &cStr)
@@ -34,23 +53,29 @@ class ErgoTree {
         return str
     }
     
+    /// Returns the number of constants stored in the serialized ``ErgoTree`` or throws error if the
+    /// parsing of constants failed
     func constantsLength() throws -> UInt {
         let res = ergo_wallet_ergo_tree_constants_len(self.pointer)
         try checkError(res.error)
         return res.value
     }
     
+    /// Return constant with given index (as stored in serialized ErgoTree) if it exists. Throws if
+    /// constant parsing failed.
     func getConstant(index: UInt) throws -> Constant? {
         var constantPtr: ConstantPtr?
         let res = ergo_wallet_ergo_tree_get_constant(self.pointer, index, &constantPtr)
         try checkError(res.error)
         if res.is_some {
-            return Constant(withPtr: constantPtr!)
+            return Constant(withRawPointer: constantPtr!)
         } else {
             return nil
         }
     }
     
+    /// Replace the constant of the ``ErgoTree`` with the given `constant` at position `index`.
+    /// Throws if no constant exists at `index`.
     func withConstant(index: UInt, constant: Constant) throws {
         var newErgoTreePtr: ErgoTreePtr?
         let error = ergo_wallet_ergo_tree_with_constant(self.pointer, index, constant.pointer, &newErgoTreePtr)
@@ -61,6 +86,8 @@ class ErgoTree {
         self.pointer = newErgoTreePtr!
     }
     
+    /// Serialized proposition expression of SigmaProp type with ConstantPlaceholder nodes instead of
+    /// Constant nodes.
     func toTemplateBytes() throws -> [UInt8] {
         let res = ergo_wallet_ergo_tree_template_bytes_len(self.pointer)
         try checkError(res.error)
@@ -68,22 +95,6 @@ class ErgoTree {
         let error = ergo_wallet_ergo_tree_template_bytes(self.pointer, &bytes)
         try checkError(error)
         return bytes
-    }
-    
-    private static func fromBytes(bytes: [UInt8]) throws -> ErgoTreePtr {
-        var ptr: ErgoTreePtr?
-        let error = ergo_wallet_ergo_tree_from_bytes(bytes, UInt(bytes.count), &ptr)
-        try checkError(error)
-        return ptr!
-    }
-    
-    private static func fromBase16EncodedString(bytesStr: String) throws -> ErgoTreePtr {
-        var ptr: ErgoTreePtr?
-        let error = bytesStr.withCString { cs in
-            ergo_wallet_ergo_tree_from_base16_bytes(cs, &ptr)
-        }
-        try checkError(error)
-        return ptr!
     }
     
     deinit {

@@ -15,6 +15,8 @@ use ergo_lib_c_core::{
 
 use crate::delete_ptr;
 
+/// Create `Wallet` instance loading secret key from mnemonic
+/// Returns Err if a DlogSecretKey cannot be parsed from the provided phrase
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_wallet_from_mnemonic(
     mnemonic_phrase: *const c_char,
@@ -27,6 +29,7 @@ pub unsafe extern "C" fn ergo_wallet_wallet_from_mnemonic(
     Error::c_api_from(res)
 }
 
+/// Create `Wallet` from secrets
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_wallet_from_secrets(
     secret_keys_ptr: ConstCollectionPtr<SecretKey>,
@@ -36,6 +39,7 @@ pub unsafe extern "C" fn ergo_wallet_wallet_from_secrets(
     wallet_from_secrets(secret_keys_ptr, wallet_out).unwrap();
 }
 
+/// Signs a transaction
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_wallet_sign_transaction(
     wallet_ptr: ConstWalletPtr,
@@ -56,6 +60,7 @@ pub unsafe extern "C" fn ergo_wallet_wallet_sign_transaction(
     Error::c_api_from(res)
 }
 
+/// Signs a reduced transaction (generating proofs for inputs)
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_wallet_sign_reduced_transaction(
     wallet_ptr: ConstWalletPtr,
@@ -66,6 +71,7 @@ pub unsafe extern "C" fn ergo_wallet_wallet_sign_reduced_transaction(
     Error::c_api_from(res)
 }
 
+/// Drop `Wallet`
 #[no_mangle]
 pub extern "C" fn ergo_wallet_wallet_delete(ptr: WalletPtr) {
     unsafe { delete_ptr(ptr) }

@@ -15,6 +15,7 @@ pub struct UnsignedInput(pub chain::transaction::UnsignedInput);
 pub type UnsignedInputPtr = *mut UnsignedInput;
 pub type ConstUnsignedInputPtr = *const UnsignedInput;
 
+/// Get box id
 pub unsafe fn unsigned_input_box_id(
     unsigned_input_ptr: ConstUnsignedInputPtr,
     box_id_out: *mut BoxIdPtr,
@@ -26,6 +27,7 @@ pub unsafe fn unsigned_input_box_id(
     Ok(())
 }
 
+/// Get extension
 pub unsafe fn unsigned_input_context_extension(
     unsigned_input_ptr: ConstUnsignedInputPtr,
     context_extension_out: *mut ContextExtensionPtr,
@@ -43,6 +45,7 @@ pub struct Input(pub(crate) chain::transaction::Input);
 pub type InputPtr = *mut Input;
 pub type ConstInputPtr = *const Input;
 
+/// Get box id
 pub unsafe fn input_box_id(
     input_ptr: ConstInputPtr,
     box_id_out: *mut BoxIdPtr,
@@ -54,6 +57,7 @@ pub unsafe fn input_box_id(
     Ok(())
 }
 
+/// Get the spending proof
 pub unsafe fn input_spending_proof(
     input_ptr: ConstInputPtr,
     prover_result_out: *mut ProverResultPtr,
@@ -71,6 +75,7 @@ pub struct ProverResult(chain::transaction::input::prover_result::ProverResult);
 pub type ProverResultPtr = *mut ProverResult;
 pub type ConstProverResultPtr = *const ProverResult;
 
+/// Return the number of bytes that make up the proof.
 pub unsafe fn prover_result_proof_len(
     prover_result_ptr: ConstProverResultPtr,
 ) -> Result<usize, Error> {
@@ -81,6 +86,9 @@ pub unsafe fn prover_result_proof_len(
     })
 }
 
+/// Get proof. Key assumption: enough memory has been allocated at the address pointed-to by
+/// `output`. Use `prover_result_proof_len` to determine the length of the byte
+/// array.
 pub unsafe fn prover_result_proof(
     prover_result_ptr: ConstProverResultPtr,
     output: *mut u8,
@@ -91,6 +99,7 @@ pub unsafe fn prover_result_proof(
     Ok(())
 }
 
+/// Get extension
 pub unsafe fn prover_result_context_extension(
     prover_result_ptr: ConstProverResultPtr,
     context_extension_out: *mut ContextExtensionPtr,
@@ -103,6 +112,7 @@ pub unsafe fn prover_result_context_extension(
     Ok(())
 }
 
+/// JSON representation as text (compatible with Ergo Node/Explorer API, numbers are encoded as numbers)
 pub unsafe fn prover_result_to_json(
     prover_result_ptr: ConstProverResultPtr,
 ) -> Result<String, Error> {

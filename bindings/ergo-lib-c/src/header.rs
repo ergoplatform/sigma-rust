@@ -1,10 +1,14 @@
-//! Block header with the current `spendingTransaction`, that can be predicted by a miner before it's formation
+//! Block header with the current `spendingTransaction`, that can be predicted by a miner before its
+//! formation
 use ergo_lib_c_core::{
     block_header::ConstBlockHeaderPtr,
-    header::{preheader_delete, preheader_from_block_header, ConstPreHeaderPtr, PreHeaderPtr},
+    header::{preheader_from_block_header, ConstPreHeaderPtr, PreHeaderPtr},
 };
 use paste::paste;
 
+use crate::delete_ptr;
+
+/// Create instance using data from block header
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_preheader_from_block_header(
     block_header: ConstBlockHeaderPtr,
@@ -14,9 +18,10 @@ pub unsafe extern "C" fn ergo_wallet_preheader_from_block_header(
     preheader_from_block_header(block_header, preheader_out).unwrap();
 }
 
+/// Drop `PreHeader`
 #[no_mangle]
-pub extern "C" fn ergo_wallet_preheader_delete(header: PreHeaderPtr) {
-    preheader_delete(header)
+pub unsafe extern "C" fn ergo_wallet_preheader_delete(ptr: PreHeaderPtr) {
+    delete_ptr(ptr)
 }
 
 make_ffi_eq!(PreHeader);

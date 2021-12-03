@@ -17,6 +17,12 @@ pub struct ErgoBoxCandidateBuilder(chain::ergo_box::box_builder::ErgoBoxCandidat
 pub type ErgoBoxCandidateBuilderPtr = *mut ErgoBoxCandidateBuilder;
 pub type ConstErgoBoxCandidateBuilderPtr = *const ErgoBoxCandidateBuilder;
 
+/// Create builder with required box parameters:
+/// `value` - amount of money associated with the box
+/// `contract` - guarding contract([`Contract`]), which should be evaluated to true in order
+/// to open(spend) this box
+/// `creation_height` - height when a transaction containing the box is created.
+/// It should not exceed height of the block, containing the transaction with this box.
 pub unsafe fn ergo_box_candidate_builder_new(
     value_ptr: ConstBoxValuePtr,
     contract_ptr: ConstContractPtr,
@@ -36,6 +42,7 @@ pub unsafe fn ergo_box_candidate_builder_new(
     Ok(())
 }
 
+/// Set minimal value (per byte of the serialized box size)
 pub unsafe fn ergo_box_candidate_builder_set_min_box_value_per_byte(
     builder_mut: ErgoBoxCandidateBuilderPtr,
     new_min_value_per_byte: u32,
@@ -47,6 +54,7 @@ pub unsafe fn ergo_box_candidate_builder_set_min_box_value_per_byte(
     Ok(())
 }
 
+/// Get minimal value (per byte of the serialized box size)
 pub unsafe fn ergo_box_candidate_builder_min_box_value_per_byte(
     builder_ptr: ConstErgoBoxCandidateBuilderPtr,
 ) -> Result<u32, Error> {
@@ -54,6 +62,7 @@ pub unsafe fn ergo_box_candidate_builder_min_box_value_per_byte(
     Ok(builder.0.min_box_value_per_byte())
 }
 
+/// Set new box value
 pub unsafe fn ergo_box_candidate_builder_set_value(
     builder_mut: ErgoBoxCandidateBuilderPtr,
     value_ptr: ConstBoxValuePtr,
@@ -64,6 +73,7 @@ pub unsafe fn ergo_box_candidate_builder_set_value(
     Ok(())
 }
 
+/// Get box value
 pub unsafe fn ergo_box_candidate_builder_value(
     builder_ptr: ConstErgoBoxCandidateBuilderPtr,
     value_out: *mut BoxValuePtr,
@@ -74,6 +84,7 @@ pub unsafe fn ergo_box_candidate_builder_value(
     Ok(())
 }
 
+/// Calculate serialized box size(in bytes)
 pub unsafe fn ergo_box_candidate_builder_calc_box_size_bytes(
     builder_ptr: ConstErgoBoxCandidateBuilderPtr,
 ) -> Result<usize, Error> {
@@ -82,6 +93,7 @@ pub unsafe fn ergo_box_candidate_builder_calc_box_size_bytes(
     Ok(b)
 }
 
+/// Calculate minimal box value for the current box serialized size(in bytes)
 pub unsafe fn ergo_box_candidate_builder_calc_min_box_value(
     builder_ptr: ConstErgoBoxCandidateBuilderPtr,
     value_out: *mut BoxValuePtr,
@@ -93,6 +105,7 @@ pub unsafe fn ergo_box_candidate_builder_calc_min_box_value(
     Ok(())
 }
 
+/// Set register with a given id (R4-R9) to the given value
 pub unsafe fn ergo_box_candidate_builder_set_register_value(
     builder_mut: ErgoBoxCandidateBuilderPtr,
     register_id: NonMandatoryRegisterId,
@@ -106,6 +119,7 @@ pub unsafe fn ergo_box_candidate_builder_set_register_value(
     Ok(())
 }
 
+/// Returns register value for the given register id (R4-R9), or None if the register is empty
 pub unsafe fn ergo_box_candidate_builder_register_value(
     builder_ptr: ConstErgoBoxCandidateBuilderPtr,
     register_id: NonMandatoryRegisterId,
@@ -122,6 +136,7 @@ pub unsafe fn ergo_box_candidate_builder_register_value(
     }
 }
 
+/// Delete register value(make register empty) for the given register id (R4-R9)
 pub unsafe fn ergo_box_candidate_builder_delete_register_value(
     builder_mut: ErgoBoxCandidateBuilderPtr,
     register_id: NonMandatoryRegisterId,
@@ -131,6 +146,11 @@ pub unsafe fn ergo_box_candidate_builder_delete_register_value(
     Ok(())
 }
 
+/// Mint token, as defined in <https://github.com/ergoplatform/eips/blob/master/eip-0004.md>
+/// `token` - token id(box id of the first input box in transaction) and token amount,
+/// `token_name` - token name (will be encoded in R4),
+/// `token_desc` - token description (will be encoded in R5),
+/// `num_decimals` - number of decimals (will be encoded in R6)
 pub unsafe fn ergo_box_candidate_builder_mint_token(
     builder_mut: ErgoBoxCandidateBuilderPtr,
     token_ptr: ConstTokenPtr,
@@ -149,6 +169,7 @@ pub unsafe fn ergo_box_candidate_builder_mint_token(
     Ok(())
 }
 
+/// Add given token id and token amount
 pub unsafe fn ergo_box_candidate_builder_add_token(
     builder_mut: ErgoBoxCandidateBuilderPtr,
     token_id_ptr: ConstTokenIdPtr,
@@ -166,6 +187,7 @@ pub unsafe fn ergo_box_candidate_builder_add_token(
     Ok(())
 }
 
+/// Build the box candidate
 pub unsafe fn ergo_box_candidate_builder_build(
     builder_ptr: ConstErgoBoxCandidateBuilderPtr,
     ergo_box_candidate_out: *mut ErgoBoxCandidatePtr,

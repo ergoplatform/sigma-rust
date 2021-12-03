@@ -18,7 +18,7 @@ pub struct TokenId(pub(crate) chain::token::TokenId);
 pub type TokenIdPtr = *mut TokenId;
 pub type ConstTokenIdPtr = *const TokenId;
 
-/// Create token id from erbo box id (32 byte digest)
+/// Create token id from ergo box id (32 byte digest)
 pub unsafe fn token_id_from_box_id(
     box_id_ptr: ConstBoxIdPtr,
     token_id_out: *mut TokenIdPtr,
@@ -55,6 +55,7 @@ pub struct TokenAmount(pub(crate) chain::token::TokenAmount);
 pub type TokenAmountPtr = *mut TokenAmount;
 pub type ConstTokenAmountPtr = *const TokenAmount;
 
+/// Create from i64 with bounds check
 pub unsafe fn token_amount_from_i64(
     amount: i64,
     token_amount_out: *mut TokenAmountPtr,
@@ -133,12 +134,14 @@ pub struct Tokens(pub(crate) Option<BoxTokens>);
 pub type TokensPtr = *mut Tokens;
 pub type ConstTokensPtr = *const Tokens;
 
+/// Create an empty collection
 pub unsafe fn tokens_new(tokens_out: *mut TokensPtr) -> Result<(), Error> {
     let tokens_out = mut_ptr_as_mut(tokens_out, "tokens_out")?;
     *tokens_out = Box::into_raw(Box::new(Tokens(None)));
     Ok(())
 }
 
+/// Returns length of collection
 pub unsafe fn tokens_len(tokens_ptr: ConstTokensPtr) -> Result<usize, Error> {
     let tokens = const_ptr_as_ref(tokens_ptr, "tokens_ptr")?;
     Ok(tokens.0.as_ref().map(BoxTokens::len).unwrap_or(0))
@@ -162,6 +165,8 @@ pub unsafe fn tokens_get(
     Ok(false)
 }
 
+/// Add token to the end of the collection. There is a maximum capacity of 255 token, and adding
+/// more returns an error.
 pub unsafe fn tokens_add(tokens_ptr: TokensPtr, token_ptr: ConstTokenPtr) -> Result<(), Error> {
     let tokens = mut_ptr_as_mut(tokens_ptr, "tokens_ptr")?;
     let token = const_ptr_as_ref(token_ptr, "token_ptr")?;

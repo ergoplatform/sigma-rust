@@ -2,16 +2,14 @@
 use paste::paste;
 
 use ergo_lib_c_core::{
-    block_header::{
-        block_header_delete, block_header_from_json, BlockHeader, BlockHeaderPtr,
-        ConstBlockHeaderPtr,
-    },
+    block_header::{block_header_from_json, BlockHeader, BlockHeaderPtr, ConstBlockHeaderPtr},
     Error,
 };
 use std::{ffi::CStr, os::raw::c_char};
 
-use crate::ErrorPtr;
+use crate::{delete_ptr, ErrorPtr};
 
+/// Parse BlockHeader array from JSON (Node API)
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_block_header_from_json(
     json_str: *const c_char,
@@ -22,12 +20,11 @@ pub unsafe extern "C" fn ergo_wallet_block_header_from_json(
     Error::c_api_from(res)
 }
 
+/// Delete `BlockHeader`
 #[no_mangle]
-pub extern "C" fn ergo_wallet_block_header_delete(header: BlockHeaderPtr) {
-    block_header_delete(header)
+pub unsafe extern "C" fn ergo_wallet_block_header_delete(ptr: BlockHeaderPtr) {
+    delete_ptr(ptr)
 }
-
-// BlockHeaders functions --------------------------------------------------------------------------
 
 make_collection!(BlockHeaders, BlockHeader);
 make_ffi_eq!(BlockHeader);

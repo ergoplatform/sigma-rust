@@ -7,11 +7,13 @@ use crate::address::{Address, AddressPtr};
 use crate::util::{const_ptr_as_ref, mut_ptr_as_mut};
 use crate::Error;
 
+/// Secret key for the prover
 #[derive(PartialEq, Debug, Clone)]
 pub struct SecretKey(pub(crate) wallet::secret_key::SecretKey);
 pub type SecretKeyPtr = *mut SecretKey;
 pub type ConstSecretKeyPtr = *const SecretKey;
 
+/// Parse dlog secret key from bytes (SEC-1-encoded scalar)
 pub unsafe fn secret_key_from_bytes(
     bytes_ptr: *const u8,
     secret_key_out: *mut SecretKeyPtr,
@@ -29,6 +31,7 @@ pub unsafe fn secret_key_from_bytes(
     }
 }
 
+/// Generate random key
 pub unsafe fn secret_key_generate_random(secret_key_out: *mut SecretKeyPtr) -> Result<(), Error> {
     *secret_key_out = Box::into_raw(Box::new(SecretKey(
         wallet::secret_key::SecretKey::random_dlog(),
@@ -36,6 +39,7 @@ pub unsafe fn secret_key_generate_random(secret_key_out: *mut SecretKeyPtr) -> R
     Ok(())
 }
 
+/// Address (encoded public image)
 pub unsafe fn secret_key_get_address(
     secret_key_ptr: ConstSecretKeyPtr,
     address_out: *mut AddressPtr,

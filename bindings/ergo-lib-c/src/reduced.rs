@@ -11,6 +11,8 @@ use ergo_lib_c_core::{
     Error, ErrorPtr,
 };
 
+/// Returns `reduced` transaction, i.e. unsigned transaction where each unsigned input
+/// is augmented with ReducedInput which contains a script reduction result.
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_reduced_tx_from_unsigned_tx(
     unsigned_tx_ptr: ConstUnsignedTransactionPtr,
@@ -29,6 +31,7 @@ pub unsafe extern "C" fn ergo_wallet_reduced_tx_from_unsigned_tx(
     Error::c_api_from(res)
 }
 
+/// Returns the unsigned transation
 #[no_mangle]
 pub unsafe extern "C" fn ergo_wallet_reduced_tx_unsigned_tx(
     reduced_tx_ptr: ConstReducedTransactionPtr,
@@ -38,6 +41,7 @@ pub unsafe extern "C" fn ergo_wallet_reduced_tx_unsigned_tx(
     reduced_tx_unsigned_tx(reduced_tx_ptr, unsigned_tx_out).unwrap();
 }
 
+/// Drop `ReducedTransaction`
 #[no_mangle]
 pub extern "C" fn ergo_wallet_reduced_tx_delete(ptr: ReducedTransactionPtr) {
     unsafe { delete_ptr(ptr) }

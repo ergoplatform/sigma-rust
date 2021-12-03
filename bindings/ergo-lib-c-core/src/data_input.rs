@@ -14,6 +14,7 @@ pub struct DataInput(pub chain::transaction::DataInput);
 pub type DataInputPtr = *mut DataInput;
 pub type ConstDataInputPtr = *const DataInput;
 
+/// Parse box id (32 byte digest)
 pub unsafe fn data_input_new(
     box_id_ptr: ConstBoxIdPtr,
     data_input_out: *mut DataInputPtr,
@@ -26,6 +27,7 @@ pub unsafe fn data_input_new(
     Ok(())
 }
 
+/// Get box id
 pub unsafe fn data_input_box_id(
     data_input_ptr: ConstDataInputPtr,
     box_id_out: *mut BoxIdPtr,

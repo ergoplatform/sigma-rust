@@ -14,6 +14,7 @@ pub struct ErgoStateContext(pub(crate) chain::ergo_state_context::ErgoStateConte
 pub type ErgoStateContextPtr = *mut ErgoStateContext;
 pub type ConstErgoStateContextPtr = *const ErgoStateContext;
 
+/// Create new context from pre-header
 pub unsafe fn ergo_state_context_new(
     pre_header_ptr: *const PreHeader,
     headers: ConstCollectionPtr<BlockHeader>,

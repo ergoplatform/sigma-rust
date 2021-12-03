@@ -4,6 +4,8 @@ import ErgoLibC
 class Wallet {
     internal var pointer: WalletPtr
     
+    /// Create ``Wallet`` instance loading secret key from mnemonic. Throws error if a DlogSecretKey cannot be
+    /// parsed from the provided phrase
     init(mnemonicPhrase : String, mnemonicPass: String) throws {
         var ptr: WalletPtr?
         let error =
@@ -16,12 +18,14 @@ class Wallet {
         self.pointer = ptr!
     }
     
+    /// Create ``Wallet`` from secrets
     init(secrets: SecretKeys) {
         var ptr: WalletPtr?
         ergo_wallet_wallet_from_secrets(secrets.pointer, &ptr)
         self.pointer = ptr!
     }
     
+    /// Sign a transaction
     func signTransaction(
         stateContext: ErgoStateContext,
         unsignedTx: UnsignedTransaction,
@@ -34,6 +38,7 @@ class Wallet {
         return Transaction(withRawPointer: ptr!)
     }
     
+    /// Signs a reduced transaction (generating proofs for inputs)
     func signReducedTransaction(
         reducedTx: ReducedTransaction
     ) throws -> Transaction {

@@ -1,6 +1,7 @@
 import Foundation
 import ErgoLibC
 
+/// Simple wrapper for errors emitted from `ergo-lib`
 enum WalletError: Error {
     case walletCError(reason: String)
 }

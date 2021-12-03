@@ -24,6 +24,8 @@ pub struct ReducedTransaction(pub(crate) ergo_lib::chain::transaction::reduced::
 pub type ReducedTransactionPtr = *mut ReducedTransaction;
 pub type ConstReducedTransactionPtr = *const ReducedTransaction;
 
+/// Returns `reduced` transaction, i.e. unsigned transaction where each unsigned input
+/// is augmented with ReducedInput which contains a script reduction result.
 pub unsafe fn reduced_tx_from_unsigned_tx(
     unsigned_tx_ptr: ConstUnsignedTransactionPtr,
     boxes_to_spend_ptr: ConstCollectionPtr<ErgoBox>,
@@ -56,6 +58,7 @@ pub unsafe fn reduced_tx_from_unsigned_tx(
     Ok(())
 }
 
+/// Returns the unsigned transation
 pub unsafe fn reduced_tx_unsigned_tx(
     reduced_tx_ptr: ConstReducedTransactionPtr,
     unsigned_tx_out: *mut UnsignedTransactionPtr,

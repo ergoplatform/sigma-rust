@@ -1,25 +1,31 @@
 import Foundation
 import ErgoLibC
 
+/// Selected boxes with change boxes. Instances of this class are created by ``BoxSelector``.
 class BoxSelection {
     internal var pointer: BoxSelectionPtr
     
-    init(ergoBoxes: ErgoBoxes, changeErgoBoxes: ErgoBoxAssetsDataList) throws {
+    /// Create a selection to easily inject custom selection algorithms
+    init(ergoBoxes: ErgoBoxes, changeErgoBoxes: ErgoBoxAssetsDataList) {
         var ptr: BoxSelectionPtr?
         ergo_wallet_box_selection_new(ergoBoxes.pointer, changeErgoBoxes.pointer, &ptr)
         self.pointer = ptr!
     }
     
-    internal init(withPtr ptr: BoxIdPtr) {
+    /// Takes ownership of an existing ``BoxSelectionPtr``. Note: we must ensure that no other instance
+    /// of ``BoxSelection`` can hold this pointer.
+    internal init(withRawPointer ptr: BoxIdPtr) {
         self.pointer = ptr
     }
     
+    /// Selected boxes to spend as transaction inputs
     func getBoxes() -> ErgoBoxes {
         var ptr: ErgoBoxesPtr?
         ergo_wallet_box_selection_boxes(self.pointer, &ptr)
         return ErgoBoxes(withRawPointer: ptr!)
     }
     
+    /// Selected boxes to use as change
     func getChangeBoxes() -> ErgoBoxAssetsDataList {
         var ptr: ErgoBoxAssetsDataListPtr?
         ergo_wallet_box_selection_change(self.pointer, &ptr)
@@ -36,6 +42,8 @@ extension BoxSelection: Equatable {
         ergo_wallet_box_selection_eq(lhs.pointer, rhs.pointer)
     }
 }
+
+/// Naive box selector, collects inputs until target balance is reached
 class SimpleBoxSelector {
     internal var pointer: SimpleBoxSelectorPtr
     
@@ -49,6 +57,12 @@ class SimpleBoxSelector {
         self.pointer = ptr
     }
     
+    /// Selects inputs to satisfy target balance and tokens.
+    /// - Parameters:
+    ///  - `inputs`: available inputs (returns an error, if empty),
+    ///  - `targetBalance: coins (in nanoERGs) needed,
+    ///  - `targetTokens: amount of tokens needed.
+    /// - Returns: selected inputs and box assets(value+tokens) with change.
     func select( inputs: ErgoBoxes,
           targetBalance: BoxValue,
           targetTokens: Tokens
@@ -62,7 +76,7 @@ class SimpleBoxSelector {
             &ptr
         )
         try checkError(error)
-        return BoxSelection(withPtr: ptr!)
+        return BoxSelection(withRawPointer: ptr!)
     }
     
     deinit {

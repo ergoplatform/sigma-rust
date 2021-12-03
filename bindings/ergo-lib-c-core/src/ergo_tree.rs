@@ -103,7 +103,7 @@ pub unsafe fn ergo_tree_get_constant(
 
 /// Returns new ErgoTree instance with a new constant value for a given index in constants list (as
 /// stored in serialized ErgoTree), or an error. Note that the original ErgoTree instance
-/// @`ergo_tree_ptr` is untouched.
+/// pointed-at by `ergo_tree_ptr` is untouched.
 pub unsafe fn ergo_tree_with_constant(
     ergo_tree_ptr: ConstErgoTreePtr,
     index: usize,
