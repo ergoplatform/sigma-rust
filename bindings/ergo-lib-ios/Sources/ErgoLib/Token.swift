@@ -1,6 +1,5 @@
 import Foundation
 import ErgoLibC
-import SwiftyJSON
 
 /// Token id (32 byte digest)
 class TokenId {

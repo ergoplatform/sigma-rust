@@ -17,7 +17,6 @@
 //! can not be linked to the same box.
 import Foundation
 import ErgoLibC
-import SwiftyJSON
 
 /// Box id (32-byte digest)
 class BoxId {

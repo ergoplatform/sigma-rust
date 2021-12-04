@@ -1,5 +1,4 @@
 import XCTest
-import SwiftyJSON
 @testable import ErgoLib
 @testable import ErgoLibC
 

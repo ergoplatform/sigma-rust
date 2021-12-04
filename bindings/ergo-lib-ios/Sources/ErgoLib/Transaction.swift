@@ -1,7 +1,6 @@
 
 import Foundation
 import ErgoLibC
-import SwiftyJSON
 
 /// Unsigned (inputs without proofs) transaction
 class UnsignedTransaction {

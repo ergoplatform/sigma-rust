@@ -1,7 +1,6 @@
 
 import Foundation
 import ErgoLibC
-import SwiftyJSON
 
 /// User-defined variables to be put into context
 class ContextExtension {

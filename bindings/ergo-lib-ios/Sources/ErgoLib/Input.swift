@@ -1,6 +1,5 @@
 import Foundation
 import ErgoLibC
-import SwiftyJSON
 
 /// Unsigned inputs used in constructing unsigned transactions
 class UnsignedInput {

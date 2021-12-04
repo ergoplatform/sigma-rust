@@ -10,14 +10,11 @@ let package = Package(
             targets: ["ErgoLib"]
         )
     ],
-    dependencies:  [
-        .package(url: "https://github.com/SwiftyJSON/SwiftyJSON.git", from: "5.0.0"),
-    ],
     targets: [
         .systemLibrary(name: "ErgoLibC"),
         .target(
             name: "ErgoLib",
-            dependencies: ["ErgoLibC", "SwiftyJSON"]
+            dependencies: ["ErgoLibC"]
         ),
         .testTarget(name: "ErgoLibTests", dependencies: ["ErgoLib"])
     ]

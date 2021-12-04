@@ -1,6 +1,5 @@
 import Foundation
 import ErgoLibC
-import SwiftyJSON
 
 /// Represents data of the block header available in Sigma propositions.
 class BlockHeader {

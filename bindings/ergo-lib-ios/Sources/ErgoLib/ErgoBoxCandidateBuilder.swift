@@ -1,6 +1,5 @@
 import Foundation
 import ErgoLibC
-import SwiftyJSON
 
 /// ``ErgoBoxCandidate`` builder
 class ErgoBoxCandidateBuilder {
