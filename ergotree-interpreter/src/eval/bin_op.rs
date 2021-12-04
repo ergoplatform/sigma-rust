@@ -495,7 +495,7 @@ mod tests {
 
     #[test]
     fn test_bigint_extremes() {
-        let b = |n| BigInt256::from(n);
+        let b = BigInt256::from;
         // Our BigInt should behave like a 256 bit signed (two's complement) integer according to
         // the language spec. These are the max and min values representable:
         let max = BigInt256::max_value;

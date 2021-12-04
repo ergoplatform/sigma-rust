@@ -19,7 +19,7 @@ use super::ErgoBoxAssets;
 use super::{BoxSelection, BoxSelector};
 
 /// Simple box selector, collects inputs(sorted by targeted assets) until target balance is reached
-#[allow(dead_code)]
+#[derive(Default)]
 pub struct SimpleBoxSelector {}
 
 impl SimpleBoxSelector {
@@ -162,12 +162,6 @@ impl<T: ErgoBoxAssets> BoxSelector<T> for SimpleBoxSelector {
             boxes: selected_inputs.try_into()?,
             change_boxes,
         })
-    }
-}
-
-impl Default for SimpleBoxSelector {
-    fn default() -> Self {
-        SimpleBoxSelector {}
     }
 }
 
