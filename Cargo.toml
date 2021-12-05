@@ -10,6 +10,7 @@ members = [
     "ergo-p2p",
     "ergo-chain-types",
     "ergo-nipopow",
+    "gf2_192",
     "bindings/ergo-lib-wasm",
     "bindings/ergo-lib-c-core",
     "bindings/ergo-lib-c",
