@@ -143,18 +143,29 @@ pub fn bag_for_multi_sig(
     bag
 }
 
-#[allow(clippy::unwrap_used)]
-/// Generate commitments for transaction
+/// A method which is generating commitments to randomness. A commitment is about a first step
+/// of a zero-knowledge proof-of-knowledge knowledge protocol.
+/// the commitments are generated for every input box of transaction
+/// and return as `TransactionHintsBag`.
+/// generated commitments corresponds to `public_keys` that prepared in function input
 pub fn generate_commitments(
     tx_context: TransactionContext,
     state_context: &ErgoStateContext,
     public_keys: &[SigmaBoolean],
 ) -> Result<TransactionHintsBag, TxSigningError> {
+    let tx = tx_context.spending_tx.clone();
     let mut hints_bag = TransactionHintsBag::empty();
-    for (i, input) in tx_context.get_boxes_to_spend().enumerate() {
+    for (i, input) in tx.inputs.iter().enumerate() {
+        let input_box = tx_context
+            .get_boxes_to_spend()
+            .find(|b| b.box_id() == input.box_id)
+            .ok_or(TxSigningError::InputBoxNotFound(i))?;
         let ctx = Rc::new(make_context(state_context, &tx_context, i)?);
-        let tree = input.ergo_tree.clone();
-        let exp = tree.proposition().unwrap();
+        let tree = input_box.ergo_tree.clone();
+        let exp = tree
+            .proposition()
+            .map_err(ProverError::ErgoTreeError)
+            .map_err(|e| TxSigningError::ProverError(e, i))?;
         let reduction_result = reduce_to_crypto(&exp, &Env::empty(), ctx)
             .map_err(ProverError::EvalError)
             .map_err(|e| TxSigningError::ProverError(e, i))?;
@@ -165,7 +176,6 @@ pub fn generate_commitments(
     Ok(hints_bag)
 }
 
-#[allow(clippy::unwrap_used)]
 /// Extracting hints from a transaction and outputs it's corresponding TransactionHintsBag
 pub fn extract_hints(
     signed_tx: Transaction,
@@ -175,11 +185,14 @@ pub fn extract_hints(
     simulated_secrets_to_extract: Vec<SigmaBoolean>,
 ) -> Result<TransactionHintsBag, TxSigningError> {
     let mut hints_bag = TransactionHintsBag::empty();
-
-    for (i, input) in tx_context.get_boxes_to_spend().enumerate() {
+    let tx = tx_context.spending_tx.clone();
+    for (i, input) in tx.inputs.iter().enumerate() {
+        let input_box = tx_context
+            .get_boxes_to_spend()
+            .find(|b| b.box_id() == input.box_id)
+            .ok_or(TxSigningError::InputBoxNotFound(i))?;
         let ctx = Rc::new(make_context(state_context, &tx_context, i)?);
-
-        let tree = input.ergo_tree.clone();
+        let tree = input_box.ergo_tree.clone();
         let proof: ProofBytes = signed_tx
             .inputs
             .get(i)
@@ -188,7 +201,10 @@ pub fn extract_hints(
             .spending_proof
             .proof;
         let proof: Vec<u8> = Vec::from(proof);
-        let exp = tree.proposition().unwrap();
+        let exp = tree
+            .proposition()
+            .map_err(ProverError::ErgoTreeError)
+            .map_err(|e| TxSigningError::ProverError(e, i))?;
         let reduction_result = reduce_to_crypto(&exp, &Env::empty(), ctx)
             .map_err(ProverError::EvalError)
             .map_err(|e| TxSigningError::ProverError(e, i))?;
@@ -306,7 +322,9 @@ pub fn traverse_node(
     }
 }
 
-/// Generating commitments for a sigma tree
+/// Generating commitment for ergo-tree that is reduced to crypto
+/// corresponds to an input box and with public key that prepared in input as
+/// `generate_for`
 pub fn generate_commitments_for(
     sigma_tree: SigmaBoolean,
     generate_for: &[SigmaBoolean],
