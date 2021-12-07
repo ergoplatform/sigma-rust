@@ -33,6 +33,7 @@ pub enum ExtSecretKeyError {
     /// Parsing error
     #[error("parsing error: {0}")]
     SigmaParsingError(#[from] SigmaParsingError),
+    /// Error encoding bytes as SEC-1-encoded scalar
     #[error("scalar encoding error")]
     ScalarEncodingError,
 }
