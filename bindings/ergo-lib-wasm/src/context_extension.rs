@@ -7,7 +7,7 @@ use wasm_bindgen::prelude::*;
 extern crate derive_more;
 use derive_more::{From, Into};
 
-/// Proof of correctness of tx spending
+/// User-defined variables to be put into context
 #[wasm_bindgen]
 #[derive(PartialEq, Debug, Clone, From, Into)]
 pub struct ContextExtension(

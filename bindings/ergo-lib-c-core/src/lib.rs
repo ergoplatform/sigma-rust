@@ -10,39 +10,28 @@
 // #![deny(missing_docs)]
 #![allow(clippy::missing_safety_doc)]
 
+pub mod address;
+pub mod block_header;
+pub mod box_builder;
+pub mod box_selector;
+pub mod collections;
+pub mod constant;
+pub mod context_extension;
+pub mod contract;
+pub mod data_input;
+pub mod ergo_box;
+pub mod ergo_state_ctx;
+pub mod ergo_tree;
+pub mod error_conversion;
+pub mod header;
+pub mod input;
+mod json;
+pub mod reduced;
+pub mod secret_key;
+pub mod token;
+pub mod transaction;
+pub mod tx_builder;
+pub mod util;
+pub mod wallet;
+pub use crate::error::*;
 mod error;
-pub use error::*;
-
-use ergo_lib::ergotree_ir::chain::address::{AddressEncoder, NetworkPrefix};
-
-pub struct Address(ergo_lib::ergotree_ir::chain::address::Address);
-pub type AddressPtr = *mut Address;
-
-pub unsafe fn address_from_testnet(
-    address_str: &str,
-    address_out: *mut AddressPtr,
-) -> Result<(), Error> {
-    let address_out: &mut AddressPtr = if let Some(address_out) = address_out.as_mut() {
-        address_out
-    } else {
-        return Err(Error::InvalidArgument("address_out"));
-    };
-
-    let encoder = AddressEncoder::new(NetworkPrefix::Testnet);
-    let result = encoder.parse_address_from_str(address_str);
-
-    match result {
-        Ok(address) => {
-            *address_out = Box::into_raw(Box::new(Address(address)));
-            Ok(())
-        }
-        Err(err) => Err(Error::misc(err)),
-    }
-}
-
-pub fn address_delete(address: AddressPtr) {
-    if !address.is_null() {
-        let boxed = unsafe { Box::from_raw(address) };
-        std::mem::drop(boxed);
-    }
-}
