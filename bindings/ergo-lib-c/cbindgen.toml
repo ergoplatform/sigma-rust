@@ -8,7 +8,6 @@
 language = "C"
 
 
-
 ############## Options for Wrapping the Contents of the Header #################
 
 # header = "/* Text to put at the beginning of the generated file. Probably a license. */"
@@ -138,7 +137,7 @@ extra_bindings = []
 
 
 [parse.expand]
-crates = []
+crates = ["ergo-lib-c"]
 all_features = false
 default_features = true
 features = []

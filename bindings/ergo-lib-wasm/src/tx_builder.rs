@@ -64,7 +64,7 @@ impl TxBuilder {
             .map(UnsignedTransaction::from)
     }
 
-    /// Get inputs
+    /// Get box selection
     pub fn box_selection(&self) -> BoxSelection {
         self.0.box_selection().into()
     }
@@ -89,7 +89,7 @@ impl TxBuilder {
         self.0.fee_amount().into()
     }
 
-    /// Get change
+    /// Get change address
     pub fn change_address(&self) -> Address {
         self.0.change_address().into()
     }

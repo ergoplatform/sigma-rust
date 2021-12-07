@@ -23,7 +23,7 @@ pub struct TokenId(chain::token::TokenId);
 
 #[wasm_bindgen]
 impl TokenId {
-    /// Create token id from erbo box id (32 byte digest)
+    /// Create token id from ergo box id (32 byte digest)
     pub fn from_box_id(box_id: &BoxId) -> TokenId {
         let box_id: chain::ergo_box::BoxId = box_id.clone().into();
         TokenId(chain::token::TokenId::from(box_id))

@@ -17,6 +17,7 @@ h/
 Packages
 *.xcodeproj
 xcuserdata/
+*.swiftpm
 
 .idea/
 

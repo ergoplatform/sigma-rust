@@ -283,7 +283,7 @@ pub struct ErgoBoxAssetsData(ergo_lib::wallet::box_selector::ErgoBoxAssetsData);
 
 #[wasm_bindgen]
 impl ErgoBoxAssetsData {
-    /// Create empty SimpleBoxSelector
+    /// Create new instance
     #[wasm_bindgen(constructor)]
     pub fn new(value: &BoxValue, tokens: &Tokens) -> Self {
         ErgoBoxAssetsData(ergo_lib::wallet::box_selector::ErgoBoxAssetsData {
