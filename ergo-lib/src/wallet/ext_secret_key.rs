@@ -49,7 +49,7 @@ impl ExtSecretKey {
     ) -> Result<Self, ExtSecretKeyError> {
         let secret_key = EcPoint::sigma_parse_bytes(&secret_key_bytes)?;
         let private_input = DlogProverInput::from_bytes(&secret_key_bytes)
-            .ok_or_else(|| ExtSecretKeyError::ScalarEncodingError)?;
+            .ok_or(ExtSecretKeyError::ScalarEncodingError)?;
         Ok(Self {
             secret_key,
             chain_code,

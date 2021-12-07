@@ -2,6 +2,9 @@
 //! BIP-44 <https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki>
 //! and EIP-3 <https://github.com/ergoplatform/eips/blob/master/eip-0003.md>
 
+use std::{collections::VecDeque, fmt, num::ParseIntError, str::FromStr};
+use thiserror::Error;
+
 /// Index for hardened derivation
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct ChildIndexHardened(u32);
@@ -39,6 +42,15 @@ pub enum ChildIndex {
     Hardened(ChildIndexHardened),
     /// Index for normal(non-hardened) derivation
     Normal(ChildIndexNormal),
+}
+
+impl fmt::Display for ChildIndex {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ChildIndex::Hardened(i) => write!(f, "{}'", i.0.to_string()),
+            ChildIndex::Normal(i) => write!(f, "{}", i.0.to_string()),
+        }
+    }
 }
 
 const PURPOSE: ChildIndex = ChildIndex::Hardened(ChildIndexHardened(44));
@@ -79,6 +91,22 @@ impl ChildIndex {
 /// and EIP-3 <https://github.com/ergoplatform/eips/blob/master/eip-0003.md>
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct DerivationPath(Box<[ChildIndex]>);
+
+/// DerivationPath errors
+#[derive(Error, Debug, Clone, PartialEq, Eq)]
+pub enum DerivationPathError {
+    /// Provided derivation path was empty
+    /// Raised when parsing a path from a string
+    #[error("derivation path is empty")]
+    Empty,
+    /// Provided derivation path was in the wrong format
+    /// Parsing from string to DerivationPath might have been missing the leading `m`
+    #[error("invalid derivation path format")]
+    InvalidFormat(String),
+    /// Provided derivation path contained invalid integer indices
+    #[error("failed to parse index: {0}")]
+    BadIndex(#[from] ParseIntError),
+}
 
 impl DerivationPath {
     /// Create derivation path for a given account index (hardened) and address indices
@@ -148,9 +176,80 @@ impl DerivationPath {
     }
 }
 
+impl fmt::Display for DerivationPath {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "m/")?;
+        let children = self
+            .0
+            .iter()
+            .map(|i| i.to_string())
+            .collect::<Vec<_>>()
+            .join("/");
+        write!(f, "{}", children)?;
+
+        Ok(())
+    }
+}
+
+impl FromStr for DerivationPath {
+    type Err = DerivationPathError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let cleaned_parts = s.split_whitespace().collect::<String>();
+        let mut parts = cleaned_parts.split('/').collect::<VecDeque<_>>();
+        let master_key_id = parts.pop_front().ok_or(DerivationPathError::Empty)?;
+        if master_key_id != "m" && master_key_id != "M" {
+            return Err(DerivationPathError::InvalidFormat(format!(
+                "Master node must be either 'm' or 'M', got {}",
+                master_key_id
+            )));
+        }
+        let mut path: Vec<ChildIndex> = vec![];
+        for p in parts {
+            if p.contains('\'') {
+                let idx = p.replace("'", "");
+                path.push(ChildIndex::Hardened(ChildIndexHardened(idx.parse()?)));
+            } else {
+                path.push(ChildIndex::Normal(ChildIndexNormal(p.parse()?)));
+            };
+        }
+        Ok(DerivationPath(path.into_boxed_slice()))
+    }
+}
+
 impl ChildIndexNormal {
     /// Return next index value (incremented)
     pub fn next(&self) -> ChildIndexNormal {
         ChildIndexNormal(self.0 + 1)
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::panic)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_derivation_path_to_string() {
+        let path = DerivationPath::new(ChildIndexHardened(1), vec![ChildIndexNormal(3)]);
+        let expected = "m/44'/429'/1'/0/3";
+
+        assert_eq!(expected, path.to_string())
+    }
+
+    #[test]
+    fn test_derivation_path_to_string_no_addr() {
+        let path = DerivationPath::new(ChildIndexHardened(0), vec![]);
+        let expected = "m/44'/429'/0'/0";
+
+        assert_eq!(expected, path.to_string())
+    }
+
+    #[test]
+    fn test_string_to_derivation_path() {
+        let path = "m/44'/429'/0'/0/1";
+        let expected = DerivationPath::new(ChildIndexHardened(0), vec![ChildIndexNormal(1)]);
+
+        assert_eq!(expected, path.parse::<DerivationPath>().unwrap())
     }
 }
