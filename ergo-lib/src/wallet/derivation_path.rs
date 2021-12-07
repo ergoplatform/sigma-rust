@@ -49,7 +49,7 @@ const CHANGE: ChildIndex = ChildIndex::Normal(ChildIndexNormal(0));
 /// Child index related errors
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ChildIndexError {
-    /// Nomber is too large
+    /// Number is too large
     NumberTooLarge(u32),
 }
 
@@ -95,6 +95,11 @@ impl DerivationPath {
                 .as_mut(),
         );
         Self(res.into_boxed_slice())
+    }
+
+    /// Create root derivation path
+    pub fn master_path() -> Self {
+        Self(Box::new([]))
     }
 
     /// For 0x21 Sign Transaction command of Ergo Ledger App Protocol

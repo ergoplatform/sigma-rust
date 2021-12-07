@@ -1,6 +1,6 @@
 //! Extended private key operations according to BIP-32
 
-use super::{derivation_path::DerivationPath, ext_pub_key::ExtPubKey, mnemonic::MnemonicSeed};
+use super::{derivation_path::DerivationPath, mnemonic::MnemonicSeed};
 use ergotree_interpreter::sigma_protocol::private_input::DlogProverInput;
 use ergotree_ir::{
     serialization::{SigmaParsingError, SigmaSerializable},
@@ -57,6 +57,7 @@ impl ExtSecretKey {
         })
     }
 
+    /// Public image associated with the private input
     pub fn public_image(&self) -> ProveDlog {
         self.private_input.public_image()
     }

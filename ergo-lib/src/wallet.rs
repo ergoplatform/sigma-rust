@@ -3,6 +3,7 @@
 pub mod box_selector;
 pub mod derivation_path;
 pub mod ext_pub_key;
+pub mod ext_secret_key;
 pub mod mnemonic;
 pub mod secret_key;
 pub mod signing;

@@ -21,7 +21,7 @@ pub type ChainCode = [u8; 32];
 
 type HmacSha512 = Hmac<Sha512>;
 
-/// Extented public key
+/// Extended public key
 /// implemented according to BIP-32
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ExtPubKey {
