@@ -17,6 +17,9 @@
 #![deny(clippy::unimplemented)]
 #![deny(clippy::panic)]
 
+mod client;
+mod error;
+mod message;
 mod peer_addr;
 mod peer_database;
 mod peer_feature;
@@ -24,9 +27,11 @@ mod peer_info;
 mod peer_spec;
 mod protocol_version;
 
+pub use client::Client;
 pub use peer_addr::PeerAddr;
 pub use peer_database::{in_memory::InMemoryPeerDatabase, PeerDatabase, PeerDatabaseError};
 pub use peer_feature::{LocalAddressPeerFeature, PeerFeature, PeerFeatureId};
 pub use peer_info::PeerInfo;
 pub use peer_spec::PeerSpec;
 pub use protocol_version::ProtocolVersion;
+

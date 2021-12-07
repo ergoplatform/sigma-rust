@@ -14,13 +14,17 @@ exclude = [
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-
 sigma-ser = { version = "^0.3.0", path = "../sigma-ser" }
 sigma-util = { version = "^0.3.0", path = "../sigma-util" }
 thiserror = "1"
 derive_more = "0.99"
 bounded-vec = { version = "^0.5.0" }
 proptest-derive = {version = "0.3.0", optional = true }
+
+futures = "0.3"
+
+tracing = "0.1"
+tracing-error = { version = "0.1.2", features = ["traced-error"] }
 
 [dependencies.proptest]
 # wasm support, via https://altsysrq.github.io/proptest-book/proptest/wasm.html
