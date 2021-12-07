@@ -114,7 +114,23 @@ impl Wallet {
         reduced_tx: &ReducedTransaction,
     ) -> Result<Transaction, JsValue> {
         self.0
-            .sign_reduced_transaction(reduced_tx.clone().into())
+            .sign_reduced_transaction(reduced_tx.clone().into(), None)
+            .map_err(to_js)
+            .map(Transaction::from)
+    }
+
+    /// Sign a multi signature reduced transaction:
+    /// `reduced_tx` - reduced transaction, i.e. unsigned transaction where for each unsigned input
+    /// added a script reduction result.
+    /// `tx_hints` - transaction hints bag corresponding to [`TransactionHintsBag`]
+    #[wasm_bindgen]
+    pub fn sign_reduced_transaction_multi(
+        &self,
+        reduced_tx: &ReducedTransaction,
+        tx_hints: &TransactionHintsBag,
+    ) -> Result<Transaction, JsValue> {
+        self.0
+            .sign_reduced_transaction(reduced_tx.clone().into(), Some(&tx_hints.0))
             .map_err(to_js)
             .map(Transaction::from)
     }

@@ -76,22 +76,18 @@ impl Wallet {
         state_context: &ErgoStateContext,
         tx_hints: Option<&TransactionHintsBag>,
     ) -> Result<Transaction, WalletError> {
-        if let Some(bag) = tx_hints {
-            sign_transaction(self.prover.as_ref(), tx_context, state_context, bag)
-                .map_err(WalletError::from)
-        } else {
-            let bag: TransactionHintsBag = TransactionHintsBag::empty();
-            sign_transaction(self.prover.as_ref(), tx_context, state_context, &bag)
-                .map_err(WalletError::from)
-        }
+        sign_transaction(self.prover.as_ref(), tx_context, state_context, tx_hints)
+            .map_err(WalletError::from)
     }
 
     /// Signs a reduced transaction (generating proofs for inputs)
     pub fn sign_reduced_transaction(
         &self,
         reduced_tx: ReducedTransaction,
+        tx_hints: Option<&TransactionHintsBag>,
     ) -> Result<Transaction, WalletError> {
-        sign_reduced_transaction(self.prover.as_ref(), reduced_tx).map_err(WalletError::from)
+        sign_reduced_transaction(self.prover.as_ref(), reduced_tx, tx_hints)
+            .map_err(WalletError::from)
     }
 
     /// Generate commitments for Transaction by wallet secrets
