@@ -21,6 +21,8 @@ mod client;
 mod error;
 mod message;
 mod peer_addr;
+mod peer_connection_handler;
+mod peer_connector;
 mod peer_database;
 mod peer_feature;
 mod peer_info;
