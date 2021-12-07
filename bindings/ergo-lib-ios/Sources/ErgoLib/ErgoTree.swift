@@ -8,7 +8,7 @@ class ErgoTree {
     /// Decode from encoded serialized ``ErgoTree``
     init(fromBytes : [UInt8]) throws {
         var ptr: ErgoTreePtr?
-        let error = ergo_wallet_ergo_tree_from_bytes(
+        let error = ergo_lib_ergo_tree_from_bytes(
             fromBytes,
             UInt(fromBytes.count),
             &ptr
@@ -21,7 +21,7 @@ class ErgoTree {
     init(fromBase16EncodedString : String) throws {
         var ptr: ErgoTreePtr?
         let error = fromBase16EncodedString.withCString { cs in
-            ergo_wallet_ergo_tree_from_base16_bytes(cs, &ptr)
+            ergo_lib_ergo_tree_from_base16_bytes(cs, &ptr)
         }
         try checkError(error)
         self.pointer = ptr!
@@ -35,10 +35,10 @@ class ErgoTree {
     
     /// Convert to serialized bytes.
     func toBytes() throws -> [UInt8] {
-        let res = ergo_wallet_ergo_tree_bytes_len(self.pointer)
+        let res = ergo_lib_ergo_tree_bytes_len(self.pointer)
         try checkError(res.error)
         var bytes = Array.init(repeating: UInt8(0), count: Int(res.value))
-        let error = ergo_wallet_ergo_tree_to_bytes(self.pointer, &bytes)
+        let error = ergo_lib_ergo_tree_to_bytes(self.pointer, &bytes)
         try checkError(error)
         return bytes
     }
@@ -46,17 +46,17 @@ class ErgoTree {
     /// Convert to base16-encoded serialized bytes
     func toBase16EncodedString() throws -> String {
         var cStr: UnsafePointer<CChar>?
-        let error = ergo_wallet_ergo_tree_to_base16_bytes(self.pointer, &cStr)
+        let error = ergo_lib_ergo_tree_to_base16_bytes(self.pointer, &cStr)
         try checkError(error)
         let str = String(cString: cStr!)
-        ergo_wallet_delete_string(UnsafeMutablePointer(mutating: cStr))
+        ergo_lib_delete_string(UnsafeMutablePointer(mutating: cStr))
         return str
     }
     
     /// Returns the number of constants stored in the serialized ``ErgoTree`` or throws error if the
     /// parsing of constants failed
     func constantsLength() throws -> UInt {
-        let res = ergo_wallet_ergo_tree_constants_len(self.pointer)
+        let res = ergo_lib_ergo_tree_constants_len(self.pointer)
         try checkError(res.error)
         return res.value
     }
@@ -65,7 +65,7 @@ class ErgoTree {
     /// constant parsing failed.
     func getConstant(index: UInt) throws -> Constant? {
         var constantPtr: ConstantPtr?
-        let res = ergo_wallet_ergo_tree_get_constant(self.pointer, index, &constantPtr)
+        let res = ergo_lib_ergo_tree_get_constant(self.pointer, index, &constantPtr)
         try checkError(res.error)
         if res.is_some {
             return Constant(withRawPointer: constantPtr!)
@@ -78,32 +78,32 @@ class ErgoTree {
     /// Throws if no constant exists at `index`.
     func withConstant(index: UInt, constant: Constant) throws {
         var newErgoTreePtr: ErgoTreePtr?
-        let error = ergo_wallet_ergo_tree_with_constant(self.pointer, index, constant.pointer, &newErgoTreePtr)
+        let error = ergo_lib_ergo_tree_with_constant(self.pointer, index, constant.pointer, &newErgoTreePtr)
         try checkError(error)
         
         // Delete the old ErgoTree and point to new instance
-        ergo_wallet_ergo_tree_delete(self.pointer)
+        ergo_lib_ergo_tree_delete(self.pointer)
         self.pointer = newErgoTreePtr!
     }
     
     /// Serialized proposition expression of SigmaProp type with ConstantPlaceholder nodes instead of
     /// Constant nodes.
     func toTemplateBytes() throws -> [UInt8] {
-        let res = ergo_wallet_ergo_tree_template_bytes_len(self.pointer)
+        let res = ergo_lib_ergo_tree_template_bytes_len(self.pointer)
         try checkError(res.error)
         var bytes = Array.init(repeating: UInt8(0), count: Int(res.value))
-        let error = ergo_wallet_ergo_tree_template_bytes(self.pointer, &bytes)
+        let error = ergo_lib_ergo_tree_template_bytes(self.pointer, &bytes)
         try checkError(error)
         return bytes
     }
     
     deinit {
-        ergo_wallet_ergo_tree_delete(self.pointer)
+        ergo_lib_ergo_tree_delete(self.pointer)
     }
 }
 
 extension ErgoTree: Equatable {
     static func ==(lhs: ErgoTree, rhs: ErgoTree) -> Bool {
-        ergo_wallet_ergo_tree_eq(lhs.pointer, rhs.pointer)
+        ergo_lib_ergo_tree_eq(lhs.pointer, rhs.pointer)
     }
 }

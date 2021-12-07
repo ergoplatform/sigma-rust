@@ -13,18 +13,18 @@ use paste::paste;
 ///pub type ConstBlockHeadersPtr = ConstCollectionPtr<BlockHeader>;
 ///
 ///#[no_mangle]
-///pub unsafe extern "C" fn ergo_wallet_block_headers_new(collection_ptr_out: *mut BlockHeadersPtr) {
+///pub unsafe extern "C" fn ergo_lib_block_headers_new(collection_ptr_out: *mut BlockHeadersPtr) {
 ///    #[allow(clippy::unwrap_used)]
 ///    collection_new(collection_ptr_out).unwrap();
 ///}
 ///
 ///#[no_mangle]
-///pub unsafe extern "C" fn ergo_wallet_block_headers_delete(collection_ptr_out: BlockHeadersPtr) {
+///pub unsafe extern "C" fn ergo_lib_block_headers_delete(collection_ptr_out: BlockHeadersPtr) {
 ///    collection_delete(collection_ptr_out)
 ///}
 ///
 ///#[no_mangle]
-///pub unsafe extern "C" fn ergo_wallet_block_headers_len(
+///pub unsafe extern "C" fn ergo_lib_block_headers_len(
 ///    collection_ptr: ConstBlockHeadersPtr,
 ///) -> usize {
 ///    #[allow(clippy::unwrap_used)]
@@ -32,7 +32,7 @@ use paste::paste;
 ///}
 ///
 ///#[no_mangle]
-///pub unsafe extern "C" fn ergo_wallet_block_headers_get(
+///pub unsafe extern "C" fn ergo_lib_block_headers_get(
 ///    collection_ptr: ConstBlockHeadersPtr,
 ///    index: usize,
 ///    element_ptr_out: *mut BlockHeaderPtr,
@@ -50,7 +50,7 @@ use paste::paste;
 ///}
 ///
 ///#[no_mangle]
-///pub unsafe extern "C" fn ergo_wallet_block_headers_add(
+///pub unsafe extern "C" fn ergo_lib_block_headers_add(
 ///    element_ptr: ConstBlockHeaderPtr,
 ///    collection_ptr_out: BlockHeadersPtr,
 ///) {
@@ -67,7 +67,7 @@ macro_rules! make_collection {
 
             /// Create a new empty collection
             #[no_mangle]
-            pub unsafe extern "C" fn [<ergo_wallet_ $collection_type_name:snake _new>](
+            pub unsafe extern "C" fn [<ergo_lib_ $collection_type_name:snake _new>](
                 collection_ptr_out: *mut [<$collection_type_name Ptr>],
             ) {
                 #[allow(clippy::unwrap_used)]
@@ -76,13 +76,13 @@ macro_rules! make_collection {
 
             /// Delete an existing collection
             #[no_mangle]
-            pub unsafe extern "C" fn [<ergo_wallet_ $collection_type_name:snake _delete>](ptr_out: [<$collection_type_name Ptr>]) {
+            pub unsafe extern "C" fn [<ergo_lib_ $collection_type_name:snake _delete>](ptr_out: [<$collection_type_name Ptr>]) {
                 ergo_lib_c_core::collections::collection_delete(ptr_out)
             }
 
             /// Returns length of an existing collection
             #[no_mangle]
-            pub unsafe extern "C" fn [<ergo_wallet_ $collection_type_name:snake _len>](
+            pub unsafe extern "C" fn [<ergo_lib_ $collection_type_name:snake _len>](
                 collection_ptr: [<Const $collection_type_name Ptr>],
             ) -> usize {
                 #[allow(clippy::unwrap_used)]
@@ -91,7 +91,7 @@ macro_rules! make_collection {
 
             /// Returns element at position `index` of an existing collection
             #[no_mangle]
-            pub unsafe extern "C" fn [<ergo_wallet_ $collection_type_name:snake _get>](
+            pub unsafe extern "C" fn [<ergo_lib_ $collection_type_name:snake _get>](
                 collection_ptr: [<Const $collection_type_name Ptr>],
                 index: usize,
                 element_ptr_out: *mut [<$item_type_name Ptr>],
@@ -110,7 +110,7 @@ macro_rules! make_collection {
 
             #[no_mangle]
             /// Add an element to collection
-            pub unsafe extern "C" fn [<ergo_wallet_ $collection_type_name:snake _add>](
+            pub unsafe extern "C" fn [<ergo_lib_ $collection_type_name:snake _add>](
                 element_ptr: [<Const $item_type_name Ptr>],
                 collection_ptr_out: [<$collection_type_name Ptr>],
             ) {
@@ -128,7 +128,7 @@ macro_rules! make_ffi_eq {
     ($type_name:ident) => {
         paste! {
             #[no_mangle]
-            pub unsafe extern "C" fn [<ergo_wallet_ $type_name:snake _eq>](
+            pub unsafe extern "C" fn [<ergo_lib_ $type_name:snake _eq>](
               [< $type_name:snake _ptr_0>]: [< Const $type_name Ptr>],
               [< $type_name:snake _ptr_1>]: [< Const $type_name Ptr>],
             ) -> bool {

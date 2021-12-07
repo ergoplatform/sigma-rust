@@ -14,7 +14,7 @@ use crate::{delete_ptr, ReturnNum};
 
 /// Decode from Base16-encoded ErgoTree serialized value
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_constant_from_base16(
+pub unsafe extern "C" fn ergo_lib_constant_from_base16(
     bytes_ptr: *const c_char,
     constant_out: *mut ConstantPtr,
 ) -> ErrorPtr {
@@ -26,7 +26,7 @@ pub unsafe extern "C" fn ergo_wallet_constant_from_base16(
 /// Encode as Base16-encoded ErgoTree serialized value or return an error if serialization
 /// failed
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_constant_to_base16(
+pub unsafe extern "C" fn ergo_lib_constant_to_base16(
     constant_ptr: ConstConstantPtr,
     _bytes_str: *mut *const c_char,
 ) -> ErrorPtr {
@@ -43,14 +43,14 @@ pub unsafe extern "C" fn ergo_wallet_constant_to_base16(
 
 /// Create from i32 value
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_constant_from_i32(value: i32, constant_out: *mut ConstantPtr) {
+pub unsafe extern "C" fn ergo_lib_constant_from_i32(value: i32, constant_out: *mut ConstantPtr) {
     #[allow(clippy::unwrap_used)]
     constant_from_i32(value, constant_out).unwrap();
 }
 
 /// Extract i32 value, returning error if wrong type
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_constant_to_i32(
+pub unsafe extern "C" fn ergo_lib_constant_to_i32(
     constant_ptr: ConstConstantPtr,
 ) -> ReturnNum<i32> {
     match constant_to_i32(constant_ptr) {
@@ -67,14 +67,14 @@ pub unsafe extern "C" fn ergo_wallet_constant_to_i32(
 
 /// Create from i64
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_constant_from_i64(value: i64, constant_out: *mut ConstantPtr) {
+pub unsafe extern "C" fn ergo_lib_constant_from_i64(value: i64, constant_out: *mut ConstantPtr) {
     #[allow(clippy::unwrap_used)]
     constant_from_i64(value, constant_out).unwrap();
 }
 
 /// Extract i64 value, returning error if wrong type
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_constant_to_i64(
+pub unsafe extern "C" fn ergo_lib_constant_to_i64(
     constant_ptr: ConstConstantPtr,
 ) -> ReturnNum<i64> {
     match constant_to_i64(constant_ptr) {
@@ -91,7 +91,7 @@ pub unsafe extern "C" fn ergo_wallet_constant_to_i64(
 
 /// Create from byte array
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_constant_from_bytes(
+pub unsafe extern "C" fn ergo_lib_constant_from_bytes(
     bytes_ptr: *const u8,
     len: usize,
     constant_out: *mut ConstantPtr,
@@ -102,7 +102,7 @@ pub unsafe extern "C" fn ergo_wallet_constant_from_bytes(
 
 /// Extract byte array len, returning error if wrong type
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_constant_bytes_len(
+pub unsafe extern "C" fn ergo_lib_constant_bytes_len(
     constant_ptr: ConstConstantPtr,
 ) -> ReturnNum<usize> {
     match constant_bytes_len(constant_ptr) {
@@ -118,10 +118,10 @@ pub unsafe extern "C" fn ergo_wallet_constant_bytes_len(
 }
 
 /// Extract byte array, returning error if wrong type.  **Key assumption:** enough memory has been
-/// allocated at the address pointed-to by `output`. Use `ergo_wallet_constant_bytes_len` to
+/// allocated at the address pointed-to by `output`. Use `ergo_lib_constant_bytes_len` to
 /// determine the length of the byte array.
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_constant_to_bytes(
+pub unsafe extern "C" fn ergo_lib_constant_to_bytes(
     constant_ptr: ConstConstantPtr,
     output: *mut u8,
 ) -> ErrorPtr {
@@ -131,7 +131,7 @@ pub unsafe extern "C" fn ergo_wallet_constant_to_bytes(
 
 /// Parse raw [`EcPoint`] value from bytes and make [`ProveDlog`] constant
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_constant_from_ecpoint_bytes(
+pub unsafe extern "C" fn ergo_lib_constant_from_ecpoint_bytes(
     bytes_ptr: *const u8,
     len: usize,
     constant_out: *mut ConstantPtr,
@@ -142,7 +142,7 @@ pub unsafe extern "C" fn ergo_wallet_constant_from_ecpoint_bytes(
 
 /// Create from ErgoBox value
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_constant_from_ergo_box(
+pub unsafe extern "C" fn ergo_lib_constant_from_ergo_box(
     ergo_box_ptr: ConstErgoBoxPtr,
     constant_out: *mut ConstantPtr,
 ) {
@@ -152,7 +152,7 @@ pub unsafe extern "C" fn ergo_wallet_constant_from_ergo_box(
 
 /// Extract ErgoBox value, returning error if wrong type
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_constant_to_ergo_box(
+pub unsafe extern "C" fn ergo_lib_constant_to_ergo_box(
     constant_ptr: ConstConstantPtr,
     ergo_box_out: *mut ErgoBoxPtr,
 ) -> ErrorPtr {
@@ -162,7 +162,7 @@ pub unsafe extern "C" fn ergo_wallet_constant_to_ergo_box(
 
 /// Drop `Constant`
 #[no_mangle]
-pub extern "C" fn ergo_wallet_constant_delete(ptr: ConstantPtr) {
+pub extern "C" fn ergo_lib_constant_delete(ptr: ConstantPtr) {
     unsafe { delete_ptr(ptr) }
 }
 

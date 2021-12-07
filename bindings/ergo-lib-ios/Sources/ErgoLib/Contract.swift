@@ -12,7 +12,7 @@ class Contract {
     /// Create new contract from ErgoTree
     init(fromErgoTree: ErgoTree) {
         var ptr:  ContractPtr?
-        ergo_wallet_contract_new(fromErgoTree.pointer, &ptr)
+        ergo_lib_contract_new(fromErgoTree.pointer, &ptr)
         self.pointer = ptr!
     }
     
@@ -20,7 +20,7 @@ class Contract {
     init(compileFromString: String) throws {
         var ptr: ContractPtr?
         let error = compileFromString.withCString { cs in
-            ergo_wallet_contract_compile(cs, &ptr)
+            ergo_lib_contract_compile(cs, &ptr)
         }
         try checkError(error)
         self.pointer = ptr!
@@ -29,7 +29,7 @@ class Contract {
     /// Create new contract that allow spending of the guarded box by a given recipient ([`Address`])
     init(payToAddress: Address) throws {
         var ptr: ContractPtr?
-        let error = ergo_wallet_contract_pay_to_address(payToAddress.pointer, &ptr)
+        let error = ergo_lib_contract_pay_to_address(payToAddress.pointer, &ptr)
         try checkError(error)
         self.pointer = ptr!
     }
@@ -37,17 +37,17 @@ class Contract {
     /// Get the ErgoTree of the contract
     func getErgoTree() -> ErgoTree {
         var boxIdPtr: ErgoTreePtr?
-        ergo_wallet_contract_ergo_tree(self.pointer, &boxIdPtr)
+        ergo_lib_contract_ergo_tree(self.pointer, &boxIdPtr)
         return ErgoTree(withRawPointer: boxIdPtr!)
     }
         
     deinit {
-        ergo_wallet_contract_delete(self.pointer)
+        ergo_lib_contract_delete(self.pointer)
     }
 }
 
 extension Contract: Equatable {
     static func ==(lhs: Contract, rhs: Contract) -> Bool {
-        ergo_wallet_contract_eq(lhs.pointer, rhs.pointer)
+        ergo_lib_contract_eq(lhs.pointer, rhs.pointer)
     }
 }

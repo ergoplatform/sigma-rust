@@ -63,7 +63,7 @@ use std::{ffi::CString, os::raw::c_char};
 pub type ErrorPtr = *mut Error;
 
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_delete_string(ptr: *mut c_char) {
+pub unsafe extern "C" fn ergo_lib_delete_string(ptr: *mut c_char) {
     if !ptr.is_null() {
         let cstring = CString::from_raw(ptr);
         std::mem::drop(cstring)
@@ -71,7 +71,7 @@ pub unsafe extern "C" fn ergo_wallet_delete_string(ptr: *mut c_char) {
 }
 
 #[no_mangle]
-pub extern "C" fn ergo_wallet_delete_error(error: ErrorPtr) {
+pub extern "C" fn ergo_lib_delete_error(error: ErrorPtr) {
     if !error.is_null() {
         let boxed = unsafe { Box::from_raw(error) };
         std::mem::drop(boxed);
@@ -79,7 +79,7 @@ pub extern "C" fn ergo_wallet_delete_error(error: ErrorPtr) {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_error_to_string(error: ErrorPtr) -> *mut c_char {
+pub unsafe extern "C" fn ergo_lib_error_to_string(error: ErrorPtr) -> *mut c_char {
     #[allow(clippy::unwrap_used)]
     if let Some(error) = error.as_ref() {
         CString::new(error.to_string()).unwrap().into_raw()

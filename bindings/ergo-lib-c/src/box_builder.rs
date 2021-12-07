@@ -19,7 +19,7 @@ use crate::{delete_ptr, ErrorPtr, ReturnNum, ReturnOption};
 /// `creation_height` - height when a transaction containing the box is created.
 /// It should not exceed height of the block, containing the transaction with this box.
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_new(
+pub unsafe extern "C" fn ergo_lib_ergo_box_candidate_builder_new(
     value_ptr: ConstBoxValuePtr,
     contract_ptr: ConstContractPtr,
     creation_height: u32,
@@ -31,7 +31,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_new(
 
 /// Set minimal value (per byte of the serialized box size)
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_set_min_box_value_per_byte(
+pub unsafe extern "C" fn ergo_lib_ergo_box_candidate_builder_set_min_box_value_per_byte(
     builder_mut: ErgoBoxCandidateBuilderPtr,
     new_min_value_per_byte: u32,
 ) {
@@ -42,7 +42,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_set_min_box_valu
 
 /// Get minimal value (per byte of the serialized box size)
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_min_box_value_per_byte(
+pub unsafe extern "C" fn ergo_lib_ergo_box_candidate_builder_min_box_value_per_byte(
     builder_ptr: ConstErgoBoxCandidateBuilderPtr,
 ) -> u32 {
     #[allow(clippy::unwrap_used)]
@@ -51,7 +51,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_min_box_value_pe
 
 /// Set new box value
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_set_value(
+pub unsafe extern "C" fn ergo_lib_ergo_box_candidate_builder_set_value(
     builder_mut: ErgoBoxCandidateBuilderPtr,
     value_ptr: ConstBoxValuePtr,
 ) {
@@ -61,7 +61,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_set_value(
 
 /// Get box value
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_value(
+pub unsafe extern "C" fn ergo_lib_ergo_box_candidate_builder_value(
     builder_ptr: ConstErgoBoxCandidateBuilderPtr,
     value_out: *mut BoxValuePtr,
 ) {
@@ -71,7 +71,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_value(
 
 /// Calculate serialized box size(in bytes)
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_calc_box_size_bytes(
+pub unsafe extern "C" fn ergo_lib_ergo_box_candidate_builder_calc_box_size_bytes(
     builder_ptr: ConstErgoBoxCandidateBuilderPtr,
 ) -> ReturnNum<usize> {
     match ergo_box_candidate_builder_calc_box_size_bytes(builder_ptr) {
@@ -88,7 +88,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_calc_box_size_by
 
 /// Calculate minimal box value for the current box serialized size(in bytes)
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_calc_min_box_value(
+pub unsafe extern "C" fn ergo_lib_ergo_box_candidate_calc_min_box_value(
     builder_ptr: ConstErgoBoxCandidateBuilderPtr,
     value_out: *mut BoxValuePtr,
 ) -> ErrorPtr {
@@ -98,7 +98,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_calc_min_box_value(
 
 /// Set register with a given id (R4-R9) to the given value
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_set_register_value(
+pub unsafe extern "C" fn ergo_lib_ergo_box_candidate_builder_set_register_value(
     builder_mut: ErgoBoxCandidateBuilderPtr,
     register_id: NonMandatoryRegisterId,
     constant_ptr: ConstConstantPtr,
@@ -109,7 +109,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_set_register_val
 
 /// Returns register value for the given register id (R4-R9), or None if the register is empty
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_register_value(
+pub unsafe extern "C" fn ergo_lib_ergo_box_candidate_builder_register_value(
     builder_ptr: ConstErgoBoxCandidateBuilderPtr,
     register_id: NonMandatoryRegisterId,
     constant_out: *mut ConstantPtr,
@@ -128,7 +128,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_register_value(
 
 /// Delete register value(make register empty) for the given register id (R4-R9)
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_delete_register_value(
+pub unsafe extern "C" fn ergo_lib_ergo_box_candidate_builder_delete_register_value(
     builder_mut: ErgoBoxCandidateBuilderPtr,
     register_id: NonMandatoryRegisterId,
 ) {
@@ -142,7 +142,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_delete_register_
 /// `token_desc` - token description (will be encoded in R5),
 /// `num_decimals` - number of decimals (will be encoded in R6)
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_mint_token(
+pub unsafe extern "C" fn ergo_lib_ergo_box_candidate_builder_mint_token(
     builder_mut: ErgoBoxCandidateBuilderPtr,
     token_ptr: ConstTokenPtr,
     token_name: *const c_char,
@@ -164,7 +164,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_mint_token(
 
 /// Add given token id and token amount
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_add_token(
+pub unsafe extern "C" fn ergo_lib_ergo_box_candidate_builder_add_token(
     builder_mut: ErgoBoxCandidateBuilderPtr,
     token_id_ptr: ConstTokenIdPtr,
     token_amount_ptr: ConstTokenAmountPtr,
@@ -175,7 +175,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_add_token(
 
 /// Build the box candidate
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_build(
+pub unsafe extern "C" fn ergo_lib_ergo_box_candidate_builder_build(
     builder_ptr: ConstErgoBoxCandidateBuilderPtr,
     ergo_box_candidate_out: *mut ErgoBoxCandidatePtr,
 ) -> ErrorPtr {
@@ -185,6 +185,6 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_builder_build(
 
 /// Drop `ErgoBoxCandidateBuilder`
 #[no_mangle]
-pub extern "C" fn ergo_wallet_ergo_box_candidate_builder_delete(ptr: ErgoBoxCandidateBuilderPtr) {
+pub extern "C" fn ergo_lib_ergo_box_candidate_builder_delete(ptr: ErgoBoxCandidateBuilderPtr) {
     unsafe { delete_ptr(ptr) }
 }

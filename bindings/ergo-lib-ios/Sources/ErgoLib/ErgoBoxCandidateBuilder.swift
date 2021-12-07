@@ -13,7 +13,7 @@ class ErgoBoxCandidateBuilder {
     /// It should not exceed height of the block, containing the transaction with this box.
     init(boxValue: BoxValue, contract: Contract, creationHeight: UInt32) {
         var ptr: ErgoBoxCandidateBuilderPtr?
-        ergo_wallet_ergo_box_candidate_builder_new(
+        ergo_lib_ergo_box_candidate_builder_new(
             boxValue.pointer,
             contract.pointer,
             creationHeight,
@@ -24,7 +24,7 @@ class ErgoBoxCandidateBuilder {
     
     /// Set minimal value (per byte of the serialized box size)
     func setMinBoxValuePerByte(minBoxValuePerByte: UInt32) -> ErgoBoxCandidateBuilder {
-        ergo_wallet_ergo_box_candidate_builder_set_min_box_value_per_byte(
+        ergo_lib_ergo_box_candidate_builder_set_min_box_value_per_byte(
             self.pointer,
             minBoxValuePerByte
         )
@@ -33,12 +33,12 @@ class ErgoBoxCandidateBuilder {
     
     /// Get minimal value (per byte of the serialized box size)
     func getMinBoxValuePerByte() -> UInt32 {
-        ergo_wallet_ergo_box_candidate_builder_min_box_value_per_byte(self.pointer)
+        ergo_lib_ergo_box_candidate_builder_min_box_value_per_byte(self.pointer)
     }
     
     /// Set new box value
     func setValue(boxValue: BoxValue) -> ErgoBoxCandidateBuilder {
-        ergo_wallet_ergo_box_candidate_builder_set_value(
+        ergo_lib_ergo_box_candidate_builder_set_value(
             self.pointer,
             boxValue.pointer
         )
@@ -48,13 +48,13 @@ class ErgoBoxCandidateBuilder {
     /// Get box value
     func getValue() -> BoxValue {
         var ptr: BoxValuePtr?
-        ergo_wallet_ergo_box_candidate_builder_value(self.pointer, &ptr)
+        ergo_lib_ergo_box_candidate_builder_value(self.pointer, &ptr)
         return BoxValue(withRawPointer: ptr!)
     }
     
     /// Calculate serialized box size(in bytes)
     func calcBoxSizeBytes() throws -> UInt {
-        let res = ergo_wallet_ergo_box_candidate_builder_calc_box_size_bytes(self.pointer)
+        let res = ergo_lib_ergo_box_candidate_builder_calc_box_size_bytes(self.pointer)
         try checkError(res.error)
         return res.value
     }
@@ -62,7 +62,7 @@ class ErgoBoxCandidateBuilder {
     /// Calculate minimal box value for the current box serialized size(in bytes)
     func calcMinBoxValue() throws -> BoxValue {
         var ptr: BoxValuePtr?
-        let error = ergo_wallet_ergo_box_candidate_calc_min_box_value(self.pointer, &ptr)
+        let error = ergo_lib_ergo_box_candidate_calc_min_box_value(self.pointer, &ptr)
         try checkError(error)
         return BoxValue(withRawPointer: ptr!)
     }
@@ -72,7 +72,7 @@ class ErgoBoxCandidateBuilder {
         registerId: NonMandatoryRegisterId,
         constant: Constant
     ) -> ErgoBoxCandidateBuilder {
-        ergo_wallet_ergo_box_candidate_builder_set_register_value(
+        ergo_lib_ergo_box_candidate_builder_set_register_value(
             self.pointer,
             registerId.rawValue,
             constant.pointer
@@ -83,7 +83,7 @@ class ErgoBoxCandidateBuilder {
     /// Returns register value for the given register id (R4-R9), or None if the register is empty
     func getRegisterValue(registerId: NonMandatoryRegisterId) -> Constant? {
         var ptr: ConstantPtr?
-        let res = ergo_wallet_ergo_box_candidate_builder_register_value(
+        let res = ergo_lib_ergo_box_candidate_builder_register_value(
             self.pointer,
             registerId.rawValue,
             &ptr
@@ -100,7 +100,7 @@ class ErgoBoxCandidateBuilder {
     func deleteRegisterValue(
         registerId: NonMandatoryRegisterId
     ) -> ErgoBoxCandidateBuilder {
-        ergo_wallet_ergo_box_candidate_builder_delete_register_value(
+        ergo_lib_ergo_box_candidate_builder_delete_register_value(
             self.pointer,
             registerId.rawValue
         )
@@ -122,7 +122,7 @@ class ErgoBoxCandidateBuilder {
         let _ =
             tokenName.withCString{tokenNameCStr in
                 tokenDesc.withCString{tokenDescCStr in
-                    ergo_wallet_ergo_box_candidate_builder_mint_token(
+                    ergo_lib_ergo_box_candidate_builder_mint_token(
                         self.pointer,
                         token.pointer,
                         tokenNameCStr,
@@ -139,7 +139,7 @@ class ErgoBoxCandidateBuilder {
         tokenId: TokenId,
         tokenAmount: TokenAmount
     ) -> ErgoBoxCandidateBuilder {
-        ergo_wallet_ergo_box_candidate_builder_add_token(
+        ergo_lib_ergo_box_candidate_builder_add_token(
             self.pointer,
             tokenId.pointer,
             tokenAmount.pointer
@@ -150,12 +150,12 @@ class ErgoBoxCandidateBuilder {
     /// Build the box candidate
     func build() throws -> ErgoBoxCandidate {
         var ptr: ErgoBoxCandidatePtr?
-        let error = ergo_wallet_ergo_box_candidate_builder_build(self.pointer, &ptr)
+        let error = ergo_lib_ergo_box_candidate_builder_build(self.pointer, &ptr)
         try checkError(error)
         return ErgoBoxCandidate(withRawPointer: ptr!)
     }
     
     deinit {
-        ergo_wallet_ergo_box_candidate_builder_delete(self.pointer)
+        ergo_lib_ergo_box_candidate_builder_delete(self.pointer)
     }
 }

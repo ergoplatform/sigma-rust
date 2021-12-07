@@ -15,7 +15,7 @@ use crate::delete_ptr;
 
 /// Suggested transaction fee (semi-default value used across wallets and dApps as of Oct 2020)
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_tx_builder_suggested_tx_fee(value_out: *mut BoxValuePtr) {
+pub unsafe extern "C" fn ergo_lib_tx_builder_suggested_tx_fee(value_out: *mut BoxValuePtr) {
     #[allow(clippy::unwrap_used)]
     tx_builder_suggested_tx_fee(value_out).unwrap();
 }
@@ -29,7 +29,7 @@ pub unsafe extern "C" fn ergo_wallet_tx_builder_suggested_tx_fee(value_out: *mut
 /// `min_change_value` - minimal value of the change to be sent to `change_address`, value less than that
 /// will be given to miners,
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_tx_builder_new(
+pub unsafe extern "C" fn ergo_lib_tx_builder_new(
     box_selection_ptr: ConstBoxSelectionPtr,
     output_candidates_ptr: ConstCollectionPtr<ErgoBoxCandidate>,
     current_height: u32,
@@ -53,7 +53,7 @@ pub unsafe extern "C" fn ergo_wallet_tx_builder_new(
 
 /// Set transaction's data inputs
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_tx_builder_set_data_inputs(
+pub unsafe extern "C" fn ergo_lib_tx_builder_set_data_inputs(
     tx_builder_mut: TxBuilderPtr,
     data_inputs_ptr: ConstCollectionPtr<DataInput>,
 ) {
@@ -63,7 +63,7 @@ pub unsafe extern "C" fn ergo_wallet_tx_builder_set_data_inputs(
 
 /// Build the unsigned transaction
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_tx_builder_build(
+pub unsafe extern "C" fn ergo_lib_tx_builder_build(
     tx_builder_ptr: ConstTxBuilderPtr,
     unsigned_transaction_out: *mut UnsignedTransactionPtr,
 ) -> ErrorPtr {
@@ -73,7 +73,7 @@ pub unsafe extern "C" fn ergo_wallet_tx_builder_build(
 
 /// Get box selection
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_tx_builder_box_selection(
+pub unsafe extern "C" fn ergo_lib_tx_builder_box_selection(
     tx_builder_ptr: ConstTxBuilderPtr,
     box_selection_out: *mut BoxSelectionPtr,
 ) {
@@ -83,7 +83,7 @@ pub unsafe extern "C" fn ergo_wallet_tx_builder_box_selection(
 
 /// Get data inputs
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_tx_builder_data_inputs(
+pub unsafe extern "C" fn ergo_lib_tx_builder_data_inputs(
     tx_builder_ptr: ConstTxBuilderPtr,
     data_inputs_out: *mut CollectionPtr<DataInput>,
 ) {
@@ -93,7 +93,7 @@ pub unsafe extern "C" fn ergo_wallet_tx_builder_data_inputs(
 
 /// Get outputs EXCLUDING fee and change
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_tx_builder_output_candidates(
+pub unsafe extern "C" fn ergo_lib_tx_builder_output_candidates(
     tx_builder_ptr: ConstTxBuilderPtr,
     output_candidates_out: *mut CollectionPtr<ErgoBoxCandidate>,
 ) {
@@ -103,7 +103,7 @@ pub unsafe extern "C" fn ergo_wallet_tx_builder_output_candidates(
 
 /// Get current height
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_tx_builder_current_height(
+pub unsafe extern "C" fn ergo_lib_tx_builder_current_height(
     tx_builder_ptr: ConstTxBuilderPtr,
 ) -> u32 {
     #[allow(clippy::unwrap_used)]
@@ -112,7 +112,7 @@ pub unsafe extern "C" fn ergo_wallet_tx_builder_current_height(
 
 /// Get fee amount
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_tx_builder_fee_amount(
+pub unsafe extern "C" fn ergo_lib_tx_builder_fee_amount(
     tx_builder_ptr: ConstTxBuilderPtr,
     value_out: *mut BoxValuePtr,
 ) {
@@ -122,7 +122,7 @@ pub unsafe extern "C" fn ergo_wallet_tx_builder_fee_amount(
 
 /// Get change address
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_tx_builder_change_address(
+pub unsafe extern "C" fn ergo_lib_tx_builder_change_address(
     tx_builder_ptr: ConstTxBuilderPtr,
     address_out: *mut AddressPtr,
 ) {
@@ -132,7 +132,7 @@ pub unsafe extern "C" fn ergo_wallet_tx_builder_change_address(
 
 /// Get min change value
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_tx_builder_min_change_value(
+pub unsafe extern "C" fn ergo_lib_tx_builder_min_change_value(
     tx_builder_ptr: ConstTxBuilderPtr,
     min_change_value_out: *mut BoxValuePtr,
 ) {
@@ -142,6 +142,6 @@ pub unsafe extern "C" fn ergo_wallet_tx_builder_min_change_value(
 
 /// Drop `TxBuilder`
 #[no_mangle]
-pub extern "C" fn ergo_wallet_tx_builder_delete(ptr: TxBuilderPtr) {
+pub extern "C" fn ergo_lib_tx_builder_delete(ptr: TxBuilderPtr) {
     unsafe { delete_ptr(ptr) }
 }

@@ -10,7 +10,7 @@ use paste::paste;
 
 /// Parse box id (32 byte digest)
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_data_input_new(
+pub unsafe extern "C" fn ergo_lib_data_input_new(
     box_id_ptr: ConstBoxIdPtr,
     data_input_out: *mut DataInputPtr,
 ) {
@@ -20,7 +20,7 @@ pub unsafe extern "C" fn ergo_wallet_data_input_new(
 
 /// Get box id
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_data_input_box_id(
+pub unsafe extern "C" fn ergo_lib_data_input_box_id(
     data_input_ptr: ConstDataInputPtr,
     box_id_out: *mut BoxIdPtr,
 ) {
@@ -30,7 +30,7 @@ pub unsafe extern "C" fn ergo_wallet_data_input_box_id(
 
 /// Drop `DataInput`
 #[no_mangle]
-pub extern "C" fn ergo_wallet_data_input_delete(ptr: DataInputPtr) {
+pub extern "C" fn ergo_lib_data_input_delete(ptr: DataInputPtr) {
     unsafe { delete_ptr(ptr) }
 }
 

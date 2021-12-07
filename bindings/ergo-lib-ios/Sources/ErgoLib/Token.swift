@@ -8,7 +8,7 @@ class TokenId {
     /// Create token id from ergo box id (32 byte digest)
     init(fromBoxId : BoxId) {
         var ptr: TokenIdPtr?
-        ergo_wallet_token_id_from_box_id(fromBoxId.pointer, &ptr)
+        ergo_lib_token_id_from_box_id(fromBoxId.pointer, &ptr)
         self.pointer = ptr!
     }
     
@@ -22,7 +22,7 @@ class TokenId {
     init(fromBase16EncodedString : String) throws {
         var ptr: TokenIdPtr?
         let error = fromBase16EncodedString.withCString { cs in
-            ergo_wallet_token_id_from_str(cs, &ptr)
+            ergo_lib_token_id_from_str(cs, &ptr)
         }
         try checkError(error)
         self.pointer = ptr!
@@ -31,20 +31,20 @@ class TokenId {
     /// Get base16 encoded string
     func toBase16EncodedString() -> String {
         var cStr: UnsafePointer<CChar>?
-        ergo_wallet_token_id_to_str(self.pointer, &cStr)
+        ergo_lib_token_id_to_str(self.pointer, &cStr)
         let str = String(cString: cStr!)
-        ergo_wallet_delete_string(UnsafeMutablePointer(mutating: cStr))
+        ergo_lib_delete_string(UnsafeMutablePointer(mutating: cStr))
         return str
     }
     
     deinit {
-        ergo_wallet_token_id_delete(self.pointer)
+        ergo_lib_token_id_delete(self.pointer)
     }
 }
 
 extension TokenId: Equatable {
     static func ==(lhs: TokenId, rhs: TokenId) -> Bool {
-        ergo_wallet_token_id_eq(lhs.pointer, rhs.pointer)
+        ergo_lib_token_id_eq(lhs.pointer, rhs.pointer)
     }
 }
 
@@ -55,7 +55,7 @@ class TokenAmount {
     /// Create instance from ``Int64`` with bounds check
     init(fromInt64 : Int64) throws {
         var ptr: TokenAmountPtr?
-        let error = ergo_wallet_token_amount_from_i64(fromInt64, &ptr)
+        let error = ergo_lib_token_amount_from_i64(fromInt64, &ptr)
         try checkError(error)
         self.pointer = ptr!
     }
@@ -68,17 +68,17 @@ class TokenAmount {
     
     /// Get value as ``Int64``
     func toInt64() -> Int64 {
-        return ergo_wallet_token_amount_as_i64(self.pointer)
+        return ergo_lib_token_amount_as_i64(self.pointer)
     }
     
     deinit {
-        ergo_wallet_token_amount_delete(self.pointer)
+        ergo_lib_token_amount_delete(self.pointer)
     }
 }
 
 extension TokenAmount: Equatable {
     static func ==(lhs: TokenAmount, rhs: TokenAmount) -> Bool {
-        ergo_wallet_token_amount_eq(lhs.pointer, rhs.pointer)
+        ergo_lib_token_amount_eq(lhs.pointer, rhs.pointer)
     }
 }
 
@@ -89,7 +89,7 @@ class Token {
     /// Create a token with given token id and amount
     init(tokenId : TokenId, tokenAmount: TokenAmount) {
         var ptr: TokenPtr?
-        ergo_wallet_token_new(tokenId.pointer, tokenAmount.pointer, &ptr)
+        ergo_lib_token_new(tokenId.pointer, tokenAmount.pointer, &ptr)
         self.pointer = ptr!
     }
     
@@ -102,37 +102,37 @@ class Token {
     /// Get token id
     func getId() -> TokenId {
         var tokenIdPtr: TokenIdPtr?
-        ergo_wallet_token_get_id(self.pointer, &tokenIdPtr)
+        ergo_lib_token_get_id(self.pointer, &tokenIdPtr)
         return TokenId(withRawPointer: tokenIdPtr!)
     }
     
     /// Get token amount
     func getAmount() -> TokenAmount {
         var tokenAmountPtr: TokenAmountPtr?
-        ergo_wallet_token_get_amount(self.pointer, &tokenAmountPtr)
+        ergo_lib_token_get_amount(self.pointer, &tokenAmountPtr)
         return TokenAmount(withRawPointer: tokenAmountPtr!)
     }
     
     /// JSON representation according to EIP-12 <https://github.com/ergoplatform/eips/pull/23>
     func toJsonEIP12() throws -> JSON? {
         var cStr: UnsafePointer<CChar>?
-        let error = ergo_wallet_token_to_json_eip12(self.pointer, &cStr)
+        let error = ergo_lib_token_to_json_eip12(self.pointer, &cStr)
         try checkError(error)
         let str = String(cString: cStr!)
-        ergo_wallet_delete_string(UnsafeMutablePointer(mutating: cStr))
+        ergo_lib_delete_string(UnsafeMutablePointer(mutating: cStr))
         return try str.data(using: .utf8, allowLossyConversion: false).map {
             try JSON(data: $0)
         }
     }
     
     deinit {
-        ergo_wallet_token_delete(self.pointer)
+        ergo_lib_token_delete(self.pointer)
     }
 }
 
 extension Token: Equatable {
     static func ==(lhs: Token, rhs: Token) -> Bool {
-        ergo_wallet_token_eq(lhs.pointer, rhs.pointer)
+        ergo_lib_token_eq(lhs.pointer, rhs.pointer)
     }
 }
 
@@ -143,7 +143,7 @@ class Tokens {
     /// Create an empty collection
     init() {
         var tokensPtr: TokensPtr?
-        ergo_wallet_tokens_new(&tokensPtr)
+        ergo_lib_tokens_new(&tokensPtr)
         self.pointer = tokensPtr!
     }
     
@@ -155,13 +155,13 @@ class Tokens {
     
     /// Return the length of the collection
     func len() -> UInt {
-        return ergo_wallet_tokens_len(self.pointer)
+        return ergo_lib_tokens_len(self.pointer)
     }
     
     /// Returns the ``Token`` at location `index` if it exists.
     func get(index: UInt) -> Token? {
         var tokenPtr: TokenPtr?
-        let res = ergo_wallet_tokens_get(self.pointer, index, &tokenPtr)
+        let res = ergo_lib_tokens_get(self.pointer, index, &tokenPtr)
         assert(res.error == nil)
         if res.is_some {
             return Token(withRawPointer: tokenPtr!)
@@ -173,11 +173,11 @@ class Tokens {
     /// Add a ``Token`` to the end of the collection. Note that the collection has a maximum
     /// capacity of 255 tokens. Will throw error if adding more.
     func add(token: Token) throws {
-        let error = ergo_wallet_tokens_add(token.pointer, self.pointer)
+        let error = ergo_lib_tokens_add(token.pointer, self.pointer)
         try checkError(error)
     }
         
     deinit {
-        ergo_wallet_tokens_delete(self.pointer)
+        ergo_lib_tokens_delete(self.pointer)
     }
 }

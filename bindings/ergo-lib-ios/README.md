@@ -17,7 +17,7 @@ used to expand the macros before `cbindgen` passes over the code.
 ```shell
 cd bindings/ergo-lib-c
 rustup override set nightly
-cbindgen --config cbindgen.toml --crate ergo-lib-c --output h/ergo_wallet.h
+cbindgen --config cbindgen.toml --crate ergo-lib-c --output h/ergo_lib.h
 rustup override set stable
 ```
 

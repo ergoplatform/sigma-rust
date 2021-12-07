@@ -13,7 +13,7 @@ use std::{
 use crate::ErrorPtr;
 
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_address_from_testnet(
+pub unsafe extern "C" fn ergo_lib_address_from_testnet(
     address_str: *const c_char,
     address_out: *mut AddressPtr,
 ) -> ErrorPtr {
@@ -23,7 +23,7 @@ pub unsafe extern "C" fn ergo_wallet_address_from_testnet(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_address_from_mainnet(
+pub unsafe extern "C" fn ergo_lib_address_from_mainnet(
     address_str: *const c_char,
     address_out: *mut AddressPtr,
 ) -> ErrorPtr {
@@ -33,7 +33,7 @@ pub unsafe extern "C" fn ergo_wallet_address_from_mainnet(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_address_from_base58(
+pub unsafe extern "C" fn ergo_lib_address_from_base58(
     address_str: *const c_char,
     address_out: *mut AddressPtr,
 ) -> ErrorPtr {
@@ -43,7 +43,7 @@ pub unsafe extern "C" fn ergo_wallet_address_from_base58(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_address_to_base58(
+pub unsafe extern "C" fn ergo_lib_address_to_base58(
     address: ConstAddressPtr,
     network_prefix: NetworkPrefix,
     _address_str: *mut *const c_char,
@@ -56,12 +56,12 @@ pub unsafe extern "C" fn ergo_wallet_address_to_base58(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_address_type_prefix(address: ConstAddressPtr) -> u8 {
+pub unsafe extern "C" fn ergo_lib_address_type_prefix(address: ConstAddressPtr) -> u8 {
     #[allow(clippy::unwrap_used)]
     (address_type_prefix(address).unwrap() as u8)
 }
 
 #[no_mangle]
-pub extern "C" fn ergo_wallet_address_delete(address: AddressPtr) {
+pub extern "C" fn ergo_lib_address_delete(address: AddressPtr) {
     address_delete(address)
 }

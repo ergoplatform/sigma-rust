@@ -14,7 +14,7 @@ use crate::{delete_ptr, ErrorPtr};
 
 /// Create a selection to easily inject custom selection algorithms
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_box_selection_new(
+pub unsafe extern "C" fn ergo_lib_box_selection_new(
     ergo_boxes_ptr: ConstCollectionPtr<ErgoBox>,
     change_ergo_boxes_ptr: ConstCollectionPtr<ErgoBoxAssetsData>,
     box_selection_out: *mut BoxSelectionPtr,
@@ -25,7 +25,7 @@ pub unsafe extern "C" fn ergo_wallet_box_selection_new(
 
 /// Selected boxes to spend as transaction inputs
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_box_selection_boxes(
+pub unsafe extern "C" fn ergo_lib_box_selection_boxes(
     box_selection_ptr: ConstBoxSelectionPtr,
     ergo_boxes_out: *mut CollectionPtr<ErgoBox>,
 ) {
@@ -35,7 +35,7 @@ pub unsafe extern "C" fn ergo_wallet_box_selection_boxes(
 
 /// Selected boxes to use as change
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_box_selection_change(
+pub unsafe extern "C" fn ergo_lib_box_selection_change(
     box_selection_ptr: ConstBoxSelectionPtr,
     change_ergo_boxes_out: *mut CollectionPtr<ErgoBoxAssetsData>,
 ) {
@@ -45,7 +45,7 @@ pub unsafe extern "C" fn ergo_wallet_box_selection_change(
 
 /// Drop `BoxSelection`
 #[no_mangle]
-pub extern "C" fn ergo_wallet_box_selection_delete(ptr: BoxSelectionPtr) {
+pub extern "C" fn ergo_lib_box_selection_delete(ptr: BoxSelectionPtr) {
     unsafe { delete_ptr(ptr) }
 }
 
@@ -55,7 +55,7 @@ make_ffi_eq!(BoxSelection);
 
 /// Naive box selector, collects inputs until target balance is reached
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_simple_box_selector_new(
+pub unsafe extern "C" fn ergo_lib_simple_box_selector_new(
     simple_box_selector_out: *mut SimpleBoxSelectorPtr,
 ) {
     #[allow(clippy::unwrap_used)]
@@ -68,7 +68,7 @@ pub unsafe extern "C" fn ergo_wallet_simple_box_selector_new(
 /// `target_tokens` - amount of tokens needed.
 /// Returns selected inputs and box assets(value+tokens) with change.
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_simple_box_selector_select(
+pub unsafe extern "C" fn ergo_lib_simple_box_selector_select(
     simple_box_selector_ptr: ConstSimpleBoxSelectorPtr,
     inputs_ptr: ConstCollectionPtr<ErgoBox>,
     target_balance_ptr: ConstBoxValuePtr,
@@ -87,6 +87,6 @@ pub unsafe extern "C" fn ergo_wallet_simple_box_selector_select(
 
 /// Drop `SimpleBoxSelector`
 #[no_mangle]
-pub extern "C" fn ergo_wallet_simple_box_selector_delete(ptr: SimpleBoxSelectorPtr) {
+pub extern "C" fn ergo_lib_simple_box_selector_delete(ptr: SimpleBoxSelectorPtr) {
     unsafe { delete_ptr(ptr) }
 }

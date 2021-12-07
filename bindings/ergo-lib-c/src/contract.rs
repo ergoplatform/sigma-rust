@@ -13,7 +13,7 @@ use crate::delete_ptr;
 
 /// Create new contract from ErgoTree
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_contract_new(
+pub unsafe extern "C" fn ergo_lib_contract_new(
     ergo_tree_ptr: ConstErgoTreePtr,
     contract_out: *mut ContractPtr,
 ) {
@@ -23,7 +23,7 @@ pub unsafe extern "C" fn ergo_wallet_contract_new(
 
 /// Create new contract that allow spending of the guarded box by a given recipient ([`Address`])
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_contract_pay_to_address(
+pub unsafe extern "C" fn ergo_lib_contract_pay_to_address(
     address_ptr: ConstAddressPtr,
     contract_out: *mut ContractPtr,
 ) -> ErrorPtr {
@@ -33,7 +33,7 @@ pub unsafe extern "C" fn ergo_wallet_contract_pay_to_address(
 
 /// Compiles a contract from ErgoScript source code
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_contract_compile(
+pub unsafe extern "C" fn ergo_lib_contract_compile(
     source: *const c_char,
     contract_out: *mut ContractPtr,
 ) -> ErrorPtr {
@@ -44,7 +44,7 @@ pub unsafe extern "C" fn ergo_wallet_contract_compile(
 
 /// Get the ErgoTree of the contract
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_contract_ergo_tree(
+pub unsafe extern "C" fn ergo_lib_contract_ergo_tree(
     contract_ptr: ConstContractPtr,
     ergo_tree_out: *mut ErgoTreePtr,
 ) {
@@ -54,7 +54,7 @@ pub unsafe extern "C" fn ergo_wallet_contract_ergo_tree(
 
 /// Drop `Contract`
 #[no_mangle]
-pub extern "C" fn ergo_wallet_contract_delete(ptr: ContractPtr) {
+pub extern "C" fn ergo_lib_contract_delete(ptr: ContractPtr) {
     unsafe { delete_ptr(ptr) }
 }
 

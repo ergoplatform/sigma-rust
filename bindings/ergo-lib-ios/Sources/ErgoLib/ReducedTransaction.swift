@@ -20,7 +20,7 @@ class ReducedTransaction {
         stateContext: ErgoStateContext
     ) throws {
         var ptr: ReducedTransactionPtr?
-        let error = ergo_wallet_reduced_tx_from_unsigned_tx(
+        let error = ergo_lib_reduced_tx_from_unsigned_tx(
             unsignedTx.pointer,
             boxesToSpend.pointer,
             dataBoxes.pointer,
@@ -34,11 +34,11 @@ class ReducedTransaction {
     /// Returns the unsigned transation
     func getUnsignedTransaction() -> UnsignedTransaction {
         var ptr: UnsignedTransactionPtr?
-        ergo_wallet_reduced_tx_unsigned_tx(self.pointer, &ptr)
+        ergo_lib_reduced_tx_unsigned_tx(self.pointer, &ptr)
         return UnsignedTransaction(withRawPointer: ptr!)
     }
     
     deinit {
-        ergo_wallet_reduced_tx_delete(self.pointer)
+        ergo_lib_reduced_tx_delete(self.pointer)
     }
 }

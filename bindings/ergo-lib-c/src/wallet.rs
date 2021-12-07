@@ -18,7 +18,7 @@ use crate::delete_ptr;
 /// Create `Wallet` instance loading secret key from mnemonic
 /// Returns Err if a DlogSecretKey cannot be parsed from the provided phrase
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_wallet_from_mnemonic(
+pub unsafe extern "C" fn ergo_lib_wallet_from_mnemonic(
     mnemonic_phrase: *const c_char,
     mnemonic_pass: *const c_char,
     wallet_out: *mut WalletPtr,
@@ -31,7 +31,7 @@ pub unsafe extern "C" fn ergo_wallet_wallet_from_mnemonic(
 
 /// Create `Wallet` from secrets
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_wallet_from_secrets(
+pub unsafe extern "C" fn ergo_lib_wallet_from_secrets(
     secret_keys_ptr: ConstCollectionPtr<SecretKey>,
     wallet_out: *mut WalletPtr,
 ) {
@@ -41,7 +41,7 @@ pub unsafe extern "C" fn ergo_wallet_wallet_from_secrets(
 
 /// Signs a transaction
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_wallet_sign_transaction(
+pub unsafe extern "C" fn ergo_lib_wallet_sign_transaction(
     wallet_ptr: ConstWalletPtr,
     state_context_ptr: ConstErgoStateContextPtr,
     unsigned_tx_ptr: ConstUnsignedTransactionPtr,
@@ -62,7 +62,7 @@ pub unsafe extern "C" fn ergo_wallet_wallet_sign_transaction(
 
 /// Signs a reduced transaction (generating proofs for inputs)
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_wallet_sign_reduced_transaction(
+pub unsafe extern "C" fn ergo_lib_wallet_sign_reduced_transaction(
     wallet_ptr: ConstWalletPtr,
     reduced_tx_ptr: ConstReducedTransactionPtr,
     transaction_out: *mut TransactionPtr,
@@ -73,6 +73,6 @@ pub unsafe extern "C" fn ergo_wallet_wallet_sign_reduced_transaction(
 
 /// Drop `Wallet`
 #[no_mangle]
-pub extern "C" fn ergo_wallet_wallet_delete(ptr: WalletPtr) {
+pub extern "C" fn ergo_lib_wallet_delete(ptr: WalletPtr) {
     unsafe { delete_ptr(ptr) }
 }

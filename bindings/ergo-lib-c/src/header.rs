@@ -10,7 +10,7 @@ use crate::delete_ptr;
 
 /// Create instance using data from block header
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_preheader_from_block_header(
+pub unsafe extern "C" fn ergo_lib_preheader_from_block_header(
     block_header: ConstBlockHeaderPtr,
     preheader_out: *mut PreHeaderPtr,
 ) {
@@ -20,7 +20,7 @@ pub unsafe extern "C" fn ergo_wallet_preheader_from_block_header(
 
 /// Drop `PreHeader`
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_preheader_delete(ptr: PreHeaderPtr) {
+pub unsafe extern "C" fn ergo_lib_preheader_delete(ptr: PreHeaderPtr) {
     delete_ptr(ptr)
 }
 

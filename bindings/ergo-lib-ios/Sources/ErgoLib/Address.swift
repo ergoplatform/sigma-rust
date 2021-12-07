@@ -51,7 +51,7 @@ class Address {
     init(withTestnetAddress addressStr: String) throws {
         var ptr: AddressPtr?
         let error = addressStr.withCString { cs in
-            ergo_wallet_address_from_testnet(cs, &ptr)
+            ergo_lib_address_from_testnet(cs, &ptr)
         }
         try checkError(error)
         self.pointer = ptr!
@@ -61,7 +61,7 @@ class Address {
     init(withMainnetAddress addressStr: String) throws {
         var ptr: AddressPtr?
         let error = addressStr.withCString { cs in
-            ergo_wallet_address_from_mainnet(cs, &ptr)
+            ergo_lib_address_from_mainnet(cs, &ptr)
         }
         try checkError(error)
         self.pointer = ptr!
@@ -71,7 +71,7 @@ class Address {
     init(withBase58Address addressStr: String) throws {
         var ptr: AddressPtr?
         let error = addressStr.withCString { cs in
-            ergo_wallet_address_from_base58(cs, &ptr)
+            ergo_lib_address_from_base58(cs, &ptr)
         }
         try checkError(error)
         self.pointer = ptr!
@@ -86,20 +86,20 @@ class Address {
     /// Encode (base58) address
     func toBase58(networkPrefix: NetworkPrefix) -> String {
         var cStr: UnsafePointer<CChar>?
-        ergo_wallet_address_to_base58(self.pointer, networkPrefix.rawValue, &cStr)
+        ergo_lib_address_to_base58(self.pointer, networkPrefix.rawValue, &cStr)
         let str = String(cString: cStr!)
-        ergo_wallet_delete_string(UnsafeMutablePointer(mutating: cStr))
+        ergo_lib_delete_string(UnsafeMutablePointer(mutating: cStr))
         return str
     }
     
     /// Get the type of the address
     func typePrefix() -> AddressTypePrefix {
-        let value = ergo_wallet_address_type_prefix(self.pointer)
+        let value = ergo_lib_address_type_prefix(self.pointer)
         return AddressTypePrefix(rawValue: value)!
     }
     
     deinit {
-        ergo_wallet_address_delete(self.pointer)
+        ergo_lib_address_delete(self.pointer)
     }
 }
 

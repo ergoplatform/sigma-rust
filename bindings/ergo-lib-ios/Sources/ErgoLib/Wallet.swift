@@ -11,7 +11,7 @@ class Wallet {
         let error =
             mnemonicPhrase.withCString{phrase -> ErrorPtr? in
                 mnemonicPass.withCString{pass in
-                    ergo_wallet_wallet_from_mnemonic(phrase, pass, &ptr)
+                    ergo_lib_wallet_from_mnemonic(phrase, pass, &ptr)
                 }
             }
         try checkError(error)
@@ -21,7 +21,7 @@ class Wallet {
     /// Create ``Wallet`` from secrets
     init(secrets: SecretKeys) {
         var ptr: WalletPtr?
-        ergo_wallet_wallet_from_secrets(secrets.pointer, &ptr)
+        ergo_lib_wallet_from_secrets(secrets.pointer, &ptr)
         self.pointer = ptr!
     }
     
@@ -33,7 +33,7 @@ class Wallet {
         dataBoxes: ErgoBoxes
     ) throws -> Transaction {
         var ptr: TransactionPtr?
-        let error = ergo_wallet_wallet_sign_transaction(self.pointer, stateContext.pointer, unsignedTx.pointer, boxesToSpend.pointer, dataBoxes.pointer, &ptr)
+        let error = ergo_lib_wallet_sign_transaction(self.pointer, stateContext.pointer, unsignedTx.pointer, boxesToSpend.pointer, dataBoxes.pointer, &ptr)
         try checkError(error)
         return Transaction(withRawPointer: ptr!)
     }
@@ -43,12 +43,12 @@ class Wallet {
         reducedTx: ReducedTransaction
     ) throws -> Transaction {
         var ptr: TransactionPtr?
-        let error = ergo_wallet_wallet_sign_reduced_transaction(self.pointer, reducedTx.pointer, &ptr)
+        let error = ergo_lib_wallet_sign_reduced_transaction(self.pointer, reducedTx.pointer, &ptr)
         try checkError(error)
         return Transaction(withRawPointer: ptr!)
     }
     
     deinit {
-        ergo_wallet_wallet_delete(self.pointer)
+        ergo_lib_wallet_delete(self.pointer)
     }
 }

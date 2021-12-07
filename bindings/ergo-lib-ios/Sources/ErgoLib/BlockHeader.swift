@@ -9,7 +9,7 @@ class BlockHeader {
     init(withJson json: String) throws {
         var ptr: BlockHeaderPtr?
         let error = json.withCString { cs in
-            ergo_wallet_block_header_from_json(cs, &ptr)
+            ergo_lib_block_header_from_json(cs, &ptr)
         }
         try checkError(error)
         self.pointer = ptr!
@@ -22,13 +22,13 @@ class BlockHeader {
     }
     
     deinit {
-        ergo_wallet_block_header_delete(self.pointer)
+        ergo_lib_block_header_delete(self.pointer)
     }
 }
 
 extension BlockHeader: Equatable {
     static func ==(lhs: BlockHeader, rhs: BlockHeader) -> Bool {
-        ergo_wallet_block_header_eq(lhs.pointer, rhs.pointer)
+        ergo_lib_block_header_eq(lhs.pointer, rhs.pointer)
     }
 }
 
@@ -64,19 +64,19 @@ class BlockHeaders {
     /// collection.
     private static func initRawPtrEmpty() -> BlockHeaderPtr {
         var ptr: BlockHeadersPtr?
-        ergo_wallet_block_headers_new(&ptr)
+        ergo_lib_block_headers_new(&ptr)
         return ptr!
     }
     
     /// Return the length of the collection
     func len() -> UInt {
-        return ergo_wallet_block_headers_len(self.pointer)
+        return ergo_lib_block_headers_len(self.pointer)
     }
     
     /// Returns the ``BlockHeader`` at location `index` if it exists.
     func get(index: UInt) -> BlockHeader? {
         var blockHeaderPtr: BlockHeaderPtr?
-        let res = ergo_wallet_block_headers_get(self.pointer, index, &blockHeaderPtr)
+        let res = ergo_lib_block_headers_get(self.pointer, index, &blockHeaderPtr)
         assert(res.error == nil)
         if res.is_some {
             return BlockHeader(withRawPointer: blockHeaderPtr!)
@@ -87,10 +87,10 @@ class BlockHeaders {
     
     /// Add a ``BlockHeader`` to the end of the collection.
     func add(blockHeader: BlockHeader) {
-        ergo_wallet_block_headers_add(blockHeader.pointer, self.pointer)
+        ergo_lib_block_headers_add(blockHeader.pointer, self.pointer)
     }
         
     deinit {
-        ergo_wallet_block_headers_delete(self.pointer)
+        ergo_lib_block_headers_delete(self.pointer)
     }
 }

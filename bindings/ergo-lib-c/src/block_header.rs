@@ -11,7 +11,7 @@ use crate::{delete_ptr, ErrorPtr};
 
 /// Parse BlockHeader array from JSON (Node API)
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_block_header_from_json(
+pub unsafe extern "C" fn ergo_lib_block_header_from_json(
     json_str: *const c_char,
     block_header_out: *mut BlockHeaderPtr,
 ) -> ErrorPtr {
@@ -22,7 +22,7 @@ pub unsafe extern "C" fn ergo_wallet_block_header_from_json(
 
 /// Delete `BlockHeader`
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_block_header_delete(ptr: BlockHeaderPtr) {
+pub unsafe extern "C" fn ergo_lib_block_header_delete(ptr: BlockHeaderPtr) {
     delete_ptr(ptr)
 }
 

@@ -8,7 +8,7 @@ class DataInput {
     /// Parse box id (32 byte digest)
     init(withBoxId: BoxId) {
         var ptr: DataInputPtr?
-        ergo_wallet_data_input_new(withBoxId.pointer, &ptr)
+        ergo_lib_data_input_new(withBoxId.pointer, &ptr)
         self.pointer = ptr!
     }
     
@@ -21,12 +21,12 @@ class DataInput {
     /// Get box id
     func getBoxId() -> BoxId {
         var boxIdPtr: BoxIdPtr?
-        ergo_wallet_data_input_box_id(self.pointer, &boxIdPtr)
+        ergo_lib_data_input_box_id(self.pointer, &boxIdPtr)
         return BoxId(withRawPointer: boxIdPtr!)
     }
         
     deinit {
-        ergo_wallet_data_input_delete(self.pointer)
+        ergo_lib_data_input_delete(self.pointer)
     }
 }
 
@@ -49,19 +49,19 @@ class DataInputs {
     /// collection.
     private static func initRawPtrEmpty() -> DataInputsPtr {
         var dataInputsPtr: DataInputsPtr?
-        ergo_wallet_data_inputs_new(&dataInputsPtr)
+        ergo_lib_data_inputs_new(&dataInputsPtr)
         return dataInputsPtr!
     }
     
     /// Return the length of the collection
     func len() -> UInt {
-        return ergo_wallet_data_inputs_len(self.pointer)
+        return ergo_lib_data_inputs_len(self.pointer)
     }
     
     /// Returns the ``DataInput`` at location `index` if it exists.
     func get(index: UInt) -> DataInput? {
         var ptr: DataInputPtr?
-        let res = ergo_wallet_data_inputs_get(self.pointer, index, &ptr)
+        let res = ergo_lib_data_inputs_get(self.pointer, index, &ptr)
         assert(res.error == nil)
         if res.is_some {
             return DataInput(withRawPointer: ptr!)
@@ -72,10 +72,10 @@ class DataInputs {
     
     /// Add a ``DataInput`` to the end of the collection.
     func add(dataInput: DataInput) {
-        ergo_wallet_data_inputs_add(dataInput.pointer, self.pointer)
+        ergo_lib_data_inputs_add(dataInput.pointer, self.pointer)
     }
         
     deinit {
-        ergo_wallet_data_inputs_delete(self.pointer)
+        ergo_lib_data_inputs_delete(self.pointer)
     }
 }

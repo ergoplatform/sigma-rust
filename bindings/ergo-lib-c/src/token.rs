@@ -12,7 +12,7 @@ use crate::{delete_ptr, ErrorPtr, ReturnOption};
 
 /// Create token id from ergo box id (32 byte digest)
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_token_id_from_box_id(
+pub unsafe extern "C" fn ergo_lib_token_id_from_box_id(
     box_id_ptr: ConstBoxIdPtr,
     token_id_out: *mut TokenIdPtr,
 ) {
@@ -22,7 +22,7 @@ pub unsafe extern "C" fn ergo_wallet_token_id_from_box_id(
 
 /// Parse token id (32 byte digest) from base16-encoded string
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_token_id_from_str(
+pub unsafe extern "C" fn ergo_lib_token_id_from_str(
     bytes_ptr: *const c_char,
     token_id_out: *mut TokenIdPtr,
 ) -> ErrorPtr {
@@ -33,7 +33,7 @@ pub unsafe extern "C" fn ergo_wallet_token_id_from_str(
 
 /// Base16 encoded string
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_token_id_to_str(
+pub unsafe extern "C" fn ergo_lib_token_id_to_str(
     token_id_ptr: ConstTokenIdPtr,
     _str: *mut *const c_char,
 ) {
@@ -46,7 +46,7 @@ pub unsafe extern "C" fn ergo_wallet_token_id_to_str(
 
 /// Drop `TokenId`
 #[no_mangle]
-pub extern "C" fn ergo_wallet_token_id_delete(ptr: TokenIdPtr) {
+pub extern "C" fn ergo_lib_token_id_delete(ptr: TokenIdPtr) {
     unsafe { delete_ptr(ptr) }
 }
 
@@ -56,7 +56,7 @@ make_ffi_eq!(TokenId);
 
 /// Create from i64 with bounds check
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_token_amount_from_i64(
+pub unsafe extern "C" fn ergo_lib_token_amount_from_i64(
     amount: i64,
     token_amount_out: *mut TokenAmountPtr,
 ) -> ErrorPtr {
@@ -66,7 +66,7 @@ pub unsafe extern "C" fn ergo_wallet_token_amount_from_i64(
 
 /// Get value as signed 64-bit long
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_token_amount_as_i64(
+pub unsafe extern "C" fn ergo_lib_token_amount_as_i64(
     token_amount_ptr: ConstTokenAmountPtr,
 ) -> i64 {
     #[allow(clippy::unwrap_used)]
@@ -75,7 +75,7 @@ pub unsafe extern "C" fn ergo_wallet_token_amount_as_i64(
 
 /// Drop `TokenAmount`
 #[no_mangle]
-pub extern "C" fn ergo_wallet_token_amount_delete(ptr: TokenAmountPtr) {
+pub extern "C" fn ergo_lib_token_amount_delete(ptr: TokenAmountPtr) {
     unsafe { delete_ptr(ptr) }
 }
 
@@ -85,7 +85,7 @@ make_ffi_eq!(TokenAmount);
 
 /// Create a token with given token id and amount
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_token_new(
+pub unsafe extern "C" fn ergo_lib_token_new(
     token_id_ptr: ConstTokenIdPtr,
     token_amount_ptr: ConstTokenAmountPtr,
     token_out: *mut TokenPtr,
@@ -96,7 +96,7 @@ pub unsafe extern "C" fn ergo_wallet_token_new(
 
 /// Get token id
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_token_get_id(
+pub unsafe extern "C" fn ergo_lib_token_get_id(
     token_ptr: ConstTokenPtr,
     token_id_out: *mut TokenIdPtr,
 ) {
@@ -106,7 +106,7 @@ pub unsafe extern "C" fn ergo_wallet_token_get_id(
 
 /// Get token amount
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_token_get_amount(
+pub unsafe extern "C" fn ergo_lib_token_get_amount(
     token_ptr: ConstTokenPtr,
     token_amount_out: *mut TokenAmountPtr,
 ) {
@@ -116,7 +116,7 @@ pub unsafe extern "C" fn ergo_wallet_token_get_amount(
 
 /// JSON representation according to EIP-12 <https://github.com/ergoplatform/eips/pull/23>
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_token_to_json_eip12(
+pub unsafe extern "C" fn ergo_lib_token_to_json_eip12(
     token_ptr: ConstTokenPtr,
     _json_str: *mut *const c_char,
 ) -> ErrorPtr {
@@ -133,7 +133,7 @@ pub unsafe extern "C" fn ergo_wallet_token_to_json_eip12(
 
 /// Drop `Token`
 #[no_mangle]
-pub extern "C" fn ergo_wallet_token_delete(ptr: TokenPtr) {
+pub extern "C" fn ergo_lib_token_delete(ptr: TokenPtr) {
     unsafe { delete_ptr(ptr) }
 }
 
@@ -143,21 +143,21 @@ make_ffi_eq!(Token);
 
 /// Create an empty collection
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_tokens_new(tokens_out: *mut TokensPtr) {
+pub unsafe extern "C" fn ergo_lib_tokens_new(tokens_out: *mut TokensPtr) {
     #[allow(clippy::unwrap_used)]
     tokens_new(tokens_out).unwrap();
 }
 
 /// Returns length of collection
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_tokens_len(tokens_ptr: ConstTokensPtr) -> usize {
+pub unsafe extern "C" fn ergo_lib_tokens_len(tokens_ptr: ConstTokensPtr) -> usize {
     #[allow(clippy::unwrap_used)]
     tokens_len(tokens_ptr).unwrap()
 }
 
 /// If token at given index exists, allocate a copy and store in `token_out`.
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_tokens_get(
+pub unsafe extern "C" fn ergo_lib_tokens_get(
     tokens_ptr: ConstTokensPtr,
     index: usize,
     token_out: *mut TokenPtr,
@@ -177,7 +177,7 @@ pub unsafe extern "C" fn ergo_wallet_tokens_get(
 /// Add token to the end of the collection. There is a maximum capacity of 255 token, and adding
 /// more returns an error.
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_tokens_add(
+pub unsafe extern "C" fn ergo_lib_tokens_add(
     token_ptr: ConstTokenPtr,
     tokens_ptr: TokensPtr,
 ) -> ErrorPtr {
@@ -186,6 +186,6 @@ pub unsafe extern "C" fn ergo_wallet_tokens_add(
 
 /// Drop `Tokens`
 #[no_mangle]
-pub extern "C" fn ergo_wallet_tokens_delete(ptr: TokensPtr) {
+pub extern "C" fn ergo_lib_tokens_delete(ptr: TokensPtr) {
     unsafe { delete_ptr(ptr) }
 }

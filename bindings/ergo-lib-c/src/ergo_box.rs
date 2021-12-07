@@ -38,7 +38,7 @@ use crate::delete_ptr;
 
 /// Parse box id (32 byte digest) from base16-encoded string
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_box_id_from_str(
+pub unsafe extern "C" fn ergo_lib_box_id_from_str(
     box_id_str: *const c_char,
     box_id_out: *mut BoxIdPtr,
 ) -> ErrorPtr {
@@ -49,7 +49,7 @@ pub unsafe extern "C" fn ergo_wallet_box_id_from_str(
 
 /// Base16 encoded string
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_box_id_to_str(
+pub unsafe extern "C" fn ergo_lib_box_id_to_str(
     box_id_ptr: ConstBoxIdPtr,
     _box_id_str: *mut *const c_char,
 ) {
@@ -63,14 +63,14 @@ pub unsafe extern "C" fn ergo_wallet_box_id_to_str(
 /// Returns byte array (32 bytes) Note: it's imperative that `output` points to a valid block of
 /// memory of 32 bytes.
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_box_id_to_bytes(box_id_ptr: ConstBoxIdPtr, output: *mut u8) {
+pub unsafe extern "C" fn ergo_lib_box_id_to_bytes(box_id_ptr: ConstBoxIdPtr, output: *mut u8) {
     #[allow(clippy::unwrap_used)]
     box_id_to_bytes(box_id_ptr, output).unwrap();
 }
 
 /// Drop `BoxId`
 #[no_mangle]
-pub extern "C" fn ergo_wallet_box_id_delete(ptr: BoxIdPtr) {
+pub extern "C" fn ergo_lib_box_id_delete(ptr: BoxIdPtr) {
     unsafe { delete_ptr(ptr) }
 }
 
@@ -81,20 +81,20 @@ make_ffi_eq!(BoxId);
 /// Recommended (safe) minimal box value to use in case box size estimation is unavailable.
 /// Allows box size upto 2777 bytes with current min box value per byte of 360 nanoERGs
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_box_value_safe_user_min(box_value_out: *mut BoxValuePtr) {
+pub unsafe extern "C" fn ergo_lib_box_value_safe_user_min(box_value_out: *mut BoxValuePtr) {
     #[allow(clippy::unwrap_used)]
     box_value_safe_user_min(box_value_out).unwrap();
 }
 
 /// Number of units inside one ERGO (i.e. one ERG using nano ERG representation)
 #[no_mangle]
-pub extern "C" fn ergo_wallet_box_value_units_per_ergo() -> i64 {
+pub extern "C" fn ergo_lib_box_value_units_per_ergo() -> i64 {
     box_value_units_per_ergo()
 }
 
 /// Create from i64 with bounds check
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_box_value_from_i64(
+pub unsafe extern "C" fn ergo_lib_box_value_from_i64(
     amount: i64,
     box_value_out: *mut BoxValuePtr,
 ) -> ErrorPtr {
@@ -104,14 +104,14 @@ pub unsafe extern "C" fn ergo_wallet_box_value_from_i64(
 
 /// Get value as signed 64-bit long
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_box_value_as_i64(box_value_ptr: ConstBoxValuePtr) -> i64 {
+pub unsafe extern "C" fn ergo_lib_box_value_as_i64(box_value_ptr: ConstBoxValuePtr) -> i64 {
     #[allow(clippy::unwrap_used)]
     box_value_as_i64(box_value_ptr).unwrap()
 }
 
 /// Create a new box value which is the sum of the arguments, with bounds check.
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_box_value_sum_of(
+pub unsafe extern "C" fn ergo_lib_box_value_sum_of(
     box_value0_ptr: ConstBoxValuePtr,
     box_value1_ptr: ConstBoxValuePtr,
     sum_of_out: *mut BoxValuePtr,
@@ -122,7 +122,7 @@ pub unsafe extern "C" fn ergo_wallet_box_value_sum_of(
 
 /// Drop `BoxValue`
 #[no_mangle]
-pub extern "C" fn ergo_wallet_box_value_delete(ptr: BoxValuePtr) {
+pub extern "C" fn ergo_lib_box_value_delete(ptr: BoxValuePtr) {
     unsafe { delete_ptr(ptr) }
 }
 
@@ -132,7 +132,7 @@ make_ffi_eq!(BoxValue);
 
 /// Returns value (ErgoTree constant) stored in the register or None if the register is empty
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_register_value(
+pub unsafe extern "C" fn ergo_lib_ergo_box_candidate_register_value(
     ergo_box_candidate_ptr: ConstErgoBoxCandidatePtr,
     register_id: NonMandatoryRegisterId,
     constant_out: *mut ConstantPtr,
@@ -151,7 +151,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_register_value(
 
 /// Get box creation height
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_creation_height(
+pub unsafe extern "C" fn ergo_lib_ergo_box_candidate_creation_height(
     ergo_box_candidate_ptr: ConstErgoBoxCandidatePtr,
 ) -> u32 {
     #[allow(clippy::unwrap_used)]
@@ -160,7 +160,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_creation_height(
 
 /// Get tokens for box
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_tokens(
+pub unsafe extern "C" fn ergo_lib_ergo_box_candidate_tokens(
     ergo_box_candidate_ptr: ConstErgoBoxCandidatePtr,
     tokens_out: *mut TokensPtr,
 ) {
@@ -170,7 +170,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_tokens(
 
 /// Get ergo tree for box
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_ergo_tree(
+pub unsafe extern "C" fn ergo_lib_ergo_box_candidate_ergo_tree(
     ergo_box_candidate_ptr: ConstErgoBoxCandidatePtr,
     ergo_tree_out: *mut ErgoTreePtr,
 ) {
@@ -180,7 +180,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_ergo_tree(
 
 /// Get box value in nanoERGs
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_box_value(
+pub unsafe extern "C" fn ergo_lib_ergo_box_candidate_box_value(
     ergo_box_candidate_ptr: ConstErgoBoxCandidatePtr,
     box_value_out: *mut BoxValuePtr,
 ) {
@@ -190,7 +190,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_candidate_box_value(
 
 /// Drop `ErgoBoxCandidate`
 #[no_mangle]
-pub extern "C" fn ergo_wallet_ergo_box_candidate_delete(ptr: ErgoBoxCandidatePtr) {
+pub extern "C" fn ergo_lib_ergo_box_candidate_delete(ptr: ErgoBoxCandidatePtr) {
     unsafe { delete_ptr(ptr) }
 }
 
@@ -207,7 +207,7 @@ make_ffi_eq!(ErgoBoxCandidate);
 /// `tx_id` - transaction id in which this box was "created" (participated in outputs)
 /// `index` - index (in outputs) in the transaction
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_ergo_box_new(
+pub unsafe extern "C" fn ergo_lib_ergo_box_new(
     value_ptr: ConstBoxValuePtr,
     creation_height: u32,
     contract_ptr: ConstContractPtr,
@@ -230,7 +230,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_new(
 
 /// Get box id
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_ergo_box_id(
+pub unsafe extern "C" fn ergo_lib_ergo_box_id(
     ergo_box_ptr: ConstErgoBoxPtr,
     box_id_out: *mut BoxIdPtr,
 ) {
@@ -240,16 +240,14 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_id(
 
 /// Get box creation height
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_ergo_box_creation_height(
-    ergo_box_ptr: ConstErgoBoxPtr,
-) -> u32 {
+pub unsafe extern "C" fn ergo_lib_ergo_box_creation_height(ergo_box_ptr: ConstErgoBoxPtr) -> u32 {
     #[allow(clippy::unwrap_used)]
     ergo_box_creation_height(ergo_box_ptr).unwrap()
 }
 
 /// Get tokens for box
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_ergo_box_tokens(
+pub unsafe extern "C" fn ergo_lib_ergo_box_tokens(
     ergo_box_ptr: ConstErgoBoxPtr,
     tokens_out: *mut TokensPtr,
 ) {
@@ -259,7 +257,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_tokens(
 
 /// Get ergo tree for box
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_ergo_box_ergo_tree(
+pub unsafe extern "C" fn ergo_lib_ergo_box_ergo_tree(
     ergo_box_ptr: ConstErgoBoxPtr,
     ergo_tree_out: *mut ErgoTreePtr,
 ) {
@@ -269,7 +267,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_ergo_tree(
 
 /// Get box value in nanoERGs
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_ergo_box_value(
+pub unsafe extern "C" fn ergo_lib_ergo_box_value(
     ergo_box_ptr: ConstErgoBoxPtr,
     box_value_out: *mut BoxValuePtr,
 ) {
@@ -279,7 +277,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_value(
 
 /// Returns value (ErgoTree constant) stored in the register or None if the register is empty
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_ergo_box_register_value(
+pub unsafe extern "C" fn ergo_lib_ergo_box_register_value(
     ergo_box_ptr: ConstErgoBoxPtr,
     register_id: NonMandatoryRegisterId,
     constant_out: *mut ConstantPtr,
@@ -299,7 +297,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_register_value(
 /// Parse from JSON.  Supports Ergo Node/Explorer API and box values and token amount encoded as
 /// strings
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_ergo_box_from_json(
+pub unsafe extern "C" fn ergo_lib_ergo_box_from_json(
     json_str: *const c_char,
     ergo_box_out: *mut ErgoBoxPtr,
 ) -> ErrorPtr {
@@ -310,7 +308,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_from_json(
 
 /// JSON representation as text (compatible with Ergo Node/Explorer API, numbers are encoded as numbers)
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_ergo_box_to_json(
+pub unsafe extern "C" fn ergo_lib_ergo_box_to_json(
     ergo_box_ptr: ConstErgoBoxPtr,
     _json_str: *mut *const c_char,
 ) -> ErrorPtr {
@@ -327,7 +325,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_to_json(
 
 /// JSON representation according to EIP-12 <https://github.com/ergoplatform/eips/pull/23>
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_ergo_box_to_json_eip12(
+pub unsafe extern "C" fn ergo_lib_ergo_box_to_json_eip12(
     ergo_box_ptr: ConstErgoBoxPtr,
     _json_str: *mut *const c_char,
 ) -> ErrorPtr {
@@ -344,7 +342,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_to_json_eip12(
 
 /// Drop `ErgoBox`
 #[no_mangle]
-pub extern "C" fn ergo_wallet_ergo_box_delete(ptr: ErgoBoxPtr) {
+pub extern "C" fn ergo_lib_ergo_box_delete(ptr: ErgoBoxPtr) {
     unsafe { delete_ptr(ptr) }
 }
 
@@ -355,7 +353,7 @@ make_ffi_eq!(ErgoBox);
 
 /// Create new instance
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_ergo_box_assets_data_new(
+pub unsafe extern "C" fn ergo_lib_ergo_box_assets_data_new(
     value_ptr: ConstBoxValuePtr,
     tokens_ptr: ConstTokensPtr,
     ergo_box_assets_data_out: *mut ErgoBoxAssetsDataPtr,
@@ -366,7 +364,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_assets_data_new(
 
 /// Value part of the box
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_ergo_box_assets_data_value(
+pub unsafe extern "C" fn ergo_lib_ergo_box_assets_data_value(
     ergo_box_assets_data_ptr: ConstErgoBoxAssetsDataPtr,
     value_out: *mut BoxValuePtr,
 ) {
@@ -376,7 +374,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_assets_data_value(
 
 /// Tokens part of the box
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_ergo_box_assets_data_tokens(
+pub unsafe extern "C" fn ergo_lib_ergo_box_assets_data_tokens(
     ergo_box_assets_data_ptr: ConstErgoBoxAssetsDataPtr,
     tokens_out: *mut TokensPtr,
 ) {
@@ -386,7 +384,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_box_assets_data_tokens(
 
 /// Drop `ErgoBoxAssetsData`
 #[no_mangle]
-pub extern "C" fn ergo_wallet_ergo_box_assets_data_delete(ptr: ErgoBoxAssetsDataPtr) {
+pub extern "C" fn ergo_lib_ergo_box_assets_data_delete(ptr: ErgoBoxAssetsDataPtr) {
     unsafe { delete_ptr(ptr) }
 }
 

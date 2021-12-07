@@ -9,7 +9,7 @@ use paste::paste;
 use crate::delete_ptr;
 
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_byte_array_from_raw_parts(
+pub unsafe extern "C" fn ergo_lib_byte_array_from_raw_parts(
     ptr: *const u8,
     len: usize,
     byte_array_out: *mut ByteArrayPtr,
@@ -19,7 +19,7 @@ pub unsafe extern "C" fn ergo_wallet_byte_array_from_raw_parts(
 }
 
 #[no_mangle]
-pub extern "C" fn ergo_wallet_byte_array_delete(ptr: ByteArrayPtr) {
+pub extern "C" fn ergo_lib_byte_array_delete(ptr: ByteArrayPtr) {
     unsafe { delete_ptr(ptr) }
 }
 

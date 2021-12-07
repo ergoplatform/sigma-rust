@@ -9,7 +9,7 @@ use paste::paste;
 
 /// Create new context from pre-header
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_ergo_state_context_new(
+pub unsafe extern "C" fn ergo_lib_ergo_state_context_new(
     pre_header_ptr: ConstPreHeaderPtr,
     headers: ConstBlockHeadersPtr,
     ergo_state_context_out: *mut ErgoStateContextPtr,
@@ -19,7 +19,7 @@ pub unsafe extern "C" fn ergo_wallet_ergo_state_context_new(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ergo_wallet_ergo_state_context_delete(ptr: ErgoStateContextPtr) {
+pub unsafe extern "C" fn ergo_lib_ergo_state_context_delete(ptr: ErgoStateContextPtr) {
     delete_ptr(ptr)
 }
 

@@ -6,7 +6,7 @@ class ByteArray {
     
     init(fromBytes : [UInt8]) throws {
         var ptr: ByteArrayPtr?
-        let error = ergo_wallet_byte_array_from_raw_parts(fromBytes, UInt(fromBytes.count), &ptr)
+        let error = ergo_lib_byte_array_from_raw_parts(fromBytes, UInt(fromBytes.count), &ptr)
         try checkError(error)
         self.pointer = ptr!
     }
@@ -18,7 +18,7 @@ class ByteArray {
     }
     
     deinit {
-        ergo_wallet_byte_array_delete(self.pointer)
+        ergo_lib_byte_array_delete(self.pointer)
     }
 }
 
@@ -27,17 +27,17 @@ class ByteArrays {
     
     init() {
         var ptr: ByteArraysPtr?
-        ergo_wallet_byte_arrays_new(&ptr)
+        ergo_lib_byte_arrays_new(&ptr)
         self.pointer = ptr!
     }
     
     func len() -> UInt {
-        return ergo_wallet_byte_arrays_len(self.pointer)
+        return ergo_lib_byte_arrays_len(self.pointer)
     }
     
     func get(index: UInt) -> ByteArray? {
         var ptr: ByteArrayPtr?
-        let res = ergo_wallet_byte_arrays_get(self.pointer, index, &ptr)
+        let res = ergo_lib_byte_arrays_get(self.pointer, index, &ptr)
         assert(res.error == nil)
         if res.is_some {
             return ByteArray(withRawPointer: ptr!)
@@ -47,10 +47,10 @@ class ByteArrays {
     }
     
     func add(byteArray: ByteArray) {
-        ergo_wallet_byte_arrays_add(byteArray.pointer, self.pointer)
+        ergo_lib_byte_arrays_add(byteArray.pointer, self.pointer)
     }
         
     deinit {
-        ergo_wallet_byte_arrays_delete(self.pointer)
+        ergo_lib_byte_arrays_delete(self.pointer)
     }
 }
