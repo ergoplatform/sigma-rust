@@ -2,6 +2,7 @@
 //! BIP-44 <https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki>
 //! and EIP-3 <https://github.com/ergoplatform/eips/blob/master/eip-0003.md>
 
+use derive_more::From;
 use std::{collections::VecDeque, fmt, num::ParseIntError, str::FromStr};
 use thiserror::Error;
 
@@ -18,6 +19,11 @@ impl ChildIndexHardened {
             Err(ChildIndexError::NumberTooLarge(i))
         }
     }
+
+    /// Return the next child index (incremented)
+    pub fn next(&self) -> Result<Self, ChildIndexError> {
+        ChildIndexHardened::from_31_bit(self.0 + 1)
+    }
 }
 
 /// Index for normal(non-hardened) derivation
@@ -33,10 +39,15 @@ impl ChildIndexNormal {
             Err(ChildIndexError::NumberTooLarge(i))
         }
     }
+
+    /// Return next index value (incremented)
+    pub fn next(&self) -> ChildIndexNormal {
+        ChildIndexNormal(self.0 + 1)
+    }
 }
 
 /// Child index for derivation
-#[derive(PartialEq, Eq, Clone, Debug)]
+#[derive(PartialEq, Eq, Clone, Debug, From)]
 pub enum ChildIndex {
     /// Index for hardened derivation
     Hardened(ChildIndexHardened),
@@ -53,16 +64,35 @@ impl fmt::Display for ChildIndex {
     }
 }
 
+impl FromStr for ChildIndex {
+    type Err = ChildIndexError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.contains('\'') {
+            let idx = s.replace("'", "");
+            Ok(ChildIndex::Hardened(ChildIndexHardened::from_31_bit(
+                idx.parse()?,
+            )?))
+        } else {
+            Ok(ChildIndex::Normal(ChildIndexNormal::normal(s.parse()?)?))
+        }
+    }
+}
+
 const PURPOSE: ChildIndex = ChildIndex::Hardened(ChildIndexHardened(44));
 const ERG: ChildIndex = ChildIndex::Hardened(ChildIndexHardened(429));
 /// According to EIP-3 change is always 0 (external address)
 const CHANGE: ChildIndex = ChildIndex::Normal(ChildIndexNormal(0));
 
 /// Child index related errors
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum ChildIndexError {
     /// Number is too large
+    #[error("number too large: {0}")]
     NumberTooLarge(u32),
+    /// Provided derivation path contained invalid integer indices
+    #[error("failed to parse index: {0}")]
+    BadIndex(#[from] ParseIntError),
 }
 
 impl ChildIndex {
@@ -84,28 +114,36 @@ impl ChildIndex {
             ChildIndex::Normal(index) => index.0,
         }
     }
+
+    /// Returns a new instance of the `ChildIndex` with the index incremented
+    pub fn next(&self) -> Result<Self, ChildIndexError> {
+        match self {
+            ChildIndex::Hardened(i) => Ok(ChildIndex::Hardened(i.next()?)),
+            ChildIndex::Normal(i) => Ok(ChildIndex::Normal(i.next())),
+        }
+    }
 }
 
 /// According to
 /// BIP-44 <https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki>
 /// and EIP-3 <https://github.com/ergoplatform/eips/blob/master/eip-0003.md>
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone, From)]
 pub struct DerivationPath(Box<[ChildIndex]>);
 
 /// DerivationPath errors
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum DerivationPathError {
     /// Provided derivation path was empty
-    /// Raised when parsing a path from a string
+    /// For example, when parsing a path from a string
     #[error("derivation path is empty")]
-    Empty,
+    EmptyPath,
     /// Provided derivation path was in the wrong format
-    /// Parsing from string to DerivationPath might have been missing the leading `m`
+    /// For example, parsing from string to DerivationPath might have been missing the leading `m`
     #[error("invalid derivation path format")]
     InvalidFormat(String),
-    /// Provided derivation path contained invalid integer indices
-    #[error("failed to parse index: {0}")]
-    BadIndex(#[from] ParseIntError),
+    /// There was an issue with one of the children in the path
+    #[error("child error: {0}")]
+    ChildIndex(#[from] ChildIndexError),
 }
 
 impl DerivationPath {
@@ -169,9 +207,10 @@ impl DerivationPath {
 
     /// Extend the path with the given index.
     /// Returns this derivation path with added index.
-    pub fn extend(&self, index: ChildIndexNormal) -> DerivationPath {
+    pub fn extend(&self, index: ChildIndex) -> DerivationPath {
         let mut res = self.0.to_vec();
-        res.push(ChildIndex::Normal(index));
+        res.push(index);
+        //res.push(ChildIndex::Normal(index));
         DerivationPath(res.into_boxed_slice())
     }
 }
@@ -182,7 +221,7 @@ impl fmt::Display for DerivationPath {
         let children = self
             .0
             .iter()
-            .map(|i| i.to_string())
+            .map(ChildIndex::to_string)
             .collect::<Vec<_>>()
             .join("/");
         write!(f, "{}", children)?;
@@ -197,30 +236,19 @@ impl FromStr for DerivationPath {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let cleaned_parts = s.split_whitespace().collect::<String>();
         let mut parts = cleaned_parts.split('/').collect::<VecDeque<_>>();
-        let master_key_id = parts.pop_front().ok_or(DerivationPathError::Empty)?;
+        let master_key_id = parts.pop_front().ok_or(DerivationPathError::EmptyPath)?;
         if master_key_id != "m" && master_key_id != "M" {
             return Err(DerivationPathError::InvalidFormat(format!(
                 "Master node must be either 'm' or 'M', got {}",
                 master_key_id
             )));
         }
-        let mut path: Vec<ChildIndex> = vec![];
-        for p in parts {
-            if p.contains('\'') {
-                let idx = p.replace("'", "");
-                path.push(ChildIndex::Hardened(ChildIndexHardened(idx.parse()?)));
-            } else {
-                path.push(ChildIndex::Normal(ChildIndexNormal(p.parse()?)));
-            };
-        }
-        Ok(DerivationPath(path.into_boxed_slice()))
-    }
-}
-
-impl ChildIndexNormal {
-    /// Return next index value (incremented)
-    pub fn next(&self) -> ChildIndexNormal {
-        ChildIndexNormal(self.0 + 1)
+        let path = parts
+            .into_iter()
+            .map(ChildIndex::from_str)
+            .flatten()
+            .collect::<Vec<_>>();
+        Ok(path.into_boxed_slice().into())
     }
 }
 
