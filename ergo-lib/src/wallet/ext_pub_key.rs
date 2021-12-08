@@ -76,17 +76,17 @@ impl ExtPubKey {
         let mut secret_key_bytes = [0; 32];
         secret_key_bytes.copy_from_slice(&mac_bytes[..32]);
         if let Some(child_secret_key) = DlogProverInput::from_bytes(&secret_key_bytes) {
-            let mut chain_code = [0; 32];
-            chain_code.copy_from_slice(&mac_bytes[32..]);
             let child_pub_key = *child_secret_key.public_image().h * &self.public_key;
             if dlog_group::is_identity(&child_pub_key) {
                 // point is infinity element, thus repeat with next index value (see BIP-32)
                 self.derive(index.next())
             } else {
+                let mut chain_code = [0; 32];
+                chain_code.copy_from_slice(&mac_bytes[32..]);
                 ExtPubKey {
                     public_key: child_pub_key,
                     chain_code,
-                    derivation_path: self.derivation_path.extend(index),
+                    derivation_path: self.derivation_path.extend(index.into()),
                 }
             }
         } else {
