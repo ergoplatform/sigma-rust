@@ -2,6 +2,7 @@
 
 use std::convert::TryInto;
 
+use ergo_lib::wallet::derivation_path::ChildIndex;
 use ergo_lib::wallet::ext_pub_key::ChainCode;
 use ergo_lib::wallet::ext_secret_key::ExtSecretKey as InnerExtSecretKey;
 use ergo_lib::wallet::ext_secret_key::SecretKeyBytes;
@@ -32,5 +33,26 @@ impl ExtSecretKey {
             InnerExtSecretKey::new(secret_key_bytes, chain_code, derivation_path.clone().into())
                 .map_err(to_js)?,
         ))
+    }
+
+    /// Derive root extended secret key
+    pub fn derive_master(seed_bytes: &[u8]) -> Result<ExtSecretKey, JsValue> {
+        let seed = seed_bytes.try_into().map_err(to_js)?;
+        Ok(InnerExtSecretKey::derive_master(seed)
+            .map_err(to_js)?
+            .into())
+    }
+
+    /// Derive a new extended secret key from the provided index
+    /// The index is in the form of soft or hardened indices
+    /// For example: 4 or 4' respectively
+    pub fn derive(&self, index: &str) -> Result<ExtSecretKey, JsValue> {
+        let idx = index.parse::<ChildIndex>().map_err(to_js)?;
+        Ok(self.0.derive(idx).map_err(to_js)?.into())
+    }
+
+    /// The extended public key associated with this secret key
+    pub fn public_key(&self) -> Result<crate::wallet::ext_pub_key::ExtPubKey, JsValue> {
+        Ok(self.0.public_key().map_err(to_js)?.into())
     }
 }
