@@ -148,6 +148,8 @@ impl ExtSecretKey {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+    // Covers the test cases found here: https://en.bitcoin.it/wiki/BIP_0032_TestVectors
+    // Only tests secret key derivation, pub key derivation is tested in `ext_pub_key.rs`
 
     struct Bip32Vector {
         next_index: ChildIndex,
