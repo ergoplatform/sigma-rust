@@ -18,7 +18,7 @@ use hmac::{Hmac, Mac, NewMac};
 use sha2::Sha512;
 use thiserror::Error;
 
-/// Public key (serialized EcPoint) bytes
+/// Private key (serialized Scalar) bytes
 pub type SecretKeyBytes = [u8; 32];
 /// Chain code bytes
 pub type ChainCode = [u8; 32];
