@@ -15,7 +15,7 @@ use derive_more::{From, Into};
 
 /// Extented secret key implemented according to BIP-32
 #[wasm_bindgen]
-#[derive(PartialEq, Eq, Debug, Clone, From, Into)]
+#[derive(PartialEq, Debug, Clone, From, Into)]
 pub struct ExtSecretKey(InnerExtSecretKey);
 
 #[wasm_bindgen]
