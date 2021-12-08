@@ -9,10 +9,7 @@ use super::{
 use ergotree_interpreter::sigma_protocol::private_input::DlogProverInput;
 use ergotree_ir::{
     serialization::{SigmaParsingError, SigmaSerializable, SigmaSerializationError},
-    sigma_protocol::{
-        dlog_group::{self, EcPoint},
-        sigma_boolean::ProveDlog,
-    },
+    sigma_protocol::sigma_boolean::ProveDlog,
 };
 use hmac::{Hmac, Mac, NewMac};
 use sha2::Sha512;
@@ -115,20 +112,15 @@ impl ExtSecretKey {
         let mac_bytes = mac.finalize().into_bytes();
         let mut secret_key_bytes = [0; 32];
         secret_key_bytes.copy_from_slice(&mac_bytes[..32]);
-        if let Some(_) = DlogProverInput::from_bytes(&secret_key_bytes) {
-            let secret_key = EcPoint::sigma_parse_bytes(&secret_key_bytes)?;
-            if dlog_group::is_identity(&secret_key) {
-                // point is infinity element, thus repeat with next index value (see BIP-32)
-                self.derive(index.next()?)
-            } else {
-                let mut chain_code = [0; 32];
-                chain_code.copy_from_slice(&mac_bytes[32..]);
-                ExtSecretKey::new(
-                    secret_key_bytes,
-                    chain_code,
-                    self.derivation_path.extend(index),
-                )
-            }
+        if let Some(secret_key) = DlogProverInput::from_bytes(&secret_key_bytes) {
+            let final_key: DlogProverInput = secret_key.w.add(&self.private_input.w).into();
+            let mut chain_code = [0; 32];
+            chain_code.copy_from_slice(&mac_bytes[32..]);
+            ExtSecretKey::new(
+                final_key.to_bytes(),
+                chain_code,
+                self.derivation_path.extend(index),
+            )
         } else {
             // not in range [0, modulus), thus repeat with next index value (BIP-32)
             self.derive(index.next()?)
@@ -147,7 +139,6 @@ impl ExtSecretKey {
         let mut chain_code = [0; 32];
         chain_code.copy_from_slice(&hash[32..]);
 
-        // TODO: can we construct the struct directly and remove Result<>
         ExtSecretKey::new(secret_key_bytes, chain_code, DerivationPath::master_path())
     }
 }
@@ -155,10 +146,13 @@ impl ExtSecretKey {
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
+    use crate::wallet::derivation_path::ChildIndexHardened;
+
     use super::*;
 
     #[test]
-    fn bip32_test_vector0_root() {
+    fn bip32_test_vector0() {
+        let derivation_path = DerivationPath::master_path();
         let secret_key =
             base16::decode(b"e8f32e723decf4051aefac8e2c93c9c5b214313817cdb01a1494b917c8436b35")
                 .unwrap();
@@ -168,11 +162,20 @@ mod tests {
         let ext_secret_key = ExtSecretKey::new(
             secret_key.try_into().unwrap(),
             chain_code.try_into().unwrap(),
-            DerivationPath::master_path(),
+            derivation_path,
         )
         .unwrap();
-        let expected_bytes: SecretKeyBytes = base16::decode(b"0488ade4000000000000000000873dff81c02f525623fd1fe5167eac3a55a049de3d314bb42ee227ffed37d50800e8f32e723decf4051aefac8e2c93c9c5b214313817cdb01a1494b917c8436b35").unwrap().try_into().unwrap();
 
-        assert_eq!(ext_secret_key.secret_key_bytes(), expected_bytes)
+        let child = ext_secret_key
+            .derive(ChildIndex::Hardened(
+                ChildIndexHardened::from_31_bit(0).unwrap(),
+            ))
+            .unwrap();
+        let expected_child_secret_key_bytes: SecretKeyBytes =
+            base16::decode(b"edb2e14f9ee77d26dd93b4ecede8d16ed408ce149b6cd80b0715a2d911a0afea")
+                .unwrap()
+                .try_into()
+                .unwrap();
+        assert_eq!(child.secret_key_bytes(), expected_child_secret_key_bytes);
     }
 }
