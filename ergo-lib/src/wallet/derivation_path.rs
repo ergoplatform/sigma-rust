@@ -210,7 +210,6 @@ impl DerivationPath {
     pub fn extend(&self, index: ChildIndex) -> DerivationPath {
         let mut res = self.0.to_vec();
         res.push(index);
-        //res.push(ChildIndex::Normal(index));
         DerivationPath(res.into_boxed_slice())
     }
 }

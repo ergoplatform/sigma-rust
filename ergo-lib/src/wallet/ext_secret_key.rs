@@ -71,7 +71,8 @@ impl ExtSecretKey {
         })
     }
 
-    fn secret_key_bytes(&self) -> SecretKeyBytes {
+    /// Byte representation of the underlying scalar
+    pub fn secret_key_bytes(&self) -> SecretKeyBytes {
         self.private_input.to_bytes()
     }
 
@@ -112,12 +113,12 @@ impl ExtSecretKey {
         let mac_bytes = mac.finalize().into_bytes();
         let mut secret_key_bytes = [0; 32];
         secret_key_bytes.copy_from_slice(&mac_bytes[..32]);
-        if let Some(secret_key) = DlogProverInput::from_bytes(&secret_key_bytes) {
-            let final_key: DlogProverInput = secret_key.w.add(&self.private_input.w).into();
+        if let Some(dlog_prover) = DlogProverInput::from_bytes(&secret_key_bytes) {
+            let child_secret_key: DlogProverInput = dlog_prover.w.add(&self.private_input.w).into();
             let mut chain_code = [0; 32];
             chain_code.copy_from_slice(&mac_bytes[32..]);
             ExtSecretKey::new(
-                final_key.to_bytes(),
+                child_secret_key.to_bytes(),
                 chain_code,
                 self.derivation_path.extend(index),
             )
@@ -146,36 +147,118 @@ impl ExtSecretKey {
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
-    use crate::wallet::derivation_path::ChildIndexHardened;
-
     use super::*;
 
+    struct Bip32Vector {
+        next_index: ChildIndex,
+        expected_secret_key: [u8; 32],
+    }
+
+    impl Bip32Vector {
+        pub fn new(next_index: &str, expected_secret_key: &str) -> Self {
+            Bip32Vector {
+                next_index: next_index.parse::<ChildIndex>().unwrap(),
+                expected_secret_key: base16::decode(expected_secret_key)
+                    .unwrap()
+                    .try_into()
+                    .unwrap(),
+            }
+        }
+    }
+
     #[test]
-    fn bip32_test_vector0() {
-        let derivation_path = DerivationPath::master_path();
+    fn bip32_test_vector1() {
+        let vectors = vec![
+            // m/0'
+            Bip32Vector::new(
+                "0'",
+                "edb2e14f9ee77d26dd93b4ecede8d16ed408ce149b6cd80b0715a2d911a0afea",
+            ),
+            // m/0'/1
+            Bip32Vector::new(
+                "1",
+                "3c6cb8d0f6a264c91ea8b5030fadaa8e538b020f0a387421a12de9319dc93368",
+            ),
+            // m/0'/1/2'
+            Bip32Vector::new(
+                "2'",
+                "cbce0d719ecf7431d88e6a89fa1483e02e35092af60c042b1df2ff59fa424dca",
+            ),
+            // m/0'/1/2'/2
+            Bip32Vector::new(
+                "2",
+                "0f479245fb19a38a1954c5c7c0ebab2f9bdfd96a17563ef28a6a4b1a2a764ef4",
+            ),
+            // m/0'/1/2'/2/1000000000
+            Bip32Vector::new(
+                "1000000000",
+                "471b76e389e528d6de6d816857e012c5455051cad6660850e58372a6c3e6e7c8",
+            ),
+        ];
         let secret_key =
             base16::decode(b"e8f32e723decf4051aefac8e2c93c9c5b214313817cdb01a1494b917c8436b35")
                 .unwrap();
         let chain_code =
             base16::decode(b"873dff81c02f525623fd1fe5167eac3a55a049de3d314bb42ee227ffed37d508")
                 .unwrap();
-        let ext_secret_key = ExtSecretKey::new(
+        let mut ext_secret_key = ExtSecretKey::new(
             secret_key.try_into().unwrap(),
             chain_code.try_into().unwrap(),
-            derivation_path,
+            DerivationPath::master_path(),
         )
         .unwrap();
 
-        let child = ext_secret_key
-            .derive(ChildIndex::Hardened(
-                ChildIndexHardened::from_31_bit(0).unwrap(),
-            ))
-            .unwrap();
-        let expected_child_secret_key_bytes: SecretKeyBytes =
-            base16::decode(b"edb2e14f9ee77d26dd93b4ecede8d16ed408ce149b6cd80b0715a2d911a0afea")
-                .unwrap()
-                .try_into()
+        for v in vectors {
+            ext_secret_key = ext_secret_key.derive(v.next_index).unwrap();
+            assert_eq!(ext_secret_key.secret_key_bytes(), v.expected_secret_key);
+        }
+    }
+
+    #[test]
+    fn bip32_test_vector2() {
+        let vectors = vec![
+            // m/0
+            Bip32Vector::new(
+                "0",
+                "abe74a98f6c7eabee0428f53798f0ab8aa1bd37873999041703c742f15ac7e1e",
+            ),
+            // m/0/2147483647'
+            Bip32Vector::new(
+                "2147483647'",
+                "877c779ad9687164e9c2f4f0f4ff0340814392330693ce95a58fe18fd52e6e93",
+            ),
+            // m/0/2147483647'/1
+            Bip32Vector::new(
+                "1",
+                "704addf544a06e5ee4bea37098463c23613da32020d604506da8c0518e1da4b7",
+            ),
+            // m/0/2147483647'/1/2147483646'
+            Bip32Vector::new(
+                "2147483646'",
+                "f1c7c871a54a804afe328b4c83a1c33b8e5ff48f5087273f04efa83b247d6a2d",
+            ),
+            // m/0/2147483647'/1/2147483646'/2
+            Bip32Vector::new(
+                "2",
+                "bb7d39bdb83ecf58f2fd82b6d918341cbef428661ef01ab97c28a4842125ac23",
+            ),
+        ];
+        let secret_key =
+            base16::decode(b"4b03d6fc340455b363f51020ad3ecca4f0850280cf436c70c727923f6db46c3e")
                 .unwrap();
-        assert_eq!(child.secret_key_bytes(), expected_child_secret_key_bytes);
+        let chain_code =
+            base16::decode(b"60499f801b896d83179a4374aeb7822aaeaceaa0db1f85ee3e904c4defbd9689")
+                .unwrap();
+        let mut ext_secret_key = ExtSecretKey::new(
+            secret_key.try_into().unwrap(),
+            chain_code.try_into().unwrap(),
+            DerivationPath::master_path(),
+        )
+        .unwrap();
+
+        for v in vectors {
+            ext_secret_key = ext_secret_key.derive(v.next_index).unwrap();
+            assert_eq!(ext_secret_key.secret_key_bytes(), v.expected_secret_key);
+        }
     }
 }
