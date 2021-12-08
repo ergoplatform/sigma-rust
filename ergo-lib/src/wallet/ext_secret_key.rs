@@ -32,10 +32,10 @@ pub type Result<T> = std::result::Result<T, ExtSecretKeyError>;
 /// implemented according to BIP-32
 #[derive(PartialEq, Debug, Clone)]
 pub struct ExtSecretKey {
-    secret_key: EcPoint,
+    /// The secret key
+    private_input: DlogProverInput,
     chain_code: ChainCode,
     derivation_path: DerivationPath,
-    private_input: DlogProverInput,
 }
 
 /// Extended secret key errors
@@ -65,27 +65,17 @@ impl ExtSecretKey {
         chain_code: ChainCode,
         derivation_path: DerivationPath,
     ) -> Result<Self> {
-        let secret_key = EcPoint::sigma_parse_bytes(&secret_key_bytes)?;
         let private_input = DlogProverInput::from_bytes(&secret_key_bytes)
             .ok_or(ExtSecretKeyError::ScalarEncodingError)?;
         Ok(Self {
-            secret_key,
+            private_input,
             chain_code,
             derivation_path,
-            private_input,
         })
     }
 
-    #[allow(clippy::unwrap_used)]
     fn secret_key_bytes(&self) -> SecretKeyBytes {
-        // Unwraps are fine here since `self.public_key` is valid through the checking constructor
-        // above.
-        self.secret_key
-            .sigma_serialize_bytes()
-            .unwrap()
-            .as_slice()
-            .try_into()
-            .unwrap()
+        self.private_input.to_bytes()
     }
 
     /// Public image associated with the private input
