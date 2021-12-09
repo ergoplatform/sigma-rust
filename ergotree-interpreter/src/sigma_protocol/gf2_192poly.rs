@@ -2,7 +2,7 @@
 #![allow(clippy::todo)]
 
 use super::challenge::Challenge;
-use super::gf2_192::Gf2_192;
+use super::gf2_192::GF2_192;
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct Gf2_192Poly {}
@@ -12,14 +12,14 @@ impl Gf2_192Poly {
         todo!()
     }
 
-    pub(crate) fn evaluate(&self, _idx: usize) -> Gf2_192 {
+    pub(crate) fn evaluate(&self, _idx: usize) -> GF2_192 {
         todo!()
     }
 
     pub(crate) fn interpolate(
         _points: Vec<u8>,
-        _values: Vec<Gf2_192>,
-        _value_at_zero: Gf2_192,
+        _values: Vec<GF2_192>,
+        _value_at_zero: GF2_192,
     ) -> Gf2_192Poly {
         todo!()
     }

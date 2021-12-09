@@ -55,7 +55,7 @@ static IRRED_MULS: [i64; 16] = [
 ];
 
 /// Represents an element of the Galois field GF(2^192)
-#[derive(PartialEq, Eq, Copy, Clone)]
+#[derive(PartialEq, Eq, Copy, Clone, Debug)]
 pub struct GF2_192 {
     word: [i64; 3],
 }
@@ -74,19 +74,10 @@ impl GF2_192 {
         self.word[0] == 1 && self.word[1] == 0 && self.word[2] == 0
     }
 
-    /// Return a new instance of `GF2_192` which is the sum of `a` and `b`.
-    pub fn add(a: &GF2_192, b: &GF2_192) -> GF2_192 {
-        let mut word = [0, 0, 0];
-        word[0] = a.word[0] ^ b.word[0];
-        word[1] = a.word[1] ^ b.word[1];
-        word[2] = a.word[2] ^ b.word[2];
-        GF2_192 { word }
-    }
-
     /// Computes a times b.
     /// Uses table lookups, which may not preserve the secrecy of the inputs in case of side-channel
     /// attacks.
-    pub fn mul(a: &GF2_192, b: &GF2_192) -> GF2_192 {
+    pub fn multiply(a: GF2_192, b: GF2_192) -> GF2_192 {
         // Implements a sort of times-x-and-add algorithm, except instead of multiplying by x
         // we multiply by x^4 and then add one of possible 16 precomputed values
 
@@ -159,7 +150,7 @@ impl GF2_192 {
     }
 
     /// Computes a times b. More efficient than `mul`
-    pub fn mul_by_i8(a: &GF2_192, b: i8) -> GF2_192 {
+    pub fn mul_by_i8(a: GF2_192, b: i8) -> GF2_192 {
         let mut w0 = 0;
         let mut w1 = 0;
         let mut w2 = 0;
@@ -185,7 +176,7 @@ impl GF2_192 {
         let mut z_to_2_to_k1s = z;
 
         // Square res to get its exponent to be 10 in binary
-        let mut res = GF2_192::mul(&z, &z);
+        let mut res = z * z;
 
         // contains z raised to the power whose binary representation is 2^k ones followed by 2^k zeros
         let mut z_to_2_to_k1s_2_to_k0s = res;
@@ -194,14 +185,14 @@ impl GF2_192 {
         while k < 6 {
             k += 1;
             // Fill in the zeros in the exponent of z_to_2_to_k1s_2_to_k0s with ones
-            z_to_2_to_k1s = GF2_192::mul(&z_to_2_to_k1s_2_to_k0s, &z_to_2_to_k1s);
+            z_to_2_to_k1s = z_to_2_to_k1s_2_to_k0s * z_to_2_to_k1s;
             // z_to_2_to_k1s_2_to_k0s = power_2_to_2_to_k with 2^k zeros appended to the exponent
             z_to_2_to_k1s_2_to_k0s = GF2_192::power_2_to_2_to_k(z_to_2_to_k1s, k);
             // prepend 2^k ones to res
-            res = GF2_192::mul(&res, &z_to_2_to_k1s_2_to_k0s);
+            res = res * z_to_2_to_k1s_2_to_k0s;
         }
         z_to_2_to_k1s_2_to_k0s = GF2_192::power_2_to_2_to_k(z_to_2_to_k1s_2_to_k0s, k);
-        GF2_192::mul(&res, &z_to_2_to_k1s_2_to_k0s)
+        res * z_to_2_to_k1s_2_to_k0s
     }
 
     /// Squares z. Same as `power_2_to_2_to_k(z, 0)`. About same efficiency as mul(res, z, z) (more
@@ -266,6 +257,18 @@ impl GF2_192 {
             GF2_192 { word: [t0, t1, t2] }
         }
     }
+
+    pub fn to_i8_slice(&self, slice: &mut [i8], pos: usize) -> Result<(), String> {
+        if slice.len() < pos + 24 {
+            return Err("not enough space in slice[pos..]".into());
+        }
+        for j in 0..3 {
+            for i in 0..8 {
+                slice[pos + i + 8 * j] = ((self.word[j] >> (i << 3)) & 0xFF) as i8;
+            }
+        }
+        Ok(())
+    }
 }
 
 impl Default for GF2_192 {
@@ -275,36 +278,108 @@ impl Default for GF2_192 {
     }
 }
 
+impl std::ops::Add for GF2_192 {
+    type Output = Self;
+    fn add(self, rhs: Self) -> Self {
+        let mut word = [0, 0, 0];
+        word[0] = self.word[0] ^ rhs.word[0];
+        word[1] = self.word[1] ^ rhs.word[1];
+        word[2] = self.word[2] ^ rhs.word[2];
+        GF2_192 { word }
+    }
+}
+
+impl std::ops::Mul for GF2_192 {
+    type Output = Self;
+
+    fn mul(self, rhs: Self) -> Self {
+        GF2_192::multiply(self, rhs)
+    }
+}
+
 impl From<[i64; 3]> for GF2_192 {
     fn from(word: [i64; 3]) -> Self {
         GF2_192 { word }
     }
 }
 
-pub struct I8Subslice<'a> {
-    slice: &'a [i8],
-    pos: usize,
+impl From<GF2_192> for [i64; 3] {
+    fn from(e: GF2_192) -> Self {
+        e.word
+    }
 }
 
-impl<'a> TryFrom<I8Subslice<'a>> for GF2_192 {
+impl From<GF2_192> for [u8; 24] {
+    fn from(e: GF2_192) -> Self {
+        let mut bytes: [u8; 24] = Default::default();
+        for j in 0..3 {
+            for i in 0..8 {
+                bytes[i + 8 * j] = ((e.word[j] >> (i << 3)) & 0xFF) as u8;
+            }
+        }
+        bytes
+    }
+}
+
+impl From<GF2_192> for [i8; 24] {
+    fn from(e: GF2_192) -> Self {
+        let mut bytes: [i8; 24] = Default::default();
+        for j in 0..3 {
+            for i in 0..8 {
+                bytes[i + 8 * j] = ((e.word[j] >> (i << 3)) & 0xFF) as i8;
+            }
+        }
+        bytes
+    }
+}
+
+impl From<i32> for GF2_192 {
+    /// Returns an instance whose 32 least significant bits are bits of that and rest are 0
+    fn from(value: i32) -> Self {
+        GF2_192 {
+            word: [(value as i64) & 0xFFFFFFFF, 0, 0],
+        }
+    }
+}
+
+impl<'a> TryFrom<&[i8]> for GF2_192 {
     type Error = String;
 
-    fn try_from(value: I8Subslice) -> Result<Self, Self::Error> {
-        let (that, pos) = (value.slice, value.pos);
-        if that.len() < pos + 24 {
+    fn try_from(value: &[i8]) -> Result<Self, Self::Error> {
+        if value.len() < 24 {
             return Err("".into());
         }
         let mut word: [i64; 3] = [0, 0, 0];
         for i in 0..8 {
-            word[0] |= (that[i + pos] as i64 & 0xFF) << (i << 3);
-        }
-        for i in 0..8 {
-            word[1] |= (that[i + pos + 8] as i64 & 0xFF) << (i << 3);
-        }
-        for i in 0..8 {
-            word[2] |= (that[i + pos + 16] as i64 & 0xFF) << (i << 3);
+            word[0] |= (value[i] as i64 & 0xFF) << (i << 3);
+            word[1] |= (value[i + 8] as i64 & 0xFF) << (i << 3);
+            word[2] |= (value[i + 16] as i64 & 0xFF) << (i << 3);
         }
         Ok(GF2_192 { word })
+    }
+}
+
+impl From<[u8; 24]> for GF2_192 {
+    fn from(bytes: [u8; 24]) -> Self {
+        let mut word: [i64; 3] = [0, 0, 0];
+        for i in 0..8 {
+            word[0] |= (bytes[i] as i64 & 0xFF) << (i << 3);
+            word[1] |= (bytes[i + 8] as i64 & 0xFF) << (i << 3);
+            word[2] |= (bytes[i + 16] as i64 & 0xFF) << (i << 3);
+        }
+        GF2_192 { word }
+    }
+}
+
+impl From<[i8; 24]> for GF2_192 {
+    fn from(bytes: [i8; 24]) -> Self {
+        let mut word: [i64; 3] = [0, 0, 0];
+        for i in 0..8 {
+            word[0] |= (bytes[i] as i64 & 0xFF) << (i << 3);
+            word[1] |= (bytes[i + 8] as i64 & 0xFF) << (i << 3);
+            word[2] |= (bytes[i + 16] as i64 & 0xFF) << (i << 3);
+        }
+        GF2_192 { word }
     }
 }
 
@@ -576,3 +651,238 @@ static POW_TABLE_2: [[i64; 192]; 7]  = [
 //    }
 //}
 //
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rand::{thread_rng, Rng};
+
+    //#[derive(PartialEq, Eq, Clone)]
+    //struct GF2Slow {
+    //    x: Vec<i64>,
+    //}
+
+    //impl GF2Slow {
+    //    fn new() -> Self {
+    //        GF2Slow { x: vec![0, 0, 0] }
+    //    }
+    //}
+
+    static ZERO: GF2_192 = GF2_192 { word: [0, 0, 0] };
+    static ONE: GF2_192 = GF2_192 { word: [1, 0, 0] };
+    //static PENTANOMIAL: [i64; 5] = [192, 7, 2, 1, 0];
+
+    //#[allow(clippy::needless_range_loop)]
+    //fn mul_bits(a: &[i64], b: &[i64]) -> GF2Slow {
+    //    let mut c: Vec<_> = std::iter::repeat(0).take(a.len() + b.len()).collect();
+    //
+    //    for i in 0..a.len() {
+    //        for i1 in 0..64 {
+    //            for j in 0..b.len() {
+    //                for j1 in 0..64 {
+    //                    if (a[i] & (1 << i1)) != 0 && (b[j] & (1 << j1)) != 0 {
+    //                        let c_position = i * 64 + i1 + j * 64 + j1;
+    //                        c[c_position / 64] ^= 1 << (c_position % 64);
+    //                    }
+    //                }
+    //            }
+    //        }
+    //    }
+    //    GF2Slow { x: c }
+    //}
+    //
+    fn generate_test_values() -> Vec<GF2_192> {
+        let mut test_values: Vec<[i64; 3]> = std::iter::repeat([0, 0, 0]).take(250).collect();
+        let mut rng = thread_rng();
+
+        // Test single 1s in every bit position but last
+        // (1s in last bit position -- i.e., just the value of 1 -- will be tested separately)
+        let mut j = 0;
+        for i in 1..64 {
+            test_values[j][0] = 1 << i;
+            test_values[j][1] = 0;
+            test_values[j][2] = 0;
+            j += 1;
+        }
+        for i in 0..64 {
+            test_values[j][0] = 0;
+            test_values[j][1] = 1 << i;
+            test_values[j][2] = 0;
+            j += 1;
+        }
+        for i in 0..64 {
+            test_values[j][0] = 0;
+            test_values[j][1] = 0;
+            test_values[j][2] = 1 << i;
+            j += 1;
+        }
+
+        // Test first word zero, last two words random,
+        for _ in 0..5 {
+            test_values[j][0] = 0;
+            test_values[j][1] = rng.gen();
+            test_values[j][2] = rng.gen();
+            j += 1;
+        }
+
+        // and first word random, last two words 0
+        for _ in 0..5 {
+            test_values[j][0] = rng.gen();
+            test_values[j][1] = 0;
+            test_values[j][2] = 0;
+            j += 1;
+        }
+
+        // and first word random, second word 1, last word 0
+        for _ in 0..5 {
+            test_values[j][0] = rng.gen();
+            test_values[j][1] = 1;
+            test_values[j][2] = 0;
+            j += 1;
+        }
+
+        // and last word random, first two words 0
+        for _ in 0..5 {
+            test_values[j][0] = 0;
+            test_values[j][1] = 0;
+            test_values[j][2] = rng.gen();
+            j += 1;
+        }
+
+        while j < test_values.len() {
+            test_values[j][0] = rng.gen();
+            test_values[j][1] = rng.gen();
+            test_values[j][2] = rng.gen();
+            j += 1;
+        }
+
+        test_values.into_iter().map(GF2_192::from).collect()
+    }
+
+    #[test]
+    fn test_equality() {
+        let mut t = GF2_192::new();
+        assert!(t.is_zero());
+
+        t = GF2_192::from(0);
+        assert!(t.is_zero());
+
+        t = GF2_192::from(1);
+        assert!(t.is_one());
+
+        t = GF2_192::from(-1);
+        assert_eq!(t.word[0], 0xFFFFFFFF);
+        assert_eq!(t.word[1], 0);
+        assert_eq!(t.word[1], 0);
+
+        let s: [i64; 3] = [123345, 123567891234567, 487237823242367];
+        t = GF2_192::from(s);
+        let t1 = t;
+        assert_eq!(t, t1);
+
+        let r: [i64; 3] = t.into();
+
+        // Test byte arrays ([i8])
+        let mut b: [i8; 24] = Default::default();
+
+        for i in 0..8 {
+            b[i] = lrs_i64(r[0], (i * 8) as i64) as i8;
+            b[i + 8] = lrs_i64(r[1], (i * 8) as i64) as i8;
+            b[i + 16] = lrs_i64(r[2], (i * 8) as i64) as i8;
+        }
+
+        t = GF2_192::from(b);
+        let i64_repr: [i64; 3] = t.into();
+        let i8_repr: [i8; 24] = t.into();
+        assert_eq!(r, i64_repr);
+        assert_eq!(b, i8_repr);
+
+        // Extra test of equality for [u8; 24] representation
+        let b_u8_repr: Vec<_> = b.into_iter().map(|x| x as u8).collect();
+        let u8_repr: [u8; 24] = t.into();
+        assert_eq!(b_u8_repr, u8_repr);
+
+        // Test on i8 array with offset
+        let mut b1: [i8; 30] = Default::default();
+        b1[6..].clone_from_slice(&b[..24]);
+        t = GF2_192::try_from(&b1[6..]).unwrap();
+        let i8_repr: [i8; 24] = t.into();
+        let i64_repr: [i64; 3] = t.into();
+        assert_eq!(b, i8_repr);
+        assert_eq!(r, i64_repr);
+
+        // Testing on 'all ones'.
+        let s: [i64; 3] = [i64::MAX, i64::MAX, i64::MAX];
+        t = GF2_192::from(s);
+        let i64_repr: [i64; 3] = t.into();
+        assert_eq!(s, i64_repr);
+
+        // Testing 'all ones' from [i8; 24]
+        for i in 0..8 {
+            b[i] = lrs_i64(i64_repr[0], (i * 8) as i64) as i8;
+            b[i + 8] = lrs_i64(i64_repr[1], (i * 8) as i64) as i8;
+            b[i + 16] = lrs_i64(i64_repr[2], (i * 8) as i64) as i8;
+        }
+        t = GF2_192::from(b);
+        assert_eq!(t.word, i64_repr);
+    }
+
+    #[test]
+    fn test_pow_2_to_2_to_k() {
+        let max_k = 15;
+        for k in 0..max_k {
+            assert_eq!(GF2_192::power_2_to_2_to_k(ZERO, k), ZERO);
+            assert_eq!(GF2_192::power_2_to_2_to_k(ONE, k), ONE);
+        }
+
+        assert!(GF2_192::sqr(ZERO).is_zero());
+        assert!(GF2_192::sqr(ONE).is_one());
+
+        let mut res1 = GF2_192::new();
+        #[allow(unused_assignments)]
+        let mut res2 = GF2_192::new();
+        for z in generate_test_values() {
+            for k in 0..max_k {
+                let res = GF2_192::power_2_to_2_to_k(z, k);
+                if k == 0 {
+                    // Ground truth for squaring: self-multiply
+                    res1 = z * z; // sqr should equal power_2_to_2_to_k with k = 0
+                    assert_eq!(res, res1);
+                    res2 = GF2_192::sqr(z);
+                    assert_eq!(res, res2);
+                } else {
+                    // res1 is the ground truth, computed using smaller values of k than is currently being tested
+                    res1 = GF2_192::power_2_to_2_to_k(res1, k - 1);
+                    assert_eq!(res, res1);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_special_multiplication() {
+        // Run everything times 0 and 0 times everything
+        // and everything times 1 and 1 times everything
+        // where 0 and 1 are GF2_192
+        for z in generate_test_values() {
+            let mut res = z * ZERO;
+            assert!(res.is_zero());
+            res = ZERO * z;
+            assert!(res.is_zero());
+            res = ONE * z;
+            assert_eq!(res, z);
+            res = z * ONE;
+            assert_eq!(res, z);
+        }
+
+        // Run everything times 0
+        // and everything times 1
+        // where 0 and 1 are bytes
+        for z in generate_test_values() {
+            let mut res = GF2_192::mul_by_i8(z, 0);
+            assert!(res.is_zero());
+            res = GF2_192::mul_by_i8(z, 1);
+            assert_eq!(res, z);
+        }
+    }
+}
