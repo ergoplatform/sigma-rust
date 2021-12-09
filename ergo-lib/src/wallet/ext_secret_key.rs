@@ -6,6 +6,7 @@ use super::{
     ext_pub_key::ExtPubKey,
     mnemonic::MnemonicSeed,
 };
+use crate::ArrLength;
 use ergotree_interpreter::sigma_protocol::private_input::DlogProverInput;
 use ergotree_ir::{
     serialization::{SigmaParsingError, SigmaSerializable, SigmaSerializationError},
@@ -111,11 +112,11 @@ impl ExtSecretKey {
         }
         mac.update(&index.to_bits().to_be_bytes());
         let mac_bytes = mac.finalize().into_bytes();
-        let mut secret_key_bytes = [0; 32];
+        let mut secret_key_bytes = [0; SecretKeyBytes::LEN];
         secret_key_bytes.copy_from_slice(&mac_bytes[..32]);
         if let Some(dlog_prover) = DlogProverInput::from_bytes(&secret_key_bytes) {
             let child_secret_key: DlogProverInput = dlog_prover.w.add(&self.private_input.w).into();
-            let mut chain_code = [0; 32];
+            let mut chain_code = [0; ChainCode::LEN];
             chain_code.copy_from_slice(&mac_bytes[32..]);
             ExtSecretKey::new(
                 child_secret_key.to_bytes(),
@@ -135,9 +136,9 @@ impl ExtSecretKey {
         let mut mac = HmacSha512::new_from_slice(ExtSecretKey::BITCOIN_SEED).unwrap();
         mac.update(&seed);
         let hash = mac.finalize().into_bytes();
-        let mut secret_key_bytes = [0; 32];
+        let mut secret_key_bytes = [0; SecretKeyBytes::LEN];
         secret_key_bytes.copy_from_slice(&hash[..32]);
-        let mut chain_code = [0; 32];
+        let mut chain_code = [0; ChainCode::LEN];
         chain_code.copy_from_slice(&hash[32..]);
 
         ExtSecretKey::new(secret_key_bytes, chain_code, DerivationPath::master_path())
