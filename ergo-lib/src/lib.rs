@@ -21,7 +21,7 @@
 
 pub mod chain;
 pub mod constants;
-mod traits;
+mod utils;
 pub mod wallet;
 
 /// Re-exported types from dependencies
@@ -31,4 +31,4 @@ pub extern crate ergotree_interpreter;
 pub extern crate ergotree_ir;
 
 /// Selectively exposed types
-pub use traits::ArrLength;
+pub use utils::ArrLength;
