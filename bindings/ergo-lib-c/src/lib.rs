@@ -26,6 +26,7 @@ mod data_input;
 mod ergo_box;
 mod ergo_state_ctx;
 mod ergo_tree;
+mod ext_secret_key;
 mod header;
 mod input;
 mod reduced;
