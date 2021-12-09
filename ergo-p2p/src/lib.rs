@@ -36,4 +36,3 @@ pub use peer_feature::{LocalAddressPeerFeature, PeerFeature, PeerFeatureId};
 pub use peer_info::PeerInfo;
 pub use peer_spec::PeerSpec;
 pub use protocol_version::ProtocolVersion;
-
