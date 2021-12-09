@@ -1,9 +1,11 @@
 /// Get the length of constant sized arrays.
 ///
 /// ```
+/// use ergo_lib::ArrLength;
+///
 /// type SecretKeyBytes = [u8; 32];
-/// let secret_key_length = SecretKeyBytes::LEN; // 32
-/// let copy_buf = [0u8; SecretKeyBytes::LEN];
+///
+/// assert_eq!(32, SecretKeyBytes::LEN)
 /// ```
 pub trait ArrLength {
     /// Length of the array
