@@ -10,7 +10,7 @@ use ergo_lib_c_core::{
     Error,
 };
 
-use crate::ErrorPtr;
+use crate::{delete_ptr, ErrorPtr};
 
 /// Create ExtSecretKey from secret key bytes, chain code and derivation path
 /// Derivation path should be a string in the form of: m/44/429/acc'/0/addr
@@ -31,7 +31,7 @@ pub unsafe extern "C" fn ergo_lib_ext_secret_key_new(
     Error::c_api_from(res)
 }
 
-/// Derive root extended secret key
+/// Derive root extended secret key from seed bytes
 #[no_mangle]
 pub unsafe extern "C" fn ergo_lib_ext_secret_key_derive_master(
     seed: *const u8,
@@ -53,4 +53,10 @@ pub unsafe extern "C" fn ergo_lib_ext_secret_key_derive(
     let index = CStr::from_ptr(index_str).to_string_lossy();
     let res = ext_secret_key_derive(secret_key_bytes_ptr, &index, ext_secret_key_out);
     Error::c_api_from(res)
+}
+
+/// Drop `ExtSecretKey`
+#[no_mangle]
+pub extern "C" fn ergo_lib_ext_secret_key_delete(ptr: ExtSecretKeyPtr) {
+    unsafe { delete_ptr(ptr) }
 }
