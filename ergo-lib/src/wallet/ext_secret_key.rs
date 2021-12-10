@@ -23,9 +23,6 @@ pub type ChainCode = [u8; 32];
 
 type HmacSha512 = Hmac<Sha512>;
 
-/// Result type for ExtendedSecretKey operations
-pub type Result<T> = std::result::Result<T, ExtSecretKeyError>;
-
 /// Extended secret key
 /// implemented according to BIP-32
 #[derive(PartialEq, Debug, Clone)]
@@ -52,6 +49,9 @@ pub enum ExtSecretKeyError {
     /// For example trying to use a u32 value for a private index (31 bit size)
     #[error("child index error: {0}")]
     ChildIndexError(#[from] ChildIndexError),
+    /// Incompatible derivation paths when trying to derive a new key
+    #[error("incompatible paths: {0}")]
+    IncompatibleDerivation(String),
 }
 
 impl ExtSecretKey {
@@ -62,7 +62,7 @@ impl ExtSecretKey {
         secret_key_bytes: SecretKeyBytes,
         chain_code: ChainCode,
         derivation_path: DerivationPath,
-    ) -> Result<Self> {
+    ) -> Result<Self, ExtSecretKeyError> {
         let private_input = DlogProverInput::from_bytes(&secret_key_bytes)
             .ok_or(ExtSecretKeyError::ScalarEncodingError)?;
         Ok(Self {
@@ -83,13 +83,13 @@ impl ExtSecretKey {
     }
 
     /// Public image bytes in SEC-1 encoded & compressed format
-    pub fn public_image_bytes(&self) -> Result<Vec<u8>> {
+    pub fn public_image_bytes(&self) -> Result<Vec<u8>, ExtSecretKeyError> {
         Ok(self.public_image().h.sigma_serialize_bytes()?)
     }
 
     /// The extended public key associated with this secret key
-    #[allow(clippy::unwrap_used)]
-    pub fn public_key(&self) -> Result<ExtPubKey> {
+    pub fn public_key(&self) -> Result<ExtPubKey, ExtSecretKeyError> {
+        #[allow(clippy::unwrap_used)]
         Ok(ExtPubKey::new(
             // unwrap is safe as it is used on an Infallible result type
             self.public_image_bytes()?.try_into().unwrap(),
@@ -99,9 +99,9 @@ impl ExtSecretKey {
     }
 
     /// Derive a child extended secret key using the provided index
-    #[allow(clippy::unwrap_used)]
-    pub fn derive(&self, index: ChildIndex) -> Result<ExtSecretKey> {
+    pub fn child(&self, index: ChildIndex) -> Result<ExtSecretKey, ExtSecretKeyError> {
         // Unwrap is fine due to `ChainCode` type having fixed length of 32.
+        #[allow(clippy::unwrap_used)]
         let mut mac = HmacSha512::new_from_slice(&self.chain_code).unwrap();
         match index {
             ChildIndex::Hardened(_) => {
@@ -125,14 +125,35 @@ impl ExtSecretKey {
             )
         } else {
             // not in range [0, modulus), thus repeat with next index value (BIP-32)
-            self.derive(index.next()?)
+            self.child(index.next()?)
+        }
+    }
+
+    /// Derive a new extended secret key based on the provided derivation path
+    pub fn derive(&self, up_path: DerivationPath) -> Result<ExtSecretKey, ExtSecretKeyError> {
+        // TODO: branch visibility must also be equal
+        let is_matching_path = up_path.0[..self.derivation_path.depth()]
+            .iter()
+            .zip(self.derivation_path.0.iter())
+            .all(|(a, b)| a == b);
+
+        if up_path.depth() >= self.derivation_path.depth() && is_matching_path {
+            up_path.0[self.derivation_path.depth()..]
+                .iter()
+                .try_fold(self.clone(), |parent, i| parent.child(i.clone()))
+        } else {
+            Err(ExtSecretKeyError::IncompatibleDerivation(format!(
+                "{}, {}",
+                up_path.to_string(),
+                self.derivation_path.to_string()
+            )))
         }
     }
 
     /// Derive a root master key from the provided mnemonic seed
-    #[allow(clippy::unwrap_used)]
-    pub fn derive_master(seed: MnemonicSeed) -> Result<ExtSecretKey> {
+    pub fn derive_master(seed: MnemonicSeed) -> Result<ExtSecretKey, ExtSecretKeyError> {
         // Unwrap is safe, we are using a valid static length slice
+        #[allow(clippy::unwrap_used)]
         let mut mac = HmacSha512::new_from_slice(ExtSecretKey::BITCOIN_SEED).unwrap();
         mac.update(&seed);
         let hash = mac.finalize().into_bytes();
@@ -148,6 +169,11 @@ impl ExtSecretKey {
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
+    use crate::wallet::{
+        derivation_path::{ChildIndexHardened, ChildIndexNormal},
+        mnemonic::Mnemonic,
+    };
+
     use super::*;
     // Covers the test cases found here: https://en.bitcoin.it/wiki/BIP_0032_TestVectors
     // Only tests secret key derivation, pub key derivation is tested in `ext_pub_key.rs`
@@ -212,7 +238,7 @@ mod tests {
         .unwrap();
 
         for v in vectors {
-            ext_secret_key = ext_secret_key.derive(v.next_index).unwrap();
+            ext_secret_key = ext_secret_key.child(v.next_index).unwrap();
             assert_eq!(ext_secret_key.secret_key_bytes(), v.expected_secret_key);
         }
     }
@@ -260,8 +286,65 @@ mod tests {
         .unwrap();
 
         for v in vectors {
-            ext_secret_key = ext_secret_key.derive(v.next_index).unwrap();
+            ext_secret_key = ext_secret_key.child(v.next_index).unwrap();
             assert_eq!(ext_secret_key.secret_key_bytes(), v.expected_secret_key);
+        }
+    }
+
+    #[test]
+    fn ergo_node_key_tree_derivation_from_seed() {
+        // Tests against the following ergo node test vector:
+        // https://github.com/ergoplatform/ergo/blob/c320810c498bca25a44197840c7c5a86440c5906/ergo-wallet/src/test/scala/org/ergoplatform/wallet/secrets/ExtendedSecretKeySpec.scala#L18-L35
+        let seed_str = "edge talent poet tortoise trumpet dose";
+        let seed = Mnemonic::to_seed(seed_str, "");
+        let expected_root = "4rEDKLd17LX4xNR8ss4ithdqFRc3iFnTiTtQbanWJbCT";
+        let cases: Vec<(&str, ChildIndex)> = vec![
+            (
+                "CLdMMHxNtiPzDnWrVuZQr22VyUx8deUG7vMqMNW7as7M",
+                ChildIndexNormal::normal(1).unwrap().into(),
+            ),
+            (
+                "9icjp3TuTpRaTn6JK6AHw2nVJQaUnwmkXVdBdQSS98xD",
+                ChildIndexNormal::normal(2).unwrap().into(),
+            ),
+            (
+                "DWMp3L9JZiywxSb5gSjc5dYxPwEZ6KkmasNiHD6VRcpJ",
+                ChildIndexHardened::from_31_bit(2).unwrap().into(),
+            ),
+        ];
+
+        let mut ext_secret_key = ExtSecretKey::derive_master(seed).unwrap();
+        let ext_secret_key_b58 = bs58::encode(ext_secret_key.secret_key_bytes()).into_string();
+
+        assert_eq!(expected_root, ext_secret_key_b58);
+
+        for (expected_key, idx) in cases {
+            ext_secret_key = ext_secret_key.child(idx).unwrap();
+            let ext_secret_key_b58 = bs58::encode(ext_secret_key.secret_key_bytes()).into_string();
+
+            assert_eq!(expected_key, ext_secret_key_b58);
+        }
+    }
+
+    #[test]
+    fn ergo_node_path_derivation() {
+        // Tests against the following ergo node test vector:
+        // https://github.com/ergoplatform/ergo/blob/c320810c498bca25a44197840c7c5a86440c5906/ergo-wallet/src/test/scala/org/ergoplatform/wallet/secrets/ExtendedSecretKeySpec.scala#L37-L50
+        let seed_str = "edge talent poet tortoise trumpet dose";
+        let seed = Mnemonic::to_seed(seed_str, "");
+        let cases: Vec<(&str, &str)> = vec![
+            ("CLdMMHxNtiPzDnWrVuZQr22VyUx8deUG7vMqMNW7as7M", "m/1"),
+            ("9icjp3TuTpRaTn6JK6AHw2nVJQaUnwmkXVdBdQSS98xD", "m/1/2"),
+            ("DWMp3L9JZiywxSb5gSjc5dYxPwEZ6KkmasNiHD6VRcpJ", "m/1/2/2'"),
+        ];
+
+        let root = ExtSecretKey::derive_master(seed).unwrap();
+
+        for (expected_key, path) in cases {
+            let derived = root.derive(path.parse().unwrap()).unwrap();
+            let ext_secret_key_b58 = bs58::encode(derived.secret_key_bytes()).into_string();
+
+            assert_eq!(expected_key, ext_secret_key_b58);
         }
     }
 }
