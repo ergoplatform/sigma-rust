@@ -55,15 +55,15 @@ pub unsafe fn ext_secret_key_derive_master(
 /// Derive a new extended secret key from the provided index
 /// The index is in the form of soft or hardened indices
 /// For example: 4 or 4' respectively
-pub unsafe fn ext_secret_key_derive(
+pub unsafe fn ext_secret_key_child(
     derive_from_key_ptr: ConstExtSecretKeyPtr,
-    index: &str,
+    child_index: &str,
     ext_secret_key_out: *mut ExtSecretKeyPtr,
 ) -> Result<(), Error> {
     let ext_secret_key = const_ptr_as_ref(derive_from_key_ptr, "derive_from_key_ptr")?;
     let ext_secret_key_out = mut_ptr_as_mut(ext_secret_key_out, "ext_secret_key_out")?;
-    let index = index.parse::<ChildIndex>().map_err(Error::misc)?;
-    let key = ext_secret_key.0.derive(index).map_err(Error::misc)?;
+    let index = child_index.parse::<ChildIndex>().map_err(Error::misc)?;
+    let key = ext_secret_key.0.child(index).map_err(Error::misc)?;
     *ext_secret_key_out = Box::into_raw(Box::new(ExtSecretKey(key)));
     Ok(())
 }

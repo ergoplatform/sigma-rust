@@ -11,6 +11,8 @@ use ergo_lib::ergotree_ir::chain::digest32::Digest32Error;
 use ergo_lib::ergotree_ir::chain::ergo_box::box_value::BoxValueError;
 use ergo_lib::ergotree_ir::chain::token::TokenAmountError;
 use ergo_lib::wallet::derivation_path::ChildIndexError;
+use ergo_lib::wallet::derivation_path::DerivationPathError;
+use ergo_lib::wallet::ext_pub_key::ExtPubKeyError;
 use ergo_lib::wallet::ext_secret_key::ExtSecretKeyError;
 use ergo_lib::wallet::signing::TxSigningError;
 use ergo_lib::{
@@ -79,3 +81,5 @@ from_error_to_wrap_via_debug!(ParseIntError);
 from_error_to_wrap_via_debug!(ChildIndexError);
 from_error_to_wrap_via_debug!(BoundedVecOutOfBounds);
 from_error_to_wrap_via_debug!(ExtSecretKeyError);
+from_error_to_wrap_via_debug!(DerivationPathError);
+from_error_to_wrap_via_debug!(ExtPubKeyError);

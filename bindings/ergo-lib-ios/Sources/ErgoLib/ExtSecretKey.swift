@@ -31,10 +31,10 @@ class ExtSecretKey {
     /// Derive a new extended secret key from the provided index
     /// The index is in the form of soft or hardened indices
     /// For example: 4 or 4' respectively
-    func derive(indexStr: String) throws -> ExtSecretKey {
+    func child(indexStr: String) throws -> ExtSecretKey {
         var ptr: ExtSecretKeyPtr?
         let error = indexStr.withCString { cs in
-            ergo_lib_ext_secret_key_derive(self.pointer, cs, &ptr)
+            ergo_lib_ext_secret_key_child(self.pointer, cs, &ptr)
         }
         try checkError(error)
         return ExtSecretKey(withRawPointer: ptr!)

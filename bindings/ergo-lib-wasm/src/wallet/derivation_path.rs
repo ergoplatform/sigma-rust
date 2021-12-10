@@ -2,6 +2,7 @@
 //! BIP-44 <https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki>
 //! and EIP-3 <https://github.com/ergoplatform/eips/blob/master/eip-0003.md>
 
+use derive_more::FromStr;
 use ergo_lib::wallet::derivation_path::ChildIndexError;
 use ergo_lib::wallet::derivation_path::ChildIndexHardened;
 use ergo_lib::wallet::derivation_path::ChildIndexNormal;
@@ -17,7 +18,7 @@ use derive_more::{From, Into};
 /// BIP-44 <https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki>
 /// and EIP-3 <https://github.com/ergoplatform/eips/blob/master/eip-0003.md>
 #[wasm_bindgen]
-#[derive(PartialEq, Eq, Debug, Clone, From, Into)]
+#[derive(PartialEq, Eq, Debug, Clone, From, Into, FromStr)]
 pub struct DerivationPath(InnerDerivationPath);
 
 #[wasm_bindgen]

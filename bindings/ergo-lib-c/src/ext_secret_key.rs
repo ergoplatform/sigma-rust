@@ -4,7 +4,7 @@ use std::{ffi::CStr, os::raw::c_char};
 
 use ergo_lib_c_core::{
     ext_secret_key::{
-        ext_secret_key_derive, ext_secret_key_derive_master, ext_secret_key_new,
+        ext_secret_key_child, ext_secret_key_derive_master, ext_secret_key_new,
         ConstExtSecretKeyPtr, ExtSecretKeyPtr,
     },
     Error,
@@ -45,13 +45,13 @@ pub unsafe extern "C" fn ergo_lib_ext_secret_key_derive_master(
 /// The index is in the form of soft or hardened indices
 /// For example: 4 or 4' respectively
 #[no_mangle]
-pub unsafe extern "C" fn ergo_lib_ext_secret_key_derive(
+pub unsafe extern "C" fn ergo_lib_ext_secret_key_child(
     secret_key_bytes_ptr: ConstExtSecretKeyPtr,
     index_str: *const c_char,
     ext_secret_key_out: *mut ExtSecretKeyPtr,
 ) -> ErrorPtr {
     let index = CStr::from_ptr(index_str).to_string_lossy();
-    let res = ext_secret_key_derive(secret_key_bytes_ptr, &index, ext_secret_key_out);
+    let res = ext_secret_key_child(secret_key_bytes_ptr, &index, ext_secret_key_out);
     Error::c_api_from(res)
 }
 

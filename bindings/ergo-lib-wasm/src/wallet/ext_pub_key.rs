@@ -39,9 +39,14 @@ impl ExtPubKey {
 
     /// Soft derivation of the child public key with a given index
     /// index is expected to be a 31-bit value(32th bit should not be set)
-    pub fn derive(&self, index: u32) -> Result<ExtPubKey, JsValue> {
+    pub fn child(&self, index: u32) -> Result<ExtPubKey, JsValue> {
         let index = ChildIndexNormal::normal(index).map_err(to_js)?;
-        Ok(self.0.derive(index).into())
+        Ok(self.0.child(index).into())
+    }
+
+    /// Derive a new extended pub key from the derivation path
+    pub fn derive(&self, path: DerivationPath) -> Result<ExtPubKey, JsValue> {
+        Ok(self.0.derive(path.into()).map_err(to_js)?.into())
     }
 
     /// Create address (P2PK) from this extended public key

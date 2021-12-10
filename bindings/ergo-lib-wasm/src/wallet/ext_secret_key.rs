@@ -46,9 +46,14 @@ impl ExtSecretKey {
     /// Derive a new extended secret key from the provided index
     /// The index is in the form of soft or hardened indices
     /// For example: 4 or 4' respectively
-    pub fn derive(&self, index: &str) -> Result<ExtSecretKey, JsValue> {
+    pub fn child(&self, index: &str) -> Result<ExtSecretKey, JsValue> {
         let idx = index.parse::<ChildIndex>().map_err(to_js)?;
-        Ok(self.0.derive(idx).map_err(to_js)?.into())
+        Ok(self.0.child(idx).map_err(to_js)?.into())
+    }
+
+    /// Derive a new extended secret key from the derivation path
+    pub fn derive(&self, path: DerivationPath) -> Result<ExtSecretKey, JsValue> {
+        Ok(self.0.derive(path.into()).map_err(to_js)?.into())
     }
 
     /// The extended public key associated with this secret key
