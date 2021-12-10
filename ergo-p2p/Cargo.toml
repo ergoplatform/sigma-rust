@@ -26,6 +26,11 @@ futures = "0.3"
 tracing = "0.1"
 tracing-error = { version = "0.1.2", features = ["traced-error"] }
 
+tokio = { version = "1.14.0", features = ["net", "time", "tracing", "macros", "rt-multi-thread"] }
+tokio-stream = { version = "0.1.7", features = ["sync", "time"] }
+tokio-util = { version = "0.6.9", features = ["codec"] }
+tower = { version = "0.4.11", features = ["retry", "discover", "load", "load-shed", "timeout", "util", "buffer"] }
+
 [dependencies.proptest]
 # wasm support, via https://altsysrq.github.io/proptest-book/proptest/wasm.html
 version = "1.0.0"
