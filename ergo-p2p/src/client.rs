@@ -1,3 +1,5 @@
+#![allow(dead_code)] // TODO: remove
+
 use futures::channel::oneshot;
 use std::sync::mpsc;
 
@@ -7,7 +9,6 @@ use crate::message::Response;
 
 /// The "client" duplex half of a peer connection.
 pub struct Client {
-    #[allow(dead_code)] // TODO: remove
     pub(crate) server_tx: mpsc::Sender<ClientRequest>,
 }
 
