@@ -128,7 +128,7 @@ impl ChildIndex {
 /// BIP-44 <https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki>
 /// and EIP-3 <https://github.com/ergoplatform/eips/blob/master/eip-0003.md>
 #[derive(PartialEq, Eq, Debug, Clone, From)]
-pub struct DerivationPath(Box<[ChildIndex]>);
+pub struct DerivationPath(pub(super) Box<[ChildIndex]>);
 
 /// DerivationPath errors
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
@@ -168,6 +168,19 @@ impl DerivationPath {
         Self(Box::new([]))
     }
 
+    /// Returns the length of the derivation path
+    pub fn depth(&self) -> usize {
+        self.0.len()
+    }
+
+    /// Extend the path with the given index.
+    /// Returns this derivation path with added index.
+    pub fn extend(&self, index: ChildIndex) -> DerivationPath {
+        let mut res = self.0.to_vec();
+        res.push(index);
+        DerivationPath(res.into_boxed_slice())
+    }
+
     /// For 0x21 Sign Transaction command of Ergo Ledger App Protocol
     /// P2PK Sign (0x0D) instruction
     /// Sign calculated TX hash with private key for provided BIP44 path.
@@ -203,14 +216,6 @@ impl DerivationPath {
             .iter()
             .for_each(|i| res.append(&mut i.to_bits().to_be_bytes().to_vec()));
         res
-    }
-
-    /// Extend the path with the given index.
-    /// Returns this derivation path with added index.
-    pub fn extend(&self, index: ChildIndex) -> DerivationPath {
-        let mut res = self.0.to_vec();
-        res.push(index);
-        DerivationPath(res.into_boxed_slice())
     }
 }
 
