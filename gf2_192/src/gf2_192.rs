@@ -652,45 +652,96 @@ static POW_TABLE_2: [[i64; 192]; 7]  = [
 //}
 //
 
+/// The following tests closely match those in `ScoreXFoundation/sigmastate-interpreter`.
 #[cfg(test)]
 mod tests {
     use super::*;
     use rand::{thread_rng, Rng};
 
-    //#[derive(PartialEq, Eq, Clone)]
-    //struct GF2Slow {
-    //    x: Vec<i64>,
-    //}
+    #[derive(PartialEq, Eq, Clone)]
+    struct GF2Slow {
+        x: Vec<i64>,
+    }
 
-    //impl GF2Slow {
-    //    fn new() -> Self {
-    //        GF2Slow { x: vec![0, 0, 0] }
-    //    }
-    //}
+    impl GF2Slow {
+        fn equals(e: &GF2Slow, that: &[i64]) -> bool {
+            let mut i = 0;
+            while i < std::cmp::min(e.x.len(), that.len()) {
+                if e.x[i] != that[i] {
+                    return false;
+                }
+                i += 1;
+            }
+
+            while i < e.x.len() {
+                if e.x[i] != 0 {
+                    return false;
+                }
+                i += 1;
+            }
+
+            while i < that.len() {
+                if that[i] != 0 {
+                    return false;
+                }
+                i += 1;
+            }
+            true
+        }
+
+        #[allow(clippy::needless_range_loop)]
+        fn mul_bits(a: &[i64], b: &[i64]) -> GF2Slow {
+            let mut c: Vec<_> = std::iter::repeat(0).take(a.len() + b.len()).collect();
+
+            for i in 0..a.len() {
+                for i1 in 0..64 {
+                    for j in 0..b.len() {
+                        for j1 in 0..64 {
+                            if (a[i] & (1 << i1)) != 0 && (b[j] & (1 << j1)) != 0 {
+                                let c_position = i * 64 + i1 + j * 64 + j1;
+                                c[c_position / 64] ^= 1 << (c_position % 64);
+                            }
+                        }
+                    }
+                }
+            }
+            GF2Slow { x: c }
+        }
+
+        fn mod_reduce(poly: &GF2Slow, modulus: Modulus) -> GF2Slow {
+            let mut res = poly.clone();
+            for i in ((modulus.degree as usize)..=(res.x.len() * 64 - 1)).rev() {
+                if (res.x[i >> 6] & (1 << (i & 63))) != 0 {
+                    for j in 0..modulus.offset.len() {
+                        let k = (i as i32) - modulus.offset[j];
+                        res.x[(k as usize) >> 6] ^= 1 << (k & 63);
+                    }
+                }
+            }
+            res
+        }
+    }
+
+    struct Modulus {
+        offset: Vec<i32>,
+        degree: i32,
+    }
+
+    impl Modulus {
+        fn new(sparse_modulus: &[i32]) -> Modulus {
+            let degree = sparse_modulus[0];
+            let mut offset: Vec<_> = std::iter::repeat(0).take(sparse_modulus.len()).collect();
+            for i in 1..sparse_modulus.len() {
+                offset[i] = degree - sparse_modulus[i];
+            }
+            Modulus { offset, degree }
+        }
+    }
 
     static ZERO: GF2_192 = GF2_192 { word: [0, 0, 0] };
     static ONE: GF2_192 = GF2_192 { word: [1, 0, 0] };
-    //static PENTANOMIAL: [i64; 5] = [192, 7, 2, 1, 0];
+    static PENTANOMIAL: [i32; 5] = [192, 7, 2, 1, 0];
 
-    //#[allow(clippy::needless_range_loop)]
-    //fn mul_bits(a: &[i64], b: &[i64]) -> GF2Slow {
-    //    let mut c: Vec<_> = std::iter::repeat(0).take(a.len() + b.len()).collect();
-    //
-    //    for i in 0..a.len() {
-    //        for i1 in 0..64 {
-    //            for j in 0..b.len() {
-    //                for j1 in 0..64 {
-    //                    if (a[i] & (1 << i1)) != 0 && (b[j] & (1 << j1)) != 0 {
-    //                        let c_position = i * 64 + i1 + j * 64 + j1;
-    //                        c[c_position / 64] ^= 1 << (c_position % 64);
-    //                    }
-    //                }
-    //            }
-    //        }
-    //    }
-    //    GF2Slow { x: c }
-    //}
-    //
     fn generate_test_values() -> Vec<GF2_192> {
         let mut test_values: Vec<[i64; 3]> = std::iter::repeat([0, 0, 0]).take(250).collect();
         let mut rng = thread_rng();
@@ -883,6 +934,99 @@ mod tests {
             assert!(res.is_zero());
             res = GF2_192::mul_by_i8(z, 1);
             assert_eq!(res, z);
+        }
+
+        // Run everything times every byte
+        let mut temp = vec![0];
+        for z in generate_test_values() {
+            for i in 2..256 {
+                let m = Modulus::new(&PENTANOMIAL);
+                temp[0] = i;
+                let res = GF2_192::mul_by_i8(z, i as i8);
+                let res1 = GF2Slow::mul_bits(&z.word, &temp);
+                let res2 = GF2Slow::mod_reduce(&res1, m);
+                assert!(GF2Slow::equals(&res2, &res.word));
+            }
+        }
+    }
+
+    #[test]
+    fn test_special_add() {
+        // Run everything plus 0 and 0 plus everything
+        // where 0 is GF2_192
+        for z in generate_test_values() {
+            let mut res = z + ZERO;
+            assert_eq!(res, z);
+            res = ZERO + z;
+            assert_eq!(res, z);
+        }
+    }
+
+    #[test]
+    fn test_general_add() {
+        let mut res1 = GF2Slow { x: vec![0, 0, 0] };
+
+        // Try everything plus everything in the test array
+        let test_values = generate_test_values();
+        for w in test_values.clone() {
+            for z in test_values.clone() {
+                let res = w + z;
+                res1.x[0] = w.word[0] ^ z.word[0];
+                res1.x[1] = w.word[1] ^ z.word[1];
+                res1.x[2] = w.word[2] ^ z.word[2];
+                assert_eq!(res.word.to_vec(), res1.x);
+            }
+        }
+
+        // Try everything plus self in the test array and make sure you get zeros
+        for z in test_values {
+            let res = z + z;
+            assert!(res.is_zero());
+        }
+    }
+
+    #[test]
+    fn test_general_mult() {
+        let test_values = generate_test_values();
+        // Now run everything times everything in the test array
+        for y in test_values.clone() {
+            for z in test_values.clone() {
+                let m = Modulus::new(&PENTANOMIAL);
+                let res = y * z;
+                let res1 = GF2Slow::mul_bits(&y.word, &z.word);
+                let res2 = GF2Slow::mod_reduce(&res1, m);
+                assert!(
+                    GF2Slow::equals(&res2, &res.word),
+                    "lhs: {:?}, rhs: {:?}, leftarg: {:?}, rightarg: {:?}",
+                    res2.x,
+                    res.word,
+                    y,
+                    z
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_inversion() {
+        // Test inversion of 1
+        let mut res = GF2_192::invert(ONE);
+        assert!(res.is_one());
+
+        // Test inversion of everything
+        for z in generate_test_values() {
+            if z.is_zero() {
+                continue;
+            }
+
+            res = GF2_192::invert(z);
+            let res1 = z * res;
+            assert!(res1.is_one());
+
+            let m = Modulus::new(&PENTANOMIAL);
+            let res2 = GF2Slow::mul_bits(&res.word, &z.word);
+            let res3 = GF2Slow::mod_reduce(&res2, m);
+            assert!(GF2Slow::equals(&res3, &ONE.word));
         }
     }
 }
