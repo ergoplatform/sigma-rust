@@ -24,7 +24,7 @@
 //!
 //!  For more information, please refer to <http://unlicense.org>
 
-use crate::{lrs_i64, lrs_i8};
+use crate::{lrs_i64, lrs_i8, Gf2_192Error};
 
 /// using irreducible polynomial x^192+x^7+x^2+x+1
 /// We need only the last word
@@ -56,14 +56,14 @@ static IRRED_MULS: [i64; 16] = [
 
 /// Represents an element of the Galois field GF(2^192)
 #[derive(PartialEq, Eq, Copy, Clone, Debug)]
-pub struct GF2_192 {
+pub struct Gf2_192 {
     word: [i64; 3],
 }
 
-impl GF2_192 {
+impl Gf2_192 {
     /// Returns the 0 field element
     pub fn new() -> Self {
-        GF2_192 { word: [0, 0, 0] }
+        Gf2_192 { word: [0, 0, 0] }
     }
 
     pub fn is_zero(&self) -> bool {
@@ -77,7 +77,7 @@ impl GF2_192 {
     /// Computes a times b.
     /// Uses table lookups, which may not preserve the secrecy of the inputs in case of side-channel
     /// attacks.
-    pub fn multiply(a: GF2_192, b: GF2_192) -> GF2_192 {
+    pub fn multiply(a: Gf2_192, b: Gf2_192) -> Gf2_192 {
         // Implements a sort of times-x-and-add algorithm, except instead of multiplying by x
         // we multiply by x^4 and then add one of possible 16 precomputed values
 
@@ -146,11 +146,11 @@ impl GF2_192 {
                 w2 ^= a2muls[index];
             }
         }
-        GF2_192 { word: [w0, w1, w2] }
+        Gf2_192 { word: [w0, w1, w2] }
     }
 
     /// Computes a times b. More efficient than `mul`
-    pub fn mul_by_i8(a: GF2_192, b: i8) -> GF2_192 {
+    pub fn mul_by_i8(a: Gf2_192, b: i8) -> Gf2_192 {
         let mut w0 = 0;
         let mut w1 = 0;
         let mut w2 = 0;
@@ -165,10 +165,10 @@ impl GF2_192 {
             w1 ^= a.word[1] * t;
             w0 ^= (a.word[0] * t) ^ (IRRED_PENTANOMIAL * w3); // mod reduce
         }
-        GF2_192 { word: [w0, w1, w2] }
+        Gf2_192 { word: [w0, w1, w2] }
     }
 
-    pub fn invert(z: GF2_192) -> GF2_192 {
+    pub fn invert(z: Gf2_192) -> Gf2_192 {
         // Computes z^{2^192-2} = z^{exponent written in binary as 191 ones followed by a single zero}
         // (by Fermat's little theorem, this is the correct inverse)
 
@@ -187,25 +187,25 @@ impl GF2_192 {
             // Fill in the zeros in the exponent of z_to_2_to_k1s_2_to_k0s with ones
             z_to_2_to_k1s = z_to_2_to_k1s_2_to_k0s * z_to_2_to_k1s;
             // z_to_2_to_k1s_2_to_k0s = power_2_to_2_to_k with 2^k zeros appended to the exponent
-            z_to_2_to_k1s_2_to_k0s = GF2_192::power_2_to_2_to_k(z_to_2_to_k1s, k);
+            z_to_2_to_k1s_2_to_k0s = Gf2_192::power_2_to_2_to_k(z_to_2_to_k1s, k);
             // prepend 2^k ones to res
             res = res * z_to_2_to_k1s_2_to_k0s;
         }
-        z_to_2_to_k1s_2_to_k0s = GF2_192::power_2_to_2_to_k(z_to_2_to_k1s_2_to_k0s, k);
+        z_to_2_to_k1s_2_to_k0s = Gf2_192::power_2_to_2_to_k(z_to_2_to_k1s_2_to_k0s, k);
         res * z_to_2_to_k1s_2_to_k0s
     }
 
     /// Squares z. Same as `power_2_to_2_to_k(z, 0)`. About same efficiency as mul(res, z, z) (more
     /// efficient implementations are possible, but not provided here because of risk of
     /// side-channel attacks)
-    pub fn sqr(z: GF2_192) -> GF2_192 {
-        GF2_192::power_2_to_2_to_k(z, 0)
+    pub fn sqr(z: Gf2_192) -> Gf2_192 {
+        Gf2_192::power_2_to_2_to_k(z, 0)
     }
 
     /// Raises z to the power 2^{2^k}. Same `sqr(z, z)` 2^k times.
     /// Takes only about as much time as mul(z, z) (even more efficient implementations are possible,
     /// but not provided here because of risk of side-channel attacks)
-    pub fn power_2_to_2_to_k(z: GF2_192, k: usize) -> GF2_192 {
+    pub fn power_2_to_2_to_k(z: Gf2_192, k: usize) -> Gf2_192 {
         if k >= 7 {
             // By Fermat's little theorem, z^{2^{2^k}} = z^{2^{2^k} mod (2^{192}-1)}
             // If k>=7, then 2^{2^k} mod (2^{192}-1) = 2^64 when k is even and 2^128 when k is odd (proof below),
@@ -217,9 +217,9 @@ impl GF2_192 {
             // Then 2^{mn} = (2^{3m}-1) (2^{m(n-3}}+2^{m(n-6)}+...+2^{m-nd})+2^{nr}
             // So the remainder is 2^{nr}. r is 2 when k is odd and 1 when k is even.
 
-            let res = GF2_192::power_2_to_2_to_k(z, 6);
+            let res = Gf2_192::power_2_to_2_to_k(z, 6);
             if k % 2 == 1 {
-                GF2_192::power_2_to_2_to_k(res, 6)
+                Gf2_192::power_2_to_2_to_k(res, 6)
             } else {
                 res
             }
@@ -254,7 +254,7 @@ impl GF2_192 {
                     i += 1;
                 }
             }
-            GF2_192 { word: [t0, t1, t2] }
+            Gf2_192 { word: [t0, t1, t2] }
         }
     }
 
@@ -271,46 +271,46 @@ impl GF2_192 {
     }
 }
 
-impl Default for GF2_192 {
+impl Default for Gf2_192 {
     /// Returns the 0 field element
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl std::ops::Add for GF2_192 {
+impl std::ops::Add for Gf2_192 {
     type Output = Self;
     fn add(self, rhs: Self) -> Self {
         let mut word = [0, 0, 0];
         word[0] = self.word[0] ^ rhs.word[0];
         word[1] = self.word[1] ^ rhs.word[1];
         word[2] = self.word[2] ^ rhs.word[2];
-        GF2_192 { word }
+        Gf2_192 { word }
     }
 }
 
-impl std::ops::Mul for GF2_192 {
+impl std::ops::Mul for Gf2_192 {
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self {
-        GF2_192::multiply(self, rhs)
+        Gf2_192::multiply(self, rhs)
     }
 }
 
-impl From<[i64; 3]> for GF2_192 {
+impl From<[i64; 3]> for Gf2_192 {
     fn from(word: [i64; 3]) -> Self {
-        GF2_192 { word }
+        Gf2_192 { word }
     }
 }
 
-impl From<GF2_192> for [i64; 3] {
-    fn from(e: GF2_192) -> Self {
+impl From<Gf2_192> for [i64; 3] {
+    fn from(e: Gf2_192) -> Self {
         e.word
     }
 }
 
-impl From<GF2_192> for [u8; 24] {
-    fn from(e: GF2_192) -> Self {
+impl From<Gf2_192> for [u8; 24] {
+    fn from(e: Gf2_192) -> Self {
         let mut bytes: [u8; 24] = Default::default();
         for j in 0..3 {
             for i in 0..8 {
@@ -321,8 +321,8 @@ impl From<GF2_192> for [u8; 24] {
     }
 }
 
-impl From<GF2_192> for [i8; 24] {
-    fn from(e: GF2_192) -> Self {
+impl From<Gf2_192> for [i8; 24] {
+    fn from(e: Gf2_192) -> Self {
         let mut bytes: [i8; 24] = Default::default();
         for j in 0..3 {
             for i in 0..8 {
@@ -333,21 +333,21 @@ impl From<GF2_192> for [i8; 24] {
     }
 }
 
-impl From<i32> for GF2_192 {
+impl From<i32> for Gf2_192 {
     /// Returns an instance whose 32 least significant bits are bits of that and rest are 0
     fn from(value: i32) -> Self {
-        GF2_192 {
+        Gf2_192 {
             word: [(value as i64) & 0xFFFFFFFF, 0, 0],
         }
     }
 }
 
-impl<'a> TryFrom<&[i8]> for GF2_192 {
-    type Error = String;
+impl<'a> TryFrom<&[i8]> for Gf2_192 {
+    type Error = Gf2_192Error;
 
     fn try_from(value: &[i8]) -> Result<Self, Self::Error> {
         if value.len() < 24 {
-            return Err("".into());
+            return Err(Gf2_192Error::Gf2_192TryFromByteArrayError);
         }
         let mut word: [i64; 3] = [0, 0, 0];
         for i in 0..8 {
@@ -355,11 +355,11 @@ impl<'a> TryFrom<&[i8]> for GF2_192 {
             word[1] |= (value[i + 8] as i64 & 0xFF) << (i << 3);
             word[2] |= (value[i + 16] as i64 & 0xFF) << (i << 3);
         }
-        Ok(GF2_192 { word })
+        Ok(Gf2_192 { word })
     }
 }
 
-impl From<[u8; 24]> for GF2_192 {
+impl From<[u8; 24]> for Gf2_192 {
     fn from(bytes: [u8; 24]) -> Self {
         let mut word: [i64; 3] = [0, 0, 0];
         for i in 0..8 {
@@ -367,11 +367,11 @@ impl From<[u8; 24]> for GF2_192 {
             word[1] |= (bytes[i + 8] as i64 & 0xFF) << (i << 3);
             word[2] |= (bytes[i + 16] as i64 & 0xFF) << (i << 3);
         }
-        GF2_192 { word }
+        Gf2_192 { word }
     }
 }
 
-impl From<[i8; 24]> for GF2_192 {
+impl From<[i8; 24]> for Gf2_192 {
     fn from(bytes: [i8; 24]) -> Self {
         let mut word: [i64; 3] = [0, 0, 0];
         for i in 0..8 {
@@ -379,11 +379,11 @@ impl From<[i8; 24]> for GF2_192 {
             word[1] |= (bytes[i + 8] as i64 & 0xFF) << (i << 3);
             word[2] |= (bytes[i + 16] as i64 & 0xFF) << (i << 3);
         }
-        GF2_192 { word }
+        Gf2_192 { word }
     }
 }
 
-pub fn write_to_i8_slice(value: GF2_192, slice: &mut [i8], pos: usize) -> Result<(), String> {
+pub fn write_to_i8_slice(value: Gf2_192, slice: &mut [i8], pos: usize) -> Result<(), String> {
     if slice.len() < pos + 24 {
         return Err("".into());
     }
@@ -738,11 +738,11 @@ mod tests {
         }
     }
 
-    static ZERO: GF2_192 = GF2_192 { word: [0, 0, 0] };
-    static ONE: GF2_192 = GF2_192 { word: [1, 0, 0] };
+    static ZERO: Gf2_192 = Gf2_192 { word: [0, 0, 0] };
+    static ONE: Gf2_192 = Gf2_192 { word: [1, 0, 0] };
     static PENTANOMIAL: [i32; 5] = [192, 7, 2, 1, 0];
 
-    fn generate_test_values() -> Vec<GF2_192> {
+    fn generate_test_values() -> Vec<Gf2_192> {
         let mut test_values: Vec<[i64; 3]> = std::iter::repeat([0, 0, 0]).take(250).collect();
         let mut rng = thread_rng();
 
@@ -807,27 +807,27 @@ mod tests {
             j += 1;
         }
 
-        test_values.into_iter().map(GF2_192::from).collect()
+        test_values.into_iter().map(Gf2_192::from).collect()
     }
 
     #[test]
     fn test_equality() {
-        let mut t = GF2_192::new();
+        let mut t = Gf2_192::new();
         assert!(t.is_zero());
 
-        t = GF2_192::from(0);
+        t = Gf2_192::from(0);
         assert!(t.is_zero());
 
-        t = GF2_192::from(1);
+        t = Gf2_192::from(1);
         assert!(t.is_one());
 
-        t = GF2_192::from(-1);
+        t = Gf2_192::from(-1);
         assert_eq!(t.word[0], 0xFFFFFFFF);
         assert_eq!(t.word[1], 0);
         assert_eq!(t.word[1], 0);
 
         let s: [i64; 3] = [123345, 123567891234567, 487237823242367];
-        t = GF2_192::from(s);
+        t = Gf2_192::from(s);
         let t1 = t;
         assert_eq!(t, t1);
 
@@ -842,7 +842,7 @@ mod tests {
             b[i + 16] = lrs_i64(r[2], (i * 8) as i64) as i8;
         }
 
-        t = GF2_192::from(b);
+        t = Gf2_192::from(b);
         let i64_repr: [i64; 3] = t.into();
         let i8_repr: [i8; 24] = t.into();
         assert_eq!(r, i64_repr);
@@ -856,7 +856,7 @@ mod tests {
         // Test on i8 array with offset
         let mut b1: [i8; 30] = Default::default();
         b1[6..].clone_from_slice(&b[..24]);
-        t = GF2_192::try_from(&b1[6..]).unwrap();
+        t = Gf2_192::try_from(&b1[6..]).unwrap();
         let i8_repr: [i8; 24] = t.into();
         let i64_repr: [i64; 3] = t.into();
         assert_eq!(b, i8_repr);
@@ -864,7 +864,7 @@ mod tests {
 
         // Testing on 'all ones'.
         let s: [i64; 3] = [i64::MAX, i64::MAX, i64::MAX];
-        t = GF2_192::from(s);
+        t = Gf2_192::from(s);
         let i64_repr: [i64; 3] = t.into();
         assert_eq!(s, i64_repr);
 
@@ -874,7 +874,7 @@ mod tests {
             b[i + 8] = lrs_i64(i64_repr[1], (i * 8) as i64) as i8;
             b[i + 16] = lrs_i64(i64_repr[2], (i * 8) as i64) as i8;
         }
-        t = GF2_192::from(b);
+        t = Gf2_192::from(b);
         assert_eq!(t.word, i64_repr);
     }
 
@@ -882,28 +882,28 @@ mod tests {
     fn test_pow_2_to_2_to_k() {
         let max_k = 15;
         for k in 0..max_k {
-            assert_eq!(GF2_192::power_2_to_2_to_k(ZERO, k), ZERO);
-            assert_eq!(GF2_192::power_2_to_2_to_k(ONE, k), ONE);
+            assert_eq!(Gf2_192::power_2_to_2_to_k(ZERO, k), ZERO);
+            assert_eq!(Gf2_192::power_2_to_2_to_k(ONE, k), ONE);
         }
 
-        assert!(GF2_192::sqr(ZERO).is_zero());
-        assert!(GF2_192::sqr(ONE).is_one());
+        assert!(Gf2_192::sqr(ZERO).is_zero());
+        assert!(Gf2_192::sqr(ONE).is_one());
 
-        let mut res1 = GF2_192::new();
+        let mut res1 = Gf2_192::new();
         #[allow(unused_assignments)]
-        let mut res2 = GF2_192::new();
+        let mut res2 = Gf2_192::new();
         for z in generate_test_values() {
             for k in 0..max_k {
-                let res = GF2_192::power_2_to_2_to_k(z, k);
+                let res = Gf2_192::power_2_to_2_to_k(z, k);
                 if k == 0 {
                     // Ground truth for squaring: self-multiply
                     res1 = z * z; // sqr should equal power_2_to_2_to_k with k = 0
                     assert_eq!(res, res1);
-                    res2 = GF2_192::sqr(z);
+                    res2 = Gf2_192::sqr(z);
                     assert_eq!(res, res2);
                 } else {
                     // res1 is the ground truth, computed using smaller values of k than is currently being tested
-                    res1 = GF2_192::power_2_to_2_to_k(res1, k - 1);
+                    res1 = Gf2_192::power_2_to_2_to_k(res1, k - 1);
                     assert_eq!(res, res1);
                 }
             }
@@ -930,9 +930,9 @@ mod tests {
         // and everything times 1
         // where 0 and 1 are bytes
         for z in generate_test_values() {
-            let mut res = GF2_192::mul_by_i8(z, 0);
+            let mut res = Gf2_192::mul_by_i8(z, 0);
             assert!(res.is_zero());
-            res = GF2_192::mul_by_i8(z, 1);
+            res = Gf2_192::mul_by_i8(z, 1);
             assert_eq!(res, z);
         }
 
@@ -942,7 +942,7 @@ mod tests {
             for i in 2..256 {
                 let m = Modulus::new(&PENTANOMIAL);
                 temp[0] = i;
-                let res = GF2_192::mul_by_i8(z, i as i8);
+                let res = Gf2_192::mul_by_i8(z, i as i8);
                 let res1 = GF2Slow::mul_bits(&z.word, &temp);
                 let res2 = GF2Slow::mod_reduce(&res1, m);
                 assert!(GF2Slow::equals(&res2, &res.word));
@@ -1010,7 +1010,7 @@ mod tests {
     #[test]
     fn test_inversion() {
         // Test inversion of 1
-        let mut res = GF2_192::invert(ONE);
+        let mut res = Gf2_192::invert(ONE);
         assert!(res.is_one());
 
         // Test inversion of everything
@@ -1019,7 +1019,7 @@ mod tests {
                 continue;
             }
 
-            res = GF2_192::invert(z);
+            res = Gf2_192::invert(z);
             let res1 = z * res;
             assert!(res1.is_one());
 

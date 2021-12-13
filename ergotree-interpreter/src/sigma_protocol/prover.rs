@@ -22,6 +22,7 @@ use crate::sigma_protocol::UnprovenLeaf;
 use crate::sigma_protocol::SOUNDNESS_BYTES;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaConjectureItems;
+use gf2_192::Gf2_192Error;
 use std::convert::TryInto;
 use std::rc::Rc;
 
@@ -65,6 +66,9 @@ pub enum ProverError {
     /// Failed to evaluate ErgoTree
     #[error("Evaluation error: {0}")]
     EvalError(EvalError),
+    /// `gf2_192` error
+    #[error("gf2_192 error: {0}")]
+    Gf2_192Error(Gf2_192Error),
     /// Script reduced to false
     #[error("Script reduced to false")]
     ReducedToFalse,
@@ -100,6 +104,12 @@ impl From<ErgoTreeError> for ProverError {
 impl From<FiatShamirTreeSerializationError> for ProverError {
     fn from(e: FiatShamirTreeSerializationError) -> Self {
         ProverError::FiatShamirTreeSerializationError(e)
+    }
+}
+
+impl From<Gf2_192Error> for ProverError {
+    fn from(e: Gf2_192Error) -> Self {
+        ProverError::Gf2_192Error(e)
     }
 }
 
@@ -559,11 +569,13 @@ fn step4_simulated_threshold_conj(
         let q = Gf2_192Poly::from_byte_array(
             challenge,
             secure_random_bytes(SOUNDNESS_BYTES * (n - ct.k as usize)),
-        );
+        )?;
         let new_children = unproven_children
             .enumerated()
             .mapped(|(idx, c)| {
-                let one_based_idx = idx + 1;
+                // Note the cast to `u8` is safe since `unproven_children` is of type
+                // `SigmaConjectureItems<_>` which is a `BoundedVec<_, 2, 255>`.
+                let one_based_idx = (idx + 1) as u8;
                 let new_challenge = q.evaluate(one_based_idx).into();
                 c.with_challenge(new_challenge)
             })
@@ -826,10 +838,12 @@ fn step9_real_threshold(ct: CthresholdUnproven) -> Result<Option<ProofTree>, Pro
         }
 
         let value_at_zero = challenge.into();
-        let q = Gf2_192Poly::interpolate(points, values, value_at_zero);
+        let q = Gf2_192Poly::interpolate(points, values, value_at_zero)?;
 
         let new_children = ct.children.clone().enumerated().mapped(|(idx, child)| {
-            let one_based_idx = idx + 1;
+            // Note the cast to `u8` is safe since `ct.children` is of type
+            // `SigmaConjectureItems<_>` which is a `BoundedVec<_, 2, 255>`.
+            let one_based_idx = (idx + 1) as u8;
             match &child {
                 ProofTree::UnprovenTree(ut) if ut.is_real() => {
                     child.with_challenge(q.evaluate(one_based_idx).into())

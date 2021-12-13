@@ -25,6 +25,7 @@ use ergotree_ir::sigma_protocol::sigma_boolean::SigmaConjecture;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
 
 use derive_more::From;
+use gf2_192::Gf2_192Error;
 use k256::Scalar;
 use thiserror::Error;
 
@@ -214,14 +215,16 @@ fn parse_sig_compute_challenges_reader<R: SigmaByteRead>(
                 let buf_size = n_coeff * SOUNDNESS_BYTES;
                 let mut coeff_bytes = vec![0u8; buf_size];
                 r.read_exact(&mut coeff_bytes)?;
-                let polynomial = Gf2_192Poly::from_byte_array(challenge.clone(), coeff_bytes);
+                let polynomial = Gf2_192Poly::from_byte_array(challenge.clone(), coeff_bytes)?;
 
                 let children =
                     ct.children
                         .clone()
                         .enumerated()
                         .try_mapped_ref(|(idx, child)| {
-                            let one_based_index = idx + 1;
+                            // Note the cast to `u8` is safe since `ct.children` is of type
+                            // `SigmaConjectureItems<_>` which is a `BoundedVec<_, 2, 255>`.
+                            let one_based_index = (idx + 1) as u8;
                             let ch = polynomial.evaluate(one_based_index).into();
                             parse_sig_compute_challenges_reader(child, r, Some(ch))
                         })?;
@@ -240,6 +243,9 @@ fn parse_sig_compute_challenges_reader<R: SigmaByteRead>(
 /// Errors when parsing proof tree signatures
 #[derive(Error, PartialEq, Eq, Debug, Clone, From)]
 pub enum SigParsingError {
+    /// `gf2_192` error
+    #[error("gf2_192 error: {0}")]
+    Gf2_192Error(Gf2_192Error),
     /// IO error
     #[error("IO error: {0}")]
     IoError(String),
