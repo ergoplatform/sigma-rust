@@ -19,6 +19,8 @@
 #![deny(clippy::panic)]
 
 mod client;
+mod codec;
+mod constants;
 mod error;
 mod message;
 mod peer_addr;

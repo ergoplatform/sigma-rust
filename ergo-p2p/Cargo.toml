@@ -30,6 +30,9 @@ tokio = { version = "1.14.0", features = ["net", "time", "tracing", "macros", "r
 tokio-stream = { version = "0.1.7", features = ["sync", "time"] }
 tokio-util = { version = "0.6.9", features = ["codec"] }
 tower = { version = "0.4.11", features = ["retry", "discover", "load", "load-shed", "timeout", "util", "buffer"] }
+bytes = "1.1.0"
+
+chrono = "0.4"
 
 [dependencies.proptest]
 # wasm support, via https://altsysrq.github.io/proptest-book/proptest/wasm.html

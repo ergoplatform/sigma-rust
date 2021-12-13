@@ -26,3 +26,17 @@ pub enum PeerError {}
 /// non-'static lifetimes, (e.g., when a type contains a borrow and is
 /// parameterized by 'a), *not* that the object itself has 'static lifetime.
 pub type BoxError = Box<dyn std::error::Error + Send + Sync + 'static>;
+
+/// An error during a handshake with a remote peer.
+#[derive(Error, Debug)]
+pub enum HandshakeError {
+    /// Sending or receiving a message timed out.
+    #[error("Timeout when sending or receiving a message to peer")]
+    Timeout,
+}
+
+impl From<tokio::time::error::Elapsed> for HandshakeError {
+    fn from(_source: tokio::time::error::Elapsed) -> Self {
+        HandshakeError::Timeout
+    }
+}

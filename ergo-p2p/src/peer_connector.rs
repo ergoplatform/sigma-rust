@@ -18,7 +18,6 @@ use crate::Client;
 use crate::PeerAddr;
 
 /// Opens a TCP connection before forwarding to the inner peer connection handling service for a handshake.
-#[allow(dead_code)] // TODO: remove
 pub struct PeerConnector {
     handshaker: PeerConnectionHandler,
 }
@@ -45,12 +44,12 @@ impl Service<OutboundConnectorRequest> for PeerConnector {
         let addr: SocketAddr = req.addr.into();
         let mut handshaker = self.handshaker.clone();
         async move {
-            let stream = TcpStream::connect(addr).await?;
+            let tcp_stream = TcpStream::connect(addr).await?;
             handshaker.ready().await?;
             let client = handshaker
                 .call(HandshakeRequest {
-                    tcp_stream: stream,
-                    connected_addr: connection_id,
+                    tcp_stream,
+                    connection_id,
                 })
                 .await?;
             Ok(Change::Insert(req.addr, client))
