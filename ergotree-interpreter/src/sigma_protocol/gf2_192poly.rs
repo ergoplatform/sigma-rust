@@ -1,6 +1,3 @@
-// TODO: remove after all todo! are implemented
-#![allow(clippy::todo)]
-
 use std::convert::TryFrom;
 
 use gf2_192::gf2_192poly::CoefficientsByteRepr;

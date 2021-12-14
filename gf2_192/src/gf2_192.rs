@@ -66,10 +66,12 @@ impl Gf2_192 {
         Gf2_192 { word: [0, 0, 0] }
     }
 
+    /// Returns true iff `Self == 0`
     pub fn is_zero(&self) -> bool {
         self.word[0] == 0 && self.word[1] == 0 && self.word[2] == 0
     }
 
+    /// Returns true iff `Self == 1`
     pub fn is_one(&self) -> bool {
         self.word[0] == 1 && self.word[1] == 0 && self.word[2] == 0
     }
@@ -168,6 +170,7 @@ impl Gf2_192 {
         Gf2_192 { word: [w0, w1, w2] }
     }
 
+    /// Compute multiplicative inverse `1/Self`.
     pub fn invert(z: Gf2_192) -> Gf2_192 {
         // Computes z^{2^192-2} = z^{exponent written in binary as 191 ones followed by a single zero}
         // (by Fermat's little theorem, this is the correct inverse)
@@ -258,9 +261,10 @@ impl Gf2_192 {
         }
     }
 
-    pub fn to_i8_slice(&self, slice: &mut [i8], pos: usize) -> Result<(), String> {
+    /// Write out byte representation to the given `slice` at position `pos`.
+    pub fn to_i8_slice(&self, slice: &mut [i8], pos: usize) -> Result<(), Gf2_192Error> {
         if slice.len() < pos + 24 {
-            return Err("not enough space in slice[pos..]".into());
+            return Err(Gf2_192Error::Gf2_192ToByteArrayError);
         }
         for j in 0..3 {
             for i in 0..8 {
@@ -381,18 +385,6 @@ impl From<[i8; 24]> for Gf2_192 {
         }
         Gf2_192 { word }
     }
-}
-
-pub fn write_to_i8_slice(value: Gf2_192, slice: &mut [i8], pos: usize) -> Result<(), String> {
-    if slice.len() < pos + 24 {
-        return Err("".into());
-    }
-    for j in 0..3 {
-        for i in 0..8 {
-            slice[pos + i + 8 * j] = i8::try_from((value.word[j] >> (i << 3)) & 0xFF).unwrap();
-        }
-    }
-    Ok(())
 }
 
 #[rustfmt::skip]
@@ -654,6 +646,7 @@ static POW_TABLE_2: [[i64; 192]; 7]  = [
 
 /// The following tests closely match those in `ScoreXFoundation/sigmastate-interpreter`.
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use rand::{thread_rng, Rng};

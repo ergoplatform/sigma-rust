@@ -1,3 +1,24 @@
+//! Implementation of finite field arithmetic and polynomial interpolation/evaluation in Galois
+//! field GF(2^192).
+
+// Coding conventions
+#![forbid(unsafe_code)]
+#![deny(non_upper_case_globals)]
+#![deny(non_camel_case_types)]
+#![deny(non_snake_case)]
+#![deny(unused_mut)]
+#![deny(dead_code)]
+#![deny(unused_imports)]
+#![deny(missing_docs)]
+// Clippy exclusions
+#![allow(clippy::unit_arg)]
+#![deny(rustdoc::broken_intra_doc_links)]
+#![deny(clippy::unwrap_used)]
+#![deny(clippy::expect_used)]
+#![deny(clippy::todo)]
+#![deny(clippy::unimplemented)]
+#![deny(clippy::panic)]
+
 use derive_more::From;
 use gf2_192poly::Gf2_192PolyError;
 use thiserror::Error;
@@ -29,6 +50,9 @@ pub enum Gf2_192Error {
     /// Failed to create `Gf2_192` from `&[i8]`
     #[error("Failed to create `Gf2_192` from `&[i8]`")]
     Gf2_192TryFromByteArrayError,
+    /// Failed to create `Gf2_192` from `&[i8]`
+    #[error("Failed to write `Gf2_192` to `&[i8]`")]
+    Gf2_192ToByteArrayError,
     /// `Gf2_192Poly` error
     #[error("`Gf2_192Poly` Error: {0}")]
     Gf2_192PolyError(Gf2_192PolyError),

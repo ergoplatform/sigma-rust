@@ -187,6 +187,7 @@ impl<'a> TryFrom<CoefficientsByteRepr<'a>> for Gf2_192Poly {
 
 /// The following tests closely match those in `ScoreXFoundation/sigmastate-interpreter`.
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use rand::{thread_rng, Rng};
