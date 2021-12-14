@@ -1,6 +1,7 @@
 //! Wallet-like features
 
 use ergo_lib::chain::transaction::TxIoVec;
+use ergo_lib::wallet::signing::ErgoTransaction;
 
 use crate::{
     collections::ConstCollectionPtr,

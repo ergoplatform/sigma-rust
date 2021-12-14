@@ -1,6 +1,7 @@
 //! Wallet-like features
 use derive_more::{From, Into};
 use ergo_lib::chain::transaction::TxIoVec;
+use ergo_lib::wallet::signing::ErgoTransaction;
 use wasm_bindgen::prelude::*;
 
 pub mod derivation_path;
@@ -55,7 +56,7 @@ impl Wallet {
             }
         };
         let tx_context = ergo_lib::wallet::signing::TransactionContext::new(
-            tx.clone().into(),
+            tx.0.clone(),
             boxes_to_spend,
             data_boxes,
         )
@@ -90,7 +91,7 @@ impl Wallet {
             }
         };
         let tx_context = ergo_lib::wallet::signing::TransactionContext::new(
-            tx.clone().into(),
+            tx.0.clone(),
             boxes_to_spend,
             data_boxes,
         )
@@ -154,7 +155,7 @@ impl Wallet {
             }
         };
         let tx_context = ergo_lib::wallet::signing::TransactionContext::new(
-            tx.clone().into(),
+            tx.0.clone(),
             boxes_to_spend,
             data_boxes,
         )

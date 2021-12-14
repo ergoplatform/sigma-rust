@@ -7,7 +7,7 @@ use crate::ergo_box::{ErgoBox, ErgoBoxCandidate};
 /// Collection of ErgoBox'es
 #[wasm_bindgen]
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct ErgoBoxes(Vec<ErgoBox>);
+pub struct ErgoBoxes(pub(crate) Vec<ErgoBox>);
 
 #[wasm_bindgen]
 impl ErgoBoxes {

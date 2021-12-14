@@ -2,6 +2,7 @@
 //! is augmented with ReducedInput which contains a script reduction result.
 
 use ergo_lib::chain::transaction::{reduced::reduce_tx, TxIoVec};
+use ergo_lib::wallet::signing::ErgoTransaction;
 
 use crate::{
     collections::ConstCollectionPtr,

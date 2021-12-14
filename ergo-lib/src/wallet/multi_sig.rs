@@ -1,8 +1,8 @@
 //! multi sig prover
 
 use crate::chain::ergo_state_context::ErgoStateContext;
-use crate::chain::transaction::reduced::ReducedTransaction;
 use crate::chain::transaction::Transaction;
+use crate::ergotree_interpreter::eval::context::TxIoVec;
 use crate::ergotree_interpreter::eval::env::Env;
 use crate::ergotree_interpreter::eval::reduce_to_crypto;
 use crate::ergotree_interpreter::sigma_protocol::dlog_protocol::{
@@ -20,10 +20,11 @@ use crate::ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 use crate::ergotree_ir::sigma_protocol::sigma_boolean::SigmaConjecture;
 use crate::ergotree_ir::sigma_protocol::sigma_boolean::SigmaConjectureItems;
 use crate::ergotree_ir::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
-use crate::wallet::signing::{make_context, TransactionContext, TxSigningError};
+use crate::wallet::signing::{make_context, ErgoTransaction, TransactionContext, TxSigningError};
 use ergotree_interpreter::sigma_protocol::dlog_protocol::interactive_prover::compute_commitment;
 use ergotree_interpreter::sigma_protocol::sig_serializer::parse_sig_compute_challenges;
 use ergotree_interpreter::sigma_protocol::unchecked_tree::{UncheckedLeaf, UncheckedTree};
+use ergotree_ir::chain::ergo_box::ErgoBox;
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -123,24 +124,106 @@ pub fn compute_commitments(leaf: UncheckedLeaf) -> Option<FirstDlogProverMessage
     ret
 }
 
-#[allow(clippy::unwrap_used)]
-/// Outputs Hints bag for a signed(invalid) transaction
+/// A method which is extracting partial proofs of secret knowledge for particular secrets with their
+/// respective public images given. Useful for distributed signature applications.
+/// See DistributedSigSpecification for examples of usage.
 pub fn bag_for_multi_sig(
     sigma_tree: SigmaBoolean,
     real_propositions: &[SigmaBoolean],
     simulated_propositions: &[SigmaBoolean],
     proof: &[u8],
-) -> HintsBag {
-    let ut: UncheckedTree = parse_sig_compute_challenges(&sigma_tree, proof.to_owned()).unwrap();
-    let mut bag: HintsBag = HintsBag::empty();
-    traverse_node(
-        ut,
-        real_propositions,
-        simulated_propositions,
-        NodePosition::crypto_tree_prefix(),
-        &mut bag,
-    );
-    bag
+) -> Result<HintsBag, &'static str> {
+    let ut = parse_sig_compute_challenges(&sigma_tree, proof.to_owned());
+    match ut {
+        Ok(tree) => {
+            let mut bag: HintsBag = HintsBag::empty();
+
+            // The unwrap use on option causes panic in case of dhtuple signature, that is not implemented
+            // Traversing node of sigma tree
+            fn traverse_node(
+                tree: UncheckedTree,
+                real_propositions: &[SigmaBoolean],
+                simulated_propositions: &[SigmaBoolean],
+                position: NodePosition,
+                bag: &mut HintsBag,
+            ) {
+                match tree {
+                    UncheckedTree::UncheckedConjecture(unchecked_conjecture) => {
+                        let items: SigmaConjectureItems<UncheckedTree> =
+                            unchecked_conjecture.children_ust();
+                        items.iter().enumerate().for_each(|(i, x)| {
+                            traverse_node(
+                                x.clone(),
+                                real_propositions,
+                                simulated_propositions,
+                                position.child(i),
+                                bag,
+                            );
+                        })
+                    }
+                    UncheckedTree::UncheckedLeaf(leaf) => {
+                        let real_found = real_propositions.contains(&leaf.proposition());
+                        let simulated_found = simulated_propositions.contains(&leaf.proposition());
+                        if real_found || simulated_found {
+                            if let Some(a) = compute_commitments(leaf.clone()) {
+                                if real_found {
+                                    let real_commitment: Hint = Hint::CommitmentHint(
+                                        CommitmentHint::RealCommitment(RealCommitment {
+                                            image: leaf.proposition(),
+                                            commitment: FirstProverMessage::FirstDlogProverMessage(
+                                                a,
+                                            ),
+                                            position: position.clone(),
+                                        }),
+                                    );
+                                    let real_secret_proof: Hint = Hint::SecretProven(
+                                        SecretProven::RealSecretProof(RealSecretProof {
+                                            image: leaf.proposition(),
+                                            challenge: leaf.challenge(),
+                                            unchecked_tree: UncheckedTree::UncheckedLeaf(leaf),
+                                            position,
+                                        }),
+                                    );
+                                    bag.add_hint(real_commitment);
+                                    bag.add_hint(real_secret_proof);
+                                } else {
+                                    let simulated_commitment: Hint = Hint::CommitmentHint(
+                                        CommitmentHint::SimulatedCommitment(SimulatedCommitment {
+                                            image: leaf.proposition(),
+                                            commitment: FirstProverMessage::FirstDlogProverMessage(
+                                                a,
+                                            ),
+                                            position: position.clone(),
+                                        }),
+                                    );
+                                    let simulated_secret_proof: Hint = Hint::SecretProven(
+                                        SecretProven::SimulatedSecretProof(SimulatedSecretProof {
+                                            image: leaf.proposition(),
+                                            challenge: leaf.challenge(),
+                                            unchecked_tree: UncheckedTree::UncheckedLeaf(leaf),
+                                            position,
+                                        }),
+                                    );
+                                    bag.add_hint(simulated_commitment);
+                                    bag.add_hint(simulated_secret_proof);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            traverse_node(
+                tree,
+                real_propositions,
+                simulated_propositions,
+                NodePosition::crypto_tree_prefix(),
+                &mut bag,
+            );
+            Ok(bag)
+        }
+
+        Err(_) => Err("sigma parsing error"),
+    }
 }
 
 /// A method which is generating commitments to randomness. A commitment is about a first step
@@ -178,28 +261,24 @@ pub fn generate_commitments(
 
 /// Extracting hints from a transaction and outputs it's corresponding TransactionHintsBag
 pub fn extract_hints(
-    signed_tx: Transaction,
-    tx_context: TransactionContext,
+    tx: &Transaction,
     state_context: &ErgoStateContext,
+    boxes_to_spend: TxIoVec<ErgoBox>,
+    data_boxes: Option<TxIoVec<ErgoBox>>,
     real_secrets_to_extract: Vec<SigmaBoolean>,
     simulated_secrets_to_extract: Vec<SigmaBoolean>,
 ) -> Result<TransactionHintsBag, TxSigningError> {
     let mut hints_bag = TransactionHintsBag::empty();
-    let tx = tx_context.spending_tx.clone();
     for (i, input) in tx.inputs.iter().enumerate() {
-        let input_box = tx_context
-            .get_boxes_to_spend()
+        let input_box = boxes_to_spend
+            .iter()
             .find(|b| b.box_id() == input.box_id)
             .ok_or(TxSigningError::InputBoxNotFound(i))?;
+        let tx_context =
+            TransactionContext::new(tx.clone(), boxes_to_spend.clone(), data_boxes.clone())?;
         let ctx = Rc::new(make_context(state_context, &tx_context, i)?);
         let tree = input_box.ergo_tree.clone();
-        let proof: ProofBytes = signed_tx
-            .inputs
-            .get(i)
-            .unwrap()
-            .clone()
-            .spending_proof
-            .proof;
+        let proof: ProofBytes = tx.inputs.get(i).unwrap().clone().spending_proof.proof;
         let proof: Vec<u8> = Vec::from(proof);
         let exp = tree
             .proposition()
@@ -209,117 +288,21 @@ pub fn extract_hints(
             .map_err(ProverError::EvalError)
             .map_err(|e| TxSigningError::ProverError(e, i))?;
         let sigma_tree = reduction_result.sigma_prop;
-        hints_bag.add_hints_for_input(
-            i,
-            bag_for_multi_sig(
-                sigma_tree,
-                real_secrets_to_extract.as_slice(),
-                simulated_secrets_to_extract.as_slice(),
-                proof.as_slice(),
-            ),
-        );
-    }
-
-    Ok(hints_bag)
-}
-
-#[allow(clippy::unwrap_used)]
-/// Extracting hints from reduced transaction
-pub fn extract_hints_from_reduced_transaction(
-    reduced_tx: ReducedTransaction,
-    signed_tx: Transaction,
-    real_propositions: Vec<SigmaBoolean>,
-    simulated_propositions: Vec<SigmaBoolean>,
-) -> TransactionHintsBag {
-    let mut hints_bag = TransactionHintsBag::empty();
-    for (idx, input) in reduced_tx.reduced_inputs().iter().enumerate() {
-        let sigma_prop = input.clone().reduction_result.sigma_prop;
-        let proof = Vec::from(
-            signed_tx
-                .inputs
-                .get(idx)
-                .unwrap()
-                .spending_proof
-                .clone()
-                .proof,
-        );
-        let hints = bag_for_multi_sig(
-            sigma_prop,
-            real_propositions.as_slice(),
-            simulated_propositions.as_slice(),
+        let bag = bag_for_multi_sig(
+            sigma_tree,
+            real_secrets_to_extract.as_slice(),
+            simulated_secrets_to_extract.as_slice(),
             proof.as_slice(),
         );
-        hints_bag.add_hints_for_input(idx, hints);
-    }
-    hints_bag
-}
-
-// The unwrap use on option causes panic in case of dhtuple signature, that is not implemented
-#[allow(clippy::unwrap_used)]
-/// Traversing node of sigma tree
-pub fn traverse_node(
-    tree: UncheckedTree,
-    real_propositions: &[SigmaBoolean],
-    simulated_propositions: &[SigmaBoolean],
-    position: NodePosition,
-    bag: &mut HintsBag,
-) {
-    match tree {
-        UncheckedTree::UncheckedConjecture(unchecked_conjecture) => {
-            let items: SigmaConjectureItems<UncheckedTree> = unchecked_conjecture.children_ust();
-            items.iter().enumerate().for_each(|(i, x)| {
-                traverse_node(
-                    x.clone(),
-                    real_propositions,
-                    simulated_propositions,
-                    position.child(i),
-                    bag,
-                );
-            })
-        }
-        UncheckedTree::UncheckedLeaf(leaf) => {
-            let real_found = real_propositions.contains(&leaf.proposition());
-            let simulated_found = simulated_propositions.contains(&leaf.proposition());
-            if real_found || simulated_found {
-                let a = compute_commitments(leaf.clone()).unwrap();
-                if real_found {
-                    let real_commitment: Hint =
-                        Hint::CommitmentHint(CommitmentHint::RealCommitment(RealCommitment {
-                            image: leaf.proposition(),
-                            commitment: FirstProverMessage::FirstDlogProverMessage(a),
-                            position: position.clone(),
-                        }));
-                    let real_secret_proof: Hint =
-                        Hint::SecretProven(SecretProven::RealSecretProof(RealSecretProof {
-                            image: leaf.proposition(),
-                            challenge: leaf.challenge(),
-                            unchecked_tree: UncheckedTree::UncheckedLeaf(leaf),
-                            position,
-                        }));
-                    bag.add_hint(real_commitment);
-                    bag.add_hint(real_secret_proof);
-                } else {
-                    let simulated_commitment: Hint = Hint::CommitmentHint(
-                        CommitmentHint::SimulatedCommitment(SimulatedCommitment {
-                            image: leaf.proposition(),
-                            commitment: FirstProverMessage::FirstDlogProverMessage(a),
-                            position: position.clone(),
-                        }),
-                    );
-                    let simulated_secret_proof: Hint = Hint::SecretProven(
-                        SecretProven::SimulatedSecretProof(SimulatedSecretProof {
-                            image: leaf.proposition(),
-                            challenge: leaf.challenge(),
-                            unchecked_tree: UncheckedTree::UncheckedLeaf(leaf),
-                            position,
-                        }),
-                    );
-                    bag.add_hint(simulated_commitment);
-                    bag.add_hint(simulated_secret_proof);
-                }
+        match bag {
+            Ok(hints) => hints_bag.add_hints_for_input(i, hints),
+            Err(_) => {
+                "sigma parsing error".to_string();
             }
         }
     }
+
+    Ok(hints_bag)
 }
 
 /// Generating commitment for ergo-tree that is reduced to crypto
@@ -484,7 +467,8 @@ mod tests {
             real_proposition.as_slice(),
             simulated_proposition.as_slice(),
             proof.as_slice(),
-        );
+        )
+        .unwrap();
         assert!(bag.hints.is_empty(), "{}", "{}");
 
         let address_encoder = AddressEncoder::new(NetworkPrefix::Mainnet);
@@ -514,7 +498,8 @@ mod tests {
             real_proposition.as_slice(),
             simulated_proposition.as_slice(),
             proof.as_slice(),
-        );
+        )
+        .unwrap();
         assert!(!bag.hints.is_empty(), "{}", "{}");
     }
 
@@ -672,7 +657,8 @@ mod tests {
             SigmaProofOfKnowledgeTree::ProveDlog(pk1),
         )];
         let simulated_proposition: Vec<SigmaBoolean> = Vec::new();
-        let mut bag_b = bag_for_multi_sig(cand, &real_proposition, &simulated_proposition, &proof);
+        let mut bag_b =
+            bag_for_multi_sig(cand, &real_proposition, &simulated_proposition, &proof).unwrap();
         bag_b.add_hint(Hint::CommitmentHint(CommitmentHint::OwnCommitment(
             own.first().unwrap().clone(),
         )));
@@ -776,7 +762,8 @@ mod tests {
             &real_proposition,
             &simulated_proposition,
             &proof,
-        );
+        )
+        .unwrap();
         bag_c.add_hint(Hint::CommitmentHint(CommitmentHint::OwnCommitment(
             carol_secret_commitment.first().unwrap().clone(),
         )));
@@ -798,7 +785,8 @@ mod tests {
             SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(pk1)),
             SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(pk3)),
         ];
-        let mut bag_b = bag_for_multi_sig(cand, &real_proposition, &simulated_proposition, &proof);
+        let mut bag_b =
+            bag_for_multi_sig(cand, &real_proposition, &simulated_proposition, &proof).unwrap();
         bag_b.add_hint(Hint::CommitmentHint(CommitmentHint::OwnCommitment(
             bob_secret_commitment.first().unwrap().clone(),
         )));

@@ -6,12 +6,11 @@ use crate::box_coll::ErgoBoxes;
 use crate::ergo_state_ctx::ErgoStateContext;
 use crate::error_conversion::to_js;
 
-use crate::transaction::{Transaction, TransactionHintsBag};
 use ergo_lib::chain::transaction::reduced::reduce_tx;
 use ergo_lib::chain::transaction::TxIoVec;
 use ergo_lib::ergotree_ir::serialization::SigmaSerializable;
 use ergo_lib::ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
-use ergo_lib::wallet::multi_sig::extract_hints_from_reduced_transaction;
+use ergo_lib::wallet::signing::ErgoTransaction;
 use wasm_bindgen::prelude::*;
 
 /// Propositions list(public keys)
@@ -67,7 +66,7 @@ impl ReducedTransaction {
             }
         };
         let tx_context = ergo_lib::wallet::signing::TransactionContext::new(
-            unsigned_tx.clone().into(),
+            unsigned_tx.0.clone(),
             boxes_to_spend,
             data_boxes,
         )
@@ -92,21 +91,6 @@ impl ReducedTransaction {
     /// Returns the unsigned transaction
     pub fn unsigned_tx(&self) -> UnsignedTransaction {
         self.0.unsigned_tx.clone().into()
-    }
-
-    /// Extracting hints from transaction
-    pub fn extract_hints(
-        &self,
-        real_propositions: Propositions,
-        simulated_propositions: Propositions,
-        signed_transaction: Transaction,
-    ) -> TransactionHintsBag {
-        TransactionHintsBag::from(extract_hints_from_reduced_transaction(
-            self.0.clone(),
-            signed_transaction.0,
-            real_propositions.0,
-            simulated_propositions.0,
-        ))
     }
 }
 

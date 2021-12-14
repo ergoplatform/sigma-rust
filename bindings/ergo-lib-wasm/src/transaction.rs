@@ -10,7 +10,7 @@ use crate::input::{Inputs, UnsignedInputs};
 use crate::json::TransactionJsonEip12;
 use crate::json::UnsignedTransactionJsonEip12;
 use ergo_lib::chain;
-use ergo_lib::chain::transaction::distinct_token_ids;
+use ergo_lib::chain::transaction::{distinct_token_ids, TxIoVec};
 use ergo_lib::ergotree_ir::chain::base16_bytes::Base16DecodedBytes;
 use ergo_lib::ergotree_ir::chain::base16_bytes::Base16EncodedBytes;
 use ergo_lib::ergotree_ir::chain::digest32::Digest32;
@@ -21,7 +21,10 @@ use wasm_bindgen::prelude::*;
 
 extern crate derive_more;
 
+use crate::ergo_state_ctx::ErgoStateContext;
+use crate::transaction::reduced::Propositions;
 use derive_more::{From, Into};
+use ergo_lib::ergotree_ir::chain::ergo_box::ErgoBox;
 
 pub mod reduced;
 
@@ -130,6 +133,36 @@ impl From<ergo_lib::wallet::multi_sig::TransactionHintsBag> for TransactionHints
     fn from(t: ergo_lib::wallet::multi_sig::TransactionHintsBag) -> Self {
         TransactionHintsBag(t)
     }
+}
+
+/// Extracting hints form singed(invalid) Transaction
+#[wasm_bindgen]
+pub fn extract_hints(
+    signed_transaction: Transaction,
+    state_context: &ErgoStateContext,
+    boxes_to_spend: &ErgoBoxes,
+    _data_boxes: &ErgoBoxes,
+    real_propositions: Propositions,
+    simulated_propositions: Propositions,
+) -> Result<TransactionHintsBag, JsValue> {
+    let boxes_to_spend = TxIoVec::from_vec(boxes_to_spend.clone().into()).map_err(to_js)?;
+    let mut data_boxes: Option<TxIoVec<ErgoBox>> = None;
+
+    if !_data_boxes.0.is_empty() {
+        data_boxes = Some(TxIoVec::from_vec(_data_boxes.clone().into()).map_err(to_js)?);
+    }
+
+    Ok(TransactionHintsBag::from(
+        ergo_lib::wallet::multi_sig::extract_hints(
+            &signed_transaction.0,
+            &state_context.0.clone(),
+            boxes_to_spend,
+            data_boxes,
+            real_propositions.0,
+            simulated_propositions.0,
+        )
+        .unwrap(),
+    ))
 }
 
 /// Transaction id
@@ -259,7 +292,7 @@ impl From<chain::transaction::Transaction> for Transaction {
 /// Unsigned (inputs without proofs) transaction
 #[wasm_bindgen]
 #[derive(PartialEq, Debug, Clone)]
-pub struct UnsignedTransaction(chain::transaction::unsigned::UnsignedTransaction);
+pub struct UnsignedTransaction(pub(crate) chain::transaction::unsigned::UnsignedTransaction);
 
 #[wasm_bindgen]
 impl UnsignedTransaction {
