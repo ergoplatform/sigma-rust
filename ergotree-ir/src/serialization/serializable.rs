@@ -17,6 +17,8 @@ use std::convert::TryInto;
 use std::io;
 use thiserror::Error;
 
+use sigma_ser::ScorexSerializable;
+
 /// Ways serialization might fail
 #[derive(Error, Eq, PartialEq, Debug, Clone)]
 pub enum SigmaSerializationError {
@@ -220,3 +222,22 @@ pub fn sigma_serialize_roundtrip<T: SigmaSerializable>(v: &T) -> T {
     let mut sr = SigmaByteReader::new(cursor, ConstantStore::empty());
     T::sigma_parse(&mut sr).expect("parse failed")
 }
+
+/*
+impl<T> SigmaSerializable for T
+where
+    T: ScorexSerializable,
+{
+    
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
+    //    self.scorex_serialize()
+    }
+  
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
+      //     self.scorex_parse()
+    }
+}
+*/
+
+
+
