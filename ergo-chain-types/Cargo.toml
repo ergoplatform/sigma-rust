@@ -16,5 +16,28 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 thiserror = "1"
 derive_more = "0.99"
+num-bigint = "0.4.0"
+ergotree-ir = { version = "^0.14.0", path = "../ergotree-ir", features = ["arbitrary"] }
+serde = { version = "1.0", features = ["derive"], optional = true }
+serde_json = { version = "1.0", optional = true }
+
+[dependencies.proptest]
+# wasm support, via https://altsysrq.github.io/proptest-book/proptest/wasm.html
+version = "1.0.0"
+# The default feature set includes things like process forking which are not
+# supported in Web Assembly.
+default-features = false
+# Enable using the `std` crate.
+features = ["std"]
+optional = true
+
+[dependencies.serde_with]
+version = "1.9.1"
+features = [ "json" ]
+optional = true
+
 
 [dev-dependencies]
+sigma-test-util = { version = "^0.3.0", path = "../sigma-test-util" }
+rand = "0.8.3"
+pretty_assertions = "0.7.2"
