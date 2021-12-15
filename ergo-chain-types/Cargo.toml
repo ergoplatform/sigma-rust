@@ -16,15 +16,11 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 k256 = { version = "0.9.6", features = ["zeroize", "arithmetic", "ecdsa"] }
 base16 = "0.2.1"
-#thiserror = "1"
 derive_more = "0.99"
 sigma-ser = { version = "^0.3.0", path = "../sigma-ser" }
 elliptic-curve = {version = "0.10.6", features = ["zeroize", "ff"]}
 proptest-derive = {version = "0.3.0", optional = true }
 num-bigint = "0.4.0"
-#ergotree-ir = { version = "^0.14.0", path = "../ergotree-ir", features = ["arbitrary"] }
-#serde = { version = "1.0", features = ["derive"], optional = true }
-#serde_json = { version = "1.0", optional = true }
 
 [dependencies.proptest]
 # wasm support, via https://altsysrq.github.io/proptest-book/proptest/wasm.html
@@ -41,9 +37,7 @@ version = "1.9.1"
 features = [ "json" ]
 optional = true
 
-
 [dev-dependencies]
-sigma-test-util = { version = "^0.3.0", path = "../sigma-test-util" }
 rand = "0.8.3"
 pretty_assertions = "0.7.2"
 
