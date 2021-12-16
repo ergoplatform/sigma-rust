@@ -34,7 +34,7 @@ pub(crate) fn gf2_192poly_from_byte_array(
     let coeff0 = <[u8; 24]>::from(c0);
     let cc = CoefficientsByteRepr {
         coeff0,
-        more_coeffs: &other_coefficients, 
+        more_coeffs: &other_coefficients,
     };
     Gf2_192Poly::try_from(cc)
 }
