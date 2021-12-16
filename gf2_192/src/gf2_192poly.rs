@@ -57,9 +57,13 @@ pub enum Gf2_192PolyError {
 
 impl Gf2_192Poly {
     /// Create the unique lowest-degree interpolating polynomial that passes through
-    /// `(0, value_at_zero)` and `(points[i], values[i])` for all `i = 0, ..(points.len() - 1)`.
+    /// `(0, value_at_zero)` and `(points[i], values[i])` for all `i = 0, ..(points.len() - 1)`. i.e.
+    ///  if the returned polynomial is denoted by `f`:
+    ///   - `f(0) == value_at_zero`
+    ///   - `f(points[i]) == values[i]` for all `i = 0, ..(points.len() - 1)`
+    ///
     /// Assumptions:
-    ///  - Elements of `points` must be distinct and must not contain `0`.
+    ///  - Elements of `points` must be distinct `i8` values and must not contain `0`.
     ///  - `points.len() == values.len()`. Note that `points` and `values` can be empty, resulting
     ///    in a constant polynomial with value `value_at_zero`.
     pub fn interpolate(
