@@ -28,11 +28,13 @@ use thiserror::Error;
 
 use crate::{gf2_192::Gf2_192, Gf2_192Error};
 
-/// Byte representation of the coefficients of `Gf2_192Poly`.
+/// Byte representation of the coefficients of `Gf2_192Poly`. Each coefficient is a `[i8; 24]`
+/// representation of a `Gf2_192` instance. Note that the degree zero coefficient is provided
+/// separately in the `coeff0` field.
 pub struct CoefficientsByteRepr<'a> {
     /// Coefficient of constant term of degree zero.
     pub coeff0: [i8; 24],
-    /// Coefficients of the non-zero-degree terms, starting with degree 1.
+    /// Ordered coefficients of the non-zero-degree terms, starting with degree 1.
     pub more_coeffs: &'a [i8],
 }
 
@@ -170,6 +172,8 @@ impl Gf2_192Poly {
 impl<'a> TryFrom<CoefficientsByteRepr<'a>> for Gf2_192Poly {
     type Error = Gf2_192Error;
 
+    /// Constructs the polynomial given the byte array representation of the coefficients. Note that
+    /// the coefficient of degree zero is provided separately (see [`CoefficientsByteRepr`]).
     fn try_from(c: CoefficientsByteRepr<'a>) -> Result<Self, Self::Error> {
         let degree = c.more_coeffs.len() / 24;
         let mut coefficients = Vec::with_capacity(degree + 1);

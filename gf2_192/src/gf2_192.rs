@@ -97,7 +97,7 @@ impl Gf2_192 {
         a2muls[1] = a.word[2];
 
         // a*x, a*x^2, a*x^3
-        for i in 2..=8 {
+        for i in [2, 4, 8] {
             // multiply a*x^{log_2 i/2} by x to get a*x^{log_2 i}
             let prev = i / 2;
             a0muls[i] = a0muls[prev] << 1;
