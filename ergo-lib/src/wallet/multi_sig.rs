@@ -2,7 +2,7 @@
 
 use crate::chain::ergo_state_context::ErgoStateContext;
 use crate::chain::transaction::Transaction;
-use crate::ergotree_interpreter::eval::context::TxIoVec;
+use crate::ergotree_interpreter::eval::context::{Context, TxIoVec};
 use crate::ergotree_interpreter::eval::env::Env;
 use crate::ergotree_interpreter::eval::reduce_to_crypto;
 use crate::ergotree_interpreter::sigma_protocol::dlog_protocol::{
@@ -20,13 +20,15 @@ use crate::ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 use crate::ergotree_ir::sigma_protocol::sigma_boolean::SigmaConjecture;
 use crate::ergotree_ir::sigma_protocol::sigma_boolean::SigmaConjectureItems;
 use crate::ergotree_ir::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
-use crate::wallet::signing::{make_context, ErgoTransaction, TransactionContext, TxSigningError};
+use crate::wallet::signing::{ErgoTransaction, make_context, TransactionContext, TxSigningError};
 use ergotree_interpreter::sigma_protocol::dlog_protocol::interactive_prover::compute_commitment;
 use ergotree_interpreter::sigma_protocol::sig_serializer::parse_sig_compute_challenges;
 use ergotree_interpreter::sigma_protocol::unchecked_tree::{UncheckedLeaf, UncheckedTree};
 use ergotree_ir::chain::ergo_box::ErgoBox;
 use std::collections::HashMap;
 use std::rc::Rc;
+use crate::chain::transaction::unsigned::UnsignedTransaction;
+use crate::ergotree_ir::serialization::SigmaSerializationError;
 
 /// TransactionHintsBag
 pub struct TransactionHintsBag {
@@ -134,84 +136,84 @@ pub fn bag_for_multi_sig(
     proof: &[u8],
 ) -> Result<HintsBag, &'static str> {
     let ut = parse_sig_compute_challenges(&sigma_tree, proof.to_owned());
-    match ut {
-        Ok(tree) => {
-            let mut bag: HintsBag = HintsBag::empty();
 
-            // The unwrap use on option causes panic in case of dhtuple signature, that is not implemented
-            // Traversing node of sigma tree
-            fn traverse_node(
-                tree: UncheckedTree,
-                real_propositions: &[SigmaBoolean],
-                simulated_propositions: &[SigmaBoolean],
-                position: NodePosition,
-                bag: &mut HintsBag,
-            ) {
-                match tree {
-                    UncheckedTree::UncheckedConjecture(unchecked_conjecture) => {
-                        let items: SigmaConjectureItems<UncheckedTree> =
-                            unchecked_conjecture.children_ust();
-                        items.iter().enumerate().for_each(|(i, x)| {
-                            traverse_node(
-                                x.clone(),
-                                real_propositions,
-                                simulated_propositions,
-                                position.child(i),
-                                bag,
+    // Traversing node of sigma tree
+    fn traverse_node(
+        tree: UncheckedTree,
+        real_propositions: &[SigmaBoolean],
+        simulated_propositions: &[SigmaBoolean],
+        position: NodePosition,
+        bag: &mut HintsBag,
+    ) {
+        match tree {
+            UncheckedTree::UncheckedConjecture(unchecked_conjecture) => {
+                let items: SigmaConjectureItems<UncheckedTree> =
+                    unchecked_conjecture.children_ust();
+                items.iter().enumerate().for_each(|(i, x)| {
+                    traverse_node(
+                        x.clone(),
+                        real_propositions,
+                        simulated_propositions,
+                        position.child(i),
+                        bag,
+                    );
+                })
+            }
+            UncheckedTree::UncheckedLeaf(leaf) => {
+                let real_found = real_propositions.contains(&leaf.proposition());
+                let simulated_found = simulated_propositions.contains(&leaf.proposition());
+                if real_found || simulated_found {
+                    if let Some(a) = compute_commitments(leaf.clone()) {
+                        if real_found {
+                            let real_commitment: Hint = Hint::CommitmentHint(
+                                CommitmentHint::RealCommitment(RealCommitment {
+                                    image: leaf.proposition(),
+                                    commitment: FirstProverMessage::FirstDlogProverMessage(
+                                        a,
+                                    ),
+                                    position: position.clone(),
+                                }),
                             );
-                        })
-                    }
-                    UncheckedTree::UncheckedLeaf(leaf) => {
-                        let real_found = real_propositions.contains(&leaf.proposition());
-                        let simulated_found = simulated_propositions.contains(&leaf.proposition());
-                        if real_found || simulated_found {
-                            if let Some(a) = compute_commitments(leaf.clone()) {
-                                if real_found {
-                                    let real_commitment: Hint = Hint::CommitmentHint(
-                                        CommitmentHint::RealCommitment(RealCommitment {
-                                            image: leaf.proposition(),
-                                            commitment: FirstProverMessage::FirstDlogProverMessage(
-                                                a,
-                                            ),
-                                            position: position.clone(),
-                                        }),
-                                    );
-                                    let real_secret_proof: Hint = Hint::SecretProven(
-                                        SecretProven::RealSecretProof(RealSecretProof {
-                                            image: leaf.proposition(),
-                                            challenge: leaf.challenge(),
-                                            unchecked_tree: UncheckedTree::UncheckedLeaf(leaf),
-                                            position,
-                                        }),
-                                    );
-                                    bag.add_hint(real_commitment);
-                                    bag.add_hint(real_secret_proof);
-                                } else {
-                                    let simulated_commitment: Hint = Hint::CommitmentHint(
-                                        CommitmentHint::SimulatedCommitment(SimulatedCommitment {
-                                            image: leaf.proposition(),
-                                            commitment: FirstProverMessage::FirstDlogProverMessage(
-                                                a,
-                                            ),
-                                            position: position.clone(),
-                                        }),
-                                    );
-                                    let simulated_secret_proof: Hint = Hint::SecretProven(
-                                        SecretProven::SimulatedSecretProof(SimulatedSecretProof {
-                                            image: leaf.proposition(),
-                                            challenge: leaf.challenge(),
-                                            unchecked_tree: UncheckedTree::UncheckedLeaf(leaf),
-                                            position,
-                                        }),
-                                    );
-                                    bag.add_hint(simulated_commitment);
-                                    bag.add_hint(simulated_secret_proof);
-                                }
-                            }
+                            let real_secret_proof: Hint = Hint::SecretProven(
+                                SecretProven::RealSecretProof(RealSecretProof {
+                                    image: leaf.proposition(),
+                                    challenge: leaf.challenge(),
+                                    unchecked_tree: UncheckedTree::UncheckedLeaf(leaf),
+                                    position,
+                                }),
+                            );
+                            bag.add_hint(real_commitment);
+                            bag.add_hint(real_secret_proof);
+                        } else {
+                            let simulated_commitment: Hint = Hint::CommitmentHint(
+                                CommitmentHint::SimulatedCommitment(SimulatedCommitment {
+                                    image: leaf.proposition(),
+                                    commitment: FirstProverMessage::FirstDlogProverMessage(
+                                        a,
+                                    ),
+                                    position: position.clone(),
+                                }),
+                            );
+                            let simulated_secret_proof: Hint = Hint::SecretProven(
+                                SecretProven::SimulatedSecretProof(SimulatedSecretProof {
+                                    image: leaf.proposition(),
+                                    challenge: leaf.challenge(),
+                                    unchecked_tree: UncheckedTree::UncheckedLeaf(leaf),
+                                    position,
+                                }),
+                            );
+                            bag.add_hint(simulated_commitment);
+                            bag.add_hint(simulated_secret_proof);
                         }
                     }
                 }
             }
+        }
+    }
+    match ut {
+        Ok(tree) => {
+            let mut bag: HintsBag = HintsBag::empty();
+
             traverse_node(
                 tree,
                 real_propositions,
@@ -232,7 +234,7 @@ pub fn bag_for_multi_sig(
 /// and return as `TransactionHintsBag`.
 /// generated commitments corresponds to `public_keys` that prepared in function input
 pub fn generate_commitments(
-    tx_context: TransactionContext,
+    tx_context: TransactionContext<UnsignedTransaction>,
     state_context: &ErgoStateContext,
     public_keys: &[SigmaBoolean],
 ) -> Result<TransactionHintsBag, TxSigningError> {
@@ -274,9 +276,65 @@ pub fn extract_hints(
             .iter()
             .find(|b| b.box_id() == input.box_id)
             .ok_or(TxSigningError::InputBoxNotFound(i))?;
-        let tx_context =
-            TransactionContext::new(tx.clone(), boxes_to_spend.clone(), data_boxes.clone())?;
-        let ctx = Rc::new(make_context(state_context, &tx_context, i)?);
+        let height = state_context.pre_header.height;
+        let self_box=boxes_to_spend
+            .iter()
+            .find(|b| b.box_id() == tx.inputs.as_vec()[i].box_id)
+            .cloned()
+            .ok_or_else(|| TxSigningError::ContextError("self_index is out of bounds".to_string()))?;
+        let outputs=tx
+            .output_candidates
+            .iter()
+            .enumerate()
+            .map(|(idx, b)| ErgoBox::from_box_candidate(b, tx.id(), idx as u16))
+            .collect::<Result<Vec<ErgoBox>, SigmaSerializationError>>()?;
+
+        let outputs_ir = outputs.into_iter().map(Rc::new).collect();
+        let data_inputs_ir = if let Some(data_inputs) = tx.data_inputs.as_ref() {
+            Some(data_inputs.clone().enumerated().try_mapped(|(idx, di)| {
+                data_boxes
+                    .as_ref()
+                    .ok_or(TxSigningError::DataInputBoxNotFound(idx))?
+                    .iter()
+                    .find(|b| di.box_id == b.box_id())
+                    .map(|b| Rc::new(b.clone()))
+                    .ok_or(TxSigningError::DataInputBoxNotFound(idx))
+            })?)
+        } else {
+            None
+        };
+        let inputs_ir = tx
+            .inputs_ids()
+            .clone()
+            .enumerated()
+            .try_mapped(|(idx, u)| {
+                boxes_to_spend
+                    .iter()
+                    .find(|b| u == b.box_id())
+                    .map(|b| Rc::new(b.clone()))
+                    .ok_or(TxSigningError::InputBoxNotFound(idx))
+            })?;
+        let extension = tx
+            .inputs
+            .get(i)
+            .ok_or_else(|| {
+                TxSigningError::ContextError(
+                    "self_index not found in spending transaction inputs".to_string(),
+                )
+            })?
+            .spending_proof
+            .extension
+            .clone();
+        let ctx=Rc::new(Context {
+            height,
+            self_box: Rc::new(self_box),
+            outputs: outputs_ir,
+            data_inputs: data_inputs_ir,
+            inputs: inputs_ir,
+            pre_header: state_context.pre_header.clone(),
+            headers: state_context.headers.clone(),
+            extension
+        });
         let tree = input_box.ergo_tree.clone();
         let proof: ProofBytes = tx.inputs.get(i).unwrap().clone().spending_proof.proof;
         let proof: Vec<u8> = Vec::from(proof);

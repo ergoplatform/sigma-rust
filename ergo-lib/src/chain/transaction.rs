@@ -55,7 +55,8 @@ use std::iter::FromIterator;
 )]
 #[derive(PartialEq, Debug, Clone)]
 pub struct Transaction {
-    tx_id: TxId,
+    /// transaction id
+    pub tx_id: TxId,
     /// inputs, that will be spent by this transaction.
     pub inputs: TxIoVec<Input>,
     /// inputs, that are not going to be spent by transaction, but will be reachable from inputs

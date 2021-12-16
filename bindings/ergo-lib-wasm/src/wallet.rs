@@ -1,7 +1,6 @@
 //! Wallet-like features
 use derive_more::{From, Into};
 use ergo_lib::chain::transaction::TxIoVec;
-use ergo_lib::wallet::signing::ErgoTransaction;
 use wasm_bindgen::prelude::*;
 
 pub mod derivation_path;

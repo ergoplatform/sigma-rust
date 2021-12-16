@@ -10,7 +10,6 @@ use ergo_lib::chain::transaction::reduced::reduce_tx;
 use ergo_lib::chain::transaction::TxIoVec;
 use ergo_lib::ergotree_ir::serialization::SigmaSerializable;
 use ergo_lib::ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
-use ergo_lib::wallet::signing::ErgoTransaction;
 use wasm_bindgen::prelude::*;
 
 /// Propositions list(public keys)

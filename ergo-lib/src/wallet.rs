@@ -19,6 +19,7 @@ use thiserror::Error;
 use crate::chain::ergo_state_context::ErgoStateContext;
 use crate::chain::transaction::reduced::ReducedTransaction;
 use crate::chain::transaction::Transaction;
+use crate::chain::transaction::unsigned::UnsignedTransaction;
 use crate::ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 use crate::wallet::mnemonic::Mnemonic;
 use crate::wallet::multi_sig::{
@@ -72,7 +73,7 @@ impl Wallet {
     /// Signs a transaction
     pub fn sign_transaction(
         &self,
-        tx_context: TransactionContext,
+        tx_context: TransactionContext<UnsignedTransaction>,
         state_context: &ErgoStateContext,
         tx_hints: Option<&TransactionHintsBag>,
     ) -> Result<Transaction, WalletError> {
@@ -93,7 +94,7 @@ impl Wallet {
     /// Generate commitments for Transaction by wallet secrets
     pub fn generate_commitments(
         &self,
-        tx_context: TransactionContext,
+        tx_context: TransactionContext<UnsignedTransaction>,
         state_context: &ErgoStateContext,
     ) -> Result<TransactionHintsBag, TxSigningError> {
         let public_keys: Vec<SigmaBoolean> = self
