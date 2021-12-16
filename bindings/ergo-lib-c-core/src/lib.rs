@@ -23,6 +23,7 @@ pub mod ergo_box;
 pub mod ergo_state_ctx;
 pub mod ergo_tree;
 pub mod error_conversion;
+pub mod ext_secret_key;
 pub mod header;
 pub mod input;
 mod json;

@@ -5,6 +5,7 @@ use wasm_bindgen::prelude::*;
 
 pub mod derivation_path;
 pub mod ext_pub_key;
+pub mod ext_secret_key;
 
 use crate::{
     box_coll::ErgoBoxes, ergo_state_ctx::ErgoStateContext, error_conversion::to_js,
