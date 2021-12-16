@@ -58,7 +58,7 @@ pub enum Gf2_192PolyError {
 impl Gf2_192Poly {
     /// Create the unique lowest-degree interpolating polynomial that passes through
     /// `(0, value_at_zero)` and `(points[i], values[i])` for all `i = 0, ..(points.len() - 1)`. i.e.
-    ///  if the returned polynomial is denoted by `f`:
+    ///  if the returned polynomial is denoted by `f` then
     ///   - `f(0) == value_at_zero`
     ///   - `f(points[i]) == values[i]` for all `i = 0, ..(points.len() - 1)`
     ///
