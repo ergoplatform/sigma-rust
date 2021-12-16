@@ -10,7 +10,7 @@ use crate::sigma_protocol::crypto_utils::secure_random_bytes;
 use crate::sigma_protocol::dht_protocol;
 use crate::sigma_protocol::fiat_shamir::fiat_shamir_hash_fn;
 use crate::sigma_protocol::fiat_shamir::fiat_shamir_tree_to_bytes;
-use crate::sigma_protocol::gf2_192poly::Gf2_192Poly;
+use crate::sigma_protocol::gf2_192::gf2_192poly_from_byte_array;
 use crate::sigma_protocol::proof_tree::ProofTree;
 use crate::sigma_protocol::unchecked_tree::UncheckedDhTuple;
 use crate::sigma_protocol::unproven_tree::CandUnproven;
@@ -22,6 +22,8 @@ use crate::sigma_protocol::UnprovenLeaf;
 use crate::sigma_protocol::SOUNDNESS_BYTES;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaConjectureItems;
+use gf2_192::gf2_192poly::Gf2_192Poly;
+use gf2_192::gf2_192poly::Gf2_192PolyError;
 use gf2_192::Gf2_192Error;
 use std::convert::TryInto;
 use std::rc::Rc;
@@ -110,6 +112,12 @@ impl From<FiatShamirTreeSerializationError> for ProverError {
 impl From<Gf2_192Error> for ProverError {
     fn from(e: Gf2_192Error) -> Self {
         ProverError::Gf2_192Error(e)
+    }
+}
+
+impl From<Gf2_192PolyError> for ProverError {
+    fn from(e: Gf2_192PolyError) -> Self {
+        ProverError::Gf2_192Error(Gf2_192Error::Gf2_192PolyError(e))
     }
 }
 
@@ -566,7 +574,7 @@ fn step4_simulated_threshold_conj(
     if let Some(challenge) = ct.challenge_opt.clone() {
         let unproven_children = cast_to_unp(ct.children.clone())?;
         let n = ct.children.len();
-        let q = Gf2_192Poly::from_byte_array(
+        let q = gf2_192poly_from_byte_array(
             challenge,
             secure_random_bytes(SOUNDNESS_BYTES * (n - ct.k as usize)),
         )?;
@@ -838,7 +846,7 @@ fn step9_real_threshold(ct: CthresholdUnproven) -> Result<Option<ProofTree>, Pro
         }
 
         let value_at_zero = challenge.into();
-        let q = Gf2_192Poly::interpolate(points, values, value_at_zero)?;
+        let q = Gf2_192Poly::interpolate(&points, &values, value_at_zero)?;
 
         let new_children = ct.children.clone().enumerated().mapped(|(idx, child)| {
             // Note the cast to `u8` is safe since `ct.children` is of type

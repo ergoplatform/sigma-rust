@@ -2,6 +2,7 @@
 
 use std::convert::TryInto;
 
+use super::gf2_192::gf2_192poly_from_byte_array;
 use super::prover::ProofBytes;
 use super::unchecked_tree::UncheckedConjecture;
 use super::unchecked_tree::UncheckedLeaf;
@@ -9,7 +10,6 @@ use super::unchecked_tree::UncheckedTree;
 use super::GROUP_SIZE;
 use super::SOUNDNESS_BYTES;
 use crate::sigma_protocol::dht_protocol::SecondDhTupleProverMessage;
-use crate::sigma_protocol::gf2_192poly::Gf2_192Poly;
 use crate::sigma_protocol::unchecked_tree::UncheckedDhTuple;
 use crate::sigma_protocol::Challenge;
 use crate::sigma_protocol::GroupSizedBytes;
@@ -215,7 +215,7 @@ fn parse_sig_compute_challenges_reader<R: SigmaByteRead>(
                 let buf_size = n_coeff * SOUNDNESS_BYTES;
                 let mut coeff_bytes = vec![0u8; buf_size];
                 r.read_exact(&mut coeff_bytes)?;
-                let polynomial = Gf2_192Poly::from_byte_array(challenge.clone(), coeff_bytes)?;
+                let polynomial = gf2_192poly_from_byte_array(challenge.clone(), coeff_bytes)?;
 
                 let children =
                     ct.children

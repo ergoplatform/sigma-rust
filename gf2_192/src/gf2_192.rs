@@ -363,6 +363,23 @@ impl<'a> TryFrom<&[i8]> for Gf2_192 {
     }
 }
 
+impl<'a> TryFrom<&[u8]> for Gf2_192 {
+    type Error = Gf2_192Error;
+
+    fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
+        if value.len() < 24 {
+            return Err(Gf2_192Error::Gf2_192TryFromByteArrayError);
+        }
+        let mut word: [i64; 3] = [0, 0, 0];
+        for i in 0..8 {
+            word[0] |= (value[i] as i64 & 0xFF) << (i << 3);
+            word[1] |= (value[i + 8] as i64 & 0xFF) << (i << 3);
+            word[2] |= (value[i + 16] as i64 & 0xFF) << (i << 3);
+        }
+        Ok(Gf2_192 { word })
+    }
+}
+
 impl From<[u8; 24]> for Gf2_192 {
     fn from(bytes: [u8; 24]) -> Self {
         let mut word: [i64; 3] = [0, 0, 0];

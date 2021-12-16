@@ -28,14 +28,14 @@ use thiserror::Error;
 
 use crate::{gf2_192::Gf2_192, Gf2_192Error};
 
-/// Byte representation of the coefficients of `Gf2_192Poly`. Each coefficient is a `[i8; 24]`
+/// Byte representation of the coefficients of `Gf2_192Poly`. Each coefficient is a `[u8; 24]`
 /// representation of a `Gf2_192` instance. Note that the degree zero coefficient is provided
 /// separately in the `coeff0` field.
 pub struct CoefficientsByteRepr<'a> {
     /// Coefficient of constant term of degree zero.
-    pub coeff0: [i8; 24],
+    pub coeff0: [u8; 24],
     /// Ordered coefficients of the non-zero-degree terms, starting with degree 1.
-    pub more_coeffs: &'a [i8],
+    pub more_coeffs: &'a [u8],
 }
 
 #[derive(PartialEq, Eq, Clone, Debug)]
@@ -63,11 +63,11 @@ impl Gf2_192Poly {
     ///   - `f(points[i]) == values[i]` for all `i = 0, ..(points.len() - 1)`
     ///
     /// Assumptions:
-    ///  - Elements of `points` must be distinct `i8` values and must not contain `0`.
+    ///  - Elements of `points` must be distinct `u8` values and must not contain `0`.
     ///  - `points.len() == values.len()`. Note that `points` and `values` can be empty, resulting
     ///    in a constant polynomial with value `value_at_zero`.
     pub fn interpolate(
-        points: &[i8],
+        points: &[u8],
         values: &[Gf2_192],
         value_at_zero: Gf2_192,
     ) -> Result<Gf2_192Poly, Gf2_192PolyError> {
@@ -91,7 +91,10 @@ impl Gf2_192Poly {
 
             result.add_monic_times_constant(vanishing_poly.clone(), t);
 
-            vanishing_poly.multiply_by_linear_binomial(points[i]);
+            // Note: internally the domain of the polynomial is not the set of `u8` values but
+            // rather the set of `i8` values. This is because the original implementation from
+            // Reyzin was in Java, a language which does not have unsigned integers.
+            vanishing_poly.multiply_by_linear_binomial(points[i] as i8);
         }
 
         // Last point is at 0
@@ -107,29 +110,31 @@ impl Gf2_192Poly {
         Ok(result)
     }
 
-    /// Evaluates polynomial at the given point `x`, where `x` represents the last byte of a field
-    /// element (all other bits are assumed to be 0)
-    pub fn evaluate(&self, x: i8) -> Gf2_192 {
+    /// Evaluates polynomial at the given point `x`.
+    pub fn evaluate(&self, x: u8) -> Gf2_192 {
+        // Note: internally the domain of the polynomial is not the set of `u8` values but rather
+        // the set of `i8` values. This is because the original implementation from Reyzin was in
+        // Java, a language which does not have unsigned integers.
         let mut res = self.coefficients[self.degree];
         if self.degree > 0 {
             for d in (0..=(self.degree - 1)).rev() {
-                res = Gf2_192::mul_by_i8(res, x);
+                res = Gf2_192::mul_by_i8(res, x as i8);
                 res = res + self.coefficients[d];
             }
         }
         res
     }
 
-    /// Returns Vec consisting of the concatenation of all the coefficients of the polynomial.
+    /// Returns Vec<u8> consisting of the concatenation of all the coefficients of the polynomial.
     ///  - Degree-zero coefficient is located at index 0
     ///  - Each coefficient takes 24 bytes for a total of `(self.degree+1)*24` bytes
-    pub fn to_i8_vec(&self) -> Vec<i8> {
+    pub fn to_bytes(&self) -> Vec<u8> {
         let mut res: Vec<_> = std::iter::repeat(0).take((self.degree + 1) * 24).collect();
         for i in 0..self.degree {
             #[allow(clippy::unwrap_used)]
             self.coefficients[i].to_i8_slice(&mut res, i * 24).unwrap();
         }
-        res
+        res.into_iter().map(|x| x as u8).collect()
     }
 
     /// Adds r*p to `self`. Assumes:
@@ -222,7 +227,7 @@ mod tests {
             // Generate a byte that's not an element of `points` nor 0
             let mut j = 0;
             while j < points.len() {
-                let b: i8 = rng.gen();
+                let b: u8 = rng.gen();
                 if b != 0 && !points.contains(&b) {
                     points[j] = b;
                     j += 1;

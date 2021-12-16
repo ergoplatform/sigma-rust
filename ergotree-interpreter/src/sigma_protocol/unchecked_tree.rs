@@ -5,10 +5,10 @@ use ergotree_ir::sigma_protocol::sigma_boolean::ProveDlog;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaConjectureItems;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
+use gf2_192::gf2_192poly::Gf2_192Poly;
 
 use super::dht_protocol::FirstDhTupleProverMessage;
 use super::dht_protocol::SecondDhTupleProverMessage;
-use super::gf2_192poly::Gf2_192Poly;
 use super::proof_tree::ConjectureType;
 use super::proof_tree::ProofTree;
 use super::proof_tree::ProofTreeConjecture;

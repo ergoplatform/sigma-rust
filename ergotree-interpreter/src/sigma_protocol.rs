@@ -12,7 +12,6 @@ mod dht_protocol;
 mod dlog_protocol;
 mod fiat_shamir;
 mod gf2_192;
-mod gf2_192poly;
 mod proof_tree;
 mod sig_serializer;
 mod unchecked_tree;
