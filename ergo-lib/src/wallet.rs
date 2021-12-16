@@ -18,8 +18,8 @@ use thiserror::Error;
 
 use crate::chain::ergo_state_context::ErgoStateContext;
 use crate::chain::transaction::reduced::ReducedTransaction;
-use crate::chain::transaction::Transaction;
 use crate::chain::transaction::unsigned::UnsignedTransaction;
+use crate::chain::transaction::Transaction;
 use crate::ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 use crate::wallet::mnemonic::Mnemonic;
 use crate::wallet::multi_sig::{

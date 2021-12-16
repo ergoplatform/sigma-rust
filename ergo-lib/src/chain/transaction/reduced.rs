@@ -18,7 +18,7 @@ use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 use crate::chain::ergo_state_context::ErgoStateContext;
 use crate::chain::transaction::Transaction;
 use crate::chain::transaction::UnsignedInput;
-use crate::wallet::signing::{ make_context};
+use crate::wallet::signing::make_context;
 use crate::wallet::signing::TransactionContext;
 use crate::wallet::signing::TxSigningError;
 

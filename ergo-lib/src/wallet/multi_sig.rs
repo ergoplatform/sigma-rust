@@ -1,6 +1,7 @@
 //! multi sig prover
 
 use crate::chain::ergo_state_context::ErgoStateContext;
+use crate::chain::transaction::unsigned::UnsignedTransaction;
 use crate::chain::transaction::Transaction;
 use crate::ergotree_interpreter::eval::context::{Context, TxIoVec};
 use crate::ergotree_interpreter::eval::env::Env;
@@ -16,19 +17,18 @@ use crate::ergotree_interpreter::sigma_protocol::prover::hint::{
 use crate::ergotree_interpreter::sigma_protocol::prover::{ProofBytes, ProverError};
 use crate::ergotree_interpreter::sigma_protocol::unproven_tree::NodePosition;
 use crate::ergotree_interpreter::sigma_protocol::FirstProverMessage;
+use crate::ergotree_ir::serialization::SigmaSerializationError;
 use crate::ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 use crate::ergotree_ir::sigma_protocol::sigma_boolean::SigmaConjecture;
 use crate::ergotree_ir::sigma_protocol::sigma_boolean::SigmaConjectureItems;
 use crate::ergotree_ir::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
-use crate::wallet::signing::{ErgoTransaction, make_context, TransactionContext, TxSigningError};
+use crate::wallet::signing::{make_context, ErgoTransaction, TransactionContext, TxSigningError};
 use ergotree_interpreter::sigma_protocol::dlog_protocol::interactive_prover::compute_commitment;
 use ergotree_interpreter::sigma_protocol::sig_serializer::parse_sig_compute_challenges;
 use ergotree_interpreter::sigma_protocol::unchecked_tree::{UncheckedLeaf, UncheckedTree};
 use ergotree_ir::chain::ergo_box::ErgoBox;
 use std::collections::HashMap;
 use std::rc::Rc;
-use crate::chain::transaction::unsigned::UnsignedTransaction;
-use crate::ergotree_ir::serialization::SigmaSerializationError;
 
 /// TransactionHintsBag
 pub struct TransactionHintsBag {
@@ -168,9 +168,7 @@ pub fn bag_for_multi_sig(
                             let real_commitment: Hint = Hint::CommitmentHint(
                                 CommitmentHint::RealCommitment(RealCommitment {
                                     image: leaf.proposition(),
-                                    commitment: FirstProverMessage::FirstDlogProverMessage(
-                                        a,
-                                    ),
+                                    commitment: FirstProverMessage::FirstDlogProverMessage(a),
                                     position: position.clone(),
                                 }),
                             );
@@ -188,9 +186,7 @@ pub fn bag_for_multi_sig(
                             let simulated_commitment: Hint = Hint::CommitmentHint(
                                 CommitmentHint::SimulatedCommitment(SimulatedCommitment {
                                     image: leaf.proposition(),
-                                    commitment: FirstProverMessage::FirstDlogProverMessage(
-                                        a,
-                                    ),
+                                    commitment: FirstProverMessage::FirstDlogProverMessage(a),
                                     position: position.clone(),
                                 }),
                             );
@@ -277,12 +273,14 @@ pub fn extract_hints(
             .find(|b| b.box_id() == input.box_id)
             .ok_or(TxSigningError::InputBoxNotFound(i))?;
         let height = state_context.pre_header.height;
-        let self_box=boxes_to_spend
+        let self_box = boxes_to_spend
             .iter()
             .find(|b| b.box_id() == tx.inputs.as_vec()[i].box_id)
             .cloned()
-            .ok_or_else(|| TxSigningError::ContextError("self_index is out of bounds".to_string()))?;
-        let outputs=tx
+            .ok_or_else(|| {
+                TxSigningError::ContextError("self_index is out of bounds".to_string())
+            })?;
+        let outputs = tx
             .output_candidates
             .iter()
             .enumerate()
@@ -325,7 +323,7 @@ pub fn extract_hints(
             .spending_proof
             .extension
             .clone();
-        let ctx=Rc::new(Context {
+        let ctx = Rc::new(Context {
             height,
             self_box: Rc::new(self_box),
             outputs: outputs_ir,
@@ -333,7 +331,7 @@ pub fn extract_hints(
             inputs: inputs_ir,
             pre_header: state_context.pre_header.clone(),
             headers: state_context.headers.clone(),
-            extension
+            extension,
         });
         let tree = input_box.ergo_tree.clone();
         let proof: ProofBytes = tx.inputs.get(i).unwrap().clone().spending_proof.proof;

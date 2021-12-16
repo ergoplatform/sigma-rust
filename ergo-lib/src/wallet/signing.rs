@@ -11,13 +11,13 @@ use ergotree_ir::chain::ergo_box::ErgoBox;
 use ergotree_ir::serialization::SigmaSerializationError;
 use std::rc::Rc;
 
+use crate::ergotree_ir::chain::ergo_box::BoxId;
 use crate::wallet::multi_sig::TransactionHintsBag;
 use ergotree_interpreter::eval::context::{Context, TxIoVec};
 use ergotree_interpreter::eval::env::Env;
 use ergotree_interpreter::sigma_protocol::prover::Prover;
 use ergotree_interpreter::sigma_protocol::prover::ProverError;
 use thiserror::Error;
-use crate::ergotree_ir::chain::ergo_box::{BoxId};
 
 /// Errors on transaction signing
 #[derive(Error, PartialEq, Eq, Debug, Clone)]
@@ -41,7 +41,7 @@ pub enum TxSigningError {
 
 /// Transaction and an additional info required for signing
 #[derive(PartialEq, Debug, Clone)]
-pub struct TransactionContext<T:ErgoTransaction> {
+pub struct TransactionContext<T: ErgoTransaction> {
     /// Unsigned transaction to sign
     pub spending_tx: T,
     /// Boxes corresponding to [`UnsignedTransaction::inputs`]
@@ -50,18 +50,15 @@ pub struct TransactionContext<T:ErgoTransaction> {
     data_boxes: Option<TxIoVec<ErgoBox>>,
 }
 
-impl<T:ErgoTransaction> TransactionContext<T>{
+impl<T: ErgoTransaction> TransactionContext<T> {
     /// New TransactionContext
     pub fn new(
         spending_tx: T,
         boxes_to_spend: TxIoVec<ErgoBox>,
         data_boxes: Option<TxIoVec<ErgoBox>>,
-    ) -> Result<Self, TxSigningError>{
+    ) -> Result<Self, TxSigningError> {
         for (i, unsigned_input) in spending_tx.inputs_ids().enumerated() {
-            if !boxes_to_spend
-                .iter()
-                .any(|b| unsigned_input == b.box_id())
-            {
+            if !boxes_to_spend.iter().any(|b| unsigned_input == b.box_id()) {
                 return Err(TxSigningError::InputBoxNotFound(i));
             }
         }
@@ -82,27 +79,24 @@ impl<T:ErgoTransaction> TransactionContext<T>{
             data_boxes,
         })
     }
-
 }
 
-
 /// ErgoTransaction trait implemented for `Transaction` & `UnsignedTransaction`
-pub trait ErgoTransaction{
+pub trait ErgoTransaction {
     /// input boxes ids
-    fn inputs_ids(&self)->TxIoVec<BoxId>;
+    fn inputs_ids(&self) -> TxIoVec<BoxId>;
     /// data input boxes
-    fn data_inputs(&self)->Option<TxIoVec<DataInput>>;
+    fn data_inputs(&self) -> Option<TxIoVec<DataInput>>;
 }
 
 impl ErgoTransaction for UnsignedTransaction {
     fn inputs_ids(&self) -> TxIoVec<BoxId> {
-        self.inputs.clone().mapped(|input|input.box_id)
+        self.inputs.clone().mapped(|input| input.box_id)
     }
 
     fn data_inputs(&self) -> Option<TxIoVec<DataInput>> {
         self.data_inputs.clone()
     }
-
 }
 
 impl ErgoTransaction for Transaction {
@@ -115,7 +109,7 @@ impl ErgoTransaction for Transaction {
     }
 }
 
-impl<T:ErgoTransaction> TransactionContext<T> {
+impl<T: ErgoTransaction> TransactionContext<T> {
     /// Get boxes corresponding to [`UnsignedTransaction::inputs`]
     pub fn get_boxes_to_spend(&self) -> impl Iterator<Item = &ErgoBox> {
         self.boxes_to_spend.iter()
