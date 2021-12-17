@@ -14,6 +14,7 @@ use ergo_lib::chain::transaction::distinct_token_ids;
 use ergo_lib::ergotree_ir::chain::base16_bytes::Base16DecodedBytes;
 use ergo_lib::ergotree_ir::chain::base16_bytes::Base16EncodedBytes;
 use ergo_lib::ergotree_ir::chain::digest32::Digest32;
+use ergo_lib::ergotree_ir::serialization::SigmaSerializable;
 use js_sys::Uint8Array;
 use std::convert::TryFrom;
 use std::convert::TryInto;
@@ -139,6 +140,18 @@ impl Transaction {
     /// Returns ErgoBox's created from ErgoBoxCandidate's with tx id and indices
     pub fn outputs(&self) -> ErgoBoxes {
         self.0.outputs.clone().into()
+    }
+
+    /// Returns serialized bytes or fails with error if cannot be serialized
+    pub fn sigma_serialize_bytes(&self) -> Result<Vec<u8>, JsValue> {
+        self.0.sigma_serialize_bytes().map_err(to_js)
+    }
+
+    /// Parses Transaction or fails with error
+    pub fn sigma_parse_bytes(data: Vec<u8>) -> Result<Transaction, JsValue> {
+        ergo_lib::chain::transaction::Transaction::sigma_parse_bytes(&data)
+            .map(Transaction)
+            .map_err(to_js)
     }
 }
 
