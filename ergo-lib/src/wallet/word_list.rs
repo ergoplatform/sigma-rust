@@ -97,7 +97,13 @@ impl WordList {
     pub fn delimiter(&self) -> &'static str {
         match self.0 {
             Language::Japanese => "　", // \u3000
-            _ => " ",
+            Language::ChineseSimplified
+            | Language::ChineseTraditional
+            | Language::English
+            | Language::French
+            | Language::Italian
+            | Language::Korean
+            | Language::Spanish => " ",
         }
     }
 }

@@ -61,13 +61,11 @@ impl Mnemonic {
             Err(MnemonicError::InvalidEntrophyLen(entrophy.len()))
         } else {
             let mut hasher = Sha256::new();
-
             hasher.update(entrophy.clone());
 
             let checksum = BitVec::<Msb0, _>::from_vec(hasher.finalize().to_vec());
             let ent_len = entrophy.len();
             let mut entrophy_with_checksum = BitVec::<Msb0, _>::from_vec(entrophy);
-
             entrophy_with_checksum.append(&mut checksum[..ent_len / 4].into());
 
             let wl = WordList(self.lang);
@@ -124,18 +122,6 @@ mod tests {
         let seed = Mnemonic::to_seed(mnemonic, "password123");
         let encoded_seed = base16::encode_lower(&seed);
         let expected = "dfe3088b88e2eb8588482e8c56d9cde497c4e1f63fd29b480cbb0ed0227331d51301cfc2d461acce642868ecb618a37b4fd75d48dc6189674c55fbafd807d69c";
-
-        assert_eq!(encoded_seed, expected);
-    }
-
-    #[test]
-    fn test_trezor_vector1() {
-        // from https://github.com/trezor/python-mnemonic/blob/master/vectors.json
-        let mnemonic =
-            "legal winner thank year wave sausage worth useful legal winner thank yellow";
-        let seed = Mnemonic::to_seed(mnemonic, "TREZOR");
-        let encoded_seed = base16::encode_lower(&seed);
-        let expected = "2e8905819b8723fe2c1d161860e5ee1830318dbf49a83bd451cfb8440c28bd6fa457fe1296106559a3c80937a1c1069be3a3a5bd381ee6260e8d9739fce1f607";
 
         assert_eq!(encoded_seed, expected);
     }
@@ -299,6 +285,7 @@ mod tests {
 
     #[test]
     fn test_jp_bip39_vectors() {
+        // Test against japanese vectors: https://github.com/bip32JP/bip32JP.github.io/blob/master/test_JP_BIP39.json
         let lang = "japanese";
         let cases = vec![
             (
