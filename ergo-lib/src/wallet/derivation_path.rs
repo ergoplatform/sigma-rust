@@ -2,6 +2,10 @@
 //! BIP-44 <https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki>
 //! and EIP-3 <https://github.com/ergoplatform/eips/blob/master/eip-0003.md>
 
+use derive_more::From;
+use std::{collections::VecDeque, fmt, num::ParseIntError, str::FromStr};
+use thiserror::Error;
+
 /// Index for hardened derivation
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct ChildIndexHardened(u32);
@@ -14,6 +18,11 @@ impl ChildIndexHardened {
         } else {
             Err(ChildIndexError::NumberTooLarge(i))
         }
+    }
+
+    /// Return the next child index (incremented)
+    pub fn next(&self) -> Result<Self, ChildIndexError> {
+        ChildIndexHardened::from_31_bit(self.0 + 1)
     }
 }
 
@@ -30,15 +39,44 @@ impl ChildIndexNormal {
             Err(ChildIndexError::NumberTooLarge(i))
         }
     }
+
+    /// Return next index value (incremented)
+    pub fn next(&self) -> ChildIndexNormal {
+        ChildIndexNormal(self.0 + 1)
+    }
 }
 
 /// Child index for derivation
-#[derive(PartialEq, Eq, Clone, Debug)]
+#[derive(PartialEq, Eq, Clone, Debug, From)]
 pub enum ChildIndex {
     /// Index for hardened derivation
     Hardened(ChildIndexHardened),
     /// Index for normal(non-hardened) derivation
     Normal(ChildIndexNormal),
+}
+
+impl fmt::Display for ChildIndex {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ChildIndex::Hardened(i) => write!(f, "{}'", i.0.to_string()),
+            ChildIndex::Normal(i) => write!(f, "{}", i.0.to_string()),
+        }
+    }
+}
+
+impl FromStr for ChildIndex {
+    type Err = ChildIndexError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.contains('\'') {
+            let idx = s.replace("'", "");
+            Ok(ChildIndex::Hardened(ChildIndexHardened::from_31_bit(
+                idx.parse()?,
+            )?))
+        } else {
+            Ok(ChildIndex::Normal(ChildIndexNormal::normal(s.parse()?)?))
+        }
+    }
 }
 
 const PURPOSE: ChildIndex = ChildIndex::Hardened(ChildIndexHardened(44));
@@ -47,10 +85,14 @@ const ERG: ChildIndex = ChildIndex::Hardened(ChildIndexHardened(429));
 const CHANGE: ChildIndex = ChildIndex::Normal(ChildIndexNormal(0));
 
 /// Child index related errors
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum ChildIndexError {
-    /// Nomber is too large
+    /// Number is too large
+    #[error("number too large: {0}")]
     NumberTooLarge(u32),
+    /// Provided derivation path contained invalid integer indices
+    #[error("failed to parse index: {0}")]
+    BadIndex(#[from] ParseIntError),
 }
 
 impl ChildIndex {
@@ -72,13 +114,37 @@ impl ChildIndex {
             ChildIndex::Normal(index) => index.0,
         }
     }
+
+    /// Returns a new instance of the `ChildIndex` with the index incremented
+    pub fn next(&self) -> Result<Self, ChildIndexError> {
+        match self {
+            ChildIndex::Hardened(i) => Ok(ChildIndex::Hardened(i.next()?)),
+            ChildIndex::Normal(i) => Ok(ChildIndex::Normal(i.next())),
+        }
+    }
 }
 
 /// According to
 /// BIP-44 <https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki>
 /// and EIP-3 <https://github.com/ergoplatform/eips/blob/master/eip-0003.md>
-#[derive(PartialEq, Eq, Debug, Clone)]
-pub struct DerivationPath(Box<[ChildIndex]>);
+#[derive(PartialEq, Eq, Debug, Clone, From)]
+pub struct DerivationPath(pub(super) Box<[ChildIndex]>);
+
+/// DerivationPath errors
+#[derive(Error, Debug, Clone, PartialEq, Eq)]
+pub enum DerivationPathError {
+    /// Provided derivation path was empty
+    /// For example, when parsing a path from a string
+    #[error("derivation path is empty")]
+    EmptyPath,
+    /// Provided derivation path was in the wrong format
+    /// For example, parsing from string to DerivationPath might have been missing the leading `m`
+    #[error("invalid derivation path format")]
+    InvalidFormat(String),
+    /// There was an issue with one of the children in the path
+    #[error("child error: {0}")]
+    ChildIndex(#[from] ChildIndexError),
+}
 
 impl DerivationPath {
     /// Create derivation path for a given account index (hardened) and address indices
@@ -95,6 +161,24 @@ impl DerivationPath {
                 .as_mut(),
         );
         Self(res.into_boxed_slice())
+    }
+
+    /// Create root derivation path
+    pub fn master_path() -> Self {
+        Self(Box::new([]))
+    }
+
+    /// Returns the length of the derivation path
+    pub fn depth(&self) -> usize {
+        self.0.len()
+    }
+
+    /// Extend the path with the given index.
+    /// Returns this derivation path with added index.
+    pub fn extend(&self, index: ChildIndex) -> DerivationPath {
+        let mut res = self.0.to_vec();
+        res.push(index);
+        DerivationPath(res.into_boxed_slice())
     }
 
     /// For 0x21 Sign Transaction command of Ergo Ledger App Protocol
@@ -133,19 +217,71 @@ impl DerivationPath {
             .for_each(|i| res.append(&mut i.to_bits().to_be_bytes().to_vec()));
         res
     }
+}
 
-    /// Extend the path with the given index.
-    /// Returns this derivation path with added index.
-    pub fn extend(&self, index: ChildIndexNormal) -> DerivationPath {
-        let mut res = self.0.to_vec();
-        res.push(ChildIndex::Normal(index));
-        DerivationPath(res.into_boxed_slice())
+impl fmt::Display for DerivationPath {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "m/")?;
+        let children = self
+            .0
+            .iter()
+            .map(ChildIndex::to_string)
+            .collect::<Vec<_>>()
+            .join("/");
+        write!(f, "{}", children)?;
+
+        Ok(())
     }
 }
 
-impl ChildIndexNormal {
-    /// Return next index value (incremented)
-    pub fn next(&self) -> ChildIndexNormal {
-        ChildIndexNormal(self.0 + 1)
+impl FromStr for DerivationPath {
+    type Err = DerivationPathError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let cleaned_parts = s.split_whitespace().collect::<String>();
+        let mut parts = cleaned_parts.split('/').collect::<VecDeque<_>>();
+        let master_key_id = parts.pop_front().ok_or(DerivationPathError::EmptyPath)?;
+        if master_key_id != "m" && master_key_id != "M" {
+            return Err(DerivationPathError::InvalidFormat(format!(
+                "Master node must be either 'm' or 'M', got {}",
+                master_key_id
+            )));
+        }
+        let path = parts
+            .into_iter()
+            .map(ChildIndex::from_str)
+            .flatten()
+            .collect::<Vec<_>>();
+        Ok(path.into_boxed_slice().into())
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::panic)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_derivation_path_to_string() {
+        let path = DerivationPath::new(ChildIndexHardened(1), vec![ChildIndexNormal(3)]);
+        let expected = "m/44'/429'/1'/0/3";
+
+        assert_eq!(expected, path.to_string())
+    }
+
+    #[test]
+    fn test_derivation_path_to_string_no_addr() {
+        let path = DerivationPath::new(ChildIndexHardened(0), vec![]);
+        let expected = "m/44'/429'/0'/0";
+
+        assert_eq!(expected, path.to_string())
+    }
+
+    #[test]
+    fn test_string_to_derivation_path() {
+        let path = "m/44'/429'/0'/0/1";
+        let expected = DerivationPath::new(ChildIndexHardened(0), vec![ChildIndexNormal(1)]);
+
+        assert_eq!(expected, path.parse::<DerivationPath>().unwrap())
     }
 }

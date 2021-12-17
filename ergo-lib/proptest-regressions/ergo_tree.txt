@@ -1,7 +1,0 @@
-# Seeds for failure cases proptest has generated in the past. It is
-# automatically read and these particular cases re-run before any
-# novel cases are generated.
-#
-# It is recommended to check this file in to source control so that
-# everyone who runs the test benefits from these saved cases.
-cc ce0ac914b3b393b05617fed50f6a4c13398ae5fb4893185cdb4d3b410c2fe4c1 # shrinks to v = ErgoTree { header: ErgoTreeHeader(0), constants: [], root: Const(Constant { tpe: SSigmaProp, v: SigmaProp(SigmaProp(ProveDlog(EcPointType))) }) }

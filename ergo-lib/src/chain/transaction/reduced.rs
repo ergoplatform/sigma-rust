@@ -49,6 +49,8 @@ pub struct ReducedInput {
 pub struct ReducedTransaction {
     /// Unsigned transation
     pub unsigned_tx: UnsignedTransaction,
+    /// Transaction cost according to the prover
+    tx_cost: u32,
     /// Reduction result for each unsigned tx input
     reduced_inputs: TxIoVec<ReducedInput>,
 }
@@ -92,6 +94,7 @@ pub fn reduce_tx(
     Ok(ReducedTransaction {
         unsigned_tx: tx.clone(),
         reduced_inputs,
+        tx_cost: 0,
     })
 }
 
@@ -102,8 +105,11 @@ impl SigmaSerializable for ReducedTransaction {
         w.write_all(&msg)?;
         self.reduced_inputs.as_vec().iter().try_for_each(|red_in| {
             red_in.reduction_result.sigma_prop.sigma_serialize(w)?;
-            Ok(w.put_u64(red_in.reduction_result.cost)?)
-        })
+            w.put_u64(red_in.reduction_result.cost)?;
+            SigmaSerializeResult::Ok(())
+        })?;
+        w.put_u32(self.tx_cost)?;
+        Ok(())
     }
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
@@ -130,9 +136,11 @@ impl SigmaSerializable for ReducedTransaction {
         let unsigned_inputs = input_pairs.mapped(|p| p.1);
         let unsigned_tx =
             UnsignedTransaction::new(unsigned_inputs, tx.data_inputs, tx.output_candidates)?;
+        let tx_cost = r.get_u32()?;
         Ok(ReducedTransaction {
             unsigned_tx,
             reduced_inputs,
+            tx_cost,
         })
     }
 }
@@ -149,8 +157,12 @@ mod tests {
         type Parameters = ();
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            (any::<UnsignedTransaction>(), any::<SigmaBoolean>())
-                .prop_map(|(unsigned_tx, sb)| Self {
+            (
+                any::<UnsignedTransaction>(),
+                any::<SigmaBoolean>(),
+                any::<u32>(),
+            )
+                .prop_map(|(unsigned_tx, sb, tx_cost)| Self {
                     unsigned_tx: unsigned_tx.clone(),
                     reduced_inputs: unsigned_tx.inputs.mapped(|unsigned_input| ReducedInput {
                         reduction_result: ReductionResult {
@@ -159,6 +171,7 @@ mod tests {
                         },
                         extension: unsigned_input.extension,
                     }),
+                    tx_cost,
                 })
                 .boxed()
         }
@@ -167,7 +180,7 @@ mod tests {
 
     proptest! {
 
-        #![proptest_config(ProptestConfig::with_cases(64))]
+        #![proptest_config(ProptestConfig::with_cases(32))]
 
         #[test]
         fn ser_roundtrip(v in any::<ReducedTransaction>()) {

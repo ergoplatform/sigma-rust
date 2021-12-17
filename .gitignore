@@ -17,6 +17,7 @@ h/
 Packages
 *.xcodeproj
 xcuserdata/
+*.swiftpm
 
 .idea/
 
@@ -26,3 +27,5 @@ build/
 
 # ts lsp server logs
 .log/
+
+**/proptest-regressions

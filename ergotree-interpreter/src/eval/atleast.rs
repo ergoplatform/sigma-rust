@@ -46,7 +46,7 @@ impl Evaluable for Atleast {
             )));
         }
         Ok(Value::SigmaProp(Box::new(SigmaProp::new(
-            Cthreshold::reduce(bound_u8, input.try_into()?).into(),
+            Cthreshold::reduce(bound_u8, input.try_into()?),
         ))))
     }
 }
@@ -79,7 +79,7 @@ mod tests {
         #![proptest_config(ProptestConfig::with_cases(8))]
 
         #[test]
-        fn eval(sigmaprops in collection::vec(any::<SigmaProp>(), 2..4)) {
+        fn eval(sigmaprops in collection::vec(any::<SigmaProp>(), 4..8)) {
             let items = Literal::Coll(CollKind::from_vec(SType::SSigmaProp,
                 sigmaprops.into_iter().map(|s| s.into()).collect::<Vec<Literal>>()).unwrap());
             let expr: Expr = Atleast::new(2i32.into(),
