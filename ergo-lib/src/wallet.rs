@@ -8,6 +8,7 @@ pub mod mnemonic;
 pub mod secret_key;
 pub mod signing;
 pub mod tx_builder;
+pub mod word_list;
 
 use ergotree_interpreter::sigma_protocol::private_input::PrivateInput;
 use ergotree_interpreter::sigma_protocol::prover::Prover;
