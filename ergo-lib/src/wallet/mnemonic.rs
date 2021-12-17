@@ -488,15 +488,14 @@ mod tests {
 
     fn run_checks(entrophy_str: &str, sentence: &str, pass: &str, seed: &str, lang: &str) {
         let sep = if lang == "japanese" { "　" } else { " " };
-        let word_count = sentence.split(sep).collect::<Vec<_>>().len();
-        let strength = Mnemonic::ALLOWED_STRENGTHS
+        let word_count = sentence.split(sep).count();
+        let strength = *Mnemonic::ALLOWED_STRENGTHS
             .to_vec()
             .iter()
             .zip(Mnemonic::ALLOWED_SENTENCE_LENS.to_vec())
             .find(|&(_, sentence_len)| sentence_len == word_count)
             .unwrap()
-            .0
-            .clone();
+            .0;
         let entrophy = base16::decode(entrophy_str).unwrap();
         let mnemonic = Mnemonic::new(lang.parse().unwrap(), strength);
 
