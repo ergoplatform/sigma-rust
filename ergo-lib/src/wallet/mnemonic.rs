@@ -1,14 +1,19 @@
 //! Mnemonic operations according to BIP32/BIP39
 
+#[cfg(feature = "mnemonic_gen")]
+use super::word_list::{Language, WordList};
+#[cfg(feature = "mnemonic_gen")]
 use bitvec::prelude::*;
+#[cfg(feature = "mnemonic_gen")]
+use rand::RngCore;
+#[cfg(feature = "mnemonic_gen")]
+use sha2::{Digest, Sha256};
+
 use hmac::Hmac;
 use pbkdf2::pbkdf2;
-use rand::RngCore;
-use sha2::{Digest, Sha256, Sha512};
+use sha2::Sha512;
 extern crate unicode_normalization;
 use unicode_normalization::UnicodeNormalization;
-
-use super::word_list::{Language, WordList};
 
 /// Length of mnemonic seed in bytes
 const SHA512_OUTPUT_LEN: usize = 512 / 8;
@@ -18,11 +23,14 @@ pub type MnemonicSeed = [u8; SHA512_OUTPUT_LEN];
 
 /// Mnemonic type
 pub struct Mnemonic {
+    #[cfg(feature = "mnemonic_gen")]
     lang: Language,
+    #[cfg(feature = "mnemonic_gen")]
     strength: u32,
 }
 
 /// Mnemonic errors
+#[cfg(feature = "mnemonic_gen")]
 #[derive(Debug)]
 pub enum MnemonicError {
     /// Invalid strength used for mnemonic generation
@@ -32,12 +40,32 @@ pub enum MnemonicError {
 }
 
 impl Mnemonic {
+    const PBKDF2_ITERATIONS: u32 = 2048;
+
+    /// Convert a mnemonic phrase into a mnemonic seed
+    /// mnemonic_pass is optional and is used to salt the seed
+    pub fn to_seed(mnemonic_phrase: &str, mnemonic_pass: &str) -> MnemonicSeed {
+        let mut seed: MnemonicSeed = [0u8; SHA512_OUTPUT_LEN];
+        let normalized_phrase = mnemonic_phrase.nfkd().collect::<String>();
+        let normalized_pass = mnemonic_pass.nfkd().collect::<String>();
+        pbkdf2::<Hmac<Sha512>>(
+            normalized_phrase.as_bytes(),
+            format!("mnemonic{}", normalized_pass).as_bytes(),
+            Mnemonic::PBKDF2_ITERATIONS,
+            &mut seed,
+        );
+
+        seed
+    }
+}
+
+#[cfg(feature = "mnemonic_gen")]
+impl Mnemonic {
     /// Allowed amount of words in mnemonic phrase
     pub const ALLOWED_SENTENCE_LENS: [usize; 5] = [12, 15, 18, 21, 24];
     /// Allowed entrophy strenght for mnemonic generation
     pub const ALLOWED_STRENGTHS: [u32; 5] = [128, 160, 192, 224, 256];
     const BITS_GROUP_SIZE: usize = 11;
-    const PBKDF2_ITERATIONS: u32 = 2048;
 
     /// Create new Mnemonic instance
     pub fn new(lang: Language, strength: u32) -> Self {
@@ -80,22 +108,6 @@ impl Mnemonic {
         }
     }
 
-    /// Convert a mnemonic phrase into a mnemonic seed
-    /// mnemonic_pass is optional and is used to salt the seed
-    pub fn to_seed(mnemonic_phrase: &str, mnemonic_pass: &str) -> MnemonicSeed {
-        let mut seed: MnemonicSeed = [0u8; SHA512_OUTPUT_LEN];
-        let normalized_phrase = mnemonic_phrase.nfkd().collect::<String>();
-        let normalized_pass = mnemonic_pass.nfkd().collect::<String>();
-        pbkdf2::<Hmac<Sha512>>(
-            normalized_phrase.as_bytes(),
-            format!("mnemonic{}", normalized_pass).as_bytes(),
-            Mnemonic::PBKDF2_ITERATIONS,
-            &mut seed,
-        );
-
-        seed
-    }
-
     fn allowed_entrophy_lens() -> [usize; 5] {
         Mnemonic::ALLOWED_STRENGTHS.map(|s| (s / 8) as usize)
     }
@@ -126,12 +138,16 @@ mod tests {
         assert_eq!(encoded_seed, expected);
     }
 
-    #[test]
-    fn test_trezor_vectors() {
-        // Tests against: https://github.com/trezor/python-mnemonic/blob/master/vectors.json
-        let pass = "TREZOR";
-        let lang = "english";
-        let cases = vec![
+    #[cfg(feature = "mnemonic_gen")]
+    mod test_mnemonic_gen {
+        use super::*;
+
+        #[test]
+        fn test_trezor_vectors() {
+            // Tests against: https://github.com/trezor/python-mnemonic/blob/master/vectors.json
+            let pass = "TREZOR";
+            let lang = "english";
+            let cases = vec![
             (
                 "00000000000000000000000000000000",
                 "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
@@ -278,16 +294,16 @@ mod tests {
             )
         ];
 
-        for (entrophy, sentence, seed, _) in cases {
-            run_checks(entrophy, sentence, pass, seed, lang)
+            for (entrophy, sentence, seed, _) in cases {
+                run_checks(entrophy, sentence, pass, seed, lang)
+            }
         }
-    }
 
-    #[test]
-    fn test_jp_bip39_vectors() {
-        // Test against japanese vectors: https://github.com/bip32JP/bip32JP.github.io/blob/master/test_JP_BIP39.json
-        let lang = "japanese";
-        let cases = vec![
+        #[test]
+        fn test_jp_bip39_vectors() {
+            // Test against japanese vectors: https://github.com/bip32JP/bip32JP.github.io/blob/master/test_JP_BIP39.json
+            let lang = "japanese";
+            let cases = vec![
             (
                 "00000000000000000000000000000000",
                 "あいこくしん　あいこくしん　あいこくしん　あいこくしん　あいこくしん　あいこくしん　あいこくしん　あいこくしん　あいこくしん　あいこくしん　あいこくしん　あおぞら",
@@ -481,35 +497,36 @@ mod tests {
             )
         ];
 
-        for (entrophy, sentence, pass, seed, _) in cases {
-            run_checks(entrophy, sentence, pass, seed, lang)
+            for (entrophy, sentence, pass, seed, _) in cases {
+                run_checks(entrophy, sentence, pass, seed, lang)
+            }
         }
-    }
 
-    fn run_checks(entrophy_str: &str, sentence: &str, pass: &str, seed: &str, lang: &str) {
-        let sep = if lang == "japanese" { "　" } else { " " };
-        let word_count = sentence.split(sep).count();
-        let strength = *Mnemonic::ALLOWED_STRENGTHS
-            .to_vec()
-            .iter()
-            .zip(Mnemonic::ALLOWED_SENTENCE_LENS.to_vec())
-            .find(|&(_, sentence_len)| sentence_len == word_count)
-            .unwrap()
-            .0;
-        let entrophy = base16::decode(entrophy_str).unwrap();
-        let mnemonic = Mnemonic::new(lang.parse().unwrap(), strength);
-
-        assert_eq!(
-            base16::encode_lower(&Mnemonic::to_seed(sentence, pass)),
-            seed
-        );
-        assert_eq!(
-            mnemonic
-                .from_entrophy(entrophy)
+        fn run_checks(entrophy_str: &str, sentence: &str, pass: &str, seed: &str, lang: &str) {
+            let sep = if lang == "japanese" { "　" } else { " " };
+            let word_count = sentence.split(sep).count();
+            let strength = *Mnemonic::ALLOWED_STRENGTHS
+                .to_vec()
+                .iter()
+                .zip(Mnemonic::ALLOWED_SENTENCE_LENS.to_vec())
+                .find(|&(_, sentence_len)| sentence_len == word_count)
                 .unwrap()
-                .nfkd()
-                .collect::<String>(),
-            sentence.nfkd().collect::<String>()
-        );
+                .0;
+            let entrophy = base16::decode(entrophy_str).unwrap();
+            let mnemonic = Mnemonic::new(lang.parse().unwrap(), strength);
+
+            assert_eq!(
+                base16::encode_lower(&Mnemonic::to_seed(sentence, pass)),
+                seed
+            );
+            assert_eq!(
+                mnemonic
+                    .from_entrophy(entrophy)
+                    .unwrap()
+                    .nfkd()
+                    .collect::<String>(),
+                sentence.nfkd().collect::<String>()
+            );
+        }
     }
 }

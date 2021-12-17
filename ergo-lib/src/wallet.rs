@@ -8,6 +8,7 @@ pub mod mnemonic;
 pub mod secret_key;
 pub mod signing;
 pub mod tx_builder;
+#[cfg(feature = "mnemonic_gen")]
 pub mod word_list;
 
 use ergotree_interpreter::sigma_protocol::private_input::PrivateInput;
