@@ -3,7 +3,7 @@
 use std::{fmt, str::FromStr};
 
 /// Supported languages for mnemonic phrases
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Language {
     /// Simplified Chinese wordlist
     ChineseSimplified,

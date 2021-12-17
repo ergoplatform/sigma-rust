@@ -12,6 +12,7 @@ use sha2::{Digest, Sha256};
 use hmac::Hmac;
 use pbkdf2::pbkdf2;
 use sha2::Sha512;
+use thiserror::Error;
 extern crate unicode_normalization;
 use unicode_normalization::UnicodeNormalization;
 
@@ -22,6 +23,7 @@ const SHA512_OUTPUT_LEN: usize = 512 / 8;
 pub type MnemonicSeed = [u8; SHA512_OUTPUT_LEN];
 
 /// Mnemonic type
+#[derive(PartialEq, Debug, Clone)]
 pub struct Mnemonic {
     #[cfg(feature = "mnemonic_gen")]
     lang: Language,
@@ -31,11 +33,13 @@ pub struct Mnemonic {
 
 /// Mnemonic errors
 #[cfg(feature = "mnemonic_gen")]
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum MnemonicError {
     /// Invalid strength used for mnemonic generation
+    #[error("invalid entrophy strength: {0}")]
     InvalidStrength(u32),
     /// Invalid entrophy length used for mnemonic generation
+    #[error("invalid entrophy length: {0}")]
     InvalidEntrophyLen(usize),
 }
 
