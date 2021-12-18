@@ -1,13 +1,13 @@
 //! Mnemonic operations according to BIP32/BIP39
 
 extern crate derive_more;
-use derive_more::{From, Into};
+use derive_more::From;
 use ergo_lib::wallet::mnemonic::Mnemonic as InnerMnemonic;
 use wasm_bindgen::prelude::wasm_bindgen;
 
 /// Mnemonic
 #[wasm_bindgen]
-#[derive(PartialEq, Debug, Clone, From, Into)]
+#[derive(PartialEq, Debug, Clone, From)]
 pub struct Mnemonic {}
 
 #[wasm_bindgen]

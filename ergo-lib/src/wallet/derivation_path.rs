@@ -186,7 +186,7 @@ impl DerivationPath {
     pub fn next(&self) -> Result<DerivationPath, DerivationPathError> {
         #[allow(clippy::unwrap_used)]
         if self.0.len() > 0 {
-            let mut new_path: Vec<_> = self.0.iter().cloned().collect();
+            let mut new_path = self.0.to_vec();
             let last_idx = new_path.len() - 1;
             // The bounds have been checked, there is at least one element
             new_path[last_idx] = new_path.last().unwrap().next()?;

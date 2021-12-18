@@ -60,6 +60,7 @@ impl DerivationPath {
     /// String representation of derivation path
     /// E.g m/44'/429'/0'/0/1
     #[wasm_bindgen(js_name = toString)]
+    #[allow(clippy::inherent_to_string)]
     pub fn to_string(&self) -> String {
         self.0.to_string()
     }

@@ -145,7 +145,7 @@ impl ExtSecretKey {
         if up_path.depth() >= self.derivation_path.depth() && is_matching_path {
             up_path.0[self.derivation_path.depth()..]
                 .iter()
-                .try_fold(self.clone(), |parent, i| parent.child(i.clone()))
+                .try_fold(self.clone(), |parent, i| parent.child(*i))
         } else {
             Err(ExtSecretKeyError::IncompatibleDerivation(format!(
                 "{}, {}",
