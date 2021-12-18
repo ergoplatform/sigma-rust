@@ -72,6 +72,11 @@ impl ExtSecretKey {
         })
     }
 
+    /// Derivation path associated with the ext secret key
+    pub fn path(&self) -> DerivationPath {
+        self.derivation_path.clone()
+    }
+
     /// Byte representation of the underlying scalar
     pub fn secret_key_bytes(&self) -> SecretKeyBytes {
         self.private_input.to_bytes()
