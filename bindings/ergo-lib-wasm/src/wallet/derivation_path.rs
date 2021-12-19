@@ -65,6 +65,12 @@ impl DerivationPath {
         self.0.to_string()
     }
 
+    /// Create a derivation path from a formatted string
+    /// E.g "m/44'/429'/0'/0/1"
+    pub fn from_string(path: &str) -> Result<DerivationPath, JsValue> {
+        Ok(path.parse::<InnerDerivationPath>().map_err(to_js)?.into())
+    }
+
     /// For 0x21 Sign Transaction command of Ergo Ledger App Protocol
     /// P2PK Sign (0x0D) instruction
     /// Sign calculated TX hash with private key for provided BIP44 path.
