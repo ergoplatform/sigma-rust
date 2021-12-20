@@ -150,6 +150,19 @@ impl Constant {
         ])
     }
 
+    /// Create `(Int, Int)` tuple Constant
+    pub fn to_tuple_i32(&self) -> Result<Vec<JsValue>, JsValue> {
+        let (i1, i2) = self
+            .0
+            .clone()
+            .try_extract_into::<(i32, i32)>()
+            .map_err(to_js)?;
+        Ok(vec![
+            JsValue::from_str(&i1.to_string()),
+            JsValue::from_str(&i2.to_string()),
+        ])
+    }
+
     /// Create `(Long, Long)` tuple Constant
     pub fn from_tuple_i64(l1: &I64, l2: &I64) -> Constant {
         let c: ergo_lib::ergotree_ir::mir::constant::Constant =
