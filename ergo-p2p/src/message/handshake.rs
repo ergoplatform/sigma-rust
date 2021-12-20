@@ -8,7 +8,6 @@ use crate::PeerSpec;
 /// No further communication is possible until both peers have exchanged their handshakes.
 /// peerSpec - general (declared) information about peer
 /// time     - handshake time
-#[allow(dead_code)] // TODO: remove
 pub struct Handshake {
     pub peer_spec: PeerSpec,
     pub time: SystemTime,

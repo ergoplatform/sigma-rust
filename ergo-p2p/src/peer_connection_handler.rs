@@ -34,14 +34,14 @@ impl Service<HandshakeRequest> for PeerConnectionHandler {
     type Future =
         Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send + 'static>>;
 
-    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+    fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         Poll::Ready(Ok(()))
     }
 
     fn call(&mut self, req: HandshakeRequest) -> Self::Future {
         let negotiator_span = debug_span!("negotiator", conn = ?req.connection_id);
         let fut = async move {
-            let (server_tx, server_rx) = mpsc::channel(0);
+            let (server_tx, _server_rx) = mpsc::channel(0);
             debug!( conn = ?req.connection_id, "handshake with remote peer");
             let mut peer_conn = Framed::new(req.tcp_stream, Codec::default());
             let peer_handshake = timeout(
@@ -70,7 +70,7 @@ impl Service<HandshakeRequest> for PeerConnectionHandler {
 }
 
 async fn send_receive_handshake(
-    peer_conn: &mut Framed<TcpStream, Codec>,
+    _peer_conn: &mut Framed<TcpStream, Codec>,
 ) -> Result<Handshake, HandshakeError> {
     // TODO: do a handshake
     todo!()
@@ -89,7 +89,7 @@ pub struct ConnectionId {
     direction: ConnectionDirection,
 }
 impl ConnectionId {
-    pub(crate) fn new_outbound_direct(addr: PeerAddr) -> Self {
+    pub(crate) fn new_outbound_direct(_addr: PeerAddr) -> Self {
         todo!()
     }
 }

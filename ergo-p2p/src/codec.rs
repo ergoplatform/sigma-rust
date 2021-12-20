@@ -11,7 +11,7 @@ pub struct Codec {}
 impl Encoder<Request> for Codec {
     type Error = ScorexSerializationError;
 
-    fn encode(&mut self, item: Request, dst: &mut BytesMut) -> Result<(), Self::Error> {
+    fn encode(&mut self, _item: Request, _dst: &mut BytesMut) -> Result<(), Self::Error> {
         todo!()
     }
 }

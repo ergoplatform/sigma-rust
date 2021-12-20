@@ -14,7 +14,6 @@
 #![deny(clippy::unwrap_used)]
 #![deny(clippy::expect_used)]
 // #![deny(clippy::todo)] // TODO: remove
-#![allow(unused_variables)] // TODO: remove
 #![deny(clippy::unimplemented)]
 #![deny(clippy::panic)]
 
