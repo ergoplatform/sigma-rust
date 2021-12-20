@@ -112,7 +112,7 @@ impl WordList {
     }
 }
 
-/// Mnemonic type
+/// Mnemonic generator type
 #[derive(PartialEq, Debug, Clone)]
 pub struct MnemonicGenerator {
     lang: Language,
@@ -137,7 +137,7 @@ impl MnemonicGenerator {
     pub const ALLOWED_STRENGTHS: [u32; 5] = [128, 160, 192, 224, 256];
     const BITS_GROUP_SIZE: usize = 11;
 
-    /// Create new Mnemonic instance
+    /// Create new MnemonicGenerator instance
     pub fn new(lang: Language, strength: u32) -> Self {
         Self { lang, strength }
     }
