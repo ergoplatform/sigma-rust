@@ -75,12 +75,7 @@ impl ExtPubKey {
         // Unwrap is fine due to `ChainCode` type having fixed length of 32.
         let mut mac = HmacSha512::new_from_slice(&self.chain_code).unwrap();
         mac.update(&self.pub_key_bytes());
-        mac.update(
-            ChildIndex::Normal(index.clone())
-                .to_bits()
-                .to_be_bytes()
-                .as_ref(),
-        );
+        mac.update(ChildIndex::Normal(index).to_bits().to_be_bytes().as_ref());
         let mac_bytes = mac.finalize().into_bytes();
         let mut secret_key_bytes = [0; 32];
         secret_key_bytes.copy_from_slice(&mac_bytes[..32]);
@@ -119,7 +114,7 @@ impl ExtPubKey {
                     ChildIndex::Hardened(_) => Err(ExtPubKeyError::IncompatibleDerivation(
                         format!("pub keys can't use hardened paths: {}", i),
                     )),
-                    ChildIndex::Normal(i) => Ok(parent.child(i.clone())),
+                    ChildIndex::Normal(i) => Ok(parent.child(*i)),
                 })
         } else {
             Err(ExtPubKeyError::IncompatibleDerivation(format!(

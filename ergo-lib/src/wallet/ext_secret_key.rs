@@ -72,6 +72,11 @@ impl ExtSecretKey {
         })
     }
 
+    /// Derivation path associated with the ext secret key
+    pub fn path(&self) -> DerivationPath {
+        self.derivation_path.clone()
+    }
+
     /// Byte representation of the underlying scalar
     pub fn secret_key_bytes(&self) -> SecretKeyBytes {
         self.private_input.to_bytes()
@@ -140,7 +145,7 @@ impl ExtSecretKey {
         if up_path.depth() >= self.derivation_path.depth() && is_matching_path {
             up_path.0[self.derivation_path.depth()..]
                 .iter()
-                .try_fold(self.clone(), |parent, i| parent.child(i.clone()))
+                .try_fold(self.clone(), |parent, i| parent.child(*i))
         } else {
             Err(ExtSecretKeyError::IncompatibleDerivation(format!(
                 "{}, {}",
