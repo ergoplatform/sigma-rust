@@ -53,7 +53,7 @@ features = [ "json" ]
 optional = true
 
 [features]
-default = ["json", "compiler", "mnemonic_gen"]
+default = ["json", "compiler"]
 json = ["serde", "serde_json", "serde_with", "bounded-vec/serde"]
 compiler = ["ergoscript-compiler"]
 arbitrary = ["proptest", "proptest-derive"]
