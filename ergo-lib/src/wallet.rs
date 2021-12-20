@@ -5,11 +5,11 @@ pub mod derivation_path;
 pub mod ext_pub_key;
 pub mod ext_secret_key;
 pub mod mnemonic;
+#[cfg(feature = "mnemonic_gen")]
+pub mod mnemonic_generator;
 pub mod secret_key;
 pub mod signing;
 pub mod tx_builder;
-#[cfg(feature = "mnemonic_gen")]
-pub mod word_list;
 
 use ergotree_interpreter::sigma_protocol::private_input::PrivateInput;
 use ergotree_interpreter::sigma_protocol::prover::Prover;
