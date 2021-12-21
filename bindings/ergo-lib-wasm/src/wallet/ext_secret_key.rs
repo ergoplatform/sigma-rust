@@ -60,4 +60,9 @@ impl ExtSecretKey {
     pub fn public_key(&self) -> Result<crate::wallet::ext_pub_key::ExtPubKey, JsValue> {
         Ok(self.0.public_key().map_err(to_js)?.into())
     }
+
+    /// Derivation path associated with the ext secret key
+    pub fn path(&self) -> DerivationPath {
+        self.0.path().into()
+    }
 }
