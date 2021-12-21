@@ -16,3 +16,7 @@
 // #![deny(clippy::todo)] // TODO: remove
 #![deny(clippy::unimplemented)]
 #![deny(clippy::panic)]
+
+mod peer_info;
+
+pub use peer_info::PeerInfo;

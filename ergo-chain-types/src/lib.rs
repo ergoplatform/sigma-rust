@@ -16,3 +16,9 @@
 #![deny(clippy::todo)]
 #![deny(clippy::unimplemented)]
 #![deny(clippy::panic)]
+
+mod peer_addr;
+mod peer_connection_dir;
+
+pub use peer_addr::PeerAddr;
+pub use peer_connection_dir::ConnectionDirection;

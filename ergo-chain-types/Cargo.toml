@@ -16,5 +16,20 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 thiserror = "1"
 derive_more = "0.99"
+sigma-ser = { version = "^0.3.0", path = "../sigma-ser" }
+proptest-derive = {version = "0.3.0", optional = true }
+
+[dependencies.proptest]
+# wasm support, via https://altsysrq.github.io/proptest-book/proptest/wasm.html
+version = "1.0.0"
+# The default feature set includes things like process forking which are not
+# supported in Web Assembly.
+default-features = false
+# Enable using the `std` crate.
+features = ["std"]
+optional = true
+
+[features]
+arbitrary = ["proptest", "proptest-derive"]
 
 [dev-dependencies]

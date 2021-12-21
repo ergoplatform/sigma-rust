@@ -1,4 +1,6 @@
-use crate::{peer_addr::PeerAddr, peer_info::PeerInfo};
+use ergo_chain_types::PeerAddr;
+
+use crate::peer_info::PeerInfo;
 
 use super::{PeerDatabase, PeerDatabaseError, PeerMap};
 
