@@ -3,3 +3,7 @@ ignore = [
 "RUSTSEC-2020-0159", # no workaround https://rustsec.org/advisories/RUSTSEC-2020-0159.html
 "RUSTSEC-2020-0071"  # caused by RUSTSEC-2020-0159
 ]
+
+[output]
+deny = ["yanked"]
+quiet = false

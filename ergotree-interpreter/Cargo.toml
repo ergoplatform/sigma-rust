@@ -17,8 +17,8 @@ crate-type = ["cdylib", "rlib"]
 sigma-util = { version = "^0.3.0", path = "../sigma-util" }
 ergotree-ir = { version = "^0.14.0", path = "../ergotree-ir" }
 indexmap = "1.3.2"
-k256 = { version = "0.9.6", features = ["zeroize", "arithmetic", "ecdsa"] }
-elliptic-curve = {version = "0.10.6", features = [ "zeroize", "ff"]}
+k256 = { version = "0.10.0", features = ["arithmetic", "ecdsa"] }
+elliptic-curve = {version = "0.11.6", features = [ "ff"]}
 blake2 = "0.9"
 rand = "0.8.4"
 lazy_static = "1.4"
