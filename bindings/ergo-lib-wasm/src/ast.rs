@@ -172,8 +172,7 @@ impl Constant {
     }
 
     /// Extract `Coll[Coll[Byte]]` as byte array
-    #[allow(clippy::boxed_local)]
-    pub fn to_coll_coll_byte_byte_array(&self) -> Result<Vec<Uint8Array>, JsValue> {
+    pub fn to_coll_coll_byte_array(&self) -> Result<Vec<Uint8Array>, JsValue> {
         let vec_coll_byte = self
             .0
             .clone()
