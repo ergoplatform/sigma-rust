@@ -1,7 +1,7 @@
 #![allow(dead_code)] // TODO: remove
 
-use futures::channel::mpsc;
-use futures::channel::oneshot;
+use tokio::sync::mpsc;
+use tokio::sync::oneshot;
 
 use crate::error::SharedPeerError;
 use crate::message::Request;

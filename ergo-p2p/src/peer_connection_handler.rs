@@ -1,11 +1,11 @@
 use chrono::Utc;
-use futures::channel::mpsc;
 use futures::Future;
 use futures::FutureExt;
 use std::pin::Pin;
 use std::task::Context;
 use std::task::Poll;
 use tokio::net::TcpStream;
+use tokio::sync::mpsc;
 use tokio::task::JoinError;
 use tokio::time::timeout;
 use tokio_util::codec::Framed;
