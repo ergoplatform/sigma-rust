@@ -15,6 +15,7 @@ use wasm_bindgen::prelude::*;
 
 extern crate derive_more;
 use derive_more::{From, Into};
+use ergo_lib::ergotree_ir::bigint256::BigInt256;
 
 /// Ergo constant(evaluated) values
 #[wasm_bindgen]
@@ -71,6 +72,13 @@ impl Constant {
             .map(I64::from)
     }
 
+    /// Create from byte array(BigInt)
+    pub fn from_byte_array_bigint(num: &[u8]) -> Constant {
+        Constant(ergo_lib::ergotree_ir::mir::constant::Constant::from(
+            BigInt256::try_from(num).unwrap(),
+        ))
+    }
+
     /// Create from byte array
     pub fn from_byte_array(v: &[u8]) -> Constant {
         Constant(v.to_vec().into())
@@ -81,6 +89,46 @@ impl Constant {
         Vec::<u8>::try_extract_from(self.0.clone())
             .map(|v| Uint8Array::from(v.as_slice()))
             .map_err(to_js)
+    }
+
+    /// Create `Coll[Int]` from string array
+    #[allow(clippy::boxed_local)]
+    pub fn from_i32_str_array(arr: Box<[JsValue]>) -> Result<Constant, JsValue> {
+        arr.iter()
+            .try_fold(vec![], |mut acc, l| {
+                let b: i32 = if l.is_string() {
+                    let l_str = l
+                        .as_string()
+                        .ok_or_else(|| JsValue::from_str("i32 as a string"))?;
+                    serde_json::from_str(l_str.as_str())
+                } else {
+                    l.into_serde::<i32>()
+                }
+                .map_err(|e| {
+                    JsValue::from_str(&format!(
+                        "Failed to parse i32 from JSON string: {:?} \n with error: {}",
+                        l, e
+                    ))
+                })?;
+                acc.push(b);
+                Ok(acc)
+            })
+            .map(|longs| longs.into())
+            .map(Constant)
+    }
+
+    /// Extract `Coll[Int]` as string array
+    #[allow(clippy::boxed_local)]
+    pub fn to_i32_str_array(&self) -> Result<Box<[JsValue]>, JsValue> {
+        let vec_i32 = self
+            .0
+            .clone()
+            .try_extract_into::<Vec<i32>>()
+            .map_err(|e| JsValue::from_str(&format!("Constant has wrong type: {:?}", e)))?;
+        Ok(vec_i32
+            .iter()
+            .map(|it| JsValue::from_str(&it.to_string()))
+            .collect())
     }
 
     /// Create `Coll[Long]` from string array
@@ -120,6 +168,20 @@ impl Constant {
         Ok(vec_i64
             .iter()
             .map(|it| JsValue::from_str(&it.to_string()))
+            .collect())
+    }
+
+    /// Extract `Coll[Coll[Byte]]` as byte array
+    #[allow(clippy::boxed_local)]
+    pub fn to_coll_coll_byte_byte_array(&self) -> Result<Vec<Uint8Array>, JsValue> {
+        let vec_coll_byte = self
+            .0
+            .clone()
+            .try_extract_into::<Vec<Vec<u8>>>()
+            .map_err(to_js)?;
+        Ok(vec_coll_byte
+            .iter()
+            .map(|it| Uint8Array::from(it.as_slice()))
             .collect())
     }
 
