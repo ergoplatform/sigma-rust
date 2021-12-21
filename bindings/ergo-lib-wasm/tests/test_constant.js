@@ -40,10 +40,10 @@ it('roundtrip Constant byte array', async () => {
 });
 
 it('roundtrip Constant array of i32', async () => {
-  let value = [32768, 1, 2];
+  let value = [2147483647, 1, 2]; // i32 max value
   let c = Constant.from_i32_array(value);
   let value_decoded = c.to_i32_array();
-  expect(value_decoded).equal(value);
+  expect(value_decoded.toString()).equal(value.toString());
 });
 
 it('roundtrip Constant array of i64', async () => {

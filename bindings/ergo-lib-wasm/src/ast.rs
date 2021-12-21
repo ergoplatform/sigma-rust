@@ -96,7 +96,7 @@ impl Constant {
     pub fn from_i32_array(arr: Box<[i32]>) -> Result<Constant, JsValue> {
         arr.iter()
             .try_fold(vec![], |mut acc, l| {
-                acc.push(l.clone());
+                acc.push(*l);
                 Ok(acc)
             })
             .map(|longs| longs.into())
