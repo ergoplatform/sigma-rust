@@ -17,6 +17,9 @@
 #![deny(clippy::unimplemented)]
 #![deny(clippy::panic)]
 
+mod node_client;
 mod peer_info;
 
+pub use node_client::NodeClient;
+pub use node_client::NodeError;
 pub use peer_info::PeerInfo;
