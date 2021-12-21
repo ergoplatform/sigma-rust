@@ -72,8 +72,8 @@ impl Constant {
             .map(I64::from)
     }
 
-    /// Create from byte array(BigInt)
-    pub fn from_byte_array_bigint(num: &[u8]) -> Constant {
+    /// Create BigInt constant from byte array (signed bytes bit-endian)
+    pub fn from_bigint_signed_bytes_be(num: &[u8]) -> Constant {
         Constant(ergo_lib::ergotree_ir::mir::constant::Constant::from(
             BigInt256::try_from(num).unwrap(),
         ))
@@ -93,24 +93,10 @@ impl Constant {
 
     /// Create `Coll[Int]` from string array
     #[allow(clippy::boxed_local)]
-    pub fn from_i32_str_array(arr: Box<[JsValue]>) -> Result<Constant, JsValue> {
+    pub fn from_i32_array(arr: Box<[i32]>) -> Result<Constant, JsValue> {
         arr.iter()
             .try_fold(vec![], |mut acc, l| {
-                let b: i32 = if l.is_string() {
-                    let l_str = l
-                        .as_string()
-                        .ok_or_else(|| JsValue::from_str("i32 as a string"))?;
-                    serde_json::from_str(l_str.as_str())
-                } else {
-                    l.into_serde::<i32>()
-                }
-                .map_err(|e| {
-                    JsValue::from_str(&format!(
-                        "Failed to parse i32 from JSON string: {:?} \n with error: {}",
-                        l, e
-                    ))
-                })?;
-                acc.push(b);
+                acc.push(l.clone());
                 Ok(acc)
             })
             .map(|longs| longs.into())
@@ -118,17 +104,11 @@ impl Constant {
     }
 
     /// Extract `Coll[Int]` as string array
-    #[allow(clippy::boxed_local)]
-    pub fn to_i32_str_array(&self) -> Result<Box<[JsValue]>, JsValue> {
-        let vec_i32 = self
-            .0
+    pub fn to_i32_array(&self) -> Result<Vec<i32>, JsValue> {
+        self.0
             .clone()
             .try_extract_into::<Vec<i32>>()
-            .map_err(|e| JsValue::from_str(&format!("Constant has wrong type: {:?}", e)))?;
-        Ok(vec_i32
-            .iter()
-            .map(|it| JsValue::from_str(&it.to_string()))
-            .collect())
+            .map_err(|e| JsValue::from_str(&format!("Constant has wrong type: {:?}", e)))
     }
 
     /// Create `Coll[Long]` from string array
@@ -171,8 +151,8 @@ impl Constant {
             .collect())
     }
 
-    /// Extract `Coll[Coll[Byte]]` as byte array
-    pub fn to_coll_coll_byte_array(&self) -> Result<Vec<Uint8Array>, JsValue> {
+    /// Extract `Coll[Coll[Byte]]` as array of byte arrays
+    pub fn to_coll_coll_byte(&self) -> Result<Vec<Uint8Array>, JsValue> {
         let vec_coll_byte = self
             .0
             .clone()
