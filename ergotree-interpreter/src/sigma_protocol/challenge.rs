@@ -1,11 +1,13 @@
 use super::{fiat_shamir::FiatShamirHash, SOUNDNESS_BYTES};
+use elliptic_curve::generic_array::GenericArray;
+use elliptic_curve::ops::Reduce;
 use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
 use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
 use k256::Scalar;
+use k256::U256;
 #[cfg(feature = "arbitrary")]
 use proptest_derive::Arbitrary;
 use std::convert::TryFrom;
-use std::convert::TryInto;
 
 /// Challenge in Sigma protocol
 #[cfg_attr(feature = "arbitrary", derive(Arbitrary))]
@@ -18,9 +20,7 @@ impl From<Challenge> for Scalar {
         // prepend zeroes to 32 bytes (big-endian)
         let mut prefix = vec![0u8; 8];
         prefix.append(&mut v.to_vec());
-        #[allow(clippy::unwrap_used)]
-        // since it's 32 bytes it's safe to unwrap
-        Scalar::from_bytes_reduced(prefix.as_slice().try_into().unwrap())
+        <Scalar as Reduce<U256>>::from_be_bytes_reduced(GenericArray::clone_from_slice(&prefix))
     }
 }
 

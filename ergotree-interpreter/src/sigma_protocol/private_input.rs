@@ -36,7 +36,9 @@ impl DlogProverInput {
     /// Attempts to parse the given byte array as an SEC-1-encoded scalar(secret key).
     /// Returns None if the byte array does not contain a big-endian integer in the range [0, modulus).
     pub fn from_bytes(bytes: &[u8; DlogProverInput::SIZE_BYTES]) -> Option<DlogProverInput> {
-        Scalar::from_repr((*bytes).into()).map(DlogProverInput::from)
+        Scalar::from_repr((*bytes).into())
+            .map(DlogProverInput::from)
+            .into()
     }
 
     /// Attempts to parse the given Base16-encoded byte array as an SEC-1-encoded scalar(secret key).
