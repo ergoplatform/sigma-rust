@@ -91,7 +91,7 @@ impl Constant {
             .map_err(to_js)
     }
 
-    /// Create `Coll[Int]` from string array
+    /// Create `Coll[Int]` from integer array
     #[allow(clippy::boxed_local)]
     pub fn from_i32_array(arr: Box<[i32]>) -> Result<Constant, JsValue> {
         arr.iter()
