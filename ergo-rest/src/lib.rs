@@ -17,13 +17,15 @@
 #![deny(clippy::unimplemented)]
 #![deny(clippy::panic)]
 
+mod bulk_req;
+mod error;
 mod known_nodes;
 mod node_client;
 mod node_info;
 mod peer_info;
 
+pub use error::NodeError;
 pub use known_nodes::KnownNodes;
 pub use node_client::NodeClient;
-pub use node_client::NodeError;
 pub use node_info::NodeInfo;
 pub use peer_info::PeerInfo;

@@ -14,8 +14,8 @@ pub struct KnownNodes {
 }
 
 impl KnownNodes {
-    /// Load node addresses that serve REST API
-    pub fn load_from_addr(_addrs: Vec<PeerAddr>) {
+    /// Add node addresses that serve REST API
+    pub fn add(_addrs: Vec<PeerAddr>) {
         todo!()
     }
 
@@ -26,6 +26,11 @@ impl KnownNodes {
 
     /// Load known nodes from serialized bytes (previously exported with [`KnownNodes::export`])
     pub fn import(_bytes: Vec<u8>) {
+        todo!()
+    }
+
+    /// Return all known nodes
+    pub fn get_all(&self) -> Vec<PeerAddr> {
         todo!()
     }
 

@@ -1,11 +1,9 @@
 use ergo_chain_types::PeerAddr;
 use ergo_nipopow::NipopowProof;
 
+use crate::NodeError;
 use crate::NodeInfo;
 use crate::PeerInfo;
-
-/// Possible errors during the communication with node
-pub enum NodeError {}
 
 /// Ergo node info and methods for sending requests
 pub struct NodeClient {
@@ -30,8 +28,15 @@ impl NodeClient {
     pub async fn get_nipopow_proof_by_header_id(
         _min_chain_length: u32,
         _suffix_len: u32,
-        _header_id: u32,
+        _header_id: u32, // TODO: use BlockId
     ) -> Result<NipopowProof, NodeError> {
         todo!()
     }
+
+    // pub async fn get_blocks_header_id_proof_for_tx_id(
+    //     _header_id: BlockId,
+    //     _tx_id: TxId,
+    // ) -> Result<Option<MerkleProof>, NodeError> {
+    //     todo!()
+    // }
 }
