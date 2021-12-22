@@ -103,7 +103,7 @@ impl Constant {
             .map(Constant)
     }
 
-    /// Extract `Coll[Int]` as string array
+    /// Extract `Coll[Int]` as integer array
     pub fn to_i32_array(&self) -> Result<Vec<i32>, JsValue> {
         self.0
             .clone()
