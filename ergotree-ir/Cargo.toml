@@ -59,7 +59,7 @@ optional = true
 
 [features]
 default = ["json"]
-arbitrary = ["proptest", "proptest-derive"]
+arbitrary = ["proptest", "proptest-derive", "ergo-chain-types/arbitrary"]
 json = ["serde", "serde_json", "serde_with", "bounded-vec/serde"]
 
 [dev-dependencies]
