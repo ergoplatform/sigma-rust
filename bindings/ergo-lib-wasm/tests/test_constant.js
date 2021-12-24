@@ -61,6 +61,15 @@ it('Constant from EcPoint bytes', async () => {
   expect(c != null);
 });
 
+it('roundtrip array of byte arrays', async () => {
+  let bytes1 = new Uint8Array([1, 1, 2, 255]);
+  let bytes2 = new Uint8Array([5, 6, 7, 255]);
+  let concat = [bytes1,bytes2];
+  let c = Constant.from_coll_coll_byte(concat);
+  let decoded_c_value = c.to_coll_coll_byte();
+  expect(decoded_c_value.toString()).equal(concat.toString());
+});
+
 it('roundtrip tuple of byte arrays', async () => {
   let bytes1 = new Uint8Array([1, 1, 2, 255]);
   let bytes2 = new Uint8Array([5, 6, 7, 255]);
