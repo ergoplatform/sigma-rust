@@ -1,7 +1,7 @@
-use ergo_chain_types::PeerAddr;
+use serde::{Deserialize, Serialize};
 
 /// Node extended information from /info REST API endpoint
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct NodeInfo {
-    /// Node's REST API address
-    http_addr: PeerAddr,
+    name: String,
 }

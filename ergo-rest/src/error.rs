@@ -1,2 +1,9 @@
+use thiserror::Error;
+
 /// Possible errors during the communication with node
-pub enum NodeError {}
+#[derive(Error, Debug)]
+pub enum NodeError {
+    /// reqwest error
+    #[error("reqwest error: {0}")]
+    ReqwestError(#[from] reqwest::Error),
+}

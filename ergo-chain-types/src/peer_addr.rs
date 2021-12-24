@@ -2,10 +2,12 @@
 use std::{
     convert::TryInto,
     net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4},
+    str::FromStr,
 };
 
 use derive_more::{Display, From, Into};
 use sigma_ser::{ScorexSerializable, ScorexSerializationError};
+use url::Url;
 
 /// Peer address
 #[derive(PartialEq, Eq, Debug, Copy, Clone, From, Into, Hash, Display)]
@@ -18,6 +20,14 @@ impl PeerAddr {
             IpAddr::V4(ip) => ip.octets().len(),
             IpAddr::V6(ip) => ip.octets().len(),
         }
+    }
+
+    /// Build an http://address:port/ URL
+    pub fn as_http_url(&self) -> Url {
+        let s: String =
+            "http://".to_string() + &self.0.ip().to_string() + ":" + &self.0.port().to_string();
+        #[allow(clippy::unwrap_used)]
+        Url::from_str(&s).unwrap()
     }
 }
 

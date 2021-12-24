@@ -17,7 +17,9 @@ pub struct NodeClient {
 impl NodeClient {
     /// GET on /info endpoint
     pub async fn get_info(&self) -> Result<NodeInfo, NodeError> {
-        todo!()
+        #[allow(clippy::unwrap_used)]
+        let url = self.addr.as_http_url().join("info").unwrap();
+        Ok(reqwest::get(url).await?.json::<NodeInfo>().await?)
     }
 
     /// GET on /peers/all endpoint
