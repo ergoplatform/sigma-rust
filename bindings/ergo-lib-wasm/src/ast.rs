@@ -165,7 +165,6 @@ impl Constant {
     }
 
     /// Create `Coll[Coll[Byte]]` from array byte array
-    #[allow(clippy::boxed_local)]
     pub fn from_coll_coll_byte(arr: Vec<Uint8Array>) -> Constant {
         let mut acc: Vec<Vec<u8>> = vec![];
         for bytes in arr.iter() {
