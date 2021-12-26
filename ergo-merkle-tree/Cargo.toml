@@ -1,0 +1,10 @@
+[package]
+name = "ergo-merkle-tree"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+blake2 = "0.9"
+base16 = "0.2.1"
