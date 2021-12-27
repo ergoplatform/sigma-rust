@@ -1,6 +1,11 @@
 //! Block header
-use num_bigint::BigInt;
+use std::io::Write;
 
+use num_bigint::BigInt;
+use sigma_ser::vlq_encode::WriteSigmaVlqExt;
+
+use crate::serialization::sigma_byte_writer::SigmaByteWriter;
+use crate::serialization::{SigmaSerializable, SigmaSerializationError};
 use crate::sigma_protocol::dlog_group;
 
 use super::block_id::BlockId;
@@ -59,6 +64,38 @@ pub struct Header {
     /// 3 bytes in accordance to Scala implementation, but will use `Vec` until further improvements
     #[cfg_attr(feature = "json", serde(rename = "votes"))]
     pub votes: Votes,
+}
+
+impl Header {
+    /// Used in nipowpow
+    pub fn serialize_without_pow(&self) -> Result<Vec<u8>, SigmaSerializationError> {
+        use byteorder::{BigEndian, WriteBytesExt};
+        let mut data = Vec::new();
+        let mut w = SigmaByteWriter::new(&mut data, None);
+        w.put_u8(self.version)?;
+        self.parent_id.0.sigma_serialize(&mut w)?;
+        self.ad_proofs_root.sigma_serialize(&mut w)?;
+        self.transaction_root.sigma_serialize(&mut w)?;
+        self.state_root.sigma_serialize(&mut w)?;
+        w.put_u64(self.timestamp)?;
+        self.extension_root.sigma_serialize(&mut w)?;
+
+        // n_bits needs to be serialized in big-endian format
+        let mut n_bits_writer = vec![];
+        #[allow(clippy::unwrap_used)]
+        n_bits_writer.write_u64::<BigEndian>(self.n_bits).unwrap();
+        w.write_all(&n_bits_writer)?;
+
+        w.put_u32(self.height)?;
+        w.write_all(&self.votes.0)?;
+
+        // For block version >= 2, this new byte encodes length of possible new fields.
+        // Set to 0 for now, so no new fields.
+        if self.version > 1 {
+            w.put_i8(0)?;
+        }
+        Ok(data)
+    }
 }
 
 impl From<Header> for PreHeader {
