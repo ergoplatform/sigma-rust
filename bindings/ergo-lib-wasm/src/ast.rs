@@ -164,6 +164,16 @@ impl Constant {
             .collect())
     }
 
+    /// Create `Coll[Coll[Byte]]` from array byte array
+    pub fn from_coll_coll_byte(arr: Vec<Uint8Array>) -> Constant {
+        let mut acc: Vec<Vec<u8>> = vec![];
+        for bytes in arr.iter() {
+            acc.push(bytes.to_vec());
+        }
+        let c = ergo_lib::ergotree_ir::mir::constant::Constant::from(acc);
+        c.into()
+    }
+
     /// Parse raw [`EcPoint`] value from bytes and make [`ProveDlog`] constant
     pub fn from_ecpoint_bytes(bytes: &[u8]) -> Result<Constant, JsValue> {
         let ecp = EcPoint::sigma_parse_bytes(bytes).map_err(to_js)?;
