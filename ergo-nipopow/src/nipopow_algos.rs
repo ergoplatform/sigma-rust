@@ -28,44 +28,36 @@ impl NipopowAlgos {
     /// return max_{μ∈M} {2μ·|π↑μ{b:}|}
     /// end function
     fn best_arg(&self, chain: &[Header], m: usize) -> usize {
+        // Little helper struct for loop below
         struct Acc {
             level: u32,
             acc: Vec<(u32, usize)>,
         }
-        let mut stack = vec![Acc {
-            level: 0,
-            acc: vec![],
-        }];
-        let mut res = None;
-        while let Some(Acc { level, mut acc }) = stack.pop() {
-            if level == 0 {
-                acc.push((0, chain.len()));
-                stack.push(Acc {
-                    level: level + 1,
-                    acc,
-                });
+        let mut res = Acc {
+            level: 1,
+            acc: vec![(0, chain.len())],
+        };
+        let acc = loop {
+            let args: Vec<_> = chain
+                .iter()
+                .filter(|h| (self.max_level_of(h) as u32) >= res.level)
+                .collect();
+            if args.len() >= m {
+                res.acc.push((res.level, args.len()));
+                res = Acc {
+                    level: res.level + 1,
+                    acc: res.acc,
+                };
             } else {
-                let args: Vec<_> = chain
-                    .iter()
-                    .filter(|h| (self.max_level_of(h) as u32) >= level)
-                    .collect();
-                if args.len() >= m {
-                    acc.push((level, args.len()));
-                    stack.push(Acc {
-                        level: level + 1,
-                        acc,
-                    });
-                } else {
-                    res = Some(acc);
-                    break;
-                }
+                break res.acc;
             }
-        }
-        #[allow(clippy::unwrap_used)]
-        let acc = res.unwrap();
+        };
         #[allow(clippy::unwrap_used)]
         acc.into_iter()
-            .map(|(level, size)| 2usize.pow(level) * size)
+            .map(|(level, size)| {
+                // 2^µ * |C↑µ|
+                2usize.pow(level) * size
+            })
             .max()
             .unwrap()
     }
