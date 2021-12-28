@@ -4,6 +4,8 @@ use super::sfunc::SFunc;
 use super::smethod::MethodId;
 use super::smethod::SMethodDesc;
 use super::stype::SType;
+use crate::types::smethod::SMethod;
+use crate::types::stype_companion::STypeCompanion;
 use lazy_static::lazy_static;
 
 /// SGlobal type code
@@ -32,6 +34,9 @@ lazy_static! {
             tpe_params: vec![],
         },
     };
+    /// GLOBAL.GroupGenerator
+    pub static ref GROUP_GENERATOR_METHOD: SMethod = SMethod::new(STypeCompanion::Global, GROUP_GENERATOR_METHOD_DESC.clone(),);
+
 }
 
 lazy_static! {
@@ -48,4 +53,7 @@ lazy_static! {
             tpe_params: vec![],
         },
     };
+    /// GLOBAL.xor
+    pub static ref XOR_METHOD: SMethod = SMethod::new(STypeCompanion::Global, XOR_METHOD_DESC.clone(),);
+
 }

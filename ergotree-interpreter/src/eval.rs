@@ -81,6 +81,7 @@ pub(crate) mod sbox;
 pub(crate) mod scoll;
 pub(crate) mod scontext;
 pub(crate) mod select_field;
+pub(crate) mod sglobal;
 pub(crate) mod sgroup_elem;
 pub(crate) mod sheader;
 pub(crate) mod sigma_and;
@@ -95,7 +96,6 @@ pub(crate) mod upcast;
 pub(crate) mod val_use;
 pub(crate) mod xor;
 pub(crate) mod xor_of;
-pub(crate) mod sglobal;
 
 /// Interpreter errors
 #[derive(Error, PartialEq, Eq, Debug, Clone)]
@@ -328,8 +328,9 @@ fn smethod_eval_fn(method: &SMethod) -> Result<EvalFn, EvalError> {
                 )))
             }
         },
-        sglobal::TYPE_CODE=>match method.method_id(){
-            sglobal::GROUP_GENERATOR_METHOD_ID=>self::sglobal::GROUP_GENERATOR_EVAL_FN,
+        sglobal::TYPE_CODE => match method.method_id() {
+            sglobal::GROUP_GENERATOR_METHOD_ID => self::sglobal::GROUP_GENERATOR_EVAL_FN,
+            sglobal::XOR_METHOD_ID => self::sglobal::XOR_EVAL_FN,
             method_id => {
                 return Err(EvalError::NotFound(format!(
                     "Eval fn: method {:?} with method id {:?} not found in SGlobal",
