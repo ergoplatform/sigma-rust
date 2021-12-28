@@ -28,6 +28,7 @@ pub mod ergo_state_ctx;
 pub mod ergo_tree;
 pub mod header;
 pub mod input;
+pub mod merkleproof;
 pub mod prover_result;
 pub mod secret_key;
 pub mod token;
@@ -35,7 +36,6 @@ pub mod transaction;
 pub mod tx_builder;
 pub mod utils;
 pub mod wallet;
-pub mod merkleproof;
 
 mod error_conversion;
 pub(crate) mod json;
