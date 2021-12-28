@@ -147,4 +147,22 @@ mod test {
         );
         assert!(proof.valid(tx_root.try_into().unwrap()));
     }
+
+    // Proof for block #650787 on Ergo mainnet
+    #[test]
+    fn block_proof() {
+        let json = "{
+            \"leafData\": \"563b34b96e65788d767a10b0c2ce4a9ef5dcb9f7f7919781624870d56506dc5b\",
+            \"levels\": [
+                [\"274d105b42c2da3e03519865470ccef5072d389b153535ca7192fef4abf3b3ed\", 0],
+                [\"c1887cee0c42318ac04dfa93b8ef6b40c2b53a83b0e111f91a16b0842166e76e\", 0],
+                [\"58be076cd9ef596a739ec551cbb6b467b95044c05a80a66a7f256d4ebafd787f\", 0]]
+            }";
+        let proof: MerkleProof = serde_json::from_str(json).unwrap();
+        let tx_root =
+            base16::decode("250063ac1cec3bf56f727f644f49b70515616afa6009857a29b1fe298441e69a")
+                .unwrap();
+
+        assert!(proof.valid(&tx_root));
+    }
 }
