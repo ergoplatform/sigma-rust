@@ -33,6 +33,7 @@ mod merkleproof;
 mod nipopow;
 
 mod reduced;
+mod rest;
 mod secret_key;
 mod token;
 mod transaction;
