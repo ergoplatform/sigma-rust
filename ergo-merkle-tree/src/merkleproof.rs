@@ -41,17 +41,6 @@ impl LevelNode {
     pub fn new(hash: [u8; 32], side: NodeSide) -> Self {
         Self(hash, side)
     }
-    /// Constructs a LevelNode from a Base16 representation of a hash. The hash must be 32 bytes long
-    pub fn new_base16(hash_base16: &str, side: NodeSide) -> Result<Self, base16::DecodeError> {
-        Ok(Self(
-            base16::decode(hash_base16)?.try_into().map_err(|_| {
-                base16::DecodeError::InvalidLength {
-                    length: hash_base16.len(),
-                }
-            })?,
-            side,
-        ))
-    }
 }
 
 /// A MerkleProof type. Given leaf data and levels (bottom-upwards), the root hash can be computed and validated
@@ -129,6 +118,7 @@ impl Into<crate::json::MerkleProofJson> for MerkleProof {
 }
 
 #[cfg(test)]
+#[cfg(feature = "json")]
 #[allow(clippy::unwrap_used)]
 mod test {
     use crate::LevelNode;

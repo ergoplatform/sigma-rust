@@ -7,11 +7,11 @@ edition = "2021"
 
 [dependencies]
 blake2 = "0.9"
-base16 = "0.2.1"
+base16 = { version = "0.2.1", optional = true }
 serde = { version = "1.0", features = ["derive"], optional = true }
 serde_repr = { version = "0.1.7", optional = true }
 serde_json = { version = "1.0", optional = true }
 
 [features]
 default = ["json"]
-json = ["serde", "serde_json", "serde_repr"]
+json = ["serde", "serde_json", "serde_repr", "base16"]
