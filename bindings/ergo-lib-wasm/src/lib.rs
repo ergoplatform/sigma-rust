@@ -35,6 +35,7 @@ pub mod transaction;
 pub mod tx_builder;
 pub mod utils;
 pub mod wallet;
+pub mod merkleproof;
 
 mod error_conversion;
 pub(crate) mod json;

@@ -1,36 +1,16 @@
 use crate::{concatenate_hashes, prefixed_hash};
 
-use serde::Serialize;
-use serde_repr::*;
-
-// Serializes an array of bytes in base 16 format
-fn serialize_base64<T: AsRef<[u8]>, S: serde::Serializer>(
-    digest: T,
-    serializer: S,
-) -> Result<S::Ok, S::Error> {
-    serializer.serialize_str(&base16::encode_lower(digest.as_ref()))
-}
-
-// Serializes each node's hash as base16
-fn serialize_nodes<T: AsRef<[u8]>, S: serde::Serializer>(
-    nodes: &[(T, NodeSide)],
-    serializer: S,
-) -> Result<S::Ok, S::Error> {
-    use serde::ser::SerializeSeq;
-    let mut seq = serializer.serialize_seq(Some(nodes.len()))?;
-    for node in nodes {
-        seq.serialize_element(&(&base16::encode_lower(node.0.as_ref()), node.1))?;
-    }
-    seq.end()
-}
-
 /// The side the merkle node is on in the tree
-#[derive(Copy, Clone, Debug, Serialize_repr, Deserialize_repr)]
+#[cfg_attr(
+    feature = "json",
+    derive(serde_repr::Serialize_repr, serde_repr::Deserialize_repr)
+)]
+#[derive(Copy, Clone, Debug)]
 #[repr(u8)]
 pub enum NodeSide {
     /// Node is on the left side of the current level
     Left = 0,
-    /// Node is on the righ side of the current level
+    /// Node is on the right side of the current level
     Right = 1,
 }
 
@@ -45,43 +25,113 @@ impl std::convert::TryFrom<u8> for NodeSide {
     }
 }
 
+/// A LevelNode used for MerkleProof verification, consists of a 32 byte hash and side it is on in tree
+
+#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "json",
+    serde(into = "crate::json::LevelNodeJson"),
+    serde(try_from = "crate::json::LevelNodeJson")
+)]
+#[derive(Copy, Clone, Debug)]
+pub struct LevelNode(pub [u8; 32], pub NodeSide);
+
+impl LevelNode {
+    /// Constructs a new levelnode from a 32 byte hash
+    pub fn new(hash: [u8; 32], side: NodeSide) -> Self {
+        Self(hash, side)
+    }
+    /// Constructs a LevelNode from a Base16 representation of a hash. The hash must be 32 bytes long
+    pub fn new_base16(hash_base16: &str, side: NodeSide) -> Result<Self, base16::DecodeError> {
+        Ok(Self(
+            base16::decode(hash_base16)?.try_into().map_err(|_| {
+                base16::DecodeError::InvalidLength {
+                    length: hash_base16.len(),
+                }
+            })?,
+            side,
+        ))
+    }
+}
+
 /// A MerkleProof type. Given leaf data and levels (bottom-upwards), the root hash can be computed and validated
-#[derive(Clone, Debug, Serialize)]
+#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "json",
+    serde(try_from = "crate::json::MerkleProofJson"),
+    serde(into = "crate::json::MerkleProofJson")
+)]
+#[derive(Clone, Debug)]
 pub struct MerkleProof {
-    #[serde(rename = "leafData")]
-    #[serde(serialize_with = "serialize_base64")]
-    leaf_data: Vec<u8>,
-    #[serde(serialize_with = "serialize_nodes")]
-    levels: Vec<([u8; 32], NodeSide)>,
+    leaf_data: [u8; 32],
+    levels: Vec<LevelNode>,
 }
 
 impl MerkleProof {
     /// Creates a new merkle proof with given leaf data and level data (bottom-upwards)
     /// You can verify it against a Blakeb256 root hash by using [`Self::valid()`]
-    pub fn new(leaf_data: &[u8], levels: &[([u8; 32], NodeSide)]) -> Self {
+    pub fn new(leaf_data: &[u8], levels: &[LevelNode]) -> Self {
         MerkleProof {
-            leaf_data: leaf_data.to_owned(),
+            leaf_data: leaf_data[0..32].try_into().unwrap(),
             levels: levels.to_owned(),
         }
     }
 
     /// Validates the Merkle Proof against the expected root hash
-    pub fn valid(&self, expected_root: &[u8; 32]) -> bool {
+    pub fn valid(&self, expected_root: &[u8]) -> bool {
         let leaf_hash = prefixed_hash(0, &self.leaf_data); // Prefix hash with 0 (leaf node)
         let hash = self
             .levels
             .iter()
-            .fold(leaf_hash, |prev_hash, (hash, side)| match side {
-                NodeSide::Left => prefixed_hash(1, &concatenate_hashes(&prev_hash, hash)), // Prefix hash with 1 (internal node hash)
-                NodeSide::Right => prefixed_hash(1, &concatenate_hashes(hash, &prev_hash)),
+            .fold(leaf_hash, |prev_hash, node| match node.1 {
+                NodeSide::Left => prefixed_hash(1, &concatenate_hashes(&prev_hash, &node.0)), // Prefix hash with 1 (internal node hash)
+                NodeSide::Right => prefixed_hash(1, &concatenate_hashes(&node.0, &prev_hash)),
             });
 
-        &*hash == expected_root
+        *hash == expected_root
+    }
+
+    /// Adds a new node (above the current node)
+    pub fn add_node(&mut self, node: LevelNode) {
+        self.levels.push(node);
+    }
+}
+
+#[cfg(feature = "json")]
+impl std::convert::TryFrom<crate::json::MerkleProofJson> for MerkleProof {
+    type Error = base16::DecodeError;
+    fn try_from(proof: crate::json::MerkleProofJson) -> Result<Self, Self::Error> {
+        let leaf_data = base16::decode(&proof.leaf_data)?;
+        let leaf_data: [u8; 32] = if leaf_data.len() == 32 {
+            leaf_data.try_into().unwrap()
+        } else {
+            return Err(base16::DecodeError::InvalidLength {
+                length: leaf_data.len(),
+            });
+        };
+        let mut levels = Vec::with_capacity(proof.levels.len());
+        for node in proof.levels {
+            let node: LevelNode = node.try_into()?;
+            levels.push(node);
+        }
+        Ok(Self { leaf_data, levels })
+    }
+}
+
+#[cfg(feature = "json")]
+impl Into<crate::json::MerkleProofJson> for MerkleProof {
+    fn into(self) -> crate::json::MerkleProofJson {
+        let levels: Vec<crate::json::LevelNodeJson> =
+            self.levels.into_iter().map(Into::into).collect();
+        let leaf_data = base16::encode_lower(&self.leaf_data);
+        crate::json::MerkleProofJson { leaf_data, levels }
     }
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod test {
+    use crate::LevelNode;
     use crate::MerkleProof;
     use crate::NodeSide;
 
@@ -101,7 +151,10 @@ mod test {
 
         assert_eq!(levels.len(), 32);
         let tx_id = base16::decode(&tx_id).unwrap();
-        let proof = MerkleProof::new(&tx_id, &[(levels[0..32].try_into().unwrap(), side)]);
+        let proof = MerkleProof::new(
+            &tx_id,
+            &[LevelNode::new(levels[0..32].try_into().unwrap(), side)],
+        );
         assert!(proof.valid(tx_root.try_into().unwrap()));
     }
 }

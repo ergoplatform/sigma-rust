@@ -21,6 +21,9 @@
 use blake2::digest::{Update, VariableOutput};
 use blake2::VarBlake2b;
 
+#[cfg(feature = "json")]
+pub(crate) mod json;
+
 // Unwrap is safe here since the hash is guaranteed to be 32 bytes
 #[allow(clippy::unwrap_used)]
 // Generates a hash of data prefixed with `prefix`
