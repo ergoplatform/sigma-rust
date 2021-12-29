@@ -39,3 +39,9 @@ pub unsafe extern "C" fn ergo_lib_rest_api_node_get_info(
 pub extern "C" fn ergo_lib_node_info_delete(ptr: NodeInfoPtr) {
     unsafe { delete_ptr(ptr) }
 }
+
+/// Drop `NodeConf`
+#[no_mangle]
+pub extern "C" fn ergo_lib_node_conf_delete(ptr: NodeConfPtr) {
+    unsafe { delete_ptr(ptr) }
+}

@@ -15,12 +15,15 @@ class RestNode {
     /// GET on /info endpoint
     func get_info(
         nodeConf: NodeConf,
-        closure_success: @escaping (NodeInfo) -> Void
-        closure_fail: @escaping (String) -> Void
+        closureSuccess: @escaping (NodeInfo) -> Void,
+        closureFail: @escaping (String) -> Void
     ) throws {
         // step 1
-        let wrappedClosure = WrapClosure(closure: closure)
-        let userdata = Unmanaged.passRetained(wrappedClosure).toOpaque()
+        let wrappedClosureSuccess = WrapClosure(closure: closureSuccess)
+        let userdataSuccess = Unmanaged.passRetained(wrappedClosureSuccess).toOpaque()
+        // step 1
+        let wrappedClosureFail = WrapClosure(closure: closureFail)
+        let userdataFail = Unmanaged.passRetained(wrappedClosureFail).toOpaque()
 
         // step 2
         let callback_success: @convention(c) (UnsafeMutableRawPointer, NodeInfoPtr) -> Void = { (_ userdata: UnsafeMutableRawPointer, _ nodeInfoPtr: NodeInfoPtr) in
@@ -60,10 +63,26 @@ private class WrapClosure<T> {
     }
 }
 
+class NodeConf {
+    internal var pointer: NodeConfPtr
+
+    internal init(withRawPointer ptr: NodeConfPtr) {
+        self.pointer = ptr
+    }
+
+    deinit {
+        ergo_lib_node_conf_delete(self.pointer)
+    }
+}
+
 class NodeInfo {
     internal var pointer: NodeInfoPtr
 
     internal init(withRawPointer ptr: NodeInfoPtr) {
         self.pointer = ptr
+    }
+
+    deinit {
+        ergo_lib_node_info_delete(self.pointer)
     }
 }
