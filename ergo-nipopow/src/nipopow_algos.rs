@@ -4,7 +4,20 @@ use num_traits::ToPrimitive;
 
 use crate::autolykos_pow_scheme::AutolykosPowScheme;
 
-struct NipopowAlgos {
+/// A set of utilities for working with NiPoPoW protocol.
+///
+/// Based on papers:
+///
+/// [KMZ17] Non-Interactive Proofs of Proof-of-Work, FC 20 (published) version
+///           <https://fc20.ifca.ai/preproceedings/74.pdf>
+///
+/// [KLS16] Proofs of Proofs of Work with Sublinear Complexity <http://fc16.ifca.ai/bitcoin/papers/KLS16.pdf>
+///
+/// Please note that for [KMZ17] we're using the version published @ Financial Cryptography 2020, which is different
+/// from previously published versions on IACR eprint.
+#[derive(Default)]
+pub(crate) struct NipopowAlgos {
+    /// The proof-of-work scheme
     pow_scheme: AutolykosPowScheme,
 }
 
@@ -27,7 +40,7 @@ impl NipopowAlgos {
     /// M←{μ:|π↑μ{b:}|≥m}∪{0}
     /// return max_{μ∈M} {2μ·|π↑μ{b:}|}
     /// end function
-    fn best_arg(&self, chain: &[Header], m: usize) -> usize {
+    pub(crate) fn best_arg(&self, chain: &[&Header], m: u32) -> usize {
         // Little helper struct for loop below
         struct Acc {
             level: u32,
@@ -42,7 +55,7 @@ impl NipopowAlgos {
                 .iter()
                 .filter(|h| (self.max_level_of(h) as u32) >= res.level)
                 .collect();
-            if args.len() >= m {
+            if args.len() >= (m as usize) {
                 res.acc.push((res.level, args.len()));
                 res = Acc {
                     level: res.level + 1,
@@ -63,7 +76,7 @@ impl NipopowAlgos {
     }
 
     /// Computes max level (μ) of the given header, such that μ = log(T) − log(id(B))
-    fn max_level_of(&self, header: &Header) -> i32 {
+    pub(crate) fn max_level_of(&self, header: &Header) -> i32 {
         let genesis_header = header.height == 1;
         if !genesis_header {
             // Order of the secp256k1 elliptic curve
@@ -84,6 +97,33 @@ impl NipopowAlgos {
         } else {
             i32::MAX
         }
+    }
+
+    /// Finds the last common header (branching point) between `left_chain` and `right_chain`.
+    pub(crate) fn lowest_common_ancestor(
+        &self,
+        left_chain: &[&Header],
+        right_chain: &[&Header],
+    ) -> Option<Header> {
+        if let Some(head_left) = left_chain.first() {
+            if let Some(head_right) = right_chain.first() {
+                if *head_left != *head_right {
+                    return None;
+                }
+            }
+        }
+        let mut common = vec![];
+        let mut right_ix_start = 0;
+        for left_header in left_chain {
+            let start_ix = right_ix_start;
+            for (i, right_header) in right_chain.iter().enumerate().skip(start_ix) {
+                if **left_header == **right_header {
+                    right_ix_start = i + 1;
+                    common.push(*left_header);
+                }
+            }
+        }
+        common.last().cloned().cloned()
     }
 }
 
@@ -117,7 +157,7 @@ impl NipopowAlgos {
 /// Bitcoin only uses this "compact" format for encoding difficulty targets, which are unsigned
 /// 256bit quantities.  Thus, all the complexities of the sign bit and using base 256 are probably
 /// an implementation accident.
-pub(crate) fn decode_compact_bits(n_bits: u64) -> BigInt {
+fn decode_compact_bits(n_bits: u64) -> BigInt {
     let compact = n_bits as i64;
     let size = ((compact >> 24) as i32) & 0xFF;
     if size == 0 {

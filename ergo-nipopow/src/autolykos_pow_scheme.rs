@@ -22,17 +22,6 @@ pub struct AutolykosPowScheme {
 }
 
 impl AutolykosPowScheme {
-    /// Create a new `AutolykosPowScheme` instance.
-    pub fn new(k: u64, n: i32) -> Result<AutolykosPowScheme, AutolykosPowSchemeError> {
-        if k > 32 {
-            return Err(AutolykosPowSchemeError::KValueTooLarge);
-        }
-        if n >= 31 {
-            return Err(AutolykosPowSchemeError::NValueTooLarge);
-        }
-        Ok(AutolykosPowScheme { k, n })
-    }
-
     /// Get hit for Autolykos header (to test it then against PoW target)
     pub fn pow_hit(&self, header: &Header) -> Result<BigInt, AutolykosPowSchemeError> {
         if header.version == 1 {
@@ -138,6 +127,13 @@ impl AutolykosPowScheme {
     }
 }
 
+impl Default for AutolykosPowScheme {
+    fn default() -> Self {
+        // The following paramter values are mandated by Ergo-node Autolykos implementation.
+        AutolykosPowScheme { k: 32, n: 26 }
+    }
+}
+
 /// Port of BouncyCastle's BigIntegers::asUnsignedByteArray method.
 fn as_unsigned_byte_array(
     length: usize,
@@ -164,8 +160,4 @@ pub enum AutolykosPowSchemeError {
     SigmaSerializationError(SigmaSerializationError),
     /// Error occurring when trying to convert a `BigInt` into a fixed-length byte-array.
     BigIntToFixedByteArrayError,
-    /// Error when trying to create an `AutolykosPowScheme` instance with parameter `k > 32`.
-    KValueTooLarge,
-    /// Error when trying to create an `AutolykosPowScheme` instance with parameter `n >= 31`.
-    NValueTooLarge,
 }
