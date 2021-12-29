@@ -1,3 +1,4 @@
+use crate::MerkleProofFromJsonError;
 use crate::{LevelNode, NodeSide};
 use serde::{Deserialize, Serialize};
 /// Json Representation of a LevelNode. First field must be valid base16
@@ -5,16 +6,14 @@ use serde::{Deserialize, Serialize};
 pub struct LevelNodeJson(String, NodeSide);
 
 impl std::convert::TryFrom<LevelNodeJson> for LevelNode {
-    type Error = base16::DecodeError;
+    type Error = MerkleProofFromJsonError;
     fn try_from(node: LevelNodeJson) -> Result<Self, Self::Error> {
         let hash = base16::decode(&node.0)?;
-        if hash.len() != 32 {
-            // TODO: Should we accept hashes that are not 32 bytes in size? Also this error could probably be cleaner with a custom error type
-            return Err(base16::DecodeError::InvalidLength {
-                length: node.0.len(),
-            });
-        }
-        Ok(LevelNode(hash.try_into().unwrap(), node.1))
+        Ok(LevelNode(
+            hash.try_into()
+                .map_err(|_| MerkleProofFromJsonError::LengthError)?,
+            node.1,
+        ))
     }
 }
 

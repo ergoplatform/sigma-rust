@@ -1,4 +1,6 @@
 use crate::{concatenate_hashes, prefixed_hash};
+#[cfg(feature = "json")]
+use thiserror::Error;
 
 /// The side the merkle node is on in the tree
 #[cfg_attr(
@@ -59,11 +61,14 @@ pub struct MerkleProof {
 impl MerkleProof {
     /// Creates a new merkle proof with given leaf data and level data (bottom-upwards)
     /// You can verify it against a Blakeb256 root hash by using [`Self::valid()`]
-    pub fn new(leaf_data: &[u8], levels: &[LevelNode]) -> Self {
-        MerkleProof {
-            leaf_data: leaf_data[0..32].try_into().unwrap(),
+    pub fn new(
+        leaf_data: &[u8],
+        levels: &[LevelNode],
+    ) -> Result<Self, std::array::TryFromSliceError> {
+        Ok(MerkleProof {
+            leaf_data: leaf_data.try_into()?,
             levels: levels.to_owned(),
-        }
+        })
     }
 
     /// Validates the Merkle Proof against the expected root hash
@@ -86,18 +91,26 @@ impl MerkleProof {
     }
 }
 
+/// Error deserializing MerkleProof from Json
+#[cfg(feature = "json")]
+#[derive(Error, PartialEq, Eq, Debug, Clone)]
+pub enum MerkleProofFromJsonError {
+    /// Base16 decoding has failed
+    #[error("Failed to decode base16 string")]
+    DecodeError(#[from] base16::DecodeError),
+    /// Invalid Length (expected 32 bytes)
+    #[error("Invalid Length. Hashes and Leaf data must be 32 bytes in size")]
+    LengthError,
+}
+
 #[cfg(feature = "json")]
 impl std::convert::TryFrom<crate::json::MerkleProofJson> for MerkleProof {
-    type Error = base16::DecodeError;
+    type Error = MerkleProofFromJsonError;
     fn try_from(proof: crate::json::MerkleProofJson) -> Result<Self, Self::Error> {
         let leaf_data = base16::decode(&proof.leaf_data)?;
-        let leaf_data: [u8; 32] = if leaf_data.len() == 32 {
-            leaf_data.try_into().unwrap()
-        } else {
-            return Err(base16::DecodeError::InvalidLength {
-                length: leaf_data.len(),
-            });
-        };
+        let leaf_data: [u8; 32] = leaf_data
+            .try_into()
+            .map_err(|_| MerkleProofFromJsonError::LengthError)?;
         let mut levels = Vec::with_capacity(proof.levels.len());
         for node in proof.levels {
             let node: LevelNode = node.try_into()?;
@@ -144,7 +157,8 @@ mod test {
         let proof = MerkleProof::new(
             &tx_id,
             &[LevelNode::new(levels[0..32].try_into().unwrap(), side)],
-        );
+        )
+        .unwrap();
         assert!(proof.valid(tx_root.try_into().unwrap()));
     }
 

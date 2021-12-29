@@ -69,8 +69,10 @@ impl MerkleProof {
     /// You can verify it against a Blakeb256 root hash by using [`Self::valid()`]
     /// Add a node by using [`Self::add_node()`]
     /// Each digest on the level must be exactly 32 bytes
-    pub fn new(leaf_data: &[u8]) -> Self {
-        Self(ergo_merkle_tree::MerkleProof::new(leaf_data, &[])) // There are issues with wasm when trying to pass an array of structs, so it's better to use add_node instead
+    pub fn new(leaf_data: &[u8]) -> Result<MerkleProof, wasm_bindgen::JsValue> {
+        Ok(Self(
+            ergo_merkle_tree::MerkleProof::new(leaf_data, &[]).map_err(|err| err.to_string())?,
+        )) // There are issues with wasm when trying to pass an array of structs, so it's better to use add_node instead
     }
 
     /// Adds a new node to the MerkleProof above the current nodes

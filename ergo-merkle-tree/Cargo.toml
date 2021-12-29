@@ -11,7 +11,8 @@ base16 = { version = "0.2.1", optional = true }
 serde = { version = "1.0", features = ["derive"], optional = true }
 serde_repr = { version = "0.1.7", optional = true }
 serde_json = { version = "1.0", optional = true }
+thiserror = { version = "1.0", optional = true } # currently thiserror is only needed for json conversion, so it's feature-gated behind json. This may change in the future
 
 [features]
 default = ["json"]
-json = ["serde", "serde_json", "serde_repr", "base16"]
+json = ["serde", "serde_json", "serde_repr", "base16", "thiserror"]
