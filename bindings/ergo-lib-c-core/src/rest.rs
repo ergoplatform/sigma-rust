@@ -6,7 +6,6 @@ use tokio::runtime::Runtime;
 use crate::util::const_ptr_as_ref;
 use crate::util::mut_ptr_as_mut;
 use crate::Error;
-use crate::ErrorPtr;
 
 pub struct RestApiRuntime(Runtime);
 pub type RestApiRuntimePtr = *mut RestApiRuntime;
@@ -31,22 +30,18 @@ pub type NodeInfoPtr = *mut NodeInfo;
 pub unsafe fn rest_api_node_get_info(
     runtime_ptr: RestApiRuntimePtr,
     node_conf_ptr: NodeConfPtr,
-    callback: CompletedCallback<NodeInfoPtr>,
+    callback: CompletedCallback<NodeInfo>,
 ) -> Result<(), Error> {
     let runtime = const_ptr_as_ref(runtime_ptr, "runtime_ptr")?;
     let node_conf = const_ptr_as_ref(node_conf_ptr, "node_conf_ptr")?.0;
     runtime.0.spawn(async move {
         match ergo_lib::ergo_rest::api::get_info(node_conf).await {
-            Ok(node_info) => callback.succeeded(
-                NonNull::new(Box::into_raw(Box::new(Box::into_raw(Box::new(NodeInfo(
-                    node_info,
-                ))))))
-                .unwrap(),
-            ),
+            Ok(node_info) => callback
+                .succeeded(NonNull::new(Box::into_raw(Box::new(NodeInfo(node_info)))).unwrap()),
             Err(e) => callback.failed(
-                NonNull::new(Box::into_raw(Box::new(Error::c_api_from(Err(
-                    Error::Misc(format!("{:?}", e).into()),
-                )))))
+                NonNull::new(Error::c_api_from(Err(Error::Misc(
+                    format!("{:?}", e).into(),
+                ))))
                 .unwrap(),
             ),
         }
@@ -56,10 +51,10 @@ pub unsafe fn rest_api_node_get_info(
 
 #[repr(C)]
 pub struct CompletedCallback<T> {
-    userdata_success: *mut NonNull<c_void>,
-    userdata_fail: *mut NonNull<c_void>,
-    callback_success: extern "C" fn(*mut NonNull<c_void>, NonNull<T>),
-    callback_fail: extern "C" fn(*mut NonNull<c_void>, NonNull<ErrorPtr>),
+    userdata_success: NonNull<c_void>,
+    userdata_fail: NonNull<c_void>,
+    callback_success: extern "C" fn(NonNull<c_void>, NonNull<T>),
+    callback_fail: extern "C" fn(NonNull<c_void>, NonNull<Error>),
 }
 
 unsafe impl<T> Send for CompletedCallback<T> {}
@@ -69,7 +64,7 @@ impl<T> CompletedCallback<T> {
         (self.callback_success)(self.userdata_success, t);
         std::mem::forget(self)
     }
-    pub fn failed(self, error: NonNull<ErrorPtr>) {
+    pub fn failed(self, error: NonNull<Error>) {
         (self.callback_fail)(self.userdata_fail, error);
         std::mem::forget(self)
     }
