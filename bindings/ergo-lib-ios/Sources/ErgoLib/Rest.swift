@@ -86,3 +86,10 @@ class NodeInfo {
         ergo_lib_node_info_delete(self.pointer)
     }
 }
+
+func getInfo(nodeConf: NodeConf) -> throws NodeInfo {
+    var ptr: NodeInfoPtr?
+    ergo_lib_rest_api_node_get_info(nodeConf.pointer, &ptr)
+    try checkError(error)
+    return NodeInfo(withRawPointer: ptr!)
+}
