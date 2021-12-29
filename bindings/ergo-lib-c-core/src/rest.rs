@@ -47,7 +47,8 @@ pub unsafe fn rest_api_node_get_info(
 
 #[repr(C)]
 pub struct CompletedCallback<T> {
-    userdata: *mut c_void,
+    userdata_success: *mut c_void,
+    userdata_fail: *mut c_void,
     callback_success: extern "C" fn(*mut c_void, T),
     callback_fail: extern "C" fn(*mut c_void, ErrorPtr),
 }
@@ -56,11 +57,11 @@ unsafe impl<T> Send for CompletedCallback<T> {}
 
 impl<T> CompletedCallback<T> {
     pub fn succeeded(self, t: T) {
-        (self.callback_success)(self.userdata, t);
+        (self.callback_success)(self.userdata_success, t);
         std::mem::forget(self)
     }
     pub fn failed(self, error: ErrorPtr) {
-        (self.callback_fail)(self.userdata, error);
+        (self.callback_fail)(self.userdata_fail, error);
         std::mem::forget(self)
     }
 }

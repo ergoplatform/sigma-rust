@@ -43,8 +43,8 @@ class RestNode {
         }
 
         // step 3
-        let completion = CompletedCallback_NodeInfoPtr(userdata: userdata, callback_success: callback_success,
-            callback_fail: callback_fail)
+        let completion = CompletedCallback_NodeInfoPtr(userdata_success: userdataSuccess, 
+            userdata_fail: userdataFail, callback_success: callback_success, callback_fail: callback_fail)
 
         let error = ergo_lib_rest_api_node_get_info(self.pointer, nodeConf.pointer, completion)
 
