@@ -87,9 +87,9 @@ class NodeInfo {
     }
 }
 
-func getInfo(nodeConf: NodeConf) -> throws NodeInfo {
+func getInfo(nodeConf: NodeConf) throws -> NodeInfo {
     var ptr: NodeInfoPtr?
-    ergo_lib_rest_api_node_get_info(nodeConf.pointer, &ptr)
+    let error = ergo_lib_rest_api_node_get_info(nodeConf.pointer, &ptr)
     try checkError(error)
     return NodeInfo(withRawPointer: ptr!)
 }
