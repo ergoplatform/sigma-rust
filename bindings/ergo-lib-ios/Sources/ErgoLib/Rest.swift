@@ -38,7 +38,7 @@ class RestNode {
                     let cStringReason = ergo_lib_error_to_string(errorPtr)
                     let reason = String(cString: cStringReason!)
                     ergo_lib_delete_string(cStringReason)
-                    ergo_lib_delete_error(error)
+                    ergo_lib_delete_error(errorPtr)
                     wrappedClosure.closure(reason)
         }
 
