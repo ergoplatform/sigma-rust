@@ -27,7 +27,7 @@ pub type NodeConfPtr = *mut NodeConf;
 pub struct NodeInfo(ergo_lib::ergo_rest::NodeInfo);
 pub type NodeInfoPtr = *mut NodeInfo;
 
-pub unsafe fn rest_api_node_get_info(
+pub unsafe fn rest_api_node_get_info_async(
     runtime_ptr: RestApiRuntimePtr,
     node_conf_ptr: NodeConfPtr,
     callback: CompletedCallback<NodeInfo>,

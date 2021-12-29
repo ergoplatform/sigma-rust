@@ -1,4 +1,4 @@
-use ergo_lib_c_core::rest::rest_api_node_get_info;
+use ergo_lib_c_core::rest::rest_api_node_get_info_async;
 use ergo_lib_c_core::rest::rest_api_runtime_new;
 use ergo_lib_c_core::rest::CompletedCallback;
 use ergo_lib_c_core::rest::NodeConfPtr;
@@ -26,12 +26,12 @@ pub extern "C" fn ergo_lib_rest_api_runtime_delete(ptr: RestApiRuntimePtr) {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ergo_lib_rest_api_node_get_info(
+pub unsafe extern "C" fn ergo_lib_rest_api_node_get_info_async(
     runtime_ptr: RestApiRuntimePtr,
     node_conf_ptr: NodeConfPtr,
     callback: CompletedCallback<NodeInfo>,
 ) -> ErrorPtr {
-    let res = rest_api_node_get_info(runtime_ptr, node_conf_ptr, callback);
+    let res = rest_api_node_get_info_async(runtime_ptr, node_conf_ptr, callback);
     Error::c_api_from(res)
 }
 
