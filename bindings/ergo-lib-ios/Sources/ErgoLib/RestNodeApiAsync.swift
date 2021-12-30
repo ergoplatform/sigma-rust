@@ -39,7 +39,7 @@ class RestNodeApiAsync {
             // Because we are back to letting Swift manage our reference count, when the scope ends the wrapped closure will be freed.
             let wrappedClosure: WrapClosure<(NodeInfo) -> Void> = Unmanaged.fromOpaque(userdata).takeRetainedValue()
                     let nodeInfo = NodeInfo(withRawPointer: nodeInfoPtr)
-                    // TODO: call it on the same thread  `get_info` was called (i.e. on UI thread)
+                    // TODO: call it on the same thread  `get_info` was called (on main/UI thread?)
                     wrappedClosure.closure(nodeInfo)
         }
         let callback_fail: @convention(c) (UnsafeMutableRawPointer, ErrorPtr) -> Void = { (_ userdata: UnsafeMutableRawPointer, _ errorPtr: ErrorPtr) in
@@ -48,7 +48,7 @@ class RestNodeApiAsync {
                     let reason = String(cString: cStringReason!)
                     ergo_lib_delete_string(cStringReason)
                     ergo_lib_delete_error(errorPtr)
-                    // TODO: call it on the same thread  `get_info` was called (i.e. on UI thread)
+                    // TODO: call it on the same thread  `get_info` was called (on main/UI thread?)
                     wrappedClosure.closure(reason)
         }
 

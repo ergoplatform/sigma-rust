@@ -61,13 +61,18 @@ mod tests {
 
     use super::*;
 
-    // #[tokio::test]
-    // async fn test_get_info() {
-    //     let node_conf = NodeConf {
-    //         addr: PeerAddr::from_str("213.239.193.208:9053").unwrap(),
-    //         api_key: None,
-    //     };
-    //     let res = get_info(node_conf).await.unwrap();
-    //     assert_eq!(res.name, "ergo-mainnet-4.0.16.1");
-    // }
+    #[test]
+    fn test_get_info() {
+        // let runtime_inner = tokio::runtime::Runtime::new().unwrap();
+        let runtime_inner = tokio::runtime::Builder::new_multi_thread()
+            .enable_io()
+            .build()
+            .unwrap();
+        let node_conf = NodeConf {
+            addr: PeerAddr::from_str("213.239.193.208:9053").unwrap(),
+            api_key: None,
+        };
+        let res = runtime_inner.block_on(async { get_info(node_conf).await.unwrap() });
+        assert_eq!(res.name, "ergo-mainnet-4.0.16.1");
+    }
 }
