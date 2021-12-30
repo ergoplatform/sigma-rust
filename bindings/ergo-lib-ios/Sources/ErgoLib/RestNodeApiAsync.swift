@@ -1,7 +1,15 @@
 import Foundation
 import ErgoLibC
 
-class RestNode {
+
+private class WrapClosure<T> {
+    fileprivate let closure: T
+    init(closure: T) {
+        self.closure = closure
+    }
+}
+
+class RestNodeApiAsync {
     internal var pointer: RestApiRuntimePtr
     
     /// Create ergo node ``Rest`` API instance 
@@ -54,42 +62,4 @@ class RestNode {
     deinit {
         ergo_lib_rest_api_runtime_delete(self.pointer)
     }
-}
-
-private class WrapClosure<T> {
-    fileprivate let closure: T
-    init(closure: T) {
-        self.closure = closure
-    }
-}
-
-class NodeConf {
-    internal var pointer: NodeConfPtr
-
-    internal init(withRawPointer ptr: NodeConfPtr) {
-        self.pointer = ptr
-    }
-
-    deinit {
-        ergo_lib_node_conf_delete(self.pointer)
-    }
-}
-
-class NodeInfo {
-    internal var pointer: NodeInfoPtr
-
-    internal init(withRawPointer ptr: NodeInfoPtr) {
-        self.pointer = ptr
-    }
-
-    deinit {
-        ergo_lib_node_info_delete(self.pointer)
-    }
-}
-
-func getInfo(nodeConf: NodeConf) throws -> NodeInfo {
-    var ptr: NodeInfoPtr?
-    let error = ergo_lib_rest_api_node_get_info(nodeConf.pointer, &ptr)
-    try checkError(error)
-    return NodeInfo(withRawPointer: ptr!)
 }
