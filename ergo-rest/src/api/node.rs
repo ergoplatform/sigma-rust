@@ -65,7 +65,7 @@ mod tests {
     fn test_get_info() {
         // let runtime_inner = tokio::runtime::Runtime::new().unwrap();
         let runtime_inner = tokio::runtime::Builder::new_multi_thread()
-            .enable_io()
+            .enable_all()
             .build()
             .unwrap();
         let node_conf = NodeConf {
