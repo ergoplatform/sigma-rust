@@ -84,6 +84,12 @@ impl MerkleProof {
 
         *hash == expected_root
     }
+    /// Validates the MerkleProof against a base16 hash
+    pub fn valid_base16(&self, expected_root: &str) -> Result<bool, base16::DecodeError> {
+        // The rationale for adding this function is mainly to make using MerkleProof in Swift easier, without resorting to add a new dependency to base16
+        let expected_root = base16::decode(expected_root)?;
+        Ok(self.valid(&expected_root))
+    }
 
     /// Adds a new node (above the current node)
     pub fn add_node(&mut self, node: LevelNode) {
