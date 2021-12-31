@@ -1,6 +1,4 @@
 use crate::{concatenate_hashes, prefixed_hash};
-#[cfg(feature = "json")]
-use thiserror::Error;
 
 /// The side the merkle node is on in the tree
 #[cfg_attr(
@@ -54,8 +52,8 @@ impl LevelNode {
 )]
 #[derive(Clone, Debug)]
 pub struct MerkleProof {
-    leaf_data: [u8; 32],
-    levels: Vec<LevelNode>,
+    pub(crate) leaf_data: [u8; 32],
+    pub(crate) levels: Vec<LevelNode>,
 }
 
 impl MerkleProof {
@@ -97,45 +95,6 @@ impl MerkleProof {
     }
 }
 
-/// Error deserializing MerkleProof from Json
-#[cfg(feature = "json")]
-#[derive(Error, PartialEq, Eq, Debug, Clone)]
-pub enum MerkleProofFromJsonError {
-    /// Base16 decoding has failed
-    #[error("Failed to decode base16 string")]
-    DecodeError(#[from] base16::DecodeError),
-    /// Invalid Length (expected 32 bytes)
-    #[error("Invalid Length. Hashes and Leaf data must be 32 bytes in size")]
-    LengthError,
-}
-
-#[cfg(feature = "json")]
-impl std::convert::TryFrom<crate::json::MerkleProofJson> for MerkleProof {
-    type Error = MerkleProofFromJsonError;
-    fn try_from(proof: crate::json::MerkleProofJson) -> Result<Self, Self::Error> {
-        let leaf_data = base16::decode(&proof.leaf_data)?;
-        let leaf_data: [u8; 32] = leaf_data
-            .try_into()
-            .map_err(|_| MerkleProofFromJsonError::LengthError)?;
-        let mut levels = Vec::with_capacity(proof.levels.len());
-        for node in proof.levels {
-            let node: LevelNode = node.try_into()?;
-            levels.push(node);
-        }
-        Ok(Self { leaf_data, levels })
-    }
-}
-
-#[cfg(feature = "json")]
-impl Into<crate::json::MerkleProofJson> for MerkleProof {
-    fn into(self) -> crate::json::MerkleProofJson {
-        let levels: Vec<crate::json::LevelNodeJson> =
-            self.levels.into_iter().map(Into::into).collect();
-        let leaf_data = base16::encode_lower(&self.leaf_data);
-        crate::json::MerkleProofJson { leaf_data, levels }
-    }
-}
-
 #[cfg(test)]
 #[cfg(feature = "json")]
 #[allow(clippy::unwrap_used)]
@@ -165,7 +124,7 @@ mod test {
             &[LevelNode::new(levels[0..32].try_into().unwrap(), side)],
         )
         .unwrap();
-        assert!(proof.valid(tx_root.try_into().unwrap()));
+        assert!(proof.valid(tx_root));
     }
 
     // Proof for block #650787 on Ergo mainnet

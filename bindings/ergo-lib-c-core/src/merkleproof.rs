@@ -69,5 +69,5 @@ pub unsafe fn merkleproof_from_json(
 /// Serializes a MerkleProof to Json
 pub unsafe fn merkleproof_to_json(proof: ConstMerkleProofPtr) -> Result<String, Error> {
     let proof = const_ptr_as_ref(proof, "proof")?;
-    serde_json::to_string(&proof.0).map_err(|err| Error::from(err))
+    serde_json::to_string(&proof.0).map_err(Error::from)
 }

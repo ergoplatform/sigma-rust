@@ -18,9 +18,9 @@ pub enum NodeSide {
     Right = 1u8,
 }
 
-impl Into<ergo_merkle_tree::NodeSide> for NodeSide {
-    fn into(self) -> ergo_merkle_tree::NodeSide {
-        match self {
+impl From<NodeSide> for ergo_merkle_tree::NodeSide {
+    fn from(side: NodeSide) -> ergo_merkle_tree::NodeSide {
+        match side {
             NodeSide::Left => ergo_merkle_tree::NodeSide::Left,
             NodeSide::Right => ergo_merkle_tree::NodeSide::Right,
         }
@@ -89,5 +89,5 @@ impl MerkleProof {
 #[wasm_bindgen]
 /// Decodes a base16 string into an array of bytes
 pub fn base16_decode(data: &str) -> Result<Vec<u8>, JsValue> {
-    return base16::decode(&data).map_err(|_| "Failed to decode base16 input".into());
+    base16::decode(&data).map_err(|_| "Failed to decode base16 input".into())
 }
