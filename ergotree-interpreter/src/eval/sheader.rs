@@ -58,22 +58,26 @@ pub(crate) static HEIGHT_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
 
 pub(crate) static MINER_PK_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
     let header = obj.try_extract_into::<Header>()?;
-    Ok(header.miner_pk.into())
+    Ok(header.autolykos_solution.miner_pk.into())
 };
 
 pub(crate) static POW_ONETIME_PK_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
     let header = obj.try_extract_into::<Header>()?;
-    Ok(header.pow_onetime_pk.into())
+    Ok(header.autolykos_solution.pow_onetime_pk.into())
 };
 
 pub(crate) static POW_NONCE_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
     let header = obj.try_extract_into::<Header>()?;
-    Ok(header.nonce.into())
+    Ok(header.autolykos_solution.nonce.into())
 };
 
 pub(crate) static POW_DISTANCE_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
     let header = obj.try_extract_into::<Header>()?;
-    let pow_distance: BigInt256 = header.pow_distance.try_into().map_err(EvalError::Misc)?;
+    let pow_distance: BigInt256 = header
+        .autolykos_solution
+        .pow_distance
+        .try_into()
+        .map_err(EvalError::Misc)?;
     Ok(pow_distance.into())
 };
 
@@ -270,7 +274,12 @@ mod tests {
         let expected = ctx
             .headers
             .get(HEADER_INDEX)
-            .map(|h| [h.miner_pk.clone(), h.pow_onetime_pk.clone()])
+            .map(|h| {
+                [
+                    h.autolykos_solution.miner_pk.clone(),
+                    h.autolykos_solution.pow_onetime_pk.clone(),
+                ]
+            })
             .expect("internal error: empty headers array");
         let actual = eval_header_pks(ctx);
         assert_eq!(expected, actual);
@@ -280,7 +289,10 @@ mod tests {
     fn test_eval_pow_distance() {
         let expr = create_get_header_property_expr(sheader::POW_DISTANCE_PROPERTY.clone());
         let ctx = Rc::new(force_any_val::<Context>());
-        let expected = ctx.headers[HEADER_INDEX].pow_distance.clone();
+        let expected = ctx.headers[HEADER_INDEX]
+            .autolykos_solution
+            .pow_distance
+            .clone();
         let actual = {
             let bi = eval_out::<BigInt256>(&expr, ctx);
             bi.into()
@@ -292,7 +304,7 @@ mod tests {
     fn test_eval_pow_nonce() {
         let expr = create_get_header_property_expr(sheader::POW_NONCE_PROPERTY.clone());
         let ctx = Rc::new(force_any_val::<Context>());
-        let expected = ctx.headers[HEADER_INDEX].nonce.clone();
+        let expected = ctx.headers[HEADER_INDEX].autolykos_solution.nonce.clone();
         let actual = eval_out::<Vec<i8>>(&expr, ctx).as_vec_u8();
         assert_eq!(expected, actual);
     }

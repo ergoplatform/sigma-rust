@@ -1,7 +1,9 @@
 //! Block header
 use std::io::Write;
+use std::str::FromStr;
 
 use num_bigint::BigInt;
+use serde::{Deserialize, Deserializer};
 use sigma_ser::vlq_encode::WriteSigmaVlqExt;
 
 use crate::serialization::sigma_byte_writer::SigmaByteWriter;
@@ -47,19 +49,9 @@ pub struct Header {
     /// Root hash of extension section
     #[cfg_attr(feature = "json", serde(rename = "extensionHash"))]
     pub extension_root: Digest32,
-    /// Public key of miner. Part of Autolykos solution.
-    #[cfg_attr(feature = "json", serde(skip_serializing, skip_deserializing))]
-    pub miner_pk: Box<dlog_group::EcPoint>,
-    /// One-time public key. Prevents revealing of miners secret.
-    #[cfg_attr(feature = "json", serde(skip_serializing, skip_deserializing))]
-    pub pow_onetime_pk: Box<dlog_group::EcPoint>,
-    /// nonce
-    #[cfg_attr(feature = "json", serde(skip_serializing, skip_deserializing))]
-    pub nonce: Vec<u8>,
-    /// Distance between pseudo-random number, corresponding to nonce `nonce` and a secret,
-    /// corresponding to `miner_pk`. The lower `pow_distance` is, the harder it was to find this solution.
-    #[cfg_attr(feature = "json", serde(skip_serializing, skip_deserializing))]
-    pub pow_distance: BigInt,
+    /// Solution for an Autolykos PoW puzzle
+    #[cfg_attr(feature = "json", serde(rename = "powSolutions"))]
+    pub autolykos_solution: AutolykosSolution,
     /// Miner votes for changing system parameters.
     /// 3 bytes in accordance to Scala implementation, but will use `Vec` until further improvements
     #[cfg_attr(feature = "json", serde(rename = "votes"))]
@@ -98,6 +90,100 @@ impl Header {
     }
 }
 
+/// Solution for an Autolykos PoW puzzle. In Autolykos v.1 all the four fields are used, in
+/// Autolykos v.2 only `miner_pk` and `nonce` fields are used.
+#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct AutolykosSolution {
+    /// Public key of miner. Part of Autolykos solution.
+    #[cfg_attr(feature = "json", serde(rename = "pk"))]
+    pub miner_pk: Box<dlog_group::EcPoint>,
+    /// One-time public key. Prevents revealing of miners secret.
+    #[cfg_attr(feature = "json", serde(rename = "w"))]
+    pub pow_onetime_pk: Box<dlog_group::EcPoint>,
+    /// nonce
+    #[cfg_attr(
+        feature = "json",
+        serde(
+            rename = "n",
+            serialize_with = "as_base16_string",
+            deserialize_with = "from_base16_string"
+        )
+    )]
+    pub nonce: Vec<u8>,
+    /// Distance between pseudo-random number, corresponding to nonce `nonce` and a secret,
+    /// corresponding to `miner_pk`. The lower `pow_distance` is, the harder it was to find this
+    /// solution.
+    ///
+    /// Note: we serialize/deserialize through custom functions since `BigInt`s serde implementation
+    /// encodes the sign and absolute-value of the value separately, which is incompatible with the
+    /// JSON representation used by Ergo. ASSUMPTION: we assume that `pow_distance` encoded as a
+    /// `u64`.
+    #[cfg_attr(
+        feature = "json",
+        serde(
+            rename = "d",
+            serialize_with = "bigint_as_str",
+            deserialize_with = "bigint_from_serde_json_number"
+        )
+    )]
+    pub pow_distance: BigInt,
+}
+
+fn as_base16_string<S>(value: &[u8], serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    serializer.serialize_str(&base16::encode_lower(value))
+}
+
+fn from_base16_string<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    use serde::de::Error;
+    String::deserialize(deserializer)
+        .and_then(|string| base16::decode(&string).map_err(|err| Error::custom(err.to_string())))
+}
+
+/// Serialize `BigInt` as a string
+fn bigint_as_str<S>(value: &BigInt, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    serializer.serialize_str(&value.to_string())
+}
+
+/// Deserialize a `BigInt` instance from either a String or from a `serde_json::Number` value.  We
+/// need to do this because the JSON specification allows for arbitrarily-large numbers, a feature
+/// that Autolykos makes use of to encode the PoW-distance (d) parameter. Note that we also need to
+/// use `serde_json` with the `arbitrary_precision` feature for this to work.
+fn bigint_from_serde_json_number<'de, D>(deserializer: D) -> Result<BigInt, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    use serde::de::Error;
+
+    match DeserializeBigIntFrom::deserialize(deserializer) {
+        Ok(s) => match s {
+            DeserializeBigIntFrom::String(s) => {
+                BigInt::from_str(&s).map_err(|e| Error::custom(e.to_string()))
+            }
+            DeserializeBigIntFrom::SerdeJsonNumber(n) => {
+                BigInt::from_str(&n.to_string()).map_err(|e| Error::custom(e.to_string()))
+            }
+        },
+        Err(e) => Err(Error::custom(e.to_string())),
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum DeserializeBigIntFrom {
+    String(String),
+    SerdeJsonNumber(serde_json::Number),
+}
+
 impl From<Header> for PreHeader {
     fn from(bh: Header) -> Self {
         PreHeader {
@@ -106,7 +192,7 @@ impl From<Header> for PreHeader {
             timestamp: bh.timestamp,
             n_bits: bh.n_bits,
             height: bh.height,
-            miner_pk: bh.miner_pk,
+            miner_pk: bh.autolykos_solution.miner_pk,
             votes: bh.votes,
         }
     }
@@ -122,7 +208,7 @@ mod arbitrary {
     use crate::chain::digest32::Digest;
     use crate::sigma_protocol::dlog_group::EcPoint;
 
-    use super::{BlockId, Header, Votes};
+    use super::{AutolykosSolution, BlockId, Header, Votes};
 
     impl Arbitrary for Header {
         type Parameters = ();
@@ -161,6 +247,12 @@ mod arbitrary {
                         let transaction_root = Digest(transaction_root.into());
                         let extension_root = Digest(extension_root.into());
                         let votes = Votes(votes);
+                        let autolykos_solution = AutolykosSolution {
+                            miner_pk,
+                            pow_onetime_pk,
+                            nonce: Vec::new(),
+                            pow_distance: BigInt::default(),
+                        };
                         Self {
                             version: 1,
                             id,
@@ -172,10 +264,7 @@ mod arbitrary {
                             n_bits,
                             height,
                             extension_root,
-                            miner_pk,
-                            pow_onetime_pk,
-                            nonce: Vec::new(),
-                            pow_distance: BigInt::default(),
+                            autolykos_solution,
                             votes,
                         }
                     },
@@ -190,6 +279,10 @@ mod arbitrary {
 #[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
+    use num_bigint::BigInt;
+
     use crate::chain::header::Header;
 
     #[test]
@@ -212,7 +305,7 @@ mod tests {
               "pk": "02b3a06d6eaa8671431ba1db4dd427a77f75a5c2acbd71bfb725d38adc2b55f669",
               "w": "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
               "n": "5939ecfee6b0d7f4",
-              "d": 0
+              "d": "1234000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
             },
             "adProofsId": "86eaa41f328bee598e33e52c9e515952ad3b7874102f762847f17318a776a7ae",
             "transactionsId": "ac80245714f25aa2fafe5494ad02a26d46e7955b8f5709f3659f1b9440797b3e",
@@ -220,6 +313,13 @@ mod tests {
         }"#;
         let header: Header = serde_json::from_str(json).unwrap();
         assert_eq!(header.height, 471746);
+        assert_eq!(
+            header.autolykos_solution.pow_distance,
+            BigInt::from_str(
+                "1234000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+            )
+            .unwrap()
+        );
     }
 
     #[test]
@@ -243,7 +343,7 @@ mod tests {
               "pk": "02b3a06d6eaa8671431ba1db4dd427a77f75a5c2acbd71bfb725d38adc2b55f669",
               "w": "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
               "n": "5939ecfee6b0d7f4",
-              "d": 0
+              "d": 1234000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
             },
             "adProofsId": "86eaa41f328bee598e33e52c9e515952ad3b7874102f762847f17318a776a7ae",
             "transactionsId": "ac80245714f25aa2fafe5494ad02a26d46e7955b8f5709f3659f1b9440797b3e",
@@ -251,5 +351,12 @@ mod tests {
         }"#;
         let header: Header = serde_json::from_str(json).unwrap();
         assert_eq!(header.height, 471746);
+        assert_eq!(
+            header.autolykos_solution.pow_distance,
+            BigInt::from_str(
+                "1234000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+            )
+            .unwrap()
+        );
     }
 }

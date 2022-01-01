@@ -25,12 +25,12 @@ impl AutolykosPowScheme {
     /// Get hit for Autolykos header (to test it then against PoW target)
     pub fn pow_hit(&self, header: &Header) -> Result<BigInt, AutolykosPowSchemeError> {
         if header.version == 1 {
-            Ok(header.pow_distance.clone())
+            Ok(header.autolykos_solution.pow_distance.clone())
         } else {
             use byteorder::{BigEndian, WriteBytesExt};
             // hit for version 2
             let msg = header.serialize_without_pow()?;
-            let nonce = header.nonce.clone();
+            let nonce = header.autolykos_solution.nonce.clone();
             let mut height_bytes = Vec::with_capacity(4);
             #[allow(clippy::unwrap_used)]
             height_bytes.write_u32::<BigEndian>(header.height).unwrap();

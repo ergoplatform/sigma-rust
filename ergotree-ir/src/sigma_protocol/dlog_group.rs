@@ -30,11 +30,13 @@ use num_bigint::BigUint;
 use num_bigint::Sign;
 use num_bigint::ToBigUint;
 use num_traits::ToPrimitive;
+use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use std::ops::{Add, Mul, Neg};
 
 /// Elliptic curve point
-#[derive(PartialEq, Clone, Default)]
+#[derive(PartialEq, Clone, Default, Serialize, Deserialize)]
+#[serde(into = "String", try_from = "String")]
 pub struct EcPoint(ProjectivePoint);
 
 #[allow(clippy::unwrap_used)]
@@ -57,6 +59,24 @@ impl EcPoint {
             .ok()
             .map(|bytes| Self::sigma_parse_bytes(&bytes).ok())
             .flatten()
+    }
+}
+
+impl TryFrom<String> for EcPoint {
+    type Error = String;
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        EcPoint::from_base16_str(value)
+            .ok_or_else(|| String::from("Ecpoint: error parsing from base16-encoded string"))
+    }
+}
+
+impl From<EcPoint> for String {
+    fn from(value: EcPoint) -> String {
+        #[allow(clippy::unwrap_used)]
+        {
+            let bytes = value.sigma_serialize_bytes().unwrap();
+            String::from_utf8(bytes).unwrap()
+        }
     }
 }
 
