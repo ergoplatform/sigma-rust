@@ -1,5 +1,5 @@
 //! Ergo NiPoPoW implementation
-//! See FC 20 (published) version https://fc20.ifca.ai/preproceedings/74.pdf
+//! See FC 20 (published) version <https://fc20.ifca.ai/preproceedings/74.pdf>
 
 // Coding conventions
 #![forbid(unsafe_code)]

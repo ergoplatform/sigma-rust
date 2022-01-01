@@ -8,13 +8,12 @@ use crate::autolykos_pow_scheme::AutolykosPowScheme;
 ///
 /// Based on papers:
 ///
-/// [KMZ17] Non-Interactive Proofs of Proof-of-Work, FC 20 (published) version
-///           <https://fc20.ifca.ai/preproceedings/74.pdf>
+/// [`KMZ17`]: https://fc20.ifca.ai/preproceedings/74.pdf
 ///
-/// [KLS16] Proofs of Proofs of Work with Sublinear Complexity <http://fc16.ifca.ai/bitcoin/papers/KLS16.pdf>
+/// [`KLS16`]: http://fc16.ifca.ai/bitcoin/papers/KLS16.pdf
 ///
-/// Please note that for [KMZ17] we're using the version published @ Financial Cryptography 2020, which is different
-/// from previously published versions on IACR eprint.
+/// Please note that for KMZ17 we're using the version published @ Financial Cryptography 2020,
+/// which is different from previously published versions on IACR eprint.
 #[derive(Default)]
 pub(crate) struct NipopowAlgos {
     /// The proof-of-work scheme
@@ -25,9 +24,9 @@ impl NipopowAlgos {
     /// Computes best score of a given chain.
     /// The score value depends on number of µ-superblocks in the given chain.
     ///
-    /// see [KMZ17], Algorithm 4
+    /// see [`KMZ17`], Algorithm 4
     ///
-    /// [KMZ17]:
+    /// [`KMZ17`]:
     /// "To find the best argument of a proof π given b, best-arg_m collects all the μ
     /// indices which point to superblock levels that contain valid arguments after block b.
     /// Argument validity requires that there are at least m μ-superblocks following block b,
@@ -40,6 +39,8 @@ impl NipopowAlgos {
     /// M←{μ:|π↑μ{b:}|≥m}∪{0}
     /// return max_{μ∈M} {2μ·|π↑μ{b:}|}
     /// end function
+    ///
+    /// [`KMZ17`]: https://fc20.ifca.ai/preproceedings/74.pdf
     pub(crate) fn best_arg(&self, chain: &[&Header], m: u32) -> usize {
         // Little helper struct for loop below
         struct Acc {

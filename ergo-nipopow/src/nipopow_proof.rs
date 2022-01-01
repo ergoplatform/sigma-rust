@@ -52,7 +52,9 @@ impl NipopowProof {
         }
     }
 
-    /// Implementation of the ≥ algorithm from [KMZ17], see Algorithm 4
+    /// Implementation of the ≥ algorithm from [`KMZ17`], see Algorithm 4
+    ///
+    /// [`KMZ17`]: https://fc20.ifca.ai/preproceedings/74.pdf
     pub fn is_better_than(&self, that: NipopowProof) -> bool {
         if self.is_valid() && that.is_valid() {
             if let Some(lca) = self.popow_algos.lowest_common_ancestor(
