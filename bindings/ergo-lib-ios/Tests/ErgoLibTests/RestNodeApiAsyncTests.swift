@@ -10,7 +10,7 @@ final class RestNodeApiAsyncTests: XCTestCase {
         let nodeConf = try NodeConf(withAddrString: "213.239.193.208:9053")
         let restNodeApiAsync = try RestNodeApiAsync()
         try restNodeApiAsync.getInfo(nodeConf: nodeConf, closureSuccess: { (nodeInfo: NodeInfo) -> () in 
-                XCTAssertEqual(nodeInfo.getName(), "ergo-mainnet-4.0.16.1")
+                XCTAssert(!nodeInfo.getName().isEmpty)
                 expectation.fulfill()
             }, closureFail: { (e: String) -> () in
                 XCTFail(e)
