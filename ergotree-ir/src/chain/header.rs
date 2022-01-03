@@ -4,14 +4,16 @@ use std::str::FromStr;
 
 use num_bigint::BigInt;
 use serde::{Deserialize, Deserializer};
-use sigma_ser::vlq_encode::WriteSigmaVlqExt;
+use sigma_ser::vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt};
+use sigma_ser::{
+    ScorexParsingError, ScorexSerializable, ScorexSerializationError, ScorexSerializeResult,
+};
 
 use crate::serialization::sigma_byte_writer::SigmaByteWriter;
-use crate::serialization::{SigmaSerializable, SigmaSerializationError};
-use crate::sigma_protocol::dlog_group;
+use crate::sigma_protocol::dlog_group::{self, EcPoint};
 
 use super::block_id::BlockId;
-use super::digest32::{ADDigest, Digest32};
+use super::digest32::{blake2b256_hash, ADDigest, Digest32};
 use super::preheader::PreHeader;
 use super::votes::Votes;
 
@@ -60,22 +62,25 @@ pub struct Header {
 
 impl Header {
     /// Used in nipowpow
-    pub fn serialize_without_pow(&self) -> Result<Vec<u8>, SigmaSerializationError> {
+    pub fn serialize_without_pow(&self) -> Result<Vec<u8>, ScorexSerializationError> {
         use byteorder::{BigEndian, WriteBytesExt};
         let mut data = Vec::new();
         let mut w = SigmaByteWriter::new(&mut data, None);
         w.put_u8(self.version)?;
-        self.parent_id.0.sigma_serialize(&mut w)?;
-        self.ad_proofs_root.sigma_serialize(&mut w)?;
-        self.transaction_root.sigma_serialize(&mut w)?;
-        self.state_root.sigma_serialize(&mut w)?;
+        self.parent_id.0.scorex_serialize(&mut w)?;
+        self.ad_proofs_root.scorex_serialize(&mut w)?;
+        self.transaction_root.scorex_serialize(&mut w)?;
+        self.state_root.scorex_serialize(&mut w)?;
         w.put_u64(self.timestamp)?;
-        self.extension_root.sigma_serialize(&mut w)?;
+        self.extension_root.scorex_serialize(&mut w)?;
 
-        // n_bits needs to be serialized in big-endian format
+        // n_bits needs to be serialized in big-endian format. Note that it actually fits in a
+        // `u32`.
         let mut n_bits_writer = vec![];
         #[allow(clippy::unwrap_used)]
-        n_bits_writer.write_u64::<BigEndian>(self.n_bits).unwrap();
+        n_bits_writer
+            .write_u32::<BigEndian>(self.n_bits as u32)
+            .unwrap();
         w.write_all(&n_bits_writer)?;
 
         w.put_u32(self.height)?;
@@ -87,6 +92,107 @@ impl Header {
             w.put_i8(0)?;
         }
         Ok(data)
+    }
+}
+
+impl ScorexSerializable for Header {
+    fn scorex_serialize<W: WriteSigmaVlqExt>(&self, w: &mut W) -> ScorexSerializeResult {
+        let bytes = self.serialize_without_pow()?;
+        w.write_all(&bytes)?;
+
+        // Serialize `AutolykosSolution`
+        self.autolykos_solution.serialize_bytes(self.version, w)?;
+        Ok(())
+    }
+
+    fn scorex_parse<R: ReadSigmaVlqExt>(r: &mut R) -> Result<Self, ScorexParsingError> {
+        let version = r.get_u8()?;
+        let parent_id = BlockId(Digest32::scorex_parse(r)?);
+        let ad_proofs_root = Digest32::scorex_parse(r)?;
+        let transaction_root = Digest32::scorex_parse(r)?;
+        let state_root = ADDigest::scorex_parse(r)?;
+        let timestamp = r.get_u64()?;
+        let extension_root = Digest32::scorex_parse(r)?;
+        let mut n_bits_buf = [0u8, 0, 0, 0];
+        r.read_exact(&mut n_bits_buf)?;
+        let n_bits = {
+            use byteorder::{BigEndian, ReadBytesExt};
+            let mut reader = std::io::Cursor::new(n_bits_buf);
+            #[allow(clippy::unwrap_used)]
+            {
+                reader.read_u32::<BigEndian>().unwrap() as u64
+            }
+        };
+        let height = r.get_u32()?;
+        let mut votes_bytes = [0u8, 0, 0];
+        r.read_exact(&mut votes_bytes)?;
+        let votes = Votes(votes_bytes);
+
+        // Parse `AutolykosSolution`
+        let autolykos_solution = if version == 1 {
+            let miner_pk = EcPoint::scorex_parse(r)?.into();
+            let pow_onetime_pk = EcPoint::scorex_parse(r)?.into();
+            let mut nonce: Vec<u8> = std::iter::repeat(0).take(8).collect();
+            r.read_exact(&mut nonce)?;
+            let d_bytes_len = r.get_u8()?;
+            let mut d_bytes: Vec<u8> = std::iter::repeat(0).take(d_bytes_len as usize).collect();
+            r.read_exact(&mut d_bytes)?;
+            let pow_distance = BigInt::from_signed_bytes_be(&d_bytes);
+            AutolykosSolution {
+                miner_pk,
+                pow_onetime_pk,
+                nonce,
+                pow_distance,
+            }
+        } else {
+            // autolykos v2
+            let pow_onetime_pk = dlog_group::generator().into();
+            let pow_distance = BigInt::from(0u8);
+            let miner_pk = EcPoint::scorex_parse(r)?.into();
+            let mut nonce: Vec<u8> = std::iter::repeat(0).take(8).collect();
+            r.read_exact(&mut nonce)?;
+            AutolykosSolution {
+                miner_pk,
+                pow_onetime_pk,
+                nonce,
+                pow_distance,
+            }
+        };
+        // For block version >= 2, a new byte encodes length of possible new fields.  If this byte >
+        // 0, we read new fields but do nothing, as semantics of the fields is not known.
+        if version > 1 {
+            let new_field_size = r.get_u8()?;
+            if new_field_size > 0 {
+                let mut field_bytes: Vec<u8> =
+                    std::iter::repeat(0).take(new_field_size as usize).collect();
+                r.read_exact(&mut field_bytes)?;
+            }
+        }
+
+        // First initialize header with dummy id field
+        let mut header = Header {
+            version,
+            id: BlockId(Digest32::zero()),
+            parent_id,
+            ad_proofs_root,
+            state_root,
+            transaction_root,
+            timestamp,
+            n_bits,
+            height,
+            extension_root,
+            autolykos_solution: autolykos_solution.clone(),
+            votes,
+        };
+
+        let mut id_bytes = header.serialize_without_pow()?;
+        let mut data = Vec::new();
+        let mut w = SigmaByteWriter::new(&mut data, None);
+        autolykos_solution.serialize_bytes(version, &mut w)?;
+        id_bytes.extend(data);
+        let id = BlockId(blake2b256_hash(&id_bytes));
+        header.id = id;
+        Ok(header)
     }
 }
 
@@ -128,6 +234,28 @@ pub struct AutolykosSolution {
         )
     )]
     pub pow_distance: BigInt,
+}
+
+impl AutolykosSolution {
+    fn serialize_bytes<W: WriteSigmaVlqExt>(
+        &self,
+        version: u8,
+        w: &mut W,
+    ) -> Result<(), ScorexSerializationError> {
+        if version == 1 {
+            self.miner_pk.scorex_serialize(w)?;
+            self.pow_onetime_pk.scorex_serialize(w)?;
+            w.write_all(&self.nonce)?;
+            let d_bytes = self.pow_distance.to_signed_bytes_be();
+            w.put_u8(d_bytes.len() as u8)?;
+            w.write_all(&d_bytes)?;
+        } else {
+            // Autolykos v2
+            self.miner_pk.scorex_serialize(w)?;
+            w.write_all(&self.nonce)?;
+        }
+        Ok(())
+    }
 }
 
 fn as_base16_string<S>(value: &[u8], serializer: S) -> Result<S::Ok, S::Error>

@@ -1,6 +1,7 @@
 use derive_more::From;
-use ergotree_ir::{chain::header::Header, serialization::SigmaSerializationError};
+use ergotree_ir::chain::header::Header;
 use num_bigint::{BigInt, Sign};
+use sigma_ser::ScorexSerializationError;
 use sigma_util::hash::blake2b256_hash;
 
 /// Autolykos PoW puzzle scheme reference implementation.
@@ -156,8 +157,8 @@ fn as_unsigned_byte_array(
 
 #[derive(PartialEq, Debug, Clone, From)]
 pub enum AutolykosPowSchemeError {
-    /// Sigma-serialization error
-    SigmaSerializationError(SigmaSerializationError),
+    /// Scorex-serialization error
+    ScorexSerializationError(ScorexSerializationError),
     /// Error occurring when trying to convert a `BigInt` into a fixed-length byte-array.
     BigIntToFixedByteArrayError,
 }

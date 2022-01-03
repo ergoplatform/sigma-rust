@@ -31,6 +31,8 @@ use num_bigint::Sign;
 use num_bigint::ToBigUint;
 use num_traits::ToPrimitive;
 use serde::{Deserialize, Serialize};
+use sigma_ser::vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt};
+use sigma_ser::{ScorexParsingError, ScorexSerializable, ScorexSerializeResult};
 use std::convert::TryFrom;
 use std::ops::{Add, Mul, Neg};
 
@@ -201,6 +203,34 @@ impl SigmaSerializable for EcPoint {
         if buf[0] != 0 {
             let pubkey = PublicKey::from_sec1_bytes(&buf[..]).map_err(|e| {
                 SigmaParsingError::Misc(format!("failed to parse PK from bytes: {:?}", e))
+            })?;
+            Ok(EcPoint(pubkey.to_projective()))
+        } else {
+            // infinity point
+            Ok(EcPoint(ProjectivePoint::identity()))
+        }
+    }
+}
+
+impl ScorexSerializable for EcPoint {
+    fn scorex_serialize<W: WriteSigmaVlqExt>(&self, w: &mut W) -> ScorexSerializeResult {
+        let caff = self.0.to_affine();
+        if caff.is_identity().into() {
+            // infinity point
+            let zeroes = [0u8; EcPoint::GROUP_SIZE];
+            w.write_all(&zeroes)?;
+        } else {
+            w.write_all(caff.to_encoded_point(true).as_bytes())?;
+        }
+        Ok(())
+    }
+
+    fn scorex_parse<R: ReadSigmaVlqExt>(r: &mut R) -> Result<Self, ScorexParsingError> {
+        let mut buf = [0; EcPoint::GROUP_SIZE];
+        r.read_exact(&mut buf[..])?;
+        if buf[0] != 0 {
+            let pubkey = PublicKey::from_sec1_bytes(&buf[..]).map_err(|e| {
+                ScorexParsingError::Misc(format!("failed to parse PK from bytes: {:?}", e))
             })?;
             Ok(EcPoint(pubkey.to_projective()))
         } else {
