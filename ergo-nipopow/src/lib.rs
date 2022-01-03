@@ -21,3 +21,5 @@ mod autolykos_pow_scheme;
 mod nipopow_algos;
 /// NiPoPow proof
 pub mod nipopow_proof;
+/// A verifier for PoPoW proofs.
+pub mod nipopow_verifier;
