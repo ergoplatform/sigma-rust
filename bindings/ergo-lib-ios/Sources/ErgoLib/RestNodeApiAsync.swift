@@ -21,7 +21,7 @@ class RestNodeApiAsync {
     }
     
     /// GET on /info endpoint
-    func get_info(
+    func getInfo(
         nodeConf: NodeConf,
         closureSuccess: @escaping (NodeInfo) -> Void,
         closureFail: @escaping (String) -> Void
