@@ -133,15 +133,39 @@ impl ScorexSerializable for NipopowProof {
         w.put_u32(suffix_head_num_bytes as u32)?;
         self.suffix_head.scorex_serialize(w)?;
         w.put_u32(self.suffix_tail.len() as u32)?;
-        todo!()
-        //for h in &self.suffix_tail {
-        //    let header_num_bytes = h.scorex_serialize_bytes()?.len();
-        //}
-        //Ok(())
+        for h in &self.suffix_tail {
+            let header_num_bytes = h.scorex_serialize_bytes()?.len();
+            w.put_u32(header_num_bytes as u32)?;
+            h.scorex_serialize(w)?;
+        }
+        Ok(())
     }
 
-    fn scorex_parse<R: ReadSigmaVlqExt>(_r: &mut R) -> Result<Self, ScorexParsingError> {
-        todo!()
+    fn scorex_parse<R: ReadSigmaVlqExt>(r: &mut R) -> Result<Self, ScorexParsingError> {
+        let m = r.get_u32()?;
+        let k = r.get_u32()?;
+        let num_prefixes = r.get_u32()? as usize;
+        let mut prefix = Vec::with_capacity(num_prefixes);
+        for _ in 0..num_prefixes {
+            let _size = r.get_u32()?;
+            prefix.push(PoPowHeader::scorex_parse(r)?);
+        }
+        let _suffix_head_size = r.get_u32()?;
+        let suffix_head = PoPowHeader::scorex_parse(r)?;
+        let num_suffix_tail = r.get_u32()? as usize;
+        let mut suffix_tail = Vec::with_capacity(num_suffix_tail);
+        for _ in 0..num_suffix_tail {
+            let _size = r.get_u32();
+            suffix_tail.push(Header::scorex_parse(r)?);
+        }
+        Ok(NipopowProof {
+            popow_algos: NipopowAlgos::default(),
+            m,
+            k,
+            prefix,
+            suffix_head,
+            suffix_tail,
+        })
     }
 }
 
