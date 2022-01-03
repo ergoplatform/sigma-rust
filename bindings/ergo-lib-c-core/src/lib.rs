@@ -27,6 +27,7 @@ pub mod ext_secret_key;
 pub mod header;
 pub mod input;
 mod json;
+pub mod nipopow;
 pub mod reduced;
 pub mod secret_key;
 pub mod token;

@@ -14,7 +14,7 @@ use sigma_util::hash::blake2b256_hash;
 /// CPU Mining process is implemented in inefficient way and should not be used in real environment.
 ///
 /// See papers/yellow/pow/ErgoPow.tex for full description
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AutolykosPowScheme {
     /// Represents the number of elements in one solution. **Important assumption**: `k <= 32`.
     k: u64,

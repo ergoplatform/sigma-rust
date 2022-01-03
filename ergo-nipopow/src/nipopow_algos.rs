@@ -14,7 +14,7 @@ use crate::autolykos_pow_scheme::AutolykosPowScheme;
 ///
 /// Please note that for KMZ17 we're using the version published @ Financial Cryptography 2020,
 /// which is different from previously published versions on IACR eprint.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub(crate) struct NipopowAlgos {
     /// The proof-of-work scheme
     pow_scheme: AutolykosPowScheme,

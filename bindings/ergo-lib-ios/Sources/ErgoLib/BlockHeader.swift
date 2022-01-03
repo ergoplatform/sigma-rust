@@ -21,8 +21,30 @@ class BlockHeader {
         self.pointer = ptr
     }
     
+    /// Get Block id
+    func getBlockId() -> BlockId {
+        var ptr: BlockIdPtr?
+        ergo_lib_block_header_id(self.pointer, &ptr)
+        return BlockId(withRawPointer: ptr!)
+    }
+    
     deinit {
         ergo_lib_block_header_delete(self.pointer)
+    }
+}
+
+/// Represents the id of a ``BlockHeader``
+class BlockId {
+    internal var pointer: BlockIdPtr
+    
+    /// Takes ownership of an existing ``BlockIdPtr``. Note: we must ensure that no other instance
+    /// of ``BlockId`` can hold this pointer.
+    internal init(withRawPointer ptr: BlockIdPtr) {
+        self.pointer = ptr
+    }
+    
+    deinit {
+        ergo_lib_block_id_delete(self.pointer)
     }
 }
 

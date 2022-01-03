@@ -1,7 +1,7 @@
 //! Bindings for NiPoPow
 
+use super::block_header::BlockId;
 use derive_more::{From, Into};
-use ergo_lib::ergotree_ir::chain::block_id::BlockId;
 use wasm_bindgen::prelude::*;
 
 use crate::{block_header::BlockHeader, error_conversion::to_js};
@@ -40,7 +40,7 @@ pub struct NipopowVerifier(ergo_nipopow::nipopow_verifier::NipopowVerifier);
 impl NipopowVerifier {
     /// Create new instance
     pub fn new(genesis_block_id: BlockId) -> Self {
-        ergo_nipopow::nipopow_verifier::NipopowVerifier::new(genesis_block_id).into()
+        ergo_nipopow::nipopow_verifier::NipopowVerifier::new(genesis_block_id.0).into()
     }
 
     /// Returns chain of `BlockHeader`s from the best proof.

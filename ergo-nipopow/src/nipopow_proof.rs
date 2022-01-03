@@ -11,7 +11,7 @@ use crate::{
     nipopow_algos::NipopowAlgos,
 };
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 /// A structure representing NiPoPow proof as a persistent modifier.
 pub struct NipopowProof {
     #[serde(skip_serializing, skip_deserializing)]
@@ -178,7 +178,7 @@ pub enum NipopowProofError {
     AutolykosPowSchemeError(autolykos_pow_scheme::AutolykosPowSchemeError),
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 /// Stub type until issue #489 is closed.
 pub struct PoPowHeader {
     /// The block header
