@@ -4,6 +4,7 @@ use crate::nipopow_proof::NipopowProof;
 
 /// A verifier for PoPoW proofs. During its lifetime, it processes many proofs with the aim of
 /// deducing at any given point what is the best (sub)chain rooted at the specified genesis.
+#[derive(Debug)]
 pub struct NipopowVerifier {
     best_proof: Option<NipopowProof>,
     /// `BlockId` of the genesis block.
