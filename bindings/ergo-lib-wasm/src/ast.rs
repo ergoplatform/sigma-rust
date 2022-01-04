@@ -181,6 +181,13 @@ impl Constant {
         Ok(c.into())
     }
 
+    /// Parse raw [`EcPoint`] value from bytes and make [`groupElement`] constant
+    pub fn from_ecpoint_bytes_group_element(bytes: &[u8]) -> Result<Constant, JsValue> {
+        let ecp = EcPoint::sigma_parse_bytes(bytes).map_err(to_js)?;
+        let c = ergo_lib::ergotree_ir::mir::constant::Constant::from(ecp);
+        Ok(c.into())
+    }
+
     /// Create `(Coll[Byte], Coll[Byte])` tuple Constant
     pub fn from_tuple_coll_bytes(bytes1: &[u8], bytes2: &[u8]) -> Constant {
         let t = (bytes1.to_vec(), bytes2.to_vec());
