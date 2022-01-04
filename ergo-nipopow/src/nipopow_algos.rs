@@ -140,7 +140,7 @@ impl NipopowAlgos {
 ///  - If `exponent >= 3` then `N` is represented by
 ///      `(-1^sign) * mantissa * 256^(exponent-3)`
 ///    E.g. suppose the compact form is given in hex-format by `0x04123456`. Mantissa is `0x123456`
-///    an `exponent == 4`. So `N == 0x123456 * 265^1`. Now note that we need exactly 4 bytes to
+///    and `exponent == 4`. So `N == 0x123456 * 265^1`. Now note that we need exactly 4 bytes to
 ///    represent `N`; 3 bytes for the mantissa and 1 byte for the rest. In base-256:
 ///      `N == B(0x12)B(0x34)B(0x56)0`
 ///    where `B(y)` denotes the base-256 representation of a hex-number `y` (note how each base-256
