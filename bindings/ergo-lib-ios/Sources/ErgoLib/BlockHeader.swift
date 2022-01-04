@@ -62,6 +62,7 @@ class BlockHeaders {
     init() {
         self.pointer = BlockHeaders.initRawPtrEmpty()
     }
+    
     /// Parse ``BlockHeader`` array from JSON (Node API)
     init(fromJSON: Any) throws {
         let json = JSON(fromJSON)
@@ -80,6 +81,12 @@ class BlockHeaders {
         } else {
             throw WalletError.walletCError(reason: "BlockHeaders.init(fromJSON): expected [JSON]")
         }
+    }
+    
+    /// Takes ownership of an existing ``BlockHeadersPtr``. Note: we must ensure that no other instance
+    /// of ``BlockHeaders`` can hold this pointer.
+    internal init(withRawPointer ptr: BlockHeadersPtr) {
+        self.pointer = ptr
     }
     
     /// Use the C-API to create an empty collection and return the raw pointer that points to this

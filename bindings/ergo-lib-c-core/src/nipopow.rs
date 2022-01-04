@@ -37,7 +37,7 @@ pub unsafe fn nipopow_proof_from_json(
 }
 
 /// JSON representation as text
-pub unsafe fn unsigned_tx_to_json(
+pub unsafe fn nipopow_proof_to_json(
     nipopow_proof_ptr: ConstNipopowProofPtr,
 ) -> Result<String, Error> {
     let proof = const_ptr_as_ref(nipopow_proof_ptr, "nipopow_proof_ptr")?;
