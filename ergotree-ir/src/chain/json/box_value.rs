@@ -17,7 +17,8 @@ pub(crate) struct BoxValueJson(
     // Tries to decode as u64 first, then fallback to string. Encodes as u64 always
     // see details - https://docs.rs/serde_with/1.9.4/serde_with/struct.PickFirst.html
     #[serde_as(as = "serde_with::PickFirst<(_, serde_with::DisplayFromStr)>")]
-    pub(crate)  serde_json::Number,
+    #[rustfmt::skip]
+    pub(crate) serde_json::Number,
 );
 
 impl TryFrom<BoxValueJson> for BoxValue {
