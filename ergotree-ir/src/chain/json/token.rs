@@ -10,15 +10,14 @@ use crate::chain::token::TokenAmount;
 /// <https://github.com/serde-rs/json/issues/740>. Basically we can't deserialise any integer types
 /// directly within untagged enums when the `arbitrary_precision` feature is used. The workaround is
 /// to deserialize as `serde_json::Number` first, then manually convert the type.
+///
+/// Tries to decode as `BigInt` first, then fallback to string. Encodes as `BigInt` always.
+/// see details - https://docs.rs/serde_with/1.9.4/serde_with/struct.PickFirst.html
 #[cfg(feature = "json")]
 #[serde_with::serde_as]
 #[derive(serde::Serialize, serde::Deserialize)]
 pub(crate) struct TokenAmountJson(
-    // Tries to decode as serde_json::Number first, then fallback to string. Encodes as u64 always
-    // see details - https://docs.rs/serde_with/1.9.4/serde_with/struct.PickFirst.html
-    #[serde_as(as = "serde_with::PickFirst<(_, serde_with::DisplayFromStr)>")]
-    #[rustfmt::skip]
-    serde_json::Number,
+    #[serde_as(as = "serde_with::PickFirst<(_, serde_with::DisplayFromStr)>")] serde_json::Number,
 );
 
 impl TryFrom<TokenAmountJson> for TokenAmount {
