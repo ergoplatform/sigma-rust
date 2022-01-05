@@ -30,15 +30,18 @@ use num_bigint::BigUint;
 use num_bigint::Sign;
 use num_bigint::ToBigUint;
 use num_traits::ToPrimitive;
-use serde::{Deserialize, Serialize};
 use sigma_ser::vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt};
 use sigma_ser::{ScorexParsingError, ScorexSerializable, ScorexSerializeResult};
 use std::convert::TryFrom;
 use std::ops::{Add, Mul, Neg};
 
 /// Elliptic curve point
-#[derive(PartialEq, Clone, Default, Serialize, Deserialize)]
-#[serde(into = "String", try_from = "String")]
+#[derive(PartialEq, Clone, Default)]
+#[cfg_attr(
+    feature = "json",
+    derive(serde::Serialize, serde::Deserialize),
+    serde(into = "String", try_from = "String")
+)]
 pub struct EcPoint(ProjectivePoint);
 
 #[allow(clippy::unwrap_used)]
