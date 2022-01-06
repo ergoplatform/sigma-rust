@@ -27,7 +27,7 @@ class Wallet {
 
     /// Add a secret to the wallets prover
     func addSecret(secret: SecretKey) throws {
-        let error = ergo_lib_add_secret(self.pointer, secret.pointer)
+        let error = ergo_lib_wallet_add_secret(self.pointer, secret.pointer)
         try checkError(error)
     }
     
