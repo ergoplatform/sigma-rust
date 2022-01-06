@@ -51,6 +51,17 @@ pub unsafe fn wallet_from_secrets(
     Ok(())
 }
 
+/// Add a new secret to the wallets prover
+pub unsafe fn wallet_add_secret(
+    wallet_ptr: WalletPtr,
+    secret_key_ptr: *mut SecretKey,
+) -> Result<(), Error> {
+    let wallet = mut_ptr_as_mut(wallet_ptr, "wallet_ptr")?;
+    let sk = mut_ptr_as_mut(secret_key_ptr, "secret_key_ptr")?;
+    wallet.0.add_secret(sk.0.clone());
+    Ok(())
+}
+
 /// Signs a transaction
 pub unsafe fn wallet_sign_transaction(
     wallet_ptr: ConstWalletPtr,
