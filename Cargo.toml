@@ -11,6 +11,7 @@ members = [
     "ergo-chain-types",
     "ergo-nipopow",
     "ergo-merkle-tree",
+    "gf2_192",
     "bindings/ergo-lib-wasm",
     "bindings/ergo-lib-c-core",
     "bindings/ergo-lib-c",

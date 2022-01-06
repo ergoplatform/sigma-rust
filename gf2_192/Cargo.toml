@@ -1,0 +1,15 @@
+[package]
+name = "gf2_192"
+version = "0.14.0"
+license = "CC0-1.0"
+authors = ["Timothy Ling (@kettlebell)"]
+description = "Arithmetic operations and polynomial interpolation over Galois fields GF(2^192)"
+repository = "https://github.com/ergoplatform/sigma-rust"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+derive_more = "0.99"
+rand = "0.8.4"
+thiserror = "1"
