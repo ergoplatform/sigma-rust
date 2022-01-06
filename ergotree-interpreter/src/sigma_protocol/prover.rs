@@ -108,6 +108,9 @@ pub trait Prover {
     /// Secrets of the prover
     fn secrets(&self) -> &[PrivateInput];
 
+    /// Add an extra secret to the prover
+    fn append_secret(&mut self, input: PrivateInput);
+
     /// The comments in this section are taken from the algorithm for the
     /// Sigma-protocol prover as described in the ErgoScript white-paper
     /// <https://ergoplatform.org/docs/ErgoScript.pdf>, Appendix A
@@ -1130,6 +1133,10 @@ pub struct TestProver {
 impl Prover for TestProver {
     fn secrets(&self) -> &[PrivateInput] {
         self.secrets.as_ref()
+    }
+
+    fn append_secret(&mut self, input: PrivateInput) {
+        self.secrets.push(input.clone())
     }
 }
 
