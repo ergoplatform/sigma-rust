@@ -1136,7 +1136,7 @@ impl Prover for TestProver {
     }
 
     fn append_secret(&mut self, input: PrivateInput) {
-        self.secrets.push(input.clone())
+        self.secrets.push(input)
     }
 }
 
