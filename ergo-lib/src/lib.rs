@@ -24,12 +24,12 @@ pub mod constants;
 mod utils;
 pub mod wallet;
 
+pub extern crate ergo_merkle_tree;
 /// Re-exported types from dependencies
 #[cfg(feature = "compiler")]
 pub extern crate ergoscript_compiler;
 pub extern crate ergotree_interpreter;
 pub extern crate ergotree_ir;
-pub extern crate ergo_merkle_tree;
 
 /// Selectively exposed types
 pub use utils::ArrLength;

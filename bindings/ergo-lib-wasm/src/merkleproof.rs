@@ -8,34 +8,6 @@ use wasm_bindgen::prelude::*;
 /// A MerkleProof type. Given leaf data and levels (bottom-upwards), the root hash can be computed and validated
 pub struct MerkleProof(ergo_merkle_tree::MerkleProof);
 
-#[wasm_bindgen]
-#[repr(u8)]
-#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
-/// The side the merkle node is on in the tree
-pub enum NodeSide {
-    /// Node is on the left side of current level
-    Left = 0u8,
-    /// Node is on the right side of current level
-    Right = 1u8,
-}
-
-impl From<NodeSide> for ergo_merkle_tree::NodeSide {
-    fn from(side: NodeSide) -> ergo_merkle_tree::NodeSide {
-        match side {
-            NodeSide::Left => ergo_merkle_tree::NodeSide::Left,
-            NodeSide::Right => ergo_merkle_tree::NodeSide::Right,
-        }
-    }
-}
-impl From<ergo_merkle_tree::NodeSide> for NodeSide {
-    fn from(side: ergo_merkle_tree::NodeSide) -> NodeSide {
-        match side {
-            ergo_merkle_tree::NodeSide::Left => NodeSide::Left,
-            ergo_merkle_tree::NodeSide::Right => NodeSide::Right,
-        }
-    }
-}
-
 /// A level node in a merkle proof
 #[wasm_bindgen]
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
@@ -44,12 +16,12 @@ pub struct LevelNode(ergo_merkle_tree::LevelNode);
 #[wasm_bindgen]
 impl LevelNode {
     /// Creates a new LevelNode from a 32 byte hash and side that the node belongs on in the tree. Fails if the digest is not 32 bytes
-    pub fn new(hash: &[u8], side: NodeSide) -> Result<LevelNode, JsValue> {
+    pub fn new(hash: &[u8], side: u8) -> Result<LevelNode, JsValue> {
         Ok(Self(ergo_merkle_tree::LevelNode::new(
             (*hash)
                 .try_into()
                 .map_err(|_| "Digest is not 32 bytes in size")?,
-            side.into(),
+            side.try_into()?,
         )))
     }
     /// Returns the associated digest (hash) with this node
@@ -57,10 +29,10 @@ impl LevelNode {
     pub fn digest(&self) -> Vec<u8> {
         (&self.0 .0[0..]).to_owned()
     }
-    /// Returns the associated side with this node
+    /// Returns the associated side with this node (0 = Left, 1 = Right)
     #[wasm_bindgen(getter)]
-    pub fn side(&self) -> NodeSide {
-        self.0 .1.into()
+    pub fn side(&self) -> u8 {
+        self.0 .1 as u8
     }
 }
 
@@ -77,7 +49,7 @@ impl MerkleProof {
     }
 
     /// Adds a new node to the MerkleProof above the current nodes
-    pub fn add_node(&mut self, level: LevelNode) {
+    pub fn add_node(&mut self, level: &LevelNode) {
         self.0.add_node(level.0);
     }
 
