@@ -12,7 +12,9 @@ use ergotree_interpreter::sigma_protocol::unproven_tree::NodePosition;
 use ergotree_ir::sigma_protocol::dlog_group::EcPoint;
 use ergotree_ir::sigma_protocol::sigma_boolean::ProveDlog as OtherProveDlog;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
-use k256::Scalar;
+use k256::elliptic_curve::generic_array::GenericArray;
+use k256::elliptic_curve::ops::Reduce;
+use k256::{Scalar, U256};
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 
@@ -235,8 +237,8 @@ impl TryFrom<CommitmentHintJson> for CommitmentHint {
                 None => Err("There is no secret"),
                 Some(secret) => match hex::decode(secret) {
                     Ok(decoded_secret) => Ok(CommitmentHint::OwnCommitment(OwnCommitment {
-                        secret_randomness: Scalar::from_bytes_reduced(
-                            decoded_secret.as_slice().into(),
+                        secret_randomness: <Scalar as Reduce<U256>>::from_be_bytes_reduced(
+                            GenericArray::clone_from_slice(decoded_secret.as_slice()),
                         ),
                         image: image.unwrap(),
                         position: position.unwrap(),

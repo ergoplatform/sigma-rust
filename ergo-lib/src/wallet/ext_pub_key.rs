@@ -9,6 +9,7 @@ use ergotree_ir::sigma_protocol::dlog_group;
 use ergotree_ir::sigma_protocol::dlog_group::EcPoint;
 use hmac::{Hmac, Mac, NewMac};
 use sha2::Sha512;
+use thiserror::Error;
 
 use super::derivation_path::ChildIndex;
 use super::derivation_path::ChildIndexNormal;
@@ -21,7 +22,7 @@ pub type ChainCode = [u8; 32];
 
 type HmacSha512 = Hmac<Sha512>;
 
-/// Extented public key
+/// Extended public key
 /// implemented according to BIP-32
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ExtPubKey {
@@ -30,6 +31,14 @@ pub struct ExtPubKey {
     chain_code: ChainCode,
     /// Derivation path for this extended public key
     pub derivation_path: DerivationPath,
+}
+
+/// Extended secret key errors
+#[derive(Error, PartialEq, Eq, Debug, Clone)]
+pub enum ExtPubKeyError {
+    /// Incompatible derivation paths when trying to derive a new key
+    #[error("incompatible paths: {0}")]
+    IncompatibleDerivation(String),
 }
 
 impl ExtPubKey {
@@ -62,36 +71,57 @@ impl ExtPubKey {
 
     /// Soft derivation of the child public key with a given index
     #[allow(clippy::unwrap_used)]
-    pub fn derive(&self, index: ChildIndexNormal) -> Self {
+    pub fn child(&self, index: ChildIndexNormal) -> Self {
         // Unwrap is fine due to `ChainCode` type having fixed length of 32.
         let mut mac = HmacSha512::new_from_slice(&self.chain_code).unwrap();
         mac.update(&self.pub_key_bytes());
-        mac.update(
-            ChildIndex::Normal(index.clone())
-                .to_bits()
-                .to_be_bytes()
-                .as_ref(),
-        );
+        mac.update(ChildIndex::Normal(index).to_bits().to_be_bytes().as_ref());
         let mac_bytes = mac.finalize().into_bytes();
         let mut secret_key_bytes = [0; 32];
         secret_key_bytes.copy_from_slice(&mac_bytes[..32]);
         if let Some(child_secret_key) = DlogProverInput::from_bytes(&secret_key_bytes) {
-            let mut chain_code = [0; 32];
-            chain_code.copy_from_slice(&mac_bytes[32..]);
             let child_pub_key = *child_secret_key.public_image().h * &self.public_key;
             if dlog_group::is_identity(&child_pub_key) {
                 // point is infinity element, thus repeat with next index value (see BIP-32)
-                self.derive(index.next())
+                self.child(index.next())
             } else {
+                let mut chain_code = [0; 32];
+                chain_code.copy_from_slice(&mac_bytes[32..]);
                 ExtPubKey {
                     public_key: child_pub_key,
                     chain_code,
-                    derivation_path: self.derivation_path.extend(index),
+                    derivation_path: self.derivation_path.extend(index.into()),
                 }
             }
         } else {
             // not in range [0, modulus), thus repeat with next index value (BIP-32)
-            self.derive(index.next())
+            self.child(index.next())
+        }
+    }
+
+    /// Derive a new extended pub key based on the provided derivation path
+    pub fn derive(&self, up_path: DerivationPath) -> Result<Self, ExtPubKeyError> {
+        // TODO: branch visibility must also be equal
+        let is_matching_path = up_path.0[..self.derivation_path.depth()]
+            .iter()
+            .zip(self.derivation_path.0.iter())
+            .all(|(a, b)| a == b);
+
+        if up_path.depth() >= self.derivation_path.depth() && is_matching_path {
+            up_path.0[self.derivation_path.depth()..]
+                .iter()
+                .try_fold(self.clone(), |parent, i| match i {
+                    ChildIndex::Hardened(_) => Err(ExtPubKeyError::IncompatibleDerivation(
+                        format!("pub keys can't use hardened paths: {}", i),
+                    )),
+                    ChildIndex::Normal(i) => Ok(parent.child(*i)),
+                })
+        } else {
+            Err(ExtPubKeyError::IncompatibleDerivation(format!(
+                "{}, {}",
+                up_path.to_string(),
+                self.derivation_path.to_string()
+            )))
         }
     }
 }
@@ -105,7 +135,9 @@ impl From<ExtPubKey> for Address {
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
-    use crate::wallet::derivation_path::ChildIndexHardened;
+    use crate::wallet::{
+        derivation_path::ChildIndexHardened, ext_secret_key::ExtSecretKey, mnemonic::Mnemonic,
+    };
 
     use super::*;
 
@@ -131,7 +163,7 @@ mod tests {
         .unwrap();
 
         // Chain m/0'/1
-        let child = ext_pub_key.derive(ChildIndexNormal::normal(1).unwrap());
+        let child = ext_pub_key.child(ChildIndexNormal::normal(1).unwrap());
         let expected_child_pub_key_bytes: PubKeyBytes =
             base16::decode(b"03501e454bf00751f24b1b489aa925215d66af2234e3891c3b21a52bedb3cd711c")
                 .unwrap()
@@ -162,7 +194,7 @@ mod tests {
         .unwrap();
 
         // Chain m/0'/1/2'/2
-        let child = ext_pub_key.derive(ChildIndexNormal::normal(2).unwrap());
+        let child = ext_pub_key.child(ChildIndexNormal::normal(2).unwrap());
         let expected_child_pub_key_bytes: PubKeyBytes =
             base16::decode(b"02e8445082a72f29b75ca48748a914df60622a609cacfce8ed0e35804560741d29")
                 .unwrap()
@@ -171,7 +203,7 @@ mod tests {
         assert_eq!(child.pub_key_bytes(), expected_child_pub_key_bytes);
 
         // Chain m/0'/1/2'/2/1000000000
-        let child2 = child.derive(ChildIndexNormal::normal(1000000000).unwrap());
+        let child2 = child.child(ChildIndexNormal::normal(1000000000).unwrap());
         let expected_child2_pub_key_bytes: PubKeyBytes =
             base16::decode(b"022a471424da5e657499d1ff51cb43c47481a03b1e77f951fe64cec9f5a48f7011")
                 .unwrap()
@@ -202,12 +234,48 @@ mod tests {
         .unwrap();
 
         // Chain m/0
-        let child = ext_pub_key.derive(ChildIndexNormal::normal(0).unwrap());
+        let child = ext_pub_key.child(ChildIndexNormal::normal(0).unwrap());
         let expected_child_pub_key_bytes: PubKeyBytes =
             base16::decode(b"02fc9e5af0ac8d9b3cecfe2a888e2117ba3d089d8585886c9c826b6b22a98d12ea")
                 .unwrap()
                 .try_into()
                 .unwrap();
         assert_eq!(child.pub_key_bytes(), expected_child_pub_key_bytes);
+    }
+
+    #[test]
+    fn ergo_node_key_tree_derivation_from_seed() {
+        // Tests against the following ergo node test vector:
+        // https://github.com/ergoplatform/ergo/blob/c320810c498bca25a44197840c7c5a86440c5906/ergo-wallet/src/test/scala/org/ergoplatform/wallet/secrets/ExtendedPublicKeySpec.scala#L13-L30
+        let seed_str = "edge talent poet tortoise trumpet dose";
+        let seed = Mnemonic::to_seed(seed_str, "");
+        let root_secret = ExtSecretKey::derive_master(seed).unwrap();
+        let expected_root = "kTV6HY41wXZVSqdpoe1heA8pBZFEN2oq5T59ZCMpqKKJ";
+        let cases: Vec<(&str, ChildIndexNormal)> = vec![
+            (
+                "uRg1eWWRkhghMxhcZEy2rRjfbc3MqWCJ1oVSP4dNmBAW",
+                ChildIndexNormal::normal(1).unwrap(),
+            ),
+            (
+                "xfhJ6aCQUodzhw1J4NcD7iJFvGVc3iPk3pBARCTncYcE",
+                ChildIndexNormal::normal(1).unwrap(),
+            ),
+            (
+                "2282dj5QqC7SM7G2ndp4pzaMZwT7vGgUAUZLCKhmXQFxG",
+                ChildIndexNormal::normal(1).unwrap(),
+            ),
+        ];
+
+        let mut ext_pub_key = root_secret.public_key().unwrap();
+        let ext_pub_key_b58 = bs58::encode(ext_pub_key.pub_key_bytes()).into_string();
+
+        assert_eq!(expected_root, ext_pub_key_b58);
+
+        for (expected_key, idx) in cases {
+            ext_pub_key = ext_pub_key.child(idx);
+            let ext_pub_key_b58 = bs58::encode(ext_pub_key.pub_key_bytes()).into_string();
+
+            assert_eq!(expected_key, ext_pub_key_b58);
+        }
     }
 }

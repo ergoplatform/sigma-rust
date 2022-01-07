@@ -1,0 +1,17 @@
+{
+  "name": "address-generation-demo",
+  "version": "1.0.0",
+  "description": "This runnable example is showing how to derive change address and other addresses according to EIP-3",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "start": "ts-node index.ts"
+  },
+  "dependencies": {
+    "ergo-lib-wasm-nodejs": "0.15.0-alpha-7eb12d6",
+    "ts-node": "^10.4.0"
+  },
+  "devDependencies": {
+    "typescript": "^4.5.4"
+  }
+}

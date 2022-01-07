@@ -5,11 +5,17 @@ use wasm_bindgen::prelude::*;
 
 pub mod derivation_path;
 pub mod ext_pub_key;
+pub mod ext_secret_key;
+pub mod mnemonic;
 
 use crate::transaction::TransactionHintsBag;
 use crate::{
-    box_coll::ErgoBoxes, ergo_state_ctx::ErgoStateContext, error_conversion::to_js,
-    secret_key::SecretKeys, transaction::reduced::ReducedTransaction, transaction::Transaction,
+    box_coll::ErgoBoxes,
+    ergo_state_ctx::ErgoStateContext,
+    error_conversion::to_js,
+    secret_key::{SecretKey, SecretKeys},
+    transaction::reduced::ReducedTransaction,
+    transaction::Transaction,
     transaction::UnsignedTransaction,
 };
 
@@ -31,6 +37,12 @@ impl Wallet {
     #[wasm_bindgen]
     pub fn from_secrets(secret: &SecretKeys) -> Wallet {
         Wallet(ergo_lib::wallet::Wallet::from_secrets(secret.into()))
+    }
+
+    /// Add a secret to the wallets prover
+    #[wasm_bindgen]
+    pub fn add_secret(&mut self, secret: &SecretKey) {
+        self.0.add_secret(secret.clone().into());
     }
 
     /// Sign a transaction:

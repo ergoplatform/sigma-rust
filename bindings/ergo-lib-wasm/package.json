@@ -17,6 +17,7 @@
         "@babel/polyfill": "^7.6.0",
         "@babel/preset-env": "^7.6.3",
         "@babel/register": "^7.6.2",
+        "babel-cli": "^6.26.0",
         "chai": "^4.2.0",
         "html-webpack-plugin": "^3.2.0",
         "jsdoc": "~3.6.3",
@@ -27,5 +28,7 @@
         "webpack-cli": "^3.1.1",
         "webpack-dev-server": "^3.1.0"
     },
-    "dependencies": {}
+    "dependencies": {
+        "babel": "^6.23.0"
+    }
 }
