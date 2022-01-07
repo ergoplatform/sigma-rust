@@ -277,7 +277,7 @@ impl BoxValue {
 
 impl From<&BoxValue> for chain::ergo_box::box_value::BoxValue {
     fn from(v: &BoxValue) -> Self {
-        v.0.clone()
+        v.0
     }
 }
 
