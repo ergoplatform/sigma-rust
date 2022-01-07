@@ -4,7 +4,9 @@ use num_bigint::{BigInt, Sign};
 use sigma_ser::ScorexSerializationError;
 use sigma_util::hash::blake2b256_hash;
 
-/// Autolykos PoW puzzle scheme reference implementation.
+/// Autolykos PoW puzzle scheme implementation.
+///
+/// See for reference implmentation - <https://github.com/ergoplatform/ergo/blob/f7b91c0be00531c6d042c10a8855149ca6924373/src/main/scala/org/ergoplatform/mining/AutolykosPowScheme.scala>
 ///
 /// Based on k-sum problem, so general idea is to find k numbers in a table of size N, such that
 /// sum of numbers (or a hash of the sum) is less than target value.
@@ -13,7 +15,7 @@ use sigma_util::hash::blake2b256_hash;
 ///
 /// CPU Mining process is implemented in inefficient way and should not be used in real environment.
 ///
-/// See papers/yellow/pow/ErgoPow.tex for full description
+/// See <https://github.com/ergoplatform/ergo/papers/yellow/pow/ErgoPow.tex> for full description
 #[derive(Debug, Clone)]
 pub struct AutolykosPowScheme {
     /// Represents the number of elements in one solution. **Important assumption**: `k <= 32`.
@@ -107,6 +109,7 @@ impl AutolykosPowScheme {
 
     /// Calculates table size (N value) for a given height (moment of time)
     fn calc_big_n(&self, header_version: u8, header_height: u32) -> usize {
+        // Number of elements in a table to find k-sum problem solution on top of
         let n_base = 2i32.pow(self.n as u32) as usize;
         if header_version == 1 {
             n_base
