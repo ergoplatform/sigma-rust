@@ -9,7 +9,7 @@ use crate::{
 
 /// A structure representing NiPoPow proof.
 #[derive(Debug)]
-pub struct NipopowProof(ergo_nipopow::nipopow_proof::NipopowProof);
+pub struct NipopowProof(ergo_lib::ergo_nipopow::nipopow_proof::NipopowProof);
 pub type NipopowProofPtr = *mut NipopowProof;
 pub type ConstNipopowProofPtr = *const NipopowProof;
 
@@ -48,7 +48,7 @@ pub unsafe fn nipopow_proof_to_json(
 /// A verifier for PoPoW proofs. During its lifetime, it processes many proofs with the aim of
 /// deducing at any given point what is the best (sub)chain rooted at the specified genesis.
 #[derive(Debug)]
-pub struct NipopowVerifier(ergo_nipopow::nipopow_verifier::NipopowVerifier);
+pub struct NipopowVerifier(ergo_lib::ergo_nipopow::nipopow_verifier::NipopowVerifier);
 pub type NipopowVerifierPtr = *mut NipopowVerifier;
 pub type ConstNipopowVerifierPtr = *const NipopowVerifier;
 
@@ -60,7 +60,7 @@ pub unsafe fn nipopow_verifier_new(
     let genesis_block_id = const_ptr_as_ref(genesis_block_id_ptr, "genesis_block_id_ptr")?;
     let nipopow_verifier_out = mut_ptr_as_mut(nipopow_verifier_out, "nipopow_verifier_out")?;
     *nipopow_verifier_out = Box::into_raw(Box::new(NipopowVerifier(
-        ergo_nipopow::nipopow_verifier::NipopowVerifier::new(genesis_block_id.0.clone()),
+        ergo_lib::ergo_nipopow::nipopow_verifier::NipopowVerifier::new(genesis_block_id.0.clone()),
     )));
     Ok(())
 }

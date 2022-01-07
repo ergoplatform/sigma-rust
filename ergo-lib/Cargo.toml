@@ -19,6 +19,7 @@ sigma-ser = { version = "^0.3.0", path = "../sigma-ser" }
 sigma-util = { version = "^0.3.0", path = "../sigma-util" }
 ergotree-ir = { version = "^0.14.0", path = "../ergotree-ir", features = ["json"] }
 ergotree-interpreter = { version = "^0.14.0", path = "../ergotree-interpreter" }
+ergo-nipopow = { version = "^0.1", path = "../ergo-nipopow" }
 ergoscript-compiler = { version = "^0.10.0", path = "../ergoscript-compiler" , optional = true}
 indexmap = "1.3.2"
 base16 = "0.2.1"
