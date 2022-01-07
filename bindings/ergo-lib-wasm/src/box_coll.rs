@@ -37,6 +37,11 @@ impl ErgoBoxes {
             .map(ErgoBoxes::from)
     }
 
+    /// Create a new empty set of ergo boxes
+    pub fn empty() -> ErgoBoxes {
+        ErgoBoxes(vec![])
+    }
+
     /// Create new collection with one element
     #[wasm_bindgen(constructor)]
     pub fn new(b: &ErgoBox) -> ErgoBoxes {
@@ -117,5 +122,11 @@ impl From<ErgoBoxCandidates> for Vec<chain::ergo_box::ErgoBoxCandidate> {
 impl From<Vec<chain::ergo_box::ErgoBoxCandidate>> for ErgoBoxCandidates {
     fn from(v: Vec<chain::ergo_box::ErgoBoxCandidate>) -> Self {
         ErgoBoxCandidates(v.into_iter().map(ErgoBoxCandidate::from).collect())
+    }
+}
+
+impl From<&ErgoBoxCandidates> for Vec<chain::ergo_box::ErgoBoxCandidate> {
+    fn from(v: &ErgoBoxCandidates) -> Self {
+        v.0.clone().iter().map(|i| i.clone().into()).collect()
     }
 }
