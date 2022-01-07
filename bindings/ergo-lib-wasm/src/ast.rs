@@ -15,6 +15,7 @@ use wasm_bindgen::prelude::*;
 
 extern crate derive_more;
 use derive_more::{From, Into};
+use ergo_lib::ergotree_ir::bigint256::BigInt256;
 
 /// Ergo constant(evaluated) values
 #[wasm_bindgen]
@@ -71,6 +72,13 @@ impl Constant {
             .map(I64::from)
     }
 
+    /// Create BigInt constant from byte array (signed bytes bit-endian)
+    pub fn from_bigint_signed_bytes_be(num: &[u8]) -> Constant {
+        Constant(ergo_lib::ergotree_ir::mir::constant::Constant::from(
+            BigInt256::try_from(num).unwrap(),
+        ))
+    }
+
     /// Create from byte array
     pub fn from_byte_array(v: &[u8]) -> Constant {
         Constant(v.to_vec().into())
@@ -81,6 +89,26 @@ impl Constant {
         Vec::<u8>::try_extract_from(self.0.clone())
             .map(|v| Uint8Array::from(v.as_slice()))
             .map_err(to_js)
+    }
+
+    /// Create `Coll[Int]` from integer array
+    #[allow(clippy::boxed_local)]
+    pub fn from_i32_array(arr: Box<[i32]>) -> Result<Constant, JsValue> {
+        arr.iter()
+            .try_fold(vec![], |mut acc, l| {
+                acc.push(*l);
+                Ok(acc)
+            })
+            .map(|longs| longs.into())
+            .map(Constant)
+    }
+
+    /// Extract `Coll[Int]` as integer array
+    pub fn to_i32_array(&self) -> Result<Vec<i32>, JsValue> {
+        self.0
+            .clone()
+            .try_extract_into::<Vec<i32>>()
+            .map_err(|e| JsValue::from_str(&format!("Constant has wrong type: {:?}", e)))
     }
 
     /// Create `Coll[Long]` from string array
@@ -123,10 +151,40 @@ impl Constant {
             .collect())
     }
 
+    /// Extract `Coll[Coll[Byte]]` as array of byte arrays
+    pub fn to_coll_coll_byte(&self) -> Result<Vec<Uint8Array>, JsValue> {
+        let vec_coll_byte = self
+            .0
+            .clone()
+            .try_extract_into::<Vec<Vec<u8>>>()
+            .map_err(to_js)?;
+        Ok(vec_coll_byte
+            .iter()
+            .map(|it| Uint8Array::from(it.as_slice()))
+            .collect())
+    }
+
+    /// Create `Coll[Coll[Byte]]` from array byte array
+    pub fn from_coll_coll_byte(arr: Vec<Uint8Array>) -> Constant {
+        let mut acc: Vec<Vec<u8>> = vec![];
+        for bytes in arr.iter() {
+            acc.push(bytes.to_vec());
+        }
+        let c = ergo_lib::ergotree_ir::mir::constant::Constant::from(acc);
+        c.into()
+    }
+
     /// Parse raw [`EcPoint`] value from bytes and make [`ProveDlog`] constant
     pub fn from_ecpoint_bytes(bytes: &[u8]) -> Result<Constant, JsValue> {
         let ecp = EcPoint::sigma_parse_bytes(bytes).map_err(to_js)?;
         let c: ergo_lib::ergotree_ir::mir::constant::Constant = ProveDlog::new(ecp).into();
+        Ok(c.into())
+    }
+
+    /// Parse raw [`EcPoint`] value from bytes and make [`groupElement`] constant
+    pub fn from_ecpoint_bytes_group_element(bytes: &[u8]) -> Result<Constant, JsValue> {
+        let ecp = EcPoint::sigma_parse_bytes(bytes).map_err(to_js)?;
+        let c = ergo_lib::ergotree_ir::mir::constant::Constant::from(ecp);
         Ok(c.into())
     }
 
@@ -147,6 +205,19 @@ impl Constant {
         Ok(vec![
             Uint8Array::from(bytes1.as_slice()),
             Uint8Array::from(bytes2.as_slice()),
+        ])
+    }
+
+    /// Create `(Int, Int)` tuple Constant
+    pub fn to_tuple_i32(&self) -> Result<Vec<JsValue>, JsValue> {
+        let (i1, i2) = self
+            .0
+            .clone()
+            .try_extract_into::<(i32, i32)>()
+            .map_err(to_js)?;
+        Ok(vec![
+            JsValue::from_str(&i1.to_string()),
+            JsValue::from_str(&i2.to_string()),
         ])
     }
 

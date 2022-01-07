@@ -3,7 +3,7 @@
 use crate::{peer_addr::PeerAddr, peer_spec::PeerSpec, protocol_version::ProtocolVersion};
 
 /// Direction of the connection to a peer
-#[derive(PartialEq, Eq, Debug, Clone, Hash)]
+#[derive(PartialEq, Eq, Debug, Copy, Clone, Hash)]
 pub enum ConnectionDirection {
     /// A peer is connecting to us
     Incoming,

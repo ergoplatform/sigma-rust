@@ -29,7 +29,9 @@ mod ergo_tree;
 mod ext_secret_key;
 mod header;
 mod input;
+mod merkleproof;
 mod nipopow;
+
 mod reduced;
 mod secret_key;
 mod token;
@@ -50,6 +52,7 @@ pub use crate::ergo_state_ctx::*;
 pub use crate::ergo_tree::*;
 pub use crate::header::*;
 pub use crate::input::*;
+pub use crate::merkleproof::*;
 pub use crate::nipopow::*;
 pub use crate::reduced::*;
 pub use crate::secret_key::*;

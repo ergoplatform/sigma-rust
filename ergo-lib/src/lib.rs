@@ -24,6 +24,7 @@ pub mod constants;
 mod utils;
 pub mod wallet;
 
+pub extern crate ergo_merkle_tree;
 pub extern crate ergo_nipopow;
 /// Re-exported types from dependencies
 #[cfg(feature = "compiler")]

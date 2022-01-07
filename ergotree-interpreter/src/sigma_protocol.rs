@@ -12,17 +12,18 @@ mod dht_protocol;
 mod dlog_protocol;
 mod fiat_shamir;
 mod gf2_192;
-mod gf2_192poly;
 mod proof_tree;
 mod sig_serializer;
 mod unchecked_tree;
 mod unproven_tree;
 
+use elliptic_curve::generic_array::GenericArray;
+use elliptic_curve::ops::Reduce;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 use k256::Scalar;
 
 use dlog_protocol::FirstDlogProverMessage;
-use std::convert::TryInto;
+use k256::U256;
 use unchecked_tree::UncheckedTree;
 use unproven_tree::{UnprovenLeaf, UnprovenSchnorr};
 
@@ -69,9 +70,7 @@ pub(crate) struct GroupSizedBytes(pub(crate) Box<[u8; GROUP_SIZE]>);
 impl From<GroupSizedBytes> for Scalar {
     fn from(b: GroupSizedBytes) -> Self {
         let sl: &[u8] = b.0.as_ref();
-        #[allow(clippy::unwrap_used)]
-        // since it's 32 bytes it's safe to unwrap
-        Scalar::from_bytes_reduced(sl.try_into().unwrap())
+        <Scalar as Reduce<U256>>::from_be_bytes_reduced(GenericArray::clone_from_slice(sl))
     }
 }
 

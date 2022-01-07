@@ -7,7 +7,7 @@ use std::{collections::VecDeque, fmt, num::ParseIntError, str::FromStr};
 use thiserror::Error;
 
 /// Index for hardened derivation
-#[derive(PartialEq, Eq, Clone, Debug)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub struct ChildIndexHardened(u32);
 
 impl ChildIndexHardened {
@@ -27,7 +27,7 @@ impl ChildIndexHardened {
 }
 
 /// Index for normal(non-hardened) derivation
-#[derive(PartialEq, Eq, Clone, Debug)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub struct ChildIndexNormal(u32);
 
 impl ChildIndexNormal {
@@ -47,7 +47,7 @@ impl ChildIndexNormal {
 }
 
 /// Child index for derivation
-#[derive(PartialEq, Eq, Clone, Debug, From)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug, From)]
 pub enum ChildIndex {
     /// Index for hardened derivation
     Hardened(ChildIndexHardened),
@@ -181,6 +181,22 @@ impl DerivationPath {
         DerivationPath(res.into_boxed_slice())
     }
 
+    /// Returns a new path with the last element of the deriviation path being increased, e.g. m/1/2 -> m/1/3
+    /// Returns an empty path error if the path is empty (master node for example)
+    pub fn next(&self) -> Result<DerivationPath, DerivationPathError> {
+        #[allow(clippy::unwrap_used)]
+        if self.0.len() > 0 {
+            let mut new_path = self.0.to_vec();
+            let last_idx = new_path.len() - 1;
+            // The bounds have been checked, there is at least one element
+            new_path[last_idx] = new_path.last().unwrap().next()?;
+
+            Ok(DerivationPath(new_path.into_boxed_slice()))
+        } else {
+            Err(DerivationPathError::EmptyPath)
+        }
+    }
+
     /// For 0x21 Sign Transaction command of Ergo Ledger App Protocol
     /// P2PK Sign (0x0D) instruction
     /// Sign calculated TX hash with private key for provided BIP44 path.
@@ -283,5 +299,23 @@ mod tests {
         let expected = DerivationPath::new(ChildIndexHardened(0), vec![ChildIndexNormal(1)]);
 
         assert_eq!(expected, path.parse::<DerivationPath>().unwrap())
+    }
+
+    #[test]
+    fn test_derivation_path_next() {
+        // m/44'/429'/1'/0/3
+        let path = DerivationPath::new(ChildIndexHardened(1), vec![ChildIndexNormal(3)]);
+        let new_path = path.next().unwrap();
+        let expected = "m/44'/429'/1'/0/4";
+
+        assert_eq!(expected, new_path.to_string());
+    }
+
+    // Test derivation_path.next() returns error if empty (doesn't panic)
+    #[test]
+    fn test_derivation_path_next_returns_err_if_emtpy() {
+        let path = DerivationPath(Box::new([]));
+
+        assert_eq!(path.next(), Err(DerivationPathError::EmptyPath))
     }
 }

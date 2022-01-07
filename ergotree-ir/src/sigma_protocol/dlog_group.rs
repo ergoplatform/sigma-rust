@@ -184,7 +184,7 @@ pub fn bigint256_to_scalar(bi: BigInt256) -> Option<Scalar> {
     #[allow(clippy::unwrap_used)] // since it's 256-bit BigInt it should always fit into BigUint
     let bu = bi.to_biguint().unwrap();
     let bytes = biguint_to_bytes(&bu);
-    Scalar::from_repr(bytes.into())
+    Scalar::from_repr(bytes.into()).into()
 }
 
 impl SigmaSerializable for EcPoint {
@@ -297,7 +297,7 @@ mod tests {
 
     /// Returns the scalar modulus as a `BigUint` object.
     fn modulus_as_biguint() -> BigUint {
-        scalar_to_biguint(&Scalar::one().negate()).unwrap() + 1.to_biguint().unwrap()
+        scalar_to_biguint(&Scalar::ONE.negate()).unwrap() + 1.to_biguint().unwrap()
     }
 
     prop_compose! {

@@ -21,11 +21,24 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Modulo binary op [#460](https://github.com/ergoplatform/sigma-rust/pull/460);
 - `treeLookup` predefined function [#459](https://github.com/ergoplatform/sigma-rust/pull/459);
 - `createAvlTree` predefined function [#466](https://github.com/ergoplatform/sigma-rust/pull/466);
+- `ScorexSerializable`, serialization framework of the ergo node [#485](https://github.com/ergoplatform/sigma-rust/pull/485);
+- `Wallet::from_mnemonic` [#492](https://github.com/ergoplatform/sigma-rust/pull/492);
+- Peer management for p2p networking [#493](https://github.com/ergoplatform/sigma-rust/pull/493);
+- C/Swift(iOS, macOS) bindings for ergo-lib [#468](https://github.com/ergoplatform/sigma-rust/pull/468);
+- wallet extended secret key derivation [#498](https://github.com/ergoplatform/sigma-rust/pull/498);
+- transaction serialization in Wasm API [506](https://github.com/ergoplatform/sigma-rust/pull/506);
+- support for `(Int, Int)`, `Coll[Coll[Byte]]`, `Coll[Int]` and `BigInt` types in constant conversion in Wasm API;
+- mnemonic generation [#505](https://github.com/ergoplatform/sigma-rust/pull/505);
 
 ### Fixed
 - fix `elem_tpe` in `Append` and `Slice` evaluation [#455](https://github.com/ergoplatform/sigma-rust/pull/455)
 - fix `CollKind::elem_tpe` [#457](https://github.com/ergoplatform/sigma-rust/pull/457);
 - fix a bug with self box lookup in TransactionContext and added checks for box resolution in tx inputs and data_inputs [#462](https://github.com/ergoplatform/sigma-rust/pull/462);
+- audit and remove unwraps and panics in ergo-lib [#467](https://github.com/ergoplatform/sigma-rust/pull/467);
+- fix missing ContextExtenion support [#458](https://github.com/ergoplatform/sigma-rust/pull/458);
+- make `BoxSelection::boxes` of non-empty type [#471](https://github.com/ergoplatform/sigma-rust/pull/471);
+- check for allowed ops in `Coll.flatMap` lambda [#472](https://github.com/ergoplatform/sigma-rust/pull/472);
+- missing `SGlobal.xor`, `groupGenerator` method eval [#523](https://github.com/ergoplatform/sigma-rust/pull/523);
 
 ## [0.14.0] - 2021-10-07
 

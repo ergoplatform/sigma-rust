@@ -39,6 +39,13 @@ it('roundtrip Constant byte array', async () => {
   expect(decoded_c_value.toString()).equal(value.toString());
 });
 
+it('roundtrip Constant array of i32', async () => {
+  let value = [2147483647, 1, 2]; // i32 max value
+  let c = Constant.from_i32_array(value);
+  let value_decoded = c.to_i32_array();
+  expect(value_decoded.toString()).equal(value.toString());
+});
+
 it('roundtrip Constant array of i64', async () => {
   let value_str = ['9223372036854775807', '1', '2']; // i64 max value
   let c = Constant.from_i64_str_array(value_str);
@@ -52,6 +59,15 @@ it('Constant from EcPoint bytes', async () => {
   let base16_bytes_str = `02d6b2141c21e4f337e9b065a031a6269fb5a49253094fc6243d38662eb765db00`;
   let c = Constant.from_ecpoint_bytes(Uint8Array.from(Buffer.from(base16_bytes_str, 'hex')));
   expect(c != null);
+});
+
+it('roundtrip array of byte arrays', async () => {
+  let bytes1 = new Uint8Array([1, 1, 2, 255]);
+  let bytes2 = new Uint8Array([5, 6, 7, 255]);
+  let concat = [bytes1,bytes2];
+  let c = Constant.from_coll_coll_byte(concat);
+  let decoded_c_value = c.to_coll_coll_byte();
+  expect(decoded_c_value.toString()).equal(concat.toString());
 });
 
 it('roundtrip tuple of byte arrays', async () => {
