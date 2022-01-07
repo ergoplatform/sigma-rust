@@ -3,7 +3,10 @@
 pub mod box_selector;
 pub mod derivation_path;
 pub mod ext_pub_key;
+pub mod ext_secret_key;
 pub mod mnemonic;
+#[cfg(feature = "mnemonic_gen")]
+pub mod mnemonic_generator;
 pub mod multi_sig;
 pub mod secret_key;
 pub mod signing;
@@ -26,6 +29,7 @@ use crate::wallet::multi_sig::{
     generate_commitments, generate_commitments_for, TransactionHintsBag,
 };
 
+use self::ext_secret_key::ExtSecretKey;
 use self::signing::sign_reduced_transaction;
 use self::signing::TransactionContext;
 
@@ -53,9 +57,8 @@ impl Wallet {
     /// Returns None if a DlogSecretKey cannot be parsed from the provided phrase
     pub fn from_mnemonic(mnemonic_phrase: &str, mnemonic_pass: &str) -> Option<Wallet> {
         let seed = Mnemonic::to_seed(mnemonic_phrase, mnemonic_pass);
-        let mut dlog_bytes: [u8; 32] = Default::default();
-        dlog_bytes.copy_from_slice(&seed[..32]);
-        let secret = SecretKey::dlog_from_bytes(&dlog_bytes)?;
+        let ext_sk = ExtSecretKey::derive_master(seed).ok()?;
+        let secret = SecretKey::dlog_from_bytes(&ext_sk.secret_key_bytes())?;
 
         Some(Wallet::from_secrets(vec![secret]))
     }
@@ -68,6 +71,11 @@ impl Wallet {
         Wallet {
             prover: Box::new(prover),
         }
+    }
+
+    /// Add a new secret to the wallet prover
+    pub fn add_secret(&mut self, secret: SecretKey) {
+        self.prover.append_secret(secret.into())
     }
 
     /// Signs a transaction

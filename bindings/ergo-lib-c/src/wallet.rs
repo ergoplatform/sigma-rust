@@ -39,6 +39,15 @@ pub unsafe extern "C" fn ergo_lib_wallet_from_secrets(
     wallet_from_secrets(secret_keys_ptr, wallet_out).unwrap();
 }
 
+#[no_mangle]
+pub unsafe extern "C" fn ergo_lib_wallet_add_secret(
+    wallet_ptr: WalletPtr,
+    secret_key_ptr: *mut SecretKey,
+) -> ErrorPtr {
+    let res = wallet_add_secret(wallet_ptr, secret_key_ptr);
+    Error::c_api_from(res)
+}
+
 /// Signs a transaction
 #[no_mangle]
 pub unsafe extern "C" fn ergo_lib_wallet_sign_transaction(

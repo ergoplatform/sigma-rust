@@ -9,7 +9,7 @@ use crate::eval::reduce_to_crypto;
 use crate::sigma_protocol::crypto_utils::secure_random_bytes;
 use crate::sigma_protocol::fiat_shamir::fiat_shamir_hash_fn;
 use crate::sigma_protocol::fiat_shamir::fiat_shamir_tree_to_bytes;
-use crate::sigma_protocol::gf2_192poly::Gf2_192Poly;
+use crate::sigma_protocol::gf2_192::gf2_192poly_from_byte_array;
 use crate::sigma_protocol::proof_tree::ProofTree;
 use crate::sigma_protocol::unchecked_tree::{UncheckedDhTuple, UncheckedLeaf};
 use crate::sigma_protocol::unproven_tree::CandUnproven;
@@ -22,6 +22,9 @@ use crate::sigma_protocol::SOUNDNESS_BYTES;
 use crate::sigma_protocol::{crypto_utils, dht_protocol};
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaConjectureItems;
+use gf2_192::gf2_192poly::Gf2_192Poly;
+use gf2_192::gf2_192poly::Gf2_192PolyError;
+use gf2_192::Gf2_192Error;
 use std::convert::TryInto;
 use std::rc::Rc;
 
@@ -67,6 +70,9 @@ pub enum ProverError {
     /// Failed to evaluate ErgoTree
     #[error("Evaluation error: {0}")]
     EvalError(EvalError),
+    /// `gf2_192` error
+    #[error("gf2_192 error: {0}")]
+    Gf2_192Error(Gf2_192Error),
     /// Script reduced to false
     #[error("Script reduced to false")]
     ReducedToFalse,
@@ -105,10 +111,25 @@ impl From<FiatShamirTreeSerializationError> for ProverError {
     }
 }
 
+impl From<Gf2_192Error> for ProverError {
+    fn from(e: Gf2_192Error) -> Self {
+        ProverError::Gf2_192Error(e)
+    }
+}
+
+impl From<Gf2_192PolyError> for ProverError {
+    fn from(e: Gf2_192PolyError) -> Self {
+        ProverError::Gf2_192Error(Gf2_192Error::Gf2_192PolyError(e))
+    }
+}
+
 /// Prover
 pub trait Prover {
     /// Secrets of the prover
     fn secrets(&self) -> &[PrivateInput];
+
+    /// Add an extra secret to the prover
+    fn append_secret(&mut self, input: PrivateInput);
 
     /// The comments in this section are taken from the algorithm for the
     /// Sigma-protocol prover as described in the ErgoScript white-paper
@@ -558,14 +579,16 @@ fn step4_simulated_threshold_conj(
     if let Some(challenge) = ct.challenge_opt.clone() {
         let unproven_children = cast_to_unp(ct.children.clone())?;
         let n = ct.children.len();
-        let q = Gf2_192Poly::from_byte_array(
+        let q = gf2_192poly_from_byte_array(
             challenge,
             secure_random_bytes(SOUNDNESS_BYTES * (n - ct.k as usize)),
-        );
+        )?;
         let new_children = unproven_children
             .enumerated()
             .mapped(|(idx, c)| {
-                let one_based_idx = idx + 1;
+                // Note the cast to `u8` is safe since `unproven_children` is of type
+                // `SigmaConjectureItems<_>` which is a `BoundedVec<_, 2, 255>`.
+                let one_based_idx = (idx + 1) as u8;
                 let new_challenge = q.evaluate(one_based_idx).into();
                 c.with_challenge(new_challenge)
             })
@@ -828,10 +851,12 @@ fn step9_real_threshold(ct: CthresholdUnproven) -> Result<Option<ProofTree>, Pro
         }
 
         let value_at_zero = challenge.into();
-        let q = Gf2_192Poly::interpolate(points, values, value_at_zero);
+        let q = Gf2_192Poly::interpolate(&points, &values, value_at_zero)?;
 
         let new_children = ct.children.clone().enumerated().mapped(|(idx, child)| {
-            let one_based_idx = idx + 1;
+            // Note the cast to `u8` is safe since `ct.children` is of type
+            // `SigmaConjectureItems<_>` which is a `BoundedVec<_, 2, 255>`.
+            let one_based_idx = (idx + 1) as u8;
             match &child {
                 ProofTree::UnprovenTree(ut) if ut.is_real() => {
                     child.with_challenge(q.evaluate(one_based_idx).into())
@@ -1186,6 +1211,10 @@ pub struct TestProver {
 impl Prover for TestProver {
     fn secrets(&self) -> &[PrivateInput] {
         self.secrets.as_ref()
+    }
+
+    fn append_secret(&mut self, input: PrivateInput) {
+        self.secrets.push(input)
     }
 }
 

@@ -3,6 +3,8 @@
 use hmac::Hmac;
 use pbkdf2::pbkdf2;
 use sha2::Sha512;
+extern crate unicode_normalization;
+use unicode_normalization::UnicodeNormalization;
 
 /// Length of mnemonic seed in bytes
 const SHA512_OUTPUT_LEN: usize = 512 / 8;
@@ -11,19 +13,21 @@ const SHA512_OUTPUT_LEN: usize = 512 / 8;
 pub type MnemonicSeed = [u8; SHA512_OUTPUT_LEN];
 
 /// Mnemonic type
+#[derive(PartialEq, Debug, Clone)]
 pub struct Mnemonic();
 
 impl Mnemonic {
-    /// Number of iterations specified in BIP39 standard
-    pub const PBKDF2_ITERATIONS: u32 = 2048;
+    const PBKDF2_ITERATIONS: u32 = 2048;
 
     /// Convert a mnemonic phrase into a mnemonic seed
     /// mnemonic_pass is optional and is used to salt the seed
     pub fn to_seed(mnemonic_phrase: &str, mnemonic_pass: &str) -> MnemonicSeed {
         let mut seed: MnemonicSeed = [0u8; SHA512_OUTPUT_LEN];
+        let normalized_phrase = mnemonic_phrase.nfkd().collect::<String>();
+        let normalized_pass = mnemonic_pass.nfkd().collect::<String>();
         pbkdf2::<Hmac<Sha512>>(
-            mnemonic_phrase.as_bytes(),
-            format!("mnemonic{}", mnemonic_pass).as_bytes(),
+            normalized_phrase.as_bytes(),
+            format!("mnemonic{}", normalized_pass).as_bytes(),
             Mnemonic::PBKDF2_ITERATIONS,
             &mut seed,
         );

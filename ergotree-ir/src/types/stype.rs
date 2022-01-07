@@ -142,6 +142,12 @@ impl LiftIntoSType for bool {
     }
 }
 
+impl LiftIntoSType for u8 {
+    fn stype() -> SType {
+        SType::SByte
+    }
+}
+
 impl LiftIntoSType for i8 {
     fn stype() -> SType {
         SType::SByte

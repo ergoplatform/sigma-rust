@@ -81,6 +81,7 @@ pub(crate) mod sbox;
 pub(crate) mod scoll;
 pub(crate) mod scontext;
 pub(crate) mod select_field;
+pub(crate) mod sglobal;
 pub(crate) mod sgroup_elem;
 pub(crate) mod sheader;
 pub(crate) mod sigma_and;
@@ -322,6 +323,17 @@ fn smethod_eval_fn(method: &SMethod) -> Result<EvalFn, EvalError> {
             method_id => {
                 return Err(EvalError::NotFound(format!(
                     "Eval fn: method {:?} with method id {:?} not found in SPreHeader",
+                    method.name(),
+                    method_id,
+                )))
+            }
+        },
+        sglobal::TYPE_CODE => match method.method_id() {
+            sglobal::GROUP_GENERATOR_METHOD_ID => self::sglobal::GROUP_GENERATOR_EVAL_FN,
+            sglobal::XOR_METHOD_ID => self::sglobal::XOR_EVAL_FN,
+            method_id => {
+                return Err(EvalError::NotFound(format!(
+                    "Eval fn: method {:?} with method id {:?} not found in SGlobal",
                     method.name(),
                     method_id,
                 )))

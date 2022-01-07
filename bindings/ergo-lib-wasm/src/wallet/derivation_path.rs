@@ -2,6 +2,7 @@
 //! BIP-44 <https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki>
 //! and EIP-3 <https://github.com/ergoplatform/eips/blob/master/eip-0003.md>
 
+use derive_more::FromStr;
 use ergo_lib::wallet::derivation_path::ChildIndexError;
 use ergo_lib::wallet::derivation_path::ChildIndexHardened;
 use ergo_lib::wallet::derivation_path::ChildIndexNormal;
@@ -17,7 +18,7 @@ use derive_more::{From, Into};
 /// BIP-44 <https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki>
 /// and EIP-3 <https://github.com/ergoplatform/eips/blob/master/eip-0003.md>
 #[wasm_bindgen]
-#[derive(PartialEq, Eq, Debug, Clone, From, Into)]
+#[derive(PartialEq, Eq, Debug, Clone, From, Into, FromStr)]
 pub struct DerivationPath(InnerDerivationPath);
 
 #[wasm_bindgen]
@@ -38,6 +39,36 @@ impl DerivationPath {
             acc,
             address_indices,
         )))
+    }
+
+    /// Create root derivation path
+    pub fn master_path() -> Self {
+        DerivationPath(InnerDerivationPath::master_path())
+    }
+
+    /// Returns the length of the derivation path
+    pub fn depth(&self) -> usize {
+        self.0.depth()
+    }
+
+    /// Returns a new path with the last element of the deriviation path being increased, e.g. m/1/2 -> m/1/3
+    /// Returns an empty path error if the path is empty (master node)
+    pub fn next(&self) -> Result<DerivationPath, JsValue> {
+        Ok(self.0.next().map_err(to_js)?.into())
+    }
+
+    /// String representation of derivation path
+    /// E.g m/44'/429'/0'/0/1
+    #[wasm_bindgen(js_name = toString)]
+    #[allow(clippy::inherent_to_string)]
+    pub fn to_string(&self) -> String {
+        self.0.to_string()
+    }
+
+    /// Create a derivation path from a formatted string
+    /// E.g "m/44'/429'/0'/0/1"
+    pub fn from_string(path: &str) -> Result<DerivationPath, JsValue> {
+        Ok(path.parse::<InnerDerivationPath>().map_err(to_js)?.into())
     }
 
     /// For 0x21 Sign Transaction command of Ergo Ledger App Protocol
