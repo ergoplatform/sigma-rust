@@ -3,6 +3,7 @@ use crate::{
     util::{const_ptr_as_ref, mut_ptr_as_mut},
     Error,
 };
+use ergo_lib::ergo_merkle_tree;
 pub use ergo_merkle_tree::NodeSide;
 use std::convert::TryInto;
 

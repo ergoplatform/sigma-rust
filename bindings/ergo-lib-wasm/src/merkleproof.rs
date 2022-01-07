@@ -1,4 +1,5 @@
 //! Merkle Proof verification
+use ergo_lib::ergo_merkle_tree;
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
 use wasm_bindgen::prelude::*;
