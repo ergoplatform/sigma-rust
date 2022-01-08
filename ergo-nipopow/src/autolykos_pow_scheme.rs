@@ -30,14 +30,12 @@ impl AutolykosPowScheme {
     /// Get hit for Autolykos header (to test it then against PoW target)
     pub fn pow_hit(&self, header: &Header) -> Result<BigInt, AutolykosPowSchemeError> {
         if header.version == 1 {
-            // pow_distance must be Some(_) under autolykos v1
-            #[allow(clippy::unwrap_used)]
-            Ok(header
+            header
                 .autolykos_solution
                 .pow_distance
                 .as_ref()
-                .unwrap()
-                .clone())
+                .cloned()
+                .ok_or(AutolykosPowSchemeError::MissingPowDistanceParameter)
         } else {
             use byteorder::{BigEndian, WriteBytesExt};
             // hit for version 2
@@ -177,6 +175,8 @@ pub enum AutolykosPowSchemeError {
     ScorexSerializationError(ScorexSerializationError),
     /// Error occurring when trying to convert a `BigInt` into a fixed-length byte-array.
     BigIntToFixedByteArrayError,
+    /// Occurs when `Header.version == 1` and the `pow_distance` parameter is None.
+    MissingPowDistanceParameter,
 }
 
 /// The following tests are taken from <https://github.com/ergoplatform/ergo/blob/f7b91c0be00531c6d042c10a8855149ca6924373/src/test/scala/org/ergoplatform/mining/AutolykosPowSchemeSpec.scala#L43-L130>
