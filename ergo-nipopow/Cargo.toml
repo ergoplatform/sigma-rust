@@ -14,6 +14,7 @@ exclude = [
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+base16 = "0.2.1"
 bounded-integer = { version = "^0.5", features = ["types"] }
 byteorder = "1"
 thiserror = "1"

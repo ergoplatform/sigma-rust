@@ -129,13 +129,13 @@ impl ScorexSerializable for Header {
         // Parse `AutolykosSolution`
         let autolykos_solution = if version == 1 {
             let miner_pk = EcPoint::scorex_parse(r)?.into();
-            let pow_onetime_pk = EcPoint::scorex_parse(r)?.into();
+            let pow_onetime_pk = Some(EcPoint::scorex_parse(r)?.into());
             let mut nonce: Vec<u8> = std::iter::repeat(0).take(8).collect();
             r.read_exact(&mut nonce)?;
             let d_bytes_len = r.get_u8()?;
             let mut d_bytes: Vec<u8> = std::iter::repeat(0).take(d_bytes_len as usize).collect();
             r.read_exact(&mut d_bytes)?;
-            let pow_distance = BigInt::from_signed_bytes_be(&d_bytes);
+            let pow_distance = Some(BigInt::from_signed_bytes_be(&d_bytes));
             AutolykosSolution {
                 miner_pk,
                 pow_onetime_pk,
@@ -144,8 +144,8 @@ impl ScorexSerializable for Header {
             }
         } else {
             // autolykos v2
-            let pow_onetime_pk = dlog_group::generator().into();
-            let pow_distance = BigInt::from(0u8);
+            let pow_onetime_pk = None;
+            let pow_distance = None;
             let miner_pk = EcPoint::scorex_parse(r)?.into();
             let mut nonce: Vec<u8> = std::iter::repeat(0).take(8).collect();
             r.read_exact(&mut nonce)?;
@@ -203,8 +203,8 @@ pub struct AutolykosSolution {
     #[cfg_attr(feature = "json", serde(rename = "pk"))]
     pub miner_pk: Box<dlog_group::EcPoint>,
     /// One-time public key. Prevents revealing of miners secret.
-    #[cfg_attr(feature = "json", serde(rename = "w"))]
-    pub pow_onetime_pk: Box<dlog_group::EcPoint>,
+    #[cfg_attr(feature = "json", serde(default, rename = "w"))]
+    pub pow_onetime_pk: Option<Box<dlog_group::EcPoint>>,
     /// nonce
     #[cfg_attr(
         feature = "json",
@@ -226,12 +226,13 @@ pub struct AutolykosSolution {
     #[cfg_attr(
         feature = "json",
         serde(
+            default,
             rename = "d",
             serialize_with = "crate::chain::json::autolykos_solution::bigint_as_str",
             deserialize_with = "crate::chain::json::autolykos_solution::bigint_from_serde_json_number"
         )
     )]
-    pub pow_distance: BigInt,
+    pub pow_distance: Option<BigInt>,
 }
 
 impl AutolykosSolution {
@@ -244,7 +245,10 @@ impl AutolykosSolution {
             self.miner_pk.scorex_serialize(w)?;
             self.pow_onetime_pk.scorex_serialize(w)?;
             w.write_all(&self.nonce)?;
-            let d_bytes = self.pow_distance.to_signed_bytes_be();
+
+            // pow_distance must be == Some(_) for autolykos v1.
+            #[allow(clippy::unwrap_used)]
+            let d_bytes = self.pow_distance.as_ref().unwrap().to_signed_bytes_be();
             w.put_u8(d_bytes.len() as u8)?;
             w.write_all(&d_bytes)?;
         } else {
@@ -321,9 +325,9 @@ mod arbitrary {
                         let votes = Votes(votes);
                         let autolykos_solution = AutolykosSolution {
                             miner_pk,
-                            pow_onetime_pk,
+                            pow_onetime_pk: Some(pow_onetime_pk),
                             nonce: Vec::new(),
-                            pow_distance: BigInt::default(),
+                            pow_distance: Some(BigInt::default()),
                         };
                         Self {
                             version: 1,
@@ -387,10 +391,10 @@ mod tests {
         assert_eq!(header.height, 471746);
         assert_eq!(
             header.autolykos_solution.pow_distance,
-            BigInt::from_str(
+            Some(BigInt::from_str(
                 "1234000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
             )
-            .unwrap()
+            .unwrap())
         );
     }
 
@@ -425,10 +429,10 @@ mod tests {
         assert_eq!(header.height, 471746);
         assert_eq!(
             header.autolykos_solution.pow_distance,
-            BigInt::from_str(
+            Some(BigInt::from_str(
                 "1234000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
             )
-            .unwrap()
+            .unwrap())
         );
     }
 }

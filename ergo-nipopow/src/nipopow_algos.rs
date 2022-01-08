@@ -160,7 +160,7 @@ impl NipopowAlgos {
 /// Bitcoin only uses this "compact" format for encoding difficulty targets, which are unsigned
 /// 256bit quantities.  Thus, all the complexities of the sign bit and using base 256 are probably
 /// an implementation accident.
-fn decode_compact_bits(n_bits: u64) -> BigInt {
+pub(crate) fn decode_compact_bits(n_bits: u64) -> BigInt {
     let compact = n_bits as i64;
     let size = ((compact >> 24) as i32) & 0xFF;
     if size == 0 {

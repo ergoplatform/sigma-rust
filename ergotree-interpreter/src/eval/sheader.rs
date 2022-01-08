@@ -2,7 +2,10 @@
 
 use std::convert::TryInto;
 
-use ergotree_ir::{bigint256::BigInt256, chain::header::Header, mir::constant::TryExtractInto};
+use ergotree_ir::{
+    bigint256::BigInt256, chain::header::Header, mir::constant::TryExtractInto,
+    sigma_protocol::dlog_group::EcPoint,
+};
 
 use super::{EvalError, EvalFn};
 
@@ -63,7 +66,11 @@ pub(crate) static MINER_PK_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
 
 pub(crate) static POW_ONETIME_PK_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
     let header = obj.try_extract_into::<Header>()?;
-    Ok(header.autolykos_solution.pow_onetime_pk.into())
+    Ok(header
+        .autolykos_solution
+        .pow_onetime_pk
+        .unwrap_or_else(|| Box::new(EcPoint::default()))
+        .into())
 };
 
 pub(crate) static POW_NONCE_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
@@ -76,6 +83,7 @@ pub(crate) static POW_DISTANCE_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
     let pow_distance: BigInt256 = header
         .autolykos_solution
         .pow_distance
+        .unwrap_or_default()
         .try_into()
         .map_err(EvalError::Misc)?;
     Ok(pow_distance.into())
@@ -88,7 +96,7 @@ pub(crate) static VOTES_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
-#[allow(clippy::expect_used, clippy::panic)]
+#[allow(clippy::expect_used, clippy::panic, clippy::unwrap_used)]
 mod tests {
     use std::convert::{TryFrom, TryInto};
     use std::rc::Rc;
@@ -277,7 +285,11 @@ mod tests {
             .map(|h| {
                 [
                     h.autolykos_solution.miner_pk.clone(),
-                    h.autolykos_solution.pow_onetime_pk.clone(),
+                    h.autolykos_solution
+                        .pow_onetime_pk
+                        .as_ref()
+                        .unwrap()
+                        .clone(),
                 ]
             })
             .expect("internal error: empty headers array");
@@ -295,7 +307,7 @@ mod tests {
             .clone();
         let actual = {
             let bi = eval_out::<BigInt256>(&expr, ctx);
-            bi.into()
+            Some(bi.into())
         };
         assert_eq!(expected, actual);
     }
