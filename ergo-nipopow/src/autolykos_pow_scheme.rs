@@ -1,3 +1,4 @@
+use bounded_integer::{BoundedI32, BoundedU64};
 use derive_more::From;
 use ergotree_ir::chain::header::Header;
 use num_bigint::{BigInt, Sign};
@@ -19,10 +20,10 @@ use sigma_util::hash::blake2b256_hash;
 #[derive(Debug, Clone)]
 pub struct AutolykosPowScheme {
     /// Represents the number of elements in one solution. **Important assumption**: `k <= 32`.
-    k: u64,
+    k: BoundedU64<1, 32>,
     /// Let `N` denote the initial table size. Then `n` is the value satisfying `N = 2 ^ n`.
     /// **Important assumption**: `n < 31`.
-    n: i32,
+    n: BoundedI32<1, 30>,
 }
 
 impl AutolykosPowScheme {
@@ -95,7 +96,7 @@ impl AutolykosPowScheme {
         let mut res = vec![];
         let mut extended_hash: Vec<u8> = seed_hash.to_vec();
         extended_hash.extend(&seed_hash[..3]);
-        for i in 0..self.k {
+        for i in 0..self.k.get() {
             let i = i as usize;
             res.push(
                 BigInt::from_bytes_be(Sign::Plus, &extended_hash[i..(i + 4)])
@@ -110,7 +111,7 @@ impl AutolykosPowScheme {
     /// Calculates table size (N value) for a given height (moment of time)
     fn calc_big_n(&self, header_version: u8, header_height: u32) -> usize {
         // Number of elements in a table to find k-sum problem solution on top of
-        let n_base = 2i32.pow(self.n as u32) as usize;
+        let n_base = 2i32.pow(self.n.get() as u32) as usize;
         if header_version == 1 {
             n_base
         } else {
@@ -135,7 +136,11 @@ impl AutolykosPowScheme {
 impl Default for AutolykosPowScheme {
     fn default() -> Self {
         // The following paramter values are mandated by Ergo-node Autolykos implementation.
-        AutolykosPowScheme { k: 32, n: 26 }
+        #[allow(clippy::unwrap_used)]
+        AutolykosPowScheme {
+            k: BoundedU64::new(32).unwrap(),
+            n: BoundedI32::new(26).unwrap(),
+        }
     }
 }
 
