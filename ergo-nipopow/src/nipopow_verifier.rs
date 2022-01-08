@@ -1,6 +1,6 @@
 use ergotree_ir::chain::{block_id::BlockId, header::Header};
 
-use crate::nipopow_proof::NipopowProof;
+use crate::nipopow_proof::{NipopowProof, NipopowProofError};
 
 /// A verifier for PoPoW proofs. During its lifetime, it processes many proofs with the aim of
 /// deducing at any given point what is the best (sub)chain rooted at the specified genesis.
@@ -28,16 +28,17 @@ impl NipopowVerifier {
     }
 
     /// Process given proof
-    pub fn process(&mut self, new_proof: NipopowProof) {
+    pub fn process(&mut self, new_proof: NipopowProof) -> Result<(), NipopowProofError> {
         let h = new_proof.headers_chain().next();
         if let Some(h) = h {
             if h.id == self.genesis_block_id {
                 if let Some(p) = &self.best_proof {
-                    if new_proof.is_better_than(p) {
+                    if new_proof.is_better_than(p)? {
                         self.best_proof = Some(new_proof);
                     }
                 }
             }
         }
+        Ok(())
     }
 }

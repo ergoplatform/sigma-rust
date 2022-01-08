@@ -19,8 +19,10 @@ class NipopowProof {
     /// Implementation of the ≥ algorithm from [`KMZ17`], see Algorithm 4
     ///
     /// [`KMZ17`]: https://fc20.ifca.ai/preproceedings/74.pdf
-    func isBetterThan(otherProof: NipopowProof) -> Bool {
-        ergo_lib_nipopow_proof_is_better_than(self.pointer, otherProof.pointer)
+    func isBetterThan(otherProof: NipopowProof) throws -> Bool {
+        let res = ergo_lib_nipopow_proof_is_better_than(self.pointer, otherProof.pointer)
+        try checkError(res.error)
+        return res.value
     }
     
     /// JSON representation as text
@@ -60,8 +62,9 @@ class NipopowVerifier {
     }
     
     /// Process given proof
-    func process(newProof: NipopowProof) {
-        ergo_lib_nipopow_verifier_process(self.pointer, newProof.pointer)
+    func process(newProof: NipopowProof) throws {
+        let error = ergo_lib_nipopow_verifier_process(self.pointer, newProof.pointer)
+        try checkError(error)
     }
     
     deinit {

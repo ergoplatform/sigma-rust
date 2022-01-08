@@ -2,7 +2,7 @@ use ergotree_ir::{chain::header::Header, sigma_protocol::dlog_group::order};
 use num_bigint::BigInt;
 use num_traits::ToPrimitive;
 
-use crate::autolykos_pow_scheme::AutolykosPowScheme;
+use crate::autolykos_pow_scheme::{AutolykosPowScheme, AutolykosPowSchemeError};
 
 /// A set of utilities for working with NiPoPoW protocol.
 ///
@@ -41,7 +41,11 @@ impl NipopowAlgos {
     /// end function
     ///
     /// [`KMZ17`]: https://fc20.ifca.ai/preproceedings/74.pdf
-    pub(crate) fn best_arg(&self, chain: &[&Header], m: u32) -> usize {
+    pub(crate) fn best_arg(
+        &self,
+        chain: &[&Header],
+        m: u32,
+    ) -> Result<usize, AutolykosPowSchemeError> {
         // Little helper struct for loop below
         struct Acc {
             level: u32,
@@ -52,10 +56,12 @@ impl NipopowAlgos {
             acc: vec![(0, chain.len())],
         };
         let acc = loop {
-            let args: Vec<_> = chain
-                .iter()
-                .filter(|h| (self.max_level_of(h) as u32) >= res.level)
-                .collect();
+            let mut args = vec![];
+            for h in chain {
+                if (self.max_level_of(h)? as u32) >= res.level {
+                    args.push(h);
+                }
+            }
             if args.len() >= (m as usize) {
                 res.acc.push((res.level, args.len()));
                 res = Acc {
@@ -67,17 +73,18 @@ impl NipopowAlgos {
             }
         };
         #[allow(clippy::unwrap_used)]
-        acc.into_iter()
+        Ok(acc
+            .into_iter()
             .map(|(level, size)| {
                 // 2^µ * |C↑µ|
                 2usize.pow(level) * size
             })
             .max()
-            .unwrap()
+            .unwrap())
     }
 
     /// Computes max level (μ) of the given header, such that μ = log(T) − log(id(B))
-    pub(crate) fn max_level_of(&self, header: &Header) -> i32 {
+    pub(crate) fn max_level_of(&self, header: &Header) -> Result<i32, AutolykosPowSchemeError> {
         let genesis_header = header.height == 1;
         if !genesis_header {
             // Order of the secp256k1 elliptic curve
@@ -87,11 +94,11 @@ impl NipopowAlgos {
                 .to_f64()
                 .unwrap();
             #[allow(clippy::unwrap_used)]
-            let real_target = self.pow_scheme.pow_hit(header).unwrap().to_f64().unwrap();
+            let real_target = self.pow_scheme.pow_hit(header)?.to_f64().unwrap();
             let level = required_target.log2() - real_target.log2();
-            level as i32
+            Ok(level as i32)
         } else {
-            i32::MAX
+            Ok(i32::MAX)
         }
     }
 

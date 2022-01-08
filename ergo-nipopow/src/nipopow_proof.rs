@@ -59,7 +59,7 @@ impl NipopowProof {
     /// Implementation of the ≥ algorithm from [`KMZ17`], see Algorithm 4
     ///
     /// [`KMZ17`]: https://fc20.ifca.ai/preproceedings/74.pdf
-    pub fn is_better_than(&self, that: &NipopowProof) -> bool {
+    pub fn is_better_than(&self, that: &NipopowProof) -> Result<bool, NipopowProofError> {
         if self.is_valid() && that.is_valid() {
             if let Some(lca) = self.popow_algos.lowest_common_ancestor(
                 &self.headers_chain().collect::<Vec<_>>(),
@@ -73,13 +73,13 @@ impl NipopowProof {
                     .headers_chain()
                     .filter(|h| h.height > lca.height)
                     .collect::<Vec<_>>();
-                self.popow_algos.best_arg(&self_headers, self.m)
-                    > self.popow_algos.best_arg(&that_headers, self.m)
+                Ok(self.popow_algos.best_arg(&self_headers, self.m)?
+                    > self.popow_algos.best_arg(&that_headers, self.m)?)
             } else {
-                false
+                Ok(false)
             }
         } else {
-            self.is_valid()
+            Ok(self.is_valid())
         }
     }
 

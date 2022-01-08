@@ -103,6 +103,14 @@ pub struct ReturnNum<T: IntegerType> {
     error: ErrorPtr,
 }
 
+/// Convenience type to allow us to pass Rust bools (with possible error) through FFI to the C side.
+#[repr(C)]
+pub struct ReturnBool {
+    /// Returned value. Note that it's only valid if the error field is null!
+    value: bool,
+    error: ErrorPtr,
+}
+
 /// Convenience type to allow us to pass Rust `Option<_>` types through FFI to C side.
 #[repr(C)]
 pub struct ReturnOption {

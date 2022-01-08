@@ -22,7 +22,7 @@ pub unsafe fn nipopow_proof_is_better_than(
 ) -> Result<bool, Error> {
     let self_proof = const_ptr_as_ref(nipopow_proof_ptr, "nipopow_proof_ptr")?;
     let other_proof = const_ptr_as_ref(other_nipopow_proof_ptr, "other_nipopow_proof_ptr")?;
-    Ok(self_proof.0.is_better_than(&other_proof.0))
+    Ok(self_proof.0.is_better_than(&other_proof.0)?)
 }
 
 /// Parse from JSON.
@@ -90,6 +90,6 @@ pub unsafe fn nipopow_verifier_process(
 ) -> Result<(), Error> {
     let verifier = mut_ptr_as_mut(nipopow_verifier_ptr, "nipopow_verifier_ptr")?;
     let new_proof = const_ptr_as_ref(nipopow_proof_ptr, "nipopow_proof_ptr")?;
-    verifier.0.process(new_proof.0.clone());
+    verifier.0.process(new_proof.0.clone())?;
     Ok(())
 }

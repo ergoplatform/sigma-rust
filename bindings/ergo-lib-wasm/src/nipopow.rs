@@ -15,8 +15,8 @@ impl NipopowProof {
     /// Implementation of the ≥ algorithm from [`KMZ17`], see Algorithm 4
     ///
     /// [`KMZ17`]: https://fc20.ifca.ai/preproceedings/74.pdf
-    pub fn is_better_than(&self, that: &NipopowProof) -> bool {
-        self.0.is_better_than(&that.0)
+    pub fn is_better_than(&self, that: &NipopowProof) -> Result<bool, JsValue> {
+        self.0.is_better_than(&that.0).map_err(to_js)
     }
 
     /// JSON representation as text
@@ -49,7 +49,7 @@ impl NipopowVerifier {
     }
 
     /// Process given proof
-    pub fn process(&mut self, new_proof: NipopowProof) {
-        self.0.process(new_proof.0);
+    pub fn process(&mut self, new_proof: NipopowProof) -> Result<(), JsValue> {
+        self.0.process(new_proof.0).map_err(to_js)
     }
 }

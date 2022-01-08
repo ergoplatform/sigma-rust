@@ -15,7 +15,7 @@ use std::{
     os::raw::c_char,
 };
 
-use crate::{delete_ptr, ErrorPtr};
+use crate::{delete_ptr, ErrorPtr, ReturnBool};
 
 /// Implementation of the ≥ algorithm from [`KMZ17`], see Algorithm 4
 ///
@@ -24,9 +24,17 @@ use crate::{delete_ptr, ErrorPtr};
 pub unsafe extern "C" fn ergo_lib_nipopow_proof_is_better_than(
     nipopow_proof_ptr: ConstNipopowProofPtr,
     other_nipopow_proof_ptr: ConstNipopowProofPtr,
-) -> bool {
-    #[allow(clippy::unwrap_used)]
-    nipopow_proof_is_better_than(nipopow_proof_ptr, other_nipopow_proof_ptr).unwrap()
+) -> ReturnBool {
+    match nipopow_proof_is_better_than(nipopow_proof_ptr, other_nipopow_proof_ptr) {
+        Ok(value) => ReturnBool {
+            value,
+            error: std::ptr::null_mut(),
+        },
+        Err(e) => ReturnBool {
+            value: false, // Just a dummy value
+            error: Error::c_api_from(Err(e)),
+        },
+    }
 }
 
 /// Parse from JSON.
@@ -88,9 +96,9 @@ pub unsafe extern "C" fn ergo_lib_nipopow_verifier_best_chain(
 pub unsafe extern "C" fn ergo_lib_nipopow_verifier_process(
     nipopow_verifier_ptr: NipopowVerifierPtr,
     nipopow_proof_ptr: ConstNipopowProofPtr,
-) {
-    #[allow(clippy::unwrap_used)]
-    nipopow_verifier_process(nipopow_verifier_ptr, nipopow_proof_ptr).unwrap();
+) -> ErrorPtr {
+    let res = nipopow_verifier_process(nipopow_verifier_ptr, nipopow_proof_ptr);
+    Error::c_api_from(res)
 }
 
 /// Delete `NipopowVerifier`
