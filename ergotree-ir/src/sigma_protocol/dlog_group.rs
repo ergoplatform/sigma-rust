@@ -26,9 +26,9 @@ use elliptic_curve::group::prime::PrimeCurveAffine;
 use elliptic_curve::rand_core::RngCore;
 use k256::elliptic_curve::sec1::ToEncodedPoint;
 use k256::{ProjectivePoint, PublicKey, Scalar};
-use num_bigint::BigUint;
 use num_bigint::Sign;
 use num_bigint::ToBigUint;
+use num_bigint::{BigInt, BigUint};
 use num_traits::ToPrimitive;
 use sigma_ser::vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt};
 use sigma_ser::{ScorexParsingError, ScorexSerializable, ScorexSerializeResult};
@@ -241,6 +241,16 @@ impl ScorexSerializable for EcPoint {
             Ok(EcPoint(ProjectivePoint::identity()))
         }
     }
+}
+
+/// Order of the secp256k1 elliptic curve
+pub fn order() -> BigInt {
+    #[allow(clippy::unwrap_used)]
+    BigInt::parse_bytes(
+        b"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141",
+        16,
+    )
+    .unwrap()
 }
 
 /// Arbitrary impl for EcPoint

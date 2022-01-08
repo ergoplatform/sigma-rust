@@ -9,7 +9,7 @@ use crate::{block_header::BlockHeader, error_conversion::to_js};
 /// A structure representing NiPoPow proof.
 #[wasm_bindgen]
 #[derive(Debug, From, Into)]
-pub struct NipopowProof(ergo_lib::ergo_nipopow::nipopow_proof::NipopowProof);
+pub struct NipopowProof(ergo_lib::ergo_nipopow::NipopowProof);
 
 impl NipopowProof {
     /// Implementation of the ≥ algorithm from [`KMZ17`], see Algorithm 4
@@ -35,12 +35,12 @@ impl NipopowProof {
 /// deducing at any given point what is the best (sub)chain rooted at the specified genesis.
 #[wasm_bindgen]
 #[derive(Debug, From, Into)]
-pub struct NipopowVerifier(ergo_lib::ergo_nipopow::nipopow_verifier::NipopowVerifier);
+pub struct NipopowVerifier(ergo_lib::ergo_nipopow::NipopowVerifier);
 
 impl NipopowVerifier {
     /// Create new instance
     pub fn new(genesis_block_id: BlockId) -> Self {
-        ergo_lib::ergo_nipopow::nipopow_verifier::NipopowVerifier::new(genesis_block_id.0).into()
+        ergo_lib::ergo_nipopow::NipopowVerifier::new(genesis_block_id.0).into()
     }
 
     /// Returns chain of `BlockHeader`s from the best proof.

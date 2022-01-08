@@ -41,14 +41,18 @@ impl NipopowProof {
         prefix: Vec<PoPowHeader>,
         suffix_head: PoPowHeader,
         suffix_tail: Vec<Header>,
-    ) -> NipopowProof {
-        NipopowProof {
-            popow_algos: NipopowAlgos::default(),
-            m,
-            k,
-            prefix,
-            suffix_head,
-            suffix_tail,
+    ) -> Result<NipopowProof, NipopowProofError> {
+        if k >= 1 {
+            Ok(NipopowProof {
+                popow_algos: NipopowAlgos::default(),
+                m,
+                k,
+                prefix,
+                suffix_head,
+                suffix_tail,
+            })
+        } else {
+            Err(NipopowProofError::ZeroKParameter)
         }
     }
 
@@ -176,6 +180,8 @@ impl ScorexSerializable for NipopowProof {
 pub enum NipopowProofError {
     /// Errors from `AutolykosPowScheme`
     AutolykosPowSchemeError(autolykos_pow_scheme::AutolykosPowSchemeError),
+    /// `k` parameter == 0. Must be >= 1.
+    ZeroKParameter,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -188,6 +194,7 @@ pub struct PoPowHeader {
     interlinks: Vec<BlockId>,
 }
 
+#[allow(clippy::todo)]
 impl ScorexSerializable for PoPowHeader {
     fn scorex_serialize<W: WriteSigmaVlqExt>(&self, _w: &mut W) -> ScorexSerializeResult {
         todo!()
