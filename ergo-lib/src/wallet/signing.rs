@@ -45,9 +45,9 @@ pub struct TransactionContext<T: ErgoTransaction> {
     /// Unsigned transaction to sign
     pub spending_tx: T,
     /// Boxes corresponding to [`UnsignedTransaction::inputs`]
-    boxes_to_spend: TxIoVec<ErgoBox>,
+    pub(crate) boxes_to_spend: TxIoVec<ErgoBox>,
     /// Boxes corresponding to [`UnsignedTransaction::data_inputs`]
-    data_boxes: Option<TxIoVec<ErgoBox>>,
+    pub(crate) data_boxes: Option<TxIoVec<ErgoBox>>,
 }
 
 impl<T: ErgoTransaction> TransactionContext<T> {
@@ -81,7 +81,7 @@ impl<T: ErgoTransaction> TransactionContext<T> {
     }
 }
 
-/// ErgoTransaction trait implemented for `Transaction` & `UnsignedTransaction`
+/// Exposes common properties for signed and unsigned transactions
 pub trait ErgoTransaction {
     /// input boxes ids
     fn inputs_ids(&self) -> TxIoVec<BoxId>;

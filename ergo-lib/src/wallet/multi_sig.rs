@@ -3,7 +3,7 @@
 use crate::chain::ergo_state_context::ErgoStateContext;
 use crate::chain::transaction::unsigned::UnsignedTransaction;
 use crate::chain::transaction::Transaction;
-use crate::ergotree_interpreter::eval::context::{Context, TxIoVec};
+use crate::ergotree_interpreter::eval::context::Context;
 use crate::ergotree_interpreter::eval::env::Env;
 use crate::ergotree_interpreter::eval::reduce_to_crypto;
 use crate::ergotree_interpreter::sigma_protocol::dlog_protocol::{
@@ -259,38 +259,39 @@ pub fn generate_commitments(
 
 /// Extracting hints from a transaction and outputs it's corresponding TransactionHintsBag
 pub fn extract_hints(
-    tx: &Transaction,
+    tx_ctx: &TransactionContext<Transaction>,
     state_context: &ErgoStateContext,
-    boxes_to_spend: TxIoVec<ErgoBox>,
-    data_boxes: Option<TxIoVec<ErgoBox>>,
     real_secrets_to_extract: Vec<SigmaBoolean>,
     simulated_secrets_to_extract: Vec<SigmaBoolean>,
 ) -> Result<TransactionHintsBag, TxSigningError> {
     let mut hints_bag = TransactionHintsBag::empty();
-    for (i, input) in tx.inputs.iter().enumerate() {
-        let input_box = boxes_to_spend
-            .iter()
+    for (i, input) in tx_ctx.spending_tx.inputs.iter().enumerate() {
+        let input_box = tx_ctx
+            .get_boxes_to_spend()
             .find(|b| b.box_id() == input.box_id)
             .ok_or(TxSigningError::InputBoxNotFound(i))?;
         let height = state_context.pre_header.height;
-        let self_box = boxes_to_spend
-            .iter()
-            .find(|b| b.box_id() == tx.inputs.as_vec()[i].box_id)
+        let self_box = tx_ctx
+            .get_boxes_to_spend()
+            .find(|b| b.box_id() == tx_ctx.spending_tx.inputs.as_vec()[i].box_id)
             .cloned()
             .ok_or_else(|| {
                 TxSigningError::ContextError("self_index is out of bounds".to_string())
             })?;
-        let outputs = tx
+
+        let outputs = tx_ctx
+            .spending_tx
             .output_candidates
             .iter()
             .enumerate()
-            .map(|(idx, b)| ErgoBox::from_box_candidate(b, tx.id(), idx as u16))
+            .map(|(idx, b)| ErgoBox::from_box_candidate(b, tx_ctx.spending_tx.id(), idx as u16))
             .collect::<Result<Vec<ErgoBox>, SigmaSerializationError>>()?;
 
         let outputs_ir = outputs.into_iter().map(Rc::new).collect();
-        let data_inputs_ir = if let Some(data_inputs) = tx.data_inputs.as_ref() {
+        let data_inputs_ir = if let Some(data_inputs) = tx_ctx.spending_tx.data_inputs.as_ref() {
             Some(data_inputs.clone().enumerated().try_mapped(|(idx, di)| {
-                data_boxes
+                tx_ctx
+                    .data_boxes
                     .as_ref()
                     .ok_or(TxSigningError::DataInputBoxNotFound(idx))?
                     .iter()
@@ -301,18 +302,20 @@ pub fn extract_hints(
         } else {
             None
         };
-        let inputs_ir = tx
+        let inputs_ir = tx_ctx
+            .spending_tx
             .inputs_ids()
-            .clone()
             .enumerated()
             .try_mapped(|(idx, u)| {
-                boxes_to_spend
+                tx_ctx
+                    .boxes_to_spend
                     .iter()
                     .find(|b| u == b.box_id())
                     .map(|b| Rc::new(b.clone()))
                     .ok_or(TxSigningError::InputBoxNotFound(idx))
             })?;
-        let extension = tx
+        let extension = tx_ctx
+            .spending_tx
             .inputs
             .get(i)
             .ok_or_else(|| {
@@ -334,7 +337,14 @@ pub fn extract_hints(
             extension,
         });
         let tree = input_box.ergo_tree.clone();
-        let proof: ProofBytes = tx.inputs.get(i).unwrap().clone().spending_proof.proof;
+        let proof: ProofBytes = tx_ctx
+            .spending_tx
+            .inputs
+            .get(i)
+            .unwrap()
+            .clone()
+            .spending_proof
+            .proof;
         let proof: Vec<u8> = Vec::from(proof);
         let exp = tree
             .proposition()

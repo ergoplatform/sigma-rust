@@ -152,13 +152,16 @@ pub fn extract_hints(
     if !_data_boxes.0.is_empty() {
         data_boxes = Some(TxIoVec::from_vec(_data_boxes.clone().into()).map_err(to_js)?);
     }
-
+    let tx_context = ergo_lib::wallet::signing::TransactionContext::new(
+        signed_transaction.0.clone(),
+        boxes_to_spend,
+        data_boxes,
+    )
+    .map_err(to_js)?;
     Ok(TransactionHintsBag::from(
         ergo_lib::wallet::multi_sig::extract_hints(
-            &signed_transaction.0,
+            &tx_context,
             &state_context.0.clone(),
-            boxes_to_spend,
-            data_boxes,
             real_propositions.0,
             simulated_propositions.0,
         )
