@@ -189,29 +189,13 @@ pub fn bigint256_to_scalar(bi: BigInt256) -> Option<Scalar> {
 
 impl SigmaSerializable for EcPoint {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
-        let caff = self.0.to_affine();
-        if caff.is_identity().into() {
-            // infinity point
-            let zeroes = [0u8; EcPoint::GROUP_SIZE];
-            w.write_all(&zeroes)?;
-        } else {
-            w.write_all(caff.to_encoded_point(true).as_bytes())?;
-        }
+        let _ = self.scorex_serialize(w)?;
         Ok(())
     }
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
-        let mut buf = [0; EcPoint::GROUP_SIZE];
-        r.read_exact(&mut buf[..])?;
-        if buf[0] != 0 {
-            let pubkey = PublicKey::from_sec1_bytes(&buf[..]).map_err(|e| {
-                SigmaParsingError::Misc(format!("failed to parse PK from bytes: {:?}", e))
-            })?;
-            Ok(EcPoint(pubkey.to_projective()))
-        } else {
-            // infinity point
-            Ok(EcPoint(ProjectivePoint::identity()))
-        }
+        let e = Self::scorex_parse(r)?;
+        Ok(e)
     }
 }
 
