@@ -126,6 +126,17 @@ impl ScorexSerializable for Header {
         r.read_exact(&mut votes_bytes)?;
         let votes = Votes(votes_bytes);
 
+        // For block version >= 2, a new byte encodes length of possible new fields.  If this byte >
+        // 0, we read new fields but do nothing, as semantics of the fields is not known.
+        if version > 1 {
+            let new_field_size = r.get_u8()?;
+            if new_field_size > 0 {
+                let mut field_bytes: Vec<u8> =
+                    std::iter::repeat(0).take(new_field_size as usize).collect();
+                r.read_exact(&mut field_bytes)?;
+            }
+        }
+
         // Parse `AutolykosSolution`
         let autolykos_solution = if version == 1 {
             let miner_pk = EcPoint::scorex_parse(r)?.into();
@@ -156,18 +167,10 @@ impl ScorexSerializable for Header {
                 pow_distance,
             }
         };
-        // For block version >= 2, a new byte encodes length of possible new fields.  If this byte >
-        // 0, we read new fields but do nothing, as semantics of the fields is not known.
-        if version > 1 {
-            let new_field_size = r.get_u8()?;
-            if new_field_size > 0 {
-                let mut field_bytes: Vec<u8> =
-                    std::iter::repeat(0).take(new_field_size as usize).collect();
-                r.read_exact(&mut field_bytes)?;
-            }
-        }
 
-        // First initialize header with dummy id field
+        // The `Header.id` field isn't serialized/deserialized but rather computed as a hash of
+        // every other field in `Header`. First we initialize header with dummy id field then
+        // compute the hash.
         let mut header = Header {
             version,
             id: BlockId(Digest32::zero()),
@@ -243,7 +246,8 @@ impl AutolykosSolution {
     ) -> Result<(), ScorexSerializationError> {
         if version == 1 {
             self.miner_pk.scorex_serialize(w)?;
-            self.pow_onetime_pk.scorex_serialize(w)?;
+            #[allow(clippy::unwrap_used)]
+            self.pow_onetime_pk.as_ref().unwrap().scorex_serialize(w)?;
             w.write_all(&self.nonce)?;
 
             // pow_distance must be == Some(_) for autolykos v1.
@@ -275,13 +279,16 @@ impl From<Header> for PreHeader {
 }
 
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::unwrap_used)]
 mod arbitrary {
+
     use num_bigint::BigInt;
     use proptest::array::{uniform3, uniform32};
     use proptest::prelude::*;
 
-    use crate::chain::digest32::ADDigest;
-    use crate::chain::digest32::Digest;
+    use crate::chain::digest32::{blake2b256_hash, ADDigest};
+    use crate::chain::digest32::{Digest, Digest32};
+    use crate::serialization::sigma_byte_writer::SigmaByteWriter;
     use crate::sigma_protocol::dlog_group::EcPoint;
 
     use super::{AutolykosSolution, BlockId, Header, Votes};
@@ -294,18 +301,16 @@ mod arbitrary {
                 uniform32(1u8..),
                 uniform32(1u8..),
                 uniform32(1u8..),
-                uniform32(1u8..),
                 // Timestamps between 2000-2050
                 946_674_000_000..2_500_400_300_000u64,
-                any::<u64>(),
+                any::<u32>(), // Note: n_bits must fit in u32
                 0..1_000_000u32,
-                any::<Box<EcPoint>>(),
-                any::<Box<EcPoint>>(),
+                prop::sample::select(vec![1_u8, 2]),
+                any::<Box<AutolykosSolution>>(),
                 uniform3(1u8..),
             )
                 .prop_map(
                     |(
-                        id,
                         parent_id,
                         ad_proofs_root,
                         transaction_root,
@@ -313,36 +318,50 @@ mod arbitrary {
                         timestamp,
                         n_bits,
                         height,
-                        miner_pk,
-                        pow_onetime_pk,
+                        version,
+                        autolykos_solution,
                         votes,
                     )| {
-                        let id = BlockId(Digest(id.into()));
                         let parent_id = BlockId(Digest(parent_id.into()));
                         let ad_proofs_root = Digest(ad_proofs_root.into());
                         let transaction_root = Digest(transaction_root.into());
                         let extension_root = Digest(extension_root.into());
                         let votes = Votes(votes);
-                        let autolykos_solution = AutolykosSolution {
-                            miner_pk,
-                            pow_onetime_pk: Some(pow_onetime_pk),
-                            nonce: Vec::new(),
-                            pow_distance: Some(BigInt::default()),
-                        };
-                        Self {
-                            version: 1,
-                            id,
+
+                        // The `Header.id` field isn't serialized/deserialized but rather computed
+                        // as a hash of every other field in `Header`. First we initialize header
+                        // with dummy id field then compute the hash.
+                        let mut header = Self {
+                            version,
+                            id: BlockId(Digest32::zero()),
                             parent_id,
                             ad_proofs_root,
                             state_root: ADDigest::zero(),
                             transaction_root,
                             timestamp,
-                            n_bits,
+                            n_bits: n_bits as u64,
                             height,
                             extension_root,
-                            autolykos_solution,
+                            autolykos_solution: *autolykos_solution.clone(),
                             votes,
+                        };
+                        let mut id_bytes = header.serialize_without_pow().unwrap();
+                        let mut data = Vec::new();
+                        let mut w = SigmaByteWriter::new(&mut data, None);
+                        autolykos_solution.serialize_bytes(version, &mut w).unwrap();
+                        id_bytes.extend(data);
+                        let id = BlockId(blake2b256_hash(&id_bytes));
+                        header.id = id;
+
+                        // Manually set the following parameters to `None` for autolykos v2. This is
+                        // allowable since serialization/deserialization of the `Header` ignores
+                        // these fields for version > 1.
+                        if header.version > 1 {
+                            header.autolykos_solution.pow_onetime_pk = None;
+                            header.autolykos_solution.pow_distance = None;
                         }
+
+                        header
                     },
                 )
                 .boxed()
@@ -350,16 +369,51 @@ mod arbitrary {
 
         type Strategy = BoxedStrategy<Header>;
     }
+
+    impl Arbitrary for AutolykosSolution {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<AutolykosSolution>;
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            (
+                any::<Box<EcPoint>>(),
+                prop::collection::vec(0_u8.., 8),
+                any::<Box<EcPoint>>(),
+                prop::num::u128::ANY,
+            )
+                .prop_map(
+                    |(miner_pk, nonce, pow_onetime_pk, pow_distance)| AutolykosSolution {
+                        miner_pk,
+                        nonce,
+                        pow_onetime_pk: Some(pow_onetime_pk),
+                        pow_distance: Some(BigInt::from(pow_distance)),
+                    },
+                )
+                .boxed()
+        }
+    }
 }
 
-#[allow(clippy::unwrap_used)]
+#[allow(clippy::unwrap_used, clippy::panic)]
 #[cfg(test)]
+#[cfg(feature = "arbitrary")]
 mod tests {
     use std::str::FromStr;
 
     use num_bigint::BigInt;
 
     use crate::chain::header::Header;
+    use proptest::prelude::*;
+    use sigma_ser::scorex_serialize_roundtrip;
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(64))]
+
+        #[test]
+        fn ser_roundtrip(v in any::<Header>()) {
+            assert_eq![scorex_serialize_roundtrip(&v), v]
+        }
+    }
 
     #[test]
     fn parse_block_header() {

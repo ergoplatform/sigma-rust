@@ -287,9 +287,8 @@ mod tests {
                     h.autolykos_solution.miner_pk.clone(),
                     h.autolykos_solution
                         .pow_onetime_pk
-                        .as_ref()
-                        .unwrap()
-                        .clone(),
+                        .clone()
+                        .unwrap_or_else(|| Box::new(EcPoint::default())),
                 ]
             })
             .expect("internal error: empty headers array");
@@ -304,10 +303,11 @@ mod tests {
         let expected = ctx.headers[HEADER_INDEX]
             .autolykos_solution
             .pow_distance
-            .clone();
+            .clone()
+            .unwrap_or_default();
         let actual = {
             let bi = eval_out::<BigInt256>(&expr, ctx);
-            Some(bi.into())
+            bi.into()
         };
         assert_eq!(expected, actual);
     }
