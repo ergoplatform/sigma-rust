@@ -379,7 +379,7 @@ mod arbitrary {
                 any::<Box<EcPoint>>(),
                 prop::collection::vec(0_u8.., 8),
                 any::<Box<EcPoint>>(),
-                prop::num::u128::ANY,
+                any::<u64>(),
             )
                 .prop_map(
                     |(miner_pk, nonce, pow_onetime_pk, pow_distance)| AutolykosSolution {
