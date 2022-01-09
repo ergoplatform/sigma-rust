@@ -14,7 +14,9 @@ use crate::ergotree_interpreter::sigma_protocol::prover::hint::{
     CommitmentHint, Hint, HintsBag, OwnCommitment, RealCommitment, RealSecretProof, SecretProven,
     SimulatedCommitment, SimulatedSecretProof,
 };
+use crate::ergotree_interpreter::sigma_protocol::prover::ProverError::Unexpected;
 use crate::ergotree_interpreter::sigma_protocol::prover::{ProofBytes, ProverError};
+use crate::ergotree_interpreter::sigma_protocol::sig_serializer::SigParsingError;
 use crate::ergotree_interpreter::sigma_protocol::unproven_tree::NodePosition;
 use crate::ergotree_interpreter::sigma_protocol::FirstProverMessage;
 use crate::ergotree_ir::serialization::SigmaSerializationError;
@@ -134,8 +136,8 @@ pub fn bag_for_multi_sig(
     real_propositions: &[SigmaBoolean],
     simulated_propositions: &[SigmaBoolean],
     proof: &[u8],
-) -> Result<HintsBag, &'static str> {
-    let ut = parse_sig_compute_challenges(&sigma_tree, proof.to_owned());
+) -> Result<HintsBag, SigParsingError> {
+    let ut = parse_sig_compute_challenges(&sigma_tree, proof.to_owned())?;
 
     // Traversing node of sigma tree
     fn traverse_node(
@@ -206,22 +208,17 @@ pub fn bag_for_multi_sig(
             }
         }
     }
-    match ut {
-        Ok(tree) => {
-            let mut bag: HintsBag = HintsBag::empty();
 
-            traverse_node(
-                tree,
-                real_propositions,
-                simulated_propositions,
-                NodePosition::crypto_tree_prefix(),
-                &mut bag,
-            );
-            Ok(bag)
-        }
+    let mut bag: HintsBag = HintsBag::empty();
 
-        Err(_) => Err("sigma parsing error"),
-    }
+    traverse_node(
+        ut,
+        real_propositions,
+        simulated_propositions,
+        NodePosition::crypto_tree_prefix(),
+        &mut bag,
+    );
+    Ok(bag)
 }
 
 /// A method which is generating commitments to randomness. A commitment is about a first step
@@ -278,7 +275,6 @@ pub fn extract_hints(
             .ok_or_else(|| {
                 TxSigningError::ContextError("self_index is out of bounds".to_string())
             })?;
-
         let outputs = tx_ctx
             .spending_tx
             .output_candidates
@@ -286,7 +282,6 @@ pub fn extract_hints(
             .enumerate()
             .map(|(idx, b)| ErgoBox::from_box_candidate(b, tx_ctx.spending_tx.id(), idx as u16))
             .collect::<Result<Vec<ErgoBox>, SigmaSerializationError>>()?;
-
         let outputs_ir = outputs.into_iter().map(Rc::new).collect();
         let data_inputs_ir = if let Some(data_inputs) = tx_ctx.spending_tx.data_inputs.as_ref() {
             Some(data_inputs.clone().enumerated().try_mapped(|(idx, di)| {
@@ -359,7 +354,10 @@ pub fn extract_hints(
             real_secrets_to_extract.as_slice(),
             simulated_secrets_to_extract.as_slice(),
             proof.as_slice(),
-        );
+        )
+        .map_err(|_e| {
+            TxSigningError::ProverError(Unexpected("Unexpected Sigma tree Value".to_string()), i)
+        });
         match bag {
             Ok(hints) => hints_bag.add_hints_for_input(i, hints),
             Err(_) => {

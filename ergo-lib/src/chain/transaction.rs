@@ -414,7 +414,7 @@ pub mod tests {
     }"#;
         let res = serde_json::from_str(json);
         let t: Transaction = res.unwrap();
-        let tx_id_str: String = t.id();
+        let tx_id_str: String = t.id().into();
         assert_eq!(
             "9148408c04c2e38a6402a7950d6157730fa7d49e9ab3b9cadec481d7769918e9",
             tx_id_str

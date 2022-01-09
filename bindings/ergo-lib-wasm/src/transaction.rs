@@ -153,7 +153,7 @@ pub fn extract_hints(
         data_boxes = Some(TxIoVec::from_vec(_data_boxes.clone().into()).map_err(to_js)?);
     }
     let tx_context = ergo_lib::wallet::signing::TransactionContext::new(
-        signed_transaction.0.clone(),
+        signed_transaction.0,
         boxes_to_spend,
         data_boxes,
     )
