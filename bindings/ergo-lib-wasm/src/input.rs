@@ -16,6 +16,24 @@ pub struct UnsignedInput(chain::transaction::UnsignedInput);
 
 #[wasm_bindgen]
 impl UnsignedInput {
+    /// Create new unsigned input instance from box id and extension
+    #[wasm_bindgen(constructor)]
+    pub fn new(box_id: &BoxId, ext: &ContextExtension) -> Self {
+        UnsignedInput(chain::transaction::UnsignedInput {
+            box_id: box_id.clone().into(),
+            extension: ext.clone().into(),
+        })
+    }
+
+    /// Create a new unsigned input from the provided box id
+    /// using an empty context extension
+    pub fn from_box_id(box_id: &BoxId) -> Self {
+        UnsignedInput(chain::transaction::UnsignedInput {
+            box_id: box_id.clone().into(),
+            extension: ContextExtension::new().into(),
+        })
+    }
+
     /// Get box id
     pub fn box_id(&self) -> BoxId {
         self.0.box_id.clone().into()
@@ -48,6 +66,11 @@ impl UnsignedInputs {
     /// Returns the element of the collection with a given index
     pub fn get(&self, index: usize) -> UnsignedInput {
         self.0[index].clone()
+    }
+
+    /// Add an element to the collection
+    pub fn add(&mut self, b: &UnsignedInput) {
+        self.0.push(b.clone());
     }
 }
 
