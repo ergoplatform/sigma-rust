@@ -1,0 +1,17 @@
+{
+  "name": "create-transaction-demo",
+  "version": "1.0.0",
+  "description": "A demo describing the process of creating payment transactions.",
+  "main": "index.js",
+  "scripts": {
+    "start": "ts-node index.ts"
+  },
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^4.5.4"
+  },
+  "dependencies": {
+    "ts-node": "^10.4.0"
+  }
+}
