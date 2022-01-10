@@ -36,6 +36,7 @@ impl ErgoBoxes {
             })
             .map(ErgoBoxes::from)
     }
+
     /// Create new collection with one element
     #[wasm_bindgen(constructor)]
     pub fn new(b: &ErgoBox) -> ErgoBoxes {
