@@ -47,6 +47,8 @@ To get better understanding on how to use it in your project check out how its b
 - [Ergo SDK](https://github.com/ergolabs/ergo-sdk-js) (Wasm bindings);
 - [Yoroi wallet](https://github.com/Emurgo/yoroi-frontend) (Wasm bindings);
 - [Ergo Desktop Wallet](https://github.com/ErgoWallet/ergowallet-desktop) (Wasm bindings);
+- [Create transaction demo](https://github.com/ergoplatform/sigma-rust/tree/develop/bindings/ergo-lib-wasm/examples/create-transaction-demo) (TS)
+- [Address generation demo](https://github.com/ergoplatform/sigma-rust/tree/develop/bindings/ergo-lib-wasm/examples/address-generation-demo) (TS)
 
 Also take a look at tests where various usage scenarios were implemented.
 

@@ -56,6 +56,11 @@ impl ExtSecretKey {
         Ok(self.0.derive(path.into()).map_err(to_js)?.into())
     }
 
+    /// The bytes of the associated secret key
+    pub fn secret_key_bytes(&self) -> Result<Vec<u8>, JsValue> {
+        Ok(self.0.secret_key_bytes().into())
+    }
+
     /// The extended public key associated with this secret key
     pub fn public_key(&self) -> Result<crate::wallet::ext_pub_key::ExtPubKey, JsValue> {
         Ok(self.0.public_key().map_err(to_js)?.into())

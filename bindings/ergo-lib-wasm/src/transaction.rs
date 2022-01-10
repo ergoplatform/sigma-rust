@@ -307,11 +307,33 @@ impl From<chain::transaction::Transaction> for Transaction {
 
 /// Unsigned (inputs without proofs) transaction
 #[wasm_bindgen]
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, From, Into)]
 pub struct UnsignedTransaction(pub(crate) chain::transaction::unsigned::UnsignedTransaction);
 
 #[wasm_bindgen]
 impl UnsignedTransaction {
+    /// Create a new unsigned transaction
+    #[wasm_bindgen(constructor)]
+    pub fn new(
+        inputs: &UnsignedInputs,
+        data_inputs: &DataInputs,
+        output_candidates: &ErgoBoxCandidates,
+    ) -> Result<UnsignedTransaction, JsValue> {
+        let opt_data_input = if data_inputs.len() > 0 {
+            Some(TxIoVec::from_vec(data_inputs.into()).map_err(to_js)?)
+        } else {
+            None
+        };
+
+        Ok(chain::transaction::unsigned::UnsignedTransaction::new(
+            TxIoVec::from_vec(inputs.into()).map_err(to_js)?,
+            opt_data_input,
+            TxIoVec::from_vec(output_candidates.into()).map_err(to_js)?,
+        )
+        .map_err(to_js)?
+        .into())
+    }
+
     /// Consumes the calling UnsignedTransaction and returns a new UnsignedTransaction containing
     /// the ContextExtension in the provided input box id or returns an error if the input box cannot be found.
     /// After the call the calling UnsignedTransaction will be null.
@@ -381,17 +403,5 @@ impl UnsignedTransaction {
             .iter()
             .map(|id| Uint8Array::from(id.as_ref()))
             .collect()
-    }
-}
-
-impl From<chain::transaction::unsigned::UnsignedTransaction> for UnsignedTransaction {
-    fn from(t: chain::transaction::unsigned::UnsignedTransaction) -> Self {
-        UnsignedTransaction(t)
-    }
-}
-
-impl From<UnsignedTransaction> for chain::transaction::unsigned::UnsignedTransaction {
-    fn from(t: UnsignedTransaction) -> Self {
-        t.0
     }
 }

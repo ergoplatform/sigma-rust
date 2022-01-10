@@ -21,6 +21,7 @@ use std::convert::TryFrom;
 use ergo_lib::ergotree_ir::chain;
 use ergo_lib::ergotree_ir::chain::ergo_box::NonMandatoryRegisters;
 use ergo_lib::ergotree_ir::serialization::SigmaSerializable;
+use ergo_lib::wallet::tx_builder::new_miner_fee_box;
 use js_sys::Uint8Array;
 use wasm_bindgen::prelude::*;
 
@@ -70,6 +71,16 @@ pub struct ErgoBoxCandidate(chain::ergo_box::ErgoBoxCandidate);
 
 #[wasm_bindgen]
 impl ErgoBoxCandidate {
+    /// Create a box with miner's contract and given value
+    pub fn new_miner_fee_box(
+        fee_amount: &BoxValue,
+        creation_height: u32,
+    ) -> Result<ErgoBoxCandidate, JsValue> {
+        Ok(new_miner_fee_box(fee_amount.into(), creation_height)
+            .map_err(to_js)?
+            .into())
+    }
+
     /// Returns value (ErgoTree constant) stored in the register or None if the register is empty
     pub fn register_value(&self, register_id: NonMandatoryRegisterId) -> Option<Constant> {
         self.0
@@ -227,7 +238,7 @@ impl From<chain::ergo_box::ErgoBox> for ErgoBox {
 
 /// Box value in nanoERGs with bound checks
 #[wasm_bindgen]
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone, From, Into)]
 pub struct BoxValue(pub(crate) chain::ergo_box::box_value::BoxValue);
 
 #[wasm_bindgen]
@@ -264,15 +275,9 @@ impl BoxValue {
     }
 }
 
-impl From<BoxValue> for chain::ergo_box::box_value::BoxValue {
-    fn from(v: BoxValue) -> Self {
+impl From<&BoxValue> for chain::ergo_box::box_value::BoxValue {
+    fn from(v: &BoxValue) -> Self {
         v.0
-    }
-}
-
-impl From<chain::ergo_box::box_value::BoxValue> for BoxValue {
-    fn from(v: chain::ergo_box::box_value::BoxValue) -> Self {
-        BoxValue(v)
     }
 }
 
