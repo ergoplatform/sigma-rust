@@ -411,8 +411,8 @@ fn sig_test_vector_threshold() {
     )
     .unwrap()
     .to_bytes_be();
-    // sk1 is only 31 bytes so we pad with zero so it fits the required 32 byte buffers
-    sk1_bytes.insert(0, 48);
+    // sk1 string is only 31 bytes so pad with zero so it fits the required 32 byte buffers
+    sk1_bytes.insert(0, 0u8);
 
     let sk1 = DlogProverInput::from_bytes(sk1_bytes.as_slice().try_into().unwrap()).unwrap();
     let sk2 = DlogProverInput::from_biguint(
@@ -436,29 +436,6 @@ fn sig_test_vector_threshold() {
     let signature = base16::decode(b"0b6bf9bc42c7b509ab56c76318c0891b2c8d44ef5fafb1379cc6b72b89c53cd43f8ef10158ce08646301d09b450ea83a1cdbbfc3dc7438ece4bbe934919069c50ec5857209b0dbf120b325c88667bc84580720ff4b3c371ec752bc6874c933f7fa53fae411e65ae07b647d365caac8c6744276c04c0240dd55e1f62c0e17a093dd91493c68104b1e01a4069017668d3f").unwrap();
 
     let bound = Expr::Const(2i32.into());
-    //     let items = Literal::Coll(
-    //     CollKind::from_vec(
-    //         SType::SSigmaProp,
-    //         sigmaprops
-    //             .into_iter()
-    //             .map(|s| s.into())
-    //             .collect::<Vec<Literal>>(),
-    //     )
-    //     .unwrap(),
-    // );
-
-    // let make_atleast = |bound: i32| {
-    //     Atleast::new(
-    //         bound.into(),
-    //         Constant {
-    //             tpe: SType::SColl(SType::SSigmaProp.into()),
-    //             v: items.clone(),
-    //         }
-    //         .into(),
-    //     )
-    //     .unwrap()
-    //     .into()
-    // };
 
     let inputs = Literal::Coll(
         CollKind::from_vec(
@@ -471,6 +448,7 @@ fn sig_test_vector_threshold() {
         )
         .unwrap(),
     );
+
     let input = Constant {
         tpe: SType::SColl(SType::SSigmaProp.into()),
         v: inputs.clone(),
