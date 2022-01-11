@@ -93,7 +93,7 @@ fn sig_write_bytes<W: SigmaByteWrite>(
                 k: _,
                 polynomial,
             } => {
-                // write the polynomial, except the zero coefficient
+                // write the polynomial, except the zero-degree coefficient
                 w.write_all(polynomial.to_bytes().as_mut_slice())?;
                 for child in children {
                     sig_write_bytes(child, w, false)?;
