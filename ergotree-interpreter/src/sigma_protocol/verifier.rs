@@ -403,7 +403,7 @@ mod tests {
                                             secret2 in any::<PrivateInput>(),
                                              secret3 in any::<PrivateInput>(),
                                              message in vec(any::<u8>(), 100..200)) {
-            let bound = Expr::Const(1i32.into());
+            let bound = Expr::Const(2i32.into());
             let inputs = Literal::Coll(
                 CollKind::from_vec(
                     SType::SSigmaProp,
@@ -438,9 +438,7 @@ mod tests {
                                             Rc::new(force_any_val::<Context>()),
                                             proof,
                                             message.as_slice());
-            let a = ver_res.unwrap().result;
-            println!("{:?}", a.clone());
-            prop_assert_eq!(a, true)
+            prop_assert_eq!(ver_res.unwrap().result, true)
         }
     }
 }
