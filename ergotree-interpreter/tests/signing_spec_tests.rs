@@ -3,11 +3,17 @@ use ergotree_interpreter::eval::env::Env;
 use ergotree_interpreter::sigma_protocol::private_input::DlogProverInput;
 use ergotree_interpreter::sigma_protocol::verifier::{TestVerifier, Verifier};
 use ergotree_ir::ergo_tree::ErgoTree;
+use ergotree_ir::mir::atleast::Atleast;
+use ergotree_ir::mir::collection::Collection;
+use ergotree_ir::mir::constant::{Constant, Literal};
 use ergotree_ir::mir::expr::Expr;
 use ergotree_ir::mir::sigma_and::SigmaAnd;
 use ergotree_ir::mir::sigma_or::SigmaOr;
+use ergotree_ir::mir::value::CollKind;
 use ergotree_ir::serialization::SigmaSerializable;
-use ergotree_ir::sigma_protocol::sigma_boolean::ProveDhTuple;
+use ergotree_ir::sigma_protocol::sigma_boolean::{ProveDhTuple, SigmaProp};
+use ergotree_ir::types::stype::SType;
+use lazy_static::__Deref;
 use num_bigint::BigUint;
 use sigma_test_util::force_any_val;
 use std::convert::TryInto;
@@ -384,6 +390,97 @@ fn sig_test_vector_conj_or_and() {
     let verifier = TestVerifier;
     let ver_res = verifier.verify(
         &tree,
+        &Env::empty(),
+        Rc::new(force_any_val::<Context>()),
+        signature.into(),
+        msg.as_slice(),
+    );
+    assert!(ver_res.unwrap().result);
+}
+
+#[test]
+fn sig_test_vector_threshold() {
+    // corresponding sigmastate test
+    // in SigningSpecification.property("threshold signature test vector")
+    let msg = base16::decode(b"1dc01772ee0171f5f614c673e3c7fa1107a8cf727bdf5a6dadb379e93c0d1d00")
+        .unwrap();
+
+    let mut sk1_bytes = BigUint::parse_bytes(
+        b"416167686186183758173232992934554728075978573242452195968805863126437865059",
+        10,
+    )
+    .unwrap()
+    .to_bytes_be();
+    // sk1 is only 31 bytes so we pad with zero so it fits the required 32 byte buffers
+    sk1_bytes.insert(0, 48);
+
+    let sk1 = DlogProverInput::from_bytes(sk1_bytes.as_slice().try_into().unwrap()).unwrap();
+    let sk2 = DlogProverInput::from_biguint(
+        BigUint::parse_bytes(
+            b"34648336872573478681093104997365775365807654884817677358848426648354905397359",
+            10,
+        )
+        .unwrap(),
+    )
+    .unwrap();
+
+    let sk3 = DlogProverInput::from_biguint(
+        BigUint::parse_bytes(
+            b"50415569076448343263191022044468203756975150511337537963383000142821297891310",
+            10,
+        )
+        .unwrap(),
+    )
+    .unwrap();
+
+    let signature = base16::decode(b"0b6bf9bc42c7b509ab56c76318c0891b2c8d44ef5fafb1379cc6b72b89c53cd43f8ef10158ce08646301d09b450ea83a1cdbbfc3dc7438ece4bbe934919069c50ec5857209b0dbf120b325c88667bc84580720ff4b3c371ec752bc6874c933f7fa53fae411e65ae07b647d365caac8c6744276c04c0240dd55e1f62c0e17a093dd91493c68104b1e01a4069017668d3f").unwrap();
+
+    let bound = Expr::Const(2i32.into());
+    //     let items = Literal::Coll(
+    //     CollKind::from_vec(
+    //         SType::SSigmaProp,
+    //         sigmaprops
+    //             .into_iter()
+    //             .map(|s| s.into())
+    //             .collect::<Vec<Literal>>(),
+    //     )
+    //     .unwrap(),
+    // );
+
+    // let make_atleast = |bound: i32| {
+    //     Atleast::new(
+    //         bound.into(),
+    //         Constant {
+    //             tpe: SType::SColl(SType::SSigmaProp.into()),
+    //             v: items.clone(),
+    //         }
+    //         .into(),
+    //     )
+    //     .unwrap()
+    //     .into()
+    // };
+
+    let inputs = Literal::Coll(
+        CollKind::from_vec(
+            SType::SSigmaProp,
+            vec![
+                SigmaProp::from(sk1.public_image()).into(),
+                SigmaProp::from(sk2.public_image()).into(),
+                SigmaProp::from(sk3.public_image()).into(),
+            ],
+        )
+        .unwrap(),
+    );
+    let input = Constant {
+        tpe: SType::SColl(SType::SSigmaProp.into()),
+        v: inputs.clone(),
+    }
+    .into();
+
+    let expr: Expr = Atleast::new(bound, input).unwrap().into();
+    let verifier = TestVerifier;
+    let ver_res = verifier.verify(
+        &expr.try_into().unwrap(),
         &Env::empty(),
         Rc::new(force_any_val::<Context>()),
         signature.into(),
