@@ -25,7 +25,7 @@ impl Atleast {
     pub fn new(bound: Expr, input: Expr) -> Result<Self, InvalidArgumentError> {
         if input.post_eval_tpe() != SType::SColl(SType::SSigmaProp.into()) {
             return Err(InvalidArgumentError(format!(
-                "Expected Atleast input to be SColl, got {0:?}",
+                "Expected Atleast input to be SColl of SSigmaProp, got {0:?}",
                 input.tpe()
             )));
         }
