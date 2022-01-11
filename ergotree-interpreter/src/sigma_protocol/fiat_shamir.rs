@@ -2,6 +2,8 @@
 
 use super::crypto_utils::secure_random_bytes;
 use super::proof_tree::ProofTreeKind;
+use crate::sigma_protocol::unchecked_tree::{UncheckedConjecture, UncheckedTree};
+use crate::sigma_protocol::unproven_tree::{UnprovenConjecture, UnprovenTree};
 use crate::sigma_protocol::ProverMessage;
 use blake2::digest::{Update, VariableOutput};
 use blake2::VarBlake2b;
@@ -133,6 +135,36 @@ fn fiat_shamir_write_bytes<W: SigmaByteWrite>(
         ProofTreeKind::Conjecture(c) => {
             w.put_u8(INTERNAL_NODE_PREFIX)?;
             w.put_u8(c.conjecture_type() as u8)?;
+            match tree {
+                ProofTree::UncheckedTree(unchecked) => match unchecked {
+                    UncheckedTree::UncheckedLeaf(_) => Err(FiatShamirTreeSerializationError(
+                        "Tree was of type Conjecture but got unchecked leaf type".to_string(),
+                    ))?,
+                    UncheckedTree::UncheckedConjecture(conj) => match conj {
+                        UncheckedConjecture::CthresholdUnchecked {
+                            challenge: _,
+                            children: _,
+                            k,
+                            polynomial: _,
+                        } => w.put_u8(*k)?,
+                        _ => Err(FiatShamirTreeSerializationError(
+                            "Unexpected UncheckedConjecture variation".to_string(),
+                        ))?,
+                    },
+                },
+                ProofTree::UnprovenTree(unproven) => match unproven {
+                    UnprovenTree::UnprovenLeaf(_) => Err(FiatShamirTreeSerializationError(
+                        "Tree was of type Conjecture but got unproven leaf type".to_string(),
+                    ))?,
+                    UnprovenTree::UnprovenConjecture(conj) => match conj {
+                        UnprovenConjecture::CthresholdUnproven(thresh) => w.put_u8(thresh.k)?,
+                        _ => Err(FiatShamirTreeSerializationError(
+                            "Unexpected UnprovenConjecture variation".to_string(),
+                        ))?,
+                    },
+                },
+            }
+
             w.put_i16_be_bytes(c.children().len() as i16)?;
             for child in &c.children() {
                 fiat_shamir_write_bytes(child, w)?;
