@@ -246,13 +246,21 @@ impl AutolykosSolution {
     ) -> Result<(), ScorexSerializationError> {
         if version == 1 {
             self.miner_pk.scorex_serialize(w)?;
-            #[allow(clippy::unwrap_used)]
-            self.pow_onetime_pk.as_ref().unwrap().scorex_serialize(w)?;
+            self.pow_onetime_pk
+                .as_ref()
+                .ok_or(ScorexSerializationError::Misc(
+                    "pow_onetime_pk must == Some(_) for autolykos v1",
+                ))?
+                .scorex_serialize(w)?;
             w.write_all(&self.nonce)?;
 
-            // pow_distance must be == Some(_) for autolykos v1.
-            #[allow(clippy::unwrap_used)]
-            let d_bytes = self.pow_distance.as_ref().unwrap().to_signed_bytes_be();
+            let d_bytes = self
+                .pow_distance
+                .as_ref()
+                .ok_or(ScorexSerializationError::Misc(
+                    "pow_distance must be == Some(_) for autolykos v1",
+                ))?
+                .to_signed_bytes_be();
             w.put_u8(d_bytes.len() as u8)?;
             w.write_all(&d_bytes)?;
         } else {

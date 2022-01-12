@@ -21,6 +21,9 @@ pub enum ScorexSerializationError {
     /// Integer type conversion failed
     #[error("Bounds check error: {0}")]
     TryFrom(#[from] std::num::TryFromIntError),
+    /// Misc error
+    #[error("error: {0}")]
+    Misc(&'static str),
 }
 
 impl From<io::Error> for ScorexSerializationError {
