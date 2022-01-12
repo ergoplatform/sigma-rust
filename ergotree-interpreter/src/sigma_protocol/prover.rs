@@ -843,7 +843,7 @@ fn step9_real_threshold(ct: CthresholdUnproven) -> Result<Option<ProofTree>, Pro
                 ProofTree::UnprovenTree(unpt) => unpt.challenge(),
             };
             if let Some(challenge) = challenge_opt {
-                points.append(&mut one_based_idx.to_be_bytes().to_vec());
+                points.push(one_based_idx as u8);
                 values.push(challenge.into());
             };
         }
