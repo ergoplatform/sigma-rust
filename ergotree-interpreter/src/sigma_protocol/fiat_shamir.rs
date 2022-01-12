@@ -2,8 +2,6 @@
 
 use super::crypto_utils::secure_random_bytes;
 use super::proof_tree::ProofTreeKind;
-use crate::sigma_protocol::unchecked_tree::{UncheckedConjecture, UncheckedTree};
-use crate::sigma_protocol::unproven_tree::{UnprovenConjecture, UnprovenTree};
 use crate::sigma_protocol::ProverMessage;
 use blake2::digest::{Update, VariableOutput};
 use blake2::VarBlake2b;
