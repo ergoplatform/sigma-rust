@@ -449,7 +449,7 @@ fn sig_test_vector_threshold() {
 
     let input = Constant {
         tpe: SType::SColl(SType::SSigmaProp.into()),
-        v: inputs.clone(),
+        v: inputs,
     }
     .into();
 
