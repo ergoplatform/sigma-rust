@@ -12,7 +12,7 @@ private class WrapClosure<T> {
 class RestNodeApiAsync {
     internal var pointer: RestApiRuntimePtr
     
-    /// Create ergo ``RestNodeApi`` instance 
+    /// Create ergo ``RestNodeApiAsync`` instance 
     init() throws {
         var ptr: RestApiRuntimePtr?
         let error = ergo_lib_rest_api_runtime_create(&ptr)

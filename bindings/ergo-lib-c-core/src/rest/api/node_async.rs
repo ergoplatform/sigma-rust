@@ -3,26 +3,12 @@
 use std::ffi::c_void;
 use std::ptr::NonNull;
 
-use tokio::runtime::Runtime;
-
 use crate::rest::node_conf::NodeConfPtr;
 use crate::rest::node_info::NodeInfo;
 use crate::util::const_ptr_as_ref;
-use crate::util::mut_ptr_as_mut;
 use crate::Error;
 
-pub struct RestApiRuntime(Runtime);
-pub type RestApiRuntimePtr = *mut RestApiRuntime;
-
-pub unsafe fn rest_api_runtime_new(runtime_out: *mut RestApiRuntimePtr) -> Result<(), Error> {
-    let runtime_out = mut_ptr_as_mut(runtime_out, "rest_api_runtime_out")?;
-    let runtime_inner = tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()
-        .map_err(|e| Error::Misc(format!("failed to create tokio runtime: {:?}", e).into()))?;
-    *runtime_out = Box::into_raw(Box::new(RestApiRuntime(runtime_inner)));
-    Ok(())
-}
+use super::runtime::RestApiRuntimePtr;
 
 pub unsafe fn rest_api_node_get_info_async(
     runtime_ptr: RestApiRuntimePtr,
