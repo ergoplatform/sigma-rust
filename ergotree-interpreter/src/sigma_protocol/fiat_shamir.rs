@@ -2,6 +2,8 @@
 
 use super::crypto_utils::secure_random_bytes;
 use super::proof_tree::ProofTreeKind;
+use crate::sigma_protocol::unchecked_tree::{UncheckedConjecture, UncheckedTree};
+use crate::sigma_protocol::unproven_tree::{UnprovenConjecture, UnprovenTree};
 use crate::sigma_protocol::ProverMessage;
 use blake2::digest::{Update, VariableOutput};
 use blake2::VarBlake2b;
@@ -133,6 +135,30 @@ fn fiat_shamir_write_bytes<W: SigmaByteWrite>(
         ProofTreeKind::Conjecture(c) => {
             w.put_u8(INTERNAL_NODE_PREFIX)?;
             w.put_u8(c.conjecture_type() as u8)?;
+            match tree {
+                ProofTree::UncheckedTree(unchecked) => match unchecked {
+                    UncheckedTree::UncheckedLeaf(_) => (),
+                    UncheckedTree::UncheckedConjecture(conj) => {
+                        if let UncheckedConjecture::CthresholdUnchecked {
+                            challenge: _,
+                            children: _,
+                            k,
+                            polynomial: _,
+                        } = conj
+                        {
+                            w.put_u8(*k)?
+                        }
+                    }
+                },
+                ProofTree::UnprovenTree(unproven) => match unproven {
+                    UnprovenTree::UnprovenLeaf(_) => (),
+                    UnprovenTree::UnprovenConjecture(conj) => {
+                        if let UnprovenConjecture::CthresholdUnproven(thresh) = conj {
+                            w.put_u8(thresh.k)?
+                        }
+                    }
+                },
+            }
             w.put_i16_be_bytes(c.children().len() as i16)?;
             for child in &c.children() {
                 fiat_shamir_write_bytes(child, w)?;
