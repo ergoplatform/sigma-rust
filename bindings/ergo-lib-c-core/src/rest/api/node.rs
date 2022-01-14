@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use crate::rest::node_conf::NodeConfPtr;
 use crate::rest::node_info::NodeInfoPtr;
 use crate::util::const_ptr_as_ref;
@@ -8,6 +10,7 @@ use super::runtime::RestApiRuntimePtr;
 pub unsafe fn rest_api_node_get_info(
     runtime_ptr: RestApiRuntimePtr,
     node_conf_ptr: NodeConfPtr,
+    timeout: Duration,
     node_info_out: *mut NodeInfoPtr,
 ) -> Result<(), Error> {
     let runtime = const_ptr_as_ref(runtime_ptr, "runtime_ptr")?;
@@ -15,7 +18,7 @@ pub unsafe fn rest_api_node_get_info(
     let node_info = runtime
         .0
         .block_on({
-            ergo_lib::ergo_rest::api::node::get_info(node_conf)
+            ergo_lib::ergo_rest::api::node::get_info(node_conf, timeout)
             // .unwrap()
             // .map_err(|e| Error::Misc(format!("{:?}", e).into()))
         })

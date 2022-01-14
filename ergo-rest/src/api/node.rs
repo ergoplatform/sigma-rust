@@ -1,5 +1,7 @@
 //! Ergo node REST API endpoints
 
+use std::time::Duration;
+
 use ergo_chain_types::BlockId;
 use ergo_nipopow::NipopowProof;
 use reqwest::header::CONTENT_TYPE;
@@ -17,10 +19,10 @@ fn set_req_headers(rb: RequestBuilder, node: NodeConf) -> RequestBuilder {
 }
 
 /// GET on /info endpoint
-pub async fn get_info(node: NodeConf) -> Result<NodeInfo, NodeError> {
+pub async fn get_info(node: NodeConf, timeout: Duration) -> Result<NodeInfo, NodeError> {
     #[allow(clippy::unwrap_used)]
     let url = node.addr.as_http_url().join("info").unwrap();
-    let rb = reqwest::Client::new().get(url);
+    let rb = reqwest::Client::new().get(url).timeout(timeout);
     Ok(set_req_headers(rb, node)
         .send()
         .await?
@@ -72,7 +74,8 @@ mod tests {
             addr: PeerAddr::from_str("213.239.193.208:9053").unwrap(),
             api_key: None,
         };
-        let res = runtime_inner.block_on(async { get_info(node_conf).await.unwrap() });
+        let res = runtime_inner
+            .block_on(async { get_info(node_conf, Duration::from_secs(5)).await.unwrap() });
         assert_eq!(res.name, "ergo-mainnet-4.0.16.1");
     }
 }
