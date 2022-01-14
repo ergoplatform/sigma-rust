@@ -1,5 +1,6 @@
 import Foundation
 import ErgoLibC
+import Dispatch
 
 class RestNodeApi {
     internal var pointer: RestApiRuntimePtr
@@ -18,6 +19,25 @@ class RestNodeApi {
             try checkError(error)
             return NodeInfo(withRawPointer: ptr!)
 
+    }
+
+    /// Async wrapper with a callback running in the background queue
+    private func getInfoCallback(
+        nodeConf: NodeConf,
+        callback: @escaping (Result<NodeInfo, Error>) -> Void) {
+
+        DispatchQueue.global(qos: .background).async {
+            let res = Result { try self.getInfo(nodeConf: nodeConf) }
+            callback(res)
+        }
+    }
+
+    func getInfoAsync(nodeConf: NodeConf) async throws -> NodeInfo {
+        try await withCheckedThrowingContinuation { continuation in
+            getInfoCallback(nodeConf: nodeConf) { result in 
+                continuation.resume(with: result)
+            }
+        }
     }
 
     deinit {
