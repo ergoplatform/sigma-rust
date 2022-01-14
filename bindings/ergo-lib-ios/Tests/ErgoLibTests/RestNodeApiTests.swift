@@ -19,5 +19,10 @@ final class RestNodeApiTests: XCTestCase {
             let nodeInfo = try await restNodeApi.getInfoAsync(nodeConf: nodeConf)
             XCTAssert(!nodeInfo.getName().isEmpty)
         })
+        // test of re-using of tokio runtime
+        XCTAssertNoThrow(Task(priority: .medium) {
+            let nodeInfo = try await restNodeApi.getInfoAsync(nodeConf: nodeConf)
+            XCTAssert(!nodeInfo.getName().isEmpty)
+        })
     }
 }
