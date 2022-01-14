@@ -23,6 +23,7 @@ class RestNodeApiAsync {
     /// GET on /info endpoint
     func getInfo(
         nodeConf: NodeConf,
+        timeoutSec: UInt32,
         closureSuccess: @escaping (NodeInfo) -> Void,
         closureFail: @escaping (String) -> Void
     ) throws {
@@ -55,7 +56,7 @@ class RestNodeApiAsync {
         let completion = CompletedCallback_NodeInfo(userdata_success: userdataSuccess, 
             userdata_fail: userdataFail, callback_success: callback_success, callback_fail: callback_fail)
 
-        let error = ergo_lib_rest_api_node_get_info_async(self.pointer, nodeConf.pointer, completion)
+        let error = ergo_lib_rest_api_node_get_info_async(self.pointer, nodeConf.pointer, timeoutSec, completion)
 
         try checkError(error)
     }
