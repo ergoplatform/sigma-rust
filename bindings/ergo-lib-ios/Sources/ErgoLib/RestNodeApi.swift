@@ -13,9 +13,9 @@ class RestNodeApi {
         self.pointer = ptr!
     }
     
-    func getInfo(nodeConf: NodeConf, timeoutSec: UInt32) throws -> NodeInfo {
+    func getInfo(nodeConf: NodeConf) throws -> NodeInfo {
         var ptr: NodeInfoPtr?
-            let error = ergo_lib_rest_api_node_get_info(self.pointer, nodeConf.pointer, timeoutSec, &ptr)
+            let error = ergo_lib_rest_api_node_get_info(self.pointer, nodeConf.pointer, &ptr)
             try checkError(error)
             return NodeInfo(withRawPointer: ptr!)
     }
