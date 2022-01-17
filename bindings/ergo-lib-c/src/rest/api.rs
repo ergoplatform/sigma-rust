@@ -2,4 +2,5 @@
 
 pub mod node;
 pub mod node_async;
+pub mod request_handle;
 pub mod runtime;

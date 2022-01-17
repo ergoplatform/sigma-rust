@@ -9,7 +9,7 @@ final class RestNodeApiAsyncTests: XCTestCase {
         let expectation = self.expectation(description: "getInfo")
         let nodeConf = try NodeConf(withAddrString: "213.239.193.208:9053")
         let restNodeApiAsync = try RestNodeApiAsync()
-        try restNodeApiAsync.getInfo(nodeConf: nodeConf,
+        let _ = try restNodeApiAsync.getInfo(nodeConf: nodeConf,
             closureSuccess: { (nodeInfo: NodeInfo) -> () in 
                 XCTAssert(!nodeInfo.getName().isEmpty)
                 expectation.fulfill()
@@ -18,5 +18,17 @@ final class RestNodeApiAsyncTests: XCTestCase {
                 expectation.fulfill()
             })
         waitForExpectations(timeout: 5, handler: nil)
+    }
+
+    func testGetInfoAbort() throws {
+        let nodeConf = try NodeConf(withAddrString: "213.239.193.208:9053")
+        let restNodeApiAsync = try RestNodeApiAsync()
+        let handle = try restNodeApiAsync.getInfo(nodeConf: nodeConf,
+            closureSuccess: { (nodeInfo: NodeInfo) -> () in 
+                XCTAssert(!nodeInfo.getName().isEmpty)
+            }, closureFail: { (e: String) -> () in
+                XCTFail(e)
+            })
+        handle.abort()
     }
 }
