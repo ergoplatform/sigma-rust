@@ -24,6 +24,7 @@ impl NodeConf {
         Ok(ergo_lib::ergo_rest::NodeConf {
             addr: peer_addr,
             api_key: None,
+            timeout: None,
         }
         .into())
     }

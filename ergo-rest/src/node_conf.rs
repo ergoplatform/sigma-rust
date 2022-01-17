@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use ergo_chain_types::PeerAddr;
 use reqwest::header::HeaderValue;
 
@@ -8,6 +10,8 @@ pub struct NodeConf {
     pub addr: PeerAddr,
     /// Node API key
     pub api_key: Option<&'static str>,
+    /// Request timeout
+    pub timeout: Option<Duration>,
 }
 
 impl NodeConf {
