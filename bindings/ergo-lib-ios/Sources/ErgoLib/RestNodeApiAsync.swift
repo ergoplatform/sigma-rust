@@ -9,6 +9,10 @@ private class WrapClosure<T> {
     }
 }
 
+enum RestNodeApiError: Error {
+    case misc(String)
+}
+
 class RestNodeApiAsync {
     internal var pointer: RestApiRuntimePtr
     
@@ -23,48 +27,47 @@ class RestNodeApiAsync {
     /// GET on /info endpoint
     func getInfo(
         nodeConf: NodeConf,
-        closureSuccess: @escaping (NodeInfo) -> Void,
-        closureFail: @escaping (String) -> Void
+        closure: @escaping (Result<NodeInfo, Error>) -> Void
     ) throws -> RequestHandle {
         // base on https://www.nickwilcox.com/blog/recipe_swift_rust_callback/
-        // step 1: manually increment reference count on both closures
-        let wrappedClosureSuccess = WrapClosure(closure: closureSuccess)
-        let userdataSuccess = Unmanaged.passRetained(wrappedClosureSuccess).toOpaque()
-        let wrappedClosureFail = WrapClosure(closure: closureFail)
-        let userdataFail = Unmanaged.passRetained(wrappedClosureFail).toOpaque()
+        // step 1: manually increment reference count on closure
+        let wrappedClosure = WrapClosure(closure: closure)
+        let userdata = Unmanaged.passRetained(wrappedClosure).toOpaque()
 
         // step 2: create C compatible function pointer
-        let callback_success: @convention(c) (UnsafeMutableRawPointer, NodeInfoPtr) -> Void = { (_ userdata: UnsafeMutableRawPointer, _ nodeInfoPtr: NodeInfoPtr) in
+        let callback: @convention(c) (UnsafeMutableRawPointer, NodeInfoPtr?, ErrorPtr?) -> Void = {
+            (_ userdata: UnsafeMutableRawPointer, _ nodeInfoPtr: NodeInfoPtr?,  _ errorPtr: ErrorPtr?) in
             // reverse step 1 and manually decrement reference count on the closure and turn it back to Swift type.
             // Because we are back to letting Swift manage our reference count, when the scope ends the wrapped closure will be freed.
-            // TODO: not true for the opposite closure. Merge into one closure returning Result? 
-            let wrappedClosure: WrapClosure<(NodeInfo) -> Void> = Unmanaged.fromOpaque(userdata).takeRetainedValue()
-            let nodeInfo = NodeInfo(withRawPointer: nodeInfoPtr)
-            // TODO: call it on the same thread  `get_info` was called (on main/UI thread?)
-            wrappedClosure.closure(nodeInfo)
-        }
+            let wrappedClosure: WrapClosure<(Result<NodeInfo, Error>) -> Void> =
+                Unmanaged.fromOpaque(userdata).takeRetainedValue()
 
-        let callback_fail: @convention(c) (UnsafeMutableRawPointer, ErrorPtr) -> Void = { (_ userdata: UnsafeMutableRawPointer, _ errorPtr: ErrorPtr) in
-            let wrappedClosure: WrapClosure<(String) -> Void> = Unmanaged.fromOpaque(userdata).takeRetainedValue()
-            let cStringReason = ergo_lib_error_to_string(errorPtr)
-            let reason = String(cString: cStringReason!)
-            ergo_lib_delete_string(cStringReason)
-            ergo_lib_delete_error(errorPtr)
-            // TODO: call it on the same thread  `get_info` was called (on main/UI thread?)
-            wrappedClosure.closure(reason)
+            if let nodeInfoPtr = nodeInfoPtr {
+                // success
+                let res = Result<NodeInfo, Error>.success(NodeInfo(withRawPointer: nodeInfoPtr))
+                // TODO: call it on the same thread  `get_info` was called (on main/UI thread?)
+                wrappedClosure.closure(res)
+            } else {
+                // failure
+                let cStringReason = ergo_lib_error_to_string(errorPtr!)
+                let reason = String(cString: cStringReason!)
+                ergo_lib_delete_string(cStringReason)
+                ergo_lib_delete_error(errorPtr)
+                let res = Result<NodeInfo, Error>.failure(RestNodeApiError.misc(reason))
+                // TODO: call it on the same thread  `get_info` was called (on main/UI thread?)
+                wrappedClosure.closure(res)
+            }
         }
 
         let callback_release: @convention(c) (UnsafeMutableRawPointer) -> Void = { (_ userdata: UnsafeMutableRawPointer) in
             // reverse step 1 and manually decrement reference count on the closure and turn it back to Swift type.
-            // Because we are back to letting Swift manage our reference count, when the scope ends the wrapped closure will be freed.
-            let wrappedClosure: WrapClosure<(NodeInfo) -> Void> = Unmanaged.fromOpaque(userdata).takeRetainedValue()
+            // Because we are back to letting Swift manage our reference count, when the scope ends 
+            // the wrapped closure will be freed.
+            let _ : WrapClosure<(Result<NodeInfo, Error>) -> Void> = 
+                Unmanaged.fromOpaque(userdata).takeRetainedValue()
         }
 
-        let completion = CompletedCallback_NodeInfo(
-            userdata_success: userdataSuccess, 
-            userdata_fail: userdataFail, 
-            callback_success: callback_success,
-            callback_fail: callback_fail,
+        let completion = CompletedCallback_NodeInfo( userdata: userdata, callback: callback, 
             callback_release: callback_release)
 
         var requestHandlerPtr: RequestHandlePtr?

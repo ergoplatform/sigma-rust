@@ -1,6 +1,7 @@
 //! Async REST API for Ergo node
 
 use std::ffi::c_void;
+use std::ptr;
 use std::ptr::NonNull;
 
 use futures_util::future::AbortHandle;
@@ -25,7 +26,7 @@ pub unsafe fn rest_api_node_get_info_async(
     let node_conf = const_ptr_as_ref(node_conf_ptr, "node_conf_ptr")?.0;
 
     let release_callback = ReleaseCallback {
-        userdata: callback.userdata_success,
+        userdata: callback.userdata,
         callback: callback.callback_release,
     };
 
@@ -33,14 +34,10 @@ pub unsafe fn rest_api_node_get_info_async(
     let future = Abortable::new(
         async move {
             match ergo_lib::ergo_rest::api::node::get_info(node_conf).await {
-                Ok(node_info) => callback
-                    .succeeded(NonNull::new(Box::into_raw(Box::new(NodeInfo(node_info)))).unwrap()),
-                Err(e) => callback.failed(
-                    NonNull::new(Error::c_api_from(Err(Error::Misc(
-                        format!("{:?}", e).into(),
-                    ))))
-                    .unwrap(),
-                ),
+                Ok(node_info) => callback.succeeded(Box::into_raw(Box::new(NodeInfo(node_info)))),
+                Err(e) => callback.failed(Error::c_api_from(Err(Error::Misc(
+                    format!("{:?}", e).into(),
+                )))),
             }
         },
         abort_registration,
@@ -59,22 +56,22 @@ pub unsafe fn rest_api_node_get_info_async(
 
 #[repr(C)]
 pub struct CompletedCallback<T> {
-    userdata_success: NonNull<c_void>,
-    userdata_fail: NonNull<c_void>,
-    callback_success: extern "C" fn(NonNull<c_void>, NonNull<T>),
-    callback_fail: extern "C" fn(NonNull<c_void>, NonNull<Error>),
+    userdata: NonNull<c_void>,
+    callback: extern "C" fn(NonNull<c_void>, *const T, *const Error),
     callback_release: extern "C" fn(NonNull<c_void>),
 }
 
 unsafe impl<T> Send for CompletedCallback<T> {}
 
 impl<T> CompletedCallback<T> {
-    pub fn succeeded(self, t: NonNull<T>) {
-        (self.callback_success)(self.userdata_success, t);
+    pub fn succeeded(self, t: *const T) {
+        // TODO: take ownership and wrap into raw pointer here
+        (self.callback)(self.userdata, t, ptr::null());
         std::mem::forget(self)
     }
-    pub fn failed(self, error: NonNull<Error>) {
-        (self.callback_fail)(self.userdata_fail, error);
+    pub fn failed(self, error: *const Error) {
+        // TODO: take ownership and wrap into raw pointer here
+        (self.callback)(self.userdata, ptr::null(), error);
         std::mem::forget(self)
     }
 }
@@ -83,9 +80,7 @@ impl<T> Drop for CompletedCallback<T> {
     fn drop(&mut self) {
         // We only should get here on AbortHandle::abort() call
         // see mem::forget above on callbacks
-
-        // TODO: callback closures are leaking here on abort. RequestHandle need to take care of this
-        panic!("CompletedCallback must have explicit succeeded or failed call")
+        // panic!("CompletedCallback must have explicit succeeded or failed call")
     }
 }
 
