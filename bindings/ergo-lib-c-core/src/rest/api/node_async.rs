@@ -11,6 +11,7 @@ use crate::rest::node_info::NodeInfo;
 use crate::util::const_ptr_as_ref;
 use crate::Error;
 
+use super::request_handle::RequestHandle;
 use super::request_handle::RequestHandlePtr;
 use super::runtime::RestApiRuntimePtr;
 
@@ -22,6 +23,11 @@ pub unsafe fn rest_api_node_get_info_async(
 ) -> Result<(), Error> {
     let runtime = const_ptr_as_ref(runtime_ptr, "runtime_ptr")?;
     let node_conf = const_ptr_as_ref(node_conf_ptr, "node_conf_ptr")?.0;
+
+    let release_callback = ReleaseCallback {
+        userdata: callback.userdata_success,
+        callback: callback.callback_release,
+    };
 
     let (abort_handle, abort_registration) = AbortHandle::new_pair();
     let future = Abortable::new(
@@ -42,7 +48,12 @@ pub unsafe fn rest_api_node_get_info_async(
     // abort_handle.abort();
 
     runtime.0.spawn(future);
-    *request_handle_out = Box::into_raw(Box::new(abort_handle.into()));
+
+    let request_handle = RequestHandle {
+        abort_handle,
+        release_callback,
+    };
+    *request_handle_out = Box::into_raw(Box::new(request_handle));
     Ok(())
 }
 
@@ -52,6 +63,7 @@ pub struct CompletedCallback<T> {
     userdata_fail: NonNull<c_void>,
     callback_success: extern "C" fn(NonNull<c_void>, NonNull<T>),
     callback_fail: extern "C" fn(NonNull<c_void>, NonNull<Error>),
+    callback_release: extern "C" fn(NonNull<c_void>),
 }
 
 unsafe impl<T> Send for CompletedCallback<T> {}
@@ -75,4 +87,10 @@ impl<T> Drop for CompletedCallback<T> {
         // TODO: callback closures are leaking here on abort. RequestHandle need to take care of this
         panic!("CompletedCallback must have explicit succeeded or failed call")
     }
+}
+
+#[repr(C)]
+pub struct ReleaseCallback {
+    pub userdata: NonNull<c_void>,
+    pub callback: extern "C" fn(NonNull<c_void>),
 }

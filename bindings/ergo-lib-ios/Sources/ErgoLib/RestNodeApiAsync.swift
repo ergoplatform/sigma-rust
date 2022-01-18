@@ -43,6 +43,7 @@ class RestNodeApiAsync {
             // TODO: call it on the same thread  `get_info` was called (on main/UI thread?)
             wrappedClosure.closure(nodeInfo)
         }
+
         let callback_fail: @convention(c) (UnsafeMutableRawPointer, ErrorPtr) -> Void = { (_ userdata: UnsafeMutableRawPointer, _ errorPtr: ErrorPtr) in
             let wrappedClosure: WrapClosure<(String) -> Void> = Unmanaged.fromOpaque(userdata).takeRetainedValue()
             let cStringReason = ergo_lib_error_to_string(errorPtr)
@@ -53,8 +54,18 @@ class RestNodeApiAsync {
             wrappedClosure.closure(reason)
         }
 
-        let completion = CompletedCallback_NodeInfo(userdata_success: userdataSuccess, 
-            userdata_fail: userdataFail, callback_success: callback_success, callback_fail: callback_fail)
+        let callback_release: @convention(c) (UnsafeMutableRawPointer) -> Void = { (_ userdata: UnsafeMutableRawPointer) in
+            // reverse step 1 and manually decrement reference count on the closure and turn it back to Swift type.
+            // Because we are back to letting Swift manage our reference count, when the scope ends the wrapped closure will be freed.
+            let wrappedClosure: WrapClosure<(NodeInfo) -> Void> = Unmanaged.fromOpaque(userdata).takeRetainedValue()
+        }
+
+        let completion = CompletedCallback_NodeInfo(
+            userdata_success: userdataSuccess, 
+            userdata_fail: userdataFail, 
+            callback_success: callback_success,
+            callback_fail: callback_fail,
+            callback_release: callback_release)
 
         var requestHandlerPtr: RequestHandlePtr?
         let error = ergo_lib_rest_api_node_get_info_async(self.pointer, nodeConf.pointer, 
