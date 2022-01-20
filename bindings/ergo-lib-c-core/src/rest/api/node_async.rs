@@ -19,7 +19,7 @@ use super::runtime::RestApiRuntimePtr;
 pub unsafe fn rest_api_node_get_info_async(
     runtime_ptr: RestApiRuntimePtr,
     node_conf_ptr: NodeConfPtr,
-    callback: CompletedCallback<NodeInfo>,
+    callback: CompletedCallback,
     request_handle_out: *mut RequestHandlePtr,
 ) -> Result<(), Error> {
     let runtime = const_ptr_as_ref(runtime_ptr, "runtime_ptr")?;
@@ -34,7 +34,9 @@ pub unsafe fn rest_api_node_get_info_async(
     let future = Abortable::new(
         async move {
             match ergo_lib::ergo_rest::api::node::get_info(node_conf).await {
-                Ok(node_info) => callback.succeeded(Box::into_raw(Box::new(NodeInfo(node_info)))),
+                Ok(node_info) => callback.succeeded(
+                    Box::into_raw(Box::new(NodeInfo(node_info))) as *mut _ as *mut c_void
+                ),
                 Err(e) => callback.failed(Error::c_api_from(Err(Error::Misc(
                     format!("{:?}", e).into(),
                 )))),
@@ -55,16 +57,16 @@ pub unsafe fn rest_api_node_get_info_async(
 }
 
 #[repr(C)]
-pub struct CompletedCallback<T> {
+pub struct CompletedCallback {
     userdata: NonNull<c_void>,
-    callback: extern "C" fn(NonNull<c_void>, *const T, *const Error),
+    callback: extern "C" fn(NonNull<c_void>, *const c_void, *const Error),
     callback_release: extern "C" fn(NonNull<c_void>),
 }
 
-unsafe impl<T> Send for CompletedCallback<T> {}
+unsafe impl Send for CompletedCallback {}
 
-impl<T> CompletedCallback<T> {
-    pub fn succeeded(self, t: *const T) {
+impl CompletedCallback {
+    pub fn succeeded(self, t: *const c_void) {
         // TODO: take ownership and wrap into raw pointer here
         (self.callback)(self.userdata, t, ptr::null());
         std::mem::forget(self)
@@ -76,7 +78,7 @@ impl<T> CompletedCallback<T> {
     }
 }
 
-impl<T> Drop for CompletedCallback<T> {
+impl Drop for CompletedCallback {
     fn drop(&mut self) {
         // We only should get here on AbortHandle::abort() call
         // see mem::forget above on callbacks

@@ -1,11 +1,15 @@
 import Foundation
 import ErgoLibC
 
-class NodeInfo {
+class NodeInfo: FromRawPtr {
     internal var pointer: NodeInfoPtr
 
     internal init(withRawPointer ptr: NodeInfoPtr) {
         self.pointer = ptr
+    }
+
+    static func fromRawPtr(ptr: UnsafeRawPointer) -> Self {
+        return NodeInfo(withRawPointer: OpaquePointer(ptr)) as! Self
     }
 
     deinit {
@@ -20,4 +24,8 @@ class NodeInfo {
         return str
     }
 
+}
+
+protocol FromRawPtr {
+    static func fromRawPtr(ptr: UnsafeRawPointer) -> Self
 }
