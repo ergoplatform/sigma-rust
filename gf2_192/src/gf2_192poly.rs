@@ -125,14 +125,16 @@ impl Gf2_192Poly {
         res
     }
 
-    /// Returns Vec<u8> consisting of the concatenation of all the coefficients of the polynomial.
-    ///  - Degree-zero coefficient is located at index 0
-    ///  - Each coefficient takes 24 bytes for a total of `(self.degree+1)*24` bytes
+    /// Returns Vec<u8> consisting of the concatenation of all the coefficients of the polynomial
+    /// NOT including the degree-zero coefficient. Each coefficient takes 24 bytes for a total of
+    /// `self.degree * 24` bytes
     pub fn to_bytes(&self) -> Vec<u8> {
-        let mut res: Vec<_> = std::iter::repeat(0).take((self.degree + 1) * 24).collect();
-        for i in 0..self.degree {
+        let mut res: Vec<_> = std::iter::repeat(0).take(self.degree * 24).collect();
+        for i in 1..=self.degree {
             #[allow(clippy::unwrap_used)]
-            self.coefficients[i].to_i8_slice(&mut res, i * 24).unwrap();
+            self.coefficients[i]
+                .to_i8_slice(&mut res, (i - 1) * 24)
+                .unwrap();
         }
         res.into_iter().map(|x| x as u8).collect()
     }
