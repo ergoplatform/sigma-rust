@@ -9,7 +9,7 @@ private class WrapClosure<T> {
     }
 }
 
-private func wrapClosureRawPtr(_ closure: @escaping (Result<UnsafeRawPointer, Error>) -> Void) -> CompletedCallback {
+private func wrapClosureRawPtr(_ closure: @escaping (Result<UnsafeRawPointer, Error>) -> Void) -> CompletionCallback {
     // base on https://www.nickwilcox.com/blog/recipe_swift_rust_callback/
     // step 1: manually increment reference count on closure
     let wrappedClosure = WrapClosure(closure: closure)
@@ -50,11 +50,12 @@ private func wrapClosureRawPtr(_ closure: @escaping (Result<UnsafeRawPointer, Er
             Unmanaged.fromOpaque(userdata).takeRetainedValue()
     }
 
-    return CompletedCallback( userdata: userdata, callback: callback, callback_release: callback_release)
+    return CompletionCallback( swift_closure: userdata, swift_closure_func: callback, 
+        swift_release_closure_func: callback_release)
 }
 
 /// Wraps closure into the struct with C compatible function pointers and memory management
-internal func wrapClosure<T: FromRawPtr>(_ closure: @escaping (Result<T, Error>) -> Void) -> CompletedCallback {
+internal func wrapClosure<T: FromRawPtr>(_ closure: @escaping (Result<T, Error>) -> Void) -> CompletionCallback {
         let closure: (Result<UnsafeRawPointer, Error>) -> Void = {
             (res: Result<UnsafeRawPointer, Error>) in
             let mapped = res.map { rawPtr in 

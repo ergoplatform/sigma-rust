@@ -19,35 +19,29 @@ use super::runtime::RestApiRuntimePtr;
 pub unsafe fn rest_api_node_get_info_async(
     runtime_ptr: RestApiRuntimePtr,
     node_conf_ptr: NodeConfPtr,
-    callback: CompletedCallback,
+    callback: CompletionCallback,
     request_handle_out: *mut RequestHandlePtr,
 ) -> Result<(), Error> {
     let runtime = const_ptr_as_ref(runtime_ptr, "runtime_ptr")?;
     let node_conf = const_ptr_as_ref(node_conf_ptr, "node_conf_ptr")?.0;
 
-    let release_callback = ReleaseCallback {
-        userdata: callback.userdata,
-        callback: callback.callback_release,
-    };
+    let release_callback = (&callback).into();
 
+    // TODO: extract as wrapping func
     let (abort_handle, abort_registration) = AbortHandle::new_pair();
     let future = Abortable::new(
         async move {
             match ergo_lib::ergo_rest::api::node::get_info(node_conf).await {
-                Ok(node_info) => callback.succeeded(
-                    Box::into_raw(Box::new(NodeInfo(node_info))) as *mut _ as *mut c_void
-                ),
-                Err(e) => callback.failed(Error::c_api_from(Err(Error::Misc(
-                    format!("{:?}", e).into(),
-                )))),
+                Ok(node_info) => callback.succeeded(NodeInfo(node_info)),
+                Err(e) => callback.failed(e.into()),
             }
         },
         abort_registration,
     );
-    // abort_handle.abort();
 
     runtime.0.spawn(future);
 
+    // TODO: make more succint
     let request_handle = RequestHandle {
         abort_handle,
         release_callback,
@@ -56,29 +50,31 @@ pub unsafe fn rest_api_node_get_info_async(
     Ok(())
 }
 
+// TODO: extract
 #[repr(C)]
-pub struct CompletedCallback {
-    userdata: NonNull<c_void>,
-    callback: extern "C" fn(NonNull<c_void>, *const c_void, *const Error),
-    callback_release: extern "C" fn(NonNull<c_void>),
+pub struct CompletionCallback {
+    swift_closure: NonNull<c_void>,
+    swift_closure_func: extern "C" fn(NonNull<c_void>, *const c_void, *const Error),
+    swift_release_closure_func: extern "C" fn(NonNull<c_void>),
 }
 
-unsafe impl Send for CompletedCallback {}
+unsafe impl Send for CompletionCallback {}
 
-impl CompletedCallback {
-    pub fn succeeded(self, t: *const c_void) {
-        // TODO: take ownership and wrap into raw pointer here
-        (self.callback)(self.userdata, t, ptr::null());
+impl CompletionCallback {
+    // TODO: constrain T to avoid passing wrong type errors
+    pub fn succeeded<T>(self, t: T) {
+        let ptr = Box::into_raw(Box::new(t)) as *mut _ as *mut c_void;
+        (self.swift_closure_func)(self.swift_closure, ptr, ptr::null());
         std::mem::forget(self)
     }
-    pub fn failed(self, error: *const Error) {
-        // TODO: take ownership and wrap into raw pointer here
-        (self.callback)(self.userdata, ptr::null(), error);
+    pub fn failed(self, error: Error) {
+        let ptr = Error::c_api_from(Err(error));
+        (self.swift_closure_func)(self.swift_closure, ptr::null(), ptr);
         std::mem::forget(self)
     }
 }
 
-impl Drop for CompletedCallback {
+impl Drop for CompletionCallback {
     fn drop(&mut self) {
         // We only should get here on AbortHandle::abort() call
         // see mem::forget above on callbacks
@@ -86,8 +82,18 @@ impl Drop for CompletedCallback {
     }
 }
 
+// TODO: extract
 #[repr(C)]
-pub struct ReleaseCallback {
-    pub userdata: NonNull<c_void>,
-    pub callback: extern "C" fn(NonNull<c_void>),
+pub struct ReleaseCallbackWrapper {
+    pub swift_closure: NonNull<c_void>,
+    pub swift_release_closure_func: extern "C" fn(NonNull<c_void>),
+}
+
+impl From<&CompletionCallback> for ReleaseCallbackWrapper {
+    fn from(cc: &CompletionCallback) -> Self {
+        ReleaseCallbackWrapper {
+            swift_closure: cc.swift_closure,
+            swift_release_closure_func: cc.swift_release_closure_func,
+        }
+    }
 }
