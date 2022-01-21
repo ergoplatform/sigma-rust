@@ -5,7 +5,7 @@ use crate::{concatenate_hashes, prefixed_hash};
     feature = "json",
     derive(serde_repr::Serialize_repr, serde_repr::Deserialize_repr)
 )]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum NodeSide {
     /// Node is on the left side of the current level
@@ -34,12 +34,16 @@ impl std::convert::TryFrom<u8> for NodeSide {
     serde(try_from = "crate::json::LevelNodeJson")
 )]
 #[derive(Copy, Clone, Debug)]
-pub struct LevelNode(pub [u8; 32], pub NodeSide);
+pub struct LevelNode(pub Option<[u8; 32]>, pub NodeSide);
 
 impl LevelNode {
     /// Constructs a new levelnode from a 32 byte hash
     pub fn new(hash: [u8; 32], side: NodeSide) -> Self {
-        Self(hash, side)
+        Self(Some(hash), side)
+    }
+    /// Creates a new level node with no associated hash
+    pub fn empty_node(side: NodeSide) -> Self {
+        Self(None, side)
     }
 }
 
@@ -75,9 +79,14 @@ impl MerkleProof {
         let hash = self
             .levels
             .iter()
-            .fold(leaf_hash, |prev_hash, node| match node.1 {
-                NodeSide::Left => prefixed_hash(1, &concatenate_hashes(&prev_hash, &node.0)), // Prefix hash with 1 (internal node hash)
-                NodeSide::Right => prefixed_hash(1, &concatenate_hashes(&node.0, &prev_hash)),
+            .fold(leaf_hash, |prev_hash, node| match node {
+                LevelNode(Some(hash), NodeSide::Left) => {
+                    prefixed_hash(1, &concatenate_hashes(&prev_hash, &hash))
+                } // Prefix hash with 1 (internal node hash)
+                LevelNode(Some(hash), NodeSide::Right) => {
+                    prefixed_hash(1, &concatenate_hashes(&hash, &prev_hash))
+                }
+                LevelNode(None, _) => prefixed_hash(1, &*prev_hash),
             });
 
         *hash == expected_root
@@ -92,6 +101,10 @@ impl MerkleProof {
     /// Adds a new node (above the current node)
     pub fn add_node(&mut self, node: LevelNode) {
         self.levels.push(node);
+    }
+
+    pub fn get_leaf_data(&self) -> &[u8] {
+        &self.leaf_data
     }
 }
 
@@ -142,6 +155,19 @@ mod test {
             base16::decode("250063ac1cec3bf56f727f644f49b70515616afa6009857a29b1fe298441e69a")
                 .unwrap();
 
+        assert!(proof.valid(&tx_root));
+    }
+
+    // Tests block #0 on ergo mainnet, which contains only one transaction
+    #[test]
+    fn merkle_proof_genesis_block() {
+        let json = "{
+        \"leafData\" : \"4c6282be413c6e300a530618b37790be5f286ded758accc2aebd41554a1be308\",
+        \"levels\" : [[\"\", 0]]}";
+        let proof: MerkleProof = serde_json::from_str(json).unwrap();
+        let tx_root =
+            base16::decode("93fb06aa44413ff57ac878fda9377207d5db0e78833556b331b4d9727b3153ba")
+                .unwrap();
         assert!(proof.valid(&tx_root));
     }
 }

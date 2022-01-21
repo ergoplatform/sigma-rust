@@ -10,8 +10,13 @@ impl std::convert::TryFrom<LevelNodeJson> for LevelNode {
     fn try_from(node: LevelNodeJson) -> Result<Self, Self::Error> {
         let hash = base16::decode(&node.0)?;
         Ok(LevelNode(
-            hash.try_into()
-                .map_err(|_| MerkleProofFromJsonError::LengthError)?,
+            match hash.len() {
+                0 => None,
+                _ => Some(
+                    hash.try_into()
+                        .map_err(|_| MerkleProofFromJsonError::LengthError)?,
+                ),
+            },
             node.1,
         ))
     }
@@ -19,7 +24,12 @@ impl std::convert::TryFrom<LevelNodeJson> for LevelNode {
 
 impl From<LevelNode> for LevelNodeJson {
     fn from(node: LevelNode) -> Self {
-        Self(base16::encode_lower(&node.0), node.1)
+        Self(
+            node.0
+                .map(|hash| base16::encode_lower(&hash))
+                .unwrap_or("".to_string()),
+            node.1,
+        )
     }
 }
 
