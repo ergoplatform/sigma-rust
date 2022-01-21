@@ -8,7 +8,7 @@
 #![deny(unused_mut)]
 #![deny(dead_code)]
 #![deny(unused_imports)]
-#![deny(missing_docs)]
+//#![deny(missing_docs)] TODO
 // Clippy exclusions
 #![allow(clippy::unit_arg)]
 #![deny(rustdoc::broken_intra_doc_links)]
@@ -42,6 +42,9 @@ pub(crate) fn concatenate_hashes(hash_a: &[u8; 32], hash_b: &[u8; 32]) -> [u8; 6
     sum
 }
 
+mod batchmerkleproof;
 mod merkleproof;
+mod merkletree;
 
 pub use merkleproof::*;
+pub use merkletree::*;
