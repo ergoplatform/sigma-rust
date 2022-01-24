@@ -1,5 +1,5 @@
+use ergo_lib_c_core::rest::api::callback::CompletionCallback;
 use ergo_lib_c_core::rest::api::node_async::rest_api_node_get_info_async;
-use ergo_lib_c_core::rest::api::node_async::CompletionCallback;
 use ergo_lib_c_core::rest::api::request_handle::RequestHandlePtr;
 use ergo_lib_c_core::rest::api::runtime::RestApiRuntimePtr;
 use ergo_lib_c_core::rest::node_conf::NodeConfPtr;

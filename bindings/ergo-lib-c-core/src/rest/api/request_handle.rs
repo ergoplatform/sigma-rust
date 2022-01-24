@@ -3,7 +3,7 @@ use futures_util::future::AbortHandle;
 use crate::util::const_ptr_as_ref;
 use crate::Error;
 
-use super::node_async::ReleaseCallbackWrapper;
+use super::callback::ReleaseCallbackWrapper;
 
 pub struct RequestHandle {
     pub abort_handle: AbortHandle,

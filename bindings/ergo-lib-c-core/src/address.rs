@@ -82,9 +82,9 @@ pub unsafe fn address_type_prefix(address: ConstAddressPtr) -> Result<AddressTyp
 }
 
 /// Drop the `Address`
-pub fn address_delete(address: AddressPtr) {
+pub unsafe fn address_delete(address: AddressPtr) {
     if !address.is_null() {
-        let boxed = unsafe { Box::from_raw(address) };
+        let boxed = Box::from_raw(address);
         std::mem::drop(boxed);
     }
 }
