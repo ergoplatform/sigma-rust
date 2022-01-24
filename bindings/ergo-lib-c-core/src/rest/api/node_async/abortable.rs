@@ -3,19 +3,17 @@ use futures_util::future::Abortable;
 
 use crate::rest::api::callback::ReleaseCallbackWrapper;
 use crate::rest::api::request_handle::RequestHandle;
-use crate::rest::api::runtime::RestApiRuntimePtr;
-use crate::util::const_ptr_as_ref;
+use crate::rest::api::runtime::RestApiRuntime;
 use crate::Error;
 
-pub(crate) unsafe fn spawn_abortable<T: 'static>(
-    runtime_ptr: RestApiRuntimePtr,
+pub(crate) fn spawn_abortable<T: 'static>(
+    runtime: &RestApiRuntime,
     release_callback: ReleaseCallbackWrapper,
     task: T,
 ) -> Result<RequestHandle, Error>
 where
     T: futures_util::Future<Output = ()> + Send,
 {
-    let runtime = const_ptr_as_ref(runtime_ptr, "runtime_ptr")?;
     let (abort_handle, abort_registration) = AbortHandle::new_pair();
     let future = Abortable::new(task, abort_registration);
     runtime.0.spawn(future);
