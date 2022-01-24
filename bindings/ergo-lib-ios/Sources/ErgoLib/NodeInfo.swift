@@ -12,10 +12,6 @@ class NodeInfo: FromRawPtr {
         return NodeInfo(withRawPointer: OpaquePointer(ptr)) as! Self
     }
 
-    deinit {
-        ergo_lib_node_info_delete(self.pointer)
-    }
-
     func getName() -> String {
         var cStr: UnsafePointer<CChar>?
         ergo_lib_node_info_get_name(self.pointer, &cStr)
@@ -24,6 +20,9 @@ class NodeInfo: FromRawPtr {
         return str
     }
 
+    deinit {
+        ergo_lib_node_info_delete(self.pointer)
+    }
 }
 
 protocol FromRawPtr {

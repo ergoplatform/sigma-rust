@@ -23,6 +23,7 @@ mod error;
 mod known_nodes;
 mod node_conf;
 mod node_info;
+mod node_response;
 mod peer_info;
 
 pub mod api;
@@ -31,4 +32,5 @@ pub use error::NodeError;
 pub use known_nodes::KnownNodes;
 pub use node_conf::NodeConf;
 pub use node_info::NodeInfo;
+pub use node_response::NodeResponse;
 pub use peer_info::PeerInfo;

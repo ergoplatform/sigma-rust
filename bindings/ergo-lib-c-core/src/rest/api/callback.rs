@@ -2,6 +2,8 @@ use std::ffi::c_void;
 use std::ptr;
 use std::ptr::NonNull;
 
+use ergo_lib::ergo_rest::NodeResponse;
+
 use crate::Error;
 
 #[repr(C)]
@@ -14,8 +16,7 @@ pub struct CompletionCallback {
 unsafe impl Send for CompletionCallback {}
 
 impl CompletionCallback {
-    // TODO: constrain T to avoid passing wrong type errors
-    pub fn succeeded<T>(self, t: T) {
+    pub fn succeeded<T: NodeResponse>(self, t: T) {
         let ptr = Box::into_raw(Box::new(t)) as *mut _ as *mut c_void;
         (self.swift_closure_func)(self.swift_closure, ptr, ptr::null());
         std::mem::forget(self)

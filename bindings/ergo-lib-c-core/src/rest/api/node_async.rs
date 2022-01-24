@@ -1,7 +1,6 @@
 //! Async REST API for Ergo node
 
 use crate::rest::node_conf::NodeConfPtr;
-use crate::rest::node_info::NodeInfo;
 use crate::util::const_ptr_as_ref;
 use crate::Error;
 
@@ -25,7 +24,7 @@ pub unsafe fn rest_api_node_get_info_async(
     let release_callback: ReleaseCallbackWrapper = (&callback).into();
     let request_handle = spawn_abortable(runtime, release_callback, async move {
         match ergo_lib::ergo_rest::api::node::get_info(node_conf).await {
-            Ok(node_info) => callback.succeeded(NodeInfo(node_info)),
+            Ok(node_info) => callback.succeeded(node_info),
             Err(e) => callback.failed(e.into()),
         }
     })?;
