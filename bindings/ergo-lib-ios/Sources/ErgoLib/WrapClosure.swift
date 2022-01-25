@@ -26,8 +26,9 @@ private func wrapClosureRawPtr(_ closure: @escaping (Result<UnsafeRawPointer, Er
         if let resPtr = resPtr {
             // success
             let res = Result<UnsafeRawPointer, Error>.success(resPtr)
-            // TODO: call it on the main/UI thread?
-            wrappedClosure.closure(res)
+            DispatchQueue.main.async {
+                wrappedClosure.closure(res)
+            }
         } else {
             // failure
             let cStringReason = ergo_lib_error_to_string(errorPtr!)
@@ -35,8 +36,9 @@ private func wrapClosureRawPtr(_ closure: @escaping (Result<UnsafeRawPointer, Er
             ergo_lib_delete_string(cStringReason)
             ergo_lib_delete_error(errorPtr)
             let res = Result<UnsafeRawPointer, Error>.failure(RestNodeApiError.misc(reason))
-            // TODO: call it on the main/UI thread?
-            wrappedClosure.closure(res)
+            DispatchQueue.main.async {
+                wrappedClosure.closure(res)
+            }
         }
     }
 
