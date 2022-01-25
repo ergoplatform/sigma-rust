@@ -9,7 +9,7 @@ class RequestHandle {
         self.pointer = ptr
     }
     
-    /// Abort the request
+    /// Abort the request and frees this instance
     func abort() {
         ergo_lib_rest_api_request_handle_abort(self.pointer)
     }

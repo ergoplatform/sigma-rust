@@ -48,8 +48,8 @@ private func wrapClosureRawPtr(_ closure: @escaping (Result<UnsafeRawPointer, Er
         // reverse step 1 and manually decrement reference count on the closure and turn it back to Swift type.
         // Because we are back to letting Swift manage our reference count, when the scope ends 
         // the wrapped closure will be freed.
-        let _ :WrapClosure<(Result<UnsafeRawPointer, Error>) -> Void> = 
-            Unmanaged.fromOpaque(userdata).takeRetainedValue()
+        let c_ptr: Unmanaged<WrapClosure<(Result<UnsafeRawPointer, Error>) -> Void>> = Unmanaged.fromOpaque(userdata)
+        _ = c_ptr.takeRetainedValue()
     }
 
     return CompletionCallback( swift_closure: userdata, swift_closure_func: callback, 
