@@ -66,7 +66,7 @@ jobs:
           args: --verbose --release
         
   test_coverage:
-    name: Code coverage
+    name: Code coverage in tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -106,7 +106,7 @@ jobs:
           args: --all-features --all-targets -- -D warnings
 
   js_tests:
-    name: run JS tests and publish alpha versions
+    name: Run JS tests and publish alpha versions
     runs-on: ubuntu-latest
     env:
       HAS_NPM_TOKEN: ${{ secrets.NPM_TOKEN != '' }}
@@ -164,7 +164,7 @@ jobs:
           tag: 'alpha'
 
   rustfmt:
-    name: rustfmt
+    name: Code formatting (rustfmt)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
