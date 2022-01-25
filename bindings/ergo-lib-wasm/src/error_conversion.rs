@@ -1,6 +1,7 @@
 //! Trait implementations to simplify conversion of `ergo_lib` errors into `JsValue`s
 
 use std::array::TryFromSliceError;
+use std::net::AddrParseError;
 use std::num::ParseIntError;
 
 use base16::DecodeError;
@@ -65,6 +66,7 @@ from_error_to_wrap!(TxSigningError);
 from_error_to_wrap!(WalletError);
 from_error_to_wrap!(DecodeError);
 from_error_to_wrap!(TryFromSliceError);
+from_error_to_wrap!(AddrParseError);
 
 macro_rules! from_error_to_wrap_via_debug {
     ($t:ident) => {

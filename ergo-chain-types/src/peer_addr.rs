@@ -5,12 +5,13 @@ use std::{
     str::FromStr,
 };
 
+use derive_more::FromStr;
 use derive_more::{Display, From, Into};
 use sigma_ser::{ScorexSerializable, ScorexSerializationError};
 use url::Url;
 
 /// Peer address
-#[derive(PartialEq, Eq, Debug, Copy, Clone, From, Into, Hash, Display)]
+#[derive(PartialEq, Eq, Debug, Copy, Clone, From, Into, Hash, Display, FromStr)]
 pub struct PeerAddr(SocketAddr);
 
 impl PeerAddr {

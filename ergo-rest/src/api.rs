@@ -2,17 +2,30 @@
 
 use ergo_chain_types::BlockId;
 use ergo_nipopow::NipopowProof;
+use reqwest::header::CONTENT_TYPE;
+use reqwest::RequestBuilder;
 
 use crate::NodeConf;
 use crate::NodeError;
 use crate::NodeInfo;
 use crate::PeerInfo;
 
+fn set_req_headers(rb: RequestBuilder, node: NodeConf) -> RequestBuilder {
+    rb.header("accept", "application/json")
+        .header("api_key", node.get_node_api_header())
+        .header(CONTENT_TYPE, "application/json")
+}
+
 /// GET on /info endpoint
 pub async fn get_info(node: NodeConf) -> Result<NodeInfo, NodeError> {
     #[allow(clippy::unwrap_used)]
     let url = node.addr.as_http_url().join("info").unwrap();
-    Ok(reqwest::get(url).await?.json::<NodeInfo>().await?)
+    let rb = reqwest::Client::new().get(url);
+    Ok(set_req_headers(rb, node)
+        .send()
+        .await?
+        .json::<NodeInfo>()
+        .await?)
 }
 
 /// GET on /peers/all endpoint
@@ -37,3 +50,24 @@ pub async fn get_nipopow_proof_by_header_id(
 // ) -> Result<Option<MerkleProof>, NodeError> {
 //     todo!()
 // }
+
+#[allow(clippy::unwrap_used)]
+#[allow(unused_imports)]
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
+
+    use ergo_chain_types::PeerAddr;
+
+    use super::*;
+
+    // #[tokio::test]
+    // async fn test_get_info() {
+    //     let node_conf = NodeConf {
+    //         addr: PeerAddr::from_str("213.239.193.208:9053").unwrap(),
+    //         api_key: None,
+    //     };
+    //     let res = get_info(node_conf).await.unwrap();
+    //     assert_eq!(res.name, "ergo-mainnet-4.0.16.1");
+    // }
+}
