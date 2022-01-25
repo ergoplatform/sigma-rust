@@ -81,12 +81,12 @@ impl Neg for EcPoint {
 /// The generator g of the group is an element of the group such that, when written multiplicatively, every element
 /// of the group is a power of g.
 pub fn generator() -> EcPoint {
-    EcPoint(ProjectivePoint::generator())
+    EcPoint(ProjectivePoint::GENERATOR)
 }
 
 /// The identity(infinity) element
 pub const fn identity() -> EcPoint {
-    EcPoint(ProjectivePoint::identity())
+    EcPoint(ProjectivePoint::IDENTITY)
 }
 
 /// Check if point is identity(infinity) element
@@ -185,7 +185,7 @@ impl SigmaSerializable for EcPoint {
             Ok(EcPoint(pubkey.to_projective()))
         } else {
             // infinity point
-            Ok(EcPoint(ProjectivePoint::identity()))
+            Ok(EcPoint(ProjectivePoint::IDENTITY))
         }
     }
 }
