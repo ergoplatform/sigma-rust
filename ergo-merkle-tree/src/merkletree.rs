@@ -1,5 +1,5 @@
-const HASH_SIZE: usize = 32;
 use crate::{prefixed_hash, prefixed_hash2};
+use crate::{HASH_SIZE, INTERNAL_PREFIX, LEAF_PREFIX};
 use std::collections::BTreeSet;
 
 /// Node for a Merkle Tree
@@ -25,7 +25,7 @@ impl MerkleNode {
     }
     /// Creates a new Leaf Node from a hash. The hash is prefixed with a leaf node prefix.
     pub fn from_bytes<T: AsRef<[u8]>>(bytes: T) -> Self {
-        let hash = *prefixed_hash(0, bytes.as_ref());
+        let hash = *prefixed_hash(LEAF_PREFIX, bytes.as_ref());
         MerkleNode::Leaf {
             hash,
             data: bytes.as_ref().try_into().unwrap(),
@@ -163,10 +163,10 @@ impl MerkleTree {
                     nodes[get_sibling(pair).unwrap()].get_hash(),
                 ) {
                     (Some(left_hash), Some(right_hash)) => MerkleNode::Node {
-                        hash: *prefixed_hash2(1, &left_hash[..], &right_hash[..]),
+                        hash: *prefixed_hash2(INTERNAL_PREFIX, &left_hash[..], &right_hash[..]),
                     },
                     (Some(hash), None) => MerkleNode::Node {
-                        hash: *prefixed_hash(1, hash),
+                        hash: *prefixed_hash(INTERNAL_PREFIX, hash),
                     },
                     (None, None) => MerkleNode::EmptyNode,
                     _ => unreachable!(),

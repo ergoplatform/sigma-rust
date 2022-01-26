@@ -1,5 +1,6 @@
 use crate::NodeSide;
 use crate::{concatenate_hashes, prefixed_hash, prefixed_hash2};
+use crate::{HASH_SIZE, INTERNAL_PREFIX};
 #[derive(Debug)]
 pub struct BatchMerkleProof {
     indices: Vec<(usize, [u8; 32])>,
@@ -7,12 +8,16 @@ pub struct BatchMerkleProof {
 }
 
 impl BatchMerkleProof {
-    pub fn new(indices: Vec<(usize, [u8; 32])>, proofs: Vec<crate::LevelNode>) -> Self {
+    pub fn new(indices: Vec<(usize, [u8; HASH_SIZE])>, proofs: Vec<crate::LevelNode>) -> Self {
         BatchMerkleProof { indices, proofs }
     }
 
-    pub fn valid(&self, expected_root: &[u8; 32]) -> bool {
-        fn validate(a: &[usize], e: &[(usize, [u8; 32])], m: &[crate::LevelNode]) -> Vec<[u8; 32]> {
+    pub fn valid(&self, expected_root: &[u8; HASH_SIZE]) -> bool {
+        fn validate(
+            a: &[usize],
+            e: &[(usize, [u8; HASH_SIZE])],
+            m: &[crate::LevelNode],
+        ) -> Vec<[u8; HASH_SIZE]> {
             let b: Vec<(usize, usize)> = a
                 .iter()
                 .map(|i| if i % 2 == 0 { (*i, i + 1) } else { (i - 1, *i) })
@@ -25,18 +30,21 @@ impl BatchMerkleProof {
             let mut i = 0;
             while i < b.len() {
                 if b.len() > 1 && b.get(i) == b.get(i + 1) {
-                    e_new.push(*prefixed_hash(1, &concatenate_hashes(&e[i].1, &e[i + 1].1)));
+                    e_new.push(*prefixed_hash(
+                        INTERNAL_PREFIX,
+                        &concatenate_hashes(&e[i].1, &e[i + 1].1),
+                    ));
                     i += 2;
                 } else {
                     if m_new[0].1 == NodeSide::Left {
                         e_new.push(*prefixed_hash2(
-                            1,
+                            INTERNAL_PREFIX,
                             m_new[0].0.as_ref().map(|h| h.as_slice()),
                             e[i].1.as_slice(),
                         ));
                     } else {
                         e_new.push(*prefixed_hash2(
-                            1,
+                            INTERNAL_PREFIX,
                             e[i].1.as_slice(),
                             m_new[0].0.as_ref().map(|h| h.as_slice()),
                         ));

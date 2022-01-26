@@ -27,9 +27,9 @@ impl LevelNode {
     /// Returns the associated digest (hash) with this node. Returns an empty array if there's no hash
     #[wasm_bindgen(getter)]
     pub fn digest(&self) -> Vec<u8> {
-        match self.0.0 {
+        match self.0 .0 {
             Some(hash) => hash[0..].to_owned(),
-            None => vec![]
+            None => vec![],
         }
     }
     /// Returns the associated side with this node (0 = Left, 1 = Right)

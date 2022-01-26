@@ -21,6 +21,11 @@
 use blake2::digest::{Update, VariableOutput};
 use blake2::VarBlake2b;
 
+// Constants for hashing
+pub const HASH_SIZE: usize = 32;
+pub(crate) const INTERNAL_PREFIX: u8 = 1;
+pub(crate) const LEAF_PREFIX: u8 = 0;
+
 #[cfg(feature = "json")]
 pub(crate) mod json;
 

@@ -1,4 +1,5 @@
 use crate::{concatenate_hashes, prefixed_hash};
+use crate::{HASH_SIZE, INTERNAL_PREFIX};
 
 /// The side the merkle node is on in the tree
 #[cfg_attr(
@@ -34,11 +35,11 @@ impl std::convert::TryFrom<u8> for NodeSide {
     serde(try_from = "crate::json::LevelNodeJson")
 )]
 #[derive(Copy, Clone, Debug)]
-pub struct LevelNode(pub Option<[u8; 32]>, pub NodeSide);
+pub struct LevelNode(pub Option<[u8; HASH_SIZE]>, pub NodeSide);
 
 impl LevelNode {
     /// Constructs a new levelnode from a 32 byte hash
-    pub fn new(hash: [u8; 32], side: NodeSide) -> Self {
+    pub fn new(hash: [u8; HASH_SIZE], side: NodeSide) -> Self {
         Self(Some(hash), side)
     }
     /// Creates a new level node with no associated hash
@@ -56,7 +57,7 @@ impl LevelNode {
 )]
 #[derive(Clone, Debug)]
 pub struct MerkleProof {
-    pub(crate) leaf_data: [u8; 32],
+    pub(crate) leaf_data: [u8; HASH_SIZE],
     pub(crate) levels: Vec<LevelNode>,
 }
 
@@ -81,12 +82,12 @@ impl MerkleProof {
             .iter()
             .fold(leaf_hash, |prev_hash, node| match node {
                 LevelNode(Some(hash), NodeSide::Left) => {
-                    prefixed_hash(1, &concatenate_hashes(&prev_hash, &hash))
+                    prefixed_hash(INTERNAL_PREFIX, &concatenate_hashes(&prev_hash, &hash))
                 } // Prefix hash with 1 (internal node hash)
                 LevelNode(Some(hash), NodeSide::Right) => {
-                    prefixed_hash(1, &concatenate_hashes(&hash, &prev_hash))
+                    prefixed_hash(INTERNAL_PREFIX, &concatenate_hashes(&hash, &prev_hash))
                 }
-                LevelNode(None, _) => prefixed_hash(1, &*prev_hash),
+                LevelNode(None, _) => prefixed_hash(INTERNAL_PREFIX, &*prev_hash),
             });
 
         *hash == expected_root
