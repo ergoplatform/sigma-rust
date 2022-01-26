@@ -1,9 +1,9 @@
 use crate::NodeSide;
-use crate::{concatenate_hashes, prefixed_hash};
+use crate::{concatenate_hashes, prefixed_hash, prefixed_hash2};
 #[derive(Debug)]
 pub struct BatchMerkleProof {
     indices: Vec<(usize, [u8; 32])>,
-    proofs: Vec<crate::LevelNode>,
+    pub proofs: Vec<crate::LevelNode>,
 }
 
 impl BatchMerkleProof {
@@ -21,6 +21,7 @@ impl BatchMerkleProof {
             let mut e_new = vec![];
             let mut m_new = m.to_owned();
 
+            assert!(e.len() == b.len());
             let mut i = 0;
             while i < b.len() {
                 if b.len() > 1 && b.get(i) == b.get(i + 1) {
@@ -28,20 +29,22 @@ impl BatchMerkleProof {
                     i += 2;
                 } else {
                     if m_new[0].1 == NodeSide::Left {
-                        e_new.push(*prefixed_hash(
+                        e_new.push(*prefixed_hash2(
                             1,
-                            &concatenate_hashes(&m_new[0].0.unwrap(), &e[i].1),
+                            m_new[0].0.as_ref().map(|h| h.as_slice()),
+                            e[i].1.as_slice(),
                         ));
                     } else {
-                        e_new.push(*prefixed_hash(
+                        e_new.push(*prefixed_hash2(
                             1,
-                            &concatenate_hashes(&e[i].1, &m_new[0].0.unwrap()),
+                            e[i].1.as_slice(),
+                            m_new[0].0.as_ref().map(|h| h.as_slice()),
                         ));
                     }
-                }
 
-                m_new.remove(0);
-                i += 1;
+                    m_new.remove(0);
+                    i += 1;
+                }
             }
             let mut a_new: Vec<usize> = b.iter().map(|(_, b)| b / 2).collect();
             a_new.sort();

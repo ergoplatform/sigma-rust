@@ -1,6 +1,5 @@
 const HASH_SIZE: usize = 32;
-use crate::concatenate_hashes;
-use crate::prefixed_hash;
+use crate::{prefixed_hash, prefixed_hash2};
 use std::collections::BTreeSet;
 
 /// Node for a Merkle Tree
@@ -164,7 +163,7 @@ impl MerkleTree {
                     nodes[get_sibling(pair).unwrap()].get_hash(),
                 ) {
                     (Some(left_hash), Some(right_hash)) => MerkleNode::Node {
-                        hash: *prefixed_hash(1, &concatenate_hashes(&left_hash, &right_hash)),
+                        hash: *prefixed_hash2(1, &left_hash[..], &right_hash[..]),
                     },
                     (Some(hash), None) => MerkleNode::Node {
                         hash: *prefixed_hash(1, hash),
@@ -205,6 +204,14 @@ impl MerkleTree {
         let mut leaf_indices = leaf_indices.to_owned();
         leaf_indices.sort();
         leaf_indices.dedup();
+        if leaf_indices.len() == 0
+            || leaf_indices
+                .iter()
+                .any(|i| *i > self.nodes.len() - self.internal_nodes)
+        {
+            return None;
+        }
+
         build_multiproof(&self.nodes, &leaf_indices, self.internal_nodes)
     }
 }
@@ -281,7 +288,7 @@ mod test {
     #[cfg(feature = "arbitrary")]
     proptest! {
         #[test]
-        fn merkle_tree_test_arbitrary(data in vec(uniform32(0u8..), 1..32)) {
+        fn merkle_tree_test_arbitrary_proof(data in vec(uniform32(0u8..), 0..1000)) {
             let nodes: Vec<MerkleNode> = data.iter().map(MerkleNode::from_bytes).collect();
             let tree = MerkleTree::new(&nodes);
             for i in 0..nodes.len() {
@@ -290,6 +297,19 @@ mod test {
                     nodes[i].get_leaf_data().unwrap()
                 );
                 assert!(tree.proof_by_index(i).unwrap().valid(tree.get_root_hash().unwrap()));
+            }
+        }
+        #[test]
+        fn merkle_tree_test_arbitrary_batch_proof(data in vec(uniform32(0u8..), 0..1000), indices in vec(0..1000usize, 0..1000)) {
+            let nodes: Vec<MerkleNode> = data.iter().map(MerkleNode::from_bytes).collect();
+            let tree = MerkleTree::new(&nodes);
+
+            let valid = indices.iter().all(|i| *i < data.len()) && indices.len() < data.len(); // TODO, is there any better strategy for proptest that doesn't require us to filter out invalid indices
+            if valid {
+                assert!(tree.proof_by_indices(&indices).unwrap().valid(tree.get_root_hash().unwrap()));
+            }
+            else {
+                assert!(tree.proof_by_indices(&indices).is_none());
             }
         }
     }

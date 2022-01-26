@@ -35,6 +35,27 @@ pub(crate) fn prefixed_hash(prefix: u8, data: &[u8]) -> Box<[u8; 32]> {
     hash.try_into().unwrap()
 }
 
+#[allow(clippy::unwrap_used)]
+// Generates a hash of data prefixed with `prefix`, allows for an optional second hash
+pub(crate) fn prefixed_hash2<'a>(
+    prefix: u8,
+    data: impl Into<Option<&'a [u8]>>,
+    data2: impl Into<Option<&'a [u8]>>,
+) -> Box<[u8; 32]> {
+    let mut hasher = VarBlake2b::new(32).unwrap();
+    hasher.update(&[prefix]);
+    match data.into() {
+        Some(data) => hasher.update(data),
+        None => {}
+    };
+    match data2.into() {
+        Some(data) => hasher.update(data),
+        None => {}
+    };
+    let hash = hasher.finalize_boxed();
+    hash.try_into().unwrap()
+}
+
 pub(crate) fn concatenate_hashes(hash_a: &[u8; 32], hash_b: &[u8; 32]) -> [u8; 64] {
     let mut sum = [0; 64];
     sum[0..32].clone_from_slice(hash_a);
