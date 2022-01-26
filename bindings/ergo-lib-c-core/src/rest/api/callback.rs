@@ -20,7 +20,7 @@ pub struct CompletionCallback {
 unsafe impl Send for CompletionCallback {}
 
 impl CompletionCallback {
-    /// Should be called on succesfull task execution (exactly once, thus ownership)
+    /// Should be called on succesfull task execution (exactly once, thus takes ownership)
     pub fn succeeded<T: NodeResponse>(self, t: T) {
         let ptr = Box::into_raw(Box::new(t)) as *mut _ as *mut c_void;
         (self.swift_closure_func)(self.swift_closure, ptr, ptr::null());
@@ -28,7 +28,7 @@ impl CompletionCallback {
         std::mem::forget(self)
     }
 
-    /// Should be called if task fails (exactly once, thus ownership)
+    /// Should be called if task fails (exactly once, thus takes ownership)
     pub fn failed(self, error: Error) {
         let ptr = Error::c_api_from(Err(error));
         (self.swift_closure_func)(self.swift_closure, ptr::null(), ptr);
@@ -46,7 +46,7 @@ pub struct ReleaseCallbackWrapper {
 }
 
 impl ReleaseCallbackWrapper {
-    /// Release the callback
+    /// Call the user's closure release func
     pub fn release_callback(&self) {
         (self.swift_release_closure_func)(self.swift_closure);
     }
