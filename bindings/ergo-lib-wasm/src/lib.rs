@@ -13,6 +13,7 @@
 // Clippy warnings
 #![allow(clippy::new_without_default)]
 #![allow(clippy::len_without_is_empty)]
+#![allow(clippy::unused_unit)]
 #![deny(clippy::wildcard_enum_match_arm)]
 
 pub mod address;
