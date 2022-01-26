@@ -55,7 +55,7 @@ impl BatchMerkleProof {
                 }
             }
             let mut a_new: Vec<usize> = b.iter().map(|(_, b)| b / 2).collect();
-            a_new.sort();
+            a_new.sort_unstable();
             a_new.dedup();
 
             if !m_new.is_empty() || e_new.len() > 1 {

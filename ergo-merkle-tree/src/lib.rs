@@ -49,13 +49,12 @@ pub(crate) fn prefixed_hash2<'a>(
 ) -> Box<[u8; 32]> {
     let mut hasher = VarBlake2b::new(32).unwrap();
     hasher.update(&[prefix]);
-    match data.into() {
-        Some(data) => hasher.update(data),
-        None => {}
-    };
-    match data2.into() {
-        Some(data) => hasher.update(data),
-        None => {}
+
+    if let Some(data) = data.into() {
+        hasher.update(data);
+    }
+    if let Some(data2) = data2.into() {
+        hasher.update(data2);
     };
     let hash = hasher.finalize_boxed();
     hash.try_into().unwrap()

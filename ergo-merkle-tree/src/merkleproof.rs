@@ -1,4 +1,4 @@
-use crate::{concatenate_hashes, prefixed_hash};
+use crate::{prefixed_hash, prefixed_hash2};
 use crate::{HASH_SIZE, INTERNAL_PREFIX};
 
 /// The side the merkle node is on in the tree
@@ -82,10 +82,10 @@ impl MerkleProof {
             .iter()
             .fold(leaf_hash, |prev_hash, node| match node {
                 LevelNode(Some(hash), NodeSide::Left) => {
-                    prefixed_hash(INTERNAL_PREFIX, &concatenate_hashes(&prev_hash, &hash))
+                    prefixed_hash2(INTERNAL_PREFIX, &prev_hash[..], &hash[..])
                 } // Prefix hash with 1 (internal node hash)
                 LevelNode(Some(hash), NodeSide::Right) => {
-                    prefixed_hash(INTERNAL_PREFIX, &concatenate_hashes(&hash, &prev_hash))
+                    prefixed_hash2(INTERNAL_PREFIX, &hash[..], &prev_hash[..])
                 }
                 LevelNode(None, _) => prefixed_hash(INTERNAL_PREFIX, &*prev_hash),
             });

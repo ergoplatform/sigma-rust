@@ -27,7 +27,7 @@ impl From<LevelNode> for LevelNodeJson {
         Self(
             node.0
                 .map(|hash| base16::encode_lower(&hash))
-                .unwrap_or("".to_string()),
+                .unwrap_or_else(String::new),
             node.1,
         )
     }
