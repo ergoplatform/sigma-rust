@@ -26,7 +26,9 @@ final class RestNodeApiAsyncTests: XCTestCase {
         let nodeConf = try NodeConf(withAddrString: "213.239.193.208:9053")
         let restNodeApiAsync = try RestNodeApiAsync()
         let handle = try restNodeApiAsync.getInfo(nodeConf: nodeConf,
-            closure: { (res: Result<NodeInfo, Error>) -> () in })
+            closure: { (res: Result<NodeInfo, Error>) -> () in 
+                XCTFail("this should not be called")
+            })
         handle.abort()
     }
 }
