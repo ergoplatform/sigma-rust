@@ -2,7 +2,11 @@ use ergotree_ir::{chain::header::Header, sigma_protocol::dlog_group::order};
 use num_bigint::BigInt;
 use num_traits::ToPrimitive;
 
-use crate::autolykos_pow_scheme::{AutolykosPowScheme, AutolykosPowSchemeError};
+use crate::{
+    autolykos_pow_scheme::{AutolykosPowScheme, AutolykosPowSchemeError},
+    nipopow_proof::PoPowHeader,
+    NipopowProof, NipopowProofError,
+};
 
 /// A set of utilities for working with NiPoPoW protocol.
 ///
@@ -15,7 +19,7 @@ use crate::autolykos_pow_scheme::{AutolykosPowScheme, AutolykosPowSchemeError};
 /// Please note that for KMZ17 we're using the version published @ Financial Cryptography 2020,
 /// which is different from previously published versions on IACR eprint.
 #[derive(Default, Debug, Clone)]
-pub(crate) struct NipopowAlgos {
+pub struct NipopowAlgos {
     /// The proof-of-work scheme
     pow_scheme: AutolykosPowScheme,
 }
@@ -41,11 +45,7 @@ impl NipopowAlgos {
     /// end function
     ///
     /// [`KMZ17`]: https://fc20.ifca.ai/preproceedings/74.pdf
-    pub(crate) fn best_arg(
-        &self,
-        chain: &[&Header],
-        m: u32,
-    ) -> Result<usize, AutolykosPowSchemeError> {
+    pub fn best_arg(&self, chain: &[&Header], m: u32) -> Result<usize, AutolykosPowSchemeError> {
         // Little helper struct for loop below
         struct Acc {
             level: u32,
@@ -55,15 +55,17 @@ impl NipopowAlgos {
             level: 1,
             acc: vec![(0, chain.len())],
         };
+        println!("best_arg_start");
         let acc = loop {
             let mut args = vec![];
+            println!("res.level: {}", res.level);
             for h in chain {
                 if (self.max_level_of(h)? as u32) >= res.level {
                     args.push(h);
                 }
             }
             if args.len() >= (m as usize) {
-                res.acc.push((res.level, args.len()));
+                res.acc.insert(0, (res.level, args.len()));
                 res = Acc {
                     level: res.level + 1,
                     acc: res.acc,
@@ -84,7 +86,7 @@ impl NipopowAlgos {
     }
 
     /// Computes max level (μ) of the given header, such that μ = log(T) − log(id(B))
-    pub(crate) fn max_level_of(&self, header: &Header) -> Result<i32, AutolykosPowSchemeError> {
+    pub fn max_level_of(&self, header: &Header) -> Result<i32, AutolykosPowSchemeError> {
         let genesis_header = header.height == 1;
         if !genesis_header {
             // Order of the secp256k1 elliptic curve
@@ -103,7 +105,7 @@ impl NipopowAlgos {
     }
 
     /// Finds the last common header (branching point) between `left_chain` and `right_chain`.
-    pub(crate) fn lowest_common_ancestor(
+    pub fn lowest_common_ancestor(
         &self,
         left_chain: &[&Header],
         right_chain: &[&Header],
@@ -127,6 +129,69 @@ impl NipopowAlgos {
             }
         }
         common.last().cloned().cloned()
+    }
+
+    /// Computes NiPoPow proof for the given `chain` according to given `params`.
+    pub fn prove(
+        &self,
+        chain: &[PoPowHeader],
+        k: u32,
+        m: u32,
+    ) -> Result<NipopowProof, NipopowProofError> {
+        if k == 0 {
+            return Err(NipopowProofError::ZeroKParameter);
+        }
+        if chain.len() < ((k + m) as usize) {
+            return Err(NipopowProofError::ChainTooShort);
+        }
+        if chain[0].header.height != 1 {
+            return Err(NipopowProofError::NonAnchoredChain);
+        }
+
+        let suffix = chain[(chain.len() - (k as usize))..].to_vec();
+        let suffix_head = suffix[0].clone();
+        let suffix_tail: Vec<Header> = suffix[1..].iter().map(|p| p.header.clone()).collect();
+        #[allow(clippy::unwrap_used)]
+        let max_level: i32 = if chain.len() > (k as usize) {
+            (chain[..(chain.len() - (k as usize))]
+                .last()
+                .unwrap()
+                .interlinks
+                .len()
+                - 1) as i32
+        } else {
+            return Err(NipopowProofError::ChainTooShort);
+        };
+
+        // Here is non-recursive implementation of the scala `provePrefix` function
+        let mut prefix = vec![];
+        let mut stack = vec![(chain[0].clone(), max_level)];
+        while let Some((anchoring_point, level)) = stack.pop() {
+            if level >= 0 {
+                // C[:−k]{B:}↑µ
+                let mut sub_chain = vec![];
+
+                for p in &chain[..(chain.len() - (k as usize))] {
+                    let max_level = self.max_level_of(&p.header)?;
+                    if max_level >= level && p.header.height >= anchoring_point.header.height {
+                        sub_chain.push(p.clone());
+                    }
+                }
+
+                if (m as usize) < sub_chain.len() {
+                    stack.push((sub_chain[sub_chain.len() - (m as usize)].clone(), level - 1));
+                } else {
+                    stack.push((anchoring_point, level - 1));
+                }
+                for pph in sub_chain {
+                    if !prefix.contains(&pph) {
+                        prefix.push(pph);
+                    }
+                }
+            }
+        }
+        prefix.sort_by(|a, b| a.header.height.cmp(&b.header.height));
+        NipopowProof::new(m, k, prefix, suffix_head, suffix_tail)
     }
 }
 
@@ -189,6 +254,52 @@ pub(crate) fn decode_compact_bits(n_bits: u64) -> BigInt {
     }
 }
 
+/// This module exposes some internal code for integration testing.
+#[doc(hidden)]
+pub mod test {
+    use num_bigint::BigInt;
+
+    use crate::autolykos_pow_scheme::AutolykosPowScheme;
+
+    use super::decode_compact_bits;
+
+    /// Wrapper for `decode_compact_bits`
+    pub fn decode_n_bits(n_bits: u64) -> BigInt {
+        decode_compact_bits(n_bits)
+    }
+
+    /// Wrapper for `AutolykosPowScheme::calc_big_n` method
+    pub fn calc_big_n(header_version: u8, header_height: u32) -> usize {
+        let scheme = AutolykosPowScheme::default();
+        scheme.calc_big_n(header_version, header_height)
+    }
+
+    /// Constant data to be added to hash function to increase its calculation time
+    pub fn calc_big_m() -> Vec<u8> {
+        let scheme = AutolykosPowScheme::default();
+        scheme.calc_big_m()
+    }
+
+    /// Wrapper for `AutolykosPowScheme::calc_seed_v2` method
+    pub fn calc_seed_v2(
+        msg: &[u8],
+        big_n: usize,
+        nonce: &[u8],
+        header_height_bytes: &[u8],
+    ) -> Box<[u8; 32]> {
+        let scheme = AutolykosPowScheme::default();
+        #[allow(clippy::unwrap_used)]
+        scheme
+            .calc_seed_v2(big_n, msg, nonce, header_height_bytes)
+            .unwrap()
+    }
+
+    pub fn gen_indexes(seed_hash: &[u8; 32], big_n: usize) -> Vec<u32> {
+        let scheme = AutolykosPowScheme::default();
+        scheme.gen_indexes(seed_hash, big_n)
+    }
+}
+
 #[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
@@ -233,5 +344,8 @@ mod tests {
             decode_compact_bits(n_bits),
             ToBigInt::to_bigint(&0x1234560000i64).unwrap()
         );
+
+        let n_bits = 16842752;
+        assert_eq!(decode_compact_bits(n_bits), BigInt::from(1_u8));
     }
 }

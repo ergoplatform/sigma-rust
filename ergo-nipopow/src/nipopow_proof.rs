@@ -14,23 +14,24 @@ use crate::{
 #[derive(Serialize, Deserialize, Debug, Clone)]
 /// A structure representing NiPoPow proof as a persistent modifier.
 pub struct NipopowProof {
+    /// Algos
     #[serde(skip_serializing, skip_deserializing)]
-    popow_algos: NipopowAlgos,
+    pub popow_algos: NipopowAlgos,
     /// Security parameter (min μ-level superchain length)
     #[serde(rename = "m")]
-    m: u32,
+    pub m: u32,
     /// Security parameter (min suffix length, >= 1)
     #[serde(rename = "k")]
-    k: u32,
+    pub k: u32,
     /// Proof prefix headers
     #[serde(rename = "prefix")]
-    prefix: Vec<PoPowHeader>,
+    pub prefix: Vec<PoPowHeader>,
     /// First header of the suffix
     #[serde(rename = "suffixHead")]
-    suffix_head: PoPowHeader,
+    pub suffix_head: PoPowHeader,
     /// Tail of the proof suffix headers
     #[serde(rename = "suffixTail")]
-    suffix_tail: Vec<Header>,
+    pub suffix_tail: Vec<Header>,
 }
 
 impl NipopowProof {
@@ -90,7 +91,8 @@ impl NipopowProof {
     /// Checks the connections of the blocks in the proof. Adjacent blocks should be linked either
     /// via interlink or parent block id. Returns true if all adjacent blocks are correctly
     /// connected.
-    fn has_valid_connections(&self) -> bool {
+    pub fn has_valid_connections(&self) -> bool {
+        let mut i = 1;
         self.prefix
             .iter()
             .zip(
@@ -99,11 +101,24 @@ impl NipopowProof {
                     .skip(1)
                     .chain(std::iter::once(&self.suffix_head)),
             )
-            .all(|(prev, next)| next.interlinks.contains(&prev.header.id))
+            .all(|(prev, next)| {
+                let res = next.interlinks.contains(&prev.header.id);
+                if !res {
+                    println!("INTERLINKS[{}] DOESN'T link to prev.header!", i);
+                }
+                i += 1;
+                res || next.header.parent_id == prev.header.id
+            })
             && std::iter::once(&self.suffix_head.header)
                 .chain(self.suffix_tail.iter())
                 .zip(self.suffix_tail.iter())
-                .all(|(prev, next)| next.parent_id == prev.id)
+                .all(|(prev, next)| {
+                    let res = next.parent_id == prev.id;
+                    if !res {
+                        println!("next.parent_id != prev.id !!!!!");
+                    }
+                    res
+                })
     }
 
     /// Checks if the heights of the header-chain provided are consistent, meaning that for any two
@@ -182,16 +197,20 @@ pub enum NipopowProofError {
     AutolykosPowSchemeError(autolykos_pow_scheme::AutolykosPowSchemeError),
     /// `k` parameter == 0. Must be >= 1.
     ZeroKParameter,
+    /// Can not prove non-anchored (first block is non-Genesis) chain
+    NonAnchoredChain,
+    /// Chain must be of length `>= k + m`
+    ChainTooShort,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 /// Stub type until issue #489 is closed.
 pub struct PoPowHeader {
     /// The block header
-    header: Header,
+    pub header: Header,
     /// Interlinks are stored in reverse order: first element is always genesis header, then level
     /// of lowest target met etc
-    interlinks: Vec<BlockId>,
+    pub interlinks: Vec<BlockId>,
 }
 
 #[allow(clippy::todo)]

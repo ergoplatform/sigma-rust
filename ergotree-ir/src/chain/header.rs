@@ -239,7 +239,8 @@ pub struct AutolykosSolution {
 }
 
 impl AutolykosSolution {
-    fn serialize_bytes<W: WriteSigmaVlqExt>(
+    /// Serialize instance
+    pub fn serialize_bytes<W: WriteSigmaVlqExt>(
         &self,
         version: u8,
         w: &mut W,
