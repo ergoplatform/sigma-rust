@@ -2,6 +2,10 @@ import Foundation
 import ErgoLibC
 import Dispatch
 
+enum RestNodeApiError: Error {
+    case misc(String)
+}
+
 class RestNodeApi {
     internal var pointer: RestApiRuntimePtr
 
@@ -13,28 +17,25 @@ class RestNodeApi {
         self.pointer = ptr!
     }
     
-    func getInfo(nodeConf: NodeConf) throws -> NodeInfo {
-        var ptr: NodeInfoPtr?
-            let error = ergo_lib_rest_api_node_get_info(self.pointer, nodeConf.pointer, &ptr)
-            try checkError(error)
-            return NodeInfo(withRawPointer: ptr!)
+    /// GET on /info endpoint
+    func getInfo(
+        nodeConf: NodeConf,
+        closure: @escaping (Result<NodeInfo, Error>) -> Void
+    ) throws -> RequestHandle {
+        
+        let completion = wrapClosure(closure)
+        var requestHandlerPtr: RequestHandlePtr?
+        let error = ergo_lib_rest_api_node_get_info(self.pointer, nodeConf.pointer, 
+            completion, &requestHandlerPtr)
+        try checkError(error)
+        return RequestHandle(withRawPtr: requestHandlerPtr!)
     }
 
-    /// Async wrapper with a callback running in the background queue
-    /* private func getInfoCallback( */
-    /*     nodeConf: NodeConf, */
-    /*     callback: @escaping (Result<NodeInfo, Error>) -> Void) { */
-
-    /*     DispatchQueue.global(qos: .background).async { */
-    /*         let res = Result { try self.getInfo(nodeConf: nodeConf) } */
-    /*         callback(res) */
-    /*     } */
-    /* } */
 
     // need macOS 12.0 on GA
     /* func getInfoAsync(nodeConf: NodeConf) async throws -> NodeInfo { */
     /*     try await withCheckedThrowingContinuation { continuation in */
-    /*         getInfoCallback(nodeConf: nodeConf) { result in */ 
+    /*         getInfo(nodeConf: nodeConf) { result in */ 
     /*             continuation.resume(with: result) */
     /*         } */
     /*     } */
