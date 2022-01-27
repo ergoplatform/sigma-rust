@@ -92,7 +92,6 @@ impl NipopowProof {
     /// via interlink or parent block id. Returns true if all adjacent blocks are correctly
     /// connected.
     pub fn has_valid_connections(&self) -> bool {
-        let mut i = 1;
         self.prefix
             .iter()
             .zip(
@@ -102,23 +101,14 @@ impl NipopowProof {
                     .chain(std::iter::once(&self.suffix_head)),
             )
             .all(|(prev, next)| {
-                let res = next.interlinks.contains(&prev.header.id);
-                if !res {
-                    println!("INTERLINKS[{}] DOESN'T link to prev.header!", i);
-                }
-                i += 1;
-                res || next.header.parent_id == prev.header.id
+                // Note that blocks with level 0 do not appear at all within interlinks, which is
+                // why we need to check the parent block id as well.
+                next.interlinks.contains(&prev.header.id) || next.header.parent_id == prev.header.id
             })
             && std::iter::once(&self.suffix_head.header)
                 .chain(self.suffix_tail.iter())
                 .zip(self.suffix_tail.iter())
-                .all(|(prev, next)| {
-                    let res = next.parent_id == prev.id;
-                    if !res {
-                        println!("next.parent_id != prev.id !!!!!");
-                    }
-                    res
-                })
+                .all(|(prev, next)| next.parent_id == prev.id)
     }
 
     /// Checks if the heights of the header-chain provided are consistent, meaning that for any two
