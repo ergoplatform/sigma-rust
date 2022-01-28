@@ -71,7 +71,7 @@ impl AutolykosPowScheme {
     }
 
     /// Constant data to be added to hash function to increase its calculation time
-    pub(crate) fn calc_big_m(&self) -> Vec<u8> {
+    pub fn calc_big_m(&self) -> Vec<u8> {
         use byteorder::{BigEndian, WriteBytesExt};
         (0u64..1024)
             .flat_map(|x| {
@@ -85,7 +85,7 @@ impl AutolykosPowScheme {
 
     /// Computes `J` (denoted by `seed` in Ergo implementation) line 4, algorithm 1 of Autolykos v2
     /// in ErgoPow paper.
-    pub(crate) fn calc_seed_v2(
+    pub fn calc_seed_v2(
         &self,
         big_n: usize,
         msg: &[u8],
@@ -117,7 +117,7 @@ impl AutolykosPowScheme {
     }
 
     /// Returns a list of size `k` with numbers in [0,`N`)
-    pub(crate) fn gen_indexes(&self, seed_hash: &[u8; 32], big_n: usize) -> Vec<u32> {
+    pub fn gen_indexes(&self, seed_hash: &[u8; 32], big_n: usize) -> Vec<u32> {
         let mut res = vec![];
         let mut extended_hash: Vec<u8> = seed_hash.to_vec();
         extended_hash.extend(&seed_hash[..3]);
@@ -134,7 +134,7 @@ impl AutolykosPowScheme {
     }
 
     /// Calculates table size (N value) for a given height (moment of time)
-    pub(crate) fn calc_big_n(&self, header_version: u8, header_height: u32) -> usize {
+    pub fn calc_big_n(&self, header_version: u8, header_height: u32) -> usize {
         // Number of elements in a table to find k-sum problem solution on top of
         let n_base = 2i32.pow(self.n.get() as u32) as usize;
         if header_version == 1 {

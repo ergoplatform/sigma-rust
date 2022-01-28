@@ -10,8 +10,6 @@ edition = "2021"
 base16 = "0.2.1"
 blake2 = "0.9"
 byteorder = "1"
-ergotree-ir = { version = "^0.14.0", path = "../ergotree-ir", features = ["arbitrary"] }
-ergotree-interpreter = { version = "^0.14.0", path = "../ergotree-interpreter", features = ["arbitrary"] }
 ergo-lib = {version = "^0.14.0", path = "../ergo-lib"}
 num-bigint = "0.4.0"
 rand = "0.8.4"

@@ -68,5 +68,4 @@ ergotree-interpreter = { version = "^0.14.0", path = "../ergotree-interpreter", 
 sigma-test-util = { version = "^0.3.0", path = "../sigma-test-util" }
 pretty_assertions = "0.7.2"
 bs58 = "0.4.0"
-blake2 = "0.9"
 byteorder = "1"

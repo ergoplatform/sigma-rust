@@ -21,7 +21,7 @@ use crate::{
 #[derive(Default, Debug, Clone)]
 pub struct NipopowAlgos {
     /// The proof-of-work scheme
-    pow_scheme: AutolykosPowScheme,
+    pub pow_scheme: AutolykosPowScheme,
 }
 
 impl NipopowAlgos {
@@ -55,10 +55,8 @@ impl NipopowAlgos {
             level: 1,
             acc: vec![(0, chain.len())],
         };
-        println!("best_arg_start");
         let acc = loop {
             let mut args = vec![];
-            println!("res.level: {}", res.level);
             for h in chain {
                 if (self.max_level_of(h)? as u32) >= res.level {
                     args.push(h);
@@ -225,7 +223,7 @@ impl NipopowAlgos {
 /// Bitcoin only uses this "compact" format for encoding difficulty targets, which are unsigned
 /// 256bit quantities.  Thus, all the complexities of the sign bit and using base 256 are probably
 /// an implementation accident.
-pub(crate) fn decode_compact_bits(n_bits: u64) -> BigInt {
+pub fn decode_compact_bits(n_bits: u64) -> BigInt {
     let compact = n_bits as i64;
     let size = ((compact >> 24) as i32) & 0xFF;
     if size == 0 {
@@ -251,52 +249,6 @@ pub(crate) fn decode_compact_bits(n_bits: u64) -> BigInt {
     } else {
         let buf: Vec<_> = buf.into_iter().map(|x| x as u8).collect();
         BigInt::from_signed_bytes_be(&buf)
-    }
-}
-
-/// This module exposes some internal code for integration testing.
-#[doc(hidden)]
-pub mod test {
-    use num_bigint::BigInt;
-
-    use crate::autolykos_pow_scheme::AutolykosPowScheme;
-
-    use super::decode_compact_bits;
-
-    /// Wrapper for `decode_compact_bits`
-    pub fn decode_n_bits(n_bits: u64) -> BigInt {
-        decode_compact_bits(n_bits)
-    }
-
-    /// Wrapper for `AutolykosPowScheme::calc_big_n` method
-    pub fn calc_big_n(header_version: u8, header_height: u32) -> usize {
-        let scheme = AutolykosPowScheme::default();
-        scheme.calc_big_n(header_version, header_height)
-    }
-
-    /// Constant data to be added to hash function to increase its calculation time
-    pub fn calc_big_m() -> Vec<u8> {
-        let scheme = AutolykosPowScheme::default();
-        scheme.calc_big_m()
-    }
-
-    /// Wrapper for `AutolykosPowScheme::calc_seed_v2` method
-    pub fn calc_seed_v2(
-        msg: &[u8],
-        big_n: usize,
-        nonce: &[u8],
-        header_height_bytes: &[u8],
-    ) -> Box<[u8; 32]> {
-        let scheme = AutolykosPowScheme::default();
-        #[allow(clippy::unwrap_used)]
-        scheme
-            .calc_seed_v2(big_n, msg, nonce, header_height_bytes)
-            .unwrap()
-    }
-
-    pub fn gen_indexes(seed_hash: &[u8; 32], big_n: usize) -> Vec<u32> {
-        let scheme = AutolykosPowScheme::default();
-        scheme.gen_indexes(seed_hash, big_n)
     }
 }
 

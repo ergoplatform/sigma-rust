@@ -9,9 +9,8 @@
 mod tests {
     use ergo_nipopow::{NipopowAlgos, NipopowProof};
 
-    use ergo_nipopow::PoPowHeader;
-    use ergotree_interpreter::sigma_protocol::private_input::DlogProverInput;
-    use ergotree_ir::{
+    use ergo_lib::ergotree_interpreter::sigma_protocol::private_input::DlogProverInput;
+    use ergo_lib::ergotree_ir::{
         chain::{
             block_id::BlockId,
             digest32::{blake2b256_hash, ADDigest, Digest32},
@@ -21,6 +20,7 @@ mod tests {
         serialization::sigma_byte_writer::SigmaByteWriter,
         sigma_protocol::dlog_group::{order, EcPoint},
     };
+    use ergo_nipopow::PoPowHeader;
     use num_bigint::BigInt;
     use rand::{thread_rng, Rng};
 

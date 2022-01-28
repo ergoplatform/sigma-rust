@@ -3,17 +3,12 @@
 
 use std::convert::TryFrom;
 
-use ergo_lib::chain::{
-    ergo_box::box_builder::ErgoBoxCandidateBuilder,
-    transaction::{prover_result::ProverResult, Input, Transaction, TxIoVec},
-};
-use ergotree_interpreter::sigma_protocol::{
+use ergo_lib::ergotree_interpreter::sigma_protocol::{
     private_input::DlogProverInput,
     prover::{ContextExtension, ProofBytes},
 };
-use ergotree_ir::{
+use ergo_lib::ergotree_ir::{
     chain::{
-        block_id::BlockId,
         digest32::{blake2b256_hash, ADDigest, Digest32},
         ergo_box::{box_value::BoxValue, BoxId},
         header::{AutolykosSolution, Header},
@@ -22,6 +17,13 @@ use ergotree_ir::{
     ergo_tree::ErgoTree,
     serialization::{sigma_byte_writer::SigmaByteWriter, SigmaSerializable},
     sigma_protocol::dlog_group::{order, EcPoint},
+};
+use ergo_lib::{
+    chain::{
+        ergo_box::box_builder::ErgoBoxCandidateBuilder,
+        transaction::{prover_result::ProverResult, Input, Transaction, TxIoVec},
+    },
+    ergotree_ir::chain::block_id::BlockId,
 };
 use num_bigint::{BigInt, Sign};
 use rand::{thread_rng, Rng};
@@ -190,7 +192,7 @@ fn prove_block(
         .to_vec();
     // Order of the secp256k1 elliptic curve
     let order = order();
-    let target_b = order.clone() / ergo_nipopow::test::decode_n_bits(header.n_bits);
+    let target_b = order.clone() / ergo_nipopow::decode_compact_bits(header.n_bits);
 
     let x = DlogProverInput::random();
     let x_bigint = BigInt::from_bytes_be(Sign::Plus, &x.to_bytes());
@@ -199,7 +201,8 @@ fn prove_block(
     let mut height_bytes = Vec::with_capacity(4);
     #[allow(clippy::unwrap_used)]
     height_bytes.write_u32::<BigEndian>(header.height).unwrap();
-    let big_n = ergo_nipopow::test::calc_big_n(version, height);
+    let popow_algos = ergo_nipopow::NipopowAlgos::default();
+    let big_n = popow_algos.pow_scheme.calc_big_n(version, height);
 
     // Check nonces
     let min_nonce = i64::MIN;
@@ -219,10 +222,15 @@ fn prove_block(
             seed.extend(&nonce);
             *blake2b256_hash(&seed).0
         } else {
-            *ergo_nipopow::test::calc_seed_v2(&msg, big_n, &nonce, &height_bytes)
+            *popow_algos
+                .pow_scheme
+                .calc_seed_v2(big_n, &msg, &nonce, &height_bytes)
+                .unwrap()
         };
 
-        let sum = ergo_nipopow::test::gen_indexes(&seed_hash, big_n)
+        let sum = popow_algos
+            .pow_scheme
+            .gen_indexes(&seed_hash, big_n)
             .into_iter()
             .map(|ix| {
                 let mut index_bytes = vec![];
@@ -271,11 +279,12 @@ fn generate_element(
     index_bytes: &[u8],
     height_bytes: &[u8],
 ) -> BigInt {
+    let popow_algos = ergo_nipopow::NipopowAlgos::default();
     if version == 1 {
         // Autolykos v. 1: H(j|M|pk|m|w) (line 5 from the Algo 2 of the spec)
         let mut concat = vec![];
         concat.extend(index_bytes);
-        concat.extend(ergo_nipopow::test::calc_big_m());
+        concat.extend(popow_algos.pow_scheme.calc_big_m());
         concat.extend(pk);
         concat.extend(msg);
         concat.extend(w);
@@ -286,7 +295,7 @@ fn generate_element(
         let mut concat = vec![];
         concat.extend(index_bytes);
         concat.extend(height_bytes);
-        concat.extend(ergo_nipopow::test::calc_big_m());
+        concat.extend(popow_algos.pow_scheme.calc_big_m());
         BigInt::from_bytes_be(Sign::Plus, &blake2b256_hash(&concat).0[1..])
     }
 }
