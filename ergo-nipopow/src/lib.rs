@@ -1,5 +1,5 @@
 //! Ergo NiPoPoW implementation
-//! See FC 20 (published) version https://fc20.ifca.ai/preproceedings/74.pdf
+//! See FC 20 (published) version <https://fc20.ifca.ai/preproceedings/74.pdf>
 
 // Coding conventions
 #![forbid(unsafe_code)]
@@ -17,3 +17,11 @@
 #![deny(clippy::todo)]
 #![deny(clippy::unimplemented)]
 #![deny(clippy::panic)]
+mod autolykos_pow_scheme;
+mod nipopow_algos;
+mod nipopow_proof;
+mod nipopow_verifier;
+
+pub use nipopow_algos::{decode_compact_bits, NipopowAlgos};
+pub use nipopow_proof::{NipopowProof, NipopowProofError, PoPowHeader};
+pub use nipopow_verifier::NipopowVerifier;

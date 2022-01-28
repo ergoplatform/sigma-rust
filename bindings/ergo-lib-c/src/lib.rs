@@ -30,6 +30,8 @@ mod ext_secret_key;
 mod header;
 mod input;
 mod merkleproof;
+mod nipopow;
+
 mod reduced;
 mod secret_key;
 mod token;
@@ -51,6 +53,7 @@ pub use crate::ergo_tree::*;
 pub use crate::header::*;
 pub use crate::input::*;
 pub use crate::merkleproof::*;
+pub use crate::nipopow::*;
 pub use crate::reduced::*;
 pub use crate::secret_key::*;
 pub use crate::token::*;
@@ -97,6 +100,14 @@ pub unsafe extern "C" fn ergo_lib_error_to_string(error: ErrorPtr) -> *mut c_cha
 pub struct ReturnNum<T: IntegerType> {
     /// Returned value. Note that it's only valid if the error field is null!
     value: T,
+    error: ErrorPtr,
+}
+
+/// Convenience type to allow us to pass Rust bools (with possible error) through FFI to the C side.
+#[repr(C)]
+pub struct ReturnBool {
+    /// Returned value. Note that it's only valid if the error field is null!
+    value: bool,
     error: ErrorPtr,
 }
 

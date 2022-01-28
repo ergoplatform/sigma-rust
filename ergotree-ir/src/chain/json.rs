@@ -2,8 +2,12 @@
 
 use serde::Serializer;
 
+pub(crate) mod autolykos_solution;
+pub(crate) mod box_value;
 pub(crate) mod ergo_box;
 pub mod ergo_tree;
+pub(crate) mod token;
+pub(crate) mod votes;
 
 /// Serialize bytes ([u8]) as base16 encoded string
 pub fn serialize_bytes<S, T>(bytes: T, serializer: S) -> Result<S::Ok, S::Error>

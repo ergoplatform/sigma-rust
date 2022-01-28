@@ -11,29 +11,12 @@ use super::base16_bytes::Base16EncodedBytes;
 #[derive(PartialEq, Eq, Debug, Clone)]
 #[cfg_attr(
     feature = "json",
-    serde(into = "Base16EncodedBytes", try_from = "VotesEncodingVariants")
+    serde(
+        into = "Base16EncodedBytes",
+        try_from = "crate::chain::json::votes::VotesEncodingVariants"
+    )
 )]
 pub struct Votes(pub [u8; 3]);
-
-#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug, Clone)]
-#[cfg_attr(feature = "json", serde(untagged))]
-#[allow(dead_code)]
-enum VotesEncodingVariants {
-    AsStr(Base16DecodedBytes),
-    AsByteArray(Vec<u8>), // explorer v1
-}
-
-impl TryFrom<VotesEncodingVariants> for Votes {
-    type Error = VotesError;
-
-    fn try_from(value: VotesEncodingVariants) -> Result<Self, Self::Error> {
-        match value {
-            VotesEncodingVariants::AsStr(bytes) => bytes.try_into(),
-            VotesEncodingVariants::AsByteArray(bytes) => bytes.try_into(),
-        }
-    }
-}
 
 impl From<Votes> for Vec<u8> {
     fn from(v: Votes) -> Self {

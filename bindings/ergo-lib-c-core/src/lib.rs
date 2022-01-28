@@ -28,6 +28,7 @@ pub mod header;
 pub mod input;
 mod json;
 pub mod merkleproof;
+pub mod nipopow;
 pub mod reduced;
 pub mod secret_key;
 pub mod token;

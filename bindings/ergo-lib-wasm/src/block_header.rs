@@ -21,7 +21,17 @@ impl BlockHeader {
     pub fn from_json(json: &str) -> Result<BlockHeader, JsValue> {
         serde_json::from_str(json).map(Self).map_err(to_js)
     }
+
+    /// Get Header's id
+    pub fn id(&self) -> BlockId {
+        self.0.id.clone().into()
+    }
 }
+
+/// Block id
+#[wasm_bindgen]
+#[derive(PartialEq, Eq, Debug, Clone, From, Into)]
+pub struct BlockId(pub(crate) ergo_lib::ergotree_ir::chain::block_id::BlockId);
 
 /// Collection of BlockHeaders
 #[wasm_bindgen]

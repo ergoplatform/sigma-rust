@@ -69,15 +69,14 @@ pub struct TokenAmount(u64);
 
 /// Token amount with bound checks
 #[cfg(feature = "json")]
-#[serde_with::serde_as]
 #[derive(
     serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash, Debug, Clone, Copy, PartialOrd, Ord,
 )]
-pub struct TokenAmount(
-    // Tries to decode as u64 first, then fallback to string. Encodes as u64 always
-    // see details - https://docs.rs/serde_with/1.9.4/serde_with/struct.PickFirst.html
-    #[serde_as(as = "serde_with::PickFirst<(_, serde_with::DisplayFromStr)>")] u64,
-);
+#[serde(
+    try_from = "crate::chain::json::token::TokenAmountJson",
+    into = "crate::chain::json::token::TokenAmountJson"
+)]
+pub struct TokenAmount(pub(crate) u64);
 
 impl TokenAmount {
     /// minimal allowed value

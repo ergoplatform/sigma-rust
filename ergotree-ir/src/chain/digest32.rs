@@ -6,6 +6,11 @@ use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
 use crate::serialization::SigmaSerializeResult;
 use crate::util::AsVecI8;
+use sigma_ser::vlq_encode::ReadSigmaVlqExt;
+use sigma_ser::vlq_encode::WriteSigmaVlqExt;
+use sigma_ser::ScorexParsingError;
+use sigma_ser::ScorexSerializable;
+use sigma_ser::ScorexSerializeResult;
 use std::convert::TryFrom;
 use std::convert::TryInto;
 use std::fmt::Formatter;
@@ -106,6 +111,18 @@ impl<const N: usize> SigmaSerializable for Digest<N> {
         Ok(())
     }
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
+        let mut bytes = [0; N];
+        r.read_exact(&mut bytes)?;
+        Ok(Self(bytes.into()))
+    }
+}
+
+impl<const N: usize> ScorexSerializable for Digest<N> {
+    fn scorex_serialize<W: WriteSigmaVlqExt>(&self, w: &mut W) -> ScorexSerializeResult {
+        w.write_all(self.0.as_ref())?;
+        Ok(())
+    }
+    fn scorex_parse<R: ReadSigmaVlqExt>(r: &mut R) -> Result<Self, ScorexParsingError> {
         let mut bytes = [0; N];
         r.read_exact(&mut bytes)?;
         Ok(Self(bytes.into()))

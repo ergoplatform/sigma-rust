@@ -26,15 +26,22 @@ use elliptic_curve::group::prime::PrimeCurveAffine;
 use elliptic_curve::rand_core::RngCore;
 use k256::elliptic_curve::sec1::ToEncodedPoint;
 use k256::{ProjectivePoint, PublicKey, Scalar};
-use num_bigint::BigUint;
 use num_bigint::Sign;
 use num_bigint::ToBigUint;
+use num_bigint::{BigInt, BigUint};
 use num_traits::ToPrimitive;
+use sigma_ser::vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt};
+use sigma_ser::{ScorexParsingError, ScorexSerializable, ScorexSerializeResult};
 use std::convert::TryFrom;
 use std::ops::{Add, Mul, Neg};
 
 /// Elliptic curve point
 #[derive(PartialEq, Clone, Default)]
+#[cfg_attr(
+    feature = "json",
+    derive(serde::Serialize, serde::Deserialize),
+    serde(into = "String", try_from = "String")
+)]
 pub struct EcPoint(ProjectivePoint);
 
 #[allow(clippy::unwrap_used)]
@@ -57,6 +64,24 @@ impl EcPoint {
             .ok()
             .map(|bytes| Self::sigma_parse_bytes(&bytes).ok())
             .flatten()
+    }
+}
+
+impl TryFrom<String> for EcPoint {
+    type Error = String;
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        EcPoint::from_base16_str(value)
+            .ok_or_else(|| String::from("Ecpoint: error parsing from base16-encoded string"))
+    }
+}
+
+impl From<EcPoint> for String {
+    fn from(value: EcPoint) -> String {
+        #[allow(clippy::unwrap_used)]
+        {
+            let bytes = value.sigma_serialize_bytes().unwrap();
+            String::from_utf8(bytes).unwrap()
+        }
     }
 }
 
@@ -164,6 +189,18 @@ pub fn bigint256_to_scalar(bi: BigInt256) -> Option<Scalar> {
 
 impl SigmaSerializable for EcPoint {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
+        let _ = self.scorex_serialize(w)?;
+        Ok(())
+    }
+
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
+        let e = Self::scorex_parse(r)?;
+        Ok(e)
+    }
+}
+
+impl ScorexSerializable for EcPoint {
+    fn scorex_serialize<W: WriteSigmaVlqExt>(&self, w: &mut W) -> ScorexSerializeResult {
         let caff = self.0.to_affine();
         if caff.is_identity().into() {
             // infinity point
@@ -175,12 +212,12 @@ impl SigmaSerializable for EcPoint {
         Ok(())
     }
 
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
+    fn scorex_parse<R: ReadSigmaVlqExt>(r: &mut R) -> Result<Self, ScorexParsingError> {
         let mut buf = [0; EcPoint::GROUP_SIZE];
         r.read_exact(&mut buf[..])?;
         if buf[0] != 0 {
             let pubkey = PublicKey::from_sec1_bytes(&buf[..]).map_err(|e| {
-                SigmaParsingError::Misc(format!("failed to parse PK from bytes: {:?}", e))
+                ScorexParsingError::Misc(format!("failed to parse PK from bytes: {:?}", e))
             })?;
             Ok(EcPoint(pubkey.to_projective()))
         } else {
@@ -188,6 +225,16 @@ impl SigmaSerializable for EcPoint {
             Ok(EcPoint(ProjectivePoint::IDENTITY))
         }
     }
+}
+
+/// Order of the secp256k1 elliptic curve
+pub fn order() -> BigInt {
+    #[allow(clippy::unwrap_used)]
+    BigInt::parse_bytes(
+        b"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141",
+        16,
+    )
+    .unwrap()
 }
 
 /// Arbitrary impl for EcPoint

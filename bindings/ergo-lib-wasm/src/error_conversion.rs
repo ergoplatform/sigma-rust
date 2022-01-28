@@ -5,6 +5,7 @@ use std::num::ParseIntError;
 
 use base16::DecodeError;
 use bounded_vec::BoundedVecOutOfBounds;
+use ergo_lib::ergo_nipopow::NipopowProofError;
 use ergo_lib::ergotree_ir::chain::address::AddressEncoderError;
 use ergo_lib::ergotree_ir::chain::address::AddressError;
 use ergo_lib::ergotree_ir::chain::digest32::Digest32Error;
@@ -83,3 +84,4 @@ from_error_to_wrap_via_debug!(BoundedVecOutOfBounds);
 from_error_to_wrap_via_debug!(ExtSecretKeyError);
 from_error_to_wrap_via_debug!(DerivationPathError);
 from_error_to_wrap_via_debug!(ExtPubKeyError);
+from_error_to_wrap_via_debug!(NipopowProofError);
