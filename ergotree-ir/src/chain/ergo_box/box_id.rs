@@ -1,17 +1,17 @@
 //! Box id type
 use std::convert::TryFrom;
 
-use crate::chain::digest32::Digest32;
-use crate::chain::digest32::Digest32Error;
 use crate::serialization::SigmaSerializeResult;
+use sigma_ser::ScorexSerializable;
 
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, sigma_byte_writer::SigmaByteWrite, SigmaParsingError,
     SigmaSerializable,
 };
-use crate::util::AsVecI8;
 use derive_more::From;
 use derive_more::Into;
+use ergo_chain_types::{Digest32, Digest32Error};
+use sigma_util::AsVecI8;
 
 /// newtype for box ids
 #[derive(PartialEq, Eq, Hash, Debug, Clone, From, Into)]
@@ -58,11 +58,11 @@ impl From<BoxId> for Vec<i8> {
 
 impl SigmaSerializable for BoxId {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
-        self.0.sigma_serialize(w)?;
+        self.0.scorex_serialize(w)?;
         Ok(())
     }
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
-        Ok(Self(Digest32::sigma_parse(r)?))
+        Ok(Self(Digest32::scorex_parse(r)?))
     }
 }
 

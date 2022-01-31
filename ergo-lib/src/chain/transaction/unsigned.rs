@@ -9,7 +9,7 @@ use super::DataInput;
 use super::Transaction;
 use super::TxIoVec;
 use ergotree_interpreter::sigma_protocol::prover::ProofBytes;
-use ergotree_ir::chain::digest32::blake2b256_hash;
+use ergo_chain_types::blake2b256_hash;
 use ergotree_ir::chain::ergo_box::ErgoBoxCandidate;
 use ergotree_ir::chain::token::TokenId;
 use ergotree_ir::chain::tx_id::TxId;

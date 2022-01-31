@@ -25,8 +25,8 @@ use crate::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
 use crate::sigma_protocol::sigma_boolean::SigmaProp;
 use crate::types::stype::SType;
 
-use crate::util::AsVecU8;
 use sigma_util::hash::blake2b256_hash;
+use sigma_util::AsVecU8;
 use std::convert::{TryFrom, TryInto};
 use thiserror::Error;
 

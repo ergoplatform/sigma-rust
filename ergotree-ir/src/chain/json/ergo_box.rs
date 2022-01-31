@@ -1,4 +1,3 @@
-use crate::chain::base16_bytes::Base16DecodedBytes;
 use crate::chain::ergo_box::box_value::BoxValue;
 use crate::chain::ergo_box::BoxId;
 use crate::chain::ergo_box::NonMandatoryRegisters;
@@ -10,6 +9,7 @@ use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
 use crate::serialization::SigmaSerializationError;
 use core::fmt;
+use ergo_chain_types::Base16DecodedBytes;
 use serde::de::{self, MapAccess, Visitor};
 use serde::Deserializer;
 use std::convert::TryFrom;

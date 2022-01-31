@@ -2,12 +2,12 @@ use super::Evaluable;
 use crate::eval::env::Env;
 use crate::eval::EvalContext;
 use crate::eval::EvalError;
-use ergotree_ir::chain::digest32::ADDigest;
+use ergo_chain_types::ADDigest;
 use ergotree_ir::mir::avl_tree_data::{AvlTreeData, AvlTreeFlags};
 use ergotree_ir::mir::constant::TryExtractInto;
 use ergotree_ir::mir::create_avl_tree::CreateAvlTree;
 use ergotree_ir::mir::value::Value;
-use ergotree_ir::util::AsVecU8;
+use sigma_util::AsVecU8;
 use std::convert::TryFrom;
 
 impl Evaluable for CreateAvlTree {
@@ -44,15 +44,15 @@ mod tests {
     use super::*;
     use crate::eval::tests::eval_out_wo_ctx;
 
-    use ergotree_ir::chain::digest32::ADDigest;
+    use ergo_chain_types::ADDigest;
     use ergotree_ir::mir::{
         avl_tree_data::{AvlTreeData, AvlTreeFlags},
         expr::Expr,
     };
-    use ergotree_ir::serialization::SigmaSerializable;
     use scorex_crypto_avltree::authenticated_tree_ops::AuthenticatedTreeOps;
     use scorex_crypto_avltree::batch_avl_prover::BatchAVLProver;
     use scorex_crypto_avltree::batch_node::{AVLTree, Node, NodeHeader};
+    use sigma_ser::ScorexSerializable;
 
     #[test]
     fn eval_create_avl_tree() {
@@ -65,7 +65,7 @@ mod tests {
             true,
         );
         let initial_digest =
-            ADDigest::sigma_parse_bytes(&prover.digest().unwrap().into_iter().collect::<Vec<_>>())
+            ADDigest::scorex_parse_bytes(&prover.digest().unwrap().into_iter().collect::<Vec<_>>())
                 .unwrap();
         let flags = AvlTreeFlags::new(false, false, false);
         let expr: Expr = CreateAvlTree::new(

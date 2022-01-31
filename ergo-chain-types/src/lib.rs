@@ -17,8 +17,19 @@
 #![deny(clippy::unimplemented)]
 #![deny(clippy::panic)]
 
+mod base16_bytes;
+mod block_id;
+mod digest32;
 mod peer_addr;
 mod peer_connection_dir;
 
+pub use base16_bytes::Base16DecodedBytes;
+pub use base16_bytes::Base16EncodedBytes;
+pub use block_id::BlockId;
+pub use digest32::blake2b256_hash;
+pub use digest32::ADDigest;
+pub use digest32::Digest;
+pub use digest32::Digest32;
+pub use digest32::Digest32Error;
 pub use peer_addr::PeerAddr;
 pub use peer_connection_dir::ConnectionDirection;

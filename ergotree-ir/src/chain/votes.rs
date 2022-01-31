@@ -1,10 +1,8 @@
 //! Main "remote" type for [Vote]()
+use ergo_chain_types::{Base16DecodedBytes, Base16EncodedBytes};
 use thiserror::Error;
 
 use std::convert::{TryFrom, TryInto};
-
-use super::base16_bytes::Base16DecodedBytes;
-use super::base16_bytes::Base16EncodedBytes;
 
 /// Votes for changing system parameters
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]

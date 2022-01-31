@@ -10,7 +10,7 @@ use ergo_lib::ergo_nipopow::NipopowProofError;
 use ergo_lib::ergoscript_compiler::compiler::CompileError;
 use ergo_lib::ergotree_ir::chain::address::AddressEncoderError;
 use ergo_lib::ergotree_ir::chain::address::AddressError;
-use ergo_lib::ergotree_ir::chain::digest32::Digest32Error;
+use ergo_lib::ergo_chain_types::Digest32Error;
 use ergo_lib::ergotree_ir::chain::ergo_box::box_value::BoxValueError;
 use ergo_lib::ergotree_ir::chain::token::TokenAmountError;
 use ergo_lib::wallet::derivation_path::ChildIndexError;
