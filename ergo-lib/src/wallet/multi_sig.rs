@@ -6,9 +6,8 @@ use crate::chain::transaction::Transaction;
 use crate::ergotree_interpreter::eval::context::Context;
 use crate::ergotree_interpreter::eval::env::Env;
 use crate::ergotree_interpreter::eval::reduce_to_crypto;
-use crate::ergotree_interpreter::sigma_protocol::dlog_protocol::{
-    interactive_prover, FirstDlogProverMessage,
-};
+use crate::ergotree_interpreter::sigma_protocol::dht_protocol::interactive_prover as dht_interactive_prover;
+use crate::ergotree_interpreter::sigma_protocol::dlog_protocol::interactive_prover as dlog_interactive_prover;
 use crate::ergotree_interpreter::sigma_protocol::proof_tree::ProofTreeLeaf;
 use crate::ergotree_interpreter::sigma_protocol::prover::hint::{
     CommitmentHint, Hint, HintsBag, OwnCommitment, RealCommitment, RealSecretProof, SecretProven,
@@ -25,9 +24,8 @@ use crate::ergotree_ir::sigma_protocol::sigma_boolean::SigmaConjecture;
 use crate::ergotree_ir::sigma_protocol::sigma_boolean::SigmaConjectureItems;
 use crate::ergotree_ir::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
 use crate::wallet::signing::{make_context, ErgoTransaction, TransactionContext, TxSigningError};
-use ergotree_interpreter::sigma_protocol::dlog_protocol::interactive_prover::compute_commitment;
 use ergotree_interpreter::sigma_protocol::sig_serializer::parse_sig_compute_challenges;
-use ergotree_interpreter::sigma_protocol::unchecked_tree::{UncheckedLeaf, UncheckedTree};
+use ergotree_interpreter::sigma_protocol::unchecked_tree::{UncheckedTree};
 use ergotree_ir::chain::ergo_box::ErgoBox;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -111,23 +109,6 @@ impl TransactionHintsBag {
     }
 }
 
-/// Compute commitments for UncheckedLeaf
-pub fn compute_commitments(leaf: UncheckedLeaf) -> Option<FirstDlogProverMessage> {
-    let mut ret: Option<FirstDlogProverMessage> = None;
-
-    match leaf {
-        UncheckedLeaf::UncheckedSchnorr(pdlog) => {
-            let challenge = pdlog.challenge;
-            let proposition = pdlog.proposition;
-            let second_message = pdlog.second_message;
-            let comm = compute_commitment(&proposition, &challenge, &second_message);
-            ret = Some(FirstDlogProverMessage::from(comm));
-        }
-        UncheckedLeaf::UncheckedDhTuple(_) => {}
-    }
-    ret
-}
-
 /// A method which is extracting partial proofs of secret knowledge for particular secrets with their
 /// respective public images given. Useful for distributed signature applications.
 /// See DistributedSigSpecification for examples of usage.
@@ -165,44 +146,40 @@ pub fn bag_for_multi_sig(
                 let real_found = real_propositions.contains(&leaf.proposition());
                 let simulated_found = simulated_propositions.contains(&leaf.proposition());
                 if real_found || simulated_found {
-                    if let Some(a) = compute_commitments(leaf.clone()) {
-                        if real_found {
-                            let real_commitment: Hint = Hint::CommitmentHint(
-                                CommitmentHint::RealCommitment(RealCommitment {
-                                    image: leaf.proposition(),
-                                    commitment: FirstProverMessage::FirstDlogProverMessage(a),
-                                    position: position.clone(),
-                                }),
-                            );
-                            let real_secret_proof: Hint = Hint::SecretProven(
-                                SecretProven::RealSecretProof(RealSecretProof {
-                                    image: leaf.proposition(),
-                                    challenge: leaf.challenge(),
-                                    unchecked_tree: UncheckedTree::UncheckedLeaf(leaf),
-                                    position,
-                                }),
-                            );
-                            bag.add_hint(real_commitment);
-                            bag.add_hint(real_secret_proof);
-                        } else {
-                            let simulated_commitment: Hint = Hint::CommitmentHint(
-                                CommitmentHint::SimulatedCommitment(SimulatedCommitment {
-                                    image: leaf.proposition(),
-                                    commitment: FirstProverMessage::FirstDlogProverMessage(a),
-                                    position: position.clone(),
-                                }),
-                            );
-                            let simulated_secret_proof: Hint = Hint::SecretProven(
-                                SecretProven::SimulatedSecretProof(SimulatedSecretProof {
-                                    image: leaf.proposition(),
-                                    challenge: leaf.challenge(),
-                                    unchecked_tree: UncheckedTree::UncheckedLeaf(leaf),
-                                    position,
-                                }),
-                            );
-                            bag.add_hint(simulated_commitment);
-                            bag.add_hint(simulated_secret_proof);
-                        }
+                    if real_found {
+                        let real_commitment: Hint =
+                            Hint::CommitmentHint(CommitmentHint::RealCommitment(RealCommitment {
+                                image: leaf.proposition(),
+                                commitment: leaf.commitment(),
+                                position: position.clone(),
+                            }));
+                        let real_secret_proof: Hint =
+                            Hint::SecretProven(SecretProven::RealSecretProof(RealSecretProof {
+                                image: leaf.proposition(),
+                                challenge: leaf.challenge(),
+                                unchecked_tree: UncheckedTree::UncheckedLeaf(leaf),
+                                position,
+                            }));
+                        bag.add_hint(real_commitment);
+                        bag.add_hint(real_secret_proof);
+                    } else {
+                        let simulated_commitment: Hint = Hint::CommitmentHint(
+                            CommitmentHint::SimulatedCommitment(SimulatedCommitment {
+                                image: leaf.proposition(),
+                                commitment: leaf.commitment(),
+                                position: position.clone(),
+                            }),
+                        );
+                        let simulated_secret_proof: Hint = Hint::SecretProven(
+                            SecretProven::SimulatedSecretProof(SimulatedSecretProof {
+                                image: leaf.proposition(),
+                                challenge: leaf.challenge(),
+                                unchecked_tree: UncheckedTree::UncheckedLeaf(leaf),
+                                position,
+                            }),
+                        );
+                        bag.add_hint(simulated_commitment);
+                        bag.add_hint(simulated_secret_proof);
                     }
                 }
             }
@@ -408,7 +385,7 @@ pub fn generate_commitments_for(
                 if generate_for.contains(&sb_clone) {
                     let kt_clone = kt.clone();
                     if let SigmaProofOfKnowledgeTree::ProveDlog(_pdl) = kt {
-                        let (r, a) = interactive_prover::first_message();
+                        let (r, a) = dlog_interactive_prover::first_message();
                         let own_commitment: Hint =
                             Hint::CommitmentHint(CommitmentHint::OwnCommitment(OwnCommitment {
                                 image: SigmaBoolean::ProofOfKnowledge(kt_clone.clone()),
@@ -420,6 +397,23 @@ pub fn generate_commitments_for(
                             Hint::CommitmentHint(CommitmentHint::RealCommitment(RealCommitment {
                                 image: SigmaBoolean::ProofOfKnowledge(kt_clone),
                                 commitment: FirstProverMessage::FirstDlogProverMessage(a),
+                                position,
+                            }));
+                        bag.add_hint(real_commitment);
+                        bag.add_hint(own_commitment);
+                    } else if let SigmaProofOfKnowledgeTree::ProveDhTuple(pdht) = kt {
+                        let (a, b) = dht_interactive_prover::first_message(&pdht);
+                        let own_commitment: Hint =
+                            Hint::CommitmentHint(CommitmentHint::OwnCommitment(OwnCommitment {
+                                image: SigmaBoolean::ProofOfKnowledge(kt_clone.clone()),
+                                secret_randomness: a,
+                                commitment: FirstProverMessage::FirstDhtProverMessage(b.clone()),
+                                position: position.clone(),
+                            }));
+                        let real_commitment: Hint =
+                            Hint::CommitmentHint(CommitmentHint::RealCommitment(RealCommitment {
+                                image: SigmaBoolean::ProofOfKnowledge(kt_clone),
+                                commitment: FirstProverMessage::FirstDhtProverMessage(b),
                                 position,
                             }));
                         bag.add_hint(real_commitment);
@@ -462,6 +456,7 @@ mod tests {
     use crate::ergotree_ir::serialization::SigmaSerializable;
     use crate::ergotree_ir::sigma_protocol::dlog_group;
     use crate::ergotree_ir::sigma_protocol::sigma_boolean::cand::Cand;
+    use ergotree_interpreter::sigma_protocol::private_input::DhTupleProverInput;
     use k256::Scalar;
     use sigma_test_util::force_any_val;
     use std::convert::{TryFrom, TryInto};
@@ -570,11 +565,11 @@ mod tests {
     #[test]
     fn generating_commitment_two_signer() {
         let secret1 = DlogProverInput::random();
-        let secret2 = DlogProverInput::random();
+        let secret2 = DhTupleProverInput::random();
         let pk1 = secret1.public_image();
         let pk2 = secret2.public_image();
         let mut generate_for: Vec<SigmaBoolean> = vec![SigmaBoolean::ProofOfKnowledge(
-            SigmaProofOfKnowledgeTree::ProveDlog(pk2.clone()),
+            SigmaProofOfKnowledgeTree::ProveDhTuple(pk2.clone()),
         )];
 
         assert_eq!(
@@ -587,7 +582,16 @@ mod tests {
             0
         );
         generate_for.clear();
-        let cand = Cand::normalized(vec![pk1.clone().into(), pk2.into()].try_into().unwrap());
+        let cand = Cand::normalized(
+            vec![
+                pk1.clone().into(),
+                SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDhTuple(
+                    pk2.clone(),
+                )),
+            ]
+            .try_into()
+            .unwrap(),
+        );
         generate_for.push(cand.clone());
         assert!(
             generate_commitments_for(
@@ -668,6 +672,31 @@ mod tests {
                 }
             );
         }
+        generate_for.clear();
+        generate_for.push(SigmaBoolean::ProofOfKnowledge(
+            SigmaProofOfKnowledgeTree::ProveDhTuple(pk2.clone()),
+        ));
+        bag = generate_commitments_for(
+            SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDhTuple(pk2.clone())),
+            generate_for.as_slice(),
+        );
+        assert_ne!(bag.hints.len(), 0);
+        hint = bag.hints[0].clone();
+        if let Hint::CommitmentHint(CommitmentHint::RealCommitment(comm)) = hint {
+            assert_eq!(comm.position, NodePosition::crypto_tree_prefix(),);
+        }
+        hint = bag.hints[1].clone();
+        if let Hint::CommitmentHint(CommitmentHint::OwnCommitment(comm)) = hint {
+            assert_eq!(comm.position, NodePosition::crypto_tree_prefix(),);
+        }
+        hint = bag.hints[0].clone();
+        if let Hint::CommitmentHint(CommitmentHint::RealCommitment(real_commitment)) = hint {
+            if let Hint::CommitmentHint(CommitmentHint::OwnCommitment(own_commitment)) =
+                bag.hints[1].clone()
+            {
+                assert_eq!(real_commitment.commitment, own_commitment.commitment,);
+            }
+        }
     }
 
     #[test]
@@ -745,7 +774,7 @@ mod tests {
                     &Env::empty(),
                     ctx,
                     proof_byte,
-                    message.as_slice()
+                    message.as_slice(),
                 )
                 .unwrap()
                 .result,
@@ -873,7 +902,7 @@ mod tests {
                     &Env::empty(),
                     ctx.clone(),
                     proof_byte1,
-                    message.as_slice()
+                    message.as_slice(),
                 )
                 .unwrap()
                 .result,
@@ -888,7 +917,7 @@ mod tests {
                     &Env::empty(),
                     ctx.clone(),
                     proof_byte3,
-                    message.as_slice()
+                    message.as_slice(),
                 )
                 .unwrap()
                 .result,
@@ -903,7 +932,7 @@ mod tests {
                     &Env::empty(),
                     ctx,
                     proof_byte2,
-                    message.as_slice()
+                    message.as_slice(),
                 )
                 .unwrap()
                 .result,

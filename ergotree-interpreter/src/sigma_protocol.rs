@@ -8,7 +8,7 @@ pub mod verifier;
 
 mod challenge;
 mod crypto_utils;
-mod dht_protocol;
+pub mod dht_protocol;
 pub mod dlog_protocol;
 mod fiat_shamir;
 mod gf2_192;
