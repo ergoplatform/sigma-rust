@@ -21,12 +21,14 @@
 mod bulk_req;
 mod error;
 mod known_nodes;
-mod node_client;
+mod node_conf;
 mod node_info;
 mod peer_info;
 
+pub mod api;
+
 pub use error::NodeError;
 pub use known_nodes::KnownNodes;
-pub use node_client::NodeClient;
+pub use node_conf::NodeConf;
 pub use node_info::NodeInfo;
 pub use peer_info::PeerInfo;

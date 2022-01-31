@@ -7,6 +7,7 @@ use base16::DecodeError;
 use bounded_vec::BoundedVecOutOfBounds;
 use ergo_lib::ergo_chain_types::Digest32Error;
 use ergo_lib::ergo_nipopow::NipopowProofError;
+use ergo_lib::ergo_rest::NodeError;
 use ergo_lib::ergotree_ir::chain::address::AddressEncoderError;
 use ergo_lib::ergotree_ir::chain::address::AddressError;
 use ergo_lib::ergotree_ir::chain::ergo_box::box_value::BoxValueError;
@@ -84,4 +85,8 @@ from_error_to_wrap_via_debug!(BoundedVecOutOfBounds);
 from_error_to_wrap_via_debug!(ExtSecretKeyError);
 from_error_to_wrap_via_debug!(DerivationPathError);
 from_error_to_wrap_via_debug!(ExtPubKeyError);
+<<<<<<< HEAD
 from_error_to_wrap_via_debug!(NipopowProofError);
+=======
+from_error_to_wrap_via_debug!(NodeError);
+>>>>>>> 0aafc38d (switch from NodeClient to a functions with node conf param;)

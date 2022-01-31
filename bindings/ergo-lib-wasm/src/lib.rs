@@ -33,6 +33,7 @@ pub mod merkleproof;
 pub mod nipopow;
 
 pub mod prover_result;
+pub mod rest;
 pub mod secret_key;
 pub mod token;
 pub mod transaction;
