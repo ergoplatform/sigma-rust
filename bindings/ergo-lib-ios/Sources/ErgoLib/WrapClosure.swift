@@ -42,8 +42,8 @@ private func wrapClosureRawPtr(_ closure: @escaping (Result<UnsafeRawPointer, Er
         }
     }
 
-    // called from RequestHandle.abort to release the closure 
-    let callback_release: @convention(c) (UnsafeMutableRawPointer) -> Void = { 
+    // called on task cancellation (abort)
+    let abortCallback: @convention(c) (UnsafeMutableRawPointer) -> Void = { 
         (_ userdata: UnsafeMutableRawPointer) in
         // reverse step 1 and manually decrement reference count on the closure and turn it back to Swift type.
         // Because we are back to letting Swift manage our reference count, when the scope ends 
@@ -52,8 +52,7 @@ private func wrapClosureRawPtr(_ closure: @escaping (Result<UnsafeRawPointer, Er
         _ = c_ptr.takeRetainedValue()
     }
 
-    return CompletionCallback( swift_closure: userdata, swift_closure_func: callback, 
-        swift_release_closure_func: callback_release)
+    return CompletionCallback( user_data: userdata, completion_callback: callback, abort_callback: abortCallback)
 }
 
 /// Wraps closure into the struct with C compatible function pointers and memory management

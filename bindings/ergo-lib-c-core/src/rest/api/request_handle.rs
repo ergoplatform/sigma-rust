@@ -3,28 +3,28 @@ use futures_util::future::AbortHandle;
 use crate::util::const_ptr_as_ref;
 use crate::Error;
 
-use super::callback::ReleaseCallbackWrapper;
+use super::callback::AbortCallback;
 
 /// A "receipt" of the spawned task
 pub struct RequestHandle {
     /// A handle to abort this task
     abort_handle: AbortHandle,
-    /// A callback to release user's closure on the Swift side
-    release_callback: ReleaseCallbackWrapper,
+    /// A callback which is called on abort action
+    abort_callback: AbortCallback,
 }
 
 impl RequestHandle {
-    pub fn new(abort_handle: AbortHandle, release_callback: ReleaseCallbackWrapper) -> Self {
+    pub fn new(abort_handle: AbortHandle, release_callback: AbortCallback) -> Self {
         Self {
             abort_handle,
-            release_callback,
+            abort_callback: release_callback,
         }
     }
 
-    /// Aborts the task and calls the release of user's closure on the Swift side
+    /// Aborts the task and calls abort callback
     pub fn abort(&self) {
         self.abort_handle.abort();
-        self.release_callback.release_callback();
+        self.abort_callback.abort_callback();
     }
 }
 
