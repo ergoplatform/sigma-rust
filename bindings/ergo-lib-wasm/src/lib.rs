@@ -13,6 +13,7 @@
 // Clippy warnings
 #![allow(clippy::new_without_default)]
 #![allow(clippy::len_without_is_empty)]
+#![allow(clippy::unused_unit)]
 #![deny(clippy::wildcard_enum_match_arm)]
 
 pub mod address;
@@ -29,6 +30,8 @@ pub mod ergo_tree;
 pub mod header;
 pub mod input;
 pub mod merkleproof;
+pub mod nipopow;
+
 pub mod prover_result;
 pub mod secret_key;
 pub mod token;
