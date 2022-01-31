@@ -17,6 +17,7 @@
 #![deny(clippy::todo)]
 #![deny(clippy::unimplemented)]
 #![deny(clippy::panic)]
+
 mod autolykos_pow_scheme;
 mod nipopow_algos;
 mod nipopow_proof;
