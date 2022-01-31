@@ -25,7 +25,7 @@ use crate::ergotree_ir::sigma_protocol::sigma_boolean::SigmaConjectureItems;
 use crate::ergotree_ir::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
 use crate::wallet::signing::{make_context, ErgoTransaction, TransactionContext, TxSigningError};
 use ergotree_interpreter::sigma_protocol::sig_serializer::parse_sig_compute_challenges;
-use ergotree_interpreter::sigma_protocol::unchecked_tree::{UncheckedTree};
+use ergotree_interpreter::sigma_protocol::unchecked_tree::UncheckedTree;
 use ergotree_ir::chain::ergo_box::ErgoBox;
 use std::collections::HashMap;
 use std::rc::Rc;
