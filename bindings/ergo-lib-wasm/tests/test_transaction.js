@@ -2,16 +2,23 @@ import { expect, assert } from 'chai';
 
 import { generate_block_headers } from './utils';
 
-import {
-  Address, Wallet, ErgoBox, ErgoBoxCandidateBuilder, Contract,
-  ErgoBoxes, ErgoBoxCandidates,
-  ErgoStateContext, TxBuilder, BoxValue, BoxSelector, I64, SecretKey, SecretKeys, TxId, DataInputs,
-  SimpleBoxSelector, Tokens, Token, TokenAmount, TokenId, BlockHeaders, PreHeader, Transaction,
-} from '../pkg/ergo_lib_wasm';
+// import {
+//   Address, Wallet, ErgoBox, ErgoBoxCandidateBuilder, Contract,
+//   ErgoBoxes, ErgoBoxCandidates,
+//   ErgoStateContext, TxBuilder, BoxValue, BoxSelector, I64, SecretKey, SecretKeys, TxId, DataInputs,
+//   SimpleBoxSelector, Tokens, Token, TokenAmount, TokenId, BlockHeaders, PreHeader, Transaction,
+// } from '../pkg/ergo_lib_wasm';
+
+import * as ergo from "..";
+let ergo_wasm;
+beforeEach(async () => {
+  ergo_wasm = await ergo;
+});
+
 
 it('TxBuilder test', async () => {
-  const recipient = Address.from_testnet_str('3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN');
-  const unspent_boxes = ErgoBoxes.from_boxes_json([
+  const recipient = ergo_wasm.Address.from_testnet_str('3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN');
+  const unspent_boxes = ergo_wasm.ErgoBoxes.from_boxes_json([
     {
       "boxId": "e56847ed19b3dc6b72828fcfb992fdf7310828cf291221269b7ffc72fd66706e",
       "value": 67500000000,
@@ -23,52 +30,52 @@ it('TxBuilder test', async () => {
       "index": 1
     }
   ]);
-  const contract = Contract.pay_to_address(recipient);
-  const outbox_value = BoxValue.SAFE_USER_MIN();
-  const outbox = new ErgoBoxCandidateBuilder(outbox_value, contract, 0).build();
-  const tx_outputs = new ErgoBoxCandidates(outbox);
-  const fee = TxBuilder.SUGGESTED_TX_FEE();
-  const change_address = Address.from_testnet_str('3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN');
-  const min_change_value = BoxValue.SAFE_USER_MIN();
-  const data_inputs = new DataInputs();
-  const box_selector = new SimpleBoxSelector();
-  const target_balance = BoxValue.from_i64(outbox_value.as_i64().checked_add(fee.as_i64()));
-  const box_selection = box_selector.select(unspent_boxes, target_balance, new Tokens());
-  const tx_builder = TxBuilder.new(box_selection, tx_outputs, 0, fee, change_address, min_change_value);
+  const contract = ergo_wasm.Contract.pay_to_address(recipient);
+  const outbox_value = ergo_wasm.BoxValue.SAFE_USER_MIN();
+  const outbox = new ergo_wasm.ErgoBoxCandidateBuilder(outbox_value, contract, 0).build();
+  const tx_outputs = new ergo_wasm.ErgoBoxCandidates(outbox);
+  const fee = ergo_wasm.TxBuilder.SUGGESTED_TX_FEE();
+  const change_address = ergo_wasm.Address.from_testnet_str('3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN');
+  const min_change_value = ergo_wasm.BoxValue.SAFE_USER_MIN();
+  const data_inputs = new ergo_wasm.DataInputs();
+  const box_selector = new ergo_wasm.SimpleBoxSelector();
+  const target_balance = ergo_wasm.BoxValue.from_i64(outbox_value.as_i64().checked_add(fee.as_i64()));
+  const box_selection = box_selector.select(unspent_boxes, target_balance, new ergo_wasm.Tokens());
+  const tx_builder = ergo_wasm.TxBuilder.new(box_selection, tx_outputs, 0, fee, change_address, min_change_value);
   tx_builder.set_data_inputs(data_inputs);
   const tx = tx_builder.build();
   assert(tx != null);
 });
 
 it('sign transaction', async () => {
-  const sk = SecretKey.random_dlog();
+  const sk = ergo_wasm.SecretKey.random_dlog();
   // simulate existing box guarded by the sk key
-  const input_contract = Contract.pay_to_address(sk.get_address());
-  const input_box = new ErgoBox(BoxValue.from_i64(I64.from_str('1000000000')), 0, input_contract, TxId.zero(), 0, new Tokens());
+  const input_contract = ergo_wasm.Contract.pay_to_address(sk.get_address());
+  const input_box = new ergo_wasm.ErgoBox(ergo_wasm.BoxValue.from_i64(ergo_wasm.I64.from_str('1000000000')), 0, input_contract, ergo_wasm.TxId.zero(), 0, new ergo_wasm.Tokens());
   // create a transaction that spends the "simulated" box
-  const recipient = Address.from_testnet_str('3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN');
-  const unspent_boxes = new ErgoBoxes(input_box);
-  const contract = Contract.pay_to_address(recipient);
-  const outbox_value = BoxValue.SAFE_USER_MIN();
-  const outbox = new ErgoBoxCandidateBuilder(outbox_value, contract, 0).build();
-  const tx_outputs = new ErgoBoxCandidates(outbox);
-  const fee = TxBuilder.SUGGESTED_TX_FEE();
-  const change_address = Address.from_testnet_str('3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN');
-  const min_change_value = BoxValue.SAFE_USER_MIN();
-  const box_selector = new SimpleBoxSelector();
-  const target_balance = BoxValue.from_i64(outbox_value.as_i64().checked_add(fee.as_i64()));
-  const box_selection = box_selector.select(unspent_boxes, target_balance, new Tokens());
-  const tx_builder = TxBuilder.new(box_selection, tx_outputs, 0, fee, change_address, min_change_value);
+  const recipient = ergo_wasm.Address.from_testnet_str('3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN');
+  const unspent_boxes = new ergo_wasm.ErgoBoxes(input_box);
+  const contract = ergo_wasm.Contract.pay_to_address(recipient);
+  const outbox_value = ergo_wasm.BoxValue.SAFE_USER_MIN();
+  const outbox = new ergo_wasm.ErgoBoxCandidateBuilder(outbox_value, contract, 0).build();
+  const tx_outputs = new ergo_wasm.ErgoBoxCandidates(outbox);
+  const fee = ergo_wasm.TxBuilder.SUGGESTED_TX_FEE();
+  const change_address = ergo_wasm.Address.from_testnet_str('3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN');
+  const min_change_value = ergo_wasm.BoxValue.SAFE_USER_MIN();
+  const box_selector = new ergo_wasm.SimpleBoxSelector();
+  const target_balance = ergo_wasm.BoxValue.from_i64(outbox_value.as_i64().checked_add(fee.as_i64()));
+  const box_selection = box_selector.select(unspent_boxes, target_balance, new ergo_wasm.Tokens());
+  const tx_builder = ergo_wasm.TxBuilder.new(box_selection, tx_outputs, 0, fee, change_address, min_change_value);
   const tx = tx_builder.build();
   // smoke test for to_js_eip12
   assert(tx.to_js_eip12() != null);
-  const tx_data_inputs = ErgoBoxes.from_boxes_json([]);
+  const tx_data_inputs = ergo_wasm.ErgoBoxes.from_boxes_json([]);
   const block_headers = generate_block_headers();
-  const pre_header = PreHeader.from_block_header(block_headers.get(0));
-  const ctx = new ErgoStateContext(pre_header, block_headers);
-  const sks = new SecretKeys();
+  const pre_header = ergo_wasm.PreHeader.from_block_header(block_headers.get(0));
+  const ctx = new ergo_wasm.ErgoStateContext(pre_header, block_headers);
+  const sks = new ergo_wasm.SecretKeys();
   sks.add(sk);
-  const wallet = Wallet.from_secrets(sks);
+  const wallet = ergo_wasm.Wallet.from_secrets(sks);
   const signed_tx = wallet.sign_transaction(ctx, tx, unspent_boxes, tx_data_inputs);
   assert(signed_tx != null);
   // smoke test for to_js_eip12
@@ -76,8 +83,8 @@ it('sign transaction', async () => {
 });
 
 it('TxBuilder mint token test', async () => {
-  const recipient = Address.from_testnet_str('3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN');
-  const unspent_boxes = ErgoBoxes.from_boxes_json([
+  const recipient = ergo_wasm.Address.from_testnet_str('3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN');
+  const unspent_boxes = ergo_wasm.ErgoBoxes.from_boxes_json([
     {
       "boxId": "e56847ed19b3dc6b72828fcfb992fdf7310828cf291221269b7ffc72fd66706e",
       "value": 67500000000,
@@ -89,30 +96,30 @@ it('TxBuilder mint token test', async () => {
       "index": 1
     }
   ]);
-  const fee = TxBuilder.SUGGESTED_TX_FEE();
-  const outbox_value = BoxValue.SAFE_USER_MIN();
-  const target_balance = BoxValue.from_i64(outbox_value.as_i64().checked_add(fee.as_i64()));
-  const box_selector = new SimpleBoxSelector();
-  const box_selection = box_selector.select(unspent_boxes, target_balance, new Tokens());
-  const contract = Contract.pay_to_address(recipient);
-  const token_id = TokenId.from_box_id(box_selection.boxes().get(0).box_id());
-  const box_builder = new ErgoBoxCandidateBuilder(outbox_value, contract, 0);
-  const token = new Token(token_id, TokenAmount.from_i64(I64.from_str('1')));
+  const fee = ergo_wasm.TxBuilder.SUGGESTED_TX_FEE();
+  const outbox_value = ergo_wasm.BoxValue.SAFE_USER_MIN();
+  const target_balance = ergo_wasm.BoxValue.from_i64(outbox_value.as_i64().checked_add(fee.as_i64()));
+  const box_selector = new ergo_wasm.SimpleBoxSelector();
+  const box_selection = box_selector.select(unspent_boxes, target_balance, new ergo_wasm.Tokens());
+  const contract = ergo_wasm.Contract.pay_to_address(recipient);
+  const token_id = ergo_wasm.TokenId.from_box_id(box_selection.boxes().get(0).box_id());
+  const box_builder = new ergo_wasm.ErgoBoxCandidateBuilder(outbox_value, contract, 0);
+  const token = new ergo_wasm.Token(token_id, ergo_wasm.TokenAmount.from_i64(ergo_wasm.I64.from_str('1')));
   box_builder.mint_token(token, "TKN", "token desc", 2)
   const outbox = box_builder.build();
-  const tx_outputs = new ErgoBoxCandidates(outbox);
-  const change_address = Address.from_testnet_str('3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN');
-  const min_change_value = BoxValue.SAFE_USER_MIN();
-  const data_inputs = new DataInputs();
-  const tx_builder = TxBuilder.new(box_selection, tx_outputs, 0, fee, change_address, min_change_value);
+  const tx_outputs = new ergo_wasm.ErgoBoxCandidates(outbox);
+  const change_address = ergo_wasm.Address.from_testnet_str('3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN');
+  const min_change_value = ergo_wasm.BoxValue.SAFE_USER_MIN();
+  const data_inputs = new ergo_wasm.DataInputs();
+  const tx_builder = ergo_wasm.TxBuilder.new(box_selection, tx_outputs, 0, fee, change_address, min_change_value);
   tx_builder.set_data_inputs(data_inputs);
   const tx = tx_builder.build();
   assert(tx != null);
 });
 
 it('TxBuilder burn token test', async () => {
-  const recipient = Address.from_testnet_str('3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN');
-  const unspent_boxes = ErgoBoxes.from_boxes_json([
+  const recipient = ergo_wasm.Address.from_testnet_str('3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN');
+  const unspent_boxes = ergo_wasm.ErgoBoxes.from_boxes_json([
     {
       "boxId": "0cf7b9e71961cc473242de389c8e594a4e5d630ddd2e4e590083fb0afb386341",
       "value": 11491500000,
@@ -133,73 +140,73 @@ it('TxBuilder burn token test', async () => {
       "index": 0
     }
   ]);
-  const token_id = TokenId.from_str("19475d9a78377ff0f36e9826cec439727bea522f6ffa3bda32e20d2f8b3103ac");
-  const token = new Token(token_id, TokenAmount.from_i64(I64.from_str('1')));
-  const box_selector = new SimpleBoxSelector();
-  let tokens = new Tokens();
+  const token_id = ergo_wasm.TokenId.from_str("19475d9a78377ff0f36e9826cec439727bea522f6ffa3bda32e20d2f8b3103ac");
+  const token = new ergo_wasm.Token(token_id, ergo_wasm.TokenAmount.from_i64(ergo_wasm.I64.from_str('1')));
+  const box_selector = new ergo_wasm.SimpleBoxSelector();
+  let tokens = new ergo_wasm.Tokens();
   tokens.add(token);
-  const fee = TxBuilder.SUGGESTED_TX_FEE();
-  const outbox_value = BoxValue.SAFE_USER_MIN();
-  const target_balance = BoxValue.from_i64(outbox_value.as_i64().checked_add(fee.as_i64()));
+  const fee = ergo_wasm.TxBuilder.SUGGESTED_TX_FEE();
+  const outbox_value = ergo_wasm.BoxValue.SAFE_USER_MIN();
+  const target_balance = ergo_wasm.BoxValue.from_i64(outbox_value.as_i64().checked_add(fee.as_i64()));
   // select tokens from inputs
   const box_selection = box_selector.select(unspent_boxes, target_balance, tokens);
-  const contract = Contract.pay_to_address(recipient);
+  const contract = ergo_wasm.Contract.pay_to_address(recipient);
   // but don't put selected tokens in the output box (burn them)
-  const box_builder = new ErgoBoxCandidateBuilder(outbox_value, contract, 0);
+  const box_builder = new ergo_wasm.ErgoBoxCandidateBuilder(outbox_value, contract, 0);
   const outbox = box_builder.build();
-  const tx_outputs = new ErgoBoxCandidates(outbox);
-  const change_address = Address.from_testnet_str('3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN');
-  const min_change_value = BoxValue.SAFE_USER_MIN();
-  const data_inputs = new DataInputs();
-  const tx_builder = TxBuilder.new(box_selection, tx_outputs, 0, fee, change_address, min_change_value);
+  const tx_outputs = new ergo_wasm.ErgoBoxCandidates(outbox);
+  const change_address = ergo_wasm.Address.from_testnet_str('3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN');
+  const min_change_value = ergo_wasm.BoxValue.SAFE_USER_MIN();
+  const data_inputs = new ergo_wasm.DataInputs();
+  const tx_builder = ergo_wasm.TxBuilder.new(box_selection, tx_outputs, 0, fee, change_address, min_change_value);
   tx_builder.set_data_inputs(data_inputs);
   const tx = tx_builder.build();
   assert(tx != null);
 });
 
 it('use signed tx outputs as inputs in a new tx', async () => {
-  const sk = SecretKey.random_dlog();
+  const sk = ergo_wasm.SecretKey.random_dlog();
   // simulate existing box guarded by the sk key
-  const input_contract = Contract.pay_to_address(sk.get_address());
-  const input_box = new ErgoBox(BoxValue.from_i64(I64.from_str('100000000000')), 0, input_contract, TxId.zero(), 0, new Tokens());
+  const input_contract = ergo_wasm.Contract.pay_to_address(sk.get_address());
+  const input_box = new ergo_wasm.ErgoBox(ergo_wasm.BoxValue.from_i64(ergo_wasm.I64.from_str('100000000000')), 0, input_contract, ergo_wasm.TxId.zero(), 0, new ergo_wasm.Tokens());
   // create a transaction that spends the "simulated" box
-  const recipient = Address.from_testnet_str('3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN');
-  const unspent_boxes = new ErgoBoxes(input_box);
-  const contract = Contract.pay_to_address(recipient);
-  const outbox_value = BoxValue.from_i64(I64.from_str('10000000000'));
-  const outbox = new ErgoBoxCandidateBuilder(outbox_value, contract, 0).build();
-  const tx_outputs = new ErgoBoxCandidates(outbox);
-  const fee = TxBuilder.SUGGESTED_TX_FEE();
-  const change_address = Address.from_testnet_str('3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN');
-  const min_change_value = BoxValue.SAFE_USER_MIN();
-  const box_selector = new SimpleBoxSelector();
-  const target_balance = BoxValue.from_i64(outbox_value.as_i64().checked_add(fee.as_i64()));
-  const box_selection = box_selector.select(unspent_boxes, target_balance, new Tokens());
-  const tx_builder = TxBuilder.new(box_selection, tx_outputs, 0, fee, change_address, min_change_value);
+  const recipient = ergo_wasm.Address.from_testnet_str('3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN');
+  const unspent_boxes = new ergo_wasm.ErgoBoxes(input_box);
+  const contract = ergo_wasm.Contract.pay_to_address(recipient);
+  const outbox_value = ergo_wasm.BoxValue.from_i64(ergo_wasm.I64.from_str('10000000000'));
+  const outbox = new ergo_wasm.ErgoBoxCandidateBuilder(outbox_value, contract, 0).build();
+  const tx_outputs = new ergo_wasm.ErgoBoxCandidates(outbox);
+  const fee = ergo_wasm.TxBuilder.SUGGESTED_TX_FEE();
+  const change_address = ergo_wasm.Address.from_testnet_str('3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN');
+  const min_change_value = ergo_wasm.BoxValue.SAFE_USER_MIN();
+  const box_selector = new ergo_wasm.SimpleBoxSelector();
+  const target_balance = ergo_wasm.BoxValue.from_i64(outbox_value.as_i64().checked_add(fee.as_i64()));
+  const box_selection = box_selector.select(unspent_boxes, target_balance, new ergo_wasm.Tokens());
+  const tx_builder = ergo_wasm.TxBuilder.new(box_selection, tx_outputs, 0, fee, change_address, min_change_value);
   const tx = tx_builder.build();
-  const tx_data_inputs = ErgoBoxes.from_boxes_json([]);
+  const tx_data_inputs = ergo_wasm.ErgoBoxes.from_boxes_json([]);
   const block_headers = generate_block_headers();
-  const pre_header = PreHeader.from_block_header(block_headers.get(0));
-  const ctx = new ErgoStateContext(pre_header, block_headers);
-  const sks = new SecretKeys();
+  const pre_header = ergo_wasm.PreHeader.from_block_header(block_headers.get(0));
+  const ctx = new ergo_wasm.ErgoStateContext(pre_header, block_headers);
+  const sks = new ergo_wasm.SecretKeys();
   sks.add(sk);
-  const wallet = Wallet.from_secrets(sks);
+  const wallet = ergo_wasm.Wallet.from_secrets(sks);
   const signed_tx = wallet.sign_transaction(ctx, tx, unspent_boxes, tx_data_inputs);
   assert(signed_tx != null);
   // new tx
-  const new_outbox_value = BoxValue.from_i64(I64.from_str('1000000000'));
-  const new_target_balance = BoxValue.from_i64(new_outbox_value.as_i64().checked_add(fee.as_i64()));
-  const new_box_selection = box_selector.select(signed_tx.outputs(), new_target_balance, new Tokens());
-  const new_outbox = new ErgoBoxCandidateBuilder(new_outbox_value, contract, 0).build();
-  const new_tx_outputs = new ErgoBoxCandidates(new_outbox);
-  const new_tx_builder = TxBuilder.new(new_box_selection, new_tx_outputs, 0, fee, change_address, min_change_value);
+  const new_outbox_value = ergo_wasm.BoxValue.from_i64(ergo_wasm.I64.from_str('1000000000'));
+  const new_target_balance = ergo_wasm.BoxValue.from_i64(new_outbox_value.as_i64().checked_add(fee.as_i64()));
+  const new_box_selection = box_selector.select(signed_tx.outputs(), new_target_balance, new ergo_wasm.Tokens());
+  const new_outbox = new ergo_wasm.ErgoBoxCandidateBuilder(new_outbox_value, contract, 0).build();
+  const new_tx_outputs = new ergo_wasm.ErgoBoxCandidates(new_outbox);
+  const new_tx_builder = ergo_wasm.TxBuilder.new(new_box_selection, new_tx_outputs, 0, fee, change_address, min_change_value);
   const new_tx = new_tx_builder.build();
   assert(new_tx != null);
 });
 
 it('Transaction::from_unsigned_tx test', async () => {
-  const recipient = Address.from_testnet_str('3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN');
-  const unspent_boxes = ErgoBoxes.from_boxes_json([
+  const recipient = ergo_wasm.Address.from_testnet_str('3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN');
+  const unspent_boxes = ergo_wasm.ErgoBoxes.from_boxes_json([
     {
       "boxId": "e56847ed19b3dc6b72828fcfb992fdf7310828cf291221269b7ffc72fd66706e",
       "value": 67500000000,
@@ -211,23 +218,23 @@ it('Transaction::from_unsigned_tx test', async () => {
       "index": 1
     }
   ]);
-  const contract = Contract.pay_to_address(recipient);
-  const outbox_value = BoxValue.SAFE_USER_MIN();
-  const outbox = new ErgoBoxCandidateBuilder(outbox_value, contract, 0).build();
-  const tx_outputs = new ErgoBoxCandidates(outbox);
-  const fee = TxBuilder.SUGGESTED_TX_FEE();
-  const change_address = Address.from_testnet_str('3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN');
-  const min_change_value = BoxValue.SAFE_USER_MIN();
-  const data_inputs = new DataInputs();
-  const box_selector = new SimpleBoxSelector();
-  const target_balance = BoxValue.from_i64(outbox_value.as_i64().checked_add(fee.as_i64()));
-  const box_selection = box_selector.select(unspent_boxes, target_balance, new Tokens());
-  const tx_builder = TxBuilder.new(box_selection, tx_outputs, 0, fee, change_address, min_change_value);
+  const contract = ergo_wasm.Contract.pay_to_address(recipient);
+  const outbox_value = ergo_wasm.BoxValue.SAFE_USER_MIN();
+  const outbox = new ergo_wasm.ErgoBoxCandidateBuilder(outbox_value, contract, 0).build();
+  const tx_outputs = new ergo_wasm.ErgoBoxCandidates(outbox);
+  const fee = ergo_wasm.TxBuilder.SUGGESTED_TX_FEE();
+  const change_address = ergo_wasm.Address.from_testnet_str('3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN');
+  const min_change_value = ergo_wasm.BoxValue.SAFE_USER_MIN();
+  const data_inputs = new ergo_wasm.DataInputs();
+  const box_selector = new ergo_wasm.SimpleBoxSelector();
+  const target_balance = ergo_wasm.BoxValue.from_i64(outbox_value.as_i64().checked_add(fee.as_i64()));
+  const box_selection = box_selector.select(unspent_boxes, target_balance, new ergo_wasm.Tokens());
+  const tx_builder = ergo_wasm.TxBuilder.new(box_selection, tx_outputs, 0, fee, change_address, min_change_value);
   tx_builder.set_data_inputs(data_inputs);
   const tx = tx_builder.build();
   assert(tx != null);
   const proof = new Uint8Array([1, 1, 2, 255]);
-  const signed_tx = Transaction.from_unsigned_tx(tx, [proof]);
+  const signed_tx = ergo_wasm.Transaction.from_unsigned_tx(tx, [proof]);
   assert(signed_tx != null);
   assert(signed_tx.inputs().get(0).spending_proof().proof().toString() == proof.toString());
 });

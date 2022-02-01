@@ -1,11 +1,17 @@
 import { expect, assert } from 'chai';
 
-import {
-  ErgoBoxes, I64, ErgoBox, Tokens, BoxValue
-} from '../pkg/ergo_lib_wasm';
+// import {
+//   ErgoBoxes, I64, ErgoBox, Tokens, BoxValue
+// } from '../pkg/ergo_lib_wasm';
+
+import * as ergo from "..";
+let ergo_wasm;
+beforeEach(async () => {
+  ergo_wasm = await ergo;
+});
 
 it('ErgoBox.to_js_eip12() test', async () => {
-  const box = ErgoBoxes.from_boxes_json([{
+  const box = ergo_wasm.ErgoBoxes.from_boxes_json([{
     "id": "3e762407d99b006d53b6583adcca08ef690b42fb0b2ed7abf63179eb6b9033b2",
     "txId": "93d344aa527e18e5a221db060ea1a868f46b61e4537e6e5f69ecc40334c15e38",
     "value": 2875858910,

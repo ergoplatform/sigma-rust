@@ -1,4 +1,7 @@
 {
+    "main": "./pkg/ergo_lib_wasm.js",
+    "types": "./pkg/ergo_lib_wasm.d.ts",
+    "browser": "./index.browser.js",
     "scripts": {
         "build": "webpack",
         "serve": "wasm-pack build --target browser && webpack-dev-server",
