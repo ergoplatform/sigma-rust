@@ -2,10 +2,10 @@
 use std::io;
 
 use bounded_vec::BoundedVec;
+use ergo_chain_types::PeerAddr;
 use sigma_ser::vlq_encode::VlqEncodingError;
 use sigma_ser::{ScorexParsingError, ScorexSerializable, ScorexSerializeResult};
 
-use crate::peer_addr::PeerAddr;
 use crate::{peer_feature::PeerFeature, protocol_version::ProtocolVersion};
 
 type PeerFeatures = BoundedVec<PeerFeature, 1, { u8::MAX as usize }>;

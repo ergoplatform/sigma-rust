@@ -25,13 +25,13 @@ use ergo_lib::wallet::tx_builder::new_miner_fee_box;
 use js_sys::Uint8Array;
 use wasm_bindgen::prelude::*;
 
-use crate::ast::Constant;
+use crate::contract::Contract;
 use crate::ergo_tree::ErgoTree;
 use crate::error_conversion::to_js;
 use crate::json::ErgoBoxJsonEip12;
 use crate::token::Tokens;
 use crate::utils::I64;
-use crate::{contract::Contract, transaction::TxId};
+use crate::{ast::Constant, transaction::TxId};
 
 extern crate derive_more;
 use derive_more::{From, Into};

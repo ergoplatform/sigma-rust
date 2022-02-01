@@ -1,17 +1,18 @@
 //! Block header
-use std::io::Write;
-
+use ergo_chain_types::ADDigest;
+use ergo_chain_types::BlockId;
+use ergo_chain_types::Digest32;
 use num_bigint::BigInt;
 use sigma_ser::vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt};
 use sigma_ser::{
     ScorexParsingError, ScorexSerializable, ScorexSerializationError, ScorexSerializeResult,
 };
+use sigma_util::hash::blake2b256_hash;
+use std::io::Write;
 
 use crate::serialization::sigma_byte_writer::SigmaByteWriter;
 use crate::sigma_protocol::dlog_group::{self, EcPoint};
 
-use super::block_id::BlockId;
-use super::digest32::{blake2b256_hash, ADDigest, Digest32};
 use super::preheader::PreHeader;
 use super::votes::Votes;
 
@@ -191,7 +192,7 @@ impl ScorexSerializable for Header {
         let mut w = SigmaByteWriter::new(&mut data, None);
         autolykos_solution.serialize_bytes(version, &mut w)?;
         id_bytes.extend(data);
-        let id = BlockId(blake2b256_hash(&id_bytes));
+        let id = BlockId(blake2b256_hash(&id_bytes).into());
         header.id = id;
         Ok(header)
     }
@@ -291,14 +292,14 @@ impl From<Header> for PreHeader {
 #[allow(clippy::unwrap_used)]
 mod arbitrary {
 
+    use crate::serialization::sigma_byte_writer::SigmaByteWriter;
+    use crate::sigma_protocol::dlog_group::EcPoint;
+    use ergo_chain_types::Digest;
+    use ergo_chain_types::Digest32;
+    use ergo_chain_types::{blake2b256_hash, ADDigest};
     use num_bigint::BigInt;
     use proptest::array::{uniform3, uniform32};
     use proptest::prelude::*;
-
-    use crate::chain::digest32::{blake2b256_hash, ADDigest};
-    use crate::chain::digest32::{Digest, Digest32};
-    use crate::serialization::sigma_byte_writer::SigmaByteWriter;
-    use crate::sigma_protocol::dlog_group::EcPoint;
 
     use super::{AutolykosSolution, BlockId, Header, Votes};
 

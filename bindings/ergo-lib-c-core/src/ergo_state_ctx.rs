@@ -45,9 +45,9 @@ pub unsafe fn ergo_state_context_new(
     }
 }
 
-pub fn ergo_state_context_delete(header: ErgoStateContextPtr) {
+pub unsafe fn ergo_state_context_delete(header: ErgoStateContextPtr) {
     if !header.is_null() {
-        let boxed = unsafe { Box::from_raw(header) };
+        let boxed = Box::from_raw(header);
         std::mem::drop(boxed);
     }
 }

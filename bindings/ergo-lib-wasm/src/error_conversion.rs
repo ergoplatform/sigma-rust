@@ -1,14 +1,16 @@
 //! Trait implementations to simplify conversion of `ergo_lib` errors into `JsValue`s
 
 use std::array::TryFromSliceError;
+use std::net::AddrParseError;
 use std::num::ParseIntError;
 
 use base16::DecodeError;
 use bounded_vec::BoundedVecOutOfBounds;
+use ergo_lib::ergo_chain_types::Digest32Error;
 use ergo_lib::ergo_nipopow::NipopowProofError;
+use ergo_lib::ergo_rest::NodeError;
 use ergo_lib::ergotree_ir::chain::address::AddressEncoderError;
 use ergo_lib::ergotree_ir::chain::address::AddressError;
-use ergo_lib::ergotree_ir::chain::digest32::Digest32Error;
 use ergo_lib::ergotree_ir::chain::ergo_box::box_value::BoxValueError;
 use ergo_lib::ergotree_ir::chain::token::TokenAmountError;
 use ergo_lib::wallet::derivation_path::ChildIndexError;
@@ -64,6 +66,7 @@ from_error_to_wrap!(TxSigningError);
 from_error_to_wrap!(WalletError);
 from_error_to_wrap!(DecodeError);
 from_error_to_wrap!(TryFromSliceError);
+from_error_to_wrap!(AddrParseError);
 
 macro_rules! from_error_to_wrap_via_debug {
     ($t:ident) => {
@@ -85,3 +88,4 @@ from_error_to_wrap_via_debug!(ExtSecretKeyError);
 from_error_to_wrap_via_debug!(DerivationPathError);
 from_error_to_wrap_via_debug!(ExtPubKeyError);
 from_error_to_wrap_via_debug!(NipopowProofError);
+from_error_to_wrap_via_debug!(NodeError);

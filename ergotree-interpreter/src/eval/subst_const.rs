@@ -10,8 +10,8 @@ use ergotree_ir::mir::value::CollKind;
 use ergotree_ir::mir::value::NativeColl;
 use ergotree_ir::mir::value::Value;
 use ergotree_ir::serialization::SigmaSerializable;
-use ergotree_ir::util::AsVecI8;
-use ergotree_ir::util::AsVecU8;
+use sigma_util::AsVecI8;
+use sigma_util::AsVecU8;
 use std::convert::TryFrom;
 
 impl Evaluable for SubstConstants {

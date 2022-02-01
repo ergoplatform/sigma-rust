@@ -2,9 +2,9 @@
 
 use crate::base16_str::Base16Str;
 use crate::bigint256::BigInt256;
-use crate::chain::digest32::ADDigest;
 use crate::chain::ergo_box::ErgoBox;
 use crate::mir::value::CollKind;
+use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
 use crate::serialization::SigmaSerializationError;
 use crate::sigma_protocol::sigma_boolean::SigmaBoolean;
@@ -15,6 +15,8 @@ use crate::types::stuple::STuple;
 use crate::types::stuple::TupleItems;
 use crate::types::stype::LiftIntoSType;
 use crate::types::stype::SType;
+use ergo_chain_types::ADDigest;
+use ergo_chain_types::Base16DecodedBytes;
 use impl_trait_for_tuples::impl_for_tuples;
 use std::convert::TryFrom;
 use std::convert::TryInto;
@@ -599,7 +601,7 @@ impl TryExtractFrom<Literal> for Vec<i8> {
 
 impl TryExtractFrom<Literal> for Vec<u8> {
     fn try_extract_from(v: Literal) -> Result<Self, TryExtractFromError> {
-        use crate::util::FromVecI8;
+        use sigma_util::FromVecI8;
         Vec::<i8>::try_extract_from(v).map(Vec::<u8>::from_vec_i8)
     }
 }
@@ -703,6 +705,14 @@ impl Base16Str for Constant {
     fn base16_str(&self) -> Result<String, SigmaSerializationError> {
         self.sigma_serialize_bytes()
             .map(|bytes| base16::encode_lower(&bytes))
+    }
+}
+
+impl TryFrom<Base16DecodedBytes> for Constant {
+    type Error = SigmaParsingError;
+
+    fn try_from(value: Base16DecodedBytes) -> Result<Self, Self::Error> {
+        Constant::sigma_parse_bytes(&value.0)
     }
 }
 

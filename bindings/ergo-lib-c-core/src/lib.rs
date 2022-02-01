@@ -30,6 +30,7 @@ mod json;
 pub mod merkleproof;
 pub mod nipopow;
 pub mod reduced;
+pub mod rest;
 pub mod secret_key;
 pub mod token;
 pub mod transaction;

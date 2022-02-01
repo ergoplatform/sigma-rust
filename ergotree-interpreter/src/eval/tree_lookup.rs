@@ -8,10 +8,10 @@ use crate::eval::EvalError;
 use crate::eval::Evaluable;
 use ergotree_ir::mir::avl_tree_data::AvlTreeData;
 use ergotree_ir::mir::constant::TryExtractInto;
-use ergotree_ir::util::AsVecU8;
 use scorex_crypto_avltree::batch_avl_verifier::BatchAVLVerifier;
 use scorex_crypto_avltree::batch_node::{AVLTree, Node, NodeHeader};
 use scorex_crypto_avltree::operation::Operation;
+use sigma_util::AsVecU8;
 
 impl Evaluable for TreeLookup {
     fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
@@ -67,23 +67,23 @@ mod tests {
     use super::*;
     use crate::eval::tests::eval_out_wo_ctx;
 
-    use ergotree_ir::chain::digest32::ADDigest;
+    use ergo_chain_types::ADDigest;
     use ergotree_ir::mir::{
         avl_tree_data::{AvlTreeData, AvlTreeFlags},
         expr::Expr,
         value::{CollKind, NativeColl},
     };
-    use ergotree_ir::serialization::SigmaSerializable;
-    use ergotree_ir::util::AsVecI8;
     use scorex_crypto_avltree::authenticated_tree_ops::AuthenticatedTreeOps;
     use scorex_crypto_avltree::batch_avl_prover::BatchAVLProver;
     use scorex_crypto_avltree::operation::KeyValue;
+    use sigma_ser::ScorexSerializable;
+    use sigma_util::AsVecI8;
 
     #[test]
     fn eval_tree_lookup() {
         let mut prover = populate_tree(vec![(vec![1u8], 10u64.to_be_bytes().to_vec())]);
         let initial_digest =
-            ADDigest::sigma_parse_bytes(&prover.digest().unwrap().into_iter().collect::<Vec<_>>())
+            ADDigest::scorex_parse_bytes(&prover.digest().unwrap().into_iter().collect::<Vec<_>>())
                 .unwrap();
 
         let key1 = Bytes::from(vec![1u8]);

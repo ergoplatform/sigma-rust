@@ -13,9 +13,9 @@ pub unsafe fn collection_new<T>(collection_out: *mut CollectionPtr<T>) -> Result
     Ok(())
 }
 
-pub fn collection_delete<T>(collection: CollectionPtr<T>) {
+pub unsafe fn collection_delete<T>(collection: CollectionPtr<T>) {
     if !collection.is_null() {
-        let boxed = unsafe { Box::from_raw(collection) };
+        let boxed = Box::from_raw(collection);
         std::mem::drop(boxed);
     }
 }

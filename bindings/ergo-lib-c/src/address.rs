@@ -62,6 +62,6 @@ pub unsafe extern "C" fn ergo_lib_address_type_prefix(address: ConstAddressPtr) 
 }
 
 #[no_mangle]
-pub extern "C" fn ergo_lib_address_delete(address: AddressPtr) {
+pub unsafe extern "C" fn ergo_lib_address_delete(address: AddressPtr) {
     address_delete(address)
 }

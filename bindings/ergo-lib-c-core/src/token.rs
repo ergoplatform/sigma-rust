@@ -3,7 +3,10 @@
 use std::convert::TryFrom;
 
 use bounded_vec::BoundedVec;
-use ergo_lib::ergotree_ir::chain::{self, base16_bytes::Base16DecodedBytes, digest32::Digest32};
+use ergo_lib::{
+    ergo_chain_types::{Base16DecodedBytes, Digest32},
+    ergotree_ir::chain,
+};
 
 use crate::{
     ergo_box::ConstBoxIdPtr,

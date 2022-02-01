@@ -2,8 +2,8 @@ use ergotree_ir::mir::calc_blake2b256::CalcBlake2b256;
 use ergotree_ir::mir::value::CollKind;
 use ergotree_ir::mir::value::NativeColl;
 use ergotree_ir::mir::value::Value;
-use ergotree_ir::util::AsVecU8;
 use sigma_util::hash::blake2b256_hash;
+use sigma_util::AsVecU8;
 
 use crate::eval::env::Env;
 use crate::eval::EvalContext;
