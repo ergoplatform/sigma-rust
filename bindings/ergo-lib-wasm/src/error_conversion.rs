@@ -87,8 +87,5 @@ from_error_to_wrap_via_debug!(BoundedVecOutOfBounds);
 from_error_to_wrap_via_debug!(ExtSecretKeyError);
 from_error_to_wrap_via_debug!(DerivationPathError);
 from_error_to_wrap_via_debug!(ExtPubKeyError);
-<<<<<<< HEAD
 from_error_to_wrap_via_debug!(NipopowProofError);
-=======
 from_error_to_wrap_via_debug!(NodeError);
->>>>>>> 0aafc38d (switch from NodeClient to a functions with node conf param;)

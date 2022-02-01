@@ -21,12 +21,14 @@ use blake2::{
     digest::{Update, VariableOutput},
     VarBlake2b,
 };
-use ergo_lib::ergotree_ir::chain::{
-    block_id::BlockId,
-    digest32::{blake2b256_hash, Digest32},
-    header::Header,
+use ergo_lib::{
+    ergo_chain_types::Digest32,
+    wallet::{ext_secret_key::ExtSecretKey, mnemonic::Mnemonic},
 };
-use ergo_lib::wallet::{ext_secret_key::ExtSecretKey, mnemonic::Mnemonic};
+use ergo_lib::{
+    ergo_chain_types::{blake2b256_hash, BlockId},
+    ergotree_ir::chain::header::Header,
+};
 use ergo_nipopow::NipopowAlgos;
 use num_bigint::{BigInt, Sign};
 
