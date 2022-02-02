@@ -24,9 +24,13 @@ pub mod constants;
 mod utils;
 pub mod wallet;
 
+// Re-exported types from dependencies
+pub extern crate ergo_chain_types;
 pub extern crate ergo_merkle_tree;
 pub extern crate ergo_nipopow;
 /// Re-exported types from dependencies
+#[cfg(feature = "rest")]
+pub extern crate ergo_rest;
 #[cfg(feature = "compiler")]
 pub extern crate ergoscript_compiler;
 pub extern crate ergotree_interpreter;

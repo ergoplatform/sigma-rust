@@ -22,7 +22,6 @@ mod codec;
 mod constants;
 mod error;
 mod message;
-mod peer_addr;
 mod peer_connection_handler;
 mod peer_connector;
 mod peer_database;
@@ -32,7 +31,6 @@ mod peer_spec;
 mod protocol_version;
 
 pub use client::Client;
-pub use peer_addr::PeerAddr;
 pub use peer_database::{in_memory::InMemoryPeerDatabase, PeerDatabase, PeerDatabaseError};
 pub use peer_feature::{LocalAddressPeerFeature, PeerFeature, PeerFeatureId};
 pub use peer_info::PeerInfo;

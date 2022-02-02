@@ -49,7 +49,7 @@ pub unsafe extern "system" fn Java_org_ergoplatform_wallet_jni_WalletLib_address
 }
 
 #[no_mangle]
-pub extern "system" fn Java_org_ergoplatform_wallet_jni_WalletLib_addressDelete(
+pub unsafe extern "system" fn Java_org_ergoplatform_wallet_jni_WalletLib_addressDelete(
     _: JNIEnv,
     _: JClass,
     address: jlong,

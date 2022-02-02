@@ -1,12 +1,12 @@
 //! Box registers
 
-use crate::chain::base16_bytes::Base16EncodedBytes;
 use crate::mir::constant::Constant;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
 use crate::serialization::SigmaSerializeResult;
+use ergo_chain_types::Base16EncodedBytes;
 use std::convert::TryInto;
 use std::{collections::HashMap, convert::TryFrom};
 use thiserror::Error;
@@ -165,7 +165,7 @@ pub struct NonMandatoryRegisterIdParsingError();
 #[cfg_attr(
     feature = "json",
     serde(
-        into = "HashMap<NonMandatoryRegisterId, Base16EncodedBytes>",
+        into = "HashMap<NonMandatoryRegisterId, ergo_chain_types::Base16EncodedBytes>",
         try_from = "HashMap<NonMandatoryRegisterId, crate::chain::json::ergo_box::ConstantHolder>"
     )
 )]
@@ -254,7 +254,9 @@ pub enum NonMandatoryRegistersError {
     NonDenselyPacked(u8),
 }
 
-impl From<NonMandatoryRegisters> for HashMap<NonMandatoryRegisterId, Base16EncodedBytes> {
+impl From<NonMandatoryRegisters>
+    for HashMap<NonMandatoryRegisterId, ergo_chain_types::Base16EncodedBytes>
+{
     fn from(v: NonMandatoryRegisters) -> Self {
         v.0.into_iter()
             .enumerate()

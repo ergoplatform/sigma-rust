@@ -12,21 +12,21 @@ use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
 use crate::serialization::SigmaSerializationError;
 use crate::serialization::SigmaSerializeResult;
-use crate::util::AsVecI8;
 
 pub use box_id::*;
+use ergo_chain_types::Digest32;
 pub use register::*;
 
 use bounded_vec::BoundedVec;
 use indexmap::IndexSet;
 use sigma_util::hash::blake2b256_hash;
+use sigma_util::AsVecI8;
 use std::convert::TryFrom;
 
 use std::convert::TryInto;
 
 use self::box_value::BoxValue;
 
-use super::digest32::Digest32;
 use super::token::Token;
 use super::token::TokenId;
 use super::tx_id::TxId;

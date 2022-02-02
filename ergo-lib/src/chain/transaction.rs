@@ -5,8 +5,8 @@ pub mod input;
 pub mod reduced;
 pub mod unsigned;
 
+use ergo_chain_types::blake2b256_hash;
 pub use ergotree_interpreter::eval::context::TxIoVec;
-use ergotree_ir::chain::digest32::blake2b256_hash;
 use ergotree_ir::chain::ergo_box::ErgoBox;
 use ergotree_ir::chain::ergo_box::ErgoBoxCandidate;
 use ergotree_ir::chain::token::TokenId;

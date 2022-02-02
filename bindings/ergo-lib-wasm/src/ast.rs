@@ -3,8 +3,8 @@
 use crate::ergo_box::ErgoBox;
 use crate::error_conversion::to_js;
 use crate::utils::I64;
+use ergo_lib::ergo_chain_types::Base16DecodedBytes;
 use ergo_lib::ergotree_ir::base16_str::Base16Str;
-use ergo_lib::ergotree_ir::chain::base16_bytes::Base16DecodedBytes;
 use ergo_lib::ergotree_ir::mir::constant::{TryExtractFrom, TryExtractInto};
 use ergo_lib::ergotree_ir::serialization::SigmaSerializable;
 use ergo_lib::ergotree_ir::sigma_protocol::dlog_group::EcPoint;
