@@ -1,11 +1,5 @@
 import { expect, assert } from "chai";
 
-// import {
-//   ErgoTree,
-//   Constant,
-//   I64
-// } from '../pkg/ergo_lib_wasm';
-
 import * as ergo from "..";
 let ergo_wasm;
 beforeEach(async () => {

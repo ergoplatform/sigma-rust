@@ -1,5 +1,4 @@
 import { expect, assert } from 'chai';
-// import { MerkleProof, LevelNode, NodeSide, base16_decode } from '../pkg/ergo_lib_wasm';
 
 import * as ergo from "..";
 let ergo_wasm;

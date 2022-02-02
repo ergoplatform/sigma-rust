@@ -1,16 +1,5 @@
 import { expect, assert } from "chai";
 
-// import {
-//   Address, Wallet, ErgoBox, ErgoBoxCandidateBuilder, Contract,
-//   ErgoBoxes, ErgoBoxCandidates,
-//   ErgoStateContext, TxBuilder, BoxValue, BoxSelector, I64, SecretKey, TxId, DataInputs, NonMandatoryRegisterId, Constant
-// } from '../pkg/ergo_lib_wasm';
-
-// const recipient = ergo_wasm.Address.from_testnet_str(
-//   "3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN"
-// );
-// const contract = ergo_wasm.Contract.pay_to_address(recipient);
-
 import * as ergo from "..";
 let ergo_wasm;
 let recipient, contract;

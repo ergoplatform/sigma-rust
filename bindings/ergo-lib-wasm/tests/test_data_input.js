@@ -1,10 +1,5 @@
 import { expect, assert } from "chai";
 
-// import {
-//   DataInput,
-//   BoxId,
-// } from '../pkg/ergo_lib_wasm';
-
 import * as ergo from "..";
 let ergo_wasm;
 beforeEach(async () => {

@@ -2,13 +2,6 @@ import { expect, assert } from 'chai';
 
 import { generate_block_headers } from './utils';
 
-// import {
-//   Address, Wallet, ErgoBox, ErgoBoxCandidateBuilder, Contract,
-//   ErgoBoxes, ErgoBoxCandidates,
-//   ErgoStateContext, TxBuilder, BoxValue, BoxSelector, I64, SecretKey, SecretKeys, TxId, DataInputs,
-//   SimpleBoxSelector, Tokens, Token, TokenAmount, TokenId, BlockHeaders, PreHeader, Transaction,
-// } from '../pkg/ergo_lib_wasm';
-
 import * as ergo from "..";
 let ergo_wasm;
 beforeEach(async () => {
