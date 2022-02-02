@@ -136,11 +136,17 @@ jobs:
           wasm-pack test  --chrome  --headless
           wasm-pack test  --chrome  --headless --release
 
-      - name: run JS tests
+      - name: run node JS tests
         run: |
           wasm-pack build
           npm install
           npm run test
+      
+      - name: run browser JS tests
+        run: |
+          wasm-pack build
+          npm install
+          npm run test-browser
 
       - name: build alpha versions
         run: |
