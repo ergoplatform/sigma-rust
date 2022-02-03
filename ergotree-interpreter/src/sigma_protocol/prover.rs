@@ -57,6 +57,7 @@ use crate::eval::context::Context;
 use crate::eval::env::Env;
 use crate::eval::EvalError;
 
+use crate::sigma_protocol::dht_protocol::SecondDhTupleProverMessage;
 use crate::sigma_protocol::dlog_protocol::SecondDlogProverMessage;
 use ergotree_ir::sigma_protocol::dlog_group;
 use thiserror::Error;
@@ -932,7 +933,6 @@ fn step9_real_schnorr<P: Prover + ?Sized>(
                 .find(|comm| comm.position == us.position);
             if let Some(tree) = hint {
                 let unchecked_tree = tree.unchecked_tree;
-                // should be replace with match case
                 if let UncheckedTree::UncheckedLeaf(UncheckedLeaf::UncheckedSchnorr(
                     unchecked_schnorr,
                 )) = unchecked_tree
@@ -960,8 +960,6 @@ fn step9_real_schnorr<P: Prover + ?Sized>(
                     }
                     .into(),
                 ))
-
-                // Err(ProverError::SecretNotFound)
             }
         }
     } else {
@@ -1010,11 +1008,29 @@ fn step9_real_dh_tuple<P: Prover + ?Sized>(
                     pi
                 )));
             }
-            None => {
-                return Err(ProverError::NotYetImplemented(
-                    "when secret not found".to_string(),
-                ));
-            }
+            None => match hints_bag
+                .real_proofs()
+                .iter()
+                .find(|c| c.position == dhu.position)
+            {
+                Some(proof) => {
+                    let unchecked_tree = proof.clone().unchecked_tree;
+                    if let UncheckedTree::UncheckedLeaf(UncheckedLeaf::UncheckedDhTuple(
+                        unchecked_dht,
+                    )) = unchecked_tree
+                    {
+                        unchecked_dht.second_message
+                    } else {
+                        let z =
+                            dlog_group::random_scalar_in_group_range(crypto_utils::secure_rng());
+                        SecondDhTupleProverMessage { z }
+                    }
+                }
+                None => {
+                    let z = dlog_group::random_scalar_in_group_range(crypto_utils::secure_rng());
+                    SecondDhTupleProverMessage { z }
+                }
+            },
         };
         Ok(Some(
             UncheckedDhTuple {
