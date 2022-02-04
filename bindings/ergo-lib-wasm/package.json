@@ -1,42 +1,43 @@
 {
-    "main": "./pkg/ergo_lib_wasm.js",
-    "types": "./pkg/ergo_lib_wasm.d.ts",
-    "browser": "./index.browser.js",
-    "scripts": {
-        "build": "webpack",
-        "serve": "wasm-pack build --target browser && webpack-dev-server",
-        "test": "wasm-pack build --target nodejs && mocha --require @babel/register --require @babel/polyfill 'tests/test*.js'",
-        "test-browser": "rm -rf ./pkg && npm run build-browser && mv ./pkg-browser ./pkg && ./node_modules/.bin/karma start",
-        "doc": "jsdoc -c jsdoc.json pkg/ergo_wallet_wasm.js README.md -d docs",
-        "build-nodejs": "rm -rf ./pkg-nodejs && wasm-pack build --target nodejs --out-dir pkg-nodejs && cd pkg-nodejs && node ../scripts/publish_helper -nodejs",
-        "build-nodejs-alpha": "rm -rf ./pkg-nodejs && wasm-pack build --target nodejs --out-dir pkg-nodejs && cd pkg-nodejs && node ../scripts/publish_helper -nodejs && npm version minor && node ../scripts/set_alpha_version -nodejs $(git rev-parse --short HEAD)",
-        "build-browser": "rm -rf ./pkg-browser && wasm-pack build --target browser --out-dir pkg-browser && cd pkg-browser && node ../scripts/publish_helper -browser",
-        "build-browser-alpha": "rm -rf ./pkg-browser && wasm-pack build --target browser --out-dir pkg-browser && cd pkg-browser && node ../scripts/publish_helper -browser && npm version minor && node ../scripts/set_alpha_version -browser $(git rev-parse --short HEAD)",
-        "publish-nodejs": "npm run build-nodejs &&  cd pkg-nodejs && npm publish",
-        "publish-browser": "npm run build-browser && cd pkg-browser && npm publish"
-    },
-    "devDependencies": {
-        "@babel/core": "^7.6.4",
-        "@babel/plugin-syntax-dynamic-import": "^7.2.0",
-        "@babel/polyfill": "^7.6.0",
-        "@babel/preset-env": "^7.6.3",
-        "@babel/register": "^7.6.2",
-        "babel-cli": "^6.26.0",
-        "babel-loader": "^8.2.3",
-        "chai": "^4.2.0",
-        "jsdoc": "~3.6.3",
-        "karma": "^6.3.13",
-        "karma-chai": "^0.1.0",
-        "karma-chrome-launcher": "^3.1.0",
-        "karma-mocha": "^2.0.1",
-        "karma-spec-reporter": "0.0.32",
-        "karma-webpack": "^5.0.0",
-        "mocha": "^6.2.3",
-        "mocha-loader": "^2.0.1",
-        "text-encoder": "0.0.4",
-        "webpack": "^5.37.1"
-    },
-    "dependencies": {
-        "babel": "^6.23.0"
-    }
+  "main": "./pkg/ergo_lib_wasm.js",
+  "types": "./pkg/ergo_lib_wasm.d.ts",
+  "browser": "./index.browser.js",
+  "scripts": {
+    "build": "webpack",
+    "serve": "wasm-pack build --target browser && webpack-dev-server",
+    "test": "wasm-pack build --target nodejs && mocha --require @babel/register --require @babel/polyfill 'tests/test*.js'",
+    "integration-test": "wasm-pack build --target nodejs && mocha --require @babel/register --require @babel/polyfill 'tests/integration_test*.js'",
+    "test-browser": "rm -rf ./pkg && npm run build-browser && mv ./pkg-browser ./pkg && ./node_modules/.bin/karma start",
+    "doc": "jsdoc -c jsdoc.json pkg/ergo_wallet_wasm.js README.md -d docs",
+    "build-nodejs": "rm -rf ./pkg-nodejs && wasm-pack build --target nodejs --out-dir pkg-nodejs && cd pkg-nodejs && node ../scripts/publish_helper -nodejs",
+    "build-nodejs-alpha": "rm -rf ./pkg-nodejs && wasm-pack build --target nodejs --out-dir pkg-nodejs && cd pkg-nodejs && node ../scripts/publish_helper -nodejs && npm version minor && node ../scripts/set_alpha_version -nodejs $(git rev-parse --short HEAD)",
+    "build-browser": "rm -rf ./pkg-browser && wasm-pack build --target browser --out-dir pkg-browser && cd pkg-browser && node ../scripts/publish_helper -browser",
+    "build-browser-alpha": "rm -rf ./pkg-browser && wasm-pack build --target browser --out-dir pkg-browser && cd pkg-browser && node ../scripts/publish_helper -browser && npm version minor && node ../scripts/set_alpha_version -browser $(git rev-parse --short HEAD)",
+    "publish-nodejs": "npm run build-nodejs &&  cd pkg-nodejs && npm publish",
+    "publish-browser": "npm run build-browser && cd pkg-browser && npm publish"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.6.4",
+    "@babel/plugin-syntax-dynamic-import": "^7.2.0",
+    "@babel/polyfill": "^7.6.0",
+    "@babel/preset-env": "^7.6.3",
+    "@babel/register": "^7.6.2",
+    "babel-cli": "^6.26.0",
+    "babel-loader": "^8.2.3",
+    "chai": "^4.2.0",
+    "jsdoc": "~3.6.3",
+    "karma": "^6.3.13",
+    "karma-chai": "^0.1.0",
+    "karma-chrome-launcher": "^3.1.0",
+    "karma-mocha": "^2.0.1",
+    "karma-spec-reporter": "0.0.32",
+    "karma-webpack": "^5.0.0",
+    "mocha": "^6.2.3",
+    "mocha-loader": "^2.0.1",
+    "text-encoder": "0.0.4",
+    "webpack": "^5.37.1"
+  },
+  "dependencies": {
+    "babel": "^6.23.0"
+  }
 }

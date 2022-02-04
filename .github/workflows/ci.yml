@@ -112,6 +112,21 @@ jobs:
     defaults:
       run:
         working-directory: bindings/ergo-lib-wasm
+
+    # Service containers to run `ergo` node in `devnet` mode
+    services:
+      # Label used to access the service container
+      ergo_node:
+        # Docker Hub image
+        image: ergoplatform/ergo:latest
+        options: >-
+          --devnet
+          -c /etc/myergo.conf 
+        volumes:
+          - /.github/workflows/devnetTemplate.conf:/etc/myergo.conf 
+        ports:
+          # Maps tcp port 9053 on service container to the host
+          - 9053:9053
     steps:
       - name: checkout
         uses: actions/checkout@v2
@@ -140,7 +155,13 @@ jobs:
           wasm-pack build
           npm install
           npm run test
-
+      
+      - name: run node JS integration tests
+        run: |
+          wasm-pack build
+          npm install
+          npm run integration-test
+      
       - name: run browser JS tests
         run: |
           wasm-pack build
