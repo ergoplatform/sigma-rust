@@ -121,7 +121,7 @@ jobs:
         image: kbell1234/ergo_node_devnet:latest
         # Need to hardcode this since we can't run a job to query user/group ID before this `services` job.
         # See https://github.com/actions/checkout/issues/211
-        options: --user 0:0
+        options: --user 1000
         volumes:
           - ${{ github.workspace }}/integration-testing-conf/ergo.conf:/etc/myergo.conf 
         ports:
