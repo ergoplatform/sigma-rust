@@ -113,17 +113,28 @@ jobs:
       run:
         working-directory: bindings/ergo-lib-wasm
 
+    # CI workaround when dealing with containers
+    configure:
+      runs-on: ubuntu-latest
+      outputs:
+        uid_gid: ${{ steps.get-user.outputs.uid_gid }}
+      steps:
+        - id: get-user
+          run: echo "::set-output name=uid_gid::$(id -u):$(id -g)"
+
     # Service containers to run `ergo` node in `devnet` mode
     services:
       # Label used to access the service container
       ergo_node:
         # Docker Hub image
         image: kbell1234/ergo_node_devnet:latest
+        options: --user ${{ needs.configure.outputs.uid_gid }}
         volumes:
           - ${{ github.workspace }}/integration-testing-conf/ergo.conf:/etc/myergo.conf 
         ports:
           # Maps tcp port 9053 on service container to the host
           - 9053:9053
+
     steps:
       - name: checkout
         uses: actions/checkout@v2
