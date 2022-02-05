@@ -120,7 +120,7 @@ jobs:
         # Docker Hub image
         image: kbell1234/ergo_node_devnet:latest
         volumes:
-          - ${{ github.workspace }}/.github/workflows/devnetTemplate.conf:/etc/myergo.conf 
+          - ${{ github.workspace }}/integration-testing-conf/ergo.conf:/etc/myergo.conf 
         ports:
           # Maps tcp port 9053 on service container to the host
           - 9053:9053
