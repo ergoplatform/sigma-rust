@@ -34,6 +34,7 @@
     "karma-webpack": "^5.0.0",
     "mocha": "^6.2.3",
     "mocha-loader": "^2.0.1",
+    "node-fetch": "^3.2.0",
     "text-encoder": "0.0.4",
     "webpack": "^5.37.1"
   },
