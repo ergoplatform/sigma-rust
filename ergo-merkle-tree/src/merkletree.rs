@@ -294,7 +294,7 @@ mod test {
             let nodes: Vec<MerkleNode> = data.iter().map(MerkleNode::from_bytes).map(Result::unwrap).collect();
             let tree = MerkleTree::new(&nodes);
 
-            let valid = indices.iter().all(|i| *i < data.len()) && indices.len() < data.len(); // TODO, is there any better strategy for proptest that doesn't require us to filter out invalid indices
+            let valid = indices.iter().all(|i| *i < data.len()) && indices.len() < data.len() && indices.len() > 0; // TODO, is there any better strategy for proptest that doesn't require us to filter out invalid indices
             if valid {
                 assert!(tree.proof_by_indices(&indices).unwrap().valid(tree.get_root_hash().unwrap()));
             }

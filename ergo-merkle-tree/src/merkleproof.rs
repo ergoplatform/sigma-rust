@@ -6,6 +6,7 @@ use crate::{HASH_SIZE, INTERNAL_PREFIX};
     feature = "json",
     derive(serde_repr::Serialize_repr, serde_repr::Deserialize_repr)
 )]
+#[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum NodeSide {
@@ -34,7 +35,8 @@ impl std::convert::TryFrom<u8> for NodeSide {
     serde(into = "crate::json::LevelNodeJson"),
     serde(try_from = "crate::json::LevelNodeJson")
 )]
-#[derive(Copy, Clone, Debug)]
+#[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct LevelNode(pub Option<[u8; HASH_SIZE]>, pub NodeSide);
 
 impl LevelNode {

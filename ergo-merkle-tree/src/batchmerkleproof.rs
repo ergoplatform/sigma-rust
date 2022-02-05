@@ -1,10 +1,17 @@
 use crate::NodeSide;
 use crate::{concatenate_hashes, prefixed_hash, prefixed_hash2};
 use crate::{HASH_SIZE, INTERNAL_PREFIX};
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "json",
+    serde(into = "crate::json::BatchMerkleProofJson"),
+    serde(try_from = "crate::json::BatchMerkleProofJson")
+)]
+#[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
 pub struct BatchMerkleProof {
-    indices: Vec<(usize, [u8; 32])>,
-    pub proofs: Vec<crate::LevelNode>,
+    pub(crate) indices: Vec<(usize, [u8; 32])>,
+    pub(crate) proofs: Vec<crate::LevelNode>,
 }
 
 impl BatchMerkleProof {
@@ -73,5 +80,118 @@ impl BatchMerkleProof {
             [root_hash] => root_hash == expected_root,
             _ => false,
         }
+    }
+}
+
+use sigma_ser::ScorexSerializable;
+
+// Binary Serialization for BatchMerkleProof. Matches Scala implementation. Since the Scala implementation uses 4-byte ints for length/indices, this method will fail the proof or indexes length is > u32::MAX,
+// TODO: use BoundedVec in BatchMerkleProof instead?
+impl ScorexSerializable for BatchMerkleProof {
+    fn scorex_serialize<W: sigma_ser::vlq_encode::WriteSigmaVlqExt>(
+        &self,
+        w: &mut W,
+    ) -> sigma_ser::ScorexSerializeResult {
+        fn write_u32_be<W: sigma_ser::vlq_encode::WriteSigmaVlqExt>(
+            val: u32,
+            w: &mut W,
+        ) -> sigma_ser::ScorexSerializeResult {
+            for byte in val.to_be_bytes() {
+                w.put_u8(byte)?;
+            }
+            Ok(())
+        }
+        write_u32_be(u32::try_from(self.indices.len())?, w)?; // for serialization, index length must be at most 4 bytes
+        write_u32_be(u32::try_from(self.proofs.len())?, w)?;
+
+        for (index, hash) in &self.indices {
+            write_u32_be(u32::try_from(*index)?, w)?;
+            for byte in hash {
+                w.put_u8(*byte)?;
+            }
+        }
+
+        for proof in &self.proofs {
+            match proof.0 {
+                Some(hash) => {
+                    for byte in hash {
+                        w.put_u8(byte)?
+                    }
+                }
+                None => {
+                    for _ in 0..32 {
+                        w.put_u8(0)?;
+                    }
+                }
+            }
+            w.put_u8(proof.1 as u8)?;
+        }
+
+        Ok(())
+    }
+
+    fn scorex_parse<R: sigma_ser::vlq_encode::ReadSigmaVlqExt>(
+        r: &mut R,
+    ) -> Result<Self, sigma_ser::ScorexParsingError> {
+        fn read_u32_be<R: sigma_ser::vlq_encode::ReadSigmaVlqExt>(
+            r: &mut R,
+        ) -> Result<u32, sigma_ser::ScorexParsingError> {
+            let mut bytes = [0u8; 4];
+            for i in 0..4 {
+                bytes[i] = r.get_u8()?;
+            }
+            Ok(u32::from_be_bytes(bytes))
+        }
+        let indices_len = read_u32_be(r)? as usize;
+        let proofs_len = read_u32_be(r)? as usize;
+        let indices = (0..indices_len)
+            .map(|_| {
+                let index = read_u32_be(r)? as usize;
+                let mut hash = [0u8; HASH_SIZE];
+                for i in 0..HASH_SIZE {
+                    hash[i] = r.get_u8()?;
+                }
+                Ok((index, hash))
+            })
+            .collect::<Result<Vec<(usize, [u8; HASH_SIZE])>, sigma_ser::ScorexParsingError>>()?;
+
+        let proofs = (0..proofs_len)
+            .map(|_| {
+                let mut hash = [0u8; HASH_SIZE];
+                for i in 0..HASH_SIZE {
+                    hash[i] = r.get_u8()?;
+                }
+                let empty = hash.iter().all(|&b| b == 0);
+                let side: NodeSide = r.get_u8()?.try_into().map_err(|_| {
+                    sigma_ser::ScorexParsingError::ValueOutOfBounds(
+                        "Side can only be 0 or 1".into(),
+                    )
+                })?;
+
+                if empty {
+                    Ok(crate::LevelNode::empty_node(side))
+                } else {
+                    Ok(crate::LevelNode::new(hash, side))
+                }
+            })
+            .collect::<Result<Vec<crate::LevelNode>, sigma_ser::ScorexParsingError>>()?;
+        Ok(BatchMerkleProof::new(indices, proofs))
+    }
+}
+
+#[cfg(test)]
+#[cfg(feature = "arbitrary")]
+mod test {
+    use proptest::prelude::*;
+    use sigma_ser::ScorexSerializable;
+    proptest! {
+        #[test]
+        fn test_batchmerkleproof_serialization_roundtrip(proof in any::<crate::batchmerkleproof::BatchMerkleProof>().prop_filter("Indices > u32::max not allowed", |proof| proof.indices.len() < u32::MAX as usize && proof.indices.iter().all(|(i, _)| *i < u32::MAX as usize))) {
+
+            let serialized_bytes = proof.scorex_serialize_bytes().unwrap();
+            assert_eq!(crate::batchmerkleproof::BatchMerkleProof::scorex_parse_bytes(&serialized_bytes).unwrap(), proof);
+            assert_eq!(serialized_bytes.len(), (8 + proof.proofs.len() * 33 + proof.indices.len() * 36));
+        }
+
     }
 }
