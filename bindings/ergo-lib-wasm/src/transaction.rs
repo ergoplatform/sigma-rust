@@ -11,13 +11,9 @@ use crate::json::TransactionJsonEip12;
 use crate::json::UnsignedTransactionJsonEip12;
 use ergo_lib::chain;
 use ergo_lib::chain::transaction::{distinct_token_ids, TxIoVec};
-use ergo_lib::ergotree_ir::chain::base16_bytes::Base16DecodedBytes;
-use ergo_lib::ergotree_ir::chain::base16_bytes::Base16EncodedBytes;
-use ergo_lib::ergotree_ir::chain::digest32::Digest32;
 use ergo_lib::ergotree_ir::serialization::SigmaSerializable;
 use js_sys::Uint8Array;
-use std::convert::TryFrom;
-use std::convert::TryInto;
+use std::convert::{TryFrom, TryInto};
 use wasm_bindgen::prelude::*;
 
 extern crate derive_more;
@@ -25,6 +21,7 @@ extern crate derive_more;
 use crate::ergo_state_ctx::ErgoStateContext;
 use crate::transaction::reduced::Propositions;
 use derive_more::{From, Into};
+use ergo_lib::ergo_chain_types::{Base16DecodedBytes, Base16EncodedBytes, Digest32};
 use ergo_lib::ergotree_ir::chain::ergo_box::ErgoBox;
 
 pub mod reduced;
@@ -98,6 +95,7 @@ impl HintsBag {
         let commitment = self.0.commitments()[index].clone();
         Ok(CommitmentHint(commitment))
     }
+
 }
 
 impl From<ergo_lib::ergotree_interpreter::sigma_protocol::prover::hint::HintsBag> for HintsBag {

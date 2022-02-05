@@ -231,3 +231,66 @@ it('Transaction::from_unsigned_tx test', async () => {
   assert(signed_tx != null);
   assert(signed_tx.inputs().get(0).spending_proof().proof().toString() == proof.toString());
 });
+
+it('signing multi signature transaction', async () => {
+  const alice_secret = ergo_wasm.SecretKey.dlog_from_bytes(Uint8Array.from(Buffer.from("e726ad60a073a49f7851f4d11a83de6c9c7f99e17314fcce560f00a51a8a3d18", "hex")));
+  const bob_secret=ergo_wasm.SecretKey.dlog_from_bytes(Uint8Array.from(Buffer.from("9e6616b4e44818d21b8dfdd5ea87eb822480e7856ab910d00f5834dc64db79b3", "hex")));
+  const alice_pk_bytes=Uint8Array.from(Buffer.from("cd03c8e1527efae4be9868cea6767157fcccac66489842738efed0a302e4f81710d0", "hex"));
+  const bob_pk_bytes=Uint8Array.from(Buffer.from("cd0247eb7cf009addc51892932c05c2a237c86c92f4982307a1af240a08c88270348", "hex"));
+  const multi_sig_address = ergo_wasm.Address.from_testnet_str('JryiCXrc7x5D8AhS9DYX1TDzW5C5mT6QyTMQaptF76EQkM15cetxtYKq3u6LymLZLVCyjtgbTKFcfuuX9LLi49Ec5m2p6cwsg5NyEsCQ7na83yEPN');
+  const input_contract = ergo_wasm.Contract.pay_to_address(multi_sig_address);
+  const input_box = new ergo_wasm.ErgoBox(ergo_wasm.BoxValue.from_i64(ergo_wasm.I64.from_str('1000000000')), 0, input_contract, ergo_wasm.TxId.zero(), 0, new ergo_wasm.Tokens());
+  // create a transaction that spends the "simulated" box
+  const recipient = ergo_wasm.Address.from_testnet_str('3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN');
+  const unspent_boxes = new ergo_wasm.ErgoBoxes(input_box);
+  const contract = ergo_wasm.Contract.pay_to_address(recipient);
+  const outbox_value = ergo_wasm.BoxValue.SAFE_USER_MIN();
+  const outbox = new ergo_wasm.ErgoBoxCandidateBuilder(outbox_value, contract, 0).build();
+  const tx_outputs = new ergo_wasm.ErgoBoxCandidates(outbox);
+  const fee = ergo_wasm.TxBuilder.SUGGESTED_TX_FEE();
+  const change_address = ergo_wasm.Address.from_testnet_str('3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN');
+  const min_change_value = ergo_wasm.BoxValue.SAFE_USER_MIN();
+  const box_selector = new ergo_wasm.SimpleBoxSelector();
+  const target_balance = ergo_wasm.BoxValue.from_i64(outbox_value.as_i64().checked_add(fee.as_i64()));
+  const box_selection = box_selector.select(unspent_boxes, target_balance, new ergo_wasm.Tokens());
+  const tx_builder = ergo_wasm.TxBuilder.new(box_selection, tx_outputs, 0, fee, change_address, min_change_value);
+
+  const tx = tx_builder.build();
+  const tx_data_inputs = ergo_wasm.ErgoBoxes.from_boxes_json([]);
+  const block_headers = generate_block_headers();
+  const pre_header = ergo_wasm.PreHeader.from_block_header(block_headers.get(0));
+  const ctx = new ergo_wasm.ErgoStateContext(pre_header, block_headers);
+
+  const sks_alice = new ergo_wasm.SecretKeys();
+  sks_alice.add(alice_secret);
+  const wallet_alice = ergo_wasm.Wallet.from_secrets(sks_alice);
+
+
+  const sks_bob = new ergo_wasm.SecretKeys();
+  sks_bob.add(bob_secret);
+  const wallet_bob = ergo_wasm.Wallet.from_secrets(sks_bob);
+  const bob_hints = wallet_bob.generate_commitments(ctx, tx, unspent_boxes, tx_data_inputs).all_hints_for_input(0);
+  const bob_known=bob_hints.get(0);
+  const bob_own = bob_hints.get(1);
+  let hints_bag = ergo_wasm.HintsBag.empty();
+
+  hints_bag.add_commitment(bob_known);
+  const alice_tx_hints_bag=ergo_wasm.TransactionHintsBag.empty()
+  alice_tx_hints_bag.add_hints_for_input(0,hints_bag);
+  const partial_signed = wallet_alice.sign_transaction_multi(ctx, tx, unspent_boxes, tx_data_inputs, alice_tx_hints_bag);
+  const real_propositions=new ergo_wasm.Propositions;
+
+  const simulated_proposition=new ergo_wasm.Propositions;
+
+  real_propositions.add_proposition_from_byte(alice_pk_bytes);
+  const bob_hints_bag=ergo_wasm.extract_hints(partial_signed, ctx, unspent_boxes, tx_data_inputs, real_propositions, simulated_proposition).all_hints_for_input(0);
+  bob_hints_bag.add_commitment(bob_own);
+  const bob_tx_hints_bag=ergo_wasm.TransactionHintsBag.empty();
+  bob_tx_hints_bag.add_hints_for_input(0,bob_hints_bag);
+  const signed_tx = wallet_bob.sign_transaction_multi(ctx, tx, unspent_boxes, tx_data_inputs, bob_tx_hints_bag);
+
+  assert(signed_tx != null);
+
+
+});
+

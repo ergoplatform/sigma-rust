@@ -18,7 +18,7 @@ pub struct Propositions(pub(crate) Vec<SigmaBoolean>);
 
 #[wasm_bindgen]
 impl Propositions {
-    /// Create empty SecretKeys
+    /// Create empty proposition holder
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
         Propositions(vec![])
