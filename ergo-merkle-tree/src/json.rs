@@ -79,3 +79,88 @@ impl From<MerkleProof> for MerkleProofJson {
         Self { leaf_data, levels }
     }
 }
+
+#[derive(Serialize, Deserialize)]
+struct Index {
+    index: usize,
+    digest: [i8; crate::HASH_SIZE],
+}
+#[derive(Serialize, Deserialize)]
+struct ProofNode {
+    digest: Vec<i8>, // a proof node's hash can be empty, so we use a Vec instead of a fixed-size slice
+    side: crate::NodeSide,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct BatchMerkleProofJson {
+    indices: Vec<Index>,
+    proofs: Vec<ProofNode>,
+}
+
+impl std::convert::TryFrom<BatchMerkleProofJson> for crate::batchmerkleproof::BatchMerkleProof {
+    type Error = MerkleProofFromJsonError;
+    fn try_from(
+        json: BatchMerkleProofJson,
+    ) -> Result<crate::batchmerkleproof::BatchMerkleProof, Self::Error> {
+        let mut indices = vec![];
+
+        for index in json.indices {
+            let digest = index
+                .digest
+                .iter()
+                .map(|&x| x as u8)
+                .collect::<Vec<u8>>()
+                .try_into()
+                .map_err(|_| MerkleProofFromJsonError::LengthError)?;
+            indices.push((index.index, digest));
+        }
+        let mut proofs = vec![];
+        for proof in json.proofs {
+            proofs.push(crate::LevelNode::new(
+                proof
+                    .digest
+                    .iter()
+                    .map(|&x| x as u8)
+                    .collect::<Vec<u8>>()
+                    .try_into()
+                    .map_err(|_| MerkleProofFromJsonError::LengthError)?,
+                proof.side,
+            ));
+        }
+
+        Ok(crate::batchmerkleproof::BatchMerkleProof::new(
+            indices, proofs,
+        ))
+    }
+}
+
+impl From<crate::batchmerkleproof::BatchMerkleProof> for BatchMerkleProofJson {
+    fn from(proof: crate::batchmerkleproof::BatchMerkleProof) -> BatchMerkleProofJson {
+        let indices = proof
+            .indices
+            .into_iter()
+            .map(|(index, digest)| Index {
+                index,
+                digest: digest
+                    .iter()
+                    .map(|&x| x as i8)
+                    .collect::<Vec<i8>>()
+                    .try_into()
+                    .unwrap(),
+            })
+            .collect();
+        let proofs = proof
+            .proofs
+            .into_iter()
+            .map(|node| ProofNode {
+                digest: node
+                    .0
+                    .into_iter()
+                    .flat_map(|hash| hash.into_iter().map(|x| x as i8))
+                    .collect(),
+                side: node.1,
+            })
+            .collect();
+        BatchMerkleProofJson { indices, proofs }
+    }
+}
