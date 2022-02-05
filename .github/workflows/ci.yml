@@ -104,15 +104,6 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --all-features --all-targets -- -D warnings
 
-  # CI workaround when dealing with containers
-  configure:
-    runs-on: ubuntu-latest
-    outputs:
-      uid_gid: ${{ steps.get-user.outputs.uid_gid }}
-    steps:
-      - id: get-user
-        run: echo "::set-output name=uid_gid::$(id -u):$(id -g)"
-
   js_tests:
     name: Run JS tests and publish alpha versions
     runs-on: ubuntu-latest
@@ -128,7 +119,9 @@ jobs:
       ergo_node:
         # Docker Hub image
         image: kbell1234/ergo_node_devnet:latest
-        options: --user ${{ needs.configure.outputs.uid_gid }}
+        # Need to hardcode this since we can't run a job to query user/group ID before this `services` job.
+        # See https://github.com/actions/checkout/issues/211
+        options: --user 1001:116
         volumes:
           - ${{ github.workspace }}/integration-testing-conf/ergo.conf:/etc/myergo.conf 
         ports:
