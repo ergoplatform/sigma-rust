@@ -1011,7 +1011,7 @@ mod tests {
         let verifier = TestVerifier;
 
         assert!(
-            verifier
+            !verifier
                 .verify(
                     &tree,
                     &Env::empty(),
