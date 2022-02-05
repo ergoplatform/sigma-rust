@@ -7,12 +7,14 @@ use crate::{
     util::{const_ptr_as_ref, mut_ptr_as_mut},
     Error,
 };
-use ergo_lib::ergotree_ir::{
-    base16_str::Base16Str,
-    chain::base16_bytes::Base16DecodedBytes,
-    mir::constant::{TryExtractFrom, TryExtractInto},
-    serialization::SigmaSerializable,
-    sigma_protocol::{dlog_group::EcPoint, sigma_boolean::ProveDlog},
+use ergo_lib::{
+    ergo_chain_types::Base16DecodedBytes,
+    ergotree_ir::{
+        base16_str::Base16Str,
+        mir::constant::{TryExtractFrom, TryExtractInto},
+        serialization::SigmaSerializable,
+        sigma_protocol::{dlog_group::EcPoint, sigma_boolean::ProveDlog},
+    },
 };
 
 /// Ergo constant(evaluated) values

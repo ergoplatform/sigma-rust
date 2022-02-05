@@ -31,7 +31,7 @@ impl BlockHeader {
 /// Block id
 #[wasm_bindgen]
 #[derive(PartialEq, Eq, Debug, Clone, From, Into)]
-pub struct BlockId(pub(crate) ergo_lib::ergotree_ir::chain::block_id::BlockId);
+pub struct BlockId(pub(crate) ergo_lib::ergo_chain_types::BlockId);
 
 /// Collection of BlockHeaders
 #[wasm_bindgen]

@@ -1,5 +1,7 @@
 //! Interpreter
 use bounded_vec::BoundedVecOutOfBounds;
+use sigma_ser::ScorexParsingError;
+use sigma_ser::ScorexSerializationError;
 use std::rc::Rc;
 
 use ergotree_ir::ergo_tree::ErgoTreeError;
@@ -145,6 +147,12 @@ pub enum EvalError {
     /// Invalid item quantity for BoundedVec
     #[error("Invalid item quantity for BoundedVec: {0}")]
     BoundedVecError(#[from] BoundedVecOutOfBounds),
+    /// Scorex serialization error
+    #[error("Serialization error: {0}")]
+    ScorexSerializationError(#[from] ScorexSerializationError),
+    /// Scorex serialization parsing error
+    #[error("Serialization parsing error: {0}")]
+    ScorexParsingError(#[from] ScorexParsingError),
 }
 
 /// Result of expression reduction procedure (see `reduce_to_crypto`).

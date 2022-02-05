@@ -1,15 +1,8 @@
 //! Peer info types
 
-use crate::{peer_addr::PeerAddr, peer_spec::PeerSpec, protocol_version::ProtocolVersion};
+use ergo_chain_types::{ConnectionDirection, PeerAddr};
 
-/// Direction of the connection to a peer
-#[derive(PartialEq, Eq, Debug, Copy, Clone, Hash)]
-pub enum ConnectionDirection {
-    /// A peer is connecting to us
-    Incoming,
-    /// We are connecting to a peer
-    Outgoing,
-}
+use crate::{peer_spec::PeerSpec, protocol_version::ProtocolVersion};
 
 /// Information about peer to be stored in PeerDatabase
 #[derive(PartialEq, Eq, Debug, Clone, Hash)]

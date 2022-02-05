@@ -1,12 +1,11 @@
 use std::convert::TryFrom;
 
 use bytes::Bytes;
-use ergotree_ir::chain::digest32::ADDigest;
+use ergo_chain_types::ADDigest;
 use ergotree_ir::mir::avl_tree_data::AvlTreeData;
 use ergotree_ir::mir::avl_tree_data::AvlTreeFlags;
 use ergotree_ir::mir::constant::TryExtractInto;
 use ergotree_ir::mir::value::{CollKind, NativeColl, Value};
-use ergotree_ir::serialization::SigmaSerializable;
 use scorex_crypto_avltree::authenticated_tree_ops::AuthenticatedTreeOps;
 use scorex_crypto_avltree::batch_avl_verifier::BatchAVLVerifier;
 use scorex_crypto_avltree::batch_node::AVLTree;
@@ -14,11 +13,12 @@ use scorex_crypto_avltree::batch_node::Node;
 use scorex_crypto_avltree::batch_node::NodeHeader;
 use scorex_crypto_avltree::operation::KeyValue;
 use scorex_crypto_avltree::operation::Operation;
+use sigma_ser::ScorexSerializable;
 
 use super::EvalError;
 use super::EvalFn;
 use ergotree_ir::types::stype::SType;
-use ergotree_ir::util::AsVecI8;
+use sigma_util::AsVecI8;
 
 pub(crate) static DIGEST_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
     let avl_tree_data = obj.try_extract_into::<AvlTreeData>()?;
@@ -245,7 +245,7 @@ pub(crate) static INSERT_EVAL_FN: EvalFn =
             }
         }
         if let Some(new_digest) = bv.digest() {
-            let digest = ADDigest::sigma_parse_bytes(&new_digest)?;
+            let digest = ADDigest::scorex_parse_bytes(&new_digest)?;
             avl_tree_data.digest = digest;
             Ok(Value::Opt(Box::new(Some(Value::AvlTree(
                 avl_tree_data.into(),
@@ -305,7 +305,7 @@ pub(crate) static REMOVE_EVAL_FN: EvalFn =
             }
         }
         if let Some(new_digest) = bv.digest() {
-            let digest = ADDigest::sigma_parse_bytes(&new_digest)?;
+            let digest = ADDigest::scorex_parse_bytes(&new_digest)?;
             avl_tree_data.digest = digest;
             Ok(Value::Opt(Box::new(Some(Value::AvlTree(
                 avl_tree_data.into(),
@@ -415,7 +415,7 @@ pub(crate) static UPDATE_EVAL_FN: EvalFn =
             }
         }
         if let Some(new_digest) = bv.digest() {
-            let digest = ADDigest::sigma_parse_bytes(&new_digest)?;
+            let digest = ADDigest::scorex_parse_bytes(&new_digest)?;
             avl_tree_data.digest = digest;
             Ok(Value::Opt(Box::new(Some(Value::AvlTree(
                 avl_tree_data.into(),
@@ -451,13 +451,13 @@ mod tests {
     use crate::eval::tests::eval_out_wo_ctx;
 
     use super::*;
-    use ergotree_ir::util::AsVecU8;
+    use sigma_util::AsVecU8;
 
     #[test]
     fn eval_avl_get() {
         let mut prover = populate_tree(vec![(vec![1u8], 10u64.to_be_bytes().to_vec())]);
         let initial_digest =
-            ADDigest::sigma_parse_bytes(&prover.digest().unwrap().into_iter().collect::<Vec<_>>())
+            ADDigest::scorex_parse_bytes(&prover.digest().unwrap().into_iter().collect::<Vec<_>>())
                 .unwrap();
 
         let key1 = Bytes::from(vec![1u8]);
@@ -528,7 +528,7 @@ mod tests {
         ]);
 
         let initial_digest =
-            ADDigest::sigma_parse_bytes(&prover.digest().unwrap().into_iter().collect::<Vec<_>>())
+            ADDigest::scorex_parse_bytes(&prover.digest().unwrap().into_iter().collect::<Vec<_>>())
                 .unwrap();
 
         let key1 = Bytes::from(vec![1u8]);
@@ -613,7 +613,7 @@ mod tests {
             true,
         );
         let initial_digest =
-            ADDigest::sigma_parse_bytes(&prover.digest().unwrap().into_iter().collect::<Vec<_>>())
+            ADDigest::scorex_parse_bytes(&prover.digest().unwrap().into_iter().collect::<Vec<_>>())
                 .unwrap();
         let key1 = Bytes::from(vec![1u8]);
         let key2 = Bytes::from(vec![2u8; 1]);
@@ -634,7 +634,7 @@ mod tests {
         prover.perform_one_operation(&op2).unwrap();
         prover.perform_one_operation(&op3).unwrap();
         let final_digest =
-            ADDigest::sigma_parse_bytes(&prover.digest().unwrap().into_iter().collect::<Vec<_>>())
+            ADDigest::scorex_parse_bytes(&prover.digest().unwrap().into_iter().collect::<Vec<_>>())
                 .unwrap();
         let proof: Constant = prover
             .generate_proof()
@@ -857,7 +857,7 @@ mod tests {
             let expr: Expr = MethodCall::new(
                 obj,
                 savltree::UPDATE_DIGEST_METHOD.clone(),
-                vec![Constant::from(new_digest.sigma_serialize_bytes()?).into()],
+                vec![Constant::from(new_digest.scorex_serialize_bytes()?).into()],
             )
             .unwrap()
             .into();
@@ -878,7 +878,7 @@ mod tests {
             (vec![3u8], 30u64.to_be_bytes().to_vec()),
         ]);
         let digest =
-            ADDigest::sigma_parse_bytes(&prover.digest().unwrap().into_iter().collect::<Vec<_>>())
+            ADDigest::scorex_parse_bytes(&prover.digest().unwrap().into_iter().collect::<Vec<_>>())
                 .unwrap();
 
         let op = Operation::Lookup(Bytes::from(vec![2u8]));
@@ -915,14 +915,14 @@ mod tests {
     fn eval_avl_remove() {
         let mut prover = populate_tree(vec![(vec![1u8], 10u64.to_be_bytes().to_vec())]);
         let initial_digest =
-            ADDigest::sigma_parse_bytes(&prover.digest().unwrap().into_iter().collect::<Vec<_>>())
+            ADDigest::scorex_parse_bytes(&prover.digest().unwrap().into_iter().collect::<Vec<_>>())
                 .unwrap();
 
         let key1 = Bytes::from(vec![1u8]);
         let op1 = Operation::Remove(key1);
         prover.perform_one_operation(&op1).unwrap();
         let final_digest =
-            ADDigest::sigma_parse_bytes(&prover.digest().unwrap().into_iter().collect::<Vec<_>>())
+            ADDigest::scorex_parse_bytes(&prover.digest().unwrap().into_iter().collect::<Vec<_>>())
                 .unwrap();
         let proof: Constant = prover
             .generate_proof()
@@ -977,7 +977,7 @@ mod tests {
             (vec![3u8], 30u64.to_be_bytes().to_vec()),
         ]);
         let initial_digest =
-            ADDigest::sigma_parse_bytes(&prover.digest().unwrap().into_iter().collect::<Vec<_>>())
+            ADDigest::scorex_parse_bytes(&prover.digest().unwrap().into_iter().collect::<Vec<_>>())
                 .unwrap();
 
         let op1 = Operation::Update(KeyValue {
@@ -992,7 +992,7 @@ mod tests {
         prover.perform_one_operation(&op2).unwrap();
 
         let final_digest =
-            ADDigest::sigma_parse_bytes(&prover.digest().unwrap().into_iter().collect::<Vec<_>>())
+            ADDigest::scorex_parse_bytes(&prover.digest().unwrap().into_iter().collect::<Vec<_>>())
                 .unwrap();
         let proof: Constant = prover
             .generate_proof()

@@ -4,7 +4,7 @@ use std::convert::{TryFrom, TryInto};
 
 use ergo_lib::{
     chain,
-    ergotree_ir::chain::base16_bytes::{Base16DecodedBytes, Base16EncodedBytes},
+    ergo_chain_types::{Base16DecodedBytes, Base16EncodedBytes},
 };
 
 use crate::{

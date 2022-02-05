@@ -1,16 +1,14 @@
 //! Transitioning type for Base16 encoded bytes in JSON serialization
 
-use crate::chain::digest32::Digest;
-use crate::chain::digest32::Digest32Error;
-use crate::mir::constant::Constant;
-use crate::serialization::SigmaParsingError;
-use crate::serialization::SigmaSerializable;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use std::convert::TryInto;
 extern crate derive_more;
 use derive_more::{From, Into};
+
+use crate::Digest;
+use crate::Digest32Error;
 
 /// Transitioning type for Base16 encoded bytes
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
@@ -54,14 +52,6 @@ impl TryFrom<&str> for Base16DecodedBytes {
 impl From<Base16DecodedBytes> for Vec<u8> {
     fn from(b: Base16DecodedBytes) -> Self {
         b.0
-    }
-}
-
-impl TryFrom<Base16DecodedBytes> for Constant {
-    type Error = SigmaParsingError;
-
-    fn try_from(value: Base16DecodedBytes) -> Result<Self, Self::Error> {
-        Constant::sigma_parse_bytes(&value.0)
     }
 }
 

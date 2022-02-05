@@ -1,5 +1,8 @@
-
-import { BlockHeaders } from '../pkg/ergo_lib_wasm';
+import * as ergo from "..";
+let ergo_wasm;
+beforeEach(async () => {
+  ergo_wasm = await ergo;
+});
 
 export const generate_block_headers = (transformFn, count=10) => {
   const headers = [];
@@ -37,5 +40,5 @@ export const generate_block_headers = (transformFn, count=10) => {
     headers.push(header);
   }
 
-  return BlockHeaders.from_json(headers);
+  return ergo_wasm.BlockHeaders.from_json(headers);
 }

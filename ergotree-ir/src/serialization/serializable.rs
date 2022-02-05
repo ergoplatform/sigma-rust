@@ -28,7 +28,7 @@ pub enum SigmaSerializationError {
     NotImplementedYet(&'static str),
     /// Unexpected value type
     #[error("Unexpected value: {0:?}")]
-    UnexpectedValue(TryExtractFromError),
+    UnexpectedValue(#[from] TryExtractFromError),
     /// Serialization not supported
     #[error("serialization not supported: {0}")]
     NotSupported(&'static str),
@@ -40,12 +40,6 @@ pub enum SigmaSerializationError {
 impl From<io::Error> for SigmaSerializationError {
     fn from(error: io::Error) -> Self {
         SigmaSerializationError::Io(error.to_string())
-    }
-}
-
-impl From<TryExtractFromError> for SigmaSerializationError {
-    fn from(e: TryExtractFromError) -> Self {
-        SigmaSerializationError::UnexpectedValue(e)
     }
 }
 

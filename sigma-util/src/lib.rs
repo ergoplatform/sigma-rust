@@ -14,6 +14,11 @@
 #![deny(rustdoc::broken_intra_doc_links)]
 
 pub mod hash;
+mod vec_ext;
+
+pub use vec_ext::AsVecI8;
+pub use vec_ext::AsVecU8;
+pub use vec_ext::FromVecI8;
 
 /// 32 byte array used in box, transaction ids (hash)
 pub const DIGEST32_SIZE: usize = 32;

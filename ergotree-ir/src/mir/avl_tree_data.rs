@@ -1,4 +1,6 @@
-use crate::chain::digest32::ADDigest;
+use ergo_chain_types::ADDigest;
+use sigma_ser::ScorexSerializable;
+
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, sigma_byte_writer::SigmaByteWrite, SigmaParsingError,
     SigmaSerializable, SigmaSerializeResult,
@@ -67,14 +69,14 @@ pub struct AvlTreeData {
 
 impl SigmaSerializable for AvlTreeData {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
-        self.digest.sigma_serialize(w)?;
+        self.digest.scorex_serialize(w)?;
         w.put_u8(self.tree_flags.0)?;
         w.put_u32(self.key_length)?;
         self.value_length_opt.sigma_serialize(w)?;
         Ok(())
     }
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
-        let digest = ADDigest::sigma_parse(r)?;
+        let digest = ADDigest::scorex_parse(r)?;
         let tree_flags = AvlTreeFlags::parse(r.get_u8()?);
         let key_length = r.get_u32()?;
         let value_length_opt = <Option<Box<u32>> as SigmaSerializable>::sigma_parse(r)?;
@@ -90,8 +92,6 @@ impl SigmaSerializable for AvlTreeData {
 #[cfg(feature = "arbitrary")]
 #[allow(clippy::unwrap_used)]
 mod arbitrary {
-
-    use crate::chain::digest32::ADDigest;
 
     use super::*;
     use proptest::prelude::*;

@@ -4,7 +4,9 @@ pub mod in_memory;
 
 use std::collections::HashMap;
 
-use crate::{peer_addr::PeerAddr, peer_info::PeerInfo};
+use ergo_chain_types::PeerAddr;
+
+use crate::peer_info::PeerInfo;
 
 type PeerMap = HashMap<PeerAddr, PeerInfo>;
 
