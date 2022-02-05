@@ -3,6 +3,7 @@ use std::pin::Pin;
 use std::task::Context;
 use std::task::Poll;
 
+use ergo_chain_types::PeerAddr;
 use futures::Future;
 use futures::FutureExt;
 use tokio::net::TcpStream;
@@ -15,7 +16,6 @@ use crate::peer_connection_handler::ConnectionId;
 use crate::peer_connection_handler::HandshakeRequest;
 use crate::peer_connection_handler::PeerConnectionHandler;
 use crate::Client;
-use crate::PeerAddr;
 
 /// Opens a TCP connection before forwarding to the inner peer connection handling service for a handshake.
 pub struct PeerConnector {

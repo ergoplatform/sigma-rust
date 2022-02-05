@@ -3,27 +3,32 @@
 
 use std::convert::TryFrom;
 
-use ergo_lib::ergotree_interpreter::sigma_protocol::{
-    private_input::DlogProverInput,
-    prover::{ContextExtension, ProofBytes},
-};
-use ergo_lib::ergotree_ir::{
-    chain::{
-        digest32::{blake2b256_hash, ADDigest, Digest32},
-        ergo_box::{box_value::BoxValue, BoxId},
-        header::{AutolykosSolution, Header},
-        votes::Votes,
-    },
-    ergo_tree::ErgoTree,
-    serialization::{sigma_byte_writer::SigmaByteWriter, SigmaSerializable},
-    sigma_protocol::dlog_group::{order, EcPoint},
-};
 use ergo_lib::{
     chain::{
         ergo_box::box_builder::ErgoBoxCandidateBuilder,
         transaction::{prover_result::ProverResult, Input, Transaction, TxIoVec},
     },
-    ergotree_ir::chain::block_id::BlockId,
+    ergo_chain_types::{BlockId, Digest32},
+};
+use ergo_lib::{
+    ergo_chain_types::blake2b256_hash,
+    ergotree_ir::{
+        chain::{
+            ergo_box::{box_value::BoxValue, BoxId},
+            header::{AutolykosSolution, Header},
+            votes::Votes,
+        },
+        ergo_tree::ErgoTree,
+        serialization::{sigma_byte_writer::SigmaByteWriter, SigmaSerializable},
+        sigma_protocol::dlog_group::{order, EcPoint},
+    },
+};
+use ergo_lib::{
+    ergo_chain_types::ADDigest,
+    ergotree_interpreter::sigma_protocol::{
+        private_input::DlogProverInput,
+        prover::{ContextExtension, ProofBytes},
+    },
 };
 use num_bigint::{BigInt, Sign};
 use rand::{thread_rng, Rng};

@@ -101,19 +101,16 @@ mod tests {
     use std::convert::{TryFrom, TryInto};
     use std::rc::Rc;
 
+    use ergo_chain_types::{BlockId, Digest, Digest32};
     use ergotree_ir::{
         bigint256::BigInt256,
-        chain::{
-            block_id::BlockId,
-            digest32::{Digest, Digest32},
-            votes::Votes,
-        },
+        chain::votes::Votes,
         mir::{coll_by_index::ByIndex, expr::Expr, property_call::PropertyCall},
         sigma_protocol::dlog_group::EcPoint,
         types::{scontext, sheader, smethod::SMethod},
-        util::AsVecU8,
     };
     use sigma_test_util::force_any_val;
+    use sigma_util::AsVecU8;
 
     use crate::eval::{
         context::Context,

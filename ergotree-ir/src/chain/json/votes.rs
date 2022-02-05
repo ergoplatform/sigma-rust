@@ -2,10 +2,8 @@
 
 use std::convert::{TryFrom, TryInto};
 
-use crate::chain::{
-    base16_bytes::Base16DecodedBytes,
-    votes::{Votes, VotesError},
-};
+use crate::chain::votes::{Votes, VotesError};
+use ergo_chain_types::Base16DecodedBytes;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(untagged)]

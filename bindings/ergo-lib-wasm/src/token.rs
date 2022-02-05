@@ -3,9 +3,9 @@
 use std::convert::TryFrom;
 
 use bounded_vec::BoundedVec;
+use ergo_lib::ergo_chain_types::Base16DecodedBytes;
+use ergo_lib::ergo_chain_types::Digest32;
 use ergo_lib::ergotree_ir::chain;
-use ergo_lib::ergotree_ir::chain::base16_bytes::Base16DecodedBytes;
-use ergo_lib::ergotree_ir::chain::digest32::Digest32;
 use js_sys::Uint8Array;
 use wasm_bindgen::prelude::*;
 

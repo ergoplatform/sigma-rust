@@ -36,6 +36,6 @@ pub unsafe fn block_header_id(
 
 /// Block id
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct BlockId(pub(crate) ergo_lib::ergotree_ir::chain::block_id::BlockId);
+pub struct BlockId(pub(crate) ergo_lib::ergo_chain_types::BlockId);
 pub type BlockIdPtr = *mut BlockId;
 pub type ConstBlockIdPtr = *const BlockId;

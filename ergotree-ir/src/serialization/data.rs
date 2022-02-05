@@ -1,3 +1,5 @@
+use sigma_util::AsVecU8;
+
 use crate::chain::ergo_box::ErgoBox;
 use crate::mir::avl_tree_data::AvlTreeData;
 use crate::mir::constant::Literal;
@@ -15,7 +17,6 @@ use crate::sigma_protocol::{
 };
 use crate::types::stuple;
 use crate::types::stype::SType;
-use crate::util::AsVecU8;
 
 use super::sigma_byte_writer::SigmaByteWrite;
 use std::convert::TryInto;
