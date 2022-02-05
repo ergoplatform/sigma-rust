@@ -104,6 +104,15 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --all-features --all-targets -- -D warnings
 
+  # CI workaround when dealing with containers
+  configure:
+    runs-on: ubuntu-latest
+    outputs:
+      uid_gid: ${{ steps.get-user.outputs.uid_gid }}
+    steps:
+      - id: get-user
+        run: echo "::set-output name=uid_gid::$(id -u):$(id -g)"
+
   js_tests:
     name: Run JS tests and publish alpha versions
     runs-on: ubuntu-latest
@@ -112,15 +121,6 @@ jobs:
     defaults:
       run:
         working-directory: bindings/ergo-lib-wasm
-
-    # CI workaround when dealing with containers
-    configure:
-      runs-on: ubuntu-latest
-      outputs:
-        uid_gid: ${{ steps.get-user.outputs.uid_gid }}
-      steps:
-        - id: get-user
-          run: echo "::set-output name=uid_gid::$(id -u):$(id -g)"
 
     # Service containers to run `ergo` node in `devnet` mode
     services:
