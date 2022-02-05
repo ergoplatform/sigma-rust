@@ -1037,13 +1037,8 @@ mod tests {
             "{:?}",
             SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(pk_bob))
         );
-        let mut bag = bag_for_multi_sig(
-            ctree,
-            &real_proposition,
-            &simulated_proposition,
-            &proof,
-        )
-        .unwrap();
+        let mut bag =
+            bag_for_multi_sig(ctree, &real_proposition, &simulated_proposition, &proof).unwrap();
         bag.add_hint(Hint::CommitmentHint(CommitmentHint::OwnCommitment(
             _dave_secret_commitment.first().unwrap().clone(),
         )));
