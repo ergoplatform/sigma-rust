@@ -130,7 +130,7 @@ jobs:
     
     steps:
       - name: set_file_permissions
-        run: sudo chown -R $USER:$USER /home/github/actions-runner/_work/sigma-rust 
+        run: sudo chown -R $USER:$USER ${{ github.workspace }}
 
       - name: checkout
         uses: actions/checkout@v2
