@@ -134,7 +134,7 @@ impl UncheckedSchnorr {
     pub fn compute_commitment(&self) -> FirstDlogProverMessage {
         let commitment =
             compute_commitment(&self.proposition, &self.challenge, &self.second_message);
-        return FirstDlogProverMessage::from(commitment);
+        FirstDlogProverMessage::from(commitment)
     }
 }
 
@@ -172,7 +172,7 @@ impl UncheckedDhTuple {
     pub fn compute_commitment(&self) -> FirstDhTupleProverMessage {
         let (a, b) =
             dht_compute_commitment(&self.proposition, &self.challenge, &self.second_message);
-        return FirstDhTupleProverMessage::new(a, b);
+        FirstDhTupleProverMessage::new(a, b)
     }
 }
 

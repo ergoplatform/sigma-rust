@@ -32,35 +32,6 @@ pub struct CommitmentHint(
     ergo_lib::ergotree_interpreter::sigma_protocol::prover::hint::CommitmentHint,
 );
 
-#[wasm_bindgen]
-impl CommitmentHint {
-    /// to json
-    pub fn to_json(&self) -> Result<String, JsValue> {
-        let commitment = ergo_lib::chain::json::hints::CommitmentHintJson::from(self.0.clone());
-        serde_json::to_string_pretty(&commitment).map_err(|e| JsValue::from_str(&format!("{}", e)))
-    }
-
-    /// parse from JSON
-    pub fn from_json(json: &str) -> Result<CommitmentHint, JsValue> {
-        let commitment_hint_json = serde_json::from_str(json)
-            .map(CommitmentHintJson)
-            .map_err(to_js)
-            .unwrap();
-        Ok(CommitmentHint {
-            0: {
-                ergo_lib::ergotree_interpreter::sigma_protocol::prover::hint::CommitmentHint::try_from(
-                    commitment_hint_json.0
-                )
-                    .unwrap()
-            },
-        })
-    }
-}
-
-/// CommitmentHint JSON
-#[wasm_bindgen]
-pub struct CommitmentHintJson(ergo_lib::chain::json::hints::CommitmentHintJson);
-
 /// HintsBag
 #[wasm_bindgen]
 pub struct HintsBag(
@@ -95,7 +66,6 @@ impl HintsBag {
         let commitment = self.0.commitments()[index].clone();
         Ok(CommitmentHint(commitment))
     }
-
 }
 
 impl From<ergo_lib::ergotree_interpreter::sigma_protocol::prover::hint::HintsBag> for HintsBag {

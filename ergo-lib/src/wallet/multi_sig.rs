@@ -334,13 +334,8 @@ pub fn extract_hints(
         )
         .map_err(|_e| {
             TxSigningError::ProverError(Unexpected("Unexpected Sigma tree Value".to_string()), i)
-        });
-        match bag {
-            Ok(hints) => hints_bag.add_hints_for_input(i, hints),
-            Err(_) => {
-                "sigma parsing error".to_string();
-            }
-        }
+        })?;
+        hints_bag.add_hints_for_input(i, bag);
     }
 
     Ok(hints_bag)
@@ -449,13 +444,13 @@ mod tests {
     use crate::ergotree_interpreter::sigma_protocol::verifier::{TestVerifier, Verifier};
     use crate::ergotree_ir::chain::address::AddressEncoder;
     use crate::ergotree_ir::chain::address::{Address, NetworkPrefix};
-    use crate::ergotree_ir::chain::base16_bytes::Base16DecodedBytes;
     use crate::ergotree_ir::ergo_tree::ErgoTree;
     use crate::ergotree_ir::mir::expr::Expr;
     use crate::ergotree_ir::mir::sigma_and::SigmaAnd;
     use crate::ergotree_ir::serialization::SigmaSerializable;
     use crate::ergotree_ir::sigma_protocol::dlog_group;
     use crate::ergotree_ir::sigma_protocol::sigma_boolean::cand::Cand;
+    use ergo_chain_types::Base16DecodedBytes;
     use ergotree_interpreter::sigma_protocol::private_input::DhTupleProverInput;
     use ergotree_ir::mir::sigma_or::SigmaOr;
     use k256::Scalar;
@@ -955,10 +950,10 @@ mod tests {
         let pk_carol = secret_carol.public_image();
         let pk_dave = secret_dave.public_image();
         let prover_a = TestProver {
-            secrets: vec![PrivateInput::DlogProverInput(secret_alice.clone())],
+            secrets: vec![PrivateInput::DlogProverInput(secret_alice)],
         };
         let _prover_b = TestProver {
-            secrets: vec![PrivateInput::DlogProverInput(secret_bob.clone())],
+            secrets: vec![PrivateInput::DlogProverInput(secret_bob)],
         };
         let _prover_c = TestProver {
             secrets: vec![PrivateInput::DhTupleProverInput(secret_carol.clone())],
@@ -987,7 +982,6 @@ mod tests {
             SigmaProofOfKnowledgeTree::ProveDlog(pk_alice.clone()),
         )];
         let alice_hints: HintsBag = generate_commitments_for(ctree.clone(), &generate_for);
-        let alice_known = alice_hints.real_commitments();
         let secret_commitment_alice = alice_hints.own_commitments();
         generate_for = vec![SigmaBoolean::ProofOfKnowledge(
             SigmaProofOfKnowledgeTree::ProveDhTuple(pk_dave.clone()),
@@ -1012,11 +1006,11 @@ mod tests {
                 &bag_a,
             )
             .unwrap();
-        let mut proof: Vec<u8> = Vec::from(proof_a.proof.clone());
+        let proof: Vec<u8> = Vec::from(proof_a.proof.clone());
         let proof_byte_a: ProofBytes = proof_a.proof;
         let verifier = TestVerifier;
 
-        assert_eq!(
+        assert!(
             verifier
                 .verify(
                     &tree,
@@ -1027,10 +1021,11 @@ mod tests {
                 )
                 .unwrap()
                 .result,
-            false,
+            "{}",
+            "{}"
         );
         let real_proposition: Vec<SigmaBoolean> = vec![SigmaBoolean::ProofOfKnowledge(
-            SigmaProofOfKnowledgeTree::ProveDlog(pk_alice.clone()),
+            SigmaProofOfKnowledgeTree::ProveDlog(pk_alice),
         )];
         let simulated_proposition: Vec<SigmaBoolean> = vec![
             SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(pk_bob.clone())),
@@ -1038,8 +1033,12 @@ mod tests {
                 pk_carol.clone(),
             )),
         ];
+        println!(
+            "{:?}",
+            SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(pk_bob))
+        );
         let mut bag = bag_for_multi_sig(
-            ctree.clone(),
+            ctree,
             &real_proposition,
             &simulated_proposition,
             &proof,
@@ -1052,7 +1051,6 @@ mod tests {
         let proof_d = _prover_d
             .prove(&tree, &Env::empty(), ctx.clone(), message.as_slice(), &bag)
             .unwrap();
-        proof = Vec::from(proof_d.proof.clone());
         let proof_byte_d: ProofBytes = proof_d.proof;
 
         assert!(
