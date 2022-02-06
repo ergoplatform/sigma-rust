@@ -4,6 +4,8 @@ import {
   get_info, NodeConf,
 } from '../pkg/ergo_lib_wasm';
 
+// Note that REST calls fail without bringing in `Headers`, `Requests` and `Response` from the
+// `node-fetch` JS package. See https://rustwasm.github.io/wasm-pack/book/prerequisites/considerations.html
 import fetch from 'node-fetch';
 
 // @ts-ignore
