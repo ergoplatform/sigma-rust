@@ -109,11 +109,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       HAS_NPM_TOKEN: ${{ secrets.NPM_TOKEN != '' }}
-    defaults:
-      run:
-        working-directory: bindings/ergo-lib-wasm
 
-    # Service container to run `ergo` node in `devnet` mode
+    # Service containers to run `ergo` node in `devnet` mode
     services:
       # Label used to access the service container
       ergo_node:
@@ -140,12 +137,14 @@ jobs:
 
       - name: install deps
         run: |
+          cd bindings/ergo-lib-wasm
           curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh -s -- -f
           curl -sL https://deb.nodesource.com/setup_12.x | sudo -E bash -
           sudo apt-get -y install nodejs
 
       - name: run Wasm tests
         run: |
+          cd bindings/ergo-lib-wasm
           wasm-pack build
           # wasm-pack test  --firefox --headless
           # wasm-pack test  --firefox --headless --release
@@ -154,24 +153,28 @@ jobs:
 
       - name: run node JS tests
         run: |
+          cd bindings/ergo-lib-wasm
           wasm-pack build
           npm install
           npm run test
       
       - name: run node JS integration tests
         run: |
+          cd bindings/ergo-lib-wasm
           wasm-pack build
           npm install
           npm run integration-test
       
       - name: run browser JS tests
         run: |
+          cd bindings/ergo-lib-wasm
           wasm-pack build
           npm install
           npm run test-browser
 
       - name: build alpha versions
         run: |
+          cd bindings/ergo-lib-wasm
           npm run build-nodejs-alpha
           npm run build-browser-alpha
 
