@@ -233,8 +233,20 @@ jobs:
 
   ios_tests:
     name: Test Swift(iOS) bindings
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
+
+    # Service containers to run `ergo` node in `devnet` mode
+    services:
+      # Label used to access the service container
+      ergo_node:
+        # Docker Hub image
+        image: kbell1234/ergo_node_devnet:latest
+        ports:
+          # Maps tcp port 9053 on service container to the host
+          - 9053:9053
+
     steps:
+      - uses: fwal/setup-swift@v1
       - name: checkout
         uses: actions/checkout@v2
 
