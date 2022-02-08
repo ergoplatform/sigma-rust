@@ -35,7 +35,7 @@ class RestNodeApi {
     // need macOS 12.0 on GA
     func getInfoAsync(nodeConf: NodeConf) async throws -> NodeInfo {
         try await withCheckedThrowingContinuation { continuation in
-            getInfo(nodeConf: nodeConf) { result in 
+            try getInfo(nodeConf: nodeConf) { result in 
                 continuation.resume(with: result)
             }
         }
