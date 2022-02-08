@@ -12,6 +12,7 @@ use k256::Scalar;
 extern crate derive_more;
 use derive_more::From;
 use num_bigint::BigUint;
+use num_traits::ToPrimitive;
 
 use super::crypto_utils;
 
@@ -54,13 +55,18 @@ impl DlogProverInput {
     /// Attempts to create DlogProverInput from BigUint
     /// Returns None if not in the range [0, modulus).
     pub fn from_biguint(b: BigUint) -> Option<DlogProverInput> {
-        let bytes = b.to_bytes_be();
-        bytes
-            .as_slice()
-            .try_into()
-            .ok()
-            .map(Self::from_bytes)
-            .flatten()
+        /// Converts a BigUint to a byte array (big-endian).
+        #[allow(clippy::unwrap_used)]
+        pub fn biguint_to_32bytes(x: &BigUint) -> [u8; 32] {
+            let mask = BigUint::from(u8::MAX);
+            let mut bytes = [0u8; 32];
+            (0..32).for_each(|i| {
+                bytes[i] = ((x >> ((31 - i) * 8)) as BigUint & &mask).to_u8().unwrap();
+            });
+            bytes
+        }
+        let bytes = biguint_to_32bytes(&b);
+        Self::from_bytes(&bytes)
     }
 
     /// byte representation of the underlying scalar
@@ -73,6 +79,11 @@ impl DlogProverInput {
         // test it, see https://github.com/ergoplatform/sigma-rust/issues/38
         let g = dlog_group::generator();
         ProveDlog::new(dlog_group::exponentiate(&g, &self.w))
+    }
+
+    /// Return true if the secret is 0
+    pub fn is_zero(&self) -> bool {
+        self.w.is_zero().into()
     }
 }
 
