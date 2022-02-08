@@ -33,17 +33,17 @@ final class RestNodeApiTests: XCTestCase {
     }
 
     // need macOS 12.0 on Github GA
-     func testGetInfoAsync() throws {
-         let nodeConf = try NodeConf(withAddrString: "127.0.0.1:9053")
-         let restNodeApi = try RestNodeApi()
-         XCTAssertNoThrow(Task(priority: .medium) {
-             let nodeInfo = try await restNodeApi.getInfoAsync(nodeConf: nodeConf)
-             XCTAssert(!nodeInfo.getName().isEmpty)
-         })
-         // test of re-using of tokio runtime
-         XCTAssertNoThrow(Task(priority: .medium) {
-             let nodeInfo = try await restNodeApi.getInfoAsync(nodeConf: nodeConf)
-             XCTAssert(!nodeInfo.getName().isEmpty)
-         }) 
-     } 
+    // func testGetInfoAsync() throws {
+    //     let nodeConf = try NodeConf(withAddrString: "127.0.0.1:9053")
+    //     let restNodeApi = try RestNodeApi()
+    //     XCTAssertNoThrow(Task(priority: .medium) {
+    //         let nodeInfo = try await restNodeApi.getInfoAsync(nodeConf: nodeConf)
+    //         XCTAssert(!nodeInfo.getName().isEmpty)
+    //     })
+    //     // test of re-using of tokio runtime
+    //     XCTAssertNoThrow(Task(priority: .medium) {
+    //         let nodeInfo = try await restNodeApi.getInfoAsync(nodeConf: nodeConf)
+    //         XCTAssert(!nodeInfo.getName().isEmpty)
+    //     }) 
+    // } 
 }
