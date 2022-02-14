@@ -1,5 +1,5 @@
 //! Extended private key operations according to BIP-32
-use std::convert::TryInto;
+use std::{convert::TryInto, ops::Add};
 
 use super::{
     derivation_path::{ChildIndex, ChildIndexError, DerivationPath},
@@ -13,6 +13,7 @@ use ergotree_ir::{
     sigma_protocol::sigma_boolean::ProveDlog,
 };
 use hmac::{Hmac, Mac, NewMac};
+
 use sha2::Sha512;
 use thiserror::Error;
 
@@ -120,16 +121,30 @@ impl ExtSecretKey {
         let mut secret_key_bytes = [0; SecretKeyBytes::LEN];
         secret_key_bytes.copy_from_slice(&mac_bytes[..32]);
         if let Some(dlog_prover) = DlogProverInput::from_bytes(&secret_key_bytes) {
+            // parse256(IL) + kpar (mod n).
+            // via https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#child-key-derivation-ckd-functions
             let child_secret_key: DlogProverInput = dlog_prover.w.add(&self.private_input.w).into();
-            let mut chain_code = [0; ChainCode::LEN];
-            chain_code.copy_from_slice(&mac_bytes[32..]);
-            ExtSecretKey::new(
-                child_secret_key.to_bytes(),
-                chain_code,
-                self.derivation_path.extend(index),
-            )
+            if child_secret_key.is_zero() {
+                // ki == 0 case of:
+                // > In case parse256(IL) ≥ n or ki = 0, the resulting key is invalid, and one
+                // > should proceed with the next value for i
+                // via https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#child-key-derivation-ckd-functions
+                self.child(index.next()?)
+            } else {
+                let mut chain_code = [0; ChainCode::LEN];
+                chain_code.copy_from_slice(&mac_bytes[32..]);
+                ExtSecretKey::new(
+                    child_secret_key.to_bytes(),
+                    chain_code,
+                    self.derivation_path.extend(index),
+                )
+            }
         } else {
             // not in range [0, modulus), thus repeat with next index value (BIP-32)
+            // This is the 'parse256(IL) ≥ n' case of:
+            // > In case parse256(IL) ≥ n or ki = 0, the resulting key is invalid, and one
+            // > should proceed with the next value for i
+            // via https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#child-key-derivation-ckd-functions
             self.child(index.next()?)
         }
     }
@@ -174,6 +189,8 @@ impl ExtSecretKey {
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
+    use ergotree_ir::chain::address::{Address, NetworkAddress};
+
     use crate::wallet::{
         derivation_path::{ChildIndexHardened, ChildIndexNormal},
         mnemonic::Mnemonic,
@@ -351,5 +368,60 @@ mod tests {
 
             assert_eq!(expected_key, ext_secret_key_b58);
         }
+    }
+
+    #[test]
+    fn ergo_wallet_incorrect_bip32_derivation() {
+        // test vector triggering ergo-wallet's incorrect BIP32 key derivation
+        // see https://github.com/ergoplatform/ergo/issues/1627
+        let seed_str = "race relax argue hair sorry riot there spirit ready fetch food hedgehog hybrid mobile pretty";
+        let seed = Mnemonic::to_seed(seed_str, "");
+
+        // in ergo-wallet the above mnemonic produces "9ewv8sxJ1jfr6j3WUSbGPMTVx3TZgcJKdnjKCbJWhiJp5U62uhP";
+        let expected_p2pk = "9eYMpbGgBf42bCcnB2nG3wQdqPzpCCw5eB1YaWUUen9uCaW3wwm";
+        let path = "m/44'/429'/0'/0/0";
+
+        let root = ExtSecretKey::derive_master(seed).unwrap();
+
+        let derived = root.derive(path.parse().unwrap()).unwrap();
+        let p2pk: Address = derived.public_key().unwrap().into();
+        let mainnet_p2pk =
+            NetworkAddress::new(ergotree_ir::chain::address::NetworkPrefix::Mainnet, &p2pk);
+
+        assert_eq!(expected_p2pk, mainnet_p2pk.to_base58());
+    }
+
+    #[test]
+    fn appkit_test_vector() {
+        // from https://github.com/ergoplatform/ergo-appkit/blob/b77b6910bb36a26d5d46d41ae3af8ae1167c902c/common/src/test/scala/org/ergoplatform/appkit/AppkitTestingCommon.scala#L4-L21
+        let seed_str = "slow silly start wash bundle suffer bulb ancient height spin express remind today effort helmet";
+        let seed = Mnemonic::to_seed(seed_str, "");
+        let root = ExtSecretKey::derive_master(seed).unwrap();
+
+        let mainnet_p2pk0 = NetworkAddress::new(
+            ergotree_ir::chain::address::NetworkPrefix::Mainnet,
+            &root
+                .derive("m/44'/429'/0'/0/0".parse().unwrap())
+                .unwrap()
+                .public_key()
+                .unwrap()
+                .into(),
+        );
+        let expected_p2pk0 = "9eatpGQdYNjTi5ZZLK7Bo7C3ms6oECPnxbQTRn6sDcBNLMYSCa8";
+
+        assert_eq!(expected_p2pk0, mainnet_p2pk0.to_base58());
+
+        let mainnet_p2pk1 = NetworkAddress::new(
+            ergotree_ir::chain::address::NetworkPrefix::Mainnet,
+            &root
+                .derive("m/44'/429'/0'/0/1".parse().unwrap())
+                .unwrap()
+                .public_key()
+                .unwrap()
+                .into(),
+        );
+        let expected_p2pk1 = "9iBhwkjzUAVBkdxWvKmk7ab7nFgZRFbGpXA9gP6TAoakFnLNomk";
+
+        assert_eq!(expected_p2pk1, mainnet_p2pk1.to_base58());
     }
 }
