@@ -9,6 +9,7 @@ use crate::chain::{
 use ergotree_interpreter::sigma_protocol::prover::hint::HintsBag;
 use ergotree_ir::chain::ergo_box::ErgoBox;
 use ergotree_ir::serialization::SigmaSerializationError;
+use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 use std::rc::Rc;
 
 use crate::ergotree_ir::chain::ergo_box::BoxId;
@@ -17,6 +18,7 @@ use ergotree_interpreter::eval::context::{Context, TxIoVec};
 use ergotree_interpreter::eval::env::Env;
 use ergotree_interpreter::sigma_protocol::prover::Prover;
 use ergotree_interpreter::sigma_protocol::prover::ProverError;
+use ergotree_interpreter::sigma_protocol::prover::ProverResult;
 use thiserror::Error;
 
 /// Errors on transaction signing
@@ -248,8 +250,11 @@ pub fn sign_reduced_transaction(
                 reduced_input.reduction_result.sigma_prop.clone(),
                 message_to_sign.as_slice(),
                 &hints_bag,
-                reduced_input.extension.clone(),
             )
+            .map(|proof| ProverResult {
+                proof,
+                extension: reduced_input.extension.clone(),
+            })
             .map(|proof| Input::new(input.box_id.clone(), proof.into()))
             .map_err(|e| TxSigningError::ProverError(e, idx))
     })?;
@@ -258,6 +263,21 @@ pub fn sign_reduced_transaction(
         tx.data_inputs,
         tx.output_candidates,
     )?)
+}
+
+/// Sign arbitrary message under a key representing a statement provable via a sigma-protocol.
+/// A statement can be a simple ProveDlog (PK) or a complex sigma conjectives tree
+pub fn sign_message(
+    prover: &dyn Prover,
+    sigma_tree: SigmaBoolean,
+    msg: &[u8],
+) -> Result<Vec<u8>, ProverError> {
+    let proof = prover.generate_proof(sigma_tree, msg, &HintsBag::empty());
+
+    match proof {
+        Ok(p) => Ok(Vec::from(p)),
+        Err(e) => Err(e),
+    }
 }
 
 #[cfg(test)]

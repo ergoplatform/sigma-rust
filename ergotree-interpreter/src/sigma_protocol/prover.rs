@@ -149,7 +149,15 @@ pub trait Prover {
         let ctx_ext = ctx.extension.clone();
         let reduction_result =
             reduce_to_crypto(expr.as_ref(), env, ctx).map_err(ProverError::EvalError)?;
-        self.generate_proof(reduction_result.sigma_prop, message, hints_bag, ctx_ext)
+
+        let proof = self.generate_proof(reduction_result.sigma_prop, message, hints_bag);
+        match proof {
+            Ok(p) => Ok(ProverResult {
+                proof: p,
+                extension: ctx_ext,
+            }),
+            Err(e) => Err(e),
+        }
     }
 
     /// Generate proofs for the given message for the given Sigma boolean expression
@@ -158,8 +166,7 @@ pub trait Prover {
         sigmabool: SigmaBoolean,
         message: &[u8],
         hints_bag: &HintsBag,
-        ctx_ext: ContextExtension,
-    ) -> Result<ProverResult, ProverError> {
+    ) -> Result<ProofBytes, ProverError> {
         let unchecked_tree_opt = match sigmabool {
             SigmaBoolean::TrivialProp(true) => Ok(None),
             SigmaBoolean::TrivialProp(false) => Err(ProverError::ReducedToFalse),
@@ -169,13 +176,9 @@ pub trait Prover {
                 Ok(Some(unchecked_tree))
             }
         }?;
-        let proof = match unchecked_tree_opt {
+        Ok(match unchecked_tree_opt {
             Some(tree) => serialize_sig(tree),
             None => ProofBytes::Empty,
-        };
-        Ok(ProverResult {
-            proof,
-            extension: ctx_ext,
         })
     }
 }
