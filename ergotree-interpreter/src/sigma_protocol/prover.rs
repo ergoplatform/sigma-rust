@@ -293,9 +293,9 @@ fn mark_real<P: Prover + ?Sized>(
                         // If the node is THRESHOLD(k), mark it "real" if at least k of its children are marked real; else mark it "simulated"
                         let simulated = cast_to_unp(ct.children.clone())?
                             .iter()
-                            .filter(|c| c.simulated())
+                            .filter(|c| c.is_real())
                             .count()
-                            >= ct.k as usize;
+                            < ct.k as usize;
                         Some(
                             CthresholdUnproven {
                                 simulated,
@@ -841,7 +841,10 @@ fn step9_real_threshold(ct: CthresholdUnproven) -> Result<Option<ProofTree>, Pro
             let challenge_opt = match child {
                 ProofTree::UncheckedTree(ut) => match ut {
                     UncheckedTree::UncheckedLeaf(ul) => Some(ul.challenge()),
-                    UncheckedTree::UncheckedConjecture(_) => None,
+                    UncheckedTree::UncheckedConjecture(_) => return Err(ProverError::Unexpected(
+                        "proving: CthresholdUnproven.children has unexpected UncheckedConjecture"
+                            .to_string(),
+                    )),
                 },
                 ProofTree::UnprovenTree(unpt) => unpt.challenge(),
             };
