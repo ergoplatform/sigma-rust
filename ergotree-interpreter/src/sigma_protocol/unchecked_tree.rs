@@ -19,8 +19,6 @@ use super::{
     Challenge, FirstProverMessage,
 };
 
-use crate::sigma_protocol::dht_protocol::interactive_prover::compute_commitment as dht_compute_commitment;
-use crate::sigma_protocol::dlog_protocol::interactive_prover::compute_commitment;
 use derive_more::From;
 
 /// Unchecked sigma tree
@@ -80,18 +78,6 @@ impl UncheckedLeaf {
             UncheckedLeaf::UncheckedDhTuple(udht) => udht.with_challenge(challenge).into(),
         }
     }
-
-    /// Commitment
-    pub fn commitment(&self) -> FirstProverMessage {
-        match self {
-            UncheckedLeaf::UncheckedSchnorr(us) => {
-                FirstProverMessage::FirstDlogProverMessage(us.compute_commitment())
-            }
-            UncheckedLeaf::UncheckedDhTuple(udht) => {
-                FirstProverMessage::FirstDhtProverMessage(udht.compute_commitment())
-            }
-        }
-    }
 }
 
 impl ProofTreeLeaf for UncheckedLeaf {
@@ -130,12 +116,6 @@ impl UncheckedSchnorr {
     pub fn with_challenge(self, challenge: Challenge) -> Self {
         UncheckedSchnorr { challenge, ..self }
     }
-    /// compute commitment
-    pub fn compute_commitment(&self) -> FirstDlogProverMessage {
-        let commitment =
-            compute_commitment(&self.proposition, &self.challenge, &self.second_message);
-        FirstDlogProverMessage::from(commitment)
-    }
 }
 
 impl From<UncheckedSchnorr> for UncheckedTree {
@@ -167,12 +147,6 @@ impl UncheckedDhTuple {
     /// Set Challenge
     pub fn with_challenge(self, challenge: Challenge) -> Self {
         UncheckedDhTuple { challenge, ..self }
-    }
-    /// Compute commitment
-    pub fn compute_commitment(&self) -> FirstDhTupleProverMessage {
-        let (a, b) =
-            dht_compute_commitment(&self.proposition, &self.challenge, &self.second_message);
-        FirstDhTupleProverMessage::new(a, b)
     }
 }
 

@@ -1024,9 +1024,7 @@ fn step9_real_dh_tuple<P: Prover + ?Sized>(
                     {
                         unchecked_dht.second_message
                     } else {
-                        let z =
-                            dlog_group::random_scalar_in_group_range(crypto_utils::secure_rng());
-                        SecondDhTupleProverMessage { z }
+                        return Err(ProverError::SecretNotFound);
                     }
                 }
                 None => {
