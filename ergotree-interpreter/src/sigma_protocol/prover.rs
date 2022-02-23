@@ -1024,7 +1024,10 @@ fn step9_real_dh_tuple<P: Prover + ?Sized>(
                     {
                         unchecked_dht.second_message
                     } else {
-                        return Err(ProverError::SecretNotFound);
+                return Err(ProverError::Unexpected(format!(
+                    "Expected unchecked DH tuple in proof.unchecked_tree, got {:?}",
+                    unchecked_tree
+                )));
                     }
                 }
                 None => {
