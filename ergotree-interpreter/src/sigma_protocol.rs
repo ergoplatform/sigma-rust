@@ -35,7 +35,7 @@ use derive_more::From;
 use derive_more::TryInto;
 
 /** The message sent by a prover to its associated verifier as part of a sigma protocol interaction. */
-pub trait ProverMessage {
+pub(crate) trait ProverMessage {
     /// serialized message
     fn bytes(&self) -> Vec<u8>;
 }

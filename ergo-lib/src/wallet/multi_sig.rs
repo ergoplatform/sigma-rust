@@ -127,67 +127,77 @@ pub fn bag_for_multi_sig(
         simulated_propositions: &[SigmaBoolean],
         position: NodePosition,
         bag: &mut HintsBag,
-    ) {
+    ) -> Result<(), SigParsingError> {
         match tree {
             UncheckedTree::UncheckedConjecture(unchecked_conjecture) => {
                 let items: SigmaConjectureItems<UncheckedTree> =
                     unchecked_conjecture.children_ust();
-                items.iter().enumerate().for_each(|(i, x)| {
-                    traverse_node(
-                        x.clone(),
-                        real_propositions,
-                        simulated_propositions,
-                        position.child(i),
-                        bag,
-                    );
-                })
+                items
+                    .iter()
+                    .enumerate()
+                    .try_for_each(|(i, x)| -> Result<(), SigParsingError> {
+                        traverse_node(
+                            x.clone(),
+                            real_propositions,
+                            simulated_propositions,
+                            position.child(i),
+                            bag,
+                        )?;
+                        Ok(())
+                    })?;
             }
             UncheckedTree::UncheckedLeaf(leaf) => {
-                let real_found = real_propositions.contains(&leaf.proposition());
-                let simulated_found = simulated_propositions.contains(&leaf.proposition());
-                if real_found || simulated_found {
-                    if real_found {
-                        if let Some(commitment) = leaf.commitment_opt() {
-                            let real_commitment: Hint = Hint::CommitmentHint(
-                                CommitmentHint::RealCommitment(RealCommitment {
-                                    image: leaf.proposition(),
-                                    commitment,
-                                    position: position.clone(),
-                                }),
-                            );
-                            let real_secret_proof: Hint = Hint::SecretProven(
-                                SecretProven::RealSecretProof(RealSecretProof {
-                                    image: leaf.proposition(),
-                                    challenge: leaf.challenge(),
-                                    unchecked_tree: UncheckedTree::UncheckedLeaf(leaf),
-                                    position,
-                                }),
-                            );
-                            bag.add_hint(real_commitment);
-                            bag.add_hint(real_secret_proof);
+                match leaf.commitment_opt() {
+                    Some(commitment) => {
+                        let real_found = real_propositions.contains(&leaf.proposition());
+                        let simulated_found = simulated_propositions.contains(&leaf.proposition());
+                        if real_found || simulated_found {
+                            if real_found {
+                                let real_commitment: Hint = Hint::CommitmentHint(
+                                    CommitmentHint::RealCommitment(RealCommitment {
+                                        image: leaf.proposition(),
+                                        commitment,
+                                        position: position.clone(),
+                                    }),
+                                );
+                                let real_secret_proof: Hint = Hint::SecretProven(
+                                    SecretProven::RealSecretProof(RealSecretProof {
+                                        image: leaf.proposition(),
+                                        challenge: leaf.challenge(),
+                                        unchecked_tree: UncheckedTree::UncheckedLeaf(leaf),
+                                        position,
+                                    }),
+                                );
+                                bag.add_hint(real_commitment);
+                                bag.add_hint(real_secret_proof);
+                            } else {
+                                let simulated_commitment: Hint = Hint::CommitmentHint(
+                                    CommitmentHint::SimulatedCommitment(SimulatedCommitment {
+                                        image: leaf.proposition(),
+                                        commitment,
+                                        position: position.clone(),
+                                    }),
+                                );
+                                let simulated_secret_proof: Hint = Hint::SecretProven(
+                                    SecretProven::SimulatedSecretProof(SimulatedSecretProof {
+                                        image: leaf.proposition(),
+                                        challenge: leaf.challenge(),
+                                        unchecked_tree: UncheckedTree::UncheckedLeaf(leaf),
+                                        position,
+                                    }),
+                                );
+                                bag.add_hint(simulated_commitment);
+                                bag.add_hint(simulated_secret_proof);
+                            }
                         }
-                    } else if let Some(commitment) = leaf.commitment_opt() {
-                        let simulated_commitment: Hint = Hint::CommitmentHint(
-                            CommitmentHint::SimulatedCommitment(SimulatedCommitment {
-                                image: leaf.proposition(),
-                                commitment,
-                                position: position.clone(),
-                            }),
-                        );
-                        let simulated_secret_proof: Hint = Hint::SecretProven(
-                            SecretProven::SimulatedSecretProof(SimulatedSecretProof {
-                                image: leaf.proposition(),
-                                challenge: leaf.challenge(),
-                                unchecked_tree: UncheckedTree::UncheckedLeaf(leaf),
-                                position,
-                            }),
-                        );
-                        bag.add_hint(simulated_commitment);
-                        bag.add_hint(simulated_secret_proof);
                     }
-                }
+                    None => {
+                        return Err(SigParsingError::Unexpected("empty commitment"));
+                    }
+                };
             }
         }
+        Ok(())
     }
 
     let mut bag: HintsBag = HintsBag::empty();
@@ -198,7 +208,7 @@ pub fn bag_for_multi_sig(
         simulated_propositions,
         NodePosition::crypto_tree_prefix(),
         &mut bag,
-    );
+    )?;
     Ok(bag)
 }
 

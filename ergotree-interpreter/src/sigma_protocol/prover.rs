@@ -887,84 +887,66 @@ fn step9_real_schnorr<P: Prover + ?Sized>(
     // If the node is a leaf marked "real", compute its response according to the second prover step
     // of the Sigma-protocol given the commitment, challenge, and witness, or pull response from the hints bag
     if let Some(challenge) = us.challenge_opt.clone() {
-        if let Some(priv_key) = prover
+        let priv_key_opt = prover
             .secrets()
             .iter()
-            .flat_map(|s| match s {
-                PrivateInput::DlogProverInput(dl) => vec![dl],
-                _ => vec![],
-            })
-            .find(|prover_input| prover_input.public_image() == us.proposition)
-        {
-            let oc = hints_bag
+            .find(|s| s.public_image() == us.proposition.clone().into());
+        let z = match priv_key_opt {
+            Some(PrivateInput::DlogProverInput(priv_key)) => match hints_bag
                 .own_commitments()
-                .into_iter()
-                .find(|comm| comm.position == us.position);
-            let mut _z: Option<SecondDlogProverMessage> = None;
-            if let Some(cmt) = oc {
-                _z = Some(dlog_protocol::interactive_prover::second_message(
+                .iter()
+                .find(|c| c.position == us.position)
+            {
+                Some(oc) => dlog_protocol::interactive_prover::second_message(
                     priv_key,
-                    cmt.secret_randomness,
+                    oc.secret_randomness,
                     &challenge,
-                ));
-            } else {
-                _z = Some(dlog_protocol::interactive_prover::second_message(
+                ),
+                None => dlog_protocol::interactive_prover::second_message(
                     priv_key,
                     us.randomness_opt.ok_or_else(|| {
                         ProverError::Unexpected(format!("empty randomness in {:?}", us))
                     })?,
                     &challenge,
-                ));
+                ),
+            },
+            Some(pi) => {
+                return Err(ProverError::Unexpected(format!(
+                    "Expected DLOG prover input in prover secrets, got {:?}",
+                    pi
+                )));
             }
-            if let Some(msg) = _z {
-                Ok(Some(
-                    UncheckedSchnorr {
-                        proposition: us.proposition.clone(),
-                        commitment_opt: None,
-                        challenge,
-                        second_message: msg,
-                    }
-                    .into(),
-                ))
-            } else {
-                Ok(None)
-            }
-        } else {
-            let hint = hints_bag
+            None => match hints_bag
                 .real_proofs()
                 .into_iter()
-                .find(|comm| comm.position == us.position);
-            if let Some(tree) = hint {
-                let unchecked_tree = tree.unchecked_tree;
-                if let UncheckedTree::UncheckedLeaf(UncheckedLeaf::UncheckedSchnorr(
-                    unchecked_schnorr,
-                )) = unchecked_tree
-                {
-                    Ok(Some(
-                        UncheckedSchnorr {
-                            proposition: us.proposition.clone(),
-                            commitment_opt: None,
-                            challenge,
-                            second_message: unchecked_schnorr.second_message,
-                        }
-                        .into(),
-                    ))
-                } else {
-                    Err(ProverError::SecretNotFound)
-                }
-            } else {
-                let bs = dlog_group::random_scalar_in_group_range(crypto_utils::secure_rng());
-                Ok(Some(
-                    UncheckedSchnorr {
-                        proposition: us.proposition.clone(),
-                        commitment_opt: None,
-                        challenge,
-                        second_message: SecondDlogProverMessage { z: bs },
+                .find(|comm| comm.position == us.position)
+            {
+                Some(tree) => {
+                    let unchecked_tree = tree.unchecked_tree;
+                    if let UncheckedTree::UncheckedLeaf(UncheckedLeaf::UncheckedSchnorr(
+                        unchecked_schnorr,
+                    )) = unchecked_tree
+                    {
+                        unchecked_schnorr.second_message
+                    } else {
+                        return Err(ProverError::SecretNotFound);
                     }
-                    .into(),
-                ))
+                }
+                None => {
+                    let bs = dlog_group::random_scalar_in_group_range(crypto_utils::secure_rng());
+                    SecondDlogProverMessage { z: bs }
+                }
+            },
+        };
+        Ok(Some(
+            UncheckedSchnorr {
+                proposition: us.proposition,
+                commitment_opt: None,
+                challenge,
+                second_message: z,
             }
-        }
+            .into(),
+        ))
     } else {
         Err(ProverError::RealUnprovenTreeWithoutChallenge)
     }
@@ -1024,10 +1006,10 @@ fn step9_real_dh_tuple<P: Prover + ?Sized>(
                     {
                         unchecked_dht.second_message
                     } else {
-                return Err(ProverError::Unexpected(format!(
-                    "Expected unchecked DH tuple in proof.unchecked_tree, got {:?}",
-                    unchecked_tree
-                )));
+                        return Err(ProverError::Unexpected(format!(
+                            "Expected unchecked DH tuple in proof.unchecked_tree, got {:?}",
+                            unchecked_tree
+                        )));
                     }
                 }
                 None => {
