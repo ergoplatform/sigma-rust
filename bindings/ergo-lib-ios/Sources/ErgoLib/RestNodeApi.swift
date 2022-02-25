@@ -32,14 +32,17 @@ class RestNodeApi {
     }
 
 
-    // need macOS 12.0 on GA
-    //func getInfoAsync(nodeConf: NodeConf) async throws -> NodeInfo {
-    //    try await withCheckedThrowingContinuation { continuation in
-    //        try getInfo(nodeConf: nodeConf) { result in 
-    //            continuation.resume(with: result)
-    //        }
-    //    }
-    //}
+    /// GET on /info endpoint (async)
+    @available(macOS 10.15, iOS 13, *)
+    func getInfoAsync(nodeConf: NodeConf) async throws -> NodeInfo {
+        try await withCheckedThrowingContinuation { continuation in
+            do {
+                let _ = try getInfo(nodeConf: nodeConf) { result in
+                    continuation.resume(with: result)
+                }
+            } catch {}
+        }
+    }
 
     deinit {
         ergo_lib_rest_api_runtime_delete(self.pointer)
