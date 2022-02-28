@@ -92,7 +92,9 @@ pub unsafe fn wallet_sign_transaction(
         boxes_to_spend,
         data_boxes,
     )?;
-    let tx = wallet.0.sign_transaction(tx_context, &state_context.0)?;
+    let tx = wallet
+        .0
+        .sign_transaction(tx_context, &state_context.0, None)?;
     *transaction_out = Box::into_raw(Box::new(Transaction(tx)));
     Ok(())
 }
@@ -108,7 +110,7 @@ pub unsafe fn wallet_sign_reduced_transaction(
     let transaction_out = mut_ptr_as_mut(transaction_out, "transaction_out")?;
     let tx = wallet
         .0
-        .sign_reduced_transaction(reduced_tx.0.clone())
+        .sign_reduced_transaction(reduced_tx.0.clone(), None)
         .map(Transaction)?;
     *transaction_out = Box::into_raw(Box::new(tx));
     Ok(())

@@ -11,7 +11,7 @@ use crate::header::PreHeader;
 /// Blockchain state (last headers, etc.)
 #[wasm_bindgen]
 #[derive(PartialEq, Eq, Debug, Clone, From, Into)]
-pub struct ErgoStateContext(chain::ergo_state_context::ErgoStateContext);
+pub struct ErgoStateContext(pub(crate) chain::ergo_state_context::ErgoStateContext);
 
 #[wasm_bindgen]
 impl ErgoStateContext {

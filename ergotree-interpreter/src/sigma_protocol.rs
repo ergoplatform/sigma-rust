@@ -8,14 +8,14 @@ pub mod verifier;
 
 mod challenge;
 mod crypto_utils;
-mod dht_protocol;
-mod dlog_protocol;
+pub mod dht_protocol;
+pub mod dlog_protocol;
 mod fiat_shamir;
 mod gf2_192;
-mod proof_tree;
-mod sig_serializer;
-mod unchecked_tree;
-mod unproven_tree;
+pub mod proof_tree;
+pub mod sig_serializer;
+pub mod unchecked_tree;
+pub mod unproven_tree;
 
 use elliptic_curve::generic_array::GenericArray;
 use elliptic_curve::ops::Reduce;

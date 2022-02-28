@@ -9,7 +9,30 @@ use crate::error_conversion::to_js;
 use ergo_lib::chain::transaction::reduced::reduce_tx;
 use ergo_lib::chain::transaction::TxIoVec;
 use ergo_lib::ergotree_ir::serialization::SigmaSerializable;
+use ergo_lib::ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 use wasm_bindgen::prelude::*;
+
+/// Propositions list(public keys)
+#[wasm_bindgen]
+pub struct Propositions(pub(crate) Vec<SigmaBoolean>);
+
+#[wasm_bindgen]
+impl Propositions {
+    /// Create empty proposition holder
+    #[wasm_bindgen(constructor)]
+    pub fn new() -> Self {
+        Propositions(vec![])
+    }
+
+    /// Adding new proposition
+    pub fn add_proposition_from_byte(&mut self, proposition: Vec<u8>) {
+        self.0.push(
+            SigmaBoolean::sigma_parse_bytes(&proposition)
+                .map_err(to_js)
+                .unwrap(),
+        );
+    }
+}
 
 /// Represent `reduced` transaction, i.e. unsigned transaction where each unsigned input
 /// is augmented with ReducedInput which contains a script reduction result.
@@ -42,7 +65,7 @@ impl ReducedTransaction {
             }
         };
         let tx_context = ergo_lib::wallet::signing::TransactionContext::new(
-            unsigned_tx.clone().into(),
+            unsigned_tx.0.clone(),
             boxes_to_spend,
             data_boxes,
         )
@@ -64,7 +87,7 @@ impl ReducedTransaction {
             .map_err(to_js)
     }
 
-    /// Returns the unsigned transation
+    /// Returns the unsigned transaction
     pub fn unsigned_tx(&self) -> UnsignedTransaction {
         self.0.unsigned_tx.clone().into()
     }

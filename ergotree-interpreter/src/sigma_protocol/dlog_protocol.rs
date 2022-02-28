@@ -37,7 +37,7 @@ impl From<Scalar> for SecondDlogProverMessage {
 }
 
 /// Interactive prover
-pub(crate) mod interactive_prover {
+pub mod interactive_prover {
     use std::ops::Mul;
 
     use super::{FirstDlogProverMessage, SecondDlogProverMessage};
@@ -74,7 +74,7 @@ pub(crate) mod interactive_prover {
     /// Step 6 from <https://ergoplatform.org/docs/ErgoScript.pdf>
     /// For every leaf marked “real”, use the first prover step of the sigma protocol for
     /// that leaf to compute the necessary randomness "r" and the commitment "a"
-    pub(crate) fn first_message() -> (Scalar, FirstDlogProverMessage) {
+    pub fn first_message() -> (Scalar, FirstDlogProverMessage) {
         let r = dlog_group::random_scalar_in_group_range(crypto_utils::secure_rng());
         let g = dlog_group::generator();
         let a = dlog_group::exponentiate(&g, &r);
@@ -103,7 +103,7 @@ pub(crate) mod interactive_prover {
     /// and prover's response ("z")
     ///  
     /// g^z = a*h^e => a = g^z/h^e
-    pub(crate) fn compute_commitment(
+    pub fn compute_commitment(
         proposition: &ProveDlog,
         challenge: &Challenge,
         second_message: &SecondDlogProverMessage,
