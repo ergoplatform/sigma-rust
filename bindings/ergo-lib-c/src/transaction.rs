@@ -27,6 +27,8 @@ type UnsignedInputsPtr = CollectionPtr<UnsignedInput>;
 type ErgoBoxCandidatesPtr = CollectionPtr<ErgoBoxCandidate>;
 type ErgoBoxesPtr = CollectionPtr<ErgoBox>;
 
+// `HintsBag` bindings -----------------------------------------------------------------------------
+
 // `UnsignedTransaction` bindings ------------------------------------------------------------------
 
 /// Get id for transaction

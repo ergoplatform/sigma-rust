@@ -1,7 +1,10 @@
 //! Represent `reduced` transaction, i.e. unsigned transaction where each unsigned input
 //! is augmented with ReducedInput which contains a script reduction result.
 
-use ergo_lib::chain::transaction::{reduced::reduce_tx, TxIoVec};
+use ergo_lib::{
+    chain::transaction::{reduced::reduce_tx, TxIoVec},
+    ergotree_ir::{serialization::SigmaSerializable, sigma_protocol::sigma_boolean::SigmaBoolean},
+};
 
 use crate::{
     collections::ConstCollectionPtr,
@@ -11,6 +14,30 @@ use crate::{
     util::{const_ptr_as_ref, mut_ptr_as_mut},
     Error,
 };
+
+/// Propositions list(public keys)
+pub struct Propositions(pub(crate) Vec<SigmaBoolean>);
+pub type PropositionsPtr = *mut Propositions;
+pub type ConstPropositionsPtr = *const Propositions;
+
+/// Create empty proposition holder
+pub unsafe fn propositions_new(propositions_out: *mut PropositionsPtr) -> Result<(), Error> {
+    let propositions_out = mut_ptr_as_mut(propositions_out, "propositions_out")?;
+    *propositions_out = Box::into_raw(Box::new(Propositions(vec![])));
+    Ok(())
+}
+
+/// Adding new proposition
+pub unsafe fn propositions_add_proposition_from_bytes(
+    propositions_mut: PropositionsPtr,
+    bytes: &[u8],
+) -> Result<(), Error> {
+    let propositions_mut = mut_ptr_as_mut(propositions_mut, "propositions_mut")?;
+    propositions_mut
+        .0
+        .push(SigmaBoolean::sigma_parse_bytes(bytes)?);
+    Ok(())
+}
 
 /// Represent `reduced` transaction, i.e. unsigned transaction where each unsigned input
 /// is augmented with ReducedInput which contains a script reduction result.
