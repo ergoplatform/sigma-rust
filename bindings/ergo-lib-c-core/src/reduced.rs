@@ -30,8 +30,13 @@ pub unsafe fn propositions_new(propositions_out: *mut PropositionsPtr) -> Result
 /// Adding new proposition
 pub unsafe fn propositions_add_proposition_from_bytes(
     propositions_mut: PropositionsPtr,
-    bytes: &[u8],
+    bytes_ptr: *const u8,
+    len: usize,
 ) -> Result<(), Error> {
+    if bytes_ptr.is_null() {
+        return Err(Error::Misc("bytes_ptr is null".into()));
+    }
+    let bytes = std::slice::from_raw_parts(bytes_ptr, len);
     let propositions_mut = mut_ptr_as_mut(propositions_mut, "propositions_mut")?;
     propositions_mut
         .0

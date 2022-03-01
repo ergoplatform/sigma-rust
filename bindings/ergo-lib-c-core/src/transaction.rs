@@ -68,12 +68,14 @@ pub unsafe fn hints_bag_get(
     hints_bag_ptr: ConstHintsBagPtr,
     index: usize,
     hint_out: *mut CommitmentHintPtr,
-) -> Result<(), Error> {
+) -> Result<bool, Error> {
     let hints_bag = const_ptr_as_ref(hints_bag_ptr, "hints_bag_ptr")?;
     let hint_out = mut_ptr_as_mut(hint_out, "hint_out")?;
-    let commitment = hints_bag.0.commitments()[index].clone();
-    *hint_out = Box::into_raw(Box::new(CommitmentHint(commitment)));
-    Ok(())
+    if let Some(commitment) = hints_bag.0.commitments().get(index) {
+        *hint_out = Box::into_raw(Box::new(CommitmentHint(commitment.clone())));
+        return Ok(true);
+    }
+    Ok(false)
 }
 
 /// TransactionHintsBag
@@ -82,7 +84,7 @@ pub type TransactionHintsBagPtr = *mut TransactionHintsBag;
 pub type ConstTransactionHintsBagPtr = *const TransactionHintsBag;
 
 /// Empty TransactionHintsBag
-pub unsafe fn transaction_hintsbag_empty(
+pub unsafe fn transaction_hints_bag_empty(
     transaction_hints_bag_out: *mut TransactionHintsBagPtr,
 ) -> Result<(), Error> {
     let transaction_hints_bag_out =
@@ -124,7 +126,7 @@ pub unsafe fn transaction_hints_bag_all_hints_for_input(
 }
 
 /// Extract hints from signed transaction
-pub unsafe fn extract_hints(
+pub unsafe fn transaction_extract_hints(
     signed_transaction_ptr: ConstTransactionPtr,
     state_context_ptr: ConstErgoStateContextPtr,
     boxes_to_spend_ptr: ConstCollectionPtr<ErgoBox>,
