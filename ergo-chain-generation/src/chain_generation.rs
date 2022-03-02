@@ -475,4 +475,19 @@ mod tests {
         };
         assert!(proof.is_better_than(&disconnected_proof).unwrap());
     }
+
+    #[test]
+    fn test_popow_roundtrip() {
+        use sigma_ser::ScorexSerializable;
+        let size = 10;
+        let chain = generate_popowheader_chain(size, None);
+
+        for header in chain {
+            let bytes = header.scorex_serialize_bytes().unwrap();
+            assert_eq!(
+                PoPowHeader::scorex_parse(&mut std::io::Cursor::new(bytes)).unwrap(),
+                header
+            );
+        }
+    }
 }

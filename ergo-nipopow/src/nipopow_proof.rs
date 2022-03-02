@@ -212,7 +212,7 @@ impl ScorexSerializable for PoPowHeader {
         w.write_all(&bytes)?;
         w.put_u32(self.interlinks.len() as u32)?;
         for interlink in self.interlinks.iter() {
-            w.write_all(&*interlink.0.0)?;
+            w.write_all(&*interlink.0 .0)?;
         }
 
         Ok(())
@@ -226,7 +226,16 @@ impl ScorexSerializable for PoPowHeader {
 
         let interlinks_size = r.get_u32()?;
 
-        let interlinks: Result<Vec<BlockId>, ScorexParsingError> = (0..interlinks_size).map(|_| { let mut buf = [0; 32]; r.read_exact(&mut buf)?; Ok(BlockId(buf.into())) }).collect();
-        Ok(Self { header, interlinks: interlinks? })
+        let interlinks: Result<Vec<BlockId>, ScorexParsingError> = (0..interlinks_size)
+            .map(|_| {
+                let mut buf = [0; 32];
+                r.read_exact(&mut buf)?;
+                Ok(BlockId(buf.into()))
+            })
+            .collect();
+        Ok(Self {
+            header,
+            interlinks: interlinks?,
+        })
     }
 }
