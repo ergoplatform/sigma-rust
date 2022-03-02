@@ -44,6 +44,28 @@ class Wallet {
         return Transaction(withRawPointer: ptr!)
     }
     
+    /// Sign a multi signature transaction
+    func signTransactionMulti(
+        stateContext: ErgoStateContext,
+        unsignedTx: UnsignedTransaction,
+        boxesToSpend: ErgoBoxes,
+        dataBoxes: ErgoBoxes,
+        txHints: TransactionHintsBag
+    ) throws -> Transaction {
+        var ptr: TransactionPtr?
+        let error = ergo_lib_wallet_sign_transaction_multi(
+            self.pointer,
+            stateContext.pointer,
+            unsignedTx.pointer,
+            boxesToSpend.pointer,
+            dataBoxes.pointer,
+            txHints.pointer,
+            &ptr
+        )
+        try checkError(error)
+        return Transaction(withRawPointer: ptr!)
+    }
+    
     /// Signs a reduced transaction (generating proofs for inputs)
     func signReducedTransaction(
         reducedTx: ReducedTransaction
@@ -52,6 +74,56 @@ class Wallet {
         let error = ergo_lib_wallet_sign_reduced_transaction(self.pointer, reducedTx.pointer, &ptr)
         try checkError(error)
         return Transaction(withRawPointer: ptr!)
+    }
+    
+    /// Signs a multi signature reduced transaction
+    func signReducedTransactionMulti(
+        reducedTx: ReducedTransaction,
+        txHints: TransactionHintsBag
+    ) throws -> Transaction {
+        var ptr: TransactionPtr?
+        let error = ergo_lib_wallet_sign_reduced_transaction_multi(
+            self.pointer,
+            reducedTx.pointer,
+            txHints.pointer,
+            &ptr
+        )
+        try checkError(error)
+        return Transaction(withRawPointer: ptr!)
+    }
+    
+    /// Generate Commitments for unsigned tx
+    func generateCommitments(
+        stateContext: ErgoStateContext,
+        unsignedTx: UnsignedTransaction,
+        boxesToSpend: ErgoBoxes,
+        dataBoxes: ErgoBoxes
+    ) throws -> TransactionHintsBag {
+        var ptr: TransactionHintsBagPtr?
+        let error = ergo_lib_wallet_generate_commitments(
+            self.pointer,
+            stateContext.pointer,
+            unsignedTx.pointer,
+            boxesToSpend.pointer,
+            dataBoxes.pointer,
+            &ptr
+        )
+        try checkError(error)
+        return TransactionHintsBag(withRawPointer: ptr!)
+    }
+    
+    /// Generate Commitments for reduced transaction
+    func generateCommitmentsForReducedTransaction(
+        reducedTx: ReducedTransaction
+    ) throws -> TransactionHintsBag {
+        var ptr: TransactionHintsBagPtr?
+        let error = ergo_lib_wallet_generate_commitments_for_reduced_transaction(
+            self.pointer,
+            reducedTx.pointer,
+            &ptr
+        )
+        try checkError(error)
+        return TransactionHintsBag(withRawPointer: ptr!)
     }
     
     deinit {

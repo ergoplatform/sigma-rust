@@ -29,6 +29,14 @@ type UnsignedInputsPtr = CollectionPtr<UnsignedInput>;
 type ErgoBoxCandidatesPtr = CollectionPtr<ErgoBoxCandidate>;
 type ErgoBoxesPtr = CollectionPtr<ErgoBox>;
 
+// `CommitmentHint` bindings -----------------------------------------------------------------------
+
+/// Drop `CommitmentHint`
+#[no_mangle]
+pub extern "C" fn ergo_lib_commitment_hint_delete(ptr: CommitmentHintPtr) {
+    unsafe { delete_ptr(ptr) }
+}
+
 // `HintsBag` bindings -----------------------------------------------------------------------------
 
 /// Empty HintsBag

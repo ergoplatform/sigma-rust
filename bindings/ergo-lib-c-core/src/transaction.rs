@@ -102,7 +102,7 @@ pub unsafe fn transaction_hints_bag_add_hints_for_input(
     hints_bag_ptr: ConstHintsBagPtr,
 ) -> Result<(), Error> {
     let transaction_hints_bag_mut =
-        mut_ptr_as_mut(transaction_hints_bag_mut, "transaction_hintsbag_mut")?;
+        mut_ptr_as_mut(transaction_hints_bag_mut, "transaction_hints_bag_mut")?;
     let hints_bag = const_ptr_as_ref(hints_bag_ptr, "hints_bag_ptr")?;
     transaction_hints_bag_mut
         .0
@@ -118,7 +118,7 @@ pub unsafe fn transaction_hints_bag_all_hints_for_input(
 ) -> Result<(), Error> {
     let transaction_hints_bag =
         const_ptr_as_ref(transaction_hints_bag_ptr, "transaction_hints_bag_ptr")?;
-    let hints_bag_out = mut_ptr_as_mut(hints_bag_out, "hintsbag_out")?;
+    let hints_bag_out = mut_ptr_as_mut(hints_bag_out, "hints_bag_out")?;
     *hints_bag_out = Box::into_raw(Box::new(HintsBag(
         transaction_hints_bag.0.all_hints_for_input(index),
     )));
