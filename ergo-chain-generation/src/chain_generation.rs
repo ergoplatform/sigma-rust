@@ -111,7 +111,12 @@ fn next_block(
 ) -> Option<ErgoFullBlock> {
     let interlinks = prev_block
         .as_ref()
-        .map(|b| update_interlinks(b.header.clone(), unpack_interlinks(&b.extension)))
+        .and_then(|b| {
+            Some(update_interlinks(
+                b.header.clone(),
+                unpack_interlinks(&b.extension).ok()?,
+            ))
+        })
         .unwrap_or_default();
     if !interlinks.is_empty() {
         // Only non-empty for non-genesis block
@@ -379,9 +384,11 @@ mod tests {
             },
         }))
         .take(len)
-        .map(|b| PoPowHeader {
-            header: b.header,
-            interlinks: unpack_interlinks(&b.extension),
+        .flat_map(|b| {
+            Some(PoPowHeader {
+                header: b.header,
+                interlinks: unpack_interlinks(&b.extension).ok()?,
+            })
         })
         .collect()
     }

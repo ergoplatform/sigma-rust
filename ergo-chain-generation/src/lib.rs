@@ -45,9 +45,9 @@ pub struct ErgoFullBlock {
 }
 
 impl std::convert::TryInto<ergo_nipopow::PoPowHeader> for ErgoFullBlock {
-    type Error = (); // TODO: make unpack interlinks fallible
-    fn try_into(self) -> Result<ergo_nipopow::PoPowHeader, ()> {
-        let interlinks = unpack_interlinks(&self.extension);
+    type Error = &'static str;
+    fn try_into(self) -> Result<ergo_nipopow::PoPowHeader, &'static str> {
+        let interlinks = unpack_interlinks(&self.extension)?;
         Ok(ergo_nipopow::PoPowHeader {
             header: self.header,
             interlinks,
@@ -65,7 +65,9 @@ pub(crate) struct ExtensionCandidate {
 static INTERLINK_VECTOR_PREFIX: u8 = 0x01;
 
 /// Unpacks interlinks from key-value format of block extension.
-pub(crate) fn unpack_interlinks(extension: &ExtensionCandidate) -> Vec<BlockId> {
+pub(crate) fn unpack_interlinks(
+    extension: &ExtensionCandidate,
+) -> Result<Vec<BlockId>, &'static str> {
     let mut res = vec![];
     let entries = extension
         .fields
@@ -75,13 +77,15 @@ pub(crate) fn unpack_interlinks(extension: &ExtensionCandidate) -> Vec<BlockId> 
         // Each interlink is packed as [qty | blockId], which qty is a single-byte value
         // representing the number of duplicates of `blockId`. Every `BlockId` is 32 bytes which
         // implies that `bytes` is 33 bytes.
-        assert_eq!(bytes.len(), 33);
+        if bytes.len() != 33 {
+            return Err("Interlinks must be 33 bytes in size");
+        }
         let qty = bytes[0];
         let block_id_bytes: [u8; 32] = bytes[1..].try_into().unwrap();
         let block_id = BlockId(Digest32::from(block_id_bytes));
         res.extend(std::iter::repeat(block_id).take(qty as usize));
     }
-    res
+    Ok(res)
 }
 
 /// Packs interlinks into key-value format of the block extension.
