@@ -8,7 +8,10 @@ use ergo_lib_c_core::{
     ergo_state_ctx::ConstErgoStateContextPtr,
     reduced::ConstReducedTransactionPtr,
     secret_key::SecretKey,
-    transaction::{ConstUnsignedTransactionPtr, TransactionPtr},
+    transaction::{
+        ConstTransactionHintsBagPtr, ConstUnsignedTransactionPtr, TransactionHintsBagPtr,
+        TransactionPtr,
+    },
     wallet::*,
     Error, ErrorPtr,
 };
@@ -69,6 +72,29 @@ pub unsafe extern "C" fn ergo_lib_wallet_sign_transaction(
     Error::c_api_from(res)
 }
 
+/// Signs a multi signature transaction
+#[no_mangle]
+pub unsafe extern "C" fn ergo_lib_wallet_sign_transaction_multi(
+    wallet_ptr: ConstWalletPtr,
+    state_context_ptr: ConstErgoStateContextPtr,
+    unsigned_tx_ptr: ConstUnsignedTransactionPtr,
+    boxes_to_spend_ptr: ConstCollectionPtr<ErgoBox>,
+    data_boxes_ptr: ConstCollectionPtr<ErgoBox>,
+    tx_hints_ptr: ConstTransactionHintsBagPtr,
+    transaction_out: *mut TransactionPtr,
+) -> ErrorPtr {
+    let res = wallet_sign_transaction_multi(
+        wallet_ptr,
+        state_context_ptr,
+        unsigned_tx_ptr,
+        boxes_to_spend_ptr,
+        data_boxes_ptr,
+        tx_hints_ptr,
+        transaction_out,
+    );
+    Error::c_api_from(res)
+}
+
 /// Signs a reduced transaction (generating proofs for inputs)
 #[no_mangle]
 pub unsafe extern "C" fn ergo_lib_wallet_sign_reduced_transaction(
@@ -77,6 +103,59 @@ pub unsafe extern "C" fn ergo_lib_wallet_sign_reduced_transaction(
     transaction_out: *mut TransactionPtr,
 ) -> ErrorPtr {
     let res = wallet_sign_reduced_transaction(wallet_ptr, reduced_tx_ptr, transaction_out);
+    Error::c_api_from(res)
+}
+
+/// Signs a multi signature reduced transaction
+#[no_mangle]
+pub unsafe extern "C" fn ergo_lib_wallet_sign_reduced_transaction_multi(
+    wallet_ptr: ConstWalletPtr,
+    reduced_tx_ptr: ConstReducedTransactionPtr,
+    tx_hints_ptr: ConstTransactionHintsBagPtr,
+    transaction_out: *mut TransactionPtr,
+) -> ErrorPtr {
+    let res = wallet_sign_reduced_transaction_multi(
+        wallet_ptr,
+        reduced_tx_ptr,
+        tx_hints_ptr,
+        transaction_out,
+    );
+    Error::c_api_from(res)
+}
+
+/// Generate Commitments for unsigned tx
+#[no_mangle]
+pub unsafe extern "C" fn ergo_lib_wallet_generate_commitments(
+    wallet_ptr: ConstWalletPtr,
+    state_context_ptr: ConstErgoStateContextPtr,
+    unsigned_tx_ptr: ConstUnsignedTransactionPtr,
+    boxes_to_spend_ptr: ConstCollectionPtr<ErgoBox>,
+    data_boxes_ptr: ConstCollectionPtr<ErgoBox>,
+    transaction_hints_bag_out: *mut TransactionHintsBagPtr,
+) -> ErrorPtr {
+    let res = wallet_generate_commitments(
+        wallet_ptr,
+        state_context_ptr,
+        unsigned_tx_ptr,
+        boxes_to_spend_ptr,
+        data_boxes_ptr,
+        transaction_hints_bag_out,
+    );
+    Error::c_api_from(res)
+}
+
+/// Generate Commitments for reduced transaction
+#[no_mangle]
+pub unsafe extern "C" fn ergo_lib_wallet_generate_commitments_for_reduced_transaction(
+    wallet_ptr: ConstWalletPtr,
+    reduced_tx_ptr: ConstReducedTransactionPtr,
+    transaction_hints_bag_out: *mut TransactionHintsBagPtr,
+) -> ErrorPtr {
+    let res = wallet_generate_commitments_for_reduced_transaction(
+        wallet_ptr,
+        reduced_tx_ptr,
+        transaction_hints_bag_out,
+    );
     Error::c_api_from(res)
 }
 

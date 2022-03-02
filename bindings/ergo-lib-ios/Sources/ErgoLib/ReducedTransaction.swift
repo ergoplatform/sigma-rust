@@ -42,3 +42,25 @@ class ReducedTransaction {
         ergo_lib_reduced_tx_delete(self.pointer)
     }
 }
+
+/// Propositions list(public keys)
+class Propositions {
+    internal var pointer: PropositionsPtr
+    
+    /// Create empty proposition holder
+    init() {
+        var ptr: PropositionsPtr?
+        ergo_lib_propositions_new(&ptr)
+        self.pointer = ptr!
+    }
+    
+    /// Add new proposition
+    func addProposition(fromBytes : [UInt8]) throws {
+        let error = ergo_lib_propositions_add_proposition_from_bytes(self.pointer, fromBytes, UInt(fromBytes.count))
+        try checkError(error)
+    }
+    
+    deinit {
+        ergo_lib_propositions_delete(self.pointer)
+    }
+}
