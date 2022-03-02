@@ -206,11 +206,27 @@ pub struct PoPowHeader {
 
 #[allow(clippy::todo)]
 impl ScorexSerializable for PoPowHeader {
-    fn scorex_serialize<W: WriteSigmaVlqExt>(&self, _w: &mut W) -> ScorexSerializeResult {
-        todo!()
+    fn scorex_serialize<W: WriteSigmaVlqExt>(&self, w: &mut W) -> ScorexSerializeResult {
+        let bytes = self.header.scorex_serialize_bytes()?;
+        w.put_u32(bytes.len() as u32)?;
+        w.write_all(&bytes)?;
+        w.put_u32(self.interlinks.len() as u32)?;
+        for interlink in self.interlinks.iter() {
+            w.write_all(&*interlink.0.0)?;
+        }
+
+        Ok(())
     }
 
-    fn scorex_parse<R: ReadSigmaVlqExt>(_r: &mut R) -> Result<Self, ScorexParsingError> {
-        todo!()
+    fn scorex_parse<R: ReadSigmaVlqExt>(r: &mut R) -> Result<Self, ScorexParsingError> {
+        let header_size = r.get_u32()?;
+        let mut buf = vec![0; header_size as usize];
+        r.read_exact(&mut buf)?;
+        let header = Header::scorex_parse(&mut std::io::Cursor::new(buf))?;
+
+        let interlinks_size = r.get_u32()?;
+
+        let interlinks: Result<Vec<BlockId>, ScorexParsingError> = (0..interlinks_size).map(|_| { let mut buf = [0; 32]; r.read_exact(&mut buf)?; Ok(BlockId(buf.into())) }).collect();
+        Ok(Self { header, interlinks: interlinks? })
     }
 }

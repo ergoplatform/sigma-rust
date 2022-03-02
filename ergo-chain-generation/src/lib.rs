@@ -44,6 +44,17 @@ pub struct ErgoFullBlock {
     //ad_proofs: ProofBytes,
 }
 
+impl std::convert::TryInto<ergo_nipopow::PoPowHeader> for ErgoFullBlock {
+    type Error = (); // TODO: make unpack interlinks fallible
+    fn try_into(self) -> Result<ergo_nipopow::PoPowHeader, ()> {
+        let interlinks = unpack_interlinks(&self.extension);
+        Ok(ergo_nipopow::PoPowHeader {
+            header: self.header,
+            interlinks,
+        })
+    }
+}
+
 /// Extension section of Ergo block. Contains key-value storage.
 #[derive(Clone, Debug)]
 pub(crate) struct ExtensionCandidate {
