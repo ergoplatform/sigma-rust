@@ -497,4 +497,15 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn test_popow_json_roundtrip() {
+        let size = 10;
+        let chain = generate_popowheader_chain(size, None);
+
+        for header in chain {
+            let json = serde_json::to_string(&header).unwrap();
+            assert_eq!(serde_json::from_str::<PoPowHeader>(&json).unwrap(), header);
+        }
+    }
 }

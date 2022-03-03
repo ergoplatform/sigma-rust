@@ -18,3 +18,4 @@ ergo-nipopow = { version = "^0.1", path = "../ergo-nipopow" }
 
 [dev-dependencies]
 sigma-ser = { version = "^0.3", path = "../sigma-ser" }
+serde_json = { version = "1.0" }
