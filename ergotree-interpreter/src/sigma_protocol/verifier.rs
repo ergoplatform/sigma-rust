@@ -183,6 +183,7 @@ mod tests {
     use crate::sigma_protocol::prover::{Prover, TestProver};
 
     use super::*;
+    use ergo_lib::wallet::signing::sign_message;
     use ergotree_ir::mir::expr::Expr;
     use ergotree_ir::mir::sigma_and::SigmaAnd;
     use ergotree_ir::mir::sigma_or::SigmaOr;
@@ -414,6 +415,30 @@ mod tests {
                                               message.as_slice());
                 prop_assert_eq!(ver_res.unwrap().result, true, "verify failed on secret: {:?}", &secret);
             }
+        }
+
+        #[test]
+        fn test_prover_verify_signature(secret in any::<DlogProverInput>(), message in vec(any::<u8>(), 100..200)) {
+            let sb: SigmaBoolean = secret.public_image().into();
+            let prover = TestProver {
+                secrets: vec![PrivateInput::DlogProverInput(secret)],
+            };
+
+            let signature = sign_message(&prover, sb, message.as_slice()).unwrap();
+
+            let verifier = TestVerifier;
+            prop_assert_eq!(verify_signature(
+                                            sb,
+                                            message.as_slice(),
+                                            signature.as_slice()).unwrap(),
+                            true);
+
+            // wrong message
+            prop_assert_eq!(verify_signature(
+                                            sb,
+                                            message.as_slice(),
+                                            vec![1u8; 100].as_slice()).unwrap(),
+                            false);
         }
     }
 }
