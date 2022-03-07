@@ -288,6 +288,7 @@ mod tests {
     use ergotree_interpreter::sigma_protocol::private_input::PrivateInput;
     use ergotree_interpreter::sigma_protocol::prover::ContextExtension;
     use ergotree_interpreter::sigma_protocol::prover::TestProver;
+    use ergotree_interpreter::sigma_protocol::verifier::verify_signature;
     use ergotree_interpreter::sigma_protocol::verifier::TestVerifier;
     use ergotree_interpreter::sigma_protocol::verifier::Verifier;
     use ergotree_interpreter::sigma_protocol::verifier::VerifierError;
@@ -436,6 +437,43 @@ mod tests {
               assert_eq!(expected_input_boxes, context.inputs);
               assert_eq!(tx_context.spending_tx.inputs.as_vec()[i].box_id, context.self_box.box_id());
           }
+        }
+    }
+
+    proptest! {
+
+        #![proptest_config(ProptestConfig::with_cases(16))]
+
+        #[test]
+        fn test_prover_verify_signature(secret in any::<DlogProverInput>(), message in vec(any::<u8>(), 100..200)) {
+            let sb: SigmaBoolean = secret.public_image().into();
+            let prover = TestProver {
+                secrets: vec![PrivateInput::DlogProverInput(secret)],
+            };
+
+            let signature = sign_message(&prover, sb.clone(), message.as_slice()).unwrap();
+
+            prop_assert_eq!(verify_signature(
+                                            sb.clone(),
+                                            message.as_slice(),
+                                            signature.as_slice()).unwrap(),
+                            true);
+
+            // possible to append bytes
+            let mut ext_signature = signature;
+            ext_signature.push(1u8);
+            prop_assert_eq!(verify_signature(
+                                            sb.clone(),
+                                            message.as_slice(),
+                                            ext_signature.as_slice()).unwrap(),
+                            true);
+
+            // wrong message
+            prop_assert_eq!(verify_signature(
+                                            sb.clone(),
+                                            message.as_slice(),
+                                            vec![1u8; 100].as_slice()).unwrap(),
+                            false);
         }
     }
 
