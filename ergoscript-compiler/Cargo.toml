@@ -14,7 +14,7 @@ exclude = [
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-ergotree-ir = { version = "^0.14.0", path = "../ergotree-ir" }
+ergotree-ir = { version = "^0.15.0", path = "../ergotree-ir" }
 logos = "0.12"
 text-size = "1.1.0"
 derive_more = "0.99"
