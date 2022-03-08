@@ -14,7 +14,7 @@ exclude = [
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-sigma-ser = { version = "^0.3.0", path = "../sigma-ser" }
+sigma-ser = { version = "^0.4.0", path = "../sigma-ser" }
 sigma-util = { version = "^0.3.0", path = "../sigma-util" }
 ergo-chain-types = { version = "^0.1.0", path = "../ergo-chain-types"}
 thiserror = "1"
