@@ -1,6 +1,6 @@
 [package]
 name = "ergo-lib-c-core"
-version = "0.14.0"
+version = "0.15.0"
 license = "CC0-1.0"
 authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
 edition = "2018"
