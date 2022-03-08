@@ -29,6 +29,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - transaction serialization in Wasm API [506](https://github.com/ergoplatform/sigma-rust/pull/506);
 - support for `(Int, Int)`, `Coll[Coll[Byte]]`, `Coll[Int]` and `BigInt` types in constant conversion in Wasm API;
 - mnemonic generation [#505](https://github.com/ergoplatform/sigma-rust/pull/505);
+- arithmetic operations and polynomial interpolation over Galois fields GF(2^192) [#496](https://github.com/ergoplatform/sigma-rust/pull/496);
+- Merkle tree support [#521](https://github.com/ergoplatform/sigma-rust/pull/521);
+- NiPoPoW proof verification [#517](https://github.com/ergoplatform/sigma-rust/pull/517);
+- distributed signatures support [#470](https://github.com/ergoplatform/sigma-rust/pull/470);
 
 ### Fixed
 - fix `elem_tpe` in `Append` and `Slice` evaluation [#455](https://github.com/ergoplatform/sigma-rust/pull/455)
