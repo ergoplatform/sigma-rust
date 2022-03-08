@@ -19,7 +19,7 @@ sigma-ser = { version = "^0.4.0", path = "../sigma-ser" }
 sigma-util = { version = "^0.4.0", path = "../sigma-util" }
 ergo-chain-types = { version = "^0.2.0", path = "../ergo-chain-types" }
 ergotree-ir = { version = "^0.15.0", path = "../ergotree-ir", features = ["json"] }
-ergotree-interpreter = { version = "^0.14.0", path = "../ergotree-interpreter" }
+ergotree-interpreter = { version = "^0.15.0", path = "../ergotree-interpreter" }
 ergo-nipopow = { version = "^0.1", path = "../ergo-nipopow" }
 ergoscript-compiler = { version = "^0.11.0", path = "../ergoscript-compiler" , optional = true}
 ergo-merkle-tree = { version = "0.1.0", path = "../ergo-merkle-tree" }
@@ -68,7 +68,7 @@ rest = ["ergo-rest"]
 [dev-dependencies]
 wasm-bindgen-test = "0.3.10"
 ergotree-ir = { version = "^0.15.0", path = "../ergotree-ir", features = ["arbitrary"] }
-ergotree-interpreter = { version = "^0.14.0", path = "../ergotree-interpreter", features = ["arbitrary"] }
+ergotree-interpreter = { version = "^0.15.0", path = "../ergotree-interpreter", features = ["arbitrary"] }
 sigma-test-util = { version = "^0.3.0", path = "../sigma-test-util" }
 pretty_assertions = "0.7.2"
 bs58 = "0.4.0"
