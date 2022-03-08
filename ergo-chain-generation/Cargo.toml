@@ -10,7 +10,7 @@ edition = "2021"
 base16 = "0.2.1"
 blake2 = "0.9"
 byteorder = "1"
-ergo-lib = {version = "^0.14.0", path = "../ergo-lib"}
+ergo-lib = {version = "^0.15.0", path = "../ergo-lib"}
 num-bigint = "0.4.0"
 rand = "0.8.4"
 sigma-test-util = { version = "^0.3.0", path = "../sigma-test-util" }
