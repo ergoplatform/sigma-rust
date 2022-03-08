@@ -308,4 +308,109 @@ final class TransactionTests: XCTestCase {
         let pass = "password1234"
         XCTAssertNoThrow(try Wallet(mnemonicPhrase: phrase, mnemonicPass: pass))
     }
+    
+    func testMultiSigTx() throws {
+        let aliceSecret =
+            try SecretKey(fromBytes: base16StringToBytes("e726ad60a073a49f7851f4d11a83de6c9c7f99e17314fcce560f00a51a8a3d18")!
+        )
+        let bobSecret =
+            try SecretKey(fromBytes: base16StringToBytes("9e6616b4e44818d21b8dfdd5ea87eb822480e7856ab910d00f5834dc64db79b3")!)
+        let alicePkBytes = base16StringToBytes("cd03c8e1527efae4be9868cea6767157fcccac66489842738efed0a302e4f81710d0")!
+        
+        // Pay 2 Script address of a multi_sig contract with contract { alicePK && bobPK }
+        let multiSigAddress =
+          try Address(withTestnetAddress: "JryiCXrc7x5D8AhS9DYX1TDzW5C5mT6QyTMQaptF76EQkM15cetxtYKq3u6LymLZLVCyjtgbTKFcfuuX9LLi49Ec5m2p6cwsg5NyEsCQ7na83yEPN")
+        let inputContract = try Contract.init(payToAddress: multiSigAddress)
+        let txId = try TxId(withString: "0000000000000000000000000000000000000000000000000000000000000000")
+        let inputBox = try ErgoBox(
+            boxValue: try BoxValue(fromInt64: 1000000000),
+            creationHeight: UInt32(0),
+            contract: inputContract,
+            txId: txId,
+            index: UInt16(0),
+            tokens: Tokens()
+        )
+        
+        // create a transaction that spends the "simulated" box
+        let recipient = try Address(withTestnetAddress: "3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN")
+        let unspentBoxes = ErgoBoxes()
+        unspentBoxes.add(ergoBox: inputBox)
+        let contract = try Contract(payToAddress: recipient)
+        let outboxValue = BoxValue.SAFE_USER_MIN()
+        let outbox = try ErgoBoxCandidateBuilder(boxValue: outboxValue, contract: contract, creationHeight: UInt32(0)).build()
+        let txOutputs = ErgoBoxCandidates()
+        txOutputs.add(ergoBoxCandidate: outbox)
+        let fee = TxBuilder.SUGGESTED_TX_FEE()
+        let changeAddress = try Address(withTestnetAddress: "3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN")
+        let minChangeValue = BoxValue.SAFE_USER_MIN()
+        let boxSelector = SimpleBoxSelector()
+        let targetBalance = try BoxValue.sumOf(boxValue0: outboxValue, boxValue1: fee)
+        let boxSelection = try boxSelector.select(
+            inputs: unspentBoxes,
+            targetBalance: targetBalance,
+            targetTokens: Tokens()
+        )
+        let txBuilder = TxBuilder(
+            boxSelection: boxSelection,
+            outputCandidates: txOutputs,
+            currentHeight: UInt32(0),
+            feeAmount: fee,
+            changeAddress: changeAddress,
+            minChangeValue: minChangeValue
+        )
+        let tx = try txBuilder.build()
+        let txDataInputs = try ErgoBoxes.init(fromJSON: [])
+        let blockHeaders = try HeaderTests.generateBlockHeadersFromJSON()
+        let preHeader = PreHeader(withBlockHeader: blockHeaders.get(index: UInt(0))!)
+        let ctx = try ErgoStateContext(preHeader: preHeader, headers: blockHeaders)
+        let sksAlice = SecretKeys()
+        sksAlice.add(secretKey: aliceSecret)
+        let walletAlice = Wallet(secrets: sksAlice)
+        let sksBob = SecretKeys()
+        sksBob.add(secretKey: bobSecret)
+        let walletBob = Wallet(secrets: sksBob)
+        let bobHints = try walletBob.generateCommitments(
+            stateContext: ctx,
+            unsignedTx: tx,
+            boxesToSpend: unspentBoxes,
+            dataBoxes: txDataInputs
+        ).allHintsForInput(index: UInt(0))
+        let bobKnown = bobHints.getCommitmentHint(index: UInt(0))!
+        let bobOwn = bobHints.getCommitmentHint(index: UInt(1))!
+        let hintsBag = HintsBag()
+        hintsBag.addCommitmentHint(hint: bobKnown)
+        let aliceTxHintsBag = TransactionHintsBag()
+        aliceTxHintsBag.addHintsForInput(index: UInt(0), hintsBag: hintsBag)
+        let partialSigned = try walletAlice.signTransactionMulti(
+            stateContext: ctx,
+            unsignedTx: tx,
+            boxesToSpend: unspentBoxes,
+            dataBoxes: txDataInputs,
+            txHints: aliceTxHintsBag
+        )
+        let realPropositions = Propositions()
+        let simulatedPropositions = Propositions()
+        try realPropositions.addProposition(fromBytes: alicePkBytes)
+        let bobHintsBag = try extractHintsFromSignedTransaction(
+            transaction: partialSigned,
+            stateContext: ctx,
+            boxesToSpend: unspentBoxes,
+            dataBoxes: txDataInputs,
+            realPropositions: realPropositions,
+            simulatedPropositions: simulatedPropositions
+        ).allHintsForInput(index: UInt(0))
+        bobHintsBag.addCommitmentHint(hint: bobOwn)
+        let bobTxHintsBag = TransactionHintsBag()
+        bobTxHintsBag.addHintsForInput(index: UInt(0), hintsBag: bobHintsBag)
+        XCTAssertNoThrow(
+            try walletBob.signTransactionMulti(
+                stateContext: ctx,
+                unsignedTx: tx,
+                boxesToSpend: unspentBoxes,
+                dataBoxes: txDataInputs,
+                txHints: bobTxHintsBag
+            )
+        )
+        
+    }
 }

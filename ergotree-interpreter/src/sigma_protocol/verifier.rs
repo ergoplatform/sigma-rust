@@ -108,7 +108,7 @@ fn check_commitments(sp: UncheckedTree, message: &[u8]) -> Result<bool, Verifier
 /// Verifier Step 4: For every leaf node, compute the commitment a from the challenge e and response $z$,
 /// per the verifier algorithm of the leaf's Sigma-protocol.
 /// If the verifier algorithm of the Sigma-protocol for any of the leaves rejects, then reject the entire proof.
-fn compute_commitments(sp: UncheckedTree) -> UncheckedTree {
+pub fn compute_commitments(sp: UncheckedTree) -> UncheckedTree {
     match sp {
         UncheckedTree::UncheckedLeaf(leaf) => match leaf {
             UncheckedLeaf::UncheckedSchnorr(sn) => {

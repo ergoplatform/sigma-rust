@@ -1,6 +1,7 @@
 //! Box selection for transaction inputs
 
 mod simple;
+
 use std::collections::HashMap;
 
 use bounded_vec::{BoundedVec, BoundedVecOutOfBounds};

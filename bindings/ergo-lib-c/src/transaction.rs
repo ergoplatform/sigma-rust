@@ -4,7 +4,9 @@ use ergo_lib_c_core::{
     collections::{CollectionPtr, ConstCollectionPtr},
     data_input::DataInput,
     ergo_box::{ErgoBox, ErgoBoxCandidate},
+    ergo_state_ctx::ConstErgoStateContextPtr,
     input::{Input, UnsignedInput},
+    reduced::ConstPropositionsPtr,
     transaction::*,
     util::ByteArray,
     Error, ErrorPtr,
@@ -16,7 +18,7 @@ use std::{
     os::raw::c_char,
 };
 
-use crate::delete_ptr;
+use crate::{delete_ptr, ReturnOption};
 
 // Need to define these here because the generated code from the `make_collection!` macro
 // invocations don't yet exist.
@@ -26,6 +28,129 @@ type InputsPtr = CollectionPtr<Input>;
 type UnsignedInputsPtr = CollectionPtr<UnsignedInput>;
 type ErgoBoxCandidatesPtr = CollectionPtr<ErgoBoxCandidate>;
 type ErgoBoxesPtr = CollectionPtr<ErgoBox>;
+
+// `CommitmentHint` bindings -----------------------------------------------------------------------
+
+/// Drop `CommitmentHint`
+#[no_mangle]
+pub extern "C" fn ergo_lib_commitment_hint_delete(ptr: CommitmentHintPtr) {
+    unsafe { delete_ptr(ptr) }
+}
+
+// `HintsBag` bindings -----------------------------------------------------------------------------
+
+/// Empty HintsBag
+#[no_mangle]
+pub unsafe extern "C" fn ergo_lib_hints_bag_empty(hints_bag_out: *mut HintsBagPtr) {
+    #[allow(clippy::unwrap_used)]
+    hints_bag_empty(hints_bag_out).unwrap();
+}
+
+/// Add commitment hint to the bag
+#[no_mangle]
+pub unsafe extern "C" fn ergo_lib_hints_bag_add_commitment(
+    hints_bag_mut: HintsBagPtr,
+    hint_ptr: ConstCommitmentHintPtr,
+) {
+    #[allow(clippy::unwrap_used)]
+    hints_bag_add_commitment(hints_bag_mut, hint_ptr).unwrap();
+}
+
+/// Length of HintsBag
+#[no_mangle]
+pub unsafe extern "C" fn ergo_lib_hints_bag_len(hints_bag_ptr: ConstHintsBagPtr) -> usize {
+    #[allow(clippy::unwrap_used)]
+    hints_bag_len(hints_bag_ptr).unwrap()
+}
+
+/// Get commitment
+#[no_mangle]
+pub unsafe extern "C" fn ergo_lib_hints_bag_get(
+    hints_bag_ptr: ConstHintsBagPtr,
+    index: usize,
+    hint_out: *mut CommitmentHintPtr,
+) -> ReturnOption {
+    match hints_bag_get(hints_bag_ptr, index, hint_out) {
+        Ok(is_some) => ReturnOption {
+            is_some,
+            error: std::ptr::null_mut(),
+        },
+        Err(e) => ReturnOption {
+            is_some: false, // Dummy value
+            error: Error::c_api_from(Err(e)),
+        },
+    }
+}
+
+/// Drop `HintsBag`
+#[no_mangle]
+pub extern "C" fn ergo_lib_hints_bag_delete(ptr: HintsBagPtr) {
+    unsafe { delete_ptr(ptr) }
+}
+
+// `TransactionHintsBag` bindings ------------------------------------------------------------------
+
+/// Empty TransactionHintsBag
+#[no_mangle]
+pub unsafe extern "C" fn ergo_lib_transaction_hints_bag_empty(
+    transaction_hints_bag_out: *mut TransactionHintsBagPtr,
+) {
+    #[allow(clippy::unwrap_used)]
+    transaction_hints_bag_empty(transaction_hints_bag_out).unwrap();
+}
+
+/// Adding hints for input
+#[no_mangle]
+pub unsafe extern "C" fn ergo_lib_transaction_hints_bag_add_hints_for_input(
+    transaction_hints_bag_mut: TransactionHintsBagPtr,
+    index: usize,
+    hints_bag_ptr: ConstHintsBagPtr,
+) {
+    #[allow(clippy::unwrap_used)]
+    transaction_hints_bag_add_hints_for_input(transaction_hints_bag_mut, index, hints_bag_ptr)
+        .unwrap();
+}
+
+/// Get HintsBag corresponding to input index
+#[no_mangle]
+pub unsafe extern "C" fn ergo_lib_transaction_hints_bag_all_hints_for_input(
+    transaction_hints_bag_ptr: ConstTransactionHintsBagPtr,
+    index: usize,
+    hints_bag_out: *mut HintsBagPtr,
+) {
+    #[allow(clippy::unwrap_used)]
+    transaction_hints_bag_all_hints_for_input(transaction_hints_bag_ptr, index, hints_bag_out)
+        .unwrap();
+}
+
+/// Extract hints from signed transaction
+#[no_mangle]
+pub unsafe extern "C" fn ergo_lib_transaction_extract_hints(
+    signed_transaction_ptr: ConstTransactionPtr,
+    state_context_ptr: ConstErgoStateContextPtr,
+    boxes_to_spend_ptr: ConstCollectionPtr<ErgoBox>,
+    data_boxes_ptr: ConstCollectionPtr<ErgoBox>,
+    real_propositions_ptr: ConstPropositionsPtr,
+    simulated_propositions_ptr: ConstPropositionsPtr,
+    transaction_hints_bag_out: *mut TransactionHintsBagPtr,
+) -> ErrorPtr {
+    let res = transaction_extract_hints(
+        signed_transaction_ptr,
+        state_context_ptr,
+        boxes_to_spend_ptr,
+        data_boxes_ptr,
+        real_propositions_ptr,
+        simulated_propositions_ptr,
+        transaction_hints_bag_out,
+    );
+    Error::c_api_from(res)
+}
+
+/// Drop `TransactionHintsBag`
+#[no_mangle]
+pub extern "C" fn ergo_lib_transaction_hints_bag_delete(ptr: TransactionHintsBagPtr) {
+    unsafe { delete_ptr(ptr) }
+}
 
 // `UnsignedTransaction` bindings ------------------------------------------------------------------
 
