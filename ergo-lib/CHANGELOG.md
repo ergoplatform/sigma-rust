@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
+## [0.15.0] - 2022-03-08
 
 ### Changed
 - Construct ErgoStateContext using last block headers [#450](https://github.com/ergoplatform/sigma-rust/pull/450);
@@ -29,6 +30,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - transaction serialization in Wasm API [506](https://github.com/ergoplatform/sigma-rust/pull/506);
 - support for `(Int, Int)`, `Coll[Coll[Byte]]`, `Coll[Int]` and `BigInt` types in constant conversion in Wasm API;
 - mnemonic generation [#505](https://github.com/ergoplatform/sigma-rust/pull/505);
+- arithmetic operations and polynomial interpolation over Galois fields GF(2^192) [#496](https://github.com/ergoplatform/sigma-rust/pull/496);
+- Merkle tree support [#521](https://github.com/ergoplatform/sigma-rust/pull/521);
+- NiPoPoW proof verification [#517](https://github.com/ergoplatform/sigma-rust/pull/517);
+- distributed signatures support [#470](https://github.com/ergoplatform/sigma-rust/pull/470);
 
 ### Fixed
 - fix `elem_tpe` in `Append` and `Slice` evaluation [#455](https://github.com/ergoplatform/sigma-rust/pull/455)
@@ -299,7 +304,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - ErgoTree constant values conversion.
 
 <!-- next-url -->
-[Unreleased]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.14.0...HEAD
+[Unreleased]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.15.0...HEAD
+[0.15.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.14.0...ergo-lib-v0.15.0
 [0.14.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.13.3...ergo-lib-v0.14.0
 [0.13.3]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.13.2...ergo-lib-v0.13.3
 [0.13.2]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.13.1...ergo-lib-v0.13.2

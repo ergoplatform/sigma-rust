@@ -2,6 +2,123 @@
 import Foundation
 import ErgoLibC
 
+/// A family of hints which are about a correspondence between a public image of a secret image and prover's commitment
+/// to randomness ("a" in a sigma protocol).
+class CommitmentHint {
+    internal var pointer: CommitmentHintPtr
+    
+    /// Takes ownership of an existing ``CommitmentHint``. Note: we must ensure that no other instance
+    /// of ``CommitmentHint`` can hold this pointer.
+    internal init(withRawPointer ptr: CommitmentHintPtr) {
+        self.pointer = ptr
+    }
+    
+    deinit {
+        ergo_lib_commitment_hint_delete(self.pointer)
+    }
+}
+
+/// Collection of hints to be used by a prover
+class HintsBag {
+    internal var pointer: HintsBagPtr
+    
+    /// Create empty ``HintsBag``
+    init() {
+        var ptr: HintsBagPtr?
+        ergo_lib_hints_bag_empty(&ptr)
+        self.pointer = ptr!
+    }
+    
+    /// Add commitment hint to the bag
+    func addCommitmentHint(hint: CommitmentHint) {
+        ergo_lib_hints_bag_add_commitment(self.pointer, hint.pointer)
+    }
+    
+    /// Length of ``HintsBag``
+    func len() -> UInt {
+        ergo_lib_hints_bag_len(self.pointer)
+    }
+    
+    /// Returns the ``CommitmentHint`` at location `index` if it exists.
+    func getCommitmentHint(index: UInt) -> CommitmentHint? {
+        var ptr: CommitmentHintPtr?
+        let res = ergo_lib_hints_bag_get(self.pointer, index, &ptr)
+        assert(res.error == nil)
+        if res.is_some {
+            return CommitmentHint(withRawPointer: ptr!)
+        } else {
+            return nil
+        }
+    }
+    
+    /// Takes ownership of an existing ``HintsBag``. Note: we must ensure that no other instance
+    /// of ``HintsBag`` can hold this pointer.
+    internal init(withRawPointer ptr: HintsBagPtr) {
+        self.pointer = ptr
+    }
+    
+    deinit {
+        ergo_lib_hints_bag_delete(self.pointer)
+    }
+}
+
+/// TransactionHintsBag
+class TransactionHintsBag {
+    internal var pointer: TransactionHintsBagPtr
+    
+    /// Create empty ``TransactionHintsBag``
+    init() {
+        var ptr: TransactionHintsBagPtr?
+        ergo_lib_transaction_hints_bag_empty(&ptr)
+        self.pointer = ptr!
+    }
+    
+    /// Adding hints for input
+    func addHintsForInput(index: UInt, hintsBag: HintsBag) {
+        ergo_lib_transaction_hints_bag_add_hints_for_input(self.pointer, index, hintsBag.pointer)
+    }
+    
+    /// Get HintsBag corresponding to input index
+    func allHintsForInput(index: UInt) -> HintsBag {
+        var ptr: HintsBagPtr?
+        ergo_lib_transaction_hints_bag_all_hints_for_input(self.pointer, index, &ptr)
+        return HintsBag(withRawPointer: ptr!)
+    }
+    
+    /// Takes ownership of an existing ``TransactionHintsBag``. Note: we must ensure that no other instance
+    /// of ``TransactionHintsBag`` can hold this pointer.
+    internal init(withRawPointer ptr: TransactionHintsBagPtr) {
+        self.pointer = ptr
+    }
+    
+    deinit {
+        ergo_lib_transaction_hints_bag_delete(self.pointer)
+    }
+}
+
+/// Extract hints from signed transaction
+func extractHintsFromSignedTransaction(
+    transaction: Transaction,
+    stateContext: ErgoStateContext,
+    boxesToSpend: ErgoBoxes,
+    dataBoxes: ErgoBoxes,
+    realPropositions: Propositions,
+    simulatedPropositions: Propositions
+) throws -> TransactionHintsBag {
+    var ptr: TransactionHintsBagPtr?
+    let error = ergo_lib_transaction_extract_hints(
+        transaction.pointer,
+        stateContext.pointer,
+        boxesToSpend.pointer,
+        dataBoxes.pointer,
+        realPropositions.pointer,
+        simulatedPropositions.pointer,
+        &ptr)
+    
+    try checkError(error)
+    return TransactionHintsBag(withRawPointer: ptr!)
+}
+
 /// Unsigned (inputs without proofs) transaction
 class UnsignedTransaction {
     internal var pointer: UnsignedTransactionPtr

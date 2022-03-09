@@ -1,6 +1,6 @@
 [package]
 name = "ergotree-interpreter"
-version = "0.14.0"
+version = "0.15.0"
 license = "CC0-1.0"
 authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
 edition = "2018"
@@ -14,11 +14,11 @@ exclude = [
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-sigma-util = { version = "^0.3.0", path = "../sigma-util" }
-sigma-ser = { version = "^0.3.0", path = "../sigma-ser" }
-ergo-chain-types = { version = "^0.1.0", path = "../ergo-chain-types" }
-ergotree-ir = { version = "^0.14.0", path = "../ergotree-ir" }
-gf2_192 = { version = "^0.14.0", path = "../gf2_192" }
+sigma-util = { version = "^0.4.0", path = "../sigma-util" }
+sigma-ser = { version = "^0.4.0", path = "../sigma-ser" }
+ergo-chain-types = { version = "^0.2.0", path = "../ergo-chain-types" }
+ergotree-ir = { version = "^0.15.0", path = "../ergotree-ir" }
+gf2_192 = { version = "^0.15.0", path = "../gf2_192" }
 indexmap = "1.3.2"
 k256 = { version = "0.10.0", features = ["arithmetic", "ecdsa"] }
 elliptic-curve = {version = "0.11.6", features = [ "ff"]}
@@ -51,8 +51,8 @@ default = []
 arbitrary = ["proptest", "proptest-derive"]
 
 [dev-dependencies]
-ergotree-ir = { version = "^0.14.0", path = "../ergotree-ir", features = ["arbitrary"] }
-ergoscript-compiler = { version = "^0.10.0", path = "../ergoscript-compiler" }
+ergotree-ir = { version = "^0.15.0", path = "../ergotree-ir", features = ["arbitrary"] }
+ergoscript-compiler = { version = "^0.11.0", path = "../ergoscript-compiler" }
 proptest = "1.0.0"
 sigma-test-util = { version = "^0.3.0", path = "../sigma-test-util" }
 

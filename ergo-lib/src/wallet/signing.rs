@@ -1,17 +1,18 @@
 //! Transaction signing
 
+use crate::chain::transaction::reduced::ReducedTransaction;
+use crate::chain::transaction::{DataInput, Input};
+use crate::chain::{
+    ergo_state_context::ErgoStateContext,
+    transaction::{unsigned::UnsignedTransaction, Transaction},
+};
 use ergotree_interpreter::sigma_protocol::prover::hint::HintsBag;
 use ergotree_ir::chain::ergo_box::ErgoBox;
 use ergotree_ir::serialization::SigmaSerializationError;
 use std::rc::Rc;
 
-use crate::chain::transaction::reduced::ReducedTransaction;
-use crate::chain::transaction::Input;
-use crate::chain::{
-    ergo_state_context::ErgoStateContext,
-    transaction::{unsigned::UnsignedTransaction, Transaction},
-};
-
+use crate::ergotree_ir::chain::ergo_box::BoxId;
+use crate::wallet::multi_sig::TransactionHintsBag;
 use ergotree_interpreter::eval::context::{Context, TxIoVec};
 use ergotree_interpreter::eval::env::Env;
 use ergotree_interpreter::sigma_protocol::prover::Prover;
@@ -40,33 +41,28 @@ pub enum TxSigningError {
 
 /// Transaction and an additional info required for signing
 #[derive(PartialEq, Debug, Clone)]
-pub struct TransactionContext {
+pub struct TransactionContext<T: ErgoTransaction> {
     /// Unsigned transaction to sign
-    pub spending_tx: UnsignedTransaction,
+    pub spending_tx: T,
     /// Boxes corresponding to [`UnsignedTransaction::inputs`]
-    boxes_to_spend: TxIoVec<ErgoBox>,
+    pub(crate) boxes_to_spend: TxIoVec<ErgoBox>,
     /// Boxes corresponding to [`UnsignedTransaction::data_inputs`]
-    data_boxes: Option<TxIoVec<ErgoBox>>,
+    pub(crate) data_boxes: Option<TxIoVec<ErgoBox>>,
 }
 
-impl TransactionContext {
-    /// Return a `TransactionContext` instance if and only if every unsigned transaction input has
-    /// an associated box within `boxes_to_spend` and every data input has an associated box within
-    /// `data_boxes`.
+impl<T: ErgoTransaction> TransactionContext<T> {
+    /// New TransactionContext
     pub fn new(
-        spending_tx: UnsignedTransaction,
+        spending_tx: T,
         boxes_to_spend: TxIoVec<ErgoBox>,
         data_boxes: Option<TxIoVec<ErgoBox>>,
     ) -> Result<Self, TxSigningError> {
-        for (i, unsigned_input) in spending_tx.inputs.iter().enumerate() {
-            if !boxes_to_spend
-                .iter()
-                .any(|b| unsigned_input.box_id == b.box_id())
-            {
+        for (i, unsigned_input) in spending_tx.inputs_ids().enumerated() {
+            if !boxes_to_spend.iter().any(|b| unsigned_input == b.box_id()) {
                 return Err(TxSigningError::InputBoxNotFound(i));
             }
         }
-        if let Some(data_inputs) = spending_tx.data_inputs.as_ref() {
+        if let Some(data_inputs) = spending_tx.data_inputs().as_ref() {
             if let Some(data_boxes) = data_boxes.as_ref() {
                 for (i, data_input) in data_inputs.iter().enumerate() {
                     if !data_boxes.iter().any(|b| data_input.box_id == b.box_id()) {
@@ -83,7 +79,37 @@ impl TransactionContext {
             data_boxes,
         })
     }
+}
 
+/// Exposes common properties for signed and unsigned transactions
+pub trait ErgoTransaction {
+    /// input boxes ids
+    fn inputs_ids(&self) -> TxIoVec<BoxId>;
+    /// data input boxes
+    fn data_inputs(&self) -> Option<TxIoVec<DataInput>>;
+}
+
+impl ErgoTransaction for UnsignedTransaction {
+    fn inputs_ids(&self) -> TxIoVec<BoxId> {
+        self.inputs.clone().mapped(|input| input.box_id)
+    }
+
+    fn data_inputs(&self) -> Option<TxIoVec<DataInput>> {
+        self.data_inputs.clone()
+    }
+}
+
+impl ErgoTransaction for Transaction {
+    fn inputs_ids(&self) -> TxIoVec<BoxId> {
+        self.inputs.clone().mapped(|input| input.box_id)
+    }
+
+    fn data_inputs(&self) -> Option<TxIoVec<DataInput>> {
+        self.data_inputs.clone()
+    }
+}
+
+impl<T: ErgoTransaction> TransactionContext<T> {
     /// Get boxes corresponding to [`UnsignedTransaction::inputs`]
     pub fn get_boxes_to_spend(&self) -> impl Iterator<Item = &ErgoBox> {
         self.boxes_to_spend.iter()
@@ -93,7 +119,7 @@ impl TransactionContext {
 /// `self_index` - index of the SELF box in the tx_ctx.spending_tx.inputs
 pub fn make_context(
     state_ctx: &ErgoStateContext,
-    tx_ctx: &TransactionContext,
+    tx_ctx: &TransactionContext<UnsignedTransaction>,
     self_index: usize,
 ) -> Result<Context, TxSigningError> {
     let height = state_ctx.pre_header.height;
@@ -131,14 +157,13 @@ pub fn make_context(
     let outputs_ir = outputs.into_iter().map(Rc::new).collect();
     let inputs_ir = tx_ctx
         .spending_tx
-        .inputs
-        .clone()
+        .inputs_ids()
         .enumerated()
         .try_mapped(|(idx, u)| {
             tx_ctx
                 .boxes_to_spend
                 .iter()
-                .find(|b| u.box_id == b.box_id())
+                .find(|b| u == b.box_id())
                 .map(|b| Rc::new(b.clone()))
                 .ok_or(TxSigningError::InputBoxNotFound(idx))
         })?;
@@ -168,8 +193,9 @@ pub fn make_context(
 /// Signs a transaction (generating proofs for inputs)
 pub fn sign_transaction(
     prover: &dyn Prover,
-    tx_context: TransactionContext,
+    tx_context: TransactionContext<UnsignedTransaction>,
     state_context: &ErgoStateContext,
+    tx_hints: Option<&TransactionHintsBag>,
 ) -> Result<Transaction, TxSigningError> {
     let tx = tx_context.spending_tx.clone();
     let message_to_sign = tx.bytes_to_sign()?;
@@ -180,13 +206,17 @@ pub fn sign_transaction(
             .find(|b| b.box_id() == input.box_id)
             .ok_or(TxSigningError::InputBoxNotFound(idx))?;
         let ctx = Rc::new(make_context(state_context, &tx_context, idx)?);
+        let mut hints_bag = HintsBag::empty();
+        if let Some(bag) = tx_hints {
+            hints_bag = bag.all_hints_for_input(idx);
+        }
         prover
             .prove(
                 &input_box.ergo_tree,
                 &Env::empty(),
                 ctx,
                 message_to_sign.as_slice(),
-                &HintsBag::empty(),
+                &hints_bag,
             )
             .map(|proof| Input::new(input.box_id.clone(), proof.into()))
             .map_err(|e| TxSigningError::ProverError(e, idx))
@@ -202,17 +232,22 @@ pub fn sign_transaction(
 pub fn sign_reduced_transaction(
     prover: &dyn Prover,
     reduced_tx: ReducedTransaction,
+    tx_hints: Option<&TransactionHintsBag>,
 ) -> Result<Transaction, TxSigningError> {
     let tx = reduced_tx.unsigned_tx.clone();
     let message_to_sign = tx.bytes_to_sign()?;
     let signed_inputs = tx.inputs.enumerated().try_mapped(|(idx, input)| {
         let inputs = reduced_tx.reduced_inputs();
         let reduced_input = inputs.get(idx).unwrap();
+        let mut hints_bag = HintsBag::empty();
+        if let Some(bag) = tx_hints {
+            hints_bag = bag.all_hints_for_input(idx);
+        }
         prover
             .generate_proof(
                 reduced_input.reduction_result.sigma_prop.clone(),
                 message_to_sign.as_slice(),
-                &HintsBag::empty(),
+                &hints_bag,
                 reduced_input.extension.clone(),
             )
             .map(|proof| Input::new(input.box_id.clone(), proof.into()))
@@ -313,11 +348,12 @@ mod tests {
                 None, output_candidates.try_into().unwrap()).unwrap();
             let tx_context = TransactionContext { spending_tx: tx,
                                                   boxes_to_spend: TxIoVec::from_vec(boxes_to_spend.clone()).unwrap(), data_boxes: None };
-            let res = sign_transaction(prover.as_ref(), tx_context.clone(), &force_any_val::<ErgoStateContext>());
+            let tx_hint_bag=TransactionHintsBag::empty();
+            let res = sign_transaction(prover.as_ref(), tx_context.clone(), &force_any_val::<ErgoStateContext>(), Some(&tx_hint_bag));
             let signed_tx = res.unwrap();
             prop_assert!(verify_tx_proofs(&signed_tx, &boxes_to_spend).unwrap());
             let reduced_tx = reduce_tx(tx_context, &force_any_val::<ErgoStateContext>()).unwrap();
-            let signed_reduced_tx = sign_reduced_transaction(prover.as_ref(), reduced_tx).unwrap();
+            let signed_reduced_tx = sign_reduced_transaction(prover.as_ref(), reduced_tx,None).unwrap();
             prop_assert!(verify_tx_proofs(&signed_reduced_tx, &boxes_to_spend).unwrap());
         }
     }

@@ -46,3 +46,27 @@ pub unsafe extern "C" fn ergo_lib_reduced_tx_unsigned_tx(
 pub extern "C" fn ergo_lib_reduced_tx_delete(ptr: ReducedTransactionPtr) {
     unsafe { delete_ptr(ptr) }
 }
+
+/// Create empty proposition holder
+#[no_mangle]
+pub unsafe extern "C" fn ergo_lib_propositions_new(propositions_out: *mut PropositionsPtr) {
+    #[allow(clippy::unwrap_used)]
+    propositions_new(propositions_out).unwrap();
+}
+
+/// Adding new proposition
+#[no_mangle]
+pub unsafe extern "C" fn ergo_lib_propositions_add_proposition_from_bytes(
+    propositions_mut: PropositionsPtr,
+    bytes_ptr: *const u8,
+    len: usize,
+) -> ErrorPtr {
+    let res = propositions_add_proposition_from_bytes(propositions_mut, bytes_ptr, len);
+    Error::c_api_from(res)
+}
+
+/// Drop `Propositions`
+#[no_mangle]
+pub extern "C" fn ergo_lib_propositions_delete(ptr: PropositionsPtr) {
+    unsafe { delete_ptr(ptr) }
+}

@@ -13,6 +13,7 @@ pub struct FirstDhTupleProverMessage {
 }
 
 impl FirstDhTupleProverMessage {
+    /// First message from the prover (message `a` and `b` of `SigmaProtocol`) for DhTuple case
     pub fn new(a: EcPoint, b: EcPoint) -> Self {
         Self {
             a: a.into(),
@@ -30,14 +31,16 @@ impl ProverMessage for FirstDhTupleProverMessage {
     }
 }
 
+/// Second message from the prover (message `z` of `SigmaProtocol`) for DhTuple case
 //z = r + ew mod q
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct SecondDhTupleProverMessage {
+    /// message `z`
     pub z: Scalar,
 }
 
 /// Interactive prover
-pub(crate) mod interactive_prover {
+pub mod interactive_prover {
 
     use std::ops::Mul;
 
@@ -80,9 +83,7 @@ pub(crate) mod interactive_prover {
     /// that leaf to compute the necessary randomness "r" and the commitment "a"
     ///
     /// In this case (DH tuple) "a" is also a tuple
-    pub(crate) fn first_message(
-        public_input: &ProveDhTuple,
-    ) -> (Scalar, FirstDhTupleProverMessage) {
+    pub fn first_message(public_input: &ProveDhTuple) -> (Scalar, FirstDhTupleProverMessage) {
         let r = dlog_group::random_scalar_in_group_range(crypto_utils::secure_rng());
         let a = dlog_group::exponentiate(&public_input.g, &r);
         let b = dlog_group::exponentiate(&public_input.h, &r);
@@ -113,7 +114,7 @@ pub(crate) mod interactive_prover {
     ///
     /// g^z = a*u^e, h^z = b*v^e  => a = g^z/u^e, b = h^z/v^e
     #[allow(clippy::many_single_char_names)]
-    pub(crate) fn compute_commitment(
+    pub fn compute_commitment(
         proposition: &ProveDhTuple,
         challenge: &Challenge,
         second_message: &SecondDhTupleProverMessage,

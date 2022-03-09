@@ -323,13 +323,20 @@ impl UnprovenSchnorr {
     }
 }
 
+/// Unproven DhTuple
 #[derive(PartialEq, Debug, Clone)]
 pub struct UnprovenDhTuple {
+    /// Proposition
     pub proposition: ProveDhTuple,
+    /// Commitment
     pub commitment_opt: Option<FirstDhTupleProverMessage>,
+    /// Randomness
     pub randomness_opt: Option<Scalar>,
+    /// Challenge
     pub challenge_opt: Option<Challenge>,
+    /// Simulated or not
     pub simulated: bool,
+    /// Position in tree
     pub position: NodePosition,
 }
 
@@ -352,6 +359,7 @@ impl UnprovenDhTuple {
         UnprovenDhTuple { simulated, ..self }
     }
 
+    /// Set Commitment
     pub fn with_commitment(self, commitment: FirstDhTupleProverMessage) -> Self {
         Self {
             commitment_opt: Some(commitment),
@@ -387,14 +395,16 @@ impl UnprovenDhTuple {
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct NodePosition {
     /// positions from root (inclusive) in top-down order
-    positions: Vec<usize>,
+    pub positions: Vec<usize>,
 }
 
 impl NodePosition {
+    /// Prefix of crypto tree root
     pub fn crypto_tree_prefix() -> Self {
         NodePosition { positions: vec![0] }
     }
 
+    /// Child position
     pub fn child(&self, child_idx: usize) -> NodePosition {
         let mut positions = self.positions.clone();
         positions.push(child_idx);

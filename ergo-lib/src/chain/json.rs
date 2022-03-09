@@ -1,10 +1,11 @@
 //! JSON serialization
 
-pub(crate) mod context_extension;
-pub(crate) mod transaction;
+use serde::{Deserialize, Serialize};
 
 use ergotree_interpreter::sigma_protocol::prover::ProofBytes;
-use serde::{Deserialize, Serialize};
+
+pub(crate) mod context_extension;
+pub(crate) mod transaction;
 
 /// Serde remote type
 #[cfg_attr(

@@ -27,7 +27,7 @@ final class ConstantTests: XCTestCase {
     
     func testECPointBytes() throws {
         let str = "02d6b2141c21e4f337e9b065a031a6269fb5a49253094fc6243d38662eb765db00"
-        XCTAssertNoThrow(try Constant(withECPointBytes: stringToBytes(str)!))
+        XCTAssertNoThrow(try Constant(withECPointBytes: base16StringToBytes(str)!))
     }
     
     func testErgoBoxRoundtrip() throws {
@@ -49,21 +49,4 @@ final class ConstantTests: XCTestCase {
         let decodedC = try Constant(withBase16Str: encoded)
         XCTAssertEqual(c, decodedC)
     }
-}
-
-// The following two functions copied from: https://stackoverflow.com/a/49890939
-
-func toPairsOfChars(pairs: [String], string: String) -> [String] {
-    if string.count == 0 {
-        return pairs
-    }
-    var pairsMod = pairs
-    pairsMod.append(String(string.prefix(2)))
-    return toPairsOfChars(pairs: pairsMod, string: String(string.dropFirst(2)))
-}
-
-func stringToBytes(_ string: String) -> [UInt8]? {
-    // omit error checking: remove '0x', make sure even, valid chars
-    let pairs = toPairsOfChars(pairs: [], string: string)
-    return pairs.map { UInt8($0, radix: 16)! }
 }

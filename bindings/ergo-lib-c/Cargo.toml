@@ -1,6 +1,6 @@
 [package]
 name = "ergo-lib-c"
-version = "0.14.0"
+version = "0.15.0"
 license = "CC0-1.0"
 authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
 edition = "2018"
@@ -15,5 +15,5 @@ exclude = [
 crate-type = ["staticlib"]
 
 [dependencies]
-ergo-lib-c-core = {version = "^0.14.0", path = "../ergo-lib-c-core"}
+ergo-lib-c-core = {version = "^0.15.0", path = "../ergo-lib-c-core"}
 paste = "^1.0"

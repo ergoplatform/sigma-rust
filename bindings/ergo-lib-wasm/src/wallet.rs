@@ -8,6 +8,7 @@ pub mod ext_pub_key;
 pub mod ext_secret_key;
 pub mod mnemonic;
 
+use crate::transaction::TransactionHintsBag;
 use crate::{
     box_coll::ErgoBoxes,
     ergo_state_ctx::ErgoStateContext,
@@ -66,13 +67,52 @@ impl Wallet {
             }
         };
         let tx_context = ergo_lib::wallet::signing::TransactionContext::new(
-            tx.clone().into(),
+            tx.0.clone(),
             boxes_to_spend,
             data_boxes,
         )
         .map_err(to_js)?;
         self.0
-            .sign_transaction(tx_context, &_state_context.clone().into())
+            .sign_transaction(tx_context, &_state_context.clone().into(), None)
+            .map_err(to_js)
+            .map(Transaction::from)
+    }
+
+    /// Sign a multi signature transaction:
+    /// `tx` - transaction to sign
+    /// `boxes_to_spend` - boxes corresponding to [`UnsignedTransaction::inputs`]
+    /// `data_boxes` - boxes corresponding to [`UnsignedTransaction::data_inputs`]
+    /// `tx_hints` - transaction hints bag corresponding to [`TransactionHintsBag`]
+    #[wasm_bindgen]
+    pub fn sign_transaction_multi(
+        &self,
+        _state_context: &ErgoStateContext,
+        tx: &UnsignedTransaction,
+        boxes_to_spend: &ErgoBoxes,
+        data_boxes: &ErgoBoxes,
+        tx_hints: &TransactionHintsBag,
+    ) -> Result<Transaction, JsValue> {
+        let boxes_to_spend = TxIoVec::from_vec(boxes_to_spend.clone().into()).map_err(to_js)?;
+        let data_boxes = {
+            let d: Vec<_> = data_boxes.clone().into();
+            if d.is_empty() {
+                None
+            } else {
+                Some(TxIoVec::from_vec(d).map_err(to_js)?)
+            }
+        };
+        let tx_context = ergo_lib::wallet::signing::TransactionContext::new(
+            tx.0.clone(),
+            boxes_to_spend,
+            data_boxes,
+        )
+        .map_err(to_js)?;
+        self.0
+            .sign_transaction(
+                tx_context,
+                &_state_context.clone().into(),
+                Some(&tx_hints.0),
+            )
             .map_err(to_js)
             .map(Transaction::from)
     }
@@ -86,8 +126,66 @@ impl Wallet {
         reduced_tx: &ReducedTransaction,
     ) -> Result<Transaction, JsValue> {
         self.0
-            .sign_reduced_transaction(reduced_tx.clone().into())
+            .sign_reduced_transaction(reduced_tx.clone().into(), None)
             .map_err(to_js)
             .map(Transaction::from)
+    }
+
+    /// Sign a multi signature reduced transaction:
+    /// `reduced_tx` - reduced transaction, i.e. unsigned transaction where for each unsigned input
+    /// added a script reduction result.
+    /// `tx_hints` - transaction hints bag corresponding to [`TransactionHintsBag`]
+    #[wasm_bindgen]
+    pub fn sign_reduced_transaction_multi(
+        &self,
+        reduced_tx: &ReducedTransaction,
+        tx_hints: &TransactionHintsBag,
+    ) -> Result<Transaction, JsValue> {
+        self.0
+            .sign_reduced_transaction(reduced_tx.clone().into(), Some(&tx_hints.0))
+            .map_err(to_js)
+            .map(Transaction::from)
+    }
+
+    /// Generate Commitments for unsigned tx
+    #[wasm_bindgen]
+    pub fn generate_commitments(
+        &self,
+        _state_context: &ErgoStateContext,
+        tx: &UnsignedTransaction,
+        boxes_to_spend: &ErgoBoxes,
+        data_boxes: &ErgoBoxes,
+    ) -> Result<TransactionHintsBag, JsValue> {
+        let boxes_to_spend = TxIoVec::from_vec(boxes_to_spend.clone().into()).map_err(to_js)?;
+        let data_boxes = {
+            let d: Vec<_> = data_boxes.clone().into();
+            if d.is_empty() {
+                None
+            } else {
+                Some(TxIoVec::from_vec(d).map_err(to_js)?)
+            }
+        };
+        let tx_context = ergo_lib::wallet::signing::TransactionContext::new(
+            tx.0.clone(),
+            boxes_to_spend,
+            data_boxes,
+        )
+        .map_err(to_js)?;
+        self.0
+            .generate_commitments(tx_context, &_state_context.clone().into())
+            .map_err(to_js)
+            .map(TransactionHintsBag::from)
+    }
+
+    /// Generate Commitments for reduced Transaction
+    #[wasm_bindgen]
+    pub fn generate_commitments_for_reduced_transaction(
+        &self,
+        reduced_tx: &ReducedTransaction,
+    ) -> Result<TransactionHintsBag, JsValue> {
+        self.0
+            .generate_commitments_for_reduced_transaction(reduced_tx.clone().into())
+            .map_err(to_js)
+            .map(TransactionHintsBag::from)
     }
 }

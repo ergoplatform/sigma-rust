@@ -1,6 +1,6 @@
 [package]
 name = "ergotree-ir"
-version = "0.14.0"
+version = "0.15.0"
 license = "CC0-1.0"
 authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
 edition = "2018"
@@ -14,10 +14,10 @@ exclude = [
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-sigma-ser = { version = "^0.3.0", path = "../sigma-ser" }
-sigma-util = { version = "^0.3.0", path = "../sigma-util" }
+sigma-ser = { version = "^0.4.0", path = "../sigma-ser" }
+sigma-util = { version = "^0.4.0", path = "../sigma-util" }
 k256 = { version = "0.10.2", features = ["arithmetic", "ecdsa"] }
-ergo-chain-types = { version = "^0.1.0", path = "../ergo-chain-types" }
+ergo-chain-types = { version = "^0.2.0", path = "../ergo-chain-types" }
 elliptic-curve = {version = "0.11.6", features = [ "ff"]}
 thiserror = "1"
 # used in elliptic-curve(in ergo-lib), compiled here with WASM support
