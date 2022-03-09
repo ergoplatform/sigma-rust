@@ -195,7 +195,7 @@ pub enum NipopowProofError {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
-/// Stub type until issue #489 is closed.
+/// PoPowHeader structure. Represents the block header and unpacked interlinks
 pub struct PoPowHeader {
     /// The block header
     pub header: Header,
