@@ -470,7 +470,7 @@ mod tests {
 
             // wrong message
             prop_assert_eq!(verify_signature(
-                                            sb.clone(),
+                                            sb,
                                             message.as_slice(),
                                             vec![1u8; 100].as_slice()).unwrap(),
                             false);
