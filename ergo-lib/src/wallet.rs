@@ -14,9 +14,8 @@ pub mod tx_builder;
 
 use ergotree_interpreter::sigma_protocol::private_input::PrivateInput;
 use ergotree_interpreter::sigma_protocol::prover::Prover;
-use ergotree_interpreter::sigma_protocol::prover::TestProver;
 use ergotree_interpreter::sigma_protocol::prover::ProverError;
-use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
+use ergotree_interpreter::sigma_protocol::prover::TestProver;
 use secret_key::SecretKey;
 use signing::{sign_transaction, TxSigningError};
 use thiserror::Error;
@@ -32,8 +31,8 @@ use crate::wallet::multi_sig::{
 };
 
 use self::ext_secret_key::ExtSecretKey;
-use self::signing::sign_reduced_transaction;
 use self::signing::sign_message;
+use self::signing::sign_reduced_transaction;
 use self::signing::TransactionContext;
 
 /// Wallet
