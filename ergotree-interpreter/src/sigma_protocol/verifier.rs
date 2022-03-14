@@ -91,6 +91,29 @@ pub trait Verifier {
     }
 }
 
+/// Verify that the signature is presented to satisfy SigmaProp conditions.
+pub fn verify_signature(
+    sigma_tree: SigmaBoolean,
+    message: &[u8],
+    signature: &[u8],
+) -> Result<bool, VerifierError> {
+    let res: bool = match sigma_tree {
+        SigmaBoolean::TrivialProp(b) => b,
+        sb => {
+            match signature {
+                [] => false,
+                _ => {
+                    // Perform Verifier Steps 1-3
+                    let unchecked_tree = parse_sig_compute_challenges(&sb, signature.to_vec())?;
+                    // Perform Verifier Steps 4-6
+                    check_commitments(unchecked_tree, message)?
+                }
+            }
+        }
+    };
+    Ok(res)
+}
+
 /// Perform Verifier Steps 4-6
 fn check_commitments(sp: UncheckedTree, message: &[u8]) -> Result<bool, VerifierError> {
     // Perform Verifier Step 4
@@ -392,5 +415,6 @@ mod tests {
                 prop_assert_eq!(ver_res.unwrap().result, true, "verify failed on secret: {:?}", &secret);
             }
         }
+
     }
 }

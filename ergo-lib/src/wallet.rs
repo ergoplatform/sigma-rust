@@ -14,6 +14,7 @@ pub mod tx_builder;
 
 use ergotree_interpreter::sigma_protocol::private_input::PrivateInput;
 use ergotree_interpreter::sigma_protocol::prover::Prover;
+use ergotree_interpreter::sigma_protocol::prover::ProverError;
 use ergotree_interpreter::sigma_protocol::prover::TestProver;
 use secret_key::SecretKey;
 use signing::{sign_transaction, TxSigningError};
@@ -30,6 +31,7 @@ use crate::wallet::multi_sig::{
 };
 
 use self::ext_secret_key::ExtSecretKey;
+use self::signing::sign_message;
 use self::signing::sign_reduced_transaction;
 use self::signing::TransactionContext;
 
@@ -44,11 +46,21 @@ pub enum WalletError {
     /// Error on tx signing
     #[error("Transaction signing error: {0}")]
     TxSigningError(TxSigningError),
+
+    /// Error on proving an input
+    #[error("Prover error: {0}")]
+    ProverError(ProverError),
 }
 
 impl From<TxSigningError> for WalletError {
     fn from(e: TxSigningError) -> Self {
         WalletError::TxSigningError(e)
+    }
+}
+
+impl From<ProverError> for WalletError {
+    fn from(e: ProverError) -> Self {
+        WalletError::ProverError(e)
     }
 }
 
@@ -132,5 +144,14 @@ impl Wallet {
             tx_hints.add_hints_for_input(index, hints);
         }
         Ok(tx_hints)
+    }
+
+    /// Signs a message
+    pub fn sign_message(
+        &self,
+        sigma_tree: SigmaBoolean,
+        msg: &[u8],
+    ) -> Result<Vec<u8>, WalletError> {
+        sign_message(self.prover.as_ref(), sigma_tree, msg).map_err(WalletError::from)
     }
 }
