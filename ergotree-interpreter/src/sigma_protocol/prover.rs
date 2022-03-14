@@ -150,14 +150,11 @@ pub trait Prover {
         let reduction_result =
             reduce_to_crypto(expr.as_ref(), env, ctx).map_err(ProverError::EvalError)?;
 
-        let proof = self.generate_proof(reduction_result.sigma_prop, message, hints_bag);
-        match proof {
-            Ok(p) => Ok(ProverResult {
+        self.generate_proof(reduction_result.sigma_prop, message, hints_bag)
+            .map(|p| ProverResult {
                 proof: p,
                 extension: ctx_ext,
-            }),
-            Err(e) => Err(e),
-        }
+            })
     }
 
     /// Generate proofs for the given message for the given Sigma boolean expression

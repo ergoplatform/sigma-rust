@@ -272,12 +272,9 @@ pub fn sign_message(
     sigma_tree: SigmaBoolean,
     msg: &[u8],
 ) -> Result<Vec<u8>, ProverError> {
-    let proof = prover.generate_proof(sigma_tree, msg, &HintsBag::empty());
-
-    match proof {
-        Ok(p) => Ok(Vec::from(p)),
-        Err(e) => Err(e),
-    }
+    prover
+        .generate_proof(sigma_tree, msg, &HintsBag::empty())
+        .map(|p| Vec::from(p))
 }
 
 #[cfg(test)]
