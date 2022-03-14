@@ -274,7 +274,7 @@ pub fn sign_message(
 ) -> Result<Vec<u8>, ProverError> {
     prover
         .generate_proof(sigma_tree, msg, &HintsBag::empty())
-        .map(|p| Vec::from(p))
+        .map(Vec::from)
 }
 
 #[cfg(test)]
