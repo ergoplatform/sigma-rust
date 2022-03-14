@@ -33,7 +33,10 @@ mod merkleproof;
 mod nipopow;
 
 mod reduced;
+
+#[cfg(feature = "rest")]
 mod rest;
+
 mod secret_key;
 mod token;
 mod transaction;

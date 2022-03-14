@@ -1,4 +1,6 @@
+#[cfg(feature = "rest")]
 use ergo_lib::ergo_rest::NodeError;
+
 use std::error;
 use thiserror::Error;
 
@@ -30,6 +32,7 @@ impl Error {
     }
 }
 
+#[cfg(feature = "rest")]
 impl From<NodeError> for Error {
     fn from(error: NodeError) -> Self {
         Error::Misc(format!("{:?}", error).into())
