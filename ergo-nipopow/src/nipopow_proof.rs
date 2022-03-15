@@ -7,10 +7,7 @@ use sigma_ser::{
     ScorexParsingError, ScorexSerializable, ScorexSerializeResult,
 };
 
-use crate::{
-    autolykos_pow_scheme::{self},
-    nipopow_algos::NipopowAlgos,
-};
+use crate::{autolykos_pow_scheme, nipopow_algos::NipopowAlgos};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 /// A structure representing NiPoPow proof as a persistent modifier.
