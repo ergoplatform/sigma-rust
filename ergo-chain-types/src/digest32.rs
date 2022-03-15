@@ -168,4 +168,12 @@ pub(crate) mod arbitrary {
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_from_base64() {
+        let s = "KkctSmFOZFJnVWtYcDJzNXY4eS9CP0UoSCtNYlBlU2g=";
+        assert!(Digest32::from_base64(s).is_ok());
+    }
+}
