@@ -8,6 +8,7 @@ use base16::DecodeError;
 use bounded_vec::BoundedVecOutOfBounds;
 use ergo_lib::ergo_chain_types::Digest32Error;
 use ergo_lib::ergo_nipopow::NipopowProofError;
+#[cfg(feature = "rest")]
 use ergo_lib::ergo_rest::NodeError;
 use ergo_lib::ergotree_ir::chain::address::AddressEncoderError;
 use ergo_lib::ergotree_ir::chain::address::AddressError;
