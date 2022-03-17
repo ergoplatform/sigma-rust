@@ -223,7 +223,7 @@ jobs:
       - name: generate C-bindings header file
         run: |
           cd bindings/ergo-lib-c
-          cbindgen --config cbindgen.rest.toml --crate ergo-lib-c --output h/ergo_lib.h
+          cbindgen --config cbindgen.toml --crate ergo-lib-c --output h/ergo_lib.h
 
       - uses: actions-rs/toolchain@v1
         with:
@@ -234,7 +234,7 @@ jobs:
         run: |
           cargo build --all-features -p ergo-lib-c
           cd bindings/ergo-lib-ios
-          swift test -Xlinker -L../../target/debug/
+          swift test -Xswiftc ERGO_REST -Xlinker -L../../target/debug/
 
   android_tests:
     name: Test JNI(Android) bindings
