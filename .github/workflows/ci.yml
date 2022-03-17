@@ -223,7 +223,7 @@ jobs:
       - name: generate C-bindings header file
         run: |
           cd bindings/ergo-lib-c
-          cbindgen --config cbindgen.toml --crate ergo-lib-c --output h/ergo_lib.h
+          cbindgen --config cbindgen.rest.toml --crate ergo-lib-c --output h/ergo_lib.h
 
       - uses: actions-rs/toolchain@v1
         with:
