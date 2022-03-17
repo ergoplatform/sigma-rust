@@ -12,7 +12,7 @@ exclude = [
 ]
 
 [lib]
-name = "libergo"
+name = "ergo"
 crate-type = ["staticlib"]
 
 [dependencies]
