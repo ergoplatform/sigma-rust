@@ -89,4 +89,5 @@ from_error_to_wrap_via_debug!(ExtSecretKeyError);
 from_error_to_wrap_via_debug!(DerivationPathError);
 from_error_to_wrap_via_debug!(ExtPubKeyError);
 from_error_to_wrap_via_debug!(NipopowProofError);
+#[cfg(feature = "rest")]
 from_error_to_wrap_via_debug!(NodeError);
