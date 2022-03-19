@@ -70,4 +70,13 @@ impl PoPowHeader {
             .map(Into::into)
             .map_err(Into::into);
     }
+
+    /// Returns block height for Header
+    pub fn height(&self) -> u32 {
+        self.0.header.height
+    }
+    /// Returns Block ID for Header
+    pub fn id(&self) -> crate::block_header::BlockId {
+        self.0.header.id.clone().into()
+    }
 }
