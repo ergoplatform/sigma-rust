@@ -62,13 +62,13 @@ pub struct PoPowHeader(ergo_lib::ergo_nipopow::PoPowHeader);
 impl PoPowHeader {
     /// Returns block header
     pub fn header(&self) -> BlockHeader {
-        return self.0.header.clone().into();
+        self.0.header.clone().into()
     }
     /// Returns interlinks for PoPowHeader
     pub fn interlinks(&self) -> Result<JsValue, JsError> {
-        return serde_json::to_string(&self.0.interlinks)
+        serde_json::to_string(&self.0.interlinks)
             .map(Into::into)
-            .map_err(Into::into);
+            .map_err(Into::into)
     }
 
     /// Returns block height for Header

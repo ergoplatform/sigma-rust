@@ -17,5 +17,5 @@ sigma-test-util = { version = "^0.3.0", path = "../sigma-test-util" }
 ergo-nipopow = { version = "^0.2", path = "../ergo-nipopow" }
 
 [dev-dependencies]
-sigma-ser = { version = "^0.3", path = "../sigma-ser" }
+sigma-ser = { version = "^0.4", path = "../sigma-ser" }
 serde_json = { version = "1.0" }
