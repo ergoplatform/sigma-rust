@@ -3,8 +3,8 @@ use paste::paste;
 
 use ergo_lib_c_core::{
     block_header::{
-        block_header_from_json, block_header_id, BlockHeader, BlockHeaderPtr, BlockIdPtr,
-        ConstBlockHeaderPtr,
+        block_header_from_json, block_header_id, BlockHeader, BlockHeaderPtr, BlockId, BlockIdPtr,
+        ConstBlockHeaderPtr, ConstBlockIdPtr,
     },
     Error,
 };
@@ -47,3 +47,5 @@ pub unsafe extern "C" fn ergo_lib_block_id_delete(ptr: BlockIdPtr) {
 
 make_collection!(BlockHeaders, BlockHeader);
 make_ffi_eq!(BlockHeader);
+make_collection!(BlockIds, BlockId);
+make_ffi_eq!(BlockId);

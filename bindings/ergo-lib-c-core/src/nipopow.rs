@@ -1,7 +1,7 @@
 //! Bindings for NiPoPow
 
 use crate::{
-    block_header::{BlockHeader, ConstBlockIdPtr},
+    block_header::{BlockHeader, BlockHeaderPtr, BlockId, ConstBlockIdPtr},
     collections::{Collection, CollectionPtr},
     util::{const_ptr_as_ref, mut_ptr_as_mut},
     Error,
@@ -12,6 +12,10 @@ use crate::{
 pub struct NipopowProof(ergo_lib::ergo_nipopow::NipopowProof);
 pub type NipopowProofPtr = *mut NipopowProof;
 pub type ConstNipopowProofPtr = *const NipopowProof;
+
+pub struct PoPowHeader(ergo_lib::ergo_nipopow::PoPowHeader);
+pub type PoPowHeaderPtr = *mut PoPowHeader;
+pub type ConstPoPowHeaderPtr = *const PoPowHeader;
 
 /// Implementation of the ≥ algorithm from [`KMZ17`], see Algorithm 4
 ///
@@ -91,5 +95,49 @@ pub unsafe fn nipopow_verifier_process(
     let verifier = mut_ptr_as_mut(nipopow_verifier_ptr, "nipopow_verifier_ptr")?;
     let new_proof = const_ptr_as_ref(nipopow_proof_ptr, "nipopow_proof_ptr")?;
     verifier.0.process(new_proof.0.clone())?;
+    Ok(())
+}
+
+pub unsafe fn popow_header_from_json(
+    json: &str,
+    popow_header_out: *mut PoPowHeaderPtr,
+) -> Result<(), Error> {
+    let popow_header_out = mut_ptr_as_mut(popow_header_out, "popow_header_out")?;
+    let proof = serde_json::from_str(json).map(PoPowHeader)?;
+    *popow_header_out = Box::into_raw(Box::new(proof));
+    Ok(())
+}
+
+pub unsafe fn popow_header_to_json(popow_header_ptr: ConstPoPowHeaderPtr) -> Result<String, Error> {
+    let proof = const_ptr_as_ref(popow_header_ptr, "popow_header_ptr")?;
+    let s = serde_json::to_string(&proof.0)?;
+    Ok(s)
+}
+
+pub unsafe fn popow_header_get_interlinks(
+    popow_header_ptr: ConstPoPowHeaderPtr,
+    interlinks_out: *mut CollectionPtr<BlockId>,
+) -> Result<(), Error> {
+    let popow_header = const_ptr_as_ref(popow_header_ptr, "popow_header_ptr")?;
+    let interlinks_out = mut_ptr_as_mut(interlinks_out, "interlinks_out")?;
+    *interlinks_out = Box::into_raw(Box::new(Collection(
+        popow_header
+            .0
+            .interlinks
+            .iter()
+            .cloned()
+            .map(BlockId)
+            .collect(),
+    )));
+    Ok(())
+}
+
+pub unsafe fn popow_header_get_header(
+    popow_header_ptr: ConstPoPowHeaderPtr,
+    header_out: *mut BlockHeaderPtr,
+) -> Result<(), Error> {
+    let popow_header_ptr = const_ptr_as_ref(popow_header_ptr, "popow_header_ptr")?;
+    let header_out = mut_ptr_as_mut(header_out, "header_out")?;
+    *header_out = Box::into_raw(Box::new(BlockHeader(popow_header_ptr.0.header.clone())));
     Ok(())
 }
