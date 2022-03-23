@@ -14,17 +14,8 @@ let package = Package(
         .systemLibrary(name: "ErgoLibC"),
         .target(
             name: "ErgoLib",
-            dependencies: ["ErgoLibC"],
-            swiftSettings: [
-                .define("ERGO_REST")
-            ]
+            dependencies: ["ErgoLibC"]
         ),
-        .testTarget(
-            name: "ErgoLibTests", 
-            dependencies: ["ErgoLib"],
-            swiftSettings: [
-                .define("ERGO_REST")
-            ]
-        )
+        .testTarget(name: "ErgoLibTests", dependencies: ["ErgoLib"])
     ]
 )

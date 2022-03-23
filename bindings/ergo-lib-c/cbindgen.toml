@@ -139,7 +139,7 @@ extra_bindings = []
 
 [parse.expand]
 crates = ["ergo-lib-c"]
-all_features = true
+all_features = false
 default_features = true
 features = ["rest"]
 
