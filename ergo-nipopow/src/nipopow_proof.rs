@@ -204,7 +204,6 @@ pub struct PoPowHeader {
     pub interlinks: Vec<BlockId>,
 }
 
-#[allow(clippy::todo)]
 impl ScorexSerializable for PoPowHeader {
     fn scorex_serialize<W: WriteSigmaVlqExt>(&self, w: &mut W) -> ScorexSerializeResult {
         let bytes = self.header.scorex_serialize_bytes()?;

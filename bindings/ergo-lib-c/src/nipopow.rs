@@ -1,8 +1,8 @@
 //! Bindings for NiPoPow
+use paste::paste;
 
 use ergo_lib_c_core::{
-    block_header::{BlockHeader, ConstBlockIdPtr},
-    block_header::{BlockHeaderPtr, BlockId},
+    block_header::{BlockHeader, BlockHeaderPtr, ConstBlockIdPtr},
     collections::CollectionPtr,
     nipopow::{
         nipopow_proof_from_json, nipopow_proof_is_better_than, nipopow_proof_to_json,
@@ -126,6 +126,7 @@ pub unsafe extern "C" fn ergo_lib_popow_header_to_json(
     header: ConstPoPowHeaderPtr,
     _json_str: *mut *const c_char,
 ) -> ErrorPtr {
+    #[allow(clippy::unwrap_used)]
     let res = match popow_header_to_json(header) {
         Ok(s) => {
             *_json_str = CString::new(s).unwrap().into_raw();
@@ -156,3 +157,5 @@ pub unsafe extern "C" fn ergo_lib_popow_header_get_header(
 pub unsafe extern "C" fn ergo_lib_popow_header_delete(ptr: PoPowHeaderPtr) {
     delete_ptr(ptr)
 }
+
+make_ffi_eq!(PoPowHeader);

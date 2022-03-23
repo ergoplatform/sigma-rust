@@ -13,6 +13,7 @@ pub struct NipopowProof(ergo_lib::ergo_nipopow::NipopowProof);
 pub type NipopowProofPtr = *mut NipopowProof;
 pub type ConstNipopowProofPtr = *const NipopowProof;
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct PoPowHeader(ergo_lib::ergo_nipopow::PoPowHeader);
 pub type PoPowHeaderPtr = *mut PoPowHeader;
 pub type ConstPoPowHeaderPtr = *const PoPowHeader;

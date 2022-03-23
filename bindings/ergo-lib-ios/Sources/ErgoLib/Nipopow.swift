@@ -71,3 +71,52 @@ class NipopowVerifier {
         ergo_lib_nipopow_verifier_delete(self.pointer)
     }
 }
+
+/// PoPowHeader
+class PoPowHeader {
+    internal var pointer: PoPowHeaderPtr
+    init(withJson json: String) throws {
+        var ptr: NipopowProofPtr?
+        let error = json.withCString { cs in
+            ergo_lib_popow_header_from_json(cs, &ptr)
+        }
+        try checkError(error)
+        self.pointer = ptr!
+    }
+
+    /// JSON representation as text
+    func toJSON() throws -> JSON? {
+        var cStr: UnsafePointer<CChar>?
+        let error = ergo_lib_popow_header_to_json(self.pointer, &cStr)
+        try checkError(error)
+        let str = String(cString: cStr!)
+        ergo_lib_delete_string(UnsafeMutablePointer(mutating: cStr))
+        return try str.data(using: .utf8, allowLossyConversion: false).map {
+            try JSON(data: $0)
+        }
+    }
+
+    func getHeader() throws -> BlockHeader {
+        var ptr: BlockHeaderPtr?
+        let error = ergo_lib_popow_header_get_header(self.pointer, &ptr)
+        try checkError(error)
+        return BlockHeader(withRawPointer: ptr!)
+    }
+
+    func getInterlinks() throws -> BlockIds {
+        var ptr: BlockIdsPtr?
+        let error = ergo_lib_popow_header_get_interlinks(self.pointer, &ptr)
+        try checkError(error)
+        return BlockIds(withRawPointer: ptr!)
+    }
+
+    deinit {
+        ergo_lib_popow_header_delete(self.pointer)
+    }
+}
+
+extension PoPowHeader: Equatable {
+    static func ==(lhs: PoPowHeader, rhs: PoPowHeader) -> Bool {
+        ergo_lib_po_pow_header_eq(lhs.pointer, rhs.pointer)
+    }
+}
