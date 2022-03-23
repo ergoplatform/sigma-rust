@@ -61,7 +61,7 @@ optional = true
 default = ["json", "compiler"]
 json = ["serde", "serde_json", "serde_with", "bounded-vec/serde"]
 compiler = ["ergoscript-compiler"]
-arbitrary = ["proptest", "proptest-derive"]
+arbitrary = ["proptest", "proptest-derive", "ergotree-ir/arbitrary", "ergo-chain-types/arbitrary", "ergotree-interpreter/arbitrary"]
 mnemonic_gen = ["bitvec"]
 rest = ["ergo-rest"]
 
