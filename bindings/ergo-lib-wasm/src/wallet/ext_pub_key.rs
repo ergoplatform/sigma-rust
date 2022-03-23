@@ -54,4 +54,14 @@ impl ExtPubKey {
         let address: ergo_lib::ergotree_ir::chain::address::Address = self.0.clone().into();
         address.into()
     }
+
+    /// Chain code of the `ExtPubKey`
+    pub fn chain_code(&self) -> Vec<u8> {
+        self.0.chain_code().into()
+    }
+
+    /// Public key bytes of the `ExtPubKey`
+    pub fn pub_key_bytes(&self) -> Vec<u8> {
+        self.0.pub_key_bytes().into()
+    }
 }
