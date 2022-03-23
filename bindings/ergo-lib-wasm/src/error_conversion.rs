@@ -8,6 +8,7 @@ use base16::DecodeError;
 use bounded_vec::BoundedVecOutOfBounds;
 use ergo_lib::ergo_chain_types::Digest32Error;
 use ergo_lib::ergo_nipopow::NipopowProofError;
+#[cfg(feature = "rest")]
 use ergo_lib::ergo_rest::NodeError;
 use ergo_lib::ergotree_ir::chain::address::AddressEncoderError;
 use ergo_lib::ergotree_ir::chain::address::AddressError;
@@ -88,4 +89,5 @@ from_error_to_wrap_via_debug!(ExtSecretKeyError);
 from_error_to_wrap_via_debug!(DerivationPathError);
 from_error_to_wrap_via_debug!(ExtPubKeyError);
 from_error_to_wrap_via_debug!(NipopowProofError);
+#[cfg(feature = "rest")]
 from_error_to_wrap_via_debug!(NodeError);

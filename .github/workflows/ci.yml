@@ -14,7 +14,6 @@ env:
   RUSTV: 1.57
 
 jobs:
-
   build_wo_default_features:
     name: Build without default features
     runs-on: ubuntu-latest
@@ -29,7 +28,7 @@ jobs:
         with:
           command: build
           args: --no-default-features --manifest-path ergotree-ir/Cargo.toml
-      - name: Build ergo-lib 
+      - name: Build ergo-lib
         uses: actions-rs/cargo@v1
         with:
           command: build
@@ -64,7 +63,7 @@ jobs:
         with:
           command: test
           args: --verbose --release
-        
+
   test_coverage:
     name: Code coverage in tests
     runs-on: ubuntu-latest
@@ -141,7 +140,7 @@ jobs:
           wasm-pack build
           npm install
           npm run test
-      
+
       - name: run browser JS tests
         run: |
           wasm-pack build
@@ -184,7 +183,7 @@ jobs:
         with:
           command: fmt
           args: --all -- --check --color always
-            
+
   doc-links:
     name: Check intra-documentation links
     runs-on: ubuntu-latest
@@ -219,9 +218,8 @@ jobs:
           override: true
 
       - name: install deps
-        run:
-          cargo install cbindgen
-      
+        run: cargo install cbindgen
+
       - name: generate C-bindings header file
         run: |
           cd bindings/ergo-lib-c
@@ -234,7 +232,7 @@ jobs:
 
       - name: build and run tests
         run: |
-          cargo build -p ergo-lib-c
+          cargo build --all-features -p ergo-lib-c
           cd bindings/ergo-lib-ios
           swift test -Xlinker -L../../target/debug/
 

@@ -47,6 +47,7 @@ style = "both"
 [defines]
 # "target_os = freebsd" = "DEFINE_FREEBSD"
 # "feature = serde" = "DEFINE_SERDE"
+"feature = rest" = "ERGO_REST"
 
 
 
@@ -140,7 +141,7 @@ extra_bindings = []
 crates = ["ergo-lib-c"]
 all_features = false
 default_features = true
-features = []
+features = ["rest"]
 
 
 [ptr]
