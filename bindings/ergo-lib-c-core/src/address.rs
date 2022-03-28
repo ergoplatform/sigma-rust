@@ -81,10 +81,26 @@ pub unsafe fn address_type_prefix(address: ConstAddressPtr) -> Result<AddressTyp
     Ok(address.0.address_type_prefix().into())
 }
 
+/// Create address from ErgoTree
+pub unsafe fn address_from_ergo_tree(
+    ergo_tree_ptr: crate::ergo_tree::ConstErgoTreePtr,
+    address_out: *mut AddressPtr,
+) -> Result<(), Error> {
+    let ergo_tree = const_ptr_as_ref(ergo_tree_ptr, "ergo_tree_ptr")?;
+    let result = addr::Address::recreate_from_ergo_tree(&ergo_tree.0);
+    match result {
+        Ok(address) => {
+            *address_out = Box::into_raw(Box::new(Address(address)));
+            Ok(())
+        }
+        Err(err) => Err(Error::misc(err)),
+    }
+}
+
 /// Drop the `Address`
-pub fn address_delete(address: AddressPtr) {
+pub unsafe fn address_delete(address: AddressPtr) {
     if !address.is_null() {
-        let boxed = unsafe { Box::from_raw(address) };
+        let boxed = Box::from_raw(address);
         std::mem::drop(boxed);
     }
 }

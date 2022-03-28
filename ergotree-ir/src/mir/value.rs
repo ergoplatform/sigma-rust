@@ -4,6 +4,7 @@ use std::convert::TryInto;
 use std::rc::Rc;
 
 use impl_trait_for_tuples::impl_for_tuples;
+use sigma_util::AsVecI8;
 
 use crate::bigint256::BigInt256;
 use crate::chain::ergo_box::ErgoBox;
@@ -14,7 +15,6 @@ use crate::sigma_protocol::sigma_boolean::SigmaProp;
 use crate::types::stuple::TupleItems;
 use crate::types::stype::LiftIntoSType;
 use crate::types::stype::SType;
-use crate::util::AsVecI8;
 
 use super::avl_tree_data::AvlTreeData;
 use super::constant::Literal;
@@ -472,7 +472,7 @@ impl TryExtractFrom<Value> for Vec<i8> {
 
 impl TryExtractFrom<Value> for Vec<u8> {
     fn try_extract_from(v: Value) -> Result<Self, TryExtractFromError> {
-        use crate::util::FromVecI8;
+        use sigma_util::FromVecI8;
         Vec::<i8>::try_extract_from(v).map(Vec::<u8>::from_vec_i8)
     }
 }

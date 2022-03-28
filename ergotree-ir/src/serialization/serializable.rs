@@ -12,7 +12,7 @@ use crate::types::smethod::MethodId;
 use bounded_vec::BoundedVec;
 use bounded_vec::BoundedVecOutOfBounds;
 use io::Cursor;
-use sigma_ser::vlq_encode;
+use sigma_ser::{vlq_encode, ScorexParsingError, ScorexSerializationError};
 use std::convert::TryInto;
 use std::io;
 use thiserror::Error;
@@ -28,21 +28,18 @@ pub enum SigmaSerializationError {
     NotImplementedYet(&'static str),
     /// Unexpected value type
     #[error("Unexpected value: {0:?}")]
-    UnexpectedValue(TryExtractFromError),
+    UnexpectedValue(#[from] TryExtractFromError),
     /// Serialization not supported
     #[error("serialization not supported: {0}")]
     NotSupported(&'static str),
+    /// Scorex serialization error
+    #[error("Scorex serialization error: {0}")]
+    ScorexSerializationError(#[from] ScorexSerializationError),
 }
 
 impl From<io::Error> for SigmaSerializationError {
     fn from(error: io::Error) -> Self {
         SigmaSerializationError::Io(error.to_string())
-    }
-}
-
-impl From<TryExtractFromError> for SigmaSerializationError {
-    fn from(e: TryExtractFromError) -> Self {
-        SigmaSerializationError::UnexpectedValue(e)
     }
 }
 
@@ -97,6 +94,9 @@ pub enum SigmaParsingError {
     /// Invalid item quantity for BoundedVec
     #[error("Invalid item quantity for BoundedVec: {0}")]
     BoundedVecOutOfBounds(#[from] BoundedVecOutOfBounds),
+    /// Scorex parsing error
+    #[error("Scorex parsing error: {0}")]
+    ScorexParsingError(#[from] ScorexParsingError),
 }
 
 impl From<io::Error> for SigmaParsingError {

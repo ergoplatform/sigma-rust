@@ -1,8 +1,10 @@
 //! Block header with fields that can be predicted by miner
 
+use ergo_chain_types::BlockId;
+
 use crate::sigma_protocol::dlog_group;
 
-use super::{block_id::BlockId, votes::Votes};
+use super::votes::Votes;
 
 /// Block header with the current `spendingTransaction`, that can be predicted
 /// by a miner before it's formation

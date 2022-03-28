@@ -5,8 +5,8 @@ pub mod input;
 pub mod reduced;
 pub mod unsigned;
 
+use ergo_chain_types::blake2b256_hash;
 pub use ergotree_interpreter::eval::context::TxIoVec;
-use ergotree_ir::chain::digest32::blake2b256_hash;
 use ergotree_ir::chain::ergo_box::ErgoBox;
 use ergotree_ir::chain::ergo_box::ErgoBoxCandidate;
 use ergotree_ir::chain::token::TokenId;
@@ -55,6 +55,7 @@ use std::iter::FromIterator;
 )]
 #[derive(PartialEq, Debug, Clone)]
 pub struct Transaction {
+    /// transaction id
     tx_id: TxId,
     /// inputs, that will be spent by this transaction.
     pub inputs: TxIoVec<Input>,
@@ -265,7 +266,7 @@ pub enum TransactionError {
 impl From<Transaction> for json::transaction::TransactionJson {
     fn from(v: Transaction) -> Self {
         json::transaction::TransactionJson {
-            tx_id: v.tx_id.clone(),
+            tx_id: v.id(),
             inputs: v.inputs.as_vec().clone(),
             data_inputs: v
                 .data_inputs
@@ -413,7 +414,7 @@ pub mod tests {
     }"#;
         let res = serde_json::from_str(json);
         let t: Transaction = res.unwrap();
-        let tx_id_str: String = t.tx_id.into();
+        let tx_id_str: String = t.id().into();
         assert_eq!(
             "9148408c04c2e38a6402a7950d6157730fa7d49e9ab3b9cadec481d7769918e9",
             tx_id_str

@@ -1,12 +1,13 @@
 //! Transaction id type
 
+use ergo_chain_types::Digest32;
+use sigma_ser::ScorexSerializable;
+
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
 use crate::serialization::SigmaSerializeResult;
-
-use super::digest32::Digest32;
 
 /// Transaction id (ModifierId in sigmastate)
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
@@ -23,11 +24,11 @@ impl TxId {
 
 impl SigmaSerializable for TxId {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
-        self.0.sigma_serialize(w)?;
+        self.0.scorex_serialize(w)?;
         Ok(())
     }
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
-        Ok(Self(Digest32::sigma_parse(r)?))
+        Ok(Self(Digest32::scorex_parse(r)?))
     }
 }
 

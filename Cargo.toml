@@ -8,6 +8,8 @@ members = [
     "ergotree-interpreter",
     "ergo-lib",
     "ergo-p2p",
+    "ergo-chain-generation",
+    "ergo-rest",
     "ergo-chain-types",
     "ergo-nipopow",
     "ergo-merkle-tree",

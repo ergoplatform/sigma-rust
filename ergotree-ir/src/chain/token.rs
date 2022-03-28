@@ -7,10 +7,11 @@ use crate::serialization::{
 };
 use std::convert::TryFrom;
 
-use super::digest32::Digest32;
 use super::ergo_box::BoxId;
 use derive_more::From;
 use derive_more::Into;
+use ergo_chain_types::Digest32;
+use sigma_ser::ScorexSerializable;
 use thiserror::Error;
 
 /// newtype for token id
@@ -55,10 +56,10 @@ impl From<TokenId> for String {
 
 impl SigmaSerializable for TokenId {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
-        self.0.sigma_serialize(w)
+        Ok(self.0.scorex_serialize(w)?)
     }
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
-        Ok(Self(Digest32::sigma_parse(r)?))
+        Ok(Self(Digest32::scorex_parse(r)?))
     }
 }
 
@@ -69,15 +70,14 @@ pub struct TokenAmount(u64);
 
 /// Token amount with bound checks
 #[cfg(feature = "json")]
-#[serde_with::serde_as]
 #[derive(
     serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash, Debug, Clone, Copy, PartialOrd, Ord,
 )]
-pub struct TokenAmount(
-    // Tries to decode as u64 first, then fallback to string. Encodes as u64 always
-    // see details - https://docs.rs/serde_with/1.9.4/serde_with/struct.PickFirst.html
-    #[serde_as(as = "serde_with::PickFirst<(_, serde_with::DisplayFromStr)>")] u64,
-);
+#[serde(
+    try_from = "crate::chain::json::token::TokenAmountJson",
+    into = "crate::chain::json::token::TokenAmountJson"
+)]
+pub struct TokenAmount(pub(crate) u64);
 
 impl TokenAmount {
     /// minimal allowed value
@@ -184,9 +184,8 @@ impl From<(TokenId, TokenAmount)> for Token {
 #[allow(clippy::unwrap_used)]
 #[cfg(feature = "arbitrary")]
 pub mod arbitrary {
+    use ergo_chain_types::Digest32;
     use proptest::prelude::*;
-
-    use crate::chain::digest32::Digest32;
 
     use super::TokenAmount;
     use super::TokenId;

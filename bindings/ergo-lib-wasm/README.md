@@ -13,6 +13,10 @@ Packages(npm):
 ## Alpha version
 On CI build (job `JS tests`) an alpha build of npm packages is published. The version of the alpha build is comprised of the next minor version with git commit hash suffix (i.e if the current version is `0.12.0` then alpha build will be `0.13.0-alpha-[COMMIT]`) and published with `alpha` tag. See `JS tests` CI job output for details. 
 
+## Test
+- Scripts in [ergo-lib-wasm/tests](https://github.com/hanbu97/sigma-rust/tree/develop/bindings/ergo-lib-wasm/tests) will run in both `node js tests` and `browser js tests`.
+- Scripts in [ergo-lib-wasm/tests_browser](https://github.com/hanbu97/sigma-rust/tree/develop/bindings/ergo-lib-wasm/tests_browser) will only run in `browser js tests`.
+
 ## Troubleshooting
 ### When I build the `ergo-lib-wasm` and include the `pkg` folder as dependency in my app I get "TypeError: TextDecoder is not a constructor".
 
@@ -30,3 +34,8 @@ https://github.com/ergoplatform/sigma-rust/blob/develop/bindings/ergo-lib-wasm/w
 ### Using with `create-react-app`
 CRA does not support WASM. But you can workaround it. You need to override webpack config. Check out -
 https://stackoverflow.com/questions/59319775/how-to-use-webassembly-wasm-with-create-react-app/59720645#59720645
+
+
+
+
+

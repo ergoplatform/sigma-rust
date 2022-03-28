@@ -1,6 +1,6 @@
 [package]
 name = "ergo-nipopow"
-version = "0.1.0"
+version = "0.2.0"
 license = "CC0-1.0"
 authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
 edition = "2018"
@@ -14,7 +14,18 @@ exclude = [
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+base16 = "0.2.1"
+bounded-integer = { version = "^0.5", features = ["types"] }
+byteorder = "1"
 thiserror = "1"
 derive_more = "0.99"
+ergotree-ir = { version = "^0.15.0", path = "../ergotree-ir", features = ["json"] }
+num-bigint = "0.4.0"
+num-traits = "0.2.14"
+sigma-ser = { version = "^0.4.0", path = "../sigma-ser" }
+sigma-util = { version = "^0.4.0", path = "../sigma-util" }
+ergo-chain-types = { version = "^0.2.0", path = "../ergo-chain-types" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0" }
 
 [dev-dependencies]

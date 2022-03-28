@@ -3,10 +3,9 @@ use std::convert::TryInto;
 
 use derive_more::{From, Into};
 
+use ergo_chain_types::PeerAddr;
 use sigma_ser::vlq_encode::WriteSigmaVlqExt;
 use sigma_ser::{ScorexParsingError, ScorexSerializable, ScorexSerializeResult};
-
-use crate::peer_addr::PeerAddr;
 
 /// Peer feature identifier
 #[derive(PartialEq, Eq, Debug, Copy, Clone, From, Into)]

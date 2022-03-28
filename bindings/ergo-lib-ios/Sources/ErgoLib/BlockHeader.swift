@@ -21,8 +21,30 @@ class BlockHeader {
         self.pointer = ptr
     }
     
+    /// Get Block id
+    func getBlockId() -> BlockId {
+        var ptr: BlockIdPtr?
+        ergo_lib_block_header_id(self.pointer, &ptr)
+        return BlockId(withRawPointer: ptr!)
+    }
+    
     deinit {
         ergo_lib_block_header_delete(self.pointer)
+    }
+}
+
+/// Represents the id of a ``BlockHeader``
+class BlockId {
+    internal var pointer: BlockIdPtr
+    
+    /// Takes ownership of an existing ``BlockIdPtr``. Note: we must ensure that no other instance
+    /// of ``BlockId`` can hold this pointer.
+    internal init(withRawPointer ptr: BlockIdPtr) {
+        self.pointer = ptr
+    }
+    
+    deinit {
+        ergo_lib_block_id_delete(self.pointer)
     }
 }
 
@@ -40,6 +62,7 @@ class BlockHeaders {
     init() {
         self.pointer = BlockHeaders.initRawPtrEmpty()
     }
+    
     /// Parse ``BlockHeader`` array from JSON (Node API)
     init(fromJSON: Any) throws {
         let json = JSON(fromJSON)
@@ -58,6 +81,12 @@ class BlockHeaders {
         } else {
             throw WalletError.walletCError(reason: "BlockHeaders.init(fromJSON): expected [JSON]")
         }
+    }
+    
+    /// Takes ownership of an existing ``BlockHeadersPtr``. Note: we must ensure that no other instance
+    /// of ``BlockHeaders`` can hold this pointer.
+    internal init(withRawPointer ptr: BlockHeadersPtr) {
+        self.pointer = ptr
     }
     
     /// Use the C-API to create an empty collection and return the raw pointer that points to this
@@ -92,5 +121,55 @@ class BlockHeaders {
         
     deinit {
         ergo_lib_block_headers_delete(self.pointer)
+    }
+}
+
+/// An ordered collection of ``BlockId``s
+class BlockIds {
+    internal var pointer: BlockIdsPtr
+
+    /// Create an empty collection
+    init() {
+        self.pointer = BlockIds.initRawPtrEmpty()
+    }
+
+    /// Takes ownership of an existing ``BlockIdsPtr``. Note: we must ensure that no other instance
+    /// of ``BlockIds`` can hold this pointer.
+    internal init(withRawPointer ptr: BlockIdsPtr) {
+        self.pointer = ptr
+    }
+
+    /// Use the C-API to create an empty collection and return the raw pointer that points to this
+    /// collection.
+    private static func initRawPtrEmpty() -> BlockIdsPtr {
+        var ptr: BlockIdsPtr?
+        ergo_lib_block_ids_new(&ptr)
+        return ptr!
+    }
+
+    /// Return the length of the collection
+    func len() -> UInt {
+        return ergo_lib_block_ids_len(self.pointer)
+    }
+
+    /// Returns the ``BlockHeader`` at location `index` if it exists.
+    func get(index: UInt) -> BlockId? {
+        var blockIdPtr: BlockIdPtr?
+        let res = ergo_lib_block_ids_get(self.pointer, index, &blockIdPtr)
+        assert(res.error == nil)
+        if res.is_some {
+            return BlockId(withRawPointer: blockIdPtr!)
+        } else {
+            return nil
+        }
+    }
+
+    /// Add a ``BlockId`` to the end of the collection.
+    func add(blockId: BlockId) {
+        ergo_lib_block_ids_add(blockId.pointer, self.pointer)
+    }
+
+    deinit {
+        ergo_lib_block_ids_delete(self.pointer)
     }
 }

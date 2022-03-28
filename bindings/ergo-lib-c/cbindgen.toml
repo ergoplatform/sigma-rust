@@ -47,6 +47,7 @@ style = "both"
 [defines]
 # "target_os = freebsd" = "DEFINE_FREEBSD"
 # "feature = serde" = "DEFINE_SERDE"
+"feature = rest" = "ERGO_REST"
 
 
 
@@ -140,4 +141,12 @@ extra_bindings = []
 crates = ["ergo-lib-c"]
 all_features = false
 default_features = true
-features = []
+features = ["rest"]
+
+
+[ptr]
+# An optional string to decorate all pointers that are
+# required to be non null. Nullability is inferred from the Rust type: `&T`,
+# `&mut T` and `NonNull<T>` all require a valid pointer value.
+non_null_attribute = "_Nonnull"
+

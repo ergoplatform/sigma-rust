@@ -1,11 +1,11 @@
 //! Digest types for various sizes
 
-use crate::serialization::sigma_byte_reader::SigmaByteRead;
-use crate::serialization::sigma_byte_writer::SigmaByteWrite;
-use crate::serialization::SigmaParsingError;
-use crate::serialization::SigmaSerializable;
-use crate::serialization::SigmaSerializeResult;
-use crate::util::AsVecI8;
+use sigma_ser::vlq_encode::ReadSigmaVlqExt;
+use sigma_ser::vlq_encode::WriteSigmaVlqExt;
+use sigma_ser::ScorexParsingError;
+use sigma_ser::ScorexSerializable;
+use sigma_ser::ScorexSerializeResult;
+use sigma_util::AsVecI8;
 use std::convert::TryFrom;
 use std::convert::TryInto;
 use std::fmt::Formatter;
@@ -16,8 +16,8 @@ use thiserror::Error;
 #[cfg_attr(
     feature = "json",
     serde(
-        into = "crate::chain::base16_bytes::Base16EncodedBytes",
-        try_from = "crate::chain::base16_bytes::Base16DecodedBytes"
+        into = "crate::Base16EncodedBytes",
+        try_from = "crate::Base16DecodedBytes"
     )
 )]
 #[derive(PartialEq, Eq, Hash, Clone)]
@@ -54,6 +54,12 @@ pub fn blake2b256_hash(bytes: &[u8]) -> Digest32 {
 impl<const N: usize> From<[u8; N]> for Digest<N> {
     fn from(bytes: [u8; N]) -> Self {
         Digest(Box::new(bytes))
+    }
+}
+
+impl<const N: usize> From<Box<[u8; N]>> for Digest<N> {
+    fn from(bytes: Box<[u8; N]>) -> Self {
+        Digest(bytes)
     }
 }
 
@@ -100,12 +106,12 @@ impl<const N: usize> TryFrom<Vec<u8>> for Digest<N> {
     }
 }
 
-impl<const N: usize> SigmaSerializable for Digest<N> {
-    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
+impl<const N: usize> ScorexSerializable for Digest<N> {
+    fn scorex_serialize<W: WriteSigmaVlqExt>(&self, w: &mut W) -> ScorexSerializeResult {
         w.write_all(self.0.as_ref())?;
         Ok(())
     }
-    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
+    fn scorex_parse<R: ReadSigmaVlqExt>(r: &mut R) -> Result<Self, ScorexParsingError> {
         let mut bytes = [0; N];
         r.read_exact(&mut bytes)?;
         Ok(Self(bytes.into()))

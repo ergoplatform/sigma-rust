@@ -1,4 +1,6 @@
 use chrono::Utc;
+use ergo_chain_types::ConnectionDirection;
+use ergo_chain_types::PeerAddr;
 use futures::Future;
 use futures::FutureExt;
 use std::pin::Pin;
@@ -19,9 +21,7 @@ use crate::constants;
 use crate::error::BoxError;
 use crate::error::HandshakeError;
 use crate::message::Handshake;
-use crate::peer_info::ConnectionDirection;
 use crate::Client;
-use crate::PeerAddr;
 use crate::PeerInfo;
 
 /// A service that handshakes with a remote peer and constructs a client/server pair.

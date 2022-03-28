@@ -7,7 +7,7 @@ use crate::ergo_box::{ErgoBox, ErgoBoxCandidate};
 /// Collection of ErgoBox'es
 #[wasm_bindgen]
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct ErgoBoxes(Vec<ErgoBox>);
+pub struct ErgoBoxes(pub(crate) Vec<ErgoBox>);
 
 #[wasm_bindgen]
 impl ErgoBoxes {
@@ -37,11 +37,6 @@ impl ErgoBoxes {
             .map(ErgoBoxes::from)
     }
 
-    /// Create a new empty set of ergo boxes
-    pub fn empty() -> ErgoBoxes {
-        ErgoBoxes(vec![])
-    }
-
     /// Create new collection with one element
     #[wasm_bindgen(constructor)]
     pub fn new(b: &ErgoBox) -> ErgoBoxes {
@@ -61,6 +56,11 @@ impl ErgoBoxes {
     /// Returns the element of the collection with a given index
     pub fn get(&self, index: usize) -> ErgoBox {
         self.0[index].clone()
+    }
+
+    /// Empty ErgoBoxes
+    pub fn empty() -> ErgoBoxes {
+        ErgoBoxes(vec![])
     }
 }
 

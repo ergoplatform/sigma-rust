@@ -57,8 +57,9 @@ impl ExtPubKey {
         })
     }
 
+    /// Public key bytes of the `ExtPubKey`
     #[allow(clippy::unwrap_used)]
-    fn pub_key_bytes(&self) -> PubKeyBytes {
+    pub fn pub_key_bytes(&self) -> PubKeyBytes {
         // Unwraps are fine here since `self.public_key` is valid through the checking constructor
         // above.
         self.public_key
@@ -67,6 +68,11 @@ impl ExtPubKey {
             .as_slice()
             .try_into()
             .unwrap()
+    }
+
+    /// Chain code of the `ExtPubKey`
+    pub fn chain_code(&self) -> ChainCode {
+        self.chain_code
     }
 
     /// Soft derivation of the child public key with a given index

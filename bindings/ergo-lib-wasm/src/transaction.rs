@@ -10,21 +10,132 @@ use crate::input::{Inputs, UnsignedInputs};
 use crate::json::TransactionJsonEip12;
 use crate::json::UnsignedTransactionJsonEip12;
 use ergo_lib::chain;
-use ergo_lib::chain::transaction::distinct_token_ids;
-use ergo_lib::chain::transaction::TxIoVec;
-use ergo_lib::ergotree_ir::chain::base16_bytes::Base16DecodedBytes;
-use ergo_lib::ergotree_ir::chain::base16_bytes::Base16EncodedBytes;
-use ergo_lib::ergotree_ir::chain::digest32::Digest32;
+use ergo_lib::chain::transaction::{distinct_token_ids, TxIoVec};
 use ergo_lib::ergotree_ir::serialization::SigmaSerializable;
 use js_sys::Uint8Array;
-use std::convert::TryFrom;
-use std::convert::TryInto;
+use std::convert::{TryFrom, TryInto};
 use wasm_bindgen::prelude::*;
 
 extern crate derive_more;
+
+use crate::ergo_state_ctx::ErgoStateContext;
+use crate::transaction::reduced::Propositions;
 use derive_more::{From, Into};
+use ergo_lib::ergo_chain_types::{Base16DecodedBytes, Base16EncodedBytes, Digest32};
+use ergo_lib::ergotree_ir::chain::ergo_box::ErgoBox;
 
 pub mod reduced;
+
+/// CommitmentHint
+#[wasm_bindgen]
+pub struct CommitmentHint(
+    ergo_lib::ergotree_interpreter::sigma_protocol::prover::hint::CommitmentHint,
+);
+
+/// HintsBag
+#[wasm_bindgen]
+pub struct HintsBag(
+    pub(crate) ergo_lib::ergotree_interpreter::sigma_protocol::prover::hint::HintsBag,
+);
+
+#[wasm_bindgen]
+impl HintsBag {
+    /// Empty HintsBag
+    pub fn empty() -> HintsBag {
+        HintsBag {
+            0: ergo_lib::ergotree_interpreter::sigma_protocol::prover::hint::HintsBag::empty(),
+        }
+    }
+
+    /// Add commitment hint to the bag
+    pub fn add_commitment(&mut self, hint: CommitmentHint) {
+        self.0.add_hint(
+            ergo_lib::ergotree_interpreter::sigma_protocol::prover::hint::Hint::CommitmentHint(
+                hint.0,
+            ),
+        );
+    }
+
+    /// Length of HintsBag
+    pub fn len(&self) -> usize {
+        self.0.hints.len()
+    }
+
+    /// Get commitment
+    pub fn get(&self, index: usize) -> Result<CommitmentHint, JsValue> {
+        let commitment = self.0.commitments()[index].clone();
+        Ok(CommitmentHint(commitment))
+    }
+}
+
+impl From<ergo_lib::ergotree_interpreter::sigma_protocol::prover::hint::HintsBag> for HintsBag {
+    fn from(t: ergo_lib::ergotree_interpreter::sigma_protocol::prover::hint::HintsBag) -> Self {
+        HintsBag(t)
+    }
+}
+
+/// TransactionHintsBag
+#[wasm_bindgen]
+pub struct TransactionHintsBag(pub(crate) ergo_lib::wallet::multi_sig::TransactionHintsBag);
+
+#[wasm_bindgen]
+impl TransactionHintsBag {
+    /// Empty TransactionHintsBag
+    pub fn empty() -> TransactionHintsBag {
+        TransactionHintsBag {
+            0: ergo_lib::wallet::multi_sig::TransactionHintsBag::empty(),
+        }
+    }
+
+    /// Adding hints for input
+    pub fn add_hints_for_input(&mut self, index: usize, hints_bag: &HintsBag) {
+        self.0.add_hints_for_input(index, hints_bag.0.clone());
+    }
+
+    /// Outputting HintsBag corresponding for an input index
+    pub fn all_hints_for_input(&self, index: usize) -> HintsBag {
+        HintsBag::from(self.0.all_hints_for_input(index))
+    }
+}
+
+impl From<ergo_lib::wallet::multi_sig::TransactionHintsBag> for TransactionHintsBag {
+    fn from(t: ergo_lib::wallet::multi_sig::TransactionHintsBag) -> Self {
+        TransactionHintsBag(t)
+    }
+}
+
+/// Extracting hints form singed(invalid) Transaction
+#[wasm_bindgen]
+pub fn extract_hints(
+    signed_transaction: Transaction,
+    state_context: &ErgoStateContext,
+    boxes_to_spend: &ErgoBoxes,
+    _data_boxes: &ErgoBoxes,
+    real_propositions: Propositions,
+    simulated_propositions: Propositions,
+) -> Result<TransactionHintsBag, JsValue> {
+    let boxes_to_spend = TxIoVec::from_vec(boxes_to_spend.clone().into()).map_err(to_js)?;
+    let mut data_boxes: Option<TxIoVec<ErgoBox>> = None;
+
+    if !_data_boxes.0.is_empty() {
+        data_boxes = Some(TxIoVec::from_vec(_data_boxes.clone().into()).map_err(to_js)?);
+    }
+    let tx_context = ergo_lib::wallet::signing::TransactionContext::new(
+        signed_transaction.0,
+        boxes_to_spend,
+        data_boxes,
+    )
+    .map_err(to_js)?;
+    Ok(TransactionHintsBag::from(
+        ergo_lib::wallet::multi_sig::extract_hints(
+            &tx_context,
+            &state_context.0.clone(),
+            real_propositions.0,
+            simulated_propositions.0,
+        )
+        .unwrap(),
+    ))
+}
 
 /// Transaction id
 #[wasm_bindgen]
@@ -165,7 +276,7 @@ impl From<chain::transaction::Transaction> for Transaction {
 /// Unsigned (inputs without proofs) transaction
 #[wasm_bindgen]
 #[derive(PartialEq, Debug, Clone, From, Into)]
-pub struct UnsignedTransaction(chain::transaction::unsigned::UnsignedTransaction);
+pub struct UnsignedTransaction(pub(crate) chain::transaction::unsigned::UnsignedTransaction);
 
 #[wasm_bindgen]
 impl UnsignedTransaction {

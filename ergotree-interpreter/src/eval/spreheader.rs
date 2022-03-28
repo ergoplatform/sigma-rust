@@ -44,14 +44,15 @@ mod tests {
     use std::convert::{TryFrom, TryInto};
     use std::rc::Rc;
 
+    use ergo_chain_types::BlockId;
     use ergotree_ir::{
-        chain::{block_id::BlockId, votes::Votes},
+        chain::votes::Votes,
         mir::{expr::Expr, property_call::PropertyCall},
         sigma_protocol::dlog_group::EcPoint,
         types::{scontext, smethod::SMethod, spreheader},
-        util::AsVecU8,
     };
     use sigma_test_util::force_any_val;
+    use sigma_util::AsVecU8;
 
     use crate::eval::{
         context::Context,

@@ -64,7 +64,7 @@ impl ReducedTransaction {
 
 /// Reduce each input of unsigned transaction to sigma proposition
 pub fn reduce_tx(
-    tx_context: TransactionContext,
+    tx_context: TransactionContext<UnsignedTransaction>,
     state_context: &ErgoStateContext,
 ) -> Result<ReducedTransaction, TxSigningError> {
     let tx = &tx_context.spending_tx;

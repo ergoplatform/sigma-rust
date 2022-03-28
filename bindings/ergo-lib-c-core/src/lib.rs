@@ -28,6 +28,7 @@ pub mod header;
 pub mod input;
 mod json;
 pub mod merkleproof;
+pub mod nipopow;
 pub mod reduced;
 pub mod secret_key;
 pub mod token;
@@ -37,3 +38,5 @@ pub mod util;
 pub mod wallet;
 pub use crate::error::*;
 mod error;
+#[cfg(feature = "rest")]
+pub mod rest;

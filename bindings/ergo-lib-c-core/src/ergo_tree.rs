@@ -2,8 +2,8 @@
 
 use std::convert::TryFrom;
 
-use ergo_lib::ergotree_ir::{
-    chain::base16_bytes::Base16DecodedBytes, serialization::SigmaSerializable,
+use ergo_lib::{
+    ergo_chain_types::Base16DecodedBytes, ergotree_ir::serialization::SigmaSerializable,
 };
 
 use crate::{

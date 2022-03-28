@@ -4,7 +4,7 @@ EXCLUDED_ARCHS = armv7 arm64 i386
 ENABLE_BITCODE = NO
 BUILD_LIBRARY_FOR_DISTRIBUTION = YES
 HEADER_SEARCH_PATHS = $(inherited) $(SRCROOT)/../ergo-lib-c/h
-OTHER_LDFLAGS = $(inherited) -L"$(SRCROOT)/../../target/release" -lergo_lib_c
+OTHER_LDFLAGS = $(inherited) -L"$(SRCROOT)/../../target/release" -lergo
 PRODUCT_BUNDLE_IDENTIFIER = org.ergoplatform.wallet
 FRAMEWORK_VERSION = 0.1.0-pre1
 

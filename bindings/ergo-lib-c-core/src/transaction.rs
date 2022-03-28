@@ -3,19 +3,173 @@
 use std::convert::{TryFrom, TryInto};
 
 use ergo_lib::{
-    chain,
-    ergotree_ir::chain::base16_bytes::{Base16DecodedBytes, Base16EncodedBytes},
+    chain::{self, transaction::TxIoVec},
+    ergo_chain_types::{Base16DecodedBytes, Base16EncodedBytes},
 };
 
 use crate::{
     collections::{Collection, CollectionPtr, ConstCollectionPtr},
     data_input::DataInput,
     ergo_box::{ErgoBox, ErgoBoxCandidate},
+    ergo_state_ctx::ConstErgoStateContextPtr,
     input::{Input, UnsignedInput},
     json::{TransactionJsonEip12, UnsignedTransactionJsonEip12},
+    reduced::ConstPropositionsPtr,
     util::{const_ptr_as_ref, mut_ptr_as_mut, ByteArray},
     Error,
 };
+
+/// CommitmentHint
+pub struct CommitmentHint(
+    pub(crate) ergo_lib::ergotree_interpreter::sigma_protocol::prover::hint::CommitmentHint,
+);
+pub type CommitmentHintPtr = *mut CommitmentHint;
+pub type ConstCommitmentHintPtr = *const CommitmentHint;
+
+/// `HintsBag`
+pub struct HintsBag(
+    pub(crate) ergo_lib::ergotree_interpreter::sigma_protocol::prover::hint::HintsBag,
+);
+pub type HintsBagPtr = *mut HintsBag;
+pub type ConstHintsBagPtr = *const HintsBag;
+
+/// Empty HintsBag
+pub unsafe fn hints_bag_empty(hints_bag_out: *mut HintsBagPtr) -> Result<(), Error> {
+    let hints_bag_out = mut_ptr_as_mut(hints_bag_out, "hints_bag_out")?;
+    *hints_bag_out = Box::into_raw(Box::new(HintsBag(
+        ergo_lib::ergotree_interpreter::sigma_protocol::prover::hint::HintsBag::empty(),
+    )));
+    Ok(())
+}
+
+/// Add commitment hint to the bag
+pub unsafe fn hints_bag_add_commitment(
+    hints_bag_mut: HintsBagPtr,
+    hint_ptr: ConstCommitmentHintPtr,
+) -> Result<(), Error> {
+    let hints_bag_mut = mut_ptr_as_mut(hints_bag_mut, "hints_bag_mut")?;
+    let hint = const_ptr_as_ref(hint_ptr, "hint_ptr")?;
+    hints_bag_mut.0.add_hint(
+        ergo_lib::ergotree_interpreter::sigma_protocol::prover::hint::Hint::CommitmentHint(
+            hint.0.clone(),
+        ),
+    );
+    Ok(())
+}
+
+/// Length of HintsBag
+pub unsafe fn hints_bag_len(hints_bag_ptr: ConstHintsBagPtr) -> Result<usize, Error> {
+    let hints_bag = const_ptr_as_ref(hints_bag_ptr, "hints_bag_ptr")?;
+    Ok(hints_bag.0.hints.len())
+}
+
+/// Get commitment
+pub unsafe fn hints_bag_get(
+    hints_bag_ptr: ConstHintsBagPtr,
+    index: usize,
+    hint_out: *mut CommitmentHintPtr,
+) -> Result<bool, Error> {
+    let hints_bag = const_ptr_as_ref(hints_bag_ptr, "hints_bag_ptr")?;
+    let hint_out = mut_ptr_as_mut(hint_out, "hint_out")?;
+    if let Some(commitment) = hints_bag.0.commitments().get(index) {
+        *hint_out = Box::into_raw(Box::new(CommitmentHint(commitment.clone())));
+        return Ok(true);
+    }
+    Ok(false)
+}
+
+/// TransactionHintsBag
+pub struct TransactionHintsBag(pub(crate) ergo_lib::wallet::multi_sig::TransactionHintsBag);
+pub type TransactionHintsBagPtr = *mut TransactionHintsBag;
+pub type ConstTransactionHintsBagPtr = *const TransactionHintsBag;
+
+/// Empty TransactionHintsBag
+pub unsafe fn transaction_hints_bag_empty(
+    transaction_hints_bag_out: *mut TransactionHintsBagPtr,
+) -> Result<(), Error> {
+    let transaction_hints_bag_out =
+        mut_ptr_as_mut(transaction_hints_bag_out, "transaction_hints_bag_out")?;
+    *transaction_hints_bag_out = Box::into_raw(Box::new(TransactionHintsBag(
+        ergo_lib::wallet::multi_sig::TransactionHintsBag::empty(),
+    )));
+    Ok(())
+}
+
+/// Adding hints for input
+pub unsafe fn transaction_hints_bag_add_hints_for_input(
+    transaction_hints_bag_mut: TransactionHintsBagPtr,
+    index: usize,
+    hints_bag_ptr: ConstHintsBagPtr,
+) -> Result<(), Error> {
+    let transaction_hints_bag_mut =
+        mut_ptr_as_mut(transaction_hints_bag_mut, "transaction_hints_bag_mut")?;
+    let hints_bag = const_ptr_as_ref(hints_bag_ptr, "hints_bag_ptr")?;
+    transaction_hints_bag_mut
+        .0
+        .add_hints_for_input(index, hints_bag.0.clone());
+    Ok(())
+}
+
+/// Get HintsBag corresponding to input index
+pub unsafe fn transaction_hints_bag_all_hints_for_input(
+    transaction_hints_bag_ptr: ConstTransactionHintsBagPtr,
+    index: usize,
+    hints_bag_out: *mut HintsBagPtr,
+) -> Result<(), Error> {
+    let transaction_hints_bag =
+        const_ptr_as_ref(transaction_hints_bag_ptr, "transaction_hints_bag_ptr")?;
+    let hints_bag_out = mut_ptr_as_mut(hints_bag_out, "hints_bag_out")?;
+    *hints_bag_out = Box::into_raw(Box::new(HintsBag(
+        transaction_hints_bag.0.all_hints_for_input(index),
+    )));
+    Ok(())
+}
+
+/// Extract hints from signed transaction
+pub unsafe fn transaction_extract_hints(
+    signed_transaction_ptr: ConstTransactionPtr,
+    state_context_ptr: ConstErgoStateContextPtr,
+    boxes_to_spend_ptr: ConstCollectionPtr<ErgoBox>,
+    data_boxes_ptr: ConstCollectionPtr<ErgoBox>,
+    real_propositions_ptr: ConstPropositionsPtr,
+    simulated_propositions_ptr: ConstPropositionsPtr,
+    transaction_hints_bag_out: *mut TransactionHintsBagPtr,
+) -> Result<(), Error> {
+    let signed_transaction = const_ptr_as_ref(signed_transaction_ptr, "signed_transaction_ptr")?;
+    let state_context = const_ptr_as_ref(state_context_ptr, "state_context_ptr")?;
+    let boxes_to_spend = const_ptr_as_ref(boxes_to_spend_ptr, "boxes_to_spend_ptr")?;
+    let data_boxes = const_ptr_as_ref(data_boxes_ptr, "data_boxes_ptr")?;
+    let real_propositions = const_ptr_as_ref(real_propositions_ptr, "real_propositions_ptr")?;
+    let simulated_propositions =
+        const_ptr_as_ref(simulated_propositions_ptr, "simulated_propositions_ptr")?;
+    let transaction_hints_bag_out =
+        mut_ptr_as_mut(transaction_hints_bag_out, "transaction_hints_bag_out")?;
+
+    let boxes_to_spend =
+        TxIoVec::from_vec(boxes_to_spend.0.clone().into_iter().map(|x| x.0).collect())?;
+    let data_boxes = if !data_boxes.0.is_empty() {
+        Some(TxIoVec::from_vec(
+            data_boxes.0.clone().into_iter().map(|x| x.0).collect(),
+        )?)
+    } else {
+        None
+    };
+    let tx_context = ergo_lib::wallet::signing::TransactionContext::new(
+        signed_transaction.0.clone(),
+        boxes_to_spend,
+        data_boxes,
+    )?;
+
+    *transaction_hints_bag_out = Box::into_raw(Box::new(TransactionHintsBag(
+        ergo_lib::wallet::multi_sig::extract_hints(
+            &tx_context,
+            &state_context.0.clone(),
+            real_propositions.0.clone(),
+            simulated_propositions.0.clone(),
+        )?,
+    )));
+    Ok(())
+}
 
 /// Unsigned (inputs without proofs) transaction
 #[derive(PartialEq, Debug, Clone)]
