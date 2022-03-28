@@ -1,12 +1,15 @@
 //! Bindings for NiPoPow
+use paste::paste;
 
 use ergo_lib_c_core::{
-    block_header::{BlockHeader, ConstBlockIdPtr},
+    block_header::{BlockHeader, BlockHeaderPtr, ConstBlockIdPtr},
     collections::CollectionPtr,
     nipopow::{
         nipopow_proof_from_json, nipopow_proof_is_better_than, nipopow_proof_to_json,
         nipopow_verifier_best_chain, nipopow_verifier_new, nipopow_verifier_process,
-        ConstNipopowProofPtr, ConstNipopowVerifierPtr, NipopowProofPtr, NipopowVerifierPtr,
+        popow_header_from_json, popow_header_get_header, popow_header_get_interlinks,
+        popow_header_to_json, ConstNipopowProofPtr, ConstNipopowVerifierPtr, ConstPoPowHeaderPtr,
+        NipopowProofPtr, NipopowVerifierPtr, PoPowHeaderPtr,
     },
     Error,
 };
@@ -15,6 +18,7 @@ use std::{
     os::raw::c_char,
 };
 
+use crate::BlockIdsPtr;
 use crate::{delete_ptr, ErrorPtr, ReturnBool};
 
 /// Implementation of the ≥ algorithm from [`KMZ17`], see Algorithm 4
@@ -106,3 +110,52 @@ pub unsafe extern "C" fn ergo_lib_nipopow_verifier_process(
 pub unsafe extern "C" fn ergo_lib_nipopow_verifier_delete(ptr: NipopowVerifierPtr) {
     delete_ptr(ptr)
 }
+
+#[no_mangle]
+pub unsafe extern "C" fn ergo_lib_popow_header_from_json(
+    json_str: *const c_char,
+    header_out: *mut PoPowHeaderPtr,
+) -> ErrorPtr {
+    let json = CStr::from_ptr(json_str).to_string_lossy();
+    let res = popow_header_from_json(&json, header_out);
+    Error::c_api_from(res)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ergo_lib_popow_header_to_json(
+    header: ConstPoPowHeaderPtr,
+    _json_str: *mut *const c_char,
+) -> ErrorPtr {
+    #[allow(clippy::unwrap_used)]
+    let res = match popow_header_to_json(header) {
+        Ok(s) => {
+            *_json_str = CString::new(s).unwrap().into_raw();
+            Ok(())
+        }
+        Err(e) => Err(e),
+    };
+    Error::c_api_from(res)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ergo_lib_popow_header_get_interlinks(
+    popow_header: ConstPoPowHeaderPtr,
+    interlinks_out: *mut BlockIdsPtr,
+) -> ErrorPtr {
+    Error::c_api_from(popow_header_get_interlinks(popow_header, interlinks_out))
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ergo_lib_popow_header_get_header(
+    popow_header: ConstPoPowHeaderPtr,
+    header_out: *mut BlockHeaderPtr,
+) -> ErrorPtr {
+    Error::c_api_from(popow_header_get_header(popow_header, header_out))
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ergo_lib_popow_header_delete(ptr: PoPowHeaderPtr) {
+    delete_ptr(ptr)
+}
+
+make_ffi_eq!(PoPowHeader);

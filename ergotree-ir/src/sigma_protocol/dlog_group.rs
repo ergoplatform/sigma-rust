@@ -80,7 +80,7 @@ impl From<EcPoint> for String {
         #[allow(clippy::unwrap_used)]
         {
             let bytes = value.sigma_serialize_bytes().unwrap();
-            String::from_utf8(bytes).unwrap()
+            base16::encode_lower(&bytes)
         }
     }
 }

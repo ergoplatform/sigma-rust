@@ -53,3 +53,30 @@ impl NipopowVerifier {
         self.0.process(new_proof.0).map_err(to_js)
     }
 }
+/// PoPowHeader structure. Represents the block header and unpacked interlinks
+#[wasm_bindgen]
+#[derive(Debug, From, Into)]
+pub struct PoPowHeader(ergo_lib::ergo_nipopow::PoPowHeader);
+
+#[wasm_bindgen]
+impl PoPowHeader {
+    /// Returns block header
+    pub fn header(&self) -> BlockHeader {
+        self.0.header.clone().into()
+    }
+    /// Returns interlinks for PoPowHeader
+    pub fn interlinks(&self) -> Result<JsValue, JsError> {
+        serde_json::to_string(&self.0.interlinks)
+            .map(Into::into)
+            .map_err(Into::into)
+    }
+
+    /// Returns block height for Header
+    pub fn height(&self) -> u32 {
+        self.0.header.height
+    }
+    /// Returns Block ID for Header
+    pub fn id(&self) -> crate::block_header::BlockId {
+        self.0.header.id.clone().into()
+    }
+}

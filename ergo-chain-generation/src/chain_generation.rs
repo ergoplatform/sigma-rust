@@ -111,7 +111,12 @@ fn next_block(
 ) -> Option<ErgoFullBlock> {
     let interlinks = prev_block
         .as_ref()
-        .map(|b| update_interlinks(b.header.clone(), unpack_interlinks(&b.extension)))
+        .and_then(|b| {
+            Some(update_interlinks(
+                b.header.clone(),
+                unpack_interlinks(&b.extension).ok()?,
+            ))
+        })
         .unwrap_or_default();
     if !interlinks.is_empty() {
         // Only non-empty for non-genesis block
@@ -379,9 +384,11 @@ mod tests {
             },
         }))
         .take(len)
-        .map(|b| PoPowHeader {
-            header: b.header,
-            interlinks: unpack_interlinks(&b.extension),
+        .flat_map(|b| {
+            Some(PoPowHeader {
+                header: b.header,
+                interlinks: unpack_interlinks(&b.extension).ok()?,
+            })
         })
         .collect()
     }
@@ -474,5 +481,31 @@ mod tests {
             suffix_tail: proof.suffix_tail.clone(),
         };
         assert!(proof.is_better_than(&disconnected_proof).unwrap());
+    }
+
+    #[test]
+    fn test_popow_roundtrip() {
+        use sigma_ser::ScorexSerializable;
+        let size = 10;
+        let chain = generate_popowheader_chain(size, None);
+
+        for header in chain {
+            let bytes = header.scorex_serialize_bytes().unwrap();
+            assert_eq!(
+                PoPowHeader::scorex_parse(&mut std::io::Cursor::new(bytes)).unwrap(),
+                header
+            );
+        }
+    }
+
+    #[test]
+    fn test_popow_json_roundtrip() {
+        let size = 10;
+        let chain = generate_popowheader_chain(size, None);
+
+        for header in chain {
+            let json = serde_json::to_string(&header).unwrap();
+            assert_eq!(serde_json::from_str::<PoPowHeader>(&json).unwrap(), header);
+        }
     }
 }
