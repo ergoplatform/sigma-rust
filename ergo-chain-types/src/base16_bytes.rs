@@ -8,7 +8,7 @@ extern crate derive_more;
 use derive_more::{From, Into};
 
 use crate::Digest;
-use crate::Digest32Error;
+use crate::DigestNError;
 
 /// Transitioning type for Base16 encoded bytes
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
@@ -62,7 +62,7 @@ impl<const N: usize> From<Digest<N>> for Base16EncodedBytes {
 }
 
 impl<const N: usize> TryFrom<Base16DecodedBytes> for Digest<N> {
-    type Error = Digest32Error;
+    type Error = DigestNError;
     fn try_from(bytes: Base16DecodedBytes) -> Result<Self, Self::Error> {
         let arr: [u8; N] = bytes.0.as_slice().try_into()?;
         Ok(Digest(Box::new(arr)))

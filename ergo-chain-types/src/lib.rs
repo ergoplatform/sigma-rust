@@ -30,6 +30,6 @@ pub use digest32::blake2b256_hash;
 pub use digest32::ADDigest;
 pub use digest32::Digest;
 pub use digest32::Digest32;
-pub use digest32::Digest32Error;
+pub use digest32::DigestNError;
 pub use peer_addr::PeerAddr;
 pub use peer_connection_dir::ConnectionDirection;

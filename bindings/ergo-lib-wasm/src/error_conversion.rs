@@ -6,7 +6,7 @@ use std::num::ParseIntError;
 
 use base16::DecodeError;
 use bounded_vec::BoundedVecOutOfBounds;
-use ergo_lib::ergo_chain_types::Digest32Error;
+use ergo_lib::ergo_chain_types::DigestNError;
 use ergo_lib::ergo_nipopow::NipopowProofError;
 #[cfg(feature = "rest")]
 use ergo_lib::ergo_rest::NodeError;
@@ -57,7 +57,7 @@ from_error_to_wrap!(AddressEncoderError);
 from_error_to_wrap!(ErgoBoxCandidateBuilderError);
 from_error_to_wrap!(TryExtractFromError);
 from_error_to_wrap!(BoxSelectorError);
-from_error_to_wrap!(Digest32Error);
+from_error_to_wrap!(DigestNError);
 from_error_to_wrap!(SigmaSerializationError);
 from_error_to_wrap!(Error);
 from_error_to_wrap!(BoxValueError);

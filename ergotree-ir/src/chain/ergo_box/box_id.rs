@@ -10,7 +10,7 @@ use crate::serialization::{
 };
 use derive_more::From;
 use derive_more::Into;
-use ergo_chain_types::{Digest32, Digest32Error};
+use ergo_chain_types::{Digest32, DigestNError};
 use sigma_util::AsVecI8;
 
 /// newtype for box ids
@@ -42,7 +42,7 @@ impl From<BoxId> for String {
 }
 
 impl TryFrom<String> for BoxId {
-    type Error = Digest32Error;
+    type Error = DigestNError;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         Ok(Digest32::try_from(value)?.into())
