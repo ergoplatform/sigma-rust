@@ -3,6 +3,7 @@
 use crate::base16_str::Base16Str;
 use crate::bigint256::BigInt256;
 use crate::chain::ergo_box::ErgoBox;
+use crate::chain::token::TokenId;
 use crate::mir::value::CollKind;
 use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
@@ -17,7 +18,9 @@ use crate::types::stype::LiftIntoSType;
 use crate::types::stype::SType;
 use ergo_chain_types::ADDigest;
 use ergo_chain_types::Base16DecodedBytes;
+use ergo_chain_types::Digest32;
 use impl_trait_for_tuples::impl_for_tuples;
+use sigma_util::AsVecI8;
 use std::convert::TryFrom;
 use std::convert::TryInto;
 use std::rc::Rc;
@@ -136,9 +139,22 @@ impl From<ErgoBox> for Literal {
 
 impl From<Vec<u8>> for Literal {
     fn from(v: Vec<u8>) -> Self {
+        Literal::Coll(CollKind::NativeColl(NativeColl::CollByte(v.as_vec_i8())))
+    }
+}
+
+impl From<Digest32> for Literal {
+    fn from(v: Digest32) -> Self {
+        let bytes: Vec<u8> = v.into();
         Literal::Coll(CollKind::NativeColl(NativeColl::CollByte(
-            v.into_iter().map(|b| b as i8).collect(),
+            bytes.as_vec_i8(),
         )))
+    }
+}
+
+impl From<TokenId> for Literal {
+    fn from(v: TokenId) -> Self {
+        Digest32::from(v).into()
     }
 }
 
@@ -324,6 +340,21 @@ impl From<Vec<u8>> for Constant {
             tpe: SType::SColl(Box::new(SType::SByte)),
             v: v.into(),
         }
+    }
+}
+
+impl From<Digest32> for Constant {
+    fn from(v: Digest32) -> Self {
+        Constant {
+            tpe: SType::SColl(Box::new(SType::SByte)),
+            v: v.into(),
+        }
+    }
+}
+
+impl From<TokenId> for Constant {
+    fn from(v: TokenId) -> Self {
+        Digest32::from(v).into()
     }
 }
 
@@ -603,6 +634,22 @@ impl TryExtractFrom<Literal> for Vec<u8> {
     fn try_extract_from(v: Literal) -> Result<Self, TryExtractFromError> {
         use sigma_util::FromVecI8;
         Vec::<i8>::try_extract_from(v).map(Vec::<u8>::from_vec_i8)
+    }
+}
+
+impl TryExtractFrom<Literal> for Digest32 {
+    fn try_extract_from(v: Literal) -> Result<Self, TryExtractFromError> {
+        use sigma_util::FromVecI8;
+        let bytes = Vec::<i8>::try_extract_from(v).map(Vec::<u8>::from_vec_i8)?;
+        Digest32::try_from(bytes).map_err(|e| {
+            TryExtractFromError(format!("failed to extract Digest32 with error: {:?}", e))
+        })
+    }
+}
+
+impl TryExtractFrom<Literal> for TokenId {
+    fn try_extract_from(v: Literal) -> Result<Self, TryExtractFromError> {
+        Digest32::try_extract_from(v).map(Into::into)
     }
 }
 
@@ -956,6 +1003,17 @@ pub mod tests {
         fn vec_u8_roundtrip(v in any::<Vec<u8>>()) {
             test_constant_roundtrip(v);
         }
+
+        #[test]
+        fn token_id_roundtrip(v in any::<TokenId>()) {
+            test_constant_roundtrip(v);
+        }
+
+        #[test]
+        fn digest32_roundtrip(v in any::<Digest32>()) {
+            test_constant_roundtrip(v);
+        }
+
 
         #[test]
         fn vec_i16_roundtrip(v in any::<Vec<i16>>()) {
