@@ -425,6 +425,15 @@ impl ErgoTree {
             .map_err(|e| e.clone())
     }
 
+    /// Returns all constants (as stored in serialized ErgoTree)
+    /// or error if constants parsing were failed
+    pub fn get_constants(&self) -> Result<Vec<Constant>, ErgoTreeConstantsParsingError> {
+        self.tree
+            .as_ref()
+            .map(|tree| tree.constants.clone())
+            .map_err(|e| e.clone())
+    }
+
     /// Returns new ErgoTree with a new constant value for a given index in constants list (as
     /// stored in serialized ErgoTree), or an error. Note that the type of the new constant must
     /// coincide with that of the constant being replaced, or an error is returned too.
