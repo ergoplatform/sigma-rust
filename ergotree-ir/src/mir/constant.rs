@@ -21,8 +21,10 @@ use ergo_chain_types::Base16DecodedBytes;
 use ergo_chain_types::Digest32;
 use impl_trait_for_tuples::impl_for_tuples;
 use sigma_util::AsVecI8;
+use sigma_util::AsVecU8;
 use std::convert::TryFrom;
 use std::convert::TryInto;
+use std::fmt::Formatter;
 use std::rc::Rc;
 
 mod constant_placeholder;
@@ -37,7 +39,7 @@ use super::value::Value;
 
 use thiserror::Error;
 
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Clone)]
 /// Constant
 pub struct Constant {
     /// Constant type
@@ -46,7 +48,7 @@ pub struct Constant {
     pub v: Literal,
 }
 
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Clone)]
 /// Possible values for `Constant`
 pub enum Literal {
     /// Boolean
@@ -75,6 +77,35 @@ pub enum Literal {
     Opt(Box<Option<Literal>>),
     /// Tuple (arbitrary type values)
     Tup(TupleItems<Literal>),
+}
+
+impl std::fmt::Debug for Constant {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        format!("{:?}: {:?}", self.v, self.tpe).fmt(f)
+    }
+}
+
+impl std::fmt::Debug for Literal {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Literal::Coll(CollKind::NativeColl(NativeColl::CollByte(i8_bytes))) => {
+                base16::encode_lower(&i8_bytes.as_vec_u8()).fmt(f)
+            }
+            Literal::Coll(CollKind::WrappedColl { elem_tpe: _, items }) => items.fmt(f),
+            Literal::Opt(boxed_opt) => boxed_opt.fmt(f),
+            Literal::Tup(items) => items.fmt(f),
+            Literal::Boolean(v) => v.fmt(f),
+            Literal::Byte(v) => v.fmt(f),
+            Literal::Short(v) => v.fmt(f),
+            Literal::Int(v) => v.fmt(f),
+            Literal::Long(v) => v.fmt(f),
+            Literal::BigInt(v) => v.fmt(f),
+            Literal::SigmaProp(v) => v.fmt(f),
+            Literal::GroupElement(v) => v.fmt(f),
+            Literal::AvlTree(v) => v.fmt(f),
+            Literal::CBox(v) => v.fmt(f),
+        }
+    }
 }
 
 impl From<bool> for Literal {
@@ -1001,11 +1032,13 @@ pub mod tests {
 
         #[test]
         fn vec_u8_roundtrip(v in any::<Vec<u8>>()) {
+            // eprintln!("{:?}", Constant::from(v.clone()));
             test_constant_roundtrip(v);
         }
 
         #[test]
         fn token_id_roundtrip(v in any::<TokenId>()) {
+            // eprintln!("{:?}", Constant::from(v.clone()));
             test_constant_roundtrip(v);
         }
 
@@ -1027,18 +1060,21 @@ pub mod tests {
 
         #[test]
         fn vec_i64_roundtrip(v in any::<Vec<i64>>()) {
+            // eprintln!("{:?}", Constant::from(v.clone()));
             test_constant_roundtrip(v);
         }
 
         #[test]
         fn vec_bigint_roundtrip(raw in any::<Vec<i64>>()) {
             let v: Vec<BigInt256> = raw.into_iter().map(BigInt256::from).collect();
+            // eprintln!("{:?}", Constant::from(v.clone()));
             test_constant_roundtrip(v);
         }
 
         #[test]
         fn vec_option_bigint_roundtrip(raw in any::<Vec<i64>>()) {
             let v: Vec<Option<BigInt256>> = raw.into_iter().map(|i| Some(BigInt256::from(i))).collect();
+            // eprintln!("{:?}", Constant::from(v.clone()));
             test_constant_roundtrip(v);
         }
 
@@ -1054,6 +1090,7 @@ pub mod tests {
 
         #[test]
         fn option_nested_vector_type_roundtrip(v in any::<Option<Vec<(i64, bool)>>>()) {
+            // eprintln!("{:?}", Constant::from(v.clone()));
             test_constant_roundtrip(v);
         }
 
@@ -1065,6 +1102,8 @@ pub mod tests {
 
         #[test]
         fn tuple_primitive_types_roundtrip(v in any::<(i64, bool)>()) {
+            // let constant: Constant = v.into();
+            // eprintln!("{:?}", constant);
             test_constant_roundtrip(v);
         }
 
