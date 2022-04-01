@@ -7,12 +7,15 @@ use std::{
 
 use derive_more::FromStr;
 use derive_more::{Display, From, Into};
+use serde::{Deserialize, Serialize};
 use sigma_ser::{ScorexSerializable, ScorexSerializationError};
 use url::Url;
 
 /// Peer address
-#[derive(PartialEq, Eq, Debug, Copy, Clone, From, Into, Hash, Display, FromStr)]
-pub struct PeerAddr(SocketAddr);
+#[derive(
+    PartialEq, Eq, Debug, Copy, Clone, From, Into, Hash, Display, FromStr, Deserialize, Serialize,
+)]
+pub struct PeerAddr(pub SocketAddr);
 
 impl PeerAddr {
     /// Size in bytes of the ip address associated with this peer address
