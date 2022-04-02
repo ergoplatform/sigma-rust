@@ -229,12 +229,30 @@ pub type NonEmptyVec<T> = BoundedVec<T, 1, { usize::MAX }>;
 
 /// GET on /nipopow/proof/{minChainLength}/{suffixLength}/{headerId} endpoint
 pub async fn get_nipopow_proof_by_header_id(
-    _node: NodeConf,
-    _min_chain_length: u32,
-    _suffix_len: u32,
-    _header_id: BlockId,
+    node: NodeConf,
+    min_chain_length: u32,
+    suffix_len: u32,
+    header_id: BlockId,
 ) -> Result<NipopowProof, NodeError> {
-    todo!()
+    if min_chain_length == 0 || suffix_len == 0 {
+        return Err(NodeError::InvalidNumericalUrlSegment);
+    }
+    let header_str = String::from(header_id.0);
+    let mut path = "nipopow/proof/".to_owned();
+    path.push_str(&*min_chain_length.to_string());
+    path.push('/');
+    path.push_str(&*suffix_len.to_string());
+    path.push('/');
+    path.push_str(&*header_str);
+    #[allow(clippy::unwrap_used)]
+    let url = node.addr.as_http_url().join(&*path).unwrap();
+    let client = build_client(&node)?;
+    let rb = client.get(url);
+    Ok(set_req_headers(rb, node)
+        .send()
+        .await?
+        .json::<NipopowProof>()
+        .await?)
 }
 
 // pub async fn get_blocks_header_id_proof_for_tx_id(
@@ -249,6 +267,7 @@ pub async fn get_nipopow_proof_by_header_id(
 #[allow(unused_imports)]
 #[cfg(test)]
 mod tests {
+    use std::convert::TryFrom;
     use std::str::FromStr;
     use std::time::Duration;
 
@@ -258,7 +277,6 @@ mod tests {
 
     #[test]
     fn test_get_info() {
-        // let runtime_inner = tokio::runtime::Runtime::new().unwrap();
         let runtime_inner = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()
@@ -274,7 +292,6 @@ mod tests {
 
     #[test]
     fn test_get_peers_all() {
-        // let runtime_inner = tokio::runtime::Runtime::new().unwrap();
         let runtime_inner = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()
@@ -286,6 +303,36 @@ mod tests {
         };
         let res = runtime_inner.block_on(async { get_peers_all(node_conf).await.unwrap() });
         assert!(!res.is_empty())
+    }
+
+    #[test]
+    fn test_get_nipopow_proof_by_header_id() {
+        use ergo_chain_types::{BlockId, Digest32};
+        let header_id = BlockId(
+            Digest32::try_from(String::from(
+                "9bcb535c2d05fbced6de3d73c63337d6deb64af387438fa748d66ddf3d33ee89",
+            ))
+            .unwrap(),
+        );
+        let runtime_inner = tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        let node_conf = NodeConf {
+            addr: PeerAddr::from_str("213.239.193.208:9053").unwrap(),
+            api_key: None,
+            timeout: Some(Duration::from_secs(5)),
+        };
+        let m = 3;
+        let k = 4;
+        let res = runtime_inner.block_on(async {
+            get_nipopow_proof_by_header_id(node_conf, m, k, header_id)
+                .await
+                .unwrap()
+        });
+        assert!(!res.prefix.is_empty());
+        assert_eq!(res.m, m);
+        assert_eq!(res.k, k);
     }
 
     #[test]

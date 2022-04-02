@@ -6,4 +6,7 @@ pub enum NodeError {
     /// reqwest error
     #[error("reqwest error: {0}")]
     ReqwestError(#[from] reqwest::Error),
+    /// Invalid numerical URL segment
+    #[error("Invalid numerical URL segment")]
+    InvalidNumericalUrlSegment,
 }
