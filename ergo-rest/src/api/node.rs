@@ -5,7 +5,7 @@ use bounded_vec::BoundedVec;
 use ergo_chain_types::BlockId;
 use ergo_chain_types::PeerAddr;
 use ergo_nipopow::NipopowProof;
-use futures::StreamExt;
+use futures::{StreamExt, TryStreamExt};
 use reqwest::header::CONTENT_TYPE;
 use reqwest::Client;
 use reqwest::RequestBuilder;
@@ -77,13 +77,11 @@ pub async fn peer_discovery(
     let mut seeds_set: HashSet<Url> = HashSet::new();
 
     for mut seed_url in seeds {
-        seed_url
-            .set_port(None)
-            .map_err(|_| PeerDiscoveryError::UrlError)?;
+        #[allow(clippy::unwrap_used)]
+        seed_url.set_port(None).unwrap();
         seeds_set.insert(seed_url);
     }
-    let mut visited_active_peers = HashSet::new();
-    let mut visited_peers = HashSet::new();
+
     let (tx_url, rx_url) = mpsc::channel::<Url>(50);
 
     enum Msg {
@@ -104,55 +102,72 @@ pub async fn peer_discovery(
     // redundant URL requests.
     let rx_url_stream = ReceiverStream::new(rx_url)
         .map(move |mut url| {
-            println!("Processing {}", url);
             let tx_peer = tx_peer.clone();
-            tokio::spawn(async move {
-                // Query node at url.
-                #[allow(clippy::unwrap_used)]
-                url.set_port(Some(9053)).unwrap();
-                #[allow(clippy::unwrap_used)]
-                let node_conf = NodeConf {
-                    addr: PeerAddr(url.socket_addrs(|| Some(9053)).unwrap()[0]),
-                    api_key: None,
-                    timeout: Some(timeout),
-                };
+            async move {
+                println!("Processing {}", url);
+                let handle = tokio::spawn(async move {
+                    // Query node at url.
+                    #[allow(clippy::unwrap_used)]
+                    url.set_port(Some(9053)).unwrap();
+                    #[allow(clippy::unwrap_used)]
+                    let node_conf = NodeConf {
+                        addr: PeerAddr(url.socket_addrs(|| Some(9053)).unwrap()[0]),
+                        api_key: None,
+                        timeout: Some(timeout),
+                    };
 
-                // If active, look up its peers.
-                if get_info(node_conf).await.is_ok() {
-                    println!("active nodeConf: {:?}", node_conf);
-                    if let Ok(peers) = get_peers_all(node_conf).await {
-                        // It's important to send this message before the `AddActiveNode` message
-                        // below, to ensure an `count` variable; see (**) below.
-                        let _ = tx_peer.send(Msg::CheckPeers(peers)).await;
+                    // If active, look up its peers.
+                    if get_info(node_conf).await.is_ok() {
+                        println!("active nodeConf: {:?}", node_conf);
+                        if let Ok(peers) = get_peers_all(node_conf).await {
+                            // It's important to send this message before the `AddActiveNode` message
+                            // below, to ensure an `count` variable; see (**) below.
+                            tx_peer.send(Msg::CheckPeers(peers)).await?;
+                        }
+
+                        tx_peer.send(Msg::AddActiveNode(url.clone())).await?;
+                    } else {
+                        tx_peer.send(Msg::AddInactiveNode(url)).await?;
                     }
+                    Result::<(), mpsc::error::SendError<Msg>>::Ok(())
+                });
 
-                    let _ = tx_peer.send(Msg::AddActiveNode(url.clone())).await;
-                } else {
-                    let _ = tx_peer.send(Msg::AddInactiveNode(url)).await;
-                }
-            })
+                handle.await.map_err(|_| PeerDiscoveryError::MpscSender)
+            }
         })
         .buffer_unordered(max_parallel_requests.get() as usize); // Allow for parallel requests
 
     // (*) Run stream to completion.
-    tokio::spawn(rx_url_stream.for_each(|_| async {}));
+    let e = tokio::spawn(rx_url_stream.try_for_each(
+        |x: Result<(), mpsc::error::SendError<Msg>>| async move {
+            match x {
+                Ok(()) => Ok(()),
+                Err(_) => Err(PeerDiscoveryError::MpscSender),
+            }
+        },
+    ));
 
     for url in &seeds_set {
-        let _ = tx_url.send(url.clone()).await;
+        tx_url
+            .send(url.clone())
+            .await
+            .map_err(|_| PeerDiscoveryError::MpscSender)?;
     }
 
     // (**) This variable represents the number of URLs that need to be checked to see whether it
-    // corresponds to an active Ergo node. It's crucial to allow this function to terminate, as once
-    // `count` reaches zero we break the loop below. This leads us to drop `tx_url`, which is the
+    // corresponds to an active Ergo node. `count` is crucial to allow this function to terminate,
+    // as once it reaches zero we break the loop below. This leads us to drop `tx_url`, which is the
     // sender side of the receiver stream `rx_url_stream`, allowing the spawned task (*) to end.
     let mut count = seeds_set.len();
 
-    // Only receives URLs of active ergo nodes
+    let mut visited_active_peers = HashSet::new();
+    let mut visited_peers = HashSet::new();
+
     'loop_: while let Some(p) = rx_peer.recv().await {
         match p {
             Msg::AddActiveNode(mut url) => {
-                url.set_port(None)
-                    .map_err(|_| PeerDiscoveryError::UrlError)?;
+                #[allow(clippy::unwrap_used)]
+                url.set_port(None).unwrap();
                 println!("added {}", url);
                 visited_active_peers.insert(url.clone());
                 visited_peers.insert(url);
@@ -162,8 +177,8 @@ pub async fn peer_discovery(
                 }
             }
             Msg::AddInactiveNode(mut url) => {
-                url.set_port(None)
-                    .map_err(|_| PeerDiscoveryError::UrlError)?;
+                #[allow(clippy::unwrap_used)]
+                url.set_port(None).unwrap();
                 visited_peers.insert(url);
                 count -= 1;
                 if count == 0 {
@@ -173,8 +188,8 @@ pub async fn peer_discovery(
             Msg::CheckPeers(peers) => {
                 for peer in peers {
                     let mut url = peer.addr.as_http_url();
-                    url.set_port(None)
-                        .map_err(|_| PeerDiscoveryError::UrlError)?;
+                    #[allow(clippy::unwrap_used)]
+                    url.set_port(None).unwrap();
                     if !visited_peers.contains(&url) {
                         let _ = tx_url.send(url.clone()).await;
                         visited_peers.insert(url);
@@ -185,11 +200,17 @@ pub async fn peer_discovery(
         }
     }
 
-    Ok(visited_active_peers
-        .difference(&seeds_set)
-        .into_iter()
-        .cloned()
-        .collect())
+    drop(tx_url);
+
+    match e.await {
+        Ok(Ok(())) => Ok(visited_active_peers
+            .difference(&seeds_set)
+            .into_iter()
+            .cloned()
+            .collect()),
+        Ok(Err(e)) => Err(e),
+        Err(_) => Err(PeerDiscoveryError::JoinError),
+    }
 }
 
 #[derive(Debug)]
@@ -197,6 +218,10 @@ pub async fn peer_discovery(
 pub enum PeerDiscoveryError {
     /// `Url` error
     UrlError,
+    /// mpsc sender error
+    MpscSender,
+    /// tokio::spawn `JoinError`
+    JoinError,
 }
 
 /// Stub that can be removed once `bounded-vec` is updated with this type
