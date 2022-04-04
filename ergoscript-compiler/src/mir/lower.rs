@@ -171,7 +171,9 @@ mod tests {
 
     #[test]
     fn bin_numeric_long() {
-        check("4L+2L", expect![[r#"
+        check(
+            "4L+2L",
+            expect![[r#"
             BinOp(
                 BinOp {
                     kind: Arith(
@@ -184,6 +186,7 @@ mod tests {
                         "2: SLong",
                     ),
                 },
-            )"#]]);
+            )"#]],
+        );
     }
 }
