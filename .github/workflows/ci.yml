@@ -161,7 +161,7 @@ jobs:
       - name: run node JS integration tests
         run: |
           cd bindings/ergo-lib-wasm
-          wasm-pack build --features rest
+          # wasm-pack build # --features rest
           npm install
           npm run integration-test
       

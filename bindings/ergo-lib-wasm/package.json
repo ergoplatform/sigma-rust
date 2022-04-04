@@ -6,7 +6,7 @@
     "build": "webpack",
     "serve": "wasm-pack build --target browser && webpack-dev-server",
     "test": "wasm-pack build --target nodejs && mocha --require @babel/register --require @babel/polyfill 'tests/test*.js'",
-    "integration-test": "wasm-pack build --features rest --target nodejs && mocha --require @babel/register --require @babel/polyfill 'tests/integration_test*.js'",
+    "integration-test": "wasm-pack build --target nodejs --features rest && mocha --require @babel/register --require @babel/polyfill 'tests/integration_test*.js'",
     "test-browser": "rm -rf ./pkg && npm run build-browser && mv ./pkg-browser ./pkg && ./node_modules/.bin/karma start",
     "doc": "jsdoc -c jsdoc.json pkg/ergo_wallet_wasm.js README.md -d docs",
     "build-nodejs": "rm -rf ./pkg-nodejs && wasm-pack build --target nodejs --out-dir pkg-nodejs && cd pkg-nodejs && node ../scripts/publish_helper -nodejs",
