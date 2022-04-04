@@ -59,7 +59,7 @@ impl LevelNode {
 )]
 #[derive(Clone, Debug)]
 pub struct MerkleProof {
-    pub(crate) leaf_data: [u8; HASH_SIZE],
+    pub(crate) leaf_data: Vec<u8>,
     pub(crate) levels: Vec<LevelNode>,
 }
 
@@ -69,11 +69,11 @@ impl MerkleProof {
     pub fn new(
         leaf_data: &[u8],
         levels: &[LevelNode],
-    ) -> Result<Self, std::array::TryFromSliceError> {
-        Ok(MerkleProof {
-            leaf_data: leaf_data.try_into()?,
+    ) -> Self {
+        MerkleProof {
+            leaf_data: leaf_data.to_owned(),
             levels: levels.to_owned(),
-        })
+        }
     }
 
     /// Validates the Merkle Proof against the expected root hash
@@ -138,8 +138,7 @@ mod test {
         let proof = MerkleProof::new(
             &tx_id,
             &[LevelNode::new(levels[0..32].try_into().unwrap(), side)],
-        )
-        .unwrap();
+        );
         assert!(proof.valid(tx_root));
     }
 

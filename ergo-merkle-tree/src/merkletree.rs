@@ -3,7 +3,7 @@ use crate::{HASH_SIZE, INTERNAL_PREFIX, LEAF_PREFIX};
 use std::collections::BTreeSet;
 
 /// Node for a Merkle Tree
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 #[cfg_attr(feature = "json", derive(serde::Serialize))]
 pub enum MerkleNode {
     Node {
@@ -11,7 +11,7 @@ pub enum MerkleNode {
     },
     Leaf {
         hash: [u8; HASH_SIZE],
-        data: [u8; 32],
+        data: Vec<u8>,
     },
     EmptyNode,
 }
@@ -34,7 +34,7 @@ impl MerkleNode {
         }
     }
     /// Gets data for the node if it's a leaf node
-    pub fn get_leaf_data(&self) -> Option<&[u8; 32]> {
+    pub fn get_leaf_data(&self) -> Option<&Vec<u8>> {
         match self {
             MerkleNode::Leaf { data, .. } => Some(data),
             _ => None,
@@ -99,7 +99,7 @@ fn build_proof(
         leaf_index = get_parent(leaf_index)?;
     }
 
-    crate::MerkleProof::new(leaf_data, &proof_nodes).ok()
+    Some(crate::MerkleProof::new(leaf_data, &proof_nodes))
 }
 
 fn build_multiproof(
@@ -235,7 +235,7 @@ mod test {
     #[test]
     fn merkle_tree_test_five_elements() {
         let bytes = [1u8; 32];
-        let nodes = [MerkleNode::from_bytes(&bytes).unwrap(); 5];
+        let nodes = vec![MerkleNode::from_bytes(&bytes).unwrap(); 5];
         let tree = MerkleTree::new(&nodes);
         let h0x = prefixed_hash(0, &bytes);
         let h10 = prefixed_hash(1, &concatenate_hashes(&*h0x, &*h0x));

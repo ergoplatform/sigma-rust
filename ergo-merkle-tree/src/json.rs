@@ -59,9 +59,6 @@ impl std::convert::TryFrom<crate::json::MerkleProofJson> for MerkleProof {
     type Error = MerkleProofFromJsonError;
     fn try_from(proof: crate::json::MerkleProofJson) -> Result<Self, Self::Error> {
         let leaf_data = base16::decode(&proof.leaf_data)?;
-        let leaf_data: [u8; 32] = leaf_data
-            .try_into()
-            .map_err(|_| MerkleProofFromJsonError::LengthError)?;
         let mut levels = Vec::with_capacity(proof.levels.len());
         for node in proof.levels {
             let node: LevelNode = node.try_into()?;
