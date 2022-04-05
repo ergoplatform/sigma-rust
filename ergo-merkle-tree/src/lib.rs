@@ -71,5 +71,6 @@ mod batchmerkleproof;
 mod merkleproof;
 mod merkletree;
 
+pub use batchmerkleproof::BatchMerkleProof;
 pub use merkleproof::*;
 pub use merkletree::*;

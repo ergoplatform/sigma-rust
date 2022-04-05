@@ -1,6 +1,6 @@
 use crate::{prefixed_hash, prefixed_hash2};
 use crate::{HASH_SIZE, INTERNAL_PREFIX, LEAF_PREFIX};
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap};
 
 /// Node for a Merkle Tree
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -45,12 +45,11 @@ impl MerkleNode {
     }
 }
 
-/// Merkle Tree
-#[derive(Debug)]
-#[cfg_attr(feature = "json", derive(serde::Serialize))]
-pub struct MerkleTree {
-    nodes: Vec<MerkleNode>,
-    internal_nodes: usize,
+impl From<Vec<u8>> for MerkleNode {
+    fn from(vec: Vec<u8>) -> MerkleNode {
+        let hash = *prefixed_hash(LEAF_PREFIX, &vec);
+        MerkleNode::Leaf { hash, data: vec }
+    }
 }
 
 // utillity functions for indexing a binary tree
@@ -147,6 +146,15 @@ fn build_multiproof(
     ))
 }
 
+/// Merkle Tree
+#[derive(Debug)]
+#[cfg_attr(feature = "json", derive(serde::Serialize))]
+pub struct MerkleTree {
+    nodes: Vec<MerkleNode>,
+    elements_hash_index: HashMap<[u8; 32], usize>,
+    internal_nodes: usize,
+}
+
 impl MerkleTree {
     /// Creates a new MerkleTree from leaf hashes in nodes
     pub fn new(nodes: &[MerkleNode]) -> Self {
@@ -173,6 +181,12 @@ impl MerkleTree {
         if nodes.len() % 2 == 1 {
             nodes.push(MerkleNode::EmptyNode);
         }
+        let elements_hash_index = nodes
+            .iter()
+            .flat_map(MerkleNode::get_hash)
+            .enumerate()
+            .map(|(i, node)| (*node, i))
+            .collect();
         let leaf_nodes = nodes.len();
         let mut tree_nodes = vec![MerkleNode::empty(); nodes.len().next_power_of_two() - 1];
         tree_nodes.extend_from_slice(&nodes);
@@ -180,6 +194,7 @@ impl MerkleTree {
         let nodes_len = tree_nodes.len();
         Self {
             nodes: tree_nodes,
+            elements_hash_index,
             internal_nodes: nodes_len - leaf_nodes,
         }
     }
@@ -190,6 +205,14 @@ impl MerkleTree {
 
     pub fn proof_by_index(&self, leaf_index: usize) -> Option<crate::MerkleProof> {
         build_proof(&self.nodes, leaf_index, self.internal_nodes)
+    }
+    pub fn proof_by_element_hash(&self, hash: &[u8; 32]) -> Option<crate::MerkleProof> {
+        let index = *self.elements_hash_index.get(hash)?;
+        self.proof_by_index(index)
+    }
+    pub fn proof_by_element(&self, data: &[u8]) -> Option<crate::MerkleProof> {
+        let hash = *prefixed_hash(LEAF_PREFIX, data);
+        self.proof_by_element_hash(&hash)
     }
 
     pub fn proof_by_indices(
@@ -257,6 +280,7 @@ mod test {
             MerkleNode::from_bytes(&[5; 32]).unwrap(),
         ];
         let tree = MerkleTree::new(&nodes);
+        let tree_root = tree.get_root_hash().unwrap();
         for (i, node) in nodes.iter().enumerate() {
             assert_eq!(
                 tree.proof_by_index(i).unwrap().get_leaf_data(),
@@ -265,7 +289,15 @@ mod test {
             assert!(tree
                 .proof_by_index(i)
                 .unwrap()
-                .valid(tree.get_root_hash().unwrap()));
+                .valid(tree_root));
+            assert!(tree
+                .proof_by_element(node.get_leaf_data().unwrap())
+                .unwrap()
+                .valid(tree_root));
+            assert!(tree
+                .proof_by_element_hash(node.get_hash().unwrap())
+                .unwrap()
+                .valid(tree_root));
         }
     }
 

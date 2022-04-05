@@ -66,10 +66,7 @@ pub struct MerkleProof {
 impl MerkleProof {
     /// Creates a new merkle proof with given leaf data and level data (bottom-upwards)
     /// You can verify it against a Blakeb256 root hash by using [`Self::valid()`]
-    pub fn new(
-        leaf_data: &[u8],
-        levels: &[LevelNode],
-    ) -> Self {
+    pub fn new(leaf_data: &[u8], levels: &[LevelNode]) -> Self {
         MerkleProof {
             leaf_data: leaf_data.to_owned(),
             levels: levels.to_owned(),
