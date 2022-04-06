@@ -131,14 +131,9 @@ mod tests {
         check(
             "42",
             expect![[r#"
-            Const(
-                Constant {
-                    tpe: SInt,
-                    v: Int(
-                        42,
-                    ),
-                },
-            )"#]],
+                Const(
+                    "42: SInt",
+                )"#]],
         );
     }
 
@@ -147,14 +142,9 @@ mod tests {
         check(
             "42L",
             expect![[r#"
-            Const(
-                Constant {
-                    tpe: SLong,
-                    v: Long(
-                        42,
-                    ),
-                },
-            )"#]],
+                Const(
+                    "42: SLong",
+                )"#]],
         );
     }
 
@@ -163,29 +153,19 @@ mod tests {
         check(
             "4+2",
             expect![[r#"
-            BinOp(
-                BinOp {
-                    kind: Arith(
-                        Plus,
-                    ),
-                    left: Const(
-                        Constant {
-                            tpe: SInt,
-                            v: Int(
-                                4,
-                            ),
-                        },
-                    ),
-                    right: Const(
-                        Constant {
-                            tpe: SInt,
-                            v: Int(
-                                2,
-                            ),
-                        },
-                    ),
-                },
-            )"#]],
+                BinOp(
+                    BinOp {
+                        kind: Arith(
+                            Plus,
+                        ),
+                        left: Const(
+                            "4: SInt",
+                        ),
+                        right: Const(
+                            "2: SInt",
+                        ),
+                    },
+                )"#]],
         );
     }
 
@@ -200,20 +180,10 @@ mod tests {
                         Plus,
                     ),
                     left: Const(
-                        Constant {
-                            tpe: SLong,
-                            v: Long(
-                                4,
-                            ),
-                        },
+                        "4: SLong",
                     ),
                     right: Const(
-                        Constant {
-                            tpe: SLong,
-                            v: Long(
-                                2,
-                            ),
-                        },
+                        "2: SLong",
                     ),
                 },
             )"#]],
