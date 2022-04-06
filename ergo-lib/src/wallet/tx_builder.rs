@@ -1,7 +1,9 @@
 //! Builder for an UnsignedTransaction
 
+use ergotree_interpreter::sigma_protocol::prover::ContextExtension;
 use ergotree_ir::chain::ergo_box::box_value::BoxValueError;
 use ergotree_ir::chain::token::TokenAmountError;
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::convert::TryInto;
 
@@ -41,6 +43,7 @@ pub struct TxBuilder<S: ErgoBoxAssets> {
     fee_amount: BoxValue,
     change_address: Address,
     min_change_value: BoxValue,
+    context_extensions: HashMap<BoxId, ContextExtension>,
 }
 
 impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
@@ -68,6 +71,7 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
             fee_amount,
             change_address,
             min_change_value,
+            context_extensions: HashMap::new(),
         }
     }
 
@@ -109,6 +113,11 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
     /// Set transaction's data inputs
     pub fn set_data_inputs(&mut self, data_inputs: Vec<DataInput>) {
         self.data_inputs = data_inputs;
+    }
+
+    /// Set context extension for a given input
+    pub fn set_context_extension(&mut self, box_id: BoxId, context_extension: ContextExtension) {
+        self.context_extensions.insert(box_id, context_extension);
     }
 
     /// Estimated serialized transaction size in bytes after signing (assuming P2PK box spending)
@@ -223,14 +232,23 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
                 }
             })?;
 
+        let unsigned_inputs = self
+            .box_selection
+            .boxes
+            .clone()
+            .into_iter()
+            .map(|b| {
+                let ctx_ext = self
+                    .context_extensions
+                    .get(&b.box_id())
+                    .cloned()
+                    .unwrap_or_else(ContextExtension::empty);
+                UnsignedInput::new(b.box_id(), ctx_ext)
+            })
+            .collect::<Vec<UnsignedInput>>()
+            .try_into()?;
         Ok(UnsignedTransaction::new(
-            self.box_selection
-                .boxes
-                .clone()
-                .into_iter()
-                .map(UnsignedInput::from)
-                .collect::<Vec<UnsignedInput>>()
-                .try_into()?,
+            unsigned_inputs,
             self.data_inputs.clone().try_into().ok(),
             output_candidates.try_into()?,
         )?)
