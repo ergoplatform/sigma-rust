@@ -25,6 +25,7 @@ num-traits = "0.2.14"
 sigma-ser = { version = "^0.4.0", path = "../sigma-ser" }
 sigma-util = { version = "^0.4.0", path = "../sigma-util" }
 ergo-chain-types = { version = "^0.2.0", path = "../ergo-chain-types" }
+ergo-merkle-tree = { version = "^0.2.0", path = "../ergo-merkle-tree" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0" }
 

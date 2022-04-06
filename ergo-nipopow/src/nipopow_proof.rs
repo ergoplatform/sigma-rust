@@ -1,5 +1,6 @@
 use derive_more::From;
 use ergo_chain_types::BlockId;
+use ergo_merkle_tree::BatchMerkleProof;
 use ergotree_ir::chain::header::Header;
 use serde::{Deserialize, Serialize};
 use sigma_ser::{
@@ -202,6 +203,8 @@ pub struct PoPowHeader {
     /// Interlinks are stored in reverse order: first element is always genesis header, then level
     /// of lowest target met etc
     pub interlinks: Vec<BlockId>,
+    /// BatchMerkleProof for interlinks in extension field
+    pub interlinks_proof: BatchMerkleProof,
 }
 
 impl ScorexSerializable for PoPowHeader {
@@ -213,6 +216,9 @@ impl ScorexSerializable for PoPowHeader {
         for interlink in self.interlinks.iter() {
             w.write_all(&*interlink.0 .0)?;
         }
+        let proof_bytes = self.interlinks_proof.scorex_serialize_bytes()?;
+        w.put_u32(proof_bytes.len() as u32)?;
+        w.write(&proof_bytes)?;
 
         Ok(())
     }
@@ -232,9 +238,16 @@ impl ScorexSerializable for PoPowHeader {
                 Ok(BlockId(buf.into()))
             })
             .collect();
+
+        let proof_bytes = r.get_u32()? as usize;
+        let mut proof_buf = vec![0u8; proof_bytes];
+        r.read_exact(&mut proof_buf)?;
+        let interlinks_proof = BatchMerkleProof::scorex_parse_bytes(&proof_buf);
+
         Ok(Self {
             header,
             interlinks: interlinks?,
+            interlinks_proof: interlinks_proof?,
         })
     }
 }

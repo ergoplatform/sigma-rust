@@ -47,22 +47,86 @@ pub struct ErgoFullBlock {
 impl std::convert::TryInto<ergo_nipopow::PoPowHeader> for ErgoFullBlock {
     type Error = &'static str;
     fn try_into(self) -> Result<ergo_nipopow::PoPowHeader, &'static str> {
+        let interlinks_proof = match self.extension.proof_for_interlink_vector() {
+            Some(proof) => proof,
+            None => return Err("Unable to generate BatchMerkleProof for interlinks"),
+        };
         let interlinks = unpack_interlinks(&self.extension)?;
         Ok(ergo_nipopow::PoPowHeader {
             header: self.header,
             interlinks,
+            interlinks_proof,
         })
     }
 }
 
 /// Extension section of Ergo block. Contains key-value storage.
 #[derive(Clone, Debug)]
-pub(crate) struct ExtensionCandidate {
+pub struct ExtensionCandidate {
     /// Fields as a sequence of key -> value records. A key is 2-bytes long, value is 64 bytes max.
     pub(crate) fields: Vec<([u8; 2], Vec<u8>)>,
 }
 
+impl ExtensionCandidate {
+    // TODO: memoize merkletree in extensioncandidate fields?
+    fn merkletree(&self) -> ergo_merkle_tree::MerkleTree {
+        extension_merkletree(&self.fields)
+    }
+
+    /// returns a MerkleProof for a single key element
+    pub fn proof_for(&self, key: [u8; 2]) -> Option<ergo_merkle_tree::MerkleProof> {
+        let tree = self.merkletree();
+        let kv = self.fields.iter().find(|(k, _)| *k == key)?;
+        tree.proof_by_element(&kv_to_leaf(kv))
+    }
+
+    /// Returns a BatchMerkleProof (compact multi-proof) for multiple key elements
+    pub fn batch_proof_for(&self, keys: &[[u8; 2]]) -> Option<ergo_merkle_tree::BatchMerkleProof> {
+        let tree = self.merkletree();
+        let indices: Vec<usize> = keys
+            .iter()
+            .flat_map(|k| self.fields.iter().find(|(key, _)| key == k))
+            .map(kv_to_leaf)
+            .map(ergo_merkle_tree::MerkleNode::from)
+            .flat_map(|node| node.get_hash().copied())
+            .flat_map(|hash| tree.get_elements_hash_index().get(&hash).copied())
+            .collect();
+        tree.proof_by_indices(&indices)
+    }
+    pub(crate) fn proof_for_interlink_vector(&self) -> Option<ergo_merkle_tree::BatchMerkleProof> {
+        let interlinks: Vec<[u8; 2]> = self
+            .fields
+            .iter()
+            .map(|(key, _)| *key)
+            .filter(|key| key[0] == INTERLINK_VECTOR_PREFIX)
+            .collect();
+        if interlinks.is_empty() {
+            dbg!("Making empty tree");
+            Some(ergo_merkle_tree::BatchMerkleProof::new(vec![], vec![]))
+        } else {
+            self.batch_proof_for(&interlinks)
+        }
+    }
+}
+
 static INTERLINK_VECTOR_PREFIX: u8 = 0x01;
+
+// converts a key value pair to an array of [key.length, key, val]
+fn kv_to_leaf(kv: &([u8; 2], Vec<u8>)) -> Vec<u8> {
+    std::iter::once(2)
+        .chain(kv.0.into_iter())
+        .chain(kv.1.iter().copied())
+        .collect()
+}
+// creates a MerkleTree from a key/value pair of extension section
+pub(crate) fn extension_merkletree(kv: &Vec<([u8; 2], Vec<u8>)>) -> ergo_merkle_tree::MerkleTree {
+    let leafs = kv
+        .iter()
+        .map(kv_to_leaf)
+        .map(ergo_merkle_tree::MerkleNode::from)
+        .collect::<Vec<ergo_merkle_tree::MerkleNode>>();
+    ergo_merkle_tree::MerkleTree::new(&leafs)
+}
 
 /// Unpacks interlinks from key-value format of block extension.
 pub(crate) fn unpack_interlinks(

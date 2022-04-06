@@ -36,12 +36,8 @@ mod tests {
             },
         }))
         .take(len)
-        .flat_map(|b| {
-            Some(PoPowHeader {
-                header: b.header,
-                interlinks: unpack_interlinks(&b.extension).ok()?,
-            })
-        })
+        .map(ErgoFullBlock::try_into)
+        .flat_map(Result::ok)
         .collect()
     }
 
