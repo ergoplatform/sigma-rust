@@ -1,7 +1,7 @@
 use crate::NodeSide;
 use crate::{concatenate_hashes, prefixed_hash, prefixed_hash2};
 use crate::{HASH_SIZE, INTERNAL_PREFIX};
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "json",
@@ -25,6 +25,7 @@ impl BatchMerkleProof {
             e: &[(usize, [u8; HASH_SIZE])],
             m: &[crate::LevelNode],
         ) -> Vec<[u8; HASH_SIZE]> {
+            // For each index in a, take the value of its immediate neighbor, and store each index with its neighbor
             let b: Vec<(usize, usize)> = a
                 .iter()
                 .map(|i| if i % 2 == 0 { (*i, i + 1) } else { (i - 1, *i) })
@@ -181,13 +182,13 @@ impl ScorexSerializable for BatchMerkleProof {
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::unwrap_used)]
 mod test {
     use proptest::prelude::*;
     use sigma_ser::ScorexSerializable;
     proptest! {
         #[test]
         fn test_batchmerkleproof_serialization_roundtrip(proof in any::<crate::batchmerkleproof::BatchMerkleProof>().prop_filter("Indices > u32::max not allowed", |proof| proof.indices.len() < u32::MAX as usize && proof.indices.iter().all(|(i, _)| *i < u32::MAX as usize))) {
-
             let serialized_bytes = proof.scorex_serialize_bytes().unwrap();
             assert_eq!(crate::batchmerkleproof::BatchMerkleProof::scorex_parse_bytes(&serialized_bytes).unwrap(), proof);
             assert_eq!(serialized_bytes.len(), (8 + proof.proofs.len() * 33 + proof.indices.len() * 36));

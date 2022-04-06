@@ -203,6 +203,10 @@ impl MerkleTree {
         self.nodes.get(0).and_then(MerkleNode::get_hash)
     }
 
+    pub fn get_elements_hash_index(&self) -> &HashMap<[u8; 32], usize> {
+        &self.elements_hash_index
+    }
+
     pub fn proof_by_index(&self, leaf_index: usize) -> Option<crate::MerkleProof> {
         build_proof(&self.nodes, leaf_index, self.internal_nodes)
     }
@@ -286,10 +290,7 @@ mod test {
                 tree.proof_by_index(i).unwrap().get_leaf_data(),
                 node.get_leaf_data().unwrap()
             );
-            assert!(tree
-                .proof_by_index(i)
-                .unwrap()
-                .valid(tree_root));
+            assert!(tree.proof_by_index(i).unwrap().valid(tree_root));
             assert!(tree
                 .proof_by_element(node.get_leaf_data().unwrap())
                 .unwrap()
@@ -326,7 +327,7 @@ mod test {
             let nodes: Vec<MerkleNode> = data.iter().map(MerkleNode::from_bytes).map(Result::unwrap).collect();
             let tree = MerkleTree::new(&nodes);
 
-            let valid = indices.iter().all(|i| *i < data.len()) && indices.len() < data.len() && indices.len() > 0; // TODO, is there any better strategy for proptest that doesn't require us to filter out invalid indices
+            let valid = indices.iter().all(|i| *i < data.len()) && indices.len() < data.len() && !indices.is_empty(); // TODO, is there any better strategy for proptest that doesn't require us to filter out invalid indices
             if valid {
                 assert!(tree.proof_by_indices(&indices).unwrap().valid(tree.get_root_hash().unwrap()));
             }

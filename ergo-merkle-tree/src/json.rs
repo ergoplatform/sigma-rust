@@ -113,16 +113,23 @@ impl std::convert::TryFrom<BatchMerkleProofJson> for crate::batchmerkleproof::Ba
         }
         let mut proofs = vec![];
         for proof in json.proofs {
-            proofs.push(crate::LevelNode::new(
-                proof
-                    .digest
-                    .iter()
-                    .map(|&x| x as u8)
-                    .collect::<Vec<u8>>()
-                    .try_into()
-                    .map_err(|_| MerkleProofFromJsonError::LengthError)?,
-                proof.side,
-            ));
+            #[allow(clippy::unwrap_used)]
+            // unwrapping into a [u8; 32] is safe since we check the length
+            let level_node = match proof.digest.len() {
+                0 => crate::LevelNode::empty_node(proof.side),
+                32 => crate::LevelNode::new(
+                    proof
+                        .digest
+                        .iter()
+                        .map(|&x| x as u8)
+                        .collect::<Vec<u8>>()
+                        .try_into()
+                        .unwrap(),
+                    proof.side,
+                ),
+                _ => return Err(MerkleProofFromJsonError::LengthError),
+            };
+            proofs.push(level_node);
         }
 
         Ok(crate::batchmerkleproof::BatchMerkleProof::new(
