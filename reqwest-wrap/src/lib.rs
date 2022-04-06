@@ -12,11 +12,6 @@ macro_rules! if_hyper {
     )*}
 }
 
-pub use http::header;
-pub use http::Method;
-pub use http::{StatusCode, Version};
-pub use url::Url;
-
 if_hyper! {
     pub use reqwest::{
         Body, Client, ClientBuilder, Request, RequestBuilder, Response, Error, Result
@@ -26,6 +21,16 @@ if_hyper! {
 if_wasm! {
     mod wasm;
     mod util;
-
+    #[macro_use]
+    mod error;
+    mod into_url;
+    mod response;
+    pub use self::error::{Error, Result};
+    pub use self::into_url::IntoUrl;
+    pub use self::response::ResponseBuilderExt;
+    pub use http::header;
+    pub use http::Method;
+    pub use http::{StatusCode, Version};
+    pub use url::Url;
     pub use self::wasm::{Body, Client, ClientBuilder, Request, RequestBuilder, Response};
 }
