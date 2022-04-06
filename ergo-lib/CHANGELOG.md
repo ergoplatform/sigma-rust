@@ -6,6 +6,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
+
+### Changed
+- REST API implementation is hidden behind the `rest` feature flag [#554](https://github.com/ergoplatform/sigma-rust/pull/554);
+
+### Added 
+- arbitrary message signing and verification [#553](https://github.com/ergoplatform/sigma-rust/pull/553);
+- `PoPowHeader` type [#551](https://github.com/ergoplatform/sigma-rust/pull/551);
+- `TokenId::from_base64` [#555](https://github.com/ergoplatform/sigma-rust/pull/555);
+- `Constant` to/from `TokenId`(`Digest32`) conversion [#557](https://github.com/ergoplatform/sigma-rust/pull/557);
+
 ## [0.15.0] - 2022-03-08
 
 ### Changed
