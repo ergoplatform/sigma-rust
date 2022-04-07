@@ -141,6 +141,12 @@ jobs:
           curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh -s -- -f
           curl -sL https://deb.nodesource.com/setup_12.x | sudo -E bash -
           sudo apt-get -y install nodejs
+      
+      - name: run `reqwest-wrap` WASM tests
+        run: |
+          cd ../../reqwest-wrap
+          wasm-pack test --chrome  --headless
+          cd ../bindings/ergo-lib-wasm
 
       - name: run Wasm tests
         run: |

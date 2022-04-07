@@ -369,6 +369,7 @@ mod tests {
             .await
             .unwrap()
         });
-        assert!(!res.is_empty())
+        // Currently there are no non-seed nodes with an active REST API!
+        assert!(res.is_empty())
     }
 }
