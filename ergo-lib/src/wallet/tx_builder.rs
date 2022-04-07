@@ -232,21 +232,14 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
                 }
             })?;
 
-        let unsigned_inputs = self
-            .box_selection
-            .boxes
-            .clone()
-            .into_iter()
-            .map(|b| {
-                let ctx_ext = self
-                    .context_extensions
-                    .get(&b.box_id())
-                    .cloned()
-                    .unwrap_or_else(ContextExtension::empty);
-                UnsignedInput::new(b.box_id(), ctx_ext)
-            })
-            .collect::<Vec<UnsignedInput>>()
-            .try_into()?;
+        let unsigned_inputs = self.box_selection.boxes.clone().mapped(|b| {
+            let ctx_ext = self
+                .context_extensions
+                .get(&b.box_id())
+                .cloned()
+                .unwrap_or_else(ContextExtension::empty);
+            UnsignedInput::new(b.box_id(), ctx_ext)
+        });
         Ok(UnsignedTransaction::new(
             unsigned_inputs,
             self.data_inputs.clone().try_into().ok(),
@@ -586,18 +579,21 @@ mod tests {
                          outputs in vec(any_with::<ErgoBoxCandidate>((BoxValue::MIN_RAW * 1000 ..BoxValue::MIN_RAW * 2000).into()), 1..2),
                          change_address in any::<Address>(),
                          miners_fee in any_with::<BoxValue>((BoxValue::MIN_RAW * 100..BoxValue::MIN_RAW * 200).into()),
-                         data_inputs in vec(any::<DataInput>(), 0..2)) {
+                         data_inputs in vec(any::<DataInput>(), 0..2),
+                         ctx_ext in any::<ContextExtension>()) {
             prop_assume!(sum_tokens_from_boxes(outputs.as_slice()).unwrap().is_empty());
             let min_change_value = BoxValue::SAFE_USER_MIN;
             let all_outputs = checked_sum(outputs.iter().map(|b| b.value)).unwrap()
-                                                                             .checked_add(&miners_fee)
-                                                                             .unwrap();
+                .checked_add(&miners_fee)
+                .unwrap();
             let all_inputs = checked_sum(inputs.iter().map(|b| b.value)).unwrap();
             prop_assume!(all_outputs < all_inputs);
-            let total_output_value: BoxValue = checked_sum(outputs.iter().map(|b| b.value)).unwrap()
-                                                                                                      .checked_add(&miners_fee).unwrap();
+            let total_output_value: BoxValue = checked_sum(outputs.iter().map(|b| b.value))
+                .unwrap()
+                .checked_add(&miners_fee).unwrap();
+            let selection = SimpleBoxSelector::new().select(inputs.clone(), total_output_value, &[]).unwrap();
             let mut tx_builder = TxBuilder::new(
-                SimpleBoxSelector::new().select(inputs.clone(), total_output_value, &[]).unwrap(),
+                selection.clone(),
                 outputs.clone(),
                 1,
                 miners_fee,
@@ -605,6 +601,7 @@ mod tests {
                 min_change_value,
             );
             tx_builder.set_data_inputs(data_inputs.clone());
+            tx_builder.set_context_extension(selection.boxes.first().box_id(), ctx_ext.clone());
             let tx = tx_builder.build().unwrap();
             prop_assert!(outputs.into_iter().all(|i| tx.output_candidates.iter().any(|o| *o == i)),
                          "tx.output_candidates is missing some outputs");
@@ -620,6 +617,7 @@ mod tests {
                 b.value == miners_fee
             }), "box with miner's fee {:?} is not found in outputs: {:?}", miners_fee, tx.output_candidates);
             prop_assert_eq!(tx.data_inputs.map(|i| i.as_vec().clone()).unwrap_or_default(), data_inputs, "unexpected data inputs");
+            prop_assert_eq!(&tx.inputs.first().extension, &ctx_ext);
         }
     }
 }
