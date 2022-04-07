@@ -152,40 +152,6 @@ pub(crate) fn unpack_interlinks(
     Ok(res)
 }
 
-/// Packs interlinks into key-value format of the block extension.
-pub(crate) fn pack_interlinks(interlinks: Vec<BlockId>) -> Vec<([u8; 2], Vec<u8>)> {
-    let mut res = vec![];
-    let mut ix_distinct_block_ids = 0;
-    let mut curr_block_id_count = 1;
-    let mut curr_block_id = interlinks[0].clone();
-    for id in interlinks.into_iter().skip(1) {
-        if id == curr_block_id {
-            curr_block_id_count += 1;
-        } else {
-            let block_id_bytes: Vec<u8> = curr_block_id.clone().0.into();
-            let packed_value = std::iter::once(curr_block_id_count)
-                .chain(block_id_bytes)
-                .collect();
-            res.push((
-                [INTERLINK_VECTOR_PREFIX, ix_distinct_block_ids],
-                packed_value,
-            ));
-            curr_block_id = id;
-            curr_block_id_count = 1;
-            ix_distinct_block_ids += 1;
-        }
-    }
-    let block_id_bytes: Vec<u8> = curr_block_id.0.into();
-    let packed_value = std::iter::once(curr_block_id_count)
-        .chain(block_id_bytes)
-        .collect();
-    res.push((
-        [INTERLINK_VECTOR_PREFIX, ix_distinct_block_ids],
-        packed_value,
-    ));
-    res
-}
-
 /// Computes interlinks vector for a header next to `prevHeader`.
 pub(crate) fn update_interlinks(
     prev_header: Header,

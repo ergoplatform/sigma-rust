@@ -1,3 +1,4 @@
+use crate::LevelNode;
 use crate::NodeSide;
 use crate::{concatenate_hashes, prefixed_hash, prefixed_hash2};
 use crate::{HASH_SIZE, INTERNAL_PREFIX};
@@ -11,7 +12,7 @@ use crate::{HASH_SIZE, INTERNAL_PREFIX};
 #[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
 pub struct BatchMerkleProof {
     pub(crate) indices: Vec<(usize, [u8; 32])>,
-    pub(crate) proofs: Vec<crate::LevelNode>,
+    pub(crate) proofs: Vec<LevelNode>,
 }
 
 impl BatchMerkleProof {
@@ -81,6 +82,13 @@ impl BatchMerkleProof {
             [root_hash] => root_hash == expected_root,
             _ => false,
         }
+    }
+
+    pub fn get_indices(&self) -> &[(usize, [u8; 32])] {
+        &self.indices
+    }
+    pub fn get_proofs(&self) -> &[LevelNode] {
+        &self.proofs
     }
 }
 

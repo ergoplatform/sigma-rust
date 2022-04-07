@@ -143,14 +143,15 @@ impl From<crate::batchmerkleproof::BatchMerkleProof> for BatchMerkleProofJson {
         let indices = proof
             .indices
             .into_iter()
-            .map(|(index, digest)| Index {
-                index,
-                digest: digest
-                    .iter()
-                    .map(|&x| x as i8)
-                    .collect::<Vec<i8>>()
-                    .try_into()
-                    .unwrap(),
+            .map(|(index, digest)| {
+                let mut i8_digest = [0; 32];
+                for (i, byte) in i8_digest.iter_mut().enumerate() {
+                    *byte = digest[i] as i8
+                }
+                Index {
+                    index,
+                    digest: i8_digest,
+                }
             })
             .collect();
         let proofs = proof

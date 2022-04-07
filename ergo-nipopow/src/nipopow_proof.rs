@@ -7,6 +7,7 @@ use sigma_ser::{
     vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt},
     ScorexParsingError, ScorexSerializable, ScorexSerializeResult,
 };
+use std::convert::TryFrom;
 
 use crate::{
     autolykos_pow_scheme::{self},
@@ -87,7 +88,7 @@ impl NipopowProof {
     }
 
     fn is_valid(&self) -> bool {
-        self.has_valid_connections() && self.has_valid_heights()
+        self.has_valid_connections() && self.has_valid_heights() && self.has_valid_proofs()
     }
 
     /// Checks the connections of the blocks in the proof. Adjacent blocks should be linked either
@@ -120,6 +121,12 @@ impl NipopowProof {
         self.headers_chain()
             .zip(self.headers_chain().skip(1))
             .all(|(prev, next)| prev.height < next.height)
+    }
+    /// Checks interlink proofs for each block using `PoPowHeader::check_interlinks_proof`
+    fn has_valid_proofs(&self) -> bool {
+        std::iter::once(&self.suffix_head)
+            .chain(self.prefix.iter())
+            .all(PoPowHeader::check_interlinks_proof)
     }
 
     /// Returns an iterator representing a chain of `Headers` from `self.prefix`, to
@@ -205,6 +212,33 @@ pub struct PoPowHeader {
     pub interlinks: Vec<BlockId>,
     /// BatchMerkleProof for interlinks in extension field
     pub interlinks_proof: BatchMerkleProof,
+}
+
+impl PoPowHeader {
+    /// Validates interlinks merkle root against provided proof
+    pub fn check_interlinks_proof(&self) -> bool {
+        if self.interlinks.is_empty()
+            && self.interlinks_proof.get_indices().is_empty()
+            && self.interlinks_proof.get_proofs().is_empty()
+        {
+            true
+        } else {
+            let fields: Vec<ergo_merkle_tree::MerkleNode> =
+                NipopowAlgos::pack_interlinks(self.interlinks.clone())
+                    .into_iter()
+                    .map(|(k, v)| -> Vec<u8> {
+                        std::iter::once(2u8)
+                            .chain(k.iter().copied())
+                            .chain(v.into_iter())
+                            .collect()
+                    })
+                    .map(ergo_merkle_tree::MerkleNode::try_from)
+                    .map(Result::unwrap)
+                    .collect();
+            let tree = ergo_merkle_tree::MerkleTree::new(&fields);
+            self.interlinks_proof.valid(tree.get_root_hash().unwrap())
+        }
+    }
 }
 
 impl ScorexSerializable for PoPowHeader {

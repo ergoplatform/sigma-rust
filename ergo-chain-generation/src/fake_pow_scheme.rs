@@ -24,7 +24,7 @@ mod tests {
     use rand::{thread_rng, Rng};
 
     use crate::{
-        default_miner_secret, pack_interlinks, unpack_interlinks, update_interlinks, ErgoFullBlock,
+        default_miner_secret, unpack_interlinks, update_interlinks, ErgoFullBlock,
         ExtensionCandidate, MerkleTreeNode,
     };
 
@@ -32,7 +32,7 @@ mod tests {
         block_stream(start.map(|p| ErgoFullBlock {
             header: p.header,
             extension: ExtensionCandidate {
-                fields: pack_interlinks(p.interlinks),
+                fields: NipopowAlgos::pack_interlinks(p.interlinks),
             },
         }))
         .take(len)
@@ -73,7 +73,9 @@ mod tests {
             .unwrap_or_default();
         if !interlinks.is_empty() {
             // Only non-empty for non-genesis block
-            extension.fields.extend(pack_interlinks(interlinks));
+            extension
+                .fields
+                .extend(NipopowAlgos::pack_interlinks(interlinks));
         }
         prove_block(prev_block.map(|b| b.header), block_version, 0, extension)
     }
