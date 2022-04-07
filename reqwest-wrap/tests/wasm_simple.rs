@@ -38,5 +38,5 @@ async fn client_with_timeout() {
         .expect_err("Expected error from aborted request");
 
     assert!(err.is_request());
-    assert!(format!("{:?}", err).contains("The operation was aborted."));
+    assert!(format!("{:?}", err).contains("The user aborted a request."));
 }
