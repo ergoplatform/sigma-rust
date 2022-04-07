@@ -43,7 +43,7 @@ mod arbitrary {
                 // Timestamps between 2000-2050
                 946_674_000_000..2_500_400_300_000u64,
                 any::<u64>(),
-                0..1_000_000u32,
+                1_000_000u32..10_000_000u32,
                 any::<Box<EcPoint>>(),
                 uniform3(1u8..),
             )
