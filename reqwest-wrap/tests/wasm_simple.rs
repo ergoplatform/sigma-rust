@@ -1,4 +1,5 @@
 #![cfg(target_arch = "wasm32")]
+#![allow(clippy::unused_unit)]
 
 use reqwest_wrap as reqwest;
 use std::time::Duration;

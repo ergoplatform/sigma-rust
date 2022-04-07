@@ -1,3 +1,4 @@
+#![allow(clippy::unused_unit)]
 #[cfg(feature = "multipart")]
 use super::multipart::Form;
 /// dox

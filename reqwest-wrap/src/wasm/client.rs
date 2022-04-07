@@ -1,3 +1,4 @@
+#![allow(clippy::unused_unit)]
 use http::{HeaderMap, Method};
 use js_sys::{Promise, JSON};
 use std::rc::Rc;
