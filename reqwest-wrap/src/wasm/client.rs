@@ -316,10 +316,8 @@ impl ClientBuilder {
     /// Set a timeout for connect, read and write operations of a `Client`.
     ///
     /// Default is 30 seconds.
-    ///
-    /// Pass `None` to disable timeout.
-    pub fn timeout(mut self, timeout: Option<Duration>) -> ClientBuilder {
-        self.timeout = timeout;
+    pub fn timeout(mut self, timeout: Duration) -> ClientBuilder {
+        self.timeout = Some(timeout);
         self
     }
 }

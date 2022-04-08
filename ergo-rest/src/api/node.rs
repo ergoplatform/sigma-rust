@@ -5,17 +5,12 @@ use bounded_vec::BoundedVec;
 use ergo_chain_types::BlockId;
 use ergo_chain_types::PeerAddr;
 use ergo_nipopow::NipopowProof;
-use futures::channel::mpsc;
-use futures::SinkExt;
-use futures::StreamExt;
 use reqwest::header::CONTENT_TYPE;
 use reqwest::Client;
 use reqwest::RequestBuilder;
 use std::collections::HashSet;
 use std::time::Duration;
 use url::Url;
-#[cfg(target_arch = "wasm32")]
-use wasm_bindgen_futures::spawn_local;
 
 use crate::NodeConf;
 use crate::NodeError;
@@ -29,9 +24,12 @@ fn set_req_headers(rb: RequestBuilder, node: NodeConf) -> RequestBuilder {
 }
 
 fn build_client(node_conf: &NodeConf) -> Result<Client, reqwest::Error> {
-    reqwest::Client::builder()
-        .timeout(node_conf.timeout)
-        .build()
+    let builder = reqwest::Client::builder();
+    if let Some(t) = node_conf.timeout {
+        builder.timeout(t).build()
+    } else {
+        builder.build()
+    }
 }
 
 /// GET on /info endpoint
@@ -67,6 +65,10 @@ pub async fn peer_discovery(
     max_parallel_requests: BoundedU16<1, { u16::MAX }>,
     timeout: Duration,
 ) -> Result<Vec<Url>, PeerDiscoveryError> {
+    use futures::channel::mpsc;
+    use futures::SinkExt;
+    use wasm_bindgen_futures::spawn_local;
+
     let mut seeds_set: HashSet<Url> = HashSet::new();
 
     for mut seed_url in seeds {
@@ -198,6 +200,8 @@ pub async fn peer_discovery(
     max_parallel_requests: BoundedU16<1, { u16::MAX }>,
     timeout: Duration,
 ) -> Result<Vec<Url>, PeerDiscoveryError> {
+    use futures::{StreamExt, TryStreamExt};
+    use tokio::sync::mpsc;
     let mut seeds_set: HashSet<Url> = HashSet::new();
 
     for mut seed_url in seeds {
@@ -224,7 +228,7 @@ pub async fn peer_discovery(
     // For every URL received, spawn a task which checks if the corresponding node is active. If so,
     // request peers. In all cases, a message is sent out (enum `Msg` above) to filter out future
     // redundant URL requests.
-    let rx_url_stream = ReceiverStream::new(rx_url)
+    let rx_url_stream = tokio_stream::wrappers::ReceiverStream::new(rx_url)
         .map(move |mut url| {
             let tx_peer = tx_peer.clone();
             async move {
