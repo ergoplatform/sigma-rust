@@ -1,4 +1,5 @@
 import { expect, assert } from "chai";
+import { generate_block_headers } from '../tests/utils';
 
 import * as ergo from "..";
 let ergo_wasm;
@@ -27,7 +28,7 @@ it("Browser: P2S from base16 ergo tree", async () => {
 it('node REST API get_nipopow_proof_by_header_id endpoint', async () => {
   let node_conf = new ergo_wasm.NodeConf("213.239.193.208:9053");
   assert(node_conf != null);
-  const block_headers = ergo_wasm.generate_block_headers();
+  const block_headers = generate_block_headers();
   const header_id = block_headers.get(0).id();
   let res = await ergo_wasm.get_nipopow_proof_by_header_id(node_conf, 3, 4, header_id);
   assert(res != null);
