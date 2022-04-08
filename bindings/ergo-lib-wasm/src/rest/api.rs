@@ -3,7 +3,7 @@
 use wasm_bindgen::prelude::*;
 
 use super::node_conf::NodeConf;
-use crate::error_conversion::to_js;
+use crate::{block_header::BlockId, error_conversion::to_js, nipopow::NipopowProof};
 
 #[wasm_bindgen]
 /// GET on /info endpoint
@@ -13,4 +13,23 @@ pub async fn get_info(node: NodeConf) -> Result<JsValue, JsValue> {
         .await
         .map_err(to_js)
         .map(|info| JsValue::from_str(&info.name))
+}
+
+#[wasm_bindgen]
+/// GET on /nipopow/proof/{minChainLength}/{suffixLength}/{headerId} endpoint
+pub async fn get_nipopow_proof_by_header_id(
+    node: NodeConf,
+    min_chain_length: u32,
+    suffix_len: u32,
+    header_id: BlockId,
+) -> Result<NipopowProof, JsValue> {
+    ergo_lib::ergo_rest::api::node::get_nipopow_proof_by_header_id(
+        node.into(),
+        min_chain_length,
+        suffix_len,
+        header_id.into(),
+    )
+    .await
+    .map_err(to_js)
+    .map(NipopowProof::from)
 }

@@ -2,6 +2,7 @@
 use http::{HeaderMap, Method};
 use js_sys::{Promise, JSON};
 use std::rc::Rc;
+use std::time::Duration;
 use std::{fmt, future::Future, sync::Arc};
 use url::Url;
 use wasm_bindgen::prelude::{wasm_bindgen, Closure, UnwrapThrowExt as _};
@@ -38,11 +39,13 @@ fn js_fetch(req: &web_sys::Request) -> Promise {
 #[derive(Clone)]
 pub struct Client {
     config: Arc<Config>,
+    timeout: Option<Duration>,
 }
 
 /// dox
 pub struct ClientBuilder {
     config: Config,
+    timeout: Option<Duration>,
 }
 
 impl Client {
@@ -120,7 +123,12 @@ impl Client {
     /// This method fails whenever supplied `Url` cannot be parsed.
     pub fn request<U: IntoUrl>(&self, method: Method, url: U) -> RequestBuilder {
         let req = url.into_url().map(move |url| Request::new(method, url));
-        RequestBuilder::new(self.clone(), req)
+        let builder = RequestBuilder::new(self.clone(), req);
+        if let Some(t) = self.timeout {
+            builder.timeout(t)
+        } else {
+            builder
+        }
     }
 
     /// Executes a `Request`.
@@ -284,6 +292,7 @@ impl ClientBuilder {
     pub fn new() -> Self {
         ClientBuilder {
             config: Config::default(),
+            timeout: Some(Duration::from_secs(30)),
         }
     }
 
@@ -292,6 +301,7 @@ impl ClientBuilder {
         let config = std::mem::take(&mut self.config);
         Ok(Client {
             config: Arc::new(config),
+            timeout: self.timeout,
         })
     }
 
@@ -300,6 +310,16 @@ impl ClientBuilder {
         for (key, value) in headers.iter() {
             self.config.headers.insert(key, value.clone());
         }
+        self
+    }
+
+    /// Set a timeout for connect, read and write operations of a `Client`.
+    ///
+    /// Default is 30 seconds.
+    ///
+    /// Pass `None` to disable timeout.
+    pub fn timeout(mut self, timeout: Option<Duration>) -> ClientBuilder {
+        self.timeout = timeout;
         self
     }
 }

@@ -23,3 +23,13 @@ it("Browser: P2S from base16 ergo tree", async () => {
   let addr = ergo_wasm.Address.recreate_from_ergo_tree(tree);
   assert(addr != null);
 });
+
+it('node REST API get_nipopow_proof_by_header_id endpoint', async () => {
+  let node_conf = new ergo_wasm.NodeConf("213.239.193.208:9053");
+  assert(node_conf != null);
+  const block_headers = ergo_wasm.generate_block_headers();
+  const header_id = block_headers.get(0).id();
+  let res = await ergo_wasm.get_nipopow_proof_by_header_id(node_conf, 3, 4, header_id);
+  assert(res != null);
+  assert(node_conf != null);
+});
