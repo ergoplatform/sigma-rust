@@ -66,7 +66,7 @@ pub async fn peer_discovery(
     timeout: Duration,
 ) -> Result<Vec<Url>, PeerDiscoveryError> {
     use futures::channel::mpsc;
-    use futures::SinkExt;
+    use futures::{SinkExt, StreamExt};
     use wasm_bindgen_futures::spawn_local;
 
     let mut seeds_set: HashSet<Url> = HashSet::new();
