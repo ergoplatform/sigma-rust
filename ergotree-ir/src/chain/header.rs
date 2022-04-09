@@ -314,7 +314,7 @@ mod arbitrary {
                 // Timestamps between 2000-2050
                 946_674_000_000..2_500_400_300_000u64,
                 any::<u32>(), // Note: n_bits must fit in u32
-                0..1_000_000u32,
+                1_000_000u32..10_000_000u32,
                 prop::sample::select(vec![1_u8, 2]),
                 any::<Box<AutolykosSolution>>(),
                 uniform3(1u8..),
