@@ -34,3 +34,10 @@ it('node REST API get_nipopow_proof_by_header_id endpoint', async () => {
   assert(res != null);
   assert(node_conf != null);
 });
+
+it('node REST API peer_discovery endpoint', async () => {
+  const seeds = [new URL('http://213.239.193.208:9030'), new URL('http://159.65.11.55:9030')];
+  let res = await ergo_wasm.peer_discovery(seeds, 1, 1);
+  // Note: there currently exists no non-seed ergo nodes with an active REST API
+  assert(res.len() == 0);
+});

@@ -9,6 +9,8 @@ use bounded_vec::BoundedVecOutOfBounds;
 use ergo_lib::ergo_chain_types::DigestNError;
 use ergo_lib::ergo_nipopow::NipopowProofError;
 #[cfg(feature = "rest")]
+use ergo_lib::ergo_rest::api::node::PeerDiscoveryError;
+#[cfg(feature = "rest")]
 use ergo_lib::ergo_rest::NodeError;
 use ergo_lib::ergotree_interpreter::sigma_protocol::verifier::VerifierError;
 use ergo_lib::ergotree_ir::chain::address::AddressEncoderError;
@@ -30,6 +32,8 @@ use ergo_lib::{
     wallet::{box_selector::BoxSelectorError, tx_builder::TxBuilderError, WalletError},
 };
 use serde_json::error::Error;
+#[cfg(feature = "rest")]
+use url::ParseError;
 use wasm_bindgen::JsValue;
 
 /// Ideally we'd like to implement `From<E> for JsValue` for a range of different `ergo-lib` error
@@ -93,3 +97,7 @@ from_error_to_wrap_via_debug!(NipopowProofError);
 from_error_to_wrap_via_debug!(VerifierError);
 #[cfg(feature = "rest")]
 from_error_to_wrap_via_debug!(NodeError);
+#[cfg(feature = "rest")]
+from_error_to_wrap_via_debug!(ParseError);
+#[cfg(feature = "rest")]
+from_error_to_wrap_via_debug!(PeerDiscoveryError);
