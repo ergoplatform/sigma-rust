@@ -1,5 +1,4 @@
 import { expect, assert } from "chai";
-import { generate_block_headers } from '../tests/utils';
 
 import * as ergo from "..";
 let ergo_wasm;
@@ -23,21 +22,4 @@ it("Browser: P2S from base16 ergo tree", async () => {
   let tree = ergo_wasm.ErgoTree.from_base16_bytes(tree_bytes_base16_str);
   let addr = ergo_wasm.Address.recreate_from_ergo_tree(tree);
   assert(addr != null);
-});
-
-it('node REST API get_nipopow_proof_by_header_id endpoint', async () => {
-  let node_conf = new ergo_wasm.NodeConf("213.239.193.208:9053");
-  assert(node_conf != null);
-  const block_headers = generate_block_headers();
-  const header_id = block_headers.get(0).id();
-  let res = await ergo_wasm.get_nipopow_proof_by_header_id(node_conf, 3, 4, header_id);
-  assert(res != null);
-  assert(node_conf != null);
-});
-
-it('node REST API peer_discovery endpoint', async () => {
-  const seeds = [new URL('http://213.239.193.208:9030'), new URL('http://159.65.11.55:9030')];
-  let res = await ergo_wasm.peer_discovery(seeds, 1, 1);
-  // Note: there currently exists no non-seed ergo nodes with an active REST API
-  assert(res.len() == 0);
 });
