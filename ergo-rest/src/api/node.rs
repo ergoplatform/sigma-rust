@@ -58,141 +58,6 @@ async fn get_peers_all(node: NodeConf) -> Result<Vec<PeerInfo>, NodeError> {
         .await?)
 }
 
-#[cfg(target_arch = "wasm32")]
-/// Given a list of seed nodes, recursively determine a Vec of all known peer nodes.
-pub async fn peer_discovery(
-    seeds: NonEmptyVec<Url>,
-    max_parallel_requests: BoundedU16<1, { u16::MAX }>,
-    timeout: Duration,
-) -> Result<Vec<Url>, PeerDiscoveryError> {
-    use futures::channel::mpsc;
-    use futures::{SinkExt, StreamExt};
-    use wasm_bindgen_futures::spawn_local;
-
-    let mut seeds_set: HashSet<Url> = HashSet::new();
-
-    for mut seed_url in seeds {
-        #[allow(clippy::unwrap_used)]
-        seed_url.set_port(None).unwrap();
-        seeds_set.insert(seed_url);
-    }
-
-    let (mut tx_url, rx_url) = mpsc::channel::<Url>(50);
-
-    enum Msg {
-        /// Indicates that the ergo node at the given URL is active. This means that a GET request
-        /// to the node's /info endpoint responds with code 200 OK.
-        AddActiveNode(Url),
-        /// Indicates that the ergo node at the given URL is inactive. This means that a GET request
-        /// to the node's /info endpoint does not respond with code 200 OK.
-        AddInactiveNode(Url),
-        /// A list of peers of an active ergo node, returned from a GET on the /peers/all endpoint.
-        CheckPeers(Vec<PeerInfo>),
-    }
-
-    let (tx_peer, mut rx_peer) = mpsc::channel::<Msg>(50);
-
-    // For every URL received, spawn a task which checks if the corresponding node is active. If so,
-    // request peers. In all cases, a message is sent out (enum `Msg` above) to filter out future
-    // redundant URL requests.
-    let rx_url_stream = rx_url
-        .map(move |mut url| {
-            let mut tx_peer = tx_peer.clone();
-            async move {
-                println!("Processing {}", url);
-                spawn_local(async move {
-                    // Query node at url.
-                    #[allow(clippy::unwrap_used)]
-                    url.set_port(Some(9053)).unwrap();
-                    #[allow(clippy::unwrap_used)]
-                    let node_conf = NodeConf {
-                        addr: PeerAddr(url.socket_addrs(|| Some(9053)).unwrap()[0]),
-                        api_key: None,
-                        timeout: Some(timeout),
-                    };
-
-                    // If active, look up its peers.
-                    if get_info(node_conf).await.is_ok() {
-                        println!("active nodeConf: {:?}", node_conf);
-                        if let Ok(peers) = get_peers_all(node_conf).await {
-                            // It's important to send this message before the `AddActiveNode` message
-                            // below, to ensure an `count` variable; see (**) below.
-                            tx_peer.send(Msg::CheckPeers(peers)).await.unwrap();
-                        }
-
-                        tx_peer.send(Msg::AddActiveNode(url.clone())).await.unwrap();
-                    } else {
-                        tx_peer.send(Msg::AddInactiveNode(url)).await.unwrap();
-                    }
-                });
-            }
-        })
-        .buffer_unordered(max_parallel_requests.get() as usize); // Allow for parallel requests
-
-    // (*) Run stream to completion.
-    spawn_local(rx_url_stream.for_each(|_| async {}));
-
-    for url in &seeds_set {
-        tx_url
-            .send(url.clone())
-            .await
-            .map_err(|_| PeerDiscoveryError::MpscSender)?;
-    }
-
-    // (**) This variable represents the number of URLs that need to be checked to see whether it
-    // corresponds to an active Ergo node. `count` is crucial to allow this function to terminate,
-    // as once it reaches zero we break the loop below. This leads us to drop `tx_url`, which is the
-    // sender side of the receiver stream `rx_url_stream`, allowing the spawned task (*) to end.
-    let mut count = seeds_set.len();
-
-    let mut visited_active_peers = HashSet::new();
-    let mut visited_peers = HashSet::new();
-
-    'loop_: while let Some(p) = rx_peer.next().await {
-        match p {
-            Msg::AddActiveNode(mut url) => {
-                #[allow(clippy::unwrap_used)]
-                url.set_port(None).unwrap();
-                println!("added {}", url);
-                visited_active_peers.insert(url.clone());
-                visited_peers.insert(url);
-                count -= 1;
-                if count == 0 {
-                    break 'loop_;
-                }
-            }
-            Msg::AddInactiveNode(mut url) => {
-                #[allow(clippy::unwrap_used)]
-                url.set_port(None).unwrap();
-                visited_peers.insert(url);
-                count -= 1;
-                if count == 0 {
-                    break 'loop_;
-                }
-            }
-            Msg::CheckPeers(peers) => {
-                for peer in peers {
-                    let mut url = peer.addr.as_http_url();
-                    #[allow(clippy::unwrap_used)]
-                    url.set_port(None).unwrap();
-                    if !visited_peers.contains(&url) {
-                        let _ = tx_url.send(url.clone()).await;
-                        visited_peers.insert(url);
-                        count += 1;
-                    }
-                }
-            }
-        }
-    }
-
-    drop(tx_url);
-    Ok(visited_active_peers
-        .difference(&seeds_set)
-        .into_iter()
-        .cloned()
-        .collect())
-}
-
 #[cfg(not(target_arch = "wasm32"))]
 /// Given a list of seed nodes, recursively determine a Vec of all known peer nodes.
 pub async fn peer_discovery(
@@ -339,6 +204,178 @@ pub async fn peer_discovery(
         Ok(Err(e)) => Err(e),
         Err(_) => Err(PeerDiscoveryError::JoinError),
     }
+}
+
+#[cfg(target_arch = "wasm32")]
+/// Given a list of seed nodes, recursively determine a Vec of all known peer nodes.
+///
+/// This version is essentially the same as the tokio-based, non-WASM version above except that
+/// the `spawn_local` function can only spawn tasks for futures that return `()`. This means that
+/// we can't do the usual error handling. We can handle some errors by sending out occurrences
+/// through a spawned channel.
+///
+/// Also, parallel execution isn't possible with this implementation.
+pub async fn peer_discovery(
+    seeds: NonEmptyVec<Url>,
+    max_parallel_requests: BoundedU16<1, { u16::MAX }>,
+    timeout: Duration,
+) -> Result<Vec<Url>, PeerDiscoveryError> {
+    use futures::channel::mpsc;
+    use futures::{SinkExt, StreamExt};
+    use wasm_bindgen_futures::spawn_local;
+
+    let mut seeds_set: HashSet<Url> = HashSet::new();
+
+    for mut seed_url in seeds {
+        #[allow(clippy::unwrap_used)]
+        seed_url.set_port(None).unwrap();
+        seeds_set.insert(seed_url);
+    }
+
+    let (mut tx_url, rx_url) = mpsc::channel::<Url>(50);
+
+    enum Msg {
+        /// Indicates that the ergo node at the given URL is active. This means that a GET request
+        /// to the node's /info endpoint responds with code 200 OK.
+        AddActiveNode(Url),
+        /// Indicates that the ergo node at the given URL is inactive. This means that a GET request
+        /// to the node's /info endpoint does not respond with code 200 OK.
+        AddInactiveNode(Url),
+        /// A list of peers of an active ergo node, returned from a GET on the /peers/all endpoint.
+        CheckPeers(Vec<PeerInfo>),
+        /// Error that can arise in the `rx_url_stream` future.
+        StreamError(PeerDiscoveryError),
+    }
+
+    let (tx_peer, mut rx_peer) = mpsc::channel::<Msg>(50);
+
+    // For every URL received, spawn a task which checks if the corresponding node is active. If so,
+    // request peers. In all cases, a message is sent out (enum `Msg` above) to filter out future
+    // redundant URL requests.
+    let rx_url_stream = rx_url
+        .map(move |mut url| {
+            let mut tx_peer = tx_peer.clone();
+            async move {
+                spawn_local(async move {
+                    // NOTE: we use `tx_peer` to notify the receiver @ `'loop` below of some errors.
+                    // However all `tx_peer.send(..)` calls below return a `Result<..>` that we
+                    // cannot explicitly deal with due to `spawn_local` being only able to spawn
+                    // futures with a `()` return type, hence the unwrap calls. It shouldn't be a
+                    // problem though since the channel only stays within `peer_discovery` and
+                    // everything is single-threaded here.
+
+                    // Query node at url.
+                    #[allow(clippy::unwrap_used)]
+                    url.set_port(Some(9053)).unwrap();
+                    let addr = if let Ok(addresses) = url.socket_addrs(|| Some(9053)) {
+                        if !addresses.is_empty() {
+                            PeerAddr(addresses[0])
+                        } else {
+                            #[allow(clippy::unwrap_used)]
+                            tx_peer
+                                .send(Msg::StreamError(PeerDiscoveryError::UrlError))
+                                .await
+                                .unwrap();
+                            return;
+                        }
+                    } else {
+                        tx_peer
+                            .send(Msg::StreamError(PeerDiscoveryError::UrlError))
+                            .await
+                            .unwrap();
+                        return;
+                    };
+                    let node_conf = NodeConf {
+                        addr,
+                        api_key: None,
+                        timeout: Some(timeout),
+                    };
+
+                    // If active, look up its peers.
+                    if get_info(node_conf).await.is_ok() {
+                        if let Ok(peers) = get_peers_all(node_conf).await {
+                            // It's important to send this message before the `AddActiveNode` message
+                            // below, to ensure an `count` variable; see (**) below.
+                            #[allow(clippy::unwrap_used)]
+                            tx_peer.send(Msg::CheckPeers(peers)).await.unwrap();
+                        }
+
+                        #[allow(clippy::unwrap_used)]
+                        tx_peer.send(Msg::AddActiveNode(url.clone())).await.unwrap();
+                    } else {
+                        #[allow(clippy::unwrap_used)]
+                        tx_peer.send(Msg::AddInactiveNode(url)).await.unwrap();
+                    }
+                });
+            }
+        })
+        .buffer_unordered(max_parallel_requests.get() as usize);
+
+    // (*) Run stream to completion.
+    spawn_local(rx_url_stream.for_each(|_| async {}));
+
+    for url in &seeds_set {
+        tx_url
+            .send(url.clone())
+            .await
+            .map_err(|_| PeerDiscoveryError::MpscSender)?;
+    }
+
+    // (**) This variable represents the number of URLs that need to be checked to see whether it
+    // corresponds to an active Ergo node. `count` is crucial to allow this function to terminate,
+    // as once it reaches zero we break the loop below. This leads us to drop `tx_url`, which is the
+    // sender side of the receiver stream `rx_url_stream`, allowing the spawned task (*) to end.
+    let mut count = seeds_set.len();
+
+    let mut visited_active_peers = HashSet::new();
+    let mut visited_peers = HashSet::new();
+
+    'loop_: while let Some(p) = rx_peer.next().await {
+        match p {
+            Msg::AddActiveNode(mut url) => {
+                #[allow(clippy::unwrap_used)]
+                url.set_port(None).unwrap();
+                println!("added {}", url);
+                visited_active_peers.insert(url.clone());
+                visited_peers.insert(url);
+                count -= 1;
+                if count == 0 {
+                    break 'loop_;
+                }
+            }
+            Msg::AddInactiveNode(mut url) => {
+                #[allow(clippy::unwrap_used)]
+                url.set_port(None).unwrap();
+                visited_peers.insert(url);
+                count -= 1;
+                if count == 0 {
+                    break 'loop_;
+                }
+            }
+            Msg::CheckPeers(peers) => {
+                for peer in peers {
+                    let mut url = peer.addr.as_http_url();
+                    #[allow(clippy::unwrap_used)]
+                    url.set_port(None).unwrap();
+                    if !visited_peers.contains(&url) {
+                        let _ = tx_url.send(url.clone()).await;
+                        visited_peers.insert(url);
+                        count += 1;
+                    }
+                }
+            }
+            Msg::StreamError(e) => {
+                return Err(e);
+            }
+        }
+    }
+
+    drop(tx_url);
+    Ok(visited_active_peers
+        .difference(&seeds_set)
+        .into_iter()
+        .cloned()
+        .collect())
 }
 
 #[derive(Debug)]
