@@ -57,5 +57,6 @@ module.exports = function (config) {
     autoWatch: false,
     singleRun: true,
     concurrency: Infinity,
+    processKillTimeout: 60000,
   });
 };
