@@ -9,6 +9,11 @@ module.exports = function (config) {
       "tests_browser/**/*.js",
       { pattern: `${outputDir}/*.wasm`, included: false, served: true },
     ],
+    client: {
+      mocha: {
+        timeout: 60000
+      }
+    },
     webpack: {
       mode: "development",
       module: {
@@ -57,6 +62,5 @@ module.exports = function (config) {
     autoWatch: false,
     singleRun: true,
     concurrency: Infinity,
-    processKillTimeout: 60000,
   });
 };
