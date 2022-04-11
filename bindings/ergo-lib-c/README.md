@@ -5,11 +5,13 @@ Does not use Rust types in the API and is suitable for C FFI.
 
 ## Build instructions
 
-The following command builds the project:
+The following command builds the project with REST API features:
 
 ```
-cargo build -p ergo-lib-c
+cargo build -p ergo-lib-c --features rest
 ```
+
+To build without REST simply omit `--features rest`.
 
 The C header file is generated with [cbindgen](https://github.com/eqrion/cbindgen). Run the following
 command:

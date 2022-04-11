@@ -6,12 +6,15 @@ use crate::{
     util::{const_ptr_as_ref, mut_ptr_as_mut},
     Error,
 };
+use derive_more::{From, Into};
 
 /// A structure representing NiPoPow proof.
-#[derive(Debug)]
-pub struct NipopowProof(ergo_lib::ergo_nipopow::NipopowProof);
+#[derive(Debug, From, Into)]
+pub struct NipopowProof(pub(crate) ergo_lib::ergo_nipopow::NipopowProof);
 pub type NipopowProofPtr = *mut NipopowProof;
 pub type ConstNipopowProofPtr = *const NipopowProof;
+
+impl ergo_lib::ergo_rest::NodeResponse for NipopowProof {}
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct PoPowHeader(ergo_lib::ergo_nipopow::PoPowHeader);

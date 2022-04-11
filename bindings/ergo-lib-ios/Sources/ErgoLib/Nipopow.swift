@@ -3,7 +3,7 @@ import Foundation
 import ErgoLibC
 
 /// NiPoPow proof
-class NipopowProof {
+class NipopowProof: FromRawPtr {
     internal var pointer: NipopowProofPtr
     
     /// Parse ``NipopowProof`` from JSON
@@ -14,6 +14,14 @@ class NipopowProof {
         }
         try checkError(error)
         self.pointer = ptr!
+    }
+    
+    internal init(withRawPointer ptr: NipopowProofPtr) {
+        self.pointer = ptr
+    }
+    
+    static func fromRawPtr(ptr: UnsafeRawPointer) -> Self {
+        return NipopowProof(withRawPointer: OpaquePointer(ptr)) as! Self
     }
     
     /// Implementation of the ≥ algorithm from [`KMZ17`], see Algorithm 4

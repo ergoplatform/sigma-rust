@@ -30,7 +30,52 @@ class RestNodeApi {
         try checkError(error)
         return RequestHandle(withRawPtr: requestHandlerPtr!)
     }
-
+    
+    /// GET on /nipopow/proof/{minChainLength}/{suffixLength}/{headerId} endpoint
+    func getNipopowProofByHeaderId(
+        nodeConf: NodeConf,
+        minChainLength: UInt32,
+        suffixLen: UInt32,
+        headerId: BlockId,
+        closure: @escaping (Result<NipopowProof, Error>) -> Void
+    ) throws -> RequestHandle {
+        
+        let completion = wrapClosure(closure)
+        var requestHandlerPtr: RequestHandlePtr?
+        let error = ergo_lib_rest_api_node_get_nipopow_proof_by_header_id(
+            self.pointer,
+            nodeConf.pointer,
+            completion,
+            &requestHandlerPtr,
+            minChainLength,
+            suffixLen,
+            headerId.pointer
+        )
+        try checkError(error)
+        return RequestHandle(withRawPtr: requestHandlerPtr!)
+    }
+    
+    /// GET on /info endpoint (async)
+    @available(macOS 10.15, iOS 13, *)
+    func getNipopowProofByHeaderIdAsync(
+        nodeConf: NodeConf,
+        minChainLength: UInt32,
+        suffixLen: UInt32,
+        headerId: BlockId
+    ) async throws -> NipopowProof {
+        try await withCheckedThrowingContinuation { continuation in
+            do {
+                let _ = try getNipopowProofByHeaderId(
+                    nodeConf: nodeConf,
+                    minChainLength: minChainLength,
+                    suffixLen: suffixLen,
+                    headerId: headerId
+                ) { result in
+                    continuation.resume(with: result)
+                }
+            } catch {}
+        }
+    }
 
     /// GET on /info endpoint (async)
     @available(macOS 10.15, iOS 13, *)
