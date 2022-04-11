@@ -14,6 +14,7 @@ pub struct NipopowProof(pub(crate) ergo_lib::ergo_nipopow::NipopowProof);
 pub type NipopowProofPtr = *mut NipopowProof;
 pub type ConstNipopowProofPtr = *const NipopowProof;
 
+#[cfg(feature = "rest")]
 impl ergo_lib::ergo_rest::NodeResponse for NipopowProof {}
 
 #[derive(Debug, PartialEq, Eq)]
