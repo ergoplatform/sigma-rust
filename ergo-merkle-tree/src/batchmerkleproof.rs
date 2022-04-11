@@ -115,23 +115,13 @@ impl ScorexSerializable for BatchMerkleProof {
 
         for (index, hash) in &self.indices {
             write_u32_be(u32::try_from(*index)?, w)?;
-            for byte in hash {
-                w.put_u8(*byte)?;
-            }
+            w.write_all(&hash[..])?;
         }
 
         for proof in &self.proofs {
             match proof.0 {
-                Some(hash) => {
-                    for byte in hash {
-                        w.put_u8(byte)?
-                    }
-                }
-                None => {
-                    for _ in 0..32 {
-                        w.put_u8(0)?;
-                    }
-                }
+                Some(hash) => w.write_all(&hash[..])?,
+                None => w.write_all(&[0; 32])?,
             }
             w.put_u8(proof.1 as u8)?;
         }
@@ -146,8 +136,8 @@ impl ScorexSerializable for BatchMerkleProof {
             r: &mut R,
         ) -> Result<u32, sigma_ser::ScorexParsingError> {
             let mut bytes = [0u8; 4];
-            for i in 0..4 {
-                bytes[i] = r.get_u8()?;
+            for byte in bytes.iter_mut() {
+                *byte = r.get_u8()?;
             }
             Ok(u32::from_be_bytes(bytes))
         }
@@ -157,9 +147,7 @@ impl ScorexSerializable for BatchMerkleProof {
             .map(|_| {
                 let index = read_u32_be(r)? as usize;
                 let mut hash = [0u8; HASH_SIZE];
-                for i in 0..HASH_SIZE {
-                    hash[i] = r.get_u8()?;
-                }
+                r.read_exact(&mut hash)?;
                 Ok((index, hash))
             })
             .collect::<Result<Vec<(usize, [u8; HASH_SIZE])>, sigma_ser::ScorexParsingError>>()?;
@@ -167,9 +155,7 @@ impl ScorexSerializable for BatchMerkleProof {
         let proofs = (0..proofs_len)
             .map(|_| {
                 let mut hash = [0u8; HASH_SIZE];
-                for i in 0..HASH_SIZE {
-                    hash[i] = r.get_u8()?;
-                }
+                r.read_exact(&mut hash)?;
                 let empty = hash.iter().all(|&b| b == 0);
                 let side: NodeSide = r.get_u8()?.try_into().map_err(|_| {
                     sigma_ser::ScorexParsingError::ValueOutOfBounds(
@@ -190,16 +176,25 @@ impl ScorexSerializable for BatchMerkleProof {
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
-#[allow(clippy::unwrap_used)]
+#[allow(clippy::unwrap_used, clippy::panic)]
 mod test {
+    use crate::batchmerkleproof::BatchMerkleProof;
     use proptest::prelude::*;
     use sigma_ser::ScorexSerializable;
     proptest! {
         #[test]
-        fn test_batchmerkleproof_serialization_roundtrip(proof in any::<crate::batchmerkleproof::BatchMerkleProof>().prop_filter("Indices > u32::max not allowed", |proof| proof.indices.len() < u32::MAX as usize && proof.indices.iter().all(|(i, _)| *i < u32::MAX as usize))) {
+        fn test_batchmerkleproof_serialization_roundtrip(proof in any::<BatchMerkleProof>().prop_filter("Indices > u32::max not allowed", |proof| proof.indices.len() < u32::MAX as usize && proof.indices.iter().all(|(i, _)| *i < u32::MAX as usize))) {
             let serialized_bytes = proof.scorex_serialize_bytes().unwrap();
-            assert_eq!(crate::batchmerkleproof::BatchMerkleProof::scorex_parse_bytes(&serialized_bytes).unwrap(), proof);
+            assert_eq!(BatchMerkleProof::scorex_parse_bytes(&serialized_bytes).unwrap(), proof);
             assert_eq!(serialized_bytes.len(), (8 + proof.proofs.len() * 33 + proof.indices.len() * 36));
+        }
+        #[test]
+        fn test_empty_deserialization(bytes in any::<[u8; 2]>()) {
+            assert!(BatchMerkleProof::scorex_parse_bytes(&bytes).is_err());
+        }
+        #[test]
+        fn test_invalid_deserialization(bytes in any::<[u8; 9]>()) {
+            assert!(BatchMerkleProof::scorex_parse_bytes(&bytes).is_err());
         }
 
     }
