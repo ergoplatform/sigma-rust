@@ -101,7 +101,6 @@ impl ExtensionCandidate {
             .filter(|key| key[0] == INTERLINK_VECTOR_PREFIX)
             .collect();
         if interlinks.is_empty() {
-            dbg!("Making empty tree");
             Some(ergo_merkle_tree::BatchMerkleProof::new(vec![], vec![]))
         } else {
             self.batch_proof_for(&interlinks)
