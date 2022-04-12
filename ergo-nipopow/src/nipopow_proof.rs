@@ -236,7 +236,7 @@ impl PoPowHeader {
                     .map(Result::unwrap)
                     .collect();
             let tree = ergo_merkle_tree::MerkleTree::new(&fields);
-            self.interlinks_proof.valid(tree.get_root_hash().unwrap())
+            self.interlinks_proof.valid(&tree.get_root_hash())
         }
     }
 }
@@ -252,7 +252,7 @@ impl ScorexSerializable for PoPowHeader {
         }
         let proof_bytes = self.interlinks_proof.scorex_serialize_bytes()?;
         w.put_u32(proof_bytes.len() as u32)?;
-        w.write(&proof_bytes)?;
+        w.write_all(&proof_bytes)?;
 
         Ok(())
     }

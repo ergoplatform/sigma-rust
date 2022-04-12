@@ -482,6 +482,15 @@ mod tests {
     }
 
     #[test]
+    fn test_popow_extension_hash() {
+        let size = 10;
+        let chain = generate_popowheader_chain(size, None);
+        for block in chain {
+            assert!(block.check_interlinks_proof());
+        }
+    }
+
+    #[test]
     fn test_popow_roundtrip() {
         use sigma_ser::ScorexSerializable;
         let size = 10;

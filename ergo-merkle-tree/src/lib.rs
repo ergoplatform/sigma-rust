@@ -32,7 +32,7 @@ pub(crate) mod json;
 // Unwrap is safe here since the hash is guaranteed to be 32 bytes
 #[allow(clippy::unwrap_used)]
 // Generates a hash of data prefixed with `prefix`
-pub(crate) fn prefixed_hash(prefix: u8, data: &[u8]) -> Box<[u8; 32]> {
+pub fn prefixed_hash(prefix: u8, data: &[u8]) -> Box<[u8; 32]> {
     let mut hasher = VarBlake2b::new(32).unwrap();
     hasher.update(&[prefix]);
     hasher.update(data);

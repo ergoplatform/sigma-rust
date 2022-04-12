@@ -1,5 +1,6 @@
 use crate::{prefixed_hash, prefixed_hash2};
 use crate::{HASH_SIZE, INTERNAL_PREFIX, LEAF_PREFIX};
+use std::borrow::Cow;
 use std::collections::{BTreeSet, HashMap};
 
 /// Node for a Merkle Tree
@@ -156,8 +157,8 @@ pub struct MerkleTree {
 }
 
 impl MerkleTree {
-    /// Creates a new MerkleTree from leaf hashes in nodes
-    pub fn new(nodes: &[MerkleNode]) -> Self {
+    /// Creates a new MerkleTree from leaf nodes
+    pub fn new<'a>(nodes: impl Into<Cow<'a, [MerkleNode]>>) -> Self {
         #[allow(clippy::unwrap_used)]
         fn build_nodes(nodes: &mut [MerkleNode]) {
             for pair in (1..nodes.len()).step_by(2).rev() {
@@ -177,19 +178,22 @@ impl MerkleTree {
                 nodes[get_parent(pair).unwrap()] = node;
             }
         }
-        let mut nodes = nodes.to_owned();
-        if nodes.len() % 2 == 1 {
-            nodes.push(MerkleNode::EmptyNode);
+        let mut tree_nodes = nodes.into().into_owned();
+        if tree_nodes.len() % 2 == 1 {
+            tree_nodes.push(MerkleNode::EmptyNode);
         }
-        let elements_hash_index = nodes
+        let elements_hash_index = tree_nodes
             .iter()
             .flat_map(MerkleNode::get_hash)
             .enumerate()
             .map(|(i, node)| (*node, i))
             .collect();
-        let leaf_nodes = nodes.len();
-        let mut tree_nodes = vec![MerkleNode::empty(); nodes.len().next_power_of_two() - 1];
-        tree_nodes.extend_from_slice(&nodes);
+        let leaf_nodes = tree_nodes.len();
+        // prepend leaf nodes with empty nodes to build the full tree
+        tree_nodes.splice(
+            0..0,
+            std::iter::repeat(MerkleNode::empty()).take(tree_nodes.len().next_power_of_two() - 1),
+        );
         build_nodes(&mut tree_nodes);
         let nodes_len = tree_nodes.len();
         Self {
@@ -199,8 +203,31 @@ impl MerkleTree {
         }
     }
 
-    pub fn get_root_hash(&self) -> Option<&[u8; 32]> {
-        self.nodes.get(0).and_then(MerkleNode::get_hash)
+    /// Returns the root hash for MerkleTree. If the tree is empty, then returns [0; 32]
+    pub fn get_root_hash(&self) -> [u8; 32] {
+        self.nodes
+            .get(0)
+            .and_then(MerkleNode::get_hash)
+            .copied()
+            .unwrap_or([0; 32])
+    }
+    /// Returns the root hash for MerkleTree. If the tree is empty, then returns a special hash '0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8', which is extension/transaction root hash for genesis block
+    pub fn get_root_hash_special(&self) -> [u8; 32] {
+        self.nodes
+            .get(0)
+            .and_then(MerkleNode::get_hash)
+            .copied()
+            .unwrap_or_else(
+                #[allow(clippy::unwrap_used)]
+                // unwrap is safe to use here, since digest size is always 32 bytes
+                || {
+                    use blake2::digest::{Update, VariableOutput};
+                    let mut hasher = crate::VarBlake2b::new(32).unwrap();
+                    hasher.update(&[]);
+                    let hash: Box<[u8; 32]> = hasher.finalize_boxed().try_into().unwrap();
+                    *hash
+                },
+            )
     }
 
     pub fn get_elements_hash_index(&self) -> &HashMap<[u8; 32], usize> {
@@ -246,17 +273,17 @@ mod test {
     // TODO: comparing against scala implementation, it creates a root hash of 0's instead of a non-existent hash
     #[test]
     fn merkle_tree_zero_elements() {
-        let tree = MerkleTree::new(&[]);
-        assert!(tree.get_root_hash().is_none());
+        let tree = MerkleTree::new(&[][..]);
+        assert!(tree.get_root_hash() == [0; 32]);
     }
     #[test]
     fn merkle_tree_test_one_element() {
         let data = [1; 32];
         let node = MerkleNode::from_bytes(&data).unwrap();
-        let tree = MerkleTree::new(&[node]);
+        let tree = MerkleTree::new(&[node][..]);
         assert_eq!(
-            tree.get_root_hash().unwrap(),
-            &*prefixed_hash(1, &*prefixed_hash(0, &data))
+            tree.get_root_hash(),
+            *prefixed_hash(1, &*prefixed_hash(0, &data))
         );
     }
     #[test]
@@ -271,7 +298,7 @@ mod test {
         let h20 = prefixed_hash(1, &concatenate_hashes(&*h10, h11));
         let h21 = prefixed_hash(1, &*h12);
         let h30 = prefixed_hash(1, &concatenate_hashes(&*h20, &*h21));
-        assert_eq!(tree.get_root_hash().unwrap(), &*h30);
+        assert_eq!(tree.get_root_hash(), *h30);
     }
 
     #[test]
@@ -283,22 +310,22 @@ mod test {
             MerkleNode::from_bytes(&[4; 32]).unwrap(),
             MerkleNode::from_bytes(&[5; 32]).unwrap(),
         ];
-        let tree = MerkleTree::new(&nodes);
-        let tree_root = tree.get_root_hash().unwrap();
+        let tree = MerkleTree::new(&nodes[..]);
+        let tree_root = tree.get_root_hash();
         for (i, node) in nodes.iter().enumerate() {
             assert_eq!(
                 tree.proof_by_index(i).unwrap().get_leaf_data(),
                 node.get_leaf_data().unwrap()
             );
-            assert!(tree.proof_by_index(i).unwrap().valid(tree_root));
+            assert!(tree.proof_by_index(i).unwrap().valid(&tree_root));
             assert!(tree
                 .proof_by_element(node.get_leaf_data().unwrap())
                 .unwrap()
-                .valid(tree_root));
+                .valid(&tree_root));
             assert!(tree
                 .proof_by_element_hash(node.get_hash().unwrap())
                 .unwrap()
-                .valid(tree_root));
+                .valid(&tree_root));
         }
     }
 
@@ -319,7 +346,7 @@ mod test {
                     tree.proof_by_index(i).unwrap().get_leaf_data(),
                     node.get_leaf_data().unwrap()
                 );
-                assert!(tree.proof_by_index(i).unwrap().valid(tree.get_root_hash().unwrap()));
+                assert!(tree.proof_by_index(i).unwrap().valid(&tree.get_root_hash()));
             }
         }
         #[test]
@@ -329,7 +356,7 @@ mod test {
 
             let valid = indices.iter().all(|i| *i < data.len()) && indices.len() < data.len() && !indices.is_empty(); // TODO, is there any better strategy for proptest that doesn't require us to filter out invalid indices
             if valid {
-                assert!(tree.proof_by_indices(&indices).unwrap().valid(tree.get_root_hash().unwrap()));
+                assert!(tree.proof_by_indices(&indices).unwrap().valid(&tree.get_root_hash()));
             }
             else {
                 assert!(tree.proof_by_indices(&indices).is_none());
