@@ -300,7 +300,7 @@ pub mod tests {
 
         #[test]
         fn nipopowproof_roundtrip(v in any::<NipopowProof>()) {
-            prop_assert_eq![scorex_serialize_roundtrip(&v), v.clone()];
+            prop_assert_eq![scorex_serialize_roundtrip(&v), v];
         }
 
 
