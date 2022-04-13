@@ -115,7 +115,7 @@ jobs:
       # Label used to access the service container
       ergo_node:
         # Docker Hub image
-        image: kbell1234/ergo_node_devnet:latest
+        image: ergoplatform/ergo-devnet:latest
         ports:
           # Maps tcp port 9053 on service container to the host
           - 9053:9053
@@ -240,7 +240,7 @@ jobs:
       # Label used to access the service container
       ergo_node:
         # Docker Hub image
-        image: kbell1234/ergo_node_devnet:latest
+        image: ergoplatform/ergo-devnet:latest
         ports:
           # Maps tcp port 9053 on service container to the host
           - 9053:9053
