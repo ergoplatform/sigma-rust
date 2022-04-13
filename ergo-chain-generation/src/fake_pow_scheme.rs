@@ -25,8 +25,9 @@ mod tests {
 
     use crate::{
         default_miner_secret, unpack_interlinks, update_interlinks, ErgoFullBlock,
-        ExtensionCandidate, MerkleTreeNode,
+        ExtensionCandidate,
     };
+    use ergo_merkle_tree::{MerkleNode, MerkleTree};
 
     fn generate_popowheader_chain(len: usize, start: Option<PoPowHeader>) -> Vec<PoPowHeader> {
         block_stream(start.map(|p| ErgoFullBlock {
@@ -114,7 +115,7 @@ mod tests {
             (BlockId(Digest32::zero()), 1)
         };
 
-        let extension_root = MerkleTreeNode::new(
+        let extension_root = MerkleTree::new(
             extension_candidate
                 .clone()
                 .fields
@@ -125,9 +126,10 @@ mod tests {
                     data.extend(value);
                     data
                 })
-                .collect(),
+                .map(MerkleNode::from)
+                .collect::<Vec<MerkleNode>>(),
         )
-        .hash()
+        .root_hash()
         .into();
 
         let dummy_autolykos_solution = AutolykosSolution {

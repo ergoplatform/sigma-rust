@@ -204,7 +204,7 @@ impl MerkleTree {
     }
 
     /// Returns the root hash for MerkleTree. If the tree is empty, then returns [0; 32]
-    pub fn get_root_hash(&self) -> [u8; 32] {
+    pub fn root_hash(&self) -> [u8; 32] {
         self.nodes
             .get(0)
             .and_then(MerkleNode::get_hash)
@@ -212,7 +212,7 @@ impl MerkleTree {
             .unwrap_or([0; 32])
     }
     /// Returns the root hash for MerkleTree. If the tree is empty, then returns a special hash '0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8', which is extension/transaction root hash for genesis block
-    pub fn get_root_hash_special(&self) -> [u8; 32] {
+    pub fn root_hash_special(&self) -> [u8; 32] {
         self.nodes
             .get(0)
             .and_then(MerkleNode::get_hash)
@@ -270,19 +270,25 @@ impl MerkleTree {
 mod test {
     use crate::{concatenate_hashes, prefixed_hash, MerkleNode, MerkleTree};
 
-    // TODO: comparing against scala implementation, it creates a root hash of 0's instead of a non-existent hash
     #[test]
     fn merkle_tree_zero_elements() {
         let tree = MerkleTree::new(&[][..]);
-        assert!(tree.get_root_hash() == [0; 32]);
+        assert!(tree.root_hash() == [0; 32]);
     }
     #[test]
     fn merkle_tree_test_one_element() {
+        // Here the merkle tree looks as follows:
+        //      I
+        //     / \
+        //    L   E
+        // Where `I`, `L`, and `E` denote the root internal node, leaf node, and empty node,
+        // respectively.
+
         let data = [1; 32];
         let node = MerkleNode::from_bytes(&data).unwrap();
         let tree = MerkleTree::new(&[node][..]);
         assert_eq!(
-            tree.get_root_hash(),
+            tree.root_hash(),
             *prefixed_hash(1, &*prefixed_hash(0, &data))
         );
     }
@@ -298,7 +304,7 @@ mod test {
         let h20 = prefixed_hash(1, &concatenate_hashes(&*h10, h11));
         let h21 = prefixed_hash(1, &*h12);
         let h30 = prefixed_hash(1, &concatenate_hashes(&*h20, &*h21));
-        assert_eq!(tree.get_root_hash(), *h30);
+        assert_eq!(tree.root_hash(), *h30);
     }
 
     #[test]
@@ -311,7 +317,7 @@ mod test {
             MerkleNode::from_bytes(&[5; 32]).unwrap(),
         ];
         let tree = MerkleTree::new(&nodes[..]);
-        let tree_root = tree.get_root_hash();
+        let tree_root = tree.root_hash();
         for (i, node) in nodes.iter().enumerate() {
             assert_eq!(
                 tree.proof_by_index(i).unwrap().get_leaf_data(),
@@ -346,7 +352,7 @@ mod test {
                     tree.proof_by_index(i).unwrap().get_leaf_data(),
                     node.get_leaf_data().unwrap()
                 );
-                assert!(tree.proof_by_index(i).unwrap().valid(&tree.get_root_hash()));
+                assert!(tree.proof_by_index(i).unwrap().valid(&tree.root_hash()));
             }
         }
         #[test]
@@ -356,7 +362,7 @@ mod test {
 
             let valid = indices.iter().all(|i| *i < data.len()) && indices.len() < data.len() && !indices.is_empty(); // TODO, is there any better strategy for proptest that doesn't require us to filter out invalid indices
             if valid {
-                assert!(tree.proof_by_indices(&indices).unwrap().valid(&tree.get_root_hash()));
+                assert!(tree.proof_by_indices(&indices).unwrap().valid(&tree.root_hash()));
             }
             else {
                 assert!(tree.proof_by_indices(&indices).is_none());

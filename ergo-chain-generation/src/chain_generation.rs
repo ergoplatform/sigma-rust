@@ -30,12 +30,12 @@ use ergo_lib::{
         prover::{ContextExtension, ProofBytes},
     },
 };
+use ergo_merkle_tree::{MerkleNode, MerkleTree};
 use num_bigint::{BigInt, Sign};
 use rand::{thread_rng, Rng};
 
 use crate::{
     default_miner_secret, unpack_interlinks, update_interlinks, ErgoFullBlock, ExtensionCandidate,
-    MerkleTreeNode,
 };
 
 /// Section of a block which contains transactions.
@@ -162,7 +162,7 @@ fn prove_block(
         (BlockId(Digest32::zero()), 1)
     };
 
-    let extension_root = MerkleTreeNode::new(
+    let extension_root = MerkleTree::new(
         extension_candidate
             .clone()
             .fields
@@ -173,9 +173,10 @@ fn prove_block(
                 data.extend(value);
                 data
             })
-            .collect(),
+            .map(MerkleNode::from)
+            .collect::<Vec<MerkleNode>>(),
     )
-    .hash()
+    .root_hash_special()
     .into();
 
     let dummy_autolykos_solution = AutolykosSolution {
@@ -332,7 +333,7 @@ fn numeric_hash(input: &[u8], valid_range: BigInt, order: BigInt) -> BigInt {
 /// Used in the miner when a BlockTransaction instance is not generated yet (because a header is not known)
 fn transactions_root(txs: &[Transaction], block_version: u8) -> Digest32 {
     if block_version == 1 {
-        let tree = MerkleTreeNode::new(
+        let tree = MerkleTree::new(
             txs.iter()
                 .map(|tx| {
                     blake2b256_hash(&tx.bytes_to_sign().unwrap())
@@ -340,11 +341,12 @@ fn transactions_root(txs: &[Transaction], block_version: u8) -> Digest32 {
                         .as_ref()
                         .to_vec()
                 })
-                .collect(),
+                .map(MerkleNode::from)
+                .collect::<Vec<MerkleNode>>(),
         );
-        tree.hash().into()
+        tree.root_hash_special().into()
     } else {
-        let tree = MerkleTreeNode::new(
+        let tree = MerkleTree::new(
             txs.iter()
                 .map(|tx| {
                     let mut data = blake2b256_hash(&tx.bytes_to_sign().unwrap())
@@ -366,9 +368,10 @@ fn transactions_root(txs: &[Transaction], block_version: u8) -> Digest32 {
                     data.extend(witness);
                     data
                 })
-                .collect(),
+                .map(MerkleNode::from)
+                .collect::<Vec<MerkleNode>>(),
         );
-        tree.hash().into()
+        tree.root_hash_special().into()
     }
 }
 
