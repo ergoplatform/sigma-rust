@@ -9,7 +9,7 @@ use sigma_ser::{
 
 use crate::{autolykos_pow_scheme, nipopow_algos::NipopowAlgos};
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 /// A structure representing NiPoPow proof as a persistent modifier.
 pub struct NipopowProof {
     /// Algos
@@ -233,5 +233,76 @@ impl ScorexSerializable for PoPowHeader {
             header,
             interlinks: interlinks?,
         })
+    }
+}
+
+#[cfg(feature = "arbitrary")]
+#[allow(clippy::unwrap_used)]
+mod arbitrary {
+    use crate::autolykos_pow_scheme::AutolykosPowScheme;
+
+    use super::*;
+    use ergo_chain_types::Digest32;
+    use proptest::prelude::*;
+    use proptest::{arbitrary::Arbitrary, collection::vec};
+
+    impl Arbitrary for PoPowHeader {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<PoPowHeader>;
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            (any::<Box<Header>>(), vec(any::<Digest32>(), 1..10))
+                .prop_map(|(header, digests)| PoPowHeader {
+                    header: *header,
+                    interlinks: digests.into_iter().map(BlockId).collect(),
+                })
+                .boxed()
+        }
+    }
+
+    impl Arbitrary for NipopowProof {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<NipopowProof>;
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            (
+                any::<u32>(),
+                any::<u32>(),
+                vec(any::<PoPowHeader>(), 1..10),
+                any::<PoPowHeader>(),
+                vec(any::<Header>(), 1..10),
+            )
+                .prop_map(|(m, k, prefix, suffix_head, suffix_tail)| NipopowProof {
+                    popow_algos: NipopowAlgos {
+                        pow_scheme: AutolykosPowScheme::default(),
+                    },
+                    m,
+                    k,
+                    prefix,
+                    suffix_head,
+                    suffix_tail,
+                })
+                .boxed()
+        }
+    }
+}
+
+#[cfg(test)]
+#[cfg(feature = "arbitrary")]
+#[allow(clippy::unwrap_used, clippy::panic)]
+pub mod tests {
+    use super::*;
+    use proptest::prelude::*;
+    use sigma_ser::scorex_serialize_roundtrip;
+    proptest! {
+
+        #![proptest_config(ProptestConfig::with_cases(64))]
+
+        #[test]
+        fn nipopowproof_roundtrip(v in any::<NipopowProof>()) {
+            prop_assert_eq![scorex_serialize_roundtrip(&v), v];
+        }
+
+
     }
 }
