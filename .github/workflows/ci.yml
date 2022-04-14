@@ -109,10 +109,24 @@ jobs:
     runs-on: ubuntu-latest
     env:
       HAS_NPM_TOKEN: ${{ secrets.NPM_TOKEN != '' }}
-    defaults:
-      run:
-        working-directory: bindings/ergo-lib-wasm
+
+    # Service containers to run `ergo` node in `devnet` mode
+    services:
+      # Label used to access the service container
+      ergo_node:
+        # Docker Hub image
+        image: ergoplatform/ergo-devnet:latest
+        ports:
+          # Maps tcp port 9053 on service container to the host
+          - 9053:9053
+    
     steps:
+      # Need the following command to get around a GA bug where the workspace can't be cleared due
+      # to incorrect access permissions. This comes up due to the use of the service container
+      # above. See https://github.com/actions/checkout/issues/211
+      - name: set_file_permissions
+        run: sudo chown -R $USER:$USER ${{ github.workspace }}
+
       - name: checkout
         uses: actions/checkout@v2
 
@@ -123,12 +137,14 @@ jobs:
 
       - name: install deps
         run: |
+          cd bindings/ergo-lib-wasm
           curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh -s -- -f
           curl -sL https://deb.nodesource.com/setup_12.x | sudo -E bash -
           sudo apt-get -y install nodejs
 
       - name: run Wasm tests
         run: |
+          cd bindings/ergo-lib-wasm
           wasm-pack build
           # wasm-pack test  --firefox --headless
           # wasm-pack test  --firefox --headless --release
@@ -137,18 +153,28 @@ jobs:
 
       - name: run node JS tests
         run: |
+          cd bindings/ergo-lib-wasm
           wasm-pack build
           npm install
           npm run test
-
+      
+      - name: run node JS integration tests
+        run: |
+          cd bindings/ergo-lib-wasm
+          # wasm-pack build # --features rest
+          npm install
+          npm run integration-test
+      
       - name: run browser JS tests
         run: |
+          cd bindings/ergo-lib-wasm
           wasm-pack build
           npm install
           npm run test-browser
 
       - name: build alpha versions
         run: |
+          cd bindings/ergo-lib-wasm
           npm run build-nodejs-alpha
           npm run build-browser-alpha
 
@@ -207,8 +233,20 @@ jobs:
 
   ios_tests:
     name: Test Swift(iOS) bindings
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
+
+    # Service containers to run `ergo` node in `devnet` mode
+    services:
+      # Label used to access the service container
+      ergo_node:
+        # Docker Hub image
+        image: ergoplatform/ergo-devnet:latest
+        ports:
+          # Maps tcp port 9053 on service container to the host
+          - 9053:9053
+
     steps:
+      - uses: fwal/setup-swift@v1
       - name: checkout
         uses: actions/checkout@v2
 
