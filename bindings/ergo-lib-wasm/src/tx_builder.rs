@@ -3,7 +3,9 @@ use ergo_lib::wallet;
 use wasm_bindgen::prelude::*;
 
 use crate::box_selector::BoxSelection;
+use crate::context_extension::ContextExtension;
 use crate::data_input::DataInputs;
+use crate::ergo_box::BoxId;
 use crate::error_conversion::to_js;
 use crate::{
     address::Address, box_coll::ErgoBoxCandidates, ergo_box::BoxValue,
@@ -53,6 +55,12 @@ impl TxBuilder {
     /// Set transaction's data inputs
     pub fn set_data_inputs(&mut self, data_inputs: &DataInputs) {
         self.0.set_data_inputs(data_inputs.into())
+    }
+
+    /// Set context extension for a given input
+    pub fn set_context_extension(&mut self, box_id: &BoxId, context_extension: &ContextExtension) {
+        self.0
+            .set_context_extension(box_id.clone().into(), context_extension.clone().into());
     }
 
     /// Build the unsigned transaction

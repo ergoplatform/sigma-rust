@@ -48,7 +48,7 @@ optional = true
 
 [features]
 default = []
-arbitrary = ["proptest", "proptest-derive"]
+arbitrary = ["proptest", "proptest-derive", "ergotree-ir/arbitrary", "ergo-chain-types/arbitrary"]
 
 [dev-dependencies]
 ergotree-ir = { version = "^0.15.0", path = "../ergotree-ir", features = ["arbitrary"] }

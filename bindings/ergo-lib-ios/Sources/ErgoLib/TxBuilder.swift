@@ -46,6 +46,11 @@ class TxBuilder {
     func setDataInputs(dataInputs: DataInputs) {
         ergo_lib_tx_builder_set_data_inputs(self.pointer, dataInputs.pointer)
     }
+
+    /// Set context extension for a given input
+    func setContextExtension(boxId: BoxId, ctxExt: ContextExtension) {
+        ergo_lib_tx_builder_set_context_extension(self.pointer, boxId.pointer, ctxExt.pointer)
+    }
     
     /// Get ``DataInputs``
     func getDataInputs() -> DataInputs {

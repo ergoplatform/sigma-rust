@@ -38,6 +38,13 @@ impl<const N: usize> Digest<N> {
     pub fn zero() -> Digest<N> {
         Digest(Box::new([0u8; N]))
     }
+
+    /// Parse Digest<N> from base64 encoded string
+    pub fn from_base64(s: &str) -> Result<Digest<N>, DigestNError> {
+        let bytes = base64::decode(s)?;
+        let arr: [u8; N] = bytes.as_slice().try_into()?;
+        Ok(Digest(Box::new(arr)))
+    }
 }
 
 impl<const N: usize> std::fmt::Debug for Digest<N> {
@@ -88,7 +95,7 @@ impl<const N: usize> From<Digest<N>> for String {
 }
 
 impl<const N: usize> TryFrom<String> for Digest<N> {
-    type Error = Digest32Error;
+    type Error = DigestNError;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         let bytes = base16::decode(&value)?;
@@ -98,7 +105,7 @@ impl<const N: usize> TryFrom<String> for Digest<N> {
 }
 
 impl<const N: usize> TryFrom<Vec<u8>> for Digest<N> {
-    type Error = Digest32Error;
+    type Error = DigestNError;
 
     fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
         let bytes: [u8; N] = value.as_slice().try_into()?;
@@ -126,13 +133,16 @@ impl AsRef<[u8]> for Digest32 {
 
 /// Invalid byte array size
 #[derive(Error, Debug)]
-pub enum Digest32Error {
+pub enum DigestNError {
     /// error decoding from Base16
     #[error("error decoding from Base16: {0}")]
     Base16DecodingError(#[from] base16::DecodeError),
     /// Invalid byte array size
     #[error("Invalid byte array size ({0})")]
     InvalidSize(#[from] std::array::TryFromSliceError),
+    /// error decoding from Base64
+    #[error("error decoding from Base64: {0}")]
+    Base64DecodingError(#[from] base64::DecodeError),
 }
 
 /// Arbitrary
@@ -158,4 +168,12 @@ pub(crate) mod arbitrary {
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_from_base64() {
+        let s = "KkctSmFOZFJnVWtYcDJzNXY4eS9CP0UoSCtNYlBlU2g=";
+        assert!(Digest32::from_base64(s).is_ok());
+    }
+}

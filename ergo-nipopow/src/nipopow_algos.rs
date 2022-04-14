@@ -21,7 +21,7 @@ pub const INTERLINK_VECTOR_PREFIX: u8 = 0x01;
 ///
 /// Please note that for KMZ17 we're using the version published @ Financial Cryptography 2020,
 /// which is different from previously published versions on IACR eprint.
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct NipopowAlgos {
     /// The proof-of-work scheme
     pub pow_scheme: AutolykosPowScheme,

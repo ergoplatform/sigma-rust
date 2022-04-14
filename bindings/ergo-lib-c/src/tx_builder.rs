@@ -4,8 +4,9 @@ use ergo_lib_c_core::{
     address::{AddressPtr, ConstAddressPtr},
     box_selector::{BoxSelectionPtr, ConstBoxSelectionPtr},
     collections::{CollectionPtr, ConstCollectionPtr},
+    context_extension::ContextExtensionPtr,
     data_input::DataInput,
-    ergo_box::{BoxValuePtr, ConstBoxValuePtr, ErgoBoxCandidate},
+    ergo_box::{BoxIdPtr, BoxValuePtr, ConstBoxValuePtr, ErgoBoxCandidate},
     transaction::UnsignedTransactionPtr,
     tx_builder::*,
     Error, ErrorPtr,
@@ -59,6 +60,17 @@ pub unsafe extern "C" fn ergo_lib_tx_builder_set_data_inputs(
 ) {
     #[allow(clippy::unwrap_used)]
     tx_builder_set_data_inputs(tx_builder_mut, data_inputs_ptr).unwrap();
+}
+
+/// Set context extension for a given input
+#[no_mangle]
+pub unsafe extern "C" fn ergo_lib_tx_builder_set_context_extension(
+    tx_builder_mut: TxBuilderPtr,
+    box_id_ptr: BoxIdPtr,
+    ctx_ext_ptr: ContextExtensionPtr,
+) {
+    #[allow(clippy::unwrap_used)]
+    tx_builder_set_context_extension(tx_builder_mut, box_id_ptr, ctx_ext_ptr).unwrap();
 }
 
 /// Build the unsigned transaction

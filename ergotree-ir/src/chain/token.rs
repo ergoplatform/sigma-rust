@@ -10,7 +10,7 @@ use std::convert::TryFrom;
 use super::ergo_box::BoxId;
 use derive_more::From;
 use derive_more::Into;
-use ergo_chain_types::Digest32;
+use ergo_chain_types::{Digest32, DigestNError};
 use sigma_ser::ScorexSerializable;
 use thiserror::Error;
 
@@ -22,6 +22,11 @@ pub struct TokenId(Digest32);
 impl TokenId {
     /// token id size in bytes
     pub const SIZE: usize = Digest32::SIZE;
+
+    /// Parse TokenId from base64 encoded string
+    pub fn from_base64(s: &str) -> Result<TokenId, DigestNError> {
+        Digest32::from_base64(s).map(Into::into)
+    }
 }
 
 impl From<BoxId> for TokenId {

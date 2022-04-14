@@ -5,8 +5,9 @@ use crate::{
     address::{Address, AddressPtr, ConstAddressPtr},
     box_selector::{BoxSelection, BoxSelectionPtr, ConstBoxSelectionPtr},
     collections::{Collection, CollectionPtr, ConstCollectionPtr},
+    context_extension::ContextExtensionPtr,
     data_input::DataInput,
-    ergo_box::{BoxValue, BoxValuePtr, ConstBoxValuePtr, ErgoBoxCandidate},
+    ergo_box::{BoxIdPtr, BoxValue, BoxValuePtr, ConstBoxValuePtr, ErgoBoxCandidate},
     transaction::{UnsignedTransaction, UnsignedTransactionPtr},
     util::{const_ptr_as_ref, mut_ptr_as_mut},
     Error,
@@ -77,6 +78,22 @@ pub unsafe fn tx_builder_set_data_inputs(
     tx_builder_mut
         .0
         .set_data_inputs(data_inputs.0.clone().into_iter().map(|d| d.0).collect());
+    Ok(())
+}
+
+/// Set context extension for a given input
+pub unsafe fn tx_builder_set_context_extension(
+    tx_builder_mut: TxBuilderPtr,
+    box_id_ptr: BoxIdPtr,
+    ctx_ext_ptr: ContextExtensionPtr,
+) -> Result<(), Error> {
+    let box_id = const_ptr_as_ref(box_id_ptr, "box_id_ptr")?;
+    let ctx_ext = const_ptr_as_ref(ctx_ext_ptr, "ctx_ext_ptr")?;
+    // let data_inputs = const_ptr_as_ref(data_inputs_ptr, "data_inputs_ptr")?;
+    let tx_builder_mut = mut_ptr_as_mut(tx_builder_mut, "tx_builder_mut")?;
+    tx_builder_mut
+        .0
+        .set_context_extension(box_id.0.clone(), ctx_ext.0.clone());
     Ok(())
 }
 

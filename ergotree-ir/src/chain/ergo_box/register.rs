@@ -6,13 +6,14 @@ use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
 use crate::serialization::SigmaSerializeResult;
+use derive_more::From;
 use ergo_chain_types::Base16EncodedBytes;
 use std::convert::TryInto;
 use std::{collections::HashMap, convert::TryFrom};
 use thiserror::Error;
 
 /// Box register id (0-9)
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy, From)]
 pub enum RegisterId {
     /// Id for mandatory registers (0-3)
     MandatoryRegisterId(MandatoryRegisterId),
