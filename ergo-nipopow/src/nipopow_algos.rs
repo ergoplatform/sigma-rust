@@ -10,7 +10,7 @@ use crate::{
 };
 use ergo_chain_types::{BlockId, Digest32, ExtensionCandidate};
 
-/// TODO
+/// Prefix for Block Interlinks
 pub const INTERLINK_VECTOR_PREFIX: u8 = 0x01;
 /// A set of utilities for working with NiPoPoW protocol.
 ///

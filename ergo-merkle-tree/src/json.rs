@@ -103,10 +103,45 @@ impl TryFrom<IndexJson> for (usize, [u8; 32]) {
     }
 }
 
+/// Json Representation of a LevelNode. First field must be valid base16. Serializtion from LevelNode differs in ergo, which is why a different struct is used for BatchMerkleProof
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct BatchLevelNodeJson {
+    digest: String,
+    side: NodeSide,
+}
+
+impl std::convert::TryFrom<BatchLevelNodeJson> for LevelNode {
+    type Error = MerkleProofFromJsonError;
+    fn try_from(node: BatchLevelNodeJson) -> Result<Self, Self::Error> {
+        let hash = base16::decode(&node.digest)?;
+        Ok(LevelNode(
+            match hash.len() {
+                0 => None,
+                _ => Some(
+                    hash.try_into()
+                        .map_err(|_| MerkleProofFromJsonError::LengthError)?,
+                ),
+            },
+            node.side,
+        ))
+    }
+}
+
+impl From<LevelNode> for BatchLevelNodeJson {
+    fn from(node: LevelNode) -> Self {
+        Self {
+            digest: node
+                .0
+                .map(|hash| base16::encode_lower(&hash))
+                .unwrap_or_else(String::new),
+            side: node.1,
+        }
+    }
+}
 #[derive(Serialize, Deserialize)]
 pub struct BatchMerkleProofJson {
     indices: Vec<IndexJson>,
-    proofs: Vec<LevelNodeJson>,
+    proofs: Vec<BatchLevelNodeJson>,
 }
 
 impl std::convert::TryFrom<BatchMerkleProofJson> for crate::batchmerkleproof::BatchMerkleProof {
@@ -128,7 +163,11 @@ impl std::convert::TryFrom<BatchMerkleProofJson> for crate::batchmerkleproof::Ba
 impl From<crate::batchmerkleproof::BatchMerkleProof> for BatchMerkleProofJson {
     fn from(proof: crate::batchmerkleproof::BatchMerkleProof) -> BatchMerkleProofJson {
         let indices = proof.indices.into_iter().map(IndexJson::from).collect();
-        let proofs = proof.proofs.into_iter().map(LevelNodeJson::from).collect();
+        let proofs = proof
+            .proofs
+            .into_iter()
+            .map(BatchLevelNodeJson::from)
+            .collect();
         BatchMerkleProofJson { indices, proofs }
     }
 }
