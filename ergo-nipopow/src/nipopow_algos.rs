@@ -253,37 +253,40 @@ impl NipopowAlgos {
     }
 
     /// Computes interlinks vector for a header next to `prevHeader`.
-    pub fn update_interlinks(prev_header: Header, prev_interlinks: Vec<BlockId>) -> Vec<BlockId> {
+    pub fn update_interlinks(
+        prev_header: Header,
+        prev_interlinks: Vec<BlockId>,
+    ) -> Result<Vec<BlockId>, AutolykosPowSchemeError> {
         let is_genesis = prev_header.height == 1;
         if !is_genesis {
             // Interlinks vector cannot be empty in case of non-genesis header
             assert!(!prev_interlinks.is_empty());
             let genesis = prev_interlinks[0].clone();
             let nipopow_algos = NipopowAlgos::default();
-            let prev_level = nipopow_algos.max_level_of(&prev_header).unwrap() as usize;
+            let prev_level = nipopow_algos.max_level_of(&prev_header)? as usize;
             if prev_level > 0 {
                 // Adapted:
                 //   `(genesis +: tail.dropRight(prevLevel)) ++Seq.fill(prevLevel)(prevHeader.id)`
                 // from scala
                 if prev_interlinks.len() > prev_level {
-                    std::iter::once(genesis)
+                    Ok(std::iter::once(genesis)
                         .chain(
                             prev_interlinks[1..(prev_interlinks.len() - prev_level)]
                                 .iter()
                                 .cloned(),
                         )
                         .chain(std::iter::repeat(prev_header.id).take(prev_level))
-                        .collect()
+                        .collect())
                 } else {
-                    std::iter::once(genesis)
+                    Ok(std::iter::once(genesis)
                         .chain(std::iter::repeat(prev_header.id).take(prev_level))
-                        .collect()
+                        .collect())
                 }
             } else {
-                prev_interlinks
+                Ok(prev_interlinks)
             }
         } else {
-            vec![prev_header.id]
+            Ok(vec![prev_header.id])
         }
     }
 }

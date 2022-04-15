@@ -8,9 +8,7 @@ use std::collections::{BTreeSet, HashMap};
 #[cfg_attr(feature = "json", derive(serde::Serialize))]
 pub enum MerkleNode {
     #[doc(hidden)]
-    Node {
-        hash: [u8; HASH_SIZE],
-    },
+    Node { hash: [u8; HASH_SIZE] },
     /// Leaf Node in MerkleTree. Can be created using [`Self::from_bytes`] or [`Self::from`]
     Leaf {
         /// 32 byte Blake2b256 hash for data

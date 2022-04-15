@@ -62,10 +62,11 @@ mod tests {
         let interlinks = prev_block
             .as_ref()
             .and_then(|b| {
-                Some(NipopowAlgos::update_interlinks(
+                NipopowAlgos::update_interlinks(
                     b.header.clone(),
                     NipopowAlgos::unpack_interlinks(&b.extension).ok()?,
-                ))
+                )
+                .ok()
             })
             .unwrap_or_default();
         if !interlinks.is_empty() {
@@ -113,9 +114,8 @@ mod tests {
 
         let extension_root = MerkleTree::new(
             extension_candidate
-                .clone()
                 .fields()
-                .into_iter()
+                .iter()
                 .map(|(key, value)| {
                     let mut data = vec![2_u8];
                     data.extend(key);

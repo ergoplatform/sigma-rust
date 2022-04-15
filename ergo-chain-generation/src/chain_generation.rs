@@ -111,10 +111,11 @@ fn next_block(
     let interlinks = prev_block
         .as_ref()
         .and_then(|b| {
-            Some(NipopowAlgos::update_interlinks(
+            NipopowAlgos::update_interlinks(
                 b.header.clone(),
                 NipopowAlgos::unpack_interlinks(&b.extension).ok()?,
-            ))
+            )
+            .ok()
         })
         .unwrap_or_default();
     if !interlinks.is_empty() {
@@ -163,7 +164,6 @@ fn prove_block(
 
     let extension_root = MerkleTree::new(
         extension_candidate
-            .clone()
             .fields()
             .iter()
             .map(|(key, value)| {
