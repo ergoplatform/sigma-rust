@@ -103,6 +103,7 @@ impl MerkleProof {
         self.levels.push(node);
     }
 
+    /// Returns Leaf Data for proof node
     pub fn get_leaf_data(&self) -> &[u8] {
         &self.leaf_data
     }

@@ -8,7 +8,7 @@
 #![deny(unused_mut)]
 #![deny(dead_code)]
 #![deny(unused_imports)]
-//#![deny(missing_docs)] TODO
+#![deny(missing_docs)]
 // Clippy exclusions
 #![allow(clippy::unit_arg)]
 #![deny(rustdoc::broken_intra_doc_links)]
@@ -22,6 +22,7 @@ use blake2::digest::{Update, VariableOutput};
 use blake2::VarBlake2b;
 
 // Constants for hashing
+/// Hash size for all nodes in [`crate::MerkleTree`], [`crate::MerkleProof`] and [`crate::BatchMerkleProof`]
 pub const HASH_SIZE: usize = 32;
 pub(crate) const INTERNAL_PREFIX: u8 = 1;
 pub(crate) const LEAF_PREFIX: u8 = 0;
@@ -32,7 +33,7 @@ pub(crate) mod json;
 // Unwrap is safe here since the hash is guaranteed to be 32 bytes
 #[allow(clippy::unwrap_used)]
 // Generates a hash of data prefixed with `prefix`
-pub fn prefixed_hash(prefix: u8, data: &[u8]) -> Box<[u8; 32]> {
+pub(crate) fn prefixed_hash(prefix: u8, data: &[u8]) -> Box<[u8; 32]> {
     let mut hasher = VarBlake2b::new(32).unwrap();
     hasher.update(&[prefix]);
     hasher.update(data);

@@ -7,13 +7,18 @@ use std::collections::{BTreeSet, HashMap};
 #[derive(Debug, Clone, Eq, PartialEq)]
 #[cfg_attr(feature = "json", derive(serde::Serialize))]
 pub enum MerkleNode {
+    #[doc(hidden)]
     Node {
         hash: [u8; HASH_SIZE],
     },
+    /// Leaf Node in MerkleTree. Can be created using [`Self::from_bytes`] or [`Self::from`]
     Leaf {
+        /// 32 byte Blake2b256 hash for data
         hash: [u8; HASH_SIZE],
+        /// Leaf Data
         data: Vec<u8>,
     },
+    #[doc(hidden)]
     EmptyNode,
 }
 
@@ -212,6 +217,7 @@ impl MerkleTree {
             .unwrap_or([0; 32])
     }
     /// Returns the root hash for MerkleTree. If the tree is empty, then returns a special hash '0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8', which is extension/transaction root hash for genesis block
+    /// See: <https://github.com/ergoplatform/ergo/issues/1077>
     pub fn root_hash_special(&self) -> [u8; 32] {
         self.nodes
             .get(0)
@@ -230,22 +236,27 @@ impl MerkleTree {
             )
     }
 
+    /// Returns HashMap of hashes and their index in the tree
     pub fn get_elements_hash_index(&self) -> &HashMap<[u8; 32], usize> {
         &self.elements_hash_index
     }
 
+    /// Builds a [`crate::MerkleProof`] for leaf_index. Returns None if index does not exist
     pub fn proof_by_index(&self, leaf_index: usize) -> Option<crate::MerkleProof> {
         build_proof(&self.nodes, leaf_index, self.internal_nodes)
     }
+    /// Builds a [`crate::MerkleProof`] for given hash. Returns None if hash is not a leaf of tree
     pub fn proof_by_element_hash(&self, hash: &[u8; 32]) -> Option<crate::MerkleProof> {
         let index = *self.elements_hash_index.get(hash)?;
         self.proof_by_index(index)
     }
+    /// Builds a [`crate::MerkleProof`] for element, by searching for its hash in the tree
     pub fn proof_by_element(&self, data: &[u8]) -> Option<crate::MerkleProof> {
         let hash = *prefixed_hash(LEAF_PREFIX, data);
         self.proof_by_element_hash(&hash)
     }
 
+    /// Builds a [`crate::BatchMerkleProof`] for given indices
     pub fn proof_by_indices(
         &self,
         leaf_indices: &[usize],

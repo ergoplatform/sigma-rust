@@ -10,16 +10,19 @@ use crate::{HASH_SIZE, INTERNAL_PREFIX};
     serde(try_from = "crate::json::BatchMerkleProofJson")
 )]
 #[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
+/// Compact Merkle multiproof. Can be created using [`crate::MerkleTree::proof_by_indices`]
 pub struct BatchMerkleProof {
     pub(crate) indices: Vec<(usize, [u8; 32])>,
     pub(crate) proofs: Vec<LevelNode>,
 }
 
 impl BatchMerkleProof {
+    /// Create a new BatchMerkleProof
     pub fn new(indices: Vec<(usize, [u8; HASH_SIZE])>, proofs: Vec<crate::LevelNode>) -> Self {
         BatchMerkleProof { indices, proofs }
     }
 
+    /// Generates root hash of proof, and compares it against expected root hash
     pub fn valid(&self, expected_root: &[u8; HASH_SIZE]) -> bool {
         fn validate(
             a: &[usize],
@@ -84,9 +87,11 @@ impl BatchMerkleProof {
         }
     }
 
+    /// Returns indices (leaf nodes) that are part of the proof
     pub fn get_indices(&self) -> &[(usize, [u8; 32])] {
         &self.indices
     }
+    /// Returns nodes included in proof to get to root node
     pub fn get_proofs(&self) -> &[LevelNode] {
         &self.proofs
     }
