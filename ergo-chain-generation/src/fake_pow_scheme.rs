@@ -23,18 +23,14 @@ mod tests {
     use num_bigint::BigInt;
     use rand::{thread_rng, Rng};
 
-    use crate::{
-        default_miner_secret, unpack_interlinks, update_interlinks, ErgoFullBlock,
-        ExtensionCandidate,
-    };
+    use crate::{default_miner_secret, ErgoFullBlock, ExtensionCandidate};
     use ergo_merkle_tree::{MerkleNode, MerkleTree};
 
     fn generate_popowheader_chain(len: usize, start: Option<PoPowHeader>) -> Vec<PoPowHeader> {
         block_stream(start.map(|p| ErgoFullBlock {
             header: p.header,
-            extension: ExtensionCandidate {
-                fields: NipopowAlgos::pack_interlinks(p.interlinks),
-            },
+            extension:
+                ExtensionCandidate::new(NipopowAlgos::pack_interlinks(p.interlinks)).unwrap(),
         }))
         .take(len)
         .map(ErgoFullBlock::try_into)
@@ -47,12 +43,12 @@ mod tests {
         let start = if start_block.is_some() {
             start_block
         } else {
-            next_block(None, ExtensionCandidate { fields: vec![] }, block_version)
+            next_block(None, ExtensionCandidate::default(), block_version)
         };
         std::iter::successors(start, move |b| {
             next_block(
                 Some(b.clone()),
-                ExtensionCandidate { fields: vec![] },
+                ExtensionCandidate::default(),
                 block_version,
             )
         })
@@ -66,16 +62,16 @@ mod tests {
         let interlinks = prev_block
             .as_ref()
             .and_then(|b| {
-                Some(update_interlinks(
+                Some(NipopowAlgos::update_interlinks(
                     b.header.clone(),
-                    unpack_interlinks(&b.extension).ok()?,
+                    NipopowAlgos::unpack_interlinks(&b.extension).ok()?,
                 ))
             })
             .unwrap_or_default();
         if !interlinks.is_empty() {
             // Only non-empty for non-genesis block
             extension
-                .fields
+                .fields_mut()
                 .extend(NipopowAlgos::pack_interlinks(interlinks));
         }
         prove_block(prev_block.map(|b| b.header), block_version, 0, extension)
@@ -118,7 +114,7 @@ mod tests {
         let extension_root = MerkleTree::new(
             extension_candidate
                 .clone()
-                .fields
+                .fields()
                 .into_iter()
                 .map(|(key, value)| {
                     let mut data = vec![2_u8];

@@ -18,6 +18,7 @@ thiserror = "1"
 derive_more = "0.99"
 sigma-ser = { version = "^0.4.0", path = "../sigma-ser" }
 sigma-util = { version = "^0.4.0", path = "../sigma-util" }
+ergo-merkle-tree = { version = "0.2.0", path = "../ergo-merkle-tree" }
 base16 = "0.2.1"
 base64 = "0.13.0"
 proptest-derive = {version = "0.3.0", optional = true }

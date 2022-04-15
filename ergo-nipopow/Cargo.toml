@@ -44,4 +44,4 @@ optional = true
 
 [features]
 default = []
-arbitrary = ["proptest", "proptest-derive", "ergo-chain-types/arbitrary"]
+arbitrary = ["proptest", "proptest-derive", "ergo-chain-types/arbitrary", "ergotree-ir/arbitrary"]

@@ -290,6 +290,7 @@ mod arbitrary {
 
     use super::*;
     use ergo_chain_types::Digest32;
+    use ergo_chain_types::ExtensionCandidate;
     use proptest::prelude::*;
     use proptest::{arbitrary::Arbitrary, collection::vec};
 
@@ -301,7 +302,13 @@ mod arbitrary {
             (any::<Box<Header>>(), vec(any::<Digest32>(), 1..10))
                 .prop_map(|(header, digests)| PoPowHeader {
                     header: *header,
-                    interlinks: digests.into_iter().map(BlockId).collect(),
+                    interlinks: digests.iter().cloned().map(BlockId).collect(),
+                    interlinks_proof: ExtensionCandidate::new(NipopowAlgos::pack_interlinks(
+                        digests.into_iter().map(BlockId).collect(),
+                    ))
+                    .unwrap()
+                    .proof_for_interlink_vector()
+                    .unwrap(),
                 })
                 .boxed()
         }

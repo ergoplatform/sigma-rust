@@ -31,12 +31,11 @@ use ergo_lib::{
     },
 };
 use ergo_merkle_tree::{MerkleNode, MerkleTree};
+use ergo_nipopow::NipopowAlgos;
 use num_bigint::{BigInt, Sign};
 use rand::{thread_rng, Rng};
 
-use crate::{
-    default_miner_secret, unpack_interlinks, update_interlinks, ErgoFullBlock, ExtensionCandidate,
-};
+use crate::{default_miner_secret, ErgoFullBlock, ExtensionCandidate};
 
 /// Section of a block which contains transactions.
 #[allow(dead_code)]
@@ -89,7 +88,7 @@ pub fn block_stream(start_block: Option<ErgoFullBlock>) -> impl Iterator<Item = 
         next_block(
             None,
             txs.clone(),
-            ExtensionCandidate { fields: vec![] },
+            ExtensionCandidate::default(),
             block_version,
         )
     };
@@ -97,7 +96,7 @@ pub fn block_stream(start_block: Option<ErgoFullBlock>) -> impl Iterator<Item = 
         next_block(
             Some(b.clone()),
             txs.clone(),
-            ExtensionCandidate { fields: vec![] },
+            ExtensionCandidate::default(),
             block_version,
         )
     })
@@ -112,16 +111,16 @@ fn next_block(
     let interlinks = prev_block
         .as_ref()
         .and_then(|b| {
-            Some(update_interlinks(
+            Some(NipopowAlgos::update_interlinks(
                 b.header.clone(),
-                unpack_interlinks(&b.extension).ok()?,
+                NipopowAlgos::unpack_interlinks(&b.extension).ok()?,
             ))
         })
         .unwrap_or_default();
     if !interlinks.is_empty() {
         // Only non-empty for non-genesis block
         extension
-            .fields
+            .fields_mut()
             .extend(ergo_nipopow::NipopowAlgos::pack_interlinks(interlinks));
     }
     prove_block(
@@ -165,8 +164,8 @@ fn prove_block(
     let extension_root = MerkleTree::new(
         extension_candidate
             .clone()
-            .fields
-            .into_iter()
+            .fields()
+            .iter()
             .map(|(key, value)| {
                 let mut data = vec![2_u8];
                 data.extend(key);
@@ -384,9 +383,8 @@ mod tests {
     fn generate_popowheader_chain(len: usize, start: Option<PoPowHeader>) -> Vec<PoPowHeader> {
         block_stream(start.map(|p| ErgoFullBlock {
             header: p.header,
-            extension: ExtensionCandidate {
-                fields: NipopowAlgos::pack_interlinks(p.interlinks),
-            },
+            extension:
+                ExtensionCandidate::new(NipopowAlgos::pack_interlinks(p.interlinks)).unwrap(),
         }))
         .take(len)
         .map(ErgoFullBlock::try_into)

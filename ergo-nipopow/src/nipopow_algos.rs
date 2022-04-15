@@ -1,13 +1,14 @@
 use ergotree_ir::{chain::header::Header, sigma_protocol::dlog_group::order};
 use num_bigint::BigInt;
 use num_traits::ToPrimitive;
+use std::convert::TryInto;
 
 use crate::{
     autolykos_pow_scheme::{AutolykosPowScheme, AutolykosPowSchemeError},
     nipopow_proof::PoPowHeader,
     NipopowProof, NipopowProofError,
 };
-use ergo_chain_types::BlockId;
+use ergo_chain_types::{BlockId, Digest32, ExtensionCandidate};
 
 /// TODO
 pub const INTERLINK_VECTOR_PREFIX: u8 = 0x01;
@@ -226,6 +227,64 @@ impl NipopowAlgos {
             packed_value,
         ));
         res
+    }
+    /// Unpacks interlinks from key-value format of block extension.
+    pub fn unpack_interlinks(extension: &ExtensionCandidate) -> Result<Vec<BlockId>, &'static str> {
+        let mut res = vec![];
+        let entries = extension
+            .fields()
+            .iter()
+            .filter(|&(key, _)| key[0] == INTERLINK_VECTOR_PREFIX);
+        for (_, bytes) in entries {
+            // Each interlink is packed as [qty | blockId], which qty is a single-byte value
+            // representing the number of duplicates of `blockId`. Every `BlockId` is 32 bytes which
+            // implies that `bytes` is 33 bytes.
+            if bytes.len() != 33 {
+                return Err("Interlinks must be 33 bytes in size");
+            }
+            let qty = bytes[0];
+            let block_id_bytes: [u8; 32] = bytes[1..]
+                .try_into()
+                .map_err(|_| "Expected 32 byte BlockId")?;
+            let block_id = BlockId(Digest32::from(block_id_bytes));
+            res.extend(std::iter::repeat(block_id).take(qty as usize));
+        }
+        Ok(res)
+    }
+
+    /// Computes interlinks vector for a header next to `prevHeader`.
+    pub fn update_interlinks(prev_header: Header, prev_interlinks: Vec<BlockId>) -> Vec<BlockId> {
+        let is_genesis = prev_header.height == 1;
+        if !is_genesis {
+            // Interlinks vector cannot be empty in case of non-genesis header
+            assert!(!prev_interlinks.is_empty());
+            let genesis = prev_interlinks[0].clone();
+            let nipopow_algos = NipopowAlgos::default();
+            let prev_level = nipopow_algos.max_level_of(&prev_header).unwrap() as usize;
+            if prev_level > 0 {
+                // Adapted:
+                //   `(genesis +: tail.dropRight(prevLevel)) ++Seq.fill(prevLevel)(prevHeader.id)`
+                // from scala
+                if prev_interlinks.len() > prev_level {
+                    std::iter::once(genesis)
+                        .chain(
+                            prev_interlinks[1..(prev_interlinks.len() - prev_level)]
+                                .iter()
+                                .cloned(),
+                        )
+                        .chain(std::iter::repeat(prev_header.id).take(prev_level))
+                        .collect()
+                } else {
+                    std::iter::once(genesis)
+                        .chain(std::iter::repeat(prev_header.id).take(prev_level))
+                        .collect()
+                }
+            } else {
+                prev_interlinks
+            }
+        } else {
+            vec![prev_header.id]
+        }
     }
 }
 
