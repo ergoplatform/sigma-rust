@@ -1,6 +1,7 @@
 //! Bindings for NiPoPow
 
 use crate::{
+    batchmerkleproof::{BatchMerkleProof, BatchMerkleProofPtr},
     block_header::{BlockHeader, BlockHeaderPtr, BlockId, ConstBlockIdPtr},
     collections::{Collection, CollectionPtr},
     util::{const_ptr_as_ref, mut_ptr_as_mut},
@@ -141,4 +142,23 @@ pub unsafe fn popow_header_get_header(
     let header_out = mut_ptr_as_mut(header_out, "header_out")?;
     *header_out = Box::into_raw(Box::new(BlockHeader(popow_header_ptr.0.header.clone())));
     Ok(())
+}
+
+pub unsafe fn popow_header_get_interlinks_proof(
+    popow_header_ptr: ConstPoPowHeaderPtr,
+    proof_out: *mut BatchMerkleProofPtr,
+) -> Result<(), Error> {
+    let popow_header_ptr = const_ptr_as_ref(popow_header_ptr, "popow_header_ptr")?;
+    let proof_out = mut_ptr_as_mut(proof_out, "proof_out")?;
+    *proof_out = Box::into_raw(Box::new(BatchMerkleProof(
+        popow_header_ptr.0.interlinks_proof.clone(),
+    )));
+    Ok(())
+}
+
+pub unsafe fn popow_header_check_interlinks_proof(
+    popow_header_ptr: ConstPoPowHeaderPtr,
+) -> Result<bool, Error> {
+    let popow_header_ptr = const_ptr_as_ref(popow_header_ptr, "popow_header_ptr")?;
+    Ok(popow_header_ptr.0.check_interlinks_proof())
 }

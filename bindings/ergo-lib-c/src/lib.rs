@@ -15,6 +15,7 @@
 #[macro_use]
 mod macros;
 mod address;
+mod batchmerkleproof;
 mod block_header;
 mod box_builder;
 mod box_selector;
@@ -44,6 +45,7 @@ mod tx_builder;
 mod wallet;
 
 pub use crate::address::*;
+pub use crate::batchmerkleproof::*;
 pub use crate::block_header::*;
 pub use crate::box_builder::*;
 pub use crate::box_selector::*;

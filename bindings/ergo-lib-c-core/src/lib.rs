@@ -11,6 +11,7 @@
 #![allow(clippy::missing_safety_doc)]
 
 pub mod address;
+pub mod batchmerkleproof;
 pub mod block_header;
 pub mod box_builder;
 pub mod box_selector;

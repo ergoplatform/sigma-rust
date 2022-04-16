@@ -23,12 +23,12 @@ impl BatchMerkleProof {
     }
 
     /// Generates root hash of proof, and compares it against expected root hash
-    pub fn valid(&self, expected_root: &[u8; HASH_SIZE]) -> bool {
+    pub fn valid(&self, expected_root: &[u8]) -> bool {
         fn validate(
             a: &[usize],
             e: &[(usize, [u8; HASH_SIZE])],
             m: &[crate::LevelNode],
-        ) -> Vec<[u8; HASH_SIZE]> {
+        ) -> Option<Vec<[u8; HASH_SIZE]>> {
             // For each index in a, take the value of its immediate neighbor, and store each index with its neighbor
             let b: Vec<(usize, usize)> = a
                 .iter()
@@ -37,8 +37,9 @@ impl BatchMerkleProof {
 
             let mut e_new = vec![];
             let mut m_new = m.to_owned();
-
-            assert!(e.len() == b.len());
+            if e.len() != b.len() {
+                return None;
+            }
             let mut i = 0;
             while i < b.len() {
                 if b.len() > 1 && b.get(i) == b.get(i + 1) {
@@ -48,21 +49,25 @@ impl BatchMerkleProof {
                     ));
                     i += 2;
                 } else {
-                    if m_new[0].1 == NodeSide::Left {
+                    let head = if !m_new.is_empty() {
+                        m_new.remove(0)
+                    } else {
+                        return None;
+                    };
+
+                    if head.1 == NodeSide::Left {
                         e_new.push(*prefixed_hash2(
                             INTERNAL_PREFIX,
-                            m_new[0].0.as_ref().map(|h| h.as_slice()),
+                            head.0.as_ref().map(|h| h.as_slice()),
                             e[i].1.as_slice(),
                         ));
                     } else {
                         e_new.push(*prefixed_hash2(
                             INTERNAL_PREFIX,
                             e[i].1.as_slice(),
-                            m_new[0].0.as_ref().map(|h| h.as_slice()),
+                            head.0.as_ref().map(|h| h.as_slice()),
                         ));
                     }
-
-                    m_new.remove(0);
                     i += 1;
                 }
             }
@@ -73,16 +78,16 @@ impl BatchMerkleProof {
             if !m_new.is_empty() || e_new.len() > 1 {
                 let e: Vec<(usize, [u8; 32])> =
                     a_new.iter().copied().zip(e_new.into_iter()).collect();
-                e_new = validate(&a_new, &e, &m_new);
+                e_new = validate(&a_new, &e, &m_new)?;
             }
-            e_new
+            Some(e_new)
         }
 
         let mut e = self.indices.to_owned();
         e.sort_by_key(|(index, _)| *index);
-        let a: Vec<usize> = e.iter().map(|(index, _)| *index).collect(); // todo
-        match &*validate(&a, &e, &self.proofs) {
-            [root_hash] => root_hash == expected_root,
+        let a: Vec<usize> = e.iter().map(|(index, _)| *index).collect();
+        match validate(&a, &e, &self.proofs).as_deref() {
+            Some([root_hash]) => root_hash == expected_root,
             _ => false,
         }
     }
