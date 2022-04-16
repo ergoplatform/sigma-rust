@@ -22,7 +22,6 @@ impl ExtensionCandidate {
     pub fn fields_mut(&mut self) -> &mut Vec<([u8; 2], Vec<u8>)> {
         &mut self.fields
     }
-    // TODO: memoize merkletree in extensioncandidate fields?
     fn merkletree(&self) -> ergo_merkle_tree::MerkleTree {
         extension_merkletree(&self.fields)
     }

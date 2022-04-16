@@ -105,7 +105,6 @@ impl BatchMerkleProof {
 use sigma_ser::ScorexSerializable;
 
 // Binary Serialization for BatchMerkleProof. Matches Scala implementation. Since the Scala implementation uses 4-byte ints for length/indices, this method will fail the proof or indexes length is > u32::MAX,
-// TODO: use BoundedVec in BatchMerkleProof instead?
 impl ScorexSerializable for BatchMerkleProof {
     fn scorex_serialize<W: sigma_ser::vlq_encode::WriteSigmaVlqExt>(
         &self,

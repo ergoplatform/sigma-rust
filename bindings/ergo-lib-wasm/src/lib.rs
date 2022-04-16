@@ -18,6 +18,7 @@
 
 pub mod address;
 pub mod ast;
+pub mod batchmerkleproof;
 pub mod block_header;
 pub mod box_coll;
 pub mod box_selector;
