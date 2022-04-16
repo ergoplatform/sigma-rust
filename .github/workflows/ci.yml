@@ -163,13 +163,6 @@ jobs:
           npm install
           npm run test
       
-      - name: run node JS integration tests
-        run: |
-          cd bindings/ergo-lib-wasm
-          # wasm-pack build # --features rest
-          npm install
-          npm run integration-test
-      
       - name: run browser JS tests
         run: |
           cd bindings/ergo-lib-wasm
