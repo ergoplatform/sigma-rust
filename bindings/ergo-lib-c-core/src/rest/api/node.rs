@@ -91,7 +91,7 @@ pub unsafe fn rest_api_node_peer_discovery(
     }
     let mut seeds_vec = Vec::with_capacity(num_seeds);
     for i in 0..num_seeds {
-        let ptr = *(seeds_ptr.offset(i as isize));
+        let ptr = *(seeds_ptr.add(i));
         if !ptr.is_null() {
             let str = CStr::from_ptr(ptr)
                 .to_str()
@@ -108,8 +108,8 @@ pub unsafe fn rest_api_node_peer_discovery(
     let seeds_bounded_vec =
         ergo_lib::ergo_rest::api::node::NonEmptyVec::from_vec(seeds_vec).unwrap();
 
-    let max_parallel_requests =
-        bounded_integer::BoundedU16::new(max_parallel_requests).ok_or(Error::Misc("".into()))?;
+    let max_parallel_requests = bounded_integer::BoundedU16::new(max_parallel_requests)
+        .ok_or_else(|| Error::Misc("max_parallel_requests must be > 0".into()))?;
     let runtime = const_ptr_as_ref(runtime_ptr, "runtime_ptr")?;
     let abort_callback: AbortCallback = (&callback).into();
     let abort_handle = spawn_abortable(runtime, async move {

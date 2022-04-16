@@ -144,9 +144,8 @@ jobs:
       
       - name: run `reqwest-wrap` WASM tests
         run: |
-          cd ../../reqwest-wrap
+          cd reqwest-wrap
           wasm-pack test --chrome  --headless
-          cd ../bindings/ergo-lib-wasm
 
       - name: run Wasm tests
         run: |
