@@ -511,41 +511,41 @@ mod tests {
         assert_eq!(res.k, k);
     }
 
-    #[test]
-    fn test_peer_discovery() {
-        let seeds: Vec<_> = [
-            "http://213.239.193.208:9030",
-            "http://159.65.11.55:9030",
-            "http://165.227.26.175:9030",
-            "http://159.89.116.15:9030",
-            "http://136.244.110.145:9030",
-            "http://94.130.108.35:9030",
-            "http://51.75.147.1:9020",
-            "http://221.165.214.185:9030",
-            "http://51.81.185.231:9031",
-            "http://217.182.197.196:9030",
-            "http://62.171.190.193:9030",
-            "http://173.212.220.9:9030",
-            "http://176.9.65.58:9130",
-            "http://213.152.106.56:9030",
-        ]
-        .iter()
-        .map(|s| Url::from_str(s).unwrap())
-        .collect();
-        let runtime_inner = tokio::runtime::Builder::new_multi_thread()
-            .enable_all()
-            .build()
-            .unwrap();
-        let res = runtime_inner.block_on(async {
-            peer_discovery(
-                NonEmptyVec::from_vec(seeds).unwrap(),
-                BoundedU16::new(10).unwrap(),
-                Duration::from_millis(800),
-            )
-            .await
-            .unwrap()
-        });
-        // Currently there are no non-seed nodes with an active REST API!
-        assert!(res.is_empty())
-    }
+    //#[test]
+    //fn test_peer_discovery() {
+    //    let seeds: Vec<_> = [
+    //        "http://213.239.193.208:9030",
+    //        "http://159.65.11.55:9030",
+    //        "http://165.227.26.175:9030",
+    //        "http://159.89.116.15:9030",
+    //        "http://136.244.110.145:9030",
+    //        "http://94.130.108.35:9030",
+    //        "http://51.75.147.1:9020",
+    //        "http://221.165.214.185:9030",
+    //        "http://51.81.185.231:9031",
+    //        "http://217.182.197.196:9030",
+    //        "http://62.171.190.193:9030",
+    //        "http://173.212.220.9:9030",
+    //        "http://176.9.65.58:9130",
+    //        "http://213.152.106.56:9030",
+    //    ]
+    //    .iter()
+    //    .map(|s| Url::from_str(s).unwrap())
+    //    .collect();
+    //    let runtime_inner = tokio::runtime::Builder::new_multi_thread()
+    //        .enable_all()
+    //        .build()
+    //        .unwrap();
+    //    let res = runtime_inner.block_on(async {
+    //        peer_discovery(
+    //            NonEmptyVec::from_vec(seeds).unwrap(),
+    //            BoundedU16::new(10).unwrap(),
+    //            Duration::from_millis(800),
+    //        )
+    //        .await
+    //        .unwrap()
+    //    });
+    //    // Currently there are no non-seed nodes with an active REST API!
+    //    assert!(res.is_empty())
+    //}
 }
