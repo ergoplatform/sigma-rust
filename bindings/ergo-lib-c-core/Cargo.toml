@@ -19,6 +19,8 @@ serde_json = "1.0"
 thiserror = "1"
 tokio = { version = "1", features = ["full"], optional = true }
 futures-util = "0.3"
+url = "2.2"
+bounded-integer = { version = "^0.5", features = ["types"] }
 
 [dependencies.serde_with]
 version = "1.9.1"

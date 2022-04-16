@@ -16,6 +16,7 @@ use crate::NodeConf;
 use crate::NodeError;
 use crate::NodeInfo;
 use crate::PeerInfo;
+use thiserror::Error;
 
 fn set_req_headers(rb: RequestBuilder, node: NodeConf) -> RequestBuilder {
     rb.header("accept", "application/json")
@@ -59,7 +60,9 @@ async fn get_peers_all(node: NodeConf) -> Result<Vec<PeerInfo>, NodeError> {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-/// Given a list of seed nodes, recursively determine a Vec of all known peer nodes.
+/// Given a list of seed nodes, recursively determine a Vec of all known peer nodes. Note that there
+/// are `println` calls below that are commented out. Uncommenting them will show the requests that
+/// are made, especially when made in parallel.
 pub async fn peer_discovery(
     seeds: NonEmptyVec<Url>,
     max_parallel_requests: BoundedU16<1, { u16::MAX }>,
@@ -97,7 +100,7 @@ pub async fn peer_discovery(
         .map(move |mut url| {
             let tx_peer = tx_peer.clone();
             async move {
-                println!("Processing {}", url);
+                //println!("Processing {}", url);
                 let handle = tokio::spawn(async move {
                     // Query node at url.
                     #[allow(clippy::unwrap_used)]
@@ -111,7 +114,7 @@ pub async fn peer_discovery(
 
                     // If active, look up its peers.
                     if get_info(node_conf).await.is_ok() {
-                        println!("active nodeConf: {:?}", node_conf);
+                        //println!("active nodeConf: {:?}", node_conf);
                         if let Ok(peers) = get_peers_all(node_conf).await {
                             // It's important to send this message before the `AddActiveNode` message
                             // below, to ensure an `count` variable; see (**) below.
@@ -161,7 +164,7 @@ pub async fn peer_discovery(
             Msg::AddActiveNode(mut url) => {
                 #[allow(clippy::unwrap_used)]
                 url.set_port(None).unwrap();
-                println!("added {}", url);
+                //println!("added {}", url);
                 visited_active_peers.insert(url.clone());
                 visited_peers.insert(url);
                 count -= 1;
@@ -194,13 +197,15 @@ pub async fn peer_discovery(
     }
 
     drop(tx_url);
-
     match e.await {
-        Ok(Ok(())) => Ok(visited_active_peers
-            .difference(&seeds_set)
-            .into_iter()
-            .cloned()
-            .collect()),
+        Ok(Ok(())) => {
+            let coll = visited_active_peers
+                .difference(&seeds_set)
+                .into_iter()
+                .cloned()
+                .collect();
+            Ok(coll)
+        }
         Ok(Err(e)) => Err(e),
         Err(_) => Err(PeerDiscoveryError::JoinError),
     }
@@ -378,16 +383,20 @@ pub async fn peer_discovery(
         .collect())
 }
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 /// Peer discovery error
 pub enum PeerDiscoveryError {
     /// `Url` error
+    #[error("URL error")]
     UrlError,
     /// mpsc sender error
+    #[error("MPSC sender error")]
     MpscSender,
     /// tokio::spawn `JoinError`
+    #[error("Join error")]
     JoinError,
     /// task spawn error
+    #[error("Task spawn error")]
     TaskSpawn,
 }
 

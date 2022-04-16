@@ -32,23 +32,19 @@ final class RestNodeApiTests: XCTestCase {
         handle.abort()
     }
 
-    // need macOS 12.0 on Github GA
-    /* func testGetInfoAsync() throws { */
-    /*     let nodeConf = try NodeConf(withAddrString: "213.239.193.208:9053") */
-    /*     let restNodeApi = try RestNodeApi() */
-    /*     XCTAssertNoThrow(Task(priority: .medium) { */
-    /*         let nodeInfo = try await restNodeApi.getInfoAsync(nodeConf: nodeConf) */
-    /*         XCTAssert(!nodeInfo.getName().isEmpty) */
-    /*     }) */
-    /*     // test of re-using of tokio runtime */
-    /*     XCTAssertNoThrow(Task(priority: .medium) { */
-    /*         let nodeInfo = try await restNodeApi.getInfoAsync(nodeConf: nodeConf) */
-    /*         XCTAssert(!nodeInfo.getName().isEmpty) */
-    /*     }) */
-    /* } */
+     func testGetInfoAsync() async throws {
+         let nodeConf = try NodeConf(withAddrString: "213.239.193.208:9053")
+         let restNodeApi = try RestNodeApi()
+         let nodeInfo = try await restNodeApi.getInfoAsync(nodeConf: nodeConf)
+         XCTAssert(!nodeInfo.getName().isEmpty)
+
+         // test of re-using of tokio runtime
+         let nodeInfoNew = try await restNodeApi.getInfoAsync(nodeConf: nodeConf)
+         XCTAssert(!nodeInfoNew.getName().isEmpty)
+     }
     
-    func testGetNipopowProofByHeaderId() throws {
-        let expectation = self.expectation(description: "getNipopowByHeaderIdAsync")
+    func testGetNipopowProofByHeaderIdNonAsync() throws {
+        let expectation = self.expectation(description: "getNipopowByHeaderIdNonAsync")
         let nodeConf = try NodeConf(withAddrString: "213.239.193.208:9053")
         let restNodeApi = try RestNodeApi()
         let blockHeaders = try HeaderTests.generateBlockHeadersFromJSON()
@@ -84,28 +80,65 @@ final class RestNodeApiTests: XCTestCase {
         handle.abort()
     }
     
-    func testGetNipopowProofByHeaderIdAsync() throws {
+    func testGetNipopowProofByHeaderIdAsync() async throws {
         let nodeConf = try NodeConf(withAddrString: "213.239.193.208:9053")
         let restNodeApi = try RestNodeApi()
         let blockHeaders = try HeaderTests.generateBlockHeadersFromJSON()
-        XCTAssertNoThrow(Task(priority: .medium) {
-            let proof = try await restNodeApi.getNipopowProofByHeaderIdAsync(
-                nodeConf: nodeConf,
-                minChainLength: UInt32(3),
-                suffixLen: UInt32(2),
-                headerId: blockHeaders.get(index: UInt(0))!.getBlockId()
-            )
-            let _ = try proof.toJSON()!
-        })
+        let proof = try await restNodeApi.getNipopowProofByHeaderIdAsync(
+            nodeConf: nodeConf,
+            minChainLength: UInt32(3),
+            suffixLen: UInt32(2),
+            headerId: blockHeaders.get(index: UInt(0))!.getBlockId()
+        )
+        XCTAssertNoThrow(try proof.toJSON()!)
+        
         // test of re-using of tokio runtime
-        XCTAssertNoThrow(Task(priority: .medium) {
-            let proof = try await restNodeApi.getNipopowProofByHeaderIdAsync(
-                nodeConf: nodeConf,
-                minChainLength: UInt32(3),
-                suffixLen: UInt32(2),
-                headerId: blockHeaders.get(index: UInt(0))!.getBlockId()
-            )
-            let _ = try proof.toJSON()!
-        })
+        let proofNew = try await restNodeApi.getNipopowProofByHeaderIdAsync(
+            nodeConf: nodeConf,
+            minChainLength: UInt32(3),
+            suffixLen: UInt32(2),
+            headerId: blockHeaders.get(index: UInt(0))!.getBlockId()
+        )
+        XCTAssertNoThrow(try proofNew.toJSON()!)
+    }
+    
+    func testPeerDiscoveryNonAsync() throws {
+        let expectation = self.expectation(description: "peerDiscovery")
+        let restNodeApi = try RestNodeApi()
+        let _ = try restNodeApi.peerDiscovery(
+            seeds: getSeeds(),
+            maxParallelReqs: UInt16(10),
+            timeoutSec: UInt32(1),
+            closure: { (res: Result<CStringCollection, Error>) -> () in
+                switch res {
+                    case .success(let peers):
+                        XCTAssertEqual(peers.toArray().count, 0)
+                        break
+                    case .failure(let error):
+                        XCTFail(error.localizedDescription)
+                }
+                expectation.fulfill()
+            })
+        waitForExpectations(timeout: 10, handler: nil)
+    }
+    
+    func testPeerDiscoveryAsync() async throws {
+        let restNodeApi = try RestNodeApi()
+        let peers = try await restNodeApi.peerDiscoveryAsync(
+            seeds: getSeeds(),
+            maxParallelReqs: UInt16(4),
+            timeoutSec: UInt32(1)
+        )
+        XCTAssert(peers.isEmpty)
+        XCTAssertEqual(peers.count, 0)
+        
+        // test of re-using of tokio runtime
+        let peersNew = try await restNodeApi.peerDiscoveryAsync(
+            seeds: getSeeds(),
+            maxParallelReqs: UInt16(10),
+            timeoutSec: UInt32(1)
+        )
+        XCTAssert(peersNew.isEmpty)
+        XCTAssertEqual(peersNew.count, 0)
     }
 }

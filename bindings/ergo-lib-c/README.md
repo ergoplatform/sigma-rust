@@ -16,7 +16,7 @@ To build without REST simply omit `--features rest`.
 The C header file is generated with [cbindgen](https://github.com/eqrion/cbindgen). Run the following
 command:
 ```
-cbindgen --config cbindgen.toml --crate ergo-lib-c --output h/ergo_wallet.h
+cbindgen --config cbindgen.toml --crate ergo-lib-c --output h/ergo_lib.h
 ```
 **Note that we require a nightly version of rustc just for this command.** This is because we use
 macros to generate some C-types and `cbindgen` cannot directly generate types through them. However
