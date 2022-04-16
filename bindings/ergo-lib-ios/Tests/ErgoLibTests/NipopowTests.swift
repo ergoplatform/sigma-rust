@@ -80,5 +80,6 @@ final class PoPowHeaderTests: XCTestCase {
         let popow = try PoPowHeader(withJson: json)
         XCTAssert((try popow.getInterlinks()).len() == 3)
         XCTAssert((try popow.getHeader()) == (try BlockHeader(withJson: header)))
+        XCTAssert(popow.checkInterlinksProof())
     }
 }
