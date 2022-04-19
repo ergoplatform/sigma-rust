@@ -45,8 +45,8 @@ pub unsafe extern "C" fn ergo_lib_box_selection_change(
 
 /// Drop `BoxSelection`
 #[no_mangle]
-pub extern "C" fn ergo_lib_box_selection_delete(ptr: BoxSelectionPtr) {
-    unsafe { delete_ptr(ptr) }
+pub unsafe extern "C" fn ergo_lib_box_selection_delete(ptr: BoxSelectionPtr) {
+    delete_ptr(ptr)
 }
 
 make_ffi_eq!(BoxSelection);
@@ -87,6 +87,6 @@ pub unsafe extern "C" fn ergo_lib_simple_box_selector_select(
 
 /// Drop `SimpleBoxSelector`
 #[no_mangle]
-pub extern "C" fn ergo_lib_simple_box_selector_delete(ptr: SimpleBoxSelectorPtr) {
-    unsafe { delete_ptr(ptr) }
+pub unsafe extern "C" fn ergo_lib_simple_box_selector_delete(ptr: SimpleBoxSelectorPtr) {
+    delete_ptr(ptr)
 }

@@ -46,6 +46,7 @@ pub fn bin_op_sigma_parse<R: SigmaByteRead>(
     let tag = r.get_u8()?;
     Ok(if tag == OpCode::COLL_OF_BOOL_CONST.value() {
         let bools = r.get_bits(2)?;
+        #[allow(clippy::unwrap_used)]
         BinOp {
             kind: op_kind,
             left: Box::new(Expr::Const((*bools.get(0).unwrap()).into())),

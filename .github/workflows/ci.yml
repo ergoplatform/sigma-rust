@@ -11,7 +11,7 @@ on:
       - synchronize
 
 env:
-  RUSTV: 1.57
+  RUSTV: 1.60
 
 jobs:
   build_wo_default_features:

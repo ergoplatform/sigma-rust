@@ -30,8 +30,8 @@ pub unsafe extern "C" fn ergo_lib_data_input_box_id(
 
 /// Drop `DataInput`
 #[no_mangle]
-pub extern "C" fn ergo_lib_data_input_delete(ptr: DataInputPtr) {
-    unsafe { delete_ptr(ptr) }
+pub unsafe extern "C" fn ergo_lib_data_input_delete(ptr: DataInputPtr) {
+    delete_ptr(ptr)
 }
 
 make_collection!(DataInputs, DataInput);

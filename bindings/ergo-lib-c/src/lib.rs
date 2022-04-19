@@ -81,9 +81,9 @@ pub unsafe extern "C" fn ergo_lib_delete_string(ptr: *mut c_char) {
 }
 
 #[no_mangle]
-pub extern "C" fn ergo_lib_delete_error(error: ErrorPtr) {
+pub unsafe extern "C" fn ergo_lib_delete_error(error: ErrorPtr) {
     if !error.is_null() {
-        let boxed = unsafe { Box::from_raw(error) };
+        let boxed = Box::from_raw(error);
         std::mem::drop(boxed);
     }
 }

@@ -43,8 +43,8 @@ pub unsafe extern "C" fn ergo_lib_secret_key_to_bytes(
 
 /// Drop `SecretKey`
 #[no_mangle]
-pub extern "C" fn ergo_lib_secret_key_delete(ptr: SecretKeyPtr) {
-    unsafe { delete_ptr(ptr) }
+pub unsafe extern "C" fn ergo_lib_secret_key_delete(ptr: SecretKeyPtr) {
+    delete_ptr(ptr)
 }
 
 make_collection!(SecretKeys, SecretKey);

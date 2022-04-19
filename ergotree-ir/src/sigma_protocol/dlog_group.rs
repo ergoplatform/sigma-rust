@@ -62,8 +62,7 @@ impl EcPoint {
     pub fn from_base16_str(str: String) -> Option<Self> {
         base16::decode(&str)
             .ok()
-            .map(|bytes| Self::sigma_parse_bytes(&bytes).ok())
-            .flatten()
+            .and_then(|bytes| Self::sigma_parse_bytes(&bytes).ok())
     }
 }
 

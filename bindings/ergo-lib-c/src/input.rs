@@ -32,8 +32,8 @@ pub unsafe extern "C" fn ergo_lib_unsigned_input_context_extension(
 
 /// Drop `UnsignedInput`
 #[no_mangle]
-pub extern "C" fn ergo_lib_unsigned_input_delete(ptr: UnsignedInputPtr) {
-    unsafe { delete_ptr(ptr) }
+pub unsafe extern "C" fn ergo_lib_unsigned_input_delete(ptr: UnsignedInputPtr) {
+    delete_ptr(ptr)
 }
 
 make_collection!(UnsignedInputs, UnsignedInput);
@@ -62,8 +62,8 @@ pub unsafe extern "C" fn ergo_lib_input_spending_proof(
 
 /// Drop `Input`
 #[no_mangle]
-pub extern "C" fn ergo_lib_input_delete(ptr: InputPtr) {
-    unsafe { delete_ptr(ptr) }
+pub unsafe extern "C" fn ergo_lib_input_delete(ptr: InputPtr) {
+    delete_ptr(ptr)
 }
 
 make_collection!(Inputs, Input);
@@ -120,6 +120,6 @@ pub unsafe extern "C" fn ergo_lib_prover_result_to_json(
 
 /// Drop `ProverResult`
 #[no_mangle]
-pub extern "C" fn ergo_lib_prover_result_delete(ptr: ProverResultPtr) {
-    unsafe { delete_ptr(ptr) }
+pub unsafe extern "C" fn ergo_lib_prover_result_delete(ptr: ProverResultPtr) {
+    delete_ptr(ptr)
 }

@@ -161,6 +161,6 @@ pub unsafe extern "C" fn ergo_lib_wallet_generate_commitments_for_reduced_transa
 
 /// Drop `Wallet`
 #[no_mangle]
-pub extern "C" fn ergo_lib_wallet_delete(ptr: WalletPtr) {
-    unsafe { delete_ptr(ptr) }
+pub unsafe extern "C" fn ergo_lib_wallet_delete(ptr: WalletPtr) {
+    delete_ptr(ptr)
 }

@@ -323,6 +323,9 @@ pub fn extract_hints(
             extension,
         });
         let tree = input_box.ergo_tree.clone();
+
+        // `i` is guaranteed to be a valid index since it's coming from an `enumerate()` call above.
+        #[allow(clippy::unwrap_used)]
         let proof: ProofBytes = tx_ctx
             .spending_tx
             .inputs

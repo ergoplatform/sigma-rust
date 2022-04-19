@@ -171,7 +171,7 @@ impl Tokens {
 impl From<Tokens> for Option<chain::ergo_box::BoxTokens> {
     fn from(v: Tokens) -> Self {
         chain::ergo_box::BoxTokens::from_vec(
-            v.0.iter().cloned().flatten().map(Into::into).collect(),
+            v.0.iter().flatten().cloned().map(Into::into).collect(),
         )
         .ok()
     }

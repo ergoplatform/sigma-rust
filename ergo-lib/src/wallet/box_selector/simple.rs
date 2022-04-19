@@ -246,7 +246,7 @@ mod tests {
                         target_balance in
                         any_with::<BoxValue>((BoxValue::MIN_RAW * 100 .. BoxValue::MIN_RAW * 1500).into())) {
             let first_input_box = inputs.get(0).unwrap().clone();
-            prop_assume!(!first_input_box.tokens.is_none());
+            prop_assume!(first_input_box.tokens.is_some());
             let first_input_box_token = first_input_box.tokens.as_ref().unwrap().first();
             let first_input_box_token_amount = u64::from(first_input_box_token.amount);
             prop_assume!(first_input_box_token_amount > 1);

@@ -167,8 +167,8 @@ pub unsafe extern "C" fn ergo_lib_ergo_tree_template_bytes(
 
 /// Drop `ErgoTree`
 #[no_mangle]
-pub extern "C" fn ergo_lib_ergo_tree_delete(ptr: ErgoTreePtr) {
-    unsafe { delete_ptr(ptr) }
+pub unsafe extern "C" fn ergo_lib_ergo_tree_delete(ptr: ErgoTreePtr) {
+    delete_ptr(ptr)
 }
 
 make_ffi_eq!(ErgoTree);

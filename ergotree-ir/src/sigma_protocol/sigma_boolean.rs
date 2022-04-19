@@ -244,7 +244,7 @@ pub struct SigmaProp(SigmaBoolean);
 impl SigmaProp {
     /// create new sigma proposition from [`SigmaBoolean`] value
     pub fn new(sbool: SigmaBoolean) -> Self {
-        SigmaProp { 0: sbool }
+        SigmaProp(sbool)
     }
 
     /// get [`SigmaBoolean`] value

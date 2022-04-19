@@ -185,6 +185,8 @@ pub unsafe extern "C" fn ergo_lib_ergo_box_candidate_builder_build(
 
 /// Drop `ErgoBoxCandidateBuilder`
 #[no_mangle]
-pub extern "C" fn ergo_lib_ergo_box_candidate_builder_delete(ptr: ErgoBoxCandidateBuilderPtr) {
-    unsafe { delete_ptr(ptr) }
+pub unsafe extern "C" fn ergo_lib_ergo_box_candidate_builder_delete(
+    ptr: ErgoBoxCandidateBuilderPtr,
+) {
+    delete_ptr(ptr)
 }

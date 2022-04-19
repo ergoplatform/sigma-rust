@@ -195,7 +195,7 @@ mod tests {
             (any_with::<BoxValue>(args), of(vec(any::<Token>(), 0..3)))
                 .prop_map(|(value, tokens)| Self {
                     value,
-                    tokens: tokens.map(BoxTokens::from_vec).map(Result::ok).flatten(),
+                    tokens: tokens.map(BoxTokens::from_vec).and_then(Result::ok),
                 })
                 .boxed()
         }

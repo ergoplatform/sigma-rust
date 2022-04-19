@@ -54,8 +54,8 @@ pub unsafe extern "C" fn ergo_lib_contract_ergo_tree(
 
 /// Drop `Contract`
 #[no_mangle]
-pub extern "C" fn ergo_lib_contract_delete(ptr: ContractPtr) {
-    unsafe { delete_ptr(ptr) }
+pub unsafe extern "C" fn ergo_lib_contract_delete(ptr: ContractPtr) {
+    delete_ptr(ptr)
 }
 
 make_ffi_eq!(Contract);

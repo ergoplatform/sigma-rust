@@ -164,8 +164,7 @@ impl ExtSecretKey {
         } else {
             Err(ExtSecretKeyError::IncompatibleDerivation(format!(
                 "{}, {}",
-                up_path.to_string(),
-                self.derivation_path.to_string()
+                up_path, self.derivation_path
             )))
         }
     }

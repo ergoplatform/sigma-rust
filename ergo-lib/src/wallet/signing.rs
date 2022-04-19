@@ -240,6 +240,9 @@ pub fn sign_reduced_transaction(
     let message_to_sign = tx.bytes_to_sign()?;
     let signed_inputs = tx.inputs.enumerated().try_mapped(|(idx, input)| {
         let inputs = reduced_tx.reduced_inputs();
+
+        // `idx` is valid since it's indexing over `tx.inputs`
+        #[allow(clippy::unwrap_used)]
         let reduced_input = inputs.get(idx).unwrap();
         let mut hints_bag = HintsBag::empty();
         if let Some(bag) = tx_hints {
