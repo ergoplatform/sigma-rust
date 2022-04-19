@@ -46,6 +46,7 @@ where
 
 #[cfg(test)]
 #[cfg(feature = "json")]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     #[test]
