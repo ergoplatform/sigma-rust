@@ -38,7 +38,6 @@ it('node REST API: peer_discovery endpoint', async () => {
         "http://176.9.65.58:9130",
         "http://213.152.106.56:9030",
     ].map(x => new URL(x));
-    let res = await ergo_wasm.peer_discovery(seeds, 1, 1);
-    // Note: there currently exists no non-seed ergo nodes with an active REST API
-    assert(res.len() == 0);
+    let res = await ergo_wasm.peer_discovery(seeds, 10, 3);
+    assert(res.len() > 0, "Should be at least one peer!");
 });

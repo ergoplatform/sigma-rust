@@ -7,8 +7,14 @@ use serde::{de::Error, Deserialize, Deserializer, Serialize};
 /// Peer info returned by node REST API
 pub struct PeerInfo {
     /// Peer address
-    #[serde(rename = "address", deserialize_with = "from_ergo_node_string")]
+    #[serde(
+        rename = "address",
+        deserialize_with = "parse_peer_addr_with_leading_slash"
+    )]
     pub addr: PeerAddr,
+    /// Last message
+    #[serde(rename = "lastMessage")]
+    pub last_message: u64,
     /// Timestamp of the last handshake
     #[serde(rename = "lastHandshake")]
     pub last_handshake: u64, // TODO: any more precise type?
@@ -19,16 +25,32 @@ pub struct PeerInfo {
     pub conn_type: Option<ConnectionDirection>,
 }
 
-fn from_ergo_node_string<'de, D>(deserializer: D) -> Result<PeerAddr, D::Error>
+/// The `PeerAddr` reported by ergo nodes at the `peers/all` endpoint begin with a leading '/'.
+/// This custom deserialization function simply removes the leading character then uses the
+/// serde-generated function to parse.
+fn parse_peer_addr_with_leading_slash<'de, D>(deserializer: D) -> Result<PeerAddr, D::Error>
 where
     D: Deserializer<'de>,
 {
     let s: &str = Deserialize::deserialize(deserializer)?;
-    use sigma_ser::ScorexSerializable;
 
-    // Ergo node reports address with leading '/'. Need to remove it.
-    let mut chars = s.chars();
-    chars.next();
-    let s = chars.as_str();
-    PeerAddr::scorex_parse_bytes(s.as_bytes()).map_err(D::Error::custom)
+    let s = if s.starts_with('/') {
+        let mut chars = s.chars();
+        chars.next();
+        chars.as_str()
+    } else {
+        s
+    };
+    s.parse().map_err(D::Error::custom)
+}
+
+#[cfg(test)]
+#[cfg(feature = "json")]
+mod tests {
+    use super::*;
+    #[test]
+    fn test_parse_peer_info() {
+        let json = "{\n    \"address\" : \"/62.106.112.158:9030\",\n    \"lastMessage\" : 0,\n    \"lastHandshake\" : 0,\n    \"name\" : \"ergo-mainnet-4.0.12\",\n    \"connectionType\" : null\n  }";
+        let _: PeerInfo = serde_json::from_str(json).unwrap();
+    }
 }

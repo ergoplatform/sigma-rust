@@ -47,6 +47,7 @@ features = ["std"]
 optional = true
 
 [features]
+json = ["serde_json"]
 arbitrary = ["proptest", "proptest-derive"]
 
 [dev-dependencies]
