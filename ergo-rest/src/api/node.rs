@@ -168,29 +168,25 @@ pub async fn peer_discovery(
 
     'loop_: while let Some(p) = rx_peer.recv().await {
         // Try pushing as many peers as can be allowed in the (tx_url, rx_url) channel
-        loop {
-            if let Some(peer) = peer_stack.pop() {
-                let mut url = peer.addr.as_http_url();
-                #[allow(clippy::unwrap_used)]
-                url.set_port(None).unwrap();
-                if !visited_peers.contains(&url) {
-                    match tx_url.try_send(url.clone()) {
-                        Ok(_) => {
-                            visited_peers.insert(url);
-                            count += 1;
-                        }
-                        Err(TrySendError::Full(_)) => {
-                            // Push it back on the stack, try again later.
-                            peer_stack.push(peer);
-                            break;
-                        }
-                        Err(TrySendError::Closed(_)) => {
-                            return Err(PeerDiscoveryError::MpscSender);
-                        }
+        while let Some(peer) = peer_stack.pop() {
+            let mut url = peer.addr.as_http_url();
+            #[allow(clippy::unwrap_used)]
+            url.set_port(None).unwrap();
+            if !visited_peers.contains(&url) {
+                match tx_url.try_send(url.clone()) {
+                    Ok(_) => {
+                        visited_peers.insert(url);
+                        count += 1;
+                    }
+                    Err(TrySendError::Full(_)) => {
+                        // Push it back on the stack, try again later.
+                        peer_stack.push(peer);
+                        break;
+                    }
+                    Err(TrySendError::Closed(_)) => {
+                        return Err(PeerDiscoveryError::MpscSender);
                     }
                 }
-            } else {
-                break;
             }
         }
         match p {
