@@ -70,8 +70,8 @@ pub unsafe extern "C" fn ergo_lib_box_id_to_bytes(box_id_ptr: ConstBoxIdPtr, out
 
 /// Drop `BoxId`
 #[no_mangle]
-pub extern "C" fn ergo_lib_box_id_delete(ptr: BoxIdPtr) {
-    unsafe { delete_ptr(ptr) }
+pub unsafe extern "C" fn ergo_lib_box_id_delete(ptr: BoxIdPtr) {
+    delete_ptr(ptr)
 }
 
 make_ffi_eq!(BoxId);
@@ -122,8 +122,8 @@ pub unsafe extern "C" fn ergo_lib_box_value_sum_of(
 
 /// Drop `BoxValue`
 #[no_mangle]
-pub extern "C" fn ergo_lib_box_value_delete(ptr: BoxValuePtr) {
-    unsafe { delete_ptr(ptr) }
+pub unsafe extern "C" fn ergo_lib_box_value_delete(ptr: BoxValuePtr) {
+    delete_ptr(ptr)
 }
 
 make_ffi_eq!(BoxValue);
@@ -190,8 +190,8 @@ pub unsafe extern "C" fn ergo_lib_ergo_box_candidate_box_value(
 
 /// Drop `ErgoBoxCandidate`
 #[no_mangle]
-pub extern "C" fn ergo_lib_ergo_box_candidate_delete(ptr: ErgoBoxCandidatePtr) {
-    unsafe { delete_ptr(ptr) }
+pub unsafe extern "C" fn ergo_lib_ergo_box_candidate_delete(ptr: ErgoBoxCandidatePtr) {
+    delete_ptr(ptr)
 }
 
 make_collection!(ErgoBoxCandidates, ErgoBoxCandidate);
@@ -342,8 +342,8 @@ pub unsafe extern "C" fn ergo_lib_ergo_box_to_json_eip12(
 
 /// Drop `ErgoBox`
 #[no_mangle]
-pub extern "C" fn ergo_lib_ergo_box_delete(ptr: ErgoBoxPtr) {
-    unsafe { delete_ptr(ptr) }
+pub unsafe extern "C" fn ergo_lib_ergo_box_delete(ptr: ErgoBoxPtr) {
+    delete_ptr(ptr)
 }
 
 make_collection!(ErgoBoxes, ErgoBox);
@@ -384,8 +384,8 @@ pub unsafe extern "C" fn ergo_lib_ergo_box_assets_data_tokens(
 
 /// Drop `ErgoBoxAssetsData`
 #[no_mangle]
-pub extern "C" fn ergo_lib_ergo_box_assets_data_delete(ptr: ErgoBoxAssetsDataPtr) {
-    unsafe { delete_ptr(ptr) }
+pub unsafe extern "C" fn ergo_lib_ergo_box_assets_data_delete(ptr: ErgoBoxAssetsDataPtr) {
+    delete_ptr(ptr)
 }
 
 make_collection!(ErgoBoxAssetsDataList, ErgoBoxAssetsData);

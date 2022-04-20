@@ -45,7 +45,7 @@ pub fn fiat_shamir_hash_fn(input: &[u8]) -> FiatShamirHash {
     let mut hasher = VarBlake2b::new(GROUP_SIZE).unwrap();
     hasher.update(input);
     let hash = hasher.finalize_boxed();
-    let taken: Vec<u8> = hash.to_vec().into_iter().take(SOUNDNESS_BYTES).collect();
+    let taken: Vec<u8> = hash.iter().copied().take(SOUNDNESS_BYTES).collect();
     // unwrap is safe due to hash size is expected to be SOUNDNESS_BYTES
     #[allow(clippy::unwrap_used)]
     FiatShamirHash(taken.into_boxed_slice().try_into().unwrap())

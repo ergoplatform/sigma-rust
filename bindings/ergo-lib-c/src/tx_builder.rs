@@ -154,6 +154,6 @@ pub unsafe extern "C" fn ergo_lib_tx_builder_min_change_value(
 
 /// Drop `TxBuilder`
 #[no_mangle]
-pub extern "C" fn ergo_lib_tx_builder_delete(ptr: TxBuilderPtr) {
-    unsafe { delete_ptr(ptr) }
+pub unsafe extern "C" fn ergo_lib_tx_builder_delete(ptr: TxBuilderPtr) {
+    delete_ptr(ptr)
 }

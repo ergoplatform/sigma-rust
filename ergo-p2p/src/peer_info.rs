@@ -40,7 +40,7 @@ impl PeerInfo {
         let peer_spec = PeerSpec::new(
             "unknown",
             ProtocolVersion::INITIAL,
-            &format!("unknown-{}", addr.to_string()),
+            &format!("unknown-{}", addr),
             Some(addr),
             None,
         );

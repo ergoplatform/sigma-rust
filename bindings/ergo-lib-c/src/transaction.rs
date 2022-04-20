@@ -33,8 +33,8 @@ type ErgoBoxesPtr = CollectionPtr<ErgoBox>;
 
 /// Drop `CommitmentHint`
 #[no_mangle]
-pub extern "C" fn ergo_lib_commitment_hint_delete(ptr: CommitmentHintPtr) {
-    unsafe { delete_ptr(ptr) }
+pub unsafe extern "C" fn ergo_lib_commitment_hint_delete(ptr: CommitmentHintPtr) {
+    delete_ptr(ptr)
 }
 
 // `HintsBag` bindings -----------------------------------------------------------------------------
@@ -84,8 +84,8 @@ pub unsafe extern "C" fn ergo_lib_hints_bag_get(
 
 /// Drop `HintsBag`
 #[no_mangle]
-pub extern "C" fn ergo_lib_hints_bag_delete(ptr: HintsBagPtr) {
-    unsafe { delete_ptr(ptr) }
+pub unsafe extern "C" fn ergo_lib_hints_bag_delete(ptr: HintsBagPtr) {
+    delete_ptr(ptr)
 }
 
 // `TransactionHintsBag` bindings ------------------------------------------------------------------
@@ -148,8 +148,8 @@ pub unsafe extern "C" fn ergo_lib_transaction_extract_hints(
 
 /// Drop `TransactionHintsBag`
 #[no_mangle]
-pub extern "C" fn ergo_lib_transaction_hints_bag_delete(ptr: TransactionHintsBagPtr) {
-    unsafe { delete_ptr(ptr) }
+pub unsafe extern "C" fn ergo_lib_transaction_hints_bag_delete(ptr: TransactionHintsBagPtr) {
+    delete_ptr(ptr)
 }
 
 // `UnsignedTransaction` bindings ------------------------------------------------------------------
@@ -242,8 +242,8 @@ pub unsafe extern "C" fn ergo_lib_unsigned_tx_to_json_eip12(
 
 /// Drop `UnsignedTransaction`
 #[no_mangle]
-pub extern "C" fn ergo_lib_unsigned_tx_delete(ptr: UnsignedTransactionPtr) {
-    unsafe { delete_ptr(ptr) }
+pub unsafe extern "C" fn ergo_lib_unsigned_tx_delete(ptr: UnsignedTransactionPtr) {
+    delete_ptr(ptr)
 }
 
 // `Transaction` bindings --------------------------------------------------------------------------
@@ -351,8 +351,8 @@ pub unsafe extern "C" fn ergo_lib_tx_to_json_eip12(
 
 /// Drop `Transaction`
 #[no_mangle]
-pub extern "C" fn ergo_lib_tx_delete(ptr: TransactionPtr) {
-    unsafe { delete_ptr(ptr) }
+pub unsafe extern "C" fn ergo_lib_tx_delete(ptr: TransactionPtr) {
+    delete_ptr(ptr)
 }
 // `TxId` bindings ----------------------------------------------------------------------
 
@@ -386,8 +386,8 @@ pub unsafe extern "C" fn ergo_lib_tx_id_to_str(
 
 /// Drop `TxId`
 #[no_mangle]
-pub extern "C" fn ergo_lib_tx_id_delete(ptr: TxIdPtr) {
-    unsafe { delete_ptr(ptr) }
+pub unsafe extern "C" fn ergo_lib_tx_id_delete(ptr: TxIdPtr) {
+    delete_ptr(ptr)
 }
 
 make_ffi_eq!(TxId);

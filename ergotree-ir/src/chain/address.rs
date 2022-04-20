@@ -413,8 +413,8 @@ impl AddressEncoder {
 
     fn calc_checksum(bytes: &[u8]) -> [u8; AddressEncoder::CHECKSUM_LENGTH] {
         let v: Vec<u8> = blake2b256_hash(bytes)
-            .to_vec()
-            .into_iter()
+            .iter()
+            .copied()
             .take(AddressEncoder::CHECKSUM_LENGTH)
             .collect();
         #[allow(clippy::unwrap_used)]

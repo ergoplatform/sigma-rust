@@ -43,8 +43,8 @@ pub unsafe extern "C" fn ergo_lib_reduced_tx_unsigned_tx(
 
 /// Drop `ReducedTransaction`
 #[no_mangle]
-pub extern "C" fn ergo_lib_reduced_tx_delete(ptr: ReducedTransactionPtr) {
-    unsafe { delete_ptr(ptr) }
+pub unsafe extern "C" fn ergo_lib_reduced_tx_delete(ptr: ReducedTransactionPtr) {
+    delete_ptr(ptr)
 }
 
 /// Create empty proposition holder
@@ -67,6 +67,6 @@ pub unsafe extern "C" fn ergo_lib_propositions_add_proposition_from_bytes(
 
 /// Drop `Propositions`
 #[no_mangle]
-pub extern "C" fn ergo_lib_propositions_delete(ptr: PropositionsPtr) {
-    unsafe { delete_ptr(ptr) }
+pub unsafe extern "C" fn ergo_lib_propositions_delete(ptr: PropositionsPtr) {
+    delete_ptr(ptr)
 }

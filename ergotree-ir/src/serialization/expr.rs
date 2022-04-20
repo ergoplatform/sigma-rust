@@ -98,6 +98,7 @@ impl Expr {
                     if r.substitute_placeholders() {
                         // ConstantPlaceholder itself can be created only if a corresponding
                         // constant is in the constant_store, thus unwrap() is safe here
+                        #[allow(clippy::unwrap_used)]
                         let c = r.constant_store().get(cp.id).unwrap();
                         Ok(Expr::Const(c.clone()))
                     } else {

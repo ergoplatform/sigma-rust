@@ -32,6 +32,6 @@ pub unsafe extern "C" fn ergo_lib_context_extension_keys(
 
 /// Drop `ContextExtension`
 #[no_mangle]
-pub extern "C" fn ergo_lib_context_extension_delete(ptr: ContextExtensionPtr) {
-    unsafe { delete_ptr(ptr) }
+pub unsafe extern "C" fn ergo_lib_context_extension_delete(ptr: ContextExtensionPtr) {
+    delete_ptr(ptr)
 }

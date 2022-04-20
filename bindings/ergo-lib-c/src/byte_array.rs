@@ -19,8 +19,8 @@ pub unsafe extern "C" fn ergo_lib_byte_array_from_raw_parts(
 }
 
 #[no_mangle]
-pub extern "C" fn ergo_lib_byte_array_delete(ptr: ByteArrayPtr) {
-    unsafe { delete_ptr(ptr) }
+pub unsafe extern "C" fn ergo_lib_byte_array_delete(ptr: ByteArrayPtr) {
+    delete_ptr(ptr)
 }
 
 make_collection!(ByteArrays, ByteArray);

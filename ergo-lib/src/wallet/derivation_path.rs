@@ -58,8 +58,8 @@ pub enum ChildIndex {
 impl fmt::Display for ChildIndex {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ChildIndex::Hardened(i) => write!(f, "{}'", i.0.to_string()),
-            ChildIndex::Normal(i) => write!(f, "{}", i.0.to_string()),
+            ChildIndex::Hardened(i) => write!(f, "{}'", i.0),
+            ChildIndex::Normal(i) => write!(f, "{}", i.0),
         }
     }
 }
@@ -69,7 +69,7 @@ impl FromStr for ChildIndex {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s.contains('\'') {
-            let idx = s.replace("'", "");
+            let idx = s.replace('\'', "");
             Ok(ChildIndex::Hardened(ChildIndexHardened::from_31_bit(
                 idx.parse()?,
             )?))
@@ -265,8 +265,7 @@ impl FromStr for DerivationPath {
         }
         let path = parts
             .into_iter()
-            .map(ChildIndex::from_str)
-            .flatten()
+            .flat_map(ChildIndex::from_str)
             .collect::<Vec<_>>();
         Ok(path.into_boxed_slice().into())
     }

@@ -47,8 +47,7 @@ impl DlogProverInput {
     pub fn from_base16_str(str: String) -> Option<DlogProverInput> {
         base16::decode(&str)
             .ok()
-            .map(|bytes| bytes.as_slice().try_into().ok().map(Self::from_bytes))
-            .flatten()
+            .and_then(|bytes| bytes.as_slice().try_into().ok().map(Self::from_bytes))
             .flatten()
     }
 

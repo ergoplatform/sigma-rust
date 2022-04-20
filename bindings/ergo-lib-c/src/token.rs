@@ -46,8 +46,8 @@ pub unsafe extern "C" fn ergo_lib_token_id_to_str(
 
 /// Drop `TokenId`
 #[no_mangle]
-pub extern "C" fn ergo_lib_token_id_delete(ptr: TokenIdPtr) {
-    unsafe { delete_ptr(ptr) }
+pub unsafe extern "C" fn ergo_lib_token_id_delete(ptr: TokenIdPtr) {
+    delete_ptr(ptr)
 }
 
 make_ffi_eq!(TokenId);
@@ -75,8 +75,8 @@ pub unsafe extern "C" fn ergo_lib_token_amount_as_i64(
 
 /// Drop `TokenAmount`
 #[no_mangle]
-pub extern "C" fn ergo_lib_token_amount_delete(ptr: TokenAmountPtr) {
-    unsafe { delete_ptr(ptr) }
+pub unsafe extern "C" fn ergo_lib_token_amount_delete(ptr: TokenAmountPtr) {
+    delete_ptr(ptr)
 }
 
 make_ffi_eq!(TokenAmount);
@@ -133,8 +133,8 @@ pub unsafe extern "C" fn ergo_lib_token_to_json_eip12(
 
 /// Drop `Token`
 #[no_mangle]
-pub extern "C" fn ergo_lib_token_delete(ptr: TokenPtr) {
-    unsafe { delete_ptr(ptr) }
+pub unsafe extern "C" fn ergo_lib_token_delete(ptr: TokenPtr) {
+    delete_ptr(ptr)
 }
 
 make_ffi_eq!(Token);
@@ -186,6 +186,6 @@ pub unsafe extern "C" fn ergo_lib_tokens_add(
 
 /// Drop `Tokens`
 #[no_mangle]
-pub extern "C" fn ergo_lib_tokens_delete(ptr: TokensPtr) {
-    unsafe { delete_ptr(ptr) }
+pub unsafe extern "C" fn ergo_lib_tokens_delete(ptr: TokensPtr) {
+    delete_ptr(ptr)
 }

@@ -42,9 +42,7 @@ pub struct HintsBag(
 impl HintsBag {
     /// Empty HintsBag
     pub fn empty() -> HintsBag {
-        HintsBag {
-            0: ergo_lib::ergotree_interpreter::sigma_protocol::prover::hint::HintsBag::empty(),
-        }
+        HintsBag(ergo_lib::ergotree_interpreter::sigma_protocol::prover::hint::HintsBag::empty())
     }
 
     /// Add commitment hint to the bag
@@ -82,9 +80,7 @@ pub struct TransactionHintsBag(pub(crate) ergo_lib::wallet::multi_sig::Transacti
 impl TransactionHintsBag {
     /// Empty TransactionHintsBag
     pub fn empty() -> TransactionHintsBag {
-        TransactionHintsBag {
-            0: ergo_lib::wallet::multi_sig::TransactionHintsBag::empty(),
-        }
+        TransactionHintsBag(ergo_lib::wallet::multi_sig::TransactionHintsBag::empty())
     }
 
     /// Adding hints for input

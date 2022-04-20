@@ -273,7 +273,7 @@ impl From<ErgoBox> for super::json::ergo_box::ErgoBoxJson {
             .as_ref()
             .map(BoxTokens::as_vec)
             .cloned()
-            .unwrap_or_else(Vec::new); // JSON serialization for ErgoBox requires that tokens be [] instead of null
+            .unwrap_or_default(); // JSON serialization for ErgoBox requires that tokens be [] instead of null
         super::json::ergo_box::ErgoBoxJson {
             box_id: Some(ergo_box.box_id),
             value: ergo_box.value,
