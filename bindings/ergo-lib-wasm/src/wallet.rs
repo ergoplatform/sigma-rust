@@ -1,6 +1,9 @@
 //! Wallet-like features
 use derive_more::{From, Into};
-use ergo_lib::chain::transaction::TxIoVec;
+use ergo_lib::{
+    chain::transaction::TxIoVec, ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean,
+};
+use js_sys::Uint8Array;
 use wasm_bindgen::prelude::*;
 
 pub mod derivation_path;
@@ -8,6 +11,7 @@ pub mod ext_pub_key;
 pub mod ext_secret_key;
 pub mod mnemonic;
 
+use crate::address::Address;
 use crate::transaction::TransactionHintsBag;
 use crate::{
     box_coll::ErgoBoxes,
@@ -187,5 +191,25 @@ impl Wallet {
             .generate_commitments_for_reduced_transaction(reduced_tx.clone().into())
             .map_err(to_js)
             .map(TransactionHintsBag::from)
+    }
+
+    /// Sign arbitrary an message using a P2PK address
+    #[wasm_bindgen]
+    pub fn sign_message_using_p2pk(
+        &self,
+        address: &Address,
+        message: &[u8],
+    ) -> Result<Uint8Array, JsValue> {
+        if let Address(ergo_lib::ergotree_ir::chain::address::Address::P2Pk(d)) = address.clone() {
+            let sb = SigmaBoolean::from(d); //.map_err(|e| JsValue::from_str(&format!("SB: {:?}", e)))?;
+            self.0
+                .sign_message(sb, message)
+                .map_err(to_js)
+                .map(|v| Uint8Array::from(v.as_slice()))
+        } else {
+            Err(JsValue::from_str(
+                "wallet::sign_message_using_p2pk: Address:P2Pk expected",
+            ))
+        }
     }
 }

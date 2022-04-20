@@ -38,6 +38,7 @@ pub mod token;
 pub mod transaction;
 pub mod tx_builder;
 pub mod utils;
+pub mod verifier;
 pub mod wallet;
 
 mod error_conversion;
