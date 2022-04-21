@@ -289,6 +289,64 @@ impl NipopowAlgos {
             Ok(vec![prev_header.id])
         }
     }
+    /// Returns [`ergo_merkle_tree::BatchMerkleProof`] for block interlinks
+    pub fn proof_for_interlink_vector(
+        ext: &ExtensionCandidate,
+    ) -> Option<ergo_merkle_tree::BatchMerkleProof> {
+        let interlinks: Vec<[u8; 2]> = ext
+            .fields()
+            .iter()
+            .map(|(key, _)| *key)
+            .filter(|key| key[0] == INTERLINK_VECTOR_PREFIX)
+            .collect();
+        if interlinks.is_empty() {
+            Some(ergo_merkle_tree::BatchMerkleProof::new(vec![], vec![]))
+        } else {
+            NipopowAlgos::extension_batch_proof_for(ext, &interlinks)
+        }
+    }
+    /// returns a MerkleProof for a single key element of [`ExtensionCandidate`]
+    pub fn extension_proof_for(
+        ext: &ExtensionCandidate,
+        key: [u8; 2],
+    ) -> Option<ergo_merkle_tree::MerkleProof> {
+        let tree = extension_merkletree(ext.fields());
+        let kv = ext.fields().iter().find(|(k, _)| *k == key)?;
+        tree.proof_by_element(&kv_to_leaf(kv))
+    }
+    /// Returns a [`ergo_merkle_tree::BatchMerkleProof`] (compact multi-proof) for multiple key elements of [`ExtensionCandidate`]
+    pub fn extension_batch_proof_for(
+        ext: &ExtensionCandidate,
+        keys: &[[u8; 2]],
+    ) -> Option<ergo_merkle_tree::BatchMerkleProof> {
+        let tree = extension_merkletree(ext.fields());
+        let indices: Vec<usize> = keys
+            .iter()
+            .flat_map(|k| ext.fields().iter().find(|(key, _)| key == k))
+            .map(kv_to_leaf)
+            .map(ergo_merkle_tree::MerkleNode::from)
+            .flat_map(|node| node.get_hash().copied())
+            .flat_map(|hash| tree.get_elements_hash_index().get(&hash).copied())
+            .collect();
+        tree.proof_by_indices(&indices)
+    }
+}
+
+// converts a key value pair to an array of [key.length, key, val]
+fn kv_to_leaf(kv: &([u8; 2], Vec<u8>)) -> Vec<u8> {
+    std::iter::once(2u8)
+        .chain(kv.0.iter().copied())
+        .chain(kv.1.iter().copied())
+        .collect()
+}
+// creates a MerkleTree from a key/value pair of extension section
+fn extension_merkletree(kv: &[([u8; 2], Vec<u8>)]) -> ergo_merkle_tree::MerkleTree {
+    let leafs = kv
+        .iter()
+        .map(kv_to_leaf)
+        .map(ergo_merkle_tree::MerkleNode::from)
+        .collect::<Vec<ergo_merkle_tree::MerkleNode>>();
+    ergo_merkle_tree::MerkleTree::new(&leafs)
 }
 
 /// The "compact" format is an encoding of a whole number `N` using an unsigned 32 bit number.

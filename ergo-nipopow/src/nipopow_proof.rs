@@ -303,11 +303,12 @@ mod arbitrary {
                 .prop_map(|(header, digests)| PoPowHeader {
                     header: *header,
                     interlinks: digests.iter().cloned().map(BlockId).collect(),
-                    interlinks_proof: ExtensionCandidate::new(NipopowAlgos::pack_interlinks(
-                        digests.into_iter().map(BlockId).collect(),
-                    ))
-                    .unwrap()
-                    .proof_for_interlink_vector()
+                    interlinks_proof: NipopowAlgos::proof_for_interlink_vector(
+                        &ExtensionCandidate::new(NipopowAlgos::pack_interlinks(
+                            digests.into_iter().map(BlockId).collect(),
+                        ))
+                        .unwrap(),
+                    )
                     .unwrap(),
                 })
                 .boxed()

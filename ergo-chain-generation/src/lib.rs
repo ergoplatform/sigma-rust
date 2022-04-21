@@ -40,7 +40,7 @@ pub struct ErgoFullBlock {
 impl std::convert::TryInto<ergo_nipopow::PoPowHeader> for ErgoFullBlock {
     type Error = &'static str;
     fn try_into(self) -> Result<ergo_nipopow::PoPowHeader, &'static str> {
-        let interlinks_proof = match self.extension.proof_for_interlink_vector() {
+        let interlinks_proof = match NipopowAlgos::proof_for_interlink_vector(&self.extension) {
             Some(proof) => proof,
             None => return Err("Unable to generate BatchMerkleProof for interlinks"),
         };
