@@ -37,14 +37,12 @@ pub(crate) struct TransactionJsonEip12 {
 
 impl From<Transaction> for TransactionJsonEip12 {
     fn from(t: Transaction) -> Self {
-        // Following unwraps are fine since we're converting from BoundedVec to Vec.
-        #[allow(clippy::unwrap_used)]
         TransactionJsonEip12 {
             tx_id: t.id(),
-            inputs: t.inputs.try_into().unwrap(),
+            inputs: t.inputs.as_vec().clone(),
             data_inputs: t
                 .data_inputs
-                .map(|di| di.try_into().unwrap())
+                .map(|di| di.as_vec().clone())
                 .unwrap_or_else(Vec::new),
             outputs: t.outputs.into_iter().map(|b| b.into()).collect(),
         }
