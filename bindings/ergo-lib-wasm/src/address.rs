@@ -120,7 +120,7 @@ impl From<ergo_lib::ergotree_ir::chain::address::AddressTypePrefix> for AddressT
  */
 #[wasm_bindgen]
 #[derive(PartialEq, Eq, Debug, Clone, From, Into)]
-pub struct Address(ergo_lib::ergotree_ir::chain::address::Address);
+pub struct Address(pub(crate) ergo_lib::ergotree_ir::chain::address::Address);
 
 #[wasm_bindgen]
 impl Address {

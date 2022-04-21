@@ -10,6 +10,7 @@ use ergo_lib::ergo_chain_types::DigestNError;
 use ergo_lib::ergo_nipopow::NipopowProofError;
 #[cfg(feature = "rest")]
 use ergo_lib::ergo_rest::NodeError;
+use ergo_lib::ergotree_interpreter::sigma_protocol::verifier::VerifierError;
 use ergo_lib::ergotree_ir::chain::address::AddressEncoderError;
 use ergo_lib::ergotree_ir::chain::address::AddressError;
 use ergo_lib::ergotree_ir::chain::ergo_box::box_value::BoxValueError;
@@ -89,5 +90,6 @@ from_error_to_wrap_via_debug!(ExtSecretKeyError);
 from_error_to_wrap_via_debug!(DerivationPathError);
 from_error_to_wrap_via_debug!(ExtPubKeyError);
 from_error_to_wrap_via_debug!(NipopowProofError);
+from_error_to_wrap_via_debug!(VerifierError);
 #[cfg(feature = "rest")]
 from_error_to_wrap_via_debug!(NodeError);

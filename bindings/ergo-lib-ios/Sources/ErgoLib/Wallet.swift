@@ -126,7 +126,38 @@ class Wallet {
         return TransactionHintsBag(withRawPointer: ptr!)
     }
     
+    /// Sign an arbitrary message using a P2PK address
+    func signedMessageUsingP2PK(
+        address: Address,
+        message: [UInt8]
+    ) throws -> SignedMessage {
+        var ptr: SignedMessagePtr?
+        let error = ergo_lib_wallet_sign_message_using_p2pk(
+            self.pointer,
+            address.pointer,
+            message,
+            UInt(message.count),
+            &ptr
+        )
+        try checkError(error)
+        return SignedMessage(withRawPointer: ptr!)
+    }
+    
     deinit {
         ergo_lib_wallet_delete(self.pointer)
+    }
+}
+
+class SignedMessage {
+    internal var pointer: SignedMessagePtr
+    
+    /// Takes ownership of an existing ``SignedMessagePtr``. Note: we must ensure that no other instance
+    /// of ``SignedMessage`` can hold this pointer.
+    internal init(withRawPointer ptr: SignedMessagePtr) {
+        self.pointer = ptr
+    }
+    
+    deinit {
+        ergo_lib_signed_message_delete(self.pointer)
     }
 }
