@@ -4,8 +4,8 @@ use wasm_bindgen::prelude::*;
 
 use super::node_conf::NodeConf;
 use crate::{block_header::BlockId, error_conversion::to_js, nipopow::NipopowProof};
-use std::time::Duration;
 use bounded_vec::NonEmptyVec;
+use std::time::Duration;
 
 #[wasm_bindgen]
 /// GET on /info endpoint
