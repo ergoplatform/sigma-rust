@@ -17,11 +17,11 @@
     - ~~AVL trees; [#368](https://github.com/ergoplatform/sigma-rust/issues/368)~~
     - ~~`Context.headers`; [#372](https://github.com/ergoplatform/sigma-rust/issues/372)~~
     - ~~`Context.preHeader`; [#373](https://github.com/ergoplatform/sigma-rust/issues/373)~~
-    - Distributed signatures; [#367](https://github.com/ergoplatform/sigma-rust/issues/367)
+    - ~~Distributed signatures; [#367](https://github.com/ergoplatform/sigma-rust/issues/367)~~
     - ~~Rest of the unimplemented ops (a few not-so-popular ones, see [`ergotree-ir` README](../ergotree-ir/README.md));~~
 - ErgoScript compiler; [#370](https://github.com/ergoplatform/sigma-rust/issues/370)
 - JIT Costing; [#193](https://github.com/ergoplatform/sigma-rust/issues/193)
-- Swift bindings for iOS; [#47](https://github.com/ergoplatform/sigma-rust/issues/47)
+- ~~Swift bindings for iOS; [#47](https://github.com/ergoplatform/sigma-rust/issues/47)~~
 - `ErgoTree` pretty printer ("decompiler"); [#371](https://github.com/ergoplatform/sigma-rust/issues/371)
 - Kotlin bindings for Android; [#369](https://github.com/ergoplatform/sigma-rust/issues/369)
 
