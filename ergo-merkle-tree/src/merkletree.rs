@@ -292,7 +292,7 @@ mod test {
     #[test]
     fn merkle_tree_zero_elements() {
         let tree = MerkleTree::new(&[][..]);
-        assert!(tree.root_hash().as_ref() == &[0; 32]);
+        assert!(tree.root_hash().as_ref() == [0; 32]);
     }
     #[test]
     fn merkle_tree_test_one_element() {
@@ -350,7 +350,7 @@ mod test {
             assert!(tree
                 .proof_by_element_hash(node.get_hash().unwrap())
                 .unwrap()
-                .valid(&tree_root.as_ref()));
+                .valid(tree_root.as_ref()));
         }
     }
 

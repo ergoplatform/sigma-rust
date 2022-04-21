@@ -125,8 +125,7 @@ mod tests {
                 .map(MerkleNode::from)
                 .collect::<Vec<MerkleNode>>(),
         )
-        .root_hash()
-        .into();
+        .root_hash_special();
 
         let dummy_autolykos_solution = AutolykosSolution {
             miner_pk: Box::new(EcPoint::default()),

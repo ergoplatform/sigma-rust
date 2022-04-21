@@ -175,8 +175,7 @@ fn prove_block(
             .map(MerkleNode::from)
             .collect::<Vec<MerkleNode>>(),
     )
-    .root_hash_special()
-    .into();
+    .root_hash_special();
 
     let dummy_autolykos_solution = AutolykosSolution {
         miner_pk: Box::new(EcPoint::default()),
@@ -343,7 +342,7 @@ fn transactions_root(txs: &[Transaction], block_version: u8) -> Digest32 {
                 .map(MerkleNode::from)
                 .collect::<Vec<MerkleNode>>(),
         );
-        tree.root_hash_special().into()
+        tree.root_hash_special()
     } else {
         let tree = MerkleTree::new(
             txs.iter()
@@ -370,7 +369,7 @@ fn transactions_root(txs: &[Transaction], block_version: u8) -> Digest32 {
                 .map(MerkleNode::from)
                 .collect::<Vec<MerkleNode>>(),
         );
-        tree.root_hash_special().into()
+        tree.root_hash_special()
     }
 }
 
