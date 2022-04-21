@@ -15,6 +15,10 @@
 #![allow(clippy::len_without_is_empty)]
 #![allow(clippy::unused_unit)]
 #![deny(clippy::wildcard_enum_match_arm)]
+#![deny(clippy::unwrap_used)]
+#![deny(clippy::expect_used)]
+#![deny(clippy::todo)]
+#![deny(clippy::unimplemented)]
 
 pub mod address;
 pub mod ast;

@@ -137,7 +137,8 @@ it('TxBuilder burn token test', async () => {
   const token = new ergo_wasm.Token(token_id, ergo_wasm.TokenAmount.from_i64(ergo_wasm.I64.from_str('1')));
   const box_selector = new ergo_wasm.SimpleBoxSelector();
   let tokens = new ergo_wasm.Tokens();
-  tokens.add(token);
+  const res = tokens.add(token);
+  assert(res != null);
   const fee = ergo_wasm.TxBuilder.SUGGESTED_TX_FEE();
   const outbox_value = ergo_wasm.BoxValue.SAFE_USER_MIN();
   const target_balance = ergo_wasm.BoxValue.from_i64(outbox_value.as_i64().checked_add(fee.as_i64()));
@@ -276,7 +277,8 @@ it('signing multi signature transaction', async () => {
   const partial_signed = wallet_alice.sign_transaction_multi(ctx, tx, unspent_boxes, tx_data_inputs, alice_tx_hints_bag);
   const real_propositions = new ergo_wasm.Propositions;
   const simulated_proposition = new ergo_wasm.Propositions;
-  real_propositions.add_proposition_from_byte(alice_pk_bytes);
+  const res = real_propositions.add_proposition_from_byte(alice_pk_bytes);
+  assert(res != null);
   const bob_hints_bag = ergo_wasm.extract_hints(partial_signed, ctx, unspent_boxes, tx_data_inputs, real_propositions, simulated_proposition).all_hints_for_input(0);
   bob_hints_bag.add_commitment(bob_own);
   const bob_tx_hints_bag = ergo_wasm.TransactionHintsBag.empty();
