@@ -1,8 +1,8 @@
 //! Wallet-like features
 
-use std::{ffi::CStr, os::raw::c_char};
-
+use crate::ReturnBool;
 use ergo_lib_c_core::{
+    address::ConstAddressPtr,
     collections::ConstCollectionPtr,
     ergo_box::ErgoBox,
     ergo_state_ctx::ConstErgoStateContextPtr,
@@ -15,6 +15,7 @@ use ergo_lib_c_core::{
     wallet::*,
     Error, ErrorPtr,
 };
+use std::{ffi::CStr, os::raw::c_char};
 
 use crate::delete_ptr;
 
@@ -157,6 +158,51 @@ pub unsafe extern "C" fn ergo_lib_wallet_generate_commitments_for_reduced_transa
         transaction_hints_bag_out,
     );
     Error::c_api_from(res)
+}
+
+/// Sign an arbitrary message using a P2PK address
+#[no_mangle]
+pub unsafe extern "C" fn ergo_lib_wallet_sign_message_using_p2pk(
+    wallet_ptr: ConstWalletPtr,
+    address_ptr: ConstAddressPtr,
+    message_ptr: *const u8,
+    message_length: usize,
+    signed_message_out: *mut SignedMessagePtr,
+) -> ErrorPtr {
+    let res = wallet_sign_message_using_p2pk(
+        wallet_ptr,
+        address_ptr,
+        message_ptr,
+        message_length,
+        signed_message_out,
+    );
+    Error::c_api_from(res)
+}
+
+/// Verify that the signature is presented to satisfy SigmaProp conditions.
+#[no_mangle]
+pub unsafe extern "C" fn ergo_lib_verify_signature(
+    address_ptr: ConstAddressPtr,
+    message_ptr: *const u8,
+    message_length: usize,
+    signed_message_ptr: ConstSignedMessagePtr,
+) -> ReturnBool {
+    match verify_signature(address_ptr, message_ptr, message_length, signed_message_ptr) {
+        Ok(value) => ReturnBool {
+            value,
+            error: std::ptr::null_mut(),
+        },
+        Err(e) => ReturnBool {
+            value: false, // Just a dummy value
+            error: Error::c_api_from(Err(e)),
+        },
+    }
+}
+
+/// Drop `SignedMessage`
+#[no_mangle]
+pub unsafe extern "C" fn ergo_lib_signed_message_delete(ptr: SignedMessagePtr) {
+    delete_ptr(ptr)
 }
 
 /// Drop `Wallet`

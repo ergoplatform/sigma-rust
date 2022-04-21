@@ -193,7 +193,7 @@ impl Wallet {
             .map(TransactionHintsBag::from)
     }
 
-    /// Sign arbitrary an message using a P2PK address
+    /// Sign an arbitrary message using a P2PK address
     #[wasm_bindgen]
     pub fn sign_message_using_p2pk(
         &self,
@@ -201,7 +201,7 @@ impl Wallet {
         message: &[u8],
     ) -> Result<Uint8Array, JsValue> {
         if let Address(ergo_lib::ergotree_ir::chain::address::Address::P2Pk(d)) = address.clone() {
-            let sb = SigmaBoolean::from(d); //.map_err(|e| JsValue::from_str(&format!("SB: {:?}", e)))?;
+            let sb = SigmaBoolean::from(d);
             self.0
                 .sign_message(sb, message)
                 .map_err(to_js)

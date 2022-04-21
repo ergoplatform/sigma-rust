@@ -1,8 +1,11 @@
 //! Wallet-like features
 
-use ergo_lib::chain::transaction::TxIoVec;
+use ergo_lib::{
+    chain::transaction::TxIoVec, ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean,
+};
 
 use crate::{
+    address::{Address, ConstAddressPtr},
     collections::ConstCollectionPtr,
     ergo_box::ErgoBox,
     ergo_state_ctx::ConstErgoStateContextPtr,
@@ -230,4 +233,59 @@ pub unsafe fn wallet_generate_commitments_for_reduced_transaction(
             .generate_commitments_for_reduced_transaction(reduced_tx.0.clone())?,
     )));
     Ok(())
+}
+
+/// Represents the signature of a signed message
+pub struct SignedMessage(Vec<u8>);
+pub type SignedMessagePtr = *mut SignedMessage;
+pub type ConstSignedMessagePtr = *const SignedMessage;
+
+/// Sign an arbitrary message using a P2PK address
+pub unsafe fn wallet_sign_message_using_p2pk(
+    wallet_ptr: ConstWalletPtr,
+    address_ptr: ConstAddressPtr,
+    message_ptr: *const u8,
+    message_length: usize,
+    signed_message_out: *mut SignedMessagePtr,
+) -> Result<(), Error> {
+    let wallet = const_ptr_as_ref(wallet_ptr, "wallet_ptr")?;
+    let address = const_ptr_as_ref(address_ptr, "address_ptr")?;
+    let msg = std::slice::from_raw_parts(message_ptr, message_length);
+    let signed_message_out = mut_ptr_as_mut(signed_message_out, "signed_message_out")?;
+    if let Address(ergo_lib::ergotree_ir::chain::address::Address::P2Pk(d)) = address {
+        let sb = SigmaBoolean::from(d.clone());
+        let sig = wallet.0.sign_message(sb, msg)?;
+        *signed_message_out = Box::into_raw(Box::new(SignedMessage(sig)));
+        Ok(())
+    } else {
+        Err(Error::Misc(
+            "wallet::sign_message_using_p2pk: Address:P2Pk expected".into(),
+        ))
+    }
+}
+
+/// Verify that the signature is presented to satisfy SigmaProp conditions.
+pub unsafe fn verify_signature(
+    address_ptr: ConstAddressPtr,
+    message_ptr: *const u8,
+    message_length: usize,
+    signed_message_ptr: ConstSignedMessagePtr,
+) -> Result<bool, Error> {
+    let address = const_ptr_as_ref(address_ptr, "address_ptr")?;
+    let msg = std::slice::from_raw_parts(message_ptr, message_length);
+    let signed_message = const_ptr_as_ref(signed_message_ptr, "signed_message_ptr")?;
+
+    if let Address(ergo_lib::ergotree_ir::chain::address::Address::P2Pk(d)) = address {
+        let sb = SigmaBoolean::from(d.clone());
+        let res = ergo_lib::ergotree_interpreter::sigma_protocol::verifier::verify_signature(
+            sb,
+            msg,
+            signed_message.0.as_slice(),
+        )?;
+        Ok(res)
+    } else {
+        Err(Error::Misc(
+            "wallet::verify_signature: Address:P2Pk expected".into(),
+        ))
+    }
 }
