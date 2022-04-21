@@ -106,7 +106,7 @@ pub unsafe fn rest_api_node_peer_discovery(
     }
     #[allow(clippy::unwrap_used)]
     let seeds_bounded_vec =
-        ergo_lib::ergo_rest::api::node::NonEmptyVec::from_vec(seeds_vec).unwrap();
+        bounded_vec::NonEmptyVec::from_vec(seeds_vec).unwrap();
 
     let max_parallel_requests = bounded_integer::BoundedU16::new(max_parallel_requests)
         .ok_or_else(|| Error::Misc("max_parallel_requests must be > 0".into()))?;

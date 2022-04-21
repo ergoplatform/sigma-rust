@@ -5,6 +5,7 @@ use wasm_bindgen::prelude::*;
 use super::node_conf::NodeConf;
 use crate::{block_header::BlockId, error_conversion::to_js, nipopow::NipopowProof};
 use std::time::Duration;
+use bounded_vec::NonEmptyVec;
 
 #[wasm_bindgen]
 /// GET on /info endpoint
@@ -54,9 +55,6 @@ impl PeerUrls {
         self.0[index].clone()
     }
 }
-
-/// Stub that can be removed once `bounded-vec` is updated with this type
-pub type NonEmptyVec<T> = bounded_vec::BoundedVec<T, 1, { usize::MAX }>;
 
 #[wasm_bindgen]
 /// Given a list of seed nodes, recursively determine a Vec of all known peer nodes.

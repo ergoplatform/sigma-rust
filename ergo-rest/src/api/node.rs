@@ -1,7 +1,7 @@
 //! Ergo node REST API endpoints
 
 use bounded_integer::BoundedU16;
-use bounded_vec::BoundedVec;
+use bounded_vec::NonEmptyVec;
 use ergo_chain_types::BlockId;
 use ergo_chain_types::PeerAddr;
 use ergo_nipopow::NipopowProof;
@@ -448,9 +448,6 @@ pub enum PeerDiscoveryError {
     #[error("Task spawn error")]
     TaskSpawn,
 }
-
-/// Stub that can be removed once `bounded-vec` is updated with this type
-pub type NonEmptyVec<T> = BoundedVec<T, 1, { usize::MAX }>;
 
 /// GET on /nipopow/proof/{minChainLength}/{suffixLength}/{headerId} endpoint
 pub async fn get_nipopow_proof_by_header_id(

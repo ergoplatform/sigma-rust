@@ -30,8 +30,7 @@ bs58 = "0.4.0"
 base16 = "0.2.1"
 byteorder = "1"
 num-bigint = "0.4.0"
-#bounded-vec = { git = "https://github.com/ergoplatform/bounded-vec", rev="f684d78" }
-bounded-vec = { version = "^0.5.0", features=["serde"] }
+bounded-vec = { version = "^0.6.0", features=["serde"] }
 num256 = "0.3.1"
 num-traits = "0.2.14"
 num-derive = "0.3.3"

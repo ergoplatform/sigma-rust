@@ -15,7 +15,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 bounded-integer = { version = "^0.5", features = ["types"] }
-bounded-vec = { version = "^0.5.0", features=["serde"] }
+bounded-vec = { version = "^0.6.0", features=["serde"] }
 sigma-ser = { version = "^0.4.0", path = "../sigma-ser" }
 sigma-util = { version = "^0.4.0", path = "../sigma-util" }
 ergo-chain-types = { version = "^0.2.0", path = "../ergo-chain-types" }
