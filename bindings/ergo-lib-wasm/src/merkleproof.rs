@@ -10,7 +10,7 @@ pub struct MerkleProof(ergo_merkle_tree::MerkleProof);
 
 /// A level node in a merkle proof
 #[wasm_bindgen]
-#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LevelNode(ergo_merkle_tree::LevelNode);
 
 #[wasm_bindgen]
@@ -27,15 +27,15 @@ impl LevelNode {
     /// Returns the associated digest (hash) with this node. Returns an empty array if there's no hash
     #[wasm_bindgen(getter)]
     pub fn digest(&self) -> Vec<u8> {
-        match self.0 .0 {
-            Some(hash) => hash[0..].to_owned(),
+        match &self.0.hash {
+            Some(hash) => hash.0.to_vec(),
             None => vec![],
         }
     }
     /// Returns the associated side with this node (0 = Left, 1 = Right)
     #[wasm_bindgen(getter)]
     pub fn side(&self) -> u8 {
-        self.0 .1 as u8
+        self.0.side as u8
     }
 }
 
@@ -51,7 +51,7 @@ impl MerkleProof {
 
     /// Adds a new node to the MerkleProof above the current nodes
     pub fn add_node(&mut self, level: &LevelNode) {
-        self.0.add_node(level.0);
+        self.0.add_node(level.0.clone());
     }
 
     /// Validates the Merkle proof against the root hash

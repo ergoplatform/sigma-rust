@@ -233,7 +233,7 @@ impl PoPowHeader {
                     .map(Result::unwrap)
                     .collect();
             let tree = ergo_merkle_tree::MerkleTree::new(&fields);
-            self.interlinks_proof.valid(&tree.root_hash())
+            self.interlinks_proof.valid(tree.root_hash().as_ref())
         }
     }
 }

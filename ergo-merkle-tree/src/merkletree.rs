@@ -371,7 +371,7 @@ mod test {
                     tree.proof_by_index(i).unwrap().get_leaf_data(),
                     node.get_leaf_data().unwrap()
                 );
-                assert!(tree.proof_by_index(i).unwrap().valid(&tree.root_hash()));
+                assert!(tree.proof_by_index(i).unwrap().valid(tree.root_hash().as_ref()));
             }
         }
         #[test]
@@ -381,7 +381,7 @@ mod test {
 
             let valid = indices.iter().all(|i| *i < data.len()) && indices.len() < data.len() && !indices.is_empty(); // TODO, is there any better strategy for proptest that doesn't require us to filter out invalid indices
             if valid {
-                assert!(tree.proof_by_indices(&indices).unwrap().valid(&tree.root_hash()));
+                assert!(tree.proof_by_indices(&indices).unwrap().valid(tree.root_hash().as_ref()));
             }
             else {
                 assert!(tree.proof_by_indices(&indices).is_none());

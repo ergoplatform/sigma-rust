@@ -325,7 +325,7 @@ impl NipopowAlgos {
             .flat_map(|k| ext.fields().iter().find(|(key, _)| key == k))
             .map(kv_to_leaf)
             .map(ergo_merkle_tree::MerkleNode::from)
-            .flat_map(|node| node.get_hash().copied())
+            .flat_map(|node| node.get_hash().cloned())
             .flat_map(|hash| tree.get_elements_hash_index().get(&hash).copied())
             .collect();
         tree.proof_by_indices(&indices)
