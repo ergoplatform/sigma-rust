@@ -1,5 +1,6 @@
-use crate::{prefixed_hash, prefixed_hash2};
-use crate::{HASH_SIZE, INTERNAL_PREFIX, LEAF_PREFIX};
+use crate::batchmerkleproof::{BatchMerkleProof, BatchMerkleProofIndex};
+use crate::{prefixed_hash, prefixed_hash2, INTERNAL_PREFIX, LEAF_PREFIX};
+use ergo_chain_types::Digest32;
 use std::borrow::Cow;
 use std::collections::{BTreeSet, HashMap};
 
@@ -8,11 +9,11 @@ use std::collections::{BTreeSet, HashMap};
 #[cfg_attr(feature = "json", derive(serde::Serialize))]
 pub enum MerkleNode {
     #[doc(hidden)]
-    Node { hash: [u8; HASH_SIZE] },
+    Node { hash: Digest32 },
     /// Leaf Node in MerkleTree. Can be created using [`Self::from_bytes`] or [`Self::from`]
     Leaf {
         /// 32 byte Blake2b256 hash for data
-        hash: [u8; HASH_SIZE],
+        hash: Digest32,
         /// Leaf Data
         data: Vec<u8>,
     },
@@ -23,14 +24,14 @@ pub enum MerkleNode {
 impl MerkleNode {
     /// Creates a new Leaf Node from bytes. The hash is prefixed with a leaf node prefix. Fails if data is not 32 bytes in size
     pub fn from_bytes<T: AsRef<[u8]>>(bytes: T) -> Result<Self, std::array::TryFromSliceError> {
-        let hash = *prefixed_hash(LEAF_PREFIX, bytes.as_ref());
+        let hash = prefixed_hash(LEAF_PREFIX, bytes.as_ref());
         Ok(MerkleNode::Leaf {
             hash,
             data: bytes.as_ref().try_into()?,
         })
     }
     /// Gets hash for the node, returns None if it's an Empty Node
-    pub fn get_hash(&self) -> Option<&[u8; 32]> {
+    pub fn get_hash(&self) -> Option<&Digest32> {
         match self {
             MerkleNode::Node { hash } => Some(hash),
             MerkleNode::Leaf { hash, .. } => Some(hash),
@@ -51,7 +52,7 @@ impl MerkleNode {
 
 impl From<Vec<u8>> for MerkleNode {
     fn from(vec: Vec<u8>) -> MerkleNode {
-        let hash = *prefixed_hash(LEAF_PREFIX, &vec);
+        let hash = prefixed_hash(LEAF_PREFIX, &vec);
         MerkleNode::Leaf { hash, data: vec }
     }
 }
@@ -96,7 +97,7 @@ fn build_proof(
             crate::NodeSide::Right
         };
         match nodes[sibling].get_hash() {
-            Some(hash) => proof_nodes.push(crate::LevelNode::new(*hash, side)),
+            Some(hash) => proof_nodes.push(crate::LevelNode::new(hash.clone(), side)),
             _ => proof_nodes.push(crate::LevelNode::empty_node(side)),
         }
         leaf_index = get_parent(leaf_index)?;
@@ -109,7 +110,7 @@ fn build_multiproof(
     nodes: &[MerkleNode],
     leaf_indices: &[usize],
     internal_nodes: usize,
-) -> Option<crate::batchmerkleproof::BatchMerkleProof> {
+) -> Option<BatchMerkleProof> {
     let mut multiproof: Vec<crate::LevelNode> = vec![];
 
     let mut a: BTreeSet<usize> = leaf_indices
@@ -133,7 +134,7 @@ fn build_multiproof(
                 None => unreachable!(),
             };
             let levelnode = match nodes[node].get_hash() {
-                Some(hash) => crate::LevelNode::new(*hash, side),
+                Some(hash) => crate::LevelNode::new(hash.clone(), side),
                 None => crate::LevelNode::empty_node(side),
             };
             multiproof.push(levelnode);
@@ -141,10 +142,15 @@ fn build_multiproof(
         a = b_pruned.into_iter().flat_map(get_parent).collect();
     }
 
-    Some(crate::batchmerkleproof::BatchMerkleProof::new(
+    Some(BatchMerkleProof::new(
         leaf_indices
             .iter()
-            .flat_map(|idx| Some((*idx, nodes[idx + internal_nodes].get_hash().copied()?)))
+            .flat_map(|idx| {
+                Some(BatchMerkleProofIndex {
+                    index: *idx,
+                    hash: nodes[idx + internal_nodes].get_hash().cloned()?,
+                })
+            })
             .collect(),
         multiproof,
     ))
@@ -155,7 +161,7 @@ fn build_multiproof(
 #[cfg_attr(feature = "json", derive(serde::Serialize))]
 pub struct MerkleTree {
     nodes: Vec<MerkleNode>,
-    elements_hash_index: HashMap<[u8; 32], usize>,
+    elements_hash_index: HashMap<Digest32, usize>,
     internal_nodes: usize,
 }
 
@@ -170,10 +176,14 @@ impl MerkleTree {
                     nodes[get_sibling(pair).unwrap()].get_hash(), // since we pad nodes with no sibling with an empty node, get_sibling should always return Some
                 ) {
                     (Some(left_hash), Some(right_hash)) => MerkleNode::Node {
-                        hash: *prefixed_hash2(INTERNAL_PREFIX, &left_hash[..], &right_hash[..]),
+                        hash: prefixed_hash2(
+                            INTERNAL_PREFIX,
+                            left_hash.as_ref(),
+                            right_hash.as_ref(),
+                        ),
                     },
                     (Some(hash), None) => MerkleNode::Node {
-                        hash: *prefixed_hash(INTERNAL_PREFIX, hash),
+                        hash: prefixed_hash(INTERNAL_PREFIX, hash.as_ref()),
                     },
                     (None, None) => MerkleNode::EmptyNode,
                     _ => unreachable!(),
@@ -189,7 +199,7 @@ impl MerkleTree {
             .iter()
             .flat_map(MerkleNode::get_hash)
             .enumerate()
-            .map(|(i, node)| (*node, i))
+            .map(|(i, node)| (node.clone(), i))
             .collect();
         let leaf_nodes = tree_nodes.len();
         // prepend leaf nodes with empty nodes to build the full tree
@@ -207,20 +217,20 @@ impl MerkleTree {
     }
 
     /// Returns the root hash for MerkleTree. If the tree is empty, then returns [0; 32]
-    pub fn root_hash(&self) -> [u8; 32] {
+    pub fn root_hash(&self) -> Digest32 {
         self.nodes
             .get(0)
             .and_then(MerkleNode::get_hash)
-            .copied()
-            .unwrap_or([0; 32])
+            .cloned()
+            .unwrap_or_else(Digest32::zero)
     }
     /// Returns the root hash for MerkleTree. If the tree is empty, then returns a special hash '0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8', which is extension/transaction root hash for genesis block
     /// See: <https://github.com/ergoplatform/ergo/issues/1077>
-    pub fn root_hash_special(&self) -> [u8; 32] {
+    pub fn root_hash_special(&self) -> Digest32 {
         self.nodes
             .get(0)
             .and_then(MerkleNode::get_hash)
-            .copied()
+            .cloned()
             .unwrap_or_else(
                 #[allow(clippy::unwrap_used)]
                 // unwrap is safe to use here, since digest size is always 32 bytes
@@ -229,13 +239,13 @@ impl MerkleTree {
                     let mut hasher = crate::VarBlake2b::new(32).unwrap();
                     hasher.update(&[]);
                     let hash: Box<[u8; 32]> = hasher.finalize_boxed().try_into().unwrap();
-                    *hash
+                    Digest32::from(hash)
                 },
             )
     }
 
     /// Returns HashMap of hashes and their index in the tree
-    pub fn get_elements_hash_index(&self) -> &HashMap<[u8; 32], usize> {
+    pub fn get_elements_hash_index(&self) -> &HashMap<Digest32, usize> {
         &self.elements_hash_index
     }
 
@@ -244,13 +254,13 @@ impl MerkleTree {
         build_proof(&self.nodes, leaf_index, self.internal_nodes)
     }
     /// Builds a [`crate::MerkleProof`] for given hash. Returns None if hash is not a leaf of tree
-    pub fn proof_by_element_hash(&self, hash: &[u8; 32]) -> Option<crate::MerkleProof> {
+    pub fn proof_by_element_hash(&self, hash: &Digest32) -> Option<crate::MerkleProof> {
         let index = *self.elements_hash_index.get(hash)?;
         self.proof_by_index(index)
     }
     /// Builds a [`crate::MerkleProof`] for element, by searching for its hash in the tree
     pub fn proof_by_element(&self, data: &[u8]) -> Option<crate::MerkleProof> {
-        let hash = *prefixed_hash(LEAF_PREFIX, data);
+        let hash = prefixed_hash(LEAF_PREFIX, data);
         self.proof_by_element_hash(&hash)
     }
 
@@ -282,7 +292,7 @@ mod test {
     #[test]
     fn merkle_tree_zero_elements() {
         let tree = MerkleTree::new(&[][..]);
-        assert!(tree.root_hash() == [0; 32]);
+        assert!(tree.root_hash().as_ref() == &[0; 32]);
     }
     #[test]
     fn merkle_tree_test_one_element() {
@@ -298,7 +308,7 @@ mod test {
         let tree = MerkleTree::new(&[node][..]);
         assert_eq!(
             tree.root_hash(),
-            *prefixed_hash(1, &*prefixed_hash(0, &data))
+            prefixed_hash(1, prefixed_hash(0, &data).as_ref())
         );
     }
     #[test]
@@ -307,13 +317,13 @@ mod test {
         let nodes = vec![MerkleNode::from_bytes(&bytes).unwrap(); 5];
         let tree = MerkleTree::new(&nodes);
         let h0x = prefixed_hash(0, &bytes);
-        let h10 = prefixed_hash(1, &concatenate_hashes(&*h0x, &*h0x));
+        let h10 = prefixed_hash(1, &concatenate_hashes(&h0x.0, &h0x.0));
         let h11 = &h10;
-        let h12 = prefixed_hash(1, &*h0x);
-        let h20 = prefixed_hash(1, &concatenate_hashes(&*h10, h11));
-        let h21 = prefixed_hash(1, &*h12);
-        let h30 = prefixed_hash(1, &concatenate_hashes(&*h20, &*h21));
-        assert_eq!(tree.root_hash(), *h30);
+        let h12 = prefixed_hash(1, &*h0x.0);
+        let h20 = prefixed_hash(1, &concatenate_hashes(&h10.0, &h11.0));
+        let h21 = prefixed_hash(1, h12.as_ref());
+        let h30 = prefixed_hash(1, &concatenate_hashes(&h20.0, &h21.0));
+        assert_eq!(tree.root_hash(), h30);
     }
 
     #[test]
@@ -332,15 +342,15 @@ mod test {
                 tree.proof_by_index(i).unwrap().get_leaf_data(),
                 node.get_leaf_data().unwrap()
             );
-            assert!(tree.proof_by_index(i).unwrap().valid(&tree_root));
+            assert!(tree.proof_by_index(i).unwrap().valid(tree_root.as_ref()));
             assert!(tree
                 .proof_by_element(node.get_leaf_data().unwrap())
                 .unwrap()
-                .valid(&tree_root));
+                .valid(tree_root.as_ref()));
             assert!(tree
                 .proof_by_element_hash(node.get_hash().unwrap())
                 .unwrap()
-                .valid(&tree_root));
+                .valid(&tree_root.as_ref()));
         }
     }
 

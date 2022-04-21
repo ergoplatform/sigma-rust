@@ -1,7 +1,13 @@
 use crate::LevelNode;
 use crate::NodeSide;
-use crate::{concatenate_hashes, prefixed_hash, prefixed_hash2};
-use crate::{HASH_SIZE, INTERNAL_PREFIX};
+use crate::{concatenate_hashes, prefixed_hash, prefixed_hash2, INTERNAL_PREFIX};
+use ergo_chain_types::Digest32;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BatchMerkleProofIndex {
+    pub index: usize,
+    pub hash: Digest32,
+}
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
@@ -12,13 +18,13 @@ use crate::{HASH_SIZE, INTERNAL_PREFIX};
 #[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
 /// Compact Merkle multiproof. Can be created using [`crate::MerkleTree::proof_by_indices`]
 pub struct BatchMerkleProof {
-    pub(crate) indices: Vec<(usize, [u8; 32])>,
+    pub(crate) indices: Vec<BatchMerkleProofIndex>,
     pub(crate) proofs: Vec<LevelNode>,
 }
 
 impl BatchMerkleProof {
     /// Create a new BatchMerkleProof
-    pub fn new(indices: Vec<(usize, [u8; HASH_SIZE])>, proofs: Vec<crate::LevelNode>) -> Self {
+    pub fn new(indices: Vec<BatchMerkleProofIndex>, proofs: Vec<crate::LevelNode>) -> Self {
         BatchMerkleProof { indices, proofs }
     }
 
@@ -26,9 +32,9 @@ impl BatchMerkleProof {
     pub fn valid(&self, expected_root: &[u8]) -> bool {
         fn validate(
             a: &[usize],
-            e: &[(usize, [u8; HASH_SIZE])],
+            e: &[BatchMerkleProofIndex],
             m: &[crate::LevelNode],
-        ) -> Option<Vec<[u8; HASH_SIZE]>> {
+        ) -> Option<Vec<Digest32>> {
             // For each index in a, take the value of its immediate neighbor, and store each index with its neighbor
             let b: Vec<(usize, usize)> = a
                 .iter()
@@ -43,9 +49,9 @@ impl BatchMerkleProof {
             let mut i = 0;
             while i < b.len() {
                 if b.len() > 1 && b.get(i) == b.get(i + 1) {
-                    e_new.push(*prefixed_hash(
+                    e_new.push(prefixed_hash(
                         INTERNAL_PREFIX,
-                        &concatenate_hashes(&e[i].1, &e[i + 1].1),
+                        &concatenate_hashes(&e[i].hash.0, &e[i + 1].hash.0),
                     ));
                     i += 2;
                 } else {
@@ -55,17 +61,17 @@ impl BatchMerkleProof {
                         return None;
                     };
 
-                    if head.1 == NodeSide::Left {
-                        e_new.push(*prefixed_hash2(
+                    if head.side == NodeSide::Left {
+                        e_new.push(prefixed_hash2(
                             INTERNAL_PREFIX,
-                            head.0.as_ref().map(|h| h.as_slice()),
-                            e[i].1.as_slice(),
+                            head.hash.as_ref().map(|h| h.as_ref()),
+                            e[i].hash.as_ref(),
                         ));
                     } else {
-                        e_new.push(*prefixed_hash2(
+                        e_new.push(prefixed_hash2(
                             INTERNAL_PREFIX,
-                            e[i].1.as_slice(),
-                            head.0.as_ref().map(|h| h.as_slice()),
+                            e[i].hash.as_ref(),
+                            head.hash.as_ref().map(|h| h.as_ref()),
                         ));
                     }
                     i += 1;
@@ -76,24 +82,31 @@ impl BatchMerkleProof {
             a_new.dedup();
 
             if !m_new.is_empty() || e_new.len() > 1 {
-                let e: Vec<(usize, [u8; 32])> =
-                    a_new.iter().copied().zip(e_new.into_iter()).collect();
+                let e: Vec<BatchMerkleProofIndex> = a_new
+                    .iter()
+                    .copied()
+                    .zip(e_new.into_iter())
+                    .map(|(index, hash)| BatchMerkleProofIndex { index, hash })
+                    .collect();
                 e_new = validate(&a_new, &e, &m_new)?;
             }
             Some(e_new)
         }
 
         let mut e = self.indices.to_owned();
-        e.sort_by_key(|(index, _)| *index);
-        let a: Vec<usize> = e.iter().map(|(index, _)| *index).collect();
+        e.sort_by_key(|BatchMerkleProofIndex { index, .. }| *index);
+        let a: Vec<usize> = e
+            .iter()
+            .map(|BatchMerkleProofIndex { index, .. }| *index)
+            .collect();
         match validate(&a, &e, &self.proofs).as_deref() {
-            Some([root_hash]) => root_hash == expected_root,
+            Some([root_hash]) => root_hash.as_ref() == expected_root,
             _ => false,
         }
     }
 
     /// Returns indices (leaf nodes) that are part of the proof
-    pub fn get_indices(&self) -> &[(usize, [u8; 32])] {
+    pub fn get_indices(&self) -> &[BatchMerkleProofIndex] {
         &self.indices
     }
     /// Returns nodes included in proof to get to root node
@@ -122,17 +135,17 @@ impl ScorexSerializable for BatchMerkleProof {
         write_u32_be(u32::try_from(self.indices.len())?, w)?; // for serialization, index length must be at most 4 bytes
         write_u32_be(u32::try_from(self.proofs.len())?, w)?;
 
-        for (index, hash) in &self.indices {
+        for BatchMerkleProofIndex { index, hash } in &self.indices {
             write_u32_be(u32::try_from(*index)?, w)?;
-            w.write_all(&hash[..])?;
+            w.write_all(hash.as_ref())?;
         }
 
         for proof in &self.proofs {
-            match proof.0 {
-                Some(hash) => w.write_all(&hash[..])?,
+            match proof.hash {
+                Some(ref hash) => w.write_all(hash.as_ref())?,
                 None => w.write_all(&[0; 32])?,
             }
-            w.put_u8(proof.1 as u8)?;
+            w.put_u8(proof.side as u8)?;
         }
 
         Ok(())
@@ -155,17 +168,17 @@ impl ScorexSerializable for BatchMerkleProof {
         let indices = (0..indices_len)
             .map(|_| {
                 let index = read_u32_be(r)? as usize;
-                let mut hash = [0u8; HASH_SIZE];
-                r.read_exact(&mut hash)?;
-                Ok((index, hash))
+                let mut hash = Digest32::zero();
+                r.read_exact(&mut hash.0[..])?;
+                Ok(BatchMerkleProofIndex { index, hash })
             })
-            .collect::<Result<Vec<(usize, [u8; HASH_SIZE])>, sigma_ser::ScorexParsingError>>()?;
+            .collect::<Result<Vec<BatchMerkleProofIndex>, sigma_ser::ScorexParsingError>>()?;
 
         let proofs = (0..proofs_len)
             .map(|_| {
-                let mut hash = [0u8; HASH_SIZE];
-                r.read_exact(&mut hash)?;
-                let empty = hash.iter().all(|&b| b == 0);
+                let mut hash = Digest32::zero();
+                r.read_exact(&mut hash.0[..])?;
+                let empty = hash.as_ref().iter().all(|&b| b == 0);
                 let side: NodeSide = r.get_u8()?.try_into().map_err(|_| {
                     sigma_ser::ScorexParsingError::ValueOutOfBounds(
                         "Side can only be 0 or 1".into(),

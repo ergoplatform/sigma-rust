@@ -20,6 +20,7 @@
 
 use blake2::digest::{Update, VariableOutput};
 use blake2::VarBlake2b;
+use ergo_chain_types::Digest32;
 
 // Constants for hashing
 /// Hash size for all nodes in [`crate::MerkleTree`], [`crate::MerkleProof`] and [`crate::BatchMerkleProof`]
@@ -33,12 +34,12 @@ pub(crate) mod json;
 // Unwrap is safe here since the hash is guaranteed to be 32 bytes
 #[allow(clippy::unwrap_used)]
 // Generates a hash of data prefixed with `prefix`
-pub(crate) fn prefixed_hash(prefix: u8, data: &[u8]) -> Box<[u8; 32]> {
+pub(crate) fn prefixed_hash(prefix: u8, data: &[u8]) -> Digest32 {
     let mut hasher = VarBlake2b::new(32).unwrap();
     hasher.update(&[prefix]);
     hasher.update(data);
-    let hash = hasher.finalize_boxed();
-    hash.try_into().unwrap()
+    let hash: Box<[u8; 32]> = hasher.finalize_boxed().try_into().unwrap();
+    Digest32::from(hash)
 }
 
 #[allow(clippy::unwrap_used)]
@@ -47,7 +48,7 @@ pub(crate) fn prefixed_hash2<'a>(
     prefix: u8,
     data: impl Into<Option<&'a [u8]>>,
     data2: impl Into<Option<&'a [u8]>>,
-) -> Box<[u8; 32]> {
+) -> Digest32 {
     let mut hasher = VarBlake2b::new(32).unwrap();
     hasher.update(&[prefix]);
 
@@ -57,8 +58,8 @@ pub(crate) fn prefixed_hash2<'a>(
     if let Some(data2) = data2.into() {
         hasher.update(data2);
     };
-    let hash = hasher.finalize_boxed();
-    hash.try_into().unwrap()
+    let hash: Box<[u8; 32]> = hasher.finalize_boxed().try_into().unwrap();
+    Digest32::from(hash)
 }
 
 pub(crate) fn concatenate_hashes(hash_a: &[u8; 32], hash_b: &[u8; 32]) -> [u8; 64] {

@@ -1,4 +1,4 @@
-use crate::batchmerkleproof::BatchMerkleProof;
+use crate::batchmerkleproof::{BatchMerkleProof, BatchMerkleProofIndex};
 use crate::{LevelNode, MerkleProof, NodeSide};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -10,26 +10,26 @@ impl std::convert::TryFrom<LevelNodeJson> for LevelNode {
     type Error = MerkleProofFromJsonError;
     fn try_from(node: LevelNodeJson) -> Result<Self, Self::Error> {
         let hash = base16::decode(&node.0)?;
-        Ok(LevelNode(
-            match hash.len() {
+        Ok(LevelNode {
+            hash: match hash.len() {
                 0 => None,
                 _ => Some(
                     hash.try_into()
                         .map_err(|_| MerkleProofFromJsonError::LengthError)?,
                 ),
             },
-            node.1,
-        ))
+            side: node.1,
+        })
     }
 }
 
 impl From<LevelNode> for LevelNodeJson {
     fn from(node: LevelNode) -> Self {
         Self(
-            node.0
+            node.hash
                 .map(|hash| base16::encode_lower(&hash))
                 .unwrap_or_else(String::new),
-            node.1,
+            node.side,
         )
     }
 }
@@ -84,22 +84,25 @@ struct IndexJson {
     digest: String,
 }
 
-impl From<(usize, [u8; 32])> for IndexJson {
-    fn from(index: (usize, [u8; 32])) -> IndexJson {
+impl From<BatchMerkleProofIndex> for IndexJson {
+    fn from(index: BatchMerkleProofIndex) -> IndexJson {
         IndexJson {
-            index: index.0,
-            digest: base16::encode_lower(&index.1),
+            index: index.index,
+            digest: index.hash.into(),
         }
     }
 }
 
-impl TryFrom<IndexJson> for (usize, [u8; 32]) {
+impl TryFrom<IndexJson> for BatchMerkleProofIndex {
     type Error = MerkleProofFromJsonError;
-    fn try_from(index: IndexJson) -> Result<(usize, [u8; 32]), Self::Error> {
+    fn try_from(index: IndexJson) -> Result<BatchMerkleProofIndex, Self::Error> {
         let digest = base16::decode(&index.digest)?
             .try_into()
             .map_err(|_| MerkleProofFromJsonError::LengthError)?;
-        Ok((index.index, digest))
+        Ok(BatchMerkleProofIndex {
+            index: index.index,
+            hash: digest,
+        })
     }
 }
 
@@ -114,16 +117,16 @@ impl std::convert::TryFrom<BatchLevelNodeJson> for LevelNode {
     type Error = MerkleProofFromJsonError;
     fn try_from(node: BatchLevelNodeJson) -> Result<Self, Self::Error> {
         let hash = base16::decode(&node.digest)?;
-        Ok(LevelNode(
-            match hash.len() {
+        Ok(LevelNode {
+            hash: match hash.len() {
                 0 => None,
                 _ => Some(
                     hash.try_into()
                         .map_err(|_| MerkleProofFromJsonError::LengthError)?,
                 ),
             },
-            node.side,
-        ))
+            side: node.side,
+        })
     }
 }
 
@@ -131,10 +134,10 @@ impl From<LevelNode> for BatchLevelNodeJson {
     fn from(node: LevelNode) -> Self {
         Self {
             digest: node
-                .0
+                .hash
                 .map(|hash| base16::encode_lower(&hash))
                 .unwrap_or_else(String::new),
-            side: node.1,
+            side: node.side,
         }
     }
 }
@@ -149,7 +152,7 @@ impl std::convert::TryFrom<BatchMerkleProofJson> for crate::batchmerkleproof::Ba
     fn try_from(
         json: BatchMerkleProofJson,
     ) -> Result<crate::batchmerkleproof::BatchMerkleProof, Self::Error> {
-        let indices: Result<Vec<(usize, [u8; 32])>, Self::Error> =
+        let indices: Result<Vec<BatchMerkleProofIndex>, Self::Error> =
             json.indices.into_iter().map(IndexJson::try_into).collect();
         let proofs: Result<Vec<LevelNode>, Self::Error> =
             json.proofs.into_iter().map(LevelNode::try_from).collect();

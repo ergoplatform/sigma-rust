@@ -1,5 +1,6 @@
+use crate::INTERNAL_PREFIX;
 use crate::{prefixed_hash, prefixed_hash2};
-use crate::{HASH_SIZE, INTERNAL_PREFIX};
+use ergo_chain_types::Digest32;
 
 /// The side the merkle node is on in the tree
 #[cfg_attr(
@@ -36,17 +37,25 @@ impl std::convert::TryFrom<u8> for NodeSide {
     serde(try_from = "crate::json::LevelNodeJson")
 )]
 #[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub struct LevelNode(pub Option<[u8; HASH_SIZE]>, pub NodeSide);
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct LevelNode {
+    /// Hash for LevelNode. Use [`LevelNode::empty_node`] to create a node with no hash
+    pub hash: Option<Digest32>,
+    /// Node Side in Merkle Tree
+    pub side: NodeSide,
+}
 
 impl LevelNode {
     /// Constructs a new levelnode from a 32 byte hash
-    pub fn new(hash: [u8; HASH_SIZE], side: NodeSide) -> Self {
-        Self(Some(hash), side)
+    pub fn new(hash: Digest32, side: NodeSide) -> Self {
+        Self {
+            hash: Some(hash),
+            side,
+        }
     }
     /// Creates a new level node with no associated hash
     pub fn empty_node(side: NodeSide) -> Self {
-        Self(None, side)
+        Self { hash: None, side }
     }
 }
 
@@ -80,17 +89,20 @@ impl MerkleProof {
             .levels
             .iter()
             .fold(leaf_hash, |prev_hash, node| match node {
-                LevelNode(Some(hash), NodeSide::Left) => {
-                    prefixed_hash2(INTERNAL_PREFIX, &prev_hash[..], &hash[..])
-                } // Prefix hash with 1 (internal node hash)
-                LevelNode(Some(hash), NodeSide::Right) => {
-                    prefixed_hash2(INTERNAL_PREFIX, &hash[..], &prev_hash[..])
-                }
-                LevelNode(None, _) => prefixed_hash(INTERNAL_PREFIX, &*prev_hash),
+                LevelNode {
+                    hash: Some(hash),
+                    side: NodeSide::Left,
+                } => prefixed_hash2(INTERNAL_PREFIX, prev_hash.as_ref(), hash.as_ref()), // Prefix hash with 1 (internal node hash)
+                LevelNode {
+                    hash: Some(hash),
+                    side: NodeSide::Right,
+                } => prefixed_hash2(INTERNAL_PREFIX, hash.as_ref(), prev_hash.as_ref()),
+                LevelNode { hash: None, .. } => prefixed_hash(INTERNAL_PREFIX, prev_hash.as_ref()),
             });
 
-        *hash == expected_root
+        hash.as_ref() == expected_root
     }
+    #[cfg(feature = "json")]
     /// Validates the MerkleProof against a base16 hash
     pub fn valid_base16(&self, expected_root: &str) -> Result<bool, base16::DecodeError> {
         // The rationale for adding this function is mainly to make using MerkleProof in Swift easier, without resorting to add a new dependency to base16
@@ -116,6 +128,7 @@ mod test {
     use crate::LevelNode;
     use crate::MerkleProof;
     use crate::NodeSide;
+    use ergo_chain_types::Digest32;
 
     // Ported client Merkle tree verification example from  https://github.com/ergoplatform/ergo/blob/master/src/test/scala/org/ergoplatform/examples/LiteClientExamples.scala
     #[test]
@@ -135,7 +148,10 @@ mod test {
         let tx_id = base16::decode(&tx_id).unwrap();
         let proof = MerkleProof::new(
             &tx_id,
-            &[LevelNode::new(levels[0..32].try_into().unwrap(), side)],
+            &[LevelNode::new(
+                <Digest32 as From<[u8; 32]>>::from(levels[0..32].try_into().unwrap()),
+                side,
+            )],
         );
         assert!(proof.valid(tx_root));
     }

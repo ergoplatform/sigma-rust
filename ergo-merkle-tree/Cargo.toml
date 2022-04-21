@@ -17,7 +17,7 @@ thiserror = { version = "1.0", optional = true } # currently thiserror is only n
 itertools = "0.10.3"
 proptest-derive = {version = "0.3.0", optional = true }
 sigma-ser = { version = "0.4.0", path = "../sigma-ser" }
-
+ergo-chain-types = { version = "0.2.0", path = "../ergo-chain-types" }
 [dependencies.proptest]
 # wasm support, via https://altsysrq.github.io/proptest-book/proptest/wasm.html
 version = "1.0.0"
