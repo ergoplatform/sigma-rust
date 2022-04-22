@@ -34,10 +34,15 @@ impl ContextExtension {
         wrapped.values.len()
     }
     /// get from map or fail if key is missing
-    pub fn get(&self, key: u8) -> Constant {
+    pub fn get(&self, key: u8) -> Result<Constant, JsValue> {
         let wrapped: ergo_lib::ergotree_interpreter::sigma_protocol::prover::ContextExtension =
             self.0.clone();
-        wrapped.values.get(&key).unwrap().clone().into()
+        Ok(wrapped
+            .values
+            .get(&key)
+            .ok_or_else::<JsValue, _>(|| "err".into())?
+            .clone()
+            .into())
     }
 
     /// Returns all keys in the map

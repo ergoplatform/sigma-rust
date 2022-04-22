@@ -39,10 +39,10 @@ impl From<Transaction> for TransactionJsonEip12 {
     fn from(t: Transaction) -> Self {
         TransactionJsonEip12 {
             tx_id: t.id(),
-            inputs: t.inputs.try_into().unwrap(),
+            inputs: t.inputs.as_vec().clone(),
             data_inputs: t
                 .data_inputs
-                .map(|di| di.try_into().unwrap())
+                .map(|di| di.as_vec().clone())
                 .unwrap_or_else(Vec::new),
             outputs: t.outputs.into_iter().map(|b| b.into()).collect(),
         }
@@ -66,6 +66,8 @@ pub(crate) struct UnsignedTransactionJsonEip12 {
 
 impl From<UnsignedTransaction> for UnsignedTransactionJsonEip12 {
     fn from(t: UnsignedTransaction) -> Self {
+        // Following unwraps are fine since we're converting from BoundedVec to Vec.
+        #[allow(clippy::unwrap_used)]
         UnsignedTransactionJsonEip12 {
             inputs: t.inputs.try_into().unwrap(),
             data_inputs: t
@@ -203,6 +205,7 @@ pub struct TokenAmountJsonEip12(
 );
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 

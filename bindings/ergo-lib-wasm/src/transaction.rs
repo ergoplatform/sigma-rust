@@ -129,7 +129,7 @@ pub fn extract_hints(
             real_propositions.0,
             simulated_propositions.0,
         )
-        .unwrap(),
+        .map_err(to_js)?,
     ))
 }
 

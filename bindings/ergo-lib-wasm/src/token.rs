@@ -152,19 +152,34 @@ impl Tokens {
     }
 
     /// Returns the element of the collection with a given index
-    pub fn get(&self, index: usize) -> Token {
-        self.0.as_ref().unwrap().get(index).unwrap().clone()
+    pub fn get(&self, index: usize) -> Result<Token, JsValue> {
+        Ok(self
+            .0
+            .as_ref()
+            .ok_or_else::<JsValue, _>(|| "Tokens::get: no tokens available".into())?
+            .get(index)
+            .ok_or_else::<JsValue, _>(|| "".into())?
+            .clone())
     }
 
     /// Adds an elements to the collection
-    pub fn add(&mut self, elem: &Token) {
+    pub fn add(&mut self, elem: &Token) -> Result<(), JsValue> {
         if self.0.is_some() {
+            #[allow(clippy::unwrap_used)]
             let mut new_vec = self.0.as_ref().unwrap().as_vec().clone();
+
+            if new_vec.len() >= 255 {
+                return Err("Tokens::add: can't have more than 255 tokens".into());
+            }
+
             new_vec.push(elem.clone());
-            self.0 = Some(BoxTokens::from_vec(new_vec).unwrap()); // TODO: BoundedVec does not have any way to try to push elements. Right now the best way seems to be to just panic if someone tries to add > 255 tokens
+            #[allow(clippy::unwrap_used)]
+            let box_tokens = BoxTokens::from_vec(new_vec).unwrap();
+            self.0 = Some(box_tokens);
         } else {
             self.0 = Some(BoxTokens::from([elem.clone()]));
         }
+        Ok(())
     }
 }
 
@@ -178,10 +193,6 @@ impl From<Tokens> for Option<chain::ergo_box::BoxTokens> {
 }
 impl From<Option<chain::ergo_box::BoxTokens>> for Tokens {
     fn from(v: Option<chain::ergo_box::BoxTokens>) -> Self {
-        let mut tokens = Tokens::new();
-        for token in v.iter().flatten() {
-            tokens.add(&Token(token.clone()))
-        }
-        tokens
+        Tokens(v.map(|t| t.mapped(Token)))
     }
 }

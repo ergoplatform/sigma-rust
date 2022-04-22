@@ -25,12 +25,10 @@ impl Propositions {
     }
 
     /// Adding new proposition
-    pub fn add_proposition_from_byte(&mut self, proposition: Vec<u8>) {
-        self.0.push(
-            SigmaBoolean::sigma_parse_bytes(&proposition)
-                .map_err(to_js)
-                .unwrap(),
-        );
+    pub fn add_proposition_from_byte(&mut self, proposition: Vec<u8>) -> Result<(), JsValue> {
+        self.0
+            .push(SigmaBoolean::sigma_parse_bytes(&proposition).map_err(to_js)?);
+        Ok(())
     }
 }
 

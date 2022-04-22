@@ -73,9 +73,9 @@ impl Constant {
     }
 
     /// Create BigInt constant from byte array (signed bytes bit-endian)
-    pub fn from_bigint_signed_bytes_be(num: &[u8]) -> Constant {
-        Constant(ergo_lib::ergotree_ir::mir::constant::Constant::from(
-            BigInt256::try_from(num).unwrap(),
+    pub fn from_bigint_signed_bytes_be(num: &[u8]) -> Result<Constant, JsValue> {
+        Ok(Constant(
+            ergo_lib::ergotree_ir::mir::constant::Constant::from(BigInt256::try_from(num)?),
         ))
     }
 
