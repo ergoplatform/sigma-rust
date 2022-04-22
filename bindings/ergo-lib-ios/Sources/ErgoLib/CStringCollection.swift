@@ -21,18 +21,17 @@ class CStringCollection: FromRawPtr {
     }
     
     func toArray() -> [String] {
-        let ptr = self.getPtr()
+        var ptr = self.getPtr()
         var res: [String] = []
         if self.getLength() == UInt(0) {
             return res;
         }
         for _ in 0 ..< self.getLength() {
-            if var ptr = ptr {
-                if let s = ptr.pointee {
+            if let ptrInner = ptr {
+                if let s = ptrInner.pointee {
                     let str = String(cString: s)
                     res.append(str)
-                    print(str)
-                    ptr = ptr.advanced(by: 1)
+                    ptr = ptr!.advanced(by: 1)
                 }
             } else {
                 break

@@ -62,6 +62,7 @@ final class RestNodeApiTests: XCTestCase {
         XCTAssertNoThrow(try proofNew.toJSON()!)
     }
     
+    /*
     func testPeerDiscoveryNonAsync() throws {
         let expectation = self.expectation(description: "peerDiscovery")
         let restNodeApi = try RestNodeApi()
@@ -81,6 +82,7 @@ final class RestNodeApiTests: XCTestCase {
             })
         waitForExpectations(timeout: 60, handler: nil)
     }
+     */
     
     func testPeerDiscoveryAsync() async throws {
         let restNodeApi = try RestNodeApi()
@@ -93,11 +95,13 @@ final class RestNodeApiTests: XCTestCase {
         XCTAssert(!peers.isEmpty)
         
         // test of re-using of tokio runtime
+        /*
         let peersNew = try await restNodeApi.peerDiscoveryAsync(
             seeds: getSeeds(),
             maxParallelReqs: UInt16(30),
             timeoutSec: UInt32(2)
         )
         XCTAssert(!peersNew.isEmpty)
+         */
     }
 }

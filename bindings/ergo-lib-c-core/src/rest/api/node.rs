@@ -129,7 +129,6 @@ pub unsafe fn rest_api_node_peer_discovery(
                 // Very important to shrink, since we assume `out`s length equals its capacity when
                 // deallocating its memory.
                 out.shrink_to_fit();
-
                 let known_peers = CStringCollection(CStringCollectionInner {
                     ptr: out.as_mut_ptr(),
                     length,

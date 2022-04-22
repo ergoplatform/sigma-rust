@@ -67,7 +67,7 @@ pub async fn peer_discovery(
 ) -> Result<Vec<Url>, PeerDiscoveryError> {
     use tokio::sync::mpsc::error::TrySendError;
 
-    use futures::{StreamExt, TryStreamExt};
+    use futures::StreamExt;
     use tokio::sync::mpsc;
     let mut seeds_set: HashSet<Url> = HashSet::new();
 
@@ -80,6 +80,7 @@ pub async fn peer_discovery(
 
     let (tx_url, rx_url) = mpsc::channel::<Url>(buffer_size);
 
+    #[derive(Debug)]
     enum Msg {
         /// Indicates that the ergo node at the given URL is active. This means that a GET request
         /// to the node's /info endpoint responds with code 200 OK.
@@ -100,7 +101,7 @@ pub async fn peer_discovery(
         .map(move |mut url| {
             let tx_peer = tx_peer.clone();
             async move {
-                let handle = tokio::spawn(async move {
+                tokio::spawn(async move {
                     // Query node at url.
                     #[allow(clippy::unwrap_used)]
                     url.set_port(Some(9053)).unwrap();
@@ -116,35 +117,34 @@ pub async fn peer_discovery(
                     if get_info(node_conf).await.is_ok() {
                         match get_peers_all(node_conf).await {
                             Ok(peers) => {
+                                // Note that the unwraps on `tx_peer.send(..)` below will not fail.
+                                // The send call can only fail if the receiver either drops or it
+                                // calls its `closed` method. We ensure that this won't happen, see
+                                // (**) below.
+
                                 // It's important to send this message before the `AddActiveNode` message
                                 // below, to ensure an `count` variable; see (**) below.
-                                tx_peer.send(Msg::CheckPeers(peers)).await?;
-                                tx_peer.send(Msg::AddActiveNode(url.clone())).await?;
+                                #[allow(clippy::unwrap_used)]
+                                tx_peer.send(Msg::CheckPeers(peers)).await.unwrap();
+                                #[allow(clippy::unwrap_used)]
+                                tx_peer.send(Msg::AddActiveNode(url.clone())).await.unwrap();
                             }
                             Err(_) => {
-                                tx_peer.send(Msg::AddInactiveNode(url)).await?;
+                                #[allow(clippy::unwrap_used)]
+                                tx_peer.send(Msg::AddInactiveNode(url)).await.unwrap();
                             }
                         }
                     } else {
-                        tx_peer.send(Msg::AddInactiveNode(url)).await?;
+                        #[allow(clippy::unwrap_used)]
+                        tx_peer.send(Msg::AddInactiveNode(url)).await.unwrap();
                     }
-                    Result::<(), mpsc::error::SendError<Msg>>::Ok(())
                 });
-
-                handle.await.map_err(|_| PeerDiscoveryError::MpscSender)
             }
         })
         .buffer_unordered(max_parallel_requests.get() as usize); // Allow for parallel requests
 
     // (*) Run stream to completion.
-    let e = tokio::spawn(rx_url_stream.try_for_each(
-        |x: Result<(), mpsc::error::SendError<Msg>>| async move {
-            match x {
-                Ok(()) => Ok(()),
-                Err(_) => Err(PeerDiscoveryError::MpscSender),
-            }
-        },
-    ));
+    tokio::spawn(rx_url_stream.for_each(|_| async move {}));
 
     for url in &seeds_set {
         tx_url
@@ -217,18 +217,12 @@ pub async fn peer_discovery(
     }
 
     drop(tx_url);
-    match e.await {
-        Ok(Ok(())) => {
-            let coll: Vec<_> = visited_active_peers
-                .difference(&seeds_set)
-                .into_iter()
-                .cloned()
-                .collect();
-            Ok(coll)
-        }
-        Ok(Err(e)) => Err(e),
-        Err(_) => Err(PeerDiscoveryError::JoinError),
-    }
+    let coll: Vec<_> = visited_active_peers
+        .difference(&seeds_set)
+        .into_iter()
+        .cloned()
+        .collect();
+    Ok(coll)
 }
 
 #[cfg(target_arch = "wasm32")]
