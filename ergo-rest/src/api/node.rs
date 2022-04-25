@@ -1,5 +1,6 @@
 //! Ergo node REST API endpoints
 
+use async_trait::async_trait;
 use bounded_integer::BoundedU16;
 use bounded_vec::NonEmptyVec;
 use ergo_chain_types::BlockId;
@@ -9,6 +10,7 @@ use reqwest::header::CONTENT_TYPE;
 use reqwest::Client;
 use reqwest::RequestBuilder;
 use std::collections::HashSet;
+use std::fmt::Debug;
 use std::time::Duration;
 use url::Url;
 
@@ -56,61 +58,85 @@ async fn get_peers_all(node: NodeConf) -> Result<Vec<PeerInfo>, NodeError> {
     Ok(response.json::<Vec<PeerInfo>>().await?)
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-/// Given a list of seed nodes, recursively determine a Vec of all known peer nodes. Note that there
-/// are `println` calls below that are commented out. Uncommenting them will show the requests that
-/// are made, especially when made in parallel.
+#[derive(Debug)]
+enum Msg {
+    /// Indicates that the ergo node at the given URL is active. This means that a GET request
+    /// to the node's /info endpoint responds with code 200 OK.
+    AddActiveNode(Url),
+    /// Indicates that the ergo node at the given URL is inactive. This means that a GET request
+    /// to the node's /info endpoint does not respond with code 200 OK.
+    AddInactiveNode(Url),
+    /// A list of peers of an active ergo node, returned from a GET on the /peers/all endpoint.
+    CheckPeers(Vec<PeerInfo>),
+}
+
+/// Given a list of seed nodes, recursively determine a Vec of all known peer nodes.
 pub async fn peer_discovery(
     seeds: NonEmptyVec<Url>,
     max_parallel_requests: BoundedU16<1, { u16::MAX }>,
     timeout: Duration,
 ) -> Result<Vec<Url>, PeerDiscoveryError> {
-    use tokio::sync::mpsc::error::TrySendError;
-
-    use futures::StreamExt;
-    use tokio::sync::mpsc;
-    let mut seeds_set: HashSet<Url> = HashSet::new();
-
     let buffer_size = usize::max(max_parallel_requests.get() as usize, seeds.len());
-    for mut seed_url in seeds {
-        #[allow(clippy::unwrap_used)]
-        seed_url.set_port(None).unwrap();
-        seeds_set.insert(seed_url);
-    }
+    #[cfg(not(target_arch = "wasm32"))]
+    let (tx_peer, rx_peer) = tokio::sync::mpsc::channel::<Msg>(buffer_size);
+    #[cfg(not(target_arch = "wasm32"))]
+    let (tx_url, rx_url) = tokio::sync::mpsc::channel::<Url>(buffer_size);
+    #[cfg(not(target_arch = "wasm32"))]
+    let url_stream = tokio_stream::wrappers::ReceiverStream::new(rx_url);
 
-    let (tx_url, rx_url) = mpsc::channel::<Url>(buffer_size);
+    #[cfg(target_arch = "wasm32")]
+    let (tx_peer, rx_peer) = futures::channel::mpsc::channel::<Msg>(buffer_size);
+    #[cfg(target_arch = "wasm32")]
+    let (tx_url, rx_url) = futures::channel::mpsc::channel::<Url>(buffer_size);
+    #[cfg(target_arch = "wasm32")]
+    let url_stream = rx_url;
 
-    #[derive(Debug)]
-    enum Msg {
-        /// Indicates that the ergo node at the given URL is active. This means that a GET request
-        /// to the node's /info endpoint responds with code 200 OK.
-        AddActiveNode(Url),
-        /// Indicates that the ergo node at the given URL is inactive. This means that a GET request
-        /// to the node's /info endpoint does not respond with code 200 OK.
-        AddInactiveNode(Url),
-        /// A list of peers of an active ergo node, returned from a GET on the /peers/all endpoint.
-        CheckPeers(Vec<PeerInfo>),
-    }
+    peer_discovery_inner(
+        seeds,
+        max_parallel_requests,
+        tx_peer,
+        rx_peer,
+        tx_url,
+        url_stream,
+        timeout,
+    )
+    .await
+}
 
-    let (tx_peer, mut rx_peer) = mpsc::channel::<Msg>(buffer_size);
+/// Given a stream that receives URLs of full ergo nodes, spawn a task which checks if it is active.
+/// If so, request its peers. In all cases, a message (enum `Msg`) is sent out to notify the
+/// listener.
+fn spawn_http_request_task<
+    SendMsg: ChannelInfallibleSender<Msg> + Clone + Send + Sync + 'static,
+>(
+    tx_peer: SendMsg,
+    url_stream: impl futures::Stream<Item = Url> + Send + 'static,
+    max_parallel_requests: BoundedU16<1, { u16::MAX }>,
+    request_timeout_duration: Duration,
+) {
+    use futures::StreamExt;
 
-    // For every URL received, spawn a task which checks if the corresponding node is active. If so,
-    // request peers. In all cases, a message is sent out (enum `Msg` above) to filter out future
-    // redundant URL requests.
-    let rx_url_stream = tokio_stream::wrappers::ReceiverStream::new(rx_url)
+    // Note that `tokio` - the de facto standard async runtime - is not supported on WASM. We need
+    // to spawn tasks for HTTP requests, and for WASM we rely on the `wasm_bindgen_futures` crate.
+    #[cfg(not(target_arch = "wasm32"))]
+    let spawn_fn = tokio::spawn;
+
+    #[cfg(target_arch = "wasm32")]
+    let spawn_fn = wasm_bindgen_futures::spawn_local;
+
+    let mapped_stream = url_stream
         .map(move |mut url| {
             let tx_peer = tx_peer.clone();
             async move {
-                tokio::spawn(async move {
+                spawn_fn(async move {
                     // Query node at url.
                     #[allow(clippy::unwrap_used)]
                     url.set_port(Some(9053)).unwrap();
-                    //println!("Processing {}", url);
                     #[allow(clippy::unwrap_used)]
                     let node_conf = NodeConf {
                         addr: PeerAddr(url.socket_addrs(|| Some(9053)).unwrap()[0]),
                         api_key: None,
-                        timeout: Some(timeout),
+                        timeout: Some(request_timeout_duration),
                     };
 
                     // If active, look up its peers.
@@ -124,33 +150,62 @@ pub async fn peer_discovery(
 
                                 // It's important to send this message before the `AddActiveNode` message
                                 // below, to ensure an `count` variable; see (**) below.
-                                #[allow(clippy::unwrap_used)]
-                                tx_peer.send(Msg::CheckPeers(peers)).await.unwrap();
-                                #[allow(clippy::unwrap_used)]
-                                tx_peer.send(Msg::AddActiveNode(url.clone())).await.unwrap();
+                                tx_peer.infallible_send(Msg::CheckPeers(peers)).await;
+                                tx_peer
+                                    .infallible_send(Msg::AddActiveNode(url.clone()))
+                                    .await;
                             }
                             Err(_) => {
                                 #[allow(clippy::unwrap_used)]
-                                tx_peer.send(Msg::AddInactiveNode(url)).await.unwrap();
+                                tx_peer.infallible_send(Msg::AddInactiveNode(url)).await;
                             }
                         }
                     } else {
                         #[allow(clippy::unwrap_used)]
-                        tx_peer.send(Msg::AddInactiveNode(url)).await.unwrap();
+                        tx_peer.infallible_send(Msg::AddInactiveNode(url)).await;
                     }
-                });
+                })
             }
         })
         .buffer_unordered(max_parallel_requests.get() as usize); // Allow for parallel requests
 
+    // Note: We need to define another binding to the spawn function to get around the Rust type
+    // checker.
+    #[cfg(not(target_arch = "wasm32"))]
+    let spawn_fn_new = tokio::spawn;
+
+    #[cfg(target_arch = "wasm32")]
+    let spawn_fn_new = wasm_bindgen_futures::spawn_local;
+
     // (*) Run stream to completion.
-    tokio::spawn(rx_url_stream.for_each(|_| async move {}));
+    spawn_fn_new(mapped_stream.for_each(|_| async move {}));
+}
+
+async fn peer_discovery_inner<
+    RecvMsg: ChannelReceiver<Msg>,
+    SendMsg: 'static + ChannelInfallibleSender<Msg> + Clone + Send + Sync,
+    SendUrl: 'static + ChannelInfallibleSender<Url> + ChannelTrySender<Url> + Clone + Send + Sync,
+>(
+    seeds: NonEmptyVec<Url>,
+    max_parallel_requests: BoundedU16<1, { u16::MAX }>,
+    tx_peer: SendMsg,
+    mut rx_peer: RecvMsg,
+    tx_url: SendUrl,
+    url_stream: impl futures::Stream<Item = Url> + Send + 'static,
+    timeout: Duration,
+) -> Result<Vec<Url>, PeerDiscoveryError> {
+    let mut seeds_set: HashSet<Url> = HashSet::new();
+
+    for mut seed_url in seeds {
+        #[allow(clippy::unwrap_used)]
+        seed_url.set_port(None).unwrap();
+        seeds_set.insert(seed_url);
+    }
+
+    spawn_http_request_task(tx_peer, url_stream, max_parallel_requests, timeout);
 
     for url in &seeds_set {
-        tx_url
-            .send(url.clone())
-            .await
-            .map_err(|_| PeerDiscoveryError::MpscSender)?;
+        tx_url.infallible_send(url.clone()).await;
     }
 
     // (**) This variable represents the number of URLs that need to be checked to see whether it
@@ -178,12 +233,12 @@ pub async fn peer_discovery(
                         visited_peers.insert(url);
                         count += 1;
                     }
-                    Err(TrySendError::Full(_)) => {
+                    Err(TrySendError::Full) => {
                         // Push it back on the stack, try again later.
                         peer_stack.push(peer);
                         break;
                     }
-                    Err(TrySendError::Closed(_)) => {
+                    Err(TrySendError::Closed) => {
                         return Err(PeerDiscoveryError::MpscSender);
                     }
                 }
@@ -421,6 +476,97 @@ pub async fn peer_discovery(
         .into_iter()
         .cloned()
         .collect())
+}
+
+/// This trait abstracts over the `send` method of channel senders
+#[async_trait]
+trait ChannelInfallibleSender<T> {
+    /// A send that cannot fail.
+    async fn infallible_send(&self, value: T);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[async_trait]
+impl<T: Debug + Send> ChannelInfallibleSender<T> for tokio::sync::mpsc::Sender<T> {
+    async fn infallible_send(&self, value: T) {
+        #[allow(clippy::unwrap_used)]
+        let _ = self.send(value).await.unwrap();
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+#[async_trait]
+impl<T> ChannelInfallibleSender<T> for futures::channel::mpsc::Sender<T> {
+    async fn infallible_send(&self, value: T) {
+        use futures::sink::SinkExt;
+        #[allow(clippy::unwrap_used)]
+        self.send(value).unwrap()
+    }
+}
+
+/// This trait abstracts over the `try_send` method of channel senders
+trait ChannelTrySender<T> {
+    fn try_send(&self, value: T) -> Result<(), TrySendError>;
+}
+
+/// Errors that can return from `try_send(..)` calls are converted into the following enum.
+enum TrySendError {
+    /// Receiver's buffer is full
+    Full,
+    /// Receiver is no longer active. Either it was specifically closed or dropped.
+    Closed,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl<T> ChannelTrySender<T> for tokio::sync::mpsc::Sender<T> {
+    fn try_send(&self, value: T) -> Result<(), TrySendError> {
+        use tokio::sync::mpsc::error::TrySendError as TokioTrySendError;
+        match self.try_send(value) {
+            Ok(()) => Ok(()),
+            Err(TokioTrySendError::Full(_)) => Err(TrySendError::Full),
+            Err(TokioTrySendError::Closed(_)) => Err(TrySendError::Closed),
+        }
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+impl<T> ChannelTrySender<T> for futures::channel::mpsc::Sender<T> {
+    fn try_send(&self, value: T) -> Result<(), TrySendError> {
+        use futures::channel::mpsc::TrySendError as FutTrySendError;
+        match self.try_send(value) {
+            Ok(_) => Ok(()),
+            Err(e) => {
+                if e.is_full() {
+                    Err(TrySendError::Full)
+                } else {
+                    Err(TrySendError::Closed)
+                }
+            }
+        }
+    }
+}
+
+/// This trait abstracts over channel receivers
+#[async_trait]
+trait ChannelReceiver<T> {
+    /// Receive a value
+    async fn recv(&mut self) -> Option<T>;
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[async_trait]
+impl<T: Send> ChannelReceiver<T> for tokio::sync::mpsc::Receiver<T> {
+    async fn recv(&mut self) -> Option<T> {
+        self.recv().await
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+#[async_trait]
+impl<T: Send> ChannelReceiver<T> for futures::channel::mpsc::Receiver<T> {
+    async fn recv(&mut self) -> Option<T> {
+        self.next().await
+    }
 }
 
 #[derive(Debug, Error)]
