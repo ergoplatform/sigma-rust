@@ -119,7 +119,7 @@ pub async fn peer_discovery(
 ///    given ergo node is queried exactly once.
 ///  - Task 2's job is to wait for a URL from task 1, make the actual HTTP requests to that URL, and
 ///    to report the result back to task 1.
-/// ```
+/// ```text
 ///                              <ergo node URL>
 ///               __________________________________________________
 ///              |                                                  |
