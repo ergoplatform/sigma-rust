@@ -51,6 +51,8 @@ pub struct Constant {
 #[derive(PartialEq, Eq, Clone)]
 /// Possible values for `Constant`
 pub enum Literal {
+    /// Unit
+    Unit,
     /// Boolean
     Boolean(bool),
     /// i8
@@ -94,6 +96,7 @@ impl std::fmt::Debug for Literal {
             Literal::Coll(CollKind::WrappedColl { elem_tpe: _, items }) => items.fmt(f),
             Literal::Opt(boxed_opt) => boxed_opt.fmt(f),
             Literal::Tup(items) => items.fmt(f),
+            Literal::Unit => ().fmt(f),
             Literal::Boolean(v) => v.fmt(f),
             Literal::Byte(v) => v.fmt(f),
             Literal::Short(v) => v.fmt(f),
@@ -221,6 +224,10 @@ impl TryFrom<Value> for Constant {
             Value::Int(i) => Ok(Constant::from(i)),
             Value::Long(l) => Ok(Constant::from(l)),
             Value::BigInt(b) => Ok(Constant::from(b)),
+            Value::Unit => Ok(Constant {
+                tpe: SType::SUnit,
+                v: Literal::Unit,
+            }),
             Value::SigmaProp(s) => Ok(Constant::from(*s)),
             Value::GroupElement(e) => Ok(Constant::from(*e)),
             Value::CBox(i) => Ok(Constant::from(i)),

@@ -29,6 +29,7 @@ impl DataSerializer {
     pub fn sigma_serialize<W: SigmaByteWrite>(c: &Literal, w: &mut W) -> SigmaSerializeResult {
         // for reference see http://github.com/ScorexFoundation/sigmastate-interpreter/blob/25251c1313b0131835f92099f02cef8a5d932b5e/sigmastate/src/main/scala/sigmastate/serialization/DataSerializer.scala#L26-L26
         Ok(match c {
+            Literal::Unit => (),
             Literal::Boolean(v) => w.put_u8(if *v { 1 } else { 0 })?,
             Literal::Byte(v) => w.put_i8(*v)?,
             Literal::Short(v) => w.put_i16(*v)?,
@@ -107,6 +108,7 @@ impl DataSerializer {
                     Err(e) => return Err(SigmaParsingError::ValueOutOfBounds(e)),
                 }
             }
+            SUnit => Literal::Unit,
             SGroupElement => Literal::GroupElement(Box::new(EcPoint::sigma_parse(r)?)),
             SSigmaProp => {
                 Literal::SigmaProp(Box::new(SigmaProp::new(SigmaBoolean::sigma_parse(r)?)))

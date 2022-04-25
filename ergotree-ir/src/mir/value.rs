@@ -147,6 +147,8 @@ pub enum Value {
     Int(i32),
     /// Long
     Long(i64),
+    /// Unit struct
+    Unit,
     /// Big integer
     BigInt(BigInt256),
     /// GroupElement
@@ -221,6 +223,7 @@ impl From<Literal> for Value {
             Literal::Int(i) => Value::Int(i),
             Literal::Long(l) => Value::Long(l),
             Literal::BigInt(b) => Value::BigInt(b),
+            Literal::Unit => Value::Unit,
             Literal::SigmaProp(s) => Value::SigmaProp(s),
             Literal::GroupElement(e) => Value::GroupElement(e),
             Literal::CBox(b) => Value::CBox(b),
