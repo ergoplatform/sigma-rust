@@ -126,8 +126,11 @@ fn spawn_http_request_task<
 
     let mapped_stream = url_stream
         .map(move |mut url| {
-            let tx_peer = tx_peer.clone();
+            let mut tx_peer = tx_peer.clone();
             async move {
+                // `tokio::spawn` returns a `JoinHandle` which we make sure to drop. If we don't drop
+                // and instead await on it, performance suffers greatly (~ 5x slower). In WASM case
+                // we don't need to worry because `wasm_bindgen_futures::spawn_local` returns ().
                 let _handle = spawn_fn(async move {
                     // Query node at url.
                     #[allow(clippy::unwrap_used)]
@@ -190,7 +193,7 @@ async fn peer_discovery_inner<
     max_parallel_requests: BoundedU16<1, { u16::MAX }>,
     tx_peer: SendMsg,
     mut rx_peer: RecvMsg,
-    tx_url: SendUrl,
+    mut tx_url: SendUrl,
     url_stream: impl futures::Stream<Item = Url> + Send + 'static,
     timeout: Duration,
 ) -> Result<Vec<Url>, PeerDiscoveryError> {
@@ -286,13 +289,13 @@ async fn peer_discovery_inner<
 #[async_trait]
 trait ChannelInfallibleSender<T> {
     /// A send that cannot fail.
-    async fn infallible_send(&self, value: T);
+    async fn infallible_send(&mut self, value: T);
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 #[async_trait]
 impl<T: Debug + Send> ChannelInfallibleSender<T> for tokio::sync::mpsc::Sender<T> {
-    async fn infallible_send(&self, value: T) {
+    async fn infallible_send(&mut self, value: T) {
         #[allow(clippy::unwrap_used)]
         let _ = self.send(value).await.unwrap();
     }
@@ -300,8 +303,8 @@ impl<T: Debug + Send> ChannelInfallibleSender<T> for tokio::sync::mpsc::Sender<T
 
 #[cfg(target_arch = "wasm32")]
 #[async_trait]
-impl<T> ChannelInfallibleSender<T> for futures::channel::mpsc::Sender<T> {
-    async fn infallible_send(&self, value: T) {
+impl<T: Debug + Send> ChannelInfallibleSender<T> for futures::channel::mpsc::Sender<T> {
+    async fn infallible_send(&mut self, value: T) {
         use futures::sink::SinkExt;
         #[allow(clippy::unwrap_used)]
         self.send(value).await.unwrap()
@@ -310,7 +313,7 @@ impl<T> ChannelInfallibleSender<T> for futures::channel::mpsc::Sender<T> {
 
 /// This trait abstracts over the `try_send` method of channel senders
 trait ChannelTrySender<T> {
-    fn try_send(&self, value: T) -> Result<(), TrySendError>;
+    fn try_send(&mut self, value: T) -> Result<(), TrySendError>;
 }
 
 /// Errors that can return from `try_send(..)` calls are converted into the following enum.
@@ -323,9 +326,9 @@ enum TrySendError {
 
 #[cfg(not(target_arch = "wasm32"))]
 impl<T> ChannelTrySender<T> for tokio::sync::mpsc::Sender<T> {
-    fn try_send(&self, value: T) -> Result<(), TrySendError> {
+    fn try_send(&mut self, value: T) -> Result<(), TrySendError> {
         use tokio::sync::mpsc::error::TrySendError as TokioTrySendError;
-        match self.try_send(value) {
+        match tokio::sync::mpsc::Sender::try_send(self, value) {
             Ok(()) => Ok(()),
             Err(TokioTrySendError::Full(_)) => Err(TrySendError::Full),
             Err(TokioTrySendError::Closed(_)) => Err(TrySendError::Closed),
@@ -335,8 +338,8 @@ impl<T> ChannelTrySender<T> for tokio::sync::mpsc::Sender<T> {
 
 #[cfg(target_arch = "wasm32")]
 impl<T> ChannelTrySender<T> for futures::channel::mpsc::Sender<T> {
-    fn try_send(&self, value: T) -> Result<(), TrySendError> {
-        match futures::channel::mpsc::Sender::try_send(&self, value) {
+    fn try_send(&mut self, value: T) -> Result<(), TrySendError> {
+        match futures::channel::mpsc::Sender::try_send(self, value) {
             Ok(_) => Ok(()),
             Err(e) => {
                 if e.is_full() {
