@@ -127,6 +127,7 @@ fn spawn_http_request_task<
     let mapped_stream = url_stream
         .map(move |mut url| {
             let tx_peer = tx_peer.clone();
+            #[allow(clippy::async_yields_async)]
             async move {
                 spawn_fn(async move {
                     // Query node at url.
@@ -248,7 +249,7 @@ async fn peer_discovery_inner<
             Msg::AddActiveNode(mut url) => {
                 #[allow(clippy::unwrap_used)]
                 url.set_port(None).unwrap();
-                //println!("Active node {}", url);
+                println!("Active node {}", url);
                 visited_active_peers.insert(url.clone());
                 visited_peers.insert(url);
                 count -= 1;
@@ -270,6 +271,8 @@ async fn peer_discovery_inner<
             }
         }
     }
+
+    println!("Total # nodes visited: {}", visited_peers.len());
 
     drop(tx_url);
     let coll: Vec<_> = visited_active_peers
