@@ -163,7 +163,7 @@ async fn peer_discovery_inner<
 
     #[cfg(target_arch = "wasm32")]
     let rx_timeout_signal = {
-        use futures_timer::Delay;
+        use wasm_timer::Delay;
         let (tx, rx) = futures::channel::oneshot::channel::<()>();
         wasm_bindgen_futures::spawn_local(async move {
             let _ = Delay::new(timeout).await;
