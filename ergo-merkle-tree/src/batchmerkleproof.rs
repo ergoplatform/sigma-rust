@@ -1,6 +1,6 @@
 use crate::LevelNode;
 use crate::NodeSide;
-use crate::{concatenate_hashes, prefixed_hash, prefixed_hash2, INTERNAL_PREFIX};
+use crate::{prefixed_hash2, INTERNAL_PREFIX};
 use ergo_chain_types::Digest32;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -18,6 +18,7 @@ pub struct BatchMerkleProofIndex {
 )]
 #[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
 /// Compact Merkle multiproof. Can be created using [`crate::MerkleTree::proof_by_indices`]
+/// Implementation based on https://deepai.org/publication/compact-merkle-multiproofs
 pub struct BatchMerkleProof {
     pub(crate) indices: Vec<BatchMerkleProofIndex>,
     pub(crate) proofs: Vec<LevelNode>,
@@ -44,18 +45,23 @@ impl BatchMerkleProof {
 
             let mut e_new = vec![];
             let mut m_new = m.to_owned();
+            // E must always have the same length as B
             if e.len() != b.len() {
                 return None;
             }
             let mut i = 0;
+            // assign generated hashes to a new E that will be used for next iteration
             while i < b.len() {
                 if b.len() > 1 && b.get(i) == b.get(i + 1) {
-                    e_new.push(prefixed_hash(
+                    // both indices needed for computing parent hash are part of e
+                    e_new.push(prefixed_hash2(
                         INTERNAL_PREFIX,
-                        &concatenate_hashes(&e[i].hash.0, &e[i + 1].hash.0),
+                        e[i].hash.as_ref(),
+                        e[i + 1].hash.as_ref(),
                     ));
                     i += 2;
                 } else {
+                    // Need an additional hash from m
                     let head = if !m_new.is_empty() {
                         m_new.remove(0)
                     } else {
@@ -78,10 +84,10 @@ impl BatchMerkleProof {
                     i += 1;
                 }
             }
-            let mut a_new: Vec<usize> = b.iter().map(|(_, b)| b / 2).collect();
+            let mut a_new: Vec<usize> = b.iter().map(|(_, b)| b / 2).collect(); // Generate indices for parents of current b
             a_new.sort_unstable();
             a_new.dedup();
-
+            // Repeat until root of tree is reached
             if !m_new.is_empty() || e_new.len() > 1 {
                 let e: Vec<BatchMerkleProofIndex> = a_new
                     .iter()

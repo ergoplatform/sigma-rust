@@ -62,13 +62,6 @@ pub(crate) fn prefixed_hash2<'a>(
     Digest32::from(hash)
 }
 
-pub(crate) fn concatenate_hashes(hash_a: &[u8; 32], hash_b: &[u8; 32]) -> [u8; 64] {
-    let mut sum = [0; 64];
-    sum[0..32].clone_from_slice(hash_a);
-    sum[32..].clone_from_slice(hash_b);
-    sum
-}
-
 mod batchmerkleproof;
 mod merkleproof;
 mod merkletree;
