@@ -89,6 +89,8 @@ pub async fn peer_discovery(
     let (tx_url, rx_url) = tokio::sync::mpsc::channel::<Url>(buffer_size);
     #[cfg(not(target_arch = "wasm32"))]
     let url_stream = tokio_stream::wrappers::ReceiverStream::new(rx_url);
+    #[cfg(not(target_arch = "wasm32"))]
+    let msg_stream = tokio_stream::wrappers::ReceiverStream::new(rx_msg);
 
     #[cfg(target_arch = "wasm32")]
     let (tx_msg, rx_msg) = futures::channel::mpsc::channel::<Msg>(buffer_size);
@@ -96,12 +98,14 @@ pub async fn peer_discovery(
     let (tx_url, rx_url) = futures::channel::mpsc::channel::<Url>(buffer_size);
     #[cfg(target_arch = "wasm32")]
     let url_stream = rx_url;
+    #[cfg(target_arch = "wasm32")]
+    let msg_stream = rx_msg;
 
     peer_discovery_inner(
         seeds,
         max_parallel_requests,
         tx_msg,
-        rx_msg,
+        msg_stream,
         tx_url,
         url_stream,
         timeout,
@@ -128,18 +132,20 @@ pub async fn peer_discovery(
 ///                <active node| non-active node| list of peers>   
 /// ```
 async fn peer_discovery_inner<
-    RecvMsg: ChannelReceiver<Msg>,
     SendMsg: 'static + ChannelInfallibleSender<Msg> + Clone + Send + Sync,
     SendUrl: 'static + ChannelInfallibleSender<Url> + ChannelTrySender<Url> + Clone + Send + Sync,
 >(
     seeds: NonEmptyVec<Url>,
     max_parallel_requests: BoundedU16<1, { u16::MAX }>,
     tx_msg: SendMsg,
-    mut rx_msg: RecvMsg,
+    msg_stream: impl futures::Stream<Item = Msg> + Send + 'static,
     mut tx_url: SendUrl,
     url_stream: impl futures::Stream<Item = Url> + Send + 'static,
     timeout: Duration,
 ) -> Result<Vec<Url>, PeerDiscoveryError> {
+    use futures::future::FutureExt;
+    use futures::StreamExt;
+
     let mut seeds_set: HashSet<Url> = HashSet::new();
 
     for mut seed_url in seeds {
@@ -155,6 +161,41 @@ async fn peer_discovery_inner<
         Duration::from_secs(2),
     );
 
+    #[cfg(target_arch = "wasm32")]
+    let rx_timeout_signal = {
+        use futures_timer::Delay;
+        let (tx, rx) = futures::channel::oneshot::channel::<()>();
+        wasm_bindgen_futures::spawn_local(async move {
+            let _ = Delay::new(timeout).await;
+            let _ = tx.send(());
+        });
+        rx.into_stream()
+    };
+
+    #[cfg(not(target_arch = "wasm32"))]
+    let rx_timeout_signal = {
+        let (tx, rx) = tokio::sync::oneshot::channel::<()>();
+        tokio::spawn(async move {
+            let _ = tokio::time::sleep(timeout).await;
+            let _ = tx.send(());
+        });
+        rx.into_stream()
+    };
+
+    // Combine stream
+    enum C {
+        RxMsg(Msg),
+        RxTimeoutSignal,
+    }
+
+    type CombinedStream = std::pin::Pin<Box<dyn futures::stream::Stream<Item = C> + Send>>;
+
+    let streams: Vec<CombinedStream> = vec![
+        msg_stream.map(C::RxMsg).boxed(),
+        rx_timeout_signal.map(|_| C::RxTimeoutSignal).boxed(),
+    ];
+    let mut combined_stream = futures::stream::select_all(streams);
+    // Start with requests to seed nodes.
     for url in &seeds_set {
         tx_url.infallible_send(url.clone()).await;
     }
@@ -172,52 +213,59 @@ async fn peer_discovery_inner<
     // gets full.
     let mut peer_stack: Vec<PeerInfo> = vec![];
 
-    'loop_: while let Some(p) = rx_msg.recv().await {
-        // Try pushing as many peers as can be allowed in the (tx_url, rx_url) channel
-        while let Some(peer) = peer_stack.pop() {
-            let mut url = peer.addr.as_http_url();
-            #[allow(clippy::unwrap_used)]
-            url.set_port(None).unwrap();
-            if !visited_peers.contains(&url) {
-                match tx_url.try_send(url.clone()) {
-                    Ok(_) => {
+    'loop_: while let Some(n) = combined_stream.next().await {
+        match n {
+            C::RxMsg(p) => {
+                // Try pushing as many peers as can be allowed in the (tx_url, rx_url) channel
+                while let Some(peer) = peer_stack.pop() {
+                    let mut url = peer.addr.as_http_url();
+                    #[allow(clippy::unwrap_used)]
+                    url.set_port(None).unwrap();
+                    if !visited_peers.contains(&url) {
+                        match tx_url.try_send(url.clone()) {
+                            Ok(_) => {
+                                visited_peers.insert(url);
+                                count += 1;
+                            }
+                            Err(TrySendError::Full) => {
+                                // Push it back on the stack, try again later.
+                                peer_stack.push(peer);
+                                break;
+                            }
+                            Err(TrySendError::Closed) => {
+                                return Err(PeerDiscoveryError::MpscSender);
+                            }
+                        }
+                    }
+                }
+                match p {
+                    Msg::AddActiveNode(mut url) => {
+                        #[allow(clippy::unwrap_used)]
+                        url.set_port(None).unwrap();
+                        println!("Active node {}", url);
+                        visited_active_peers.insert(url.clone());
                         visited_peers.insert(url);
-                        count += 1;
+                        count -= 1;
+                        if count == 0 {
+                            break 'loop_;
+                        }
                     }
-                    Err(TrySendError::Full) => {
-                        // Push it back on the stack, try again later.
-                        peer_stack.push(peer);
-                        break;
+                    Msg::AddInactiveNode(mut url) => {
+                        #[allow(clippy::unwrap_used)]
+                        url.set_port(None).unwrap();
+                        visited_peers.insert(url);
+                        count -= 1;
+                        if count == 0 {
+                            break 'loop_;
+                        }
                     }
-                    Err(TrySendError::Closed) => {
-                        return Err(PeerDiscoveryError::MpscSender);
+                    Msg::CheckPeers(peers) => {
+                        peer_stack.extend(peers);
                     }
                 }
             }
-        }
-        match p {
-            Msg::AddActiveNode(mut url) => {
-                #[allow(clippy::unwrap_used)]
-                url.set_port(None).unwrap();
-                println!("Active node {}", url);
-                visited_active_peers.insert(url.clone());
-                visited_peers.insert(url);
-                count -= 1;
-                if count == 0 {
-                    break 'loop_;
-                }
-            }
-            Msg::AddInactiveNode(mut url) => {
-                #[allow(clippy::unwrap_used)]
-                url.set_port(None).unwrap();
-                visited_peers.insert(url);
-                count -= 1;
-                if count == 0 {
-                    break 'loop_;
-                }
-            }
-            Msg::CheckPeers(peers) => {
-                peer_stack.extend(peers);
+            C::RxTimeoutSignal => {
+                break 'loop_;
             }
         }
     }
@@ -551,15 +599,27 @@ mod tests {
             .enable_all()
             .build()
             .unwrap();
-        let res = runtime_inner.block_on(async {
-            peer_discovery(
-                NonEmptyVec::from_vec(seeds).unwrap(),
-                BoundedU16::new(30).unwrap(),
-                Duration::from_millis(2000),
+        let (res_with_quick_timeout, res_with_longer_timeout) = runtime_inner.block_on(async {
+            let res_quick = peer_discovery(
+                NonEmptyVec::from_vec(seeds.clone()).unwrap(),
+                BoundedU16::new(5).unwrap(),
+                Duration::from_millis(2100),
             )
             .await
-            .unwrap()
+            .unwrap();
+
+            let _ = tokio::time::sleep(Duration::from_secs(5)).await;
+
+            let res_long = peer_discovery(
+                NonEmptyVec::from_vec(seeds).unwrap(),
+                BoundedU16::new(5).unwrap(),
+                Duration::from_millis(10000),
+            )
+            .await
+            .unwrap();
+            (res_quick, res_long)
         });
-        assert!(!res.is_empty())
+        assert!(!res_with_longer_timeout.is_empty());
+        assert!(res_with_quick_timeout.len() < res_with_longer_timeout.len());
     }
 }
