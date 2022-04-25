@@ -90,7 +90,13 @@ class RestNodeApi {
         }
     }
 
-    /// Using the ergo nodes listed in `seeds` return all peer nodes with an active REST API on port 9053.
+    /// Given a list of seed nodes, search for peer nodes with an active REST API on port 9053.
+    ///  - `seeds` represents a list of ergo node URLs from which to start peer discovery.
+    ///  - `max_parallel_requests` represents the maximum number of HTTP requests that can be made in
+    ///    parallel
+    ///  - `timeout` represents the amount of time that is spent search for peers. Once the timeout
+    ///    value is reached, return with the vec of active peers that have been discovered up to that
+    ///    point in time.
     func peerDiscovery(
         seeds: [URL],
         maxParallelReqs: UInt16,
@@ -120,7 +126,13 @@ class RestNodeApi {
     }
     
     
-    /// Using the ergo nodes listed in `seeds` return all peer nodes with an active REST API on port 9053 (async)
+    /// Given a list of seed nodes, search for peer nodes with an active REST API on port 9053.
+    ///  - `seeds` represents a list of ergo node URLs from which to start peer discovery.
+    ///  - `max_parallel_requests` represents the maximum number of HTTP requests that can be made in
+    ///    parallel
+    ///  - `timeout` represents the amount of time that is spent search for peers. Once the timeout
+    ///    value is reached, return with the vec of active peers that have been discovered up to that
+    ///    point in time.
     @available(macOS 10.15, iOS 13, *)
     func peerDiscoveryAsync(
         seeds: [URL],

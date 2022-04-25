@@ -56,8 +56,14 @@ impl PeerUrls {
     }
 }
 
+/// Given a list of seed nodes, search for peer nodes with an active REST API on port 9053.
+///  - `seeds` represents a list of ergo node URLs from which to start peer discovery.
+///  - `max_parallel_requests` represents the maximum number of HTTP requests that can be made in
+///    parallel
+///  - `timeout` represents the amount of time that is spent search for peers. Once the timeout
+///    value is reached, return with the vec of active peers that have been discovered up to that
+///    point in time.
 #[wasm_bindgen]
-/// Given a list of seed nodes, recursively determine a Vec of all known peer nodes.
 pub async fn peer_discovery(
     seeds: Box<[web_sys::Url]>,
     max_parallel_requests: u16,

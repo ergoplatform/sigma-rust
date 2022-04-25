@@ -70,7 +70,13 @@ enum Msg {
     CheckPeers(Vec<PeerInfo>),
 }
 
-/// Given a list of seed nodes, recursively determine a Vec of all known peer nodes.
+/// Given a list of seed nodes, search for peer nodes with an active REST API on port 9053.
+///  - `seeds` represents a list of ergo node URLs from which to start peer discovery.
+///  - `max_parallel_requests` represents the maximum number of HTTP requests that can be made in
+///    parallel
+///  - `timeout` represents the amount of time that is spent search for peers. Once the timeout
+///    value is reached, return with the vec of active peers that have been discovered up to that
+///    point in time.
 pub async fn peer_discovery(
     seeds: NonEmptyVec<Url>,
     max_parallel_requests: BoundedU16<1, { u16::MAX }>,
@@ -78,14 +84,14 @@ pub async fn peer_discovery(
 ) -> Result<Vec<Url>, PeerDiscoveryError> {
     let buffer_size = usize::max(max_parallel_requests.get() as usize, seeds.len());
     #[cfg(not(target_arch = "wasm32"))]
-    let (tx_peer, rx_peer) = tokio::sync::mpsc::channel::<Msg>(buffer_size);
+    let (tx_msg, rx_msg) = tokio::sync::mpsc::channel::<Msg>(buffer_size);
     #[cfg(not(target_arch = "wasm32"))]
     let (tx_url, rx_url) = tokio::sync::mpsc::channel::<Url>(buffer_size);
     #[cfg(not(target_arch = "wasm32"))]
     let url_stream = tokio_stream::wrappers::ReceiverStream::new(rx_url);
 
     #[cfg(target_arch = "wasm32")]
-    let (tx_peer, rx_peer) = futures::channel::mpsc::channel::<Msg>(buffer_size);
+    let (tx_msg, rx_msg) = futures::channel::mpsc::channel::<Msg>(buffer_size);
     #[cfg(target_arch = "wasm32")]
     let (tx_url, rx_url) = futures::channel::mpsc::channel::<Url>(buffer_size);
     #[cfg(target_arch = "wasm32")]
@@ -94,8 +100,8 @@ pub async fn peer_discovery(
     peer_discovery_inner(
         seeds,
         max_parallel_requests,
-        tx_peer,
-        rx_peer,
+        tx_msg,
+        rx_msg,
         tx_url,
         url_stream,
         timeout,
@@ -103,87 +109,24 @@ pub async fn peer_discovery(
     .await
 }
 
-/// Given a stream that receives URLs of full ergo nodes, spawn a task which checks if it is active.
-/// If so, request its peers. In all cases, a message (enum `Msg`) is sent out to notify the
-/// listener.
-fn spawn_http_request_task<
-    SendMsg: ChannelInfallibleSender<Msg> + Clone + Send + Sync + 'static,
->(
-    tx_peer: SendMsg,
-    url_stream: impl futures::Stream<Item = Url> + Send + 'static,
-    max_parallel_requests: BoundedU16<1, { u16::MAX }>,
-    request_timeout_duration: Duration,
-) {
-    use futures::StreamExt;
-
-    // Note that `tokio` - the de facto standard async runtime - is not supported on WASM. We need
-    // to spawn tasks for HTTP requests, and for WASM we rely on the `wasm_bindgen_futures` crate.
-    #[cfg(not(target_arch = "wasm32"))]
-    let spawn_fn = tokio::spawn;
-
-    #[cfg(target_arch = "wasm32")]
-    let spawn_fn = wasm_bindgen_futures::spawn_local;
-
-    let mapped_stream = url_stream
-        .map(move |mut url| {
-            let mut tx_peer = tx_peer.clone();
-            async move {
-                // `tokio::spawn` returns a `JoinHandle` which we make sure to drop. If we don't drop
-                // and instead await on it, performance suffers greatly (~ 5x slower). In WASM case
-                // we don't need to worry because `wasm_bindgen_futures::spawn_local` returns ().
-                let _handle = spawn_fn(async move {
-                    // Query node at url.
-                    #[allow(clippy::unwrap_used)]
-                    url.set_port(Some(9053)).unwrap();
-                    #[allow(clippy::unwrap_used)]
-                    let node_conf = NodeConf {
-                        addr: PeerAddr(url.socket_addrs(|| Some(9053)).unwrap()[0]),
-                        api_key: None,
-                        timeout: Some(request_timeout_duration),
-                    };
-
-                    // If active, look up its peers.
-                    if get_info(node_conf).await.is_ok() {
-                        match get_peers_all(node_conf).await {
-                            Ok(peers) => {
-                                // Note that the unwraps on `tx_peer.send(..)` below will not fail.
-                                // The send call can only fail if the receiver either drops or it
-                                // calls its `closed` method. We ensure that this won't happen, see
-                                // (**) below.
-
-                                // It's important to send this message before the `AddActiveNode` message
-                                // below, to ensure an `count` variable; see (**) below.
-                                tx_peer.infallible_send(Msg::CheckPeers(peers)).await;
-                                tx_peer
-                                    .infallible_send(Msg::AddActiveNode(url.clone()))
-                                    .await;
-                            }
-                            Err(_) => {
-                                #[allow(clippy::unwrap_used)]
-                                tx_peer.infallible_send(Msg::AddInactiveNode(url)).await;
-                            }
-                        }
-                    } else {
-                        #[allow(clippy::unwrap_used)]
-                        tx_peer.infallible_send(Msg::AddInactiveNode(url)).await;
-                    }
-                });
-            }
-        })
-        .buffer_unordered(max_parallel_requests.get() as usize); // Allow for parallel requests
-
-    // Note: We need to define another binding to the spawn function to get around the Rust type
-    // checker.
-    #[cfg(not(target_arch = "wasm32"))]
-    let spawn_fn_new = tokio::spawn;
-
-    #[cfg(target_arch = "wasm32")]
-    let spawn_fn_new = wasm_bindgen_futures::spawn_local;
-
-    // (*) Run stream to completion.
-    spawn_fn_new(mapped_stream.for_each(|_| async move {}));
-}
-
+/// Implementation of `peer_discovery`. It's structured as 2 separate tasks:
+///
+///  - Task 1 is responsible for tracking which nodes are active/inactive and making sure that any
+///    given ergo node is queried exactly once.
+///  - Task 2's job is to wait for a URL from task 1, make the actual HTTP requests to that URL, and
+///    to report the result back to task 1.
+/// ```
+///                              <ergo node URL>
+///               __________________________________________________
+///              |                                                  |
+///              |                                                  v
+///  |----------------------|                   |----------------------|
+///  | 1. Track node status |                   | 2. HTTP request task |
+///  |----------------------|                   |----------------------|
+///              ^                                                  |
+///              |__________________________________________________|
+///                <active node| non-active node| list of peers>   
+/// ```
 async fn peer_discovery_inner<
     RecvMsg: ChannelReceiver<Msg>,
     SendMsg: 'static + ChannelInfallibleSender<Msg> + Clone + Send + Sync,
@@ -191,8 +134,8 @@ async fn peer_discovery_inner<
 >(
     seeds: NonEmptyVec<Url>,
     max_parallel_requests: BoundedU16<1, { u16::MAX }>,
-    tx_peer: SendMsg,
-    mut rx_peer: RecvMsg,
+    tx_msg: SendMsg,
+    mut rx_msg: RecvMsg,
     mut tx_url: SendUrl,
     url_stream: impl futures::Stream<Item = Url> + Send + 'static,
     timeout: Duration,
@@ -205,16 +148,21 @@ async fn peer_discovery_inner<
         seeds_set.insert(seed_url);
     }
 
-    spawn_http_request_task(tx_peer, url_stream, max_parallel_requests, timeout);
+    spawn_http_request_task(
+        tx_msg,
+        url_stream,
+        max_parallel_requests,
+        Duration::from_secs(2),
+    );
 
     for url in &seeds_set {
         tx_url.infallible_send(url.clone()).await;
     }
 
-    // (**) This variable represents the number of URLs that need to be checked to see whether it
+    // (*) This variable represents the number of URLs that need to be checked to see whether it
     // corresponds to an active Ergo node. `count` is crucial to allow this function to terminate,
     // as once it reaches zero we break the loop below. This leads us to drop `tx_url`, which is the
-    // sender side of the receiver stream `rx_url_stream`, allowing the spawned task (*) to end.
+    // sender side of the receiver stream `rx_url_stream`, allowing task 1 to end.
     let mut count = seeds_set.len();
 
     let mut visited_active_peers = HashSet::new();
@@ -224,7 +172,7 @@ async fn peer_discovery_inner<
     // gets full.
     let mut peer_stack: Vec<PeerInfo> = vec![];
 
-    'loop_: while let Some(p) = rx_peer.recv().await {
+    'loop_: while let Some(p) = rx_msg.recv().await {
         // Try pushing as many peers as can be allowed in the (tx_url, rx_url) channel
         while let Some(peer) = peer_stack.pop() {
             let mut url = peer.addr.as_http_url();
@@ -285,7 +233,84 @@ async fn peer_discovery_inner<
     Ok(coll)
 }
 
-/// This trait abstracts over the `send` method of channel senders
+/// Given a stream that receives URLs of full ergo nodes, spawn a task (task 2 in the schematic
+/// above) which checks if it is active.  If so, request its peers. In all cases, a message (enum
+/// `Msg`) is sent out to notify the listener.
+fn spawn_http_request_task<
+    SendMsg: ChannelInfallibleSender<Msg> + Clone + Send + Sync + 'static,
+>(
+    tx_peer: SendMsg,
+    url_stream: impl futures::Stream<Item = Url> + Send + 'static,
+    max_parallel_requests: BoundedU16<1, { u16::MAX }>,
+    request_timeout_duration: Duration,
+) {
+    use futures::StreamExt;
+
+    // Note that `tokio` - the de facto standard async runtime - is not supported on WASM. We need
+    // to spawn tasks for HTTP requests, and for WASM we rely on the `wasm_bindgen_futures` crate.
+    #[cfg(not(target_arch = "wasm32"))]
+    let spawn_fn = tokio::spawn;
+
+    #[cfg(target_arch = "wasm32")]
+    let spawn_fn = wasm_bindgen_futures::spawn_local;
+
+    let mapped_stream = url_stream
+        .map(move |mut url| {
+            let mut tx_peer = tx_peer.clone();
+            async move {
+                // `tokio::spawn` returns a `JoinHandle` which we make sure to drop. If we don't drop
+                // and instead await on it, performance suffers greatly (~ 5x slower). In WASM case
+                // we don't need to worry because `wasm_bindgen_futures::spawn_local` returns ().
+                let _handle = spawn_fn(async move {
+                    // Query node at url.
+                    #[allow(clippy::unwrap_used)]
+                    url.set_port(Some(9053)).unwrap();
+                    #[allow(clippy::unwrap_used)]
+                    let node_conf = NodeConf {
+                        addr: PeerAddr(url.socket_addrs(|| Some(9053)).unwrap()[0]),
+                        api_key: None,
+                        timeout: Some(request_timeout_duration),
+                    };
+
+                    // If active, look up its peers.
+                    if get_info(node_conf).await.is_ok() {
+                        match get_peers_all(node_conf).await {
+                            Ok(peers) => {
+                                // It's important to send this message before the `AddActiveNode`
+                                // message below, to ensure an accurate `count` variable in task 1;
+                                // see (*) above in `peer_discovery_inner`.
+                                tx_peer.infallible_send(Msg::CheckPeers(peers)).await;
+                                tx_peer
+                                    .infallible_send(Msg::AddActiveNode(url.clone()))
+                                    .await;
+                            }
+                            Err(_) => {
+                                #[allow(clippy::unwrap_used)]
+                                tx_peer.infallible_send(Msg::AddInactiveNode(url)).await;
+                            }
+                        }
+                    } else {
+                        #[allow(clippy::unwrap_used)]
+                        tx_peer.infallible_send(Msg::AddInactiveNode(url)).await;
+                    }
+                });
+            }
+        })
+        .buffer_unordered(max_parallel_requests.get() as usize); // Allow for parallel requests
+
+    // Note: We need to define another binding to the spawn function to get around the Rust type
+    // checker.
+    #[cfg(not(target_arch = "wasm32"))]
+    let spawn_fn_new = tokio::spawn;
+
+    #[cfg(target_arch = "wasm32")]
+    let spawn_fn_new = wasm_bindgen_futures::spawn_local;
+
+    // (*) Run stream to completion.
+    spawn_fn_new(mapped_stream.for_each(|_| async move {}));
+}
+
+/// This trait abstracts over the `send` method of channel senders, assuming no failure.
 #[async_trait]
 trait ChannelInfallibleSender<T> {
     /// A send that cannot fail.
@@ -296,8 +321,8 @@ trait ChannelInfallibleSender<T> {
 #[async_trait]
 impl<T: Debug + Send> ChannelInfallibleSender<T> for tokio::sync::mpsc::Sender<T> {
     async fn infallible_send(&mut self, value: T) {
-        #[allow(clippy::unwrap_used)]
-        let _ = self.send(value).await.unwrap();
+        // If error results, just discard it.
+        let _ = self.send(value).await;
     }
 }
 
@@ -306,8 +331,8 @@ impl<T: Debug + Send> ChannelInfallibleSender<T> for tokio::sync::mpsc::Sender<T
 impl<T: Debug + Send> ChannelInfallibleSender<T> for futures::channel::mpsc::Sender<T> {
     async fn infallible_send(&mut self, value: T) {
         use futures::sink::SinkExt;
-        #[allow(clippy::unwrap_used)]
-        self.send(value).await.unwrap()
+        // If error results, just discard it.
+        let _ = self.send(value).await;
     }
 }
 
@@ -385,9 +410,6 @@ pub enum PeerDiscoveryError {
     /// mpsc sender error
     #[error("MPSC sender error")]
     MpscSender,
-    /// other mpsc sender error
-    #[error("Other MPSC sender error")]
-    MpscSenderOther,
     /// tokio::spawn `JoinError`
     #[error("Join error")]
     JoinError,
