@@ -49,7 +49,7 @@ pub(crate) fn prefixed_hash2<'a>(
     data: impl Into<Option<&'a [u8]>>,
     data2: impl Into<Option<&'a [u8]>>,
 ) -> Digest32 {
-    let mut hasher = VarBlake2b::new(32).unwrap();
+    let mut hasher = VarBlake2b::new(HASH_SIZE).unwrap();
     hasher.update(&[prefix]);
 
     if let Some(data) = data.into() {
