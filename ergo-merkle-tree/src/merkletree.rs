@@ -294,7 +294,7 @@ mod test {
         // respectively.
 
         let data = [1; 32];
-        let node = MerkleNode::from_bytes(&data);
+        let node = MerkleNode::from_bytes(data);
         let tree = MerkleTree::new(&[node][..]);
         assert_eq!(
             tree.root_hash(),
@@ -304,7 +304,7 @@ mod test {
     #[test]
     fn merkle_tree_test_five_elements() {
         let bytes = [1u8; 32];
-        let nodes = vec![MerkleNode::from_bytes(&bytes); 5];
+        let nodes = vec![MerkleNode::from_bytes(bytes); 5];
         let tree = MerkleTree::new(&*nodes);
         let h0x = prefixed_hash(0, &bytes);
         let h10 = prefixed_hash2(1, h0x.as_ref(), h0x.as_ref());
@@ -319,11 +319,11 @@ mod test {
     #[test]
     fn merkle_tree_test_merkleproof() {
         let nodes = [
-            MerkleNode::from_bytes(&[1; 32]),
-            MerkleNode::from_bytes(&[2; 32]),
-            MerkleNode::from_bytes(&[3; 32]),
-            MerkleNode::from_bytes(&[4; 32]),
-            MerkleNode::from_bytes(&[5; 32]),
+            MerkleNode::from_bytes([1; 32]),
+            MerkleNode::from_bytes([2; 32]),
+            MerkleNode::from_bytes([3; 32]),
+            MerkleNode::from_bytes([4; 32]),
+            MerkleNode::from_bytes([5; 32]),
         ];
         let tree = MerkleTree::new(&nodes[..]);
         let tree_root = tree.root_hash();
@@ -354,7 +354,7 @@ mod test {
     proptest! {
         #[test]
         fn merkle_tree_test_arbitrary_proof(data in vec(uniform32(0u8..), 0..1000)) {
-            let nodes: Vec<MerkleNode> = data.iter().map(MerkleNode::from_bytes).collect();
+            let nodes: Vec<MerkleNode> = data.into_iter().map(MerkleNode::from_bytes).collect();
             let tree = MerkleTree::new(&*nodes);
             for (i, node) in nodes.iter().enumerate() {
                 assert_eq!(
@@ -366,10 +366,9 @@ mod test {
         }
         #[test]
         fn merkle_tree_test_arbitrary_batch_proof(data in vec(uniform32(0u8..), 0..1000), indices in vec(0..1000usize, 0..1000)) {
-            let nodes: Vec<MerkleNode> = data.iter().map(MerkleNode::from_bytes).collect();
-            let tree = MerkleTree::new(&*nodes);
-
             let valid = indices.iter().all(|i| *i < data.len()) && indices.len() < data.len() && !indices.is_empty(); // TODO, is there any better strategy for proptest that doesn't require us to filter out invalid indices
+            let nodes: Vec<MerkleNode> = data.into_iter().map(MerkleNode::from_bytes).collect();
+            let tree = MerkleTree::new(&*nodes);
             if valid {
                 assert!(tree.proof_by_indices(&indices).unwrap().valid(tree.root_hash().as_ref()));
             }
