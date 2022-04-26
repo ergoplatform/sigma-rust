@@ -9,7 +9,7 @@ use std::collections::{BTreeSet, HashMap};
 pub enum MerkleNode {
     #[doc(hidden)]
     Node { hash: Digest32 },
-    /// Leaf Node in MerkleTree. Can be created using [`Self::from_bytes`] or [`Self::from`]
+    /// Leaf Node in MerkleTree. Can be created using [`Self::from_bytes`]
     Leaf {
         /// 32 byte Blake2b256 hash for data
         hash: Digest32,
