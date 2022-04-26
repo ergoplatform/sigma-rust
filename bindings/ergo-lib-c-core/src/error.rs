@@ -1,5 +1,5 @@
 #[cfg(feature = "rest")]
-use ergo_lib::ergo_rest::{api::node::PeerDiscoveryError, NodeError};
+use ergo_lib::ergo_rest::{NodeError, PeerDiscoveryError};
 
 use std::error;
 use thiserror::Error;

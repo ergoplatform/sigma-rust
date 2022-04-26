@@ -9,10 +9,7 @@ use bounded_vec::BoundedVecOutOfBounds;
 use ergo_lib::ergo_chain_types::DigestNError;
 use ergo_lib::ergo_nipopow::NipopowProofError;
 #[cfg(feature = "rest")]
-use ergo_lib::ergo_rest::api::node::PeerDiscoveryError;
-#[cfg(feature = "rest")]
-use ergo_lib::ergo_rest::NodeError;
-use ergo_lib::ergotree_interpreter::sigma_protocol::verifier::VerifierError;
+use ergo_lib::ergo_rest::{NodeError, PeerDiscoveryError};
 use ergo_lib::ergotree_ir::chain::address::AddressEncoderError;
 use ergo_lib::ergotree_ir::chain::address::AddressError;
 use ergo_lib::ergotree_ir::chain::ergo_box::box_value::BoxValueError;

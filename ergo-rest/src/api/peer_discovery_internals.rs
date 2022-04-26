@@ -388,6 +388,7 @@ impl<T> ChannelTrySender<T> for futures::channel::mpsc::Sender<T> {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use std::str::FromStr;
