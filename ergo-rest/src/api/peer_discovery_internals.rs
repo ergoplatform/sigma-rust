@@ -181,7 +181,7 @@ async fn peer_discovery_impl<
                     Msg::AddActiveNode(mut url) => {
                         #[allow(clippy::unwrap_used)]
                         url.set_port(None).unwrap();
-                        println!("Active node {}", url);
+                        //println!("Active node {}", url);
                         visited_active_peers.insert(url.clone());
                         visited_peers.insert(url);
                         count -= 1;
@@ -209,7 +209,7 @@ async fn peer_discovery_impl<
         }
     }
 
-    println!("Total # nodes visited: {}", visited_peers.len());
+    //println!("Total # nodes visited: {}", visited_peers.len());
 
     drop(tx_url);
     let coll: Vec<_> = visited_active_peers
