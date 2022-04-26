@@ -22,12 +22,10 @@ pub enum MerkleNode {
 
 impl MerkleNode {
     /// Creates a new Leaf Node from bytes. The hash is prefixed with a leaf node prefix.
-    pub fn from_bytes<T: AsRef<[u8]>>(bytes: T) -> Self {
-        let hash = prefixed_hash(LEAF_PREFIX, bytes.as_ref());
-        MerkleNode::Leaf {
-            hash,
-            data: bytes.as_ref().to_owned(),
-        }
+    pub fn from_bytes<T: Into<Vec<u8>>>(bytes: T) -> Self {
+        let bytes = bytes.into();
+        let hash = prefixed_hash(LEAF_PREFIX, &bytes);
+        MerkleNode::Leaf { hash, data: bytes }
     }
     /// Gets hash for the node, returns None if it's an Empty Node
     pub fn get_hash(&self) -> Option<&Digest32> {

@@ -122,7 +122,7 @@ mod tests {
                     data.extend(value);
                     data
                 })
-                .map(MerkleNode::from)
+                .map(MerkleNode::from_bytes)
                 .collect::<Vec<MerkleNode>>(),
         )
         .root_hash_special();
