@@ -19,6 +19,7 @@ members = [
     "bindings/ergo-lib-c-core",
     "bindings/ergo-lib-c",
     "bindings/ergo-lib-jni",
+    "wasm-timer"
 ]
 
 [profile.release]
