@@ -35,7 +35,7 @@ pub(crate) mod json;
 #[allow(clippy::unwrap_used)]
 // Generates a hash of data prefixed with `prefix`
 pub(crate) fn prefixed_hash(prefix: u8, data: &[u8]) -> Digest32 {
-    let mut hasher = VarBlake2b::new(32).unwrap();
+    let mut hasher = VarBlake2b::new(HASH_SIZE).unwrap();
     hasher.update(&[prefix]);
     hasher.update(data);
     let hash: Box<[u8; HASH_SIZE]> = hasher.finalize_boxed().try_into().unwrap();
