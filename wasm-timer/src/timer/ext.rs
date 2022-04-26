@@ -174,10 +174,7 @@ where
 {
     type Item = Result<S::Ok, S::Error>;
 
-    fn poll_next(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<Self::Item>> {
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let dur = self.dur;
 
         let r = self.as_mut().stream().try_poll_next(cx);
