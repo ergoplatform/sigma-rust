@@ -129,6 +129,7 @@ mod test {
     use crate::MerkleProof;
     use crate::NodeSide;
     use ergo_chain_types::Digest32;
+    use std::convert::TryFrom;
 
     // Ported client Merkle tree verification example from  https://github.com/ergoplatform/ergo/blob/master/src/test/scala/org/ergoplatform/examples/LiteClientExamples.scala
     #[test]
@@ -149,7 +150,7 @@ mod test {
         let proof = MerkleProof::new(
             &tx_id,
             &[LevelNode::new(
-                <Digest32 as From<[u8; 32]>>::from(levels[0..32].try_into().unwrap()),
+                Digest32::try_from(&levels[0..32]).unwrap(),
                 side,
             )],
         );

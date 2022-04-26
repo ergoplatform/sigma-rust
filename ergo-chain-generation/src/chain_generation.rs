@@ -172,7 +172,7 @@ fn prove_block(
                 data.extend(value);
                 data
             })
-            .map(MerkleNode::from)
+            .map(MerkleNode::from_bytes)
             .collect::<Vec<MerkleNode>>(),
     )
     .root_hash_special();
@@ -339,7 +339,7 @@ fn transactions_root(txs: &[Transaction], block_version: u8) -> Digest32 {
                         .as_ref()
                         .to_vec()
                 })
-                .map(MerkleNode::from)
+                .map(MerkleNode::from_bytes)
                 .collect::<Vec<MerkleNode>>(),
         );
         tree.root_hash_special()
@@ -366,7 +366,7 @@ fn transactions_root(txs: &[Transaction], block_version: u8) -> Digest32 {
                     data.extend(witness);
                     data
                 })
-                .map(MerkleNode::from)
+                .map(MerkleNode::from_bytes)
                 .collect::<Vec<MerkleNode>>(),
         );
         tree.root_hash_special()

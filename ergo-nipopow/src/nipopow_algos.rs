@@ -324,7 +324,7 @@ impl NipopowAlgos {
             .iter()
             .flat_map(|k| ext.fields().iter().find(|(key, _)| key == k))
             .map(kv_to_leaf)
-            .map(ergo_merkle_tree::MerkleNode::from)
+            .map(ergo_merkle_tree::MerkleNode::from_bytes)
             .flat_map(|node| node.get_hash().cloned())
             .flat_map(|hash| tree.get_elements_hash_index().get(&hash).copied())
             .collect();
@@ -344,9 +344,9 @@ fn extension_merkletree(kv: &[([u8; 2], Vec<u8>)]) -> ergo_merkle_tree::MerkleTr
     let leafs = kv
         .iter()
         .map(kv_to_leaf)
-        .map(ergo_merkle_tree::MerkleNode::from)
+        .map(ergo_merkle_tree::MerkleNode::from_bytes)
         .collect::<Vec<ergo_merkle_tree::MerkleNode>>();
-    ergo_merkle_tree::MerkleTree::new(&leafs)
+    ergo_merkle_tree::MerkleTree::new(leafs)
 }
 
 /// The "compact" format is an encoding of a whole number `N` using an unsigned 32 bit number.

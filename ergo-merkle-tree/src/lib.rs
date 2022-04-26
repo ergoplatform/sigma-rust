@@ -38,7 +38,7 @@ pub(crate) fn prefixed_hash(prefix: u8, data: &[u8]) -> Digest32 {
     let mut hasher = VarBlake2b::new(32).unwrap();
     hasher.update(&[prefix]);
     hasher.update(data);
-    let hash: Box<[u8; 32]> = hasher.finalize_boxed().try_into().unwrap();
+    let hash: Box<[u8; HASH_SIZE]> = hasher.finalize_boxed().try_into().unwrap();
     Digest32::from(hash)
 }
 
@@ -58,7 +58,7 @@ pub(crate) fn prefixed_hash2<'a>(
     if let Some(data2) = data2.into() {
         hasher.update(data2);
     };
-    let hash: Box<[u8; 32]> = hasher.finalize_boxed().try_into().unwrap();
+    let hash: Box<[u8; HASH_SIZE]> = hasher.finalize_boxed().try_into().unwrap();
     Digest32::from(hash)
 }
 

@@ -1,7 +1,6 @@
 use crate::batchmerkleproof::{BatchMerkleProof, BatchMerkleProofIndex};
 use crate::{prefixed_hash, prefixed_hash2, INTERNAL_PREFIX, LEAF_PREFIX};
 use ergo_chain_types::Digest32;
-use std::borrow::Cow;
 use std::collections::{BTreeSet, HashMap};
 
 /// Node for a Merkle Tree
@@ -22,13 +21,13 @@ pub enum MerkleNode {
 }
 
 impl MerkleNode {
-    /// Creates a new Leaf Node from bytes. The hash is prefixed with a leaf node prefix. Fails if data is not 32 bytes in size
-    pub fn from_bytes<T: AsRef<[u8]>>(bytes: T) -> Result<Self, std::array::TryFromSliceError> {
+    /// Creates a new Leaf Node from bytes. The hash is prefixed with a leaf node prefix.
+    pub fn from_bytes<T: AsRef<[u8]>>(bytes: T) -> Self {
         let hash = prefixed_hash(LEAF_PREFIX, bytes.as_ref());
-        Ok(MerkleNode::Leaf {
+        MerkleNode::Leaf {
             hash,
-            data: bytes.as_ref().try_into()?,
-        })
+            data: bytes.as_ref().to_owned(),
+        }
     }
     /// Gets hash for the node, returns None if it's an Empty Node
     pub fn get_hash(&self) -> Option<&Digest32> {
@@ -47,13 +46,6 @@ impl MerkleNode {
     }
     pub(crate) fn empty() -> Self {
         Self::EmptyNode
-    }
-}
-
-impl From<Vec<u8>> for MerkleNode {
-    fn from(vec: Vec<u8>) -> MerkleNode {
-        let hash = prefixed_hash(LEAF_PREFIX, &vec);
-        MerkleNode::Leaf { hash, data: vec }
     }
 }
 
@@ -167,7 +159,7 @@ pub struct MerkleTree {
 
 impl MerkleTree {
     /// Creates a new MerkleTree from leaf nodes
-    pub fn new<'a>(nodes: impl Into<Cow<'a, [MerkleNode]>>) -> Self {
+    pub fn new(nodes: impl Into<Vec<MerkleNode>>) -> Self {
         #[allow(clippy::unwrap_used)]
         fn build_nodes(nodes: &mut [MerkleNode]) {
             for pair in (1..nodes.len()).step_by(2).rev() {
@@ -191,7 +183,7 @@ impl MerkleTree {
                 nodes[get_parent(pair).unwrap()] = node;
             }
         }
-        let mut tree_nodes = nodes.into().into_owned();
+        let mut tree_nodes = nodes.into();
         if tree_nodes.len() % 2 == 1 {
             tree_nodes.push(MerkleNode::EmptyNode);
         }
@@ -287,7 +279,7 @@ impl MerkleTree {
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::panic)]
 mod test {
-    use crate::{concatenate_hashes, prefixed_hash, MerkleNode, MerkleTree};
+    use crate::{prefixed_hash, prefixed_hash2, MerkleNode, MerkleTree};
 
     #[test]
     fn merkle_tree_zero_elements() {
@@ -304,7 +296,7 @@ mod test {
         // respectively.
 
         let data = [1; 32];
-        let node = MerkleNode::from_bytes(&data).unwrap();
+        let node = MerkleNode::from_bytes(&data);
         let tree = MerkleTree::new(&[node][..]);
         assert_eq!(
             tree.root_hash(),
@@ -314,26 +306,26 @@ mod test {
     #[test]
     fn merkle_tree_test_five_elements() {
         let bytes = [1u8; 32];
-        let nodes = vec![MerkleNode::from_bytes(&bytes).unwrap(); 5];
-        let tree = MerkleTree::new(&nodes);
+        let nodes = vec![MerkleNode::from_bytes(&bytes); 5];
+        let tree = MerkleTree::new(&*nodes);
         let h0x = prefixed_hash(0, &bytes);
-        let h10 = prefixed_hash(1, &concatenate_hashes(&h0x.0, &h0x.0));
+        let h10 = prefixed_hash2(1, h0x.as_ref(), h0x.as_ref());
         let h11 = &h10;
-        let h12 = prefixed_hash(1, &*h0x.0);
-        let h20 = prefixed_hash(1, &concatenate_hashes(&h10.0, &h11.0));
+        let h12 = prefixed_hash(1, h0x.0.as_ref());
+        let h20 = prefixed_hash2(1, h10.as_ref(), h11.as_ref());
         let h21 = prefixed_hash(1, h12.as_ref());
-        let h30 = prefixed_hash(1, &concatenate_hashes(&h20.0, &h21.0));
+        let h30 = prefixed_hash2(1, h20.as_ref(), h21.as_ref());
         assert_eq!(tree.root_hash(), h30);
     }
 
     #[test]
     fn merkle_tree_test_merkleproof() {
         let nodes = [
-            MerkleNode::from_bytes(&[1; 32]).unwrap(),
-            MerkleNode::from_bytes(&[2; 32]).unwrap(),
-            MerkleNode::from_bytes(&[3; 32]).unwrap(),
-            MerkleNode::from_bytes(&[4; 32]).unwrap(),
-            MerkleNode::from_bytes(&[5; 32]).unwrap(),
+            MerkleNode::from_bytes(&[1; 32]),
+            MerkleNode::from_bytes(&[2; 32]),
+            MerkleNode::from_bytes(&[3; 32]),
+            MerkleNode::from_bytes(&[4; 32]),
+            MerkleNode::from_bytes(&[5; 32]),
         ];
         let tree = MerkleTree::new(&nodes[..]);
         let tree_root = tree.root_hash();
@@ -364,8 +356,8 @@ mod test {
     proptest! {
         #[test]
         fn merkle_tree_test_arbitrary_proof(data in vec(uniform32(0u8..), 0..1000)) {
-            let nodes: Vec<MerkleNode> = data.iter().map(MerkleNode::from_bytes).map(Result::unwrap).collect();
-            let tree = MerkleTree::new(&nodes);
+            let nodes: Vec<MerkleNode> = data.iter().map(MerkleNode::from_bytes).collect();
+            let tree = MerkleTree::new(&*nodes);
             for (i, node) in nodes.iter().enumerate() {
                 assert_eq!(
                     tree.proof_by_index(i).unwrap().get_leaf_data(),
@@ -376,8 +368,8 @@ mod test {
         }
         #[test]
         fn merkle_tree_test_arbitrary_batch_proof(data in vec(uniform32(0u8..), 0..1000), indices in vec(0..1000usize, 0..1000)) {
-            let nodes: Vec<MerkleNode> = data.iter().map(MerkleNode::from_bytes).map(Result::unwrap).collect();
-            let tree = MerkleTree::new(&nodes);
+            let nodes: Vec<MerkleNode> = data.iter().map(MerkleNode::from_bytes).collect();
+            let tree = MerkleTree::new(&*nodes);
 
             let valid = indices.iter().all(|i| *i < data.len()) && indices.len() < data.len() && !indices.is_empty(); // TODO, is there any better strategy for proptest that doesn't require us to filter out invalid indices
             if valid {

@@ -7,7 +7,6 @@ use sigma_ser::{
     vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt},
     ScorexParsingError, ScorexSerializable, ScorexSerializeResult,
 };
-use std::convert::TryFrom;
 
 use crate::{autolykos_pow_scheme, nipopow_algos::NipopowAlgos};
 
@@ -229,10 +228,9 @@ impl PoPowHeader {
                             .chain(v.into_iter())
                             .collect()
                     })
-                    .map(ergo_merkle_tree::MerkleNode::try_from)
-                    .map(Result::unwrap)
+                    .map(ergo_merkle_tree::MerkleNode::from_bytes)
                     .collect();
-            let tree = ergo_merkle_tree::MerkleTree::new(&fields);
+            let tree = ergo_merkle_tree::MerkleTree::new(fields);
             self.interlinks_proof.valid(tree.root_hash().as_ref())
         }
     }
