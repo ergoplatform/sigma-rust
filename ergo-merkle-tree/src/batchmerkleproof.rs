@@ -18,7 +18,7 @@ pub struct BatchMerkleProofIndex {
 )]
 #[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
 /// Compact Merkle multiproof. Can be created using [`crate::MerkleTree::proof_by_indices`]
-/// Implementation based on https://deepai.org/publication/compact-merkle-multiproofs
+/// Implementation based on <https://deepai.org/publication/compact-merkle-multiproofs>
 pub struct BatchMerkleProof {
     pub(crate) indices: Vec<BatchMerkleProofIndex>,
     pub(crate) proofs: Vec<LevelNode>,
@@ -130,20 +130,11 @@ impl ScorexSerializable for BatchMerkleProof {
         &self,
         w: &mut W,
     ) -> sigma_ser::ScorexSerializeResult {
-        fn write_u32_be<W: sigma_ser::vlq_encode::WriteSigmaVlqExt>(
-            val: u32,
-            w: &mut W,
-        ) -> sigma_ser::ScorexSerializeResult {
-            for byte in val.to_be_bytes() {
-                w.put_u8(byte)?;
-            }
-            Ok(())
-        }
-        write_u32_be(u32::try_from(self.indices.len())?, w)?; // for serialization, index length must be at most 4 bytes
-        write_u32_be(u32::try_from(self.proofs.len())?, w)?;
+        w.put_u32_be_bytes(u32::try_from(self.indices.len())?)?; // for serialization, index length must be at most 4 bytes
+        w.put_u32_be_bytes(u32::try_from(self.proofs.len())?)?;
 
         for BatchMerkleProofIndex { index, hash } in &self.indices {
-            write_u32_be(u32::try_from(*index)?, w)?;
+            w.put_u32_be_bytes(u32::try_from(*index)?)?;
             w.write_all(hash.as_ref())?;
         }
 
@@ -165,9 +156,7 @@ impl ScorexSerializable for BatchMerkleProof {
             r: &mut R,
         ) -> Result<u32, sigma_ser::ScorexParsingError> {
             let mut bytes = [0u8; 4];
-            for byte in bytes.iter_mut() {
-                *byte = r.get_u8()?;
-            }
+            r.read_exact(&mut bytes)?;
             Ok(u32::from_be_bytes(bytes))
         }
         let indices_len = read_u32_be(r)? as usize;
