@@ -25,6 +25,8 @@ pub enum SType {
     STypeVar(STypeVar),
     /// TBD
     SAny,
+    /// Unit struct
+    SUnit,
     /// Boolean
     SBoolean,
     /// Signed byte
