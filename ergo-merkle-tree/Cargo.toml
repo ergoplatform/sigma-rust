@@ -30,6 +30,6 @@ optional = true
 
 
 [features]
-default = ["json"]
+default = ["json", "arbitrary"]
 json = ["serde", "serde_json", "serde_repr", "base16", "thiserror"]
 arbitrary = ["proptest", "proptest-derive", "ergo-chain-types/arbitrary"]
