@@ -5,7 +5,7 @@
 
 First build `ergo-lib-c`
 ```
-cargo build --release -p ergo-lib-c
+cargo build --release --features rest -p ergo-lib-c
 ```
 
 This creates a static library under `<project_root_directory>/target/release`. Next we use `cbindgen`
@@ -30,8 +30,9 @@ swift build -Xlinker -L../../target/release/
 
 To run tests we must also pass in the library directory:
 ```
-swift test -Xlinker -L../../target/release/
+swift test -Xlinker -L../../target/release/ --skip RestNodeApiTests
 ```
+The `RestNodeApiTests` assume you have an ergo node running on localhost.
  
 
 ### Building Xcode 13 project for `iPhoneSimulator` (for Intel macs)
