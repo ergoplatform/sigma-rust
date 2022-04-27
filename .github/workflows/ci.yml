@@ -144,7 +144,7 @@ jobs:
       
       - name: run `reqwest-wrap` WASM tests
         run: |
-          cd reqwest-wrap
+          cd vendored-deps/reqwest-wrap
           wasm-pack test --chrome  --headless
 
       - name: run Wasm tests
