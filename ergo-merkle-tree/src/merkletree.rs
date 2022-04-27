@@ -266,7 +266,7 @@ impl MerkleTree {
         if leaf_indices.is_empty()
             || leaf_indices.iter().any(|i| {
                 self.nodes
-                    .get(*i)
+                    .get(self.internal_nodes + *i)
                     .and_then(MerkleNode::get_leaf_data)
                     .is_none()
             })
@@ -347,14 +347,15 @@ mod test {
                 .valid(tree_root.as_ref()));
         }
     }
+}
 
-    #[cfg(feature = "arbitrary")]
+#[cfg(feature = "arbitrary")]
+#[cfg(test)]
+mod arbitrary {
+    use crate::{MerkleNode, MerkleTree};
     use proptest::array::uniform32;
-    #[cfg(feature = "arbitrary")]
     use proptest::collection::vec;
-    #[cfg(feature = "arbitrary")]
     use proptest::prelude::*;
-    #[cfg(feature = "arbitrary")]
     proptest! {
         #[test]
         fn merkle_tree_test_arbitrary_proof(data in vec(uniform32(0u8..), 0..1000)) {
