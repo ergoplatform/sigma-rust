@@ -88,7 +88,7 @@ impl BatchMerkleProof {
             a_new.sort_unstable();
             a_new.dedup();
             // Repeat until root of tree is reached
-            if !m_new.is_empty() || e_new.len() > 1 {
+            if (!m_new.is_empty() || e_new.len() > 1) && !a_new.is_empty() {
                 let e: Vec<BatchMerkleProofIndex> = a_new
                     .iter()
                     .copied()

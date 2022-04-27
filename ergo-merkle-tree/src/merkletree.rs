@@ -262,10 +262,14 @@ impl MerkleTree {
         let mut leaf_indices = leaf_indices.to_owned();
         leaf_indices.sort_unstable();
         leaf_indices.dedup();
+        // check that node index is in bounds, a leaf node, and not an empty node
         if leaf_indices.is_empty()
-            || leaf_indices
-                .iter()
-                .any(|i| *i > self.nodes.len() - self.internal_nodes)
+            || leaf_indices.iter().any(|i| {
+                self.nodes
+                    .get(*i)
+                    .and_then(MerkleNode::get_leaf_data)
+                    .is_none()
+            })
         {
             return None;
         }
@@ -366,7 +370,7 @@ mod test {
         }
         #[test]
         fn merkle_tree_test_arbitrary_batch_proof(data in vec(uniform32(0u8..), 0..1000), indices in vec(0..1000usize, 0..1000)) {
-            let valid = indices.iter().all(|i| *i < data.len()) && indices.len() < data.len() && !indices.is_empty(); // TODO, is there any better strategy for proptest that doesn't require us to filter out invalid indices
+            let valid = indices.iter().all(|i| *i < data.len()) && !indices.is_empty(); // TODO, is there any better strategy for proptest that doesn't require us to filter out invalid indices
             let nodes: Vec<MerkleNode> = data.into_iter().map(MerkleNode::from_bytes).collect();
             let tree = MerkleTree::new(&*nodes);
             if valid {
