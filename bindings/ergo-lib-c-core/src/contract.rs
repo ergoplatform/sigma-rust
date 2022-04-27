@@ -28,7 +28,7 @@ pub unsafe fn contract_new(
     Ok(())
 }
 
-/// Create new contract that allow spending of the guarded box by a given recipient ([`Address`])
+/// Create new contract that allow spending of the guarded box by a given recipient
 pub unsafe fn contract_pay_to_address(
     address_ptr: ConstAddressPtr,
     contract_out: *mut ContractPtr,

@@ -194,7 +194,7 @@ pub type ConstErgoBoxPtr = *const ErgoBox;
 
 /// Make a new box with:
 /// `value` - amount of money associated with the box
-/// `contract` - guarding contract([`Contract`]), which should be evaluated to true in order
+/// `contract` - guarding contract, which should be evaluated to true in order
 /// to open(spend) this box
 /// `creation_height` - height when a transaction containing the box is created.
 /// `tx_id` - transaction id in which this box was "created" (participated in outputs)

@@ -174,14 +174,14 @@ impl Constant {
         c.into()
     }
 
-    /// Parse raw [`EcPoint`] value from bytes and make [`ProveDlog`] constant
+    /// Parse raw `EcPoint` value from bytes and make `ProveDlog` constant
     pub fn from_ecpoint_bytes(bytes: &[u8]) -> Result<Constant, JsValue> {
         let ecp = EcPoint::sigma_parse_bytes(bytes).map_err(to_js)?;
         let c: ergo_lib::ergotree_ir::mir::constant::Constant = ProveDlog::new(ecp).into();
         Ok(c.into())
     }
 
-    /// Parse raw [`EcPoint`] value from bytes and make [`groupElement`] constant
+    /// Parse raw `EcPoint` value from bytes and make `GroupElement` constant
     pub fn from_ecpoint_bytes_group_element(bytes: &[u8]) -> Result<Constant, JsValue> {
         let ecp = EcPoint::sigma_parse_bytes(bytes).map_err(to_js)?;
         let c = ergo_lib::ergotree_ir::mir::constant::Constant::from(ecp);

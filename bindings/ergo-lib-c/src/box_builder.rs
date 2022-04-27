@@ -14,7 +14,7 @@ use crate::{delete_ptr, ErrorPtr, ReturnNum, ReturnOption};
 
 /// Create builder with required box parameters:
 /// `value` - amount of money associated with the box
-/// `contract` - guarding contract([`Contract`]), which should be evaluated to true in order
+/// `contract` - guarding contract, which should be evaluated to true in order
 /// to open(spend) this box
 /// `creation_height` - height when a transaction containing the box is created.
 /// It should not exceed height of the block, containing the transaction with this box.

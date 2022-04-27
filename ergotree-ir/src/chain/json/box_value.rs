@@ -12,7 +12,7 @@ use crate::chain::ergo_box::box_value::BoxValue;
 /// to deserialize as `serde_json::Number` first, then manually convert the type.
 ///
 /// Tries to decode as `BigInt` first, then fallback to string. Encodes as `BigInt` always.
-/// see details - https://docs.rs/serde_with/1.9.4/serde_with/struct.PickFirst.html
+/// see details - <https://docs.rs/serde_with/1.9.4/serde_with/struct.PickFirst.html>
 #[cfg(feature = "json")]
 #[serde_with::serde_as]
 #[derive(serde::Serialize, serde::Deserialize)]
