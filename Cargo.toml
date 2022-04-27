@@ -14,12 +14,12 @@ members = [
     "ergo-nipopow",
     "ergo-merkle-tree",
     "gf2_192",
-    "reqwest-wrap",
     "bindings/ergo-lib-wasm",
     "bindings/ergo-lib-c-core",
     "bindings/ergo-lib-c",
     "bindings/ergo-lib-jni",
-    "wasm-timer"
+    "vendored-deps/wasm-timer",
+    "vendored-deps/reqwest-wrap"
 ]
 
 [profile.release]
