@@ -351,6 +351,7 @@ mod test {
 
 #[cfg(feature = "arbitrary")]
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod arbitrary {
     use crate::{MerkleNode, MerkleTree};
     use proptest::array::uniform32;
