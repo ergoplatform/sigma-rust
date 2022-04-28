@@ -32,7 +32,7 @@ final class PoPowHeaderTests: XCTestCase {
             "b2525defb4a3ab2f0ffdad6f37ff5a9e330eae2f00ec0c19f1aef234369bd408",
             "99e19212a3dd1f3951464cbeb42e6bc447b646fe20e362653009be31b8ac756d"
             ],
-            "interlinks_proof": {
+            "interlinksProof": {
             "indices": [
                 {
                 "index": 0,
