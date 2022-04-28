@@ -22,7 +22,7 @@ pub unsafe extern "C" fn ergo_lib_tx_builder_suggested_tx_fee(value_out: *mut Bo
 }
 
 /// Creates new TxBuilder
-/// `box_selection` - selected input boxes (via [`super::box_selector`])
+/// `box_selection` - selected input boxes
 /// `output_candidates` - output boxes to be "created" in this transaction,
 /// `current_height` - chain height that will be used in additionally created boxes (change, miner's fee, etc.),
 /// `fee_amount` - miner's fee,

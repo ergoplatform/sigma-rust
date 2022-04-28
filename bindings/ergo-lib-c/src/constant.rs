@@ -129,7 +129,7 @@ pub unsafe extern "C" fn ergo_lib_constant_to_bytes(
     Error::c_api_from(res)
 }
 
-/// Parse raw [`EcPoint`] value from bytes and make [`ProveDlog`] constant
+/// Parse raw EcPoint value from bytes and make ProveDlog constant
 #[no_mangle]
 pub unsafe extern "C" fn ergo_lib_constant_from_ecpoint_bytes(
     bytes_ptr: *const u8,

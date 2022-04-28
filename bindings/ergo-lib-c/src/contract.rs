@@ -21,7 +21,7 @@ pub unsafe extern "C" fn ergo_lib_contract_new(
     contract_new(ergo_tree_ptr, contract_out).unwrap();
 }
 
-/// Create new contract that allow spending of the guarded box by a given recipient ([`Address`])
+/// Create new contract that allow spending of the guarded box by a given recipient
 #[no_mangle]
 pub unsafe extern "C" fn ergo_lib_contract_pay_to_address(
     address_ptr: ConstAddressPtr,
