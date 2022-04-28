@@ -207,6 +207,7 @@ pub struct PoPowHeader {
     /// of lowest target met etc
     pub interlinks: Vec<BlockId>,
     /// BatchMerkleProof for interlinks in extension field
+    #[serde(rename = "interlinksProof")]
     pub interlinks_proof: BatchMerkleProof,
 }
 
