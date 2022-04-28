@@ -141,6 +141,11 @@ jobs:
           curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh -s -- -f
           curl -sL https://deb.nodesource.com/setup_12.x | sudo -E bash -
           sudo apt-get -y install nodejs
+      
+      - name: run `reqwest-wrap` WASM tests
+        run: |
+          cd vendored-deps/reqwest-wrap
+          wasm-pack test --chrome  --headless
 
       - name: run Wasm tests
         run: |
@@ -157,13 +162,6 @@ jobs:
           wasm-pack build
           npm install
           npm run test
-      
-      - name: run node JS integration tests
-        run: |
-          cd bindings/ergo-lib-wasm
-          # wasm-pack build # --features rest
-          npm install
-          npm run integration-test
       
       - name: run browser JS tests
         run: |
@@ -252,7 +250,7 @@ jobs:
 
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly-2021-11-10
+          toolchain: nightly-2022-03-29
           override: true
 
       - name: install deps

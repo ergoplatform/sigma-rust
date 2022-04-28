@@ -1,36 +1,19 @@
 //! Ergo node REST API endpoints
 
+use bounded_integer::BoundedU16;
+use bounded_vec::NonEmptyVec;
 use ergo_chain_types::BlockId;
 use ergo_nipopow::NipopowProof;
-use reqwest::header::CONTENT_TYPE;
-use reqwest::Client;
-use reqwest::RequestBuilder;
+use std::time::Duration;
+use url::Url;
 
+use crate::error::PeerDiscoveryError;
 use crate::NodeConf;
 use crate::NodeError;
 use crate::NodeInfo;
-use crate::PeerInfo;
 
-fn set_req_headers(rb: RequestBuilder, node: NodeConf) -> RequestBuilder {
-    rb.header("accept", "application/json")
-        .header("api_key", node.get_node_api_header())
-        .header(CONTENT_TYPE, "application/json")
-}
-
-fn build_client(_node_conf: &NodeConf) -> Result<Client, reqwest::Error> {
-    #[cfg(not(target_arch = "wasm32"))]
-    let builder = if let Some(timeout) = _node_conf.timeout {
-        reqwest::Client::builder().timeout(timeout)
-    } else {
-        reqwest::Client::builder()
-    };
-    // there is no `timeout` method yet in Wasm reqwest implementation
-    // see https://github.com/seanmonstar/reqwest/issues/1135
-    #[cfg(target_arch = "wasm32")]
-    let builder = reqwest::Client::builder();
-
-    builder.build()
-}
+use super::build_client;
+use super::set_req_headers;
 
 /// GET on /info endpoint
 pub async fn get_info(node: NodeConf) -> Result<NodeInfo, NodeError> {
@@ -45,19 +28,48 @@ pub async fn get_info(node: NodeConf) -> Result<NodeInfo, NodeError> {
         .await?)
 }
 
-/// GET on /peers/all endpoint
-pub async fn get_peers_all(_node: NodeConf) -> Result<Vec<PeerInfo>, NodeError> {
-    todo!()
+/// Given a list of seed nodes, search for peer nodes with an active REST API on port 9053.
+///  - `seeds` represents a list of ergo node URLs from which to start peer discovery.
+///  - `max_parallel_requests` represents the maximum number of HTTP requests that can be made in
+///    parallel
+///  - `timeout` represents the amount of time that is spent search for peers. Once the timeout
+///    value is reached, return with the vec of active peers that have been discovered up to that
+///    point in time.
+pub async fn peer_discovery(
+    seeds: NonEmptyVec<Url>,
+    max_parallel_requests: BoundedU16<1, { u16::MAX }>,
+    timeout: Duration,
+) -> Result<Vec<Url>, PeerDiscoveryError> {
+    super::peer_discovery_internals::peer_discovery_inner(seeds, max_parallel_requests, timeout)
+        .await
 }
 
 /// GET on /nipopow/proof/{minChainLength}/{suffixLength}/{headerId} endpoint
 pub async fn get_nipopow_proof_by_header_id(
-    _node: NodeConf,
-    _min_chain_length: u32,
-    _suffix_len: u32,
-    _header_id: BlockId,
+    node: NodeConf,
+    min_chain_length: u32,
+    suffix_len: u32,
+    header_id: BlockId,
 ) -> Result<NipopowProof, NodeError> {
-    todo!()
+    if min_chain_length == 0 || suffix_len == 0 {
+        return Err(NodeError::InvalidNumericalUrlSegment);
+    }
+    let header_str = String::from(header_id.0);
+    let mut path = "nipopow/proof/".to_owned();
+    path.push_str(&*min_chain_length.to_string());
+    path.push('/');
+    path.push_str(&*suffix_len.to_string());
+    path.push('/');
+    path.push_str(&*header_str);
+    #[allow(clippy::unwrap_used)]
+    let url = node.addr.as_http_url().join(&*path).unwrap();
+    let client = build_client(&node)?;
+    let rb = client.get(url);
+    Ok(set_req_headers(rb, node)
+        .send()
+        .await?
+        .json::<NipopowProof>()
+        .await?)
 }
 
 // pub async fn get_blocks_header_id_proof_for_tx_id(
@@ -69,9 +81,9 @@ pub async fn get_nipopow_proof_by_header_id(
 // }
 
 #[allow(clippy::unwrap_used)]
-#[allow(unused_imports)]
 #[cfg(test)]
 mod tests {
+    use std::convert::TryFrom;
     use std::str::FromStr;
     use std::time::Duration;
 
@@ -81,7 +93,6 @@ mod tests {
 
     #[test]
     fn test_get_info() {
-        // let runtime_inner = tokio::runtime::Runtime::new().unwrap();
         let runtime_inner = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()
@@ -93,5 +104,84 @@ mod tests {
         };
         let res = runtime_inner.block_on(async { get_info(node_conf).await.unwrap() });
         assert_ne!(res.name, "");
+    }
+
+    #[test]
+    fn test_get_nipopow_proof_by_header_id() {
+        use ergo_chain_types::{BlockId, Digest32};
+        let header_id = BlockId(
+            Digest32::try_from(String::from(
+                "9bcb535c2d05fbced6de3d73c63337d6deb64af387438fa748d66ddf3d33ee89",
+            ))
+            .unwrap(),
+        );
+        let runtime_inner = tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        let node_conf = NodeConf {
+            addr: PeerAddr::from_str("213.239.193.208:9053").unwrap(),
+            api_key: None,
+            timeout: Some(Duration::from_secs(5)),
+        };
+        let m = 3;
+        let k = 4;
+        let res = runtime_inner.block_on(async {
+            get_nipopow_proof_by_header_id(node_conf, m, k, header_id)
+                .await
+                .unwrap()
+        });
+        assert!(!res.prefix.is_empty());
+        assert_eq!(res.m, m);
+        assert_eq!(res.k, k);
+    }
+
+    #[test]
+    fn test_peer_discovery() {
+        let seeds: Vec<_> = [
+            "http://213.239.193.208:9030",
+            "http://159.65.11.55:9030",
+            "http://165.227.26.175:9030",
+            "http://159.89.116.15:9030",
+            "http://136.244.110.145:9030",
+            "http://94.130.108.35:9030",
+            "http://51.75.147.1:9020",
+            "http://221.165.214.185:9030",
+            "http://51.81.185.231:9031",
+            "http://217.182.197.196:9030",
+            "http://62.171.190.193:9030",
+            "http://173.212.220.9:9030",
+            "http://176.9.65.58:9130",
+            "http://213.152.106.56:9030",
+        ]
+        .iter()
+        .map(|s| Url::from_str(s).unwrap())
+        .collect();
+        let runtime_inner = tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        let (res_with_quick_timeout, res_with_longer_timeout) = runtime_inner.block_on(async {
+            let res_quick = peer_discovery(
+                NonEmptyVec::from_vec(seeds.clone()).unwrap(),
+                BoundedU16::new(5).unwrap(),
+                Duration::from_millis(2010),
+            )
+            .await
+            .unwrap();
+
+            let _ = tokio::time::sleep(Duration::from_secs(5)).await;
+
+            let res_long = peer_discovery(
+                NonEmptyVec::from_vec(seeds).unwrap(),
+                BoundedU16::new(5).unwrap(),
+                Duration::from_millis(10000),
+            )
+            .await
+            .unwrap();
+            (res_quick, res_long)
+        });
+        assert!(!res_with_longer_timeout.is_empty());
+        assert!(res_with_quick_timeout.len() <= res_with_longer_timeout.len());
     }
 }

@@ -28,7 +28,7 @@ mod peer_info;
 
 pub mod api;
 
-pub use error::NodeError;
+pub use error::*;
 pub use known_nodes::KnownNodes;
 pub use node_conf::NodeConf;
 pub use node_info::NodeInfo;
