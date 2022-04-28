@@ -10,7 +10,7 @@ pub struct MerkleProof(ergo_merkle_tree::MerkleProof);
 
 /// A level node in a merkle proof
 #[wasm_bindgen]
-#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LevelNode(ergo_merkle_tree::LevelNode);
 
 #[wasm_bindgen]
@@ -24,15 +24,18 @@ impl LevelNode {
             side.try_into()?,
         )))
     }
-    /// Returns the associated digest (hash) with this node
+    /// Returns the associated digest (hash) with this node. Returns an empty array if there's no hash
     #[wasm_bindgen(getter)]
     pub fn digest(&self) -> Vec<u8> {
-        (&self.0 .0[0..]).to_owned()
+        match &self.0.hash {
+            Some(hash) => hash.0.to_vec(),
+            None => vec![],
+        }
     }
     /// Returns the associated side with this node (0 = Left, 1 = Right)
     #[wasm_bindgen(getter)]
     pub fn side(&self) -> u8 {
-        self.0 .1 as u8
+        self.0.side as u8
     }
 }
 
@@ -42,15 +45,13 @@ impl MerkleProof {
     /// You can verify it against a Blakeb256 root hash by using [`Self::valid()`]
     /// Add a node by using [`Self::add_node()`]
     /// Each digest on the level must be exactly 32 bytes
-    pub fn new(leaf_data: &[u8]) -> Result<MerkleProof, wasm_bindgen::JsValue> {
-        Ok(Self(
-            ergo_merkle_tree::MerkleProof::new(leaf_data, &[]).map_err(|err| err.to_string())?,
-        )) // There are issues with wasm when trying to pass an array of structs, so it's better to use add_node instead
+    pub fn new(leaf_data: &[u8]) -> MerkleProof {
+        Self(ergo_merkle_tree::MerkleProof::new(leaf_data, &[])) // There are issues with wasm when trying to pass an array of structs, so it's better to use add_node instead
     }
 
     /// Adds a new node to the MerkleProof above the current nodes
     pub fn add_node(&mut self, level: &LevelNode) {
-        self.0.add_node(level.0);
+        self.0.add_node(level.0.clone());
     }
 
     /// Validates the Merkle proof against the root hash

@@ -22,7 +22,7 @@ pub unsafe fn merkleproof_new(
     *proof_out = Box::into_raw(Box::new(MerkleProof(ergo_merkle_tree::MerkleProof::new(
         leaf_data,
         &[],
-    )?)));
+    ))));
     Ok(())
 }
 

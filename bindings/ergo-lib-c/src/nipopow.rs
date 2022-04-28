@@ -2,14 +2,16 @@
 use paste::paste;
 
 use ergo_lib_c_core::{
+    batchmerkleproof::BatchMerkleProofPtr,
     block_header::{BlockHeader, BlockHeaderPtr, ConstBlockIdPtr},
     collections::CollectionPtr,
     nipopow::{
         nipopow_proof_from_json, nipopow_proof_is_better_than, nipopow_proof_to_json,
         nipopow_verifier_best_chain, nipopow_verifier_new, nipopow_verifier_process,
-        popow_header_from_json, popow_header_get_header, popow_header_get_interlinks,
-        popow_header_to_json, ConstNipopowProofPtr, ConstNipopowVerifierPtr, ConstPoPowHeaderPtr,
-        NipopowProofPtr, NipopowVerifierPtr, PoPowHeaderPtr,
+        popow_header_check_interlinks_proof, popow_header_from_json, popow_header_get_header,
+        popow_header_get_interlinks, popow_header_get_interlinks_proof, popow_header_to_json,
+        ConstNipopowProofPtr, ConstNipopowVerifierPtr, ConstPoPowHeaderPtr, NipopowProofPtr,
+        NipopowVerifierPtr, PoPowHeaderPtr,
     },
     Error,
 };
@@ -151,6 +153,21 @@ pub unsafe extern "C" fn ergo_lib_popow_header_get_header(
     header_out: *mut BlockHeaderPtr,
 ) -> ErrorPtr {
     Error::c_api_from(popow_header_get_header(popow_header, header_out))
+}
+#[no_mangle]
+pub unsafe extern "C" fn ergo_lib_popow_header_get_interlinks_proof(
+    popow_header: ConstPoPowHeaderPtr,
+    header_out: *mut BatchMerkleProofPtr,
+) -> ErrorPtr {
+    Error::c_api_from(popow_header_get_interlinks_proof(popow_header, header_out))
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ergo_lib_popow_header_check_interlinks_proof(
+    popow_header_ptr: ConstPoPowHeaderPtr,
+) -> bool {
+    #[allow(clippy::unwrap_used)]
+    popow_header_check_interlinks_proof(popow_header_ptr).unwrap()
 }
 
 #[no_mangle]

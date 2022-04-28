@@ -489,12 +489,11 @@ fn step4_real_conj(
                 })
                 .mapped(|c| c.into());
             Ok(Some(
-                uc.with_children(new_children).into()
-                // CorUnproven {
-                //     children: new_children,
-                //     ..cor.clone()
-                // }
-                // .into(),
+                uc.with_children(new_children).into(), // CorUnproven {
+                                                       //     children: new_children,
+                                                       //     ..cor.clone()
+                                                       // }
+                                                       // .into(),
             ))
         }
     }

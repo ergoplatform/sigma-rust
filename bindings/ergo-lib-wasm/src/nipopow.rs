@@ -70,6 +70,14 @@ impl PoPowHeader {
             .map(Into::into)
             .map_err(Into::into)
     }
+    /// Returns interlinks proof [`crate::batchmerkleproof::BatchMerkleProof`]
+    pub fn interlinks_proof(&self) -> crate::batchmerkleproof::BatchMerkleProof {
+        crate::batchmerkleproof::BatchMerkleProof(self.0.interlinks_proof.clone())
+    }
+    /// Validates interlinks merkle root with compact merkle multiproof. See [`PoPowHeader::interlinks_proof`] for BatchMerkleProof access
+    pub fn check_interlinks_proof(&self) -> bool {
+        self.0.check_interlinks_proof()
+    }
 
     /// Returns block height for Header
     pub fn height(&self) -> u32 {

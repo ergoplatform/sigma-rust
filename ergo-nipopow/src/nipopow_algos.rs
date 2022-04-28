@@ -1,13 +1,17 @@
 use ergotree_ir::{chain::header::Header, sigma_protocol::dlog_group::order};
 use num_bigint::BigInt;
 use num_traits::ToPrimitive;
+use std::convert::TryInto;
 
 use crate::{
     autolykos_pow_scheme::{AutolykosPowScheme, AutolykosPowSchemeError},
     nipopow_proof::PoPowHeader,
     NipopowProof, NipopowProofError,
 };
+use ergo_chain_types::{BlockId, Digest32, ExtensionCandidate};
 
+/// Prefix for Block Interlinks
+pub const INTERLINK_VECTOR_PREFIX: u8 = 0x01;
 /// A set of utilities for working with NiPoPoW protocol.
 ///
 /// Based on papers:
@@ -191,6 +195,158 @@ impl NipopowAlgos {
         prefix.sort_by(|a, b| a.header.height.cmp(&b.header.height));
         NipopowProof::new(m, k, prefix, suffix_head, suffix_tail)
     }
+    /// Packs interlinks into key-value format of the block extension.
+    pub fn pack_interlinks(interlinks: Vec<BlockId>) -> Vec<([u8; 2], Vec<u8>)> {
+        let mut res = vec![];
+        let mut ix_distinct_block_ids = 0;
+        let mut curr_block_id_count = 1;
+        let mut curr_block_id = interlinks[0].clone();
+        for id in interlinks.into_iter().skip(1) {
+            if id == curr_block_id {
+                curr_block_id_count += 1;
+            } else {
+                let block_id_bytes: Vec<u8> = curr_block_id.clone().0.into();
+                let packed_value = std::iter::once(curr_block_id_count)
+                    .chain(block_id_bytes)
+                    .collect();
+                res.push((
+                    [INTERLINK_VECTOR_PREFIX, ix_distinct_block_ids],
+                    packed_value,
+                ));
+                curr_block_id = id;
+                curr_block_id_count = 1;
+                ix_distinct_block_ids += 1;
+            }
+        }
+        let block_id_bytes: Vec<u8> = curr_block_id.0.into();
+        let packed_value = std::iter::once(curr_block_id_count)
+            .chain(block_id_bytes)
+            .collect();
+        res.push((
+            [INTERLINK_VECTOR_PREFIX, ix_distinct_block_ids],
+            packed_value,
+        ));
+        res
+    }
+    /// Unpacks interlinks from key-value format of block extension.
+    pub fn unpack_interlinks(extension: &ExtensionCandidate) -> Result<Vec<BlockId>, &'static str> {
+        let mut res = vec![];
+        let entries = extension
+            .fields()
+            .iter()
+            .filter(|&(key, _)| key[0] == INTERLINK_VECTOR_PREFIX);
+        for (_, bytes) in entries {
+            // Each interlink is packed as [qty | blockId], which qty is a single-byte value
+            // representing the number of duplicates of `blockId`. Every `BlockId` is 32 bytes which
+            // implies that `bytes` is 33 bytes.
+            if bytes.len() != 33 {
+                return Err("Interlinks must be 33 bytes in size");
+            }
+            let qty = bytes[0];
+            let block_id_bytes: [u8; 32] = bytes[1..]
+                .try_into()
+                .map_err(|_| "Expected 32 byte BlockId")?;
+            let block_id = BlockId(Digest32::from(block_id_bytes));
+            res.extend(std::iter::repeat(block_id).take(qty as usize));
+        }
+        Ok(res)
+    }
+
+    /// Computes interlinks vector for a header next to `prevHeader`.
+    pub fn update_interlinks(
+        prev_header: Header,
+        prev_interlinks: Vec<BlockId>,
+    ) -> Result<Vec<BlockId>, AutolykosPowSchemeError> {
+        let is_genesis = prev_header.height == 1;
+        if !is_genesis {
+            // Interlinks vector cannot be empty in case of non-genesis header
+            assert!(!prev_interlinks.is_empty());
+            let genesis = prev_interlinks[0].clone();
+            let nipopow_algos = NipopowAlgos::default();
+            let prev_level = nipopow_algos.max_level_of(&prev_header)? as usize;
+            if prev_level > 0 {
+                // Adapted:
+                //   `(genesis +: tail.dropRight(prevLevel)) ++Seq.fill(prevLevel)(prevHeader.id)`
+                // from scala
+                if prev_interlinks.len() > prev_level {
+                    Ok(std::iter::once(genesis)
+                        .chain(
+                            prev_interlinks[1..(prev_interlinks.len() - prev_level)]
+                                .iter()
+                                .cloned(),
+                        )
+                        .chain(std::iter::repeat(prev_header.id).take(prev_level))
+                        .collect())
+                } else {
+                    Ok(std::iter::once(genesis)
+                        .chain(std::iter::repeat(prev_header.id).take(prev_level))
+                        .collect())
+                }
+            } else {
+                Ok(prev_interlinks)
+            }
+        } else {
+            Ok(vec![prev_header.id])
+        }
+    }
+    /// Returns [`ergo_merkle_tree::BatchMerkleProof`] for block interlinks
+    pub fn proof_for_interlink_vector(
+        ext: &ExtensionCandidate,
+    ) -> Option<ergo_merkle_tree::BatchMerkleProof> {
+        let interlinks: Vec<[u8; 2]> = ext
+            .fields()
+            .iter()
+            .map(|(key, _)| *key)
+            .filter(|key| key[0] == INTERLINK_VECTOR_PREFIX)
+            .collect();
+        if interlinks.is_empty() {
+            Some(ergo_merkle_tree::BatchMerkleProof::new(vec![], vec![]))
+        } else {
+            NipopowAlgos::extension_batch_proof_for(ext, &interlinks)
+        }
+    }
+    /// returns a MerkleProof for a single key element of [`ExtensionCandidate`]
+    pub fn extension_proof_for(
+        ext: &ExtensionCandidate,
+        key: [u8; 2],
+    ) -> Option<ergo_merkle_tree::MerkleProof> {
+        let tree = extension_merkletree(ext.fields());
+        let kv = ext.fields().iter().find(|(k, _)| *k == key)?;
+        tree.proof_by_element(&kv_to_leaf(kv))
+    }
+    /// Returns a [`ergo_merkle_tree::BatchMerkleProof`] (compact multi-proof) for multiple key elements of [`ExtensionCandidate`]
+    pub fn extension_batch_proof_for(
+        ext: &ExtensionCandidate,
+        keys: &[[u8; 2]],
+    ) -> Option<ergo_merkle_tree::BatchMerkleProof> {
+        let tree = extension_merkletree(ext.fields());
+        let indices: Vec<usize> = keys
+            .iter()
+            .flat_map(|k| ext.fields().iter().find(|(key, _)| key == k))
+            .map(kv_to_leaf)
+            .map(ergo_merkle_tree::MerkleNode::from_bytes)
+            .flat_map(|node| node.get_hash().cloned())
+            .flat_map(|hash| tree.get_elements_hash_index().get(&hash).copied())
+            .collect();
+        tree.proof_by_indices(&indices)
+    }
+}
+
+// converts a key value pair to an array of [key.length, key, val]
+fn kv_to_leaf(kv: &([u8; 2], Vec<u8>)) -> Vec<u8> {
+    std::iter::once(2u8)
+        .chain(kv.0.iter().copied())
+        .chain(kv.1.iter().copied())
+        .collect()
+}
+// creates a MerkleTree from a key/value pair of extension section
+fn extension_merkletree(kv: &[([u8; 2], Vec<u8>)]) -> ergo_merkle_tree::MerkleTree {
+    let leafs = kv
+        .iter()
+        .map(kv_to_leaf)
+        .map(ergo_merkle_tree::MerkleNode::from_bytes)
+        .collect::<Vec<ergo_merkle_tree::MerkleNode>>();
+    ergo_merkle_tree::MerkleTree::new(leafs)
 }
 
 /// The "compact" format is an encoding of a whole number `N` using an unsigned 32 bit number.

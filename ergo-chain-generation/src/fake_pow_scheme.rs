@@ -23,25 +23,18 @@ mod tests {
     use num_bigint::BigInt;
     use rand::{thread_rng, Rng};
 
-    use crate::{
-        default_miner_secret, pack_interlinks, unpack_interlinks, update_interlinks, ErgoFullBlock,
-        ExtensionCandidate, MerkleTreeNode,
-    };
+    use crate::{default_miner_secret, ErgoFullBlock, ExtensionCandidate};
+    use ergo_merkle_tree::{MerkleNode, MerkleTree};
 
     fn generate_popowheader_chain(len: usize, start: Option<PoPowHeader>) -> Vec<PoPowHeader> {
         block_stream(start.map(|p| ErgoFullBlock {
             header: p.header,
-            extension: ExtensionCandidate {
-                fields: pack_interlinks(p.interlinks),
-            },
+            extension:
+                ExtensionCandidate::new(NipopowAlgos::pack_interlinks(p.interlinks)).unwrap(),
         }))
         .take(len)
-        .flat_map(|b| {
-            Some(PoPowHeader {
-                header: b.header,
-                interlinks: unpack_interlinks(&b.extension).ok()?,
-            })
-        })
+        .map(ErgoFullBlock::try_into)
+        .flat_map(Result::ok)
         .collect()
     }
 
@@ -50,12 +43,12 @@ mod tests {
         let start = if start_block.is_some() {
             start_block
         } else {
-            next_block(None, ExtensionCandidate { fields: vec![] }, block_version)
+            next_block(None, ExtensionCandidate::default(), block_version)
         };
         std::iter::successors(start, move |b| {
             next_block(
                 Some(b.clone()),
-                ExtensionCandidate { fields: vec![] },
+                ExtensionCandidate::default(),
                 block_version,
             )
         })
@@ -69,15 +62,18 @@ mod tests {
         let interlinks = prev_block
             .as_ref()
             .and_then(|b| {
-                Some(update_interlinks(
+                NipopowAlgos::update_interlinks(
                     b.header.clone(),
-                    unpack_interlinks(&b.extension).ok()?,
-                ))
+                    NipopowAlgos::unpack_interlinks(&b.extension).ok()?,
+                )
+                .ok()
             })
             .unwrap_or_default();
         if !interlinks.is_empty() {
             // Only non-empty for non-genesis block
-            extension.fields.extend(pack_interlinks(interlinks));
+            extension
+                .fields_mut()
+                .extend(NipopowAlgos::pack_interlinks(interlinks));
         }
         prove_block(prev_block.map(|b| b.header), block_version, 0, extension)
     }
@@ -116,21 +112,20 @@ mod tests {
             (BlockId(Digest32::zero()), 1)
         };
 
-        let extension_root = MerkleTreeNode::new(
+        let extension_root = MerkleTree::new(
             extension_candidate
-                .clone()
-                .fields
-                .into_iter()
+                .fields()
+                .iter()
                 .map(|(key, value)| {
                     let mut data = vec![2_u8];
                     data.extend(key);
                     data.extend(value);
                     data
                 })
-                .collect(),
+                .map(MerkleNode::from_bytes)
+                .collect::<Vec<MerkleNode>>(),
         )
-        .hash()
-        .into();
+        .root_hash_special();
 
         let dummy_autolykos_solution = AutolykosSolution {
             miner_pk: Box::new(EcPoint::default()),

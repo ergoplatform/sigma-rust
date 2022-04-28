@@ -68,6 +68,7 @@ rest = ["ergo-rest"]
 wasm-bindgen-test = "0.3.10"
 ergotree-ir = { version = "^0.15.0", path = "../ergotree-ir", features = ["arbitrary"] }
 ergotree-interpreter = { version = "^0.15.0", path = "../ergotree-interpreter", features = ["arbitrary"] }
+ergo-merkle-tree = { version = "^0.2.0", path = "../ergo-merkle-tree", features = ["arbitrary"] }
 sigma-test-util = { version = "^0.3.0", path = "../sigma-test-util" }
 pretty_assertions = "0.7.2"
 bs58 = "0.4.0"

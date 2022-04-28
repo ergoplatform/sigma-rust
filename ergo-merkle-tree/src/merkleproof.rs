@@ -1,11 +1,14 @@
-use crate::{concatenate_hashes, prefixed_hash};
+use crate::INTERNAL_PREFIX;
+use crate::{prefixed_hash, prefixed_hash2};
+use ergo_chain_types::Digest32;
 
 /// The side the merkle node is on in the tree
 #[cfg_attr(
     feature = "json",
     derive(serde_repr::Serialize_repr, serde_repr::Deserialize_repr)
 )]
-#[derive(Copy, Clone, Debug)]
+#[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum NodeSide {
     /// Node is on the left side of the current level
@@ -33,13 +36,26 @@ impl std::convert::TryFrom<u8> for NodeSide {
     serde(into = "crate::json::LevelNodeJson"),
     serde(try_from = "crate::json::LevelNodeJson")
 )]
-#[derive(Copy, Clone, Debug)]
-pub struct LevelNode(pub [u8; 32], pub NodeSide);
+#[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct LevelNode {
+    /// Hash for LevelNode. Use [`LevelNode::empty_node`] to create a node with no hash
+    pub hash: Option<Digest32>,
+    /// Node Side in Merkle Tree
+    pub side: NodeSide,
+}
 
 impl LevelNode {
     /// Constructs a new levelnode from a 32 byte hash
-    pub fn new(hash: [u8; 32], side: NodeSide) -> Self {
-        Self(hash, side)
+    pub fn new(hash: Digest32, side: NodeSide) -> Self {
+        Self {
+            hash: Some(hash),
+            side,
+        }
+    }
+    /// Creates a new level node with no associated hash
+    pub fn empty_node(side: NodeSide) -> Self {
+        Self { hash: None, side }
     }
 }
 
@@ -52,21 +68,18 @@ impl LevelNode {
 )]
 #[derive(Clone, Debug)]
 pub struct MerkleProof {
-    pub(crate) leaf_data: [u8; 32],
+    pub(crate) leaf_data: Vec<u8>,
     pub(crate) levels: Vec<LevelNode>,
 }
 
 impl MerkleProof {
     /// Creates a new merkle proof with given leaf data and level data (bottom-upwards)
     /// You can verify it against a Blakeb256 root hash by using [`Self::valid()`]
-    pub fn new(
-        leaf_data: &[u8],
-        levels: &[LevelNode],
-    ) -> Result<Self, std::array::TryFromSliceError> {
-        Ok(MerkleProof {
-            leaf_data: leaf_data.try_into()?,
+    pub fn new(leaf_data: &[u8], levels: &[LevelNode]) -> Self {
+        MerkleProof {
+            leaf_data: leaf_data.to_owned(),
             levels: levels.to_owned(),
-        })
+        }
     }
 
     /// Validates the Merkle Proof against the expected root hash
@@ -75,13 +88,21 @@ impl MerkleProof {
         let hash = self
             .levels
             .iter()
-            .fold(leaf_hash, |prev_hash, node| match node.1 {
-                NodeSide::Left => prefixed_hash(1, &concatenate_hashes(&prev_hash, &node.0)), // Prefix hash with 1 (internal node hash)
-                NodeSide::Right => prefixed_hash(1, &concatenate_hashes(&node.0, &prev_hash)),
+            .fold(leaf_hash, |prev_hash, node| match node {
+                LevelNode {
+                    hash: Some(hash),
+                    side: NodeSide::Left,
+                } => prefixed_hash2(INTERNAL_PREFIX, prev_hash.as_ref(), hash.as_ref()), // Prefix hash with 1 (internal node hash)
+                LevelNode {
+                    hash: Some(hash),
+                    side: NodeSide::Right,
+                } => prefixed_hash2(INTERNAL_PREFIX, hash.as_ref(), prev_hash.as_ref()),
+                LevelNode { hash: None, .. } => prefixed_hash(INTERNAL_PREFIX, prev_hash.as_ref()),
             });
 
-        *hash == expected_root
+        hash.as_ref() == expected_root
     }
+    #[cfg(feature = "json")]
     /// Validates the MerkleProof against a base16 hash
     pub fn valid_base16(&self, expected_root: &str) -> Result<bool, base16::DecodeError> {
         // The rationale for adding this function is mainly to make using MerkleProof in Swift easier, without resorting to add a new dependency to base16
@@ -93,6 +114,11 @@ impl MerkleProof {
     pub fn add_node(&mut self, node: LevelNode) {
         self.levels.push(node);
     }
+
+    /// Returns Leaf Data for proof node
+    pub fn get_leaf_data(&self) -> &[u8] {
+        &self.leaf_data
+    }
 }
 
 #[cfg(test)]
@@ -102,6 +128,8 @@ mod test {
     use crate::LevelNode;
     use crate::MerkleProof;
     use crate::NodeSide;
+    use ergo_chain_types::Digest32;
+    use std::convert::TryFrom;
 
     // Ported client Merkle tree verification example from  https://github.com/ergoplatform/ergo/blob/master/src/test/scala/org/ergoplatform/examples/LiteClientExamples.scala
     #[test]
@@ -121,9 +149,11 @@ mod test {
         let tx_id = base16::decode(&tx_id).unwrap();
         let proof = MerkleProof::new(
             &tx_id,
-            &[LevelNode::new(levels[0..32].try_into().unwrap(), side)],
-        )
-        .unwrap();
+            &[LevelNode::new(
+                Digest32::try_from(&levels[0..32]).unwrap(),
+                side,
+            )],
+        );
         assert!(proof.valid(tx_root));
     }
 
@@ -142,6 +172,19 @@ mod test {
             base16::decode("250063ac1cec3bf56f727f644f49b70515616afa6009857a29b1fe298441e69a")
                 .unwrap();
 
+        assert!(proof.valid(&tx_root));
+    }
+
+    // Tests block #0 on ergo mainnet, which contains only one transaction
+    #[test]
+    fn merkle_proof_genesis_block() {
+        let json = "{
+        \"leafData\" : \"4c6282be413c6e300a530618b37790be5f286ded758accc2aebd41554a1be308\",
+        \"levels\" : [[\"\", 0]]}";
+        let proof: MerkleProof = serde_json::from_str(json).unwrap();
+        let tx_root =
+            base16::decode("93fb06aa44413ff57ac878fda9377207d5db0e78833556b331b4d9727b3153ba")
+                .unwrap();
         assert!(proof.valid(&tx_root));
     }
 }

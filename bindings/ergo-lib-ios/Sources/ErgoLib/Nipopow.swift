@@ -118,6 +118,17 @@ class PoPowHeader {
         return BlockIds(withRawPointer: ptr!)
     }
 
+    func getInterlinksProof() throws -> BatchMerkleProof {
+        var ptr: BatchMerkleProofPtr?
+        let error = ergo_lib_popow_header_get_interlinks_proof(self.pointer, &ptr)
+        try checkError(error)
+        return BatchMerkleProof(withRawPointer: ptr!)
+    }
+
+    func checkInterlinksProof() -> Bool {
+        return ergo_lib_popow_header_check_interlinks_proof(self.pointer)
+    }
+
     deinit {
         ergo_lib_popow_header_delete(self.pointer)
     }

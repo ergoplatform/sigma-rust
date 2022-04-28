@@ -20,6 +20,7 @@
 mod base16_bytes;
 mod block_id;
 mod digest32;
+mod extensioncandidate;
 mod peer_addr;
 mod peer_connection_dir;
 
@@ -31,5 +32,6 @@ pub use digest32::ADDigest;
 pub use digest32::Digest;
 pub use digest32::Digest32;
 pub use digest32::DigestNError;
+pub use extensioncandidate::ExtensionCandidate;
 pub use peer_addr::PeerAddr;
 pub use peer_connection_dir::ConnectionDirection;

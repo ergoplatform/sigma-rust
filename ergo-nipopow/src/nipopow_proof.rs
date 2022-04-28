@@ -1,5 +1,6 @@
 use derive_more::From;
 use ergo_chain_types::BlockId;
+use ergo_merkle_tree::BatchMerkleProof;
 use ergotree_ir::chain::header::Header;
 use serde::{Deserialize, Serialize};
 use sigma_ser::{
@@ -83,7 +84,7 @@ impl NipopowProof {
     }
 
     fn is_valid(&self) -> bool {
-        self.has_valid_connections() && self.has_valid_heights()
+        self.has_valid_connections() && self.has_valid_heights() && self.has_valid_proofs()
     }
 
     /// Checks the connections of the blocks in the proof. Adjacent blocks should be linked either
@@ -116,6 +117,12 @@ impl NipopowProof {
         self.headers_chain()
             .zip(self.headers_chain().skip(1))
             .all(|(prev, next)| prev.height < next.height)
+    }
+    /// Checks interlink proofs for each block using `PoPowHeader::check_interlinks_proof`
+    fn has_valid_proofs(&self) -> bool {
+        std::iter::once(&self.suffix_head)
+            .chain(self.prefix.iter())
+            .all(PoPowHeader::check_interlinks_proof)
     }
 
     /// Returns an iterator representing a chain of `Headers` from `self.prefix`, to
@@ -199,6 +206,34 @@ pub struct PoPowHeader {
     /// Interlinks are stored in reverse order: first element is always genesis header, then level
     /// of lowest target met etc
     pub interlinks: Vec<BlockId>,
+    /// BatchMerkleProof for interlinks in extension field
+    pub interlinks_proof: BatchMerkleProof,
+}
+
+impl PoPowHeader {
+    /// Validates interlinks merkle root against provided proof
+    pub fn check_interlinks_proof(&self) -> bool {
+        if self.interlinks.is_empty()
+            && self.interlinks_proof.get_indices().is_empty()
+            && self.interlinks_proof.get_proofs().is_empty()
+        {
+            true
+        } else {
+            let fields: Vec<ergo_merkle_tree::MerkleNode> =
+                NipopowAlgos::pack_interlinks(self.interlinks.clone())
+                    .into_iter()
+                    .map(|(k, v)| -> Vec<u8> {
+                        std::iter::once(2u8)
+                            .chain(k.iter().copied())
+                            .chain(v.into_iter())
+                            .collect()
+                    })
+                    .map(ergo_merkle_tree::MerkleNode::from_bytes)
+                    .collect();
+            let tree = ergo_merkle_tree::MerkleTree::new(fields);
+            self.interlinks_proof.valid(tree.root_hash().as_ref())
+        }
+    }
 }
 
 impl ScorexSerializable for PoPowHeader {
@@ -210,6 +245,9 @@ impl ScorexSerializable for PoPowHeader {
         for interlink in self.interlinks.iter() {
             w.write_all(&*interlink.0 .0)?;
         }
+        let proof_bytes = self.interlinks_proof.scorex_serialize_bytes()?;
+        w.put_u32(proof_bytes.len() as u32)?;
+        w.write_all(&proof_bytes)?;
 
         Ok(())
     }
@@ -229,9 +267,16 @@ impl ScorexSerializable for PoPowHeader {
                 Ok(BlockId(buf.into()))
             })
             .collect();
+
+        let proof_bytes = r.get_u32()? as usize;
+        let mut proof_buf = vec![0u8; proof_bytes];
+        r.read_exact(&mut proof_buf)?;
+        let interlinks_proof = BatchMerkleProof::scorex_parse_bytes(&proof_buf);
+
         Ok(Self {
             header,
             interlinks: interlinks?,
+            interlinks_proof: interlinks_proof?,
         })
     }
 }
@@ -243,6 +288,7 @@ mod arbitrary {
 
     use super::*;
     use ergo_chain_types::Digest32;
+    use ergo_chain_types::ExtensionCandidate;
     use proptest::prelude::*;
     use proptest::{arbitrary::Arbitrary, collection::vec};
 
@@ -254,7 +300,14 @@ mod arbitrary {
             (any::<Box<Header>>(), vec(any::<Digest32>(), 1..10))
                 .prop_map(|(header, digests)| PoPowHeader {
                     header: *header,
-                    interlinks: digests.into_iter().map(BlockId).collect(),
+                    interlinks: digests.iter().cloned().map(BlockId).collect(),
+                    interlinks_proof: NipopowAlgos::proof_for_interlink_vector(
+                        &ExtensionCandidate::new(NipopowAlgos::pack_interlinks(
+                            digests.into_iter().map(BlockId).collect(),
+                        ))
+                        .unwrap(),
+                    )
+                    .unwrap(),
                 })
                 .boxed()
         }

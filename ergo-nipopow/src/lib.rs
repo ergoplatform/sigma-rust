@@ -23,6 +23,6 @@ mod nipopow_algos;
 mod nipopow_proof;
 mod nipopow_verifier;
 
-pub use nipopow_algos::{decode_compact_bits, NipopowAlgos};
+pub use nipopow_algos::{decode_compact_bits, NipopowAlgos, INTERLINK_VECTOR_PREFIX};
 pub use nipopow_proof::{NipopowProof, NipopowProofError, PoPowHeader};
 pub use nipopow_verifier::NipopowVerifier;

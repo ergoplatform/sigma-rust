@@ -113,6 +113,14 @@ impl<const N: usize> TryFrom<Vec<u8>> for Digest<N> {
     }
 }
 
+impl<const N: usize> TryFrom<&[u8]> for Digest<N> {
+    type Error = DigestNError;
+    fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
+        let bytes: [u8; N] = value.try_into()?;
+        Ok(Digest::from(bytes))
+    }
+}
+
 impl<const N: usize> ScorexSerializable for Digest<N> {
     fn scorex_serialize<W: WriteSigmaVlqExt>(&self, w: &mut W) -> ScorexSerializeResult {
         w.write_all(self.0.as_ref())?;

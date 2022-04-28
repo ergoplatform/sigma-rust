@@ -74,6 +74,12 @@ pub trait WriteSigmaVlqExt: io::Write {
         Self::put_u64(self, v as u64)
     }
 
+    /// Write bytes of v directly (big-endian format)
+    fn put_u32_be_bytes(&mut self, v: u32) -> io::Result<()> {
+        self.write_all(&v.to_be_bytes())?;
+        Ok(())
+    }
+
     /// Encode using ZigZag and then VLQ.
     fn put_i64(&mut self, v: i64) -> io::Result<()> {
         Self::put_u64(self, zig_zag_encode::encode_i64(v))
