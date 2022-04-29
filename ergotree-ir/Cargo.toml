@@ -17,7 +17,7 @@ crate-type = ["cdylib", "rlib"]
 sigma-ser = { version = "^0.5.0", path = "../sigma-ser" }
 sigma-util = { version = "^0.5.0", path = "../sigma-util" }
 k256 = { version = "0.10.2", features = ["arithmetic", "ecdsa"] }
-ergo-chain-types = { version = "^0.2.0", path = "../ergo-chain-types" }
+ergo-chain-types = { version = "^0.3.0", path = "../ergo-chain-types" }
 elliptic-curve = {version = "0.11.6", features = [ "ff"]}
 thiserror = "1"
 # used in elliptic-curve(in ergo-lib), compiled here with WASM support
