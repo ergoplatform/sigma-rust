@@ -154,6 +154,16 @@ impl ErgoBox {
         self.0.box_id().into()
     }
 
+    /// Get id of transaction which created the box
+    pub fn tx_id(&self) -> TxId {
+        self.0.transaction_id.clone().into()
+    }
+
+    /// Index of this box in transaction outputs
+    pub fn index(&self) -> u16 {
+        self.0.index
+    }
+
     /// Get box creation height
     pub fn creation_height(&self) -> u32 {
         self.0.creation_height
