@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
+## [0.16.0] - 2022-04-29
 
 ### Changed
 - REST API implementation is hidden behind the `rest` feature flag [#554](https://github.com/ergoplatform/sigma-rust/pull/554);
@@ -321,7 +322,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - ErgoTree constant values conversion.
 
 <!-- next-url -->
-[Unreleased]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.15.0...HEAD
+[Unreleased]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.16.0...HEAD
+[0.16.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.15.0...ergo-lib-v0.16.0
 [0.15.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.14.0...ergo-lib-v0.15.0
 [0.14.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.13.3...ergo-lib-v0.14.0
 [0.13.3]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.13.2...ergo-lib-v0.13.3

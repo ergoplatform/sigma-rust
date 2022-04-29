@@ -13,7 +13,7 @@ crate-type = ["lib"]
 [dependencies]
 base16 = "0.2.1"
 derive_more = "0.99"
-ergo-lib = { version = "^0.15.0", path = "../../ergo-lib"}
+ergo-lib = { version = "^0.16.0", path = "../../ergo-lib"}
 serde = { version = "1.0", features = ["derive"]}
 serde_json = "1.0"
 thiserror = "1"
