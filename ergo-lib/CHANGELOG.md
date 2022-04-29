@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - `TokenId::from_base64` [#555](https://github.com/ergoplatform/sigma-rust/pull/555);
 - `Constant` to/from `TokenId`(`Digest32`) conversion [#557](https://github.com/ergoplatform/sigma-rust/pull/557);
 - `TxBuilder::set_context_extension` to set a `ContextExtension` for a given input [#560](https://github.com/ergoplatform/sigma-rust/pull/560);
+- Serialization for NipopowProof [#562](https://github.com/ergoplatform/sigma-rust/pull/562);
+- WASM/swift bindings for message signing/verifying [#564](https://github.com/ergoplatform/sigma-rust/pull/564);
+- Add SUnit variant of SType [#566](https://github.com/ergoplatform/sigma-rust/pull/566);
+- Node discovery via node's REST API [#558](https://github.com/ergoplatform/sigma-rust/pull/558);
+- Add BatchMerkleProof + PoPow Interlink vector verification [#538](https://github.com/ergoplatform/sigma-rust/pull/538);
+- add ErgoBox::tx_id() and index() in Wasm API [#561](https://github.com/ergoplatform/sigma-rust/pull/561);
 
 ## [0.15.0] - 2022-03-08
 
