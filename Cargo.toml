@@ -17,9 +17,7 @@ members = [
     "bindings/ergo-lib-wasm",
     "bindings/ergo-lib-c-core",
     "bindings/ergo-lib-c",
-    "bindings/ergo-lib-jni",
-    "vendored-deps/wasm-timer",
-    "vendored-deps/reqwest-wrap"
+    "bindings/ergo-lib-jni"
 ]
 
 [profile.release]

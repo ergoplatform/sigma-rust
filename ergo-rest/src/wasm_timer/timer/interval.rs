@@ -5,8 +5,8 @@ use std::time::Duration;
 
 use futures::prelude::*;
 
-use crate::timer::delay;
-use crate::{Delay, Instant, TimerHandle};
+use super::delay;
+use super::{Delay, Instant, TimerHandle};
 
 /// A stream representing notifications at fixed interval
 ///

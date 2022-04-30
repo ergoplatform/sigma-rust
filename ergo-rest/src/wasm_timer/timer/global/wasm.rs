@@ -8,7 +8,10 @@ use std::task::Context;
 use std::time::Duration;
 use wasm_bindgen::{closure::Closure, JsCast};
 
-use crate::{Instant, Timer, TimerHandle};
+use crate::wasm_timer::{
+    timer::{Timer, TimerHandle},
+    wasm::Instant,
+};
 
 /// Starts a background task, creates a `Timer`, and returns a handle to it.
 ///

@@ -8,7 +8,7 @@ use std::time::Duration;
 use futures::prelude::*;
 use pin_utils::unsafe_pinned;
 
-use crate::{Delay, Instant};
+use super::{delay::Delay, Instant};
 
 /// An extension trait for futures which provides convenient accessors for
 /// timing out execution and such.

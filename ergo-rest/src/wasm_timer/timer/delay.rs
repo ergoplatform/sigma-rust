@@ -15,9 +15,9 @@ use std::time::Duration;
 
 use futures::task::AtomicWaker;
 
-use crate::timer::arc_list::Node;
-use crate::timer::{ScheduledTimer, TimerHandle};
-use crate::Instant;
+use super::arc_list::Node;
+use super::Instant;
+use super::{ScheduledTimer, TimerHandle};
 
 /// A future representing the notification that an elapsed duration has
 /// occurred.
