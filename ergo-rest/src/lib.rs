@@ -31,6 +31,7 @@ mod peer_info;
 mod wasm_timer;
 
 pub mod api;
+pub mod reqwest;
 
 pub use error::*;
 pub use known_nodes::KnownNodes;

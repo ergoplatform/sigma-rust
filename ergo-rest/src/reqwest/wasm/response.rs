@@ -75,42 +75,42 @@ impl Response {
     /// Try to deserialize the response body as JSON.
     #[cfg(feature = "json")]
     #[cfg_attr(docsrs, doc(cfg(feature = "json")))]
-    pub async fn json<T: DeserializeOwned>(self) -> crate::Result<T> {
+    pub async fn json<T: DeserializeOwned>(self) -> crate::reqwest::Result<T> {
         let full = self.bytes().await?;
 
-        serde_json::from_slice(&full).map_err(crate::error::decode)
+        serde_json::from_slice(&full).map_err(crate::reqwest::error::decode)
     }
 
     /// Get the response text.
-    pub async fn text(self) -> crate::Result<String> {
+    pub async fn text(self) -> crate::reqwest::Result<String> {
         let p = self
             .http
             .body()
             .text()
-            .map_err(crate::error::wasm)
-            .map_err(crate::error::decode)?;
+            .map_err(crate::reqwest::error::wasm)
+            .map_err(crate::reqwest::error::decode)?;
         let js_val = super::promise::<wasm_bindgen::JsValue>(p)
             .await
-            .map_err(crate::error::decode)?;
+            .map_err(crate::reqwest::error::decode)?;
         if let Some(s) = js_val.as_string() {
             Ok(s)
         } else {
-            Err(crate::error::decode("response.text isn't string"))
+            Err(crate::reqwest::error::decode("response.text isn't string"))
         }
     }
 
     /// Get the response as bytes
-    pub async fn bytes(self) -> crate::Result<Bytes> {
+    pub async fn bytes(self) -> crate::reqwest::Result<Bytes> {
         let p = self
             .http
             .body()
             .array_buffer()
-            .map_err(crate::error::wasm)
-            .map_err(crate::error::decode)?;
+            .map_err(crate::reqwest::error::wasm)
+            .map_err(crate::reqwest::error::decode)?;
 
         let buf_js = super::promise::<wasm_bindgen::JsValue>(p)
             .await
-            .map_err(crate::error::decode)?;
+            .map_err(crate::reqwest::error::decode)?;
 
         let buffer = Uint8Array::new(&buf_js);
         let mut bytes = vec![0; buffer.length() as usize];
@@ -121,20 +121,20 @@ impl Response {
     // util methods
 
     /// Turn a response into an error if the server returned an error.
-    pub fn error_for_status(self) -> crate::Result<Self> {
+    pub fn error_for_status(self) -> crate::reqwest::Result<Self> {
         let status = self.status();
         if status.is_client_error() || status.is_server_error() {
-            Err(crate::error::status_code(*self.url, status))
+            Err(crate::reqwest::error::status_code(*self.url, status))
         } else {
             Ok(self)
         }
     }
 
     /// Turn a reference to a response into an error if the server returned an error.
-    pub fn error_for_status_ref(&self) -> crate::Result<&Self> {
+    pub fn error_for_status_ref(&self) -> crate::reqwest::Result<&Self> {
         let status = self.status();
         if status.is_client_error() || status.is_server_error() {
-            Err(crate::error::status_code(*self.url.clone(), status))
+            Err(crate::reqwest::error::status_code(*self.url.clone(), status))
         } else {
             Ok(self)
         }

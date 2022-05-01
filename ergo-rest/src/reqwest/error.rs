@@ -3,7 +3,7 @@ use std::error::Error as StdError;
 use std::fmt;
 use std::io;
 
-use crate::{StatusCode, Url};
+use crate::reqwest::{StatusCode, Url};
 
 /// A `Result` alias where the `Err` case is `reqwest::Error`.
 pub type Result<T> = std::result::Result<T, Error>;
@@ -215,14 +215,14 @@ impl StdError for Error {
 }
 
 #[cfg(target_arch = "wasm32")]
-impl From<crate::error::Error> for wasm_bindgen::JsValue {
+impl From<crate::reqwest::error::Error> for wasm_bindgen::JsValue {
     fn from(err: Error) -> wasm_bindgen::JsValue {
         js_sys::Error::from(err).into()
     }
 }
 
 #[cfg(target_arch = "wasm32")]
-impl From<crate::error::Error> for js_sys::Error {
+impl From<crate::reqwest::error::Error> for js_sys::Error {
     fn from(err: Error) -> js_sys::Error {
         js_sys::Error::new(&format!("{}", err))
     }

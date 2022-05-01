@@ -1,4 +1,4 @@
-use crate::header::{Entry, HeaderMap, OccupiedEntry};
+use crate::reqwest::header::{Entry, HeaderMap, OccupiedEntry};
 
 pub(crate) fn replace_headers(dst: &mut HeaderMap, src: HeaderMap) {
     // IntoIter of HeaderMap yields (Option<HeaderName>, HeaderValue).

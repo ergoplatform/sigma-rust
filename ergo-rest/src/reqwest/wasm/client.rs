@@ -9,7 +9,7 @@ use wasm_bindgen::prelude::{wasm_bindgen, Closure, UnwrapThrowExt as _};
 use wasm_bindgen::JsCast;
 
 use super::{Request, RequestBuilder, Response};
-use crate::IntoUrl;
+use crate::reqwest::IntoUrl;
 
 #[wasm_bindgen]
 extern "C" {
@@ -146,7 +146,7 @@ impl Client {
     pub fn execute(
         &self,
         request: Request,
-    ) -> impl Future<Output = Result<Response, crate::Error>> {
+    ) -> impl Future<Output = Result<Response, crate::reqwest::Error>> {
         self.execute_request(request)
     }
 
@@ -166,7 +166,7 @@ impl Client {
     pub(super) fn execute_request(
         &self,
         mut req: Request,
-    ) -> impl Future<Output = crate::Result<Response>> {
+    ) -> impl Future<Output = crate::reqwest::Result<Response>> {
         self.merge_headers(&mut req);
         fetch(req)
     }
@@ -194,7 +194,7 @@ impl fmt::Debug for ClientBuilder {
     }
 }
 
-async fn fetch(req: Request) -> crate::Result<Response> {
+async fn fetch(req: Request) -> crate::reqwest::Result<Response> {
     // Build the js Request
     let mut init = web_sys::RequestInit::new();
     let abort_controller = Rc::new(web_sys::AbortController::new().unwrap());
@@ -204,17 +204,17 @@ async fn fetch(req: Request) -> crate::Result<Response> {
 
     // convert HeaderMap to Headers
     let js_headers = web_sys::Headers::new()
-        .map_err(crate::error::wasm)
-        .map_err(crate::error::builder)?;
+        .map_err(crate::reqwest::error::wasm)
+        .map_err(crate::reqwest::error::builder)?;
 
     for (name, value) in req.headers() {
         js_headers
             .append(
                 name.as_str(),
-                value.to_str().map_err(crate::error::builder)?,
+                value.to_str().map_err(crate::reqwest::error::builder)?,
             )
-            .map_err(crate::error::wasm)
-            .map_err(crate::error::builder)?;
+            .map_err(crate::reqwest::error::wasm)
+            .map_err(crate::reqwest::error::builder)?;
     }
     init.headers(&js_headers.into());
 
@@ -251,14 +251,14 @@ async fn fetch(req: Request) -> crate::Result<Response> {
     }
 
     let js_req = web_sys::Request::new_with_str_and_init(req.url().as_str(), &init)
-        .map_err(crate::error::wasm)
-        .map_err(crate::error::builder)?;
+        .map_err(crate::reqwest::error::wasm)
+        .map_err(crate::reqwest::error::builder)?;
 
     // Await the fetch() promise
     let p = js_fetch(&js_req);
     let js_resp = super::promise::<web_sys::Response>(p)
         .await
-        .map_err(crate::error::request)?;
+        .map_err(crate::reqwest::error::request)?;
 
     // Convert from the js Response
     let mut resp = http::Response::builder().status(js_resp.status());
@@ -282,7 +282,7 @@ async fn fetch(req: Request) -> crate::Result<Response> {
 
     resp.body(js_resp)
         .map(|resp| Response::new(resp, url))
-        .map_err(crate::error::request)
+        .map_err(crate::reqwest::error::request)
 }
 
 // ===== impl ClientBuilder =====
@@ -297,7 +297,7 @@ impl ClientBuilder {
     }
 
     /// Returns a 'Client' that uses this ClientBuilder configuration
-    pub fn build(mut self) -> Result<Client, crate::Error> {
+    pub fn build(mut self) -> Result<Client, crate::reqwest::Error> {
         let config = std::mem::take(&mut self.config);
         Ok(Client {
             config: Arc::new(config),
@@ -355,7 +355,7 @@ mod tests {
 
     #[wasm_bindgen_test]
     async fn default_headers() {
-        use crate::header::{HeaderMap, HeaderValue, CONTENT_TYPE};
+        use crate::reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE};
 
         let mut headers = HeaderMap::new();
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
@@ -379,7 +379,7 @@ mod tests {
 
     #[wasm_bindgen_test]
     async fn default_headers_clone() {
-        use crate::header::{HeaderMap, HeaderValue, CONTENT_TYPE};
+        use crate::reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE};
 
         let mut headers = HeaderMap::new();
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));

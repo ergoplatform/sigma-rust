@@ -11,7 +11,7 @@ use url::Url;
 use web_sys::RequestCredentials;
 
 use super::{Body, Client, Response};
-use crate::header::{HeaderMap, HeaderName, HeaderValue, CONTENT_TYPE};
+use crate::reqwest::header::{HeaderMap, HeaderName, HeaderValue, CONTENT_TYPE};
 
 /// A request which can be executed with `Client::execute()`.
 pub struct Request {
@@ -27,7 +27,7 @@ pub struct Request {
 /// A builder to construct the properties of a `Request`.
 pub struct RequestBuilder {
     client: Client,
-    request: crate::Result<Request>,
+    request: crate::reqwest::Result<Request>,
 }
 
 impl Request {
@@ -127,7 +127,7 @@ impl Request {
 }
 
 impl RequestBuilder {
-    pub(super) fn new(client: Client, request: crate::Result<Request>) -> RequestBuilder {
+    pub(super) fn new(client: Client, request: crate::reqwest::Result<Request>) -> RequestBuilder {
         RequestBuilder { client, request }
     }
 
@@ -157,7 +157,7 @@ impl RequestBuilder {
             let serializer = serde_urlencoded::Serializer::new(&mut pairs);
 
             if let Err(err) = query.serialize(serializer) {
-                error = Some(crate::error::builder(err));
+                error = Some(crate::reqwest::error::builder(err));
             }
         }
         if let Ok(ref mut req) = self.request {
@@ -192,7 +192,7 @@ impl RequestBuilder {
                     );
                     *req.body_mut() = Some(body.into());
                 }
-                Err(err) => error = Some(crate::error::builder(err)),
+                Err(err) => error = Some(crate::reqwest::error::builder(err)),
             }
         }
         if let Some(err) = error {
@@ -213,7 +213,7 @@ impl RequestBuilder {
                         .insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
                     *req.body_mut() = Some(body.into());
                 }
-                Err(err) => error = Some(crate::error::builder(err)),
+                Err(err) => error = Some(crate::reqwest::error::builder(err)),
             }
         }
         if let Some(err) = error {
@@ -228,7 +228,7 @@ impl RequestBuilder {
         T: fmt::Display,
     {
         let header_value = format!("Bearer {}", token);
-        self.header(crate::header::AUTHORIZATION, header_value)
+        self.header(crate::reqwest::header::AUTHORIZATION, header_value)
     }
 
     /// Enables a request timeout.
@@ -276,9 +276,9 @@ impl RequestBuilder {
                     Ok(value) => {
                         req.headers_mut().append(key, value);
                     }
-                    Err(e) => error = Some(crate::error::builder(e.into())),
+                    Err(e) => error = Some(crate::reqwest::error::builder(e.into())),
                 },
-                Err(e) => error = Some(crate::error::builder(e.into())),
+                Err(e) => error = Some(crate::reqwest::error::builder(e.into())),
             };
         }
         if let Some(err) = error {
@@ -290,9 +290,9 @@ impl RequestBuilder {
     /// Add a set of Headers to the existing ones on this Request.
     ///
     /// The headers will be merged in to any already set.
-    pub fn headers(mut self, headers: crate::header::HeaderMap) -> RequestBuilder {
+    pub fn headers(mut self, headers: crate::reqwest::header::HeaderMap) -> RequestBuilder {
         if let Ok(ref mut req) = self.request {
-            crate::util::replace_headers(req.headers_mut(), headers);
+            crate::reqwest::util::replace_headers(req.headers_mut(), headers);
         }
         self
     }
@@ -363,7 +363,7 @@ impl RequestBuilder {
 
     /// Build a `Request`, which can be inspected, modified and executed with
     /// `Client::execute()`.
-    pub fn build(self) -> crate::Result<Request> {
+    pub fn build(self) -> crate::reqwest::Result<Request> {
         self.request
     }
 
@@ -387,7 +387,7 @@ impl RequestBuilder {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn send(self) -> crate::Result<Response> {
+    pub async fn send(self) -> crate::reqwest::Result<Response> {
         let req = self.request?;
         self.client.execute_request(req).await
     }
@@ -451,9 +451,9 @@ impl<T> TryFrom<HttpRequest<T>> for Request
 where
     T: Into<Body>,
 {
-    type Error = crate::Error;
+    type Error = crate::reqwest::Error;
 
-    fn try_from(req: HttpRequest<T>) -> crate::Result<Self> {
+    fn try_from(req: HttpRequest<T>) -> crate::reqwest::Result<Self> {
         let (parts, body) = req.into_parts();
         let Parts {
             method,
@@ -461,7 +461,7 @@ where
             headers,
             ..
         } = parts;
-        let url = Url::parse(&uri.to_string()).map_err(crate::error::builder)?;
+        let url = Url::parse(&uri.to_string()).map_err(crate::reqwest::error::builder)?;
         Ok(Request {
             method,
             url,
@@ -475,9 +475,9 @@ where
 }
 
 impl TryFrom<Request> for HttpRequest<Body> {
-    type Error = crate::Error;
+    type Error = crate::reqwest::Error;
 
-    fn try_from(req: Request) -> crate::Result<Self> {
+    fn try_from(req: Request) -> crate::reqwest::Result<Self> {
         let Request {
             method,
             url,
@@ -490,7 +490,7 @@ impl TryFrom<Request> for HttpRequest<Body> {
             .method(method)
             .uri(url.as_str())
             .body(body.unwrap_or_else(|| Body::from(Bytes::default())))
-            .map_err(crate::error::builder)?;
+            .map_err(crate::reqwest::error::builder)?;
 
         *req.headers_mut() = headers;
         Ok(req)
