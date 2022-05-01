@@ -120,6 +120,7 @@ impl Delay {
         }
     }
 
+    #[allow(clippy::unwrap_used)]
     fn _reset(&mut self, at: Instant) -> Result<(), ()> {
         let state = match self.state {
             Some(ref state) => state,
@@ -187,6 +188,7 @@ impl Future for Delay {
 }
 
 impl Drop for Delay {
+    #[allow(clippy::unwrap_used)]
     fn drop(&mut self) {
         let state = match self.state {
             Some(ref s) => s,

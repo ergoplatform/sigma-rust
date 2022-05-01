@@ -373,8 +373,14 @@ impl Timer {
 
             // Flag the timer as fired and then notify its task, if any, that's
             // blocked.
-            let heap_timer = self.timer_heap.pop().unwrap();
-            *heap_timer.node.slot.lock().unwrap() = None;
+            let heap_timer = {
+                #[allow(clippy::unwrap_used)]
+                self.timer_heap.pop().unwrap()
+            };
+            #[allow(clippy::unwrap_used)]
+            {
+                *heap_timer.node.slot.lock().unwrap() = None;
+            }
             let bits = heap_timer.gen << 2;
             match heap_timer
                 .node
@@ -394,6 +400,7 @@ impl Timer {
         // In theory we could update it in place and then do the percolation
         // as necessary
         let gen = node.state.load(SeqCst) >> 2;
+        #[allow(clippy::unwrap_used)]
         let mut slot = node.slot.lock().unwrap();
         if let Some(heap_slot) = slot.take() {
             self.timer_heap.remove(heap_slot);
@@ -408,6 +415,7 @@ impl Timer {
     fn remove(&mut self, node: Arc<Node<ScheduledTimer>>) {
         // If this `idx` is still around and it's still got a registered timer,
         // then we jettison it form the timer heap.
+        #[allow(clippy::unwrap_used)]
         let mut slot = node.slot.lock().unwrap();
         let heap_slot = match slot.take() {
             Some(slot) => slot,
@@ -429,6 +437,7 @@ impl Future for Timer {
         Pin::new(&mut self.inner).waker.register(cx.waker());
         let mut list = self.inner.list.take();
         while let Some(node) = list.pop() {
+            #[allow(clippy::unwrap_used)]
             let at = *node.at.lock().unwrap();
             match at {
                 Some(at) => self.update_or_add(at, node),

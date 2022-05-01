@@ -91,8 +91,10 @@ fn next_interval(prev: Instant, now: Instant, interval: Duration) -> Instant {
     if new > now {
         return new;
     } else {
+        #[allow(clippy::expect_used)]
         let spent_ns =
             duration_to_nanos(now.duration_since(prev)).expect("interval should be expired");
+        #[allow(clippy::expect_used)]
         let interval_ns =
             duration_to_nanos(interval).expect("interval is less that 427 thousand years");
         let mult = spent_ns / interval_ns + 1;

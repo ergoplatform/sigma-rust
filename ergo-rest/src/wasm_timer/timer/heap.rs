@@ -44,6 +44,7 @@ impl<T: Ord> Heap<T> {
     ///
     /// The slot can later get passed to `remove` to remove the element from the
     /// heap, but only if the element was previously not removed from the heap.
+    #[allow(clippy::panic)]
     pub fn push(&mut self, t: T) -> Slot {
         self.assert_consistent();
         let len = self.items.len();
@@ -80,6 +81,7 @@ impl<T: Ord> Heap<T> {
         Some(self.remove(slot))
     }
 
+    #[allow(clippy::panic)]
     pub fn remove(&mut self, slot: Slot) -> T {
         self.assert_consistent();
         let empty = SlabSlot::Empty {
@@ -119,6 +121,7 @@ impl<T: Ord> Heap<T> {
         return idx;
     }
 
+    #[allow(clippy::panic)]
     fn percolate_down(&mut self, mut idx: usize) -> usize {
         loop {
             let left = 2 * idx + 1;
@@ -144,7 +147,9 @@ impl<T: Ord> Heap<T> {
                 }
 
                 (None, None) => break,
-                (None, Some(_right)) => panic!("not possible"),
+                (None, Some(_right)) => {
+                    panic!("not possible")
+                }
             }
 
             let (a, b) = if swap_left {
@@ -160,6 +165,7 @@ impl<T: Ord> Heap<T> {
         return idx;
     }
 
+    #[allow(clippy::panic)]
     fn assert_consistent(&self) {
         if !cfg!(assert_timer_heap_consistent) {
             return;
@@ -181,7 +187,9 @@ impl<T: Ord> Heap<T> {
         for (i, &(_, j)) in self.items.iter().enumerate() {
             let index = match self.index[j] {
                 SlabSlot::Full { value } => value,
-                SlabSlot::Empty { .. } => panic!(),
+                SlabSlot::Empty { .. } => {
+                    panic!()
+                }
             };
             if index != i {
                 panic!(
@@ -205,6 +213,7 @@ impl<T: Ord> Heap<T> {
     }
 }
 
+#[allow(clippy::panic)]
 fn set_index<T>(slab: &mut Vec<SlabSlot<T>>, slab_slot: usize, val: T) {
     match slab[slab_slot] {
         SlabSlot::Full { ref mut value } => *value = val,
