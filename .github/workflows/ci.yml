@@ -142,11 +142,6 @@ jobs:
           curl -sL https://deb.nodesource.com/setup_12.x | sudo -E bash -
           sudo apt-get -y install nodejs
       
-      - name: run `reqwest` WASM tests (to test timeout PR)
-        run: |
-          cd ergo-rest
-          wasm-pack test --chrome  --headless
-
       - name: run Wasm tests
         run: |
           cd bindings/ergo-lib-wasm
