@@ -127,6 +127,7 @@ impl<T> Deref for Node<T> {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 

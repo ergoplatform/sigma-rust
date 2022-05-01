@@ -120,7 +120,6 @@ impl Delay {
         }
     }
 
-    #[allow(clippy::unwrap_used)]
     fn _reset(&mut self, at: Instant) -> Result<(), ()> {
         let state = match self.state {
             Some(ref state) => state,
@@ -139,7 +138,10 @@ impl Delay {
                     Err(s) => bits = s,
                 }
             }
-            *state.at.lock().unwrap() = Some(at);
+            #[allow(clippy::unwrap_used)]
+            {
+                *state.at.lock().unwrap() = Some(at);
+            }
             // If we fail to push our node then we've become an inert timer, so
             // we'll want to clear our `state` field accordingly
             timeouts.list.push(state)?;
@@ -188,14 +190,16 @@ impl Future for Delay {
 }
 
 impl Drop for Delay {
-    #[allow(clippy::unwrap_used)]
     fn drop(&mut self) {
         let state = match self.state {
             Some(ref s) => s,
             None => return,
         };
         if let Some(timeouts) = state.inner.upgrade() {
-            *state.at.lock().unwrap() = None;
+            #[allow(clippy::unwrap_used)]
+            {
+                *state.at.lock().unwrap() = None;
+            }
             if timeouts.list.push(state).is_ok() {
                 timeouts.waker.wake();
             }

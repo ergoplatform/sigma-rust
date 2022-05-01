@@ -29,6 +29,7 @@ pub(crate) fn run() -> TimerHandle {
 /// processes everything.
 fn schedule_callback(timer: Arc<Mutex<Timer>>, when: Duration) {
     let window = web_sys::window().expect("Unable to access Window");
+    #[allow(clippy::unwrap_used)]
     let _ = window
         .set_timeout_with_callback_and_timeout_and_arguments_0(
             &Closure::once_into_js(move || {

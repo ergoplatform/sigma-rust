@@ -222,6 +222,7 @@ fn set_index<T>(slab: &mut Vec<SlabSlot<T>>, slab_slot: usize, val: T) {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::Heap;
 
