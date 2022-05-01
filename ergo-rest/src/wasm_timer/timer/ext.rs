@@ -29,7 +29,7 @@ pub trait TryFutureExt: TryFuture + Sized {
     /// ```no_run
     /// use std::time::Duration;
     /// use futures::prelude::*;
-    /// use wasm_timer::TryFutureExt;
+    /// use crate::wasm_timer::TryFutureExt;
     ///
     /// # fn long_future() -> impl TryFuture<Ok = (), Error = std::io::Error> {
     /// #     futures::future::ok(())
