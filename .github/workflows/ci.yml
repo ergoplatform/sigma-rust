@@ -144,7 +144,7 @@ jobs:
       
       - name: run `reqwest` WASM tests (to test timeout PR)
         run: |
-          cd ergo-test
+          cd ergo-rest
           wasm-pack test --chrome  --headless
 
       - name: run Wasm tests
