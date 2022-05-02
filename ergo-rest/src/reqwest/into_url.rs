@@ -14,17 +14,17 @@ impl<'a> IntoUrl for &'a String {}
 pub trait IntoUrlSealed {
     // Besides parsing as a valid `Url`, the `Url` must be a valid
     // `http::Uri`, in that it makes sense to use in a network request.
-    fn into_url(self) -> crate::Result<Url>;
+    fn into_url(self) -> crate::reqwest::Result<Url>;
 
     fn as_str(&self) -> &str;
 }
 
 impl IntoUrlSealed for Url {
-    fn into_url(self) -> crate::Result<Url> {
+    fn into_url(self) -> crate::reqwest::Result<Url> {
         if self.has_host() {
             Ok(self)
         } else {
-            Err(crate::error::url_bad_scheme(self))
+            Err(crate::reqwest::error::url_bad_scheme(self))
         }
     }
 
@@ -34,8 +34,10 @@ impl IntoUrlSealed for Url {
 }
 
 impl<'a> IntoUrlSealed for &'a str {
-    fn into_url(self) -> crate::Result<Url> {
-        Url::parse(self).map_err(crate::error::builder)?.into_url()
+    fn into_url(self) -> crate::reqwest::Result<Url> {
+        Url::parse(self)
+            .map_err(crate::reqwest::error::builder)?
+            .into_url()
     }
 
     fn as_str(&self) -> &str {
@@ -44,7 +46,7 @@ impl<'a> IntoUrlSealed for &'a str {
 }
 
 impl<'a> IntoUrlSealed for &'a String {
-    fn into_url(self) -> crate::Result<Url> {
+    fn into_url(self) -> crate::reqwest::Result<Url> {
         (&**self).into_url()
     }
 
@@ -54,7 +56,7 @@ impl<'a> IntoUrlSealed for &'a String {
 }
 
 impl<'a> IntoUrlSealed for String {
-    fn into_url(self) -> crate::Result<Url> {
+    fn into_url(self) -> crate::reqwest::Result<Url> {
         (&*self).into_url()
     }
 

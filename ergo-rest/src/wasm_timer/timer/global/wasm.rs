@@ -8,7 +8,10 @@ use std::task::Context;
 use std::time::Duration;
 use wasm_bindgen::{closure::Closure, JsCast};
 
-use crate::{Instant, Timer, TimerHandle};
+use crate::wasm_timer::{
+    timer::{Timer, TimerHandle},
+    wasm::Instant,
+};
 
 /// Starts a background task, creates a `Timer`, and returns a handle to it.
 ///
@@ -26,6 +29,7 @@ pub(crate) fn run() -> TimerHandle {
 /// processes everything.
 fn schedule_callback(timer: Arc<Mutex<Timer>>, when: Duration) {
     let window = web_sys::window().expect("Unable to access Window");
+    #[allow(clippy::unwrap_used)]
     let _ = window
         .set_timeout_with_callback_and_timeout_and_arguments_0(
             &Closure::once_into_js(move || {

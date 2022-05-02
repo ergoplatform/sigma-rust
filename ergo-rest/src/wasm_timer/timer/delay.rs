@@ -15,9 +15,9 @@ use std::time::Duration;
 
 use futures::task::AtomicWaker;
 
-use crate::timer::arc_list::Node;
-use crate::timer::{ScheduledTimer, TimerHandle};
-use crate::Instant;
+use super::arc_list::Node;
+use super::Instant;
+use super::{ScheduledTimer, TimerHandle};
 
 /// A future representing the notification that an elapsed duration has
 /// occurred.
@@ -138,7 +138,10 @@ impl Delay {
                     Err(s) => bits = s,
                 }
             }
-            *state.at.lock().unwrap() = Some(at);
+            #[allow(clippy::unwrap_used)]
+            {
+                *state.at.lock().unwrap() = Some(at);
+            }
             // If we fail to push our node then we've become an inert timer, so
             // we'll want to clear our `state` field accordingly
             timeouts.list.push(state)?;
@@ -193,7 +196,10 @@ impl Drop for Delay {
             None => return,
         };
         if let Some(timeouts) = state.inner.upgrade() {
-            *state.at.lock().unwrap() = None;
+            #[allow(clippy::unwrap_used)]
+            {
+                *state.at.lock().unwrap() = None;
+            }
             if timeouts.list.push(state).is_ok() {
                 timeouts.waker.wake();
             }

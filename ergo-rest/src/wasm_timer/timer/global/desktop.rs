@@ -10,7 +10,7 @@ use std::time::Instant;
 
 use pin_utils::pin_mut;
 
-use crate::{Timer, TimerHandle};
+use crate::wasm_timer::{Timer, TimerHandle};
 
 pub struct HelperThread {
     thread: Option<thread::JoinHandle<()>>,

@@ -1,7 +1,10 @@
 //! Ergo node REST API
 
 // Coding conventions
-#![forbid(unsafe_code)]
+
+// Note that we need to allow unsafe code since we are vendoring 2 crates (`wasm-timer` and
+// `reqwest-wrap`) directly as sub-modules in this crate.
+//#![forbid(unsafe_code)]
 #![deny(non_upper_case_globals)]
 #![deny(non_camel_case_types)]
 #![deny(non_snake_case)]
@@ -25,8 +28,10 @@ mod node_conf;
 mod node_info;
 mod node_response;
 mod peer_info;
+mod wasm_timer;
 
 pub mod api;
+pub mod reqwest;
 
 pub use error::*;
 pub use known_nodes::KnownNodes;

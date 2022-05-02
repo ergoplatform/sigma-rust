@@ -48,6 +48,7 @@ impl PartialOrd for Instant {
 }
 
 impl Ord for Instant {
+    #[allow(clippy::unwrap_used)]
     fn cmp(&self, other: &Self) -> Ordering {
         self.inner.partial_cmp(&other.inner).unwrap()
     }
@@ -129,6 +130,7 @@ impl PartialOrd for SystemTime {
 }
 
 impl Ord for SystemTime {
+    #[allow(clippy::unwrap_used)]
     fn cmp(&self, other: &Self) -> Ordering {
         self.inner.partial_cmp(&other.inner).unwrap()
     }

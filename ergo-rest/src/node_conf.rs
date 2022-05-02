@@ -1,7 +1,7 @@
 use std::time::Duration;
 
+use crate::reqwest::header::HeaderValue;
 use ergo_chain_types::PeerAddr;
-use reqwest::header::HeaderValue;
 
 /// Ergo node configuration
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]

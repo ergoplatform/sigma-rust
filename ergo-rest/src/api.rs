@@ -1,6 +1,7 @@
 //! REST API for the services in Ergo ecosystem (node, explorer, etc.)
 
-use reqwest::{header::CONTENT_TYPE, Client, RequestBuilder};
+use crate::reqwest;
+use crate::reqwest::{header::CONTENT_TYPE, Client, RequestBuilder};
 
 use crate::NodeConf;
 

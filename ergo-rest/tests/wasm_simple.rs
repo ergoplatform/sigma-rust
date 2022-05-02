@@ -1,7 +1,6 @@
 #![cfg(target_arch = "wasm32")]
 #![allow(clippy::unused_unit)]
 
-use reqwest_wrap as reqwest;
 use std::time::Duration;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_test::*;
@@ -17,7 +16,7 @@ extern "C" {
 }
 #[wasm_bindgen_test]
 async fn simple_example() {
-    let res = reqwest::get("https://hyper.rs")
+    let res = ergo_rest::reqwest::get("https://hyper.rs")
         .await
         .expect("http get example");
 
@@ -29,7 +28,7 @@ async fn simple_example() {
 
 #[wasm_bindgen_test]
 async fn client_with_timeout() {
-    let client = reqwest::Client::new();
+    let client = ergo_rest::reqwest::Client::new();
     let err = client
         .get("https://hyper.rs")
         .timeout(Duration::from_millis(10))

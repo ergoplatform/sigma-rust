@@ -1,3 +1,5 @@
+//! Thin wrapper around `reqwest` crate for WASM
+
 macro_rules! if_wasm {
     ($($item:item)*) => {$(
         #[cfg(target_arch = "wasm32")]
@@ -62,7 +64,7 @@ if_wasm! {
     /// - supplied `Url` cannot be parsed
     /// - there was an error while sending request
     /// - redirect limit was exhausted
-    pub async fn get<T: IntoUrl>(url: T) -> crate::Result<Response> {
+    pub async fn get<T: IntoUrl>(url: T) -> crate::reqwest::Result<Response> {
         Client::builder().build()?.get(url).send().await
     }
 }

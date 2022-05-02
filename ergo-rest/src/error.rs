@@ -1,3 +1,4 @@
+use crate::reqwest;
 use thiserror::Error;
 
 /// Possible errors during the communication with node

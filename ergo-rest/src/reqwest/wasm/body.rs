@@ -42,7 +42,7 @@ impl Body {
             Inner::MultipartPart(bytes) => Some(bytes.as_ref()),
         }
     }
-    pub(crate) fn to_js_value(&self) -> crate::Result<JsValue> {
+    pub(crate) fn to_js_value(&self) -> crate::reqwest::Result<JsValue> {
         match &self.inner {
             Inner::Bytes(body_bytes) => {
                 let body_bytes: &[u8] = body_bytes.as_ref();
@@ -168,7 +168,7 @@ impl fmt::Debug for Body {
 
 #[cfg(test)]
 mod tests {
-    use crate::Body;
+    use crate::reqwest::Body;
     use js_sys::Uint8Array;
     use wasm_bindgen::prelude::*;
     use wasm_bindgen_test::*;
