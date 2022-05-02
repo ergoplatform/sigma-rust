@@ -76,7 +76,7 @@ jobs:
       - name: rust-tarpaulin code coverage check
         uses: actions-rs/tarpaulin@master
         with:
-          args: '--avoid-cfg-tarpaulin --timeout=360 -v --out Lcov --exclude-files bindings/*'
+          args: '--avoid-cfg-tarpaulin --timeout=360 -v --out Lcov --exclude-files bindings/* ergo-rest/src/reqwest.rs ergo-rest/src/reqwest/* ergo-rest/src/wasm_timer.rs ergo-rest/src/wasm_timer/*'
       # - name: Upload coverage report to Codecov
       #   if: matrix.os == 'ubuntu-latest'
       #   uses: codecov/codecov-action@v1
