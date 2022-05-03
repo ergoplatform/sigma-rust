@@ -20,6 +20,7 @@
 mod base16_bytes;
 mod block_id;
 mod digest32;
+pub mod ec_point;
 mod extensioncandidate;
 mod peer_addr;
 mod peer_connection_dir;
