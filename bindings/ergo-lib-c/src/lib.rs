@@ -124,6 +124,15 @@ pub struct ReturnOption {
     error: ErrorPtr,
 }
 
+/// Convenience type to allow us to pass Rust CStrings through FFI to C side (as pointers).
+/// Note it is the responsibility of the caller to free the Rust CString.
+/// For an example, see MnemonicGenerator in the Swift bindings.
+#[repr(C)]
+pub struct ReturnString {
+    value: *mut c_char,
+    error: ErrorPtr,
+}
+
 pub unsafe fn delete_ptr<T>(ptr: *mut T) {
     if !ptr.is_null() {
         let boxed = Box::from_raw(ptr);

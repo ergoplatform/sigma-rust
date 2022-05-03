@@ -4,6 +4,8 @@ use ergo_lib::{
     chain::transaction::TxIoVec, ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean,
 };
 
+use std::str::FromStr;
+
 use crate::{
     address::{Address, ConstAddressPtr},
     collections::ConstCollectionPtr,
@@ -23,6 +25,52 @@ use crate::{
 pub struct Wallet(ergo_lib::wallet::Wallet);
 pub type WalletPtr = *mut Wallet;
 pub type ConstWalletPtr = *const Wallet;
+
+pub struct MnemonicGenerator(ergo_lib::wallet::mnemonic_generator::MnemonicGenerator);
+pub type MnemonicGeneratorPtr = *mut MnemonicGenerator;
+
+/// Create `MnemonicGenerator` instance
+pub unsafe fn mnemonic_generator(
+    language: &str,
+    strength: u32,
+    mnemonic_generator_out: *mut MnemonicGeneratorPtr,
+) -> Result<(), Error> {
+    let lang = match ergo_lib::wallet::mnemonic_generator::Language::from_str(language) {
+        Ok(lang) => lang,
+        _ => return Err(Error::Misc("Invalid language string".into())),
+    };
+    let mnemonic_generator_inner =
+        ergo_lib::wallet::mnemonic_generator::MnemonicGenerator::new(lang, strength);
+    *mnemonic_generator_out = Box::into_raw(Box::new(MnemonicGenerator(mnemonic_generator_inner)));
+    Ok(())
+}
+
+/// Generate mnemonic sentence using random entropy
+pub unsafe fn mnemonic_generator_generate(
+    mnemonic_generator_ptr: MnemonicGeneratorPtr,
+) -> Result<String, Error> {
+    let mnemonic_generator = mut_ptr_as_mut(mnemonic_generator_ptr, "mnemonic_generator_ptr")?;
+    let mnemonic = match mnemonic_generator.0.generate() {
+        Ok(mnemonic) => mnemonic,
+        Err(error) => return Err(Error::Misc(Box::new(error))),
+    };
+    Ok(mnemonic)
+}
+
+/// Generate mnemonic sentence using provided entropy
+pub unsafe fn mnemonic_generator_generate_from_entropy(
+    mnemonic_generator_ptr: MnemonicGeneratorPtr,
+    entropy_bytes_ptr: *const u8,
+    len: usize,
+) -> Result<String, Error> {
+    let entrophy = std::slice::from_raw_parts(entropy_bytes_ptr, len);
+    let mnemonic_generator = mut_ptr_as_mut(mnemonic_generator_ptr, "mnemonic_generator_ptr")?;
+    let mnemonic = match mnemonic_generator.0.from_entrophy(entrophy.to_vec()) {
+        Ok(mnemonic) => mnemonic,
+        Err(error) => return Err(Error::Misc(Box::new(error))),
+    };
+    Ok(mnemonic)
+}
 
 /// Create `Wallet` instance loading secret key from mnemonic Returns Err if a DlogSecretKey cannot be
 /// parsed from the provided phrase
