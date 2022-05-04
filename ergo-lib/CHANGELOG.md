@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
+
+### Changed
+- Convert vendored dependencies of ergo-rest into sub-modules [#571](https://github.com/ergoplatform/sigma-rust/pull/571);
+
 ## [0.16.0] - 2022-04-29
 
 ### Changed
