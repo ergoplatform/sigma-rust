@@ -226,8 +226,7 @@ pub fn generate_commitments(
     let mut hints_bag = TransactionHintsBag::empty();
     for (i, input) in tx.inputs.iter().enumerate() {
         let input_box = tx_context
-            .get_boxes_to_spend()
-            .find(|b| b.box_id() == input.box_id)
+            .get_input_box(&input.box_id)
             .ok_or(TxSigningError::InputBoxNotFound(i))?;
         let ctx = Rc::new(make_context(state_context, &tx_context, i)?);
         let tree = input_box.ergo_tree.clone();
@@ -255,14 +254,11 @@ pub fn extract_hints(
     let mut hints_bag = TransactionHintsBag::empty();
     for (i, input) in tx_ctx.spending_tx.inputs.iter().enumerate() {
         let input_box = tx_ctx
-            .get_boxes_to_spend()
-            .find(|b| b.box_id() == input.box_id)
+            .get_input_box(&input.box_id)
             .ok_or(TxSigningError::InputBoxNotFound(i))?;
         let height = state_context.pre_header.height;
         let self_box = tx_ctx
-            .get_boxes_to_spend()
-            .find(|b| b.box_id() == tx_ctx.spending_tx.inputs.as_vec()[i].box_id)
-            .cloned()
+            .get_input_box(&tx_ctx.spending_tx.inputs.as_vec()[i].box_id)
             .ok_or_else(|| {
                 TxSigningError::ContextError("self_index is out of bounds".to_string())
             })?;

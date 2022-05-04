@@ -81,6 +81,14 @@ impl<T: ErgoTransaction> TransactionContext<T> {
             data_boxes,
         })
     }
+
+    /// Returns box with given id, if it exists.
+    pub fn get_input_box(&self, box_id: &BoxId) -> Option<ErgoBox> {
+        self.boxes_to_spend
+            .iter()
+            .find(|b| b.box_id() == *box_id)
+            .cloned()
+    }
 }
 
 /// Exposes common properties for signed and unsigned transactions
@@ -108,13 +116,6 @@ impl ErgoTransaction for Transaction {
 
     fn data_inputs(&self) -> Option<TxIoVec<DataInput>> {
         self.data_inputs.clone()
-    }
-}
-
-impl<T: ErgoTransaction> TransactionContext<T> {
-    /// Get boxes corresponding to [`UnsignedTransaction::inputs`]
-    pub fn get_boxes_to_spend(&self) -> impl Iterator<Item = &ErgoBox> {
-        self.boxes_to_spend.iter()
     }
 }
 

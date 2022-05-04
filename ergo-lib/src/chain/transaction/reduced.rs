@@ -74,8 +74,7 @@ pub fn reduce_tx(
         .enumerated()
         .try_mapped::<_, _, TxSigningError>(|(idx, input)| {
             let input_box = tx_context
-                .get_boxes_to_spend()
-                .find(|b| b.box_id() == input.box_id)
+                .get_input_box(&input.box_id)
                 .ok_or(TxSigningError::InputBoxNotFound(idx))?;
             let ctx = Rc::new(make_context(state_context, &tx_context, idx)?);
             let expr = input_box
