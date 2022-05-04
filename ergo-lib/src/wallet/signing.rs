@@ -30,6 +30,15 @@ pub enum TxSigningError {
     /// Failed to find an input in `boxes_to_spend`
     #[error("Input box not found (index {0})")]
     InputBoxNotFound(usize),
+    /// Too many input boxes
+    #[error("A maximum of 255 input boxes is allowed (have {0})")]
+    TooManyInputBoxes(usize),
+    /// `boxes_to_spend` is empty
+    #[error("No Input boxes found")]
+    NoInputBoxes,
+    /// Too many data input boxes
+    #[error("A maximum of 255 data input boxes is allowed (have {0})")]
+    TooManyDataInputBoxes(usize),
     /// Failed to find a data input in `data_boxes`
     #[error("Data input box not found (index {0})")]
     DataInputBoxNotFound(usize),
@@ -313,7 +322,7 @@ mod tests {
             let output_candidates = vec![candidate];
             let tx = UnsignedTransaction::new(inputs.try_into().unwrap(),
                 None, output_candidates.try_into().unwrap()).unwrap();
-            let tx_context = TransactionContext::new(tx, TxIoVec::from_vec(boxes_to_spend.clone()).unwrap(), None).unwrap();
+            let tx_context = TransactionContext::new(tx, boxes_to_spend.clone(), vec![]).unwrap();
             let tx_hint_bag=TransactionHintsBag::empty();
             let res = sign_transaction(prover.as_ref(), tx_context.clone(), &force_any_val::<ErgoStateContext>(), Some(&tx_hint_bag));
             let signed_tx = res.unwrap();
@@ -360,8 +369,7 @@ mod tests {
           // Reverse boxes for `UnsignedTransaction`
           boxes_to_spend.reverse();
           data_input_boxes.reverse();
-          let data_input_boxes = Some(TxIoVec::from_vec(data_input_boxes.clone()).unwrap());
-          let boxes_to_spend = TxIoVec::from_vec(boxes_to_spend.clone()).unwrap();
+          let boxes_to_spend = boxes_to_spend;
           let spending_tx = UnsignedTransaction::new(
               ut_inputs,
               data_inputs,

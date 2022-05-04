@@ -1,8 +1,6 @@
 //! Wallet-like features
 use derive_more::{From, Into};
-use ergo_lib::{
-    chain::transaction::TxIoVec, ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean,
-};
+use ergo_lib::ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 use js_sys::Uint8Array;
 use wasm_bindgen::prelude::*;
 
@@ -61,15 +59,8 @@ impl Wallet {
         boxes_to_spend: &ErgoBoxes,
         data_boxes: &ErgoBoxes,
     ) -> Result<Transaction, JsValue> {
-        let boxes_to_spend = TxIoVec::from_vec(boxes_to_spend.clone().into()).map_err(to_js)?;
-        let data_boxes = {
-            let d: Vec<_> = data_boxes.clone().into();
-            if d.is_empty() {
-                None
-            } else {
-                Some(TxIoVec::from_vec(d).map_err(to_js)?)
-            }
-        };
+        let boxes_to_spend = boxes_to_spend.clone().into();
+        let data_boxes = data_boxes.clone().into();
         let tx_context = ergo_lib::wallet::signing::TransactionContext::new(
             tx.0.clone(),
             boxes_to_spend,
@@ -96,15 +87,8 @@ impl Wallet {
         data_boxes: &ErgoBoxes,
         tx_hints: &TransactionHintsBag,
     ) -> Result<Transaction, JsValue> {
-        let boxes_to_spend = TxIoVec::from_vec(boxes_to_spend.clone().into()).map_err(to_js)?;
-        let data_boxes = {
-            let d: Vec<_> = data_boxes.clone().into();
-            if d.is_empty() {
-                None
-            } else {
-                Some(TxIoVec::from_vec(d).map_err(to_js)?)
-            }
-        };
+        let boxes_to_spend = boxes_to_spend.clone().into();
+        let data_boxes = data_boxes.clone().into();
         let tx_context = ergo_lib::wallet::signing::TransactionContext::new(
             tx.0.clone(),
             boxes_to_spend,
@@ -160,15 +144,8 @@ impl Wallet {
         boxes_to_spend: &ErgoBoxes,
         data_boxes: &ErgoBoxes,
     ) -> Result<TransactionHintsBag, JsValue> {
-        let boxes_to_spend = TxIoVec::from_vec(boxes_to_spend.clone().into()).map_err(to_js)?;
-        let data_boxes = {
-            let d: Vec<_> = data_boxes.clone().into();
-            if d.is_empty() {
-                None
-            } else {
-                Some(TxIoVec::from_vec(d).map_err(to_js)?)
-            }
-        };
+        let boxes_to_spend = boxes_to_spend.clone().into();
+        let data_boxes = data_boxes.clone().into();
         let tx_context = ergo_lib::wallet::signing::TransactionContext::new(
             tx.0.clone(),
             boxes_to_spend,

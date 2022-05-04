@@ -1,8 +1,6 @@
 //! Wallet-like features
 
-use ergo_lib::{
-    chain::transaction::TxIoVec, ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean,
-};
+use ergo_lib::ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 
 use crate::{
     address::{Address, ConstAddressPtr},
@@ -83,16 +81,8 @@ pub unsafe fn wallet_sign_transaction(
     let boxes_to_spend = const_ptr_as_ref(boxes_to_spend_ptr, "boxes_to_spend_ptr")?;
     let data_boxes = const_ptr_as_ref(data_boxes_ptr, "data_boxes_ptr")?;
     let transaction_out = mut_ptr_as_mut(transaction_out, "transaction_out")?;
-    let boxes_to_spend =
-        TxIoVec::from_vec(boxes_to_spend.0.clone().into_iter().map(|b| b.0).collect())?;
-    let data_boxes = {
-        let d: Vec<_> = data_boxes.0.clone().into_iter().map(|b| b.0).collect();
-        if d.is_empty() {
-            None
-        } else {
-            Some(TxIoVec::from_vec(d)?)
-        }
-    };
+    let boxes_to_spend = boxes_to_spend.0.clone().into_iter().map(|b| b.0).collect();
+    let data_boxes = data_boxes.0.clone().into_iter().map(|b| b.0).collect();
     let tx_context = ergo_lib::wallet::signing::TransactionContext::new(
         unsigned_tx.0.clone(),
         boxes_to_spend,
@@ -122,16 +112,8 @@ pub unsafe fn wallet_sign_transaction_multi(
     let data_boxes = const_ptr_as_ref(data_boxes_ptr, "data_boxes_ptr")?;
     let tx_hints = const_ptr_as_ref(tx_hints_ptr, "tx_hints_ptr")?;
     let transaction_out = mut_ptr_as_mut(transaction_out, "transaction_out")?;
-    let boxes_to_spend =
-        TxIoVec::from_vec(boxes_to_spend.0.clone().into_iter().map(|b| b.0).collect())?;
-    let data_boxes = {
-        let d: Vec<_> = data_boxes.0.clone().into_iter().map(|b| b.0).collect();
-        if d.is_empty() {
-            None
-        } else {
-            Some(TxIoVec::from_vec(d)?)
-        }
-    };
+    let boxes_to_spend = boxes_to_spend.0.clone().into_iter().map(|b| b.0).collect();
+    let data_boxes = data_boxes.0.clone().into_iter().map(|b| b.0).collect();
     let tx_context = ergo_lib::wallet::signing::TransactionContext::new(
         unsigned_tx.0.clone(),
         boxes_to_spend,
@@ -195,16 +177,8 @@ pub unsafe fn wallet_generate_commitments(
     let boxes_to_spend = const_ptr_as_ref(boxes_to_spend_ptr, "boxes_to_spend_ptr")?;
     let data_boxes = const_ptr_as_ref(data_boxes_ptr, "data_boxes_ptr")?;
     let transaction_hints_bag_out = mut_ptr_as_mut(transaction_hints_bag_out, "transaction_out")?;
-    let boxes_to_spend =
-        TxIoVec::from_vec(boxes_to_spend.0.clone().into_iter().map(|b| b.0).collect())?;
-    let data_boxes = {
-        let d: Vec<_> = data_boxes.0.clone().into_iter().map(|b| b.0).collect();
-        if d.is_empty() {
-            None
-        } else {
-            Some(TxIoVec::from_vec(d)?)
-        }
-    };
+    let boxes_to_spend = boxes_to_spend.0.clone().into_iter().map(|b| b.0).collect();
+    let data_boxes = data_boxes.0.clone().into_iter().map(|b| b.0).collect();
     let tx_context = ergo_lib::wallet::signing::TransactionContext::new(
         unsigned_tx.0.clone(),
         boxes_to_spend,
