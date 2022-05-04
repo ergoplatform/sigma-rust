@@ -141,7 +141,7 @@ extra_bindings = []
 crates = ["ergo-lib-c"]
 all_features = false
 default_features = true
-features = ["rest"]
+features = ["rest", "mnemonic_gen"]
 
 
 [ptr]

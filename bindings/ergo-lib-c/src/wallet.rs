@@ -1,6 +1,7 @@
 //! Wallet-like features
 
 use crate::ReturnBool;
+use crate::ReturnString;
 use ergo_lib_c_core::{
     address::ConstAddressPtr,
     collections::ConstCollectionPtr,
@@ -15,9 +16,77 @@ use ergo_lib_c_core::{
     wallet::*,
     Error, ErrorPtr,
 };
-use std::{ffi::CStr, os::raw::c_char};
+use std::{ffi::CStr, ffi::CString, os::raw::c_char};
 
 use crate::delete_ptr;
+
+/// Create new MnemonicGenerator instance
+#[no_mangle]
+pub unsafe extern "C" fn ergo_lib_mnemonic_generator(
+    language: *const c_char,
+    strength: u32,
+    mnemonic_generator_out: *mut MnemonicGeneratorPtr,
+) -> ErrorPtr {
+    let language = CStr::from_ptr(language).to_string_lossy();
+    let res = mnemonic_generator(&language, strength, mnemonic_generator_out);
+    Error::c_api_from(res)
+}
+
+/// Generate mnemonic sentence using random entropy
+#[no_mangle]
+pub unsafe extern "C" fn ergo_lib_mnemonic_generator_generate(
+    mnemonic_generator_ptr: MnemonicGeneratorPtr,
+) -> ReturnString {
+    match mnemonic_generator_generate(mnemonic_generator_ptr) {
+        Ok(value) => match CString::new(value) {
+            Ok(mnemonic) => ReturnString {
+                value: mnemonic.into_raw(),
+                error: std::ptr::null_mut(),
+            },
+            Err(e) => ReturnString {
+                value: std::ptr::null_mut(),
+                error: Error::c_api_from(Err(Error::Misc(e.to_string().into()))),
+            },
+        },
+        Err(e) => ReturnString {
+            value: std::ptr::null_mut(), // Just a dummy value
+            error: Error::c_api_from(Err(e)),
+        },
+    }
+}
+
+/// Generate mnemonic sentence using provided entropy
+#[no_mangle]
+pub unsafe extern "C" fn ergo_lib_mnemonic_generator_generate_from_entropy(
+    mnemonic_generator_ptr: MnemonicGeneratorPtr,
+    entropy: *mut u8,
+    len: usize,
+) -> ReturnString {
+    match mnemonic_generator_generate_from_entropy(mnemonic_generator_ptr, entropy, len) {
+        Ok(value) => match CString::new(value) {
+            Ok(mnemonic) => ReturnString {
+                value: mnemonic.into_raw(),
+                error: std::ptr::null_mut(),
+            },
+            Err(e) => ReturnString {
+                value: std::ptr::null_mut(),
+                error: Error::c_api_from(Err(Error::Misc(e.to_string().into()))),
+            },
+        },
+        Err(e) => ReturnString {
+            value: std::ptr::null_mut(), // Just a dummy value
+            error: Error::c_api_from(Err(e)),
+        },
+    }
+}
+
+/// Free a previously-created CString. Intended to be paired with one of the
+/// mnemonic generation functions. Called by the client.
+#[no_mangle]
+pub unsafe extern "C" fn ergo_lib_mnemonic_generator_free_mnemonic(mnemonic: *mut c_char) {
+    let s = CString::from_raw(mnemonic);
+    drop(s);
+}
 
 /// Create `Wallet` instance loading secret key from mnemonic
 /// Returns Err if a DlogSecretKey cannot be parsed from the provided phrase

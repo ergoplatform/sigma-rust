@@ -1,6 +1,45 @@
 import Foundation
 import ErgoLibC
 
+class MnemonicGenerator {
+    internal var pointer: MnemonicGeneratorPtr
+
+    /// Create new ``MnemonicGenerator`` instance
+    init(language: String, strength: UInt32) throws {
+        var ptr: MnemonicGeneratorPtr?
+        let error = language.withCString { lang in
+            ergo_lib_mnemonic_generator(lang, strength, &ptr)
+        }
+        try checkError(error)
+        self.pointer = ptr!
+    }
+
+    /// Generate mnemonic sentence using random entropy
+    func generate() throws -> String {
+        let res = ergo_lib_mnemonic_generator_generate(self.pointer)
+        try checkError(res.error)
+        let mnemonic = String(cString: res.value)
+        ergo_lib_mnemonic_generator_free_mnemonic(res.value)
+        return mnemonic
+    }
+
+    /// Generate mnemonic sentence using provided entropy
+    func generateFromEntropy(entropy: [UInt8]) throws -> String {
+        let pointer = UnsafeMutablePointer<UInt8>.allocate(capacity: entropy.count)
+        pointer.initialize(from: entropy, count: entropy.count)
+        defer {
+            pointer.deinitialize(count: entropy.count)
+            pointer.deallocate()
+        }
+        let res = ergo_lib_mnemonic_generator_generate_from_entropy(
+            self.pointer, pointer, UInt(entropy.count))
+        try checkError(res.error)
+        let mnemonic = String(cString: res.value)
+        ergo_lib_mnemonic_generator_free_mnemonic(res.value)
+        return mnemonic
+    }
+}
+
 class Wallet {
     internal var pointer: WalletPtr
     
