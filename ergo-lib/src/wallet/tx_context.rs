@@ -25,15 +25,14 @@ impl<T: ErgoTransaction> TransactionContext<T> {
         boxes_to_spend: Vec<ErgoBox>,
         data_boxes: Vec<ErgoBox>,
     ) -> Result<Self, TxSigningError> {
-        let boxes_to_spend =
-            TxIoVec::from_vec(boxes_to_spend.clone().into()).map_err(|e| match e {
-                bounded_vec::BoundedVecOutOfBounds::LowerBoundError { .. } => {
-                    TxSigningError::NoInputBoxes
-                }
-                bounded_vec::BoundedVecOutOfBounds::UpperBoundError { got, .. } => {
-                    TxSigningError::TooManyInputBoxes(got)
-                }
-            })?;
+        let boxes_to_spend = TxIoVec::from_vec(boxes_to_spend).map_err(|e| match e {
+            bounded_vec::BoundedVecOutOfBounds::LowerBoundError { .. } => {
+                TxSigningError::NoInputBoxes
+            }
+            bounded_vec::BoundedVecOutOfBounds::UpperBoundError { got, .. } => {
+                TxSigningError::TooManyInputBoxes(got)
+            }
+        })?;
         for (i, unsigned_input) in spending_tx.inputs_ids().enumerated() {
             if !boxes_to_spend.iter().any(|b| unsigned_input == b.box_id()) {
                 return Err(TxSigningError::InputBoxNotFound(i));
