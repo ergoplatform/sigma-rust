@@ -290,10 +290,8 @@ pub fn extract_hints(
             .enumerated()
             .try_mapped(|(idx, u)| {
                 tx_ctx
-                    .boxes_to_spend
-                    .iter()
-                    .find(|b| u == b.box_id())
-                    .map(|b| Rc::new(b.clone()))
+                    .get_input_box(&u)
+                    .map(Rc::new)
                     .ok_or(TxSigningError::InputBoxNotFound(idx))
             })?;
         let extension = tx_ctx

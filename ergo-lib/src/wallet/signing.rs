@@ -41,55 +41,7 @@ pub enum TxSigningError {
     SerializationError(#[from] SigmaSerializationError),
 }
 
-/// Transaction and an additional info required for signing
-#[derive(PartialEq, Debug, Clone)]
-pub struct TransactionContext<T: ErgoTransaction> {
-    /// Unsigned transaction to sign
-    pub spending_tx: T,
-    /// Boxes corresponding to [`UnsignedTransaction::inputs`]
-    pub(crate) boxes_to_spend: TxIoVec<ErgoBox>,
-    /// Boxes corresponding to [`UnsignedTransaction::data_inputs`]
-    pub(crate) data_boxes: Option<TxIoVec<ErgoBox>>,
-}
-
-impl<T: ErgoTransaction> TransactionContext<T> {
-    /// New TransactionContext
-    pub fn new(
-        spending_tx: T,
-        boxes_to_spend: TxIoVec<ErgoBox>,
-        data_boxes: Option<TxIoVec<ErgoBox>>,
-    ) -> Result<Self, TxSigningError> {
-        for (i, unsigned_input) in spending_tx.inputs_ids().enumerated() {
-            if !boxes_to_spend.iter().any(|b| unsigned_input == b.box_id()) {
-                return Err(TxSigningError::InputBoxNotFound(i));
-            }
-        }
-        if let Some(data_inputs) = spending_tx.data_inputs().as_ref() {
-            if let Some(data_boxes) = data_boxes.as_ref() {
-                for (i, data_input) in data_inputs.iter().enumerate() {
-                    if !data_boxes.iter().any(|b| data_input.box_id == b.box_id()) {
-                        return Err(TxSigningError::DataInputBoxNotFound(i));
-                    }
-                }
-            } else {
-                return Err(TxSigningError::DataInputBoxNotFound(0));
-            }
-        }
-        Ok(TransactionContext {
-            spending_tx,
-            boxes_to_spend,
-            data_boxes,
-        })
-    }
-
-    /// Returns box with given id, if it exists.
-    pub fn get_input_box(&self, box_id: &BoxId) -> Option<ErgoBox> {
-        self.boxes_to_spend
-            .iter()
-            .find(|b| b.box_id() == *box_id)
-            .cloned()
-    }
-}
+pub use super::tx_context::TransactionContext;
 
 /// Exposes common properties for signed and unsigned transactions
 pub trait ErgoTransaction {
@@ -129,10 +81,7 @@ pub fn make_context(
 
     // Find self_box by matching BoxIDs
     let self_box = tx_ctx
-        .boxes_to_spend
-        .iter()
-        .find(|b| b.box_id() == tx_ctx.spending_tx.inputs.as_vec()[self_index].box_id)
-        .cloned()
+        .get_input_box(&tx_ctx.spending_tx.inputs.as_vec()[self_index].box_id)
         .ok_or_else(|| TxSigningError::ContextError("self_index is out of bounds".to_string()))?;
 
     let outputs = tx_ctx
@@ -164,10 +113,8 @@ pub fn make_context(
         .enumerated()
         .try_mapped(|(idx, u)| {
             tx_ctx
-                .boxes_to_spend
-                .iter()
-                .find(|b| u == b.box_id())
-                .map(|b| Rc::new(b.clone()))
+                .get_input_box(&u)
+                .map(Rc::new)
                 .ok_or(TxSigningError::InputBoxNotFound(idx))
         })?;
     let extension = tx_ctx
@@ -204,9 +151,7 @@ pub fn sign_transaction(
     let message_to_sign = tx.bytes_to_sign()?;
     let signed_inputs = tx.inputs.enumerated().try_mapped(|(idx, input)| {
         let input_box = tx_context
-            .boxes_to_spend
-            .iter()
-            .find(|b| b.box_id() == input.box_id)
+            .get_input_box(&input.box_id)
             .ok_or(TxSigningError::InputBoxNotFound(idx))?;
         let ctx = Rc::new(make_context(state_context, &tx_context, idx)?);
         let mut hints_bag = HintsBag::empty();
@@ -368,8 +313,7 @@ mod tests {
             let output_candidates = vec![candidate];
             let tx = UnsignedTransaction::new(inputs.try_into().unwrap(),
                 None, output_candidates.try_into().unwrap()).unwrap();
-            let tx_context = TransactionContext { spending_tx: tx,
-                                                  boxes_to_spend: TxIoVec::from_vec(boxes_to_spend.clone()).unwrap(), data_boxes: None };
+            let tx_context = TransactionContext::new(tx, TxIoVec::from_vec(boxes_to_spend.clone()).unwrap(), None).unwrap();
             let tx_hint_bag=TransactionHintsBag::empty();
             let res = sign_transaction(prover.as_ref(), tx_context.clone(), &force_any_val::<ErgoStateContext>(), Some(&tx_hint_bag));
             let signed_tx = res.unwrap();

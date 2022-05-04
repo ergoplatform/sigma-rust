@@ -11,6 +11,7 @@ pub mod multi_sig;
 pub mod secret_key;
 pub mod signing;
 pub mod tx_builder;
+mod tx_context;
 
 use ergotree_interpreter::sigma_protocol::private_input::PrivateInput;
 use ergotree_interpreter::sigma_protocol::prover::Prover;
