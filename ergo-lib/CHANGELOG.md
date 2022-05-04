@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
+## [0.16.1] - 2022-05-04
 
 ### Changed
 - Convert vendored dependencies of ergo-rest into sub-modules [#571](https://github.com/ergoplatform/sigma-rust/pull/571);
@@ -326,7 +327,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - ErgoTree constant values conversion.
 
 <!-- next-url -->
-[Unreleased]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.16.0...HEAD
+[Unreleased]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.16.1...HEAD
+[0.16.1]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.16.0...ergo-lib-v0.16.1
 [0.16.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.15.0...ergo-lib-v0.16.0
 [0.15.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.14.0...ergo-lib-v0.15.0
 [0.14.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.13.3...ergo-lib-v0.14.0
