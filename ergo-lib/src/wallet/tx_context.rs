@@ -51,9 +51,6 @@ impl<T: ErgoTransaction> TransactionContext<T> {
 
         if let Some(data_inputs) = spending_tx.data_inputs().as_ref() {
             if let Some(data_boxes) = data_boxes.as_ref() {
-                if data_boxes.is_empty() {
-                    return Err(TxSigningError::DataInputBoxNotFound(0));
-                }
                 for (i, data_input) in data_inputs.iter().enumerate() {
                     if !data_boxes.iter().any(|b| data_input.box_id == b.box_id()) {
                         return Err(TxSigningError::DataInputBoxNotFound(i));
