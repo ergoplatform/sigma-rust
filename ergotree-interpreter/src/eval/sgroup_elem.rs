@@ -1,8 +1,8 @@
 use crate::eval::EvalError;
 
+use ergo_chain_types::EcPoint;
 use ergotree_ir::mir::value::Value;
 use ergotree_ir::serialization::SigmaSerializable;
-use ergotree_ir::sigma_protocol::dlog_group::EcPoint;
 
 use super::EvalFn;
 
@@ -38,8 +38,8 @@ mod tests {
     use ergotree_ir::types::sgroup_elem;
 
     use crate::eval::tests::eval_out_wo_ctx;
+    use ergo_chain_types::EcPoint;
     use ergotree_ir::serialization::SigmaSerializable;
-    use ergotree_ir::sigma_protocol::dlog_group::EcPoint;
     use sigma_test_util::force_any_val;
 
     #[test]

@@ -1,6 +1,6 @@
 use bounded_integer::{BoundedI32, BoundedU64};
 use derive_more::From;
-use ergotree_ir::chain::header::Header;
+use ergo_chain_types::Header;
 use num_bigint::{BigInt, Sign};
 use sigma_ser::ScorexSerializationError;
 use sigma_util::hash::blake2b256_hash;

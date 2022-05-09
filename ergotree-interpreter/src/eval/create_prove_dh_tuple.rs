@@ -1,7 +1,7 @@
+use ergo_chain_types::EcPoint;
 use ergotree_ir::mir::constant::TryExtractInto;
 use ergotree_ir::mir::create_prove_dh_tuple::CreateProveDhTuple;
 use ergotree_ir::mir::value::Value;
-use ergotree_ir::sigma_protocol::dlog_group::EcPoint;
 use ergotree_ir::sigma_protocol::sigma_boolean::ProveDhTuple;
 
 use crate::eval::env::Env;

@@ -1,5 +1,5 @@
 //! Blockchain state
-use ergotree_ir::chain::header::Header;
+use ergo_chain_types::Header;
 use ergotree_ir::chain::preheader::PreHeader;
 
 /// Fixed number of last block headers in descending order (first header is the newest one)

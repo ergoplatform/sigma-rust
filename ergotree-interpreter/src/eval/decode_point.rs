@@ -6,9 +6,9 @@ use crate::eval::EvalContext;
 use crate::eval::EvalError;
 use crate::eval::EvalError::Misc;
 use crate::eval::Evaluable;
+use ergo_chain_types::EcPoint;
 use ergotree_ir::mir::constant::TryExtractInto;
 use ergotree_ir::serialization::SigmaSerializable;
-use ergotree_ir::sigma_protocol::dlog_group::EcPoint;
 
 impl Evaluable for DecodePoint {
     fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {

@@ -2,7 +2,6 @@ use crate::eval::Env;
 use ergotree_ir::mir::global_vars::GlobalVars;
 use ergotree_ir::mir::value::Value;
 use ergotree_ir::serialization::SigmaSerializable;
-use ergotree_ir::sigma_protocol::dlog_group;
 
 use super::EvalContext;
 use super::EvalError;
@@ -18,7 +17,7 @@ impl Evaluable for GlobalVars {
             GlobalVars::MinerPubKey => {
                 Ok(ectx.ctx.pre_header.miner_pk.sigma_serialize_bytes()?.into())
             }
-            GlobalVars::GroupGenerator => Ok(dlog_group::generator().into()),
+            GlobalVars::GroupGenerator => Ok(ergo_chain_types::ec_point::generator().into()),
         }
     }
 }
@@ -30,10 +29,10 @@ mod tests {
 
     use crate::eval::context::Context;
     use crate::eval::tests::eval_out;
+    use ergo_chain_types::EcPoint;
     use ergoscript_compiler::compiler::compile_expr;
     use ergoscript_compiler::script_env::ScriptEnv;
     use ergotree_ir::chain::ergo_box::ErgoBox;
-    use ergotree_ir::sigma_protocol::dlog_group::EcPoint;
     use sigma_test_util::force_any_val;
 
     use super::*;
@@ -77,7 +76,7 @@ mod tests {
         let ctx = Rc::new(force_any_val::<Context>());
         assert_eq!(
             eval_out::<EcPoint>(&GlobalVars::GroupGenerator.into(), ctx),
-            dlog_group::generator()
+            ergo_chain_types::ec_point::generator()
         );
     }
 }

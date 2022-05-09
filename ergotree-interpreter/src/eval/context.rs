@@ -2,8 +2,8 @@ use std::rc::Rc;
 
 use crate::sigma_protocol::prover::ContextExtension;
 use bounded_vec::BoundedVec;
+use ergo_chain_types::Header;
 use ergotree_ir::chain::ergo_box::ErgoBox;
-use ergotree_ir::chain::header::Header;
 use ergotree_ir::chain::preheader::PreHeader;
 
 /// BoundedVec type for Tx inputs, output_candidates and outputs

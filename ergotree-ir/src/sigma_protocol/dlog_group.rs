@@ -31,9 +31,6 @@ use num_traits::ToPrimitive;
 use sigma_ser::ScorexSerializable;
 use std::convert::TryFrom;
 
-// Re-export relevant items from `ergo_chain_types::ec_point`.
-pub use ergo_chain_types::ec_point::{exponentiate, generator, inverse, is_identity, EcPoint};
-
 // /// Creates a random member of this Dlog group
 // pub fn random_element() -> EcPoint {
 //     let sk = DlogProverInput::random();
@@ -87,7 +84,7 @@ pub fn bigint256_to_scalar(bi: BigInt256) -> Option<Scalar> {
     Scalar::from_repr(bytes.into()).into()
 }
 
-impl SigmaSerializable for EcPoint {
+impl SigmaSerializable for ergo_chain_types::EcPoint {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         let _ = self.scorex_serialize(w)?;
         Ok(())

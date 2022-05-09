@@ -2,10 +2,8 @@
 
 use std::convert::TryInto;
 
-use ergotree_ir::{
-    bigint256::BigInt256, chain::header::Header, mir::constant::TryExtractInto,
-    sigma_protocol::dlog_group::EcPoint,
-};
+use ergo_chain_types::{EcPoint, Header};
+use ergotree_ir::{bigint256::BigInt256, mir::constant::TryExtractInto};
 
 use super::{EvalError, EvalFn};
 
@@ -101,12 +99,10 @@ mod tests {
     use std::convert::{TryFrom, TryInto};
     use std::rc::Rc;
 
-    use ergo_chain_types::{BlockId, Digest, Digest32};
+    use ergo_chain_types::{BlockId, Digest, Digest32, EcPoint, Votes};
     use ergotree_ir::{
         bigint256::BigInt256,
-        chain::votes::Votes,
         mir::{coll_by_index::ByIndex, expr::Expr, property_call::PropertyCall},
-        sigma_protocol::dlog_group::EcPoint,
         types::{scontext, sheader, smethod::SMethod},
     };
     use sigma_test_util::force_any_val;

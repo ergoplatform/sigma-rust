@@ -1,8 +1,8 @@
 //! Discrete logarithm signature protocol
 
 use super::ProverMessage;
+use ergo_chain_types::EcPoint;
 use ergotree_ir::serialization::SigmaSerializable;
-use ergotree_ir::sigma_protocol::dlog_group::EcPoint;
 use k256::Scalar;
 
 /// a = g^r, b = h^r
@@ -60,16 +60,17 @@ pub mod interactive_prover {
         public_input: &ProveDhTuple,
         challenge: &Challenge,
     ) -> (FirstDhTupleProverMessage, SecondDhTupleProverMessage) {
+        use ergo_chain_types::ec_point::exponentiate;
         //SAMPLE a random z <- Zq
         let z = dlog_group::random_scalar_in_group_range(crypto_utils::secure_rng());
 
         // COMPUTE a = g^z*u^(-e) and b = h^z*v^{-e}  (where -e here means -e mod q)
         let e: Scalar = challenge.clone().into();
         let minus_e = e.negate();
-        let h_to_z = dlog_group::exponentiate(&public_input.h, &z);
-        let g_to_z = dlog_group::exponentiate(&public_input.g, &z);
-        let u_to_minus_e = dlog_group::exponentiate(&public_input.u, &minus_e);
-        let v_to_minus_e = dlog_group::exponentiate(&public_input.v, &minus_e);
+        let h_to_z = exponentiate(&public_input.h, &z);
+        let g_to_z = exponentiate(&public_input.g, &z);
+        let u_to_minus_e = exponentiate(&public_input.u, &minus_e);
+        let v_to_minus_e = exponentiate(&public_input.v, &minus_e);
         let a = g_to_z.mul(&u_to_minus_e);
         let b = h_to_z.mul(&v_to_minus_e);
         (
@@ -84,9 +85,10 @@ pub mod interactive_prover {
     ///
     /// In this case (DH tuple) "a" is also a tuple
     pub fn first_message(public_input: &ProveDhTuple) -> (Scalar, FirstDhTupleProverMessage) {
+        use ergo_chain_types::ec_point::exponentiate;
         let r = dlog_group::random_scalar_in_group_range(crypto_utils::secure_rng());
-        let a = dlog_group::exponentiate(&public_input.g, &r);
-        let b = dlog_group::exponentiate(&public_input.h, &r);
+        let a = exponentiate(&public_input.g, &r);
+        let b = exponentiate(&public_input.h, &r);
         (r, FirstDhTupleProverMessage::new(a, b))
     }
 
@@ -128,14 +130,16 @@ pub mod interactive_prover {
 
         let e: Scalar = challenge.clone().into();
 
-        let g_to_z = dlog_group::exponentiate(&g, &z);
-        let h_to_z = dlog_group::exponentiate(&h, &z);
+        use ergo_chain_types::ec_point::{exponentiate, inverse};
 
-        let u_to_e = dlog_group::exponentiate(&u, &e);
-        let v_to_e = dlog_group::exponentiate(&v, &e);
+        let g_to_z = exponentiate(&g, &z);
+        let h_to_z = exponentiate(&h, &z);
 
-        let a = g_to_z.mul(&dlog_group::inverse(&u_to_e));
-        let b = h_to_z.mul(&dlog_group::inverse(&v_to_e));
+        let u_to_e = exponentiate(&u, &e);
+        let v_to_e = exponentiate(&v, &e);
+
+        let a = g_to_z.mul(&inverse(&u_to_e));
+        let b = h_to_z.mul(&inverse(&v_to_e));
         (a, b)
     }
 }

@@ -15,7 +15,7 @@ pub unsafe fn preheader_from_block_header(
     preheader_out: *mut PreHeaderPtr,
 ) -> Result<(), Error> {
     let block_header = const_ptr_as_ref(block_header_ptr, "block_header")?;
-    let bh: ergo_lib::ergotree_ir::chain::header::Header = block_header.0.clone();
+    let bh: ergo_lib::ergo_chain_types::Header = block_header.0.clone();
     let ph: ergo_lib::ergotree_ir::chain::preheader::PreHeader = bh.into();
     *preheader_out = Box::into_raw(Box::new(PreHeader(ph)));
     Ok(())

@@ -11,23 +11,19 @@ use ergo_lib::{
     ergo_chain_types::{BlockId, Digest32},
 };
 use ergo_lib::{
-    ergo_chain_types::blake2b256_hash,
-    ergotree_ir::{
-        chain::{
-            ergo_box::{box_value::BoxValue, BoxId},
-            header::{AutolykosSolution, Header},
-            votes::Votes,
-        },
-        ergo_tree::ErgoTree,
-        serialization::{sigma_byte_writer::SigmaByteWriter, SigmaSerializable},
-        sigma_protocol::dlog_group::{order, EcPoint},
-    },
-};
-use ergo_lib::{
     ergo_chain_types::ADDigest,
     ergotree_interpreter::sigma_protocol::{
         private_input::DlogProverInput,
         prover::{ContextExtension, ProofBytes},
+    },
+};
+use ergo_lib::{
+    ergo_chain_types::{blake2b256_hash, AutolykosSolution, EcPoint, Header, Votes},
+    ergotree_ir::{
+        chain::ergo_box::{box_value::BoxValue, BoxId},
+        ergo_tree::ErgoTree,
+        serialization::{sigma_byte_writer::SigmaByteWriter, SigmaSerializable},
+        sigma_protocol::dlog_group::order,
     },
 };
 use ergo_merkle_tree::{MerkleNode, MerkleTree};

@@ -7,11 +7,11 @@ use impl_trait_for_tuples::impl_for_tuples;
 
 use crate::bigint256::BigInt256;
 use crate::chain::ergo_box::ErgoBox;
-use crate::sigma_protocol::dlog_group::EcPoint;
 use crate::sigma_protocol::sigma_boolean::SigmaBoolean;
 use crate::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
 use crate::sigma_protocol::sigma_boolean::SigmaProp;
 use crate::sigma_protocol::sigma_boolean::{ProveDhTuple, ProveDlog};
+use ergo_chain_types::EcPoint;
 
 use super::sfunc::SFunc;
 use super::stuple::STuple;

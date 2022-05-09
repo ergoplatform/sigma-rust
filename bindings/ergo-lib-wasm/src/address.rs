@@ -1,7 +1,7 @@
 //! Address types
 
+use ergo_lib::ergo_chain_types::EcPoint;
 use ergo_lib::ergotree_ir::serialization::SigmaSerializable;
-use ergo_lib::ergotree_ir::sigma_protocol::dlog_group::EcPoint;
 use ergo_lib::ergotree_ir::sigma_protocol::sigma_boolean::ProveDlog;
 use wasm_bindgen::prelude::*;
 

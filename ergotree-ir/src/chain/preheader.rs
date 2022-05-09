@@ -1,6 +1,5 @@
 //! Block header with fields that can be predicted by miner
-use crate::sigma_protocol::dlog_group;
-use ergo_chain_types::{BlockId, Header, Votes};
+use ergo_chain_types::{BlockId, EcPoint, Header, Votes};
 
 /// Block header with the current `spendingTransaction`, that can be predicted
 /// by a miner before it's formation
@@ -17,7 +16,7 @@ pub struct PreHeader {
     /// Block height
     pub height: u32,
     /// Public key of miner
-    pub miner_pk: Box<dlog_group::EcPoint>,
+    pub miner_pk: Box<EcPoint>,
     /// Votes
     pub votes: Votes,
 }
@@ -41,7 +40,7 @@ mod arbitrary {
     use proptest::array::{uniform3, uniform32};
     use proptest::prelude::*;
 
-    use crate::sigma_protocol::dlog_group::EcPoint;
+    use ergo_chain_types::EcPoint;
 
     use super::*;
 

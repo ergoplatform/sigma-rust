@@ -4,12 +4,10 @@ use crate::has_opcode::{HasOpCode, HasStaticOpCode};
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SigmaParsingError, SigmaSerializable,
 };
-use crate::sigma_protocol::{
-    dlog_group::EcPoint,
-    sigma_boolean::{
-        ProveDhTuple, ProveDlog, SigmaBoolean, SigmaConjecture, SigmaProofOfKnowledgeTree,
-    },
+use crate::sigma_protocol::sigma_boolean::{
+    ProveDhTuple, ProveDlog, SigmaBoolean, SigmaConjecture, SigmaProofOfKnowledgeTree,
 };
+use ergo_chain_types::EcPoint;
 
 use crate::sigma_protocol::sigma_boolean::cand::Cand;
 use crate::sigma_protocol::sigma_boolean::cor::Cor;

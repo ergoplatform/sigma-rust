@@ -1,5 +1,5 @@
 use ergo_chain_types::BlockId;
-use ergotree_ir::chain::header::Header;
+use ergo_chain_types::Header;
 
 use crate::nipopow_proof::{NipopowProof, NipopowProofError};
 
