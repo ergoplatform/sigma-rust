@@ -2,7 +2,7 @@
 //! is augmented with ReducedInput which contains a script reduction result.
 
 use ergo_lib::{
-    chain::transaction::{reduced::reduce_tx, TxIoVec},
+    chain::transaction::reduced::reduce_tx,
     ergotree_ir::{serialization::SigmaSerializable, sigma_protocol::sigma_boolean::SigmaBoolean},
 };
 
@@ -70,16 +70,8 @@ pub unsafe fn reduced_tx_from_unsigned_tx(
     let unsigned_tx = const_ptr_as_ref(unsigned_tx_ptr, "unsigned_tx_ptr")?;
     let boxes_to_spend = const_ptr_as_ref(boxes_to_spend_ptr, "boxes_to_spend_ptr")?;
     let reduced_tx_out = mut_ptr_as_mut(reduced_tx_out, "reduced_tx_out")?;
-    let boxes_to_spend =
-        TxIoVec::from_vec(boxes_to_spend.0.clone().into_iter().map(|b| b.0).collect())?;
-    let data_boxes = {
-        let d: Vec<_> = data_boxes.0.clone().into_iter().map(|b| b.0).collect();
-        if d.is_empty() {
-            None
-        } else {
-            Some(TxIoVec::from_vec(d)?)
-        }
-    };
+    let boxes_to_spend = boxes_to_spend.0.clone().into_iter().map(|b| b.0).collect();
+    let data_boxes = data_boxes.0.clone().into_iter().map(|b| b.0).collect();
     let tx_context = ergo_lib::wallet::signing::TransactionContext::new(
         unsigned_tx.0.clone(),
         boxes_to_spend,

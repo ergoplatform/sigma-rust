@@ -3,7 +3,7 @@
 use std::convert::{TryFrom, TryInto};
 
 use ergo_lib::{
-    chain::{self, transaction::TxIoVec},
+    chain,
     ergo_chain_types::{Base16DecodedBytes, Base16EncodedBytes},
 };
 
@@ -145,15 +145,8 @@ pub unsafe fn transaction_extract_hints(
     let transaction_hints_bag_out =
         mut_ptr_as_mut(transaction_hints_bag_out, "transaction_hints_bag_out")?;
 
-    let boxes_to_spend =
-        TxIoVec::from_vec(boxes_to_spend.0.clone().into_iter().map(|x| x.0).collect())?;
-    let data_boxes = if !data_boxes.0.is_empty() {
-        Some(TxIoVec::from_vec(
-            data_boxes.0.clone().into_iter().map(|x| x.0).collect(),
-        )?)
-    } else {
-        None
-    };
+    let boxes_to_spend = boxes_to_spend.0.clone().into_iter().map(|x| x.0).collect();
+    let data_boxes = data_boxes.0.clone().into_iter().map(|x| x.0).collect();
     let tx_context = ergo_lib::wallet::signing::TransactionContext::new(
         signed_transaction.0.clone(),
         boxes_to_spend,
