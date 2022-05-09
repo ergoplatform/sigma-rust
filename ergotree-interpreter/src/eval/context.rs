@@ -2,9 +2,8 @@ use std::rc::Rc;
 
 use crate::sigma_protocol::prover::ContextExtension;
 use bounded_vec::BoundedVec;
-use ergo_chain_types::Header;
+use ergo_chain_types::{Header, PreHeader};
 use ergotree_ir::chain::ergo_box::ErgoBox;
-use ergotree_ir::chain::preheader::PreHeader;
 
 /// BoundedVec type for Tx inputs, output_candidates and outputs
 pub type TxIoVec<T> = BoundedVec<T, 1, { u16::MAX as usize }>;

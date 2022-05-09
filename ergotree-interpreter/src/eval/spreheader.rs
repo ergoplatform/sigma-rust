@@ -1,4 +1,5 @@
-use ergotree_ir::{chain::preheader::PreHeader, mir::constant::TryExtractInto};
+use ergo_chain_types::PreHeader;
+use ergotree_ir::mir::constant::TryExtractInto;
 
 use super::EvalFn;
 

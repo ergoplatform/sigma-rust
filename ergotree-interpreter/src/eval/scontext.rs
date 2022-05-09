@@ -93,9 +93,8 @@ pub(crate) static LAST_BLOCK_UTXO_ROOT_HASH_EVAL_FN: EvalFn = |_env, ctx, obj, _
 mod tests {
     use crate::eval::context::{Context, TxIoVec};
     use crate::eval::tests::eval_out;
-    use ergo_chain_types::Header;
+    use ergo_chain_types::{Header, PreHeader};
     use ergotree_ir::chain::ergo_box::ErgoBox;
-    use ergotree_ir::chain::preheader::PreHeader;
     use ergotree_ir::mir::avl_tree_data::{AvlTreeData, AvlTreeFlags};
     use ergotree_ir::mir::expr::Expr;
     use ergotree_ir::mir::property_call::PropertyCall;

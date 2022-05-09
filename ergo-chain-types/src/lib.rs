@@ -26,6 +26,7 @@ mod header;
 mod json;
 mod peer_addr;
 mod peer_connection_dir;
+mod preheader;
 mod votes;
 
 pub use base16_bytes::Base16DecodedBytes;
@@ -41,4 +42,5 @@ pub use extensioncandidate::ExtensionCandidate;
 pub use header::{AutolykosSolution, Header};
 pub use peer_addr::PeerAddr;
 pub use peer_connection_dir::ConnectionDirection;
+pub use preheader::PreHeader;
 pub use votes::Votes;

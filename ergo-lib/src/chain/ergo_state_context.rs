@@ -1,6 +1,5 @@
 //! Blockchain state
-use ergo_chain_types::Header;
-use ergotree_ir::chain::preheader::PreHeader;
+use ergo_chain_types::{Header, PreHeader};
 
 /// Fixed number of last block headers in descending order (first header is the newest one)
 pub type Headers = [Header; 10];
