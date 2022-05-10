@@ -1,7 +1,5 @@
 //! Block header
-use ergo_chain_types::ADDigest;
-use ergo_chain_types::BlockId;
-use ergo_chain_types::Digest32;
+use crate::{ADDigest, BlockId, Digest32, EcPoint};
 use num_bigint::BigInt;
 use sigma_ser::vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt};
 use sigma_ser::{
@@ -10,11 +8,7 @@ use sigma_ser::{
 use sigma_util::hash::blake2b256_hash;
 use std::io::Write;
 
-use crate::serialization::sigma_byte_writer::SigmaByteWriter;
-use crate::sigma_protocol::dlog_group::{self, EcPoint};
-
-use super::preheader::PreHeader;
-use super::votes::Votes;
+use crate::votes::Votes;
 
 /// Represents data of the block header available in Sigma propositions.
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
@@ -64,7 +58,7 @@ impl Header {
     pub fn serialize_without_pow(&self) -> Result<Vec<u8>, ScorexSerializationError> {
         use byteorder::{BigEndian, WriteBytesExt};
         let mut data = Vec::new();
-        let mut w = SigmaByteWriter::new(&mut data, None);
+        let mut w = &mut data;
         w.put_u8(self.version)?;
         self.parent_id.0.scorex_serialize(&mut w)?;
         self.ad_proofs_root.scorex_serialize(&mut w)?;
@@ -189,8 +183,7 @@ impl ScorexSerializable for Header {
 
         let mut id_bytes = header.serialize_without_pow()?;
         let mut data = Vec::new();
-        let mut w = SigmaByteWriter::new(&mut data, None);
-        autolykos_solution.serialize_bytes(version, &mut w)?;
+        autolykos_solution.serialize_bytes(version, &mut data)?;
         id_bytes.extend(data);
         let id = BlockId(blake2b256_hash(&id_bytes).into());
         header.id = id;
@@ -205,17 +198,17 @@ impl ScorexSerializable for Header {
 pub struct AutolykosSolution {
     /// Public key of miner. Part of Autolykos solution.
     #[cfg_attr(feature = "json", serde(rename = "pk"))]
-    pub miner_pk: Box<dlog_group::EcPoint>,
+    pub miner_pk: Box<EcPoint>,
     /// One-time public key. Prevents revealing of miners secret.
     #[cfg_attr(feature = "json", serde(default, rename = "w"))]
-    pub pow_onetime_pk: Option<Box<dlog_group::EcPoint>>,
+    pub pow_onetime_pk: Option<Box<EcPoint>>,
     /// nonce
     #[cfg_attr(
         feature = "json",
         serde(
             rename = "n",
-            serialize_with = "crate::chain::json::autolykos_solution::as_base16_string",
-            deserialize_with = "crate::chain::json::autolykos_solution::from_base16_string"
+            serialize_with = "crate::json::autolykos_solution::as_base16_string",
+            deserialize_with = "crate::json::autolykos_solution::from_base16_string"
         )
     )]
     pub nonce: Vec<u8>,
@@ -232,8 +225,8 @@ pub struct AutolykosSolution {
         serde(
             default,
             rename = "d",
-            serialize_with = "crate::chain::json::autolykos_solution::bigint_as_str",
-            deserialize_with = "crate::chain::json::autolykos_solution::bigint_from_serde_json_number"
+            serialize_with = "crate::json::autolykos_solution::bigint_as_str",
+            deserialize_with = "crate::json::autolykos_solution::bigint_from_serde_json_number"
         )
     )]
     pub pow_distance: Option<BigInt>,
@@ -274,29 +267,11 @@ impl AutolykosSolution {
     }
 }
 
-impl From<Header> for PreHeader {
-    fn from(bh: Header) -> Self {
-        PreHeader {
-            version: bh.version,
-            parent_id: bh.parent_id,
-            timestamp: bh.timestamp,
-            n_bits: bh.n_bits,
-            height: bh.height,
-            miner_pk: bh.autolykos_solution.miner_pk,
-            votes: bh.votes,
-        }
-    }
-}
-
 #[cfg(feature = "arbitrary")]
 #[allow(clippy::unwrap_used)]
 mod arbitrary {
 
-    use crate::serialization::sigma_byte_writer::SigmaByteWriter;
-    use crate::sigma_protocol::dlog_group::EcPoint;
-    use ergo_chain_types::Digest;
-    use ergo_chain_types::Digest32;
-    use ergo_chain_types::{blake2b256_hash, ADDigest};
+    use crate::*;
     use num_bigint::BigInt;
     use proptest::array::{uniform3, uniform32};
     use proptest::prelude::*;
@@ -357,7 +332,7 @@ mod arbitrary {
                         };
                         let mut id_bytes = header.serialize_without_pow().unwrap();
                         let mut data = Vec::new();
-                        let mut w = SigmaByteWriter::new(&mut data, None);
+                        let mut w = &mut data;
                         autolykos_solution.serialize_bytes(version, &mut w).unwrap();
                         id_bytes.extend(data);
                         let id = BlockId(blake2b256_hash(&id_bytes));
@@ -412,7 +387,7 @@ mod tests {
 
     use num_bigint::BigInt;
 
-    use crate::chain::header::Header;
+    use crate::header::Header;
     use proptest::prelude::*;
     use sigma_ser::scorex_serialize_roundtrip;
 

@@ -8,13 +8,11 @@ use sigma_util::AsVecI8;
 
 use crate::bigint256::BigInt256;
 use crate::chain::ergo_box::ErgoBox;
-use crate::chain::header::Header;
-use crate::chain::preheader::PreHeader;
-use crate::sigma_protocol::dlog_group::EcPoint;
 use crate::sigma_protocol::sigma_boolean::SigmaProp;
 use crate::types::stuple::TupleItems;
 use crate::types::stype::LiftIntoSType;
 use crate::types::stype::SType;
+use ergo_chain_types::{EcPoint, Header, PreHeader};
 
 use super::avl_tree_data::AvlTreeData;
 use super::constant::Literal;

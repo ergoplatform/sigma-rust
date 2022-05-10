@@ -18,12 +18,12 @@ use crate::mir::value::NativeColl::CollByte;
 use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
 use crate::serialization::SigmaSerializationError;
-use crate::sigma_protocol::dlog_group::EcPoint;
 use crate::sigma_protocol::sigma_boolean::ProveDlog;
 use crate::sigma_protocol::sigma_boolean::SigmaBoolean;
 use crate::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
 use crate::sigma_protocol::sigma_boolean::SigmaProp;
 use crate::types::stype::SType;
+use ergo_chain_types::EcPoint;
 
 use sigma_util::hash::blake2b256_hash;
 use sigma_util::AsVecU8;

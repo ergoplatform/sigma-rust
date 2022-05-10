@@ -1,4 +1,5 @@
-use ergotree_ir::{chain::header::Header, sigma_protocol::dlog_group::order};
+use ergo_chain_types::Header;
+use ergotree_ir::sigma_protocol::dlog_group::order;
 use num_bigint::BigInt;
 use num_traits::ToPrimitive;
 use std::convert::TryInto;

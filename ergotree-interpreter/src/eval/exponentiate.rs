@@ -20,7 +20,7 @@ impl Evaluable for Exponentiate {
 
         match (left_v.clone(), exp_scalar) {
             (Value::GroupElement(group), Some(exp)) => {
-                Ok(dlog_group::exponentiate(&group, &exp).into())
+                Ok(ergo_chain_types::ec_point::exponentiate(&group, &exp).into())
             }
             _ => Err(EvalError::UnexpectedValue(format!(
                 "Exponentiate input should be GroupElement, BigInt (positive, <= 256 bit). Received: {0:?}",
@@ -39,9 +39,10 @@ mod tests {
     use crate::eval::tests::{eval_out, try_eval_out};
     use crate::sigma_protocol::private_input::DlogProverInput;
 
+    use ergo_chain_types::EcPoint;
     use ergotree_ir::bigint256::BigInt256;
     use ergotree_ir::mir::expr::Expr;
-    use ergotree_ir::sigma_protocol::dlog_group::{scalar_to_bigint256, EcPoint};
+    use ergotree_ir::sigma_protocol::dlog_group::scalar_to_bigint256;
     use num_traits::Num;
     use proptest::prelude::*;
     use sigma_test_util::force_any_val;
@@ -55,7 +56,7 @@ mod tests {
             // can be converted to a BigInt256 and back
             let right: BigInt256 = scalar_to_bigint256(pi.w >> 1).unwrap();
 
-            let expected_exp = dlog_group::exponentiate(
+            let expected_exp = ergo_chain_types::ec_point::exponentiate(
                 &left,
                 &dlog_group::bigint256_to_scalar(right.clone()).unwrap()
             );

@@ -1,10 +1,5 @@
 //! Block header with fields that can be predicted by miner
-
-use ergo_chain_types::BlockId;
-
-use crate::sigma_protocol::dlog_group;
-
-use super::votes::Votes;
+use crate::{BlockId, EcPoint, Header, Votes};
 
 /// Block header with the current `spendingTransaction`, that can be predicted
 /// by a miner before it's formation
@@ -21,9 +16,23 @@ pub struct PreHeader {
     /// Block height
     pub height: u32,
     /// Public key of miner
-    pub miner_pk: Box<dlog_group::EcPoint>,
+    pub miner_pk: Box<EcPoint>,
     /// Votes
     pub votes: Votes,
+}
+
+impl From<Header> for PreHeader {
+    fn from(bh: Header) -> Self {
+        PreHeader {
+            version: bh.version,
+            parent_id: bh.parent_id,
+            timestamp: bh.timestamp,
+            n_bits: bh.n_bits,
+            height: bh.height,
+            miner_pk: bh.autolykos_solution.miner_pk,
+            votes: bh.votes,
+        }
+    }
 }
 
 #[cfg(feature = "arbitrary")]
@@ -31,7 +40,7 @@ mod arbitrary {
     use proptest::array::{uniform3, uniform32};
     use proptest::prelude::*;
 
-    use crate::sigma_protocol::dlog_group::EcPoint;
+    use crate::EcPoint;
 
     use super::*;
 

@@ -20,9 +20,14 @@
 mod base16_bytes;
 mod block_id;
 mod digest32;
+pub mod ec_point;
 mod extensioncandidate;
+mod header;
+mod json;
 mod peer_addr;
 mod peer_connection_dir;
+mod preheader;
+mod votes;
 
 pub use base16_bytes::Base16DecodedBytes;
 pub use base16_bytes::Base16EncodedBytes;
@@ -32,6 +37,10 @@ pub use digest32::ADDigest;
 pub use digest32::Digest;
 pub use digest32::Digest32;
 pub use digest32::DigestNError;
+pub use ec_point::EcPoint;
 pub use extensioncandidate::ExtensionCandidate;
+pub use header::{AutolykosSolution, Header};
 pub use peer_addr::PeerAddr;
 pub use peer_connection_dir::ConnectionDirection;
+pub use preheader::PreHeader;
+pub use votes::Votes;

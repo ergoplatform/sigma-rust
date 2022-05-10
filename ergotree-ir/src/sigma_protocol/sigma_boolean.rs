@@ -4,13 +4,13 @@ use self::cand::Cand;
 use self::cor::Cor;
 use self::cthreshold::Cthreshold;
 
-use super::dlog_group::EcPoint;
 use crate::ergo_tree::{ErgoTree, ErgoTreeError};
 use crate::has_opcode::{HasOpCode, HasStaticOpCode};
 use crate::mir::constant::Constant;
 use crate::mir::expr::Expr;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::SigmaSerializable;
+use ergo_chain_types::EcPoint;
 use std::convert::TryFrom;
 use std::convert::TryInto;
 

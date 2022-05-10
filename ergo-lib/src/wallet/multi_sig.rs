@@ -459,7 +459,6 @@ mod tests {
     use crate::ergotree_ir::mir::expr::Expr;
     use crate::ergotree_ir::mir::sigma_and::SigmaAnd;
     use crate::ergotree_ir::serialization::SigmaSerializable;
-    use crate::ergotree_ir::sigma_protocol::dlog_group;
     use crate::ergotree_ir::sigma_protocol::sigma_boolean::cand::Cand;
     use ergo_chain_types::Base16DecodedBytes;
     use ergotree_interpreter::sigma_protocol::private_input::DhTupleProverInput;
@@ -653,7 +652,8 @@ mod tests {
             assert_eq!(comm.position, NodePosition::crypto_tree_prefix());
             r = Some(comm.secret_randomness);
         }
-        let g_to_r = dlog_group::exponentiate(&dlog_group::generator(), &r.unwrap());
+        use ergo_chain_types::ec_point::{exponentiate, generator};
+        let g_to_r = exponentiate(&generator(), &r.unwrap());
         assert_eq!(
             FirstProverMessage::FirstDlogProverMessage(g_to_r.into()),
             a.unwrap()

@@ -10,14 +10,14 @@ use crate::block_header::BlockHeader;
 /// by a miner before it's formation
 #[wasm_bindgen]
 #[derive(PartialEq, Eq, Debug, Clone, From, Into)]
-pub struct PreHeader(ergo_lib::ergotree_ir::chain::preheader::PreHeader);
+pub struct PreHeader(ergo_lib::ergo_chain_types::PreHeader);
 
 #[wasm_bindgen]
 impl PreHeader {
     /// Create using data from block header
     pub fn from_block_header(block_header: BlockHeader) -> Self {
-        let bh: ergo_lib::ergotree_ir::chain::header::Header = block_header.into();
-        let ph: ergo_lib::ergotree_ir::chain::preheader::PreHeader = bh.into();
+        let bh: ergo_lib::ergo_chain_types::Header = block_header.into();
+        let ph: ergo_lib::ergo_chain_types::PreHeader = bh.into();
         ph.into()
     }
 }

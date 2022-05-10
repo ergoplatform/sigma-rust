@@ -1,5 +1,5 @@
 //! Main "remote" type for [Vote]()
-use ergo_chain_types::{Base16DecodedBytes, Base16EncodedBytes};
+use crate::{Base16DecodedBytes, Base16EncodedBytes};
 use thiserror::Error;
 
 use std::convert::{TryFrom, TryInto};
@@ -11,7 +11,7 @@ use std::convert::{TryFrom, TryInto};
     feature = "json",
     serde(
         into = "Base16EncodedBytes",
-        try_from = "crate::chain::json::votes::VotesEncodingVariants"
+        try_from = "crate::json::votes::VotesEncodingVariants"
     )
 )]
 pub struct Votes(pub [u8; 3]);

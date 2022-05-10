@@ -1,8 +1,8 @@
 //! Discrete logarithm signature protocol
 
 use super::ProverMessage;
+use ergo_chain_types::EcPoint;
 use ergotree_ir::serialization::SigmaSerializable;
-use ergotree_ir::sigma_protocol::dlog_group::EcPoint;
 use k256::Scalar;
 
 /// First message from the prover (message `a` of `SigmaProtocol`) for discrete logarithm case
@@ -43,8 +43,11 @@ pub mod interactive_prover {
     use super::{FirstDlogProverMessage, SecondDlogProverMessage};
     use crate::sigma_protocol::crypto_utils;
     use crate::sigma_protocol::{private_input::DlogProverInput, Challenge};
+    use ergo_chain_types::{
+        ec_point::{exponentiate, generator, inverse},
+        EcPoint,
+    };
     use ergotree_ir::sigma_protocol::dlog_group;
-    use ergotree_ir::sigma_protocol::dlog_group::EcPoint;
     use ergotree_ir::sigma_protocol::sigma_boolean::ProveDlog;
     use k256::Scalar;
 
@@ -62,8 +65,8 @@ pub mod interactive_prover {
         //COMPUTE a = g^z*h^(-e)  (where -e here means -e mod q)
         let e: Scalar = challenge.clone().into();
         let minus_e = e.negate();
-        let h_to_e = dlog_group::exponentiate(&public_input.h, &minus_e);
-        let g_to_z = dlog_group::exponentiate(&dlog_group::generator(), &z);
+        let h_to_e = exponentiate(&public_input.h, &minus_e);
+        let g_to_z = exponentiate(&generator(), &z);
         let a = g_to_z * &h_to_e;
         (
             FirstDlogProverMessage(a.into()),
@@ -76,8 +79,8 @@ pub mod interactive_prover {
     /// that leaf to compute the necessary randomness "r" and the commitment "a"
     pub fn first_message() -> (Scalar, FirstDlogProverMessage) {
         let r = dlog_group::random_scalar_in_group_range(crypto_utils::secure_rng());
-        let g = dlog_group::generator();
-        let a = dlog_group::exponentiate(&g, &r);
+        let g = generator();
+        let a = exponentiate(&g, &r);
         (r, FirstDlogProverMessage(a.into()))
     }
 
@@ -108,12 +111,12 @@ pub mod interactive_prover {
         challenge: &Challenge,
         second_message: &SecondDlogProverMessage,
     ) -> EcPoint {
-        let g = dlog_group::generator();
+        let g = generator();
         let h = *proposition.h.clone();
         let e: Scalar = challenge.clone().into();
-        let g_z = dlog_group::exponentiate(&g, &second_message.z);
-        let h_e = dlog_group::exponentiate(&h, &e);
-        g_z * &dlog_group::inverse(&h_e)
+        let g_z = exponentiate(&g, &second_message.z);
+        let h_e = exponentiate(&h, &e);
+        g_z * &inverse(&h_e)
     }
 }
 

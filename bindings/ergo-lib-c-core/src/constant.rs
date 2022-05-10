@@ -8,12 +8,12 @@ use crate::{
     Error,
 };
 use ergo_lib::{
-    ergo_chain_types::Base16DecodedBytes,
+    ergo_chain_types::{Base16DecodedBytes, EcPoint},
     ergotree_ir::{
         base16_str::Base16Str,
         mir::constant::{TryExtractFrom, TryExtractInto},
         serialization::SigmaSerializable,
-        sigma_protocol::{dlog_group::EcPoint, sigma_boolean::ProveDlog},
+        sigma_protocol::sigma_boolean::ProveDlog,
     },
 };
 

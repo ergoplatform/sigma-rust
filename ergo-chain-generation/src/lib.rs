@@ -17,7 +17,7 @@
 #![deny(clippy::unimplemented)]
 #![deny(clippy::panic)]
 
-use ergo_lib::ergotree_ir::chain::header::Header;
+use ergo_chain_types::Header;
 use ergo_lib::{
     ergo_chain_types::ExtensionCandidate,
     wallet::{ext_secret_key::ExtSecretKey, mnemonic::Mnemonic},

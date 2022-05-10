@@ -29,8 +29,8 @@ mod tests {
     use crate::eval::context::Context;
     use crate::eval::tests::eval_out;
 
+    use ergo_chain_types::EcPoint;
     use ergotree_ir::mir::expr::Expr;
-    use ergotree_ir::sigma_protocol::dlog_group::EcPoint;
     use proptest::prelude::*;
     use sigma_test_util::force_any_val;
     use std::rc::Rc;

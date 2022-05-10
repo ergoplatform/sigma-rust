@@ -76,8 +76,8 @@ impl DlogProverInput {
     /// public key of discrete logarithm signature protocol
     pub fn public_image(&self) -> ProveDlog {
         // test it, see https://github.com/ergoplatform/sigma-rust/issues/38
-        let g = dlog_group::generator();
-        ProveDlog::new(dlog_group::exponentiate(&g, &self.w))
+        let g = ergo_chain_types::ec_point::generator();
+        ProveDlog::new(ergo_chain_types::ec_point::exponentiate(&g, &self.w))
     }
 
     /// Return true if the secret is 0
@@ -108,14 +108,15 @@ impl DhTupleProverInput {
     /// Create random secret and Diffie-Hellman tuple
     #[allow(clippy::many_single_char_names)]
     pub fn random() -> DhTupleProverInput {
-        let g = dlog_group::generator();
-        let h = dlog_group::exponentiate(
-            &dlog_group::generator(),
+        use ergo_chain_types::ec_point::{exponentiate, generator};
+        let g = generator();
+        let h = exponentiate(
+            &generator(),
             &dlog_group::random_scalar_in_group_range(crypto_utils::secure_rng()),
         );
         let w = dlog_group::random_scalar_in_group_range(crypto_utils::secure_rng());
-        let u = dlog_group::exponentiate(&g, &w);
-        let v = dlog_group::exponentiate(&h, &w);
+        let u = exponentiate(&g, &w);
+        let v = exponentiate(&h, &w);
         let common_input = ProveDhTuple::new(g, h, u, v);
         DhTupleProverInput { w, common_input }
     }

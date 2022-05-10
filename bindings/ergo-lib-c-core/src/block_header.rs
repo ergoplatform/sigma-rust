@@ -4,7 +4,7 @@ use crate::{
     error::*,
     util::{const_ptr_as_ref, mut_ptr_as_mut},
 };
-use ergo_lib::ergotree_ir::chain::header::Header;
+use ergo_lib::ergo_chain_types::Header;
 
 /// Block header
 #[derive(PartialEq, Eq, Debug, Clone)]

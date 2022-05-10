@@ -1,7 +1,6 @@
 use derive_more::From;
-use ergo_chain_types::BlockId;
+use ergo_chain_types::{BlockId, Header};
 use ergo_merkle_tree::BatchMerkleProof;
-use ergotree_ir::chain::header::Header;
 use serde::{Deserialize, Serialize};
 use sigma_ser::{
     vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt},

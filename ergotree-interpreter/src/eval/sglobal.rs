@@ -2,7 +2,7 @@ use crate::eval::EvalError;
 
 use ergotree_ir::mir::value::{CollKind, NativeColl, Value};
 
-use ergotree_ir::sigma_protocol::dlog_group::generator;
+use ergo_chain_types::ec_point::generator;
 
 use super::EvalFn;
 
@@ -56,11 +56,10 @@ pub(crate) static XOR_EVAL_FN: EvalFn = |_env, _ctx, obj, args| {
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
 mod tests {
+    use ergo_chain_types::EcPoint;
     use ergotree_ir::mir::expr::Expr;
     use ergotree_ir::mir::method_call::MethodCall;
     use ergotree_ir::mir::property_call::PropertyCall;
-    use ergotree_ir::sigma_protocol::dlog_group;
-    use ergotree_ir::sigma_protocol::dlog_group::EcPoint;
     use std::rc::Rc;
 
     use crate::eval::context::Context;
@@ -74,7 +73,10 @@ mod tests {
             .unwrap()
             .into();
         let ctx = Rc::new(force_any_val::<Context>());
-        assert_eq!(eval_out::<EcPoint>(&expr, ctx), dlog_group::generator());
+        assert_eq!(
+            eval_out::<EcPoint>(&expr, ctx),
+            ergo_chain_types::ec_point::generator()
+        );
     }
 
     #[test]
