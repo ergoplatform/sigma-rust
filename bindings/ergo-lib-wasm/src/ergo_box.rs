@@ -109,6 +109,15 @@ impl ErgoBoxCandidate {
     pub fn value(&self) -> BoxValue {
         self.0.value.into()
     }
+
+    /// Serialized additional register as defined in ErgoBox serialization (registers count,
+    /// followed by every non-empyt register value serialized)
+    pub fn serialized_additional_registers(&self) -> Result<Vec<u8>, JsValue> {
+        self.0
+            .additional_registers
+            .sigma_serialize_bytes()
+            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+    }
 }
 
 /// Ergo box, that is taking part in some transaction on the chain
