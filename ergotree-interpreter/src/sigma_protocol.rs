@@ -42,10 +42,14 @@ pub(crate) trait ProverMessage {
 
 /** First message from the prover (message `a` of `SigmaProtocol`)*/
 #[derive(PartialEq, Debug, Clone, From, TryInto)]
+#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "json", serde(tag = "type"))]
 pub enum FirstProverMessage {
     /// Discrete log
+    #[cfg_attr(feature = "json", serde(rename = "dlog"))]
     FirstDlogProverMessage(FirstDlogProverMessage),
     /// DH tupl
+    #[cfg_attr(feature = "json", serde(rename = "dht"))]
     FirstDhtProverMessage(FirstDhTupleProverMessage),
 }
 

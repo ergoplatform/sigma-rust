@@ -7,6 +7,7 @@ use crate::sigma_protocol::unproven_tree::{UnprovenConjecture, UnprovenTree};
 use crate::sigma_protocol::ProverMessage;
 use blake2::digest::{Update, VariableOutput};
 use blake2::VarBlake2b;
+use ergo_chain_types::{Base16DecodedBytes, Base16EncodedBytes};
 use ergotree_ir::ergo_tree::{ErgoTree, ErgoTreeHeader};
 use ergotree_ir::mir::expr::Expr;
 use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
@@ -26,6 +27,12 @@ use super::SOUNDNESS_BYTES;
 /// Hash type for Fiat-Shamir hash function (24-bytes)
 #[cfg_attr(feature = "arbitrary", derive(Arbitrary))]
 #[derive(PartialEq, Eq, Debug, Clone)]
+#[cfg(feature = "json")]
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(
+    try_from = "ergo_chain_types::Base16DecodedBytes",
+    into = "ergo_chain_types::Base16EncodedBytes"
+)]
 pub struct FiatShamirHash(pub Box<[u8; SOUNDNESS_BYTES]>);
 
 impl FiatShamirHash {
@@ -35,6 +42,20 @@ impl FiatShamirHash {
             .as_slice()
             .try_into()
             .unwrap()
+    }
+}
+
+impl From<FiatShamirHash> for Base16EncodedBytes {
+    fn from(_: FiatShamirHash) -> Self {
+        todo!()
+    }
+}
+
+impl TryFrom<Base16DecodedBytes> for FiatShamirHash {
+    type Error = String;
+
+    fn try_from(value: Base16DecodedBytes) -> Result<Self, Self::Error> {
+        todo!()
     }
 }
 

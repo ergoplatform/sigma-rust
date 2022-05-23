@@ -393,6 +393,12 @@ impl UnprovenDhTuple {
 /// Please note that "0" prefix is for a crypto tree. There are several kinds of trees during evaluation.
 /// Initial mixed tree (ergoTree) would have another prefix.
 #[derive(PartialEq, Eq, Debug, Clone)]
+#[cfg(feature = "json")]
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(
+    try_from = "crate::json::hint::NodePositionJson",
+    into = "crate::json::hint::NodePositionJson"
+)]
 pub struct NodePosition {
     /// positions from root (inclusive) in top-down order
     pub positions: Vec<usize>,

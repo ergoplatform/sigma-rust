@@ -12,6 +12,8 @@ use std::convert::TryFrom;
 /// Challenge in Sigma protocol
 #[cfg_attr(feature = "arbitrary", derive(Arbitrary))]
 #[derive(PartialEq, Eq, Debug, Clone)]
+#[cfg(feature = "json")]
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct Challenge(pub(crate) FiatShamirHash);
 
 impl From<Challenge> for Scalar {

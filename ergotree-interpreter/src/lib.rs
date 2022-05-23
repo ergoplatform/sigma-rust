@@ -23,3 +23,6 @@ mod util;
 
 pub mod eval;
 pub mod sigma_protocol;
+
+#[cfg(feature = "json")]
+pub mod json;

@@ -7,7 +7,10 @@ use k256::Scalar;
 
 /// First message from the prover (message `a` of `SigmaProtocol`) for discrete logarithm case
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct FirstDlogProverMessage(pub(crate) Box<EcPoint>);
+#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+pub struct FirstDlogProverMessage(
+    #[cfg_attr(feature = "json", serde(rename = "a"))] pub(crate) Box<EcPoint>,
+);
 
 impl From<EcPoint> for FirstDlogProverMessage {
     fn from(ecp: EcPoint) -> Self {

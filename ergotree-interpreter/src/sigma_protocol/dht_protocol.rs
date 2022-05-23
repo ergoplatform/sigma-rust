@@ -7,8 +7,11 @@ use k256::Scalar;
 
 /// a = g^r, b = h^r
 #[derive(PartialEq, Eq, Debug, Clone)]
+#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 pub struct FirstDhTupleProverMessage {
+    #[cfg_attr(feature = "json", serde(rename = "a"))]
     a: Box<EcPoint>,
+    #[cfg_attr(feature = "json", serde(rename = "b"))]
     b: Box<EcPoint>,
 }
 

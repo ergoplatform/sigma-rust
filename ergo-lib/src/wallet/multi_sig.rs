@@ -32,6 +32,16 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 /// TransactionHintsBag
+#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "json",
+    serde(
+        try_from = "crate::chain::json::hint::TransactionHintsBagJson",
+        into = "crate::chain::json::hint::TransactionHintsBagJson"
+    )
+)]
+#[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
+#[derive(PartialEq, Debug, Clone)]
 pub struct TransactionHintsBag {
     secret_hints: HashMap<usize, HintsBag>,
     public_hints: HashMap<usize, HintsBag>,
@@ -107,6 +117,20 @@ impl TransactionHintsBag {
         }
         let hints_bag: HintsBag = HintsBag { hints };
         hints_bag
+    }
+}
+
+#[cfg(feature = "json")]
+impl From<TransactionHintsBag> for crate::chain::json::hint::TransactionHintsBagJson {
+    fn from(_: TransactionHintsBag) -> Self {
+        todo!()
+    }
+}
+
+#[cfg(feature = "json")]
+impl From<crate::chain::json::hint::TransactionHintsBagJson> for TransactionHintsBag {
+    fn from(_: crate::chain::json::hint::TransactionHintsBagJson) -> Self {
+        todo!()
     }
 }
 

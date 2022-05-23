@@ -5,6 +5,7 @@ use serde::Serializer;
 pub(crate) mod box_value;
 pub(crate) mod ergo_box;
 pub mod ergo_tree;
+pub(crate) mod sigma_protocol;
 pub(crate) mod token;
 
 /// Serialize bytes ([u8]) as base16 encoded string
