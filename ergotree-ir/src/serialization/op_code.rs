@@ -8,6 +8,7 @@ use crate::serialization::{
 use super::sigma_byte_writer::SigmaByteWrite;
 
 #[derive(PartialEq, Eq, Hash, Copy, Clone, Debug)]
+#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 pub struct OpCode(u8);
 
 impl OpCode {

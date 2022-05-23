@@ -127,11 +127,13 @@ impl HasOpCode for SigmaConjecture {
 /// Algebraic data type of sigma proposition expressions
 /// Values of this type are used as values of SigmaProp type
 #[derive(PartialEq, Eq, Debug, Clone, From, TryInto)]
-#[cfg(feature = "json")]
-#[derive(serde::Serialize, serde::Deserialize)]
-#[serde(
-    try_from = "crate::chain::json::sigma_protocol::SigmaBooleanJson",
-    into = "crate::chain::json::sigma_protocol::SigmaBooleanJson"
+#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "json",
+    serde(
+        try_from = "crate::chain::json::sigma_protocol::SigmaBooleanJson",
+        into = "crate::chain::json::sigma_protocol::SigmaBooleanJson"
+    )
 )]
 pub enum SigmaBoolean {
     /// Represents boolean values (true/false)
