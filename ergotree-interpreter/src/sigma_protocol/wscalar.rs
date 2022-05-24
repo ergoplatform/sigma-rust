@@ -74,7 +74,7 @@ impl TryFrom<Base16DecodedBytes> for Wscalar {
 #[cfg(feature = "arbitrary")]
 mod arbitrary {
 
-    use crate::sigma_protocol::SOUNDNESS_BYTES;
+    use crate::sigma_protocol::GROUP_SIZE;
 
     use super::Wscalar;
     use elliptic_curve::{generic_array::GenericArray, PrimeField};
@@ -86,7 +86,7 @@ mod arbitrary {
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(_: Self::Parameters) -> Self::Strategy {
-            vec(any::<u8>(), SOUNDNESS_BYTES)
+            vec(any::<u8>(), GROUP_SIZE)
                 .prop_filter("must be in group range", |bytes| {
                     let opt: Option<Scalar> =
                         Scalar::from_repr(GenericArray::clone_from_slice(bytes)).into();

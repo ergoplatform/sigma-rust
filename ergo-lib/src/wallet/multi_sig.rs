@@ -43,8 +43,8 @@ use std::rc::Rc;
 #[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
 #[derive(PartialEq, Debug, Clone)]
 pub struct TransactionHintsBag {
-    secret_hints: HashMap<usize, HintsBag>,
-    public_hints: HashMap<usize, HintsBag>,
+    pub(crate) secret_hints: HashMap<usize, HintsBag>,
+    pub(crate) public_hints: HashMap<usize, HintsBag>,
 }
 
 impl TransactionHintsBag {
@@ -117,20 +117,6 @@ impl TransactionHintsBag {
         }
         let hints_bag: HintsBag = HintsBag { hints };
         hints_bag
-    }
-}
-
-#[cfg(feature = "json")]
-impl From<TransactionHintsBag> for crate::chain::json::hint::TransactionHintsBagJson {
-    fn from(_: TransactionHintsBag) -> Self {
-        todo!()
-    }
-}
-
-#[cfg(feature = "json")]
-impl From<crate::chain::json::hint::TransactionHintsBagJson> for TransactionHintsBag {
-    fn from(_: crate::chain::json::hint::TransactionHintsBagJson) -> Self {
-        todo!()
     }
 }
 
