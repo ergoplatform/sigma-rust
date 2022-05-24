@@ -14,6 +14,7 @@ use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
 use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWriter;
 use ergotree_ir::serialization::SigmaSerializable;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProp;
+use std::array::TryFromSliceError;
 use std::convert::{TryFrom, TryInto};
 use thiserror::Error;
 
@@ -46,16 +47,17 @@ impl FiatShamirHash {
 }
 
 impl From<FiatShamirHash> for Base16EncodedBytes {
-    fn from(_: FiatShamirHash) -> Self {
-        todo!()
+    fn from(fsh: FiatShamirHash) -> Self {
+        (*fsh.0).as_slice().into()
     }
 }
 
 impl TryFrom<Base16DecodedBytes> for FiatShamirHash {
-    type Error = String;
+    type Error = TryFromSliceError;
 
-    fn try_from(value: Base16DecodedBytes) -> Result<Self, Self::Error> {
-        todo!()
+    fn try_from(b16: Base16DecodedBytes) -> Result<Self, Self::Error> {
+        let arr: [u8; SOUNDNESS_BYTES] = b16.0.as_slice().try_into()?;
+        Ok(FiatShamirHash(arr.into()))
     }
 }
 
