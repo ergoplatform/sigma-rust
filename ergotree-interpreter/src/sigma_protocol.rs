@@ -17,6 +17,10 @@ pub mod sig_serializer;
 pub mod unchecked_tree;
 pub mod unproven_tree;
 
+use std::array::TryFromSliceError;
+use std::convert::TryFrom;
+use std::convert::TryInto;
+
 use elliptic_curve::generic_array::GenericArray;
 use elliptic_curve::ops::Reduce;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
@@ -81,6 +85,24 @@ impl From<GroupSizedBytes> for Scalar {
 impl From<&[u8; GROUP_SIZE]> for GroupSizedBytes {
     fn from(b: &[u8; GROUP_SIZE]) -> Self {
         GroupSizedBytes(Box::new(*b))
+    }
+}
+
+impl TryFrom<Vec<u8>> for GroupSizedBytes {
+    type Error = TryFromSliceError;
+
+    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
+        let bytes: [u8; GROUP_SIZE] = value.as_slice().try_into()?;
+        Ok(GroupSizedBytes(bytes.into()))
+    }
+}
+
+impl TryFrom<&[u8]> for GroupSizedBytes {
+    type Error = TryFromSliceError;
+
+    fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
+        let bytes: [u8; GROUP_SIZE] = value.try_into()?;
+        Ok(GroupSizedBytes(bytes.into()))
     }
 }
 
