@@ -7,7 +7,6 @@ use ergotree_ir::sigma_protocol::sigma_boolean::ProveDhTuple;
 use ergotree_ir::sigma_protocol::sigma_boolean::ProveDlog;
 
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
-use k256::Scalar;
 
 extern crate derive_more;
 use derive_more::From;
@@ -15,12 +14,13 @@ use num_bigint::BigUint;
 use num_traits::ToPrimitive;
 
 use super::crypto_utils;
+use super::wscalar::Wscalar;
 
 /// Secret key of discrete logarithm signature protocol
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, derive_more::From)]
 pub struct DlogProverInput {
     /// secret key value
-    pub w: Scalar,
+    pub w: Wscalar,
 }
 
 impl DlogProverInput {
@@ -30,15 +30,15 @@ impl DlogProverInput {
     /// generates random secret in the range [0, n), where n is DLog group order.
     pub fn random() -> DlogProverInput {
         DlogProverInput {
-            w: dlog_group::random_scalar_in_group_range(crypto_utils::secure_rng()),
+            w: dlog_group::random_scalar_in_group_range(crypto_utils::secure_rng()).into(),
         }
     }
 
     /// Attempts to parse the given byte array as an SEC-1-encoded scalar(secret key).
     /// Returns None if the byte array does not contain a big-endian integer in the range [0, modulus).
     pub fn from_bytes(bytes: &[u8; DlogProverInput::SIZE_BYTES]) -> Option<DlogProverInput> {
-        Scalar::from_repr((*bytes).into())
-            .map(DlogProverInput::from)
+        k256::Scalar::from_repr((*bytes).into())
+            .map(|s| DlogProverInput::from(Wscalar::from(s)))
             .into()
     }
 
@@ -70,25 +70,22 @@ impl DlogProverInput {
 
     /// byte representation of the underlying scalar
     pub fn to_bytes(&self) -> [u8; DlogProverInput::SIZE_BYTES] {
-        self.w.to_bytes().into()
+        self.w.as_scalar_ref().to_bytes().into()
     }
 
     /// public key of discrete logarithm signature protocol
     pub fn public_image(&self) -> ProveDlog {
         // test it, see https://github.com/ergoplatform/sigma-rust/issues/38
         let g = ergo_chain_types::ec_point::generator();
-        ProveDlog::new(ergo_chain_types::ec_point::exponentiate(&g, &self.w))
+        ProveDlog::new(ergo_chain_types::ec_point::exponentiate(
+            &g,
+            self.w.as_scalar_ref(),
+        ))
     }
 
     /// Return true if the secret is 0
     pub fn is_zero(&self) -> bool {
-        self.w.is_zero().into()
-    }
-}
-
-impl From<Scalar> for DlogProverInput {
-    fn from(w: Scalar) -> Self {
-        DlogProverInput { w }
+        self.w.as_scalar_ref().is_zero().into()
     }
 }
 
@@ -99,7 +96,7 @@ impl From<Scalar> for DlogProverInput {
 #[derive(PartialEq, Debug, Clone)]
 pub struct DhTupleProverInput {
     /// Diffie-Hellman tuple's secret
-    pub w: Scalar,
+    pub w: Wscalar,
     /// Diffie-Hellman tuple
     pub common_input: ProveDhTuple,
 }
@@ -118,7 +115,10 @@ impl DhTupleProverInput {
         let u = exponentiate(&g, &w);
         let v = exponentiate(&h, &w);
         let common_input = ProveDhTuple::new(g, h, u, v);
-        DhTupleProverInput { w, common_input }
+        DhTupleProverInput {
+            w: w.into(),
+            common_input,
+        }
     }
 
     /// Public image (Diffie-Hellman tuple)

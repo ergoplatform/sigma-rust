@@ -26,13 +26,15 @@ use super::GROUP_SIZE;
 use super::SOUNDNESS_BYTES;
 
 /// Hash type for Fiat-Shamir hash function (24-bytes)
-#[cfg_attr(feature = "arbitrary", derive(Arbitrary))]
 #[derive(PartialEq, Eq, Debug, Clone)]
-#[cfg(feature = "json")]
-#[derive(serde::Serialize, serde::Deserialize)]
-#[serde(
-    try_from = "ergo_chain_types::Base16DecodedBytes",
-    into = "ergo_chain_types::Base16EncodedBytes"
+#[cfg_attr(feature = "arbitrary", derive(Arbitrary))]
+#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "json",
+    serde(
+        try_from = "ergo_chain_types::Base16DecodedBytes",
+        into = "ergo_chain_types::Base16EncodedBytes"
+    )
 )]
 pub struct FiatShamirHash(pub Box<[u8; SOUNDNESS_BYTES]>);
 

@@ -486,8 +486,8 @@ mod tests {
     use crate::ergotree_ir::sigma_protocol::sigma_boolean::cand::Cand;
     use ergo_chain_types::Base16DecodedBytes;
     use ergotree_interpreter::sigma_protocol::private_input::DhTupleProverInput;
+    use ergotree_interpreter::sigma_protocol::wscalar::Wscalar;
     use ergotree_ir::mir::sigma_or::SigmaOr;
-    use k256::Scalar;
     use sigma_test_util::force_any_val;
     use std::convert::{TryFrom, TryInto};
     use std::rc::Rc;
@@ -666,7 +666,7 @@ mod tests {
         assert!(!bag.hints.is_empty(), "{}", "{}");
         let mut hint = bag.hints[0].clone();
         let mut a: Option<FirstProverMessage> = None;
-        let mut r: Option<Scalar> = None;
+        let mut r: Option<Wscalar> = None;
         if let Hint::CommitmentHint(CommitmentHint::RealCommitment(comm)) = hint {
             assert_eq!(comm.position, NodePosition::crypto_tree_prefix());
             a = Some(comm.commitment);
@@ -677,7 +677,7 @@ mod tests {
             r = Some(comm.secret_randomness);
         }
         use ergo_chain_types::ec_point::{exponentiate, generator};
-        let g_to_r = exponentiate(&generator(), &r.unwrap());
+        let g_to_r = exponentiate(&generator(), r.unwrap().as_scalar_ref());
         assert_eq!(
             FirstProverMessage::FirstDlogProverMessage(g_to_r.into()),
             a.unwrap()

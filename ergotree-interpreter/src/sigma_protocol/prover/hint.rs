@@ -1,17 +1,18 @@
 //! Hints for a prover which helps the prover to prove a statement.
 
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
-use k256::Scalar;
 
 use crate::sigma_protocol::challenge::Challenge;
 use crate::sigma_protocol::unchecked_tree::UncheckedTree;
 use crate::sigma_protocol::unproven_tree::NodePosition;
+use crate::sigma_protocol::wscalar::Wscalar;
 use crate::sigma_protocol::FirstProverMessage;
 
 /// A hint for a prover which helps the prover to prove a statement. For example, if the statement is "pk1 && pk2",
 /// and the prover knows only a secret for the public key pk1, the prover fails on proving without a hint. But if the
 /// prover knows that pk2 is known to another party, the prover may prove the statement (with an empty proof for "pk2").
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
 #[derive(PartialEq, Debug, Clone)]
 pub enum Hint {
     /// A hint which is indicating that a secret associated with its public image "image" is already proven.
@@ -28,6 +29,7 @@ pub enum Hint {
     derive(serde::Serialize, serde::Deserialize),
     serde(try_from = "crate::json::hint::RealSecretProofJson")
 )]
+#[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
 #[derive(PartialEq, Debug, Clone)]
 pub struct RealSecretProof {
     /// Public image of a secret which is proven
@@ -46,12 +48,13 @@ pub struct RealSecretProof {
 
 /// A hint which contains a proof-of-knowledge for a secret associated with its public image "image",
 /// with also the mark that the proof is real.
-#[derive(PartialEq, Debug, Clone)]
 #[cfg_attr(
     feature = "json",
     derive(serde::Serialize, serde::Deserialize),
     serde(try_from = "crate::json::hint::SimulatedSecretProofJson")
 )]
+#[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
+#[derive(PartialEq, Debug, Clone)]
 pub struct SimulatedSecretProof {
     /// Public image of a secret which is proven
     #[cfg_attr(feature = "json", serde(rename = "pubkey"))]
@@ -70,6 +73,7 @@ pub struct SimulatedSecretProof {
 /// A hint which is indicating that a secret associated with its public image "image" is already proven.
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "json", serde(tag = "hint"))]
+#[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
 #[derive(PartialEq, Debug, Clone)]
 pub enum SecretProven {
     /// A hint which contains a proof-of-knowledge for a secret associated with its public image "image",
@@ -101,8 +105,9 @@ impl SecretProven {
 }
 
 /// A hint which contains a commitment to randomness associated with a public image of a secret.
-#[derive(PartialEq, Debug, Clone)]
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
+#[derive(PartialEq, Debug, Clone)]
 pub struct RealCommitment {
     ///  image of a secret
     #[cfg_attr(feature = "json", serde(rename = "pubkey"))]
@@ -117,18 +122,16 @@ pub struct RealCommitment {
 
 /// A hint which a commitment to randomness associated with a public image of a secret, as well as randomness itself.
 /// Please note that this randomness should be kept in secret by the prover.
-#[derive(PartialEq, Debug, Clone)]
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
+#[derive(PartialEq, Debug, Clone)]
 pub struct OwnCommitment {
     ///  image of a secret
     #[cfg_attr(feature = "json", serde(rename = "pubkey"))]
     pub image: SigmaBoolean,
     /// randomness
-    #[cfg_attr(
-        feature = "json",
-        serde(rename = "secret", with = "crate::json::scalar")
-    )]
-    pub secret_randomness: Scalar,
+    #[cfg_attr(feature = "json", serde(rename = "secret"))]
+    pub secret_randomness: Wscalar,
     /// commitment to randomness used while proving knowledge of the secret
     #[cfg_attr(feature = "json", serde(rename = "commitment"))]
     pub commitment: FirstProverMessage,
@@ -138,8 +141,9 @@ pub struct OwnCommitment {
 }
 
 ///A hint which contains a commitment to randomness associated with a public image of a secret.
-#[derive(PartialEq, Debug, Clone)]
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
+#[derive(PartialEq, Debug, Clone)]
 pub struct SimulatedCommitment {
     /// image of a secret
     #[cfg_attr(feature = "json", serde(rename = "pubkey"))]
@@ -156,6 +160,7 @@ pub struct SimulatedCommitment {
 /// to randomness ("a" in a sigma protocol).
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "json", serde(tag = "hint"))]
+#[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
 #[derive(PartialEq, Debug, Clone)]
 pub enum CommitmentHint {
     /// A hint which a commitment to randomness associated with a public image of a secret, as well as randomness itself.
@@ -193,6 +198,7 @@ impl CommitmentHint {
 /// Collection of hints to be used by a prover
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 #[derive(PartialEq, Debug, Clone)]
+#[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
 pub struct HintsBag {
     /// Hints stored in a bag
     pub hints: Vec<Hint>,
@@ -310,25 +316,5 @@ impl HintsBag {
                 }
             })
             .collect()
-    }
-}
-
-/// Arbitrary
-#[allow(clippy::unwrap_used)]
-#[cfg(feature = "arbitrary")]
-pub mod arbitrary {
-    use proptest::arbitrary::Arbitrary;
-    use proptest::strategy::BoxedStrategy;
-
-    use super::HintsBag;
-
-    impl Arbitrary for HintsBag {
-        type Parameters = ();
-
-        fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
-            todo!()
-        }
-
-        type Strategy = BoxedStrategy<Self>;
     }
 }

@@ -7,6 +7,7 @@ use super::prover::ProofBytes;
 use super::unchecked_tree::UncheckedConjecture;
 use super::unchecked_tree::UncheckedLeaf;
 use super::unchecked_tree::UncheckedTree;
+use super::wscalar::Wscalar;
 use super::GROUP_SIZE;
 use super::SOUNDNESS_BYTES;
 use crate::sigma_protocol::dht_protocol::SecondDhTupleProverMessage;
@@ -26,7 +27,6 @@ use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
 
 use derive_more::From;
 use gf2_192::Gf2_192Error;
-use k256::Scalar;
 use thiserror::Error;
 
 /// Recursively traverses the given node and serializes challenges and prover messages to the given writer.
@@ -55,12 +55,12 @@ fn sig_write_bytes<W: SigmaByteWrite>(
     match node {
         UncheckedTree::UncheckedLeaf(leaf) => match leaf {
             UncheckedLeaf::UncheckedSchnorr(us) => {
-                let mut sm_bytes = us.second_message.z.to_bytes();
+                let mut sm_bytes = us.second_message.z.as_scalar_ref().to_bytes();
                 w.write_all(sm_bytes.as_mut_slice())?;
                 Ok(())
             }
             UncheckedLeaf::UncheckedDhTuple(dh) => {
-                let mut sm_bytes = dh.second_message.z.to_bytes();
+                let mut sm_bytes = dh.second_message.z.as_scalar_ref().to_bytes();
                 w.write_all(sm_bytes.as_mut_slice())
             }
         },
@@ -142,7 +142,7 @@ fn parse_sig_compute_challenges_reader<R: SigmaByteRead>(
                 // Verifier Step 3: For every leaf node, read the response z provided in the proof.
                 let mut scalar_bytes: [u8; super::GROUP_SIZE] = [0; super::GROUP_SIZE];
                 r.read_exact(&mut scalar_bytes)?;
-                let z = Scalar::from(GroupSizedBytes(scalar_bytes.into()));
+                let z = Wscalar::from(GroupSizedBytes(scalar_bytes.into()));
                 Ok(UncheckedSchnorr {
                     proposition: dl.clone(),
                     commitment_opt: None,
@@ -155,7 +155,7 @@ fn parse_sig_compute_challenges_reader<R: SigmaByteRead>(
                 // Verifier Step 3: For every leaf node, read the response z provided in the proof.
                 let mut scalar_bytes: [u8; super::GROUP_SIZE] = [0; super::GROUP_SIZE];
                 r.read_exact(&mut scalar_bytes)?;
-                let z = Scalar::from(GroupSizedBytes(scalar_bytes.into()));
+                let z = Wscalar::from(GroupSizedBytes(scalar_bytes.into()));
                 Ok(UncheckedDhTuple {
                     proposition: dh.clone(),
                     commitment_opt: None,

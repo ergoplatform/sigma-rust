@@ -5,6 +5,7 @@ use super::proof_tree::ConjectureType;
 use super::proof_tree::ProofTree;
 use super::proof_tree::ProofTreeConjecture;
 use super::proof_tree::ProofTreeKind;
+use super::wscalar::Wscalar;
 use super::{dlog_protocol::FirstDlogProverMessage, Challenge, FirstProverMessage};
 use crate::sigma_protocol::proof_tree::ProofTreeLeaf;
 use ergotree_ir::sigma_protocol::sigma_boolean::cand::Cand;
@@ -16,7 +17,6 @@ use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaConjectureItems;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
 use gf2_192::gf2_192poly::Gf2_192Poly;
-use k256::Scalar;
 
 extern crate derive_more;
 use derive_more::From;
@@ -293,7 +293,7 @@ impl ProofTreeConjecture for UnprovenConjecture {
 pub(crate) struct UnprovenSchnorr {
     pub(crate) proposition: ProveDlog,
     pub(crate) commitment_opt: Option<FirstDlogProverMessage>,
-    pub(crate) randomness_opt: Option<Scalar>,
+    pub(crate) randomness_opt: Option<Wscalar>,
     pub(crate) challenge_opt: Option<Challenge>,
     pub(crate) simulated: bool,
     pub(crate) position: NodePosition,
@@ -331,7 +331,7 @@ pub struct UnprovenDhTuple {
     /// Commitment
     pub commitment_opt: Option<FirstDhTupleProverMessage>,
     /// Randomness
-    pub randomness_opt: Option<Scalar>,
+    pub randomness_opt: Option<Wscalar>,
     /// Challenge
     pub challenge_opt: Option<Challenge>,
     /// Simulated or not
@@ -399,6 +399,7 @@ impl UnprovenDhTuple {
     try_from = "crate::json::hint::NodePositionJson",
     into = "crate::json::hint::NodePositionJson"
 )]
+#[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
 pub struct NodePosition {
     /// positions from root (inclusive) in top-down order
     pub positions: Vec<usize>,

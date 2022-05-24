@@ -1,10 +1,6 @@
 use super::{fiat_shamir::FiatShamirHash, SOUNDNESS_BYTES};
-use elliptic_curve::generic_array::GenericArray;
-use elliptic_curve::ops::Reduce;
 use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
 use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
-use k256::Scalar;
-use k256::U256;
 #[cfg(feature = "arbitrary")]
 use proptest_derive::Arbitrary;
 use std::convert::TryFrom;
@@ -15,16 +11,6 @@ use std::convert::TryFrom;
 #[cfg(feature = "json")]
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct Challenge(pub(crate) FiatShamirHash);
-
-impl From<Challenge> for Scalar {
-    fn from(v: Challenge) -> Self {
-        let v: [u8; SOUNDNESS_BYTES] = v.0.into();
-        // prepend zeroes to 32 bytes (big-endian)
-        let mut prefix = vec![0u8; 8];
-        prefix.append(&mut v.to_vec());
-        <Scalar as Reduce<U256>>::from_be_bytes_reduced(GenericArray::clone_from_slice(&prefix))
-    }
-}
 
 impl Challenge {
     pub fn secure_random() -> Self {

@@ -1,13 +1,14 @@
 //! Discrete logarithm signature protocol
 
+use super::wscalar::Wscalar;
 use super::ProverMessage;
 use ergo_chain_types::EcPoint;
 use ergotree_ir::serialization::SigmaSerializable;
-use k256::Scalar;
 
 /// First message from the prover (message `a` of `SigmaProtocol`) for discrete logarithm case
 #[derive(PartialEq, Eq, Debug, Clone)]
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
 pub struct FirstDlogProverMessage(
     #[cfg_attr(feature = "json", serde(rename = "a"))] pub(crate) Box<EcPoint>,
 );
@@ -27,16 +28,11 @@ impl ProverMessage for FirstDlogProverMessage {
 }
 
 /// Second message from the prover (message `z` of `SigmaProtocol`) for discrete logarithm case
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, derive_more::From, derive_more::Into)]
+#[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
 pub struct SecondDlogProverMessage {
     /// message `z`
-    pub z: Scalar,
-}
-
-impl From<Scalar> for SecondDlogProverMessage {
-    fn from(z: Scalar) -> Self {
-        SecondDlogProverMessage { z }
-    }
+    pub z: Wscalar,
 }
 
 /// Interactive prover
@@ -45,6 +41,7 @@ pub mod interactive_prover {
 
     use super::{FirstDlogProverMessage, SecondDlogProverMessage};
     use crate::sigma_protocol::crypto_utils;
+    use crate::sigma_protocol::wscalar::Wscalar;
     use crate::sigma_protocol::{private_input::DlogProverInput, Challenge};
     use ergo_chain_types::{
         ec_point::{exponentiate, generator, inverse},
@@ -73,18 +70,18 @@ pub mod interactive_prover {
         let a = g_to_z * &h_to_e;
         (
             FirstDlogProverMessage(a.into()),
-            SecondDlogProverMessage { z },
+            SecondDlogProverMessage { z: z.into() },
         )
     }
 
     /// Step 6 from <https://ergoplatform.org/docs/ErgoScript.pdf>
     /// For every leaf marked “real”, use the first prover step of the sigma protocol for
     /// that leaf to compute the necessary randomness "r" and the commitment "a"
-    pub fn first_message() -> (Scalar, FirstDlogProverMessage) {
+    pub fn first_message() -> (Wscalar, FirstDlogProverMessage) {
         let r = dlog_group::random_scalar_in_group_range(crypto_utils::secure_rng());
         let g = generator();
         let a = exponentiate(&g, &r);
-        (r, FirstDlogProverMessage(a.into()))
+        (r.into(), FirstDlogProverMessage(a.into()))
     }
 
     /// Step 9 part 2 from <https://ergoplatform.org/docs/ErgoScript.pdf>
@@ -93,15 +90,15 @@ pub mod interactive_prover {
     /// the challenge "e", and witness w.
     pub(crate) fn second_message(
         private_input: &DlogProverInput,
-        rnd: Scalar,
+        rnd: Wscalar,
         challenge: &Challenge,
     ) -> SecondDlogProverMessage {
         let e: Scalar = challenge.clone().into();
         // modulo multiplication, no need to explicit mod op
-        let ew = e.mul(&private_input.w);
+        let ew = e.mul(private_input.w.as_scalar_ref());
         // modulo addition, no need to explicit mod op
-        let z = rnd.add(&ew);
-        z.into()
+        let z = rnd.as_scalar_ref().add(&ew);
+        SecondDlogProverMessage { z: z.into() }
     }
 
     /// The function computes initial prover's commitment to randomness
@@ -117,7 +114,7 @@ pub mod interactive_prover {
         let g = generator();
         let h = *proposition.h.clone();
         let e: Scalar = challenge.clone().into();
-        let g_z = exponentiate(&g, &second_message.z);
+        let g_z = exponentiate(&g, second_message.z.as_scalar_ref());
         let h_e = exponentiate(&h, &e);
         g_z * &inverse(&h_e)
     }

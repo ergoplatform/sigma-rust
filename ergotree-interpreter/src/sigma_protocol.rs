@@ -16,18 +16,15 @@ pub mod proof_tree;
 pub mod sig_serializer;
 pub mod unchecked_tree;
 pub mod unproven_tree;
+pub mod wscalar;
 
 use std::array::TryFromSliceError;
 use std::convert::TryFrom;
 use std::convert::TryInto;
 
-use elliptic_curve::generic_array::GenericArray;
-use elliptic_curve::ops::Reduce;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
-use k256::Scalar;
 
 use dlog_protocol::FirstDlogProverMessage;
-use k256::U256;
 use unchecked_tree::UncheckedTree;
 use unproven_tree::{UnprovenLeaf, UnprovenSchnorr};
 
@@ -48,6 +45,7 @@ pub(crate) trait ProverMessage {
 #[derive(PartialEq, Debug, Clone, From, TryInto)]
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "json", serde(tag = "type"))]
+#[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
 pub enum FirstProverMessage {
     /// Discrete log
     #[cfg_attr(feature = "json", serde(rename = "dlog"))]
@@ -74,13 +72,6 @@ pub(crate) const GROUP_SIZE: usize = GROUP_SIZE_BITS / 8;
 /// Byte array of Group size (32 bytes)
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub(crate) struct GroupSizedBytes(pub(crate) Box<[u8; GROUP_SIZE]>);
-
-impl From<GroupSizedBytes> for Scalar {
-    fn from(b: GroupSizedBytes) -> Self {
-        let sl: &[u8] = b.0.as_ref();
-        <Scalar as Reduce<U256>>::from_be_bytes_reduced(GenericArray::clone_from_slice(sl))
-    }
-}
 
 impl From<&[u8; GROUP_SIZE]> for GroupSizedBytes {
     fn from(b: &[u8; GROUP_SIZE]) -> Self {

@@ -25,13 +25,17 @@ use derive_more::From;
 
 /// Unchecked sigma tree
 #[derive(PartialEq, Debug, Clone, From)]
-#[cfg(feature = "json")]
-#[derive(serde::Serialize)]
-#[serde(into = "ergo_chain_types::Base16EncodedBytes")]
+#[cfg_attr(
+    feature = "json",
+    derive(serde::Serialize),
+    serde(into = "ergo_chain_types::Base16EncodedBytes")
+)]
+#[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
 pub enum UncheckedTree {
     /// Unchecked leaf
     UncheckedLeaf(UncheckedLeaf),
     /// Unchecked conjecture (OR, AND, ...)
+    #[cfg_attr(feature = "arbitrary", proptest(skip))]
     UncheckedConjecture(UncheckedConjecture),
 }
 
@@ -68,10 +72,12 @@ impl From<UncheckedTree> for Base16EncodedBytes {
 
 /// Unchecked leaf
 #[derive(PartialEq, Debug, Clone, From)]
+#[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
 pub enum UncheckedLeaf {
     /// Unchecked Schnorr
     UncheckedSchnorr(UncheckedSchnorr),
     /// Unchecked DhTuple
+    #[cfg_attr(feature = "arbitrary", proptest(skip))]
     UncheckedDhTuple(UncheckedDhTuple),
 }
 
@@ -112,6 +118,7 @@ impl ProofTreeLeaf for UncheckedLeaf {
 }
 /// Unchecked Schnorr
 #[derive(PartialEq, Debug, Clone)]
+#[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
 pub struct UncheckedSchnorr {
     /// Proposition
     pub proposition: ProveDlog,
@@ -144,6 +151,7 @@ impl From<UncheckedDhTuple> for UncheckedTree {
 
 /// UncheckedDhTuple
 #[derive(PartialEq, Debug, Clone)]
+#[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
 pub struct UncheckedDhTuple {
     /// Proposition
     pub proposition: ProveDhTuple,
