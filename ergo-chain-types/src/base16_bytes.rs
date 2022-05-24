@@ -74,3 +74,9 @@ impl From<&[u8]> for Base16EncodedBytes {
         Base16EncodedBytes::new(v)
     }
 }
+
+impl From<Vec<u8>> for Base16EncodedBytes {
+    fn from(v: Vec<u8>) -> Self {
+        Base16EncodedBytes::new(v.as_slice())
+    }
+}

@@ -23,7 +23,11 @@ pub enum Hint {
 
 /// A hint which contains a proof-of-knowledge for a secret associated with its public image "image",
 /// with also the mark that the proof is real.
-#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "json",
+    derive(serde::Serialize, serde::Deserialize),
+    serde(try_from = "crate::json::hint::RealSecretProofJson")
+)]
 #[derive(PartialEq, Debug, Clone)]
 pub struct RealSecretProof {
     /// Public image of a secret which is proven
@@ -43,7 +47,11 @@ pub struct RealSecretProof {
 /// A hint which contains a proof-of-knowledge for a secret associated with its public image "image",
 /// with also the mark that the proof is real.
 #[derive(PartialEq, Debug, Clone)]
-#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "json",
+    derive(serde::Serialize, serde::Deserialize),
+    serde(try_from = "crate::json::hint::SimulatedSecretProofJson")
+)]
 pub struct SimulatedSecretProof {
     /// Public image of a secret which is proven
     #[cfg_attr(feature = "json", serde(rename = "pubkey"))]

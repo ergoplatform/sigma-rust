@@ -1,8 +1,5 @@
 //! Unchecked proof tree types
 
-use std::convert::TryFrom;
-
-use ergo_chain_types::Base16DecodedBytes;
 use ergo_chain_types::Base16EncodedBytes;
 use ergotree_ir::sigma_protocol::sigma_boolean::ProveDhTuple;
 use ergotree_ir::sigma_protocol::sigma_boolean::ProveDlog;
@@ -18,6 +15,7 @@ use super::proof_tree::ProofTree;
 use super::proof_tree::ProofTreeConjecture;
 use super::proof_tree::ProofTreeKind;
 use super::proof_tree::ProofTreeLeaf;
+use super::sig_serializer::serialize_sig;
 use super::{
     dlog_protocol::{FirstDlogProverMessage, SecondDlogProverMessage},
     Challenge, FirstProverMessage,
@@ -28,11 +26,8 @@ use derive_more::From;
 /// Unchecked sigma tree
 #[derive(PartialEq, Debug, Clone, From)]
 #[cfg(feature = "json")]
-#[derive(serde::Serialize, serde::Deserialize)]
-#[serde(
-    try_from = "ergo_chain_types::Base16DecodedBytes",
-    into = "ergo_chain_types::Base16EncodedBytes"
-)]
+#[derive(serde::Serialize)]
+#[serde(into = "ergo_chain_types::Base16EncodedBytes")]
 pub enum UncheckedTree {
     /// Unchecked leaf
     UncheckedLeaf(UncheckedLeaf),
@@ -65,16 +60,9 @@ impl UncheckedTree {
 }
 
 impl From<UncheckedTree> for Base16EncodedBytes {
-    fn from(_: UncheckedTree) -> Self {
-        todo!()
-    }
-}
-
-impl TryFrom<Base16DecodedBytes> for UncheckedTree {
-    type Error = String;
-
-    fn try_from(value: Base16DecodedBytes) -> Result<Self, Self::Error> {
-        todo!()
+    fn from(tree: UncheckedTree) -> Self {
+        let bytes: Vec<u8> = serialize_sig(tree).into();
+        Base16EncodedBytes::from(bytes)
     }
 }
 

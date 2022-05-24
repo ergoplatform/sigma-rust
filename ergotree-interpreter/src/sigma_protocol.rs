@@ -6,7 +6,7 @@ pub mod private_input;
 pub mod prover;
 pub mod verifier;
 
-mod challenge;
+pub(crate) mod challenge;
 mod crypto_utils;
 pub mod dht_protocol;
 pub mod dlog_protocol;
