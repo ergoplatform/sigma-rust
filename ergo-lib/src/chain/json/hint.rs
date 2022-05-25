@@ -49,22 +49,23 @@ impl From<TransactionHintsBagJson> for TransactionHintsBag {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use crate::wallet::multi_sig::TransactionHintsBag;
-//     use proptest::prelude::*;
+#[cfg(test)]
+mod tests {
+    use crate::wallet::multi_sig::TransactionHintsBag;
+    use proptest::prelude::*;
 
-//     proptest! {
+    proptest! {
 
-//         #![proptest_config(ProptestConfig::with_cases(64))]
+        #![proptest_config(ProptestConfig::with_cases(64))]
 
-//         #[test]
-//         fn thb_json_roundtrip(t in any::<TransactionHintsBag>()) {
-//             let json = serde_json::to_string_pretty(&t)?;
-//             println!("{}", &json);
-//             let t_parsed: TransactionHintsBag = serde_json::from_str(&json)?;
-//             prop_assert_eq![t, t_parsed];
-//         }
+        #[ignore = "until custom *SecretProof Arbitrary impl"]
+        #[test]
+        fn thb_json_roundtrip(t in any::<TransactionHintsBag>()) {
+            let json = serde_json::to_string_pretty(&t)?;
+            println!("{}", &json);
+            let t_parsed: TransactionHintsBag = serde_json::from_str(&json)?;
+            prop_assert_eq![t, t_parsed];
+        }
 
-//     }
-// }
+    }
+}
