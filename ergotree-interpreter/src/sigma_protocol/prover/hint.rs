@@ -114,7 +114,7 @@ pub struct RealCommitment {
     #[cfg_attr(feature = "json", serde(rename = "pubkey"))]
     pub image: SigmaBoolean,
     /// commitment to randomness used while proving knowledge of the secret
-    #[cfg_attr(feature = "json", serde(rename = "commitment"))]
+    #[cfg_attr(feature = "json", serde(flatten))]
     pub commitment: FirstProverMessage,
     /// A hint is related to a subtree (or a leaf) of a tree. This field encodes a position in the tree.
     #[cfg_attr(feature = "json", serde(rename = "position"))]
