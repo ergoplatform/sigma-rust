@@ -9,13 +9,14 @@ use ergotree_ir::serialization::SigmaSerializable;
 #[derive(PartialEq, Eq, Debug, Clone)]
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
-pub struct FirstDlogProverMessage(
-    #[cfg_attr(feature = "json", serde(rename = "a"))] pub(crate) Box<EcPoint>,
-);
+pub struct FirstDlogProverMessage {
+    #[cfg_attr(feature = "json", serde(rename = "a"))]
+    pub(crate) a: Box<EcPoint>,
+}
 
 impl From<EcPoint> for FirstDlogProverMessage {
     fn from(ecp: EcPoint) -> Self {
-        FirstDlogProverMessage(ecp.into())
+        FirstDlogProverMessage { a: ecp.into() }
     }
 }
 
@@ -23,7 +24,7 @@ impl ProverMessage for FirstDlogProverMessage {
     fn bytes(&self) -> Vec<u8> {
         #[allow(clippy::unwrap_used)]
         // EcPoint serialization can only on OOM
-        self.0.sigma_serialize_bytes().unwrap()
+        self.a.sigma_serialize_bytes().unwrap()
     }
 }
 
@@ -69,7 +70,7 @@ pub mod interactive_prover {
         let g_to_z = exponentiate(&generator(), &z);
         let a = g_to_z * &h_to_e;
         (
-            FirstDlogProverMessage(a.into()),
+            FirstDlogProverMessage { a: a.into() },
             SecondDlogProverMessage { z: z.into() },
         )
     }
@@ -81,7 +82,7 @@ pub mod interactive_prover {
         let r = dlog_group::random_scalar_in_group_range(crypto_utils::secure_rng());
         let g = generator();
         let a = exponentiate(&g, &r);
-        (r.into(), FirstDlogProverMessage(a.into()))
+        (r.into(), FirstDlogProverMessage { a: a.into() })
     }
 
     /// Step 9 part 2 from <https://ergoplatform.org/docs/ErgoScript.pdf>
@@ -141,7 +142,7 @@ mod tests {
             let (r, commitment) = interactive_prover::first_message();
             let second_message = interactive_prover::second_message(&secret, r, &challenge);
             let a = interactive_prover::compute_commitment(&pk, &challenge, &second_message);
-            prop_assert_eq!(a, *commitment.0);
+            prop_assert_eq!(a, *commitment.a);
         }
     }
 }

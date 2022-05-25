@@ -14,9 +14,6 @@ use crate::sigma_protocol::sig_serializer::parse_sig_compute_challenges;
 use crate::sigma_protocol::sig_serializer::SigParsingError;
 use crate::sigma_protocol::unproven_tree::NodePosition;
 
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-pub struct CommitmentHintJson {}
-
 #[derive(Deserialize, Serialize)]
 pub struct NodePositionJson(String);
 

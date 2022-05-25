@@ -6,8 +6,6 @@ use ergo_chain_types::EcPoint;
 use serde::Deserialize;
 use serde::Serialize;
 
-use crate::has_opcode::HasOpCode;
-use crate::serialization::op_code::OpCode;
 use crate::sigma_protocol::sigma_boolean::cand::Cand;
 use crate::sigma_protocol::sigma_boolean::cor::Cor;
 use crate::sigma_protocol::sigma_boolean::cthreshold::Cthreshold;
@@ -18,63 +16,49 @@ use crate::sigma_protocol::sigma_boolean::SigmaConjecture;
 use crate::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-#[serde(untagged)]
+#[serde(tag = "op")]
 #[allow(clippy::large_enum_variant)]
 pub enum SigmaBooleanJson {
-    ProveDlog {
-        op: OpCode,
-        h: EcPoint,
-    },
+    #[serde(rename = "205")] // OpCode::PROVE_DLOG
+    ProveDlog { h: EcPoint },
+    #[serde(rename = "206")] // OpCode::PROVE_DIFFIE_HELLMAN_TUPLE
     ProveDhTuple {
-        op: OpCode,
         g: EcPoint,
         h: EcPoint,
         u: EcPoint,
         v: EcPoint,
     },
-    TrivialProp {
-        op: OpCode,
-        condition: bool,
-    },
-    Cand {
-        op: OpCode,
-        args: Vec<SigmaBooleanJson>,
-    },
-    Cor {
-        op: OpCode,
-        args: Vec<SigmaBooleanJson>,
-    },
-    Cthreshold {
-        op: OpCode,
-        k: u8,
-        args: Vec<SigmaBooleanJson>,
-    },
+    #[serde(rename = "300")] // OpCode::TRIVIAL_PROP_FALSE
+    TrivialPropFalse { condition: bool },
+    #[serde(rename = "301")] // OpCode::TRIVIAL_PROP_TRUE
+    TrivialPropTrue { condition: bool },
+    #[serde(rename = "150")] // OpCode::AND
+    Cand { args: Vec<SigmaBooleanJson> },
+    #[serde(rename = "151")] // OpCode::OR
+    Cor { args: Vec<SigmaBooleanJson> },
+    #[serde(rename = "152")] // OpCode::ATLEAST
+    Cthreshold { k: u8, args: Vec<SigmaBooleanJson> },
 }
 
 impl From<SigmaBoolean> for SigmaBooleanJson {
     fn from(sb: SigmaBoolean) -> Self {
         match sb {
             SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(pd)) => {
-                SigmaBooleanJson::ProveDlog {
-                    op: pd.op_code(),
-                    h: *pd.h,
-                }
+                SigmaBooleanJson::ProveDlog { h: *pd.h }
             }
             SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDhTuple(pdh)) => {
                 SigmaBooleanJson::ProveDhTuple {
-                    op: pdh.op_code(),
                     g: *pdh.g,
                     h: *pdh.h,
                     u: *pdh.u,
                     v: *pdh.v,
                 }
             }
-            SigmaBoolean::TrivialProp(tp) => SigmaBooleanJson::TrivialProp {
-                op: sb.op_code(),
-                condition: tp,
-            },
+            SigmaBoolean::TrivialProp(tp) if tp => {
+                SigmaBooleanJson::TrivialPropTrue { condition: tp }
+            }
+            SigmaBoolean::TrivialProp(tp) => SigmaBooleanJson::TrivialPropFalse { condition: tp },
             SigmaBoolean::SigmaConjecture(SigmaConjecture::Cand(cand)) => SigmaBooleanJson::Cand {
-                op: cand.op_code(),
                 args: cand
                     .items
                     .as_vec()
@@ -84,7 +68,6 @@ impl From<SigmaBoolean> for SigmaBooleanJson {
                     .collect(),
             },
             SigmaBoolean::SigmaConjecture(SigmaConjecture::Cor(cor)) => SigmaBooleanJson::Cor {
-                op: cor.op_code(),
                 args: cor
                     .items
                     .as_vec()
@@ -95,7 +78,6 @@ impl From<SigmaBoolean> for SigmaBooleanJson {
             },
             SigmaBoolean::SigmaConjecture(SigmaConjecture::Cthreshold(ct)) => {
                 SigmaBooleanJson::Cthreshold {
-                    op: ct.op_code(),
                     k: ct.k,
                     args: ct
                         .children
@@ -115,14 +97,13 @@ impl TryFrom<SigmaBooleanJson> for SigmaBoolean {
 
     fn try_from(sbj: SigmaBooleanJson) -> Result<Self, Self::Error> {
         Ok(match sbj {
-            SigmaBooleanJson::ProveDlog { op: _, h } => ProveDlog { h: h.into() }.into(),
-            SigmaBooleanJson::ProveDhTuple { op: _, g, h, u, v } => {
-                ProveDhTuple::new(g, h, u, v).into()
-            }
-            SigmaBooleanJson::TrivialProp { op: _, condition } => {
+            SigmaBooleanJson::ProveDlog { h } => ProveDlog { h: h.into() }.into(),
+            SigmaBooleanJson::ProveDhTuple { g, h, u, v } => ProveDhTuple::new(g, h, u, v).into(),
+            SigmaBooleanJson::TrivialPropTrue { condition } => SigmaBoolean::TrivialProp(condition),
+            SigmaBooleanJson::TrivialPropFalse { condition } => {
                 SigmaBoolean::TrivialProp(condition)
             }
-            SigmaBooleanJson::Cand { op: _, args } => Cand {
+            SigmaBooleanJson::Cand { args } => Cand {
                 items: args
                     .into_iter()
                     .map(TryInto::try_into)
@@ -130,7 +111,7 @@ impl TryFrom<SigmaBooleanJson> for SigmaBoolean {
                     .try_into()?,
             }
             .into(),
-            SigmaBooleanJson::Cor { op: _, args } => Cor {
+            SigmaBooleanJson::Cor { args } => Cor {
                 items: args
                     .into_iter()
                     .map(TryInto::try_into)
@@ -138,7 +119,7 @@ impl TryFrom<SigmaBooleanJson> for SigmaBoolean {
                     .try_into()?,
             }
             .into(),
-            SigmaBooleanJson::Cthreshold { op: _, k, args } => Cthreshold {
+            SigmaBooleanJson::Cthreshold { k, args } => Cthreshold {
                 k,
                 children: args
                     .into_iter()

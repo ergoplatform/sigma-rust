@@ -13,6 +13,7 @@ use crate::sigma_protocol::FirstProverMessage;
 /// prover knows that pk2 is known to another party, the prover may prove the statement (with an empty proof for "pk2").
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
+#[cfg_attr(feature = "json", serde(untagged))]
 #[derive(PartialEq, Debug, Clone)]
 pub enum Hint {
     /// A hint which is indicating that a secret associated with its public image "image" is already proven.
