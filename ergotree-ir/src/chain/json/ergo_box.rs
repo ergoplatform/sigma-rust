@@ -1,5 +1,8 @@
 use crate::chain::ergo_box::box_value::BoxValue;
 use crate::chain::ergo_box::BoxId;
+use crate::chain::ergo_box::BoxTokens;
+use crate::chain::ergo_box::ErgoBox;
+use crate::chain::ergo_box::ErgoBoxCandidate;
 use crate::chain::ergo_box::NonMandatoryRegisters;
 use crate::chain::token::Token;
 use crate::chain::tx_id::TxId;
@@ -13,6 +16,7 @@ use ergo_chain_types::Base16DecodedBytes;
 use serde::de::{self, MapAccess, Visitor};
 use serde::Deserializer;
 use std::convert::TryFrom;
+use std::convert::TryInto;
 use std::marker::PhantomData;
 use std::str::FromStr;
 
@@ -51,6 +55,128 @@ pub struct ErgoBoxJson {
     /// number of box (from 0 to total number of boxes the transaction with transactionId created - 1)
     #[serde(rename = "index")]
     pub index: u16,
+}
+
+impl TryFrom<ErgoBoxJson> for ErgoBox {
+    type Error = ErgoBoxFromJsonError;
+    fn try_from(box_json: ErgoBoxJson) -> Result<Self, Self::Error> {
+        let tokens = if box_json.tokens.is_empty() {
+            None
+        } else {
+            Some(box_json.tokens.try_into().map_err(|_| {
+                SigmaSerializationError::NotSupported(
+                    "More than 255 tokens are not allowed in a box",
+                )
+            })?)
+        };
+        let box_with_zero_id = ErgoBox {
+            box_id: BoxId::zero(),
+            value: box_json.value,
+            ergo_tree: box_json.ergo_tree,
+            tokens,
+            additional_registers: box_json.additional_registers,
+            creation_height: box_json.creation_height,
+            transaction_id: box_json.transaction_id,
+            index: box_json.index,
+        };
+        let box_id = box_with_zero_id.calc_box_id()?;
+        let ergo_box = ErgoBox {
+            box_id,
+            ..box_with_zero_id
+        };
+        match box_json.box_id {
+            Some(box_id) => {
+                if ergo_box.box_id() == box_id {
+                    Ok(ergo_box)
+                } else {
+                    Err(ErgoBoxFromJsonError::InvalidBoxId)
+                }
+            }
+            None => Ok(ergo_box),
+        }
+    }
+}
+
+impl From<ErgoBox> for ErgoBoxJson {
+    fn from(ergo_box: ErgoBox) -> ErgoBoxJson {
+        let tokens = ergo_box
+            .tokens
+            .as_ref()
+            .map(BoxTokens::as_vec)
+            .cloned()
+            .unwrap_or_default(); // JSON serialization for assets requires that tokens be [] instead of null
+        ErgoBoxJson {
+            box_id: Some(ergo_box.box_id),
+            value: ergo_box.value,
+            ergo_tree: ergo_box.ergo_tree,
+            tokens,
+            additional_registers: ergo_box.additional_registers,
+            creation_height: ergo_box.creation_height,
+            transaction_id: ergo_box.transaction_id,
+            index: ergo_box.index,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+pub struct ErgoBoxCandidateJson {
+    /// amount of money associated with the box
+    #[serde(rename = "value")]
+    pub value: BoxValue,
+    /// guarding script, which should be evaluated to true in order to open this box
+    #[serde(rename = "ergoTree", with = "super::ergo_tree")]
+    pub ergo_tree: ErgoTree,
+    /// secondary tokens the box contains
+    #[serde(rename = "assets")]
+    pub tokens: Vec<Token>,
+    ///  additional registers the box can carry over
+    #[serde(rename = "additionalRegisters")]
+    pub additional_registers: NonMandatoryRegisters,
+    /// height when a transaction containing the box was created.
+    /// This height is declared by user and should not exceed height of the block,
+    /// containing the transaction with this box.
+    #[serde(rename = "creationHeight")]
+    pub creation_height: u32,
+}
+
+impl From<ErgoBoxCandidate> for ErgoBoxCandidateJson {
+    fn from(ergo_box_candidate: ErgoBoxCandidate) -> Self {
+        let tokens = ergo_box_candidate
+            .tokens
+            .as_ref()
+            .map(BoxTokens::as_vec)
+            .cloned()
+            .unwrap_or_default(); // JSON serialization for assets requires that tokens be [] instead of null
+        ErgoBoxCandidateJson {
+            value: ergo_box_candidate.value,
+            ergo_tree: ergo_box_candidate.ergo_tree,
+            tokens,
+            additional_registers: ergo_box_candidate.additional_registers,
+            creation_height: ergo_box_candidate.creation_height,
+        }
+    }
+}
+
+impl TryFrom<ErgoBoxCandidateJson> for ErgoBoxCandidate {
+    type Error = ErgoBoxFromJsonError;
+    fn try_from(box_json: ErgoBoxCandidateJson) -> Result<Self, Self::Error> {
+        let tokens = if box_json.tokens.is_empty() {
+            None
+        } else {
+            Some(box_json.tokens.try_into().map_err(|_| {
+                SigmaSerializationError::NotSupported(
+                    "More than 255 tokens are not allowed in a box",
+                )
+            })?)
+        };
+        Ok(ErgoBoxCandidate {
+            value: box_json.value,
+            ergo_tree: box_json.ergo_tree,
+            tokens,
+            additional_registers: box_json.additional_registers,
+            creation_height: box_json.creation_height,
+        })
+    }
 }
 
 /// Errors on parsing ErgoBox from JSON
