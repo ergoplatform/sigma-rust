@@ -30,12 +30,10 @@ use derive_more::From;
     derive(serde::Serialize),
     serde(into = "ergo_chain_types::Base16EncodedBytes")
 )]
-#[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
 pub enum UncheckedTree {
     /// Unchecked leaf
     UncheckedLeaf(UncheckedLeaf),
     /// Unchecked conjecture (OR, AND, ...)
-    #[cfg_attr(feature = "arbitrary", proptest(skip))]
     UncheckedConjecture(UncheckedConjecture),
 }
 
@@ -77,7 +75,6 @@ pub enum UncheckedLeaf {
     /// Unchecked Schnorr
     UncheckedSchnorr(UncheckedSchnorr),
     /// Unchecked DhTuple
-    #[cfg_attr(feature = "arbitrary", proptest(skip))]
     UncheckedDhTuple(UncheckedDhTuple),
 }
 
@@ -329,6 +326,60 @@ impl ProofTreeConjecture for UncheckedConjecture {
                 k: _,
                 polynomial: _,
             } => children.mapped_ref(|ust| ust.clone().into()),
+        }
+    }
+}
+
+#[cfg(feature = "arbitrary")]
+#[allow(clippy::unwrap_used)]
+mod arbitrary {
+    use std::convert::TryInto;
+
+    use super::*;
+    use proptest::collection::vec;
+    use proptest::prelude::*;
+
+    pub fn primitive_type_value() -> BoxedStrategy<UncheckedTree> {
+        prop_oneof![
+            any::<UncheckedSchnorr>().prop_map_into(),
+            any::<UncheckedDhTuple>().prop_map_into(),
+        ]
+        .boxed()
+    }
+
+    impl Arbitrary for UncheckedTree {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_: Self::Parameters) -> Self::Strategy {
+            primitive_type_value()
+                .prop_recursive(1, 6, 4, |elem| {
+                    prop_oneof![
+                        (vec(elem.clone(), 2..=3), any::<Challenge>())
+                            .prop_map(|(elems, challenge)| UncheckedConjecture::CandUnchecked {
+                                children: elems.try_into().unwrap(),
+                                challenge,
+                            })
+                            .prop_map_into(),
+                        (vec(elem.clone(), 2..=3), any::<Challenge>())
+                            .prop_map(|(elems, challenge)| UncheckedConjecture::CorUnchecked {
+                                children: elems.try_into().unwrap(),
+                                challenge
+                            })
+                            .prop_map_into(),
+                        (vec(elem, 2..=4), any::<Challenge>(), any::<Gf2_192Poly>())
+                            .prop_map(|(elems, challenge, polynomial)| {
+                                UncheckedConjecture::CthresholdUnchecked {
+                                    k: (elems.len() - 1) as u8,
+                                    children: elems.try_into().unwrap(),
+                                    challenge,
+                                    polynomial,
+                                }
+                            })
+                            .prop_map_into(),
+                    ]
+                })
+                .boxed()
         }
     }
 }

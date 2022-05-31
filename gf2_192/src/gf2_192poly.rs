@@ -45,6 +45,7 @@ pub struct Gf2_192Poly {
     /// Coefficients of the polynomial. Must be non-empty.
     coefficients: Vec<Gf2_192>,
     /// Upper bound on the degree of the polynomial.
+    #[cfg_attr(feature = "arbitrary", proptest(value = "0"))]
     degree: usize,
 }
 

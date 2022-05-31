@@ -55,7 +55,7 @@ optional = true
 [features]
 default = ["json"]
 json = ["serde", "serde_json", "serde_with", "bounded-vec/serde"]
-arbitrary = ["proptest", "proptest-derive", "ergotree-ir/arbitrary", "ergo-chain-types/arbitrary"]
+arbitrary = ["proptest", "proptest-derive", "ergotree-ir/arbitrary", "ergo-chain-types/arbitrary", "gf2_192/arbitrary"]
 
 [dev-dependencies]
 ergotree-ir = { version = "^0.16.0", path = "../ergotree-ir", features = ["arbitrary"] }

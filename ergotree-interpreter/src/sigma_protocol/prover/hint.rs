@@ -16,7 +16,9 @@ use crate::sigma_protocol::FirstProverMessage;
 #[cfg_attr(feature = "json", serde(untagged))]
 #[derive(PartialEq, Debug, Clone)]
 pub enum Hint {
+    // TODO: don't skip, make sigma boolean from unchecked_tree
     /// A hint which is indicating that a secret associated with its public image "image" is already proven.
+    #[cfg_attr(feature = "arbitrary", proptest(skip))]
     SecretProven(SecretProven),
     /// A family of hints which are about a correspondence between a public image of a secret image and prover's commitment
     /// to randomness ("a" in a sigma protocol).
@@ -202,6 +204,10 @@ impl CommitmentHint {
 #[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
 pub struct HintsBag {
     /// Hints stored in a bag
+    #[cfg_attr(
+        feature = "arbitrary",
+        proptest(strategy = "proptest::collection::vec(proptest::prelude::any::<Hint>(), 0..3)")
+    )]
     pub hints: Vec<Hint>,
 }
 

@@ -402,6 +402,10 @@ impl UnprovenDhTuple {
 #[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
 pub struct NodePosition {
     /// positions from root (inclusive) in top-down order
+    #[cfg_attr(
+        feature = "arbitrary",
+        proptest(strategy = "proptest::collection::vec(0..10usize, 1..3)")
+    )]
     pub positions: Vec<usize>,
 }
 

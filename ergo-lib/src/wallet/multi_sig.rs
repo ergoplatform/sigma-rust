@@ -43,7 +43,19 @@ use std::rc::Rc;
 #[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
 #[derive(PartialEq, Debug, Clone)]
 pub struct TransactionHintsBag {
+    #[cfg_attr(
+        feature = "arbitrary",
+        proptest(
+            strategy = "proptest::collection::hash_map(proptest::prelude::any::<usize>(), proptest::prelude::any::<HintsBag>(), 0..5)"
+        )
+    )]
     pub(crate) secret_hints: HashMap<usize, HintsBag>,
+    #[cfg_attr(
+        feature = "arbitrary",
+        proptest(
+            strategy = "proptest::collection::hash_map(proptest::prelude::any::<usize>(), proptest::prelude::any::<HintsBag>(), 0..5)"
+        )
+    )]
     pub(crate) public_hints: HashMap<usize, HintsBag>,
 }
 

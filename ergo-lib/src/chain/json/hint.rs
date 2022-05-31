@@ -58,7 +58,6 @@ mod tests {
 
         #![proptest_config(ProptestConfig::with_cases(64))]
 
-        #[ignore = "until custom *SecretProof Arbitrary impl"]
         #[test]
         fn thb_json_roundtrip(t in any::<TransactionHintsBag>()) {
             let json = serde_json::to_string_pretty(&t)?;
