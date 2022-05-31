@@ -40,12 +40,10 @@ pub struct CoefficientsByteRepr<'a> {
 
 #[derive(PartialEq, Eq, Clone, Debug)]
 /// A polynomial with coefficients in GF(2^192), whose domain ranges from `[i8::MIN, i8::MAX]`.
-#[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
 pub struct Gf2_192Poly {
     /// Coefficients of the polynomial. Must be non-empty.
     coefficients: Vec<Gf2_192>,
     /// Upper bound on the degree of the polynomial.
-    #[cfg_attr(feature = "arbitrary", proptest(value = "0"))]
     degree: usize,
 }
 

@@ -90,11 +90,17 @@ fn sig_write_bytes<W: SigmaByteWrite>(
             UncheckedConjecture::CthresholdUnchecked {
                 challenge: _,
                 children,
-                k: _,
+                k,
                 polynomial,
             } => {
+                let mut polynomial_bytes = polynomial.to_bytes();
+                // TODO: move this check to a failable Cthreshold ctor
+                assert_eq!(
+                    polynomial_bytes.len(),
+                    (children.len() - *k as usize) * SOUNDNESS_BYTES
+                );
                 // write the polynomial, except the zero-degree coefficient
-                w.write_all(polynomial.to_bytes().as_mut_slice())?;
+                w.write_all(polynomial_bytes.as_mut_slice())?;
                 for child in children {
                     sig_write_bytes(child, w, false)?;
                 }

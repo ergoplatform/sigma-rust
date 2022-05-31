@@ -70,7 +70,6 @@ impl From<UncheckedTree> for Base16EncodedBytes {
 
 /// Unchecked leaf
 #[derive(PartialEq, Debug, Clone, From)]
-#[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
 pub enum UncheckedLeaf {
     /// Unchecked Schnorr
     UncheckedSchnorr(UncheckedSchnorr),
@@ -335,6 +334,8 @@ impl ProofTreeConjecture for UncheckedConjecture {
 mod arbitrary {
     use std::convert::TryInto;
 
+    use crate::sigma_protocol::gf2_192::gf2_192poly_from_byte_array;
+
     use super::*;
     use proptest::collection::vec;
     use proptest::prelude::*;
@@ -367,8 +368,13 @@ mod arbitrary {
                                 challenge
                             })
                             .prop_map_into(),
-                        (vec(elem, 2..=4), any::<Challenge>(), any::<Gf2_192Poly>())
-                            .prop_map(|(elems, challenge, polynomial)| {
+                        (vec(elem, 2..=4), any::<Challenge>(), vec(any::<u8>(), 24))
+                            .prop_map(|(elems, challenge, random_bytes_for_one_absent_signer)| {
+                                let polynomial = gf2_192poly_from_byte_array(
+                                    challenge.clone(),
+                                    random_bytes_for_one_absent_signer,
+                                )
+                                .unwrap();
                                 UncheckedConjecture::CthresholdUnchecked {
                                     k: (elems.len() - 1) as u8,
                                     children: elems.try_into().unwrap(),

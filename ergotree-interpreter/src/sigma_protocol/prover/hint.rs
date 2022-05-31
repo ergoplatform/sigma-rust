@@ -1,5 +1,6 @@
 //! Hints for a prover which helps the prover to prove a statement.
 
+use derive_more::From;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 
 use crate::sigma_protocol::challenge::Challenge;
@@ -16,9 +17,7 @@ use crate::sigma_protocol::FirstProverMessage;
 #[cfg_attr(feature = "json", serde(untagged))]
 #[derive(PartialEq, Debug, Clone)]
 pub enum Hint {
-    // TODO: don't skip, make sigma boolean from unchecked_tree
     /// A hint which is indicating that a secret associated with its public image "image" is already proven.
-    #[cfg_attr(feature = "arbitrary", proptest(skip))]
     SecretProven(SecretProven),
     /// A family of hints which are about a correspondence between a public image of a secret image and prover's commitment
     /// to randomness ("a" in a sigma protocol).
@@ -76,8 +75,7 @@ pub struct SimulatedSecretProof {
 /// A hint which is indicating that a secret associated with its public image "image" is already proven.
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "json", serde(tag = "hint"))]
-#[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, From)]
 pub enum SecretProven {
     /// A hint which contains a proof-of-knowledge for a secret associated with its public image "image",
     /// with also the mark that the proof is real.
@@ -323,5 +321,97 @@ impl HintsBag {
                 }
             })
             .collect()
+    }
+}
+
+#[cfg(feature = "arbitrary")]
+#[allow(clippy::unwrap_used)]
+mod arbitrary {
+
+    use crate::sigma_protocol::proof_tree::ProofTreeLeaf;
+    use crate::sigma_protocol::sig_serializer::parse_sig_compute_challenges;
+    use crate::sigma_protocol::sig_serializer::serialize_sig;
+    use crate::sigma_protocol::unchecked_tree::UncheckedConjecture;
+
+    use super::*;
+    use ergotree_ir::sigma_protocol::sigma_boolean::cand::Cand;
+    use ergotree_ir::sigma_protocol::sigma_boolean::cor::Cor;
+    use ergotree_ir::sigma_protocol::sigma_boolean::cthreshold::Cthreshold;
+    use proptest::prelude::*;
+
+    fn extract_sigma_boolean(unchecked_tree: &UncheckedTree) -> SigmaBoolean {
+        match unchecked_tree {
+            UncheckedTree::UncheckedLeaf(ul) => ul.proposition(),
+            UncheckedTree::UncheckedConjecture(UncheckedConjecture::CandUnchecked {
+                challenge: _,
+                children,
+            }) => Cand {
+                items: children.mapped_ref(extract_sigma_boolean),
+            }
+            .into(),
+            UncheckedTree::UncheckedConjecture(UncheckedConjecture::CorUnchecked {
+                challenge: _,
+                children,
+            }) => Cor {
+                items: children.mapped_ref(extract_sigma_boolean),
+            }
+            .into(),
+            UncheckedTree::UncheckedConjecture(UncheckedConjecture::CthresholdUnchecked {
+                k,
+                children,
+                polynomial: _,
+                challenge: _,
+            }) => Cthreshold {
+                children: children.mapped_ref(extract_sigma_boolean),
+                k: *k,
+            }
+            .into(),
+        }
+    }
+
+    impl Arbitrary for SecretProven {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_: Self::Parameters) -> Self::Strategy {
+            (
+                any::<UncheckedTree>(),
+                any::<Challenge>(),
+                any::<NodePosition>(),
+            )
+                .prop_flat_map(|(unchecked_tree, challenge, position)| {
+                    dbg!(&unchecked_tree);
+                    let sigma_boolean = extract_sigma_boolean(&unchecked_tree);
+                    // since Arbitrary impl for UncheckedTree can generate incorrect UncheckedTree
+                    // "normalize" it by doing a serialization roundtrip
+                    let unchecked_tree_norm = parse_sig_compute_challenges(
+                        &sigma_boolean,
+                        serialize_sig(unchecked_tree).to_bytes(),
+                    )
+                    .unwrap();
+
+                    prop_oneof![
+                        Just(
+                            RealSecretProof {
+                                image: sigma_boolean.clone(),
+                                challenge: challenge.clone(),
+                                unchecked_tree: unchecked_tree_norm.clone(),
+                                position: position.clone()
+                            }
+                            .into()
+                        ),
+                        Just(
+                            SimulatedSecretProof {
+                                image: sigma_boolean,
+                                challenge,
+                                unchecked_tree: unchecked_tree_norm,
+                                position
+                            }
+                            .into()
+                        ),
+                    ]
+                })
+                .boxed()
+        }
     }
 }

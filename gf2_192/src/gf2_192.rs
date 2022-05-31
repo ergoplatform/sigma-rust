@@ -56,7 +56,6 @@ static IRRED_MULS: [i64; 16] = [
 
 /// Represents an element of the Galois field GF(2^192)
 #[derive(PartialEq, Eq, Copy, Clone, Debug)]
-#[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
 pub struct Gf2_192 {
     word: [i64; 3],
 }
