@@ -94,7 +94,6 @@ fn sig_write_bytes<W: SigmaByteWrite>(
                 polynomial,
             } => {
                 let mut polynomial_bytes = polynomial.to_bytes();
-                // TODO: move this check to a failable Cthreshold ctor
                 assert_eq!(
                     polynomial_bytes.len(),
                     (children.len() - *k as usize) * SOUNDNESS_BYTES
