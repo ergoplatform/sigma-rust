@@ -25,7 +25,6 @@ pub fn get_nipopow_proof_by_header_id(
     suffix_len: u32,
     header_id: &BlockId,
 ) -> js_sys::Promise {
-
     // Note that this function can't be made async since `header_id` is a reference. Futures need to
     // have a 'static lifetime and the borrow prevents this. The workaround is to clone the header
     // ID and pass it into an `async move` block, and convert that into a JS promise directly

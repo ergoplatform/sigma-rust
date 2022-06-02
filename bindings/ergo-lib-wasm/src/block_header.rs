@@ -36,6 +36,7 @@ pub struct BlockId(pub(crate) ergo_lib::ergo_chain_types::BlockId);
 #[wasm_bindgen]
 impl BlockId {
     /// Parse from base 16 encoded string
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(id: &str) -> Result<BlockId, JsValue> {
         ergo_lib::ergo_chain_types::Digest32::try_from(String::from(id))
             .map(|d| BlockId(ergo_lib::ergo_chain_types::BlockId(d)))

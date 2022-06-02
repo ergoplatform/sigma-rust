@@ -56,7 +56,7 @@ impl NipopowVerifier {
 
     /// Return best proof
     pub fn best_proof(&self) -> Option<NipopowProof> {
-        self.0.best_proof().map(NipopowProof).into()
+        self.0.best_proof().map(NipopowProof)
     }
 
     /// Returns chain of `BlockHeader`s from the best proof.
