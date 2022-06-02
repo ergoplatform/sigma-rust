@@ -19,21 +19,30 @@ pub async fn get_info(node: NodeConf) -> Result<JsValue, JsValue> {
 
 #[wasm_bindgen]
 /// GET on /nipopow/proof/{minChainLength}/{suffixLength}/{headerId} endpoint
-pub async fn get_nipopow_proof_by_header_id(
+pub fn get_nipopow_proof_by_header_id(
     node: NodeConf,
     min_chain_length: u32,
     suffix_len: u32,
-    header_id: BlockId,
-) -> Result<NipopowProof, JsValue> {
-    ergo_lib::ergo_rest::api::node::get_nipopow_proof_by_header_id(
-        node.into(),
-        min_chain_length,
-        suffix_len,
-        header_id.into(),
-    )
-    .await
-    .map_err(to_js)
-    .map(NipopowProof::from)
+    header_id: &BlockId,
+) -> js_sys::Promise {
+
+    // Note that this function can't be made async since `header_id` is a reference. Futures need to
+    // have a 'static lifetime and the borrow prevents this. The workaround is to clone the header
+    // ID and pass it into an `async move` block, and convert that into a JS promise directly
+    // (described in https://github.com/rustwasm/wasm-bindgen/issues/1858).
+    let header_id_cloned = header_id.0.clone().into();
+    wasm_bindgen_futures::future_to_promise(async move {
+        let proof = ergo_lib::ergo_rest::api::node::get_nipopow_proof_by_header_id(
+            node.into(),
+            min_chain_length,
+            suffix_len,
+            header_id_cloned,
+        )
+        .await
+        .map_err(to_js)
+        .map(NipopowProof::from)?;
+        Ok(wasm_bindgen::JsValue::from(proof))
+    })
 }
 
 /// List of peer urls returned from `peer_discovery`. We need this wrapper struct because the

@@ -23,6 +23,7 @@ js-sys = "0.3"
 web-sys = {version = "0.3", features = ["Url"]}
 url = "2.2"
 bounded-integer = { version = "^0.5", features = ["types"] }
+futures = "0.3"
 
 # used in elliptic-curve(in ergo-lib), compiled here with WASM support
 getrandom = {version = "0.2.3", features = ["js"]}
