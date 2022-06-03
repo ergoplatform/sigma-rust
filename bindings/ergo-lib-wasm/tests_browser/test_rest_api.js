@@ -41,7 +41,7 @@ it('node REST API: peer_discovery endpoint', async () => {
 });
 
 it('node REST API: example SPV workflow', async () => {
-    let node_conf = new ergo_wasm.NodeConf("213.239.193.208:9053");
+    let node_conf = new ergo_wasm.NodeConf("147.135.70.51:9053");
     assert(node_conf != null);
     const header_id = ergo_wasm.BlockId.from_str("d1366f762e46b7885496aaab0c42ec2950b0422d48aec3b91f45d4d0cdeb41e5")
     let proof = await ergo_wasm.get_nipopow_proof_by_header_id(node_conf, 7, 6, header_id);
