@@ -898,12 +898,12 @@ fn step9_real_schnorr<P: Prover + ?Sized>(
             {
                 Some(oc) => dlog_protocol::interactive_prover::second_message(
                     priv_key,
-                    oc.secret_randomness,
+                    oc.secret_randomness.clone(),
                     &challenge,
                 ),
                 None => dlog_protocol::interactive_prover::second_message(
                     priv_key,
-                    us.randomness_opt.ok_or_else(|| {
+                    us.randomness_opt.clone().ok_or_else(|| {
                         ProverError::Unexpected(format!("empty randomness in {:?}", us))
                     })?,
                     &challenge,
@@ -932,7 +932,8 @@ fn step9_real_schnorr<P: Prover + ?Sized>(
                     }
                 }
                 None => {
-                    let bs = dlog_group::random_scalar_in_group_range(crypto_utils::secure_rng());
+                    let bs =
+                        dlog_group::random_scalar_in_group_range(crypto_utils::secure_rng()).into();
                     SecondDlogProverMessage { z: bs }
                 }
             },
@@ -980,7 +981,7 @@ fn step9_real_dh_tuple<P: Prover + ?Sized>(
                 }
                 None => dht_protocol::interactive_prover::second_message(
                     priv_key,
-                    &dhu.randomness_opt.ok_or_else(|| {
+                    &dhu.randomness_opt.clone().ok_or_else(|| {
                         ProverError::Unexpected(format!("empty randomness in {:?}", dhu))
                     })?,
                     &dhu_challenge,
@@ -1012,7 +1013,8 @@ fn step9_real_dh_tuple<P: Prover + ?Sized>(
                     }
                 }
                 None => {
-                    let z = dlog_group::random_scalar_in_group_range(crypto_utils::secure_rng());
+                    let z =
+                        dlog_group::random_scalar_in_group_range(crypto_utils::secure_rng()).into();
                     SecondDhTupleProverMessage { z }
                 }
             },

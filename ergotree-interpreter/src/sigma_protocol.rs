@@ -6,7 +6,7 @@ pub mod private_input;
 pub mod prover;
 pub mod verifier;
 
-mod challenge;
+pub(crate) mod challenge;
 mod crypto_utils;
 pub mod dht_protocol;
 pub mod dlog_protocol;
@@ -16,14 +16,15 @@ pub mod proof_tree;
 pub mod sig_serializer;
 pub mod unchecked_tree;
 pub mod unproven_tree;
+pub mod wscalar;
 
-use elliptic_curve::generic_array::GenericArray;
-use elliptic_curve::ops::Reduce;
+use std::array::TryFromSliceError;
+use std::convert::TryFrom;
+use std::convert::TryInto;
+
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
-use k256::Scalar;
 
 use dlog_protocol::FirstDlogProverMessage;
-use k256::U256;
 use unchecked_tree::UncheckedTree;
 use unproven_tree::{UnprovenLeaf, UnprovenSchnorr};
 
@@ -42,10 +43,15 @@ pub(crate) trait ProverMessage {
 
 /** First message from the prover (message `a` of `SigmaProtocol`)*/
 #[derive(PartialEq, Debug, Clone, From, TryInto)]
+#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "json", serde(tag = "type"))]
+#[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
 pub enum FirstProverMessage {
     /// Discrete log
+    #[cfg_attr(feature = "json", serde(rename = "dlog"))]
     FirstDlogProverMessage(FirstDlogProverMessage),
     /// DH tupl
+    #[cfg_attr(feature = "json", serde(rename = "dht"))]
     FirstDhtProverMessage(FirstDhTupleProverMessage),
 }
 
@@ -67,16 +73,27 @@ pub(crate) const GROUP_SIZE: usize = GROUP_SIZE_BITS / 8;
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub(crate) struct GroupSizedBytes(pub(crate) Box<[u8; GROUP_SIZE]>);
 
-impl From<GroupSizedBytes> for Scalar {
-    fn from(b: GroupSizedBytes) -> Self {
-        let sl: &[u8] = b.0.as_ref();
-        <Scalar as Reduce<U256>>::from_be_bytes_reduced(GenericArray::clone_from_slice(sl))
-    }
-}
-
 impl From<&[u8; GROUP_SIZE]> for GroupSizedBytes {
     fn from(b: &[u8; GROUP_SIZE]) -> Self {
         GroupSizedBytes(Box::new(*b))
+    }
+}
+
+impl TryFrom<Vec<u8>> for GroupSizedBytes {
+    type Error = TryFromSliceError;
+
+    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
+        let bytes: [u8; GROUP_SIZE] = value.as_slice().try_into()?;
+        Ok(GroupSizedBytes(bytes.into()))
+    }
+}
+
+impl TryFrom<&[u8]> for GroupSizedBytes {
+    type Error = TryFromSliceError;
+
+    fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
+        let bytes: [u8; GROUP_SIZE] = value.try_into()?;
+        Ok(GroupSizedBytes(bytes.into()))
     }
 }
 

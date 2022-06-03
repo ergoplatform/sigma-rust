@@ -1,5 +1,5 @@
 //! Extended private key operations according to BIP-32
-use std::{convert::TryInto, ops::Add};
+use std::convert::TryInto;
 
 use super::{
     derivation_path::{ChildIndex, ChildIndexError, DerivationPath},
@@ -7,7 +7,7 @@ use super::{
     mnemonic::MnemonicSeed,
 };
 use crate::ArrLength;
-use ergotree_interpreter::sigma_protocol::private_input::DlogProverInput;
+use ergotree_interpreter::sigma_protocol::{private_input::DlogProverInput, wscalar::Wscalar};
 use ergotree_ir::{
     serialization::{SigmaParsingError, SigmaSerializable, SigmaSerializationError},
     sigma_protocol::sigma_boolean::ProveDlog,
@@ -123,7 +123,13 @@ impl ExtSecretKey {
         if let Some(dlog_prover) = DlogProverInput::from_bytes(&secret_key_bytes) {
             // parse256(IL) + kpar (mod n).
             // via https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#child-key-derivation-ckd-functions
-            let child_secret_key: DlogProverInput = dlog_prover.w.add(&self.private_input.w).into();
+            let child_secret_key: DlogProverInput = Wscalar::from(
+                dlog_prover
+                    .w
+                    .as_scalar_ref()
+                    .add(self.private_input.w.as_scalar_ref()),
+            )
+            .into();
             if child_secret_key.is_zero() {
                 // ki == 0 case of:
                 // > In case parse256(IL) ≥ n or ki = 0, the resulting key is invalid, and one

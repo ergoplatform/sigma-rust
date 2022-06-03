@@ -7,12 +7,14 @@ use crate::sigma_protocol::unproven_tree::{UnprovenConjecture, UnprovenTree};
 use crate::sigma_protocol::ProverMessage;
 use blake2::digest::{Update, VariableOutput};
 use blake2::VarBlake2b;
+use ergo_chain_types::{Base16DecodedBytes, Base16EncodedBytes};
 use ergotree_ir::ergo_tree::{ErgoTree, ErgoTreeHeader};
 use ergotree_ir::mir::expr::Expr;
 use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
 use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWriter;
 use ergotree_ir::serialization::SigmaSerializable;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProp;
+use std::array::TryFromSliceError;
 use std::convert::{TryFrom, TryInto};
 use thiserror::Error;
 
@@ -24,8 +26,16 @@ use super::GROUP_SIZE;
 use super::SOUNDNESS_BYTES;
 
 /// Hash type for Fiat-Shamir hash function (24-bytes)
-#[cfg_attr(feature = "arbitrary", derive(Arbitrary))]
 #[derive(PartialEq, Eq, Debug, Clone)]
+#[cfg_attr(feature = "arbitrary", derive(Arbitrary))]
+#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "json",
+    serde(
+        try_from = "ergo_chain_types::Base16DecodedBytes",
+        into = "ergo_chain_types::Base16EncodedBytes"
+    )
+)]
 pub struct FiatShamirHash(pub Box<[u8; SOUNDNESS_BYTES]>);
 
 impl FiatShamirHash {
@@ -35,6 +45,21 @@ impl FiatShamirHash {
             .as_slice()
             .try_into()
             .unwrap()
+    }
+}
+
+impl From<FiatShamirHash> for Base16EncodedBytes {
+    fn from(fsh: FiatShamirHash) -> Self {
+        (*fsh.0).as_slice().into()
+    }
+}
+
+impl TryFrom<Base16DecodedBytes> for FiatShamirHash {
+    type Error = TryFromSliceError;
+
+    fn try_from(b16: Base16DecodedBytes) -> Result<Self, Self::Error> {
+        let arr: [u8; SOUNDNESS_BYTES] = b16.0.as_slice().try_into()?;
+        Ok(FiatShamirHash(arr.into()))
     }
 }
 

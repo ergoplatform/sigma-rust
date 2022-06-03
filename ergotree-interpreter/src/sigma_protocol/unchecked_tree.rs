@@ -1,5 +1,6 @@
 //! Unchecked proof tree types
 
+use ergo_chain_types::Base16EncodedBytes;
 use ergotree_ir::sigma_protocol::sigma_boolean::ProveDhTuple;
 use ergotree_ir::sigma_protocol::sigma_boolean::ProveDlog;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
@@ -14,6 +15,7 @@ use super::proof_tree::ProofTree;
 use super::proof_tree::ProofTreeConjecture;
 use super::proof_tree::ProofTreeKind;
 use super::proof_tree::ProofTreeLeaf;
+use super::sig_serializer::serialize_sig;
 use super::{
     dlog_protocol::{FirstDlogProverMessage, SecondDlogProverMessage},
     Challenge, FirstProverMessage,
@@ -23,6 +25,11 @@ use derive_more::From;
 
 /// Unchecked sigma tree
 #[derive(PartialEq, Debug, Clone, From)]
+#[cfg_attr(
+    feature = "json",
+    derive(serde::Serialize),
+    serde(into = "ergo_chain_types::Base16EncodedBytes")
+)]
 pub enum UncheckedTree {
     /// Unchecked leaf
     UncheckedLeaf(UncheckedLeaf),
@@ -51,6 +58,13 @@ impl UncheckedTree {
             UncheckedTree::UncheckedLeaf(ul) => ul.with_challenge(challenge).into(),
             UncheckedTree::UncheckedConjecture(uc) => uc.with_challenge(challenge).into(),
         }
+    }
+}
+
+impl From<UncheckedTree> for Base16EncodedBytes {
+    fn from(tree: UncheckedTree) -> Self {
+        let bytes: Vec<u8> = serialize_sig(tree).into();
+        Base16EncodedBytes::from(bytes)
     }
 }
 
@@ -100,6 +114,7 @@ impl ProofTreeLeaf for UncheckedLeaf {
 }
 /// Unchecked Schnorr
 #[derive(PartialEq, Debug, Clone)]
+#[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
 pub struct UncheckedSchnorr {
     /// Proposition
     pub proposition: ProveDlog,
@@ -132,6 +147,7 @@ impl From<UncheckedDhTuple> for UncheckedTree {
 
 /// UncheckedDhTuple
 #[derive(PartialEq, Debug, Clone)]
+#[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
 pub struct UncheckedDhTuple {
     /// Proposition
     pub proposition: ProveDhTuple,
@@ -309,6 +325,67 @@ impl ProofTreeConjecture for UncheckedConjecture {
                 k: _,
                 polynomial: _,
             } => children.mapped_ref(|ust| ust.clone().into()),
+        }
+    }
+}
+
+#[cfg(feature = "arbitrary")]
+#[allow(clippy::unwrap_used)]
+mod arbitrary {
+    use std::convert::TryInto;
+
+    use crate::sigma_protocol::gf2_192::gf2_192poly_from_byte_array;
+
+    use super::*;
+    use proptest::collection::vec;
+    use proptest::prelude::*;
+
+    pub fn primitive_type_value() -> BoxedStrategy<UncheckedTree> {
+        prop_oneof![
+            any::<UncheckedSchnorr>().prop_map_into(),
+            any::<UncheckedDhTuple>().prop_map_into(),
+        ]
+        .boxed()
+    }
+
+    impl Arbitrary for UncheckedTree {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_: Self::Parameters) -> Self::Strategy {
+            primitive_type_value()
+                .prop_recursive(1, 6, 4, |elem| {
+                    prop_oneof![
+                        (vec(elem.clone(), 2..=3), any::<Challenge>())
+                            .prop_map(|(elems, challenge)| UncheckedConjecture::CandUnchecked {
+                                children: elems.try_into().unwrap(),
+                                challenge,
+                            })
+                            .prop_map_into(),
+                        (vec(elem.clone(), 2..=3), any::<Challenge>())
+                            .prop_map(|(elems, challenge)| UncheckedConjecture::CorUnchecked {
+                                children: elems.try_into().unwrap(),
+                                challenge
+                            })
+                            .prop_map_into(),
+                        (vec(elem, 2..=4), any::<Challenge>(), vec(any::<u8>(), 24))
+                            .prop_map(|(elems, challenge, random_bytes_for_one_absent_signer)| {
+                                let polynomial = gf2_192poly_from_byte_array(
+                                    challenge.clone(),
+                                    random_bytes_for_one_absent_signer,
+                                )
+                                .unwrap();
+                                UncheckedConjecture::CthresholdUnchecked {
+                                    k: (elems.len() - 1) as u8,
+                                    children: elems.try_into().unwrap(),
+                                    challenge,
+                                    polynomial,
+                                }
+                            })
+                            .prop_map_into(),
+                    ]
+                })
+                .boxed()
         }
     }
 }

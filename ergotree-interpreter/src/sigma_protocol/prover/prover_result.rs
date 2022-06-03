@@ -17,6 +17,16 @@ pub enum ProofBytes {
     Some(Vec<u8>),
 }
 
+impl ProofBytes {
+    /// Returns bytes or empty vector if empty
+    pub fn to_bytes(self) -> Vec<u8> {
+        match self {
+            ProofBytes::Empty => Vec::new(),
+            ProofBytes::Some(bytes) => bytes,
+        }
+    }
+}
+
 impl From<ProofBytes> for Vec<u8> {
     fn from(v: ProofBytes) -> Self {
         match v {

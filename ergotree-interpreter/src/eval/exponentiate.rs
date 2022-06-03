@@ -54,7 +54,7 @@ mod tests {
         fn eval_any(left in any::<EcPoint>(), pi in any::<DlogProverInput>()) {
             // Shift right to make sure that the MSB is 0, so that the Scalar
             // can be converted to a BigInt256 and back
-            let right: BigInt256 = scalar_to_bigint256(pi.w >> 1).unwrap();
+            let right: BigInt256 = scalar_to_bigint256(pi.w.as_scalar_ref() >> 1).unwrap();
 
             let expected_exp = ergo_chain_types::ec_point::exponentiate(
                 &left,

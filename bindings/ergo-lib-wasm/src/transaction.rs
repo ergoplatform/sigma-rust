@@ -91,6 +91,16 @@ impl TransactionHintsBag {
     pub fn all_hints_for_input(&self, index: usize) -> HintsBag {
         HintsBag::from(self.0.all_hints_for_input(index))
     }
+
+    /// Return JSON object (node format)
+    pub fn to_json(&self) -> Result<JsValue, JsValue> {
+        JsValue::from_serde(&self.0).map_err(to_js)
+    }
+
+    /// Parse from JSON object (node format)
+    pub fn from_json(json: &str) -> Result<TransactionHintsBag, JsValue> {
+        serde_json::from_str(json).map(Self).map_err(to_js)
+    }
 }
 
 impl From<ergo_lib::wallet::multi_sig::TransactionHintsBag> for TransactionHintsBag {

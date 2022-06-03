@@ -32,9 +32,31 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 /// TransactionHintsBag
+#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "json",
+    serde(
+        try_from = "crate::chain::json::hint::TransactionHintsBagJson",
+        into = "crate::chain::json::hint::TransactionHintsBagJson"
+    )
+)]
+#[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
+#[derive(PartialEq, Debug, Clone)]
 pub struct TransactionHintsBag {
-    secret_hints: HashMap<usize, HintsBag>,
-    public_hints: HashMap<usize, HintsBag>,
+    #[cfg_attr(
+        feature = "arbitrary",
+        proptest(
+            strategy = "proptest::collection::hash_map(proptest::prelude::any::<usize>(), proptest::prelude::any::<HintsBag>(), 0..5)"
+        )
+    )]
+    pub(crate) secret_hints: HashMap<usize, HintsBag>,
+    #[cfg_attr(
+        feature = "arbitrary",
+        proptest(
+            strategy = "proptest::collection::hash_map(proptest::prelude::any::<usize>(), proptest::prelude::any::<HintsBag>(), 0..5)"
+        )
+    )]
+    pub(crate) public_hints: HashMap<usize, HintsBag>,
 }
 
 impl TransactionHintsBag {
@@ -462,8 +484,8 @@ mod tests {
     use crate::ergotree_ir::sigma_protocol::sigma_boolean::cand::Cand;
     use ergo_chain_types::Base16DecodedBytes;
     use ergotree_interpreter::sigma_protocol::private_input::DhTupleProverInput;
+    use ergotree_interpreter::sigma_protocol::wscalar::Wscalar;
     use ergotree_ir::mir::sigma_or::SigmaOr;
-    use k256::Scalar;
     use sigma_test_util::force_any_val;
     use std::convert::{TryFrom, TryInto};
     use std::rc::Rc;
@@ -642,7 +664,7 @@ mod tests {
         assert!(!bag.hints.is_empty(), "{}", "{}");
         let mut hint = bag.hints[0].clone();
         let mut a: Option<FirstProverMessage> = None;
-        let mut r: Option<Scalar> = None;
+        let mut r: Option<Wscalar> = None;
         if let Hint::CommitmentHint(CommitmentHint::RealCommitment(comm)) = hint {
             assert_eq!(comm.position, NodePosition::crypto_tree_prefix());
             a = Some(comm.commitment);
@@ -653,7 +675,7 @@ mod tests {
             r = Some(comm.secret_randomness);
         }
         use ergo_chain_types::ec_point::{exponentiate, generator};
-        let g_to_r = exponentiate(&generator(), &r.unwrap());
+        let g_to_r = exponentiate(&generator(), r.unwrap().as_scalar_ref());
         assert_eq!(
             FirstProverMessage::FirstDlogProverMessage(g_to_r.into()),
             a.unwrap()

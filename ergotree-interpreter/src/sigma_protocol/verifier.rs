@@ -141,7 +141,7 @@ pub fn compute_commitments(sp: UncheckedTree) -> UncheckedTree {
                     &sn.second_message,
                 );
                 UncheckedSchnorr {
-                    commitment_opt: Some(FirstDlogProverMessage(a.into())),
+                    commitment_opt: Some(FirstDlogProverMessage { a: a.into() }),
                     ..sn
                 }
                 .into()

@@ -1,14 +1,18 @@
 //! Discrete logarithm signature protocol
 
+use super::wscalar::Wscalar;
 use super::ProverMessage;
 use ergo_chain_types::EcPoint;
 use ergotree_ir::serialization::SigmaSerializable;
-use k256::Scalar;
 
 /// a = g^r, b = h^r
 #[derive(PartialEq, Eq, Debug, Clone)]
+#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
 pub struct FirstDhTupleProverMessage {
+    #[cfg_attr(feature = "json", serde(rename = "a"))]
     a: Box<EcPoint>,
+    #[cfg_attr(feature = "json", serde(rename = "b"))]
     b: Box<EcPoint>,
 }
 
@@ -34,9 +38,10 @@ impl ProverMessage for FirstDhTupleProverMessage {
 /// Second message from the prover (message `z` of `SigmaProtocol`) for DhTuple case
 //z = r + ew mod q
 #[derive(PartialEq, Eq, Debug, Clone)]
+#[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
 pub struct SecondDhTupleProverMessage {
     /// message `z`
-    pub z: Scalar,
+    pub z: Wscalar,
 }
 
 /// Interactive prover
@@ -75,7 +80,7 @@ pub mod interactive_prover {
         let b = h_to_z.mul(&v_to_minus_e);
         (
             FirstDhTupleProverMessage::new(a, b),
-            SecondDhTupleProverMessage { z },
+            SecondDhTupleProverMessage { z: z.into() },
         )
     }
 
@@ -84,12 +89,12 @@ pub mod interactive_prover {
     /// that leaf to compute the necessary randomness "r" and the commitment "a"
     ///
     /// In this case (DH tuple) "a" is also a tuple
-    pub fn first_message(public_input: &ProveDhTuple) -> (Scalar, FirstDhTupleProverMessage) {
+    pub fn first_message(public_input: &ProveDhTuple) -> (Wscalar, FirstDhTupleProverMessage) {
         use ergo_chain_types::ec_point::exponentiate;
         let r = dlog_group::random_scalar_in_group_range(crypto_utils::secure_rng());
         let a = exponentiate(&public_input.g, &r);
         let b = exponentiate(&public_input.h, &r);
-        (r, FirstDhTupleProverMessage::new(a, b))
+        (r.into(), FirstDhTupleProverMessage::new(a, b))
     }
 
     /// Step 9 part 2 from <https://ergoplatform.org/docs/ErgoScript.pdf>
@@ -98,15 +103,15 @@ pub mod interactive_prover {
     /// the challenge "e", and witness w.
     pub(crate) fn second_message(
         private_input: &DhTupleProverInput,
-        rnd: &Scalar,
+        rnd: &Wscalar,
         challenge: &Challenge,
     ) -> SecondDhTupleProverMessage {
         let e: Scalar = challenge.clone().into();
         // modulo multiplication, no need to explicit mod op
-        let ew = e.mul(&private_input.w);
+        let ew = e.mul(private_input.w.as_scalar_ref());
         // modulo addition, no need to explicit mod op
-        let z = rnd.add(&ew);
-        SecondDhTupleProverMessage { z }
+        let z = rnd.as_scalar_ref().add(&ew);
+        SecondDhTupleProverMessage { z: z.into() }
     }
 
     /// The function computes initial prover's commitment to randomness
@@ -126,14 +131,14 @@ pub mod interactive_prover {
         let u = proposition.u.clone();
         let v = proposition.v.clone();
 
-        let z = second_message.z;
+        let z = second_message.z.clone();
 
         let e: Scalar = challenge.clone().into();
 
         use ergo_chain_types::ec_point::{exponentiate, inverse};
 
-        let g_to_z = exponentiate(&g, &z);
-        let h_to_z = exponentiate(&h, &z);
+        let g_to_z = exponentiate(&g, z.as_scalar_ref());
+        let h_to_z = exponentiate(&h, z.as_scalar_ref());
 
         let u_to_e = exponentiate(&u, &e);
         let v_to_e = exponentiate(&v, &e);
