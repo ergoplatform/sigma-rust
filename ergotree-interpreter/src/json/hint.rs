@@ -45,13 +45,13 @@ impl TryFrom<NodePositionJson> for NodePosition {
 
 #[derive(Deserialize)]
 pub struct RealSecretProofJson {
-    #[cfg_attr(feature = "json", serde(rename = "pubkey"))]
+    #[serde(rename = "pubkey")]
     pub image: SigmaBoolean,
-    #[cfg_attr(feature = "json", serde(rename = "challenge"))]
+    #[serde(rename = "challenge")]
     pub challenge: Challenge,
-    #[cfg_attr(feature = "json", serde(rename = "proof"))]
+    #[serde(rename = "proof")]
     pub unchecked_tree_bytes: Base16DecodedBytes,
-    #[cfg_attr(feature = "json", serde(rename = "position"))]
+    #[serde(rename = "position")]
     pub position: NodePosition,
 }
 
@@ -72,13 +72,13 @@ impl TryFrom<RealSecretProofJson> for RealSecretProof {
 
 #[derive(Deserialize)]
 pub struct SimulatedSecretProofJson {
-    #[cfg_attr(feature = "json", serde(rename = "pubkey"))]
+    #[serde(rename = "pubkey")]
     pub image: SigmaBoolean,
-    #[cfg_attr(feature = "json", serde(rename = "challenge"))]
+    #[serde(rename = "challenge")]
     pub challenge: Challenge,
-    #[cfg_attr(feature = "json", serde(rename = "proof"))]
+    #[serde(rename = "proof")]
     pub unchecked_tree_bytes: Base16DecodedBytes,
-    #[cfg_attr(feature = "json", serde(rename = "position"))]
+    #[serde(rename = "position")]
     pub position: NodePosition,
 }
 
