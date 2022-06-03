@@ -29,7 +29,7 @@ pub fn get_nipopow_proof_by_header_id(
     // have a 'static lifetime and the borrow prevents this. The workaround is to clone the header
     // ID and pass it into an `async move` block, and convert that into a JS promise directly
     // (described in https://github.com/rustwasm/wasm-bindgen/issues/1858).
-    let header_id_cloned = header_id.0.clone().into();
+    let header_id_cloned = header_id.0.clone();
     wasm_bindgen_futures::future_to_promise(async move {
         let proof = ergo_lib::ergo_rest::api::node::get_nipopow_proof_by_header_id(
             node.into(),
