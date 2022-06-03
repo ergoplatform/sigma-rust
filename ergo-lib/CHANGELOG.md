@@ -6,6 +6,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
+
+### Added 
+- Swift bindings for MnemonicGenerator [#573](https://github.com/ergoplatform/sigma-rust/pull/573);
+- JSON encoding for TransactionHintsBag type hierarchy [#577](https://github.com/ergoplatform/sigma-rust/pull/577);
+
+### Changed
+- eliminate `TransactionContext::get_boxes_to_spend()` and introduce `TransactionContext::get_input_box(box_id: BoxId) -> Option<ErgoBox>` [#574](https://github.com/ergoplatform/sigma-rust/pull/574);
+- move `Header` type from `ergotree-ir` to `ergo-chain-types` [#572](https://github.com/ergoplatform/sigma-rust/pull/572);
+- fix JSON encoding for no tokens (empty array); [#578](https://github.com/ergoplatform/sigma-rust/pull/578);
+
 ## [0.16.1] - 2022-05-04
 
 ### Changed
