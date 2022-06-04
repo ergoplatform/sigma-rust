@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
+## [0.17.0] - 2022-06-04
 
 ### Added 
 - Swift bindings for MnemonicGenerator [#573](https://github.com/ergoplatform/sigma-rust/pull/573);
@@ -337,7 +338,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - ErgoTree constant values conversion.
 
 <!-- next-url -->
-[Unreleased]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.16.1...HEAD
+[Unreleased]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.17.0...HEAD
+[0.17.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.16.1...ergo-lib-v0.17.0
 [0.16.1]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.16.0...ergo-lib-v0.16.1
 [0.16.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.15.0...ergo-lib-v0.16.0
 [0.15.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.14.0...ergo-lib-v0.15.0
