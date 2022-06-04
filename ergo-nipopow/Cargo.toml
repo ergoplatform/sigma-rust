@@ -23,7 +23,7 @@ ergotree-ir = { version = "^0.16.0", path = "../ergotree-ir", features = ["json"
 num-bigint = "0.4.0"
 num-traits = "0.2.14"
 proptest-derive = {version = "0.3.0", optional = true }
-sigma-ser = { version = "^0.5.0", path = "../sigma-ser" }
+sigma-ser = { version = "^0.6.0", path = "../sigma-ser" }
 sigma-util = { version = "^0.5.0", path = "../sigma-util" }
 ergo-chain-types = { version = "^0.3.0", path = "../ergo-chain-types" }
 ergo-merkle-tree = { version = "^0.3.0", path = "../ergo-merkle-tree" }
