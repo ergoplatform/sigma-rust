@@ -34,6 +34,16 @@ it('node REST API: example SPV workflow', async () => {
     let best_proof = verifier.best_proof();
     assert(best_proof != null, "best proof should exist");
     assert(best_proof.suffix_head().id().equals(header_id), "equality");
+
+    let tx_id = ergo_wasm.TxId.from_str("258ddfc09b94b8313bca724de44a0d74010cab26de379be845713cc129546b78")
+    assert(tx_id != null);
+    let merkle_proof = await ergo_wasm.get_blocks_header_id_proof_for_tx_id(node_conf, header_id, tx_id)
+    assert(merkle_proof != null);
+
+    // Taken from: https://explorer.ergoplatform.com/en/blocks/d1366f762e46b7885496aaab0c42ec2950b0422d48aec3b91f45d4d0cdeb41e5
+    let transactions_root = ergo_wasm.base16_decode("be1e2428e9e8c932ff2bcbc9075537db36bb704b9cd7ae86e11219c66ba52c0e");
+    assert(transactions_root != null);
+    assert(merkle_proof.valid(transactions_root));
 });
 
 it('node REST API: peer_discovery endpoint', async () => {

@@ -12,7 +12,7 @@ use crate::error_conversion::to_js;
 /// Node configuration
 #[wasm_bindgen]
 #[derive(PartialEq, Eq, Debug, Clone, Copy, From, Into)]
-pub struct NodeConf(ergo_lib::ergo_rest::NodeConf);
+pub struct NodeConf(pub(crate) ergo_lib::ergo_rest::NodeConf);
 
 #[wasm_bindgen]
 impl NodeConf {

@@ -6,7 +6,7 @@ use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 /// A MerkleProof type. Given leaf data and levels (bottom-upwards), the root hash can be computed and validated
-pub struct MerkleProof(ergo_merkle_tree::MerkleProof);
+pub struct MerkleProof(pub(crate) ergo_merkle_tree::MerkleProof);
 
 /// A level node in a merkle proof
 #[wasm_bindgen]

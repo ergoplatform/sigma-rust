@@ -3,7 +3,9 @@
 use bounded_integer::BoundedU16;
 use bounded_vec::NonEmptyVec;
 use ergo_chain_types::BlockId;
+use ergo_merkle_tree::MerkleProof;
 use ergo_nipopow::NipopowProof;
+use ergotree_ir::chain::tx_id::TxId;
 use std::time::Duration;
 use url::Url;
 
@@ -54,7 +56,7 @@ pub async fn get_nipopow_proof_by_header_id(
     if min_chain_length == 0 || suffix_len == 0 {
         return Err(NodeError::InvalidNumericalUrlSegment);
     }
-    let header_str = String::from(header_id.0.clone());
+    let header_str = String::from(header_id.0);
     let mut path = "nipopow/proof/".to_owned();
     path.push_str(&*min_chain_length.to_string());
     path.push('/');
@@ -72,13 +74,29 @@ pub async fn get_nipopow_proof_by_header_id(
         .await?)
 }
 
-// pub async fn get_blocks_header_id_proof_for_tx_id(
-//     _node: NodeConf,
-//     _header_id: BlockId,
-//     _tx_id: TxId,
-// ) -> Result<Option<MerkleProof>, NodeError> {
-//     todo!()
-// }
+/// GET on /blocks/{header_id}/proofFor/{tx_id} to request the merkle proof for a given transaction
+/// that belongs to the given header ID.
+pub async fn get_blocks_header_id_proof_for_tx_id(
+    node: NodeConf,
+    header_id: BlockId,
+    tx_id: TxId,
+) -> Result<Option<MerkleProof>, NodeError> {
+    let header_str = String::from(header_id.0);
+    let mut path = "blocks/".to_owned();
+    path.push_str(&*header_str);
+    path.push_str("/proofFor/");
+    let tx_id_str = String::from(tx_id);
+    path.push_str(&*tx_id_str);
+    #[allow(clippy::unwrap_used)]
+    let url = node.addr.as_http_url().join(&*path).unwrap();
+    let client = build_client(&node)?;
+    let rb = client.get(url);
+    Ok(set_req_headers(rb, node)
+        .send()
+        .await?
+        .json::<Option<MerkleProof>>()
+        .await?)
+}
 
 #[allow(clippy::unwrap_used)]
 #[cfg(test)]
