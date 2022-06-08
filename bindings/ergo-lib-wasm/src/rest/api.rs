@@ -3,7 +3,9 @@
 use wasm_bindgen::prelude::*;
 
 use super::node_conf::NodeConf;
-use crate::{block_header::BlockId, error_conversion::to_js, nipopow::NipopowProof, transaction::TxId};
+use crate::{
+    block_header::BlockId, error_conversion::to_js, nipopow::NipopowProof, transaction::TxId,
+};
 use bounded_vec::NonEmptyVec;
 use std::time::Duration;
 
@@ -30,6 +32,7 @@ pub fn get_nipopow_proof_by_header_id(
     // ID and pass it into an `async move` block, and convert that into a JS promise directly
     // (described in https://github.com/rustwasm/wasm-bindgen/issues/1858).
     let header_id_cloned = header_id.0.clone();
+    #[allow(clippy::clone_on_copy)]
     let node_cloned = node.0.clone();
     wasm_bindgen_futures::future_to_promise(async move {
         let proof = ergo_lib::ergo_rest::api::node::get_nipopow_proof_by_header_id(
@@ -54,6 +57,7 @@ pub fn get_blocks_header_id_proof_for_tx_id(
 ) -> js_sys::Promise {
     let header_id_cloned = header_id.0.clone();
     let tx_id_cloned = tx_id.0.clone();
+    #[allow(clippy::clone_on_copy)]
     let node_cloned = node.0.clone();
     wasm_bindgen_futures::future_to_promise(async move {
         let merkle_proof = ergo_lib::ergo_rest::api::node::get_blocks_header_id_proof_for_tx_id(
@@ -64,11 +68,7 @@ pub fn get_blocks_header_id_proof_for_tx_id(
         .await
         .map_err(to_js)
         .map(|m| {
-            if let Some(proof) = m {
-                Some(crate::merkleproof::MerkleProof(proof))   
-            } else {
-                None
-            }
+            m.map(crate::merkleproof::MerkleProof)
         })?;
         Ok(wasm_bindgen::JsValue::from(merkle_proof))
     })
