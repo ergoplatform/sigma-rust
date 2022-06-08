@@ -20,7 +20,25 @@ it('node REST API: get_nipopow_proof_by_header_id endpoint', async () => {
 });
 
 it('node REST API: example SPV workflow', async () => {
-    let node_conf = new ergo_wasm.NodeConf("147.135.70.51:9053");
+    const header_id = ergo_wasm.BlockId.from_str("d1366f762e46b7885496aaab0c42ec2950b0422d48aec3b91f45d4d0cdeb41e5")
+    assert(header_id != null);
+    let tx_id = ergo_wasm.TxId.from_str("258ddfc09b94b8313bca724de44a0d74010cab26de379be845713cc129546b78");
+    assert(tx_id != null);
+
+    // Taken from: https://explorer.ergoplatform.com/en/blocks/d1366f762e46b7885496aaab0c42ec2950b0422d48aec3b91f45d4d0cdeb41e5
+    let transactions_root = ergo_wasm.base16_decode("be1e2428e9e8c932ff2bcbc9075537db36bb704b9cd7ae86e11219c66ba52c0e");
+    assert(transactions_root != null);
+
+    // Verify proofs from 2 separate ergo nodes
+    let results = await Promise.all([
+        verify_tx_in_header("147.135.70.51:9053", header_id, tx_id, transactions_root),
+        verify_tx_in_header("49.205.198.127:9053", header_id, tx_id, transactions_root),
+    ]);
+    assert(results.every(value => value === true));
+});
+
+async function verify_tx_in_header(node_addr, header_id, tx_id, transactions_root) {
+    let node_conf = new ergo_wasm.NodeConf(node_addr);
     assert(node_conf != null);
 
     // Make sure we're communicating with a node with version >= 4.0.28, otherwise we won't be able
@@ -28,10 +46,8 @@ it('node REST API: example SPV workflow', async () => {
     let node_info = await ergo_wasm.get_info(node_conf);
     assert(node_info.is_at_least_version_4_0_28());
 
-    const header_id = ergo_wasm.BlockId.from_str("d1366f762e46b7885496aaab0c42ec2950b0422d48aec3b91f45d4d0cdeb41e5")
     let proof = await ergo_wasm.get_nipopow_proof_by_header_id(node_conf, 7, 6, header_id);
     assert(proof != null);
-    assert(node_conf != null);
 
     const genesis_block_id = ergo_wasm.BlockId.from_str("b0244dfc267baca974a4caee06120321562784303a8a688976ae56170e4d175b");
     let verifier = new ergo_wasm.NipopowVerifier(genesis_block_id);
@@ -41,16 +57,11 @@ it('node REST API: example SPV workflow', async () => {
     assert(best_proof != null, "best proof should exist");
     assert(best_proof.suffix_head().id().equals(header_id), "equality");
 
-    let tx_id = ergo_wasm.TxId.from_str("258ddfc09b94b8313bca724de44a0d74010cab26de379be845713cc129546b78");
-    assert(tx_id != null);
     let merkle_proof = await ergo_wasm.get_blocks_header_id_proof_for_tx_id(node_conf, header_id, tx_id);
     assert(merkle_proof != null);
 
-    // Taken from: https://explorer.ergoplatform.com/en/blocks/d1366f762e46b7885496aaab0c42ec2950b0422d48aec3b91f45d4d0cdeb41e5
-    let transactions_root = ergo_wasm.base16_decode("be1e2428e9e8c932ff2bcbc9075537db36bb704b9cd7ae86e11219c66ba52c0e");
-    assert(transactions_root != null);
-    assert(merkle_proof.valid(transactions_root));
-});
+    return merkle_proof.valid(transactions_root);
+}
 
 it('node REST API: peer_discovery endpoint', async () => {
     const seeds = [
