@@ -1,5 +1,5 @@
 //! Wasm API for ergo_rest::api
-//! 
+//!
 //! Note that all the functions for GET requests are not async and furthermore return an instannce
 //! of `js_sys::Promise`. The reason is some of the args are passed in by reference, which is a
 //! problem since futures need to have a 'static lifetime. The workaround is to clone the args and
@@ -27,7 +27,7 @@ pub fn get_info(node: &NodeConf) -> js_sys::Promise {
     #[allow(clippy::clone_on_copy)]
     let node_cloned = node.0.clone();
     wasm_bindgen_futures::future_to_promise(async move {
-        let info = ergo_lib::ergo_rest::api::node::get_info(node_cloned.into())
+        let info = ergo_lib::ergo_rest::api::node::get_info(node_cloned)
             .await
             .map_err(to_js)
             .map(super::node_info::NodeInfo::from)?;
