@@ -22,6 +22,12 @@ it('node REST API: get_nipopow_proof_by_header_id endpoint', async () => {
 it('node REST API: example SPV workflow', async () => {
     let node_conf = new ergo_wasm.NodeConf("147.135.70.51:9053");
     assert(node_conf != null);
+
+    // Make sure we're communicating with a node with version >= 4.0.28, otherwise we won't be able
+    // to get a proper Nipopow proof
+    let node_info = await ergo_wasm.get_info(node_conf);
+    assert(node_info.is_at_least_version_4_0_28());
+
     const header_id = ergo_wasm.BlockId.from_str("d1366f762e46b7885496aaab0c42ec2950b0422d48aec3b91f45d4d0cdeb41e5")
     let proof = await ergo_wasm.get_nipopow_proof_by_header_id(node_conf, 7, 6, header_id);
     assert(proof != null);
@@ -35,9 +41,9 @@ it('node REST API: example SPV workflow', async () => {
     assert(best_proof != null, "best proof should exist");
     assert(best_proof.suffix_head().id().equals(header_id), "equality");
 
-    let tx_id = ergo_wasm.TxId.from_str("258ddfc09b94b8313bca724de44a0d74010cab26de379be845713cc129546b78")
+    let tx_id = ergo_wasm.TxId.from_str("258ddfc09b94b8313bca724de44a0d74010cab26de379be845713cc129546b78");
     assert(tx_id != null);
-    let merkle_proof = await ergo_wasm.get_blocks_header_id_proof_for_tx_id(node_conf, header_id, tx_id)
+    let merkle_proof = await ergo_wasm.get_blocks_header_id_proof_for_tx_id(node_conf, header_id, tx_id);
     assert(merkle_proof != null);
 
     // Taken from: https://explorer.ergoplatform.com/en/blocks/d1366f762e46b7885496aaab0c42ec2950b0422d48aec3b91f45d4d0cdeb41e5

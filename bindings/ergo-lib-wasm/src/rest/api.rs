@@ -30,7 +30,7 @@ pub fn get_info(node: &NodeConf) -> js_sys::Promise {
         let info = ergo_lib::ergo_rest::api::node::get_info(node_cloned.into())
             .await
             .map_err(to_js)
-            .map(|info| JsValue::from_str(&info.name))?;
+            .map(super::node_info::NodeInfo::from)?;
         Ok(wasm_bindgen::JsValue::from(info))
     })
 }
