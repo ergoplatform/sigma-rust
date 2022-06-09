@@ -4,11 +4,11 @@ use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::str::FromStr;
 
-use crate::block_header::ConstBlockIdPtr;
 use crate::rest::c_string_collection::{CStringCollection, CStringCollectionInner};
 use crate::rest::node_conf::NodeConfPtr;
 use crate::util::const_ptr_as_ref;
 use crate::Error;
+use crate::{block_header::ConstBlockIdPtr, transaction::ConstTxIdPtr};
 
 use self::abortable::spawn_abortable;
 
@@ -33,6 +33,60 @@ pub unsafe fn rest_api_node_get_info(
     let abort_handle = spawn_abortable(runtime, async move {
         match ergo_lib::ergo_rest::api::node::get_info(node_conf).await {
             Ok(node_info) => callback.succeeded(node_info),
+            Err(e) => callback.failed(e.into()),
+        }
+    })?;
+    let request_handle = RequestHandle::new(abort_handle, abort_callback);
+    *request_handle_out = Box::into_raw(Box::new(request_handle));
+    Ok(())
+}
+
+/// GET on /blocks/{blockId}/header endpoint
+pub unsafe fn rest_api_node_get_header(
+    runtime_ptr: RestApiRuntimePtr,
+    node_conf_ptr: NodeConfPtr,
+    callback: CompletionCallback,
+    request_handle_out: *mut RequestHandlePtr,
+    header_id_ptr: ConstBlockIdPtr,
+) -> Result<(), Error> {
+    let runtime = const_ptr_as_ref(runtime_ptr, "runtime_ptr")?;
+    let node_conf = const_ptr_as_ref(node_conf_ptr, "node_conf_ptr")?.0;
+    let header_id = const_ptr_as_ref(header_id_ptr, "header_id_ptr")?.0.clone();
+    let abort_callback: AbortCallback = (&callback).into();
+    let abort_handle = spawn_abortable(runtime, async move {
+        match ergo_lib::ergo_rest::api::node::get_header(node_conf, header_id).await {
+            Ok(header) => callback.succeeded(header),
+            Err(e) => callback.failed(e.into()),
+        }
+    })?;
+    let request_handle = RequestHandle::new(abort_handle, abort_callback);
+    *request_handle_out = Box::into_raw(Box::new(request_handle));
+    Ok(())
+}
+
+/// GET on /blocks/{header_id}/proofFor/{tx_id} to request the merkle proof for a given transaction
+/// that belongs to the given header ID.
+pub unsafe fn rest_api_node_get_blocks_header_id_proof_for_tx_id(
+    runtime_ptr: RestApiRuntimePtr,
+    node_conf_ptr: NodeConfPtr,
+    callback: CompletionCallback,
+    request_handle_out: *mut RequestHandlePtr,
+    header_id_ptr: ConstBlockIdPtr,
+    tx_id_ptr: ConstTxIdPtr,
+) -> Result<(), Error> {
+    let runtime = const_ptr_as_ref(runtime_ptr, "runtime_ptr")?;
+    let node_conf = const_ptr_as_ref(node_conf_ptr, "node_conf_ptr")?.0;
+    let header_id = const_ptr_as_ref(header_id_ptr, "header_id_ptr")?.0.clone();
+    let tx_id = const_ptr_as_ref(tx_id_ptr, "tx_id_ptr")?.0.clone();
+    let abort_callback: AbortCallback = (&callback).into();
+    let abort_handle = spawn_abortable(runtime, async move {
+        match ergo_lib::ergo_rest::api::node::get_blocks_header_id_proof_for_tx_id(
+            node_conf, header_id, tx_id,
+        )
+        .await
+        {
+            Ok(Some(merkle_proof)) => callback.succeeded(merkle_proof),
+            Ok(None) => callback.failed(Error::Misc("No merkle proof".into())),
             Err(e) => callback.failed(e.into()),
         }
     })?;
