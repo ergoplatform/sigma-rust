@@ -2,7 +2,7 @@ import Foundation
 import ErgoLibC
 
 /// Represents data of the block header available in Sigma propositions.
-class BlockHeader {
+class BlockHeader: FromRawPtr {
     internal var pointer: BlockHeaderPtr
     
     /// Parse BlockHeader array from JSON (Node API)
@@ -21,6 +21,10 @@ class BlockHeader {
         self.pointer = ptr
     }
     
+    static func fromRawPtr(ptr: UnsafeRawPointer) -> Self {
+        return BlockHeader(withRawPointer: OpaquePointer(ptr)) as! Self
+    }
+
     /// Get Block id
     func getBlockId() -> BlockId {
         var ptr: BlockIdPtr?

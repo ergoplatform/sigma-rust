@@ -6,7 +6,7 @@ enum NodeSide: UInt8 {
     case Left = 0
     case Right = 1
 }
-class MerkleProof {
+class MerkleProof: FromRawPtr {
     internal var pointer: MerkleProofPtr
 
     init(withJson json: String) throws {
@@ -22,6 +22,10 @@ class MerkleProof {
         let error = ergo_merkle_proof_new(leafData, UInt(leafData.count), &ptr)
         try checkError(error)
         self.pointer = ptr!
+    }
+
+    static func fromRawPtr(ptr: UnsafeRawPointer) -> Self {
+        return MerkleProof(withRawPointer: OpaquePointer(ptr)) as! Self
     }
 
     /// Adds a new node and it's hash to the MerkleProof. Hash must be 32 bytes in size

@@ -64,10 +64,10 @@ class RestNodeApi {
 
     /// GET on /blocks/{blockId}/header endpoint (async)
     @available(macOS 10.15, iOS 13, *)
-    func getHeaderAsync(nodeConf: NodeConf, blockId: BlockId) async throws -> NodeInfo {
+    func getHeaderAsync(nodeConf: NodeConf, blockId: BlockId) async throws -> BlockHeader {
         try await withCheckedThrowingContinuation { continuation in
             do {
-                let _ = try getInfo(nodeConf: nodeConf, blockId: blockId) { result in
+                let _ = try getHeader(nodeConf: nodeConf, blockId: blockId) { result in
                     continuation.resume(with: result)
                 }
             } catch {}
@@ -99,7 +99,7 @@ class RestNodeApi {
     /// GET on /blocks/{header_id}/proofFor/{tx_id} to request the merkle proof for a given transaction
     /// that belongs to the given header ID (async).
     @available(macOS 10.15, iOS 13, *)
-    func getBlocksHeaderIdProofForTxIdAsync(nodeConf: NodeConf, blockId: BlockId, txId: TxId) async throws -> NodeInfo {
+    func getBlocksHeaderIdProofForTxIdAsync(nodeConf: NodeConf, blockId: BlockId, txId: TxId) async throws -> MerkleProof {
         try await withCheckedThrowingContinuation { continuation in
             do {
                 let _ = try getBlocksHeaderIdProofForTxId(nodeConf: nodeConf, blockId: blockId, txId: txId) { result in
