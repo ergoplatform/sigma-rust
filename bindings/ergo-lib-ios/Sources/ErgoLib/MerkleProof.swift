@@ -17,11 +17,18 @@ class MerkleProof: FromRawPtr {
         try checkError(error)
         self.pointer = ptr!
     }
+
     init(leafData: [UInt8]) throws {
         var ptr: MerkleProofPtr?
         let error = ergo_merkle_proof_new(leafData, UInt(leafData.count), &ptr)
         try checkError(error)
         self.pointer = ptr!
+    }
+
+    /// Takes ownership of an existing ``MerkleProofPtr``. Note: we must ensure that no other instance
+    /// of ``MerkleProof`` can hold this pointer.
+    internal init(withRawPointer ptr: MerkleProofPtr) {
+        self.pointer = ptr
     }
 
     static func fromRawPtr(ptr: UnsafeRawPointer) -> Self {

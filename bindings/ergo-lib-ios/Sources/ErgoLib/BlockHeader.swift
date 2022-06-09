@@ -32,6 +32,14 @@ class BlockHeader: FromRawPtr {
         return BlockId(withRawPointer: ptr!)
     }
     
+    /// Get transactions root field of the header
+    func getTransactionsRoot() throws -> [UInt8] {
+        var bytes = Array.init(repeating: UInt8(0), count: 32)
+        let error = ergo_lib_block_header_transactions_root(self.pointer, &bytes)
+        try checkError(error)
+        return bytes
+    }
+
     deinit {
         ergo_lib_block_header_delete(self.pointer)
     }
