@@ -11,7 +11,7 @@ beforeEach(async () => {
 // web APIs, thus requiring a web browser to run.
 
 it('node REST API: get_nipopow_proof_by_header_id endpoint', async () => {
-    let node_conf = new ergo_wasm.NodeConf("147.135.70.51:9053");
+    let node_conf = new ergo_wasm.NodeConf("213.239.193.208:9053");
     assert(node_conf != null);
     const header_id = ergo_wasm.BlockId.from_str("4caa17e62fe66ba7bd69597afdc996ae35b1ff12e0ba90c22ff288a4de10e91b");
     let res = await ergo_wasm.get_nipopow_proof_by_header_id(node_conf, 3, 4, header_id);
