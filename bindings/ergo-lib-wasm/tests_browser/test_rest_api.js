@@ -11,7 +11,7 @@ beforeEach(async () => {
 // web APIs, thus requiring a web browser to run.
 
 it('node REST API: get_nipopow_proof_by_header_id endpoint', async () => {
-    let node_conf = new ergo_wasm.NodeConf("213.239.193.208:9053");
+    let node_conf = new ergo_wasm.NodeConf("147.135.70.51:9053");
     assert(node_conf != null);
     const header_id = ergo_wasm.BlockId.from_str("4caa17e62fe66ba7bd69597afdc996ae35b1ff12e0ba90c22ff288a4de10e91b");
     let res = await ergo_wasm.get_nipopow_proof_by_header_id(node_conf, 3, 4, header_id);
@@ -25,19 +25,31 @@ it('node REST API: example SPV workflow', async () => {
     let tx_id = ergo_wasm.TxId.from_str("258ddfc09b94b8313bca724de44a0d74010cab26de379be845713cc129546b78");
     assert(tx_id != null);
 
-    // Taken from: https://explorer.ergoplatform.com/en/blocks/d1366f762e46b7885496aaab0c42ec2950b0422d48aec3b91f45d4d0cdeb41e5
-    let transactions_root = ergo_wasm.base16_decode("be1e2428e9e8c932ff2bcbc9075537db36bb704b9cd7ae86e11219c66ba52c0e");
-    assert(transactions_root != null);
-
-    // Verify proofs from 2 separate ergo nodes
-    let results = await Promise.all([
-        verify_tx_in_header("147.135.70.51:9053", header_id, tx_id, transactions_root),
-        verify_tx_in_header("49.205.198.127:9053", header_id, tx_id, transactions_root),
+    // Get NiPoPow proofs from 2 separate ergo nodes
+    let proofs = await Promise.all([
+        get_nipopow_proof("147.135.70.51:9053", header_id),
+        get_nipopow_proof("49.205.198.127:9053", header_id),
     ]);
-    assert(results.every(value => value === true));
+
+    const genesis_block_id = ergo_wasm.BlockId.from_str("b0244dfc267baca974a4caee06120321562784303a8a688976ae56170e4d175b");
+    let verifier = new ergo_wasm.NipopowVerifier(genesis_block_id);
+    assert(verifier != null, "verifier should be non-null");
+    verifier.process(proofs[0]);
+    verifier.process(proofs[1]);
+    let best_proof = verifier.best_proof();
+    assert(best_proof != null, "best proof should exist");
+    assert(best_proof.suffix_head().id().equals(header_id), "equality");
+
+    // Verify with a 3rd node
+    let node_conf = new ergo_wasm.NodeConf("15.235.145.2:9053");
+    let header = await ergo_wasm.get_header(node_conf, header_id);
+    assert(header != null, "header should be non-null");
+    let merkle_proof = await ergo_wasm.get_blocks_header_id_proof_for_tx_id(node_conf, header_id, tx_id);
+    assert(merkle_proof != null);
+    assert(merkle_proof.valid(header.transactions_root()));
 });
 
-async function verify_tx_in_header(node_addr, header_id, tx_id, transactions_root) {
+async function get_nipopow_proof(node_addr, header_id) {
     let node_conf = new ergo_wasm.NodeConf(node_addr);
     assert(node_conf != null);
 
@@ -48,19 +60,7 @@ async function verify_tx_in_header(node_addr, header_id, tx_id, transactions_roo
 
     let proof = await ergo_wasm.get_nipopow_proof_by_header_id(node_conf, 7, 6, header_id);
     assert(proof != null);
-
-    const genesis_block_id = ergo_wasm.BlockId.from_str("b0244dfc267baca974a4caee06120321562784303a8a688976ae56170e4d175b");
-    let verifier = new ergo_wasm.NipopowVerifier(genesis_block_id);
-    assert(verifier != null, "verifier should be non-null");
-    verifier.process(proof);
-    let best_proof = verifier.best_proof();
-    assert(best_proof != null, "best proof should exist");
-    assert(best_proof.suffix_head().id().equals(header_id), "equality");
-
-    let merkle_proof = await ergo_wasm.get_blocks_header_id_proof_for_tx_id(node_conf, header_id, tx_id);
-    assert(merkle_proof != null);
-
-    return merkle_proof.valid(transactions_root);
+    return proof;
 }
 
 it('node REST API: peer_discovery endpoint', async () => {

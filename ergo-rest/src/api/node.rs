@@ -3,6 +3,7 @@
 use bounded_integer::BoundedU16;
 use bounded_vec::NonEmptyVec;
 use ergo_chain_types::BlockId;
+use ergo_chain_types::Header;
 use ergo_merkle_tree::MerkleProof;
 use ergo_nipopow::NipopowProof;
 use ergotree_ir::chain::tx_id::TxId;
@@ -27,6 +28,23 @@ pub async fn get_info(node: NodeConf) -> Result<NodeInfo, NodeError> {
         .send()
         .await?
         .json::<NodeInfo>()
+        .await?)
+}
+
+/// GET on /blocks/{header_id}/header endpoint
+pub async fn get_header(node: NodeConf, header_id: BlockId) -> Result<Header, NodeError> {
+    let header_str = String::from(header_id.0);
+    let mut path = "blocks/".to_owned();
+    path.push_str(&*header_str);
+    path.push_str("/header");
+    #[allow(clippy::unwrap_used)]
+    let url = node.addr.as_http_url().join(&*path).unwrap();
+    let client = build_client(&node)?;
+    let rb = client.get(url);
+    Ok(set_req_headers(rb, node)
+        .send()
+        .await?
+        .json::<Header>()
         .await?)
 }
 

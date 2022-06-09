@@ -26,6 +26,11 @@ impl BlockHeader {
     pub fn id(&self) -> BlockId {
         self.0.id.clone().into()
     }
+
+    /// Get transactions root
+    pub fn transactions_root(&self) -> Vec<u8> {
+        self.0.transaction_root.clone().into()
+    }
 }
 
 /// Block id

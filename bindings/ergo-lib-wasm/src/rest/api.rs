@@ -10,7 +10,10 @@ use wasm_bindgen::prelude::*;
 
 use super::node_conf::NodeConf;
 use crate::{
-    block_header::BlockId, error_conversion::to_js, nipopow::NipopowProof, transaction::TxId,
+    block_header::{BlockHeader, BlockId},
+    error_conversion::to_js,
+    nipopow::NipopowProof,
+    transaction::TxId,
 };
 use bounded_vec::NonEmptyVec;
 use std::time::Duration;
@@ -32,6 +35,21 @@ pub fn get_info(node: &NodeConf) -> js_sys::Promise {
             .map_err(to_js)
             .map(super::node_info::NodeInfo::from)?;
         Ok(wasm_bindgen::JsValue::from(info))
+    })
+}
+
+#[wasm_bindgen]
+/// GET on /blocks/{header_id}/header endpoint
+pub fn get_header(node: &NodeConf, header_id: &BlockId) -> js_sys::Promise {
+    let header_id_cloned = header_id.0.clone();
+    #[allow(clippy::clone_on_copy)]
+    let node_cloned = node.0.clone();
+    wasm_bindgen_futures::future_to_promise(async move {
+        let header = ergo_lib::ergo_rest::api::node::get_header(node_cloned, header_id_cloned)
+            .await
+            .map_err(to_js)
+            .map(BlockHeader::from)?;
+        Ok(wasm_bindgen::JsValue::from(header))
     })
 }
 
