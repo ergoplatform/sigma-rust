@@ -29,17 +29,50 @@ use url::Url;
 
 use super::{build_client, set_req_headers};
 
+// Following code from
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+extern "C" {
+    // Use `js_namespace` here to bind `console.log(..)` instead of just
+    // `log(..)`
+    #[wasm_bindgen(js_namespace = console)]
+    fn log(s: &str);
+}
+
+#[cfg(target_arch = "wasm32")]
+macro_rules! console_log {
+// Note that this is using the `log` function imported above during
+// `bare_bones`
+($($t:tt)*) => (log(&format_args!($($t)*).to_string()))
+}
+
+struct PeerDiscoverySettings {
+    max_parallel_requests: BoundedU16<1, { u16::MAX }>,
+    task_2_buffer_length: usize,
+    global_timeout: Duration,
+    timeout_of_individual_node_request: Duration,
+}
+
 pub(crate) async fn peer_discovery_inner(
     seeds: NonEmptyVec<Url>,
     max_parallel_requests: BoundedU16<1, { u16::MAX }>,
     timeout: Duration,
 ) -> Result<Vec<Url>, PeerDiscoveryError> {
-    let buffer_size = usize::max(max_parallel_requests.get() as usize, seeds.len());
+    let settings = PeerDiscoverySettings {
+        max_parallel_requests,
+        task_2_buffer_length: 50,
+        global_timeout: timeout,
+        timeout_of_individual_node_request: Duration::from_secs(3),
+    };
     #[cfg(not(target_arch = "wasm32"))]
-    let (tx_msg, rx_msg) =
-        tokio::sync::mpsc::channel::<super::peer_discovery_internals::Msg>(buffer_size);
+    let (tx_msg, rx_msg) = tokio::sync::mpsc::channel::<super::peer_discovery_internals::Msg>(
+        settings.task_2_buffer_length,
+    );
     #[cfg(not(target_arch = "wasm32"))]
-    let (tx_url, rx_url) = tokio::sync::mpsc::channel::<Url>(buffer_size);
+    let (tx_url, rx_url) = tokio::sync::mpsc::channel::<Url>(settings.task_2_buffer_length);
     #[cfg(not(target_arch = "wasm32"))]
     let url_stream = tokio_stream::wrappers::ReceiverStream::new(rx_url);
     #[cfg(not(target_arch = "wasm32"))]
@@ -55,13 +88,7 @@ pub(crate) async fn peer_discovery_inner(
     let msg_stream = rx_msg;
 
     super::peer_discovery_internals::peer_discovery_impl(
-        seeds,
-        max_parallel_requests,
-        tx_msg,
-        msg_stream,
-        tx_url,
-        url_stream,
-        timeout,
+        seeds, tx_msg, msg_stream, tx_url, url_stream, settings,
     )
     .await
 }
@@ -72,12 +99,11 @@ async fn peer_discovery_impl<
     SendUrl: 'static + ChannelInfallibleSender<Url> + ChannelTrySender<Url> + Clone + Send + Sync,
 >(
     seeds: NonEmptyVec<Url>,
-    max_parallel_requests: BoundedU16<1, { u16::MAX }>,
     tx_msg: SendMsg,
     msg_stream: impl futures::Stream<Item = Msg> + Send + 'static,
     mut tx_url: SendUrl,
     url_stream: impl futures::Stream<Item = Url> + Send + 'static,
-    timeout: Duration,
+    settings: PeerDiscoverySettings,
 ) -> Result<Vec<Url>, PeerDiscoveryError> {
     use futures::future::FutureExt;
     use futures::StreamExt;
@@ -94,8 +120,8 @@ async fn peer_discovery_impl<
     spawn_http_request_task(
         tx_msg,
         url_stream,
-        max_parallel_requests,
-        Duration::from_secs(2),
+        settings.max_parallel_requests,
+        settings.timeout_of_individual_node_request,
     );
 
     // Start with requests to seed nodes.
@@ -121,7 +147,11 @@ async fn peer_discovery_impl<
     let rx_timeout_signal = {
         let (tx, rx) = futures::channel::oneshot::channel::<()>();
         wasm_bindgen_futures::spawn_local(async move {
-            let _ = crate::wasm_timer::Delay::new(timeout).await;
+            let _ = crate::wasm_timer::Delay::new(settings.global_timeout).await;
+            //console_log!(
+            //    "--------------------------------------------------timeout {:?} triggered",
+            //    timeout
+            //);
             let _ = tx.send(());
         });
         rx.into_stream()
@@ -131,7 +161,7 @@ async fn peer_discovery_impl<
     let rx_timeout_signal = {
         let (tx, rx) = tokio::sync::oneshot::channel::<()>();
         tokio::spawn(async move {
-            let _ = tokio::time::sleep(timeout).await;
+            let _ = tokio::time::sleep(settings.global_timeout).await;
             let _ = tx.send(());
         });
         rx.into_stream()
@@ -151,6 +181,10 @@ async fn peer_discovery_impl<
         rx_timeout_signal.map(|_| C::RxTimeoutSignal).boxed(),
     ];
     let mut combined_stream = futures::stream::select_all(streams);
+
+    // This variable equals to true as long as we're checking for new peer nodes. It is set to false
+    // once the global timeout is reached.
+    let mut add_peers = true;
 
     'loop_: while let Some(n) = combined_stream.next().await {
         match n {
@@ -181,7 +215,6 @@ async fn peer_discovery_impl<
                     Msg::AddActiveNode(mut url) => {
                         #[allow(clippy::unwrap_used)]
                         url.set_port(None).unwrap();
-                        //println!("Active node {}", url);
                         visited_active_peers.insert(url.clone());
                         visited_peers.insert(url);
                         count -= 1;
@@ -199,17 +232,18 @@ async fn peer_discovery_impl<
                         }
                     }
                     Msg::CheckPeers(peers) => {
-                        peer_stack.extend(peers);
+                        if add_peers {
+                            peer_stack.extend(peers);
+                        }
                     }
                 }
             }
             C::RxTimeoutSignal => {
-                break 'loop_;
+                add_peers = false;
+                peer_stack.clear();
             }
         }
     }
-
-    //println!("Total # nodes visited: {}", visited_peers.len());
 
     drop(tx_url);
     let coll: Vec<_> = visited_active_peers
@@ -217,6 +251,17 @@ async fn peer_discovery_impl<
         .into_iter()
         .cloned()
         .collect();
+
+    // Uncomment for debugging
+
+    //#[cfg(not(target_arch = "wasm32"))]
+    //println!("Total # nodes visited: {}", visited_peers.len());
+    //
+    //#[cfg(target_arch = "wasm32")]
+    //{
+    //    console_log!("Total # nodes visited: {}", visited_peers.len());
+    //    console_log!("{} peers found", coll.len());
+    //}
     Ok(coll)
 }
 
@@ -260,6 +305,7 @@ fn spawn_http_request_task<
                     };
 
                     // If active, look up its peers.
+
                     if get_info(node_conf).await.is_ok() {
                         match get_peers_all(node_conf).await {
                             Ok(peers) => {

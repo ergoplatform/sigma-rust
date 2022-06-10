@@ -74,7 +74,7 @@ pub async fn get_nipopow_proof_by_header_id(
     if min_chain_length == 0 || suffix_len == 0 {
         return Err(NodeError::InvalidNumericalUrlSegment);
     }
-    let header_str = String::from(header_id.0);
+    let header_str = String::from(header_id.0.clone());
     let mut path = "nipopow/proof/".to_owned();
     path.push_str(&*min_chain_length.to_string());
     path.push('/');
@@ -202,7 +202,7 @@ mod tests {
             let res_quick = peer_discovery(
                 NonEmptyVec::from_vec(seeds.clone()).unwrap(),
                 BoundedU16::new(5).unwrap(),
-                Duration::from_millis(2010),
+                Duration::from_millis(1000),
             )
             .await
             .unwrap();
@@ -218,6 +218,11 @@ mod tests {
             .unwrap();
             (res_quick, res_long)
         });
+        println!(
+            "{} quick peers, {} long peers",
+            res_with_quick_timeout.len(),
+            res_with_longer_timeout.len()
+        );
         assert!(!res_with_longer_timeout.is_empty());
         assert!(res_with_quick_timeout.len() <= res_with_longer_timeout.len());
     }

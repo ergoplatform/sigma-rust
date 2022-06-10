@@ -233,14 +233,14 @@ async fn fetch(req: Request) -> crate::reqwest::Result<Response> {
         }
     }
 
-    if let Some(duration) = req.timeout() {
+    let timeout_handle = if let Some(duration) = req.timeout() {
         let abort_request_cb = Closure::wrap(Box::new(move || {
             abort_controller.abort();
         }) as Box<dyn Fn()>);
 
         init.signal(Some(&abort_signal));
 
-        window
+        let handle = window
             .set_timeout_with_callback_and_timeout_and_arguments_0(
                 abort_request_cb.as_ref().unchecked_ref(),
                 duration.as_millis() as i32,
@@ -248,7 +248,10 @@ async fn fetch(req: Request) -> crate::reqwest::Result<Response> {
             .expect("timeout was set");
 
         abort_request_cb.forget();
-    }
+        Some(handle)
+    } else {
+        None
+    };
 
     let js_req = web_sys::Request::new_with_str_and_init(req.url().as_str(), &init)
         .map_err(crate::reqwest::error::wasm)
@@ -259,6 +262,10 @@ async fn fetch(req: Request) -> crate::reqwest::Result<Response> {
     let js_resp = super::promise::<web_sys::Response>(p)
         .await
         .map_err(crate::reqwest::error::request)?;
+    
+    if let Some(handle) = timeout_handle {
+        window.clear_timeout_with_handle(handle);
+    }
 
     // Convert from the js Response
     let mut resp = http::Response::builder().status(js_resp.status());
