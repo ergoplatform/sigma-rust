@@ -79,9 +79,9 @@ pub(crate) async fn peer_discovery_inner(
     let msg_stream = tokio_stream::wrappers::ReceiverStream::new(rx_msg);
 
     #[cfg(target_arch = "wasm32")]
-    let (tx_msg, rx_msg) = futures::channel::mpsc::channel::<Msg>(buffer_size);
+    let (tx_msg, rx_msg) = futures::channel::mpsc::channel::<Msg>(settings.task_2_buffer_length);
     #[cfg(target_arch = "wasm32")]
-    let (tx_url, rx_url) = futures::channel::mpsc::channel::<Url>(buffer_size);
+    let (tx_url, rx_url) = futures::channel::mpsc::channel::<Url>(settings.task_2_buffer_length);
     #[cfg(target_arch = "wasm32")]
     let url_stream = rx_url;
     #[cfg(target_arch = "wasm32")]
