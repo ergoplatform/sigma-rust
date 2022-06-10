@@ -142,7 +142,7 @@ pub fn extract_hints(
 /// Transaction id
 #[wasm_bindgen]
 #[derive(PartialEq, Eq, Debug, Clone, From, Into)]
-pub struct TxId(chain::transaction::TxId);
+pub struct TxId(pub(crate) chain::transaction::TxId);
 
 #[wasm_bindgen]
 impl TxId {

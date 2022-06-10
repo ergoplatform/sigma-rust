@@ -26,6 +26,11 @@ impl BlockHeader {
     pub fn id(&self) -> BlockId {
         self.0.id.clone().into()
     }
+
+    /// Get transactions root
+    pub fn transactions_root(&self) -> Vec<u8> {
+        self.0.transaction_root.clone().into()
+    }
 }
 
 /// Block id
@@ -33,10 +38,26 @@ impl BlockHeader {
 #[derive(PartialEq, Eq, Debug, Clone, From, Into)]
 pub struct BlockId(pub(crate) ergo_lib::ergo_chain_types::BlockId);
 
+#[wasm_bindgen]
+impl BlockId {
+    /// Parse from base 16 encoded string
+    #[allow(clippy::should_implement_trait)]
+    pub fn from_str(id: &str) -> Result<BlockId, JsValue> {
+        ergo_lib::ergo_chain_types::Digest32::try_from(String::from(id))
+            .map(|d| BlockId(ergo_lib::ergo_chain_types::BlockId(d)))
+            .map_err(to_js)
+    }
+
+    /// Equality check
+    pub fn equals(&self, id: &BlockId) -> bool {
+        self.0 == id.0
+    }
+}
+
 /// Collection of BlockHeaders
 #[wasm_bindgen]
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct BlockHeaders(Vec<BlockHeader>);
+pub struct BlockHeaders(pub(crate) Vec<BlockHeader>);
 
 #[wasm_bindgen]
 impl BlockHeaders {

@@ -58,6 +58,7 @@ module.exports = function (config) {
     logLevel: config.LOG_INFO,
 
     browsers: ["ChromeHeadless"],
+    browserNoActivityTimeout: 60000,
 
     autoWatch: false,
     singleRun: true,

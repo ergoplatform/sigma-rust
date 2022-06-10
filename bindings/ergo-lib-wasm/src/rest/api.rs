@@ -1,39 +1,106 @@
 //! Wasm API for ergo_rest::api
+//!
+//! Note that all the functions for GET requests are not async and furthermore return an instannce
+//! of `js_sys::Promise`. The reason is some of the args are passed in by reference, which is a
+//! problem since futures need to have a 'static lifetime. The workaround is to clone the args and
+//! pass it into an `async move` block, and convert that into a JS promise directly (described in
+//! https://github.com/rustwasm/wasm-bindgen/issues/1858).
 
 use wasm_bindgen::prelude::*;
 
 use super::node_conf::NodeConf;
-use crate::{block_header::BlockId, error_conversion::to_js, nipopow::NipopowProof};
+use crate::{
+    block_header::{BlockHeader, BlockId},
+    error_conversion::to_js,
+    nipopow::NipopowProof,
+    transaction::TxId,
+};
 use bounded_vec::NonEmptyVec;
 use std::time::Duration;
 
 #[wasm_bindgen]
 /// GET on /info endpoint
-pub async fn get_info(node: NodeConf) -> Result<JsValue, JsValue> {
-    // TODO: check if node is not null in JS after the call (because it implements Copy)
-    ergo_lib::ergo_rest::api::node::get_info(node.into())
-        .await
-        .map_err(to_js)
-        .map(|info| JsValue::from_str(&info.name))
+pub fn get_info(node: &NodeConf) -> js_sys::Promise {
+    // Note that we can't pass in `node` by value as it will fail on the JS side if used again,
+    // despite the Copy implementation.  The problem is a bit mysterious; after calling this
+    // function, `node` isn't null on the JS side but when used again it will crash on the rust side
+    // (it complains of a null pointer there).
+    //
+    // A related issue is here: https://github.com/rustwasm/wasm-bindgen/issues/2204
+    #[allow(clippy::clone_on_copy)]
+    let node_cloned = node.0.clone();
+    wasm_bindgen_futures::future_to_promise(async move {
+        let info = ergo_lib::ergo_rest::api::node::get_info(node_cloned)
+            .await
+            .map_err(to_js)
+            .map(super::node_info::NodeInfo::from)?;
+        Ok(wasm_bindgen::JsValue::from(info))
+    })
+}
+
+#[wasm_bindgen]
+/// GET on /blocks/{header_id}/header endpoint
+pub fn get_header(node: &NodeConf, header_id: &BlockId) -> js_sys::Promise {
+    let header_id_cloned = header_id.0.clone();
+    #[allow(clippy::clone_on_copy)]
+    let node_cloned = node.0.clone();
+    wasm_bindgen_futures::future_to_promise(async move {
+        let header = ergo_lib::ergo_rest::api::node::get_header(node_cloned, header_id_cloned)
+            .await
+            .map_err(to_js)
+            .map(BlockHeader::from)?;
+        Ok(wasm_bindgen::JsValue::from(header))
+    })
 }
 
 #[wasm_bindgen]
 /// GET on /nipopow/proof/{minChainLength}/{suffixLength}/{headerId} endpoint
-pub async fn get_nipopow_proof_by_header_id(
-    node: NodeConf,
+pub fn get_nipopow_proof_by_header_id(
+    node: &NodeConf,
     min_chain_length: u32,
     suffix_len: u32,
-    header_id: BlockId,
-) -> Result<NipopowProof, JsValue> {
-    ergo_lib::ergo_rest::api::node::get_nipopow_proof_by_header_id(
-        node.into(),
-        min_chain_length,
-        suffix_len,
-        header_id.into(),
-    )
-    .await
-    .map_err(to_js)
-    .map(NipopowProof::from)
+    header_id: &BlockId,
+) -> js_sys::Promise {
+    let header_id_cloned = header_id.0.clone();
+    #[allow(clippy::clone_on_copy)]
+    let node_cloned = node.0.clone();
+    wasm_bindgen_futures::future_to_promise(async move {
+        let proof = ergo_lib::ergo_rest::api::node::get_nipopow_proof_by_header_id(
+            node_cloned,
+            min_chain_length,
+            suffix_len,
+            header_id_cloned,
+        )
+        .await
+        .map_err(to_js)
+        .map(NipopowProof::from)?;
+        Ok(wasm_bindgen::JsValue::from(proof))
+    })
+}
+
+#[wasm_bindgen]
+/// GET on /blocks/{header_id}/proofFor/{tx_id} to request the merkle proof for a given transaction
+/// that belongs to the given header ID.
+pub fn get_blocks_header_id_proof_for_tx_id(
+    node: &NodeConf,
+    header_id: &BlockId,
+    tx_id: &TxId,
+) -> js_sys::Promise {
+    let header_id_cloned = header_id.0.clone();
+    let tx_id_cloned = tx_id.0.clone();
+    #[allow(clippy::clone_on_copy)]
+    let node_cloned = node.0.clone();
+    wasm_bindgen_futures::future_to_promise(async move {
+        let merkle_proof = ergo_lib::ergo_rest::api::node::get_blocks_header_id_proof_for_tx_id(
+            node_cloned,
+            header_id_cloned,
+            tx_id_cloned,
+        )
+        .await
+        .map_err(to_js)
+        .map(|m| m.map(crate::merkleproof::MerkleProof))?;
+        Ok(wasm_bindgen::JsValue::from(merkle_proof))
+    })
 }
 
 /// List of peer urls returned from `peer_discovery`. We need this wrapper struct because the

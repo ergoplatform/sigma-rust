@@ -3,8 +3,8 @@ use paste::paste;
 
 use ergo_lib_c_core::{
     block_header::{
-        block_header_from_json, block_header_id, BlockHeader, BlockHeaderPtr, BlockId, BlockIdPtr,
-        ConstBlockHeaderPtr, ConstBlockIdPtr,
+        block_header_from_json, block_header_id, block_header_transactions_root, BlockHeader,
+        BlockHeaderPtr, BlockId, BlockIdPtr, ConstBlockHeaderPtr, ConstBlockIdPtr,
     },
     Error,
 };
@@ -31,6 +31,17 @@ pub unsafe extern "C" fn ergo_lib_block_header_id(
 ) {
     #[allow(clippy::unwrap_used)]
     block_header_id(block_header_ptr, block_id_out).unwrap();
+}
+
+/// Copy the contents of `transactions_root` field to `output`. Key assumption: exactly 32 bytes of
+/// memory have been allocated at the address pointed-to by `output`.
+#[no_mangle]
+pub unsafe extern "C" fn ergo_lib_block_header_transactions_root(
+    block_header_ptr: ConstBlockHeaderPtr,
+    output: *mut u8,
+) -> ErrorPtr {
+    let res = block_header_transactions_root(block_header_ptr, output);
+    Error::c_api_from(res)
 }
 
 /// Delete `BlockHeader`

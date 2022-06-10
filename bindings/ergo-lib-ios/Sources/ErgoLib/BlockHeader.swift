@@ -2,7 +2,7 @@ import Foundation
 import ErgoLibC
 
 /// Represents data of the block header available in Sigma propositions.
-class BlockHeader {
+class BlockHeader: FromRawPtr {
     internal var pointer: BlockHeaderPtr
     
     /// Parse BlockHeader array from JSON (Node API)
@@ -21,6 +21,10 @@ class BlockHeader {
         self.pointer = ptr
     }
     
+    static func fromRawPtr(ptr: UnsafeRawPointer) -> Self {
+        return BlockHeader(withRawPointer: OpaquePointer(ptr)) as! Self
+    }
+
     /// Get Block id
     func getBlockId() -> BlockId {
         var ptr: BlockIdPtr?
@@ -28,6 +32,14 @@ class BlockHeader {
         return BlockId(withRawPointer: ptr!)
     }
     
+    /// Get transactions root field of the header
+    func getTransactionsRoot() throws -> [UInt8] {
+        var bytes = Array.init(repeating: UInt8(0), count: 32)
+        let error = ergo_lib_block_header_transactions_root(self.pointer, &bytes)
+        try checkError(error)
+        return bytes
+    }
+
     deinit {
         ergo_lib_block_header_delete(self.pointer)
     }

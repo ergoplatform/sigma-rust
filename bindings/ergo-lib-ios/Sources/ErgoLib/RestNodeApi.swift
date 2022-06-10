@@ -42,7 +42,73 @@ class RestNodeApi {
             } catch {}
         }
     }
-    
+
+    /// GET on /blocks/{blockId}/header endpoint
+    func getHeader(
+        nodeConf: NodeConf,
+        blockId: BlockId,
+        closure: @escaping (Result<BlockHeader, Error>) -> Void
+    ) throws -> RequestHandle {
+        let completion = wrapClosure(closure)
+        var requestHandlerPtr: RequestHandlePtr?
+        let error = ergo_lib_rest_api_node_get_header(
+            self.pointer,
+            nodeConf.pointer,
+            completion,
+            &requestHandlerPtr,
+            blockId.pointer
+        )
+        try checkError(error)
+        return RequestHandle(withRawPtr: requestHandlerPtr!)
+    }
+
+    /// GET on /blocks/{blockId}/header endpoint (async)
+    @available(macOS 10.15, iOS 13, *)
+    func getHeaderAsync(nodeConf: NodeConf, blockId: BlockId) async throws -> BlockHeader {
+        try await withCheckedThrowingContinuation { continuation in
+            do {
+                let _ = try getHeader(nodeConf: nodeConf, blockId: blockId) { result in
+                    continuation.resume(with: result)
+                }
+            } catch {}
+        }
+    }
+
+    /// GET on /blocks/{header_id}/proofFor/{tx_id} to request the merkle proof for a given transaction
+    /// that belongs to the given header ID.
+    func getBlocksHeaderIdProofForTxId(
+        nodeConf: NodeConf,
+        blockId: BlockId,
+        txId: TxId,
+        closure: @escaping (Result<MerkleProof, Error>) -> Void
+    ) throws -> RequestHandle {
+        let completion = wrapClosure(closure)
+        var requestHandlerPtr: RequestHandlePtr?
+        let error = ergo_lib_rest_api_node_get_blocks_header_id_proof_for_tx_id(
+            self.pointer,
+            nodeConf.pointer,
+            completion,
+            &requestHandlerPtr,
+            blockId.pointer,
+            txId.pointer
+        )
+        try checkError(error)
+        return RequestHandle(withRawPtr: requestHandlerPtr!)
+    }
+
+    /// GET on /blocks/{header_id}/proofFor/{tx_id} to request the merkle proof for a given transaction
+    /// that belongs to the given header ID (async).
+    @available(macOS 10.15, iOS 13, *)
+    func getBlocksHeaderIdProofForTxIdAsync(nodeConf: NodeConf, blockId: BlockId, txId: TxId) async throws -> MerkleProof {
+        try await withCheckedThrowingContinuation { continuation in
+            do {
+                let _ = try getBlocksHeaderIdProofForTxId(nodeConf: nodeConf, blockId: blockId, txId: txId) { result in
+                    continuation.resume(with: result)
+                }
+            } catch {}
+        }
+    }
+
     /// GET on /nipopow/proof/{minChainLength}/{suffixLength}/{headerId} endpoint
     func getNipopowProofByHeaderId(
         nodeConf: NodeConf,

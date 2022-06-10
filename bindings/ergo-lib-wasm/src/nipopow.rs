@@ -4,13 +4,17 @@ use super::block_header::BlockId;
 use derive_more::{From, Into};
 use wasm_bindgen::prelude::*;
 
-use crate::{block_header::BlockHeader, error_conversion::to_js};
+use crate::{
+    block_header::{BlockHeader, BlockHeaders},
+    error_conversion::to_js,
+};
 
 /// A structure representing NiPoPow proof.
 #[wasm_bindgen]
 #[derive(Debug, From, Into)]
 pub struct NipopowProof(ergo_lib::ergo_nipopow::NipopowProof);
 
+#[wasm_bindgen]
 impl NipopowProof {
     /// Implementation of the ≥ algorithm from [`KMZ17`], see Algorithm 4
     ///
@@ -24,9 +28,14 @@ impl NipopowProof {
         serde_json::to_string_pretty(&self.0).map_err(to_js)
     }
 
+    /// Get suffix head
+    pub fn suffix_head(&self) -> PoPowHeader {
+        self.0.suffix_head.clone().into()
+    }
+
     /// Parse from JSON
     /// supports Ergo Node/Explorer API and box values and token amount encoded as strings
-    pub fn from_json(json: &str) -> Result<Self, JsValue> {
+    pub fn from_json(json: &str) -> Result<NipopowProof, JsValue> {
         serde_json::from_str(json).map(Self).map_err(to_js)
     }
 }
@@ -37,15 +46,22 @@ impl NipopowProof {
 #[derive(Debug, From, Into)]
 pub struct NipopowVerifier(ergo_lib::ergo_nipopow::NipopowVerifier);
 
+#[wasm_bindgen]
 impl NipopowVerifier {
     /// Create new instance
-    pub fn new(genesis_block_id: BlockId) -> Self {
+    #[wasm_bindgen(constructor)]
+    pub fn new(genesis_block_id: BlockId) -> NipopowVerifier {
         ergo_lib::ergo_nipopow::NipopowVerifier::new(genesis_block_id.0).into()
     }
 
+    /// Return best proof
+    pub fn best_proof(&self) -> Option<NipopowProof> {
+        self.0.best_proof().map(NipopowProof)
+    }
+
     /// Returns chain of `BlockHeader`s from the best proof.
-    pub fn best_chain(&self) -> Vec<BlockHeader> {
-        self.0.best_chain().into_iter().map(|h| h.into()).collect()
+    pub fn best_chain(&self) -> BlockHeaders {
+        BlockHeaders(self.0.best_chain().into_iter().map(|h| h.into()).collect())
     }
 
     /// Process given proof

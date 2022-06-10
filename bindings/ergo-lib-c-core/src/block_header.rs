@@ -34,6 +34,18 @@ pub unsafe fn block_header_id(
     Ok(())
 }
 
+/// Copy the contents of `transactions_root` field to `output`. Key assumption: exactly 32 bytes of
+/// memory have been allocated at the address pointed-to by `output`.
+pub unsafe fn block_header_transactions_root(
+    block_header_ptr: ConstBlockHeaderPtr,
+    output: *mut u8,
+) -> Result<(), Error> {
+    let block_header = const_ptr_as_ref(block_header_ptr, "block_header_ptr")?;
+    let src = Vec::<u8>::from(block_header.0.transaction_root.clone());
+    std::ptr::copy_nonoverlapping(src.as_ptr(), output, src.len());
+    Ok(())
+}
+
 /// Block id
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct BlockId(pub(crate) ergo_lib::ergo_chain_types::BlockId);

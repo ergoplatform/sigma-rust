@@ -21,6 +21,11 @@ impl NipopowVerifier {
         }
     }
 
+    /// Returns best proof
+    pub fn best_proof(&self) -> Option<NipopowProof> {
+        self.best_proof.clone()
+    }
+
     /// Returns chain of `Header`s from the best proof.
     pub fn best_chain(&self) -> Vec<Header> {
         self.best_proof
@@ -37,6 +42,8 @@ impl NipopowVerifier {
                     if new_proof.is_better_than(p)? {
                         self.best_proof = Some(new_proof);
                     }
+                } else {
+                    self.best_proof = Some(new_proof);
                 }
             }
         }
