@@ -29,25 +29,26 @@ use url::Url;
 
 use super::{build_client, set_req_headers};
 
-// Following code from
-#[cfg(target_arch = "wasm32")]
-use wasm_bindgen::prelude::*;
-
-#[cfg(target_arch = "wasm32")]
-#[wasm_bindgen]
-extern "C" {
-    // Use `js_namespace` here to bind `console.log(..)` instead of just
-    // `log(..)`
-    #[wasm_bindgen(js_namespace = console)]
-    fn log(s: &str);
-}
-
-#[cfg(target_arch = "wasm32")]
-macro_rules! console_log {
-// Note that this is using the `log` function imported above during
-// `bare_bones`
-($($t:tt)*) => (log(&format_args!($($t)*).to_string()))
-}
+// Uncomment the following to enable logging on WASM through the `console_log` macro. Taken from
+// https://rustwasm.github.io/wasm-bindgen/examples/console-log.html#srclibrs
+//#[cfg(target_arch = "wasm32")]
+//use wasm_bindgen::prelude::*;
+//
+//#[cfg(target_arch = "wasm32")]
+//#[wasm_bindgen]
+//extern "C" {
+//    // Use `js_namespace` here to bind `console.log(..)` instead of just
+//    // `log(..)`
+//    #[wasm_bindgen(js_namespace = console)]
+//    fn log(s: &str);
+//}
+//
+//#[cfg(target_arch = "wasm32")]
+//macro_rules! console_log {
+//// Note that this is using the `log` function imported above during
+//// `bare_bones`
+//($($t:tt)*) => (log(&format_args!($($t)*).to_string()))
+//}
 
 struct PeerDiscoverySettings {
     max_parallel_requests: BoundedU16<1, { u16::MAX }>,
@@ -142,16 +143,12 @@ async fn peer_discovery_impl<
     // gets full.
     let mut peer_stack: Vec<PeerInfo> = vec![];
 
-    // Here we spawn a task that triggers a signal after `timeout` has elapsed.
+    // Here we spawn a task that triggers a signal after `settings.global_timeout` has elapsed.
     #[cfg(target_arch = "wasm32")]
     let rx_timeout_signal = {
         let (tx, rx) = futures::channel::oneshot::channel::<()>();
         wasm_bindgen_futures::spawn_local(async move {
             let _ = crate::wasm_timer::Delay::new(settings.global_timeout).await;
-            //console_log!(
-            //    "--------------------------------------------------timeout {:?} triggered",
-            //    timeout
-            //);
             let _ = tx.send(());
         });
         rx.into_stream()
@@ -255,13 +252,18 @@ async fn peer_discovery_impl<
     // Uncomment for debugging
 
     //#[cfg(not(target_arch = "wasm32"))]
-    //println!("Total # nodes visited: {}", visited_peers.len());
+    //println!(
+    //    "Total # nodes visited: {}, # peers found: {}",
+    //    visited_peers.len(),
+    //    coll.len()
+    //);
     //
     //#[cfg(target_arch = "wasm32")]
-    //{
-    //    console_log!("Total # nodes visited: {}", visited_peers.len());
-    //    console_log!("{} peers found", coll.len());
-    //}
+    //console_log!(
+    //    "Total # nodes visited: {}, # peers found: {}",
+    //    visited_peers.len(),
+    //    coll.len()
+    //);
     Ok(coll)
 }
 
@@ -305,7 +307,6 @@ fn spawn_http_request_task<
                     };
 
                     // If active, look up its peers.
-
                     if get_info(node_conf).await.is_ok() {
                         match get_peers_all(node_conf).await {
                             Ok(peers) => {
