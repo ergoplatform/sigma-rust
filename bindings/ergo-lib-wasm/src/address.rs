@@ -197,6 +197,12 @@ impl Address {
         )
     }
 
+    /// Returns underlying value for each address type
+    /// (serialized EcPoint for P2PK, stored bytes for P2SH and P2S)
+    pub fn content_bytes(&self) -> Vec<u8> {
+        self.0.content_bytes()
+    }
+
     /// Get the type of the address
     pub fn address_type_prefix(&self) -> AddressTypePrefix {
         self.0.address_type_prefix().into()

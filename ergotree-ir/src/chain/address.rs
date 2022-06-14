@@ -171,7 +171,7 @@ impl Address {
         }
     }
 
-    /// byte array
+    /// Returns underlying value for each address type: (serialized EcPoint for P2PK, stored bytes for P2SH and P2S)
     pub fn content_bytes(&self) -> Vec<u8> {
         match self {
             Address::P2Pk(prove_dlog) => {
