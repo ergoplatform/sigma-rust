@@ -155,3 +155,41 @@ pub async fn peer_discovery(
     }
     Ok(PeerUrls(peer_urls))
 }
+
+/// Given a list of seed nodes, search for peer nodes with an active REST API on port 9053.
+///  - `seeds` represents a list of ergo node URLs from which to start peer discovery.
+///  - `max_parallel_requests` represents the maximum number of HTTP requests that can be made in
+///    parallel
+///  - `timeout` represents the amount of time that is spent search for peers. Once the timeout
+///    value is reached, return with the vec of active peers that have been discovered up to that
+///    point in time.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub async fn peer_discovery_chrome(
+    seeds: Box<[web_sys::Url]>,
+    max_parallel_requests: u16,
+    timeout_sec: u32,
+) -> Result<PeerUrls, JsValue> {
+    let mut converted_seeds = vec![];
+    for seed in &*seeds {
+        let str: String = seed.to_string().into();
+        converted_seeds.push(url::Url::parse(&str).map_err(to_js)?);
+    }
+    let seeds = NonEmptyVec::from_vec(converted_seeds).map_err(to_js)?;
+    let n = u16::max(max_parallel_requests, 1);
+    #[allow(clippy::unwrap_used)]
+    let max_parallel_requests = bounded_integer::BoundedU16::new(n).unwrap();
+    let timeout = Duration::from_secs(timeout_sec as u64);
+    let res = ergo_lib::ergo_rest::api::node::peer_discovery_chrome(
+        seeds,
+        max_parallel_requests,
+        timeout,
+    )
+    .await
+    .map_err(to_js)?;
+    let mut peer_urls = vec![];
+    for url in res {
+        peer_urls.push(web_sys::Url::new(url.as_str())?);
+    }
+    Ok(PeerUrls(peer_urls))
+}

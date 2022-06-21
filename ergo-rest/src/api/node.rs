@@ -64,6 +64,27 @@ pub async fn peer_discovery(
         .await
 }
 
+#[cfg(target_arch = "wasm32")]
+/// Given a list of seed nodes, search for peer nodes with an active REST API on port 9053.
+///  - `seeds` represents a list of ergo node URLs from which to start peer discovery.
+///  - `max_parallel_requests` represents the maximum number of HTTP requests that can be made in
+///    parallel
+///  - `timeout` represents the amount of time that is spent search for peers. Once the timeout
+///    value is reached, return with the vec of active peers that have been discovered up to that
+///    point in time.
+pub async fn peer_discovery_chrome(
+    seeds: NonEmptyVec<Url>,
+    max_parallel_requests: BoundedU16<1, { u16::MAX }>,
+    timeout: Duration,
+) -> Result<Vec<Url>, PeerDiscoveryError> {
+    super::peer_discovery_internals::peer_discovery_inner_chrome(
+        seeds,
+        max_parallel_requests,
+        timeout,
+    )
+    .await
+}
+
 /// GET on /nipopow/proof/{minChainLength}/{suffixLength}/{headerId} endpoint
 pub async fn get_nipopow_proof_by_header_id(
     node: NodeConf,

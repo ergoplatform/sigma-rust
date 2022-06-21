@@ -64,6 +64,7 @@ async function get_nipopow_proof(node_addr, header_id) {
 }
 
 it('node REST API: peer_discovery endpoint', async () => {
+    console.log("Starting peer discovery");
     const seeds = [
         "http://213.239.193.208:9030",
         "http://159.65.11.55:9030",
@@ -80,6 +81,7 @@ it('node REST API: peer_discovery endpoint', async () => {
         "http://176.9.65.58:9130",
         "http://213.152.106.56:9030",
     ].map(x => new URL(x));
-    let res = await ergo_wasm.peer_discovery(seeds, 1, 1);
+    console.log("Parsed seed node URLs");
+    let res = await ergo_wasm.peer_discovery_chrome(seeds, 150, 400);
     assert(res.len() > 0, "Should be at least one peer!");
 });
