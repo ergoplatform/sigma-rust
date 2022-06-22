@@ -1,3 +1,7 @@
+//! This module contains the `peer_discovery` implementation. The original implementation is found
+//! in the `non_chrome` sub-module, which can be used on tokio as well as web-browsers that are not
+//! Chrome (tested on Firefox and Safari). However there are certain limitations in Chrome that
+//! require us to have a custom implementation.
 #[cfg(target_arch = "wasm32")]
 mod chrome;
 mod non_chrome;

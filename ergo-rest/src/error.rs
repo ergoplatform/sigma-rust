@@ -1,4 +1,5 @@
 use crate::reqwest;
+use derive_more::From;
 use thiserror::Error;
 
 /// Possible errors during the communication with node
@@ -12,7 +13,7 @@ pub enum NodeError {
     InvalidNumericalUrlSegment,
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, From)]
 /// Peer discovery error
 pub enum PeerDiscoveryError {
     /// `Url` error
@@ -27,4 +28,7 @@ pub enum PeerDiscoveryError {
     /// task spawn error
     #[error("Task spawn error")]
     TaskSpawn,
+    /// IO error
+    #[error("IO error")]
+    IO(std::io::Error),
 }
