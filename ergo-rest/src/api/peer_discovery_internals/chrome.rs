@@ -59,11 +59,11 @@ macro_rules! console_log {
 
 pub(crate) async fn peer_discovery_inner_chrome(
     seeds: NonEmptyVec<Url>,
-    max_parallel_requests: BoundedU16<1, { u16::MAX }>,
+    max_parallel_tasks: BoundedU16<1, { u16::MAX }>,
     timeout: Duration,
 ) -> Result<Vec<Url>, PeerDiscoveryError> {
     let settings = PeerDiscoverySettings {
-        max_parallel_requests,
+        max_parallel_tasks,
         task_2_buffer_length: 50,
         global_timeout: timeout,
         timeout_of_individual_node_request: Duration::from_secs(6),
@@ -98,7 +98,7 @@ async fn peer_discovery_impl_chrome(
     use futures::future::FutureExt;
     use futures::{SinkExt, StreamExt};
 
-    let max_parallel_requests = settings.max_parallel_requests.get() as usize;
+    let max_parallel_requests = settings.max_parallel_tasks.get() as usize;
     let mut seeds_set: HashSet<Url> = HashSet::new();
 
     for mut seed_url in seeds {
@@ -111,7 +111,7 @@ async fn peer_discovery_impl_chrome(
     spawn_http_request_task_chrome(
         tx_msg,
         node_request_stream,
-        settings.max_parallel_requests,
+        settings.max_parallel_tasks,
         settings.timeout_of_individual_node_request,
     );
 
@@ -125,8 +125,9 @@ async fn peer_discovery_impl_chrome(
 
     // (*) This variable represents the number of URLs that need to be checked to see whether it
     // corresponds to an active Ergo node. `count` is crucial to allow this function to terminate,
-    // as once it reaches zero we break the loop below. This leads us to drop `tx_node_request`,
-    // which is the sender side of the receiver stream `node_request_stream`, allowing task 1 to end.
+    // as once it and `chrome_request_count` reaches zero we break the loop below. This leads us to
+    // drop `tx_node_request`, which is the sender side of the receiver stream
+    // `node_request_stream`, allowing task 1 to end.
     let mut count = seeds_set.len();
 
     // This variable tracks the number of active requests opened by Chrome. Every request we make of
@@ -359,7 +360,7 @@ async fn peer_discovery_impl_chrome(
 fn spawn_http_request_task_chrome(
     tx_msg: futures::channel::mpsc::Sender<Msg>,
     node_request_stream: impl futures::Stream<Item = NodeRequest> + Send + 'static,
-    max_parallel_requests: BoundedU16<1, { u16::MAX }>,
+    max_parallel_tasks: BoundedU16<1, { u16::MAX }>,
     request_timeout_duration: Duration,
 ) {
     use futures::{SinkExt, StreamExt};
@@ -463,7 +464,7 @@ fn spawn_http_request_task_chrome(
                 });
             }
         })
-        .buffer_unordered(max_parallel_requests.get() as usize); // Allow for parallel requests
+        .buffer_unordered(max_parallel_tasks.get() as usize); // Allow for parallel requests
 
     let spawn_fn_new = wasm_bindgen_futures::spawn_local;
 

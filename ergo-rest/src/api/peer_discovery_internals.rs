@@ -28,7 +28,7 @@ async fn get_peers_all(node: NodeConf) -> Result<Vec<PeerInfo>, NodeError> {
 }
 
 struct PeerDiscoverySettings {
-    max_parallel_requests: BoundedU16<1, { u16::MAX }>,
+    max_parallel_tasks: BoundedU16<1, { u16::MAX }>,
     task_2_buffer_length: usize,
     global_timeout: Duration,
     timeout_of_individual_node_request: Duration,

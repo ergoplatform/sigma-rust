@@ -53,12 +53,12 @@ use url::Url;
 
 pub(crate) async fn peer_discovery_inner(
     seeds: NonEmptyVec<Url>,
-    max_parallel_requests: BoundedU16<1, { u16::MAX }>,
+    max_parallel_tasks: BoundedU16<1, { u16::MAX }>,
     timeout: Duration,
 ) -> Result<Vec<Url>, PeerDiscoveryError> {
     let settings = PeerDiscoverySettings {
-        max_parallel_requests,
-        task_2_buffer_length: max_parallel_requests.get() as usize,
+        max_parallel_tasks,
+        task_2_buffer_length: max_parallel_tasks.get() as usize,
         global_timeout: timeout,
         timeout_of_individual_node_request: Duration::from_secs(4),
     };
@@ -110,7 +110,7 @@ async fn peer_discovery_impl<
     spawn_http_request_task(
         tx_msg,
         url_stream,
-        settings.max_parallel_requests,
+        settings.max_parallel_tasks,
         settings.timeout_of_individual_node_request,
     );
 

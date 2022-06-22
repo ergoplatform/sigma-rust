@@ -50,18 +50,21 @@ pub async fn get_header(node: NodeConf, header_id: BlockId) -> Result<Header, No
 
 /// Given a list of seed nodes, search for peer nodes with an active REST API on port 9053.
 ///  - `seeds` represents a list of ergo node URLs from which to start peer discovery.
-///  - `max_parallel_requests` represents the maximum number of HTTP requests that can be made in
-///    parallel
+///  - `max_parallel_tasks` represents the maximum number of tasks to spawn for ergo node HTTP
+///    requests. Note that the actual number of parallel HTTP requests may well be higher than this
+///    number.
 ///  - `timeout` represents the amount of time that is spent search for peers. Once the timeout
 ///    value is reached, return with the vec of active peers that have been discovered up to that
 ///    point in time.
+///
+/// IMPORTANT: do not call this function on Chromium, as it will likely mess with the browser's
+/// ability to make HTTP requests. User `peer_discovery_chrome` instead.
 pub async fn peer_discovery(
     seeds: NonEmptyVec<Url>,
-    max_parallel_requests: BoundedU16<1, { u16::MAX }>,
+    max_parallel_tasks: BoundedU16<1, { u16::MAX }>,
     timeout: Duration,
 ) -> Result<Vec<Url>, PeerDiscoveryError> {
-    super::peer_discovery_internals::peer_discovery_inner(seeds, max_parallel_requests, timeout)
-        .await
+    super::peer_discovery_internals::peer_discovery_inner(seeds, max_parallel_tasks, timeout).await
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -72,6 +75,9 @@ pub async fn peer_discovery(
 ///  - `timeout` represents the amount of time that is spent search for peers. Once the timeout
 ///    value is reached, return with the vec of active peers that have been discovered up to that
 ///    point in time.
+///
+/// NOTE: intended to be used only on Chromium based browsers. It's tested on Firefox and Safari,
+/// but using `peer_discovery` above gives better performance.
 pub async fn peer_discovery_chrome(
     seeds: NonEmptyVec<Url>,
     max_parallel_requests: BoundedU16<1, { u16::MAX }>,
