@@ -17,6 +17,7 @@
 //!              |__________________________________________________|
 //!                <active node| non-active node| list of peers>   
 //! ```
+use super::PeerDiscoverySettings;
 use crate::api::peer_discovery_internals::get_peers_all;
 use crate::error::PeerDiscoveryError;
 use crate::{api::node::get_info, NodeConf, PeerInfo};
@@ -30,26 +31,25 @@ use url::Url;
 
 // Uncomment the following to enable logging on WASM through the `console_log` macro. Taken from
 // https://rustwasm.github.io/wasm-bindgen/examples/console-log.html#srclibrs
-#[cfg(target_arch = "wasm32")]
-use wasm_bindgen::prelude::*;
-
-use super::PeerDiscoverySettings;
-
-#[cfg(target_arch = "wasm32")]
-#[wasm_bindgen]
-extern "C" {
-    // Use `js_namespace` here to bind `console.log(..)` instead of just
-    // `log(..)`
-    #[wasm_bindgen(js_namespace = console)]
-    fn log(s: &str);
-}
-
-#[cfg(target_arch = "wasm32")]
-macro_rules! console_log {
-// Note that this is using the `log` function imported above during
-// `bare_bones`
-($($t:tt)*) => (log(&format_args!($($t)*).to_string()))
-}
+//#[cfg(target_arch = "wasm32")]
+//use wasm_bindgen::prelude::*;
+//
+//
+//#[cfg(target_arch = "wasm32")]
+//#[wasm_bindgen]
+//extern "C" {
+//    // Use `js_namespace` here to bind `console.log(..)` instead of just
+//    // `log(..)`
+//    #[wasm_bindgen(js_namespace = console)]
+//    fn log(s: &str);
+//}
+//
+//#[cfg(target_arch = "wasm32")]
+//macro_rules! console_log {
+//// Note that this is using the `log` function imported above during
+//// `bare_bones`
+//($($t:tt)*) => (log(&format_args!($($t)*).to_string()))
+//}
 
 pub(crate) async fn peer_discovery_inner(
     seeds: NonEmptyVec<Url>,
@@ -217,7 +217,10 @@ async fn peer_discovery_impl<
                             break 'loop_;
                         }
                     }
-                    Msg::CheckPeers(peers) => {
+                    Msg::CheckPeers(mut peers) => {
+                        use rand::seq::SliceRandom;
+                        use rand::thread_rng;
+                        peers.shuffle(&mut thread_rng());
                         if add_peers {
                             peer_stack.extend(peers);
                         }
