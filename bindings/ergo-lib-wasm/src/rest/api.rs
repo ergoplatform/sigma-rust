@@ -133,8 +133,7 @@ impl PeerUrls {
 ///    point in time.
 ///
 /// IMPORTANT: do not call this function on Chromium, as it will likely mess with the browser's
-/// ability to make HTTP requests. User `peer_discovery_chrome` instead. For more information why
-/// please refer to the module documentation for [`crate::peer_discovery_internals::chrome`].
+/// ability to make HTTP requests. Use `peer_discovery_chrome` instead.
 #[wasm_bindgen]
 pub async fn peer_discovery(
     seeds: Box<[web_sys::Url]>,
