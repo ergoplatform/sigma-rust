@@ -59,7 +59,7 @@ pub async fn get_header(node: NodeConf, header_id: BlockId) -> Result<Header, No
 ///
 /// IMPORTANT: do not call this function on Chromium, as it will likely mess with the browser's
 /// ability to make HTTP requests. Use `peer_discovery_chrome` instead. For more information why
-/// please refer to the module documentation for [`crate::api::peer_discovery_internals::chrome`].
+/// please refer to the module documentation for `crate::api::peer_discovery_internals::chrome`.
 pub async fn peer_discovery(
     seeds: NonEmptyVec<Url>,
     max_parallel_tasks: BoundedU16<1, { u16::MAX }>,
