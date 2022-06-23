@@ -58,7 +58,8 @@ pub async fn get_header(node: NodeConf, header_id: BlockId) -> Result<Header, No
 ///    point in time.
 ///
 /// IMPORTANT: do not call this function on Chromium, as it will likely mess with the browser's
-/// ability to make HTTP requests. User `peer_discovery_chrome` instead.
+/// ability to make HTTP requests. User `peer_discovery_chrome` instead. For more information why
+/// please refer to the module documentation for [`crate::peer_discovery_internals::chrome`].
 pub async fn peer_discovery(
     seeds: NonEmptyVec<Url>,
     max_parallel_tasks: BoundedU16<1, { u16::MAX }>,
@@ -72,12 +73,13 @@ pub async fn peer_discovery(
 ///  - `seeds` represents a list of ergo node URLs from which to start peer discovery.
 ///  - `max_parallel_requests` represents the maximum number of HTTP requests that can be made in
 ///    parallel
-///  - `timeout` represents the amount of time that is spent search for peers. Once the timeout
-///    value is reached, return with the vec of active peers that have been discovered up to that
-///    point in time.
+///  - `timeout` represents the amount of time that is spent searching for peers PLUS a waiting
+///    period of 80 seconds to give Chrome the time to relinquish failed preflight requests. Must be
+///    at least 90 seconds. Once the timeout value is reached, return with the vec of active peers
+///    that have been discovered up to that point in time.
 ///
-/// NOTE: intended to be used only on Chromium based browsers. It's tested on Firefox and Safari,
-/// but using `peer_discovery` above gives better performance.
+/// NOTE: intended to be used only on Chromium based browsers. It works on Firefox and Safari, but
+/// using `peer_discovery` above gives better performance.
 pub async fn peer_discovery_chrome(
     seeds: NonEmptyVec<Url>,
     max_parallel_requests: BoundedU16<1, { u16::MAX }>,

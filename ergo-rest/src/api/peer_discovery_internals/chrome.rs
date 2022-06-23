@@ -62,10 +62,17 @@ pub(crate) async fn peer_discovery_inner_chrome(
     max_parallel_tasks: BoundedU16<1, { u16::MAX }>,
     timeout: Duration,
 ) -> Result<Vec<Url>, PeerDiscoveryError> {
+    if timeout.as_secs() < 90 {
+        return Err(PeerDiscoveryError::TimeoutTooShort);
+    }
+
+    // Note that 80 seconds is allocated to waiting for preflight requests to naturally timeout by
+    // Chrome. The remaining time is spent looking for peers.
+    let global_timeout = timeout.checked_sub(Duration::from_secs(80)).unwrap();
     let settings = PeerDiscoverySettings {
         max_parallel_tasks,
         task_2_buffer_length: 50,
-        global_timeout: timeout,
+        global_timeout,
         timeout_of_individual_node_request: Duration::from_secs(6),
     };
 
@@ -388,34 +395,31 @@ fn spawn_http_request_task_chrome(
                     match node_request {
                         NodeRequest::Info(url) => match get_info(node_conf).await {
                             Ok(_) => {
-                                tx_msg.send(Msg::InfoRequestSucceeded(url)).await.unwrap();
+                                let _ = tx_msg.send(Msg::InfoRequestSucceeded(url)).await;
                             }
                             Err(e) => {
                                 if let NodeError::ReqwestError(r) = e {
                                     if r.to_string().starts_with(chrome_timeout_str) {
-                                        tx_msg
+                                        let _ = tx_msg
                                             .send(Msg::InfoRequestFailedWithTimeout(url))
-                                            .await
-                                            .unwrap();
+                                            .await;
                                         spawn_local(async move {
                                             crate::wasm_timer::Delay::new(Duration::from_secs(80))
                                                 .await
                                                 .unwrap();
-                                            tx_msg.send(Msg::PreflightRequestFailed).await.unwrap();
+                                            let _ = tx_msg.send(Msg::PreflightRequestFailed);
                                         });
                                     } else {
                                         #[allow(clippy::unwrap_used)]
-                                        tx_msg
+                                        let _ = tx_msg
                                             .send(Msg::InfoRequestFailedWithoutTimeout(url))
-                                            .await
-                                            .unwrap();
+                                            .await;
                                     }
                                 } else {
                                     #[allow(clippy::unwrap_used)]
-                                    tx_msg
+                                    let _ = tx_msg
                                         .send(Msg::InfoRequestFailedWithoutTimeout(url))
-                                        .await
-                                        .unwrap();
+                                        .await;
                                 }
                             }
                         },
@@ -431,10 +435,9 @@ fn spawn_http_request_task_chrome(
                                 Err(e) => {
                                     if let NodeError::ReqwestError(r) = e {
                                         if r.to_string().starts_with(chrome_timeout_str) {
-                                            tx_msg
+                                            let _ = tx_msg
                                                 .send(Msg::PeersAllRequestFailedWithTimeout(url))
-                                                .await
-                                                .unwrap();
+                                                .await;
 
                                             // This task simulates the waiting of a preflight
                                             // request that will timeout from no response.
@@ -445,17 +448,14 @@ fn spawn_http_request_task_chrome(
                                                 .await
                                                 .unwrap();
 
-                                                tx_msg
-                                                    .send(Msg::PreflightRequestFailed)
-                                                    .await
-                                                    .unwrap();
+                                                let _ =
+                                                    tx_msg.send(Msg::PreflightRequestFailed).await;
                                             });
                                         }
                                     } else {
-                                        tx_msg
+                                        let _ = tx_msg
                                             .send(Msg::PeersAllRequestFailedWithoutTimeout(url))
-                                            .await
-                                            .unwrap();
+                                            .await;
                                     }
                                 }
                             }

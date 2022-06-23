@@ -31,4 +31,7 @@ pub enum PeerDiscoveryError {
     /// IO error
     #[error("IO error")]
     IO(std::io::Error),
+    /// Timeout duration is too short
+    #[error("Timeout duration is too short")]
+    TimeoutTooShort,
 }

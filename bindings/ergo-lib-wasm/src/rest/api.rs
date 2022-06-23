@@ -125,11 +125,16 @@ impl PeerUrls {
 
 /// Given a list of seed nodes, search for peer nodes with an active REST API on port 9053.
 ///  - `seeds` represents a list of ergo node URLs from which to start peer discovery.
-///  - `max_parallel_requests` represents the maximum number of HTTP requests that can be made in
-///    parallel
+///  - `max_parallel_tasks` represents the maximum number of tasks to spawn for ergo node HTTP
+///    requests. Note that the actual number of parallel HTTP requests may well be higher than this
+///    number.
 ///  - `timeout` represents the amount of time that is spent search for peers. Once the timeout
 ///    value is reached, return with the vec of active peers that have been discovered up to that
 ///    point in time.
+///
+/// IMPORTANT: do not call this function on Chromium, as it will likely mess with the browser's
+/// ability to make HTTP requests. User `peer_discovery_chrome` instead. For more information why
+/// please refer to the module documentation for [`crate::peer_discovery_internals::chrome`].
 #[wasm_bindgen]
 pub async fn peer_discovery(
     seeds: Box<[web_sys::Url]>,
@@ -156,14 +161,18 @@ pub async fn peer_discovery(
     Ok(PeerUrls(peer_urls))
 }
 
+#[cfg(target_arch = "wasm32")]
 /// Given a list of seed nodes, search for peer nodes with an active REST API on port 9053.
 ///  - `seeds` represents a list of ergo node URLs from which to start peer discovery.
 ///  - `max_parallel_requests` represents the maximum number of HTTP requests that can be made in
 ///    parallel
-///  - `timeout` represents the amount of time that is spent search for peers. Once the timeout
-///    value is reached, return with the vec of active peers that have been discovered up to that
-///    point in time.
-#[cfg(target_arch = "wasm32")]
+///  - `timeout` represents the amount of time that is spent searching for peers PLUS a waiting
+///    period of 80 seconds to give Chrome the time to relinquish failed preflight requests. Must be
+///    at least 90 seconds. Once the timeout value is reached, return with the vec of active peers
+///    that have been discovered up to that point in time.
+///
+/// NOTE: intended to be used only on Chromium based browsers. It works on Firefox and Safari, but
+/// using `peer_discovery` above gives better performance.
 #[wasm_bindgen]
 pub async fn peer_discovery_chrome(
     seeds: Box<[web_sys::Url]>,
