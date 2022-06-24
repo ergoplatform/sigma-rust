@@ -36,7 +36,10 @@ use bounded_integer::BoundedU16;
 use bounded_vec::NonEmptyVec;
 use ergo_chain_types::PeerAddr;
 use std::fmt::Debug;
-use std::{collections::HashSet, time::Duration};
+use std::{
+    collections::{BinaryHeap, HashSet},
+    time::Duration,
+};
 use url::Url;
 
 // Uncomment the following to enable logging on WASM through the `console_log` macro. Taken from
@@ -61,7 +64,7 @@ pub(crate) async fn peer_discovery_inner_chrome(
     seeds: NonEmptyVec<Url>,
     max_parallel_tasks: BoundedU16<1, { u16::MAX }>,
     timeout: Duration,
-) -> Result<Vec<Url>, PeerDiscoveryError> {
+) -> Result<ChromePeerDiscoveryScan, PeerDiscoveryError> {
     if timeout.as_secs() < 90 {
         return Err(PeerDiscoveryError::TimeoutTooShort);
     }
@@ -76,14 +79,16 @@ pub(crate) async fn peer_discovery_inner_chrome(
         timeout_of_individual_node_request: Duration::from_secs(6),
     };
 
-    let (tx_msg, rx_msg) = futures::channel::mpsc::channel::<Msg>(256);
+    let (tx_msg, rx_msg) = futures::channel::mpsc::channel::<Msg>(settings.task_2_buffer_length);
     let (tx_node_request, rx_node_request) =
         futures::channel::mpsc::channel::<NodeRequest>(settings.task_2_buffer_length);
     let node_request_stream = rx_node_request;
     let msg_stream = rx_msg;
 
+    let scan = ChromePeerDiscoveryScan::new(seeds);
+
     peer_discovery_impl_chrome(
-        seeds,
+        scan,
         tx_msg,
         msg_stream,
         tx_node_request,
@@ -95,24 +100,26 @@ pub(crate) async fn peer_discovery_inner_chrome(
 
 /// Implementation of `peer_discovery`.
 async fn peer_discovery_impl_chrome(
-    seeds: NonEmptyVec<Url>,
+    scan: ChromePeerDiscoveryScan,
     tx_msg: futures::channel::mpsc::Sender<Msg>,
     msg_stream: futures::channel::mpsc::Receiver<Msg>,
     mut tx_node_request: futures::channel::mpsc::Sender<NodeRequest>,
     node_request_stream: futures::channel::mpsc::Receiver<NodeRequest>,
     settings: PeerDiscoverySettings,
-) -> Result<Vec<Url>, PeerDiscoveryError> {
+) -> Result<ChromePeerDiscoveryScan, PeerDiscoveryError> {
     use futures::future::FutureExt;
     use futures::{SinkExt, StreamExt};
 
     let max_parallel_requests = settings.max_parallel_tasks.get() as usize;
-    let mut seeds_set: HashSet<Url> = HashSet::new();
 
-    for mut seed_url in seeds {
-        #[allow(clippy::unwrap_used)]
-        seed_url.set_port(None).unwrap();
-        seeds_set.insert(seed_url);
-    }
+    let ChromePeerDiscoveryScan {
+        active_peers,
+        mut visited_peers,
+        seeds_set,
+        mut pending_requests,
+    } = scan;
+
+    let mut active_peers: HashSet<Url> = active_peers.into_iter().collect();
 
     // Task 2 from the schematic above
     spawn_http_request_task_chrome(
@@ -122,12 +129,14 @@ async fn peer_discovery_impl_chrome(
         settings.timeout_of_individual_node_request,
     );
 
-    // Start with requests to seed nodes.
-    for url in &seeds_set {
+    // Push through a single request to start the workflow
+    if let Some(node_request) = pending_requests.pop() {
         tx_node_request
-            .send(NodeRequest::Info(url.clone()))
+            .send(node_request)
             .await
             .map_err(|_| PeerDiscoveryError::MpscSender)?;
+    } else {
+        return Err(PeerDiscoveryError::NoPendingNodeRequests);
     }
 
     // (*) This variable represents the number of URLs that need to be checked to see whether it
@@ -135,20 +144,16 @@ async fn peer_discovery_impl_chrome(
     // as once it and `chrome_request_count` reaches zero we break the loop below. This leads us to
     // drop `tx_node_request`, which is the sender side of the receiver stream
     // `node_request_stream`, allowing task 1 to end.
-    let mut count = seeds_set.len();
+    let mut count = 1;
 
     // This variable tracks the number of active requests opened by Chrome. Every request we make of
     // an ergo node requires a 'preflight' request first. This variable tracks such requests too.
     // It's used to restrict the total number of active requests on Chrome.
-    let mut chrome_request_count = seeds_set.len() * 2;
+    let mut chrome_request_count = 2;
 
-    let mut visited_active_peers = HashSet::new();
-    let mut visited_peers = HashSet::new();
-
-    use std::collections::BinaryHeap;
-    // A collection of node requests to initiate in task 2. We use a BinaryHeap here to ensure that
-    // `NodeRequest::PeersAll` messages get processed first.
-    let mut pending_requests: BinaryHeap<NodeRequest> = BinaryHeap::new();
+    // Represents pending NodeRequests that cannot be made since they've come in after the gobal
+    // timeout duration.
+    let mut pending_requests_after_timeout = BinaryHeap::new();
 
     // Here we spawn a task that triggers a signal after `settings.global_timeout` has elapsed.
     let rx_timeout_signal = {
@@ -179,7 +184,7 @@ async fn peer_discovery_impl_chrome(
 
     // This variable equals to true as long as we're checking for new peer nodes. It is set to false
     // once the global timeout is reached.
-    let add_peers = true;
+    let mut add_peers = true;
     'loop_: while let Some(n) = combined_stream.next().await {
         match n {
             C::RxMsg(p) => {
@@ -209,7 +214,7 @@ async fn peer_discovery_impl_chrome(
                                         count,
                                         chrome_request_count,
                                         visited_peers.len(),
-                                        visited_active_peers.len(),
+                                        active_peers.len(),
                                     );
                                     visited_peers.insert(url);
                                 }
@@ -234,7 +239,7 @@ async fn peer_discovery_impl_chrome(
                     Msg::AddActiveNode(mut url) => {
                         #[allow(clippy::unwrap_used)]
                         url.set_port(None).unwrap();
-                        visited_active_peers.insert(url.clone());
+                        active_peers.insert(url.clone());
                         visited_peers.insert(url);
                         count -= 1;
 
@@ -245,9 +250,6 @@ async fn peer_discovery_impl_chrome(
                             chrome_request_count,
                             visited_peers.len(),
                         );
-                        if count == 0 && chrome_request_count == 0 {
-                            break 'loop_;
-                        }
                     }
                     Msg::InfoRequestSucceeded(url) => {
                         chrome_request_count -= 2;
@@ -272,9 +274,6 @@ async fn peer_discovery_impl_chrome(
                             chrome_request_count,
                             visited_peers.len(),
                         );
-                        if count == 0 && chrome_request_count == 0 {
-                            break 'loop_;
-                        }
                     }
                     Msg::InfoRequestFailedWithTimeout(mut url) => {
                         #[allow(clippy::unwrap_used)]
@@ -297,9 +296,6 @@ async fn peer_discovery_impl_chrome(
                         count -= 1;
 
                         chrome_request_count -= 2;
-                        if count == 0 && chrome_request_count == 0 {
-                            break 'loop_;
-                        }
                     }
                     Msg::PeersAllRequestFailedWithTimeout(mut url) => {
                         #[allow(clippy::unwrap_used)]
@@ -317,9 +313,6 @@ async fn peer_discovery_impl_chrome(
                             chrome_request_count,
                             visited_peers.len(),
                         );
-                        if count == 0 && pending_requests.is_empty() {
-                            break 'loop_;
-                        }
                     }
                     Msg::CheckPeers(mut peers) => {
                         use rand::seq::SliceRandom;
@@ -331,20 +324,34 @@ async fn peer_discovery_impl_chrome(
                                     .into_iter()
                                     .map(|p| NodeRequest::Info(p.addr.as_http_url())),
                             );
+                        } else {
+                            pending_requests_after_timeout.extend(
+                                peers
+                                    .into_iter()
+                                    .map(|p| NodeRequest::Info(p.addr.as_http_url())),
+                            );
                         }
                     }
                 }
+                if count == 0 && pending_requests.is_empty() {
+                    break 'loop_;
+                }
             }
             C::RxTimeoutSignal => {
-                //add_peers = false;
-                //pending_requests.clear();
-                break;
+                add_peers = false;
+                while let Some(req) = pending_requests.pop() {
+                    pending_requests_after_timeout.push(req);
+                }
+                console_log!(
+                    "GLOBAL TIMEOUT, {} incomplete requests-------------------------",
+                    pending_requests_after_timeout.len()
+                );
             }
         }
     }
 
     drop(tx_node_request);
-    let coll: Vec<_> = visited_active_peers
+    let active_peers: Vec<_> = active_peers
         .difference(&seeds_set)
         .into_iter()
         .cloned()
@@ -352,13 +359,19 @@ async fn peer_discovery_impl_chrome(
 
     // Uncomment for debugging
     console_log!(
-        "Total # nodes visited: {}, # peers found: {}",
+        "Total # nodes visited: {}, # peers found: {}, # incomplete requests: {}",
         visited_peers.len(),
-        coll.len()
+        active_peers.len(),
+        pending_requests_after_timeout.len(),
     );
     console_log!("Waiting 80sec for Chrome to relinquish pending HTTP requests");
     crate::wasm_timer::Delay::new(Duration::from_secs(80)).await?;
-    Ok(coll)
+    Ok(ChromePeerDiscoveryScan {
+        active_peers,
+        visited_peers,
+        pending_requests: pending_requests_after_timeout,
+        seeds_set,
+    })
 }
 
 /// Given a stream that receives URLs of full ergo nodes, spawn a task (task 2 in the schematic
@@ -403,11 +416,14 @@ fn spawn_http_request_task_chrome(
                                         let _ = tx_msg
                                             .send(Msg::InfoRequestFailedWithTimeout(url))
                                             .await;
+                                        // This task simulates the waiting of a preflight request
+                                        // that will timeout from no response.
                                         spawn_local(async move {
-                                            crate::wasm_timer::Delay::new(Duration::from_secs(80))
-                                                .await
-                                                .unwrap();
-                                            let _ = tx_msg.send(Msg::PreflightRequestFailed);
+                                            let _ = crate::wasm_timer::Delay::new(
+                                                Duration::from_secs(80),
+                                            )
+                                            .await;
+                                            let _ = tx_msg.send(Msg::PreflightRequestFailed).await;
                                         });
                                     } else {
                                         #[allow(clippy::unwrap_used)]
@@ -500,7 +516,7 @@ pub(crate) enum Msg {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 // Represents HTTP requests to be made of an ergo node. Note: PeersAll > Info, see
 // https://doc.rust-lang.org/stable/std/cmp/trait.Ord.html#derivable
-enum NodeRequest {
+pub enum NodeRequest {
     /// /info endpoint
     Info(Url),
     /// /peers/all endpoint
@@ -513,5 +529,48 @@ impl NodeRequest {
             NodeRequest::Info(url) => url,
             NodeRequest::PeersAll(url) => url,
         }
+    }
+}
+
+/// This struct stores the results of potentially-multiple calls to `peer_discovery_chrome`. It
+/// allows the user the ability to break up peer discovery into smaller sub-tasks.
+pub struct ChromePeerDiscoveryScan {
+    /// Lists the peers with an active REST API
+    active_peers: Vec<Url>,
+    /// Lists the peers that have already been visited.
+    visited_peers: HashSet<Url>,
+    /// Lists the seed peers that is hardcoded in the ergo reference node.
+    seeds_set: HashSet<Url>,
+    /// Lists node requests which must be made but have yet to due to timeout of a previous scan.
+    pending_requests: BinaryHeap<NodeRequest>,
+}
+
+impl ChromePeerDiscoveryScan {
+    /// Creates new instance from Vec of seed nodes
+    pub fn new(seeds: NonEmptyVec<Url>) -> Self {
+        let mut seeds_set: HashSet<Url> = HashSet::new();
+
+        for mut seed_url in seeds {
+            #[allow(clippy::unwrap_used)]
+            seed_url.set_port(None).unwrap();
+            seeds_set.insert(seed_url);
+        }
+
+        let mut pending_requests = BinaryHeap::new();
+        // Start with requests to seed nodes.
+        for url in &seeds_set {
+            pending_requests.push(NodeRequest::Info(url.clone()));
+        }
+        ChromePeerDiscoveryScan {
+            active_peers: vec![],
+            visited_peers: HashSet::new(),
+            seeds_set,
+            pending_requests,
+        }
+    }
+
+    /// Returns vec of active peers
+    pub fn active_peers(&self) -> Vec<Url> {
+        self.active_peers.clone()
     }
 }

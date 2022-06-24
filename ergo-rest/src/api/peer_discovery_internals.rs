@@ -6,11 +6,13 @@
 mod chrome;
 mod non_chrome;
 
+use bounded_integer::BoundedU16;
 use std::time::Duration;
 
-use bounded_integer::BoundedU16;
 #[cfg(target_arch = "wasm32")]
 pub(crate) use chrome::peer_discovery_inner_chrome;
+#[cfg(target_arch = "wasm32")]
+pub use chrome::ChromePeerDiscoveryScan;
 pub(crate) use non_chrome::peer_discovery_inner;
 
 use crate::{NodeConf, NodeError, PeerInfo};

@@ -18,6 +18,9 @@ use crate::NodeInfo;
 use super::build_client;
 use super::set_req_headers;
 
+#[cfg(target_arch = "wasm32")]
+pub use crate::api::peer_discovery_internals::ChromePeerDiscoveryScan;
+
 /// GET on /info endpoint
 pub async fn get_info(node: NodeConf) -> Result<NodeInfo, NodeError> {
     #[allow(clippy::unwrap_used)]
@@ -84,7 +87,7 @@ pub async fn peer_discovery_chrome(
     seeds: NonEmptyVec<Url>,
     max_parallel_requests: BoundedU16<1, { u16::MAX }>,
     timeout: Duration,
-) -> Result<Vec<Url>, PeerDiscoveryError> {
+) -> Result<ChromePeerDiscoveryScan, PeerDiscoveryError> {
     super::peer_discovery_internals::peer_discovery_inner_chrome(
         seeds,
         max_parallel_requests,

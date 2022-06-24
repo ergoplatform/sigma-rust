@@ -34,4 +34,7 @@ pub enum PeerDiscoveryError {
     /// Timeout duration is too short
     #[error("Timeout duration is too short")]
     TimeoutTooShort,
+    /// There aren't any node requests to be made
+    #[error("There aren't any node requests to be made")]
+    NoPendingNodeRequests,
 }

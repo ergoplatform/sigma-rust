@@ -196,7 +196,7 @@ pub async fn peer_discovery_chrome(
     .await
     .map_err(to_js)?;
     let mut peer_urls = vec![];
-    for url in res {
+    for url in res.active_peers() {
         peer_urls.push(web_sys::Url::new(url.as_str())?);
     }
     Ok(PeerUrls(peer_urls))

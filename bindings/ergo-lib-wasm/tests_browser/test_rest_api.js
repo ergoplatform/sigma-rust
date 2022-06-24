@@ -29,7 +29,11 @@ it('node REST API: peer_discovery endpoint', async () => {
         "http://213.152.106.56:9030",
     ].map(x => new URL(x));
     console.log("Parsed seed node URLs");
-    let res = await ergo_wasm.peer_discovery_chrome(seeds, 150, 90);
+
+    // Limit to 150 simulataneous HTTP requests and search for peers for 10 seconds (remember
+    // there's an unavoidable waiting time of 80 seconds, to give Chrome time to relinquish failed
+    // preflight requests)
+    let res = await ergo_wasm.peer_discovery_chrome(seeds, 150, 220);
     assert(res.len() > 0, "Should be at least one peer!");
 });
 
