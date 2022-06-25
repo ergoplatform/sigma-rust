@@ -33,8 +33,8 @@ it('node REST API: peer_discovery endpoint (INCREMENTAL VERSION)', async () => {
 });
 
 it('node REST API: get_nipopow_proof_by_header_id endpoint', async () => {
-    let peers = await ergo_wasm.peer_discovery_chrome(get_ergo_node_seeds(), 150, 100);
-    assert(peers.len() > 0);
+    let peers = await ergo_wasm.peer_discovery_chrome(get_ergo_node_seeds(), 150, 150);
+    assert(peers.len() > 0, "Expecting at least 1 peer!");
     let node_conf = new ergo_wasm.NodeConf(peers.get(0));
     assert(node_conf != null);
     const header_id = ergo_wasm.BlockId.from_str("4caa17e62fe66ba7bd69597afdc996ae35b1ff12e0ba90c22ff288a4de10e91b");

@@ -44,21 +44,21 @@ use url::Url;
 
 // Uncomment the following to enable logging on WASM through the `console_log` macro. Taken from
 // https://rustwasm.github.io/wasm-bindgen/examples/console-log.html#srclibrs
-use wasm_bindgen::prelude::*;
-
-#[wasm_bindgen]
-extern "C" {
-    // Use `js_namespace` here to bind `console.log(..)` instead of just
-    // `log(..)`
-    #[wasm_bindgen(js_namespace = console)]
-    fn log(s: &str);
-}
-
-macro_rules! console_log {
-// Note that this is using the `log` function imported above during
-// `bare_bones`
-($($t:tt)*) => (log(&format_args!($($t)*).to_string()))
-}
+//use wasm_bindgen::prelude::*;
+//
+//#[wasm_bindgen]
+//extern "C" {
+//    // Use `js_namespace` here to bind `console.log(..)` instead of just
+//    // `log(..)`
+//    #[wasm_bindgen(js_namespace = console)]
+//    fn log(s: &str);
+//}
+//
+//macro_rules! console_log {
+//// Note that this is using the `log` function imported above during
+//// `bare_bones`
+//($($t:tt)*) => (log(&format_args!($($t)*).to_string()))
+//}
 
 pub(crate) async fn peer_discovery_inner_chrome(
     scan: ChromePeerDiscoveryScan,
@@ -206,14 +206,14 @@ async fn peer_discovery_impl_chrome(
                                     if !peers_all {
                                         count += 1;
                                     }
-                                    console_log!(
-                                        "Adding {}. count: {}, chrome count: {}, # visited: {}, visited_active: {}",
-                                        url.to_string(),
-                                        count,
-                                        chrome_request_count,
-                                        visited_peers.len(),
-                                        active_peers.len(),
-                                    );
+                                    //console_log!(
+                                    //    "Adding {}. count: {}, chrome count: {}, # visited: {}, visited_active: {}",
+                                    //    url.to_string(),
+                                    //    count,
+                                    //    chrome_request_count,
+                                    //    visited_peers.len(),
+                                    //    active_peers.len(),
+                                    //);
                                     visited_peers.insert(url);
                                 }
                                 Err(e) => {
@@ -242,22 +242,22 @@ async fn peer_discovery_impl_chrome(
                         count -= 1;
 
                         chrome_request_count -= 2;
-                        console_log!(
-                            "/peers/all succeeded. count: {}, chrome count: {}, # visited: {}",
-                            count,
-                            chrome_request_count,
-                            visited_peers.len(),
-                        );
+                        //console_log!(
+                        //    "/peers/all succeeded. count: {}, chrome count: {}, # visited: {}",
+                        //    count,
+                        //    chrome_request_count,
+                        //    visited_peers.len(),
+                        //);
                     }
                     Msg::InfoRequestSucceeded(url) => {
                         chrome_request_count -= 2;
                         pending_requests.push(NodeRequest::PeersAll(url));
-                        console_log!(
-                            "/info succeeded. count: {}, chrome count: {}, # visited: {}",
-                            count,
-                            chrome_request_count,
-                            visited_peers.len(),
-                        );
+                        //console_log!(
+                        //    "/info succeeded. count: {}, chrome count: {}, # visited: {}",
+                        //    count,
+                        //    chrome_request_count,
+                        //    visited_peers.len(),
+                        //);
                     }
                     Msg::InfoRequestFailedWithoutTimeout(mut url) => {
                         #[allow(clippy::unwrap_used)]
@@ -266,12 +266,12 @@ async fn peer_discovery_impl_chrome(
                         count -= 1;
 
                         chrome_request_count -= 2;
-                        console_log!(
-                            "/info failed with no timeout. count: {}, chrome count: {}, # visited: {}",
-                            count,
-                            chrome_request_count,
-                            visited_peers.len(),
-                        );
+                        //console_log!(
+                        //    "/info failed with no timeout. count: {}, chrome count: {}, # visited: {}",
+                        //    count,
+                        //    chrome_request_count,
+                        //    visited_peers.len(),
+                        //);
                     }
                     Msg::InfoRequestFailedWithTimeout(mut url) => {
                         #[allow(clippy::unwrap_used)]
@@ -280,12 +280,12 @@ async fn peer_discovery_impl_chrome(
                         count -= 1;
 
                         chrome_request_count -= 1;
-                        console_log!(
-                            "/info failed WITH timeout. node count: {}, chrome count: {}, # visited: {}",
-                            count,
-                            chrome_request_count,
-                            visited_peers.len(),
-                        );
+                        //console_log!(
+                        //    "/info failed WITH timeout. node count: {}, chrome count: {}, # visited: {}",
+                        //    count,
+                        //    chrome_request_count,
+                        //    visited_peers.len(),
+                        //);
                     }
                     Msg::PeersAllRequestFailedWithoutTimeout(mut url) => {
                         #[allow(clippy::unwrap_used)]
@@ -305,12 +305,12 @@ async fn peer_discovery_impl_chrome(
                     }
                     Msg::PreflightRequestFailed => {
                         chrome_request_count -= 1;
-                        console_log!(
-                            "Preflight request failed (by simulation), node count: {}, chrome count: {}, # visited: {}",
-                            count,
-                            chrome_request_count,
-                            visited_peers.len(),
-                        );
+                        //console_log!(
+                        //    "Preflight request failed (by simulation), node count: {}, chrome count: {}, # visited: {}",
+                        //    count,
+                        //    chrome_request_count,
+                        //    visited_peers.len(),
+                        //);
                     }
                     Msg::CheckPeers(mut peers) => {
                         use rand::seq::SliceRandom;
@@ -340,10 +340,10 @@ async fn peer_discovery_impl_chrome(
                 while let Some(req) = pending_requests.pop() {
                     pending_requests_after_timeout.push(req);
                 }
-                console_log!(
-                    "GLOBAL TIMEOUT, {} incomplete requests-------------------------",
-                    pending_requests_after_timeout.len()
-                );
+                //console_log!(
+                //    "GLOBAL TIMEOUT, {} incomplete requests-------------------------",
+                //    pending_requests_after_timeout.len()
+                //);
             }
         }
     }
@@ -356,13 +356,13 @@ async fn peer_discovery_impl_chrome(
         .collect();
 
     // Uncomment for debugging
-    console_log!(
-        "Total # nodes visited: {}, # peers found: {}, # incomplete requests: {}",
-        visited_peers.len(),
-        active_peers.len(),
-        pending_requests_after_timeout.len(),
-    );
-    console_log!("Waiting 80sec for Chrome to relinquish pending HTTP requests");
+    //console_log!(
+    //    "Total # nodes visited: {}, # peers found: {}, # incomplete requests: {}",
+    //    visited_peers.len(),
+    //    active_peers.len(),
+    //    pending_requests_after_timeout.len(),
+    //);
+    //console_log!("Waiting 80sec for Chrome to relinquish pending HTTP requests");
     crate::wasm_timer::Delay::new(Duration::from_secs(80)).await?;
     Ok(ChromePeerDiscoveryScan {
         active_peers,
