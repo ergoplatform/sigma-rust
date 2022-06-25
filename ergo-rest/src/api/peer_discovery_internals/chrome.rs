@@ -61,7 +61,7 @@ macro_rules! console_log {
 }
 
 pub(crate) async fn peer_discovery_inner_chrome(
-    seeds: NonEmptyVec<Url>,
+    scan: ChromePeerDiscoveryScan,
     max_parallel_tasks: BoundedU16<1, { u16::MAX }>,
     timeout: Duration,
 ) -> Result<ChromePeerDiscoveryScan, PeerDiscoveryError> {
@@ -84,8 +84,6 @@ pub(crate) async fn peer_discovery_inner_chrome(
         futures::channel::mpsc::channel::<NodeRequest>(settings.task_2_buffer_length);
     let node_request_stream = rx_node_request;
     let msg_stream = rx_msg;
-
-    let scan = ChromePeerDiscoveryScan::new(seeds);
 
     peer_discovery_impl_chrome(
         scan,
@@ -532,6 +530,7 @@ impl NodeRequest {
     }
 }
 
+#[derive(Debug, Clone)]
 /// This struct stores the results of potentially-multiple calls to `peer_discovery_chrome`. It
 /// allows the user the ability to break up peer discovery into smaller sub-tasks.
 pub struct ChromePeerDiscoveryScan {

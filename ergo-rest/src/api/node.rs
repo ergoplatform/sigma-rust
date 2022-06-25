@@ -87,9 +87,30 @@ pub async fn peer_discovery_chrome(
     seeds: NonEmptyVec<Url>,
     max_parallel_requests: BoundedU16<1, { u16::MAX }>,
     timeout: Duration,
+) -> Result<Vec<Url>, PeerDiscoveryError> {
+    let scan = super::peer_discovery_internals::ChromePeerDiscoveryScan::new(seeds);
+    super::peer_discovery_internals::peer_discovery_inner_chrome(
+        scan,
+        max_parallel_requests,
+        timeout,
+    )
+    .await
+    .map(|scan| scan.active_peers())
+}
+
+#[cfg(target_arch = "wasm32")]
+/// An incremental (reusable) version of [`peer_discovery_chrome`] which allows for peer discovery
+/// to be split into separate sub-tasks.
+///
+/// NOTE: intended to be used only on Chromium based browsers. It works on Firefox and Safari, but
+/// using `peer_discovery` above gives better performance.
+pub async fn incremental_peer_discovery_chrome(
+    scan: ChromePeerDiscoveryScan,
+    max_parallel_requests: BoundedU16<1, { u16::MAX }>,
+    timeout: Duration,
 ) -> Result<ChromePeerDiscoveryScan, PeerDiscoveryError> {
     super::peer_discovery_internals::peer_discovery_inner_chrome(
-        seeds,
+        scan,
         max_parallel_requests,
         timeout,
     )

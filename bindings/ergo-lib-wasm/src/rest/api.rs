@@ -108,7 +108,7 @@ pub fn get_blocks_header_id_proof_for_tx_id(
 /// that can be converted into a `JsValue` (`Result<Box<[web_sys::Url]>, JsValue>` would be a
 /// convenient return type for `peer_discovery`).
 #[wasm_bindgen]
-pub struct PeerUrls(Vec<web_sys::Url>);
+pub struct PeerUrls(pub(crate) Vec<web_sys::Url>);
 
 #[wasm_bindgen]
 impl PeerUrls {
@@ -154,13 +154,14 @@ pub async fn peer_discovery(
         .await
         .map_err(to_js)?;
     let mut peer_urls = vec![];
-    for url in res {
+    for mut url in res {
+        #[allow(clippy::unwrap_used)]
+        url.set_port(Some(9053)).unwrap();
         peer_urls.push(web_sys::Url::new(url.as_str())?);
     }
     Ok(PeerUrls(peer_urls))
 }
 
-#[cfg(target_arch = "wasm32")]
 /// Given a list of seed nodes, search for peer nodes with an active REST API on port 9053.
 ///  - `seeds` represents a list of ergo node URLs from which to start peer discovery.
 ///  - `max_parallel_requests` represents the maximum number of HTTP requests that can be made in
@@ -172,6 +173,7 @@ pub async fn peer_discovery(
 ///
 /// NOTE: intended to be used only on Chromium based browsers. It works on Firefox and Safari, but
 /// using `peer_discovery` above gives better performance.
+#[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 pub async fn peer_discovery_chrome(
     seeds: Box<[web_sys::Url]>,
@@ -196,8 +198,40 @@ pub async fn peer_discovery_chrome(
     .await
     .map_err(to_js)?;
     let mut peer_urls = vec![];
-    for url in res.active_peers() {
+    for mut url in res {
+        #[allow(clippy::unwrap_used)]
+        url.set_port(Some(9053)).unwrap();
         peer_urls.push(web_sys::Url::new(url.as_str())?);
     }
     Ok(PeerUrls(peer_urls))
+}
+
+/// An incremental (reusable) version of [`peer_discovery_chrome`] which allows for peer discovery
+/// to be split into separate sub-tasks.
+///
+/// NOTE: intended to be used only on Chromium based browsers. It works on Firefox and Safari, but
+/// using `peer_discovery` above gives better performance.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn incremental_peer_discovery_chrome(
+    scan: &super::chrome_peer_discovery_scan::ChromePeerDiscoveryScan,
+    max_parallel_requests: u16,
+    timeout_sec: u32,
+) -> js_sys::Promise {
+    let scan_cloned = scan.clone();
+    wasm_bindgen_futures::future_to_promise(async move {
+        let n = u16::max(max_parallel_requests, 1);
+        #[allow(clippy::unwrap_used)]
+        let max_parallel_requests = bounded_integer::BoundedU16::new(n).unwrap();
+        let timeout = Duration::from_secs(timeout_sec as u64);
+        let updated_scan = ergo_lib::ergo_rest::api::node::incremental_peer_discovery_chrome(
+            scan_cloned.0,
+            max_parallel_requests,
+            timeout,
+        )
+        .await
+        .map_err(to_js)
+        .map(super::chrome_peer_discovery_scan::ChromePeerDiscoveryScan::from)?;
+        Ok(wasm_bindgen::JsValue::from(updated_scan))
+    })
 }
