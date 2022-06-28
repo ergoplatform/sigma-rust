@@ -131,11 +131,26 @@ impl PeerUrls {
 ///  - `timeout` represents the amount of time that is spent search for peers. Once the timeout
 ///    value is reached, return with the vec of active peers that have been discovered up to that
 ///    point in time.
-///
-/// IMPORTANT: do not call this function on Chromium, as it will likely mess with the browser's
-/// ability to make HTTP requests. Use `peer_discovery_chrome` instead.
+///  - `is_chrome` **MUST** be set to true if running this function on a Chromium-based browser.
+///    There are some limitations on this platform regarding network requests. Please see the
+///    documentation for [`peer_discovery_chrome`].
 #[wasm_bindgen]
 pub async fn peer_discovery(
+    seeds: Box<[web_sys::Url]>,
+    max_parallel_requests: u16,
+    timeout_sec: u32,
+    is_chrome: bool,
+) -> Result<PeerUrls, JsValue> {
+    if is_chrome {
+        peer_discovery_chrome(seeds, max_parallel_requests, timeout_sec).await
+    } else {
+        peer_discovery_non_chrome(seeds, max_parallel_requests, timeout_sec).await
+    }
+}
+
+/// IMPORTANT: do not call this function on Chromium, as it will likely mess with the browser's
+/// ability to make HTTP requests. Use `peer_discovery_chrome` instead.
+async fn peer_discovery_non_chrome(
     seeds: Box<[web_sys::Url]>,
     max_parallel_requests: u16,
     timeout_sec: u32,
@@ -165,16 +180,32 @@ pub async fn peer_discovery(
 /// Given a list of seed nodes, search for peer nodes with an active REST API on port 9053.
 ///  - `seeds` represents a list of ergo node URLs from which to start peer discovery.
 ///  - `max_parallel_requests` represents the maximum number of HTTP requests that can be made in
-///    parallel
+///    parallel. It's not possible to give a definitive upper bound 
 ///  - `timeout` represents the amount of time that is spent searching for peers PLUS a waiting
 ///    period of 80 seconds to give Chrome the time to relinquish failed preflight requests. Must be
 ///    at least 90 seconds. Once the timeout value is reached, return with the vec of active peers
 ///    that have been discovered up to that point in time.
 ///
 /// NOTE: intended to be used only on Chromium based browsers. It works on Firefox and Safari, but
-/// using `peer_discovery` above gives better performance.
-#[cfg(target_arch = "wasm32")]
-#[wasm_bindgen]
+/// using `peer_discovery` above gives better performance. Why? See below.
+/// 
+/// ## Technical details
+/// Chrome has a problem with hanging on to [`preflight`] requests where the server does not
+/// respond. Every browser request we make of an ergo node will be preceded by a preflight request.
+/// These preflight requests are automatically initiated by the browser, and it is not possible for
+/// us to interact with it.
+//
+/// If a server doesn't respond to any request, then Chrome waits on the preflight request from
+/// anywhere from 1.3 to 2.4 minutes. Chrome also doesn't have a high ceiling for parallel requests
+/// and running our first implementation of `peer_discovery` in the `non_chrome` submodule brings
+/// Chrome to a halt, preventing it from making any further requests until enough of the preflights
+/// have been marked as failed. This is quite unfortunate as Firefox and Safari almost immediately
+/// drops such preflight requests. See [`this issue`] for more discussion and example runs.
+//
+/// So this implementation is largely the same as in `non_chrome` except that we throttle the number
+/// of parallel requests made. The majority of ergo nodes do not respond to REST requests, so there
+/// will be a large number of preflight requests 'taking up space' and dramatically reducing
+/// throughput.
 pub async fn peer_discovery_chrome(
     seeds: Box<[web_sys::Url]>,
     max_parallel_requests: u16,
@@ -211,7 +242,6 @@ pub async fn peer_discovery_chrome(
 ///
 /// NOTE: intended to be used only on Chromium based browsers. It works on Firefox and Safari, but
 /// using `peer_discovery` above gives better performance.
-#[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 pub fn incremental_peer_discovery_chrome(
     scan: &super::chrome_peer_discovery_scan::ChromePeerDiscoveryScan,
