@@ -180,7 +180,7 @@ async fn peer_discovery_non_chrome(
 /// Given a list of seed nodes, search for peer nodes with an active REST API on port 9053.
 ///  - `seeds` represents a list of ergo node URLs from which to start peer discovery.
 ///  - `max_parallel_requests` represents the maximum number of HTTP requests that can be made in
-///    parallel. It's not possible to give a definitive upper bound 
+///    parallel. It's not possible to give a definitive upper bound
 ///  - `timeout` represents the amount of time that is spent searching for peers PLUS a waiting
 ///    period of 80 seconds to give Chrome the time to relinquish failed preflight requests. Must be
 ///    at least 90 seconds. Once the timeout value is reached, return with the vec of active peers
@@ -188,7 +188,7 @@ async fn peer_discovery_non_chrome(
 ///
 /// NOTE: intended to be used only on Chromium based browsers. It works on Firefox and Safari, but
 /// using `peer_discovery` above gives better performance. Why? See below.
-/// 
+///
 /// ## Technical details
 /// Chrome has a problem with hanging on to [`preflight`] requests where the server does not
 /// respond. Every browser request we make of an ergo node will be preceded by a preflight request.
