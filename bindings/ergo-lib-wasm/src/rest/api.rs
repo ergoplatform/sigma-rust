@@ -206,7 +206,7 @@ async fn peer_discovery_non_chrome(
 /// of parallel requests made. The majority of ergo nodes do not respond to REST requests, so there
 /// will be a large number of preflight requests 'taking up space' and dramatically reducing
 /// throughput.
-pub async fn peer_discovery_chrome(
+async fn peer_discovery_chrome(
     seeds: Box<[web_sys::Url]>,
     max_parallel_requests: u16,
     timeout_sec: u32,
