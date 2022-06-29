@@ -27,7 +27,7 @@ it('node REST API: peer_discovery endpoint (INCREMENTAL VERSION)', async () => {
 
     scan = await ergo_wasm.incremental_peer_discovery_chrome(scan, 150, 90);
     let scan_1_len = scan.active_peers().len();
-    scan = await ergo_wasm.incremental_peer_discovery_chrome(scan, 150, 400);
+    scan = await ergo_wasm.incremental_peer_discovery_chrome(scan, 150, 480);
     let scan_2_len = scan.active_peers().len();
     assert(scan_1_len < scan_2_len, "Should have found more peers after second scan!");
 });
@@ -58,7 +58,7 @@ it('node REST API: example SPV workflow', async () => {
         }
     }
 
-    assert(recent_nodes.length >= 3);
+    assert(recent_nodes.length >= 3, "Expecting at least 3 nodes with version >= v4.0.28");
 
     // Get NiPoPow proofs from 2 separate ergo nodes
     let proofs = await Promise.all([
@@ -80,8 +80,8 @@ it('node REST API: example SPV workflow', async () => {
     let header = await ergo_wasm.get_header(node_conf, header_id);
     assert(header != null, "header should be non-null");
     let merkle_proof = await ergo_wasm.get_blocks_header_id_proof_for_tx_id(node_conf, header_id, tx_id);
-    assert(merkle_proof != null);
-    assert(merkle_proof.valid(header.transactions_root()));
+    assert(merkle_proof != null, "merkle_proof should be non-null");
+    assert(merkle_proof.valid(header.transactions_root()), "merkle_proof should be valid");
 });
 
 async function get_nipopow_proof(url, header_id) {
