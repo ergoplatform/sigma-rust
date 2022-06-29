@@ -76,7 +76,7 @@ pub(crate) async fn peer_discovery_inner_chrome(
         max_parallel_tasks,
         task_2_buffer_length: 50,
         global_timeout,
-        timeout_of_individual_node_request: Duration::from_secs(6),
+        timeout_of_individual_node_request: Duration::from_secs(10),
     };
 
     let (tx_msg, rx_msg) = futures::channel::mpsc::channel::<Msg>(settings.task_2_buffer_length);
