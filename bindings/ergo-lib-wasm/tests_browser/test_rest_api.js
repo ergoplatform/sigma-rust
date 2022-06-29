@@ -2,7 +2,6 @@ import { expect, assert } from "chai";
 
 import * as ergo from "..";
 let ergo_wasm;
-let active_peers;
 beforeEach(async () => {
     ergo_wasm = await ergo;
 });
@@ -11,6 +10,8 @@ beforeEach(async () => {
 // particular the timeout functionality for HTTP requests requires the window object from the
 // web APIs, thus requiring a web browser to run.
 
+// Making a declaration here allows subsequent tests below to access the variable.
+let active_peers;
 it('node REST API: peer_discovery endpoint', async () => {
     const seeds = get_ergo_node_seeds();
     // Limit to 150 simultaneous HTTP requests and search for peers for 140 seconds (remember
