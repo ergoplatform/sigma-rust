@@ -2,25 +2,24 @@ import { expect, assert } from "chai";
 
 import * as ergo from "..";
 let ergo_wasm;
-beforeEach(async () => {
+let active_peers;
+before(async () => {
     ergo_wasm = await ergo;
+
+    // Peer discovery is performed before any of the tests begin.
+    console.log("Starting peer discovery");
+    const seeds = get_ergo_node_seeds();
+
+    // Limit to 150 simultaneous HTTP requests and search for peers for 140 seconds (remember
+    // there's an unavoidable waiting time of 80 seconds, to give Chrome time to relinquish failed
+    // preflight requests)
+    let is_chrome = true;
+    active_peers = await ergo_wasm.peer_discovery(seeds, 150, 220, is_chrome);
 });
 
 // Note that the REST API tests are here due to the WASM implementation of `reqwest-wrap`. In
 // particular the timeout functionality for HTTP requests requires the window object from the
 // web APIs, thus requiring a web browser to run.
-
-it('node REST API: peer_discovery endpoint', async () => {
-    console.log("Starting peer discovery");
-    const seeds = get_ergo_node_seeds();
-
-    // Limit to 150 simultaneous HTTP requests and search for peers for 10 seconds (remember
-    // there's an unavoidable waiting time of 80 seconds, to give Chrome time to relinquish failed
-    // preflight requests)
-    let is_chrome = true;
-    let res = await ergo_wasm.peer_discovery(seeds, 150, 220, is_chrome);
-    assert(res.len() > 0, "Should be at least one peer!");
-});
 
 it('node REST API: peer_discovery endpoint (INCREMENTAL VERSION)', async () => {
     const seeds = get_ergo_node_seeds();
@@ -34,10 +33,7 @@ it('node REST API: peer_discovery endpoint (INCREMENTAL VERSION)', async () => {
 });
 
 it('node REST API: get_nipopow_proof_by_header_id endpoint', async () => {
-    let is_chrome = true;
-    let peers = await ergo_wasm.peer_discovery(get_ergo_node_seeds(), 150, 150, is_chrome);
-    assert(peers.len() > 0, "Expecting at least 1 peer!");
-    let node_conf = new ergo_wasm.NodeConf(peers.get(0));
+    let node_conf = new ergo_wasm.NodeConf(active_peers.get(0));
     assert(node_conf != null);
     const header_id = ergo_wasm.BlockId.from_str("4caa17e62fe66ba7bd69597afdc996ae35b1ff12e0ba90c22ff288a4de10e91b");
     let res = await ergo_wasm.get_nipopow_proof_by_header_id(node_conf, 3, 4, header_id);
@@ -53,15 +49,12 @@ it('node REST API: example SPV workflow', async () => {
 
     // Do peer discovery to find active nodes running at least version 4.0.28 (older versions have a
     // bug with nipopow proofs)
-    let is_chrome = true;
-    let peers = await ergo_wasm.peer_discovery(get_ergo_node_seeds(), 150, 480, is_chrome);
-    assert(peers.len() > 0);
     const recent_nodes = [];
-    for (let i = 0; i < peers.len(); i++) {
-        let node_conf = new ergo_wasm.NodeConf(peers.get(i));
+    for (let i = 0; i < active_peers.len(); i++) {
+        let node_conf = new ergo_wasm.NodeConf(active_peers.get(i));
         let node_info = await ergo_wasm.get_info(node_conf);
         if (node_info.is_at_least_version_4_0_28()) {
-            recent_nodes.push(peers.get(i));
+            recent_nodes.push(active_peers.get(i));
         }
     }
 
