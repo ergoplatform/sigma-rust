@@ -10,11 +10,11 @@ before(async () => {
     console.log("Starting peer discovery");
     const seeds = get_ergo_node_seeds();
 
-    // Limit to 150 simultaneous HTTP requests and search for peers for 140 seconds (remember
+    // Limit to 150 simultaneous HTTP requests and search for peers for 240 seconds (remember
     // there's an unavoidable waiting time of 80 seconds, to give Chrome time to relinquish failed
     // preflight requests)
     let is_chrome = true;
-    active_peers = await ergo_wasm.peer_discovery(seeds, 150, 120, is_chrome);
+    active_peers = await ergo_wasm.peer_discovery(seeds, 150, 240, is_chrome);
 });
 
 // Note that the REST API tests are here due to the WASM implementation of `reqwest-wrap`. In
