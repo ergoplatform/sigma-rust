@@ -14,7 +14,7 @@ before(async () => {
     // there's an unavoidable waiting time of 80 seconds, to give Chrome time to relinquish failed
     // preflight requests)
     let is_chrome = true;
-    active_peers = await ergo_wasm.peer_discovery(seeds, 150, 220, is_chrome);
+    active_peers = await ergo_wasm.peer_discovery(seeds, 150, 400, is_chrome);
 });
 
 // Note that the REST API tests are here due to the WASM implementation of `reqwest-wrap`. In
