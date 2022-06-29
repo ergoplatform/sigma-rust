@@ -44,21 +44,21 @@ use url::Url;
 
 // Uncomment the following to enable logging on WASM through the `console_log` macro. Taken from
 // https://rustwasm.github.io/wasm-bindgen/examples/console-log.html#srclibrs
-//use wasm_bindgen::prelude::*;
-//
-//#[wasm_bindgen]
-//extern "C" {
-//    // Use `js_namespace` here to bind `console.log(..)` instead of just
-//    // `log(..)`
-//    #[wasm_bindgen(js_namespace = console)]
-//    fn log(s: &str);
-//}
-//
-//macro_rules! console_log {
-//// Note that this is using the `log` function imported above during
-//// `bare_bones`
-//($($t:tt)*) => (log(&format_args!($($t)*).to_string()))
-//}
+use wasm_bindgen::prelude::*;
+
+#[wasm_bindgen]
+extern "C" {
+    // Use `js_namespace` here to bind `console.log(..)` instead of just
+    // `log(..)`
+    #[wasm_bindgen(js_namespace = console)]
+    fn log(s: &str);
+}
+
+macro_rules! console_log {
+// Note that this is using the `log` function imported above during
+// `bare_bones`
+($($t:tt)*) => (log(&format_args!($($t)*).to_string()))
+}
 
 pub(crate) async fn peer_discovery_inner_chrome(
     scan: ChromePeerDiscoveryScan,
@@ -354,15 +354,15 @@ async fn peer_discovery_impl_chrome(
         .into_iter()
         .cloned()
         .collect();
-
+    console_log!("Active_peers: {:?}", active_peers);
     // Uncomment for debugging
-    //console_log!(
-    //    "Total # nodes visited: {}, # peers found: {}, # incomplete requests: {}",
-    //    visited_peers.len(),
-    //    active_peers.len(),
-    //    pending_requests_after_timeout.len(),
-    //);
-    //console_log!("Waiting 80sec for Chrome to relinquish pending HTTP requests");
+    console_log!(
+        "Total # nodes visited: {}, # peers found: {}, # incomplete requests: {}",
+        visited_peers.len(),
+        active_peers.len(),
+        pending_requests_after_timeout.len(),
+    );
+    console_log!("Waiting 80sec for Chrome to relinquish pending HTTP requests");
     crate::wasm_timer::Delay::new(Duration::from_secs(80)).await?;
     Ok(ChromePeerDiscoveryScan {
         active_peers,

@@ -20,7 +20,7 @@ impl NodeInfo {
     /// only work correctly from this version onwards.
     pub fn is_at_least_version_4_0_28(&self) -> bool {
         let ord = self.app_version.cmp(&String::from("4.0.28"));
-        ord == Ordering::Equal || ord == Ordering::Less
+        ord == Ordering::Equal || ord == Ordering::Greater
     }
 }
 
