@@ -10,16 +10,15 @@ beforeEach(async () => {
 // particular the timeout functionality for HTTP requests requires the window object from the
 // web APIs, thus requiring a web browser to run.
 
-// Making a declaration here allows subsequent tests below to access the variable.
-let active_peers;
 it('node REST API: peer_discovery endpoint', async () => {
     const seeds = get_ergo_node_seeds();
     // Limit to 150 simultaneous HTTP requests and search for peers for 140 seconds (remember
     // there's an unavoidable waiting time of 80 seconds, to give Chrome time to relinquish failed
     // preflight requests)
     let is_chrome = true;
-    active_peers = await ergo_wasm.peer_discovery(seeds, 150, 140, is_chrome);
+    let active_peers = await ergo_wasm.peer_discovery(seeds, 150, 140, is_chrome);
     assert(active_peers.len() > 0);
+    console.log("Number active peers:", active_peers.len(), ". First active peer: ", active_peers.get(0).href);
 });
 
 it('node REST API: peer_discovery endpoint (INCREMENTAL VERSION)', async () => {
@@ -28,8 +27,10 @@ it('node REST API: peer_discovery endpoint (INCREMENTAL VERSION)', async () => {
 
     scan = await ergo_wasm.incremental_peer_discovery_chrome(scan, 150, 90);
     let scan_1_len = scan.active_peers().len();
+    console.log("# active peers from first scan:", scan_1_len);
     scan = await ergo_wasm.incremental_peer_discovery_chrome(scan, 150, 480);
     let scan_2_len = scan.active_peers().len();
+    console.log("# active peers from second scan:", scan_2_len);
 
     // The following assert should have `<` instead of `<=`. There is an issue with Github CI, see
     // https://github.com/ergoplatform/sigma-rust/issues/586
@@ -37,7 +38,7 @@ it('node REST API: peer_discovery endpoint (INCREMENTAL VERSION)', async () => {
 });
 
 it('node REST API: get_nipopow_proof_by_header_id endpoint', async () => {
-    let node_conf = new ergo_wasm.NodeConf(active_peers.get(0));
+    let node_conf = new ergo_wasm.NodeConf(new URL("http://213.239.193.208:9053")); //active_peers.get(0));
     assert(node_conf != null);
     const header_id = ergo_wasm.BlockId.from_str("4caa17e62fe66ba7bd69597afdc996ae35b1ff12e0ba90c22ff288a4de10e91b");
     let res = await ergo_wasm.get_nipopow_proof_by_header_id(node_conf, 3, 4, header_id);
