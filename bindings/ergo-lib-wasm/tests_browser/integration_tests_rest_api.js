@@ -10,7 +10,7 @@ beforeEach(async () => {
 });
 
 it('node REST API get_info endpoint', async () => {
-    let node_conf = new ergo_wasm.NodeConf("127.0.0.1:9053");
+    let node_conf = new ergo_wasm.NodeConf(new URL("http://127.0.0.1:9053"));
     assert(node_conf != null);
     let res = await ergo_wasm.get_info(node_conf);
     assert(res != null);

@@ -176,7 +176,9 @@ pub unsafe fn rest_api_node_peer_discovery(
             Ok(peers) => {
                 let length = peers.len();
                 let mut out = vec![];
-                for peer in peers {
+                for mut peer in peers {
+                    #[allow(clippy::unwrap_used)]
+                    peer.set_port(Some(9053)).unwrap();
                     out.push(CString::new(peer.as_str()).unwrap().into_raw());
                 }
 

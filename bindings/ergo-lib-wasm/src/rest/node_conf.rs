@@ -17,10 +17,10 @@ pub struct NodeConf(pub(crate) ergo_lib::ergo_rest::NodeConf);
 #[wasm_bindgen]
 impl NodeConf {
     /// Create a node configuration
-    /// addr - a string in a format 'ip_address:port'
     #[wasm_bindgen(constructor)]
-    pub fn new(addr: &str) -> Result<NodeConf, JsValue> {
-        let peer_addr = PeerAddr::from_str(addr).map_err(to_js)?;
+    pub fn new(url: &web_sys::Url) -> Result<NodeConf, JsValue> {
+        // host string must be in format 'ip_address:port'
+        let peer_addr = PeerAddr::from_str(&url.host()).map_err(to_js)?;
         Ok(ergo_lib::ergo_rest::NodeConf {
             addr: peer_addr,
             api_key: None,

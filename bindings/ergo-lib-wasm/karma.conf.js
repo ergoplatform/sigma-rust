@@ -11,7 +11,7 @@ module.exports = function (config) {
     ],
     client: {
       mocha: {
-        timeout: 60000
+        timeout: 900000
       }
     },
     webpack: {
@@ -58,7 +58,7 @@ module.exports = function (config) {
     logLevel: config.LOG_INFO,
 
     browsers: ["ChromeHeadless"],
-    browserNoActivityTimeout: 60000,
+    browserNoActivityTimeout: 900000,
 
     autoWatch: false,
     singleRun: true,

@@ -18,6 +18,9 @@ use crate::NodeInfo;
 use super::build_client;
 use super::set_req_headers;
 
+#[cfg(target_arch = "wasm32")]
+pub use crate::api::peer_discovery_internals::ChromePeerDiscoveryScan;
+
 /// GET on /info endpoint
 pub async fn get_info(node: NodeConf) -> Result<NodeInfo, NodeError> {
     #[allow(clippy::unwrap_used)]
@@ -50,18 +53,68 @@ pub async fn get_header(node: NodeConf, header_id: BlockId) -> Result<Header, No
 
 /// Given a list of seed nodes, search for peer nodes with an active REST API on port 9053.
 ///  - `seeds` represents a list of ergo node URLs from which to start peer discovery.
-///  - `max_parallel_requests` represents the maximum number of HTTP requests that can be made in
-///    parallel
+///  - `max_parallel_tasks` represents the maximum number of tasks to spawn for ergo node HTTP
+///    requests. Note that the actual number of parallel HTTP requests may well be higher than this
+///    number.
 ///  - `timeout` represents the amount of time that is spent search for peers. Once the timeout
 ///    value is reached, return with the vec of active peers that have been discovered up to that
 ///    point in time.
+///
+/// IMPORTANT: do not call this function on Chromium, as it will likely mess with the browser's
+/// ability to make HTTP requests. Use `peer_discovery_chrome` instead. For more information why
+/// please refer to the module documentation for `crate::api::peer_discovery_internals::chrome`.
 pub async fn peer_discovery(
+    seeds: NonEmptyVec<Url>,
+    max_parallel_tasks: BoundedU16<1, { u16::MAX }>,
+    timeout: Duration,
+) -> Result<Vec<Url>, PeerDiscoveryError> {
+    super::peer_discovery_internals::peer_discovery_inner(seeds, max_parallel_tasks, timeout).await
+}
+
+#[cfg(target_arch = "wasm32")]
+/// Given a list of seed nodes, search for peer nodes with an active REST API on port 9053.
+///  - `seeds` represents a list of ergo node URLs from which to start peer discovery.
+///  - `max_parallel_requests` represents the maximum number of HTTP requests that can be made in
+///    parallel
+///  - `timeout` represents the amount of time that is spent searching for peers PLUS a waiting
+///    period of 80 seconds to give Chrome the time to relinquish failed preflight requests. Must be
+///    at least 90 seconds. Once the timeout value is reached, return with the vec of active peers
+///    that have been discovered up to that point in time.
+///
+/// NOTE: intended to be used only on Chromium based browsers. It works on Firefox and Safari, but
+/// using `peer_discovery` above gives better performance.
+pub async fn peer_discovery_chrome(
     seeds: NonEmptyVec<Url>,
     max_parallel_requests: BoundedU16<1, { u16::MAX }>,
     timeout: Duration,
 ) -> Result<Vec<Url>, PeerDiscoveryError> {
-    super::peer_discovery_internals::peer_discovery_inner(seeds, max_parallel_requests, timeout)
-        .await
+    let scan = super::peer_discovery_internals::ChromePeerDiscoveryScan::new(seeds);
+    super::peer_discovery_internals::peer_discovery_inner_chrome(
+        scan,
+        max_parallel_requests,
+        timeout,
+    )
+    .await
+    .map(|scan| scan.active_peers())
+}
+
+#[cfg(target_arch = "wasm32")]
+/// An incremental (reusable) version of [`peer_discovery_chrome`] which allows for peer discovery
+/// to be split into separate sub-tasks.
+///
+/// NOTE: intended to be used only on Chromium based browsers. It works on Firefox and Safari, but
+/// using `peer_discovery` above gives better performance.
+pub async fn incremental_peer_discovery_chrome(
+    scan: ChromePeerDiscoveryScan,
+    max_parallel_requests: BoundedU16<1, { u16::MAX }>,
+    timeout: Duration,
+) -> Result<ChromePeerDiscoveryScan, PeerDiscoveryError> {
+    super::peer_discovery_internals::peer_discovery_inner_chrome(
+        scan,
+        max_parallel_requests,
+        timeout,
+    )
+    .await
 }
 
 /// GET on /nipopow/proof/{minChainLength}/{suffixLength}/{headerId} endpoint
@@ -74,7 +127,7 @@ pub async fn get_nipopow_proof_by_header_id(
     if min_chain_length == 0 || suffix_len == 0 {
         return Err(NodeError::InvalidNumericalUrlSegment);
     }
-    let header_str = String::from(header_id.0);
+    let header_str = String::from(header_id.0.clone());
     let mut path = "nipopow/proof/".to_owned();
     path.push_str(&*min_chain_length.to_string());
     path.push('/');
@@ -202,7 +255,7 @@ mod tests {
             let res_quick = peer_discovery(
                 NonEmptyVec::from_vec(seeds.clone()).unwrap(),
                 BoundedU16::new(5).unwrap(),
-                Duration::from_millis(2010),
+                Duration::from_millis(1000),
             )
             .await
             .unwrap();
@@ -218,6 +271,11 @@ mod tests {
             .unwrap();
             (res_quick, res_long)
         });
+        println!(
+            "{} quick peers, {} long peers",
+            res_with_quick_timeout.len(),
+            res_with_longer_timeout.len()
+        );
         assert!(!res_with_longer_timeout.is_empty());
         assert!(res_with_quick_timeout.len() <= res_with_longer_timeout.len());
     }
