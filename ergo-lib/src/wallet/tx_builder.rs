@@ -4,6 +4,7 @@ use ergotree_interpreter::eval::context::TxIoVec;
 use ergotree_interpreter::sigma_protocol::prover::ContextExtension;
 use ergotree_ir::chain::token::TokenAmount;
 use ergotree_ir::chain::token::TokenAmountError;
+use ergotree_ir::ergo_tree::ErgoTree;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::convert::TryInto;
@@ -26,7 +27,6 @@ use crate::chain::contract::Contract;
 use crate::chain::ergo_box::box_builder::{ErgoBoxCandidateBuilder, ErgoBoxCandidateBuilderError};
 use crate::chain::transaction::unsigned::UnsignedTransaction;
 use crate::chain::transaction::{DataInput, Input, Transaction, UnsignedInput};
-use crate::constants::MINERS_FEE_MAINNET_ADDRESS;
 
 use super::box_selector::subtract_tokens;
 use super::box_selector::sum_tokens_from_boxes;
@@ -34,6 +34,9 @@ use super::box_selector::sum_value;
 use super::box_selector::BoxSelection;
 use super::box_selector::ErgoBoxAssets;
 use super::box_selector::ErgoBoxId;
+use super::box_selector::{BoxSelection, BoxSelectorError};
+use super::miner_fee::MINERS_FEE_MAINNET_ADDRESS;
+use super::miner_fee::MINERS_FEE_MAINNET_BASE16_BYTES;
 
 /// Unsigned transaction builder
 #[derive(Clone)]
@@ -117,7 +120,7 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
 
     /// Estimated serialized transaction size in bytes after signing (assuming P2PK box spending)
     pub fn estimate_tx_size_bytes(&self) -> Result<usize, TxBuilderError> {
-        let tx = self.build_tx()?;
+        let tx = self.build_tx(NetworkPrefix::Mainnet)?;
         let inputs = tx.inputs.mapped(|ui| {
             // mock proof of the size of ProveDlog's proof (P2PK box spending)
             // as it's the most often used proof
@@ -190,7 +193,8 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
         output_candidates.append(&mut change_boxes?);
 
         // add miner's fee
-        let miner_fee_box = new_miner_fee_box(self.fee_amount, self.current_height)?;
+        let miner_fee_box =
+            new_miner_fee_box(self.fee_amount, self.current_height, network_prefix)?;
         output_candidates.push(miner_fee_box);
         if output_candidates.len() > Transaction::MAX_OUTPUTS_COUNT {
             return Err(TxBuilderError::InvalidArgs("too many outputs".to_string()));
@@ -258,8 +262,11 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
     }
 
     /// Build the unsigned transaction
-    pub fn build(self) -> Result<UnsignedTransaction, TxBuilderError> {
-        self.build_tx()
+    pub fn build(
+        self,
+        network_prefix: NetworkPrefix,
+    ) -> Result<UnsignedTransaction, TxBuilderError> {
+        self.build_tx(network_prefix)
     }
 }
 
@@ -274,14 +281,16 @@ pub fn SUGGESTED_TX_FEE() -> BoxValue {
 pub fn new_miner_fee_box(
     fee_amount: BoxValue,
     creation_height: u32,
+    network_prefix: NetworkPrefix,
 ) -> Result<ErgoBoxCandidate, ErgoBoxCandidateBuilderError> {
-    let address_encoder = AddressEncoder::new(NetworkPrefix::Mainnet);
-    let miner_fee_address = address_encoder
-        .parse_address_from_str(MINERS_FEE_MAINNET_ADDRESS)
-        .unwrap();
-    let ergo_tree = miner_fee_address
-        .script()
-        .map_err(ErgoBoxCandidateBuilderError::ParsingError)?;
+    let tree = match network_prefix {
+        NetworkPrefix::Mainnet => ErgoTree::from_base16_bytes(MINERS_FEE_MAINNET_BASE16_BYTES)
+            .script()
+            .map_err(ErgoBoxCandidateBuilderError::ParsingError)?,
+        NetworkPrefix::Testnet => ErgoTree::from_base16_bytes(MINERS_FEE_TESTNET_BASE16_BYTES)
+            .script()
+            .map_err(ErgoBoxCandidateBuilderError::ParsingError)?,
+    };
     ErgoBoxCandidateBuilder::new(fee_amount, ergo_tree, creation_height).build()
 }
 

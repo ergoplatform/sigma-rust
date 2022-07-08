@@ -4,6 +4,7 @@ pub mod box_selector;
 pub mod derivation_path;
 pub mod ext_pub_key;
 pub mod ext_secret_key;
+pub mod miner_fee;
 pub mod mnemonic;
 #[cfg(feature = "mnemonic_gen")]
 pub mod mnemonic_generator;

@@ -40,6 +40,7 @@ pbkdf2 = "0.8"
 rand = "0.8.4"
 bitvec = { version = "0.22.3", optional = true }
 unicode-normalization = "0.1.19"
+lazy_static = "1.4"
 
 [dependencies.proptest]
 # wasm support, via https://altsysrq.github.io/proptest-book/proptest/wasm.html
