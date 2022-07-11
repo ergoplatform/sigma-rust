@@ -6,6 +6,7 @@ use std::convert::TryInto;
 
 use ergotree_ir::chain::ergo_box::box_value::BoxValue;
 use ergotree_ir::chain::ergo_box::BoxTokens;
+use ergotree_ir::chain::ergo_box::ErgoBox;
 use ergotree_ir::chain::token::Token;
 use ergotree_ir::chain::token::TokenAmount;
 use ergotree_ir::chain::token::TokenId;
@@ -152,11 +153,7 @@ impl<T: ErgoBoxAssets> BoxSelector<T> for SimpleBoxSelector {
                     _ => Err(BoxSelectorError::NotEnoughTokens(vec![t.clone()])),
                 }
             })?;
-            vec![ErgoBoxAssetsData {
-                value: change_value,
-                tokens: BoxTokens::from_vec(change_tokens.into_iter().map(Token::from).collect())
-                    .ok(),
-            }]
+            make_change_boxes(change_value, change_tokens)?
         };
         Ok(BoxSelection {
             boxes: selected_inputs.try_into()?,
@@ -165,13 +162,61 @@ impl<T: ErgoBoxAssets> BoxSelector<T> for SimpleBoxSelector {
     }
 }
 
+fn make_change_boxes(
+    change_value: BoxValue,
+    change_tokens: HashMap<TokenId, TokenAmount>,
+) -> Result<Vec<ErgoBoxAssetsData>, BoxSelectorError> {
+    if change_tokens.is_empty() {
+        Ok(vec![ErgoBoxAssetsData {
+            value: change_value,
+            tokens: None,
+        }])
+    } else if change_tokens.len() < ErgoBox::MAX_TOKENS_COUNT {
+        Ok(vec![ErgoBoxAssetsData {
+            value: change_value,
+            tokens: BoxTokens::from_vec(change_tokens.into_iter().map(Token::from).collect()).ok(),
+        }])
+    } else {
+        let mut change_boxes = vec![];
+        let mut change_tokens_left: Vec<Token> =
+            change_tokens.into_iter().map(Token::from).collect();
+        let mut change_value_left = change_value;
+        while !change_tokens_left.is_empty() {
+            if change_tokens_left.len() < ErgoBox::MAX_TOKENS_COUNT {
+                let change_box = ErgoBoxAssetsData {
+                    value: change_value_left,
+                    tokens: Some(BoxTokens::from_vec(change_tokens_left)?),
+                };
+                change_boxes.push(change_box);
+                break;
+            } else {
+                // doubled due to larger box size to accomodate so many tokens
+                let value = BoxValue::SAFE_USER_MIN.checked_mul_u32(2)?;
+                let tokens_to_drain = ErgoBox::MAX_TOKENS_COUNT / 2;
+                let drained_tokens: Vec<Token> =
+                    change_tokens_left.drain(..tokens_to_drain).collect();
+                let change_box = ErgoBoxAssetsData {
+                    value,
+                    tokens: Some(BoxTokens::from_vec(drained_tokens)?),
+                };
+                change_boxes.push(change_box);
+                change_value_left = change_value_left.checked_sub(&value)?;
+            }
+        }
+        Ok(change_boxes)
+    }
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::panic)]
 mod tests {
+
     use std::convert::TryFrom;
 
-    use ergotree_ir::chain::ergo_box::ErgoBox;
-    use ergotree_ir::chain::{ergo_box::box_value::checked_sum, token::arbitrary::ArbTokenIdParam};
+    use ergotree_ir::chain::{
+        ergo_box::{box_value::checked_sum, ErgoBox},
+        token::arbitrary::ArbTokenIdParam,
+    };
     use proptest::{collection::vec, prelude::*};
 
     use crate::wallet::box_selector::{

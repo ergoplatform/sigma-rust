@@ -32,7 +32,7 @@ use super::token::TokenId;
 use super::tx_id::TxId;
 
 /// A BoxToken, a bounded collection of Tokens used in Box
-pub type BoxTokens = BoundedVec<Token, 1, { u8::MAX as usize }>;
+pub type BoxTokens = BoundedVec<Token, 1, { ErgoBox::MAX_TOKENS_COUNT }>;
 /// Box (aka coin, or an unspent output) is a basic concept of a UTXO-based cryptocurrency.
 /// In Bitcoin, such an object is associated with some monetary value (arbitrary,
 /// but with predefined precision, so we use integer arithmetic to work with the value),

@@ -56,23 +56,19 @@ pub enum BoxSelectorError {
     #[error("Not enough tokens, missing {0:?}")]
     NotEnoughTokens(Vec<Token>),
 
+    // TODO: remove and explain error cases
     /// BoxValue out of bounds
     #[error("BoxValue out of bounds")]
-    BoxValueError(BoxValueError),
+    BoxValueError(#[from] BoxValueError),
 
     /// Token amount err
     #[error("TokenAmountError: {0:?}")]
     TokenAmountError(#[from] TokenAmountError),
 
+    // TODO: remove and explain error cases
     /// Boxes out of bounds
     #[error("Boxes is out of bounds")]
     OutOfBounds(#[from] BoundedVecOutOfBounds),
-}
-
-impl From<BoxValueError> for BoxSelectorError {
-    fn from(e: BoxValueError) -> Self {
-        BoxSelectorError::BoxValueError(e)
-    }
 }
 
 /// Assets that ErgoBox holds
