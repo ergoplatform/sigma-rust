@@ -90,6 +90,9 @@ impl TokenAmount {
     /// maximal allowed value
     pub const MAX_RAW: u64 = i64::MAX as u64;
 
+    /// minimal allowed value
+    pub const MIN: TokenAmount = TokenAmount(Self::MIN_RAW);
+
     /// Addition with overflow check
     pub fn checked_add(&self, rhs: &Self) -> Result<Self, TokenAmountError> {
         let raw = self
@@ -166,7 +169,6 @@ impl From<Token> for (Vec<i8>, i64) {
 /// Token represented with token id paired with it's amount
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 #[derive(PartialEq, Eq, Debug, Clone)]
-#[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
 pub struct Token {
     /// token id
     #[cfg_attr(feature = "json", serde(rename = "tokenId"))]
@@ -192,6 +194,7 @@ pub mod arbitrary {
     use ergo_chain_types::Digest32;
     use proptest::prelude::*;
 
+    use super::Token;
     use super::TokenAmount;
     use super::TokenId;
 
@@ -253,6 +256,23 @@ pub mod arbitrary {
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             (TokenAmount::MIN_RAW..=TokenAmount::MAX_RAW / 100000)
                 .prop_map(Self)
+                .boxed()
+        }
+        type Strategy = BoxedStrategy<Self>;
+    }
+
+    impl Default for TokenAmount {
+        fn default() -> Self {
+            TokenAmount::MIN
+        }
+    }
+
+    impl Arbitrary for Token {
+        type Parameters = ArbTokenIdParam;
+
+        fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
+            (any_with::<TokenId>(args), any::<TokenAmount>())
+                .prop_map(Self::from)
                 .boxed()
         }
         type Strategy = BoxedStrategy<Self>;
