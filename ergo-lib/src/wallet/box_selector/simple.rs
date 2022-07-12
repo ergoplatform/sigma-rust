@@ -139,7 +139,15 @@ impl<T: ErgoBoxAssets + Clone> BoxSelector<T> for SimpleBoxSelector {
         let change_boxes: Vec<ErgoBoxAssetsData> = if !has_value_change && !has_token_change {
             vec![]
         } else {
-            let change_value: BoxValue = (selected_boxes_value - target_balance).try_into()?;
+            let change_value: BoxValue = (selected_boxes_value - target_balance)
+                .try_into()
+                .map_err(|e| {
+                    NotEnoughCoinsForChangeBox(format!(
+                        "change box value {} is too small, error: {} ",
+                        selected_boxes_value - target_balance,
+                        e
+                    ))
+                })?;
             let mut change_tokens = sum_tokens_from_boxes(selected_inputs.as_slice())?;
             target_tokens.iter().try_for_each(|t| {
                 match change_tokens.get(&t.token_id).cloned() {
@@ -165,8 +173,11 @@ impl<T: ErgoBoxAssets + Clone> BoxSelector<T> for SimpleBoxSelector {
             target_balance_original,
             target_tokens,
         )?;
+        let selected_inputs_len = selected_inputs.len();
         Ok(BoxSelection {
-            boxes: selected_inputs.try_into()?,
+            boxes: selected_inputs
+                .try_into()
+                .map_err(|_| BoxSelectorError::SelectedInputsOutOfBounds(selected_inputs_len))?,
             change_boxes,
         })
     }

@@ -4,9 +4,8 @@ mod simple;
 
 use std::collections::HashMap;
 
-use bounded_vec::{BoundedVec, BoundedVecOutOfBounds};
+use bounded_vec::BoundedVec;
 use ergotree_ir::chain::ergo_box::box_value::BoxValue;
-use ergotree_ir::chain::ergo_box::box_value::BoxValueError;
 use ergotree_ir::chain::ergo_box::BoxId;
 use ergotree_ir::chain::ergo_box::BoxTokens;
 use ergotree_ir::chain::ergo_box::ErgoBox;
@@ -56,19 +55,9 @@ pub enum BoxSelectorError {
     #[error("Not enough tokens, missing {0:?}")]
     NotEnoughTokens(Vec<Token>),
 
-    // TODO: remove and explain error cases
-    /// BoxValue out of bounds
-    #[error("BoxValue out of bounds")]
-    BoxValueError(#[from] BoxValueError),
-
     /// Token amount err
     #[error("TokenAmountError: {0:?}")]
     TokenAmountError(#[from] TokenAmountError),
-
-    // TODO: remove and explain error cases
-    /// Boxes out of bounds
-    #[error("Boxes is out of bounds")]
-    OutOfBounds(#[from] BoundedVecOutOfBounds),
 
     /// CheckPreservationError
     #[error("CheckPreservationError: {0:?}")]
@@ -77,6 +66,10 @@ pub enum BoxSelectorError {
     /// Not enough coins for change box
     #[error("Not enough coins for change box: {0:?}")]
     NotEnoughCoinsForChangeBox(#[from] NotEnoughCoinsForChangeBox),
+
+    /// Selected inputs out of bounds
+    #[error("Selected inputs out of bounds: {0}")]
+    SelectedInputsOutOfBounds(usize),
 }
 
 /// Assets that ErgoBox holds
