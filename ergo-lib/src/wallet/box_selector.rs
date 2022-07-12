@@ -170,6 +170,7 @@ pub fn sum_tokens_from_boxes<T: ErgoBoxAssets>(
 }
 
 /// Arbitrary impl for ErgoBoxAssetsData
+#[allow(clippy::unwrap_used, clippy::panic)]
 #[cfg(feature = "arbitrary")]
 pub mod arbitrary {
     use std::ops::Range;
@@ -181,7 +182,7 @@ pub mod arbitrary {
         },
         token::{arbitrary::ArbTokenIdParam, Token},
     };
-    use proptest::{arbitrary::Arbitrary, collection::vec, option::of, prelude::*};
+    use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
 
     use super::ErgoBoxAssetsData;
 
@@ -226,14 +227,14 @@ pub mod arbitrary {
         fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
             (
                 any_with::<BoxValue>(args.value_range),
-                of(vec(
+                vec(
                     any_with::<Token>(args.tokens_param.token_id_param),
                     args.tokens_param.token_count_range,
-                )),
+                ),
             )
                 .prop_map(|(value, tokens)| Self {
                     value,
-                    tokens: tokens.map(BoxTokens::from_vec).and_then(Result::ok),
+                    tokens: Some(BoxTokens::from_vec(tokens).unwrap()),
                 })
                 .boxed()
         }

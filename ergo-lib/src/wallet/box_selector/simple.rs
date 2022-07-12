@@ -560,20 +560,16 @@ mod tests {
                 ),
                 target_balance in
                     any_with::<BoxValue>((BoxValue::MIN_RAW * 100 .. BoxValue::MIN_RAW * 1500).into())) {
-            let first_input_box = inputs.get(0).unwrap().clone();
-            prop_assume!(first_input_box.tokens.is_some());
-            let first_input_box_token = first_input_box.tokens.as_ref().unwrap().first();
-            let first_input_box_token_amount = u64::from(first_input_box_token.amount);
-            prop_assume!(first_input_box_token_amount > 1);
+            // take the first token in all input boxes as a target
+            // we want to have as much tokens in the change as possible
+            let target_tokens = inputs.iter()
+                .map(|b| b.tokens().unwrap().first().clone())
+                .collect::<Vec<Token>>();
             let s = SimpleBoxSelector::new();
-            let target_token_amount = first_input_box_token_amount / 2;
-            let target_token_id = first_input_box_token.token_id.clone();
-            let target_token = Token {token_id: target_token_id,
-                                      amount: target_token_amount.try_into().unwrap()};
-            let selection = s.select(inputs, target_balance, vec![target_token.clone()].as_slice()).unwrap();
+            let selection = s.select(inputs, target_balance, target_tokens.as_slice()).unwrap();
             prop_assert!(!selection.change_boxes.is_empty());
             prop_assert!(selection.change_boxes.iter().all(|b| b.tokens().is_some()));
-            let out_box = ErgoBoxAssetsData {value: target_balance, tokens: vec![target_token].try_into().ok()};
+            let out_box = ErgoBoxAssetsData {value: target_balance, tokens: Some(BoxTokens::from_vec(target_tokens).unwrap())};
             let mut change_boxes_plus_out = vec![out_box];
             change_boxes_plus_out.append(&mut selection.change_boxes.clone());
             prop_assert_eq!(sum_value(selection.boxes.as_slice()),
