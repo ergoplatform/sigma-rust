@@ -234,7 +234,7 @@ pub mod arbitrary {
             )
                 .prop_map(|(value, tokens)| Self {
                     value,
-                    tokens: Some(BoxTokens::from_vec(tokens).unwrap()),
+                    tokens: BoxTokens::from_vec(tokens).ok(),
                 })
                 .boxed()
         }
