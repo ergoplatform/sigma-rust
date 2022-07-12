@@ -73,6 +73,10 @@ pub enum BoxSelectorError {
     /// CheckPreservationError
     #[error("CheckPreservationError: {0:?}")]
     CheckPreservation(#[from] CheckPreservationError),
+
+    /// Not enough coins for change box
+    #[error("Not enough coins for change box: {0:?}")]
+    NotEnoughCoinsForChangeBox(#[from] NotEnoughCoinsForChangeBox),
 }
 
 /// Assets that ErgoBox holds
