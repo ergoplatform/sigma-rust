@@ -9,10 +9,13 @@ use ergotree_ir::chain::ergo_box::BoxTokens;
 use ergotree_ir::chain::ergo_box::ErgoBox;
 use ergotree_ir::chain::token::Token;
 use ergotree_ir::chain::token::TokenAmount;
+use ergotree_ir::chain::token::TokenAmountError;
 use ergotree_ir::chain::token::TokenId;
+use thiserror::Error;
 
 use crate::wallet::box_selector::sum_tokens;
 use crate::wallet::box_selector::sum_tokens_from_boxes;
+use crate::wallet::box_selector::sum_value;
 use crate::wallet::box_selector::ErgoBoxAssetsData;
 
 use super::BoxSelectorError;
@@ -30,7 +33,7 @@ impl SimpleBoxSelector {
     }
 }
 
-impl<T: ErgoBoxAssets> BoxSelector<T> for SimpleBoxSelector {
+impl<T: ErgoBoxAssets + Clone> BoxSelector<T> for SimpleBoxSelector {
     /// Selects inputs to satisfy target balance and tokens.
     /// `inputs` - available inputs (returns an error, if empty),
     /// `target_balance` - coins (in nanoERGs) needed,
@@ -44,6 +47,7 @@ impl<T: ErgoBoxAssets> BoxSelector<T> for SimpleBoxSelector {
     ) -> Result<BoxSelection<T>, BoxSelectorError> {
         let mut selected_inputs: Vec<T> = vec![];
         let mut selected_boxes_value: u64 = 0;
+        let target_balance_original = target_balance;
         let target_balance: u64 = target_balance.into();
         // sum all target tokens into hash map (think repeating token ids)
         let mut target_tokens_left: HashMap<TokenId, TokenAmount> =
@@ -155,6 +159,12 @@ impl<T: ErgoBoxAssets> BoxSelector<T> for SimpleBoxSelector {
             })?;
             make_change_boxes(change_value, change_tokens)?
         };
+        check_input_preservation(
+            selected_inputs.as_slice(),
+            change_boxes.as_slice(),
+            target_balance_original,
+            target_tokens,
+        )?;
         Ok(BoxSelection {
             boxes: selected_inputs.try_into()?,
             change_boxes,
@@ -162,6 +172,49 @@ impl<T: ErgoBoxAssets> BoxSelector<T> for SimpleBoxSelector {
     }
 }
 
+/// Error on checking if inputs are preserved
+#[derive(Clone, Debug, PartialEq, Eq, Error)]
+#[error("Error on checking of the inputs preservation in box selection")]
+pub struct CheckPreservationError(String);
+
+impl From<TokenAmountError> for CheckPreservationError {
+    fn from(e: TokenAmountError) -> Self {
+        CheckPreservationError(format!("TokenAmountError: {}", e))
+    }
+}
+
+/// Check if the selected inputs value and tokens are equal to the target + change
+fn check_input_preservation<T: ErgoBoxAssets>(
+    selected_inputs: &[T],
+    change_boxes: &[ErgoBoxAssetsData],
+    target_balance: BoxValue,
+    target_tokens: &[Token],
+) -> Result<(), CheckPreservationError> {
+    let sum_selected_inputs = sum_value(selected_inputs);
+    let sum_change_boxes = sum_value(change_boxes);
+    if sum_selected_inputs != sum_change_boxes + target_balance.as_u64() {
+        return Err(CheckPreservationError(
+            format!("total value of the selected boxes {:?} should equal target balance {:?} + total value in change boxes {:?}", sum_selected_inputs, target_balance.as_u64(), sum_change_boxes)
+        ));
+    }
+
+    let sum_tokens_selected_inputs = sum_tokens_from_boxes(selected_inputs)?;
+    let out_box = ErgoBoxAssetsData {
+        value: target_balance,
+        tokens: target_tokens.to_vec().try_into().ok(),
+    };
+    let change_boxes_plus_out = [&[out_box], change_boxes].concat();
+    if sum_tokens_selected_inputs != sum_tokens_from_boxes(change_boxes_plus_out.as_slice())? {
+        let sum_tokens_change_boxes = sum_tokens_from_boxes(change_boxes)?;
+        let sum_tokens_target = sum_tokens(Some(target_tokens))?;
+        return Err(CheckPreservationError(
+            format!("all tokens from selected boxes {:?} should equal all tokens from the change boxes {:?} + target tokens {:?}", sum_tokens_selected_inputs, sum_tokens_change_boxes, sum_tokens_target)
+        ));
+    }
+    Ok(())
+}
+
+/// Split change tokens into a multiple boxes if over 255 distinct tokens
 fn make_change_boxes(
     change_value: BoxValue,
     change_tokens: HashMap<TokenId, TokenAmount>,

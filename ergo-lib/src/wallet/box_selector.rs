@@ -69,6 +69,10 @@ pub enum BoxSelectorError {
     /// Boxes out of bounds
     #[error("Boxes is out of bounds")]
     OutOfBounds(#[from] BoundedVecOutOfBounds),
+
+    /// CheckPreservationError
+    #[error("CheckPreservationError: {0:?}")]
+    CheckPreservation(#[from] CheckPreservationError),
 }
 
 /// Assets that ErgoBox holds
