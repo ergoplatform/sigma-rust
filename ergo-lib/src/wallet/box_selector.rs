@@ -169,6 +169,26 @@ pub fn sum_tokens_from_boxes<T: ErgoBoxAssets>(
     Ok(res)
 }
 
+/// Sums two hashmaps of tokens (summing amounts of the same token)
+pub fn sum_tokens_from_hashmaps(
+    tokens1: HashMap<TokenId, TokenAmount>,
+    tokens2: HashMap<TokenId, TokenAmount>,
+) -> Result<HashMap<TokenId, TokenAmount>, TokenAmountError> {
+    let mut res: HashMap<TokenId, TokenAmount> = HashMap::new();
+    tokens1
+        .into_iter()
+        .chain(tokens2)
+        .try_for_each(|(id, t_amt)| {
+            if let Some(amt) = res.get_mut(&id) {
+                *amt = amt.checked_add(&t_amt)?;
+            } else {
+                res.insert(id.clone(), t_amt);
+            }
+            Ok(())
+        })?;
+    Ok(res)
+}
+
 /// Arbitrary impl for ErgoBoxAssetsData
 #[allow(clippy::unwrap_used, clippy::panic)]
 #[cfg(feature = "arbitrary")]

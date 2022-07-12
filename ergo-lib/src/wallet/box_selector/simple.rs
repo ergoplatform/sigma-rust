@@ -18,6 +18,7 @@ use crate::wallet::box_selector::sum_tokens_from_boxes;
 use crate::wallet::box_selector::sum_value;
 use crate::wallet::box_selector::ErgoBoxAssetsData;
 
+use super::sum_tokens_from_hashmaps;
 use super::BoxSelectorError;
 use super::ErgoBoxAssets;
 use super::{BoxSelection, BoxSelector};
@@ -210,14 +211,11 @@ fn check_input_preservation<T: ErgoBoxAssets>(
     }
 
     let sum_tokens_selected_inputs = sum_tokens_from_boxes(selected_inputs)?;
-    let out_box = ErgoBoxAssetsData {
-        value: target_balance,
-        tokens: target_tokens.to_vec().try_into().ok(),
-    };
-    let change_boxes_plus_out = [&[out_box], change_boxes].concat();
-    if sum_tokens_selected_inputs != sum_tokens_from_boxes(change_boxes_plus_out.as_slice())? {
-        let sum_tokens_change_boxes = sum_tokens_from_boxes(change_boxes)?;
-        let sum_tokens_target = sum_tokens(Some(target_tokens))?;
+    let sum_tokens_change_boxes = sum_tokens_from_boxes(change_boxes)?;
+    let sum_tokens_target = sum_tokens(Some(target_tokens))?;
+    if sum_tokens_selected_inputs
+        != sum_tokens_from_hashmaps(sum_tokens_change_boxes.clone(), sum_tokens_target.clone())?
+    {
         return Err(CheckPreservationError(
             format!("all tokens from selected boxes {:?} should equal all tokens from the change boxes {:?} + target tokens {:?}", sum_tokens_selected_inputs, sum_tokens_change_boxes, sum_tokens_target)
         ));
