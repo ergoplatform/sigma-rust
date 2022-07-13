@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
+
+### Added 
+- add Address::content_bytes() in Wasm API [#582](https://github.com/ergoplatform/sigma-rust/pull/582);
+
+### Changed
+- fix `peer_discovery()` in Chrome [#584](https://github.com/ergoplatform/sigma-rust/pull/584);
+- fix accidental token burn in change box in box selection process [#591](https://github.com/ergoplatform/sigma-rust/pull/591) 
+
 ## [0.17.0] - 2022-06-04
 
 ### Added 
