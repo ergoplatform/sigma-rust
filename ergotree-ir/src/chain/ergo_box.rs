@@ -78,8 +78,9 @@ pub struct ErgoBox {
 }
 
 impl ErgoBox {
-    /// Maximum number of tokens in the box
-    pub const MAX_TOKENS_COUNT: usize = u8::MAX as usize;
+    /// Safe maximum number of tokens in the box
+    /// Calculated from the max box size (4kb) limit and the size of the token (32 bytes)
+    pub const MAX_TOKENS_COUNT: usize = 100;
 
     /// Crate new box
     pub fn new(
@@ -305,7 +306,7 @@ pub fn serialize_box_with_indexed_digests<W: SigmaByteWrite>(
     w.write_all(&ergo_tree_bytes[..])?;
     w.put_u32(creation_height)?;
     let tokens: &[Token] = tokens.as_ref().map(BoundedVec::as_ref).unwrap_or(&[]);
-    // Unwrap is safe since BoxTokens size is bounded to 255
+    // Unwrap is safe since BoxTokens size is bounded to ErgoBox::MAX_TOKENS_COUNT
     #[allow(clippy::unwrap_used)]
     w.put_u8(u8::try_from(tokens.len()).unwrap())?;
 
@@ -481,9 +482,9 @@ mod tests {
     }
 
     #[test]
-    fn test_255_tokens() {
+    fn test_max_tokens() {
         let tokens = force_any_val_with::<Vec<Token>>((
-            SizeRange::new(255..=255),
+            SizeRange::new(ErgoBox::MAX_TOKENS_COUNT..=ErgoBox::MAX_TOKENS_COUNT),
             ArbTokenIdParam::Arbitrary,
         ));
         let b = ErgoBox::from_box_candidate(

@@ -48,8 +48,10 @@ pub enum ErgoBoxCandidateBuilderError {
     /// Parsing error
     #[error("parsing error: {0}")]
     ParsingError(#[from] SigmaParsingError),
-    /// When creating a Box, it can either have no tokens, or 1-255 tokens
-    #[error("Too many Tokens. The maximum number of Tokens in an Ergo Box is 255")]
+    /// When creating a Box, it can either have no tokens, or 1-ErgoBox::MAX_TOKENS_COUNT tokens
+    #[error(
+        "Too many Tokens. The maximum number of Tokens in an Ergo Box is ErgoBox::MAX_TOKENS_COUNT"
+    )]
     TooManyTokensError,
 
     /// AddressEncoder error

@@ -228,7 +228,7 @@ fn check_input_preservation<T: ErgoBoxAssets>(
 #[error("Not enough coins for change box(es)")]
 pub struct NotEnoughCoinsForChangeBox(String);
 
-/// Split change tokens into a multiple boxes if over 255 distinct tokens
+/// Split change tokens into a multiple boxes if over ErgoBox::MAX_TOKENS_COUNT distinct tokens
 fn make_change_boxes(
     change_value: BoxValue,
     change_tokens: HashMap<TokenId, TokenAmount>,
@@ -266,11 +266,11 @@ fn make_change_boxes(
                 #[allow(clippy::unwrap_used)] // safe for the box value upper bound
                 // doubled due to larger box size to accomodate so many tokens
                 let value = BoxValue::SAFE_USER_MIN.checked_mul_u32(2).unwrap();
-                let tokens_to_drain = ErgoBox::MAX_TOKENS_COUNT / 2;
+                let tokens_to_drain = ErgoBox::MAX_TOKENS_COUNT;
                 let drained_tokens: Vec<Token> =
                     change_tokens_left.drain(..tokens_to_drain).collect();
                 #[allow(clippy::unwrap_used)]
-                // safe since tokens_to_drain is half of ErgoBox::MAX_TOKENS_COUNT
+                // safe since tokens_to_drain is ErgoBox::MAX_TOKENS_COUNT
                 let change_box = ErgoBoxAssetsData {
                     value,
                     tokens: Some(BoxTokens::from_vec(drained_tokens).unwrap()),
@@ -295,14 +295,18 @@ mod tests {
     use std::convert::TryFrom;
 
     use ergotree_ir::chain::{
-        ergo_box::{box_value::checked_sum, ErgoBox},
+        address::{AddressEncoder, NetworkPrefix},
+        ergo_box::{box_value::checked_sum, ErgoBox, ErgoBoxCandidate},
         token::arbitrary::ArbTokenIdParam,
     };
     use proptest::{collection::vec, prelude::*};
 
-    use crate::wallet::box_selector::{
-        arbitrary::{ArbErgoBoxAssetsDataParam, ArbTokensParam},
-        sum_value,
+    use crate::{
+        chain::ergo_box::box_builder::{ErgoBoxCandidateBuilder, ErgoBoxCandidateBuilderError},
+        wallet::box_selector::{
+            arbitrary::{ArbErgoBoxAssetsDataParam, ArbTokensParam},
+            sum_value,
+        },
     };
 
     use super::*;
@@ -543,7 +547,7 @@ mod tests {
         }
 
         #[test]
-        fn test_change_over_255_tokens_i590(
+        fn test_change_over_max_tokens_i590(
             inputs in
                 vec(
                     any_with::<ErgoBoxAssetsData>(
@@ -551,7 +555,8 @@ mod tests {
                             value_range: (BoxValue::MIN_RAW * 1000 .. BoxValue::MIN_RAW * 10000).into(),
                             tokens_param: ArbTokensParam {
                                 token_id_param: ArbTokenIdParam::Arbitrary,
-                                token_count_range: 100..255, // with min 4 boxes below gives us min 400 distinct tokens total
+                                // with min 4 boxes below gives us minimum ErgoBox::MAX_TOKENS_COUNT * 2 distinct tokens total
+                                token_count_range: (ErgoBox::MAX_TOKENS_COUNT/2)..ErgoBox::MAX_TOKENS_COUNT,
                             }
                         }),
                     4..10
@@ -567,6 +572,29 @@ mod tests {
             let selection = s.select(inputs, target_balance, target_tokens.as_slice()).unwrap();
             prop_assert!(!selection.change_boxes.is_empty());
             prop_assert!(selection.change_boxes.iter().all(|b| b.tokens().is_some()));
+
+            let change_address_ergo_tree = AddressEncoder::new(NetworkPrefix::Mainnet)
+                .parse_address_from_str("9gmNsqrqdSppLUBqg2UzREmmivgqh1r3jmNcLAc53hk3YCvAGWE")
+            .unwrap().script().unwrap();
+            // check that a box can be created for each change box,
+            // checking that box value is enough for large box size (maxed tokens)
+            let change_boxes: Result<Vec<ErgoBoxCandidate>, ErgoBoxCandidateBuilderError> = selection
+                .change_boxes
+                .iter()
+                .map(|b| {
+                    let mut candidate = ErgoBoxCandidateBuilder::new(
+                        b.value,
+                        change_address_ergo_tree.clone(),
+                        1000000,
+                    );
+                    for token in b.tokens().into_iter().flatten() {
+                        candidate.add_token(token.clone());
+                    }
+                    candidate.build()
+                })
+                .collect();
+            prop_assert!(change_boxes.is_ok());
+
             let out_box = ErgoBoxAssetsData {value: target_balance, tokens: Some(BoxTokens::from_vec(target_tokens).unwrap())};
             let mut change_boxes_plus_out = vec![out_box];
             change_boxes_plus_out.append(&mut selection.change_boxes.clone());

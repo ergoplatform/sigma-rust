@@ -183,8 +183,6 @@ impl SigmaSerializable for Transaction {
         }
 
         // Serialize distinct ids of tokens in transaction outputs.
-        // This optimization is crucial to allow up to MaxTokens (== 255) in a box.
-        // Without it total size of all token ids 255 * 32 = 8160, way beyond MaxBoxSize (== 4K)
         let distinct_token_ids = distinct_token_ids(self.output_candidates.clone());
 
         // Note that `self.output_candidates` is of type `TxIoVec` which has a max length of
