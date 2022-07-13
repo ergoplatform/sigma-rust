@@ -45,7 +45,7 @@ final class TokenIdTests: XCTestCase {
         let tokenAmount = try TokenAmount(fromInt64: amount)
         let token = Token(tokenId: tokenId, tokenAmount: tokenAmount)
 
-        let maxTokensCount = 100
+        let maxTokensCount = UInt(100)
         
         for _ in 1...maxTokensCount {
             try tokens.add(token: token)
