@@ -238,9 +238,9 @@ fn make_change_boxes(
             value: change_value,
             tokens: None,
         }])
-    } else if change_tokens.len() < ErgoBox::MAX_TOKENS_COUNT {
+    } else if change_tokens.len() <= ErgoBox::MAX_TOKENS_COUNT {
         #[allow(clippy::unwrap_used)]
-        // unwrap_used is ok here because we checked that change_tokens.len() < ErgoBox::MAX_TOKENS_COUNT
+        // unwrap_used is ok here because we checked that change_tokens.len() <= ErgoBox::MAX_TOKENS_COUNT
         Ok(vec![ErgoBoxAssetsData {
             value: change_value,
             tokens: Some(
@@ -253,9 +253,9 @@ fn make_change_boxes(
             change_tokens.into_iter().map(Token::from).collect();
         let mut change_value_left = change_value;
         while !change_tokens_left.is_empty() {
-            if change_tokens_left.len() < ErgoBox::MAX_TOKENS_COUNT {
+            if change_tokens_left.len() <= ErgoBox::MAX_TOKENS_COUNT {
                 #[allow(clippy::unwrap_used)]
-                // unwrap_used is ok here because we checked that change_tokens_left.len() < ErgoBox::MAX_TOKENS_COUNT
+                // unwrap_used is ok here because we checked that change_tokens_left.len() <= ErgoBox::MAX_TOKENS_COUNT
                 let change_box = ErgoBoxAssetsData {
                     value: change_value_left,
                     tokens: Some(BoxTokens::from_vec(change_tokens_left).unwrap()),

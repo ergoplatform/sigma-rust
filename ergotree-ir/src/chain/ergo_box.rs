@@ -445,9 +445,12 @@ pub mod arbitrary {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::chain::token::arbitrary::ArbTokenIdParam;
     use crate::serialization::sigma_serialize_roundtrip;
+    use proptest::collection::SizeRange;
     use proptest::prelude::*;
     use sigma_test_util::force_any_val;
+    use sigma_test_util::force_any_val_with;
 
     #[test]
     fn get_register_mandatory() {
@@ -475,6 +478,27 @@ mod tests {
         expected_bytes.extend_from_slice(b.transaction_id.0 .0.as_ref());
         expected_bytes.extend_from_slice(&b.index.to_be_bytes());
         assert_eq!(b.creation_info().1, expected_bytes.to_vec().as_vec_i8());
+    }
+
+    #[test]
+    fn test_255_tokens() {
+        let tokens = force_any_val_with::<Vec<Token>>((
+            SizeRange::new(255..=255),
+            ArbTokenIdParam::Arbitrary,
+        ));
+        let b = ErgoBox::from_box_candidate(
+            &ErgoBoxCandidate {
+                value: BoxValue::SAFE_USER_MIN,
+                ergo_tree: force_any_val::<ErgoTree>(),
+                tokens: Some(BoxTokens::from_vec(tokens).unwrap()),
+                additional_registers: NonMandatoryRegisters::empty(),
+                creation_height: 0,
+            },
+            TxId::zero(),
+            0,
+        )
+        .unwrap();
+        assert_eq!(sigma_serialize_roundtrip(&b), b);
     }
 
     proptest! {
