@@ -44,14 +44,16 @@ final class TokenIdTests: XCTestCase {
         let amount = Int64(12345678)
         let tokenAmount = try TokenAmount(fromInt64: amount)
         let token = Token(tokenId: tokenId, tokenAmount: tokenAmount)
+
+        let maxTokensCount = 100
         
-        for _ in 1...255 {
+        for _ in 1...maxTokensCount {
             try tokens.add(token: token)
         }
-        XCTAssertEqual(tokens.len(), UInt(255))
-        XCTAssertNotNil(tokens.get(index: 254))
+        XCTAssertEqual(tokens.len(), UInt(maxTokensCount))
+        XCTAssertNotNil(tokens.get(index: maxTokensCount - 1))
         
-        // Add 256th token, expecting error
+        // Add max + 1 token, expecting error
         XCTAssertThrowsError(try tokens.add(token: token))
     }
 }
