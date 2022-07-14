@@ -20,8 +20,10 @@ use thiserror::Error;
 #[derive(Error, PartialEq, Eq, Clone, Debug)]
 pub enum ErgoBoxCandidateBuilderError {
     /// Box value is too low
-    #[error("Box value is too low, minimum value for box size of {box_size_bytes} bytes is: {min_box_value:?} nanoERGs")]
+    #[error("Box value {error_value:?} is too low, minimum value for box size of {box_size_bytes} bytes is: {min_box_value:?} nanoERGs")]
     BoxValueTooLow {
+        /// box value that caused this error
+        error_value: BoxValue,
         /// minimum box value for that box size
         min_box_value: BoxValue,
         /// box size in bytes
@@ -46,8 +48,10 @@ pub enum ErgoBoxCandidateBuilderError {
     /// Parsing error
     #[error("parsing error: {0}")]
     ParsingError(#[from] SigmaParsingError),
-    /// When creating a Box, it can either have no tokens, or 1-255 tokens
-    #[error("Too many Tokens. The maximum number of Tokens in an Ergo Box is 255")]
+    /// When creating a Box, it can either have no tokens, or 1-ErgoBox::MAX_TOKENS_COUNT tokens
+    #[error(
+        "Too many Tokens. The maximum number of Tokens in an Ergo Box is ErgoBox::MAX_TOKENS_COUNT"
+    )]
     TooManyTokensError,
 
     /// AddressEncoder error
@@ -256,6 +260,7 @@ impl ErgoBoxCandidateBuilder {
             Ok(b)
         } else {
             Err(ErgoBoxCandidateBuilderError::BoxValueTooLow {
+                error_value: self.value,
                 min_box_value,
                 box_size_bytes,
             })

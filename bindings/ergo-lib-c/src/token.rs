@@ -174,7 +174,7 @@ pub unsafe extern "C" fn ergo_lib_tokens_get(
     }
 }
 
-/// Add token to the end of the collection. There is a maximum capacity of 255 token, and adding
+/// Add token to the end of the collection. There is a maximum capacity of ErgoBox::MAX_TOKENS_COUNT token, and adding
 /// more returns an error.
 #[no_mangle]
 pub unsafe extern "C" fn ergo_lib_tokens_add(

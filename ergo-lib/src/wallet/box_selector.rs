@@ -4,9 +4,8 @@ mod simple;
 
 use std::collections::HashMap;
 
-use bounded_vec::{BoundedVec, BoundedVecOutOfBounds};
+use bounded_vec::BoundedVec;
 use ergotree_ir::chain::ergo_box::box_value::BoxValue;
-use ergotree_ir::chain::ergo_box::box_value::BoxValueError;
 use ergotree_ir::chain::ergo_box::BoxId;
 use ergotree_ir::chain::ergo_box::BoxTokens;
 use ergotree_ir::chain::ergo_box::ErgoBox;
@@ -56,23 +55,21 @@ pub enum BoxSelectorError {
     #[error("Not enough tokens, missing {0:?}")]
     NotEnoughTokens(Vec<Token>),
 
-    /// BoxValue out of bounds
-    #[error("BoxValue out of bounds")]
-    BoxValueError(BoxValueError),
-
     /// Token amount err
     #[error("TokenAmountError: {0:?}")]
     TokenAmountError(#[from] TokenAmountError),
 
-    /// Boxes out of bounds
-    #[error("Boxes is out of bounds")]
-    OutOfBounds(#[from] BoundedVecOutOfBounds),
-}
+    /// CheckPreservationError
+    #[error("CheckPreservationError: {0:?}")]
+    CheckPreservation(#[from] CheckPreservationError),
 
-impl From<BoxValueError> for BoxSelectorError {
-    fn from(e: BoxValueError) -> Self {
-        BoxSelectorError::BoxValueError(e)
-    }
+    /// Not enough coins for change box
+    #[error("Not enough coins for change box: {0:?}")]
+    NotEnoughCoinsForChangeBox(#[from] NotEnoughCoinsForChangeBox),
+
+    /// Selected inputs out of bounds
+    #[error("Selected inputs out of bounds: {0}")]
+    SelectedInputsOutOfBounds(usize),
 }
 
 /// Assets that ErgoBox holds
@@ -172,30 +169,92 @@ pub fn sum_tokens_from_boxes<T: ErgoBoxAssets>(
     Ok(res)
 }
 
-#[cfg(test)]
+/// Sums two hashmaps of tokens (summing amounts of the same token)
+pub fn sum_tokens_from_hashmaps(
+    tokens1: HashMap<TokenId, TokenAmount>,
+    tokens2: HashMap<TokenId, TokenAmount>,
+) -> Result<HashMap<TokenId, TokenAmount>, TokenAmountError> {
+    let mut res: HashMap<TokenId, TokenAmount> = HashMap::new();
+    tokens1
+        .into_iter()
+        .chain(tokens2)
+        .try_for_each(|(id, t_amt)| {
+            if let Some(amt) = res.get_mut(&id) {
+                *amt = amt.checked_add(&t_amt)?;
+            } else {
+                res.insert(id.clone(), t_amt);
+            }
+            Ok(())
+        })?;
+    Ok(res)
+}
+
+/// Arbitrary impl for ErgoBoxAssetsData
 #[allow(clippy::unwrap_used, clippy::panic)]
-mod tests {
+#[cfg(feature = "arbitrary")]
+pub mod arbitrary {
+    use std::ops::Range;
 
-    use ergotree_ir::chain::ergo_box::box_value::arbitrary::ArbBoxValueRange;
-    use ergotree_ir::chain::ergo_box::box_value::BoxValue;
-    use ergotree_ir::chain::ergo_box::BoxTokens;
-    use ergotree_ir::chain::token::Token;
-    use proptest::{arbitrary::Arbitrary, collection::vec, option::of, prelude::*};
-    use sigma_test_util::force_any_val;
-
-    use crate::wallet::box_selector::sum_tokens;
-    use crate::wallet::box_selector::sum_tokens_from_boxes;
+    use ergotree_ir::chain::{
+        ergo_box::{
+            box_value::{arbitrary::ArbBoxValueRange, BoxValue},
+            BoxTokens,
+        },
+        token::{arbitrary::ArbTokenIdParam, Token},
+    };
+    use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
 
     use super::ErgoBoxAssetsData;
 
+    /// Parameters for generating a token
+    pub struct ArbTokensParam {
+        /// Predefined or random token ids
+        pub token_id_param: ArbTokenIdParam,
+        /// how many distincts tokens to generate
+        pub token_count_range: Range<usize>,
+    }
+
+    impl Default for ArbTokensParam {
+        fn default() -> Self {
+            ArbTokensParam {
+                token_id_param: ArbTokenIdParam::default(),
+                token_count_range: 0..3,
+            }
+        }
+    }
+
+    /// Parameters to generate ErgoBoxAssetsData
+    #[derive(Default)]
+    pub struct ArbErgoBoxAssetsDataParam {
+        /// how many nanoERGs to generate
+        pub value_range: ArbBoxValueRange,
+        /// what and how many tokens to generate
+        pub tokens_param: ArbTokensParam,
+    }
+
+    impl From<Range<u64>> for ArbErgoBoxAssetsDataParam {
+        fn from(r: Range<u64>) -> Self {
+            ArbErgoBoxAssetsDataParam {
+                value_range: r.into(),
+                tokens_param: ArbTokensParam::default(),
+            }
+        }
+    }
+
     impl Arbitrary for ErgoBoxAssetsData {
-        type Parameters = ArbBoxValueRange;
+        type Parameters = ArbErgoBoxAssetsDataParam;
 
         fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
-            (any_with::<BoxValue>(args), of(vec(any::<Token>(), 0..3)))
+            (
+                any_with::<BoxValue>(args.value_range),
+                vec(
+                    any_with::<Token>(args.tokens_param.token_id_param),
+                    args.tokens_param.token_count_range,
+                ),
+            )
                 .prop_map(|(value, tokens)| Self {
                     value,
-                    tokens: tokens.map(BoxTokens::from_vec).and_then(Result::ok),
+                    tokens: BoxTokens::from_vec(tokens).ok(),
                 })
                 .boxed()
         }
@@ -206,6 +265,22 @@ mod tests {
             Self::arbitrary_with(Default::default())
         }
     }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::panic)]
+mod tests {
+
+    use ergotree_ir::chain::ergo_box::box_value::BoxValue;
+    use ergotree_ir::chain::ergo_box::BoxTokens;
+    use ergotree_ir::chain::token::Token;
+    use proptest::prelude::*;
+    use sigma_test_util::force_any_val;
+
+    use crate::wallet::box_selector::sum_tokens;
+    use crate::wallet::box_selector::sum_tokens_from_boxes;
+
+    use super::ErgoBoxAssetsData;
 
     #[test]
     fn test_sum_tokens_repeating_token_id() {

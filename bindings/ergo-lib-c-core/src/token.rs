@@ -127,8 +127,8 @@ pub unsafe fn token_to_json_eip12(token_ptr: ConstTokenPtr) -> Result<String, Er
     Ok(s)
 }
 
-/// A Bounded Vector for Tokens. A Box can have between 1 and 255 tokens
-pub type BoxTokens = BoundedVec<Token, 1, 255>;
+/// A Bounded Vector for Tokens. A Box can have between 1 and ErgoBox::MAX_TOKENS_COUNT tokens
+pub type BoxTokens = BoundedVec<Token, 1, { chain::ergo_box::ErgoBox::MAX_TOKENS_COUNT }>;
 
 /// Array of tokens. Note that we're not using `crate::collections::Collection` here due to the
 /// use of the `BoundedVec`.
@@ -168,16 +168,16 @@ pub unsafe fn tokens_get(
     Ok(false)
 }
 
-/// Add token to the end of the collection. There is a maximum capacity of 255 token, and adding
+/// Add token to the end of the collection. There is a maximum capacity of ErgoBox::MAX_TOKENS_COUNT token, and adding
 /// more returns an error.
 pub unsafe fn tokens_add(tokens_ptr: TokensPtr, token_ptr: ConstTokenPtr) -> Result<(), Error> {
     let tokens = mut_ptr_as_mut(tokens_ptr, "tokens_ptr")?;
     let token = const_ptr_as_ref(token_ptr, "token_ptr")?;
     if tokens.0.is_some() {
         let mut new_vec = tokens.0.as_ref().unwrap().as_vec().clone();
-        if new_vec.len() == 255 {
+        if new_vec.len() == chain::ergo_box::ErgoBox::MAX_TOKENS_COUNT {
             return Err(Error::Misc(
-                "Tokens.add: cannot have more than 255 tokens".into(),
+                "Tokens.add: cannot have more than ErgoBox::MAX_TOKENS_COUNT tokens".into(),
             ));
         } else {
             new_vec.push(token.clone());

@@ -65,7 +65,7 @@ impl TryFrom<ErgoBoxJson> for ErgoBox {
         } else {
             Some(box_json.tokens.try_into().map_err(|_| {
                 SigmaSerializationError::NotSupported(
-                    "More than 255 tokens are not allowed in a box",
+                    "More than ErgoBox::MAX_TOKENS_COUNT tokens are not allowed in a box",
                 )
             })?)
         };
@@ -165,7 +165,7 @@ impl TryFrom<ErgoBoxCandidateJson> for ErgoBoxCandidate {
         } else {
             Some(box_json.tokens.try_into().map_err(|_| {
                 SigmaSerializationError::NotSupported(
-                    "More than 255 tokens are not allowed in a box",
+                    "More than ErgoBox::MAX_TOKENS_COUNT tokens are not allowed in a box",
                 )
             })?)
         };

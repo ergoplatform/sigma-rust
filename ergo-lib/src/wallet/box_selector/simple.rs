@@ -6,14 +6,19 @@ use std::convert::TryInto;
 
 use ergotree_ir::chain::ergo_box::box_value::BoxValue;
 use ergotree_ir::chain::ergo_box::BoxTokens;
+use ergotree_ir::chain::ergo_box::ErgoBox;
 use ergotree_ir::chain::token::Token;
 use ergotree_ir::chain::token::TokenAmount;
+use ergotree_ir::chain::token::TokenAmountError;
 use ergotree_ir::chain::token::TokenId;
+use thiserror::Error;
 
 use crate::wallet::box_selector::sum_tokens;
 use crate::wallet::box_selector::sum_tokens_from_boxes;
+use crate::wallet::box_selector::sum_value;
 use crate::wallet::box_selector::ErgoBoxAssetsData;
 
+use super::sum_tokens_from_hashmaps;
 use super::BoxSelectorError;
 use super::ErgoBoxAssets;
 use super::{BoxSelection, BoxSelector};
@@ -29,7 +34,7 @@ impl SimpleBoxSelector {
     }
 }
 
-impl<T: ErgoBoxAssets> BoxSelector<T> for SimpleBoxSelector {
+impl<T: ErgoBoxAssets + Clone> BoxSelector<T> for SimpleBoxSelector {
     /// Selects inputs to satisfy target balance and tokens.
     /// `inputs` - available inputs (returns an error, if empty),
     /// `target_balance` - coins (in nanoERGs) needed,
@@ -43,6 +48,7 @@ impl<T: ErgoBoxAssets> BoxSelector<T> for SimpleBoxSelector {
     ) -> Result<BoxSelection<T>, BoxSelectorError> {
         let mut selected_inputs: Vec<T> = vec![];
         let mut selected_boxes_value: u64 = 0;
+        let target_balance_original = target_balance;
         let target_balance: u64 = target_balance.into();
         // sum all target tokens into hash map (think repeating token ids)
         let mut target_tokens_left: HashMap<TokenId, TokenAmount> =
@@ -134,7 +140,15 @@ impl<T: ErgoBoxAssets> BoxSelector<T> for SimpleBoxSelector {
         let change_boxes: Vec<ErgoBoxAssetsData> = if !has_value_change && !has_token_change {
             vec![]
         } else {
-            let change_value: BoxValue = (selected_boxes_value - target_balance).try_into()?;
+            let change_value: BoxValue = (selected_boxes_value - target_balance)
+                .try_into()
+                .map_err(|e| {
+                    NotEnoughCoinsForChangeBox(format!(
+                        "change box value {} is too small, error: {} ",
+                        selected_boxes_value - target_balance,
+                        e
+                    ))
+                })?;
             let mut change_tokens = sum_tokens_from_boxes(selected_inputs.as_slice())?;
             target_tokens.iter().try_for_each(|t| {
                 match change_tokens.get(&t.token_id).cloned() {
@@ -152,29 +166,148 @@ impl<T: ErgoBoxAssets> BoxSelector<T> for SimpleBoxSelector {
                     _ => Err(BoxSelectorError::NotEnoughTokens(vec![t.clone()])),
                 }
             })?;
-            vec![ErgoBoxAssetsData {
-                value: change_value,
-                tokens: BoxTokens::from_vec(change_tokens.into_iter().map(Token::from).collect())
-                    .ok(),
-            }]
+            make_change_boxes(change_value, change_tokens)?
         };
+        check_input_preservation(
+            selected_inputs.as_slice(),
+            change_boxes.as_slice(),
+            target_balance_original,
+            target_tokens,
+        )?;
+        let selected_inputs_len = selected_inputs.len();
         Ok(BoxSelection {
-            boxes: selected_inputs.try_into()?,
+            boxes: selected_inputs
+                .try_into()
+                .map_err(|_| BoxSelectorError::SelectedInputsOutOfBounds(selected_inputs_len))?,
             change_boxes,
         })
+    }
+}
+
+/// Error on checking if inputs are preserved
+#[derive(Clone, Debug, PartialEq, Eq, Error)]
+#[error("Error on checking of the inputs preservation in box selection")]
+pub struct CheckPreservationError(String);
+
+impl From<TokenAmountError> for CheckPreservationError {
+    fn from(e: TokenAmountError) -> Self {
+        CheckPreservationError(format!("TokenAmountError: {}", e))
+    }
+}
+
+/// Check if the selected inputs value and tokens are equal to the target + change
+fn check_input_preservation<T: ErgoBoxAssets>(
+    selected_inputs: &[T],
+    change_boxes: &[ErgoBoxAssetsData],
+    target_balance: BoxValue,
+    target_tokens: &[Token],
+) -> Result<(), CheckPreservationError> {
+    let sum_selected_inputs = sum_value(selected_inputs);
+    let sum_change_boxes = sum_value(change_boxes);
+    if sum_selected_inputs != sum_change_boxes + target_balance.as_u64() {
+        return Err(CheckPreservationError(
+            format!("total value of the selected boxes {:?} should equal target balance {:?} + total value in change boxes {:?}", sum_selected_inputs, target_balance.as_u64(), sum_change_boxes)
+        ));
+    }
+
+    let sum_tokens_selected_inputs = sum_tokens_from_boxes(selected_inputs)?;
+    let sum_tokens_change_boxes = sum_tokens_from_boxes(change_boxes)?;
+    let sum_tokens_target = sum_tokens(Some(target_tokens))?;
+    if sum_tokens_selected_inputs
+        != sum_tokens_from_hashmaps(sum_tokens_change_boxes.clone(), sum_tokens_target.clone())?
+    {
+        return Err(CheckPreservationError(
+            format!("all tokens from selected boxes {:?} should equal all tokens from the change boxes {:?} + target tokens {:?}", sum_tokens_selected_inputs, sum_tokens_change_boxes, sum_tokens_target)
+        ));
+    }
+    Ok(())
+}
+
+/// Not enough coins for change box(es)
+#[derive(Error, PartialEq, Eq, Debug, Clone)]
+#[error("Not enough coins for change box(es)")]
+pub struct NotEnoughCoinsForChangeBox(String);
+
+/// Split change tokens into a multiple boxes if over ErgoBox::MAX_TOKENS_COUNT distinct tokens
+fn make_change_boxes(
+    change_value: BoxValue,
+    change_tokens: HashMap<TokenId, TokenAmount>,
+) -> Result<Vec<ErgoBoxAssetsData>, NotEnoughCoinsForChangeBox> {
+    if change_tokens.is_empty() {
+        Ok(vec![ErgoBoxAssetsData {
+            value: change_value,
+            tokens: None,
+        }])
+    } else if change_tokens.len() <= ErgoBox::MAX_TOKENS_COUNT {
+        #[allow(clippy::unwrap_used)]
+        // unwrap_used is ok here because we checked that change_tokens.len() <= ErgoBox::MAX_TOKENS_COUNT
+        Ok(vec![ErgoBoxAssetsData {
+            value: change_value,
+            tokens: Some(
+                BoxTokens::from_vec(change_tokens.into_iter().map(Token::from).collect()).unwrap(),
+            ),
+        }])
+    } else {
+        let mut change_boxes = vec![];
+        let mut change_tokens_left: Vec<Token> =
+            change_tokens.into_iter().map(Token::from).collect();
+        let mut change_value_left = change_value;
+        while !change_tokens_left.is_empty() {
+            if change_tokens_left.len() <= ErgoBox::MAX_TOKENS_COUNT {
+                #[allow(clippy::unwrap_used)]
+                // unwrap_used is ok here because we checked that change_tokens_left.len() <= ErgoBox::MAX_TOKENS_COUNT
+                let change_box = ErgoBoxAssetsData {
+                    value: change_value_left,
+                    tokens: Some(BoxTokens::from_vec(change_tokens_left).unwrap()),
+                };
+                change_boxes.push(change_box);
+                break;
+            } else {
+                #[allow(clippy::unwrap_used)] // safe for the box value upper bound
+                // doubled due to larger box size to accomodate so many tokens
+                let value = BoxValue::SAFE_USER_MIN.checked_mul_u32(2).unwrap();
+                let tokens_to_drain = ErgoBox::MAX_TOKENS_COUNT;
+                let drained_tokens: Vec<Token> =
+                    change_tokens_left.drain(..tokens_to_drain).collect();
+                #[allow(clippy::unwrap_used)]
+                // safe since tokens_to_drain is ErgoBox::MAX_TOKENS_COUNT
+                let change_box = ErgoBoxAssetsData {
+                    value,
+                    tokens: Some(BoxTokens::from_vec(drained_tokens).unwrap()),
+                };
+                change_boxes.push(change_box);
+                change_value_left = change_value_left.checked_sub(&value).map_err(|e| {
+                    NotEnoughCoinsForChangeBox(format!(
+                        "Not enough coins left ({:?}) for change box {:?}, error: {}",
+                        change_value_left, value, e
+                    ))
+                })?;
+            }
+        }
+        Ok(change_boxes)
     }
 }
 
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::panic)]
 mod tests {
+
     use std::convert::TryFrom;
 
-    use ergotree_ir::chain::ergo_box::box_value::checked_sum;
-    use ergotree_ir::chain::ergo_box::ErgoBox;
+    use ergotree_ir::chain::{
+        address::{AddressEncoder, NetworkPrefix},
+        ergo_box::{box_value::checked_sum, ErgoBox, ErgoBoxCandidate},
+        token::arbitrary::ArbTokenIdParam,
+    };
     use proptest::{collection::vec, prelude::*};
 
-    use crate::wallet::box_selector::sum_value;
+    use crate::{
+        chain::ergo_box::box_builder::{ErgoBoxCandidateBuilder, ErgoBoxCandidateBuilderError},
+        wallet::box_selector::{
+            arbitrary::{ArbErgoBoxAssetsDataParam, ArbTokensParam},
+            sum_value,
+        },
+    };
 
     use super::*;
 
@@ -413,5 +546,64 @@ mod tests {
             prop_assert!(selection.is_err());
         }
 
+        #[test]
+        fn test_change_over_max_tokens_i590(
+            inputs in
+                vec(
+                    any_with::<ErgoBoxAssetsData>(
+                        ArbErgoBoxAssetsDataParam {
+                            value_range: (BoxValue::MIN_RAW * 1000 .. BoxValue::MIN_RAW * 10000).into(),
+                            tokens_param: ArbTokensParam {
+                                token_id_param: ArbTokenIdParam::Arbitrary,
+                                // with min 4 boxes below gives us minimum ErgoBox::MAX_TOKENS_COUNT * 2 distinct tokens total
+                                token_count_range: (ErgoBox::MAX_TOKENS_COUNT/2)..ErgoBox::MAX_TOKENS_COUNT,
+                            }
+                        }),
+                    4..10
+                ),
+                target_balance in
+                    any_with::<BoxValue>((BoxValue::MIN_RAW * 100 .. BoxValue::MIN_RAW * 1500).into())) {
+            // take the first token in all input boxes as a target
+            // we want to have as much tokens in the change as possible
+            let target_tokens = inputs.iter()
+                .map(|b| b.tokens().unwrap().first().clone())
+                .collect::<Vec<Token>>();
+            let s = SimpleBoxSelector::new();
+            let selection = s.select(inputs, target_balance, target_tokens.as_slice()).unwrap();
+            prop_assert!(!selection.change_boxes.is_empty());
+            prop_assert!(selection.change_boxes.iter().all(|b| b.tokens().is_some()));
+
+            let change_address_ergo_tree = AddressEncoder::new(NetworkPrefix::Mainnet)
+                .parse_address_from_str("9gmNsqrqdSppLUBqg2UzREmmivgqh1r3jmNcLAc53hk3YCvAGWE")
+            .unwrap().script().unwrap();
+            // check that a box can be created for each change box,
+            // checking that box value is enough for large box size (maxed tokens)
+            let change_boxes: Result<Vec<ErgoBoxCandidate>, ErgoBoxCandidateBuilderError> = selection
+                .change_boxes
+                .iter()
+                .map(|b| {
+                    let mut candidate = ErgoBoxCandidateBuilder::new(
+                        b.value,
+                        change_address_ergo_tree.clone(),
+                        1000000,
+                    );
+                    for token in b.tokens().into_iter().flatten() {
+                        candidate.add_token(token.clone());
+                    }
+                    candidate.build()
+                })
+                .collect();
+            prop_assert!(change_boxes.is_ok());
+
+            let out_box = ErgoBoxAssetsData {value: target_balance, tokens: Some(BoxTokens::from_vec(target_tokens).unwrap())};
+            let mut change_boxes_plus_out = vec![out_box];
+            change_boxes_plus_out.append(&mut selection.change_boxes.clone());
+            prop_assert_eq!(sum_value(selection.boxes.as_slice()),
+                            sum_value(change_boxes_plus_out.as_slice()),
+                            "total value of the selected boxes should equal target balance + total value in change boxes");
+            prop_assert_eq!(sum_tokens_from_boxes(selection.boxes.as_slice()).unwrap(),
+                            sum_tokens_from_boxes(change_boxes_plus_out.as_slice()).unwrap(),
+                            "all tokens from selected boxes should equal all tokens from the change boxes + target tokens");
+        }
     }
 }

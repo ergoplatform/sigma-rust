@@ -32,7 +32,7 @@ use super::token::TokenId;
 use super::tx_id::TxId;
 
 /// A BoxToken, a bounded collection of Tokens used in Box
-pub type BoxTokens = BoundedVec<Token, 1, 255>;
+pub type BoxTokens = BoundedVec<Token, 1, { ErgoBox::MAX_TOKENS_COUNT }>;
 /// Box (aka coin, or an unspent output) is a basic concept of a UTXO-based cryptocurrency.
 /// In Bitcoin, such an object is associated with some monetary value (arbitrary,
 /// but with predefined precision, so we use integer arithmetic to work with the value),
@@ -78,8 +78,9 @@ pub struct ErgoBox {
 }
 
 impl ErgoBox {
-    /// Maximum number of tokens in the box
-    pub const MAX_TOKENS_COUNT: usize = u8::MAX as usize;
+    /// Safe maximum number of tokens in the box
+    /// Calculated from the max box size (4kb) limit and the size of the token (32 bytes)
+    pub const MAX_TOKENS_COUNT: usize = 100;
 
     /// Crate new box
     pub fn new(
@@ -305,7 +306,7 @@ pub fn serialize_box_with_indexed_digests<W: SigmaByteWrite>(
     w.write_all(&ergo_tree_bytes[..])?;
     w.put_u32(creation_height)?;
     let tokens: &[Token] = tokens.as_ref().map(BoundedVec::as_ref).unwrap_or(&[]);
-    // Unwrap is safe since BoxTokens size is bounded to 255
+    // Unwrap is safe since BoxTokens size is bounded to ErgoBox::MAX_TOKENS_COUNT
     #[allow(clippy::unwrap_used)]
     w.put_u8(u8::try_from(tokens.len()).unwrap())?;
 
@@ -445,9 +446,12 @@ pub mod arbitrary {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::chain::token::arbitrary::ArbTokenIdParam;
     use crate::serialization::sigma_serialize_roundtrip;
+    use proptest::collection::SizeRange;
     use proptest::prelude::*;
     use sigma_test_util::force_any_val;
+    use sigma_test_util::force_any_val_with;
 
     #[test]
     fn get_register_mandatory() {
@@ -475,6 +479,27 @@ mod tests {
         expected_bytes.extend_from_slice(b.transaction_id.0 .0.as_ref());
         expected_bytes.extend_from_slice(&b.index.to_be_bytes());
         assert_eq!(b.creation_info().1, expected_bytes.to_vec().as_vec_i8());
+    }
+
+    #[test]
+    fn test_max_tokens() {
+        let tokens = force_any_val_with::<Vec<Token>>((
+            SizeRange::new(ErgoBox::MAX_TOKENS_COUNT..=ErgoBox::MAX_TOKENS_COUNT),
+            ArbTokenIdParam::Arbitrary,
+        ));
+        let b = ErgoBox::from_box_candidate(
+            &ErgoBoxCandidate {
+                value: BoxValue::SAFE_USER_MIN,
+                ergo_tree: force_any_val::<ErgoTree>(),
+                tokens: Some(BoxTokens::from_vec(tokens).unwrap()),
+                additional_registers: NonMandatoryRegisters::empty(),
+                creation_height: 0,
+            },
+            TxId::zero(),
+            0,
+        )
+        .unwrap();
+        assert_eq!(sigma_serialize_roundtrip(&b), b);
     }
 
     proptest! {

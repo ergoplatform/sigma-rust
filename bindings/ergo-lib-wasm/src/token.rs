@@ -14,8 +14,8 @@ use crate::error_conversion::to_js;
 use crate::json::TokenJsonEip12;
 use crate::utils::I64;
 
-/// A Bounded Vector for Tokens. A Box can have between 1 and 255 tokens
-pub type BoxTokens = BoundedVec<Token, 1, 255>;
+/// A Bounded Vector for Tokens. A Box can have between 1 and ErgoBox::MAX_TOKENS_COUNT tokens
+pub type BoxTokens = BoundedVec<Token, 1, { chain::ergo_box::ErgoBox::MAX_TOKENS_COUNT }>;
 /// Token id (32 byte digest)
 #[wasm_bindgen]
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -168,8 +168,10 @@ impl Tokens {
             #[allow(clippy::unwrap_used)]
             let mut new_vec = self.0.as_ref().unwrap().as_vec().clone();
 
-            if new_vec.len() >= 255 {
-                return Err("Tokens::add: can't have more than 255 tokens".into());
+            if new_vec.len() >= chain::ergo_box::ErgoBox::MAX_TOKENS_COUNT {
+                return Err(
+                    "Tokens::add: can't have more than ErgoBox::MAX_TOKENS_COUNT tokens".into(),
+                );
             }
 
             new_vec.push(elem.clone());
