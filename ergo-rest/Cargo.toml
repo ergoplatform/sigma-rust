@@ -1,6 +1,6 @@
 [package]
 name = "ergo-rest"
-version = "0.2.0"
+version = "0.3.0"
 license = "CC0-1.0"
 authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
 edition = "2018"
