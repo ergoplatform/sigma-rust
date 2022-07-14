@@ -20,7 +20,7 @@ bounded-vec = { version = "^0.6.0", features=["serde"] }
 sigma-ser = { version = "^0.7.0", path = "../sigma-ser" }
 sigma-util = { version = "^0.6.0", path = "../sigma-util" }
 ergo-chain-types = { version = "^0.5.0", path = "../ergo-chain-types" }
-ergo-nipopow = { version = "^0.4.0", path = "../ergo-nipopow" }
+ergo-nipopow = { version = "^0.5.0", path = "../ergo-nipopow" }
 ergotree-ir = { version = "^0.18.0", path = "../ergotree-ir", features = ["json"] }
 ergo-merkle-tree = { version = "^0.5", path = "../ergo-merkle-tree" }
 futures = "0.3"
