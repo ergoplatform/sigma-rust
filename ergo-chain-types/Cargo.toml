@@ -16,7 +16,7 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 thiserror = "1"
 derive_more = "0.99"
-sigma-ser = { version = "^0.6.0", path = "../sigma-ser" }
+sigma-ser = { version = "^0.7.0", path = "../sigma-ser" }
 sigma-util = { version = "^0.5.0", path = "../sigma-util" }
 base16 = "0.2.1"
 base64 = "0.13.0"
