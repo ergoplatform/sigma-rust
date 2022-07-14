@@ -59,7 +59,7 @@ arbitrary = ["proptest", "proptest-derive", "ergotree-ir/arbitrary", "ergo-chain
 
 [dev-dependencies]
 ergotree-ir = { version = "^0.18.0", path = "../ergotree-ir", features = ["arbitrary"] }
-ergoscript-compiler = { version = "^0.13.0", path = "../ergoscript-compiler" }
+ergoscript-compiler = { version = "^0.14.0", path = "../ergoscript-compiler" }
 proptest = "1.0.0"
 sigma-test-util = { version = "^0.3.0", path = "../sigma-test-util" }
 
