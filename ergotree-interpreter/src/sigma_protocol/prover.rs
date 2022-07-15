@@ -434,7 +434,7 @@ fn polish_simulated<P: Prover + ?Sized>(
                         for (idx, kid) in unproven_children.clone().enumerated() {
                             if kid.is_real() {
                                 count_of_real += 1;
-                                if count_of_real >= ct.k {
+                                if count_of_real > ct.k {
                                     children_indices_to_be_marked_simulated.push(idx);
                                 };
                             };
@@ -836,7 +836,7 @@ fn step9_real_threshold(ct: CthresholdUnproven) -> Result<Option<ProofTree>, Pro
         let mut points = Vec::new();
         let mut values = Vec::new();
         for (idx, child) in ct.children.clone().enumerated() {
-            let one_based_idx = idx + 1;
+            let one_based_idx = (idx + 1) as u8;
             let challenge_opt = match child {
                 ProofTree::UncheckedTree(ut) => match ut {
                     UncheckedTree::UncheckedLeaf(ul) => Some(ul.challenge()),
@@ -848,7 +848,7 @@ fn step9_real_threshold(ct: CthresholdUnproven) -> Result<Option<ProofTree>, Pro
                 ProofTree::UnprovenTree(unpt) => unpt.challenge(),
             };
             if let Some(challenge) = challenge_opt {
-                points.append(&mut one_based_idx.to_be_bytes().to_vec());
+                points.push(one_based_idx);
                 values.push(challenge.into());
             };
         }
