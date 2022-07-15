@@ -252,6 +252,7 @@ mod tests {
     use ergotree_ir::chain::ergo_box::box_value::BoxValue;
     use ergotree_ir::chain::ergo_box::NonMandatoryRegisters;
     use ergotree_ir::chain::tx_id::TxId;
+    use ergotree_ir::serialization::SigmaSerializable;
     use proptest::collection::vec;
     use proptest::prelude::*;
     use rand::prelude::SliceRandom;
@@ -263,6 +264,8 @@ mod tests {
     use crate::chain::{
         ergo_box::box_builder::ErgoBoxCandidateBuilder, transaction::UnsignedInput,
     };
+    use crate::wallet::secret_key::SecretKey;
+    use crate::wallet::Wallet;
     use ergotree_ir::chain::ergo_box::ErgoBoxCandidate;
     use ergotree_ir::ergo_tree::ErgoTree;
     use ergotree_ir::mir::expr::Expr;
@@ -527,5 +530,25 @@ mod tests {
             message.as_slice(),
         );
         assert!(ver_res.unwrap().result);
+    }
+
+    #[test]
+    fn test_multi_sig_issue_597() {
+        let secrets: Vec<SecretKey> = [
+            "00eda6c0e9fc808d4cf050fc4e98705372b9f0786a6b63aa4013d1a20539b104",
+            "cc2e48e5e53059e0d68866eff97a6037cb39945ea9f09f40fcec82d12cd8cb8b",
+            "c97250f41cfa8d545c2f8d75b2ee24002b5feec32340c2bb81fa4e2d4c7527d3",
+            "53ceef0ece83401cf5cd853fd0c1a9bbfab750d76f278b3187f1a14768d6e9c4",
+        ]
+        .iter()
+        .map(|s| {
+            let sized_bytes: &[u8; DlogProverInput::SIZE_BYTES] =
+                &base16::decode(s).unwrap().try_into().unwrap();
+            SecretKey::dlog_from_bytes(sized_bytes).unwrap()
+        })
+        .collect();
+        let reduced = ReducedTransaction::sigma_parse_bytes(&base16::decode("ce04022f4cd0df4db787875b3a071e098b72ba4923bd2460e08184b34359563febe04700005e8269c8e2b975a43dc6e74a9c5b10b273313c6d32c1dd40c171fc0a8852ca0100000001a6ac381e6fa99929fd1477b3ba9499790a775e91d4c14c5aa86e9a118dfac8530480ade204100504000400040004000402d804d601b2a5730000d602e4c6a7041ad603e4c6a70510d604ad7202d901040ecdee7204ea02d19683020193c27201c2a7938cb2db63087201730100018cb2db6308a773020001eb02ea02d19683020193e4c67201041a720293e4c672010510720398b27203730300720498b272037304007204d18b0f010001021a04210302e57ca7ebf8cfa1802d4bc79a455008307a936b4f50f0629d9bef484fdd5189210399f5724bbc4d08c6e146d61449c05a3e0546868b1d4f83411f325187d5ca4f8521024e06e6c6073e13a03fa4629882a69108cd60e0a9fbb2e0fcc898ce68a7051b6621027a069cc972fc7816539a316ba1cfc0164656d63dd1873ee407670b0e8195f3bd100206088094ebdc030008cd0314368e16c9c99c5a6e20dda917aeb826b3a908becff543b3a36b38e6b3355ff5d18b0f0000c0843d1005040004000e36100204a00b08cd0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798ea02d192a39a8cc7a701730073011001020402d19683030193a38cc7b2a57300000193c2b2a57301007473027303830108cdeeac93b1a57304d18b0f0000c0af87c3210008cd0314368e16c9c99c5a6e20dda917aeb826b3a908becff543b3a36b38e6b3355ff5d18b0f00009702980304cd0302e57ca7ebf8cfa1802d4bc79a455008307a936b4f50f0629d9bef484fdd5189cd0399f5724bbc4d08c6e146d61449c05a3e0546868b1d4f83411f325187d5ca4f85cd024e06e6c6073e13a03fa4629882a69108cd60e0a9fbb2e0fcc898ce68a7051b66cd027a069cc972fc7816539a316ba1cfc0164656d63dd1873ee407670b0e8195f3bd9604cd0302e57ca7ebf8cfa1802d4bc79a455008307a936b4f50f0629d9bef484fdd5189cd0399f5724bbc4d08c6e146d61449c05a3e0546868b1d4f83411f325187d5ca4f85cd024e06e6c6073e13a03fa4629882a69108cd60e0a9fbb2e0fcc898ce68a7051b66cd027a069cc972fc7816539a316ba1cfc0164656d63dd1873ee407670b0e8195f3bdf39b03d3cb9e02d073").unwrap()).unwrap();
+        let prover = Wallet::from_secrets(secrets);
+        assert!(prover.sign_reduced_transaction(reduced, None).is_ok());
     }
 }
