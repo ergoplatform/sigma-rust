@@ -175,7 +175,7 @@ pub unsafe fn tokens_add(tokens_ptr: TokensPtr, token_ptr: ConstTokenPtr) -> Res
     let token = const_ptr_as_ref(token_ptr, "token_ptr")?;
     if tokens.0.is_some() {
         let mut new_vec = tokens.0.as_ref().unwrap().as_vec().clone();
-        if new_vec.len() == chain::ergo_box::ErgoBox::MAX_TOKENS_COUNT {
+        if new_vec.len() >= chain::ergo_box::ErgoBox::MAX_TOKENS_COUNT {
             return Err(Error::Misc(
                 "Tokens.add: cannot have more than ErgoBox::MAX_TOKENS_COUNT tokens".into(),
             ));
