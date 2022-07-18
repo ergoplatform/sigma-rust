@@ -355,7 +355,7 @@ mod tests {
     fn parse_registers_unit() {
         let json = r#" {"R4":"62"} "#;
         let regs: NonMandatoryRegisters = serde_json::from_str(json).unwrap();
-        assert_eq!(regs.get_ordered_values().len(), 2)
+        assert_eq!(regs.get_ordered_values().len(), 1)
     }
 
     #[test]
