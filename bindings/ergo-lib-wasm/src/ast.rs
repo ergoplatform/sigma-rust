@@ -256,4 +256,14 @@ impl Constant {
             .map(Into::into)
             .map_err(to_js)
     }
+
+    /// Create Constant with Unit value
+    pub fn unit() -> Constant {
+        Constant(().into())
+    }
+
+    /// Returns true if constant value is Unit
+    pub fn is_unit(&self) -> bool {
+        self.0.tpe == ergo_lib::ergotree_ir::types::stype::SType::SUnit
+    }
 }
