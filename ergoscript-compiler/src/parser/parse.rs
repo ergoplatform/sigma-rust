@@ -8,6 +8,8 @@ use super::sink::Sink;
 use super::source::Source;
 use super::Parser;
 
+use std::fmt::Write;
+
 // Initial version is copied from https://github.com/arzg/eldiro
 // Checkout https://arzg.github.io/lang/ for description
 
@@ -36,7 +38,7 @@ impl Parse {
         s.push_str(&tree[0..tree.len() - 1]);
 
         for error in &self.errors {
-            s.push_str(&format!("\n{}", error));
+            write!(&mut s, "\n{:?}", error).unwrap();
         }
 
         s

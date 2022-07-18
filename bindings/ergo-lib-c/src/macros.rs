@@ -95,13 +95,13 @@ macro_rules! make_collection {
                 collection_ptr: [<Const $collection_type_name Ptr>],
                 index: usize,
                 element_ptr_out: *mut [<$item_type_name Ptr>],
-            ) -> crate::ReturnOption {
+            ) -> $crate::ReturnOption {
                 match ergo_lib_c_core::collections::collection_get(collection_ptr, index, element_ptr_out) {
-                    Ok(is_some) => crate::ReturnOption {
+                    Ok(is_some) => $crate::ReturnOption {
                         is_some,
                         error: std::ptr::null_mut(),
                     },
-                    Err(e) => crate::ReturnOption {
+                    Err(e) => $crate::ReturnOption {
                         is_some: false, // Just a dummy value
                         error: Error::c_api_from(Err(e)),
                     },

@@ -147,7 +147,7 @@ async fn peer_discovery_impl<
     let rx_timeout_signal = {
         let (tx, rx) = tokio::sync::oneshot::channel::<()>();
         tokio::spawn(async move {
-            let _ = tokio::time::sleep(settings.global_timeout).await;
+            tokio::time::sleep(settings.global_timeout).await;
             let _ = tx.send(());
         });
         rx.into_stream()

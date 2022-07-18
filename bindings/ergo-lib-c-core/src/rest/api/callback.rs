@@ -26,6 +26,7 @@ impl CompletionCallback {
         let ptr = Box::into_raw(Box::new(t)) as *mut _ as *mut c_void;
         (self.completion_callback)(self.user_data, ptr, ptr::null());
         // free without running the destructor
+        #[allow(clippy::forget_non_drop)]
         std::mem::forget(self)
     }
 
@@ -34,6 +35,7 @@ impl CompletionCallback {
         let ptr = Error::c_api_from(Err(error));
         (self.completion_callback)(self.user_data, ptr::null(), ptr);
         // free without running the destructor
+        #[allow(clippy::forget_non_drop)]
         std::mem::forget(self)
     }
 }
