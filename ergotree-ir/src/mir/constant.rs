@@ -112,6 +112,12 @@ impl std::fmt::Debug for Literal {
     }
 }
 
+impl From<()> for Literal {
+    fn from(_: ()) -> Literal {
+        Literal::Unit
+    }
+}
+
 impl From<bool> for Literal {
     fn from(v: bool) -> Literal {
         Literal::Boolean(v)
@@ -288,6 +294,15 @@ impl TryFrom<Value> for Constant {
             Value::PreHeader(_) => Err("Cannot convert Value::PreHeader(_) into Constant".into()),
             Value::Global => Err("Cannot convert Value::Global into Constant".into()),
             Value::Lambda(_) => Err("Cannot convert Value::Lambda(_) into Constant".into()),
+        }
+    }
+}
+
+impl From<()> for Constant {
+    fn from(_: ()) -> Constant {
+        Constant {
+            tpe: SType::SUnit,
+            v: Literal::Unit,
         }
     }
 }
@@ -527,6 +542,18 @@ pub trait TryExtractFrom<T>: Sized {
 impl<T: TryExtractFrom<Literal>> TryExtractFrom<Constant> for T {
     fn try_extract_from(cv: Constant) -> Result<Self, TryExtractFromError> {
         T::try_extract_from(cv.v)
+    }
+}
+
+impl TryExtractFrom<Literal> for () {
+    fn try_extract_from(cv: Literal) -> Result<(), TryExtractFromError> {
+        match cv {
+            Literal::Unit => Ok(()),
+            _ => Err(TryExtractFromError(format!(
+                "expected Unit, found {:?}",
+                cv
+            ))),
+        }
     }
 }
 
@@ -986,6 +1013,11 @@ pub mod tests {
         let constant: Constant = v.clone().into();
         let v_extracted: T = constant.try_extract_into::<T>().unwrap();
         assert_eq!(v, v_extracted);
+    }
+
+    #[test]
+    fn unit_roundtrip() {
+        test_constant_roundtrip(());
     }
 
     proptest! {

@@ -264,8 +264,9 @@ where
         where
             E: de::Error,
         {
-            FromStr::from_str(value)
-                .map_err(|_| de::Error::custom("error parsing constant from string: {value}"))
+            FromStr::from_str(value).map_err(|_| {
+                de::Error::custom(format!("error parsing constant from string: {:?}", value))
+            })
         }
 
         fn visit_map<M>(self, map: M) -> Result<T, M::Error>
@@ -348,6 +349,13 @@ mod tests {
         "#;
         let regs: Result<NonMandatoryRegisters, _> = serde_json::from_str(json);
         assert!(regs.is_err());
+    }
+
+    #[test]
+    fn parse_registers_unit() {
+        let json = r#" {"R4":"62"} "#;
+        let regs: NonMandatoryRegisters = serde_json::from_str(json).unwrap();
+        assert_eq!(regs.get_ordered_values().len(), 2)
     }
 
     #[test]
