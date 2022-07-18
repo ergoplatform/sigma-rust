@@ -38,7 +38,7 @@ impl Parse {
         s.push_str(&tree[0..tree.len() - 1]);
 
         for error in &self.errors {
-            write!(&mut s, "\n{:?}", error).unwrap();
+            write!(&mut s, "\n{}", error).unwrap();
         }
 
         s
