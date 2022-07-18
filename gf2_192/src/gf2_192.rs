@@ -346,7 +346,7 @@ impl From<i32> for Gf2_192 {
     }
 }
 
-impl<'a> TryFrom<&[i8]> for Gf2_192 {
+impl TryFrom<&[i8]> for Gf2_192 {
     type Error = Gf2_192Error;
 
     fn try_from(value: &[i8]) -> Result<Self, Self::Error> {
@@ -363,7 +363,7 @@ impl<'a> TryFrom<&[i8]> for Gf2_192 {
     }
 }
 
-impl<'a> TryFrom<&[u8]> for Gf2_192 {
+impl TryFrom<&[u8]> for Gf2_192 {
     type Error = Gf2_192Error;
 
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {

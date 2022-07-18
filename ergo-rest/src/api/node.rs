@@ -260,7 +260,7 @@ mod tests {
             .await
             .unwrap();
 
-            let _ = tokio::time::sleep(Duration::from_secs(5)).await;
+            tokio::time::sleep(Duration::from_secs(5)).await;
 
             let res_long = peer_discovery(
                 NonEmptyVec::from_vec(seeds).unwrap(),

@@ -86,7 +86,7 @@ pub fn bigint256_to_scalar(bi: BigInt256) -> Option<Scalar> {
 
 impl SigmaSerializable for ergo_chain_types::EcPoint {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
-        let _ = self.scorex_serialize(w)?;
+        self.scorex_serialize(w)?;
         Ok(())
     }
 
