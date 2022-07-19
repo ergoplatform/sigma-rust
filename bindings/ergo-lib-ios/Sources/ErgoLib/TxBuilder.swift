@@ -51,6 +51,11 @@ class TxBuilder {
     func setContextExtension(boxId: BoxId, ctxExt: ContextExtension) {
         ergo_lib_tx_builder_set_context_extension(self.pointer, boxId.pointer, ctxExt.pointer)
     }
+
+    /// Permits the burn of the given token amount, i.e. allows this token amount to be omitted in the outputs
+    func setTokenBurnPermit(tokens: Tokens) {
+        ergo_lib_tx_builder_set_token_burn_permit(self.pointer, tokens.pointer)
+    }
     
     /// Get ``DataInputs``
     func getDataInputs() -> DataInputs {

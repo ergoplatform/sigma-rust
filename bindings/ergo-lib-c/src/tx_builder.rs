@@ -7,6 +7,7 @@ use ergo_lib_c_core::{
     context_extension::ContextExtensionPtr,
     data_input::DataInput,
     ergo_box::{BoxIdPtr, BoxValuePtr, ConstBoxValuePtr, ErgoBoxCandidate},
+    token::ConstTokensPtr,
     transaction::UnsignedTransactionPtr,
     tx_builder::*,
     Error, ErrorPtr,
@@ -71,6 +72,16 @@ pub unsafe extern "C" fn ergo_lib_tx_builder_set_context_extension(
 ) {
     #[allow(clippy::unwrap_used)]
     tx_builder_set_context_extension(tx_builder_mut, box_id_ptr, ctx_ext_ptr).unwrap();
+}
+
+/// Permits the burn of the given token amount, i.e. allows this token amount to be omitted in the outputs
+#[no_mangle]
+pub unsafe extern "C" fn ergo_lib_tx_builder_set_token_burn_permit(
+    tx_builder_mut: TxBuilderPtr,
+    target_tokens_ptr: ConstTokensPtr,
+) {
+    #[allow(clippy::unwrap_used)]
+    tx_builder_set_token_burn_permit(tx_builder_mut, target_tokens_ptr).unwrap();
 }
 
 /// Build the unsigned transaction

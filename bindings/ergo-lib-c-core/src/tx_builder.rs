@@ -8,6 +8,7 @@ use crate::{
     context_extension::ContextExtensionPtr,
     data_input::DataInput,
     ergo_box::{BoxIdPtr, BoxValue, BoxValuePtr, ConstBoxValuePtr, ErgoBoxCandidate},
+    token::ConstTokensPtr,
     transaction::{UnsignedTransaction, UnsignedTransactionPtr},
     util::{const_ptr_as_ref, mut_ptr_as_mut},
     Error,
@@ -89,11 +90,27 @@ pub unsafe fn tx_builder_set_context_extension(
 ) -> Result<(), Error> {
     let box_id = const_ptr_as_ref(box_id_ptr, "box_id_ptr")?;
     let ctx_ext = const_ptr_as_ref(ctx_ext_ptr, "ctx_ext_ptr")?;
-    // let data_inputs = const_ptr_as_ref(data_inputs_ptr, "data_inputs_ptr")?;
     let tx_builder_mut = mut_ptr_as_mut(tx_builder_mut, "tx_builder_mut")?;
     tx_builder_mut
         .0
         .set_context_extension(box_id.0.clone(), ctx_ext.0.clone());
+    Ok(())
+}
+
+/// Permits the burn of the given token amount, i.e. allows this token amount to be omitted in the outputs
+pub unsafe fn tx_builder_set_token_burn_permit(
+    tx_builder_mut: TxBuilderPtr,
+    target_tokens_ptr: ConstTokensPtr,
+) -> Result<(), Error> {
+    let target_tokens = const_ptr_as_ref(target_tokens_ptr, "target_tokens_ptr")?;
+    let tx_builder_mut = mut_ptr_as_mut(tx_builder_mut, "tx_builder_mut")?;
+    tx_builder_mut.0.set_token_burn_permit(
+        target_tokens
+            .0
+            .clone()
+            .map(|tokens| tokens.mapped(|t| t.0).as_vec().clone())
+            .unwrap_or_else(Vec::new),
+    );
     Ok(())
 }
 
