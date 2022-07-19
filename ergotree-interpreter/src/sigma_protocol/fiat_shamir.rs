@@ -16,6 +16,7 @@ use ergotree_ir::serialization::SigmaSerializable;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProp;
 use std::array::TryFromSliceError;
 use std::convert::{TryFrom, TryInto};
+use std::fmt::Formatter;
 use thiserror::Error;
 
 #[cfg(feature = "arbitrary")]
@@ -26,7 +27,7 @@ use super::GROUP_SIZE;
 use super::SOUNDNESS_BYTES;
 
 /// Hash type for Fiat-Shamir hash function (24-bytes)
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Clone)]
 #[cfg_attr(feature = "arbitrary", derive(Arbitrary))]
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
@@ -87,6 +88,13 @@ impl TryFrom<&[u8]> for FiatShamirHash {
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
         let arr: [u8; SOUNDNESS_BYTES] = value.try_into()?;
         Ok(FiatShamirHash(Box::new(arr)))
+    }
+}
+
+impl std::fmt::Debug for FiatShamirHash {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str("FSH:")?;
+        f.write_str(&base16::encode_lower(&(*self.0)))
     }
 }
 
