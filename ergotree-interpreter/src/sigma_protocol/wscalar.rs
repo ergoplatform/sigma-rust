@@ -3,6 +3,7 @@
 
 use std::array::TryFromSliceError;
 use std::convert::TryFrom;
+use std::fmt::Formatter;
 
 use derive_more::From;
 use derive_more::Into;
@@ -17,7 +18,7 @@ use super::challenge::Challenge;
 use super::GroupSizedBytes;
 use super::SOUNDNESS_BYTES;
 
-#[derive(PartialEq, Eq, Debug, From, Into, Clone)]
+#[derive(PartialEq, Eq, From, Into, Clone)]
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "json",
@@ -68,6 +69,13 @@ impl TryFrom<Base16DecodedBytes> for Wscalar {
     fn try_from(value: Base16DecodedBytes) -> Result<Self, Self::Error> {
         let bytes = value.0;
         GroupSizedBytes::try_from(bytes).map(Into::into)
+    }
+}
+
+impl std::fmt::Debug for Wscalar {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Wscalar:")?;
+        f.write_str(&base16::encode_lower(&(*self.0.to_bytes())))
     }
 }
 
