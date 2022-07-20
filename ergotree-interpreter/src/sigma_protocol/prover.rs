@@ -26,7 +26,6 @@ use gf2_192::gf2_192poly::Gf2_192Poly;
 use gf2_192::gf2_192poly::Gf2_192PolyError;
 use gf2_192::Gf2_192Error;
 use std::convert::TryInto;
-use std::fmt::Write;
 use std::rc::Rc;
 
 pub use context_extension::*;
@@ -99,9 +98,6 @@ pub enum ProverError {
     /// Not yet implemented
     #[error("not yet implemented: {0}")]
     NotYetImplemented(String),
-    /// Error enriched with tracing
-    #[error("error with tracing added: {0}")]
-    TraceEnriched(String),
 }
 
 impl From<ErgoTreeError> for ProverError {
@@ -199,26 +195,8 @@ fn prove_to_unchecked<P: Prover + ?Sized>(
     message: &[u8],
     hints_bag: &HintsBag,
 ) -> Result<UncheckedTree, ProverError> {
-    fn wrap_error<T>(res: Result<T, ProverError>, trace_log: &String) -> Result<T, ProverError> {
-        match res {
-            Ok(t) => Ok(t),
-            Err(e) => Err(ProverError::TraceEnriched(
-                format!("Inner prover error: {}", e)
-                    + "\n=======================TRACE=========================>\n"
-                    + trace_log,
-            )),
-        }
-    }
-
-    let mut trace_log = String::new();
-    writeln!(trace_log, "==================UNPROVEN_TREE===============>").unwrap();
-    writeln!(trace_log, "unproven_tree: {:?}\n", unproven_tree).unwrap();
-    writeln!(trace_log, "==================HINTS_BAG===================>").unwrap();
-    writeln!(trace_log, "hints_bag: {:?}\n", hints_bag).unwrap();
     // Prover Step 1: Mark as real everything the prover can prove
-    let step1 = wrap_error(mark_real(prover, unproven_tree, hints_bag), &trace_log)?;
-    writeln!(trace_log, "==================STEP 1======================>").unwrap();
-    writeln!(trace_log, "Step 1: {:?}\n", step1).unwrap();
+    let step1 = mark_real(prover, unproven_tree, hints_bag)?;
     // dbg!(&step1);
 
     // Prover Step 2: If the root of the tree is marked "simulated" then the prover does not have enough witnesses
@@ -230,16 +208,12 @@ fn prove_to_unchecked<P: Prover + ?Sized>(
     // Prover Step 3: Change some "real" nodes to "simulated" to make sure each node
     // has the right number of simulated children.
 
-    let step3 = wrap_error(polish_simulated(prover, step1), &trace_log)?;
-    writeln!(trace_log, "==================STEP 3======================>").unwrap();
-    writeln!(trace_log, "Step 3: {:?}\n", step3).unwrap();
+    let step3 = polish_simulated(prover, step1)?;
     // dbg!(&step3);
 
     // Prover Steps 4, 5, and 6 together: find challenges for simulated nodes; simulate simulated leaves;
     // compute commitments for real leaves
-    let step6 = wrap_error(simulate_and_commit(step3, hints_bag), &trace_log)?;
-    writeln!(trace_log, "==================STEP 6======================>").unwrap();
-    writeln!(trace_log, "Step 6: {:?}\n", step6).unwrap();
+    let step6 = simulate_and_commit(step3, hints_bag)?;
     // dbg!(&step6);
 
     // Prover Steps 7: convert the relevant information in the tree (namely, tree structure, node types,
@@ -253,17 +227,13 @@ fn prove_to_unchecked<P: Prover + ?Sized>(
     s.append(&mut message.to_vec());
     let root_challenge: Challenge = fiat_shamir_hash_fn(s.as_slice()).into();
     let step8 = step6.with_challenge(root_challenge);
-    writeln!(trace_log, "==================STEP 8======================>").unwrap();
-    writeln!(trace_log, "Step 8: {:?}\n", step8).unwrap();
     // dbg!(&step8);
 
     // Prover Step 9: complete the proof by computing challenges at real nodes and additionally responses at real leaves
-    let step9 = wrap_error(proving(prover, step8.into(), hints_bag), &trace_log)?;
-    writeln!(trace_log, "==================STEP 9======================>").unwrap();
-    writeln!(trace_log, "Step 9: {:?}\n", step9).unwrap();
+    let step9 = proving(prover, step8.into(), hints_bag)?;
     // dbg!(&step9);
     // Prover Step 10: output the right information into the proof
-    wrap_error(convert_to_unchecked(step9), &trace_log)
+    convert_to_unchecked(step9)
 }
 
 /**
