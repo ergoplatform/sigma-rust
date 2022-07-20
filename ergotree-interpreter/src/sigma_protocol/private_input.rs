@@ -1,5 +1,6 @@
 //! Private input types for the prover's secrets
 use std::convert::TryInto;
+use std::fmt::Formatter;
 
 use elliptic_curve::group::ff::PrimeField;
 use ergotree_ir::sigma_protocol::dlog_group;
@@ -17,10 +18,16 @@ use super::crypto_utils;
 use super::wscalar::Wscalar;
 
 /// Secret key of discrete logarithm signature protocol
-#[derive(PartialEq, Debug, Clone, derive_more::From)]
+#[derive(PartialEq, Clone, derive_more::From)]
 pub struct DlogProverInput {
     /// secret key value
     pub w: Wscalar,
+}
+
+impl std::fmt::Debug for DlogProverInput {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        "DLOGPI:***".fmt(f)
+    }
 }
 
 impl DlogProverInput {
@@ -93,12 +100,18 @@ impl DlogProverInput {
 /// Used in a proof that of equality of discrete logarithms (i.e., a proof of a Diffie-Hellman tuple):
 /// given group elements g, h, u, v, the proof convinces a verifier that the prover knows `w` such
 /// that `u = g^w` and `v = h^w`, without revealing `w`
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Clone)]
 pub struct DhTupleProverInput {
     /// Diffie-Hellman tuple's secret
     pub w: Wscalar,
     /// Diffie-Hellman tuple
     pub common_input: ProveDhTuple,
+}
+
+impl std::fmt::Debug for DhTupleProverInput {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        "DHTPI:***".fmt(f)
+    }
 }
 
 impl DhTupleProverInput {

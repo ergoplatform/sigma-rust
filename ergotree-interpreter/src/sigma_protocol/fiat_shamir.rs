@@ -156,7 +156,10 @@ fn fiat_shamir_write_bytes<W: SigmaByteWrite>(
             let commitment_bytes = leaf
                 .commitment_opt()
                 .ok_or_else(|| {
-                    FiatShamirTreeSerializationError(format!("empty commitment in {:?}", leaf))
+                    FiatShamirTreeSerializationError(format!(
+                        "empty commitment in leaf with proposition {:?}",
+                        leaf.proposition()
+                    ))
                 })?
                 .bytes();
             w.put_u8(LEAF_PREFIX)?;

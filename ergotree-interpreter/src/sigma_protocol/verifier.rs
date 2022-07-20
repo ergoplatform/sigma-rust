@@ -40,7 +40,7 @@ pub enum VerifierError {
     SigParsingError(SigParsingError),
     /// Unexpected value encountered
     #[error("Unexpected: {0}")]
-    Unexpected(String),
+    Unexpected(&'static str),
     /// Error while tree serialization for Fiat-Shamir hash
     #[error("Fiat-Shamir tree serialization error: {0}")]
     FiatShamirTreeSerializationError(FiatShamirTreeSerializationError),
