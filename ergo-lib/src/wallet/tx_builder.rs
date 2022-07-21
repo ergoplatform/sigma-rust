@@ -241,6 +241,7 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
                 ])),
             })?;
 
+        // check that token burn permit is not exceeded
         let burned_tokens = subtract_tokens(&input_tokens, &output_tokens_without_minted)
             .map_err(TxBuilderError::TokensInOutputsExceedInputs)?;
         let token_burn_permits = vec_tokens_to_map(self.token_burn_permit.clone())
