@@ -7,10 +7,16 @@ use std::convert::TryFrom;
 
 /// Challenge in Sigma protocol
 #[cfg_attr(feature = "arbitrary", derive(Arbitrary))]
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Clone)]
 #[cfg(feature = "json")]
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct Challenge(pub(crate) FiatShamirHash);
+
+impl std::fmt::Debug for Challenge {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        "Challenge:***".fmt(f)
+    }
+}
 
 impl Challenge {
     pub fn secure_random() -> Self {

@@ -27,7 +27,7 @@ use derive_more::From;
 use thiserror::Error;
 
 /// Errors on proof verification
-#[derive(Error, PartialEq, Eq, Debug, Clone, From)]
+#[derive(Error, Debug, From)]
 pub enum VerifierError {
     /// Failed to parse ErgoTree from bytes
     #[error("ErgoTreeError: {0}")]
@@ -38,9 +38,6 @@ pub enum VerifierError {
     /// Signature parsing error
     #[error("SigParsingError: {0}")]
     SigParsingError(SigParsingError),
-    /// Unexpected value encountered
-    #[error("Unexpected: {0}")]
-    Unexpected(String),
     /// Error while tree serialization for Fiat-Shamir hash
     #[error("Fiat-Shamir tree serialization error: {0}")]
     FiatShamirTreeSerializationError(FiatShamirTreeSerializationError),

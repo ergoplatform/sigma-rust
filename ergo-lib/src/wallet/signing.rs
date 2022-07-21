@@ -7,6 +7,7 @@ use crate::chain::{
     transaction::{unsigned::UnsignedTransaction, Transaction},
 };
 use ergotree_interpreter::sigma_protocol::prover::hint::HintsBag;
+use ergotree_interpreter::sigma_protocol::sig_serializer::SigParsingError;
 use ergotree_ir::chain::ergo_box::ErgoBox;
 use ergotree_ir::serialization::SigmaSerializationError;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
@@ -22,7 +23,7 @@ use ergotree_interpreter::sigma_protocol::prover::ProverResult;
 use thiserror::Error;
 
 /// Errors on transaction signing
-#[derive(Error, PartialEq, Eq, Debug, Clone)]
+#[derive(Error, Debug)]
 pub enum TxSigningError {
     /// Error on proving an input
     #[error("Prover error (tx input index {1}): {0}")]
@@ -48,6 +49,9 @@ pub enum TxSigningError {
     /// Tx serialization failed (id calculation)
     #[error("Transaction serialization failed: {0}")]
     SerializationError(#[from] SigmaSerializationError),
+    /// SigParsingError
+    #[error("SigParsingError: {0}")]
+    SigParsingError(#[from] SigParsingError),
 }
 
 pub use super::tx_context::TransactionContext;

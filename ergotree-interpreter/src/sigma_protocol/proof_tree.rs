@@ -155,10 +155,9 @@ where
             if let ProofTree::UncheckedTree(ust) = c {
                 Ok(ust)
             } else {
-                Err(ProverError::Unexpected(format!(
-                    "rewrite: expected UncheckedSigmaTree got: {:?}",
-                    c
-                )))
+                Err(ProverError::Unexpected(
+                    "rewrite: expected UncheckedSigmaTree got UnprovenTree",
+                ))
             }
         })
     };

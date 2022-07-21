@@ -13,7 +13,7 @@ use ergotree_ir::mir::expr::Expr;
 use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
 use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWriter;
 use ergotree_ir::serialization::SigmaSerializable;
-use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProp;
+use ergotree_ir::sigma_protocol::sigma_boolean::{SigmaBoolean, SigmaProp};
 use std::array::TryFromSliceError;
 use std::convert::{TryFrom, TryInto};
 use std::fmt::Formatter;
@@ -124,14 +124,12 @@ pub(crate) fn fiat_shamir_tree_to_bytes(
     Ok(data)
 }
 
-#[derive(Error, PartialEq, Eq, Debug, Clone)]
-#[error("FiatShamirTreeSerializationError: {0}")]
-pub struct FiatShamirTreeSerializationError(String);
-
-impl From<std::io::Error> for FiatShamirTreeSerializationError {
-    fn from(error: std::io::Error) -> Self {
-        FiatShamirTreeSerializationError(error.to_string())
-    }
+#[derive(Error, Debug)]
+pub enum FiatShamirTreeSerializationError {
+    #[error("empty commitment in leaf with proposition {0:?} ")]
+    EmptyCommitmentInLeaf(SigmaBoolean),
+    #[error("io errro {0:?} ")]
+    IoError(#[from] std::io::Error),
 }
 
 fn fiat_shamir_write_bytes<W: SigmaByteWrite>(
@@ -156,7 +154,7 @@ fn fiat_shamir_write_bytes<W: SigmaByteWrite>(
             let commitment_bytes = leaf
                 .commitment_opt()
                 .ok_or_else(|| {
-                    FiatShamirTreeSerializationError(format!("empty commitment in {:?}", leaf))
+                    FiatShamirTreeSerializationError::EmptyCommitmentInLeaf(leaf.proposition())
                 })?
                 .bytes();
             w.put_u8(LEAF_PREFIX)?;

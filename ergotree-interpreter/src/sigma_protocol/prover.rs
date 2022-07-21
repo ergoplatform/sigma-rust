@@ -26,7 +26,6 @@ use gf2_192::gf2_192poly::Gf2_192Poly;
 use gf2_192::gf2_192poly::Gf2_192PolyError;
 use gf2_192::Gf2_192Error;
 use std::convert::TryInto;
-use std::fmt::Write;
 use std::rc::Rc;
 
 pub use context_extension::*;
@@ -64,7 +63,7 @@ use ergotree_ir::sigma_protocol::dlog_group;
 use thiserror::Error;
 
 /// Prover errors
-#[derive(Error, PartialEq, Eq, Debug, Clone)]
+#[derive(Error, Debug)]
 pub enum ProverError {
     /// Failed to parse ErgoTree
     #[error("Ergo tree error: {0}")]
@@ -92,16 +91,10 @@ pub enum ProverError {
     SecretNotFound,
     /// Unexpected value encountered
     #[error("Unexpected: {0}")]
-    Unexpected(String),
+    Unexpected(&'static str), // keep it &str to avoid leaking sensitive data in runtime
     /// Error while tree serialization for Fiat-Shamir hash
     #[error("Fiat-Shamir tree serialization error: {0}")]
     FiatShamirTreeSerializationError(FiatShamirTreeSerializationError),
-    /// Not yet implemented
-    #[error("not yet implemented: {0}")]
-    NotYetImplemented(String),
-    /// Error enriched with tracing
-    #[error("error with tracing added: {0}")]
-    TraceEnriched(String),
 }
 
 impl From<ErgoTreeError> for ProverError {
@@ -199,26 +192,8 @@ fn prove_to_unchecked<P: Prover + ?Sized>(
     message: &[u8],
     hints_bag: &HintsBag,
 ) -> Result<UncheckedTree, ProverError> {
-    fn wrap_error<T>(res: Result<T, ProverError>, trace_log: &String) -> Result<T, ProverError> {
-        match res {
-            Ok(t) => Ok(t),
-            Err(e) => Err(ProverError::TraceEnriched(
-                format!("Inner prover error: {}", e)
-                    + "\n=======================TRACE=========================>\n"
-                    + trace_log,
-            )),
-        }
-    }
-
-    let mut trace_log = String::new();
-    writeln!(trace_log, "==================UNPROVEN_TREE===============>").unwrap();
-    writeln!(trace_log, "unproven_tree: {:?}\n", unproven_tree).unwrap();
-    writeln!(trace_log, "==================HINTS_BAG===================>").unwrap();
-    writeln!(trace_log, "hints_bag: {:?}\n", hints_bag).unwrap();
     // Prover Step 1: Mark as real everything the prover can prove
-    let step1 = wrap_error(mark_real(prover, unproven_tree, hints_bag), &trace_log)?;
-    writeln!(trace_log, "==================STEP 1======================>").unwrap();
-    writeln!(trace_log, "Step 1: {:?}\n", step1).unwrap();
+    let step1 = mark_real(prover, unproven_tree, hints_bag)?;
     // dbg!(&step1);
 
     // Prover Step 2: If the root of the tree is marked "simulated" then the prover does not have enough witnesses
@@ -230,16 +205,12 @@ fn prove_to_unchecked<P: Prover + ?Sized>(
     // Prover Step 3: Change some "real" nodes to "simulated" to make sure each node
     // has the right number of simulated children.
 
-    let step3 = wrap_error(polish_simulated(prover, step1), &trace_log)?;
-    writeln!(trace_log, "==================STEP 3======================>").unwrap();
-    writeln!(trace_log, "Step 3: {:?}\n", step3).unwrap();
+    let step3 = polish_simulated(prover, step1)?;
     // dbg!(&step3);
 
     // Prover Steps 4, 5, and 6 together: find challenges for simulated nodes; simulate simulated leaves;
     // compute commitments for real leaves
-    let step6 = wrap_error(simulate_and_commit(step3, hints_bag), &trace_log)?;
-    writeln!(trace_log, "==================STEP 6======================>").unwrap();
-    writeln!(trace_log, "Step 6: {:?}\n", step6).unwrap();
+    let step6 = simulate_and_commit(step3, hints_bag)?;
     // dbg!(&step6);
 
     // Prover Steps 7: convert the relevant information in the tree (namely, tree structure, node types,
@@ -253,17 +224,13 @@ fn prove_to_unchecked<P: Prover + ?Sized>(
     s.append(&mut message.to_vec());
     let root_challenge: Challenge = fiat_shamir_hash_fn(s.as_slice()).into();
     let step8 = step6.with_challenge(root_challenge);
-    writeln!(trace_log, "==================STEP 8======================>").unwrap();
-    writeln!(trace_log, "Step 8: {:?}\n", step8).unwrap();
     // dbg!(&step8);
 
     // Prover Step 9: complete the proof by computing challenges at real nodes and additionally responses at real leaves
-    let step9 = wrap_error(proving(prover, step8.into(), hints_bag), &trace_log)?;
-    writeln!(trace_log, "==================STEP 9======================>").unwrap();
-    writeln!(trace_log, "Step 9: {:?}\n", step9).unwrap();
+    let step9 = proving(prover, step8.into(), hints_bag)?;
     // dbg!(&step9);
     // Prover Step 10: output the right information into the proof
-    wrap_error(convert_to_unchecked(step9), &trace_log)
+    convert_to_unchecked(step9)
 }
 
 /**
@@ -340,7 +307,7 @@ fn mark_real<P: Prover + ?Sized>(
         })
     })?
     .try_into()
-    .map_err(|e: &str| ProverError::Unexpected(e.to_string()))
+    .map_err(|_| ProverError::Unexpected("mark_real: failed to get UnprovenTree from ProofTree"))
 }
 
 /// Set positions for children of a unproven inner node (conjecture, so AND/OR/THRESHOLD)
@@ -348,10 +315,9 @@ fn set_positions(uc: UnprovenConjecture) -> Result<UnprovenConjecture, ProverErr
     let upd_children = uc
         .children()
         .try_mapped(|c| match c {
-            ProofTree::UncheckedTree(unch) => Err(ProverError::Unexpected(format!(
-                "set_positions: unexpected UncheckedTree: {:?}",
-                unch
-            ))),
+            ProofTree::UncheckedTree(_) => Err(ProverError::Unexpected(
+                "set_positions: expected UnprovenTree, got UncheckedTree",
+            )),
             ProofTree::UnprovenTree(unp) => Ok(unp),
         })?
         .enumerated()
@@ -369,15 +335,11 @@ fn set_positions(uc: UnprovenConjecture) -> Result<UnprovenConjecture, ProverErr
 /// the choice can be guided by efficiency or convenience considerations.
 fn make_cor_children_simulated(cor: CorUnproven) -> Result<CorUnproven, ProverError> {
     let casted_children = cast_to_unp(cor.children)?;
-    let first_real_child = casted_children
-        .iter()
-        .find(|it| it.is_real())
-        .ok_or_else(|| {
-            ProverError::Unexpected(format!(
-                "make_cor_children_simulated: no real child is found amoung: {:?}",
-                casted_children
-            ))
-        })?;
+    let first_real_child = casted_children.iter().find(|it| it.is_real()).ok_or({
+        ProverError::Unexpected(
+            "make_cor_children_simulated: no real child is found amoung Cor children",
+        )
+    })?;
     let children = casted_children
         .clone()
         .mapped(|c| {
@@ -398,10 +360,9 @@ fn cast_to_unp(
         if let ProofTree::UnprovenTree(ut) = c {
             Ok(ut)
         } else {
-            Err(ProverError::Unexpected(format!(
-                "make_cor_children_simulated: expected UnprovenTree got: {:?}",
-                c
-            )))
+            Err(ProverError::Unexpected(
+                "make_cor_children_simulated: expected UnprovenTree got UncheckedTree",
+            ))
         }
     })
 }
@@ -488,7 +449,9 @@ fn polish_simulated<P: Prover + ?Sized>(
         ProofTree::UncheckedTree(_) => Ok(None),
     })?
     .try_into()
-    .map_err(|e: &str| ProverError::Unexpected(e.to_string()))
+    .map_err(|_| {
+        ProverError::Unexpected("polish_simulated: failed to convert ProofTree to UnprovenTree")
+    })
 }
 
 fn step4_real_conj(
@@ -546,7 +509,7 @@ fn step4_simulated_and_conj(cand: CandUnproven) -> Result<Option<ProofTree>, Pro
         ))
     } else {
         Err(ProverError::Unexpected(
-            "simulate_and_commit: missing CandUnproven(simulated).challenge".to_string(),
+            "step4_simulated_and_conj: missing CandUnproven(simulated).challenge",
         ))
     }
 }
@@ -566,10 +529,9 @@ fn step4_simulated_or_conj(cor: CorUnproven) -> Result<Option<ProofTree>, Prover
             .collect();
         let mut xored_challenge = challenge;
         for it in &tail {
-            xored_challenge = xored_challenge.xor(
-                it.challenge()
-                    .ok_or_else(|| ProverError::Unexpected(format!("no challenge in {:?}", it)))?,
-            );
+            xored_challenge = xored_challenge.xor(it.challenge().ok_or({
+                ProverError::Unexpected("step4_simulated_or_conj: no challenge in UnprovenTree")
+            })?);
         }
         let head = unproven_children
             .first()
@@ -592,7 +554,7 @@ fn step4_simulated_or_conj(cor: CorUnproven) -> Result<Option<ProofTree>, Prover
         ))
     } else {
         Err(ProverError::Unexpected(
-            "simulate_and_commit: missing CandUnproven(simulated).challenge".to_string(),
+            "step4_simulated_or_conj: missing CandUnproven(simulated).challenge",
         ))
     }
 }
@@ -628,7 +590,7 @@ fn step4_simulated_threshold_conj(
         ))
     } else {
         Err(ProverError::Unexpected(
-            "simulate_and_commit: missing CthresholdUnproven(simulated).challenge".to_string(),
+            "step4_simulated_threshold_conj: missing CthresholdUnproven(simulated).challenge",
         ))
     }
 }
@@ -653,7 +615,7 @@ fn step5_schnorr(
                         .commitment()
                         .clone()
                         .try_into()
-                        .map_err(|e: &str| ProverError::Unexpected(e.to_string()))?,
+                        .map_err(|_| ProverError::Unexpected("step5_schnorr: failed to convert FirstProverMessage to FirstDlogProverMessage"))?,
                 ),
                 ..us.clone()
             }
@@ -713,7 +675,7 @@ fn step5_diffie_hellman_tuple(
                 .with_commitment(match cmt_hint.commitment() {
                     FirstDlogProverMessage(_) => {
                         return Err(ProverError::Unexpected(
-                            "Step 5 & 6 for UnprovenDhTuple: FirstDlogProverMessage is not expected here".to_string(),
+                            "Step 5 & 6 for UnprovenDhTuple: FirstDlogProverMessage is not expected here",
                         ));
                     }
                     FirstDhtProverMessage(dhtm) => dhtm.clone(),
@@ -800,7 +762,9 @@ fn simulate_and_commit(
         }
     })?
     .try_into()
-    .map_err(|e: &str| ProverError::Unexpected(e.to_string()))
+    .map_err(|_| {
+        ProverError::Unexpected("simulate_and_commit: failed to convert ProofTree to UnprovenTree")
+    })
 }
 
 fn step9_real_and(cand: CandUnproven) -> Result<Option<ProofTree>, ProverError> {
@@ -814,7 +778,7 @@ fn step9_real_and(cand: CandUnproven) -> Result<Option<ProofTree>, ProverError> 
         Ok(Some(cand.with_children(updated).into()))
     } else {
         Err(ProverError::Unexpected(
-            "proving: CandUnproven.challenge_opt is empty".to_string(),
+            "step9_real_and: CandUnproven.challenge_opt is empty",
         ))
     }
 }
@@ -844,7 +808,7 @@ fn step9_real_or(cor: CorUnproven) -> Result<Option<ProofTree>, ProverError> {
         ))
     } else {
         Err(ProverError::Unexpected(
-            "proving: CorUnproven.challenge_opt is empty".to_string(),
+            "step9_real_or: CorUnproven.challenge_opt is empty",
         ))
     }
 }
@@ -871,8 +835,7 @@ fn step9_real_threshold(ct: CthresholdUnproven) -> Result<Option<ProofTree>, Pro
                 ProofTree::UncheckedTree(ut) => match ut {
                     UncheckedTree::UncheckedLeaf(ul) => Some(ul.challenge()),
                     UncheckedTree::UncheckedConjecture(_) => return Err(ProverError::Unexpected(
-                        "proving: CthresholdUnproven.children has unexpected UncheckedConjecture"
-                            .to_string(),
+                        "step9_real_threshold: CthresholdUnproven.children has unexpected UncheckedConjecture",
                     )),
                 },
                 ProofTree::UnprovenTree(unpt) => unpt.challenge(),
@@ -902,7 +865,7 @@ fn step9_real_threshold(ct: CthresholdUnproven) -> Result<Option<ProofTree>, Pro
         ))
     } else {
         Err(ProverError::Unexpected(
-            "proving: CthresholdUnproven.challenge_opt is empty".to_string(),
+            "step9_real_threshold: CthresholdUnproven.challenge_opt is empty",
         ))
     }
 }
@@ -933,17 +896,18 @@ fn step9_real_schnorr<P: Prover + ?Sized>(
                 ),
                 None => dlog_protocol::interactive_prover::second_message(
                     priv_key,
-                    us.randomness_opt.clone().ok_or_else(|| {
-                        ProverError::Unexpected(format!("empty randomness in {:?}", us))
+                    us.randomness_opt.clone().ok_or({
+                        ProverError::Unexpected(
+                            "step9_real_schnorr: empty randomness in UnprovenSchnorr",
+                        )
                     })?,
                     &challenge,
                 ),
             },
-            Some(pi) => {
-                return Err(ProverError::Unexpected(format!(
-                    "Expected DLOG prover input in prover secrets, got {:?}",
-                    pi
-                )));
+            Some(PrivateInput::DhTupleProverInput(_)) => {
+                return Err(ProverError::Unexpected(
+                    "step9_real_schnorr: Expected DLOG prover input in prover secrets, got DhTupleProverInput",
+                ));
             }
             None => match hints_bag
                 .real_proofs()
@@ -1011,17 +975,16 @@ fn step9_real_dh_tuple<P: Prover + ?Sized>(
                 }
                 None => dht_protocol::interactive_prover::second_message(
                     priv_key,
-                    &dhu.randomness_opt.clone().ok_or_else(|| {
-                        ProverError::Unexpected(format!("empty randomness in {:?}", dhu))
+                    &dhu.randomness_opt.clone().ok_or({
+                        ProverError::Unexpected(
+                            "step9_real_dh_tuple: empty randomness in UnprovenDhTuple",
+                        )
                     })?,
                     &dhu_challenge,
                 ),
             },
-            Some(pi) => {
-                return Err(ProverError::Unexpected(format!(
-                    "Expected DH prover input in prover secrets, got {:?}",
-                    pi
-                )));
+            Some(PrivateInput::DlogProverInput(_)) => {
+                return Err(ProverError::Unexpected("step9_real_dh_tuple: Expected DhTupleProverInput  in prover secrets, got DlogProverInput"));
             }
             None => match hints_bag
                 .real_proofs()
@@ -1036,10 +999,7 @@ fn step9_real_dh_tuple<P: Prover + ?Sized>(
                     {
                         unchecked_dht.second_message
                     } else {
-                        return Err(ProverError::Unexpected(format!(
-                            "Expected unchecked DH tuple in proof.unchecked_tree, got {:?}",
-                            unchecked_tree
-                        )));
+                        return Err(ProverError::Unexpected("step9_real_dh_tuple: Expected unchecked DH tuple in proof.unchecked_tree"));
                     }
                 }
                 None => {
@@ -1077,10 +1037,9 @@ fn proving<P: Prover + ?Sized>(
         match &tree {
             ProofTree::UncheckedTree(unch) => match unch {
                 UncheckedTree::UncheckedLeaf(_) => Ok(None),
-                UncheckedTree::UncheckedConjecture(_) => Err(ProverError::Unexpected(format!(
-                    "proving: unexpected {:?}",
-                    tree
-                ))),
+                UncheckedTree::UncheckedConjecture(_) => Err(ProverError::Unexpected(
+                    "proving: unexpected UncheckedConjecture in proof_tree",
+                )),
             },
 
             ProofTree::UnprovenTree(unproven_tree) => match unproven_tree {
@@ -1181,9 +1140,7 @@ fn convert_to_unproven(sb: SigmaBoolean) -> Result<UnprovenTree, ProverError> {
             .into(),
         },
         SigmaBoolean::TrivialProp(_) => {
-            return Err(ProverError::Unexpected(
-                "TrivialProp is not expected here".to_string(),
-            ));
+            return Err(ProverError::Unexpected("TrivialProp is not expected here"));
         }
     })
 }
@@ -1192,40 +1149,40 @@ fn convert_to_unchecked(tree: ProofTree) -> Result<UncheckedTree, ProverError> {
     match &tree {
         ProofTree::UncheckedTree(unch_tree) => match unch_tree {
             UncheckedTree::UncheckedLeaf(_) => Ok(unch_tree.clone()),
-            UncheckedTree::UncheckedConjecture(_) => Err(ProverError::Unexpected(format!(
-                "convert_to_unchecked: unexpected {:?}",
-                tree
-            ))),
+            UncheckedTree::UncheckedConjecture(_) => Err(ProverError::Unexpected(
+                "convert_to_unchecked: unexpected UncheckedConjecture",
+            )),
         },
         ProofTree::UnprovenTree(unp_tree) => match unp_tree {
-            UnprovenTree::UnprovenLeaf(_) => Err(ProverError::Unexpected(format!(
-                "convert_to_unchecked: unexpected {:?}",
-                tree
-            ))),
+            UnprovenTree::UnprovenLeaf(_) => Err(ProverError::Unexpected(
+                "convert_to_unchecked: unexpected UnprovenLeaf",
+            )),
             UnprovenTree::UnprovenConjecture(conj) => match conj {
                 UnprovenConjecture::CandUnproven(cand) => Ok(UncheckedConjecture::CandUnchecked {
-                    challenge: cand.challenge_opt.clone().ok_or_else(|| {
-                        ProverError::Unexpected(format!("no challenge in {:?}", cand))
-                    })?,
+                    challenge: cand
+                        .challenge_opt
+                        .clone()
+                        .ok_or(ProverError::Unexpected("no challenge in CandUnproven"))?,
                     children: cand.children.clone().try_mapped(convert_to_unchecked)?,
                 }
                 .into()),
                 UnprovenConjecture::CorUnproven(cor) => Ok(UncheckedConjecture::CorUnchecked {
-                    challenge: cor.challenge_opt.clone().ok_or_else(|| {
-                        ProverError::Unexpected(format!("no challenge in {:?}", cor))
-                    })?,
+                    challenge: cor
+                        .challenge_opt
+                        .clone()
+                        .ok_or(ProverError::Unexpected("no challenge in CorUnproven"))?,
                     children: cor.children.clone().try_mapped(convert_to_unchecked)?,
                 }
                 .into()),
                 UnprovenConjecture::CthresholdUnproven(ct) => {
                     Ok(UncheckedConjecture::CthresholdUnchecked {
-                        challenge: ct.challenge_opt.clone().ok_or_else(|| {
-                            ProverError::Unexpected(format!("no challenge in {:?}", ct))
+                        challenge: ct.challenge_opt.clone().ok_or({
+                            ProverError::Unexpected("no challenge in CthresholdUnproven")
                         })?,
                         children: ct.children.clone().try_mapped(convert_to_unchecked)?,
                         k: ct.k,
-                        polynomial: ct.polinomial_opt.clone().ok_or_else(|| {
-                            ProverError::Unexpected(format!("no polynomial in {:?}", ct))
+                        polynomial: ct.polinomial_opt.clone().ok_or({
+                            ProverError::Unexpected("no polynomial in CthresholdUnproven")
                         })?,
                     }
                     .into())
@@ -1306,7 +1263,6 @@ mod tests {
             &HintsBag::empty(),
         );
         assert!(res.is_err());
-        assert_eq!(res.err().unwrap(), ProverError::ReducedToFalse);
     }
 
     #[test]

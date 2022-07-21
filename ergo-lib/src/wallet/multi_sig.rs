@@ -13,7 +13,6 @@ use crate::ergotree_interpreter::sigma_protocol::prover::hint::{
     CommitmentHint, Hint, HintsBag, OwnCommitment, RealCommitment, RealSecretProof, SecretProven,
     SimulatedCommitment, SimulatedSecretProof,
 };
-use crate::ergotree_interpreter::sigma_protocol::prover::ProverError::Unexpected;
 use crate::ergotree_interpreter::sigma_protocol::prover::{ProofBytes, ProverError};
 use crate::ergotree_interpreter::sigma_protocol::sig_serializer::SigParsingError;
 use crate::ergotree_interpreter::sigma_protocol::unproven_tree::NodePosition;
@@ -364,10 +363,7 @@ pub fn extract_hints(
             real_secrets_to_extract.as_slice(),
             simulated_secrets_to_extract.as_slice(),
             proof.as_slice(),
-        )
-        .map_err(|_e| {
-            TxSigningError::ProverError(Unexpected("Unexpected Sigma tree Value".to_string()), i)
-        })?;
+        )?;
         hints_bag.add_hints_for_input(i, bag);
     }
 
