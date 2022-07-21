@@ -26,6 +26,7 @@ pub struct DlogProverInput {
 
 impl std::fmt::Debug for DlogProverInput {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        // to avoid leaking it in error messages, logs, etc.
         "DLOGPI:***".fmt(f)
     }
 }
@@ -110,6 +111,7 @@ pub struct DhTupleProverInput {
 
 impl std::fmt::Debug for DhTupleProverInput {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // to avoid leaking it in error messages, logs, etc.
         "DHTPI:***".fmt(f)
     }
 }

@@ -91,7 +91,7 @@ pub enum ProverError {
     SecretNotFound,
     /// Unexpected value encountered
     #[error("Unexpected: {0}")]
-    Unexpected(&'static str),
+    Unexpected(&'static str), // keep it &str to avoid leaking sensitive data in runtime
     /// Error while tree serialization for Fiat-Shamir hash
     #[error("Fiat-Shamir tree serialization error: {0}")]
     FiatShamirTreeSerializationError(FiatShamirTreeSerializationError),
