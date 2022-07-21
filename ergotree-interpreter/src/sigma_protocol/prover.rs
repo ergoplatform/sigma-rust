@@ -63,7 +63,7 @@ use ergotree_ir::sigma_protocol::dlog_group;
 use thiserror::Error;
 
 /// Prover errors
-#[derive(Error, PartialEq, Eq, Debug, Clone)]
+#[derive(Error, Debug)]
 pub enum ProverError {
     /// Failed to parse ErgoTree
     #[error("Ergo tree error: {0}")]
@@ -1263,7 +1263,6 @@ mod tests {
             &HintsBag::empty(),
         );
         assert!(res.is_err());
-        assert_eq!(res.err().unwrap(), ProverError::ReducedToFalse);
     }
 
     #[test]

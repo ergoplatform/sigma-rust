@@ -23,7 +23,7 @@ use ergotree_interpreter::sigma_protocol::prover::ProverResult;
 use thiserror::Error;
 
 /// Errors on transaction signing
-#[derive(Error, PartialEq, Eq, Debug, Clone)]
+#[derive(Error, Debug)]
 pub enum TxSigningError {
     /// Error on proving an input
     #[error("Prover error (tx input index {1}): {0}")]

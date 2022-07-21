@@ -42,7 +42,7 @@ pub struct Wallet {
 }
 
 /// Wallet errors
-#[derive(Error, PartialEq, Eq, Debug, Clone)]
+#[derive(Error, Debug)]
 pub enum WalletError {
     /// Error on tx signing
     #[error("Transaction signing error: {0}")]
