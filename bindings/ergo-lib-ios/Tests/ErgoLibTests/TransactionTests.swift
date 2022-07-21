@@ -191,7 +191,7 @@ final class TransactionTests: XCTestCase {
         let dataInputs = DataInputs()
         let txBuilder = TxBuilder(boxSelection: boxSelection, outputCandidates: txOutputs, currentHeight: UInt32(0), feeAmount: fee, changeAddress: changeAddress, minChangeValue: minChangeValue)
         txBuilder.setDataInputs(dataInputs: dataInputs)
-        txBuilder.setTokenBurnPermit(tokens)
+        txBuilder.setTokenBurnPermit(tokens: tokens)
         XCTAssertNoThrow(try txBuilder.build())
     }
     
