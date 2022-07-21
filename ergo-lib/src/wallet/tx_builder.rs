@@ -241,20 +241,13 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
                 ])),
             })?;
 
-        // check that token burn permit is not exceeded
+        // check token burn
         let burned_tokens = subtract_tokens(&input_tokens, &output_tokens_without_minted)
             .map_err(TxBuilderError::TokensInOutputsExceedInputs)?;
         let token_burn_permits = vec_tokens_to_map(self.token_burn_permit.clone())
             .map_err(TxBuilderError::TooManyTokensInBurnPermit)?;
         check_enough_token_burn_permit(&burned_tokens, &token_burn_permits)?;
-        // unwrap is safe here since we checked above that permits >= burned_tokens
-        #[allow(clippy::unwrap_used)]
-        let unused_burn_permit = subtract_tokens(&token_burn_permits, &burned_tokens).unwrap();
-        if !unused_burn_permit.is_empty() {
-            return Err(TxBuilderError::TokenBurnPermitUnused(map_tokens_to_vec(
-                unused_burn_permit,
-            )));
-        }
+        check_unused_token_burn_permit(&burned_tokens, &token_burn_permits)?;
 
         let unsigned_inputs = self.box_selection.boxes.clone().mapped(|b| {
             let ctx_ext = self
@@ -323,8 +316,8 @@ pub enum TxBuilderError {
     TokenBurnPermitExceeded { permit: Token, try_to_burn: Token },
     #[error("Token burn permit is missing, try to burn {try_to_burn:?}, call set_token_burn_permit() to set the limit")]
     TokenBurnPermitMissing { try_to_burn: Token },
-    #[error("Unused token burn permit: {0:?}")]
-    TokenBurnPermitUnused(Vec<Token>),
+    #[error("Unused token burn permit: token id {token_id:?}, amount {amount:?}")]
+    TokenBurnPermitUnused { token_id: TokenId, amount: u64 },
     #[error("Too many tokens in burn permit: {0}")]
     TooManyTokensInBurnPermit(TokenAmountError),
     #[error("Too many tokens in input boxes: {0}")]
@@ -351,13 +344,6 @@ pub(crate) fn vec_tokens_to_map(
     Ok(res)
 }
 
-pub(crate) fn map_tokens_to_vec(tokens: HashMap<TokenId, TokenAmount>) -> Vec<Token> {
-    tokens
-        .into_iter()
-        .map(|(token_id, amount)| Token { token_id, amount })
-        .collect()
-}
-
 fn check_enough_token_burn_permit(
     burned_tokens: &HashMap<TokenId, TokenAmount>,
     permits: &HashMap<TokenId, TokenAmount>,
@@ -373,6 +359,28 @@ fn check_enough_token_burn_permit(
         } else {
             return Err(TxBuilderError::TokenBurnPermitMissing {
                 try_to_burn: (burn_token_id.clone(), *burn_amt).into(),
+            });
+        }
+    }
+    Ok(())
+}
+
+fn check_unused_token_burn_permit(
+    burned_tokens: &HashMap<TokenId, TokenAmount>,
+    permits: &HashMap<TokenId, TokenAmount>,
+) -> Result<(), TxBuilderError> {
+    for (permit_token_id, permit_amt) in permits {
+        if let Some(burn_amt) = burned_tokens.get(permit_token_id) {
+            if burn_amt < permit_amt {
+                return Err(TxBuilderError::TokenBurnPermitUnused {
+                    token_id: permit_token_id.clone(),
+                    amount: *permit_amt.as_u64() - *burn_amt.as_u64(),
+                });
+            }
+        } else {
+            return Err(TxBuilderError::TokenBurnPermitUnused {
+                token_id: permit_token_id.clone(),
+                amount: *permit_amt.as_u64(),
             });
         }
     }
@@ -629,7 +637,10 @@ mod tests {
         assert!(res.is_err());
         assert_eq!(
             res,
-            Err(TxBuilderError::TokenBurnPermitUnused(vec![token_to_burn]))
+            Err(TxBuilderError::TokenBurnPermitUnused {
+                token_id: token_to_burn.token_id,
+                amount: *token_to_burn.amount.as_u64(),
+            })
         );
     }
 
