@@ -199,10 +199,14 @@ pub fn subtract_tokens(
     let mut res: HashMap<TokenId, TokenAmount> = tokens1.clone();
     tokens2.iter().try_for_each(|(id, t_amt)| {
         if let Some(amt) = res.get_mut(id) {
-            *amt = amt.checked_sub(t_amt)?;
+            if amt == t_amt {
+                res.remove(id);
+            } else {
+                *amt = amt.checked_sub(t_amt)?;
+            }
         } else {
             // trying to subtract a token not foung in tokens1
-            return Err(TokenAmountError::Overflow);
+            return Err(TokenAmountError::OutOfBounds(-(*t_amt.as_u64() as i64)));
         }
         Ok(())
     })?;
