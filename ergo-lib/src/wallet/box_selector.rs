@@ -205,7 +205,7 @@ pub fn subtract_tokens(
                 *amt = amt.checked_sub(t_amt)?;
             }
         } else {
-            // trying to subtract a token not foung in tokens1
+            // trying to subtract a token not found in tokens1
             return Err(TokenAmountError::OutOfBounds(-(*t_amt.as_u64() as i64)));
         }
         Ok(())
