@@ -312,7 +312,7 @@ pub enum TxBuilderError {
     InvalidInputsCount(#[from] BoundedVecOutOfBounds),
     #[error("Empty input box")]
     EmptyInputBoxSelection,
-    #[error("Token burn permit exceeded, permit {permit:?}, try to burn {try_to_burn:?}, call set_token_burn_permit() to increase the limit")]
+    #[error("Token burn permit exceeded. Permitted limit: {permit:?}, trying to burn: {try_to_burn:?}. Revisit the input to `set_token_burn_permit()` to increase the limit")]
     TokenBurnPermitExceeded { permit: Token, try_to_burn: Token },
     #[error("Token burn permit is missing, try to burn {try_to_burn:?}, call set_token_burn_permit() to set the limit")]
     TokenBurnPermitMissing { try_to_burn: Token },
