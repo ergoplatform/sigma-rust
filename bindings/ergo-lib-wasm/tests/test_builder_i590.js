@@ -2634,7 +2634,6 @@ it('i590 accidental token burn in change box', async () => {
     outputs,
     height,
     fee,
-    changeAddress,
-    sigmaRust.BoxValue.SAFE_USER_MIN()
+    changeAddress
   ).build();
 });

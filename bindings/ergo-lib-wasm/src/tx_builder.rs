@@ -34,7 +34,6 @@ impl TxBuilder {
     /// `current_height` - chain height that will be used in additionally created boxes (change, miner's fee, etc.),
     /// `fee_amount` - miner's fee,
     /// `change_address` - change (inputs - outputs) will be sent to this address,
-    /// `min_change_value` - minimal value of the change to be sent to `change_address`, value less than that
     /// will be given to miners,
     pub fn new(
         box_selection: &BoxSelection,
@@ -42,7 +41,6 @@ impl TxBuilder {
         current_height: u32,
         fee_amount: &BoxValue,
         change_address: &Address,
-        min_change_value: &BoxValue,
     ) -> TxBuilder {
         TxBuilder(ergo_lib::wallet::tx_builder::TxBuilder::new(
             box_selection.clone().into(),
@@ -50,7 +48,6 @@ impl TxBuilder {
             current_height,
             fee_amount.clone().into(),
             change_address.clone().into(),
-            min_change_value.clone().into(),
         ))
     }
 
@@ -114,10 +111,5 @@ impl TxBuilder {
     /// Get change address
     pub fn change_address(&self) -> Address {
         self.0.change_address().into()
-    }
-
-    /// Get min change value
-    pub fn min_change_value(&self) -> BoxValue {
-        self.0.min_change_value().into()
     }
 }

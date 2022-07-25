@@ -28,7 +28,6 @@ pub unsafe extern "C" fn ergo_lib_tx_builder_suggested_tx_fee(value_out: *mut Bo
 /// `current_height` - chain height that will be used in additionally created boxes (change, miner's fee, etc.),
 /// `fee_amount` - miner's fee,
 /// `change_address` - change (inputs - outputs) will be sent to this address,
-/// `min_change_value` - minimal value of the change to be sent to `change_address`, value less than that
 /// will be given to miners,
 #[no_mangle]
 pub unsafe extern "C" fn ergo_lib_tx_builder_new(
@@ -37,7 +36,6 @@ pub unsafe extern "C" fn ergo_lib_tx_builder_new(
     current_height: u32,
     fee_amount_ptr: ConstBoxValuePtr,
     change_address_ptr: ConstAddressPtr,
-    min_change_value_ptr: ConstBoxValuePtr,
     tx_builder_out: *mut TxBuilderPtr,
 ) {
     #[allow(clippy::unwrap_used)]
@@ -47,7 +45,6 @@ pub unsafe extern "C" fn ergo_lib_tx_builder_new(
         current_height,
         fee_amount_ptr,
         change_address_ptr,
-        min_change_value_ptr,
         tx_builder_out,
     )
     .unwrap();
@@ -151,16 +148,6 @@ pub unsafe extern "C" fn ergo_lib_tx_builder_change_address(
 ) {
     #[allow(clippy::unwrap_used)]
     tx_builder_change_address(tx_builder_ptr, address_out).unwrap();
-}
-
-/// Get min change value
-#[no_mangle]
-pub unsafe extern "C" fn ergo_lib_tx_builder_min_change_value(
-    tx_builder_ptr: ConstTxBuilderPtr,
-    min_change_value_out: *mut BoxValuePtr,
-) {
-    #[allow(clippy::unwrap_used)]
-    tx_builder_min_change_value(tx_builder_ptr, min_change_value_out).unwrap();
 }
 
 /// Drop `TxBuilder`

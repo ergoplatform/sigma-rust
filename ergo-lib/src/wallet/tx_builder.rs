@@ -43,7 +43,6 @@ pub struct TxBuilder<S: ErgoBoxAssets> {
     current_height: u32,
     fee_amount: BoxValue,
     change_address: Address,
-    min_change_value: BoxValue,
     context_extensions: HashMap<BoxId, ContextExtension>,
     token_burn_permit: Vec<Token>,
 }
@@ -55,7 +54,6 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
     /// `current_height` - chain height that will be used in additionally created boxes (change, miner's fee, etc.),
     /// `fee_amount` - miner's fee (higher values will speed up inclusion in blocks),
     /// `change_address` - change (inputs - outputs) will be sent to this address,
-    /// `min_change_value` - minimal value of the change to be sent to `change_address`, value less than that
     /// will be given to miners,
     pub fn new(
         box_selection: BoxSelection<S>,
@@ -63,7 +61,6 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
         current_height: u32,
         fee_amount: BoxValue,
         change_address: Address,
-        min_change_value: BoxValue,
     ) -> TxBuilder<S> {
         TxBuilder {
             box_selection,
@@ -72,7 +69,6 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
             current_height,
             fee_amount,
             change_address,
-            min_change_value,
             context_extensions: HashMap::new(),
             token_burn_permit: Vec::new(),
         }
@@ -106,11 +102,6 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
     /// Get change
     pub fn change_address(&self) -> Address {
         self.change_address.clone()
-    }
-
-    /// Get min change value
-    pub fn min_change_value(&self) -> BoxValue {
-        self.min_change_value
     }
 
     /// Set transaction's data inputs
@@ -180,7 +171,6 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
             .box_selection
             .change_boxes
             .iter()
-            .filter(|b| b.value >= self.min_change_value)
             .map(|b| {
                 let mut candidate = ErgoBoxCandidateBuilder::new(
                     b.value,
@@ -208,14 +198,20 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
         if output_candidates.len() > Transaction::MAX_OUTPUTS_COUNT {
             return Err(TxBuilderError::InvalidArgs("too many outputs".to_string()));
         }
-        // check that inputs have enough coins
+        // check input's coins preservation
         let total_input_value = sum_value(self.box_selection.boxes.as_slice());
         let total_output_value = sum_value(output_candidates.as_slice());
+        #[allow(clippy::comparison_chain)]
         if total_output_value > total_input_value {
-            return Err(TxBuilderError::NotEnoughCoins(
+            return Err(TxBuilderError::NotEnoughCoinsInInputs(
                 total_output_value - total_input_value,
             ));
+        } else if total_output_value < total_input_value {
+            return Err(TxBuilderError::NotEnoughCoinsInOutputs(
+                total_input_value - total_output_value,
+            ));
         }
+
         // check that inputs have enough tokens
         let input_tokens = sum_tokens_from_boxes(self.box_selection.boxes.as_slice())
             .map_err(TxBuilderError::TooManyTokensInInputBoxes)?;
@@ -305,7 +301,7 @@ pub enum TxBuilderError {
     #[error("Not enougn tokens: {0:?}")]
     NotEnoughTokens(Vec<Token>),
     #[error("Not enough coins({0} nanoERGs are missing)")]
-    NotEnoughCoins(u64),
+    NotEnoughCoinsInInputs(u64),
     #[error("Transaction serialization failed: {0}")]
     SerializationError(#[from] SigmaSerializationError),
     #[error("Invalid tx inputs count: {0}")]
@@ -326,6 +322,8 @@ pub enum TxBuilderError {
     TooManyTokensInOutputCandidates(TokenAmountError),
     #[error("Tokens in output candidate exceed tokens in input boxes: {0}")]
     TokensInOutputsExceedInputs(TokenAmountError),
+    #[error("Coins in outputs are less than coins in inputs for {0} nanoERGs")]
+    NotEnoughCoinsInOutputs(u64),
 }
 
 /// Sums up the tokens into a hash map
@@ -421,7 +419,6 @@ mod tests {
             1,
             force_any_val::<BoxValue>(),
             force_any_val::<Address>(),
-            BoxValue::SAFE_USER_MIN,
         );
         assert!(r.build().is_err(), "error on duplicate inputs");
     }
@@ -438,7 +435,6 @@ mod tests {
             1,
             force_any_val::<BoxValue>(),
             force_any_val::<Address>(),
-            BoxValue::SAFE_USER_MIN,
         );
         assert!(r.build().is_err(), "error on empty inputs");
     }
@@ -481,7 +477,6 @@ mod tests {
             0,
             tx_fee,
             force_any_val::<Address>(),
-            BoxValue::SAFE_USER_MIN,
         );
         let res = tx_builder.build();
         assert!(res.is_err(), "error on burn token without permit");
@@ -531,7 +526,6 @@ mod tests {
             0,
             tx_fee,
             force_any_val::<Address>(),
-            BoxValue::SAFE_USER_MIN,
         );
         let token_burn_permit = Token {
             amount: 5.try_into().unwrap(),
@@ -587,7 +581,6 @@ mod tests {
             0,
             tx_fee,
             force_any_val::<Address>(),
-            BoxValue::SAFE_USER_MIN,
         );
         tx_builder.set_token_burn_permit(vec![token_to_burn]);
         let _ = tx_builder.build().unwrap();
@@ -630,7 +623,6 @@ mod tests {
             0,
             tx_fee,
             force_any_val::<Address>(),
-            BoxValue::SAFE_USER_MIN,
         );
         tx_builder.set_token_burn_permit(vec![token_to_burn.clone()]);
         let res = tx_builder.build();
@@ -682,7 +674,6 @@ mod tests {
             0,
             tx_fee,
             force_any_val::<Address>(),
-            BoxValue::SAFE_USER_MIN,
         );
         let tx = tx_builder.build().unwrap();
         assert_eq!(
@@ -726,7 +717,6 @@ mod tests {
             0,
             tx_fee,
             force_any_val::<Address>(),
-            BoxValue::SAFE_USER_MIN,
         );
         assert!(
             tx_builder.build().is_err(),
@@ -735,16 +725,19 @@ mod tests {
     }
 
     #[test]
-    fn test_balance_error() {
+    fn test_balance_error_not_enough_inputs() {
         let input_box = force_any_val_with::<ErgoBox>(
             (BoxValue::MIN_RAW * 5000..BoxValue::MIN_RAW * 10000).into(),
         );
-        let out_box_value = input_box
-            .value()
-            .checked_add(&BoxValue::SAFE_USER_MIN)
-            .unwrap();
-        let box_builder =
+        // tx fee on top of this leads to overspending
+        let out_box_value = input_box.value();
+        let mut box_builder =
             ErgoBoxCandidateBuilder::new(out_box_value, force_any_val::<ErgoTree>(), 0);
+        input_box.tokens.iter().for_each(|tokens| {
+            tokens.iter().for_each(|t| {
+                box_builder.add_token(t.clone());
+            })
+        });
         let out_box = box_builder.build().unwrap();
         let inputs: Vec<ErgoBox> = vec![input_box];
         let tx_fee = BoxValue::SAFE_USER_MIN;
@@ -759,11 +752,55 @@ mod tests {
             0,
             tx_fee,
             force_any_val::<Address>(),
-            BoxValue::SAFE_USER_MIN,
         );
-        assert!(
-            tx_builder.build().is_err(),
-            "expected error on trying to spend value exceeding total inputs value"
+        assert_eq!(
+            tx_builder.build(),
+            Err(TxBuilderError::NotEnoughCoinsInInputs(
+                *BoxValue::SAFE_USER_MIN.as_u64()
+            )),
+        );
+    }
+
+    #[test]
+    fn test_balance_error_not_enough_outputs() {
+        let input_box = force_any_val_with::<ErgoBox>(
+            (BoxValue::MIN_RAW * 5000..BoxValue::MIN_RAW * 10000).into(),
+        );
+        // spend not all inputs
+        let out_box_value = input_box
+            .value()
+            // goes to tx fee
+            .checked_sub(&BoxValue::SAFE_USER_MIN)
+            .unwrap()
+            .checked_sub(&BoxValue::SAFE_USER_MIN)
+            .unwrap();
+        let mut box_builder =
+            ErgoBoxCandidateBuilder::new(out_box_value, force_any_val::<ErgoTree>(), 0);
+        input_box.tokens.iter().for_each(|tokens| {
+            tokens.iter().for_each(|t| {
+                box_builder.add_token(t.clone());
+            })
+        });
+        let out_box = box_builder.build().unwrap();
+        let inputs: Vec<ErgoBox> = vec![input_box];
+        let tx_fee = BoxValue::SAFE_USER_MIN;
+        let box_selection = BoxSelection {
+            boxes: inputs.try_into().unwrap(),
+            change_boxes: vec![],
+        };
+        let outputs = vec![out_box];
+        let tx_builder = TxBuilder::new(
+            box_selection,
+            outputs,
+            0,
+            tx_fee,
+            force_any_val::<Address>(),
+        );
+        assert_eq!(
+            tx_builder.build(),
+            Err(TxBuilderError::NotEnoughCoinsInOutputs(
+                *BoxValue::SAFE_USER_MIN.as_u64()
+            )),
         );
     }
 
@@ -794,7 +831,6 @@ mod tests {
             0,
             tx_fee,
             force_any_val::<Address>(),
-            BoxValue::SAFE_USER_MIN,
         );
         assert!(tx_builder.estimate_tx_size_bytes().unwrap() > 0);
     }
@@ -811,7 +847,6 @@ mod tests {
                          data_inputs in vec(any::<DataInput>(), 0..2),
                          ctx_ext in any::<ContextExtension>()) {
             prop_assume!(sum_tokens_from_boxes(outputs.as_slice()).unwrap().is_empty());
-            let min_change_value = BoxValue::SAFE_USER_MIN;
             let all_outputs = checked_sum(outputs.iter().map(|b| b.value)).unwrap()
                 .checked_add(&miners_fee)
                 .unwrap();
@@ -827,7 +862,6 @@ mod tests {
                 1,
                 miners_fee,
                 change_address.clone(),
-                min_change_value,
             );
             tx_builder.set_data_inputs(data_inputs.clone());
             tx_builder.set_context_extension(selection.boxes.first().box_id(), ctx_ext.clone());
