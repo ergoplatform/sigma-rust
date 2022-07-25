@@ -12,7 +12,6 @@ class TxBuilder {
     ///  - `currentHeight`: chain height that will be used in additionally created boxes (change, miner's fee, etc.),
     ///  - `feeAmount`: miner's fee,
     ///  - `changeAddress`: change (inputs - outputs) will be sent to this address,
-    ///  - `minChangeValue`: minimal value of the change to be sent to `change_address`, value less than that
     ///     will be given to miners,
     init(
         boxSelection : BoxSelection,
@@ -20,7 +19,6 @@ class TxBuilder {
         currentHeight: UInt32,
         feeAmount: BoxValue,
         changeAddress: Address,
-        minChangeValue: BoxValue
     ) {
         var ptr: TxBuilderPtr?
         ergo_lib_tx_builder_new(
@@ -29,7 +27,6 @@ class TxBuilder {
             currentHeight,
             feeAmount.pointer,
             changeAddress.pointer,
-            minChangeValue.pointer,
             &ptr
         )
         self.pointer = ptr!
@@ -103,13 +100,6 @@ class TxBuilder {
         var ptr: AddressPtr?
         ergo_lib_tx_builder_change_address(self.pointer, &ptr)
         return Address(withRawPointer: ptr!)
-    }
-    
-    /// Get min change value
-    func getMinChangeValue() -> BoxValue {
-        var ptr: BoxValuePtr?
-        ergo_lib_tx_builder_min_change_value(self.pointer, &ptr)
-        return BoxValue(withRawPointer: ptr!)
     }
     
     deinit {
