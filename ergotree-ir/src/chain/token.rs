@@ -100,7 +100,7 @@ impl TokenAmount {
             .checked_add(rhs.0)
             .ok_or(TokenAmountError::Overflow)?;
         if raw > Self::MAX_RAW {
-            Err(TokenAmountError::OutOfBounds(raw))
+            Err(TokenAmountError::OutOfBounds(raw as i64))
         } else {
             Ok(Self(raw))
         }
@@ -113,7 +113,7 @@ impl TokenAmount {
             .checked_sub(rhs.0)
             .ok_or(TokenAmountError::Overflow)?;
         if raw < Self::MIN_RAW {
-            Err(TokenAmountError::OutOfBounds(raw))
+            Err(TokenAmountError::OutOfBounds(raw as i64))
         } else {
             Ok(Self(raw))
         }
@@ -130,7 +130,7 @@ impl TokenAmount {
 pub enum TokenAmountError {
     /// Value is out of bounds
     #[error("Token amount is out of bounds: {0}")]
-    OutOfBounds(u64),
+    OutOfBounds(i64),
     /// Overflow
     #[error("Overflow")]
     Overflow,
@@ -143,7 +143,7 @@ impl TryFrom<u64> for TokenAmount {
         if (TokenAmount::MIN_RAW..=TokenAmount::MAX_RAW).contains(&v) {
             Ok(TokenAmount(v))
         } else {
-            Err(TokenAmountError::OutOfBounds(v))
+            Err(TokenAmountError::OutOfBounds(v as i64))
         }
     }
 }

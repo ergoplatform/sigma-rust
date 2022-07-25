@@ -1,7 +1,7 @@
 //! Builder for an UnsignedTransaction
 
 use ergotree_interpreter::sigma_protocol::prover::ContextExtension;
-use ergotree_ir::chain::ergo_box::box_value::BoxValueError;
+use ergotree_ir::chain::token::TokenAmount;
 use ergotree_ir::chain::token::TokenAmountError;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -27,11 +27,12 @@ use crate::chain::transaction::unsigned::UnsignedTransaction;
 use crate::chain::transaction::{DataInput, Input, Transaction, UnsignedInput};
 use crate::constants::MINERS_FEE_MAINNET_ADDRESS;
 
+use super::box_selector::subtract_tokens;
 use super::box_selector::sum_tokens_from_boxes;
 use super::box_selector::sum_value;
+use super::box_selector::BoxSelection;
 use super::box_selector::ErgoBoxAssets;
 use super::box_selector::ErgoBoxId;
-use super::box_selector::{BoxSelection, BoxSelectorError};
 
 /// Unsigned transaction builder
 #[derive(Clone)]
@@ -44,6 +45,7 @@ pub struct TxBuilder<S: ErgoBoxAssets> {
     change_address: Address,
     min_change_value: BoxValue,
     context_extensions: HashMap<BoxId, ContextExtension>,
+    token_burn_permit: Vec<Token>,
 }
 
 impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
@@ -72,6 +74,7 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
             change_address,
             min_change_value,
             context_extensions: HashMap::new(),
+            token_burn_permit: Vec::new(),
         }
     }
 
@@ -137,6 +140,11 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
         });
         let signed_tx_mock = Transaction::new(inputs, tx.data_inputs, tx.output_candidates)?;
         Ok(signed_tx_mock.sigma_serialize_bytes()?.len())
+    }
+
+    /// Permits the burn of the given token amount, i.e. allows this token amount to be omitted in the outputs
+    pub fn set_token_burn_permit(&mut self, tokens: Vec<Token>) {
+        self.token_burn_permit = tokens;
     }
 
     fn build_tx(&self) -> Result<UnsignedTransaction, TxBuilderError> {
@@ -209,14 +217,15 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
             ));
         }
         // check that inputs have enough tokens
-        let input_tokens = sum_tokens_from_boxes(self.box_selection.boxes.as_slice())?;
-        let output_tokens = sum_tokens_from_boxes(output_candidates.as_slice())?;
+        let input_tokens = sum_tokens_from_boxes(self.box_selection.boxes.as_slice())
+            .map_err(TxBuilderError::TooManyTokensInInputBoxes)?;
+        let output_tokens = sum_tokens_from_boxes(output_candidates.as_slice())
+            .map_err(TxBuilderError::TooManyTokensInOutputCandidates)?;
         let first_input_box_id: TokenId = self.box_selection.boxes.first().box_id().into();
         let output_tokens_len = output_tokens.len();
-        let output_tokens_without_minted: Vec<Token> = output_tokens
+        let output_tokens_without_minted: HashMap<TokenId, TokenAmount> = output_tokens
             .into_iter()
-            .map(Token::from)
-            .filter(|t| t.token_id != first_input_box_id)
+            .filter(|(id, _)| id != &first_input_box_id)
             .collect();
         if output_tokens_len - output_tokens_without_minted.len() > 1 {
             return Err(TxBuilderError::InvalidArgs(
@@ -225,12 +234,20 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
         }
         output_tokens_without_minted
             .iter()
-            .try_for_each(|output_token| {
-                match input_tokens.get(&output_token.token_id).cloned() {
-                    Some(input_token_amount) if input_token_amount >= output_token.amount => Ok(()),
-                    _ => Err(TxBuilderError::NotEnoughTokens(vec![output_token.clone()])),
-                }
+            .try_for_each(|(id, amt)| match input_tokens.get(id).cloned() {
+                Some(input_token_amount) if input_token_amount >= *amt => Ok(()),
+                _ => Err(TxBuilderError::NotEnoughTokens(vec![
+                    (id.clone(), *amt).into()
+                ])),
             })?;
+
+        // check token burn
+        let burned_tokens = subtract_tokens(&input_tokens, &output_tokens_without_minted)
+            .map_err(TxBuilderError::TokensInOutputsExceedInputs)?;
+        let token_burn_permits = vec_tokens_to_map(self.token_burn_permit.clone())
+            .map_err(TxBuilderError::TooManyTokensInBurnPermit)?;
+        check_enough_token_burn_permit(&burned_tokens, &token_burn_permits)?;
+        check_unused_token_burn_permit(&burned_tokens, &token_burn_permits)?;
 
         let unsigned_inputs = self.box_selection.boxes.clone().mapped(|b| {
             let ctx_ext = self
@@ -276,41 +293,98 @@ pub fn new_miner_fee_box(
 }
 
 /// Errors of TxBuilder
+#[allow(missing_docs)]
 #[derive(Error, PartialEq, Eq, Debug, Clone)]
 pub enum TxBuilderError {
-    /// Box selection error
-    #[error("Box selector error: {0}")]
-    BoxSelectorError(#[from] BoxSelectorError),
-    /// Box value error
-    #[error("Box value error")]
-    BoxValueError(#[from] BoxValueError),
-    /// Parsing error
-    #[error("Parsing error: {0}")]
+    #[error("SigmaParsingError: {0}")]
     ParsingError(#[from] SigmaParsingError),
-    /// Invalid arguments
     #[error("Invalid arguments: {0}")]
     InvalidArgs(String),
-    /// ErgoBoxCandidate error
     #[error("ErgoBoxCandidateBuilder error: {0}")]
     ErgoBoxCandidateBuilderError(#[from] ErgoBoxCandidateBuilderError),
-    /// Not enougn tokens
     #[error("Not enougn tokens: {0:?}")]
     NotEnoughTokens(Vec<Token>),
-    /// Not enough coins
     #[error("Not enough coins({0} nanoERGs are missing)")]
     NotEnoughCoins(u64),
-    /// Tx serialization failed (id calculation)
     #[error("Transaction serialization failed: {0}")]
     SerializationError(#[from] SigmaSerializationError),
-    /// Invalid Tx input count
     #[error("Invalid tx inputs count: {0}")]
     InvalidInputsCount(#[from] BoundedVecOutOfBounds),
-    /// Input box was unable to be retrieved
     #[error("Empty input box")]
     EmptyInputBoxSelection,
-    /// Token amount err
-    #[error("TokenAmountError: {0:?}")]
-    TokenAmountError(#[from] TokenAmountError),
+    #[error("Token burn permit exceeded. Permitted limit: {permit:?}, trying to burn: {try_to_burn:?}. Revisit the input to `set_token_burn_permit()` to increase the limit")]
+    TokenBurnPermitExceeded { permit: Token, try_to_burn: Token },
+    #[error("Token burn permit is missing. Trying to burn: {try_to_burn:?}. Call `set_token_burn_permit()` to set the limit")]
+    TokenBurnPermitMissing { try_to_burn: Token },
+    #[error("Unused token burn permit: token id {token_id:?}, amount {amount:?}")]
+    TokenBurnPermitUnused { token_id: TokenId, amount: u64 },
+    #[error("Too many tokens in burn permit: {0}")]
+    TooManyTokensInBurnPermit(TokenAmountError),
+    #[error("Too many tokens in input boxes: {0}")]
+    TooManyTokensInInputBoxes(TokenAmountError),
+    #[error("Too many tokens in output candidate boxes: {0}")]
+    TooManyTokensInOutputCandidates(TokenAmountError),
+    #[error("Tokens in output candidate exceed tokens in input boxes: {0}")]
+    TokensInOutputsExceedInputs(TokenAmountError),
+}
+
+/// Sums up the tokens into a hash map
+pub(crate) fn vec_tokens_to_map(
+    tokens: Vec<Token>,
+) -> Result<HashMap<TokenId, TokenAmount>, TokenAmountError> {
+    let mut res: HashMap<TokenId, TokenAmount> = HashMap::new();
+    tokens.iter().try_for_each(|b| {
+        if let Some(amt) = res.get_mut(&b.token_id) {
+            *amt = amt.checked_add(&b.amount)?;
+        } else {
+            res.insert(b.token_id.clone(), b.amount);
+        }
+        Ok(())
+    })?;
+    Ok(res)
+}
+
+fn check_enough_token_burn_permit(
+    burned_tokens: &HashMap<TokenId, TokenAmount>,
+    permits: &HashMap<TokenId, TokenAmount>,
+) -> Result<(), TxBuilderError> {
+    for (burn_token_id, burn_amt) in burned_tokens {
+        if let Some(burn_amt_permit) = permits.get(burn_token_id) {
+            if burn_amt > burn_amt_permit {
+                return Err(TxBuilderError::TokenBurnPermitExceeded {
+                    permit: (burn_token_id.clone(), *burn_amt_permit).into(),
+                    try_to_burn: (burn_token_id.clone(), *burn_amt).into(),
+                });
+            }
+        } else {
+            return Err(TxBuilderError::TokenBurnPermitMissing {
+                try_to_burn: (burn_token_id.clone(), *burn_amt).into(),
+            });
+        }
+    }
+    Ok(())
+}
+
+fn check_unused_token_burn_permit(
+    burned_tokens: &HashMap<TokenId, TokenAmount>,
+    permits: &HashMap<TokenId, TokenAmount>,
+) -> Result<(), TxBuilderError> {
+    for (permit_token_id, permit_amt) in permits {
+        if let Some(burn_amt) = burned_tokens.get(permit_token_id) {
+            if burn_amt < permit_amt {
+                return Err(TxBuilderError::TokenBurnPermitUnused {
+                    token_id: permit_token_id.clone(),
+                    amount: *permit_amt.as_u64() - *burn_amt.as_u64(),
+                });
+            }
+        } else {
+            return Err(TxBuilderError::TokenBurnPermitUnused {
+                token_id: permit_token_id.clone(),
+                amount: *permit_amt.as_u64(),
+            });
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -370,6 +444,112 @@ mod tests {
     }
 
     #[test]
+    fn test_burn_token_wo_permit() {
+        let token_pair = Token {
+            token_id: force_any_val::<TokenId>(),
+            amount: 100.try_into().unwrap(),
+        };
+        let input_box = ErgoBox::new(
+            10000000i64.try_into().unwrap(),
+            force_any_val::<ErgoTree>(),
+            vec![token_pair.clone()].try_into().ok(),
+            NonMandatoryRegisters::empty(),
+            1,
+            force_any_val::<TxId>(),
+            0,
+        )
+        .unwrap();
+        let inputs: Vec<ErgoBox> = vec![input_box];
+        let tx_fee = BoxValue::SAFE_USER_MIN;
+        let out_box_value = BoxValue::SAFE_USER_MIN;
+        let target_balance = out_box_value.checked_add(&tx_fee).unwrap();
+        let target_token = Token {
+            amount: 10.try_into().unwrap(),
+            ..token_pair
+        };
+        let target_tokens = vec![target_token.clone()];
+        let box_selection = SimpleBoxSelector::new()
+            .select(inputs, target_balance, target_tokens.as_slice())
+            .unwrap();
+        let box_builder =
+            ErgoBoxCandidateBuilder::new(out_box_value, force_any_val::<ErgoTree>(), 0);
+        let out_box = box_builder.build().unwrap();
+        let outputs = vec![out_box];
+        let tx_builder = TxBuilder::new(
+            box_selection,
+            outputs,
+            0,
+            tx_fee,
+            force_any_val::<Address>(),
+            BoxValue::SAFE_USER_MIN,
+        );
+        let res = tx_builder.build();
+        assert!(res.is_err(), "error on burn token without permit");
+        assert_eq!(
+            res,
+            Err(TxBuilderError::TokenBurnPermitMissing {
+                try_to_burn: target_token
+            })
+        );
+    }
+
+    #[test]
+    fn test_burn_token_w_permit_too_low() {
+        let token_pair = Token {
+            token_id: force_any_val::<TokenId>(),
+            amount: 100.try_into().unwrap(),
+        };
+        let input_box = ErgoBox::new(
+            10000000i64.try_into().unwrap(),
+            force_any_val::<ErgoTree>(),
+            vec![token_pair.clone()].try_into().ok(),
+            NonMandatoryRegisters::empty(),
+            1,
+            force_any_val::<TxId>(),
+            0,
+        )
+        .unwrap();
+        let inputs: Vec<ErgoBox> = vec![input_box];
+        let tx_fee = BoxValue::SAFE_USER_MIN;
+        let out_box_value = BoxValue::SAFE_USER_MIN;
+        let target_balance = out_box_value.checked_add(&tx_fee).unwrap();
+        let token_to_burn = Token {
+            amount: 10.try_into().unwrap(),
+            ..token_pair.clone()
+        };
+        let target_tokens = vec![token_to_burn.clone()];
+        let box_selection = SimpleBoxSelector::new()
+            .select(inputs, target_balance, target_tokens.as_slice())
+            .unwrap();
+        let box_builder =
+            ErgoBoxCandidateBuilder::new(out_box_value, force_any_val::<ErgoTree>(), 0);
+        let out_box = box_builder.build().unwrap();
+        let outputs = vec![out_box];
+        let mut tx_builder = TxBuilder::new(
+            box_selection,
+            outputs,
+            0,
+            tx_fee,
+            force_any_val::<Address>(),
+            BoxValue::SAFE_USER_MIN,
+        );
+        let token_burn_permit = Token {
+            amount: 5.try_into().unwrap(),
+            ..token_pair
+        };
+        tx_builder.set_token_burn_permit(vec![token_burn_permit.clone()]);
+        let res = tx_builder.build();
+        assert!(res.is_err());
+        assert_eq!(
+            res,
+            Err(TxBuilderError::TokenBurnPermitExceeded {
+                try_to_burn: token_to_burn,
+                permit: token_burn_permit,
+            })
+        );
+    }
+
+    #[test]
     fn test_burn_token() {
         let token_pair = Token {
             token_id: force_any_val::<TokenId>(),
@@ -389,10 +569,11 @@ mod tests {
         let tx_fee = BoxValue::SAFE_USER_MIN;
         let out_box_value = BoxValue::SAFE_USER_MIN;
         let target_balance = out_box_value.checked_add(&tx_fee).unwrap();
-        let target_tokens = vec![Token {
+        let token_to_burn = Token {
             amount: 10.try_into().unwrap(),
             ..token_pair
-        }];
+        };
+        let target_tokens = vec![token_to_burn.clone()];
         let box_selection = SimpleBoxSelector::new()
             .select(inputs, target_balance, target_tokens.as_slice())
             .unwrap();
@@ -400,7 +581,7 @@ mod tests {
             ErgoBoxCandidateBuilder::new(out_box_value, force_any_val::<ErgoTree>(), 0);
         let out_box = box_builder.build().unwrap();
         let outputs = vec![out_box];
-        let tx_builder = TxBuilder::new(
+        let mut tx_builder = TxBuilder::new(
             box_selection,
             outputs,
             0,
@@ -408,10 +589,58 @@ mod tests {
             force_any_val::<Address>(),
             BoxValue::SAFE_USER_MIN,
         );
-        let tx = tx_builder.build().unwrap();
-        assert!(
-            tx.output_candidates.get(0).unwrap().tokens().is_none(),
-            "expected empty tokens in the first output box"
+        tx_builder.set_token_burn_permit(vec![token_to_burn]);
+        let _ = tx_builder.build().unwrap();
+    }
+
+    #[test]
+    fn test_token_burn_permit_wo_burn() {
+        let token_pair = Token {
+            token_id: force_any_val::<TokenId>(),
+            amount: 100.try_into().unwrap(),
+        };
+        let input_box = ErgoBox::new(
+            10000000i64.try_into().unwrap(),
+            force_any_val::<ErgoTree>(),
+            vec![token_pair.clone()].try_into().ok(),
+            NonMandatoryRegisters::empty(),
+            1,
+            force_any_val::<TxId>(),
+            0,
+        )
+        .unwrap();
+        let inputs: Vec<ErgoBox> = vec![input_box];
+        let tx_fee = BoxValue::SAFE_USER_MIN;
+        let out_box_value = BoxValue::SAFE_USER_MIN;
+        let target_balance = out_box_value.checked_add(&tx_fee).unwrap();
+        let token_to_burn = Token {
+            amount: 10.try_into().unwrap(),
+            ..token_pair
+        };
+        let box_selection = SimpleBoxSelector::new()
+            .select(inputs, target_balance, &Vec::new())
+            .unwrap();
+        let box_builder =
+            ErgoBoxCandidateBuilder::new(out_box_value, force_any_val::<ErgoTree>(), 0);
+        let out_box = box_builder.build().unwrap();
+        let outputs = vec![out_box];
+        let mut tx_builder = TxBuilder::new(
+            box_selection,
+            outputs,
+            0,
+            tx_fee,
+            force_any_val::<Address>(),
+            BoxValue::SAFE_USER_MIN,
+        );
+        tx_builder.set_token_burn_permit(vec![token_to_burn.clone()]);
+        let res = tx_builder.build();
+        assert!(res.is_err());
+        assert_eq!(
+            res,
+            Err(TxBuilderError::TokenBurnPermitUnused {
+                token_id: token_to_burn.token_id,
+                amount: *token_to_burn.amount.as_u64(),
+            })
         );
     }
 

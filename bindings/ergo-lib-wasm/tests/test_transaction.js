@@ -153,6 +153,7 @@ it('TxBuilder burn token test', async () => {
   const data_inputs = new ergo_wasm.DataInputs();
   const tx_builder = ergo_wasm.TxBuilder.new(box_selection, tx_outputs, 0, fee, change_address, min_change_value);
   tx_builder.set_data_inputs(data_inputs);
+  tx_builder.set_token_burn_permit(tokens);
   const tx = tx_builder.build();
   assert(tx != null);
 });
@@ -301,5 +302,5 @@ it('signing multi signature transaction (issue 597)', async () => {
   const prover = ergo_wasm.Wallet.from_secrets(sks)
   assert(prover != null);
   const signed = prover.sign_reduced_transaction(reduced)
-  console.log(JSON.stringify(signed.to_json()))
+  // console.log(JSON.stringify(signed.to_json()))
 });

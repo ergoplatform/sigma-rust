@@ -189,6 +189,30 @@ pub fn sum_tokens_from_hashmaps(
     Ok(res)
 }
 
+/// Subtract tokens2 from tokens1
+/// subtracting amounts of the same token or removing the token if amount is the same
+/// Returns an error if trying to subtract more tokens than there are in tokens1
+pub fn subtract_tokens(
+    tokens1: &HashMap<TokenId, TokenAmount>,
+    tokens2: &HashMap<TokenId, TokenAmount>,
+) -> Result<HashMap<TokenId, TokenAmount>, TokenAmountError> {
+    let mut res: HashMap<TokenId, TokenAmount> = tokens1.clone();
+    tokens2.iter().try_for_each(|(id, t_amt)| {
+        if let Some(amt) = res.get_mut(id) {
+            if amt == t_amt {
+                res.remove(id);
+            } else {
+                *amt = amt.checked_sub(t_amt)?;
+            }
+        } else {
+            // trying to subtract a token not found in tokens1
+            return Err(TokenAmountError::OutOfBounds(-(*t_amt.as_u64() as i64)));
+        }
+        Ok(())
+    })?;
+    Ok(res)
+}
+
 /// Arbitrary impl for ErgoBoxAssetsData
 #[allow(clippy::unwrap_used, clippy::panic)]
 #[cfg(feature = "arbitrary")]
