@@ -140,7 +140,10 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
 
     fn build_tx(&self) -> Result<UnsignedTransaction, TxBuilderError> {
         if self.box_selection.boxes.is_empty() {
-            return Err(TxBuilderError::InvalidArgs("inputs is empty".to_string()));
+            return Err(TxBuilderError::InvalidArgs("inputs are empty".to_string()));
+        }
+        if self.output_candidates.is_empty() {
+            return Err(TxBuilderError::InvalidArgs("outputs are empty".to_string()));
         }
         if self.box_selection.boxes.len() > u16::MAX as usize {
             return Err(TxBuilderError::InvalidArgs("too many inputs".to_string()));
@@ -420,7 +423,7 @@ mod tests {
             force_any_val::<BoxValue>(),
             force_any_val::<Address>(),
         );
-        assert!(r.build().is_err(), "error on duplicate inputs");
+        assert!(matches!(r.build(), Err(TxBuilderError::InvalidArgs(_))));
     }
 
     #[test]
@@ -436,7 +439,7 @@ mod tests {
             force_any_val::<BoxValue>(),
             force_any_val::<Address>(),
         );
-        assert!(r.build().is_err(), "error on empty inputs");
+        assert!(matches!(r.build(), Err(TxBuilderError::InvalidArgs(_))));
     }
 
     #[test]
@@ -479,7 +482,6 @@ mod tests {
             force_any_val::<Address>(),
         );
         let res = tx_builder.build();
-        assert!(res.is_err(), "error on burn token without permit");
         assert_eq!(
             res,
             Err(TxBuilderError::TokenBurnPermitMissing {
@@ -533,7 +535,6 @@ mod tests {
         };
         tx_builder.set_token_burn_permit(vec![token_burn_permit.clone()]);
         let res = tx_builder.build();
-        assert!(res.is_err());
         assert_eq!(
             res,
             Err(TxBuilderError::TokenBurnPermitExceeded {
@@ -626,7 +627,6 @@ mod tests {
         );
         tx_builder.set_token_burn_permit(vec![token_to_burn.clone()]);
         let res = tx_builder.build();
-        assert!(res.is_err());
         assert_eq!(
             res,
             Err(TxBuilderError::TokenBurnPermitUnused {
@@ -702,7 +702,7 @@ mod tests {
         let mut box_builder =
             ErgoBoxCandidateBuilder::new(out_box_value, force_any_val::<ErgoTree>(), 0);
         // try to spend a token that is not in inputs
-        box_builder.add_token(token_pair);
+        box_builder.add_token(token_pair.clone());
         let out_box = box_builder.build().unwrap();
         let inputs: Vec<ErgoBox> = vec![input_box];
         let tx_fee = BoxValue::SAFE_USER_MIN;
@@ -718,9 +718,9 @@ mod tests {
             tx_fee,
             force_any_val::<Address>(),
         );
-        assert!(
-            tx_builder.build().is_err(),
-            "expected error trying to spend the token that not in the inputs"
+        assert_eq!(
+            tx_builder.build(),
+            Err(TxBuilderError::NotEnoughTokens(vec![token_pair])),
         );
     }
 
