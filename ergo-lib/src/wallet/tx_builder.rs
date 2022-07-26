@@ -188,13 +188,6 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
             .collect();
         output_candidates.append(&mut change_boxes?);
 
-        // Ergo transactions need at least one output
-        // but that single output could just be the change (ex: if you want to send all ERG to a single address)
-        if output_candidates.is_empty() {
-            return Err(TxBuilderError::InvalidArgs(
-                "output_candidates is empty".to_string(),
-            ));
-        }
         // add miner's fee
         let miner_fee_box = new_miner_fee_box(self.fee_amount, self.current_height)?;
         output_candidates.push(miner_fee_box);
