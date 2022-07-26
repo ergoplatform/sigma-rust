@@ -1,6 +1,5 @@
 //! Unsigned (without proofs) transaction
 
-use super::distinct_token_ids;
 use super::input::{Input, UnsignedInput};
 #[cfg(feature = "json")]
 use super::json;
@@ -8,6 +7,9 @@ use super::prover_result::ProverResult;
 use super::DataInput;
 use super::Transaction;
 use super::TxIoVec;
+use super::{distinct_token_ids, TransactionError};
+use bounded_vec::BoundedVec;
+use bounded_vec::OptBoundedVecToVec;
 use ergo_chain_types::blake2b256_hash;
 use ergotree_interpreter::sigma_protocol::prover::ProofBytes;
 use ergotree_ir::chain::ergo_box::ErgoBoxCandidate;
@@ -47,15 +49,21 @@ pub struct UnsignedTransaction {
 impl UnsignedTransaction {
     /// Creates new transaction
     pub fn new(
-        inputs: TxIoVec<UnsignedInput>,
-        data_inputs: Option<TxIoVec<DataInput>>,
-        output_candidates: TxIoVec<ErgoBoxCandidate>,
-    ) -> Result<UnsignedTransaction, SigmaSerializationError> {
+        inputs: Vec<UnsignedInput>,
+        data_inputs: Vec<DataInput>,
+        output_candidates: Vec<ErgoBoxCandidate>,
+    ) -> Result<UnsignedTransaction, TransactionError> {
         let tx_to_sign = UnsignedTransaction {
             tx_id: TxId::zero(),
-            inputs,
-            data_inputs,
-            output_candidates,
+            inputs: inputs
+                .try_into()
+                .map_err(TransactionError::InvalidInputsCount)?,
+            data_inputs: BoundedVec::opt_empty_vec(data_inputs)
+                .map_err(TransactionError::InvalidDataInputsCount)?,
+            output_candidates: output_candidates
+                .clone()
+                .try_into()
+                .map_err(TransactionError::InvalidOutputCandidatesCount)?,
         };
         let tx_id = tx_to_sign.calc_tx_id()?;
         Ok(UnsignedTransaction {
@@ -69,7 +77,7 @@ impl UnsignedTransaction {
         Ok(TxId(blake2b256_hash(&bytes)))
     }
 
-    fn to_tx_wo_proofs(&self) -> Result<Transaction, SigmaSerializationError> {
+    fn to_tx_wo_proofs(&self) -> Transaction {
         let empty_proofs_input = self.inputs.mapped_ref(|ui| {
             Input::new(
                 ui.box_id.clone(),
@@ -80,10 +88,11 @@ impl UnsignedTransaction {
             )
         });
         Transaction::new(
-            empty_proofs_input,
-            self.data_inputs.clone(),
-            self.output_candidates.clone(),
+            empty_proofs_input.into(),
+            self.data_inputs.to_vec(),
+            self.output_candidates.into(),
         )
+        .unwrap()
     }
 
     /// Get transaction id
@@ -93,7 +102,7 @@ impl UnsignedTransaction {
 
     /// message to be signed by the [`ergotree_interpreter::sigma_protocol::prover::Prover`] (serialized tx)
     pub fn bytes_to_sign(&self) -> Result<Vec<u8>, SigmaSerializationError> {
-        let tx = self.to_tx_wo_proofs()?;
+        let tx = self.to_tx_wo_proofs();
         tx.bytes_to_sign()
     }
 
@@ -122,18 +131,8 @@ impl TryFrom<json::transaction::UnsignedTransactionJson> for UnsignedTransaction
     // We never return this type but () fails to compile (can't format) and ! is experimental
     type Error = String;
     fn try_from(tx_json: json::transaction::UnsignedTransactionJson) -> Result<Self, Self::Error> {
-        UnsignedTransaction::new(
-            tx_json
-                .inputs
-                .try_into()
-                .map_err(|e: bounded_vec::BoundedVecOutOfBounds| e.to_string())?,
-            tx_json.data_inputs.try_into().ok(),
-            tx_json
-                .outputs
-                .try_into()
-                .map_err(|e: bounded_vec::BoundedVecOutOfBounds| e.to_string())?,
-        )
-        .map_err(|e| format!("unsigned tx serialization failed: {0}", e))
+        UnsignedTransaction::new(tx_json.inputs, tx_json.data_inputs, tx_json.outputs)
+            .map_err(|e| format!("TryFrom<UnsignedTransactionJson> error: {0}", e))
     }
 }
 
@@ -155,12 +154,7 @@ pub mod tests {
                 vec(any::<ErgoBoxCandidate>(), 1..10),
             )
                 .prop_map(|(inputs, data_inputs, outputs)| {
-                    Self::new(
-                        inputs.try_into().unwrap(),
-                        data_inputs.try_into().ok(),
-                        outputs.try_into().unwrap(),
-                    )
-                    .unwrap()
+                    Self::new(inputs, data_inputs, outputs).unwrap()
                 })
                 .boxed()
         }

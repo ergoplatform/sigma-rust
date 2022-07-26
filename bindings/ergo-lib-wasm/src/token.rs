@@ -185,14 +185,14 @@ impl Tokens {
     }
 }
 
-impl From<Tokens> for Option<chain::ergo_box::BoxTokens> {
-    fn from(v: Tokens) -> Self {
-        chain::ergo_box::BoxTokens::from_vec(
-            v.0.iter().flatten().cloned().map(Into::into).collect(),
-        )
-        .ok()
-    }
-}
+// impl From<Tokens> for Option<chain::ergo_box::BoxTokens> {
+//     fn from(v: Tokens) -> Self {
+//         chain::ergo_box::BoxTokens::from_vec(
+//             v.0.iter().flatten().cloned().map(Into::into).collect(),
+//         )
+//         .ok()
+//     }
+// }
 impl From<Option<chain::ergo_box::BoxTokens>> for Tokens {
     fn from(v: Option<chain::ergo_box::BoxTokens>) -> Self {
         Tokens(v.map(|t| t.mapped(Token)))

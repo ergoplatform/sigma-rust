@@ -68,7 +68,10 @@ impl From<ProverError> for WalletError {
 impl Wallet {
     /// Create wallet instance loading secret key from mnemonic
     /// Returns None if a DlogSecretKey cannot be parsed from the provided phrase
-    pub fn from_mnemonic(mnemonic_phrase: &str, mnemonic_pass: &str) -> Option<Wallet> {
+    pub fn from_mnemonic(
+        mnemonic_phrase: &str,
+        mnemonic_pass: &str,
+    ) -> Result<Wallet, WalletError> {
         let seed = Mnemonic::to_seed(mnemonic_phrase, mnemonic_pass);
         let ext_sk = ExtSecretKey::derive_master(seed).ok()?;
         let secret = SecretKey::dlog_from_bytes(&ext_sk.secret_key_bytes())?;

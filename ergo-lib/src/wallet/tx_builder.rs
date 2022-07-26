@@ -251,7 +251,7 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
         });
         Ok(UnsignedTransaction::new(
             unsigned_inputs,
-            self.data_inputs.clone().try_into().ok(),
+            self.data_inputs.clone().try_into()?,
             output_candidates.try_into()?,
         )?)
     }
