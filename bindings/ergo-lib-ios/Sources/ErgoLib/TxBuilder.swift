@@ -18,7 +18,7 @@ class TxBuilder {
         outputCandidates: ErgoBoxCandidates,
         currentHeight: UInt32,
         feeAmount: BoxValue,
-        changeAddress: Address,
+        changeAddress: Address
     ) {
         var ptr: TxBuilderPtr?
         ergo_lib_tx_builder_new(
