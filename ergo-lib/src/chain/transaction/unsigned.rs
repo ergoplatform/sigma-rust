@@ -9,7 +9,6 @@ use super::Transaction;
 use super::TxIoVec;
 use super::{distinct_token_ids, TransactionError};
 use bounded_vec::BoundedVec;
-use bounded_vec::OptBoundedVecToVec;
 use ergo_chain_types::blake2b256_hash;
 use ergotree_interpreter::sigma_protocol::prover::ProofBytes;
 use ergotree_ir::chain::ergo_box::ErgoBoxCandidate;
@@ -47,7 +46,7 @@ pub struct UnsignedTransaction {
 }
 
 impl UnsignedTransaction {
-    /// Creates new transaction
+    /// Creates new transaction from vectors
     pub fn new_from_vec(
         inputs: Vec<UnsignedInput>,
         data_inputs: Vec<DataInput>,
@@ -60,12 +59,12 @@ impl UnsignedTransaction {
             BoundedVec::opt_empty_vec(data_inputs)
                 .map_err(TransactionError::InvalidDataInputsCount)?,
             output_candidates
-                .clone()
                 .try_into()
                 .map_err(TransactionError::InvalidOutputCandidatesCount)?,
         )?)
     }
 
+    /// Creates new transaction
     pub fn new(
         inputs: TxIoVec<UnsignedInput>,
         data_inputs: Option<TxIoVec<DataInput>>,
@@ -99,10 +98,14 @@ impl UnsignedTransaction {
                 },
             )
         });
-        Transaction::new_from_vec(
-            empty_proofs_input.into(),
-            self.data_inputs.to_vec(),
-            self.output_candidates.into(),
+
+        #[allow(clippy::unwrap_used)]
+        // safe since the serialization error is impossible here
+        // since we already serialized this unsigned tx (on calc tx id)
+        Transaction::new(
+            empty_proofs_input,
+            self.data_inputs.clone(),
+            self.output_candidates.clone(),
         )
         .unwrap()
     }

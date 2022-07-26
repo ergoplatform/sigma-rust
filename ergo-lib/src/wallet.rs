@@ -32,6 +32,7 @@ use crate::wallet::multi_sig::{
 };
 
 use self::ext_secret_key::ExtSecretKey;
+use self::ext_secret_key::ExtSecretKeyError;
 use self::signing::sign_message;
 use self::signing::sign_reduced_transaction;
 use self::signing::TransactionContext;
@@ -42,15 +43,20 @@ pub struct Wallet {
 }
 
 /// Wallet errors
+#[allow(missing_docs)]
 #[derive(Error, Debug)]
 pub enum WalletError {
-    /// Error on tx signing
     #[error("Transaction signing error: {0}")]
     TxSigningError(TxSigningError),
 
-    /// Error on proving an input
     #[error("Prover error: {0}")]
     ProverError(ProverError),
+
+    #[error("ExtSecretKeyError: {0}")]
+    ExtSecretKeyError(#[from] ExtSecretKeyError),
+
+    #[error("error parsing SecretKey from ExtSecretKey.bytes")]
+    SecretKeyParsingError,
 }
 
 impl From<TxSigningError> for WalletError {
@@ -73,10 +79,8 @@ impl Wallet {
         mnemonic_pass: &str,
     ) -> Result<Wallet, WalletError> {
         let seed = Mnemonic::to_seed(mnemonic_phrase, mnemonic_pass);
-        let ext_sk = ExtSecretKey::derive_master(seed).ok()?;
-        let secret = SecretKey::dlog_from_bytes(&ext_sk.secret_key_bytes())?;
-
-        Some(Wallet::from_secrets(vec![secret]))
+        let ext_sk = ExtSecretKey::derive_master(seed)?;
+        Ok(Wallet::from_secrets(vec![ext_sk.secret_key()]))
     }
 
     /// Create Wallet from secrets

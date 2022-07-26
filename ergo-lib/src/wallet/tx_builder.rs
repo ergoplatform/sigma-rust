@@ -252,7 +252,7 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
         });
         Ok(UnsignedTransaction::new(
             unsigned_inputs,
-            TxIoVec::opt_empty_vec(self.data_inputs)?,
+            TxIoVec::opt_empty_vec(self.data_inputs.clone())?,
             output_candidates.try_into()?,
         )?)
     }
