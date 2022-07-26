@@ -6,7 +6,6 @@ pub mod reduced;
 pub mod unsigned;
 
 use bounded_vec::BoundedVec;
-use bounded_vec::BoundedVecOutOfBounds;
 use bounded_vec::OptBoundedVecToVec;
 use ergo_chain_types::blake2b256_hash;
 pub use ergotree_interpreter::eval::context::TxIoVec;
@@ -81,22 +80,34 @@ impl Transaction {
     pub const MAX_OUTPUTS_COUNT: usize = u16::MAX as usize;
 
     /// Creates new transaction
-    pub fn new(
+    pub fn new_from_vec(
         inputs: Vec<Input>,
         data_inputs: Vec<DataInput>,
         output_candidates: Vec<ErgoBoxCandidate>,
     ) -> Result<Transaction, TransactionError> {
-        let tx_to_sign = Transaction {
-            tx_id: TxId::zero(),
-            inputs: inputs
+        Ok(Transaction::new(
+            inputs
                 .try_into()
                 .map_err(TransactionError::InvalidInputsCount)?,
-            data_inputs: BoundedVec::opt_empty_vec(data_inputs)
+            BoundedVec::opt_empty_vec(data_inputs)
                 .map_err(TransactionError::InvalidDataInputsCount)?,
-            output_candidates: output_candidates
+            output_candidates
                 .clone()
                 .try_into()
                 .map_err(TransactionError::InvalidOutputCandidatesCount)?,
+        )?)
+    }
+
+    pub fn new(
+        inputs: TxIoVec<Input>,
+        data_inputs: Option<TxIoVec<DataInput>>,
+        output_candidates: TxIoVec<ErgoBoxCandidate>,
+    ) -> Result<Transaction, SigmaSerializationError> {
+        let tx_to_sign = Transaction {
+            tx_id: TxId::zero(),
+            inputs,
+            data_inputs,
+            output_candidates,
             outputs: vec![],
         };
         let tx_id = tx_to_sign.calc_tx_id()?;
@@ -132,7 +143,7 @@ impl Transaction {
                         ))
                     })
             })?;
-        Ok(Transaction::new(
+        Ok(Transaction::new_from_vec(
             *inputs.as_vec(),
             unsigned_tx.data_inputs.to_vec(),
             *unsigned_tx.output_candidates.as_vec(),
@@ -248,7 +259,7 @@ impl SigmaSerializable for Transaction {
             )?)
         }
 
-        Ok(Transaction::new(inputs, data_inputs, outputs)
+        Ok(Transaction::new_from_vec(inputs, data_inputs, outputs)
             .map_err(|e| SigmaParsingError::Misc(format!("{}", e)))?)
     }
 }
@@ -300,7 +311,7 @@ impl TryFrom<json::transaction::TransactionJson> for Transaction {
     fn try_from(tx_json: json::transaction::TransactionJson) -> Result<Self, Self::Error> {
         let output_candidates: Vec<ErgoBoxCandidate> =
             tx_json.outputs.iter().map(|o| o.clone().into()).collect();
-        let tx = Transaction::new(tx_json.inputs, tx_json.data_inputs, output_candidates)?;
+        let tx = Transaction::new_from_vec(tx_json.inputs, tx_json.data_inputs, output_candidates)?;
         if tx.tx_id == tx_json.tx_id {
             Ok(tx)
         } else {
@@ -330,7 +341,7 @@ pub mod tests {
                 vec(any::<ErgoBoxCandidate>(), 1..10),
             )
                 .prop_map(|(inputs, data_inputs, outputs)| {
-                    Self::new(
+                    Self::new_from_vec(
                         inputs.try_into().unwrap(),
                         data_inputs.try_into().unwrap(),
                         outputs.try_into().unwrap(),

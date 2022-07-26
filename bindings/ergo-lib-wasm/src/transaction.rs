@@ -295,13 +295,15 @@ impl UnsignedTransaction {
             None
         };
 
-        Ok(chain::transaction::unsigned::UnsignedTransaction::new(
-            TxIoVec::from_vec(inputs.into()).map_err(to_js)?,
-            opt_data_input,
-            TxIoVec::from_vec(output_candidates.into()).map_err(to_js)?,
+        Ok(
+            chain::transaction::unsigned::UnsignedTransaction::new_from_vec(
+                TxIoVec::from_vec(inputs.into()).map_err(to_js)?,
+                opt_data_input,
+                TxIoVec::from_vec(output_candidates.into()).map_err(to_js)?,
+            )
+            .map_err(to_js)?
+            .into(),
         )
-        .map_err(to_js)?
-        .into())
     }
 
     /// Consumes the calling UnsignedTransaction and returns a new UnsignedTransaction containing

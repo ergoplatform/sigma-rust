@@ -327,8 +327,7 @@ mod tests {
             let candidate = ErgoBoxCandidateBuilder::new(BoxValue::SAFE_USER_MIN, ergo_tree, 0)
                 .build().unwrap();
             let output_candidates = vec![candidate];
-            let tx = UnsignedTransaction::new(inputs.try_into().unwrap(),
-                None, output_candidates.try_into().unwrap()).unwrap();
+            let tx = UnsignedTransaction::new_from_vec(inputs, vec![], output_candidates).unwrap();
             let tx_context = TransactionContext::new(tx, boxes_to_spend.clone(), vec![]).unwrap();
             let tx_hint_bag=TransactionHintsBag::empty();
             let res = sign_transaction(prover.as_ref(), tx_context.clone(), &force_any_val::<ErgoStateContext>(), Some(&tx_hint_bag));
