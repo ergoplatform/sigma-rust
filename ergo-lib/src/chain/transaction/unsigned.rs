@@ -1,8 +1,6 @@
 //! Unsigned (without proofs) transaction
 
 use super::input::{Input, UnsignedInput};
-#[cfg(feature = "json")]
-use super::json;
 use super::prover_result::ProverResult;
 use super::DataInput;
 use super::Transaction;
@@ -16,20 +14,15 @@ use ergotree_ir::chain::token::TokenId;
 use ergotree_ir::chain::tx_id::TxId;
 use ergotree_ir::serialization::SigmaSerializationError;
 use indexmap::IndexSet;
-#[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
-#[cfg(feature = "json")]
-use std::convert::TryFrom;
-#[cfg(feature = "json")]
 use std::convert::TryInto;
 
 /// Unsigned (inputs without proofs) transaction
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "json",
     serde(
-        try_from = "json::transaction::UnsignedTransactionJson",
-        into = "json::transaction::UnsignedTransactionJson"
+        try_from = "crate::chain::json::transaction::UnsignedTransactionJson",
+        into = "crate::chain::json::transaction::UnsignedTransactionJson"
     )
 )]
 #[derive(PartialEq, Debug, Clone)]
@@ -124,30 +117,6 @@ impl UnsignedTransaction {
     /// Returns distinct token ids from all output_candidates
     pub fn distinct_token_ids(&self) -> IndexSet<TokenId> {
         distinct_token_ids(self.output_candidates.clone())
-    }
-}
-
-#[cfg(feature = "json")]
-impl From<UnsignedTransaction> for json::transaction::UnsignedTransactionJson {
-    fn from(v: UnsignedTransaction) -> Self {
-        json::transaction::UnsignedTransactionJson {
-            inputs: v.inputs.as_vec().clone(),
-            data_inputs: v
-                .data_inputs
-                .map(|di| di.as_vec().clone())
-                .unwrap_or_default(),
-            outputs: v.output_candidates.as_vec().clone(),
-        }
-    }
-}
-
-#[cfg(feature = "json")]
-impl TryFrom<json::transaction::UnsignedTransactionJson> for UnsignedTransaction {
-    // We never return this type but () fails to compile (can't format) and ! is experimental
-    type Error = String;
-    fn try_from(tx_json: json::transaction::UnsignedTransactionJson) -> Result<Self, Self::Error> {
-        UnsignedTransaction::new_from_vec(tx_json.inputs, tx_json.data_inputs, tx_json.outputs)
-            .map_err(|e| format!("TryFrom<UnsignedTransactionJson> error: {0}", e))
     }
 }
 

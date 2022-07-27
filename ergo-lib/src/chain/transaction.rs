@@ -26,11 +26,7 @@ pub use input::*;
 
 use self::unsigned::UnsignedTransaction;
 
-#[cfg(feature = "json")]
-use super::json;
 use indexmap::IndexSet;
-#[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
 
 use std::convert::TryFrom;
 use std::convert::TryInto;
@@ -46,18 +42,18 @@ use std::iter::FromIterator;
  * Transactions are not encrypted, so it is possible to browse and view every transaction ever
  * collected into a block.
  */
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "json",
     serde(
-        try_from = "json::transaction::TransactionJson",
-        into = "json::transaction::TransactionJson"
+        try_from = "super::json::transaction::TransactionJson",
+        into = "super::json::transaction::TransactionJson"
     )
 )]
 #[derive(PartialEq, Debug, Clone)]
 pub struct Transaction {
     /// transaction id
-    tx_id: TxId,
+    pub(crate) tx_id: TxId,
     /// inputs, that will be spent by this transaction.
     pub inputs: TxIoVec<Input>,
     /// inputs, that are not going to be spent by transaction, but will be reachable from inputs
@@ -277,47 +273,6 @@ pub enum TransactionError {
     InvalidOutputCandidatesCount(bounded_vec::BoundedVecOutOfBounds),
     #[error("Invalid Tx data inputs: {0:?}")]
     InvalidDataInputsCount(bounded_vec::BoundedVecOutOfBounds),
-}
-
-#[cfg(feature = "json")]
-impl From<Transaction> for json::transaction::TransactionJson {
-    fn from(v: Transaction) -> Self {
-        json::transaction::TransactionJson {
-            tx_id: v.id(),
-            inputs: v.inputs.as_vec().clone(),
-            data_inputs: v
-                .data_inputs
-                .map(|di| di.as_vec().clone())
-                .unwrap_or_default(),
-            outputs: v.outputs,
-        }
-    }
-}
-
-/// Errors on parsing Transaction from JSON
-#[cfg(feature = "json")]
-#[derive(Error, PartialEq, Eq, Debug, Clone)]
-#[allow(missing_docs)]
-pub enum TransactionFromJsonError {
-    #[error("Tx id parsed from JSON differs from calculated from serialized bytes")]
-    InvalidTxId,
-    #[error("Tx error: {0}")]
-    TransactionError(#[from] TransactionError),
-}
-
-#[cfg(feature = "json")]
-impl TryFrom<json::transaction::TransactionJson> for Transaction {
-    type Error = TransactionFromJsonError;
-    fn try_from(tx_json: json::transaction::TransactionJson) -> Result<Self, Self::Error> {
-        let output_candidates: Vec<ErgoBoxCandidate> =
-            tx_json.outputs.iter().map(|o| o.clone().into()).collect();
-        let tx = Transaction::new_from_vec(tx_json.inputs, tx_json.data_inputs, output_candidates)?;
-        if tx.tx_id == tx_json.tx_id {
-            Ok(tx)
-        } else {
-            Err(TransactionFromJsonError::InvalidTxId)
-        }
-    }
 }
 
 #[cfg(test)]
