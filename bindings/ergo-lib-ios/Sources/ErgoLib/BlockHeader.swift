@@ -49,6 +49,16 @@ class BlockHeader: FromRawPtr {
 class BlockId {
     internal var pointer: BlockIdPtr
     
+    /// Create instance from hex-encoded string
+    init(withString str: String) throws {
+        var ptr: BlockIdPtr?
+        let error = str.withCString { cs in
+            ergo_lib_block_id_from_str(cs, &ptr)
+        }
+        try checkError(error)
+        self.pointer = ptr!
+    }
+
     /// Takes ownership of an existing ``BlockIdPtr``. Note: we must ensure that no other instance
     /// of ``BlockId`` can hold this pointer.
     internal init(withRawPointer ptr: BlockIdPtr) {
@@ -63,6 +73,12 @@ class BlockId {
 extension BlockHeader: Equatable {
     static func ==(lhs: BlockHeader, rhs: BlockHeader) -> Bool {
         ergo_lib_block_header_eq(lhs.pointer, rhs.pointer)
+    }
+}
+
+extension BlockId: Equatable {
+    static func ==(lhs: BlockId, rhs: BlockId) -> Bool {
+        ergo_lib_block_id_eq(lhs.pointer, rhs.pointer)
     }
 }
 

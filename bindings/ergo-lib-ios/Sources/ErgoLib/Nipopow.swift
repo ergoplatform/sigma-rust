@@ -33,6 +33,13 @@ class NipopowProof: FromRawPtr {
         return res.value
     }
     
+    /// Get suffix head
+    func suffixHead() -> PoPowHeader {
+        var ptr: PoPowHeaderPtr?
+        ergo_lib_nipopow_proof_suffix_head(self.pointer, &ptr)
+        return PoPowHeader(withRawPointer: ptr!)
+    }
+    
     /// JSON representation as text
     func toJSON() throws -> JSON? {
         var cStr: UnsafePointer<CChar>?
@@ -60,6 +67,13 @@ class NipopowVerifier {
         var ptr: NipopowProofPtr?
         ergo_lib_nipopow_verifier_new(genesisBlockId.pointer, &ptr)
         self.pointer = ptr!
+    }
+    
+    /// Returns the best `NipopowProof`.
+    func bestProof() -> NipopowProof {
+        var ptr: NipopowProofPtr?
+        ergo_lib_nipopow_verifier_best_proof(self.pointer, &ptr)
+        return NipopowProof(withRawPointer: ptr!)
     }
     
     /// Returns chain of `BlockHeader`s from the best proof.
@@ -92,6 +106,10 @@ class PoPowHeader {
         self.pointer = ptr!
     }
 
+    internal init(withRawPointer ptr: PoPowHeaderPtr) {
+        self.pointer = ptr
+    }
+    
     /// JSON representation as text
     func toJSON() throws -> JSON? {
         var cStr: UnsafePointer<CChar>?

@@ -1,4 +1,6 @@
 import Foundation
+@testable import ErgoLib
+@testable import ErgoLibC
 
 // The following two functions copied from: https://stackoverflow.com/a/49890939
 
@@ -34,4 +36,16 @@ func getSeeds() -> [URL] {
         "http://176.9.65.58:9130",
         "http://213.152.106.56:9030"
     ].map { URL(string: $0)! }
+}
+
+func getNipopowProof(url: URL, headerId: BlockId) async throws -> NipopowProof? {
+    let nodeConf = try NodeConf(withAddrString: url.absoluteString)
+    let restNodeApi = try RestNodeApi()
+    let nodeInfo = try await restNodeApi.getInfoAsync(nodeConf: nodeConf)
+    if nodeInfo.isAtLeastVersion4028() {
+        let proof = try await restNodeApi.getNipopowProofByHeaderIdAsync(nodeConf: nodeConf, minChainLength: UInt32(7), suffixLen: UInt32(6), headerId: headerId)
+        return proof
+    } else {
+        return nil
+    }
 }
