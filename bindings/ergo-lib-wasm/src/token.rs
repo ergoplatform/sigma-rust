@@ -185,6 +185,12 @@ impl Tokens {
     }
 }
 
+impl From<Tokens> for Option<chain::ergo_box::BoxTokens> {
+    fn from(v: Tokens) -> Self {
+        v.0.map(|bv| bv.mapped(Into::into))
+    }
+}
+
 impl From<Option<chain::ergo_box::BoxTokens>> for Tokens {
     fn from(v: Option<chain::ergo_box::BoxTokens>) -> Self {
         Tokens(v.map(|t| t.mapped(Token)))

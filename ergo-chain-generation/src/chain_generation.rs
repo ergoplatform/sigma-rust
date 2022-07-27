@@ -71,7 +71,7 @@ pub fn block_stream(start_block: Option<ErgoFullBlock>) -> impl Iterator<Item = 
         vec![box_candidate]
     };
 
-    let txs = vec![Transaction::new_from_vec(
+    let txs = vec![Transaction::new(
         TxIoVec::from_vec(inputs).unwrap(),
         None,
         TxIoVec::from_vec(output_candidates).unwrap(),
