@@ -35,6 +35,17 @@ pub unsafe fn nipopow_proof_is_better_than(
     Ok(self_proof.0.is_better_than(&other_proof.0)?)
 }
 
+/// Get suffix head
+pub unsafe fn nipopow_proof_suffix_head(
+    nipopow_proof_ptr: ConstNipopowProofPtr,
+    suffix_head_out: *mut PoPowHeaderPtr,
+) -> Result<(), Error> {
+    let proof = const_ptr_as_ref(nipopow_proof_ptr, "nipopow_proof_ptr")?;
+    let suffix_head_out = mut_ptr_as_mut(suffix_head_out, "suffix_head_out")?;
+    *suffix_head_out = Box::into_raw(Box::new(PoPowHeader(proof.0.suffix_head.clone())));
+    Ok(())
+}
+
 /// Parse from JSON.
 pub unsafe fn nipopow_proof_from_json(
     json: &str,
@@ -73,6 +84,22 @@ pub unsafe fn nipopow_verifier_new(
         ergo_lib::ergo_nipopow::NipopowVerifier::new(genesis_block_id.0.clone()),
     )));
     Ok(())
+}
+
+/// If a best proof exists, allocate a copy and store in `best_proof_out` and return `Ok(true)`.
+/// If such a proof doesn't exist return Ok(false).
+pub unsafe fn nipopow_verifier_best_proof(
+    nipopow_verifier_ptr: ConstNipopowVerifierPtr,
+    best_proof_out: *mut NipopowProofPtr,
+) -> Result<bool, Error> {
+    let verifier = const_ptr_as_ref(nipopow_verifier_ptr, "nipopow_verifier_ptr")?;
+    let best_proof_out = mut_ptr_as_mut(best_proof_out, "best_proof_out")?;
+    if let Some(proof) = verifier.0.best_proof() {
+        *best_proof_out = Box::into_raw(Box::new(NipopowProof(proof)));
+        Ok(true)
+    } else {
+        Ok(false)
+    }
 }
 
 /// Returns chain of `BlockHeader`s from the best proof.

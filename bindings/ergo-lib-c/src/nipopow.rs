@@ -6,12 +6,13 @@ use ergo_lib_c_core::{
     block_header::{BlockHeader, BlockHeaderPtr, ConstBlockIdPtr},
     collections::CollectionPtr,
     nipopow::{
-        nipopow_proof_from_json, nipopow_proof_is_better_than, nipopow_proof_to_json,
-        nipopow_verifier_best_chain, nipopow_verifier_new, nipopow_verifier_process,
-        popow_header_check_interlinks_proof, popow_header_from_json, popow_header_get_header,
-        popow_header_get_interlinks, popow_header_get_interlinks_proof, popow_header_to_json,
-        ConstNipopowProofPtr, ConstNipopowVerifierPtr, ConstPoPowHeaderPtr, NipopowProofPtr,
-        NipopowVerifierPtr, PoPowHeaderPtr,
+        nipopow_proof_from_json, nipopow_proof_is_better_than, nipopow_proof_suffix_head,
+        nipopow_proof_to_json, nipopow_verifier_best_chain, nipopow_verifier_best_proof,
+        nipopow_verifier_new, nipopow_verifier_process, popow_header_check_interlinks_proof,
+        popow_header_from_json, popow_header_get_header, popow_header_get_interlinks,
+        popow_header_get_interlinks_proof, popow_header_to_json, ConstNipopowProofPtr,
+        ConstNipopowVerifierPtr, ConstPoPowHeaderPtr, NipopowProofPtr, NipopowVerifierPtr,
+        PoPowHeaderPtr,
     },
     Error,
 };
@@ -20,8 +21,8 @@ use std::{
     os::raw::c_char,
 };
 
-use crate::BlockIdsPtr;
 use crate::{delete_ptr, ErrorPtr, ReturnBool};
+use crate::{BlockIdsPtr, ReturnOption};
 
 /// Implementation of the ≥ algorithm from [`KMZ17`], see Algorithm 4
 ///
@@ -41,6 +42,16 @@ pub unsafe extern "C" fn ergo_lib_nipopow_proof_is_better_than(
             error: Error::c_api_from(Err(e)),
         },
     }
+}
+
+/// Get suffix head
+#[no_mangle]
+pub unsafe extern "C" fn ergo_lib_nipopow_proof_suffix_head(
+    nipopow_proof_ptr: ConstNipopowProofPtr,
+    suffix_head_out: *mut PoPowHeaderPtr,
+) {
+    #[allow(clippy::unwrap_used)]
+    nipopow_proof_suffix_head(nipopow_proof_ptr, suffix_head_out).unwrap();
 }
 
 /// Parse from JSON.
@@ -85,6 +96,24 @@ pub unsafe extern "C" fn ergo_lib_nipopow_verifier_new(
 ) {
     #[allow(clippy::unwrap_used)]
     nipopow_verifier_new(genesis_block_id_ptr, nipopow_verifier_out).unwrap();
+}
+
+/// Returns the best proof.
+#[no_mangle]
+pub unsafe extern "C" fn ergo_lib_nipopow_verifier_best_proof(
+    nipopow_verifier_ptr: ConstNipopowVerifierPtr,
+    best_proof_out: *mut NipopowProofPtr,
+) -> ReturnOption {
+    match nipopow_verifier_best_proof(nipopow_verifier_ptr, best_proof_out) {
+        Ok(is_some) => ReturnOption {
+            is_some,
+            error: std::ptr::null_mut(),
+        },
+        Err(e) => ReturnOption {
+            is_some: false, // Just a dummy value
+            error: Error::c_api_from(Err(e)),
+        },
+    }
 }
 
 /// Returns chain of `BlockHeader`s from the best proof.

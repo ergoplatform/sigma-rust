@@ -1,10 +1,12 @@
 //! Block header
 
+use std::convert::{TryFrom, TryInto};
+
 use crate::{
     error::*,
     util::{const_ptr_as_ref, mut_ptr_as_mut},
 };
-use ergo_lib::ergo_chain_types::Header;
+use ergo_lib::ergo_chain_types::{Base16DecodedBytes, Header};
 
 /// Block header
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -49,5 +51,17 @@ pub unsafe fn block_header_transactions_root(
 /// Block id
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct BlockId(pub(crate) ergo_lib::ergo_chain_types::BlockId);
+
 pub type BlockIdPtr = *mut BlockId;
 pub type ConstBlockIdPtr = *const BlockId;
+
+/// Convert a hex string into a BlockId
+pub unsafe fn block_id_from_str(str: &str, block_id_out: *mut BlockIdPtr) -> Result<(), Error> {
+    let block_id_out = mut_ptr_as_mut(block_id_out, "block_id_out")?;
+    let bytes = Base16DecodedBytes::try_from(str.to_string())?;
+    let block_id = bytes
+        .try_into()
+        .map(|digest| BlockId(ergo_lib::ergo_chain_types::BlockId(digest)))?;
+    *block_id_out = Box::into_raw(Box::new(block_id));
+    Ok(())
+}

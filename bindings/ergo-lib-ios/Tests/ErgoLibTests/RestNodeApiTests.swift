@@ -100,4 +100,34 @@ final class RestNodeApiTests: XCTestCase {
         )
         XCTAssert(!peersNew.isEmpty)
     }
+    
+    func testSPVWorkflow() async throws {
+        let headerId = try BlockId(withString: "d1366f762e46b7885496aaab0c42ec2950b0422d48aec3b91f45d4d0cdeb41e5")
+        let txId = try TxId(withString: "258ddfc09b94b8313bca724de44a0d74010cab26de379be845713cc129546b78")
+        let proofs = try await withThrowingTaskGroup(of: [NipopowProof].self) { group -> [NipopowProof] in
+            group.addTask {
+                let proof = try await getNipopowProof(url: URL(string: "159.65.11.55:9053")!, headerId: headerId)!
+                return [proof]
+            }
+            group.addTask {
+                let proof = try await getNipopowProof(url: URL(string: "213.239.193.208:9053")!, headerId: headerId)!
+                return [proof]
+            }
+            return try await group.reduce(into: [NipopowProof]()) { $0 += $1 }
+        }
+        
+        let genesisBlockId = try BlockId(withString: "b0244dfc267baca974a4caee06120321562784303a8a688976ae56170e4d175b")
+        let verifier = NipopowVerifier(withGenesisBlockId: genesisBlockId)
+        try verifier.process(newProof: proofs[0])
+        try verifier.process(newProof: proofs[1])
+        let bestProof = verifier.bestProof()
+        XCTAssertEqual(try bestProof.suffixHead().getHeader().getBlockId(), headerId)
+        
+        // Now verify with 3rd node
+        let nodeConf = try NodeConf(withAddrString: "159.65.11.55:9053")
+        let restNodeApi = try RestNodeApi()
+        let header = try await restNodeApi.getHeaderAsync(nodeConf: nodeConf, blockId: headerId)
+        let merkleProof = try await restNodeApi.getBlocksHeaderIdProofForTxIdAsync(nodeConf: nodeConf, blockId: headerId, txId: txId)
+        XCTAssert(try merkleProof.valid(expected_root: header.getTransactionsRoot()))
+    }
 }

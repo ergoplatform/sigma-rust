@@ -3,8 +3,8 @@ use paste::paste;
 
 use ergo_lib_c_core::{
     block_header::{
-        block_header_from_json, block_header_id, block_header_transactions_root, BlockHeader,
-        BlockHeaderPtr, BlockId, BlockIdPtr, ConstBlockHeaderPtr, ConstBlockIdPtr,
+        block_header_from_json, block_header_id, block_header_transactions_root, block_id_from_str,
+        BlockHeader, BlockHeaderPtr, BlockId, BlockIdPtr, ConstBlockHeaderPtr, ConstBlockIdPtr,
     },
     Error,
 };
@@ -48,6 +48,17 @@ pub unsafe extern "C" fn ergo_lib_block_header_transactions_root(
 #[no_mangle]
 pub unsafe extern "C" fn ergo_lib_block_header_delete(ptr: BlockHeaderPtr) {
     delete_ptr(ptr)
+}
+
+/// Convert a hex string into a BlockId
+#[no_mangle]
+pub unsafe extern "C" fn ergo_lib_block_id_from_str(
+    str: *const c_char,
+    tx_id_out: *mut BlockIdPtr,
+) -> ErrorPtr {
+    let str = CStr::from_ptr(str).to_string_lossy();
+    let res = block_id_from_str(&str, tx_id_out);
+    Error::c_api_from(res)
 }
 
 /// Delete `BlockId`
