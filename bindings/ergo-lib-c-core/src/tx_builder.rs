@@ -34,7 +34,6 @@ pub unsafe fn tx_builder_suggested_tx_fee(value_out: *mut BoxValuePtr) -> Result
 /// `current_height` - chain height that will be used in additionally created boxes (change, miner's fee, etc.),
 /// `fee_amount` - miner's fee,
 /// `change_address` - change (inputs - outputs) will be sent to this address,
-/// `min_change_value` - minimal value of the change to be sent to `change_address`, value less than that
 /// will be given to miners,
 pub unsafe fn tx_builder_new(
     box_selection_ptr: ConstBoxSelectionPtr,
@@ -42,14 +41,12 @@ pub unsafe fn tx_builder_new(
     current_height: u32,
     fee_amount_ptr: ConstBoxValuePtr,
     change_address_ptr: ConstAddressPtr,
-    min_change_value_ptr: ConstBoxValuePtr,
     tx_builder_out: *mut TxBuilderPtr,
 ) -> Result<(), Error> {
     let box_selection = const_ptr_as_ref(box_selection_ptr, "box_selection_ptr")?;
     let output_candidates = const_ptr_as_ref(output_candidates_ptr, "output_candidates_ptr")?;
     let fee_amount = const_ptr_as_ref(fee_amount_ptr, "fee_amount_ptr")?;
     let change_address = const_ptr_as_ref(change_address_ptr, "change_address_ptr")?;
-    let min_change_value = const_ptr_as_ref(min_change_value_ptr, "min_change_value_ptr")?;
     let tx_builder_out = mut_ptr_as_mut(tx_builder_out, "tx_builder_out")?;
     *tx_builder_out = Box::into_raw(Box::new(TxBuilder(
         ergo_lib::wallet::tx_builder::TxBuilder::new(
@@ -63,7 +60,6 @@ pub unsafe fn tx_builder_new(
             current_height,
             fee_amount.0,
             change_address.0.clone(),
-            min_change_value.0,
         ),
     )));
     Ok(())
@@ -199,16 +195,5 @@ pub unsafe fn tx_builder_change_address(
     let tx_builder = const_ptr_as_ref(tx_builder_ptr, "tx_builder_ptr")?;
     let address_out = mut_ptr_as_mut(address_out, "address_out")?;
     *address_out = Box::into_raw(Box::new(Address(tx_builder.0.change_address())));
-    Ok(())
-}
-
-/// Get min change value
-pub unsafe fn tx_builder_min_change_value(
-    tx_builder_ptr: ConstTxBuilderPtr,
-    min_change_value_out: *mut BoxValuePtr,
-) -> Result<(), Error> {
-    let tx_builder = const_ptr_as_ref(tx_builder_ptr, "tx_builder_ptr")?;
-    let min_change_value_out = mut_ptr_as_mut(min_change_value_out, "min_change_value_out")?;
-    *min_change_value_out = Box::into_raw(Box::new(BoxValue(tx_builder.0.min_change_value())));
     Ok(())
 }

@@ -43,8 +43,7 @@ final class TransactionTests: XCTestCase {
             outputCandidates: txOutputs,
             currentHeight: 0,
             feeAmount: fee,
-            changeAddress: changeAddress,
-            minChangeValue: minChangeValue
+            changeAddress: changeAddress
         )
         txBuilder.setDataInputs(dataInputs: dataInputs)
         let tx = try txBuilder.build()
@@ -75,7 +74,7 @@ final class TransactionTests: XCTestCase {
         // Note that swift forbids integer overflow/underflow by default with hard crash
         let targetBalance = try BoxValue.sumOf(boxValue0: outboxValue, boxValue1: fee)
         let boxSelection = try boxSelector.select(inputs: unspentBoxes, targetBalance: targetBalance, targetTokens: Tokens())
-        let txBuilder = TxBuilder(boxSelection: boxSelection, outputCandidates: txOutputs, currentHeight: 0, feeAmount: fee, changeAddress: changeAddress, minChangeValue: minChangeValue)
+        let txBuilder = TxBuilder(boxSelection: boxSelection, outputCandidates: txOutputs, currentHeight: 0, feeAmount: fee, changeAddress: changeAddress)
         txBuilder.setDataInputs(dataInputs: dataInputs)
         let tx = try txBuilder.build()
         XCTAssertNoThrow(try tx.toJsonEIP12())
@@ -133,8 +132,7 @@ final class TransactionTests: XCTestCase {
             outputCandidates: txOutputs,
             currentHeight: 0,
             feeAmount: fee,
-            changeAddress: changeAddress,
-            minChangeValue: minChangeValue
+            changeAddress: changeAddress
         )
         txBuilder.setDataInputs(dataInputs: dataInputs)
         let tx = try txBuilder.build()
@@ -189,7 +187,7 @@ final class TransactionTests: XCTestCase {
         let changeAddress = try Address(withTestnetAddress: "3WvsT2Gm4EpsM9Pg18PdY6XyhNNMqXDsvJTbbf6ihLvAmSb7u5RN")
         let minChangeValue = BoxValue.SAFE_USER_MIN()
         let dataInputs = DataInputs()
-        let txBuilder = TxBuilder(boxSelection: boxSelection, outputCandidates: txOutputs, currentHeight: UInt32(0), feeAmount: fee, changeAddress: changeAddress, minChangeValue: minChangeValue)
+        let txBuilder = TxBuilder(boxSelection: boxSelection, outputCandidates: txOutputs, currentHeight: UInt32(0), feeAmount: fee, changeAddress: changeAddress)
         txBuilder.setDataInputs(dataInputs: dataInputs)
         txBuilder.setTokenBurnPermit(tokens: tokens)
         XCTAssertNoThrow(try txBuilder.build())
@@ -218,7 +216,7 @@ final class TransactionTests: XCTestCase {
         let boxSelector = SimpleBoxSelector()
         let targetBalance = try BoxValue.sumOf(boxValue0: outboxValue, boxValue1: fee)
         let boxSelection = try boxSelector.select(inputs: unspentBoxes, targetBalance: targetBalance, targetTokens: Tokens())
-        let txBuilder = TxBuilder(boxSelection: boxSelection, outputCandidates: txOutputs, currentHeight: 0, feeAmount: fee, changeAddress: changeAddress, minChangeValue: minChangeValue)
+        let txBuilder = TxBuilder(boxSelection: boxSelection, outputCandidates: txOutputs, currentHeight: 0, feeAmount: fee, changeAddress: changeAddress)
         txBuilder.setDataInputs(dataInputs: dataInputs)
         let tx = try txBuilder.build()
         XCTAssertNoThrow(try tx.toJsonEIP12())
@@ -251,8 +249,7 @@ final class TransactionTests: XCTestCase {
             outputCandidates: newTxOutputs,
             currentHeight: UInt32(0),
             feeAmount: fee,
-            changeAddress: changeAddress,
-            minChangeValue: minChangeValue
+            changeAddress: changeAddress
         )
         XCTAssertNoThrow(try newTxBuilder.build())
     }
@@ -291,8 +288,7 @@ final class TransactionTests: XCTestCase {
             outputCandidates: txOutputs,
             currentHeight: 0,
             feeAmount: fee,
-            changeAddress: changeAddress,
-            minChangeValue: minChangeValue
+            changeAddress: changeAddress
         )
         txBuilder.setDataInputs(dataInputs: dataInputs)
         let tx = try txBuilder.build()
@@ -356,8 +352,7 @@ final class TransactionTests: XCTestCase {
             outputCandidates: txOutputs,
             currentHeight: UInt32(0),
             feeAmount: fee,
-            changeAddress: changeAddress,
-            minChangeValue: minChangeValue
+            changeAddress: changeAddress
         )
         let tx = try txBuilder.build()
         let txDataInputs = try ErgoBoxes.init(fromJSON: [])
