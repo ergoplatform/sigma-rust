@@ -1,4 +1,6 @@
 
+import { generate_block_headers } from './utils';
+
 import * as ergo from "..";
 let wasm;
 beforeEach(async () => {
@@ -149,6 +151,10 @@ it('i608', async () => {
   const thirdPK = Uint8Array.from(Buffer.from("cd024e06e6c6073e13a03fa4629882a69108cd60e0a9fbb2e0fcc898ce68a7051b66", "hex"));
   const forthPK = Uint8Array.from(Buffer.from("cd027a069cc972fc7816539a316ba1cfc0164656d63dd1873ee407670b0e8195f3bd", "hex"));
   firstRealPropositions.add_proposition_from_byte(forthPK);
+
+  const block_headers = generate_block_headers();
+  const pre_header = wasm.PreHeader.from_block_header(block_headers.get(0));
+  const ctx = new wasm.ErgoStateContext(pre_header, block_headers);
 
   const secondHintsBagExtract = wasm.extract_hints(forthSign, ctx, boxes, wasm.ErgoBoxes.from_boxes_json([]), firstRealPropositions, firstSimulatedPropositions);
 });
