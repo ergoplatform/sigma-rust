@@ -138,8 +138,12 @@ pub fn bag_for_multi_sig(
     sigma_tree: SigmaBoolean,
     real_propositions: &[SigmaBoolean],
     simulated_propositions: &[SigmaBoolean],
+    // TODO: use ProofBytes
     proof: &[u8],
 ) -> Result<HintsBag, SigParsingError> {
+    if let SigmaBoolean::TrivialProp(_) = sigma_tree {
+        return Ok(HintsBag::empty());
+    }
     let ut = compute_commitments(parse_sig_compute_challenges(&sigma_tree, proof.to_owned())?);
     // Traversing node of sigma tree
     fn traverse_node(
