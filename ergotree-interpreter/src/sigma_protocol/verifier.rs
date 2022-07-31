@@ -437,7 +437,7 @@ mod tests {
             );
             let input = Constant {
                 tpe: SType::SColl(SType::SSigmaProp.into()),
-                v: inputs.clone(),
+                v: inputs,
             }
             .into();
             let expr: Expr = Atleast::new(bound, input).unwrap().into();
