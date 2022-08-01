@@ -5,6 +5,7 @@ use super::{
     derivation_path::{ChildIndex, ChildIndexError, DerivationPath},
     ext_pub_key::ExtPubKey,
     mnemonic::MnemonicSeed,
+    secret_key::SecretKey,
 };
 use crate::ArrLength;
 use ergotree_interpreter::sigma_protocol::{private_input::DlogProverInput, wscalar::Wscalar};
@@ -76,6 +77,11 @@ impl ExtSecretKey {
     /// Derivation path associated with the ext secret key
     pub fn path(&self) -> DerivationPath {
         self.derivation_path.clone()
+    }
+
+    /// Returns secret key
+    pub fn secret_key(&self) -> SecretKey {
+        self.private_input.clone().into()
     }
 
     /// Byte representation of the underlying scalar

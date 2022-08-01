@@ -1,5 +1,6 @@
 //! Builder for an UnsignedTransaction
 
+use ergotree_interpreter::eval::context::TxIoVec;
 use ergotree_interpreter::sigma_protocol::prover::ContextExtension;
 use ergotree_ir::chain::token::TokenAmount;
 use ergotree_ir::chain::token::TokenAmountError;
@@ -251,7 +252,7 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
         });
         Ok(UnsignedTransaction::new(
             unsigned_inputs,
-            self.data_inputs.clone().try_into().ok(),
+            TxIoVec::opt_empty_vec(self.data_inputs.clone())?,
             output_candidates.try_into()?,
         )?)
     }

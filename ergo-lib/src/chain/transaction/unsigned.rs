@@ -1,13 +1,12 @@
 //! Unsigned (without proofs) transaction
 
-use super::distinct_token_ids;
 use super::input::{Input, UnsignedInput};
-#[cfg(feature = "json")]
-use super::json;
 use super::prover_result::ProverResult;
 use super::DataInput;
 use super::Transaction;
 use super::TxIoVec;
+use super::{distinct_token_ids, TransactionError};
+use bounded_vec::BoundedVec;
 use ergo_chain_types::blake2b256_hash;
 use ergotree_interpreter::sigma_protocol::prover::ProofBytes;
 use ergotree_ir::chain::ergo_box::ErgoBoxCandidate;
@@ -15,20 +14,15 @@ use ergotree_ir::chain::token::TokenId;
 use ergotree_ir::chain::tx_id::TxId;
 use ergotree_ir::serialization::SigmaSerializationError;
 use indexmap::IndexSet;
-#[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
-#[cfg(feature = "json")]
-use std::convert::TryFrom;
-#[cfg(feature = "json")]
 use std::convert::TryInto;
 
 /// Unsigned (inputs without proofs) transaction
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "json",
     serde(
-        try_from = "json::transaction::UnsignedTransactionJson",
-        into = "json::transaction::UnsignedTransactionJson"
+        try_from = "crate::chain::json::transaction::UnsignedTransactionJson",
+        into = "crate::chain::json::transaction::UnsignedTransactionJson"
     )
 )]
 #[derive(PartialEq, Debug, Clone)]
@@ -45,6 +39,24 @@ pub struct UnsignedTransaction {
 }
 
 impl UnsignedTransaction {
+    /// Creates new transaction from vectors
+    pub fn new_from_vec(
+        inputs: Vec<UnsignedInput>,
+        data_inputs: Vec<DataInput>,
+        output_candidates: Vec<ErgoBoxCandidate>,
+    ) -> Result<UnsignedTransaction, TransactionError> {
+        Ok(UnsignedTransaction::new(
+            inputs
+                .try_into()
+                .map_err(TransactionError::InvalidInputsCount)?,
+            BoundedVec::opt_empty_vec(data_inputs)
+                .map_err(TransactionError::InvalidDataInputsCount)?,
+            output_candidates
+                .try_into()
+                .map_err(TransactionError::InvalidOutputCandidatesCount)?,
+        )?)
+    }
+
     /// Creates new transaction
     pub fn new(
         inputs: TxIoVec<UnsignedInput>,
@@ -69,7 +81,7 @@ impl UnsignedTransaction {
         Ok(TxId(blake2b256_hash(&bytes)))
     }
 
-    fn to_tx_wo_proofs(&self) -> Result<Transaction, SigmaSerializationError> {
+    fn to_tx_without_proofs(&self) -> Transaction {
         let empty_proofs_input = self.inputs.mapped_ref(|ui| {
             Input::new(
                 ui.box_id.clone(),
@@ -79,11 +91,16 @@ impl UnsignedTransaction {
                 },
             )
         });
+
+        #[allow(clippy::unwrap_used)]
+        // safe since the serialization error is impossible here
+        // since we already serialized this unsigned tx (on calc tx id)
         Transaction::new(
             empty_proofs_input,
             self.data_inputs.clone(),
             self.output_candidates.clone(),
         )
+        .unwrap()
     }
 
     /// Get transaction id
@@ -93,47 +110,13 @@ impl UnsignedTransaction {
 
     /// message to be signed by the [`ergotree_interpreter::sigma_protocol::prover::Prover`] (serialized tx)
     pub fn bytes_to_sign(&self) -> Result<Vec<u8>, SigmaSerializationError> {
-        let tx = self.to_tx_wo_proofs()?;
+        let tx = self.to_tx_without_proofs();
         tx.bytes_to_sign()
     }
 
     /// Returns distinct token ids from all output_candidates
     pub fn distinct_token_ids(&self) -> IndexSet<TokenId> {
         distinct_token_ids(self.output_candidates.clone())
-    }
-}
-
-#[cfg(feature = "json")]
-impl From<UnsignedTransaction> for json::transaction::UnsignedTransactionJson {
-    fn from(v: UnsignedTransaction) -> Self {
-        json::transaction::UnsignedTransactionJson {
-            inputs: v.inputs.as_vec().clone(),
-            data_inputs: v
-                .data_inputs
-                .map(|di| di.as_vec().clone())
-                .unwrap_or_default(),
-            outputs: v.output_candidates.as_vec().clone(),
-        }
-    }
-}
-
-#[cfg(feature = "json")]
-impl TryFrom<json::transaction::UnsignedTransactionJson> for UnsignedTransaction {
-    // We never return this type but () fails to compile (can't format) and ! is experimental
-    type Error = String;
-    fn try_from(tx_json: json::transaction::UnsignedTransactionJson) -> Result<Self, Self::Error> {
-        UnsignedTransaction::new(
-            tx_json
-                .inputs
-                .try_into()
-                .map_err(|e: bounded_vec::BoundedVecOutOfBounds| e.to_string())?,
-            tx_json.data_inputs.try_into().ok(),
-            tx_json
-                .outputs
-                .try_into()
-                .map_err(|e: bounded_vec::BoundedVecOutOfBounds| e.to_string())?,
-        )
-        .map_err(|e| format!("unsigned tx serialization failed: {0}", e))
     }
 }
 
@@ -155,12 +138,7 @@ pub mod tests {
                 vec(any::<ErgoBoxCandidate>(), 1..10),
             )
                 .prop_map(|(inputs, data_inputs, outputs)| {
-                    Self::new(
-                        inputs.try_into().unwrap(),
-                        data_inputs.try_into().ok(),
-                        outputs.try_into().unwrap(),
-                    )
-                    .unwrap()
+                    Self::new_from_vec(inputs, data_inputs, outputs).unwrap()
                 })
                 .boxed()
         }

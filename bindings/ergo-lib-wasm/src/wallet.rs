@@ -31,8 +31,10 @@ impl Wallet {
     /// Create wallet instance loading secret key from mnemonic
     /// Returns None if a DlogSecretKey cannot be parsed from the provided phrase
     #[wasm_bindgen]
-    pub fn from_mnemonic(mnemonic_phrase: &str, mnemonic_pass: &str) -> Option<Wallet> {
-        Some(ergo_lib::wallet::Wallet::from_mnemonic(mnemonic_phrase, mnemonic_pass)?.into())
+    pub fn from_mnemonic(mnemonic_phrase: &str, mnemonic_pass: &str) -> Result<Wallet, JsValue> {
+        ergo_lib::wallet::Wallet::from_mnemonic(mnemonic_phrase, mnemonic_pass)
+            .map(Wallet)
+            .map_err(to_js)
     }
 
     /// Create wallet using provided secret key

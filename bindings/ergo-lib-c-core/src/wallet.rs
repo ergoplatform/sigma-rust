@@ -78,7 +78,7 @@ pub unsafe fn wallet_from_mnemonic(
     wallet_out: *mut WalletPtr,
 ) -> Result<(), Error> {
     let wallet_out = mut_ptr_as_mut(wallet_out, "wallet_out")?;
-    if let Some(wallet_inner) =
+    if let Ok(wallet_inner) =
         ergo_lib::wallet::Wallet::from_mnemonic(mnemonic_phrase, mnemonic_pass)
     {
         *wallet_out = Box::into_raw(Box::new(Wallet(wallet_inner)));

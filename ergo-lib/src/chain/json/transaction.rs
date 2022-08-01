@@ -1,4 +1,8 @@
-use crate::chain::transaction::{DataInput, Input, UnsignedInput};
+use std::convert::TryFrom;
+use thiserror::Error;
+
+use crate::chain::transaction::unsigned::UnsignedTransaction;
+use crate::chain::transaction::{DataInput, Input, Transaction, TransactionError, UnsignedInput};
 use ergotree_ir::chain::ergo_box::ErgoBox;
 use ergotree_ir::chain::ergo_box::ErgoBoxCandidate;
 use ergotree_ir::chain::tx_id::TxId;
@@ -33,6 +37,66 @@ pub struct UnsignedTransactionJson {
     /// box candidates to be created by this transaction
     #[cfg_attr(feature = "json", serde(rename = "outputs"))]
     pub outputs: Vec<ErgoBoxCandidate>,
+}
+
+impl From<UnsignedTransaction> for UnsignedTransactionJson {
+    fn from(v: UnsignedTransaction) -> Self {
+        UnsignedTransactionJson {
+            inputs: v.inputs.as_vec().clone(),
+            data_inputs: v
+                .data_inputs
+                .map(|di| di.as_vec().clone())
+                .unwrap_or_default(),
+            outputs: v.output_candidates.as_vec().clone(),
+        }
+    }
+}
+
+impl TryFrom<UnsignedTransactionJson> for UnsignedTransaction {
+    // We never return this type but () fails to compile (can't format) and ! is experimental
+    type Error = String;
+    fn try_from(tx_json: UnsignedTransactionJson) -> Result<Self, Self::Error> {
+        UnsignedTransaction::new_from_vec(tx_json.inputs, tx_json.data_inputs, tx_json.outputs)
+            .map_err(|e| format!("TryFrom<UnsignedTransactionJson> error: {0}", e))
+    }
+}
+
+impl From<Transaction> for TransactionJson {
+    fn from(v: Transaction) -> Self {
+        TransactionJson {
+            tx_id: v.id(),
+            inputs: v.inputs.as_vec().clone(),
+            data_inputs: v
+                .data_inputs
+                .map(|di| di.as_vec().clone())
+                .unwrap_or_default(),
+            outputs: v.outputs,
+        }
+    }
+}
+
+/// Errors on parsing Transaction from JSON
+#[derive(Error, PartialEq, Eq, Debug, Clone)]
+#[allow(missing_docs)]
+pub enum TransactionFromJsonError {
+    #[error("Tx id parsed from JSON differs from calculated from serialized bytes")]
+    InvalidTxId,
+    #[error("Tx error: {0}")]
+    TransactionError(#[from] TransactionError),
+}
+
+impl TryFrom<TransactionJson> for Transaction {
+    type Error = TransactionFromJsonError;
+    fn try_from(tx_json: TransactionJson) -> Result<Self, Self::Error> {
+        let output_candidates: Vec<ErgoBoxCandidate> =
+            tx_json.outputs.iter().map(|o| o.clone().into()).collect();
+        let tx = Transaction::new_from_vec(tx_json.inputs, tx_json.data_inputs, output_candidates)?;
+        if tx.tx_id == tx_json.tx_id {
+            Ok(tx)
+        } else {
+            Err(TransactionFromJsonError::InvalidTxId)
+        }
+    }
 }
 
 #[cfg(test)]
