@@ -47,8 +47,8 @@ it('i608', async () => {
 
   const box1 = wasm.ErgoBox.sigma_parse_bytes(Uint8Array.from(Buffer.from("80ade204100504000400040004000402d804d601b2a5730000d602e4c6a7041ad603e4c6a70510d604ad7202d901040ecdee7204ea02d19683020193c27201c2a7938cb2db63087201730100018cb2db6308a773020001eb02ea02d19683020193e4c67201041a720293e4c672010510720398b27203730300720498b272037304007204d18b0f01a6ac381e6fa99929fd1477b3ba9499790a775e91d4c14c5aa86e9a118dfac85301021a04210302e57ca7ebf8cfa1802d4bc79a455008307a936b4f50f0629d9bef484fdd5189210399f5724bbc4d08c6e146d61449c05a3e0546868b1d4f83411f325187d5ca4f8521024e06e6c6073e13a03fa4629882a69108cd60e0a9fbb2e0fcc898ce68a7051b6621027a069cc972fc7816539a316ba1cfc0164656d63dd1873ee407670b0e8195f3bd1002060865c7e0d4a77ccd605b3e4812d38140f7e68fdf740cb6cdc1d8957b75138d1e4c00", "hex")))
   const box2 = wasm.ErgoBox.sigma_parse_bytes(Uint8Array.from(Buffer.from("80c8afa02510010e20a6ac381e6fa99929fd1477b3ba9499790a775e91d4c14c5aa86e9a118dfac853d1aea4d9010163aedb63087201d901034d0e938c7203017300d18b0f00002eca6f88ea99fb4fe313d94cb05c576b1b7a94ec7166aec958b36bcea4b8ff1a01", "hex")))
-  console.log(box1.to_json())
-  console.log(box2.to_json())
+  // console.log(box1.to_json())
+  // console.log(box2.to_json())
   const boxes = wasm.ErgoBoxes.empty()
   boxes.add(box1)
 
@@ -104,10 +104,10 @@ it('i608', async () => {
   forthTransactionHintsBagKnown.add_hints_for_input(0, forthHintsBag);
 
 
-  console.log(firstTransactionHintsBagKnown.to_json().publicHints['0'])
-  console.log(secondTransactionHintsBagKnown.to_json().publicHints['0'])
-  console.log(thirdTransactionHintsBagKnown.to_json().publicHints['0'])
-  console.log(forthTransactionHintsBagKnown.to_json().publicHints['0'])
+  // console.log(firstTransactionHintsBagKnown.to_json().publicHints['0'])
+  // console.log(secondTransactionHintsBagKnown.to_json().publicHints['0'])
+  // console.log(thirdTransactionHintsBagKnown.to_json().publicHints['0'])
+  // console.log(forthTransactionHintsBagKnown.to_json().publicHints['0'])
 
   const firstCommitment = JSON.stringify(firstTransactionHintsBagKnown.to_json())
   const secondCommitment = JSON.stringify(secondTransactionHintsBagKnown.to_json())
