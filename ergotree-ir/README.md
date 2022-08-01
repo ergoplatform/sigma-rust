@@ -13,10 +13,6 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 
 # Not yet implemented operations:
 
-### Predefined functions
-
-- atLeast
-
 ### Object properties and methods
 
 #### SigmaProp
@@ -75,6 +71,7 @@ Descriptions for the operations can be found in [ErgoTree Specification](https:/
 - downcast
 - avlTree
 - treeLookup
+- atLeast
 
 ### Object properties and methods
 
