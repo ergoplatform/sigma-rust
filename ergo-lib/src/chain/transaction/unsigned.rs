@@ -110,7 +110,7 @@ impl UnsignedTransaction {
 
     /// message to be signed by the [`ergotree_interpreter::sigma_protocol::prover::Prover`] (serialized tx)
     pub fn bytes_to_sign(&self) -> Result<Vec<u8>, SigmaSerializationError> {
-        let tx = self.to_tx_wo_proofs();
+        let tx = self.to_tx_without_proofs();
         tx.bytes_to_sign()
     }
 
