@@ -81,7 +81,7 @@ impl UnsignedTransaction {
         Ok(TxId(blake2b256_hash(&bytes)))
     }
 
-    fn to_tx_wo_proofs(&self) -> Transaction {
+    fn to_tx_without_proofs(&self) -> Transaction {
         let empty_proofs_input = self.inputs.mapped_ref(|ui| {
             Input::new(
                 ui.box_id.clone(),
