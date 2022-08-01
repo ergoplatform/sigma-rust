@@ -138,7 +138,6 @@ pub fn bag_for_multi_sig(
     sigma_tree: SigmaBoolean,
     real_propositions: &[SigmaBoolean],
     simulated_propositions: &[SigmaBoolean],
-    // TODO: use ProofBytes
     proof: &[u8],
 ) -> Result<HintsBag, SigParsingError> {
     if let SigmaBoolean::TrivialProp(_) = sigma_tree {
@@ -217,7 +216,7 @@ pub fn bag_for_multi_sig(
                         }
                     }
                     None => {
-                        return Err(SigParsingError::Unexpected("empty commitment"));
+                        return Err(SigParsingError::EmptyCommitment(leaf.proposition()));
                     }
                 };
             }

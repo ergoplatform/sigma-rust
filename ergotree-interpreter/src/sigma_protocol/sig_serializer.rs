@@ -116,6 +116,9 @@ pub fn parse_sig_compute_challenges(
     exp: &SigmaBoolean,
     mut proof_bytes: Vec<u8>,
 ) -> Result<UncheckedTree, SigParsingError> {
+    if proof_bytes.is_empty() {
+        return Err(SigParsingError::EmptyProof(exp.clone()));
+    }
     let mut r = sigma_byte_reader::from_bytes(proof_bytes.as_mut_slice());
     parse_sig_compute_challenges_reader(exp, &mut r, None)
         .map_err(|e| SigParsingError::TopLevelExpWrap(e.into(), exp.clone()))
@@ -138,9 +141,7 @@ fn parse_sig_compute_challenges_reader<R: SigmaByteRead>(
     };
 
     match exp {
-        SigmaBoolean::TrivialProp(_) => Err(SigParsingError::Unexpected(
-            "parse_sig_compute_challenges: TrivialProp should be handled before this call",
-        )),
+        SigmaBoolean::TrivialProp(_) => Err(SigParsingError::TrivialPropFound),
         SigmaBoolean::ProofOfKnowledge(tree) => match tree {
             SigmaProofOfKnowledgeTree::ProveDlog(dl) => {
                 // Verifier Step 3: For every leaf node, read the response z provided in the proof.
@@ -249,13 +250,19 @@ fn parse_sig_compute_challenges_reader<R: SigmaByteRead>(
 
 /// Errors when parsing proof tree signatures
 #[allow(missing_docs)]
-#[derive(Error, PartialEq, Eq, Debug, Clone)]
+#[derive(Error, PartialEq, Debug, Clone)]
 pub enum SigParsingError {
+    #[error("Empty proof for exp: {0:?}")]
+    EmptyProof(SigmaBoolean),
+
+    #[error("Unexpected TrivialProp found")]
+    TrivialPropFound,
+
     #[error("gf2_192 error: {0}")]
     Gf2_192Error(#[from] Gf2_192Error),
 
-    #[error("Unexpected error: {0}")]
-    Unexpected(&'static str),
+    #[error("Empty commitment in UncheckedLeaf with proposition: {0:?}")]
+    EmptyCommitment(SigmaBoolean),
 
     #[error("Challenge reading erorr with exp: {0:?}")]
     ChallengeRead(SigmaBoolean),
