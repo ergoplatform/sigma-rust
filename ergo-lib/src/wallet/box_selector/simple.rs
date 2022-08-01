@@ -605,5 +605,69 @@ mod tests {
                             sum_tokens_from_boxes(change_boxes_plus_out.as_slice()).unwrap(),
                             "all tokens from selected boxes should equal all tokens from the change boxes + target tokens");
         }
+
+        #[test]
+        fn test_select_over_max_tokens(
+            inputs in
+                vec(
+                    any_with::<ErgoBoxAssetsData>(
+                        ArbErgoBoxAssetsDataParam {
+                            value_range: (BoxValue::MIN_RAW * 1000 .. BoxValue::MIN_RAW * 10000).into(),
+                            tokens_param: ArbTokensParam {
+                                token_id_param: ArbTokenIdParam::Arbitrary,
+                                // with min 4 boxes below gives us minimum ErgoBox::MAX_TOKENS_COUNT * 2 distinct tokens total
+                                token_count_range: (ErgoBox::MAX_TOKENS_COUNT/2)..ErgoBox::MAX_TOKENS_COUNT,
+                            }
+                        }),
+                    4..10
+                )) {
+            let target_tokens = inputs.iter()
+                .flat_map(|b| b.tokens().unwrap())
+                .take(ErgoBox::MAX_TOKENS_COUNT + 10)
+                .collect::<Vec<Token>>();
+            let target_balance = BoxValue::SAFE_USER_MIN.checked_mul_u32(2).unwrap();
+            let s = SimpleBoxSelector::new();
+            let selection = s.select(inputs, target_balance, target_tokens.as_slice()).unwrap();
+            prop_assert!(!selection.change_boxes.is_empty());
+
+            let change_address_ergo_tree = AddressEncoder::new(NetworkPrefix::Mainnet)
+                .parse_address_from_str("9gmNsqrqdSppLUBqg2UzREmmivgqh1r3jmNcLAc53hk3YCvAGWE")
+            .unwrap().script().unwrap();
+            // check that a box can be created for each change box,
+            // checking that box value is enough for large box size (maxed tokens)
+            let change_boxes: Result<Vec<ErgoBoxCandidate>, ErgoBoxCandidateBuilderError> = selection
+                .change_boxes
+                .iter()
+                .map(|b| {
+                    let mut candidate = ErgoBoxCandidateBuilder::new(
+                        b.value,
+                        change_address_ergo_tree.clone(),
+                        1000000,
+                    );
+                    for token in b.tokens().into_iter().flatten() {
+                        candidate.add_token(token.clone());
+                    }
+                    candidate.build()
+                })
+                .collect();
+            prop_assert!(change_boxes.is_ok());
+
+            let out_box1 = ErgoBoxAssetsData {
+                value: BoxValue::SAFE_USER_MIN,
+                tokens: Some(BoxTokens::from_vec(target_tokens.clone().into_iter().take(target_tokens.len()/2).collect()).unwrap())
+            };
+            let out_box2 = ErgoBoxAssetsData {
+                value: BoxValue::SAFE_USER_MIN,
+                tokens: Some(BoxTokens::from_vec(target_tokens.clone().into_iter().skip(target_tokens.len()/2).collect()).unwrap())
+            };
+            let mut change_boxes_plus_out = vec![out_box1, out_box2];
+            change_boxes_plus_out.append(&mut selection.change_boxes.clone());
+            prop_assert_eq!(sum_value(selection.boxes.as_slice()),
+                            sum_value(change_boxes_plus_out.as_slice()),
+                            "total value of the selected boxes should equal target balance + total value in change boxes");
+            prop_assert_eq!(sum_tokens_from_boxes(selection.boxes.as_slice()).unwrap(),
+                            sum_tokens_from_boxes(change_boxes_plus_out.as_slice()).unwrap(),
+                            "all tokens from selected boxes should equal all tokens from the change boxes + target tokens");
+        }
     }
 }
