@@ -180,9 +180,14 @@ mod tests {
     use crate::sigma_protocol::prover::{Prover, TestProver};
 
     use super::*;
+    use ergotree_ir::mir::atleast::Atleast;
+    use ergotree_ir::mir::constant::{Constant, Literal};
     use ergotree_ir::mir::expr::Expr;
     use ergotree_ir::mir::sigma_and::SigmaAnd;
     use ergotree_ir::mir::sigma_or::SigmaOr;
+    use ergotree_ir::mir::value::CollKind;
+    use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProp;
+    use ergotree_ir::types::stype::SType;
     use proptest::collection::vec;
     use proptest::prelude::*;
     use sigma_test_util::force_any_val;
@@ -413,5 +418,47 @@ mod tests {
             }
         }
 
+        #[test]
+        fn test_prover_verifier_atleast(secret1 in any::<DlogProverInput>(),
+                                            secret2 in any::<DlogProverInput>(),
+                                             secret3 in any::<DlogProverInput>(),
+                                             message in vec(any::<u8>(), 100..200)) {
+            let bound = Expr::Const(2i32.into());
+            let inputs = Literal::Coll(
+                CollKind::from_vec(
+                    SType::SSigmaProp,
+                    vec![
+                        SigmaProp::from(secret1.public_image()).into(),
+                        SigmaProp::from(secret2.public_image()).into(),
+                        SigmaProp::from(secret3.public_image()).into(),
+                    ],
+                )
+                .unwrap(),
+            );
+            let input = Constant {
+                tpe: SType::SColl(SType::SSigmaProp.into()),
+                v: inputs,
+            }
+            .into();
+            let expr: Expr = Atleast::new(bound, input).unwrap().into();
+            let tree = ErgoTree::try_from(expr).unwrap();
+            let prover = TestProver {
+                secrets: vec![secret1.into(), secret3.into()],
+            };
+
+            let res = prover.prove(&tree,
+                &Env::empty(),
+                Rc::new(force_any_val::<Context>()),
+                message.as_slice(),
+                &HintsBag::empty());
+            let proof = res.unwrap().proof;
+            let verifier = TestVerifier;
+            let ver_res = verifier.verify(&tree,
+                                            &Env::empty(),
+                                            Rc::new(force_any_val::<Context>()),
+                                            proof,
+                                            message.as_slice());
+            prop_assert_eq!(ver_res.unwrap().result, true)
+        }
     }
 }
