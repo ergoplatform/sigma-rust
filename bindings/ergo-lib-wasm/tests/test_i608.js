@@ -1,3 +1,4 @@
+import { expect, assert } from 'chai';
 
 import { generate_block_headers } from './utils';
 
@@ -157,4 +158,5 @@ it('i608', async () => {
   const ctx = new wasm.ErgoStateContext(pre_header, block_headers);
 
   const secondHintsBagExtract = wasm.extract_hints(forthSign, ctx, boxes, wasm.ErgoBoxes.from_boxes_json([]), firstRealPropositions, firstSimulatedPropositions);
+  assert(secondHintsBagExtract !== null);
 });

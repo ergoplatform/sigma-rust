@@ -141,7 +141,7 @@ fn parse_sig_compute_challenges_reader<R: SigmaByteRead>(
     };
 
     match exp {
-        SigmaBoolean::TrivialProp(_) => Err(SigParsingError::TrivialPropFound),
+        SigmaBoolean::TrivialProp(b) => Err(SigParsingError::TrivialPropFound(*b)),
         SigmaBoolean::ProofOfKnowledge(tree) => match tree {
             SigmaProofOfKnowledgeTree::ProveDlog(dl) => {
                 // Verifier Step 3: For every leaf node, read the response z provided in the proof.
@@ -255,8 +255,8 @@ pub enum SigParsingError {
     #[error("Empty proof for exp: {0:?}")]
     EmptyProof(SigmaBoolean),
 
-    #[error("Unexpected TrivialProp found")]
-    TrivialPropFound,
+    #[error("Unexpected TrivialProp found: {0}")]
+    TrivialPropFound(bool),
 
     #[error("gf2_192 error: {0}")]
     Gf2_192Error(#[from] Gf2_192Error),
