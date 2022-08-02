@@ -12,7 +12,6 @@ use crate::{
     address::Address, box_coll::ErgoBoxCandidates, ergo_box::BoxValue,
     transaction::UnsignedTransaction,
 };
-use ergo_lib::ergotree_ir::chain;
 
 /// Unsigned transaction builder
 #[wasm_bindgen]
@@ -64,14 +63,8 @@ impl TxBuilder {
 
     /// Permits the burn of the given token amount, i.e. allows this token amount to be omitted in the outputs
     pub fn set_token_burn_permit(&mut self, tokens: &Tokens) {
-        let tokens: Option<chain::ergo_box::BoxTokens> = tokens.clone().into();
-        self.0.set_token_burn_permit(
-            tokens
-                .as_ref()
-                .map(chain::ergo_box::BoxTokens::as_vec)
-                .unwrap_or(&vec![])
-                .clone(),
-        )
+        self.0
+            .set_token_burn_permit(tokens.clone().0.into_iter().map(|t| t.into()).collect())
     }
 
     /// Build the unsigned transaction
