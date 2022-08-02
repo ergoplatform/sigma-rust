@@ -2,7 +2,7 @@ use ergo_lib_c_core::{
     box_selector::*,
     collections::{CollectionPtr, ConstCollectionPtr},
     ergo_box::{ConstBoxValuePtr, ErgoBox, ErgoBoxAssetsData},
-    token::ConstTokensPtr,
+    token::Token,
     Error,
 };
 
@@ -72,7 +72,7 @@ pub unsafe extern "C" fn ergo_lib_simple_box_selector_select(
     simple_box_selector_ptr: ConstSimpleBoxSelectorPtr,
     inputs_ptr: ConstCollectionPtr<ErgoBox>,
     target_balance_ptr: ConstBoxValuePtr,
-    target_tokens_ptr: ConstTokensPtr,
+    target_tokens_ptr: ConstCollectionPtr<Token>,
     box_selection_out: *mut BoxSelectionPtr,
 ) -> ErrorPtr {
     let res = simple_box_selector_select(

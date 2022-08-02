@@ -6,7 +6,7 @@ use std::{
     os::raw::c_char,
 };
 
-use crate::{delete_ptr, ErrorPtr, ReturnOption};
+use crate::{delete_ptr, ErrorPtr};
 
 // `TokenId` bindings ------------------------------------------------------------------------------
 
@@ -138,54 +138,3 @@ pub unsafe extern "C" fn ergo_lib_token_delete(ptr: TokenPtr) {
 }
 
 make_ffi_eq!(Token);
-
-// `Tokens` bindings -------------------------------------------------------------------------------
-
-/// Create an empty collection
-#[no_mangle]
-pub unsafe extern "C" fn ergo_lib_tokens_new(tokens_out: *mut TokensPtr) {
-    #[allow(clippy::unwrap_used)]
-    tokens_new(tokens_out).unwrap();
-}
-
-/// Returns length of collection
-#[no_mangle]
-pub unsafe extern "C" fn ergo_lib_tokens_len(tokens_ptr: ConstTokensPtr) -> usize {
-    #[allow(clippy::unwrap_used)]
-    tokens_len(tokens_ptr).unwrap()
-}
-
-/// If token at given index exists, allocate a copy and store in `token_out`.
-#[no_mangle]
-pub unsafe extern "C" fn ergo_lib_tokens_get(
-    tokens_ptr: ConstTokensPtr,
-    index: usize,
-    token_out: *mut TokenPtr,
-) -> ReturnOption {
-    match tokens_get(tokens_ptr, index, token_out) {
-        Ok(is_some) => ReturnOption {
-            is_some,
-            error: std::ptr::null_mut(),
-        },
-        Err(e) => ReturnOption {
-            is_some: false, // Just a dummy value
-            error: Error::c_api_from(Err(e)),
-        },
-    }
-}
-
-/// Add token to the end of the collection. There is a maximum capacity of ErgoBox::MAX_TOKENS_COUNT token, and adding
-/// more returns an error.
-#[no_mangle]
-pub unsafe extern "C" fn ergo_lib_tokens_add(
-    token_ptr: ConstTokenPtr,
-    tokens_ptr: TokensPtr,
-) -> ErrorPtr {
-    Error::c_api_from(tokens_add(tokens_ptr, token_ptr))
-}
-
-/// Drop `Tokens`
-#[no_mangle]
-pub unsafe extern "C" fn ergo_lib_tokens_delete(ptr: TokensPtr) {
-    delete_ptr(ptr)
-}

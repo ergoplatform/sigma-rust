@@ -16,11 +16,12 @@
 //! A transaction is unsealing a box. As a box can not be open twice, any further valid transaction
 //! can not be linked to the same box.
 use ergo_lib_c_core::{
+    collections::{CollectionPtr, ConstCollectionPtr},
     constant::ConstantPtr,
     contract::ConstContractPtr,
     ergo_box::*,
     ergo_tree::ErgoTreePtr,
-    token::{ConstTokensPtr, TokensPtr},
+    token::Token,
     transaction::ConstTxIdPtr,
     Error,
 };
@@ -162,7 +163,7 @@ pub unsafe extern "C" fn ergo_lib_ergo_box_candidate_creation_height(
 #[no_mangle]
 pub unsafe extern "C" fn ergo_lib_ergo_box_candidate_tokens(
     ergo_box_candidate_ptr: ConstErgoBoxCandidatePtr,
-    tokens_out: *mut TokensPtr,
+    tokens_out: *mut CollectionPtr<Token>,
 ) {
     #[allow(clippy::unwrap_used)]
     ergo_box_candidate_tokens(ergo_box_candidate_ptr, tokens_out).unwrap();
@@ -213,7 +214,7 @@ pub unsafe extern "C" fn ergo_lib_ergo_box_new(
     contract_ptr: ConstContractPtr,
     tx_id_ptr: ConstTxIdPtr,
     index: u16,
-    tokens_ptr: ConstTokensPtr,
+    tokens_ptr: ConstCollectionPtr<Token>,
     ergo_box_out: *mut ErgoBoxPtr,
 ) -> ErrorPtr {
     let res = ergo_box_new(
@@ -249,7 +250,7 @@ pub unsafe extern "C" fn ergo_lib_ergo_box_creation_height(ergo_box_ptr: ConstEr
 #[no_mangle]
 pub unsafe extern "C" fn ergo_lib_ergo_box_tokens(
     ergo_box_ptr: ConstErgoBoxPtr,
-    tokens_out: *mut TokensPtr,
+    tokens_out: *mut CollectionPtr<Token>,
 ) {
     #[allow(clippy::unwrap_used)]
     ergo_box_tokens(ergo_box_ptr, tokens_out).unwrap();
@@ -355,7 +356,7 @@ make_ffi_eq!(ErgoBox);
 #[no_mangle]
 pub unsafe extern "C" fn ergo_lib_ergo_box_assets_data_new(
     value_ptr: ConstBoxValuePtr,
-    tokens_ptr: ConstTokensPtr,
+    tokens_ptr: ConstCollectionPtr<Token>,
     ergo_box_assets_data_out: *mut ErgoBoxAssetsDataPtr,
 ) {
     #[allow(clippy::unwrap_used)]
@@ -376,7 +377,7 @@ pub unsafe extern "C" fn ergo_lib_ergo_box_assets_data_value(
 #[no_mangle]
 pub unsafe extern "C" fn ergo_lib_ergo_box_assets_data_tokens(
     ergo_box_assets_data_ptr: ConstErgoBoxAssetsDataPtr,
-    tokens_out: *mut TokensPtr,
+    tokens_out: *mut CollectionPtr<Token>,
 ) {
     #[allow(clippy::unwrap_used)]
     ergo_box_assets_data_tokens(ergo_box_assets_data_ptr, tokens_out).unwrap();

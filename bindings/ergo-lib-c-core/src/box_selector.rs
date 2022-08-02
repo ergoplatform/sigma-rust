@@ -4,7 +4,7 @@ use ergo_lib::wallet::{self, box_selector::BoxSelector};
 use crate::{
     collections::{Collection, CollectionPtr, ConstCollectionPtr},
     ergo_box::{ConstBoxValuePtr, ErgoBox, ErgoBoxAssetsData},
-    token::ConstTokensPtr,
+    token::Token,
     util::{const_ptr_as_ref, mut_ptr_as_mut},
     Error,
 };
@@ -106,7 +106,7 @@ pub unsafe fn simple_box_selector_select(
     simple_box_selector_ptr: ConstSimpleBoxSelectorPtr,
     inputs_ptr: ConstCollectionPtr<ErgoBox>,
     target_balance_ptr: ConstBoxValuePtr,
-    target_tokens_ptr: ConstTokensPtr,
+    target_tokens_ptr: ConstCollectionPtr<Token>,
     box_selection_out: *mut BoxSelectionPtr,
 ) -> Result<(), Error> {
     let inputs = const_ptr_as_ref(inputs_ptr, "inputs_ptr")?;
@@ -117,11 +117,13 @@ pub unsafe fn simple_box_selector_select(
     let box_selection = simple_box_selector.0.select(
         inputs.0.clone().into_iter().map(|b| b.0).collect(),
         target_balance.0,
-        &target_tokens
+        target_tokens
             .0
             .clone()
-            .map(|tokens| tokens.mapped(|t| t.0).as_vec().clone())
-            .unwrap_or_else(Vec::new),
+            .into_iter()
+            .map(|b| b.0)
+            .collect::<Vec<ergo_lib::ergotree_ir::chain::token::Token>>()
+            .as_slice(),
     )?;
     *box_selection_out = Box::into_raw(Box::new(BoxSelection(box_selection)));
     Ok(())

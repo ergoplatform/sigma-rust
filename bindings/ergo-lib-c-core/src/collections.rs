@@ -1,5 +1,9 @@
 //! Collections that can be manipulated from outside Rust
 
+use std::convert::{TryFrom, TryInto};
+
+use bounded_vec::{BoundedVec, BoundedVecOutOfBounds, OptBoundedVecToVec};
+
 use crate::error::*;
 use crate::util::{const_ptr_as_ref, mut_ptr_as_mut};
 
@@ -47,4 +51,68 @@ pub unsafe fn collection_add<T: Clone>(
     let elem = const_ptr_as_ref(elem, "elem")?;
     collection_out.0.push(elem.clone());
     Ok(())
+}
+
+impl<T, S: Into<T>> From<Vec<S>> for Collection<T> {
+    fn from(vec: Vec<S>) -> Self {
+        Collection(vec.into_iter().map(Into::into).collect())
+    }
+}
+
+impl<T, S: Into<T>> From<Collection<S>> for Vec<T> {
+    fn from(vec: Collection<S>) -> Self {
+        vec.0.into_iter().map(Into::into).collect()
+    }
+}
+
+impl<T, S: Into<T> + Clone> From<&Collection<S>> for Vec<T> {
+    fn from(vec: &Collection<S>) -> Self {
+        vec.0.clone().into_iter().map(Into::into).collect()
+    }
+}
+
+impl<T, S: Into<T>, const L: usize, const U: usize> From<BoundedVec<S, L, U>> for Collection<T> {
+    fn from(bvec: BoundedVec<S, L, U>) -> Self {
+        bvec.to_vec().into()
+    }
+}
+
+impl<T, S: Into<T>, const L: usize, const U: usize> From<Option<BoundedVec<S, L, U>>>
+    for Collection<T>
+{
+    fn from(maybe_bvec: Option<BoundedVec<S, L, U>>) -> Self {
+        maybe_bvec.to_vec().into()
+    }
+}
+
+impl<T, S: Into<T> + Clone, const L: usize, const U: usize> TryFrom<Collection<S>>
+    for Option<BoundedVec<T, L, U>>
+{
+    type Error = BoundedVecOutOfBounds;
+
+    fn try_from(tokens: Collection<S>) -> Result<Self, Self::Error> {
+        (&tokens).try_into()
+    }
+}
+
+impl<T, S: Into<T> + Clone, const L: usize, const U: usize> TryFrom<&Collection<S>>
+    for Option<BoundedVec<T, L, U>>
+{
+    type Error = BoundedVecOutOfBounds;
+
+    fn try_from(tokens: &Collection<S>) -> Result<Self, Self::Error> {
+        if tokens.0.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(
+                tokens
+                    .0
+                    .clone()
+                    .into_iter()
+                    .map(Into::into)
+                    .collect::<Vec<T>>()
+                    .try_into()?,
+            ))
+        }
+    }
 }
