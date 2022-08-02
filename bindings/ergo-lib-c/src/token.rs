@@ -138,3 +138,4 @@ pub unsafe extern "C" fn ergo_lib_token_delete(ptr: TokenPtr) {
 }
 
 make_ffi_eq!(Token);
+make_collection!(Tokens, Token);
