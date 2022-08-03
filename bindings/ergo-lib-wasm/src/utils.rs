@@ -10,11 +10,11 @@ pub struct MinerAddress {}
 
 #[wasm_bindgen]
 impl MinerAddress {
-    /// address to use in mainnet for the fee
+    /// Miner fee Base58 encoded P2S address on mainnet
     pub fn mainnet_fee_address() -> String {
         ergo_lib::wallet::miner_fee::MINERS_FEE_MAINNET_ADDRESS_STR.clone()
     }
-    /// address to use in testnet for the fee
+    /// Miner fee Base58 encoded P2S address on testnet
     pub fn testnet_fee_address() -> String {
         ergo_lib::wallet::miner_fee::MINERS_FEE_TESTNET_ADDRESS_STR.clone()
     }
