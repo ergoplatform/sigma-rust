@@ -217,7 +217,7 @@ pub unsafe fn ergo_box_new(
     let ergo_box = chain::ergo_box::ErgoBox::new(
         value.0,
         chain_ergo_tree,
-        tokens.try_into().unwrap(),
+        tokens.try_into()?,
         NonMandatoryRegisters::empty(),
         creation_height,
         tx_id.0.clone(),
