@@ -16,9 +16,10 @@
 //! A transaction is unsealing a box. As a box can not be open twice, any further valid transaction
 //! can not be linked to the same box.
 
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 
 use ergo_lib::ergotree_ir::chain;
+use ergo_lib::ergotree_ir::chain::ergo_box::BoxTokens;
 use ergo_lib::ergotree_ir::chain::ergo_box::NonMandatoryRegisters;
 use ergo_lib::ergotree_ir::serialization::SigmaSerializable;
 use ergo_lib::wallet::tx_builder::new_miner_fee_box;
@@ -148,7 +149,7 @@ impl ErgoBox {
         let b = chain::ergo_box::ErgoBox::new(
             value.0,
             chain_contract.ergo_tree(),
-            tokens.clone().into(),
+            tokens.clone().try_into()?,
             NonMandatoryRegisters::empty(),
             creation_height,
             tx_id.clone().into(),
@@ -309,11 +310,16 @@ pub struct ErgoBoxAssetsData(ergo_lib::wallet::box_selector::ErgoBoxAssetsData);
 impl ErgoBoxAssetsData {
     /// Create new instance
     #[wasm_bindgen(constructor)]
-    pub fn new(value: &BoxValue, tokens: &Tokens) -> Self {
-        ErgoBoxAssetsData(ergo_lib::wallet::box_selector::ErgoBoxAssetsData {
-            value: value.clone().into(),
-            tokens: tokens.clone().into(),
-        })
+    pub fn new(value: &BoxValue, tokens: &Tokens) -> Result<ErgoBoxAssetsData, JsValue> {
+        Ok(ErgoBoxAssetsData(
+            ergo_lib::wallet::box_selector::ErgoBoxAssetsData {
+                value: value.clone().into(),
+                tokens: BoxTokens::opt_empty_vec(
+                    tokens.clone().0.into_iter().map(Into::into).collect(),
+                )
+                .map_err(to_js)?,
+            },
+        ))
     }
 
     /// Value part of the box

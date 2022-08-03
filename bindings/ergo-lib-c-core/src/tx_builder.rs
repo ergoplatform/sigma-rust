@@ -1,4 +1,5 @@
 //! Unsigned transaction builder
+
 use ergo_lib::wallet;
 
 use crate::{
@@ -8,7 +9,7 @@ use crate::{
     context_extension::ContextExtensionPtr,
     data_input::DataInput,
     ergo_box::{BoxIdPtr, BoxValue, BoxValuePtr, ConstBoxValuePtr, ErgoBoxCandidate},
-    token::ConstTokensPtr,
+    token::Token,
     transaction::{UnsignedTransaction, UnsignedTransactionPtr},
     util::{const_ptr_as_ref, mut_ptr_as_mut},
     Error,
@@ -96,17 +97,11 @@ pub unsafe fn tx_builder_set_context_extension(
 /// Permits the burn of the given token amount, i.e. allows this token amount to be omitted in the outputs
 pub unsafe fn tx_builder_set_token_burn_permit(
     tx_builder_mut: TxBuilderPtr,
-    target_tokens_ptr: ConstTokensPtr,
+    target_tokens_ptr: ConstCollectionPtr<Token>,
 ) -> Result<(), Error> {
     let target_tokens = const_ptr_as_ref(target_tokens_ptr, "target_tokens_ptr")?;
     let tx_builder_mut = mut_ptr_as_mut(tx_builder_mut, "tx_builder_mut")?;
-    tx_builder_mut.0.set_token_burn_permit(
-        target_tokens
-            .0
-            .clone()
-            .map(|tokens| tokens.mapped(|t| t.0).as_vec().clone())
-            .unwrap_or_else(Vec::new),
-    );
+    tx_builder_mut.0.set_token_burn_permit(target_tokens.into());
     Ok(())
 }
 

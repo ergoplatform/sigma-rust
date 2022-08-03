@@ -2,7 +2,7 @@
 
 use std::convert::TryFrom;
 
-use bounded_vec::BoundedVec;
+use bounded_vec::OptBoundedVecToVec;
 use ergo_lib::ergo_chain_types::Base16DecodedBytes;
 use ergo_lib::ergo_chain_types::Digest32;
 use ergo_lib::ergotree_ir::chain;
@@ -14,8 +14,6 @@ use crate::error_conversion::to_js;
 use crate::json::TokenJsonEip12;
 use crate::utils::I64;
 
-/// A Bounded Vector for Tokens. A Box can have between 1 and ErgoBox::MAX_TOKENS_COUNT tokens
-pub type BoxTokens = BoundedVec<Token, 1, { chain::ergo_box::ErgoBox::MAX_TOKENS_COUNT }>;
 /// Token id (32 byte digest)
 #[wasm_bindgen]
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -133,66 +131,55 @@ impl From<Token> for chain::token::Token {
     }
 }
 
+impl From<chain::token::Token> for Token {
+    fn from(t: chain::token::Token) -> Self {
+        Self(t)
+    }
+}
+
 /// Array of tokens
 #[wasm_bindgen]
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct Tokens(Option<BoxTokens>);
+pub struct Tokens(pub(crate) Vec<Token>);
 
 #[wasm_bindgen]
 impl Tokens {
     /// Create empty Tokens
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
-        Tokens(None)
+        Tokens(Vec::new())
     }
 
     /// Returns the number of elements in the collection
     pub fn len(&self) -> usize {
-        self.0.as_ref().map(BoxTokens::len).unwrap_or(0)
+        self.0.len()
     }
 
     /// Returns the element of the collection with a given index
     pub fn get(&self, index: usize) -> Result<Token, JsValue> {
-        Ok(self
-            .0
-            .as_ref()
-            .ok_or_else::<JsValue, _>(|| "Tokens::get: no tokens available".into())?
+        self.0
             .get(index)
-            .ok_or_else::<JsValue, _>(|| "".into())?
-            .clone())
+            .cloned()
+            .ok_or_else(|| JsValue::from_str("Index out of bounds"))
     }
 
     /// Adds an elements to the collection
-    pub fn add(&mut self, elem: &Token) -> Result<(), JsValue> {
-        if self.0.is_some() {
-            #[allow(clippy::unwrap_used)]
-            let mut new_vec = self.0.as_ref().unwrap().as_vec().clone();
-
-            if new_vec.len() >= chain::ergo_box::ErgoBox::MAX_TOKENS_COUNT {
-                return Err(
-                    "Tokens::add: can't have more than ErgoBox::MAX_TOKENS_COUNT tokens".into(),
-                );
-            }
-
-            new_vec.push(elem.clone());
-            #[allow(clippy::unwrap_used)]
-            let box_tokens = BoxTokens::from_vec(new_vec).unwrap();
-            self.0 = Some(box_tokens);
-        } else {
-            self.0 = Some(BoxTokens::from([elem.clone()]));
-        }
-        Ok(())
+    pub fn add(&mut self, elem: &Token) {
+        self.0.push(elem.clone());
     }
 }
 
-impl From<Tokens> for Option<chain::ergo_box::BoxTokens> {
-    fn from(v: Tokens) -> Self {
-        v.0.map(|bv| bv.mapped(Into::into))
+impl TryFrom<Tokens> for Option<chain::ergo_box::BoxTokens> {
+    type Error = JsValue;
+
+    fn try_from(tokens: Tokens) -> Result<Self, Self::Error> {
+        chain::ergo_box::BoxTokens::opt_empty_vec(tokens.0.into_iter().map(Into::into).collect())
+            .map_err(to_js)
     }
 }
 
 impl From<Option<chain::ergo_box::BoxTokens>> for Tokens {
     fn from(v: Option<chain::ergo_box::BoxTokens>) -> Self {
-        Tokens(v.map(|t| t.mapped(Token)))
+        Tokens(v.to_vec().into_iter().map(|t| t.into()).collect())
     }
 }

@@ -53,7 +53,8 @@ final class TokenIdTests: XCTestCase {
         XCTAssertEqual(tokens.len(), UInt(maxTokensCount))
         XCTAssertNotNil(tokens.get(index: maxTokensCount - 1))
         
-        // Add max + 1 token, expecting error
-        XCTAssertThrowsError(try tokens.add(token: token))
+        // Add max + 1 token
+        try tokens.add(token: token)
+        XCTAssertEqual(tokens.len(), UInt(maxTokensCount) + 1)
     }
 }

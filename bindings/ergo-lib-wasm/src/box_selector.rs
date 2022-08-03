@@ -68,15 +68,17 @@ impl SimpleBoxSelector {
         target_balance: &BoxValue,
         target_tokens: &Tokens,
     ) -> Result<BoxSelection, JsValue> {
-        let target_tokens: Option<chain::ergo_box::BoxTokens> = target_tokens.clone().into();
         self.0
             .select(
                 inputs.clone().into(),
                 target_balance.clone().into(),
                 target_tokens
-                    .as_ref()
-                    .map(chain::ergo_box::BoxTokens::as_slice)
-                    .unwrap_or(&[]),
+                    .clone()
+                    .0
+                    .into_iter()
+                    .map(|t| t.into())
+                    .collect::<Vec<chain::token::Token>>()
+                    .as_slice(),
             )
             .map_err(to_js)
             .map(BoxSelection)

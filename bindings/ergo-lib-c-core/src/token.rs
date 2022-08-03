@@ -2,7 +2,6 @@
 
 use std::convert::TryFrom;
 
-use bounded_vec::BoundedVec;
 use ergo_lib::{
     ergo_chain_types::{Base16DecodedBytes, Digest32},
     ergotree_ir::chain,
@@ -76,7 +75,7 @@ pub unsafe fn token_amount_as_i64(token_amount_ptr: ConstTokenAmountPtr) -> Resu
 }
 
 /// Token represented with token id paired with its amount
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone, derive_more::From, derive_more::Into)]
 pub struct Token(pub(crate) chain::token::Token);
 pub type TokenPtr = *mut Token;
 pub type ConstTokenPtr = *const Token;
@@ -125,66 +124,4 @@ pub unsafe fn token_to_json_eip12(token_ptr: ConstTokenPtr) -> Result<String, Er
     let t_dapp: TokenJsonEip12 = token.0.clone().into();
     let s = serde_json::to_string(&t_dapp)?;
     Ok(s)
-}
-
-/// A Bounded Vector for Tokens. A Box can have between 1 and ErgoBox::MAX_TOKENS_COUNT tokens
-pub type BoxTokens = BoundedVec<Token, 1, { chain::ergo_box::ErgoBox::MAX_TOKENS_COUNT }>;
-
-/// Array of tokens. Note that we're not using `crate::collections::Collection` here due to the
-/// use of the `BoundedVec`.
-#[derive(PartialEq, Eq, Debug, Clone)]
-pub struct Tokens(pub(crate) Option<BoxTokens>);
-pub type TokensPtr = *mut Tokens;
-pub type ConstTokensPtr = *const Tokens;
-
-/// Create an empty collection
-pub unsafe fn tokens_new(tokens_out: *mut TokensPtr) -> Result<(), Error> {
-    let tokens_out = mut_ptr_as_mut(tokens_out, "tokens_out")?;
-    *tokens_out = Box::into_raw(Box::new(Tokens(None)));
-    Ok(())
-}
-
-/// Returns length of collection
-pub unsafe fn tokens_len(tokens_ptr: ConstTokensPtr) -> Result<usize, Error> {
-    let tokens = const_ptr_as_ref(tokens_ptr, "tokens_ptr")?;
-    Ok(tokens.0.as_ref().map(BoxTokens::len).unwrap_or(0))
-}
-
-/// If token at given index exists, allocate a copy and store in `token_out` and return `Ok(true)`.
-/// If token doesn't exist at the given index return Ok(false).
-pub unsafe fn tokens_get(
-    tokens_ptr: ConstTokensPtr,
-    index: usize,
-    token_out: *mut TokenPtr,
-) -> Result<bool, Error> {
-    let tokens = const_ptr_as_ref(tokens_ptr, "tokens_ptr")?;
-    let token_out = mut_ptr_as_mut(token_out, "token_out")?;
-    if let Some(tokens) = tokens.0.as_ref() {
-        if let Some(token) = tokens.get(index) {
-            *token_out = Box::into_raw(Box::new(token.clone()));
-            return Ok(true);
-        }
-    }
-    Ok(false)
-}
-
-/// Add token to the end of the collection. There is a maximum capacity of ErgoBox::MAX_TOKENS_COUNT token, and adding
-/// more returns an error.
-pub unsafe fn tokens_add(tokens_ptr: TokensPtr, token_ptr: ConstTokenPtr) -> Result<(), Error> {
-    let tokens = mut_ptr_as_mut(tokens_ptr, "tokens_ptr")?;
-    let token = const_ptr_as_ref(token_ptr, "token_ptr")?;
-    if tokens.0.is_some() {
-        let mut new_vec = tokens.0.as_ref().unwrap().as_vec().clone();
-        if new_vec.len() >= chain::ergo_box::ErgoBox::MAX_TOKENS_COUNT {
-            return Err(Error::Misc(
-                "Tokens.add: cannot have more than ErgoBox::MAX_TOKENS_COUNT tokens".into(),
-            ));
-        } else {
-            new_vec.push(token.clone());
-            tokens.0 = Some(BoxTokens::from_vec(new_vec).unwrap());
-        }
-    } else {
-        tokens.0 = Some(BoxTokens::from([token.clone()]));
-    }
-    Ok(())
 }

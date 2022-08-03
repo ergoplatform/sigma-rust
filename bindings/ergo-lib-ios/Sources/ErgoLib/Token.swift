@@ -173,8 +173,7 @@ class Tokens {
     /// Add a ``Token`` to the end of the collection. Note that the collection has a maximum
     /// capacity of ErgoBox::MAX_TOKENS_COUNT tokens. Will throw error if adding more.
     func add(token: Token) throws {
-        let error = ergo_lib_tokens_add(token.pointer, self.pointer)
-        try checkError(error)
+        ergo_lib_tokens_add(token.pointer, self.pointer)
     }
         
     deinit {

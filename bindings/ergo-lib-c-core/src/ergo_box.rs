@@ -16,16 +16,17 @@
 //! A transaction is unsealing a box. As a box can not be open twice, any further valid transaction
 //! can not be linked to the same box.
 
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 
 use ergo_lib::ergotree_ir::chain::{self, ergo_box::NonMandatoryRegisters};
 
 use crate::{
+    collections::{CollectionPtr, ConstCollectionPtr},
     constant::{Constant, ConstantPtr},
     contract::ConstContractPtr,
     ergo_tree::{ErgoTree, ErgoTreePtr},
     json::ErgoBoxJsonEip12,
-    token::{ConstTokensPtr, Token, Tokens, TokensPtr},
+    token::Token,
     transaction::ConstTxIdPtr,
     util::{const_ptr_as_ref, mut_ptr_as_mut},
     Error,
@@ -153,13 +154,11 @@ pub unsafe fn ergo_box_candidate_creation_height(
 /// Get tokens for box
 pub unsafe fn ergo_box_candidate_tokens(
     ergo_box_candidate_ptr: ConstErgoBoxCandidatePtr,
-    tokens_out: *mut TokensPtr,
+    tokens_out: *mut CollectionPtr<Token>,
 ) -> Result<(), Error> {
     let candidate = const_ptr_as_ref(ergo_box_candidate_ptr, "ergo_box_candidate_ptr")?;
     let tokens_out = mut_ptr_as_mut(tokens_out, "tokens_out")?;
-    *tokens_out = Box::into_raw(Box::new(Tokens(
-        candidate.0.tokens.clone().map(|bv| bv.mapped(Token)),
-    )));
+    *tokens_out = Box::into_raw(Box::new(candidate.0.tokens.clone().into()));
     Ok(())
 }
 
@@ -205,7 +204,7 @@ pub unsafe fn ergo_box_new(
     contract_ptr: ConstContractPtr,
     tx_id_ptr: ConstTxIdPtr,
     index: u16,
-    tokens_ptr: ConstTokensPtr,
+    tokens_ptr: ConstCollectionPtr<Token>,
     ergo_box_out: *mut ErgoBoxPtr,
 ) -> Result<(), Error> {
     let value = const_ptr_as_ref(value_ptr, "value_ptr")?;
@@ -218,7 +217,7 @@ pub unsafe fn ergo_box_new(
     let ergo_box = chain::ergo_box::ErgoBox::new(
         value.0,
         chain_ergo_tree,
-        tokens.0.clone().map(|tokens| tokens.mapped(|t| t.0)),
+        tokens.try_into()?,
         NonMandatoryRegisters::empty(),
         creation_height,
         tx_id.0.clone(),
@@ -249,13 +248,11 @@ pub unsafe fn ergo_box_creation_height(ergo_box_ptr: ConstErgoBoxPtr) -> Result<
 /// Get tokens for box
 pub unsafe fn ergo_box_tokens(
     ergo_box_ptr: ConstErgoBoxPtr,
-    tokens_out: *mut TokensPtr,
+    tokens_out: *mut CollectionPtr<Token>,
 ) -> Result<(), Error> {
     let ergo_box = const_ptr_as_ref(ergo_box_ptr, "ergo_box_ptr")?;
     let tokens_out = mut_ptr_as_mut(tokens_out, "tokens_out")?;
-    *tokens_out = Box::into_raw(Box::new(Tokens(
-        ergo_box.0.tokens.clone().map(|tokens| tokens.mapped(Token)),
-    )));
+    *tokens_out = Box::into_raw(Box::new(ergo_box.0.tokens.clone().into()));
     Ok(())
 }
 
@@ -330,18 +327,17 @@ pub type ConstErgoBoxAssetsDataPtr = *const ErgoBoxAssetsData;
 /// Create new instance
 pub unsafe fn ergo_box_assets_data_new(
     value_ptr: ConstBoxValuePtr,
-    tokens_ptr: ConstTokensPtr,
+    tokens_ptr: ConstCollectionPtr<Token>,
     ergo_box_assets_data_out: *mut ErgoBoxAssetsDataPtr,
 ) -> Result<(), Error> {
     let value = const_ptr_as_ref(value_ptr, "value_ptr")?;
     let tokens = const_ptr_as_ref(tokens_ptr, "tokens_ptr")?;
     let ergo_box_assets_data_out =
         mut_ptr_as_mut(ergo_box_assets_data_out, "ergo_box_assets_data_out")?;
-    let tokens = tokens.0.clone().map(|tokens| tokens.mapped(|t| t.0));
     *ergo_box_assets_data_out = Box::into_raw(Box::new(ErgoBoxAssetsData(
         ergo_lib::wallet::box_selector::ErgoBoxAssetsData {
             value: value.0,
-            tokens,
+            tokens: tokens.try_into()?,
         },
     )));
     Ok(())
@@ -363,19 +359,12 @@ pub unsafe fn ergo_box_assets_data_value(
 /// Tokens part of the box
 pub unsafe fn ergo_box_assets_data_tokens(
     ergo_box_assets_data_ptr: ConstErgoBoxAssetsDataPtr,
-    tokens_out: *mut TokensPtr,
+    tokens_out: *mut CollectionPtr<Token>,
 ) -> Result<(), Error> {
     let ergo_box_assets_data =
         const_ptr_as_ref(ergo_box_assets_data_ptr, "ergo_box_assets_data_ptr")?;
     let tokens_out = mut_ptr_as_mut(tokens_out, "tokens_out")?;
-
-    *tokens_out = Box::into_raw(Box::new(Tokens(
-        ergo_box_assets_data
-            .0
-            .tokens
-            .clone()
-            .map(|tokens| tokens.mapped(Token)),
-    )));
+    *tokens_out = Box::into_raw(Box::new(ergo_box_assets_data.0.tokens.clone().into()));
     Ok(())
 }
 
