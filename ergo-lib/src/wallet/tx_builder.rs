@@ -4,6 +4,7 @@ use ergotree_interpreter::eval::context::TxIoVec;
 use ergotree_interpreter::sigma_protocol::prover::ContextExtension;
 use ergotree_ir::chain::token::TokenAmount;
 use ergotree_ir::chain::token::TokenAmountError;
+use ergotree_ir::ergo_tree::ErgoTree;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::convert::TryInto;
@@ -12,8 +13,6 @@ use bounded_vec::BoundedVecOutOfBounds;
 use ergotree_interpreter::sigma_protocol;
 use ergotree_interpreter::sigma_protocol::prover::ProofBytes;
 use ergotree_ir::chain::address::Address;
-use ergotree_ir::chain::address::AddressEncoder;
-use ergotree_ir::chain::address::NetworkPrefix;
 use ergotree_ir::chain::ergo_box::box_value::BoxValue;
 use ergotree_ir::chain::ergo_box::BoxId;
 use ergotree_ir::chain::ergo_box::ErgoBoxCandidate;
@@ -26,7 +25,6 @@ use crate::chain::contract::Contract;
 use crate::chain::ergo_box::box_builder::{ErgoBoxCandidateBuilder, ErgoBoxCandidateBuilderError};
 use crate::chain::transaction::unsigned::UnsignedTransaction;
 use crate::chain::transaction::{DataInput, Input, Transaction, UnsignedInput};
-use crate::constants::MINERS_FEE_MAINNET_ADDRESS;
 
 use super::box_selector::subtract_tokens;
 use super::box_selector::sum_tokens_from_boxes;
@@ -34,6 +32,7 @@ use super::box_selector::sum_value;
 use super::box_selector::BoxSelection;
 use super::box_selector::ErgoBoxAssets;
 use super::box_selector::ErgoBoxId;
+use super::miner_fee::MINERS_FEE_BASE16_BYTES;
 
 /// Unsigned transaction builder
 #[derive(Clone)]
@@ -275,13 +274,9 @@ pub fn new_miner_fee_box(
     fee_amount: BoxValue,
     creation_height: u32,
 ) -> Result<ErgoBoxCandidate, ErgoBoxCandidateBuilderError> {
-    let address_encoder = AddressEncoder::new(NetworkPrefix::Mainnet);
-    let miner_fee_address = address_encoder
-        .parse_address_from_str(MINERS_FEE_MAINNET_ADDRESS)
-        .unwrap();
-    let ergo_tree = miner_fee_address
-        .script()
-        .map_err(ErgoBoxCandidateBuilderError::ParsingError)?;
+    let ergo_tree =
+        ErgoTree::sigma_parse_bytes(base16::decode(MINERS_FEE_BASE16_BYTES).unwrap().as_slice())
+            .unwrap();
     ErgoBoxCandidateBuilder::new(fee_amount, ergo_tree, creation_height).build()
 }
 
