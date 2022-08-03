@@ -32,7 +32,6 @@ use super::box_selector::sum_value;
 use super::box_selector::BoxSelection;
 use super::box_selector::ErgoBoxAssets;
 use super::box_selector::ErgoBoxId;
-use super::box_selector::{BoxSelection, BoxSelectorError};
 use super::miner_fee::MINERS_FEE_BASE16_BYTES;
 
 /// Unsigned transaction builder
