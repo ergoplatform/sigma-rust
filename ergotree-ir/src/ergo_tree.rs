@@ -403,11 +403,6 @@ impl ErgoTree {
         Ok(base16::encode_lower(&bytes))
     }
 
-    pub fn from_base16_bytes(base16_str: String) -> Result<Self, SigmaParsingError> {
-        let bytes = base16::decode(&base16_str)?;
-        Self::sigma_parse_bytes(&bytes)
-    }
-
     /// Returns constants number as stored in serialized ErgoTree or error if the parsing of
     /// constants is failed
     pub fn constants_len(&self) -> Result<usize, ErgoTreeConstantsParsingError> {

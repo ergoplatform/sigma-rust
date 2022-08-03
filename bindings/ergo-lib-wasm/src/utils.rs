@@ -12,11 +12,11 @@ pub struct MinerAddress {}
 impl MinerAddress {
     /// address to use in mainnet for the fee
     pub fn mainnet_fee_address() -> String {
-        ergo_lib::wallet::miner_fee::MINERS_FEE_MAINNET_ADDRESS.to_string()
+        ergo_lib::wallet::miner_fee::MINERS_FEE_MAINNET_ADDRESS_STR.clone()
     }
     /// address to use in testnet for the fee
     pub fn testnet_fee_address() -> String {
-        ergo_lib::wallet::miner_fee::MINERS_FEE_TESTNET_ADDRESS.to_string()
+        ergo_lib::wallet::miner_fee::MINERS_FEE_TESTNET_ADDRESS_STR.clone()
     }
 }
 
