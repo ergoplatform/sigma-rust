@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
+
+### Changed (BREAKING)
+- only allow explicit token burning in `TxBuilder` and add token preservation check [#603](https://github.com/ergoplatform/sigma-rust/pull/603);
+- remove `min_value_change` parameter in `TxBuilder::new` and add coin preservation check [#605](https://github.com/ergoplatform/sigma-rust/pull/605);
+
+### Changed
+- fix `AtLeast` handling in the prover [#598](https://github.com/ergoplatform/sigma-rust/pull/598);
+- improve error messages for constant value parsing from JSON (box registers) [#600](https://github.com/ergoplatform/sigma-rust/pull/600).
+
 ## [0.18.0] - 2022-07-14
 
 ### Added 
