@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - remove `min_value_change` parameter in `TxBuilder::new` and add coin preservation check [#605](https://github.com/ergoplatform/sigma-rust/pull/605);
 
 ### Changed
+- fix distributed signing in case a script reduces to `true` [#609](https://github.com/ergoplatform/sigma-rust/pull/609);
 - fix `AtLeast` handling in the prover [#598](https://github.com/ergoplatform/sigma-rust/pull/598);
 - improve error messages for constant value parsing from JSON (box registers) [#600](https://github.com/ergoplatform/sigma-rust/pull/600).
 
