@@ -16,7 +16,7 @@ rand = "0.8.4"
 sigma-test-util = { version = "^0.3.0", path = "../sigma-test-util" }
 ergo-chain-types = { version = "^0.6", path = "../ergo-chain-types" }
 ergo-nipopow = { version = "^0.5", path = "../ergo-nipopow" }
-ergo-merkle-tree = { version = "^0.5", path = "../ergo-merkle-tree" }
+ergo-merkle-tree = { version = "^0.6", path = "../ergo-merkle-tree" }
 
 
 [dev-dependencies]

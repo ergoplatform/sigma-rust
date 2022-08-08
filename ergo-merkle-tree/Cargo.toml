@@ -1,6 +1,6 @@
 [package]
 name = "ergo-merkle-tree"
-version = "0.5.0"
+version = "0.6.0"
 edition = "2021"
 license = "CC0-1.0"
 description = "Merkle tree proofs"
