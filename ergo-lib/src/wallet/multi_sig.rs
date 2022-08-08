@@ -140,6 +140,9 @@ pub fn bag_for_multi_sig(
     simulated_propositions: &[SigmaBoolean],
     proof: &[u8],
 ) -> Result<HintsBag, SigParsingError> {
+    if let SigmaBoolean::TrivialProp(_) = sigma_tree {
+        return Ok(HintsBag::empty());
+    }
     let ut = compute_commitments(parse_sig_compute_challenges(&sigma_tree, proof.to_owned())?);
     // Traversing node of sigma tree
     fn traverse_node(
@@ -213,7 +216,7 @@ pub fn bag_for_multi_sig(
                         }
                     }
                     None => {
-                        return Err(SigParsingError::Unexpected("empty commitment"));
+                        return Err(SigParsingError::EmptyCommitment(leaf.proposition()));
                     }
                 };
             }

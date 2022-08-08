@@ -20,12 +20,10 @@ use ergotree_ir::serialization::sigma_byte_reader;
 use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
 use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
 use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWriter;
-use ergotree_ir::serialization::SigmaParsingError;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaConjecture;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
 
-use derive_more::From;
 use gf2_192::Gf2_192Error;
 use thiserror::Error;
 
@@ -118,8 +116,12 @@ pub fn parse_sig_compute_challenges(
     exp: &SigmaBoolean,
     mut proof_bytes: Vec<u8>,
 ) -> Result<UncheckedTree, SigParsingError> {
+    if proof_bytes.is_empty() {
+        return Err(SigParsingError::EmptyProof(exp.clone()));
+    }
     let mut r = sigma_byte_reader::from_bytes(proof_bytes.as_mut_slice());
     parse_sig_compute_challenges_reader(exp, &mut r, None)
+        .map_err(|e| SigParsingError::TopLevelExpWrap(e.into(), exp.clone()))
 }
 
 /// Verifier Step 2: In a top-down traversal of the tree, obtain the challenges for the children of every
@@ -135,18 +137,17 @@ fn parse_sig_compute_challenges_reader<R: SigmaByteRead>(
     let challenge = if let Some(c) = challenge_opt {
         c
     } else {
-        Challenge::sigma_parse(r)?
+        Challenge::sigma_parse(r).map_err(|_| SigParsingError::ChallengeRead(exp.clone()))?
     };
 
     match exp {
-        SigmaBoolean::TrivialProp(_) => Err(SigParsingError::Unexpected(
-            "parse_sig_compute_challenges: TrivialProp should be handled before this call",
-        )),
+        SigmaBoolean::TrivialProp(b) => Err(SigParsingError::TrivialPropFound(*b)),
         SigmaBoolean::ProofOfKnowledge(tree) => match tree {
             SigmaProofOfKnowledgeTree::ProveDlog(dl) => {
                 // Verifier Step 3: For every leaf node, read the response z provided in the proof.
                 let mut scalar_bytes: [u8; super::GROUP_SIZE] = [0; super::GROUP_SIZE];
-                r.read_exact(&mut scalar_bytes)?;
+                r.read_exact(&mut scalar_bytes)
+                    .map_err(|_| SigParsingError::ScalarReadProveDlog(exp.clone()))?;
                 let z = Wscalar::from(GroupSizedBytes(scalar_bytes.into()));
                 Ok(UncheckedSchnorr {
                     proposition: dl.clone(),
@@ -159,7 +160,8 @@ fn parse_sig_compute_challenges_reader<R: SigmaByteRead>(
             SigmaProofOfKnowledgeTree::ProveDhTuple(dh) => {
                 // Verifier Step 3: For every leaf node, read the response z provided in the proof.
                 let mut scalar_bytes: [u8; super::GROUP_SIZE] = [0; super::GROUP_SIZE];
-                r.read_exact(&mut scalar_bytes)?;
+                r.read_exact(&mut scalar_bytes)
+                    .map_err(|_| SigParsingError::ScalarReadProveDhTuple(exp.clone()))?;
                 let z = Wscalar::from(GroupSizedBytes(scalar_bytes.into()));
                 Ok(UncheckedDhTuple {
                     proposition: dh.clone(),
@@ -219,7 +221,8 @@ fn parse_sig_compute_challenges_reader<R: SigmaByteRead>(
                 let n_coeff = n_children - ct.k as usize;
                 let buf_size = n_coeff * SOUNDNESS_BYTES;
                 let mut coeff_bytes = vec![0u8; buf_size];
-                r.read_exact(&mut coeff_bytes)?;
+                r.read_exact(&mut coeff_bytes)
+                    .map_err(|_| SigParsingError::CthresholdCoeffRead(exp.clone()))?;
                 let polynomial = gf2_192poly_from_byte_array(challenge.clone(), coeff_bytes)?;
 
                 let children =
@@ -246,24 +249,33 @@ fn parse_sig_compute_challenges_reader<R: SigmaByteRead>(
 }
 
 /// Errors when parsing proof tree signatures
-#[derive(Error, PartialEq, Eq, Debug, Clone, From)]
+#[allow(missing_docs)]
+#[derive(Error, PartialEq, Debug, Clone)]
 pub enum SigParsingError {
-    /// `gf2_192` error
-    #[error("gf2_192 error: {0}")]
-    Gf2_192Error(Gf2_192Error),
-    /// IO error
-    #[error("IO error: {0}")]
-    IoError(String),
-    /// Serialization error
-    #[error("Serialization error: {0}")]
-    SerializationError(SigmaParsingError),
-    /// Unexpected error
-    #[error("Unexpected error: {0}")]
-    Unexpected(&'static str),
-}
+    #[error("Empty proof for exp: {0:?}")]
+    EmptyProof(SigmaBoolean),
 
-impl From<std::io::Error> for SigParsingError {
-    fn from(e: std::io::Error) -> Self {
-        SigParsingError::IoError(e.to_string())
-    }
+    #[error("Unexpected TrivialProp found: {0}")]
+    TrivialPropFound(bool),
+
+    #[error("gf2_192 error: {0}")]
+    Gf2_192Error(#[from] Gf2_192Error),
+
+    #[error("Empty commitment in UncheckedLeaf with proposition: {0:?}")]
+    EmptyCommitment(SigmaBoolean),
+
+    #[error("Challenge reading erorr with exp: {0:?}")]
+    ChallengeRead(SigmaBoolean),
+
+    #[error("Scalar in ProveDlog reading erorr with exp: {0:?}")]
+    ScalarReadProveDlog(SigmaBoolean),
+
+    #[error("Scalar in ProveDhTumple reading erorr with exp: {0:?}")]
+    ScalarReadProveDhTuple(SigmaBoolean),
+
+    #[error("Cthreshold coeff reading erorr with exp: {0:?}")]
+    CthresholdCoeffRead(SigmaBoolean),
+
+    #[error("Error: {0:?} for top level exp: {1:?}")]
+    TopLevelExpWrap(Box<SigParsingError>, SigmaBoolean),
 }
