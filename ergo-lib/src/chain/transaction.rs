@@ -177,6 +177,7 @@ impl Transaction {
         // since we have a tx with tx_id at this point serialization is safe to unwrap
         let message = self.bytes_to_sign().unwrap();
         for (idx, input) in self.inputs.clone().enumerated().into_iter() {
+            // TODO: check if only proof bytes are not empty
             // TODO: get by box id
             let tree = input_boxes[idx].ergo_tree.clone();
             if !verify_signature(
