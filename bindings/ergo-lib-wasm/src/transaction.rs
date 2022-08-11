@@ -5,6 +5,7 @@ use crate::box_coll::ErgoBoxes;
 use crate::context_extension::ContextExtension;
 use crate::data_input::DataInputs;
 use crate::ergo_box::BoxId;
+use crate::ergo_box::ErgoBox;
 use crate::error_conversion::to_js;
 use crate::input::{Inputs, UnsignedInputs};
 use crate::json::TransactionJsonEip12;
@@ -265,6 +266,13 @@ impl Transaction {
     pub fn sigma_parse_bytes(data: Vec<u8>) -> Result<Transaction, JsValue> {
         ergo_lib::chain::transaction::Transaction::sigma_parse_bytes(&data)
             .map(Transaction)
+            .map_err(to_js)
+    }
+
+    /// Check the signature of the given input which guarded by P2PK script
+    pub fn verify_p2pk_input(&self, input_idx: usize, ergo_box: ErgoBox) -> Result<bool, JsValue> {
+        self.0
+            .verify_p2pk_input(input_idx, ergo_box.into())
             .map_err(to_js)
     }
 }

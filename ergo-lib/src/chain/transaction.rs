@@ -168,28 +168,48 @@ impl Transaction {
         self.tx_id.clone()
     }
 
-    /// Checks signatures of the transaction inputs assuming inputs guarded by PK ONLY
-    pub fn verify_p2k_only_signature(
+    /// Check the signature of the given input which guarded by P2PK script
+    pub fn verify_p2pk_input(
         &self,
-        input_boxes: Vec<ErgoBox>,
+        input_idx: usize,
+        ergo_box: ErgoBox,
     ) -> Result<bool, VerifierError> {
         #[allow(clippy::unwrap_used)]
-        // since we have a tx with tx_id at this point serialization is safe to unwrap
+        // since we have a tx with tx_id at this point, serialization is safe to unwrap
         let message = self.bytes_to_sign().unwrap();
-        for (idx, input) in self.inputs.clone().enumerated().into_iter() {
-            // TODO: check if only proof bytes are not empty
-            // TODO: get by box id
-            let tree = input_boxes[idx].ergo_tree.clone();
-            if !verify_signature(
-                extract_sigma_boolean(tree.proposition()?.as_ref())?,
-                message.as_slice(),
-                input.spending_proof.proof.to_bytes().as_slice(),
-            )? {
-                return Ok(false);
-            }
-        }
-        Ok(true)
+        #[allow(clippy::unwrap_used)]
+        // TODO: return error
+        let input = self.inputs.get(input_idx).unwrap();
+        let sb = extract_sigma_boolean(ergo_box.ergo_tree.proposition()?.as_ref())?;
+        verify_signature(
+            sb,
+            message.as_slice(),
+            input.spending_proof.proof.clone().to_bytes().as_slice(),
+        )
     }
+
+    // /// Checks signatures of the transaction inputs assuming inputs guarded by PK ONLY
+    // pub fn verify_p2k_only_signature(
+    //     &self,
+    //     input_boxes: Vec<ErgoBox>,
+    // ) -> Result<bool, VerifierError> {
+    //     #[allow(clippy::unwrap_used)]
+    //     // since we have a tx with tx_id at this point serialization is safe to unwrap
+    //     let message = self.bytes_to_sign().unwrap();
+    //     for (idx, input) in self.inputs.clone().enumerated().into_iter() {
+    //         // TODO: check if only proof bytes are not empty
+    //         // TODO: get by box id
+    //         let tree = input_boxes[idx].ergo_tree.clone();
+    //         if !verify_signature(
+    //             extract_sigma_boolean(tree.proposition()?.as_ref())?,
+    //             message.as_slice(),
+    //             input.spending_proof.proof.to_bytes().as_slice(),
+    //         )? {
+    //             return Ok(false);
+    //         }
+    //     }
+    //     Ok(true)
+    // }
 }
 
 /// Returns distinct token ids from all given ErgoBoxCandidate's
