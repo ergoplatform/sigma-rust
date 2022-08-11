@@ -8,6 +8,9 @@ pub mod unsigned;
 use bounded_vec::BoundedVec;
 use ergo_chain_types::blake2b256_hash;
 pub use ergotree_interpreter::eval::context::TxIoVec;
+use ergotree_interpreter::eval::extract_sigma_boolean;
+use ergotree_interpreter::sigma_protocol::verifier::verify_signature;
+use ergotree_interpreter::sigma_protocol::verifier::VerifierError;
 use ergotree_ir::chain::ergo_box::ErgoBox;
 use ergotree_ir::chain::ergo_box::ErgoBoxCandidate;
 use ergotree_ir::chain::token::TokenId;
@@ -163,6 +166,28 @@ impl Transaction {
     /// Get transaction id
     pub fn id(&self) -> TxId {
         self.tx_id.clone()
+    }
+
+    /// Checks signatures of the transaction inputs assuming inputs guarded by PK ONLY
+    pub fn verify_p2k_only_signature(
+        &self,
+        input_boxes: Vec<ErgoBox>,
+    ) -> Result<bool, VerifierError> {
+        #[allow(clippy::unwrap_used)]
+        // since we have a tx with tx_id at this point serialization is safe to unwrap
+        let message = self.bytes_to_sign().unwrap();
+        for (idx, input) in self.inputs.clone().enumerated().into_iter() {
+            // TODO: get by box id
+            let tree = input_boxes[idx].ergo_tree.clone();
+            if !verify_signature(
+                extract_sigma_boolean(tree.proposition()?.as_ref())?,
+                message.as_slice(),
+                input.spending_proof.proof.to_bytes().as_slice(),
+            )? {
+                return Ok(false);
+            }
+        }
+        Ok(true)
     }
 }
 
