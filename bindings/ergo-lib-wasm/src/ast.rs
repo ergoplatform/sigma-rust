@@ -281,12 +281,12 @@ impl Constant {
         self.0.tpe == ergo_lib::ergotree_ir::types::stype::SType::SUnit
     }
 
-    /// Create a Constant from JS value
+    /// Create a Constant from JS value (numbers are represented as Int, Set is represented as Tuple (temporary))
     pub fn from_js(value: &JsValue) -> Result<Constant, JsValue> {
         constant_from_js(value).map(Into::into).map_err(to_js)
     }
 
-    /// Extract JS value from Constant
+    /// Extract JS value from Constant (numbers are represented as Int, Set is represented as Tuple (temporary))
     pub fn to_js(&self) -> Result<JsValue, JsValue> {
         constant_to_js(self.0.clone()).map_err(to_js)
     }
