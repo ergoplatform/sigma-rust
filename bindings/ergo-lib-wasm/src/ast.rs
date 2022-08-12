@@ -1,5 +1,7 @@
 //! Ergo constant values
 
+use crate::ast::js_conv::constant_from_js;
+use crate::ast::js_conv::constant_to_js;
 use crate::ergo_box::ErgoBox;
 use crate::error_conversion::to_js;
 use crate::utils::I64;
@@ -16,6 +18,8 @@ use wasm_bindgen::prelude::*;
 extern crate derive_more;
 use derive_more::{From, Into};
 use ergo_lib::ergotree_ir::bigint256::BigInt256;
+
+pub(crate) mod js_conv;
 
 /// Ergo constant(evaluated) values
 #[wasm_bindgen]
@@ -265,5 +269,15 @@ impl Constant {
     /// Returns true if constant value is Unit
     pub fn is_unit(&self) -> bool {
         self.0.tpe == ergo_lib::ergotree_ir::types::stype::SType::SUnit
+    }
+
+    /// Create a Constant from JS value
+    pub fn from_js(value: &JsValue) -> Result<Constant, JsValue> {
+        constant_from_js(value).map(Into::into).map_err(to_js)
+    }
+
+    /// Extract JS value from Constant
+    pub fn to_js(&self) -> Result<JsValue, JsValue> {
+        constant_to_js(self.0.clone()).map_err(to_js)
     }
 }

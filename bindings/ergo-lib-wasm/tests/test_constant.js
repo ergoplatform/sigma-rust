@@ -120,3 +120,10 @@ it("roundtrip ErgoBox", async () => {
   assert(decoded_c_value != null);
   expect(decoded_c_value.to_json().toString()).equal(box.to_json().toString());
 });
+
+it("roundtrip Constant array of i32 (universal)", async () => {
+  let value = [2147483647, 1, 2]; // i32 max value
+  let c = ergo_wasm.Constant.from_js(value);
+  let value_decoded = c.to_js();
+  expect(value_decoded.toString()).equal(value.toString());
+});

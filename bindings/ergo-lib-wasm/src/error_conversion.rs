@@ -35,6 +35,8 @@ use serde_json::error::Error;
 use url::ParseError;
 use wasm_bindgen::JsValue;
 
+use crate::ast::js_conv::ConvError;
+
 /// Ideally we'd like to implement `From<E> for JsValue` for a range of different `ergo-lib` error
 /// types `E`, but Rust orphan rules prevent this. A way to get around this limitation is to wrap
 /// `Jsvalue` within a local type.
@@ -105,3 +107,4 @@ from_error_to_wrap_via_debug!(NodeError);
 from_error_to_wrap_via_debug!(ParseError);
 #[cfg(feature = "rest")]
 from_error_to_wrap_via_debug!(PeerDiscoveryError);
+from_error_to_wrap_via_debug!(ConvError);
