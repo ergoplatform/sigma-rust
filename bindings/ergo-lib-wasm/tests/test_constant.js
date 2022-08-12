@@ -129,7 +129,6 @@ it("roundtrip Coll[Coll[Byte]]", async () => {
   expect(c_js != null);
   expect(c_js.dbg_tpe()).equal("SColl(SColl(SByte))");
   assert.deepEqual(c_js.to_js(), value);
-  // expect(c_js.to_js().toString()).equal(value.toString());
 });
 
 it("roundtrip Coll[(Coll[Byte], Coll[Byte])]", async () => {
@@ -139,11 +138,11 @@ it("roundtrip Coll[(Coll[Byte], Coll[Byte])]", async () => {
   let c_js = ergo_wasm.Constant.from_js(value);
   expect(c_js != null);
   expect(c_js.dbg_tpe()).equal("SColl(STuple([SColl(SByte), SColl(SByte)]))");
-  console.log(c_js.dbg_inner());
+  // console.log(c_js.dbg_inner());
+  assert.deepEqual(c_js.to_js(), value);
   let back_c = ergo_wasm.Constant.from_js(c_js.to_js());
   expect(back_c != null);
   expect(back_c.dbg_inner()).equal(c_js.dbg_inner());
-  // assert.deepEqual(c_js.to_js(), value);
 });
 
 it("roundtrip EIP-24 R7 monster type", async () => {
@@ -159,7 +158,9 @@ it("roundtrip EIP-24 R7 monster type", async () => {
   let c_js = ergo_wasm.Constant.from_js(value);
   expect(c_js != null);
   expect(c_js.dbg_tpe()).equal("STuple([SColl(STuple([SColl(SByte), SColl(SByte)])), STuple([SColl(STuple([SColl(SByte), STuple([SInt, SInt])])), SColl(STuple([SColl(SByte), STuple([SInt, SInt])]))])])");
-  console.log(value.toString());
-  console.log(c_js.dbg_inner());
+  // console.log(c_js.dbg_inner());
   assert.deepEqual(c_js.to_js(), value);
+  let back_c = ergo_wasm.Constant.from_js(c_js.to_js());
+  expect(back_c != null);
+  expect(back_c.dbg_inner()).equal(c_js.dbg_inner());
 });

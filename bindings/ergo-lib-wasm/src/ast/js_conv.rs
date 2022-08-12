@@ -103,7 +103,7 @@ pub(crate) fn constant_to_js(c: Constant) -> Result<JsValue, ConvError> {
             _ => return Err(ConvError::Unexpected(c)),
         },
         SType::STuple(ref item_tpes) => {
-            let arr: Vec<JsValue> = match c.v {
+            let vec: Vec<JsValue> = match c.v {
                 Literal::Tup(v) => v
                     .into_iter()
                     .zip(item_tpes.clone().items.into_iter())
@@ -111,12 +111,11 @@ pub(crate) fn constant_to_js(c: Constant) -> Result<JsValue, ConvError> {
                     .collect::<Result<Vec<JsValue>, _>>()?,
                 _ => return Err(ConvError::Unexpected(c.clone())),
             };
-            let set = Set::new(&arr[0]);
-            // for some reason JsValue of Uint8Array above gets into the Set as a separated bytes as ints
-            set.clear();
-            for elem in arr.iter() {
-                set.add(elem);
+            let arr = Array::new();
+            for item in vec {
+                arr.push(&item);
             }
+            let set = Set::new(&arr);
             set.into()
         }
         _ => return Err(ConvError::Unexpected(c.clone())),
