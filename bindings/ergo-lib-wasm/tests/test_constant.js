@@ -121,9 +121,45 @@ it("roundtrip ErgoBox", async () => {
   expect(decoded_c_value.to_json().toString()).equal(box.to_json().toString());
 });
 
-it("roundtrip Constant array of i32 (universal)", async () => {
-  let value = [2147483647, 1, 2]; // i32 max value
-  let c = ergo_wasm.Constant.from_js(value);
-  let value_decoded = c.to_js();
-  expect(value_decoded.toString()).equal(value.toString());
+it("roundtrip Coll[Coll[Byte]]", async () => {
+  let bytes1 = new Uint8Array([1, 2, 3]);
+  let bytes2 = new Uint8Array([3, 2, 1]);
+  let value = [bytes1, bytes2];
+  let c_js = ergo_wasm.Constant.from_js(value);
+  expect(c_js != null);
+  expect(c_js.dbg_tpe()).equal("SColl(SColl(SByte))");
+  assert.deepEqual(c_js.to_js(), value);
+  // expect(c_js.to_js().toString()).equal(value.toString());
+});
+
+it("roundtrip Coll[(Coll[Byte], Coll[Byte])]", async () => {
+  let bytes1 = new Uint8Array([1, 2, 3]);
+  let bytes2 = new Uint8Array([3, 2, 1]);
+  let value = [new Set([bytes1, bytes2]), new Set([bytes2, bytes1])];
+  let c_js = ergo_wasm.Constant.from_js(value);
+  expect(c_js != null);
+  expect(c_js.dbg_tpe()).equal("SColl(STuple([SColl(SByte), SColl(SByte)]))");
+  console.log(c_js.dbg_inner());
+  let back_c = ergo_wasm.Constant.from_js(c_js.to_js());
+  expect(back_c != null);
+  expect(back_c.dbg_inner()).equal(c_js.dbg_inner());
+  // assert.deepEqual(c_js.to_js(), value);
+});
+
+it("roundtrip EIP-24 R7 monster type", async () => {
+  let bytes1 = new Uint8Array([1, 2, 3]);
+  let bytes2 = new Uint8Array([4, 5, 6]);
+  let value = new Set([
+    [new Set([bytes1, bytes2])],
+    new Set([
+      [new Set([bytes1, new Set([10, 11])])],
+      [new Set([bytes2, new Set([12, 13])])]
+    ])
+  ]);
+  let c_js = ergo_wasm.Constant.from_js(value);
+  expect(c_js != null);
+  expect(c_js.dbg_tpe()).equal("STuple([SColl(STuple([SColl(SByte), SColl(SByte)])), STuple([SColl(STuple([SColl(SByte), STuple([SInt, SInt])])), SColl(STuple([SColl(SByte), STuple([SInt, SInt])]))])])");
+  console.log(value.toString());
+  console.log(c_js.dbg_inner());
+  assert.deepEqual(c_js.to_js(), value);
 });

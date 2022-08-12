@@ -22,10 +22,16 @@ impl TryFrom<Vec<SType>> for STuple {
 }
 
 /// Tuple type
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Clone)]
 pub struct STuple {
     /// Tuple element types
     pub items: TupleItems<SType>,
+}
+
+impl std::fmt::Debug for STuple {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.items.clone().to_vec().fmt(f)
+    }
 }
 
 impl STuple {

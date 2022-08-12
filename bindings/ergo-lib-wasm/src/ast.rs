@@ -28,6 +28,16 @@ pub struct Constant(ergo_lib::ergotree_ir::mir::constant::Constant);
 
 #[wasm_bindgen]
 impl Constant {
+    /// Returns the debug representation of the type of the constant
+    pub fn dbg_tpe(&self) -> String {
+        format!("{:?}", self.0.tpe)
+    }
+
+    /// Returns the debug representation of the value of the constant
+    pub fn dbg_inner(&self) -> String {
+        format!("{:?}", self.0)
+    }
+
     /// Decode from Base16-encoded ErgoTree serialized value
     pub fn decode_from_base16(base16_bytes_str: String) -> Result<Constant, JsValue> {
         let bytes = Base16DecodedBytes::try_from(base16_bytes_str.clone()).map_err(|_| {
