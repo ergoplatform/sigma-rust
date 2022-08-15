@@ -1,5 +1,7 @@
 // TODO: remove
 #![allow(clippy::wildcard_enum_match_arm)]
+#![allow(dead_code)]
+#![allow(unused_imports)]
 
 use std::convert::TryFrom;
 
@@ -13,14 +15,26 @@ use ergo_lib::ergotree_ir::types::stuple::STuple;
 use ergo_lib::ergotree_ir::types::stuple::TupleItems;
 use ergo_lib::ergotree_ir::types::stype::SType;
 use js_sys::Array;
+use js_sys::JsString;
 use js_sys::Number;
 use js_sys::Set;
 use js_sys::Uint8Array;
 use sigma_util::AsVecI8;
 use sigma_util::AsVecU8;
 use thiserror::Error;
+use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
+
+#[wasm_bindgen]
+pub fn array_as_tuple(items: Vec<JsValue>) -> JsValue {
+    let arr = Array::new();
+    arr.push(&JsValue::from_str("Tuple"));
+    for item in items {
+        arr.push(&item);
+    }
+    arr.into()
+}
 
 #[derive(Debug, Error)]
 pub enum ConvError {
@@ -41,37 +55,43 @@ pub fn constant_from_js(val: &JsValue) -> Result<Constant, ConvError> {
             ))),
         })
     } else if let Ok(arr) = val.clone().dyn_into::<Array>() {
-        let mut cs: Vec<Constant> = Vec::new();
-        for i in 0..arr.length() {
-            let elem_const = constant_from_js(&arr.get(i))?;
-            cs.push(elem_const);
-        }
-        let elem_tpe = cs[0].tpe.clone();
-        Ok(Constant {
-            tpe: SType::SColl(elem_tpe.clone().into()),
-            v: Literal::Coll(CollKind::WrappedColl {
-                elem_tpe,
-                items: cs.into_iter().map(|c| c.v).collect(),
-            }),
-        })
-    } else if let Ok(set) = val.clone().dyn_into::<Set>() {
-        let mut v: Vec<Constant> = Vec::new();
-        for elem in set.keys() {
+        if let Ok(str) = arr.get(0).dyn_into::<JsString>() {
+            // TODO: check string value to be "Tuple"
+            // tuple
+            let mut v: Vec<Constant> = Vec::new();
+            for i in 1..arr.length() {
+                let elem_const = constant_from_js(&arr.get(i))?;
+                v.push(elem_const);
+            }
             #[allow(clippy::unwrap_used)]
-            v.push(constant_from_js(&elem.unwrap())?);
+            Ok(Constant {
+                tpe: SType::STuple(STuple {
+                    items: TupleItems::try_from(
+                        v.clone().into_iter().map(|c| c.tpe).collect::<Vec<SType>>(),
+                    )
+                    .unwrap(),
+                }),
+                v: Literal::Tup(
+                    TupleItems::try_from(v.into_iter().map(|c| c.v).collect::<Vec<Literal>>())
+                        .unwrap(),
+                ),
+            })
+        } else {
+            // regular array
+            let mut cs: Vec<Constant> = Vec::new();
+            for i in 0..arr.length() {
+                let elem_const = constant_from_js(&arr.get(i))?;
+                cs.push(elem_const);
+            }
+            let elem_tpe = cs[0].tpe.clone();
+            Ok(Constant {
+                tpe: SType::SColl(elem_tpe.clone().into()),
+                v: Literal::Coll(CollKind::WrappedColl {
+                    elem_tpe,
+                    items: cs.into_iter().map(|c| c.v).collect(),
+                }),
+            })
         }
-        #[allow(clippy::unwrap_used)]
-        Ok(Constant {
-            tpe: SType::STuple(STuple {
-                items: TupleItems::try_from(
-                    v.clone().into_iter().map(|c| c.tpe).collect::<Vec<SType>>(),
-                )
-                .unwrap(),
-            }),
-            v: Literal::Tup(
-                TupleItems::try_from(v.into_iter().map(|c| c.v).collect::<Vec<Literal>>()).unwrap(),
-            ),
-        })
     } else if let Ok(num) = val.clone().dyn_into::<Number>() {
         // TODO: handle error
         #[allow(clippy::unwrap_used)]
@@ -115,8 +135,7 @@ pub(crate) fn constant_to_js(c: Constant) -> Result<JsValue, ConvError> {
             for item in vec {
                 arr.push(&item);
             }
-            let set = Set::new(&arr);
-            set.into()
+            arr.into()
         }
         _ => return Err(ConvError::Unexpected(c.clone())),
     })

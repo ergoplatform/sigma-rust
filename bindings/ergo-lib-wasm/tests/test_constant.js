@@ -134,33 +134,35 @@ it("roundtrip Coll[Coll[Byte]]", async () => {
 it("roundtrip Coll[(Coll[Byte], Coll[Byte])]", async () => {
   let bytes1 = new Uint8Array([1, 2, 3]);
   let bytes2 = new Uint8Array([3, 2, 1]);
-  let value = [new Set([bytes1, bytes2]), new Set([bytes2, bytes1])];
+  let value = [ergo_wasm.array_as_tuple([bytes1, bytes2]), ergo_wasm.array_as_tuple([bytes2, bytes1])];
+  let expected_value = [[bytes1, bytes2], [bytes2, bytes1]];
   let c_js = ergo_wasm.Constant.from_js(value);
   expect(c_js != null);
   expect(c_js.dbg_tpe()).equal("SColl(STuple([SColl(SByte), SColl(SByte)]))");
   // console.log(c_js.dbg_inner());
-  assert.deepEqual(c_js.to_js(), value);
-  let back_c = ergo_wasm.Constant.from_js(c_js.to_js());
-  expect(back_c != null);
-  expect(back_c.dbg_inner()).equal(c_js.dbg_inner());
+  assert.deepEqual(c_js.to_js(), expected_value);
 });
 
 it("roundtrip EIP-24 R7 monster type", async () => {
   let bytes1 = new Uint8Array([1, 2, 3]);
   let bytes2 = new Uint8Array([4, 5, 6]);
-  let value = new Set([
-    [new Set([bytes1, bytes2])],
-    new Set([
-      [new Set([bytes1, new Set([10, 11])])],
-      [new Set([bytes2, new Set([12, 13])])]
+  let value = ergo_wasm.array_as_tuple([
+    [ergo_wasm.array_as_tuple([bytes1, bytes2])],
+    ergo_wasm.array_as_tuple([
+      [ergo_wasm.array_as_tuple([bytes1, ergo_wasm.array_as_tuple([10, 11])])],
+      [ergo_wasm.array_as_tuple([bytes2, ergo_wasm.array_as_tuple([12, 13])])]
     ])
   ]);
+  let expected_value = [
+    [[bytes1, bytes2]],
+    [
+      [[bytes1, [10, 11]]],
+      [[bytes2, [12, 13]]]
+    ]
+  ];
   let c_js = ergo_wasm.Constant.from_js(value);
   expect(c_js != null);
   expect(c_js.dbg_tpe()).equal("STuple([SColl(STuple([SColl(SByte), SColl(SByte)])), STuple([SColl(STuple([SColl(SByte), STuple([SInt, SInt])])), SColl(STuple([SColl(SByte), STuple([SInt, SInt])]))])])");
   // console.log(c_js.dbg_inner());
-  assert.deepEqual(c_js.to_js(), value);
-  let back_c = ergo_wasm.Constant.from_js(c_js.to_js());
-  expect(back_c != null);
-  expect(back_c.dbg_inner()).equal(c_js.dbg_inner());
+  assert.deepEqual(c_js.to_js(), expected_value);
 });
