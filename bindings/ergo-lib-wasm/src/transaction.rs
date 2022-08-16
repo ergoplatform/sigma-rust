@@ -269,11 +269,10 @@ impl Transaction {
             .map_err(to_js)
     }
 
-    /// Check the signature of the given input which guarded by P2PK script
-    pub fn verify_p2pk_input(&self, input_idx: usize, ergo_box: ErgoBox) -> Result<bool, JsValue> {
-        self.0
-            .verify_p2pk_input(input_idx, ergo_box.into())
-            .map_err(to_js)
+    /// Check the signature of the transaction's input corresponding
+    /// to the given input box, guarded by P2PK script
+    pub fn verify_p2pk_input(&self, input_box: ErgoBox) -> Result<bool, JsValue> {
+        self.0.verify_p2pk_input(input_box.into()).map_err(to_js)
     }
 }
 
