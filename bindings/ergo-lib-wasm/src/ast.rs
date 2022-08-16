@@ -281,12 +281,24 @@ impl Constant {
         self.0.tpe == ergo_lib::ergotree_ir::types::stype::SType::SUnit
     }
 
-    /// Create a Constant from JS value (Number -> Int, String -> Long, BigInt -> BigInt, use array_as_tuple() to encode tuples)
+    /// Create a Constant from JS value
+    /// JS types are converted to the following Ergo types:
+    /// Number -> Int,
+    /// String -> Long,
+    /// BigInt -> BigInt,
+    /// use array_as_tuple() to encode Ergo tuples
     pub fn from_js(value: &JsValue) -> Result<Constant, JsValue> {
         constant_from_js(value).map(Into::into).map_err(to_js)
     }
 
-    /// Extract JS value from Constant (Int -> Number, Long -> String, BigInt -> BigInt, tuples are encoded as arrays)
+    /// Extract JS value from Constant
+    /// Ergo types are converted to the following JS types:
+    /// Byte -> Number,
+    /// Short -> Number,
+    /// Int -> Number,
+    /// Long -> String,
+    /// BigInt -> BigInt,
+    /// Ergo tuples are encoded as arrays
     pub fn to_js(&self) -> Result<JsValue, JsValue> {
         constant_to_js(self.0.clone()).map_err(to_js)
     }
