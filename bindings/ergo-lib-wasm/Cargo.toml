@@ -36,6 +36,7 @@ getrandom = {version = "0.2.3", features = ["js"]}
 console_error_panic_hook = { version = "0.1.6", optional = true }
 
 derive_more = "0.99"
+num-traits = "0.2.14"
 
 [dependencies.serde_with]
 version = "1.9.1"

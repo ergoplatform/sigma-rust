@@ -77,6 +77,21 @@ from_error_to_wrap!(DecodeError);
 from_error_to_wrap!(TryFromSliceError);
 from_error_to_wrap!(AddrParseError);
 from_error_to_wrap!(TransactionSignatureVerificationError);
+from_error_to_wrap!(ErgoTreeError);
+from_error_to_wrap!(ChildIndexError);
+from_error_to_wrap!(BoundedVecOutOfBounds);
+from_error_to_wrap!(ExtSecretKeyError);
+from_error_to_wrap!(DerivationPathError);
+from_error_to_wrap!(VerifierError);
+from_error_to_wrap!(ExtPubKeyError);
+from_error_to_wrap!(ParseIntError);
+#[cfg(feature = "rest")]
+from_error_to_wrap!(NodeError);
+#[cfg(feature = "rest")]
+from_error_to_wrap!(PeerDiscoveryError);
+#[cfg(feature = "rest")]
+from_error_to_wrap!(ParseError);
+from_error_to_wrap!(ConvError);
 
 macro_rules! from_error_to_wrap_via_debug {
     ($t:ident) => {
@@ -90,21 +105,6 @@ macro_rules! from_error_to_wrap_via_debug {
     };
 }
 
-from_error_to_wrap_via_debug!(ErgoTreeError);
 from_error_to_wrap_via_debug!(ErgoTreeConstantError);
 from_error_to_wrap_via_debug!(ErgoTreeConstantsParsingError);
-from_error_to_wrap_via_debug!(ParseIntError);
-from_error_to_wrap_via_debug!(ChildIndexError);
-from_error_to_wrap_via_debug!(BoundedVecOutOfBounds);
-from_error_to_wrap_via_debug!(ExtSecretKeyError);
-from_error_to_wrap_via_debug!(DerivationPathError);
-from_error_to_wrap_via_debug!(ExtPubKeyError);
 from_error_to_wrap_via_debug!(NipopowProofError);
-from_error_to_wrap_via_debug!(VerifierError);
-#[cfg(feature = "rest")]
-from_error_to_wrap_via_debug!(NodeError);
-#[cfg(feature = "rest")]
-from_error_to_wrap_via_debug!(ParseError);
-#[cfg(feature = "rest")]
-from_error_to_wrap_via_debug!(PeerDiscoveryError);
-from_error_to_wrap_via_debug!(ConvError);

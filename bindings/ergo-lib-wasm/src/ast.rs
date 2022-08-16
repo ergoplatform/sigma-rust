@@ -19,7 +19,7 @@ extern crate derive_more;
 use derive_more::{From, Into};
 use ergo_lib::ergotree_ir::bigint256::BigInt256;
 
-pub(crate) mod js_conv;
+pub mod js_conv;
 
 /// Ergo constant(evaluated) values
 #[wasm_bindgen]
@@ -281,12 +281,12 @@ impl Constant {
         self.0.tpe == ergo_lib::ergotree_ir::types::stype::SType::SUnit
     }
 
-    /// Create a Constant from JS value (numbers are represented as Int, use array_as_tuple() to encode tuples)
+    /// Create a Constant from JS value (Number -> Int, String -> Long, BigInt -> BigInt, use array_as_tuple() to encode tuples)
     pub fn from_js(value: &JsValue) -> Result<Constant, JsValue> {
         constant_from_js(value).map(Into::into).map_err(to_js)
     }
 
-    /// Extract JS value from Constant (tuples are encoded as arrays)
+    /// Extract JS value from Constant (Int -> Number, Long -> String, BigInt -> BigInt, tuples are encoded as arrays)
     pub fn to_js(&self) -> Result<JsValue, JsValue> {
         constant_to_js(self.0.clone()).map_err(to_js)
     }

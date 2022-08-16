@@ -22,7 +22,7 @@ it("roundtrip Constant i32", async () => {
   expect(decoded_c_value).equal(value);
 });
 
-it("roundtrip Constant i64", async () => {
+it("roundtrip i64 via to_i64", async () => {
   let value_str = "9223372036854775807"; // i64 max value
   let c = ergo_wasm.Constant.from_i64(ergo_wasm.I64.from_str(value_str));
   let encoded = c.encode_to_base16();
@@ -165,4 +165,26 @@ it("roundtrip EIP-24 R7 monster type", async () => {
   expect(c_js.dbg_tpe()).equal("STuple([SColl(STuple([SColl(SByte), SColl(SByte)])), STuple([SColl(STuple([SColl(SByte), STuple([SInt, SInt])])), SColl(STuple([SColl(SByte), STuple([SInt, SInt])]))])])");
   // console.log(c_js.dbg_inner());
   assert.deepEqual(c_js.to_js(), expected_value);
+});
+
+it("roundtrip i64", async () => {
+  let value_str = "9223372036854775807"; // i64 max value
+  let c_js = ergo_wasm.Constant.from_js(value_str);
+  let decoded_c_value = c_js.to_js();
+  expect(c_js.dbg_tpe()).equal("SLong");
+  expect(decoded_c_value).equal(value_str);
+});
+
+it("roundtrip BigInt", async () => {
+  let bigint = BigInt(92233720368547758071111111111111111111111111n);
+  let c_js = ergo_wasm.Constant.from_js(bigint);
+  expect(c_js.dbg_tpe()).equal("SBigInt");
+  let decoded_c_value = c_js.to_js();
+  expect(decoded_c_value).equal(bigint);
+  assert.deepEqual(c_js.to_js(), bigint);
+});
+
+it("too big BigInt fail", async () => {
+  let bigint = BigInt(92233720368547758071111111111111111111111111111111111111111111111111111111111111111111111111n);
+  expect(function () {ergo_wasm.Constant.from_js(bigint);}).to.throw();
 });
