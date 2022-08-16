@@ -37,18 +37,20 @@ use wasm_bindgen::JsValue;
 /// Ideally we'd like to implement `From<E> for JsValue` for a range of different `ergo-lib` error
 /// types `E`, but Rust orphan rules prevent this. A way to get around this limitation is to wrap
 /// `Jsvalue` within a local type.
-pub struct JsValueWrap(JsValue);
+pub struct JsValueWrap(js_sys::Error);
 
 /// Converts any error satisfying `Into<JsValueWrap>` into `JsValue`.
 pub fn to_js<S: Into<JsValueWrap>>(s: S) -> JsValue {
-    s.into().0
+    s.into().0.into()
 }
 
 macro_rules! from_error_to_wrap {
     ($t:ident) => {
         impl std::convert::From<$t> for JsValueWrap {
             fn from(e: $t) -> Self {
-                JsValueWrap(JsValue::from_str(&format!("{}", e)))
+                let js_err = js_sys::Error::new(&format!("{}", e));
+                js_err.set_name(stringify!($t));
+                JsValueWrap(js_err)
             }
         }
     };
@@ -76,7 +78,9 @@ macro_rules! from_error_to_wrap_via_debug {
     ($t:ident) => {
         impl std::convert::From<$t> for JsValueWrap {
             fn from(e: $t) -> Self {
-                JsValueWrap(JsValue::from_str(&format!("{:?}", e)))
+                let js_err = js_sys::Error::new(&format!("{:?}", e));
+                js_err.set_name(stringify!($t));
+                JsValueWrap(js_err)
             }
         }
     };
