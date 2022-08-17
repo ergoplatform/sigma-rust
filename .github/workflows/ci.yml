@@ -158,12 +158,12 @@ jobs:
           npm install
           npm run test
       
-      - name: run browser JS tests
-        run: |
-          cd bindings/ergo-lib-wasm
-          wasm-pack build
-          npm install
-          npm run test-browser
+      # - name: run browser JS tests
+      #   run: |
+      #     cd bindings/ergo-lib-wasm
+      #     wasm-pack build
+      #     npm install
+      #     npm run test-browser
 
       - name: build alpha versions
         run: |
