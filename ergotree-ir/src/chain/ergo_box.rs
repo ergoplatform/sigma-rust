@@ -80,7 +80,9 @@ pub struct ErgoBox {
 impl ErgoBox {
     /// Safe maximum number of tokens in the box
     /// Calculated from the max box size (4kb) limit and the size of the token (32 bytes)
-    pub const MAX_TOKENS_COUNT: usize = 100;
+    // (4096 - 85 bytes minimal size of the rest of the fields) / 33 token id 32 bytes + minimal token amount 1 byte = 121 tokens
+    // let's set to 121 + 1 to be safe
+    pub const MAX_TOKENS_COUNT: usize = 122;
 
     /// Crate new box
     pub fn new(
