@@ -41,7 +41,34 @@ where
     } else {
         s
     };
-    s.parse().map_err(D::Error::custom)
+    match s.parse().map_err(D::Error::custom) {
+        Ok(peer_addr) => Ok(peer_addr),
+        Err(_) => {
+            // try to fix an invalid IP v6 address encoding on node
+            // the format should be `[ipv6]:port`, but pre-JDK14 node returns `ipv6:port`
+            // see https://bugs.java.com/bugdatabase/view_bug.do?bug_id=JDK-8225499
+            dbg!(&s);
+            let parts: Vec<&str> = s.rsplit(':').collect();
+            if parts.len() == 2 {
+                // not an IP v6 address
+                return Err(D::Error::custom(format!(
+                    "expected invalid IP v6(without brackets) address, got: {}",
+                    s
+                )));
+            }
+            #[allow(clippy::unwrap_used)]
+            let port = parts.first().cloned().unwrap();
+            let host: String = parts
+                .into_iter()
+                .skip(1)
+                .rev()
+                .collect::<Vec<&str>>()
+                .join(":");
+            // put host inside brackets to make it a valid IP v6 address
+            let str = format!("[{}]:{}", host, port);
+            str.parse().map_err(D::Error::custom)
+        }
+    }
 }
 
 #[cfg(test)]
@@ -52,6 +79,12 @@ mod tests {
     #[test]
     fn test_parse_peer_info() {
         let json = "{\n    \"address\" : \"/62.106.112.158:9030\",\n    \"lastMessage\" : 0,\n    \"lastHandshake\" : 0,\n    \"name\" : \"ergo-mainnet-4.0.12\",\n    \"connectionType\" : null\n  }";
+        let _: PeerInfo = serde_json::from_str(json).unwrap();
+    }
+
+    #[test]
+    fn test_parse_peer_info_ipv6_pre_jkd14() {
+        let json = "{\n    \"address\" : \"/2a0d:6fc0:7cb:be00:50be:7d74:7a00:aa3e:9030\",\n    \"lastMessage\" : 0,\n    \"lastHandshake\" : 0,\n    \"name\" : \"ergo-mainnet-4.0.12\",\n    \"connectionType\" : null\n  }";
         let _: PeerInfo = serde_json::from_str(json).unwrap();
     }
 }
