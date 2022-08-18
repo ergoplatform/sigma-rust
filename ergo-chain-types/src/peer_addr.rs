@@ -28,8 +28,7 @@ impl PeerAddr {
 
     /// Build an http://address:port/ URL
     pub fn as_http_url(&self) -> Url {
-        let s: String =
-            "http://".to_string() + &self.0.ip().to_string() + ":" + &self.0.port().to_string();
+        let s: String = "http://".to_string() + &self.0.to_string();
         #[allow(clippy::unwrap_used)]
         Url::from_str(&s).unwrap()
     }
