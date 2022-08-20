@@ -62,5 +62,5 @@ json = ["serde", "serde_json", "serde_with", "bounded-vec/serde"]
 
 [dev-dependencies]
 sigma-test-util = { version = "^0.3.0", path = "../sigma-test-util" }
-rand = "0.8.3"
+rand = "0.8.5"
 pretty_assertions = "0.7.2"
