@@ -24,7 +24,6 @@ k256 = { version = "0.10.0", features = ["arithmetic", "ecdsa"] }
 elliptic-curve = {version = "0.11.6", features = [ "ff"]}
 blake2 = "0.9"
 rand = "0.8.5"
-getrandom = { version = "0.2.7", features = ["js"] }
 lazy_static = "1.4"
 thiserror = "1"
 derive_more = "0.99"

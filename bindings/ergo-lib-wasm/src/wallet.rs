@@ -61,6 +61,7 @@ impl Wallet {
         boxes_to_spend: &ErgoBoxes,
         data_boxes: &ErgoBoxes,
     ) -> Result<Transaction, JsValue> {
+        crate::utils::set_panic_hook();
         let boxes_to_spend = boxes_to_spend.clone().into();
         let data_boxes = data_boxes.clone().into();
         let tx_context = ergo_lib::wallet::signing::TransactionContext::new(
