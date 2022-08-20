@@ -21,7 +21,7 @@ ergo-chain-types = { version = "^0.6.0", path = "../ergo-chain-types" }
 elliptic-curve = {version = "0.11.6", features = [ "ff"]}
 thiserror = "1"
 # used in elliptic-curve(in ergo-lib), compiled here with WASM support
-getrandom = {version = "0.2.7", features = ["js"]}
+# getrandom = {version = "0.2.7", features = ["js"]}
 lazy_static = "1.4"
 derive_more = "0.99"
 impl-trait-for-tuples = "0.2.0"
