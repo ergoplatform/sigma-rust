@@ -4,7 +4,7 @@ use ergotree_interpreter::sigma_protocol::private_input::PrivateInput;
 use ergotree_ir::chain::address::Address;
 
 /// Types of secrets
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub enum SecretKey {
     /// Secret exponent of a group element, i.e. secret w such as h = g^^w, where g is group generator, h is a public key.
     DlogSecretKey(DlogProverInput),

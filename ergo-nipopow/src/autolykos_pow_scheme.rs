@@ -189,7 +189,7 @@ fn as_unsigned_byte_array(
     Ok(res)
 }
 
-#[derive(PartialEq, Debug, Clone, From)]
+#[derive(PartialEq, Eq, Debug, Clone, From)]
 pub enum AutolykosPowSchemeError {
     /// Scorex-serialization error
     ScorexSerializationError(ScorexSerializationError),

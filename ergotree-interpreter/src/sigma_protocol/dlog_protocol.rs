@@ -29,7 +29,7 @@ impl ProverMessage for FirstDlogProverMessage {
 }
 
 /// Second message from the prover (message `z` of `SigmaProtocol`) for discrete logarithm case
-#[derive(PartialEq, Debug, Clone, derive_more::From, derive_more::Into)]
+#[derive(PartialEq, Eq, Debug, Clone, derive_more::From, derive_more::Into)]
 #[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
 pub struct SecondDlogProverMessage {
     /// message `z`

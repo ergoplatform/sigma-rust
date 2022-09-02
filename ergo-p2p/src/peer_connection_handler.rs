@@ -82,7 +82,7 @@ pub struct HandshakeRequest {
 }
 
 /// Wraps (remoteAddress, localAddress, direction) tuple, which allows to precisely identify peer.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ConnectionId {
     remote_address: PeerAddr,
     // local_address: PeerAddr,

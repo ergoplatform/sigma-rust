@@ -18,7 +18,7 @@ use super::crypto_utils;
 use super::wscalar::Wscalar;
 
 /// Secret key of discrete logarithm signature protocol
-#[derive(PartialEq, Clone, derive_more::From)]
+#[derive(PartialEq, Eq, Clone, derive_more::From)]
 pub struct DlogProverInput {
     /// secret key value
     pub w: Wscalar,
@@ -101,7 +101,7 @@ impl DlogProverInput {
 /// Used in a proof that of equality of discrete logarithms (i.e., a proof of a Diffie-Hellman tuple):
 /// given group elements g, h, u, v, the proof convinces a verifier that the prover knows `w` such
 /// that `u = g^w` and `v = h^w`, without revealing `w`
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Eq, Clone)]
 pub struct DhTupleProverInput {
     /// Diffie-Hellman tuple's secret
     pub w: Wscalar,
@@ -143,7 +143,7 @@ impl DhTupleProverInput {
 }
 
 /// Private inputs (secrets)
-#[derive(PartialEq, Debug, Clone, From)]
+#[derive(PartialEq, Eq, Debug, Clone, From)]
 pub enum PrivateInput {
     /// Discrete logarithm prover input
     DlogProverInput(DlogProverInput),

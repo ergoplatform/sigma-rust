@@ -10,7 +10,7 @@ use rowan::TextRange;
 use crate::error::pretty_error_desc;
 use crate::hir;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct MirLoweringError {
     msg: String,
     span: TextRange,

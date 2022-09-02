@@ -9,7 +9,7 @@ use crate::{
 };
 
 /// Inputs, that are used to enrich script context, but won't be spent by the transaction
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct DataInput(pub chain::transaction::DataInput);
 pub type DataInputPtr = *mut DataInput;
 pub type ConstDataInputPtr = *const DataInput;

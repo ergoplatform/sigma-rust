@@ -50,7 +50,7 @@ use std::iter::FromIterator;
         into = "super::json::transaction::TransactionJson"
     )
 )]
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Transaction {
     /// transaction id
     pub(crate) tx_id: TxId,

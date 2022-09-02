@@ -165,7 +165,7 @@ pub unsafe fn transaction_extract_hints(
 }
 
 /// Unsigned (inputs without proofs) transaction
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct UnsignedTransaction(pub(crate) chain::transaction::unsigned::UnsignedTransaction);
 pub type UnsignedTransactionPtr = *mut UnsignedTransaction;
 pub type ConstUnsignedTransactionPtr = *const UnsignedTransaction;

@@ -13,7 +13,7 @@ const SHA512_OUTPUT_LEN: usize = 512 / 8;
 pub type MnemonicSeed = [u8; SHA512_OUTPUT_LEN];
 
 /// Mnemonic type
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Mnemonic();
 
 impl Mnemonic {

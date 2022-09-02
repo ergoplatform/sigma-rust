@@ -49,7 +49,7 @@ pub fn bin_op_sigma_parse<R: SigmaByteRead>(
         #[allow(clippy::unwrap_used)]
         BinOp {
             kind: op_kind,
-            left: Box::new(Expr::Const((*bools.get(0).unwrap()).into())),
+            left: Box::new(Expr::Const((*bools.first().unwrap()).into())),
             right: Box::new(Expr::Const((*bools.get(1).unwrap()).into())),
         }
         .into()

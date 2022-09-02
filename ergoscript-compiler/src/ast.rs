@@ -3,7 +3,7 @@ use crate::error::pretty_error_desc;
 use super::syntax::{SyntaxElement, SyntaxKind, SyntaxNode, SyntaxToken};
 use text_size::TextRange;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct AstError {
     pub msg: String,
     pub span: TextRange,

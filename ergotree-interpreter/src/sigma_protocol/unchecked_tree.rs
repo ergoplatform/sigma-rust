@@ -69,7 +69,7 @@ impl From<UncheckedTree> for Base16EncodedBytes {
 }
 
 /// Unchecked leaf
-#[derive(PartialEq, Debug, Clone, From)]
+#[derive(PartialEq, Eq, Debug, Clone, From)]
 pub enum UncheckedLeaf {
     /// Unchecked Schnorr
     UncheckedSchnorr(UncheckedSchnorr),
@@ -113,7 +113,7 @@ impl ProofTreeLeaf for UncheckedLeaf {
     }
 }
 /// Unchecked Schnorr
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 #[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
 pub struct UncheckedSchnorr {
     /// Proposition
@@ -146,7 +146,7 @@ impl From<UncheckedDhTuple> for UncheckedTree {
 }
 
 /// UncheckedDhTuple
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 #[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
 pub struct UncheckedDhTuple {
     /// Proposition

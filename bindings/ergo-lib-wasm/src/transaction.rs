@@ -277,7 +277,7 @@ impl From<chain::transaction::Transaction> for Transaction {
 
 /// Unsigned (inputs without proofs) transaction
 #[wasm_bindgen]
-#[derive(PartialEq, Debug, Clone, From, Into)]
+#[derive(PartialEq, Eq, Debug, Clone, From, Into)]
 pub struct UnsignedTransaction(pub(crate) chain::transaction::unsigned::UnsignedTransaction);
 
 #[wasm_bindgen]

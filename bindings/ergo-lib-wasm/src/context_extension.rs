@@ -9,7 +9,7 @@ use derive_more::{From, Into};
 
 /// User-defined variables to be put into context
 #[wasm_bindgen]
-#[derive(PartialEq, Debug, Clone, From, Into)]
+#[derive(PartialEq, Eq, Debug, Clone, From, Into)]
 pub struct ContextExtension(
     ergo_lib::ergotree_interpreter::sigma_protocol::prover::ContextExtension,
 );

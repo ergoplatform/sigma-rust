@@ -51,7 +51,7 @@ pub unsafe fn propositions_add_proposition_from_bytes(
 /// in an environment where secrets are known.
 /// see EIP-19 for more details -
 /// <https://github.com/ergoplatform/eips/blob/f280890a4163f2f2e988a0091c078e36912fc531/eip-0019.md>
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ReducedTransaction(pub(crate) ergo_lib::chain::transaction::reduced::ReducedTransaction);
 pub type ReducedTransactionPtr = *mut ReducedTransaction;
 pub type ConstReducedTransactionPtr = *const ReducedTransaction;

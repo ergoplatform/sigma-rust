@@ -8,7 +8,7 @@ use crate::util::{const_ptr_as_ref, mut_ptr_as_mut};
 use crate::Error;
 
 /// Secret key for the prover
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct SecretKey(pub(crate) wallet::secret_key::SecretKey);
 pub type SecretKeyPtr = *mut SecretKey;
 pub type ConstSecretKeyPtr = *const SecretKey;

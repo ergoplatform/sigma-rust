@@ -3,7 +3,7 @@
 use crate::mir::expr::Expr;
 
 /// Typecheck error
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct TypeCheckError {
     msg: String,
 }

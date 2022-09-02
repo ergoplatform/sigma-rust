@@ -11,7 +11,7 @@ use derive_more::{From, Into};
 
 /// Unsigned inputs used in constructing unsigned transactions
 #[wasm_bindgen]
-#[derive(PartialEq, Debug, Clone, From, Into)]
+#[derive(PartialEq, Eq, Debug, Clone, From, Into)]
 pub struct UnsignedInput(chain::transaction::UnsignedInput);
 
 #[wasm_bindgen]
@@ -47,7 +47,7 @@ impl UnsignedInput {
 
 /// Collection of unsigned signed inputs
 #[wasm_bindgen]
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct UnsignedInputs(Vec<UnsignedInput>);
 
 #[wasm_bindgen]
@@ -87,7 +87,7 @@ impl From<Vec<chain::transaction::UnsignedInput>> for UnsignedInputs {
 
 /// Signed inputs used in signed transactions
 #[wasm_bindgen]
-#[derive(PartialEq, Debug, Clone, From, Into)]
+#[derive(PartialEq, Eq, Debug, Clone, From, Into)]
 pub struct Input(chain::transaction::Input);
 
 #[wasm_bindgen]
@@ -105,7 +105,7 @@ impl Input {
 
 /// Collection of signed inputs
 #[wasm_bindgen]
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Inputs(Vec<Input>);
 
 #[wasm_bindgen]

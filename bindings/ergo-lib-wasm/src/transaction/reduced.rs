@@ -39,7 +39,7 @@ impl Propositions {
 /// see EIP-19 for more details -
 /// <https://github.com/ergoplatform/eips/blob/f280890a4163f2f2e988a0091c078e36912fc531/eip-0019.md>
 #[wasm_bindgen]
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ReducedTransaction(ergo_lib::chain::transaction::reduced::ReducedTransaction);
 
 #[wasm_bindgen]

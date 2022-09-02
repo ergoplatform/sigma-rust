@@ -42,7 +42,7 @@ pub(crate) trait ProverMessage {
 }
 
 /** First message from the prover (message `a` of `SigmaProtocol`)*/
-#[derive(PartialEq, Debug, Clone, From, TryInto)]
+#[derive(PartialEq, Eq, Debug, Clone, From, TryInto)]
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "json", serde(tag = "type"))]
 #[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]

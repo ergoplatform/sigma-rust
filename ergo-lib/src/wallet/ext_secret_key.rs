@@ -27,7 +27,7 @@ type HmacSha512 = Hmac<Sha512>;
 
 /// Extended secret key
 /// implemented according to BIP-32
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ExtSecretKey {
     /// The secret key
     private_input: DlogProverInput,

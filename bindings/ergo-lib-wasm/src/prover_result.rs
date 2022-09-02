@@ -8,7 +8,7 @@ use derive_more::{From, Into};
 
 /// Proof of correctness of tx spending
 #[wasm_bindgen]
-#[derive(PartialEq, Debug, Clone, From, Into)]
+#[derive(PartialEq, Eq, Debug, Clone, From, Into)]
 pub struct ProverResult(ergo_lib::chain::transaction::input::prover_result::ProverResult);
 
 #[wasm_bindgen]

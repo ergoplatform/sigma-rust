@@ -7,7 +7,7 @@ use crate::hir::ExprKind;
 use crate::hir::GlobalVars;
 use crate::script_env::ScriptEnv;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct BinderError {
     msg: String,
     span: TextRange,

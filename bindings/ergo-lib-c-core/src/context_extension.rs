@@ -5,7 +5,7 @@ use crate::{
 use ergo_lib::ergotree_interpreter::sigma_protocol::prover;
 
 /// User-defined variables to be put into context
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ContextExtension(pub prover::ContextExtension);
 pub type ContextExtensionPtr = *mut ContextExtension;
 pub type ConstContextExtensionPtr = *const ContextExtension;

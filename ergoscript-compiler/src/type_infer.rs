@@ -6,7 +6,7 @@ use crate::hir::Binary;
 use crate::hir::Expr;
 use crate::hir::ExprKind;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct TypeInferenceError {
     msg: String,
     span: TextRange,

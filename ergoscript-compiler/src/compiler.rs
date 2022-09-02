@@ -20,7 +20,7 @@ use ergotree_ir::type_check::TypeCheckError;
 use mir::lower::MirLoweringError;
 
 /// Compilation errors
-#[derive(Debug, PartialEq, From)]
+#[derive(Debug, PartialEq, Eq, From)]
 pub enum CompileError {
     /// Parser error
     ParseError(Vec<ParseError>),

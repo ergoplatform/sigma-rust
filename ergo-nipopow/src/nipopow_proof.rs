@@ -185,7 +185,7 @@ impl ScorexSerializable for NipopowProof {
 }
 
 /// `NipopowProof` errors
-#[derive(PartialEq, Debug, Clone, From)]
+#[derive(PartialEq, Eq, Debug, Clone, From)]
 pub enum NipopowProofError {
     /// Errors from `AutolykosPowScheme`
     AutolykosPowSchemeError(autolykos_pow_scheme::AutolykosPowSchemeError),
