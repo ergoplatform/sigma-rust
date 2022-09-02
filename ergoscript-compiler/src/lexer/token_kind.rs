@@ -3,7 +3,7 @@
 use logos::Logos;
 use std::fmt;
 
-#[derive(Debug, Copy, Clone, PartialEq, Logos)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Logos)]
 pub enum TokenKind {
     #[regex("[ \n]+")]
     Whitespace,

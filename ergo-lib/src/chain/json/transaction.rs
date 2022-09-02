@@ -8,7 +8,7 @@ use ergotree_ir::chain::ergo_box::ErgoBoxCandidate;
 use ergotree_ir::chain::tx_id::TxId;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct TransactionJson {
     #[cfg_attr(feature = "json", serde(rename = "id"))]
     pub tx_id: TxId,
@@ -24,7 +24,7 @@ pub struct TransactionJson {
     pub outputs: Vec<ErgoBox>,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct UnsignedTransactionJson {
     /// unsigned inputs, that will be spent by this transaction.
     #[cfg_attr(feature = "json", serde(rename = "inputs"))]

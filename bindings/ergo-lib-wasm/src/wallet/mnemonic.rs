@@ -7,7 +7,7 @@ use wasm_bindgen::prelude::wasm_bindgen;
 
 /// Mnemonic
 #[wasm_bindgen]
-#[derive(PartialEq, Debug, Clone, From)]
+#[derive(PartialEq, Eq, Debug, Clone, From)]
 pub struct Mnemonic {}
 
 #[wasm_bindgen]

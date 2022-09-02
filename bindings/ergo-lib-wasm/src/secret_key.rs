@@ -12,7 +12,7 @@ use derive_more::{From, Into};
 
 /// Secret key for the prover
 #[wasm_bindgen]
-#[derive(PartialEq, Debug, Clone, From, Into)]
+#[derive(PartialEq, Eq, Debug, Clone, From, Into)]
 pub struct SecretKey(wallet::secret_key::SecretKey);
 
 #[wasm_bindgen]

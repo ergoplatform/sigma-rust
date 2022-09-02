@@ -108,7 +108,7 @@ impl SecretProven {
 /// A hint which contains a commitment to randomness associated with a public image of a secret.
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct RealCommitment {
     ///  image of a secret
     #[cfg_attr(feature = "json", serde(rename = "pubkey"))]
@@ -125,7 +125,7 @@ pub struct RealCommitment {
 /// Please note that this randomness should be kept in secret by the prover.
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct OwnCommitment {
     ///  image of a secret
     #[cfg_attr(feature = "json", serde(rename = "pubkey"))]
@@ -144,7 +144,7 @@ pub struct OwnCommitment {
 ///A hint which contains a commitment to randomness associated with a public image of a secret.
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct SimulatedCommitment {
     /// image of a secret
     #[cfg_attr(feature = "json", serde(rename = "pubkey"))]
@@ -162,7 +162,7 @@ pub struct SimulatedCommitment {
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "json", serde(tag = "hint"))]
 #[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub enum CommitmentHint {
     /// A hint which a commitment to randomness associated with a public image of a secret, as well as randomness itself.
     /// Please note that this randomness should be kept in secret by the prover.

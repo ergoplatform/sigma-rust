@@ -8,7 +8,7 @@ use ergotree_interpreter::eval::context::TxIoVec;
 use super::signing::{ErgoTransaction, TxSigningError};
 
 /// Transaction and an additional info required for signing
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct TransactionContext<T: ErgoTransaction> {
     /// Unsigned transaction to sign
     pub spending_tx: T,

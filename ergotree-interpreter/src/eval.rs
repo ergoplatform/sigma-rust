@@ -156,7 +156,7 @@ pub enum EvalError {
 }
 
 /// Result of expression reduction procedure (see `reduce_to_crypto`).
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ReductionResult {
     /// value of SigmaProp type which represents a statement verifiable via sigma protocol.
     pub sigma_prop: SigmaBoolean,

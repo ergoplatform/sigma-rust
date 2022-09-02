@@ -28,7 +28,7 @@ use super::TxIoVec;
 /// Input box script reduced to SigmaBoolean
 /// see EIP-19 for more details -
 /// <https://github.com/ergoplatform/eips/blob/f280890a4163f2f2e988a0091c078e36912fc531/eip-0019.md>
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ReducedInput {
     /// Input box script reduced to SigmaBoolean
     pub reduction_result: ReductionResult,
@@ -45,7 +45,7 @@ pub struct ReducedInput {
 /// <https://github.com/ergoplatform/eips/blob/f280890a4163f2f2e988a0091c078e36912fc531/eip-0019.md>
 /// Reference Scala implementation -
 /// <https://github.com/ergoplatform/ergo-appkit/blob/1b7347caa863ecb0b9ba49ae57b090d1f386c906/common/src/main/java/org/ergoplatform/appkit/AppkitProvingInterpreter.scala#L261-L266>
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ReducedTransaction {
     /// Unsigned transation
     pub unsigned_tx: UnsignedTransaction,

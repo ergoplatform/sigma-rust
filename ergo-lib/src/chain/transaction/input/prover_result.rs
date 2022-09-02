@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 
 /// Wrapped IR [`ProverResult`] for Serde
 #[cfg_attr(feature = "json", derive(Deserialize))]
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ProverResult {
     /// proof that satisfies final sigma proposition
     #[cfg_attr(

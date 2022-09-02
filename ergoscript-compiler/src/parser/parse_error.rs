@@ -4,7 +4,7 @@ use text_size::TextRange;
 use crate::error::pretty_error_desc;
 use crate::lexer::TokenKind;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct ParseError {
     pub expected: Vec<TokenKind>,
     pub found: Option<TokenKind>,

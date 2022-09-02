@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::NodeResponse;
 
 /// Node extended information from /info REST API endpoint
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 #[repr(C)]
 pub struct NodeInfo {
     /// Node name

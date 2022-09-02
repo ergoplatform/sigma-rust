@@ -324,7 +324,7 @@ impl UnprovenSchnorr {
 }
 
 /// Unproven DhTuple
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct UnprovenDhTuple {
     /// Proposition
     pub proposition: ProveDhTuple,

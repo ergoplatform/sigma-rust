@@ -36,7 +36,7 @@ pub struct Expr {
     pub tpe: Option<SType>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct HirLoweringError {
     msg: String,
     span: TextRange,
@@ -100,7 +100,7 @@ impl Expr {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Spanned<T: Clone> {
     pub node: T,
     pub span: TextRange,
@@ -158,7 +158,7 @@ pub enum ExprKind {
     // Lambda
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum BinaryOp {
     Plus,
     Minus,
@@ -171,7 +171,7 @@ pub enum BinaryOp {
 //     Neg,
 // }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum GlobalVars {
     Height,
 }
@@ -185,7 +185,7 @@ impl GlobalVars {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Literal {
     Int(i32),
     Long(i64),

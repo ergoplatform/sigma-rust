@@ -10,7 +10,7 @@ use crate::{
 };
 
 /// Unsigned inputs used in constructing unsigned transactions
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct UnsignedInput(pub chain::transaction::UnsignedInput);
 pub type UnsignedInputPtr = *mut UnsignedInput;
 pub type ConstUnsignedInputPtr = *const UnsignedInput;
@@ -40,7 +40,7 @@ pub unsafe fn unsigned_input_context_extension(
 }
 
 /// Signed inputs used in signed transactions
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Input(pub(crate) chain::transaction::Input);
 pub type InputPtr = *mut Input;
 pub type ConstInputPtr = *const Input;
@@ -70,7 +70,7 @@ pub unsafe fn input_spending_proof(
 }
 
 /// Proof of correctness of tx spending
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ProverResult(chain::transaction::input::prover_result::ProverResult);
 pub type ProverResultPtr = *mut ProverResult;
 pub type ConstProverResultPtr = *const ProverResult;

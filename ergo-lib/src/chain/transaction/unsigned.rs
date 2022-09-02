@@ -25,7 +25,7 @@ use std::convert::TryInto;
         into = "crate::chain::json::transaction::UnsignedTransactionJson"
     )
 )]
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct UnsignedTransaction {
     tx_id: TxId,
     /// unsigned inputs, that will be spent by this transaction.

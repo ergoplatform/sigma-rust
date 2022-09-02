@@ -2,7 +2,7 @@ use ergo_chain_types::ConnectionDirection;
 use ergo_chain_types::PeerAddr;
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
 
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 #[repr(C)]
 /// Peer info returned by node REST API
 pub struct PeerInfo {

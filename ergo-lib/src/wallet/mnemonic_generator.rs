@@ -7,7 +7,7 @@ use std::{fmt, str::FromStr};
 use thiserror::Error;
 
 /// Supported languages for mnemonic phrases
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Language {
     /// Simplified Chinese wordlist
     ChineseSimplified,
@@ -113,7 +113,7 @@ impl WordList {
 }
 
 /// Mnemonic generator type
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct MnemonicGenerator {
     lang: Language,
     strength: u32,
