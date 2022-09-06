@@ -28,7 +28,8 @@ futures = "0.3"
 thiserror = "1"
 
 # used in elliptic-curve(in ergo-lib), compiled here with WASM support
-getrandom = {version = "0.2.3", features = ["js"]}
+getrandom = {version = "0.2.7", features = ["js"]}
+
 # The `console_error_panic_hook` crate provides better debugging of panics by
 # logging them with `console.error`. This is great for development, but requires
 # all the `std::fmt` and `std::panicking` infrastructure, so isn't great for

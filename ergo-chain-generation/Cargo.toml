@@ -12,7 +12,7 @@ blake2 = "0.9"
 byteorder = "1"
 ergo-lib = {version = "^0.19.0", path = "../ergo-lib"}
 num-bigint = "0.4.0"
-rand = "0.8.4"
+rand = "0.8.5"
 sigma-test-util = { version = "^0.3.0", path = "../sigma-test-util" }
 ergo-chain-types = { version = "^0.6", path = "../ergo-chain-types" }
 ergo-nipopow = { version = "^0.6", path = "../ergo-nipopow" }
