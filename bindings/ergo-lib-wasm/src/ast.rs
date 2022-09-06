@@ -1,5 +1,7 @@
 //! Ergo constant values
 
+use crate::ast::js_conv::constant_from_js;
+use crate::ast::js_conv::constant_to_js;
 use crate::ergo_box::ErgoBox;
 use crate::error_conversion::to_js;
 use crate::utils::I64;
@@ -17,6 +19,8 @@ extern crate derive_more;
 use derive_more::{From, Into};
 use ergo_lib::ergotree_ir::bigint256::BigInt256;
 
+pub mod js_conv;
+
 /// Ergo constant(evaluated) values
 #[wasm_bindgen]
 #[derive(PartialEq, Eq, Debug, Clone, From, Into)]
@@ -24,6 +28,16 @@ pub struct Constant(ergo_lib::ergotree_ir::mir::constant::Constant);
 
 #[wasm_bindgen]
 impl Constant {
+    /// Returns the debug representation of the type of the constant
+    pub fn dbg_tpe(&self) -> String {
+        format!("{:?}", self.0.tpe)
+    }
+
+    /// Returns the debug representation of the value of the constant
+    pub fn dbg_inner(&self) -> String {
+        format!("{:?}", self.0)
+    }
+
     /// Decode from Base16-encoded ErgoTree serialized value
     pub fn decode_from_base16(base16_bytes_str: String) -> Result<Constant, JsValue> {
         let bytes = Base16DecodedBytes::try_from(base16_bytes_str.clone()).map_err(|_| {
@@ -265,5 +279,27 @@ impl Constant {
     /// Returns true if constant value is Unit
     pub fn is_unit(&self) -> bool {
         self.0.tpe == ergo_lib::ergotree_ir::types::stype::SType::SUnit
+    }
+
+    /// Create a Constant from JS value
+    /// JS types are converted to the following Ergo types:
+    /// Number -> Int,
+    /// String -> Long,
+    /// BigInt -> BigInt,
+    /// use array_as_tuple() to encode Ergo tuples
+    pub fn from_js(value: &JsValue) -> Result<Constant, JsValue> {
+        constant_from_js(value).map(Into::into).map_err(to_js)
+    }
+
+    /// Extract JS value from Constant
+    /// Ergo types are converted to the following JS types:
+    /// Byte -> Number,
+    /// Short -> Number,
+    /// Int -> Number,
+    /// Long -> String,
+    /// BigInt -> BigInt,
+    /// Ergo tuples are encoded as arrays
+    pub fn to_js(&self) -> Result<JsValue, JsValue> {
+        constant_to_js(self.0.clone()).map_err(to_js)
     }
 }
