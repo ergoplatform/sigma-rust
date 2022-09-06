@@ -8,10 +8,16 @@ pub mod unsigned;
 use bounded_vec::BoundedVec;
 use ergo_chain_types::blake2b256_hash;
 pub use ergotree_interpreter::eval::context::TxIoVec;
+use ergotree_interpreter::eval::extract_sigma_boolean;
+use ergotree_interpreter::eval::EvalError;
+use ergotree_interpreter::sigma_protocol::verifier::verify_signature;
+use ergotree_interpreter::sigma_protocol::verifier::VerifierError;
+use ergotree_ir::chain::ergo_box::BoxId;
 use ergotree_ir::chain::ergo_box::ErgoBox;
 use ergotree_ir::chain::ergo_box::ErgoBoxCandidate;
 use ergotree_ir::chain::token::TokenId;
 pub use ergotree_ir::chain::tx_id::TxId;
+use ergotree_ir::ergo_tree::ErgoTreeError;
 use thiserror::Error;
 
 pub use data_input::*;
@@ -164,6 +170,43 @@ impl Transaction {
     pub fn id(&self) -> TxId {
         self.tx_id.clone()
     }
+
+    /// Check the signature of the transaction's input corresponding
+    /// to the given input box, guarded by P2PK script
+    pub fn verify_p2pk_input(
+        &self,
+        input_box: ErgoBox,
+    ) -> Result<bool, TransactionSignatureVerificationError> {
+        #[allow(clippy::unwrap_used)]
+        // since we have a tx with tx_id at this point, serialization is safe to unwrap
+        let message = self.bytes_to_sign().unwrap();
+        let input = self
+            .inputs
+            .iter()
+            .find(|input| input.box_id == input_box.box_id())
+            .ok_or_else(|| {
+                TransactionSignatureVerificationError::InputNotFound(input_box.box_id())
+            })?;
+        let sb = extract_sigma_boolean(input_box.ergo_tree.proposition()?.as_ref())?;
+        Ok(verify_signature(
+            sb,
+            message.as_slice(),
+            input.spending_proof.proof.clone().to_bytes().as_slice(),
+        )?)
+    }
+}
+
+#[allow(missing_docs)]
+#[derive(Error, Debug)]
+pub enum TransactionSignatureVerificationError {
+    #[error("Input with id {0:?} not found")]
+    InputNotFound(BoxId),
+    #[error("input signature verification failed: {0:?}")]
+    VerifierError(#[from] VerifierError),
+    #[error("ErgoTreeError: {0}")]
+    ErgoTreeError(#[from] ErgoTreeError),
+    #[error("EvalError: {0}")]
+    EvalError(#[from] EvalError),
 }
 
 /// Returns distinct token ids from all given ErgoBoxCandidate's

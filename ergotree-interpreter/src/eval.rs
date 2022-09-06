@@ -1,5 +1,7 @@
 //! Interpreter
 use bounded_vec::BoundedVecOutOfBounds;
+use ergotree_ir::mir::constant::TryExtractInto;
+use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProp;
 use sigma_ser::ScorexParsingError;
 use sigma_ser::ScorexSerializationError;
 use std::rc::Rc;
@@ -186,6 +188,14 @@ pub fn reduce_to_crypto(
                 _ => Err(EvalError::InvalidResultType),
             }
         })
+}
+
+/// Expects SigmaProp constant value and returns it's value. Otherwise, returns an error.
+pub fn extract_sigma_boolean(expr: &Expr) -> Result<SigmaBoolean, EvalError> {
+    match expr {
+        Expr::Const(c) => Ok(c.clone().try_extract_into::<SigmaProp>()?.into()),
+        _ => Err(EvalError::InvalidResultType),
+    }
 }
 
 #[derive(Debug)]
