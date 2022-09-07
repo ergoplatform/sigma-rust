@@ -1,6 +1,6 @@
 [package]
 name = "ergo-chain-types"
-version = "0.6.0"
+version = "0.7.0"
 license = "CC0-1.0"
 authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
 edition = "2018"
