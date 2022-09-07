@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
+
+### Changed
+- increase max tokens allowed in a box to 122 [#616](https://github.com/ergoplatform/sigma-rust/pull/616);
+
+### Added
+- `Transaction::verify_p2pk_input` for P2PK inputs verification [#613](https://github.com/ergoplatform/sigma-rust/pull/613);
+- `Constant::to_js` and `from_js` arbitrary JS type to `Constant` conversion [614](https://github.com/ergoplatform/sigma-rust/pull/614);
+- add IP v6 support in `PeerAddr::as_http_url` [#617](https://github.com/ergoplatform/sigma-rust/pull/617);
+
 ## [0.19.0] - 2022-08-08
 
 ### Changed (BREAKING)
