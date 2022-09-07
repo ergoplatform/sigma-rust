@@ -20,5 +20,5 @@ ergo-merkle-tree = { version = "^0.6", path = "../ergo-merkle-tree" }
 
 
 [dev-dependencies]
-sigma-ser = { version = "^0.8", path = "../sigma-ser" }
+sigma-ser = { version = "^0.9", path = "../sigma-ser" }
 serde_json = { version = "1.0" }
