@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
+## [0.20.0] - 2022-09-07
 
 ### Changed
 - increase max tokens allowed in a box to 122 [#616](https://github.com/ergoplatform/sigma-rust/pull/616);
@@ -367,7 +368,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - ErgoTree constant values conversion.
 
 <!-- next-url -->
-[Unreleased]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.19.0...HEAD
+[Unreleased]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.20.0...HEAD
+[0.20.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.19.0...ergo-lib-v0.20.0
 [0.19.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.18.0...ergo-lib-v0.19.0
 [0.18.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.17.0...ergo-lib-v0.18.0
 [0.17.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.16.1...ergo-lib-v0.17.0
