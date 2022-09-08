@@ -21,7 +21,7 @@ impl MinerAddress {
 }
 
 /// Wrapper for i64 for JS/TS because JS Number can only represent 53 bits
-/// see https://stackoverflow.com/questions/17320706/javascript-long-integer
+/// see <https://stackoverflow.com/questions/17320706/javascript-long-integer>
 #[wasm_bindgen]
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct I64(i64);

@@ -21,17 +21,17 @@ use serde::Serialize;
 
 #[derive(Serialize, PartialEq, Debug, Clone)]
 pub(crate) struct TransactionJsonEip12 {
-    #[cfg_attr(feature = "json", serde(rename = "id"))]
+    #[serde(rename = "id")]
     pub tx_id: TxId,
     /// inputs, that will be spent by this transaction.
-    #[cfg_attr(feature = "json", serde(rename = "inputs"))]
+    #[serde(rename = "inputs")]
     pub inputs: Vec<Input>,
     /// inputs, that are not going to be spent by transaction, but will be reachable from inputs
     /// scripts. `dataInputs` scripts will not be executed, thus their scripts costs are not
     /// included in transaction cost and they do not contain spending proofs.
-    #[cfg_attr(feature = "json", serde(rename = "dataInputs"))]
+    #[serde(rename = "dataInputs")]
     pub data_inputs: Vec<DataInput>,
-    #[cfg_attr(feature = "json", serde(rename = "outputs"))]
+    #[serde(rename = "outputs")]
     pub outputs: Vec<ErgoBoxJsonEip12>,
 }
 
@@ -52,15 +52,15 @@ impl From<Transaction> for TransactionJsonEip12 {
 #[derive(Serialize, PartialEq, Debug, Clone)]
 pub(crate) struct UnsignedTransactionJsonEip12 {
     /// unsigned inputs, that will be spent by this transaction.
-    #[cfg_attr(feature = "json", serde(rename = "inputs"))]
+    #[serde(rename = "inputs")]
     pub inputs: Vec<UnsignedInput>,
     /// inputs, that are not going to be spent by transaction, but will be reachable from inputs
     /// scripts. `dataInputs` scripts will not be executed, thus their scripts costs are not
     /// included in transaction cost and they do not contain spending proofs.
-    #[cfg_attr(feature = "json", serde(rename = "dataInputs"))]
+    #[serde(rename = "dataInputs")]
     pub data_inputs: Vec<DataInput>,
     /// box candidates to be created by this transaction
-    #[cfg_attr(feature = "json", serde(rename = "outputs"))]
+    #[serde(rename = "outputs")]
     pub outputs: Vec<ErgoBoxCandidateJsonEip12>,
 }
 
