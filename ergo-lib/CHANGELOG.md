@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
-### Fixed
+### Fixed (ergo-lib-wasm v0.20.1)
 - Fix field names for `Transaction`, `UnsignedTransaction` in EIP-12 format (`.to_js_eip12()`) [#627](https://github.com/ergoplatform/sigma-rust/pull/627);
 
 ## [0.20.0] - 2022-09-07
