@@ -43,7 +43,6 @@ it('i628', async () => {
   const box8 = wasm.ErgoBox.sigma_parse_bytes(Uint8Array.from(Buffer.from(box8Hex, "hex")))
   const dataBox = wasm.ErgoBox.sigma_parse_bytes(Uint8Array.from(Buffer.from(dataBoxHex, "hex")))
   const reduced = wasm.ReducedTransaction.sigma_parse_bytes(Uint8Array.from(Buffer.from(reducedTxHex, "hex")))
-  console.log(reduced.to_json())
   const sks = new wasm.SecretKeys()
   sks.add(wasm.SecretKey.dlog_from_bytes(Uint8Array.from(Buffer.from(sk[0], "hex"))))
   sks.add(wasm.SecretKey.dlog_from_bytes(Uint8Array.from(Buffer.from(sk[2], "hex"))))
