@@ -33,6 +33,7 @@ impl Wallet {
     /// Returns None if a DlogSecretKey cannot be parsed from the provided phrase
     #[wasm_bindgen]
     pub fn from_mnemonic(mnemonic_phrase: &str, mnemonic_pass: &str) -> Result<Wallet, JsValue> {
+        crate::utils::set_panic_hook();
         ergo_lib::wallet::Wallet::from_mnemonic(mnemonic_phrase, mnemonic_pass)
             .map(Wallet)
             .map_err(to_js)
@@ -41,6 +42,7 @@ impl Wallet {
     /// Create wallet using provided secret key
     #[wasm_bindgen]
     pub fn from_secrets(secret: &SecretKeys) -> Wallet {
+        crate::utils::set_panic_hook();
         Wallet(ergo_lib::wallet::Wallet::from_secrets(secret.into()))
     }
 
@@ -62,7 +64,6 @@ impl Wallet {
         boxes_to_spend: &ErgoBoxes,
         data_boxes: &ErgoBoxes,
     ) -> Result<Transaction, JsValue> {
-        crate::utils::set_panic_hook();
         let boxes_to_spend = boxes_to_spend.clone().into();
         let data_boxes = data_boxes.clone().into();
         let tx_context = ergo_lib::wallet::signing::TransactionContext::new(

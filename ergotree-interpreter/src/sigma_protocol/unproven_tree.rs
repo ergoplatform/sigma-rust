@@ -25,8 +25,10 @@ use derive_more::From;
 
 /// Unproven trees
 #[derive(PartialEq, Debug, Clone, From)]
-pub(crate) enum UnprovenTree {
+pub enum UnprovenTree {
+    /// Unproven leaves
     UnprovenLeaf(UnprovenLeaf),
+    /// Unproven conjectures
     UnprovenConjecture(UnprovenConjecture),
 }
 
@@ -117,10 +119,11 @@ impl From<CthresholdUnproven> for UnprovenTree {
 }
 
 /// Unproven leaf types
-#[derive(PartialEq, Debug, Clone, From)]
-pub(crate) enum UnprovenLeaf {
+#[derive(PartialEq, Eq, Debug, Clone, From)]
+pub enum UnprovenLeaf {
     /// Unproven Schnorr
     UnprovenSchnorr(UnprovenSchnorr),
+    /// Unproven Diffie-Hellman tuple
     UnprovenDhTuple(UnprovenDhTuple),
 }
 
@@ -197,7 +200,8 @@ impl ProofTreeLeaf for UnprovenLeaf {
 
 #[derive(PartialEq, Debug, Clone, From)]
 #[allow(clippy::enum_variant_names)]
-pub(crate) enum UnprovenConjecture {
+#[allow(missing_docs)]
+pub enum UnprovenConjecture {
     CandUnproven(CandUnproven),
     CorUnproven(CorUnproven),
     CthresholdUnproven(CthresholdUnproven),
@@ -291,8 +295,9 @@ impl ProofTreeConjecture for UnprovenConjecture {
     }
 }
 
-#[derive(PartialEq, Debug, Clone)]
-pub(crate) struct UnprovenSchnorr {
+#[derive(PartialEq, Eq, Debug, Clone)]
+/// UnprovenSchnorr
+pub struct UnprovenSchnorr {
     pub(crate) proposition: ProveDlog,
     pub(crate) commitment_opt: Option<FirstDlogProverMessage>,
     pub(crate) randomness_opt: Option<Wscalar>,
@@ -426,7 +431,8 @@ impl NodePosition {
 }
 
 #[derive(PartialEq, Debug, Clone)]
-pub(crate) struct CandUnproven {
+/// Unproven CAND
+pub struct CandUnproven {
     pub(crate) proposition: Cand,
     pub(crate) challenge_opt: Option<Challenge>,
     pub(crate) simulated: bool,
@@ -463,7 +469,8 @@ impl CandUnproven {
 }
 
 #[derive(PartialEq, Debug, Clone)]
-pub(crate) struct CorUnproven {
+/// Unproven COR
+pub struct CorUnproven {
     pub(crate) proposition: Cor,
     pub(crate) challenge_opt: Option<Challenge>,
     pub(crate) simulated: bool,
@@ -500,7 +507,8 @@ impl CorUnproven {
 }
 
 #[derive(PartialEq, Debug, Clone)]
-pub(crate) struct CthresholdUnproven {
+/// Unproven CTHRESHOLD
+pub struct CthresholdUnproven {
     pub(crate) proposition: Cthreshold,
     pub(crate) k: u8,
     pub(crate) children: SigmaConjectureItems<ProofTree>,

@@ -68,6 +68,7 @@ it('i628', async () => {
   let secondHintBag = wasm.HintsBag.empty()
   secondHintBag.add_commitment(secondCommitment.get(0))
   firstTransactionHintsBag.add_hints_for_input(1, secondHintBag)
+
   for (let i = 2; i < 8; i++) {
       secondCommitment = secondCommitments.all_hints_for_input(i)
       if (secondCommitment.len() > 0) {
@@ -102,5 +103,6 @@ it('i628', async () => {
           thirdOwn.push(thirdCommitment.get(1))
       }
   }
+  // TODO: why removing one of the hints for index 1 make prover to pass?
   const firstSign = firstProver.sign_reduced_transaction_multi(reduced, firstTransactionHintsBag)
 });

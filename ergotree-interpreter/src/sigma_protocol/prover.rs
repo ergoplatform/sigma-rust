@@ -62,6 +62,7 @@ use crate::sigma_protocol::dlog_protocol::SecondDlogProverMessage;
 use ergotree_ir::sigma_protocol::dlog_group;
 use thiserror::Error;
 
+#[allow(missing_docs)]
 /// Prover errors
 #[derive(Error, Debug)]
 pub enum ProverError {
@@ -95,6 +96,19 @@ pub enum ProverError {
     /// Error while tree serialization for Fiat-Shamir hash
     #[error("Fiat-Shamir tree serialization error: {0}")]
     FiatShamirTreeSerializationError(FiatShamirTreeSerializationError),
+    #[error("Unexpected UnprovenLeaf with position {position:?}, is_real: {is_real}")]
+    UnexpectedUnprovenLeaf {
+        position: NodePosition,
+        is_real: bool,
+    },
+    #[error(
+        "Prover error {prover_error} for unproven_tree {unproven_tree:?}, hints_bag {hints_bag:?}"
+    )]
+    WrappedProverError {
+        unproven_tree: UnprovenTree,
+        hints_bag: HintsBag,
+        prover_error: Box<ProverError>,
+    },
 }
 
 impl From<ErgoTreeError> for ProverError {
@@ -192,7 +206,7 @@ fn prove_to_unchecked<P: Prover + ?Sized>(
     hints_bag: &HintsBag,
 ) -> Result<UncheckedTree, ProverError> {
     // Prover Step 1: Mark as real everything the prover can prove
-    let step1 = mark_real(prover, unproven_tree, hints_bag)?;
+    let step1 = mark_real(prover, unproven_tree.clone(), hints_bag)?;
     // dbg!(&step1);
 
     // Prover Step 2: If the root of the tree is marked "simulated" then the prover does not have enough witnesses
@@ -229,7 +243,11 @@ fn prove_to_unchecked<P: Prover + ?Sized>(
     let step9 = proving(prover, step8.into(), hints_bag)?;
     // dbg!(&step9);
     // Prover Step 10: output the right information into the proof
-    convert_to_unchecked(step9)
+    convert_to_unchecked(step9).map_err(|e| ProverError::WrappedProverError {
+        unproven_tree: unproven_tree.clone(),
+        hints_bag: hints_bag.clone(),
+        prover_error: e.into(),
+    })
 }
 
 /**
@@ -1142,9 +1160,10 @@ fn convert_to_unchecked(tree: ProofTree) -> Result<UncheckedTree, ProverError> {
             )),
         },
         ProofTree::UnprovenTree(unp_tree) => match unp_tree {
-            UnprovenTree::UnprovenLeaf(_) => Err(ProverError::Unexpected(
-                "convert_to_unchecked: unexpected UnprovenLeaf",
-            )),
+            UnprovenTree::UnprovenLeaf(ul) => Err(ProverError::UnexpectedUnprovenLeaf {
+                position: ul.position().clone(),
+                is_real: ul.is_real(),
+            }),
             UnprovenTree::UnprovenConjecture(conj) => match conj {
                 UnprovenConjecture::CandUnproven(cand) => Ok(UncheckedConjecture::CandUnchecked {
                     challenge: cand
