@@ -49,12 +49,23 @@ it('i628', async () => {
   const prover = wasm.Wallet.from_secrets(sks)
   const signed = prover.sign_reduced_transaction(reduced)
   console.log(signed.to_json())
+  // console.log(box2.to_json())
+  // console.log(box2.register_value(ergo.NonMandatoryRegisterId.R4).to_js())
+  const sk2 = wasm.SecretKey.dlog_from_bytes(Uint8Array.from(Buffer.from(sk[2], "hex")));
+  const pk2_bytes = Uint8Array.from(Buffer.from(pk[2], "hex"));
+  assert.deepEqual(sk2.get_address().content_bytes(), pk2_bytes);
+  const sk1 = wasm.SecretKey.dlog_from_bytes(Uint8Array.from(Buffer.from(sk[1], "hex")));
+  const pk1_bytes = Uint8Array.from(Buffer.from(pk[1], "hex"));
+  assert.deepEqual(sk1.get_address().content_bytes(), pk1_bytes);
+  const sk0 = wasm.SecretKey.dlog_from_bytes(Uint8Array.from(Buffer.from(sk[0], "hex")));
+  const pk0_bytes = Uint8Array.from(Buffer.from(pk[0], "hex"));
+  assert.deepEqual(sk0.get_address().content_bytes(), pk0_bytes);
 
   const firstSignerSecretKeys = new wasm.SecretKeys()
   firstSignerSecretKeys.add(wasm.SecretKey.dlog_from_bytes(Uint8Array.from(Buffer.from(sk[0], "hex"))))
   const firstProver = wasm.Wallet.from_secrets(firstSignerSecretKeys);
 
-  const temp = wasm.SecretKey.dlog_from_bytes(Uint8Array.from(Buffer.from(sk[0], "hex")))
+  // const temp = wasm.SecretKey.dlog_from_bytes(Uint8Array.from(Buffer.from(sk[0], "hex")))
 
   const firstTransactionHintsBag = wasm.TransactionHintsBag.empty()
 
