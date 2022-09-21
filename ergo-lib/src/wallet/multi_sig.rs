@@ -412,6 +412,7 @@ mod tests {
     use ergotree_interpreter::sigma_protocol::private_input::DhTupleProverInput;
     use ergotree_interpreter::sigma_protocol::wscalar::Wscalar;
     use ergotree_ir::mir::sigma_or::SigmaOr;
+    use ergotree_ir::sigma_protocol::sigma_boolean::cthreshold::Cthreshold;
     use sigma_test_util::force_any_val;
     use std::convert::{TryFrom, TryInto};
     use std::rc::Rc;
@@ -1015,5 +1016,45 @@ mod tests {
             "{}",
             "{}"
         );
+    }
+
+    #[test]
+    fn test_628_atleast() {
+        // proving a proposition similar to tx input with index == 1 from `test_628.js` test
+        // reported in https://github.com/ergoplatform/sigma-rust/issues/628
+
+        let secret1 = DlogProverInput::random();
+        let secret2 = DlogProverInput::random();
+        let secret3 = DlogProverInput::random();
+        let pk1 = secret1.public_image();
+        let pk2 = secret2.public_image();
+        let pk3 = secret3.public_image();
+
+        let sb = SigmaBoolean::SigmaConjecture(SigmaConjecture::Cthreshold(Cthreshold {
+            k: 2,
+            children: vec![pk1.into(), pk2.clone().into(), pk3.clone().into()]
+                .try_into()
+                .unwrap(),
+        }));
+
+        let prover1 = TestProver {
+            secrets: vec![secret1.into()],
+        };
+
+        let prover2_hints = generate_commitments_for(sb.clone(), &[pk2.into()]);
+        dbg!(&prover2_hints);
+        let prover3_hints = generate_commitments_for(sb.clone(), &[pk3.into()]);
+        dbg!(&prover3_hints);
+
+        let message = force_any_val::<Vec<u8>>();
+        let hints_bag = HintsBag {
+            hints: vec![
+                prover2_hints.hints[0].clone(),
+                prover3_hints.hints[0].clone(),
+            ],
+        };
+        // 2 hints + prover1 secret = 3 "keys", more than required (2), but it should not
+        // return an error
+        let _proof = prover1.generate_proof(sb, &message, &hints_bag).unwrap();
     }
 }
