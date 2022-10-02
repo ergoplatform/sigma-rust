@@ -1,6 +1,6 @@
 [package]
 name = "ergotree-macro"
-version = "0.19.0"
+version = "0.20.0"
 license = "CC0-1.0"
 authors = ["Timothy Ling (@kettlebell)"]
 description = "Procedural macro to generate ErgoTree expressions"
@@ -22,4 +22,4 @@ proc-macro-error = "1"
 proc-macro2 = "1"
 quote = "1"
 syn = { version = "1", features = ["full", "extra-traits", "visit-mut"] }
-ergotree-ir = { version = "^0.19.0", path = "../ergotree-ir", features = ["arbitrary", "ergotree-proc-macro"] }
+ergotree-ir = { version = "^0.20.0", path = "../ergotree-ir", features = ["arbitrary", "ergotree-proc-macro"] }
