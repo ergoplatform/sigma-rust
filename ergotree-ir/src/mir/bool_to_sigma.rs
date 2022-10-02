@@ -44,6 +44,28 @@ impl OneArgOpTryBuild for BoolToSigmaProp {
     }
 }
 
+#[cfg(feature = "ergotree-proc-macro")]
+impl syn::parse::Parse for BoolToSigmaProp {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let content;
+        let _paren = syn::parenthesized!(content in input);
+        let input = content.parse()?;
+        Ok(Self {
+            input: Box::new(input),
+        })
+    }
+}
+
+#[cfg(feature = "ergotree-proc-macro")]
+impl quote::ToTokens for BoolToSigmaProp {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        let input = &*self.input;
+        tokens.extend(quote::quote! {
+           ergotree_ir::mir::bool_to_sigma::BoolToSigmaProp { input: Box::new(#input) }
+        })
+    }
+}
+
 /// Arbitrary impl
 #[cfg(feature = "arbitrary")]
 mod arbitrary {

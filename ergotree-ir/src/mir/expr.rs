@@ -370,6 +370,108 @@ impl<T: TryFrom<Expr>> TryExtractFrom<Expr> for T {
     }
 }
 
+#[cfg(feature = "ergotree-proc-macro")]
+impl syn::parse::Parse for Expr {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let name: syn::Ident = input.parse()?;
+        match name.to_string().as_str() {
+            "FuncValue" => {
+                let content;
+                let _paren = syn::parenthesized!(content in input);
+
+                Ok(Expr::FuncValue(content.parse()?))
+            }
+            "BoolToSigmaProp" => Ok(Expr::BoolToSigmaProp(input.parse()?)),
+            "ValUse" => Ok(Expr::ValUse(input.parse()?)),
+            _ => Err(syn::Error::new_spanned(name, "Unknown `Expr` variant name")),
+        }
+    }
+}
+
+#[cfg(feature = "ergotree-proc-macro")]
+impl quote::ToTokens for Expr {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        use quote::quote;
+        tokens.extend(match self {
+            Expr::Append(a) => {
+                quote! { ergotree_ir::mir::expr::Expr::Append { #a } }
+            }
+
+            Expr::Const(_) => todo!(),
+            Expr::ConstPlaceholder(_) => todo!(),
+            Expr::SubstConstants(_) => todo!(),
+            Expr::ByteArrayToLong(_) => todo!(),
+            Expr::ByteArrayToBigInt(_) => todo!(),
+            Expr::LongToByteArray(_) => todo!(),
+            Expr::Collection(_) => todo!(),
+            Expr::Tuple(_) => todo!(),
+            Expr::CalcBlake2b256(_) => todo!(),
+            Expr::CalcSha256(_) => todo!(),
+            Expr::Context => todo!(),
+            Expr::Global => todo!(),
+            Expr::GlobalVars(_) => todo!(),
+            Expr::FuncValue(f) => {
+                quote! { ergotree_ir::mir::expr::Expr::FuncValue(#f) }
+            }
+            Expr::Apply(_) => todo!(),
+            Expr::MethodCall(_) => todo!(),
+            Expr::ProperyCall(_) => todo!(),
+            Expr::BlockValue(_) => todo!(),
+            Expr::ValDef(_) => todo!(),
+            Expr::ValUse(v) => {
+                quote! { ergotree_ir::mir::expr::Expr::ValUse(#v) }
+            }
+            Expr::If(_) => todo!(),
+            Expr::BinOp(_) => todo!(),
+            Expr::And(_) => todo!(),
+            Expr::Or(_) => todo!(),
+            Expr::Xor(_) => todo!(),
+            Expr::Atleast(_) => todo!(),
+            Expr::LogicalNot(_) => todo!(),
+            Expr::Negation(_) => todo!(),
+            Expr::BitInversion(_) => todo!(),
+            Expr::OptionGet(_) => todo!(),
+            Expr::OptionIsDefined(_) => todo!(),
+            Expr::OptionGetOrElse(_) => todo!(),
+            Expr::ExtractAmount(_) => todo!(),
+            Expr::ExtractRegisterAs(_) => todo!(),
+            Expr::ExtractBytes(_) => todo!(),
+            Expr::ExtractBytesWithNoRef(_) => todo!(),
+            Expr::ExtractScriptBytes(_) => todo!(),
+            Expr::ExtractCreationInfo(_) => todo!(),
+            Expr::ExtractId(_) => todo!(),
+            Expr::ByIndex(_) => todo!(),
+            Expr::SizeOf(_) => todo!(),
+            Expr::Slice(_) => todo!(),
+            Expr::Fold(_) => todo!(),
+            Expr::Map(_) => todo!(),
+            Expr::Filter(_) => todo!(),
+            Expr::Exists(_) => todo!(),
+            Expr::ForAll(_) => todo!(),
+            Expr::SelectField(_) => todo!(),
+            Expr::BoolToSigmaProp(b) => {
+                quote! { ergotree_ir::mir::expr::Expr::BoolToSigmaProp(#b) }
+            }
+            Expr::Upcast(_) => todo!(),
+            Expr::Downcast(_) => todo!(),
+            Expr::CreateProveDlog(_) => todo!(),
+            Expr::CreateProveDhTuple(_) => todo!(),
+            Expr::SigmaPropBytes(_) => todo!(),
+            Expr::DecodePoint(_) => todo!(),
+            Expr::SigmaAnd(_) => todo!(),
+            Expr::SigmaOr(_) => todo!(),
+            Expr::GetVar(_) => todo!(),
+            Expr::DeserializeRegister(_) => todo!(),
+            Expr::DeserializeContext(_) => todo!(),
+            Expr::MultiplyGroup(_) => todo!(),
+            Expr::Exponentiate(_) => todo!(),
+            Expr::XorOf(_) => todo!(),
+            Expr::TreeLookup(_) => todo!(),
+            Expr::CreateAvlTree(_) => todo!(),
+        });
+    }
+}
+
 #[cfg(feature = "arbitrary")]
 #[allow(clippy::unwrap_used)]
 #[allow(clippy::panic)]

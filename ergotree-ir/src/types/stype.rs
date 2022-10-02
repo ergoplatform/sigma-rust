@@ -126,6 +126,50 @@ impl From<SFunc> for SType {
     }
 }
 
+#[cfg(feature = "ergotree-proc-macro")]
+impl syn::parse::Parse for SType {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let name: syn::Ident = input.parse()?;
+        match name.to_string().as_str() {
+            "SBoolean" => Ok(SType::SBoolean),
+            _ => Err(syn::Error::new_spanned(
+                name,
+                "Unknown `SType` variant name",
+            )),
+        }
+    }
+}
+
+#[cfg(feature = "ergotree-proc-macro")]
+impl quote::ToTokens for SType {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        use quote::quote;
+        tokens.extend(match self {
+            SType::STypeVar(_) => todo!(),
+            SType::SAny => todo!(),
+            SType::SUnit => todo!(),
+            SType::SBoolean => quote! { ergotree_ir::types::stype::SType::SBoolean },
+            SType::SByte => todo!(),
+            SType::SShort => todo!(),
+            SType::SInt => todo!(),
+            SType::SLong => todo!(),
+            SType::SBigInt => todo!(),
+            SType::SGroupElement => todo!(),
+            SType::SSigmaProp => todo!(),
+            SType::SBox => todo!(),
+            SType::SAvlTree => todo!(),
+            SType::SOption(_) => todo!(),
+            SType::SColl(_) => todo!(),
+            SType::STuple(_) => todo!(),
+            SType::SFunc(_) => todo!(),
+            SType::SContext => todo!(),
+            SType::SHeader => todo!(),
+            SType::SPreHeader => todo!(),
+            SType::SGlobal => todo!(),
+        })
+    }
+}
+
 /// Conversion to SType
 pub trait LiftIntoSType {
     /// get SType

@@ -75,6 +75,34 @@ impl SigmaSerializable for Append {
     }
 }
 
+#[cfg(feature = "ergotree-proc-macro")]
+impl syn::parse::Parse for Append {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let name: syn::Ident = input.parse()?;
+        if name == "Append" {
+            let content;
+            let _paren = syn::parenthesized!(content in input);
+            let input = Box::new(content.parse()?);
+            let col_2 = Box::new(content.parse()?);
+
+            Ok(Append { input, col_2 })
+        } else {
+            Err(syn::Error::new_spanned(name, "Expected `Append`"))
+        }
+    }
+}
+
+#[cfg(feature = "ergotree-proc-macro")]
+impl quote::ToTokens for Append {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        let input = &*self.input;
+        let col_2 = &*self.col_2;
+        tokens.extend(quote::quote! {
+            ergotree_ir::mir::coll_append::Append { input: Box::new(#input), col_2: Box::new(#col_2) }
+        })
+    }
+}
+
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
 #[allow(clippy::panic)]

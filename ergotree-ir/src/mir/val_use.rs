@@ -38,6 +38,32 @@ impl SigmaSerializable for ValUse {
     }
 }
 
+#[cfg(feature = "ergotree-proc-macro")]
+impl syn::parse::Parse for ValUse {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let content;
+        let _paren = syn::parenthesized!(content in input);
+        let id: syn::LitInt = content.parse()?;
+        let value = id.base10_parse::<u32>()?;
+        let val_id = ValId(value);
+        let _comma: syn::Token![,] = content.parse()?;
+        let tpe = content.parse()?;
+
+        Ok(ValUse { val_id, tpe })
+    }
+}
+
+#[cfg(feature = "ergotree-proc-macro")]
+impl quote::ToTokens for ValUse {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        let val_id = &self.val_id;
+        let tpe = &self.tpe;
+        tokens.extend(
+            quote::quote! { ergotree_ir::mir::val_use::ValUse { val_id: #val_id, tpe: #tpe }},
+        )
+    }
+}
+
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
 #[allow(clippy::panic)]
