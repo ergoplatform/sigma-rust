@@ -67,15 +67,7 @@ impl BlockHeaders {
         json_vals
             .iter()
             .try_fold(vec![], |mut acc, jb| {
-                let b: Header = if jb.is_string() {
-                    let jb_str = jb
-                        .as_string()
-                        .ok_or(JsValue::from_str("Expected BlockHeader JSON as string"))?;
-                    serde_json::from_str(jb_str.as_str())
-                } else {
-                    jb.into_serde::<ergo_lib::ergo_chain_types::Header>()
-                }
-                .map_err(|e| {
+                let b: Header = serde_wasm_bindgen::from_value(jb.clone()).map_err(|e| {
                     JsValue::from_str(&format!(
                         "Failed to parse BlockHeader from JSON string: {:?} \n with error: {}",
                         jb, e

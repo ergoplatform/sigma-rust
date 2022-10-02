@@ -17,20 +17,13 @@ impl ErgoBoxes {
         json_vals
             .iter()
             .try_fold(vec![], |mut acc, jb| {
-                let b: chain::ergo_box::ErgoBox = if jb.is_string() {
-                    let jb_str = jb
-                        .as_string()
-                        .ok_or(JsValue::from_str("Expected ErgoBox JSON as string"))?;
-                    serde_json::from_str(jb_str.as_str())
-                } else {
-                    jb.into_serde::<chain::ergo_box::ErgoBox>()
-                }
-                .map_err(|e| {
-                    JsValue::from_str(&format!(
-                        "Failed to parse ErgoBox from JSON string: {:?} \n with error: {}",
-                        jb, e
-                    ))
-                })?;
+                let b: chain::ergo_box::ErgoBox = serde_wasm_bindgen::from_value(jb.clone())
+                    .map_err(|e| {
+                        JsValue::from_str(&format!(
+                            "Failed to parse ErgoBox from JSON string: {:?} \n with error: {:?}",
+                            jb, e
+                        ))
+                    })?;
                 acc.push(b);
                 Ok(acc)
             })

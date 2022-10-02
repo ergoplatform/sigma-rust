@@ -95,7 +95,7 @@ impl TransactionHintsBag {
 
     /// Return JSON object (node format)
     pub fn to_json(&self) -> Result<JsValue, JsValue> {
-        JsValue::from_serde(&self.0).map_err(to_js)
+        serde_wasm_bindgen::to_value(&self.0).map_err(|e| e.into())
     }
 
     /// Parse from JSON object (node format)
@@ -223,7 +223,7 @@ impl Transaction {
     /// (similar to [`Self::to_json`], but as JS object with box value and token amount encoding as strings)
     pub fn to_js_eip12(&self) -> Result<JsValue, JsValue> {
         let tx_dapp: TransactionJsonEip12 = self.0.clone().into();
-        JsValue::from_serde(&tx_dapp).map_err(|e| JsValue::from_str(&format!("{}", e)))
+        serde_wasm_bindgen::to_value(&tx_dapp).map_err(|e| e.into())
     }
 
     /// parse from JSON
@@ -365,7 +365,7 @@ impl UnsignedTransaction {
     /// (similar to [`Self::to_json`], but as JS object with box value and token amount encoding as strings)
     pub fn to_js_eip12(&self) -> Result<JsValue, JsValue> {
         let tx_dapp: UnsignedTransactionJsonEip12 = self.0.clone().into();
-        JsValue::from_serde(&tx_dapp).map_err(|e| JsValue::from_str(&format!("{}", e)))
+        serde_wasm_bindgen::to_value(&tx_dapp).map_err(|e| e.into())
     }
 
     /// parse from JSON

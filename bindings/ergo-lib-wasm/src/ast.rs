@@ -130,17 +130,9 @@ impl Constant {
     pub fn from_i64_str_array(arr: Box<[JsValue]>) -> Result<Constant, JsValue> {
         arr.iter()
             .try_fold(vec![], |mut acc, l| {
-                let b: i64 = if l.is_string() {
-                    let l_str = l
-                        .as_string()
-                        .ok_or_else(|| JsValue::from_str("i64 as a string"))?;
-                    serde_json::from_str(l_str.as_str())
-                } else {
-                    l.into_serde::<i64>()
-                }
-                .map_err(|e| {
+                let b: i64 = serde_wasm_bindgen::from_value(l.clone()).map_err(|e| {
                     JsValue::from_str(&format!(
-                        "Failed to parse i64 from JSON string: {:?} \n with error: {}",
+                        "Failed to parse i64 from JSON string: {:?} \n with error: {:?}",
                         l, e
                     ))
                 })?;

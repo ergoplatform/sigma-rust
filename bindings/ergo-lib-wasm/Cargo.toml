@@ -26,6 +26,7 @@ url = "2.2"
 bounded-integer = { version = "^0.5", features = ["types"] }
 futures = "0.3"
 thiserror = "1"
+serde-wasm-bindgen = "0.4"
 
 # used in elliptic-curve(in ergo-lib), compiled here with WASM support
 getrandom = {version = "0.2.7", features = ["js"]}
