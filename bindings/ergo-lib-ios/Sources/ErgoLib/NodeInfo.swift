@@ -20,8 +20,8 @@ class NodeInfo: FromRawPtr {
         return str
     }
 
-    func isAtLeastVersion4028() -> Bool {
-        return ergo_lib_node_info_is_at_least_version_4_0_28(self.pointer)
+    func isAtLeastVersion40100() -> Bool {
+        return ergo_lib_node_info_is_at_least_version_4_0_100(self.pointer)
     }
 
     deinit {

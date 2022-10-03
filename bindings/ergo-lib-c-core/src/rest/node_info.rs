@@ -10,11 +10,11 @@ pub unsafe fn node_info_get_name(node_info_ptr: NodeInfoPtr) -> String {
     node_info.0.name.clone()
 }
 
-/// Returns true iff the ergo node is at least v4.0.28. This is important since nipopow proofs only
-/// work correctly from this version onwards.
-pub unsafe fn node_info_is_at_least_version_4_0_28(
+/// Returns true iff the ergo node is at least v4.0.100. This is important due to the EIP-37
+/// hard-fork.
+pub unsafe fn node_info_is_at_least_version_4_0_100(
     node_info_ptr: NodeInfoPtr,
 ) -> Result<bool, Error> {
     let node_info = const_ptr_as_ref(node_info_ptr, "node_info_ptr")?;
-    Ok(node_info.0.is_at_least_version_4_0_28())
+    Ok(node_info.0.is_at_least_version_4_0_100())
 }

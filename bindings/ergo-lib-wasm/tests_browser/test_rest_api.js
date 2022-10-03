@@ -10,32 +10,32 @@ beforeEach(async () => {
 // particular the timeout functionality for HTTP requests requires the window object from the
 // web APIs, thus requiring a web browser to run.
 
-//it('node REST API: peer_discovery endpoint', async () => {
-//    const seeds = get_ergo_node_seeds();
-//    // Limit to 150 simultaneous HTTP requests and search for peers for 140 seconds (remember
-//    // there's an unavoidable waiting time of 80 seconds, to give Chrome time to relinquish failed
-//    // preflight requests)
-//    let is_chrome = true;
-//    let active_peers = await ergo_wasm.peer_discovery(seeds, 150, 140, is_chrome);
-//    assert(active_peers.len() > 0);
-//    console.log("Number active peers:", active_peers.len(), ". First active peer: ", active_peers.get(0).href);
-//});
-//
-//it('node REST API: peer_discovery endpoint (INCREMENTAL VERSION)', async () => {
-//    const seeds = get_ergo_node_seeds();
-//    let scan = new ergo_wasm.ChromePeerDiscoveryScan(seeds);
-//
-//    scan = await ergo_wasm.incremental_peer_discovery_chrome(scan, 150, 90);
-//    let scan_1_len = scan.active_peers().len();
-//    console.log("# active peers from first scan:", scan_1_len);
-//    scan = await ergo_wasm.incremental_peer_discovery_chrome(scan, 150, 480);
-//    let scan_2_len = scan.active_peers().len();
-//    console.log("# active peers from second scan:", scan_2_len);
-//
-//    // The following assert should have `<` instead of `<=`. There is an issue with Github CI, see
-//    // https://github.com/ergoplatform/sigma-rust/issues/586
-//    assert(scan_1_len <= scan_2_len, "Should have found more peers after second scan!");
-//});
+it('node REST API: peer_discovery endpoint', async () => {
+    const seeds = get_ergo_node_seeds();
+    // Limit to 150 simultaneous HTTP requests and search for peers for 140 seconds (remember
+    // there's an unavoidable waiting time of 80 seconds, to give Chrome time to relinquish failed
+    // preflight requests)
+    let is_chrome = true;
+    let active_peers = await ergo_wasm.peer_discovery(seeds, 150, 140, is_chrome);
+    assert(active_peers.len() > 0);
+    console.log("Number active peers:", active_peers.len(), ". First active peer: ", active_peers.get(0).href);
+});
+
+it('node REST API: peer_discovery endpoint (INCREMENTAL VERSION)', async () => {
+    const seeds = get_ergo_node_seeds();
+    let scan = new ergo_wasm.ChromePeerDiscoveryScan(seeds);
+
+    scan = await ergo_wasm.incremental_peer_discovery_chrome(scan, 150, 90);
+    let scan_1_len = scan.active_peers().len();
+    console.log("# active peers from first scan:", scan_1_len);
+    scan = await ergo_wasm.incremental_peer_discovery_chrome(scan, 150, 480);
+    let scan_2_len = scan.active_peers().len();
+    console.log("# active peers from second scan:", scan_2_len);
+
+    // The following assert should have `<` instead of `<=`. There is an issue with Github CI, see
+    // https://github.com/ergoplatform/sigma-rust/issues/586
+    assert(scan_1_len <= scan_2_len, "Should have found more peers after second scan!");
+});
 
 it('node REST API: get_nipopow_proof_by_header_id endpoint', async () => {
     let node_conf = new ergo_wasm.NodeConf(new URL("http://213.239.193.208:9053")); //active_peers.get(0));
@@ -80,10 +80,9 @@ async function get_nipopow_proof(url, header_id) {
     let node_conf = new ergo_wasm.NodeConf(url);
     assert(node_conf != null);
 
-    // Make sure we're communicating with a node with version >= 4.0.28, otherwise we won't be able
-    // to get a proper Nipopow proof
+    // Make sure we're communicating with a node with version >= 4.0.100, due to the EIP-37 hard-fork.
     let node_info = await ergo_wasm.get_info(node_conf);
-    assert(node_info.is_at_least_version_4_0_28(), "Ergo node should be at least version 4.0.28");
+    assert(node_info.is_at_least_version_4_0_100(), "Ergo node should be at least version 4.0.100");
 
     let proof = await ergo_wasm.get_nipopow_proof_by_header_id(node_conf, 7, 6, header_id);
     assert(proof != null);

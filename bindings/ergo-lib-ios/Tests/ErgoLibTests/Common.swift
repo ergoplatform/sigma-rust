@@ -42,7 +42,7 @@ func getNipopowProof(url: URL, headerId: BlockId) async throws -> NipopowProof? 
     let nodeConf = try NodeConf(withAddrString: url.absoluteString)
     let restNodeApi = try RestNodeApi()
     let nodeInfo = try await restNodeApi.getInfoAsync(nodeConf: nodeConf)
-    if nodeInfo.isAtLeastVersion4028() {
+    if nodeInfo.isAtLeastVersion40100() {
         let proof = try await restNodeApi.getNipopowProofByHeaderIdAsync(nodeConf: nodeConf, minChainLength: UInt32(7), suffixLen: UInt32(6), headerId: headerId)
         return proof
     } else {
