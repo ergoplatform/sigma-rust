@@ -26,7 +26,11 @@ url = "2.2"
 bounded-integer = { version = "^0.5", features = ["types"] }
 futures = "0.3"
 thiserror = "1"
-serde-wasm-bindgen = "0.4"
+
+# This dependency is needed due to deprecation of `JsValue::[into|from]_serde` in `wasm-bindgen`.
+# Note that the deprecation comments suggest using `serde-wasm-bindgen` as another alternative; I
+# tried it but it breaks some of our tests.
+gloo-utils = {version = "0.1.5", features = ["serde"] }
 
 # used in elliptic-curve(in ergo-lib), compiled here with WASM support
 getrandom = {version = "0.2.7", features = ["js"]}
@@ -46,7 +50,7 @@ features = [ "json" ]
 
 [dependencies.wasm-bindgen]
 version = "0.2.79"
-features = ["serde-serialize"]
+features = []
 
 [dependencies.wasm-bindgen-futures]
 version = "0.4.28"

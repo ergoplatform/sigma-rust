@@ -23,6 +23,7 @@ use ergo_lib::ergotree_ir::chain::ergo_box::BoxTokens;
 use ergo_lib::ergotree_ir::chain::ergo_box::NonMandatoryRegisters;
 use ergo_lib::ergotree_ir::serialization::SigmaSerializable;
 use ergo_lib::wallet::tx_builder::new_miner_fee_box;
+use gloo_utils::format::JsValueSerdeExt;
 use js_sys::Uint8Array;
 use wasm_bindgen::prelude::*;
 
@@ -213,7 +214,8 @@ impl ErgoBox {
     /// (similar to [`Self::to_json`], but as JS object with box value and token amounts encoding as strings)
     pub fn to_js_eip12(&self) -> Result<JsValue, JsValue> {
         let box_dapp: ErgoBoxJsonEip12 = self.0.clone().into();
-        serde_wasm_bindgen::to_value(&box_dapp).map_err(|e| e.into())
+        <JsValue as JsValueSerdeExt>::from_serde(&box_dapp)
+            .map_err(|e| JsValue::from_str(&format!("{}", e)))
     }
 
     /// parse from JSON
