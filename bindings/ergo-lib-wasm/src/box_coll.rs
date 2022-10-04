@@ -1,5 +1,6 @@
 //! Box collection types
 use ergo_lib::ergotree_ir::chain;
+use gloo_utils::format::JsValueSerdeExt;
 use wasm_bindgen::prelude::*;
 
 use crate::ergo_box::{ErgoBox, ErgoBoxCandidate};
@@ -23,11 +24,11 @@ impl ErgoBoxes {
                         .ok_or(JsValue::from_str("Expected ErgoBox JSON as string"))?;
                     serde_json::from_str(jb_str.as_str())
                 } else {
-                    jb.into_serde::<chain::ergo_box::ErgoBox>()
+                    JsValueSerdeExt::into_serde(jb)
                 }
                 .map_err(|e| {
                     JsValue::from_str(&format!(
-                        "Failed to parse ErgoBox from JSON string: {:?} \n with error: {}",
+                        "Failed to parse ErgoBox from JSON string: {:?} \n with error: {:?}",
                         jb, e
                     ))
                 })?;

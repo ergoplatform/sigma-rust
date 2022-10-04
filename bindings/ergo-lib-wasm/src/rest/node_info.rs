@@ -15,9 +15,9 @@ impl NodeInfo {
         self.0.name.clone()
     }
 
-    /// Returns true iff the ergo node is at least v4.0.28. This is important since nipopow proofs
-    /// only work correctly from this version onwards.
-    pub fn is_at_least_version_4_0_28(&self) -> bool {
-        self.0.is_at_least_version_4_0_28()
+    /// Returns true iff the ergo node is at least v4.0.100. This is important due to the EIP-37
+    /// hard-fork.
+    pub fn is_at_least_version_4_0_100(&self) -> bool {
+        self.0.is_at_least_version_4_0_100()
     }
 }

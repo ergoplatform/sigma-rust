@@ -6,6 +6,7 @@ use bounded_vec::OptBoundedVecToVec;
 use ergo_lib::ergo_chain_types::Base16DecodedBytes;
 use ergo_lib::ergo_chain_types::Digest32;
 use ergo_lib::ergotree_ir::chain;
+use gloo_utils::format::JsValueSerdeExt;
 use js_sys::Uint8Array;
 use wasm_bindgen::prelude::*;
 
@@ -121,7 +122,8 @@ impl Token {
     /// (similar to [`Self::to_json`], but as JS object with token amount encoding as string)
     pub fn to_js_eip12(&self) -> Result<JsValue, JsValue> {
         let t_dapp: TokenJsonEip12 = self.0.clone().into();
-        JsValue::from_serde(&t_dapp).map_err(|e| JsValue::from_str(&format!("{}", e)))
+        <JsValue as JsValueSerdeExt>::from_serde(&t_dapp)
+            .map_err(|e| JsValue::from_str(&format!("{}", e)))
     }
 }
 

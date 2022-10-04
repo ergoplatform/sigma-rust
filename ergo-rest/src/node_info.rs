@@ -16,10 +16,9 @@ pub struct NodeInfo {
 }
 
 impl NodeInfo {
-    /// Returns true iff the ergo node is at least v4.0.28. This is important since nipopow proofs
-    /// only work correctly from this version onwards.
-    pub fn is_at_least_version_4_0_28(&self) -> bool {
-        let ord = self.app_version.cmp(&String::from("4.0.28"));
+    /// Returns true iff the ergo node is at least v4.0.100. This is due to the EIP-37 hard-fork.
+    pub fn is_at_least_version_4_0_100(&self) -> bool {
+        let ord = self.app_version.cmp(&String::from("4.0.100"));
         ord == Ordering::Equal || ord == Ordering::Greater
     }
 }

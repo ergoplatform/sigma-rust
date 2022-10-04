@@ -11,6 +11,7 @@ use ergo_lib::ergotree_ir::base16_str::Base16Str;
 use ergo_lib::ergotree_ir::mir::constant::{TryExtractFrom, TryExtractInto};
 use ergo_lib::ergotree_ir::serialization::SigmaSerializable;
 use ergo_lib::ergotree_ir::sigma_protocol::sigma_boolean::ProveDlog;
+use gloo_utils::format::JsValueSerdeExt;
 use js_sys::Uint8Array;
 use std::convert::TryFrom;
 use wasm_bindgen::prelude::*;
@@ -136,11 +137,11 @@ impl Constant {
                         .ok_or_else(|| JsValue::from_str("i64 as a string"))?;
                     serde_json::from_str(l_str.as_str())
                 } else {
-                    l.into_serde::<i64>()
+                    JsValueSerdeExt::into_serde(l)
                 }
                 .map_err(|e| {
                     JsValue::from_str(&format!(
-                        "Failed to parse i64 from JSON string: {:?} \n with error: {}",
+                        "Failed to parse i64 from JSON string: {:?} \n with error: {:?}",
                         l, e
                     ))
                 })?;

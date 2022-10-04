@@ -2,7 +2,7 @@ use std::ffi::CString;
 use std::os::raw::c_char;
 
 use ergo_lib_c_core::rest::node_info::NodeInfoPtr;
-use ergo_lib_c_core::rest::node_info::{node_info_get_name, node_info_is_at_least_version_4_0_28};
+use ergo_lib_c_core::rest::node_info::{node_info_get_name, node_info_is_at_least_version_4_0_100};
 
 use crate::delete_ptr;
 
@@ -27,9 +27,9 @@ pub unsafe extern "C" fn ergo_lib_node_info_get_name(
 /// work correctly from this version onwards.
 #[allow(clippy::unwrap_used)]
 #[no_mangle]
-pub unsafe extern "C" fn ergo_lib_node_info_is_at_least_version_4_0_28(
+pub unsafe extern "C" fn ergo_lib_node_info_is_at_least_version_4_0_100(
     node_info_ptr: NodeInfoPtr,
 ) -> bool {
     #[allow(clippy::unwrap_used)]
-    node_info_is_at_least_version_4_0_28(node_info_ptr).unwrap()
+    node_info_is_at_least_version_4_0_100(node_info_ptr).unwrap()
 }

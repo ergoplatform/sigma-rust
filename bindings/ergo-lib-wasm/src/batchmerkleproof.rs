@@ -1,5 +1,6 @@
 //! BatchMerkleProof (compact Merkle multi-proofs)
 use ergo_lib::ergo_merkle_tree;
+use gloo_utils::format::JsValueSerdeExt;
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
@@ -12,11 +13,11 @@ pub struct BatchMerkleProof(pub(crate) ergo_merkle_tree::BatchMerkleProof);
 impl BatchMerkleProof {
     /// Creates a new [`BatchMerkleProof`] from json representation
     pub fn from_json(json: &JsValue) -> Result<BatchMerkleProof, String> {
-        json.into_serde().map_err(|err| err.to_string())
+        JsValueSerdeExt::into_serde(json).map_err(|err| err.to_string())
     }
     /// Converts [`BatchMerkleProof`] to json representation
     pub fn to_json(&self) -> Result<JsValue, String> {
-        JsValue::from_serde(&self).map_err(|err| err.to_string())
+        <JsValue as JsValueSerdeExt>::from_serde(&self).map_err(|err| err.to_string())
     }
 
     /// Calculates root hash for [`BatchMerkleProof`] and compares it against expected root hash

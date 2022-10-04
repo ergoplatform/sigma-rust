@@ -1,6 +1,7 @@
 //! Block header
 
 use ergo_lib::ergo_chain_types::Header;
+use gloo_utils::format::JsValueSerdeExt;
 use wasm_bindgen::prelude::*;
 
 extern crate derive_more;
@@ -73,7 +74,7 @@ impl BlockHeaders {
                         .ok_or(JsValue::from_str("Expected BlockHeader JSON as string"))?;
                     serde_json::from_str(jb_str.as_str())
                 } else {
-                    jb.into_serde::<ergo_lib::ergo_chain_types::Header>()
+                    JsValueSerdeExt::into_serde(jb)
                 }
                 .map_err(|e| {
                     JsValue::from_str(&format!(

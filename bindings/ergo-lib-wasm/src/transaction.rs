@@ -13,6 +13,7 @@ use crate::json::UnsignedTransactionJsonEip12;
 use ergo_lib::chain;
 use ergo_lib::chain::transaction::{distinct_token_ids, TxIoVec};
 use ergo_lib::ergotree_ir::serialization::SigmaSerializable;
+use gloo_utils::format::JsValueSerdeExt;
 use js_sys::Uint8Array;
 use std::convert::{TryFrom, TryInto};
 use wasm_bindgen::prelude::*;
@@ -95,7 +96,7 @@ impl TransactionHintsBag {
 
     /// Return JSON object (node format)
     pub fn to_json(&self) -> Result<JsValue, JsValue> {
-        JsValue::from_serde(&self.0).map_err(to_js)
+        <JsValue as JsValueSerdeExt>::from_serde(&self.0).map_err(to_js)
     }
 
     /// Parse from JSON object (node format)
@@ -223,7 +224,8 @@ impl Transaction {
     /// (similar to [`Self::to_json`], but as JS object with box value and token amount encoding as strings)
     pub fn to_js_eip12(&self) -> Result<JsValue, JsValue> {
         let tx_dapp: TransactionJsonEip12 = self.0.clone().into();
-        JsValue::from_serde(&tx_dapp).map_err(|e| JsValue::from_str(&format!("{}", e)))
+        <JsValue as JsValueSerdeExt>::from_serde(&tx_dapp)
+            .map_err(|e| JsValue::from_str(&format!("{}", e)))
     }
 
     /// parse from JSON
@@ -365,7 +367,8 @@ impl UnsignedTransaction {
     /// (similar to [`Self::to_json`], but as JS object with box value and token amount encoding as strings)
     pub fn to_js_eip12(&self) -> Result<JsValue, JsValue> {
         let tx_dapp: UnsignedTransactionJsonEip12 = self.0.clone().into();
-        JsValue::from_serde(&tx_dapp).map_err(|e| JsValue::from_str(&format!("{}", e)))
+        <JsValue as JsValueSerdeExt>::from_serde(&tx_dapp)
+            .map_err(|e| JsValue::from_str(&format!("{}", e)))
     }
 
     /// parse from JSON
