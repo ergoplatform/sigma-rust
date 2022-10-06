@@ -53,16 +53,71 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: fetch
-      - name: Build tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --verbose --release --tests
-      - name: Run tests
+      - name: Run ergo-chain-generation tests
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --verbose --release
+          args: --verbose --release --all-features --manifest-path ergo-chain-generation/Cargo.toml 
+      - name: Run ergo-chain-types tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --verbose --release --all-features --manifest-path ergo-chain-types/Cargo.toml 
+      - name: Run ergo-lib tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --verbose --release --all-features --manifest-path ergo-lib/Cargo.toml 
+      - name: Run ergo-merkle-tree tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --verbose --release --all-features --manifest-path ergo-merkle-tree/Cargo.toml 
+      - name: Run ergo-nipopow tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --verbose --release --all-features --manifest-path ergo-nipopow/Cargo.toml 
+      - name: Run ergo-p2p tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --verbose --release --all-features --manifest-path ergo-p2p/Cargo.toml 
+      - name: Run ergo-rest tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --verbose --release --all-features --manifest-path ergo-rest/Cargo.toml 
+      - name: Run ergoscript-compiler tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --verbose --release --all-features --manifest-path ergoscript-compiler/Cargo.toml 
+      - name: Run ergotree-interpreter tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --verbose --all-features --manifest-path ergotree-interpreter/Cargo.toml 
+      - name: Run ergotree-ir tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --verbose --release --all-features --manifest-path ergotree-ir/Cargo.toml 
+      - name: Run ergotree-macro tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --verbose --all-features --manifest-path ergotree-macro/Cargo.toml 
+      - name: Run gf2_192 tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --verbose --release --all-features --manifest-path gf2_192/Cargo.toml 
+      - name: Run sigma-ser tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --verbose --release --all-features --manifest-path sigma-ser/Cargo.toml 
 
   test_coverage:
     name: Code coverage in tests
