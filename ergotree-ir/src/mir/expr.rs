@@ -381,6 +381,12 @@ impl syn::parse::Parse for Expr {
 
                 Ok(Expr::FuncValue(content.parse()?))
             }
+            "Tuple" => {
+                let content;
+                let _paren = syn::parenthesized!(content in input);
+
+                Ok(Expr::Tuple(content.parse()?))
+            }
             "BoolToSigmaProp" => Ok(Expr::BoolToSigmaProp(input.parse()?)),
             "ValUse" => Ok(Expr::ValUse(input.parse()?)),
             _ => Err(syn::Error::new_spanned(name, "Unknown `Expr` variant name")),
@@ -404,7 +410,9 @@ impl quote::ToTokens for Expr {
             Expr::ByteArrayToBigInt(_) => todo!(),
             Expr::LongToByteArray(_) => todo!(),
             Expr::Collection(_) => todo!(),
-            Expr::Tuple(_) => todo!(),
+            Expr::Tuple(t) => {
+                quote! { ergotree_ir::mir::expr::Expr::Tuple(#t) }
+            }
             Expr::CalcBlake2b256(_) => todo!(),
             Expr::CalcSha256(_) => todo!(),
             Expr::Context => todo!(),

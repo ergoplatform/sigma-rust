@@ -132,6 +132,11 @@ impl syn::parse::Parse for SType {
         let name: syn::Ident = input.parse()?;
         match name.to_string().as_str() {
             "SBoolean" => Ok(SType::SBoolean),
+            "STuple" => {
+                let content;
+                let _paren = syn::parenthesized!(content in input);
+                Ok(SType::STuple(content.parse()?))
+            }
             _ => Err(syn::Error::new_spanned(
                 name,
                 "Unknown `SType` variant name",
@@ -160,7 +165,7 @@ impl quote::ToTokens for SType {
             SType::SAvlTree => todo!(),
             SType::SOption(_) => todo!(),
             SType::SColl(_) => todo!(),
-            SType::STuple(_) => todo!(),
+            SType::STuple(s) => quote! { ergotree_ir::types::stype::SType::STuple(#s) },
             SType::SFunc(_) => todo!(),
             SType::SContext => todo!(),
             SType::SHeader => todo!(),

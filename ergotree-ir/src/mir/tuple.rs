@@ -59,6 +59,36 @@ impl SigmaSerializable for Tuple {
     }
 }
 
+#[cfg(feature = "ergotree-proc-macro")]
+impl syn::parse::Parse for Tuple {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let (items, name) = {
+            let name: syn::Ident = input.parse()?;
+            if name == "Vector" {
+                let content;
+                let _paren = syn::parenthesized!(content in input);
+                let punctuated: syn::punctuated::Punctuated<Expr, syn::Token![,]> =
+                    content.parse_terminated(Expr::parse)?;
+                (punctuated.into_iter().collect(), name)
+            } else {
+                return Err(syn::Error::new_spanned(name, "Expected `Vector`"));
+            }
+        };
+        Tuple::new(items)
+            .map_err(|_| syn::Error::new_spanned(name, "Tuple must have at least 2 elements"))
+    }
+}
+
+#[cfg(feature = "ergotree-proc-macro")]
+impl quote::ToTokens for Tuple {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        let items = self.items.clone().to_vec();
+        tokens.extend(quote::quote! { ergotree_ir::mir::tuple::Tuple::new(
+             vec![#( #items),*],
+        )})
+    }
+}
+
 #[cfg(feature = "arbitrary")]
 #[allow(clippy::unwrap_used)]
 /// Arbitrary impl
