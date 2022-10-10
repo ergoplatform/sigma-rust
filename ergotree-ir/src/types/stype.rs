@@ -132,6 +132,21 @@ impl syn::parse::Parse for SType {
         let name: syn::Ident = input.parse()?;
         match name.to_string().as_str() {
             "SBoolean" => Ok(SType::SBoolean),
+            "SAny" => Ok(SType::SAny),
+            "SUnit" => Ok(SType::SUnit),
+            "SByte" => Ok(SType::SByte),
+            "SShort" => Ok(SType::SShort),
+            "SInt" => Ok(SType::SInt),
+            "SLong" => Ok(SType::SLong),
+            "SBigInt" => Ok(SType::SBigInt),
+            "SGroupElement" => Ok(SType::SGroupElement),
+            "SSigmaProp" => Ok(SType::SSigmaProp),
+            "SBox" => Ok(SType::SBox),
+            "SAvlTree" => Ok(SType::SAvlTree),
+            "SContext" => Ok(SType::SContext),
+            "SHeader" => Ok(SType::SHeader),
+            "SPreHeader" => Ok(SType::SPreHeader),
+            "SGlobal" => Ok(SType::SGlobal),
             "STuple" => {
                 let content;
                 let _paren = syn::parenthesized!(content in input);
@@ -151,26 +166,26 @@ impl quote::ToTokens for SType {
         use quote::quote;
         tokens.extend(match self {
             SType::STypeVar(_) => todo!(),
-            SType::SAny => todo!(),
-            SType::SUnit => todo!(),
+            SType::SAny => quote! { ergotree_ir::types::stype::SType::SAny },
+            SType::SUnit => quote! { ergotree_ir::types::stype::SType::SUnit },
             SType::SBoolean => quote! { ergotree_ir::types::stype::SType::SBoolean },
-            SType::SByte => todo!(),
-            SType::SShort => todo!(),
-            SType::SInt => todo!(),
-            SType::SLong => todo!(),
-            SType::SBigInt => todo!(),
-            SType::SGroupElement => todo!(),
-            SType::SSigmaProp => todo!(),
-            SType::SBox => todo!(),
-            SType::SAvlTree => todo!(),
+            SType::SByte => quote! { ergotree_ir::types::stype::SType::SByte },
+            SType::SShort => quote! { ergotree_ir::types::stype::SType::SShort },
+            SType::SInt => quote! { ergotree_ir::types::stype::SType::SInt },
+            SType::SLong => quote! { ergotree_ir::types::stype::SType::SLong },
+            SType::SBigInt => quote! { ergotree_ir::types::stype::SType::SBigInt },
+            SType::SGroupElement => quote! { ergotree_ir::types::stype::SType::SGroupElement },
+            SType::SSigmaProp => quote! { ergotree_ir::types::stype::SType::SSigmaProp },
+            SType::SBox => quote! { ergotree_ir::types::stype::SType::SBox },
+            SType::SAvlTree => quote! { ergotree_ir::types::stype::SType::SAvlTree },
             SType::SOption(_) => todo!(),
             SType::SColl(_) => todo!(),
             SType::STuple(s) => quote! { ergotree_ir::types::stype::SType::STuple(#s) },
             SType::SFunc(_) => todo!(),
-            SType::SContext => todo!(),
-            SType::SHeader => todo!(),
-            SType::SPreHeader => todo!(),
-            SType::SGlobal => todo!(),
+            SType::SContext => quote! { ergotree_ir::types::stype::SType::SContext },
+            SType::SHeader => quote! { ergotree_ir::types::stype::SType::SHeader },
+            SType::SPreHeader => quote! { ergotree_ir::types::stype::SType::SPreHeader },
+            SType::SGlobal => quote! { ergotree_ir::types::stype::SType::SGlobal },
         })
     }
 }

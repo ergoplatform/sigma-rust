@@ -10,6 +10,7 @@ use ergotree_ir::{
     types::{stuple::STuple, stype::SType},
 };
 use ergotree_macro::ergo_tree;
+use paste::paste;
 
 #[test]
 fn test_stuple() {
@@ -72,3 +73,45 @@ fn test_lambda_0() {
     let expected = Expr::FuncValue(FuncValue::new(args, body));
     assert_eq!(e, expected);
 }
+
+/// This macro creates a unit test for parsing and tokenizing the following ergoscript:
+///   { (x: $type_name) -> x }
+macro_rules! identity_fn {
+    ($type_name:ident) => {
+        paste! {
+            #[test]
+            fn [<test_identity_ $type_name:snake>]() {
+                let e = ergo_tree!(FuncValue(
+                    Vector((1, $type_name)),
+                    ValUse(1, $type_name)
+                ));
+                let args = vec![FuncArg {
+                    idx: ValId(1),
+                    tpe: SType::$type_name,
+                }];
+                let body = Expr::ValUse(ValUse {
+                    val_id: ValId(1),
+                    tpe: SType::$type_name,
+                });
+                let expected = Expr::FuncValue(FuncValue::new(args, body));
+                assert_eq!(e, expected);
+            }
+        }
+    };
+}
+
+identity_fn!(SAny);
+identity_fn!(SUnit);
+identity_fn!(SBoolean);
+identity_fn!(SShort);
+identity_fn!(SInt);
+identity_fn!(SLong);
+identity_fn!(SBigInt);
+identity_fn!(SGroupElement);
+identity_fn!(SSigmaProp);
+identity_fn!(SBox);
+identity_fn!(SAvlTree);
+identity_fn!(SContext);
+identity_fn!(SHeader);
+identity_fn!(SPreHeader);
+identity_fn!(SGlobal);
