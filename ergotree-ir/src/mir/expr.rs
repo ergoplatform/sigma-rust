@@ -389,6 +389,7 @@ impl syn::parse::Parse for Expr {
             }
             "BoolToSigmaProp" => Ok(Expr::BoolToSigmaProp(input.parse()?)),
             "ValUse" => Ok(Expr::ValUse(input.parse()?)),
+            "SelectField" => Ok(Expr::SelectField(input.parse()?)),
             _ => Err(syn::Error::new_spanned(name, "Unknown `Expr` variant name")),
         }
     }
@@ -456,7 +457,9 @@ impl quote::ToTokens for Expr {
             Expr::Filter(_) => todo!(),
             Expr::Exists(_) => todo!(),
             Expr::ForAll(_) => todo!(),
-            Expr::SelectField(_) => todo!(),
+            Expr::SelectField(s) => {
+                quote! { ergotree_ir::mir::expr::Expr::SelectField(#s) }
+            }
             Expr::BoolToSigmaProp(b) => {
                 quote! { ergotree_ir::mir::expr::Expr::BoolToSigmaProp(#b) }
             }

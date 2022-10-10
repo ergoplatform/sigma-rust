@@ -57,6 +57,23 @@ impl SigmaSerializable for TupleFieldIndex {
     }
 }
 
+#[cfg(feature = "ergotree-proc-macro")]
+impl syn::parse::Parse for TupleFieldIndex {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let id: syn::LitInt = input.parse()?;
+        let value = id.base10_parse::<u8>()?;
+        Ok(Self(value))
+    }
+}
+
+#[cfg(feature = "ergotree-proc-macro")]
+impl quote::ToTokens for TupleFieldIndex {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        let field_index = self.0;
+        tokens.extend(quote::quote! { ergotree_ir::mir::select_field::TupleFieldIndex::try_from(#field_index).unwrap() })
+    }
+}
+
 /// Select a field of the tuple value
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct SelectField {
@@ -116,6 +133,62 @@ impl SigmaSerializable for SelectField {
         let input = Expr::sigma_parse(r)?;
         let field_index = TupleFieldIndex::sigma_parse(r)?;
         Ok(SelectField::new(input, field_index)?)
+    }
+}
+
+#[cfg(feature = "ergotree-proc-macro")]
+impl syn::parse::Parse for SelectField {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let _dot: syn::Token![.] = input.parse()?;
+        let name: syn::Ident = input.parse()?;
+        if name == "typed" {
+            let mut content;
+            let _bracketed = syn::bracketed!(content in input);
+            let type_name: syn::Ident = content.parse()?;
+            let field_tpe = match &*type_name.to_string() {
+                "BoolValue" => SType::SBoolean,
+                _ => unreachable!(),
+            };
+            let _paren = syn::parenthesized!(content in input);
+            let input: Expr = content.parse()?;
+            let _comma: syn::Token![,] = content.parse()?;
+            let id: syn::LitInt = content.parse()?;
+            let value = id.base10_parse::<u8>()?;
+            let field_index = TupleFieldIndex::try_from(value).map_err(|_| {
+                syn::Error::new_spanned(name.clone(), "Expected `field_index` >= 1")
+            })?;
+            let _dot: syn::Token![.] = content.parse()?;
+            let _to_byte_ident: syn::Ident = content.parse()?;
+            let sf = Self::new(input, field_index).map_err(|e| {
+                syn::Error::new_spanned(name.clone(), format!("SelectField::new error: {}", e))
+            })?;
+            if sf.field_tpe != field_tpe {
+                return Err(syn::Error::new_spanned(
+                    name,
+                    format!(
+                        "Expected tuple field of type {:?}, got {:?} ",
+                        field_tpe, sf.field_tpe
+                    ),
+                ));
+            } else {
+                Ok(sf)
+            }
+        } else {
+            Err(syn::Error::new_spanned(name, "Expected `typed` keyword"))
+        }
+    }
+}
+
+#[cfg(feature = "ergotree-proc-macro")]
+impl quote::ToTokens for SelectField {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        let field_index = self.field_index;
+        let input = *self.input.clone();
+        tokens.extend(
+            quote::quote! { ergotree_ir::mir::select_field::SelectField::new(
+                #input, #field_index,
+            ).unwrap()},
+        )
     }
 }
 

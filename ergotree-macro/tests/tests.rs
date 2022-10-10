@@ -3,6 +3,7 @@ use ergotree_ir::{
         bool_to_sigma::BoolToSigmaProp,
         expr::Expr,
         func_value::{FuncArg, FuncValue},
+        select_field::{SelectField, TupleFieldIndex},
         val_def::ValId,
         val_use::ValUse,
     },
@@ -21,6 +22,28 @@ fn test_stuple() {
         val_id: ValId(1),
         tpe: SType::STuple(STuple::pair(SType::SBoolean, SType::SBoolean)),
     });
+    let args = vec![FuncArg {
+        idx: ValId(1),
+        tpe: SType::STuple(STuple::pair(SType::SBoolean, SType::SBoolean)),
+    }];
+    let expected = Expr::FuncValue(FuncValue::new(args, body));
+    assert_eq!(e, expected);
+}
+
+#[test]
+fn test_tuple_select_field() {
+    let e = ergo_tree!(FuncValue(
+        Vector((1, STuple(Vector(SBoolean, SBoolean)))),
+        SelectField.typed[BoolValue](ValUse(1, STuple(Vector(SBoolean, SBoolean))), 1.toByte)
+    ));
+
+    let input = Expr::ValUse(ValUse {
+        val_id: ValId(1),
+        tpe: SType::STuple(STuple::pair(SType::SBoolean, SType::SBoolean)),
+    });
+    let body = Expr::SelectField(
+        SelectField::new(input, TupleFieldIndex::try_from(1_u8).unwrap()).unwrap(),
+    );
     let args = vec![FuncArg {
         idx: ValId(1),
         tpe: SType::STuple(STuple::pair(SType::SBoolean, SType::SBoolean)),
