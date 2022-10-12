@@ -74,6 +74,39 @@ fn test_lambda_0() {
     assert_eq!(e, expected);
 }
 
+#[test]
+fn test_nested_tuples() {
+    // For the following ergoscript:
+    //  { (t: (Boolean, (Int, Long))) => t._2 }
+    let e = ergo_tree!(FuncValue(
+        Vector((1, STuple(Vector(SBoolean, STuple(Vector(SInt, SLong)))))),
+        SelectField.typed[Value[STuple]](
+            ValUse(1, STuple(Vector(SBoolean, STuple(Vector(SInt, SLong))))),
+            2.toByte
+        )
+    ));
+
+    let input = Expr::ValUse(ValUse {
+        val_id: ValId(1),
+        tpe: SType::STuple(STuple::pair(
+            SType::SBoolean,
+            SType::STuple(STuple::pair(SType::SInt, SType::SLong)),
+        )),
+    });
+    let body = Expr::SelectField(
+        SelectField::new(input, TupleFieldIndex::try_from(2_u8).unwrap()).unwrap(),
+    );
+    let args = vec![FuncArg {
+        idx: ValId(1),
+        tpe: SType::STuple(STuple::pair(
+            SType::SBoolean,
+            SType::STuple(STuple::pair(SType::SInt, SType::SLong)),
+        )),
+    }];
+    let expected = Expr::FuncValue(FuncValue::new(args, body));
+    assert_eq!(e, expected);
+}
+
 /// This macro creates a unit test for parsing and tokenizing the following ergoscript:
 ///   { (x: $type_name) -> x }
 macro_rules! identity_fn {

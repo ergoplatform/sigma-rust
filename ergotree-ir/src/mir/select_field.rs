@@ -1,5 +1,6 @@
 use std::convert::TryFrom;
 
+use crate::ergotree_proc_macro::extract_tpe_from_dot_typed;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
@@ -144,11 +145,7 @@ impl syn::parse::Parse for SelectField {
         if name == "typed" {
             let mut content;
             let _bracketed = syn::bracketed!(content in input);
-            let type_name: syn::Ident = content.parse()?;
-            let field_tpe = match &*type_name.to_string() {
-                "BoolValue" => SType::SBoolean,
-                _ => unreachable!(),
-            };
+            let extracted_type = extract_tpe_from_dot_typed(content)?;
             let _paren = syn::parenthesized!(content in input);
             let input: Expr = content.parse()?;
             let _comma: syn::Token![,] = content.parse()?;
@@ -162,16 +159,35 @@ impl syn::parse::Parse for SelectField {
             let sf = Self::new(input, field_index).map_err(|e| {
                 syn::Error::new_spanned(name.clone(), format!("SelectField::new error: {}", e))
             })?;
-            if sf.field_tpe != field_tpe {
-                return Err(syn::Error::new_spanned(
-                    name,
-                    format!(
-                        "Expected tuple field of type {:?}, got {:?} ",
-                        field_tpe, sf.field_tpe
-                    ),
-                ));
-            } else {
-                Ok(sf)
+            match extracted_type {
+                crate::ergotree_proc_macro::ExtractedType::FullySpecified(field_tpe) => {
+                    if sf.field_tpe != field_tpe {
+                        return Err(syn::Error::new_spanned(
+                            name,
+                            format!(
+                                "Expected tuple field of type {:?}, got {:?} ",
+                                field_tpe, sf.field_tpe
+                            ),
+                        ));
+                    } else {
+                        Ok(sf)
+                    }
+                }
+                crate::ergotree_proc_macro::ExtractedType::STuple => {
+                    if let SType::STuple(_) = sf.field_tpe {
+                        Ok(sf)
+                    } else {
+                        return Err(syn::Error::new_spanned(
+                            name,
+                            format!(
+                                "Expected tuple field of type STuple(_), got {:?}",
+                                sf.field_tpe
+                            ),
+                        ));
+                    }
+                }
+                crate::ergotree_proc_macro::ExtractedType::SCollection(_) => todo!(),
+                crate::ergotree_proc_macro::ExtractedType::SOption(_) => todo!(),
             }
         } else {
             Err(syn::Error::new_spanned(name, "Expected `typed` keyword"))

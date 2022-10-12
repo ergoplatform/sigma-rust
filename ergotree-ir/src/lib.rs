@@ -30,3 +30,6 @@ pub mod sigma_protocol;
 pub mod type_check;
 pub mod types;
 pub mod util;
+
+#[cfg(feature = "ergotree-proc-macro")]
+pub mod ergotree_proc_macro;
