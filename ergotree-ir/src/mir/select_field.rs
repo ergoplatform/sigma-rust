@@ -1,5 +1,6 @@
 use std::convert::TryFrom;
 
+#[cfg(feature = "ergotree-proc-macro")]
 use crate::ergotree_proc_macro::extract_tpe_from_dot_typed;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
@@ -162,13 +163,13 @@ impl syn::parse::Parse for SelectField {
             match extracted_type {
                 crate::ergotree_proc_macro::ExtractedType::FullySpecified(field_tpe) => {
                     if sf.field_tpe != field_tpe {
-                        return Err(syn::Error::new_spanned(
+                        Err(syn::Error::new_spanned(
                             name,
                             format!(
                                 "Expected tuple field of type {:?}, got {:?} ",
                                 field_tpe, sf.field_tpe
                             ),
-                        ));
+                        ))
                     } else {
                         Ok(sf)
                     }
@@ -177,13 +178,13 @@ impl syn::parse::Parse for SelectField {
                     if let SType::STuple(_) = sf.field_tpe {
                         Ok(sf)
                     } else {
-                        return Err(syn::Error::new_spanned(
+                        Err(syn::Error::new_spanned(
                             name,
                             format!(
                                 "Expected tuple field of type STuple(_), got {:?}",
                                 sf.field_tpe
                             ),
-                        ));
+                        ))
                     }
                 }
                 crate::ergotree_proc_macro::ExtractedType::SCollection(_) => todo!(),
