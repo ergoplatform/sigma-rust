@@ -1,6 +1,6 @@
 //! Utility code to support `ergo_tree!` procedural-macro
 
-use syn::parse::ParseBuffer;
+use syn::{ext::IdentExt, Ident};
 
 use crate::types::stype::SType;
 
@@ -25,7 +25,9 @@ impl From<SType> for ExtractedType {
 
 /// Extracts T within `_.typed[T]`.
 /// Note that scala uses some type aliases: e.g. `BoolValue` is short for `Value[SBoolean.type]`
-pub fn extract_tpe_from_dot_typed(buf: ParseBuffer) -> Result<ExtractedType, syn::Error> {
+pub fn extract_tpe_from_dot_typed(
+    buf: syn::parse::ParseStream,
+) -> Result<ExtractedType, syn::Error> {
     let ident: syn::Ident = buf.parse()?;
     match &*ident.to_string() {
         "BoolValue" => Ok(SType::SBoolean.into()),
@@ -35,6 +37,10 @@ pub fn extract_tpe_from_dot_typed(buf: ParseBuffer) -> Result<ExtractedType, syn
         "BigIntValue" => Ok(SType::SBigInt.into()),
         "ByteValue" => Ok(SType::SByte.into()),
         "SigmaPropValue" => Ok(SType::SSigmaProp.into()),
+        "SByte" => {
+            handle_dot_type(buf)?;
+            Ok(ExtractedType::FullySpecified(SType::SByte))
+        }
         "Value" => {
             let content;
             let _bracketed = syn::bracketed!(content in buf);
@@ -82,17 +88,20 @@ pub fn extract_tpe_from_dot_typed(buf: ParseBuffer) -> Result<ExtractedType, syn
                     Ok(ExtractedType::FullySpecified(SType::SHeader))
                 }
                 "SOption" => {
-                    let content;
-                    let _bracketed = syn::bracketed!(content in buf);
+                    let content_nested;
+                    let _bracketed = syn::bracketed!(content_nested in content);
                     Ok(ExtractedType::SOption(Box::new(
-                        extract_tpe_from_dot_typed(content)?,
+                        extract_tpe_from_dot_typed(&content_nested)?,
                     )))
                 }
                 "SCollection" => {
-                    let content;
-                    let _bracketed = syn::bracketed!(content in buf);
+                    let content_nested;
+                    let _bracketed = syn::bracketed!(content_nested in content);
+
+                    let _ident: syn::Ident = content_nested.parse()?;
+                    handle_dot_type(&content_nested)?;
                     Ok(ExtractedType::SCollection(Box::new(
-                        extract_tpe_from_dot_typed(content)?,
+                        ExtractedType::FullySpecified(SType::SByte), //extract_tpe_from_dot_typed(content)?,
                     )))
                 }
                 _ => {
@@ -105,11 +114,11 @@ pub fn extract_tpe_from_dot_typed(buf: ParseBuffer) -> Result<ExtractedType, syn
 }
 
 /// Parses `.type` from the buffered token stream
-pub fn handle_dot_type(buf: ParseBuffer) -> Result<ParseBuffer, syn::Error> {
+pub fn handle_dot_type(buf: syn::parse::ParseStream) -> Result<(), syn::Error> {
     let _dot: syn::Token![.] = buf.parse()?;
-    let ident: syn::Ident = buf.parse()?;
+    let ident: syn::Ident = buf.call(Ident::parse_any)?; //buf.parse()?;
     if ident != "type" {
         return Err(syn::Error::new_spanned(ident, ""));
     }
-    Ok(buf)
+    Ok(())
 }

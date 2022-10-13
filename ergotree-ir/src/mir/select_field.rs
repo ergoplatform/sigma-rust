@@ -146,7 +146,7 @@ impl syn::parse::Parse for SelectField {
         if name == "typed" {
             let mut content;
             let _bracketed = syn::bracketed!(content in input);
-            let extracted_type = extract_tpe_from_dot_typed(content)?;
+            let extracted_type = extract_tpe_from_dot_typed(&content)?;
             let _paren = syn::parenthesized!(content in input);
             let input: Expr = content.parse()?;
             let _comma: syn::Token![,] = content.parse()?;
@@ -187,7 +187,19 @@ impl syn::parse::Parse for SelectField {
                         ))
                     }
                 }
-                crate::ergotree_proc_macro::ExtractedType::SCollection(_) => todo!(),
+                crate::ergotree_proc_macro::ExtractedType::SCollection(_) => {
+                    if let SType::SColl(_) = sf.field_tpe {
+                        Ok(sf)
+                    } else {
+                        Err(syn::Error::new_spanned(
+                            name,
+                            format!(
+                                "Expected tuple field of type SCollection(_), got {:?}",
+                                sf.field_tpe
+                            ),
+                        ))
+                    }
+                }
                 crate::ergotree_proc_macro::ExtractedType::SOption(_) => todo!(),
             }
         } else {
