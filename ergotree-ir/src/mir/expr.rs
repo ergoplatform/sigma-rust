@@ -396,7 +396,7 @@ impl syn::parse::Parse for Expr {
             "ValUse" => Ok(Expr::ValUse(input.parse()?)),
             "SelectField" => Ok(Expr::SelectField(input.parse()?)),
             "ArithOp" | "EQ" | "NEQ" | "GE" | "LE" | "GT" | "LT" | "BinAnd" | "BinOr"
-            | "BinXor" => {
+            | "BinXor" | "BitAnd" | "BitOr" | "BitXor" => {
                 let content;
                 let _paren = syn::parenthesized!(content in input);
                 Ok(Expr::BinOp(super::bin_op::parse_bin_op(&name, &content)?))

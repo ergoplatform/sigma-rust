@@ -162,6 +162,18 @@ impl From<BitOp> for OpCode {
     }
 }
 
+#[cfg(feature = "ergotree-proc-macro")]
+impl quote::ToTokens for BitOp {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        use quote::quote;
+        tokens.extend(match self {
+            BitOp::BitOr => quote! { ergotree_ir::mir::bin_op::BitOp::BitOr },
+            BitOp::BitAnd => quote! { ergotree_ir::mir::bin_op::BitOp::BitAnd},
+            BitOp::BitXor => quote! { ergotree_ir::mir::bin_op::BitOp::BitXor},
+        });
+    }
+}
+
 /// Binary operations
 #[derive(PartialEq, Eq, Debug, Clone, Copy, From)]
 #[cfg_attr(feature = "arbitrary", derive(Arbitrary))]
@@ -264,6 +276,18 @@ pub fn parse_bin_op(op_name: &syn::Ident, input: syn::parse::ParseStream) -> syn
             let kind = BinOpKind::Logical(LogicalOp::Xor);
             Ok(BinOp { kind, left, right })
         }
+        "BitAnd" => {
+            let kind = BinOpKind::Bit(BitOp::BitAnd);
+            Ok(BinOp { kind, left, right })
+        }
+        "BitOr" => {
+            let kind = BinOpKind::Bit(BitOp::BitOr);
+            Ok(BinOp { kind, left, right })
+        }
+        "BitXor" => {
+            let kind = BinOpKind::Bit(BitOp::BitXor);
+            Ok(BinOp { kind, left, right })
+        }
         _ => Err(syn::Error::new_spanned(
             op_name.clone(),
             "Unknown `BinOp` variant name",
@@ -305,10 +329,19 @@ impl quote::ToTokens for BinOp {
                     }
                 }
             }
-            _ => todo!(),
+            BinOpKind::Bit(b) => {
+                quote! {
+                    ergotree_ir::mir::bin_op::BinOp {
+                        left: Box::new(#left),
+                        right: Box::new(#right),
+                        kind: ergotree_ir::mir::bin_op::BinOpKind::Bit(#b),
+                    }
+                }
+            }
         });
     }
 }
+
 #[cfg(feature = "ergotree-proc-macro")]
 /// Converts `OpCode @@ x` into an instance of `BinOpKind::Arith`.
 fn extract_arithmetic_bin_op_kind(buf: syn::parse::ParseStream) -> Result<BinOpKind, syn::Error> {

@@ -1,7 +1,7 @@
 use ergotree_ir::{
     bigint256::BigInt256,
     mir::{
-        bin_op::{ArithOp, BinOp, LogicalOp},
+        bin_op::{ArithOp, BinOp, BinOpKind, BitOp, LogicalOp, RelationOp},
         block::BlockValue,
         bool_to_sigma::BoolToSigmaProp,
         constant::Constant,
@@ -281,9 +281,7 @@ fn test_integer_constants() {
 fn test_eq_relation() {
     let e = ergo_tree!(EQ(IntConstant(33), IntConstant(44)));
     let expected = Expr::BinOp(BinOp {
-        kind: ergotree_ir::mir::bin_op::BinOpKind::Relation(
-            ergotree_ir::mir::bin_op::RelationOp::Eq,
-        ),
+        kind: BinOpKind::Relation(RelationOp::Eq),
         left: Expr::from(Constant::from(33_i32)).into(),
         right: Expr::from(Constant::from(44_i32)).into(),
     });
@@ -294,9 +292,7 @@ fn test_eq_relation() {
 fn test_neq_relation() {
     let e = ergo_tree!(NEQ(IntConstant(33), IntConstant(44)));
     let expected = Expr::BinOp(BinOp {
-        kind: ergotree_ir::mir::bin_op::BinOpKind::Relation(
-            ergotree_ir::mir::bin_op::RelationOp::NEq,
-        ),
+        kind: BinOpKind::Relation(RelationOp::NEq),
         left: Expr::from(Constant::from(33_i32)).into(),
         right: Expr::from(Constant::from(44_i32)).into(),
     });
@@ -307,9 +303,7 @@ fn test_neq_relation() {
 fn test_ge_relation() {
     let e = ergo_tree!(GE(IntConstant(33), IntConstant(44)));
     let expected = Expr::BinOp(BinOp {
-        kind: ergotree_ir::mir::bin_op::BinOpKind::Relation(
-            ergotree_ir::mir::bin_op::RelationOp::Ge,
-        ),
+        kind: BinOpKind::Relation(RelationOp::Ge),
         left: Expr::from(Constant::from(33_i32)).into(),
         right: Expr::from(Constant::from(44_i32)).into(),
     });
@@ -320,9 +314,7 @@ fn test_ge_relation() {
 fn test_le_relation() {
     let e = ergo_tree!(LE(IntConstant(33), IntConstant(44)));
     let expected = Expr::BinOp(BinOp {
-        kind: ergotree_ir::mir::bin_op::BinOpKind::Relation(
-            ergotree_ir::mir::bin_op::RelationOp::Le,
-        ),
+        kind: BinOpKind::Relation(RelationOp::Le),
         left: Expr::from(Constant::from(33_i32)).into(),
         right: Expr::from(Constant::from(44_i32)).into(),
     });
@@ -333,9 +325,7 @@ fn test_le_relation() {
 fn test_gt_relation() {
     let e = ergo_tree!(GT(IntConstant(33), IntConstant(44)));
     let expected = Expr::BinOp(BinOp {
-        kind: ergotree_ir::mir::bin_op::BinOpKind::Relation(
-            ergotree_ir::mir::bin_op::RelationOp::Gt,
-        ),
+        kind: BinOpKind::Relation(RelationOp::Gt),
         left: Expr::from(Constant::from(33_i32)).into(),
         right: Expr::from(Constant::from(44_i32)).into(),
     });
@@ -346,9 +336,7 @@ fn test_gt_relation() {
 fn test_lt_relation() {
     let e = ergo_tree!(LT(IntConstant(33), IntConstant(44)));
     let expected = Expr::BinOp(BinOp {
-        kind: ergotree_ir::mir::bin_op::BinOpKind::Relation(
-            ergotree_ir::mir::bin_op::RelationOp::Lt,
-        ),
+        kind: BinOpKind::Relation(RelationOp::Lt),
         left: Expr::from(Constant::from(33_i32)).into(),
         right: Expr::from(Constant::from(44_i32)).into(),
     });
@@ -363,24 +351,20 @@ fn test_bin_and_op() {
     ));
 
     let left = Expr::BinOp(BinOp {
-        kind: ergotree_ir::mir::bin_op::BinOpKind::Relation(
-            ergotree_ir::mir::bin_op::RelationOp::Lt,
-        ),
+        kind: BinOpKind::Relation(RelationOp::Lt),
         left: Expr::from(Constant::from(33_i32)).into(),
         right: Expr::from(Constant::from(44_i32)).into(),
     })
     .into();
     let right = Expr::BinOp(BinOp {
-        kind: ergotree_ir::mir::bin_op::BinOpKind::Relation(
-            ergotree_ir::mir::bin_op::RelationOp::Gt,
-        ),
+        kind: BinOpKind::Relation(RelationOp::Gt),
         left: Expr::from(Constant::from(330_i32)).into(),
         right: Expr::from(Constant::from(44_i32)).into(),
     })
     .into();
 
     let and_expr = Expr::BinOp(BinOp {
-        kind: ergotree_ir::mir::bin_op::BinOpKind::Logical(LogicalOp::And),
+        kind: BinOpKind::Logical(LogicalOp::And),
         left,
         right,
     });
@@ -395,24 +379,20 @@ fn test_bin_or_op() {
     ));
 
     let left = Expr::BinOp(BinOp {
-        kind: ergotree_ir::mir::bin_op::BinOpKind::Relation(
-            ergotree_ir::mir::bin_op::RelationOp::Lt,
-        ),
+        kind: BinOpKind::Relation(RelationOp::Lt),
         left: Expr::from(Constant::from(33_i32)).into(),
         right: Expr::from(Constant::from(44_i32)).into(),
     })
     .into();
     let right = Expr::BinOp(BinOp {
-        kind: ergotree_ir::mir::bin_op::BinOpKind::Relation(
-            ergotree_ir::mir::bin_op::RelationOp::Gt,
-        ),
+        kind: BinOpKind::Relation(RelationOp::Gt),
         left: Expr::from(Constant::from(330_i32)).into(),
         right: Expr::from(Constant::from(44_i32)).into(),
     })
     .into();
 
     let and_expr = Expr::BinOp(BinOp {
-        kind: ergotree_ir::mir::bin_op::BinOpKind::Logical(LogicalOp::Or),
+        kind: BinOpKind::Logical(LogicalOp::Or),
         left,
         right,
     });
@@ -427,28 +407,57 @@ fn test_bin_xor_op() {
     ));
 
     let left = Expr::BinOp(BinOp {
-        kind: ergotree_ir::mir::bin_op::BinOpKind::Relation(
-            ergotree_ir::mir::bin_op::RelationOp::Lt,
-        ),
+        kind: BinOpKind::Relation(RelationOp::Lt),
         left: Expr::from(Constant::from(33_i32)).into(),
         right: Expr::from(Constant::from(44_i32)).into(),
     })
     .into();
     let right = Expr::BinOp(BinOp {
-        kind: ergotree_ir::mir::bin_op::BinOpKind::Relation(
-            ergotree_ir::mir::bin_op::RelationOp::Gt,
-        ),
+        kind: BinOpKind::Relation(RelationOp::Gt),
         left: Expr::from(Constant::from(330_i32)).into(),
         right: Expr::from(Constant::from(44_i32)).into(),
     })
     .into();
 
     let and_expr = Expr::BinOp(BinOp {
-        kind: ergotree_ir::mir::bin_op::BinOpKind::Logical(LogicalOp::Xor),
+        kind: BinOpKind::Logical(LogicalOp::Xor),
         left,
         right,
     });
     assert_eq!(e, and_expr);
+}
+
+#[test]
+fn test_bit_and_op() {
+    let e = ergo_tree!(BitAnd(ByteConstant(100.toByte), ByteConstant(82.toByte)));
+    let expected = Expr::BinOp(BinOp {
+        kind: BinOpKind::Bit(BitOp::BitAnd),
+        left: Expr::from(Constant::from(100_i8)).into(),
+        right: Expr::from(Constant::from(82_i8)).into(),
+    });
+    assert_eq!(e, expected);
+}
+
+#[test]
+fn test_bit_or_op() {
+    let e = ergo_tree!(BitOr(ByteConstant(100.toByte), ByteConstant(82.toByte)));
+    let expected = Expr::BinOp(BinOp {
+        kind: BinOpKind::Bit(BitOp::BitOr),
+        left: Expr::from(Constant::from(100_i8)).into(),
+        right: Expr::from(Constant::from(82_i8)).into(),
+    });
+    assert_eq!(e, expected);
+}
+
+#[test]
+fn test_bit_xor_op() {
+    let e = ergo_tree!(BitXor(ByteConstant(100.toByte), ByteConstant(82.toByte)));
+    let expected = Expr::BinOp(BinOp {
+        kind: BinOpKind::Bit(BitOp::BitXor),
+        left: Expr::from(Constant::from(100_i8)).into(),
+        right: Expr::from(Constant::from(82_i8)).into(),
+    });
+    assert_eq!(e, expected);
 }
 
 #[test]
@@ -536,7 +545,7 @@ fn test_arithmetic_in_block() {
 
     let make_def = |op| {
         Expr::BinOp(BinOp {
-            kind: ergotree_ir::mir::bin_op::BinOpKind::Arith(op),
+            kind: BinOpKind::Arith(op),
             left: val_use3.clone(),
             right: val_use4.clone(),
         })
