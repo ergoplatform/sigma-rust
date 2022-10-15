@@ -4,7 +4,7 @@ use syn::{ext::IdentExt, Ident};
 
 use crate::types::stype::SType;
 
-/// aa
+/// A representation of the type T extracted from `_.typed[T]` on scala side.
 #[derive(Debug)]
 pub enum ExtractedType {
     /// Fully specified `SType`
