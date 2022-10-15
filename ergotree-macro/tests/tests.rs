@@ -278,6 +278,84 @@ fn test_integer_constants() {
 }
 
 #[test]
+fn test_eq_relation() {
+    let e = ergo_tree!(EQ(IntConstant(33), IntConstant(44)));
+    let expected = Expr::BinOp(BinOp {
+        kind: ergotree_ir::mir::bin_op::BinOpKind::Relation(
+            ergotree_ir::mir::bin_op::RelationOp::Eq,
+        ),
+        left: Expr::from(Constant::from(33_i32)).into(),
+        right: Expr::from(Constant::from(44_i32)).into(),
+    });
+    assert_eq!(e, expected);
+}
+
+#[test]
+fn test_neq_relation() {
+    let e = ergo_tree!(NEQ(IntConstant(33), IntConstant(44)));
+    let expected = Expr::BinOp(BinOp {
+        kind: ergotree_ir::mir::bin_op::BinOpKind::Relation(
+            ergotree_ir::mir::bin_op::RelationOp::NEq,
+        ),
+        left: Expr::from(Constant::from(33_i32)).into(),
+        right: Expr::from(Constant::from(44_i32)).into(),
+    });
+    assert_eq!(e, expected);
+}
+
+#[test]
+fn test_ge_relation() {
+    let e = ergo_tree!(GE(IntConstant(33), IntConstant(44)));
+    let expected = Expr::BinOp(BinOp {
+        kind: ergotree_ir::mir::bin_op::BinOpKind::Relation(
+            ergotree_ir::mir::bin_op::RelationOp::Ge,
+        ),
+        left: Expr::from(Constant::from(33_i32)).into(),
+        right: Expr::from(Constant::from(44_i32)).into(),
+    });
+    assert_eq!(e, expected);
+}
+
+#[test]
+fn test_le_relation() {
+    let e = ergo_tree!(LE(IntConstant(33), IntConstant(44)));
+    let expected = Expr::BinOp(BinOp {
+        kind: ergotree_ir::mir::bin_op::BinOpKind::Relation(
+            ergotree_ir::mir::bin_op::RelationOp::Le,
+        ),
+        left: Expr::from(Constant::from(33_i32)).into(),
+        right: Expr::from(Constant::from(44_i32)).into(),
+    });
+    assert_eq!(e, expected);
+}
+
+#[test]
+fn test_gt_relation() {
+    let e = ergo_tree!(GT(IntConstant(33), IntConstant(44)));
+    let expected = Expr::BinOp(BinOp {
+        kind: ergotree_ir::mir::bin_op::BinOpKind::Relation(
+            ergotree_ir::mir::bin_op::RelationOp::Gt,
+        ),
+        left: Expr::from(Constant::from(33_i32)).into(),
+        right: Expr::from(Constant::from(44_i32)).into(),
+    });
+    assert_eq!(e, expected);
+}
+
+#[test]
+fn test_lt_relation() {
+    let e = ergo_tree!(LT(IntConstant(33), IntConstant(44)));
+    let expected = Expr::BinOp(BinOp {
+        kind: ergotree_ir::mir::bin_op::BinOpKind::Relation(
+            ergotree_ir::mir::bin_op::RelationOp::Lt,
+        ),
+        left: Expr::from(Constant::from(33_i32)).into(),
+        right: Expr::from(Constant::from(44_i32)).into(),
+    });
+    assert_eq!(e, expected);
+}
+
+#[test]
 fn test_arithmetic_in_block() {
     // This example comes from the scala JIT test suite:
     // { (x: (Byte, Byte)) =>

@@ -79,6 +79,21 @@ pub enum RelationOp {
     Lt,
 }
 
+#[cfg(feature = "ergotree-proc-macro")]
+impl quote::ToTokens for RelationOp {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        use quote::quote;
+        tokens.extend(match self {
+            RelationOp::Eq => quote! {  ergotree_ir::mir::bin_op::RelationOp::Eq },
+            RelationOp::NEq => quote! { ergotree_ir::mir::bin_op::RelationOp::NEq },
+            RelationOp::Ge => quote! {  ergotree_ir::mir::bin_op::RelationOp::Ge },
+            RelationOp::Gt => quote! {  ergotree_ir::mir::bin_op::RelationOp::Gt },
+            RelationOp::Le => quote! {  ergotree_ir::mir::bin_op::RelationOp::Le },
+            RelationOp::Lt => quote! {  ergotree_ir::mir::bin_op::RelationOp::Lt },
+        })
+    }
+}
+
 impl From<RelationOp> for OpCode {
     fn from(op: RelationOp) -> Self {
         match op {
@@ -202,6 +217,48 @@ pub fn parse_bin_op(op_name: &syn::Ident, input: syn::parse::ParseStream) -> syn
             let kind = extract_arithmetic_bin_op_kind(input)?;
             Ok(BinOp { kind, left, right })
         }
+        "EQ" => {
+            let left: Box<Expr> = input.parse()?;
+            let _comma: syn::Token![,] = input.parse()?;
+            let right: Box<Expr> = input.parse()?;
+            let kind = BinOpKind::Relation(RelationOp::Eq);
+            Ok(BinOp { kind, left, right })
+        }
+        "NEQ" => {
+            let left: Box<Expr> = input.parse()?;
+            let _comma: syn::Token![,] = input.parse()?;
+            let right: Box<Expr> = input.parse()?;
+            let kind = BinOpKind::Relation(RelationOp::NEq);
+            Ok(BinOp { kind, left, right })
+        }
+        "GE" => {
+            let left: Box<Expr> = input.parse()?;
+            let _comma: syn::Token![,] = input.parse()?;
+            let right: Box<Expr> = input.parse()?;
+            let kind = BinOpKind::Relation(RelationOp::Ge);
+            Ok(BinOp { kind, left, right })
+        }
+        "LE" => {
+            let left: Box<Expr> = input.parse()?;
+            let _comma: syn::Token![,] = input.parse()?;
+            let right: Box<Expr> = input.parse()?;
+            let kind = BinOpKind::Relation(RelationOp::Le);
+            Ok(BinOp { kind, left, right })
+        }
+        "GT" => {
+            let left: Box<Expr> = input.parse()?;
+            let _comma: syn::Token![,] = input.parse()?;
+            let right: Box<Expr> = input.parse()?;
+            let kind = BinOpKind::Relation(RelationOp::Gt);
+            Ok(BinOp { kind, left, right })
+        }
+        "LT" => {
+            let left: Box<Expr> = input.parse()?;
+            let _comma: syn::Token![,] = input.parse()?;
+            let right: Box<Expr> = input.parse()?;
+            let kind = BinOpKind::Relation(RelationOp::Lt);
+            Ok(BinOp { kind, left, right })
+        }
         _ => Err(syn::Error::new_spanned(
             op_name.clone(),
             "Unknown `BinOp` variant name",
@@ -223,6 +280,15 @@ impl quote::ToTokens for BinOp {
                         right: Box::new(#right),
                         kind: ergotree_ir::mir::bin_op::BinOpKind::Arith(#a),
                     }
+                }
+            }
+            BinOpKind::Relation(r) => {
+                quote! {
+                        ergotree_ir::mir::bin_op::BinOp {
+                            left: Box::new(#left),
+                            right: Box::new(#right),
+                            kind: ergotree_ir::mir::bin_op::BinOpKind::Relation(#r),
+                        }
                 }
             }
             _ => todo!(),
