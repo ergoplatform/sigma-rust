@@ -400,7 +400,8 @@ impl syn::parse::Parse for Expr {
                 let _paren = syn::parenthesized!(content in input);
                 Ok(Expr::BinOp(super::bin_op::parse_bin_op(&name, &content)?))
             }
-            "IntConstant" => {
+            "IntConstant" | "LongConstant" | "ByteConstant" | "ShortConstant"
+            | "BigIntConstant" => {
                 let content;
                 let _paren = syn::parenthesized!(content in input);
                 Ok(Expr::Const(super::constant::parse_constant(

@@ -1,15 +1,22 @@
 use ergotree_ir::{
+    bigint256::BigInt256,
     mir::{
+        bin_op::{ArithOp, BinOp},
+        block::BlockValue,
         bool_to_sigma::BoolToSigmaProp,
+        constant::Constant,
         expr::Expr,
         func_value::{FuncArg, FuncValue},
         select_field::{SelectField, TupleFieldIndex},
-        val_def::{ValId, ValDef},
-        val_use::ValUse, bin_op::{BinOp, ArithOp}, constant::Constant, tuple::Tuple, block::BlockValue,
+        tuple::Tuple,
+        val_def::{ValDef, ValId},
+        val_use::ValUse,
     },
     types::{stuple::STuple, stype::SType},
 };
 use ergotree_macro::ergo_tree;
+// Note that this trait MUST be imported to local scope to handle `BigIntConstant(..)`!
+use num_traits::Num;
 use paste::paste;
 
 #[test]
@@ -110,7 +117,7 @@ fn test_lambda_0() {
 #[test]
 fn test_simple_arithmetic() {
     let e = ergo_tree!(FuncValue(
-        Vector((1, SInt)), 
+        Vector((1, SInt)),
         ArithOp(ValUse(1, SInt), IntConstant(-345), OpCode @@ (-102.toByte))
     ));
 
@@ -131,6 +138,143 @@ fn test_simple_arithmetic() {
     }];
     let expected = Expr::FuncValue(FuncValue::new(args, body));
     assert_eq!(e, expected);
+}
+
+#[test]
+fn test_integer_constants() {
+    let suite = vec![
+        (
+            ergo_tree!(ByteConstant(0.toByte)),
+            Expr::Const(Constant::from(0_i8)),
+        ),
+        (
+            ergo_tree!(ByteConstant(-0.toByte)),
+            Expr::Const(Constant::from(0_i8)),
+        ),
+        (
+            ergo_tree!(ByteConstant(1.toByte)),
+            Expr::Const(Constant::from(1_i8)),
+        ),
+        (
+            ergo_tree!(ByteConstant(-1.toByte)),
+            Expr::Const(Constant::from(-1_i8)),
+        ),
+        (
+            ergo_tree!(ByteConstant(127.toByte)),
+            Expr::Const(Constant::from(127_i8)),
+        ),
+        (
+            ergo_tree!(ByteConstant(-128.toByte)),
+            Expr::Const(Constant::from(-128_i8)),
+        ),
+        (
+            ergo_tree!(ShortConstant(0)),
+            Expr::Const(Constant::from(0_i16)),
+        ),
+        (
+            ergo_tree!(ShortConstant(-0)),
+            Expr::Const(Constant::from(0_i16)),
+        ),
+        (
+            ergo_tree!(ShortConstant(1)),
+            Expr::Const(Constant::from(1_i16)),
+        ),
+        (
+            ergo_tree!(ShortConstant(-1)),
+            Expr::Const(Constant::from(-1_i16)),
+        ),
+        (
+            ergo_tree!(ShortConstant(32767)),
+            Expr::Const(Constant::from(32767_i16)),
+        ),
+        (
+            ergo_tree!(ShortConstant(-32768)),
+            Expr::Const(Constant::from(-32768_i16)),
+        ),
+        (
+            ergo_tree!(ShortConstant(0.toShort)),
+            Expr::Const(Constant::from(0_i16)),
+        ),
+        (
+            ergo_tree!(ShortConstant(-0.toShort)),
+            Expr::Const(Constant::from(0_i16)),
+        ),
+        (
+            ergo_tree!(ShortConstant(1.toShort)),
+            Expr::Const(Constant::from(1_i16)),
+        ),
+        (
+            ergo_tree!(ShortConstant(-1.toShort)),
+            Expr::Const(Constant::from(-1_i16)),
+        ),
+        (
+            ergo_tree!(ShortConstant(32767.toShort)),
+            Expr::Const(Constant::from(32767_i16)),
+        ),
+        (
+            ergo_tree!(ShortConstant(-32768.toShort)),
+            Expr::Const(Constant::from(-32768_i16)),
+        ),
+        (
+            ergo_tree!(IntConstant(0)),
+            Expr::Const(Constant::from(0_i32)),
+        ),
+        (
+            ergo_tree!(IntConstant(-0)),
+            Expr::Const(Constant::from(0_i32)),
+        ),
+        (
+            ergo_tree!(IntConstant(1)),
+            Expr::Const(Constant::from(1_i32)),
+        ),
+        (
+            ergo_tree!(IntConstant(-1)),
+            Expr::Const(Constant::from(-1_i32)),
+        ),
+        (
+            ergo_tree!(IntConstant(1024)),
+            Expr::Const(Constant::from(1024_i32)),
+        ),
+        (
+            ergo_tree!(IntConstant(-1024)),
+            Expr::Const(Constant::from(-1024_i32)),
+        ),
+        (
+            ergo_tree!(LongConstant(0L)),
+            Expr::Const(Constant::from(0_i64)),
+        ),
+        (
+            ergo_tree!(LongConstant(-0L)),
+            Expr::Const(Constant::from(0_i64)),
+        ),
+        (
+            ergo_tree!(LongConstant(1L)),
+            Expr::Const(Constant::from(1_i64)),
+        ),
+        (
+            ergo_tree!(LongConstant(-1L)),
+            Expr::Const(Constant::from(-1_i64)),
+        ),
+        (
+            ergo_tree!(LongConstant(1024.toLong)),
+            Expr::Const(Constant::from(1024_i64)),
+        ),
+        (
+            ergo_tree!(LongConstant(-1024.toLong)),
+            Expr::Const(Constant::from(-1024_i64)),
+        ),
+        (
+            ergo_tree!(LongConstant(-6985752043373238161L)),
+            Expr::Const(Constant::from(-6985752043373238161_i64)),
+        ),
+        (
+            ergo_tree!(BigIntConstant(-6985752043373238161L)),
+            Expr::Const(Constant::from(BigInt256::from(-6985752043373238161_i64))),
+        ),
+    ];
+    for (actual, expected) in suite {
+        assert_eq!(actual, expected);
+    }
 }
 
 #[test]
@@ -187,37 +331,39 @@ fn test_arithmetic_in_block() {
     );
 
     let items = vec![
-        ValDef { 
+        ValDef {
             id: ValId(3),
             rhs: Expr::SelectField(
-                SelectField::new( 
-                    Expr::ValUse(ValUse { val_id: ValId(1), tpe: SType::STuple(STuple::pair(SType::SByte, SType::SByte)) }), 
+                SelectField::new(
+                    Expr::ValUse(ValUse { val_id: ValId(1), tpe: SType::STuple(STuple::pair(SType::SByte, SType::SByte)) }),
                     TupleFieldIndex::try_from(1).unwrap()
-                ).unwrap()).into() 
+                ).unwrap()).into()
         }.into(),
-        ValDef { 
+        ValDef {
             id: ValId(4),
             rhs: Expr::SelectField(
-                SelectField::new( 
-                    Expr::ValUse(ValUse { val_id: ValId(1), tpe: SType::STuple(STuple::pair(SType::SByte, SType::SByte)) }), 
+                SelectField::new(
+                    Expr::ValUse(ValUse { val_id: ValId(1), tpe: SType::STuple(STuple::pair(SType::SByte, SType::SByte)) }),
                     TupleFieldIndex::try_from(2).unwrap()
-                ).unwrap()).into() 
+                ).unwrap()).into()
         }.into(),
     ];
 
     let val_use3: Box<Expr> = Expr::ValUse(ValUse {
         val_id: ValId(3),
         tpe: SType::SByte,
-    }).into();
+    })
+    .into();
     let val_use4: Box<Expr> = Expr::ValUse(ValUse {
         val_id: ValId(4),
         tpe: SType::SByte,
-    }).into();
+    })
+    .into();
 
     let make_def = |op| {
-        Expr::BinOp(BinOp { 
+        Expr::BinOp(BinOp {
             kind: ergotree_ir::mir::bin_op::BinOpKind::Arith(op),
-            left: val_use3.clone(), 
+            left: val_use3.clone(),
             right: val_use4.clone(),
         })
     };
@@ -228,16 +374,16 @@ fn test_arithmetic_in_block() {
     let div = make_def(ArithOp::Divide);
     let modulo = make_def(ArithOp::Modulo);
 
-    let t3 = Expr::Tuple(Tuple::new(vec![ div, modulo ]).unwrap());
-    let t2 = Expr::Tuple(Tuple::new(vec![ mul, t3 ]).unwrap());
-    let t1 = Expr::Tuple(Tuple::new(vec![ minus, t2 ]).unwrap());
-    let result = Expr::Tuple(Tuple::new(vec![ plus, t1 ]).unwrap()).into();
-    
+    let t3 = Expr::Tuple(Tuple::new(vec![div, modulo]).unwrap());
+    let t2 = Expr::Tuple(Tuple::new(vec![mul, t3]).unwrap());
+    let t1 = Expr::Tuple(Tuple::new(vec![minus, t2]).unwrap());
+    let result = Expr::Tuple(Tuple::new(vec![plus, t1]).unwrap()).into();
+
     let args = vec![FuncArg {
         idx: ValId(1),
         tpe: SType::STuple(STuple::pair(SType::SByte, SType::SByte)),
     }];
-    let body = Expr::BlockValue(BlockValue { items, result});
+    let body = Expr::BlockValue(BlockValue { items, result });
     let expected = Expr::FuncValue(FuncValue::new(args, body));
     assert_eq!(e, expected);
 }
