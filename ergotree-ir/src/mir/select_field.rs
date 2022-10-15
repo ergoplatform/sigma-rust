@@ -200,7 +200,19 @@ impl syn::parse::Parse for SelectField {
                         ))
                     }
                 }
-                crate::ergotree_proc_macro::ExtractedType::SOption(_) => todo!(),
+                crate::ergotree_proc_macro::ExtractedType::SOption(_) => {
+                    if let SType::SOption(_) = sf.field_tpe {
+                        Ok(sf)
+                    } else {
+                        Err(syn::Error::new_spanned(
+                            name,
+                            format!(
+                                "Expected tuple field of type SOption(_), got {:?}",
+                                sf.field_tpe
+                            ),
+                        ))
+                    }
+                }
             }
         } else {
             Err(syn::Error::new_spanned(name, "Expected `typed` keyword"))

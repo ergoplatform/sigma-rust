@@ -387,9 +387,31 @@ impl syn::parse::Parse for Expr {
 
                 Ok(Expr::Tuple(content.parse()?))
             }
+            "BlockValue" => {
+                let content;
+                let _paren = syn::parenthesized!(content in input);
+                Ok(Expr::BlockValue(content.parse()?))
+            }
             "BoolToSigmaProp" => Ok(Expr::BoolToSigmaProp(input.parse()?)),
             "ValUse" => Ok(Expr::ValUse(input.parse()?)),
             "SelectField" => Ok(Expr::SelectField(input.parse()?)),
+            "ArithOp" => {
+                let content;
+                let _paren = syn::parenthesized!(content in input);
+                Ok(Expr::BinOp(super::bin_op::parse_bin_op(&name, &content)?))
+            }
+            "IntConstant" => {
+                let content;
+                let _paren = syn::parenthesized!(content in input);
+                Ok(Expr::Const(super::constant::parse_constant(
+                    &name, &content,
+                )?))
+            }
+            "ValDef" => {
+                let content;
+                let _paren = syn::parenthesized!(content in input);
+                Ok(Expr::ValDef(content.parse()?))
+            }
             _ => Err(syn::Error::new_spanned(name, "Unknown `Expr` variant name")),
         }
     }
@@ -404,7 +426,7 @@ impl quote::ToTokens for Expr {
                 quote! { ergotree_ir::mir::expr::Expr::Append { #a } }
             }
 
-            Expr::Const(_) => todo!(),
+            Expr::Const(c) => quote! { ergotree_ir::mir::expr::Expr::Const(#c) },
             Expr::ConstPlaceholder(_) => todo!(),
             Expr::SubstConstants(_) => todo!(),
             Expr::ByteArrayToLong(_) => todo!(),
@@ -425,13 +447,19 @@ impl quote::ToTokens for Expr {
             Expr::Apply(_) => todo!(),
             Expr::MethodCall(_) => todo!(),
             Expr::ProperyCall(_) => todo!(),
-            Expr::BlockValue(_) => todo!(),
-            Expr::ValDef(_) => todo!(),
+            Expr::BlockValue(b) => {
+                quote! { ergotree_ir::mir::expr::Expr::BlockValue(#b) }
+            }
+            Expr::ValDef(v) => {
+                quote! { ergotree_ir::mir::expr::Expr::ValDef(#v) }
+            }
             Expr::ValUse(v) => {
                 quote! { ergotree_ir::mir::expr::Expr::ValUse(#v) }
             }
             Expr::If(_) => todo!(),
-            Expr::BinOp(_) => todo!(),
+            Expr::BinOp(b) => {
+                quote! { ergotree_ir::mir::expr::Expr::BinOp(#b) }
+            }
             Expr::And(_) => todo!(),
             Expr::Or(_) => todo!(),
             Expr::Xor(_) => todo!(),

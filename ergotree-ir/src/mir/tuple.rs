@@ -85,7 +85,7 @@ impl quote::ToTokens for Tuple {
         let items = self.items.clone().to_vec();
         tokens.extend(quote::quote! { ergotree_ir::mir::tuple::Tuple::new(
              vec![#( #items),*],
-        )})
+        ).unwrap()})
     }
 }
 

@@ -157,6 +157,11 @@ impl syn::parse::Parse for SType {
                 let _paren = syn::parenthesized!(content in input);
                 Ok(SType::SColl(content.parse()?))
             }
+            "SOption" => {
+                let content;
+                let _paren = syn::parenthesized!(content in input);
+                Ok(SType::SOption(content.parse()?))
+            }
             _ => Err(syn::Error::new_spanned(
                 name,
                 "Unknown `SType` variant name",
@@ -183,7 +188,10 @@ impl quote::ToTokens for SType {
             SType::SSigmaProp => quote! { ergotree_ir::types::stype::SType::SSigmaProp },
             SType::SBox => quote! { ergotree_ir::types::stype::SType::SBox },
             SType::SAvlTree => quote! { ergotree_ir::types::stype::SType::SAvlTree },
-            SType::SOption(_) => todo!(),
+            SType::SOption(o) => {
+                let tpe = *o.clone();
+                quote! { ergotree_ir::types::stype::SType::SOption(Box::new(#tpe)) }
+            }
             SType::SColl(c) => {
                 let tpe = *c.clone();
                 quote! { ergotree_ir::types::stype::SType::SColl(Box::new(#tpe)) }

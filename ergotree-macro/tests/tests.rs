@@ -4,8 +4,8 @@ use ergotree_ir::{
         expr::Expr,
         func_value::{FuncArg, FuncValue},
         select_field::{SelectField, TupleFieldIndex},
-        val_def::ValId,
-        val_use::ValUse,
+        val_def::{ValId, ValDef},
+        val_use::ValUse, bin_op::{BinOp, ArithOp}, constant::Constant, tuple::Tuple, block::BlockValue,
     },
     types::{stuple::STuple, stype::SType},
 };
@@ -103,6 +103,141 @@ fn test_lambda_0() {
         tpe: SType::SBoolean,
     }];
     let body = Expr::BoolToSigmaProp(BoolToSigmaProp { input });
+    let expected = Expr::FuncValue(FuncValue::new(args, body));
+    assert_eq!(e, expected);
+}
+
+#[test]
+fn test_simple_arithmetic() {
+    let e = ergo_tree!(FuncValue(
+        Vector((1, SInt)), 
+        ArithOp(ValUse(1, SInt), IntConstant(-345), OpCode @@ (-102.toByte))
+    ));
+
+    let left = Expr::ValUse(ValUse {
+        val_id: ValId(1),
+        tpe: SType::SInt,
+    })
+    .into();
+    let right = Expr::Const(Constant::from(-345_i32)).into();
+    let body = Expr::BinOp(BinOp {
+        kind: ergotree_ir::mir::bin_op::BinOpKind::Arith(ergotree_ir::mir::bin_op::ArithOp::Plus),
+        left,
+        right,
+    });
+    let args = vec![FuncArg {
+        idx: ValId(1),
+        tpe: SType::SInt,
+    }];
+    let expected = Expr::FuncValue(FuncValue::new(args, body));
+    assert_eq!(e, expected);
+}
+
+#[test]
+fn test_arithmetic_in_block() {
+    // This example comes from the scala JIT test suite:
+    // { (x: (Byte, Byte)) =>
+    //     val a = x._1; val b = x._2
+    //     val plus = a + b
+    //     val minus = a - b
+    //     val mul = a * b
+    //     val div = a / b
+    //     val mod = a % b
+    //     (plus, (minus, (mul, (div, mod))))
+    // }
+    let e = ergo_tree!(
+        FuncValue(
+            Vector((1, STuple(Vector(SByte, SByte)))),
+            BlockValue(
+              Vector(
+                ValDef(
+                  3,
+                  List(),
+                  SelectField.typed[ByteValue](ValUse(1, STuple(Vector(SByte, SByte))), 1.toByte)
+                ),
+                ValDef(
+                  4,
+                  List(),
+                  SelectField.typed[ByteValue](ValUse(1, STuple(Vector(SByte, SByte))), 2.toByte)
+                )
+              ),
+              Tuple(
+                Vector(
+                  ArithOp(ValUse(3, SByte), ValUse(4, SByte), OpCode @@ (-102.toByte)),
+                  Tuple(
+                    Vector(
+                      ArithOp(ValUse(3, SByte), ValUse(4, SByte), OpCode @@ (-103.toByte)),
+                      Tuple(
+                        Vector(
+                          ArithOp(ValUse(3, SByte), ValUse(4, SByte), OpCode @@ (-100.toByte)),
+                          Tuple(
+                            Vector(
+                              ArithOp(ValUse(3, SByte), ValUse(4, SByte), OpCode @@ (-99.toByte)),
+                              ArithOp(ValUse(3, SByte), ValUse(4, SByte), OpCode @@ (-98.toByte))
+                            )
+                          )
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            )
+          )
+    );
+
+    let items = vec![
+        ValDef { 
+            id: ValId(3),
+            rhs: Expr::SelectField(
+                SelectField::new( 
+                    Expr::ValUse(ValUse { val_id: ValId(1), tpe: SType::STuple(STuple::pair(SType::SByte, SType::SByte)) }), 
+                    TupleFieldIndex::try_from(1).unwrap()
+                ).unwrap()).into() 
+        }.into(),
+        ValDef { 
+            id: ValId(4),
+            rhs: Expr::SelectField(
+                SelectField::new( 
+                    Expr::ValUse(ValUse { val_id: ValId(1), tpe: SType::STuple(STuple::pair(SType::SByte, SType::SByte)) }), 
+                    TupleFieldIndex::try_from(2).unwrap()
+                ).unwrap()).into() 
+        }.into(),
+    ];
+
+    let val_use3: Box<Expr> = Expr::ValUse(ValUse {
+        val_id: ValId(3),
+        tpe: SType::SByte,
+    }).into();
+    let val_use4: Box<Expr> = Expr::ValUse(ValUse {
+        val_id: ValId(4),
+        tpe: SType::SByte,
+    }).into();
+
+    let make_def = |op| {
+        Expr::BinOp(BinOp { 
+            kind: ergotree_ir::mir::bin_op::BinOpKind::Arith(op),
+            left: val_use3.clone(), 
+            right: val_use4.clone(),
+        })
+    };
+
+    let plus = make_def(ArithOp::Plus);
+    let minus = make_def(ArithOp::Minus);
+    let mul = make_def(ArithOp::Multiply);
+    let div = make_def(ArithOp::Divide);
+    let modulo = make_def(ArithOp::Modulo);
+
+    let t3 = Expr::Tuple(Tuple::new(vec![ div, modulo ]).unwrap());
+    let t2 = Expr::Tuple(Tuple::new(vec![ mul, t3 ]).unwrap());
+    let t1 = Expr::Tuple(Tuple::new(vec![ minus, t2 ]).unwrap());
+    let result = Expr::Tuple(Tuple::new(vec![ plus, t1 ]).unwrap()).into();
+    
+    let args = vec![FuncArg {
+        idx: ValId(1),
+        tpe: SType::STuple(STuple::pair(SType::SByte, SType::SByte)),
+    }];
+    let body = Expr::BlockValue(BlockValue { items, result});
     let expected = Expr::FuncValue(FuncValue::new(args, body));
     assert_eq!(e, expected);
 }

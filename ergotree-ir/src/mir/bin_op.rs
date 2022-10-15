@@ -31,6 +31,22 @@ pub enum ArithOp {
     Modulo,
 }
 
+#[cfg(feature = "ergotree-proc-macro")]
+impl quote::ToTokens for ArithOp {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        use quote::quote;
+        tokens.extend(match self {
+            ArithOp::Plus => quote! { ergotree_ir::mir::bin_op::ArithOp::Plus },
+            ArithOp::Minus => quote! { ergotree_ir::mir::bin_op::ArithOp::Minus },
+            ArithOp::Multiply => quote! { ergotree_ir::mir::bin_op::ArithOp::Multiply },
+            ArithOp::Divide => quote! { ergotree_ir::mir::bin_op::ArithOp::Divide },
+            ArithOp::Max => quote! { ergotree_ir::mir::bin_op::ArithOp::Max },
+            ArithOp::Min => quote! { ergotree_ir::mir::bin_op::ArithOp::Min },
+            ArithOp::Modulo => quote! { ergotree_ir::mir::bin_op::ArithOp::Modulo },
+        });
+    }
+}
+
 impl From<ArithOp> for OpCode {
     fn from(op: ArithOp) -> Self {
         match op {
@@ -171,6 +187,82 @@ impl BinOp {
 impl HasOpCode for BinOp {
     fn op_code(&self) -> OpCode {
         self.kind.into()
+    }
+}
+
+#[cfg(feature = "ergotree-proc-macro")]
+/// Given name of a binary op, parse an instance of `BinOp`
+pub fn parse_bin_op(op_name: &syn::Ident, input: syn::parse::ParseStream) -> syn::Result<BinOp> {
+    match op_name.to_string().as_str() {
+        "ArithOp" => {
+            let left: Box<Expr> = input.parse()?;
+            let _comma: syn::Token![,] = input.parse()?;
+            let right: Box<Expr> = input.parse()?;
+            let _comma: syn::Token![,] = input.parse()?;
+            let kind = extract_arithmetic_bin_op_kind(input)?;
+            Ok(BinOp { kind, left, right })
+        }
+        _ => Err(syn::Error::new_spanned(
+            op_name.clone(),
+            "Unknown `BinOp` variant name",
+        )),
+    }
+}
+
+#[cfg(feature = "ergotree-proc-macro")]
+impl quote::ToTokens for BinOp {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        use quote::quote;
+        let left = *self.left.clone();
+        let right = *self.right.clone();
+        tokens.extend(match self.kind {
+            BinOpKind::Arith(a) => {
+                quote! {
+                    ergotree_ir::mir::bin_op::BinOp {
+                        left: Box::new(#left),
+                        right: Box::new(#right),
+                        kind: ergotree_ir::mir::bin_op::BinOpKind::Arith(#a),
+                    }
+                }
+            }
+            _ => todo!(),
+        });
+    }
+}
+#[cfg(feature = "ergotree-proc-macro")]
+/// Converts `OpCode @@ x` into an instance of `BinOpKind::Arith`.
+fn extract_arithmetic_bin_op_kind(buf: syn::parse::ParseStream) -> Result<BinOpKind, syn::Error> {
+    let ident: syn::Ident = buf.parse()?;
+    if ident == "OpCode" {
+        let _at: syn::Token![@] = buf.parse()?;
+        let _at: syn::Token![@] = buf.parse()?;
+        let content;
+        let _paren = syn::parenthesized!(content in buf);
+        let id: syn::LitInt = content.parse()?;
+        let scala_op_code = id.base10_parse::<i32>()?;
+        let _dot: syn::Token![.] = content.parse()?;
+        let as_byte_ident: syn::Ident = content.parse()?;
+        if as_byte_ident != "toByte" {
+            return Err(syn::Error::new_spanned(
+                as_byte_ident.clone(),
+                format!("Expected `asByte` Ident, got {}", as_byte_ident),
+            ));
+        }
+        match OpCode::parse(scala_op_code as u8) {
+            OpCode::PLUS => Ok(ArithOp::Plus.into()),
+            OpCode::MINUS => Ok(ArithOp::Minus.into()),
+            OpCode::MULTIPLY => Ok(ArithOp::Multiply.into()),
+            OpCode::DIVISION => Ok(ArithOp::Divide.into()),
+            OpCode::MAX => Ok(ArithOp::Max.into()),
+            OpCode::MIN => Ok(ArithOp::Min.into()),
+            OpCode::MODULO => Ok(ArithOp::Modulo.into()),
+            _ => Err(syn::Error::new_spanned(ident, "Expected arithmetic opcode")),
+        }
+    } else {
+        Err(syn::Error::new_spanned(
+            ident.clone(),
+            format!("Expected `OpCode` ident, got {} ", ident),
+        ))
     }
 }
 

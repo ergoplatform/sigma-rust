@@ -829,6 +829,30 @@ impl TryFrom<Base16DecodedBytes> for Constant {
     }
 }
 
+#[cfg(feature = "ergotree-proc-macro")]
+/// Given name of a constant, parse an instance of `Constant`
+pub fn parse_constant(name: &syn::Ident, input: syn::parse::ParseStream) -> syn::Result<Constant> {
+    match name.to_string().as_str() {
+        "IntConstant" => {
+            let c: syn::LitInt = input.parse()?;
+            let int_const = c.base10_parse::<i32>()?;
+            Ok(int_const.into())
+        }
+        _ => todo!(),
+    }
+}
+
+#[cfg(feature = "ergotree-proc-macro")]
+impl quote::ToTokens for Constant {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        use quote::quote;
+        tokens.extend(match self.v {
+            Literal::Int(i) => quote! { ergotree_ir::mir::constant::Constant::from(#i) },
+            _ => todo!(),
+        });
+    }
+}
+
 #[cfg(feature = "arbitrary")]
 #[allow(clippy::unwrap_used)]
 #[allow(clippy::todo)]
