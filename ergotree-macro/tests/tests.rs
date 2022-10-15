@@ -7,6 +7,7 @@ use ergotree_ir::{
         constant::Constant,
         expr::Expr,
         func_value::{FuncArg, FuncValue},
+        logical_not::LogicalNot,
         select_field::{SelectField, TupleFieldIndex},
         tuple::Tuple,
         val_def::{ValDef, ValId},
@@ -425,6 +426,19 @@ fn test_bin_xor_op() {
         right,
     });
     assert_eq!(e, and_expr);
+}
+
+#[test]
+fn test_logical_not() {
+    let e = ergo_tree!(LogicalNot(GT(IntConstant(33), IntConstant(44))));
+    let input = Expr::BinOp(BinOp {
+        kind: BinOpKind::Relation(RelationOp::Gt),
+        left: Expr::from(Constant::from(33_i32)).into(),
+        right: Expr::from(Constant::from(44_i32)).into(),
+    })
+    .into();
+    let expected = Expr::LogicalNot(LogicalNot { input });
+    assert_eq!(e, expected);
 }
 
 #[test]

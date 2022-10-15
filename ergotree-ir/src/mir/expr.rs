@@ -414,6 +414,11 @@ impl syn::parse::Parse for Expr {
                 let _paren = syn::parenthesized!(content in input);
                 Ok(Expr::ValDef(content.parse()?))
             }
+            "LogicalNot" => {
+                let content;
+                let _paren = syn::parenthesized!(content in input);
+                Ok(Expr::LogicalNot(content.parse()?))
+            }
             _ => Err(syn::Error::new_spanned(name, "Unknown `Expr` variant name")),
         }
     }
@@ -466,7 +471,9 @@ impl quote::ToTokens for Expr {
             Expr::Or(_) => todo!(),
             Expr::Xor(_) => todo!(),
             Expr::Atleast(_) => todo!(),
-            Expr::LogicalNot(_) => todo!(),
+            Expr::LogicalNot(l) => {
+                quote! { ergotree_ir::mir::expr::Expr::LogicalNot(#l) }
+            }
             Expr::Negation(_) => todo!(),
             Expr::BitInversion(_) => todo!(),
             Expr::OptionGet(_) => todo!(),
