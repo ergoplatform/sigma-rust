@@ -419,6 +419,16 @@ impl syn::parse::Parse for Expr {
                 let _paren = syn::parenthesized!(content in input);
                 Ok(Expr::LogicalNot(content.parse()?))
             }
+            "Downcast" => {
+                let content;
+                let _paren = syn::parenthesized!(content in input);
+                Ok(Expr::Downcast(content.parse()?))
+            }
+            "Upcast" => {
+                let content;
+                let _paren = syn::parenthesized!(content in input);
+                Ok(Expr::Upcast(content.parse()?))
+            }
             _ => Err(syn::Error::new_spanned(name, "Unknown `Expr` variant name")),
         }
     }
@@ -500,8 +510,12 @@ impl quote::ToTokens for Expr {
             Expr::BoolToSigmaProp(b) => {
                 quote! { ergotree_ir::mir::expr::Expr::BoolToSigmaProp(#b) }
             }
-            Expr::Upcast(_) => todo!(),
-            Expr::Downcast(_) => todo!(),
+            Expr::Upcast(u) => {
+                quote! { ergotree_ir::mir::expr::Expr::Upcast(#u) }
+            }
+            Expr::Downcast(d) => {
+                quote! { ergotree_ir::mir::expr::Expr::Downcast(#d) }
+            }
             Expr::CreateProveDlog(_) => todo!(),
             Expr::CreateProveDhTuple(_) => todo!(),
             Expr::SigmaPropBytes(_) => todo!(),

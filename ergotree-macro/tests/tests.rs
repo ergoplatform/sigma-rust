@@ -5,11 +5,13 @@ use ergotree_ir::{
         block::BlockValue,
         bool_to_sigma::BoolToSigmaProp,
         constant::Constant,
+        downcast::Downcast,
         expr::Expr,
         func_value::{FuncArg, FuncValue},
         logical_not::LogicalNot,
         select_field::{SelectField, TupleFieldIndex},
         tuple::Tuple,
+        upcast::Upcast,
         val_def::{ValDef, ValId},
         val_use::ValUse,
     },
@@ -470,6 +472,26 @@ fn test_bit_xor_op() {
         kind: BinOpKind::Bit(BitOp::BitXor),
         left: Expr::from(Constant::from(100_i8)).into(),
         right: Expr::from(Constant::from(82_i8)).into(),
+    });
+    assert_eq!(e, expected);
+}
+
+#[test]
+fn test_downcast() {
+    let e = ergo_tree!(Downcast(IntConstant(100), SByte));
+    let expected = Expr::Downcast(Downcast {
+        input: Expr::from(Constant::from(100_i32)).into(),
+        tpe: SType::SByte,
+    });
+    assert_eq!(e, expected);
+}
+
+#[test]
+fn test_upcast() {
+    let e = ergo_tree!(Upcast(ByteConstant(100.toByte), SInt));
+    let expected = Expr::Upcast(Upcast {
+        input: Expr::from(Constant::from(100_i8)).into(),
+        tpe: SType::SInt,
     });
     assert_eq!(e, expected);
 }

@@ -67,6 +67,28 @@ impl SigmaSerializable for Downcast {
     }
 }
 
+#[cfg(feature = "ergotree-proc-macro")]
+impl syn::parse::Parse for Downcast {
+    fn parse(buf: syn::parse::ParseStream) -> syn::Result<Self> {
+        let input: Box<Expr> = buf.parse()?;
+        let _comma: syn::Token![,] = buf.parse()?;
+        let tpe: SType = buf.parse()?;
+        Ok(Self { input, tpe })
+    }
+}
+
+#[cfg(feature = "ergotree-proc-macro")]
+impl quote::ToTokens for Downcast {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        let input = *self.input.clone();
+        let tpe = self.tpe.clone();
+        tokens.extend(quote::quote! { ergotree_ir::mir::downcast::Downcast{
+             input: Box::new(#input),
+             tpe: #tpe,
+        }})
+    }
+}
+
 #[cfg(feature = "arbitrary")]
 #[allow(clippy::unwrap_used)]
 /// Arbitrary impl
