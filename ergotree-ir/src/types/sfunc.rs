@@ -49,3 +49,14 @@ impl SFunc {
         res
     }
 }
+
+#[cfg(feature = "ergotree-proc-macro")]
+impl quote::ToTokens for SFunc {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        let t_dom = self.t_dom.clone();
+        let t_range = *self.t_range.clone();
+        tokens.extend(
+            quote::quote! { ergotree_ir::types::sfunc::SFunc::new(vec![#(#t_dom),*], #t_range) },
+        );
+    }
+}

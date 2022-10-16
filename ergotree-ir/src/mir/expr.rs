@@ -429,6 +429,12 @@ impl syn::parse::Parse for Expr {
                 let _paren = syn::parenthesized!(content in input);
                 Ok(Expr::Upcast(content.parse()?))
             }
+            "MethodCall" => Ok(Expr::MethodCall(input.parse()?)),
+            "ExtractScriptBytes" => {
+                let content;
+                let _paren = syn::parenthesized!(content in input);
+                Ok(Expr::ExtractScriptBytes(content.parse()?))
+            }
             _ => Err(syn::Error::new_spanned(name, "Unknown `Expr` variant name")),
         }
     }
@@ -462,7 +468,9 @@ impl quote::ToTokens for Expr {
                 quote! { ergotree_ir::mir::expr::Expr::FuncValue(#f) }
             }
             Expr::Apply(_) => todo!(),
-            Expr::MethodCall(_) => todo!(),
+            Expr::MethodCall(m) => {
+                quote! { ergotree_ir::mir::expr::Expr::MethodCall(#m) }
+            }
             Expr::ProperyCall(_) => todo!(),
             Expr::BlockValue(b) => {
                 quote! { ergotree_ir::mir::expr::Expr::BlockValue(#b) }
@@ -493,7 +501,9 @@ impl quote::ToTokens for Expr {
             Expr::ExtractRegisterAs(_) => todo!(),
             Expr::ExtractBytes(_) => todo!(),
             Expr::ExtractBytesWithNoRef(_) => todo!(),
-            Expr::ExtractScriptBytes(_) => todo!(),
+            Expr::ExtractScriptBytes(e) => {
+                quote! { ergotree_ir::mir::expr::Expr::ExtractScriptBytes(#e) }
+            }
             Expr::ExtractCreationInfo(_) => todo!(),
             Expr::ExtractId(_) => todo!(),
             Expr::ByIndex(_) => todo!(),

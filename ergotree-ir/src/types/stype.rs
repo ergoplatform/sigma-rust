@@ -175,7 +175,7 @@ impl quote::ToTokens for SType {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         use quote::quote;
         tokens.extend(match self {
-            SType::STypeVar(_) => todo!(),
+            SType::STypeVar(s) => quote! { ergotree_ir::types::stype::SType::STypeVar(#s) },
             SType::SAny => quote! { ergotree_ir::types::stype::SType::SAny },
             SType::SUnit => quote! { ergotree_ir::types::stype::SType::SUnit },
             SType::SBoolean => quote! { ergotree_ir::types::stype::SType::SBoolean },
@@ -197,7 +197,7 @@ impl quote::ToTokens for SType {
                 quote! { ergotree_ir::types::stype::SType::SColl(Box::new(#tpe)) }
             }
             SType::STuple(s) => quote! { ergotree_ir::types::stype::SType::STuple(#s) },
-            SType::SFunc(_) => todo!(),
+            SType::SFunc(f) => quote! { ergotree_ir::types::stype::SType::SFunc(#f) },
             SType::SContext => quote! { ergotree_ir::types::stype::SType::SContext },
             SType::SHeader => quote! { ergotree_ir::types::stype::SType::SHeader },
             SType::SPreHeader => quote! { ergotree_ir::types::stype::SType::SPreHeader },
