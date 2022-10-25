@@ -1214,8 +1214,6 @@ mod tests {
     use super::*;
     use crate::sigma_protocol::private_input::DhTupleProverInput;
     use crate::sigma_protocol::private_input::DlogProverInput;
-    use crate::sigma_protocol::verifier::TestVerifier;
-    use crate::sigma_protocol::verifier::Verifier;
     use ergotree_ir::mir::atleast::Atleast;
     use ergotree_ir::mir::collection::Collection;
     use ergotree_ir::mir::constant::Constant;
@@ -1467,22 +1465,13 @@ mod tests {
 
         let message = vec![0u8; 100];
         let ctx: Rc<Context> = force_any_val::<Context>().into();
-        let res = prover
-            .prove(
-                &tree,
-                &Env::empty(),
-                ctx.clone(),
-                message.as_slice(),
-                &HintsBag::empty(),
-            )
-            .unwrap()
-            .proof;
-        let verifier = TestVerifier;
-        assert!(
-            verifier
-                .verify(&tree, &Env::empty(), ctx, res, message.as_slice())
-                .unwrap()
-                .result,
-        )
+        let res = prover.prove(
+            &tree,
+            &Env::empty(),
+            ctx,
+            message.as_slice(),
+            &HintsBag::empty(),
+        );
+        assert!(res.is_err());
     }
 }
