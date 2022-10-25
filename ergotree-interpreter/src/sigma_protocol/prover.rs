@@ -1214,11 +1214,16 @@ mod tests {
     use super::*;
     use crate::sigma_protocol::private_input::DhTupleProverInput;
     use crate::sigma_protocol::private_input::DlogProverInput;
+    use crate::sigma_protocol::verifier::TestVerifier;
+    use crate::sigma_protocol::verifier::Verifier;
+    use ergotree_ir::mir::atleast::Atleast;
+    use ergotree_ir::mir::collection::Collection;
     use ergotree_ir::mir::constant::Constant;
     use ergotree_ir::mir::constant::Literal;
     use ergotree_ir::mir::expr::Expr;
     use ergotree_ir::mir::sigma_and::SigmaAnd;
     use ergotree_ir::mir::sigma_or::SigmaOr;
+    use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProp;
     use ergotree_ir::types::stype::SType;
     use sigma_test_util::force_any_val;
     use std::convert::TryFrom;
@@ -1419,5 +1424,65 @@ mod tests {
         );
         assert!(res.is_ok());
         assert_ne!(res.unwrap().proof, ProofBytes::Empty);
+    }
+
+    #[test]
+    fn test_prove_inner_threshold() {
+        // this test constructed from https://github.com/ergoplatform/sigma-rust/issues/579#issuecomment-1259058014
+        let secret1 = DlogProverInput::random();
+        let secret2 = DlogProverInput::random();
+        let secret3 = DlogProverInput::random();
+        let pk_alice = secret1.public_image();
+        let pk_bob = secret2.public_image();
+        let pk_carol = secret3.public_image();
+
+        let at_least = Expr::Atleast(Atleast {
+            bound: Expr::Const(2.into()).into(),
+            input: Expr::Collection(Collection::Exprs {
+                elem_tpe: SType::SSigmaProp,
+                items: vec![
+                    SigmaProp::from(pk_alice).into(),
+                    SigmaProp::from(pk_bob).into(),
+                    SigmaProp::from(pk_carol).into(),
+                ],
+            })
+            .into(),
+        });
+
+        // wrap in binary OR with a false on the other side
+        let tree: ErgoTree = Expr::SigmaOr(
+            SigmaOr::new(vec![
+                SigmaProp::new(SigmaBoolean::TrivialProp(false)).into(),
+                at_least,
+            ])
+            .unwrap(),
+        )
+        .try_into()
+        .unwrap();
+
+        // Note that the prover only has the private for Alice. This is ensure that the AtLeast prop is unproved
+        let prover = TestProver {
+            secrets: vec![secret1.into()],
+        };
+
+        let message = vec![0u8; 100];
+        let ctx: Rc<Context> = force_any_val::<Context>().into();
+        let res = prover
+            .prove(
+                &tree,
+                &Env::empty(),
+                ctx.clone(),
+                message.as_slice(),
+                &HintsBag::empty(),
+            )
+            .unwrap()
+            .proof;
+        let verifier = TestVerifier;
+        assert!(
+            verifier
+                .verify(&tree, &Env::empty(), ctx, res, message.as_slice())
+                .unwrap()
+                .result,
+        )
     }
 }
