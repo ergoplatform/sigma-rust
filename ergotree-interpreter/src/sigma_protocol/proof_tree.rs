@@ -144,9 +144,106 @@ pub(crate) enum ProofTreeKind<'a> {
     Conjecture(&'a dyn ProofTreeConjecture),
 }
 
+/// Traverses the tree in the bottom-up manner, calling `f` for every node/leaf and setting
+/// it's returned value (if `Some`) as new node/leaf or do nothing if it's returned `None`
+pub(crate) fn rewrite_bu<F>(tree: ProofTree, f: &F) -> Result<ProofTree, ProverError>
+where
+    F: Fn(&ProofTree) -> Result<Option<ProofTree>, ProverError>,
+{
+    let cast_to_ust = |children: SigmaConjectureItems<ProofTree>| {
+        children.try_mapped(|c| {
+            if let ProofTree::UncheckedTree(ust) = c {
+                Ok(ust)
+            } else {
+                Err(ProverError::Unexpected(
+                    "rewrite: expected UncheckedSigmaTree got UnprovenTree",
+                ))
+            }
+        })
+    };
+
+    let tree_with_updated_children = match &tree {
+        ProofTree::UnprovenTree(unp_tree) => match unp_tree {
+            UnprovenTree::UnprovenLeaf(_) => tree,
+            UnprovenTree::UnprovenConjecture(conj) => match conj {
+                UnprovenConjecture::CandUnproven(cand) => UnprovenTree::UnprovenConjecture(
+                    UnprovenConjecture::CandUnproven(CandUnproven {
+                        children: cand.children.clone().try_mapped(|c| rewrite_bu(c, f))?,
+                        ..cand.clone()
+                    }),
+                )
+                .into(),
+                UnprovenConjecture::CorUnproven(cor) => {
+                    UnprovenTree::UnprovenConjecture(UnprovenConjecture::CorUnproven(CorUnproven {
+                        children: cor.children.clone().try_mapped(|c| rewrite_bu(c, f))?,
+                        ..cor.clone()
+                    }))
+                    .into()
+                }
+                UnprovenConjecture::CthresholdUnproven(ct) => UnprovenTree::UnprovenConjecture(
+                    UnprovenConjecture::CthresholdUnproven(CthresholdUnproven {
+                        children: ct.children.clone().try_mapped(|c| rewrite_bu(c, f))?,
+                        ..ct.clone()
+                    }),
+                )
+                .into(),
+            },
+        },
+        ProofTree::UncheckedTree(unch_tree) => match unch_tree {
+            UncheckedTree::UncheckedLeaf(_) => tree,
+            UncheckedTree::UncheckedConjecture(conj) => match conj {
+                UncheckedConjecture::CandUnchecked {
+                    challenge,
+                    children,
+                } => {
+                    let rewritten_children =
+                        children.clone().try_mapped(|c| rewrite_bu(c.into(), f))?;
+                    let casted_children = cast_to_ust(rewritten_children)?;
+                    UncheckedConjecture::CandUnchecked {
+                        children: casted_children,
+                        challenge: challenge.clone(),
+                    }
+                    .into()
+                }
+                UncheckedConjecture::CorUnchecked {
+                    challenge,
+                    children,
+                } => {
+                    let rewritten_children =
+                        children.clone().try_mapped(|c| rewrite_bu(c.into(), f))?;
+                    let casted_children = cast_to_ust(rewritten_children)?;
+                    UncheckedConjecture::CorUnchecked {
+                        children: casted_children,
+                        challenge: challenge.clone(),
+                    }
+                    .into()
+                }
+                UncheckedConjecture::CthresholdUnchecked {
+                    challenge,
+                    children,
+                    k,
+                    polynomial: polynomial_opt,
+                } => {
+                    let rewritten_children =
+                        children.clone().try_mapped(|c| rewrite_bu(c.into(), f))?;
+                    let casted_children = cast_to_ust(rewritten_children)?;
+                    UncheckedConjecture::CthresholdUnchecked {
+                        children: casted_children,
+                        challenge: challenge.clone(),
+                        k: *k,
+                        polynomial: polynomial_opt.clone(),
+                    }
+                    .into()
+                }
+            },
+        },
+    };
+    Ok(f(&tree_with_updated_children)?.unwrap_or(tree_with_updated_children))
+}
+
 /// Traverses the tree in the top-down manner, calling `f` for every node/leaf and setting
 /// it's returned value (if `Some`) as new node/leaf or do nothing if it's returned `None`
-pub(crate) fn rewrite<F>(tree: ProofTree, f: &F) -> Result<ProofTree, ProverError>
+pub(crate) fn rewrite_td<F>(tree: ProofTree, f: &F) -> Result<ProofTree, ProverError>
 where
     F: Fn(&ProofTree) -> Result<Option<ProofTree>, ProverError>,
 {
@@ -169,21 +266,21 @@ where
             UnprovenTree::UnprovenConjecture(conj) => match conj {
                 UnprovenConjecture::CandUnproven(cand) => UnprovenTree::UnprovenConjecture(
                     UnprovenConjecture::CandUnproven(CandUnproven {
-                        children: cand.children.clone().try_mapped(|c| rewrite(c, f))?,
+                        children: cand.children.clone().try_mapped(|c| rewrite_td(c, f))?,
                         ..cand.clone()
                     }),
                 )
                 .into(),
                 UnprovenConjecture::CorUnproven(cor) => {
                     UnprovenTree::UnprovenConjecture(UnprovenConjecture::CorUnproven(CorUnproven {
-                        children: cor.children.clone().try_mapped(|c| rewrite(c, f))?,
+                        children: cor.children.clone().try_mapped(|c| rewrite_td(c, f))?,
                         ..cor.clone()
                     }))
                     .into()
                 }
                 UnprovenConjecture::CthresholdUnproven(ct) => UnprovenTree::UnprovenConjecture(
                     UnprovenConjecture::CthresholdUnproven(CthresholdUnproven {
-                        children: ct.children.clone().try_mapped(|c| rewrite(c, f))?,
+                        children: ct.children.clone().try_mapped(|c| rewrite_td(c, f))?,
                         ..ct.clone()
                     }),
                 )
@@ -198,7 +295,7 @@ where
                     children,
                 } => {
                     let rewritten_children =
-                        children.clone().try_mapped(|c| rewrite(c.into(), f))?;
+                        children.clone().try_mapped(|c| rewrite_td(c.into(), f))?;
                     let casted_children = cast_to_ust(rewritten_children)?;
                     UncheckedConjecture::CandUnchecked {
                         children: casted_children,
@@ -211,7 +308,7 @@ where
                     children,
                 } => {
                     let rewritten_children =
-                        children.clone().try_mapped(|c| rewrite(c.into(), f))?;
+                        children.clone().try_mapped(|c| rewrite_td(c.into(), f))?;
                     let casted_children = cast_to_ust(rewritten_children)?;
                     UncheckedConjecture::CorUnchecked {
                         children: casted_children,
@@ -226,7 +323,7 @@ where
                     polynomial: polynomial_opt,
                 } => {
                     let rewritten_children =
-                        children.clone().try_mapped(|c| rewrite(c.into(), f))?;
+                        children.clone().try_mapped(|c| rewrite_td(c.into(), f))?;
                     let casted_children = cast_to_ust(rewritten_children)?;
                     UncheckedConjecture::CthresholdUnchecked {
                         children: casted_children,

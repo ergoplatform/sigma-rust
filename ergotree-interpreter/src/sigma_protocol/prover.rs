@@ -245,7 +245,7 @@ fn mark_real<P: Prover + ?Sized>(
     unproven_tree: UnprovenTree,
     hints_bag: &HintsBag,
 ) -> Result<UnprovenTree, ProverError> {
-    proof_tree::rewrite(unproven_tree.into(), &|tree| {
+    proof_tree::rewrite_bu(unproven_tree.into(), &|tree| {
         Ok(match tree {
             ProofTree::UnprovenTree(unp) => match unp {
                 UnprovenTree::UnprovenLeaf(unp_leaf) => {
@@ -374,7 +374,7 @@ fn polish_simulated<P: Prover + ?Sized>(
     _prover: &P,
     unproven_tree: UnprovenTree,
 ) -> Result<UnprovenTree, ProverError> {
-    proof_tree::rewrite(unproven_tree.into(), &|tree| match tree {
+    proof_tree::rewrite_td(unproven_tree.into(), &|tree| match tree {
         ProofTree::UnprovenTree(ut) => match ut {
             UnprovenTree::UnprovenLeaf(_) => Ok(None),
             UnprovenTree::UnprovenConjecture(conj) => match conj {
@@ -726,7 +726,7 @@ fn simulate_and_commit(
     unproven_tree: UnprovenTree,
     hints_bag: &HintsBag,
 ) -> Result<UnprovenTree, ProverError> {
-    proof_tree::rewrite(unproven_tree.into(), &|tree| {
+    proof_tree::rewrite_td(unproven_tree.into(), &|tree| {
         match tree {
             // Step 4 part 1: If the node is marked "real", jhen each of its simulated children gets a fresh uniformly
             // random challenge in {0,1}^t.
@@ -1033,7 +1033,7 @@ fn proving<P: Prover + ?Sized>(
     proof_tree: ProofTree,
     hints_bag: &HintsBag,
 ) -> Result<ProofTree, ProverError> {
-    proof_tree::rewrite(proof_tree, &|tree| {
+    proof_tree::rewrite_td(proof_tree, &|tree| {
         match &tree {
             ProofTree::UncheckedTree(unch) => match unch {
                 UncheckedTree::UncheckedLeaf(_) => Ok(None),
