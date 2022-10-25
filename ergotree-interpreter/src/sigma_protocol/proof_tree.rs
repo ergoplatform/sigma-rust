@@ -180,13 +180,13 @@ where
                     }))
                     .into()
                 }
-                UnprovenConjecture::CthresholdUnproven(ct) => UnprovenTree::UnprovenConjecture(
-                    UnprovenConjecture::CthresholdUnproven(CthresholdUnproven {
-                        children: ct.children.clone().try_mapped(|c| rewrite_bu(c, f))?,
-                        ..ct.clone()
-                    }),
-                )
-                .into(),
+                UnprovenConjecture::CthresholdUnproven(ct) => {
+                    UnprovenTree::UnprovenConjecture(UnprovenConjecture::CthresholdUnproven(
+                        ct.clone()
+                            .with_children(ct.clone().children.try_mapped(|c| rewrite_bu(c, f))?),
+                    ))
+                    .into()
+                }
             },
         },
         ProofTree::UncheckedTree(unch_tree) => match unch_tree {
@@ -278,13 +278,13 @@ where
                     }))
                     .into()
                 }
-                UnprovenConjecture::CthresholdUnproven(ct) => UnprovenTree::UnprovenConjecture(
-                    UnprovenConjecture::CthresholdUnproven(CthresholdUnproven {
-                        children: ct.children.clone().try_mapped(|c| rewrite_td(c, f))?,
-                        ..ct.clone()
-                    }),
-                )
-                .into(),
+                UnprovenConjecture::CthresholdUnproven(ct) => {
+                    UnprovenTree::UnprovenConjecture(UnprovenConjecture::CthresholdUnproven(
+                        ct.clone()
+                            .with_children(ct.clone().children.try_mapped(|c| rewrite_td(c, f))?),
+                    ))
+                    .into()
+                }
             },
         },
         ProofTree::UncheckedTree(unch_tree) => match unch_tree {

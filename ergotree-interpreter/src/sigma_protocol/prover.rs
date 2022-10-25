@@ -293,13 +293,7 @@ fn mark_real<P: Prover + ?Sized>(
                             .filter(|c| c.is_real())
                             .count()
                             < ct.k as usize;
-                        Some(
-                            CthresholdUnproven {
-                                simulated,
-                                ..ct.clone()
-                            }
-                            .into(),
-                        )
+                        Some(ct.clone().with_simulated(simulated).into())
                     }
                 },
             },
@@ -407,11 +401,10 @@ fn polish_simulated<P: Prover + ?Sized>(
                 UnprovenConjecture::CthresholdUnproven(ct) => {
                     // If the node is marked "simulated", mark all of its children "simulated"
                     let t: CthresholdUnproven = if ct.simulated {
-                        CthresholdUnproven {
-                            children: cast_to_unp(ct.children.clone())?
+                        ct.clone().with_children(
+                            cast_to_unp(ct.children.clone())?
                                 .mapped(|c| c.with_simulated(true).into()),
-                            ..ct.clone()
-                        }
+                        )
                     } else {
                         // If the node is THRESHOLD(k) marked "real", mark all but k of its children "simulated"
                         // (the node is guaranteed, by the previous step, to have at least k "real" children).
@@ -430,17 +423,15 @@ fn polish_simulated<P: Prover + ?Sized>(
                                 };
                             };
                         }
-                        CthresholdUnproven {
-                            children: unproven_children.enumerated().mapped(|(idx, c)| {
+                        ct.clone()
+                            .with_children(unproven_children.enumerated().mapped(|(idx, c)| {
                                 if children_indices_to_be_marked_simulated.contains(&idx) {
                                     c.with_simulated(true)
                                 } else {
                                     c
                                 }
                                 .into()
-                            }),
-                            ..ct.clone()
-                        }
+                            }))
                     };
                     Ok(Some(set_positions(t.into())?.into()))
                 }
@@ -586,7 +577,7 @@ fn step4_simulated_threshold_conj(
             })
             .mapped(|c| c.into());
         Ok(Some(
-            ct.with_polynomial(q).with_children(new_children).into(),
+            ct.with_children(new_children).with_polynomial(q)?.into(),
         ))
     } else {
         Err(ProverError::Unexpected(
@@ -861,7 +852,7 @@ fn step9_real_threshold(ct: CthresholdUnproven) -> Result<Option<ProofTree>, Pro
             }
         });
         Ok(Some(
-            ct.with_polynomial(q).with_children(new_children).into(),
+            ct.with_children(new_children).with_polynomial(q)?.into(),
         ))
     } else {
         Err(ProverError::Unexpected(
@@ -1126,17 +1117,15 @@ fn convert_to_unproven(sb: SigmaBoolean) -> Result<UnprovenTree, ProverError> {
                 position: NodePosition::crypto_tree_prefix(),
             }
             .into(),
-            SigmaConjecture::Cthreshold(ct) => CthresholdUnproven {
-                proposition: ct.clone(),
-                k: ct.k,
-                children: ct
-                    .children
+            SigmaConjecture::Cthreshold(ct) => CthresholdUnproven::new(
+                ct.clone(),
+                ct.k,
+                ct.children
                     .try_mapped(|it| convert_to_unproven(it).map(Into::into))?,
-                polinomial_opt: None,
-                challenge_opt: None,
-                simulated: false,
-                position: NodePosition::crypto_tree_prefix(),
-            }
+                None,
+                false,
+                NodePosition::crypto_tree_prefix(),
+            )
             .into(),
         },
         SigmaBoolean::TrivialProp(_) => {
@@ -1181,7 +1170,7 @@ fn convert_to_unchecked(tree: ProofTree) -> Result<UncheckedTree, ProverError> {
                         })?,
                         children: ct.children.clone().try_mapped(convert_to_unchecked)?,
                         k: ct.k,
-                        polynomial: ct.polinomial_opt.clone().ok_or({
+                        polynomial: ct.polinomial_opt().ok_or({
                             ProverError::Unexpected("no polynomial in CthresholdUnproven")
                         })?,
                     }
