@@ -5,9 +5,11 @@ use super::proof_tree::ConjectureType;
 use super::proof_tree::ProofTree;
 use super::proof_tree::ProofTreeConjecture;
 use super::proof_tree::ProofTreeKind;
+use super::prover::ProverError;
 use super::wscalar::Wscalar;
 use super::{dlog_protocol::FirstDlogProverMessage, Challenge, FirstProverMessage};
 use crate::sigma_protocol::proof_tree::ProofTreeLeaf;
+use crate::sigma_protocol::SOUNDNESS_BYTES;
 use ergotree_ir::sigma_protocol::sigma_boolean::cand::Cand;
 use ergotree_ir::sigma_protocol::sigma_boolean::cor::Cor;
 use ergotree_ir::sigma_protocol::sigma_boolean::cthreshold::Cthreshold;
@@ -502,21 +504,48 @@ pub(crate) struct CthresholdUnproven {
     pub(crate) proposition: Cthreshold,
     pub(crate) k: u8,
     pub(crate) children: SigmaConjectureItems<ProofTree>,
-    pub(crate) polinomial_opt: Option<Gf2_192Poly>,
+    polinomial_opt: Option<Gf2_192Poly>,
     pub(crate) challenge_opt: Option<Challenge>,
     pub(crate) simulated: bool,
     pub(crate) position: NodePosition,
 }
 
 impl CthresholdUnproven {
+    pub(crate) fn new(
+        proposition: Cthreshold,
+        k: u8,
+        children: SigmaConjectureItems<ProofTree>,
+        challenge_opt: Option<Challenge>,
+        simulated: bool,
+        position: NodePosition,
+    ) -> Self {
+        Self {
+            proposition,
+            k,
+            children,
+            polinomial_opt: None,
+            challenge_opt,
+            simulated,
+            position,
+        }
+    }
+
     pub(crate) fn with_children(self, children: SigmaConjectureItems<ProofTree>) -> Self {
         Self { children, ..self }
     }
 
-    pub(crate) fn with_polynomial(self, q: Gf2_192Poly) -> Self {
-        Self {
-            polinomial_opt: Some(q),
-            ..self
+    #[allow(clippy::panic)]
+    pub(crate) fn with_polynomial(self, q: Gf2_192Poly) -> Result<Self, ProverError> {
+        let bytes = q.to_bytes();
+        if bytes.len() == (self.proposition.children.len() - self.k as usize) * SOUNDNESS_BYTES {
+            Ok(Self {
+                polinomial_opt: Some(q),
+                ..self
+            })
+        } else {
+            Err(ProverError::Unexpected(
+                "Invalid polynomial length in CthresholdUnproven (children.len() - k) * SOUNDNESS_BYTES != polynomial.len()"
+            ))
         }
     }
 
@@ -534,11 +563,15 @@ impl CthresholdUnproven {
         }
     }
 
-    fn with_simulated(self, simulated: bool) -> Self {
+    pub(crate) fn with_simulated(self, simulated: bool) -> Self {
         Self { simulated, ..self }
     }
 
     pub(crate) fn is_real(&self) -> bool {
         !self.simulated
+    }
+
+    pub(crate) fn polinomial_opt(&self) -> Option<Gf2_192Poly> {
+        self.polinomial_opt.clone()
     }
 }

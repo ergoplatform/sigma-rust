@@ -245,7 +245,7 @@ fn mark_real<P: Prover + ?Sized>(
     unproven_tree: UnprovenTree,
     hints_bag: &HintsBag,
 ) -> Result<UnprovenTree, ProverError> {
-    proof_tree::rewrite(unproven_tree.into(), &|tree| {
+    proof_tree::rewrite_bu(unproven_tree.into(), &|tree| {
         Ok(match tree {
             ProofTree::UnprovenTree(unp) => match unp {
                 UnprovenTree::UnprovenLeaf(unp_leaf) => {
@@ -293,13 +293,7 @@ fn mark_real<P: Prover + ?Sized>(
                             .filter(|c| c.is_real())
                             .count()
                             < ct.k as usize;
-                        Some(
-                            CthresholdUnproven {
-                                simulated,
-                                ..ct.clone()
-                            }
-                            .into(),
-                        )
+                        Some(ct.clone().with_simulated(simulated).into())
                     }
                 },
             },
@@ -374,7 +368,7 @@ fn polish_simulated<P: Prover + ?Sized>(
     _prover: &P,
     unproven_tree: UnprovenTree,
 ) -> Result<UnprovenTree, ProverError> {
-    proof_tree::rewrite(unproven_tree.into(), &|tree| match tree {
+    proof_tree::rewrite_td(unproven_tree.into(), &|tree| match tree {
         ProofTree::UnprovenTree(ut) => match ut {
             UnprovenTree::UnprovenLeaf(_) => Ok(None),
             UnprovenTree::UnprovenConjecture(conj) => match conj {
@@ -407,11 +401,10 @@ fn polish_simulated<P: Prover + ?Sized>(
                 UnprovenConjecture::CthresholdUnproven(ct) => {
                     // If the node is marked "simulated", mark all of its children "simulated"
                     let t: CthresholdUnproven = if ct.simulated {
-                        CthresholdUnproven {
-                            children: cast_to_unp(ct.children.clone())?
+                        ct.clone().with_children(
+                            cast_to_unp(ct.children.clone())?
                                 .mapped(|c| c.with_simulated(true).into()),
-                            ..ct.clone()
-                        }
+                        )
                     } else {
                         // If the node is THRESHOLD(k) marked "real", mark all but k of its children "simulated"
                         // (the node is guaranteed, by the previous step, to have at least k "real" children).
@@ -430,17 +423,15 @@ fn polish_simulated<P: Prover + ?Sized>(
                                 };
                             };
                         }
-                        CthresholdUnproven {
-                            children: unproven_children.enumerated().mapped(|(idx, c)| {
+                        ct.clone()
+                            .with_children(unproven_children.enumerated().mapped(|(idx, c)| {
                                 if children_indices_to_be_marked_simulated.contains(&idx) {
                                     c.with_simulated(true)
                                 } else {
                                     c
                                 }
                                 .into()
-                            }),
-                            ..ct.clone()
-                        }
+                            }))
                     };
                     Ok(Some(set_positions(t.into())?.into()))
                 }
@@ -586,7 +577,7 @@ fn step4_simulated_threshold_conj(
             })
             .mapped(|c| c.into());
         Ok(Some(
-            ct.with_polynomial(q).with_children(new_children).into(),
+            ct.with_children(new_children).with_polynomial(q)?.into(),
         ))
     } else {
         Err(ProverError::Unexpected(
@@ -726,7 +717,7 @@ fn simulate_and_commit(
     unproven_tree: UnprovenTree,
     hints_bag: &HintsBag,
 ) -> Result<UnprovenTree, ProverError> {
-    proof_tree::rewrite(unproven_tree.into(), &|tree| {
+    proof_tree::rewrite_td(unproven_tree.into(), &|tree| {
         match tree {
             // Step 4 part 1: If the node is marked "real", jhen each of its simulated children gets a fresh uniformly
             // random challenge in {0,1}^t.
@@ -861,7 +852,7 @@ fn step9_real_threshold(ct: CthresholdUnproven) -> Result<Option<ProofTree>, Pro
             }
         });
         Ok(Some(
-            ct.with_polynomial(q).with_children(new_children).into(),
+            ct.with_children(new_children).with_polynomial(q)?.into(),
         ))
     } else {
         Err(ProverError::Unexpected(
@@ -1033,7 +1024,7 @@ fn proving<P: Prover + ?Sized>(
     proof_tree: ProofTree,
     hints_bag: &HintsBag,
 ) -> Result<ProofTree, ProverError> {
-    proof_tree::rewrite(proof_tree, &|tree| {
+    proof_tree::rewrite_td(proof_tree, &|tree| {
         match &tree {
             ProofTree::UncheckedTree(unch) => match unch {
                 UncheckedTree::UncheckedLeaf(_) => Ok(None),
@@ -1126,17 +1117,15 @@ fn convert_to_unproven(sb: SigmaBoolean) -> Result<UnprovenTree, ProverError> {
                 position: NodePosition::crypto_tree_prefix(),
             }
             .into(),
-            SigmaConjecture::Cthreshold(ct) => CthresholdUnproven {
-                proposition: ct.clone(),
-                k: ct.k,
-                children: ct
-                    .children
+            SigmaConjecture::Cthreshold(ct) => CthresholdUnproven::new(
+                ct.clone(),
+                ct.k,
+                ct.children
                     .try_mapped(|it| convert_to_unproven(it).map(Into::into))?,
-                polinomial_opt: None,
-                challenge_opt: None,
-                simulated: false,
-                position: NodePosition::crypto_tree_prefix(),
-            }
+                None,
+                false,
+                NodePosition::crypto_tree_prefix(),
+            )
             .into(),
         },
         SigmaBoolean::TrivialProp(_) => {
@@ -1181,7 +1170,7 @@ fn convert_to_unchecked(tree: ProofTree) -> Result<UncheckedTree, ProverError> {
                         })?,
                         children: ct.children.clone().try_mapped(convert_to_unchecked)?,
                         k: ct.k,
-                        polynomial: ct.polinomial_opt.clone().ok_or({
+                        polynomial: ct.polinomial_opt().ok_or({
                             ProverError::Unexpected("no polynomial in CthresholdUnproven")
                         })?,
                     }
@@ -1214,11 +1203,14 @@ mod tests {
     use super::*;
     use crate::sigma_protocol::private_input::DhTupleProverInput;
     use crate::sigma_protocol::private_input::DlogProverInput;
+    use ergotree_ir::mir::atleast::Atleast;
+    use ergotree_ir::mir::collection::Collection;
     use ergotree_ir::mir::constant::Constant;
     use ergotree_ir::mir::constant::Literal;
     use ergotree_ir::mir::expr::Expr;
     use ergotree_ir::mir::sigma_and::SigmaAnd;
     use ergotree_ir::mir::sigma_or::SigmaOr;
+    use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProp;
     use ergotree_ir::types::stype::SType;
     use sigma_test_util::force_any_val;
     use std::convert::TryFrom;
@@ -1419,5 +1411,56 @@ mod tests {
         );
         assert!(res.is_ok());
         assert_ne!(res.unwrap().proof, ProofBytes::Empty);
+    }
+
+    #[test]
+    fn test_prove_inner_threshold() {
+        // this test constructed from https://github.com/ergoplatform/sigma-rust/issues/579#issuecomment-1259058014
+        let secret1 = DlogProverInput::random();
+        let secret2 = DlogProverInput::random();
+        let secret3 = DlogProverInput::random();
+        let pk_alice = secret1.public_image();
+        let pk_bob = secret2.public_image();
+        let pk_carol = secret3.public_image();
+
+        let at_least = Expr::Atleast(Atleast {
+            bound: Expr::Const(2.into()).into(),
+            input: Expr::Collection(Collection::Exprs {
+                elem_tpe: SType::SSigmaProp,
+                items: vec![
+                    SigmaProp::from(pk_alice).into(),
+                    SigmaProp::from(pk_bob).into(),
+                    SigmaProp::from(pk_carol).into(),
+                ],
+            })
+            .into(),
+        });
+
+        // wrap in binary OR with a false on the other side
+        let tree: ErgoTree = Expr::SigmaOr(
+            SigmaOr::new(vec![
+                SigmaProp::new(SigmaBoolean::TrivialProp(false)).into(),
+                at_least,
+            ])
+            .unwrap(),
+        )
+        .try_into()
+        .unwrap();
+
+        // Note that the prover only has the private for Alice. This is ensure that the AtLeast prop is unproved
+        let prover = TestProver {
+            secrets: vec![secret1.into()],
+        };
+
+        let message = vec![0u8; 100];
+        let ctx: Rc<Context> = force_any_val::<Context>().into();
+        let res = prover.prove(
+            &tree,
+            &Env::empty(),
+            ctx,
+            message.as_slice(),
+            &HintsBag::empty(),
+        );
+        assert!(res.is_err());
     }
 }
