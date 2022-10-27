@@ -126,6 +126,86 @@ impl From<SFunc> for SType {
     }
 }
 
+#[cfg(feature = "ergotree-proc-macro")]
+impl syn::parse::Parse for SType {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let name: syn::Ident = input.parse()?;
+        match name.to_string().as_str() {
+            "SBoolean" => Ok(SType::SBoolean),
+            "SAny" => Ok(SType::SAny),
+            "SUnit" => Ok(SType::SUnit),
+            "SByte" => Ok(SType::SByte),
+            "SShort" => Ok(SType::SShort),
+            "SInt" => Ok(SType::SInt),
+            "SLong" => Ok(SType::SLong),
+            "SBigInt" => Ok(SType::SBigInt),
+            "SGroupElement" => Ok(SType::SGroupElement),
+            "SSigmaProp" => Ok(SType::SSigmaProp),
+            "SBox" => Ok(SType::SBox),
+            "SAvlTree" => Ok(SType::SAvlTree),
+            "SContext" => Ok(SType::SContext),
+            "SHeader" => Ok(SType::SHeader),
+            "SPreHeader" => Ok(SType::SPreHeader),
+            "SGlobal" => Ok(SType::SGlobal),
+            "STuple" => {
+                let content;
+                let _paren = syn::parenthesized!(content in input);
+                Ok(SType::STuple(content.parse()?))
+            }
+            "SCollectionType" => {
+                let content;
+                let _paren = syn::parenthesized!(content in input);
+                Ok(SType::SColl(content.parse()?))
+            }
+            "SOption" => {
+                let content;
+                let _paren = syn::parenthesized!(content in input);
+                Ok(SType::SOption(content.parse()?))
+            }
+            _ => Err(syn::Error::new_spanned(
+                name,
+                "Unknown `SType` variant name",
+            )),
+        }
+    }
+}
+
+#[cfg(feature = "ergotree-proc-macro")]
+impl quote::ToTokens for SType {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        use quote::quote;
+        tokens.extend(match self {
+            SType::STypeVar(s) => quote! { ergotree_ir::types::stype::SType::STypeVar(#s) },
+            SType::SAny => quote! { ergotree_ir::types::stype::SType::SAny },
+            SType::SUnit => quote! { ergotree_ir::types::stype::SType::SUnit },
+            SType::SBoolean => quote! { ergotree_ir::types::stype::SType::SBoolean },
+            SType::SByte => quote! { ergotree_ir::types::stype::SType::SByte },
+            SType::SShort => quote! { ergotree_ir::types::stype::SType::SShort },
+            SType::SInt => quote! { ergotree_ir::types::stype::SType::SInt },
+            SType::SLong => quote! { ergotree_ir::types::stype::SType::SLong },
+            SType::SBigInt => quote! { ergotree_ir::types::stype::SType::SBigInt },
+            SType::SGroupElement => quote! { ergotree_ir::types::stype::SType::SGroupElement },
+            SType::SSigmaProp => quote! { ergotree_ir::types::stype::SType::SSigmaProp },
+            SType::SBox => quote! { ergotree_ir::types::stype::SType::SBox },
+            SType::SAvlTree => quote! { ergotree_ir::types::stype::SType::SAvlTree },
+            SType::SOption(o) => {
+                let tpe = *o.clone();
+                quote! { ergotree_ir::types::stype::SType::SOption(Box::new(#tpe)) }
+            }
+            SType::SColl(c) => {
+                let tpe = *c.clone();
+                quote! { ergotree_ir::types::stype::SType::SColl(Box::new(#tpe)) }
+            }
+            SType::STuple(s) => quote! { ergotree_ir::types::stype::SType::STuple(#s) },
+            SType::SFunc(f) => quote! { ergotree_ir::types::stype::SType::SFunc(#f) },
+            SType::SContext => quote! { ergotree_ir::types::stype::SType::SContext },
+            SType::SHeader => quote! { ergotree_ir::types::stype::SType::SHeader },
+            SType::SPreHeader => quote! { ergotree_ir::types::stype::SType::SPreHeader },
+            SType::SGlobal => quote! { ergotree_ir::types::stype::SType::SGlobal },
+        })
+    }
+}
+
 /// Conversion to SType
 pub trait LiftIntoSType {
     /// get SType

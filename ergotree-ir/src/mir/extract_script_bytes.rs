@@ -40,6 +40,26 @@ impl OneArgOpTryBuild for ExtractScriptBytes {
     }
 }
 
+#[cfg(feature = "ergotree-proc-macro")]
+impl syn::parse::Parse for ExtractScriptBytes {
+    fn parse(buf: syn::parse::ParseStream) -> syn::Result<Self> {
+        let input: Box<Expr> = buf.parse()?;
+        Ok(Self { input })
+    }
+}
+
+#[cfg(feature = "ergotree-proc-macro")]
+impl quote::ToTokens for ExtractScriptBytes {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        let input = *self.input.clone();
+        tokens.extend(
+            quote::quote! { ergotree_ir::mir::extract_script_bytes::ExtractScriptBytes{
+                 input: Box::new(#input),
+            }},
+        )
+    }
+}
+
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
 mod tests {

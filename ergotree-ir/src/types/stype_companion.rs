@@ -118,3 +118,38 @@ impl TryFrom<TypeCode> for STypeCompanion {
         )))
     }
 }
+
+#[cfg(feature = "ergotree-proc-macro")]
+impl quote::ToTokens for STypeCompanion {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        tokens.extend(match self {
+            STypeCompanion::Context => {
+                quote::quote! { ergotree_ir::types::stype_companion::STypeCompanion::Context}
+            }
+            STypeCompanion::Box => {
+                quote::quote! { ergotree_ir::types::stype_companion::STypeCompanion::Box}
+            }
+            STypeCompanion::Coll => {
+                quote::quote! { ergotree_ir::types::stype_companion::STypeCompanion::Coll}
+            }
+            STypeCompanion::GroupElem => {
+                quote::quote! { ergotree_ir::types::stype_companion::STypeCompanion::GroupElem}
+            }
+            STypeCompanion::Global => {
+                quote::quote! { ergotree_ir::types::stype_companion::STypeCompanion::Global}
+            }
+            STypeCompanion::Header => {
+                quote::quote! { ergotree_ir::types::stype_companion::STypeCompanion::Header}
+            }
+            STypeCompanion::PreHeader => {
+                quote::quote! { ergotree_ir::types::stype_companion::STypeCompanion::PreHeader}
+            }
+            STypeCompanion::Option => {
+                quote::quote! { ergotree_ir::types::stype_companion::STypeCompanion::Option}
+            }
+            STypeCompanion::AvlTree => {
+                quote::quote! { ergotree_ir::types::stype_companion::STypeCompanion::AvlTree}
+            }
+        });
+    }
+}

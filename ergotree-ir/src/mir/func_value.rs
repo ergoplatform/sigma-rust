@@ -24,6 +24,34 @@ pub struct FuncArg {
     pub tpe: SType,
 }
 
+#[cfg(feature = "ergotree-proc-macro")]
+impl syn::parse::Parse for FuncArg {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let content;
+        let _paren = syn::parenthesized!(content in input);
+        let id: syn::LitInt = content.parse()?;
+        let value = id.base10_parse::<u32>()?;
+        let idx = ValId(value);
+        let _comma: syn::Token![,] = content.parse()?;
+        let tpe = content.parse()?;
+        Ok(FuncArg { idx, tpe })
+    }
+}
+
+#[cfg(feature = "ergotree-proc-macro")]
+impl quote::ToTokens for FuncArg {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        let idx = &self.idx;
+        let tpe = &self.tpe;
+        tokens.extend(quote::quote! {
+            ergotree_ir::mir::func_value::FuncArg {
+                idx: #idx,
+                tpe: #tpe,
+            }
+        })
+    }
+}
+
 impl SigmaSerializable for FuncArg {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         self.idx.sigma_serialize(w)?;
@@ -94,6 +122,42 @@ impl SigmaSerializable for FuncValue {
             .for_each(|a| r.val_def_type_store().insert(a.idx, a.tpe.clone()));
         let body = Expr::sigma_parse(r)?;
         Ok(FuncValue::new(args, body))
+    }
+}
+
+#[cfg(feature = "ergotree-proc-macro")]
+impl syn::parse::Parse for FuncValue {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let args = {
+            let name: syn::Ident = input.parse()?;
+            if name == "Vector" {
+                let content;
+                let _paren = syn::parenthesized!(content in input);
+                let punctuated: syn::punctuated::Punctuated<FuncArg, syn::Token![,]> =
+                    content.parse_terminated(FuncArg::parse)?;
+                punctuated.into_iter().collect()
+            } else {
+                return Err(syn::Error::new_spanned(name, "Expected `Vector`"));
+            }
+        };
+        let _comma: syn::Token![,] = input.parse()?;
+        let body: Expr = input.parse()?;
+        Ok(FuncValue::new(args, body))
+    }
+}
+
+#[cfg(feature = "ergotree-proc-macro")]
+impl quote::ToTokens for FuncValue {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        let args = &self.args;
+        let body = &*self.body;
+        //let tpe = &self.tpe;
+        tokens.extend(
+            quote::quote! { ergotree_ir::mir::func_value::FuncValue::new(
+                 vec![#( #args),*],
+                #body,
+            )},
+        )
     }
 }
 

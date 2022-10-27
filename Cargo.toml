@@ -6,6 +6,7 @@ members = [
     "ergoscript-compiler",
     "ergotree-ir",
     "ergotree-interpreter",
+    "ergotree-macro",
     "ergo-lib",
     "ergo-p2p",
     "ergo-chain-generation",

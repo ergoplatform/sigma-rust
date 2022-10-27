@@ -829,6 +829,90 @@ impl TryFrom<Base16DecodedBytes> for Constant {
     }
 }
 
+#[cfg(feature = "ergotree-proc-macro")]
+/// Given name of a constant, parse an instance of `Constant`
+pub fn parse_constant(name: &syn::Ident, input: syn::parse::ParseStream) -> syn::Result<Constant> {
+    match name.to_string().as_str() {
+        "IntConstant" => {
+            let c: syn::LitInt = input.parse()?;
+            let int_const = c.base10_parse::<i32>()?;
+            Ok(int_const.into())
+        }
+        "ByteConstant" => {
+            let c: syn::LitInt = input.parse()?;
+            let byte_const = c.base10_parse::<i8>()?;
+            let _dot: syn::Token![.] = input.parse()?;
+            let to_byte_ident: syn::Ident = input.parse()?;
+            if to_byte_ident != "toByte" {
+                return Err(syn::Error::new_spanned(
+                    to_byte_ident.clone(),
+                    format!("Expected `toByte` Ident, got {}", to_byte_ident),
+                ));
+            }
+            Ok(byte_const.into())
+        }
+        "ShortConstant" => {
+            let c: syn::LitInt = input.parse()?;
+            let short_const = c.base10_parse::<i16>()?;
+            if input.peek(syn::Token![.]) {
+                let _dot: syn::Token![.] = input.parse()?;
+                let to_short_ident: syn::Ident = input.parse()?;
+                if to_short_ident != "toShort" {
+                    return Err(syn::Error::new_spanned(
+                        to_short_ident.clone(),
+                        format!("Expected `toShort` Ident, got {}", to_short_ident),
+                    ));
+                }
+            }
+            Ok(short_const.into())
+        }
+        "LongConstant" => {
+            let c: syn::LitInt = input.parse()?;
+            let long_const = c.base10_parse::<i64>()?;
+            if input.peek(syn::Token![.]) {
+                let _dot: syn::Token![.] = input.parse()?;
+                let to_long_ident: syn::Ident = input.parse()?;
+                if to_long_ident != "toLong" {
+                    return Err(syn::Error::new_spanned(
+                        to_long_ident.clone(),
+                        format!("Expected `toLong` Ident, got {}", to_long_ident),
+                    ));
+                }
+            } else if c.suffix() != "L" {
+                return Err(syn::Error::new_spanned(c, "Expected `L` suffix"));
+            }
+            Ok(long_const.into())
+        }
+        "BigIntConstant" => {
+            let c: syn::LitInt = input.parse()?;
+            let long_const = c.base10_parse::<i64>()?;
+            if c.suffix() != "L" {
+                return Err(syn::Error::new_spanned(c, "Expected `L` suffix"));
+            }
+            Ok(BigInt256::from(long_const).into())
+        }
+        _ => todo!(),
+    }
+}
+
+#[cfg(feature = "ergotree-proc-macro")]
+impl quote::ToTokens for Constant {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        use quote::quote;
+        tokens.extend(match self.v {
+            Literal::Int(i) => quote! { ergotree_ir::mir::constant::Constant::from(#i) },
+            Literal::Long(l) => quote! { ergotree_ir::mir::constant::Constant::from(#l) },
+            Literal::Byte(b) => quote! { ergotree_ir::mir::constant::Constant::from(#b) },
+            Literal::Short(s) => quote! { ergotree_ir::mir::constant::Constant::from(#s) },
+            Literal::BigInt(ref b) => {
+                let string_rep = b.to_str_radix(10);
+                quote! { ergotree_ir::mir::constant::Constant::from(ergotree_ir::bigint256::BigInt256::from_str_radix(#string_rep, 10).unwrap()) }
+        }
+            _ => todo!(),
+        });
+    }
+}
+
 #[cfg(feature = "arbitrary")]
 #[allow(clippy::unwrap_used)]
 #[allow(clippy::todo)]

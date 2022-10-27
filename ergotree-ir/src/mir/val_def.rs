@@ -31,6 +31,23 @@ impl ValId {
     }
 }
 
+#[cfg(feature = "ergotree-proc-macro")]
+impl syn::parse::Parse for ValId {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let id: syn::LitInt = input.parse()?;
+        let value = id.base10_parse::<u32>()?;
+        Ok(ValId(value))
+    }
+}
+
+#[cfg(feature = "ergotree-proc-macro")]
+impl quote::ToTokens for ValId {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        let val_id = self.0;
+        tokens.extend(quote::quote! { ergotree_ir::mir::val_def::ValId(#val_id) })
+    }
+}
+
 /** IR node for let-bound expressions `let x = rhs` which is ValDef.
  * These nodes are used to represent ErgoTrees after common sub-expression elimination.
  * This representation is more compact in serialized form.
@@ -69,6 +86,38 @@ impl SigmaSerializable for ValDef {
             id,
             rhs: Box::new(rhs),
         })
+    }
+}
+
+#[cfg(feature = "ergotree-proc-macro")]
+impl syn::parse::Parse for ValDef {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let id = input.parse()?;
+        let _comma: syn::Token![,] = input.parse()?;
+        let list_ident: syn::Ident = input.parse()?;
+        if list_ident != "List" {
+            return Err(syn::Error::new_spanned(
+                list_ident.clone(),
+                format!("Expected `List` ident, got {}", list_ident),
+            ));
+        }
+        let _content;
+        let _paren = syn::parenthesized!(_content in input);
+        let _comma: syn::Token![,] = input.parse()?;
+        let rhs = input.parse()?;
+        Ok(Self { id, rhs })
+    }
+}
+
+#[cfg(feature = "ergotree-proc-macro")]
+impl quote::ToTokens for ValDef {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        use quote::quote;
+        let id = self.id;
+        let rhs = *self.rhs.clone();
+        tokens.extend(quote! {
+            ergotree_ir::mir::val_def::ValDef { id: #id, rhs: Box::new(#rhs)}
+        });
     }
 }
 

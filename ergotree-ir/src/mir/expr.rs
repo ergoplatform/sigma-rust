@@ -370,6 +370,180 @@ impl<T: TryFrom<Expr>> TryExtractFrom<Expr> for T {
     }
 }
 
+#[cfg(feature = "ergotree-proc-macro")]
+impl syn::parse::Parse for Expr {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let name: syn::Ident = input.parse()?;
+        match name.to_string().as_str() {
+            "FuncValue" => {
+                let content;
+                let _paren = syn::parenthesized!(content in input);
+
+                Ok(Expr::FuncValue(content.parse()?))
+            }
+            "Tuple" => {
+                let content;
+                let _paren = syn::parenthesized!(content in input);
+
+                Ok(Expr::Tuple(content.parse()?))
+            }
+            "BlockValue" => {
+                let content;
+                let _paren = syn::parenthesized!(content in input);
+                Ok(Expr::BlockValue(content.parse()?))
+            }
+            "BoolToSigmaProp" => Ok(Expr::BoolToSigmaProp(input.parse()?)),
+            "ValUse" => Ok(Expr::ValUse(input.parse()?)),
+            "SelectField" => Ok(Expr::SelectField(input.parse()?)),
+            "ArithOp" | "EQ" | "NEQ" | "GE" | "LE" | "GT" | "LT" | "BinAnd" | "BinOr"
+            | "BinXor" | "BitAnd" | "BitOr" | "BitXor" => {
+                let content;
+                let _paren = syn::parenthesized!(content in input);
+                Ok(Expr::BinOp(super::bin_op::parse_bin_op(&name, &content)?))
+            }
+            "IntConstant" | "LongConstant" | "ByteConstant" | "ShortConstant"
+            | "BigIntConstant" => {
+                let content;
+                let _paren = syn::parenthesized!(content in input);
+                Ok(Expr::Const(super::constant::parse_constant(
+                    &name, &content,
+                )?))
+            }
+            "ValDef" => {
+                let content;
+                let _paren = syn::parenthesized!(content in input);
+                Ok(Expr::ValDef(content.parse()?))
+            }
+            "LogicalNot" => {
+                let content;
+                let _paren = syn::parenthesized!(content in input);
+                Ok(Expr::LogicalNot(content.parse()?))
+            }
+            "Downcast" => {
+                let content;
+                let _paren = syn::parenthesized!(content in input);
+                Ok(Expr::Downcast(content.parse()?))
+            }
+            "Upcast" => {
+                let content;
+                let _paren = syn::parenthesized!(content in input);
+                Ok(Expr::Upcast(content.parse()?))
+            }
+            "MethodCall" => Ok(Expr::MethodCall(input.parse()?)),
+            "ExtractScriptBytes" => {
+                let content;
+                let _paren = syn::parenthesized!(content in input);
+                Ok(Expr::ExtractScriptBytes(content.parse()?))
+            }
+            _ => Err(syn::Error::new_spanned(name, "Unknown `Expr` variant name")),
+        }
+    }
+}
+
+#[cfg(feature = "ergotree-proc-macro")]
+impl quote::ToTokens for Expr {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        use quote::quote;
+        tokens.extend(match self {
+            Expr::Append(a) => {
+                quote! { ergotree_ir::mir::expr::Expr::Append { #a } }
+            }
+
+            Expr::Const(c) => quote! { ergotree_ir::mir::expr::Expr::Const(#c) },
+            Expr::ConstPlaceholder(_) => todo!(),
+            Expr::SubstConstants(_) => todo!(),
+            Expr::ByteArrayToLong(_) => todo!(),
+            Expr::ByteArrayToBigInt(_) => todo!(),
+            Expr::LongToByteArray(_) => todo!(),
+            Expr::Collection(_) => todo!(),
+            Expr::Tuple(t) => {
+                quote! { ergotree_ir::mir::expr::Expr::Tuple(#t) }
+            }
+            Expr::CalcBlake2b256(_) => todo!(),
+            Expr::CalcSha256(_) => todo!(),
+            Expr::Context => todo!(),
+            Expr::Global => todo!(),
+            Expr::GlobalVars(_) => todo!(),
+            Expr::FuncValue(f) => {
+                quote! { ergotree_ir::mir::expr::Expr::FuncValue(#f) }
+            }
+            Expr::Apply(_) => todo!(),
+            Expr::MethodCall(m) => {
+                quote! { ergotree_ir::mir::expr::Expr::MethodCall(#m) }
+            }
+            Expr::ProperyCall(_) => todo!(),
+            Expr::BlockValue(b) => {
+                quote! { ergotree_ir::mir::expr::Expr::BlockValue(#b) }
+            }
+            Expr::ValDef(v) => {
+                quote! { ergotree_ir::mir::expr::Expr::ValDef(#v) }
+            }
+            Expr::ValUse(v) => {
+                quote! { ergotree_ir::mir::expr::Expr::ValUse(#v) }
+            }
+            Expr::If(_) => todo!(),
+            Expr::BinOp(b) => {
+                quote! { ergotree_ir::mir::expr::Expr::BinOp(#b) }
+            }
+            Expr::And(_) => todo!(),
+            Expr::Or(_) => todo!(),
+            Expr::Xor(_) => todo!(),
+            Expr::Atleast(_) => todo!(),
+            Expr::LogicalNot(l) => {
+                quote! { ergotree_ir::mir::expr::Expr::LogicalNot(#l) }
+            }
+            Expr::Negation(_) => todo!(),
+            Expr::BitInversion(_) => todo!(),
+            Expr::OptionGet(_) => todo!(),
+            Expr::OptionIsDefined(_) => todo!(),
+            Expr::OptionGetOrElse(_) => todo!(),
+            Expr::ExtractAmount(_) => todo!(),
+            Expr::ExtractRegisterAs(_) => todo!(),
+            Expr::ExtractBytes(_) => todo!(),
+            Expr::ExtractBytesWithNoRef(_) => todo!(),
+            Expr::ExtractScriptBytes(e) => {
+                quote! { ergotree_ir::mir::expr::Expr::ExtractScriptBytes(#e) }
+            }
+            Expr::ExtractCreationInfo(_) => todo!(),
+            Expr::ExtractId(_) => todo!(),
+            Expr::ByIndex(_) => todo!(),
+            Expr::SizeOf(_) => todo!(),
+            Expr::Slice(_) => todo!(),
+            Expr::Fold(_) => todo!(),
+            Expr::Map(_) => todo!(),
+            Expr::Filter(_) => todo!(),
+            Expr::Exists(_) => todo!(),
+            Expr::ForAll(_) => todo!(),
+            Expr::SelectField(s) => {
+                quote! { ergotree_ir::mir::expr::Expr::SelectField(#s) }
+            }
+            Expr::BoolToSigmaProp(b) => {
+                quote! { ergotree_ir::mir::expr::Expr::BoolToSigmaProp(#b) }
+            }
+            Expr::Upcast(u) => {
+                quote! { ergotree_ir::mir::expr::Expr::Upcast(#u) }
+            }
+            Expr::Downcast(d) => {
+                quote! { ergotree_ir::mir::expr::Expr::Downcast(#d) }
+            }
+            Expr::CreateProveDlog(_) => todo!(),
+            Expr::CreateProveDhTuple(_) => todo!(),
+            Expr::SigmaPropBytes(_) => todo!(),
+            Expr::DecodePoint(_) => todo!(),
+            Expr::SigmaAnd(_) => todo!(),
+            Expr::SigmaOr(_) => todo!(),
+            Expr::GetVar(_) => todo!(),
+            Expr::DeserializeRegister(_) => todo!(),
+            Expr::DeserializeContext(_) => todo!(),
+            Expr::MultiplyGroup(_) => todo!(),
+            Expr::Exponentiate(_) => todo!(),
+            Expr::XorOf(_) => todo!(),
+            Expr::TreeLookup(_) => todo!(),
+            Expr::CreateAvlTree(_) => todo!(),
+        });
+    }
+}
+
 #[cfg(feature = "arbitrary")]
 #[allow(clippy::unwrap_used)]
 #[allow(clippy::panic)]

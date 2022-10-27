@@ -31,6 +31,22 @@ pub enum ArithOp {
     Modulo,
 }
 
+#[cfg(feature = "ergotree-proc-macro")]
+impl quote::ToTokens for ArithOp {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        use quote::quote;
+        tokens.extend(match self {
+            ArithOp::Plus => quote! { ergotree_ir::mir::bin_op::ArithOp::Plus },
+            ArithOp::Minus => quote! { ergotree_ir::mir::bin_op::ArithOp::Minus },
+            ArithOp::Multiply => quote! { ergotree_ir::mir::bin_op::ArithOp::Multiply },
+            ArithOp::Divide => quote! { ergotree_ir::mir::bin_op::ArithOp::Divide },
+            ArithOp::Max => quote! { ergotree_ir::mir::bin_op::ArithOp::Max },
+            ArithOp::Min => quote! { ergotree_ir::mir::bin_op::ArithOp::Min },
+            ArithOp::Modulo => quote! { ergotree_ir::mir::bin_op::ArithOp::Modulo },
+        });
+    }
+}
+
 impl From<ArithOp> for OpCode {
     fn from(op: ArithOp) -> Self {
         match op {
@@ -61,6 +77,21 @@ pub enum RelationOp {
     Le,
     /// Less then
     Lt,
+}
+
+#[cfg(feature = "ergotree-proc-macro")]
+impl quote::ToTokens for RelationOp {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        use quote::quote;
+        tokens.extend(match self {
+            RelationOp::Eq => quote! {  ergotree_ir::mir::bin_op::RelationOp::Eq },
+            RelationOp::NEq => quote! { ergotree_ir::mir::bin_op::RelationOp::NEq },
+            RelationOp::Ge => quote! {  ergotree_ir::mir::bin_op::RelationOp::Ge },
+            RelationOp::Gt => quote! {  ergotree_ir::mir::bin_op::RelationOp::Gt },
+            RelationOp::Le => quote! {  ergotree_ir::mir::bin_op::RelationOp::Le },
+            RelationOp::Lt => quote! {  ergotree_ir::mir::bin_op::RelationOp::Lt },
+        })
+    }
 }
 
 impl From<RelationOp> for OpCode {
@@ -98,6 +129,17 @@ impl From<LogicalOp> for OpCode {
     }
 }
 
+#[cfg(feature = "ergotree-proc-macro")]
+impl quote::ToTokens for LogicalOp {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        use quote::quote;
+        tokens.extend(match self {
+            LogicalOp::And => quote! { ergotree_ir::mir::bin_op::LogicalOp::And },
+            LogicalOp::Or => quote! { ergotree_ir::mir::bin_op::LogicalOp::Or },
+            LogicalOp::Xor => quote! { ergotree_ir::mir::bin_op::LogicalOp::Xor },
+        });
+    }
+}
 /// Bitwise operations
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 #[cfg_attr(feature = "arbitrary", derive(Arbitrary))]
@@ -117,6 +159,18 @@ impl From<BitOp> for OpCode {
             BitOp::BitAnd => OpCode::BIT_AND,
             BitOp::BitXor => OpCode::BIT_XOR,
         }
+    }
+}
+
+#[cfg(feature = "ergotree-proc-macro")]
+impl quote::ToTokens for BitOp {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        use quote::quote;
+        tokens.extend(match self {
+            BitOp::BitOr => quote! { ergotree_ir::mir::bin_op::BitOp::BitOr },
+            BitOp::BitAnd => quote! { ergotree_ir::mir::bin_op::BitOp::BitAnd},
+            BitOp::BitXor => quote! { ergotree_ir::mir::bin_op::BitOp::BitXor},
+        });
     }
 }
 
@@ -171,6 +225,157 @@ impl BinOp {
 impl HasOpCode for BinOp {
     fn op_code(&self) -> OpCode {
         self.kind.into()
+    }
+}
+
+#[cfg(feature = "ergotree-proc-macro")]
+/// Given name of a binary op, parse an instance of `BinOp`
+pub fn parse_bin_op(op_name: &syn::Ident, input: syn::parse::ParseStream) -> syn::Result<BinOp> {
+    let left: Box<Expr> = input.parse()?;
+    let _comma: syn::Token![,] = input.parse()?;
+    let right: Box<Expr> = input.parse()?;
+    match op_name.to_string().as_str() {
+        "ArithOp" => {
+            let _comma: syn::Token![,] = input.parse()?;
+            let kind = extract_arithmetic_bin_op_kind(input)?;
+            Ok(BinOp { kind, left, right })
+        }
+        "EQ" => {
+            let kind = BinOpKind::Relation(RelationOp::Eq);
+            Ok(BinOp { kind, left, right })
+        }
+        "NEQ" => {
+            let kind = BinOpKind::Relation(RelationOp::NEq);
+            Ok(BinOp { kind, left, right })
+        }
+        "GE" => {
+            let kind = BinOpKind::Relation(RelationOp::Ge);
+            Ok(BinOp { kind, left, right })
+        }
+        "LE" => {
+            let kind = BinOpKind::Relation(RelationOp::Le);
+            Ok(BinOp { kind, left, right })
+        }
+        "GT" => {
+            let kind = BinOpKind::Relation(RelationOp::Gt);
+            Ok(BinOp { kind, left, right })
+        }
+        "LT" => {
+            let kind = BinOpKind::Relation(RelationOp::Lt);
+            Ok(BinOp { kind, left, right })
+        }
+        "BinAnd" => {
+            let kind = BinOpKind::Logical(LogicalOp::And);
+            Ok(BinOp { kind, left, right })
+        }
+        "BinOr" => {
+            let kind = BinOpKind::Logical(LogicalOp::Or);
+            Ok(BinOp { kind, left, right })
+        }
+        "BinXor" => {
+            let kind = BinOpKind::Logical(LogicalOp::Xor);
+            Ok(BinOp { kind, left, right })
+        }
+        "BitAnd" => {
+            let kind = BinOpKind::Bit(BitOp::BitAnd);
+            Ok(BinOp { kind, left, right })
+        }
+        "BitOr" => {
+            let kind = BinOpKind::Bit(BitOp::BitOr);
+            Ok(BinOp { kind, left, right })
+        }
+        "BitXor" => {
+            let kind = BinOpKind::Bit(BitOp::BitXor);
+            Ok(BinOp { kind, left, right })
+        }
+        _ => Err(syn::Error::new_spanned(
+            op_name.clone(),
+            "Unknown `BinOp` variant name",
+        )),
+    }
+}
+
+#[cfg(feature = "ergotree-proc-macro")]
+impl quote::ToTokens for BinOp {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        use quote::quote;
+        let left = *self.left.clone();
+        let right = *self.right.clone();
+        tokens.extend(match self.kind {
+            BinOpKind::Arith(a) => {
+                quote! {
+                    ergotree_ir::mir::bin_op::BinOp {
+                        left: Box::new(#left),
+                        right: Box::new(#right),
+                        kind: ergotree_ir::mir::bin_op::BinOpKind::Arith(#a),
+                    }
+                }
+            }
+            BinOpKind::Relation(r) => {
+                quote! {
+                    ergotree_ir::mir::bin_op::BinOp {
+                        left: Box::new(#left),
+                        right: Box::new(#right),
+                        kind: ergotree_ir::mir::bin_op::BinOpKind::Relation(#r),
+                    }
+                }
+            }
+            BinOpKind::Logical(l) => {
+                quote! {
+                    ergotree_ir::mir::bin_op::BinOp {
+                        left: Box::new(#left),
+                        right: Box::new(#right),
+                        kind: ergotree_ir::mir::bin_op::BinOpKind::Logical(#l),
+                    }
+                }
+            }
+            BinOpKind::Bit(b) => {
+                quote! {
+                    ergotree_ir::mir::bin_op::BinOp {
+                        left: Box::new(#left),
+                        right: Box::new(#right),
+                        kind: ergotree_ir::mir::bin_op::BinOpKind::Bit(#b),
+                    }
+                }
+            }
+        });
+    }
+}
+
+#[cfg(feature = "ergotree-proc-macro")]
+/// Converts `OpCode @@ x` into an instance of `BinOpKind::Arith`.
+fn extract_arithmetic_bin_op_kind(buf: syn::parse::ParseStream) -> Result<BinOpKind, syn::Error> {
+    let ident: syn::Ident = buf.parse()?;
+    if ident == "OpCode" {
+        let _at: syn::Token![@] = buf.parse()?;
+        let _at: syn::Token![@] = buf.parse()?;
+        let content;
+        let _paren = syn::parenthesized!(content in buf);
+        let id: syn::LitInt = content.parse()?;
+        let scala_op_code = id.base10_parse::<i32>()?;
+        let _dot: syn::Token![.] = content.parse()?;
+        let as_byte_ident: syn::Ident = content.parse()?;
+        if as_byte_ident != "toByte" {
+            return Err(syn::Error::new_spanned(
+                as_byte_ident.clone(),
+                format!("Expected `asByte` Ident, got {}", as_byte_ident),
+            ));
+        }
+        match OpCode::parse(scala_op_code as u8) {
+            OpCode::PLUS => Ok(ArithOp::Plus.into()),
+            OpCode::MINUS => Ok(ArithOp::Minus.into()),
+            OpCode::MULTIPLY => Ok(ArithOp::Multiply.into()),
+            OpCode::DIVISION => Ok(ArithOp::Divide.into()),
+            OpCode::MAX => Ok(ArithOp::Max.into()),
+            OpCode::MIN => Ok(ArithOp::Min.into()),
+            OpCode::MODULO => Ok(ArithOp::Modulo.into()),
+            _ => Err(syn::Error::new_spanned(ident, "Expected arithmetic opcode")),
+        }
+    } else {
+        Err(syn::Error::new_spanned(
+            ident.clone(),
+            format!("Expected `OpCode` ident, got {} ", ident),
+        ))
     }
 }
 

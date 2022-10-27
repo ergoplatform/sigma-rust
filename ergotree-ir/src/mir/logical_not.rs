@@ -39,6 +39,24 @@ impl OneArgOpTryBuild for LogicalNot {
     }
 }
 
+#[cfg(feature = "ergotree-proc-macro")]
+impl syn::parse::Parse for LogicalNot {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let input: Box<Expr> = input.parse()?;
+        Ok(Self { input })
+    }
+}
+
+#[cfg(feature = "ergotree-proc-macro")]
+impl quote::ToTokens for LogicalNot {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        let input = *self.input.clone();
+        tokens.extend(quote::quote! { ergotree_ir::mir::logical_not::LogicalNot{
+             input: Box::new(#input),
+        }})
+    }
+}
+
 #[cfg(feature = "arbitrary")]
 /// Arbitrary impl
 mod arbitrary {

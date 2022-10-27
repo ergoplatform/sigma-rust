@@ -89,6 +89,17 @@ impl SigmaSerializable for STypeVar {
     }
 }
 
+#[cfg(feature = "ergotree-proc-macro")]
+impl quote::ToTokens for STypeVar {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        let s = self.as_string();
+        let bytes = s.as_bytes().to_vec();
+        tokens.extend(quote::quote! {
+            ergotree_ir::types::stype_param::STypeVar::new_from_bytes(vec![#(#bytes),*]).unwrap()
+        });
+    }
+}
+
 /// Type parameter
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct STypeParam {

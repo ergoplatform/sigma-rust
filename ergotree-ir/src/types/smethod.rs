@@ -103,6 +103,14 @@ pub struct SMethodDesc {
 }
 
 impl SMethodDesc {
+    /// Create new
+    pub fn new(name: &'static str, method_id: MethodId, tpe: SFunc) -> Self {
+        SMethodDesc {
+            name,
+            method_id,
+            tpe,
+        }
+    }
     /// Initialize property method description
     pub fn property(
         obj_tpe: SType,
@@ -129,5 +137,41 @@ impl SMethodDesc {
 
     pub(crate) fn with_tpe(self, tpe: SFunc) -> Self {
         Self { tpe, ..self }
+    }
+}
+
+#[cfg(feature = "ergotree-proc-macro")]
+impl quote::ToTokens for SMethodDesc {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        let name = self.name;
+        let method_id = self.method_id.0;
+        let tpe = self.tpe.clone();
+        tokens.extend(
+            quote::quote! { ergotree_ir::types::smethod::SMethodDesc::new(
+                     #name,
+                     ergotree_ir::types::smethod::MethodId(#method_id),
+                     #tpe,
+                )
+
+            },
+        );
+    }
+}
+
+#[cfg(feature = "ergotree-proc-macro")]
+impl quote::ToTokens for SMethod {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        let obj_type = self.obj_type;
+        let name = self.name();
+        let method_id = self.method_id();
+        let tpe = self.tpe().clone();
+        let method_raw = SMethodDesc {
+            name,
+            method_id,
+            tpe,
+        };
+        tokens.extend(
+            quote::quote! { ergotree_ir::types::smethod::SMethod::new(#obj_type, #method_raw) },
+        );
     }
 }

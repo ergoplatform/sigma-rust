@@ -53,6 +53,51 @@ impl SigmaSerializable for BlockValue {
     }
 }
 
+#[cfg(feature = "ergotree-proc-macro")]
+impl syn::parse::Parse for BlockValue {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let mut items = vec![];
+        let ident: syn::Ident = input.parse()?;
+        if ident != "Vector" && ident != "Array" {
+            return Err(syn::Error::new_spanned(
+                ident.clone(),
+                format!(
+                    "BlockValue(..): expected `Vector` or `Array` Ident, got {:?}",
+                    ident
+                ),
+            ));
+        }
+        let content;
+        let _paren = syn::parenthesized!(content in input);
+
+        loop {
+            let expr: Expr = content.parse()?;
+            items.push(expr);
+            if !content.peek(syn::Token![,]) {
+                break;
+            }
+            let _comma: syn::Token![,] = content.parse()?;
+        }
+        let _comma: syn::Token![,] = input.parse()?;
+        let result = input.parse()?;
+        Ok(BlockValue { items, result })
+    }
+}
+
+#[cfg(feature = "ergotree-proc-macro")]
+impl quote::ToTokens for BlockValue {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        let items = self.items.clone();
+        let result = *self.result.clone();
+        tokens.extend(quote::quote! {
+            ergotree_ir::mir::block::BlockValue {
+                items: vec![#( #items),*],
+                result: Box::new(#result),
+            }
+        })
+    }
+}
+
 /// Arbitrary impl
 #[cfg(feature = "arbitrary")]
 mod arbitrary {

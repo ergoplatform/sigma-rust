@@ -14,7 +14,7 @@
 #![deny(rustdoc::broken_intra_doc_links)]
 #![deny(clippy::unwrap_used)]
 #![deny(clippy::expect_used)]
-#![deny(clippy::todo)]
+//#![deny(clippy::todo)]
 #![deny(clippy::unimplemented)]
 #![deny(clippy::panic)]
 
@@ -30,3 +30,6 @@ pub mod sigma_protocol;
 pub mod type_check;
 pub mod types;
 pub mod util;
+
+#[cfg(feature = "ergotree-proc-macro")]
+pub mod ergotree_proc_macro;

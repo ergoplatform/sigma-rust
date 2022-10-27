@@ -5,6 +5,8 @@ use std::convert::TryInto;
 use bounded_vec::BoundedVec;
 use bounded_vec::BoundedVecOutOfBounds;
 
+use crate::mir::expr::InvalidArgumentError;
+
 use super::stype::SType;
 use super::stype_param::STypeVar;
 
@@ -35,6 +37,13 @@ impl std::fmt::Debug for STuple {
 }
 
 impl STuple {
+    /// Create new STuple
+    pub fn new(items: Vec<SType>) -> Result<Self, InvalidArgumentError> {
+        Ok(STuple {
+            items: items.try_into()?,
+        })
+    }
+
     /// Create a tuple type for a given type pair
     pub fn pair(t1: SType, t2: SType) -> Self {
         STuple {
@@ -62,5 +71,36 @@ impl STuple {
         STuple {
             items: self.items.mapped(|a| a.with_subst(subst)),
         }
+    }
+}
+
+#[cfg(feature = "ergotree-proc-macro")]
+impl syn::parse::Parse for STuple {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let (items, name) = {
+            let name: syn::Ident = input.parse()?;
+            if name == "Vector" {
+                let content;
+                let _paren = syn::parenthesized!(content in input);
+                let punctuated: syn::punctuated::Punctuated<SType, syn::Token![,]> =
+                    content.parse_terminated(SType::parse)?;
+                (punctuated.into_iter().collect(), name)
+            } else {
+                return Err(syn::Error::new_spanned(name, "Expected `Vector`"));
+            }
+        };
+        STuple::new(items)
+            .map_err(|_| syn::Error::new_spanned(name, "Tuple must have at least 2 elements"))
+    }
+}
+
+#[cfg(feature = "ergotree-proc-macro")]
+impl quote::ToTokens for STuple {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        let items = self.items.clone().to_vec();
+        tokens.extend(quote::quote! { ergotree_ir::types::stuple::STuple::new(
+                 vec![#( #items),*],
+            ).unwrap()
+        })
     }
 }

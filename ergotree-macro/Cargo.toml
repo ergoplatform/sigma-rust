@@ -1,0 +1,22 @@
+[package]
+name = "ergotree-macro"
+version = "0.20.0"
+license = "CC0-1.0"
+authors = ["Timothy Ling (@kettlebell)"]
+description = "Procedural macro to generate ErgoTree expressions"
+repository = "https://github.com/ergoplatform/sigma-rust"
+edition = "2021"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro-error = "1"
+proc-macro2 = "1"
+quote = "1"
+syn = { version = "1", features = ["full", "extra-traits", "visit-mut"] }
+ergotree-ir = { version = "^0.20.0", path = "../ergotree-ir", features = ["arbitrary", "ergotree-proc-macro"] }
+num-traits = "0.2.14"
+
+[dev-dependencies]
+paste = "^1.0"
