@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Changed
+- add `type` and `exports` fields in package.json [#637](https://github.com/ergoplatform/sigma-rust/pull/637);
+- Fix bottom-up and top-down traverals in the prover (affects nested sigma conjectures) [#644](https://github.com/ergoplatform/sigma-rust/pull/644);
+- enable wasm-opt pass, make compiler optional to minimize wasm binary [#646](https://github.com/ergoplatform/sigma-rust/pull/646);
+
 ### Fixed (ergo-lib-wasm v0.20.1)
 - Fix field names for `Transaction`, `UnsignedTransaction` in EIP-12 format (`.to_js_eip12()`) [#627](https://github.com/ergoplatform/sigma-rust/pull/627);
 
