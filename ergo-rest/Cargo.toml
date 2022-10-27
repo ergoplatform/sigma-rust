@@ -17,7 +17,7 @@ crate-type = ["cdylib", "rlib"]
 async-trait = "^0.1"
 bounded-integer = { version = "^0.5", features = ["types"] }
 bounded-vec = { version = "^0.7.0", features=["serde"] }
-sigma-ser = { version = "^0.9.0", path = "../sigma-ser" }
+sigma-ser = { version = "^0.10.0", path = "../sigma-ser" }
 sigma-util = { version = "^0.8.0", path = "../sigma-util" }
 ergo-chain-types = { version = "^0.7.0", path = "../ergo-chain-types" }
 ergo-nipopow = { version = "^0.7.0", path = "../ergo-nipopow" }
