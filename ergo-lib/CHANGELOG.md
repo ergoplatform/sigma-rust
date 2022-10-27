@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
+## [0.21.0] - 2022-10-27
 
 ### Changed
 - add `type` and `exports` fields in package.json [#637](https://github.com/ergoplatform/sigma-rust/pull/637);
@@ -377,7 +378,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - ErgoTree constant values conversion.
 
 <!-- next-url -->
-[Unreleased]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.20.0...HEAD
+[Unreleased]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.21.0...HEAD
+[0.21.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.20.0...ergo-lib-v0.21.0
 [0.20.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.19.0...ergo-lib-v0.20.0
 [0.19.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.18.0...ergo-lib-v0.19.0
 [0.18.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.17.0...ergo-lib-v0.18.0
