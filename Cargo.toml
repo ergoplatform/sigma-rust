@@ -22,5 +22,5 @@ members = [
 
 [profile.release]
 # Tell `rustc` to optimize for small code size.
-opt-level = "s"
+opt-level = "z"
 lto = true
