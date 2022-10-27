@@ -58,7 +58,7 @@ features = [ "json" ]
 optional = true
 
 [features]
-default = ["json", "compiler"]
+default = ["json"]
 json = ["serde", "serde_json", "serde_with", "bounded-vec/serde"]
 compiler = ["ergoscript-compiler"]
 arbitrary = ["proptest", "proptest-derive", "ergotree-ir/arbitrary", "ergo-chain-types/arbitrary", "ergotree-interpreter/arbitrary"]

@@ -1,6 +1,5 @@
 //! Contract, for easier ErgoTree generation
 use ergo_lib::chain;
-use ergo_lib::ergoscript_compiler::script_env::ScriptEnv;
 use wasm_bindgen::prelude::*;
 
 use crate::address::Address;
@@ -27,10 +26,14 @@ impl Contract {
     }
 
     /// Compiles a contract from ErgoScript source code
+    #[cfg(feature = "compiler")]
     pub fn compile(source: &str) -> Result<Contract, JsValue> {
-        chain::contract::Contract::compile(source, ScriptEnv::new())
-            .map_err(|e| JsValue::from_str(e.pretty_desc(source).as_str()))
-            .map(Contract)
+        chain::contract::Contract::compile(
+            source,
+            ergo_lib::ergoscript_compiler::script_env::ScriptEnv::new(),
+        )
+        .map_err(|e| JsValue::from_str(e.pretty_desc(source).as_str()))
+        .map(Contract)
     }
 
     /// Get the ErgoTree of the contract

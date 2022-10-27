@@ -13,6 +13,7 @@ crate-type = ["cdylib", "rlib"]
 [features]
 default = ["console_error_panic_hook"]
 rest = ["ergo-lib/rest"]
+compiler = ["ergo-lib/compiler"]
 
 [dependencies]
 base16 = "0.2.1"
