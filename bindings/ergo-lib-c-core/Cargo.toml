@@ -31,6 +31,6 @@ version = "^0.7.0"
 features = ["serde"]
 
 [features]
-default = ["mnemonic_gen"]
+default = ["mnemonic_gen", "ergo-lib/compiler"]
 rest = ["tokio", "ergo-lib/rest"]
 mnemonic_gen = ["ergo-lib/mnemonic_gen"]

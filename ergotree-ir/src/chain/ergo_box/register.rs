@@ -120,7 +120,7 @@ impl TryFrom<String> for NonMandatoryRegisterId {
     type Error = NonMandatoryRegisterIdParsingError;
     fn try_from(str: String) -> Result<Self, Self::Error> {
         if str.len() == 2 && &str[..1] == "R" {
-            let index = (&str[1..2])
+            let index = str[1..2]
                 .parse::<usize>()
                 .map_err(|_| NonMandatoryRegisterIdParsingError())?;
             if (NonMandatoryRegisterId::START_INDEX..=NonMandatoryRegisterId::END_INDEX)
