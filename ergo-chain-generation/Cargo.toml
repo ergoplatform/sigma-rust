@@ -15,7 +15,7 @@ num-bigint = "0.4.0"
 rand = "0.8.5"
 sigma-test-util = { version = "^0.3.0", path = "../sigma-test-util" }
 ergo-chain-types = { version = "^0.8", path = "../ergo-chain-types" }
-ergo-nipopow = { version = "^0.7", path = "../ergo-nipopow" }
+ergo-nipopow = { version = "^0.8", path = "../ergo-nipopow" }
 ergo-merkle-tree = { version = "^0.8", path = "../ergo-merkle-tree" }
 
 
