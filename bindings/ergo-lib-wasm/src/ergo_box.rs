@@ -87,7 +87,7 @@ impl ErgoBoxCandidate {
     pub fn register_value(&self, register_id: NonMandatoryRegisterId) -> Option<Constant> {
         self.0
             .additional_registers
-            .get(register_id.into())
+            .get_constant(register_id.into())
             .cloned()
             .map(Constant::from)
     }
@@ -199,7 +199,7 @@ impl ErgoBox {
     pub fn register_value(&self, register_id: NonMandatoryRegisterId) -> Option<Constant> {
         self.0
             .additional_registers
-            .get(register_id.into())
+            .get_constant(register_id.into())
             .cloned()
             .map(Constant::from)
     }

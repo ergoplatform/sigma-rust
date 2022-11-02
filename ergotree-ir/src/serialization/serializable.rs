@@ -50,10 +50,10 @@ pub enum SigmaParsingError {
     #[error("invalid op code: {0}")]
     InvalidOpCode(u8),
     /// Lacking support for the op
-    #[error("not implemented op error")]
+    #[error("not implemented op error: {0}")]
     NotImplementedOpCode(String),
     /// Failed to parse type
-    #[error("type parsing error")]
+    #[error("type parsing error, invalid type code: {0}")]
     InvalidTypeCode(u8),
     /// Failed to decode VLQ
     #[error("vlq encode error: {0}")]

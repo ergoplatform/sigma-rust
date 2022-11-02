@@ -4,6 +4,7 @@ use crate::chain::ergo_box::BoxTokens;
 use crate::chain::ergo_box::ErgoBox;
 use crate::chain::ergo_box::ErgoBoxCandidate;
 use crate::chain::ergo_box::NonMandatoryRegisters;
+use crate::chain::ergo_box::RegisterValue;
 use crate::chain::token::Token;
 use crate::chain::tx_id::TxId;
 use crate::ergo_tree::ErgoTree;
@@ -193,9 +194,12 @@ pub enum ErgoBoxFromJsonError {
 #[derive(Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct ConstantHolder(#[serde(deserialize_with = "constant_as_string_or_struct")] RichConstant);
 
-impl From<ConstantHolder> for Constant {
+impl From<ConstantHolder> for RegisterValue {
     fn from(ch: ConstantHolder) -> Self {
-        ch.0.raw_value.0
+        match Constant::sigma_parse_bytes(ch.0.raw_value.0.as_slice()) {
+            Ok(c) => RegisterValue::Parsed(c),
+            Err(_) => RegisterValue::Unparseable(ch.0.raw_value.0),
+        }
     }
 }
 
@@ -207,7 +211,7 @@ struct RichConstant {
 
 #[derive(Deserialize, PartialEq, Eq, Debug, Clone)]
 #[serde(try_from = "Base16DecodedBytes")]
-struct ConstantWrapper(Constant);
+struct ConstantWrapper(Vec<u8>);
 
 #[derive(Error, PartialEq, Eq, Debug, Clone, From)]
 pub enum ConstantParsingError {
@@ -221,8 +225,7 @@ impl TryFrom<Base16DecodedBytes> for ConstantWrapper {
     type Error = ConstantParsingError;
 
     fn try_from(Base16DecodedBytes(bytes): Base16DecodedBytes) -> Result<Self, Self::Error> {
-        let c = Constant::sigma_parse_bytes(&bytes)?;
-        Ok(ConstantWrapper(c))
+        Ok(ConstantWrapper(bytes))
     }
 }
 
@@ -230,9 +233,8 @@ impl FromStr for RichConstant {
     type Err = ConstantParsingError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let Base16DecodedBytes(bytes) = Base16DecodedBytes::try_from(s)?;
-        let c = Constant::sigma_parse_bytes(&bytes)?;
         Ok(RichConstant {
-            raw_value: ConstantWrapper(c),
+            raw_value: ConstantWrapper(bytes),
         })
     }
 }
@@ -264,8 +266,11 @@ where
         where
             E: de::Error,
         {
-            FromStr::from_str(value).map_err(|_| {
-                de::Error::custom(format!("error parsing constant from string: {:?}", value))
+            FromStr::from_str(value).map_err(|e| {
+                de::Error::custom(format!(
+                    "error: {}, while parsing constant from string: {:?}",
+                    e, value
+                ))
             })
         }
 
@@ -315,7 +320,7 @@ mod tests {
         {"R4":"05b0b5cad8e6dbaef44a","R5":"048ce5d4e505"}
         "#;
         let regs: NonMandatoryRegisters = serde_json::from_str(json).unwrap();
-        assert_eq!(regs.get_ordered_values().len(), 2)
+        assert_eq!(regs.len(), 2)
     }
 
     #[test]
@@ -324,7 +329,7 @@ mod tests {
             {"R4":{"serializedValue":"0500","sigmaType":"SLong","renderedValue":"0"}}
                                                                                                                                            "#;
         let regs: NonMandatoryRegisters = serde_json::from_str(json).unwrap();
-        assert!(regs.get(NonMandatoryRegisterId::R4).is_some());
+        assert!(regs.get_constant(NonMandatoryRegisterId::R4).is_some());
     }
 
     #[test]
@@ -339,11 +344,12 @@ mod tests {
             }
         "#;
         let regs: NonMandatoryRegisters = serde_json::from_str(json).unwrap();
-        assert!(regs.get(NonMandatoryRegisterId::R4).is_some());
+        assert!(regs.get_constant(NonMandatoryRegisterId::R4).is_some());
     }
 
     #[test]
     fn parse_registers_error() {
+        // base16 decoding error
         let json = r#"
         {"R4":"0"}
         "#;
@@ -352,10 +358,20 @@ mod tests {
     }
 
     #[test]
+    fn parse_registers_error2() {
+        // invalid uparseable constant value
+        let json = r#"
+            {"R4":"860202660263"}
+        "#;
+        let regs: Result<NonMandatoryRegisters, _> = serde_json::from_str(json);
+        assert!(regs.is_ok());
+    }
+
+    #[test]
     fn parse_registers_unit() {
         let json = r#" {"R4":"62"} "#;
         let regs: NonMandatoryRegisters = serde_json::from_str(json).unwrap();
-        assert_eq!(regs.get_ordered_values().len(), 1)
+        assert_eq!(regs.len(), 1)
     }
 
     #[test]

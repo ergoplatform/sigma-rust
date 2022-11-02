@@ -170,7 +170,7 @@ pub struct NonMandatoryRegisterIdParsingError();
         try_from = "HashMap<NonMandatoryRegisterId, crate::chain::json::ergo_box::ConstantHolder>"
     )
 )]
-pub struct NonMandatoryRegisters(Vec<Constant>);
+pub struct NonMandatoryRegisters(Vec<RegisterValue>);
 
 impl NonMandatoryRegisters {
     /// Maximum number of non-mandatory registers
@@ -185,7 +185,11 @@ impl NonMandatoryRegisters {
     pub fn new(
         regs: HashMap<NonMandatoryRegisterId, Constant>,
     ) -> Result<NonMandatoryRegisters, NonMandatoryRegistersError> {
-        NonMandatoryRegisters::try_from(regs)
+        NonMandatoryRegisters::try_from(
+            regs.into_iter()
+                .map(|(k, v)| (k, v.into()))
+                .collect::<HashMap<NonMandatoryRegisterId, RegisterValue>>(),
+        )
     }
 
     /// Size of non-mandatory registers set
@@ -198,23 +202,61 @@ impl NonMandatoryRegisters {
         self.0.is_empty()
     }
 
-    /// Get register value
-    pub fn get(&self, reg_id: NonMandatoryRegisterId) -> Option<&Constant> {
-        self.0
-            .get(reg_id as usize - NonMandatoryRegisterId::START_INDEX)
+    /// Return true if register value is parsed as a Constant
+    pub fn is_parseable(&self, reg_id: NonMandatoryRegisterId) -> Option<bool> {
+        self.0.get(reg_id as usize).map(|v| v.is_parseable())
     }
 
-    /// Get ordered register values (first is R4, and so on, up to R9)
-    pub fn get_ordered_values(&self) -> &Vec<Constant> {
-        &self.0
+    /// Get register value as a Constant (returns None, if there is no value for the given register id or if it's an unparseable)
+    pub fn get_constant(&self, reg_id: NonMandatoryRegisterId) -> Option<&Constant> {
+        self.0
+            .get(reg_id as usize - NonMandatoryRegisterId::START_INDEX)
+            .and_then(|rv| rv.as_option_constant())
+    }
+
+    /// Get register value as bytes (returns None, if there is no value for the given register id)
+    pub fn get_bytes(&self, reg_id: NonMandatoryRegisterId) -> Option<Vec<u8>> {
+        self.0
+            .get(reg_id as usize - NonMandatoryRegisterId::START_INDEX)
+            .map(|rv| rv.sigma_serialize_bytes())
+    }
+}
+
+#[derive(PartialEq, Eq, Debug, Clone, From)]
+pub(crate) enum RegisterValue {
+    Parsed(Constant),
+    Unparseable(Vec<u8>),
+}
+
+impl RegisterValue {
+    pub fn as_option_constant(&self) -> Option<&Constant> {
+        match self {
+            RegisterValue::Parsed(c) => Some(c),
+            RegisterValue::Unparseable(_) => None,
+        }
+    }
+
+    #[allow(clippy::unwrap_used)] // it could only fail on OOM, etc.
+    fn sigma_serialize_bytes(&self) -> Vec<u8> {
+        match self {
+            RegisterValue::Parsed(c) => c.sigma_serialize_bytes().unwrap(),
+            RegisterValue::Unparseable(bytes) => bytes.clone(),
+        }
+    }
+
+    fn is_parseable(&self) -> bool {
+        match self {
+            RegisterValue::Parsed(_) => true,
+            RegisterValue::Unparseable(_) => false,
+        }
     }
 }
 
 /// Create new from ordered values (first element will be R4, and so on)
-impl TryFrom<Vec<Constant>> for NonMandatoryRegisters {
+impl TryFrom<Vec<RegisterValue>> for NonMandatoryRegisters {
     type Error = NonMandatoryRegistersError;
 
-    fn try_from(values: Vec<Constant>) -> Result<Self, Self::Error> {
+    fn try_from(values: Vec<RegisterValue>) -> Result<Self, Self::Error> {
         if values.len() > NonMandatoryRegisters::MAX_SIZE {
             Err(NonMandatoryRegistersError::InvalidSize(values.len()))
         } else {
@@ -223,14 +265,28 @@ impl TryFrom<Vec<Constant>> for NonMandatoryRegisters {
     }
 }
 
+impl TryFrom<Vec<Constant>> for NonMandatoryRegisters {
+    type Error = NonMandatoryRegistersError;
+
+    fn try_from(values: Vec<Constant>) -> Result<Self, Self::Error> {
+        NonMandatoryRegisters::try_from(
+            values
+                .into_iter()
+                .map(RegisterValue::Parsed)
+                .collect::<Vec<RegisterValue>>(),
+        )
+    }
+}
+
 impl SigmaSerializable for NonMandatoryRegisters {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         let regs_num = self.len();
         w.put_u8(regs_num as u8)?;
-
-        self.get_ordered_values()
-            .iter()
-            .try_for_each(|c| c.sigma_serialize(w))
+        for reg_value in self.0.iter() {
+            let bytes = reg_value.sigma_serialize_bytes();
+            w.write_all(&bytes)?;
+        }
+        Ok(())
     }
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
@@ -261,35 +317,37 @@ impl From<NonMandatoryRegisters>
     fn from(v: NonMandatoryRegisters) -> Self {
         v.0.into_iter()
             .enumerate()
-            .map(|(i, c)| {
+            .map(|(i, reg_value)| {
                 (
                     NonMandatoryRegisterId::get_by_zero_index(i),
                     // no way of returning an error without writing custom JSON serializer
                     #[allow(clippy::unwrap_used)]
-                    Base16EncodedBytes::new(&c.sigma_serialize_bytes().unwrap()),
+                    Base16EncodedBytes::new(&reg_value.sigma_serialize_bytes()),
                 )
             })
             .collect()
     }
 }
 
-impl From<NonMandatoryRegisters> for HashMap<NonMandatoryRegisterId, Constant> {
+impl From<NonMandatoryRegisters> for HashMap<NonMandatoryRegisterId, RegisterValue> {
     fn from(v: NonMandatoryRegisters) -> Self {
         v.0.into_iter()
             .enumerate()
-            .map(|(i, c)| (NonMandatoryRegisterId::get_by_zero_index(i), c))
+            .map(|(i, reg_val)| (NonMandatoryRegisterId::get_by_zero_index(i), reg_val))
             .collect()
     }
 }
 
-impl TryFrom<HashMap<NonMandatoryRegisterId, Constant>> for NonMandatoryRegisters {
+impl TryFrom<HashMap<NonMandatoryRegisterId, RegisterValue>> for NonMandatoryRegisters {
     type Error = NonMandatoryRegistersError;
-    fn try_from(reg_map: HashMap<NonMandatoryRegisterId, Constant>) -> Result<Self, Self::Error> {
+    fn try_from(
+        reg_map: HashMap<NonMandatoryRegisterId, RegisterValue>,
+    ) -> Result<Self, Self::Error> {
         let regs_num = reg_map.len();
         if regs_num > NonMandatoryRegisters::MAX_SIZE {
             Err(NonMandatoryRegistersError::InvalidSize(regs_num))
         } else {
-            let mut res: Vec<Constant> = vec![];
+            let mut res: Vec<RegisterValue> = vec![];
             NonMandatoryRegisterId::REG_IDS
                 .iter()
                 .take(regs_num)
@@ -310,7 +368,7 @@ impl TryFrom<HashMap<NonMandatoryRegisterId, crate::chain::json::ergo_box::Const
     fn try_from(
         value: HashMap<NonMandatoryRegisterId, crate::chain::json::ergo_box::ConstantHolder>,
     ) -> Result<Self, Self::Error> {
-        let cm: HashMap<NonMandatoryRegisterId, Constant> =
+        let cm: HashMap<NonMandatoryRegisterId, RegisterValue> =
             value.into_iter().map(|(k, v)| (k, v.into())).collect();
         NonMandatoryRegisters::try_from(cm)
     }
@@ -360,9 +418,15 @@ pub(crate) mod arbitrary {
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(_: Self::Parameters) -> Self::Strategy {
-            vec(any::<Constant>(), 0..=NonMandatoryRegisterId::NUM_REGS)
-                .prop_map(|constants| NonMandatoryRegisters::try_from(constants).unwrap())
-                .boxed()
+            vec(
+                prop_oneof![
+                    any::<Constant>().prop_map(RegisterValue::Parsed),
+                    vec(any::<u8>(), 0..100).prop_map(RegisterValue::Unparseable)
+                ],
+                0..=NonMandatoryRegisterId::NUM_REGS,
+            )
+            .prop_map(|reg_values| NonMandatoryRegisters::try_from(reg_values).unwrap())
+            .boxed()
         }
     }
 }
@@ -380,7 +444,7 @@ mod tests {
 
         #[test]
         fn hash_map_roundtrip(regs in any::<NonMandatoryRegisters>()) {
-            let hash_map: HashMap<NonMandatoryRegisterId, Constant> = regs.clone().into();
+            let hash_map: HashMap<NonMandatoryRegisterId, RegisterValue> = regs.clone().into();
             let regs_from_map = NonMandatoryRegisters::try_from(hash_map);
             prop_assert![regs_from_map.is_ok()];
             prop_assert_eq![regs_from_map.unwrap(), regs];
@@ -388,9 +452,9 @@ mod tests {
 
         #[test]
         fn get(regs in any::<NonMandatoryRegisters>()) {
-            let hash_map: HashMap<NonMandatoryRegisterId, Constant> = regs.clone().into();
+            let hash_map: HashMap<NonMandatoryRegisterId, RegisterValue> = regs.clone().into();
             hash_map.keys().try_for_each(|reg_id| {
-                prop_assert_eq![regs.get(*reg_id), hash_map.get(reg_id)];
+                prop_assert_eq![regs.get_constant(*reg_id), hash_map.get(reg_id).unwrap().as_option_constant()];
                 Ok(())
             })?;
         }
@@ -413,10 +477,11 @@ mod tests {
 
     #[test]
     fn test_non_densely_packed_error() {
-        let mut hash_map: HashMap<NonMandatoryRegisterId, Constant> = HashMap::new();
-        hash_map.insert(NonMandatoryRegisterId::R4, 1i32.into());
+        let mut hash_map: HashMap<NonMandatoryRegisterId, RegisterValue> = HashMap::new();
+        let c: Constant = 1i32.into();
+        hash_map.insert(NonMandatoryRegisterId::R4, c.clone().into());
         // gap, missing R5
-        hash_map.insert(NonMandatoryRegisterId::R6, 1i32.into());
+        hash_map.insert(NonMandatoryRegisterId::R6, c.into());
         assert!(NonMandatoryRegisters::try_from(hash_map).is_err());
     }
 }

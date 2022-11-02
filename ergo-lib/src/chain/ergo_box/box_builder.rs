@@ -348,7 +348,7 @@ mod tests {
         builder.set_register_value(R4, reg_value.clone());
         assert_eq!(builder.register_value(&R4).unwrap(), &reg_value);
         let b = builder.build().unwrap();
-        assert_eq!(b.additional_registers.get(R4).unwrap(), &reg_value);
+        assert_eq!(b.additional_registers.get_constant(R4).unwrap(), &reg_value);
     }
 
     #[test]
@@ -360,7 +360,7 @@ mod tests {
         builder.delete_register_value(&R4);
         assert!(builder.register_value(&R4).is_none());
         let b = builder.build().unwrap();
-        assert!(b.additional_registers.get(R4).is_none());
+        assert!(b.additional_registers.get_constant(R4).is_none());
     }
 
     #[test]
@@ -382,7 +382,7 @@ mod tests {
         assert_eq!(
             out_box
                 .additional_registers
-                .get(NonMandatoryRegisterId::R4)
+                .get_constant(NonMandatoryRegisterId::R4)
                 .unwrap()
                 .base16_str()
                 .unwrap(),
@@ -392,7 +392,7 @@ mod tests {
         assert_eq!(
             out_box
                 .additional_registers
-                .get(NonMandatoryRegisterId::R5)
+                .get_constant(NonMandatoryRegisterId::R5)
                 .unwrap()
                 .base16_str()
                 .unwrap(),
@@ -402,7 +402,7 @@ mod tests {
         assert_eq!(
             out_box
                 .additional_registers
-                .get(NonMandatoryRegisterId::R6)
+                .get_constant(NonMandatoryRegisterId::R6)
                 .unwrap()
                 .base16_str()
                 .unwrap(),
