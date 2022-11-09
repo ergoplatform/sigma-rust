@@ -413,16 +413,26 @@ pub(crate) mod arbitrary {
     use super::*;
     use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
 
+    #[derive(Default)]
+    pub struct ArbNonMandatoryRegistersParams {
+        pub allow_unparseable: bool,
+    }
+
     impl Arbitrary for NonMandatoryRegisters {
-        type Parameters = ();
+        type Parameters = ArbNonMandatoryRegistersParams;
         type Strategy = BoxedStrategy<Self>;
 
-        fn arbitrary_with(_: Self::Parameters) -> Self::Strategy {
+        fn arbitrary_with(params: Self::Parameters) -> Self::Strategy {
             vec(
-                prop_oneof![
-                    any::<Constant>().prop_map(RegisterValue::Parsed),
-                    vec(any::<u8>(), 0..100).prop_map(RegisterValue::Unparseable)
-                ],
+                if params.allow_unparseable {
+                    prop_oneof![
+                        any::<Constant>().prop_map(RegisterValue::Parsed),
+                        vec(any::<u8>(), 0..100).prop_map(RegisterValue::Unparseable)
+                    ]
+                    .boxed()
+                } else {
+                    any::<Constant>().prop_map(RegisterValue::Parsed).boxed()
+                },
                 0..=NonMandatoryRegisterId::NUM_REGS,
             )
             .prop_map(|reg_values| NonMandatoryRegisters::try_from(reg_values).unwrap())
