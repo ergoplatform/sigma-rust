@@ -5,6 +5,7 @@ use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
+use crate::serialization::SigmaSerializationError;
 use crate::serialization::SigmaSerializeResult;
 use derive_more::From;
 use ergo_chain_types::Base16EncodedBytes;
@@ -283,8 +284,14 @@ impl SigmaSerializable for NonMandatoryRegisters {
         let regs_num = self.len();
         w.put_u8(regs_num as u8)?;
         for reg_value in self.0.iter() {
-            let bytes = reg_value.sigma_serialize_bytes();
-            w.write_all(&bytes)?;
+            match reg_value {
+                RegisterValue::Parsed(c) => c.sigma_serialize(w)?,
+                RegisterValue::Unparseable(_) => {
+                    return Err(SigmaSerializationError::NotSupported(
+                        "unparseable register value cannot be serialized, because it cannot be parsed later"
+                    ))
+                }
+            };
         }
         Ok(())
     }
