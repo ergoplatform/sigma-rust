@@ -83,7 +83,7 @@ impl ErgoBoxCandidate {
             .into())
     }
 
-    /// Returns value (ErgoTree constant) stored in the register or None if the register is empty
+    /// Returns value (ErgoTree constant) stored in the register or None if the register is empty or cannot be parsed
     pub fn register_value(&self, register_id: NonMandatoryRegisterId) -> Option<Constant> {
         self.0
             .additional_registers
@@ -195,7 +195,7 @@ impl ErgoBox {
         self.0.value.into()
     }
 
-    /// Returns value (ErgoTree constant) stored in the register or None if the register is empty
+    /// Returns value (ErgoTree constant) stored in the register or None if the register is empty or cannot be parsed
     pub fn register_value(&self, register_id: NonMandatoryRegisterId) -> Option<Constant> {
         self.0
             .additional_registers

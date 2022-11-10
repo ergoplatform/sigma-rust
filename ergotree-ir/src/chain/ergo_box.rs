@@ -146,7 +146,7 @@ impl ErgoBox {
         Ok(Digest32::from(*hash).into())
     }
 
-    /// Get register value
+    /// Get register value, or None if register is empty or cannot be parsed
     pub fn get_register(&self, id: RegisterId) -> Option<Constant> {
         match id {
             RegisterId::MandatoryRegisterId(id) => match id {
