@@ -10,9 +10,6 @@ on:
       - opened
       - synchronize
 
-env:
-  RUSTV: '1.63'
-
 jobs:
   build_wo_default_features:
     name: Build without default features
@@ -21,7 +18,6 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: ${{ env.RUSTV }}
           override: true
       - name: Build ergotree-ir
         uses: actions-rs/cargo@v1
@@ -47,7 +43,6 @@ jobs:
           fetch-depth: 0
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: ${{ env.RUSTV }}
           override: true
       - name: cargo fetch
         uses: actions-rs/cargo@v1
@@ -71,7 +66,6 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: ${{ env.RUSTV }}
           override: true
       - name: rust-tarpaulin code coverage check
         uses: actions-rs/tarpaulin@master
@@ -95,7 +89,6 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: ${{ env.RUSTV }}
           components: clippy
           override: true
       - name: Check with Clippy
@@ -132,7 +125,6 @@ jobs:
 
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: ${{ env.RUSTV }}
           override: true
 
       - name: install deps
@@ -194,7 +186,6 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: ${{ env.RUSTV }}
           components: rustfmt
           override: true
       - name: Check formatting
@@ -210,7 +201,6 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: ${{ env.RUSTV }}
           override: true
       - name: cargo fetch
         uses: actions-rs/cargo@v1
@@ -258,7 +248,6 @@ jobs:
 
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: ${{ env.RUSTV }}
           override: true
 
       - name: build and run tests
@@ -276,7 +265,6 @@ jobs:
 
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: ${{ env.RUSTV }}
           override: true
 
       - name: install deps
