@@ -203,9 +203,9 @@ impl NonMandatoryRegisters {
         self.0.is_empty()
     }
 
-    /// Return true if register value is parsed as a Constant
-    pub fn is_parseable(&self, reg_id: NonMandatoryRegisterId) -> Option<bool> {
-        self.0.get(reg_id as usize).map(|v| v.is_parseable())
+    /// Get register value (returns None, if there is no value for the given register id)
+    pub fn get(&self, reg_id: NonMandatoryRegisterId) -> Option<&RegisterValue> {
+        self.0.get(reg_id as usize)
     }
 
     /// Get register value as a Constant (returns None, if there is no value for the given register id or if it's an unparseable)
@@ -214,22 +214,19 @@ impl NonMandatoryRegisters {
             .get(reg_id as usize - NonMandatoryRegisterId::START_INDEX)
             .and_then(|rv| rv.as_option_constant())
     }
-
-    /// Get register value as bytes (returns None, if there is no value for the given register id)
-    pub fn get_bytes(&self, reg_id: NonMandatoryRegisterId) -> Option<Vec<u8>> {
-        self.0
-            .get(reg_id as usize - NonMandatoryRegisterId::START_INDEX)
-            .map(|rv| rv.sigma_serialize_bytes())
-    }
 }
 
+/// Register value (either Constant or bytes if it's unparseable)
 #[derive(PartialEq, Eq, Debug, Clone, From)]
-pub(crate) enum RegisterValue {
+pub enum RegisterValue {
+    /// Constant value
     Parsed(Constant),
+    /// Unparseable bytes
     Unparseable(Vec<u8>),
 }
 
 impl RegisterValue {
+    /// Return a Constant if it's parsed, otherwise None
     pub fn as_option_constant(&self) -> Option<&Constant> {
         match self {
             RegisterValue::Parsed(c) => Some(c),
@@ -242,13 +239,6 @@ impl RegisterValue {
         match self {
             RegisterValue::Parsed(c) => c.sigma_serialize_bytes().unwrap(),
             RegisterValue::Unparseable(bytes) => bytes.clone(),
-        }
-    }
-
-    fn is_parseable(&self) -> bool {
-        match self {
-            RegisterValue::Parsed(_) => true,
-            RegisterValue::Unparseable(_) => false,
         }
     }
 }
