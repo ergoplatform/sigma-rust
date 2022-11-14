@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
+
+### Changed
+- uparseable register value should not prevent parsing `ErgoBox` from JSON [#647](https://github.com/ergoplatform/sigma-rust/pull/647);
+- rename `NonMandatoryRegisters:get` to `NonMandatoryRegisters::get_constant` and return `None` if the register value is unparseable [#647](https://github.com/ergoplatform/sigma-rust/pull/647);
+- add `NonMandatoryRegisters:get` returning new `RegisterValue` holding either a `Constant` or unparseable bytes [#647](https://github.com/ergoplatform/sigma-rust/pull/647);
+
+
 ## [0.21.0] - 2022-10-27
 
 ### Changed
