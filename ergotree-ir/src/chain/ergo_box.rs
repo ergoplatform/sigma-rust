@@ -146,7 +146,7 @@ impl ErgoBox {
         Ok(Digest32::from(*hash).into())
     }
 
-    /// Get register value
+    /// Get register value, or None if register is empty or cannot be parsed
     pub fn get_register(&self, id: RegisterId) -> Option<Constant> {
         match id {
             RegisterId::MandatoryRegisterId(id) => match id {
@@ -157,7 +157,9 @@ impl ErgoBox {
                 MandatoryRegisterId::R2 => Some(self.tokens_raw().into()),
                 MandatoryRegisterId::R3 => Some(self.creation_info().into()),
             },
-            RegisterId::NonMandatoryRegisterId(id) => self.additional_registers.get(id).cloned(),
+            RegisterId::NonMandatoryRegisterId(id) => {
+                self.additional_registers.get_constant(id).cloned()
+            }
         }
     }
 

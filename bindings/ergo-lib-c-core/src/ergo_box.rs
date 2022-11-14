@@ -135,7 +135,11 @@ pub unsafe fn ergo_box_candidate_register_value(
 ) -> Result<bool, Error> {
     let candidate = const_ptr_as_ref(ergo_box_candidate_ptr, "ergo_box_candidate_ptr")?;
     let constant_out = mut_ptr_as_mut(constant_out, "constant_out")?;
-    if let Some(c) = candidate.0.additional_registers.get(register_id.into()) {
+    if let Some(c) = candidate
+        .0
+        .additional_registers
+        .get_constant(register_id.into())
+    {
         *constant_out = Box::into_raw(Box::new(Constant(c.clone())));
         Ok(true)
     } else {
@@ -286,7 +290,11 @@ pub unsafe fn ergo_box_register_value(
 ) -> Result<bool, Error> {
     let ergo_box = const_ptr_as_ref(ergo_box_ptr, "ergo_box_ptr")?;
     let constant_out = mut_ptr_as_mut(constant_out, "constant_out")?;
-    if let Some(c) = ergo_box.0.additional_registers.get(register_id.into()) {
+    if let Some(c) = ergo_box
+        .0
+        .additional_registers
+        .get_constant(register_id.into())
+    {
         *constant_out = Box::into_raw(Box::new(Constant(c.clone())));
         Ok(true)
     } else {
