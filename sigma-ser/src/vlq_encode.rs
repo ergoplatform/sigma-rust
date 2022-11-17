@@ -108,7 +108,7 @@ pub trait WriteSigmaVlqExt: io::Write {
 
     /// Encode bool array as bit vector, filling trailing bits with `false`
     fn put_bits(&mut self, bools: &[bool]) -> io::Result<()> {
-        let mut bits = BitVec::<Lsb0, u8>::new();
+        let mut bits = BitVec::<u8, Lsb0>::new();
         for b in bools {
             bits.push(*b);
         }
@@ -227,7 +227,7 @@ pub trait ReadSigmaVlqExt: io::Read {
         let mut buf = vec![0u8; byte_num];
         self.read_exact(&mut buf)?;
         // May fail if number of bits in buf is larger that maximum value of usize
-        let mut bits = BitVec::<Lsb0, u8>::from_vec(buf);
+        let mut bits = BitVec::<u8, Lsb0>::from_vec(buf);
         bits.truncate(size);
         Ok(bits.iter().map(|x| *x).collect::<Vec<bool>>())
     }
