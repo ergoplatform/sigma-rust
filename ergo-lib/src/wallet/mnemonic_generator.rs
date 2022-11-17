@@ -161,9 +161,9 @@ impl MnemonicGenerator {
             let mut hasher = Sha256::new();
             hasher.update(entrophy.clone());
 
-            let checksum = BitVec::<Msb0, _>::from_vec(hasher.finalize().to_vec());
+            let checksum = BitVec::<_, Msb0>::from_vec(hasher.finalize().to_vec());
             let ent_len = entrophy.len();
-            let mut entrophy_with_checksum = BitVec::<Msb0, _>::from_vec(entrophy);
+            let mut entrophy_with_checksum = BitVec::<_, Msb0>::from_vec(entrophy);
             entrophy_with_checksum.append(&mut checksum[..ent_len / 4].into());
 
             let wl = WordList(self.lang);

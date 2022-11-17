@@ -38,7 +38,7 @@ hmac = { version = "0.11.0" }
 k256 = { version = "0.10.0", features = ["arithmetic", "ecdsa"] }
 pbkdf2 = "0.8"
 rand = "0.8.5"
-bitvec = { version = "0.22.3", optional = true }
+bitvec = { workspace = true, optional = true }
 unicode-normalization = "0.1.19"
 lazy_static = "1.4"
 

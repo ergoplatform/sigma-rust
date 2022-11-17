@@ -20,6 +20,9 @@ members = [
     "bindings/ergo-lib-jni"
 ]
 
+[workspace.dependencies]
+bitvec = { version = "1.0.1" }
+
 [profile.release]
 # Tell `rustc` to optimize for small code size.
 opt-level = "z"
