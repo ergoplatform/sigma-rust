@@ -11,8 +11,7 @@ repository = "https://github.com/ergoplatform/sigma-rust"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-blake2 = "0.9"
-sha2 = "0.9"
-
+blake2 = { workspace = true }
+sha2 = { workspace = true }
 
 [dev-dependencies]
