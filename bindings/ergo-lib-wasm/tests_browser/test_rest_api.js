@@ -54,7 +54,7 @@ it('node REST API: example SPV workflow', async () => {
 
     // Get NiPoPow proofs from 2 separate ergo nodes
     let proofs = await Promise.all([
-        get_nipopow_proof(new URL("http://167.235.75.51:9053"), header_id),
+        get_nipopow_proof(new URL("http://159.65.11.55:9053"), header_id),
         get_nipopow_proof(new URL("http://213.239.193.208:9053"), header_id),
     ]);
 

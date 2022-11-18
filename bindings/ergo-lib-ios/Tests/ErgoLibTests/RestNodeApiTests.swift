@@ -106,7 +106,7 @@ final class RestNodeApiTests: XCTestCase {
         let txId = try TxId(withString: "258ddfc09b94b8313bca724de44a0d74010cab26de379be845713cc129546b78")
         let proofs = try await withThrowingTaskGroup(of: [NipopowProof].self) { group -> [NipopowProof] in
             group.addTask {
-                let proof = try await getNipopowProof(url: URL(string: "167.235.75.51:9053")!, headerId: headerId)!
+                let proof = try await getNipopowProof(url: URL(string: "159.65.11.55:9053")!, headerId: headerId)!
                 return [proof]
             }
             group.addTask {
