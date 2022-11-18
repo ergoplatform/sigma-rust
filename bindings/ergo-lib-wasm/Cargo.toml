@@ -48,7 +48,7 @@ wasm-bindgen-futures = { version = "0.4.33" }
 [dev-dependencies]
 wasm-bindgen-test = { workspace = true }
 ergo-lib = { workspace = true, features = ["arbitrary"] }
-proptest = { workspace = true , default-features = false, features = ["std"] }
+proptest = { workspace = true }
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = ["-Os", "--enable-mutable-globals"]

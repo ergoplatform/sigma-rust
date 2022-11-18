@@ -29,7 +29,7 @@ ergo-chain-types = { workspace = true }
 ergo-merkle-tree = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-proptest = { workspace = true , optional = true, default-features = false, features = ["std"] }
+proptest = { workspace = true , optional = true }
 
 [dev-dependencies]
 

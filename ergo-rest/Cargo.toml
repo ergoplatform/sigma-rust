@@ -31,7 +31,7 @@ rand = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true, optional = true }
 url = { workspace = true }
-proptest = { workspace = true , optional = true, default-features = false, features = ["std"] }
+proptest = { workspace = true , optional = true }
 
 # Dependencies for `wasm-timer`
 parking_lot = "0.12"

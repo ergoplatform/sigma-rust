@@ -22,7 +22,7 @@ elliptic-curve = { workspace = true }
 thiserror = { workspace = true }
 lazy_static = { workspace = true }
 derive_more = { workspace = true }
-proptest = { workspace = true , optional = true, default-features = false, features = ["std"] }
+proptest = { workspace = true , optional = true }
 proptest-derive = { workspace = true, optional = true }
 bs58 = { workspace = true }
 base16 = { workspace = true }

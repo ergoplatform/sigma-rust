@@ -30,7 +30,7 @@ tokio-util = { workspace = true }
 tower = { version = "0.4.11", features = ["retry", "discover", "load", "load-shed", "timeout", "util", "buffer"] }
 bytes = { workspace = true }
 chrono = "0.4.19"
-proptest = { workspace = true , optional = true, default-features = false, features = ["std"] }
+proptest = { workspace = true , optional = true }
 
 [features]
 arbitrary = ["proptest", "proptest-derive", "ergo-chain-types/arbitrary"]

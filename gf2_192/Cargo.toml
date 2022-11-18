@@ -12,7 +12,7 @@ derive_more = { workspace = true }
 rand = { workspace = true }
 thiserror = { workspace = true }
 proptest-derive = { workspace = true, optional = true }
-proptest = { workspace = true , optional = true, default-features = false, features = ["std"] }
+proptest = { workspace = true , optional = true }
 
 [features]
 arbitrary = ["proptest", "proptest-derive"]
