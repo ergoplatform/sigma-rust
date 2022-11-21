@@ -5,8 +5,6 @@ use super::proof_tree::ProofTreeKind;
 use crate::sigma_protocol::unchecked_tree::{UncheckedConjecture, UncheckedTree};
 use crate::sigma_protocol::unproven_tree::{UnprovenConjecture, UnprovenTree};
 use crate::sigma_protocol::ProverMessage;
-use blake2::digest::{Update, VariableOutput};
-use blake2::VarBlake2b;
 use ergo_chain_types::{Base16DecodedBytes, Base16EncodedBytes};
 use ergotree_ir::ergo_tree::{ErgoTree, ErgoTreeHeader};
 use ergotree_ir::mir::expr::Expr;
@@ -14,6 +12,7 @@ use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
 use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWriter;
 use ergotree_ir::serialization::SigmaSerializable;
 use ergotree_ir::sigma_protocol::sigma_boolean::{SigmaBoolean, SigmaProp};
+use sigma_util::hash::blake2b256_hash;
 use std::array::TryFromSliceError;
 use std::convert::{TryFrom, TryInto};
 use std::fmt::Formatter;
@@ -23,7 +22,6 @@ use thiserror::Error;
 use proptest_derive::Arbitrary;
 
 use super::proof_tree::ProofTree;
-use super::GROUP_SIZE;
 use super::SOUNDNESS_BYTES;
 
 /// Hash type for Fiat-Shamir hash function (24-bytes)
@@ -66,11 +64,7 @@ impl TryFrom<Base16DecodedBytes> for FiatShamirHash {
 
 /// Fiat-Shamir hash function
 pub fn fiat_shamir_hash_fn(input: &[u8]) -> FiatShamirHash {
-    // unwrap is safe, since 32 bytes is a valid hash size (<= 512 && 24 % 8 == 0)
-    #[allow(clippy::unwrap_used)]
-    let mut hasher = VarBlake2b::new(GROUP_SIZE).unwrap();
-    hasher.update(input);
-    let hash = hasher.finalize_boxed();
+    let hash = blake2b256_hash(input);
     let taken: Vec<u8> = hash.iter().copied().take(SOUNDNESS_BYTES).collect();
     // unwrap is safe due to hash size is expected to be SOUNDNESS_BYTES
     #[allow(clippy::unwrap_used)]

@@ -54,7 +54,7 @@ it('node REST API: example SPV workflow', async () => {
 
     // Get NiPoPow proofs from 2 separate ergo nodes
     let proofs = await Promise.all([
-        get_nipopow_proof(new URL("http://167.235.75.51:9053"), header_id),
+        get_nipopow_proof(new URL("http://159.65.11.55:9053"), header_id),
         get_nipopow_proof(new URL("http://213.239.193.208:9053"), header_id),
     ]);
 
@@ -68,7 +68,7 @@ it('node REST API: example SPV workflow', async () => {
     assert(best_proof.suffix_head().id().equals(header_id), "equality");
 
     // Verify with a 3rd node
-    let node_conf = new ergo_wasm.NodeConf(new URL("http://167.235.142.92:9053"));
+    let node_conf = new ergo_wasm.NodeConf(new URL("http://198.58.96.195:9053"));
     let header = await ergo_wasm.get_header(node_conf, header_id);
     assert(header != null, "header should be non-null");
     let merkle_proof = await ergo_wasm.get_blocks_header_id_proof_for_tx_id(node_conf, header_id, tx_id);

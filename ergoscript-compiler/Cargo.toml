@@ -3,9 +3,9 @@ name = "ergoscript-compiler"
 version = "0.17.0"
 license = "CC0-1.0"
 authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
-edition = "2018"
+repository.workspace = true
+edition.workspace = true
 description = "Compiler for ErgoScript"
-repository = "https://github.com/ergoplatform/sigma-rust"
 exclude = [
     "proptest-regressions/*"
 ]
@@ -14,12 +14,12 @@ exclude = [
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-ergotree-ir = { version = "^0.21.0", path = "../ergotree-ir" }
+ergotree-ir = { workspace = true }
+derive_more = { workspace = true }
+num-derive = { workspace = true }
+num-traits = { workspace = true }
 logos = "0.12"
 text-size = "1.1.0"
-derive_more = "0.99"
-num-derive = "0.3.3"
-num-traits = "0.2.14"
 rowan = "0.12.1"
 drop_bomb = "0.1.5"
 line-col = "0.2.1"

@@ -3,9 +3,9 @@ name = "ergo-p2p"
 version = "0.1.0"
 license = "CC0-1.0"
 authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
-edition = "2018"
 description = "Ergo peer-to-peer networking library"
-repository = "https://github.com/ergoplatform/sigma-rust"
+repository.workspace = true
+edition.workspace = true
 exclude = [
     "proptest-regressions/*"
 ]
@@ -14,40 +14,27 @@ exclude = [
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-sigma-ser = { version = "^0.10.0", path = "../sigma-ser" }
-sigma-util = { version = "^0.9.0", path = "../sigma-util" }
-ergo-chain-types = { version = "^0.8.0", path = "../ergo-chain-types"}
-thiserror = "1"
-derive_more = "0.99"
-bounded-vec = { version = "^0.7.0" }
-proptest-derive = {version = "0.3.0", optional = true }
-
-futures = "0.3"
-
+sigma-ser = { workspace = true }
+sigma-util = { workspace = true }
+ergo-chain-types = { workspace = true }
+thiserror = { workspace = true }
+derive_more = { workspace = true }
+bounded-vec = { workspace = true }
+proptest-derive = {workspace = true, optional = true }
+futures = { workspace = true }
 tracing = "0.1"
 tracing-error = { version = "0.2.0", features = ["traced-error"] }
-
-tokio = { version = "1.15.0", features = ["net", "time", "tracing", "macros", "rt-multi-thread"] }
-tokio-stream = { version = "0.1.8", features = ["sync", "time"] }
-tokio-util = { version = "0.6.9", features = ["codec"] }
+tokio = { workspace = true }
+tokio-stream = { workspace = true }
+tokio-util = { workspace = true }
 tower = { version = "0.4.11", features = ["retry", "discover", "load", "load-shed", "timeout", "util", "buffer"] }
-bytes = "1.1.0"
-
+bytes = { workspace = true }
 chrono = "0.4.19"
-
-[dependencies.proptest]
-# wasm support, via https://altsysrq.github.io/proptest-book/proptest/wasm.html
-version = "1.0.0"
-# The default feature set includes things like process forking which are not
-# supported in Web Assembly.
-default-features = false
-# Enable using the `std` crate.
-features = ["std"]
-optional = true
+proptest = { workspace = true , optional = true }
 
 [features]
 arbitrary = ["proptest", "proptest-derive", "ergo-chain-types/arbitrary"]
 
 [dev-dependencies]
-sigma-test-util = { version = "^0.3.0", path = "../sigma-test-util" }
+sigma-test-util = { workspace = true }
 ergo-p2p = { path = ".", features = ["arbitrary"] }

@@ -1,6 +1,7 @@
 use crate::batchmerkleproof::{BatchMerkleProof, BatchMerkleProofIndex};
 use crate::{prefixed_hash, prefixed_hash2, INTERNAL_PREFIX, LEAF_PREFIX};
 use ergo_chain_types::Digest32;
+use sigma_util::hash::blake2b256_hash;
 use std::collections::{BTreeSet, HashMap};
 
 /// Node for a Merkle Tree
@@ -221,17 +222,10 @@ impl MerkleTree {
             .get(0)
             .and_then(MerkleNode::get_hash)
             .cloned()
-            .unwrap_or_else(
-                #[allow(clippy::unwrap_used)]
-                // unwrap is safe to use here, since digest size is always 32 bytes
-                || {
-                    use blake2::digest::{Update, VariableOutput};
-                    let mut hasher = crate::VarBlake2b::new(32).unwrap();
-                    hasher.update(&[]);
-                    let hash: Box<[u8; 32]> = hasher.finalize_boxed().try_into().unwrap();
-                    Digest32::from(hash)
-                },
-            )
+            .unwrap_or_else(|| {
+                let hash = blake2b256_hash(&[]);
+                Digest32::from(hash)
+            })
     }
 
     /// Returns HashMap of hashes and their index in the tree

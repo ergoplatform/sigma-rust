@@ -20,6 +20,59 @@ members = [
     "bindings/ergo-lib-jni"
 ]
 
+[workspace.package]
+repository = "https://github.com/ergoplatform/sigma-rust"
+edition = "2021"
+
+[workspace.dependencies]
+sigma-util = { version = "^0.9.0", path = "./sigma-util" }
+sigma-ser = { version = "^0.10.0", path = "./sigma-ser" }
+ergotree-ir = { version = "^0.21.0", path = "./ergotree-ir" }
+ergo-chain-types = { version = "^0.8.0", path = "./ergo-chain-types" }
+sigma-test-util = { version = "^0.3.0", path = "./sigma-test-util" }
+ergoscript-compiler = { version = "^0.17.0", path = "./ergoscript-compiler" }
+ergotree-interpreter = { version = "^0.21.0", path = "./ergotree-interpreter" }
+ergo-nipopow = { version = "^0.8", path = "./ergo-nipopow" }
+ergo-merkle-tree = { version = "^0.8.0", path = "./ergo-merkle-tree" }
+ergo-rest = { version = "^0.6.0", path = "./ergo-rest" }
+ergo-lib = { version = "^0.21.0", path = "./ergo-lib"}
+k256 = { version = "0.11", features = ["arithmetic", "ecdsa"] }
+elliptic-curve = {version = "0.12", features = [ "ff"]}
+thiserror = "1"
+bounded-vec = { version = "^0.7.0" }
+bitvec = { version = "1.0.1" }
+derive_more = "0.99"
+blake2 = "0.10"
+sha2 = "0.10"
+num-derive = "0.3.3"
+num-traits = "0.2.14"
+num-integer = "0.1.44"
+num-bigint = "0.4.0"
+lazy_static = "1.4"
+bs58 = "0.4.0"
+base16 = "0.2.1"
+base64 = "0.13.0"
+indexmap = "1.3.2"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0", features = ["arbitrary_precision"] }
+serde_with = { version = "1.9.1", features = ["json"] }
+rand = "0.8.5"
+bytes = "1.1"
+byteorder = "1"
+futures = "0.3"
+tokio = { version = "1.15.0", features = ["full"] }
+tokio-stream = { version = "0.1.8", features = ["sync", "time"] }
+tokio-util = { version = "0.6.9", features = ["codec"] }
+bounded-integer = { version = "^0.5", features = ["types"] }
+url = "2.2"
+getrandom = { version = "0.2.7" }
+
+# dev-dependencies
+proptest = { version = "1.0", default-features = false, features = ["std"] }
+proptest-derive = "0.3"
+pretty_assertions = "0.7.2"
+wasm-bindgen-test = "0.3.10"
+
 [profile.release]
 # Tell `rustc` to optimize for small code size.
 opt-level = "z"

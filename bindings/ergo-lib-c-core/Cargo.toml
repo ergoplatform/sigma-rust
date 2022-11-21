@@ -3,32 +3,26 @@ name = "ergo-lib-c-core"
 version = "0.21.0"
 license = "CC0-1.0"
 authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
-edition = "2018"
+repository.workspace = true
+edition.workspace = true
 description = "Common code for ergo-lib C and JNI bindings"
-repository = "https://github.com/ergoplatform/sigma-rust"
 
 [lib]
 crate-type = ["lib"]
 
 [dependencies]
-base16 = "0.2.1"
-derive_more = "0.99"
-ergo-lib = { version = "^0.21.0", path = "../../ergo-lib"}
-serde = { version = "1.0", features = ["derive"]}
-serde_json = "1.0"
-thiserror = "1"
-tokio = { version = "1", features = ["full"], optional = true }
+base16 = { workspace = true }
+derive_more = { workspace = true }
+ergo-lib = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, optional = true }
 futures-util = "0.3"
-url = "2.2"
-bounded-integer = { version = "^0.5", features = ["types"] }
-
-[dependencies.serde_with]
-version = "1.9.1"
-features = [ "json" ]
-
-[dependencies.bounded-vec]
-version = "^0.7.0"
-features = ["serde"]
+url = { workspace = true }
+bounded-integer = { workspace = true }
+serde_with = { workspace = true }
+bounded-vec = { workspace = true, features=["serde"] }
 
 [features]
 default = ["mnemonic_gen", "ergo-lib/compiler"]

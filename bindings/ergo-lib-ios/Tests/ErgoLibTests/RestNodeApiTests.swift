@@ -106,7 +106,7 @@ final class RestNodeApiTests: XCTestCase {
         let txId = try TxId(withString: "258ddfc09b94b8313bca724de44a0d74010cab26de379be845713cc129546b78")
         let proofs = try await withThrowingTaskGroup(of: [NipopowProof].self) { group -> [NipopowProof] in
             group.addTask {
-                let proof = try await getNipopowProof(url: URL(string: "167.235.75.51:9053")!, headerId: headerId)!
+                let proof = try await getNipopowProof(url: URL(string: "159.65.11.55:9053")!, headerId: headerId)!
                 return [proof]
             }
             group.addTask {
@@ -124,7 +124,7 @@ final class RestNodeApiTests: XCTestCase {
         XCTAssertEqual(try bestProof.suffixHead().getHeader().getBlockId(), headerId)
         
         // Now verify with 3rd node
-        let nodeConf = try NodeConf(withAddrString: "167.235.142.92:9053")
+        let nodeConf = try NodeConf(withAddrString: "198.58.96.195:9053")
         let restNodeApi = try RestNodeApi()
         let header = try await restNodeApi.getHeaderAsync(nodeConf: nodeConf, blockId: headerId)
         let merkleProof = try await restNodeApi.getBlocksHeaderIdProofForTxIdAsync(nodeConf: nodeConf, blockId: headerId, txId: txId)

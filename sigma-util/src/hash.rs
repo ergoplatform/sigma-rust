@@ -1,18 +1,17 @@
 //! Hash functions
 
-use std::convert::TryInto;
-
 /// Blake2b256 hash (256 bit)
 pub fn blake2b256_hash(bytes: &[u8]) -> Box<[u8; 32]> {
-    use blake2::digest::{Update, VariableOutput};
-    use blake2::VarBlake2b;
+    use blake2::digest::typenum::U32;
+    use blake2::Blake2b;
+    use blake2::Digest;
 
-    // unwrap is safe 32 bytes is a valid hash size (<= 512 && 32 % 8 == 0)
-    let mut hasher = VarBlake2b::new(32).unwrap();
+    type Blake2b256 = Blake2b<U32>;
+
+    let mut hasher = Blake2b256::new();
     hasher.update(bytes);
-    let hash = hasher.finalize_boxed();
-    // unwrap is safe due to hash size is expected to be 32
-    hash.try_into().unwrap()
+    let hash: [u8; 32] = hasher.finalize().into();
+    Box::new(hash)
 }
 
 /// Sha256 hash (256 bit)

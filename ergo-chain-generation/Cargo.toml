@@ -2,23 +2,23 @@
 name = "ergo-chain-generation"
 version = "0.14.0"
 license = "CC0-1.0"
-edition = "2021"
+repository.workspace = true
+edition.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-base16 = "0.2.1"
-blake2 = "0.9"
-byteorder = "1"
-ergo-lib = {version = "^0.21.0", path = "../ergo-lib"}
-num-bigint = "0.4.0"
-rand = "0.8.5"
-sigma-test-util = { version = "^0.3.0", path = "../sigma-test-util" }
-ergo-chain-types = { version = "^0.8", path = "../ergo-chain-types" }
-ergo-nipopow = { version = "^0.8", path = "../ergo-nipopow" }
-ergo-merkle-tree = { version = "^0.8", path = "../ergo-merkle-tree" }
-
+base16 = { workspace = true }
+blake2 = { workspace = true }
+byteorder = { workspace = true }
+ergo-lib = { workspace = true }
+num-bigint = { workspace = true }
+rand = { workspace = true }
+sigma-test-util = { workspace = true }
+ergo-chain-types = { workspace = true }
+ergo-nipopow = { workspace = true }
+ergo-merkle-tree = { workspace = true }
 
 [dev-dependencies]
-sigma-ser = { version = "^0.10", path = "../sigma-ser" }
-serde_json = { version = "1.0" }
+sigma-ser = { workspace = true }
+serde_json = { workspace = true }

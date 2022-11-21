@@ -3,9 +3,9 @@ name = "ergo-lib-wasm"
 version = "0.21.0"
 license = "CC0-1.0"
 authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
-edition = "2018"
-description = "WASM bindings for ergo-lib"
 repository = "https://github.com/ergoplatform/sigma-rust"
+edition.workspace = true
+description = "WASM bindings for ergo-lib"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -16,62 +16,39 @@ rest = ["ergo-lib/rest"]
 compiler = ["ergo-lib/compiler"]
 
 [dependencies]
-base16 = "0.2.1"
-serde = { version = "1.0", features = ["derive"]}
-ergo-lib = { version = "^0.21.0", path = "../../ergo-lib"}
-sigma-util = { version = "^0.9.0", path = "../../sigma-util"}
-serde_json = "1.0"
+base16 = { workspace = true }
+serde =  { workspace = true } 
+ergo-lib = { workspace = true }
+sigma-util = { workspace = true }
+serde_json = { workspace = true }
 js-sys = "0.3"
 web-sys = {version = "0.3", features = ["Url"]}
-url = "2.2"
-bounded-integer = { version = "^0.5", features = ["types"] }
-futures = "0.3"
-thiserror = "1"
-
+url = { workspace = true }
+bounded-integer = { workspace = true }
+futures = { workspace = true }
+thiserror = { workspace = true }
 # This dependency is needed due to deprecation of `JsValue::[into|from]_serde` in `wasm-bindgen`.
 # Note that the deprecation comments suggest using `serde-wasm-bindgen` as another alternative; I
 # tried it but it breaks some of our tests.
 gloo-utils = {version = "0.1.5", features = ["serde"] }
-
 # used in elliptic-curve(in ergo-lib), compiled here with WASM support
-getrandom = {version = "0.2.7", features = ["js"]}
-
+getrandom = { workspace = true, features = ["js"] }
 # The `console_error_panic_hook` crate provides better debugging of panics by
 # logging them with `console.error`. This is great for development, but requires
 # all the `std::fmt` and `std::panicking` infrastructure, so isn't great for
 # code size when deploying.
 console_error_panic_hook = { version = "0.1.6", optional = true }
-
-derive_more = "0.99"
-num-traits = "0.2.14"
-
-[dependencies.serde_with]
-version = "1.9.1"
-features = [ "json" ]
-
-[dependencies.wasm-bindgen]
-version = "0.2.83"
-features = []
-
-[dependencies.wasm-bindgen-futures]
-version = "0.4.33"
-
-[dependencies.bounded-vec]
-version = "^0.7.0"
-features = ["serde"]
+derive_more = { workspace = true }
+num-traits = { workspace = true }
+serde_with = { workspace = true }
+bounded-vec = { workspace = true, features=["serde"] }
+wasm-bindgen = { version = "0.2.83", features = [] }
+wasm-bindgen-futures = { version = "0.4.33" }
 
 [dev-dependencies]
-wasm-bindgen-test = "0.3.33"
-ergo-lib = { version = "^0.21.0", path = "../../ergo-lib", features = ["arbitrary"] }
-
-[dev-dependencies.proptest]
-# wasm support, via https://altsysrq.github.io/proptest-book/proptest/wasm.html
-version = "1.0.0"
-# The default feature set includes things like process forking which are not
-# supported in Web Assembly.
-default-features = false
-# Enable using the `std` crate.
-features = ["std"]
+wasm-bindgen-test = { workspace = true }
+ergo-lib = { workspace = true, features = ["arbitrary"] }
+proptest = { workspace = true }
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = ["-Os", "--enable-mutable-globals"]

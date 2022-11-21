@@ -244,6 +244,19 @@ impl ErgoBox {
             .map(ErgoBox)
             .map_err(to_js)
     }
+
+    /// Create ErgoBox from ErgoBoxCandidate by adding transaction id
+    /// and index of the box in the transaction
+    pub fn from_box_candidate(
+        candidate: &ErgoBoxCandidate,
+        tx_id: &TxId,
+        index: u16,
+    ) -> Result<ErgoBox, JsValue> {
+        let candidate: chain::ergo_box::ErgoBoxCandidate = candidate.0.clone();
+        chain::ergo_box::ErgoBox::from_box_candidate(&candidate, tx_id.clone().into(), index)
+            .map_err(to_js)
+            .map(ErgoBox)
+    }
 }
 
 impl From<ErgoBox> for chain::ergo_box::ErgoBox {
