@@ -3,9 +3,9 @@ name = "ergo-nipopow"
 version = "0.8.0"
 license = "CC0-1.0"
 authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
-edition = "2018"
+repository.workspace = true
+edition.workspace = true
 description = "Ergo blockchain types"
-repository = "https://github.com/ergoplatform/sigma-rust"
 exclude = [
     "proptest-regressions/*"
 ]

@@ -3,9 +3,9 @@ name = "ergo-lib-jni"
 version = "0.21.0"
 license = "CC0-1.0"
 authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
-edition = "2018"
+repository.workspace = true
+edition.workspace = true
 description = "JNI bindings for ergo-lib"
-repository = "https://github.com/ergoplatform/sigma-rust"
 
 [lib]
 name = "ergowalletlibjni"

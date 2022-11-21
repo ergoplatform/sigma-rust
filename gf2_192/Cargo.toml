@@ -4,8 +4,8 @@ version = "0.21.0"
 license = "CC0-1.0"
 authors = ["Timothy Ling (@kettlebell)"]
 description = "Arithmetic operations and polynomial interpolation over Galois fields GF(2^192)"
-repository = "https://github.com/ergoplatform/sigma-rust"
-edition = "2021"
+repository.workspace = true
+edition.workspace = true
 
 [dependencies]
 derive_more = { workspace = true }

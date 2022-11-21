@@ -2,7 +2,8 @@
 name = "ergo-chain-generation"
 version = "0.14.0"
 license = "CC0-1.0"
-edition = "2021"
+repository.workspace = true
+edition.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

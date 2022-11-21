@@ -3,9 +3,9 @@ name = "ergo-p2p"
 version = "0.1.0"
 license = "CC0-1.0"
 authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
-edition = "2018"
 description = "Ergo peer-to-peer networking library"
-repository = "https://github.com/ergoplatform/sigma-rust"
+repository.workspace = true
+edition.workspace = true
 exclude = [
     "proptest-regressions/*"
 ]

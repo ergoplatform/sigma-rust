@@ -3,9 +3,9 @@ name = "ergotree-ir"
 version = "0.21.0"
 license = "CC0-1.0"
 authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
-edition = "2018"
+repository.workspace = true
+edition.workspace = true
 description = "ErgoTree IR, serialization"
-repository = "https://github.com/ergoplatform/sigma-rust"
 exclude = [
     "proptest-regressions/*"
 ]
