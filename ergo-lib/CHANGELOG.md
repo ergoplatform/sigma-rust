@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Added
+- `ErgoBox::from_box_candidate` in Wasm API [#651](https://github.com/ergoplatform/sigma-rust/pull/651);
+
 ### Changed
 - uparseable register value should not prevent parsing `ErgoBox` from JSON [#647](https://github.com/ergoplatform/sigma-rust/pull/647);
 - rename `NonMandatoryRegisters:get` to `NonMandatoryRegisters::get_constant` and return `None` if the register value is unparseable [#647](https://github.com/ergoplatform/sigma-rust/pull/647);
