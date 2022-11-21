@@ -36,14 +36,14 @@ ergo-nipopow = { version = "^0.8", path = "./ergo-nipopow" }
 ergo-merkle-tree = { version = "^0.8.0", path = "./ergo-merkle-tree" }
 ergo-rest = { version = "^0.6.0", path = "./ergo-rest" }
 ergo-lib = { version = "^0.21.0", path = "./ergo-lib"}
-k256 = { version = "0.10.2", features = ["arithmetic", "ecdsa"] }
-elliptic-curve = {version = "0.11.6", features = [ "ff"]}
+k256 = { version = "0.11", features = ["arithmetic", "ecdsa"] }
+elliptic-curve = {version = "0.12", features = [ "ff"]}
 thiserror = "1"
 bounded-vec = { version = "^0.7.0" }
 bitvec = { version = "1.0.1" }
 derive_more = "0.99"
-blake2 = "0.9"
-sha2 = "0.9"
+blake2 = "0.10"
+sha2 = "0.10"
 num-derive = "0.3.3"
 num-traits = "0.2.14"
 num-integer = "0.1.44"

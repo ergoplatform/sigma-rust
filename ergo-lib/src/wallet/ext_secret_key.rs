@@ -13,7 +13,7 @@ use ergotree_ir::{
     serialization::{SigmaParsingError, SigmaSerializable, SigmaSerializationError},
     sigma_protocol::sigma_boolean::ProveDlog,
 };
-use hmac::{Hmac, Mac, NewMac};
+use hmac::{Hmac, Mac};
 
 use sha2::Sha512;
 use thiserror::Error;

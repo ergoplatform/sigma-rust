@@ -18,8 +18,6 @@
 #![deny(clippy::unimplemented)]
 #![deny(clippy::panic)]
 
-use blake2::digest::{Update, VariableOutput};
-use blake2::VarBlake2b;
 use ergo_chain_types::Digest32;
 
 // Constants for hashing
@@ -35,10 +33,9 @@ pub(crate) mod json;
 #[allow(clippy::unwrap_used)]
 // Generates a hash of data prefixed with `prefix`
 pub(crate) fn prefixed_hash(prefix: u8, data: &[u8]) -> Digest32 {
-    let mut hasher = VarBlake2b::new(HASH_SIZE).unwrap();
-    hasher.update(&[prefix]);
-    hasher.update(data);
-    let hash: Box<[u8; HASH_SIZE]> = hasher.finalize_boxed().try_into().unwrap();
+    let mut bytes = vec![prefix];
+    bytes.extend_from_slice(data);
+    let hash = blake2b256_hash(bytes.as_slice());
     Digest32::from(hash)
 }
 
@@ -49,16 +46,14 @@ pub(crate) fn prefixed_hash2<'a>(
     data: impl Into<Option<&'a [u8]>>,
     data2: impl Into<Option<&'a [u8]>>,
 ) -> Digest32 {
-    let mut hasher = VarBlake2b::new(HASH_SIZE).unwrap();
-    hasher.update(&[prefix]);
-
+    let mut bytes = vec![prefix];
     if let Some(data) = data.into() {
-        hasher.update(data);
+        bytes.extend_from_slice(data);
     }
     if let Some(data2) = data2.into() {
-        hasher.update(data2);
+        bytes.extend_from_slice(data2);
     };
-    let hash: Box<[u8; HASH_SIZE]> = hasher.finalize_boxed().try_into().unwrap();
+    let hash = blake2b256_hash(bytes.as_slice());
     Digest32::from(hash)
 }
 
@@ -69,3 +64,4 @@ mod merkletree;
 pub use batchmerkleproof::BatchMerkleProof;
 pub use merkleproof::*;
 pub use merkletree::*;
+use sigma_util::hash::blake2b256_hash;

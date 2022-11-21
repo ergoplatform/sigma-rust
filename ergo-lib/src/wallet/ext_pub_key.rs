@@ -6,7 +6,7 @@ use ergotree_interpreter::sigma_protocol::private_input::DlogProverInput;
 use ergotree_ir::chain::address::Address;
 use ergotree_ir::serialization::SigmaParsingError;
 use ergotree_ir::serialization::SigmaSerializable;
-use hmac::{Hmac, Mac, NewMac};
+use hmac::{Hmac, Mac};
 use sha2::Sha512;
 use thiserror::Error;
 

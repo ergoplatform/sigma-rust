@@ -34,8 +34,8 @@ num-bigint = { workspace = true, features = ["serde"] }
 proptest-derive = {workspace = true, optional = true }
 k256 = { workspace = true }
 sha2 = { workspace = true }
-hmac = { version = "0.11.0" }
-pbkdf2 = "0.8"
+hmac = { version = "0.12" }
+pbkdf2 = "0.11"
 rand = { workspace = true }
 bitvec = { workspace = true, optional = true }
 unicode-normalization = "0.1.19"

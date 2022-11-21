@@ -21,6 +21,7 @@ itertools = "0.10.3"
 proptest-derive = {workspace = true, optional = true }
 sigma-ser = { workspace = true }
 ergo-chain-types = { workspace = true }
+sigma-util = { workspace = true }
 proptest = { workspace = true , optional = true }
 
 [features]
