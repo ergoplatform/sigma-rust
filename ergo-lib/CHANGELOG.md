@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
+## [0.21.1] - 2022-11-21
 
 ### Added
 - `ErgoBox::from_box_candidate` in Wasm API [#651](https://github.com/ergoplatform/sigma-rust/pull/651);
@@ -388,7 +389,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - ErgoTree constant values conversion.
 
 <!-- next-url -->
-[Unreleased]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.21.0...HEAD
+[Unreleased]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.21.1...HEAD
+[0.21.1]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.21.0...ergo-lib-v0.21.1
 [0.21.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.20.0...ergo-lib-v0.21.0
 [0.20.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.19.0...ergo-lib-v0.20.0
 [0.19.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.18.0...ergo-lib-v0.19.0

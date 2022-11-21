@@ -1,6 +1,6 @@
 [package]
 name = "gf2_192"
-version = "0.21.0"
+version = "0.21.1"
 license = "CC0-1.0"
 authors = ["Timothy Ling (@kettlebell)"]
 description = "Arithmetic operations and polynomial interpolation over Galois fields GF(2^192)"

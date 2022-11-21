@@ -1,6 +1,6 @@
 [package]
 name = "ergo-lib-wasm"
-version = "0.21.0"
+version = "0.21.1"
 license = "CC0-1.0"
 authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
 repository = "https://github.com/ergoplatform/sigma-rust"
