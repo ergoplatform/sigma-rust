@@ -1,10 +1,13 @@
 //! Main "remote" type for [BlockId]()
 
+use std::fmt::{Display, Formatter, Write};
+use derive_more::Display;
+
 use super::digest32::Digest32;
 
 /// Block id
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone, Hash, Display)]
 pub struct BlockId(pub Digest32);
 
 impl From<BlockId> for Vec<i8> {

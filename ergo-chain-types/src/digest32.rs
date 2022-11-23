@@ -53,6 +53,12 @@ impl<const N: usize> std::fmt::Debug for Digest<N> {
     }
 }
 
+impl<const N: usize> std::fmt::Display for Digest<N> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        base16::encode_lower(&(*self.0)).fmt(f)
+    }
+}
+
 /// Blake2b256 hash (256 bit)
 pub fn blake2b256_hash(bytes: &[u8]) -> Digest32 {
     Digest(sigma_util::hash::blake2b256_hash(bytes))
