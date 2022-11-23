@@ -1,7 +1,7 @@
 //! Main "remote" type for [BlockId]()
 
-use std::fmt::{Display, Formatter, Write};
 use derive_more::Display;
+use std::fmt::{Display, Formatter, Write};
 
 use super::digest32::Digest32;
 
