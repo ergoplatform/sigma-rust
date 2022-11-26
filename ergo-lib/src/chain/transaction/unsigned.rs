@@ -121,8 +121,9 @@ impl UnsignedTransaction {
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used, clippy::panic)]
-pub mod tests {
+#[cfg(feature = "arbitrary")]
+#[allow(clippy::unwrap_used)]
+pub mod arbitrary {
     use super::*;
 
     use proptest::prelude::*;
@@ -144,6 +145,14 @@ pub mod tests {
         }
         type Strategy = BoxedStrategy<Self>;
     }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::panic)]
+pub mod tests {
+    use super::*;
+
+    use proptest::prelude::*;
 
     proptest! {
 
