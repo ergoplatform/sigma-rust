@@ -73,11 +73,10 @@ impl SigmaSerializable for ProverResult {
     }
 }
 
-#[cfg(test)]
-#[allow(clippy::panic)]
-mod tests {
+/// Arbitrary impls
+#[cfg(feature = "arbitrary")]
+pub mod arbitrary {
     use super::*;
-    use ergotree_ir::serialization::sigma_serialize_roundtrip;
     use proptest::prelude::*;
 
     impl Arbitrary for ProverResult {
@@ -90,6 +89,14 @@ mod tests {
                 .boxed()
         }
     }
+}
+
+#[cfg(test)]
+#[allow(clippy::panic)]
+mod tests {
+    use super::*;
+    use ergotree_ir::serialization::sigma_serialize_roundtrip;
+    use proptest::prelude::*;
 
     proptest! {
 

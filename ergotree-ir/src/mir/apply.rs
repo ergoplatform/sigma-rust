@@ -71,13 +71,11 @@ impl SigmaSerializable for Apply {
     }
 }
 
-#[cfg(test)]
-#[allow(clippy::panic)]
+/// Arbitrary impl
+#[cfg(feature = "arbitrary")]
 #[allow(clippy::unwrap_used)]
-mod tests {
-
+pub mod arbitrary {
     use crate::mir::func_value::*;
-    use crate::serialization::sigma_serialize_roundtrip;
 
     use super::*;
 
@@ -107,6 +105,18 @@ mod tests {
                 .boxed()
         }
     }
+}
+
+#[cfg(test)]
+#[allow(clippy::panic)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+
+    use crate::serialization::sigma_serialize_roundtrip;
+
+    use super::*;
+
+    use proptest::prelude::*;
 
     proptest! {
 

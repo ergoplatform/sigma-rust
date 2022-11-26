@@ -318,13 +318,12 @@ pub enum TransactionError {
     InvalidDataInputsCount(bounded_vec::BoundedVecOutOfBounds),
 }
 
+#[cfg(feature = "arbitrary")]
 #[cfg(test)]
-#[allow(clippy::unwrap_used, clippy::panic)]
-pub mod tests {
+#[allow(clippy::unwrap_used)]
+pub mod arbitrary {
 
     use super::*;
-
-    use ergotree_ir::serialization::sigma_serialize_roundtrip;
     use proptest::prelude::*;
     use proptest::{arbitrary::Arbitrary, collection::vec};
 
@@ -344,6 +343,16 @@ pub mod tests {
         }
         type Strategy = BoxedStrategy<Self>;
     }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::panic)]
+pub mod tests {
+
+    use super::*;
+
+    use ergotree_ir::serialization::sigma_serialize_roundtrip;
+    use proptest::prelude::*;
 
     proptest! {
 
