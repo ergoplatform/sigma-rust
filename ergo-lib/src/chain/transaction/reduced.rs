@@ -144,7 +144,7 @@ impl SigmaSerializable for ReducedTransaction {
     }
 }
 
-#[cfg(test)]
+/// Arbitrary impl
 #[cfg(feature = "arbitrary")]
 pub mod arbitrary {
     use super::*;

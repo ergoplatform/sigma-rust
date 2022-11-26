@@ -318,8 +318,8 @@ pub enum TransactionError {
     InvalidDataInputsCount(bounded_vec::BoundedVecOutOfBounds),
 }
 
+/// Arbitrary impl
 #[cfg(feature = "arbitrary")]
-#[cfg(test)]
 #[allow(clippy::unwrap_used)]
 pub mod arbitrary {
 

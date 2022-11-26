@@ -120,7 +120,7 @@ impl UnsignedTransaction {
     }
 }
 
-#[cfg(test)]
+/// Arbitrary impl
 #[cfg(feature = "arbitrary")]
 #[allow(clippy::unwrap_used)]
 pub mod arbitrary {

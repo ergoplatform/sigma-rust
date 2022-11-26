@@ -23,7 +23,7 @@ use self::prover_result::ProverResult;
 
 /// Unsigned (without proofs) transaction input
 #[derive(PartialEq, Eq, Debug, Clone)]
-#[cfg_attr(test, derive(proptest_derive::Arbitrary))]
+#[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
 #[cfg_attr(feature = "json", derive(Deserialize))]
 pub struct UnsignedInput {
     /// id of the box to spent
@@ -69,7 +69,7 @@ impl<T: ErgoBoxId> From<T> for UnsignedInput {
 
 /// Fully signed transaction input
 #[derive(PartialEq, Eq, Debug, Clone)]
-#[cfg_attr(test, derive(proptest_derive::Arbitrary))]
+#[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Input {
     /// id of the box to spent
