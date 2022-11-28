@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 
 /// Inputs, that are used to enrich script context, but won't be spent by the transaction
 #[derive(PartialEq, Eq, Debug, Clone)]
-#[cfg_attr(test, derive(proptest_derive::Arbitrary))]
+#[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct DataInput {
     /// id of the box to add into context (should be in UTXO)

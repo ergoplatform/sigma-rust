@@ -144,12 +144,11 @@ impl SigmaSerializable for ReducedTransaction {
     }
 }
 
-#[cfg(test)]
-#[allow(clippy::panic)]
-mod tests {
+/// Arbitrary impl
+#[cfg(feature = "arbitrary")]
+pub mod arbitrary {
     use super::*;
 
-    use ergotree_ir::serialization::sigma_serialize_roundtrip;
     use proptest::prelude::*;
 
     impl Arbitrary for ReducedTransaction {
@@ -176,6 +175,15 @@ mod tests {
         }
         type Strategy = BoxedStrategy<Self>;
     }
+}
+
+#[cfg(test)]
+#[allow(clippy::panic)]
+mod tests {
+    use super::*;
+
+    use ergotree_ir::serialization::sigma_serialize_roundtrip;
+    use proptest::prelude::*;
 
     proptest! {
 
