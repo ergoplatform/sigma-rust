@@ -243,7 +243,7 @@ impl ScorexSerializable for PoPowHeader {
         w.write_all(&bytes)?;
         w.put_u32(self.interlinks.len() as u32)?;
         for interlink in self.interlinks.iter() {
-            w.write_all(&*interlink.0 .0)?;
+            w.write_all(&interlink.0 .0)?;
         }
         let proof_bytes = self.interlinks_proof.scorex_serialize_bytes()?;
         w.put_u32(proof_bytes.len() as u32)?;

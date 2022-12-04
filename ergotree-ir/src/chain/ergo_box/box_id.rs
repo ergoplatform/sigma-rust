@@ -14,7 +14,7 @@ use ergo_chain_types::{Digest32, DigestNError};
 use sigma_util::AsVecI8;
 
 /// newtype for box ids
-#[derive(PartialEq, Eq, Hash, Debug, Clone, From, Into)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Copy, Clone, From, Into)]
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
 pub struct BoxId(Digest32);

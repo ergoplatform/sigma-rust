@@ -65,7 +65,7 @@ impl<const N: usize> TryFrom<Base16DecodedBytes> for Digest<N> {
     type Error = DigestNError;
     fn try_from(bytes: Base16DecodedBytes) -> Result<Self, Self::Error> {
         let arr: [u8; N] = bytes.0.as_slice().try_into()?;
-        Ok(Digest(Box::new(arr)))
+        Ok(Digest(arr))
     }
 }
 
