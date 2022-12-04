@@ -84,7 +84,7 @@ impl UnsignedTransaction {
     fn to_tx_without_proofs(&self) -> Transaction {
         let empty_proofs_input = self.inputs.mapped_ref(|ui| {
             Input::new(
-                ui.box_id.clone(),
+                ui.box_id,
                 ProverResult {
                     proof: ProofBytes::Empty,
                     extension: ui.extension.clone(),
@@ -105,7 +105,7 @@ impl UnsignedTransaction {
 
     /// Get transaction id
     pub fn id(&self) -> TxId {
-        self.tx_id.clone()
+        self.tx_id
     }
 
     /// message to be signed by the [`ergotree_interpreter::sigma_protocol::prover::Prover`] (serialized tx)

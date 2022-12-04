@@ -90,7 +90,7 @@ pub unsafe fn tx_builder_set_context_extension(
     let tx_builder_mut = mut_ptr_as_mut(tx_builder_mut, "tx_builder_mut")?;
     tx_builder_mut
         .0
-        .set_context_extension(box_id.0.clone(), ctx_ext.0.clone());
+        .set_context_extension(box_id.0, ctx_ext.0.clone());
     Ok(())
 }
 

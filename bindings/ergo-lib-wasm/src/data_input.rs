@@ -25,7 +25,7 @@ impl DataInput {
 
     /// Get box id
     pub fn box_id(&self) -> BoxId {
-        self.0.box_id.clone().into()
+        self.0.box_id.into()
     }
 }
 

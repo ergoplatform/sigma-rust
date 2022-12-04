@@ -179,7 +179,7 @@ pub fn sign_transaction(
                 message_to_sign.as_slice(),
                 &hints_bag,
             )
-            .map(|proof| Input::new(input.box_id.clone(), proof.into()))
+            .map(|proof| Input::new(input.box_id, proof.into()))
             .map_err(|e| TxSigningError::ProverError(e, idx))
     })?;
     Ok(Transaction::new(
@@ -217,7 +217,7 @@ pub fn sign_reduced_transaction(
                 proof,
                 extension: reduced_input.extension.clone(),
             })
-            .map(|proof| Input::new(input.box_id.clone(), proof.into()))
+            .map(|proof| Input::new(input.box_id, proof.into()))
             .map_err(|e| TxSigningError::ProverError(e, idx))
     })?;
     Ok(Transaction::new(

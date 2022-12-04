@@ -114,7 +114,7 @@ impl<T: ErgoBoxAssets + Clone> BoxSelector<T> for SimpleBoxSelector {
                                 *amt = amt.checked_add(&selected_token_amt)?;
                             } else {
                                 selected_tokens_from_this_box
-                                    .insert(t.token_id.clone(), selected_token_amt);
+                                    .insert(t.token_id, selected_token_amt);
                             }
                         }
                         Ok(())
@@ -158,7 +158,7 @@ impl<T: ErgoBoxAssets + Clone> BoxSelector<T> for SimpleBoxSelector {
                     }
                     Some(selected_boxes_t_amt) if selected_boxes_t_amt > t.amount => {
                         change_tokens.insert(
-                            t.token_id.clone(),
+                            t.token_id,
                             selected_boxes_t_amt.checked_sub(&t.amount)?,
                         );
                         Ok(())
@@ -385,7 +385,7 @@ mod tests {
             prop_assume!(first_input_box_token_amount > 1);
             let s = SimpleBoxSelector::new();
             let target_token_amount = first_input_box_token_amount / 2;
-            let target_token_id = first_input_box_token.token_id.clone();
+            let target_token_id = first_input_box_token.token_id;
             let target_token = Token {token_id: target_token_id,
                                       amount: target_token_amount.try_into().unwrap()};
             let selection = s.select(inputs, target_balance, vec![target_token.clone()].as_slice()).unwrap();
@@ -435,7 +435,7 @@ mod tests {
             let input_token_amount = *all_input_tokens.get(target_token_id).unwrap();
             let target_token_amount: TokenAmount = target_token_amount.try_into().unwrap();
             prop_assume!(input_token_amount >= target_token_amount);
-            let target_token = Token {token_id: target_token_id.clone(), amount: target_token_amount};
+            let target_token = Token {token_id: *target_token_id, amount: target_token_amount};
             let selection = s.select(inputs, target_balance, vec![target_token.clone()].as_slice()).unwrap();
             let out_box = ErgoBoxAssetsData {value: target_balance, tokens: vec![target_token].try_into().ok()};
             let mut change_boxes_plus_out = vec![out_box];
@@ -465,7 +465,7 @@ mod tests {
             let target_token_id = all_input_tokens.keys().collect::<Vec<&TokenId>>().get((all_input_tokens.len() - 1) / 2)
                                                                                     .cloned().unwrap();
             let input_token_amount = *all_input_tokens.get(target_token_id).unwrap();
-            let target_token = Token {token_id: target_token_id.clone(), amount: input_token_amount};
+            let target_token = Token {token_id: *target_token_id, amount: input_token_amount};
             let selection = s.select(inputs, target_balance, vec![target_token.clone()].as_slice()).unwrap();
             let out_box = ErgoBoxAssetsData {value: target_balance, tokens: vec![target_token].try_into().ok()};
             let mut change_boxes_plus_out = vec![out_box];
@@ -501,13 +501,13 @@ mod tests {
             let input_token2_amount = *all_input_tokens.get(target_token2_id).unwrap();
             prop_assume!(u64::from(input_token1_amount) >= target_token1_amount);
             prop_assume!(u64::from(input_token2_amount) >= target_token2_amount);
-            let target_token1 = Token {token_id: target_token1_id.clone(), amount: target_token1_amount.try_into().unwrap()};
+            let target_token1 = Token {token_id: *target_token1_id, amount: target_token1_amount.try_into().unwrap()};
             // simulate repeating token ids (e.g the same token id mentioned twice)
             let target_token2_amount_part1 = target_token2_amount / 2;
             let target_token2_amount_part2 = target_token2_amount - target_token2_amount_part1;
-            let target_token2_part1 = Token {token_id: target_token2_id.clone(),
+            let target_token2_part1 = Token {token_id: *target_token2_id,
                                              amount: target_token2_amount_part1.try_into().unwrap()};
-            let target_token2_part2 = Token {token_id: target_token2_id.clone(),
+            let target_token2_part2 = Token {token_id: *target_token2_id,
                                              amount: target_token2_amount_part2.try_into().unwrap()};
             let target_tokens = vec![target_token1.clone(), target_token2_part1.clone(), target_token2_part2.clone()];
             let selection = s.select(inputs, target_balance, target_tokens.as_slice()).unwrap();
@@ -541,7 +541,7 @@ mod tests {
             let input_token_amount = u64::from(*all_input_tokens.get(target_token_id).unwrap()) / 2;
             let target_token_amount = TokenAmount::MAX_RAW;
             prop_assume!(input_token_amount < target_token_amount);
-            let target_token = Token {token_id: target_token_id.clone(), amount: target_token_amount.try_into().unwrap()};
+            let target_token = Token {token_id: *target_token_id, amount: target_token_amount.try_into().unwrap()};
             let selection = s.select(inputs, target_balance, vec![target_token].as_slice());
             prop_assert!(selection.is_err());
         }

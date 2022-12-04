@@ -122,7 +122,7 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
             // as it's the most often used proof
             let proof = ProofBytes::Some(vec![0u8, sigma_protocol::SOUNDNESS_BYTES as u8]);
             Input::new(
-                ui.box_id.clone(),
+                ui.box_id,
                 crate::chain::transaction::input::prover_result::ProverResult {
                     proof,
                     extension: ui.extension,
@@ -229,7 +229,7 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
             .try_for_each(|(id, amt)| match input_tokens.get(id).cloned() {
                 Some(input_token_amount) if input_token_amount >= *amt => Ok(()),
                 _ => Err(TxBuilderError::NotEnoughTokens(vec![
-                    (id.clone(), *amt).into()
+                    (*id, *amt).into()
                 ])),
             })?;
 
@@ -327,7 +327,7 @@ pub(crate) fn vec_tokens_to_map(
         if let Some(amt) = res.get_mut(&b.token_id) {
             *amt = amt.checked_add(&b.amount)?;
         } else {
-            res.insert(b.token_id.clone(), b.amount);
+            res.insert(b.token_id, b.amount);
         }
         Ok(())
     })?;
@@ -342,13 +342,13 @@ fn check_enough_token_burn_permit(
         if let Some(burn_amt_permit) = permits.get(burn_token_id) {
             if burn_amt > burn_amt_permit {
                 return Err(TxBuilderError::TokenBurnPermitExceeded {
-                    permit: (burn_token_id.clone(), *burn_amt_permit).into(),
-                    try_to_burn: (burn_token_id.clone(), *burn_amt).into(),
+                    permit: (*burn_token_id, *burn_amt_permit).into(),
+                    try_to_burn: (*burn_token_id, *burn_amt).into(),
                 });
             }
         } else {
             return Err(TxBuilderError::TokenBurnPermitMissing {
-                try_to_burn: (burn_token_id.clone(), *burn_amt).into(),
+                try_to_burn: (*burn_token_id, *burn_amt).into(),
             });
         }
     }
@@ -363,13 +363,13 @@ fn check_unused_token_burn_permit(
         if let Some(burn_amt) = burned_tokens.get(permit_token_id) {
             if burn_amt < permit_amt {
                 return Err(TxBuilderError::TokenBurnPermitUnused {
-                    token_id: permit_token_id.clone(),
+                    token_id: *permit_token_id,
                     amount: *permit_amt.as_u64() - *burn_amt.as_u64(),
                 });
             }
         } else {
             return Err(TxBuilderError::TokenBurnPermitUnused {
-                token_id: permit_token_id.clone(),
+                token_id: *permit_token_id,
                 amount: *permit_amt.as_u64(),
             });
         }
@@ -501,7 +501,7 @@ mod tests {
         let target_balance = out_box_value.checked_add(&tx_fee).unwrap();
         let token_to_burn = Token {
             amount: 10.try_into().unwrap(),
-            ..token_pair.clone()
+            ..token_pair
         };
         let target_tokens = vec![token_to_burn.clone()];
         let box_selection = SimpleBoxSelector::new()

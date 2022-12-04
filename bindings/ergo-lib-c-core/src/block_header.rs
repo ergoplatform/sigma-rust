@@ -32,7 +32,7 @@ pub unsafe fn block_header_id(
 ) -> Result<(), Error> {
     let block_header = const_ptr_as_ref(block_header_ptr, "block_header_ptr")?;
     let block_id_out = mut_ptr_as_mut(block_id_out, "block_id_out")?;
-    *block_id_out = Box::into_raw(Box::new(BlockId(block_header.0.id.clone())));
+    *block_id_out = Box::into_raw(Box::new(BlockId(block_header.0.id)));
     Ok(())
 }
 
@@ -43,7 +43,7 @@ pub unsafe fn block_header_transactions_root(
     output: *mut u8,
 ) -> Result<(), Error> {
     let block_header = const_ptr_as_ref(block_header_ptr, "block_header_ptr")?;
-    let src = Vec::<u8>::from(block_header.0.transaction_root.clone());
+    let src = Vec::<u8>::from(block_header.0.transaction_root);
     std::ptr::copy_nonoverlapping(src.as_ptr(), output, src.len());
     Ok(())
 }

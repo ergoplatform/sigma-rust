@@ -96,7 +96,7 @@ mod tests {
     fn test_eval_parent_id() {
         let expr = create_get_preheader_property_expr(spreheader::PARENT_ID_PROPERTY.clone());
         let ctx = Rc::new(force_any_val::<Context>());
-        let expected = ctx.pre_header.parent_id.clone();
+        let expected = ctx.pre_header.parent_id;
         let actual = {
             let bs = eval_out::<Vec<i8>>(&expr, ctx);
             block_id_from_bytes_signed(bs)

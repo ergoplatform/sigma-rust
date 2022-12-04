@@ -127,7 +127,7 @@ pub async fn get_nipopow_proof_by_header_id(
     if min_chain_length == 0 || suffix_len == 0 {
         return Err(NodeError::InvalidNumericalUrlSegment);
     }
-    let header_str = String::from(header_id.0.clone());
+    let header_str = String::from(header_id.0);
     let mut path = "nipopow/proof/".to_owned();
     path.push_str(&*min_chain_length.to_string());
     path.push('/');
@@ -216,7 +216,7 @@ mod tests {
         let m = 7;
         let k = 6;
         let res = runtime_inner.block_on(async {
-            get_nipopow_proof_by_header_id(node_conf, m, k, header_id.clone())
+            get_nipopow_proof_by_header_id(node_conf, m, k, header_id)
                 .await
                 .unwrap()
         });

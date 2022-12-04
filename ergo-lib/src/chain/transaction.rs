@@ -115,7 +115,7 @@ impl Transaction {
         let outputs = output_candidates
             .iter()
             .enumerate()
-            .map(|(idx, bc)| ErgoBox::from_box_candidate(bc, tx_id.clone(), idx as u16))
+            .map(|(idx, bc)| ErgoBox::from_box_candidate(bc, tx_id, idx as u16))
             .collect::<Result<Vec<ErgoBox>, SigmaSerializationError>>()?;
         Ok(Transaction {
             tx_id,
@@ -168,7 +168,7 @@ impl Transaction {
 
     /// Get transaction id
     pub fn id(&self) -> TxId {
-        self.tx_id.clone()
+        self.tx_id
     }
 
     /// Check the signature of the transaction's input corresponding

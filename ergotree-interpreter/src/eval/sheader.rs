@@ -209,7 +209,7 @@ mod tests {
         let expected = ctx
             .headers
             .get(HEADER_INDEX)
-            .map(|h| [h.id.clone(), h.parent_id.clone()])
+            .map(|h| [h.id, h.parent_id])
             .expect("internal error: empty headers array");
         let actual = eval_header_ids(ctx);
         assert_eq!(expected, actual);
@@ -223,9 +223,9 @@ mod tests {
             .get(HEADER_INDEX)
             .map(|h| {
                 [
-                    h.ad_proofs_root.clone(),
-                    h.transaction_root.clone(),
-                    h.extension_root.clone(),
+                    h.ad_proofs_root,
+                    h.transaction_root,
+                    h.extension_root,
                 ]
             })
             .expect("internal error: empty headers array");
@@ -237,7 +237,7 @@ mod tests {
     fn test_eval_state_root() {
         let expr = create_get_header_property_expr(sheader::STATE_ROOT_PROPERTY.clone());
         let ctx = Rc::new(force_any_val::<Context>());
-        let expected = ctx.headers[HEADER_INDEX].state_root.clone();
+        let expected = ctx.headers[HEADER_INDEX].state_root;
         let actual = digest_from_bytes_signed::<33>(eval_out::<Vec<i8>>(&expr, ctx));
         assert_eq!(expected, actual);
     }

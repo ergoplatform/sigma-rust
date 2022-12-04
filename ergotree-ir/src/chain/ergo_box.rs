@@ -113,7 +113,7 @@ impl ErgoBox {
 
     /// Box id (Blake2b256 hash of serialized box)
     pub fn box_id(&self) -> BoxId {
-        self.box_id.clone()
+        self.box_id
     }
 
     /// Create ErgoBox from ErgoBoxCandidate by adding transaction id
@@ -354,7 +354,7 @@ pub fn parse_box_with_indexed_digests<R: SigmaByteRead>(
             Some(digests) => {
                 let digest_index = r.get_u32()?;
                 match digests.get_index(digest_index as usize) {
-                    Some(i) => Ok((*i).clone()),
+                    Some(i) => Ok(*i),
                     None => Err(SigmaParsingError::Misc(
                         "failed to find token id in tx digests".to_string(),
                     )),

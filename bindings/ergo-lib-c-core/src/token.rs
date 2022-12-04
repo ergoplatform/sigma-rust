@@ -28,7 +28,7 @@ pub unsafe fn token_id_from_box_id(
     let box_id = const_ptr_as_ref(box_id_ptr, "box_id_ptr")?;
     let token_id_out = mut_ptr_as_mut(token_id_out, "token_id_out")?;
     *token_id_out = Box::into_raw(Box::new(TokenId(chain::token::TokenId::from(
-        box_id.0.clone(),
+        box_id.0,
     ))));
     Ok(())
 }
@@ -48,7 +48,7 @@ pub unsafe fn token_id_from_str(str: &str, token_id_out: *mut TokenIdPtr) -> Res
 /// Base16 encoded string
 pub unsafe fn token_id_to_str(token_id_ptr: ConstTokenIdPtr) -> Result<String, Error> {
     let token_id = const_ptr_as_ref(token_id_ptr, "token_id_ptr")?;
-    Ok(token_id.0.clone().into())
+    Ok(token_id.0.into())
 }
 
 /// Token amount with bound checks
@@ -90,7 +90,7 @@ pub unsafe fn token_new(
     let token_amount = const_ptr_as_ref(token_amount_ptr, "token_amount_ptr")?;
     let token_out = mut_ptr_as_mut(token_out, "token_out")?;
     *token_out = Box::into_raw(Box::new(Token(chain::token::Token {
-        token_id: token_id.0.clone(),
+        token_id: token_id.0,
         amount: token_amount.0,
     })));
     Ok(())
@@ -103,7 +103,7 @@ pub unsafe fn token_get_id(
 ) -> Result<(), Error> {
     let token = const_ptr_as_ref(token_ptr, "token_ptr")?;
     let token_id_out = mut_ptr_as_mut(token_id_out, "token_id_out")?;
-    *token_id_out = Box::into_raw(Box::new(TokenId(token.0.token_id.clone())));
+    *token_id_out = Box::into_raw(Box::new(TokenId(token.0.token_id)));
     Ok(())
 }
 

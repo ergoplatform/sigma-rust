@@ -81,7 +81,7 @@ pub unsafe fn nipopow_verifier_new(
     let genesis_block_id = const_ptr_as_ref(genesis_block_id_ptr, "genesis_block_id_ptr")?;
     let nipopow_verifier_out = mut_ptr_as_mut(nipopow_verifier_out, "nipopow_verifier_out")?;
     *nipopow_verifier_out = Box::into_raw(Box::new(NipopowVerifier(
-        ergo_lib::ergo_nipopow::NipopowVerifier::new(genesis_block_id.0.clone()),
+        ergo_lib::ergo_nipopow::NipopowVerifier::new(genesis_block_id.0),
     )));
     Ok(())
 }

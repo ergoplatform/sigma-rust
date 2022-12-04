@@ -70,7 +70,7 @@ mod tests {
         let flags = AvlTreeFlags::new(false, false, false);
         let expr: Expr = CreateAvlTree::new(
             Expr::Const(flags.clone().into()),
-            Expr::Const(initial_digest.clone().into()),
+            Expr::Const(initial_digest.into()),
             1.into(),
             None,
         )

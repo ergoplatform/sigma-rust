@@ -153,7 +153,7 @@ fn prove_block(
 
     // Now prove
     let (parent_id, height) = if let Some(parent_header) = parent_header {
-        (parent_header.id.clone(), parent_header.height + 1)
+        (parent_header.id, parent_header.height + 1)
     } else {
         (BlockId(Digest32::zero()), 1)
     };
