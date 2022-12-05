@@ -40,7 +40,7 @@ impl TokenId {
 
     /// Base16 encoded string
     pub fn to_str(&self) -> String {
-        self.0.clone().into()
+        self.0.into()
     }
 
     /// Returns byte array (32 bytes)
@@ -104,7 +104,7 @@ impl Token {
 
     /// Get token id
     pub fn id(&self) -> TokenId {
-        TokenId(self.0.token_id.clone())
+        TokenId(self.0.token_id)
     }
 
     /// Get token amount

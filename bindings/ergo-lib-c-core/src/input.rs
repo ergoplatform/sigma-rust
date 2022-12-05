@@ -22,7 +22,7 @@ pub unsafe fn unsigned_input_box_id(
 ) -> Result<(), Error> {
     let box_id_out = mut_ptr_as_mut(box_id_out, "box_id_out")?;
     let unsigned_input = const_ptr_as_ref(unsigned_input_ptr, "unsigned_input_ptr")?;
-    let box_id = BoxId(unsigned_input.0.box_id.clone());
+    let box_id = BoxId(unsigned_input.0.box_id);
     *box_id_out = Box::into_raw(Box::new(box_id));
     Ok(())
 }
@@ -52,7 +52,7 @@ pub unsafe fn input_box_id(
 ) -> Result<(), Error> {
     let box_id_out = mut_ptr_as_mut(box_id_out, "box_id_out")?;
     let input = const_ptr_as_ref(input_ptr, "input_ptr")?;
-    let box_id = BoxId(input.0.box_id.clone());
+    let box_id = BoxId(input.0.box_id);
     *box_id_out = Box::into_raw(Box::new(box_id));
     Ok(())
 }

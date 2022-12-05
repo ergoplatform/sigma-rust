@@ -6,7 +6,7 @@ use super::digest32::Digest32;
 
 /// Block id
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
-#[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Clone, Hash, Display)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Copy, Clone, Hash, Display)]
 pub struct BlockId(pub Digest32);
 
 impl From<BlockId> for Vec<i8> {

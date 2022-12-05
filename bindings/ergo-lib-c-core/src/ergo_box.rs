@@ -49,7 +49,7 @@ pub unsafe fn box_id_from_str(box_id_str: &str, box_id_out: *mut BoxIdPtr) -> Re
 /// Base16 encoded string
 pub unsafe fn box_id_to_str(box_id_ptr: ConstBoxIdPtr) -> Result<String, Error> {
     let box_id_ptr = const_ptr_as_ref(box_id_ptr, "box_id_ptr")?;
-    Ok(box_id_ptr.0.clone().into())
+    Ok(box_id_ptr.0.into())
 }
 
 /// Convert to serialized bytes. Key assumption: 32 bytes have been allocated at the address
@@ -224,7 +224,7 @@ pub unsafe fn ergo_box_new(
         tokens.try_into()?,
         NonMandatoryRegisters::empty(),
         creation_height,
-        tx_id.0.clone(),
+        tx_id.0,
         index,
     )
     .map(ErgoBox)?;

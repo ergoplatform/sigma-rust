@@ -143,7 +143,7 @@ pub fn sum_tokens(ts: Option<&[Token]>) -> Result<HashMap<TokenId, TokenAmount>,
         if let Some(amt) = res.get_mut(&t.token_id) {
             *amt = amt.checked_add(&t.amount)?;
         } else {
-            res.insert(t.token_id.clone(), t.amount);
+            res.insert(t.token_id, t.amount);
         }
         Ok(())
     })?;
@@ -160,7 +160,7 @@ pub fn sum_tokens_from_boxes<T: ErgoBoxAssets>(
             if let Some(amt) = res.get_mut(&t.token_id) {
                 *amt = amt.checked_add(&t.amount)?;
             } else {
-                res.insert(t.token_id.clone(), t.amount);
+                res.insert(t.token_id, t.amount);
             }
 
             Ok(())
@@ -182,7 +182,7 @@ pub fn sum_tokens_from_hashmaps(
             if let Some(amt) = res.get_mut(&id) {
                 *amt = amt.checked_add(&t_amt)?;
             } else {
-                res.insert(id.clone(), t_amt);
+                res.insert(id, t_amt);
             }
             Ok(())
         })?;

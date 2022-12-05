@@ -51,7 +51,7 @@ pub unsafe fn rest_api_node_get_header(
 ) -> Result<(), Error> {
     let runtime = const_ptr_as_ref(runtime_ptr, "runtime_ptr")?;
     let node_conf = const_ptr_as_ref(node_conf_ptr, "node_conf_ptr")?.0;
-    let header_id = const_ptr_as_ref(header_id_ptr, "header_id_ptr")?.0.clone();
+    let header_id = const_ptr_as_ref(header_id_ptr, "header_id_ptr")?.0;
     let abort_callback: AbortCallback = (&callback).into();
     let abort_handle = spawn_abortable(runtime, async move {
         match ergo_lib::ergo_rest::api::node::get_header(node_conf, header_id).await {
@@ -76,8 +76,8 @@ pub unsafe fn rest_api_node_get_blocks_header_id_proof_for_tx_id(
 ) -> Result<(), Error> {
     let runtime = const_ptr_as_ref(runtime_ptr, "runtime_ptr")?;
     let node_conf = const_ptr_as_ref(node_conf_ptr, "node_conf_ptr")?.0;
-    let header_id = const_ptr_as_ref(header_id_ptr, "header_id_ptr")?.0.clone();
-    let tx_id = const_ptr_as_ref(tx_id_ptr, "tx_id_ptr")?.0.clone();
+    let header_id = const_ptr_as_ref(header_id_ptr, "header_id_ptr")?.0;
+    let tx_id = const_ptr_as_ref(tx_id_ptr, "tx_id_ptr")?.0;
     let abort_callback: AbortCallback = (&callback).into();
     let abort_handle = spawn_abortable(runtime, async move {
         match ergo_lib::ergo_rest::api::node::get_blocks_header_id_proof_for_tx_id(
@@ -107,7 +107,7 @@ pub unsafe fn rest_api_node_get_nipopow_proof_by_header_id(
 ) -> Result<(), Error> {
     let runtime = const_ptr_as_ref(runtime_ptr, "runtime_ptr")?;
     let node_conf = const_ptr_as_ref(node_conf_ptr, "node_conf_ptr")?.0;
-    let header_id = const_ptr_as_ref(header_id_ptr, "header_id_ptr")?.0.clone();
+    let header_id = const_ptr_as_ref(header_id_ptr, "header_id_ptr")?.0;
     let abort_callback: AbortCallback = (&callback).into();
     let abort_handle = spawn_abortable(runtime, async move {
         match ergo_lib::ergo_rest::api::node::get_nipopow_proof_by_header_id(

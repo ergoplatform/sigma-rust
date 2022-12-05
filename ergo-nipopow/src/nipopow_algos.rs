@@ -201,12 +201,12 @@ impl NipopowAlgos {
         let mut res = vec![];
         let mut ix_distinct_block_ids = 0;
         let mut curr_block_id_count = 1;
-        let mut curr_block_id = interlinks[0].clone();
+        let mut curr_block_id = interlinks[0];
         for id in interlinks.into_iter().skip(1) {
             if id == curr_block_id {
                 curr_block_id_count += 1;
             } else {
-                let block_id_bytes: Vec<u8> = curr_block_id.clone().0.into();
+                let block_id_bytes: Vec<u8> = curr_block_id.0.into();
                 let packed_value = std::iter::once(curr_block_id_count)
                     .chain(block_id_bytes)
                     .collect();
@@ -262,7 +262,7 @@ impl NipopowAlgos {
         if !is_genesis {
             // Interlinks vector cannot be empty in case of non-genesis header
             assert!(!prev_interlinks.is_empty());
-            let genesis = prev_interlinks[0].clone();
+            let genesis = prev_interlinks[0];
             let nipopow_algos = NipopowAlgos::default();
             let prev_level = nipopow_algos.max_level_of(&prev_header)? as usize;
             if prev_level > 0 {

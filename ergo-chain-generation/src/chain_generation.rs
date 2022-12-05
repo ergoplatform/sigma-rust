@@ -153,7 +153,7 @@ fn prove_block(
 
     // Now prove
     let (parent_id, height) = if let Some(parent_header) = parent_header {
-        (parent_header.id.clone(), parent_header.height + 1)
+        (parent_header.id, parent_header.height + 1)
     } else {
         (BlockId(Digest32::zero()), 1)
     };
@@ -227,7 +227,7 @@ fn prove_block(
         let seed_hash = if version == 1 {
             let mut seed = msg.clone();
             seed.extend(&nonce);
-            *blake2b256_hash(&seed).0
+            blake2b256_hash(&seed).0
         } else {
             *popow_algos
                 .pow_scheme
@@ -248,7 +248,7 @@ fn prove_block(
         let d = if version == 1 {
             (x_bigint.clone() * sum - sk_bigint.clone()).modpow(&BigInt::from(1_u8), &order.clone())
         } else {
-            BigInt::from_bytes_be(Sign::Plus, &*blake2b256_hash(&sum.to_signed_bytes_be()).0)
+            BigInt::from_bytes_be(Sign::Plus, &blake2b256_hash(&sum.to_signed_bytes_be()).0)
         };
 
         if d <= target_b {

@@ -15,7 +15,7 @@ use sigma_ser::ScorexSerializable;
 use thiserror::Error;
 
 /// newtype for token id
-#[derive(PartialEq, Eq, Hash, Debug, Clone, From, Into)]
+#[derive(PartialEq, Eq, Hash, Debug, Copy, Clone, From, Into)]
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 pub struct TokenId(Digest32);
 

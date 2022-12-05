@@ -690,7 +690,7 @@ mod tests {
     proptest! {
         #[test]
         fn eval_avl_digest(v in any::<AvlTreeData>()) {
-            let digest: Vec<i8> = v.digest.clone().into();
+            let digest: Vec<i8> = v.digest.into();
             let obj = Expr::Const(v.into());
 
             let expr: Expr = MethodCall::new(

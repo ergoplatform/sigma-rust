@@ -307,10 +307,10 @@ mod arbitrary {
                         autolykos_solution,
                         votes,
                     )| {
-                        let parent_id = BlockId(Digest(parent_id.into()));
-                        let ad_proofs_root = Digest(ad_proofs_root.into());
-                        let transaction_root = Digest(transaction_root.into());
-                        let extension_root = Digest(extension_root.into());
+                        let parent_id = BlockId(Digest(parent_id));
+                        let ad_proofs_root = Digest(ad_proofs_root);
+                        let transaction_root = Digest(transaction_root);
+                        let extension_root = Digest(extension_root);
                         let votes = Votes(votes);
 
                         // The `Header.id` field isn't serialized/deserialized but rather computed

@@ -101,6 +101,6 @@ impl PoPowHeader {
     }
     /// Returns Block ID for Header
     pub fn id(&self) -> crate::block_header::BlockId {
-        self.0.header.id.clone().into()
+        self.0.header.id.into()
     }
 }

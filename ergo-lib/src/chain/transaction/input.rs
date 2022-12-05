@@ -103,7 +103,7 @@ impl Input {
     /// input with an empty proof
     pub fn input_to_sign(&self) -> Input {
         Input {
-            box_id: self.box_id.clone(),
+            box_id: self.box_id,
             spending_proof: ProverResult {
                 proof: ProofBytes::Empty,
                 extension: self.spending_proof.extension.clone(),

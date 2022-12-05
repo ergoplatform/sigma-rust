@@ -57,7 +57,7 @@ impl BoxId {
 
     /// Base16 encoded string
     pub fn to_str(&self) -> String {
-        self.0.clone().into()
+        self.0.into()
     }
 
     /// Returns byte array (32 bytes)
@@ -167,7 +167,7 @@ impl ErgoBox {
 
     /// Get id of transaction which created the box
     pub fn tx_id(&self) -> TxId {
-        self.0.transaction_id.clone().into()
+        self.0.transaction_id.into()
     }
 
     /// Index of this box in transaction outputs

@@ -88,7 +88,7 @@ fn build_proof(
             crate::NodeSide::Right
         };
         match nodes[sibling].get_hash() {
-            Some(hash) => proof_nodes.push(crate::LevelNode::new(hash.clone(), side)),
+            Some(hash) => proof_nodes.push(crate::LevelNode::new(*hash, side)),
             _ => proof_nodes.push(crate::LevelNode::empty_node(side)),
         }
         leaf_index = get_parent(leaf_index)?;
@@ -125,7 +125,7 @@ fn build_multiproof(
                 None => unreachable!(),
             };
             let levelnode = match nodes[node].get_hash() {
-                Some(hash) => crate::LevelNode::new(hash.clone(), side),
+                Some(hash) => crate::LevelNode::new(*hash, side),
                 None => crate::LevelNode::empty_node(side),
             };
             multiproof.push(levelnode);
@@ -190,7 +190,7 @@ impl MerkleTree {
             .iter()
             .flat_map(MerkleNode::get_hash)
             .enumerate()
-            .map(|(i, node)| (node.clone(), i))
+            .map(|(i, node)| (*node, i))
             .collect();
         let leaf_nodes = tree_nodes.len();
         // prepend leaf nodes with empty nodes to build the full tree

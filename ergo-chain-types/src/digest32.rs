@@ -20,8 +20,8 @@ use thiserror::Error;
         try_from = "crate::Base16DecodedBytes"
     )
 )]
-#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
-pub struct Digest<const N: usize>(pub Box<[u8; N]>);
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Copy, Clone)]
+pub struct Digest<const N: usize>(pub [u8; N]);
 
 /// 32 byte array used as ID of some value: block, transaction, etc.
 /// Usually this is as blake2b hash of serialized form
@@ -36,43 +36,43 @@ impl<const N: usize> Digest<N> {
 
     /// All zeros
     pub fn zero() -> Digest<N> {
-        Digest(Box::new([0u8; N]))
+        Digest([0u8; N])
     }
 
     /// Parse Digest<N> from base64 encoded string
     pub fn from_base64(s: &str) -> Result<Digest<N>, DigestNError> {
         let bytes = base64::decode(s)?;
         let arr: [u8; N] = bytes.as_slice().try_into()?;
-        Ok(Digest(Box::new(arr)))
+        Ok(Digest(arr))
     }
 }
 
 impl<const N: usize> std::fmt::Debug for Digest<N> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        base16::encode_lower(&(*self.0)).fmt(f)
+        base16::encode_lower(&(self.0)).fmt(f)
     }
 }
 
 impl<const N: usize> std::fmt::Display for Digest<N> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        base16::encode_lower(&(*self.0)).fmt(f)
+        base16::encode_lower(&(self.0)).fmt(f)
     }
 }
 
 /// Blake2b256 hash (256 bit)
 pub fn blake2b256_hash(bytes: &[u8]) -> Digest32 {
-    Digest(sigma_util::hash::blake2b256_hash(bytes))
+    Digest(*sigma_util::hash::blake2b256_hash(bytes))
 }
 
 impl<const N: usize> From<[u8; N]> for Digest<N> {
     fn from(bytes: [u8; N]) -> Self {
-        Digest(Box::new(bytes))
+        Digest(bytes)
     }
 }
 
 impl<const N: usize> From<Box<[u8; N]>> for Digest<N> {
     fn from(bytes: Box<[u8; N]>) -> Self {
-        Digest(bytes)
+        Digest(*bytes)
     }
 }
 
@@ -90,7 +90,7 @@ impl<const N: usize> From<Digest<N>> for Vec<u8> {
 
 impl<const N: usize> From<Digest<N>> for [u8; N] {
     fn from(v: Digest<N>) -> Self {
-        *v.0
+        v.0
     }
 }
 
@@ -106,7 +106,7 @@ impl<const N: usize> TryFrom<String> for Digest<N> {
     fn try_from(value: String) -> Result<Self, Self::Error> {
         let bytes = base16::decode(&value)?;
         let arr: [u8; N] = bytes.as_slice().try_into()?;
-        Ok(Digest(Box::new(arr)))
+        Ok(Digest(arr))
     }
 }
 
@@ -135,7 +135,7 @@ impl<const N: usize> ScorexSerializable for Digest<N> {
     fn scorex_parse<R: ReadSigmaVlqExt>(r: &mut R) -> Result<Self, ScorexParsingError> {
         let mut bytes = [0; N];
         r.read_exact(&mut bytes)?;
-        Ok(Self(bytes.into()))
+        Ok(Self(bytes))
     }
 }
 
@@ -175,7 +175,7 @@ pub(crate) mod arbitrary {
 
         fn arbitrary_with(_: Self::Parameters) -> Self::Strategy {
             vec(any::<u8>(), Self::SIZE)
-                .prop_map(|v| Digest(Box::new(v.try_into().unwrap())))
+                .prop_map(|v| Digest(v.try_into().unwrap()))
                 .boxed()
         }
     }

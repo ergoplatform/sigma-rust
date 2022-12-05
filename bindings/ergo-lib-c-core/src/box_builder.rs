@@ -181,7 +181,7 @@ pub unsafe fn ergo_box_candidate_builder_add_token(
     builder_mut
         .0
         .add_token(ergo_lib::ergotree_ir::chain::token::Token {
-            token_id: token_id.0.clone(),
+            token_id: token_id.0,
             amount: token_amount.0,
         });
     Ok(())

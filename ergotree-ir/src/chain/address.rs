@@ -98,11 +98,11 @@ impl Address {
     /// `tree` - ErgoTree that was created from an Address
     pub fn recreate_from_ergo_tree(tree: &ErgoTree) -> Result<Address, AddressError> {
         match tree.proposition() {
-            Ok(expr) => Ok(match &*expr {
+            Ok(expr) => Ok(match expr {
                 Expr::Const(Constant {
                     tpe: SType::SSigmaProp,
                     v,
-                }) => match ProveDlog::try_from(v.clone()).map(Address::P2Pk) {
+                }) => match ProveDlog::try_from(v).map(Address::P2Pk) {
                     Ok(p2pk) => p2pk,
                     Err(_) => Address::P2S(tree.sigma_serialize_bytes()?),
                 },
