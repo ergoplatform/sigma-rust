@@ -187,7 +187,7 @@ impl Transaction {
             .ok_or_else(|| {
                 TransactionSignatureVerificationError::InputNotFound(input_box.box_id())
             })?;
-        let sb = extract_sigma_boolean(input_box.ergo_tree.proposition()?.as_ref())?;
+        let sb = extract_sigma_boolean(&input_box.ergo_tree.proposition()?)?;
         Ok(verify_signature(
             sb,
             message.as_slice(),

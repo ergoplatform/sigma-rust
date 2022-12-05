@@ -22,13 +22,12 @@ use std::convert::TryFrom;
 use std::io;
 use std::io::Read;
 use std::io::Write;
-use std::rc::Rc;
 use thiserror::Error;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 struct ParsedTree {
     constants: Vec<Constant>,
-    root: Result<Rc<Expr>, ErgoTreeRootParsingError>,
+    root: Result<Expr, ErgoTreeRootParsingError>,
 }
 
 impl ParsedTree {
@@ -255,7 +254,7 @@ impl ErgoTree {
                     header,
                     tree: Ok(ParsedTree {
                         constants,
-                        root: Ok(Rc::new(parsed)),
+                        root: Ok(parsed),
                     }),
                 }),
                 Err(err) => Ok(ErgoTree {
@@ -343,7 +342,7 @@ impl ErgoTree {
                 header: ErgoTreeHeader(ErgoTreeHeader::CONSTANT_SEGREGATION_FLAG | header.0),
                 tree: Ok(ParsedTree {
                     constants,
-                    root: Ok(Rc::new(parsed_expr)),
+                    root: Ok(parsed_expr),
                 }),
             }
         } else {
@@ -351,7 +350,7 @@ impl ErgoTree {
                 header,
                 tree: Ok(ParsedTree {
                     constants: Vec::new(),
-                    root: Ok(Rc::new(expr.clone())),
+                    root: Ok(expr.clone()),
                 }),
             }
         })
@@ -361,7 +360,7 @@ impl ErgoTree {
     pub const MAX_CONSTANTS_COUNT: usize = 4096;
 
     /// get Expr out of ErgoTree
-    pub fn proposition(&self) -> Result<Rc<Expr>, ErgoTreeError> {
+    pub fn proposition(&self) -> Result<Expr, ErgoTreeError> {
         let tree = self
             .tree
             .clone()
@@ -385,7 +384,7 @@ impl ErgoTree {
                     root_expr_bytes: data,
                     error,
                 })?;
-            Ok(Rc::new(parsed_expr))
+            Ok(parsed_expr)
         } else {
             Ok(root)
         }
@@ -516,7 +515,7 @@ impl SigmaSerializable for ErgoTree {
                 header,
                 tree: Ok(ParsedTree {
                     constants,
-                    root: Ok(Rc::new(root)),
+                    root: Ok(root),
                 }),
             })
         }
@@ -539,14 +538,14 @@ impl TryFrom<ErgoTree> for ProveDlog {
     type Error = TryExtractFromError;
 
     fn try_from(tree: ErgoTree) -> Result<Self, Self::Error> {
-        let expr = &*tree
+        let expr = tree
             .proposition()
             .map_err(|_| TryExtractFromError("cannot read root expr".to_string()))?;
         match expr {
             Expr::Const(Constant {
                 tpe: SType::SSigmaProp,
                 v,
-            }) => ProveDlog::try_from(v.clone()),
+            }) => ProveDlog::try_from(v),
             _ => Err(TryExtractFromError(
                 "expected ProveDlog in the root".to_string(),
             )),
@@ -746,7 +745,7 @@ mod tests {
             .unwrap()
             .proposition()
             .unwrap();
-        assert_eq!(*parsed_expr, expr)
+        assert_eq!(parsed_expr, expr)
     }
 
     #[test]
