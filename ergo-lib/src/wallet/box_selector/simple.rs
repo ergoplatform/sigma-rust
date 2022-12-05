@@ -157,10 +157,8 @@ impl<T: ErgoBoxAssets + Clone> BoxSelector<T> for SimpleBoxSelector {
                         Ok(())
                     }
                     Some(selected_boxes_t_amt) if selected_boxes_t_amt > t.amount => {
-                        change_tokens.insert(
-                            t.token_id,
-                            selected_boxes_t_amt.checked_sub(&t.amount)?,
-                        );
+                        change_tokens
+                            .insert(t.token_id, selected_boxes_t_amt.checked_sub(&t.amount)?);
                         Ok(())
                     }
                     _ => Err(BoxSelectorError::NotEnoughTokens(vec![t.clone()])),

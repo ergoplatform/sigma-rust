@@ -27,9 +27,7 @@ pub unsafe fn token_id_from_box_id(
 ) -> Result<(), Error> {
     let box_id = const_ptr_as_ref(box_id_ptr, "box_id_ptr")?;
     let token_id_out = mut_ptr_as_mut(token_id_out, "token_id_out")?;
-    *token_id_out = Box::into_raw(Box::new(TokenId(chain::token::TokenId::from(
-        box_id.0,
-    ))));
+    *token_id_out = Box::into_raw(Box::new(TokenId(chain::token::TokenId::from(box_id.0))));
     Ok(())
 }
 

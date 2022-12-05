@@ -228,9 +228,7 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
             .iter()
             .try_for_each(|(id, amt)| match input_tokens.get(id).cloned() {
                 Some(input_token_amount) if input_token_amount >= *amt => Ok(()),
-                _ => Err(TxBuilderError::NotEnoughTokens(vec![
-                    (*id, *amt).into()
-                ])),
+                _ => Err(TxBuilderError::NotEnoughTokens(vec![(*id, *amt).into()])),
             })?;
 
         // check token burn

@@ -221,13 +221,7 @@ mod tests {
         let expected = ctx
             .headers
             .get(HEADER_INDEX)
-            .map(|h| {
-                [
-                    h.ad_proofs_root,
-                    h.transaction_root,
-                    h.extension_root,
-                ]
-            })
+            .map(|h| [h.ad_proofs_root, h.transaction_root, h.extension_root])
             .expect("internal error: empty headers array");
         let actual = eval_header_roots(ctx);
         assert_eq!(expected, actual);
