@@ -1,4 +1,5 @@
 //! Transaction id type
+use derive_more::Display;
 
 use ergo_chain_types::Digest32;
 use sigma_ser::ScorexSerializable;
@@ -10,7 +11,7 @@ use crate::serialization::SigmaSerializable;
 use crate::serialization::SigmaSerializeResult;
 
 /// Transaction id (ModifierId in sigmastate)
-#[derive(PartialEq, Eq, Hash, Debug, Clone)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Clone, Display)]
 #[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 pub struct TxId(pub Digest32);

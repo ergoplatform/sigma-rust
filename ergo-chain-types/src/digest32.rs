@@ -20,7 +20,7 @@ use thiserror::Error;
         try_from = "crate::Base16DecodedBytes"
     )
 )]
-#[derive(PartialEq, Eq, Hash, Clone)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
 pub struct Digest<const N: usize>(pub Box<[u8; N]>);
 
 /// 32 byte array used as ID of some value: block, transaction, etc.
@@ -48,6 +48,12 @@ impl<const N: usize> Digest<N> {
 }
 
 impl<const N: usize> std::fmt::Debug for Digest<N> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        base16::encode_lower(&(*self.0)).fmt(f)
+    }
+}
+
+impl<const N: usize> std::fmt::Display for Digest<N> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         base16::encode_lower(&(*self.0)).fmt(f)
     }
