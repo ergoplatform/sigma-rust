@@ -545,7 +545,7 @@ impl TryFrom<ErgoTree> for ProveDlog {
             Expr::Const(Constant {
                 tpe: SType::SSigmaProp,
                 v,
-            }) => ProveDlog::try_from(v.clone()),
+            }) => ProveDlog::try_from(v),
             _ => Err(TryExtractFromError(
                 "expected ProveDlog in the root".to_string(),
             )),
