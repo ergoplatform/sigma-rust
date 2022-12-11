@@ -142,7 +142,7 @@ mod tests {
                          .collect()
                 );
             assert_eq!(
-                eval_out::<Vec<Rc<ErgoBox>>>(&expr, ctx),
+                eval_out::<Vec<Box<ErgoBox>>>(&expr, ctx),
                 expected,
             );
         }

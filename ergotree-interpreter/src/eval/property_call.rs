@@ -36,6 +36,6 @@ mod tests {
             .data_inputs
             .clone()
             .map_or(vec![], |d| d.as_vec().clone());
-        assert_eq!(eval_out::<Vec<Rc<ErgoBox>>>(&pc, ctx), expected,);
+        assert_eq!(eval_out::<Vec<Box<ErgoBox>>>(&pc, ctx), expected,);
     }
 }

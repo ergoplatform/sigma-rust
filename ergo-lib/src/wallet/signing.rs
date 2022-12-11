@@ -112,14 +112,14 @@ pub fn make_context(
                 .ok_or(TxSigningError::DataInputBoxNotFound(idx))?
                 .iter()
                 .find(|b| di.box_id == b.box_id())
-                .map(|b| Rc::new(b.clone()))
+                .map(|b| Box::new(b.clone()))
                 .ok_or(TxSigningError::DataInputBoxNotFound(idx))
         })?)
     } else {
         None
     };
-    let self_box_ir = Rc::new(self_box);
-    let outputs_ir = outputs.into_iter().map(Rc::new).collect();
+    let self_box_ir = Box::new(self_box);
+    let outputs_ir = outputs.into_iter().map(Box::new).collect();
     let inputs_ir = tx_ctx
         .spending_tx
         .inputs_ids()
@@ -127,7 +127,7 @@ pub fn make_context(
         .try_mapped(|(idx, u)| {
             tx_ctx
                 .get_input_box(&u)
-                .map(Rc::new)
+                .map(Box::new)
                 .ok_or(TxSigningError::InputBoxNotFound(idx))
         })?;
     let extension = tx_ctx
@@ -388,8 +388,8 @@ mod tests {
           )
           .unwrap();
 
-          let expected_data_input_boxes = Some(TxIoVec::from_vec(expected_data_input_boxes).unwrap().mapped(Rc::new));
-          let expected_input_boxes = TxIoVec::from_vec(expected_input_boxes).unwrap().mapped(Rc::new);
+          let expected_data_input_boxes = Some(TxIoVec::from_vec(expected_data_input_boxes).unwrap().mapped(Box::new));
+          let expected_input_boxes = TxIoVec::from_vec(expected_input_boxes).unwrap().mapped(Box::new);
           for i in 0..num_inputs {
               let context = make_context(&force_any_val::<ErgoStateContext>(), &tx_context, i).unwrap();
               assert_eq!(expected_data_input_boxes, context.data_inputs);

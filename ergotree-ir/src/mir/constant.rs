@@ -26,7 +26,6 @@ use sigma_util::AsVecU8;
 use std::convert::TryFrom;
 use std::convert::TryInto;
 use std::fmt::Formatter;
-use std::rc::Rc;
 
 mod constant_placeholder;
 
@@ -73,7 +72,7 @@ pub enum Literal {
     /// AVL tree
     AvlTree(Box<AvlTreeData>),
     /// Ergo box
-    CBox(Rc<ErgoBox>),
+    CBox(Box<ErgoBox>),
     /// Collection
     Coll(CollKind<Literal>),
     /// Option type
@@ -166,15 +165,15 @@ impl From<EcPoint> for Literal {
     }
 }
 
-impl From<Rc<ErgoBox>> for Literal {
-    fn from(b: Rc<ErgoBox>) -> Self {
+impl From<Box<ErgoBox>> for Literal {
+    fn from(b: Box<ErgoBox>) -> Self {
         Literal::CBox(b)
     }
 }
 
 impl From<ErgoBox> for Literal {
     fn from(b: ErgoBox) -> Self {
-        Literal::CBox(Rc::new(b))
+        Literal::CBox(Box::new(b))
     }
 }
 
@@ -370,8 +369,8 @@ impl From<EcPoint> for Constant {
     }
 }
 
-impl From<Rc<ErgoBox>> for Constant {
-    fn from(b: Rc<ErgoBox>) -> Self {
+impl From<Box<ErgoBox>> for Constant {
+    fn from(b: Box<ErgoBox>) -> Self {
         Constant {
             tpe: SType::SBox,
             v: b.into(),
@@ -629,7 +628,7 @@ impl TryExtractFrom<Literal> for SigmaProp {
     }
 }
 
-impl TryExtractFrom<Literal> for Rc<ErgoBox> {
+impl TryExtractFrom<Literal> for Box<ErgoBox> {
     fn try_extract_from(c: Literal) -> Result<Self, TryExtractFromError> {
         match c {
             Literal::CBox(b) => Ok(b),

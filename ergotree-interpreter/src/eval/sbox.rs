@@ -1,5 +1,4 @@
 use std::convert::TryInto;
-use std::rc::Rc;
 
 use crate::eval::EvalError;
 
@@ -11,13 +10,13 @@ use super::EvalFn;
 
 pub(crate) static VALUE_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
     Ok(Value::Long(
-        obj.try_extract_into::<Rc<ErgoBox>>()?.value.as_i64(),
+        obj.try_extract_into::<Box<ErgoBox>>()?.value.as_i64(),
     ))
 };
 
 pub(crate) static GET_REG_EVAL_FN: EvalFn = |_env, _ctx, obj, args| {
     Ok(Value::Opt(Box::new(
-        obj.try_extract_into::<Rc<ErgoBox>>()?
+        obj.try_extract_into::<Box<ErgoBox>>()?
             .get_register(
                 args.get(0)
                     .cloned()
@@ -36,7 +35,7 @@ pub(crate) static GET_REG_EVAL_FN: EvalFn = |_env, _ctx, obj, args| {
 };
 
 pub(crate) static TOKENS_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
-    let res: Value = obj.try_extract_into::<Rc<ErgoBox>>()?.tokens_raw().into();
+    let res: Value = obj.try_extract_into::<Box<ErgoBox>>()?.tokens_raw().into();
     Ok(res)
 };
 

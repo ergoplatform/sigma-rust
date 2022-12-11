@@ -83,7 +83,7 @@ mod tests {
         let ctx = force_any_val::<Context>();
         Context {
             height: 0u32,
-            self_box: Rc::new(self_box),
+            self_box: Box::new(self_box),
             ..ctx
         }
     }
