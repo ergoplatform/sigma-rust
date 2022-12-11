@@ -19,6 +19,7 @@ use ergo_chain_types::EcPoint;
 
 use super::sigma_byte_writer::SigmaByteWrite;
 use std::convert::TryInto;
+use std::sync::Arc;
 
 /// Used to serialize and parse `Literal` and `Value`.
 pub struct DataSerializer {}
@@ -148,7 +149,7 @@ impl DataSerializer {
                 // is correct
                 Literal::Tup(items.try_into()?)
             }
-            SBox => Literal::CBox(Box::new(ErgoBox::sigma_parse(r)?)),
+            SBox => Literal::CBox(Arc::new(ErgoBox::sigma_parse(r)?)),
             SAvlTree => Literal::AvlTree(Box::new(AvlTreeData::sigma_parse(r)?)),
             STypeVar(_) => return Err(SigmaParsingError::NotSupported("TypeVar data")),
             SAny => return Err(SigmaParsingError::NotSupported("SAny data")),

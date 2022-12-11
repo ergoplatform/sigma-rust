@@ -73,6 +73,7 @@ impl Evaluable for Filter {
 #[cfg(test)]
 mod tests {
     use std::rc::Rc;
+    use std::sync::Arc;
 
     use crate::eval::context::Context;
     use crate::eval::tests::eval_out;
@@ -142,7 +143,7 @@ mod tests {
                          .collect()
                 );
             assert_eq!(
-                eval_out::<Vec<Box<ErgoBox>>>(&expr, ctx),
+                eval_out::<Vec<Arc<ErgoBox>>>(&expr, ctx),
                 expected,
             );
         }

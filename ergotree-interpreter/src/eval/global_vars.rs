@@ -26,6 +26,7 @@ impl Evaluable for GlobalVars {
 #[cfg(test)]
 mod tests {
     use std::rc::Rc;
+    use std::sync::Arc;
 
     use crate::eval::context::Context;
     use crate::eval::tests::eval_out;
@@ -48,7 +49,7 @@ mod tests {
     fn eval_self_box() {
         let ctx = Rc::new(force_any_val::<Context>());
         assert_eq!(
-            eval_out::<Box<ErgoBox>>(&GlobalVars::SelfBox.into(), ctx.clone()).as_ref(),
+            eval_out::<Arc<ErgoBox>>(&GlobalVars::SelfBox.into(), ctx.clone()).as_ref(),
             ctx.self_box.as_ref()
         );
     }
@@ -57,7 +58,7 @@ mod tests {
     fn eval_outputs() {
         let ctx = Rc::new(force_any_val::<Context>());
         assert_eq!(
-            eval_out::<Vec<Box<ErgoBox>>>(&GlobalVars::Outputs.into(), ctx.clone()),
+            eval_out::<Vec<Arc<ErgoBox>>>(&GlobalVars::Outputs.into(), ctx.clone()),
             ctx.outputs
         );
     }
@@ -66,7 +67,7 @@ mod tests {
     fn eval_inputs() {
         let ctx = Rc::new(force_any_val::<Context>());
         assert_eq!(
-            eval_out::<Vec<Box<ErgoBox>>>(&GlobalVars::Inputs.into(), ctx.clone()),
+            eval_out::<Vec<Arc<ErgoBox>>>(&GlobalVars::Inputs.into(), ctx.clone()),
             *ctx.inputs.as_vec()
         );
     }
