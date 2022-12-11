@@ -38,10 +38,10 @@ pub async fn get_info(node: NodeConf) -> Result<NodeInfo, NodeError> {
 pub async fn get_header(node: NodeConf, header_id: BlockId) -> Result<Header, NodeError> {
     let header_str = String::from(header_id.0);
     let mut path = "blocks/".to_owned();
-    path.push_str(&*header_str);
+    path.push_str(&header_str);
     path.push_str("/header");
     #[allow(clippy::unwrap_used)]
-    let url = node.addr.as_http_url().join(&*path).unwrap();
+    let url = node.addr.as_http_url().join(&path).unwrap();
     let client = build_client(&node)?;
     let rb = client.get(url);
     Ok(set_req_headers(rb, node)
@@ -129,13 +129,13 @@ pub async fn get_nipopow_proof_by_header_id(
     }
     let header_str = String::from(header_id.0);
     let mut path = "nipopow/proof/".to_owned();
-    path.push_str(&*min_chain_length.to_string());
+    path.push_str(&min_chain_length.to_string());
     path.push('/');
-    path.push_str(&*suffix_len.to_string());
+    path.push_str(&suffix_len.to_string());
     path.push('/');
-    path.push_str(&*header_str);
+    path.push_str(&header_str);
     #[allow(clippy::unwrap_used)]
-    let url = node.addr.as_http_url().join(&*path).unwrap();
+    let url = node.addr.as_http_url().join(&path).unwrap();
     let client = build_client(&node)?;
     let rb = client.get(url);
     Ok(set_req_headers(rb, node)
@@ -154,12 +154,12 @@ pub async fn get_blocks_header_id_proof_for_tx_id(
 ) -> Result<Option<MerkleProof>, NodeError> {
     let header_str = String::from(header_id.0);
     let mut path = "blocks/".to_owned();
-    path.push_str(&*header_str);
+    path.push_str(&header_str);
     path.push_str("/proofFor/");
     let tx_id_str = String::from(tx_id);
-    path.push_str(&*tx_id_str);
+    path.push_str(&tx_id_str);
     #[allow(clippy::unwrap_used)]
-    let url = node.addr.as_http_url().join(&*path).unwrap();
+    let url = node.addr.as_http_url().join(&path).unwrap();
     let client = build_client(&node)?;
     let rb = client.get(url);
     Ok(set_req_headers(rb, node)

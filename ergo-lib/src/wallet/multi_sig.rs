@@ -29,6 +29,7 @@ use ergotree_interpreter::sigma_protocol::verifier::compute_commitments;
 use ergotree_ir::chain::ergo_box::ErgoBox;
 use std::collections::HashMap;
 use std::rc::Rc;
+use std::sync::Arc;
 
 /// TransactionHintsBag
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
@@ -293,7 +294,7 @@ pub fn extract_hints(
             .enumerate()
             .map(|(idx, b)| ErgoBox::from_box_candidate(b, tx_ctx.spending_tx.id(), idx as u16))
             .collect::<Result<Vec<ErgoBox>, SigmaSerializationError>>()?;
-        let outputs_ir = outputs.into_iter().map(Rc::new).collect();
+        let outputs_ir = outputs.into_iter().map(Arc::new).collect();
         let data_inputs_ir = if let Some(data_inputs) = tx_ctx.spending_tx.data_inputs.as_ref() {
             Some(data_inputs.clone().enumerated().try_mapped(|(idx, di)| {
                 tx_ctx
@@ -302,7 +303,7 @@ pub fn extract_hints(
                     .ok_or(TxSigningError::DataInputBoxNotFound(idx))?
                     .iter()
                     .find(|b| di.box_id == b.box_id())
-                    .map(|b| Rc::new(b.clone()))
+                    .map(|b| Arc::new(b.clone()))
                     .ok_or(TxSigningError::DataInputBoxNotFound(idx))
             })?)
         } else {
@@ -315,7 +316,7 @@ pub fn extract_hints(
             .try_mapped(|(idx, u)| {
                 tx_ctx
                     .get_input_box(&u)
-                    .map(Rc::new)
+                    .map(Arc::new)
                     .ok_or(TxSigningError::InputBoxNotFound(idx))
             })?;
         let extension = tx_ctx
@@ -332,7 +333,7 @@ pub fn extract_hints(
             .clone();
         let ctx = Rc::new(Context {
             height,
-            self_box: Rc::new(self_box),
+            self_box: Arc::new(self_box),
             outputs: outputs_ir,
             data_inputs: data_inputs_ir,
             inputs: inputs_ir,

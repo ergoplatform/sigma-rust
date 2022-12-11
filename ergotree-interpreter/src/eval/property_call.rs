@@ -25,6 +25,7 @@ mod tests {
     use ergotree_ir::types::scontext;
     use sigma_test_util::force_any_val;
     use std::rc::Rc;
+    use std::sync::Arc;
 
     #[test]
     fn eval_context_data_inputs() {
@@ -36,6 +37,6 @@ mod tests {
             .data_inputs
             .clone()
             .map_or(vec![], |d| d.as_vec().clone());
-        assert_eq!(eval_out::<Vec<Rc<ErgoBox>>>(&pc, ctx), expected,);
+        assert_eq!(eval_out::<Vec<Arc<ErgoBox>>>(&pc, ctx), expected,);
     }
 }

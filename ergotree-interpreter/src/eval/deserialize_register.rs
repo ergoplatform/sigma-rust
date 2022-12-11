@@ -62,6 +62,7 @@ impl Evaluable for DeserializeRegister {
 mod tests {
 
     use std::rc::Rc;
+    use std::sync::Arc;
 
     use ergotree_ir::chain::ergo_box::ErgoBox;
     use ergotree_ir::chain::ergo_box::NonMandatoryRegisters;
@@ -83,7 +84,7 @@ mod tests {
         let ctx = force_any_val::<Context>();
         Context {
             height: 0u32,
-            self_box: Rc::new(self_box),
+            self_box: Arc::new(self_box),
             ..ctx
         }
     }

@@ -179,7 +179,7 @@ fn as_unsigned_byte_array(
         return Ok(bytes);
     }
 
-    let start = if bytes[0] == 0 { 1 } else { 0 };
+    let start = usize::from(bytes[0] == 0);
     let count = bytes.len() - start;
     if count > length {
         return Err(AutolykosPowSchemeError::BigIntToFixedByteArrayError);

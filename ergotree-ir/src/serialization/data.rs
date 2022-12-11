@@ -19,7 +19,7 @@ use ergo_chain_types::EcPoint;
 
 use super::sigma_byte_writer::SigmaByteWrite;
 use std::convert::TryInto;
-use std::rc::Rc;
+use std::sync::Arc;
 
 /// Used to serialize and parse `Literal` and `Value`.
 pub struct DataSerializer {}
@@ -29,7 +29,7 @@ impl DataSerializer {
         // for reference see http://github.com/ScorexFoundation/sigmastate-interpreter/blob/25251c1313b0131835f92099f02cef8a5d932b5e/sigmastate/src/main/scala/sigmastate/serialization/DataSerializer.scala#L26-L26
         Ok(match c {
             Literal::Unit => (),
-            Literal::Boolean(v) => w.put_u8(if *v { 1 } else { 0 })?,
+            Literal::Boolean(v) => w.put_u8(u8::from(*v))?,
             Literal::Byte(v) => w.put_i8(*v)?,
             Literal::Short(v) => w.put_i16(*v)?,
             Literal::Int(v) => w.put_i32(*v)?,
@@ -149,7 +149,7 @@ impl DataSerializer {
                 // is correct
                 Literal::Tup(items.try_into()?)
             }
-            SBox => Literal::CBox(Rc::new(ErgoBox::sigma_parse(r)?)),
+            SBox => Literal::CBox(Arc::new(ErgoBox::sigma_parse(r)?)),
             SAvlTree => Literal::AvlTree(Box::new(AvlTreeData::sigma_parse(r)?)),
             STypeVar(_) => return Err(SigmaParsingError::NotSupported("TypeVar data")),
             SAny => return Err(SigmaParsingError::NotSupported("SAny data")),

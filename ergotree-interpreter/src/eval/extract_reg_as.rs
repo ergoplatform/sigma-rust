@@ -1,5 +1,5 @@
 use std::convert::TryInto;
-use std::rc::Rc;
+use std::sync::Arc;
 
 use ergotree_ir::chain::ergo_box::ErgoBox;
 use ergotree_ir::mir::constant::TryExtractInto;
@@ -16,7 +16,7 @@ impl Evaluable for ExtractRegisterAs {
         let ir_box = self
             .input
             .eval(env, ctx)?
-            .try_extract_into::<Rc<ErgoBox>>()?;
+            .try_extract_into::<Arc<ErgoBox>>()?;
         Ok(Value::Opt(Box::new(
             ir_box
                 .get_register(self.register_id.try_into().map_err(|e| {

@@ -53,6 +53,7 @@ mod tests {
     use crate::eval::tests::eval_out;
     use crate::eval::tests::eval_out_wo_ctx;
     use std::rc::Rc;
+    use std::sync::Arc;
 
     #[test]
     fn eval() {
@@ -61,7 +62,7 @@ mod tests {
             .into();
         let ctx = Rc::new(force_any_val::<Context>());
         assert_eq!(
-            eval_out::<Rc<ErgoBox>>(&expr, ctx.clone()).box_id(),
+            eval_out::<Arc<ErgoBox>>(&expr, ctx.clone()).box_id(),
             ctx.outputs.get(0).unwrap().box_id()
         );
     }

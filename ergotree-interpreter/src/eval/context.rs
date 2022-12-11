@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::sigma_protocol::prover::ContextExtension;
 use bounded_vec::BoundedVec;
@@ -14,13 +14,13 @@ pub struct Context {
     /// Current height
     pub height: u32,
     /// Box that contains the script we're evaluating (from spending transaction inputs)
-    pub self_box: Rc<ErgoBox>,
+    pub self_box: Arc<ErgoBox>,
     /// Spending transaction outputs
-    pub outputs: Vec<Rc<ErgoBox>>,
+    pub outputs: Vec<Arc<ErgoBox>>,
     /// Spending transaction data inputs
-    pub data_inputs: Option<TxIoVec<Rc<ErgoBox>>>,
+    pub data_inputs: Option<TxIoVec<Arc<ErgoBox>>>,
     /// Spending transaction inputs
-    pub inputs: TxIoVec<Rc<ErgoBox>>,
+    pub inputs: TxIoVec<Arc<ErgoBox>>,
     /// Pre header of current block
     pub pre_header: PreHeader,
     /// Fixed number of last block headers in descending order (first header is the newest one)
@@ -73,12 +73,12 @@ mod arbitrary {
                     )| {
                         Self {
                             height,
-                            self_box: Rc::new(self_box),
-                            outputs: outputs.into_iter().map(Rc::new).collect(),
+                            self_box: Arc::new(self_box),
+                            outputs: outputs.into_iter().map(Arc::new).collect(),
                             data_inputs: data_inputs.map(|v| {
-                                TxIoVec::from_vec(v.into_iter().map(Rc::new).collect()).unwrap()
+                                TxIoVec::from_vec(v.into_iter().map(Arc::new).collect()).unwrap()
                             }),
-                            inputs: TxIoVec::from_vec(inputs.into_iter().map(Rc::new).collect())
+                            inputs: TxIoVec::from_vec(inputs.into_iter().map(Arc::new).collect())
                                 .unwrap(),
                             pre_header,
                             extension,

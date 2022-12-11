@@ -45,15 +45,15 @@ pub enum STypeCompanion {
 impl STypeCompanion {
     fn method_desc<'a>(&'a self) -> &'a Vec<&'static SMethodDesc> {
         match self {
-            STypeCompanion::Context => &*scontext::METHOD_DESC,
-            STypeCompanion::Box => &*sbox::METHOD_DESC,
-            STypeCompanion::Coll => &*scoll::METHOD_DESC,
-            STypeCompanion::GroupElem => &*sgroup_elem::METHOD_DESC,
-            STypeCompanion::Global => &*sglobal::METHOD_DESC,
-            STypeCompanion::Header => &*sheader::METHOD_DESC,
-            STypeCompanion::PreHeader => &*spreheader::METHOD_DESC,
-            STypeCompanion::Option => &*soption::METHOD_DESC,
-            STypeCompanion::AvlTree => &*savltree::METHOD_DESC,
+            STypeCompanion::Context => &scontext::METHOD_DESC,
+            STypeCompanion::Box => &sbox::METHOD_DESC,
+            STypeCompanion::Coll => &scoll::METHOD_DESC,
+            STypeCompanion::GroupElem => &sgroup_elem::METHOD_DESC,
+            STypeCompanion::Global => &sglobal::METHOD_DESC,
+            STypeCompanion::Header => &sheader::METHOD_DESC,
+            STypeCompanion::PreHeader => &spreheader::METHOD_DESC,
+            STypeCompanion::Option => &soption::METHOD_DESC,
+            STypeCompanion::AvlTree => &savltree::METHOD_DESC,
         }
     }
 

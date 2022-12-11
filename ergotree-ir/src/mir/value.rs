@@ -1,7 +1,7 @@
 //! Ergo data type
 
 use std::convert::TryInto;
-use std::rc::Rc;
+use std::sync::Arc;
 
 use impl_trait_for_tuples::impl_for_tuples;
 use sigma_util::AsVecI8;
@@ -154,7 +154,7 @@ pub enum Value {
     /// Sigma property
     SigmaProp(Box<SigmaProp>),
     /// Ergo box
-    CBox(Rc<ErgoBox>),
+    CBox(Arc<ErgoBox>),
     /// AVL tree
     AvlTree(Box<AvlTreeData>),
     /// Collection of values of the same type
@@ -251,7 +251,7 @@ impl StoreWrapped for i32 {}
 impl StoreWrapped for i64 {}
 impl StoreWrapped for BigInt256 {}
 impl StoreWrapped for Header {}
-impl StoreWrapped for Rc<ErgoBox> {}
+impl StoreWrapped for Arc<ErgoBox> {}
 impl StoreWrapped for EcPoint {}
 impl StoreWrapped for SigmaProp {}
 impl<T: StoreWrapped> StoreWrapped for Option<T> {}
@@ -281,8 +281,8 @@ impl Into<Value> for Tuple {
     }
 }
 
-impl From<Vec<Rc<ErgoBox>>> for Value {
-    fn from(v: Vec<Rc<ErgoBox>>) -> Self {
+impl From<Vec<Arc<ErgoBox>>> for Value {
+    fn from(v: Vec<Arc<ErgoBox>>) -> Self {
         Value::Coll(CollKind::WrappedColl {
             elem_tpe: SType::SBox,
             items: v.into_iter().map(|i| i.into()).collect(),
@@ -362,7 +362,7 @@ impl TryExtractFrom<Value> for SigmaProp {
     }
 }
 
-impl TryExtractFrom<Value> for Rc<ErgoBox> {
+impl TryExtractFrom<Value> for Arc<ErgoBox> {
     fn try_extract_from(c: Value) -> Result<Self, TryExtractFromError> {
         match c {
             Value::CBox(b) => Ok(b),
