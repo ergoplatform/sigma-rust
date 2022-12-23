@@ -12,6 +12,9 @@
 - Box registers(R4-R9) access;
 
 ### Roadmap:
+- Evaluation trace(debug) mode for the interpreter #625;
+- `no_std` support to minimize Wasm binary size and for ZKRU support;
+- Explore ZKRU support (tx/block verification proof) #631
 - ErgoScript compiler; [#370](https://github.com/ergoplatform/sigma-rust/issues/370)
 - JIT Costing; [#193](https://github.com/ergoplatform/sigma-rust/issues/193)
 - `ErgoTree` pretty printer ("decompiler"); [#371](https://github.com/ergoplatform/sigma-rust/issues/371)
