@@ -45,6 +45,19 @@ impl SecretKey {
     pub fn to_bytes(&self) -> Vec<u8> {
         self.0.to_bytes()
     }
+
+    /// Parse secret key from JSON string (Dlog expected as base16-encoded bytes, DHT in node REST API format)
+    pub fn from_json(json_str: &str) -> Result<SecretKey, JsValue> {
+        serde_json::from_str(json_str)
+            .map(SecretKey)
+            .map_err(|e| JsValue::from_str(&format!("failed to parse SecretKey: {}", e)))
+    }
+
+    /// Encode secret key to JSON string (Dlog as base16-encoded bytes, DHT in node REST API format)
+    pub fn to_json(&self) -> Result<String, JsValue> {
+        serde_json::to_string(&self.0)
+            .map_err(|e| JsValue::from_str(&format!("failed to encode SecretKey: {}", e)))
+    }
 }
 
 /// SecretKey collection

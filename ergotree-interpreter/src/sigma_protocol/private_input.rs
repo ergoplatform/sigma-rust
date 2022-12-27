@@ -18,6 +18,8 @@ use super::crypto_utils;
 use super::wscalar::Wscalar;
 
 /// Secret key of discrete logarithm signature protocol
+#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "json", serde(transparent))]
 #[derive(PartialEq, Eq, Clone, derive_more::From)]
 pub struct DlogProverInput {
     /// secret key value
@@ -102,10 +104,13 @@ impl DlogProverInput {
 /// given group elements g, h, u, v, the proof convinces a verifier that the prover knows `w` such
 /// that `u = g^w` and `v = h^w`, without revealing `w`
 #[derive(PartialEq, Eq, Clone)]
+#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 pub struct DhTupleProverInput {
     /// Diffie-Hellman tuple's secret
+    #[cfg_attr(feature = "json", serde(rename = "secret"))]
     pub w: Wscalar,
     /// Diffie-Hellman tuple
+    #[cfg_attr(feature = "json", serde(flatten))]
     pub common_input: ProveDhTuple,
 }
 
