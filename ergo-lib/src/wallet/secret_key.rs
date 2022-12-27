@@ -8,8 +8,6 @@ use ergotree_interpreter::sigma_protocol::private_input::DlogProverInput;
 use ergotree_interpreter::sigma_protocol::private_input::PrivateInput;
 use ergotree_ir::chain::address::Address;
 
-// TODO: json serialization for SecretKey
-
 /// Types of secrets
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "json", serde(untagged))]
@@ -83,9 +81,16 @@ mod tests {
             SecretKey::dlog_from_bytes(&sk.to_bytes().as_slice().try_into().unwrap()).unwrap();
         assert_eq!(sk, sk_copy);
     }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+#[cfg(feature = "json")]
+mod json_tests {
+    use crate::wallet::secret_key::SecretKey;
+    use pretty_assertions::assert_eq;
 
     #[test]
-    #[cfg(feature = "json")]
     fn json_dlog_roundtrip() {
         let sk = SecretKey::random_dlog();
         let sk_json = serde_json::to_string(&sk).unwrap();
@@ -95,12 +100,36 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "json")]
     fn json_dht_roundtrip() {
         let sk = SecretKey::random_dht();
         let sk_json = serde_json::to_string(&sk).unwrap();
         dbg!(&sk_json);
         let sk_copy: SecretKey = serde_json::from_str(&sk_json).unwrap();
         assert_eq!(sk, sk_copy);
+    }
+
+    #[test]
+    fn json_dht_golden() {
+        let sk_json = r#"{
+  "secret": "b2a93a9a37b4656c7abf4e259b9c066cd8bf4e02449d5956aaf453a73764bfeb",
+  "g": "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
+  "h": "0288a812f57b66b4c68fd9e097c79a6e2847013fa4112a43c45cd41c9ba8c79b69",
+  "u": "0381fff110959bc06d99c5580c462c0196d8434bc5d470fb10a160019276e648c2",
+  "v": "02c6626ad387bb6b2eccc2fdd238c97ee4a81bfded401843bc8bb71f1cc7269924"
+}"#;
+        let sk: SecretKey = serde_json::from_str(sk_json).unwrap();
+        assert!(matches!(sk, SecretKey::DhtSecretKey(_)));
+        let sk_json_copy = serde_json::to_string_pretty(&sk).unwrap();
+        assert_eq!(sk_json, sk_json_copy);
+    }
+
+    #[test]
+    fn json_dlog_golden() {
+        let sk_json = r#""0cd81ce156fed4017520e561e9c492222027751ed0dd71b5a9b3a61da68b5850""#;
+        dbg!(&sk_json);
+        let sk: SecretKey = serde_json::from_str(sk_json).unwrap();
+        assert!(matches!(sk, SecretKey::DlogSecretKey(_)));
+        let sk_json_copy = serde_json::to_string_pretty(&sk).unwrap();
+        assert_eq!(sk_json, sk_json_copy);
     }
 }
