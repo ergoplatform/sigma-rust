@@ -229,8 +229,7 @@ pub enum ErgoTreeError {
 /// The root of ErgoScript IR. Serialized instances of this class are self sufficient and can be passed around.
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ErgoTree {
-    /// aaa
-    pub header: ErgoTreeHeader,
+    header: ErgoTreeHeader,
     tree: Result<ParsedTree, ErgoTreeConstantsParsingError>,
 }
 
@@ -531,9 +530,7 @@ impl SigmaSerializable for ErgoTree {
         } else {
             bytes.len() as u32 - 1 // skip the header byte
         };
-        let r = ErgoTree::sigma_parse_sized(&mut r, header, rest_of_the_bytes_len);
-        // dbg!(&r);
-        r
+        ErgoTree::sigma_parse_sized(&mut r, header, rest_of_the_bytes_len)
     }
 }
 

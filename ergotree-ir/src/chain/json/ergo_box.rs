@@ -87,11 +87,11 @@ impl TryFrom<ErgoBoxJson> for ErgoBox {
         };
         match box_json.box_id {
             Some(box_id) => {
-                // if ergo_box.box_id() == box_id {
-                Ok(ergo_box)
-                // } else {
-                //     Err(ErgoBoxFromJsonError::InvalidBoxId)
-                // }
+                if ergo_box.box_id() == box_id {
+                    Ok(ergo_box)
+                } else {
+                    Err(ErgoBoxFromJsonError::InvalidBoxId)
+                }
             }
             None => Ok(ergo_box),
         }
@@ -299,7 +299,6 @@ mod tests {
     use crate::chain::ergo_box::NonMandatoryRegisterId;
     use crate::chain::ergo_box::NonMandatoryRegisters;
     use crate::chain::token::Token;
-    use crate::serialization::SigmaSerializable;
     use pretty_assertions::assert_eq;
     use proptest::prelude::*;
 
@@ -515,104 +514,5 @@ mod tests {
         assert_eq!(t.amount, 99999999998u64.try_into().unwrap());
         let to_json = serde_json::to_string_pretty(&t).unwrap();
         assert_eq!(to_json, token_json);
-    }
-
-    #[test]
-    fn test_parsed_id_differs_i660() {
-        let json_explorer = r#"
-{
-  "boxId": "8ff14de87b3fad94ff026f2fa2b547eda69ac807ef1ad6c26cc42d0ed1b1cc3d",
-  "transactionId": "600ac5fce78446832bd4afd5241172c9fce61445889a87a64d8bf7d92944712b",
-  "blockId": "43fdb06e9ea3ae68f951db40431ae260c115548424c047339414d64a212950d6",
-  "value": 126194970912850,
-  "index": 0,
-  "globalIndex": 24381319,
-  "creationHeight": 891755,
-  "settlementHeight": 891757,
-  "ergoTree": "1999030f0400040204020404040405feffffffffffffffff0105feffffffffffffffff01050004d00f040004000406050005000580dac409d819d601b2a5730000d602e4c6a70404d603db63087201d604db6308a7d605b27203730100d606b27204730200d607b27203730300d608b27204730400d6099973058c720602d60a999973068c7205027209d60bc17201d60cc1a7d60d99720b720cd60e91720d7307d60f8c720802d6107e720f06d6117e720d06d612998c720702720fd6137e720c06d6147308d6157e721206d6167e720a06d6177e720906d6189c72117217d6199c72157217d1ededededededed93c27201c2a793e4c672010404720293b27203730900b27204730a00938c7205018c720601938c7207018c72080193b17203730b9593720a730c95720e929c9c721072117e7202069c7ef07212069a9c72137e7214067e9c720d7e72020506929c9c721372157e7202069c7ef0720d069a9c72107e7214067e9c72127e7202050695ed720e917212730d907216a19d721872139d72197210ed9272189c721672139272199c7216721091720b730e",
-  "address": "5vSUZRZbdVbnk4sJWjg2uhL94VZWRg4iatK9VgMChufzUgdihgvhR8yWSUEJKszzV7Vmi6K8hCyKTNhUaiP8p5ko6YEU9yfHpjVuXdQ4i5p4cRCzch6ZiqWrNukYjv7Vs5jvBwqg5hcEJ8u1eerr537YLWUoxxi1M4vQxuaCihzPKMt8NDXP4WcbN6mfNxxLZeGBvsHVvVmina5THaECosCWozKJFBnscjhpr3AJsdaL8evXAvPfEjGhVMoTKXAb2ZGGRmR8g1eZshaHmgTg2imSiaoXU5eiF3HvBnDuawaCtt674ikZ3oZdekqswcVPGMwqqUKVsGY4QuFeQoGwRkMqEYTdV2UDMMsfrjrBYQYKUBFMwsQGMNBL1VoY78aotXzdeqJCBVKbQdD3ZZWvukhSe4xrz8tcF3PoxpysDLt89boMqZJtGEHTV9UBTBEac6sDyQP693qT3nKaErN8TCXrJBUmHPqKozAg9bwxTqMYkpmb9iVKLSoJxG7MjAj72SRbcqQfNCVTztSwN3cRxSrVtz4p87jNFbVtFzhPg7UqDwNFTaasySCqM",
-  "assets": [
-    {
-      "tokenId": "9916d75132593c8b07fe18bd8d583bda1652eed7565cf41a4738ddd90fc992ec",
-      "index": 0,
-      "amount": 1,
-      "name": null,
-      "decimals": null,
-      "type": null
-    },
-    {
-      "tokenId": "303f39026572bcb4060b51fafc93787a236bb243744babaa99fceb833d61e198",
-      "index": 1,
-      "amount": 9223371996923596000,
-      "name": null,
-      "decimals": null,
-      "type": null
-    },
-    {
-      "tokenId": "03faf2cb329f2e90d6d23b58d91bbb6c046aa143261cc21f52fbe2824bfcbf04",
-      "index": 2,
-      "amount": 17135435,
-      "name": "SigUSD",
-      "decimals": 2,
-      "type": "EIP-004"
-    }
-  ],
-  "additionalRegisters": {
-    "R4": {
-      "serializedValue": "04c60f",
-      "sigmaType": "SInt",
-      "renderedValue": "995"
-    }
-  },
-  "spentTransactionId": "f22d557b63582fc4389e7c6390199a7ad612547d04caa9828babc6ed8a3f77c0",
-  "mainChain": true
-}
-        "#;
-
-        let json = r#"
-{
-            "boxId" : "8ff14de87b3fad94ff026f2fa2b547eda69ac807ef1ad6c26cc42d0ed1b1cc3d",
-            "value" : 126194970912850,
-            "ergoTree" : "1999030f0400040204020404040405feffffffffffffffff0105feffffffffffffffff01050004d00f040004000406050005000580dac409d819d601b2a5730000d602e4c6a70404d603db63087201d604db6308a7d605b27203730100d606b27204730200d607b27203730300d608b27204730400d6099973058c720602d60a999973068c7205027209d60bc17201d60cc1a7d60d99720b720cd60e91720d7307d60f8c720802d6107e720f06d6117e720d06d612998c720702720fd6137e720c06d6147308d6157e721206d6167e720a06d6177e720906d6189c72117217d6199c72157217d1ededededededed93c27201c2a793e4c672010404720293b27203730900b27204730a00938c7205018c720601938c7207018c72080193b17203730b9593720a730c95720e929c9c721072117e7202069c7ef07212069a9c72137e7214067e9c720d7e72020506929c9c721372157e7202069c7ef0720d069a9c72107e7214067e9c72127e7202050695ed720e917212730d907216a19d721872139d72197210ed9272189c721672139272199c7216721091720b730e",
-            "assets" : [
-              {
-                "tokenId" : "9916d75132593c8b07fe18bd8d583bda1652eed7565cf41a4738ddd90fc992ec",
-                "amount" : 1
-              },
-              {
-                "tokenId" : "303f39026572bcb4060b51fafc93787a236bb243744babaa99fceb833d61e198",
-                "amount" : 9223371996923595618
-              },
-              {
-                "tokenId" : "03faf2cb329f2e90d6d23b58d91bbb6c046aa143261cc21f52fbe2824bfcbf04",
-                "amount" : 17135435
-              }
-            ],
-            "creationHeight" : 891755,
-            "additionalRegisters" : {
-              "R4" : "04c60f"
-            },
-            "transactionId" : "600ac5fce78446832bd4afd5241172c9fce61445889a87a64d8bf7d92944712b",
-            "index" : 0
-          }
-        "#;
-        let b: ErgoBox = serde_json::from_str(json).unwrap();
-        dbg!(&b.ergo_tree.header);
-        let b_bytes = b.sigma_serialize_bytes().unwrap();
-        let b2 = ErgoBox::sigma_parse_bytes(&b_bytes).unwrap();
-        // TODO: in sigmastate parse from json, print base16 bytes, calc box id
-        let b2_to_json = serde_json::to_string_pretty(&b2).unwrap();
-        dbg!(&b2_to_json);
-        let dif = i64::MAX - 9223371996923596000;
-        dbg!(dif);
-        // assert_eq!(json, b2_to_json);
-        let id: String = b.box_id().into();
-        assert_eq!(
-            id,
-            "8ff14de87b3fad94ff026f2fa2b547eda69ac807ef1ad6c26cc42d0ed1b1cc3d"
-        );
-        // got 77a0f0a56562dbb50983b59af8a1c3a528bdfc851f14c0502bdf611d8610074b
-        // get the box via
-        // curl https://api.ergoplatform.com/api/v1/boxes/8ff14de87b3fad94ff026f2fa2b547eda69ac807ef1ad6c26cc42d0ed1b1cc3d | jq
     }
 }
