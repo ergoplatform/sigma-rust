@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
+## [0.22.0] - 2022-12-28
 
 ### Added
 - Diffie-Hellman tuple secret support in wallet API [#665](https://github.com/ergoplatform/sigma-rust/pull/665)
@@ -396,7 +397,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - ErgoTree constant values conversion.
 
 <!-- next-url -->
-[Unreleased]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.21.1...HEAD
+[Unreleased]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.22.0...HEAD
+[0.22.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.21.1...ergo-lib-v0.22.0
 [0.21.1]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.21.0...ergo-lib-v0.21.1
 [0.21.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.20.0...ergo-lib-v0.21.0
 [0.20.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.19.0...ergo-lib-v0.20.0
