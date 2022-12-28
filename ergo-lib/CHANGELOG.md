@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
+
+### Added
+- Diffie-Hellman tuple secret support in wallet API [#665](https://github.com/ergoplatform/sigma-rust/pull/665)
+
+### Fixed
+- make various types easier to use in multithread environment (remove `Rc`, switch to `Arc`, implement `Copy`, etc.);
+
 ## [0.21.1] - 2022-11-21
 
 ### Added
