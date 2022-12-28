@@ -3,6 +3,8 @@ use std::convert::TryInto;
 use std::fmt::Formatter;
 
 use elliptic_curve::group::ff::PrimeField;
+use ergo_chain_types::EcPoint;
+use ergotree_ir::serialization::SigmaSerializable;
 use ergotree_ir::sigma_protocol::dlog_group;
 use ergotree_ir::sigma_protocol::sigma_boolean::ProveDhTuple;
 use ergotree_ir::sigma_protocol::sigma_boolean::ProveDlog;
@@ -122,6 +124,9 @@ impl std::fmt::Debug for DhTupleProverInput {
 }
 
 impl DhTupleProverInput {
+    /// Size in bytes: 32(secret)+33(g)+33(h)+33(u)+33(v)=164 bytes
+    pub const SIZE_BYTES: usize = DlogProverInput::SIZE_BYTES + EcPoint::GROUP_SIZE * 4;
+
     /// Create random secret and Diffie-Hellman tuple
     #[allow(clippy::many_single_char_names)]
     pub fn random() -> DhTupleProverInput {
@@ -144,6 +149,70 @@ impl DhTupleProverInput {
     /// Public image (Diffie-Hellman tuple)
     pub fn public_image(&self) -> &ProveDhTuple {
         &self.common_input
+    }
+
+    /// 32(secret)+33(g)+33(h)+33(u)+33(v)=164 bytes
+    #[allow(clippy::unwrap_used)]
+    pub fn to_bytes(&self) -> [u8; DhTupleProverInput::SIZE_BYTES] {
+        let mut bytes = Vec::with_capacity(DhTupleProverInput::SIZE_BYTES);
+        bytes.extend_from_slice(&self.w.as_scalar_ref().to_bytes());
+        bytes.extend_from_slice(&self.common_input.g.sigma_serialize_bytes().unwrap());
+        bytes.extend_from_slice(&self.common_input.h.sigma_serialize_bytes().unwrap());
+        bytes.extend_from_slice(&self.common_input.u.sigma_serialize_bytes().unwrap());
+        bytes.extend_from_slice(&self.common_input.v.sigma_serialize_bytes().unwrap());
+        bytes.try_into().unwrap()
+    }
+
+    /// Parse from bytes (32(secret)+33(g)+33(h)+33(u)+33(v)=164 bytes)
+    /// secret is expected as SEC-1-encoded scalar of 32 bytes,
+    /// g,h,u,v are expected as 33-byte compressed points
+    #[allow(clippy::unwrap_used)]
+    pub fn from_bytes(bytes: &[u8; DhTupleProverInput::SIZE_BYTES]) -> Option<DhTupleProverInput> {
+        let w_bytes: &[u8; DlogProverInput::SIZE_BYTES] =
+            &bytes[..DlogProverInput::SIZE_BYTES].try_into().unwrap();
+        let g_bytes: &[u8; EcPoint::GROUP_SIZE] = &bytes
+            [DlogProverInput::SIZE_BYTES..DlogProverInput::SIZE_BYTES + EcPoint::GROUP_SIZE]
+            .try_into()
+            .unwrap();
+        let h_bytes: &[u8; EcPoint::GROUP_SIZE] = &bytes[DlogProverInput::SIZE_BYTES
+            + EcPoint::GROUP_SIZE
+            ..DlogProverInput::SIZE_BYTES + EcPoint::GROUP_SIZE * 2]
+            .try_into()
+            .unwrap();
+        let u_bytes: &[u8; EcPoint::GROUP_SIZE] = &bytes[DlogProverInput::SIZE_BYTES
+            + EcPoint::GROUP_SIZE * 2
+            ..DlogProverInput::SIZE_BYTES + EcPoint::GROUP_SIZE * 3]
+            .try_into()
+            .unwrap();
+        let v_bytes: &[u8; EcPoint::GROUP_SIZE] = &bytes[DlogProverInput::SIZE_BYTES
+            + EcPoint::GROUP_SIZE * 3
+            ..DlogProverInput::SIZE_BYTES + EcPoint::GROUP_SIZE * 4]
+            .try_into()
+            .unwrap();
+        Self::from_bytes_fields(w_bytes, g_bytes, h_bytes, u_bytes, v_bytes)
+    }
+
+    /// Parse from bytes
+    /// secret is expected as SEC-1-encoded scalar of 32 bytes,
+    /// g,h,u,v are expected as 33-byte compressed points
+    pub fn from_bytes_fields(
+        w_bytes: &[u8; DlogProverInput::SIZE_BYTES],
+        g_bytes: &[u8; EcPoint::GROUP_SIZE],
+        h_bytes: &[u8; EcPoint::GROUP_SIZE],
+        u_bytes: &[u8; EcPoint::GROUP_SIZE],
+        v_bytes: &[u8; EcPoint::GROUP_SIZE],
+    ) -> Option<DhTupleProverInput> {
+        let w: Option<Wscalar> = k256::Scalar::from_repr((*w_bytes).into())
+            .map(Wscalar::from)
+            .into();
+        let g = EcPoint::sigma_parse_bytes(&g_bytes[..EcPoint::GROUP_SIZE]).ok()?;
+        let h = EcPoint::sigma_parse_bytes(&h_bytes[..EcPoint::GROUP_SIZE]).ok()?;
+        let u = EcPoint::sigma_parse_bytes(&u_bytes[..EcPoint::GROUP_SIZE]).ok()?;
+        let v = EcPoint::sigma_parse_bytes(&v_bytes[..EcPoint::GROUP_SIZE]).ok()?;
+        w.map(|w| DhTupleProverInput {
+            w,
+            common_input: ProveDhTuple::new(g, h, u, v),
+        })
     }
 }
 

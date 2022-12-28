@@ -3,17 +3,20 @@
 #![allow(clippy::todo)]
 
 use derive_more::From;
+use ergo_chain_types::EcPoint;
 use ergotree_interpreter::sigma_protocol::private_input::DhTupleProverInput;
 use ergotree_interpreter::sigma_protocol::private_input::DlogProverInput;
 use ergotree_interpreter::sigma_protocol::private_input::PrivateInput;
 use ergotree_ir::chain::address::Address;
+use thiserror::Error;
 
 /// Types of secrets
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "json", serde(untagged))]
 #[derive(PartialEq, Eq, Debug, Clone, From)]
 pub enum SecretKey {
-    /// Secret exponent of a group element, i.e. secret w such as h = g^^w, where g is group generator, h is a public key.
+    /// Secret exponent of a group element, i.e. secret w such as h = g^^w, where g is group generator,
+    /// h is a public key.
     DlogSecretKey(DlogProverInput),
     /// Diffie-Hellman tuple and secret
     /// Used in a proof that of equality of discrete logarithms (i.e., a proof of a Diffie-Hellman tuple):
@@ -38,14 +41,32 @@ impl SecretKey {
         DlogProverInput::from_bytes(bytes).map(SecretKey::DlogSecretKey)
     }
 
-    // pub fn dht_from_bytes(bytes: &[u8; DhTupleProverInput::SIZE_BYTES]) -> Option<SecretKey> {
-    //     DhTupleProverInput::from_bytes(bytes).map(SecretKey::DhtSecretKey)
-    // }
+    /// Parse DhtSecretKey  from bytes
+    /// expected 32(secret)+33(g)+33(h)+33(u)+33(v)=164 bytes
+    /// secret is expected as SEC-1-encoded scalar of 32 bytes,
+    /// g,h,u,v are expected as 33-byte compressed points
+    pub fn dht_from_bytes(bytes: &[u8; DhTupleProverInput::SIZE_BYTES]) -> Option<SecretKey> {
+        DhTupleProverInput::from_bytes(bytes).map(SecretKey::DhtSecretKey)
+    }
+
+    /// Parse from bytes
+    /// secret is expected as SEC-1-encoded scalar of 32 bytes,
+    /// g,h,u,v are expected as 33-byte compressed points
+    pub fn dht_from_bytes_fields(
+        w_bytes: &[u8; DlogProverInput::SIZE_BYTES],
+        g_bytes: &[u8; EcPoint::GROUP_SIZE],
+        h_bytes: &[u8; EcPoint::GROUP_SIZE],
+        u_bytes: &[u8; EcPoint::GROUP_SIZE],
+        v_bytes: &[u8; EcPoint::GROUP_SIZE],
+    ) -> Option<SecretKey> {
+        DhTupleProverInput::from_bytes_fields(w_bytes, g_bytes, h_bytes, u_bytes, v_bytes)
+            .map(SecretKey::DhtSecretKey)
+    }
 
     /// Address (encoded public image)
     pub fn get_address_from_public_image(&self) -> Address {
         match self {
-            SecretKey::DlogSecretKey(dpi) => Address::P2Pk(dpi.public_image()),
+            SecretKey::DlogSecretKey(dlog) => Address::P2Pk(dlog.public_image()),
             SecretKey::DhtSecretKey(dht) => todo!(),
         }
     }
@@ -53,16 +74,50 @@ impl SecretKey {
     /// Encode from a serialized key
     pub fn to_bytes(&self) -> Vec<u8> {
         match self {
-            SecretKey::DlogSecretKey(key) => key.to_bytes().to_vec(),
-            SecretKey::DhtSecretKey(dht) => todo!(),
+            SecretKey::DlogSecretKey(dlog) => dlog.to_bytes().to_vec(),
+            SecretKey::DhtSecretKey(dht) => dht.to_bytes().to_vec(),
         }
     }
+
+    /// Parse secret key from bytes
+    /// expected 32 bytes for Dlog, 32(secret)+33(g)+33(h)+33(u)+33(v)=164 bytes for DHT
+    /// secret is expected as SEC-1-encoded scalar of 32 bytes,
+    /// g,h,u,v are expected as 33-byte compressed points
+    pub fn from_bytes(bytes: &[u8]) -> Result<SecretKey, SecretKeyParsingError> {
+        if bytes.len() == DlogProverInput::SIZE_BYTES {
+            let mut dlog_bytes = [0u8; DlogProverInput::SIZE_BYTES];
+            dlog_bytes.copy_from_slice(bytes);
+            Ok(SecretKey::dlog_from_bytes(&dlog_bytes)
+                .ok_or(SecretKeyParsingError::DlogParsingError)?)
+        } else if bytes.len() == DhTupleProverInput::SIZE_BYTES {
+            let mut dht_bytes = [0u8; DhTupleProverInput::SIZE_BYTES];
+            dht_bytes.copy_from_slice(bytes);
+            Ok(SecretKey::DhtSecretKey(
+                DhTupleProverInput::from_bytes(&dht_bytes)
+                    .ok_or(SecretKeyParsingError::DhtParsingError)?,
+            ))
+        } else {
+            Err(SecretKeyParsingError::InvalidLength)
+        }
+    }
+}
+
+/// Error type for SecretKey parsing
+#[allow(missing_docs)]
+#[derive(Error, Eq, PartialEq, Debug, Clone)]
+pub enum SecretKeyParsingError {
+    #[error("Dlog parsing error")]
+    DlogParsingError,
+    #[error("DHT secret parsing error")]
+    DhtParsingError,
+    #[error("Invalid length, expected either 32(Dlog) or 164(DHT) bytes")]
+    InvalidLength,
 }
 
 impl From<SecretKey> for PrivateInput {
     fn from(s: SecretKey) -> Self {
         match s {
-            SecretKey::DlogSecretKey(dpi) => PrivateInput::DlogProverInput(dpi),
+            SecretKey::DlogSecretKey(dlog) => PrivateInput::DlogProverInput(dlog),
             SecretKey::DhtSecretKey(dht) => PrivateInput::DhTupleProverInput(dht),
         }
     }
@@ -77,9 +132,21 @@ mod tests {
     #[test]
     fn dlog_roundtrip() {
         let sk = SecretKey::random_dlog();
-        let sk_copy =
+        let sk_copy1 =
             SecretKey::dlog_from_bytes(&sk.to_bytes().as_slice().try_into().unwrap()).unwrap();
-        assert_eq!(sk, sk_copy);
+        let sk_copy2 = SecretKey::from_bytes(sk.to_bytes().as_slice()).unwrap();
+        assert_eq!(sk, sk_copy1);
+        assert_eq!(sk, sk_copy2);
+    }
+
+    #[test]
+    fn dht_roundtrip() {
+        let sk = SecretKey::random_dht();
+        let sk_copy1 =
+            SecretKey::dht_from_bytes(&sk.to_bytes().as_slice().try_into().unwrap()).unwrap();
+        let sk_copy2 = SecretKey::from_bytes(sk.to_bytes().as_slice()).unwrap();
+        assert_eq!(sk, sk_copy1);
+        assert_eq!(sk, sk_copy2);
     }
 }
 
