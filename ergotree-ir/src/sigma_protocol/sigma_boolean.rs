@@ -57,6 +57,7 @@ impl From<EcPoint> for ProveDlog {
 /// Used in a proof that of equality of discrete logarithms (i.e., a proof of a Diffie-Hellman tuple):
 /// given group elements g, h, u, v, the proof convinces a verifier that the prover knows `w` such
 /// that `u = g^w` and `v = h^w`, without revealing `w`
+#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ProveDhTuple {
     /// Generator g

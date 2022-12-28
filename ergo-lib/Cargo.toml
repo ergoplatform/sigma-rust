@@ -61,3 +61,4 @@ sigma-test-util = { workspace = true }
 pretty_assertions = { workspace = true }
 bs58 = { workspace = true }
 byteorder = { workspace = true }
+expect-test = { workspace = true }

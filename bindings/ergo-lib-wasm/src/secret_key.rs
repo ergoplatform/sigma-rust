@@ -1,6 +1,7 @@
 //! Secret key
 use std::convert::TryInto;
 
+use ergo_lib::ergo_chain_types::EcPoint;
 use ergo_lib::ergotree_interpreter::sigma_protocol::private_input::DlogProverInput;
 use ergo_lib::wallet;
 use wasm_bindgen::prelude::*;
@@ -36,14 +37,93 @@ impl SecretKey {
             .ok_or_else(|| JsValue::from_str("failed to parse scalar"))
     }
 
+    /// Parse Diffie-Hellman tuple secret key from bytes.
+    /// secret is expected as SEC-1-encoded scalar of 32 bytes,
+    /// g,h,u,v are expected as 33-byte compressed points
+    pub fn dht_from_bytes(
+        secret: &[u8],
+        g: &[u8],
+        h: &[u8],
+        u: &[u8],
+        v: &[u8],
+    ) -> Result<SecretKey, JsValue> {
+        let sized_secret: &[u8; DlogProverInput::SIZE_BYTES] = secret.try_into().map_err(|_| {
+            JsValue::from_str(&format!(
+                "expected secret byte array of size {}, found {}",
+                DlogProverInput::SIZE_BYTES,
+                secret.len()
+            ))
+        })?;
+        let sized_g: &[u8; EcPoint::GROUP_SIZE] = g.try_into().map_err(|_| {
+            JsValue::from_str(&format!(
+                "expected g byte array of size {}, found {}",
+                EcPoint::GROUP_SIZE,
+                g.len()
+            ))
+        })?;
+        let sized_h: &[u8; EcPoint::GROUP_SIZE] = h.try_into().map_err(|_| {
+            JsValue::from_str(&format!(
+                "expected h byte array of size {}, found {}",
+                EcPoint::GROUP_SIZE,
+                h.len()
+            ))
+        })?;
+        let sized_u: &[u8; EcPoint::GROUP_SIZE] = u.try_into().map_err(|_| {
+            JsValue::from_str(&format!(
+                "expected u byte array of size {}, found {}",
+                EcPoint::GROUP_SIZE,
+                u.len()
+            ))
+        })?;
+        let sized_v: &[u8; EcPoint::GROUP_SIZE] = v.try_into().map_err(|_| {
+            JsValue::from_str(&format!(
+                "expected v byte array of size {}, found {}",
+                EcPoint::GROUP_SIZE,
+                v.len()
+            ))
+        })?;
+        wallet::secret_key::SecretKey::dht_from_bytes_fields(
+            sized_secret,
+            sized_g,
+            sized_h,
+            sized_u,
+            sized_v,
+        )
+        .map(SecretKey::from)
+        .ok_or_else(|| JsValue::from_str("failed to parse Diffie-Hellman tuple"))
+    }
+
     /// Address (encoded public image)
     pub fn get_address(&self) -> Address {
         self.0.get_address_from_public_image().into()
     }
 
-    /// Encode from a serialized key
+    /// Parse secret key from bytes (expected 32 bytes for Dlog, 32(secret)+33(g)+33(h)+33(u)+33(v)=164 bytes for DHT)
+    /// secret is expected as SEC-1-encoded scalar of 32 bytes,
+    /// g,h,u,v are expected as 33-byte compressed points
+    pub fn from_bytes(bytes: &[u8]) -> Result<SecretKey, JsValue> {
+        wallet::secret_key::SecretKey::from_bytes(bytes)
+            .map(SecretKey)
+            .map_err(|e| JsValue::from_str(&format!("failed to parse SecretKey from bytes: {}", e)))
+    }
+
+    /// Serialized secret key (32 bytes for Dlog, 32(secret)+33(g)+33(h)+33(u)+33(v)=164 bytes for DHT)
+    /// DHT format is the same as in from_bytes
     pub fn to_bytes(&self) -> Vec<u8> {
         self.0.to_bytes()
+    }
+
+    /// Parse secret key from JSON string (Dlog expected as base16-encoded bytes, DHT in node REST API format)
+    pub fn from_json(json_str: &str) -> Result<SecretKey, JsValue> {
+        serde_json::from_str(json_str)
+            .map(SecretKey)
+            .map_err(|e| JsValue::from_str(&format!("failed to parse SecretKey from JSON: {}", e)))
+    }
+
+    /// Encode secret key to JSON string (Dlog as base16-encoded bytes, DHT in node REST API format)
+    pub fn to_json(&self) -> Result<String, JsValue> {
+        serde_json::to_string(&self.0)
+            .map_err(|e| JsValue::from_str(&format!("failed to encode SecretKey to JSON: {}", e)))
     }
 }
 
