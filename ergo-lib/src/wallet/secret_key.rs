@@ -1,13 +1,15 @@
 //! Secret types
 
-#![allow(clippy::todo)]
-
 use derive_more::From;
 use ergo_chain_types::EcPoint;
 use ergotree_interpreter::sigma_protocol::private_input::DhTupleProverInput;
 use ergotree_interpreter::sigma_protocol::private_input::DlogProverInput;
 use ergotree_interpreter::sigma_protocol::private_input::PrivateInput;
 use ergotree_ir::chain::address::Address;
+use ergotree_ir::ergo_tree::ErgoTree;
+use ergotree_ir::mir::constant::Constant;
+use ergotree_ir::mir::expr::Expr;
+use ergotree_ir::serialization::SigmaSerializable;
 use thiserror::Error;
 
 /// Types of secrets
@@ -63,11 +65,18 @@ impl SecretKey {
             .map(SecretKey::DhtSecretKey)
     }
 
-    /// Address (encoded public image)
+    /// Address from public image:
+    /// P2PK address for DlogSecretKey
+    /// P2S address with ProveDhTuple ergo tree for DhtSecretKey
+    #[allow(clippy::unwrap_used)]
     pub fn get_address_from_public_image(&self) -> Address {
         match self {
             SecretKey::DlogSecretKey(dlog) => Address::P2Pk(dlog.public_image()),
-            SecretKey::DhtSecretKey(dht) => todo!(),
+            SecretKey::DhtSecretKey(dht) => {
+                let expr: Expr = Constant::from(dht.public_image().clone()).into();
+                let ergo_tree: ErgoTree = expr.try_into().unwrap();
+                Address::P2S(ergo_tree.sigma_serialize_bytes().unwrap())
+            }
         }
     }
 
