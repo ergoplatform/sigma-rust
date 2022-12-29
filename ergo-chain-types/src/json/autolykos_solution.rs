@@ -55,11 +55,11 @@ where
                 let bigint = if n.is_f64() {
                     let n_f64 = n
                         .as_f64()
-                        .ok_or(Error::custom("failed to convert JSON number to f64"))?;
+                        .ok_or_else(|| Error::custom("failed to convert JSON number to f64"))?;
 
-                    BigInt::from_f64(n_f64).ok_or(Error::custom(
-                        "failed to create BigInt from f64".to_string(),
-                    ))
+                    BigInt::from_f64(n_f64).ok_or_else(|| {
+                        Error::custom("failed to create BigInt from f64".to_string())
+                    })
                 } else {
                     BigInt::from_str(&n.to_string()).map_err(|e| Error::custom(e.to_string()))
                 };
