@@ -3,6 +3,7 @@
 use std::str::FromStr;
 
 use num_bigint::BigInt;
+use num_traits::FromPrimitive;
 use serde::{Deserialize, Deserializer};
 
 pub(crate) fn as_base16_string<S>(value: &[u8], serializer: S) -> Result<S::Ok, S::Error>
@@ -50,9 +51,21 @@ where
             DeserializeBigIntFrom::String(s) => BigInt::from_str(&s)
                 .map(Some)
                 .map_err(|e| Error::custom(e.to_string())),
-            DeserializeBigIntFrom::SerdeJsonNumber(n) => BigInt::from_str(&n.to_string())
-                .map(Some)
-                .map_err(|e| Error::custom(e.to_string())),
+            DeserializeBigIntFrom::SerdeJsonNumber(n) => {
+                let bigint = if n.is_f64() {
+                    let n_f64 = n
+                        .as_f64()
+                        .ok_or(Error::custom("failed to convert JSON number to f64"))?;
+
+                    BigInt::from_f64(n_f64).ok_or(Error::custom(
+                        "failed to create BigInt from f64".to_string(),
+                    ))
+                } else {
+                    BigInt::from_str(&n.to_string()).map_err(|e| Error::custom(e.to_string()))
+                };
+
+                bigint.map(Some)
+            }
         },
         Err(e) => Err(Error::custom(e.to_string())),
     }
@@ -63,4 +76,24 @@ where
 enum DeserializeBigIntFrom {
     String(String),
     SerdeJsonNumber(serde_json::Number),
+}
+
+#[cfg(test)]
+mod tests {
+    use serde::de::IntoDeserializer;
+    use serde_json::Value;
+
+    use super::bigint_from_serde_json_number;
+
+    #[test]
+    fn test_scientific_notion_deser() {
+        let pow_d_parameter = r#"4.69094608138843e64"#;
+        let j: Value = serde_json::from_str(pow_d_parameter).unwrap();
+        let result = bigint_from_serde_json_number(j.into_deserializer()).unwrap();
+
+        assert_eq!(
+            result.unwrap().to_string(),
+            "46909460813884301641411510982628556119846083366464832536248844288"
+        )
+    }
 }
