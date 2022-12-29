@@ -239,6 +239,8 @@ impl Address {
 
 /// Combination of an Address with a network
 /// These two combined together form a base58 encoding
+#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "json", serde(try_from = "String"), serde(into = "String"))]
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct NetworkAddress {
     network: NetworkPrefix,
@@ -267,6 +269,20 @@ impl NetworkAddress {
     /// Get the type of the address
     pub fn address(&self) -> Address {
         self.address.clone()
+    }
+}
+
+impl TryFrom<String> for NetworkAddress {
+    type Error = AddressEncoderError;
+
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        AddressEncoder::unchecked_parse_network_address_from_str(&s)
+    }
+}
+
+impl From<NetworkAddress> for String {
+    fn from(na: NetworkAddress) -> Self {
+        na.to_base58()
     }
 }
 
