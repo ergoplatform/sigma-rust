@@ -78,6 +78,7 @@ enum DeserializeBigIntFrom {
     SerdeJsonNumber(serde_json::Number),
 }
 
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
     use serde::de::IntoDeserializer;
