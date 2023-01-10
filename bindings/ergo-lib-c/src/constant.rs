@@ -41,6 +41,42 @@ pub unsafe extern "C" fn ergo_lib_constant_to_base16(
     Error::c_api_from(res)
 }
 
+/// Returns the debug representation of the type of the constant as string
+/// or return an error if serialization failed
+#[no_mangle]
+pub unsafe extern "C" fn ergo_lib_constant_type_to_dbg_str(
+    constant_ptr: ConstConstantPtr,
+    _bytes_str: *mut *const c_char,
+) -> ErrorPtr {
+    #[allow(clippy::unwrap_used)]
+    let res = match constant_type_to_dbg_str(constant_ptr) {
+        Ok(s) => {
+            *_bytes_str = CString::new(s).unwrap().into_raw();
+            Ok(())
+        }
+        Err(e) => Err(e),
+    };
+    Error::c_api_from(res)
+}
+
+/// Returns the debug representation of the value of the constant as string
+/// or return an error if serialization failed
+#[no_mangle]
+pub unsafe extern "C" fn ergo_lib_constant_value_to_dbg_str(
+    constant_ptr: ConstConstantPtr,
+    _bytes_str: *mut *const c_char,
+) -> ErrorPtr {
+    #[allow(clippy::unwrap_used)]
+    let res = match constant_value_to_dbg_str(constant_ptr) {
+        Ok(s) => {
+            *_bytes_str = CString::new(s).unwrap().into_raw();
+            Ok(())
+        }
+        Err(e) => Err(e),
+    };
+    Error::c_api_from(res)
+}
+
 /// Create from i32 value
 #[no_mangle]
 pub unsafe extern "C" fn ergo_lib_constant_from_i32(value: i32, constant_out: *mut ConstantPtr) {

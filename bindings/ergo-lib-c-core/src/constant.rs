@@ -42,6 +42,20 @@ pub unsafe fn constant_to_base16_str(constant_ptr: ConstConstantPtr) -> Result<S
     Ok(s)
 }
 
+/// Returns the debug representation of the type of the constant as string or return an error if serialization failed
+pub unsafe fn constant_type_to_dbg_str(constant_ptr: ConstConstantPtr) -> Result<String, Error> {
+    let constant = const_ptr_as_ref(constant_ptr, "constant_ptr")?;
+    let s = format!("{:?}", constant.0.tpe);
+    Ok(s)
+}
+
+/// Returns the debug representation of the value of the constant as string or return an error if serialization failed
+pub unsafe fn constant_value_to_dbg_str(constant_ptr: ConstConstantPtr) -> Result<String, Error> {
+    let constant = const_ptr_as_ref(constant_ptr, "constant_ptr")?;
+    let s = format!("{:?}", constant.0.v);
+    Ok(s)
+}
+
 /// Create from i32 value
 pub unsafe fn constant_from_i32(value: i32, constant_out: *mut ConstantPtr) -> Result<(), Error> {
     let constant_out = mut_ptr_as_mut(constant_out, "constant_out")?;
