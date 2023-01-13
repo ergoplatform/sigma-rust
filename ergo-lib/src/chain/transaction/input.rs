@@ -76,7 +76,13 @@ pub struct Input {
     #[cfg_attr(feature = "json", serde(rename = "boxId", alias = "id"))]
     pub box_id: BoxId,
     /// proof of spending correctness
-    #[cfg_attr(feature = "json", serde(rename = "spendingProof",))]
+    #[cfg_attr(
+        feature = "json",
+        serde(
+            rename = "spendingProof",
+            deserialize_with = "crate::chain::transaction::input::prover_result::json::proof_as_string_or_struct"
+        )
+    )]
     pub spending_proof: ProverResult,
 }
 
