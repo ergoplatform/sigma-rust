@@ -12,13 +12,9 @@ use crate::mir::constant::Constant;
 use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
 use crate::serialization::SigmaSerializationError;
-use core::fmt;
 use ergo_chain_types::Base16DecodedBytes;
-use serde::de::{self, MapAccess, Visitor};
-use serde::Deserializer;
 use std::convert::TryFrom;
 use std::convert::TryInto;
-use std::marker::PhantomData;
 use std::str::FromStr;
 
 extern crate derive_more;
@@ -192,7 +188,7 @@ pub enum ErgoBoxFromJsonError {
 }
 
 #[derive(Deserialize, PartialEq, Eq, Debug, Clone)]
-pub struct ConstantHolder(#[serde(deserialize_with = "constant_as_string_or_struct")] RichConstant);
+pub struct ConstantHolder(#[serde(deserialize_with = "super::t_as_string_or_struct")] RichConstant);
 
 impl From<ConstantHolder> for RegisterValue {
     fn from(ch: ConstantHolder) -> Self {
@@ -237,56 +233,6 @@ impl FromStr for RichConstant {
             raw_value: ConstantWrapper(bytes),
         })
     }
-}
-
-// via https://serde.rs/string-or-struct.html
-pub fn constant_as_string_or_struct<'de, T, D>(deserializer: D) -> Result<T, D::Error>
-where
-    T: Deserialize<'de> + FromStr<Err = ConstantParsingError>,
-    D: Deserializer<'de>,
-{
-    // This is a Visitor that forwards string types to T's `FromStr` impl and
-    // forwards map types to T's `Deserialize` impl. The `PhantomData` is to
-    // keep the compiler from complaining about T being an unused generic type
-    // parameter. We need T in order to know the Value type for the Visitor
-    // impl.
-    struct StringOrStruct<T>(PhantomData<fn() -> T>);
-
-    impl<'de, T> Visitor<'de> for StringOrStruct<T>
-    where
-        T: Deserialize<'de> + FromStr<Err = ConstantParsingError>,
-    {
-        type Value = T;
-
-        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-            formatter.write_str("string or map")
-        }
-
-        fn visit_str<E>(self, value: &str) -> Result<T, E>
-        where
-            E: de::Error,
-        {
-            FromStr::from_str(value).map_err(|e| {
-                de::Error::custom(format!(
-                    "error: {}, while parsing constant from string: {:?}",
-                    e, value
-                ))
-            })
-        }
-
-        fn visit_map<M>(self, map: M) -> Result<T, M::Error>
-        where
-            M: MapAccess<'de>,
-        {
-            // `MapAccessDeserializer` is a wrapper that turns a `MapAccess`
-            // into a `Deserializer`, allowing it to be used as the input to T's
-            // `Deserialize` implementation. T then deserializes itself using
-            // the entries from the map visitor.
-            Deserialize::deserialize(de::value::MapAccessDeserializer::new(map))
-        }
-    }
-
-    deserializer.deserialize_any(StringOrStruct(PhantomData))
 }
 
 #[allow(clippy::panic)]

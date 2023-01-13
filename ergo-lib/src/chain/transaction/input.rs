@@ -80,7 +80,7 @@ pub struct Input {
         feature = "json",
         serde(
             rename = "spendingProof",
-            deserialize_with = "crate::chain::transaction::input::prover_result::json::proof_as_string_or_struct"
+            deserialize_with = "ergotree_ir::chain::json::t_as_string_or_struct"
         )
     )]
     pub spending_proof: ProverResult,
