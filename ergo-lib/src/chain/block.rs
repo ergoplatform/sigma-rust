@@ -24,7 +24,7 @@ pub struct FullBlock {
     /// Block header
     pub header: Header,
     /// Transactions in this block
-    #[serde(rename = "blockTransactions")]
+    #[cfg_attr(feature = "json", serde(rename = "blockTransactions"))]
     pub block_transactions: BlockTransactions,
 }
 
