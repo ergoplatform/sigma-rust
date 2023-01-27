@@ -2,7 +2,6 @@
 
 use bounded_vec::BoundedVec;
 use ergo_chain_types::Header;
-use serde::{Deserialize, Serialize};
 
 use super::transaction::Transaction;
 
@@ -11,14 +10,16 @@ use super::transaction::Transaction;
 const MAX_NUM_TRANSACTIONS: usize = 10_000_000;
 
 /// Transactions in a block
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BlockTransactions {
     /// Transactions contained in the block
     pub transactions: BoundedVec<Transaction, 1, MAX_NUM_TRANSACTIONS>,
 }
 
 /// A block on the Ergo chain
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FullBlock {
     /// Block header
     pub header: Header,
