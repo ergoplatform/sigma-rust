@@ -3,6 +3,7 @@ target/
 Cargo.lock
 bin/
 pkg/
+pkg-browser/
 wasm-pack.log
 .metals
 .vscode/
