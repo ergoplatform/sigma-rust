@@ -10,7 +10,7 @@ mod tests {
     use ergo_lib::ergo_chain_types::{blake2b256_hash, ADDigest, BlockId, Digest32};
     use ergo_nipopow::{NipopowAlgos, NipopowProof};
 
-    use ergo_chain_types::{AutolykosSolution, EcPoint, Header, Votes};
+    use ergo_chain_types::{AutolykosSolution, Header, Votes};
     use ergo_lib::ergotree_interpreter::sigma_protocol::private_input::DlogProverInput;
     use ergo_lib::ergotree_ir::{
         serialization::sigma_byte_writer::SigmaByteWriter, sigma_protocol::dlog_group::order,
@@ -124,7 +124,7 @@ mod tests {
         .root_hash_special();
 
         let dummy_autolykos_solution = AutolykosSolution {
-            miner_pk: Box::new(EcPoint::default()),
+            miner_pk: Box::<ergo_chain_types::EcPoint>::default(),
             pow_onetime_pk: None,
             nonce: vec![],
             pow_distance: Some(BigInt::from(0_u8)),

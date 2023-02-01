@@ -2,7 +2,7 @@
 
 use std::convert::TryInto;
 
-use ergo_chain_types::{EcPoint, Header};
+use ergo_chain_types::Header;
 use ergotree_ir::{bigint256::BigInt256, mir::constant::TryExtractInto};
 
 use super::{EvalError, EvalFn};
@@ -67,7 +67,7 @@ pub(crate) static POW_ONETIME_PK_EVAL_FN: EvalFn = |_env, _ctx, obj, _args| {
     Ok(header
         .autolykos_solution
         .pow_onetime_pk
-        .unwrap_or_else(|| Box::new(EcPoint::default()))
+        .unwrap_or_default()
         .into())
 };
 
@@ -275,7 +275,7 @@ mod tests {
                     h.autolykos_solution
                         .pow_onetime_pk
                         .clone()
-                        .unwrap_or_else(|| Box::new(EcPoint::default())),
+                        .unwrap_or_default(),
                 ]
             })
             .expect("internal error: empty headers array");

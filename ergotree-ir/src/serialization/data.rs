@@ -130,7 +130,7 @@ impl DataSerializer {
             }
             SColl(elem_type) => {
                 let len = r.get_u16()? as usize;
-                let mut elems = Vec::with_capacity(len as usize);
+                let mut elems = Vec::with_capacity(len);
                 for _ in 0..len {
                     elems.push(DataSerializer::sigma_parse(elem_type, r)?);
                 }
