@@ -160,7 +160,7 @@ mod tests {
                 eval_out_wo_ctx::<BigInt256>(
                     &Downcast::new(v_long.into(), SType::SBigInt).unwrap().into()
                 ),
-                (v_long as i64).into()
+                v_long.into()
             );
         }
         #[test]
@@ -184,7 +184,7 @@ mod tests {
             );
             assert_eq!(
                 eval_out_wo_ctx::<i64>(&Downcast::new(c_long.into(), SType::SLong).unwrap().into()),
-                v_long as i64
+                v_long
             );
         }
         #[test]
@@ -212,7 +212,7 @@ mod tests {
             );
             assert_eq!(
                 eval_out_wo_ctx::<i32>(&Downcast::new(c_int.into(), SType::SInt).unwrap().into()),
-                v_int as i32
+                v_int
             );
             assert_eq!(
                 eval_out_wo_ctx::<i32>(&Downcast::new(c_long.into(), SType::SInt).unwrap().into()),
@@ -249,7 +249,7 @@ mod tests {
 
             assert_eq!(
                 eval_out_wo_ctx::<i16>(&Downcast::new(c_short.into(), SType::SShort).unwrap().into()),
-                v_short as i16
+                v_short
             );
             assert_eq!(
                 eval_out_wo_ctx::<i16>(&Downcast::new(c_int.into(), SType::SShort).unwrap().into()),

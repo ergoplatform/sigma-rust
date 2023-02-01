@@ -66,7 +66,7 @@ pub trait WriteSigmaVlqExt: io::Write {
 
     /// Encode using ZigZag and then VLQ.
     fn put_i32(&mut self, v: i32) -> io::Result<()> {
-        Self::put_u64(self, zig_zag_encode::encode_i32(v) as u64)
+        Self::put_u64(self, zig_zag_encode::encode_i32(v))
     }
 
     /// Encode using VLQ.

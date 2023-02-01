@@ -56,7 +56,7 @@ impl BoxValue {
 
     /// Check if a value is in bounds
     pub const fn within_bounds(v: u64) -> bool {
-        v >= BoxValue::MIN_RAW as u64 && v <= BoxValue::MAX_RAW as u64
+        v >= BoxValue::MIN_RAW && v <= BoxValue::MAX_RAW
     }
 
     /// Get the value as u64
@@ -162,7 +162,7 @@ impl From<BoxValue> for Constant {
 
 impl SigmaSerializable for BoxValue {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
-        w.put_u64(self.0 as u64)?;
+        w.put_u64(self.0)?;
         Ok(())
     }
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {

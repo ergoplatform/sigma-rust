@@ -18,7 +18,7 @@ use ergo_lib::{
     },
 };
 use ergo_lib::{
-    ergo_chain_types::{blake2b256_hash, AutolykosSolution, EcPoint, Header, Votes},
+    ergo_chain_types::{blake2b256_hash, AutolykosSolution, Header, Votes},
     ergotree_ir::{
         chain::ergo_box::{box_value::BoxValue, BoxId},
         ergo_tree::ErgoTree,
@@ -174,7 +174,7 @@ fn prove_block(
     .root_hash_special();
 
     let dummy_autolykos_solution = AutolykosSolution {
-        miner_pk: Box::new(EcPoint::default()),
+        miner_pk: Box::<ergo_chain_types::EcPoint>::default(),
         pow_onetime_pk: None,
         nonce: vec![],
         pow_distance: Some(BigInt::from(0_u8)),

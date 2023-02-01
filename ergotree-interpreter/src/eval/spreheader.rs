@@ -119,7 +119,7 @@ mod tests {
         let ctx = Rc::new(force_any_val::<Context>());
         let expected = ctx.pre_header.n_bits as i64;
         let actual = eval_out::<i64>(&expr, ctx);
-        assert_eq!(expected as i64, actual);
+        assert_eq!(expected, actual);
     }
 
     #[test]

@@ -36,14 +36,14 @@ pub enum TypeCode {
     COLL_GROUP_ELEMENT = TypeCode::COLL as u8 + TypeCode::SGROUP_ELEMENT as u8, // 19
     COLL_SIGMAPROP = TypeCode::COLL as u8 + TypeCode::SSIGMAPROP as u8,        // 20
 
-    NESTED_COLL_BOOL = TypeCode::NESTED_COLL as u8 + TypeCode::SBOOLEAN as u8, // 25
-    NESTED_COLL_BYTE = TypeCode::NESTED_COLL as u8 + TypeCode::SBYTE as u8,    // 26
-    NESTED_COLL_SHORT = TypeCode::NESTED_COLL as u8 + TypeCode::SSHORT as u8,  // 27
-    NESTED_COLL_INT = TypeCode::NESTED_COLL as u8 + TypeCode::SINT as u8,      // 28
-    NESTED_COLL_LONG = TypeCode::NESTED_COLL as u8 + TypeCode::SLONG as u8,    // 29
-    NESTED_COLL_BIGINT = TypeCode::NESTED_COLL as u8 + TypeCode::SBIGINT as u8, // 30
-    NESTED_COLL_GROUP_ELEMENT = TypeCode::NESTED_COLL as u8 + TypeCode::SGROUP_ELEMENT as u8, // 31
-    NESTED_COLL_SIGMAPROP = TypeCode::NESTED_COLL as u8 + TypeCode::SSIGMAPROP as u8, // 32
+    NESTED_COLL_BOOL = TypeCode::NESTED_COLL + TypeCode::SBOOLEAN as u8, // 25
+    NESTED_COLL_BYTE = TypeCode::NESTED_COLL + TypeCode::SBYTE as u8,    // 26
+    NESTED_COLL_SHORT = TypeCode::NESTED_COLL + TypeCode::SSHORT as u8,  // 27
+    NESTED_COLL_INT = TypeCode::NESTED_COLL + TypeCode::SINT as u8,      // 28
+    NESTED_COLL_LONG = TypeCode::NESTED_COLL + TypeCode::SLONG as u8,    // 29
+    NESTED_COLL_BIGINT = TypeCode::NESTED_COLL + TypeCode::SBIGINT as u8, // 30
+    NESTED_COLL_GROUP_ELEMENT = TypeCode::NESTED_COLL + TypeCode::SGROUP_ELEMENT as u8, // 31
+    NESTED_COLL_SIGMAPROP = TypeCode::NESTED_COLL + TypeCode::SSIGMAPROP as u8, // 32
 
     OPTION = (TypeCode::MAX_PRIM_TYPECODE + 1) * TypeCode::OPTION_CONSTR_ID, // 12 * 3 = 36
     OPTION_BOOL = TypeCode::OPTION as u8 + TypeCode::SBOOLEAN as u8,         // 37
@@ -55,14 +55,14 @@ pub enum TypeCode {
     OPTION_GROUP_ELEMENT = TypeCode::OPTION as u8 + TypeCode::SGROUP_ELEMENT as u8, // 43
     OPTION_SIGMAPROP = TypeCode::OPTION as u8 + TypeCode::SSIGMAPROP as u8,  // 44
 
-    OPTION_COLL_BOOL = TypeCode::OPTION_COLLECTION as u8 + TypeCode::SBOOLEAN as u8, // 49
-    OPTION_COLL_BYTE = TypeCode::OPTION_COLLECTION as u8 + TypeCode::SBYTE as u8,    // 50
-    OPTION_COLL_SHORT = TypeCode::OPTION_COLLECTION as u8 + TypeCode::SSHORT as u8,  // 51
-    OPTION_COLL_INT = TypeCode::OPTION_COLLECTION as u8 + TypeCode::SINT as u8,      // 52
-    OPTION_COLL_LONG = TypeCode::OPTION_COLLECTION as u8 + TypeCode::SLONG as u8,    // 53
-    OPTION_COLL_BIGINT = TypeCode::OPTION_COLLECTION as u8 + TypeCode::SBIGINT as u8, // 54
-    OPTION_COLL_GROUP_ELEMENT = TypeCode::OPTION_COLLECTION as u8 + TypeCode::SGROUP_ELEMENT as u8, // 55
-    OPTION_COLL_SIGMAPROP = TypeCode::OPTION_COLLECTION as u8 + TypeCode::SSIGMAPROP as u8, // 56
+    OPTION_COLL_BOOL = TypeCode::OPTION_COLLECTION + TypeCode::SBOOLEAN as u8, // 49
+    OPTION_COLL_BYTE = TypeCode::OPTION_COLLECTION + TypeCode::SBYTE as u8,    // 50
+    OPTION_COLL_SHORT = TypeCode::OPTION_COLLECTION + TypeCode::SSHORT as u8,  // 51
+    OPTION_COLL_INT = TypeCode::OPTION_COLLECTION + TypeCode::SINT as u8,      // 52
+    OPTION_COLL_LONG = TypeCode::OPTION_COLLECTION + TypeCode::SLONG as u8,    // 53
+    OPTION_COLL_BIGINT = TypeCode::OPTION_COLLECTION + TypeCode::SBIGINT as u8, // 54
+    OPTION_COLL_GROUP_ELEMENT = TypeCode::OPTION_COLLECTION + TypeCode::SGROUP_ELEMENT as u8, // 55
+    OPTION_COLL_SIGMAPROP = TypeCode::OPTION_COLLECTION + TypeCode::SSIGMAPROP as u8, // 56
 
     TUPLE_PAIR1 = (TypeCode::MAX_PRIM_TYPECODE + 1) * TypeCode::TUPLE_PAIR1_CONSTR_ID, // 12 * 5 = 60
     TUPLE_PAIR1_BOOL = TypeCode::TUPLE_PAIR1 as u8 + TypeCode::SBOOLEAN as u8,         // 61
@@ -76,27 +76,27 @@ pub enum TypeCode {
 
     TUPLE_TRIPLE = Self::TUPLE_PAIR2, // 72
 
-    TUPLE_PAIR2_BOOL = TypeCode::TUPLE_PAIR2 as u8 + TypeCode::SBOOLEAN as u8, // 73
-    TUPLE_PAIR2_BYTE = TypeCode::TUPLE_PAIR2 as u8 + TypeCode::SBYTE as u8,    // 74
-    TUPLE_PAIR2_SHORT = TypeCode::TUPLE_PAIR2 as u8 + TypeCode::SSHORT as u8,  // 75
-    TUPLE_PAIR2_INT = TypeCode::TUPLE_PAIR2 as u8 + TypeCode::SINT as u8,      // 76
-    TUPLE_PAIR2_LONG = TypeCode::TUPLE_PAIR2 as u8 + TypeCode::SLONG as u8,    // 77
-    TUPLE_PAIR2_BIGINT = TypeCode::TUPLE_PAIR2 as u8 + TypeCode::SBIGINT as u8, // 78
-    TUPLE_PAIR2_GROUP_ELEMENT = TypeCode::TUPLE_PAIR2 as u8 + TypeCode::SGROUP_ELEMENT as u8, // 79
-    TUPLE_PAIR2_SIGMAPROP = TypeCode::TUPLE_PAIR2 as u8 + TypeCode::SSIGMAPROP as u8, // 80
+    TUPLE_PAIR2_BOOL = TypeCode::TUPLE_PAIR2 + TypeCode::SBOOLEAN as u8, // 73
+    TUPLE_PAIR2_BYTE = TypeCode::TUPLE_PAIR2 + TypeCode::SBYTE as u8,    // 74
+    TUPLE_PAIR2_SHORT = TypeCode::TUPLE_PAIR2 + TypeCode::SSHORT as u8,  // 75
+    TUPLE_PAIR2_INT = TypeCode::TUPLE_PAIR2 + TypeCode::SINT as u8,      // 76
+    TUPLE_PAIR2_LONG = TypeCode::TUPLE_PAIR2 + TypeCode::SLONG as u8,    // 77
+    TUPLE_PAIR2_BIGINT = TypeCode::TUPLE_PAIR2 + TypeCode::SBIGINT as u8, // 78
+    TUPLE_PAIR2_GROUP_ELEMENT = TypeCode::TUPLE_PAIR2 + TypeCode::SGROUP_ELEMENT as u8, // 79
+    TUPLE_PAIR2_SIGMAPROP = TypeCode::TUPLE_PAIR2 + TypeCode::SSIGMAPROP as u8, // 80
 
     TUPLE_QUADRUPLE = Self::TUPLE_PAIR_SYMMETRIC, // 84
 
-    TUPLE_PAIR_SYMMETRIC_BOOL = TypeCode::TUPLE_PAIR_SYMMETRIC as u8 + TypeCode::SBOOLEAN as u8, // 85
-    TUPLE_PAIR_SYMMETRIC_BYTE = TypeCode::TUPLE_PAIR_SYMMETRIC as u8 + TypeCode::SBYTE as u8, // 86
-    TUPLE_PAIR_SYMMETRIC_SHORT = TypeCode::TUPLE_PAIR_SYMMETRIC as u8 + TypeCode::SSHORT as u8, // 87
-    TUPLE_PAIR_SYMMETRIC_INT = TypeCode::TUPLE_PAIR_SYMMETRIC as u8 + TypeCode::SINT as u8, // 88
-    TUPLE_PAIR_SYMMETRIC_LONG = TypeCode::TUPLE_PAIR_SYMMETRIC as u8 + TypeCode::SLONG as u8, // 89
-    TUPLE_PAIR_SYMMETRIC_BIGINT = TypeCode::TUPLE_PAIR_SYMMETRIC as u8 + TypeCode::SBIGINT as u8, // 90
+    TUPLE_PAIR_SYMMETRIC_BOOL = TypeCode::TUPLE_PAIR_SYMMETRIC + TypeCode::SBOOLEAN as u8, // 85
+    TUPLE_PAIR_SYMMETRIC_BYTE = TypeCode::TUPLE_PAIR_SYMMETRIC + TypeCode::SBYTE as u8, // 86
+    TUPLE_PAIR_SYMMETRIC_SHORT = TypeCode::TUPLE_PAIR_SYMMETRIC + TypeCode::SSHORT as u8, // 87
+    TUPLE_PAIR_SYMMETRIC_INT = TypeCode::TUPLE_PAIR_SYMMETRIC + TypeCode::SINT as u8, // 88
+    TUPLE_PAIR_SYMMETRIC_LONG = TypeCode::TUPLE_PAIR_SYMMETRIC + TypeCode::SLONG as u8, // 89
+    TUPLE_PAIR_SYMMETRIC_BIGINT = TypeCode::TUPLE_PAIR_SYMMETRIC + TypeCode::SBIGINT as u8, // 90
     TUPLE_PAIR_SYMMETRIC_GROUP_ELEMENT =
-        TypeCode::TUPLE_PAIR_SYMMETRIC as u8 + TypeCode::SGROUP_ELEMENT as u8, // 91
+        TypeCode::TUPLE_PAIR_SYMMETRIC + TypeCode::SGROUP_ELEMENT as u8, // 91
     TUPLE_PAIR_SYMMETRIC_SIGMAPROP =
-        TypeCode::TUPLE_PAIR_SYMMETRIC as u8 + TypeCode::SSIGMAPROP as u8, // 92
+        TypeCode::TUPLE_PAIR_SYMMETRIC + TypeCode::SSIGMAPROP as u8, // 92
 
     TUPLE = (TypeCode::MAX_PRIM_TYPECODE + 1) * 8, // 12 * 8 = 96
 

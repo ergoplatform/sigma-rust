@@ -126,7 +126,7 @@ mod tests {
             let c: Constant = v.into();
             assert_eq!(
                 eval_out_wo_ctx::<i16>(&Upcast::new(c.clone().into(), SType::SShort).unwrap().into()),
-                v as i16
+                v
             );
             assert_eq!(
                 eval_out_wo_ctx::<i32>(&Upcast::new(c.clone().into(), SType::SInt).unwrap().into()),
@@ -147,7 +147,7 @@ mod tests {
             let c: Constant = v.into();
             assert_eq!(
                 eval_out_wo_ctx::<i32>(&Upcast::new(c.clone().into(), SType::SInt).unwrap().into()),
-                v as i32
+                v
             );
             assert_eq!(
                 eval_out_wo_ctx::<i64>(&Upcast::new(c.clone().into(), SType::SLong).unwrap().into()),
@@ -164,7 +164,7 @@ mod tests {
             let c: Constant = v.into();
             assert_eq!(
                 eval_out_wo_ctx::<i64>(&Upcast::new(c.clone().into(), SType::SLong).unwrap().into()),
-                v as i64
+                v
             );
             assert_eq!(
                 eval_out_wo_ctx::<BigInt256>(&Upcast::new(c.into(), SType::SBigInt).unwrap().into()),
