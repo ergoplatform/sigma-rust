@@ -109,7 +109,7 @@ pub enum SetConstantError {
 #[error("ErgoTree parsing (deserialization) error: {error:?}")]
 pub struct ErgoTreeConstantsParsingError {
     /// Ergo tree bytes (failed to deserialize)
-    pub bytes: Vec<u8>,
+    pub whole_tree_bytes: Vec<u8>,
     /// Deserialization error
     pub error: SigmaParsingError,
 }
@@ -119,8 +119,19 @@ pub struct ErgoTreeConstantsParsingError {
 pub struct ErgoTreeRootParsingError {
     /// Ergo tree root expr bytes (failed to deserialize)
     pub root_expr_bytes: Vec<u8>,
-    /// Deserialization error
-    pub error: SigmaParsingError,
+    /// Root expr deserialization error
+    pub error: ErgoTreeRootParsingErrorInner,
+}
+
+/// ErgoTree root expr parsing (deserialization) error inner
+#[derive(Error, PartialEq, Eq, Debug, Clone, From)]
+pub enum ErgoTreeRootParsingErrorInner {
+    /// ErgoTree root expr parsing (deserialization) error
+    #[error("SigmaParsingError: {0:?}")]
+    SigmaParsingError(SigmaParsingError),
+    /// Non-consumed bytes after root expr is parsed
+    #[error("Non-consumed bytes after root expr is parsed")]
+    NonConsumedBytes,
 }
 
 /// ErgoTree serialization and parsing (deserialization) error
@@ -151,7 +162,7 @@ pub enum ErgoTree {
         error: ErgoTreeError,
     },
     /// Parsed tree
-    Parsed(Result<ParsedErgoTree, ErgoTreeConstantsParsingError>),
+    Parsed(Result<ParsedErgoTree, ErgoTreeError>),
 }
 
 impl ErgoTree {
@@ -159,12 +170,12 @@ impl ErgoTree {
         match self {
             ErgoTree::Unparsed {
                 tree_bytes: _,
-                error: header_error,
-            } => Err(header_error.clone()),
+                error,
+            } => Err(error.clone()),
             ErgoTree::Parsed(parsed) => parsed
                 .as_ref()
                 .map(|parsed| &parsed.header)
-                .map_err(|e| ErgoTreeError::ConstantsError(e.clone().into())),
+                .map_err(|e| e.clone()),
         }
     }
 
@@ -172,11 +183,9 @@ impl ErgoTree {
         match self {
             ErgoTree::Unparsed {
                 tree_bytes: _,
-                error: header_error,
-            } => Err(header_error.clone()),
-            ErgoTree::Parsed(parsed) => parsed
-                .as_ref()
-                .map_err(|e| ErgoTreeError::ConstantsError(e.clone().into())),
+                error,
+            } => Err(error.clone()),
+            ErgoTree::Parsed(parsed) => parsed.as_ref().map_err(|e| e.clone()),
         }
     }
 
@@ -210,10 +219,7 @@ impl ErgoTree {
                             constants,
                             root: Err(ErgoTreeRootParsingError {
                                 root_expr_bytes: tree_bytes_copy,
-                                error: SigmaParsingError::Misc(
-                                    "The reader is not empty after parsing ErgoTree root expr"
-                                        .to_string(),
-                                ),
+                                error: ErgoTreeRootParsingErrorInner::NonConsumedBytes,
                             }),
                         })))
                     }
@@ -223,7 +229,7 @@ impl ErgoTree {
                     constants,
                     root: Err(ErgoTreeRootParsingError {
                         root_expr_bytes: tree_bytes_copy,
-                        error: err,
+                        error: err.into(),
                     }),
                 }))),
             }
@@ -235,12 +241,15 @@ impl ErgoTree {
                 w.put_u32(size)?;
             }
             w.write_all(&buf)?;
-            Ok(ErgoTree::Parsed(Err(ErgoTreeConstantsParsingError {
-                bytes: whole_tree_bytes,
-                error: SigmaParsingError::NotImplementedYet(
-                    "not all constant types serialization is supported".to_string(),
-                ),
-            })))
+            Ok(ErgoTree::Parsed(Err(ErgoTreeConstantError::from(
+                ErgoTreeConstantsParsingError {
+                    whole_tree_bytes,
+                    error: SigmaParsingError::NotImplementedYet(
+                        "not all constant types serialization is supported".to_string(),
+                    ),
+                },
+            )
+            .into())))
         }
     }
 
@@ -292,7 +301,7 @@ impl ErgoTree {
             let parsed_expr =
                 Expr::sigma_parse(&mut sr).map_err(|error| ErgoTreeRootParsingError {
                     root_expr_bytes: data,
-                    error,
+                    error: error.into(),
                 })?;
             ErgoTree::Parsed(Ok(ParsedErgoTree {
                 header,
@@ -331,7 +340,7 @@ impl ErgoTree {
             let parsed_expr =
                 Expr::sigma_parse(&mut sr).map_err(|error| ErgoTreeRootParsingError {
                     root_expr_bytes: data,
-                    error,
+                    error: error.into(),
                 })?;
             Ok(parsed_expr)
         } else {
@@ -434,7 +443,13 @@ impl SigmaSerializable for ErgoTree {
                             w.write_all(&bytes)?;
                         }
                     }
-                    Err(ErgoTreeConstantsParsingError { bytes, .. }) => w.write_all(&bytes[..])?,
+                    Err(ErgoTreeError::ConstantsError(ErgoTreeConstantError::ParsingError(
+                        ErgoTreeConstantsParsingError {
+                            whole_tree_bytes: bytes,
+                            ..
+                        },
+                    ))) => w.write_all(&bytes[..])?,
+                    Err(e) => todo!(),
                 }
             }
         };
@@ -750,10 +765,30 @@ mod tests {
 
     #[test]
     fn parse_invalid_677() {
+        // also see https://github.com/ergoplatform/sigma-rust/issues/587
         let base16_str = "cd07021a8e6f59fd4a";
         let tree_bytes = base16::decode(base16_str.as_bytes()).unwrap();
         let tree = ErgoTree::sigma_parse_bytes(&tree_bytes).unwrap();
         dbg!(&tree);
         assert_eq!(tree.sigma_serialize_bytes().unwrap(), tree_bytes);
+    }
+
+    #[test]
+    fn parse_invalid_tree_extra_bytes() {
+        let valid_ergo_tree_hex =
+            "0008cd02a706374307f3038cb2f16e7ae9d3e29ca03ea5333681ca06a9bd87baab1164bc";
+        // extra bytes at the end will be left unparsed
+        let invalid_ergo_tree_with_extra_bytes = format!("{}aaaa", valid_ergo_tree_hex);
+        let bytes = base16::decode(invalid_ergo_tree_with_extra_bytes.as_bytes()).unwrap();
+        let tree = ErgoTree::sigma_parse_bytes(&bytes).unwrap();
+        dbg!(&tree);
+        assert_eq!(tree.sigma_serialize_bytes().unwrap(), bytes);
+        // assert!(matches!(
+        //     tree.tree(),
+        //     Err(ErgoTreeError::RootParsingError(ErgoTreeRootParsingError {
+        //         root_expr_bytes: _,
+        //         error: ErgoTreeRootParsingErrorInner::NonConsumedBytes
+        //     }))
+        // ));
     }
 }
