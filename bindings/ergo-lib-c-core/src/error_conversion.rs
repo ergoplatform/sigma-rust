@@ -19,7 +19,7 @@ use ergo_lib::wallet::signing::TxSigningError;
 use ergo_lib::{
     chain::ergo_box::box_builder::ErgoBoxCandidateBuilderError,
     ergotree_ir::{
-        ergo_tree::{ErgoTreeConstantError, ErgoTreeConstantsParsingError, ErgoTreeError},
+        ergo_tree::{ErgoTreeConstantError, ErgoTreeError},
         mir::constant::TryExtractFromError,
         serialization::{SigmaParsingError, SigmaSerializationError},
     },
@@ -67,7 +67,6 @@ macro_rules! convert_error_via_debug {
 convert_error_via_debug!(CompileError);
 convert_error_via_debug!(ErgoTreeError);
 convert_error_via_debug!(ErgoTreeConstantError);
-convert_error_via_debug!(ErgoTreeConstantsParsingError);
 convert_error_via_debug!(ParseIntError);
 convert_error_via_debug!(ChildIndexError);
 convert_error_via_debug!(BoundedVecOutOfBounds);
