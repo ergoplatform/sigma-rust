@@ -79,8 +79,10 @@ impl From<Transaction> for TransactionJson {
 #[derive(Error, PartialEq, Eq, Debug, Clone)]
 #[allow(missing_docs)]
 pub enum TransactionFromJsonError {
-    #[error("Tx id parsed from JSON differs from calculated from serialized bytes")]
-    InvalidTxId,
+    #[error(
+        "Tx id parsed from JSON {expected} differs from calculated from serialized bytes {actual}"
+    )]
+    InvalidTxId { expected: TxId, actual: TxId },
     #[error("Tx error: {0}")]
     TransactionError(#[from] TransactionError),
 }
@@ -94,7 +96,11 @@ impl TryFrom<TransactionJson> for Transaction {
         if tx.tx_id == tx_json.tx_id {
             Ok(tx)
         } else {
-            Err(TransactionFromJsonError::InvalidTxId)
+            dbg!(&tx);
+            Err(TransactionFromJsonError::InvalidTxId {
+                expected: tx_json.tx_id,
+                actual: tx.tx_id,
+            })
         }
     }
 }

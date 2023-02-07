@@ -6,7 +6,6 @@ use ergotree_ir::serialization::SigmaParsingError;
 use ergotree_ir::serialization::SigmaSerializable;
 use ergotree_ir::serialization::SigmaSerializeResult;
 use indexmap::IndexMap;
-use std::collections::HashMap;
 use std::convert::TryFrom;
 use thiserror::Error;
 
@@ -29,13 +28,8 @@ impl ContextExtension {
 impl SigmaSerializable for ContextExtension {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         w.put_u8(self.values.len() as u8)?;
-        let mut sorted_values: Vec<(&u8, &Constant)> = self.values.iter().collect();
-        // stable order is important for tx id generation
-        // since JSON encoding does not preserve the order, JSON roundtrip would result in different order
-        // of values and thus a different tx id
-        // see https://github.com/ScorexFoundation/sigmastate-interpreter/issues/681
-        sorted_values.sort_by_key(|(k, _)| *k);
-        sorted_values.iter().try_for_each(|(idx, c)| {
+        let values: Vec<(&u8, &Constant)> = self.values.iter().collect();
+        values.iter().try_for_each(|(idx, c)| {
             w.put_u8(**idx)?;
             c.sigma_serialize(w)
         })?;
@@ -59,9 +53,9 @@ impl SigmaSerializable for ContextExtension {
 pub struct ConstantParsingError(pub String);
 
 // for JSON encoding in ergo-lib
-impl TryFrom<HashMap<String, String>> for ContextExtension {
+impl TryFrom<IndexMap<String, String>> for ContextExtension {
     type Error = ConstantParsingError;
-    fn try_from(values_str: HashMap<String, String>) -> Result<Self, Self::Error> {
+    fn try_from(values_str: IndexMap<String, String>) -> Result<Self, Self::Error> {
         let values = values_str.iter().try_fold(
             IndexMap::with_capacity(values_str.len()),
             |mut acc, pair| {

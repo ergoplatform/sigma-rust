@@ -2,12 +2,11 @@ use ergotree_interpreter::sigma_protocol::prover::ContextExtension;
 use ergotree_ir::{mir::constant::Constant, serialization::SigmaSerializable};
 use indexmap::IndexMap;
 use serde::{ser::SerializeMap, Deserialize, Serialize};
-use std::collections::HashMap;
 
 #[cfg_attr(
     feature = "json",
     derive(Deserialize),
-    serde(try_from = "HashMap<String, String>"),
+    serde(try_from = "indexmap::IndexMap<String, String>"),
     serde(remote = "ContextExtension")
 )]
 #[derive(Debug, PartialEq, Eq, Clone)]
