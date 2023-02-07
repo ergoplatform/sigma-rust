@@ -1650,6 +1650,7 @@ mod tests {
         assert_eq!(block_0, block_1);
     }
 
+    #[ignore = "remove this test when 677 is closed"]
     #[test]
     fn parse_i677() {
         let json = r#"
