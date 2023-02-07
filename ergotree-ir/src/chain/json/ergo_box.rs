@@ -86,7 +86,10 @@ impl TryFrom<ErgoBoxJson> for ErgoBox {
                 if ergo_box.box_id() == box_id {
                     Ok(ergo_box)
                 } else {
-                    Err(ErgoBoxFromJsonError::InvalidBoxId)
+                    Err(ErgoBoxFromJsonError::InvalidBoxId {
+                        json: box_id,
+                        actual: ergo_box.box_id(),
+                    })
                 }
             }
             None => Ok(ergo_box),
@@ -180,8 +183,10 @@ impl TryFrom<ErgoBoxCandidateJson> for ErgoBoxCandidate {
 #[derive(Error, PartialEq, Eq, Debug, Clone)]
 pub enum ErgoBoxFromJsonError {
     /// Box id parsed from JSON differs from calculated from box serialized bytes
-    #[error("Box id parsed from JSON differs from calculated from box serialized bytes")]
-    InvalidBoxId,
+    #[error(
+        "Box id parsed from JSON {json} differs from calculated from box serialized bytes {actual}"
+    )]
+    InvalidBoxId { json: BoxId, actual: BoxId },
     /// Box serialization failed (id calculation)
     #[error("Box serialization failed (id calculation): {0}")]
     SerializationError(#[from] SigmaSerializationError),

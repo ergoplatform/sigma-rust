@@ -1,4 +1,5 @@
 //! Serialization of Ergo types
+use crate::ergo_tree::ErgoTreeHeaderError;
 use crate::mir::val_def::ValId;
 use crate::mir::{constant::TryExtractFromError, expr::InvalidArgumentError};
 use crate::types::type_unify::TypeUnificationError;
@@ -62,7 +63,7 @@ pub enum SigmaParsingError {
     #[error("IO error: {0}")]
     Io(String),
     /// Misc fail
-    #[error("misc error")]
+    #[error("misc error: {0}")]
     Misc(String),
     /// Feature not yet implemented
     #[error("parsing not yet implemented: {0}")]
@@ -97,6 +98,9 @@ pub enum SigmaParsingError {
     /// Scorex parsing error
     #[error("Scorex parsing error: {0}")]
     ScorexParsingError(#[from] ScorexParsingError),
+    /// ErgoTreeHeaderError
+    #[error("ErgoTreeHeaderError: {0}")]
+    ErgoTreeHeaderError(#[from] ErgoTreeHeaderError),
 }
 
 impl From<io::Error> for SigmaParsingError {

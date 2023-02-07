@@ -24,7 +24,7 @@ use ergo_lib::wallet::signing::TxSigningError;
 use ergo_lib::{
     chain::ergo_box::box_builder::ErgoBoxCandidateBuilderError,
     ergotree_ir::{
-        ergo_tree::{ErgoTreeConstantError, ErgoTreeConstantsParsingError, ErgoTreeError},
+        ergo_tree::{ErgoTreeConstantError, ErgoTreeError},
         mir::constant::TryExtractFromError,
         serialization::{SigmaParsingError, SigmaSerializationError},
     },
@@ -106,5 +106,4 @@ macro_rules! from_error_to_wrap_via_debug {
 }
 
 from_error_to_wrap_via_debug!(ErgoTreeConstantError);
-from_error_to_wrap_via_debug!(ErgoTreeConstantsParsingError);
 from_error_to_wrap_via_debug!(NipopowProofError);

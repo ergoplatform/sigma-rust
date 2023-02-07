@@ -56,6 +56,12 @@ impl From<BoxId> for Vec<i8> {
     }
 }
 
+impl std::fmt::Display for BoxId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 impl SigmaSerializable for BoxId {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         self.0.scorex_serialize(w)?;
