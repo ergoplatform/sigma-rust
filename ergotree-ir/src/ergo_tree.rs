@@ -78,7 +78,7 @@ pub enum SetConstantError {
 
 /// ErgoTree root expr parsing (deserialization) error inner
 #[derive(Error, PartialEq, Eq, Debug, Clone, From)]
-pub enum ErgoTreeRootParsingErrorInner {
+pub enum ErgoTreeRootParsingError {
     /// ErgoTree root expr parsing (deserialization) error
     #[error("SigmaParsingError: {0:?}")]
     SigmaParsingError(SigmaParsingError),
@@ -98,7 +98,7 @@ pub enum ErgoTreeError {
     ConstantsError(ErgoTreeConstantError),
     /// ErgoTree root expr parsing (deserialization) error
     #[error("ErgoTree root expr parsing (deserialization) error: {0:?}")]
-    RootParsingError(ErgoTreeRootParsingErrorInner),
+    RootParsingError(ErgoTreeRootParsingError),
     /// ErgoTree serialization error
     #[error("ErgoTree serialization error: {0}")]
     RootSerializationError(SigmaSerializationError),
@@ -413,7 +413,7 @@ impl SigmaSerializable for ErgoTree {
         } else {
             Ok(ErgoTree::Unparsed {
                 tree_bytes: bytes.to_vec(),
-                error: ErgoTreeRootParsingErrorInner::NonConsumedBytes.into(),
+                error: ErgoTreeRootParsingError::NonConsumedBytes.into(),
             })
         }
     }
@@ -603,6 +603,19 @@ mod tests {
             tree.template_bytes().is_err(),
             "template bytes should not be parsed"
         );
+        // parsing via sigma_parse should fail as well
+        let mut reader = SigmaByteReader::new(Cursor::new(&bytes), ConstantStore::empty());
+        let tree = ErgoTree::sigma_parse(&mut reader).unwrap();
+        assert!(tree.parsed_tree().is_err(), "parsing root should fail");
+        assert_eq!(
+            tree.sigma_serialize_bytes().unwrap(),
+            bytes,
+            "serialization should return original bytes"
+        );
+        assert!(
+            tree.template_bytes().is_err(),
+            "template bytes should not be parsed"
+        );
     }
 
     #[test]
@@ -694,7 +707,7 @@ mod tests {
             tree,
             ErgoTree::Unparsed {
                 tree_bytes,
-                error: ErgoTreeRootParsingErrorInner::NonConsumedBytes.into()
+                error: ErgoTreeRootParsingError::NonConsumedBytes.into()
             }
         );
     }
@@ -713,7 +726,7 @@ mod tests {
             tree,
             ErgoTree::Unparsed {
                 tree_bytes: bytes,
-                error: ErgoTreeRootParsingErrorInner::NonConsumedBytes.into()
+                error: ErgoTreeRootParsingError::NonConsumedBytes.into()
             }
         );
     }
