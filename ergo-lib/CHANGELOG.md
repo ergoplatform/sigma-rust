@@ -6,6 +6,18 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
+
+### Added
+- serde serialization for NetworkAddress [#667](https://github.com/ergoplatform/sigma-rust/pull/667);
+- expose constant value and type in C bindings [#669](https://github.com/ergoplatform/sigma-rust/pull/669)
+- Parse tx input's spending proof as either string or struct (explorer API) [#671](https://github.com/ergoplatform/sigma-rust/pull/671);
+- Add FullBlock type [#678](https://github.com/ergoplatform/sigma-rust/pull/678);
+- Validate parsed ErgoTree header, check no bytes left unconsumed after ErgoTree is parsed [#684](https://github.com/ergoplatform/sigma-rust/pull/684);
+- Preserve ContextExtension items order in JSON encoding [#687](https://github.com/ergoplatform/sigma-rust/pull/687);
+
+### Fixed
+- Fix scientific notion deserialization with powSolutions d parameter [#668](https://github.com/ergoplatform/sigma-rust/pull/668);
+
 ## [0.22.0] - 2022-12-28
 
 ### Added
