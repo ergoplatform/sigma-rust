@@ -1,6 +1,6 @@
 [package]
 name = "ergo-nipopow"
-version = "0.9.0"
+version = "0.10.0"
 license = "CC0-1.0"
 authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
 repository.workspace = true
