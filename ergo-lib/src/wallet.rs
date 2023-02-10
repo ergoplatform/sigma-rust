@@ -25,6 +25,7 @@ use thiserror::Error;
 use crate::chain::ergo_state_context::ErgoStateContext;
 use crate::chain::transaction::reduced::ReducedTransaction;
 use crate::chain::transaction::unsigned::UnsignedTransaction;
+use crate::chain::transaction::Input;
 use crate::chain::transaction::Transaction;
 use crate::ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 use crate::wallet::mnemonic::Mnemonic;
@@ -36,6 +37,7 @@ use self::ext_secret_key::ExtSecretKey;
 use self::ext_secret_key::ExtSecretKeyError;
 use self::signing::sign_message;
 use self::signing::sign_reduced_transaction;
+use self::signing::sign_tx_input;
 use self::signing::TransactionContext;
 
 /// Wallet
@@ -48,28 +50,16 @@ pub struct Wallet {
 #[derive(Error, Debug)]
 pub enum WalletError {
     #[error("Transaction signing error: {0}")]
-    TxSigningError(TxSigningError),
+    TxSigningError(#[from] TxSigningError),
 
     #[error("Prover error: {0}")]
-    ProverError(ProverError),
+    ProverError(#[from] ProverError),
 
     #[error("ExtSecretKeyError: {0}")]
     ExtSecretKeyError(#[from] ExtSecretKeyError),
 
     #[error("error parsing SecretKey from ExtSecretKey.bytes")]
     SecretKeyParsingError,
-}
-
-impl From<TxSigningError> for WalletError {
-    fn from(e: TxSigningError) -> Self {
-        WalletError::TxSigningError(e)
-    }
-}
-
-impl From<ProverError> for WalletError {
-    fn from(e: ProverError) -> Self {
-        WalletError::ProverError(e)
-    }
 }
 
 impl Wallet {
@@ -162,5 +152,25 @@ impl Wallet {
         msg: &[u8],
     ) -> Result<Vec<u8>, WalletError> {
         sign_message(self.prover.as_ref(), sigma_tree, msg).map_err(WalletError::from)
+    }
+
+    /// Signs a transaction input
+    pub fn sign_tx_input(
+        &self,
+        input_idx: usize,
+        tx_context: TransactionContext<UnsignedTransaction>,
+        state_context: &ErgoStateContext,
+        tx_hints: Option<&TransactionHintsBag>,
+    ) -> Result<Input, WalletError> {
+        let tx = tx_context.spending_tx.clone();
+        let message_to_sign = tx.bytes_to_sign().map_err(TxSigningError::from)?;
+        Ok(sign_tx_input(
+            self.prover.as_ref(),
+            &tx_context,
+            state_context,
+            tx_hints,
+            input_idx,
+            message_to_sign.as_slice(),
+        )?)
     }
 }
