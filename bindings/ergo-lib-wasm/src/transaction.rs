@@ -193,6 +193,7 @@ pub struct Transaction(chain::transaction::Transaction);
 #[wasm_bindgen]
 impl Transaction {
     /// Create new transaction
+    #[wasm_bindgen(constructor)]
     pub fn new(
         inputs: &Inputs,
         data_inputs: &DataInputs,
