@@ -70,7 +70,7 @@ jobs:
         uses:                   actions/checkout@v2
       - name:                   Generate code coverage
         run: |
-          cargo tarpaulin --avoid-cfg-tarpaulin --timeout=360 -v --out Lcov --exclude-files bindings/* ergo-rest/src/reqwest.rs ergo-rest/src/reqwest/* ergo-rest/src/wasm_timer.rs ergo-rest/src/wasm_timer/*
+          cargo tarpaulin --avoid-cfg-tarpaulin --timeout=360 -v --out Lcov --exclude-files bindings/** ergo-rest/src/reqwest.rs ergo-rest/src/reqwest/** ergo-rest/src/wasm_timer.rs ergo-rest/src/wasm_timer/**
       - name: Push code coverage results to coveralls.io
         uses: coverallsapp/github-action@master
         with:
