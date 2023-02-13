@@ -187,7 +187,7 @@ mod tests {
             .build()
             .unwrap();
         let node_conf = NodeConf {
-            addr: PeerAddr::from_str("147.229.186.144:9053").unwrap(),
+            addr: PeerAddr::from_str("213.239.193.208:9053").unwrap(),
             api_key: None,
             timeout: Some(Duration::from_secs(5)),
         };
@@ -209,7 +209,7 @@ mod tests {
             .build()
             .unwrap();
         let node_conf = NodeConf {
-            addr: PeerAddr::from_str("147.229.186.144:9053").unwrap(),
+            addr: PeerAddr::from_str("213.239.193.208:9053").unwrap(),
             api_key: None,
             timeout: Some(Duration::from_secs(5)),
         };

@@ -5,7 +5,7 @@ import XCTest
 final class RestNodeApiTests: XCTestCase {
     func testGetNipopowProofByHeaderIdNonAsync() throws {
         let expectation = self.expectation(description: "getNipopowByHeaderIdNonAsync")
-        let nodeConf = try NodeConf(withAddrString: "147.229.186.144:9053")
+        let nodeConf = try NodeConf(withAddrString: "213.239.193.208:9053")
         let restNodeApi = try RestNodeApi()
         let blockHeaders = try HeaderTests.generateBlockHeadersFromJSON()
         let _ = try restNodeApi.getNipopowProofByHeaderId(
@@ -26,7 +26,7 @@ final class RestNodeApiTests: XCTestCase {
     }
     
     func testGetNipopowProofByHeaderAbort() throws {
-        let nodeConf = try NodeConf(withAddrString: "147.229.186.144:9053")
+        let nodeConf = try NodeConf(withAddrString: "213.239.193.208:9053")
         let restNodeApi = try RestNodeApi()
         let blockHeaders = try HeaderTests.generateBlockHeadersFromJSON()
         let handle = try restNodeApi.getNipopowProofByHeaderId(
@@ -41,7 +41,7 @@ final class RestNodeApiTests: XCTestCase {
     }
     
     func testGetNipopowProofByHeaderIdAsync() async throws {
-        let nodeConf = try NodeConf(withAddrString: "147.229.186.144:9053")
+        let nodeConf = try NodeConf(withAddrString: "213.239.193.208:9053")
         let restNodeApi = try RestNodeApi()
         let blockHeaders = try HeaderTests.generateBlockHeadersFromJSON()
         let proof = try await restNodeApi.getNipopowProofByHeaderIdAsync(
@@ -110,7 +110,7 @@ final class RestNodeApiTests: XCTestCase {
                 return [proof]
             }
             group.addTask {
-                let proof = try await getNipopowProof(url: URL(string: "147.229.186.144:9053")!, headerId: headerId)!
+                let proof = try await getNipopowProof(url: URL(string: "213.239.193.208:9053")!, headerId: headerId)!
                 return [proof]
             }
             return try await group.reduce(into: [NipopowProof]()) { $0 += $1 }
