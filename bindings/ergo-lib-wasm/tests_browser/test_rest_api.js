@@ -38,7 +38,7 @@ it('node REST API: peer_discovery endpoint (INCREMENTAL VERSION)', async () => {
 });
 
 it('node REST API: get_nipopow_proof_by_header_id endpoint', async () => {
-    let node_conf = new ergo_wasm.NodeConf(new URL("http://147.229.186.144:9053")); //active_peers.get(0));
+    let node_conf = new ergo_wasm.NodeConf(new URL("http://213.239.193.208:9053")); //active_peers.get(0));
     assert(node_conf != null);
     const header_id = ergo_wasm.BlockId.from_str("4caa17e62fe66ba7bd69597afdc996ae35b1ff12e0ba90c22ff288a4de10e91b");
     let res = await ergo_wasm.get_nipopow_proof_by_header_id(node_conf, 3, 4, header_id);
@@ -55,7 +55,7 @@ it('node REST API: example SPV workflow', async () => {
     // Get NiPoPow proofs from 2 separate ergo nodes
     let proofs = await Promise.all([
         get_nipopow_proof(new URL("http://159.65.11.55:9053"), header_id),
-        get_nipopow_proof(new URL("http://147.229.186.144:9053"), header_id),
+        get_nipopow_proof(new URL("http://213.239.193.208:9053"), header_id),
     ]);
 
     const genesis_block_id = ergo_wasm.BlockId.from_str("b0244dfc267baca974a4caee06120321562784303a8a688976ae56170e4d175b");
