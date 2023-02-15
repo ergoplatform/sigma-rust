@@ -163,25 +163,15 @@ pub fn sign_transaction(
 ) -> Result<Transaction, TxSigningError> {
     let tx = tx_context.spending_tx.clone();
     let message_to_sign = tx.bytes_to_sign()?;
-    let signed_inputs = tx.inputs.enumerated().try_mapped(|(idx, input)| {
-        let input_box = tx_context
-            .get_input_box(&input.box_id)
-            .ok_or(TxSigningError::InputBoxNotFound(idx))?;
-        let ctx = Rc::new(make_context(state_context, &tx_context, idx)?);
-        let mut hints_bag = HintsBag::empty();
-        if let Some(bag) = tx_hints {
-            hints_bag = bag.all_hints_for_input(idx);
-        }
-        prover
-            .prove(
-                &input_box.ergo_tree,
-                &Env::empty(),
-                ctx,
-                message_to_sign.as_slice(),
-                &hints_bag,
-            )
-            .map(|proof| Input::new(input.box_id, proof.into()))
-            .map_err(|e| TxSigningError::ProverError(e, idx))
+    let signed_inputs = tx.inputs.enumerated().try_mapped(|(idx, _)| {
+        sign_tx_input(
+            prover,
+            &tx_context,
+            state_context,
+            tx_hints,
+            idx,
+            message_to_sign.as_slice(),
+        )
     })?;
     Ok(Transaction::new(
         signed_inputs,
@@ -238,6 +228,40 @@ pub fn sign_message(
     prover
         .generate_proof(sigma_tree, msg, &HintsBag::empty())
         .map(Vec::from)
+}
+
+/// Sign a transaction input
+pub fn sign_tx_input(
+    prover: &dyn Prover,
+    tx_context: &TransactionContext<UnsignedTransaction>,
+    state_context: &ErgoStateContext,
+    tx_hints: Option<&TransactionHintsBag>,
+    input_idx: usize,
+    message_to_sign: &[u8],
+) -> Result<Input, TxSigningError> {
+    let unsigned_input = tx_context
+        .spending_tx
+        .inputs
+        .get(input_idx)
+        .ok_or(TxSigningError::InputBoxNotFound(input_idx))?;
+    let input_box = tx_context
+        .get_input_box(&unsigned_input.box_id)
+        .ok_or(TxSigningError::InputBoxNotFound(input_idx))?;
+    let ctx = Rc::new(make_context(state_context, tx_context, input_idx)?);
+    let mut hints_bag = HintsBag::empty();
+    if let Some(bag) = tx_hints {
+        hints_bag = bag.all_hints_for_input(input_idx);
+    }
+    prover
+        .prove(
+            &input_box.ergo_tree,
+            &Env::empty(),
+            ctx,
+            message_to_sign,
+            &hints_bag,
+        )
+        .map(|proof| Input::new(unsigned_input.box_id, proof.into()))
+        .map_err(|e| TxSigningError::ProverError(e, input_idx))
 }
 
 #[cfg(test)]

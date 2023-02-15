@@ -192,6 +192,27 @@ pub struct Transaction(chain::transaction::Transaction);
 
 #[wasm_bindgen]
 impl Transaction {
+    /// Create new transaction
+    #[wasm_bindgen(constructor)]
+    pub fn new(
+        inputs: &Inputs,
+        data_inputs: &DataInputs,
+        outputs: &ErgoBoxCandidates,
+    ) -> Result<Transaction, JsValue> {
+        let inputs: Vec<chain::transaction::Input> = inputs.into();
+        let data_inputs: Vec<chain::transaction::DataInput> = data_inputs.into();
+        let outputs: Vec<ergo_lib::ergotree_ir::chain::ergo_box::ErgoBoxCandidate> =
+            outputs.clone().into();
+        Ok(Transaction(
+            chain::transaction::Transaction::new(
+                TxIoVec::try_from(inputs).map_err(to_js)?,
+                TxIoVec::try_from(data_inputs).map_err(to_js)?.into(),
+                TxIoVec::try_from(outputs).map_err(to_js)?,
+            )
+            .map_err(to_js)?,
+        ))
+    }
+
     /// Create Transaction from UnsignedTransaction and an array of proofs in the same order as
     /// UnsignedTransaction.inputs with empty proof indicated with empty byte array
     pub fn from_unsigned_tx(

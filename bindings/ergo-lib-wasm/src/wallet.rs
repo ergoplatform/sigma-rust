@@ -10,6 +10,7 @@ pub mod ext_secret_key;
 pub mod mnemonic;
 
 use crate::address::Address;
+use crate::input::Input;
 use crate::transaction::TransactionHintsBag;
 use crate::{
     box_coll::ErgoBoxes,
@@ -191,5 +192,30 @@ impl Wallet {
                 "wallet::sign_message_using_p2pk: Address:P2Pk expected",
             ))
         }
+    }
+
+    /// Sign a given tx input
+    #[wasm_bindgen]
+    pub fn sign_tx_input(
+        &self,
+        input_idx: usize,
+        state_context: &ErgoStateContext,
+        tx: &UnsignedTransaction,
+        boxes_to_spend: &ErgoBoxes,
+        data_boxes: &ErgoBoxes,
+    ) -> Result<Input, JsValue> {
+        let boxes_to_spend = boxes_to_spend.clone().into();
+        let data_boxes = data_boxes.clone().into();
+        let tx_context = ergo_lib::wallet::signing::TransactionContext::new(
+            tx.0.clone(),
+            boxes_to_spend,
+            data_boxes,
+        )
+        .map_err(to_js)?;
+        let state_context_inner = state_context.clone().into();
+        self.0
+            .sign_tx_input(input_idx, tx_context, &state_context_inner, None)
+            .map_err(to_js)
+            .map(Input::from)
     }
 }
