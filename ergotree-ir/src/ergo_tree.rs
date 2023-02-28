@@ -730,4 +730,21 @@ mod tests {
             }
         );
     }
+
+    #[test]
+    fn parse_p2pk_672() {
+        // see https://github.com/ergoplatform/sigma-rust/issues/672
+        let valid_p2pk = "0e2103e02fa2bbd85e9298aa37fe2634602a0fba746234fe2a67f04d14deda55fac491";
+        let bytes = base16::decode(valid_p2pk).unwrap();
+        let tree = ErgoTree::sigma_parse_bytes(&bytes).unwrap();
+        dbg!(&tree);
+        assert_eq!(tree.sigma_serialize_bytes().unwrap(), bytes);
+        assert_eq!(
+            tree,
+            ErgoTree::Unparsed {
+                tree_bytes: bytes,
+                error: ErgoTreeRootParsingError::NonConsumedBytes.into()
+            }
+        );
+    }
 }
