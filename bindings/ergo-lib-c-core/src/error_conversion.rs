@@ -16,6 +16,7 @@ use ergo_lib::ergotree_ir::chain::ergo_box::box_value::BoxValueError;
 use ergo_lib::ergotree_ir::chain::token::TokenAmountError;
 use ergo_lib::wallet::derivation_path::ChildIndexError;
 use ergo_lib::wallet::signing::TxSigningError;
+use ergo_lib::wallet::tx_context::TransactionContextError;
 use ergo_lib::{
     chain::ergo_box::box_builder::ErgoBoxCandidateBuilderError,
     ergotree_ir::{
@@ -53,6 +54,7 @@ convert_error!(TxSigningError);
 convert_error!(WalletError);
 convert_error!(DecodeError);
 convert_error!(TryFromSliceError);
+convert_error!(TransactionContextError);
 
 macro_rules! convert_error_via_debug {
     ($t:ident) => {

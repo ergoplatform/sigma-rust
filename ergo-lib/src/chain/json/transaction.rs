@@ -70,7 +70,7 @@ impl From<Transaction> for TransactionJson {
                 .data_inputs
                 .map(|di| di.as_vec().clone())
                 .unwrap_or_default(),
-            outputs: v.outputs,
+            outputs: v.outputs.to_vec(),
         }
     }
 }

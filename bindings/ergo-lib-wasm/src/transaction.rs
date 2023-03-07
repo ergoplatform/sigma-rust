@@ -277,7 +277,7 @@ impl Transaction {
 
     /// Returns ErgoBox's created from ErgoBoxCandidate's with tx id and indices
     pub fn outputs(&self) -> ErgoBoxes {
-        self.0.outputs.clone().into()
+        self.0.outputs.clone().to_vec().into()
     }
 
     /// Returns serialized bytes or fails with error if cannot be serialized
@@ -405,4 +405,30 @@ impl UnsignedTransaction {
             .map(|id| Uint8Array::from(id.as_ref()))
             .collect()
     }
+}
+
+/// Verify transaction input's proof
+#[wasm_bindgen]
+pub fn verify_tx_input_proof(
+    input_idx: usize,
+    state_context: &ErgoStateContext,
+    tx: &Transaction,
+    boxes_to_spend: &ErgoBoxes,
+    data_boxes: &ErgoBoxes,
+) -> Result<bool, JsValue> {
+    let boxes_to_spend = boxes_to_spend.clone().into();
+    let data_boxes = data_boxes.clone().into();
+    let tx_context = ergo_lib::wallet::signing::TransactionContext::new(
+        tx.0.clone(),
+        boxes_to_spend,
+        data_boxes,
+    )
+    .map_err(to_js)?;
+    let state_context_inner = state_context.clone().into();
+    ergo_lib::chain::transaction::verify_tx_input_proof(
+        &tx_context,
+        &state_context_inner,
+        input_idx,
+    )
+    .map_err(to_js)
 }

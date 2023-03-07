@@ -1,9 +1,7 @@
-//! multi sig prover
-
+//! multi sig prove crate::chain::ergo_state_context::ErgoStateContext;
 use crate::chain::ergo_state_context::ErgoStateContext;
 use crate::chain::transaction::unsigned::UnsignedTransaction;
 use crate::chain::transaction::Transaction;
-use crate::ergotree_interpreter::eval::context::Context;
 use crate::ergotree_interpreter::eval::env::Env;
 use crate::ergotree_interpreter::eval::reduce_to_crypto;
 use crate::ergotree_interpreter::sigma_protocol::dht_protocol::interactive_prover as dht_interactive_prover;
@@ -13,23 +11,22 @@ use crate::ergotree_interpreter::sigma_protocol::prover::hint::{
     CommitmentHint, Hint, HintsBag, OwnCommitment, RealCommitment, RealSecretProof, SecretProven,
     SimulatedCommitment, SimulatedSecretProof,
 };
-use crate::ergotree_interpreter::sigma_protocol::prover::{ProofBytes, ProverError};
+use crate::ergotree_interpreter::sigma_protocol::prover::ProverError;
 use crate::ergotree_interpreter::sigma_protocol::sig_serializer::SigParsingError;
 use crate::ergotree_interpreter::sigma_protocol::unproven_tree::NodePosition;
 use crate::ergotree_interpreter::sigma_protocol::FirstProverMessage;
-use crate::ergotree_ir::serialization::SigmaSerializationError;
 use crate::ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 use crate::ergotree_ir::sigma_protocol::sigma_boolean::SigmaConjecture;
 use crate::ergotree_ir::sigma_protocol::sigma_boolean::SigmaConjectureItems;
 use crate::ergotree_ir::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
-use crate::wallet::signing::{make_context, ErgoTransaction, TransactionContext, TxSigningError};
+use crate::wallet::signing::{make_context, TransactionContext, TxSigningError};
 use ergotree_interpreter::sigma_protocol::sig_serializer::parse_sig_compute_challenges;
 use ergotree_interpreter::sigma_protocol::unchecked_tree::UncheckedTree;
 use ergotree_interpreter::sigma_protocol::verifier::compute_commitments;
-use ergotree_ir::chain::ergo_box::ErgoBox;
 use std::collections::HashMap;
 use std::rc::Rc;
-use std::sync::Arc;
+
+use super::tx_context::TransactionContextError;
 
 /// TransactionHintsBag
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
@@ -252,7 +249,7 @@ pub fn generate_commitments(
     for (i, input) in tx.inputs.iter().enumerate() {
         let input_box = tx_context
             .get_input_box(&input.box_id)
-            .ok_or(TxSigningError::InputBoxNotFound(i))?;
+            .ok_or(TransactionContextError::InputBoxNotFound(i))?;
         let ctx = Rc::new(make_context(state_context, &tx_context, i)?);
         let tree = input_box.ergo_tree.clone();
         let exp = tree
@@ -280,80 +277,9 @@ pub fn extract_hints(
     for (i, input) in tx_ctx.spending_tx.inputs.iter().enumerate() {
         let input_box = tx_ctx
             .get_input_box(&input.box_id)
-            .ok_or(TxSigningError::InputBoxNotFound(i))?;
-        let height = state_context.pre_header.height;
-        let self_box = tx_ctx
-            .get_input_box(&tx_ctx.spending_tx.inputs.as_vec()[i].box_id)
-            .ok_or_else(|| {
-                TxSigningError::ContextError("self_index is out of bounds".to_string())
-            })?;
-        let outputs = tx_ctx
-            .spending_tx
-            .output_candidates
-            .iter()
-            .enumerate()
-            .map(|(idx, b)| ErgoBox::from_box_candidate(b, tx_ctx.spending_tx.id(), idx as u16))
-            .collect::<Result<Vec<ErgoBox>, SigmaSerializationError>>()?;
-        let outputs_ir = outputs.into_iter().map(Arc::new).collect();
-        let data_inputs_ir = if let Some(data_inputs) = tx_ctx.spending_tx.data_inputs.as_ref() {
-            Some(data_inputs.clone().enumerated().try_mapped(|(idx, di)| {
-                tx_ctx
-                    .data_boxes
-                    .as_ref()
-                    .ok_or(TxSigningError::DataInputBoxNotFound(idx))?
-                    .iter()
-                    .find(|b| di.box_id == b.box_id())
-                    .map(|b| Arc::new(b.clone()))
-                    .ok_or(TxSigningError::DataInputBoxNotFound(idx))
-            })?)
-        } else {
-            None
-        };
-        let inputs_ir = tx_ctx
-            .spending_tx
-            .inputs_ids()
-            .enumerated()
-            .try_mapped(|(idx, u)| {
-                tx_ctx
-                    .get_input_box(&u)
-                    .map(Arc::new)
-                    .ok_or(TxSigningError::InputBoxNotFound(idx))
-            })?;
-        let extension = tx_ctx
-            .spending_tx
-            .inputs
-            .get(i)
-            .ok_or_else(|| {
-                TxSigningError::ContextError(
-                    "self_index not found in spending transaction inputs".to_string(),
-                )
-            })?
-            .spending_proof
-            .extension
-            .clone();
-        let ctx = Rc::new(Context {
-            height,
-            self_box: Arc::new(self_box),
-            outputs: outputs_ir,
-            data_inputs: data_inputs_ir,
-            inputs: inputs_ir,
-            pre_header: state_context.pre_header.clone(),
-            headers: state_context.headers.clone(),
-            extension,
-        });
+            .ok_or(TransactionContextError::InputBoxNotFound(i))?;
+        let ctx = Rc::new(make_context(state_context, tx_ctx, i)?);
         let tree = input_box.ergo_tree.clone();
-
-        // `i` is guaranteed to be a valid index since it's coming from an `enumerate()` call above.
-        #[allow(clippy::unwrap_used)]
-        let proof: ProofBytes = tx_ctx
-            .spending_tx
-            .inputs
-            .get(i)
-            .unwrap()
-            .clone()
-            .spending_proof
-            .proof;
-        let proof: Vec<u8> = Vec::from(proof);
         let exp = tree
             .proposition()
             .map_err(ProverError::ErgoTreeError)
@@ -366,7 +292,7 @@ pub fn extract_hints(
             sigma_tree,
             real_secrets_to_extract.as_slice(),
             simulated_secrets_to_extract.as_slice(),
-            proof.as_slice(),
+            input.spending_proof.proof.as_ref(),
         )?;
         hints_bag.add_hints_for_input(i, bag);
     }

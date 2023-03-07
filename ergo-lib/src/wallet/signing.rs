@@ -1,7 +1,7 @@
 //! Transaction signing
 
 use crate::chain::transaction::reduced::ReducedTransaction;
-use crate::chain::transaction::{DataInput, Input};
+use crate::chain::transaction::{DataInput, Input, TransactionError};
 use crate::chain::{
     ergo_state_context::ErgoStateContext,
     transaction::{unsigned::UnsignedTransaction, Transaction},
@@ -18,35 +18,23 @@ use crate::ergotree_ir::chain::ergo_box::BoxId;
 use crate::wallet::multi_sig::TransactionHintsBag;
 use ergotree_interpreter::eval::context::{Context, TxIoVec};
 use ergotree_interpreter::eval::env::Env;
-use ergotree_interpreter::sigma_protocol::prover::Prover;
 use ergotree_interpreter::sigma_protocol::prover::ProverError;
 use ergotree_interpreter::sigma_protocol::prover::ProverResult;
+use ergotree_interpreter::sigma_protocol::prover::{ContextExtension, Prover};
 use thiserror::Error;
+
+pub use super::tx_context::TransactionContext;
+use super::tx_context::TransactionContextError;
 
 /// Errors on transaction signing
 #[derive(Error, Debug)]
 pub enum TxSigningError {
+    /// Transaction context error
+    #[error("TransactionContextError: {0}")]
+    TransactionContextError(#[from] TransactionContextError),
     /// Error on proving an input
     #[error("Prover error (tx input index {1}): {0}")]
     ProverError(ProverError, usize),
-    /// Failed to find an input in `boxes_to_spend`
-    #[error("Input box not found (index {0})")]
-    InputBoxNotFound(usize),
-    /// Too many input boxes
-    #[error("A maximum of 255 input boxes is allowed (have {0})")]
-    TooManyInputBoxes(usize),
-    /// `boxes_to_spend` is empty
-    #[error("No Input boxes found")]
-    NoInputBoxes,
-    /// Too many data input boxes
-    #[error("A maximum of 255 data input boxes is allowed (have {0})")]
-    TooManyDataInputBoxes(usize),
-    /// Failed to find a data input in `data_boxes`
-    #[error("Data input box not found (index {0})")]
-    DataInputBoxNotFound(usize),
-    /// Context creation error
-    #[error("Context error: {0}")]
-    ContextError(String),
     /// Tx serialization failed (id calculation)
     #[error("Transaction serialization failed: {0}")]
     SerializationError(#[from] SigmaSerializationError),
@@ -55,14 +43,16 @@ pub enum TxSigningError {
     SigParsingError(#[from] SigParsingError),
 }
 
-pub use super::tx_context::TransactionContext;
-
 /// Exposes common properties for signed and unsigned transactions
 pub trait ErgoTransaction {
     /// input boxes ids
     fn inputs_ids(&self) -> TxIoVec<BoxId>;
     /// data input boxes
     fn data_inputs(&self) -> Option<TxIoVec<DataInput>>;
+    /// output boxes
+    fn outputs(&self) -> TxIoVec<ErgoBox>;
+    /// ContextExtension for the given input index
+    fn context_extension(&self, input_index: usize) -> Option<ContextExtension>;
 }
 
 impl ErgoTransaction for UnsignedTransaction {
@@ -72,6 +62,21 @@ impl ErgoTransaction for UnsignedTransaction {
 
     fn data_inputs(&self) -> Option<TxIoVec<DataInput>> {
         self.data_inputs.clone()
+    }
+
+    fn outputs(&self) -> TxIoVec<ErgoBox> {
+        #[allow(clippy::unwrap_used)] // box serialization cannot fail?
+        self.output_candidates
+            .clone()
+            .enumerated()
+            .try_mapped(|(idx, b)| ErgoBox::from_box_candidate(&b, self.id(), idx as u16))
+            .unwrap()
+    }
+
+    fn context_extension(&self, input_index: usize) -> Option<ContextExtension> {
+        self.inputs
+            .get(input_index)
+            .map(|input| input.extension.clone())
     }
 }
 
@@ -83,38 +88,48 @@ impl ErgoTransaction for Transaction {
     fn data_inputs(&self) -> Option<TxIoVec<DataInput>> {
         self.data_inputs.clone()
     }
+
+    fn outputs(&self) -> TxIoVec<ErgoBox> {
+        self.outputs.clone()
+    }
+
+    fn context_extension(&self, input_index: usize) -> Option<ContextExtension> {
+        self.inputs
+            .get(input_index)
+            .map(|input| input.spending_proof.extension.clone())
+    }
 }
 
 /// `self_index` - index of the SELF box in the tx_ctx.spending_tx.inputs
-pub fn make_context(
+pub fn make_context<T: ErgoTransaction>(
     state_ctx: &ErgoStateContext,
-    tx_ctx: &TransactionContext<UnsignedTransaction>,
+    tx_ctx: &TransactionContext<T>,
     self_index: usize,
-) -> Result<Context, TxSigningError> {
+) -> Result<Context, TransactionContextError> {
     let height = state_ctx.pre_header.height;
 
     // Find self_box by matching BoxIDs
     let self_box = tx_ctx
-        .get_input_box(&tx_ctx.spending_tx.inputs.as_vec()[self_index].box_id)
-        .ok_or_else(|| TxSigningError::ContextError("self_index is out of bounds".to_string()))?;
+        .get_input_box(
+            tx_ctx
+                .spending_tx
+                .inputs_ids()
+                .get(self_index)
+                .ok_or(TransactionError::InputNofFound(self_index))?,
+        )
+        .ok_or(TransactionContextError::InputBoxNotFound(self_index))?;
 
-    let outputs = tx_ctx
-        .spending_tx
-        .output_candidates
-        .iter()
-        .enumerate()
-        .map(|(idx, b)| ErgoBox::from_box_candidate(b, tx_ctx.spending_tx.id(), idx as u16))
-        .collect::<Result<Vec<ErgoBox>, SigmaSerializationError>>()?;
-    let data_inputs_ir = if let Some(data_inputs) = tx_ctx.spending_tx.data_inputs.as_ref() {
+    let outputs = tx_ctx.spending_tx.outputs();
+    let data_inputs_ir = if let Some(data_inputs) = tx_ctx.spending_tx.data_inputs().as_ref() {
         Some(data_inputs.clone().enumerated().try_mapped(|(idx, di)| {
             tx_ctx
                 .data_boxes
                 .as_ref()
-                .ok_or(TxSigningError::DataInputBoxNotFound(idx))?
+                .ok_or(TransactionContextError::DataInputBoxNotFound(idx))?
                 .iter()
                 .find(|b| di.box_id == b.box_id())
                 .map(|b| Arc::new(b.clone()))
-                .ok_or(TxSigningError::DataInputBoxNotFound(idx))
+                .ok_or(TransactionContextError::DataInputBoxNotFound(idx))
         })?)
     } else {
         None
@@ -129,19 +144,12 @@ pub fn make_context(
             tx_ctx
                 .get_input_box(&u)
                 .map(Arc::new)
-                .ok_or(TxSigningError::InputBoxNotFound(idx))
+                .ok_or(TransactionContextError::InputBoxNotFound(idx))
         })?;
     let extension = tx_ctx
         .spending_tx
-        .inputs
-        .get(self_index)
-        .ok_or_else(|| {
-            TxSigningError::ContextError(
-                "self_index not found in spending transaction inputs".to_string(),
-            )
-        })?
-        .extension
-        .clone();
+        .context_extension(self_index)
+        .ok_or(TransactionError::InputNofFound(self_index))?;
     Ok(Context {
         height,
         self_box: self_box_ir,
@@ -243,10 +251,10 @@ pub fn sign_tx_input(
         .spending_tx
         .inputs
         .get(input_idx)
-        .ok_or(TxSigningError::InputBoxNotFound(input_idx))?;
+        .ok_or(TransactionContextError::InputBoxNotFound(input_idx))?;
     let input_box = tx_context
         .get_input_box(&unsigned_input.box_id)
-        .ok_or(TxSigningError::InputBoxNotFound(input_idx))?;
+        .ok_or(TransactionContextError::InputBoxNotFound(input_idx))?;
     let ctx = Rc::new(make_context(state_context, tx_context, input_idx)?);
     let mut hints_bag = HintsBag::empty();
     if let Some(bag) = tx_hints {

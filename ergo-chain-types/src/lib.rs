@@ -15,6 +15,7 @@
 #![deny(clippy::expect_used)]
 #![deny(clippy::todo)]
 #![deny(clippy::unimplemented)]
+#![deny(clippy::unreachable)]
 #![deny(clippy::panic)]
 
 mod base16_bytes;
