@@ -17,7 +17,7 @@ serde_json = { workspace = true, optional = true }
 # currently thiserror is only needed for json conversion, so it's feature-gated behind json. 
 # This may change in the future
 thiserror = { workspace = true, optional = true } 
-itertools = "0.10.3"
+itertools = { workspace = true }
 proptest-derive = {workspace = true, optional = true }
 sigma-ser = { workspace = true }
 ergo-chain-types = { workspace = true }

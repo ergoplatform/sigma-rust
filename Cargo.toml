@@ -66,6 +66,7 @@ tokio-util = { version = "0.6.9", features = ["codec"] }
 bounded-integer = { version = "^0.5", features = ["types"] }
 url = "2.2"
 getrandom = { version = "0.2.7" }
+itertools = "0.10.3"
 
 # dev-dependencies
 proptest = { version = "=1.0", default-features = false, features = ["std"] }

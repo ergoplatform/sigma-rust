@@ -139,7 +139,7 @@ impl Wallet {
             .collect();
         for (index, input) in reduced_tx.reduced_inputs().iter().enumerate() {
             let sigma_prop = input.clone().reduction_result.sigma_prop;
-            let hints = generate_commitments_for(sigma_prop, &public_keys);
+            let hints = generate_commitments_for(&sigma_prop, &public_keys);
             tx_hints.add_hints_for_input(index, hints);
         }
         Ok(tx_hints)
