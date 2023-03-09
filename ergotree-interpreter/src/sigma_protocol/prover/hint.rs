@@ -241,6 +241,11 @@ impl HintsBag {
         self.hints.push(hint);
     }
 
+    /// Adding new hints from the given bag
+    pub fn add_bag(&mut self, bag: HintsBag) {
+        self.hints.extend(bag.hints);
+    }
+
     /// Commitments from all CommitmentHints in the bag
     pub fn commitments(&self) -> Vec<CommitmentHint> {
         self.hints
