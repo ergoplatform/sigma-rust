@@ -208,6 +208,12 @@ impl From<OwnCommitment> for Hint {
     }
 }
 
+impl From<RealSecretProof> for Hint {
+    fn from(p: RealSecretProof) -> Self {
+        Hint::SecretProven(p.into())
+    }
+}
+
 /// Collection of hints to be used by a prover
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 #[derive(PartialEq, Debug, Clone)]
@@ -239,11 +245,6 @@ impl HintsBag {
     /// Adding new hint to hints
     pub fn add_hint(&mut self, hint: Hint) {
         self.hints.push(hint);
-    }
-
-    /// Adding new hints from the given bag
-    pub fn add_bag(&mut self, bag: HintsBag) {
-        self.hints.extend(bag.hints);
     }
 
     /// Commitments from all CommitmentHints in the bag
