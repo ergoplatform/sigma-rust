@@ -8,9 +8,12 @@ pub mod unsigned;
 use bounded_vec::BoundedVec;
 use ergo_chain_types::blake2b256_hash;
 pub use ergotree_interpreter::eval::context::TxIoVec;
+use ergotree_interpreter::eval::env::Env;
 use ergotree_interpreter::eval::extract_sigma_boolean;
 use ergotree_interpreter::eval::EvalError;
 use ergotree_interpreter::sigma_protocol::verifier::verify_signature;
+use ergotree_interpreter::sigma_protocol::verifier::TestVerifier;
+use ergotree_interpreter::sigma_protocol::verifier::Verifier;
 use ergotree_interpreter::sigma_protocol::verifier::VerifierError;
 use ergotree_ir::chain::ergo_box::BoxId;
 use ergotree_ir::chain::ergo_box::ErgoBox;
@@ -30,6 +33,10 @@ use ergotree_ir::serialization::SigmaSerializationError;
 use ergotree_ir::serialization::SigmaSerializeResult;
 pub use input::*;
 
+use crate::wallet::signing::make_context;
+use crate::wallet::signing::TransactionContext;
+use crate::wallet::tx_context::TransactionContextError;
+
 use self::unsigned::UnsignedTransaction;
 
 use indexmap::IndexSet;
@@ -37,6 +44,9 @@ use indexmap::IndexSet;
 use std::convert::TryFrom;
 use std::convert::TryInto;
 use std::iter::FromIterator;
+use std::rc::Rc;
+
+use super::ergo_state_context::ErgoStateContext;
 
 /**
  * ErgoTransaction is an atomic state transition operation. It destroys Boxes from the state
@@ -73,7 +83,7 @@ pub struct Transaction {
 
     /// Boxes to be created by this transaction. Differ from [`Self::output_candidates`] in that
     /// they include transaction id and index
-    pub outputs: Vec<ErgoBox>,
+    pub outputs: TxIoVec<ErgoBox>,
 }
 
 impl Transaction {
@@ -104,19 +114,24 @@ impl Transaction {
         data_inputs: Option<TxIoVec<DataInput>>,
         output_candidates: TxIoVec<ErgoBoxCandidate>,
     ) -> Result<Transaction, SigmaSerializationError> {
+        let outputs_with_zero_tx_id =
+            output_candidates
+                .clone()
+                .enumerated()
+                .try_mapped_ref(|(idx, bc)| {
+                    ErgoBox::from_box_candidate(bc, TxId::zero(), *idx as u16)
+                })?;
         let tx_to_sign = Transaction {
             tx_id: TxId::zero(),
             inputs,
             data_inputs,
             output_candidates: output_candidates.clone(),
-            outputs: vec![],
+            outputs: outputs_with_zero_tx_id,
         };
         let tx_id = tx_to_sign.calc_tx_id()?;
         let outputs = output_candidates
-            .iter()
-            .enumerate()
-            .map(|(idx, bc)| ErgoBox::from_box_candidate(bc, tx_id, idx as u16))
-            .collect::<Result<Vec<ErgoBox>, SigmaSerializationError>>()?;
+            .enumerated()
+            .try_mapped_ref(|(idx, bc)| ErgoBox::from_box_candidate(bc, tx_id, *idx as u16))?;
         Ok(Transaction {
             tx_id,
             outputs,
@@ -191,7 +206,7 @@ impl Transaction {
         Ok(verify_signature(
             sb,
             message.as_slice(),
-            input.spending_proof.proof.clone().to_bytes().as_slice(),
+            input.spending_proof.proof.as_ref(),
         )?)
     }
 }
@@ -316,6 +331,50 @@ pub enum TransactionError {
     InvalidOutputCandidatesCount(bounded_vec::BoundedVecOutOfBounds),
     #[error("Invalid Tx data inputs: {0:?}")]
     InvalidDataInputsCount(bounded_vec::BoundedVecOutOfBounds),
+    #[error("input with index {0} not found")]
+    InputNofFound(usize),
+}
+
+/// Errors on transaction verification
+#[derive(Error, Debug)]
+pub enum TxVerifyError {
+    /// TransactionContextError
+    #[error("TransactionContextError: {0}")]
+    TransactionContextError(#[from] TransactionContextError),
+    /// SerializationError
+    #[error("Transaction serialization failed: {0}")]
+    SerializationError(#[from] SigmaSerializationError),
+    /// VerifierError
+    #[error("VerifierError: {0}")]
+    VerifierError(#[from] VerifierError),
+}
+
+/// Verify transaction input's proof
+pub fn verify_tx_input_proof(
+    tx_context: &TransactionContext<Transaction>,
+    state_context: &ErgoStateContext,
+    input_idx: usize,
+) -> Result<bool, TxVerifyError> {
+    let input = tx_context
+        .spending_tx
+        .inputs
+        .get(input_idx)
+        .ok_or(TransactionContextError::InputBoxNotFound(input_idx))?;
+    let input_box = tx_context
+        .get_input_box(&input.box_id)
+        .ok_or(TransactionContextError::InputBoxNotFound(input_idx))?;
+    let ctx = Rc::new(make_context(state_context, tx_context, input_idx)?);
+    let verifier = TestVerifier;
+    let message_to_sign = tx_context.spending_tx.bytes_to_sign()?;
+    Ok(verifier
+        .verify(
+            &input_box.ergo_tree,
+            &Env::empty(),
+            ctx,
+            input.spending_proof.proof.clone(),
+            message_to_sign.as_slice(),
+        )?
+        .result)
 }
 
 /// Arbitrary impl

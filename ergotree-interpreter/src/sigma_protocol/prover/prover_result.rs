@@ -65,6 +65,15 @@ impl TryFrom<String> for ProofBytes {
     }
 }
 
+impl AsRef<[u8]> for ProofBytes {
+    fn as_ref(&self) -> &[u8] {
+        match self {
+            ProofBytes::Empty => &[],
+            ProofBytes::Some(bytes) => bytes.as_ref(),
+        }
+    }
+}
+
 impl SigmaSerializable for ProofBytes {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         match self {

@@ -60,7 +60,7 @@ fn map_eval_err<T: std::fmt::Debug>(e: T) -> EvalError {
     EvalError::AvlTree(format!("{:?}", e))
 }
 
-#[allow(clippy::unwrap_used, clippy::panic)]
+#[allow(clippy::unwrap_used, clippy::panic, clippy::unreachable)]
 #[cfg(test)]
 mod tests {
 

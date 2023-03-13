@@ -87,6 +87,7 @@ fn to_misc_err<T: std::fmt::Debug>(e: T) -> EvalError {
 #[allow(clippy::unwrap_used)]
 #[allow(clippy::panic)]
 #[allow(clippy::expect_used)]
+#[allow(clippy::unreachable)]
 mod tests {
     use ergotree_ir::{
         ergo_tree::{ErgoTree, ErgoTreeHeader},

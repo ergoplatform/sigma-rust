@@ -21,6 +21,7 @@ use crate::chain::transaction::UnsignedInput;
 use crate::wallet::signing::make_context;
 use crate::wallet::signing::TransactionContext;
 use crate::wallet::signing::TxSigningError;
+use crate::wallet::tx_context::TransactionContextError;
 
 use super::unsigned::UnsignedTransaction;
 use super::TxIoVec;
@@ -75,7 +76,7 @@ pub fn reduce_tx(
         .try_mapped::<_, _, TxSigningError>(|(idx, input)| {
             let input_box = tx_context
                 .get_input_box(&input.box_id)
-                .ok_or(TxSigningError::InputBoxNotFound(idx))?;
+                .ok_or(TransactionContextError::InputBoxNotFound(idx))?;
             let ctx = Rc::new(make_context(state_context, &tx_context, idx)?);
             let expr = input_box
                 .ergo_tree

@@ -7,6 +7,7 @@ use std::num::ParseIntError;
 use base16::DecodeError;
 use bounded_vec::BoundedVecOutOfBounds;
 use ergo_lib::chain::transaction::TransactionSignatureVerificationError;
+use ergo_lib::chain::transaction::TxVerifyError;
 use ergo_lib::ergo_chain_types::DigestNError;
 use ergo_lib::ergo_nipopow::NipopowProofError;
 #[cfg(feature = "rest")]
@@ -21,6 +22,7 @@ use ergo_lib::wallet::derivation_path::DerivationPathError;
 use ergo_lib::wallet::ext_pub_key::ExtPubKeyError;
 use ergo_lib::wallet::ext_secret_key::ExtSecretKeyError;
 use ergo_lib::wallet::signing::TxSigningError;
+use ergo_lib::wallet::tx_context::TransactionContextError;
 use ergo_lib::{
     chain::ergo_box::box_builder::ErgoBoxCandidateBuilderError,
     ergotree_ir::{
@@ -92,6 +94,8 @@ from_error_to_wrap!(PeerDiscoveryError);
 #[cfg(feature = "rest")]
 from_error_to_wrap!(ParseError);
 from_error_to_wrap!(ConvError);
+from_error_to_wrap!(TransactionContextError);
+from_error_to_wrap!(TxVerifyError);
 
 macro_rules! from_error_to_wrap_via_debug {
     ($t:ident) => {
