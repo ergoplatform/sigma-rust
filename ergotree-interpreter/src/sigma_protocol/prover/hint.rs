@@ -15,7 +15,7 @@ use crate::sigma_protocol::FirstProverMessage;
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
 #[cfg_attr(feature = "json", serde(untagged))]
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, From)]
 pub enum Hint {
     /// A hint which is indicating that a secret associated with its public image "image" is already proven.
     SecretProven(SecretProven),
@@ -162,7 +162,7 @@ pub struct SimulatedCommitment {
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "json", serde(tag = "hint"))]
 #[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone, From)]
 pub enum CommitmentHint {
     /// A hint which a commitment to randomness associated with a public image of a secret, as well as randomness itself.
     /// Please note that this randomness should be kept in secret by the prover.
@@ -196,6 +196,24 @@ impl CommitmentHint {
     }
 }
 
+impl From<RealCommitment> for Hint {
+    fn from(c: RealCommitment) -> Self {
+        Hint::CommitmentHint(CommitmentHint::RealCommitment(c))
+    }
+}
+
+impl From<OwnCommitment> for Hint {
+    fn from(c: OwnCommitment) -> Self {
+        Hint::CommitmentHint(CommitmentHint::OwnCommitment(c))
+    }
+}
+
+impl From<RealSecretProof> for Hint {
+    fn from(p: RealSecretProof) -> Self {
+        Hint::SecretProven(p.into())
+    }
+}
+
 /// Collection of hints to be used by a prover
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 #[derive(PartialEq, Debug, Clone)]
@@ -213,6 +231,15 @@ impl HintsBag {
     /// Bag without hints
     pub fn empty() -> Self {
         HintsBag { hints: vec![] }
+    }
+
+    /// Create a bag from a vector of bags
+    pub fn from_bags(hints_bags: Vec<HintsBag>) -> Self {
+        let mut hints = vec![];
+        for hints_bag in hints_bags {
+            hints.extend(hints_bag.hints);
+        }
+        HintsBag { hints }
     }
 
     /// Adding new hint to hints
