@@ -342,18 +342,19 @@ impl<T: Into<Literal> + LiftIntoSType> From<T> for Expr {
 pub struct InvalidArgumentError(pub String);
 
 /// Invalid (unexpected) expr type
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone, Error)]
+#[error("InvalidExprEvalTypeError: {0}")]
 pub struct InvalidExprEvalTypeError(pub String);
 
 impl From<InvalidExprEvalTypeError> for InvalidArgumentError {
     fn from(e: InvalidExprEvalTypeError) -> Self {
-        InvalidArgumentError(format!("{0:?}", e))
+        InvalidArgumentError(format!("InvalidExprEvalTypeError: {0}", e))
     }
 }
 
 impl From<BoundedVecOutOfBounds> for InvalidArgumentError {
     fn from(e: BoundedVecOutOfBounds) -> Self {
-        InvalidArgumentError(format!("{0:?}", e))
+        InvalidArgumentError(format!("BoundedVecOutOfBounds: {0}", e))
     }
 }
 

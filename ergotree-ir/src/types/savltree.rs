@@ -38,9 +38,9 @@ pub const GET_MANY_METHOD_ID: MethodId = MethodId(11);
 /// AvlTree.insert property
 pub const INSERT_METHOD_ID: MethodId = MethodId(12);
 /// AvlTree.remove property
-pub const REMOVE_METHOD_ID: MethodId = MethodId(13);
+pub const REMOVE_METHOD_ID: MethodId = MethodId(14);
 /// AvlTree.update property
-pub const UPDATE_METHOD_ID: MethodId = MethodId(14);
+pub const UPDATE_METHOD_ID: MethodId = MethodId(13);
 /// AvlTree.updateDigest property
 pub const UPDATE_DIGEST_METHOD_ID: MethodId = MethodId(15);
 

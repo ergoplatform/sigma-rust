@@ -45,9 +45,8 @@ impl MethodCall {
             .all(|(expected, actual)| expected == actual)
         {
             return Err(InvalidArgumentError(format!(
-                "MethodCall: expected types {:?} do not match provided obj and args types {:?}",
+                "MethodCall: expected types {expected_types:?} do not match provided obj and args types {:?}",
                 method.tpe().t_dom,
-                expected_types
             )));
         }
         Ok(Self {
