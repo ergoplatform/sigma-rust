@@ -184,13 +184,13 @@ pub enum BoxValueError {
 
 impl From<BoxValueError> for SigmaParsingError {
     fn from(e: BoxValueError) -> Self {
-        SigmaParsingError::ValueOutOfBounds(format!("{}", e))
+        SigmaParsingError::ValueOutOfBounds(format!("BoxValue error: {}", e))
     }
 }
 
 impl From<TokenAmountError> for SigmaParsingError {
     fn from(e: TokenAmountError) -> Self {
-        SigmaParsingError::ValueOutOfBounds(format!("{}", e))
+        SigmaParsingError::ValueOutOfBounds(format!("TokenAmount error: {}", e))
     }
 }
 

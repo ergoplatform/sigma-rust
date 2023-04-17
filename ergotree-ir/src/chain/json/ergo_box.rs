@@ -202,7 +202,10 @@ impl From<ConstantHolder> for RegisterValue {
     fn from(ch: ConstantHolder) -> Self {
         match Constant::sigma_parse_bytes(ch.0.raw_value.0.as_slice()) {
             Ok(c) => RegisterValue::Parsed(c),
-            Err(_) => RegisterValue::Unparseable(ch.0.raw_value.0),
+            Err(e) => RegisterValue::Unparseable {
+                bytes: ch.0.raw_value.0,
+                error_msg: format!("{e}"),
+            },
         }
     }
 }
