@@ -75,7 +75,9 @@ impl DataSerializer {
             // unsupported, see
             // https://github.com/ScorexFoundation/sigmastate-interpreter/issues/659
             Literal::Opt(_) => {
-                return Err(SigmaSerializationError::NotSupported("Option"));
+                return Err(SigmaSerializationError::NotSupported(
+                    "Option serialization is not supported".to_string(),
+                ));
             }
         })
     }

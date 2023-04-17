@@ -32,7 +32,7 @@ pub enum SigmaSerializationError {
     UnexpectedValue(#[from] TryExtractFromError),
     /// Serialization not supported
     #[error("serialization not supported: {0}")]
-    NotSupported(&'static str),
+    NotSupported(String),
     /// Scorex serialization error
     #[error("Scorex serialization error: {0}")]
     ScorexSerializationError(#[from] ScorexSerializationError),

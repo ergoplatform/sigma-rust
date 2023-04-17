@@ -342,7 +342,9 @@ impl SigmaSerializable for SType {
         // for reference see http://github.com/ScorexFoundation/sigmastate-interpreter/blob/25251c1313b0131835f92099f02cef8a5d932b5e/sigmastate/src/main/scala/sigmastate/serialization/TypeSerializer.scala#L25-L25
         use SType::*;
         match self {
-            SType::SFunc(_) => Err(SigmaSerializationError::NotSupported("SFunc")),
+            SType::SFunc(_) => Err(SigmaSerializationError::NotSupported(
+                "SFunc serialization is no supported".to_string(),
+            )),
             SType::SAny => TypeCode::SANY.sigma_serialize(w),
             SType::SUnit => TypeCode::SUNIT.sigma_serialize(w),
             SType::SBoolean => TypeCode::SBOOLEAN.sigma_serialize(w),

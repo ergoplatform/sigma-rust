@@ -273,13 +273,12 @@ impl SigmaSerializable for NonMandatoryRegisters {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         let regs_num = self.len();
         w.put_u8(regs_num as u8)?;
-        for reg_value in self.0.iter() {
+        for (idx, reg_value) in self.0.iter().enumerate() {
             match reg_value {
                 RegisterValue::Parsed(c) => c.sigma_serialize(w)?,
-                RegisterValue::Unparseable(_) => {
-                    return Err(SigmaSerializationError::NotSupported(
-                        "unparseable register value cannot be serialized, because it cannot be parsed later"
-                    ))
+                RegisterValue::Unparseable(bytes) => {
+                    let bytes_str = base16::encode_lower(bytes);
+                    return Err(SigmaSerializationError::NotSupported(format!("unparseable register value at {0:?} cannot be serialized in the stream (writer), because it cannot be parsed later. Register value as base16-encoded bytes: {bytes_str}", NonMandatoryRegisterId::get_by_zero_index(idx))));
                 }
             };
         }

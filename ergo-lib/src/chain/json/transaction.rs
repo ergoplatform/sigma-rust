@@ -57,7 +57,7 @@ impl TryFrom<UnsignedTransactionJson> for UnsignedTransaction {
     type Error = String;
     fn try_from(tx_json: UnsignedTransactionJson) -> Result<Self, Self::Error> {
         UnsignedTransaction::new_from_vec(tx_json.inputs, tx_json.data_inputs, tx_json.outputs)
-            .map_err(|e| format!("TryFrom<UnsignedTransactionJson> error: {0}", e))
+            .map_err(|e| format!("TryFrom<UnsignedTransactionJson> error: {0:?}", e))
     }
 }
 
@@ -110,6 +110,7 @@ impl TryFrom<TransactionJson> for Transaction {
 mod tests {
     use crate::chain::transaction::unsigned::UnsignedTransaction;
     use crate::chain::transaction::Transaction;
+    use ergotree_ir::chain::ergo_box::NonMandatoryRegisterId;
     use proptest::prelude::*;
 
     proptest! {
@@ -137,6 +138,7 @@ mod tests {
     #[test]
     fn unsigned_tx_with_coll_box_698() {
         // see https://github.com/ergoplatform/sigma-rust/issues/698
+        // R5 register value cannot be parsed and prevents tx id calculation
         let json = r#"
 {
   "dataInputs": [],
@@ -229,6 +231,12 @@ mod tests {
 } 
         "#;
         let tx: UnsignedTransaction = serde_json::from_str(json).unwrap();
-        assert_eq!(tx.inputs.len(), 3);
+        assert!(tx
+            .output_candidates
+            .get(0)
+            .unwrap()
+            .additional_registers
+            .get_constant(NonMandatoryRegisterId::R5)
+            .is_some());
     }
 }
