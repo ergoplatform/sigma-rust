@@ -1,14 +1,14 @@
 //! Unsigned (without proofs) transaction
 
-use super::input::{Input, UnsignedInput};
-use super::prover_result::ProverResult;
+use super::input::UnsignedInput;
+
 use super::DataInput;
 use super::Transaction;
 use super::TxIoVec;
 use super::{distinct_token_ids, TransactionError};
 use bounded_vec::BoundedVec;
 use ergo_chain_types::blake2b256_hash;
-use ergotree_interpreter::sigma_protocol::prover::ProofBytes;
+
 use ergotree_ir::chain::ergo_box::ErgoBoxCandidate;
 use ergotree_ir::chain::token::TokenId;
 use ergotree_ir::chain::tx_id::TxId;
@@ -82,16 +82,7 @@ impl UnsignedTransaction {
     }
 
     fn to_tx_without_proofs(&self) -> Result<Transaction, SigmaSerializationError> {
-        let empty_proofs_input = self.inputs.mapped_ref(|ui| {
-            Input::new(
-                ui.box_id,
-                ProverResult {
-                    proof: ProofBytes::Empty,
-                    extension: ui.extension.clone(),
-                },
-            )
-        });
-
+        let empty_proofs_input = self.inputs.mapped_ref(|ui| ui.input_to_sign());
         Transaction::new(
             empty_proofs_input,
             self.data_inputs.clone(),
