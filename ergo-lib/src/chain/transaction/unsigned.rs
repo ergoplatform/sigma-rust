@@ -81,7 +81,7 @@ impl UnsignedTransaction {
         Ok(TxId(blake2b256_hash(&bytes)))
     }
 
-    fn to_tx_without_proofs(&self) -> Transaction {
+    fn to_tx_without_proofs(&self) -> Result<Transaction, SigmaSerializationError> {
         let empty_proofs_input = self.inputs.mapped_ref(|ui| {
             Input::new(
                 ui.box_id,
@@ -92,15 +92,11 @@ impl UnsignedTransaction {
             )
         });
 
-        #[allow(clippy::unwrap_used)]
-        // safe since the serialization error is impossible here
-        // since we already serialized this unsigned tx (on calc tx id)
         Transaction::new(
             empty_proofs_input,
             self.data_inputs.clone(),
             self.output_candidates.clone(),
         )
-        .unwrap()
     }
 
     /// Get transaction id
@@ -110,7 +106,7 @@ impl UnsignedTransaction {
 
     /// message to be signed by the [`ergotree_interpreter::sigma_protocol::prover::Prover`] (serialized tx)
     pub fn bytes_to_sign(&self) -> Result<Vec<u8>, SigmaSerializationError> {
-        let tx = self.to_tx_without_proofs();
+        let tx = self.to_tx_without_proofs()?;
         tx.bytes_to_sign()
     }
 
