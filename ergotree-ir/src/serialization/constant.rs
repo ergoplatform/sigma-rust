@@ -78,4 +78,15 @@ mod tests {
         assert!(c_res.is_err());
         assert!(matches!(c_res, Err(SigmaParsingError::ValueOutOfBounds(_))));
     }
+
+    #[test]
+    fn test_invalid_type134_i700() {
+        // see https://github.com/ergoplatform/sigma-rust/issues/700
+        let constant_bytes_str = "860202660263";
+        let constant_bytes = base16::decode(constant_bytes_str).unwrap();
+        let c_res = Constant::sigma_parse_bytes(&constant_bytes);
+        dbg!(&c_res);
+        assert!(c_res.is_ok());
+        assert_eq!(c_res.unwrap().tpe, SType::SColl(Box::new(SType::SBox)));
+    }
 }
