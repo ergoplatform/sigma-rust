@@ -62,7 +62,8 @@ impl TryFrom<ErgoBoxJson> for ErgoBox {
         } else {
             Some(box_json.tokens.try_into().map_err(|_| {
                 SigmaSerializationError::NotSupported(
-                    "More than ErgoBox::MAX_TOKENS_COUNT tokens are not allowed in a box",
+                    "More than ErgoBox::MAX_TOKENS_COUNT tokens are not allowed in a box"
+                        .to_string(),
                 )
             })?)
         };
@@ -166,7 +167,8 @@ impl TryFrom<ErgoBoxCandidateJson> for ErgoBoxCandidate {
         } else {
             Some(box_json.tokens.try_into().map_err(|_| {
                 SigmaSerializationError::NotSupported(
-                    "More than ErgoBox::MAX_TOKENS_COUNT tokens are not allowed in a box",
+                    "More than ErgoBox::MAX_TOKENS_COUNT tokens are not allowed in a box"
+                        .to_string(),
                 )
             })?)
         };
@@ -200,7 +202,10 @@ impl From<ConstantHolder> for RegisterValue {
     fn from(ch: ConstantHolder) -> Self {
         match Constant::sigma_parse_bytes(ch.0.raw_value.0.as_slice()) {
             Ok(c) => RegisterValue::Parsed(c),
-            Err(_) => RegisterValue::Unparseable(ch.0.raw_value.0),
+            Err(e) => RegisterValue::Unparseable {
+                bytes: ch.0.raw_value.0,
+                error_msg: format!("{e}"),
+            },
         }
     }
 }

@@ -59,6 +59,17 @@ impl UnsignedInput {
     pub fn new(box_id: BoxId, extension: ContextExtension) -> Self {
         UnsignedInput { box_id, extension }
     }
+
+    /// Create new Input with empty proof (for UnsignedTransaction id calculation)
+    pub fn input_to_sign(&self) -> Input {
+        Input {
+            box_id: self.box_id,
+            spending_proof: ProverResult {
+                proof: ProofBytes::Empty,
+                extension: self.extension.clone(),
+            },
+        }
+    }
 }
 
 impl<T: ErgoBoxId> From<T> for UnsignedInput {

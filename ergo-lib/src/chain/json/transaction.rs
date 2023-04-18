@@ -57,7 +57,7 @@ impl TryFrom<UnsignedTransactionJson> for UnsignedTransaction {
     type Error = String;
     fn try_from(tx_json: UnsignedTransactionJson) -> Result<Self, Self::Error> {
         UnsignedTransaction::new_from_vec(tx_json.inputs, tx_json.data_inputs, tx_json.outputs)
-            .map_err(|e| format!("TryFrom<UnsignedTransactionJson> error: {0}", e))
+            .map_err(|e| format!("TryFrom<UnsignedTransactionJson> error: {0:?}", e))
     }
 }
 
@@ -106,7 +106,7 @@ impl TryFrom<TransactionJson> for Transaction {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic)]
+#[allow(clippy::panic, clippy::unwrap_used)]
 mod tests {
     use crate::chain::transaction::unsigned::UnsignedTransaction;
     use crate::chain::transaction::Transaction;

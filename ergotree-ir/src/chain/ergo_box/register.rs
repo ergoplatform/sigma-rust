@@ -222,7 +222,12 @@ pub enum RegisterValue {
     /// Constant value
     Parsed(Constant),
     /// Unparseable bytes
-    Unparseable(Vec<u8>),
+    Unparseable {
+        /// Bytes that were not parsed (whole register bytes)
+        bytes: Vec<u8>,
+        /// Error message on parsing
+        error_msg: String,
+    },
 }
 
 impl RegisterValue {
@@ -230,7 +235,10 @@ impl RegisterValue {
     pub fn as_option_constant(&self) -> Option<&Constant> {
         match self {
             RegisterValue::Parsed(c) => Some(c),
-            RegisterValue::Unparseable(_) => None,
+            RegisterValue::Unparseable {
+                bytes: _,
+                error_msg: _,
+            } => None,
         }
     }
 
@@ -238,7 +246,10 @@ impl RegisterValue {
     fn sigma_serialize_bytes(&self) -> Vec<u8> {
         match self {
             RegisterValue::Parsed(c) => c.sigma_serialize_bytes().unwrap(),
-            RegisterValue::Unparseable(bytes) => bytes.clone(),
+            RegisterValue::Unparseable {
+                bytes,
+                error_msg: _,
+            } => bytes.clone(),
         }
     }
 }
@@ -273,13 +284,12 @@ impl SigmaSerializable for NonMandatoryRegisters {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         let regs_num = self.len();
         w.put_u8(regs_num as u8)?;
-        for reg_value in self.0.iter() {
+        for (idx, reg_value) in self.0.iter().enumerate() {
             match reg_value {
                 RegisterValue::Parsed(c) => c.sigma_serialize(w)?,
-                RegisterValue::Unparseable(_) => {
-                    return Err(SigmaSerializationError::NotSupported(
-                        "unparseable register value cannot be serialized, because it cannot be parsed later"
-                    ))
+                RegisterValue::Unparseable { bytes, error_msg } => {
+                    let bytes_str = base16::encode_lower(bytes);
+                    return Err(SigmaSerializationError::NotSupported(format!("unparseable register value at {0:?} (parsing error: {error_msg}) cannot be serialized in the stream (writer), because it cannot be parsed later. Register value as base16-encoded bytes: {bytes_str}", NonMandatoryRegisterId::get_by_zero_index(idx))));
                 }
             };
         }
@@ -424,7 +434,12 @@ pub(crate) mod arbitrary {
                 if params.allow_unparseable {
                     prop_oneof![
                         any::<Constant>().prop_map(RegisterValue::Parsed),
-                        vec(any::<u8>(), 0..100).prop_map(RegisterValue::Unparseable)
+                        vec(any::<u8>(), 0..100).prop_map({
+                            |bytes| RegisterValue::Unparseable {
+                                bytes,
+                                error_msg: "unparseable".to_string(),
+                            }
+                        })
                     ]
                     .boxed()
                 } else {
