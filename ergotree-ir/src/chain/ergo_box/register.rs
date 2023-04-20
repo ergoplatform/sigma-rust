@@ -1,6 +1,7 @@
 //! Box registers
 
 use crate::mir::constant::Constant;
+use crate::mir::tuple::Tuple;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::SigmaParsingError;
@@ -221,6 +222,7 @@ impl NonMandatoryRegisters {
 pub enum RegisterValue {
     /// Constant value
     Parsed(Constant),
+    ParsedLegacy(Tuple),
     /// Unparseable bytes
     Unparseable {
         /// Bytes that were not parsed (whole register bytes)
@@ -251,6 +253,10 @@ impl RegisterValue {
                 error_msg: _,
             } => bytes.clone(),
         }
+    }
+
+    pub fn sigma_parse_bytes(bytes: &[u8]) -> Self {
+        todo!("handle 134 Tuple expr op code here as well as Constant")
     }
 }
 
@@ -300,6 +306,7 @@ impl SigmaSerializable for NonMandatoryRegisters {
         let regs_num = r.get_u8()?;
         let mut additional_regs = Vec::with_capacity(regs_num as usize);
         for _ in 0..regs_num {
+            todo!("check if it's a tuple expr 134 op code");
             let v = Constant::sigma_parse(r)?;
             additional_regs.push(v);
         }

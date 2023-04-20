@@ -200,13 +200,7 @@ pub struct ConstantHolder(#[serde(deserialize_with = "super::t_as_string_or_stru
 
 impl From<ConstantHolder> for RegisterValue {
     fn from(ch: ConstantHolder) -> Self {
-        match Constant::sigma_parse_bytes(ch.0.raw_value.0.as_slice()) {
-            Ok(c) => RegisterValue::Parsed(c),
-            Err(e) => RegisterValue::Unparseable {
-                bytes: ch.0.raw_value.0,
-                error_msg: format!("{e}"),
-            },
-        }
+        RegisterValue::sigma_parse_bytes(ch.0.raw_value.0.as_slice())
     }
 }
 
