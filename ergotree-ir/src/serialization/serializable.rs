@@ -101,6 +101,9 @@ pub enum SigmaParsingError {
     /// ErgoTreeHeaderError
     #[error("ErgoTreeHeaderError: {0}")]
     ErgoTreeHeaderError(#[from] ErgoTreeHeaderError),
+    /// Invalid register value
+    #[error("Invalid register value: {0}")]
+    InvalidRegisterValue(String),
 }
 
 impl From<io::Error> for SigmaParsingError {

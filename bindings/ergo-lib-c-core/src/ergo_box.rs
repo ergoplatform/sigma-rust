@@ -140,7 +140,7 @@ pub unsafe fn ergo_box_candidate_register_value(
         .additional_registers
         .get_constant(register_id.into())
     {
-        *constant_out = Box::into_raw(Box::new(Constant(c.clone())));
+        *constant_out = Box::into_raw(Box::new(Constant(c)));
         Ok(true)
     } else {
         Ok(false)
@@ -295,7 +295,7 @@ pub unsafe fn ergo_box_register_value(
         .additional_registers
         .get_constant(register_id.into())
     {
-        *constant_out = Box::into_raw(Box::new(Constant(c.clone())));
+        *constant_out = Box::into_raw(Box::new(Constant(c)));
         Ok(true)
     } else {
         Ok(false)

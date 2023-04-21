@@ -88,7 +88,6 @@ impl ErgoBoxCandidate {
         self.0
             .additional_registers
             .get_constant(register_id.into())
-            .cloned()
             .map(Constant::from)
     }
 
@@ -200,7 +199,6 @@ impl ErgoBox {
         self.0
             .additional_registers
             .get_constant(register_id.into())
-            .cloned()
             .map(Constant::from)
     }
 

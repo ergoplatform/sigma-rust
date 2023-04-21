@@ -348,7 +348,7 @@ mod tests {
         builder.set_register_value(R4, reg_value.clone());
         assert_eq!(builder.register_value(&R4).unwrap(), &reg_value);
         let b = builder.build().unwrap();
-        assert_eq!(b.additional_registers.get_constant(R4).unwrap(), &reg_value);
+        assert_eq!(b.additional_registers.get_constant(R4).unwrap(), reg_value);
     }
 
     #[test]
