@@ -84,11 +84,16 @@ impl ErgoBoxCandidate {
     }
 
     /// Returns value (ErgoTree constant) stored in the register or None if the register is empty or cannot be parsed
-    pub fn register_value(&self, register_id: NonMandatoryRegisterId) -> Option<Constant> {
-        self.0
+    pub fn register_value(
+        &self,
+        register_id: NonMandatoryRegisterId,
+    ) -> Result<Option<Constant>, JsValue> {
+        Ok(self
+            .0
             .additional_registers
             .get_constant(register_id.into())
-            .map(Constant::from)
+            .map_err(to_js)?
+            .map(Constant::from))
     }
 
     /// Get box creation height
@@ -195,11 +200,16 @@ impl ErgoBox {
     }
 
     /// Returns value (ErgoTree constant) stored in the register or None if the register is empty or cannot be parsed
-    pub fn register_value(&self, register_id: NonMandatoryRegisterId) -> Option<Constant> {
-        self.0
+    pub fn register_value(
+        &self,
+        register_id: NonMandatoryRegisterId,
+    ) -> Result<Option<Constant>, JsValue> {
+        Ok(self
+            .0
             .additional_registers
             .get_constant(register_id.into())
-            .map(Constant::from)
+            .map_err(to_js)?
+            .map(Constant::from))
     }
 
     /// JSON representation as text (compatible with Ergo Node/Explorer API, numbers are encoded as numbers)

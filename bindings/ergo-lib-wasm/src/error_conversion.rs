@@ -16,6 +16,7 @@ use ergo_lib::ergotree_interpreter::sigma_protocol::verifier::VerifierError;
 use ergo_lib::ergotree_ir::chain::address::AddressEncoderError;
 use ergo_lib::ergotree_ir::chain::address::AddressError;
 use ergo_lib::ergotree_ir::chain::ergo_box::box_value::BoxValueError;
+use ergo_lib::ergotree_ir::chain::ergo_box::RegisterValueError;
 use ergo_lib::ergotree_ir::chain::token::TokenAmountError;
 use ergo_lib::wallet::derivation_path::ChildIndexError;
 use ergo_lib::wallet::derivation_path::DerivationPathError;
@@ -96,6 +97,7 @@ from_error_to_wrap!(ParseError);
 from_error_to_wrap!(ConvError);
 from_error_to_wrap!(TransactionContextError);
 from_error_to_wrap!(TxVerifyError);
+from_error_to_wrap!(RegisterValueError);
 
 macro_rules! from_error_to_wrap_via_debug {
     ($t:ident) => {

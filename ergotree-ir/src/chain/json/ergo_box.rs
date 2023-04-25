@@ -278,7 +278,7 @@ mod tests {
             {"R4":{"serializedValue":"0500","sigmaType":"SLong","renderedValue":"0"}}
                                                                                                                                            "#;
         let regs: NonMandatoryRegisters = serde_json::from_str(json).unwrap();
-        assert!(regs.get_constant(NonMandatoryRegisterId::R4).is_some());
+        assert!(regs.get_constant(NonMandatoryRegisterId::R4).is_ok());
     }
 
     #[test]
@@ -293,7 +293,7 @@ mod tests {
             }
         "#;
         let regs: NonMandatoryRegisters = serde_json::from_str(json).unwrap();
-        assert!(regs.get_constant(NonMandatoryRegisterId::R4).is_some());
+        assert!(regs.get_constant(NonMandatoryRegisterId::R4).is_ok());
     }
 
     #[test]

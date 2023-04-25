@@ -23,7 +23,7 @@ impl Evaluable for DeserializeRegister {
                     e
                 ))
             })?) {
-            Some(c) => {
+            Ok(Some(c)) => {
                 if c.tpe != SType::SColl(SType::SByte.into()) {
                     Err(EvalError::UnexpectedExpr(format!(
                         "DeserializeRegister: expected value to have type SColl(SByte), got {:?}",
@@ -39,20 +39,38 @@ impl Evaluable for DeserializeRegister {
                     }
                 }
             }
-            None => match &self.default {
-                Some(default_expr) => {
-                    if default_expr.tpe() != self.tpe {
-                        Err(EvalError::UnexpectedExpr(format!("DeserializeRegister: expected default expr to have type {:?}, got {:?}", self.tpe, default_expr.tpe())))
-                    } else {
-                        default_expr.eval(env, ctx)
-                    }
-                }
+            Ok(None) => match &self.default {
+                Some(default_expr) => eval_default(&self.tpe, default_expr, env, ctx),
                 None => Err(EvalError::NotFound(format!(
-                    "DeserializeRegister: register with id {} is empty",
+                    "DeserializeRegister: register {:?} is empty",
+                    self.reg
+                ))),
+            },
+            Err(e) => match &self.default {
+                Some(default_expr) => eval_default(&self.tpe, default_expr, env, ctx),
+                None => Err(EvalError::NotFound(format!(
+                    "DeserializeRegister: failed to get the register id {} with error: {e:?}",
                     self.reg
                 ))),
             },
         }
+    }
+}
+
+fn eval_default(
+    deserialize_reg_tpe: &SType,
+    default_expr: &Expr,
+    env: &Env,
+    ctx: &mut EvalContext,
+) -> Result<Value, EvalError> {
+    if &default_expr.tpe() != deserialize_reg_tpe {
+        Err(EvalError::UnexpectedExpr(format!(
+            "DeserializeRegister: expected default expr to have type {:?}, got {:?}",
+            deserialize_reg_tpe,
+            default_expr.tpe()
+        )))
+    } else {
+        default_expr.eval(env, ctx)
     }
 }
 

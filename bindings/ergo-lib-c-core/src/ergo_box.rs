@@ -138,7 +138,7 @@ pub unsafe fn ergo_box_candidate_register_value(
     if let Some(c) = candidate
         .0
         .additional_registers
-        .get_constant(register_id.into())
+        .get_constant(register_id.into())?
     {
         *constant_out = Box::into_raw(Box::new(Constant(c)));
         Ok(true)
@@ -293,7 +293,7 @@ pub unsafe fn ergo_box_register_value(
     if let Some(c) = ergo_box
         .0
         .additional_registers
-        .get_constant(register_id.into())
+        .get_constant(register_id.into())?
     {
         *constant_out = Box::into_raw(Box::new(Constant(c)));
         Ok(true)
