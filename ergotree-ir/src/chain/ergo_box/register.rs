@@ -131,16 +131,22 @@ impl SigmaSerializable for NonMandatoryRegisters {
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let regs_num = r.get_u8()?;
         let mut additional_regs = Vec::with_capacity(regs_num as usize);
-        // TODO: include register id in the error message
-        for _ in 0..regs_num {
+        for idx in 0..regs_num {
             let expr = Expr::sigma_parse(r)?;
             let reg_val = match expr {
                 Expr::Const(c) => RegisterValue::Parsed(c),
-                Expr::Tuple(t) => RegisterValue::ParsedTupleExpr(EvaluatedTuple::new(t)?),
+                Expr::Tuple(t) => {
+                    RegisterValue::ParsedTupleExpr(EvaluatedTuple::new(t).map_err(|e| {
+                        RegisterValueError::UnexpectedRegisterValue(format!(
+                            "error parsing tuple expression from register {0:?}: {e}",
+                            RegisterId::try_from(idx)
+                        ))
+                    })?)
+                }
                 _ => {
                     return Err(RegisterValueError::UnexpectedRegisterValue(format!(
-                        "invalid register value: {0:?} (expected Constant or Tuple)",
-                        expr
+                        "invalid register ({0:?}) value: {expr:?} (expected Constant or Tuple)",
+                        RegisterId::try_from(idx)
                     ))
                     .into())
                 }
