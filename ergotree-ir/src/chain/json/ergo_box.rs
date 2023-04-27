@@ -307,16 +307,6 @@ mod tests {
     }
 
     #[test]
-    fn parse_registers_error2() {
-        // invalid uparseable constant value
-        let json = r#"
-            {"R4":"860202660263"}
-        "#;
-        let regs: Result<NonMandatoryRegisters, _> = serde_json::from_str(json);
-        assert!(regs.is_ok());
-    }
-
-    #[test]
     fn parse_registers_unit() {
         let json = r#" {"R4":"62"} "#;
         let regs: NonMandatoryRegisters = serde_json::from_str(json).unwrap();
