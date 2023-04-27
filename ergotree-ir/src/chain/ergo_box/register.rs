@@ -1,16 +1,13 @@
 //! Box registers
 
 use crate::mir::constant::Constant;
-use crate::mir::constant::Literal;
 use crate::mir::expr::Expr;
-use crate::mir::tuple::Tuple;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
 use crate::serialization::SigmaSerializationError;
 use crate::serialization::SigmaSerializeResult;
-use derive_more::From;
 use ergo_chain_types::Base16EncodedBytes;
 use std::convert::TryInto;
 use std::{collections::HashMap, convert::TryFrom};
@@ -18,6 +15,9 @@ use thiserror::Error;
 
 mod id;
 pub use id::*;
+
+mod value;
+pub use value::*;
 
 /// Stores non-mandatory registers for the box
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -83,133 +83,6 @@ impl NonMandatoryRegisters {
             None => Ok(None),
         }
     }
-}
-
-/// Register value (either Constant or bytes if it's unparseable)
-#[derive(PartialEq, Eq, Debug, Clone, From)]
-pub enum RegisterValue {
-    /// Constant value
-    Parsed(Constant),
-    /// Parsed evaluated Tuple expression
-    /// see https://github.com/ergoplatform/sigma-rust/issues/700
-    ParsedTupleExpr(EvaluatedTuple),
-    /// Unparseable bytes
-    Invalid {
-        /// Bytes that were not parsed (whole register bytes)
-        bytes: Vec<u8>,
-        /// Error message on parsing
-        error_msg: String,
-    },
-}
-
-/// Ensures that tuple only contains Constant values
-#[derive(PartialEq, Eq, Debug, Clone, From)]
-pub struct EvaluatedTuple {
-    tuple: Tuple,
-    constant: Constant,
-}
-
-impl EvaluatedTuple {
-    /// Create new EvaluatedTuple from Tuple, returns error if it contains non-Constant values
-    pub fn new(tuple: Tuple) -> Result<EvaluatedTuple, RegisterValueError> {
-        match tuple_to_constant(&tuple) {
-            Ok(constant) => Ok(EvaluatedTuple { tuple, constant }),
-            Err(e) => Err(RegisterValueError::InvalidTupleExpr(format!(
-                "tuple expr {tuple:?} contain non-constant items: {e}"
-            ))),
-        }
-    }
-
-    /// Get inner Tuple
-    pub fn as_tuple(&self) -> &Tuple {
-        &self.tuple
-    }
-
-    /// Convert to Constant
-    pub fn as_constant(&self) -> &Constant {
-        &self.constant
-    }
-}
-
-/// Errors on parsing register values
-#[derive(Error, Debug, Clone, PartialEq, Eq)]
-pub enum RegisterValueError {
-    /// Invalid register value
-    #[error("Invalid register value: {0}")]
-    Invalid(String),
-    /// Invalid Tuple expression in the parsed regiser value
-    #[error("Invalid Tuple expression in the parsed regiser value: {0}")]
-    InvalidTupleExpr(String),
-    /// Unexpected register value
-    #[error("Unexpected register value: {0}")]
-    UnexpectedRegisterValue(String),
-}
-
-impl RegisterValue {
-    /// Return a Constant if it's parsed, otherwise None
-    pub fn as_constant(&self) -> Result<&Constant, RegisterValueError> {
-        match self {
-            RegisterValue::Parsed(c) => Ok(c),
-            RegisterValue::ParsedTupleExpr(t) => Ok(t.as_constant()),
-            RegisterValue::Invalid {
-                bytes: _,
-                error_msg,
-            } => Err(RegisterValueError::Invalid(error_msg.to_string())),
-        }
-    }
-
-    #[allow(clippy::unwrap_used)] // it could only fail on OOM, etc.
-    fn sigma_serialize_bytes(&self) -> Vec<u8> {
-        match self {
-            RegisterValue::Parsed(c) => c.sigma_serialize_bytes().unwrap(),
-            RegisterValue::ParsedTupleExpr(t) => t.as_tuple().sigma_serialize_bytes().unwrap(),
-            RegisterValue::Invalid {
-                bytes,
-                error_msg: _,
-            } => bytes.clone(),
-        }
-    }
-
-    /// Parse bytes to RegisterValue
-    pub fn sigma_parse_bytes(bytes: &[u8]) -> Self {
-        if let Ok(expr) = Expr::sigma_parse_bytes(bytes) {
-            match expr {
-                Expr::Const(c) => RegisterValue::Parsed(c),
-                Expr::Tuple(t) => match EvaluatedTuple::new(t) {
-                    Ok(et) => RegisterValue::ParsedTupleExpr(et),
-                    Err(e) => RegisterValue::Invalid {
-                        bytes: bytes.to_vec(),
-                        error_msg: format!("invalid tuple in register value : {e:?}"),
-                    },
-                },
-                e => RegisterValue::Invalid {
-                    bytes: bytes.to_vec(),
-                    error_msg: format!(
-                        "Unexpected parsed register value: {e:?} from bytes {0:?}",
-                        bytes
-                    ),
-                },
-            }
-        } else {
-            RegisterValue::Invalid {
-                bytes: bytes.to_vec(),
-                error_msg: format!("failed to parse register value: {0:?}", bytes),
-            }
-        }
-    }
-}
-
-/// Convert evaluated Tuple expression to Constant
-/// see https://github.com/ergoplatform/sigma-rust/issues/700
-fn tuple_to_constant(t: &Tuple) -> Result<Constant, String> {
-    let values = t.items.try_mapped_ref(|tuple_item| match tuple_item {
-        Expr::Const(c) => Ok(c.v.clone()),
-        Expr::Tuple(t) => Ok(tuple_to_constant(t)?.v),
-        e => return Err(format!("Unexpected value in tuple: {e:?}")),
-    })?;
-    let v = Literal::Tup(values);
-    let c = Constant { tpe: t.tpe(), v };
-    Ok(c)
 }
 
 /// Create new from ordered values (first element will be R4, and so on)
