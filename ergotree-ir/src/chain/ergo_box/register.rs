@@ -1,165 +1,23 @@
 //! Box registers
 
 use crate::mir::constant::Constant;
+use crate::mir::expr::Expr;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
 use crate::serialization::SigmaSerializationError;
 use crate::serialization::SigmaSerializeResult;
-use derive_more::From;
 use ergo_chain_types::Base16EncodedBytes;
 use std::convert::TryInto;
 use std::{collections::HashMap, convert::TryFrom};
 use thiserror::Error;
 
-/// Box register id (0-9)
-#[derive(PartialEq, Eq, Debug, Clone, Copy, From)]
-pub enum RegisterId {
-    /// Id for mandatory registers (0-3)
-    MandatoryRegisterId(MandatoryRegisterId),
-    /// Id for non-mandotory registers (4-9)
-    NonMandatoryRegisterId(NonMandatoryRegisterId),
-}
+mod id;
+pub use id::*;
 
-impl RegisterId {
-    /// R0 register id (box.value)
-    pub const R0: RegisterId = RegisterId::MandatoryRegisterId(MandatoryRegisterId::R0);
-    /// R1 register id (serialized ErgoTree)
-    pub const R1: RegisterId = RegisterId::MandatoryRegisterId(MandatoryRegisterId::R1);
-    /// R2 register id (tokens)
-    pub const R2: RegisterId = RegisterId::MandatoryRegisterId(MandatoryRegisterId::R2);
-    /// R2 register id (creationInfo)
-    pub const R3: RegisterId = RegisterId::MandatoryRegisterId(MandatoryRegisterId::R3);
-}
-
-/// Register id out of bounds error (not in 0-9 range)
-#[derive(Error, PartialEq, Eq, Debug, Clone)]
-#[error("register id {0} is out of bounds (0 - 9)")]
-pub struct RegisterIdOutOfBounds(pub i8);
-
-impl TryFrom<i8> for RegisterId {
-    type Error = RegisterIdOutOfBounds;
-
-    fn try_from(value: i8) -> Result<Self, Self::Error> {
-        if value < 0 {
-            return Err(RegisterIdOutOfBounds(value));
-        }
-        let v = value as usize;
-        if v < NonMandatoryRegisterId::START_INDEX {
-            Ok(RegisterId::MandatoryRegisterId(value.try_into()?))
-        } else if v <= NonMandatoryRegisterId::END_INDEX {
-            Ok(RegisterId::NonMandatoryRegisterId(value.try_into()?))
-        } else {
-            Err(RegisterIdOutOfBounds(value))
-        }
-    }
-}
-
-impl TryFrom<u8> for RegisterId {
-    type Error = RegisterIdOutOfBounds;
-
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        RegisterId::try_from(value as i8)
-    }
-}
-
-/// newtype for additional registers R4 - R9
-#[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
-#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "json", serde(into = "String", try_from = "String"))]
-#[repr(u8)]
-pub enum NonMandatoryRegisterId {
-    /// id for R4 register
-    R4 = 4,
-    /// id for R5 register
-    R5 = 5,
-    /// id for R6 register
-    R6 = 6,
-    /// id for R7 register
-    R7 = 7,
-    /// id for R8 register
-    R8 = 8,
-    /// id for R9 register
-    R9 = 9,
-}
-
-impl NonMandatoryRegisterId {
-    /// starting index for non-mandatory registers
-    pub const START_INDEX: usize = 4;
-    /// end index for non-mandatory registers
-    pub const END_INDEX: usize = 9;
-
-    /// max number of registers
-    pub const NUM_REGS: usize = 6;
-
-    /// all register ids
-    pub const REG_IDS: [NonMandatoryRegisterId; NonMandatoryRegisterId::NUM_REGS] = [
-        NonMandatoryRegisterId::R4,
-        NonMandatoryRegisterId::R5,
-        NonMandatoryRegisterId::R6,
-        NonMandatoryRegisterId::R7,
-        NonMandatoryRegisterId::R8,
-        NonMandatoryRegisterId::R9,
-    ];
-
-    /// get register by it's index starting from 0
-    /// `i` is expected to be in range 0..[`Self::NUM_REGS`] , otherwise panic
-    pub fn get_by_zero_index(i: usize) -> NonMandatoryRegisterId {
-        assert!(i < NonMandatoryRegisterId::NUM_REGS);
-        NonMandatoryRegisterId::REG_IDS[i]
-    }
-}
-
-impl From<NonMandatoryRegisterId> for String {
-    fn from(v: NonMandatoryRegisterId) -> Self {
-        format!("R{}", v as u8)
-    }
-}
-
-impl TryFrom<String> for NonMandatoryRegisterId {
-    type Error = NonMandatoryRegisterIdParsingError;
-    fn try_from(str: String) -> Result<Self, Self::Error> {
-        if str.len() == 2 && &str[..1] == "R" {
-            let index = str[1..2]
-                .parse::<usize>()
-                .map_err(|_| NonMandatoryRegisterIdParsingError())?;
-            if (NonMandatoryRegisterId::START_INDEX..=NonMandatoryRegisterId::END_INDEX)
-                .contains(&index)
-            {
-                Ok(NonMandatoryRegisterId::get_by_zero_index(
-                    index - NonMandatoryRegisterId::START_INDEX,
-                ))
-            } else {
-                Err(NonMandatoryRegisterIdParsingError())
-            }
-        } else {
-            Err(NonMandatoryRegisterIdParsingError())
-        }
-    }
-}
-
-impl TryFrom<i8> for NonMandatoryRegisterId {
-    type Error = RegisterIdOutOfBounds;
-
-    fn try_from(value: i8) -> Result<Self, Self::Error> {
-        let v_usize = value as usize;
-        if (NonMandatoryRegisterId::START_INDEX..=NonMandatoryRegisterId::END_INDEX)
-            .contains(&v_usize)
-        {
-            Ok(NonMandatoryRegisterId::get_by_zero_index(
-                v_usize - NonMandatoryRegisterId::START_INDEX,
-            ))
-        } else {
-            Err(RegisterIdOutOfBounds(value))
-        }
-    }
-}
-
-#[derive(Error, PartialEq, Eq, Debug, Clone)]
-#[error("failed to parse register id")]
-/// Error for failed parsing of the register id from string
-pub struct NonMandatoryRegisterIdParsingError();
+mod value;
+pub use value::*;
 
 /// Stores non-mandatory registers for the box
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -208,48 +66,21 @@ impl NonMandatoryRegisters {
         self.0.get(reg_id as usize)
     }
 
-    /// Get register value as a Constant (returns None, if there is no value for the given register id or if it's an unparseable)
-    pub fn get_constant(&self, reg_id: NonMandatoryRegisterId) -> Option<&Constant> {
-        self.0
+    /// Get register value as a Constant
+    /// returns None, if there is no value for the given register id or an error if it's an unparseable
+    pub fn get_constant(
+        &self,
+        reg_id: NonMandatoryRegisterId,
+    ) -> Result<Option<Constant>, RegisterValueError> {
+        match self
+            .0
             .get(reg_id as usize - NonMandatoryRegisterId::START_INDEX)
-            .and_then(|rv| rv.as_option_constant())
-    }
-}
-
-/// Register value (either Constant or bytes if it's unparseable)
-#[derive(PartialEq, Eq, Debug, Clone, From)]
-pub enum RegisterValue {
-    /// Constant value
-    Parsed(Constant),
-    /// Unparseable bytes
-    Unparseable {
-        /// Bytes that were not parsed (whole register bytes)
-        bytes: Vec<u8>,
-        /// Error message on parsing
-        error_msg: String,
-    },
-}
-
-impl RegisterValue {
-    /// Return a Constant if it's parsed, otherwise None
-    pub fn as_option_constant(&self) -> Option<&Constant> {
-        match self {
-            RegisterValue::Parsed(c) => Some(c),
-            RegisterValue::Unparseable {
-                bytes: _,
-                error_msg: _,
-            } => None,
-        }
-    }
-
-    #[allow(clippy::unwrap_used)] // it could only fail on OOM, etc.
-    fn sigma_serialize_bytes(&self) -> Vec<u8> {
-        match self {
-            RegisterValue::Parsed(c) => c.sigma_serialize_bytes().unwrap(),
-            RegisterValue::Unparseable {
-                bytes,
-                error_msg: _,
-            } => bytes.clone(),
+        {
+            Some(rv) => match rv.as_constant() {
+                Ok(c) => Ok(Some(c.clone())),
+                Err(e) => Err(e),
+            },
+            None => Ok(None),
         }
     }
 }
@@ -287,7 +118,8 @@ impl SigmaSerializable for NonMandatoryRegisters {
         for (idx, reg_value) in self.0.iter().enumerate() {
             match reg_value {
                 RegisterValue::Parsed(c) => c.sigma_serialize(w)?,
-                RegisterValue::Unparseable { bytes, error_msg } => {
+                RegisterValue::ParsedTupleExpr(t) => t.to_tuple_expr().sigma_serialize(w)?,
+                RegisterValue::Invalid { bytes, error_msg } => {
                     let bytes_str = base16::encode_lower(bytes);
                     return Err(SigmaSerializationError::NotSupported(format!("unparseable register value at {0:?} (parsing error: {error_msg}) cannot be serialized in the stream (writer), because it cannot be parsed later. Register value as base16-encoded bytes: {bytes_str}", NonMandatoryRegisterId::get_by_zero_index(idx))));
                 }
@@ -299,9 +131,27 @@ impl SigmaSerializable for NonMandatoryRegisters {
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let regs_num = r.get_u8()?;
         let mut additional_regs = Vec::with_capacity(regs_num as usize);
-        for _ in 0..regs_num {
-            let v = Constant::sigma_parse(r)?;
-            additional_regs.push(v);
+        for idx in 0..regs_num {
+            let expr = Expr::sigma_parse(r)?;
+            let reg_val = match expr {
+                Expr::Const(c) => RegisterValue::Parsed(c),
+                Expr::Tuple(t) => {
+                    RegisterValue::ParsedTupleExpr(EvaluatedTuple::new(t).map_err(|e| {
+                        RegisterValueError::UnexpectedRegisterValue(format!(
+                            "error parsing tuple expression from register {0:?}: {e}",
+                            RegisterId::try_from(idx)
+                        ))
+                    })?)
+                }
+                _ => {
+                    return Err(RegisterValueError::UnexpectedRegisterValue(format!(
+                        "invalid register ({0:?}) value: {expr:?} (expected Constant or Tuple)",
+                        RegisterId::try_from(idx)
+                    ))
+                    .into())
+                }
+            };
+            additional_regs.push(reg_val);
         }
         Ok(additional_regs.try_into()?)
     }
@@ -387,33 +237,6 @@ impl From<NonMandatoryRegistersError> for SigmaParsingError {
     }
 }
 
-/// Register ids that every box have (box properties exposed as registers)
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
-pub enum MandatoryRegisterId {
-    /// Monetary value, in Ergo tokens
-    R0 = 0,
-    /// Guarding script
-    R1 = 1,
-    /// Secondary tokens
-    R2 = 2,
-    /// Reference to transaction and output id where the box was created
-    R3 = 3,
-}
-
-impl TryFrom<i8> for MandatoryRegisterId {
-    type Error = RegisterIdOutOfBounds;
-
-    fn try_from(value: i8) -> Result<Self, Self::Error> {
-        match value {
-            v if v == MandatoryRegisterId::R0 as i8 => Ok(MandatoryRegisterId::R0),
-            v if v == MandatoryRegisterId::R1 as i8 => Ok(MandatoryRegisterId::R1),
-            v if v == MandatoryRegisterId::R2 as i8 => Ok(MandatoryRegisterId::R2),
-            v if v == MandatoryRegisterId::R3 as i8 => Ok(MandatoryRegisterId::R3),
-            _ => Err(RegisterIdOutOfBounds(value)),
-        }
-    }
-}
-
 #[allow(clippy::unwrap_used)]
 #[cfg(feature = "arbitrary")]
 pub(crate) mod arbitrary {
@@ -435,7 +258,7 @@ pub(crate) mod arbitrary {
                     prop_oneof![
                         any::<Constant>().prop_map(RegisterValue::Parsed),
                         vec(any::<u8>(), 0..100).prop_map({
-                            |bytes| RegisterValue::Unparseable {
+                            |bytes| RegisterValue::Invalid {
                                 bytes,
                                 error_msg: "unparseable".to_string(),
                             }
@@ -476,7 +299,7 @@ mod tests {
         fn get(regs in any::<NonMandatoryRegisters>()) {
             let hash_map: HashMap<NonMandatoryRegisterId, RegisterValue> = regs.clone().into();
             hash_map.keys().try_for_each(|reg_id| {
-                prop_assert_eq![regs.get_constant(*reg_id), hash_map.get(reg_id).unwrap().as_option_constant()];
+                prop_assert_eq![&regs.get_constant(*reg_id).unwrap().unwrap(), hash_map.get(reg_id).unwrap().as_constant().unwrap()];
                 Ok(())
             })?;
         }

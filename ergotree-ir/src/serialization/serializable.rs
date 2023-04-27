@@ -1,4 +1,5 @@
 //! Serialization of Ergo types
+use crate::chain::ergo_box::RegisterValueError;
 use crate::ergo_tree::ErgoTreeHeaderError;
 use crate::mir::val_def::ValId;
 use crate::mir::{constant::TryExtractFromError, expr::InvalidArgumentError};
@@ -54,7 +55,7 @@ pub enum SigmaParsingError {
     #[error("not implemented op error: {0}")]
     NotImplementedOpCode(String),
     /// Failed to parse type
-    #[error("type parsing error, invalid type code: {0}")]
+    #[error("type parsing error, invalid type code: {0}({0:#04X})")]
     InvalidTypeCode(u8),
     /// Failed to decode VLQ
     #[error("vlq encode error: {0}")]
@@ -101,6 +102,9 @@ pub enum SigmaParsingError {
     /// ErgoTreeHeaderError
     #[error("ErgoTreeHeaderError: {0}")]
     ErgoTreeHeaderError(#[from] ErgoTreeHeaderError),
+    /// Invalid register value
+    #[error("Invalid register value: {0}")]
+    InvalidRegisterValue(#[from] RegisterValueError),
 }
 
 impl From<io::Error> for SigmaParsingError {

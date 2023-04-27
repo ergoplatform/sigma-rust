@@ -147,8 +147,8 @@ impl ErgoBox {
     }
 
     /// Get register value, or None if register is empty or cannot be parsed
-    pub fn get_register(&self, id: RegisterId) -> Option<Constant> {
-        match id {
+    pub fn get_register(&self, id: RegisterId) -> Result<Option<Constant>, RegisterValueError> {
+        Ok(match id {
             RegisterId::MandatoryRegisterId(id) => match id {
                 MandatoryRegisterId::R0 => Some(self.value.into()),
                 // chance of box script is not serializable are tiny comparing to returning Result
@@ -157,10 +157,8 @@ impl ErgoBox {
                 MandatoryRegisterId::R2 => Some(self.tokens_raw().into()),
                 MandatoryRegisterId::R3 => Some(self.creation_info().into()),
             },
-            RegisterId::NonMandatoryRegisterId(id) => {
-                self.additional_registers.get_constant(id).cloned()
-            }
-        }
+            RegisterId::NonMandatoryRegisterId(id) => self.additional_registers.get_constant(id)?,
+        })
     }
 
     /// Returns tokens as tuple of byte array and amount as primitive types
@@ -460,17 +458,20 @@ mod tests {
     #[test]
     fn get_register_mandatory() {
         let b = force_any_val::<ErgoBox>();
-        assert_eq!(b.get_register(RegisterId::R0).unwrap(), b.value.into());
         assert_eq!(
-            b.get_register(RegisterId::R1).unwrap(),
+            b.get_register(RegisterId::R0).unwrap().unwrap(),
+            b.value.into()
+        );
+        assert_eq!(
+            b.get_register(RegisterId::R1).unwrap().unwrap(),
             b.script_bytes().unwrap().into()
         );
         assert_eq!(
-            b.get_register(RegisterId::R2).unwrap(),
+            b.get_register(RegisterId::R2).unwrap().unwrap(),
             b.tokens_raw().into()
         );
         assert_eq!(
-            b.get_register(RegisterId::R3).unwrap(),
+            b.get_register(RegisterId::R3).unwrap().unwrap(),
             b.creation_info().into()
         );
     }
@@ -519,3 +520,4 @@ mod tests {
         }
     }
 }
+// += a + b

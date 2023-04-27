@@ -48,7 +48,7 @@ pub enum ScorexParsingError {
     #[error("not implemented op error")]
     NotImplementedOpCode(String),
     /// Failed to parse type
-    #[error("type parsing error")]
+    #[error("type parsing error, invalid type code: {0}({0:#04X})")]
     InvalidTypeCode(u8),
     /// Failed to decode VLQ
     #[error("vlq encode error: {0}")]
