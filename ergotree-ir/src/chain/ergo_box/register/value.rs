@@ -25,6 +25,7 @@ pub enum RegisterValue {
 }
 
 /// Ensures that tuple only contains Constant values
+/// see https://github.com/ergoplatform/sigma-rust/issues/700
 #[derive(PartialEq, Eq, Debug, Clone, From)]
 pub struct EvaluatedTuple {
     tuple: Tuple,
@@ -43,8 +44,8 @@ impl EvaluatedTuple {
     }
 
     /// Get inner Tuple
-    pub fn as_tuple(&self) -> &Tuple {
-        &self.tuple
+    pub fn to_tuple_expr(&self) -> Expr {
+        self.tuple.clone().into()
     }
 
     /// Convert to Constant
@@ -85,7 +86,7 @@ impl RegisterValue {
     pub fn sigma_serialize_bytes(&self) -> Vec<u8> {
         match self {
             RegisterValue::Parsed(c) => c.sigma_serialize_bytes().unwrap(),
-            RegisterValue::ParsedTupleExpr(t) => t.as_tuple().sigma_serialize_bytes().unwrap(),
+            RegisterValue::ParsedTupleExpr(t) => t.to_tuple_expr().sigma_serialize_bytes().unwrap(),
             RegisterValue::Invalid {
                 bytes,
                 error_msg: _,
@@ -133,4 +134,39 @@ fn tuple_to_constant(t: &Tuple) -> Result<Constant, String> {
     let v = Literal::Tup(values);
     let c = Constant { tpe: t.tpe(), v };
     Ok(c)
+}
+
+#[allow(clippy::unwrap_used)]
+#[cfg(test)]
+mod tests {
+    use crate::types::stuple::STuple;
+    use crate::types::stype::SType;
+
+    use super::*;
+
+    #[test]
+    fn test_tuple_expr_i700() {
+        let tuple_expr_bytes_str = "860202660263";
+        let tuple_expr_bytes = base16::decode(tuple_expr_bytes_str).unwrap();
+        assert!(
+            Constant::sigma_parse_bytes(&tuple_expr_bytes).is_err(),
+            "constant cannot be parsed from tuple expr"
+        );
+        let reg_value = RegisterValue::sigma_parse_bytes(&tuple_expr_bytes);
+        // now let's construct a Constant for (102, 99) byte tuple
+        let expected_constant: Constant = Constant {
+            tpe: SType::STuple(STuple::pair(SType::SByte, SType::SByte)),
+            v: Literal::Tup([Literal::Byte(102), Literal::Byte(99)].into()),
+        };
+        assert_eq!(
+            reg_value.as_constant().unwrap(),
+            &expected_constant,
+            "should be accessible as Constant"
+        );
+        assert_eq!(
+            reg_value.sigma_serialize_bytes(),
+            tuple_expr_bytes,
+            "preserve tuple expr on serialization"
+        );
+    }
 }

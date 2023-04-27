@@ -118,7 +118,7 @@ impl SigmaSerializable for NonMandatoryRegisters {
         for (idx, reg_value) in self.0.iter().enumerate() {
             match reg_value {
                 RegisterValue::Parsed(c) => c.sigma_serialize(w)?,
-                RegisterValue::ParsedTupleExpr(t) => t.as_tuple().sigma_serialize(w)?,
+                RegisterValue::ParsedTupleExpr(t) => t.to_tuple_expr().sigma_serialize(w)?,
                 RegisterValue::Invalid { bytes, error_msg } => {
                     let bytes_str = base16::encode_lower(bytes);
                     return Err(SigmaSerializationError::NotSupported(format!("unparseable register value at {0:?} (parsing error: {error_msg}) cannot be serialized in the stream (writer), because it cannot be parsed later. Register value as base16-encoded bytes: {bytes_str}", NonMandatoryRegisterId::get_by_zero_index(idx))));
@@ -322,38 +322,5 @@ mod tests {
         // gap, missing R5
         hash_map.insert(NonMandatoryRegisterId::R6, c.into());
         assert!(NonMandatoryRegisters::try_from(hash_map).is_err());
-    }
-
-    #[test]
-    fn test_tuple_expr_i700() {
-        // // see https://github.com/ergoplatform/sigma-rust/issues/700
-        // //
-        // // below is an expression and not a constant encoded.
-        // // 0x86 is the op code for Tuple expression following by 0x02 (size), 0x0266
-        // // (SByte type 0x02, value 0x66), 0x0263 (SByte type 0x02, value 0x63).
-        // let expr_bytes_str = "860202660263";
-        // let expr_bytes = base16::decode(expr_bytes_str).unwrap();
-        // let try_parse_constant = Constant::sigma_parse_bytes(&expr_bytes);
-        // dbg!(&try_parse_constant);
-        // if let Err(e) = &try_parse_constant {
-        //     println!("Failed to parse constant: {}", e);
-        // }
-        // assert!(try_parse_constant.is_err());
-        // assert!(matches!(
-        //     try_parse_constant,
-        //     Err(SigmaParsingError::InvalidTypeCode(134))
-        // ));
-        // let try_parse_expr: Expr = Expr::sigma_parse_bytes(&expr_bytes).unwrap();
-        // dbg!(&try_parse_expr);
-        // assert!(matches!(try_parse_expr, Expr::Tuple(_)));
-        //
-        // // now let's construct a proper constant for (102, 99) byte tuple
-        // let expected_c: Constant = Constant {
-        //     tpe: SType::STuple(STuple::pair(SType::SByte, SType::SByte)),
-        //     v: Tup([Literal::Byte(102), Literal::Byte(99)].into()),
-        // };
-        // let expected_str = expected_c.base16_str().unwrap();
-        // dbg!(expected_c.sigma_serialize_bytes().unwrap());
-        // assert_eq!(expected_str, "566663");
     }
 }
