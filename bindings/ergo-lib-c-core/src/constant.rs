@@ -11,6 +11,7 @@ use ergo_lib::{
     ergo_chain_types::{Base16DecodedBytes, EcPoint},
     ergotree_ir::{
         base16_str::Base16Str,
+        chain::ergo_box::RegisterValue,
         mir::constant::{TryExtractFrom, TryExtractInto},
         serialization::SigmaSerializable,
         sigma_protocol::sigma_boolean::ProveDlog,
@@ -30,8 +31,9 @@ pub unsafe fn constant_from_base16_bytes(
 ) -> Result<(), Error> {
     let constant_out = mut_ptr_as_mut(constant_out, "constant_out")?;
     let bytes = Base16DecodedBytes::try_from(bytes_str.to_string())?;
-    let constant = ergo_lib::ergotree_ir::mir::constant::Constant::try_from(bytes).map(Constant)?;
-    *constant_out = Box::into_raw(Box::new(constant));
+    let register_value = RegisterValue::sigma_parse_bytes(bytes.as_ref());
+    let constant = register_value.as_constant()?.clone();
+    *constant_out = Box::into_raw(Box::new(Constant(constant)));
     Ok(())
 }
 

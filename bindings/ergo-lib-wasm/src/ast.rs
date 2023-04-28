@@ -8,6 +8,7 @@ use crate::utils::I64;
 use ergo_lib::ergo_chain_types::Base16DecodedBytes;
 use ergo_lib::ergo_chain_types::EcPoint;
 use ergo_lib::ergotree_ir::base16_str::Base16Str;
+use ergo_lib::ergotree_ir::chain::ergo_box::RegisterValue;
 use ergo_lib::ergotree_ir::mir::constant::{TryExtractFrom, TryExtractInto};
 use ergo_lib::ergotree_ir::serialization::SigmaSerializable;
 use ergo_lib::ergotree_ir::sigma_protocol::sigma_boolean::ProveDlog;
@@ -47,7 +48,11 @@ impl Constant {
                 base16_bytes_str.clone()
             ))
         })?;
-        ergo_lib::ergotree_ir::mir::constant::Constant::try_from(bytes)
+
+        let register_value = RegisterValue::sigma_parse_bytes(bytes.as_ref());
+        register_value
+            .as_constant()
+            .cloned()
             .map_err(to_js)
             .map(Constant)
     }
