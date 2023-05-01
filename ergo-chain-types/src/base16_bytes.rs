@@ -80,3 +80,9 @@ impl From<Vec<u8>> for Base16EncodedBytes {
         Base16EncodedBytes::new(v.as_slice())
     }
 }
+
+impl AsRef<[u8]> for Base16DecodedBytes {
+    fn as_ref(&self) -> &[u8] {
+        self.0.as_slice()
+    }
+}
