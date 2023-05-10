@@ -313,8 +313,10 @@ impl Expr {
         if &expr_tpe == expected_tpe {
             Ok(())
         } else {
+            use std::backtrace::Backtrace;
+            let backtrace = Backtrace::capture();
             Err(InvalidExprEvalTypeError(format!(
-                "expected: {0:?}, got: {1:?}",
+                "expected: {0:?}, got: {1:?}\nBacktrace:\n{backtrace}",
                 expected_tpe, expr_tpe
             )))
         }
