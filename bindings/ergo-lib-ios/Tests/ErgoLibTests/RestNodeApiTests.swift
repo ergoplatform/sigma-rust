@@ -124,7 +124,7 @@ final class RestNodeApiTests: XCTestCase {
         XCTAssertEqual(try bestProof.suffixHead().getHeader().getBlockId(), headerId)
         
         // Now verify with 3rd node
-        let nodeConf = try NodeConf(withAddrString: "198.58.96.195:9053")
+        let nodeConf = try NodeConf(withAddrString: "213.239.193.208:9053")
         let restNodeApi = try RestNodeApi()
         let header = try await restNodeApi.getHeaderAsync(nodeConf: nodeConf, blockId: headerId)
         let merkleProof = try await restNodeApi.getBlocksHeaderIdProofForTxIdAsync(nodeConf: nodeConf, blockId: headerId, txId: txId)

@@ -162,9 +162,11 @@ impl ErgoTree {
                 "too many constants".to_string(),
             ));
         }
+        dbg!(&constants_len);
         let mut constants = Vec::with_capacity(constants_len as usize);
         for _ in 0..constants_len {
             let c = Constant::sigma_parse(r)?;
+            dbg!(&c);
             constants.push(c);
         }
         Ok(constants)
@@ -746,5 +748,16 @@ mod tests {
                 error: ErgoTreeRootParsingError::NonConsumedBytes.into()
             }
         );
+    }
+
+    #[test]
+    fn parse_invalid_tree_707() {
+        // see https://github.com/ergoplatform/sigma-rust/issues/707
+        let ergo_tree_hex =
+            "100208cd03553448c194fdd843c87d080f5e8ed983f5bb2807b13b45a9683bba8c7bfb5ae808cd0354c06b1af711e51986d787ff1df2883fcaf8d34865fea720f549e382063a08ebd1eb0273007301";
+        let bytes = base16::decode(ergo_tree_hex.as_bytes()).unwrap();
+        let tree = ErgoTree::sigma_parse_bytes(&bytes).unwrap();
+        dbg!(&tree);
+        assert!(tree.parsed_tree().is_err(), "the tree is BoolToSigmaProp(SigmaOr(pk1, pk2)) is invalid (BoolToSigmaProp expects bool");
     }
 }
