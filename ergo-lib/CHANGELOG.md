@@ -6,6 +6,22 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
+
+### Added
+* Introduce Wallet::sign_tx_input; by @greenhat in https://github.com/ergoplatform/sigma-rust/pull/689
+* Introduce transaction::verify_tx_input_proof by @greenhat in https://github.com/ergoplatform/sigma-rust/pull/691
+* Tuple expression support in register values by @greenhat in https://github.com/ergoplatform/sigma-rust/pull/702
+* Include backtrace on error in Expr::check_post_eval_tpe by @greenhat in https://github.com/ergoplatform/sigma-rust/pull/713
+* enable TC39 weak ref support in wasm-bindgen by @greenhat in https://github.com/ergoplatform/sigma-rust/pull/682
+
+### Changed
+* update wasm-pack build command to use --dev profile for *-alpha builds; by @greenhat in https://github.com/ergoplatform/sigma-rust/pull/697
+
+### Fixed
+* fix wrong AvlTree method ids and missing PropertyCall type specialization by @greenhat in https://github.com/ergoplatform/sigma-rust/pull/696
+* Store error message in `RegisterValue::Unparseable` and show it on writer-based serialization error by @greenhat in https://github.com/ergoplatform/sigma-rust/pull/699
+
+
 ## [0.23.0] - 2023-02-08
 
 ### Added
