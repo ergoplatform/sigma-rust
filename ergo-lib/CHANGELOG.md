@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
+## [0.24.0] - 2023-05-12
 
 ### Added
 * Introduce Wallet::sign_tx_input; by @greenhat in https://github.com/ergoplatform/sigma-rust/pull/689
@@ -426,7 +427,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - ErgoTree constant values conversion.
 
 <!-- next-url -->
-[Unreleased]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.23.0...HEAD
+[Unreleased]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.24.0...HEAD
+[0.24.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.23.0...ergo-lib-v0.24.0
 [0.23.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.22.0...ergo-lib-v0.23.0
 [0.22.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.21.1...ergo-lib-v0.22.0
 [0.21.1]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.21.0...ergo-lib-v0.21.1
