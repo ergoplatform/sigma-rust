@@ -47,6 +47,6 @@ mod tests {
     fn compile() {
         let contract =
             Contract::compile("HEIGHT", ergoscript_compiler::script_env::ScriptEnv::new()).unwrap();
-        //dbg!(&contract);
+        dbg!(&contract);
     }
 }
