@@ -85,7 +85,7 @@ impl TryFrom<ErgoBoxJson> for ErgoBox {
                 if ergo_box.box_id() == box_id {
                     Ok(ergo_box)
                 } else {
-                    dbg!(&ergo_box);
+                    //dbg!(&ergo_box);
                     Err(ErgoBoxFromJsonError::InvalidBoxId {
                         json: box_id,
                         actual: ergo_box.box_id(),

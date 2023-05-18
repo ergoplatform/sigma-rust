@@ -59,7 +59,7 @@ fn sig_test_vector_prove_dht() {
         .unwrap();
     let pdht = ProveDhTuple::sigma_parse_bytes(&base16::decode(b"0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f817980280c66feee88d56e47bf3f47c4109d9218c60c373a472a0d9537507c7ee828c4802a96f19e97df31606183c1719400682d1d40b1ce50c9a1ed1b19845e2b1b551bf0255ac02191cb229891fb1b674ea9df7fc8426350131d821fc4a53f29c3b1cb21a").unwrap()).unwrap();
     // let pdht = random_pdht_input.public_image().clone();
-    dbg!(base16::encode_lower(&pdht.sigma_serialize_bytes().unwrap()));
+    //dbg!(base16::encode_lower(&pdht.sigma_serialize_bytes().unwrap()));
     let signature = base16::decode(b"eba93a69b28cfdea261e9ea8914fca9a0b3868d50ce68c94f32e875730f8ca361bd3783c5d3e25802e54f49bd4fb9fafe51f4e8aafbf9815").unwrap();
     let expr: Expr = Expr::Const(pdht.into());
 

@@ -407,7 +407,7 @@ mod arbitrary {
                 any::<NodePosition>(),
             )
                 .prop_flat_map(|(unchecked_tree, challenge, position)| {
-                    dbg!(&unchecked_tree);
+                    //dbg!(&unchecked_tree);
                     let sigma_boolean = extract_sigma_boolean(&unchecked_tree);
                     // since Arbitrary impl for UncheckedTree can generate incorrect UncheckedTree
                     // "normalize" it by doing a serialization roundtrip

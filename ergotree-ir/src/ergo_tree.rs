@@ -162,11 +162,11 @@ impl ErgoTree {
                 "too many constants".to_string(),
             ));
         }
-        dbg!(&constants_len);
+        //dbg!(&constants_len);
         let mut constants = Vec::with_capacity(constants_len as usize);
         for _ in 0..constants_len {
             let c = Constant::sigma_parse(r)?;
-            dbg!(&c);
+            //dbg!(&c);
             constants.push(c);
         }
         Ok(constants)
@@ -504,7 +504,7 @@ mod tests {
     proptest! {
         #[test]
         fn ser_roundtrip(v in any::<ErgoTree>()) {
-            dbg!(&v);
+          //dbg!(&v);
             let mut data = Vec::new();
             let mut w = SigmaByteWriter::new(&mut data, None);
             v.sigma_serialize(&mut w).expect("serialization failed");
@@ -682,7 +682,7 @@ mod tests {
         let base16_str = "19a3030f0400040204020404040404060406058080a0f6f4acdbe01b058080a0f6f4acdbe01b050004d00f0400040005000500d81ad601b2a5730000d602e4c6a70405d603db63087201d604db6308a7d605b27203730100d606b27204730200d607b27203730300d608b27204730400d609b27203730500d60ab27204730600d60b9973078c720602d60c999973088c720502720bd60d8c720802d60e998c720702720dd60f91720e7309d6108c720a02d6117e721006d6127e720e06d613998c7209027210d6147e720d06d615730ad6167e721306d6177e720c06d6187e720b06d6199c72127218d61a9c72167218d1edededededed93c27201c2a793e4c672010405720292c17201c1a793b27203730b00b27204730c00938c7205018c720601ed938c7207018c720801938c7209018c720a019593720c730d95720f929c9c721172127e7202069c7ef07213069a9c72147e7215067e9c720e720206929c9c721472167e7202069c7ef0720e069a9c72117e7215067e9c721372020695ed720f917213730e907217a19d721972149d721a7211ed9272199c7217721492721a9c72177211";
         let tree_bytes = base16::decode(base16_str.as_bytes()).unwrap();
         let tree = ErgoTree::sigma_parse_bytes(&tree_bytes).unwrap();
-        dbg!(&tree);
+        //dbg!(&tree);
         let header = tree.parsed_tree().unwrap().header.clone();
         assert!(header.has_size());
         assert!(header.is_constant_segregation());
@@ -703,7 +703,7 @@ mod tests {
         let base16_str = "cd07021a8e6f59fd4a";
         let tree_bytes = base16::decode(base16_str.as_bytes()).unwrap();
         let tree = ErgoTree::sigma_parse_bytes(&tree_bytes).unwrap();
-        dbg!(&tree);
+        //dbg!(&tree);
         assert_eq!(tree.sigma_serialize_bytes().unwrap(), tree_bytes);
         assert_eq!(
             tree,
@@ -722,7 +722,7 @@ mod tests {
         let invalid_ergo_tree_with_extra_bytes = format!("{}aaaa", valid_ergo_tree_hex);
         let bytes = base16::decode(invalid_ergo_tree_with_extra_bytes.as_bytes()).unwrap();
         let tree = ErgoTree::sigma_parse_bytes(&bytes).unwrap();
-        dbg!(&tree);
+        //dbg!(&tree);
         assert_eq!(tree.sigma_serialize_bytes().unwrap(), bytes);
         assert_eq!(
             tree,
@@ -739,7 +739,7 @@ mod tests {
         let valid_p2pk = "0e2103e02fa2bbd85e9298aa37fe2634602a0fba746234fe2a67f04d14deda55fac491";
         let bytes = base16::decode(valid_p2pk).unwrap();
         let tree = ErgoTree::sigma_parse_bytes(&bytes).unwrap();
-        dbg!(&tree);
+        //dbg!(&tree);
         assert_eq!(tree.sigma_serialize_bytes().unwrap(), bytes);
         assert_eq!(
             tree,
@@ -757,7 +757,7 @@ mod tests {
             "100208cd03553448c194fdd843c87d080f5e8ed983f5bb2807b13b45a9683bba8c7bfb5ae808cd0354c06b1af711e51986d787ff1df2883fcaf8d34865fea720f549e382063a08ebd1eb0273007301";
         let bytes = base16::decode(ergo_tree_hex.as_bytes()).unwrap();
         let tree = ErgoTree::sigma_parse_bytes(&bytes).unwrap();
-        dbg!(&tree);
+        //dbg!(&tree);
         assert!(tree.parsed_tree().is_err(), "the tree is BoolToSigmaProp(SigmaOr(pk1, pk2)) is invalid (BoolToSigmaProp expects bool");
     }
 }

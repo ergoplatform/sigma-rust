@@ -96,7 +96,7 @@ impl TryFrom<TransactionJson> for Transaction {
         if tx.tx_id == tx_json.tx_id {
             Ok(tx)
         } else {
-            dbg!(&tx);
+            //dbg!(&tx);
             Err(TransactionFromJsonError::InvalidTxId {
                 expected: tx_json.tx_id,
                 actual: tx.tx_id,

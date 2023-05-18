@@ -170,7 +170,7 @@ mod json_tests {
     fn json_dlog_roundtrip() {
         let sk = SecretKey::random_dlog();
         let sk_json = serde_json::to_string(&sk).unwrap();
-        dbg!(&sk_json);
+        //dbg!(&sk_json);
         let sk_copy: SecretKey = serde_json::from_str(&sk_json).unwrap();
         assert_eq!(sk, sk_copy);
     }
@@ -179,7 +179,7 @@ mod json_tests {
     fn json_dht_roundtrip() {
         let sk = SecretKey::random_dht();
         let sk_json = serde_json::to_string(&sk).unwrap();
-        dbg!(&sk_json);
+        //dbg!(&sk_json);
         let sk_copy: SecretKey = serde_json::from_str(&sk_json).unwrap();
         assert_eq!(sk, sk_copy);
     }
@@ -202,7 +202,7 @@ mod json_tests {
     #[test]
     fn json_dlog_golden() {
         let sk_json = r#""0cd81ce156fed4017520e561e9c492222027751ed0dd71b5a9b3a61da68b5850""#;
-        dbg!(&sk_json);
+        //dbg!(&sk_json);
         let sk: SecretKey = serde_json::from_str(sk_json).unwrap();
         assert!(matches!(sk, SecretKey::DlogSecretKey(_)));
         let sk_json_copy = serde_json::to_string_pretty(&sk).unwrap();

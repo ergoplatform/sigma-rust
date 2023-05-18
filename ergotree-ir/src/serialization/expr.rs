@@ -485,6 +485,6 @@ mod tests {
         let encoder = AddressEncoder::new(NetworkPrefix::Mainnet);
         let addr = encoder.parse_address_from_str(p2s_addr_str).unwrap();
         let script = addr.script().unwrap().proposition().unwrap();
-        dbg!(&script);
+        //dbg!(&script);
     }
 }
