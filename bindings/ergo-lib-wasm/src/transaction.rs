@@ -342,7 +342,7 @@ impl UnsignedTransaction {
         input_id: &BoxId,
         ext: &ContextExtension,
     ) -> Result<UnsignedTransaction, JsValue> {
-        let mut input = self
+        let input = self
             .0
             .inputs
             .iter_mut()

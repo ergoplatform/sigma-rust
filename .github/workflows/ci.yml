@@ -230,7 +230,7 @@ jobs:
 
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly-2022-11-17
+          toolchain: nightly-2023-05-17
           override: true
 
       - name: install deps

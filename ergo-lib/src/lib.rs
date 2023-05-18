@@ -26,15 +26,22 @@ mod utils;
 pub mod wallet;
 
 // Re-exported types from dependencies
+
+/// Ergo blockchain types
 pub extern crate ergo_chain_types;
+/// Ergo Merkle Tree and Merkle verification tools
 pub extern crate ergo_merkle_tree;
+/// Ergo NiPoPoW implementation
 pub extern crate ergo_nipopow;
 /// Re-exported types from dependencies
 #[cfg(feature = "rest")]
 pub extern crate ergo_rest;
 #[cfg(feature = "compiler")]
+/// ErgoScript compiler pipeline
 pub extern crate ergoscript_compiler;
+/// ErgoTree interpreter
 pub extern crate ergotree_interpreter;
+/// ErgoTree, MIR (Middle-level Internal Representation)
 pub extern crate ergotree_ir;
 
 /// Selectively exposed types
