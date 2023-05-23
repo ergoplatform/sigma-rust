@@ -59,7 +59,7 @@ Then double click `ErgoLib.xcodeproj` which opens Xcode. You need to manually po
 
 ![image](xcode_linker_settings.png)
 
-Set `Other Linker Flags` to be `-L/absolute/path/to/sigma-rust/target/release`. The project can now be built.
+Set `Other Linker Flags` to be `-L/absolute/path/to/sigma-rust/target/release` for x86_64 and ` -L/absolute/path/to/sigma-rust/target/aarch64-apple-ios-sim/release` for simulator on Apple silicon macs. The project can now be built.
 
 ### Building Xcode 13 project for `iPhone(iOS)`
 
