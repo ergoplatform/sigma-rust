@@ -10,7 +10,7 @@ cargo build --release --features rest --features mnemonic_gen -p ergo-lib-c
 adding:
 - `--target x86_64-apple-ios` for iPhone simulator on Intel macs,
 - `--target aarch64-apple-ios` for iPhone on Apple silicon macs,
-- `--target aarch64-apple-ios-simulator` for iPhone simulator on Apple silicon macs.
+- `--target aarch64-apple-ios-sim` for iPhone simulator on Apple silicon macs.
 
 To install a target run `rustup target add <target>` using triple for target from the list above.
 
