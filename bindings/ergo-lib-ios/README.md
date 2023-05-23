@@ -50,7 +50,7 @@ Starting at the root of the `sigma-rust` repository, type:
 ```shell
 cd bindings/ergo-lib-ios
 swift package generate-xcodeproj
-xcodebuild -project ./ErgoLib.xcodeproj -xcconfig ./Config/iPhoneSimulator_{arm|intel}.xcconfig -sdk iphoneos
+xcodebuild -project ./ErgoLib.xcodeproj -xcconfig ./Config/iPhoneSimulator_{arm|intel}.xcconfig -sdk iphonesimulator
 ```
 
 choosing either `arm` or `intel` in the last line depending on your mac's architecture.
