@@ -1,0 +1,11 @@
+CONFIGURATION = Release
+TARGET_NAME = ErgoLib
+EXCLUDED_ARCHS = armv7 x86_64 i386
+ENABLE_BITCODE = NO
+BUILD_LIBRARY_FOR_DISTRIBUTION = YES
+HEADER_SEARCH_PATHS = $(inherited) $(SRCROOT)/../ergo-lib-c/h
+OTHER_LDFLAGS = $(inherited) -L"$(SRCROOT)/../../target/aarch64-apple-ios-sim/release" -lergo
+PRODUCT_BUNDLE_IDENTIFIER = org.ergoplatform.wallet
+FRAMEWORK_VERSION = 0.1.0-pre1
+
+
