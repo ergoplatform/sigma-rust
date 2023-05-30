@@ -186,5 +186,15 @@ it("roundtrip BigInt", async () => {
 
 it("too big BigInt fail", async () => {
   let bigint = BigInt(92233720368547758071111111111111111111111111111111111111111111111111111111111111111111111111n);
-  expect(function () {ergo_wasm.Constant.from_js(bigint);}).to.throw();
+  expect(function () { ergo_wasm.Constant.from_js(bigint); }).to.throw();
+});
+
+it("roundtrip Coll[Coll[Long]]", async () => {
+  let array1 = ["9223372036854775807", "1", "2"]; // i64 max value
+  let array2 = ["5", "3", "4"];
+  let js_value = [array1, array2];
+  let c_js = ergo_wasm.Constant.from_js(js_value);
+  expect(c_js != null);
+  expect(c_js.dbg_tpe()).equal("SColl(SColl(SLong))");
+  assert.deepEqual(c_js.to_js(), js_value);
 });

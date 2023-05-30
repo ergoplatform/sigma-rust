@@ -44,8 +44,10 @@ pub fn array_as_tuple(items: Vec<JsValue>) -> JsValue {
 pub enum ConvError {
     #[error("not supported: {0:?}")]
     NotSupported(JsValue),
-    #[error("unexpected: {0:?}")]
-    Unexpected(Constant),
+    #[error("unexpected constant: {0:?}")]
+    UnexpectedConst(Constant),
+    #[error("unexpected js value: {0:?}, expected {1}")]
+    UnexpectedJs(JsValue, &'static str),
     #[error("IO error: {0}")]
     TryExtractFromError(#[from] TryExtractFromError),
     #[error("Failed to parse Long from string: {0}")]
@@ -69,28 +71,13 @@ pub(crate) fn constant_from_js(val: &JsValue) -> Result<Constant, ConvError> {
         })
     } else if let Ok(arr) = val.clone().dyn_into::<Array>() {
         if let Ok(str) = arr.get(0).dyn_into::<JsString>() {
-            // tuple
-            if str != TUPLE_TOKEN {
-                return Err(ConvError::InvalidTupleEncoding);
+            if str == TUPLE_TOKEN {
+                tuple_from_js(&arr)
+            } else if let Ok(coll_longs) = coll_long_from_js(&arr) {
+                Ok(coll_longs)
+            } else {
+                return Err(ConvError::NotSupported(val.clone()));
             }
-            let mut v: Vec<Constant> = Vec::new();
-            for i in 1..arr.length() {
-                let elem_const = constant_from_js(&arr.get(i))?;
-                v.push(elem_const);
-            }
-            #[allow(clippy::unwrap_used)]
-            Ok(Constant {
-                tpe: SType::STuple(STuple {
-                    items: TupleItems::try_from(
-                        v.clone().into_iter().map(|c| c.tpe).collect::<Vec<SType>>(),
-                    )
-                    .unwrap(),
-                }),
-                v: Literal::Tup(
-                    TupleItems::try_from(v.into_iter().map(|c| c.v).collect::<Vec<Literal>>())
-                        .unwrap(),
-                ),
-            })
         } else {
             // regular array
             let mut cs: Vec<Constant> = Vec::new();
@@ -125,6 +112,44 @@ pub(crate) fn constant_from_js(val: &JsValue) -> Result<Constant, ConvError> {
     }
 }
 
+fn tuple_from_js(arr: &Array) -> Result<Constant, ConvError> {
+    // tuple
+    let mut v: Vec<Constant> = Vec::new();
+    for i in 1..arr.length() {
+        let elem_const = constant_from_js(&arr.get(i))?;
+        v.push(elem_const);
+    }
+    #[allow(clippy::unwrap_used)]
+    Ok(Constant {
+        tpe: SType::STuple(STuple {
+            items: TupleItems::try_from(
+                v.clone().into_iter().map(|c| c.tpe).collect::<Vec<SType>>(),
+            )
+            .unwrap(),
+        }),
+        v: Literal::Tup(
+            TupleItems::try_from(v.into_iter().map(|c| c.v).collect::<Vec<Literal>>()).unwrap(),
+        ),
+    })
+}
+
+fn coll_long_from_js(arr: &Array) -> Result<Constant, ConvError> {
+    // try array of longs
+    let mut longs: Vec<i64> = Vec::new();
+    for i in 0..arr.length() {
+        let arr_elem = arr.get(i);
+        let js_string = arr_elem
+            .clone()
+            .dyn_into::<JsString>()
+            .map_err(|_| ConvError::UnexpectedJs(arr_elem, "JsString"))?;
+        let parsed_i64 = String::from(js_string.clone())
+            .parse::<i64>()
+            .map_err(|e| ConvError::FailedToParseLongFromString(js_string.into()))?;
+        longs.push(parsed_i64);
+    }
+    Ok(longs.into())
+}
+
 pub(crate) fn constant_to_js(c: Constant) -> Result<JsValue, ConvError> {
     Ok(match c.tpe {
         SType::SBoolean => c.v.try_extract_into::<bool>()?.into(),
@@ -147,7 +172,7 @@ pub(crate) fn constant_to_js(c: Constant) -> Result<JsValue, ConvError> {
                 }
                 arr.into()
             }
-            _ => return Err(ConvError::Unexpected(c)),
+            _ => return Err(ConvError::UnexpectedConst(c)),
         },
         SType::STuple(ref item_tpes) => {
             let vec: Vec<JsValue> = match c.v {
@@ -156,7 +181,7 @@ pub(crate) fn constant_to_js(c: Constant) -> Result<JsValue, ConvError> {
                     .zip(item_tpes.clone().items.into_iter())
                     .map(|(v, tpe)| constant_to_js(Constant { tpe, v }))
                     .collect::<Result<Vec<JsValue>, _>>()?,
-                _ => return Err(ConvError::Unexpected(c.clone())),
+                _ => return Err(ConvError::UnexpectedConst(c.clone())),
             };
             let arr = Array::new();
             for item in vec {
@@ -164,7 +189,7 @@ pub(crate) fn constant_to_js(c: Constant) -> Result<JsValue, ConvError> {
             }
             arr.into()
         }
-        _ => return Err(ConvError::Unexpected(c.clone())),
+        _ => return Err(ConvError::UnexpectedConst(c.clone())),
     })
 }
 
