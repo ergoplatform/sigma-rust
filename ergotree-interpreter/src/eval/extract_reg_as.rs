@@ -12,7 +12,7 @@ use crate::eval::EvalError;
 use crate::eval::Evaluable;
 
 impl Evaluable for ExtractRegisterAs {
-    fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
+    fn eval(&self, env: &mut Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
         let ir_box = self
             .input
             .eval(env, ctx)?

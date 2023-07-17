@@ -14,7 +14,7 @@ use scorex_crypto_avltree::operation::Operation;
 use sigma_util::AsVecU8;
 
 impl Evaluable for TreeLookup {
-    fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
+    fn eval(&self, env: &mut Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
         let normalized_tree_val = self
             .tree
             .eval(env, ctx)?

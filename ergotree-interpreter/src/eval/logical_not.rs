@@ -8,7 +8,7 @@ use crate::eval::EvalError;
 use crate::eval::Evaluable;
 
 impl Evaluable for LogicalNot {
-    fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
+    fn eval(&self, env: &mut Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
         let input_v = self.input.eval(env, ctx)?;
         let input_v_bool = input_v.try_extract_into::<bool>()?;
         Ok((!input_v_bool).into())

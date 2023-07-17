@@ -15,7 +15,7 @@ use sigma_util::AsVecU8;
 use std::convert::TryFrom;
 
 impl Evaluable for SubstConstants {
-    fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
+    fn eval(&self, env: &mut Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
         let script_bytes_v = self.script_bytes.eval(env, ctx)?;
         let positions_v = self.positions.eval(env, ctx)?;
         let new_values_v = self.new_values.eval(env, ctx)?;

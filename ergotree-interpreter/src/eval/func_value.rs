@@ -8,7 +8,7 @@ use crate::eval::EvalError;
 use crate::eval::Evaluable;
 
 impl Evaluable for FuncValue {
-    fn eval(&self, _env: &Env, _ctx: &mut EvalContext) -> Result<Value, EvalError> {
+    fn eval(&self, _env: &mut Env, _ctx: &mut EvalContext) -> Result<Value, EvalError> {
         Ok(Value::Lambda(Lambda {
             args: self.args().to_vec(),
             body: self.body().clone().into(),

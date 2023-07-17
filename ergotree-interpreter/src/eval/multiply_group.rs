@@ -7,7 +7,7 @@ use crate::eval::EvalError;
 use crate::eval::Evaluable;
 
 impl Evaluable for MultiplyGroup {
-    fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
+    fn eval(&self, env: &mut Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
         let left_v = self.left.eval(env, ctx)?;
         let right_v = self.right.eval(env, ctx)?;
 

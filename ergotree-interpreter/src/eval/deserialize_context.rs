@@ -11,7 +11,7 @@ use crate::eval::EvalError;
 use crate::eval::Evaluable;
 
 impl Evaluable for DeserializeContext {
-    fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
+    fn eval(&self, env: &mut Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
         match ctx.ctx.extension.values.get(&self.id) {
             Some(c) => {
                 if c.tpe != SType::SColl(SType::SByte.into()) {

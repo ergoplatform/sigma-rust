@@ -11,7 +11,7 @@ use crate::eval::EvalError;
 use crate::eval::Evaluable;
 
 impl Evaluable for CalcBlake2b256 {
-    fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
+    fn eval(&self, env: &mut Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
         let input_v = self.input.eval(env, ctx)?;
         match input_v.clone() {
             Value::Coll(CollKind::NativeColl(NativeColl::CollByte(coll_byte))) => {

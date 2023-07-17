@@ -9,7 +9,7 @@ use crate::eval::EvalError;
 use crate::eval::Evaluable;
 
 impl Evaluable for GetVar {
-    fn eval(&self, _env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
+    fn eval(&self, _env: &mut Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
         match ctx.ctx.extension.values.get(&self.var_id) {
             None => Ok(Value::Opt(None.into())),
             Some(v) if v.tpe == self.var_tpe => Ok((Some(v.v.clone())).into()),

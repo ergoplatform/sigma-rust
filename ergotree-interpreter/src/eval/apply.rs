@@ -8,7 +8,7 @@ use crate::eval::EvalError;
 use crate::eval::Evaluable;
 
 impl Evaluable for Apply {
-    fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
+    fn eval(&self, env: &mut Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
         let func_v = self.func.eval(env, ctx)?;
         let args_v_res: Result<Vec<Value>, EvalError> =
             self.args.iter().map(|arg| arg.eval(env, ctx)).collect();
@@ -16,11 +16,10 @@ impl Evaluable for Apply {
         match func_v {
             Value::Lambda(fv) => {
                 let arg_ids: Vec<ValId> = fv.args.iter().map(|a| a.idx).collect();
-                let mut cur_env = env.clone();
                 arg_ids.iter().zip(args_v).for_each(|(idx, arg_v)| {
-                    cur_env.insert(*idx, arg_v);
+                    env.insert(*idx, arg_v);
                 });
-                fv.body.eval(&cur_env, ctx)
+                fv.body.eval(env, ctx)
             }
             _ => Err(EvalError::UnexpectedValue(format!(
                 "expected func_v to be Value::FuncValue got: {0:?}",

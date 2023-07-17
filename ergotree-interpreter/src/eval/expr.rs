@@ -7,7 +7,7 @@ use super::EvalError;
 use super::Evaluable;
 
 impl Evaluable for Expr {
-    fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
+    fn eval(&self, env: &mut Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
         ctx.cost_accum.add_cost_of(self)?;
         match self {
             Expr::Const(c) => Ok(Value::from(c.v.clone())),

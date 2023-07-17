@@ -132,7 +132,7 @@ pub trait Prover {
     /// The comments in this section are taken from the algorithm for the
     /// Sigma-protocol prover as described in the ErgoScript white-paper
     /// <https://ergoplatform.org/docs/ErgoScript.pdf>, Appendix A
-    ///  
+    ///
     /// Generate proofs for the given message for ErgoTree reduced to Sigma boolean expression
     fn prove(
         &self,
@@ -144,7 +144,9 @@ pub trait Prover {
     ) -> Result<ProverResult, ProverError> {
         let expr = tree.proposition()?;
         let ctx_ext = ctx.extension.clone();
-        let reduction_result = reduce_to_crypto(&expr, env, ctx).map_err(ProverError::EvalError)?;
+        let mut env_mut = env.clone();
+        let reduction_result =
+            reduce_to_crypto(&expr, &mut env_mut, ctx).map_err(ProverError::EvalError)?;
 
         self.generate_proof(reduction_result.sigma_prop, message, hints_bag)
             .map(|p| ProverResult {

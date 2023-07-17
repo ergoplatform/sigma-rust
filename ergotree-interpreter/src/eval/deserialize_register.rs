@@ -13,7 +13,7 @@ use crate::eval::EvalError;
 use crate::eval::Evaluable;
 
 impl Evaluable for DeserializeRegister {
-    fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
+    fn eval(&self, env: &mut Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
         match ctx
             .ctx
             .self_box
@@ -60,7 +60,7 @@ impl Evaluable for DeserializeRegister {
 fn eval_default(
     deserialize_reg_tpe: &SType,
     default_expr: &Expr,
-    env: &Env,
+    env: &mut Env,
     ctx: &mut EvalContext,
 ) -> Result<Value, EvalError> {
     if &default_expr.tpe() != deserialize_reg_tpe {

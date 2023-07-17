@@ -164,12 +164,13 @@ pub struct ReductionResult {
     pub sigma_prop: SigmaBoolean,
     /// estimated cost of expression evaluation
     pub cost: u64,
+    // pub env: Env,
 }
 
 /// Evaluate the given expression by reducing it to SigmaBoolean value.
 pub fn reduce_to_crypto(
     expr: &Expr,
-    env: &Env,
+    env: &mut Env,
     ctx: Rc<Context>,
 ) -> Result<ReductionResult, EvalError> {
     let cost_accum = CostAccumulator::new(0, None);
@@ -214,10 +215,11 @@ impl EvalContext {
 /// Should be implemented by every node that can be evaluated.
 pub(crate) trait Evaluable {
     /// Evaluation routine to be implement by each node
-    fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError>;
+    fn eval(&self, env: &mut Env, ctx: &mut EvalContext) -> Result<Value, EvalError>;
 }
 
-type EvalFn = fn(env: &Env, ctx: &mut EvalContext, Value, Vec<Value>) -> Result<Value, EvalError>;
+type EvalFn =
+    fn(env: &mut Env, ctx: &mut EvalContext, Value, Vec<Value>) -> Result<Value, EvalError>;
 
 fn smethod_eval_fn(method: &SMethod) -> Result<EvalFn, EvalError> {
     use ergotree_ir::types::*;
@@ -387,7 +389,8 @@ pub(crate) mod tests {
     pub fn eval_out<T: TryExtractFrom<Value>>(expr: &Expr, ctx: Rc<Context>) -> T {
         let cost_accum = CostAccumulator::new(0, None);
         let mut ectx = EvalContext::new(ctx, cost_accum);
-        expr.eval(&Env::empty(), &mut ectx)
+        let mut env = Env::empty();
+        expr.eval(&mut env, &mut ectx)
             .unwrap()
             .try_extract_into::<T>()
             .unwrap()
@@ -399,7 +402,8 @@ pub(crate) mod tests {
     ) -> Result<T, EvalError> {
         let cost_accum = CostAccumulator::new(0, None);
         let mut ectx = EvalContext::new(ctx, cost_accum);
-        expr.eval(&Env::empty(), &mut ectx)
+        let mut env = Env::empty();
+        expr.eval(&mut env, &mut ectx)
             .and_then(|v| v.try_extract_into::<T>().map_err(EvalError::TryExtractFrom))
     }
 

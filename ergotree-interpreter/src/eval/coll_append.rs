@@ -35,7 +35,7 @@ fn extract_elem_tpe(inp: &Value) -> Result<SType, EvalError> {
 }
 
 impl Evaluable for Append {
-    fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
+    fn eval(&self, env: &mut Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
         let input_v = self.input.eval(env, ctx)?;
         let col2_v = self.col_2.eval(env, ctx)?;
         let input_elem_tpe = extract_elem_tpe(&input_v)?;

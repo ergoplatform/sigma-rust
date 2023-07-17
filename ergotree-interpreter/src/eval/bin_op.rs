@@ -171,7 +171,7 @@ where
 }
 
 impl Evaluable for BinOp {
-    fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
+    fn eval(&self, env: &mut Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
         ctx.cost_accum.add(Costs::DEFAULT.eq_const_size)?;
         let lv = self.left.eval(env, ctx)?;
         // using closure to keep right value from evaluation (for lazy AND, OR, XOR)

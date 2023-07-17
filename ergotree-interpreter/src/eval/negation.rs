@@ -8,7 +8,7 @@ use crate::eval::Evaluable;
 use num_traits::CheckedNeg;
 
 impl Evaluable for Negation {
-    fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
+    fn eval(&self, env: &mut Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
         let input_v = self.input.eval(env, ctx)?;
 
         fn overflow_err<T: std::fmt::Display>(v: &T) -> EvalError {

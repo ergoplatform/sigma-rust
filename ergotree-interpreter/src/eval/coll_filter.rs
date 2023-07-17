@@ -9,7 +9,7 @@ use crate::eval::EvalError;
 use crate::eval::Evaluable;
 
 impl Evaluable for Filter {
-    fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
+    fn eval(&self, env: &mut Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
         let input_v = self.input.eval(env, ctx)?;
         let condition_v = self.condition.eval(env, ctx)?;
         let input_v_clone = input_v.clone();
@@ -20,8 +20,8 @@ impl Evaluable for Filter {
                         "Filter: evaluated condition has empty arguments list".to_string(),
                     )
                 })?;
-                let env1 = env.clone().extend(func_arg.idx, arg);
-                func_value.body.eval(&env1, ctx)
+                env.insert(func_arg.idx, arg);
+                func_value.body.eval(env, ctx)
             }
             _ => Err(EvalError::UnexpectedValue(format!(
                 "expected Filter::condition to be Value::FuncValue got: {0:?}",
