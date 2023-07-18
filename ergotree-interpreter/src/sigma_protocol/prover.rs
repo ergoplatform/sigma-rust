@@ -144,10 +144,7 @@ pub trait Prover {
     ) -> Result<ProverResult, ProverError> {
         let expr = tree.proposition()?;
         let ctx_ext = ctx.extension.clone();
-        let mut env_mut = env.clone();
-        let reduction_result =
-            reduce_to_crypto(&expr, &mut env_mut, ctx).map_err(ProverError::EvalError)?;
-
+        let reduction_result = reduce_to_crypto(&expr, env, ctx).map_err(ProverError::EvalError)?;
         self.generate_proof(reduction_result.sigma_prop, message, hints_bag)
             .map(|p| ProverResult {
                 proof: p,

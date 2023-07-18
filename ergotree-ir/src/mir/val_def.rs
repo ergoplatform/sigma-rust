@@ -9,6 +9,7 @@ use crate::types::stype::SType;
 use super::expr::Expr;
 
 extern crate derive_more;
+use derive_more::Display;
 use derive_more::From;
 
 use crate::has_opcode::HasStaticOpCode;
@@ -16,7 +17,7 @@ use crate::has_opcode::HasStaticOpCode;
 use proptest_derive::Arbitrary;
 
 /// Variable id
-#[derive(PartialEq, Eq, Hash, Debug, Clone, Copy, From)]
+#[derive(PartialEq, Eq, Hash, Debug, Clone, Copy, From, Display)]
 #[cfg_attr(feature = "arbitrary", derive(Arbitrary))]
 pub struct ValId(pub u32);
 

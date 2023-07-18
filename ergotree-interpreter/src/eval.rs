@@ -155,6 +155,14 @@ pub enum EvalError {
     /// Scorex serialization parsing error
     #[error("Serialization parsing error: {0}")]
     ScorexParsingError(#[from] ScorexParsingError),
+    /// Wrapped eval error with environment after evaluation
+    #[error("eval error: {error}, env: {env:?}")]
+    WrappedWithEnvError {
+        /// eval error
+        error: Box<EvalError>,
+        /// environment after evaluation
+        env: Env,
+    },
 }
 
 /// Result of expression reduction procedure (see `reduce_to_crypto`).
@@ -164,30 +172,38 @@ pub struct ReductionResult {
     pub sigma_prop: SigmaBoolean,
     /// estimated cost of expression evaluation
     pub cost: u64,
-    // pub env: Env,
+    /// environment after the evaluation
+    pub env: Env,
 }
 
 /// Evaluate the given expression by reducing it to SigmaBoolean value.
 pub fn reduce_to_crypto(
     expr: &Expr,
-    env: &mut Env,
+    env: &Env,
     ctx: Rc<Context>,
 ) -> Result<ReductionResult, EvalError> {
     let cost_accum = CostAccumulator::new(0, None);
     let mut ectx = EvalContext::new(ctx, cost_accum);
-    expr.eval(env, &mut ectx)
+    let mut env_mut = env.clone();
+    expr.eval(&mut env_mut, &mut ectx)
         .and_then(|v| -> Result<ReductionResult, EvalError> {
             match v {
                 Value::Boolean(b) => Ok(ReductionResult {
                     sigma_prop: SigmaBoolean::TrivialProp(b),
                     cost: 0,
+                    env: env_mut.clone(),
                 }),
                 Value::SigmaProp(sp) => Ok(ReductionResult {
                     sigma_prop: sp.value().clone(),
                     cost: 0,
+                    env: env_mut.clone(),
                 }),
                 _ => Err(EvalError::InvalidResultType),
             }
+        })
+        .map_err(|e| EvalError::WrappedWithEnvError {
+            error: Box::new(e),
+            env: env_mut,
         })
 }
 

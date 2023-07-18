@@ -123,7 +123,11 @@ impl SigmaSerializable for ReducedTransaction {
                 let cost = r.get_u64()?;
                 let extension = input.spending_proof.extension;
                 let reduced_input = ReducedInput {
-                    reduction_result: ReductionResult { sigma_prop, cost },
+                    reduction_result: ReductionResult {
+                        sigma_prop,
+                        cost,
+                        env: Env::empty(),
+                    },
                     extension: extension.clone(),
                 };
                 let unsigned_input = UnsignedInput {
@@ -167,6 +171,7 @@ pub mod arbitrary {
                         reduction_result: ReductionResult {
                             sigma_prop: sb.clone(),
                             cost: 0,
+                            env: Env::empty(),
                         },
                         extension: unsigned_input.extension,
                     }),
