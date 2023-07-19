@@ -80,11 +80,14 @@ use derive_more::From;
 use derive_more::TryInto;
 use thiserror::Error;
 
+mod source_span;
+pub use source_span::*;
+
 #[derive(PartialEq, Eq, Debug, Clone, From, TryInto)]
 /// Expression in ErgoTree
 pub enum Expr {
     /// Append - Concatenation of two collections
-    Append(Append),
+    Append(SourceSpanWrapper<Append>),
     /// Constant value
     Const(Constant),
     /// Placeholder for a constant
@@ -227,7 +230,7 @@ impl Expr {
     /// Type of the expression
     pub fn tpe(&self) -> SType {
         match self {
-            Expr::Append(ap) => ap.tpe(),
+            Expr::Append(ap) => ap.expr().tpe(),
             Expr::Const(v) => v.tpe.clone(),
             Expr::Collection(v) => v.tpe(),
             Expr::SubstConstants(v) => v.tpe(),

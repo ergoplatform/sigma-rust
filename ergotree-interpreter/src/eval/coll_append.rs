@@ -111,7 +111,7 @@ mod tests {
     fn append_byte_array_and_byte() {
         let byte_coll: Constant = vec![1i8, 2i8].into();
         let byte: Expr = Expr::Collection(Collection::new(SType::SByte, vec![3i8.into()]).unwrap());
-        let expr: Expr = Expr::Append(Append::new(byte_coll.into(), byte).unwrap());
+        let expr: Expr = Expr::Append(Append::new(byte_coll.into(), byte).unwrap().into());
         assert_eq!(eval_out_wo_ctx::<Vec<i8>>(&expr), vec![1i8, 2, 3]);
     }
 }

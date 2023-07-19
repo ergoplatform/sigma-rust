@@ -222,7 +222,7 @@ impl SigmaSerializable for Expr {
                 }
                 None => c.sigma_serialize(w),
             },
-            Expr::Append(ap) => ap.sigma_serialize_w_opcode(w),
+            Expr::Append(ap) => ap.expr().sigma_serialize_w_opcode(w),
             Expr::Fold(op) => op.sigma_serialize_w_opcode(w),
             Expr::ConstPlaceholder(cp) => cp.sigma_serialize_w_opcode(w),
             Expr::SubstConstants(s) => s.sigma_serialize_w_opcode(w),
