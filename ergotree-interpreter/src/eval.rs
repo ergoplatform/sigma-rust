@@ -1,6 +1,7 @@
 //! Interpreter
 use bounded_vec::BoundedVecOutOfBounds;
 use ergotree_ir::mir::constant::TryExtractInto;
+use ergotree_ir::mir::expr::SourceSpan;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProp;
 use sigma_ser::ScorexParsingError;
 use sigma_ser::ScorexSerializationError;
@@ -163,6 +164,24 @@ pub enum EvalError {
         /// environment after evaluation
         env: Env,
     },
+    /// Wrapped eval error with source span
+    #[error("eval error: {error}, source span: {source_span:?}")]
+    WrappedWithSpan {
+        /// eval error
+        error: Box<EvalError>,
+        /// source span
+        source_span: SourceSpan,
+    },
+}
+
+impl EvalError {
+    /// Wrap eval error with source span
+    pub fn wrap_with_span(self, source_span: SourceSpan) -> Self {
+        EvalError::WrappedWithSpan {
+            error: Box::new(self),
+            source_span,
+        }
+    }
 }
 
 /// Result of expression reduction procedure (see `reduce_to_crypto`).

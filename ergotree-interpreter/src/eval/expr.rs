@@ -1,4 +1,5 @@
 use ergotree_ir::mir::expr::Expr;
+use ergotree_ir::mir::expr::SourceSpan;
 use ergotree_ir::mir::value::Value;
 
 use super::Env;
@@ -50,7 +51,7 @@ impl Evaluable for Expr {
             Expr::Upcast(op) => op.eval(env, ctx),
             Expr::Downcast(op) => op.eval(env, ctx),
             Expr::If(op) => op.eval(env, ctx),
-            Expr::Append(op) => op.expr().eval(env, ctx),
+            Expr::Append(op) => op.expr().eval(env, ctx).with_span(&op.source_span),
             Expr::ByIndex(op) => op.eval(env, ctx),
             Expr::ExtractScriptBytes(op) => op.eval(env, ctx),
             Expr::SizeOf(op) => op.eval(env, ctx),
@@ -81,5 +82,15 @@ impl Evaluable for Expr {
             Expr::TreeLookup(op) => op.eval(env, ctx),
             Expr::CreateAvlTree(op) => op.eval(env, ctx),
         }
+    }
+}
+
+pub trait ExtResultEvalError<T> {
+    fn with_span(self, span: &SourceSpan) -> Result<T, EvalError>;
+}
+
+impl<T> ExtResultEvalError<T> for Result<T, EvalError> {
+    fn with_span(self, span: &SourceSpan) -> Result<T, EvalError> {
+        self.map_err(|e| e.wrap_with_span(span.clone()))
     }
 }
