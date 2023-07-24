@@ -28,6 +28,7 @@ pub mod ergo_tree;
 pub mod mir;
 pub mod serialization;
 pub mod sigma_protocol;
+pub mod source_span;
 pub mod type_check;
 pub mod types;
 pub mod util;

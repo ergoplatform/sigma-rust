@@ -1,33 +1,34 @@
-use crate::mir::coll_append::Append;
+//! Source position for an IR node in the source code
 
-use super::Expr;
+use crate::mir::coll_append::Append;
+use crate::mir::expr::Expr;
 
 /// Source position for the Expr
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct SourceSpan {
+pub struct Span {
     /// Start position in the source code
     pub start: usize,
     /// End position in the source code
     pub end: usize,
 }
 
-impl SourceSpan {
+impl Span {
     /// Empty span
     pub fn empty() -> Self {
-        SourceSpan { start: 0, end: 0 }
+        Span { start: 0, end: 0 }
     }
 }
 
 /// Wrapper for Expr with source position
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct SourceSpanWrapper<T> {
+pub struct Spanned<T> {
     /// Source position
-    pub source_span: SourceSpan,
+    pub source_span: Span,
     /// Wrapped value
     pub expr: T,
 }
 
-impl<T> SourceSpanWrapper<T> {
+impl<T> Spanned<T> {
     /// Expression
     pub fn expr(&self) -> &T {
         &self.expr
@@ -37,21 +38,18 @@ impl<T> SourceSpanWrapper<T> {
 // TODO: can be a macros
 impl From<Append> for Expr {
     fn from(v: Append) -> Self {
-        Expr::Append(SourceSpanWrapper {
-            source_span: SourceSpan::empty(),
+        Expr::Append(Spanned {
+            source_span: Span::empty(),
             expr: v,
         })
     }
 }
 
-impl<T> From<T> for SourceSpanWrapper<T> {
+impl<T> From<T> for Spanned<T> {
     fn from(v: T) -> Self {
-        SourceSpanWrapper {
-            source_span: SourceSpan::empty(),
+        Spanned {
+            source_span: Span::empty(),
             expr: v,
         }
     }
 }
-
-// TODO: draft pretty printer and how it's sets source span for every expr
-// TODO: draft enriching eval errors with source span and hightlight it in the source code piece

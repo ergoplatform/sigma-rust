@@ -1,5 +1,5 @@
 use ergotree_ir::mir::expr::Expr;
-use ergotree_ir::mir::expr::SourceSpan;
+use ergotree_ir::mir::expr::Span;
 use ergotree_ir::mir::value::Value;
 
 use super::Env;
@@ -86,11 +86,11 @@ impl Evaluable for Expr {
 }
 
 pub trait ExtResultEvalError<T> {
-    fn with_span(self, span: &SourceSpan) -> Result<T, EvalError>;
+    fn with_span(self, span: &Span) -> Result<T, EvalError>;
 }
 
 impl<T> ExtResultEvalError<T> for Result<T, EvalError> {
-    fn with_span(self, span: &SourceSpan) -> Result<T, EvalError> {
+    fn with_span(self, span: &Span) -> Result<T, EvalError> {
         self.map_err(|e| e.wrap_with_span(span.clone()))
     }
 }

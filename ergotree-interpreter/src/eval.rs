@@ -1,7 +1,7 @@
 //! Interpreter
 use bounded_vec::BoundedVecOutOfBounds;
 use ergotree_ir::mir::constant::TryExtractInto;
-use ergotree_ir::mir::expr::SourceSpan;
+use ergotree_ir::mir::expr::Span;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProp;
 use sigma_ser::ScorexParsingError;
 use sigma_ser::ScorexSerializationError;
@@ -170,13 +170,13 @@ pub enum EvalError {
         /// eval error
         error: Box<EvalError>,
         /// source span
-        source_span: SourceSpan,
+        source_span: Span,
     },
 }
 
 impl EvalError {
     /// Wrap eval error with source span
-    pub fn wrap_with_span(self, source_span: SourceSpan) -> Self {
+    pub fn wrap_with_span(self, source_span: Span) -> Self {
         EvalError::WrappedWithSpan {
             error: Box::new(self),
             source_span,

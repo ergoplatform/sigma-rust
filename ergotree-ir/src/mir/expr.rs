@@ -3,6 +3,7 @@
 use std::convert::TryFrom;
 use std::convert::TryInto;
 
+use crate::source_span::Spanned;
 use crate::types::stype::LiftIntoSType;
 use crate::types::stype::SType;
 
@@ -80,14 +81,11 @@ use derive_more::From;
 use derive_more::TryInto;
 use thiserror::Error;
 
-mod source_span;
-pub use source_span::*;
-
 #[derive(PartialEq, Eq, Debug, Clone, From, TryInto)]
 /// Expression in ErgoTree
 pub enum Expr {
     /// Append - Concatenation of two collections
-    Append(SourceSpanWrapper<Append>),
+    Append(Spanned<Append>),
     /// Constant value
     Const(Constant),
     /// Placeholder for a constant
