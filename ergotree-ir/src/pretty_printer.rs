@@ -1,39 +1,30 @@
 use std::fmt::Write;
 
+use thiserror::Error;
+
 use crate::mir::coll_append::Append;
 use crate::mir::expr::Expr;
 use crate::source_span::Span;
 use crate::source_span::Spanned;
 
-pub(crate) struct PrintExpr {
-    spanned_expr: Expr,
-    text: String,
-}
-
-#[derive(PartialEq, Eq, Debug, Clone)]
-pub(crate) enum PrintError {}
-
-struct PrintContext {
-    current_pos: usize,
-    current_indent: usize,
+#[derive(PartialEq, Eq, Debug, Clone, Error)]
+pub(crate) enum PrintError {
+    #[error("fmt error: {0:?}")]
+    FmtError(#[from] std::fmt::Error),
 }
 
 trait Print {
-    fn print(&self, w: &mut dyn Write, pc: &mut PrintContext) -> Result<Expr, PrintError>;
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError>;
 }
 
 impl Print for Append {
-    fn print(&self, w: &mut dyn Write, pc: &mut PrintContext) -> Result<Expr, PrintError> {
-        let start_pos = pc.current_pos;
-        self.input.print(w, pc)?;
-        // TODO: set indent
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        let start_pos = w.current_pos();
+        self.input.print(w)?;
         write!(w, ".append(")?;
-        // TODO: need a custom writer to bundle output and moving current pos
-        pc.current_pos += 8;
-        self.col_2.print(w, pc)?;
+        self.col_2.print(w)?;
         write!(w, ")")?;
-        pc.current_pos += 1;
-        let end_pos = pc.current_pos;
+        let end_pos = w.current_pos();
         Ok(Spanned {
             source_span: Span {
                 start: start_pos,
@@ -46,8 +37,62 @@ impl Print for Append {
 }
 
 impl Print for Expr {
-    fn print(&self, w: &mut dyn Write, pc: &mut PrintContext) -> Result<Expr, PrintError> {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
         todo!()
+    }
+}
+
+// TODO: extract to a separate module
+pub trait Printer: Write {
+    fn current_pos(&self) -> usize;
+    fn inc_ident(&mut self);
+    fn dec_ident(&mut self);
+}
+
+pub struct PosTrackingWriter {
+    print_buf: String,
+    current_pos: usize,
+    current_indent: usize,
+}
+
+impl Write for PosTrackingWriter {
+    fn write_str(&mut self, s: &str) -> std::fmt::Result {
+        let indented_str = s
+            .lines()
+            .map(|l| {
+                let mut indent = String::new();
+                for _ in 0..self.current_indent {
+                    indent.push(' ');
+                }
+                format!("{}{}", indent, l)
+            })
+            .collect::<Vec<String>>()
+            .join("\n");
+        let len = s.len();
+        self.current_pos += len;
+        write!(self.print_buf, "{}", indented_str)
+    }
+}
+
+impl Printer for PosTrackingWriter {
+    fn current_pos(&self) -> usize {
+        self.current_pos
+    }
+
+    fn inc_ident(&mut self) {
+        self.current_indent += Self::INDENT;
+    }
+
+    fn dec_ident(&mut self) {
+        self.current_indent -= Self::INDENT;
+    }
+}
+
+impl PosTrackingWriter {
+    const INDENT: usize = 4;
+
+    fn get_buf(&self) -> &str {
+        &self.print_buf
     }
 }
 
@@ -66,13 +111,14 @@ mod tests {
 
     fn check(expr: Expr, expected_tree: expect_test::Expect) {
         // TODO: create a formatter and grab it's output
-        let expected_out = todo!();
-        let mut pc = PrintContext {
+        let print_buf = String::new();
+        let mut w = PosTrackingWriter {
+            print_buf,
             current_pos: 0,
             current_indent: 0,
         };
-        let spanned_expr = expr.print(w, &mut pc).unwrap();
-        expected_tree.assert_eq(&expected_out.text);
+        let spanned_expr = expr.print(&mut w).unwrap();
+        expected_tree.assert_eq(w.get_buf());
     }
 
     #[test]
