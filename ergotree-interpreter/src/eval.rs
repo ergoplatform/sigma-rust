@@ -1,8 +1,10 @@
 //! Interpreter
 use bounded_vec::BoundedVecOutOfBounds;
 use ergotree_ir::mir::constant::TryExtractInto;
-use ergotree_ir::mir::expr::Span;
+use ergotree_ir::pretty_printer::PosTrackingWriter;
+use ergotree_ir::pretty_printer::Print;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProp;
+use ergotree_ir::source_span::Span;
 use sigma_ser::ScorexParsingError;
 use sigma_ser::ScorexSerializationError;
 use std::rc::Rc;
@@ -201,29 +203,46 @@ pub fn reduce_to_crypto(
     env: &Env,
     ctx: Rc<Context>,
 ) -> Result<ReductionResult, EvalError> {
-    let cost_accum = CostAccumulator::new(0, None);
-    let mut ectx = EvalContext::new(ctx, cost_accum);
-    let mut env_mut = env.clone();
-    expr.eval(&mut env_mut, &mut ectx)
-        .and_then(|v| -> Result<ReductionResult, EvalError> {
-            match v {
-                Value::Boolean(b) => Ok(ReductionResult {
-                    sigma_prop: SigmaBoolean::TrivialProp(b),
-                    cost: 0,
-                    env: env_mut.clone(),
-                }),
-                Value::SigmaProp(sp) => Ok(ReductionResult {
-                    sigma_prop: sp.value().clone(),
-                    cost: 0,
-                    env: env_mut.clone(),
-                }),
-                _ => Err(EvalError::InvalidResultType),
-            }
-        })
-        .map_err(|e| EvalError::WrappedWithEnvError {
-            error: Box::new(e),
-            env: env_mut,
-        })
+    let env_clone = env.clone();
+    let ctx_clone = ctx.clone();
+    fn inner(expr: &Expr, env: &Env, ctx: Rc<Context>) -> Result<ReductionResult, EvalError> {
+        let cost_accum = CostAccumulator::new(0, None);
+        let mut ectx = EvalContext::new(ctx, cost_accum);
+        let mut env_mut = env.clone();
+        expr.eval(&mut env_mut, &mut ectx)
+            .and_then(|v| -> Result<ReductionResult, EvalError> {
+                match v {
+                    Value::Boolean(b) => Ok(ReductionResult {
+                        sigma_prop: SigmaBoolean::TrivialProp(b),
+                        cost: 0,
+                        env: env_mut.clone(),
+                    }),
+                    Value::SigmaProp(sp) => Ok(ReductionResult {
+                        sigma_prop: sp.value().clone(),
+                        cost: 0,
+                        env: env_mut.clone(),
+                    }),
+                    _ => Err(EvalError::InvalidResultType),
+                }
+            })
+    }
+
+    let res = inner(expr, env, ctx);
+    if res.is_ok() {
+        return res;
+    }
+
+    let mut printer = PosTrackingWriter::new();
+    let spanned_expr = expr
+        .print(&mut printer)
+        .map_err(|e| EvalError::Misc(format!("printer error: {}", e)))?;
+    let printed_expr_str = printer.get_buf();
+    // TODO: cut the part of the printed_expr_str relevant to the span of the expr where error was generated
+    // and include it in the returned error
+    inner(&spanned_expr, env, ctx_clone).map_err(|e| EvalError::WrappedWithEnvError {
+        error: Box::new(e),
+        env: env_clone,
+    })
 }
 
 /// Expects SigmaProp constant value and returns it's value. Otherwise, returns an error.

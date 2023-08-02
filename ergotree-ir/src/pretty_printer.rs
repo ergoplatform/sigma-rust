@@ -1,3 +1,5 @@
+//! Pretty printer for ErgoTree IR
+
 use std::fmt::Write;
 
 use thiserror::Error;
@@ -7,13 +9,17 @@ use crate::mir::expr::Expr;
 use crate::source_span::Span;
 use crate::source_span::Spanned;
 
+/// Print error
+#[allow(missing_docs)]
 #[derive(PartialEq, Eq, Debug, Clone, Error)]
-pub(crate) enum PrintError {
+pub enum PrintError {
     #[error("fmt error: {0:?}")]
     FmtError(#[from] std::fmt::Error),
 }
 
-trait Print {
+/// Print trait for Expr that sets the source span for the resulting Expr
+pub trait Print {
+    /// Print the expression and return the resulting expression with source span
     fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError>;
 }
 
@@ -47,12 +53,17 @@ impl Print for Expr {
 }
 
 // TODO: extract to a separate module
+/// Printer trait with tracking of current position and indent
 pub trait Printer: Write {
+    /// Current position (last printed char)
     fn current_pos(&self) -> usize;
+    /// Increase indent
     fn inc_ident(&mut self);
+    /// Decrease indent
     fn dec_ident(&mut self);
 }
 
+/// Printer implementation with tracking of current position and indent
 pub struct PosTrackingWriter {
     print_buf: String,
     current_pos: usize,
@@ -95,8 +106,24 @@ impl Printer for PosTrackingWriter {
 impl PosTrackingWriter {
     const INDENT: usize = 4;
 
-    fn get_buf(&self) -> &str {
+    /// Create new printer
+    pub fn new() -> Self {
+        Self {
+            print_buf: String::new(),
+            current_pos: 0,
+            current_indent: 0,
+        }
+    }
+
+    /// Get printed buffer
+    pub fn get_buf(&self) -> &str {
         &self.print_buf
+    }
+}
+
+impl Default for PosTrackingWriter {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
