@@ -36,9 +36,13 @@ impl Print for Append {
     }
 }
 
+#[allow(clippy::todo)]
 impl Print for Expr {
     fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
-        todo!()
+        match self {
+            Expr::Append(a) => a.expr().print(w),
+            _ => todo!(),
+        }
     }
 }
 
