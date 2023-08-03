@@ -65,30 +65,35 @@ pub enum EvalError {
     /// Scorex serialization parsing error
     #[error("Serialization parsing error: {0}")]
     ScorexParsingError(#[from] ScorexParsingError),
-    /// Wrapped eval error with environment after evaluation
-    #[error("eval error: {error}, env: {env:?}")]
-    WrappedWithEnvError {
-        /// eval error
-        error: Box<EvalError>,
-        /// environment after evaluation
-        env: Env,
-    },
-    /// Wrapped eval error with source span
-    #[error("eval error: {error}, source span: {source_span:?}")]
-    WrappedWithSpan {
+    /// Wrapped error with source span and environment
+    #[error("eval error: {error}, source span: {source_span:?}, env: {env:?}")]
+    Wrapped {
         /// eval error
         error: Box<EvalError>,
         /// source span
         source_span: Span,
+        /// environment after evaluation
+        env: Env,
     },
 }
 
 impl EvalError {
     /// Wrap eval error with source span
-    pub fn wrap_with_span(self, source_span: Span) -> Self {
-        EvalError::WrappedWithSpan {
+    pub fn wrap(self, source_span: Span, env: Env) -> Self {
+        EvalError::Wrapped {
             error: Box::new(self),
             source_span,
+            env,
         }
+    }
+}
+
+pub trait ExtResultEvalError<T> {
+    fn enrich_err(self, span: Span, env: Env) -> Result<T, EvalError>;
+}
+
+impl<T> ExtResultEvalError<T> for Result<T, EvalError> {
+    fn enrich_err(self, span: Span, env: Env) -> Result<T, EvalError> {
+        self.map_err(|e| e.wrap(span, env))
     }
 }

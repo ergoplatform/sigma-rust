@@ -1,7 +1,7 @@
 use ergotree_ir::mir::expr::Expr;
 use ergotree_ir::mir::value::Value;
-use ergotree_ir::source_span::Span;
 
+use super::error::ExtResultEvalError;
 use super::Env;
 use super::EvalContext;
 use super::EvalError;
@@ -10,7 +10,7 @@ use super::Evaluable;
 impl Evaluable for Expr {
     fn eval(&self, env: &mut Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
         ctx.cost_accum.add_cost_of(self)?;
-        match self {
+        let res = match self {
             Expr::Const(c) => Ok(Value::from(c.v.clone())),
             Expr::SubstConstants(op) => op.eval(env, ctx),
             Expr::ByteArrayToLong(op) => op.eval(env, ctx),
@@ -51,7 +51,7 @@ impl Evaluable for Expr {
             Expr::Upcast(op) => op.eval(env, ctx),
             Expr::Downcast(op) => op.eval(env, ctx),
             Expr::If(op) => op.eval(env, ctx),
-            Expr::Append(op) => op.expr().eval(env, ctx).with_span(&op.source_span),
+            Expr::Append(op) => op.expr().eval(env, ctx),
             Expr::ByIndex(op) => op.eval(env, ctx),
             Expr::ExtractScriptBytes(op) => op.eval(env, ctx),
             Expr::SizeOf(op) => op.eval(env, ctx),
@@ -81,17 +81,7 @@ impl Evaluable for Expr {
             Expr::ExtractBytesWithNoRef(op) => op.eval(env, ctx),
             Expr::TreeLookup(op) => op.eval(env, ctx),
             Expr::CreateAvlTree(op) => op.eval(env, ctx),
-        }
-    }
-}
-
-// TODO: extract
-pub trait ExtResultEvalError<T> {
-    fn with_span(self, span: &Span) -> Result<T, EvalError>;
-}
-
-impl<T> ExtResultEvalError<T> for Result<T, EvalError> {
-    fn with_span(self, span: &Span) -> Result<T, EvalError> {
-        self.map_err(|e| e.wrap_with_span(span.clone()))
+        };
+        res.enrich_err(self.span().clone(), env.clone())
     }
 }

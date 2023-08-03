@@ -150,10 +150,7 @@ pub fn reduce_to_crypto(
     let printed_expr_str = printer.get_buf();
     // TODO: cut the part of the printed_expr_str relevant to the span of the expr where error was generated
     // and include it in the returned error
-    inner(&spanned_expr, env, ctx_clone).map_err(|e| EvalError::WrappedWithEnvError {
-        error: Box::new(e),
-        env: env_clone,
-    })
+    inner(&spanned_expr, env, ctx_clone)
 }
 
 /// Expects SigmaProp constant value and returns it's value. Otherwise, returns an error.
