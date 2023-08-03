@@ -85,6 +85,7 @@ impl Evaluable for Expr {
     }
 }
 
+// TODO: extract
 pub trait ExtResultEvalError<T> {
     fn with_span(self, span: &Span) -> Result<T, EvalError>;
 }
