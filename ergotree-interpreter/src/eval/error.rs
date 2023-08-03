@@ -66,15 +66,23 @@ pub enum EvalError {
     #[error("Serialization parsing error: {0}")]
     ScorexParsingError(#[from] ScorexParsingError),
     /// Wrapped error with source span and environment
-    #[error("eval error: {error}, source span: {source_span:?}, env: {env:?}")]
+    #[error("eval error: {error}, details: {details:?}")]
     Wrapped {
         /// eval error
         error: Box<EvalError>,
-        /// source span
-        source_span: Span,
-        /// environment after evaluation
-        env: Env,
+        /// error details
+        details: EvalErrorDetails,
     },
+}
+
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct EvalErrorDetails {
+    /// source span
+    source_span: Span,
+    /// environment after evaluation
+    env: Env,
+    /// source code
+    source: Option<String>,
 }
 
 impl EvalError {
@@ -82,8 +90,33 @@ impl EvalError {
     pub fn wrap(self, source_span: Span, env: Env) -> Self {
         EvalError::Wrapped {
             error: Box::new(self),
-            source_span,
-            env,
+            details: EvalErrorDetails {
+                source_span,
+                env,
+                source: None,
+            },
+        }
+    }
+
+    /// Wrap eval error with source code
+    pub fn wrap_with_src(self, source: String) -> Self {
+        match self {
+            EvalError::Wrapped { error, details } => EvalError::Wrapped {
+                error,
+                details: EvalErrorDetails {
+                    source_span: details.source_span,
+                    env: details.env,
+                    source: Some(source),
+                },
+            },
+            e => EvalError::Wrapped {
+                error: Box::new(e),
+                details: EvalErrorDetails {
+                    source_span: Span::empty(),
+                    env: Env::empty(),
+                    source: Some(source),
+                },
+            },
         }
     }
 }
