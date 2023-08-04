@@ -4,6 +4,7 @@ use std::fmt::Write;
 
 use thiserror::Error;
 
+use crate::mir::block::BlockValue;
 use crate::mir::coll_append::Append;
 use crate::mir::expr::Expr;
 use crate::source_span::Span;
@@ -23,31 +24,50 @@ pub trait Print {
     fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError>;
 }
 
-impl Print for Append {
+impl Print for BlockValue {
     fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
-        let start_pos = w.current_pos();
-        self.input.print(w)?;
-        write!(w, ".append(")?;
-        self.col_2.print(w)?;
-        write!(w, ")")?;
-        let end_pos = w.current_pos();
+        let start = w.current_pos();
+        writeln!(w, "{{")?;
+        w.inc_ident();
+        for item in &self.items {
+            item.print(w)?;
+            writeln!(w)?;
+        }
+        self.result.print(w)?;
+        w.dec_ident();
+        write!(w, "\n}}")?;
+        let end = w.current_pos();
         Ok(Spanned {
-            source_span: Span {
-                start: start_pos,
-                end: end_pos,
-            },
+            source_span: Span { start, end },
             expr: self.clone(),
         }
         .into())
     }
 }
 
-#[allow(clippy::todo)]
+impl Print for Append {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        let start = w.current_pos();
+        self.input.print(w)?;
+        write!(w, ".append(")?;
+        self.col_2.print(w)?;
+        write!(w, ")")?;
+        let end = w.current_pos();
+        Ok(Spanned {
+            source_span: Span { start, end },
+            expr: self.clone(),
+        }
+        .into())
+    }
+}
+
+#[allow(clippy::panic)]
 impl Print for Expr {
     fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
         match self {
-            Expr::Append(a) => a.expr().print(w),
-            _ => todo!(),
+            Expr::Append(v) => v.expr().print(w),
+            Expr::BlockValue(v) => v.expr().print(w),
+            e => panic!("Not implemented: {:?}", e),
         }
     }
 }
@@ -141,7 +161,6 @@ mod tests {
     use super::*;
 
     fn check(expr: Expr, expected_tree: expect_test::Expect) {
-        // TODO: create a formatter and grab it's output
         let print_buf = String::new();
         let mut w = PosTrackingWriter {
             print_buf,
@@ -153,23 +172,25 @@ mod tests {
     }
 
     #[test]
-    fn smoke() {
+    fn print_block() {
         let val_id = 2.into();
-        let body = Expr::BlockValue(BlockValue {
-            items: vec![ValDef {
-                id: val_id,
-                rhs: Box::new(Expr::Const(1i32.into())),
-            }
-            .into()],
-            result: Box::new(
-                ValUse {
-                    val_id,
-                    tpe: SType::SInt,
+        let expr = Expr::BlockValue(
+            BlockValue {
+                items: vec![ValDef {
+                    id: val_id,
+                    rhs: Box::new(Expr::Const(1i32.into())),
                 }
-                .into(),
-            ),
-        });
-        let expr = Expr::Const(1i32.into());
+                .into()],
+                result: Box::new(
+                    ValUse {
+                        val_id,
+                        tpe: SType::SInt,
+                    }
+                    .into(),
+                ),
+            }
+            .into(),
+        );
         check(
             expr,
             expect![[r#"

@@ -122,7 +122,7 @@ pub enum Expr {
     /// Property call
     ProperyCall(PropertyCall),
     /// Block (statements, followed by an expression)
-    BlockValue(BlockValue),
+    BlockValue(Spanned<BlockValue>),
     /// let-bound expression
     ValDef(ValDef),
     /// Reference to ValDef
@@ -245,7 +245,7 @@ impl Expr {
             Expr::Apply(v) => v.tpe(),
             Expr::MethodCall(v) => v.tpe(),
             Expr::ProperyCall(v) => v.tpe(),
-            Expr::BlockValue(v) => v.tpe(),
+            Expr::BlockValue(v) => v.expr().tpe(),
             Expr::ValDef(v) => v.tpe(),
             Expr::ValUse(v) => v.tpe.clone(),
             Expr::BinOp(v) => v.tpe(),

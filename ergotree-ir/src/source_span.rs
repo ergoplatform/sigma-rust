@@ -1,5 +1,6 @@
 //! Source position for an IR node in the source code
 
+use crate::mir::block::BlockValue;
 use crate::mir::coll_append::Append;
 use crate::mir::expr::Expr;
 
@@ -35,15 +36,21 @@ impl<T> Spanned<T> {
     }
 }
 
-// TODO: can be a macros
-impl From<Append> for Expr {
-    fn from(v: Append) -> Self {
-        Expr::Append(Spanned {
-            source_span: Span::empty(),
-            expr: v,
-        })
-    }
+macro_rules! into_expr {
+    ($variant: ident) => {
+        impl From<$variant> for Expr {
+            fn from(v: $variant) -> Self {
+                Expr::$variant(Spanned {
+                    source_span: Span::empty(),
+                    expr: v,
+                })
+            }
+        }
+    };
 }
+
+into_expr!(Append);
+into_expr!(BlockValue);
 
 impl<T> From<T> for Spanned<T> {
     fn from(v: T) -> Self {

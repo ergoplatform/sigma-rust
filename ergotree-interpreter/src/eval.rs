@@ -114,7 +114,6 @@ pub fn reduce_to_crypto(
     env: &Env,
     ctx: Rc<Context>,
 ) -> Result<ReductionResult, EvalError> {
-    let env_clone = env.clone();
     let ctx_clone = ctx.clone();
     fn inner(expr: &Expr, env: &Env, ctx: Rc<Context>) -> Result<ReductionResult, EvalError> {
         let cost_accum = CostAccumulator::new(0, None);

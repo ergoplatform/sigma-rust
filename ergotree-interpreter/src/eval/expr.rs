@@ -30,7 +30,7 @@ impl Evaluable for Expr {
             Expr::Apply(op) => op.eval(env, ctx),
             Expr::FuncValue(op) => op.eval(env, ctx),
             Expr::ValUse(op) => op.eval(env, ctx),
-            Expr::BlockValue(op) => op.eval(env, ctx),
+            Expr::BlockValue(op) => op.expr().eval(env, ctx),
             Expr::SelectField(op) => op.eval(env, ctx),
             Expr::ExtractAmount(op) => op.eval(env, ctx),
             Expr::ConstPlaceholder(_) => Err(EvalError::UnexpectedExpr(

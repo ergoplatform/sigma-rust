@@ -146,7 +146,7 @@ impl Expr {
                 OpCode::BIT_OR => Ok(bin_op_sigma_parse(BitOp::BitOr.into(), r)?),
                 OpCode::BIT_AND => Ok(bin_op_sigma_parse(BitOp::BitAnd.into(), r)?),
                 OpCode::BIT_XOR => Ok(bin_op_sigma_parse(BitOp::BitXor.into(), r)?),
-                OpCode::BLOCK_VALUE => Ok(Expr::BlockValue(BlockValue::sigma_parse(r)?)),
+                OpCode::BLOCK_VALUE => Ok(Expr::BlockValue(BlockValue::sigma_parse(r)?.into())),
                 OpCode::FUNC_VALUE => Ok(Expr::FuncValue(FuncValue::sigma_parse(r)?)),
                 OpCode::APPLY => Ok(Expr::Apply(Apply::sigma_parse(r)?)),
                 OpCode::VAL_DEF => Ok(Expr::ValDef(ValDef::sigma_parse(r)?)),
@@ -240,7 +240,7 @@ impl SigmaSerializable for Expr {
                 op.op_code().sigma_serialize(w)?;
                 bin_op_sigma_serialize(op, w)
             }
-            Expr::BlockValue(op) => op.sigma_serialize_w_opcode(w),
+            Expr::BlockValue(op) => op.expr().sigma_serialize_w_opcode(w),
             Expr::ValUse(op) => op.sigma_serialize_w_opcode(w),
             Expr::ValDef(op) => op.sigma_serialize_w_opcode(w),
             Expr::FuncValue(op) => op.sigma_serialize_w_opcode(w),
