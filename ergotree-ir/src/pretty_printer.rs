@@ -9,6 +9,7 @@ use crate::mir::coll_append::Append;
 use crate::mir::constant::Constant;
 use crate::mir::expr::Expr;
 use crate::mir::val_def::ValDef;
+use crate::mir::val_use::ValUse;
 use crate::source_span::Span;
 use crate::source_span::Spanned;
 
@@ -31,13 +32,17 @@ impl Print for BlockValue {
         let start = w.current_pos();
         writeln!(w, "{{")?;
         w.inc_ident();
+        let indent = w.get_indent();
         for item in &self.items {
+            write!(w, "{:indent$}", "", indent = indent)?;
             item.print(w)?;
             writeln!(w)?;
         }
+        // indent for result
+        write!(w, "{:indent$}", "", indent = indent)?;
         self.result.print(w)?;
         w.dec_ident();
-        write!(w, "\n}}")?;
+        writeln!(w, "\n}}")?;
         let end = w.current_pos();
         Ok(Spanned {
             source_span: Span { start, end },
@@ -53,7 +58,6 @@ impl Print for ValDef {
         write!(w, "val v{} = ", self.id)?;
         self.rhs.print(w)?;
         let end = w.current_pos();
-        writeln!(w)?;
         Ok(Spanned {
             source_span: Span { start, end },
             expr: self.clone(),
@@ -66,6 +70,13 @@ impl Print for Constant {
     fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
         // TODO: implement Display for Literal
         write!(w, "{:?}", self.v)?;
+        Ok(self.clone().into())
+    }
+}
+
+impl Print for ValUse {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        write!(w, "v{}", self.val_id)?;
         Ok(self.clone().into())
     }
 }
@@ -93,6 +104,7 @@ impl Print for Expr {
             Expr::Append(v) => v.expr().print(w),
             Expr::BlockValue(v) => v.expr().print(w),
             Expr::ValDef(v) => v.expr().print(w),
+            Expr::ValUse(v) => v.print(w),
             Expr::Const(v) => v.print(w),
             e => panic!("Not implemented: {:?}", e),
         }
@@ -108,6 +120,8 @@ pub trait Printer: Write {
     fn inc_ident(&mut self);
     /// Decrease indent
     fn dec_ident(&mut self);
+    /// Get current indent
+    fn get_indent(&self) -> usize;
 }
 
 /// Printer implementation with tracking of current position and indent
@@ -119,20 +133,9 @@ pub struct PosTrackingWriter {
 
 impl Write for PosTrackingWriter {
     fn write_str(&mut self, s: &str) -> std::fmt::Result {
-        let indented_str = s
-            .lines()
-            .map(|l| {
-                let mut indent = String::new();
-                for _ in 0..self.current_indent {
-                    indent.push(' ');
-                }
-                format!("{}{}", indent, l)
-            })
-            .collect::<Vec<String>>()
-            .join("\n");
         let len = s.len();
         self.current_pos += len;
-        write!(self.print_buf, "{}", indented_str)
+        write!(self.print_buf, "{}", s)
     }
 }
 
@@ -147,6 +150,10 @@ impl Printer for PosTrackingWriter {
 
     fn dec_ident(&mut self) {
         self.current_indent -= Self::INDENT;
+    }
+
+    fn get_indent(&self) -> usize {
+        self.current_indent
     }
 }
 
@@ -201,7 +208,7 @@ mod tests {
 
     #[test]
     fn print_block() {
-        let val_id = 2.into();
+        let val_id = 1.into();
         let expr = Expr::BlockValue(
             BlockValue {
                 items: vec![ValDef {
