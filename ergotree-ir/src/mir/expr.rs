@@ -124,7 +124,7 @@ pub enum Expr {
     /// Block (statements, followed by an expression)
     BlockValue(Spanned<BlockValue>),
     /// let-bound expression
-    ValDef(ValDef),
+    ValDef(Spanned<ValDef>),
     /// Reference to ValDef
     ValUse(ValUse),
     /// If, non-lazy - evaluate both branches
@@ -246,7 +246,7 @@ impl Expr {
             Expr::MethodCall(v) => v.tpe(),
             Expr::ProperyCall(v) => v.tpe(),
             Expr::BlockValue(v) => v.expr().tpe(),
-            Expr::ValDef(v) => v.tpe(),
+            Expr::ValDef(v) => v.expr().tpe(),
             Expr::ValUse(v) => v.tpe.clone(),
             Expr::BinOp(v) => v.tpe(),
             Expr::OptionGet(v) => v.tpe(),

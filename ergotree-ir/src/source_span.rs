@@ -1,5 +1,6 @@
 //! Source position for an IR node in the source code
 
+use crate::mir::val_def::ValDef;
 use crate::mir::block::BlockValue;
 use crate::mir::coll_append::Append;
 use crate::mir::expr::Expr;
@@ -51,6 +52,7 @@ macro_rules! into_expr {
 
 into_expr!(Append);
 into_expr!(BlockValue);
+into_expr!(ValDef);
 
 impl<T> From<T> for Spanned<T> {
     fn from(v: T) -> Self {

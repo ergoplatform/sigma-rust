@@ -149,7 +149,7 @@ impl Expr {
                 OpCode::BLOCK_VALUE => Ok(Expr::BlockValue(BlockValue::sigma_parse(r)?.into())),
                 OpCode::FUNC_VALUE => Ok(Expr::FuncValue(FuncValue::sigma_parse(r)?)),
                 OpCode::APPLY => Ok(Expr::Apply(Apply::sigma_parse(r)?)),
-                OpCode::VAL_DEF => Ok(Expr::ValDef(ValDef::sigma_parse(r)?)),
+                OpCode::VAL_DEF => Ok(Expr::ValDef(ValDef::sigma_parse(r)?.into())),
                 OpCode::VAL_USE => Ok(Expr::ValUse(ValUse::sigma_parse(r)?)),
                 ExtractAmount::OP_CODE => Ok(Expr::ExtractAmount(ExtractAmount::sigma_parse(r)?)),
                 OpCode::SELECT_FIELD => Ok(Expr::SelectField(SelectField::sigma_parse(r)?)),
@@ -242,7 +242,7 @@ impl SigmaSerializable for Expr {
             }
             Expr::BlockValue(op) => op.expr().sigma_serialize_w_opcode(w),
             Expr::ValUse(op) => op.sigma_serialize_w_opcode(w),
-            Expr::ValDef(op) => op.sigma_serialize_w_opcode(w),
+            Expr::ValDef(op) => op.expr().sigma_serialize_w_opcode(w),
             Expr::FuncValue(op) => op.sigma_serialize_w_opcode(w),
             Expr::Apply(op) => op.sigma_serialize_w_opcode(w),
             Expr::ExtractAmount(op) => op.sigma_serialize_w_opcode(w),

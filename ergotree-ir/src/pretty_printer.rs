@@ -6,7 +6,9 @@ use thiserror::Error;
 
 use crate::mir::block::BlockValue;
 use crate::mir::coll_append::Append;
+use crate::mir::constant::Constant;
 use crate::mir::expr::Expr;
+use crate::mir::val_def::ValDef;
 use crate::source_span::Span;
 use crate::source_span::Spanned;
 
@@ -45,6 +47,29 @@ impl Print for BlockValue {
     }
 }
 
+impl Print for ValDef {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        let start = w.current_pos();
+        write!(w, "val v{} = ", self.id)?;
+        self.rhs.print(w)?;
+        let end = w.current_pos();
+        writeln!(w)?;
+        Ok(Spanned {
+            source_span: Span { start, end },
+            expr: self.clone(),
+        }
+        .into())
+    }
+}
+
+impl Print for Constant {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        // TODO: implement Display for Literal
+        write!(w, "{:?}", self.v)?;
+        Ok(self.clone().into())
+    }
+}
+
 impl Print for Append {
     fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
         let start = w.current_pos();
@@ -67,6 +92,8 @@ impl Print for Expr {
         match self {
             Expr::Append(v) => v.expr().print(w),
             Expr::BlockValue(v) => v.expr().print(w),
+            Expr::ValDef(v) => v.expr().print(w),
+            Expr::Const(v) => v.print(w),
             e => panic!("Not implemented: {:?}", e),
         }
     }
@@ -167,8 +194,9 @@ mod tests {
             current_pos: 0,
             current_indent: 0,
         };
-        let spanned_expr = expr.print(&mut w).unwrap();
+        let _ = expr.print(&mut w).unwrap();
         expected_tree.assert_eq(w.get_buf());
+        // todo!("check source spans");
     }
 
     #[test]

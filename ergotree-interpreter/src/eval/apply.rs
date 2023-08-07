@@ -77,7 +77,7 @@ mod tests {
             }
             .into()],
             result: Box::new(bin_op),
-        });
+        }.into());
         let apply: Expr = Apply::new(
             FuncValue::new(
                 vec![FuncArg {

@@ -87,7 +87,7 @@ mod tests {
 
         #[test]
         fn ser_roundtrip(v in any::<ValDef>()) {
-            let e = Expr::ValDef(v);
+            let e = Expr::ValDef(v.into());
             prop_assert_eq![sigma_serialize_roundtrip(&e), e];
         }
     }
