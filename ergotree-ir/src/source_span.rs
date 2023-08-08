@@ -1,31 +1,35 @@
 //! Source position for an IR node in the source code
 
-use crate::mir::val_def::ValDef;
 use crate::mir::block::BlockValue;
 use crate::mir::coll_append::Append;
 use crate::mir::expr::Expr;
+use crate::mir::val_def::ValDef;
 
 /// Source position for the Expr
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct Span {
-    /// Start position in the source code
-    pub start: usize,
-    /// End position in the source code
-    pub end: usize,
+pub struct SourceSpan {
+    /// Start position in the span
+    pub offset: usize,
+    /// The length of the span
+    pub length: usize,
 }
 
-impl Span {
+impl SourceSpan {
     /// Empty span
     pub fn empty() -> Self {
-        Span { start: 0, end: 0 }
+        SourceSpan {
+            offset: 0,
+            length: 0,
+        }
     }
 }
+
 
 /// Wrapper for Expr with source position
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Spanned<T> {
     /// Source position
-    pub source_span: Span,
+    pub source_span: SourceSpan,
     /// Wrapped value
     pub expr: T,
 }
@@ -42,7 +46,7 @@ macro_rules! into_expr {
         impl From<$variant> for Expr {
             fn from(v: $variant) -> Self {
                 Expr::$variant(Spanned {
-                    source_span: Span::empty(),
+                    source_span: SourceSpan::empty(),
                     expr: v,
                 })
             }
@@ -57,7 +61,7 @@ into_expr!(ValDef);
 impl<T> From<T> for Spanned<T> {
     fn from(v: T) -> Self {
         Spanned {
-            source_span: Span::empty(),
+            source_span: SourceSpan::empty(),
             expr: v,
         }
     }
@@ -66,7 +70,7 @@ impl<T> From<T> for Spanned<T> {
 impl Expr {
     /// Source span for the Expr
     #[allow(clippy::todo)]
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> &SourceSpan {
         match self {
             Expr::Append(op) => &op.source_span,
             Expr::Const(_) => todo!(),

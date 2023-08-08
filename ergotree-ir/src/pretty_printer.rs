@@ -10,7 +10,7 @@ use crate::mir::constant::Constant;
 use crate::mir::expr::Expr;
 use crate::mir::val_def::ValDef;
 use crate::mir::val_use::ValUse;
-use crate::source_span::Span;
+use crate::source_span::SourceSpan;
 use crate::source_span::Spanned;
 
 /// Print error
@@ -29,7 +29,7 @@ pub trait Print {
 
 impl Print for BlockValue {
     fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
-        let start = w.current_pos();
+        let offset = w.current_pos();
         writeln!(w, "{{")?;
         w.inc_ident();
         let indent = w.get_indent();
@@ -43,9 +43,9 @@ impl Print for BlockValue {
         self.result.print(w)?;
         w.dec_ident();
         writeln!(w, "\n}}")?;
-        let end = w.current_pos();
+        let length = w.current_pos() - offset;
         Ok(Spanned {
-            source_span: Span { start, end },
+            source_span: SourceSpan { offset, length },
             expr: self.clone(),
         }
         .into())
@@ -54,12 +54,12 @@ impl Print for BlockValue {
 
 impl Print for ValDef {
     fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
-        let start = w.current_pos();
+        let offset = w.current_pos();
         write!(w, "val v{} = ", self.id)?;
         self.rhs.print(w)?;
-        let end = w.current_pos();
+        let length = w.current_pos() - offset;
         Ok(Spanned {
-            source_span: Span { start, end },
+            source_span: SourceSpan { offset, length },
             expr: self.clone(),
         }
         .into())
@@ -83,14 +83,14 @@ impl Print for ValUse {
 
 impl Print for Append {
     fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
-        let start = w.current_pos();
+        let offset = w.current_pos();
         self.input.print(w)?;
         write!(w, ".append(")?;
         self.col_2.print(w)?;
         write!(w, ")")?;
-        let end = w.current_pos();
+        let length = w.current_pos() - offset;
         Ok(Spanned {
-            source_span: Span { start, end },
+            source_span: SourceSpan { offset, length },
             expr: self.clone(),
         }
         .into())

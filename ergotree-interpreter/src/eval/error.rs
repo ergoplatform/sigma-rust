@@ -3,7 +3,7 @@ use ergotree_ir::ergo_tree::ErgoTreeError;
 use ergotree_ir::mir::constant::TryExtractFromError;
 use ergotree_ir::serialization::SigmaParsingError;
 use ergotree_ir::serialization::SigmaSerializationError;
-use ergotree_ir::source_span::Span;
+use ergotree_ir::source_span::SourceSpan;
 use sigma_ser::ScorexParsingError;
 use sigma_ser::ScorexSerializationError;
 use thiserror::Error;
@@ -78,7 +78,7 @@ pub enum EvalError {
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct EvalErrorDetails {
     /// source span
-    source_span: Span,
+    source_span: SourceSpan,
     /// environment after evaluation
     env: Env,
     /// source code
@@ -87,7 +87,7 @@ pub struct EvalErrorDetails {
 
 impl EvalError {
     /// Wrap eval error with source span
-    pub fn wrap(self, source_span: Span, env: Env) -> Self {
+    pub fn wrap(self, source_span: SourceSpan, env: Env) -> Self {
         EvalError::Wrapped {
             error: Box::new(self),
             details: EvalErrorDetails {
@@ -112,7 +112,7 @@ impl EvalError {
             e => EvalError::Wrapped {
                 error: Box::new(e),
                 details: EvalErrorDetails {
-                    source_span: Span::empty(),
+                    source_span: SourceSpan::empty(),
                     env: Env::empty(),
                     source: Some(source),
                 },
@@ -122,11 +122,11 @@ impl EvalError {
 }
 
 pub trait ExtResultEvalError<T> {
-    fn enrich_err(self, span: Span, env: Env) -> Result<T, EvalError>;
+    fn enrich_err(self, span: SourceSpan, env: Env) -> Result<T, EvalError>;
 }
 
 impl<T> ExtResultEvalError<T> for Result<T, EvalError> {
-    fn enrich_err(self, span: Span, env: Env) -> Result<T, EvalError> {
+    fn enrich_err(self, span: SourceSpan, env: Env) -> Result<T, EvalError> {
         self.map_err(|e| e.wrap(span, env))
     }
 }
