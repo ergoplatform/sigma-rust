@@ -127,6 +127,80 @@ pub trait ExtResultEvalError<T> {
 
 impl<T> ExtResultEvalError<T> for Result<T, EvalError> {
     fn enrich_err(self, span: SourceSpan, env: Env) -> Result<T, EvalError> {
-        self.map_err(|e| e.wrap(span, env))
+        self.map_err(|e| match e {
+            // skip already wrapped errors
+            w @ EvalError::Wrapped {
+                error: _,
+                details: _,
+            } => w,
+            e => e.wrap(span, env),
+        })
+    }
+}
+
+#[allow(clippy::unwrap_used)]
+#[cfg(test)]
+mod tests {
+    use std::rc::Rc;
+
+    use expect_test::expect;
+
+    use ergotree_ir::mir::bin_op::ArithOp;
+    use ergotree_ir::mir::bin_op::BinOp;
+    use ergotree_ir::mir::block::BlockValue;
+    use ergotree_ir::mir::expr::Expr;
+    use ergotree_ir::mir::val_def::ValDef;
+    use ergotree_ir::mir::val_use::ValUse;
+    use ergotree_ir::pretty_printer::PosTrackingWriter;
+    use ergotree_ir::pretty_printer::Print;
+    use ergotree_ir::types::stype::SType;
+    use sigma_test_util::force_any_val;
+
+    use crate::eval::context::Context;
+    use crate::eval::tests::try_eval_out;
+
+    fn check(expr: Expr, expected_tree: expect_test::Expect) {
+        let mut w = PosTrackingWriter::new();
+        let spanned_expr = expr.print(&mut w).unwrap();
+        dbg!(&spanned_expr);
+        let ctx = Rc::new(force_any_val::<Context>());
+        let err_raw = try_eval_out::<i32>(&spanned_expr, ctx).err().unwrap();
+        // let err = err_raw.wrap_with_src(w.get_buf().to_string());
+        let err_msg = format!("{:?}", err_raw);
+        expected_tree.assert_eq(&err_msg);
+    }
+
+    #[test]
+    fn pretty_binop_div_zero() {
+        let val_id = 1.into();
+        let expr = Expr::BlockValue(
+            BlockValue {
+                items: vec![ValDef {
+                    id: val_id,
+                    rhs: Box::new(
+                        BinOp {
+                            kind: ArithOp::Divide.into(),
+                            left: Expr::Const(1i32.into()).into(),
+                            right: Expr::Const(0i32.into()).into(),
+                        }
+                        .into(),
+                    ),
+                }
+                .into()],
+                result: Box::new(
+                    ValUse {
+                        val_id,
+                        tpe: SType::SInt,
+                    }
+                    .into(),
+                ),
+            }
+            .into(),
+        );
+        check(
+            expr,
+            expect![[r#"
+            "#]],
+        )
     }
 }

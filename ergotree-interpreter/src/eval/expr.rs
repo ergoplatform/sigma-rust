@@ -1,3 +1,5 @@
+//! Evaluation of ErgoTree expressions
+
 use ergotree_ir::mir::expr::Expr;
 use ergotree_ir::mir::value::Value;
 
@@ -82,6 +84,6 @@ impl Evaluable for Expr {
             Expr::TreeLookup(op) => op.eval(env, ctx),
             Expr::CreateAvlTree(op) => op.eval(env, ctx),
         };
-        res.enrich_err(self.span().clone(), env.clone())
+        res.enrich_err(self.span(), env.clone())
     }
 }

@@ -7,7 +7,7 @@ use crate::mir::expr::Expr;
 use crate::mir::val_def::ValDef;
 
 /// Source position for the Expr
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub struct SourceSpan {
     /// Start position in the span
     pub offset: usize,
@@ -71,10 +71,10 @@ impl<T> From<T> for Spanned<T> {
 impl Expr {
     /// Source span for the Expr
     #[allow(clippy::todo)]
-    pub fn span(&self) -> &SourceSpan {
+    pub fn span(&self) -> SourceSpan {
         match self {
-            Expr::Append(op) => &op.source_span,
-            Expr::Const(_) => todo!(),
+            Expr::Append(op) => op.source_span,
+            Expr::Const(_) => SourceSpan::empty(),
             Expr::ConstPlaceholder(_) => todo!(),
             Expr::SubstConstants(_) => todo!(),
             Expr::ByteArrayToLong(_) => todo!(),
@@ -91,11 +91,11 @@ impl Expr {
             Expr::Apply(_) => todo!(),
             Expr::MethodCall(_) => todo!(),
             Expr::ProperyCall(_) => todo!(),
-            Expr::BlockValue(_) => todo!(),
-            Expr::ValDef(_) => todo!(),
-            Expr::ValUse(_) => todo!(),
+            Expr::BlockValue(op) => op.source_span,
+            Expr::ValDef(op) => op.source_span,
+            Expr::ValUse(_) => SourceSpan::empty(),
             Expr::If(_) => todo!(),
-            Expr::BinOp(_) => todo!(),
+            Expr::BinOp(op) => op.source_span,
             Expr::And(_) => todo!(),
             Expr::Or(_) => todo!(),
             Expr::Xor(_) => todo!(),
