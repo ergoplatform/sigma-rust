@@ -130,7 +130,7 @@ pub enum Expr {
     /// If, non-lazy - evaluate both branches
     If(If),
     /// Binary operation
-    BinOp(BinOp),
+    BinOp(Spanned<BinOp>),
     /// Logical AND
     And(And),
     /// Logical OR
@@ -248,7 +248,7 @@ impl Expr {
             Expr::BlockValue(v) => v.expr().tpe(),
             Expr::ValDef(v) => v.expr().tpe(),
             Expr::ValUse(v) => v.tpe.clone(),
-            Expr::BinOp(v) => v.tpe(),
+            Expr::BinOp(v) => v.expr().tpe(),
             Expr::OptionGet(v) => v.tpe(),
             Expr::ExtractRegisterAs(v) => v.tpe(),
             Expr::Fold(v) => v.tpe(),

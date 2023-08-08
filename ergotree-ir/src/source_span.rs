@@ -1,5 +1,6 @@
 //! Source position for an IR node in the source code
 
+use crate::mir::bin_op::BinOp;
 use crate::mir::block::BlockValue;
 use crate::mir::coll_append::Append;
 use crate::mir::expr::Expr;
@@ -23,7 +24,6 @@ impl SourceSpan {
         }
     }
 }
-
 
 /// Wrapper for Expr with source position
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -57,6 +57,7 @@ macro_rules! into_expr {
 into_expr!(Append);
 into_expr!(BlockValue);
 into_expr!(ValDef);
+into_expr!(BinOp);
 
 impl<T> From<T> for Spanned<T> {
     fn from(v: T) -> Self {

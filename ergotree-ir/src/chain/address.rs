@@ -22,6 +22,7 @@ use crate::sigma_protocol::sigma_boolean::ProveDlog;
 use crate::sigma_protocol::sigma_boolean::SigmaBoolean;
 use crate::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
 use crate::sigma_protocol::sigma_boolean::SigmaProp;
+use crate::source_span::Spanned;
 use crate::types::stype::SType;
 use ergo_chain_types::EcPoint;
 
@@ -110,8 +111,14 @@ impl Address {
                     if let [Expr::BoolToSigmaProp(BoolToSigmaProp { input }), Expr::DeserializeContext(DeserializeContext { tpe, id })] =
                         items.as_slice()
                     {
-                        if let (Expr::BinOp(BinOp { kind, left, right }), SType::SSigmaProp, 1) =
-                            (*input.clone(), tpe.clone(), id)
+                        if let (
+                            Expr::BinOp(Spanned {
+                                source_span: _,
+                                expr: BinOp { kind, left, right },
+                            }),
+                            SType::SSigmaProp,
+                            1,
+                        ) = (*input.clone(), tpe.clone(), id)
                         {
                             if let (
                                 Relation(RelationOp::Eq),
@@ -212,11 +219,14 @@ impl Address {
                     from: Box::new(0i32.into()),
                     until: Box::new(24i32.into()),
                 });
-                let hash_equals = Expr::BinOp(BinOp {
-                    kind: Relation(RelationOp::Eq),
-                    left: Box::new(slice_expr),
-                    right: Box::new(Expr::Const(Constant::from(script_hash.to_vec()))),
-                });
+                let hash_equals = Expr::BinOp(
+                    BinOp {
+                        kind: Relation(RelationOp::Eq),
+                        left: Box::new(slice_expr),
+                        right: Box::new(Expr::Const(Constant::from(script_hash.to_vec()))),
+                    }
+                    .into(),
+                );
                 let script_is_correct = Expr::DeserializeContext(DeserializeContext {
                     tpe: SType::SSigmaProp,
                     id: 1,

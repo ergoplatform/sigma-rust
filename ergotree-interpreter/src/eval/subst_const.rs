@@ -150,15 +150,21 @@ mod tests {
     fn test_3_substitutions(original: (i32, i32, i32), new: (i32, i32, i32)) {
         let (o0, o1, o2) = original;
         let (n0, n1, n2) = new;
-        let expr = Expr::BinOp(BinOp {
-            kind: BinOpKind::Arith(ArithOp::Plus),
-            left: Box::new(Expr::Const(o0.into())),
-            right: Box::new(Expr::BinOp(BinOp {
-                kind: BinOpKind::Arith(ArithOp::Multiply),
-                left: Box::new(Expr::Const(o1.into())),
-                right: Box::new(Expr::Const(o2.into())),
-            })),
-        });
+        let expr = Expr::BinOp(
+            BinOp {
+                kind: BinOpKind::Arith(ArithOp::Plus),
+                left: Box::new(Expr::Const(o0.into())),
+                right: Box::new(Expr::BinOp(
+                    BinOp {
+                        kind: BinOpKind::Arith(ArithOp::Multiply),
+                        left: Box::new(Expr::Const(o1.into())),
+                        right: Box::new(Expr::Const(o2.into())),
+                    }
+                    .into(),
+                )),
+            }
+            .into(),
+        );
         let ergo_tree = ErgoTree::new(ErgoTreeHeader::v0(true), &expr).unwrap();
         assert_eq!(ergo_tree.constants_len().unwrap(), 3);
         assert_eq!(ergo_tree.get_constant(0).unwrap().unwrap(), o0.into());

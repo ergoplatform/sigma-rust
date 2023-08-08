@@ -4,6 +4,7 @@ use std::fmt::Write;
 
 use thiserror::Error;
 
+use crate::mir::bin_op::BinOp;
 use crate::mir::block::BlockValue;
 use crate::mir::coll_append::Append;
 use crate::mir::constant::Constant;
@@ -97,6 +98,21 @@ impl Print for Append {
     }
 }
 
+impl Print for BinOp {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        let offset = w.current_pos();
+        self.left.print(w)?;
+        write!(w, " {} ", self.kind)?;
+        self.right.print(w)?;
+        let length = w.current_pos() - offset;
+        Ok(Spanned {
+            source_span: SourceSpan { offset, length },
+            expr: self.clone(),
+        }
+        .into())
+    }
+}
+
 #[allow(clippy::panic)]
 impl Print for Expr {
     fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
@@ -106,6 +122,7 @@ impl Print for Expr {
             Expr::ValDef(v) => v.expr().print(w),
             Expr::ValUse(v) => v.print(w),
             Expr::Const(v) => v.print(w),
+            Expr::BinOp(v) => v.expr().print(w),
             e => panic!("Not implemented: {:?}", e),
         }
     }
@@ -187,6 +204,8 @@ mod tests {
 
     use expect_test::expect;
 
+    use crate::mir::bin_op::ArithOp;
+    use crate::mir::bin_op::BinOp;
     use crate::mir::block::BlockValue;
     use crate::mir::val_def::ValDef;
     use crate::mir::val_use::ValUse;
@@ -203,7 +222,6 @@ mod tests {
         };
         let _ = expr.print(&mut w).unwrap();
         expected_tree.assert_eq(w.get_buf());
-        // todo!("check source spans");
     }
 
     #[test]
@@ -231,6 +249,44 @@ mod tests {
             expect![[r#"
             {
                 val v1 = 1
+                v1
+            }
+            "#]],
+        );
+    }
+
+    #[test]
+    fn print_binop() {
+        let val_id = 1.into();
+        let expr = Expr::BlockValue(
+            BlockValue {
+                items: vec![ValDef {
+                    id: val_id,
+                    rhs: Box::new(
+                        BinOp {
+                            kind: ArithOp::Divide.into(),
+                            left: Expr::Const(4i32.into()).into(),
+                            right: Expr::Const(2i32.into()).into(),
+                        }
+                        .into(),
+                    ),
+                }
+                .into()],
+                result: Box::new(
+                    ValUse {
+                        val_id,
+                        tpe: SType::SInt,
+                    }
+                    .into(),
+                ),
+            }
+            .into(),
+        );
+        check(
+            expr,
+            expect![[r#"
+            {
+                val v1 = 4 / 2
                 v1
             }
             "#]],

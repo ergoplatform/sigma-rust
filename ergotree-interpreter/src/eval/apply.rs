@@ -53,31 +53,37 @@ mod tests {
     #[test]
     fn eval_user_defined_func_call() {
         let arg = Expr::Const(1i32.into());
-        let bin_op = Expr::BinOp(BinOp {
-            kind: RelationOp::Eq.into(),
-            left: Box::new(
-                ValUse {
-                    val_id: 1.into(),
-                    tpe: SType::SInt,
-                }
-                .into(),
-            ),
-            right: Box::new(
-                ValUse {
-                    val_id: 2.into(),
-                    tpe: SType::SInt,
-                }
-                .into(),
-            ),
-        });
-        let body = Expr::BlockValue(BlockValue {
-            items: vec![ValDef {
-                id: 2.into(),
-                rhs: Box::new(Expr::Const(1i32.into())),
+        let bin_op = Expr::BinOp(
+            BinOp {
+                kind: RelationOp::Eq.into(),
+                left: Box::new(
+                    ValUse {
+                        val_id: 1.into(),
+                        tpe: SType::SInt,
+                    }
+                    .into(),
+                ),
+                right: Box::new(
+                    ValUse {
+                        val_id: 2.into(),
+                        tpe: SType::SInt,
+                    }
+                    .into(),
+                ),
             }
-            .into()],
-            result: Box::new(bin_op),
-        }.into());
+            .into(),
+        );
+        let body = Expr::BlockValue(
+            BlockValue {
+                items: vec![ValDef {
+                    id: 2.into(),
+                    rhs: Box::new(Expr::Const(1i32.into())),
+                }
+                .into()],
+                result: Box::new(bin_op),
+            }
+            .into(),
+        );
         let apply: Expr = Apply::new(
             FuncValue::new(
                 vec![FuncArg {
