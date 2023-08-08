@@ -34,20 +34,24 @@ impl Print for BlockValue {
         writeln!(w, "{{")?;
         w.inc_ident();
         let indent = w.get_indent();
+        let mut items = Vec::new();
         for item in &self.items {
             write!(w, "{:indent$}", "", indent = indent)?;
-            item.print(w)?;
+            items.push(item.print(w)?);
             writeln!(w)?;
         }
         // indent for result
         write!(w, "{:indent$}", "", indent = indent)?;
-        self.result.print(w)?;
+        let res = self.result.print(w)?;
         w.dec_ident();
         writeln!(w, "\n}}")?;
         let length = w.current_pos() - offset;
         Ok(Spanned {
             source_span: SourceSpan { offset, length },
-            expr: self.clone(),
+            expr: BlockValue {
+                items,
+                result: Box::new(res),
+            },
         }
         .into())
     }
@@ -57,11 +61,14 @@ impl Print for ValDef {
     fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
         let offset = w.current_pos();
         write!(w, "val v{} = ", self.id)?;
-        self.rhs.print(w)?;
+        let rhs = self.rhs.print(w)?;
         let length = w.current_pos() - offset;
         Ok(Spanned {
             source_span: SourceSpan { offset, length },
-            expr: self.clone(),
+            expr: ValDef {
+                id: self.id,
+                rhs: Box::new(rhs),
+            },
         }
         .into())
     }
@@ -85,14 +92,17 @@ impl Print for ValUse {
 impl Print for Append {
     fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
         let offset = w.current_pos();
-        self.input.print(w)?;
+        let input = self.input.print(w)?;
         write!(w, ".append(")?;
-        self.col_2.print(w)?;
+        let col_2 = self.col_2.print(w)?;
         write!(w, ")")?;
         let length = w.current_pos() - offset;
         Ok(Spanned {
             source_span: SourceSpan { offset, length },
-            expr: self.clone(),
+            expr: Append {
+                input: Box::new(input),
+                col_2: Box::new(col_2),
+            },
         }
         .into())
     }
@@ -101,13 +111,18 @@ impl Print for Append {
 impl Print for BinOp {
     fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
         let offset = w.current_pos();
-        self.left.print(w)?;
+        let left = self.left.print(w)?;
         write!(w, " {} ", self.kind)?;
-        self.right.print(w)?;
+        let right = self.right.print(w)?;
         let length = w.current_pos() - offset;
+        // dbg!(offset, length);
         Ok(Spanned {
             source_span: SourceSpan { offset, length },
-            expr: self.clone(),
+            expr: BinOp {
+                kind: self.kind,
+                left: Box::new(left),
+                right: Box::new(right),
+            },
         }
         .into())
     }
@@ -213,7 +228,7 @@ mod tests {
 
     use super::*;
 
-    fn check(expr: Expr, expected_tree: expect_test::Expect) {
+    fn check_pretty(expr: Expr, expected_tree: expect_test::Expect) {
         let print_buf = String::new();
         let mut w = PosTrackingWriter {
             print_buf,
@@ -222,6 +237,17 @@ mod tests {
         };
         let _ = expr.print(&mut w).unwrap();
         expected_tree.assert_eq(w.get_buf());
+    }
+
+    fn check_spans(expr: Expr, expected_tree: expect_test::Expect) {
+        let print_buf = String::new();
+        let mut w = PosTrackingWriter {
+            print_buf,
+            current_pos: 0,
+            current_indent: 0,
+        };
+        let spanned_expr = expr.print(&mut w).unwrap();
+        expected_tree.assert_eq(format!("{:?}", spanned_expr).as_str());
     }
 
     #[test]
@@ -244,7 +270,7 @@ mod tests {
             }
             .into(),
         );
-        check(
+        check_pretty(
             expr,
             expect![[r#"
             {
@@ -282,14 +308,21 @@ mod tests {
             }
             .into(),
         );
-        check(
-            expr,
+        check_pretty(
+            expr.clone(),
             expect![[r#"
             {
                 val v1 = 4 / 2
                 v1
             }
             "#]],
+        );
+
+        check_spans(
+            expr,
+            expect![[
+                r#"BlockValue(Spanned { source_span: SourceSpan { offset: 0, length: 30 }, expr: BlockValue { items: [ValDef(Spanned { source_span: SourceSpan { offset: 6, length: 14 }, expr: ValDef { id: ValId(1), rhs: BinOp(Spanned { source_span: SourceSpan { offset: 15, length: 5 }, expr: BinOp { kind: Arith(Divide), left: Const("4: SInt"), right: Const("2: SInt") } }) } })], result: ValUse(ValUse { val_id: ValId(1), tpe: SInt }) } })"#
+            ]],
         );
     }
 }
