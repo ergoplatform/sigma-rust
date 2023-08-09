@@ -172,6 +172,7 @@ impl<T> ExtResultEvalError<T> for Result<T, EvalError> {
 mod tests {
     use std::rc::Rc;
 
+    use ergotree_ir::source_span::SourceSpan;
     use expect_test::expect;
 
     use ergotree_ir::mir::bin_op::ArithOp;
@@ -279,5 +280,76 @@ mod tests {
                    `----
             "#]],
         )
+    }
+
+    #[test]
+    fn span_binop_div_zero() {
+        let lhs_val_id = 1.into();
+        let rhs_val_id = 2.into();
+        let res_val_id = 3.into();
+        let expr = Expr::BlockValue(
+            BlockValue {
+                items: vec![
+                    ValDef {
+                        id: lhs_val_id,
+                        rhs: Box::new(Expr::Const(42i32.into())),
+                    }
+                    .into(),
+                    ValDef {
+                        id: rhs_val_id,
+                        rhs: Box::new(Expr::Const(0i32.into())),
+                    }
+                    .into(),
+                    ValDef {
+                        id: res_val_id,
+                        rhs: Box::new(
+                            BinOp {
+                                kind: ArithOp::Divide.into(),
+                                left: Box::new(
+                                    ValUse {
+                                        val_id: lhs_val_id,
+                                        tpe: SType::SInt,
+                                    }
+                                    .into(),
+                                ),
+                                right: Box::new(
+                                    ValUse {
+                                        val_id: rhs_val_id,
+                                        tpe: SType::SInt,
+                                    }
+                                    .into(),
+                                ),
+                            }
+                            .into(),
+                        ),
+                    }
+                    .into(),
+                ],
+                result: Box::new(
+                    ValUse {
+                        val_id: res_val_id,
+                        tpe: SType::SInt,
+                    }
+                    .into(),
+                ),
+            }
+            .into(),
+        );
+        let mut w = PosTrackingWriter::new();
+        let spanned_expr = expr.print(&mut w).unwrap();
+        dbg!(&spanned_expr);
+        let ctx = Rc::new(force_any_val::<Context>());
+        let err_raw: SpannedEvalError = try_eval_out::<i32>(&spanned_expr, ctx)
+            .err()
+            .unwrap()
+            .try_into()
+            .unwrap();
+        assert_eq!(
+            err_raw.source_span,
+            SourceSpan {
+                offset: 40,
+                length: 7
+            }
+        );
     }
 }
