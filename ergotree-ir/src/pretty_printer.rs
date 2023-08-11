@@ -9,6 +9,7 @@ use crate::mir::block::BlockValue;
 use crate::mir::coll_append::Append;
 use crate::mir::constant::Constant;
 use crate::mir::expr::Expr;
+use crate::mir::global_vars::GlobalVars;
 use crate::mir::val_def::ValDef;
 use crate::mir::val_use::ValUse;
 use crate::source_span::SourceSpan;
@@ -128,6 +129,13 @@ impl Print for BinOp {
     }
 }
 
+impl Print for GlobalVars {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        write!(w, "{}", self)?;
+        Ok(self.clone().into())
+    }
+}
+
 #[allow(clippy::panic)]
 impl Print for Expr {
     fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
@@ -138,6 +146,7 @@ impl Print for Expr {
             Expr::ValUse(v) => v.print(w),
             Expr::Const(v) => v.print(w),
             Expr::BinOp(v) => v.expr().print(w),
+            Expr::GlobalVars(v) => v.print(w),
             e => panic!("Not implemented: {:?}", e),
         }
     }

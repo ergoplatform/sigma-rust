@@ -1,5 +1,7 @@
 //! Global variables
 
+use std::fmt::Display;
+
 use crate::has_opcode::HasOpCode;
 use crate::serialization::op_code::OpCode;
 use crate::types::stype::SType;
@@ -45,6 +47,19 @@ impl HasOpCode for GlobalVars {
             GlobalVars::Height => OpCode::HEIGHT,
             GlobalVars::MinerPubKey => OpCode::MINER_PUBKEY,
             GlobalVars::GroupGenerator => OpCode::GROUP_GENERATOR,
+        }
+    }
+}
+
+impl Display for GlobalVars {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            GlobalVars::SelfBox => write!(f, "SELF"),
+            GlobalVars::Inputs => write!(f, "INPUTS"),
+            GlobalVars::Outputs => write!(f, "OUTPUTS"),
+            GlobalVars::Height => write!(f, "HEIGHT"),
+            GlobalVars::MinerPubKey => write!(f, "MINER_PUBKEY"),
+            GlobalVars::GroupGenerator => write!(f, "GROUP_GENERATOR"),
         }
     }
 }
