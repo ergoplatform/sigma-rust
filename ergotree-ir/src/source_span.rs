@@ -26,6 +26,15 @@ impl SourceSpan {
     }
 }
 
+impl From<(usize, usize)> for SourceSpan {
+    fn from(value: (usize, usize)) -> Self {
+        SourceSpan {
+            offset: value.0,
+            length: value.1,
+        }
+    }
+}
+
 impl From<SourceSpan> for miette::SourceSpan {
     fn from(value: SourceSpan) -> Self {
         miette::SourceSpan::new(value.offset.into(), value.length.into())

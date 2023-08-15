@@ -78,7 +78,6 @@ impl Print for ValDef {
 
 impl Print for Constant {
     fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
-        // TODO: implement Display for Literal
         write!(w, "{:?}", self.v)?;
         Ok(self.clone().into())
     }

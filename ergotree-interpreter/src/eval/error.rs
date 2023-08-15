@@ -167,7 +167,7 @@ impl<T> ExtResultEvalError<T> for Result<T, EvalError> {
     }
 }
 
-#[allow(clippy::unwrap_used)]
+#[allow(clippy::unwrap_used, unused_imports, dead_code)]
 #[cfg(test)]
 mod tests {
     use std::rc::Rc;
@@ -212,7 +212,19 @@ mod tests {
         expected_tree.assert_eq(&err.to_string());
     }
 
-    #[ignore = "expect test fails on self-generated string"]
+    fn check_error_span(expr: Expr, expected_span: SourceSpan) {
+        let mut w = PosTrackingWriter::new();
+        let spanned_expr = expr.print(&mut w).unwrap();
+        dbg!(&spanned_expr);
+        let ctx = Rc::new(force_any_val::<Context>());
+        let err_raw: SpannedEvalError = try_eval_out::<i32>(&spanned_expr, ctx)
+            .err()
+            .unwrap()
+            .try_into()
+            .unwrap();
+        assert_eq!(err_raw.source_span, expected_span);
+    }
+
     #[test]
     fn pretty_binop_div_zero() {
         let lhs_val_id = 1.into();
@@ -266,103 +278,27 @@ mod tests {
             }
             .into(),
         );
-        check(
-            expr,
-            expect![[r#"
-                  x Evaluation error
-                   ,-[1:1]
-                 1 | {
-                 2 |   val v1 = 42
-                 3 |   val v2 = 0
-                 4 |   val v3 = v1 / v2
-                   :            ^^^|^^^
-                   :               `-- Arithmetic exception: (42) / (0) resulted in exception
-                 5 |   v3
-                 6 | }
-                   `----
-            "#]],
-        )
+        // check(
+        //     expr,
+        //     expect![[r#"
+        //           x Evaluation error
+        //            ,-[1:1]
+        //          1 | {
+        //          2 |   val v1 = 42
+        //          3 |   val v2 = 0
+        //          4 |   val v3 = v1 / v2
+        //            :            ^^^|^^^
+        //            :               `-- Arithmetic exception: (42) / (0) resulted in exception
+        //          5 |   v3
+        //          6 | }
+        //            `----
+        //     "#]],
+        // );
+        check_error_span(expr, (40, 7).into());
     }
 
-    #[test]
-    fn span_binop_div_zero() {
-        let lhs_val_id = 1.into();
-        let rhs_val_id = 2.into();
-        let res_val_id = 3.into();
-        let expr = Expr::BlockValue(
-            BlockValue {
-                items: vec![
-                    ValDef {
-                        id: lhs_val_id,
-                        rhs: Box::new(Expr::Const(42i32.into())),
-                    }
-                    .into(),
-                    ValDef {
-                        id: rhs_val_id,
-                        rhs: Box::new(Expr::Const(0i32.into())),
-                    }
-                    .into(),
-                    ValDef {
-                        id: res_val_id,
-                        rhs: Box::new(
-                            BinOp {
-                                kind: ArithOp::Divide.into(),
-                                left: Box::new(
-                                    ValUse {
-                                        val_id: lhs_val_id,
-                                        tpe: SType::SInt,
-                                    }
-                                    .into(),
-                                ),
-                                right: Box::new(
-                                    ValUse {
-                                        val_id: rhs_val_id,
-                                        tpe: SType::SInt,
-                                    }
-                                    .into(),
-                                ),
-                            }
-                            .into(),
-                        ),
-                    }
-                    .into(),
-                ],
-                result: Box::new(
-                    ValUse {
-                        val_id: res_val_id,
-                        tpe: SType::SInt,
-                    }
-                    .into(),
-                ),
-            }
-            .into(),
-        );
-        let mut w = PosTrackingWriter::new();
-        let spanned_expr = expr.print(&mut w).unwrap();
-        dbg!(&spanned_expr);
-        let ctx = Rc::new(force_any_val::<Context>());
-        let err_raw: SpannedEvalError = try_eval_out::<i32>(&spanned_expr, ctx)
-            .err()
-            .unwrap()
-            .try_into()
-            .unwrap();
-        assert_eq!(
-            err_raw.source_span,
-            SourceSpan {
-                offset: 40,
-                length: 7
-            }
-        );
-    }
-
-    #[ignore = "expect test fails on self-generated string"]
     #[test]
     fn pretty_out_of_bounds() {
-        // OUTPUTS(1) should be out of bounds error in:
-        // {
-        //   val v1 = 1
-        //   OUPUTS(v1)
-        // }
         let v1_id = 1.into();
         let expr = Expr::BlockValue(
             BlockValue {
@@ -387,19 +323,20 @@ mod tests {
             }
             .into(),
         );
-        check(
-            expr,
-            expect![[r#"
-                  x Evaluation error
-                   ,-[1:1]
-                 1 | {
-                 2 |   val v1 = 99999999
-                 3 |   OUTPUTS(v1)
-                   :          ^^|^
-                   :            `-- error: ByIndex: index Int(99999999) out of bounds for collection size 1
-                 4 | }
-                   `----
-            "#]],
-        )
+        // check(
+        //     expr,
+        //     expect![[r#"
+        //           x Evaluation error
+        //            ,-[1:1]
+        //          1 | {
+        //          2 |   val v1 = 99999999
+        //          3 |   OUTPUTS(v1)
+        //            :          ^^|^
+        //            :            `-- error: ByIndex: index Int(99999999) out of bounds for collection size 1
+        //          4 | }
+        //            `----
+        //     "#]],
+        // );
+        check_error_span(expr, (31, 4).into());
     }
 }
