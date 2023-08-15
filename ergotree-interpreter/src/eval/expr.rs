@@ -40,7 +40,7 @@ impl Evaluable for Expr {
             )),
             Expr::Collection(op) => op.eval(env, ctx),
             Expr::ValDef(_) => Err(EvalError::UnexpectedExpr(
-                ("ValDef is evaluated in BlockValue").to_string(),
+                ("ValDef should be evaluated in BlockValue").to_string(),
             )),
             Expr::And(op) => op.eval(env, ctx),
             Expr::Or(op) => op.eval(env, ctx),

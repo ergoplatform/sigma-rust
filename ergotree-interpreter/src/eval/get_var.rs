@@ -1,4 +1,3 @@
-// use ergotree_ir::mir::constant::TryExtractInto;
 use ergotree_ir::mir::constant::TryExtractFromError;
 use ergotree_ir::mir::get_var::GetVar;
 use ergotree_ir::mir::value::Value;
@@ -14,8 +13,8 @@ impl Evaluable for GetVar {
             None => Ok(Value::Opt(None.into())),
             Some(v) if v.tpe == self.var_tpe => Ok((Some(v.v.clone())).into()),
             Some(v) => Err(TryExtractFromError(format!(
-                "GetVar: expected {:?}, found {:?}",
-                self.var_tpe, v.tpe
+                "GetVar: expected extension value id {} to have type {:?}, found {:?} in context extension map {}",
+                self.var_id, self.var_tpe, v, ctx.ctx.extension
             ))
             .into()),
         }

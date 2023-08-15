@@ -88,6 +88,12 @@ impl std::fmt::Debug for Constant {
     }
 }
 
+impl std::fmt::Display for Constant {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        self.v.fmt(f)
+    }
+}
+
 impl std::fmt::Debug for Literal {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -103,6 +109,63 @@ impl std::fmt::Debug for Literal {
             Literal::Short(v) => v.fmt(f),
             Literal::Int(v) => v.fmt(f),
             Literal::Long(v) => v.fmt(f),
+            Literal::BigInt(v) => v.fmt(f),
+            Literal::SigmaProp(v) => v.fmt(f),
+            Literal::GroupElement(v) => v.fmt(f),
+            Literal::AvlTree(v) => v.fmt(f),
+            Literal::CBox(v) => v.fmt(f),
+        }
+    }
+}
+
+impl std::fmt::Display for Literal {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Literal::Coll(CollKind::NativeColl(NativeColl::CollByte(i8_bytes))) => {
+                write!(f, "Coll[Byte](");
+                for (i, b) in i8_bytes.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}", b)?;
+                }
+                write!(f, ")")
+            }
+            Literal::Coll(CollKind::WrappedColl { elem_tpe, items }) => {
+                write!(f, "Coll[{}](", elem_tpe)?;
+                for (i, item) in items.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    item.fmt(f)?;
+                }
+                write!(f, ")")
+            }
+            Literal::Opt(boxed_opt) => {
+                if let Some(v) = &**boxed_opt {
+                    write!(f, "Some(")?;
+                    v.fmt(f)?;
+                    write!(f, ")")
+                } else {
+                    write!(f, "None")
+                }
+            }
+            Literal::Tup(items) => {
+                write!(f, "(")?;
+                for (i, item) in items.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    item.fmt(f)?;
+                }
+                write!(f, ")")
+            }
+            Literal::Unit => write!(f, "()"),
+            Literal::Boolean(v) => v.fmt(f),
+            Literal::Byte(v) => v.fmt(f),
+            Literal::Short(v) => v.fmt(f),
+            Literal::Int(v) => v.fmt(f),
+            Literal::Long(v) => write!(f, "{}L", v),
             Literal::BigInt(v) => v.fmt(f),
             Literal::SigmaProp(v) => v.fmt(f),
             Literal::GroupElement(v) => v.fmt(f),

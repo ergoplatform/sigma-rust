@@ -7,6 +7,7 @@ use ergotree_ir::serialization::SigmaSerializable;
 use ergotree_ir::serialization::SigmaSerializeResult;
 use indexmap::IndexMap;
 use std::convert::TryFrom;
+use std::fmt;
 use thiserror::Error;
 
 /// User-defined variables to be put into context
@@ -22,6 +23,12 @@ impl ContextExtension {
         Self {
             values: IndexMap::new(),
         }
+    }
+}
+
+impl fmt::Display for ContextExtension {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_map().entries(self.values.iter()).finish()
     }
 }
 
