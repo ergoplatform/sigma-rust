@@ -34,6 +34,19 @@ impl std::fmt::Debug for STuple {
     }
 }
 
+impl std::fmt::Display for STuple {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "(")?;
+        for (i, item) in self.items.iter().enumerate() {
+            if i > 0 {
+                write!(f, ", ")?;
+            }
+            item.fmt(f)?;
+        }
+        write!(f, ")")
+    }
+}
+
 impl STuple {
     /// Create a tuple type for a given type pair
     pub fn pair(t1: SType, t2: SType) -> Self {
