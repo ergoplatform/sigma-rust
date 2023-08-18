@@ -28,6 +28,15 @@ impl std::fmt::Debug for EcPoint {
     }
 }
 
+#[allow(clippy::unwrap_used)]
+impl std::fmt::Display for EcPoint {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.write_str(&base16::encode_lower(
+            &self.scorex_serialize_bytes().unwrap(),
+        ))
+    }
+}
+
 impl EcPoint {
     /// Number of bytes to represent any group element as byte array
     pub const GROUP_SIZE: usize = 33;

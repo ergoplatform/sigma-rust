@@ -122,7 +122,7 @@ impl std::fmt::Display for Literal {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Literal::Coll(CollKind::NativeColl(NativeColl::CollByte(i8_bytes))) => {
-                write!(f, "Coll[Byte](");
+                write!(f, "Coll[Byte](")?;
                 for (i, b) in i8_bytes.iter().enumerate() {
                     if i > 0 {
                         write!(f, ", ")?;
@@ -169,8 +169,8 @@ impl std::fmt::Display for Literal {
             Literal::BigInt(v) => v.fmt(f),
             Literal::SigmaProp(v) => v.fmt(f),
             Literal::GroupElement(v) => v.fmt(f),
-            Literal::AvlTree(v) => v.fmt(f),
-            Literal::CBox(v) => v.fmt(f),
+            Literal::AvlTree(v) => write!(f, "AvlTree({:?})", v),
+            Literal::CBox(v) => write!(f, "ErgoBox({:?})", v),
         }
     }
 }
