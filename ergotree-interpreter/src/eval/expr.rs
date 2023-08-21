@@ -3,11 +3,11 @@
 use ergotree_ir::mir::expr::Expr;
 use ergotree_ir::mir::value::Value;
 
+use super::error::ExtResultEvalError;
 use super::Env;
 use super::EvalContext;
 use super::EvalError;
 use super::Evaluable;
-use super::error::ExtResultEvalError;
 
 impl Evaluable for Expr {
     fn eval(&self, env: &mut Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
