@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use derive_more::From;
 use thiserror::Error;
 
@@ -52,8 +54,17 @@ impl TryFrom<u8> for RegisterId {
     }
 }
 
+impl Display for RegisterId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RegisterId::MandatoryRegisterId(id) => write!(f, "{}", id),
+            RegisterId::NonMandatoryRegisterId(id) => write!(f, "{}", id),
+        }
+    }
+}
+
 /// Register ids that every box have (box properties exposed as registers)
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy, derive_more::Display)]
 pub enum MandatoryRegisterId {
     /// Monetary value, in Ergo tokens
     R0 = 0,
@@ -80,7 +91,7 @@ impl TryFrom<i8> for MandatoryRegisterId {
 }
 
 /// newtype for additional registers R4 - R9
-#[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
+#[derive(PartialEq, Eq, Hash, Debug, Clone, Copy, derive_more::Display)]
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "json", serde(into = "String", try_from = "String"))]
 #[repr(u8)]

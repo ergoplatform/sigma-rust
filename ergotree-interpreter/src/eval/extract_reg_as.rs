@@ -18,12 +18,14 @@ impl Evaluable for ExtractRegisterAs {
             .eval(env, ctx)?
             .try_extract_into::<Arc<ErgoBox>>()?;
         let id = self.register_id.try_into().map_err(|e| {
-            EvalError::RegisterIdOutOfBounds(format!("register index is out of bounds: {:?} ", e))
+            EvalError::RegisterIdOutOfBounds(format!(
+                "register index {} is out of bounds: {:?} ",
+                self.register_id, e
+            ))
         })?;
         let reg_val_opt = ir_box.get_register(id).map_err(|e| {
             EvalError::NotFound(format!(
-                "Error getting the register id {:?} with error {e:?}",
-                id
+                "Error getting the register id {id} with error {e:?}"
             ))
         })?;
         Ok(Value::Opt(Box::new(reg_val_opt.map(|c| Value::from(c.v)))))

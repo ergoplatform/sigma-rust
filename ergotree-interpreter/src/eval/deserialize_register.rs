@@ -1,5 +1,6 @@
 use std::convert::TryInto;
 
+use ergotree_ir::chain::ergo_box::RegisterId;
 use ergotree_ir::mir::constant::TryExtractInto;
 use ergotree_ir::mir::deserialize_register::DeserializeRegister;
 use ergotree_ir::mir::expr::Expr;
@@ -14,26 +15,22 @@ use crate::eval::Evaluable;
 
 impl Evaluable for DeserializeRegister {
     fn eval(&self, env: &mut Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
-        match ctx
-            .ctx
-            .self_box
-            .get_register(self.reg.try_into().map_err(|e| {
-                EvalError::RegisterIdOutOfBounds(format!(
-                    "register index is out of bounds: {:?} ",
-                    e
-                ))
-            })?) {
+        let reg_id: RegisterId = self.reg.try_into().map_err(|e| {
+            EvalError::RegisterIdOutOfBounds(format!("register index is out of bounds: {:?} ", e))
+        })?;
+        match ctx.ctx.self_box.get_register(reg_id) {
             Ok(Some(c)) => {
                 if c.tpe != SType::SColl(SType::SByte.into()) {
                     Err(EvalError::UnexpectedExpr(format!(
-                        "DeserializeRegister: expected value to have type SColl(SByte), got {:?}",
-                        c.tpe
+                        "DeserializeRegister: expected register {} value {} to have type SColl(SByte), got {:?}",
+                        reg_id, c, c.tpe
                     )))
                 } else {
                     let bytes = c.v.try_extract_into::<Vec<u8>>()?;
                     let expr = Expr::sigma_parse_bytes(bytes.as_slice())?;
                     if expr.tpe() != self.tpe {
-                        Err(EvalError::UnexpectedExpr(format!("DeserializeRegister: expected deserialized expr to have type {:?}, got {:?}", self.tpe, expr.tpe())))
+                        let pretty_expr = expr.to_string_pretty();
+                        Err(EvalError::UnexpectedExpr(format!("DeserializeRegister: expected register {reg_id} deserialized expr {pretty_expr} to have type {:?}, got {:?}", self.tpe, expr.tpe())))
                     } else {
                         expr.eval(env, ctx)
                     }
@@ -42,15 +39,13 @@ impl Evaluable for DeserializeRegister {
             Ok(None) => match &self.default {
                 Some(default_expr) => eval_default(&self.tpe, default_expr, env, ctx),
                 None => Err(EvalError::NotFound(format!(
-                    "DeserializeRegister: register {:?} is empty",
-                    self.reg
+                    "DeserializeRegister: register {reg_id} is empty"
                 ))),
             },
             Err(e) => match &self.default {
                 Some(default_expr) => eval_default(&self.tpe, default_expr, env, ctx),
                 None => Err(EvalError::NotFound(format!(
-                    "DeserializeRegister: failed to get the register id {} with error: {e:?}",
-                    self.reg
+                    "DeserializeRegister: failed to get the register id {reg_id} with error: {e:?}"
                 ))),
             },
         }

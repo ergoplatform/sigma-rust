@@ -3,6 +3,8 @@
 use std::convert::TryFrom;
 use std::convert::TryInto;
 
+use crate::pretty_printer::PosTrackingWriter;
+use crate::pretty_printer::Print;
 use crate::source_span::Spanned;
 use crate::types::stype::LiftIntoSType;
 use crate::types::stype::SType;
@@ -327,6 +329,14 @@ impl Expr {
     pub fn debug_tree(&self) -> String {
         let tree = format!("{:#?}", self);
         tree
+    }
+
+    /// Pretty prints the tree
+    pub fn to_string_pretty(&self) -> String {
+        let mut printer = PosTrackingWriter::new();
+        #[allow(clippy::unwrap_used)] // it only fail due to formatting errors
+        let _spanned_expr = self.print(&mut printer).unwrap();
+        printer.as_string()
     }
 }
 

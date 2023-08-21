@@ -58,9 +58,6 @@ pub enum EvalError {
     /// ErgoTree error
     #[error("ErgoTree error: {0}")]
     ErgoTreeError(#[from] ErgoTreeError),
-    /// Not yet implemented
-    #[error("evaluation is not yet implemented: {0}")]
-    NotImplementedYet(&'static str),
     /// Invalid item quantity for BoundedVec
     #[error("Invalid item quantity for BoundedVec: {0}")]
     BoundedVecError(#[from] BoundedVecOutOfBounds),

@@ -232,6 +232,11 @@ impl PosTrackingWriter {
     pub fn get_buf(&self) -> &str {
         &self.print_buf
     }
+
+    /// Get printed buffer as String
+    pub fn as_string(self) -> String {
+        self.print_buf
+    }
 }
 
 impl Default for PosTrackingWriter {
