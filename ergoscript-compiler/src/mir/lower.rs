@@ -110,19 +110,25 @@ mod tests {
         check(
             "HEIGHT + HEIGHT",
             expect![[r#"
-            BinOp(
-                BinOp {
-                    kind: Arith(
-                        Plus,
-                    ),
-                    left: GlobalVars(
-                        Height,
-                    ),
-                    right: GlobalVars(
-                        Height,
-                    ),
-                },
-            )"#]],
+                BinOp(
+                    Spanned {
+                        source_span: SourceSpan {
+                            offset: 0,
+                            length: 0,
+                        },
+                        expr: BinOp {
+                            kind: Arith(
+                                Plus,
+                            ),
+                            left: GlobalVars(
+                                Height,
+                            ),
+                            right: GlobalVars(
+                                Height,
+                            ),
+                        },
+                    },
+                )"#]],
         )
     }
 
@@ -154,16 +160,22 @@ mod tests {
             "4+2",
             expect![[r#"
                 BinOp(
-                    BinOp {
-                        kind: Arith(
-                            Plus,
-                        ),
-                        left: Const(
-                            "4: SInt",
-                        ),
-                        right: Const(
-                            "2: SInt",
-                        ),
+                    Spanned {
+                        source_span: SourceSpan {
+                            offset: 0,
+                            length: 0,
+                        },
+                        expr: BinOp {
+                            kind: Arith(
+                                Plus,
+                            ),
+                            left: Const(
+                                "4: SInt",
+                            ),
+                            right: Const(
+                                "2: SInt",
+                            ),
+                        },
                     },
                 )"#]],
         );
@@ -174,19 +186,25 @@ mod tests {
         check(
             "4L+2L",
             expect![[r#"
-            BinOp(
-                BinOp {
-                    kind: Arith(
-                        Plus,
-                    ),
-                    left: Const(
-                        "4: SLong",
-                    ),
-                    right: Const(
-                        "2: SLong",
-                    ),
-                },
-            )"#]],
+                BinOp(
+                    Spanned {
+                        source_span: SourceSpan {
+                            offset: 0,
+                            length: 0,
+                        },
+                        expr: BinOp {
+                            kind: Arith(
+                                Plus,
+                            ),
+                            left: Const(
+                                "4: SLong",
+                            ),
+                            right: Const(
+                                "2: SLong",
+                            ),
+                        },
+                    },
+                )"#]],
         );
     }
 }
