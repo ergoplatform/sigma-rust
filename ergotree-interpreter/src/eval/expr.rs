@@ -64,7 +64,7 @@ impl Evaluable for Expr {
             Expr::Exists(op) => op.eval(env, ctx),
             Expr::ExtractId(op) => op.eval(env, ctx),
             Expr::SigmaPropBytes(op) => op.eval(env, ctx),
-            Expr::OptionIsDefined(op) => op.eval(env, ctx),
+            Expr::OptionIsDefined(op) => op.expr().eval(env, ctx),
             Expr::OptionGetOrElse(op) => op.eval(env, ctx),
             Expr::Negation(op) => op.expr().eval(env, ctx),
             Expr::BitInversion(op) => op.eval(env, ctx),
