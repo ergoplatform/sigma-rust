@@ -122,7 +122,10 @@ impl Address {
                         {
                             if let (
                                 Relation(RelationOp::Eq),
-                                Expr::Slice(Slice { input, from, until }),
+                                Expr::Slice(Spanned {
+                                    expr: Slice { input, from, until },
+                                    source_span: _,
+                                }),
                                 Expr::Const(Constant { v, .. }),
                             ) = (kind, *left, *right)
                             {
@@ -214,11 +217,14 @@ impl Address {
                 let hash_expr = Expr::CalcBlake2b256(CalcBlake2b256 {
                     input: Box::new(get_var_expr),
                 });
-                let slice_expr = Expr::Slice(Slice {
-                    input: Box::new(hash_expr),
-                    from: Box::new(0i32.into()),
-                    until: Box::new(24i32.into()),
-                });
+                let slice_expr = Expr::Slice(
+                    Slice {
+                        input: Box::new(hash_expr),
+                        from: Box::new(0i32.into()),
+                        until: Box::new(24i32.into()),
+                    }
+                    .into(),
+                );
                 let hash_equals = Expr::BinOp(
                     BinOp {
                         kind: Relation(RelationOp::Eq),

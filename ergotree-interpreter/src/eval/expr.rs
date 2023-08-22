@@ -2,6 +2,7 @@
 
 use ergotree_ir::mir::expr::Expr;
 use ergotree_ir::mir::value::Value;
+use ergotree_ir::source_span::Spanned;
 
 use super::error::ExtResultEvalError;
 use super::Env;
@@ -85,5 +86,11 @@ impl Evaluable for Expr {
             Expr::CreateAvlTree(op) => op.eval(env, ctx),
         };
         res.enrich_err(self.span(), env.clone())
+    }
+}
+
+impl<T: Evaluable> Evaluable for Spanned<T> {
+    fn eval(&self, env: &mut Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
+        self.expr.eval(env, ctx)
     }
 }

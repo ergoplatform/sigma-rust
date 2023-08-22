@@ -173,7 +173,7 @@ pub enum Expr {
     /// Collection size
     SizeOf(SizeOf),
     /// Collection slice
-    Slice(Slice),
+    Slice(Spanned<Slice>),
     /// Collection fold op
     Fold(Fold),
     /// Collection map op
@@ -270,7 +270,7 @@ impl Expr {
             Expr::ByIndex(v) => v.expr().tpe(),
             Expr::ExtractScriptBytes(v) => v.tpe(),
             Expr::SizeOf(v) => v.tpe(),
-            Expr::Slice(v) => v.tpe(),
+            Expr::Slice(v) => v.expr().tpe(),
             Expr::CreateProveDlog(v) => v.tpe(),
             Expr::CreateProveDhTuple(v) => v.tpe(),
             Expr::ExtractCreationInfo(v) => v.tpe(),

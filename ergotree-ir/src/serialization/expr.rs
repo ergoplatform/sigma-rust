@@ -269,7 +269,7 @@ impl SigmaSerializable for Expr {
             Expr::ByIndex(op) => op.expr().sigma_serialize_w_opcode(w),
             Expr::ExtractScriptBytes(op) => op.sigma_serialize_w_opcode(w),
             Expr::SizeOf(op) => op.sigma_serialize_w_opcode(w),
-            Expr::Slice(op) => op.sigma_serialize_w_opcode(w),
+            Expr::Slice(op) => op.expr().sigma_serialize_w_opcode(w),
             Expr::CreateProveDlog(op) => op.sigma_serialize_w_opcode(w),
             Expr::CreateProveDhTuple(op) => op.sigma_serialize_w_opcode(w),
             Expr::ExtractCreationInfo(op) => op.sigma_serialize_w_opcode(w),
