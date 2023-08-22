@@ -97,7 +97,7 @@ pub enum Expr {
     /// Convert byte array to SLong
     ByteArrayToLong(Spanned<ByteArrayToLong>),
     /// Convert byte array to SLong
-    ByteArrayToBigInt(ByteArrayToBigInt),
+    ByteArrayToBigInt(Spanned<ByteArrayToBigInt>),
     /// Convert SLong to a byte array
     LongToByteArray(LongToByteArray),
     /// Collection declaration (array of expressions of the same type)
@@ -235,7 +235,7 @@ impl Expr {
             Expr::Collection(v) => v.tpe(),
             Expr::SubstConstants(v) => v.expr().tpe(),
             Expr::ByteArrayToLong(v) => v.expr().tpe(),
-            Expr::ByteArrayToBigInt(v) => v.tpe(),
+            Expr::ByteArrayToBigInt(v) => v.expr().tpe(),
             Expr::LongToByteArray(v) => v.tpe(),
             Expr::ConstPlaceholder(v) => v.tpe.clone(),
             Expr::CalcBlake2b256(v) => v.tpe(),

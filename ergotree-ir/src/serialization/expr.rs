@@ -227,7 +227,7 @@ impl SigmaSerializable for Expr {
             Expr::ConstPlaceholder(cp) => cp.sigma_serialize_w_opcode(w),
             Expr::SubstConstants(s) => s.expr().sigma_serialize_w_opcode(w),
             Expr::ByteArrayToLong(s) => s.expr().sigma_serialize_w_opcode(w),
-            Expr::ByteArrayToBigInt(s) => s.sigma_serialize_w_opcode(w),
+            Expr::ByteArrayToBigInt(s) => s.expr().sigma_serialize_w_opcode(w),
             Expr::LongToByteArray(s) => s.sigma_serialize_w_opcode(w),
             Expr::GlobalVars(op) => op.op_code().sigma_serialize(w),
             Expr::MethodCall(mc) => mc.sigma_serialize_w_opcode(w),
