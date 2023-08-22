@@ -205,7 +205,7 @@ pub enum Expr {
     /// OR conjunction for sigma propositions
     SigmaOr(SigmaOr),
     /// Extracts Context variable by id and type
-    GetVar(GetVar),
+    GetVar(Spanned<GetVar>),
     /// Extract register of SELF box as `Coll[Byte]`, deserialize it into Value and inline into
     /// the executing script.
     DeserializeRegister(DeserializeRegister),
@@ -288,7 +288,7 @@ impl Expr {
             Expr::SigmaOr(v) => v.tpe(),
             Expr::DeserializeRegister(v) => v.tpe(),
             Expr::DeserializeContext(v) => v.tpe(),
-            Expr::GetVar(v) => v.tpe(),
+            Expr::GetVar(v) => v.expr().tpe(),
             Expr::MultiplyGroup(v) => v.tpe(),
             Expr::Exponentiate(v) => v.tpe(),
             Expr::XorOf(v) => v.tpe(),

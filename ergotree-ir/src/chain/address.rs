@@ -210,10 +210,13 @@ impl Address {
             }
             Address::P2S(bytes) => ErgoTree::sigma_parse_bytes(bytes),
             Address::P2SH(script_hash) => {
-                let get_var_expr = Expr::GetVar(GetVar {
-                    var_id: 1,
-                    var_tpe: SType::SColl(Box::new(SType::SByte)),
-                });
+                let get_var_expr = Expr::GetVar(
+                    GetVar {
+                        var_id: 1,
+                        var_tpe: SType::SColl(Box::new(SType::SByte)),
+                    }
+                    .into(),
+                );
                 let hash_expr = Expr::CalcBlake2b256(CalcBlake2b256 {
                     input: Box::new(get_var_expr),
                 });

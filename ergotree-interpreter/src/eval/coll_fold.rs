@@ -97,11 +97,11 @@ mod tests {
             let fold_op_body: Expr = BinOp {
                 kind: ArithOp::Plus.into(),
                 left: Box::new(Expr::SelectField(
-                    SelectField::new(tuple.clone(), 1.try_into().unwrap()).unwrap(),
+                    SelectField::new(tuple.clone(), 1.try_into().unwrap()).unwrap().into(),
                 )),
                 right: Box::new(Expr::ExtractAmount(
                     ExtractAmount::try_build(Expr::SelectField(
-                        SelectField::new(tuple, 2.try_into().unwrap()).unwrap(),
+                        SelectField::new(tuple, 2.try_into().unwrap()).unwrap().into(),
                     ))
                     .unwrap(),
                 )),

@@ -14,6 +14,7 @@ use crate::mir::coll_map::Map;
 use crate::mir::coll_slice::Slice;
 use crate::mir::expr::Expr;
 use crate::mir::extract_reg_as::ExtractRegisterAs;
+use crate::mir::get_var::GetVar;
 use crate::mir::method_call::MethodCall;
 use crate::mir::negation::Negation;
 use crate::mir::option_get::OptionGet;
@@ -109,6 +110,7 @@ into_expr!(Filter);
 into_expr!(Exists);
 into_expr!(ForAll);
 into_expr!(SelectField);
+into_expr!(GetVar);
 
 impl<T> From<T> for Spanned<T> {
     fn from(v: T) -> Self {
@@ -182,7 +184,7 @@ impl Expr {
             Expr::DecodePoint(_) => SourceSpan::empty(),
             Expr::SigmaAnd(_) => SourceSpan::empty(),
             Expr::SigmaOr(_) => SourceSpan::empty(),
-            Expr::GetVar(_) => todo!(),
+            Expr::GetVar(op) => op.source_span,
             Expr::DeserializeRegister(_) => todo!(),
             Expr::DeserializeContext(_) => todo!(),
             Expr::MultiplyGroup(_) => SourceSpan::empty(),
