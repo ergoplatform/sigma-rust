@@ -237,7 +237,7 @@ impl SigmaSerializable for Expr {
             Expr::Global => OpCode::GLOBAL.sigma_serialize(w),
             Expr::Context => OpCode::CONTEXT.sigma_serialize(w),
             Expr::OptionGet(v) => v.expr().sigma_serialize_w_opcode(w),
-            Expr::ExtractRegisterAs(v) => v.sigma_serialize_w_opcode(w),
+            Expr::ExtractRegisterAs(v) => v.expr().sigma_serialize_w_opcode(w),
             Expr::BinOp(op) => {
                 op.expr().op_code().sigma_serialize(w)?;
                 bin_op_sigma_serialize(op.expr(), w)

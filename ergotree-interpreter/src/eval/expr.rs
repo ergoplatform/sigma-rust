@@ -21,7 +21,7 @@ impl Evaluable for Expr {
             Expr::CalcBlake2b256(op) => op.eval(env, ctx),
             Expr::CalcSha256(op) => op.eval(env, ctx),
             Expr::Fold(op) => op.eval(env, ctx),
-            Expr::ExtractRegisterAs(op) => op.eval(env, ctx),
+            Expr::ExtractRegisterAs(op) => op.expr().eval(env, ctx),
             Expr::GlobalVars(op) => op.eval(env, ctx),
             Expr::MethodCall(op) => op.expr().eval(env, ctx),
             Expr::PropertyCall(op) => op.expr().eval(env, ctx),

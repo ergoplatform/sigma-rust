@@ -156,7 +156,7 @@ pub enum Expr {
     /// Box monetary value
     ExtractAmount(ExtractAmount),
     /// Extract register's value (box.RX properties)
-    ExtractRegisterAs(ExtractRegisterAs),
+    ExtractRegisterAs(Spanned<ExtractRegisterAs>),
     /// Extract serialized box bytes
     ExtractBytes(ExtractBytes),
     /// Extract serialized box bytes excluding transaction_id & index
@@ -252,7 +252,7 @@ impl Expr {
             Expr::ValUse(v) => v.tpe.clone(),
             Expr::BinOp(v) => v.expr().tpe(),
             Expr::OptionGet(v) => v.expr().tpe(),
-            Expr::ExtractRegisterAs(v) => v.tpe(),
+            Expr::ExtractRegisterAs(v) => v.expr().tpe(),
             Expr::Fold(v) => v.tpe(),
             Expr::SelectField(v) => v.tpe(),
             Expr::ExtractAmount(v) => v.tpe(),

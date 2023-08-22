@@ -7,6 +7,7 @@ use crate::mir::byte_array_to_long::ByteArrayToLong;
 use crate::mir::coll_append::Append;
 use crate::mir::coll_by_index::ByIndex;
 use crate::mir::expr::Expr;
+use crate::mir::extract_reg_as::ExtractRegisterAs;
 use crate::mir::method_call::MethodCall;
 use crate::mir::negation::Negation;
 use crate::mir::option_get::OptionGet;
@@ -93,6 +94,7 @@ into_expr!(Negation);
 into_expr!(OptionGet);
 into_expr!(OptionIsDefined);
 into_expr!(OptionGetOrElse);
+into_expr!(ExtractRegisterAs);
 
 impl<T> From<T> for Spanned<T> {
     fn from(v: T) -> Self {
@@ -142,7 +144,7 @@ impl Expr {
             Expr::OptionIsDefined(op) => op.source_span,
             Expr::OptionGetOrElse(op) => op.source_span,
             Expr::ExtractAmount(_) => SourceSpan::empty(),
-            Expr::ExtractRegisterAs(_) => todo!(),
+            Expr::ExtractRegisterAs(op) => op.source_span,
             Expr::ExtractBytes(_) => SourceSpan::empty(),
             Expr::ExtractBytesWithNoRef(_) => SourceSpan::empty(),
             Expr::ExtractScriptBytes(_) => SourceSpan::empty(),
