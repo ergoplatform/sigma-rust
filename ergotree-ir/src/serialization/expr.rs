@@ -277,7 +277,7 @@ impl SigmaSerializable for Expr {
             Expr::ExtractId(op) => op.sigma_serialize_w_opcode(w),
             Expr::SigmaPropBytes(op) => op.sigma_serialize_w_opcode(w),
             Expr::OptionIsDefined(op) => op.expr().sigma_serialize_w_opcode(w),
-            Expr::OptionGetOrElse(op) => op.sigma_serialize_w_opcode(w),
+            Expr::OptionGetOrElse(op) => op.expr().sigma_serialize_w_opcode(w),
             Expr::Negation(op) => op.expr().sigma_serialize_w_opcode(w),
             Expr::BitInversion(op) => op.sigma_serialize_w_opcode(w),
             Expr::ForAll(op) => op.sigma_serialize_w_opcode(w),

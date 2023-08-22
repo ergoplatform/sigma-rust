@@ -10,6 +10,7 @@ use crate::mir::expr::Expr;
 use crate::mir::method_call::MethodCall;
 use crate::mir::negation::Negation;
 use crate::mir::option_get::OptionGet;
+use crate::mir::option_get_or_else::OptionGetOrElse;
 use crate::mir::option_is_defined::OptionIsDefined;
 use crate::mir::property_call::PropertyCall;
 use crate::mir::subst_const::SubstConstants;
@@ -91,6 +92,7 @@ into_expr!(PropertyCall);
 into_expr!(Negation);
 into_expr!(OptionGet);
 into_expr!(OptionIsDefined);
+into_expr!(OptionGetOrElse);
 
 impl<T> From<T> for Spanned<T> {
     fn from(v: T) -> Self {
@@ -138,7 +140,7 @@ impl Expr {
             Expr::BitInversion(_) => SourceSpan::empty(),
             Expr::OptionGet(op) => op.source_span,
             Expr::OptionIsDefined(op) => op.source_span,
-            Expr::OptionGetOrElse(_) => todo!(),
+            Expr::OptionGetOrElse(op) => op.source_span,
             Expr::ExtractAmount(_) => SourceSpan::empty(),
             Expr::ExtractRegisterAs(_) => todo!(),
             Expr::ExtractBytes(_) => SourceSpan::empty(),

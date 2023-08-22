@@ -152,7 +152,7 @@ pub enum Expr {
     /// Option.isDefined method
     OptionIsDefined(Spanned<OptionIsDefined>),
     /// Returns the option's value if the option is nonempty, otherwise return the result of evaluating `default`.
-    OptionGetOrElse(OptionGetOrElse),
+    OptionGetOrElse(Spanned<OptionGetOrElse>),
     /// Box monetary value
     ExtractAmount(ExtractAmount),
     /// Extract register's value (box.RX properties)
@@ -278,7 +278,7 @@ impl Expr {
             Expr::ExtractId(v) => v.tpe(),
             Expr::SigmaPropBytes(v) => v.tpe(),
             Expr::OptionIsDefined(v) => v.expr().tpe(),
-            Expr::OptionGetOrElse(v) => v.tpe(),
+            Expr::OptionGetOrElse(v) => v.expr().tpe(),
             Expr::Negation(v) => v.expr().tpe(),
             Expr::BitInversion(v) => v.tpe(),
             Expr::ForAll(v) => v.tpe(),
