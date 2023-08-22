@@ -6,7 +6,11 @@ use crate::mir::byte_array_to_bigint::ByteArrayToBigInt;
 use crate::mir::byte_array_to_long::ByteArrayToLong;
 use crate::mir::coll_append::Append;
 use crate::mir::coll_by_index::ByIndex;
+use crate::mir::coll_exists::Exists;
+use crate::mir::coll_filter::Filter;
 use crate::mir::coll_fold::Fold;
+use crate::mir::coll_forall::ForAll;
+use crate::mir::coll_map::Map;
 use crate::mir::coll_slice::Slice;
 use crate::mir::expr::Expr;
 use crate::mir::extract_reg_as::ExtractRegisterAs;
@@ -99,6 +103,10 @@ into_expr!(OptionGetOrElse);
 into_expr!(ExtractRegisterAs);
 into_expr!(Slice);
 into_expr!(Fold);
+into_expr!(Map);
+into_expr!(Filter);
+into_expr!(Exists);
+into_expr!(ForAll);
 
 impl<T> From<T> for Spanned<T> {
     fn from(v: T) -> Self {
@@ -158,10 +166,10 @@ impl Expr {
             Expr::SizeOf(_) => SourceSpan::empty(),
             Expr::Slice(op) => op.source_span,
             Expr::Fold(op) => op.source_span,
-            Expr::Map(_) => todo!(),
-            Expr::Filter(_) => todo!(),
-            Expr::Exists(_) => todo!(),
-            Expr::ForAll(_) => todo!(),
+            Expr::Map(op) => op.source_span,
+            Expr::Filter(op) => op.source_span,
+            Expr::Exists(op) => op.source_span,
+            Expr::ForAll(op) => op.source_span,
             Expr::SelectField(_) => todo!(),
             Expr::BoolToSigmaProp(_) => SourceSpan::empty(),
             Expr::Upcast(_) => SourceSpan::empty(),

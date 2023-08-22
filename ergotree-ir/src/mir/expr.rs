@@ -177,13 +177,13 @@ pub enum Expr {
     /// Collection fold op
     Fold(Spanned<Fold>),
     /// Collection map op
-    Map(Map),
+    Map(Spanned<Map>),
     /// Collection filter op
-    Filter(Filter),
+    Filter(Spanned<Filter>),
     /// Tests whether a predicate holds for at least one element of this collection
-    Exists(Exists),
+    Exists(Spanned<Exists>),
     /// Tests whether a predicate holds for all elements of this collection.
-    ForAll(ForAll),
+    ForAll(Spanned<ForAll>),
     /// Tuple field access
     SelectField(SelectField),
     /// Bool to SigmaProp
@@ -261,8 +261,8 @@ impl Expr {
             Expr::Xor(v) => v.tpe(),
             Expr::Atleast(v) => v.tpe(),
             Expr::LogicalNot(v) => v.tpe(),
-            Expr::Map(v) => v.tpe(),
-            Expr::Filter(v) => v.tpe(),
+            Expr::Map(v) => v.expr().tpe(),
+            Expr::Filter(v) => v.expr().tpe(),
             Expr::BoolToSigmaProp(v) => v.tpe(),
             Expr::Upcast(v) => v.tpe(),
             Expr::Downcast(v) => v.tpe(),
@@ -274,14 +274,14 @@ impl Expr {
             Expr::CreateProveDlog(v) => v.tpe(),
             Expr::CreateProveDhTuple(v) => v.tpe(),
             Expr::ExtractCreationInfo(v) => v.tpe(),
-            Expr::Exists(v) => v.tpe(),
+            Expr::Exists(v) => v.expr().tpe(),
             Expr::ExtractId(v) => v.tpe(),
             Expr::SigmaPropBytes(v) => v.tpe(),
             Expr::OptionIsDefined(v) => v.expr().tpe(),
             Expr::OptionGetOrElse(v) => v.expr().tpe(),
             Expr::Negation(v) => v.expr().tpe(),
             Expr::BitInversion(v) => v.tpe(),
-            Expr::ForAll(v) => v.tpe(),
+            Expr::ForAll(v) => v.expr().tpe(),
             Expr::Tuple(v) => v.tpe(),
             Expr::DecodePoint(v) => v.tpe(),
             Expr::SigmaAnd(v) => v.tpe(),
