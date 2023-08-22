@@ -108,8 +108,10 @@ impl Address {
                     Err(_) => Address::P2S(tree.sigma_serialize_bytes()?),
                 },
                 Expr::SigmaAnd(SigmaAnd { items }) => {
-                    if let [Expr::BoolToSigmaProp(BoolToSigmaProp { input }), Expr::DeserializeContext(DeserializeContext { tpe, id })] =
-                        items.as_slice()
+                    if let [Expr::BoolToSigmaProp(BoolToSigmaProp { input }), Expr::DeserializeContext(Spanned {
+                        expr: DeserializeContext { tpe, id },
+                        ..
+                    })] = items.as_slice()
                     {
                         if let (
                             Expr::BinOp(Spanned {
@@ -236,10 +238,13 @@ impl Address {
                     }
                     .into(),
                 );
-                let script_is_correct = Expr::DeserializeContext(DeserializeContext {
-                    tpe: SType::SSigmaProp,
-                    id: 1,
-                });
+                let script_is_correct = Expr::DeserializeContext(
+                    DeserializeContext {
+                        tpe: SType::SSigmaProp,
+                        id: 1,
+                    }
+                    .into(),
+                );
                 let sigma_prop = Expr::BoolToSigmaProp(BoolToSigmaProp {
                     input: Box::from(hash_equals),
                 });
