@@ -135,7 +135,7 @@ mod tests {
             script_bytes,
             positions,
             new_values,
-        });
+        }.into());
 
         let x: Value = try_eval_out_wo_ctx(&subst_const).unwrap();
         if let Value::Coll(CollKind::NativeColl(NativeColl::CollByte(b))) = x {
@@ -182,7 +182,7 @@ mod tests {
             script_bytes,
             positions,
             new_values,
-        });
+        }.into());
 
         let x: Value = try_eval_out_wo_ctx(&subst_const).unwrap();
         if let Value::Coll(CollKind::NativeColl(NativeColl::CollByte(b))) = x {

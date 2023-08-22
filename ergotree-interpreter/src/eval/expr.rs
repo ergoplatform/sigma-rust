@@ -14,7 +14,7 @@ impl Evaluable for Expr {
         ctx.cost_accum.add_cost_of(self)?;
         let res = match self {
             Expr::Const(c) => Ok(Value::from(c.v.clone())),
-            Expr::SubstConstants(op) => op.eval(env, ctx),
+            Expr::SubstConstants(op) => op.expr().eval(env, ctx),
             Expr::ByteArrayToLong(op) => op.eval(env, ctx),
             Expr::ByteArrayToBigInt(op) => op.eval(env, ctx),
             Expr::LongToByteArray(op) => op.eval(env, ctx),

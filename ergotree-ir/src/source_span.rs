@@ -5,6 +5,7 @@ use crate::mir::block::BlockValue;
 use crate::mir::coll_append::Append;
 use crate::mir::coll_by_index::ByIndex;
 use crate::mir::expr::Expr;
+use crate::mir::subst_const::SubstConstants;
 use crate::mir::val_def::ValDef;
 
 /// Source position for the Expr
@@ -75,6 +76,7 @@ into_expr!(BlockValue);
 into_expr!(ValDef);
 into_expr!(BinOp);
 into_expr!(ByIndex);
+into_expr!(SubstConstants);
 
 impl<T> From<T> for Spanned<T> {
     fn from(v: T) -> Self {
@@ -93,7 +95,7 @@ impl Expr {
             Expr::Append(op) => op.source_span,
             Expr::Const(_) => SourceSpan::empty(),
             Expr::ConstPlaceholder(_) => SourceSpan::empty(),
-            Expr::SubstConstants(_) => todo!(),
+            Expr::SubstConstants(op) => op.source_span,
             Expr::ByteArrayToLong(_) => todo!(),
             Expr::ByteArrayToBigInt(_) => todo!(),
             Expr::LongToByteArray(_) => SourceSpan::empty(),
