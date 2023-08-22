@@ -131,11 +131,14 @@ mod tests {
         let positions = Expr::Const(Constant::from(vec![0])).into();
         let new_values = Expr::Const(Constant::from(vec![new.clone()])).into();
 
-        let subst_const = Expr::SubstConstants(SubstConstants {
-            script_bytes,
-            positions,
-            new_values,
-        }.into());
+        let subst_const = Expr::SubstConstants(
+            SubstConstants {
+                script_bytes,
+                positions,
+                new_values,
+            }
+            .into(),
+        );
 
         let x: Value = try_eval_out_wo_ctx(&subst_const).unwrap();
         if let Value::Coll(CollKind::NativeColl(NativeColl::CollByte(b))) = x {
@@ -178,11 +181,14 @@ mod tests {
 
         let new_values = Expr::Const(Constant::from(vec![n0, n1, n2])).into();
 
-        let subst_const = Expr::SubstConstants(SubstConstants {
-            script_bytes,
-            positions,
-            new_values,
-        }.into());
+        let subst_const = Expr::SubstConstants(
+            SubstConstants {
+                script_bytes,
+                positions,
+                new_values,
+            }
+            .into(),
+        );
 
         let x: Value = try_eval_out_wo_ctx(&subst_const).unwrap();
         if let Value::Coll(CollKind::NativeColl(NativeColl::CollByte(b))) = x {
