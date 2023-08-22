@@ -23,7 +23,7 @@ impl Evaluable for Expr {
             Expr::Fold(op) => op.eval(env, ctx),
             Expr::ExtractRegisterAs(op) => op.eval(env, ctx),
             Expr::GlobalVars(op) => op.eval(env, ctx),
-            Expr::MethodCall(op) => op.eval(env, ctx),
+            Expr::MethodCall(op) => op.expr().eval(env, ctx),
             Expr::ProperyCall(op) => op.eval(env, ctx),
             Expr::BinOp(op) => op.expr().eval(env, ctx),
             Expr::Global => Ok(Value::Global),

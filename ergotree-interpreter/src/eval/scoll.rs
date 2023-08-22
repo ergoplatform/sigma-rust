@@ -60,7 +60,7 @@ pub(crate) static FLATMAP_EVAL_FN: EvalFn = |env, ctx, obj, args| {
         "unsupported lambda in flatMap: allowed usage `xs.flatMap(x => x.property)".to_string();
     match &*lambda.body {
         Expr::MethodCall(mc) => {
-            if !mc.args.is_empty() {
+            if !mc.expr().args.is_empty() {
                 return Err(EvalError::UnexpectedValue(unsupported_msg));
             }
         }

@@ -7,6 +7,7 @@ use crate::mir::byte_array_to_long::ByteArrayToLong;
 use crate::mir::coll_append::Append;
 use crate::mir::coll_by_index::ByIndex;
 use crate::mir::expr::Expr;
+use crate::mir::method_call::MethodCall;
 use crate::mir::subst_const::SubstConstants;
 use crate::mir::val_def::ValDef;
 
@@ -81,6 +82,7 @@ into_expr!(ByIndex);
 into_expr!(SubstConstants);
 into_expr!(ByteArrayToLong);
 into_expr!(ByteArrayToBigInt);
+into_expr!(MethodCall);
 
 impl<T> From<T> for Spanned<T> {
     fn from(v: T) -> Self {
@@ -112,7 +114,7 @@ impl Expr {
             Expr::GlobalVars(_) => SourceSpan::empty(),
             Expr::FuncValue(_) => SourceSpan::empty(),
             Expr::Apply(_) => SourceSpan::empty(),
-            Expr::MethodCall(_) => todo!(),
+            Expr::MethodCall(op) => op.source_span,
             Expr::ProperyCall(_) => todo!(),
             Expr::BlockValue(op) => op.source_span,
             Expr::ValDef(op) => op.source_span,

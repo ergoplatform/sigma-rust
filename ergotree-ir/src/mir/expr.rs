@@ -120,7 +120,7 @@ pub enum Expr {
     /// Function application
     Apply(Apply),
     /// Method call
-    MethodCall(MethodCall),
+    MethodCall(Spanned<MethodCall>),
     /// Property call
     ProperyCall(PropertyCall),
     /// Block (statements, followed by an expression)
@@ -245,7 +245,7 @@ impl Expr {
             Expr::GlobalVars(v) => v.tpe(),
             Expr::FuncValue(v) => v.tpe(),
             Expr::Apply(v) => v.tpe(),
-            Expr::MethodCall(v) => v.tpe(),
+            Expr::MethodCall(v) => v.expr().tpe(),
             Expr::ProperyCall(v) => v.tpe(),
             Expr::BlockValue(v) => v.expr().tpe(),
             Expr::ValDef(v) => v.expr().tpe(),
