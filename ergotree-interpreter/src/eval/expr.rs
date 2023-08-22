@@ -66,7 +66,7 @@ impl Evaluable for Expr {
             Expr::SigmaPropBytes(op) => op.eval(env, ctx),
             Expr::OptionIsDefined(op) => op.eval(env, ctx),
             Expr::OptionGetOrElse(op) => op.eval(env, ctx),
-            Expr::Negation(op) => op.eval(env, ctx),
+            Expr::Negation(op) => op.expr().eval(env, ctx),
             Expr::BitInversion(op) => op.eval(env, ctx),
             Expr::ForAll(op) => op.eval(env, ctx),
             Expr::Tuple(op) => op.eval(env, ctx),

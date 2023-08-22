@@ -1,5 +1,6 @@
 //! Source position for an IR node in the source code
 
+use crate::mir::negation::Negation;
 use crate::mir::bin_op::BinOp;
 use crate::mir::block::BlockValue;
 use crate::mir::byte_array_to_bigint::ByteArrayToBigInt;
@@ -85,6 +86,7 @@ into_expr!(ByteArrayToLong);
 into_expr!(ByteArrayToBigInt);
 into_expr!(MethodCall);
 into_expr!(PropertyCall);
+into_expr!(Negation);
 
 impl<T> From<T> for Spanned<T> {
     fn from(v: T) -> Self {
@@ -128,7 +130,7 @@ impl Expr {
             Expr::Xor(_) => SourceSpan::empty(),
             Expr::Atleast(_) => SourceSpan::empty(),
             Expr::LogicalNot(_) => SourceSpan::empty(),
-            Expr::Negation(_) => todo!(),
+            Expr::Negation(op) => op.source_span,
             Expr::BitInversion(_) => SourceSpan::empty(),
             Expr::OptionGet(_) => todo!(),
             Expr::OptionIsDefined(_) => todo!(),

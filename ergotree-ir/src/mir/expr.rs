@@ -144,7 +144,7 @@ pub enum Expr {
     /// LogicalNot
     LogicalNot(LogicalNot),
     /// Negation on numeric type
-    Negation(Negation),
+    Negation(Spanned<Negation>),
     /// Bit inversion on numeric type
     BitInversion(BitInversion),
     /// Option.get method
@@ -279,7 +279,7 @@ impl Expr {
             Expr::SigmaPropBytes(v) => v.tpe(),
             Expr::OptionIsDefined(v) => v.tpe(),
             Expr::OptionGetOrElse(v) => v.tpe(),
-            Expr::Negation(v) => v.tpe(),
+            Expr::Negation(v) => v.expr().tpe(),
             Expr::BitInversion(v) => v.tpe(),
             Expr::ForAll(v) => v.tpe(),
             Expr::Tuple(v) => v.tpe(),
