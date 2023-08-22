@@ -95,7 +95,7 @@ pub enum Expr {
     /// Substitute constants in serialized ergo tree
     SubstConstants(Spanned<SubstConstants>),
     /// Convert byte array to SLong
-    ByteArrayToLong(ByteArrayToLong),
+    ByteArrayToLong(Spanned<ByteArrayToLong>),
     /// Convert byte array to SLong
     ByteArrayToBigInt(ByteArrayToBigInt),
     /// Convert SLong to a byte array
@@ -234,7 +234,7 @@ impl Expr {
             Expr::Const(v) => v.tpe.clone(),
             Expr::Collection(v) => v.tpe(),
             Expr::SubstConstants(v) => v.expr().tpe(),
-            Expr::ByteArrayToLong(v) => v.tpe(),
+            Expr::ByteArrayToLong(v) => v.expr().tpe(),
             Expr::ByteArrayToBigInt(v) => v.tpe(),
             Expr::LongToByteArray(v) => v.tpe(),
             Expr::ConstPlaceholder(v) => v.tpe.clone(),
