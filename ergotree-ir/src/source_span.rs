@@ -6,6 +6,7 @@ use crate::mir::byte_array_to_bigint::ByteArrayToBigInt;
 use crate::mir::byte_array_to_long::ByteArrayToLong;
 use crate::mir::coll_append::Append;
 use crate::mir::coll_by_index::ByIndex;
+use crate::mir::coll_fold::Fold;
 use crate::mir::coll_slice::Slice;
 use crate::mir::expr::Expr;
 use crate::mir::extract_reg_as::ExtractRegisterAs;
@@ -97,6 +98,7 @@ into_expr!(OptionIsDefined);
 into_expr!(OptionGetOrElse);
 into_expr!(ExtractRegisterAs);
 into_expr!(Slice);
+into_expr!(Fold);
 
 impl<T> From<T> for Spanned<T> {
     fn from(v: T) -> Self {
@@ -155,7 +157,7 @@ impl Expr {
             Expr::ByIndex(op) => op.source_span,
             Expr::SizeOf(_) => SourceSpan::empty(),
             Expr::Slice(op) => op.source_span,
-            Expr::Fold(_) => todo!(),
+            Expr::Fold(op) => op.source_span,
             Expr::Map(_) => todo!(),
             Expr::Filter(_) => todo!(),
             Expr::Exists(_) => todo!(),

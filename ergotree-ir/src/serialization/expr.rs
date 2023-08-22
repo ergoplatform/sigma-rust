@@ -79,6 +79,7 @@ use crate::serialization::{
 
 use crate::mir::xor_of::XorOf;
 use crate::serialization::types::TypeCode;
+use crate::source_span::Spanned;
 
 impl Expr {
     /// Parse expression from byte stream. This function should be used instead of
@@ -225,7 +226,7 @@ impl SigmaSerializable for Expr {
                 None => c.sigma_serialize(w),
             },
             Expr::Append(ap) => ap.expr().sigma_serialize_w_opcode(w),
-            Expr::Fold(op) => op.sigma_serialize_w_opcode(w),
+            Expr::Fold(op) => op.expr().sigma_serialize_w_opcode(w),
             Expr::ConstPlaceholder(cp) => cp.sigma_serialize_w_opcode(w),
             Expr::SubstConstants(s) => s.expr().sigma_serialize_w_opcode(w),
             Expr::ByteArrayToLong(s) => s.expr().sigma_serialize_w_opcode(w),
@@ -301,6 +302,22 @@ impl SigmaSerializable for Expr {
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let tag = r.get_u8()?;
         Self::parse_with_tag(r, tag)
+    }
+}
+
+impl<T: SigmaSerializable> SigmaSerializable for Spanned<T> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
+        self.expr.sigma_serialize(w)
+    }
+
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
+        T::sigma_parse(r).map(Into::into)
+    }
+}
+
+impl<T: HasOpCode> HasOpCode for Spanned<T> {
+    fn op_code(&self) -> OpCode {
+        self.expr.op_code()
     }
 }
 

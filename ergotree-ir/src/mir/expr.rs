@@ -175,7 +175,7 @@ pub enum Expr {
     /// Collection slice
     Slice(Spanned<Slice>),
     /// Collection fold op
-    Fold(Fold),
+    Fold(Spanned<Fold>),
     /// Collection map op
     Map(Map),
     /// Collection filter op
@@ -253,7 +253,7 @@ impl Expr {
             Expr::BinOp(v) => v.expr().tpe(),
             Expr::OptionGet(v) => v.expr().tpe(),
             Expr::ExtractRegisterAs(v) => v.expr().tpe(),
-            Expr::Fold(v) => v.tpe(),
+            Expr::Fold(v) => v.expr().tpe(),
             Expr::SelectField(v) => v.tpe(),
             Expr::ExtractAmount(v) => v.tpe(),
             Expr::And(v) => v.tpe(),
