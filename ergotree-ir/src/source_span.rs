@@ -20,6 +20,7 @@ use crate::mir::option_get::OptionGet;
 use crate::mir::option_get_or_else::OptionGetOrElse;
 use crate::mir::option_is_defined::OptionIsDefined;
 use crate::mir::property_call::PropertyCall;
+use crate::mir::select_field::SelectField;
 use crate::mir::subst_const::SubstConstants;
 use crate::mir::val_def::ValDef;
 
@@ -107,6 +108,7 @@ into_expr!(Map);
 into_expr!(Filter);
 into_expr!(Exists);
 into_expr!(ForAll);
+into_expr!(SelectField);
 
 impl<T> From<T> for Spanned<T> {
     fn from(v: T) -> Self {
@@ -170,7 +172,7 @@ impl Expr {
             Expr::Filter(op) => op.source_span,
             Expr::Exists(op) => op.source_span,
             Expr::ForAll(op) => op.source_span,
-            Expr::SelectField(_) => todo!(),
+            Expr::SelectField(op) => op.source_span,
             Expr::BoolToSigmaProp(_) => SourceSpan::empty(),
             Expr::Upcast(_) => SourceSpan::empty(),
             Expr::Downcast(_) => SourceSpan::empty(),

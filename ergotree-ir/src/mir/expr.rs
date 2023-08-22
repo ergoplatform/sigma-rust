@@ -185,7 +185,7 @@ pub enum Expr {
     /// Tests whether a predicate holds for all elements of this collection.
     ForAll(Spanned<ForAll>),
     /// Tuple field access
-    SelectField(SelectField),
+    SelectField(Spanned<SelectField>),
     /// Bool to SigmaProp
     BoolToSigmaProp(BoolToSigmaProp),
     /// Upcast numeric value
@@ -254,7 +254,7 @@ impl Expr {
             Expr::OptionGet(v) => v.expr().tpe(),
             Expr::ExtractRegisterAs(v) => v.expr().tpe(),
             Expr::Fold(v) => v.expr().tpe(),
-            Expr::SelectField(v) => v.tpe(),
+            Expr::SelectField(v) => v.expr().tpe(),
             Expr::ExtractAmount(v) => v.tpe(),
             Expr::And(v) => v.tpe(),
             Expr::Or(v) => v.tpe(),
