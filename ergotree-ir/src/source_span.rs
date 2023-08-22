@@ -1,6 +1,5 @@
 //! Source position for an IR node in the source code
 
-use crate::mir::negation::Negation;
 use crate::mir::bin_op::BinOp;
 use crate::mir::block::BlockValue;
 use crate::mir::byte_array_to_bigint::ByteArrayToBigInt;
@@ -9,6 +8,8 @@ use crate::mir::coll_append::Append;
 use crate::mir::coll_by_index::ByIndex;
 use crate::mir::expr::Expr;
 use crate::mir::method_call::MethodCall;
+use crate::mir::negation::Negation;
+use crate::mir::option_get::OptionGet;
 use crate::mir::property_call::PropertyCall;
 use crate::mir::subst_const::SubstConstants;
 use crate::mir::val_def::ValDef;
@@ -87,6 +88,7 @@ into_expr!(ByteArrayToBigInt);
 into_expr!(MethodCall);
 into_expr!(PropertyCall);
 into_expr!(Negation);
+into_expr!(OptionGet);
 
 impl<T> From<T> for Spanned<T> {
     fn from(v: T) -> Self {
@@ -132,7 +134,7 @@ impl Expr {
             Expr::LogicalNot(_) => SourceSpan::empty(),
             Expr::Negation(op) => op.source_span,
             Expr::BitInversion(_) => SourceSpan::empty(),
-            Expr::OptionGet(_) => todo!(),
+            Expr::OptionGet(op) => op.source_span,
             Expr::OptionIsDefined(_) => todo!(),
             Expr::OptionGetOrElse(_) => todo!(),
             Expr::ExtractAmount(_) => SourceSpan::empty(),

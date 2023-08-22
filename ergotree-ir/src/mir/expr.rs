@@ -148,7 +148,7 @@ pub enum Expr {
     /// Bit inversion on numeric type
     BitInversion(BitInversion),
     /// Option.get method
-    OptionGet(OptionGet),
+    OptionGet(Spanned<OptionGet>),
     /// Option.isDefined method
     OptionIsDefined(OptionIsDefined),
     /// Returns the option's value if the option is nonempty, otherwise return the result of evaluating `default`.
@@ -251,7 +251,7 @@ impl Expr {
             Expr::ValDef(v) => v.expr().tpe(),
             Expr::ValUse(v) => v.tpe.clone(),
             Expr::BinOp(v) => v.expr().tpe(),
-            Expr::OptionGet(v) => v.tpe(),
+            Expr::OptionGet(v) => v.expr().tpe(),
             Expr::ExtractRegisterAs(v) => v.tpe(),
             Expr::Fold(v) => v.tpe(),
             Expr::SelectField(v) => v.tpe(),

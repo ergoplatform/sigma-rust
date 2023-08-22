@@ -28,7 +28,7 @@ impl Evaluable for Expr {
             Expr::BinOp(op) => op.expr().eval(env, ctx),
             Expr::Global => Ok(Value::Global),
             Expr::Context => Ok(Value::Context),
-            Expr::OptionGet(v) => v.eval(env, ctx),
+            Expr::OptionGet(v) => v.expr().eval(env, ctx),
             Expr::Apply(op) => op.eval(env, ctx),
             Expr::FuncValue(op) => op.eval(env, ctx),
             Expr::ValUse(op) => op.eval(env, ctx),
