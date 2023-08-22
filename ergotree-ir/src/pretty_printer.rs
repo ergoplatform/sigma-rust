@@ -364,8 +364,8 @@ mod tests {
             expr,
             expect![[r#"
             {
-                val v1 = 1
-                v1
+              val v1 = 1
+              v1
             }
             "#]],
         );
@@ -402,8 +402,8 @@ mod tests {
             expr.clone(),
             expect![[r#"
             {
-                val v1 = 4 / 2
-                v1
+              val v1 = 4 / 2
+              v1
             }
             "#]],
         );
