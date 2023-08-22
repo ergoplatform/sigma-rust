@@ -40,7 +40,7 @@ mod tests {
     #[test]
     fn ser_roundtrip_property() {
         let mc = PropertyCall::new(Expr::Context, scontext::DATA_INPUTS_PROPERTY.clone()).unwrap();
-        let expr = Expr::ProperyCall(mc);
+        let expr = Expr::PropertyCall(mc.into());
         assert_eq![sigma_serialize_roundtrip(&expr), expr];
     }
 }

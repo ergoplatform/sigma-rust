@@ -112,7 +112,9 @@ impl Expr {
                 OpCode::MINER_PUBKEY => Ok(Expr::GlobalVars(GlobalVars::MinerPubKey)),
                 OpCode::GROUP_GENERATOR => Ok(Expr::GlobalVars(GlobalVars::GroupGenerator)),
                 OpCode::GLOBAL => Ok(Expr::Global),
-                OpCode::PROPERTY_CALL => Ok(Expr::ProperyCall(PropertyCall::sigma_parse(r)?)),
+                OpCode::PROPERTY_CALL => {
+                    Ok(Expr::PropertyCall(PropertyCall::sigma_parse(r)?.into()))
+                }
                 OpCode::METHOD_CALL => Ok(Expr::MethodCall(MethodCall::sigma_parse(r)?.into())),
                 OpCode::CONTEXT => Ok(Expr::Context),
                 OptionGet::OP_CODE => Ok(OptionGet::sigma_parse(r)?.into()),
@@ -231,7 +233,7 @@ impl SigmaSerializable for Expr {
             Expr::LongToByteArray(s) => s.sigma_serialize_w_opcode(w),
             Expr::GlobalVars(op) => op.op_code().sigma_serialize(w),
             Expr::MethodCall(mc) => mc.expr().sigma_serialize_w_opcode(w),
-            Expr::ProperyCall(pc) => pc.sigma_serialize_w_opcode(w),
+            Expr::PropertyCall(pc) => pc.expr().sigma_serialize_w_opcode(w),
             Expr::Global => OpCode::GLOBAL.sigma_serialize(w),
             Expr::Context => OpCode::CONTEXT.sigma_serialize(w),
             Expr::OptionGet(v) => v.sigma_serialize_w_opcode(w),
