@@ -221,7 +221,7 @@ pub enum Expr {
     /// XOR for collection of booleans
     XorOf(XorOf),
     /// Perform a lookup by key in an AVL tree
-    TreeLookup(TreeLookup),
+    TreeLookup(Spanned<TreeLookup>),
     /// Create an AVL tree
     CreateAvlTree(CreateAvlTree),
 }
@@ -294,7 +294,7 @@ impl Expr {
             Expr::XorOf(v) => v.tpe(),
             Expr::ExtractBytes(v) => v.tpe(),
             Expr::ExtractBytesWithNoRef(v) => v.tpe(),
-            Expr::TreeLookup(v) => v.tpe(),
+            Expr::TreeLookup(v) => v.expr().tpe(),
             Expr::CreateAvlTree(v) => v.tpe(),
         }
     }

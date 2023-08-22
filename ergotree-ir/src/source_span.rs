@@ -25,6 +25,7 @@ use crate::mir::option_is_defined::OptionIsDefined;
 use crate::mir::property_call::PropertyCall;
 use crate::mir::select_field::SelectField;
 use crate::mir::subst_const::SubstConstants;
+use crate::mir::tree_lookup::TreeLookup;
 use crate::mir::val_def::ValDef;
 
 /// Source position for the Expr
@@ -115,6 +116,7 @@ into_expr!(SelectField);
 into_expr!(GetVar);
 into_expr!(DeserializeRegister);
 into_expr!(DeserializeContext);
+into_expr!(TreeLookup);
 
 impl<T> From<T> for Spanned<T> {
     fn from(v: T) -> Self {
@@ -127,7 +129,6 @@ impl<T> From<T> for Spanned<T> {
 
 impl Expr {
     /// Source span for the Expr
-    #[allow(clippy::todo)]
     pub fn span(&self) -> SourceSpan {
         match self {
             Expr::Append(op) => op.source_span,
@@ -194,7 +195,7 @@ impl Expr {
             Expr::MultiplyGroup(_) => SourceSpan::empty(),
             Expr::Exponentiate(_) => SourceSpan::empty(),
             Expr::XorOf(_) => SourceSpan::empty(),
-            Expr::TreeLookup(_) => todo!(),
+            Expr::TreeLookup(op) => op.source_span,
             Expr::CreateAvlTree(_) => SourceSpan::empty(),
         }
     }
