@@ -166,7 +166,7 @@ impl Print for Expr {
             Expr::BinOp(v) => v.expr().print(w),
             Expr::GlobalVars(v) => v.print(w),
             Expr::ByIndex(v) => v.expr().print(w),
-            Expr::ConstPlaceholder(_) => todo!(),
+            Expr::ConstPlaceholder(_) => Ok(self.clone()),
             Expr::SubstConstants(_) => todo!(),
             Expr::ByteArrayToLong(_) => todo!(),
             Expr::ByteArrayToBigInt(_) => todo!(),
