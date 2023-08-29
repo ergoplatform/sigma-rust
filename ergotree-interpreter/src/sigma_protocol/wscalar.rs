@@ -7,10 +7,10 @@ use std::fmt::Formatter;
 
 use derive_more::From;
 use derive_more::Into;
-use elliptic_curve::generic_array::GenericArray;
-use elliptic_curve::ops::Reduce;
 use ergo_chain_types::Base16DecodedBytes;
 use ergo_chain_types::Base16EncodedBytes;
+use k256::elliptic_curve::generic_array::GenericArray;
+use k256::elliptic_curve::ops::Reduce;
 use k256::Scalar;
 use k256::U256;
 
@@ -40,7 +40,7 @@ impl Wscalar {
 impl From<GroupSizedBytes> for Wscalar {
     fn from(b: GroupSizedBytes) -> Self {
         let sl: &[u8] = b.0.as_ref();
-        let s = <Scalar as Reduce<U256>>::from_be_bytes_reduced(GenericArray::clone_from_slice(sl));
+        let s = <Scalar as Reduce<U256>>::reduce_bytes(&GenericArray::clone_from_slice(sl));
         Wscalar(s)
     }
 }
@@ -51,7 +51,7 @@ impl From<Challenge> for Scalar {
         // prepend zeroes to 32 bytes (big-endian)
         let mut prefix = vec![0u8; 8];
         prefix.append(&mut v.to_vec());
-        <Scalar as Reduce<U256>>::from_be_bytes_reduced(GenericArray::clone_from_slice(&prefix))
+        <Scalar as Reduce<U256>>::reduce_bytes(&GenericArray::clone_from_slice(&prefix))
     }
 }
 
@@ -85,7 +85,7 @@ mod arbitrary {
     use crate::sigma_protocol::GROUP_SIZE;
 
     use super::Wscalar;
-    use elliptic_curve::{generic_array::GenericArray, PrimeField};
+    use k256::elliptic_curve::{generic_array::GenericArray, PrimeField};
     use k256::Scalar;
     use proptest::{collection::vec, prelude::*};
 

@@ -1,7 +1,7 @@
 //! Elliptic curve point.
 
 use derive_more::From;
-use elliptic_curve::group::prime::PrimeCurveAffine;
+use k256::elliptic_curve::group::prime::PrimeCurveAffine;
 use k256::elliptic_curve::sec1::ToEncodedPoint;
 use k256::{ProjectivePoint, PublicKey, Scalar};
 use sigma_ser::vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt};

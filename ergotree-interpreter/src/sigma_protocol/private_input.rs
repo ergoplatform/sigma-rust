@@ -2,7 +2,6 @@
 use std::convert::TryInto;
 use std::fmt::Formatter;
 
-use elliptic_curve::group::ff::PrimeField;
 use ergo_chain_types::EcPoint;
 use ergotree_ir::serialization::SigmaSerializable;
 use ergotree_ir::sigma_protocol::dlog_group;
@@ -13,6 +12,7 @@ use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 
 extern crate derive_more;
 use derive_more::From;
+use k256::elliptic_curve::PrimeField;
 use num_bigint::BigUint;
 use num_traits::ToPrimitive;
 
@@ -155,7 +155,7 @@ impl DhTupleProverInput {
     #[allow(clippy::unwrap_used)]
     pub fn to_bytes(&self) -> [u8; DhTupleProverInput::SIZE_BYTES] {
         let mut bytes = Vec::with_capacity(DhTupleProverInput::SIZE_BYTES);
-        bytes.extend_from_slice(&self.w.as_scalar_ref().to_bytes());
+        bytes.extend_from_slice(self.w.as_scalar_ref().to_bytes().as_slice());
         bytes.extend_from_slice(&self.common_input.g.sigma_serialize_bytes().unwrap());
         bytes.extend_from_slice(&self.common_input.h.sigma_serialize_bytes().unwrap());
         bytes.extend_from_slice(&self.common_input.u.sigma_serialize_bytes().unwrap());
