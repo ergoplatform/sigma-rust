@@ -1,6 +1,7 @@
 //! Elliptic curve point.
 
-use elliptic_curve::group::prime::PrimeCurveAffine;
+use derive_more::From;
+use k256::elliptic_curve::group::prime::PrimeCurveAffine;
 use k256::elliptic_curve::sec1::ToEncodedPoint;
 use k256::{ProjectivePoint, PublicKey, Scalar};
 use sigma_ser::vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt};
@@ -9,7 +10,7 @@ use std::convert::TryFrom;
 use std::ops::{Add, Mul, Neg};
 
 /// Elliptic curve point
-#[derive(PartialEq, Clone, Default)]
+#[derive(PartialEq, Clone, Default, From)]
 #[cfg_attr(
     feature = "json",
     derive(serde::Serialize, serde::Deserialize),

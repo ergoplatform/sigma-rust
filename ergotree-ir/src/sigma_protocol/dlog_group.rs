@@ -21,8 +21,8 @@ use crate::serialization::SigmaSerializeResult;
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SigmaParsingError, SigmaSerializable,
 };
-use elliptic_curve::group::ff::PrimeField;
 use elliptic_curve::rand_core::RngCore;
+use k256::elliptic_curve::PrimeField;
 use k256::Scalar;
 use num_bigint::Sign;
 use num_bigint::ToBigUint;
@@ -39,8 +39,8 @@ use std::convert::TryFrom;
 
 /// Creates a random scalar, a big-endian integer in the range [0, n), where n is group order
 /// Use cryptographically secure PRNG (like rand::thread_rng())
-pub fn random_scalar_in_group_range(rng: impl RngCore) -> Scalar {
-    Scalar::generate_vartime(rng)
+pub fn random_scalar_in_group_range(mut rng: impl RngCore) -> Scalar {
+    Scalar::generate_vartime(&mut rng)
 }
 
 /// Attempts to create BigInt256 from Scalar
