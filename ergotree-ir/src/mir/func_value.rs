@@ -1,3 +1,5 @@
+use std::fmt;
+
 use crate::has_opcode::HasStaticOpCode;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
@@ -34,6 +36,12 @@ impl SigmaSerializable for FuncArg {
         let idx = ValId::sigma_parse(r)?;
         let tpe = SType::sigma_parse(r)?;
         Ok(FuncArg { idx, tpe })
+    }
+}
+
+impl std::fmt::Display for FuncArg {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "v{}: {}", self.idx, self.tpe)
     }
 }
 
