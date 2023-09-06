@@ -16,6 +16,10 @@ pub trait Printer: Write {
     fn dec_ident(&mut self);
     /// Get current indent
     fn get_indent(&self) -> usize;
+    /// Print the current indent
+    fn print_indent(&mut self) -> std::fmt::Result {
+        write!(self, "{:indent$}", "", indent = self.get_indent())
+    }
 }
 
 /// Printer implementation with tracking of current position and indent
@@ -203,6 +207,88 @@ mod tests {
         check_pretty(
             ergo_tree.proposition().unwrap(),
             expect![[r#"
+                {
+                  val v1 = HEIGHT - 30
+                  val v2 = INPUTS(0)
+                  val v3 = INPUTS.filter({
+                      (v3: Box) => 
+                        if (v3.getReg(6).isDefined()) v3.creationInfo._1 >= v1 && v3.tokens(0)._1 == "2a472d4a614e645267556b58703273357638792f423f4528482b4d6250655368" && v3.getReg(5).get == v2.getReg(5).get else false
+                      }
+                    )
+                  val v4 = v3.size
+                  val v5 = v3.fold((, 1, (, true, 0)))({
+                      (v5: ((Long, (Boolean, Long)), Box)) => 
+                        {
+                          val v7 = v5._2.getReg(6).get
+                          val v8 = v5._1
+                          val v9 = v8._2
+                          (, v7, (, v9._1 && v8._1 <= v7, v9._2 + v7))
+                        }
+
+                      }
+                    )
+                  val v6 = v5._2
+                  val v7 = v5._1
+                  val v8 = v2.tokens
+                  val v9 = v8(0)
+                  val v10 = OUTPUTS(0)
+                  val v11 = v10.tokens
+                  val v12 = v11(1)
+                  val v13 = v8(1)
+                  val v14 = OUTPUTS(1)
+                  allOf(
+                    allOf(
+                      allOf(
+                        allOf(
+                          allOf(
+                            allOf(
+                              allOf(
+                                allOf(
+                                  allOf(
+                                    allOf(
+                                      allOf(
+                                        allOf(
+                                          allOf(
+                                            allOf(
+                                              allOf(
+                                                allOf(
+                                                  allOf(
+                                                    proveDlog(v3(getVar(0).get).getReg(4).get), 
+                                                    sigmaProp(v2.creationInfo._1 < v1), 
+                                                  ), 
+                                                  sigmaProp(v4 >= 4), 
+                                                ), 
+                                                sigmaProp(v6._1), 
+                                              ), 
+                                              sigmaProp(v7 - v3(0).getReg(6).get <= v7 * upcast(5) / 100), 
+                                            ), 
+                                            sigmaProp(v9._1 == "472b4b6250655368566d597133743677397a24432646294a404d635166546a57"), 
+                                          ), 
+                                          sigmaProp(v11(0) == v9), 
+                                        ), 
+                                        sigmaProp(v12._1 == v13._1), 
+                                      ), 
+                                      sigmaProp(v12._2 >= v13._2 - upcast(v4 * 2)), 
+                                    ), 
+                                    sigmaProp(v11.size == v8.size), 
+                                  ), 
+                                  sigmaProp(v10.getReg(4).get == v6._2 / upcast(v4)), 
+                                ), 
+                                sigmaProp(v10.getReg(5).get == v2.getReg(5).get + 1), 
+                              ), 
+                              sigmaProp(v10.propBytes == v2.propBytes), 
+                            ), 
+                            sigmaProp(v10.value >= v2.value), 
+                          ), 
+                          sigmaProp(v10.creationInfo._1 >= HEIGHT - 4), 
+                        ), 
+                        sigmaProp(v14.tokens == SELF.tokens), 
+                      ), 
+                      sigmaProp(v14.propBytes == SELF.propBytes), 
+                    ), 
+                    sigmaProp(v14.value >= SELF.value), 
+                  )
+                }
             "#]],
         )
     }

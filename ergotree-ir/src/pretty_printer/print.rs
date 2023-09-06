@@ -2,6 +2,7 @@ use thiserror::Error;
 
 use crate::mir::bin_op::BinOp;
 use crate::mir::block::BlockValue;
+use crate::mir::bool_to_sigma::BoolToSigmaProp;
 use crate::mir::coll_append::Append;
 use crate::mir::coll_by_index::ByIndex;
 use crate::mir::coll_filter::Filter;
@@ -9,18 +10,24 @@ use crate::mir::coll_fold::Fold;
 use crate::mir::coll_map::Map;
 use crate::mir::coll_size::SizeOf;
 use crate::mir::constant::Constant;
+use crate::mir::create_provedlog::CreateProveDlog;
 use crate::mir::expr::Expr;
+use crate::mir::extract_amount::ExtractAmount;
 use crate::mir::extract_creation_info::ExtractCreationInfo;
 use crate::mir::extract_reg_as::ExtractRegisterAs;
+use crate::mir::extract_script_bytes::ExtractScriptBytes;
 use crate::mir::func_value::FuncValue;
+use crate::mir::get_var::GetVar;
 use crate::mir::global_vars::GlobalVars;
 use crate::mir::if_op::If;
 use crate::mir::option_get::OptionGet;
 use crate::mir::option_is_defined::OptionIsDefined;
 use crate::mir::property_call::PropertyCall;
 use crate::mir::select_field::SelectField;
+use crate::mir::sigma_and::SigmaAnd;
 use crate::mir::tuple::Tuple;
 use crate::mir::unary_op::OneArgOpTryBuild;
+use crate::mir::upcast::Upcast;
 use crate::mir::val_def::ValDef;
 use crate::mir::val_use::ValUse;
 use crate::source_span::SourceSpan;
@@ -81,11 +88,11 @@ impl Print for Expr {
             Expr::OptionGet(v) => v.expr().print(w),
             Expr::OptionIsDefined(v) => v.expr().print(w),
             Expr::OptionGetOrElse(_) => todo!(),
-            Expr::ExtractAmount(_) => todo!(),
+            Expr::ExtractAmount(v) => v.print(w),
             Expr::ExtractRegisterAs(v) => v.expr().print(w),
             Expr::ExtractBytes(_) => todo!(),
             Expr::ExtractBytesWithNoRef(_) => todo!(),
-            Expr::ExtractScriptBytes(_) => todo!(),
+            Expr::ExtractScriptBytes(v) => v.print(w),
             Expr::ExtractCreationInfo(v) => v.print(w),
             Expr::ExtractId(_) => todo!(),
             Expr::SizeOf(v) => v.print(w),
@@ -96,16 +103,16 @@ impl Print for Expr {
             Expr::Exists(_) => todo!(),
             Expr::ForAll(_) => todo!(),
             Expr::SelectField(v) => v.expr().print(w),
-            Expr::BoolToSigmaProp(_) => todo!(),
-            Expr::Upcast(_) => todo!(),
+            Expr::BoolToSigmaProp(v) => v.print(w),
+            Expr::Upcast(v) => v.print(w),
             Expr::Downcast(_) => todo!(),
-            Expr::CreateProveDlog(_) => todo!(),
+            Expr::CreateProveDlog(v) => v.print(w),
             Expr::CreateProveDhTuple(_) => todo!(),
             Expr::SigmaPropBytes(_) => todo!(),
             Expr::DecodePoint(_) => todo!(),
-            Expr::SigmaAnd(_) => todo!(),
+            Expr::SigmaAnd(v) => v.print(w),
             Expr::SigmaOr(_) => todo!(),
-            Expr::GetVar(_) => todo!(),
+            Expr::GetVar(v) => v.expr().print(w),
             Expr::DeserializeRegister(_) => todo!(),
             Expr::DeserializeContext(_) => todo!(),
             Expr::MultiplyGroup(_) => todo!(),
@@ -122,18 +129,19 @@ impl Print for BlockValue {
         let offset = w.current_pos();
         writeln!(w, "{{")?;
         w.inc_ident();
-        let indent = w.get_indent();
         let mut items = Vec::new();
         for item in &self.items {
-            write!(w, "{:indent$}", "", indent = indent)?;
+            w.print_indent()?;
             items.push(item.print(w)?);
             writeln!(w)?;
         }
         // indent for result
-        write!(w, "{:indent$}", "", indent = indent)?;
+        w.print_indent()?;
         let res = self.result.print(w)?;
+        writeln!(w)?;
         w.dec_ident();
-        writeln!(w, "\n}}")?;
+        w.print_indent()?;
+        writeln!(w, "}}")?;
         let length = w.current_pos() - offset;
         Ok(Spanned {
             source_span: SourceSpan { offset, length },
@@ -265,7 +273,9 @@ impl Print for Fold {
         let zero = self.zero.print(w)?;
         write!(w, ")(")?;
         let fold_op = self.fold_op.print(w)?;
+        w.print_indent()?;
         write!(w, ")")?;
+        w.dec_ident();
         let length = w.current_pos() - offset;
         #[allow(clippy::unwrap_used)] // we only added spans
         Ok(Spanned {
@@ -278,8 +288,10 @@ impl Print for Fold {
 
 impl Print for FuncValue {
     fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        w.inc_ident();
         writeln!(w, "{{")?;
         w.inc_ident();
+        w.print_indent()?;
         writeln!(
             w,
             "({}) => ",
@@ -290,9 +302,12 @@ impl Print for FuncValue {
                 .join(", ")
         )?;
         w.inc_ident();
+        w.print_indent()?;
         let body = self.body().print(w)?;
         w.dec_ident();
-        write!(w, "}}")?;
+        writeln!(w)?;
+        w.print_indent()?;
+        writeln!(w, "}}")?;
         w.dec_ident();
         Ok(FuncValue::new(self.args().to_vec(), body).into())
     }
@@ -304,7 +319,9 @@ impl Print for Filter {
         let offset = w.current_pos();
         write!(w, ".filter(")?;
         let condition = self.condition.print(w)?;
+        w.print_indent()?;
         write!(w, ")")?;
+        w.dec_ident();
         let length = w.current_pos() - offset;
         #[allow(clippy::unwrap_used)] // we only added spans
         Ok(Spanned {
@@ -375,7 +392,7 @@ impl Print for SelectField {
     fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
         let offset = w.current_pos();
         let input = self.input.print(w)?;
-        write!(w, "_{}", self.field_index)?;
+        write!(w, "._{}", self.field_index)?;
         let length = w.current_pos() - offset;
         #[allow(clippy::unwrap_used)] // we only added spans
         Ok(Spanned {
@@ -449,5 +466,86 @@ impl Print for Tuple {
         })?;
         write!(w, ")")?;
         Ok(Tuple { items }.into())
+    }
+}
+
+impl Print for SigmaAnd {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        writeln!(w, "allOf(")?;
+        let items = self.items.try_mapped_ref(|i| -> Result<Expr, PrintError> {
+            w.inc_ident();
+            w.print_indent()?;
+            let item = i.print(w)?;
+            write!(w, ", ")?;
+            writeln!(w)?;
+            w.dec_ident();
+            Ok(item)
+        })?;
+        w.print_indent()?;
+        write!(w, ")")?;
+        Ok(SigmaAnd { items }.into())
+    }
+}
+
+impl Print for CreateProveDlog {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        write!(w, "proveDlog(")?;
+        let input = self.input.print(w)?;
+        write!(w, ")")?;
+        Ok(CreateProveDlog {
+            input: Box::new(input),
+        }
+        .into())
+    }
+}
+
+impl Print for GetVar {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        write!(w, "getVar({})", self.var_id)?;
+        Ok(self.clone().into())
+    }
+}
+
+impl Print for BoolToSigmaProp {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        write!(w, "sigmaProp(")?;
+        let input = self.input.print(w)?;
+        write!(w, ")")?;
+        Ok(BoolToSigmaProp {
+            input: Box::new(input),
+        }
+        .into())
+    }
+}
+
+impl Print for Upcast {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        write!(w, "upcast(")?;
+        let input = self.input.print(w)?;
+        write!(w, ")")?;
+        #[allow(clippy::unwrap_used)] // we only added spans
+        Ok(Upcast::new(input, self.tpe.clone()).unwrap().into())
+    }
+}
+
+impl Print for ExtractScriptBytes {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        let input = self.input.print(w)?;
+        write!(w, ".propBytes")?;
+        Ok(ExtractScriptBytes {
+            input: Box::new(input),
+        }
+        .into())
+    }
+}
+
+impl Print for ExtractAmount {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        let input = self.input.print(w)?;
+        write!(w, ".value")?;
+        Ok(ExtractAmount {
+            input: Box::new(input),
+        }
+        .into())
     }
 }
