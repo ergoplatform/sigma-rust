@@ -332,4 +332,24 @@ mod tests {
             "#]],
         )
     }
+
+    #[test]
+    fn eip23_ballot_contract() {
+        let ergo_tree_bytes = base16::decode("10070580dac409040204020400040204000e206251655468576d5a7134743777217a25432a462d4a404e635266556a586e3272d803d601e4c6a70407d602b2a5e4e3000400d603c672020407eb02cd7201d1edededede6720393c27202c2a793db63087202db6308a792c172027300ededededed91b1a4730191b1db6308b2a47302007303938cb2db6308b2a473040073050001730693e47203720192c17202c1a7efe6c672020561").unwrap();
+        let ergo_tree = ErgoTree::sigma_parse_bytes(&ergo_tree_bytes).unwrap();
+        check_pretty(
+            ergo_tree.proposition().unwrap(),
+            expect![[r#"
+                {
+                  val v1 = SELF.getReg(4).get
+                  val v2 = OUTPUTS(getVar(0).get)
+                  val v3 = v2.getReg(4)
+                  anyOf(
+                    proveDlog(v1), 
+                    sigmaProp(v3.isDefined() && v2.propBytes == SELF.propBytes && v2.tokens == SELF.tokens && v2.value >= 10000000 && INPUTS.size > 1 && INPUTS(1).tokens.size > 0 && INPUTS(1).tokens(0)._1 == "6251655468576d5a7134743777217a25432a462d4a404e635266556a586e3272" && v3.get == v1 && v2.value >= SELF.value && !v2.getReg(5).isDefined()), 
+                  )
+                }
+            "#]],
+        )
+    }
 }

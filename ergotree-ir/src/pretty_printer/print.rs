@@ -27,6 +27,7 @@ use crate::mir::option_is_defined::OptionIsDefined;
 use crate::mir::property_call::PropertyCall;
 use crate::mir::select_field::SelectField;
 use crate::mir::sigma_and::SigmaAnd;
+use crate::mir::sigma_or::SigmaOr;
 use crate::mir::tuple::Tuple;
 use crate::mir::unary_op::OneArgOpTryBuild;
 use crate::mir::upcast::Upcast;
@@ -113,7 +114,7 @@ impl Print for Expr {
             Expr::SigmaPropBytes(_) => todo!(),
             Expr::DecodePoint(_) => todo!(),
             Expr::SigmaAnd(v) => v.print(w),
-            Expr::SigmaOr(_) => todo!(),
+            Expr::SigmaOr(v) => v.print(w),
             Expr::GetVar(v) => v.expr().print(w),
             Expr::DeserializeRegister(_) => todo!(),
             Expr::DeserializeContext(_) => todo!(),
@@ -486,6 +487,24 @@ impl Print for SigmaAnd {
         w.print_indent()?;
         write!(w, ")")?;
         Ok(SigmaAnd { items }.into())
+    }
+}
+
+impl Print for SigmaOr {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        writeln!(w, "anyOf(")?;
+        let items = self.items.try_mapped_ref(|i| -> Result<Expr, PrintError> {
+            w.inc_ident();
+            w.print_indent()?;
+            let item = i.print(w)?;
+            write!(w, ", ")?;
+            writeln!(w)?;
+            w.dec_ident();
+            Ok(item)
+        })?;
+        w.print_indent()?;
+        write!(w, ")")?;
+        Ok(SigmaOr { items }.into())
     }
 }
 
