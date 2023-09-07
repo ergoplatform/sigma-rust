@@ -352,4 +352,28 @@ mod tests {
             "#]],
         )
     }
+
+    #[test]
+    fn eip23_oracle_contract() {
+        let ergo_tree_bytes = base16::decode("100a040004000580dac409040004000e20472b4b6250655368566d597133743677397a24432646294a404d635166546a570402040204020402d804d601b2a5e4e3000400d602db63087201d603db6308a7d604e4c6a70407ea02d1ededed93b27202730000b2720373010093c27201c2a7e6c67201040792c172017302eb02cd7204d1ededededed938cb2db6308b2a4730300730400017305938cb27202730600018cb2720373070001918cb27202730800028cb272037309000293e4c672010407720492c17201c1a7efe6c672010561").unwrap();
+        let ergo_tree = ErgoTree::sigma_parse_bytes(&ergo_tree_bytes).unwrap();
+        check_pretty(
+            ergo_tree.proposition().unwrap(),
+            expect![[r#"
+                {
+                  val v1 = OUTPUTS(getVar(0).get)
+                  val v2 = v1.tokens
+                  val v3 = SELF.tokens
+                  val v4 = SELF.getReg(4).get
+                  allOf(
+                    sigmaProp(v2(0) == v3(0) && v1.propBytes == SELF.propBytes && v1.getReg(4).isDefined() && v1.value >= 10000000), 
+                    anyOf(
+                      proveDlog(v4), 
+                      sigmaProp(INPUTS(0).tokens(0)._1 == "472b4b6250655368566d597133743677397a24432646294a404d635166546a57" && v2(1)._1 == v3(1)._1 && v2(1)._2 > v3(1)._2 && v1.getReg(4).get == v4 && v1.value >= SELF.value && !v1.getReg(5).isDefined()), 
+                    ), 
+                  )
+                }
+            "#]],
+        )
+    }
 }
