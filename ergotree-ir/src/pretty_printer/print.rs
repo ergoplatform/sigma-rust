@@ -3,6 +3,7 @@ use thiserror::Error;
 use crate::mir::bin_op::BinOp;
 use crate::mir::block::BlockValue;
 use crate::mir::bool_to_sigma::BoolToSigmaProp;
+use crate::mir::calc_blake2b256::CalcBlake2b256;
 use crate::mir::coll_append::Append;
 use crate::mir::coll_by_index::ByIndex;
 use crate::mir::coll_filter::Filter;
@@ -20,6 +21,7 @@ use crate::mir::func_value::FuncValue;
 use crate::mir::get_var::GetVar;
 use crate::mir::global_vars::GlobalVars;
 use crate::mir::if_op::If;
+use crate::mir::logical_not::LogicalNot;
 use crate::mir::option_get::OptionGet;
 use crate::mir::option_is_defined::OptionIsDefined;
 use crate::mir::property_call::PropertyCall;
@@ -69,7 +71,7 @@ impl Print for Expr {
             Expr::LongToByteArray(_) => todo!(),
             Expr::Collection(_) => todo!(),
             Expr::Tuple(v) => v.print(w),
-            Expr::CalcBlake2b256(_) => todo!(),
+            Expr::CalcBlake2b256(v) => v.print(w),
             Expr::CalcSha256(_) => todo!(),
             Expr::Context => todo!(),
             Expr::Global => todo!(),
@@ -82,7 +84,7 @@ impl Print for Expr {
             Expr::Or(_) => todo!(),
             Expr::Xor(_) => todo!(),
             Expr::Atleast(_) => todo!(),
-            Expr::LogicalNot(_) => todo!(),
+            Expr::LogicalNot(v) => v.print(w),
             Expr::Negation(_) => todo!(),
             Expr::BitInversion(_) => todo!(),
             Expr::OptionGet(v) => v.expr().print(w),
@@ -544,6 +546,29 @@ impl Print for ExtractAmount {
         let input = self.input.print(w)?;
         write!(w, ".value")?;
         Ok(ExtractAmount {
+            input: Box::new(input),
+        }
+        .into())
+    }
+}
+
+impl Print for LogicalNot {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        write!(w, "!")?;
+        let input = self.input.print(w)?;
+        Ok(LogicalNot {
+            input: Box::new(input),
+        }
+        .into())
+    }
+}
+
+impl Print for CalcBlake2b256 {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        write!(w, "blake2b256(")?;
+        let input = self.input.print(w)?;
+        write!(w, ")")?;
+        Ok(CalcBlake2b256 {
             input: Box::new(input),
         }
         .into())

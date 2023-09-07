@@ -292,4 +292,44 @@ mod tests {
             "#]],
         )
     }
+
+    #[test]
+    fn eip23_update_contract() {
+        let ergo_tree_bytes = base16::decode("100f0400040004000402040204020e20472b4b6250655368566d597133743677397a24432646294a404d635166546a570400040004000e203f4428472d4b6150645367566b5970337336763979244226452948404d625165010005000400040cd80ad601b2a4730000d602db63087201d603b27202730100d604b2a5730200d605db63087204d606b2a5730300d607b27205730400d6088c720701d6098c720702d60ab27202730500d1ededed938c7203017306edededed937203b2720573070093c17201c1720493c672010405c67204040593c672010504c672040504efe6c672040661edededed93db63087206db6308a793c27206c2a792c17206c1a7918cc77206018cc7a701efe6c67206046192b0b5a4d9010b63d801d60ddb6308720b9591b1720d7308d801d60ec6720b070eededed938cb2720d73090001730a93e4c6720b05048cc7a70193e4c6720b060ecbc2720495ede6720ee6c6720b0805ed93e4720e720893e4c6720b08057209ed938c720a017208938c720a027209730b730cd9010b41639a8c720b018cb2db63088c720b02730d00027e730e05").unwrap();
+        let ergo_tree = ErgoTree::sigma_parse_bytes(&ergo_tree_bytes).unwrap();
+        check_pretty(
+            ergo_tree.proposition().unwrap(),
+            expect![[r#"
+                {
+                  val v1 = INPUTS(0)
+                  val v2 = v1.tokens
+                  val v3 = v2(0)
+                  val v4 = OUTPUTS(0)
+                  val v5 = v4.tokens
+                  val v6 = OUTPUTS(1)
+                  val v7 = v5(1)
+                  val v8 = v7._1
+                  val v9 = v7._2
+                  val v10 = v2(1)
+                  sigmaProp(v3._1 == "472b4b6250655368566d597133743677397a24432646294a404d635166546a57" && v3 == v5(0) && v1.value == v4.value && v1.getReg(4) == v4.getReg(4) && v1.getReg(5) == v4.getReg(5) && !v4.getReg(6).isDefined() && v6.tokens == SELF.tokens && v6.propBytes == SELF.propBytes && v6.value >= SELF.value && v6.creationInfo._1 > SELF.creationInfo._1 && !v6.getReg(4).isDefined() && INPUTS.filter({
+                      (v11: Box) => 
+                        {
+                          val v13 = v11.tokens
+                          if (v13.size > 0) {
+                            val v14 = v11.getReg(7)
+                            v13(0)._1 == "3f4428472d4b6150645367566b5970337336763979244226452948404d625165" && v11.getReg(5).get == SELF.creationInfo._1 && v11.getReg(6).get == blake2b256(v4.propBytes) && if (v14.isDefined() && v11.getReg(8).isDefined()) v14.get == v8 && v11.getReg(8).get == v9 else v10._1 == v8 && v10._2 == v9
+                          }
+                 else false
+                        }
+
+                      }
+                    ).fold(0)({
+                      (v11: (Long, Box)) => 
+                        v11._1 + v11._2.tokens(0)._2
+                      }
+                    ) >= upcast(6))
+                }
+            "#]],
+        )
+    }
 }
