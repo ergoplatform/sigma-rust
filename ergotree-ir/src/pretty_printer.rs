@@ -90,6 +90,8 @@ mod tests {
 
     use expect_test::expect;
 
+    use crate::chain::address::AddressEncoder;
+    use crate::chain::address::NetworkPrefix;
     use crate::ergo_tree::ErgoTree;
     use crate::mir::bin_op::ArithOp;
     use crate::mir::bin_op::BinOp;
@@ -372,6 +374,64 @@ mod tests {
                       sigmaProp(INPUTS(0).tokens(0)._1 == "472b4b6250655368566d597133743677397a24432646294a404d635166546a57" && v2(1)._1 == v3(1)._1 && v2(1)._2 > v3(1)._2 && v1.getReg(4).get == v4 && v1.value >= SELF.value && !v1.getReg(5).isDefined()), 
                     ), 
                   )
+                }
+            "#]],
+        )
+    }
+
+    #[test]
+    fn ageusd_bank_full() {
+        // from eip-15 https://github.com/ergoplatform/eips/pull/27/files
+        let p2s_addr_str = "MUbV38YgqHy7XbsoXWF5z7EZm524Ybdwe5p9WDrbhruZRtehkRPT92imXer2eTkjwPDfboa1pR3zb3deVKVq3H7Xt98qcTqLuSBSbHb7izzo5jphEpcnqyKJ2xhmpNPVvmtbdJNdvdopPrHHDBbAGGeW7XYTQwEeoRfosXzcDtiGgw97b2aqjTsNFmZk7khBEQywjYfmoDc9nUCJMZ3vbSspnYo3LarLe55mh2Np8MNJqUN9APA6XkhZCrTTDRZb1B4krgFY1sVMswg2ceqguZRvC9pqt3tUUxmSnB24N6dowfVJKhLXwHPbrkHViBv1AKAJTmEaQW2DN1fRmD9ypXxZk8GXmYtxTtrj3BiunQ4qzUCu1eGzxSREjpkFSi2ATLSSDqUwxtRz639sHM6Lav4axoJNPCHbY8pvuBKUxgnGRex8LEGM8DeEJwaJCaoy8dBw9Lz49nq5mSsXLeoC4xpTUmp47Bh7GAZtwkaNreCu74m9rcZ8Di4w1cmdsiK1NWuDh9pJ2Bv7u3EfcurHFVqCkT3P86JUbKnXeNxCypfrWsFuYNKYqmjsix82g9vWcGMmAcu5nagxD4iET86iE2tMMfZZ5vqZNvntQswJyQqv2Wc6MTh4jQx1q2qJZCQe4QdEK63meTGbZNNKMctHQbp3gRkZYNrBtxQyVtNLR8xEY8zGp85GeQKbb37vqLXxRpGiigAdMe3XZA4hhYPmAAU5hpSMYaRAjtvvMT3bNiHRACGrfjvSsEG9G2zY5in2YWz5X9zXQLGTYRsQ4uNFkYoQRCBdjNxGv6R58Xq74zCgt19TxYZ87gPWxkXpWwTaHogG1eps8WXt8QzwJ9rVx6Vu9a5GjtcGsQxHovWmYixgBU8X9fPNJ9UQhYyAWbjtRSuVBtDAmoV1gCBEPwnYVP5GCGhCocbwoYhZkZjFZy6ws4uxVLid3FxuvhWvQrVEDYp7WRvGXbNdCbcSXnbeTrPMey1WPaXX";
+        let encoder = AddressEncoder::new(NetworkPrefix::Mainnet);
+        let addr = encoder.parse_address_from_str(p2s_addr_str).unwrap();
+        let expr = addr.script().unwrap().proposition().unwrap();
+        check_pretty(
+            expr,
+            expect![[r#"
+                {
+                  val v1 = CONTEXT.dataInputs
+                  sigmaProp(if (v1.size > 0) {
+                    val v2 = v1(0)
+                    val v3 = v2.tokens(0)._1 == "011d3364de07e5a26f0c4eef0852cddb387039a921b7154ef3cab22c6eda887f"
+                    val v4 = OUTPUTS(0)
+                    val v5 = v4.value
+                    val v6 = SELF.tokens
+                    val v7 = v6(1)
+                    val v8 = v7._2
+                    val v9 = v4.tokens
+                    val v10 = v9(1)
+                    val v11 = v10._2
+                    val v12 = v8 != v11
+                    val v13 = v6(0)
+                    val v14 = v13._2
+                    val v15 = v9(0)
+                    val v16 = v15._2
+                    val v17 = v14 != v16
+                    val v18 = SELF.getReg(5).get
+                    val v19 = v4.getReg(5).get
+                    val v20 = SELF.getReg(4).get
+                    val v21 = v4.getReg(4).get
+                    val v22 = OUTPUTS(1)
+                    val v23 = v22.getReg(4).get
+                    val v24 = if (v12) 0 else v23
+                    val v25 = if (v12) v23 else 0
+                    val v26 = SELF.value
+                    val v27 = v22.getReg(5).get
+                    val v28 = v2.getReg(4).get / 100
+                    val v29 = v26 min v20 * v28 max 0
+                    val v30 = if (v17) v28 min if (v20 == 0) 9223372036854775807 else v29 / v20 * v24 else {
+                      val v30 = v26 - v29
+                      if (v30 == 0) 1000000 else if (v18 == 0) 1000000 else v30 / v18 * v25
+                    }
+
+                    val v31 = v30 * upcast(2) / 100
+                    val v32 = v21 * v28
+                    val v33 = if (HEIGHT > 460000) 800 else 1000000000
+                    val v34 = if (v32 == 0) v33 else v5 * 100 / v32
+                    v3 && v5 >= 10000000 && v4.propBytes == SELF.propBytes && v12 || v17 && !v12 && v17 && v8 + v18 == v11 + v19 && v14 + v20 == v16 + v21 && v20 + v24 == v21 && v18 + v25 == v19 && v26 + v27 == v5 && v21 >= 0 && v19 >= 0 && v15._1 == v13._1 && v10._1 == v7._1 && v9(2)._1 == v6(2)._1 && v27 == v30 + if (v31 < 0) -v31 else v31 && if (v17) if (v24 > 0) v34 >= 400 else true else if (v25 > 0) v34 <= v33 else v34 >= 400 && v3
+                  }
+                 else false || INPUTS(0).tokens(0)._1 == "239c170b7e82f94e6b05416f14b8a2a57e0bfff0e3c93f4abbcd160b6a5b271a")
                 }
             "#]],
         )

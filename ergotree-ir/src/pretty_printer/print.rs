@@ -22,6 +22,7 @@ use crate::mir::get_var::GetVar;
 use crate::mir::global_vars::GlobalVars;
 use crate::mir::if_op::If;
 use crate::mir::logical_not::LogicalNot;
+use crate::mir::negation::Negation;
 use crate::mir::option_get::OptionGet;
 use crate::mir::option_is_defined::OptionIsDefined;
 use crate::mir::property_call::PropertyCall;
@@ -74,7 +75,10 @@ impl Print for Expr {
             Expr::Tuple(v) => v.print(w),
             Expr::CalcBlake2b256(v) => v.print(w),
             Expr::CalcSha256(_) => todo!(),
-            Expr::Context => todo!(),
+            Expr::Context => {
+                write!(w, "CONTEXT")?;
+                Ok(self.clone())
+            }
             Expr::Global => todo!(),
             Expr::FuncValue(v) => v.print(w),
             Expr::Apply(_) => todo!(),
@@ -86,7 +90,7 @@ impl Print for Expr {
             Expr::Xor(_) => todo!(),
             Expr::Atleast(_) => todo!(),
             Expr::LogicalNot(v) => v.print(w),
-            Expr::Negation(_) => todo!(),
+            Expr::Negation(v) => v.expr().print(w),
             Expr::BitInversion(_) => todo!(),
             Expr::OptionGet(v) => v.expr().print(w),
             Expr::OptionIsDefined(v) => v.expr().print(w),
@@ -588,6 +592,17 @@ impl Print for CalcBlake2b256 {
         let input = self.input.print(w)?;
         write!(w, ")")?;
         Ok(CalcBlake2b256 {
+            input: Box::new(input),
+        }
+        .into())
+    }
+}
+
+impl Print for Negation {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        write!(w, "-")?;
+        let input = self.input.print(w)?;
+        Ok(Negation {
             input: Box::new(input),
         }
         .into())
