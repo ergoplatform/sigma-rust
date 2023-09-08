@@ -15,6 +15,7 @@ use crate::mir::create_provedlog::CreateProveDlog;
 use crate::mir::expr::Expr;
 use crate::mir::extract_amount::ExtractAmount;
 use crate::mir::extract_creation_info::ExtractCreationInfo;
+use crate::mir::extract_id::ExtractId;
 use crate::mir::extract_reg_as::ExtractRegisterAs;
 use crate::mir::extract_script_bytes::ExtractScriptBytes;
 use crate::mir::func_value::FuncValue;
@@ -101,7 +102,7 @@ impl Print for Expr {
             Expr::ExtractBytesWithNoRef(_) => todo!(),
             Expr::ExtractScriptBytes(v) => v.print(w),
             Expr::ExtractCreationInfo(v) => v.print(w),
-            Expr::ExtractId(_) => todo!(),
+            Expr::ExtractId(v) => v.print(w),
             Expr::SizeOf(v) => v.print(w),
             Expr::Slice(_) => todo!(),
             Expr::Fold(v) => v.expr().print(w),
@@ -603,6 +604,17 @@ impl Print for Negation {
         write!(w, "-")?;
         let input = self.input.print(w)?;
         Ok(Negation {
+            input: Box::new(input),
+        }
+        .into())
+    }
+}
+
+impl Print for ExtractId {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        let input = self.input.print(w)?;
+        write!(w, ".id")?;
+        Ok(ExtractId {
             input: Box::new(input),
         }
         .into())

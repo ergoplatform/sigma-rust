@@ -436,4 +436,38 @@ mod tests {
             "#]],
         )
     }
+
+    #[test]
+    fn ageusd_update() {
+        // from eip-15 https://github.com/ergoplatform/eips/pull/27/files
+        let p2s_addr_str = "VLyjpv3dse3PbatT83GnDkBQasGqY52dAEdi9XpXhuSUn1FS1Tm7XxtAgmBiqY9pJXtEAsDKwX9ygSjrFu7vnUQZudhC2sSmxhxqgD3ZxJ2VsGwmPG77F6EiEZhcq71oqEq31y9XvCCXL5nqqszdENPAVhu7xT296qZ7w1x6hmwdh9ZE89bjfgbhfNYopoqsCaNLWYHJ12TDSY93kaGqCVKSu6gEF1gLpXBfRCnAPPxYswJPmK8oWDn8PKrUGs3MjVsj6bGXiW3VTGP4VsNH8YSSkjyj1FZ9azLsyfnNJ3zah2zUHdCCqY6PjH9JfHf9joCPf6TusvXgr71XWvh5e2HPEPQr4eJMD4S96cGTiSs3J5XcRd1tCDYoiis8nxv99zFFhHgpqXHgeqjhJ5sPot9eRYTsmm4cRTVLXYAiuKPS2qW5";
+        let encoder = AddressEncoder::new(NetworkPrefix::Mainnet);
+        let addr = encoder.parse_address_from_str(p2s_addr_str).unwrap();
+        let expr = addr.script().unwrap().proposition().unwrap();
+        check_pretty(
+            expr,
+            expect![[r#"
+                {
+                  val v1 = INPUTS(1)
+                  val v2 = v1.tokens
+                  val v3 = OUTPUTS(1)
+                  val v4 = SELF.id
+                  val v5 = OUTPUTS(0)
+                  sigmaProp(v2.size == 3 && v2(2)._1 == "7d672d1def471720ca5782fd6473e47e796d9ac0c138d9911346f118b2f6d9d9" && v2 == v3.tokens && v1.value == v3.value && v1.getReg(4).get == v3.getReg(4).get && v1.getReg(5).get == v3.getReg(5).get && v4 == INPUTS(0).id && SELF.tokens == v5.tokens && SELF.propBytes == v5.propBytes && v5.value >= SELF.value && INPUTS.filter({
+                      (v6: Box) => 
+                        {
+                          val v8 = v6.tokens
+                          v8.size > 0 && v8(0)._1 == "f7995f212216fcf21854f56df7a9a0a9fc9b7ae4c0f1cc40f5b406371286a5e0" && v6.getReg(6).get == v4 && v6.getReg(7).get == blake2b256(v3.propBytes)
+                        }
+
+                      }
+                    ).fold(0)({
+                      (v6: (Long, Box)) => 
+                        v6._1 + v6._2.tokens(0)._2
+                      }
+                    ) >= upcast(3))
+                }
+            "#]],
+        )
+    }
 }
