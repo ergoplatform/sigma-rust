@@ -6,6 +6,7 @@ use crate::mir::bool_to_sigma::BoolToSigmaProp;
 use crate::mir::calc_blake2b256::CalcBlake2b256;
 use crate::mir::coll_append::Append;
 use crate::mir::coll_by_index::ByIndex;
+use crate::mir::coll_exists::Exists;
 use crate::mir::coll_filter::Filter;
 use crate::mir::coll_fold::Fold;
 use crate::mir::coll_map::Map;
@@ -23,6 +24,7 @@ use crate::mir::get_var::GetVar;
 use crate::mir::global_vars::GlobalVars;
 use crate::mir::if_op::If;
 use crate::mir::logical_not::LogicalNot;
+use crate::mir::method_call::MethodCall;
 use crate::mir::negation::Negation;
 use crate::mir::option_get::OptionGet;
 use crate::mir::option_is_defined::OptionIsDefined;
@@ -83,7 +85,7 @@ impl Print for Expr {
             Expr::Global => todo!(),
             Expr::FuncValue(v) => v.print(w),
             Expr::Apply(_) => todo!(),
-            Expr::MethodCall(_) => todo!(),
+            Expr::MethodCall(v) => v.expr().print(w),
             Expr::PropertyCall(v) => v.expr().print(w),
             Expr::If(v) => v.print(w),
             Expr::And(_) => todo!(),
@@ -108,7 +110,7 @@ impl Print for Expr {
             Expr::Fold(v) => v.expr().print(w),
             Expr::Map(v) => v.expr().print(w),
             Expr::Filter(v) => v.expr().print(w),
-            Expr::Exists(_) => todo!(),
+            Expr::Exists(v) => v.expr().print(w),
             Expr::ForAll(_) => todo!(),
             Expr::SelectField(v) => v.expr().print(w),
             Expr::BoolToSigmaProp(v) => v.print(w),
@@ -268,6 +270,23 @@ impl Print for Map {
         Ok(Spanned {
             source_span: SourceSpan { offset, length },
             expr: Map::new(input, mapper).unwrap(),
+        }
+        .into())
+    }
+}
+
+impl Print for Exists {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        let input = self.input.print(w)?;
+        let offset = w.current_pos();
+        write!(w, ".exists(")?;
+        let condition = self.condition.print(w)?;
+        write!(w, ")")?;
+        let length = w.current_pos() - offset;
+        #[allow(clippy::unwrap_used)] // we only added spans
+        Ok(Spanned {
+            source_span: SourceSpan { offset, length },
+            expr: Exists::new(input, condition).unwrap(),
         }
         .into())
     }
@@ -433,6 +452,31 @@ impl Print for PropertyCall {
             expr: PropertyCall {
                 obj: Box::new(obj),
                 method: self.method.clone(),
+            },
+        }
+        .into())
+    }
+}
+
+impl Print for MethodCall {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        let offset = w.current_pos();
+        let obj = self.obj.print(w)?;
+        write!(w, ".{}", self.method.name())?;
+        write!(w, "(")?;
+        let args = self
+            .args
+            .iter()
+            .map(|a| -> Result<Expr, PrintError> { a.print(w) })
+            .collect::<Result<Vec<_>, _>>()?;
+        write!(w, ")")?;
+        let length = w.current_pos() - offset;
+        Ok(Spanned {
+            source_span: SourceSpan { offset, length },
+            expr: MethodCall {
+                obj: Box::new(obj),
+                method: self.method.clone(),
+                args,
             },
         }
         .into())

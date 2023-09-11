@@ -470,4 +470,99 @@ mod tests {
             "#]],
         )
     }
+
+    #[test]
+    fn ageusd_ballot() {
+        // from eip-15 https://github.com/ergoplatform/eips/pull/27/files
+        let p2s_addr_str = "22ELWBHzyWGjPRE48ZJDfFmD24myYdG3vHz8CipSS7rgE65ABmEj9QJiy3rG2PTJeCaZw9VX56GY6uoA3hQch7i5BfFU3AprUWTABi4X1VWtRdK9yrYJkmN6fq8hGfvmWTrsyh4fXZoGETpLuXQViYo194ajej2h7dr3oqNATdMskSXzxJi83bFdAvQ";
+        let encoder = AddressEncoder::new(NetworkPrefix::Mainnet);
+        let addr = encoder.parse_address_from_str(p2s_addr_str).unwrap();
+        let expr = addr.script().unwrap().proposition().unwrap();
+        check_pretty(
+            expr,
+            expect![[r#"
+                {
+                  val v1 = OUTPUTS(INPUTS.indexOf(SELF0))
+                  val v2 = SELF.getReg(4).get
+                  allOf(
+                    sigmaProp(v1.getReg(4).get == v2 && v1.propBytes == SELF.propBytes && v1.tokens == SELF.tokens && v1.value >= SELF.value), 
+                    anyOf(
+                      proveDlog(v2), 
+                      sigmaProp(INPUTS(0).tokens(0)._1 == "239c170b7e82f94e6b05416f14b8a2a57e0bfff0e3c93f4abbcd160b6a5b271a" && !v1.getReg(7).isDefined()), 
+                    ), 
+                  )
+                }
+            "#]],
+        )
+    }
+
+    #[test]
+    fn amm_simple_pool() {
+        // from eip-14 https://github.com/ergoplatform/eips/pull/27/files
+        let p2s_addr_str = "k6fD5ht5e1itDejPFV2VzAoHv478KQCbDnLAL6XUVeEu8KDaboCVZAoFz2AtMoLqM3CgQfr2TZhpwz7K96AgwTXDvBVeTchJ31jjD46Di1W67H8wwFcivnY62UB6L7HWzCkbYuiZaAq2qSJta5Twt4A2Aaoy7xViWcyLUVNAyQYDJXKhVBAGwp76i2too5yWUmEU4zt9XnjJAUt1FFfurNtTNHNPDbqmTRE4crz347q6rfbvkMmg9Jtk9rSiPCQpKjdbZVzUnP4CUw6AvQH6rZXxgNMktAtjQdHhCnrCmf78FwCKqYS54asKd1MFgYNT4NzPwmdZF6JtQt1vvkjZXqpGkjy33xxDNYy8JZS8eeqVgZErPeJ1aj4aaK8gvmApUgGStMDFeFYjuQqZiZxEAHNdAXDg7hyGnmfzA6Hj9zcB7p9nKCDNhEQEMPL1kMG5aXvt2HUPXqiCkLrv596DaGmRMN3gMJaj1T1AfMYNwZozcJ9uUSK4i6Xham28HWAekTtDPhobnmjvkubwLVTtvUumWHtDWFxYSJPF7vqzgZqg6Y5unMF";
+        let encoder = AddressEncoder::new(NetworkPrefix::Mainnet);
+        let addr = encoder.parse_address_from_str(p2s_addr_str).unwrap();
+        let expr = addr.script().unwrap().proposition().unwrap();
+        check_pretty(
+            expr,
+            expect![[r#"
+                {
+                  val v1 = OUTPUTS(0)
+                  val v2 = v1.tokens
+                  val v3 = SELF.tokens
+                  val v4 = v2(0)
+                  val v5 = v3(0)
+                  val v6 = v2(2)
+                  val v7 = v3(2)
+                  val v8 = v2(3)
+                  val v9 = v3(3)
+                  val v10 = 1000000000000000000 - v5._2
+                  val v11 = 1000000000000000000 - v4._2 - v10
+                  val v12 = v7._2
+                  val v13 = v6._2 - v12
+                  val v14 = v13 > 0
+                  val v15 = v9._2
+                  val v16 = upcast(v15)
+                  val v17 = upcast(v13)
+                  val v18 = v8._2 - v15
+                  val v19 = upcast(v12)
+                  val v20 = upcast(v18)
+                  val v21 = upcast(v10)
+                  val v22 = upcast(v11) / v21
+                  sigmaProp(v1.propBytes == SELF.propBytes && v1.value >= SELF.value && v2(1) == v3(1) && v4._1 == v5._1 && v6._1 == v7._1 && v8._1 == v9._1 && if (v11 == 0) if (v14) v16 * v17 * BigInt256(Int256(997)) >= upcast(-v18) * v19 * BigInt256(Int256(1000)) + upcast(v13 * 997) else v19 * v20 * BigInt256(Int256(997)) >= upcast(-v13) * v16 * BigInt256(Int256(1000)) + upcast(v18 * 997) else if (v14 && v18 > 0) upcast(-v11) <= v17 * v21 / v19 min v20 * v21 / v16 else v17 >= v22 * v19 && v20 >= v22 * v16)
+                }
+            "#]],
+        )
+    }
+
+    #[test]
+    fn amm_simple_swap() {
+        // from eip-14 https://github.com/ergoplatform/eips/pull/27/files
+        let p2s_addr_str = "cLPHJ3MHuKAHoCUwGhcEFw5sWJqvPwFyKxTRj1aUoMwgAz78Fg3zLXRhBup9Te1WLau1gZXNmXvUmeXGCd7QLeqB7ArrT3v5cg26piEtqymM6j2SkgYVCobgoAGKeTf6nMLxv1uVrLdjt1GnPxG1MuWj7Es7Dfumotbx9YEaxwqtTUC5SKsJc9LCpAmNWRAQbU6tVVEvmfwWivrGoZ3L5C4DMisxN3U";
+        let encoder = AddressEncoder::new(NetworkPrefix::Mainnet);
+        let addr = encoder.parse_address_from_str(p2s_addr_str).unwrap();
+        let expr = addr.script().unwrap().proposition().unwrap();
+        check_pretty(
+            expr,
+            expect![[r#"
+                {
+                  val v1 = INPUTS(0).tokens
+                  val v2 = v1(2)
+                  val v3 = SELF.tokens(0)
+                  val v4 = v3._1
+                  val v5 = v1(3)
+                  val v6 = v3._2
+                  sigmaProp(v2._1 == v4 || v5._1 == v4 && OUTPUTS.exists({
+                      (v7: Box) => 
+                        {
+                          val v9 = v7.tokens(0)._2
+                          v9 >= upcast(1000) && upcast(v5._2) * upcast(v6) * BigInt256(Int256(997)) <= upcast(v9) * upcast(v2._2) * BigInt256(Int256(1000)) + upcast(v6 * 997)
+                        }
+
+                      }
+                ))
+                  }
+            "#]],
+        )
+    }
 }
