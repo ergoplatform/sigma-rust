@@ -565,4 +565,170 @@ mod tests {
             "#]],
         )
     }
+
+    #[test]
+    fn amm_conc_pool_root() {
+        // from eip-14 https://github.com/ergoplatform/eips/pull/27/files
+        let p2s_addr_str = "3STRfQWC9Xb5wAxBiEQ74uTFSemk1oHn43mwj9tMCeu2a3A4kie1bY2qsCdRaEmdQoq3B4tXQuzq9nm84A8PmBgCzgGDEZf2pgYoAUc6krZxUY3rvKWW44ZpzN3u5bFRpKDo6rxKtxX2tw99xmfyfaVBejgDaTfsib2PSVsu9hrLQ3SouECWHQMjDA3Pi8ZuCvQeW8GDkZfHPr3SgwaxY1jpY2njsmf3JBASMoVZ6Mfpg63Q6mBno7mKUSCE7vNHHUZe2V7JEikwjPkaxSWxnwy3J17faGtiEHZLKiNQ9WNtsJLbdVp56dQGfC2zaiXjhx1XJK6m4Nh2M8yEvSuBzanRBAJqrNseGS97tk2iLqqfHrqqmmDsHY3mujCURky4SLr7YLk4B";
+        let encoder = AddressEncoder::new(NetworkPrefix::Mainnet);
+        let addr = encoder.parse_address_from_str(p2s_addr_str).unwrap();
+        let expr = addr.script().unwrap().proposition().unwrap();
+        check_pretty(
+            expr,
+            expect![[r#"
+                {
+                  val v1 = OUTPUTS(0)
+                  val v2 = SELF.tokens(0)
+                  val v3 = v2._1
+                  val v4 = SELF.getReg(4).get
+                  val v5 = SELF.getReg(5).get
+                  val v6 = SELF.getReg(6).get
+                  val v7 = OUTPUTS(1)
+                  val v8 = v7.tokens
+                  val v9 = v7.getReg(6).get
+                  val v10 = v5._2
+                  val v11 = v5._1
+                  val v12 = v7.getReg(5).get
+                  val v13 = v7.getReg(7).get
+                  sigmaProp(v1.propBytes == SELF.propBytes && v1.value >= SELF.value && v1.tokens(0) == (, v3, v2._2 - 1) && v1.getReg(4).get == v4 && v1.getReg(5).get == v5 && v1.getReg(6).get == v6 && v7.getReg(4).get == v4 && v7.getReg(8).get == v6 && v8(1)._1 == v3 && v8(0) == (, SELF.id, 1000000000000000000) && v9._1 * v10 == v9._2 * v11 * v12 && v13._1 * v10 == v13._2 * v11 * v12 + 1)
+                }
+            "#]],
+        )
+    }
+
+    #[test]
+    fn amm_conc_pool_boot() {
+        // from eip-14 https://github.com/ergoplatform/eips/pull/27/files
+        let p2s_addr_str = "6Mv73vd1MnJp6AQg5vHGP9nujFc3Y1PL5gzeUt9PzCaUiQug7ueQGU1bDkmFkCspq4LU8j3T8yY6UyJQKSfah5qEDzjx8QCJF47NBG5jxgPxmBHkM6cUgnYa5ngzn9jrpAn379UC7o5nugTg3HYWZGk3APMcRftkrC3EgroiVMEmSkDcDwaebkNWKfKe3JXgewoTrgZ2YLMafr3JfX47C1zddoWDhS8TWryQYEprkP334eisuh1Fr2iNTW9ruV6m38cRkfRfzSBHYq45mvNLH7JQo6uQZ4NFPx4t27Q5A3mSqCpk7ATThFcQmc2w3Pp2F6xL87c94gxk83G8UEqkAhmaNfoj19zji9rxqRzq9gJeTLBraHR2DchKtahH8HhFPg5DZ4SjwJ4MHqTDF";
+        let encoder = AddressEncoder::new(NetworkPrefix::Mainnet);
+        let addr = encoder.parse_address_from_str(p2s_addr_str).unwrap();
+        let expr = addr.script().unwrap().proposition().unwrap();
+        check_pretty(
+            expr,
+            expect![[r#"
+                {
+                  val v1 = OUTPUTS(0)
+                  val v2 = v1.tokens
+                  val v3 = SELF.tokens
+                  val v4 = v1.getReg(5).get
+                  val v5 = v1.getReg(6).get
+                  val v6 = v2(3)
+                  val v7 = v6._2
+                  val v8 = upcast(v7)
+                  val v9 = v1.getReg(7).get
+                  val v10 = upcast(v9)
+                  val v11 = v2(2)
+                  val v12 = v3(0)
+                  sigmaProp(true && v1.value >= SELF.value && v2(0) == (, SELF.id, 1) && v2(1) == (, v3(1)._1, 1) && v1.getReg(4).get == SELF.getReg(4).get && v4 == SELF.getReg(6).get && v5 == SELF.getReg(7).get && (, v6._1, v2(4)._1) == SELF.getReg(8).get && v8 * v8 == v10 * v10 && if (v11._1 == v12._1) v11._2 else 0 >= v12._2 - v9 && v7 * upcast(v4._2) >= v7 * upcast(v4._1) && v7 * upcast(v5._2) < v7 * upcast(v5._1))
+                }
+            "#]],
+        )
+    }
+
+#[test]
+    fn amm_conc_pool() {
+        // from eip-14 https://github.com/ergoplatform/eips/pull/27/files
+        let p2s_addr_str = "AhCu1UkNT4c9q3B2Lb7gNgvZWCdXL8iYgmNxTYiy4S3wgKWFFW6kz9v7pvY8NqC7g4wgXXwzJY1fQVn2xrLkiyiQWsorq5dR7d5KnDAY43H4GvSVjaDciadXCSHCb8jgk8mFSQCwoZHweLmMJ25312wT85AySJgYUuzdUxMz4EnQpiwZR2XVZq3M81gycuqP9gUryryjN4J1cAF3yL3kZR3rREubBvJ2CY5hF74Xaj2jwajivkESkqq22ieWWG2sK7dk1A7KHr1MmiXGcUBAMMGPAu3mVCeFW9SongxP9hodnJThLknjWRBBBC6wq5jNkSdHrMbdaQM3XesXqGTk9KwWpnSL92E96muU2k8FQbo5isps1r5ciYVrFptfEAC3tWbwcVmRKtrgxtCex6bP5aBZYjaH6L9QQbkYriDAcQ1iZcpf3hHCqURjRXL7i72C3aGBwzzspQvhLof6x4f4gPxTCtF1bNUxddUL6DJ1PbQWzVH8taivjhHohis6sRn3Akvv4xaZRJdKZ8rDuiounRKNXi8VoNgVEZbSFYtfweRSdsiXJCkhtehLWdtFTk1eg7djASdBGKaguvtEBcGaAALVDUoH479VskPUQ6hrfS7KcWrATBdb8sf4W5MFpx7UNitzq2fzSKC96mQRUzy5uELe7Y7vexm5ArNEyr6ARkypZypSzJ2CEifjVxxRBEWVtbdqHrwP4gWv6cMdbqFWwuXAw2BZQnWpZFtKAGQ9m";
+        let encoder = AddressEncoder::new(NetworkPrefix::Mainnet);
+        let addr = encoder.parse_address_from_str(p2s_addr_str).unwrap();
+        let expr = addr.script().unwrap().proposition().unwrap();
+        check_pretty(
+            expr,
+            expect![[r#"
+                {
+                  val v1 = OUTPUTS(0)
+                  val v2 = v1.tokens
+                  val v3 = SELF.tokens
+                  val v4 = v2(2)
+                  val v5 = v3(2)
+                  val v6 = v2(3)
+                  val v7 = v3(3)
+                  val v8 = v2(4)
+                  val v9 = v3(4)
+                  val v10 = SELF.getReg(4).get
+                  val v11 = SELF.getReg(5).get
+                  val v12 = SELF.getReg(6).get
+                  val v13 = 1000000000000000000 - v5._2
+                  val v14 = 1000000000000000000 - v4._2 - v13
+                  val v15 = v6._2
+                  val v16 = upcast(v15)
+                  val v17 = v8._2
+                  val v18 = upcast(v17)
+                  val v19 = v16 * upcast(v11._2) >= v18 * upcast(v11._1) && v16 * upcast(v12._2) < v18 * upcast(v12._1)
+                  val v20 = v7._2
+                  val v21 = v15 - v20
+                  val v22 = v21 > 0
+                  val v23 = v9._2
+                  val v24 = upcast(v23)
+                  val v25 = upcast(v21)
+                  val v26 = v17 - v23
+                  val v27 = upcast(v20)
+                  val v28 = 1000
+                  val v29 = upcast(v26)
+                  val v30 = upcast(v13)
+                  val v31 = upcast(v14) / v30
+                  sigmaProp(v1.propBytes == SELF.propBytes && v1.value >= SELF.value && v2(0) == v3(0) && v2(1) == v3(1) && v4._1 == v5._1 && v6._1 == v7._1 && v8._1 == v9._1 && v1.getReg(4).get == v10 && v1.getReg(5).get == v11 && v1.getReg(6).get == v12 && if (v14 == 0) if (v22) v24 * v25 * upcast(v10) >= upcast(-v26) * v27 * upcast(v28) + upcast(v21 * upcast(v10)) else v27 * v29 * upcast(v10) >= upcast(-v21) * v24 * upcast(v28) + upcast(v26 * upcast(v10)) && v19 else if (v22 && v26 > 0) upcast(-v14) <= v25 * v30 / v27 min v29 * v30 / v24 && v19 else v25 >= v31 * v27 && v29 >= v31 * v24)
+                }
+            "#]],
+        )
+    }
+
+#[test]
+    fn eip_22_auction() {
+        // from https://github.com/ergoplatform/eips/blob/adbe21512cadf51a2d9af8406cfd418f95335899/eip-0022.md
+        let p2s_addr_str = "GE68RH3VEgW6b4kN3GhYigrLxoXr9jMgMpmm3KnXJaYq1PzHieYhz7Uka86idxvBWLRLmpiA3HrxHPsX1jzQZEv5yaRDueiJqks1keM7iB1eYWMEVRUUq1MLFzdA1FHQwCfSakM3Uc8uBPqk2icxhoXvw1CVbUVtFCzcPrZzf8Jjf8gS5bCFpWQscHo14HTsdBxyV3dwL6wKu8LP8FuWJE7qCEgX9ToEiztH4ZLmFwBejnUFrCQqjLVLWpdgdnAXVyewiX9DxXKJKL4wNqhPUrYjmHEVvpZAezXjzfVMr7gKupTqAgx2AJYGh4winEDeYq9MVshX8xjJweGhbAm2RXN1euQpoepFaKqfrT2mQBTmr6edbbzYg6VJ7DoSCDzmcUupFAmZMjMiaUbgtyz2VEbPEKsmAFrZ6zdB5EUxhiYZMd6KdstsJwZCgKJSSCShTgpfqNLCdpR9JbZFQpA1uhUkuLMPvGi74V5EwijTEEtjmTVcWcVhJKv4GDr1Lqe2bMPq4jfEfqvemaY8FcrCsCSi2LZoQUeJ9VrBeotGTKccq8JhwnvNGhLUUrrm32v3bhU82jbtVBVFRD3FSv5hhS6pKHtTevjwuG7JWoR3LN7279A7zQGJWmkSWDoEhHjgxseqZ2G5bLB7ZVEzKM261QhwMwmXA1eWgq8zdBH1u9kFC9bMQ812q2DPZTuhzpBWJh74UGwaEgZLhnUrDKT58cEa4R3kfWyGCMoNw78q1E3a2eKDz8Va5wnixzT2SZFHU8DfHjPSz5rm8Mr3YxgRC6GzaasPDxTrZjuMJHU2exhqsoFvur7Q";
+        let encoder = AddressEncoder::new(NetworkPrefix::Mainnet);
+        let addr = encoder.parse_address_from_str(p2s_addr_str).unwrap();
+        let expr = addr.script().unwrap().proposition().unwrap();
+        check_pretty(
+            expr,
+            expect![[r#"
+                {
+                  val v1 = OUTPUTS(0)
+                  val v2 = CONTEXT.preHeader.timestamp
+                  val v3 = SELF.getReg(7).get
+                  val v4 = SELF.tokens
+                  val v5 = v4.size
+                  val v6 = v5 == 1
+                  val v7 = {
+                      (v7: Box) => 
+                        if (v6) v7.value else v7.tokens(1)._2
+                      }
+
+                    val v8 = v7(SELF)
+                    val v9 = SELF.getReg(6).get
+                    val v10 = SELF.getReg(8).get
+                    val v11 = Coll[Coll[Byte]]()
+                    val v12 = OUTPUTS(1)
+                    val v13 = SELF.getReg(5).get
+                    val v14 = SELF.getReg(4).get
+                    val v15 = CONTEXT.dataInputs(0)
+                    val v16 = v15.getReg(8).get
+                    sigmaProp(v1.value >= SELF.value && v2 < v3 && v1.tokens(0) == v4(0) && {
+                      val v17 = v7(v1)
+                      v17 >= v8 + v9 || v10 != -1 && v17 >= v10
+                    }
+                 && v1.propBytes == SELF.propBytes && v5 == v1.tokens.size && {
+                        (v17: Box) => 
+                          if (v6) v11 else v17.tokens(1)._1
+                        }
+                (SELF) == {
+                          (v17: Box) => 
+                            if (v6) v11 else v17.tokens(1)._1
+                          }
+                (v1) && v12.propBytes == v13 && v7(v12) >= v8 && v1.getReg(4).get == v14 && v1.getReg(5).get.size > 0 && v1.getReg(6).get == v9 && v1.getReg(7).get == if (v3 - v2 <= v16(0)) v3 + v16(1) else v3 && v1.getReg(8).get == v10 && v1.getReg(9) == SELF.getReg(9) || if (OUTPUTS.size == 5) {
+                          val v17 = OUTPUTS(2)
+                          val v18 = v8 / upcast(v15.getReg(4).get)
+                          val v19 = v4(0)
+                          val v20 = v8 / upcast(v15.getReg(6).get)
+                          val v21 = OUTPUTS(3)
+                          val v22 = v21.getReg(4).get
+                          v2 >= v3 || v8 >= v10 && v10 != -1 && v7(v17) >= v18 && v17.propBytes == v15.getReg(5).get && v1.tokens(0) == v19 && v1.propBytes == v13 && v7(v12) >= v8 - v18 - v20 - if (v6) v15.getReg(7).get * 2 else 0 && v12.propBytes == v14 && blake2b256(v22.bytes) == v19._1 && v7(v21) >= v20 && v21.propBytes == v22.propBytes
+                        }
+                 else false)
+                      }
+            "#]],
+        )
+    }
+
 }

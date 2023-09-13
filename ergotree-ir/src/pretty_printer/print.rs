@@ -1,5 +1,6 @@
 use thiserror::Error;
 
+use crate::mir::apply::Apply;
 use crate::mir::bin_op::BinOp;
 use crate::mir::block::BlockValue;
 use crate::mir::bool_to_sigma::BoolToSigmaProp;
@@ -11,10 +12,12 @@ use crate::mir::coll_filter::Filter;
 use crate::mir::coll_fold::Fold;
 use crate::mir::coll_map::Map;
 use crate::mir::coll_size::SizeOf;
+use crate::mir::collection::Collection;
 use crate::mir::constant::Constant;
 use crate::mir::create_provedlog::CreateProveDlog;
 use crate::mir::expr::Expr;
 use crate::mir::extract_amount::ExtractAmount;
+use crate::mir::extract_bytes::ExtractBytes;
 use crate::mir::extract_creation_info::ExtractCreationInfo;
 use crate::mir::extract_id::ExtractId;
 use crate::mir::extract_reg_as::ExtractRegisterAs;
@@ -74,7 +77,7 @@ impl Print for Expr {
             Expr::ByteArrayToLong(_) => todo!(),
             Expr::ByteArrayToBigInt(_) => todo!(),
             Expr::LongToByteArray(_) => todo!(),
-            Expr::Collection(_) => todo!(),
+            Expr::Collection(v) => v.print(w),
             Expr::Tuple(v) => v.print(w),
             Expr::CalcBlake2b256(v) => v.print(w),
             Expr::CalcSha256(_) => todo!(),
@@ -84,7 +87,7 @@ impl Print for Expr {
             }
             Expr::Global => todo!(),
             Expr::FuncValue(v) => v.print(w),
-            Expr::Apply(_) => todo!(),
+            Expr::Apply(v) => v.print(w),
             Expr::MethodCall(v) => v.expr().print(w),
             Expr::PropertyCall(v) => v.expr().print(w),
             Expr::If(v) => v.print(w),
@@ -100,7 +103,7 @@ impl Print for Expr {
             Expr::OptionGetOrElse(_) => todo!(),
             Expr::ExtractAmount(v) => v.print(w),
             Expr::ExtractRegisterAs(v) => v.expr().print(w),
-            Expr::ExtractBytes(_) => todo!(),
+            Expr::ExtractBytes(v) => v.print(w),
             Expr::ExtractBytesWithNoRef(_) => todo!(),
             Expr::ExtractScriptBytes(v) => v.print(w),
             Expr::ExtractCreationInfo(v) => v.print(w),
@@ -659,6 +662,59 @@ impl Print for ExtractId {
         let input = self.input.print(w)?;
         write!(w, ".id")?;
         Ok(ExtractId {
+            input: Box::new(input),
+        }
+        .into())
+    }
+}
+
+impl Print for Apply {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        let func = self.func.print(w)?;
+        write!(w, "(")?;
+        let args = self
+            .args
+            .iter()
+            .map(|a| -> Result<Expr, PrintError> { a.print(w) })
+            .collect::<Result<Vec<_>, _>>()?;
+        write!(w, ")")?;
+        #[allow(clippy::unwrap_used)] // we only added spans
+        Ok(Apply::new(func, args).unwrap().into())
+    }
+}
+
+impl Print for Collection {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        write!(w, "Coll[{}](", self.tpe())?;
+        match self {
+            Collection::BoolConstants(bools) => {
+                for b in bools {
+                    write!(w, "{}, ", b)?;
+                }
+                write!(w, ")")?;
+                Ok(Collection::from_bools(bools.clone()).into())
+            }
+            Collection::Exprs { elem_tpe, items } => {
+                let items = items
+                    .iter()
+                    .map(|i| {
+                        write!(w, ", ")?;
+                        i.print(w)
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+                write!(w, ")")?;
+                #[allow(clippy::unwrap_used)] // we only added spans
+                Ok(Collection::new(elem_tpe.clone(), items).unwrap().into())
+            }
+        }
+    }
+}
+
+impl Print for ExtractBytes {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        let input = self.input.print(w)?;
+        write!(w, ".bytes")?;
+        Ok(ExtractBytes {
             input: Box::new(input),
         }
         .into())
