@@ -4,6 +4,8 @@ use crate::mir::apply::Apply;
 use crate::mir::bin_op::BinOp;
 use crate::mir::block::BlockValue;
 use crate::mir::bool_to_sigma::BoolToSigmaProp;
+use crate::mir::byte_array_to_bigint::ByteArrayToBigInt;
+use crate::mir::byte_array_to_long::ByteArrayToLong;
 use crate::mir::calc_blake2b256::CalcBlake2b256;
 use crate::mir::coll_append::Append;
 use crate::mir::coll_by_index::ByIndex;
@@ -74,8 +76,8 @@ impl Print for Expr {
             Expr::ByIndex(v) => v.expr().print(w),
             Expr::ConstPlaceholder(_) => Ok(self.clone()),
             Expr::SubstConstants(_) => todo!(),
-            Expr::ByteArrayToLong(_) => todo!(),
-            Expr::ByteArrayToBigInt(_) => todo!(),
+            Expr::ByteArrayToLong(v) => v.expr().print(w),
+            Expr::ByteArrayToBigInt(v) => v.expr().print(w),
             Expr::LongToByteArray(_) => todo!(),
             Expr::Collection(v) => v.print(w),
             Expr::Tuple(v) => v.print(w),
@@ -715,6 +717,30 @@ impl Print for ExtractBytes {
         let input = self.input.print(w)?;
         write!(w, ".bytes")?;
         Ok(ExtractBytes {
+            input: Box::new(input),
+        }
+        .into())
+    }
+}
+
+impl Print for ByteArrayToLong {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        write!(w, "byteArrayToLong(")?;
+        let input = self.input.print(w)?;
+        write!(w, ")")?;
+        Ok(ByteArrayToLong {
+            input: Box::new(input),
+        }
+        .into())
+    }
+}
+
+impl Print for ByteArrayToBigInt {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        write!(w, "byteArrayToBigInt(")?;
+        let input = self.input.print(w)?;
+        write!(w, ")")?;
+        Ok(ByteArrayToBigInt {
             input: Box::new(input),
         }
         .into())
