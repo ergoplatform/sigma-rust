@@ -7,6 +7,7 @@ use crate::mir::bool_to_sigma::BoolToSigmaProp;
 use crate::mir::byte_array_to_bigint::ByteArrayToBigInt;
 use crate::mir::byte_array_to_long::ByteArrayToLong;
 use crate::mir::calc_blake2b256::CalcBlake2b256;
+use crate::mir::calc_sha256::CalcSha256;
 use crate::mir::coll_append::Append;
 use crate::mir::coll_by_index::ByIndex;
 use crate::mir::coll_exists::Exists;
@@ -29,6 +30,7 @@ use crate::mir::get_var::GetVar;
 use crate::mir::global_vars::GlobalVars;
 use crate::mir::if_op::If;
 use crate::mir::logical_not::LogicalNot;
+use crate::mir::long_to_byte_array::LongToByteArray;
 use crate::mir::method_call::MethodCall;
 use crate::mir::negation::Negation;
 use crate::mir::option_get::OptionGet;
@@ -78,11 +80,11 @@ impl Print for Expr {
             Expr::SubstConstants(_) => todo!(),
             Expr::ByteArrayToLong(v) => v.expr().print(w),
             Expr::ByteArrayToBigInt(v) => v.expr().print(w),
-            Expr::LongToByteArray(_) => todo!(),
+            Expr::LongToByteArray(v) => v.print(w),
             Expr::Collection(v) => v.print(w),
             Expr::Tuple(v) => v.print(w),
             Expr::CalcBlake2b256(v) => v.print(w),
-            Expr::CalcSha256(_) => todo!(),
+            Expr::CalcSha256(v) => v.print(w),
             Expr::Context => {
                 write!(w, "CONTEXT")?;
                 Ok(self.clone())
@@ -741,6 +743,30 @@ impl Print for ByteArrayToBigInt {
         let input = self.input.print(w)?;
         write!(w, ")")?;
         Ok(ByteArrayToBigInt {
+            input: Box::new(input),
+        }
+        .into())
+    }
+}
+
+impl Print for LongToByteArray {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        write!(w, "longToByteArray(")?;
+        let input = self.input.print(w)?;
+        write!(w, ")")?;
+        Ok(LongToByteArray {
+            input: Box::new(input),
+        }
+        .into())
+    }
+}
+
+impl Print for CalcSha256 {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        write!(w, "sha256(")?;
+        let input = self.input.print(w)?;
+        write!(w, ")")?;
+        Ok(CalcSha256 {
             input: Box::new(input),
         }
         .into())
