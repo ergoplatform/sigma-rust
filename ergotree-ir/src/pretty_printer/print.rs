@@ -1,6 +1,8 @@
 use thiserror::Error;
 
+use crate::mir::and::And;
 use crate::mir::apply::Apply;
+use crate::mir::atleast::Atleast;
 use crate::mir::bin_op::BinOp;
 use crate::mir::block::BlockValue;
 use crate::mir::bool_to_sigma::BoolToSigmaProp;
@@ -35,15 +37,18 @@ use crate::mir::method_call::MethodCall;
 use crate::mir::negation::Negation;
 use crate::mir::option_get::OptionGet;
 use crate::mir::option_is_defined::OptionIsDefined;
+use crate::mir::or::Or;
 use crate::mir::property_call::PropertyCall;
 use crate::mir::select_field::SelectField;
 use crate::mir::sigma_and::SigmaAnd;
 use crate::mir::sigma_or::SigmaOr;
+use crate::mir::subst_const::SubstConstants;
 use crate::mir::tuple::Tuple;
 use crate::mir::unary_op::OneArgOpTryBuild;
 use crate::mir::upcast::Upcast;
 use crate::mir::val_def::ValDef;
 use crate::mir::val_use::ValUse;
+use crate::mir::xor::Xor;
 use crate::source_span::SourceSpan;
 use crate::source_span::Spanned;
 use crate::types::stype::SType;
@@ -77,7 +82,7 @@ impl Print for Expr {
             Expr::GlobalVars(v) => v.print(w),
             Expr::ByIndex(v) => v.expr().print(w),
             Expr::ConstPlaceholder(_) => Ok(self.clone()),
-            Expr::SubstConstants(_) => todo!(),
+            Expr::SubstConstants(v) => v.expr().print(w),
             Expr::ByteArrayToLong(v) => v.expr().print(w),
             Expr::ByteArrayToBigInt(v) => v.expr().print(w),
             Expr::LongToByteArray(v) => v.print(w),
@@ -89,17 +94,20 @@ impl Print for Expr {
                 write!(w, "CONTEXT")?;
                 Ok(self.clone())
             }
-            Expr::Global => todo!(),
+            Expr::Global => {
+                write!(w, "GLOBAL")?;
+                Ok(self.clone())
+            }
             Expr::FuncValue(v) => v.print(w),
             Expr::Apply(v) => v.print(w),
             Expr::MethodCall(v) => v.expr().print(w),
             Expr::PropertyCall(v) => v.expr().print(w),
             Expr::If(v) => v.print(w),
-            Expr::And(_) => todo!(),
-            Expr::Or(_) => todo!(),
-            Expr::Xor(_) => todo!(),
-            Expr::Atleast(_) => todo!(),
-            Expr::LogicalNot(v) => v.print(w),
+            Expr::And(v) => v.expr().print(w),
+            Expr::Or(v) => v.expr().print(w),
+            Expr::Xor(v) => v.print(w),
+            Expr::Atleast(v) => v.print(w),
+            Expr::LogicalNot(v) => v.expr().print(w),
             Expr::Negation(v) => v.expr().print(w),
             Expr::BitInversion(_) => todo!(),
             Expr::OptionGet(v) => v.expr().print(w),
@@ -564,6 +572,38 @@ impl Print for SigmaOr {
     }
 }
 
+impl Print for And {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        let offset = w.current_pos();
+        write!(w, "&&")?;
+        let input = self.input.print(w)?;
+        let length = w.current_pos() - offset;
+        Ok(Spanned {
+            expr: And {
+                input: Box::new(input),
+            },
+            source_span: SourceSpan { offset, length },
+        }
+        .into())
+    }
+}
+
+impl Print for Or {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        let offset = w.current_pos();
+        write!(w, "||")?;
+        let input = self.input.print(w)?;
+        let length = w.current_pos() - offset;
+        Ok(Spanned {
+            expr: Or {
+                input: Box::new(input),
+            },
+            source_span: SourceSpan { offset, length },
+        }
+        .into())
+    }
+}
+
 impl Print for CreateProveDlog {
     fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
         write!(w, "proveDlog(")?;
@@ -768,6 +808,57 @@ impl Print for CalcSha256 {
         write!(w, ")")?;
         Ok(CalcSha256 {
             input: Box::new(input),
+        }
+        .into())
+    }
+}
+
+impl Print for Xor {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        let left = self.left.print(w)?;
+        write!(w, "^")?;
+        let right = self.right.print(w)?;
+        Ok(Xor {
+            left: left.into(),
+            right: right.into(),
+        }
+        .into())
+    }
+}
+
+impl Print for Atleast {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        write!(w, ".atLeast(")?;
+        let bound = self.bound.print(w)?;
+        write!(w, ", ")?;
+        let input = self.input.print(w)?;
+        write!(w, ")")?;
+        Ok(Atleast {
+            input: Box::new(input),
+            bound: Box::new(bound),
+        }
+        .into())
+    }
+}
+
+impl Print for SubstConstants {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        let offset = w.current_pos();
+        write!(w, ".substConstants(")?;
+        let script_bytes = self.script_bytes.print(w)?;
+        write!(w, ", ")?;
+        let positions = self.positions.print(w)?;
+        write!(w, ", ")?;
+        let new_values = self.new_values.print(w)?;
+        write!(w, ")")?;
+        let length = w.current_pos() - offset;
+        Ok(Spanned {
+            expr: SubstConstants {
+                script_bytes: script_bytes.into(),
+                positions: positions.into(),
+                new_values: new_values.into(),
+            },
+            source_span: SourceSpan { offset, length },
         }
         .into())
     }

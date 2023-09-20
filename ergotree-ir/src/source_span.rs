@@ -1,5 +1,8 @@
 //! Source position for an IR node in the source code
 
+use crate::mir::logical_not::LogicalNot;
+use crate::mir::or::Or;
+use crate::mir::and::And;
 use crate::mir::bin_op::BinOp;
 use crate::mir::block::BlockValue;
 use crate::mir::byte_array_to_bigint::ByteArrayToBigInt;
@@ -117,6 +120,9 @@ into_expr!(GetVar);
 into_expr!(DeserializeRegister);
 into_expr!(DeserializeContext);
 into_expr!(TreeLookup);
+into_expr!(And);
+into_expr!(Or);
+into_expr!(LogicalNot);
 
 impl<T> From<T> for Spanned<T> {
     fn from(v: T) -> Self {

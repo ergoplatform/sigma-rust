@@ -134,15 +134,15 @@ pub enum Expr {
     /// Binary operation
     BinOp(Spanned<BinOp>),
     /// Logical AND
-    And(And),
+    And(Spanned<And>),
     /// Logical OR
-    Or(Or),
+    Or(Spanned<Or>),
     /// Byte-wise XOR
     Xor(Xor),
     /// THRESHOLD composition for sigma expressions
     Atleast(Atleast),
     /// LogicalNot
-    LogicalNot(LogicalNot),
+    LogicalNot(Spanned<LogicalNot>),
     /// Negation on numeric type
     Negation(Spanned<Negation>),
     /// Bit inversion on numeric type
@@ -256,11 +256,11 @@ impl Expr {
             Expr::Fold(v) => v.expr().tpe(),
             Expr::SelectField(v) => v.expr().tpe(),
             Expr::ExtractAmount(v) => v.tpe(),
-            Expr::And(v) => v.tpe(),
-            Expr::Or(v) => v.tpe(),
+            Expr::And(v) => v.expr().tpe(),
+            Expr::Or(v) => v.expr().tpe(),
             Expr::Xor(v) => v.tpe(),
             Expr::Atleast(v) => v.tpe(),
-            Expr::LogicalNot(v) => v.tpe(),
+            Expr::LogicalNot(v) => v.expr().tpe(),
             Expr::Map(v) => v.expr().tpe(),
             Expr::Filter(v) => v.expr().tpe(),
             Expr::BoolToSigmaProp(v) => v.tpe(),
