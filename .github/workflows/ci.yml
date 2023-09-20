@@ -70,7 +70,7 @@ jobs:
         uses:                   actions/checkout@v2
       - name:                   Generate code coverage
         run: |
-          cargo tarpaulin --avoid-cfg-tarpaulin --timeout=360 -v --out Lcov --exclude-files 'bindings/**/*.*' --exclude-files 'ergo-rest/src/reqwest.rs' --exclude-files 'ergo-rest/src/reqwest/**/*.*' --exclude-files 'ergo-rest/src/wasm_timer.rs' --exclude-files 'ergo-rest/src/wasm_timer/**/*.*'
+          cargo tarpaulin --avoid-cfg-tarpaulin --timeout=360 --out lcov --exclude-files 'bindings/**/*.*' --exclude-files 'ergo-rest/src/reqwest.rs' --exclude-files 'ergo-rest/src/reqwest/**/*.*' --exclude-files 'ergo-rest/src/wasm_timer.rs' --exclude-files 'ergo-rest/src/wasm_timer/**/*.*'
       - name: Push code coverage results to coveralls.io
         uses: coverallsapp/github-action@master
         with:
@@ -107,7 +107,7 @@ jobs:
         ports:
           # Maps tcp port 9053 on service container to the host
           - 9053:9053
-    
+
     steps:
       # Need the following command to get around a GA bug where the workspace can't be cleared due
       # to incorrect access permissions. This comes up due to the use of the service container
@@ -126,9 +126,9 @@ jobs:
         run: |
           cd bindings/ergo-lib-wasm
           curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh -s -- -f
-          curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash - 
+          curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
           sudo apt-get -y install nodejs
-      
+
       - name: run Wasm tests
         run: |
           cd bindings/ergo-lib-wasm
@@ -144,7 +144,7 @@ jobs:
           wasm-pack build
           npm install
           npm run test
-      
+
       - name: run browser JS tests
         run: |
           cd bindings/ergo-lib-wasm
