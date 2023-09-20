@@ -25,17 +25,17 @@ repository = "https://github.com/ergoplatform/sigma-rust"
 edition = "2021"
 
 [workspace.dependencies]
-sigma-util = { version = "^0.12.0", path = "./sigma-util" }
-sigma-ser = { version = "^0.13.0", path = "./sigma-ser" }
-ergotree-ir = { version = "^0.24.0", path = "./ergotree-ir" }
-ergo-chain-types = { version = "^0.11.0", path = "./ergo-chain-types" }
+sigma-util = { version = "^0.12.1", path = "./sigma-util" }
+sigma-ser = { version = "^0.13.1", path = "./sigma-ser" }
+ergotree-ir = { version = "^0.24.1", path = "./ergotree-ir" }
+ergo-chain-types = { version = "^0.11.1", path = "./ergo-chain-types" }
 sigma-test-util = { version = "^0.3.0", path = "./sigma-test-util" }
-ergoscript-compiler = { version = "^0.20.0", path = "./ergoscript-compiler" }
-ergotree-interpreter = { version = "^0.24.0", path = "./ergotree-interpreter" }
+ergoscript-compiler = { version = "^0.20.1", path = "./ergoscript-compiler" }
+ergotree-interpreter = { version = "^0.24.1", path = "./ergotree-interpreter" }
 ergo-nipopow = { version = "^0.11", path = "./ergo-nipopow" }
-ergo-merkle-tree = { version = "^0.11.0", path = "./ergo-merkle-tree" }
-ergo-rest = { version = "^0.9.0", path = "./ergo-rest" }
-ergo-lib = { version = "^0.24.0", path = "./ergo-lib"}
+ergo-merkle-tree = { version = "^0.11.1", path = "./ergo-merkle-tree" }
+ergo-rest = { version = "^0.9.1", path = "./ergo-rest" }
+ergo-lib = { version = "^0.24.1", path = "./ergo-lib"}
 k256 = { version = "0.13.1", features = ["arithmetic", "ecdsa"] }
 elliptic-curve = {version = "0.12", features = [ "ff"]}
 thiserror = "1"

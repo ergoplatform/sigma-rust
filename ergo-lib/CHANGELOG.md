@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
+## [0.24.1] - 2023-09-20
 
 ### Added
 * add `Coll[Long]` parsing from an array of strings in Wasm API `Constant.from_js`;
@@ -435,7 +436,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - ErgoTree constant values conversion.
 
 <!-- next-url -->
-[Unreleased]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.24.0...HEAD
+[Unreleased]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.24.1...HEAD
+[0.24.1]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.24.0...ergo-lib-v0.24.1
 [0.24.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.23.0...ergo-lib-v0.24.0
 [0.23.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.22.0...ergo-lib-v0.23.0
 [0.22.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.21.1...ergo-lib-v0.22.0
