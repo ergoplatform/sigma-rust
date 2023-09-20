@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
+
+### Added
+* add `Coll[Long]` parsing from an array of strings in Wasm API `Constant.from_js`;
+* impl `From` for `EcPoint`;
+
+### Fixed
+* updated `wasm-bindgen`with a fix for wrong memory address when exceeding 2GB;
+
 ## [0.24.0] - 2023-05-12
 
 ### Added
