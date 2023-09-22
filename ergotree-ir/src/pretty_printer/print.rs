@@ -4,6 +4,7 @@ use crate::mir::and::And;
 use crate::mir::apply::Apply;
 use crate::mir::atleast::Atleast;
 use crate::mir::bin_op::BinOp;
+use crate::mir::bit_inversion::BitInversion;
 use crate::mir::block::BlockValue;
 use crate::mir::bool_to_sigma::BoolToSigmaProp;
 use crate::mir::byte_array_to_bigint::ByteArrayToBigInt;
@@ -15,14 +16,19 @@ use crate::mir::coll_by_index::ByIndex;
 use crate::mir::coll_exists::Exists;
 use crate::mir::coll_filter::Filter;
 use crate::mir::coll_fold::Fold;
+use crate::mir::coll_forall::ForAll;
 use crate::mir::coll_map::Map;
 use crate::mir::coll_size::SizeOf;
+use crate::mir::coll_slice::Slice;
 use crate::mir::collection::Collection;
 use crate::mir::constant::Constant;
+use crate::mir::create_prove_dh_tuple::CreateProveDhTuple;
 use crate::mir::create_provedlog::CreateProveDlog;
+use crate::mir::downcast::Downcast;
 use crate::mir::expr::Expr;
 use crate::mir::extract_amount::ExtractAmount;
 use crate::mir::extract_bytes::ExtractBytes;
+use crate::mir::extract_bytes_with_no_ref::ExtractBytesWithNoRef;
 use crate::mir::extract_creation_info::ExtractCreationInfo;
 use crate::mir::extract_id::ExtractId;
 use crate::mir::extract_reg_as::ExtractRegisterAs;
@@ -36,12 +42,14 @@ use crate::mir::long_to_byte_array::LongToByteArray;
 use crate::mir::method_call::MethodCall;
 use crate::mir::negation::Negation;
 use crate::mir::option_get::OptionGet;
+use crate::mir::option_get_or_else::OptionGetOrElse;
 use crate::mir::option_is_defined::OptionIsDefined;
 use crate::mir::or::Or;
 use crate::mir::property_call::PropertyCall;
 use crate::mir::select_field::SelectField;
 use crate::mir::sigma_and::SigmaAnd;
 use crate::mir::sigma_or::SigmaOr;
+use crate::mir::sigma_prop_bytes::SigmaPropBytes;
 use crate::mir::subst_const::SubstConstants;
 use crate::mir::tuple::Tuple;
 use crate::mir::unary_op::OneArgOpTryBuild;
@@ -109,31 +117,31 @@ impl Print for Expr {
             Expr::Atleast(v) => v.print(w),
             Expr::LogicalNot(v) => v.expr().print(w),
             Expr::Negation(v) => v.expr().print(w),
-            Expr::BitInversion(_) => todo!(),
+            Expr::BitInversion(v) => v.print(w),
             Expr::OptionGet(v) => v.expr().print(w),
             Expr::OptionIsDefined(v) => v.expr().print(w),
-            Expr::OptionGetOrElse(_) => todo!(),
+            Expr::OptionGetOrElse(v) => v.expr().print(w),
             Expr::ExtractAmount(v) => v.print(w),
             Expr::ExtractRegisterAs(v) => v.expr().print(w),
             Expr::ExtractBytes(v) => v.print(w),
-            Expr::ExtractBytesWithNoRef(_) => todo!(),
+            Expr::ExtractBytesWithNoRef(v) => v.print(w),
             Expr::ExtractScriptBytes(v) => v.print(w),
             Expr::ExtractCreationInfo(v) => v.print(w),
             Expr::ExtractId(v) => v.print(w),
             Expr::SizeOf(v) => v.print(w),
-            Expr::Slice(_) => todo!(),
+            Expr::Slice(v) => v.expr().print(w),
             Expr::Fold(v) => v.expr().print(w),
             Expr::Map(v) => v.expr().print(w),
             Expr::Filter(v) => v.expr().print(w),
             Expr::Exists(v) => v.expr().print(w),
-            Expr::ForAll(_) => todo!(),
+            Expr::ForAll(v) => v.expr().print(w),
             Expr::SelectField(v) => v.expr().print(w),
             Expr::BoolToSigmaProp(v) => v.print(w),
             Expr::Upcast(v) => v.print(w),
-            Expr::Downcast(_) => todo!(),
+            Expr::Downcast(v) => v.print(w),
             Expr::CreateProveDlog(v) => v.print(w),
-            Expr::CreateProveDhTuple(_) => todo!(),
-            Expr::SigmaPropBytes(_) => todo!(),
+            Expr::CreateProveDhTuple(v) => v.print(w),
+            Expr::SigmaPropBytes(v) => v.print(w),
             Expr::DecodePoint(_) => todo!(),
             Expr::SigmaAnd(v) => v.print(w),
             Expr::SigmaOr(v) => v.print(w),
@@ -859,6 +867,130 @@ impl Print for SubstConstants {
                 new_values: new_values.into(),
             },
             source_span: SourceSpan { offset, length },
+        }
+        .into())
+    }
+}
+
+impl Print for BitInversion {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        write!(w, "~")?;
+        let input = self.input.print(w)?;
+        Ok(BitInversion {
+            input: Box::new(input),
+        }
+        .into())
+    }
+}
+
+impl Print for OptionGetOrElse {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        let offset = w.current_pos();
+        let input = self.input.print(w)?;
+        write!(w, ".getOrElse(")?;
+        let default = self.default.print(w)?;
+        write!(w, ")")?;
+        let length = w.current_pos() - offset;
+        #[allow(clippy::unwrap_used)] // we only added spans
+        Ok(Spanned {
+            expr: OptionGetOrElse::new(input, default).unwrap(),
+            source_span: SourceSpan { offset, length },
+        }
+        .into())
+    }
+}
+
+impl Print for ExtractBytesWithNoRef {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        let input = self.input.print(w)?;
+        write!(w, ".bytesWithNoRef")?;
+        Ok(ExtractBytesWithNoRef {
+            input: Box::new(input),
+        }
+        .into())
+    }
+}
+
+impl Print for Slice {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        let offset = w.current_pos();
+        let input = self.input.print(w)?;
+        write!(w, ".slice(")?;
+        let from = self.from.print(w)?;
+        write!(w, ", ")?;
+        let until = self.until.print(w)?;
+        write!(w, ")")?;
+        let length = w.current_pos() - offset;
+        Ok(Spanned {
+            expr: Slice {
+                input: Box::new(input),
+                from: Box::new(from),
+                until: Box::new(until),
+            },
+            source_span: SourceSpan { offset, length },
+        }
+        .into())
+    }
+}
+
+impl Print for ForAll {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        let offset = w.current_pos();
+        let input = self.input.print(w)?;
+        write!(w, ".forall(")?;
+        let condition = self.condition.print(w)?;
+        write!(w, ")")?;
+        let length = w.current_pos() - offset;
+        #[allow(clippy::unwrap_used)] // we only added spans
+        Ok(Spanned {
+            expr: ForAll::new(input, condition).unwrap(),
+            source_span: SourceSpan { offset, length },
+        }
+        .into())
+    }
+}
+
+impl Print for Downcast {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        write!(w, "downcast(")?;
+        let input = self.input.print(w)?;
+        write!(w, ")")?;
+        Ok(Downcast {
+            input: Box::new(input),
+            tpe: self.tpe.clone(),
+        }
+        .into())
+    }
+}
+
+impl Print for CreateProveDhTuple {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        write!(w, "proveDHTuple(")?;
+        let g = self.g.print(w)?;
+        write!(w, ", ")?;
+        let h = self.h.print(w)?;
+        write!(w, ", ")?;
+        let u = self.u.print(w)?;
+        write!(w, ", ")?;
+        let v = self.v.print(w)?;
+        write!(w, ")")?;
+        Ok(CreateProveDhTuple {
+            g: Box::new(g),
+            h: Box::new(h),
+            u: Box::new(u),
+            v: Box::new(v),
+        }
+        .into())
+    }
+}
+
+impl Print for SigmaPropBytes {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        write!(w, "sigmaPropBytes(")?;
+        let input = self.input.print(w)?;
+        write!(w, ")")?;
+        Ok(SigmaPropBytes {
+            input: Box::new(input),
         }
         .into())
     }

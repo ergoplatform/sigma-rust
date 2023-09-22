@@ -1,7 +1,5 @@
 //! Source position for an IR node in the source code
 
-use crate::mir::logical_not::LogicalNot;
-use crate::mir::or::Or;
 use crate::mir::and::And;
 use crate::mir::bin_op::BinOp;
 use crate::mir::block::BlockValue;
@@ -20,11 +18,13 @@ use crate::mir::deserialize_register::DeserializeRegister;
 use crate::mir::expr::Expr;
 use crate::mir::extract_reg_as::ExtractRegisterAs;
 use crate::mir::get_var::GetVar;
+use crate::mir::logical_not::LogicalNot;
 use crate::mir::method_call::MethodCall;
 use crate::mir::negation::Negation;
 use crate::mir::option_get::OptionGet;
 use crate::mir::option_get_or_else::OptionGetOrElse;
 use crate::mir::option_is_defined::OptionIsDefined;
+use crate::mir::or::Or;
 use crate::mir::property_call::PropertyCall;
 use crate::mir::select_field::SelectField;
 use crate::mir::subst_const::SubstConstants;
