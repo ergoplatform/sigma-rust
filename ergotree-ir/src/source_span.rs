@@ -3,6 +3,7 @@
 use crate::mir::bin_op::BinOp;
 use crate::mir::block::BlockValue;
 use crate::mir::coll_append::Append;
+use crate::mir::coll_by_index::ByIndex;
 use crate::mir::expr::Expr;
 use crate::mir::val_def::ValDef;
 
@@ -64,6 +65,7 @@ into_expr!(Append);
 into_expr!(BlockValue);
 into_expr!(ValDef);
 into_expr!(BinOp);
+into_expr!(ByIndex);
 
 impl<T> From<T> for Spanned<T> {
     fn from(v: T) -> Self {
@@ -92,7 +94,7 @@ impl Expr {
             Expr::CalcSha256(_) => todo!(),
             Expr::Context => todo!(),
             Expr::Global => todo!(),
-            Expr::GlobalVars(_) => todo!(),
+            Expr::GlobalVars(_) => SourceSpan::empty(),
             Expr::FuncValue(_) => todo!(),
             Expr::Apply(_) => todo!(),
             Expr::MethodCall(_) => todo!(),
@@ -119,7 +121,7 @@ impl Expr {
             Expr::ExtractScriptBytes(_) => todo!(),
             Expr::ExtractCreationInfo(_) => todo!(),
             Expr::ExtractId(_) => todo!(),
-            Expr::ByIndex(_) => todo!(),
+            Expr::ByIndex(op) => op.source_span,
             Expr::SizeOf(_) => todo!(),
             Expr::Slice(_) => todo!(),
             Expr::Fold(_) => todo!(),

@@ -7,6 +7,7 @@ use thiserror::Error;
 use crate::mir::bin_op::BinOp;
 use crate::mir::block::BlockValue;
 use crate::mir::coll_append::Append;
+use crate::mir::coll_by_index::ByIndex;
 use crate::mir::constant::Constant;
 use crate::mir::expr::Expr;
 use crate::mir::global_vars::GlobalVars;
@@ -136,6 +137,23 @@ impl Print for GlobalVars {
     }
 }
 
+impl Print for ByIndex {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        let input = self.input.print(w)?;
+        let offset = w.current_pos();
+        write!(w, "(")?;
+        let index = self.index.print(w)?;
+        write!(w, ")")?;
+        let length = w.current_pos() - offset;
+        #[allow(clippy::unwrap_used)] // we only added spans
+        Ok(Spanned {
+            source_span: SourceSpan { offset, length },
+            expr: ByIndex::new(input, index, self.default.clone()).unwrap(),
+        }
+        .into())
+    }
+}
+
 #[allow(clippy::panic)]
 impl Print for Expr {
     fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
@@ -147,6 +165,7 @@ impl Print for Expr {
             Expr::Const(v) => v.print(w),
             Expr::BinOp(v) => v.expr().print(w),
             Expr::GlobalVars(v) => v.print(w),
+            Expr::ByIndex(v) => v.expr().print(w),
             e => panic!("Not implemented: {:?}", e),
         }
     }

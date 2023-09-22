@@ -167,7 +167,7 @@ pub enum Expr {
     /// Box id, Blake2b256 hash of this box's content, basically equals to `blake2b256(bytes)`
     ExtractId(ExtractId),
     /// Collection, get element by index
-    ByIndex(ByIndex),
+    ByIndex(Spanned<ByIndex>),
     /// Collection size
     SizeOf(SizeOf),
     /// Collection slice
@@ -265,7 +265,7 @@ impl Expr {
             Expr::Upcast(v) => v.tpe(),
             Expr::Downcast(v) => v.tpe(),
             Expr::If(v) => v.tpe(),
-            Expr::ByIndex(v) => v.tpe(),
+            Expr::ByIndex(v) => v.expr().tpe(),
             Expr::ExtractScriptBytes(v) => v.tpe(),
             Expr::SizeOf(v) => v.tpe(),
             Expr::Slice(v) => v.tpe(),

@@ -172,6 +172,8 @@ impl<T> ExtResultEvalError<T> for Result<T, EvalError> {
 mod tests {
     use std::rc::Rc;
 
+    use ergotree_ir::mir::coll_by_index::ByIndex;
+    use ergotree_ir::mir::global_vars::GlobalVars;
     use ergotree_ir::source_span::SourceSpan;
     use expect_test::expect;
 
@@ -351,5 +353,53 @@ mod tests {
                 length: 7
             }
         );
+    }
+
+    #[ignore = "expect test fails on self-generated string"]
+    #[test]
+    fn pretty_out_of_bounds() {
+        // OUTPUTS(1) should be out of bounds error in:
+        // {
+        //   val v1 = 1
+        //   OUPUTS(v1)
+        // }
+        let v1_id = 1.into();
+        let expr = Expr::BlockValue(
+            BlockValue {
+                items: vec![ValDef {
+                    id: v1_id,
+                    rhs: Box::new(Expr::Const(99999999i32.into())),
+                }
+                .into()],
+                result: Box::new(Expr::ByIndex(
+                    ByIndex::new(
+                        Expr::GlobalVars(GlobalVars::Outputs),
+                        ValUse {
+                            val_id: v1_id,
+                            tpe: SType::SInt,
+                        }
+                        .into(),
+                        None,
+                    )
+                    .unwrap()
+                    .into(),
+                )),
+            }
+            .into(),
+        );
+        check(
+            expr,
+            expect![[r#"
+                  x Evaluation error
+                   ,-[1:1]
+                 1 | {
+                 2 |   val v1 = 99999999
+                 3 |   OUTPUTS(v1)
+                   :          ^^|^
+                   :            `-- error: ByIndex: index Int(99999999) out of bounds for collection size 1
+                 4 | }
+                   `----
+            "#]],
+        )
     }
 }

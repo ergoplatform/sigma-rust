@@ -264,7 +264,7 @@ impl SigmaSerializable for Expr {
             Expr::Upcast(op) => op.sigma_serialize_w_opcode(w),
             Expr::Downcast(op) => op.sigma_serialize_w_opcode(w),
             Expr::If(op) => op.sigma_serialize_w_opcode(w),
-            Expr::ByIndex(op) => op.sigma_serialize_w_opcode(w),
+            Expr::ByIndex(op) => op.expr().sigma_serialize_w_opcode(w),
             Expr::ExtractScriptBytes(op) => op.sigma_serialize_w_opcode(w),
             Expr::SizeOf(op) => op.sigma_serialize_w_opcode(w),
             Expr::Slice(op) => op.sigma_serialize_w_opcode(w),
