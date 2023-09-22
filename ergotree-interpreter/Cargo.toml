@@ -36,6 +36,7 @@ serde_with = { workspace = true, optional = true }
 proptest = { workspace = true, optional = true }
 scorex_crypto_avltree = "0.1.0"
 gf2_192 = { version = "^0.24.1", path = "../gf2_192" }
+miette = { workspace = true }
 
 [features]
 default = ["json"]
