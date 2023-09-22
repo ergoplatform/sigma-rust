@@ -25,6 +25,12 @@ impl SourceSpan {
     }
 }
 
+impl From<SourceSpan> for miette::SourceSpan {
+    fn from(value: SourceSpan) -> Self {
+        miette::SourceSpan::new(value.offset.into(), value.length.into())
+    }
+}
+
 /// Wrapper for Expr with source position
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Spanned<T> {

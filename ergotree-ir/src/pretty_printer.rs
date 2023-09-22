@@ -190,7 +190,7 @@ impl Printer for PosTrackingWriter {
 }
 
 impl PosTrackingWriter {
-    const INDENT: usize = 4;
+    const INDENT: usize = 2;
 
     /// Create new printer
     pub fn new() -> Self {

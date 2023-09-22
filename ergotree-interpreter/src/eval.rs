@@ -146,7 +146,8 @@ pub fn reduce_to_crypto(
         .print(&mut printer)
         .map_err(|e| EvalError::Misc(format!("printer error: {}", e)))?;
     let printed_expr_str = printer.get_buf();
-    inner(&spanned_expr, env, ctx_clone).map_err(|e| e.wrap_with_src(printed_expr_str.to_string()))
+    inner(&spanned_expr, env, ctx_clone)
+        .map_err(|e| e.wrap_spanned_with_src(printed_expr_str.to_string()))
 }
 
 /// Expects SigmaProp constant value and returns it's value. Otherwise, returns an error.
