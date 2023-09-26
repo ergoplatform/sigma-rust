@@ -208,12 +208,12 @@ pub enum Expr {
     GetVar(Spanned<GetVar>),
     /// Extract register of SELF box as `Coll[Byte]`, deserialize it into Value and inline into
     /// the executing script.
-    DeserializeRegister(Spanned<DeserializeRegister>),
+    DeserializeRegister(DeserializeRegister),
     /// Extracts context variable as `Coll[Byte]`, deserializes it to script and then executes
     /// this script in the current context. The original `Coll[Byte]` of the script is
     /// available as `getVar[Coll[Byte]](id)` On evaluation returns the result of the
     /// script execution in the current context
-    DeserializeContext(Spanned<DeserializeContext>),
+    DeserializeContext(DeserializeContext),
     /// MultiplyGroup op for GroupElement
     MultiplyGroup(MultiplyGroup),
     /// Exponentiate op for GroupElement
@@ -286,8 +286,8 @@ impl Expr {
             Expr::DecodePoint(v) => v.tpe(),
             Expr::SigmaAnd(v) => v.tpe(),
             Expr::SigmaOr(v) => v.tpe(),
-            Expr::DeserializeRegister(v) => v.expr().tpe(),
-            Expr::DeserializeContext(v) => v.expr().tpe(),
+            Expr::DeserializeRegister(v) => v.tpe(),
+            Expr::DeserializeContext(v) => v.tpe(),
             Expr::GetVar(v) => v.expr().tpe(),
             Expr::MultiplyGroup(v) => v.tpe(),
             Expr::Exponentiate(v) => v.tpe(),

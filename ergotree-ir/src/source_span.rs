@@ -13,8 +13,6 @@ use crate::mir::coll_fold::Fold;
 use crate::mir::coll_forall::ForAll;
 use crate::mir::coll_map::Map;
 use crate::mir::coll_slice::Slice;
-use crate::mir::deserialize_context::DeserializeContext;
-use crate::mir::deserialize_register::DeserializeRegister;
 use crate::mir::expr::Expr;
 use crate::mir::extract_reg_as::ExtractRegisterAs;
 use crate::mir::get_var::GetVar;
@@ -117,8 +115,6 @@ into_expr!(Exists);
 into_expr!(ForAll);
 into_expr!(SelectField);
 into_expr!(GetVar);
-into_expr!(DeserializeRegister);
-into_expr!(DeserializeContext);
 into_expr!(TreeLookup);
 into_expr!(And);
 into_expr!(Or);
@@ -196,8 +192,8 @@ impl Expr {
             Expr::SigmaAnd(_) => SourceSpan::empty(),
             Expr::SigmaOr(_) => SourceSpan::empty(),
             Expr::GetVar(op) => op.source_span,
-            Expr::DeserializeRegister(op) => op.source_span,
-            Expr::DeserializeContext(op) => op.source_span,
+            Expr::DeserializeRegister(_) => SourceSpan::empty(),
+            Expr::DeserializeContext(_) => SourceSpan::empty(),
             Expr::MultiplyGroup(_) => SourceSpan::empty(),
             Expr::Exponentiate(_) => SourceSpan::empty(),
             Expr::XorOf(_) => SourceSpan::empty(),

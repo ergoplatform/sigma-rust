@@ -24,6 +24,9 @@ use crate::mir::collection::Collection;
 use crate::mir::constant::Constant;
 use crate::mir::create_prove_dh_tuple::CreateProveDhTuple;
 use crate::mir::create_provedlog::CreateProveDlog;
+use crate::mir::decode_point::DecodePoint;
+use crate::mir::deserialize_context::DeserializeContext;
+use crate::mir::deserialize_register::DeserializeRegister;
 use crate::mir::downcast::Downcast;
 use crate::mir::expr::Expr;
 use crate::mir::extract_amount::ExtractAmount;
@@ -142,12 +145,12 @@ impl Print for Expr {
             Expr::CreateProveDlog(v) => v.print(w),
             Expr::CreateProveDhTuple(v) => v.print(w),
             Expr::SigmaPropBytes(v) => v.print(w),
-            Expr::DecodePoint(_) => todo!(),
+            Expr::DecodePoint(v) => v.print(w),
             Expr::SigmaAnd(v) => v.print(w),
             Expr::SigmaOr(v) => v.print(w),
             Expr::GetVar(v) => v.expr().print(w),
-            Expr::DeserializeRegister(_) => todo!(),
-            Expr::DeserializeContext(_) => todo!(),
+            Expr::DeserializeRegister(v) => v.print(w),
+            Expr::DeserializeContext(v) => v.print(w),
             Expr::MultiplyGroup(_) => todo!(),
             Expr::Exponentiate(_) => todo!(),
             Expr::XorOf(_) => todo!(),
@@ -993,5 +996,31 @@ impl Print for SigmaPropBytes {
             input: Box::new(input),
         }
         .into())
+    }
+}
+
+impl Print for DecodePoint {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        write!(w, "decodePoint(")?;
+        let input = self.input.print(w)?;
+        write!(w, ")")?;
+        Ok(DecodePoint {
+            input: Box::new(input),
+        }
+        .into())
+    }
+}
+
+impl Print for DeserializeRegister {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        write!(w, "deserializeRegister({})", self.reg)?;
+        Ok(self.clone().into())
+    }
+}
+
+impl Print for DeserializeContext {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        write!(w, "deserializeContext({})", self.id)?;
+        Ok(self.clone().into())
     }
 }
