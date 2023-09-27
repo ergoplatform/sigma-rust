@@ -22,12 +22,14 @@ use crate::mir::coll_size::SizeOf;
 use crate::mir::coll_slice::Slice;
 use crate::mir::collection::Collection;
 use crate::mir::constant::Constant;
+use crate::mir::create_avl_tree::CreateAvlTree;
 use crate::mir::create_prove_dh_tuple::CreateProveDhTuple;
 use crate::mir::create_provedlog::CreateProveDlog;
 use crate::mir::decode_point::DecodePoint;
 use crate::mir::deserialize_context::DeserializeContext;
 use crate::mir::deserialize_register::DeserializeRegister;
 use crate::mir::downcast::Downcast;
+use crate::mir::exponentiate::Exponentiate;
 use crate::mir::expr::Expr;
 use crate::mir::extract_amount::ExtractAmount;
 use crate::mir::extract_bytes::ExtractBytes;
@@ -43,6 +45,7 @@ use crate::mir::if_op::If;
 use crate::mir::logical_not::LogicalNot;
 use crate::mir::long_to_byte_array::LongToByteArray;
 use crate::mir::method_call::MethodCall;
+use crate::mir::multiply_group::MultiplyGroup;
 use crate::mir::negation::Negation;
 use crate::mir::option_get::OptionGet;
 use crate::mir::option_get_or_else::OptionGetOrElse;
@@ -54,12 +57,14 @@ use crate::mir::sigma_and::SigmaAnd;
 use crate::mir::sigma_or::SigmaOr;
 use crate::mir::sigma_prop_bytes::SigmaPropBytes;
 use crate::mir::subst_const::SubstConstants;
+use crate::mir::tree_lookup::TreeLookup;
 use crate::mir::tuple::Tuple;
 use crate::mir::unary_op::OneArgOpTryBuild;
 use crate::mir::upcast::Upcast;
 use crate::mir::val_def::ValDef;
 use crate::mir::val_use::ValUse;
 use crate::mir::xor::Xor;
+use crate::mir::xor_of::XorOf;
 use crate::source_span::SourceSpan;
 use crate::source_span::Spanned;
 use crate::types::stype::SType;
@@ -80,7 +85,6 @@ pub trait Print {
     fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError>;
 }
 
-#[allow(clippy::todo)]
 impl Print for Expr {
     fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
         match self {
@@ -151,11 +155,11 @@ impl Print for Expr {
             Expr::GetVar(v) => v.expr().print(w),
             Expr::DeserializeRegister(v) => v.print(w),
             Expr::DeserializeContext(v) => v.print(w),
-            Expr::MultiplyGroup(_) => todo!(),
-            Expr::Exponentiate(_) => todo!(),
-            Expr::XorOf(_) => todo!(),
-            Expr::TreeLookup(_) => todo!(),
-            Expr::CreateAvlTree(_) => todo!(),
+            Expr::MultiplyGroup(v) => v.print(w),
+            Expr::Exponentiate(v) => v.print(w),
+            Expr::XorOf(v) => v.print(w),
+            Expr::TreeLookup(v) => v.expr().print(w),
+            Expr::CreateAvlTree(v) => v.print(w),
         }
     }
 }
@@ -1022,5 +1026,87 @@ impl Print for DeserializeContext {
     fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
         write!(w, "deserializeContext({})", self.id)?;
         Ok(self.clone().into())
+    }
+}
+
+impl Print for MultiplyGroup {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        write!(w, "multiplyGroup(")?;
+        let left = self.left.print(w)?;
+        write!(w, ", ")?;
+        let right = self.right.print(w)?;
+        write!(w, ")")?;
+        Ok(MultiplyGroup {
+            left: left.into(),
+            right: right.into(),
+        }
+        .into())
+    }
+}
+
+impl Print for Exponentiate {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        write!(w, "exponentiate(")?;
+        let left = self.left.print(w)?;
+        write!(w, ", ")?;
+        let right = self.right.print(w)?;
+        write!(w, ")")?;
+        Ok(Exponentiate {
+            left: left.into(),
+            right: right.into(),
+        }
+        .into())
+    }
+}
+
+impl Print for XorOf {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        write!(w, "xorOf(")?;
+        let input = self.input.print(w)?;
+        write!(w, ")")?;
+        Ok(XorOf {
+            input: Box::new(input),
+        }
+        .into())
+    }
+}
+
+impl Print for TreeLookup {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        let offset = w.current_pos();
+        write!(w, "treeLookup(")?;
+        let tree = self.tree.print(w)?;
+        write!(w, ", ")?;
+        let key = self.key.print(w)?;
+        write!(w, ", ")?;
+        let proof = self.proof.print(w)?;
+        write!(w, ")")?;
+        let length = w.current_pos() - offset;
+        Ok(Spanned {
+            expr: TreeLookup {
+                tree: Box::new(tree),
+                key: Box::new(key),
+                proof: Box::new(proof),
+            },
+            source_span: SourceSpan { offset, length },
+        }
+        .into())
+    }
+}
+
+impl Print for CreateAvlTree {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        write!(w, "avlTree(")?;
+        let digest = self.digest.print(w)?;
+        write!(w, ", ")?;
+        let key_length = self.key_length.print(w)?;
+        write!(w, ")")?;
+        Ok(CreateAvlTree {
+            digest: Box::new(digest),
+            key_length: Box::new(key_length),
+            flags: self.flags.clone(),
+            value_length: self.value_length.clone(),
+        }
+        .into())
     }
 }
