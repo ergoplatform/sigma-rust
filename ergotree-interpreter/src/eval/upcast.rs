@@ -69,7 +69,7 @@ fn upcast_to_byte(in_v: Value) -> Result<Value, EvalError> {
 }
 
 impl Evaluable for Upcast {
-    fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
+    fn eval(&self, env: &mut Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
         let input_v = self.input.eval(env, ctx)?;
         match self.tpe {
             SType::SBigInt => upcast_to_bigint(input_v),

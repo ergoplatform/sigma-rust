@@ -11,23 +11,27 @@ use crate::eval::EvalError;
 use crate::eval::Evaluable;
 
 impl Evaluable for DeserializeContext {
-    fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
+    fn eval(&self, env: &mut Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
         match ctx.ctx.extension.values.get(&self.id) {
             Some(c) => {
-                if c.tpe != SType::SColl(SType::SByte.into()) {
-                    Err(EvalError::UnexpectedExpr(format!("DeserializeContext: expected extension value to have type SColl(SByte), got {:?}", c.tpe)))
+                let expected_tpe = SType::SColl(SType::SByte.into());
+                if c.tpe != expected_tpe {
+                    Err(EvalError::UnexpectedExpr(format!(
+                        "DeserializeContext: expected extension value {} with id {} to have type {:?} got {:?}",
+                        c, self.id, expected_tpe, c.tpe
+                    )))
                 } else {
                     let bytes = c.v.clone().try_extract_into::<Vec<u8>>()?;
                     let expr = Expr::sigma_parse_bytes(bytes.as_slice())?;
                     if expr.tpe() != self.tpe {
-                        return Err(EvalError::UnexpectedExpr(format!("DeserializeContext: expected deserialized expr to have type {:?}, got {:?}", self.tpe, expr.tpe())));
+                        return Err(EvalError::UnexpectedExpr(format!("DeserializeContext: expected deserialized expr from extension value {} with id {} to have type {:?}, got {:?}", c, self.id, self.tpe, expr.tpe())));
                     }
                     expr.eval(env, ctx)
                 }
             }
             None => Err(EvalError::NotFound(format!(
-                "DeserializeContext: no value with id {} in context extension",
-                self.id
+                "DeserializeContext: no value with id {} in context extension map {}",
+                self.id, ctx.ctx.extension
             ))),
         }
     }

@@ -20,19 +20,20 @@ pub(crate) static GET_REG_EVAL_FN: EvalFn = |_env, _ctx, obj, args| {
         .get(0)
         .cloned()
         .ok_or_else(|| EvalError::NotFound("register index is missing".to_string()))?
-        .try_extract_into::<i8>()?
-        .try_into()
-        .map_err(|e| {
-            EvalError::RegisterIdOutOfBounds(format!("register index is out of bounds: {:?} ", e))
-        })?;
+        .try_extract_into::<i8>()?;
+    let reg_id = reg_id.try_into().map_err(|e| {
+        EvalError::RegisterIdOutOfBounds(format!(
+            "register index {reg_id} is out of bounds: {:?} ",
+            e
+        ))
+    })?;
 
     Ok(Value::Opt(Box::new(
         obj.try_extract_into::<Arc<ErgoBox>>()?
             .get_register(reg_id)
             .map_err(|e| {
                 EvalError::NotFound(format!(
-                    "Error getting the register id {:?} with error {e:?}",
-                    reg_id
+                    "Error getting the register id {reg_id} with error {e:?}"
                 ))
             })?
             .map(|c| Value::from(c.v)),

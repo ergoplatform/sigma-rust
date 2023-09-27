@@ -22,6 +22,7 @@ use crate::sigma_protocol::sigma_boolean::ProveDlog;
 use crate::sigma_protocol::sigma_boolean::SigmaBoolean;
 use crate::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
 use crate::sigma_protocol::sigma_boolean::SigmaProp;
+use crate::source_span::Spanned;
 use crate::types::stype::SType;
 use ergo_chain_types::EcPoint;
 
@@ -110,12 +111,21 @@ impl Address {
                     if let [Expr::BoolToSigmaProp(BoolToSigmaProp { input }), Expr::DeserializeContext(DeserializeContext { tpe, id })] =
                         items.as_slice()
                     {
-                        if let (Expr::BinOp(BinOp { kind, left, right }), SType::SSigmaProp, 1) =
-                            (*input.clone(), tpe.clone(), id)
+                        if let (
+                            Expr::BinOp(Spanned {
+                                source_span: _,
+                                expr: BinOp { kind, left, right },
+                            }),
+                            SType::SSigmaProp,
+                            1,
+                        ) = (*input.clone(), tpe.clone(), id)
                         {
                             if let (
                                 Relation(RelationOp::Eq),
-                                Expr::Slice(Slice { input, from, until }),
+                                Expr::Slice(Spanned {
+                                    expr: Slice { input, from, until },
+                                    source_span: _,
+                                }),
                                 Expr::Const(Constant { v, .. }),
                             ) = (kind, *left, *right)
                             {
@@ -200,23 +210,32 @@ impl Address {
             }
             Address::P2S(bytes) => ErgoTree::sigma_parse_bytes(bytes),
             Address::P2SH(script_hash) => {
-                let get_var_expr = Expr::GetVar(GetVar {
-                    var_id: 1,
-                    var_tpe: SType::SColl(Box::new(SType::SByte)),
-                });
+                let get_var_expr = Expr::GetVar(
+                    GetVar {
+                        var_id: 1,
+                        var_tpe: SType::SColl(Box::new(SType::SByte)),
+                    }
+                    .into(),
+                );
                 let hash_expr = Expr::CalcBlake2b256(CalcBlake2b256 {
                     input: Box::new(get_var_expr),
                 });
-                let slice_expr = Expr::Slice(Slice {
-                    input: Box::new(hash_expr),
-                    from: Box::new(0i32.into()),
-                    until: Box::new(24i32.into()),
-                });
-                let hash_equals = Expr::BinOp(BinOp {
-                    kind: Relation(RelationOp::Eq),
-                    left: Box::new(slice_expr),
-                    right: Box::new(Expr::Const(Constant::from(script_hash.to_vec()))),
-                });
+                let slice_expr = Expr::Slice(
+                    Slice {
+                        input: Box::new(hash_expr),
+                        from: Box::new(0i32.into()),
+                        until: Box::new(24i32.into()),
+                    }
+                    .into(),
+                );
+                let hash_equals = Expr::BinOp(
+                    BinOp {
+                        kind: Relation(RelationOp::Eq),
+                        left: Box::new(slice_expr),
+                        right: Box::new(Expr::Const(Constant::from(script_hash.to_vec()))),
+                    }
+                    .into(),
+                );
                 let script_is_correct = Expr::DeserializeContext(DeserializeContext {
                     tpe: SType::SSigmaProp,
                     id: 1,

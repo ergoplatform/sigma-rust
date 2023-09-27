@@ -79,6 +79,7 @@ use crate::serialization::{
 
 use crate::mir::xor_of::XorOf;
 use crate::serialization::types::TypeCode;
+use crate::source_span::Spanned;
 
 impl Expr {
     /// Parse expression from byte stream. This function should be used instead of
@@ -112,8 +113,10 @@ impl Expr {
                 OpCode::MINER_PUBKEY => Ok(Expr::GlobalVars(GlobalVars::MinerPubKey)),
                 OpCode::GROUP_GENERATOR => Ok(Expr::GlobalVars(GlobalVars::GroupGenerator)),
                 OpCode::GLOBAL => Ok(Expr::Global),
-                OpCode::PROPERTY_CALL => Ok(Expr::ProperyCall(PropertyCall::sigma_parse(r)?)),
-                OpCode::METHOD_CALL => Ok(Expr::MethodCall(MethodCall::sigma_parse(r)?)),
+                OpCode::PROPERTY_CALL => {
+                    Ok(Expr::PropertyCall(PropertyCall::sigma_parse(r)?.into()))
+                }
+                OpCode::METHOD_CALL => Ok(Expr::MethodCall(MethodCall::sigma_parse(r)?.into())),
                 OpCode::CONTEXT => Ok(Expr::Context),
                 OptionGet::OP_CODE => Ok(OptionGet::sigma_parse(r)?.into()),
                 OptionIsDefined::OP_CODE => Ok(OptionIsDefined::sigma_parse(r)?.into()),
@@ -146,13 +149,13 @@ impl Expr {
                 OpCode::BIT_OR => Ok(bin_op_sigma_parse(BitOp::BitOr.into(), r)?),
                 OpCode::BIT_AND => Ok(bin_op_sigma_parse(BitOp::BitAnd.into(), r)?),
                 OpCode::BIT_XOR => Ok(bin_op_sigma_parse(BitOp::BitXor.into(), r)?),
-                OpCode::BLOCK_VALUE => Ok(Expr::BlockValue(BlockValue::sigma_parse(r)?)),
+                OpCode::BLOCK_VALUE => Ok(Expr::BlockValue(BlockValue::sigma_parse(r)?.into())),
                 OpCode::FUNC_VALUE => Ok(Expr::FuncValue(FuncValue::sigma_parse(r)?)),
                 OpCode::APPLY => Ok(Expr::Apply(Apply::sigma_parse(r)?)),
-                OpCode::VAL_DEF => Ok(Expr::ValDef(ValDef::sigma_parse(r)?)),
+                OpCode::VAL_DEF => Ok(Expr::ValDef(ValDef::sigma_parse(r)?.into())),
                 OpCode::VAL_USE => Ok(Expr::ValUse(ValUse::sigma_parse(r)?)),
                 ExtractAmount::OP_CODE => Ok(Expr::ExtractAmount(ExtractAmount::sigma_parse(r)?)),
-                OpCode::SELECT_FIELD => Ok(Expr::SelectField(SelectField::sigma_parse(r)?)),
+                OpCode::SELECT_FIELD => Ok(Expr::SelectField(SelectField::sigma_parse(r)?.into())),
                 OpCode::CALC_BLAKE2B256 => Ok(CalcBlake2b256::sigma_parse(r)?.into()),
                 CalcSha256::OP_CODE => Ok(CalcSha256::sigma_parse(r)?.into()),
                 And::OP_CODE => Ok(And::sigma_parse(r)?.into()),
@@ -222,27 +225,27 @@ impl SigmaSerializable for Expr {
                 }
                 None => c.sigma_serialize(w),
             },
-            Expr::Append(ap) => ap.sigma_serialize_w_opcode(w),
-            Expr::Fold(op) => op.sigma_serialize_w_opcode(w),
+            Expr::Append(ap) => ap.expr().sigma_serialize_w_opcode(w),
+            Expr::Fold(op) => op.expr().sigma_serialize_w_opcode(w),
             Expr::ConstPlaceholder(cp) => cp.sigma_serialize_w_opcode(w),
-            Expr::SubstConstants(s) => s.sigma_serialize_w_opcode(w),
-            Expr::ByteArrayToLong(s) => s.sigma_serialize_w_opcode(w),
-            Expr::ByteArrayToBigInt(s) => s.sigma_serialize_w_opcode(w),
+            Expr::SubstConstants(s) => s.expr().sigma_serialize_w_opcode(w),
+            Expr::ByteArrayToLong(s) => s.expr().sigma_serialize_w_opcode(w),
+            Expr::ByteArrayToBigInt(s) => s.expr().sigma_serialize_w_opcode(w),
             Expr::LongToByteArray(s) => s.sigma_serialize_w_opcode(w),
             Expr::GlobalVars(op) => op.op_code().sigma_serialize(w),
-            Expr::MethodCall(mc) => mc.sigma_serialize_w_opcode(w),
-            Expr::ProperyCall(pc) => pc.sigma_serialize_w_opcode(w),
+            Expr::MethodCall(mc) => mc.expr().sigma_serialize_w_opcode(w),
+            Expr::PropertyCall(pc) => pc.expr().sigma_serialize_w_opcode(w),
             Expr::Global => OpCode::GLOBAL.sigma_serialize(w),
             Expr::Context => OpCode::CONTEXT.sigma_serialize(w),
-            Expr::OptionGet(v) => v.sigma_serialize_w_opcode(w),
-            Expr::ExtractRegisterAs(v) => v.sigma_serialize_w_opcode(w),
+            Expr::OptionGet(v) => v.expr().sigma_serialize_w_opcode(w),
+            Expr::ExtractRegisterAs(v) => v.expr().sigma_serialize_w_opcode(w),
             Expr::BinOp(op) => {
-                op.op_code().sigma_serialize(w)?;
-                bin_op_sigma_serialize(op, w)
+                op.expr().op_code().sigma_serialize(w)?;
+                bin_op_sigma_serialize(op.expr(), w)
             }
-            Expr::BlockValue(op) => op.sigma_serialize_w_opcode(w),
+            Expr::BlockValue(op) => op.expr().sigma_serialize_w_opcode(w),
             Expr::ValUse(op) => op.sigma_serialize_w_opcode(w),
-            Expr::ValDef(op) => op.sigma_serialize_w_opcode(w),
+            Expr::ValDef(op) => op.expr().sigma_serialize_w_opcode(w),
             Expr::FuncValue(op) => op.sigma_serialize_w_opcode(w),
             Expr::Apply(op) => op.sigma_serialize_w_opcode(w),
             Expr::ExtractAmount(op) => op.sigma_serialize_w_opcode(w),
@@ -264,19 +267,19 @@ impl SigmaSerializable for Expr {
             Expr::Upcast(op) => op.sigma_serialize_w_opcode(w),
             Expr::Downcast(op) => op.sigma_serialize_w_opcode(w),
             Expr::If(op) => op.sigma_serialize_w_opcode(w),
-            Expr::ByIndex(op) => op.sigma_serialize_w_opcode(w),
+            Expr::ByIndex(op) => op.expr().sigma_serialize_w_opcode(w),
             Expr::ExtractScriptBytes(op) => op.sigma_serialize_w_opcode(w),
             Expr::SizeOf(op) => op.sigma_serialize_w_opcode(w),
-            Expr::Slice(op) => op.sigma_serialize_w_opcode(w),
+            Expr::Slice(op) => op.expr().sigma_serialize_w_opcode(w),
             Expr::CreateProveDlog(op) => op.sigma_serialize_w_opcode(w),
             Expr::CreateProveDhTuple(op) => op.sigma_serialize_w_opcode(w),
             Expr::ExtractCreationInfo(op) => op.sigma_serialize_w_opcode(w),
             Expr::Exists(op) => op.sigma_serialize_w_opcode(w),
             Expr::ExtractId(op) => op.sigma_serialize_w_opcode(w),
             Expr::SigmaPropBytes(op) => op.sigma_serialize_w_opcode(w),
-            Expr::OptionIsDefined(op) => op.sigma_serialize_w_opcode(w),
-            Expr::OptionGetOrElse(op) => op.sigma_serialize_w_opcode(w),
-            Expr::Negation(op) => op.sigma_serialize_w_opcode(w),
+            Expr::OptionIsDefined(op) => op.expr().sigma_serialize_w_opcode(w),
+            Expr::OptionGetOrElse(op) => op.expr().sigma_serialize_w_opcode(w),
+            Expr::Negation(op) => op.expr().sigma_serialize_w_opcode(w),
             Expr::BitInversion(op) => op.sigma_serialize_w_opcode(w),
             Expr::ForAll(op) => op.sigma_serialize_w_opcode(w),
             Expr::Tuple(op) => op.sigma_serialize_w_opcode(w),
@@ -299,6 +302,22 @@ impl SigmaSerializable for Expr {
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let tag = r.get_u8()?;
         Self::parse_with_tag(r, tag)
+    }
+}
+
+impl<T: SigmaSerializable> SigmaSerializable for Spanned<T> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
+        self.expr.sigma_serialize(w)
+    }
+
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
+        T::sigma_parse(r).map(Into::into)
+    }
+}
+
+impl<T: HasOpCode> HasOpCode for Spanned<T> {
+    fn op_code(&self) -> OpCode {
+        self.expr.op_code()
     }
 }
 

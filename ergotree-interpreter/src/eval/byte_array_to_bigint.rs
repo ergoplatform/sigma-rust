@@ -12,7 +12,7 @@ use crate::eval::EvalError::UnexpectedValue;
 use crate::eval::Evaluable;
 
 impl Evaluable for ByteArrayToBigInt {
-    fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
+    fn eval(&self, env: &mut Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
         let input = self.input.eval(env, ctx)?.try_extract_into::<Vec<u8>>()?;
         if input.is_empty() {
             return Err(UnexpectedValue(

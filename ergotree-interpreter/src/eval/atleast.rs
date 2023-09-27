@@ -14,7 +14,7 @@ use crate::eval::EvalError;
 use crate::eval::Evaluable;
 
 impl Evaluable for Atleast {
-    fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
+    fn eval(&self, env: &mut Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
         let bound_v = self.bound.eval(env, ctx)?;
         let input_v = self.input.eval(env, ctx)?;
 

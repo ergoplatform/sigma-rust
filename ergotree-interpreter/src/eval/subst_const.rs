@@ -15,7 +15,7 @@ use sigma_util::AsVecU8;
 use std::convert::TryFrom;
 
 impl Evaluable for SubstConstants {
-    fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
+    fn eval(&self, env: &mut Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
         let script_bytes_v = self.script_bytes.eval(env, ctx)?;
         let positions_v = self.positions.eval(env, ctx)?;
         let new_values_v = self.new_values.eval(env, ctx)?;
@@ -131,11 +131,14 @@ mod tests {
         let positions = Expr::Const(Constant::from(vec![0])).into();
         let new_values = Expr::Const(Constant::from(vec![new.clone()])).into();
 
-        let subst_const = Expr::SubstConstants(SubstConstants {
-            script_bytes,
-            positions,
-            new_values,
-        });
+        let subst_const = Expr::SubstConstants(
+            SubstConstants {
+                script_bytes,
+                positions,
+                new_values,
+            }
+            .into(),
+        );
 
         let x: Value = try_eval_out_wo_ctx(&subst_const).unwrap();
         if let Value::Coll(CollKind::NativeColl(NativeColl::CollByte(b))) = x {
@@ -150,15 +153,21 @@ mod tests {
     fn test_3_substitutions(original: (i32, i32, i32), new: (i32, i32, i32)) {
         let (o0, o1, o2) = original;
         let (n0, n1, n2) = new;
-        let expr = Expr::BinOp(BinOp {
-            kind: BinOpKind::Arith(ArithOp::Plus),
-            left: Box::new(Expr::Const(o0.into())),
-            right: Box::new(Expr::BinOp(BinOp {
-                kind: BinOpKind::Arith(ArithOp::Multiply),
-                left: Box::new(Expr::Const(o1.into())),
-                right: Box::new(Expr::Const(o2.into())),
-            })),
-        });
+        let expr = Expr::BinOp(
+            BinOp {
+                kind: BinOpKind::Arith(ArithOp::Plus),
+                left: Box::new(Expr::Const(o0.into())),
+                right: Box::new(Expr::BinOp(
+                    BinOp {
+                        kind: BinOpKind::Arith(ArithOp::Multiply),
+                        left: Box::new(Expr::Const(o1.into())),
+                        right: Box::new(Expr::Const(o2.into())),
+                    }
+                    .into(),
+                )),
+            }
+            .into(),
+        );
         let ergo_tree = ErgoTree::new(ErgoTreeHeader::v0(true), &expr).unwrap();
         assert_eq!(ergo_tree.constants_len().unwrap(), 3);
         assert_eq!(ergo_tree.get_constant(0).unwrap().unwrap(), o0.into());
@@ -172,11 +181,14 @@ mod tests {
 
         let new_values = Expr::Const(Constant::from(vec![n0, n1, n2])).into();
 
-        let subst_const = Expr::SubstConstants(SubstConstants {
-            script_bytes,
-            positions,
-            new_values,
-        });
+        let subst_const = Expr::SubstConstants(
+            SubstConstants {
+                script_bytes,
+                positions,
+                new_values,
+            }
+            .into(),
+        );
 
         let x: Value = try_eval_out_wo_ctx(&subst_const).unwrap();
         if let Value::Coll(CollKind::NativeColl(NativeColl::CollByte(b))) = x {

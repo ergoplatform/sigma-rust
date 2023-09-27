@@ -13,6 +13,7 @@ use crate::serialization::SigmaSerializable;
 use ergo_chain_types::EcPoint;
 use std::convert::TryFrom;
 use std::convert::TryInto;
+use std::fmt::Formatter;
 
 extern crate derive_more;
 use bounded_vec::BoundedVec;
@@ -53,6 +54,12 @@ impl From<EcPoint> for ProveDlog {
     }
 }
 
+impl std::fmt::Display for ProveDlog {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "proveDlog({})", self.h)
+    }
+}
+
 /// Construct a new SigmaProp value representing public key of Diffie Hellman signature protocol.
 /// Used in a proof that of equality of discrete logarithms (i.e., a proof of a Diffie-Hellman tuple):
 /// given group elements g, h, u, v, the proof convinces a verifier that the prover knows `w` such
@@ -86,8 +93,18 @@ impl ProveDhTuple {
     }
 }
 
+impl std::fmt::Display for ProveDhTuple {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "ProveDhTuple(g: {}, h: {}, u: {}, v: {})",
+            self.g, self.h, self.u, self.v
+        )
+    }
+}
+
 /// Sigma proposition
-#[derive(PartialEq, Eq, Debug, Clone, From)]
+#[derive(PartialEq, Eq, Debug, Clone, From, derive_more::Display)]
 pub enum SigmaProofOfKnowledgeTree {
     /// public key of Diffie Hellman signature protocol
     ProveDhTuple(ProveDhTuple),
@@ -121,6 +138,16 @@ impl HasOpCode for SigmaConjecture {
             SigmaConjecture::Cand(cand) => cand.op_code(),
             SigmaConjecture::Cor(cor) => cor.op_code(),
             SigmaConjecture::Cthreshold(ct) => ct.op_code(),
+        }
+    }
+}
+
+impl std::fmt::Display for SigmaConjecture {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SigmaConjecture::Cand(c) => write!(f, "{}", c),
+            SigmaConjecture::Cor(c) => write!(f, "{}", c),
+            SigmaConjecture::Cthreshold(c) => write!(f, "{}", c),
         }
     }
 }
@@ -246,8 +273,18 @@ impl From<Cthreshold> for SigmaBoolean {
     }
 }
 
+impl std::fmt::Display for SigmaBoolean {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SigmaBoolean::TrivialProp(b) => write!(f, "sigmaProp({})", b),
+            SigmaBoolean::ProofOfKnowledge(kt) => write!(f, "{}", kt),
+            SigmaBoolean::SigmaConjecture(sc) => write!(f, "{}", sc),
+        }
+    }
+}
+
 /// Proposition which can be proven and verified by sigma protocol.
-#[derive(PartialEq, Eq, Debug, Clone, From, Into)]
+#[derive(PartialEq, Eq, Debug, Clone, From, Into, derive_more::Display)]
 pub struct SigmaProp(SigmaBoolean);
 
 impl SigmaProp {
@@ -295,6 +332,7 @@ impl From<ProveDhTuple> for SigmaProp {
         ))
     }
 }
+
 /// Arbitrary impl for ProveDlog
 #[cfg(feature = "arbitrary")]
 #[allow(clippy::unwrap_used)]

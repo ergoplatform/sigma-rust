@@ -1,25 +1,18 @@
 //! Interpreter
-use bounded_vec::BoundedVecOutOfBounds;
 use ergotree_ir::mir::constant::TryExtractInto;
+use ergotree_ir::pretty_printer::PosTrackingWriter;
+use ergotree_ir::pretty_printer::Print;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProp;
-use sigma_ser::ScorexParsingError;
-use sigma_ser::ScorexSerializationError;
 use std::rc::Rc;
 
-use ergotree_ir::ergo_tree::ErgoTreeError;
-use ergotree_ir::mir::constant::TryExtractFromError;
 use ergotree_ir::mir::expr::Expr;
 use ergotree_ir::mir::value::Value;
-use ergotree_ir::serialization::SigmaParsingError;
-use ergotree_ir::serialization::SigmaSerializationError;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 
 use cost_accum::CostAccumulator;
 use ergotree_ir::types::smethod::SMethod;
-use thiserror::Error;
 
 use self::context::Context;
-use self::cost_accum::CostError;
 use self::env::Env;
 
 /// Context(blockchain) for the interpreter
@@ -57,6 +50,7 @@ pub(crate) mod decode_point;
 mod deserialize_context;
 mod deserialize_register;
 pub(crate) mod downcast;
+mod error;
 pub(crate) mod exponentiate;
 pub(crate) mod expr;
 pub(crate) mod extract_amount;
@@ -101,61 +95,7 @@ pub(crate) mod val_use;
 pub(crate) mod xor;
 pub(crate) mod xor_of;
 
-/// Interpreter errors
-#[derive(Error, PartialEq, Eq, Debug, Clone)]
-pub enum EvalError {
-    /// AVL tree errors
-    #[error("AvlTree: {0}")]
-    AvlTree(String),
-    /// Only boolean or SigmaBoolean is a valid result expr type
-    #[error("Only boolean or SigmaBoolean is a valid result expr type")]
-    InvalidResultType,
-    /// Unexpected Expr encountered during the evaluation
-    #[error("Unexpected Expr: {0}")]
-    UnexpectedExpr(String),
-    /// Error on cost calculation
-    #[error("Error on cost calculation: {0:?}")]
-    CostError(#[from] CostError),
-    /// Unexpected value type
-    #[error("Unexpected value type: {0:?}")]
-    TryExtractFrom(#[from] TryExtractFromError),
-    /// Not found (missing value, argument, etc.)
-    #[error("Not found: {0}")]
-    NotFound(String),
-    /// Register id out of bounds
-    #[error("{0}")]
-    RegisterIdOutOfBounds(String),
-    /// Unexpected value
-    #[error("Unexpected value: {0}")]
-    UnexpectedValue(String),
-    /// Arithmetic exception error
-    #[error("Arithmetic exception: {0}")]
-    ArithmeticException(String),
-    /// Misc error
-    #[error("error: {0}")]
-    Misc(String),
-    /// Sigma serialization error
-    #[error("Serialization error: {0}")]
-    SigmaSerializationError(#[from] SigmaSerializationError),
-    /// Sigma serialization parsing error
-    #[error("Serialization parsing error: {0}")]
-    SigmaParsingError(#[from] SigmaParsingError),
-    /// ErgoTree error
-    #[error("ErgoTree error: {0}")]
-    ErgoTreeError(#[from] ErgoTreeError),
-    /// Not yet implemented
-    #[error("evaluation is not yet implemented: {0}")]
-    NotImplementedYet(&'static str),
-    /// Invalid item quantity for BoundedVec
-    #[error("Invalid item quantity for BoundedVec: {0}")]
-    BoundedVecError(#[from] BoundedVecOutOfBounds),
-    /// Scorex serialization error
-    #[error("Serialization error: {0}")]
-    ScorexSerializationError(#[from] ScorexSerializationError),
-    /// Scorex serialization parsing error
-    #[error("Serialization parsing error: {0}")]
-    ScorexParsingError(#[from] ScorexParsingError),
-}
+pub use error::EvalError;
 
 /// Result of expression reduction procedure (see `reduce_to_crypto`).
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -164,6 +104,8 @@ pub struct ReductionResult {
     pub sigma_prop: SigmaBoolean,
     /// estimated cost of expression evaluation
     pub cost: u64,
+    /// environment after the evaluation
+    pub env: Env,
 }
 
 /// Evaluate the given expression by reducing it to SigmaBoolean value.
@@ -172,22 +114,40 @@ pub fn reduce_to_crypto(
     env: &Env,
     ctx: Rc<Context>,
 ) -> Result<ReductionResult, EvalError> {
-    let cost_accum = CostAccumulator::new(0, None);
-    let mut ectx = EvalContext::new(ctx, cost_accum);
-    expr.eval(env, &mut ectx)
-        .and_then(|v| -> Result<ReductionResult, EvalError> {
-            match v {
-                Value::Boolean(b) => Ok(ReductionResult {
-                    sigma_prop: SigmaBoolean::TrivialProp(b),
-                    cost: 0,
-                }),
-                Value::SigmaProp(sp) => Ok(ReductionResult {
-                    sigma_prop: sp.value().clone(),
-                    cost: 0,
-                }),
-                _ => Err(EvalError::InvalidResultType),
-            }
-        })
+    let ctx_clone = ctx.clone();
+    fn inner(expr: &Expr, env: &Env, ctx: Rc<Context>) -> Result<ReductionResult, EvalError> {
+        let cost_accum = CostAccumulator::new(0, None);
+        let mut ectx = EvalContext::new(ctx, cost_accum);
+        let mut env_mut = env.clone();
+        expr.eval(&mut env_mut, &mut ectx)
+            .and_then(|v| -> Result<ReductionResult, EvalError> {
+                match v {
+                    Value::Boolean(b) => Ok(ReductionResult {
+                        sigma_prop: SigmaBoolean::TrivialProp(b),
+                        cost: 0,
+                        env: env_mut.clone(),
+                    }),
+                    Value::SigmaProp(sp) => Ok(ReductionResult {
+                        sigma_prop: sp.value().clone(),
+                        cost: 0,
+                        env: env_mut.clone(),
+                    }),
+                    _ => Err(EvalError::InvalidResultType),
+                }
+            })
+    }
+
+    let res = inner(expr, env, ctx);
+    if res.is_ok() {
+        return res;
+    }
+    let mut printer = PosTrackingWriter::new();
+    let spanned_expr = expr
+        .print(&mut printer)
+        .map_err(|e| EvalError::Misc(format!("printer error: {}", e)))?;
+    let printed_expr_str = printer.get_buf();
+    inner(&spanned_expr, env, ctx_clone)
+        .map_err(|e| e.wrap_spanned_with_src(printed_expr_str.to_string()))
 }
 
 /// Expects SigmaProp constant value and returns it's value. Otherwise, returns an error.
@@ -214,10 +174,11 @@ impl EvalContext {
 /// Should be implemented by every node that can be evaluated.
 pub(crate) trait Evaluable {
     /// Evaluation routine to be implement by each node
-    fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError>;
+    fn eval(&self, env: &mut Env, ctx: &mut EvalContext) -> Result<Value, EvalError>;
 }
 
-type EvalFn = fn(env: &Env, ctx: &mut EvalContext, Value, Vec<Value>) -> Result<Value, EvalError>;
+type EvalFn =
+    fn(env: &mut Env, ctx: &mut EvalContext, Value, Vec<Value>) -> Result<Value, EvalError>;
 
 fn smethod_eval_fn(method: &SMethod) -> Result<EvalFn, EvalError> {
     use ergotree_ir::types::*;
@@ -387,7 +348,8 @@ pub(crate) mod tests {
     pub fn eval_out<T: TryExtractFrom<Value>>(expr: &Expr, ctx: Rc<Context>) -> T {
         let cost_accum = CostAccumulator::new(0, None);
         let mut ectx = EvalContext::new(ctx, cost_accum);
-        expr.eval(&Env::empty(), &mut ectx)
+        let mut env = Env::empty();
+        expr.eval(&mut env, &mut ectx)
             .unwrap()
             .try_extract_into::<T>()
             .unwrap()
@@ -399,7 +361,8 @@ pub(crate) mod tests {
     ) -> Result<T, EvalError> {
         let cost_accum = CostAccumulator::new(0, None);
         let mut ectx = EvalContext::new(ctx, cost_accum);
-        expr.eval(&Env::empty(), &mut ectx)
+        let mut env = Env::empty();
+        expr.eval(&mut env, &mut ectx)
             .and_then(|v| v.try_extract_into::<T>().map_err(EvalError::TryExtractFrom))
     }
 

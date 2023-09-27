@@ -8,7 +8,7 @@ use super::EvalError;
 use super::Evaluable;
 
 impl Evaluable for PropertyCall {
-    fn eval(&self, env: &Env, ectx: &mut EvalContext) -> Result<Value, EvalError> {
+    fn eval(&self, env: &mut Env, ectx: &mut EvalContext) -> Result<Value, EvalError> {
         let ov = self.obj.eval(env, ectx)?;
         smethod_eval_fn(&self.method)?(env, ectx, ov, vec![])
     }

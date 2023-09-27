@@ -9,7 +9,7 @@ use crate::eval::EvalError;
 use crate::eval::Evaluable;
 
 impl Evaluable for Fold {
-    fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
+    fn eval(&self, env: &mut Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
         let input_v = self.input.eval(env, ctx)?;
         let zero_v = self.zero.eval(env, ctx)?;
         let fold_op_v = self.fold_op.eval(env, ctx)?;
@@ -20,8 +20,8 @@ impl Evaluable for Fold {
                     .args
                     .first()
                     .ok_or_else(|| EvalError::NotFound("empty argument for fold op".to_string()))?;
-                let env1 = env.clone().extend(func_arg.idx, arg);
-                func_value.body.eval(&env1, ctx)
+                env.insert(func_arg.idx, arg);
+                func_value.body.eval(env, ctx)
             }
             _ => Err(EvalError::UnexpectedValue(format!(
                 "expected fold_op to be Value::FuncValue got: {0:?}",
@@ -97,11 +97,11 @@ mod tests {
             let fold_op_body: Expr = BinOp {
                 kind: ArithOp::Plus.into(),
                 left: Box::new(Expr::SelectField(
-                    SelectField::new(tuple.clone(), 1.try_into().unwrap()).unwrap(),
+                    SelectField::new(tuple.clone(), 1.try_into().unwrap()).unwrap().into(),
                 )),
                 right: Box::new(Expr::ExtractAmount(
                     ExtractAmount::try_build(Expr::SelectField(
-                        SelectField::new(tuple, 2.try_into().unwrap()).unwrap(),
+                        SelectField::new(tuple, 2.try_into().unwrap()).unwrap().into(),
                     ))
                     .unwrap(),
                 )),

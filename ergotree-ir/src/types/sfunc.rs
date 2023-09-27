@@ -15,6 +15,20 @@ pub struct SFunc {
     pub tpe_params: Vec<STypeParam>,
 }
 
+impl std::fmt::Display for SFunc {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "(")?;
+        for (i, item) in self.t_dom.iter().enumerate() {
+            if i > 0 {
+                write!(f, ", ")?;
+            }
+            item.fmt(f)?;
+        }
+        write!(f, ") => ")?;
+        self.t_range.fmt(f)
+    }
+}
+
 impl SFunc {
     /// Create new SFunc
     pub fn new(t_dom: Vec<SType>, t_range: SType) -> Self {

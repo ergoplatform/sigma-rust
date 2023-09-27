@@ -6,9 +6,7 @@ authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
 repository.workspace = true
 edition.workspace = true
 description = "ErgoTree interpreter"
-exclude = [
-    "proptest-regressions/*"
-]
+exclude = ["proptest-regressions/*"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -31,22 +29,29 @@ base16 = { workspace = true }
 proptest-derive = { workspace = true, optional = true }
 bytes = { workspace = true }
 num-bigint = { workspace = true }
-bounded-vec = { workspace = true, features=["serde"] }
+bounded-vec = { workspace = true, features = ["serde"] }
 serde = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
 serde_with = { workspace = true, optional = true }
-proptest = { workspace = true , optional = true }
+proptest = { workspace = true, optional = true }
 scorex_crypto_avltree = "0.1.0"
 gf2_192 = { version = "^0.24.1", path = "../gf2_192" }
+miette = { workspace = true }
 
 [features]
 default = ["json"]
 json = ["serde", "serde_json", "serde_with", "bounded-vec/serde"]
-arbitrary = ["proptest", "proptest-derive", "ergotree-ir/arbitrary", "ergo-chain-types/arbitrary", "gf2_192/arbitrary"]
+arbitrary = [
+    "proptest",
+    "proptest-derive",
+    "ergotree-ir/arbitrary",
+    "ergo-chain-types/arbitrary",
+    "gf2_192/arbitrary",
+]
 
 [dev-dependencies]
 ergotree-ir = { workspace = true, features = ["arbitrary"] }
 ergoscript-compiler = { workspace = true }
 proptest = { workspace = true }
 sigma-test-util = { workspace = true }
-
+expect-test = { workspace = true }

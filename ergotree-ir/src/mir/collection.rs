@@ -51,6 +51,11 @@ impl Collection {
         }
     }
 
+    /// Create a collection from a vector of booleans
+    pub fn from_bools(bools: Vec<bool>) -> Self {
+        Collection::BoolConstants(bools)
+    }
+
     /// Type
     pub fn tpe(&self) -> SType {
         SType::SColl(

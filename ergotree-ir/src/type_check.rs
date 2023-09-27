@@ -1,6 +1,7 @@
 //! Type checking
 
 use crate::mir::expr::Expr;
+use crate::source_span::Spanned;
 
 /// Typecheck error
 #[derive(Debug, PartialEq, Eq)]
@@ -24,7 +25,10 @@ impl TypeCheckError {
 pub fn type_check(e: Expr) -> Result<Expr, TypeCheckError> {
     // not really a relevant check, since such kind of check should be in BinOp::new()
     match &e {
-        Expr::BinOp(bin) => {
+        Expr::BinOp(Spanned {
+            source_span: _,
+            expr: bin,
+        }) => {
             if bin.left.tpe() == bin.right.tpe() {
                 Ok(e)
             } else {

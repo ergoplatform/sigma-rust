@@ -87,7 +87,7 @@ pub mod tests {
 
         #[test]
         fn ser_roundtrip(block in any::<BlockValue>()) {
-            let e = Expr::BlockValue(block);
+            let e = Expr::BlockValue(block.into());
             prop_assert_eq![sigma_serialize_roundtrip(&e), e];
         }
     }

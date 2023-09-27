@@ -6,9 +6,7 @@ authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
 repository.workspace = true
 edition.workspace = true
 description = "ErgoTree IR, serialization"
-exclude = [
-    "proptest-regressions/*"
-]
+exclude = ["proptest-regressions/*"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -22,7 +20,7 @@ elliptic-curve = { workspace = true }
 thiserror = { workspace = true }
 lazy_static = { workspace = true }
 derive_more = { workspace = true }
-proptest = { workspace = true , optional = true }
+proptest = { workspace = true, optional = true }
 proptest-derive = { workspace = true, optional = true }
 bs58 = { workspace = true }
 base16 = { workspace = true }
@@ -32,13 +30,14 @@ num-traits = { workspace = true }
 num-derive = { workspace = true }
 num-integer = { workspace = true }
 indexmap = { workspace = true }
-serde = { workspace = true , optional = true }
+serde = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
 serde_with = { workspace = true, optional = true }
 num256 = "0.3.1"
 impl-trait-for-tuples = "0.2.0"
 strum = "0.21"
 strum_macros = "0.21"
+miette = { workspace = true }
 
 [features]
 default = ["json"]
@@ -49,3 +48,4 @@ json = ["serde", "serde_json", "serde_with", "bounded-vec/serde"]
 sigma-test-util = { workspace = true }
 rand = { workspace = true }
 pretty_assertions = { workspace = true }
+expect-test = { workspace = true }

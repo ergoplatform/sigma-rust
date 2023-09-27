@@ -8,7 +8,7 @@ use crate::eval::EvalError;
 use crate::eval::Evaluable;
 
 impl Evaluable for And {
-    fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
+    fn eval(&self, env: &mut Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
         let input_v = self.input.eval(env, ctx)?;
         let input_v_bools = input_v.try_extract_into::<Vec<bool>>()?;
         Ok(input_v_bools.iter().all(|b| *b).into())

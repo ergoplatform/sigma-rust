@@ -8,7 +8,7 @@ use super::EvalError;
 use super::Evaluable;
 
 impl Evaluable for GlobalVars {
-    fn eval(&self, _env: &Env, ectx: &mut EvalContext) -> Result<Value, EvalError> {
+    fn eval(&self, _env: &mut Env, ectx: &mut EvalContext) -> Result<Value, EvalError> {
         match self {
             GlobalVars::Height => Ok((ectx.ctx.height as i32).into()),
             GlobalVars::SelfBox => Ok(ectx.ctx.self_box.clone().into()),

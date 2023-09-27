@@ -10,7 +10,7 @@ use crate::eval::EvalError;
 use crate::eval::Evaluable;
 
 impl Evaluable for SigmaAnd {
-    fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
+    fn eval(&self, env: &mut Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
         let items_v_res = self.items.try_mapped_ref(|it| it.eval(env, ctx));
         let items_sigmabool = items_v_res?
             .try_mapped(|it| it.try_extract_into::<SigmaProp>())?

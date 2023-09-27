@@ -9,7 +9,7 @@ use crate::eval::Evaluable;
 use ergotree_ir::mir::constant::TryExtractInto;
 
 impl Evaluable for ByteArrayToLong {
-    fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
+    fn eval(&self, env: &mut Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
         let input = self.input.eval(env, ctx)?.try_extract_into::<Vec<i8>>()?;
         if input.len() < 8 {
             return Err(UnexpectedValue(

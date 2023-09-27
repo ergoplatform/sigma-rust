@@ -213,11 +213,9 @@ mod tests {
         let encoder = AddressEncoder::new(NetworkPrefix::Mainnet);
         let addr = encoder.parse_address_from_str(p2s_addr_str).unwrap();
         assert!(addr.script().unwrap().proposition().is_ok());
-        let _script = addr.script().unwrap().proposition().unwrap();
+        // let script = addr.script().unwrap().proposition().unwrap();
         // dbg!(&script);
-        // let res: bool = eval_out_wo_ctx::<SigmaProp>(script.as_ref())
-        //     .try_into()
-        //     .unwrap();
+        // let res: bool = eval_out_wo_ctx::<SigmaProp>(&script).try_into().unwrap();
         // assert!(!res);
     }
 
@@ -227,12 +225,9 @@ mod tests {
         let p2s_addr_str = "cLPHJ3MHuKAHoCUwGhcEFw5sWJqvPwFyKxTRj1aUoMwgAz78Fg3zLXRhBup9Te1WLau1gZXNmXvUmeXGCd7QLeqB7ArrT3v5cg26piEtqymM6j2SkgYVCobgoAGKeTf6nMLxv1uVrLdjt1GnPxG1MuWj7Es7Dfumotbx9YEaxwqtTUC5SKsJc9LCpAmNWRAQbU6tVVEvmfwWivrGoZ3L5C4DMisxN3U";
         let encoder = AddressEncoder::new(NetworkPrefix::Mainnet);
         let addr = encoder.parse_address_from_str(p2s_addr_str).unwrap();
-        let _script = addr.script().unwrap().proposition().unwrap();
-        // dbg!(&script);
-        // let res: bool = eval_out_wo_ctx::<SigmaProp>(script.as_ref())
-        //     .try_into()
-        //     .unwrap();
-        // assert!(!res);
+        let _ = addr.script().unwrap().proposition().unwrap();
+        // let ctx = Rc::new(force_any_val::<Context>());
+        // let _ = reduce_to_crypto(&script, &Env::empty(), ctx).unwrap();
     }
 
     #[test]
@@ -284,6 +279,15 @@ mod tests {
 
         let encoder = AddressEncoder::new(NetworkPrefix::Mainnet);
         let addr = encoder.parse_address_from_str(p2s_str).unwrap();
-        let _script = addr.script().unwrap().proposition().unwrap();
+        let _ = addr.script().unwrap().proposition().unwrap();
+        // let ctx = Rc::new(force_any_val::<Context>());
+        // let res = reduce_to_crypto(&script, &Env::empty(), ctx).unwrap();
+        // match res.sigma_prop {
+        //     SigmaBoolean::TrivialProp(b) => assert!(b),
+        //     SigmaBoolean::ProofOfKnowledge(_) => {
+        //         todo!()
+        //     }
+        //     SigmaBoolean::SigmaConjecture(_) => todo!(),
+        // }
     }
 }

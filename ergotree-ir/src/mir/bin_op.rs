@@ -1,5 +1,7 @@
 //! Operators in ErgoTree
 
+use std::fmt::Display;
+
 use super::expr::Expr;
 use crate::has_opcode::HasOpCode;
 use crate::serialization::op_code::OpCode;
@@ -45,6 +47,20 @@ impl From<ArithOp> for OpCode {
     }
 }
 
+impl Display for ArithOp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ArithOp::Plus => write!(f, "+"),
+            ArithOp::Minus => write!(f, "-"),
+            ArithOp::Multiply => write!(f, "*"),
+            ArithOp::Divide => write!(f, "/"),
+            ArithOp::Max => write!(f, "max"),
+            ArithOp::Min => write!(f, "min"),
+            ArithOp::Modulo => write!(f, "%"),
+        }
+    }
+}
+
 /// Relational operations
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 #[cfg_attr(feature = "arbitrary", derive(Arbitrary))]
@@ -76,6 +92,19 @@ impl From<RelationOp> for OpCode {
     }
 }
 
+impl Display for RelationOp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RelationOp::Eq => write!(f, "=="),
+            RelationOp::NEq => write!(f, "!="),
+            RelationOp::Ge => write!(f, ">="),
+            RelationOp::Gt => write!(f, ">"),
+            RelationOp::Le => write!(f, "<="),
+            RelationOp::Lt => write!(f, "<"),
+        }
+    }
+}
+
 /// Logical operations
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 #[cfg_attr(feature = "arbitrary", derive(Arbitrary))]
@@ -94,6 +123,16 @@ impl From<LogicalOp> for OpCode {
             LogicalOp::And => OpCode::BIN_AND,
             LogicalOp::Or => OpCode::BIN_OR,
             LogicalOp::Xor => OpCode::BIN_XOR,
+        }
+    }
+}
+
+impl Display for LogicalOp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LogicalOp::And => write!(f, "&&"),
+            LogicalOp::Or => write!(f, "||"),
+            LogicalOp::Xor => write!(f, "^"),
         }
     }
 }
@@ -120,6 +159,16 @@ impl From<BitOp> for OpCode {
     }
 }
 
+impl Display for BitOp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BitOp::BitOr => write!(f, "|"),
+            BitOp::BitAnd => write!(f, "&"),
+            BitOp::BitXor => write!(f, "^"),
+        }
+    }
+}
+
 /// Binary operations
 #[derive(PartialEq, Eq, Debug, Clone, Copy, From)]
 #[cfg_attr(feature = "arbitrary", derive(Arbitrary))]
@@ -141,6 +190,17 @@ impl From<BinOpKind> for OpCode {
             BinOpKind::Relation(o) => o.into(),
             BinOpKind::Logical(o) => o.into(),
             BinOpKind::Bit(o) => o.into(),
+        }
+    }
+}
+
+impl Display for BinOpKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BinOpKind::Arith(op) => write!(f, "{}", op),
+            BinOpKind::Relation(op) => write!(f, "{}", op),
+            BinOpKind::Logical(op) => write!(f, "{}", op),
+            BinOpKind::Bit(op) => write!(f, "{}", op),
         }
     }
 }
@@ -292,19 +352,22 @@ mod tests {
         let e = Expr::sigma_parse_bytes(&[0xed, 0x85, 0x03]);
         assert_eq!(
             e,
-            Ok(Expr::BinOp(BinOp {
-                kind: BinOpKind::Logical(LogicalOp::And,),
-                left: Expr::Const(Constant {
-                    tpe: SType::SBoolean,
-                    v: Boolean(true),
-                })
-                .into(),
-                right: Expr::Const(Constant {
-                    tpe: SType::SBoolean,
-                    v: Boolean(true),
-                })
-                .into(),
-            }))
+            Ok(Expr::BinOp(
+                BinOp {
+                    kind: BinOpKind::Logical(LogicalOp::And,),
+                    left: Expr::Const(Constant {
+                        tpe: SType::SBoolean,
+                        v: Boolean(true),
+                    })
+                    .into(),
+                    right: Expr::Const(Constant {
+                        tpe: SType::SBoolean,
+                        v: Boolean(true),
+                    })
+                    .into(),
+                }
+                .into()
+            ))
         );
     }
 }

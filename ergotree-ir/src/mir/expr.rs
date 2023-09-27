@@ -3,6 +3,9 @@
 use std::convert::TryFrom;
 use std::convert::TryInto;
 
+use crate::pretty_printer::PosTrackingWriter;
+use crate::pretty_printer::Print;
+use crate::source_span::Spanned;
 use crate::types::stype::LiftIntoSType;
 use crate::types::stype::SType;
 
@@ -84,17 +87,17 @@ use thiserror::Error;
 /// Expression in ErgoTree
 pub enum Expr {
     /// Append - Concatenation of two collections
-    Append(Append),
+    Append(Spanned<Append>),
     /// Constant value
     Const(Constant),
     /// Placeholder for a constant
     ConstPlaceholder(ConstantPlaceholder),
     /// Substitute constants in serialized ergo tree
-    SubstConstants(SubstConstants),
+    SubstConstants(Spanned<SubstConstants>),
     /// Convert byte array to SLong
-    ByteArrayToLong(ByteArrayToLong),
+    ByteArrayToLong(Spanned<ByteArrayToLong>),
     /// Convert byte array to SLong
-    ByteArrayToBigInt(ByteArrayToBigInt),
+    ByteArrayToBigInt(Spanned<ByteArrayToBigInt>),
     /// Convert SLong to a byte array
     LongToByteArray(LongToByteArray),
     /// Collection declaration (array of expressions of the same type)
@@ -117,43 +120,43 @@ pub enum Expr {
     /// Function application
     Apply(Apply),
     /// Method call
-    MethodCall(MethodCall),
+    MethodCall(Spanned<MethodCall>),
     /// Property call
-    ProperyCall(PropertyCall),
+    PropertyCall(Spanned<PropertyCall>),
     /// Block (statements, followed by an expression)
-    BlockValue(BlockValue),
+    BlockValue(Spanned<BlockValue>),
     /// let-bound expression
-    ValDef(ValDef),
+    ValDef(Spanned<ValDef>),
     /// Reference to ValDef
     ValUse(ValUse),
     /// If, non-lazy - evaluate both branches
     If(If),
     /// Binary operation
-    BinOp(BinOp),
+    BinOp(Spanned<BinOp>),
     /// Logical AND
-    And(And),
+    And(Spanned<And>),
     /// Logical OR
-    Or(Or),
+    Or(Spanned<Or>),
     /// Byte-wise XOR
     Xor(Xor),
     /// THRESHOLD composition for sigma expressions
     Atleast(Atleast),
     /// LogicalNot
-    LogicalNot(LogicalNot),
+    LogicalNot(Spanned<LogicalNot>),
     /// Negation on numeric type
-    Negation(Negation),
+    Negation(Spanned<Negation>),
     /// Bit inversion on numeric type
     BitInversion(BitInversion),
     /// Option.get method
-    OptionGet(OptionGet),
+    OptionGet(Spanned<OptionGet>),
     /// Option.isDefined method
-    OptionIsDefined(OptionIsDefined),
+    OptionIsDefined(Spanned<OptionIsDefined>),
     /// Returns the option's value if the option is nonempty, otherwise return the result of evaluating `default`.
-    OptionGetOrElse(OptionGetOrElse),
+    OptionGetOrElse(Spanned<OptionGetOrElse>),
     /// Box monetary value
     ExtractAmount(ExtractAmount),
     /// Extract register's value (box.RX properties)
-    ExtractRegisterAs(ExtractRegisterAs),
+    ExtractRegisterAs(Spanned<ExtractRegisterAs>),
     /// Extract serialized box bytes
     ExtractBytes(ExtractBytes),
     /// Extract serialized box bytes excluding transaction_id & index
@@ -166,23 +169,23 @@ pub enum Expr {
     /// Box id, Blake2b256 hash of this box's content, basically equals to `blake2b256(bytes)`
     ExtractId(ExtractId),
     /// Collection, get element by index
-    ByIndex(ByIndex),
+    ByIndex(Spanned<ByIndex>),
     /// Collection size
     SizeOf(SizeOf),
     /// Collection slice
-    Slice(Slice),
+    Slice(Spanned<Slice>),
     /// Collection fold op
-    Fold(Fold),
+    Fold(Spanned<Fold>),
     /// Collection map op
-    Map(Map),
+    Map(Spanned<Map>),
     /// Collection filter op
-    Filter(Filter),
+    Filter(Spanned<Filter>),
     /// Tests whether a predicate holds for at least one element of this collection
-    Exists(Exists),
+    Exists(Spanned<Exists>),
     /// Tests whether a predicate holds for all elements of this collection.
-    ForAll(ForAll),
+    ForAll(Spanned<ForAll>),
     /// Tuple field access
-    SelectField(SelectField),
+    SelectField(Spanned<SelectField>),
     /// Bool to SigmaProp
     BoolToSigmaProp(BoolToSigmaProp),
     /// Upcast numeric value
@@ -202,7 +205,7 @@ pub enum Expr {
     /// OR conjunction for sigma propositions
     SigmaOr(SigmaOr),
     /// Extracts Context variable by id and type
-    GetVar(GetVar),
+    GetVar(Spanned<GetVar>),
     /// Extract register of SELF box as `Coll[Byte]`, deserialize it into Value and inline into
     /// the executing script.
     DeserializeRegister(DeserializeRegister),
@@ -218,7 +221,7 @@ pub enum Expr {
     /// XOR for collection of booleans
     XorOf(XorOf),
     /// Perform a lookup by key in an AVL tree
-    TreeLookup(TreeLookup),
+    TreeLookup(Spanned<TreeLookup>),
     /// Create an AVL tree
     CreateAvlTree(CreateAvlTree),
 }
@@ -227,12 +230,12 @@ impl Expr {
     /// Type of the expression
     pub fn tpe(&self) -> SType {
         match self {
-            Expr::Append(ap) => ap.tpe(),
+            Expr::Append(ap) => ap.expr().tpe(),
             Expr::Const(v) => v.tpe.clone(),
             Expr::Collection(v) => v.tpe(),
-            Expr::SubstConstants(v) => v.tpe(),
-            Expr::ByteArrayToLong(v) => v.tpe(),
-            Expr::ByteArrayToBigInt(v) => v.tpe(),
+            Expr::SubstConstants(v) => v.expr().tpe(),
+            Expr::ByteArrayToLong(v) => v.expr().tpe(),
+            Expr::ByteArrayToBigInt(v) => v.expr().tpe(),
             Expr::LongToByteArray(v) => v.tpe(),
             Expr::ConstPlaceholder(v) => v.tpe.clone(),
             Expr::CalcBlake2b256(v) => v.tpe(),
@@ -242,56 +245,56 @@ impl Expr {
             Expr::GlobalVars(v) => v.tpe(),
             Expr::FuncValue(v) => v.tpe(),
             Expr::Apply(v) => v.tpe(),
-            Expr::MethodCall(v) => v.tpe(),
-            Expr::ProperyCall(v) => v.tpe(),
-            Expr::BlockValue(v) => v.tpe(),
-            Expr::ValDef(v) => v.tpe(),
+            Expr::MethodCall(v) => v.expr().tpe(),
+            Expr::PropertyCall(v) => v.expr().tpe(),
+            Expr::BlockValue(v) => v.expr().tpe(),
+            Expr::ValDef(v) => v.expr().tpe(),
             Expr::ValUse(v) => v.tpe.clone(),
-            Expr::BinOp(v) => v.tpe(),
-            Expr::OptionGet(v) => v.tpe(),
-            Expr::ExtractRegisterAs(v) => v.tpe(),
-            Expr::Fold(v) => v.tpe(),
-            Expr::SelectField(v) => v.tpe(),
+            Expr::BinOp(v) => v.expr().tpe(),
+            Expr::OptionGet(v) => v.expr().tpe(),
+            Expr::ExtractRegisterAs(v) => v.expr().tpe(),
+            Expr::Fold(v) => v.expr().tpe(),
+            Expr::SelectField(v) => v.expr().tpe(),
             Expr::ExtractAmount(v) => v.tpe(),
-            Expr::And(v) => v.tpe(),
-            Expr::Or(v) => v.tpe(),
+            Expr::And(v) => v.expr().tpe(),
+            Expr::Or(v) => v.expr().tpe(),
             Expr::Xor(v) => v.tpe(),
             Expr::Atleast(v) => v.tpe(),
-            Expr::LogicalNot(v) => v.tpe(),
-            Expr::Map(v) => v.tpe(),
-            Expr::Filter(v) => v.tpe(),
+            Expr::LogicalNot(v) => v.expr().tpe(),
+            Expr::Map(v) => v.expr().tpe(),
+            Expr::Filter(v) => v.expr().tpe(),
             Expr::BoolToSigmaProp(v) => v.tpe(),
             Expr::Upcast(v) => v.tpe(),
             Expr::Downcast(v) => v.tpe(),
             Expr::If(v) => v.tpe(),
-            Expr::ByIndex(v) => v.tpe(),
+            Expr::ByIndex(v) => v.expr().tpe(),
             Expr::ExtractScriptBytes(v) => v.tpe(),
             Expr::SizeOf(v) => v.tpe(),
-            Expr::Slice(v) => v.tpe(),
+            Expr::Slice(v) => v.expr().tpe(),
             Expr::CreateProveDlog(v) => v.tpe(),
             Expr::CreateProveDhTuple(v) => v.tpe(),
             Expr::ExtractCreationInfo(v) => v.tpe(),
-            Expr::Exists(v) => v.tpe(),
+            Expr::Exists(v) => v.expr().tpe(),
             Expr::ExtractId(v) => v.tpe(),
             Expr::SigmaPropBytes(v) => v.tpe(),
-            Expr::OptionIsDefined(v) => v.tpe(),
-            Expr::OptionGetOrElse(v) => v.tpe(),
-            Expr::Negation(v) => v.tpe(),
+            Expr::OptionIsDefined(v) => v.expr().tpe(),
+            Expr::OptionGetOrElse(v) => v.expr().tpe(),
+            Expr::Negation(v) => v.expr().tpe(),
             Expr::BitInversion(v) => v.tpe(),
-            Expr::ForAll(v) => v.tpe(),
+            Expr::ForAll(v) => v.expr().tpe(),
             Expr::Tuple(v) => v.tpe(),
             Expr::DecodePoint(v) => v.tpe(),
             Expr::SigmaAnd(v) => v.tpe(),
             Expr::SigmaOr(v) => v.tpe(),
             Expr::DeserializeRegister(v) => v.tpe(),
             Expr::DeserializeContext(v) => v.tpe(),
-            Expr::GetVar(v) => v.tpe(),
+            Expr::GetVar(v) => v.expr().tpe(),
             Expr::MultiplyGroup(v) => v.tpe(),
             Expr::Exponentiate(v) => v.tpe(),
             Expr::XorOf(v) => v.tpe(),
             Expr::ExtractBytes(v) => v.tpe(),
             Expr::ExtractBytesWithNoRef(v) => v.tpe(),
-            Expr::TreeLookup(v) => v.tpe(),
+            Expr::TreeLookup(v) => v.expr().tpe(),
             Expr::CreateAvlTree(v) => v.tpe(),
         }
     }
@@ -326,6 +329,14 @@ impl Expr {
     pub fn debug_tree(&self) -> String {
         let tree = format!("{:#?}", self);
         tree
+    }
+
+    /// Pretty prints the tree
+    pub fn to_string_pretty(&self) -> String {
+        let mut printer = PosTrackingWriter::new();
+        #[allow(clippy::unwrap_used)] // it only fail due to formatting errors
+        let _spanned_expr = self.print(&mut printer).unwrap();
+        printer.as_string()
     }
 }
 

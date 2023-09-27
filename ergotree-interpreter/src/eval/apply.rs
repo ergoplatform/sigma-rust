@@ -8,7 +8,7 @@ use crate::eval::EvalError;
 use crate::eval::Evaluable;
 
 impl Evaluable for Apply {
-    fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
+    fn eval(&self, env: &mut Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
         let func_v = self.func.eval(env, ctx)?;
         let args_v_res: Result<Vec<Value>, EvalError> =
             self.args.iter().map(|arg| arg.eval(env, ctx)).collect();
@@ -16,11 +16,10 @@ impl Evaluable for Apply {
         match func_v {
             Value::Lambda(fv) => {
                 let arg_ids: Vec<ValId> = fv.args.iter().map(|a| a.idx).collect();
-                let mut cur_env = env.clone();
                 arg_ids.iter().zip(args_v).for_each(|(idx, arg_v)| {
-                    cur_env.insert(*idx, arg_v);
+                    env.insert(*idx, arg_v);
                 });
-                fv.body.eval(&cur_env, ctx)
+                fv.body.eval(env, ctx)
             }
             _ => Err(EvalError::UnexpectedValue(format!(
                 "expected func_v to be Value::FuncValue got: {0:?}",
@@ -54,31 +53,37 @@ mod tests {
     #[test]
     fn eval_user_defined_func_call() {
         let arg = Expr::Const(1i32.into());
-        let bin_op = Expr::BinOp(BinOp {
-            kind: RelationOp::Eq.into(),
-            left: Box::new(
-                ValUse {
-                    val_id: 1.into(),
-                    tpe: SType::SInt,
-                }
-                .into(),
-            ),
-            right: Box::new(
-                ValUse {
-                    val_id: 2.into(),
-                    tpe: SType::SInt,
-                }
-                .into(),
-            ),
-        });
-        let body = Expr::BlockValue(BlockValue {
-            items: vec![ValDef {
-                id: 2.into(),
-                rhs: Box::new(Expr::Const(1i32.into())),
+        let bin_op = Expr::BinOp(
+            BinOp {
+                kind: RelationOp::Eq.into(),
+                left: Box::new(
+                    ValUse {
+                        val_id: 1.into(),
+                        tpe: SType::SInt,
+                    }
+                    .into(),
+                ),
+                right: Box::new(
+                    ValUse {
+                        val_id: 2.into(),
+                        tpe: SType::SInt,
+                    }
+                    .into(),
+                ),
             }
-            .into()],
-            result: Box::new(bin_op),
-        });
+            .into(),
+        );
+        let body = Expr::BlockValue(
+            BlockValue {
+                items: vec![ValDef {
+                    id: 2.into(),
+                    rhs: Box::new(Expr::Const(1i32.into())),
+                }
+                .into()],
+                result: Box::new(bin_op),
+            }
+            .into(),
+        );
         let apply: Expr = Apply::new(
             FuncValue::new(
                 vec![FuncArg {

@@ -7,7 +7,7 @@ use crate::eval::EvalError;
 use crate::eval::Evaluable;
 
 impl Evaluable for OptionGetOrElse {
-    fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
+    fn eval(&self, env: &mut Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
         let v = self.input.eval(env, ctx)?;
         let default_v = self.default.eval(env, ctx)?;
         match v {

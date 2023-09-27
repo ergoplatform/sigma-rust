@@ -81,6 +81,21 @@ impl Cthreshold {
     }
 }
 
+impl std::fmt::Display for Cthreshold {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("atLeast(")?;
+        f.write_str(self.k.to_string().as_str())?;
+        f.write_str(", (")?;
+        for (i, item) in self.children.iter().enumerate() {
+            if i > 0 {
+                f.write_str(", ")?;
+            }
+            item.fmt(f)?;
+        }
+        f.write_str(")")
+    }
+}
+
 impl HasStaticOpCode for Cthreshold {
     const OP_CODE: OpCode = OpCode::ATLEAST;
 }

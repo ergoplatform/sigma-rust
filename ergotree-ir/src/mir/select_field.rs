@@ -14,7 +14,7 @@ use super::expr::InvalidArgumentError;
 use crate::has_opcode::HasStaticOpCode;
 
 /// Tuple field access index (1..=255)
-#[derive(PartialEq, Eq, Debug, Copy, Clone)]
+#[derive(PartialEq, Eq, Debug, Copy, Clone, derive_more::Display)]
 pub struct TupleFieldIndex(u8);
 
 /// Error for tuple index being out of bounds (1..=255)

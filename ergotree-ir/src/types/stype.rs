@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 use std::convert::TryInto;
+use std::fmt::Debug;
 
 use impl_trait_for_tuples::impl_for_tuples;
 
@@ -123,6 +124,34 @@ impl From<STypeVar> for SType {
 impl From<SFunc> for SType {
     fn from(v: SFunc) -> Self {
         SType::SFunc(v)
+    }
+}
+
+impl std::fmt::Display for SType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SType::STypeVar(t) => write!(f, "{}", t.as_string()),
+            SType::SAny => write!(f, "Any"),
+            SType::SUnit => write!(f, "Unit"),
+            SType::SBoolean => write!(f, "Boolean"),
+            SType::SByte => write!(f, "Byte"),
+            SType::SShort => write!(f, "Short"),
+            SType::SInt => write!(f, "Int"),
+            SType::SLong => write!(f, "Long"),
+            SType::SBigInt => write!(f, "BigInt"),
+            SType::SGroupElement => write!(f, "GroupElement"),
+            SType::SSigmaProp => write!(f, "SigmaProp"),
+            SType::SBox => write!(f, "Box"),
+            SType::SAvlTree => write!(f, "AvlTree"),
+            SType::SOption(t) => write!(f, "Option[{}]", t),
+            SType::SColl(t) => write!(f, "Coll[{}]", t),
+            SType::STuple(t) => write!(f, "{}", t),
+            SType::SFunc(t) => write!(f, "{}", t),
+            SType::SContext => write!(f, "Context"),
+            SType::SHeader => write!(f, "Header"),
+            SType::SPreHeader => write!(f, "PreHeader"),
+            SType::SGlobal => write!(f, "Global"),
+        }
     }
 }
 

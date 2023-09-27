@@ -60,7 +60,7 @@ pub(crate) static FLATMAP_EVAL_FN: EvalFn = |env, ctx, obj, args| {
         "unsupported lambda in flatMap: allowed usage `xs.flatMap(x => x.property)".to_string();
     match &*lambda.body {
         Expr::MethodCall(mc) => {
-            if !mc.args.is_empty() {
+            if !mc.expr().args.is_empty() {
                 return Err(EvalError::UnexpectedValue(unsupported_msg));
             }
         }
@@ -75,8 +75,8 @@ pub(crate) static FLATMAP_EVAL_FN: EvalFn = |env, ctx, obj, args| {
         let func_arg = lambda.args.first().ok_or_else(|| {
             EvalError::NotFound("flatmap: lambda has empty arguments list".to_string())
         })?;
-        let env1 = env.clone().extend(func_arg.idx, arg);
-        lambda.body.eval(&env1, ctx)
+        env.insert(func_arg.idx, arg);
+        lambda.body.eval(env, ctx)
     };
     let mapper_input_tpe = lambda
         .args

@@ -12,18 +12,20 @@ use crate::eval::EvalError;
 use crate::eval::Evaluable;
 
 impl Evaluable for ExtractRegisterAs {
-    fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
+    fn eval(&self, env: &mut Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
         let ir_box = self
             .input
             .eval(env, ctx)?
             .try_extract_into::<Arc<ErgoBox>>()?;
         let id = self.register_id.try_into().map_err(|e| {
-            EvalError::RegisterIdOutOfBounds(format!("register index is out of bounds: {:?} ", e))
+            EvalError::RegisterIdOutOfBounds(format!(
+                "register index {} is out of bounds: {:?} ",
+                self.register_id, e
+            ))
         })?;
         let reg_val_opt = ir_box.get_register(id).map_err(|e| {
             EvalError::NotFound(format!(
-                "Error getting the register id {:?} with error {e:?}",
-                id
+                "Error getting the register id {id} with error {e:?}"
             ))
         })?;
         Ok(Value::Opt(Box::new(reg_val_opt.map(|c| Value::from(c.v)))))

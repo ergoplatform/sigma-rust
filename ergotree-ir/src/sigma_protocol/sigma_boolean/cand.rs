@@ -48,6 +48,19 @@ impl Cand {
     }
 }
 
+impl std::fmt::Display for Cand {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("(")?;
+        for (i, item) in self.items.iter().enumerate() {
+            if i > 0 {
+                f.write_str(" && ")?;
+            }
+            item.fmt(f)?;
+        }
+        f.write_str(")")
+    }
+}
+
 impl SigmaSerializable for Cand {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         w.put_u16(self.items.len() as u16)?;

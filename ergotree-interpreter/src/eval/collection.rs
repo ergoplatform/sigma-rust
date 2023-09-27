@@ -12,7 +12,7 @@ use crate::eval::EvalError;
 use crate::eval::Evaluable;
 
 impl Evaluable for Collection {
-    fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
+    fn eval(&self, env: &mut Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
         Ok(match self {
             Collection::BoolConstants(bools) => bools.clone().into(),
             Collection::Exprs { elem_tpe, items } => {

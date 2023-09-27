@@ -8,7 +8,7 @@ use crate::eval::EvalError;
 use crate::eval::Evaluable;
 
 impl Evaluable for Map {
-    fn eval(&self, env: &Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
+    fn eval(&self, env: &mut Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
         let input_v = self.input.eval(env, ctx)?;
         let mapper_v = self.mapper.eval(env, ctx)?;
         let input_v_clone = input_v.clone();
@@ -19,8 +19,8 @@ impl Evaluable for Map {
                         "Map: evaluated mapper has empty arguments list".to_string(),
                     )
                 })?;
-                let env1 = env.clone().extend(func_arg.idx, arg);
-                func_value.body.eval(&env1, ctx)
+                env.insert(func_arg.idx, arg);
+                func_value.body.eval(env, ctx)
             }
             _ => Err(EvalError::UnexpectedValue(format!(
                 "expected mapper to be Value::FuncValue got: {0:?}",
