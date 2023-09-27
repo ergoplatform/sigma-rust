@@ -236,12 +236,10 @@ impl Address {
                     }
                     .into(),
                 );
-                let script_is_correct = Expr::DeserializeContext(
-                    DeserializeContext {
-                        tpe: SType::SSigmaProp,
-                        id: 1,
-                    }
-                );
+                let script_is_correct = Expr::DeserializeContext(DeserializeContext {
+                    tpe: SType::SSigmaProp,
+                    id: 1,
+                });
                 let sigma_prop = Expr::BoolToSigmaProp(BoolToSigmaProp {
                     input: Box::from(hash_equals),
                 });

@@ -625,7 +625,7 @@ mod tests {
         )
     }
 
-#[test]
+    #[test]
     fn amm_conc_pool() {
         // from eip-14 https://github.com/ergoplatform/eips/pull/27/files
         let p2s_addr_str = "AhCu1UkNT4c9q3B2Lb7gNgvZWCdXL8iYgmNxTYiy4S3wgKWFFW6kz9v7pvY8NqC7g4wgXXwzJY1fQVn2xrLkiyiQWsorq5dR7d5KnDAY43H4GvSVjaDciadXCSHCb8jgk8mFSQCwoZHweLmMJ25312wT85AySJgYUuzdUxMz4EnQpiwZR2XVZq3M81gycuqP9gUryryjN4J1cAF3yL3kZR3rREubBvJ2CY5hF74Xaj2jwajivkESkqq22ieWWG2sK7dk1A7KHr1MmiXGcUBAMMGPAu3mVCeFW9SongxP9hodnJThLknjWRBBBC6wq5jNkSdHrMbdaQM3XesXqGTk9KwWpnSL92E96muU2k8FQbo5isps1r5ciYVrFptfEAC3tWbwcVmRKtrgxtCex6bP5aBZYjaH6L9QQbkYriDAcQ1iZcpf3hHCqURjRXL7i72C3aGBwzzspQvhLof6x4f4gPxTCtF1bNUxddUL6DJ1PbQWzVH8taivjhHohis6sRn3Akvv4xaZRJdKZ8rDuiounRKNXi8VoNgVEZbSFYtfweRSdsiXJCkhtehLWdtFTk1eg7djASdBGKaguvtEBcGaAALVDUoH479VskPUQ6hrfS7KcWrATBdb8sf4W5MFpx7UNitzq2fzSKC96mQRUzy5uELe7Y7vexm5ArNEyr6ARkypZypSzJ2CEifjVxxRBEWVtbdqHrwP4gWv6cMdbqFWwuXAw2BZQnWpZFtKAGQ9m";
@@ -673,7 +673,7 @@ mod tests {
         )
     }
 
-#[test]
+    #[test]
     fn eip_22_auction() {
         // from https://github.com/ergoplatform/eips/blob/adbe21512cadf51a2d9af8406cfd418f95335899/eip-0022.md
         let p2s_addr_str = "GE68RH3VEgW6b4kN3GhYigrLxoXr9jMgMpmm3KnXJaYq1PzHieYhz7Uka86idxvBWLRLmpiA3HrxHPsX1jzQZEv5yaRDueiJqks1keM7iB1eYWMEVRUUq1MLFzdA1FHQwCfSakM3Uc8uBPqk2icxhoXvw1CVbUVtFCzcPrZzf8Jjf8gS5bCFpWQscHo14HTsdBxyV3dwL6wKu8LP8FuWJE7qCEgX9ToEiztH4ZLmFwBejnUFrCQqjLVLWpdgdnAXVyewiX9DxXKJKL4wNqhPUrYjmHEVvpZAezXjzfVMr7gKupTqAgx2AJYGh4winEDeYq9MVshX8xjJweGhbAm2RXN1euQpoepFaKqfrT2mQBTmr6edbbzYg6VJ7DoSCDzmcUupFAmZMjMiaUbgtyz2VEbPEKsmAFrZ6zdB5EUxhiYZMd6KdstsJwZCgKJSSCShTgpfqNLCdpR9JbZFQpA1uhUkuLMPvGi74V5EwijTEEtjmTVcWcVhJKv4GDr1Lqe2bMPq4jfEfqvemaY8FcrCsCSi2LZoQUeJ9VrBeotGTKccq8JhwnvNGhLUUrrm32v3bhU82jbtVBVFRD3FSv5hhS6pKHtTevjwuG7JWoR3LN7279A7zQGJWmkSWDoEhHjgxseqZ2G5bLB7ZVEzKM261QhwMwmXA1eWgq8zdBH1u9kFC9bMQ812q2DPZTuhzpBWJh74UGwaEgZLhnUrDKT58cEa4R3kfWyGCMoNw78q1E3a2eKDz8Va5wnixzT2SZFHU8DfHjPSz5rm8Mr3YxgRC6GzaasPDxTrZjuMJHU2exhqsoFvur7Q";
@@ -730,5 +730,4 @@ mod tests {
             "#]],
         )
     }
-
 }
