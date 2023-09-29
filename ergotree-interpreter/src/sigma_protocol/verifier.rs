@@ -17,8 +17,8 @@ use super::{
 };
 use crate::eval::context::Context;
 use crate::eval::env::Env;
-use crate::eval::reduce_to_crypto;
 use crate::eval::EvalError;
+use crate::eval::{reduce_to_crypto, ReductionDiagnosticInfo};
 use dlog_protocol::FirstDlogProverMessage;
 use ergotree_ir::ergo_tree::ErgoTree;
 use ergotree_ir::ergo_tree::ErgoTreeError;
@@ -49,6 +49,8 @@ pub struct VerificationResult {
     pub result: bool,
     /// estimated cost of contract execution
     pub cost: u64,
+    /// Diagnostic information about the reduction (pretty printed expr and/or env)
+    pub diag: ReductionDiagnosticInfo,
 }
 
 /// Verifier for the proofs generater by [`super::prover::Prover`]

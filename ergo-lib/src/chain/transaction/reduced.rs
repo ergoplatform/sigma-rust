@@ -31,8 +31,10 @@ use super::TxIoVec;
 /// <https://github.com/ergoplatform/eips/blob/f280890a4163f2f2e988a0091c078e36912fc531/eip-0019.md>
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ReducedInput {
-    /// Input box script reduced to SigmaBoolean
-    pub reduction_result: ReductionResult,
+    /// value of SigmaProp type which represents a statement verifiable via sigma protocol.
+    pub sigma_prop: SigmaBoolean,
+    /// estimated cost of expression evaluation
+    pub cost: u64,
     /// ContextExtension for the input
     pub extension: ContextExtension,
 }
@@ -87,8 +89,9 @@ pub fn reduce_tx(
                 .map_err(ProverError::EvalError)
                 .map_err(|e| TxSigningError::ProverError(e, idx))?;
             Ok(ReducedInput {
-                reduction_result,
                 extension: input.extension,
+                sigma_prop: reduction_result.sigma_prop,
+                cost: reduction_result.cost,
             })
         })?;
     Ok(ReducedTransaction {
@@ -123,11 +126,8 @@ impl SigmaSerializable for ReducedTransaction {
                 let cost = r.get_u64()?;
                 let extension = input.spending_proof.extension;
                 let reduced_input = ReducedInput {
-                    reduction_result: ReductionResult {
-                        sigma_prop,
-                        cost,
-                        env: Env::empty(),
-                    },
+                    sigma_prop,
+                    cost,
                     extension: extension.clone(),
                 };
                 let unsigned_input = UnsignedInput {
@@ -168,11 +168,8 @@ pub mod arbitrary {
                 .prop_map(|(unsigned_tx, sb, tx_cost)| Self {
                     unsigned_tx: unsigned_tx.clone(),
                     reduced_inputs: unsigned_tx.inputs.mapped(|unsigned_input| ReducedInput {
-                        reduction_result: ReductionResult {
-                            sigma_prop: sb.clone(),
-                            cost: 0,
-                            env: Env::empty(),
-                        },
+                        sigma_prop: sb.clone(),
+                        cost: 0,
                         extension: unsigned_input.extension,
                     }),
                     tx_cost,

@@ -6,6 +6,7 @@ mod prover_result;
 pub mod hint;
 
 use crate::eval::reduce_to_crypto;
+use crate::eval::ReductionDiagnosticInfo;
 use crate::sigma_protocol::crypto_utils::secure_random_bytes;
 use crate::sigma_protocol::fiat_shamir::fiat_shamir_hash_fn;
 use crate::sigma_protocol::fiat_shamir::fiat_shamir_tree_to_bytes;
@@ -76,7 +77,7 @@ pub enum ProverError {
     Gf2_192Error(Gf2_192Error),
     /// Script reduced to false
     #[error("Script reduced to false")]
-    ReducedToFalse,
+    ReducedToFalse(ReductionDiagnosticInfo),
     /// Failed on step2(prover does not have enough witnesses to perform the proof)
     #[error("Failed on step2(prover does not have enough witnesses to perform the proof)")]
     TreeRootIsNotReal,
