@@ -79,7 +79,7 @@ pub enum ProverError {
     #[error("Script reduced to false")]
     ReducedToFalse,
     /// Script reduced to false with diagnostic info
-    #[error("Script reduced to false. Diagnostic info: {0:?}")]
+    #[error("Script reduced to false. Diagnostic info: {0}")]
     ReducedToFalseWithDiag(ReductionDiagnosticInfo),
     /// Failed on step2(prover does not have enough witnesses to perform the proof)
     #[error("Failed on step2(prover does not have enough witnesses to perform the proof)")]

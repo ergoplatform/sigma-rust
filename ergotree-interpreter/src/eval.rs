@@ -3,6 +3,7 @@ use ergotree_ir::mir::constant::TryExtractInto;
 use ergotree_ir::pretty_printer::PosTrackingWriter;
 use ergotree_ir::pretty_printer::Print;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProp;
+use std::fmt::Display;
 use std::rc::Rc;
 
 use ergotree_ir::mir::expr::Expr;
@@ -104,6 +105,15 @@ pub struct ReductionDiagnosticInfo {
     pub env: Env,
     /// expression pretty-printed
     pub pretty_printed_expr: Option<String>,
+}
+
+impl Display for ReductionDiagnosticInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Some(expr_str) = &self.pretty_printed_expr {
+            writeln!(f, "Pretty printed expr:\n{}", expr_str)?;
+        }
+        write!(f, "Env:\n{}", self.env)
+    }
 }
 
 /// Result of expression reduction procedure (see `reduce_to_crypto`).
