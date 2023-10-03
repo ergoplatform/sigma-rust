@@ -5,7 +5,6 @@ use std::rc::Rc;
 
 use ergotree_interpreter::eval::env::Env;
 use ergotree_interpreter::eval::reduce_to_crypto;
-use ergotree_interpreter::eval::ReductionResult;
 use ergotree_interpreter::sigma_protocol::prover::ContextExtension;
 use ergotree_interpreter::sigma_protocol::prover::ProverError;
 use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
@@ -107,8 +106,8 @@ impl SigmaSerializable for ReducedTransaction {
         w.put_usize_as_u32_unwrapped(msg.len())?;
         w.write_all(&msg)?;
         self.reduced_inputs.as_vec().iter().try_for_each(|red_in| {
-            red_in.reduction_result.sigma_prop.sigma_serialize(w)?;
-            w.put_u64(red_in.reduction_result.cost)?;
+            red_in.sigma_prop.sigma_serialize(w)?;
+            w.put_u64(red_in.cost)?;
             SigmaSerializeResult::Ok(())
         })?;
         w.put_u32(self.tx_cost)?;

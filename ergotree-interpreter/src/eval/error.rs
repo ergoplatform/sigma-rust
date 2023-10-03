@@ -1,5 +1,6 @@
 use miette::miette;
 use miette::LabeledSpan;
+use std::fmt::Debug;
 use std::fmt::Display;
 
 use bounded_vec::BoundedVecOutOfBounds;
@@ -87,7 +88,7 @@ pub struct SpannedEvalError {
 }
 
 /// Wrapped error with source span and source code
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Clone)]
 pub struct SpannedWithSourceEvalError {
     /// eval error
     error: Box<EvalError>,
@@ -122,6 +123,33 @@ impl Display for SpannedWithSourceEvalError {
         )
         .with_source_code(self.source.clone());
         write!(f, "{:?}", report)
+    }
+}
+
+impl Debug for SpannedWithSourceEvalError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        #[allow(clippy::unwrap_used)]
+        miette::set_hook(Box::new(|_| {
+            Box::new(
+                miette::MietteHandlerOpts::new()
+                    .terminal_links(false)
+                    .unicode(false)
+                    .color(false)
+                    .context_lines(5)
+                    .tab_width(2)
+                    .build(),
+            )
+        }))
+        .unwrap();
+        let err_msg = self.error.to_string();
+        let report = miette!(
+            labels = vec![LabeledSpan::at(self.source_span, err_msg,)],
+            // help = "Help msg",
+            "Evaluation error"
+        )
+        .with_source_code(self.source.clone());
+        write!(f, "{:?}", report)?;
+        write!(f, "Env:\n{}", self.env)
     }
 }
 

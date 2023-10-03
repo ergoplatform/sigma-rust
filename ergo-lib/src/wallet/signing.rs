@@ -208,7 +208,7 @@ pub fn sign_reduced_transaction(
         }
         prover
             .generate_proof(
-                reduced_input.reduction_result.sigma_prop.clone(),
+                reduced_input.sigma_prop.clone(),
                 message_to_sign.as_slice(),
                 &hints_bag,
             )

@@ -77,7 +77,10 @@ pub enum ProverError {
     Gf2_192Error(Gf2_192Error),
     /// Script reduced to false
     #[error("Script reduced to false")]
-    ReducedToFalse(ReductionDiagnosticInfo),
+    ReducedToFalse,
+    /// Script reduced to false with diagnostic info
+    #[error("Script reduced to false. Diagnostic info: {0:?}")]
+    ReducedToFalseWithDiag(ReductionDiagnosticInfo),
     /// Failed on step2(prover does not have enough witnesses to perform the proof)
     #[error("Failed on step2(prover does not have enough witnesses to perform the proof)")]
     TreeRootIsNotReal,
@@ -150,6 +153,12 @@ pub trait Prover {
             .map(|p| ProverResult {
                 proof: p,
                 extension: ctx_ext,
+            })
+            .map_err(|e| match e {
+                ProverError::ReducedToFalse => {
+                    ProverError::ReducedToFalseWithDiag(reduction_result.diag.clone())
+                }
+                _ => e,
             })
     }
 
