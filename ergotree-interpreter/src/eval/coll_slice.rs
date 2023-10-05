@@ -22,14 +22,14 @@ impl Evaluable for Slice {
         }?;
         let from = from_v.try_extract_into::<i32>()?;
         let until = until_v.try_extract_into::<i32>()?;
-        match input_vec.get(from as usize..until as usize) {
+        // intersection of the range with collection bounds
+        // to preserve the Scala version semantics of slice op
+        // see https://github.com/ergoplatform/sigma-rust/issues/724
+        let range = from.max(0) as usize..until.min(input_vec.len() as i32) as usize;
+        match input_vec.get(range) {
             Some(slice) => Ok(Value::Coll(CollKind::from_vec(elem_tpe, slice.to_vec())?)),
-            None => Err(EvalError::Misc(format!(
-                "Slice: indices {0:?}..{1:?} out of bounds for collection size {2:?}",
-                from,
-                until,
-                input_vec.len()
-            ))),
+            // Scala version returns empty collection if the range is out of bounds
+            None => Ok(Value::Coll(CollKind::from_vec(elem_tpe, vec![])?)),
         }
     }
 }
@@ -42,7 +42,7 @@ mod tests {
     use ergotree_ir::types::stype::SType;
 
     use super::*;
-    use crate::eval::tests::{eval_out_wo_ctx, try_eval_out_wo_ctx};
+    use crate::eval::tests::eval_out_wo_ctx;
 
     #[test]
     fn slice() {
@@ -74,6 +74,9 @@ mod tests {
 
     #[test]
     fn slice_empty_coll() {
+        // In Scala version the slice with indices out of bounds does not throw
+        // but returns an intersection or an empty array.
+        // see https://github.com/ergoplatform/sigma-rust/issues/724
         let expr: Expr = Slice::new(
             Expr::Const(Vec::<i64>::new().into()),
             Expr::Const(1i32.into()),
@@ -81,7 +84,7 @@ mod tests {
         )
         .unwrap()
         .into();
-        assert!(try_eval_out_wo_ctx::<Vec<i64>>(&expr).is_err());
+        assert_eq!(eval_out_wo_ctx::<Vec<i64>>(&expr), Vec::<i64>::new());
     }
 
     #[test]
@@ -98,6 +101,9 @@ mod tests {
 
     #[test]
     fn slice_start_index_greater_than_end_index() {
+        // In Scala version the slice with indices out of bounds does not throw
+        // but returns an intersection or an empty array.
+        // see https://github.com/ergoplatform/sigma-rust/issues/724
         let expr: Expr = Slice::new(
             Expr::Const(vec![1i64, 2i64, 3i64, 4i64].into()),
             Expr::Const(3i32.into()),
@@ -105,11 +111,14 @@ mod tests {
         )
         .unwrap()
         .into();
-        assert!(try_eval_out_wo_ctx::<Vec<i64>>(&expr).is_err());
+        assert_eq!(eval_out_wo_ctx::<Vec<i64>>(&expr), Vec::<i64>::new());
     }
 
     #[test]
     fn slice_index_out_of_bounds() {
+        // In Scala version the slice with indices out of bounds does not throw
+        // but returns an intersection or an empty array.
+        // see https://github.com/ergoplatform/sigma-rust/issues/724
         let expr: Expr = Slice::new(
             Expr::Const(vec![1i64, 2i64, 3i64, 4i64].into()),
             Expr::Const((-1i32).into()),
@@ -117,7 +126,7 @@ mod tests {
         )
         .unwrap()
         .into();
-        assert!(try_eval_out_wo_ctx::<Vec<i64>>(&expr).is_err());
+        assert_eq!(eval_out_wo_ctx::<Vec<i64>>(&expr), vec![1i64]);
 
         let expr: Expr = Slice::new(
             Expr::Const(vec![1i64, 2i64, 3i64, 4i64].into()),
@@ -126,6 +135,18 @@ mod tests {
         )
         .unwrap()
         .into();
-        assert!(try_eval_out_wo_ctx::<Vec<i64>>(&expr).is_err());
+        assert_eq!(
+            eval_out_wo_ctx::<Vec<i64>>(&expr),
+            vec![1i64, 2i64, 3i64, 4i64]
+        );
+
+        let expr: Expr = Slice::new(
+            Expr::Const(vec![1i64, 2i64, 3i64, 4i64].into()),
+            Expr::Const(9i32.into()),
+            Expr::Const(10i32.into()),
+        )
+        .unwrap()
+        .into();
+        assert_eq!(eval_out_wo_ctx::<Vec<i64>>(&expr), Vec::<i64>::new());
     }
 }
