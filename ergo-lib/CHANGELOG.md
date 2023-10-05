@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
+
+### Added
+* Revamped errro messages for ErgoTree evaluation errors https://github.com/ergoplatform/sigma-rust/pull/720
+
+### Fixed
+* fix `Coll.slice` to gracefully handle indices out of bounds https://github.com/ergoplatform/sigma-rust/pull/725
+
 ## [0.24.1] - 2023-09-20
 
 ### Added
