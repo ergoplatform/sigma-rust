@@ -380,8 +380,16 @@ pub(crate) mod tests {
 
     use super::env::Env;
     use super::*;
+    use ergotree_ir::mir::bin_op::BinOp;
+    use ergotree_ir::mir::bin_op::BinOpKind;
+    use ergotree_ir::mir::bin_op::RelationOp;
+    use ergotree_ir::mir::block::BlockValue;
     use ergotree_ir::mir::constant::TryExtractFrom;
     use ergotree_ir::mir::constant::TryExtractInto;
+    use ergotree_ir::mir::val_def::ValDef;
+    use ergotree_ir::mir::val_use::ValUse;
+    use ergotree_ir::types::stype::SType;
+    use expect_test::expect;
     use sigma_test_util::force_any_val;
 
     pub fn eval_out_wo_ctx<T: TryExtractFrom<Value>>(expr: &Expr) -> T {
@@ -417,11 +425,41 @@ pub(crate) mod tests {
 
     #[test]
     fn diag_on_reduced_to_false() {
-        todo!("make special contract that reduces to false");
-        // let ergo_tree_bytes = base16::decode("").unwrap();
-        // let ergo_tree = ErgoTree::sigma_parse_bytes(&ergo_tree_bytes).unwrap();
-        // let ctx = Rc::new(force_any_val::<Context>());
-        // let res = reduce_to_crypto(&ergo_tree.proposition().unwrap(), &Env::empty(), ctx).unwrap();
-        // assert!(res.sigma_prop == SigmaBoolean::TrivialProp(false));
+        let bin_op: Expr = BinOp {
+            kind: BinOpKind::Relation(RelationOp::Eq),
+            left: Box::new(
+                ValUse {
+                    val_id: 1.into(),
+                    tpe: SType::SInt,
+                }
+                .into(),
+            ),
+            right: Box::new(0i32.into()),
+        }
+        .into();
+        let block: Expr = Expr::BlockValue(
+            BlockValue {
+                items: vec![ValDef {
+                    id: 1.into(),
+                    rhs: Box::new(Expr::Const(1i32.into())),
+                }
+                .into()],
+                result: Box::new(bin_op),
+            }
+            .into(),
+        );
+        let ctx = Rc::new(force_any_val::<Context>());
+        let res = reduce_to_crypto(&block, &Env::empty(), ctx).unwrap();
+        assert!(res.sigma_prop == SigmaBoolean::TrivialProp(false));
+        expect![[r#"
+            Pretty printed expr:
+            {
+              val v1 = 1
+              v1 == 0
+            }
+
+            Env:
+            v1: 1
+        "#]].assert_eq(&res.diag.to_string());
     }
 }
