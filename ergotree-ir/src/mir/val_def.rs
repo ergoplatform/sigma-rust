@@ -17,7 +17,7 @@ use crate::has_opcode::HasStaticOpCode;
 use proptest_derive::Arbitrary;
 
 /// Variable id
-#[derive(PartialEq, Eq, Hash, Debug, Clone, Copy, From, Display)]
+#[derive(PartialEq, Eq, Hash, Debug, Clone, Copy, From, Display, Ord, PartialOrd)]
 #[cfg_attr(feature = "arbitrary", derive(Arbitrary))]
 pub struct ValId(pub u32);
 

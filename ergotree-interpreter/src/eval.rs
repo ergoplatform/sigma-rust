@@ -3,6 +3,7 @@ use ergotree_ir::mir::constant::TryExtractInto;
 use ergotree_ir::pretty_printer::PosTrackingWriter;
 use ergotree_ir::pretty_printer::Print;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProp;
+use std::fmt::Display;
 use std::rc::Rc;
 
 use ergotree_ir::mir::expr::Expr;
@@ -97,6 +98,24 @@ pub(crate) mod xor_of;
 
 pub use error::EvalError;
 
+/// Diagnostic information about the reduction (pretty printed expr and/or env)
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct ReductionDiagnosticInfo {
+    /// environment after the evaluation
+    pub env: Env,
+    /// expression pretty-printed
+    pub pretty_printed_expr: Option<String>,
+}
+
+impl Display for ReductionDiagnosticInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Some(expr_str) = &self.pretty_printed_expr {
+            writeln!(f, "Pretty printed expr:\n{}", expr_str)?;
+        }
+        write!(f, "Env:\n{}", self.env)
+    }
+}
+
 /// Result of expression reduction procedure (see `reduce_to_crypto`).
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ReductionResult {
@@ -104,8 +123,8 @@ pub struct ReductionResult {
     pub sigma_prop: SigmaBoolean,
     /// estimated cost of expression evaluation
     pub cost: u64,
-    /// environment after the evaluation
-    pub env: Env,
+    /// Diagnostic information about the reduction (pretty printed expr and/or env)
+    pub diag: ReductionDiagnosticInfo,
 }
 
 /// Evaluate the given expression by reducing it to SigmaBoolean value.
@@ -125,12 +144,18 @@ pub fn reduce_to_crypto(
                     Value::Boolean(b) => Ok(ReductionResult {
                         sigma_prop: SigmaBoolean::TrivialProp(b),
                         cost: 0,
-                        env: env_mut.clone(),
+                        diag: ReductionDiagnosticInfo {
+                            env: env_mut.clone(),
+                            pretty_printed_expr: None,
+                        },
                     }),
                     Value::SigmaProp(sp) => Ok(ReductionResult {
                         sigma_prop: sp.value().clone(),
                         cost: 0,
-                        env: env_mut.clone(),
+                        diag: ReductionDiagnosticInfo {
+                            env: env_mut.clone(),
+                            pretty_printed_expr: None,
+                        },
                     }),
                     _ => Err(EvalError::InvalidResultType),
                 }
@@ -138,16 +163,34 @@ pub fn reduce_to_crypto(
     }
 
     let res = inner(expr, env, ctx);
-    if res.is_ok() {
-        return res;
+    if let Ok(reduction) = res {
+        if reduction.sigma_prop == SigmaBoolean::TrivialProp(false) {
+            let (_, printed_expr_str) = pretty_print(expr)?;
+            let new_reduction = ReductionResult {
+                sigma_prop: SigmaBoolean::TrivialProp(false),
+                cost: reduction.cost,
+                diag: ReductionDiagnosticInfo {
+                    env: reduction.diag.env,
+                    pretty_printed_expr: Some(printed_expr_str),
+                },
+            };
+            return Ok(new_reduction);
+        } else {
+            return Ok(reduction);
+        }
     }
+    let (spanned_expr, printed_expr_str) = pretty_print(expr)?;
+    inner(&spanned_expr, env, ctx_clone)
+        .map_err(|e| e.wrap_spanned_with_src(printed_expr_str.to_string()))
+}
+
+fn pretty_print(expr: &Expr) -> Result<(Expr, String), EvalError> {
     let mut printer = PosTrackingWriter::new();
     let spanned_expr = expr
         .print(&mut printer)
         .map_err(|e| EvalError::Misc(format!("printer error: {}", e)))?;
     let printed_expr_str = printer.get_buf();
-    inner(&spanned_expr, env, ctx_clone)
-        .map_err(|e| e.wrap_spanned_with_src(printed_expr_str.to_string()))
+    Ok((spanned_expr, printed_expr_str.to_owned()))
 }
 
 /// Expects SigmaProp constant value and returns it's value. Otherwise, returns an error.
@@ -330,14 +373,23 @@ fn smethod_eval_fn(method: &SMethod) -> Result<EvalFn, EvalError> {
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
 #[allow(clippy::unwrap_used)]
+#[allow(clippy::todo)]
 pub(crate) mod tests {
 
     #![allow(dead_code)]
 
     use super::env::Env;
     use super::*;
+    use ergotree_ir::mir::bin_op::BinOp;
+    use ergotree_ir::mir::bin_op::BinOpKind;
+    use ergotree_ir::mir::bin_op::RelationOp;
+    use ergotree_ir::mir::block::BlockValue;
     use ergotree_ir::mir::constant::TryExtractFrom;
     use ergotree_ir::mir::constant::TryExtractInto;
+    use ergotree_ir::mir::val_def::ValDef;
+    use ergotree_ir::mir::val_use::ValUse;
+    use ergotree_ir::types::stype::SType;
+    use expect_test::expect;
     use sigma_test_util::force_any_val;
 
     pub fn eval_out_wo_ctx<T: TryExtractFrom<Value>>(expr: &Expr) -> T {
@@ -369,5 +421,46 @@ pub(crate) mod tests {
     pub fn try_eval_out_wo_ctx<T: TryExtractFrom<Value>>(expr: &Expr) -> Result<T, EvalError> {
         let ctx = Rc::new(force_any_val::<Context>());
         try_eval_out(expr, ctx)
+    }
+
+    #[test]
+    fn diag_on_reduced_to_false() {
+        let bin_op: Expr = BinOp {
+            kind: BinOpKind::Relation(RelationOp::Eq),
+            left: Box::new(
+                ValUse {
+                    val_id: 1.into(),
+                    tpe: SType::SInt,
+                }
+                .into(),
+            ),
+            right: Box::new(0i32.into()),
+        }
+        .into();
+        let block: Expr = Expr::BlockValue(
+            BlockValue {
+                items: vec![ValDef {
+                    id: 1.into(),
+                    rhs: Box::new(Expr::Const(1i32.into())),
+                }
+                .into()],
+                result: Box::new(bin_op),
+            }
+            .into(),
+        );
+        let ctx = Rc::new(force_any_val::<Context>());
+        let res = reduce_to_crypto(&block, &Env::empty(), ctx).unwrap();
+        assert!(res.sigma_prop == SigmaBoolean::TrivialProp(false));
+        expect![[r#"
+            Pretty printed expr:
+            {
+              val v1 = 1
+              v1 == 0
+            }
+
+            Env:
+            v1: 1
+        "#]]
+        .assert_eq(&res.diag.to_string());
     }
 }

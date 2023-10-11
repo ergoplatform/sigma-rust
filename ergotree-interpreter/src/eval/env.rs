@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt::Display;
 
 use ergotree_ir::mir::val_def::ValId;
 use ergotree_ir::mir::value::Value;
@@ -32,5 +33,16 @@ impl Env {
     /// Get an element
     pub fn get(&self, idx: ValId) -> Option<&Value> {
         self.store.get(&idx)
+    }
+}
+
+impl Display for Env {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut keys: Vec<&ValId> = self.store.keys().collect();
+        keys.sort();
+        for k in keys {
+            writeln!(f, "v{}: {}", k, self.store[k])?;
+        }
+        Ok(())
     }
 }

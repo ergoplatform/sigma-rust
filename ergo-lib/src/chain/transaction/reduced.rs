@@ -5,7 +5,6 @@ use std::rc::Rc;
 
 use ergotree_interpreter::eval::env::Env;
 use ergotree_interpreter::eval::reduce_to_crypto;
-use ergotree_interpreter::eval::ReductionResult;
 use ergotree_interpreter::sigma_protocol::prover::ContextExtension;
 use ergotree_interpreter::sigma_protocol::prover::ProverError;
 use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
@@ -31,8 +30,10 @@ use super::TxIoVec;
 /// <https://github.com/ergoplatform/eips/blob/f280890a4163f2f2e988a0091c078e36912fc531/eip-0019.md>
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ReducedInput {
-    /// Input box script reduced to SigmaBoolean
-    pub reduction_result: ReductionResult,
+    /// value of SigmaProp type which represents a statement verifiable via sigma protocol.
+    pub sigma_prop: SigmaBoolean,
+    /// estimated cost of expression evaluation
+    pub cost: u64,
     /// ContextExtension for the input
     pub extension: ContextExtension,
 }
@@ -87,8 +88,9 @@ pub fn reduce_tx(
                 .map_err(ProverError::EvalError)
                 .map_err(|e| TxSigningError::ProverError(e, idx))?;
             Ok(ReducedInput {
-                reduction_result,
                 extension: input.extension,
+                sigma_prop: reduction_result.sigma_prop,
+                cost: reduction_result.cost,
             })
         })?;
     Ok(ReducedTransaction {
@@ -104,8 +106,8 @@ impl SigmaSerializable for ReducedTransaction {
         w.put_usize_as_u32_unwrapped(msg.len())?;
         w.write_all(&msg)?;
         self.reduced_inputs.as_vec().iter().try_for_each(|red_in| {
-            red_in.reduction_result.sigma_prop.sigma_serialize(w)?;
-            w.put_u64(red_in.reduction_result.cost)?;
+            red_in.sigma_prop.sigma_serialize(w)?;
+            w.put_u64(red_in.cost)?;
             SigmaSerializeResult::Ok(())
         })?;
         w.put_u32(self.tx_cost)?;
@@ -123,11 +125,8 @@ impl SigmaSerializable for ReducedTransaction {
                 let cost = r.get_u64()?;
                 let extension = input.spending_proof.extension;
                 let reduced_input = ReducedInput {
-                    reduction_result: ReductionResult {
-                        sigma_prop,
-                        cost,
-                        env: Env::empty(),
-                    },
+                    sigma_prop,
+                    cost,
                     extension: extension.clone(),
                 };
                 let unsigned_input = UnsignedInput {
@@ -168,11 +167,8 @@ pub mod arbitrary {
                 .prop_map(|(unsigned_tx, sb, tx_cost)| Self {
                     unsigned_tx: unsigned_tx.clone(),
                     reduced_inputs: unsigned_tx.inputs.mapped(|unsigned_input| ReducedInput {
-                        reduction_result: ReductionResult {
-                            sigma_prop: sb.clone(),
-                            cost: 0,
-                            env: Env::empty(),
-                        },
+                        sigma_prop: sb.clone(),
+                        cost: 0,
                         extension: unsigned_input.extension,
                     }),
                     tx_cost,

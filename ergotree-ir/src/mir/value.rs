@@ -1,6 +1,7 @@
 //! Ergo data type
 
 use std::convert::TryInto;
+use std::fmt::Formatter;
 use std::sync::Arc;
 
 use impl_trait_for_tuples::impl_for_tuples;
@@ -238,6 +239,68 @@ impl From<Literal> for Value {
             Literal::AvlTree(a) => Value::AvlTree(a),
             Literal::Opt(lit) => Value::Opt(Box::new(lit.into_iter().next().map(Value::from))),
             Literal::Tup(t) => Value::Tup(t.mapped(Value::from)),
+        }
+    }
+}
+
+impl std::fmt::Display for Value {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Value::Coll(CollKind::NativeColl(NativeColl::CollByte(i8_bytes))) => {
+                write!(f, "Coll[Byte](")?;
+                for (i, b) in i8_bytes.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}", b)?;
+                }
+                write!(f, ")")
+            }
+            Value::Coll(CollKind::WrappedColl { elem_tpe, items }) => {
+                write!(f, "Coll[{}](", elem_tpe)?;
+                for (i, item) in items.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    item.fmt(f)?;
+                }
+                write!(f, ")")
+            }
+            Value::Opt(boxed_opt) => {
+                if let Some(v) = &**boxed_opt {
+                    write!(f, "Some(")?;
+                    v.fmt(f)?;
+                    write!(f, ")")
+                } else {
+                    write!(f, "None")
+                }
+            }
+            Value::Tup(items) => {
+                write!(f, "(")?;
+                for (i, item) in items.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    item.fmt(f)?;
+                }
+                write!(f, ")")
+            }
+            Value::Unit => write!(f, "()"),
+            Value::Boolean(v) => v.fmt(f),
+            Value::Byte(v) => v.fmt(f),
+            Value::Short(v) => v.fmt(f),
+            Value::Int(v) => v.fmt(f),
+            Value::Long(v) => write!(f, "{}L", v),
+            Value::BigInt(v) => v.fmt(f),
+            Value::SigmaProp(v) => v.fmt(f),
+            Value::GroupElement(v) => v.fmt(f),
+            Value::AvlTree(v) => write!(f, "AvlTree({:?})", v),
+            Value::CBox(v) => write!(f, "ErgoBox({:?})", v),
+            Value::Context => write!(f, "CONTEXT"),
+            Value::Header(_) => write!(f, "HEADER"),
+            Value::PreHeader(_) => write!(f, "PREHEADER"),
+            Value::Global => write!(f, "GLOBAL"),
+            Value::Lambda(v) => write!(f, "{v:?}"),
         }
     }
 }
