@@ -460,6 +460,7 @@ pub(crate) mod tests {
 
             Env:
             v1: 1
-        "#]].assert_eq(&res.diag.to_string());
+        "#]]
+        .assert_eq(&res.diag.to_string());
     }
 }
