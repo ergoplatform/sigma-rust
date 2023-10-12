@@ -233,6 +233,12 @@ impl ErgoTree {
         tree
     }
 
+    /// Returns pretty printed tree
+    pub fn pretty_print(&self) -> Result<(Expr, String), String> {
+        let tree = self.parsed_tree().map_err(|e| e.to_string())?;
+        tree.root.pretty_print().map_err(|e| e.to_string())
+    }
+
     /// Returns Base16-encoded serialized bytes
     pub fn to_base16_bytes(&self) -> Result<String, SigmaSerializationError> {
         let bytes = self.sigma_serialize_bytes()?;

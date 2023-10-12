@@ -69,6 +69,7 @@ use crate::source_span::SourceSpan;
 use crate::source_span::Spanned;
 use crate::types::stype::SType;
 
+use super::PosTrackingWriter;
 use super::Printer;
 
 /// Print error
@@ -77,6 +78,16 @@ use super::Printer;
 pub enum PrintError {
     #[error("fmt error: {0:?}")]
     FmtError(#[from] std::fmt::Error),
+}
+
+impl Expr {
+    /// Returns pretty printed tree
+    pub fn pretty_print(&self) -> Result<(Expr, String), PrintError> {
+        let mut printer = PosTrackingWriter::new();
+        let spanned_expr = self.print(&mut printer)?;
+        let printed_expr_str = printer.get_buf();
+        Ok((spanned_expr, printed_expr_str.to_owned()))
+    }
 }
 
 /// Print trait for Expr that sets the source span for the resulting Expr

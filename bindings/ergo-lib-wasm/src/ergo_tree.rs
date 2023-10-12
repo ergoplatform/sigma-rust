@@ -71,4 +71,9 @@ impl ErgoTree {
     pub fn template_bytes(&self) -> Result<Vec<u8>, JsValue> {
         self.0.template_bytes().map_err(to_js)
     }
+
+    /// Returns pretty printed tree
+    pub fn pretty_print(&self) -> Result<String, JsValue> {
+        Ok(self.0.pretty_print().map_err(to_js)?.1)
+    }
 }
