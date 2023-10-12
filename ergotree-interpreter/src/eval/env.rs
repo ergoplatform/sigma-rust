@@ -30,6 +30,11 @@ impl Env {
         self.store.insert(idx, v);
     }
 
+    /// Remove a Value for the given ValId
+    pub fn remove(&mut self, idx: &ValId) {
+        self.store.remove(idx);
+    }
+
     /// Get an element
     pub fn get(&self, idx: ValId) -> Option<&Value> {
         self.store.get(&idx)

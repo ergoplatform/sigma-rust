@@ -24,7 +24,9 @@ pub(crate) static MAP_EVAL_FN: EvalFn = |env, ctx, obj, args| {
             EvalError::NotFound("map: lambda has empty arguments list".to_string())
         })?;
         env.insert(func_arg.idx, arg);
-        lambda.body.eval(env, ctx)
+        let res = lambda.body.eval(env, ctx);
+        env.remove(&func_arg.idx);
+        res
     };
     let normalized_input_val: Option<Value> = match input_v {
         Value::Opt(opt) => Ok(*opt),
@@ -59,7 +61,9 @@ pub(crate) static FILTER_EVAL_FN: EvalFn = |env, ctx, obj, args| {
             EvalError::NotFound("filter: lambda has empty arguments list".to_string())
         })?;
         env.insert(func_arg.idx, arg);
-        lambda.body.eval(env, ctx)
+        let res = lambda.body.eval(env, ctx);
+        env.remove(&func_arg.idx);
+        res
     };
     let normalized_input_val: Option<Value> = match input_v {
         Value::Opt(opt) => Ok(*opt),

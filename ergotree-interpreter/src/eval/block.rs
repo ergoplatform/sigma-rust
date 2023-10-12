@@ -11,14 +11,20 @@ use crate::eval::Evaluable;
 
 impl Evaluable for BlockValue {
     fn eval(&self, env: &mut Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
+        let mut ids = vec![];
         for i in &self.items {
             // TODO: new try_extract_spanned_into?
             let spanned_val_def = &i.clone().try_extract_into::<Spanned<ValDef>>()?;
             let val_def = spanned_val_def.expr();
             let v: Value = val_def.rhs.eval(env, ctx)?;
             env.insert(val_def.id, v);
+            ids.push(val_def.id);
         }
-        self.result.eval(env, ctx)
+        let res = self.result.eval(env, ctx);
+        ids.into_iter().for_each(|idx| {
+            env.remove(&idx);
+        });
+        res
     }
 }
 

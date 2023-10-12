@@ -20,7 +20,9 @@ impl Evaluable for Map {
                     )
                 })?;
                 env.insert(func_arg.idx, arg);
-                func_value.body.eval(env, ctx)
+                let res = func_value.body.eval(env, ctx);
+                env.remove(&func_arg.idx);
+                res
             }
             _ => Err(EvalError::UnexpectedValue(format!(
                 "expected mapper to be Value::FuncValue got: {0:?}",

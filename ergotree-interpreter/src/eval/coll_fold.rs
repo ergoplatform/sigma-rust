@@ -21,7 +21,9 @@ impl Evaluable for Fold {
                     .first()
                     .ok_or_else(|| EvalError::NotFound("empty argument for fold op".to_string()))?;
                 env.insert(func_arg.idx, arg);
-                func_value.body.eval(env, ctx)
+                let res = func_value.body.eval(env, ctx);
+                env.remove(&func_arg.idx);
+                res
             }
             _ => Err(EvalError::UnexpectedValue(format!(
                 "expected fold_op to be Value::FuncValue got: {0:?}",

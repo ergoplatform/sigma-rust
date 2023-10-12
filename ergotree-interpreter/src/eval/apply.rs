@@ -19,7 +19,12 @@ impl Evaluable for Apply {
                 arg_ids.iter().zip(args_v).for_each(|(idx, arg_v)| {
                     env.insert(*idx, arg_v);
                 });
-                fv.body.eval(env, ctx)
+                let res = fv.body.eval(env, ctx);
+                arg_ids.iter().for_each(|idx| {
+                    env.remove(idx);
+                });
+
+                res
             }
             _ => Err(EvalError::UnexpectedValue(format!(
                 "expected func_v to be Value::FuncValue got: {0:?}",
