@@ -3,6 +3,7 @@ use ergotree_ir::mir::constant::TryExtractInto;
 use ergotree_ir::mir::val_def::ValDef;
 use ergotree_ir::mir::value::Value;
 use ergotree_ir::source_span::Spanned;
+use hashbrown::HashMap;
 
 use crate::eval::env::Env;
 use crate::eval::EvalContext;
@@ -11,14 +12,31 @@ use crate::eval::Evaluable;
 
 impl Evaluable for BlockValue {
     fn eval(&self, env: &mut Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
+        let mut existing_variables = HashMap::new();
+        let mut new_variables = vec![];
         for i in &self.items {
             // TODO: new try_extract_spanned_into?
             let spanned_val_def = &i.clone().try_extract_into::<Spanned<ValDef>>()?;
             let val_def = spanned_val_def.expr();
+            let idx = val_def.id;
             let v: Value = val_def.rhs.eval(env, ctx)?;
+            if let Some(old_val) = env.get(idx) {
+                existing_variables.insert(idx, old_val.clone());
+            } else {
+                new_variables.push(idx);
+            }
             env.insert(val_def.id, v);
         }
-        self.result.eval(env, ctx)
+        let res = self.result.eval(env, ctx);
+        new_variables.into_iter().for_each(|idx| {
+            env.remove(&idx);
+        });
+        existing_variables
+            .into_iter()
+            .for_each(|(idx, orig_value)| {
+                env.insert(idx, orig_value);
+            });
+        res
     }
 }
 
