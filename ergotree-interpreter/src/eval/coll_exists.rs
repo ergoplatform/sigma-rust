@@ -19,9 +19,14 @@ impl Evaluable for Exists {
                         "Exists: evaluated condition has empty arguments list".to_string(),
                     )
                 })?;
+                let orig_val = env.get(func_arg.idx).cloned();
                 env.insert(func_arg.idx, arg);
                 let res = func_value.body.eval(env, ctx);
-                env.remove(&func_arg.idx);
+                if let Some(orig_val) = orig_val {
+                    env.insert(func_arg.idx, orig_val);
+                } else {
+                    env.remove(&func_arg.idx);
+                }
                 res
             }
             _ => Err(EvalError::UnexpectedValue(format!(

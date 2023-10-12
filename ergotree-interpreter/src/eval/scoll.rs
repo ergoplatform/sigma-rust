@@ -75,9 +75,14 @@ pub(crate) static FLATMAP_EVAL_FN: EvalFn = |env, ctx, obj, args| {
         let func_arg = lambda.args.first().ok_or_else(|| {
             EvalError::NotFound("flatmap: lambda has empty arguments list".to_string())
         })?;
+        let orig_val = env.get(func_arg.idx).cloned();
         env.insert(func_arg.idx, arg);
         let res = lambda.body.eval(env, ctx);
-        env.remove(&func_arg.idx);
+        if let Some(orig_val) = orig_val {
+            env.insert(func_arg.idx, orig_val);
+        } else {
+            env.remove(&func_arg.idx);
+        }
         res
     };
     let mapper_input_tpe = lambda

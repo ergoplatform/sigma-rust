@@ -37,6 +37,7 @@ proptest = { workspace = true, optional = true }
 scorex_crypto_avltree = "0.1.0"
 gf2_192 = { version = "^0.25.0", path = "../gf2_192" }
 miette = { workspace = true }
+hashbrown = "0.14.1"
 
 [features]
 default = ["json"]
