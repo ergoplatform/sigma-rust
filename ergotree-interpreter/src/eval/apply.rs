@@ -1,6 +1,7 @@
 use ergotree_ir::mir::apply::Apply;
 use ergotree_ir::mir::val_def::ValId;
 use ergotree_ir::mir::value::Value;
+use hashbrown::HashMap;
 
 use crate::eval::env::Env;
 use crate::eval::EvalContext;
@@ -16,10 +17,27 @@ impl Evaluable for Apply {
         match func_v {
             Value::Lambda(fv) => {
                 let arg_ids: Vec<ValId> = fv.args.iter().map(|a| a.idx).collect();
+                let mut existing_variables = HashMap::new();
+                let mut new_variables = vec![];
                 arg_ids.iter().zip(args_v).for_each(|(idx, arg_v)| {
+                    if let Some(old_val) = env.get(*idx) {
+                        existing_variables.insert(idx, old_val.clone());
+                    } else {
+                        new_variables.push(*idx);
+                    }
                     env.insert(*idx, arg_v);
                 });
-                fv.body.eval(env, ctx)
+                let res = fv.body.eval(env, ctx);
+                new_variables.into_iter().for_each(|idx| {
+                    env.remove(&idx);
+                });
+                existing_variables
+                    .into_iter()
+                    .for_each(|(idx, orig_value)| {
+                        env.insert(*idx, orig_value);
+                    });
+
+                res
             }
             _ => Err(EvalError::UnexpectedValue(format!(
                 "expected func_v to be Value::FuncValue got: {0:?}",

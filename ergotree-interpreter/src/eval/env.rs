@@ -18,6 +18,11 @@ impl Env {
         }
     }
 
+    /// Returns `true` if the environment is empty
+    pub fn is_empty(&self) -> bool {
+        self.store.is_empty()
+    }
+
     /// Extend this environment (create new) with added element
     pub fn extend(&self, idx: ValId, v: Value) -> Env {
         let mut new_store = self.store.clone();
@@ -28,6 +33,11 @@ impl Env {
     /// Insert a Value for the given ValId
     pub fn insert(&mut self, idx: ValId, v: Value) {
         self.store.insert(idx, v);
+    }
+
+    /// Remove a Value for the given ValId
+    pub fn remove(&mut self, idx: &ValId) {
+        self.store.remove(idx);
     }
 
     /// Get an element

@@ -23,8 +23,15 @@ pub(crate) static MAP_EVAL_FN: EvalFn = |env, ctx, obj, args| {
         let func_arg = lambda.args.first().ok_or_else(|| {
             EvalError::NotFound("map: lambda has empty arguments list".to_string())
         })?;
+        let orig_val = env.get(func_arg.idx).cloned();
         env.insert(func_arg.idx, arg);
-        lambda.body.eval(env, ctx)
+        let res = lambda.body.eval(env, ctx);
+        if let Some(orig_val) = orig_val {
+            env.insert(func_arg.idx, orig_val);
+        } else {
+            env.remove(&func_arg.idx);
+        }
+        res
     };
     let normalized_input_val: Option<Value> = match input_v {
         Value::Opt(opt) => Ok(*opt),
@@ -58,8 +65,15 @@ pub(crate) static FILTER_EVAL_FN: EvalFn = |env, ctx, obj, args| {
         let func_arg = lambda.args.first().ok_or_else(|| {
             EvalError::NotFound("filter: lambda has empty arguments list".to_string())
         })?;
+        let orig_val = env.get(func_arg.idx).cloned();
         env.insert(func_arg.idx, arg);
-        lambda.body.eval(env, ctx)
+        let res = lambda.body.eval(env, ctx);
+        if let Some(orig_val) = orig_val {
+            env.insert(func_arg.idx, orig_val);
+        } else {
+            env.remove(&func_arg.idx);
+        }
+        res
     };
     let normalized_input_val: Option<Value> = match input_v {
         Value::Opt(opt) => Ok(*opt),
