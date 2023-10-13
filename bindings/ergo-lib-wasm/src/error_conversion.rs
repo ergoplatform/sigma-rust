@@ -98,6 +98,7 @@ from_error_to_wrap!(ConvError);
 from_error_to_wrap!(TransactionContextError);
 from_error_to_wrap!(TxVerifyError);
 from_error_to_wrap!(RegisterValueError);
+from_error_to_wrap!(String);
 
 macro_rules! from_error_to_wrap_via_debug {
     ($t:ident) => {

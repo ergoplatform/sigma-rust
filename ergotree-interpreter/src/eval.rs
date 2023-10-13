@@ -1,7 +1,5 @@
 //! Interpreter
 use ergotree_ir::mir::constant::TryExtractInto;
-use ergotree_ir::pretty_printer::PosTrackingWriter;
-use ergotree_ir::pretty_printer::Print;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProp;
 use std::fmt::Display;
 use std::rc::Rc;
@@ -165,7 +163,9 @@ pub fn reduce_to_crypto(
     let res = inner(expr, env, ctx);
     if let Ok(reduction) = res {
         if reduction.sigma_prop == SigmaBoolean::TrivialProp(false) {
-            let (_, printed_expr_str) = pretty_print(expr)?;
+            let (_, printed_expr_str) = expr
+                .pretty_print()
+                .map_err(|e| EvalError::Misc(e.to_string()))?;
             let new_reduction = ReductionResult {
                 sigma_prop: SigmaBoolean::TrivialProp(false),
                 cost: reduction.cost,
@@ -179,18 +179,11 @@ pub fn reduce_to_crypto(
             return Ok(reduction);
         }
     }
-    let (spanned_expr, printed_expr_str) = pretty_print(expr)?;
+    let (spanned_expr, printed_expr_str) = expr
+        .pretty_print()
+        .map_err(|e| EvalError::Misc(e.to_string()))?;
     inner(&spanned_expr, env, ctx_clone)
         .map_err(|e| e.wrap_spanned_with_src(printed_expr_str.to_string()))
-}
-
-fn pretty_print(expr: &Expr) -> Result<(Expr, String), EvalError> {
-    let mut printer = PosTrackingWriter::new();
-    let spanned_expr = expr
-        .print(&mut printer)
-        .map_err(|e| EvalError::Misc(format!("printer error: {}", e)))?;
-    let printed_expr_str = printer.get_buf();
-    Ok((spanned_expr, printed_expr_str.to_owned()))
 }
 
 /// Expects SigmaProp constant value and returns it's value. Otherwise, returns an error.
