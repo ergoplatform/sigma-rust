@@ -1,6 +1,6 @@
 [package]
 name = "ergo-lib-jni"
-version = "0.25.0"
+version = "0.26.0"
 license = "CC0-1.0"
 authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
 repository.workspace = true
@@ -16,4 +16,4 @@ path = "src/main/rust/lib.rs"
 jni = "0.19.0"
 log = "0.4.16"
 ergo-lib = { workspace = true }
-ergo-lib-c-core = { version = "^0.25.0", path = "../ergo-lib-c-core" }
+ergo-lib-c-core = { version = "^0.26.0", path = "../ergo-lib-c-core" }

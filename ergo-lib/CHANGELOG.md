@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
+## [0.26.0] - 2023-10-13
 
 ### Added
 * Add pretty_print method to ErgoTree and Expr https://github.com/ergoplatform/sigma-rust/pull/729
@@ -451,7 +452,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - ErgoTree constant values conversion.
 
 <!-- next-url -->
-[Unreleased]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.25.0...HEAD
+[Unreleased]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.26.0...HEAD
+[0.26.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.25.0...ergo-lib-v0.26.0
 [0.25.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.24.1...ergo-lib-v0.25.0
 [0.24.1]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.24.0...ergo-lib-v0.24.1
 [0.24.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.23.0...ergo-lib-v0.24.0
