@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
+
+### Added
+* Add pretty_print method to ErgoTree and Expr https://github.com/ergoplatform/sigma-rust/pull/729
+
+### Fixed
+* Reset interpreter env after lambda call https://github.com/ergoplatform/sigma-rust/pull/728
+
 ## [0.25.0] - 2023-10-09
 
 ### Added
