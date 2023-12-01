@@ -49,9 +49,9 @@ mod tests {
         avl_tree_data::{AvlTreeData, AvlTreeFlags},
         expr::Expr,
     };
-    use scorex_crypto_avltree::authenticated_tree_ops::AuthenticatedTreeOps;
-    use scorex_crypto_avltree::batch_avl_prover::BatchAVLProver;
-    use scorex_crypto_avltree::batch_node::{AVLTree, Node, NodeHeader};
+    use ergo_avltree_rust::authenticated_tree_ops::AuthenticatedTreeOps;
+    use ergo_avltree_rust::batch_avl_prover::BatchAVLProver;
+    use ergo_avltree_rust::batch_node::{AVLTree, Node, NodeHeader};
     use sigma_ser::ScorexSerializable;
 
     #[test]
