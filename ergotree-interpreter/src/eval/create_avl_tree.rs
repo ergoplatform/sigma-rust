@@ -44,14 +44,14 @@ mod tests {
     use super::*;
     use crate::eval::tests::eval_out_wo_ctx;
 
+    use ergo_avltree_rust::authenticated_tree_ops::AuthenticatedTreeOps;
+    use ergo_avltree_rust::batch_avl_prover::BatchAVLProver;
+    use ergo_avltree_rust::batch_node::{AVLTree, Node, NodeHeader};
     use ergo_chain_types::ADDigest;
     use ergotree_ir::mir::{
         avl_tree_data::{AvlTreeData, AvlTreeFlags},
         expr::Expr,
     };
-    use ergo_avltree_rust::authenticated_tree_ops::AuthenticatedTreeOps;
-    use ergo_avltree_rust::batch_avl_prover::BatchAVLProver;
-    use ergo_avltree_rust::batch_node::{AVLTree, Node, NodeHeader};
     use sigma_ser::ScorexSerializable;
 
     #[test]
