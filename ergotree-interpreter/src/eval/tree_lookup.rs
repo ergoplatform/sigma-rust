@@ -6,11 +6,11 @@ use crate::eval::env::Env;
 use crate::eval::EvalContext;
 use crate::eval::EvalError;
 use crate::eval::Evaluable;
+use ergo_avltree_rust::batch_avl_verifier::BatchAVLVerifier;
+use ergo_avltree_rust::batch_node::{AVLTree, Node, NodeHeader};
+use ergo_avltree_rust::operation::Operation;
 use ergotree_ir::mir::avl_tree_data::AvlTreeData;
 use ergotree_ir::mir::constant::TryExtractInto;
-use scorex_crypto_avltree::batch_avl_verifier::BatchAVLVerifier;
-use scorex_crypto_avltree::batch_node::{AVLTree, Node, NodeHeader};
-use scorex_crypto_avltree::operation::Operation;
 use sigma_util::AsVecU8;
 
 impl Evaluable for TreeLookup {
@@ -67,15 +67,15 @@ mod tests {
     use super::*;
     use crate::eval::tests::eval_out_wo_ctx;
 
+    use ergo_avltree_rust::authenticated_tree_ops::AuthenticatedTreeOps;
+    use ergo_avltree_rust::batch_avl_prover::BatchAVLProver;
+    use ergo_avltree_rust::operation::KeyValue;
     use ergo_chain_types::ADDigest;
     use ergotree_ir::mir::{
         avl_tree_data::{AvlTreeData, AvlTreeFlags},
         expr::Expr,
         value::{CollKind, NativeColl},
     };
-    use scorex_crypto_avltree::authenticated_tree_ops::AuthenticatedTreeOps;
-    use scorex_crypto_avltree::batch_avl_prover::BatchAVLProver;
-    use scorex_crypto_avltree::operation::KeyValue;
     use sigma_ser::ScorexSerializable;
     use sigma_util::AsVecI8;
 

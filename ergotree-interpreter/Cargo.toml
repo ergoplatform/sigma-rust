@@ -34,7 +34,7 @@ serde = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
 serde_with = { workspace = true, optional = true }
 proptest = { workspace = true, optional = true }
-scorex_crypto_avltree = "0.1.0"
+ergo_avltree_rust = "0.1.0"
 gf2_192 = { version = "^0.26.0", path = "../gf2_192" }
 miette = { workspace = true }
 hashbrown = "0.14.1"

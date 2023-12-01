@@ -1,18 +1,18 @@
 use std::convert::TryFrom;
 
 use bytes::Bytes;
+use ergo_avltree_rust::authenticated_tree_ops::AuthenticatedTreeOps;
+use ergo_avltree_rust::batch_avl_verifier::BatchAVLVerifier;
+use ergo_avltree_rust::batch_node::AVLTree;
+use ergo_avltree_rust::batch_node::Node;
+use ergo_avltree_rust::batch_node::NodeHeader;
+use ergo_avltree_rust::operation::KeyValue;
+use ergo_avltree_rust::operation::Operation;
 use ergo_chain_types::ADDigest;
 use ergotree_ir::mir::avl_tree_data::AvlTreeData;
 use ergotree_ir::mir::avl_tree_data::AvlTreeFlags;
 use ergotree_ir::mir::constant::TryExtractInto;
 use ergotree_ir::mir::value::{CollKind, NativeColl, Value};
-use scorex_crypto_avltree::authenticated_tree_ops::AuthenticatedTreeOps;
-use scorex_crypto_avltree::batch_avl_verifier::BatchAVLVerifier;
-use scorex_crypto_avltree::batch_node::AVLTree;
-use scorex_crypto_avltree::batch_node::Node;
-use scorex_crypto_avltree::batch_node::NodeHeader;
-use scorex_crypto_avltree::operation::KeyValue;
-use scorex_crypto_avltree::operation::Operation;
 use sigma_ser::ScorexSerializable;
 
 use super::EvalError;
@@ -435,6 +435,7 @@ fn map_eval_err<T: std::fmt::Debug>(e: T) -> EvalError {
 mod tests {
     use std::convert::TryFrom;
 
+    use ergo_avltree_rust::batch_avl_prover::BatchAVLProver;
     use ergotree_ir::{
         mir::{
             avl_tree_data::{AvlTreeData, AvlTreeFlags},
@@ -446,7 +447,6 @@ mod tests {
         types::{savltree, stuple::STuple, stype::SType},
     };
     use proptest::prelude::*;
-    use scorex_crypto_avltree::batch_avl_prover::BatchAVLProver;
 
     use crate::eval::tests::eval_out_wo_ctx;
 
@@ -603,7 +603,7 @@ mod tests {
 
     #[test]
     fn eval_avl_insert() {
-        // This example taken from `scorex_crypto_avltree` README
+        // This example taken from `ergo_avltree_rust` README
         let mut prover = BatchAVLProver::new(
             AVLTree::new(
                 |digest| Node::LabelOnly(NodeHeader::new(Some(*digest), None)),
