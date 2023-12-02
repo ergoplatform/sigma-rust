@@ -1,6 +1,6 @@
 [package]
 name = "ergoscript-compiler"
-version = "0.22.0"
+version = "0.23.0"
 license = "CC0-1.0"
 authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
 repository.workspace = true
