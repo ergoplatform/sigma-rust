@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
+## [0.27.1] - 2023-12-02
 ## [0.27.0] - 2023-12-02
 ## [0.26.0] - 2023-10-13
 
@@ -453,7 +454,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - ErgoTree constant values conversion.
 
 <!-- next-url -->
-[Unreleased]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.27.0...HEAD
+[Unreleased]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.27.1...HEAD
+[0.27.1]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.27.0...ergo-lib-v0.27.1
 [0.27.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.26.0...ergo-lib-v0.27.0
 [0.26.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.25.0...ergo-lib-v0.26.0
 [0.25.0]: https://github.com/ergoplatform/sigma-rust/compare/ergo-lib-v0.24.1...ergo-lib-v0.25.0

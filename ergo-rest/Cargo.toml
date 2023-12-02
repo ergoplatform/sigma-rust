@@ -1,6 +1,6 @@
 [package]
 name = "ergo-rest"
-version = "0.12.0"
+version = "0.12.1"
 license = "CC0-1.0"
 authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
 repository.workspace = true
