@@ -125,19 +125,6 @@ impl ErgoBoxCandidateBuilder {
 
     /// Calculate minimal box value for the current box serialized size(in bytes)
     pub fn calc_min_box_value(&self) -> Result<BoxValue, ErgoBoxCandidateBuilderError> {
-        let box_size_bytes = self.calc_box_size_bytes()?;
-
-        // Won't be overflowing an i64, so unwrap is safe.
-        #[allow(clippy::unwrap_used)]
-        Ok(
-            BoxValue::try_from(box_size_bytes as i64 * BoxValue::MIN_VALUE_PER_BOX_BYTE as i64)
-                .unwrap(),
-        )
-    }
-
-    /// Calculate minimal box value for the current box serialized size(in bytes) without checking
-    /// if it contains a valid amount of nanoergs.
-    pub fn calc_min_box_value_unchecked(&self) -> Result<BoxValue, ErgoBoxCandidateBuilderError> {
         let b = self.build_box_unchecked()?;
         let bytes = b.sigma_serialize_bytes()?;
 
