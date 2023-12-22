@@ -143,10 +143,7 @@ impl ErgoBoxCandidateBuilder {
 
         // Won't be overflowing an i64, so unwrap is safe.
         #[allow(clippy::unwrap_used)]
-        Ok(
-            BoxValue::try_from(bytes.len() as i64 * BoxValue::MIN_VALUE_PER_BOX_BYTE as i64)
-                .unwrap(),
-        )
+        Ok(BoxValue::try_from(bytes.len() as i64 * self.min_value_per_byte as i64).unwrap())
     }
 
     /// Set register with a given id (R4-R9) to the given value
