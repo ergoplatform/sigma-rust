@@ -119,18 +119,17 @@ impl ErgoBoxCandidateBuilder {
 
     /// Calculate serialized box size(in bytes)
     pub fn calc_box_size_bytes(&self) -> Result<usize, ErgoBoxCandidateBuilderError> {
-        let b = self.build_box()?;
+        let b = self.build_box_unchecked()?;
         Ok(b.sigma_serialize_bytes()?.len())
     }
 
     /// Calculate minimal box value for the current box serialized size(in bytes)
     pub fn calc_min_box_value(&self) -> Result<BoxValue, ErgoBoxCandidateBuilderError> {
-        let b = self.build_box_unchecked()?;
-        let bytes = b.sigma_serialize_bytes()?;
+        let box_size_bytes = self.calc_box_size_bytes()?;
 
         // Won't be overflowing an i64, so unwrap is safe.
         #[allow(clippy::unwrap_used)]
-        Ok(BoxValue::try_from(bytes.len() as i64 * self.min_value_per_byte as i64).unwrap())
+        Ok(BoxValue::try_from(box_size_bytes as i64 * self.min_value_per_byte as i64).unwrap())
     }
 
     /// Set register with a given id (R4-R9) to the given value
