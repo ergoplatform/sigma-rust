@@ -119,7 +119,7 @@ impl ErgoBoxCandidateBuilder {
 
     /// Calculate serialized box size(in bytes)
     pub fn calc_box_size_bytes(&self) -> Result<usize, ErgoBoxCandidateBuilderError> {
-        let b = self.build_box()?;
+        let b = self.build_box_unchecked()?;
         Ok(b.sigma_serialize_bytes()?.len())
     }
 
@@ -129,10 +129,7 @@ impl ErgoBoxCandidateBuilder {
 
         // Won't be overflowing an i64, so unwrap is safe.
         #[allow(clippy::unwrap_used)]
-        Ok(
-            BoxValue::try_from(box_size_bytes as i64 * BoxValue::MIN_VALUE_PER_BOX_BYTE as i64)
-                .unwrap(),
-        )
+        Ok(BoxValue::try_from(box_size_bytes as i64 * self.min_value_per_byte as i64).unwrap())
     }
 
     /// Set register with a given id (R4-R9) to the given value
@@ -175,7 +172,9 @@ impl ErgoBoxCandidateBuilder {
         self.tokens.push(token);
     }
 
-    fn build_box(&self) -> Result<ErgoBoxCandidate, ErgoBoxCandidateBuilderError> {
+    /// Build the box without checking that it contains a valid value.
+    /// This allows us to get the minimum required value ahead of time.
+    fn build_box_unchecked(&self) -> Result<ErgoBoxCandidate, ErgoBoxCandidateBuilderError> {
         let mut tokens = self.tokens.clone();
         let mut additional_registers = self.additional_registers.clone();
         if let Some(minting_token) = self.minting_token.clone() {
@@ -242,13 +241,17 @@ impl ErgoBoxCandidateBuilder {
                     .map_err(|_| ErgoBoxCandidateBuilderError::TooManyTokensError)?,
             )
         };
-        let b = ErgoBoxCandidate {
+        Ok(ErgoBoxCandidate {
             value: self.value,
             ergo_tree: self.ergo_tree.clone(),
             tokens,
             additional_registers: regs,
             creation_height: self.creation_height,
-        };
+        })
+    }
+
+    fn build_box(&self) -> Result<ErgoBoxCandidate, ErgoBoxCandidateBuilderError> {
+        let b = self.build_box_unchecked()?;
         let box_size_bytes = b.sigma_serialize_bytes()?.len();
 
         // Won't be overflowing an i64, so unwrap is safe.
