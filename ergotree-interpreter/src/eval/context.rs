@@ -6,7 +6,7 @@ use ergo_chain_types::{Header, PreHeader};
 use ergotree_ir::chain::ergo_box::ErgoBox;
 
 /// BoundedVec type for Tx inputs, output_candidates and outputs
-pub type TxIoVec<T> = BoundedVec<T, 1, { u16::MAX as usize }>;
+pub type TxIoVec<T> = BoundedVec<T, 1, { i16::MAX as usize }>;
 
 /// Interpreter's context (blockchain state)
 #[derive(Debug)]
