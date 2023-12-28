@@ -3,11 +3,10 @@
 use ergotree_ir::chain::ergo_box::ErgoBox;
 use thiserror::Error;
 
+use crate::chain::transaction::ergo_transaction::ErgoTransaction;
 use crate::chain::transaction::TransactionError;
 use crate::ergotree_ir::chain::ergo_box::BoxId;
 use ergotree_interpreter::eval::context::TxIoVec;
-
-use super::signing::ErgoTransaction;
 
 /// Transaction and an additional info required for signing
 #[derive(PartialEq, Eq, Debug, Clone)]

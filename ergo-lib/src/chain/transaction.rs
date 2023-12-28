@@ -1,6 +1,7 @@
 //! Ergo transaction
 
 mod data_input;
+pub mod ergo_transaction;
 pub mod input;
 pub mod reduced;
 pub mod unsigned;
