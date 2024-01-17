@@ -83,6 +83,10 @@ impl ErgoBox {
     // (4096 - 85 bytes minimal size of the rest of the fields) / 33 token id 32 bytes + minimal token amount 1 byte = 121 tokens
     // let's set to 121 + 1 to be safe
     pub const MAX_TOKENS_COUNT: usize = 122;
+    /// Maximum box size in Ergo
+    pub const MAX_BOX_SIZE: usize = 4096;
+    /// Maximum script size
+    pub const MAX_SCRIPT_SIZE: usize = 4096;
 
     /// Crate new box
     pub fn new(
@@ -388,24 +392,52 @@ pub fn parse_box_with_indexed_digests<R: SigmaByteRead>(
 pub mod arbitrary {
     use super::box_value::arbitrary::ArbBoxValueRange;
     use super::*;
-    use proptest::{arbitrary::Arbitrary, collection::vec, option::of, prelude::*};
+    use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
+
+    /// Parameters for generating an arbitrary ErgoBox or ErgoBoxCandidate
+    #[allow(missing_docs)]
+    pub struct ArbBoxParameters {
+        pub value_range: ArbBoxValueRange,
+        pub ergo_tree: BoxedStrategy<ErgoTree>,
+        pub tokens: BoxedStrategy<Option<BoxTokens>>,
+        pub creation_height: BoxedStrategy<u32>,
+        pub registers: BoxedStrategy<NonMandatoryRegisters>,
+    }
+    impl std::default::Default for ArbBoxParameters {
+        fn default() -> Self {
+            Self {
+                value_range: ArbBoxValueRange::default(),
+                ergo_tree: any::<ErgoTree>(),
+                tokens: prop_oneof![
+                    vec(any::<Token>(), 1..3)
+                        .prop_map(BoxTokens::from_vec)
+                        .prop_map(Result::unwrap)
+                        .prop_map(Some),
+                    Just(None)
+                ]
+                .boxed(),
+                creation_height: any::<u32>().boxed(),
+                registers: any::<NonMandatoryRegisters>(),
+            }
+        }
+    }
 
     impl Arbitrary for ErgoBoxCandidate {
-        type Parameters = ArbBoxValueRange;
+        type Parameters = ArbBoxParameters;
 
         fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
             (
-                any_with::<BoxValue>(args),
-                any::<ErgoTree>(),
-                of(vec(any::<Token>(), 1..3)),
-                any::<u32>(),
-                any::<NonMandatoryRegisters>(),
+                any_with::<BoxValue>(args.value_range),
+                args.ergo_tree,
+                args.tokens,
+                args.creation_height,
+                args.registers,
             )
                 .prop_map(
                     |(value, ergo_tree, tokens, creation_height, additional_registers)| Self {
                         value,
                         ergo_tree,
-                        tokens: tokens.map(BoundedVec::from_vec).map(Result::unwrap),
+                        tokens,
                         additional_registers,
                         creation_height,
                     },
@@ -416,7 +448,7 @@ pub mod arbitrary {
     }
 
     impl Arbitrary for ErgoBox {
-        type Parameters = ArbBoxValueRange;
+        type Parameters = ArbBoxParameters;
 
         fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
             (
