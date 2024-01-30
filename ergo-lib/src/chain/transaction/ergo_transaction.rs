@@ -1,10 +1,18 @@
 //! Exposes common properties for signed and unsigned transactions
 use ergotree_interpreter::{eval::context::TxIoVec, sigma_protocol::prover::ContextExtension};
-use ergotree_ir::chain::ergo_box::{BoxId, ErgoBox};
+use ergotree_ir::{
+    chain::{
+        ergo_box::{box_value::BoxValue, BoxId, ErgoBox},
+        token::{TokenAmount, TokenAmountError, TokenId},
+    },
+    serialization::SigmaSerializationError,
+};
 use itertools::Itertools;
 use thiserror::Error;
 
-use super::{unsigned::UnsignedTransaction, DataInput, Transaction};
+use crate::wallet::tx_context::TransactionContextError;
+
+use super::{unsigned::UnsignedTransaction, DataInput, Transaction, TxVerifyError};
 
 /// Errors when validating transaction
 #[derive(Error, Debug)]
@@ -13,9 +21,41 @@ pub enum TxValidationError {
     /// Sum of ERG in outputs has overflowed
     #[error("Sum of ERG in outputs overflowed")]
     OutputSumOverflow,
+    #[error("Sum of ERG in inputs has overflowed")]
+    InputSumOverflow,
+    #[error("Token amount is not valid, {0}")]
+    TokenAmountError(#[from] TokenAmountError),
     /// The transaction is attempting to spend the same [`BoxId`] twice
     #[error("Unique inputs: {0}, actual inputs: {1}")]
     DoubleSpend(usize, usize),
+    #[error("ERG value not preserved, input amount: {0}, output amount: {1}")]
+    ErgPreservationError(u64, u64),
+    #[error("Token preservation error for {token_id:?}, in amount: {in_amount:?}, out_amount: {out_amount:?}, allowed new token id: {new_token_id:?}")]
+    TokenPreservationError {
+        new_token_id: TokenId,
+        token_id: TokenId,
+        in_amount: u64,
+        out_amount: u64,
+    },
+    #[error("Output {0} is dust, amount {1:?} < minimum {2}")]
+    DustOutput(BoxId, BoxValue, u64),
+    #[error("Creation height {0} <= {1}")]
+    MonotonicHeightError(u32, u32),
+    #[error("Output box's creation height is negative (not allowed after block version 1)")]
+    NegativeHeight,
+    #[error("Output box size {0} > maximum {}", ErgoBox::MAX_BOX_SIZE)]
+    BoxSizeExceeded(usize),
+    #[error("Output box size {0} > maximum {}", ErgoBox::MAX_SCRIPT_SIZE)]
+    ScriptSizeExceeded(usize),
+    #[error("TX context error: {0}")]
+    TransactionContextError(TransactionContextError),
+    // TODO: should probably merge TxValidationError and TxVerifyError
+    #[error("Transaction verification error: {0}")]
+    TransactionVerificationError(#[from] TxVerifyError),
+    #[error("Input {0} reduced to false during verification")]
+    ReducedToFalse(usize),
+    #[error("Sigma serialization error: {0}")]
+    SigmaSerializationError(#[from] SigmaSerializationError),
 }
 
 /// Exposes common properties for signed and unsigned transactions

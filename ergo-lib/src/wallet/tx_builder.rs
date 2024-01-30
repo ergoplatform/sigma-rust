@@ -679,9 +679,10 @@ mod tests {
 
     #[test]
     fn test_tokens_balance_error() {
-        let input_box = force_any_val_with::<ErgoBox>(
-            ArbBoxParameters { value_range: (BoxValue::MIN_RAW * 5000..BoxValue::MIN_RAW * 10000).into(), ..Default::default() },
-        );
+        let input_box = force_any_val_with::<ErgoBox>(ArbBoxParameters {
+            value_range: (BoxValue::MIN_RAW * 5000..BoxValue::MIN_RAW * 10000).into(),
+            ..Default::default()
+        });
         let token_pair = Token {
             token_id: force_any_val_with::<TokenId>(ArbTokenIdParam::Arbitrary),
             amount: force_any_val::<TokenAmount>(),
@@ -714,9 +715,10 @@ mod tests {
 
     #[test]
     fn test_balance_error_not_enough_inputs() {
-        let input_box = force_any_val_with::<ErgoBox>(
-            ArbBoxParameters { value_range: (BoxValue::MIN_RAW * 5000..BoxValue::MIN_RAW * 10000).into(), ..Default::default() },
-        );
+        let input_box = force_any_val_with::<ErgoBox>(ArbBoxParameters {
+            value_range: (BoxValue::MIN_RAW * 5000..BoxValue::MIN_RAW * 10000).into(),
+            ..Default::default()
+        });
         // tx fee on top of this leads to overspending
         let out_box_value = input_box.value();
         let mut box_builder =
@@ -751,9 +753,10 @@ mod tests {
 
     #[test]
     fn test_balance_error_not_enough_outputs() {
-        let input_box = force_any_val_with::<ErgoBox>(
-            ArbBoxParameters { value_range: (BoxValue::MIN_RAW * 5000..BoxValue::MIN_RAW * 10000).into(), ..Default::default() },
-        );
+        let input_box = force_any_val_with::<ErgoBox>(ArbBoxParameters {
+            value_range: (BoxValue::MIN_RAW * 5000..BoxValue::MIN_RAW * 10000).into(),
+            ..Default::default()
+        });
         // spend not all inputs
         let out_box_value = input_box
             .value()
