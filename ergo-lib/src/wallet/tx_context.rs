@@ -5,7 +5,7 @@ use std::collections::HashMap;
 
 use crate::chain::ergo_state_context::ErgoStateContext;
 use crate::chain::transaction::ergo_transaction::{ErgoTransaction, TxValidationError};
-use crate::chain::transaction::{verify_tx_input_proof, Transaction, TransactionError, TxVerifyError};
+use crate::chain::transaction::{verify_tx_input_proof, Transaction, TransactionError};
 use crate::ergotree_ir::chain::ergo_box::BoxId;
 use ergotree_interpreter::eval::context::TxIoVec;
 use ergotree_ir::chain::ergo_box::box_value::BoxValue;
@@ -147,8 +147,7 @@ impl TransactionContext<Transaction> {
         }
 
         let in_assets = extract_assets(self.boxes_to_spend.iter().map(|b| &b.tokens))?;
-        let out_assets =
-            extract_assets(self.spending_tx.outputs.iter().map(|b| &b.tokens))?;
+        let out_assets = extract_assets(self.spending_tx.outputs.iter().map(|b| &b.tokens))?;
         verify_assets(self.boxes_to_spend.as_slice(), in_assets, out_assets)?;
         // Verify input proofs. This is usually the most expensive check so it's done last
         for input_idx in 0..self.spending_tx.inputs.len() {

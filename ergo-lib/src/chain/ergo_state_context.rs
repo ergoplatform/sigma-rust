@@ -14,6 +14,7 @@ pub struct ErgoStateContext {
     pub pre_header: PreHeader,
     /// Fixed number of last block headers in descending order (first header is the newest one)
     pub headers: Headers,
+    /// Parameters that can be adjusted by voting
     pub parameters: Parameters,
 }
 

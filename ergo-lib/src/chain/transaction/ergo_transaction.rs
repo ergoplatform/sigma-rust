@@ -3,7 +3,7 @@ use ergotree_interpreter::{eval::context::TxIoVec, sigma_protocol::prover::Conte
 use ergotree_ir::{
     chain::{
         ergo_box::{box_value::BoxValue, BoxId, ErgoBox},
-        token::{TokenAmount, TokenAmountError, TokenId},
+        token::{TokenAmountError, TokenId},
     },
     serialization::SigmaSerializationError,
 };
@@ -18,42 +18,60 @@ use super::{unsigned::UnsignedTransaction, DataInput, Transaction, TxVerifyError
 #[derive(Error, Debug)]
 pub enum TxValidationError {
     /// Transaction has more than [`i16::MAX`] inputs
-    /// Sum of ERG in outputs has overflowed
     #[error("Sum of ERG in outputs overflowed")]
+    /// Sum of ERG in outputs has overflowed
     OutputSumOverflow,
+    /// Sum of ERG in inputs has overflowed
     #[error("Sum of ERG in inputs has overflowed")]
     InputSumOverflow,
+    /// Token Amount Error
     #[error("Token amount is not valid, {0}")]
     TokenAmountError(#[from] TokenAmountError),
-    /// The transaction is attempting to spend the same [`BoxId`] twice
     #[error("Unique inputs: {0}, actual inputs: {1}")]
+    /// The transaction is attempting to spend the same [`BoxId`] twice
     DoubleSpend(usize, usize),
     #[error("ERG value not preserved, input amount: {0}, output amount: {1}")]
+    /// The amount of Ergo in inputs must be equal to the amount of ergo in output (cannot be burned)
     ErgPreservationError(u64, u64),
     #[error("Token preservation error for {token_id:?}, in amount: {in_amount:?}, out_amount: {out_amount:?}, allowed new token id: {new_token_id:?}")]
+    /// Transaction is creating more tokens than exists in inputs. This is only allowed when minting a new token
     TokenPreservationError {
+        /// If the transaction is minting a new token, then it must have this token id
         new_token_id: TokenId,
+        /// The token id whose amount was not preserved
         token_id: TokenId,
+        /// Total amount of token in inputs
         in_amount: u64,
+        /// Total amount of token in outputs
         out_amount: u64,
     },
     #[error("Output {0} is dust, amount {1:?} < minimum {2}")]
+    /// Transaction was creating a dust output. The value of a box should be >= than box size * [Parameters::min_value_per_byte]
     DustOutput(BoxId, BoxValue, u64),
     #[error("Creation height {0} <= {1}")]
+    /// After Block V2, all output boxes height must be >= max(inputs.height). See: https://github.com/ergoplatform/eips/blob/master/eip-0039.md
     MonotonicHeightError(u32, u32),
     #[error("Output box's creation height is negative (not allowed after block version 1)")]
+    /// Negative heights are not allowed after block v1.
+    /// When using sigma-rust where heights are always unsigned, this error may be because creation height was set to be >= 2147483648
     NegativeHeight,
     #[error("Output box size {0} > maximum {}", ErgoBox::MAX_BOX_SIZE)]
+    /// Box size is > [ErgoBox::MAX_SCRIPT_SIZE]
     BoxSizeExceeded(usize),
     #[error("Output box size {0} > maximum {}", ErgoBox::MAX_SCRIPT_SIZE)]
+    /// Script size is > [ErgoBox::MAX_SCRIPT_SIZE]
     ScriptSizeExceeded(usize),
     #[error("TX context error: {0}")]
+    /// Transaction Context Error
     TransactionContextError(TransactionContextError),
     // TODO: should probably merge TxValidationError and TxVerifyError
+    /// Input validation failed
     #[error("Transaction verification error: {0}")]
     TransactionVerificationError(#[from] TxVerifyError),
+    /// Input's proposition reduced to false. This means the proof provided for the input was most likely invalid
     #[error("Input {0} reduced to false during verification")]
     ReducedToFalse(usize),
+    /// Serialization error
     #[error("Sigma serialization error: {0}")]
     SigmaSerializationError(#[from] SigmaSerializationError),
 }
@@ -76,8 +94,6 @@ pub trait ErgoTransaction {
         let inputs = self.inputs_ids();
         let outputs = self.outputs();
 
-        // TODO: simplify this once try_reduce is stable
-        // TODO: Check if outputs are not dust (this should be done outside of validate_stateless since this depends on blockchain parameters)
         outputs
             .iter()
             .try_fold(0i64, |a, b| a.checked_add(b.value.as_i64()))
