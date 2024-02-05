@@ -691,28 +691,35 @@ mod test {
             Some((0..i32::MAX as u32).boxed()),
         );
         // Generate a list of boxes. If monotonic_valid is true then monotonic height validation will pass, otherwise it will fail in tests
-        let tx_gen = (box_gen, bool::arbitrary()).prop_perturb(|(boxes, monotonic_valid), mut rng| {
-            let max_height = boxes.iter().map(|b| b.creation_height).max().unwrap();
-            let mut unsigned_tx =
-                valid_unsigned_transaction_from_boxes(rng.clone(), &boxes, true, true_tree.clone(), &[]);
-            if monotonic_valid {
-                unsigned_tx
-                    .output_candidates
-                    .iter_mut()
-                    .for_each(|b| b.creation_height = max_height + rng.gen_range(1..1000));
-            } else {
-                unsigned_tx.output_candidates.iter_mut().for_each(|b| {
-                    b.creation_height = max_height.saturating_sub(rng.gen_range(1..1000))
-                });
-            }
-            let wallet = Wallet::from_secrets(vec![]);
-            let state_context = force_any_val();
-            let tx_context = TransactionContext::new(unsigned_tx, boxes.clone(), vec![]).unwrap();
-            let signed_tx = wallet
-                .sign_transaction(tx_context, &state_context, None)
-                .unwrap();
-            (boxes, signed_tx, monotonic_valid)
-        });
+        let tx_gen =
+            (box_gen, bool::arbitrary()).prop_perturb(|(boxes, monotonic_valid), mut rng| {
+                let max_height = boxes.iter().map(|b| b.creation_height).max().unwrap();
+                let mut unsigned_tx = valid_unsigned_transaction_from_boxes(
+                    rng.clone(),
+                    &boxes,
+                    true,
+                    true_tree.clone(),
+                    &[],
+                );
+                if monotonic_valid {
+                    unsigned_tx
+                        .output_candidates
+                        .iter_mut()
+                        .for_each(|b| b.creation_height = max_height + rng.gen_range(1..1000));
+                } else {
+                    unsigned_tx.output_candidates.iter_mut().for_each(|b| {
+                        b.creation_height = max_height.saturating_sub(rng.gen_range(1..1000))
+                    });
+                }
+                let wallet = Wallet::from_secrets(vec![]);
+                let state_context = force_any_val();
+                let tx_context =
+                    TransactionContext::new(unsigned_tx, boxes.clone(), vec![]).unwrap();
+                let signed_tx = wallet
+                    .sign_transaction(tx_context, &state_context, None)
+                    .unwrap();
+                (boxes, signed_tx, monotonic_valid)
+            });
         proptest!(|((boxes, tx, monotonic_valid) in tx_gen)| {
             assert!(tx.validate_stateless().is_ok());
 

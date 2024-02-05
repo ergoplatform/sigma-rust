@@ -4,6 +4,7 @@ use ergo_lib::chain;
 use crate::block_header::BlockHeader;
 use crate::collections::ConstCollectionPtr;
 use crate::header::PreHeader;
+use crate::parameters::ConstParametersPtr;
 use crate::util::const_ptr_as_ref;
 use crate::Error;
 use std::convert::TryInto;
@@ -18,10 +19,12 @@ pub type ConstErgoStateContextPtr = *const ErgoStateContext;
 pub unsafe fn ergo_state_context_new(
     pre_header_ptr: *const PreHeader,
     headers: ConstCollectionPtr<BlockHeader>,
+    parameters_ptr: ConstParametersPtr,
     ergo_state_context_out: *mut ErgoStateContextPtr,
 ) -> Result<(), Error> {
     let pre_header = const_ptr_as_ref(pre_header_ptr, "pre_header_ptr")?;
     let headers = const_ptr_as_ref(headers, "headers")?;
+    let parameters = const_ptr_as_ref(parameters_ptr, "parameters_ptr")?;
     match headers.0.len() {
         10 => {
             *ergo_state_context_out = Box::into_raw(Box::new(ErgoStateContext(
@@ -35,6 +38,7 @@ pub unsafe fn ergo_state_context_new(
                         .collect::<Vec<_>>()
                         .try_into()
                         .unwrap(),
+                    parameters.0.clone(),
                 ),
             )));
             Ok(())
