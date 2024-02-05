@@ -416,7 +416,7 @@ pub mod arbitrary {
                     Just(None)
                 ]
                 .boxed(),
-                creation_height: any::<u32>().boxed(),
+                creation_height: (0..i32::MAX as u32).boxed(),
                 registers: any::<NonMandatoryRegisters>(),
             }
         }

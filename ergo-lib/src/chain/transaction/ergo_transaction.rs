@@ -48,8 +48,11 @@ pub enum TxValidationError {
     #[error("Output {0} is dust, amount {1:?} < minimum {2}")]
     /// Transaction was creating a dust output. The value of a box should be >= than box size * [Parameters::min_value_per_byte]
     DustOutput(BoxId, BoxValue, u64),
-    #[error("Creation height {0} <= {1}")]
-    /// After Block V2, all output boxes height must be >= max(inputs.height). See: https://github.com/ergoplatform/eips/blob/master/eip-0039.md
+    #[error("Creation height {0} > preheader height")]
+    /// The output's height is greater than the current block height
+    InvalidHeightError(u32),
+    #[error("Creation height {0} <= input box max height{1}")]
+    /// After Block V3, all output boxes height must be >= max(inputs.height). See: https://github.com/ergoplatform/eips/blob/master/eip-0039.md
     MonotonicHeightError(u32, u32),
     #[error("Output box's creation height is negative (not allowed after block version 1)")]
     /// Negative heights are not allowed after block v1.

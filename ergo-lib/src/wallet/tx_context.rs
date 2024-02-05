@@ -14,7 +14,7 @@ use ergotree_ir::chain::token::{TokenAmount, TokenId};
 use ergotree_ir::serialization::SigmaSerializable;
 use thiserror::Error;
 
-/// Transaction and an additional info required for signing
+/// Transaction and an additional info required for signing or verification
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct TransactionContext<T: ErgoTransaction> {
     /// Unsigned transaction to sign
@@ -84,7 +84,7 @@ impl<T: ErgoTransaction> TransactionContext<T> {
 
 impl TransactionContext<Transaction> {
     /// Verify transaction using blockchain parameters
-    // TODO: costing, storage rent, re-emission, monotonic box creation
+    // TODO: costing, storage rent, re-emission
     // This is based on validateStateful() in Ergo: https://github.com/ergoplatform/ergo/blob/48239ef98ced06617dc21a0eee5670235e362933/ergo-core/src/main/scala/org/ergoplatform/modifiers/mempool/ErgoTransaction.scala#L357
     pub fn validate(&self, state_context: &ErgoStateContext) -> Result<(), TxValidationError> {
         // Check that input sum does not overflow
@@ -140,10 +140,19 @@ impl TransactionContext<Transaction> {
                 ));
             }
         }
-
+        // Monotonic Box creation happens after v3
+        let max_creation_height = if state_context.pre_header.version <= 2 {
+            0
+        } else {
+            self.boxes_to_spend
+                .iter()
+                .map(|b| b.creation_height)
+                .max()
+                .unwrap()
+        };
         // Check that outputs are not dust and aren't created in future
         for output in &self.spending_tx.outputs {
-            verify_output(&state_context, output, 0)?;
+            verify_output(&state_context, output, max_creation_height)?;
         }
 
         let in_assets = extract_assets(self.boxes_to_spend.iter().map(|b| &b.tokens))?;
@@ -159,7 +168,7 @@ impl TransactionContext<Transaction> {
     }
 }
 
-//
+// TODO: check that box creation height does not exceed height in preheader
 fn verify_output(
     state_context: &ErgoStateContext,
     output: &ErgoBox,
@@ -167,7 +176,7 @@ fn verify_output(
 ) -> Result<(), TxValidationError> {
     let box_size = output.sigma_serialize_bytes()?.len() as u64;
     let script_size = output.script_bytes()?.len();
-    let block_version = state_context.parameters.block_version();
+    let block_version = state_context.pre_header.version;
     // Check that output is not dust
     let minimum_value = box_size * state_context.parameters.min_value_per_byte() as u64;
     if *output.value.as_u64() < minimum_value {
@@ -175,6 +184,11 @@ fn verify_output(
             output.box_id(),
             output.value,
             minimum_value,
+        ));
+    }
+    if output.creation_height > state_context.pre_header.height {
+        return Err(TxValidationError::InvalidHeightError(
+            output.creation_height,
         ));
     }
     if output.creation_height < max_creation_height {
@@ -299,6 +313,7 @@ mod test {
     use proptest::test_runner::TestRng;
     use sigma_test_util::{force_any_val, force_any_val_with};
 
+    use crate::chain::ergo_state_context::ErgoStateContext;
     use crate::chain::parameters::Parameters;
     use crate::chain::transaction::ergo_transaction::{ErgoTransaction, TxValidationError};
     use crate::chain::transaction::prover_result::ProverResult;
@@ -327,27 +342,32 @@ mod test {
         min_inputs: u16,
         max_inputs: u16,
         ergotree_gen: impl Strategy<Value = ErgoTree>,
+        height_gen: Option<BoxedStrategy<u32>>,
     ) -> impl Strategy<Value = Vec<ErgoBox>> {
         (
             min_inputs..=max_inputs,
             min_tokens..=max_tokens,
             ergotree_gen,
+            height_gen.clone().unwrap_or_else(|| Just(0).boxed()),
         )
-            .prop_flat_map(|(input_count, assets_count, proposition)| {
-                let tokens = disperse_tokens(input_count, assets_count);
-                tokens
-                    .into_iter()
-                    .map(move |tokens| {
-                        let box_params = ArbBoxParameters {
-                            value_range: (1000000..100000000).into(),
-                            ergo_tree: Just(proposition.clone()).boxed(),
-                            tokens: Just(tokens).boxed(),
-                            ..Default::default()
-                        };
-                        ErgoBox::arbitrary_with(box_params)
-                    })
-                    .collect::<Vec<_>>()
-            })
+            .prop_flat_map(
+                |(input_count, assets_count, proposition, creation_height)| {
+                    let tokens = disperse_tokens(input_count, assets_count);
+                    tokens
+                        .into_iter()
+                        .map(move |tokens| {
+                            let box_params = ArbBoxParameters {
+                                value_range: (1000000..100000000).into(),
+                                ergo_tree: Just(proposition.clone()).boxed(),
+                                creation_height: Just(creation_height).boxed(),
+                                tokens: Just(tokens).boxed(),
+                                ..Default::default()
+                            };
+                            ErgoBox::arbitrary_with(box_params)
+                        })
+                        .collect::<Vec<_>>()
+                },
+            )
     }
     fn valid_unsigned_transaction_from_boxes(
         mut rng: TestRng,
@@ -382,7 +402,7 @@ mod test {
         let parameters = Parameters::default();
         let sufficient_amount =
             ErgoBox::MAX_BOX_SIZE as u64 * parameters.min_value_per_byte() as u64;
-        assert!(sufficient_amount * outputs as u64 <= input_sum);
+        assert!(sufficient_amount * (outputs as u64) < input_sum);
         let mut output_preamounts = vec![sufficient_amount; outputs as usize];
         let mut remainder = input_sum - sufficient_amount * outputs as u64;
         // TODO: find a smarter way to do this since sometimes number of iterations can blow up
@@ -491,7 +511,7 @@ mod test {
             TransactionContext::new(unsigned_tx.clone(), boxes.clone(), data_boxes).unwrap();
         let wallet = Wallet::from_secrets(vec![]);
         let state_context = force_any_val();
-        //
+        // Attempt to sign a transaction. If signing fails because script reduces to false or prover doesn't know some secret then return an invalid transaction
         wallet
             .sign_transaction(tx_context, &state_context, None)
             .or_else(|_| {
@@ -518,7 +538,7 @@ mod test {
     fn valid_transaction_gen_with_tree(
         tree: ErgoTree,
     ) -> impl Strategy<Value = (Vec<ErgoBox>, Transaction)> {
-        let box_generator = gen_boxes(1, 100, 1, 100, Just(tree.clone()));
+        let box_generator = gen_boxes(1, 100, 1, 100, Just(tree.clone()), None);
         (box_generator, bool::arbitrary()).prop_perturb(move |(boxes, issue_new_token), rng| {
             (
                 boxes.clone(),
@@ -559,7 +579,7 @@ mod test {
 
     proptest! {
     #[test]
-    // Test that a valid transaction is valid asd
+    // Test that a valid transaction is valid
     fn test_valid_transaction((boxes, tx) in valid_transaction_generator()) {
         let state_context = force_any_val();
         let tx_context = TransactionContext::new(tx, boxes, vec![]).unwrap();
@@ -570,7 +590,8 @@ mod test {
         let state_context = force_any_val();
 
         let box_value = if change_output {
-            &mut <TxIoVec<ergotree_ir::chain::ergo_box::ErgoBox> as AsMut<[ErgoBox]>>::as_mut(&mut tx.outputs)[0].value
+            let slice: &mut [ErgoBox] = tx.outputs.as_mut();
+            &mut slice[0].value
         }
         else {
             &mut boxes[0].value
@@ -605,9 +626,7 @@ mod test {
     #[test]
     fn test_asset_preservation((boxes, mut tx) in valid_transaction_generator()) {
         let state_context = force_any_val();
-        //println!("a {tx:?}");
         update_asset(&mut tx, &boxes, |amount| amount.checked_add(&TokenAmount::MIN).unwrap());
-        //println!("b {tx:?}");
         assert!(tx.validate_stateless().is_ok());
 
         let tx_context = TransactionContext::new(tx, boxes, vec![]).unwrap();
@@ -636,6 +655,84 @@ mod test {
             let tx_context = TransactionContext::new(tx, boxes, vec![]).unwrap();
             match tx_context.validate(&state_context) {
                 Err(TxValidationError::ReducedToFalse(_)) => {},
+                other => panic!("Expected validation to fail, got {other:?}")
+            }
+        });
+    }
+    #[test]
+    fn test_monotonic_box_creation() {
+        let true_tree = ErgoTree::new(
+            ErgoTreeHeader::v0(true),
+            &Expr::Const(Constant {
+                tpe: ergotree_ir::types::stype::SType::SBoolean,
+                v: Literal::Boolean(true),
+            }),
+        )
+        .unwrap();
+
+        let state_context_tx_gen = |tx: &Transaction, version| {
+            let height = tx
+                .output_candidates
+                .iter()
+                .map(|b| b.creation_height)
+                .max()
+                .unwrap();
+            let mut state_context: ErgoStateContext = force_any_val();
+            state_context.pre_header.height = height;
+            state_context.pre_header.version = version;
+            state_context
+        };
+        let box_gen = gen_boxes(
+            5,
+            10,
+            5,
+            10,
+            Just(true_tree.clone()),
+            Some((0..i32::MAX as u32).boxed()),
+        );
+        // Generate a list of boxes. If monotonic_valid is true then monotonic height validation will pass, otherwise it will fail in tests
+        let tx_gen = (box_gen, bool::arbitrary()).prop_perturb(|(boxes, monotonic_valid), mut rng| {
+            let max_height = boxes.iter().map(|b| b.creation_height).max().unwrap();
+            let mut unsigned_tx =
+                valid_unsigned_transaction_from_boxes(rng.clone(), &boxes, true, true_tree.clone(), &[]);
+            if monotonic_valid {
+                unsigned_tx
+                    .output_candidates
+                    .iter_mut()
+                    .for_each(|b| b.creation_height = max_height + rng.gen_range(1..1000));
+            } else {
+                unsigned_tx.output_candidates.iter_mut().for_each(|b| {
+                    b.creation_height = max_height.saturating_sub(rng.gen_range(1..1000))
+                });
+            }
+            let wallet = Wallet::from_secrets(vec![]);
+            let state_context = force_any_val();
+            let tx_context = TransactionContext::new(unsigned_tx, boxes.clone(), vec![]).unwrap();
+            let signed_tx = wallet
+                .sign_transaction(tx_context, &state_context, None)
+                .unwrap();
+            (boxes, signed_tx, monotonic_valid)
+        });
+        proptest!(|((boxes, tx, monotonic_valid) in tx_gen)| {
+            assert!(tx.validate_stateless().is_ok());
+
+            // For blocks V1 and V2 monotonic height rule is not respected.
+            let context1 = state_context_tx_gen(&tx, 1);
+            let context2 = state_context_tx_gen(&tx, 2);
+            // V3 enforces monotonic height rule, thus validation should fail if !monotonic_valid
+            let context3 = state_context_tx_gen(&tx, 3);
+            let tx_context = TransactionContext::new(tx, boxes, vec![]).unwrap();
+            match tx_context.validate(&context1) {
+                Ok(_) => {},
+                other => panic!("Expected validation to succeed, got {other:?}")
+            }
+            match tx_context.validate(&context2) {
+                Ok(_) => {},
+                other => panic!("Expected validation to succeed, got {other:?}")
+            }
+            match (monotonic_valid, tx_context.validate(&context3)) {
+                (true, Ok(())) => {},
+                (false, Err(TxValidationError::MonotonicHeightError(_, _))) => {},
                 other => panic!("Expected validation to fail, got {other:?}")
             }
         });
