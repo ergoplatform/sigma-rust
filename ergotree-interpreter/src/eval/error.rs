@@ -102,8 +102,7 @@ pub struct SpannedWithSourceEvalError {
 
 impl Display for SpannedWithSourceEvalError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        #[allow(clippy::unwrap_used)]
-        miette::set_hook(Box::new(|_| {
+        let _ = miette::set_hook(Box::new(|_| {
             Box::new(
                 miette::MietteHandlerOpts::new()
                     .terminal_links(false)
@@ -113,8 +112,7 @@ impl Display for SpannedWithSourceEvalError {
                     .tab_width(2)
                     .build(),
             )
-        }))
-        .unwrap();
+        }));
         let err_msg = self.error.to_string();
         let report = miette!(
             labels = vec![LabeledSpan::at(self.source_span, err_msg,)],
@@ -128,8 +126,7 @@ impl Display for SpannedWithSourceEvalError {
 
 impl Debug for SpannedWithSourceEvalError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        #[allow(clippy::unwrap_used)]
-        miette::set_hook(Box::new(|_| {
+        let _ = miette::set_hook(Box::new(|_| {
             Box::new(
                 miette::MietteHandlerOpts::new()
                     .terminal_links(false)
@@ -139,8 +136,7 @@ impl Debug for SpannedWithSourceEvalError {
                     .tab_width(2)
                     .build(),
             )
-        }))
-        .unwrap();
+        }));
         let err_msg = self.error.to_string();
         let report = miette!(
             labels = vec![LabeledSpan::at(self.source_span, err_msg,)],
