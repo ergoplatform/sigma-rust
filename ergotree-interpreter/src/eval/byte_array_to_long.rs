@@ -10,7 +10,7 @@ use ergotree_ir::mir::constant::TryExtractInto;
 
 impl Evaluable for ByteArrayToLong {
     fn eval(&self, env: &mut Env, ctx: &mut EvalContext) -> Result<Value, EvalError> {
-        let input = self.input.eval(env, ctx)?.try_extract_into::<Vec<i8>>()?;
+        let input = self.input.eval(env, ctx)?.try_extract_into::<Vec<u8>>()?;
         if input.len() < 8 {
             return Err(UnexpectedValue(
                 "byteArrayToLong: array must contain at least 8 elements".into(),
@@ -65,5 +65,12 @@ mod tests {
     fn fails_for_short() {
         let res = eval_node(vec![0; 7]);
         assert!(res.is_err());
+    }
+    #[test]
+    fn test_equivalence() {
+        let res = eval_node(base16::decode("712d7f00ff807f7f").unwrap().into_iter().map(|b| b as i8).collect());
+        assert_eq!(res, Ok(8155314142501175167));
+        let res = eval_node(base16::decode("812d7f00ff807f7f0101018050757f0580ac009680f2ffc1").unwrap().into_iter().map(|b| b as i8).collect());
+        assert_eq!(res, Ok(-9138508426601529473));
     }
 }
