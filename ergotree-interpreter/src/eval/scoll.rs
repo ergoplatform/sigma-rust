@@ -24,15 +24,20 @@ pub(crate) static INDEX_OF_EVAL_FN: EvalFn = |_env, _ctx, obj, args| {
             .get(0)
             .cloned()
             .ok_or_else(|| EvalError::NotFound("indexOf: missing first arg".to_string()))?;
-        let fallback_index = args
+        let from = args
             .get(1)
             .cloned()
-            .ok_or_else(|| EvalError::NotFound("indexOf: missing second arg".to_string()))?;
+            .ok_or_else(|| EvalError::NotFound("indexOf: missing second arg".to_string()))?
+            .try_extract_into::<i32>()?
+            .max(0);
+
         let index_of = normalized_input_vals
             .into_iter()
+            .skip(from as usize)
             .position(|it| it == target_element)
-            .unwrap_or(fallback_index.try_extract_into::<i32>()? as usize);
-        index_of as i32
+            .map(|idx| idx as i32 + from)
+            .unwrap_or(-1);
+        index_of
     }))
 };
 
@@ -350,18 +355,32 @@ mod tests {
 
     #[test]
     fn eval_index_of() {
-        let coll_const: Constant = vec![1i64, 2i64].into();
-        let expr: Expr = MethodCall::new(
-            coll_const.into(),
-            scoll::INDEX_OF_METHOD
-                .clone()
-                .with_concrete_types(&[(STypeVar::t(), SType::SLong)].iter().cloned().collect()),
-            vec![2i64.into(), 0i32.into()],
-        )
-        .unwrap()
-        .into();
-        let res = eval_out_wo_ctx::<i32>(&expr);
+        let index_of_expr = |coll: Vec<i64>, elem: i64, from: i32| -> Expr {
+            MethodCall::new(
+                coll.into(),
+                scoll::INDEX_OF_METHOD.clone().with_concrete_types(
+                    &[(STypeVar::t(), SType::SLong)].iter().cloned().collect(),
+                ),
+                vec![elem.into(), from.into()],
+            )
+            .unwrap()
+            .into()
+        };
+        let res = eval_out_wo_ctx::<i32>(&index_of_expr(vec![1i64, 2i64], 2, 0));
         assert_eq!(res, 1);
+        // Test searching in array starting from 1st index
+        let res = eval_out_wo_ctx::<i32>(&index_of_expr(vec![1i64, 2i64], 2, 1));
+        assert_eq!(res, 1);
+
+        // Test searching in array starting from 1st index
+        let res = eval_out_wo_ctx::<i32>(&index_of_expr(vec![1i64, 2i64], 2, 1));
+        assert_eq!(res, 1);
+        // Test searching in array starting from index greater than array length
+        let res = eval_out_wo_ctx::<i32>(&index_of_expr(vec![1i64, 2i64], 2, 10000));
+        assert_eq!(res, -1);
+        // Test element that doesn't exist
+        let res = eval_out_wo_ctx::<i32>(&index_of_expr(vec![1i64, 2i64], 3, 0));
+        assert_eq!(res, -1);
     }
 
     #[test]
@@ -377,7 +396,7 @@ mod tests {
         .unwrap()
         .into();
         let res = eval_out_wo_ctx::<i32>(&expr);
-        assert_eq!(res, 0);
+        assert_eq!(res, -1);
     }
 
     #[test]
