@@ -20,6 +20,7 @@ use ergotree_ir::serialization::sigma_byte_reader;
 use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
 use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
 use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWriter;
+use ergotree_ir::serialization::SigmaSerializationError;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaConjecture;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
@@ -145,10 +146,8 @@ fn parse_sig_compute_challenges_reader<R: SigmaByteRead>(
         SigmaBoolean::ProofOfKnowledge(tree) => match tree {
             SigmaProofOfKnowledgeTree::ProveDlog(dl) => {
                 // Verifier Step 3: For every leaf node, read the response z provided in the proof.
-                let mut scalar_bytes: [u8; super::GROUP_SIZE] = [0; super::GROUP_SIZE];
-                r.read_exact(&mut scalar_bytes)
+                let z = read_scalar(r)
                     .map_err(|_| SigParsingError::ScalarReadProveDlog(exp.clone()))?;
-                let z = Wscalar::from(GroupSizedBytes(scalar_bytes.into()));
                 Ok(UncheckedSchnorr {
                     proposition: dl.clone(),
                     commitment_opt: None,
@@ -159,10 +158,8 @@ fn parse_sig_compute_challenges_reader<R: SigmaByteRead>(
             }
             SigmaProofOfKnowledgeTree::ProveDhTuple(dh) => {
                 // Verifier Step 3: For every leaf node, read the response z provided in the proof.
-                let mut scalar_bytes: [u8; super::GROUP_SIZE] = [0; super::GROUP_SIZE];
-                r.read_exact(&mut scalar_bytes)
+                let z = read_scalar(r)
                     .map_err(|_| SigParsingError::ScalarReadProveDhTuple(exp.clone()))?;
-                let z = Wscalar::from(GroupSizedBytes(scalar_bytes.into()));
                 Ok(UncheckedDhTuple {
                     proposition: dh.clone(),
                     commitment_opt: None,
@@ -248,6 +245,13 @@ fn parse_sig_compute_challenges_reader<R: SigmaByteRead>(
     }
 }
 
+fn read_scalar<R: SigmaByteRead>(r: &mut R) -> Result<Wscalar, SigmaSerializationError> {
+    let mut scalar_bytes: Box<[u8; super::GROUP_SIZE]> = Box::new([0; super::GROUP_SIZE]);
+    let bytes_read = r.read(&mut *scalar_bytes)?;
+    scalar_bytes.rotate_right(super::GROUP_SIZE - bytes_read);
+    Ok(Wscalar::from(GroupSizedBytes(scalar_bytes)))
+}
+
 /// Errors when parsing proof tree signatures
 #[allow(missing_docs)]
 #[derive(Error, PartialEq, Debug, Clone)]
@@ -278,4 +282,30 @@ pub enum SigParsingError {
 
     #[error("Error: {0:?} for top level exp: {1:?}")]
     TopLevelExpWrap(Box<SigParsingError>, SigmaBoolean),
+}
+
+#[cfg(test)]
+mod test {
+    use std::io::Cursor;
+
+    use ergotree_ir::serialization::{
+        constant_store::ConstantStore, sigma_byte_reader::SigmaByteReader,
+    };
+    use k256::Scalar;
+
+    use super::read_scalar;
+
+    // Test scalar parsing and also test handling parsing when there are less than GROUP_SIZE bytes in the buffer
+    #[test]
+    fn test_scalar_parse() {
+        let mut bytes = [0; 32];
+        bytes[31] = 1;
+
+        for i in 0..31 {
+            let cursor = Cursor::new(&bytes[i..]);
+            let mut sr = SigmaByteReader::new(cursor, ConstantStore::empty());
+            let scalar = read_scalar(&mut sr).unwrap();
+            assert_eq!(*scalar.as_scalar_ref(), Scalar::ONE);
+        }
+    }
 }
