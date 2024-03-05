@@ -150,7 +150,7 @@ lazy_static! {
     );
 }
 lazy_static! {
-    static ref MINER_PUBKEY_PROPERTY: SMethod = SMethod::new(
+    pub static ref MINER_PUBKEY_PROPERTY: SMethod = SMethod::new(
         STypeCompanion::Context,
         MINER_PUBKEY_PROPERTY_METHOD_DESC.clone()
     );
