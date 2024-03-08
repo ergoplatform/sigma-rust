@@ -63,18 +63,10 @@ pub(crate) static FLATMAP_EVAL_FN: EvalFn = |env, ctx, obj, args| {
     }
     let unsupported_msg =
         "unsupported lambda in flatMap: allowed usage `xs.flatMap(x => x.property)".to_string();
-    match &*lambda.body {
-        Expr::MethodCall(mc) => {
-            if !mc.expr().args.is_empty() {
-                return Err(EvalError::UnexpectedValue(unsupported_msg));
-            }
+    if let Expr::MethodCall(mc) = &*lambda.body {
+        if !mc.expr().args.is_empty() {
+            return Err(EvalError::UnexpectedValue(unsupported_msg));
         }
-        Expr::ExtractScriptBytes(_) => (),
-        Expr::ExtractId(_) => (),
-        Expr::SigmaPropBytes(_) => (),
-        Expr::ExtractBytes(_) => (),
-        Expr::ExtractBytesWithNoRef(_) => (),
-        _ => return Err(EvalError::UnexpectedValue(unsupported_msg)),
     }
     let mut lambda_call = |arg: Value| {
         let func_arg = lambda.args.first().ok_or_else(|| {
