@@ -198,8 +198,8 @@ pub(crate) static PATCH_EVAL_FN: EvalFn = |_env, _ctx, obj, args| {
         .cloned()
         .ok_or_else(|| EvalError::NotFound("patch: missing third arg (replaced)".to_string()))?;
 
-    let from = from_index_val.try_extract_into::<i32>()? as usize;
-    let replaced = replaced_val.try_extract_into::<i32>()? as usize;
+    let from = from_index_val.try_extract_into::<i32>()?.max(0) as usize;
+    let replaced = replaced_val.try_extract_into::<i32>()?.max(0) as usize;
     let patch = match patch_val {
         Value::Coll(coll) => Ok(coll.as_vec()),
         _ => Err(EvalError::UnexpectedValue(format!(
@@ -675,6 +675,24 @@ mod tests {
         .into();
         let res = eval_out_wo_ctx::<Vec<i64>>(&expr);
         assert_eq!(res, vec![1i64, 2i64, 3i64, 4i64, 5i64]);
+    }
+
+    #[test]
+    fn eval_patch_index_negative() {
+        let coll_const: Constant = vec![1i64, 2i64, 3i64].into();
+        let patch_input: Vec<i64> = vec![4i64, 5i64];
+
+        let expr: Expr = MethodCall::new(
+            coll_const.into(),
+            scoll::PATCH_METHOD
+                .clone()
+                .with_concrete_types(&[(STypeVar::t(), SType::SLong)].iter().cloned().collect()),
+            vec![(-1i32).into(), patch_input.into(), (-1i32).into()],
+        )
+        .unwrap()
+        .into();
+        let res = eval_out_wo_ctx::<Vec<i64>>(&expr);
+        assert_eq!(res, vec![4i64, 5i64, 1i64, 2i64, 3i64]);
     }
 
     #[test]
