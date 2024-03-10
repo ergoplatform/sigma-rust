@@ -23,6 +23,8 @@ pub struct TransactionContext<T: ErgoTransaction> {
     boxes_to_spend: TxIoVec<ErgoBox>,
     /// Boxes corresponding to [`crate::chain::transaction::unsigned::UnsignedTransaction::data_inputs`]
     pub(crate) data_boxes: Option<TxIoVec<ErgoBox>>,
+    /// Stores the location of each BoxId in [`Self::boxes_to_spend`]
+    box_index: HashMap<BoxId, u16>,
 }
 
 impl<T: ErgoTransaction> TransactionContext<T> {
@@ -40,11 +42,6 @@ impl<T: ErgoTransaction> TransactionContext<T> {
                 TransactionContextError::TooManyInputBoxes(got)
             }
         })?;
-        for (i, unsigned_input) in spending_tx.inputs_ids().enumerated() {
-            if !boxes_to_spend.iter().any(|b| unsigned_input == b.box_id()) {
-                return Err(TransactionContextError::InputBoxNotFound(i));
-            }
-        }
         let data_boxes_len = data_boxes.len();
         let data_boxes = if !data_boxes.is_empty() {
             Some(
@@ -55,10 +52,26 @@ impl<T: ErgoTransaction> TransactionContext<T> {
             None
         };
 
+        let box_index: HashMap<BoxId, u16> = boxes_to_spend
+            .iter()
+            .enumerate()
+            .map(|(i, b)| (b.box_id(), i as u16))
+            .collect();
+        for (i, unsigned_input) in spending_tx.inputs_ids().iter().enumerate() {
+            if !box_index.contains_key(&unsigned_input) {
+                return Err(TransactionContextError::InputBoxNotFound(i));
+            }
+        }
+
         if let Some(data_inputs) = spending_tx.data_inputs().as_ref() {
             if let Some(data_boxes) = data_boxes.as_ref() {
+                let data_box_index: HashMap<BoxId, u16> = data_boxes
+                    .iter()
+                    .enumerate()
+                    .map(|(i, b)| (b.box_id(), i as u16))
+                    .collect();
                 for (i, data_input) in data_inputs.iter().enumerate() {
-                    if !data_boxes.iter().any(|b| data_input.box_id == b.box_id()) {
+                    if !data_box_index.contains_key(&data_input.box_id) {
                         return Err(TransactionContextError::DataInputBoxNotFound(i));
                     }
                 }
@@ -70,14 +83,15 @@ impl<T: ErgoTransaction> TransactionContext<T> {
             spending_tx,
             boxes_to_spend,
             data_boxes,
+            box_index,
         })
     }
 
     /// Returns box with given id, if it exists.
     pub fn get_input_box(&self, box_id: &BoxId) -> Option<ErgoBox> {
-        self.boxes_to_spend
-            .iter()
-            .find(|b| b.box_id() == *box_id)
+        self.box_index
+            .get(box_id)
+            .and_then(|&idx| self.boxes_to_spend.get(idx as usize))
             .cloned()
     }
 }
@@ -109,37 +123,6 @@ impl TransactionContext<Transaction> {
             ));
         }
 
-        // Check that TransactionContext contains all the input/data input boxes that transaction is using
-        // This is already done in TransactionContext::new but since spending_tx is pub it's possible that a user of the library changes the transaction while keeping the rest of the context
-        // TODO: This is quadratic. A transaction can have 32767 inputs and data inputs. This means in the worst case we'd be searching 536821761 * 2 = 1,073,643,522 times!
-        // Should probably use a data structure that has < O(n) lookups for boxes_to_spend and data_boxes
-        for (i, unsigned_input) in self.spending_tx.inputs_ids().enumerated() {
-            if !self
-                .boxes_to_spend
-                .iter()
-                .any(|b| unsigned_input == b.box_id())
-            {
-                return Err(TxValidationError::TransactionContextError(
-                    TransactionContextError::InputBoxNotFound(i),
-                ));
-            }
-        }
-
-        if let Some(data_inputs) = self.spending_tx.data_inputs().as_ref() {
-            if let Some(data_boxes) = self.data_boxes.as_ref() {
-                for (i, data_input) in data_inputs.iter().enumerate() {
-                    if !data_boxes.iter().any(|b| data_input.box_id == b.box_id()) {
-                        return Err(TxValidationError::TransactionContextError(
-                            TransactionContextError::DataInputBoxNotFound(i),
-                        ));
-                    }
-                }
-            } else {
-                return Err(TxValidationError::TransactionContextError(
-                    TransactionContextError::DataInputBoxNotFound(0),
-                ));
-            }
-        }
         // Monotonic Box creation happens after v3
         let max_creation_height = if state_context.pre_header.version <= 2 {
             0
@@ -152,7 +135,7 @@ impl TransactionContext<Transaction> {
         };
         // Check that outputs are not dust and aren't created in future
         for output in &self.spending_tx.outputs {
-            verify_output(&state_context, output, max_creation_height)?;
+            verify_output(state_context, output, max_creation_height)?;
         }
 
         let in_assets = extract_assets(self.boxes_to_spend.iter().map(|b| &b.tokens))?;
