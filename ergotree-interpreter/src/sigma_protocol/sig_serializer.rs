@@ -285,6 +285,7 @@ pub enum SigParsingError {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod test {
     use std::io::Cursor;
 

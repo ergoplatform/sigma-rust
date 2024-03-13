@@ -425,10 +425,30 @@ pub fn verify_tx_input_proof(
     )
     .map_err(to_js)?;
     let state_context_inner = state_context.clone().into();
-    ergo_lib::chain::transaction::verify_tx_input_proof(
+    Ok(ergo_lib::chain::transaction::verify_tx_input_proof(
         &tx_context,
         &state_context_inner,
         input_idx,
     )
-    .map_err(to_js)
+    .map_err(to_js)?
+    .result)
+}
+
+/// Verify transaction
+#[wasm_bindgen]
+pub fn validate_tx_stateless(
+    tx: &Transaction,
+    state_context: &ErgoStateContext,
+    boxes_to_spend: &ErgoBoxes,
+    data_boxes: &ErgoBoxes,
+) -> Result<(), JsValue> {
+    let boxes_to_spend = boxes_to_spend.clone().into();
+    let data_boxes = data_boxes.clone().into();
+    let tx_context = ergo_lib::wallet::signing::TransactionContext::new(
+        tx.0.clone(),
+        boxes_to_spend,
+        data_boxes,
+    )
+    .map_err(to_js)?;
+    tx_context.validate(&state_context.0).map_err(to_js)
 }

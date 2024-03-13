@@ -170,7 +170,10 @@ mod tests {
             .unwrap()
             .into();
         let ctx = Rc::new(force_any_val::<Context>());
-        assert_eq!(eval_out::<Vec<u8>>(&expr, ctx.clone()), ctx.pre_header.miner_pk.sigma_serialize_bytes().unwrap());
+        assert_eq!(
+            eval_out::<Vec<u8>>(&expr, ctx.clone()),
+            ctx.pre_header.miner_pk.sigma_serialize_bytes().unwrap()
+        );
     }
 
     #[test]

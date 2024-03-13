@@ -1,5 +1,8 @@
 //! Exposes common properties for signed and unsigned transactions
-use ergotree_interpreter::{eval::context::TxIoVec, sigma_protocol::prover::ContextExtension};
+use ergotree_interpreter::{
+    eval::context::TxIoVec,
+    sigma_protocol::{prover::ContextExtension, verifier::VerificationResult},
+};
 use ergotree_ir::{
     chain::{
         ergo_box::{box_value::BoxValue, BoxId, ErgoBox},
@@ -46,13 +49,13 @@ pub enum TxValidationError {
         out_amount: u64,
     },
     #[error("Output {0} is dust, amount {1:?} < minimum {2}")]
-    /// Transaction was creating a dust output. The value of a box should be >= than box size * [Parameters::min_value_per_byte]
+    /// Transaction was creating a dust output. The value of a box should be >= than box size * [Parameters::min_value_per_byte](crate::chain::parameters::Parameters::min_value_per_byte())
     DustOutput(BoxId, BoxValue, u64),
     #[error("Creation height {0} > preheader height")]
     /// The output's height is greater than the current block height
     InvalidHeightError(u32),
     #[error("Creation height {0} <= input box max height{1}")]
-    /// After Block V3, all output boxes height must be >= max(inputs.height). See: https://github.com/ergoplatform/eips/blob/master/eip-0039.md
+    /// After Block V3, all output boxes height must be >= max(inputs.height). See <https://github.com/ergoplatform/eips/blob/master/eip-0039.md> for more information
     MonotonicHeightError(u32, u32),
     #[error("Output box's creation height is negative (not allowed after block version 1)")]
     /// Negative heights are not allowed after block v1.
@@ -72,8 +75,8 @@ pub enum TxValidationError {
     #[error("Transaction verification error: {0}")]
     TransactionVerificationError(#[from] TxVerifyError),
     /// Input's proposition reduced to false. This means the proof provided for the input was most likely invalid
-    #[error("Input {0} reduced to false during verification")]
-    ReducedToFalse(usize),
+    #[error("Input {0} reduced to false during verification: {1:?}")]
+    ReducedToFalse(usize, VerificationResult),
     /// Serialization error
     #[error("Sigma serialization error: {0}")]
     SigmaSerializationError(#[from] SigmaSerializationError),

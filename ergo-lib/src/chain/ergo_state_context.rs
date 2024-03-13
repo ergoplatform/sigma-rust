@@ -20,6 +20,8 @@ pub struct ErgoStateContext {
 
 impl ErgoStateContext {
     /// Create an ErgoStateContext instance
+    /// # Parameters
+    /// For signing, [Parameters::default()] is sufficient. For consensus-critical applications that validate transactions it is important that parameters represent the latest state of the blockchain
     pub fn new(
         pre_header: PreHeader,
         headers: Headers,

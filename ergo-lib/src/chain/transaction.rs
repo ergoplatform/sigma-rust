@@ -4,6 +4,7 @@ mod data_input;
 pub mod ergo_transaction;
 pub mod input;
 pub mod reduced;
+pub(crate) mod storage_rent;
 pub mod unsigned;
 
 use bounded_vec::BoundedVec;
@@ -12,8 +13,10 @@ pub use ergotree_interpreter::eval::context::TxIoVec;
 use ergotree_interpreter::eval::env::Env;
 use ergotree_interpreter::eval::extract_sigma_boolean;
 use ergotree_interpreter::eval::EvalError;
+use ergotree_interpreter::eval::ReductionDiagnosticInfo;
 use ergotree_interpreter::sigma_protocol::verifier::verify_signature;
 use ergotree_interpreter::sigma_protocol::verifier::TestVerifier;
+use ergotree_interpreter::sigma_protocol::verifier::VerificationResult;
 use ergotree_interpreter::sigma_protocol::verifier::Verifier;
 use ergotree_interpreter::sigma_protocol::verifier::VerifierError;
 use ergotree_ir::chain::ergo_box::BoxId;
@@ -38,6 +41,7 @@ use crate::wallet::signing::make_context;
 use crate::wallet::signing::TransactionContext;
 use crate::wallet::tx_context::TransactionContextError;
 
+use self::storage_rent::try_spend_storage_rent;
 use self::unsigned::UnsignedTransaction;
 
 use indexmap::IndexSet;
@@ -355,7 +359,7 @@ pub fn verify_tx_input_proof(
     tx_context: &TransactionContext<Transaction>,
     state_context: &ErgoStateContext,
     input_idx: usize,
-) -> Result<bool, TxVerifyError> {
+) -> Result<VerificationResult, TxVerifyError> {
     let input = tx_context
         .spending_tx
         .inputs
@@ -367,15 +371,24 @@ pub fn verify_tx_input_proof(
     let ctx = Rc::new(make_context(state_context, tx_context, input_idx)?);
     let verifier = TestVerifier;
     let message_to_sign = tx_context.spending_tx.bytes_to_sign()?;
-    Ok(verifier
-        .verify(
+    // Try spending in storage rent, if any condition is not satisfied fallback to normal script validation
+    match try_spend_storage_rent(&input, state_context, &ctx) {
+        Some(()) => Ok(VerificationResult {
+            result: true,
+            cost: 0,
+            diag: ReductionDiagnosticInfo {
+                env: Env::empty(),
+                pretty_printed_expr: None,
+            },
+        }),
+        None => Ok(verifier.verify(
             &input_box.ergo_tree,
             &Env::empty(),
             ctx,
             input.spending_proof.proof.clone(),
             message_to_sign.as_slice(),
-        )?
-        .result)
+        )?),
+    }
 }
 
 /// Arbitrary impl

@@ -8,6 +8,7 @@ use crate::chain::transaction::ergo_transaction::{ErgoTransaction, TxValidationE
 use crate::chain::transaction::{verify_tx_input_proof, Transaction, TransactionError};
 use crate::ergotree_ir::chain::ergo_box::BoxId;
 use ergotree_interpreter::eval::context::TxIoVec;
+use ergotree_interpreter::sigma_protocol::verifier::VerificationResult;
 use ergotree_ir::chain::ergo_box::box_value::BoxValue;
 use ergotree_ir::chain::ergo_box::{BoxTokens, ErgoBox};
 use ergotree_ir::chain::token::{TokenAmount, TokenId};
@@ -127,6 +128,7 @@ impl TransactionContext<Transaction> {
         let max_creation_height = if state_context.pre_header.version <= 2 {
             0
         } else {
+            #[allow(clippy::unwrap_used)] // Unwrap is valid here since inputs can not be empty
             self.boxes_to_spend
                 .iter()
                 .map(|b| b.creation_height)
@@ -140,11 +142,17 @@ impl TransactionContext<Transaction> {
 
         let in_assets = extract_assets(self.boxes_to_spend.iter().map(|b| &b.tokens))?;
         let out_assets = extract_assets(self.spending_tx.outputs.iter().map(|b| &b.tokens))?;
-        verify_assets(self.boxes_to_spend.as_slice(), in_assets, out_assets)?;
+        verify_assets(
+            self.spending_tx.inputs_ids().as_slice(),
+            in_assets,
+            out_assets,
+        )?;
         // Verify input proofs. This is usually the most expensive check so it's done last
         for input_idx in 0..self.spending_tx.inputs.len() {
-            if !verify_tx_input_proof(self, state_context, input_idx)? {
-                return Err(TxValidationError::ReducedToFalse(input_idx));
+            if let res @ VerificationResult { result: false, .. } =
+                verify_tx_input_proof(self, state_context, input_idx)?
+            {
+                return Err(TxValidationError::ReducedToFalse(input_idx, res));
             }
         }
         Ok(())
@@ -169,7 +177,8 @@ fn verify_output(
             minimum_value,
         ));
     }
-    if output.creation_height > state_context.pre_header.height {
+    // Check that height does not exceed maximum height. Note that heights can be potentially negative in V1
+    if output.creation_height as i32 > state_context.pre_header.height as i32 {
         return Err(TxValidationError::InvalidHeightError(
             output.creation_height,
         ));
@@ -221,13 +230,12 @@ fn extract_assets<'a, I: Iterator<Item = &'a Option<BoxTokens>>>(
 }
 
 fn verify_assets(
-    inputs: &[ErgoBox],
+    inputs: &[BoxId],
     in_assets: HashMap<TokenId, TokenAmount>,
     out_assets: HashMap<TokenId, TokenAmount>,
 ) -> Result<(), TxValidationError> {
     // If this transaction mints a new token, it's token ID must be the ID of the first box being spent
-    // TODO: If we change boxes_to_spend to a HashSet/HashMap then ordering won't be preserved
-    let new_token_id: TokenId = inputs[0].box_id().into();
+    let new_token_id: TokenId = inputs[0].into();
     for (&out_token_id, &out_amount) in &out_assets {
         if let Some(&in_amount) = in_assets.get(&out_token_id) {
             // Check that Transaction is not creating tokens out of thin air
@@ -276,6 +284,7 @@ pub enum TransactionContextError {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::panic)]
 mod test {
     use std::collections::HashMap;
 
@@ -637,7 +646,7 @@ mod test {
 
             let tx_context = TransactionContext::new(tx, boxes, vec![]).unwrap();
             match tx_context.validate(&state_context) {
-                Err(TxValidationError::ReducedToFalse(_)) => {},
+                Err(TxValidationError::ReducedToFalse(_, _)) => {},
                 other => panic!("Expected validation to fail, got {other:?}")
             }
         });
@@ -660,6 +669,7 @@ mod test {
                 .map(|b| b.creation_height)
                 .max()
                 .unwrap();
+            dbg!(height);
             let mut state_context: ErgoStateContext = force_any_val();
             state_context.pre_header.height = height;
             state_context.pre_header.version = version;
