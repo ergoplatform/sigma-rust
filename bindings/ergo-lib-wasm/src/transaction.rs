@@ -429,6 +429,7 @@ pub fn verify_tx_input_proof(
         &tx_context,
         &state_context_inner,
         input_idx,
+        &tx_context.spending_tx.bytes_to_sign().map_err(to_js)?,
     )
     .map_err(to_js)?
     .result)

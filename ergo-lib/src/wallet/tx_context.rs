@@ -148,9 +148,10 @@ impl TransactionContext<Transaction> {
             out_assets,
         )?;
         // Verify input proofs. This is usually the most expensive check so it's done last
+        let bytes_to_sign = self.spending_tx.bytes_to_sign()?;
         for input_idx in 0..self.spending_tx.inputs.len() {
             if let res @ VerificationResult { result: false, .. } =
-                verify_tx_input_proof(self, state_context, input_idx)?
+                verify_tx_input_proof(self, state_context, input_idx, &bytes_to_sign)?
             {
                 return Err(TxValidationError::ReducedToFalse(input_idx, res));
             }
@@ -159,7 +160,6 @@ impl TransactionContext<Transaction> {
     }
 }
 
-// TODO: check that box creation height does not exceed height in preheader
 fn verify_output(
     state_context: &ErgoStateContext,
     output: &ErgoBox,

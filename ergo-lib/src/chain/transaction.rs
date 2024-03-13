@@ -359,6 +359,7 @@ pub fn verify_tx_input_proof(
     tx_context: &TransactionContext<Transaction>,
     state_context: &ErgoStateContext,
     input_idx: usize,
+    bytes_to_sign: &[u8],
 ) -> Result<VerificationResult, TxVerifyError> {
     let input = tx_context
         .spending_tx
@@ -370,7 +371,6 @@ pub fn verify_tx_input_proof(
         .ok_or(TransactionContextError::InputBoxNotFound(input_idx))?;
     let ctx = Rc::new(make_context(state_context, tx_context, input_idx)?);
     let verifier = TestVerifier;
-    let message_to_sign = tx_context.spending_tx.bytes_to_sign()?;
     // Try spending in storage rent, if any condition is not satisfied fallback to normal script validation
     match try_spend_storage_rent(&input, state_context, &ctx) {
         Some(()) => Ok(VerificationResult {
@@ -386,7 +386,7 @@ pub fn verify_tx_input_proof(
             &Env::empty(),
             ctx,
             input.spending_proof.proof.clone(),
-            message_to_sign.as_slice(),
+            bytes_to_sign,
         )?),
     }
 }
