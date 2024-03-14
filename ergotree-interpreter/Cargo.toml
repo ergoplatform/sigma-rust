@@ -37,7 +37,7 @@ proptest = { workspace = true, optional = true }
 ergo_avltree_rust = "0.1.0"
 gf2_192 = { version = "^0.27.1", path = "../gf2_192" }
 miette = { workspace = true }
-hashbrown = "0.14.1"
+hashbrown = "0.14.3"
 
 [features]
 default = ["json"]
