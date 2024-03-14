@@ -32,6 +32,7 @@ mod header;
 mod input;
 mod merkleproof;
 mod nipopow;
+mod parameters;
 
 mod reduced;
 
@@ -60,6 +61,7 @@ pub use crate::header::*;
 pub use crate::input::*;
 pub use crate::merkleproof::*;
 pub use crate::nipopow::*;
+pub use crate::parameters::*;
 pub use crate::reduced::*;
 pub use crate::secret_key::*;
 pub use crate::token::*;

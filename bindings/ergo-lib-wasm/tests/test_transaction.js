@@ -63,7 +63,7 @@ it('sign transaction', async () => {
   const tx_data_inputs = ergo_wasm.ErgoBoxes.from_boxes_json([]);
   const block_headers = generate_block_headers();
   const pre_header = ergo_wasm.PreHeader.from_block_header(block_headers.get(0));
-  const ctx = new ergo_wasm.ErgoStateContext(pre_header, block_headers);
+  const ctx = new ergo_wasm.ErgoStateContext(pre_header, block_headers, ergo_wasm.Parameters.default_parameters());
   const sks = new ergo_wasm.SecretKeys();
   sks.add(sk);
   const wallet = ergo_wasm.Wallet.from_secrets(sks);
@@ -176,7 +176,7 @@ it('use signed tx outputs as inputs in a new tx', async () => {
   const tx_data_inputs = ergo_wasm.ErgoBoxes.from_boxes_json([]);
   const block_headers = generate_block_headers();
   const pre_header = ergo_wasm.PreHeader.from_block_header(block_headers.get(0));
-  const ctx = new ergo_wasm.ErgoStateContext(pre_header, block_headers);
+  const ctx = new ergo_wasm.ErgoStateContext(pre_header, block_headers, ergo_wasm.Parameters.default_parameters());
   const sks = new ergo_wasm.SecretKeys();
   sks.add(sk);
   const wallet = ergo_wasm.Wallet.from_secrets(sks);
@@ -253,7 +253,7 @@ it('signing multi signature transaction', async () => {
   const tx_data_inputs = ergo_wasm.ErgoBoxes.from_boxes_json([]);
   const block_headers = generate_block_headers();
   const pre_header = ergo_wasm.PreHeader.from_block_header(block_headers.get(0));
-  const ctx = new ergo_wasm.ErgoStateContext(pre_header, block_headers);
+  const ctx = new ergo_wasm.ErgoStateContext(pre_header, block_headers, ergo_wasm.Parameters.default_parameters());
   const sks_alice = new ergo_wasm.SecretKeys();
   sks_alice.add(alice_secret);
   const wallet_alice = ergo_wasm.Wallet.from_secrets(sks_alice);

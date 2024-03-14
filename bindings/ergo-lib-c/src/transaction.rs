@@ -349,6 +349,20 @@ pub unsafe extern "C" fn ergo_lib_tx_to_json_eip12(
     Error::c_api_from(res)
 }
 
+#[no_mangle]
+pub unsafe extern "C" fn ergo_lib_tx_validate(
+    tx_ptr: ConstTransactionPtr,
+    state_context_ptr: ConstErgoStateContextPtr,
+    boxes_to_spend_ptr: ConstCollectionPtr<ErgoBox>,
+    data_boxes_ptr: ConstCollectionPtr<ErgoBox>,
+) -> ErrorPtr {
+    Error::c_api_from(tx_validate(
+        tx_ptr,
+        state_context_ptr,
+        boxes_to_spend_ptr,
+        data_boxes_ptr,
+    ))
+}
 /// Drop `Transaction`
 #[no_mangle]
 pub unsafe extern "C" fn ergo_lib_tx_delete(ptr: TransactionPtr) {

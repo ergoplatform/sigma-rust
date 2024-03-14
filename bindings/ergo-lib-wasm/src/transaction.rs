@@ -437,7 +437,7 @@ pub fn verify_tx_input_proof(
 
 /// Verify transaction
 #[wasm_bindgen]
-pub fn validate_tx_stateless(
+pub fn validate_tx(
     tx: &Transaction,
     state_context: &ErgoStateContext,
     boxes_to_spend: &ErgoBoxes,

@@ -7,9 +7,9 @@ class ErgoStateContext {
     internal var pointer: ErgoStateContextPtr
     
     /// Create new context
-    init(preHeader : PreHeader, headers: BlockHeaders) throws {
+    init(preHeader: PreHeader, headers: BlockHeaders, parameters: Parameters) throws {
         var ptr: ErgoStateContextPtr?
-        let error = ergo_lib_ergo_state_context_new(preHeader.pointer, headers.pointer, &ptr)
+        let error = ergo_lib_ergo_state_context_new(preHeader.pointer, headers.pointer, parameters.pointer, &ptr)
         try checkError(error)
         self.pointer = ptr!
     }

@@ -270,6 +270,16 @@ class Transaction {
         ergo_lib_tx_outputs(self.pointer, &ptr)
         return ErgoBoxes(withRawPointer: ptr!)
     }
+    /// Attempt to validate a transaction. throws an exception if validation fails
+    func validateTransaction(
+        stateContext: ErgoStateContext,
+        boxesToSpend: ErgoBoxes,
+        dataBoxes: ErgoBoxes
+    ) throws {
+        let error = ergo_lib_tx_validate(self.pointer, stateContext.pointer, boxesToSpend.pointer, dataBoxes.pointer);
+        try checkError(error)
+    }
+
     
     /// JSON representation as text (compatible with Ergo Node/Explorer API, numbers are encoded as numbers)
     func toJSON() throws -> JSON? {

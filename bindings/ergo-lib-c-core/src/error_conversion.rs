@@ -5,6 +5,7 @@ use std::num::ParseIntError;
 
 use base16::DecodeError;
 use bounded_vec::BoundedVecOutOfBounds;
+use ergo_lib::chain::transaction::ergo_transaction::TxValidationError;
 use ergo_lib::chain::transaction::TransactionError;
 use ergo_lib::ergo_chain_types::DigestNError;
 use ergo_lib::ergo_nipopow::NipopowProofError;
@@ -52,6 +53,7 @@ convert_error!(BoxValueError);
 convert_error!(TokenAmountError);
 convert_error!(TxBuilderError);
 convert_error!(TxSigningError);
+convert_error!(TxValidationError);
 convert_error!(WalletError);
 convert_error!(DecodeError);
 convert_error!(TryFromSliceError);
