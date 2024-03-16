@@ -382,19 +382,17 @@ mod test {
                 rng.gen_range(1..=i64::MAX as u64).try_into().unwrap(),
             );
         }
-        let max_outputs = std::cmp::min(
-            i16::MAX as u16,
-            (input_sum / BoxValue::SAFE_USER_MIN.as_u64()) as u16,
-        );
+
+        let parameters = Parameters::default();
+        let sufficient_amount =
+            ErgoBox::MAX_BOX_SIZE as u64 * parameters.min_value_per_byte() as u64;
+        let max_outputs = std::cmp::min(i16::MAX as u16, (input_sum / sufficient_amount) as u16);
         let outputs = std::cmp::min(
             max_outputs,
             std::cmp::max(boxes.len() + 1, rng.gen_range(0..boxes.len() * 2)) as u16,
         );
         assert!(outputs > 0);
-        let parameters = Parameters::default();
-        let sufficient_amount =
-            ErgoBox::MAX_BOX_SIZE as u64 * parameters.min_value_per_byte() as u64;
-        assert!(sufficient_amount * (outputs as u64) < input_sum);
+        assert!(sufficient_amount * (outputs as u64) <= input_sum);
         let mut output_preamounts = vec![sufficient_amount; outputs as usize];
         let mut remainder = input_sum - sufficient_amount * outputs as u64;
         while remainder > 0 {
@@ -591,7 +589,7 @@ mod test {
             *box_value = box_value.checked_add(&BoxValue::SAFE_USER_MIN).unwrap();
         }
         else {
-            *box_value = box_value.checked_sub(&BoxValue::SAFE_USER_MIN).unwrap();
+            *box_value = BoxValue::try_from(box_value.as_u64() - 1).unwrap();
         }
 
         assert!(tx.validate_stateless().is_ok());
