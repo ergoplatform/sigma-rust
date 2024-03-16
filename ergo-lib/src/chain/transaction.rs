@@ -41,6 +41,7 @@ use crate::wallet::signing::make_context;
 use crate::wallet::signing::TransactionContext;
 use crate::wallet::tx_context::TransactionContextError;
 
+use self::ergo_transaction::TxValidationError;
 use self::storage_rent::try_spend_storage_rent;
 use self::unsigned::UnsignedTransaction;
 
@@ -340,27 +341,13 @@ pub enum TransactionError {
     InputNofFound(usize),
 }
 
-/// Errors on transaction verification
-#[derive(Error, Debug)]
-pub enum TxVerifyError {
-    /// TransactionContextError
-    #[error("TransactionContextError: {0}")]
-    TransactionContextError(#[from] TransactionContextError),
-    /// SerializationError
-    #[error("Transaction serialization failed: {0}")]
-    SerializationError(#[from] SigmaSerializationError),
-    /// VerifierError
-    #[error("VerifierError: {0}")]
-    VerifierError(#[from] VerifierError),
-}
-
 /// Verify transaction input's proof
 pub fn verify_tx_input_proof(
     tx_context: &TransactionContext<Transaction>,
     state_context: &ErgoStateContext,
     input_idx: usize,
     bytes_to_sign: &[u8],
-) -> Result<VerificationResult, TxVerifyError> {
+) -> Result<VerificationResult, TxValidationError> {
     let input = tx_context
         .spending_tx
         .inputs
@@ -381,13 +368,15 @@ pub fn verify_tx_input_proof(
                 pretty_printed_expr: None,
             },
         }),
-        None => Ok(verifier.verify(
-            &input_box.ergo_tree,
-            &Env::empty(),
-            ctx,
-            input.spending_proof.proof.clone(),
-            bytes_to_sign,
-        )?),
+        None => verifier
+            .verify(
+                &input_box.ergo_tree,
+                &Env::empty(),
+                ctx,
+                input.spending_proof.proof.clone(),
+                bytes_to_sign,
+            )
+            .map_err(|e| TxValidationError::VerifierError(input_idx, e)),
     }
 }
 

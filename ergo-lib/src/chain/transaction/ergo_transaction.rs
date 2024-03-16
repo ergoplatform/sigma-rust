@@ -1,7 +1,10 @@
 //! Exposes common properties for signed and unsigned transactions
 use ergotree_interpreter::{
     eval::context::TxIoVec,
-    sigma_protocol::{prover::ContextExtension, verifier::VerificationResult},
+    sigma_protocol::{
+        prover::ContextExtension,
+        verifier::{VerificationResult, VerifierError},
+    },
 };
 use ergotree_ir::{
     chain::{
@@ -15,7 +18,7 @@ use thiserror::Error;
 
 use crate::wallet::tx_context::TransactionContextError;
 
-use super::{unsigned::UnsignedTransaction, DataInput, Transaction, TxVerifyError};
+use super::{unsigned::UnsignedTransaction, DataInput, Transaction};
 
 /// Errors when validating transaction
 #[derive(Error, Debug)]
@@ -69,17 +72,16 @@ pub enum TxValidationError {
     ScriptSizeExceeded(usize),
     #[error("TX context error: {0}")]
     /// Transaction Context Error
-    TransactionContextError(TransactionContextError),
-    // TODO: should probably merge TxValidationError and TxVerifyError
-    /// Input validation failed
-    #[error("Transaction verification error: {0}")]
-    TransactionVerificationError(#[from] TxVerifyError),
+    TransactionContextError(#[from] TransactionContextError),
     /// Input's proposition reduced to false. This means the proof provided for the input was most likely invalid
     #[error("Input {0} reduced to false during verification: {1:?}")]
     ReducedToFalse(usize, VerificationResult),
     /// Serialization error
     #[error("Sigma serialization error: {0}")]
     SigmaSerializationError(#[from] SigmaSerializationError),
+    /// Verifying input script failed
+    #[error("Verifier error on input {0}: {1}")]
+    VerifierError(usize, VerifierError),
 }
 
 /// Exposes common properties for signed and unsigned transactions

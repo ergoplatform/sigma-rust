@@ -99,7 +99,7 @@ impl<T: ErgoTransaction> TransactionContext<T> {
 
 impl TransactionContext<Transaction> {
     /// Verify transaction using blockchain parameters
-    // TODO: costing, storage rent, re-emission
+    // TODO: costing
     // This is based on validateStateful() in Ergo: https://github.com/ergoplatform/ergo/blob/48239ef98ced06617dc21a0eee5670235e362933/ergo-core/src/main/scala/org/ergoplatform/modifiers/mempool/ErgoTransaction.scala#L357
     pub fn validate(&self, state_context: &ErgoStateContext) -> Result<(), TxValidationError> {
         // Check that input sum does not overflow
@@ -397,7 +397,6 @@ mod test {
         assert!(sufficient_amount * (outputs as u64) < input_sum);
         let mut output_preamounts = vec![sufficient_amount; outputs as usize];
         let mut remainder = input_sum - sufficient_amount * outputs as u64;
-        // TODO: find a smarter way to do this since sometimes number of iterations can blow up
         while remainder > 0 {
             let idx = rng.gen_range(0..output_preamounts.len());
             if remainder < input_sum / boxes.len() as u64 {

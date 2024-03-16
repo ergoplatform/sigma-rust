@@ -77,7 +77,7 @@ where
     }
 
     /// Build a collection from items where each is a collection as well, flattening the arrays
-    /// This will convert a Coll[Coll[T]] to a Coll[T]
+    /// This will convert a Coll[Coll\[T\]] to a Coll\[T\]
     pub fn from_vec_vec(
         elem_tpe: SType,
         items: Vec<T>,
