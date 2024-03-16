@@ -1,26 +1,25 @@
 //! Transaction signing
 
+use crate::chain::transaction::ergo_transaction::ErgoTransaction;
 use crate::chain::transaction::reduced::ReducedTransaction;
-use crate::chain::transaction::{DataInput, Input, TransactionError};
+use crate::chain::transaction::{Input, TransactionError};
 use crate::chain::{
     ergo_state_context::ErgoStateContext,
     transaction::{unsigned::UnsignedTransaction, Transaction},
 };
 use ergotree_interpreter::sigma_protocol::prover::hint::HintsBag;
 use ergotree_interpreter::sigma_protocol::sig_serializer::SigParsingError;
-use ergotree_ir::chain::ergo_box::ErgoBox;
 use ergotree_ir::serialization::SigmaSerializationError;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use crate::ergotree_ir::chain::ergo_box::BoxId;
 use crate::wallet::multi_sig::TransactionHintsBag;
-use ergotree_interpreter::eval::context::{Context, TxIoVec};
+use ergotree_interpreter::eval::context::Context;
 use ergotree_interpreter::eval::env::Env;
+use ergotree_interpreter::sigma_protocol::prover::Prover;
 use ergotree_interpreter::sigma_protocol::prover::ProverError;
 use ergotree_interpreter::sigma_protocol::prover::ProverResult;
-use ergotree_interpreter::sigma_protocol::prover::{ContextExtension, Prover};
 use thiserror::Error;
 
 pub use super::tx_context::TransactionContext;
@@ -41,63 +40,6 @@ pub enum TxSigningError {
     /// SigParsingError
     #[error("SigParsingError: {0}")]
     SigParsingError(#[from] SigParsingError),
-}
-
-/// Exposes common properties for signed and unsigned transactions
-pub trait ErgoTransaction {
-    /// input boxes ids
-    fn inputs_ids(&self) -> TxIoVec<BoxId>;
-    /// data input boxes
-    fn data_inputs(&self) -> Option<TxIoVec<DataInput>>;
-    /// output boxes
-    fn outputs(&self) -> TxIoVec<ErgoBox>;
-    /// ContextExtension for the given input index
-    fn context_extension(&self, input_index: usize) -> Option<ContextExtension>;
-}
-
-impl ErgoTransaction for UnsignedTransaction {
-    fn inputs_ids(&self) -> TxIoVec<BoxId> {
-        self.inputs.clone().mapped(|input| input.box_id)
-    }
-
-    fn data_inputs(&self) -> Option<TxIoVec<DataInput>> {
-        self.data_inputs.clone()
-    }
-
-    fn outputs(&self) -> TxIoVec<ErgoBox> {
-        #[allow(clippy::unwrap_used)] // box serialization cannot fail?
-        self.output_candidates
-            .clone()
-            .enumerated()
-            .try_mapped(|(idx, b)| ErgoBox::from_box_candidate(&b, self.id(), idx as u16))
-            .unwrap()
-    }
-
-    fn context_extension(&self, input_index: usize) -> Option<ContextExtension> {
-        self.inputs
-            .get(input_index)
-            .map(|input| input.extension.clone())
-    }
-}
-
-impl ErgoTransaction for Transaction {
-    fn inputs_ids(&self) -> TxIoVec<BoxId> {
-        self.inputs.clone().mapped(|input| input.box_id)
-    }
-
-    fn data_inputs(&self) -> Option<TxIoVec<DataInput>> {
-        self.data_inputs.clone()
-    }
-
-    fn outputs(&self) -> TxIoVec<ErgoBox> {
-        self.outputs.clone()
-    }
-
-    fn context_extension(&self, input_index: usize) -> Option<ContextExtension> {
-        self.inputs
-            .get(input_index)
-            .map(|input| input.spending_proof.extension.clone())
-    }
 }
 
 /// `self_index` - index of the SELF box in the tx_ctx.spending_tx.inputs
@@ -276,6 +218,7 @@ pub fn sign_tx_input(
 #[allow(clippy::unwrap_used, clippy::panic)]
 mod tests {
     use super::*;
+    use ergotree_interpreter::eval::context::TxIoVec;
     use ergotree_interpreter::sigma_protocol::private_input::DlogProverInput;
     use ergotree_interpreter::sigma_protocol::private_input::PrivateInput;
     use ergotree_interpreter::sigma_protocol::prover::ContextExtension;
@@ -287,6 +230,7 @@ mod tests {
     use ergotree_ir::chain::address::AddressEncoder;
     use ergotree_ir::chain::address::NetworkPrefix;
     use ergotree_ir::chain::ergo_box::box_value::BoxValue;
+    use ergotree_ir::chain::ergo_box::ErgoBox;
     use ergotree_ir::chain::ergo_box::NonMandatoryRegisters;
     use ergotree_ir::chain::tx_id::TxId;
     use ergotree_ir::serialization::SigmaSerializable;

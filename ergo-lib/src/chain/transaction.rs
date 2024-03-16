@@ -1,8 +1,10 @@
 //! Ergo transaction
 
 mod data_input;
+pub mod ergo_transaction;
 pub mod input;
 pub mod reduced;
+pub(crate) mod storage_rent;
 pub mod unsigned;
 
 use bounded_vec::BoundedVec;
@@ -11,8 +13,10 @@ pub use ergotree_interpreter::eval::context::TxIoVec;
 use ergotree_interpreter::eval::env::Env;
 use ergotree_interpreter::eval::extract_sigma_boolean;
 use ergotree_interpreter::eval::EvalError;
+use ergotree_interpreter::eval::ReductionDiagnosticInfo;
 use ergotree_interpreter::sigma_protocol::verifier::verify_signature;
 use ergotree_interpreter::sigma_protocol::verifier::TestVerifier;
+use ergotree_interpreter::sigma_protocol::verifier::VerificationResult;
 use ergotree_interpreter::sigma_protocol::verifier::Verifier;
 use ergotree_interpreter::sigma_protocol::verifier::VerifierError;
 use ergotree_ir::chain::ergo_box::BoxId;
@@ -37,6 +41,8 @@ use crate::wallet::signing::make_context;
 use crate::wallet::signing::TransactionContext;
 use crate::wallet::tx_context::TransactionContextError;
 
+use self::ergo_transaction::TxValidationError;
+use self::storage_rent::try_spend_storage_rent;
 use self::unsigned::UnsignedTransaction;
 
 use indexmap::IndexSet;
@@ -335,26 +341,13 @@ pub enum TransactionError {
     InputNofFound(usize),
 }
 
-/// Errors on transaction verification
-#[derive(Error, Debug)]
-pub enum TxVerifyError {
-    /// TransactionContextError
-    #[error("TransactionContextError: {0}")]
-    TransactionContextError(#[from] TransactionContextError),
-    /// SerializationError
-    #[error("Transaction serialization failed: {0}")]
-    SerializationError(#[from] SigmaSerializationError),
-    /// VerifierError
-    #[error("VerifierError: {0}")]
-    VerifierError(#[from] VerifierError),
-}
-
 /// Verify transaction input's proof
 pub fn verify_tx_input_proof(
     tx_context: &TransactionContext<Transaction>,
     state_context: &ErgoStateContext,
     input_idx: usize,
-) -> Result<bool, TxVerifyError> {
+    bytes_to_sign: &[u8],
+) -> Result<VerificationResult, TxValidationError> {
     let input = tx_context
         .spending_tx
         .inputs
@@ -365,16 +358,26 @@ pub fn verify_tx_input_proof(
         .ok_or(TransactionContextError::InputBoxNotFound(input_idx))?;
     let ctx = Rc::new(make_context(state_context, tx_context, input_idx)?);
     let verifier = TestVerifier;
-    let message_to_sign = tx_context.spending_tx.bytes_to_sign()?;
-    Ok(verifier
-        .verify(
-            &input_box.ergo_tree,
-            &Env::empty(),
-            ctx,
-            input.spending_proof.proof.clone(),
-            message_to_sign.as_slice(),
-        )?
-        .result)
+    // Try spending in storage rent, if any condition is not satisfied fallback to normal script validation
+    match try_spend_storage_rent(&input, state_context, &ctx) {
+        Some(()) => Ok(VerificationResult {
+            result: true,
+            cost: 0,
+            diag: ReductionDiagnosticInfo {
+                env: Env::empty(),
+                pretty_printed_expr: None,
+            },
+        }),
+        None => verifier
+            .verify(
+                &input_box.ergo_tree,
+                &Env::empty(),
+                ctx,
+                input.spending_proof.proof.clone(),
+                bytes_to_sign,
+            )
+            .map_err(|e| TxValidationError::VerifierError(input_idx, e)),
+    }
 }
 
 /// Arbitrary impl

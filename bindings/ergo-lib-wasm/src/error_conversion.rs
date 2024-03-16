@@ -6,8 +6,8 @@ use std::num::ParseIntError;
 
 use base16::DecodeError;
 use bounded_vec::BoundedVecOutOfBounds;
+use ergo_lib::chain::transaction::ergo_transaction::TxValidationError;
 use ergo_lib::chain::transaction::TransactionSignatureVerificationError;
-use ergo_lib::chain::transaction::TxVerifyError;
 use ergo_lib::ergo_chain_types::DigestNError;
 use ergo_lib::ergo_nipopow::NipopowProofError;
 #[cfg(feature = "rest")]
@@ -96,7 +96,7 @@ from_error_to_wrap!(PeerDiscoveryError);
 from_error_to_wrap!(ParseError);
 from_error_to_wrap!(ConvError);
 from_error_to_wrap!(TransactionContextError);
-from_error_to_wrap!(TxVerifyError);
+from_error_to_wrap!(TxValidationError);
 from_error_to_wrap!(RegisterValueError);
 from_error_to_wrap!(String);
 

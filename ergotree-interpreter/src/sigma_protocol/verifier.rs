@@ -44,6 +44,7 @@ pub enum VerifierError {
 }
 
 /// Result of Box.ergoTree verification procedure (see `verify` method).
+#[derive(Debug, Clone)]
 pub struct VerificationResult {
     /// result of SigmaProp condition verification via sigma protocol
     pub result: bool,

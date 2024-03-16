@@ -76,25 +76,30 @@ where
         }
     }
 
-    /// Build a collection from items where each is a collection as well, storing them as Rust types values when neccessary
+    /// Build a collection from items where each is a collection as well, flattening the arrays
+    /// This will convert a Coll[Coll\[T\]] to a Coll\[T\]
     pub fn from_vec_vec(
         elem_tpe: SType,
         items: Vec<T>,
     ) -> Result<CollKind<T>, TryExtractFromError> {
         match elem_tpe {
-            SType::SByte => items
+            SType::SColl(inner_type) if matches!(&*inner_type, SType::SByte) => items
                 .into_iter()
                 .map(|v| v.try_extract_into::<Vec<i8>>())
                 .collect::<Result<Vec<_>, _>>()
                 .map(|bytes| CollKind::NativeColl(NativeColl::CollByte(bytes.concat()))),
-            _ => items
+            SType::SColl(flat_type) => items
                 .into_iter()
                 .map(|v| v.try_extract_into::<Vec<T>>())
                 .collect::<Result<Vec<_>, _>>()
                 .map(|v| CollKind::WrappedColl {
-                    elem_tpe,
+                    elem_tpe: *flat_type,
                     items: v.concat(),
                 }),
+            _ => Err(TryExtractFromError(format!(
+                "Expected Value::Coll, got: {:?}",
+                elem_tpe
+            ))),
         }
     }
 

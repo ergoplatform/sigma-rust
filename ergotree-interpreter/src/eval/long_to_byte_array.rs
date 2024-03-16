@@ -12,7 +12,6 @@ impl Evaluable for LongToByteArray {
         let mut val = self.input.eval(env, ctx)?.try_extract_into::<i64>()?;
         let mut buf = vec![42_i8; 8];
         for i in (0..8).rev() {
-            println!("{} {}", i, val);
             buf[i] = (val & 0xFF) as i8;
             val >>= 8;
         }

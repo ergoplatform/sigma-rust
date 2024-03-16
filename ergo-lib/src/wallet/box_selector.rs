@@ -18,8 +18,8 @@ pub use simple::*;
 
 use thiserror::Error;
 
-/// Bounded vec with minimum 1 element and max u16::MAX elements
-pub type SelectedBoxes<T> = BoundedVec<T, 1, { u16::MAX as usize }>;
+/// Bounded vec with minimum 1 element and max i16::MAX elements
+pub type SelectedBoxes<T> = BoundedVec<T, 1, { i16::MAX as usize }>;
 
 /// Selected boxes (by [`BoxSelector`])
 #[derive(PartialEq, Eq, Debug, Clone)]

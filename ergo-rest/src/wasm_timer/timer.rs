@@ -250,7 +250,6 @@ mod global;
 mod heap;
 
 pub mod ext;
-pub use ext::{TryFutureExt, TryStreamExt};
 
 /// A "timer heap" used to power separately owned instances of `Delay` and
 /// `Interval`.
@@ -287,7 +286,6 @@ pub struct TimerHandle {
 mod delay;
 mod interval;
 pub use self::delay::Delay;
-pub use self::interval::Interval;
 
 struct Inner {
     /// List of updates the `Timer` needs to process

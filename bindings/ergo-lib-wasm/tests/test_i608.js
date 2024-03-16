@@ -155,7 +155,7 @@ it('i608', async () => {
 
   const block_headers = generate_block_headers();
   const pre_header = wasm.PreHeader.from_block_header(block_headers.get(0));
-  const ctx = new wasm.ErgoStateContext(pre_header, block_headers);
+  const ctx = new wasm.ErgoStateContext(pre_header, block_headers, wasm.Parameters.default_parameters());
 
   const secondHintsBagExtract = wasm.extract_hints(forthSign, ctx, boxes, wasm.ErgoBoxes.from_boxes_json([]), firstRealPropositions, firstSimulatedPropositions);
   assert(secondHintsBagExtract !== null);

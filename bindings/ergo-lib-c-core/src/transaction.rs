@@ -435,3 +435,25 @@ pub unsafe fn tx_outputs(
     )));
     Ok(())
 }
+
+/// Validate a transaction
+pub unsafe fn tx_validate(
+    tx_ptr: ConstTransactionPtr,
+    state_context_ptr: ConstErgoStateContextPtr,
+    boxes_to_spend_ptr: ConstCollectionPtr<ErgoBox>,
+    data_boxes_ptr: ConstCollectionPtr<ErgoBox>,
+) -> Result<(), Error> {
+    let state_context = const_ptr_as_ref(state_context_ptr, "state_context_ptr")?;
+    let tx = const_ptr_as_ref(tx_ptr, "tx_ptr")?;
+    let boxes_to_spend = const_ptr_as_ref(boxes_to_spend_ptr, "boxes_to_spend_ptr")?;
+    let data_boxes = const_ptr_as_ref(data_boxes_ptr, "data_boxes_ptr")?;
+    let boxes_to_spend = boxes_to_spend.0.clone().into_iter().map(|b| b.0).collect();
+    let data_boxes = data_boxes.0.clone().into_iter().map(|b| b.0).collect();
+    let tx_context = ergo_lib::wallet::signing::TransactionContext::new(
+        tx.0.clone(),
+        boxes_to_spend,
+        data_boxes,
+    )?;
+    tx_context.validate(&state_context.0)?;
+    Ok(())
+}

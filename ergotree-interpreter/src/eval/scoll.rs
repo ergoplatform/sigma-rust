@@ -24,15 +24,20 @@ pub(crate) static INDEX_OF_EVAL_FN: EvalFn = |_env, _ctx, obj, args| {
             .get(0)
             .cloned()
             .ok_or_else(|| EvalError::NotFound("indexOf: missing first arg".to_string()))?;
-        let fallback_index = args
+        let from = args
             .get(1)
             .cloned()
-            .ok_or_else(|| EvalError::NotFound("indexOf: missing second arg".to_string()))?;
+            .ok_or_else(|| EvalError::NotFound("indexOf: missing second arg".to_string()))?
+            .try_extract_into::<i32>()?
+            .max(0);
+
         let index_of = normalized_input_vals
             .into_iter()
+            .skip(from as usize)
             .position(|it| it == target_element)
-            .unwrap_or(fallback_index.try_extract_into::<i32>()? as usize);
-        index_of as i32
+            .map(|idx| idx as i32 + from)
+            .unwrap_or(-1);
+        index_of
     }))
 };
 
@@ -58,18 +63,10 @@ pub(crate) static FLATMAP_EVAL_FN: EvalFn = |env, ctx, obj, args| {
     }
     let unsupported_msg =
         "unsupported lambda in flatMap: allowed usage `xs.flatMap(x => x.property)".to_string();
-    match &*lambda.body {
-        Expr::MethodCall(mc) => {
-            if !mc.expr().args.is_empty() {
-                return Err(EvalError::UnexpectedValue(unsupported_msg));
-            }
+    if let Expr::MethodCall(mc) = &*lambda.body {
+        if !mc.expr().args.is_empty() {
+            return Err(EvalError::UnexpectedValue(unsupported_msg));
         }
-        Expr::ExtractScriptBytes(_) => (),
-        Expr::ExtractId(_) => (),
-        Expr::SigmaPropBytes(_) => (),
-        Expr::ExtractBytes(_) => (),
-        Expr::ExtractBytesWithNoRef(_) => (),
-        _ => return Err(EvalError::UnexpectedValue(unsupported_msg)),
     }
     let mut lambda_call = |arg: Value| {
         let func_arg = lambda.args.first().ok_or_else(|| {
@@ -201,8 +198,8 @@ pub(crate) static PATCH_EVAL_FN: EvalFn = |_env, _ctx, obj, args| {
         .cloned()
         .ok_or_else(|| EvalError::NotFound("patch: missing third arg (replaced)".to_string()))?;
 
-    let from = from_index_val.try_extract_into::<i32>()? as usize;
-    let replaced = replaced_val.try_extract_into::<i32>()? as usize;
+    let from = from_index_val.try_extract_into::<i32>()?.max(0) as usize;
+    let replaced = replaced_val.try_extract_into::<i32>()?.max(0) as usize;
     let patch = match patch_val {
         Value::Coll(coll) => Ok(coll.as_vec()),
         _ => Err(EvalError::UnexpectedValue(format!(
@@ -350,18 +347,32 @@ mod tests {
 
     #[test]
     fn eval_index_of() {
-        let coll_const: Constant = vec![1i64, 2i64].into();
-        let expr: Expr = MethodCall::new(
-            coll_const.into(),
-            scoll::INDEX_OF_METHOD
-                .clone()
-                .with_concrete_types(&[(STypeVar::t(), SType::SLong)].iter().cloned().collect()),
-            vec![2i64.into(), 0i32.into()],
-        )
-        .unwrap()
-        .into();
-        let res = eval_out_wo_ctx::<i32>(&expr);
+        let index_of_expr = |coll: Vec<i64>, elem: i64, from: i32| -> Expr {
+            MethodCall::new(
+                coll.into(),
+                scoll::INDEX_OF_METHOD.clone().with_concrete_types(
+                    &[(STypeVar::t(), SType::SLong)].iter().cloned().collect(),
+                ),
+                vec![elem.into(), from.into()],
+            )
+            .unwrap()
+            .into()
+        };
+        let res = eval_out_wo_ctx::<i32>(&index_of_expr(vec![1i64, 2i64], 2, 0));
         assert_eq!(res, 1);
+        // Test searching in array starting from 1st index
+        let res = eval_out_wo_ctx::<i32>(&index_of_expr(vec![1i64, 2i64], 2, 1));
+        assert_eq!(res, 1);
+
+        // Test searching in array starting from 1st index
+        let res = eval_out_wo_ctx::<i32>(&index_of_expr(vec![1i64, 2i64], 2, 1));
+        assert_eq!(res, 1);
+        // Test searching in array starting from index greater than array length
+        let res = eval_out_wo_ctx::<i32>(&index_of_expr(vec![1i64, 2i64], 2, 10000));
+        assert_eq!(res, -1);
+        // Test element that doesn't exist
+        let res = eval_out_wo_ctx::<i32>(&index_of_expr(vec![1i64, 2i64], 3, 0));
+        assert_eq!(res, -1);
     }
 
     #[test]
@@ -377,7 +388,7 @@ mod tests {
         .unwrap()
         .into();
         let res = eval_out_wo_ctx::<i32>(&expr);
-        assert_eq!(res, 0);
+        assert_eq!(res, -1);
     }
 
     #[test]
@@ -664,6 +675,24 @@ mod tests {
         .into();
         let res = eval_out_wo_ctx::<Vec<i64>>(&expr);
         assert_eq!(res, vec![1i64, 2i64, 3i64, 4i64, 5i64]);
+    }
+
+    #[test]
+    fn eval_patch_index_negative() {
+        let coll_const: Constant = vec![1i64, 2i64, 3i64].into();
+        let patch_input: Vec<i64> = vec![4i64, 5i64];
+
+        let expr: Expr = MethodCall::new(
+            coll_const.into(),
+            scoll::PATCH_METHOD
+                .clone()
+                .with_concrete_types(&[(STypeVar::t(), SType::SLong)].iter().cloned().collect()),
+            vec![(-1i32).into(), patch_input.into(), (-1i32).into()],
+        )
+        .unwrap()
+        .into();
+        let res = eval_out_wo_ctx::<Vec<i64>>(&expr);
+        assert_eq!(res, vec![4i64, 5i64, 1i64, 2i64, 3i64]);
     }
 
     #[test]

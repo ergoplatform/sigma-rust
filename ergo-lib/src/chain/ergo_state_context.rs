@@ -1,6 +1,8 @@
 //! Blockchain state
 use ergo_chain_types::{Header, PreHeader};
 
+use super::parameters::Parameters;
+
 /// Fixed number of last block headers in descending order (first header is the newest one)
 pub type Headers = [Header; 10];
 
@@ -12,14 +14,23 @@ pub struct ErgoStateContext {
     pub pre_header: PreHeader,
     /// Fixed number of last block headers in descending order (first header is the newest one)
     pub headers: Headers,
+    /// Parameters that can be adjusted by voting
+    pub parameters: Parameters,
 }
 
 impl ErgoStateContext {
     /// Create an ErgoStateContext instance
-    pub fn new(pre_header: PreHeader, headers: Headers) -> ErgoStateContext {
+    /// # Parameters
+    /// For signing, [Parameters::default()] is sufficient. For consensus-critical applications that validate transactions it is important that parameters represent the latest state of the blockchain
+    pub fn new(
+        pre_header: PreHeader,
+        headers: Headers,
+        parameters: Parameters,
+    ) -> ErgoStateContext {
         ErgoStateContext {
             pre_header,
             headers,
+            parameters,
         }
     }
 }
@@ -34,8 +45,11 @@ mod arbitrary {
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            // TODO: parameters should implement arbitrary as well, based on minimum/maximum constraints of each parameter
             (any::<PreHeader>(), any::<Headers>())
-                .prop_map(|(pre_header, headers)| Self::new(pre_header, headers))
+                .prop_map(|(pre_header, headers)| {
+                    Self::new(pre_header, headers, Parameters::default())
+                })
                 .boxed()
         }
     }

@@ -2,6 +2,7 @@ use ergotree_ir::mir::avl_tree_data::AvlTreeData;
 use ergotree_ir::mir::avl_tree_data::AvlTreeFlags;
 use ergotree_ir::mir::value::CollKind;
 use ergotree_ir::mir::value::Value;
+use ergotree_ir::serialization::SigmaSerializable;
 use ergotree_ir::types::stype::SType;
 
 use super::EvalError;
@@ -87,6 +88,22 @@ pub(crate) static LAST_BLOCK_UTXO_ROOT_HASH_EVAL_FN: EvalFn = |_env, ctx, obj, _
     })))
 };
 
+pub(crate) static MINER_PUBKEY_EVAL_FN: EvalFn = |_env, ctx, obj, _args| {
+    if obj != Value::Context {
+        return Err(EvalError::UnexpectedValue(format!(
+            "Context.preHeader: expected object of Value::Context, got {:?}",
+            obj
+        )));
+    }
+    Ok(ctx
+        .ctx
+        .pre_header
+        .miner_pk
+        .clone()
+        .sigma_serialize_bytes()?
+        .into())
+};
+
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
 #[allow(clippy::unwrap_used, clippy::expect_used)]
@@ -98,6 +115,7 @@ mod tests {
     use ergotree_ir::mir::avl_tree_data::{AvlTreeData, AvlTreeFlags};
     use ergotree_ir::mir::expr::Expr;
     use ergotree_ir::mir::property_call::PropertyCall;
+    use ergotree_ir::serialization::SigmaSerializable;
     use ergotree_ir::types::scontext;
     use sigma_test_util::force_any_val;
     use std::rc::Rc;
@@ -144,6 +162,18 @@ mod tests {
             .into();
         let ctx = Rc::new(force_any_val::<Context>());
         assert_eq!(eval_out::<PreHeader>(&expr, ctx.clone()), ctx.pre_header);
+    }
+
+    #[test]
+    fn eval_miner_pubkey() {
+        let expr: Expr = PropertyCall::new(Expr::Context, scontext::MINER_PUBKEY_PROPERTY.clone())
+            .unwrap()
+            .into();
+        let ctx = Rc::new(force_any_val::<Context>());
+        assert_eq!(
+            eval_out::<Vec<u8>>(&expr, ctx.clone()),
+            ctx.pre_header.miner_pk.sigma_serialize_bytes().unwrap()
+        );
     }
 
     #[test]
