@@ -8,6 +8,9 @@ use super::smethod::SMethod;
 use super::smethod::SMethodDesc;
 use super::stype::SType;
 use super::stype::SType::{SAvlTree, SBox, SByte, SColl, SHeader, SInt, SPreHeader};
+use crate::ergo_tree::ErgoTreeVersion;
+use crate::types::sfunc::SFunc;
+use crate::types::stype_param::STypeVar;
 use alloc::vec;
 use alloc::vec::Vec;
 use lazy_static::lazy_static;
@@ -30,6 +33,8 @@ lazy_static! {
         &SELF_BOX_INDEX_PROPERTY_METHOD_DESC,
         &LAST_BLOCK_UTXO_ROOT_HASH_PROPERTY_METHOD_DESC,
         &MINER_PUBKEY_PROPERTY_METHOD_DESC,
+        &GET_VAR_FROM_INPUT_METHOD_DESC,
+        &GET_VAR_METHOD_DESC,
     ];
 }
 
@@ -155,6 +160,45 @@ lazy_static! {
     pub static ref MINER_PUBKEY_PROPERTY: SMethod = SMethod::new(
         STypeCompanion::Context,
         MINER_PUBKEY_PROPERTY_METHOD_DESC.clone()
+    );
+}
+
+pub const GET_VAR_METHOD_ID: MethodId = MethodId(11);
+lazy_static! {
+    static ref GET_VAR_METHOD_DESC: SMethodDesc = SMethodDesc {
+        method_id: GET_VAR_METHOD_ID,
+        name: "getVar",
+        tpe: SFunc {
+            t_dom: vec![SType::SContext, SType::SByte],
+            t_range: SType::SOption(SType::STypeVar(STypeVar::t()).into()).into(),
+            tpe_params: vec![],
+        },
+        explicit_type_args: vec![STypeVar::t()],
+        min_version: ErgoTreeVersion::V3,
+    };
+}
+lazy_static! {
+    pub static ref GET_VAR_METHOD: SMethod =
+        SMethod::new(STypeCompanion::Context, GET_VAR_METHOD_DESC.clone());
+}
+pub const GET_VAR_FROM_INPUT_METHOD_ID: MethodId = MethodId(12);
+lazy_static! {
+    static ref GET_VAR_FROM_INPUT_METHOD_DESC: SMethodDesc = SMethodDesc {
+        method_id: GET_VAR_FROM_INPUT_METHOD_ID,
+        name: "getVarFromInput",
+        tpe: SFunc {
+            t_dom: vec![SType::SContext, SType::SShort, SType::SByte],
+            t_range: SType::SOption(SType::STypeVar(STypeVar::t()).into()).into(),
+            tpe_params: vec![],
+        },
+        explicit_type_args: vec![STypeVar::t()],
+        min_version: ErgoTreeVersion::V3
+    };
+}
+lazy_static! {
+    pub static ref GET_VAR_FROM_INPUT_METHOD: SMethod = SMethod::new(
+        STypeCompanion::Context,
+        GET_VAR_FROM_INPUT_METHOD_DESC.clone(),
     );
 }
 

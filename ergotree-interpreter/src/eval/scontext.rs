@@ -98,6 +98,88 @@ pub(crate) static MINER_PUBKEY_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
         .into())
 };
 
+pub(crate) static GET_VAR_EVAL_FN: EvalFn = |mc, _env, ctx, obj, args| {
+    if obj != Value::Context {
+        return Err(EvalError::UnexpectedValue(format!(
+            "Context.getVar: expected object of Value::Context, got {:?}",
+            obj
+        )));
+    }
+    let var_id = match args.first() {
+        Some(Value::Byte(id)) => *id as u8,
+        _ => {
+            return Err(EvalError::UnexpectedValue(
+                "getVar: invalid variable id".to_string(),
+            ))
+        }
+    };
+
+    let expected_type = match mc.tpe().t_range.as_ref() {
+        SType::SOption(inner_type) => inner_type.as_ref(),
+        _ => {
+            return Err(EvalError::UnexpectedValue(
+                "Expected SOption type".to_string(),
+            ))
+        }
+    };
+
+    match ctx.extension.values.get(&var_id) {
+        None => Ok(Value::Opt(Box::new(None))),
+        Some(v) if v.tpe == *expected_type => Ok(Value::Opt(Box::new(Some(v.v.clone().into())))),
+        Some(_) => Err(EvalError::UnexpectedValue(
+            "getVar: type mismatch".to_string(),
+        )),
+    }
+};
+
+pub(crate) static GET_VAR_FROM_INPUTS_EVAL_FN: EvalFn = |mc, _env, ctx, obj, args| {
+    if obj != Value::Context {
+        return Err(EvalError::UnexpectedValue(format!(
+            "Context.getVarFromInputs: expected object of Value::Context, got {:?}",
+            obj
+        )));
+    }
+
+    let input_index = match args.first() {
+        Some(Value::Short(idx)) if *idx >= 0 => *idx as usize,
+        _ => {
+            return Err(EvalError::UnexpectedValue(
+                "getVarFromInput: invalid input index".to_string(),
+            ))
+        }
+    };
+    let var_id = match args.get(1) {
+        Some(Value::Byte(id)) => *id as u8,
+        _ => {
+            return Err(EvalError::UnexpectedValue(
+                "getVarFromInput: invalid variable id".to_string(),
+            ))
+        }
+    };
+
+    let expected_type = match mc.tpe().t_range.as_ref() {
+        SType::SOption(inner_type) => inner_type.as_ref(),
+        _ => {
+            return Err(EvalError::UnexpectedValue(
+                "Expected SOption type".to_string(),
+            ))
+        }
+    };
+
+    if ctx.inputs.get(input_index).is_none() {
+        return Err(EvalError::NotFound(format!(
+            "getVarFromInput: input not found at index {}",
+            input_index
+        )));
+    }
+
+    match ctx.extension.values.get(&var_id) {
+        None => Ok(Value::Opt(Box::new(None))),
+        Some(v) if v.tpe == *expected_type => Ok(Value::Opt(Box::new(Some(v.v.clone().into())))),
+        Some(_v) => Ok(Value::Opt(Box::new(None))),
+    }
+};
+
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
 #[allow(clippy::unwrap_used, clippy::expect_used)]
@@ -107,10 +189,18 @@ mod tests {
     use ergotree_ir::chain::context::Context;
     use ergotree_ir::chain::ergo_box::ErgoBox;
     use ergotree_ir::mir::avl_tree_data::{AvlTreeData, AvlTreeFlags};
+    use ergotree_ir::mir::constant::Constant;
     use ergotree_ir::mir::expr::Expr;
+    use ergotree_ir::mir::method_call::MethodCall;
     use ergotree_ir::mir::property_call::PropertyCall;
+    use ergotree_ir::mir::value::Value;
     use ergotree_ir::serialization::SigmaSerializable;
     use ergotree_ir::types::scontext;
+    use ergotree_ir::types::stype::SType;
+    use ergotree_ir::types::stype_param::STypeVar;
+    use proptest::arbitrary::any;
+    use proptest::prelude::ProptestConfig;
+    use proptest::proptest;
     use sigma_test_util::force_any_val;
 
     fn make_ctx_inputs_includes_self_box() -> Context<'static> {
@@ -125,6 +215,68 @@ mod tests {
             inputs,
             ..ctx
         }
+    }
+
+    fn prepare_getvar_from_input_context<T>(
+        input_idx: i16,
+        var_idx: u8,
+        var_val: T,
+    ) -> Context<'static>
+    where
+        T: Into<Constant> + Clone,
+    {
+        let mut ctx = force_any_val::<Context>();
+        ctx.extension.values.clear();
+        ctx.extension.values.insert(var_idx, var_val.into());
+        let input_box = &*Box::leak(Box::new(force_any_val::<ErgoBox>()));
+        let other_box = &*Box::leak(Box::new(force_any_val::<ErgoBox>()));
+        let mut inputs = Vec::new();
+        if input_idx > 0 {
+            for _ in 0..input_idx {
+                inputs.push(other_box);
+            }
+        }
+        inputs.push(input_box);
+        ctx.inputs = inputs.try_into().unwrap();
+        ctx
+    }
+
+    pub fn create_method_call(stype: SType, input_idx: i16, var_idx: u8) -> Expr {
+        let type_args = std::iter::once((STypeVar::t(), stype)).collect();
+        MethodCall::with_type_args(
+            Expr::Context,
+            scontext::GET_VAR_FROM_INPUT_METHOD
+                .clone()
+                .with_concrete_types(&type_args),
+            vec![input_idx.into(), (var_idx as i8).into()],
+            type_args,
+        )
+        .unwrap()
+        .into()
+    }
+
+    fn prepare_getvar_context<T>(var_idx: u8, var_val: T) -> Context<'static>
+    where
+        T: Into<Constant> + Clone,
+    {
+        let mut ctx = force_any_val::<Context>();
+        ctx.extension.values.clear();
+        ctx.extension.values.insert(var_idx, var_val.into());
+        ctx
+    }
+
+    pub fn create_getvar_method_call(stype: SType, var_idx: u8) -> Expr {
+        let type_args = std::iter::once((STypeVar::t(), stype)).collect();
+        MethodCall::with_type_args(
+            Expr::Context,
+            scontext::GET_VAR_METHOD
+                .clone()
+                .with_concrete_types(&type_args),
+            vec![(var_idx as i8).into()],
+            type_args,
+        )
+        .unwrap()
+        .into()
     }
 
     #[test]
@@ -186,4 +338,98 @@ mod tests {
         };
         assert_eq!(eval_out::<AvlTreeData>(&expr, &ctx), avl_tree_data);
     }
+
+    #[test]
+    fn eval_getvar_from_input_type_mismatch() {
+        let ctx = prepare_getvar_from_input_context(0i16, 1u8, 123i32);
+        let result = eval_out::<Option<Value>>(&create_method_call(SType::SByte, 0, 1), &ctx);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    #[should_panic(expected = "getVar: type mismatch")]
+    fn eval_getvar_type_mismatch() {
+        let ctx = prepare_getvar_context(1u8, 123i32);
+        eval_out::<Option<Value>>(&create_getvar_method_call(SType::SByte, 1), &ctx);
+    }
+
+    proptest! {
+    #![proptest_config(ProptestConfig::with_cases(64))]
+
+         #[test]
+    fn eval_get_var_from_input_int(
+       input_idx in 0..10i16,
+       var_idx in any::<u8>(),
+       var_val in any::<i32>()
+    ) {
+       let result = eval_out::<Option<Value>>(
+           &create_method_call(SType::SInt, input_idx, var_idx),
+           &prepare_getvar_from_input_context(input_idx, var_idx, var_val)
+       );
+      assert_eq!(result, Some(Value::Int(var_val)));
+    }
+
+    #[test]
+    fn eval_get_var_from_input_long(
+       input_idx in 0..10i16,
+       var_idx in any::<u8>(),
+       var_val in any::<i64>()
+    ) {
+       let result = eval_out::<Option<Value>>(
+           &create_method_call(SType::SLong, input_idx, var_idx),
+           &prepare_getvar_from_input_context(input_idx, var_idx, var_val)
+       );
+       assert_eq!(result, Some(Value::Long(var_val)));
+    }
+
+    #[test]
+    fn eval_get_var_from_input_byte(
+       input_idx in 0..10i16,
+       var_idx in any::<u8>(),
+       var_val in any::<i8>()
+    ) {
+       let result = eval_out::<Option<Value>>(
+           &create_method_call(SType::SByte, input_idx, var_idx),
+           &prepare_getvar_from_input_context(input_idx, var_idx, var_val)
+       );
+       assert_eq!(result, Some(Value::Byte(var_val)));
+    }
+
+        #[test]
+    fn eval_get_var_int(
+        var_idx in any::<u8>(),
+        var_val in any::<i32>()
+    ) {
+        let result = eval_out::<Option<Value>>(
+            &create_getvar_method_call(SType::SInt, var_idx),
+            &prepare_getvar_context(var_idx, var_val)
+        );
+       assert_eq!(result, Some(Value::Int(var_val)));
+    }
+
+    #[test]
+    fn eval_get_var_long(
+        var_idx in any::<u8>(),
+        var_val in any::<i64>()
+    ) {
+        let result = eval_out::<Option<Value>>(
+            &create_getvar_method_call(SType::SLong, var_idx),
+            &prepare_getvar_context(var_idx, var_val)
+        );
+        assert_eq!(result, Some(Value::Long(var_val)));
+    }
+
+    #[test]
+    fn eval_get_var_byte(
+        var_idx in any::<u8>(),
+        var_val in any::<i8>()
+    ) {
+        let result = eval_out::<Option<Value>>(
+            &create_getvar_method_call(SType::SByte, var_idx),
+            &prepare_getvar_context(var_idx, var_val)
+        );
+        assert_eq!(result, Some(Value::Byte(var_val)));
+    }
+
+        }
 }
