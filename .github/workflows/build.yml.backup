@@ -1,0 +1,45 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ rhuze-dev ]
+  pull_request:
+    branches: [ develop ]
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Rust Toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly-2024-01-26
+          override: true
+          components: rust-src, llvm-tools-preview #Added llvm-tools-preview
+          target: aarch64-apple-ios
+
+      - name: Generate C-bindings header file
+        run: |
+          cd bindings/ergo-lib-c
+          RUST_BACKTRACE=1 cbindgen --config cbindgen.toml --crate ergo-lib-c --output h/ergo_lib.h # Added RUST_BACKTRACE
+        env:
+          RUST_BACKTRACE: 1
+
+      - name: Build Rust Library (ergo-lib-c)
+        run: cargo build --all-features -p ergo-lib-c --target aarch64-apple-ios
+
+      - name: Verify Library Path
+        run: ls -al ../../target/aarch64-apple-ios/release
+
+      - name: Build Swift Project
+        run: |
+          cd bindings/ergo-lib-ios
+          swift build -Xswiftc "-framework" -Xswiftc "SystemConfiguration" -Xlinker "-L../../target/aarch64-apple-ios/release" -Xlinker "-lergo"
+
+      - name: Run Swift Tests
+        run: |
+          cd bindings/ergo-lib-ios
+          swift test -Xswiftc "-framework" -Xswiftc "SystemConfiguration" -Xlinker "-L../../target/aarch64-apple-ios/release" -Xlinker "-lergo" --skip RestNodeApiTests
