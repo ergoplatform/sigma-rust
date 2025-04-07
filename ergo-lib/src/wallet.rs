@@ -16,7 +16,7 @@ pub mod signing;
 pub mod tx_builder;
 pub mod tx_context;
 
-use crate::ergotree_interpreter::sigma_protocol::prover::hint::{Hint, HintsBag};
+use crate::ergotree_interpreter::sigma_protocol::prover::hint::{ Hint, HintsBag };
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 use ergotree_interpreter::sigma_protocol::private_input::PrivateInput;
@@ -38,7 +38,7 @@ use crate::chain::transaction::Transaction;
 use crate::ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 use crate::wallet::mnemonic::Mnemonic;
 #[cfg(feature = "std")]
-use crate::wallet::multi_sig::{generate_commitments, generate_commitments_for};
+use crate::wallet::multi_sig::{ generate_commitments, generate_commitments_for };
 
 use self::ext_secret_key::ExtSecretKey;
 use self::ext_secret_key::ExtSecretKeyError;
@@ -46,7 +46,7 @@ use self::signing::sign_reduced_transaction;
 use self::signing::TransactionContext;
 use self::signing::TxSigningError;
 #[cfg(feature = "std")]
-use self::signing::{make_context, sign_message, sign_transaction, sign_tx_input};
+use self::signing::{ make_context, sign_message, sign_transaction, sign_tx_input };
 
 /// Wallet
 pub struct Wallet {
@@ -57,14 +57,11 @@ pub struct Wallet {
 #[allow(missing_docs)]
 #[derive(Error, Debug)]
 pub enum WalletError {
-    #[error("Transaction signing error: {0}")]
-    TxSigningError(#[from] TxSigningError),
+    #[error("Transaction signing error: {0}")] TxSigningError(#[from] TxSigningError),
 
-    #[error("Prover error: {0}")]
-    ProverError(#[from] ProverError),
+    #[error("Prover error: {0}")] ProverError(#[from] ProverError),
 
-    #[error("ExtSecretKeyError: {0}")]
-    ExtSecretKeyError(#[from] ExtSecretKeyError),
+    #[error("ExtSecretKeyError: {0}")] ExtSecretKeyError(#[from] ExtSecretKeyError),
 
     #[error("error parsing SecretKey from ExtSecretKey.bytes")]
     SecretKeyParsingError,
@@ -75,7 +72,7 @@ impl Wallet {
     /// Returns None if a DlogSecretKey cannot be parsed from the provided phrase
     pub fn from_mnemonic(
         mnemonic_phrase: &str,
-        mnemonic_pass: &str,
+        mnemonic_pass: &str
     ) -> Result<Wallet, WalletError> {
         let seed = Mnemonic::to_seed(mnemonic_phrase, mnemonic_pass);
         let ext_sk = ExtSecretKey::derive_master(seed)?;
@@ -103,10 +100,11 @@ impl Wallet {
         &self,
         tx_context: TransactionContext<UnsignedTransaction>,
         state_context: &ErgoStateContext,
-        tx_hints: Option<&TransactionHintsBag>,
+        tx_hints: Option<&TransactionHintsBag>
     ) -> Result<Transaction, WalletError> {
-        sign_transaction(self.prover.as_ref(), tx_context, state_context, tx_hints)
-            .map_err(WalletError::from)
+        sign_transaction(self.prover.as_ref(), tx_context, state_context, tx_hints).map_err(
+            WalletError::from
+        )
     }
 
     /// Signs a reduced transaction (generating proofs for inputs)
@@ -114,10 +112,11 @@ impl Wallet {
     pub fn sign_reduced_transaction(
         &self,
         reduced_tx: ReducedTransaction,
-        tx_hints: Option<&TransactionHintsBag>,
+        tx_hints: Option<&TransactionHintsBag>
     ) -> Result<Transaction, WalletError> {
-        sign_reduced_transaction(self.prover.as_ref(), reduced_tx, tx_hints)
-            .map_err(WalletError::from)
+        sign_reduced_transaction(self.prover.as_ref(), reduced_tx, tx_hints).map_err(
+            WalletError::from
+        )
     }
 
     /// Generate commitments for Transaction by wallet secrets
@@ -125,10 +124,9 @@ impl Wallet {
     pub fn generate_commitments(
         &self,
         tx_context: TransactionContext<UnsignedTransaction>,
-        state_context: &ErgoStateContext,
+        state_context: &ErgoStateContext
     ) -> Result<TransactionHintsBag, TxSigningError> {
-        let public_keys: Vec<SigmaBoolean> = self
-            .prover
+        let public_keys: Vec<SigmaBoolean> = self.prover
             .secrets()
             .iter()
             .map(|secret| secret.public_image())
@@ -140,11 +138,10 @@ impl Wallet {
     #[cfg(feature = "std")]
     pub fn generate_commitments_for_reduced_transaction(
         &self,
-        reduced_tx: ReducedTransaction,
+        reduced_tx: ReducedTransaction
     ) -> Result<TransactionHintsBag, TxSigningError> {
         let mut tx_hints = TransactionHintsBag::empty();
-        let public_keys: Vec<SigmaBoolean> = self
-            .prover
+        let public_keys: Vec<SigmaBoolean> = self.prover
             .secrets()
             .iter()
             .map(|secret| secret.public_image())
@@ -162,18 +159,20 @@ impl Wallet {
     pub fn generate_deterministic_commitments(
         &self,
         reduced_tx: &ReducedTransaction,
-        aux_rand: &[u8],
+        aux_rand: &[u8]
     ) -> Result<TransactionHintsBag, TxSigningError> {
         let mut tx_hints = TransactionHintsBag::empty();
         let msg = reduced_tx.unsigned_tx.bytes_to_sign()?;
         for (index, input) in reduced_tx.reduced_inputs().iter().enumerate() {
-            if let Some(bag) = self::deterministic::generate_commitments_for(
-                &*self.prover,
-                &input.sigma_prop,
-                &msg,
-                aux_rand,
-            ) {
-                tx_hints.add_hints_for_input(index, bag)
+            if
+                let Some(bag) = self::deterministic::generate_commitments_for(
+                    &*self.prover,
+                    &input.sigma_prop,
+                    &msg,
+                    aux_rand
+                )
+            {
+                tx_hints.add_hints_for_input(index, bag);
             };
         }
         Ok(tx_hints)
@@ -190,7 +189,7 @@ impl Wallet {
         &self,
         tx_context: TransactionContext<UnsignedTransaction>,
         state_context: &ErgoStateContext,
-        aux_rand: &[u8],
+        aux_rand: &[u8]
     ) -> Result<Transaction, WalletError> {
         let reduced_tx = reduce_tx(tx_context, state_context)?;
         let hints = self.generate_deterministic_commitments(&reduced_tx, aux_rand)?;
@@ -202,7 +201,7 @@ impl Wallet {
     pub fn sign_reduced_transaction_deterministic(
         &self,
         reduced_tx: ReducedTransaction,
-        aux_rand: &[u8],
+        aux_rand: &[u8]
     ) -> Result<Transaction, WalletError> {
         let hints = self.generate_deterministic_commitments(&reduced_tx, aux_rand)?;
         sign_reduced_transaction(&*self.prover, reduced_tx, Some(&hints)).map_err(From::from)
@@ -213,7 +212,7 @@ impl Wallet {
     pub fn sign_message(
         &self,
         sigma_tree: SigmaBoolean,
-        msg: &[u8],
+        msg: &[u8]
     ) -> Result<Vec<u8>, WalletError> {
         sign_message(self.prover.as_ref(), sigma_tree, msg).map_err(WalletError::from)
     }
@@ -225,21 +224,24 @@ impl Wallet {
         input_idx: usize,
         tx_context: TransactionContext<UnsignedTransaction>,
         state_context: &ErgoStateContext,
-        tx_hints: Option<&TransactionHintsBag>,
+        tx_hints: Option<&TransactionHintsBag>
     ) -> Result<Input, WalletError> {
         let tx = tx_context.spending_tx.clone();
         let message_to_sign = tx.bytes_to_sign().map_err(TxSigningError::from)?;
-        let mut context =
-            make_context(state_context, &tx_context, input_idx).map_err(TxSigningError::from)?;
-        Ok(sign_tx_input(
-            self.prover.as_ref(),
-            &tx_context,
-            state_context,
-            &mut context,
-            tx_hints,
-            input_idx,
-            message_to_sign.as_slice(),
-        )?)
+        let mut context = make_context(state_context, &tx_context, input_idx).map_err(
+            TxSigningError::from
+        )?;
+        Ok(
+            sign_tx_input(
+                self.prover.as_ref(),
+                &tx_context,
+                state_context,
+                &mut context,
+                tx_hints,
+                input_idx,
+                message_to_sign.as_slice()
+            )?
+        )
     }
 }
 
@@ -284,17 +286,10 @@ impl TransactionHintsBag {
 
     /// Replacing Hints for an input index
     pub fn replace_hints_for_input(&mut self, index: usize, hints_bag: HintsBag) {
-        let public: Vec<Hint> = hints_bag
-            .hints
-            .clone()
+        // Separate secret commitments (CommitmentHint) from other hints
+        let (secret, public): (Vec<Hint>, Vec<Hint>) = hints_bag.hints
             .into_iter()
-            .filter(|hint| matches!(hint, Hint::CommitmentHint(_)))
-            .collect();
-        let secret: Vec<Hint> = hints_bag
-            .hints
-            .into_iter()
-            .filter(|hint| matches!(hint, Hint::SecretProven(_)))
-            .collect();
+            .partition(|hint| matches!(hint, Hint::CommitmentHint(_)));
 
         self.secret_hints.insert(index, HintsBag { hints: secret });
         self.public_hints.insert(index, HintsBag { hints: public });
@@ -302,46 +297,31 @@ impl TransactionHintsBag {
 
     /// Adding hints for a input index
     pub fn add_hints_for_input(&mut self, index: usize, hints_bag: HintsBag) {
-        let mut public: Vec<Hint> = hints_bag
-            .hints
-            .clone()
+        let (secret, public): (Vec<Hint>, Vec<Hint>) = hints_bag.hints
             .into_iter()
-            .filter(|hint| matches!(hint, Hint::CommitmentHint(_)))
-            .collect();
-        let mut secret: Vec<Hint> = hints_bag
-            .hints
-            .into_iter()
-            .filter(|hint| matches!(hint, Hint::SecretProven(_)))
-            .collect();
-        let secret_bag = HintsBag::empty();
-        let public_bag = HintsBag::empty();
-        let old_secret: &Vec<Hint> = &self.secret_hints.get(&index).unwrap_or(&secret_bag).hints;
-        for hint in old_secret {
-            secret.push(hint.clone());
-        }
+            .partition(|hint| matches!(hint, Hint::CommitmentHint(_)));
 
-        let old_public: &Vec<Hint> = &self.public_hints.get(&index).unwrap_or(&public_bag).hints;
-        for hint in old_public {
-            public.push(hint.clone());
-        }
-        self.secret_hints.insert(index, HintsBag { hints: secret });
-        self.public_hints.insert(index, HintsBag { hints: public });
+        // Get existing hints or empty bags
+        let empty_bag = HintsBag::empty();
+        let mut existing_secret = self.secret_hints.get(&index).unwrap_or(&empty_bag).hints.clone();
+        let mut existing_public = self.public_hints.get(&index).unwrap_or(&empty_bag).hints.clone();
+
+        // Combine with new hints
+        existing_secret.extend(secret);
+        existing_public.extend(public);
+
+        self.secret_hints.insert(index, HintsBag { hints: existing_secret });
+        self.public_hints.insert(index, HintsBag { hints: existing_public });
     }
 
     /// Outputting HintsBag corresponding for an index
     pub fn all_hints_for_input(&self, index: usize) -> HintsBag {
-        let mut hints: Vec<Hint> = Vec::new();
-        let secret_bag = HintsBag::empty();
-        let public_bag = HintsBag::empty();
-        let secrets: &Vec<Hint> = &self.secret_hints.get(&index).unwrap_or(&secret_bag).hints;
-        for hint in secrets {
-            hints.push(hint.clone());
-        }
-        let public: &Vec<Hint> = &self.public_hints.get(&index).unwrap_or(&public_bag).hints;
-        for hint in public {
-            hints.push(hint.clone());
-        }
-        let hints_bag: HintsBag = HintsBag { hints };
-        hints_bag
+        let empty_bag = HintsBag::empty();
+        let mut all_hints = Vec::new();
+
+        all_hints.extend(self.secret_hints.get(&index).unwrap_or(&empty_bag).hints.clone());
+        all_hints.extend(self.public_hints.get(&index).unwrap_or(&empty_bag).hints.clone());
+
+        HintsBag { hints: all_hints }
     }
 }
