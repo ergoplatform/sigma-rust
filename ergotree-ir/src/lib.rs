@@ -38,6 +38,7 @@ pub mod sigma_protocol;
 pub mod source_span;
 #[macro_use]
 pub mod traversable;
+pub mod soft_fork;
 pub mod type_check;
 pub mod types;
 pub mod unsignedbigint256;

@@ -6,6 +6,7 @@ use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::types::TypeCode;
 use crate::serialization::SigmaParsingError;
+use crate::soft_fork::SoftForkError;
 use core::convert::TryFrom;
 use hashbrown::HashMap;
 
@@ -15,7 +16,6 @@ use super::stype_companion::STypeCompanion;
 use super::stype_param::STypeVar;
 use super::type_unify::unify_many;
 use super::type_unify::TypeUnificationError;
-use crate::serialization::SigmaParsingError::UnknownMethodId;
 
 /// Method id unique among the methods of the same object
 #[derive(PartialEq, Eq, Debug, Copy, Clone)]
@@ -59,7 +59,7 @@ impl SMethod {
         let obj_type = STypeCompanion::try_from(type_id)?;
         match obj_type.method_by_id(&method_id) {
             Some(m) => Ok(m),
-            None => Err(UnknownMethodId(method_id, type_id.value())),
+            None => Err(SoftForkError::UnknownMethodId(method_id, type_id.value()).into()),
         }
     }
 

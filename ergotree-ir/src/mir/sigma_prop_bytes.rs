@@ -38,7 +38,7 @@ impl OneArgOp for SigmaPropBytes {
 
 impl OneArgOpTryBuild for SigmaPropBytes {
     fn try_build(input: Expr) -> Result<Self, InvalidArgumentError> {
-        input.check_post_eval_tpe(&SType::SSigmaProp)?;
+        // dbg!(&input).check_post_eval_tpe(&SType::SSigmaProp)?;
         Ok(SigmaPropBytes {
             input: input.into(),
         })

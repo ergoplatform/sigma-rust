@@ -3,6 +3,7 @@ use crate::chain::ergo_box::RegisterValueError;
 use crate::ergo_tree::{ErgoTreeHeaderError, ErgoTreeVersion};
 use crate::mir::val_def::ValId;
 use crate::mir::{constant::TryExtractFromError, expr::InvalidArgumentError};
+use crate::soft_fork::SoftForkError;
 use crate::types::type_unify::TypeUnificationError;
 
 use super::{
@@ -10,7 +11,6 @@ use super::{
     sigma_byte_reader::{SigmaByteRead, SigmaByteReader},
     sigma_byte_writer::{SigmaByteWrite, SigmaByteWriter},
 };
-use crate::types::smethod::MethodId;
 use alloc::boxed::Box;
 
 use alloc::string::{String, ToString};
@@ -41,6 +41,9 @@ pub enum SigmaSerializationError {
     /// Scorex serialization error
     #[error("Scorex serialization error: {0}")]
     ScorexSerializationError(#[from] ScorexSerializationError),
+    /// Soft-fork error
+    #[error("{0}")]
+    SoftForkError(#[from] SoftForkError),
 }
 
 impl From<io::Error> for SigmaSerializationError {
@@ -52,18 +55,6 @@ impl From<io::Error> for SigmaSerializationError {
 /// Ways parsing might fail
 #[derive(Error, Eq, PartialEq, Debug, Clone)]
 pub enum SigmaParsingError {
-    /// Invalid op code
-    #[error("invalid op code: {0}")]
-    InvalidOpCode(u8),
-    /// Lacking support for the op
-    #[error("not implemented op error: {0}")]
-    NotImplementedOpCode(String),
-    /// Failed to parse type
-    #[error("type parsing error, invalid type code: {0}({0:#04X})")]
-    InvalidTypeCode(u8),
-    /// V6 type error
-    #[error("Can't use v6 types (UnsignedBigInt, Header, Option) in ContextExtension/Registers ")]
-    V6TypeError,
     /// Failed to decode VLQ
     #[error("vlq encode error: {0}")]
     VlqEncode(#[from] vlq_encode::VlqEncodingError),
@@ -91,9 +82,6 @@ pub enum SigmaParsingError {
     /// Invalid argument on node creation
     #[error("Invalid argument: {0:?}")]
     InvalidArgument(#[from] InvalidArgumentError),
-    /// Unknown method ID for given type code
-    #[error("No method id {0:?} found in type companion with type id {1:?} ")]
-    UnknownMethodId(MethodId, u8),
     /// Feature not supported
     #[error("parsing not supported: {0}")]
     NotSupported(&'static str),
@@ -112,6 +100,9 @@ pub enum SigmaParsingError {
     /// Invalid register value
     #[error("Invalid register value: {0}")]
     InvalidRegisterValue(#[from] RegisterValueError),
+    /// Soft-forkable error
+    #[error("{0}")]
+    SoftForkError(#[from] SoftForkError),
 }
 
 impl From<io::Error> for SigmaParsingError {

@@ -10,6 +10,8 @@ use crate::serialization::{
     SigmaParsingError, SigmaSerializable,
 };
 use crate::sigma_protocol::sigma_boolean::ProveDlog;
+use crate::soft_fork::IsSoftForkable;
+use crate::soft_fork::SoftForkError;
 use crate::types::stype::SType;
 
 use alloc::string::String;
@@ -107,9 +109,9 @@ pub enum ErgoTreeError {
     /// IO error
     #[error("IO error: {0:?}")]
     IoError(String),
-    /// ErgoTree root error. ErgoTree root TPE should be SigmaProp
-    #[error("Root Tpe error: expected SigmaProp, got {0}")]
-    RootTpeError(SType),
+    /// Soft-fork error condition
+    #[error("Soft fork error: {0}")]
+    SoftForkError(SoftForkError),
 }
 
 /// The root of ErgoScript IR. Serialized instances of this class are self sufficient and can be passed around.
@@ -120,14 +122,14 @@ pub enum ErgoTree {
         /// Original tree bytes
         tree_bytes: Vec<u8>,
         /// Parsing error
-        error: ErgoTreeError,
+        error: SoftForkError,
     },
     /// Parsed tree
     Parsed(ParsedErgoTree),
 }
 
 impl ErgoTree {
-    fn parsed_tree(&self) -> Result<&ParsedErgoTree, ErgoTreeError> {
+    fn parsed_tree(&self) -> Result<&ParsedErgoTree, SoftForkError> {
         match self {
             ErgoTree::Unparsed {
                 tree_bytes: _,
@@ -138,14 +140,14 @@ impl ErgoTree {
     }
 
     /// Return ErgoTreeHeader. Errors if deserializing ergotree failed
-    pub fn header(&self) -> Result<ErgoTreeHeader, ErgoTreeError> {
+    pub fn header(&self) -> Result<ErgoTreeHeader, SoftForkError> {
         self.parsed_tree().map(|parsed| parsed.header.clone())
     }
 
     fn sigma_parse_sized<R: SigmaByteRead>(
         r: &mut R,
         header: ErgoTreeHeader,
-    ) -> Result<ParsedErgoTree, ErgoTreeError> {
+    ) -> Result<ParsedErgoTree, SigmaParsingError> {
         let constants = if header.is_constant_segregation() {
             ErgoTree::sigma_parse_constants(r)?
         } else {
@@ -159,7 +161,7 @@ impl ErgoTree {
         let has_deserialize = r.was_deserialize();
         r.set_deserialize(was_deserialize);
         if root.tpe() != SType::SSigmaProp {
-            return Err(ErgoTreeError::RootTpeError(root.tpe()));
+            return Err(SoftForkError::InvalidRootType.into());
         }
         Ok(ParsedErgoTree {
             header,
@@ -273,21 +275,21 @@ impl ErgoTree {
 
     /// Returns constants number as stored in serialized ErgoTree or error if the parsing of
     /// constants is failed
-    pub fn constants_len(&self) -> Result<usize, ErgoTreeError> {
+    pub fn constants_len(&self) -> Result<usize, SoftForkError> {
         self.parsed_tree().map(|tree| tree.constants.len())
     }
 
     /// Returns constant with given index (as stored in serialized ErgoTree)
     /// or None if index is out of bounds
     /// or error if constants parsing were failed
-    pub fn get_constant(&self, index: usize) -> Result<Option<Constant>, ErgoTreeError> {
+    pub fn get_constant(&self, index: usize) -> Result<Option<Constant>, SoftForkError> {
         self.parsed_tree()
             .map(|tree| tree.constants.get(index).cloned())
     }
 
     /// Returns all constants (as stored in serialized ErgoTree)
     /// or error if constants parsing were failed
-    pub fn get_constants(&self) -> Result<Vec<Constant>, ErgoTreeError> {
+    pub fn get_constants(&self) -> Result<Vec<Constant>, SoftForkError> {
         self.parsed_tree().map(|tree| tree.constants.clone())
     }
 
@@ -390,16 +392,18 @@ impl SigmaSerializable for ErgoTree {
                     ErgoTree::sigma_parse_sized(inner_r, header)
                 }) {
                     Ok(parsed_tree) => Ok(parsed_tree.into()),
-                    Err(error) => {
+                    Err(error) if error.is_soft_fork() => {
                         let num_bytes = (body_pos - start_pos) + tree_size_bytes as u64;
                         r.seek(io::SeekFrom::Start(start_pos))?;
                         let mut bytes = vec![0; num_bytes as usize];
                         r.read_exact(&mut bytes)?;
                         Ok(ErgoTree::Unparsed {
                             tree_bytes: bytes,
-                            error,
+                            #[allow(clippy::unwrap_used)] // Error is checked to be soft fork condition above
+                            error: error.to_soft_fork().unwrap().clone(),
                         })
                     }
+                    Err(error) => Err(error),
                 }
             } else {
                 let constants = if header.is_constant_segregation() {
@@ -503,6 +507,7 @@ mod tests {
     use crate::mir::constant::Literal;
     use crate::mir::deserialize_context::DeserializeContext;
     use crate::sigma_protocol::sigma_boolean::SigmaProp;
+    use crate::soft_fork::SoftForkError;
     use proptest::prelude::*;
 
     proptest! {
@@ -537,7 +542,9 @@ mod tests {
         ];
         assert_eq!(
             ErgoTree::sigma_parse_bytes(&bytes),
-            Err(SigmaParsingError::InvalidTypeCode(0))
+            Err(SigmaParsingError::SoftForkError(
+                SoftForkError::InvalidPrimitiveType(0)
+            ))
         );
     }
 
@@ -696,7 +703,7 @@ mod tests {
             tree,
             ErgoTree::Unparsed {
                 tree_bytes,
-                error: ErgoTreeError::RootTpeError(SType::SByte)
+                error: SoftForkError::InvalidRootType
             }
         );
     }
@@ -725,7 +732,7 @@ mod tests {
             tree,
             ErgoTree::Unparsed {
                 tree_bytes: bytes,
-                error: ErgoTreeError::RootTpeError(SType::SShort)
+                error: SoftForkError::InvalidRootType
             }
         );
     }

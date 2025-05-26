@@ -2,7 +2,7 @@ use core::convert::TryFrom;
 use core::fmt::Debug;
 
 use crate::serialization::types::TypeCode;
-use crate::serialization::SigmaParsingError;
+use crate::soft_fork::SoftForkError;
 
 use super::savltree;
 use super::sbox;
@@ -143,16 +143,13 @@ impl STypeCompanion {
 }
 
 impl TryFrom<TypeCode> for STypeCompanion {
-    type Error = SigmaParsingError;
+    type Error = SoftForkError;
     fn try_from(value: TypeCode) -> Result<Self, Self::Error> {
         for (type_code, type_companion) in STypeCompanion::iter().map(|v| (v.type_code(), v)) {
             if type_code == value {
                 return Ok(type_companion);
             }
         }
-        Err(SigmaParsingError::NotImplementedYet(format!(
-            "cannot find STypeCompanion for {0:?} type id",
-            value,
-        )))
+        Err(SoftForkError::NoMethods(value))
     }
 }

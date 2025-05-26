@@ -14,6 +14,7 @@ mod tests {
     use ergotree_ir::mir::global_vars::GlobalVars;
     use ergotree_ir::mir::value::Value;
     use ergotree_ir::serialization::SigmaSerializable;
+    use ergotree_ir::soft_fork::SoftForkError;
     use ergotree_ir::types::stype::SType;
     use sigma_test_util::force_any_val;
 
@@ -79,10 +80,9 @@ mod tests {
         assert!(matches!(
             try_eval_with_deserialize::<i32>(&expr, &ctx),
             Err(EvalError::SubstDeserializeError(
-                ergotree_ir::mir::expr::SubstDeserializeError::ExprTpeError {
-                    expected: _,
-                    actual: _
-                }
+                ergotree_ir::mir::expr::SubstDeserializeError::SoftForkError(
+                    SoftForkError::DeserializedScriptError
+                )
             ))
         ));
         // default provided
@@ -133,10 +133,9 @@ mod tests {
         assert!(matches!(
             try_eval_with_deserialize::<bool>(&expr, &ctx),
             Err(EvalError::SubstDeserializeError(
-                ergotree_ir::mir::expr::SubstDeserializeError::ExprTpeError {
-                    expected: _,
-                    actual: _
-                }
+                ergotree_ir::mir::expr::SubstDeserializeError::SoftForkError(
+                    SoftForkError::DeserializedScriptError
+                )
             ))
         ));
     }
