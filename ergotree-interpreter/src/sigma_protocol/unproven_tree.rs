@@ -215,8 +215,8 @@ impl UnprovenConjecture {
 
     pub(crate) fn with_children(self, children: SigmaConjectureItems<ProofTree>) -> Self {
         match self {
-            UnprovenConjecture::CandUnproven(cand) => cand.with_children(children).into(),
-            UnprovenConjecture::CorUnproven(cor) => cor.with_children(children).into(),
+            UnprovenConjecture::CandUnproven(cand) => cand.with_children(children.into()).into(),
+            UnprovenConjecture::CorUnproven(cor) => cor.with_children(children.into()).into(),
             UnprovenConjecture::CthresholdUnproven(ct) => ct.with_children(children).into(),
         }
     }
@@ -433,7 +433,7 @@ pub(crate) struct CandUnproven {
     pub(crate) proposition: Cand,
     pub(crate) challenge_opt: Option<Challenge>,
     pub(crate) simulated: bool,
-    pub(crate) children: SigmaConjectureItems<ProofTree>,
+    pub(crate) children: Vec<ProofTree>,
     pub(crate) position: NodePosition,
 }
 
@@ -460,7 +460,7 @@ impl CandUnproven {
         Self { simulated, ..self }
     }
 
-    pub(crate) fn with_children(self, children: SigmaConjectureItems<ProofTree>) -> Self {
+    pub(crate) fn with_children(self, children: Vec<ProofTree>) -> Self {
         CandUnproven { children, ..self }
     }
 }
@@ -470,7 +470,7 @@ pub(crate) struct CorUnproven {
     pub(crate) proposition: Cor,
     pub(crate) challenge_opt: Option<Challenge>,
     pub(crate) simulated: bool,
-    pub(crate) children: SigmaConjectureItems<ProofTree>,
+    pub(crate) children: Vec<ProofTree>,
     pub(crate) position: NodePosition,
 }
 
@@ -497,7 +497,7 @@ impl CorUnproven {
         Self { simulated, ..self }
     }
 
-    pub(crate) fn with_children(self, children: SigmaConjectureItems<ProofTree>) -> Self {
+    pub(crate) fn with_children(self, children: Vec<ProofTree>) -> Self {
         Self { children, ..self }
     }
 }

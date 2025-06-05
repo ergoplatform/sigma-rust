@@ -66,6 +66,27 @@ impl ByIndex {
         })
     }
 
+    // The reference implementation only checks if input is of type SColl[T] when deserializing
+    fn build_unchecked(
+        input: Expr,
+        index: Expr,
+        default: Option<Box<Expr>>,
+    ) -> Result<Self, InvalidArgumentError> {
+        let input_elem_type = match input.post_eval_tpe() {
+            SType::SColl(elem_type) => Ok(elem_type),
+            _ => Err(InvalidArgumentError(format!(
+                "Expected ByIndex input to be SColl, got {0:?}",
+                input.tpe()
+            ))),
+        }?;
+        Ok(Self {
+            input: input.into(),
+            index: index.into(),
+            default,
+            input_elem_tpe: input_elem_type,
+        })
+    }
+
     /// Type
     pub fn tpe(&self) -> SType {
         (*self.input_elem_tpe).clone()
@@ -87,7 +108,7 @@ impl SigmaSerializable for ByIndex {
         let input = Expr::sigma_parse(r)?;
         let index = Expr::sigma_parse(r)?;
         let default = Option::<Box<Expr>>::sigma_parse(r)?;
-        Ok(Self::new(input, index, default)?)
+        Ok(Self::build_unchecked(input, index, default)?)
     }
 }
 

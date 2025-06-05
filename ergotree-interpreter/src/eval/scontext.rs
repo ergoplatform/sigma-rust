@@ -105,8 +105,16 @@ pub(crate) static GET_VAR_FROM_INPUT_EVAL_FN: EvalFn = |mc, _env, ctx, _obj, arg
     else {
         unreachable!()
     };
-    let input_idx = args[0].clone().try_extract_into::<i16>()? as usize;
-    let var_id = args[1].clone().try_extract_into::<i8>()? as u8;
+    let input_idx = args
+        .first()
+        .ok_or_else(|| EvalError::NotFound("getVarFromInput: missing input_idx".into()))?
+        .clone()
+        .try_extract_into::<i16>()? as usize;
+    let var_id = args
+        .get(1)
+        .ok_or_else(|| EvalError::NotFound("getVarFromInput: missing input_idx".into()))?
+        .clone()
+        .try_extract_into::<i8>()? as u8;
     Ok(
         match ctx
             .extension_provider

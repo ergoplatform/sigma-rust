@@ -1,7 +1,5 @@
 use alloc::boxed::Box;
 
-use alloc::sync::Arc;
-
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
 use crate::has_opcode::HasStaticOpCode;
@@ -21,8 +19,6 @@ pub struct Exists {
     pub input: Box<Expr>,
     /// Function (lambda) to test each element
     pub condition: Box<Expr>,
-    /// Collection element type
-    pub elem_tpe: Arc<SType>,
 }
 
 impl Exists {
@@ -44,7 +40,6 @@ impl Exists {
                 Ok(Exists {
                     input: input.into(),
                     condition: condition.into(),
-                    elem_tpe: input_elem_type,
                 })
             }
             _ => Err(InvalidArgumentError(format!(
@@ -73,7 +68,10 @@ impl SigmaSerializable for Exists {
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let input = Expr::sigma_parse(r)?;
         let condition = Expr::sigma_parse(r)?;
-        Ok(Exists::new(input, condition)?)
+        Ok(Exists {
+            input: input.into(),
+            condition: condition.into(),
+        })
     }
 }
 

@@ -48,6 +48,11 @@ impl OneArgOpTryBuild for SizeOf {
             ))),
         }
     }
+    fn build_unchecked(input: Expr) -> Self {
+        Self {
+            input: input.into(),
+        }
+    }
 }
 
 #[cfg(feature = "arbitrary")]

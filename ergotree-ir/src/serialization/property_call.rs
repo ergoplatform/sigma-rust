@@ -26,7 +26,10 @@ impl SigmaSerializable for PropertyCall {
         let obj = Expr::sigma_parse(r)?;
         let method =
             SMethod::from_ids(type_id, method_id)?.specialize_for(obj.tpe(), Vec::new())?;
-        Ok(PropertyCall::new(obj, method)?)
+        Ok(PropertyCall {
+            obj: obj.into(),
+            method,
+        })
     }
 }
 

@@ -76,7 +76,11 @@ impl SigmaSerializable for Slice {
         let input = Expr::sigma_parse(r)?;
         let from = Expr::sigma_parse(r)?;
         let until = Expr::sigma_parse(r)?;
-        Ok(Self::new(input, from, until)?)
+        Ok(Self {
+            input: input.into(),
+            from: from.into(),
+            until: until.into(),
+        })
     }
 }
 

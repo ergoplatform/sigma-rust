@@ -5,9 +5,9 @@ use alloc::sync::Arc;
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
 use super::unary_op::OneArgOp;
-use super::unary_op::OneArgOpTryBuild;
 use crate::has_opcode::HasStaticOpCode;
 use crate::serialization::op_code::OpCode;
+use crate::serialization::SigmaSerializable;
 use crate::types::stype::SType;
 
 /// Returns the Option's value or error if no value
@@ -20,6 +20,19 @@ pub struct OptionGet {
 }
 
 impl OptionGet {
+    /// Build a new `OptionGet` node
+    pub fn new(input: Expr) -> Result<Self, InvalidArgumentError> {
+        match input.post_eval_tpe() {
+            SType::SOption(elem_tpe) => Ok(OptionGet {
+                input: Box::new(input),
+                elem_tpe,
+            }),
+            _ => Err(InvalidArgumentError(format!(
+                "expected OptionGet::input type to be SOption, got: {0:?}",
+                input.tpe(),
+            ))),
+        }
+    }
     /// Type
     pub fn tpe(&self) -> SType {
         (*self.elem_tpe).clone()
@@ -39,18 +52,19 @@ impl OneArgOp for OptionGet {
     }
 }
 
-impl OneArgOpTryBuild for OptionGet {
-    fn try_build(input: Expr) -> Result<Self, InvalidArgumentError> {
-        match input.post_eval_tpe() {
-            SType::SOption(elem_tpe) => Ok(OptionGet {
-                input: Box::new(input),
-                elem_tpe,
-            }),
-            _ => Err(InvalidArgumentError(format!(
-                "expected OptionGet::input type to be SOption, got: {0:?}",
-                input.tpe(),
-            ))),
-        }
+impl SigmaSerializable for OptionGet {
+    fn sigma_serialize<W: crate::serialization::sigma_byte_writer::SigmaByteWrite>(
+        &self,
+        w: &mut W,
+    ) -> crate::serialization::SigmaSerializeResult {
+        self.input.sigma_serialize(w)
+    }
+
+    fn sigma_parse<R: crate::serialization::sigma_byte_reader::SigmaByteRead>(
+        r: &mut R,
+    ) -> Result<Self, crate::serialization::SigmaParsingError> {
+        let input = Expr::sigma_parse(r)?;
+        Ok(OptionGet::new(input)?)
     }
 }
 
@@ -74,7 +88,7 @@ mod tests {
         )
         .unwrap()
         .into();
-        let e: Expr = OptionGet::try_build(get_reg_expr).unwrap().into();
+        let e: Expr = OptionGet::new(get_reg_expr).unwrap().into();
         assert_eq![sigma_serialize_roundtrip(&e), e];
     }
 }

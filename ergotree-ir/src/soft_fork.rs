@@ -2,6 +2,7 @@
 use thiserror::Error;
 
 use crate::{serialization::types::TypeCode, types::smethod::MethodId};
+use alloc::string::String;
 
 /// Represents soft-forkable conditions that can be tolerated when parsing.
 #[derive(Error, Debug, PartialEq, Eq, Clone)]

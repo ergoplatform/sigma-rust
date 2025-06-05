@@ -1,7 +1,5 @@
 use alloc::boxed::Box;
 
-use alloc::sync::Arc;
-
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
 use crate::has_opcode::HasStaticOpCode;
@@ -21,8 +19,6 @@ pub struct Filter {
     pub input: Box<Expr>,
     /// Function (lambda) to test each element
     pub condition: Box<Expr>,
-    /// Collection element type
-    pub elem_tpe: Arc<SType>,
 }
 
 impl Filter {
@@ -44,7 +40,6 @@ impl Filter {
                 Ok(Filter {
                     input: input.into(),
                     condition: condition.into(),
-                    elem_tpe: input_elem_type,
                 })
             }
             _ => Err(InvalidArgumentError(format!(
@@ -56,7 +51,7 @@ impl Filter {
 
     /// Type
     pub fn tpe(&self) -> SType {
-        SType::SColl(self.elem_tpe.clone())
+        self.input.tpe()
     }
 }
 
@@ -73,7 +68,10 @@ impl SigmaSerializable for Filter {
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let input = Expr::sigma_parse(r)?;
         let condition = Expr::sigma_parse(r)?;
-        Ok(Filter::new(input, condition)?)
+        Ok(Filter {
+            input: input.into(),
+            condition: condition.into(),
+        })
     }
 }
 

@@ -1,7 +1,8 @@
+use crate::alloc::string::ToString;
 use alloc::boxed::Box;
-
 use alloc::sync::Arc;
 
+use crate::chain::ergo_box::RegisterId;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
@@ -21,7 +22,7 @@ pub struct ExtractRegisterAs {
     /// Box
     pub input: Box<Expr>,
     /// Register id to extract value from (0 is R0 .. 9 for R9)
-    pub register_id: i8,
+    pub register_id: RegisterId,
     /// Result type, to be wrapped in SOption
     pub elem_tpe: Arc<SType>,
 }
@@ -35,6 +36,14 @@ impl ExtractRegisterAs {
                 input
             )));
         }
+        Self::build_unchecked(input, register_id, tpe)
+    }
+
+    fn build_unchecked(
+        input: Expr,
+        register_id: i8,
+        tpe: SType,
+    ) -> Result<Self, InvalidArgumentError> {
         let elem_tpe = match tpe {
             SType::SOption(t) => Ok(t),
             _ => Err(InvalidArgumentError(format!(
@@ -45,7 +54,8 @@ impl ExtractRegisterAs {
 
         Ok(ExtractRegisterAs {
             input: input.into(),
-            register_id,
+            register_id: RegisterId::try_from(register_id)
+                .map_err(|e| InvalidArgumentError(e.to_string()))?,
             elem_tpe,
         })
     }
@@ -63,7 +73,7 @@ impl HasStaticOpCode for ExtractRegisterAs {
 impl SigmaSerializable for ExtractRegisterAs {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         self.input.sigma_serialize(w)?;
-        w.put_i8(self.register_id)?;
+        w.put_u8(self.register_id.into())?;
         self.elem_tpe.sigma_serialize(w)
     }
 
@@ -71,7 +81,7 @@ impl SigmaSerializable for ExtractRegisterAs {
         let input = Expr::sigma_parse(r)?;
         let register_id = r.get_i8()?;
         let elem_tpe = SType::sigma_parse(r)?;
-        Ok(ExtractRegisterAs::new(
+        Ok(ExtractRegisterAs::build_unchecked(
             input,
             register_id,
             SType::SOption(elem_tpe.into()),

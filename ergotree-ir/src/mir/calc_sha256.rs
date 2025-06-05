@@ -40,9 +40,13 @@ impl OneArgOp for CalcSha256 {
 impl OneArgOpTryBuild for CalcSha256 {
     fn try_build(input: Expr) -> Result<Self, InvalidArgumentError> {
         input.check_post_eval_tpe(&SType::SColl(Arc::new(SType::SByte)))?;
-        Ok(CalcSha256 {
-            input: Box::new(input),
-        })
+        Ok(CalcSha256::build_unchecked(input))
+    }
+
+    fn build_unchecked(input: Expr) -> Self {
+        Self {
+            input: input.into(),
+        }
     }
 }
 

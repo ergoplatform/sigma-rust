@@ -2,13 +2,14 @@
 use core::convert::TryInto;
 
 use alloc::vec::Vec;
+use bounded_vec::NonEmptyVec;
 
 use super::SigmaBoolean;
-use super::SigmaConjectureItems;
 use crate::has_opcode::HasStaticOpCode;
 use crate::serialization::op_code::OpCode;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
+use crate::serialization::SigmaSerializationError;
 use crate::serialization::{SigmaParsingError, SigmaSerializable, SigmaSerializeResult};
 use crate::sigma_protocol::sigma_boolean::SigmaConjecture;
 
@@ -16,7 +17,7 @@ use crate::sigma_protocol::sigma_boolean::SigmaConjecture;
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Cor {
     /// Items of the conjunctions
-    pub items: SigmaConjectureItems<SigmaBoolean>,
+    pub items: Vec<SigmaBoolean>,
 }
 
 impl HasStaticOpCode for Cor {
@@ -26,7 +27,7 @@ impl HasStaticOpCode for Cor {
 impl Cor {
     /// Connects the given sigma propositions into COR proposition performing
     /// partial evaluation when some of them are trivial propositioins.
-    pub fn normalized(items: SigmaConjectureItems<SigmaBoolean>) -> SigmaBoolean {
+    pub fn normalized(items: NonEmptyVec<SigmaBoolean>) -> SigmaBoolean {
         let mut res = Vec::new();
         for it in items {
             match it {
@@ -41,11 +42,7 @@ impl Cor {
             #[allow(clippy::unwrap_used)]
             res.first().unwrap().clone()
         } else {
-            #[allow(clippy::unwrap_used)]
-            SigmaBoolean::SigmaConjecture(SigmaConjecture::Cor(Cor {
-                // should be 2 or more so unwrap is safe here
-                items: res.try_into().unwrap(),
-            }))
+            SigmaBoolean::SigmaConjecture(SigmaConjecture::Cor(Cor { items: res }))
         }
     }
 }
@@ -65,7 +62,11 @@ impl core::fmt::Display for Cor {
 
 impl SigmaSerializable for Cor {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
-        w.put_u16(self.items.len() as u16)?;
+        w.put_u16(
+            self.items.len().try_into().map_err(|_| {
+                SigmaSerializationError::NotSupported("items.len() > 0xffff".into())
+            })?,
+        )?;
         self.items.iter().try_for_each(|i| i.sigma_serialize(w))
     }
 
@@ -75,9 +76,7 @@ impl SigmaSerializable for Cor {
         for _ in 0..items_count {
             items.push(SigmaBoolean::sigma_parse(r)?);
         }
-        Ok(Cor {
-            items: items.try_into()?,
-        })
+        Ok(Cor { items })
     }
 }
 
@@ -147,9 +146,8 @@ mod tests {
     fn pk_pk() {
         let pk1 = force_any_val::<ProveDlog>();
         let pk2 = force_any_val::<ProveDlog>();
-        let pks: SigmaConjectureItems<SigmaBoolean> =
-            vec![pk1.into(), pk2.into()].try_into().unwrap();
-        let cor = Cor::normalized(pks.clone());
+        let pks: Vec<SigmaBoolean> = vec![pk1.into(), pk2.into()];
+        let cor = Cor::normalized(pks.clone().try_into().unwrap());
         assert!(matches!(
             cor,
             SigmaBoolean::SigmaConjecture(SigmaConjecture::Cor(Cor {items})) if items == pks

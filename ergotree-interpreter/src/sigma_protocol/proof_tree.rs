@@ -168,14 +168,24 @@ where
             UnprovenTree::UnprovenConjecture(conj) => match conj {
                 UnprovenConjecture::CandUnproven(cand) => UnprovenTree::UnprovenConjecture(
                     UnprovenConjecture::CandUnproven(CandUnproven {
-                        children: cand.children.clone().try_mapped(|c| rewrite_bu(c, f))?,
+                        children: cand
+                            .children
+                            .iter()
+                            .cloned()
+                            .map(|c| rewrite_bu(c, f))
+                            .collect::<Result<Vec<_>, _>>()?,
                         ..cand.clone()
                     }),
                 )
                 .into(),
                 UnprovenConjecture::CorUnproven(cor) => {
                     UnprovenTree::UnprovenConjecture(UnprovenConjecture::CorUnproven(CorUnproven {
-                        children: cor.children.clone().try_mapped(|c| rewrite_bu(c, f))?,
+                        children: cor
+                            .children
+                            .iter()
+                            .cloned()
+                            .map(|c| rewrite_bu(c, f))
+                            .collect::<Result<Vec<_>, _>>()?,
                         ..cor.clone()
                     }))
                     .into()
@@ -266,14 +276,24 @@ where
             UnprovenTree::UnprovenConjecture(conj) => match conj {
                 UnprovenConjecture::CandUnproven(cand) => UnprovenTree::UnprovenConjecture(
                     UnprovenConjecture::CandUnproven(CandUnproven {
-                        children: cand.children.clone().try_mapped(|c| rewrite_td(c, f))?,
+                        children: cand
+                            .children
+                            .iter()
+                            .cloned()
+                            .map(|c| rewrite_td(c, f))
+                            .collect::<Result<Vec<_>, _>>()?,
                         ..cand.clone()
                     }),
                 )
                 .into(),
                 UnprovenConjecture::CorUnproven(cor) => {
                     UnprovenTree::UnprovenConjecture(UnprovenConjecture::CorUnproven(CorUnproven {
-                        children: cor.children.clone().try_mapped(|c| rewrite_td(c, f))?,
+                        children: cor
+                            .children
+                            .iter()
+                            .cloned()
+                            .map(|c| rewrite_td(c, f))
+                            .collect::<Result<Vec<_>, _>>()?,
                         ..cor.clone()
                     }))
                     .into()

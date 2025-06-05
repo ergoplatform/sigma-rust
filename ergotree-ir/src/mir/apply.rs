@@ -55,7 +55,11 @@ impl Apply {
 
     /// Type
     pub fn tpe(&self) -> SType {
-        self.tpe.clone()
+        match self.func.tpe() {
+            SType::SFunc(sfunc) => *sfunc.t_range.clone(),
+            SType::SColl(elem_tpe) => (*elem_tpe).clone(),
+            _ => SType::SAny,
+        }
     }
 }
 

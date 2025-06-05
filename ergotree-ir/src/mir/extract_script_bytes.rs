@@ -39,9 +39,12 @@ impl OneArgOp for ExtractScriptBytes {
 impl OneArgOpTryBuild for ExtractScriptBytes {
     fn try_build(input: Expr) -> Result<Self, InvalidArgumentError> {
         input.check_post_eval_tpe(&SType::SBox)?;
-        Ok(ExtractScriptBytes {
+        Ok(Self::build_unchecked(input))
+    }
+    fn build_unchecked(input: Expr) -> Self {
+        Self {
             input: input.into(),
-        })
+        }
     }
 }
 

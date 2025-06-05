@@ -70,7 +70,11 @@ impl SigmaSerializable for SubstConstants {
         let script_bytes = Expr::sigma_parse(r)?;
         let positions = Expr::sigma_parse(r)?;
         let new_values = Expr::sigma_parse(r)?;
-        Ok(SubstConstants::new(script_bytes, positions, new_values)?)
+        Ok(SubstConstants {
+            script_bytes: script_bytes.into(),
+            positions: positions.into(),
+            new_values: new_values.into(),
+        })
     }
 }
 

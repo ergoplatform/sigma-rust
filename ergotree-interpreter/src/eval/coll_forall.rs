@@ -3,6 +3,7 @@ use alloc::vec::Vec;
 use ergotree_ir::mir::coll_forall::ForAll;
 use ergotree_ir::mir::constant::TryExtractInto;
 use ergotree_ir::mir::value::Value;
+use ergotree_ir::types::stype::SType;
 
 use crate::eval::env::Env;
 use crate::eval::Context;
@@ -15,6 +16,13 @@ impl Evaluable for ForAll {
         env: &mut Env<'ctx>,
         ctx: &Context<'ctx>,
     ) -> Result<Value<'ctx>, EvalError> {
+        let input_elem_type = match self.input.post_eval_tpe() {
+            SType::SColl(elem_type) => Ok(elem_type),
+            _ => Err(EvalError::UnexpectedExpr(format!(
+                "Expected ForAll input to be SColl, got {0:?}",
+                self.input.tpe()
+            ))),
+        }?;
         let input_v = self.input.eval(env, ctx)?;
         let condition_v = self.condition.eval(env, ctx)?;
         let input_v_clone = input_v.clone();
@@ -42,10 +50,10 @@ impl Evaluable for ForAll {
         };
         let normalized_input_vals: Vec<Value> = match input_v {
             Value::Coll(coll) => {
-                if coll.elem_tpe() != &*self.elem_tpe {
+                if coll.elem_tpe() != &*input_elem_type {
                     return Err(EvalError::UnexpectedValue(format!(
                         "expected ForAll input element type to be {0:?}, got: {1:?}",
-                        self.elem_tpe,
+                        input_elem_type,
                         coll.elem_tpe()
                     )));
                 };

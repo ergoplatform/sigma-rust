@@ -18,9 +18,9 @@ use crate::sigma_protocol::unproven_tree::UnprovenDhTuple;
 use crate::sigma_protocol::Challenge;
 use crate::sigma_protocol::UnprovenLeaf;
 use alloc::vec::Vec;
+use bounded_vec::BoundedVecOutOfBounds;
 use core::convert::TryInto;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
-use ergotree_ir::sigma_protocol::sigma_boolean::SigmaConjectureItems;
 use gf2_192::gf2_192poly::Gf2_192Poly;
 use gf2_192::gf2_192poly::Gf2_192PolyError;
 use gf2_192::Gf2_192Error;
@@ -93,6 +93,8 @@ pub enum ProverError {
     /// Unsupported operation
     #[error("RNG is not available in no_std environments, can't generate signature without Hint")]
     Unsupported,
+    #[error("BoundedVec error: {0}")]
+    BoundedVecOutOfBounds(BoundedVecOutOfBounds),
 }
 
 impl From<ErgoTreeError> for ProverError {
@@ -261,7 +263,7 @@ fn mark_real<P: Prover + ?Sized>(
                 UnprovenTree::UnprovenConjecture(unp_conj) => match unp_conj {
                     UnprovenConjecture::CandUnproven(cand) => {
                         // If the node is AND, mark it "real" if all of its children are marked real; else mark it "simulated"
-                        let simulated = cast_to_unp(cand.children.clone())?
+                        let simulated = cast_to_unp(cand.children.as_slice())?
                             .iter()
                             .any(|c| c.simulated());
                         Some(
@@ -274,7 +276,7 @@ fn mark_real<P: Prover + ?Sized>(
                     }
                     UnprovenConjecture::CorUnproven(cor) => {
                         // If the node is OR, mark it "real" if at least one child is marked real; else mark it "simulated"
-                        let simulated = cast_to_unp(cor.children.clone())?
+                        let simulated = cast_to_unp(cor.children.as_slice())?
                             .iter()
                             .all(|c| c.simulated());
                         Some(
@@ -287,7 +289,7 @@ fn mark_real<P: Prover + ?Sized>(
                     }
                     UnprovenConjecture::CthresholdUnproven(ct) => {
                         // If the node is THRESHOLD(k), mark it "real" if at least k of its children are marked real; else mark it "simulated"
-                        let simulated = cast_to_unp(ct.children.clone())?
+                        let simulated = cast_to_unp(ct.children.as_slice())?
                             .iter()
                             .filter(|c| c.is_real())
                             .count()
@@ -316,8 +318,8 @@ fn set_positions(uc: UnprovenConjecture) -> Result<UnprovenConjecture, ProverErr
         .enumerated()
         .mapped(|(idx, utree)| utree.with_position(uc.position().child(idx)).into());
     Ok(match uc {
-        UnprovenConjecture::CandUnproven(cand) => cand.with_children(upd_children).into(),
-        UnprovenConjecture::CorUnproven(cor) => cor.with_children(upd_children).into(),
+        UnprovenConjecture::CandUnproven(cand) => cand.with_children(upd_children.into()).into(),
+        UnprovenConjecture::CorUnproven(cor) => cor.with_children(upd_children.into()).into(),
         UnprovenConjecture::CthresholdUnproven(ct) => ct.with_children(upd_children).into(),
     })
 }
@@ -327,37 +329,40 @@ fn set_positions(uc: UnprovenConjecture) -> Result<UnprovenConjecture, ProverErr
 /// Which particular child is left "real" is not important for security;
 /// the choice can be guided by efficiency or convenience considerations.
 fn make_cor_children_simulated(cor: CorUnproven) -> Result<CorUnproven, ProverError> {
-    let casted_children = cast_to_unp(cor.children)?;
+    let casted_children = cast_to_unp(cor.children.as_slice())?;
     let first_real_child = casted_children.iter().find(|it| it.is_real()).ok_or({
         ProverError::Unexpected(
             "make_cor_children_simulated: no real child is found amoung Cor children",
         )
     })?;
     let children = casted_children
-        .clone()
-        .mapped(|c| {
-            if &c == first_real_child || c.simulated() {
-                c
+        .iter()
+        .map(|c| {
+            if c == first_real_child || c.simulated() {
+                c.clone()
             } else {
-                c.with_simulated(true)
+                c.clone().with_simulated(true)
             }
         })
-        .mapped(|c| c.into());
+        .map(|c| c.into())
+        .collect();
     Ok(CorUnproven { children, ..cor })
 }
 
-fn cast_to_unp(
-    children: SigmaConjectureItems<ProofTree>,
-) -> Result<SigmaConjectureItems<UnprovenTree>, ProverError> {
-    children.try_mapped(|c| {
-        if let ProofTree::UnprovenTree(ut) = c {
-            Ok(ut)
-        } else {
-            Err(ProverError::Unexpected(
-                "make_cor_children_simulated: expected UnprovenTree got UncheckedTree",
-            ))
-        }
-    })
+fn cast_to_unp(children: &[ProofTree]) -> Result<Vec<UnprovenTree>, ProverError> {
+    children
+        .iter()
+        .cloned()
+        .map(|c| {
+            if let ProofTree::UnprovenTree(ut) = c {
+                Ok(ut)
+            } else {
+                Err(ProverError::Unexpected(
+                    "make_cor_children_simulated: expected UnprovenTree got UncheckedTree",
+                ))
+            }
+        })
+        .collect()
 }
 
 /// Prover Step 3: This step will change some "real" nodes to "simulated" to make sure each node has
@@ -375,8 +380,11 @@ fn polish_simulated<P: Prover + ?Sized>(
                     // If the node is marked "simulated", mark all of its children "simulated"
                     let a: CandUnproven = if cand.simulated {
                         cand.clone().with_children(
-                            cast_to_unp(cand.children.clone())?
-                                .mapped(|c| c.with_simulated(true).into()),
+                            cast_to_unp(&cand.children)?
+                                .iter()
+                                .cloned()
+                                .map(|c| c.with_simulated(true).into())
+                                .collect(),
                         )
                     } else {
                         cand.clone()
@@ -387,8 +395,10 @@ fn polish_simulated<P: Prover + ?Sized>(
                     // If the node is marked "simulated", mark all of its children "simulated"
                     let o: CorUnproven = if cor.simulated {
                         CorUnproven {
-                            children: cast_to_unp(cor.children.clone())?
-                                .mapped(|c| c.with_simulated(true).into()),
+                            children: cast_to_unp(&cor.children)?
+                                .iter()
+                                .map(|c| c.with_simulated(true).into())
+                                .collect(),
                             ..cor.clone()
                         }
                     } else {
@@ -401,8 +411,12 @@ fn polish_simulated<P: Prover + ?Sized>(
                     // If the node is marked "simulated", mark all of its children "simulated"
                     let t: CthresholdUnproven = if ct.simulated {
                         ct.clone().with_children(
-                            cast_to_unp(ct.children.clone())?
-                                .mapped(|c| c.with_simulated(true).into()),
+                            cast_to_unp(ct.children.as_slice())?
+                                .iter()
+                                .cloned()
+                                .map(|c| c.with_simulated(true).into())
+                                .collect::<Vec<_>>()
+                                .try_into()?,
                         )
                     } else {
                         // If the node is THRESHOLD(k) marked "real", mark all but k of its children "simulated"
@@ -413,8 +427,8 @@ fn polish_simulated<P: Prover + ?Sized>(
                         // We'll mark the first k real ones real
                         let mut count_of_real = 0;
                         let mut children_indices_to_be_marked_simulated = Vec::new();
-                        let unproven_children = cast_to_unp(ct.children.clone())?;
-                        for (idx, kid) in unproven_children.clone().enumerated() {
+                        let unproven_children = cast_to_unp(ct.children.as_slice())?;
+                        for (idx, kid) in unproven_children.iter().enumerate() {
                             if kid.is_real() {
                                 count_of_real += 1;
                                 if count_of_real > ct.k {
@@ -422,15 +436,22 @@ fn polish_simulated<P: Prover + ?Sized>(
                                 };
                             };
                         }
-                        ct.clone()
-                            .with_children(unproven_children.enumerated().mapped(|(idx, c)| {
-                                if children_indices_to_be_marked_simulated.contains(&idx) {
-                                    c.with_simulated(true)
-                                } else {
-                                    c
-                                }
-                                .into()
-                            }))
+                        ct.clone().with_children(
+                            unproven_children
+                                .iter()
+                                .cloned()
+                                .enumerate()
+                                .map(|(idx, c)| {
+                                    if children_indices_to_be_marked_simulated.contains(&idx) {
+                                        c.with_simulated(true)
+                                    } else {
+                                        c
+                                    }
+                                    .into()
+                                })
+                                .collect::<Vec<_>>()
+                                .try_into()?,
+                        )
                     };
                     Ok(Some(set_positions(t.into())?.into()))
                 }

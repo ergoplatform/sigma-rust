@@ -63,22 +63,10 @@ impl From<SigmaBoolean> for SigmaBooleanJson {
             }
             SigmaBoolean::TrivialProp(tp) => SigmaBooleanJson::TrivialPropFalse { condition: tp },
             SigmaBoolean::SigmaConjecture(SigmaConjecture::Cand(cand)) => SigmaBooleanJson::Cand {
-                args: cand
-                    .items
-                    .as_vec()
-                    .clone()
-                    .into_iter()
-                    .map(Into::into)
-                    .collect(),
+                args: cand.items.clone().into_iter().map(Into::into).collect(),
             },
             SigmaBoolean::SigmaConjecture(SigmaConjecture::Cor(cor)) => SigmaBooleanJson::Cor {
-                args: cor
-                    .items
-                    .as_vec()
-                    .clone()
-                    .into_iter()
-                    .map(Into::into)
-                    .collect(),
+                args: cor.items.clone().into_iter().map(Into::into).collect(),
             },
             SigmaBoolean::SigmaConjecture(SigmaConjecture::Cthreshold(ct)) => {
                 SigmaBooleanJson::Cthreshold {
@@ -111,16 +99,14 @@ impl TryFrom<SigmaBooleanJson> for SigmaBoolean {
                 items: args
                     .into_iter()
                     .map(TryInto::try_into)
-                    .collect::<Result<Vec<SigmaBoolean>, _>>()?
-                    .try_into()?,
+                    .collect::<Result<Vec<SigmaBoolean>, _>>()?,
             }
             .into(),
             SigmaBooleanJson::Cor { args } => Cor {
                 items: args
                     .into_iter()
                     .map(TryInto::try_into)
-                    .collect::<Result<Vec<SigmaBoolean>, _>>()?
-                    .try_into()?,
+                    .collect::<Result<Vec<SigmaBoolean>, _>>()?,
             }
             .into(),
             SigmaBooleanJson::Cthreshold { k, args } => Cthreshold {

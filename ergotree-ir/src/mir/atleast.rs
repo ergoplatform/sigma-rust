@@ -64,7 +64,10 @@ impl SigmaSerializable for Atleast {
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let bound = Expr::sigma_parse(r)?;
         let input = Expr::sigma_parse(r)?;
-        Ok(Self::new(bound, input)?)
+        Ok(Self {
+            bound: bound.into(),
+            input: input.into(),
+        })
     }
 }
 
