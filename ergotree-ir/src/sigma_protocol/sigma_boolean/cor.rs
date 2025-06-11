@@ -93,9 +93,7 @@ mod arbitrary {
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             vec(any::<SigmaBoolean>(), 2..=4)
-                .prop_map(|items| Cor {
-                    items: items.try_into().unwrap(),
-                })
+                .prop_map(|items| Cor { items })
                 .boxed()
         }
     }

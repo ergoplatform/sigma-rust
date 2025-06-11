@@ -387,14 +387,10 @@ mod arbitrary {
                 .prop_recursive(1, 8, 4, |elem| {
                     prop_oneof![
                         vec(elem.clone(), 2..=4)
-                            .prop_map(|elems| Cand {
-                                items: elems.try_into().unwrap()
-                            })
+                            .prop_map(|items| Cand { items })
                             .prop_map_into(),
                         vec(elem.clone(), 2..=4)
-                            .prop_map(|elems| Cor {
-                                items: elems.try_into().unwrap()
-                            })
+                            .prop_map(|items| Cor { items })
                             .prop_map_into(),
                         vec(elem, 2..=5)
                             .prop_map(|elems| Cthreshold {

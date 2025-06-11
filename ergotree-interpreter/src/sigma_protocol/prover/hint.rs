@@ -389,14 +389,14 @@ mod arbitrary {
                 challenge: _,
                 children,
             }) => Cand {
-                items: children.mapped_ref(extract_sigma_boolean).into(),
+                items: children.iter().map(extract_sigma_boolean).collect(),
             }
             .into(),
             UncheckedTree::UncheckedConjecture(UncheckedConjecture::CorUnchecked {
                 challenge: _,
                 children,
             }) => Cor {
-                items: children.mapped_ref(extract_sigma_boolean).into(),
+                items: children.iter().map(extract_sigma_boolean).collect(),
             }
             .into(),
             UncheckedTree::UncheckedConjecture(UncheckedConjecture::CthresholdUnchecked {

@@ -79,6 +79,8 @@ impl Cthreshold {
         // should be 2 or more so unwrap is safe here
         #[allow(clippy::unwrap_used)]
         let sigmas: SigmaConjectureItems<SigmaBoolean> = res.try_into().unwrap();
+        #[allow(clippy::unwrap_used)]
+        // 1 < sigmas.len() <= 255, so converting to NonEmptyVec never fails
         match curr_k as usize {
             1 => Cor::normalized(sigmas.to_vec().try_into().unwrap()),
             ch if ch == children_left => Cand::normalized(sigmas.to_vec().try_into().unwrap()),

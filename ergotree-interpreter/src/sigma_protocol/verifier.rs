@@ -15,6 +15,8 @@ use super::{
 };
 use crate::eval::EvalError;
 use crate::eval::{reduce_to_crypto, ReductionDiagnosticInfo};
+use alloc::vec::Vec;
+use bounded_vec::BoundedVecOutOfBounds;
 use dlog_protocol::FirstDlogProverMessage;
 use ergotree_ir::chain::context::Context;
 use ergotree_ir::ergo_tree::ErgoTree;
@@ -38,6 +40,9 @@ pub enum VerifierError {
     /// Error while tree serialization for Fiat-Shamir hash
     #[error("Fiat-Shamir tree serialization error: {0}")]
     FiatShamirTreeSerializationError(FiatShamirTreeSerializationError),
+    /// BoundedVecOutOfBounds error
+    #[error("Bounded vec out of bounds: {0}")]
+    BoundedVecOutOfBounds(BoundedVecOutOfBounds),
 }
 
 /// Result of Box.ergoTree verification procedure (see `verify` method).
@@ -113,7 +118,7 @@ pub fn verify_signature(
 /// Perform Verifier Steps 4-6
 fn check_commitments(sp: UncheckedTree, message: &[u8]) -> Result<bool, VerifierError> {
     // Perform Verifier Step 4
-    let new_root = compute_commitments(sp);
+    let new_root = compute_commitments(sp)?;
     let mut s = fiat_shamir_tree_to_bytes(&new_root.clone().into())?;
     s.extend_from_slice(message);
     // Verifier Steps 5-6: Convert the tree to a string `s` for input to the Fiat-Shamir hash function,
@@ -127,8 +132,8 @@ fn check_commitments(sp: UncheckedTree, message: &[u8]) -> Result<bool, Verifier
 /// Verifier Step 4: For every leaf node, compute the commitment a from the challenge e and response $z$,
 /// per the verifier algorithm of the leaf's Sigma-protocol.
 /// If the verifier algorithm of the Sigma-protocol for any of the leaves rejects, then reject the entire proof.
-pub fn compute_commitments(sp: UncheckedTree) -> UncheckedTree {
-    match sp {
+pub fn compute_commitments(sp: UncheckedTree) -> Result<UncheckedTree, BoundedVecOutOfBounds> {
+    Ok(match sp {
         UncheckedTree::UncheckedLeaf(leaf) => match leaf {
             UncheckedLeaf::UncheckedSchnorr(sn) => {
                 let a = dlog_protocol::interactive_prover::compute_commitment(
@@ -157,9 +162,15 @@ pub fn compute_commitments(sp: UncheckedTree) -> UncheckedTree {
         },
         UncheckedTree::UncheckedConjecture(conj) => conj
             .clone()
-            .with_children(conj.children_ust().mapped(compute_commitments))
+            .with_children(
+                conj.children_ust()
+                    .iter()
+                    .cloned()
+                    .map(compute_commitments)
+                    .collect::<Result<Vec<_>, _>>()?,
+            )?
             .into(),
-    }
+    })
 }
 
 /// Test Verifier implementation

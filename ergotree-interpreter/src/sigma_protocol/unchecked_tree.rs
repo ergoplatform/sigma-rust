@@ -1,6 +1,7 @@
 //! Unchecked proof tree types
 
 use alloc::vec::Vec;
+use bounded_vec::BoundedVecOutOfBounds;
 use ergo_chain_types::Base16EncodedBytes;
 use ergotree_ir::sigma_protocol::sigma_boolean::ProveDhTuple;
 use ergotree_ir::sigma_protocol::sigma_boolean::ProveDlog;
@@ -176,14 +177,14 @@ pub enum UncheckedConjecture {
         /// Challenge
         challenge: Challenge,
         /// Children
-        children: SigmaConjectureItems<UncheckedTree>,
+        children: Vec<UncheckedTree>,
     },
     /// Unchecked Or Conjecture
     CorUnchecked {
         /// Challenge
         challenge: Challenge,
         /// Children
-        children: SigmaConjectureItems<UncheckedTree>,
+        children: Vec<UncheckedTree>,
     },
     /// Unchecked Cthreshold Conjecture
     CthresholdUnchecked {
@@ -200,8 +201,11 @@ pub enum UncheckedConjecture {
 
 impl UncheckedConjecture {
     /// Set New Children
-    pub fn with_children(self, new_children: SigmaConjectureItems<UncheckedTree>) -> Self {
-        match self {
+    pub fn with_children(
+        self,
+        new_children: Vec<UncheckedTree>,
+    ) -> Result<Self, BoundedVecOutOfBounds> {
+        Ok(match self {
             UncheckedConjecture::CandUnchecked {
                 challenge,
                 children: _,
@@ -223,14 +227,14 @@ impl UncheckedConjecture {
                 polynomial: polynomial_opt,
             } => UncheckedConjecture::CthresholdUnchecked {
                 challenge,
-                children: new_children,
+                children: new_children.try_into()?,
                 k,
                 polynomial: polynomial_opt,
             },
-        }
+        })
     }
     /// Get Children
-    pub fn children_ust(self) -> SigmaConjectureItems<UncheckedTree> {
+    pub fn children_ust(&self) -> &[UncheckedTree] {
         match self {
             UncheckedConjecture::CandUnchecked {
                 challenge: _,
@@ -245,7 +249,7 @@ impl UncheckedConjecture {
                 children,
                 k: _,
                 polynomial: _,
-            } => children,
+            } => children.as_slice(),
         }
     }
     /// Get Children
@@ -310,22 +314,22 @@ impl ProofTreeConjecture for UncheckedConjecture {
     }
 
     /// Get Children
-    fn children(&self) -> SigmaConjectureItems<ProofTree> {
+    fn children(&self) -> Vec<ProofTree> {
         match self {
             UncheckedConjecture::CandUnchecked {
                 challenge: _,
                 children,
-            } => children.mapped_ref(|ust| ust.clone().into()),
+            } => children.iter().map(|ust| ust.clone().into()).collect(),
             UncheckedConjecture::CorUnchecked {
                 challenge: _,
                 children,
-            } => children.mapped_ref(|ust| ust.clone().into()),
+            } => children.iter().map(|ust| ust.clone().into()).collect(),
             UncheckedConjecture::CthresholdUnchecked {
                 challenge: _,
                 children,
                 k: _,
                 polynomial: _,
-            } => children.mapped_ref(|ust| ust.clone().into()),
+            } => children.mapped_ref(|ust| ust.clone().into()).into(),
         }
     }
 }
@@ -359,13 +363,13 @@ mod arbitrary {
                     prop_oneof![
                         (vec(elem.clone(), 2..=3), any::<Challenge>())
                             .prop_map(|(elems, challenge)| UncheckedConjecture::CandUnchecked {
-                                children: elems.try_into().unwrap(),
+                                children: elems,
                                 challenge,
                             })
                             .prop_map_into(),
                         (vec(elem.clone(), 2..=3), any::<Challenge>())
                             .prop_map(|(elems, challenge)| UncheckedConjecture::CorUnchecked {
-                                children: elems.try_into().unwrap(),
+                                children: elems,
                                 challenge
                             })
                             .prop_map_into(),

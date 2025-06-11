@@ -11,6 +11,7 @@ use super::{dlog_protocol::FirstDlogProverMessage, Challenge, FirstProverMessage
 use crate::sigma_protocol::proof_tree::ProofTreeLeaf;
 use crate::sigma_protocol::SOUNDNESS_BYTES;
 use alloc::vec::Vec;
+use bounded_vec::BoundedVecOutOfBounds;
 use ergotree_ir::sigma_protocol::sigma_boolean::cand::Cand;
 use ergotree_ir::sigma_protocol::sigma_boolean::cor::Cor;
 use ergotree_ir::sigma_protocol::sigma_boolean::cthreshold::Cthreshold;
@@ -205,20 +206,25 @@ pub(crate) enum UnprovenConjecture {
 }
 
 impl UnprovenConjecture {
-    pub(crate) fn children(&self) -> SigmaConjectureItems<ProofTree> {
+    pub(crate) fn children(&self) -> &[ProofTree] {
         match self {
-            UnprovenConjecture::CandUnproven(cand) => cand.children.clone(),
-            UnprovenConjecture::CorUnproven(cor) => cor.children.clone(),
-            UnprovenConjecture::CthresholdUnproven(ct) => ct.children.clone(),
+            UnprovenConjecture::CandUnproven(cand) => &cand.children,
+            UnprovenConjecture::CorUnproven(cor) => &cor.children,
+            UnprovenConjecture::CthresholdUnproven(ct) => ct.children.as_slice(),
         }
     }
 
-    pub(crate) fn with_children(self, children: SigmaConjectureItems<ProofTree>) -> Self {
-        match self {
-            UnprovenConjecture::CandUnproven(cand) => cand.with_children(children.into()).into(),
-            UnprovenConjecture::CorUnproven(cor) => cor.with_children(children.into()).into(),
-            UnprovenConjecture::CthresholdUnproven(ct) => ct.with_children(children).into(),
-        }
+    pub(crate) fn with_children(
+        self,
+        children: Vec<ProofTree>,
+    ) -> Result<Self, BoundedVecOutOfBounds> {
+        Ok(match self {
+            UnprovenConjecture::CandUnproven(cand) => cand.with_children(children).into(),
+            UnprovenConjecture::CorUnproven(cor) => cor.with_children(children).into(),
+            UnprovenConjecture::CthresholdUnproven(ct) => {
+                ct.with_children(children.try_into()?).into()
+            }
+        })
     }
 
     pub(crate) fn position(&self) -> &NodePosition {
@@ -283,11 +289,11 @@ impl ProofTreeConjecture for UnprovenConjecture {
         }
     }
 
-    fn children(&self) -> SigmaConjectureItems<ProofTree> {
+    fn children(&self) -> Vec<ProofTree> {
         match self {
             UnprovenConjecture::CandUnproven(cand) => cand.children.clone(),
             UnprovenConjecture::CorUnproven(cor) => cor.children.clone(),
-            UnprovenConjecture::CthresholdUnproven(ct) => ct.children.clone(),
+            UnprovenConjecture::CthresholdUnproven(ct) => ct.children.clone().into(),
         }
     }
 }

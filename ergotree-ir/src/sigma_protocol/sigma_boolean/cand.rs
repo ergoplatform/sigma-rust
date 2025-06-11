@@ -42,11 +42,7 @@ impl Cand {
             #[allow(clippy::unwrap_used)]
             res.first().unwrap().clone()
         } else {
-            #[allow(clippy::unwrap_used)]
-            SigmaBoolean::SigmaConjecture(SigmaConjecture::Cand(Cand {
-                // should be 2 or more so unwrap is safe here
-                items: res.try_into().unwrap(),
-            }))
+            SigmaBoolean::SigmaConjecture(SigmaConjecture::Cand(Cand { items: res }))
         }
     }
 }
@@ -97,9 +93,7 @@ mod arbitrary {
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             vec(any::<SigmaBoolean>(), 2..=4)
-                .prop_map(|items| Cand {
-                    items: items.try_into().unwrap(),
-                })
+                .prop_map(|items| Cand { items })
                 .boxed()
         }
     }
