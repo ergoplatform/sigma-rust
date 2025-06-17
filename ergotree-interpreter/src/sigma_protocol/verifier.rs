@@ -13,8 +13,10 @@ use super::{
     unchecked_tree::{UncheckedLeaf, UncheckedSchnorr},
     SigmaBoolean, UncheckedTree,
 };
+use crate::eval::env::Env;
 use crate::eval::EvalError;
 use crate::eval::{reduce_to_crypto, ReductionDiagnosticInfo};
+use crate::sigma_protocol::check_soft_fork_condition;
 use alloc::vec::Vec;
 use bounded_vec::BoundedVecOutOfBounds;
 use dlog_protocol::FirstDlogProverMessage;
@@ -69,6 +71,16 @@ pub trait Verifier {
         proof: ProofBytes,
         message: &[u8],
     ) -> Result<VerificationResult, VerifierError> {
+        if check_soft_fork_condition(tree, ctx)? {
+            return Ok(VerificationResult {
+                result: true,
+                cost: 0,
+                diag: ReductionDiagnosticInfo {
+                    env: Env::empty(),
+                    pretty_printed_expr: None,
+                },
+            });
+        }
         let reduction_result = reduce_to_crypto(tree, ctx)?;
         let res: bool = match reduction_result.sigma_prop {
             SigmaBoolean::TrivialProp(b) => b,
@@ -190,6 +202,7 @@ mod tests {
     use crate::sigma_protocol::prover::{Prover, TestProver};
 
     use super::*;
+    use ergotree_ir::ergo_tree::{ErgoTreeHeader, ErgoTreeVersion};
     use ergotree_ir::mir::atleast::Atleast;
     use ergotree_ir::mir::constant::{Constant, Literal};
     use ergotree_ir::mir::expr::Expr;
@@ -212,6 +225,26 @@ mod tests {
             }
         }
     }
+
+    // Test that Verifier accepts an ErgoTree without evaluating it if its version is greater than what our interpreter can understand
+    #[test]
+    fn test_soft_fork() {
+        let verifier = TestVerifier;
+        let tree = ErgoTree::new(
+            ErgoTreeHeader::new(u8::from(ErgoTreeVersion::MAX_SCRIPT_VERSION) + 1).unwrap(),
+            &Constant::from(SigmaProp::new(SigmaBoolean::TrivialProp(false))).into(),
+        )
+        .unwrap();
+        let mut ctx = force_any_val::<Context>();
+        ctx.pre_header.version = u8::from(ErgoTreeVersion::MAX_SCRIPT_VERSION) + 2;
+        assert!(
+            verifier
+                .verify(&tree, &ctx, ProofBytes::Empty, &[])
+                .unwrap()
+                .result,
+        );
+    }
+
     proptest! {
 
         #![proptest_config(ProptestConfig::with_cases(16))]

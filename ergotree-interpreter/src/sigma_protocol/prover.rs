@@ -6,6 +6,7 @@ pub mod hint;
 
 use crate::eval::reduce_to_crypto;
 use crate::eval::ReductionDiagnosticInfo;
+use crate::sigma_protocol::check_soft_fork_condition;
 use crate::sigma_protocol::dht_protocol;
 use crate::sigma_protocol::fiat_shamir::fiat_shamir_hash_fn;
 use crate::sigma_protocol::fiat_shamir::fiat_shamir_tree_to_bytes;
@@ -62,7 +63,7 @@ pub enum ProverError {
     ErgoTreeError(ErgoTreeError),
     /// Failed to evaluate ErgoTree
     #[error("Evaluation error: {0}")]
-    EvalError(EvalError),
+    EvalError(#[from] EvalError),
     /// `gf2_192` error
     #[error("gf2_192 error: {0}")]
     Gf2_192Error(Gf2_192Error),
@@ -142,6 +143,9 @@ pub trait Prover {
         message: &[u8],
         hints_bag: &HintsBag,
     ) -> Result<ProverResult, ProverError> {
+        if check_soft_fork_condition(tree, ctx)? {
+            return Err(EvalError::Misc("Both ErgoTree version and activated version is greater than maximum supported script version".into()).into());
+        }
         let ctx_ext = ctx.extension.clone();
         let reduction_result = reduce_to_crypto(tree, ctx).map_err(ProverError::EvalError)?;
         self.generate_proof(reduction_result.sigma_prop, message, hints_bag)
@@ -1317,6 +1321,8 @@ mod tests {
     use crate::sigma_protocol::private_input::DhTupleProverInput;
     use crate::sigma_protocol::private_input::DlogProverInput;
     use core::convert::TryFrom;
+    use ergotree_ir::ergo_tree::ErgoTreeHeader;
+    use ergotree_ir::ergo_tree::ErgoTreeVersion;
     use ergotree_ir::mir::atleast::Atleast;
     use ergotree_ir::mir::collection::Collection;
     use ergotree_ir::mir::constant::Constant;
@@ -1327,6 +1333,20 @@ mod tests {
     use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProp;
     use ergotree_ir::types::stype::SType;
     use sigma_test_util::force_any_val;
+
+    // Test that Prover does not attempt to generate a proof for a tree whose version is greater than the supported version
+    #[test]
+    fn test_soft_fork() {
+        let prover = TestProver { secrets: vec![] };
+        let tree = ErgoTree::new(
+            ErgoTreeHeader::new(u8::from(ErgoTreeVersion::MAX_SCRIPT_VERSION) + 1).unwrap(),
+            &Constant::from(SigmaProp::new(SigmaBoolean::TrivialProp(true))).into(),
+        )
+        .unwrap();
+        let mut ctx = force_any_val::<Context>();
+        ctx.pre_header.version = u8::from(ErgoTreeVersion::MAX_SCRIPT_VERSION) + 2;
+        assert!(prover.prove(&tree, &ctx, &[], &HintsBag::empty()).is_err());
+    }
 
     #[test]
     fn test_prove_true_prop() {
