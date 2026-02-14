@@ -180,8 +180,22 @@ mod tests {
 
     use super::*;
 
+    fn should_run_network_tests() -> bool {
+        // These tests hit public Ergo nodes and can be flaky in CI due to network instability.
+        // Keep them enabled locally by default, but require explicit opt-in in CI.
+        if std::env::var_os("CI").is_some() && std::env::var_os("ERGO_REST_NETWORK_TESTS").is_none()
+        {
+            return false;
+        }
+        true
+    }
+
     #[test]
     fn test_get_info() {
+        if !should_run_network_tests() {
+            eprintln!("skipping network test (set ERGO_REST_NETWORK_TESTS=1 to enable in CI)");
+            return;
+        }
         let runtime_inner = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()
@@ -197,6 +211,10 @@ mod tests {
 
     #[test]
     fn test_get_nipopow_proof_by_header_id() {
+        if !should_run_network_tests() {
+            eprintln!("skipping network test (set ERGO_REST_NETWORK_TESTS=1 to enable in CI)");
+            return;
+        }
         use ergo_chain_types::{BlockId, Digest32};
         let header_id = BlockId(
             Digest32::try_from(String::from(
@@ -228,6 +246,10 @@ mod tests {
 
     #[test]
     fn test_peer_discovery() {
+        if !should_run_network_tests() {
+            eprintln!("skipping network test (set ERGO_REST_NETWORK_TESTS=1 to enable in CI)");
+            return;
+        }
         let seeds: Vec<_> = [
             "http://213.239.193.208:9030",
             "http://159.65.11.55:9030",
