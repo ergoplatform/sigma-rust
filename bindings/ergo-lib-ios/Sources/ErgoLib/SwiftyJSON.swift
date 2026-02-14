@@ -236,8 +236,6 @@ public struct JSON {
                 rawString = string
             case _ as NSNull:
                 type = .null
-            case nil:
-                type = .null
             case let array as [Any]:
                 type = .array
                 rawArray = array
@@ -259,6 +257,15 @@ public struct JSON {
 
 /// Private method to unwarp an object recursively
 private func unwrap(_ object: Any) -> Any {
+    // Swift Optionals stored in `Any` are not `nil`; unwrap them explicitly.
+    let mirror = Mirror(reflecting: object)
+    if mirror.displayStyle == .optional {
+        if let child = mirror.children.first {
+            return unwrap(child.value)
+        }
+        return NSNull()
+    }
+
     switch object {
     case let json as JSON:
         return unwrap(json.object)

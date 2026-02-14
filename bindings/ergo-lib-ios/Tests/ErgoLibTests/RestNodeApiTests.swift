@@ -103,6 +103,26 @@ final class RestNodeApiTests: XCTestCase {
     }
 
     func testSPVWorkflow() async throws {
+        let env = ProcessInfo.processInfo.environment
+        if env["CI"] != nil && env["ERGO_SPV_WORKFLOW_TEST"] == nil {
+            throw XCTSkip("SPV workflow test requires public ergo nodes; set ERGO_SPV_WORKFLOW_TEST=1 (and optionally ERGO_SPV_PROOF_NODE_1, ERGO_SPV_PROOF_NODE_2, ERGO_SPV_VERIFY_NODE) to run in CI")
+        }
+
+        let proofNode1Str = env["ERGO_SPV_PROOF_NODE_1"] ?? "http://159.65.11.55:9053"
+        let proofNode2Str = env["ERGO_SPV_PROOF_NODE_2"] ?? "http://76.22.82.80:9053"
+        let verifyNodeRaw = env["ERGO_SPV_VERIFY_NODE"] ?? "76.22.82.80:9053"
+
+        let proofNode1 = URL(string: proofNode1Str)!
+        let proofNode2 = URL(string: proofNode2Str)!
+        let verifyNodeAddrString: String = {
+            if verifyNodeRaw.contains("://"),
+               let url = URL(string: verifyNodeRaw),
+               let host = url.host {
+                let port = url.port ?? 9053
+                return "\(host):\(port)"
+            }
+            return verifyNodeRaw
+        }()
         let headerId = try BlockId(
             withString: "d1366f762e46b7885496aaab0c42ec2950b0422d48aec3b91f45d4d0cdeb41e5")
         let txId = try TxId(
@@ -111,12 +131,12 @@ final class RestNodeApiTests: XCTestCase {
             group -> [NipopowProof] in
             group.addTask {
                 let proof = try await getNipopowProof(
-                    url: URL(string: "http://159.65.11.55:9053")!, headerId: headerId)!
+                    url: proofNode1, headerId: headerId)!
                 return [proof]
             }
             group.addTask {
                 let proof = try await getNipopowProof(
-                    url: URL(string: "http://76.22.82.80:9053")!, headerId: headerId)!
+                    url: proofNode2, headerId: headerId)!
                 return [proof]
             }
             return try await group.reduce(into: [NipopowProof]()) { $0 += $1 }
@@ -131,7 +151,7 @@ final class RestNodeApiTests: XCTestCase {
         XCTAssertEqual(try bestProof.suffixHead().getHeader().getBlockId(), headerId)
 
         // Now verify with 3rd node
-        let nodeConf = try NodeConf(withAddrString: "76.22.82.80:9053")
+        let nodeConf = try NodeConf(withAddrString: verifyNodeAddrString)
         let restNodeApi = try RestNodeApi()
         let header = try await restNodeApi.getHeaderAsync(nodeConf: nodeConf, blockId: headerId)
         let merkleProof = try await restNodeApi.getBlocksHeaderIdProofForTxIdAsync(
