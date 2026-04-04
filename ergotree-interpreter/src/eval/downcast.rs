@@ -36,16 +36,14 @@ fn downcast_to_bigint<'a>(in_v: Value<'a>, ctx: &Context<'_>) -> Result<Value<'a
     }
 }
 
-fn downcast_to_long<'a>(in_v: Value<'a>, ctx: &Context<'_>) -> Result<Value<'a>, EvalError> {
+fn downcast_to_long<'a>(in_v: Value<'a>, _ctx: &Context<'_>) -> Result<Value<'a>, EvalError> {
     match in_v {
         Value::Byte(v) => Ok((v as i64).into()),
         Value::Short(v) => Ok((v as i64).into()),
         Value::Int(v) => Ok((v as i64).into()),
         Value::Long(_) => Ok(in_v),
-        Value::BigInt(v) if ctx.tree_version() >= ErgoTreeVersion::V3 => wrap_downcast(v.to_i64()),
-        Value::UnsignedBigInt(v) if ctx.tree_version() >= ErgoTreeVersion::V3 => {
-            wrap_downcast(v.to_i64())
-        }
+        Value::BigInt(v) => wrap_downcast(v.to_i64()),
+        Value::UnsignedBigInt(v) => wrap_downcast(v.to_i64()),
         _ => Err(EvalError::UnexpectedValue(format!(
             "Downcast: cannot downcast {0:?} to Long",
             in_v
@@ -53,16 +51,14 @@ fn downcast_to_long<'a>(in_v: Value<'a>, ctx: &Context<'_>) -> Result<Value<'a>,
     }
 }
 
-fn downcast_to_int<'a>(in_v: Value<'a>, ctx: &Context<'_>) -> Result<Value<'a>, EvalError> {
+fn downcast_to_int<'a>(in_v: Value<'a>, _ctx: &Context<'_>) -> Result<Value<'a>, EvalError> {
     match in_v {
         Value::Byte(x) => Ok((x as i32).into()),
         Value::Short(s) => Ok((s as i32).into()),
         Value::Int(_) => Ok(in_v),
         Value::Long(l) => wrap_downcast(l.to_i32()),
-        Value::BigInt(v) if ctx.tree_version() >= ErgoTreeVersion::V3 => wrap_downcast(v.to_i32()),
-        Value::UnsignedBigInt(v) if ctx.tree_version() >= ErgoTreeVersion::V3 => {
-            wrap_downcast(v.to_i32())
-        }
+        Value::BigInt(v) => wrap_downcast(v.to_i32()),
+        Value::UnsignedBigInt(v) => wrap_downcast(v.to_i32()),
         _ => Err(EvalError::UnexpectedValue(format!(
             "Downcast: cannot downcast {0:?} to Int",
             in_v
@@ -70,7 +66,7 @@ fn downcast_to_int<'a>(in_v: Value<'a>, ctx: &Context<'_>) -> Result<Value<'a>, 
     }
 }
 
-fn downcast_to_short<'a>(in_v: Value<'a>, ctx: &Context<'_>) -> Result<Value<'a>, EvalError> {
+fn downcast_to_short<'a>(in_v: Value<'a>, _ctx: &Context<'_>) -> Result<Value<'a>, EvalError> {
     match in_v {
         Value::Short(_) => Ok(in_v),
         Value::Int(i) => match i16::try_from(i).ok() {
@@ -80,10 +76,8 @@ fn downcast_to_short<'a>(in_v: Value<'a>, ctx: &Context<'_>) -> Result<Value<'a>
             )),
         },
         Value::Long(l) => wrap_downcast(l.to_i16()),
-        Value::BigInt(v) if ctx.tree_version() >= ErgoTreeVersion::V3 => wrap_downcast(v.to_i16()),
-        Value::UnsignedBigInt(v) if ctx.tree_version() >= ErgoTreeVersion::V3 => {
-            wrap_downcast(v.to_i16())
-        }
+        Value::BigInt(v) => wrap_downcast(v.to_i16()),
+        Value::UnsignedBigInt(v) => wrap_downcast(v.to_i16()),
         _ => Err(EvalError::UnexpectedValue(format!(
             "Downcast: cannot downcast {0:?} to Short",
             in_v
@@ -91,16 +85,14 @@ fn downcast_to_short<'a>(in_v: Value<'a>, ctx: &Context<'_>) -> Result<Value<'a>
     }
 }
 
-fn downcast_to_byte<'a>(in_v: Value<'a>, ctx: &Context<'_>) -> Result<Value<'a>, EvalError> {
+fn downcast_to_byte<'a>(in_v: Value<'a>, _ctx: &Context<'_>) -> Result<Value<'a>, EvalError> {
     match in_v {
         Value::Byte(_) => Ok(in_v),
         Value::Short(s) => wrap_downcast(s.to_i8()),
         Value::Int(i) => wrap_downcast(i.to_i8()),
         Value::Long(l) => wrap_downcast(l.to_i8()),
-        Value::BigInt(v) if ctx.tree_version() >= ErgoTreeVersion::V3 => wrap_downcast(v.to_i8()),
-        Value::UnsignedBigInt(v) if ctx.tree_version() >= ErgoTreeVersion::V3 => {
-            wrap_downcast(v.to_i8())
-        }
+        Value::BigInt(v) => wrap_downcast(v.to_i8()),
+        Value::UnsignedBigInt(v) => wrap_downcast(v.to_i8()),
         _ => Err(EvalError::UnexpectedValue(format!(
             "Downcast: cannot downcast {0:?} to Byte",
             in_v
@@ -216,9 +208,7 @@ mod tests {
                 v_long
             );
             let ctx = force_any_val::<Context>();
-            (0..ErgoTreeVersion::V3.into())
-                .for_each(|version| assert!(try_eval_out_with_version::<i64>(&downcast(c_bigint.clone(), SType::SLong), &ctx, version, 1).is_err()));
-            (ErgoTreeVersion::V3.into()..=ErgoTreeVersion::MAX_SCRIPT_VERSION.into()).for_each(
+            (0..=ErgoTreeVersion::MAX_SCRIPT_VERSION.into()).for_each(
                 |version| {
                     let res = try_eval_out_with_version::<i64>(
                         &downcast(c_bigint.clone(), SType::SLong),
@@ -270,9 +260,7 @@ mod tests {
             )
             .is_err());
             let ctx = force_any_val::<Context>();
-            (0..ErgoTreeVersion::V3.into())
-                .for_each(|version| assert!(try_eval_out_with_version::<i32>(&downcast(v_bigint, SType::SInt), &ctx, version, 1).is_err()));
-            (ErgoTreeVersion::V3.into()..=ErgoTreeVersion::MAX_SCRIPT_VERSION.into()).for_each(
+            (0..=ErgoTreeVersion::MAX_SCRIPT_VERSION.into()).for_each(
                 |version| {
                     let res = try_eval_out_with_version::<i32>(
                         &downcast(v_bigint, SType::SInt),
@@ -325,9 +313,7 @@ mod tests {
             );
             assert!(try_eval_out_wo_ctx::<i16>(&downcast(c_long_oob, SType::SShort)).is_err());
             let ctx = force_any_val::<Context>();
-            (0..ErgoTreeVersion::V3.into())
-                .for_each(|version| assert!(try_eval_out_with_version::<i16>(&downcast(v_bigint, SType::SShort), &ctx, version, 1).is_err()));
-            (ErgoTreeVersion::V3.into()..=ErgoTreeVersion::MAX_SCRIPT_VERSION.into()).for_each(
+            (0..=ErgoTreeVersion::MAX_SCRIPT_VERSION.into()).for_each(
                 |version| {
                     let res = try_eval_out_with_version::<i16>(
                         &downcast(v_bigint, SType::SShort),
@@ -391,9 +377,7 @@ mod tests {
             );
             assert!(try_eval_out_wo_ctx::<i8>(&downcast(c_long_oob, SType::SByte)).is_err());
             let ctx = force_any_val::<Context>();
-            (0..ErgoTreeVersion::V3.into())
-                .for_each(|version| assert!(try_eval_out_with_version::<i8>(&downcast(v_bigint, SType::SByte), &ctx, version, 1).is_err()));
-            (ErgoTreeVersion::V3.into()..=ErgoTreeVersion::MAX_SCRIPT_VERSION.into()).for_each(
+            (0..=ErgoTreeVersion::MAX_SCRIPT_VERSION.into()).for_each(
                 |version| {
                     let res = try_eval_out_with_version::<i8>(
                         &downcast(v_bigint, SType::SByte),
@@ -401,7 +385,7 @@ mod tests {
                         version,
                         version
                     );
-                    if v_bigint < BigInt256::from(i16::MIN) || v_bigint > BigInt256::from(i16::MAX) {
+                    if v_bigint < BigInt256::from(i8::MIN) || v_bigint > BigInt256::from(i8::MAX) {
                         assert!(res.is_err());
                     } else {
                         assert_eq!(res.unwrap(), v_bigint.to_i8().unwrap());
