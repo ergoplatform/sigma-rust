@@ -3,8 +3,13 @@ use hashbrown::HashMap;
 
 #[repr(i8)]
 #[derive(Copy, Clone, Debug, Eq, Hash, PartialEq)]
-// TODO: soft-fork parameter
-/// A parameter that can be adjusted by voting
+/// A parameter that can be adjusted by voting.
+///
+/// Note: `SoftForkDisablingRules` (id 124) is intentionally not represented here.
+/// Its on-chain value is a variable-length `ErgoValidationSettingsUpdate` byte
+/// vector, which is incompatible with the current `HashMap<Parameter, i32>`
+/// storage type. Supporting it will require a follow-up change to the storage
+/// representation.
 pub enum Parameter {
     /// Storage fee factor (per byte per storage period)
     StorageFeeFactor = 1,
@@ -22,6 +27,16 @@ pub enum Parameter {
     DataInputCost = 7,
     /// Cost per one transaction output
     OutputCost = 8,
+    /// Number of soft-fork votes collected during the current voting period.
+    /// Tracked in `parameters_table` while a soft-fork vote is in progress;
+    /// removed at activation or expiration. Mirrors JVM
+    /// `Parameters.SoftForkVotesCollected`.
+    SoftForkVotesCollected = 121,
+    /// Height at which the current soft-fork voting period began.
+    /// Tracked in `parameters_table` while a soft-fork vote is in progress;
+    /// removed at activation or expiration. Mirrors JVM
+    /// `Parameters.SoftForkStartingHeight`.
+    SoftForkStartingHeight = 122,
     /// Current block version
     BlockVersion = 123,
 }
@@ -76,6 +91,26 @@ impl Parameters {
         self.parameters_table[&Parameter::OutputCost]
     }
 
+    /// Number of soft-fork votes collected, if a vote is currently in progress.
+    ///
+    /// Returns `None` when no soft-fork vote is in progress; the entry is only
+    /// present in `parameters_table` during an active voting period.
+    pub fn soft_fork_votes_collected(&self) -> Option<i32> {
+        self.parameters_table
+            .get(&Parameter::SoftForkVotesCollected)
+            .copied()
+    }
+
+    /// Height at which the current soft-fork voting period began, if any.
+    ///
+    /// Returns `None` when no soft-fork vote is in progress; the entry is only
+    /// present in `parameters_table` during an active voting period.
+    pub fn soft_fork_starting_height(&self) -> Option<i32> {
+        self.parameters_table
+            .get(&Parameter::SoftForkStartingHeight)
+            .copied()
+    }
+
     /// Create new parameters from provided blockchain parameters
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -117,5 +152,49 @@ impl Default for Parameters {
         parameters_table.insert(Parameter::MaxBlockSize, 512 * 1024);
         parameters_table.insert(Parameter::BlockVersion, 1);
         Self { parameters_table }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_does_not_contain_soft_fork_variants() {
+        let params = Parameters::default();
+        assert!(!params
+            .parameters_table
+            .contains_key(&Parameter::SoftForkVotesCollected));
+        assert!(!params
+            .parameters_table
+            .contains_key(&Parameter::SoftForkStartingHeight));
+    }
+
+    #[test]
+    fn default_soft_fork_votes_collected_is_none() {
+        assert_eq!(Parameters::default().soft_fork_votes_collected(), None);
+    }
+
+    #[test]
+    fn default_soft_fork_starting_height_is_none() {
+        assert_eq!(Parameters::default().soft_fork_starting_height(), None);
+    }
+
+    #[test]
+    fn soft_fork_votes_collected_returns_inserted_value() {
+        let mut params = Parameters::default();
+        params
+            .parameters_table
+            .insert(Parameter::SoftForkVotesCollected, 42);
+        assert_eq!(params.soft_fork_votes_collected(), Some(42));
+    }
+
+    #[test]
+    fn soft_fork_starting_height_returns_inserted_value() {
+        let mut params = Parameters::default();
+        params
+            .parameters_table
+            .insert(Parameter::SoftForkStartingHeight, 1000);
+        assert_eq!(params.soft_fork_starting_height(), Some(1000));
     }
 }
