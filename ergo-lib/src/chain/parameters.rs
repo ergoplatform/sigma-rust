@@ -27,6 +27,11 @@ pub enum Parameter {
     DataInputCost = 7,
     /// Cost per one transaction output
     OutputCost = 8,
+    /// Number of sub-blocks per block, on average. Introduced by the 6.0
+    /// soft-fork (block version 4). Mirrors JVM
+    /// `Parameters.SubblocksPerBlockIncrease`. Auto-inserted by
+    /// `Parameters.update` whenever `BlockVersion == 4`.
+    SubblocksPerBlock = 9,
     /// Number of soft-fork votes collected during the current voting period.
     /// Tracked in `parameters_table` while a soft-fork vote is in progress;
     /// removed at activation or expiration. Mirrors JVM
@@ -89,6 +94,14 @@ impl Parameters {
     /// Validation cost per one output
     pub fn output_cost(&self) -> i32 {
         self.parameters_table[&Parameter::OutputCost]
+    }
+
+    /// Number of sub-blocks per block. Returns `None` pre-6.0 (block version
+    /// less than 4) or when the parameter is otherwise absent from the table.
+    pub fn sub_blocks_per_block(&self) -> Option<i32> {
+        self.parameters_table
+            .get(&Parameter::SubblocksPerBlock)
+            .copied()
     }
 
     /// Number of soft-fork votes collected, if a vote is currently in progress.
@@ -196,5 +209,18 @@ mod tests {
             .parameters_table
             .insert(Parameter::SoftForkStartingHeight, 1000);
         assert_eq!(params.soft_fork_starting_height(), Some(1000));
+    }
+
+    #[test]
+    fn sub_blocks_per_block_default_none() {
+        let p = Parameters::default();
+        assert_eq!(p.sub_blocks_per_block(), None);
+    }
+
+    #[test]
+    fn sub_blocks_per_block_set_and_get() {
+        let mut p = Parameters::default();
+        p.parameters_table.insert(Parameter::SubblocksPerBlock, 30);
+        assert_eq!(p.sub_blocks_per_block(), Some(30));
     }
 }
