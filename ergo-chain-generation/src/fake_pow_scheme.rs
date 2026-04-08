@@ -8,7 +8,7 @@
 #[cfg(test)]
 mod tests {
     use ergo_lib::ergo_chain_types::{blake2b256_hash, ADDigest, BlockId, Digest32};
-    use ergo_nipopow::{NipopowAlgos, NipopowProof};
+    use ergo_nipopow::{NipopowAlgos, NipopowProof, PopowHeaderReader};
 
     use ergo_chain_types::{autolykos_pow_scheme::order_bigint, AutolykosSolution, Header, Votes};
     use ergo_lib::ergotree_interpreter::sigma_protocol::private_input::DlogProverInput;
@@ -16,6 +16,7 @@ mod tests {
     use ergo_nipopow::PoPowHeader;
     use num_bigint::BigUint;
     use rand::{thread_rng, Rng};
+    use std::collections::HashMap;
 
     use crate::{default_miner_secret, ErgoFullBlock, ExtensionCandidate};
     use ergo_merkle_tree::{MerkleNode, MerkleTree};
@@ -354,5 +355,114 @@ mod tests {
             suffix_tail: vec![suffix[0].header.clone()],
         };
         assert!(!proof.has_valid_connections());
+    }
+
+    /// In-memory `PopowHeaderReader` backed by a synthetic chain. Lives in
+    /// the test module because `ergo-nipopow` cannot depend on
+    /// `ergo-chain-generation` (circular dep).
+    struct MockReader {
+        by_id: HashMap<BlockId, PoPowHeader>,
+        by_height: Vec<PoPowHeader>, // index 0 = height 1 (genesis)
+    }
+
+    impl MockReader {
+        fn from_chain(chain: &[PoPowHeader]) -> Self {
+            let mut by_id = HashMap::with_capacity(chain.len());
+            let mut by_height: Vec<PoPowHeader> = Vec::with_capacity(chain.len());
+            for ph in chain {
+                by_id.insert(ph.header.id, ph.clone());
+                by_height.push(ph.clone());
+            }
+            for (i, ph) in by_height.iter().enumerate() {
+                assert_eq!(ph.header.height as usize, i + 1);
+            }
+            Self { by_id, by_height }
+        }
+    }
+
+    impl PopowHeaderReader for MockReader {
+        fn headers_height(&self) -> u32 {
+            self.by_height.len() as u32
+        }
+
+        fn popow_header_by_id(&self, id: &BlockId) -> Option<PoPowHeader> {
+            self.by_id.get(id).cloned()
+        }
+
+        fn popow_header_at_height(&self, height: u32) -> Option<PoPowHeader> {
+            if height == 0 {
+                return None;
+            }
+            self.by_height.get((height - 1) as usize).cloned()
+        }
+
+        fn last_headers(&self, k: usize) -> Vec<Header> {
+            let len = self.by_height.len();
+            let start = len.saturating_sub(k);
+            self.by_height[start..]
+                .iter()
+                .map(|ph| ph.header.clone())
+                .collect()
+        }
+
+        fn best_headers_after(&self, header: &Header, n: usize) -> Vec<Header> {
+            // Heights are 1-indexed; the slot immediately after `header` is
+            // at vec index `header.height` (because by_height[0] is height 1).
+            let start = header.height as usize;
+            let end = (start + n).min(self.by_height.len());
+            if start >= end {
+                return Vec::new();
+            }
+            self.by_height[start..end]
+                .iter()
+                .map(|ph| ph.header.clone())
+                .collect()
+        }
+    }
+
+    /// Asserts byte-for-byte equivalence between `prove(&chain)` and
+    /// `prove_with_reader(&reader, None, k, m)` on a 100-block synthetic
+    /// chain at the JVM P2P defaults `m=6, k=10`. This is the Rust
+    /// counterpart to `PoPowAlgosWithDBSpec` "proof(chain) is equivalent to
+    /// proof(histReader)" in the JVM ergo node.
+    ///
+    /// The test must use the fake-pow-scheme chain in this module (where
+    /// `d = order / (height + 1)` forces `max_level_of >= 1` for every
+    /// non-genesis block). On real-Autolykos chains the in-memory algorithm
+    /// adds level-0-only blocks at its level-0 iteration that the db-backed
+    /// interlink walk never visits, so byte-for-byte equivalence does not
+    /// hold there. The JVM equivalent test (`PoPowAlgosWithDBSpec`)
+    /// likewise relies on `DefaultFakePowScheme`, which mints blocks with
+    /// `d = q / (height + 10)` for the same reason.
+    #[test]
+    fn test_nipopow_prove_with_reader_matches_in_memory() {
+        use sigma_ser::ScorexSerializable;
+        let m = 6;
+        let k = 10;
+        let popow_algos = NipopowAlgos::default();
+        let chain = generate_popowheader_chain(100, None);
+
+        // Sanity: every block must have positive level for the equivalence
+        // to hold (see test doc).
+        for ph in &chain {
+            assert!(popow_algos.max_level_of(&ph.header).unwrap() >= 1);
+        }
+
+        let in_memory_proof = popow_algos.prove(&chain, k, m).unwrap();
+        let reader = MockReader::from_chain(&chain);
+        let db_backed_proof = popow_algos
+            .prove_with_reader(&reader, None, k, m)
+            .unwrap();
+
+        let in_memory_bytes = in_memory_proof.scorex_serialize_bytes().unwrap();
+        let db_backed_bytes = db_backed_proof.scorex_serialize_bytes().unwrap();
+
+        assert_eq!(
+            in_memory_bytes, db_backed_bytes,
+            "prove and prove_with_reader produced different proofs:\n\
+             in-memory prefix len: {}, db-backed prefix len: {}",
+            in_memory_proof.prefix.len(),
+            db_backed_proof.prefix.len()
+        );
     }
 }

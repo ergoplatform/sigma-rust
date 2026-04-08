@@ -367,7 +367,9 @@ fn transactions_root(txs: &[Transaction], block_version: u8) -> Digest32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ergo_nipopow::{NipopowAlgos, NipopowProof, PoPowHeader};
+    use ergo_lib::ergo_chain_types::Header;
+    use ergo_nipopow::{NipopowAlgos, NipopowProof, PoPowHeader, PopowHeaderReader};
+    use std::collections::HashMap;
 
     fn generate_popowheader_chain(len: usize, start: Option<PoPowHeader>) -> Vec<PoPowHeader> {
         block_stream(start.map(|p| ErgoFullBlock {
@@ -504,5 +506,150 @@ mod tests {
             let json = serde_json::to_string(&header).unwrap();
             assert_eq!(serde_json::from_str::<PoPowHeader>(&json).unwrap(), header);
         }
+    }
+
+    /// In-memory `PopowHeaderReader` backed by a synthetic chain. Lives in
+    /// the test module because `ergo-nipopow` cannot depend on
+    /// `ergo-chain-generation` (circular dep).
+    struct MockReader {
+        by_id: HashMap<BlockId, PoPowHeader>,
+        by_height: Vec<PoPowHeader>, // index 0 = height 1 (genesis)
+    }
+
+    impl MockReader {
+        fn from_chain(chain: &[PoPowHeader]) -> Self {
+            let mut by_id = HashMap::with_capacity(chain.len());
+            let mut by_height: Vec<PoPowHeader> = Vec::with_capacity(chain.len());
+            for ph in chain {
+                by_id.insert(ph.header.id, ph.clone());
+                by_height.push(ph.clone());
+            }
+            // Sanity: heights must be 1..=len contiguous starting at 1.
+            for (i, ph) in by_height.iter().enumerate() {
+                assert_eq!(ph.header.height as usize, i + 1);
+            }
+            Self { by_id, by_height }
+        }
+    }
+
+    impl PopowHeaderReader for MockReader {
+        fn headers_height(&self) -> u32 {
+            self.by_height.len() as u32
+        }
+
+        fn popow_header_by_id(&self, id: &BlockId) -> Option<PoPowHeader> {
+            self.by_id.get(id).cloned()
+        }
+
+        fn popow_header_at_height(&self, height: u32) -> Option<PoPowHeader> {
+            // Genesis is height 1, so subtract 1 to index into by_height.
+            if height == 0 {
+                return None;
+            }
+            self.by_height.get((height - 1) as usize).cloned()
+        }
+
+        fn last_headers(&self, k: usize) -> Vec<Header> {
+            let len = self.by_height.len();
+            let start = len.saturating_sub(k);
+            self.by_height[start..]
+                .iter()
+                .map(|ph| ph.header.clone())
+                .collect()
+        }
+
+        fn best_headers_after(&self, header: &Header, n: usize) -> Vec<Header> {
+            // Heights are 1-indexed; the slot immediately after `header` is
+            // at vec index `header.height` (because by_height[0] is height 1).
+            let start = header.height as usize;
+            let end = (start + n).min(self.by_height.len());
+            if start >= end {
+                return Vec::new();
+            }
+            self.by_height[start..end]
+                .iter()
+                .map(|ph| ph.header.clone())
+                .collect()
+        }
+    }
+
+    /// Sanity check: on a chain produced by the real Autolykos chain
+    /// generator, `prove_with_reader(None)` produces a proof whose
+    /// connections validate, the suffix has length `k`, and the prefix is
+    /// no larger than the in-memory `prove`'s prefix (the db-backed
+    /// algorithm walks the interlink hierarchy and never visits level-0
+    /// blocks, so its prefix is always a subset of the in-memory one when
+    /// some blocks have `max_level_of == 0`).
+    ///
+    /// Strict byte-for-byte equivalence between `prove` and
+    /// `prove_with_reader` only holds when *every* block in the chain has
+    /// `max_level_of >= 1`, which is not the case here — the real Autolykos
+    /// generator produces level-0 blocks. The byte-for-byte assertion lives
+    /// in `fake_pow_scheme.rs`, which uses a fake pow scheme that forces
+    /// every block to a positive level (matching what
+    /// `org.ergoplatform.modifiers.history.PoPowAlgosWithDBSpec` does in
+    /// the JVM via `DefaultFakePowScheme`).
+    #[test]
+    fn test_nipopow_prove_with_reader_valid_on_real_autolykos_chain() {
+        let m = 6;
+        let k = 10;
+        let popow_algos = NipopowAlgos::default();
+        let chain = generate_popowheader_chain(100, None);
+
+        let in_memory_proof = popow_algos.prove(&chain, k, m).unwrap();
+        let reader = MockReader::from_chain(&chain);
+        let db_backed_proof = popow_algos
+            .prove_with_reader(&reader, None, k, m)
+            .unwrap();
+
+        assert!(db_backed_proof.has_valid_connections());
+        assert_eq!(db_backed_proof.suffix_tail.len(), (k - 1) as usize);
+        // suffix head must be the (len - k + 1)-th block (1-indexed) of the
+        // chain — i.e. chain[len - k].
+        assert_eq!(
+            db_backed_proof.suffix_head.header.id,
+            chain[chain.len() - k as usize].header.id
+        );
+        // Db-backed prefix is a subset of the in-memory prefix on chains
+        // with level-0 blocks (see doc comment above).
+        let in_memory_ids: std::collections::HashSet<BlockId> = in_memory_proof
+            .prefix
+            .iter()
+            .map(|p| p.header.id)
+            .collect();
+        for ph in &db_backed_proof.prefix {
+            assert!(
+                in_memory_ids.contains(&ph.header.id),
+                "db-backed prefix contained {:?} which is absent from in-memory prefix",
+                ph.header.id
+            );
+        }
+    }
+
+    /// When `prove_with_reader` is given an explicit `header_id`, the
+    /// resulting suffix head must match the requested header and the proof
+    /// must have valid connections.
+    #[test]
+    fn test_nipopow_prove_with_reader_explicit_header_id() {
+        let m = 6;
+        let k = 10;
+        let popow_algos = NipopowAlgos::default();
+        let chain = generate_popowheader_chain(100, None);
+        let reader = MockReader::from_chain(&chain);
+
+        let target = chain[80].clone();
+        let proof = popow_algos
+            .prove_with_reader(&reader, Some(&target.header.id), k, m)
+            .unwrap();
+
+        assert_eq!(proof.suffix_head.header.id, target.header.id);
+        assert_eq!(proof.suffix_head.header.height, target.header.height);
+        // suffix_tail must be the next k-1 headers immediately after
+        // target, in ascending-height order.
+        assert_eq!(proof.suffix_tail.len(), (k - 1) as usize);
+        for (i, h) in proof.suffix_tail.iter().enumerate() {
+            assert_eq!(h.height, target.header.height + 1 + i as u32);
+        }
+        assert!(proof.has_valid_connections());
     }
 }

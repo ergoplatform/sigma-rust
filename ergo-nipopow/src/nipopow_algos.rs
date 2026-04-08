@@ -5,8 +5,10 @@ use ergo_chain_types::{
     Header,
 };
 use num_traits::ToPrimitive;
+use std::collections::{BTreeMap, BTreeSet};
 use std::convert::TryInto;
 
+use crate::popow_header_reader::PopowHeaderReader;
 use crate::{nipopow_proof::PoPowHeader, NipopowProof, NipopowProofError};
 use ergo_chain_types::{BlockId, Digest32, ExtensionCandidate};
 
@@ -195,6 +197,101 @@ impl NipopowAlgos {
         prefix.sort_by(|a, b| a.header.height.cmp(&b.header.height));
         NipopowProof::new(m, k, prefix, suffix_head, suffix_tail)
     }
+
+    /// Computes a NiPoPow proof for the chain exposed by `reader`, optionally
+    /// rooted at the prefix that contains a specific header (when
+    /// `header_id_opt` is `Some`, that header becomes the suffix head).
+    ///
+    /// This is a direct port of the JVM
+    /// `org.ergoplatform.modifiers.history.popow.NipopowProverWithDbAlgs.prove`
+    /// method (the db-backed prover used in production for serving NiPoPoW
+    /// proofs to peers). Unlike [`NipopowAlgos::prove`], which requires the
+    /// caller to materialize the entire chain as `PoPowHeader`s up front,
+    /// `prove_with_reader` walks the interlink hierarchy via the
+    /// [`PopowHeaderReader`] callback and only materializes the headers it
+    /// actually needs — see the trait docs for the asymptotic motivation.
+    ///
+    /// # Known divergence from the JVM source
+    ///
+    /// The JVM `prove` accepts a `params.continuous` flag that, when set,
+    /// embeds extra epoch-boundary popow headers into the prefix so peers can
+    /// validate difficulty for blocks past the suffix without further sync.
+    /// This Rust port does NOT implement that mode: sigma-rust's
+    /// [`NipopowProof`] currently has no `continuous` field, so adding it
+    /// would require coordinated changes to the struct, the serializer, and
+    /// the on-wire format — out of scope for this patch. `prove_with_reader`
+    /// always produces non-continuous proofs (equivalent to
+    /// `params.continuous = false`). Continuous-mode support is tracked as a
+    /// follow-up. JVM peers applying non-continuous proofs still succeed:
+    /// `applyPopowProof` does not strictly require the flag, the proof
+    /// recipient just cannot self-validate difficulty for blocks beyond the
+    /// suffix until they sync more headers.
+    pub fn prove_with_reader<R: PopowHeaderReader + ?Sized>(
+        &self,
+        reader: &R,
+        header_id_opt: Option<&BlockId>,
+        k: u32,
+        m: u32,
+    ) -> Result<NipopowProof, NipopowProofError> {
+        if k == 0 {
+            return Err(NipopowProofError::ZeroKParameter);
+        }
+        if reader.headers_height() < k + m {
+            return Err(NipopowProofError::ChainTooShort);
+        }
+
+        // Build the suffix: either rooted at an explicit header_id, or the
+        // last `k` headers at the chain tip.
+        let (suffix_head, suffix_tail): (PoPowHeader, Vec<Header>) = match header_id_opt {
+            Some(header_id) => {
+                let suffix_head = reader
+                    .popow_header_by_id(header_id)
+                    .ok_or(NipopowProofError::MissingPopowHeader)?;
+                let suffix_tail = reader.best_headers_after(&suffix_head.header, (k - 1) as usize);
+                (suffix_head, suffix_tail)
+            }
+            None => {
+                let suffix = reader.last_headers(k as usize);
+                let head = suffix
+                    .first()
+                    .ok_or(NipopowProofError::MissingPopowHeader)?;
+                let suffix_head = reader
+                    .popow_header_by_id(&head.id)
+                    .ok_or(NipopowProofError::MissingPopowHeader)?;
+                let suffix_tail: Vec<Header> = suffix.iter().skip(1).cloned().collect();
+                (suffix_head, suffix_tail)
+            }
+        };
+
+        // Mirror the JVM `prefixBuilder` / `storedHeights` accumulators.
+        // The genesis popow header is always in the prefix; height 1 is
+        // pre-recorded so the dedup loop below skips it.
+        const GENESIS_HEIGHT: u32 = 1;
+        let mut stored_heights: BTreeSet<u32> = BTreeSet::new();
+        let mut prefix_builder: Vec<PoPowHeader> = Vec::new();
+
+        let genesis = reader
+            .popow_header_at_height(GENESIS_HEIGHT)
+            .ok_or(NipopowProofError::MissingPopowHeader)?;
+        prefix_builder.push(genesis);
+        stored_heights.insert(GENESIS_HEIGHT);
+
+        // (Continuous mode would inject additional epoch-boundary headers
+        // here. See the doc comment above for why this is omitted.)
+
+        let prefix_collected = prove_prefix(reader, GENESIS_HEIGHT, &suffix_head, m)?;
+        for ph in prefix_collected {
+            if !stored_heights.contains(&ph.header.height) {
+                stored_heights.insert(ph.header.height);
+                prefix_builder.push(ph);
+            }
+        }
+
+        prefix_builder.sort_by_key(|p| p.header.height);
+
+        NipopowProof::new(m, k, prefix_builder, suffix_head, suffix_tail)
+    }
+
     /// Packs interlinks into key-value format of the block extension.
     pub fn pack_interlinks(interlinks: Vec<BlockId>) -> Vec<([u8; 2], Vec<u8>)> {
         let mut res = vec![];
@@ -347,4 +444,120 @@ fn extension_merkletree(kv: &[([u8; 2], Vec<u8>)]) -> ergo_merkle_tree::MerkleTr
         .map(ergo_merkle_tree::MerkleNode::from_bytes)
         .collect::<Vec<ergo_merkle_tree::MerkleNode>>();
     ergo_merkle_tree::MerkleTree::new(leafs)
+}
+
+// Helpers for `NipopowAlgos::prove_with_reader`. Direct ports of the
+// nested helpers in JVM `NipopowProverWithDbAlgs.prove`.
+
+/// Port of JVM `linksWithIndexes(header) = header.interlinks.tail.reverse.zipWithIndex`.
+///
+/// Given `interlinks = [genesis, X_max, ..., X_2, X_1]` (genesis at index 0,
+/// highest superlevel pointer at index 1, lowest at the last index), this
+/// returns `[(X_1, 0), (X_2, 1), ..., (X_max, max-1)]`. Index 0 maps to the
+/// LOWEST superlevel pointer (i.e. `interlinks[len-1]`), and the highest
+/// index maps to the HIGHEST superlevel pointer (i.e. `interlinks[1]`).
+fn links_with_indexes(header: &PoPowHeader) -> Vec<(BlockId, usize)> {
+    if header.interlinks.len() < 2 {
+        return Vec::new();
+    }
+    header
+        .interlinks
+        .iter()
+        .skip(1)
+        .rev()
+        .copied()
+        .enumerate()
+        .map(|(i, id)| (id, i))
+        .collect()
+}
+
+/// Port of JVM `previousHeaderIdAtLevel(level, currentHeader)` —
+/// `linksWithIndexes(currentHeader).find(_._2 == level).map(_._1)`.
+///
+/// Looks up the interlink pointer for the given linksWithIndexes index.
+/// Returns `None` if `level` is out of range for this header's interlinks.
+fn previous_header_id_at_level(level: usize, header: &PoPowHeader) -> Option<BlockId> {
+    let n = header.interlinks.len();
+    if n < 2 {
+        return None;
+    }
+    // tail length = n - 1, so valid indices are 0..=n-2.
+    if level > n - 2 {
+        return None;
+    }
+    Some(header.interlinks[n - 1 - level])
+}
+
+/// Port of JVM `collectLevel(prevHeaderId, level, anchoringHeight, acc)`,
+/// translated from a `@tailrec` recursion to an explicit loop.
+///
+/// Walks backward through the interlink at `level` starting at
+/// `start_id`, accumulating `PoPowHeader`s until either the walk passes
+/// below `anchoring_height` or a header with no interlink at this level is
+/// reached. The returned `Vec` is in ascending-height order, matching the
+/// JVM `prevHeader +: acc` prepend semantics.
+fn collect_level<R: PopowHeaderReader + ?Sized>(
+    reader: &R,
+    start_id: BlockId,
+    level: usize,
+    anchoring_height: u32,
+) -> Result<Vec<PoPowHeader>, NipopowProofError> {
+    // We push to the back during the walk (descending-height order) and
+    // reverse once at the end, to avoid the O(n^2) cost of `insert(0, ..)`.
+    let mut walked: Vec<PoPowHeader> = Vec::new();
+    let mut current_id = start_id;
+    loop {
+        let prev_header = reader
+            .popow_header_by_id(&current_id)
+            .ok_or(NipopowProofError::MissingPopowHeader)?;
+        if prev_header.header.height < anchoring_height {
+            walked.reverse();
+            return Ok(walked);
+        }
+        let next_link = previous_header_id_at_level(level, &prev_header);
+        walked.push(prev_header);
+        match next_link {
+            Some(next_id) => current_id = next_id,
+            None => {
+                walked.reverse();
+                return Ok(walked);
+            }
+        }
+    }
+}
+
+/// Port of JVM `provePrefix(initAnchoringHeight, lastHeader)`.
+///
+/// Iterates over `linksWithIndexes(last_header)` from the highest level
+/// down to the lowest (matching Scala `foldRight`), running `collect_level`
+/// at each level and updating the running anchoring height as the JVM
+/// version does. Returns the deduplicated set of collected headers (sorted
+/// by `BlockId` because we use a `BTreeMap`, mirroring Scala
+/// `mutable.TreeMap[ModifierId, PoPowHeader]`).
+fn prove_prefix<R: PopowHeaderReader + ?Sized>(
+    reader: &R,
+    init_anchoring_height: u32,
+    last_header: &PoPowHeader,
+    m: u32,
+) -> Result<Vec<PoPowHeader>, NipopowProofError> {
+    let mut collected: BTreeMap<BlockId, PoPowHeader> = BTreeMap::new();
+    let levels = links_with_indexes(last_header);
+
+    // `levels.foldRight(initAnchoringHeight)` in Scala visits elements from
+    // last to first, i.e. highest superlevel first.
+    let mut anchoring_height = init_anchoring_height;
+    for (prev_header_id, level_idx) in levels.into_iter().rev() {
+        let level_headers = collect_level(reader, prev_header_id, level_idx, anchoring_height)?;
+        for ph in &level_headers {
+            collected.insert(ph.header.id, ph.clone());
+        }
+        if (m as usize) < level_headers.len() {
+            anchoring_height = level_headers[level_headers.len() - (m as usize)]
+                .header
+                .height;
+        }
+        // else: anchoring_height unchanged, matching the JVM else branch.
+    }
+
+    Ok(collected.into_values().collect())
 }
