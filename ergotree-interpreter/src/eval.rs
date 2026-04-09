@@ -130,12 +130,14 @@ pub struct ReductionResult {
 pub fn reduce_to_crypto(tree: &ErgoTree, ctx: &Context) -> Result<ReductionResult, EvalError> {
     fn inner<'ctx>(expr: &'ctx Expr, ctx: &Context<'ctx>) -> Result<ReductionResult, EvalError> {
         let mut env_mut = Env::empty();
+        ctx.reset_jit_cost();
         expr.eval(&mut env_mut, ctx)
             .and_then(|v| -> Result<ReductionResult, EvalError> {
+                let cost = ctx.jit_cost_value() / 10; // convert JitCost to block cost
                 match v {
                     Value::Boolean(b) => Ok(ReductionResult {
                         sigma_prop: SigmaBoolean::TrivialProp(b),
-                        cost: 0,
+                        cost,
                         diag: ReductionDiagnosticInfo {
                             env: env_mut.to_static(),
                             pretty_printed_expr: None,
@@ -143,7 +145,7 @@ pub fn reduce_to_crypto(tree: &ErgoTree, ctx: &Context) -> Result<ReductionResul
                     }),
                     Value::SigmaProp(sp) => Ok(ReductionResult {
                         sigma_prop: sp.value().clone(),
-                        cost: 0,
+                        cost,
                         diag: ReductionDiagnosticInfo {
                             env: env_mut.to_static(),
                             pretty_printed_expr: None,
@@ -201,7 +203,7 @@ pub(crate) trait Evaluable {
         &self,
         env: &mut Env<'ctx>,
         ctx: &Context<'ctx>,
-        // TODO for JIT costing: cost_accum: &mut CostAccumulator,
+        // JIT costing is handled via ctx.add_jit_cost()
     ) -> Result<Value<'ctx>, EvalError>;
 }
 

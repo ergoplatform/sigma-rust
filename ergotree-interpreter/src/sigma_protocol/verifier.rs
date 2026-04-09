@@ -81,7 +81,7 @@ pub trait Verifier {
         };
         Ok(VerificationResult {
             result: res,
-            cost: 0,
+            cost: reduction_result.cost,
             diag: reduction_result.diag,
         })
     }
