@@ -86,27 +86,83 @@ impl NipopowProof {
         self.has_valid_connections() && self.has_valid_heights() && self.has_valid_proofs()
     }
 
-    /// Checks the connections of the blocks in the proof. Adjacent blocks should be linked either
-    /// via interlink or parent block id. Returns true if all adjacent blocks are correctly
-    /// connected.
+    /// Checks the connections of the blocks in the proof.
+    ///
+    /// Adjacent blocks in the suffix must be linked via parent id (the
+    /// suffix is a strict header chain).
+    ///
+    /// Prefix entries are linked via interlink or parent block id, but the
+    /// check is *tolerant*: each entry need not connect to its immediate
+    /// predecessor — it may connect to any of the up to
+    /// `use_last_epochs + 3` immediately preceding entries. The tolerance
+    /// exists because JVM-built proofs include continuous-mode
+    /// difficulty-recalculation headers and naturally-skipped entries from
+    /// sparse-superlevel walks; these show up as prefix entries that don't
+    /// connect to their immediate sorted-by-height neighbour but do connect
+    /// to a nearby earlier neighbour.
+    ///
+    /// Direct port of the JVM
+    /// `org.ergoplatform.modifiers.history.popow.NipopowProof.hasValidConnections`
+    /// (see `ergo-core/.../popow/NipopowProof.scala`, lines ~128-148):
+    ///
+    /// ```scala
+    /// val maxDiffHeaders = popowAlgos.chainSettings.useLastEpochs + 1
+    /// val prefixToCheck = prefix :+ suffixHead
+    /// val prefixConnections = (1 until prefixToCheck.length).forall { checkIdx =>
+    ///   val next = prefixToCheck(checkIdx)
+    ///   (checkIdx - 1).to(Math.max(0, checkIdx - maxDiffHeaders - 1 - 1), -1).exists { prevIdx =>
+    ///     val prev = prefixToCheck(prevIdx)
+    ///     next.interlinks.contains(prev.id) || next.header.parentId == prev.id
+    ///   }
+    /// }
+    /// ```
+    ///
+    /// The Scala `(checkIdx - 1).to(max(0, checkIdx - maxDiffHeaders - 2), -1)`
+    /// range is **inclusive on both ends**, so the lookback covers indices
+    /// `[max(0, checkIdx - maxDiffHeaders - 2), checkIdx - 1]` — a window of
+    /// up to `maxDiffHeaders + 2 = use_last_epochs + 3` predecessors.
     pub fn has_valid_connections(&self) -> bool {
-        self.prefix
-            .iter()
-            .zip(
-                self.prefix
-                    .iter()
-                    .skip(1)
-                    .chain(std::iter::once(&self.suffix_head)),
-            )
-            .all(|(prev, next)| {
-                // Note that blocks with level 0 do not appear at all within interlinks, which is
-                // why we need to check the parent block id as well.
-                next.interlinks.contains(&prev.header.id) || next.header.parent_id == prev.header.id
+        let use_last_epochs = self.popow_algos.use_last_epochs as usize;
+        // `maxDiffHeaders = useLastEpochs + 1` in JVM. The full lookback span
+        // is `maxDiffHeaders + 2 = use_last_epochs + 3` predecessors.
+        let lookback_span = use_last_epochs + 3;
+
+        let prefix_len = self.prefix.len();
+        // `prefixToCheck = prefix :+ suffixHead` — virtual concatenation,
+        // accessed via the closure below to avoid an unnecessary clone.
+        let prefix_to_check_len = prefix_len + 1;
+        let get = |idx: usize| -> &PoPowHeader {
+            if idx == prefix_len {
+                &self.suffix_head
+            } else {
+                &self.prefix[idx]
+            }
+        };
+
+        let prefix_connections = (1..prefix_to_check_len).all(|check_idx| {
+            let next = get(check_idx);
+            // JVM walks `(checkIdx - 1).to(max(0, checkIdx - maxDiffHeaders - 2), -1)`,
+            // i.e. indices `[lookback_start, check_idx - 1]` inclusive,
+            // descending. The descending order is observable only as a
+            // micro-optimization (closer predecessors are likeliest to match);
+            // any iteration order is semantically equivalent for `exists`.
+            let lookback_start = check_idx.saturating_sub(lookback_span);
+            (lookback_start..check_idx).rev().any(|prev_idx| {
+                let prev = get(prev_idx);
+                // Note that blocks with level 0 do not appear at all within
+                // interlinks, which is why we need to check the parent
+                // block id as well.
+                next.interlinks.contains(&prev.header.id)
+                    || next.header.parent_id == prev.header.id
             })
-            && std::iter::once(&self.suffix_head.header)
-                .chain(self.suffix_tail.iter())
-                .zip(self.suffix_tail.iter())
-                .all(|(prev, next)| next.parent_id == prev.id)
+        });
+
+        let suffix_connections = std::iter::once(&self.suffix_head.header)
+            .chain(self.suffix_tail.iter())
+            .zip(self.suffix_tail.iter())
+            .all(|(prev, next)| next.parent_id == prev.id);
+
+        prefix_connections && suffix_connections
     }
 
     /// Checks if the heights of the header-chain provided are consistent, meaning that for any two
@@ -295,8 +351,6 @@ impl ScorexSerializable for PoPowHeader {
 #[cfg(feature = "arbitrary")]
 #[allow(clippy::unwrap_used)]
 mod arbitrary {
-    use ergo_chain_types::autolykos_pow_scheme::AutolykosPowScheme;
-
     use super::*;
     use ergo_chain_types::Digest32;
     use ergo_chain_types::ExtensionCandidate;
@@ -337,9 +391,7 @@ mod arbitrary {
                 vec(any::<Header>(), 1..10),
             )
                 .prop_map(|(m, k, prefix, suffix_head, suffix_tail)| NipopowProof {
-                    popow_algos: NipopowAlgos {
-                        pow_scheme: AutolykosPowScheme::default(),
-                    },
+                    popow_algos: NipopowAlgos::default(),
                     m,
                     k,
                     prefix,
@@ -356,7 +408,11 @@ mod arbitrary {
 #[allow(clippy::unwrap_used, clippy::panic)]
 pub mod tests {
     use super::*;
+    use ergo_chain_types::Digest32;
+    use ergo_merkle_tree::BatchMerkleProof;
     use proptest::prelude::*;
+    use proptest::strategy::ValueTree;
+    use proptest::test_runner::TestRunner;
     use sigma_ser::scorex_serialize_roundtrip;
     proptest! {
 
@@ -368,5 +424,189 @@ pub mod tests {
         }
 
 
+    }
+
+    /// Build a `BlockId` filled with the given byte. Used by the
+    /// `has_valid_connections` regression tests below to mint distinct,
+    /// human-traceable block ids without paying the cost of real hashing.
+    fn id_from_byte(byte: u8) -> BlockId {
+        BlockId(Digest32::from([byte; 32]))
+    }
+
+    /// Generate one valid base `Header` via the proptest `Arbitrary` impl,
+    /// then return a customizing closure. The closure rewrites the
+    /// `id`, `parent_id`, and `height` fields without rebuilding the rest
+    /// of the (irrelevant-to-this-test) header content. We only need the
+    /// three fields above because `has_valid_connections` only inspects
+    /// `header.id`, `header.parent_id`, and `PoPowHeader::interlinks`.
+    fn header_factory() -> impl Fn(BlockId, BlockId, u32) -> Header {
+        let mut runner = TestRunner::default();
+        let base = any::<Box<Header>>().new_tree(&mut runner).unwrap().current();
+        move |id, parent_id, height| {
+            let mut h = (*base).clone();
+            h.id = id;
+            h.parent_id = parent_id;
+            h.height = height;
+            h
+        }
+    }
+
+    /// Build a `PoPowHeader` from a header plus an interlink vector. The
+    /// `interlinks_proof` is a no-op empty proof — `has_valid_connections`
+    /// never invokes `check_interlinks_proof`, so this is sufficient for
+    /// connection-check tests.
+    fn pop_header(header: Header, interlinks: Vec<BlockId>) -> PoPowHeader {
+        PoPowHeader {
+            header,
+            interlinks,
+            interlinks_proof: BatchMerkleProof::new(vec![], vec![]),
+        }
+    }
+
+    /// Constructs a deliberately-skipped prefix and asserts the JVM-tolerant
+    /// `has_valid_connections` accepts it.
+    ///
+    /// Layout: `h0 -> h1 -> h2 -> h3 -> suffix_head`. `h2.parent_id` is set
+    /// to an unrelated id (NOT `h1.id`) and `h1.id` is **not** in
+    /// `h2.interlinks`, so the strict (pre-fix) verifier would have rejected
+    /// at index 2. The tolerant verifier MUST accept because `h0.id` is in
+    /// `h2.interlinks` and `h0` is within the lookback window
+    /// (`use_last_epochs + 3 = 11` predecessors by default).
+    #[test]
+    fn has_valid_connections_accepts_skipped_prefix_entry() {
+        let mk_header = header_factory();
+
+        let h0_id = id_from_byte(1);
+        let h1_id = id_from_byte(2);
+        let h2_id = id_from_byte(3);
+        let h3_id = id_from_byte(4);
+        let suffix_head_id = id_from_byte(5);
+        let suffix_tail_id = id_from_byte(6);
+        let unrelated_parent = id_from_byte(0xff);
+
+        // h0: genesis. parent_id is irrelevant for index 0.
+        let h0 = pop_header(mk_header(h0_id, id_from_byte(0), 1), vec![h0_id]);
+        // h1: connects via parent_id == h0.id.
+        let h1 = pop_header(mk_header(h1_id, h0_id, 10), vec![h0_id]);
+        // h2: parent_id is UNRELATED (not h1) and h1.id is NOT in interlinks,
+        // but h0.id IS in interlinks → tolerant verifier connects via h0
+        // through the lookback window.
+        let h2 = pop_header(mk_header(h2_id, unrelated_parent, 20), vec![h0_id]);
+        // h3: connects via parent_id == h2.id.
+        let h3 = pop_header(mk_header(h3_id, h2_id, 30), vec![h0_id, h2_id]);
+        // suffix_head: connects via parent_id == h3.id.
+        let suffix_head = pop_header(
+            mk_header(suffix_head_id, h3_id, 40),
+            vec![h0_id, h2_id, h3_id],
+        );
+        // suffix_tail must be a strict parent_id chain.
+        let suffix_tail = vec![mk_header(suffix_tail_id, suffix_head_id, 41)];
+
+        let proof = NipopowProof::new(
+            6,
+            2,
+            vec![h0, h1, h2, h3],
+            suffix_head,
+            suffix_tail,
+        )
+        .unwrap();
+
+        assert!(
+            proof.has_valid_connections(),
+            "tolerant verifier must accept a prefix where an entry skips its \
+             immediate predecessor but still connects to a header within the \
+             lookback window"
+        );
+    }
+
+    /// Constructs a prefix with a gap LARGER than the lookback window and
+    /// asserts the verifier still rejects. This proves the fix is not a
+    /// blanket accept-all.
+    ///
+    /// We squeeze the lookback by setting `use_last_epochs = 0`, which gives
+    /// `lookback_span = 3`. The chain is then designed so that the bad entry
+    /// (suffix_head, at index 4) only connects backward to index 0, which is
+    /// outside the `[1, 3]` lookback range.
+    #[test]
+    fn has_valid_connections_rejects_too_far_skip() {
+        let mk_header = header_factory();
+
+        let h0_id = id_from_byte(1);
+        let h1_id = id_from_byte(2);
+        let h2_id = id_from_byte(3);
+        let h3_id = id_from_byte(4);
+        let suffix_head_id = id_from_byte(5);
+        let suffix_tail_id = id_from_byte(6);
+        let unrelated_parent = id_from_byte(0xff);
+
+        let h0 = pop_header(mk_header(h0_id, id_from_byte(0), 1), vec![h0_id]);
+        let h1 = pop_header(mk_header(h1_id, h0_id, 10), vec![h0_id]);
+        let h2 = pop_header(mk_header(h2_id, h1_id, 20), vec![h0_id, h1_id]);
+        let h3 = pop_header(mk_header(h3_id, h2_id, 30), vec![h0_id, h2_id]);
+        // suffix_head's parent is unrelated, h0 is its only interlink, and
+        // h1/h2/h3 ids are NOT among its interlinks. With lookback span 3,
+        // the lookback window for index 4 covers indices [1, 3] only —
+        // h0 (index 0) is excluded → no valid predecessor → REJECT.
+        let suffix_head = pop_header(
+            mk_header(suffix_head_id, unrelated_parent, 40),
+            vec![h0_id],
+        );
+        let suffix_tail = vec![mk_header(suffix_tail_id, suffix_head_id, 41)];
+
+        let mut proof = NipopowProof::new(
+            6,
+            2,
+            vec![h0, h1, h2, h3],
+            suffix_head,
+            suffix_tail,
+        )
+        .unwrap();
+
+        // Squeeze the lookback window to size 3 (= use_last_epochs + 3)
+        // so a small synthetic chain can demonstrate the boundary.
+        proof.popow_algos.use_last_epochs = 0;
+
+        assert!(
+            !proof.has_valid_connections(),
+            "verifier must reject when the only valid backward connection is \
+             outside the lookback window — the fix is tolerant, not blanket"
+        );
+    }
+
+    /// Sanity check: a proof whose suffix tail is broken (parent_id chain
+    /// violated) must still be rejected. Ensures we didn't accidentally
+    /// loosen the suffix-side check while loosening the prefix-side check.
+    #[test]
+    fn has_valid_connections_rejects_broken_suffix_tail() {
+        let mk_header = header_factory();
+
+        let h0_id = id_from_byte(1);
+        let suffix_head_id = id_from_byte(2);
+        let bad_parent = id_from_byte(0xee);
+        let suffix_tail_id = id_from_byte(3);
+
+        let h0 = pop_header(mk_header(h0_id, id_from_byte(0), 1), vec![h0_id]);
+        let suffix_head = pop_header(
+            mk_header(suffix_head_id, h0_id, 10),
+            vec![h0_id],
+        );
+        // suffix_tail header's parent_id is unrelated to suffix_head.id
+        // → suffix-side check must fail.
+        let suffix_tail = vec![mk_header(suffix_tail_id, bad_parent, 11)];
+
+        let proof = NipopowProof::new(
+            6,
+            2,
+            vec![h0],
+            suffix_head,
+            suffix_tail,
+        )
+        .unwrap();
+
+        assert!(
+            !proof.has_valid_connections(),
+            "broken suffix tail (parent_id chain violation) must still be \
+             rejected after the prefix-tolerance fix"
+        );
     }
 }

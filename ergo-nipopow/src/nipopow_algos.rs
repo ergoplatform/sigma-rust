@@ -14,6 +14,13 @@ use ergo_chain_types::{BlockId, Digest32, ExtensionCandidate};
 
 /// Prefix for Block Interlinks
 pub const INTERLINK_VECTOR_PREFIX: u8 = 0x01;
+
+/// Default value for [`NipopowAlgos::use_last_epochs`] — the number of epochs
+/// the difficulty adjustment looks back over. Matches the value used by Ergo
+/// mainnet AND testnet (`useLastEpochs = 8` in
+/// `ergo-core/src/main/resources/application.conf`).
+pub const DEFAULT_USE_LAST_EPOCHS: u32 = 8;
+
 /// A set of utilities for working with NiPoPoW protocol.
 ///
 /// Based on papers:
@@ -24,10 +31,33 @@ pub const INTERLINK_VECTOR_PREFIX: u8 = 0x01;
 ///
 /// Please note that for KMZ17 we're using the version published @ Financial Cryptography 2020,
 /// which is different from previously published versions on IACR eprint.
-#[derive(Default, Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NipopowAlgos {
     /// The proof-of-work scheme
     pub pow_scheme: AutolykosPowScheme,
+    /// Number of last epochs the difficulty adjustment looks back over.
+    ///
+    /// This is the Rust analog of the JVM `chainSettings.useLastEpochs`
+    /// field. It is consumed by [`NipopowProof::has_valid_connections`] to
+    /// compute the maximum allowed gap between adjacent prefix entries —
+    /// JVM-built proofs include continuous-mode difficulty-recalculation
+    /// headers and naturally-skipped entries from sparse-superlevel walks,
+    /// so the verifier needs a tolerant lookback window to accept them.
+    ///
+    /// Default is [`DEFAULT_USE_LAST_EPOCHS`] (= 8), matching Ergo mainnet
+    /// and testnet `application.conf`. A future port of `ChainSettings` can
+    /// replace this single field with the full struct without changing the
+    /// connection-check semantics.
+    pub use_last_epochs: u32,
+}
+
+impl Default for NipopowAlgos {
+    fn default() -> Self {
+        Self {
+            pow_scheme: AutolykosPowScheme::default(),
+            use_last_epochs: DEFAULT_USE_LAST_EPOCHS,
+        }
+    }
 }
 
 impl NipopowAlgos {
