@@ -30,6 +30,7 @@ impl Evaluable for SubstConstants {
             .into_iter()
             .map(|i| i as usize)
             .collect();
+        ctx.add_per_item_jit_cost(100, 100, 1, positions.len() as u32)?;
 
         let new_constants = if let Value::Coll(CollKind::WrappedColl { items, .. }) = new_values_v {
             let mut items_const = vec![];

@@ -68,6 +68,7 @@ impl Evaluable for Map {
                 input_v
             ))),
         }?;
+        ctx.add_per_item_jit_cost(20, 1, 10, normalized_input_vals.len() as u32)?;
         normalized_input_vals
             .iter()
             .map(|item| mapper_call(item.clone()))

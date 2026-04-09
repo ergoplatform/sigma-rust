@@ -15,6 +15,7 @@ impl Evaluable for Apply {
         env: &mut Env<'ctx>,
         ctx: &Context<'ctx>,
     ) -> Result<Value<'ctx>, EvalError> {
+        ctx.add_jit_cost(30)?; // Apply = Fixed(30)
         let func_v: Value<'ctx> = self.func.eval(env, ctx)?;
         let args_v: Vec<Value> = self
             .args

@@ -24,6 +24,7 @@ impl Evaluable for Slice {
                 input_v
             ))),
         }?;
+        ctx.add_per_item_jit_cost(10, 2, 100, input_vec.len() as u32)?;
         let from = from_v.try_extract_into::<i32>()?;
         let until = until_v.try_extract_into::<i32>()?;
         // intersection of the range with collection bounds

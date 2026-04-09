@@ -187,8 +187,32 @@ impl Evaluable for BinOp {
         env: &mut Env<'ctx>,
         ctx: &Context<'ctx>,
     ) -> Result<Value<'ctx>, EvalError> {
-        //ctx.cost_accum.add(Costs::DEFAULT.eq_const_size)?;
         let lv = self.left.eval(env, ctx)?;
+        // JIT type-based cost
+        let is_bigint = matches!(lv, Value::BigInt(_) | Value::UnsignedBigInt(_));
+        match self.kind {
+            BinOpKind::Arith(op) => match op {
+                ArithOp::Plus | ArithOp::Minus => {
+                    ctx.add_jit_cost(if is_bigint { 20 } else { 15 })?;
+                }
+                ArithOp::Multiply | ArithOp::Divide | ArithOp::Modulo => {
+                    ctx.add_jit_cost(if is_bigint { 25 } else { 15 })?;
+                }
+                ArithOp::Max | ArithOp::Min => {
+                    ctx.add_jit_cost(if is_bigint { 10 } else { 5 })?;
+                }
+            },
+            BinOpKind::Relation(op) => match op {
+                RelationOp::Eq | RelationOp::NEq => {} // Dynamic — no cost
+                _ => { ctx.add_jit_cost(20)?; } // LT, LE, GT, GE = Fixed(20)
+            },
+            BinOpKind::Logical(_) => {
+                ctx.add_jit_cost(20)?; // BinOr, BinAnd, BinXor = Fixed(20)
+            }
+            BinOpKind::Bit(_) => {
+                ctx.add_jit_cost(1)?; // BitOp (all 6) = Fixed(1)
+            }
+        }
         // using closure to keep right value from evaluation (for lazy AND, OR, XOR)
         let mut rv = || self.right.eval(env, ctx);
         match self.kind {

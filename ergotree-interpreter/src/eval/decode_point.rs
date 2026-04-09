@@ -17,6 +17,7 @@ impl Evaluable for DecodePoint {
         env: &mut Env<'ctx>,
         ctx: &Context<'ctx>,
     ) -> Result<Value<'ctx>, EvalError> {
+        ctx.add_jit_cost(300)?; // DecodePoint = Fixed(300)
         let point_bytes = self.input.eval(env, ctx)?.try_extract_into::<Vec<u8>>()?;
         let point: EcPoint = SigmaSerializable::sigma_parse_bytes(&point_bytes).map_err(|_| {
             Misc(format!(

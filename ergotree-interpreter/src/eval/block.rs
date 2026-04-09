@@ -16,6 +16,7 @@ impl Evaluable for BlockValue {
         env: &mut Env<'ctx>,
         ctx: &Context<'ctx>,
     ) -> Result<Value<'ctx>, EvalError> {
+        ctx.add_per_item_jit_cost(1, 1, 10, self.items.len() as u32)?;
         // The start of the top-level block of statements does not contain any
         // pre-existing `ValDef`s.
         let is_top_level_block = env.is_empty();

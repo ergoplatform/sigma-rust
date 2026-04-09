@@ -20,6 +20,7 @@ impl Evaluable for CalcBlake2b256 {
         let input_v = self.input.eval(env, ctx)?;
         match input_v.clone() {
             Value::Coll(CollKind::NativeColl(NativeColl::CollByte(coll_byte))) => {
+                ctx.add_per_item_jit_cost(20, 7, 128, coll_byte.len() as u32)?;
                 let expected_hash: Vec<u8> =
                     blake2b256_hash(coll_byte.as_vec_u8().as_slice()).to_vec();
                 Ok(expected_hash.into())

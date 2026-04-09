@@ -13,6 +13,7 @@ impl Evaluable for Negation {
         env: &mut Env<'ctx>,
         ctx: &Context<'ctx>,
     ) -> Result<Value<'ctx>, EvalError> {
+        ctx.add_jit_cost(30)?; // Negation = Fixed(30)
         let input_v = self.input.eval(env, ctx)?;
 
         fn overflow_err<T: core::fmt::Display>(v: &T) -> EvalError {
