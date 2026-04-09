@@ -12,6 +12,7 @@ impl Evaluable for SigmaPropBytes {
         env: &mut Env<'ctx>,
         ctx: &Context<'ctx>,
     ) -> Result<Value<'ctx>, EvalError> {
+        ctx.add_per_item_jit_cost(35, 6, 1, 1)?;
         let input_v = self.input.eval(env, ctx)?;
         match input_v {
             Value::SigmaProp(sigma_prop) => Ok(sigma_prop.prop_bytes()?.into()),

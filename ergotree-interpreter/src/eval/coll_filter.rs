@@ -59,6 +59,7 @@ impl Evaluable for Filter {
                 input_v
             ))),
         }?;
+        ctx.add_per_item_jit_cost(20, 1, 10, normalized_input_vals.len() as u32)?;
 
         let items_conditions: Vec<bool> = normalized_input_vals
             .clone()

@@ -13,6 +13,7 @@ impl Evaluable for ExtractBytes {
         env: &mut Env<'ctx>,
         ctx: &Context<'ctx>,
     ) -> Result<Value<'ctx>, EvalError> {
+        ctx.add_jit_cost(12)?; // ExtractBytes = Fixed(12)
         let input_v = self.input.eval(env, ctx)?;
         match input_v {
             Value::CBox(b) => Ok(b.sigma_serialize_bytes()?.into()),

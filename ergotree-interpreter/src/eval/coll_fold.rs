@@ -40,6 +40,11 @@ impl Evaluable for Fold {
                 input_v_clone
             ))),
         };
+        let n_items = match &input_v {
+            Value::Coll(coll) => coll.len() as u32,
+            _ => 0,
+        };
+        ctx.add_per_item_jit_cost(3, 1, 10, n_items)?;
         match input_v {
             Value::Coll(coll) => match coll {
                 CollKind::NativeColl(NativeColl::CollByte(coll_byte)) => {

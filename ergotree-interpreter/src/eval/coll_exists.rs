@@ -56,6 +56,7 @@ impl Evaluable for Exists {
                 input_v
             ))),
         }?;
+        ctx.add_per_item_jit_cost(3, 1, 10, normalized_input_vals.len() as u32)?;
 
         for item in normalized_input_vals {
             let res = condition_call(item)?.try_extract_into::<bool>()?;

@@ -115,6 +115,8 @@ impl Evaluable for Downcast {
         ctx: &Context<'ctx>,
     ) -> Result<Value<'ctx>, EvalError> {
         let input_v = self.input.eval(env, ctx)?;
+        // Downcast: TypeBased(bigint=30, other=10)
+        ctx.add_jit_cost(if self.tpe == SType::SBigInt { 30 } else { 10 })?;
         match self.tpe {
             SType::SBigInt => downcast_to_bigint(input_v, ctx),
             SType::SLong => downcast_to_long(input_v, ctx),

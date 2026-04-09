@@ -12,6 +12,7 @@ impl Evaluable for ExtractScriptBytes {
         env: &mut Env<'ctx>,
         ctx: &Context<'ctx>,
     ) -> Result<Value<'ctx>, EvalError> {
+        ctx.add_jit_cost(10)?; // ExtractScriptBytes = Fixed(10)
         let input_v = self.input.eval(env, ctx)?;
         match input_v {
             Value::CBox(b) => Ok(b.script_bytes()?.into()),

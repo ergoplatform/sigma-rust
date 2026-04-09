@@ -13,6 +13,7 @@ impl Evaluable for If {
         env: &mut Env<'ctx>,
         ctx: &Context<'ctx>,
     ) -> Result<Value<'ctx>, EvalError> {
+        ctx.add_jit_cost(10)?; // If = Fixed(10)
         let condition_v = self.condition.eval(env, ctx)?;
         if condition_v.try_extract_into::<bool>()? {
             self.true_branch.eval(env, ctx)
