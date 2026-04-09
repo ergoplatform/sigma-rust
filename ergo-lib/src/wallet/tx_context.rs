@@ -100,10 +100,10 @@ impl<T: ErgoTransaction> TransactionContext<T> {
 }
 
 impl TransactionContext<Transaction> {
-    /// Verify transaction using blockchain parameters
-    // TODO: costing
+    /// Verify transaction using blockchain parameters.
+    /// Returns the total accumulated script evaluation cost (in block cost units).
     // This is based on validateStateful() in Ergo: https://github.com/ergoplatform/ergo/blob/48239ef98ced06617dc21a0eee5670235e362933/ergo-core/src/main/scala/org/ergoplatform/modifiers/mempool/ErgoTransaction.scala#L357
-    pub fn validate(&self, state_context: &ErgoStateContext) -> Result<(), TxValidationError> {
+    pub fn validate(&self, state_context: &ErgoStateContext) -> Result<u64, TxValidationError> {
         // Check that input sum does not overflow
         let input_sum = BoxValue::new(
             self.boxes_to_spend
@@ -145,17 +145,25 @@ impl TransactionContext<Transaction> {
         let in_assets = extract_assets(self.boxes_to_spend.iter().map(|b| &b.tokens))?;
         let out_assets = extract_assets(self.spending_tx.outputs.iter().map(|b| &b.tokens))?;
         verify_assets(self.spending_tx.inputs_ids(), in_assets, out_assets)?;
-        // Verify input proofs. This is usually the most expensive check so it's done last
+        // Verify input proofs with cost tracking.
+        // This is usually the most expensive check so it's done last.
         let bytes_to_sign = self.spending_tx.bytes_to_sign()?;
         let mut context = make_context(state_context, self, 0)?;
+        // Set per-script cost limit: MaxBlockCost * 10 (convert block cost to JitCost scale)
+        context.jit_cost_limit = Some(state_context.parameters.max_block_cost() as u64 * 10);
+        let mut total_cost: u64 = 0;
         for input_idx in 0..self.spending_tx.inputs.len() {
-            if let res @ VerificationResult { result: false, .. } =
-                verify_tx_input_proof(self, &mut context, state_context, input_idx, &bytes_to_sign)?
-            {
-                return Err(TxValidationError::ReducedToFalse(input_idx, res));
+            context.reset_jit_cost();
+            match verify_tx_input_proof(self, &mut context, state_context, input_idx, &bytes_to_sign)? {
+                res @ VerificationResult { result: false, .. } => {
+                    return Err(TxValidationError::ReducedToFalse(input_idx, res));
+                }
+                VerificationResult { cost, .. } => {
+                    total_cost += cost;
+                }
             }
         }
-        Ok(())
+        Ok(total_cost)
     }
 }
 
@@ -732,7 +740,7 @@ mod test {
                 other => panic!("Expected validation to succeed, got {other:?}")
             }
             match (monotonic_valid, tx_context.validate(&context3)) {
-                (true, Ok(())) => {},
+                (true, Ok(_)) => {},
                 (false, Err(TxValidationError::MonotonicHeightError(_, _))) => {},
                 other => panic!("Expected validation to fail, got {other:?}")
             }
