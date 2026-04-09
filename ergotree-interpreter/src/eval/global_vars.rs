@@ -12,22 +12,40 @@ use super::Evaluable;
 impl Evaluable for GlobalVars {
     fn eval<'ctx>(&self, _env: &mut Env, ctx: &Context<'ctx>) -> Result<Value<'ctx>, EvalError> {
         match self {
-            GlobalVars::Height => Ok((ctx.height as i32).into()),
-            GlobalVars::SelfBox => Ok(Value::CBox(Ref::from(ctx.self_box))),
-            GlobalVars::Outputs => Ok(ctx
-                .outputs
-                .iter()
-                .map(Ref::Borrowed)
-                .collect::<Vec<_>>()
-                .into()),
-            GlobalVars::Inputs => Ok(ctx
-                .inputs
-                .iter()
-                .map(|&i| Ref::Borrowed(i))
-                .collect::<Vec<_>>()
-                .into()),
-            GlobalVars::MinerPubKey => Ok(ctx.pre_header.miner_pk.sigma_serialize_bytes()?.into()),
-            GlobalVars::GroupGenerator => Ok(ergo_chain_types::ec_point::generator().into()),
+            GlobalVars::Height => {
+                ctx.add_jit_cost(26)?; // Height = Fixed(26)
+                Ok((ctx.height as i32).into())
+            }
+            GlobalVars::SelfBox => {
+                ctx.add_jit_cost(10)?; // Self = Fixed(10)
+                Ok(Value::CBox(Ref::from(ctx.self_box)))
+            }
+            GlobalVars::Outputs => {
+                ctx.add_jit_cost(10)?; // Outputs = Fixed(10)
+                Ok(ctx
+                    .outputs
+                    .iter()
+                    .map(Ref::Borrowed)
+                    .collect::<Vec<_>>()
+                    .into())
+            }
+            GlobalVars::Inputs => {
+                ctx.add_jit_cost(10)?; // Inputs = Fixed(10)
+                Ok(ctx
+                    .inputs
+                    .iter()
+                    .map(|&i| Ref::Borrowed(i))
+                    .collect::<Vec<_>>()
+                    .into())
+            }
+            GlobalVars::MinerPubKey => {
+                ctx.add_jit_cost(20)?; // MinerPubkey = Fixed(20)
+                Ok(ctx.pre_header.miner_pk.sigma_serialize_bytes()?.into())
+            }
+            GlobalVars::GroupGenerator => {
+                ctx.add_jit_cost(10)?; // GroupGenerator = Fixed(10)
+                Ok(ergo_chain_types::ec_point::generator().into())
+            }
         }
     }
 }
