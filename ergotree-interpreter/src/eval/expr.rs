@@ -17,7 +17,6 @@ impl Evaluable for Expr {
         env: &mut Env<'ctx>,
         ctx: &Context<'ctx>,
     ) -> Result<Value<'ctx>, EvalError> {
-        //ctx.cost_accum.add_cost_of(self)?;
         let res = match self {
             Expr::Const(c) => {
                 ctx.add_jit_cost(5)?; // Constant = Fixed(5)
