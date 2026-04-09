@@ -163,28 +163,33 @@ pub fn reduce_to_crypto(tree: &ErgoTree, ctx: &Context) -> Result<ReductionResul
         expr
     };
     let res = inner(&expr, ctx);
-    if let Ok(reduction) = res {
-        if reduction.sigma_prop == SigmaBoolean::TrivialProp(false) {
-            let (_, printed_expr_str) = expr
+    match res {
+        Ok(reduction) => {
+            if reduction.sigma_prop == SigmaBoolean::TrivialProp(false) {
+                let (_, printed_expr_str) = expr
+                    .pretty_print()
+                    .map_err(|e| EvalError::Misc(e.to_string()))?;
+                Ok(ReductionResult {
+                    sigma_prop: SigmaBoolean::TrivialProp(false),
+                    cost: reduction.cost,
+                    diag: ReductionDiagnosticInfo {
+                        env: reduction.diag.env,
+                        pretty_printed_expr: Some(printed_expr_str),
+                    },
+                })
+            } else {
+                Ok(reduction)
+            }
+        }
+        Err(EvalError::CostError(e)) => Err(EvalError::CostError(e)),
+        Err(_) => {
+            let (spanned_expr, printed_expr_str) = expr
                 .pretty_print()
                 .map_err(|e| EvalError::Misc(e.to_string()))?;
-            let new_reduction = ReductionResult {
-                sigma_prop: SigmaBoolean::TrivialProp(false),
-                cost: reduction.cost,
-                diag: ReductionDiagnosticInfo {
-                    env: reduction.diag.env,
-                    pretty_printed_expr: Some(printed_expr_str),
-                },
-            };
-            return Ok(new_reduction);
-        } else {
-            return Ok(reduction);
+            inner(&spanned_expr, ctx)
+                .map_err(|e| e.wrap_spanned_with_src(printed_expr_str.to_string()))
         }
     }
-    let (spanned_expr, printed_expr_str) = expr
-        .pretty_print()
-        .map_err(|e| EvalError::Misc(e.to_string()))?;
-    inner(&spanned_expr, ctx).map_err(|e| e.wrap_spanned_with_src(printed_expr_str.to_string()))
 }
 
 /// Expects SigmaProp constant value and returns it's value. Otherwise, returns an error.
@@ -496,6 +501,7 @@ mod test {
     use sigma_test_util::force_any_val;
 
     use crate::eval::reduce_to_crypto;
+    use crate::eval::EvalError;
 
     #[test]
     fn diag_on_reduced_to_false() {
@@ -538,5 +544,62 @@ mod test {
             v1: 1
         "#]]
         .assert_eq(&res.diag.to_string());
+    }
+
+    #[test]
+    fn jit_cost_trivial_prop() {
+        // { true } => Constant(5) = JitCost(5) => block cost 0 (5/10 rounds down)
+        let tree = ErgoTree::try_from(Expr::Const(true.into())).unwrap();
+        let ctx = force_any_val::<Context>();
+        let res = reduce_to_crypto(&tree, &ctx).unwrap();
+        assert_eq!(res.sigma_prop, SigmaBoolean::TrivialProp(true));
+        assert_eq!(res.cost, 0); // JitCost 5 / 10 = 0
+    }
+
+    #[test]
+    fn jit_cost_self_value() {
+        // SELF.value > 0 => Self(10) + ExtractAmount(8) + Constant(5) + GT(20) + BoolToSigmaProp(15)
+        // = JitCost(58) => block cost 5
+        use ergotree_ir::mir::bool_to_sigma::BoolToSigmaProp;
+        use ergotree_ir::mir::extract_amount::ExtractAmount;
+        use ergotree_ir::mir::global_vars::GlobalVars;
+
+        let self_value: Expr = ExtractAmount {
+            input: Box::new(GlobalVars::SelfBox.into()),
+        }
+        .into();
+        let tree = ErgoTree::try_from(Expr::BoolToSigmaProp(
+            BoolToSigmaProp {
+                input: Box::new(
+                    BinOp {
+                        kind: BinOpKind::Relation(RelationOp::Gt),
+                        left: Box::new(self_value),
+                        right: Box::new(Expr::Const(0i64.into())),
+                    }
+                    .into(),
+                ),
+            }
+            .into(),
+        ))
+        .unwrap();
+        let ctx = force_any_val::<Context>();
+        let res = reduce_to_crypto(&tree, &ctx).unwrap();
+        assert_eq!(res.cost, 5); // 58 / 10 = 5
+    }
+
+    #[test]
+    fn jit_cost_limit_exceeded() {
+        // Set a very low cost limit and verify that evaluation returns CostError
+        let tree = ErgoTree::try_from(Expr::Const(true.into())).unwrap();
+        let mut ctx = force_any_val::<Context>();
+        ctx.jit_cost_limit = Some(1); // limit of 1 JitCost unit — Constant(5) will exceed it
+        let res = reduce_to_crypto(&tree, &ctx);
+        assert!(res.is_err());
+        let is_cost_error = match res.unwrap_err() {
+            EvalError::CostError(_) => true,
+            EvalError::Spanned(e) => matches!(*e.error, EvalError::CostError(_)),
+            _ => false,
+        };
+        assert!(is_cost_error, "Expected CostError");
     }
 }
