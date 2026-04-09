@@ -19,7 +19,10 @@ impl Evaluable for Expr {
     ) -> Result<Value<'ctx>, EvalError> {
         //ctx.cost_accum.add_cost_of(self)?;
         let res = match self {
-            Expr::Const(c) => Ok(Value::from(c.v.clone())),
+            Expr::Const(c) => {
+                ctx.add_jit_cost(5)?; // Constant = Fixed(5)
+                Ok(Value::from(c.v.clone()))
+            }
             Expr::SubstConstants(op) => op.expr().eval(env, ctx),
             Expr::ByteArrayToLong(op) => op.expr().eval(env, ctx),
             Expr::ByteArrayToBigInt(op) => op.expr().eval(env, ctx),
@@ -32,8 +35,14 @@ impl Evaluable for Expr {
             Expr::MethodCall(op) => op.expr().eval(env, ctx),
             Expr::PropertyCall(op) => op.expr().eval(env, ctx),
             Expr::BinOp(op) => op.expr().eval(env, ctx),
-            Expr::Global => Ok(Value::Global),
-            Expr::Context => Ok(Value::Context),
+            Expr::Global => {
+                ctx.add_jit_cost(5)?; // Global = Fixed(5)
+                Ok(Value::Global)
+            }
+            Expr::Context => {
+                ctx.add_jit_cost(1)?; // Context = Fixed(1)
+                Ok(Value::Context)
+            }
             Expr::OptionGet(v) => v.expr().eval(env, ctx),
             Expr::Apply(op) => op.eval(env, ctx),
             Expr::FuncValue(op) => op.eval(env, ctx),
