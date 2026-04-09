@@ -1,10 +1,21 @@
 //! Context(blockchain) for the interpreter
 use core::cell::Cell;
+use core::fmt;
 
 use crate::chain::ergo_box::ErgoBox;
 use crate::{chain::context_extension::ContextExtension, ergo_tree::ErgoTreeVersion};
 use bounded_vec::BoundedVec;
 use ergo_chain_types::{Header, PreHeader};
+
+/// Error returned when JIT cost limit is exceeded during evaluation
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CostLimitExceeded(pub u64);
+
+impl fmt::Display for CostLimitExceeded {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "JIT cost limit ({}) exceeded", self.0)
+    }
+}
 
 /// BoundedVec type for Tx inputs, output_candidates and outputs
 pub type TxIoVec<T> = BoundedVec<T, 1, { i16::MAX as usize }>;
@@ -33,6 +44,10 @@ pub struct Context<'ctx> {
     /// ContextExtension provider for inputs of transaction
     #[debug(skip)]
     pub extension_provider: &'ctx dyn ContextExtensionProvider,
+    /// Accumulated JIT cost of evaluation
+    pub jit_cost: Cell<u64>,
+    /// JIT cost limit (None = unlimited, e.g. during signing)
+    pub jit_cost_limit: Option<u64>,
 }
 
 impl<'ctx> Context<'ctx> {
@@ -50,6 +65,41 @@ impl<'ctx> Context<'ctx> {
     /// Version of ergotree being evaluated under context
     pub fn tree_version(&self) -> ErgoTreeVersion {
         self.tree_version.get()
+    }
+
+    /// Add JIT cost and check limit. Returns Err if limit exceeded.
+    pub fn add_jit_cost(&self, amount: u32) -> Result<(), CostLimitExceeded> {
+        let new = self.jit_cost.get() + amount as u64;
+        self.jit_cost.set(new);
+        if let Some(limit) = self.jit_cost_limit {
+            if new > limit {
+                return Err(CostLimitExceeded(limit));
+            }
+        }
+        Ok(())
+    }
+
+    /// Add per-item JIT cost: base + ceil(n_items / chunk_size) * per_chunk
+    pub fn add_per_item_jit_cost(
+        &self,
+        base: u32,
+        per_chunk: u32,
+        chunk_size: u32,
+        n_items: u32,
+    ) -> Result<(), CostLimitExceeded> {
+        let chunks = (n_items + chunk_size - 1) / chunk_size;
+        let cost = base + chunks * per_chunk;
+        self.add_jit_cost(cost)
+    }
+
+    /// Read the accumulated JIT cost
+    pub fn jit_cost_value(&self) -> u64 {
+        self.jit_cost.get()
+    }
+
+    /// Reset JIT cost accumulator (used between input evaluations)
+    pub fn reset_jit_cost(&self) {
+        self.jit_cost.set(0);
     }
 }
 
@@ -126,6 +176,8 @@ pub mod arbitrary {
                             extension_provider: Box::leak(
                                 DummyContextExtensionProvider(extensions).into(),
                             ),
+                            jit_cost: Cell::new(0),
+                            jit_cost_limit: None,
                         }
                     },
                 )

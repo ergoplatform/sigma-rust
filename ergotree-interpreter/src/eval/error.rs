@@ -17,6 +17,8 @@ use sigma_ser::ScorexParsingError;
 use sigma_ser::ScorexSerializationError;
 use thiserror::Error;
 
+use ergotree_ir::chain::context::CostLimitExceeded;
+
 use super::cost_accum::CostError;
 use super::env::Env;
 
@@ -91,6 +93,12 @@ pub enum EvalError {
     /// Autolykos PoW error
     #[error("Autolykos PoW error: {0}")]
     AutolykosPowSchemeError(#[from] AutolykosPowSchemeError),
+}
+
+impl From<CostLimitExceeded> for EvalError {
+    fn from(e: CostLimitExceeded) -> Self {
+        EvalError::CostError(CostError::from(e))
+    }
 }
 
 /// Wrapped error with source span
