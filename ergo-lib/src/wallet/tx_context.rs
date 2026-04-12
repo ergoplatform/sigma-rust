@@ -4,16 +4,23 @@ use alloc::vec::Vec;
 use hashbrown::hash_map::Entry;
 use hashbrown::HashMap;
 
+use std::collections::HashSet;
+
 use crate::chain::ergo_state_context::ErgoStateContext;
+use crate::chain::parameters::Parameters;
 use crate::chain::transaction::ergo_transaction::{ErgoTransaction, TxValidationError};
-use crate::chain::transaction::{verify_tx_input_proof, Transaction, TransactionError};
+use crate::chain::transaction::storage_rent::try_spend_storage_rent;
+use crate::chain::transaction::{Transaction, TransactionError};
 use crate::ergotree_ir::chain::ergo_box::BoxId;
-use ergotree_interpreter::sigma_protocol::verifier::VerificationResult;
+use ergotree_interpreter::eval::reduce_to_crypto;
+use ergotree_interpreter::sigma_protocol::crypto_cost::estimate_crypto_cost;
+use ergotree_interpreter::sigma_protocol::verifier::{verify_signature, VerificationResult};
 use ergotree_ir::chain::context::TxIoVec;
 use ergotree_ir::chain::ergo_box::box_value::BoxValue;
 use ergotree_ir::chain::ergo_box::{BoxTokens, ErgoBox};
 use ergotree_ir::chain::token::{TokenAmount, TokenId};
 use ergotree_ir::serialization::SigmaSerializable;
+use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 use thiserror::Error;
 
 use super::signing::make_context;
@@ -99,11 +106,45 @@ impl<T: ErgoTransaction> TransactionContext<T> {
     }
 }
 
+const INTERPRETER_INIT_COST: u64 = 10_000;
+
+fn count_tokens(boxes: &[ErgoBox]) -> (u64, u64) {
+    let mut total_entries = 0u64;
+    let mut distinct: HashSet<TokenId> = HashSet::new();
+    for b in boxes {
+        for t in b.tokens.iter().flatten() {
+            total_entries += 1;
+            distinct.insert(t.token_id);
+        }
+    }
+    (total_entries, distinct.len() as u64)
+}
+
+fn compute_tx_init_cost(
+    tx: &Transaction,
+    boxes_to_spend: &[ErgoBox],
+    parameters: &Parameters,
+) -> u64 {
+    let n_data_inputs = tx.data_inputs.as_ref().map_or(0, |d| d.len()) as u64;
+    let structural = INTERPRETER_INIT_COST
+        + tx.inputs.len() as u64 * parameters.input_cost() as u64
+        + n_data_inputs * parameters.data_input_cost() as u64
+        + tx.outputs.len() as u64 * parameters.output_cost() as u64;
+
+    let (in_entries, in_distinct) = count_tokens(boxes_to_spend);
+    let (out_entries, out_distinct) = count_tokens(tx.outputs.as_slice());
+    // Token cost formula matches Scala: distinct computed separately per side
+    let token_cost = ((in_entries + out_entries) + (in_distinct + out_distinct))
+        * parameters.token_access_cost() as u64;
+
+    structural + token_cost
+}
+
 impl TransactionContext<Transaction> {
-    /// Verify transaction using blockchain parameters
-    // TODO: costing
+    /// Verify transaction using blockchain parameters.
+    /// Returns the total block cost (JIT / 10) matching the Scala reference.
     // This is based on validateStateful() in Ergo: https://github.com/ergoplatform/ergo/blob/48239ef98ced06617dc21a0eee5670235e362933/ergo-core/src/main/scala/org/ergoplatform/modifiers/mempool/ErgoTransaction.scala#L357
-    pub fn validate(&self, state_context: &ErgoStateContext) -> Result<(), TxValidationError> {
+    pub fn validate(&self, state_context: &ErgoStateContext) -> Result<u64, TxValidationError> {
         // Check that input sum does not overflow
         let input_sum = BoxValue::new(
             self.boxes_to_spend
@@ -145,17 +186,79 @@ impl TransactionContext<Transaction> {
         let in_assets = extract_assets(self.boxes_to_spend.iter().map(|b| &b.tokens))?;
         let out_assets = extract_assets(self.spending_tx.outputs.iter().map(|b| &b.tokens))?;
         verify_assets(self.spending_tx.inputs_ids(), in_assets, out_assets)?;
-        // Verify input proofs. This is usually the most expensive check so it's done last
+        // Verify input proofs with full cost pipeline
         let bytes_to_sign = self.spending_tx.bytes_to_sign()?;
-        let mut context = make_context(state_context, self, 0)?;
+
+        // Init cost (block cost units -> JIT scale)
+        let init_cost = compute_tx_init_cost(
+            &self.spending_tx,
+            self.boxes_to_spend.as_slice(),
+            &state_context.parameters,
+        );
+        let mut running_jit: u64 = init_cost * 10;
+
         for input_idx in 0..self.spending_tx.inputs.len() {
-            if let res @ VerificationResult { result: false, .. } =
-                verify_tx_input_proof(self, &mut context, state_context, input_idx, &bytes_to_sign)?
-            {
-                return Err(TxValidationError::ReducedToFalse(input_idx, res));
+            // Fresh context per input (jit_cost_accum starts at 0)
+            let ctx = make_context(state_context, self, input_idx)?;
+
+            let input = self
+                .spending_tx
+                .inputs
+                .get(input_idx)
+                .ok_or(TransactionContextError::InputBoxNotFound(input_idx))?;
+            let input_box = self
+                .get_input_box(&input.box_id)
+                .ok_or(TransactionContextError::InputBoxNotFound(input_idx))?;
+
+            // Storage rent bypass (cost = 0)
+            if try_spend_storage_rent(input, input_box, state_context, &ctx).is_some() {
+                continue;
+            }
+
+            let pre_input = running_jit;
+
+            // Reduce to crypto (eval cost + sigma prop)
+            let reduction = reduce_to_crypto(&input_box.ergo_tree, &ctx)
+                .map_err(|e| TxValidationError::VerifierError(input_idx, e.into()))?;
+            running_jit += reduction.cost;
+
+            // Snap to block boundary (drop JitCost mod-10 remainder per input)
+            let input_delta = running_jit - pre_input;
+            running_jit -= input_delta % 10;
+
+            // Crypto verification cost
+            running_jit += estimate_crypto_cost(&reduction.sigma_prop);
+
+            // Verify proof
+            let verified = match &reduction.sigma_prop {
+                SigmaBoolean::TrivialProp(b) => *b,
+                SigmaBoolean::ProofOfKnowledge(sb) => verify_signature(
+                    SigmaBoolean::ProofOfKnowledge(sb.clone()),
+                    &bytes_to_sign,
+                    input.spending_proof.proof.as_ref(),
+                )
+                .map_err(|e| TxValidationError::VerifierError(input_idx, e))?,
+                SigmaBoolean::SigmaConjecture(sb) => verify_signature(
+                    SigmaBoolean::SigmaConjecture(sb.clone()),
+                    &bytes_to_sign,
+                    input.spending_proof.proof.as_ref(),
+                )
+                .map_err(|e| TxValidationError::VerifierError(input_idx, e))?,
+            };
+            if !verified {
+                return Err(TxValidationError::ReducedToFalse(
+                    input_idx,
+                    VerificationResult {
+                        result: false,
+                        cost: reduction.cost,
+                        diag: reduction.diag,
+                    },
+                ));
             }
         }
-        Ok(())
+
+        // Floor division to block cost
+        Ok(running_jit / 10)
     }
 }
 
@@ -732,7 +835,7 @@ mod test {
                 other => panic!("Expected validation to succeed, got {other:?}")
             }
             match (monotonic_valid, tx_context.validate(&context3)) {
-                (true, Ok(())) => {},
+                (true, Ok(_)) => {},
                 (false, Err(TxValidationError::MonotonicHeightError(_, _))) => {},
                 other => panic!("Expected validation to fail, got {other:?}")
             }

@@ -5,6 +5,8 @@ use ergotree_ir::mir::value::Value;
 use ergotree_ir::source_span::Spanned;
 use hashbrown::HashMap;
 
+use crate::eval::cost_accum::{add_fixed_cost, add_seq_cost};
+use crate::eval::costs;
 use crate::eval::env::Env;
 use crate::eval::Context;
 use crate::eval::EvalError;
@@ -16,6 +18,7 @@ impl Evaluable for BlockValue {
         env: &mut Env<'ctx>,
         ctx: &Context<'ctx>,
     ) -> Result<Value<'ctx>, EvalError> {
+        add_seq_cost(ctx, costs::BLOCK_VALUE_COST, self.items.len() as u32)?;
         // The start of the top-level block of statements does not contain any
         // pre-existing `ValDef`s.
         let is_top_level_block = env.is_empty();
@@ -26,6 +29,7 @@ impl Evaluable for BlockValue {
                 let spanned_val_def = &i.clone().try_extract_into::<Spanned<ValDef>>()?;
                 let val_def = spanned_val_def.expr();
                 let v: Value = val_def.rhs.eval(env, ctx)?;
+                add_fixed_cost(ctx, costs::ADD_TO_ENV_COST)?;
                 env.insert(val_def.id, v);
             }
             // Keep all `ValDef`s introduced in this block
@@ -40,6 +44,7 @@ impl Evaluable for BlockValue {
                 let val_def = spanned_val_def.expr();
                 let idx = val_def.id;
                 let v: Value = val_def.rhs.eval(env, ctx)?;
+                add_fixed_cost(ctx, costs::ADD_TO_ENV_COST)?;
                 if let Some(old_val) = env.get(idx) {
                     existing_variables.insert(idx, old_val.clone());
                 } else {

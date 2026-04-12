@@ -2,6 +2,8 @@ use alloc::vec::Vec;
 use ergotree_ir::mir::constant::TryExtractInto;
 use ergotree_ir::mir::value::Value;
 
+use crate::eval::cost_accum::add_seq_cost;
+use crate::eval::costs;
 use crate::eval::env::Env;
 use crate::eval::Context;
 use crate::eval::EvalError;
@@ -16,6 +18,7 @@ impl Evaluable for XorOf {
     ) -> Result<Value<'ctx>, EvalError> {
         let input_v = self.input.eval(env, ctx)?;
         let input_v_bools = input_v.try_extract_into::<Vec<bool>>()?;
+        add_seq_cost(ctx, costs::XOR_OF_COST, input_v_bools.len() as u32)?;
         Ok(input_v_bools.into_iter().fold(false, |a, b| a ^ b).into())
     }
 }

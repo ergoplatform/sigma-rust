@@ -5,6 +5,8 @@ use ergotree_ir::mir::value::Value;
 use ergotree_ir::sigma_protocol::sigma_boolean::cand::Cand;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProp;
 
+use crate::eval::cost_accum::add_seq_cost;
+use crate::eval::costs;
 use crate::eval::env::Env;
 use crate::eval::Context;
 use crate::eval::EvalError;
@@ -16,6 +18,7 @@ impl Evaluable for SigmaAnd {
         env: &mut Env<'ctx>,
         ctx: &Context<'ctx>,
     ) -> Result<Value<'ctx>, EvalError> {
+        add_seq_cost(ctx, costs::SIGMA_AND_COST, self.items.len() as u32)?;
         let items_v_res = self.items.try_mapped_ref(|it| it.eval(env, ctx));
         let items_sigmabool = items_v_res?
             .try_mapped(|it| it.try_extract_into::<SigmaProp>())?

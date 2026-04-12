@@ -28,7 +28,7 @@ use crate::types::stype::SType;
 use crate::unsignedbigint256::UnsignedBigInt;
 use ergo_chain_types::EcPoint;
 
-use super::sigma_byte_writer::SigmaByteWrite;
+use super::sigma_byte_writer::{self as sbw, SigmaByteWrite};
 use alloc::sync::Arc;
 use core::convert::TryInto;
 
@@ -41,22 +41,49 @@ impl DataSerializer {
         // for reference see http://github.com/ScorexFoundation/sigmastate-interpreter/blob/25251c1313b0131835f92099f02cef8a5d932b5e/sigmastate/src/main/scala/sigmastate/serialization/DataSerializer.scala#L26-L26
         Ok(match c {
             Literal::Unit => (),
-            Literal::Boolean(v) => w.put_u8(u8::from(*v))?,
-            Literal::Byte(v) => w.put_i8(*v)?,
-            Literal::Short(v) => w.put_i16(*v)?,
-            Literal::Int(v) => w.put_i32(*v)?,
-            Literal::Long(v) => w.put_i64(*v)?,
+            Literal::Boolean(v) => {
+                w.charge_write_cost(sbw::PUT_BYTE_COST);
+                w.put_u8(u8::from(*v))?;
+            }
+            Literal::Byte(v) => {
+                w.charge_write_cost(sbw::PUT_BYTE_COST);
+                w.put_i8(*v)?;
+            }
+            Literal::Short(v) => {
+                w.charge_write_cost(sbw::PUT_SIGNED_NUMERIC_COST);
+                w.put_i16(*v)?;
+            }
+            Literal::Int(v) => {
+                w.charge_write_cost(sbw::PUT_SIGNED_NUMERIC_COST);
+                w.put_i32(*v)?;
+            }
+            Literal::Long(v) => {
+                w.charge_write_cost(sbw::PUT_SIGNED_NUMERIC_COST);
+                w.put_i64(*v)?;
+            }
             Literal::BigInt(v) => {
+                // BigInt sigma_serialize: put_u16(len) + write_all(bytes)
                 v.sigma_serialize(w)?;
             }
             Literal::String(s) => {
+                w.charge_write_cost(sbw::PUT_UNSIGNED_NUMERIC_COST);
                 w.put_usize_as_u32_unwrapped(s.len())?;
+                w.charge_write_cost(
+                    sbw::PUT_CHUNK_BASE_COST + sbw::PUT_CHUNK_PER_BYTE * s.len() as u32,
+                );
                 w.write_all(s.as_bytes())?;
             }
-            Literal::GroupElement(ecp) => ecp.sigma_serialize(w)?,
-            Literal::SigmaProp(s) => s.value().sigma_serialize(w)?,
+            Literal::GroupElement(ecp) => {
+                // GroupElement sigma_serialize writes 33 bytes via write_all
+                ecp.sigma_serialize(w)?;
+            }
+            Literal::SigmaProp(s) => {
+                // SigmaProp delegates to SigmaBoolean::sigma_serialize
+                s.value().sigma_serialize(w)?;
+            }
             Literal::UnsignedBigInt(v) if w.tree_version() >= ErgoTreeVersion::V3 => {
-                v.sigma_serialize(w)?
+                // UnsignedBigInt sigma_serialize: put_u16(len) + write_all(bytes)
+                v.sigma_serialize(w)?;
             }
             Literal::UnsignedBigInt(_) => {
                 return Err(SigmaSerializationError::NotSupported(
@@ -67,13 +94,18 @@ impl DataSerializer {
             Literal::CBox(b) => b.sigma_serialize(w)?,
             Literal::Coll(ct) => match ct {
                 CollKind::NativeColl(NativeColl::CollByte(b)) => {
+                    w.charge_write_cost(sbw::PUT_UNSIGNED_NUMERIC_COST);
                     w.put_usize_as_u16_unwrapped(b.len())?;
-                    w.write_all(b.clone().as_vec_u8().as_slice())?
+                    w.charge_write_cost(
+                        sbw::PUT_CHUNK_BASE_COST + sbw::PUT_CHUNK_PER_BYTE * b.len() as u32,
+                    );
+                    w.write_all(b.clone().as_vec_u8().as_slice())?;
                 }
                 CollKind::WrappedColl {
                     elem_tpe: SType::SBoolean,
                     items: v,
                 } => {
+                    w.charge_write_cost(sbw::PUT_UNSIGNED_NUMERIC_COST);
                     w.put_usize_as_u16_unwrapped(v.len())?;
                     let maybe_bools: Result<Vec<bool>, TryExtractFromError> = v
                         .clone()
@@ -81,24 +113,34 @@ impl DataSerializer {
                         .cloned()
                         .map(|i| i.try_extract_into::<bool>())
                         .collect();
-                    w.put_bits(maybe_bools?.as_slice())?
+                    w.charge_write_cost(
+                        sbw::PUT_CHUNK_BASE_COST + sbw::PUT_CHUNK_PER_BYTE * v.len() as u32,
+                    );
+                    w.put_bits(maybe_bools?.as_slice())?;
                 }
                 CollKind::WrappedColl {
                     elem_tpe: _,
                     items: v,
                 } => {
+                    w.charge_write_cost(sbw::PUT_UNSIGNED_NUMERIC_COST);
                     w.put_usize_as_u16_unwrapped(v.len())?;
+                    // Per-element cost charged recursively
                     v.iter()
-                        .try_for_each(|e| DataSerializer::sigma_serialize(e, w))?
+                        .try_for_each(|e| DataSerializer::sigma_serialize(e, w))?;
                 }
             },
-            Literal::Tup(items) => items
-                .iter()
-                .try_for_each(|i| DataSerializer::sigma_serialize(i, w))?,
+            Literal::Tup(items) => {
+                // Per-element cost charged recursively
+                items
+                    .iter()
+                    .try_for_each(|i| DataSerializer::sigma_serialize(i, w))?;
+            }
             Literal::Header(h) if w.tree_version() >= ErgoTreeVersion::V3 => {
+                // Header scorex_serialize: many internal writes
                 h.scorex_serialize(w)?;
             }
             Literal::Opt(opt) if w.tree_version() >= ErgoTreeVersion::V3 => {
+                w.charge_write_cost(sbw::PUT_BYTE_COST); // option flag byte
                 w.put_option(Option::as_ref(opt), |w, v| {
                     DataSerializer::sigma_serialize(v, w)
                 })?;

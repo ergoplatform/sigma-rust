@@ -18,9 +18,12 @@ use ergotree_ir::{
 };
 use num_traits::{CheckedRem, CheckedShl, CheckedShr};
 
+use super::cost_accum::add_fixed_cost;
+use super::costs;
 use super::{EvalError, EvalFn};
 
-const TO_BYTES_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
+const TO_BYTES_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
+    add_fixed_cost(ctx, costs::SNUMERIC_TO_BYTES_COST)?;
     Ok(match obj {
         Value::Byte(obj) => obj.to_be_bytes().to_vec().into(),
         Value::Short(obj) => obj.to_be_bytes().to_vec().into(),
@@ -36,7 +39,8 @@ const TO_BYTES_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
     })
 };
 
-static TO_BITS_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
+static TO_BITS_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
+    add_fixed_cost(ctx, costs::SNUMERIC_TO_BITS_COST)?;
     fn byte_to_bits(mut byte: u8) -> [bool; 8] {
         let mut res = [false; 8];
         let mut i = 8;
@@ -70,7 +74,8 @@ static TO_BITS_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
     })
 };
 
-static BITWISE_INVERSE_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
+static BITWISE_INVERSE_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
+    add_fixed_cost(ctx, costs::SNUMERIC_BITWISE_INVERSE_COST)?;
     Ok(match obj {
         Value::Byte(obj) => (!obj).into(),
         Value::Short(obj) => (!obj).into(),
@@ -86,7 +91,8 @@ static BITWISE_INVERSE_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
     })
 };
 
-static BITWISE_OR_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
+static BITWISE_OR_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, args| {
+    add_fixed_cost(ctx, costs::SNUMERIC_BITWISE_OP_COST)?;
     let rhs = args[0].clone();
     Ok(match _mc.obj_type {
         STypeCompanion::SByte => {
@@ -115,7 +121,8 @@ static BITWISE_OR_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
     })
 };
 
-static BITWISE_AND_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
+static BITWISE_AND_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, args| {
+    add_fixed_cost(ctx, costs::SNUMERIC_BITWISE_OP_COST)?;
     let rhs = args[0].clone();
     Ok(match _mc.obj_type {
         STypeCompanion::SByte => {
@@ -144,7 +151,8 @@ static BITWISE_AND_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
     })
 };
 
-static BITWISE_XOR_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
+static BITWISE_XOR_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, args| {
+    add_fixed_cost(ctx, costs::SNUMERIC_BITWISE_OP_COST)?;
     let rhs = args
         .first()
         .ok_or_else(|| EvalError::UnexpectedValue("rhs missing".into()))?
@@ -181,7 +189,8 @@ fn invalid_shift_err() -> EvalError {
     EvalError::Misc("shift value is out of bounds".into())
 }
 
-static SHIFT_LEFT_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
+static SHIFT_LEFT_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, args| {
+    add_fixed_cost(ctx, costs::SNUMERIC_SHIFT_COST)?;
     let shift_value: u32 = args
         .first()
         .ok_or_else(|| EvalError::UnexpectedValue("shift arg missing".into()))?
@@ -222,7 +231,8 @@ static SHIFT_LEFT_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
     })
 };
 
-static SHIFT_RIGHT_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
+static SHIFT_RIGHT_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, args| {
+    add_fixed_cost(ctx, costs::SNUMERIC_SHIFT_COST)?;
     let shift_value: u32 = args
         .first()
         .ok_or_else(|| EvalError::UnexpectedValue("shift arg missing".into()))?
@@ -263,14 +273,16 @@ static SHIFT_RIGHT_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
     })
 };
 
-static TO_UNSIGNED_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
+static TO_UNSIGNED_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
+    add_fixed_cost(ctx, costs::SNUMERIC_TO_UNSIGNED_COST)?;
     let signed = obj.try_extract_into::<BigInt256>()?;
     UnsignedBigInt::try_from(signed)
         .map_err(|err| EvalError::ArithmeticException(err.into()))
         .map(Value::from)
 };
 
-static TO_UNSIGNED_MOD_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
+static TO_UNSIGNED_MOD_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, args| {
+    add_fixed_cost(ctx, costs::SNUMERIC_TO_UNSIGNED_MOD_COST)?;
     let signed = obj.try_extract_into::<BigInt256>()?;
     let modulus = args
         .first()
@@ -282,7 +294,8 @@ static TO_UNSIGNED_MOD_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
         .ok_or_else(|| EvalError::ArithmeticException("toUnsignedMod: can't divide by 0".into()))
 };
 
-static MOD_INVERSE_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
+static MOD_INVERSE_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, args| {
+    add_fixed_cost(ctx, costs::SNUMERIC_MOD_INVERSE_COST)?;
     let obj = obj.try_extract_into::<UnsignedBigInt>()?;
     let modulus = args
         .first()
@@ -294,7 +307,8 @@ static MOD_INVERSE_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
         .ok_or_else(|| EvalError::ArithmeticException("modInv: can't divide by 0".into()))
 };
 
-static PLUS_MOD_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
+static PLUS_MOD_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, args| {
+    add_fixed_cost(ctx, costs::SNUMERIC_PLUS_MOD_COST)?;
     let obj = obj.try_extract_into::<UnsignedBigInt>()?;
     let b = args
         .first()
@@ -311,7 +325,8 @@ static PLUS_MOD_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
         .ok_or_else(|| EvalError::ArithmeticException("plusMod: can't divide by 0".into()))
 };
 
-static SUBTRACT_MOD_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
+static SUBTRACT_MOD_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, args| {
+    add_fixed_cost(ctx, costs::SNUMERIC_SUBTRACT_MOD_COST)?;
     let obj = obj.try_extract_into::<UnsignedBigInt>()?;
     let b = args
         .first()
@@ -328,7 +343,8 @@ static SUBTRACT_MOD_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
         .ok_or_else(|| EvalError::ArithmeticException("subtractMod: can't divide by 0".into()))
 };
 
-static MULTIPLY_MOD_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
+static MULTIPLY_MOD_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, args| {
+    add_fixed_cost(ctx, costs::SNUMERIC_MULTIPLY_MOD_COST)?;
     let obj = obj.try_extract_into::<UnsignedBigInt>()?;
     let b = args
         .first()
@@ -345,7 +361,8 @@ static MULTIPLY_MOD_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
         .ok_or_else(|| EvalError::ArithmeticException("multiplyMod: can't divide by 0".into()))
 };
 
-static MOD_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
+static MOD_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, args| {
+    add_fixed_cost(ctx, costs::SNUMERIC_MOD_COST)?;
     let obj = obj.try_extract_into::<UnsignedBigInt>()?;
     let modulus = args
         .first()
@@ -357,7 +374,8 @@ static MOD_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
         .ok_or_else(|| EvalError::ArithmeticException("mod: can't divide by 0".into()))
 };
 
-static TO_SIGNED_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
+static TO_SIGNED_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
+    add_fixed_cost(ctx, costs::SNUMERIC_TO_SIGNED_COST)?;
     let obj = obj.try_extract_into::<UnsignedBigInt>()?;
     BigInt256::try_from(obj)
         .map_err(|e| EvalError::ArithmeticException(e.into()))

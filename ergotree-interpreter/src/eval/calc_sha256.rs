@@ -6,6 +6,8 @@ use ergotree_ir::mir::value::Value;
 use sigma_util::hash::sha256_hash;
 use sigma_util::AsVecU8;
 
+use crate::eval::cost_accum::add_seq_cost;
+use crate::eval::costs;
 use crate::eval::env::Env;
 use crate::eval::Context;
 use crate::eval::EvalError;
@@ -20,7 +22,9 @@ impl Evaluable for CalcSha256 {
         let input_v = self.input.eval(env, ctx)?;
         match input_v.clone() {
             Value::Coll(CollKind::NativeColl(NativeColl::CollByte(coll_byte))) => {
-                let expected_hash: Vec<u8> = sha256_hash(coll_byte.as_vec_u8().as_slice()).to_vec();
+                let bytes = coll_byte.as_vec_u8();
+                add_seq_cost(ctx, costs::CALC_SHA256_COST, bytes.len() as u32)?;
+                let expected_hash: Vec<u8> = sha256_hash(bytes.as_slice()).to_vec();
                 Ok(expected_hash.into())
             }
             _ => Err(EvalError::UnexpectedValue(format!(

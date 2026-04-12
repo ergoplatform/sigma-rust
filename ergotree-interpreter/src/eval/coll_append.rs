@@ -7,6 +7,8 @@ use ergotree_ir::mir::value::CollKind;
 use ergotree_ir::mir::value::Value;
 use ergotree_ir::types::stype::SType;
 
+use crate::eval::cost_accum::add_seq_cost;
+use crate::eval::costs;
 use crate::eval::env::Env;
 use crate::eval::Context;
 use crate::eval::EvalError;
@@ -44,6 +46,11 @@ impl Evaluable for Append {
     ) -> Result<Value<'ctx>, EvalError> {
         let input_v = self.input.eval(env, ctx)?;
         let col2_v = self.col_2.eval(env, ctx)?;
+        let n_items = match (&input_v, &col2_v) {
+            (Value::Coll(c1), Value::Coll(c2)) => (c1.len() + c2.len()) as u32,
+            _ => 0,
+        };
+        add_seq_cost(ctx, costs::APPEND_COST, n_items)?;
         let input_elem_tpe = extract_elem_tpe(&input_v)?;
         let col2_elem_tpe = extract_elem_tpe(&col2_v)?;
         if input_elem_tpe != col2_elem_tpe {

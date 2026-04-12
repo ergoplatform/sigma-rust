@@ -1,6 +1,8 @@
 use ergotree_ir::mir::sigma_prop_bytes::SigmaPropBytes;
 use ergotree_ir::mir::value::Value;
 
+use crate::eval::cost_accum::add_seq_cost;
+use crate::eval::costs;
 use crate::eval::env::Env;
 use crate::eval::Context;
 use crate::eval::EvalError;
@@ -12,6 +14,7 @@ impl Evaluable for SigmaPropBytes {
         env: &mut Env<'ctx>,
         ctx: &Context<'ctx>,
     ) -> Result<Value<'ctx>, EvalError> {
+        add_seq_cost(ctx, costs::SIGMA_PROP_BYTES_COST, 1)?;
         let input_v = self.input.eval(env, ctx)?;
         match input_v {
             Value::SigmaProp(sigma_prop) => Ok(sigma_prop.prop_bytes()?.into()),

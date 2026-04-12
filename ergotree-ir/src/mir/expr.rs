@@ -467,12 +467,37 @@ impl Expr {
         self.try_rewrite_bu::<SigmaParsingError>(
             |expr| matches!(expr, Expr::ConstPlaceholder(_)),
             |expr| {
-                if let Expr::ConstPlaceholder(ConstantPlaceholder { id, tpe: _ }) = expr {
+                if let Expr::ConstPlaceholder(ConstantPlaceholder {
+                    id,
+                    tpe: _,
+                    resolved: _,
+                }) = expr
+                {
                     *expr = constants
                         .get(*id as usize)
                         .cloned()
                         .map(Expr::from)
                         .ok_or(SigmaParsingError::ConstantForPlaceholderNotFound(*id))?;
+                }
+                Ok(())
+            },
+        )
+    }
+
+    /// Resolve ConstPlaceholder nodes by setting their `resolved` field,
+    /// without substituting them with Const. Preserves the node type
+    /// distinction for correct costing (ConstPlaceholder=1, Const=5).
+    pub fn resolve_placeholders(self, constants: &[Constant]) -> Result<Self, SigmaParsingError> {
+        self.try_rewrite_bu::<SigmaParsingError>(
+            |expr| matches!(expr, Expr::ConstPlaceholder(_)),
+            |expr| {
+                if let Expr::ConstPlaceholder(cp) = expr {
+                    cp.resolved = Some(
+                        constants
+                            .get(cp.id as usize)
+                            .cloned()
+                            .ok_or(SigmaParsingError::ConstantForPlaceholderNotFound(cp.id))?,
+                    );
                 }
                 Ok(())
             },

@@ -9,15 +9,19 @@ use ergotree_ir::mir::value::Value;
 use ergotree_ir::reference::Ref;
 use ergotree_ir::types::stype::SType;
 
+use super::cost_accum::add_fixed_cost;
+use super::costs;
 use super::EvalFn;
 
-pub(crate) static VALUE_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
+pub(crate) static VALUE_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
+    add_fixed_cost(ctx, costs::EXTRACT_AMOUNT_COST)?;
     Ok(Value::Long(
         obj.try_extract_into::<Ref<'_, ErgoBox>>()?.value.as_i64(),
     ))
 };
 
 pub(crate) static GET_REG_EVAL_FN: EvalFn = |mc, _env, ctx, obj, args| {
+    add_fixed_cost(ctx, costs::EXTRACT_REGISTER_AS_COST)?;
     if ctx.tree_version() < ErgoTreeVersion::V3 {
         return Err(EvalError::ScriptVersionError {
             required_version: ErgoTreeVersion::V3,
@@ -67,7 +71,8 @@ pub(crate) static GET_REG_EVAL_FN: EvalFn = |mc, _env, ctx, obj, args| {
     }
 };
 
-pub(crate) static TOKENS_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
+pub(crate) static TOKENS_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
+    add_fixed_cost(ctx, costs::SBOX_TOKENS_COST)?;
     let res: Value = obj
         .try_extract_into::<Ref<'_, ErgoBox>>()?
         .tokens_raw()

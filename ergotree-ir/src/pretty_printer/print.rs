@@ -112,7 +112,12 @@ impl Print for Expr {
             Expr::BinOp(v) => v.expr().print(w),
             Expr::GlobalVars(v) => v.print(w),
             Expr::ByIndex(v) => v.expr().print(w),
-            Expr::ConstPlaceholder(_) => Ok(self.clone()),
+            Expr::ConstPlaceholder(cp) => {
+                if let Some(c) = &cp.resolved {
+                    write!(w, "{:?}", c.v)?;
+                }
+                Ok(self.clone())
+            }
             Expr::SubstConstants(v) => v.expr().print(w),
             Expr::ByteArrayToLong(v) => v.expr().print(w),
             Expr::ByteArrayToBigInt(v) => v.expr().print(w),

@@ -4,6 +4,8 @@ use bytes::Bytes;
 use ergotree_ir::mir::tree_lookup::TreeLookup;
 use ergotree_ir::mir::value::Value;
 
+use crate::eval::cost_accum::add_seq_cost;
+use crate::eval::costs;
 use crate::eval::env::Env;
 use crate::eval::Context;
 use crate::eval::EvalError;
@@ -30,6 +32,11 @@ impl Evaluable for TreeLookup {
 
         let starting_digest = Bytes::from(normalized_tree_val.digest.0.to_vec());
         let proof = Bytes::from(normalized_proof_val.as_vec_u8());
+
+        // DynamicCost: CreateAvlVerifier(proof.len) + LookupAvlTree(treeHeight)
+        let tree_height = starting_digest.last().map_or(0, |&b| b as u32);
+        add_seq_cost(ctx, costs::CREATE_AVL_VERIFIER_COST, proof.len() as u32)?;
+        add_seq_cost(ctx, costs::SAVL_GET_COST, tree_height)?;
 
         let mut bv = BatchAVLVerifier::new(
             &starting_digest,

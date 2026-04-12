@@ -3,6 +3,8 @@ use ergotree_ir::mir::constant::TryExtractInto;
 use ergotree_ir::mir::value::CollKind;
 use ergotree_ir::mir::value::Value;
 
+use crate::eval::cost_accum::add_seq_cost;
+use crate::eval::costs;
 use crate::eval::env::Env;
 use crate::eval::Context;
 use crate::eval::EvalError;
@@ -26,6 +28,9 @@ impl Evaluable for Slice {
         }?;
         let from = from_v.try_extract_into::<i32>()?;
         let until = until_v.try_extract_into::<i32>()?;
+        // Scala charges based on output slice size: max(0, until - from)
+        let n_items = 0i32.max(until - from) as u32;
+        add_seq_cost(ctx, costs::SLICE_COST, n_items)?;
         // intersection of the range with collection bounds
         // to preserve the Scala version semantics of slice op
         // see https://github.com/ergoplatform/sigma-rust/issues/724

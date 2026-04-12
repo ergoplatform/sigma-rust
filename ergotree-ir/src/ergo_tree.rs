@@ -238,6 +238,24 @@ impl ErgoTree {
         }
     }
 
+    /// Like [`Self::proposition()`], but preserves ConstPlaceholder nodes with
+    /// resolved values instead of substituting them with Const. This gives correct
+    /// per-node costing: ConstPlaceholder -> cost 1, inline Const -> cost 5.
+    pub fn proposition_for_cost_eval(&self) -> Result<Expr, ErgoTreeError> {
+        let tree = self.parsed_tree()?.clone();
+        let ParsedErgoTree {
+            header,
+            constants,
+            root,
+            ..
+        } = tree;
+        if header.is_constant_segregation() {
+            Ok(root.resolve_placeholders(&constants)?)
+        } else {
+            Ok(root)
+        }
+    }
+
     /// Check if ErgoTree root has [`crate::mir::deserialize_context::DeserializeContext`] or [`crate::mir::deserialize_register::DeserializeRegister`] nodes
     pub fn has_deserialize(&self) -> bool {
         match self {

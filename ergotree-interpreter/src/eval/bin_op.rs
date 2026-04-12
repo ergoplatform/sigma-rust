@@ -16,6 +16,9 @@ use num_traits::CheckedRem;
 use num_traits::CheckedSub;
 use num_traits::Num;
 
+use crate::eval::cost_accum::add_fixed_cost;
+use crate::eval::costs;
+use crate::eval::data_value_comparer::eq_with_cost;
 use crate::eval::env::Env;
 use crate::eval::Context;
 use crate::eval::EvalError;
@@ -181,13 +184,26 @@ where
     Ok((lv_raw.min(rv_raw)).into())
 }
 
+/// Charge a TypeBasedCost depending on whether the operand is a BigInt type.
+fn charge_type_based_cost(
+    lv: &Value,
+    ctx: &Context,
+    cost: costs::TypeBasedCost,
+) -> Result<(), EvalError> {
+    let jit_cost = match lv {
+        Value::BigInt(_) | Value::UnsignedBigInt(_) => cost.bigint_cost,
+        _ => cost.default_cost,
+    };
+    add_fixed_cost(ctx, costs::FixedCost(jit_cost))?;
+    Ok(())
+}
+
 impl Evaluable for BinOp {
     fn eval<'ctx>(
         &self,
         env: &mut Env<'ctx>,
         ctx: &Context<'ctx>,
     ) -> Result<Value<'ctx>, EvalError> {
-        //ctx.cost_accum.add(Costs::DEFAULT.eq_const_size)?;
         let lv = self.left.eval(env, ctx)?;
         // using closure to keep right value from evaluation (for lazy AND, OR, XOR)
         let mut rv = || self.right.eval(env, ctx);
@@ -208,100 +224,127 @@ impl Evaluable for BinOp {
                 )),
             },
             BinOpKind::Relation(op) => match op {
-                RelationOp::Eq => Ok(Value::Boolean(lv == rv()?)),
-                RelationOp::NEq => Ok(Value::Boolean(lv != rv()?)),
-                RelationOp::Gt => eval_gt(lv, rv()?),
-                RelationOp::Lt => eval_lt(lv, rv()?),
-                RelationOp::Ge => eval_ge(lv, rv()?),
-                RelationOp::Le => eval_le(lv, rv()?),
+                RelationOp::Eq => {
+                    let rv_val = rv()?;
+                    // eq_with_cost charges per-type equality cost internally
+                    Ok(Value::Boolean(eq_with_cost(&lv, &rv_val, ctx)?))
+                }
+                RelationOp::NEq => {
+                    let rv_val = rv()?;
+                    Ok(Value::Boolean(!eq_with_cost(&lv, &rv_val, ctx)?))
+                }
+                RelationOp::Gt | RelationOp::Lt | RelationOp::Ge | RelationOp::Le => {
+                    // Gt/Lt/Ge/Le: charge type-based comparison cost
+                    charge_type_based_cost(&lv, ctx, costs::RELATION_CMP_COST)?;
+                    match op {
+                        RelationOp::Gt => eval_gt(lv, rv()?),
+                        RelationOp::Lt => eval_lt(lv, rv()?),
+                        RelationOp::Ge => eval_ge(lv, rv()?),
+                        RelationOp::Le => eval_le(lv, rv()?),
+                        // Eq/NEq handled in earlier match arm; wildcard
+                        // satisfies exhaustiveness without clippy::unreachable
+                        _ => Ok(Value::Boolean(false)),
+                    }
+                }
             },
-            BinOpKind::Arith(op) => match op {
-                ArithOp::Plus => match lv {
-                    Value::Byte(lv_raw) => eval_plus(lv_raw, rv()?),
-                    Value::Short(lv_raw) => eval_plus(lv_raw, rv()?),
-                    Value::Int(lv_raw) => eval_plus(lv_raw, rv()?),
-                    Value::Long(lv_raw) => eval_plus(lv_raw, rv()?),
-                    Value::BigInt(lv_raw) => eval_plus(lv_raw, rv()?),
-                    Value::UnsignedBigInt(lv_raw) => eval_plus(lv_raw, rv()?),
-                    _ => Err(EvalError::UnexpectedValue(format!(
-                        "expected BinOp::left to be numeric value, got {0:?}",
-                        lv
-                    ))),
-                },
-                ArithOp::Minus => match lv {
-                    Value::Byte(lv_raw) => eval_minus(lv_raw, rv()?),
-                    Value::Short(lv_raw) => eval_minus(lv_raw, rv()?),
-                    Value::Int(lv_raw) => eval_minus(lv_raw, rv()?),
-                    Value::Long(lv_raw) => eval_minus(lv_raw, rv()?),
-                    Value::BigInt(lv_raw) => eval_minus(lv_raw, rv()?),
-                    Value::UnsignedBigInt(lv_raw) => eval_minus(lv_raw, rv()?),
-                    _ => Err(EvalError::UnexpectedValue(format!(
-                        "expected BinOp::left to be numeric value, got {0:?}",
-                        lv
-                    ))),
-                },
-                ArithOp::Multiply => match lv {
-                    Value::Byte(lv_raw) => eval_mul(lv_raw, rv()?),
-                    Value::Short(lv_raw) => eval_mul(lv_raw, rv()?),
-                    Value::Int(lv_raw) => eval_mul(lv_raw, rv()?),
-                    Value::Long(lv_raw) => eval_mul(lv_raw, rv()?),
-                    Value::BigInt(lv_raw) => eval_mul(lv_raw, rv()?),
-                    Value::UnsignedBigInt(lv_raw) => eval_mul(lv_raw, rv()?),
-                    _ => Err(EvalError::UnexpectedValue(format!(
-                        "expected BinOp::left to be numeric value, got {0:?}",
-                        lv
-                    ))),
-                },
-                ArithOp::Divide => match lv {
-                    Value::Byte(lv_raw) => eval_div(lv_raw, rv()?),
-                    Value::Short(lv_raw) => eval_div(lv_raw, rv()?),
-                    Value::Int(lv_raw) => eval_div(lv_raw, rv()?),
-                    Value::Long(lv_raw) => eval_div(lv_raw, rv()?),
-                    // MIN / -1  can actually overflow
-                    Value::BigInt(lv_raw) => eval_div(lv_raw, rv()?),
-                    Value::UnsignedBigInt(lv_raw) => eval_div(lv_raw, rv()?),
-                    _ => Err(EvalError::UnexpectedValue(format!(
-                        "expected BinOp::left to be numeric value, got {0:?}",
-                        lv
-                    ))),
-                },
-                ArithOp::Max => match lv {
-                    Value::Byte(lv_raw) => eval_max(lv_raw, rv()?),
-                    Value::Short(lv_raw) => eval_max(lv_raw, rv()?),
-                    Value::Int(lv_raw) => eval_max(lv_raw, rv()?),
-                    Value::Long(lv_raw) => eval_max(lv_raw, rv()?),
-                    Value::BigInt(lv_raw) => eval_max(lv_raw, rv()?),
-                    Value::UnsignedBigInt(lv_raw) => eval_max(lv_raw, rv()?),
-                    _ => Err(EvalError::UnexpectedValue(format!(
-                        "expected BinOp::left to be numeric value, got {0:?}",
-                        lv
-                    ))),
-                },
-                ArithOp::Min => match lv {
-                    Value::Byte(lv_raw) => eval_min(lv_raw, rv()?),
-                    Value::Short(lv_raw) => eval_min(lv_raw, rv()?),
-                    Value::Int(lv_raw) => eval_min(lv_raw, rv()?),
-                    Value::Long(lv_raw) => eval_min(lv_raw, rv()?),
-                    Value::BigInt(lv_raw) => eval_min(lv_raw, rv()?),
-                    Value::UnsignedBigInt(lv_raw) => eval_min(lv_raw, rv()?),
-                    _ => Err(EvalError::UnexpectedValue(format!(
-                        "expected BinOp::left to be numeric value, got {0:?}",
-                        lv
-                    ))),
-                },
-                ArithOp::Modulo => match lv {
-                    Value::Byte(lv_raw) => eval_mod(lv_raw, rv()?),
-                    Value::Short(lv_raw) => eval_mod(lv_raw, rv()?),
-                    Value::Int(lv_raw) => eval_mod(lv_raw, rv()?),
-                    Value::Long(lv_raw) => eval_mod(lv_raw, rv()?),
-                    Value::BigInt(lv_raw) => eval_mod(lv_raw, rv()?),
-                    Value::UnsignedBigInt(lv_raw) => eval_mod(lv_raw, rv()?),
-                    _ => Err(EvalError::UnexpectedValue(format!(
-                        "expected BinOp::left to be numeric value, got {0:?}",
-                        lv
-                    ))),
-                },
-            },
+            BinOpKind::Arith(op) => {
+                // Charge type-based arithmetic cost before dispatching
+                let arith_cost = match op {
+                    ArithOp::Plus | ArithOp::Minus => costs::ARITH_PLUS_MINUS_COST,
+                    ArithOp::Multiply | ArithOp::Divide | ArithOp::Modulo => {
+                        costs::ARITH_MUL_DIV_MOD_COST
+                    }
+                    ArithOp::Max | ArithOp::Min => costs::ARITH_MIN_MAX_COST,
+                };
+                charge_type_based_cost(&lv, ctx, arith_cost)?;
+                match op {
+                    ArithOp::Plus => match lv {
+                        Value::Byte(lv_raw) => eval_plus(lv_raw, rv()?),
+                        Value::Short(lv_raw) => eval_plus(lv_raw, rv()?),
+                        Value::Int(lv_raw) => eval_plus(lv_raw, rv()?),
+                        Value::Long(lv_raw) => eval_plus(lv_raw, rv()?),
+                        Value::BigInt(lv_raw) => eval_plus(lv_raw, rv()?),
+                        Value::UnsignedBigInt(lv_raw) => eval_plus(lv_raw, rv()?),
+                        _ => Err(EvalError::UnexpectedValue(format!(
+                            "expected BinOp::left to be numeric value, got {0:?}",
+                            lv
+                        ))),
+                    },
+                    ArithOp::Minus => match lv {
+                        Value::Byte(lv_raw) => eval_minus(lv_raw, rv()?),
+                        Value::Short(lv_raw) => eval_minus(lv_raw, rv()?),
+                        Value::Int(lv_raw) => eval_minus(lv_raw, rv()?),
+                        Value::Long(lv_raw) => eval_minus(lv_raw, rv()?),
+                        Value::BigInt(lv_raw) => eval_minus(lv_raw, rv()?),
+                        Value::UnsignedBigInt(lv_raw) => eval_minus(lv_raw, rv()?),
+                        _ => Err(EvalError::UnexpectedValue(format!(
+                            "expected BinOp::left to be numeric value, got {0:?}",
+                            lv
+                        ))),
+                    },
+                    ArithOp::Multiply => match lv {
+                        Value::Byte(lv_raw) => eval_mul(lv_raw, rv()?),
+                        Value::Short(lv_raw) => eval_mul(lv_raw, rv()?),
+                        Value::Int(lv_raw) => eval_mul(lv_raw, rv()?),
+                        Value::Long(lv_raw) => eval_mul(lv_raw, rv()?),
+                        Value::BigInt(lv_raw) => eval_mul(lv_raw, rv()?),
+                        Value::UnsignedBigInt(lv_raw) => eval_mul(lv_raw, rv()?),
+                        _ => Err(EvalError::UnexpectedValue(format!(
+                            "expected BinOp::left to be numeric value, got {0:?}",
+                            lv
+                        ))),
+                    },
+                    ArithOp::Divide => match lv {
+                        Value::Byte(lv_raw) => eval_div(lv_raw, rv()?),
+                        Value::Short(lv_raw) => eval_div(lv_raw, rv()?),
+                        Value::Int(lv_raw) => eval_div(lv_raw, rv()?),
+                        Value::Long(lv_raw) => eval_div(lv_raw, rv()?),
+                        // MIN / -1  can actually overflow
+                        Value::BigInt(lv_raw) => eval_div(lv_raw, rv()?),
+                        Value::UnsignedBigInt(lv_raw) => eval_div(lv_raw, rv()?),
+                        _ => Err(EvalError::UnexpectedValue(format!(
+                            "expected BinOp::left to be numeric value, got {0:?}",
+                            lv
+                        ))),
+                    },
+                    ArithOp::Max => match lv {
+                        Value::Byte(lv_raw) => eval_max(lv_raw, rv()?),
+                        Value::Short(lv_raw) => eval_max(lv_raw, rv()?),
+                        Value::Int(lv_raw) => eval_max(lv_raw, rv()?),
+                        Value::Long(lv_raw) => eval_max(lv_raw, rv()?),
+                        Value::BigInt(lv_raw) => eval_max(lv_raw, rv()?),
+                        Value::UnsignedBigInt(lv_raw) => eval_max(lv_raw, rv()?),
+                        _ => Err(EvalError::UnexpectedValue(format!(
+                            "expected BinOp::left to be numeric value, got {0:?}",
+                            lv
+                        ))),
+                    },
+                    ArithOp::Min => match lv {
+                        Value::Byte(lv_raw) => eval_min(lv_raw, rv()?),
+                        Value::Short(lv_raw) => eval_min(lv_raw, rv()?),
+                        Value::Int(lv_raw) => eval_min(lv_raw, rv()?),
+                        Value::Long(lv_raw) => eval_min(lv_raw, rv()?),
+                        Value::BigInt(lv_raw) => eval_min(lv_raw, rv()?),
+                        Value::UnsignedBigInt(lv_raw) => eval_min(lv_raw, rv()?),
+                        _ => Err(EvalError::UnexpectedValue(format!(
+                            "expected BinOp::left to be numeric value, got {0:?}",
+                            lv
+                        ))),
+                    },
+                    ArithOp::Modulo => match lv {
+                        Value::Byte(lv_raw) => eval_mod(lv_raw, rv()?),
+                        Value::Short(lv_raw) => eval_mod(lv_raw, rv()?),
+                        Value::Int(lv_raw) => eval_mod(lv_raw, rv()?),
+                        Value::Long(lv_raw) => eval_mod(lv_raw, rv()?),
+                        Value::BigInt(lv_raw) => eval_mod(lv_raw, rv()?),
+                        Value::UnsignedBigInt(lv_raw) => eval_mod(lv_raw, rv()?),
+                        _ => Err(EvalError::UnexpectedValue(format!(
+                            "expected BinOp::left to be numeric value, got {0:?}",
+                            lv
+                        ))),
+                    },
+                }
+            }
             BinOpKind::Bit(op) => match op {
                 BitOp::BitAnd => match lv {
                     Value::Byte(lv_raw) => eval_bit_op(lv_raw, rv()?, |l, r| l & r),

@@ -1,3 +1,5 @@
+use crate::eval::cost_accum::add_seq_cost;
+use crate::eval::costs;
 use crate::eval::env::Env;
 use crate::eval::Context;
 use crate::eval::EvalError;
@@ -58,6 +60,9 @@ impl Evaluable for SubstConstants {
             // Substitue constants with repeated calls to `ErgoTree::with_constant`.
             let mut ergo_tree = ErgoTree::sigma_parse_bytes(&b.as_vec_u8())?;
             let num_constants = ergo_tree.constants_len().map_err(to_misc_err)?;
+            // Charge based on template's constants count (matches Scala's
+            // addSeqCost which uses nConstants from ErgoTreeSerializer.substituteConstants)
+            add_seq_cost(ctx, costs::SUBST_CONSTANTS_COST, num_constants as u32)?;
             for (ix, i) in positions.iter().enumerate() {
                 if *i < num_constants {
                     ergo_tree = ergo_tree

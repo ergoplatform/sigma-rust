@@ -1,43 +1,40 @@
-use super::costs::{Cost, Costs};
-use ergotree_ir::mir::expr::Expr;
+//! Cost accumulator for JIT costing during ErgoTree evaluation.
+
+use ergotree_ir::chain::context::Context;
 use thiserror::Error;
 
-#[derive(Debug)]
-#[allow(dead_code)] // TODO: Reintroduce this type for JIT costing
-pub struct CostAccumulator {
-    costs: Costs,
-    accum: u64,
-    limit: Option<u64>,
-}
+use super::costs::{FixedCost, JitCost, PerItemCost};
 
+/// Errors arising from cost accumulation.
 #[derive(Error, PartialEq, Eq, Debug, Clone)]
 pub enum CostError {
-    #[error("Limit ({0}) exceeded")]
+    /// Evaluation cost exceeded the allowed limit.
+    #[error("Cost limit ({0}) exceeded")]
     LimitExceeded(u64),
 }
 
-#[allow(dead_code)] // TODO: Reintroduce this type for JIT costing
-impl CostAccumulator {
-    pub fn new(initial_cost: u64, cost_limit: Option<u64>) -> CostAccumulator {
-        CostAccumulator {
-            costs: Costs::DEFAULT,
-            accum: initial_cost,
-            limit: cost_limit,
+/// Add a raw JitCost to the context's cost accumulator.
+/// Returns CostError if the cost limit is exceeded.
+#[inline]
+pub fn add_cost(ctx: &Context, cost: JitCost) -> Result<(), CostError> {
+    let new_cost = ctx.jit_cost_accum.get() + cost.0 as u64;
+    if let Some(limit) = ctx.jit_cost_limit {
+        if new_cost > limit {
+            return Err(CostError::LimitExceeded(limit));
         }
     }
+    ctx.jit_cost_accum.set(new_cost);
+    Ok(())
+}
 
-    pub fn add_cost_of(&mut self, expr: &Expr) -> Result<(), CostError> {
-        let cost = self.costs.cost_of(expr);
-        self.add(cost)
-    }
+/// Charge a fixed cost to the context.
+#[inline]
+pub fn add_fixed_cost(ctx: &Context, cost: FixedCost) -> Result<(), CostError> {
+    add_cost(ctx, cost.0)
+}
 
-    pub fn add(&mut self, cost: Cost) -> Result<(), CostError> {
-        self.accum += u32::from(cost) as u64;
-        if let Some(limit) = self.limit {
-            if self.accum > limit {
-                return Err(CostError::LimitExceeded(limit));
-            }
-        }
-        Ok(())
-    }
+/// Charge a per-item cost to the context.
+#[inline]
+pub fn add_seq_cost(ctx: &Context, cost: PerItemCost, n_items: u32) -> Result<(), CostError> {
+    add_cost(ctx, cost.total_cost(n_items))
 }

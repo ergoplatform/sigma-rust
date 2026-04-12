@@ -10,9 +10,12 @@ use ergotree_ir::serialization::SigmaSerializable;
 use ergotree_ir::unsignedbigint256::UnsignedBigInt;
 use k256::Scalar;
 
+use super::cost_accum::add_fixed_cost;
+use super::costs;
 use super::EvalFn;
 
-pub(crate) static GET_ENCODED_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
+pub(crate) static GET_ENCODED_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
+    add_fixed_cost(ctx, costs::SGROUP_GET_ENCODED_COST)?;
     let encoded: Vec<u8> = match obj {
         Value::GroupElement(ec_point) => Ok(ec_point.sigma_serialize_bytes()?),
         _ => Err(EvalError::UnexpectedValue(format!(
@@ -24,7 +27,8 @@ pub(crate) static GET_ENCODED_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
     Ok(Value::from(encoded))
 };
 
-pub(crate) static NEGATE_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
+pub(crate) static NEGATE_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
+    add_fixed_cost(ctx, costs::SGROUP_NEGATE_COST)?;
     let negated: EcPoint = match obj {
         Value::GroupElement(ec_point) => Ok(-(*ec_point)),
         _ => Err(EvalError::UnexpectedValue(format!(
@@ -35,7 +39,8 @@ pub(crate) static NEGATE_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
     Ok(Value::GroupElement(Ref::from(negated)))
 };
 
-pub(crate) static EXPONENTIATE_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, mut args| {
+pub(crate) static EXPONENTIATE_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, mut args| {
+    add_fixed_cost(ctx, costs::EXPONENTIATE_COST)?;
     let bigint = args
         .pop()
         .ok_or_else(|| EvalError::UnexpectedValue("exponentiate: first argument not found".into()))?
@@ -43,7 +48,8 @@ pub(crate) static EXPONENTIATE_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, mut args
     crate::eval::exponentiate::exponentiate(obj.try_extract_into()?, bigint)
 };
 
-pub(crate) static MULTIPLY_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, mut args| {
+pub(crate) static MULTIPLY_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, mut args| {
+    add_fixed_cost(ctx, costs::MULTIPLY_GROUP_COST)?;
     let obj = obj.try_extract_into::<EcPoint>()?;
     let right = args
         .pop()
@@ -52,7 +58,8 @@ pub(crate) static MULTIPLY_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, mut args| {
     Ok((obj * &right).into())
 };
 
-pub(crate) static EXPONENTIATE_UNSIGNED_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, mut args| {
+pub(crate) static EXPONENTIATE_UNSIGNED_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, mut args| {
+    add_fixed_cost(ctx, costs::EXPONENTIATE_COST)?;
     let exponent: Scalar = args
         .pop()
         .ok_or_else(|| EvalError::UnexpectedValue("exponentiate: first argument not found".into()))?

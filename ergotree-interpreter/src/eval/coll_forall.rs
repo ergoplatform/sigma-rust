@@ -4,6 +4,8 @@ use ergotree_ir::mir::coll_forall::ForAll;
 use ergotree_ir::mir::constant::TryExtractInto;
 use ergotree_ir::mir::value::Value;
 
+use crate::eval::cost_accum::{add_fixed_cost, add_seq_cost};
+use crate::eval::costs;
 use crate::eval::env::Env;
 use crate::eval::Context;
 use crate::eval::EvalError;
@@ -26,6 +28,7 @@ impl Evaluable for ForAll {
                     )
                 })?;
                 let orig_val = env.get(func_arg.idx).cloned();
+                add_fixed_cost(ctx, costs::ADD_TO_ENV_COST)?;
                 env.insert(func_arg.idx, arg);
                 let res = func_value.body.eval(env, ctx);
                 if let Some(orig_val) = orig_val {
@@ -40,6 +43,11 @@ impl Evaluable for ForAll {
                 input_v_clone
             ))),
         };
+        let n_items = match &input_v {
+            Value::Coll(coll) => coll.as_vec().len() as u32,
+            _ => 0,
+        };
+        add_seq_cost(ctx, costs::FOR_ALL_COST, n_items)?;
         let normalized_input_vals: Vec<Value> = match input_v {
             Value::Coll(coll) => {
                 if coll.elem_tpe() != &*self.elem_tpe {
