@@ -15,6 +15,7 @@ use ergo_lib::chain::transaction::Transaction;
 use ergo_lib::wallet::signing::make_context;
 use ergo_lib::wallet::tx_context::TransactionContext;
 use ergotree_interpreter::eval::reduce_to_crypto;
+use ergotree_interpreter::sigma_protocol::crypto_cost::estimate_crypto_cost;
 use ergotree_interpreter::sigma_protocol::prover::ProofBytes;
 use ergotree_interpreter::sigma_protocol::verifier::verify_signature;
 use ergotree_ir::chain::ergo_box::ErgoBox;
@@ -66,33 +67,6 @@ fn decode_hex(hex: &str) -> Vec<u8> {
 }
 
 /// Recursive crypto cost estimate matching Scala's `estimateCryptoVerifyCost`.
-fn estimate_crypto_cost(sb: &SigmaBoolean) -> u64 {
-    match sb {
-        SigmaBoolean::TrivialProp(_) => 0,
-        SigmaBoolean::ProofOfKnowledge(pok) => match pok {
-            SigmaProofOfKnowledgeTree::ProveDlog(_) => 3980,
-            SigmaProofOfKnowledgeTree::ProveDhTuple(_) => 7140,
-        },
-        SigmaBoolean::SigmaConjecture(sc) => match sc {
-            SigmaConjecture::Cand(cand) => {
-                15 + cand.items.iter().map(estimate_crypto_cost).sum::<u64>()
-            }
-            SigmaConjecture::Cor(cor) => {
-                15 + cor.items.iter().map(estimate_crypto_cost).sum::<u64>()
-            }
-            SigmaConjecture::Cthreshold(ct) => {
-                // Scala: CostTable.perKBInputNode * n + CostTable.perKBCryptoNode * k
-                // where n = children.len, k = ct.k
-                // In practice: 15 * n + sum(children) ... but the Scala code is more complex
-                // For threshold: cost = k * 3980 + (n-k) * 3980 effectively = n * 3980
-                // Actually from Scala source, for Cthreshold:
-                //   cost = 15 * children.length + children.map(estimateCost).sum
-                15 * ct.children.len() as u64
-                    + ct.children.iter().map(estimate_crypto_cost).sum::<u64>()
-            }
-        },
-    }
-}
 
 /// Count token entries for a list of boxes (for init cost computation).
 /// Returns (total_entries, distinct_ids).

@@ -113,7 +113,7 @@ pub fn make_context<'ctx, T: ErgoTransaction>(
         tree_version: Default::default(),
         extension_provider: &tx_ctx.spending_tx,
         jit_cost_accum: Default::default(),
-        jit_cost_limit: Some(10_000_000), // MAX_BLOCK_COST(1M) * 10 (JIT scale)
+        jit_cost_limit: Some(state_ctx.parameters.max_block_cost() as u64 * 10),
     })
 }
 // Updates a Context, changing its self box and context extension to transaction.inputs[i]
