@@ -28,6 +28,7 @@ impl Evaluable for Map {
                     )
                 })?;
                 let orig_val = env.get(func_arg.idx).cloned();
+                ctx.add_jit_cost(5)?;
                 env.insert(func_arg.idx, arg);
                 let res = func_value.body.eval(env, ctx);
                 if let Some(orig_val) = orig_val {
