@@ -128,12 +128,19 @@ pub struct ReductionResult {
 
 /// Evaluate the given expression by reducing it to SigmaBoolean value.
 pub fn reduce_to_crypto(tree: &ErgoTree, ctx: &Context) -> Result<ReductionResult, EvalError> {
-    fn inner<'ctx>(expr: &'ctx Expr, ctx: &Context<'ctx>) -> Result<ReductionResult, EvalError> {
+    // Track cost as a delta from the caller's accumulator state so the per-call cost
+    // reported in ReductionResult stays meaningful while the ctx accumulator grows
+    // cumulatively across repeated reduce_to_crypto invocations on the same Context
+    // (required for per-tx jit_cost_limit enforcement — see tx_context::validate).
+    fn inner<'ctx>(
+        expr: &'ctx Expr,
+        ctx: &Context<'ctx>,
+        cost_before: u64,
+    ) -> Result<ReductionResult, EvalError> {
         let mut env_mut = Env::empty();
-        ctx.reset_jit_cost();
         expr.eval(&mut env_mut, ctx)
             .and_then(|v| -> Result<ReductionResult, EvalError> {
-                let cost = ctx.jit_cost_value() / 10; // convert JitCost to block cost
+                let cost = (ctx.jit_cost_value() - cost_before) / 10; // convert JitCost to block cost
                 match v {
                     Value::Boolean(b) => Ok(ReductionResult {
                         sigma_prop: SigmaBoolean::TrivialProp(b),
@@ -156,13 +163,14 @@ pub fn reduce_to_crypto(tree: &ErgoTree, ctx: &Context) -> Result<ReductionResul
             })
     }
 
+    let cost_before = ctx.jit_cost_value();
     let expr = tree.proposition()?;
     let expr = if tree.has_deserialize() {
         expr.substitute_deserialize(ctx)?
     } else {
         expr
     };
-    let res = inner(&expr, ctx);
+    let res = inner(&expr, ctx, cost_before);
     match res {
         Ok(reduction) => {
             if reduction.sigma_prop == SigmaBoolean::TrivialProp(false) {
@@ -186,7 +194,10 @@ pub fn reduce_to_crypto(tree: &ErgoTree, ctx: &Context) -> Result<ReductionResul
             let (spanned_expr, printed_expr_str) = expr
                 .pretty_print()
                 .map_err(|e| EvalError::Misc(e.to_string()))?;
-            inner(&spanned_expr, ctx)
+            // Roll the accumulator back to the pre-reduce state so the diagnostic
+            // retry doesn't double-count and can't spuriously trip jit_cost_limit.
+            ctx.jit_cost.set(cost_before);
+            inner(&spanned_expr, ctx, cost_before)
                 .map_err(|e| e.wrap_spanned_with_src(printed_expr_str.to_string()))
         }
     }

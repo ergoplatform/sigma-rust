@@ -149,11 +149,14 @@ impl TransactionContext<Transaction> {
         // This is usually the most expensive check so it's done last.
         let bytes_to_sign = self.spending_tx.bytes_to_sign()?;
         let mut context = make_context(state_context, self, 0)?;
-        // Set per-script cost limit: MaxBlockCost * 10 (convert block cost to JitCost scale)
+        // Per-tx cost budget: MaxBlockCost * 10 (block cost → JitCost scale). The
+        // accumulator on `context` is NOT reset between inputs, so this limit is
+        // enforced cumulatively across the whole tx — matching Scala's semantics.
+        // Resetting per-input would let an attacker bypass MaxBlockCost by splitting
+        // expensive work across many inputs.
         context.jit_cost_limit = Some(state_context.parameters.max_block_cost() as u64 * 10);
         let mut total_cost: u64 = 0;
         for input_idx in 0..self.spending_tx.inputs.len() {
-            context.reset_jit_cost();
             match verify_tx_input_proof(self, &mut context, state_context, input_idx, &bytes_to_sign)? {
                 res @ VerificationResult { result: false, .. } => {
                     return Err(TxValidationError::ReducedToFalse(input_idx, res));
@@ -658,6 +661,55 @@ mod test {
             match tx_context.validate(&state_context) {
                 Err(TxValidationError::ReducedToFalse(_, _)) => {},
                 other => panic!("Expected validation to fail, got {other:?}")
+            }
+        });
+    }
+    // Regression for S4 (JIT_COSTING_FIX_PLAN.md): validate() must enforce
+    // jit_cost_limit against cumulative per-tx cost, not per-input. Pre-fix, each
+    // input reset the accumulator, letting a tx whose inputs individually fit under
+    // the limit still exceed MaxBlockCost in aggregate. Build a tx of Const(true)
+    // inputs (5 JitCost each) and shrink max_block_cost to 1 (→ 10 JitCost limit):
+    // with ≥3 inputs cumulative (15+) overflows while each input alone stays under.
+    #[test]
+    fn test_validate_enforces_cumulative_jit_cost_across_inputs() {
+        use ergotree_interpreter::eval::EvalError;
+        use ergotree_interpreter::sigma_protocol::verifier::VerifierError;
+
+        let true_tree = ErgoTree::new(
+            ErgoTreeHeader::v0(true),
+            &Expr::Const(Constant {
+                tpe: ergotree_ir::types::stype::SType::SBoolean,
+                v: Literal::Boolean(true),
+            }),
+        )
+        .unwrap();
+        proptest!(|((boxes, tx) in valid_transaction_gen_with_tree(true_tree))| {
+            prop_assume!(tx.inputs.len() >= 3);
+
+            let mut state_context: ErgoStateContext = force_any_val();
+            let tx_context = TransactionContext::new(tx.clone(), boxes.clone(), vec![]).unwrap();
+            // Baseline: tx must validate cleanly with default params, otherwise the
+            // sample failed for non-cost-related reasons — skip.
+            prop_assume!(tx_context.validate(&state_context).is_ok());
+
+            // Shrink MaxBlockCost to 1 (→ 10 JitCost limit). Each Const(true) input
+            // costs 5 JitCost; 3+ inputs must trip the cumulative limit check.
+            state_context.parameters = crate::chain::parameters::Parameters::new(
+                1, 1_250_000, 360, 512 * 1024, 1, 100, 2000, 100, 100,
+            );
+            let tx_context = TransactionContext::new(tx, boxes, vec![]).unwrap();
+            match tx_context.validate(&state_context) {
+                Err(TxValidationError::VerifierError(_, verr)) => {
+                    let is_cost = match &verr {
+                        VerifierError::EvalError(EvalError::CostError(_)) => true,
+                        VerifierError::EvalError(EvalError::Spanned(e)) => {
+                            matches!(*e.error, EvalError::CostError(_))
+                        }
+                        _ => false,
+                    };
+                    prop_assert!(is_cost, "expected CostError, got {verr:?}");
+                }
+                other => panic!("expected cost-limit rejection, got {other:?}"),
             }
         });
     }
