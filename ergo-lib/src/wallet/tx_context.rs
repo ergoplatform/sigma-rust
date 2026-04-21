@@ -6,17 +6,22 @@ use hashbrown::HashMap;
 
 use crate::chain::ergo_state_context::ErgoStateContext;
 use crate::chain::transaction::ergo_transaction::{ErgoTransaction, TxValidationError};
-use crate::chain::transaction::{verify_tx_input_proof, Transaction, TransactionError};
+use crate::chain::transaction::storage_rent::try_spend_storage_rent;
+use crate::chain::transaction::{Transaction, TransactionError};
 use crate::ergotree_ir::chain::ergo_box::BoxId;
-use ergotree_interpreter::sigma_protocol::verifier::VerificationResult;
-use ergotree_ir::chain::context::TxIoVec;
+use ergotree_interpreter::eval::{reduce_to_crypto, EvalError};
+use ergotree_interpreter::sigma_protocol::crypto_cost::estimate_crypto_cost;
+use ergotree_interpreter::sigma_protocol::verifier::{
+    verify_signature, VerificationResult, VerifierError,
+};
+use ergotree_ir::chain::context::{CostLimitExceeded, TxIoVec};
 use ergotree_ir::chain::ergo_box::box_value::BoxValue;
 use ergotree_ir::chain::ergo_box::{BoxTokens, ErgoBox};
 use ergotree_ir::chain::token::{TokenAmount, TokenId};
 use ergotree_ir::serialization::SigmaSerializable;
 use thiserror::Error;
 
-use super::signing::make_context;
+use super::signing::{make_context, update_context};
 
 /// Transaction and an additional info required for signing or verification
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -157,14 +162,61 @@ impl TransactionContext<Transaction> {
         context.jit_cost_limit = Some(state_context.parameters.max_block_cost() as u64 * 10);
         let mut total_cost: u64 = 0;
         for input_idx in 0..self.spending_tx.inputs.len() {
-            match verify_tx_input_proof(self, &mut context, state_context, input_idx, &bytes_to_sign)? {
-                res @ VerificationResult { result: false, .. } => {
-                    return Err(TxValidationError::ReducedToFalse(input_idx, res));
-                }
-                VerificationResult { cost, .. } => {
-                    total_cost += cost;
-                }
+            update_context(&mut context, self, input_idx)?;
+            let input = self
+                .spending_tx
+                .inputs
+                .get(input_idx)
+                .ok_or(TransactionContextError::InputBoxNotFound(input_idx))?;
+            let input_box = self
+                .get_input_box(&input.box_id)
+                .ok_or(TransactionContextError::InputBoxNotFound(input_idx))?;
+
+            // Storage rent bypass: consensus-exempted from script eval + sigma verification.
+            if try_spend_storage_rent(input, input_box, state_context, &context).is_some() {
+                continue;
             }
+
+            // Reduce the ErgoTree to a SigmaBoolean. Eval cost accumulates on the
+            // shared `context.jit_cost` so the limit check fires if cumulative
+            // per-tx JIT cost overflows MaxBlockCost*10 (see gap S4 above).
+            let reduction = reduce_to_crypto(&input_box.ergo_tree, &context)
+                .map_err(|e| TxValidationError::VerifierError(input_idx, e.into()))?;
+
+            // Charge sigma-protocol verification cost through the same shared
+            // accumulator (gap S3). `estimate_crypto_cost` is u64 while
+            // `add_jit_cost` takes u32; realistic sigma props stay well under
+            // u32::MAX but we surface any overflow as a CostLimitExceeded.
+            let crypto_cost_jit = estimate_crypto_cost(&reduction.sigma_prop);
+            let crypto_cost_u32 = u32::try_from(crypto_cost_jit).map_err(|_| {
+                let limit = context.jit_cost_limit.unwrap_or(u64::MAX);
+                TxValidationError::VerifierError(
+                    input_idx,
+                    VerifierError::EvalError(EvalError::from(CostLimitExceeded(limit))),
+                )
+            })?;
+            context.add_jit_cost(crypto_cost_u32).map_err(|e| {
+                TxValidationError::VerifierError(input_idx, VerifierError::EvalError(e.into()))
+            })?;
+
+            let verified = verify_signature(
+                reduction.sigma_prop.clone(),
+                &bytes_to_sign,
+                input.spending_proof.proof.as_ref(),
+            )
+            .map_err(|e| TxValidationError::VerifierError(input_idx, e))?;
+            if !verified {
+                return Err(TxValidationError::ReducedToFalse(
+                    input_idx,
+                    VerificationResult {
+                        result: false,
+                        cost: reduction.cost,
+                        diag: reduction.diag,
+                    },
+                ));
+            }
+
+            total_cost += reduction.cost + (crypto_cost_jit / 10);
         }
         Ok(total_cost)
     }
