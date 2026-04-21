@@ -1354,7 +1354,7 @@ fn is_collectible(expr: &Expr) -> bool {
 /// NOT shared (each source occurrence → separate graph symbol):
 /// - `BinOp(Eq/NEq)`: `Equals[A: Elem]()` creates non-singleton instances
 /// - `ExtractAmount` (box.value): separate MethodCall per occurrence
-/// - `ExtractRegisterAs` (box.R4[T]): separate MethodCall per occurrence
+/// - `ExtractRegisterAs` (`box.R4[T]`): separate MethodCall per occurrence
 /// - `ExtractScriptBytes` (box.propositionBytes): separate MethodCall per occurrence
 /// - `ExtractBytes`, `ExtractId`, `ExtractCreationInfo`: same
 /// - `OptionGet` (opt.get): separate per occurrence

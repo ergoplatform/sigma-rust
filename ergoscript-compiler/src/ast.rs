@@ -262,7 +262,7 @@ impl FuncCall {
         self.0.children().filter_map(Expr::cast).skip(1).collect()
     }
 
-    /// Returns type arg string from [Type] brackets, e.g. "Byte" from Coll[Byte](...)
+    /// Returns type arg string from `[Type]` brackets, e.g. "Byte" from `Coll[Byte](...)`
     pub fn type_arg_string(&self) -> Option<String> {
         let mut depth = 0;
         let mut result = String::new();
@@ -413,7 +413,7 @@ impl FieldAccess {
         ))
     }
 
-    /// Returns the complete type string between [ and ], e.g. "Long", "Coll[Byte]", "(Long, Long)"
+    /// Returns the complete type string between `[` and `]`, e.g. "Long", `Coll[Byte]`, "(Long, Long)"
     pub fn type_arg_string(&self) -> Option<String> {
         let mut depth = 0;
         let mut result = String::new();
@@ -460,7 +460,7 @@ pub struct Lambda(SyntaxNode);
 
 impl Lambda {
     /// Returns (name, type_string) pairs for each parameter.
-    /// Type strings may be compound: "Box", "Coll[Byte]", "(Coll[Byte],Long)"
+    /// Type strings may be compound: "Box", `Coll[Byte]`, `(Coll[Byte],Long)`
     pub fn params(&self) -> Vec<(String, String)> {
         let mut params = Vec::new();
         let tokens: Vec<_> = self

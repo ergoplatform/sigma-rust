@@ -438,7 +438,7 @@ pub fn parse_type_name(name: &str) -> Option<SType> {
     }
 }
 
-/// Parse a compound type string like "Long", "Coll[Byte]", "(Long,Long)", "(Coll[Byte],Long)"
+/// Parse a compound type string like "Long", `Coll[Byte]`, "(Long,Long)", `(Coll[Byte],Long)`
 pub fn parse_type_str(s: &str) -> Option<SType> {
     let s = s.trim();
     if s.starts_with('(') && s.ends_with(')') {

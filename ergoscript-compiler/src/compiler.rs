@@ -485,7 +485,7 @@ mod tests {
 
     #[test]
     fn test_session6_from_base16() {
-        let result = compile_expr(
+        let _result = compile_expr(
             r#"{ val x: Coll[Byte] = fromBase16("deadbeef"); sigmaProp(x.size > 0) }"#,
             ScriptEnv::new(),
         );
@@ -3018,7 +3018,7 @@ mod tests {
                 .unwrap_or_else(|e| panic!("{}: compile failed: {:?}", name, e));
 
             let bytes = result.tree.sigma_serialize_bytes().unwrap();
-            let hex: String = bytes.iter().map(|b| format!("{:02x}", b)).collect();
+            let _hex: String = bytes.iter().map(|b| format!("{:02x}", b)).collect();
 
             match result.matched {
                 Some(true) => eprintln!("  {} ({} bytes): LOCAL MATCH", name, bytes.len()),

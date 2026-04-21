@@ -389,7 +389,7 @@ fn is_lambda_start(p: &Parser) -> bool {
     tokens[i].kind == TokenKind::Colon
 }
 
-/// Parse a type expression: Ident, Ident[Type], or (Type, Type, ...)
+/// Parse a type expression: Ident, `Ident[Type]`, or (Type, Type, ...)
 pub(super) fn parse_type(p: &mut Parser) {
     if p.at(TokenKind::LParen) {
         // Tuple type: (Type, Type, ...)
