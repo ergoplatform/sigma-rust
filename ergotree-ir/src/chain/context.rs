@@ -79,6 +79,21 @@ impl<'ctx> Context<'ctx> {
         Ok(())
     }
 
+    /// Add a u64 JIT cost and check the limit. Saturating addition prevents
+    /// accumulator wraparound on pathological inputs. Use this when a single
+    /// cost contribution may exceed u32::MAX (e.g., per-tx init cost for txs
+    /// with many inputs/tokens). Per-opcode costs should keep using `add_jit_cost`.
+    pub fn add_jit_cost_u64(&self, amount: u64) -> Result<(), CostLimitExceeded> {
+        let new = self.jit_cost.get().saturating_add(amount);
+        self.jit_cost.set(new);
+        if let Some(limit) = self.jit_cost_limit {
+            if new > limit {
+                return Err(CostLimitExceeded(limit));
+            }
+        }
+        Ok(())
+    }
+
     /// Add per-item JIT cost: base + ceil(n_items / chunk_size) * per_chunk
     pub fn add_per_item_jit_cost(
         &self,

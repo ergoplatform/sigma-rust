@@ -5,6 +5,7 @@ use hashbrown::hash_map::Entry;
 use hashbrown::HashMap;
 
 use crate::chain::ergo_state_context::ErgoStateContext;
+use crate::chain::parameters::Parameters;
 use crate::chain::transaction::ergo_transaction::{ErgoTransaction, TxValidationError};
 use crate::chain::transaction::storage_rent::try_spend_storage_rent;
 use crate::chain::transaction::{Transaction, TransactionError};
@@ -104,6 +105,45 @@ impl<T: ErgoTransaction> TransactionContext<T> {
     }
 }
 
+/// Fixed JIT cost (in block-cost units) charged once per transaction for interpreter
+/// initialization, matching Scala's `interpreterInitCost`.
+pub(crate) const INTERPRETER_INIT_COST: u64 = 10_000;
+
+/// Count (total_entries, distinct_token_count) across the given boxes' token sets.
+fn count_tokens(boxes: &[ErgoBox]) -> (u64, u64) {
+    let mut total_entries = 0u64;
+    let mut distinct: hashbrown::HashSet<TokenId> = hashbrown::HashSet::new();
+    for b in boxes {
+        for t in b.tokens.iter().flatten() {
+            total_entries += 1;
+            distinct.insert(t.token_id);
+        }
+    }
+    (total_entries, distinct.len() as u64)
+}
+
+/// Per-tx init cost in block-cost units. Port of PR 846's `compute_tx_init_cost`,
+/// which was validated against 19,549 mainnet txs and matches Scala's
+/// `ErgoTransaction.computeInitiationCost`.
+fn compute_tx_init_cost(
+    tx: &Transaction,
+    boxes_to_spend: &[ErgoBox],
+    parameters: &Parameters,
+) -> u64 {
+    let n_data_inputs = tx.data_inputs.as_ref().map_or(0, |d| d.len()) as u64;
+    let structural = INTERPRETER_INIT_COST
+        + tx.inputs.len() as u64 * parameters.input_cost() as u64
+        + n_data_inputs * parameters.data_input_cost() as u64
+        + tx.outputs.len() as u64 * parameters.output_cost() as u64;
+
+    let (in_entries, in_distinct) = count_tokens(boxes_to_spend);
+    let (out_entries, out_distinct) = count_tokens(tx.outputs.as_slice());
+    let token_cost = (in_entries + out_entries + in_distinct + out_distinct)
+        * parameters.token_access_cost() as u64;
+
+    structural + token_cost
+}
+
 impl TransactionContext<Transaction> {
     /// Verify transaction using blockchain parameters.
     /// Returns the total accumulated script evaluation cost (in block cost units).
@@ -160,7 +200,23 @@ impl TransactionContext<Transaction> {
         // Resetting per-input would let an attacker bypass MaxBlockCost by splitting
         // expensive work across many inputs.
         context.jit_cost_limit = Some(state_context.parameters.max_block_cost() as u64 * 10);
-        let mut total_cost: u64 = 0;
+
+        // Charge per-tx init cost (gaps S1 + S2): interpreter baseline + per-input,
+        // per-data-input, per-output, per-token structural costs. Goes into the
+        // shared accumulator before per-input work so subsequent add_jit_cost calls
+        // still see the correct cumulative floor. Reject upfront if init alone
+        // exceeds the tx budget — we can't honestly blame any specific input.
+        let init_cost_block = compute_tx_init_cost(
+            &self.spending_tx,
+            self.boxes_to_spend.as_slice(),
+            &state_context.parameters,
+        );
+        let init_cost_jit = init_cost_block.saturating_mul(10);
+        context
+            .add_jit_cost_u64(init_cost_jit)
+            .map_err(|_| TxValidationError::InitCostExceeded(init_cost_jit))?;
+
+        let mut total_cost: u64 = init_cost_block;
         for input_idx in 0..self.spending_tx.inputs.len() {
             update_context(&mut context, self, input_idx)?;
             let input = self
@@ -719,9 +775,11 @@ mod test {
     // Regression for S4 (JIT_COSTING_FIX_PLAN.md): validate() must enforce
     // jit_cost_limit against cumulative per-tx cost, not per-input. Pre-fix, each
     // input reset the accumulator, letting a tx whose inputs individually fit under
-    // the limit still exceed MaxBlockCost in aggregate. Build a tx of Const(true)
-    // inputs (5 JitCost each) and shrink max_block_cost to 1 (→ 10 JitCost limit):
-    // with ≥3 inputs cumulative (15+) overflows while each input alone stays under.
+    // the limit still exceed MaxBlockCost in aggregate. Use Const(true) inputs
+    // (5 JitCost each, TrivialProp → 0 crypto cost) and zero-out structural
+    // Parameters so init cost reduces to the fixed INTERPRETER_INIT_COST baseline;
+    // then tune max_block_cost so cumulative eval (init + 2 × 5) fits and
+    // (init + 3 × 5) overflows the per-tx budget.
     #[test]
     fn test_validate_enforces_cumulative_jit_cost_across_inputs() {
         use ergotree_interpreter::eval::EvalError;
@@ -744,10 +802,15 @@ mod test {
             // sample failed for non-cost-related reasons — skip.
             prop_assume!(tx_context.validate(&state_context).is_ok());
 
-            // Shrink MaxBlockCost to 1 (→ 10 JitCost limit). Each Const(true) input
-            // costs 5 JitCost; 3+ inputs must trip the cumulative limit check.
+            // Zero out structural Parameters so compute_tx_init_cost reduces to the
+            // fixed INTERPRETER_INIT_COST regardless of tx shape, then size the
+            // budget to exactly the 3rd-input overflow boundary.
+            const PER_INPUT_JIT: u64 = 5; // Const(true) = Constant(5) per eval.rs:552
+            let init_jit = super::INTERPRETER_INIT_COST * 10;
+            let limit_jit = init_jit + 2 * PER_INPUT_JIT; // 2 inputs fit, 3 overflow
+            let mbc = i32::try_from(limit_jit / 10).unwrap();
             state_context.parameters = crate::chain::parameters::Parameters::new(
-                1, 1_250_000, 360, 512 * 1024, 1, 100, 2000, 100, 100,
+                1, 1_250_000, 360, 512 * 1024, mbc, 0, 0, 0, 0,
             );
             let tx_context = TransactionContext::new(tx, boxes, vec![]).unwrap();
             match tx_context.validate(&state_context) {
