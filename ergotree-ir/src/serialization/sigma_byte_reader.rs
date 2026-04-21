@@ -3,9 +3,9 @@ use crate::ergo_tree::ErgoTreeVersion;
 
 use super::constant_store::ConstantStore;
 use super::val_def_type_store::ValDefTypeStore;
-use core2::io::Cursor;
-use core2::io::Read;
-use core2::io::Seek;
+use core3::io::Cursor;
+use core3::io::Read;
+use core3::io::Seek;
 use sigma_ser::vlq_encode::ReadSigmaVlqExt;
 
 /// Implementation of SigmaByteRead
@@ -74,14 +74,14 @@ pub trait SigmaByteRead: ReadSigmaVlqExt {
     fn set_deserialize(&mut self, has_deserialize: bool);
 
     /// Get position of reader in buffer. This is functionally equivalent to [`std::io::Seek::stream_position`] but redefined here so it can be used in no_std contexts
-    fn position(&mut self) -> core2::io::Result<u64> {
+    fn position(&mut self) -> core3::io::Result<u64> {
         #[cfg(feature = "std")]
         {
             <Self as Seek>::stream_position(self)
         }
         #[cfg(not(feature = "std"))]
         {
-            self.seek(core2::io::SeekFrom::Current(0))
+            self.seek(core3::io::SeekFrom::Current(0))
         }
     }
 
@@ -97,23 +97,23 @@ pub trait SigmaByteRead: ReadSigmaVlqExt {
 }
 
 impl<R: Read> Read for SigmaByteReader<R> {
-    fn read(&mut self, buf: &mut [u8]) -> core2::io::Result<usize> {
+    fn read(&mut self, buf: &mut [u8]) -> core3::io::Result<usize> {
         self.inner.read(buf)
     }
 }
 
 impl<R: Seek> Seek for SigmaByteReader<R> {
-    fn seek(&mut self, pos: core2::io::SeekFrom) -> core2::io::Result<u64> {
+    fn seek(&mut self, pos: core3::io::SeekFrom) -> core3::io::Result<u64> {
         self.inner.seek(pos)
     }
 
     #[cfg(feature = "std")]
-    fn rewind(&mut self) -> core2::io::Result<()> {
+    fn rewind(&mut self) -> core3::io::Result<()> {
         self.inner.rewind()
     }
 
     #[cfg(feature = "std")]
-    fn stream_position(&mut self) -> core2::io::Result<u64> {
+    fn stream_position(&mut self) -> core3::io::Result<u64> {
         self.inner.stream_position()
     }
 }

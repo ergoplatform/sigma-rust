@@ -73,13 +73,13 @@ mod tests {
             vec![TokenKind::Equals],
             Some(TokenKind::Ident),
             10..20,
-            "error: expected ‘=’, but found identifier",
+            "error: expected '=', but found identifier",
         );
     }
 
     #[test]
     fn one_expected_did_not_find() {
-        check(vec![TokenKind::RParen], None, 5..6, "error: expected ‘)’");
+        check(vec![TokenKind::RParen], None, 5..6, "error: expected ')'");
     }
 
     #[test]
@@ -88,7 +88,7 @@ mod tests {
             vec![TokenKind::Plus, TokenKind::Minus],
             Some(TokenKind::Equals),
             0..1,
-            "error: expected ‘+’ or ‘-’, but found ‘=’",
+            "error: expected '+' or '-', but found '='",
         );
     }
 
@@ -103,7 +103,7 @@ mod tests {
             ],
             Some(TokenKind::ValKw),
             100..105,
-            "error: expected number, identifier, ‘-’ or ‘(’, but found ‘val’",
+            "error: expected number, identifier, '-' or '(', but found 'val'",
         );
     }
 }

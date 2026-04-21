@@ -2,7 +2,7 @@
 use crate::ergo_tree::ErgoTreeVersion;
 
 use super::constant_store::ConstantStore;
-use core2::io::Write;
+use core3::io::Write;
 use sigma_ser::vlq_encode::WriteSigmaVlqExt;
 
 /// Implementation for SigmaByteWrite
@@ -39,11 +39,11 @@ pub trait SigmaByteWrite: WriteSigmaVlqExt {
 }
 
 impl<'a, W: Write> Write for SigmaByteWriter<'a, W> {
-    fn write(&mut self, buf: &[u8]) -> core2::io::Result<usize> {
+    fn write(&mut self, buf: &[u8]) -> core3::io::Result<usize> {
         self.inner.write(buf)
     }
 
-    fn flush(&mut self) -> core2::io::Result<()> {
+    fn flush(&mut self) -> core3::io::Result<()> {
         self.inner.flush()
     }
 }

@@ -24,7 +24,7 @@ use proptest_derive::Arbitrary;
 pub struct ValId(pub u32);
 
 impl ValId {
-    pub(crate) fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> core2::io::Result<()> {
+    pub(crate) fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> core3::io::Result<()> {
         w.put_u32(self.0)
     }
 

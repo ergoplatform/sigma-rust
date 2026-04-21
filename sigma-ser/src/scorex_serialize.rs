@@ -3,8 +3,8 @@ use alloc::string::ToString;
 use alloc::vec::Vec;
 use alloc::{string::String, vec};
 use core::convert::TryInto;
-use core2::io;
-use core2::io::Cursor;
+use core3::io;
+use core3::io::Cursor;
 
 use crate::vlq_encode;
 use crate::vlq_encode::*;

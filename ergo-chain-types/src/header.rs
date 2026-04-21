@@ -5,7 +5,7 @@ use crate::autolykos_pow_scheme::{
 use crate::{ADDigest, BlockId, Digest32, EcPoint};
 use alloc::boxed::Box;
 use alloc::vec::Vec;
-use core2::io::Write;
+use core3::io::Write;
 use num_bigint::{BigUint, ToBigInt};
 use sigma_ser::vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt};
 use sigma_ser::{

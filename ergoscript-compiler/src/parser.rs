@@ -105,6 +105,12 @@ impl<'t, 'input> Parser<'t, 'input> {
     fn peek(&mut self) -> Option<TokenKind> {
         self.source.peek_kind()
     }
+
+    /// Check if there was a newline in the trivia just before the current token position.
+    /// Call after p.at() / p.peek() which consume trivia.
+    fn had_newline(&self) -> bool {
+        self.source.newline_before_current()
+    }
 }
 
 #[cfg(test)]

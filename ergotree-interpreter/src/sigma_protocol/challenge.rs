@@ -37,12 +37,12 @@ impl Challenge {
         FiatShamirHash::try_from(res.as_slice()).unwrap().into()
     }
 
-    pub fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), core2::io::Error> {
+    pub fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), core3::io::Error> {
         w.write_all(self.0 .0.as_ref())?;
         Ok(())
     }
 
-    pub fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, core2::io::Error> {
+    pub fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, core3::io::Error> {
         let mut chal_bytes: [u8; super::SOUNDNESS_BYTES] = [0; super::SOUNDNESS_BYTES];
         r.read_exact(&mut chal_bytes)?;
         Ok(Challenge::from(FiatShamirHash(Box::new(chal_bytes))))

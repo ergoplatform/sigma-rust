@@ -18,7 +18,7 @@ use alloc::vec::Vec;
 use bounded_vec::BoundedVec;
 use bounded_vec::BoundedVecOutOfBounds;
 use core::convert::TryInto;
-use core2::io;
+use core3::io;
 use io::Cursor;
 use sigma_ser::{vlq_encode, ScorexParsingError, ScorexSerializationError};
 use thiserror::Error;

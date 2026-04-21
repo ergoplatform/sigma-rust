@@ -33,7 +33,7 @@ pub struct ErgoTreeHeader {
 
 impl ErgoTreeHeader {
     /// Serialization
-    pub fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), core2::io::Error> {
+    pub fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), core3::io::Error> {
         w.put_u8(self.serialized())
     }
     /// Deserialization

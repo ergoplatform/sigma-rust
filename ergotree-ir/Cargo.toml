@@ -39,7 +39,7 @@ strum = { version = "0.27.2", default-features = false, features = ["derive"] }
 strum_macros = { version = "0.27.2", default-features = false }
 miette = { workspace = true, optional = true }
 hashbrown = { workspace = true }
-core2 = { workspace = true }
+core3 = { workspace = true }
 foldhash = { version = "0.2.0", default-features = false }
 [features]
 default = ["json", "std"]
@@ -52,7 +52,7 @@ json = [
     "ergo-chain-types/json",
     "indexmap/serde",
 ]
-std = ["core2/std", "dep:miette", "ergo-chain-types/std", "sigma-ser/std"]
+std = ["core3/std", "dep:miette", "ergo-chain-types/std", "sigma-ser/std"]
 
 [dev-dependencies]
 sigma-test-util = { workspace = true }

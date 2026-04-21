@@ -14,14 +14,29 @@ pub enum TokenKind {
     #[token("val")]
     ValKw,
 
-    #[regex("[A-Za-z][A-Za-z0-9]*")]
+    #[token("true")]
+    TrueKw,
+
+    #[token("false")]
+    FalseKw,
+
+    #[token("if")]
+    IfKw,
+
+    #[token("else")]
+    ElseKw,
+
+    #[regex("[A-Za-z_][A-Za-z0-9_]*")]
     Ident,
+
+    #[regex("[0-9]+L")]
+    LongNumber,
 
     #[regex("[0-9]+")]
     IntNumber,
 
-    #[regex("[0-9]+L")]
-    LongNumber,
+    #[regex(r#""[^"]*""#)]
+    StringLiteral,
 
     #[token("+")]
     Plus,
@@ -35,11 +50,53 @@ pub enum TokenKind {
     #[token("/")]
     Slash,
 
+    #[token("%")]
+    Percent,
+
     #[token("&&")]
     And,
 
+    #[token("||")]
+    Or,
+
+    #[token("!")]
+    Bang,
+
+    #[token("==")]
+    EqEq,
+
+    #[token("!=")]
+    NotEq,
+
+    #[token(">=")]
+    GtEq,
+
+    #[token("<=")]
+    LtEq,
+
+    #[token(">")]
+    Gt,
+
+    #[token("<")]
+    Lt,
+
     #[token("=")]
     Equals,
+
+    #[token(".")]
+    Dot,
+
+    #[token("=>")]
+    Arrow,
+
+    #[token(":")]
+    Colon,
+
+    #[token(",")]
+    Comma,
+
+    #[token(";")]
+    Semicolon,
 
     #[token("(")]
     LParen,
@@ -52,6 +109,12 @@ pub enum TokenKind {
 
     #[token("}")]
     RBrace,
+
+    #[token("[")]
+    LBracket,
+
+    #[token("]")]
+    RBracket,
 
     #[regex("//.*")]
     Comment,
@@ -70,21 +133,42 @@ impl fmt::Display for TokenKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
             Self::Whitespace => "whitespace",
-            Self::FnKw => "‘def’",
-            Self::ValKw => "‘val’",
+            Self::FnKw => "'def'",
+            Self::ValKw => "'val'",
+            Self::TrueKw => "'true'",
+            Self::FalseKw => "'false'",
+            Self::IfKw => "'if'",
+            Self::ElseKw => "'else'",
             Self::Ident => "identifier",
             Self::IntNumber => "number",
             Self::LongNumber => "number",
-            Self::Plus => "‘+’",
-            Self::Minus => "‘-’",
-            Self::Star => "‘*’",
-            Self::Slash => "‘/’",
-            Self::And => "‘&&’",
-            Self::Equals => "‘=’",
-            Self::LParen => "‘(’",
-            Self::RParen => "‘)’",
-            Self::LBrace => "‘{’",
-            Self::RBrace => "‘}’",
+            Self::StringLiteral => "string",
+            Self::Plus => "'+'",
+            Self::Minus => "'-'",
+            Self::Star => "'*'",
+            Self::Slash => "'/'",
+            Self::Percent => "'%'",
+            Self::And => "'&&'",
+            Self::Or => "'||'",
+            Self::Bang => "'!'",
+            Self::EqEq => "'=='",
+            Self::NotEq => "'!='",
+            Self::GtEq => "'>='",
+            Self::LtEq => "'<='",
+            Self::Gt => "'>'",
+            Self::Lt => "'<'",
+            Self::Equals => "'='",
+            Self::Dot => "'.'",
+            Self::Arrow => "'=>'",
+            Self::Colon => "':'",
+            Self::Comma => "','",
+            Self::Semicolon => "';'",
+            Self::LParen => "'('",
+            Self::RParen => "')'",
+            Self::LBrace => "'{'",
+            Self::RBrace => "'}'",
+            Self::LBracket => "'['",
+            Self::RBracket => "']'",
             Self::Comment => "comment",
             Self::Error => "an unrecognized token",
         })
@@ -120,6 +204,26 @@ mod tests {
     }
 
     #[test]
+    fn lex_true_keyword() {
+        check("true", TokenKind::TrueKw);
+    }
+
+    #[test]
+    fn lex_false_keyword() {
+        check("false", TokenKind::FalseKw);
+    }
+
+    #[test]
+    fn lex_if_keyword() {
+        check("if", TokenKind::IfKw);
+    }
+
+    #[test]
+    fn lex_else_keyword() {
+        check("else", TokenKind::ElseKw);
+    }
+
+    #[test]
     fn lex_alphabetic_identifier() {
         check("abcd", TokenKind::Ident);
     }
@@ -145,6 +249,16 @@ mod tests {
     }
 
     #[test]
+    fn lex_long_number() {
+        check("123L", TokenKind::LongNumber);
+    }
+
+    #[test]
+    fn lex_string_literal() {
+        check(r#""hello""#, TokenKind::StringLiteral);
+    }
+
+    #[test]
     fn lex_plus() {
         check("+", TokenKind::Plus);
     }
@@ -165,8 +279,68 @@ mod tests {
     }
 
     #[test]
+    fn lex_and() {
+        check("&&", TokenKind::And);
+    }
+
+    #[test]
+    fn lex_or() {
+        check("||", TokenKind::Or);
+    }
+
+    #[test]
+    fn lex_bang() {
+        check("!", TokenKind::Bang);
+    }
+
+    #[test]
+    fn lex_eq_eq() {
+        check("==", TokenKind::EqEq);
+    }
+
+    #[test]
+    fn lex_not_eq() {
+        check("!=", TokenKind::NotEq);
+    }
+
+    #[test]
+    fn lex_gt_eq() {
+        check(">=", TokenKind::GtEq);
+    }
+
+    #[test]
+    fn lex_lt_eq() {
+        check("<=", TokenKind::LtEq);
+    }
+
+    #[test]
+    fn lex_gt() {
+        check(">", TokenKind::Gt);
+    }
+
+    #[test]
+    fn lex_lt() {
+        check("<", TokenKind::Lt);
+    }
+
+    #[test]
     fn lex_equals() {
         check("=", TokenKind::Equals);
+    }
+
+    #[test]
+    fn lex_dot() {
+        check(".", TokenKind::Dot);
+    }
+
+    #[test]
+    fn lex_colon() {
+        check(":", TokenKind::Colon);
+    }
+
+    #[test]
+    fn lex_comma() {
+        check(",", TokenKind::Comma);
     }
 
     #[test]
@@ -187,6 +361,16 @@ mod tests {
     #[test]
     fn lex_right_brace() {
         check("}", TokenKind::RBrace);
+    }
+
+    #[test]
+    fn lex_left_bracket() {
+        check("[", TokenKind::LBracket);
+    }
+
+    #[test]
+    fn lex_right_bracket() {
+        check("]", TokenKind::RBracket);
     }
 
     #[test]
