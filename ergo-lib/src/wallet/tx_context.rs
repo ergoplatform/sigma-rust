@@ -785,11 +785,21 @@ mod test {
         use ergotree_interpreter::eval::EvalError;
         use ergotree_interpreter::sigma_protocol::verifier::VerifierError;
 
+        // Non-segregated SigmaProp(TrivialProp(true)) tree: the proposition
+        // reduces via `trivial_reduce`, which charges exactly
+        // `EVAL_SIGMA_PROP_CONSTANT = 50` JitCost per input. 50 is a clean
+        // multiple of 10, so the JIT→block-cost round-trip in `Parameters`
+        // doesn't lose precision — critical for sizing the limit at the
+        // exact overflow boundary.
         let true_tree = ErgoTree::new(
-            ErgoTreeHeader::v0(true),
+            ErgoTreeHeader::v0(false),
             &Expr::Const(Constant {
-                tpe: ergotree_ir::types::stype::SType::SBoolean,
-                v: Literal::Boolean(true),
+                tpe: ergotree_ir::types::stype::SType::SSigmaProp,
+                v: Literal::SigmaProp(alloc::boxed::Box::new(
+                    ergotree_ir::sigma_protocol::sigma_boolean::SigmaProp::new(
+                        ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean::TrivialProp(true),
+                    ),
+                )),
             }),
         )
         .unwrap();
@@ -805,7 +815,7 @@ mod test {
             // Zero out structural Parameters so compute_tx_init_cost reduces to the
             // fixed INTERPRETER_INIT_COST regardless of tx shape, then size the
             // budget to exactly the 3rd-input overflow boundary.
-            const PER_INPUT_JIT: u64 = 5; // Const(true) = Constant(5) per eval.rs:552
+            const PER_INPUT_JIT: u64 = 50; // trivial_reduce charges EVAL_SIGMA_PROP_CONSTANT
             let init_jit = super::INTERPRETER_INIT_COST * 10;
             let limit_jit = init_jit + 2 * PER_INPUT_JIT; // 2 inputs fit, 3 overflow
             let mbc = i32::try_from(limit_jit / 10).unwrap();

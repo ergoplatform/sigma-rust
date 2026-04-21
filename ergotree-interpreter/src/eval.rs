@@ -134,11 +134,14 @@ pub struct ReductionResult {
 const EVAL_SIGMA_PROP_CONSTANT: u32 = 50;
 
 /// Short-circuit for trees whose proposition is a plain SigmaProp constant.
-/// Returns `Some(sigma_bool)` for such trees (e.g. non-segregated P2PK where
-/// `ErgoTree::proposition()` already substitutes placeholders into
-/// `Expr::Const(SSigmaProp)`); returns `None` when full evaluation is required.
-/// Segregated trees (where the top-level is still `Expr::ConstPlaceholder`)
-/// fall through and will be handled once the IR carries resolved constants.
+/// Returns `Some(sigma_bool)` for both forms:
+///
+/// * non-segregated P2PK where the root is already `Expr::Const(SSigmaProp)`,
+/// * segregated P2PK where the root is `Expr::ConstPlaceholder` with a
+///   `resolved` SSigmaProp constant (populated by
+///   `ErgoTree::proposition_for_cost_eval`).
+///
+/// Returns `None` when full evaluation is required.
 fn trivial_reduce(expr: &Expr) -> Option<SigmaBoolean> {
     match expr {
         Expr::Const(c) if c.tpe == SType::SSigmaProp => c
@@ -146,6 +149,14 @@ fn trivial_reduce(expr: &Expr) -> Option<SigmaBoolean> {
             .try_extract_into::<SigmaProp>()
             .ok()
             .map(|sp| sp.into()),
+        Expr::ConstPlaceholder(cp) => match &cp.resolved {
+            Some(c) if c.tpe == SType::SSigmaProp => c
+                .clone()
+                .try_extract_into::<SigmaProp>()
+                .ok()
+                .map(|sp| sp.into()),
+            _ => None,
+        },
         _ => None,
     }
 }
@@ -188,7 +199,7 @@ pub fn reduce_to_crypto(tree: &ErgoTree, ctx: &Context) -> Result<ReductionResul
     }
 
     let cost_before = ctx.jit_cost_value();
-    let expr = tree.proposition()?;
+    let expr = tree.proposition_for_cost_eval()?;
     let expr = if tree.has_deserialize() {
         expr.substitute_deserialize(ctx)?
     } else {
@@ -599,12 +610,13 @@ mod test {
 
     #[test]
     fn jit_cost_trivial_prop() {
-        // { true } => Constant(5) = JitCost(5) => block cost 0 (5/10 rounds down)
+        // try_from puts a Boolean Const in a segregated v0(true) tree, so the
+        // root becomes a ConstPlaceholder = JitCost(1) => block cost 0.
         let tree = ErgoTree::try_from(Expr::Const(true.into())).unwrap();
         let ctx = force_any_val::<Context>();
         let res = reduce_to_crypto(&tree, &ctx).unwrap();
         assert_eq!(res.sigma_prop, SigmaBoolean::TrivialProp(true));
-        assert_eq!(res.cost, 0); // JitCost 5 / 10 = 0
+        assert_eq!(res.cost, 0); // JitCost 1 / 10 = 0
     }
 
     #[test]
@@ -640,10 +652,13 @@ mod test {
 
     #[test]
     fn jit_cost_limit_exceeded() {
-        // Set a very low cost limit and verify that evaluation returns CostError
+        // Set a zero cost limit and verify that evaluation returns CostError.
+        // The tree is segregated (Boolean Const → v0(true)), so its single
+        // ConstPlaceholder eval charges 1 JitCost; any positive limit would
+        // accept it. Limit 0 catches the very first cost addition.
         let tree = ErgoTree::try_from(Expr::Const(true.into())).unwrap();
         let mut ctx = force_any_val::<Context>();
-        ctx.jit_cost_limit = Some(1); // limit of 1 JitCost unit — Constant(5) will exceed it
+        ctx.jit_cost_limit = Some(0);
         let res = reduce_to_crypto(&tree, &ctx);
         assert!(res.is_err());
         let is_cost_error = match res.unwrap_err() {
@@ -652,6 +667,48 @@ mod test {
             _ => false,
         };
         assert!(is_cost_error, "Expected CostError");
+    }
+
+    // Bug 1 regression: in a constant-segregated tree, every reference to a
+    // constant is a ConstPlaceholder node, not an inline Const. Scala prices
+    // these differently: ConstPlaceholder = 1 JitCost, Const = 5 JitCost.
+    // Pre-fix, `ErgoTree::proposition()` substituted placeholders into Const
+    // nodes before eval, so segregated trees paid 5 JIT per constant — a
+    // 5× overcharge on every reference. Post-fix,
+    // `proposition_for_cost_eval()` preserves the placeholder nodes and the
+    // eval arm charges 1 JIT per placeholder.
+    #[test]
+    fn segregated_constants_charge_1_not_5_per_placeholder() {
+        // Segregated: a Boolean Const goes through `ErgoTree::try_from`'s
+        // v0(true) branch, so the root is a ConstPlaceholder.
+        let segregated = ErgoTree::try_from(Expr::Const(true.into())).unwrap();
+        let ctx_seg = force_any_val::<Context>();
+        let before_seg = ctx_seg.jit_cost_value();
+        reduce_to_crypto(&segregated, &ctx_seg).unwrap();
+        assert_eq!(
+            ctx_seg.jit_cost_value() - before_seg,
+            1,
+            "segregated ConstPlaceholder eval must charge JitCost(1); pre-fix \
+             charged JitCost(5) via the substituted Const.",
+        );
+
+        // Non-segregated: a SigmaProp Const goes through try_from's v0(false)
+        // branch. It's also short-circuited by trivial_reduce (Phase 8), which
+        // pays EVAL_SIGMA_PROP_CONSTANT = 50 JitCost. The contrast proves the
+        // 1-vs-5 per-node distinction isn't masked by something collapsing the
+        // placeholder-aware path with the Const path.
+        use ergotree_ir::sigma_protocol::sigma_boolean::ProveDlog;
+        let sp = SigmaProp::from(force_any_val::<ProveDlog>());
+        let non_segregated = ErgoTree::try_from(Expr::Const(sp.into())).unwrap();
+        let ctx_ns = force_any_val::<Context>();
+        let before_ns = ctx_ns.jit_cost_value();
+        reduce_to_crypto(&non_segregated, &ctx_ns).unwrap();
+        assert_eq!(
+            ctx_ns.jit_cost_value() - before_ns,
+            50,
+            "non-segregated SigmaProp Const must short-circuit to \
+             EVAL_SIGMA_PROP_CONSTANT = 50.",
+        );
     }
 
     // Bug 2 regression: a tree whose proposition is a plain SigmaProp constant

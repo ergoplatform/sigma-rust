@@ -49,9 +49,15 @@ impl Evaluable for Expr {
             Expr::BlockValue(op) => op.expr().eval(env, ctx),
             Expr::SelectField(op) => op.eval(env, ctx),
             Expr::ExtractAmount(op) => op.eval(env, ctx),
-            Expr::ConstPlaceholder(_) => Err(EvalError::UnexpectedExpr(
-                ("ConstPlaceholder is not supported").to_string(),
-            )),
+            Expr::ConstPlaceholder(cp) => match &cp.resolved {
+                Some(c) => {
+                    ctx.add_jit_cost(1)?; // ConstPlaceholder = Fixed(1)
+                    Ok(Value::from(c.v.clone()))
+                }
+                None => Err(EvalError::UnexpectedExpr(
+                    "ConstPlaceholder without resolved value".to_string(),
+                )),
+            },
             Expr::Collection(op) => op.eval(env, ctx),
             Expr::ValDef(_) => Err(EvalError::UnexpectedExpr(
                 ("ValDef should be evaluated in BlockValue").to_string(),
