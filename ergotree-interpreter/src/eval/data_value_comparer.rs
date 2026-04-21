@@ -12,19 +12,19 @@ use ergotree_ir::types::stype::SType;
 use super::EvalError;
 
 // --- Fixed per-type equality costs (JitCost units) ---
-const EQ_PRIM_COST: u32 = 3;
-const EQ_BIGINT_COST: u32 = 5;
-const EQ_GROUP_ELEMENT_COST: u32 = 172;
-const EQ_TUPLE_COST: u32 = 4;
-const EQ_OPTION_COST: u32 = 4;
-const EQ_AVL_TREE_COST: u32 = 6;
-const EQ_BOX_COST: u32 = 6;
-const EQ_PREHEADER_COST: u32 = 4;
-const EQ_HEADER_COST: u32 = 6;
+const EQ_PRIM_COST: u64 = 3;
+const EQ_BIGINT_COST: u64 = 5;
+const EQ_GROUP_ELEMENT_COST: u64 = 172;
+const EQ_TUPLE_COST: u64 = 4;
+const EQ_OPTION_COST: u64 = 4;
+const EQ_AVL_TREE_COST: u64 = 6;
+const EQ_BOX_COST: u64 = 6;
+const EQ_PREHEADER_COST: u64 = 4;
+const EQ_HEADER_COST: u64 = 6;
 
 // MatchType dispatch cost for collection equality. Charged first, before the
 // length-mismatch short-circuit so the dispatch itself is always paid for.
-const COLL_MATCH_TYPE_COST: u32 = 1;
+const COLL_MATCH_TYPE_COST: u64 = 1;
 
 // Per-element collection equality costs as (base, per_chunk, chunk_size),
 // matching `Context::add_per_item_jit_cost`'s argument shape.

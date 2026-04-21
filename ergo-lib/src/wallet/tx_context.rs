@@ -10,12 +10,12 @@ use crate::chain::transaction::ergo_transaction::{ErgoTransaction, TxValidationE
 use crate::chain::transaction::storage_rent::try_spend_storage_rent;
 use crate::chain::transaction::{Transaction, TransactionError};
 use crate::ergotree_ir::chain::ergo_box::BoxId;
-use ergotree_interpreter::eval::{reduce_to_crypto, EvalError};
+use ergotree_interpreter::eval::reduce_to_crypto;
 use ergotree_interpreter::sigma_protocol::crypto_cost::estimate_crypto_cost;
 use ergotree_interpreter::sigma_protocol::verifier::{
     verify_signature, VerificationResult, VerifierError,
 };
-use ergotree_ir::chain::context::{CostLimitExceeded, TxIoVec};
+use ergotree_ir::chain::context::TxIoVec;
 use ergotree_ir::chain::ergo_box::box_value::BoxValue;
 use ergotree_ir::chain::ergo_box::{BoxTokens, ErgoBox};
 use ergotree_ir::chain::token::{TokenAmount, TokenId};
@@ -213,7 +213,7 @@ impl TransactionContext<Transaction> {
         );
         let init_cost_jit = init_cost_block.saturating_mul(10);
         context
-            .add_jit_cost_u64(init_cost_jit)
+            .add_jit_cost(init_cost_jit)
             .map_err(|_| TxValidationError::InitCostExceeded(init_cost_jit))?;
 
         let mut total_cost: u64 = init_cost_block;
@@ -240,18 +240,9 @@ impl TransactionContext<Transaction> {
                 .map_err(|e| TxValidationError::VerifierError(input_idx, e.into()))?;
 
             // Charge sigma-protocol verification cost through the same shared
-            // accumulator (gap S3). `estimate_crypto_cost` is u64 while
-            // `add_jit_cost` takes u32; realistic sigma props stay well under
-            // u32::MAX but we surface any overflow as a CostLimitExceeded.
+            // accumulator (gap S3).
             let crypto_cost_jit = estimate_crypto_cost(&reduction.sigma_prop);
-            let crypto_cost_u32 = u32::try_from(crypto_cost_jit).map_err(|_| {
-                let limit = context.jit_cost_limit.unwrap_or(u64::MAX);
-                TxValidationError::VerifierError(
-                    input_idx,
-                    VerifierError::EvalError(EvalError::from(CostLimitExceeded(limit))),
-                )
-            })?;
-            context.add_jit_cost(crypto_cost_u32).map_err(|e| {
+            context.add_jit_cost(crypto_cost_jit).map_err(|e| {
                 TxValidationError::VerifierError(input_idx, VerifierError::EvalError(e.into()))
             })?;
 

@@ -131,7 +131,7 @@ pub struct ReductionResult {
 /// JIT cost for a script that trivially reduces to a SigmaProp constant (e.g.
 /// bare P2PK). Scala's `EvalSigmaPropConstant` charges 50 JitCost; pre-fix we
 /// only paid the generic `Expr::Const` cost of 5 JitCost.
-const EVAL_SIGMA_PROP_CONSTANT: u32 = 50;
+const EVAL_SIGMA_PROP_CONSTANT: u64 = 50;
 
 /// Short-circuit for trees whose proposition is a plain SigmaProp constant.
 /// Returns `Some(sigma_bool)` for both forms:
