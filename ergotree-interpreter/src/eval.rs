@@ -45,6 +45,7 @@ pub(crate) mod costs;
 pub(crate) mod create_avl_tree;
 pub(crate) mod create_prove_dh_tuple;
 pub(crate) mod create_provedlog;
+pub(crate) mod data_value_comparer;
 pub(crate) mod decode_point;
 mod deserialize_context;
 mod deserialize_register;
